@@ -30,8 +30,10 @@ fn formats(tools: &DocumentsMcpTools) -> String {
         out.push_str(&format!("\n{format}: {}", kinds.join(", ")));
     }
     out.push_str(
-        "\nExport: native as url everywhere; html as preview everywhere; md or html as url \
-         only for a document already in that format; pdf is unsupported_format.",
+        "\nExport: native as url everywhere; pdf as url everywhere (rendered from the outline: \
+         headings, paragraphs, lists, tables, sheet grids, one page per slide; images omitted); \
+         html as preview everywhere; md or html as url only for a document already in that \
+         format.",
     );
     out
 }

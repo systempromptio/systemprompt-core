@@ -1,6 +1,6 @@
 //! A link opens the stored file, so a link in another format is offered only
-//! when the document already is that format. No codec renders PDF, so a PDF
-//! export is refused as `unsupported_format`.
+//! when the document already is that format, except PDF: a `pdf` url is a
+//! link to the revision rendered by the core PDF renderer, for every format.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -18,32 +18,34 @@ use super::outputs::ExportOutput;
 use super::preview::preview_resource_uri;
 use super::refusal::refusal;
 use super::support::{caller, tool_error};
-use crate::documents::download::{DownloadTarget, signed_download_url};
+use crate::documents::download::{DownloadTarget, Rendition, signed_download_url};
 use crate::documents::refusal::RefusalCode;
 
 enum Plan {
-    Link,
+    Link(Rendition),
     Preview,
 }
 
 fn plan(input: &ExportInput, format: DocumentFormat) -> Result<Plan, McpError> {
     match (input.format, input.export_as) {
         (ExportFormat::Native | ExportFormat::Html, ExportAs::Preview) => Ok(Plan::Preview),
-        (ExportFormat::Native, ExportAs::Url) => Ok(Plan::Link),
-        (ExportFormat::Md, ExportAs::Url) if format == DocumentFormat::Markdown => Ok(Plan::Link),
-        (ExportFormat::Html, ExportAs::Url) if format == DocumentFormat::Html => Ok(Plan::Link),
-        (ExportFormat::Pdf, _) => Err(refusal(
+        (ExportFormat::Native, ExportAs::Url) => Ok(Plan::Link(Rendition::Native)),
+        (ExportFormat::Pdf, ExportAs::Url) => Ok(Plan::Link(Rendition::Pdf)),
+        (ExportFormat::Md, ExportAs::Url) if format == DocumentFormat::Markdown => {
+            Ok(Plan::Link(Rendition::Native))
+        },
+        (ExportFormat::Html, ExportAs::Url) if format == DocumentFormat::Html => {
+            Ok(Plan::Link(Rendition::Native))
+        },
+        (ExportFormat::Pdf, ExportAs::Preview) => Err(refusal(
             RefusalCode::UnsupportedFormat,
-            format!(
-                "no codec renders {format} documents as PDF; export native as url, or html as \
-                 preview"
-            ),
+            "pdf exports as url only; export pdf as url, or html as preview".to_owned(),
         )),
         (_, _) => Err(refusal(
             RefusalCode::UnsupportedFormat,
             format!(
-                "a {format} document exports as url only in its own format; export native as \
-                 url, or html as preview"
+                "a {format} document exports as url only in its own format or as pdf; export \
+                 native or pdf as url, or html as preview"
             ),
         )),
     }
@@ -94,7 +96,7 @@ impl McpToolHandler for ExportHandler<'_> {
     }
 
     fn description(&self) -> &'static str {
-        "Export as a signed download url or an HTML preview."
+        "Export as a signed download url (native or pdf) or an HTML preview."
     }
 
     fn read_only(&self) -> bool {
@@ -110,10 +112,11 @@ impl McpToolHandler for ExportHandler<'_> {
         let who = caller(ctx)?;
         let (format, revision) = revision(self.tools, who, &input, ctx).await?;
         match plan(&input, format)? {
-            Plan::Link => {
+            Plan::Link(rendition) => {
                 let (url, expires_at) = signed_download_url(
                     self.tools.token_authority(),
                     DownloadTarget {
+                        rendition,
                         base_url: self.tools.api_external_url(),
                         user: who,
                         session_id: ctx.session_id(),

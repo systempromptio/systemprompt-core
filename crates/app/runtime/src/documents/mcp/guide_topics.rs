@@ -143,8 +143,8 @@ pub(super) const fn refusal_text(code: RefusalCode) -> &'static str {
              what insert_after takes. See topic formats."
         },
         RefusalCode::UnsupportedFormat => {
-            "unsupported_format: no codec handles the requested format; export native as url, \
-             or html as preview."
+            "unsupported_format: no codec handles the requested format; export native or pdf \
+             as url, or html as preview."
         },
         RefusalCode::TemplateFailed => {
             "template_failed: the template could not be instantiated; the text names the \

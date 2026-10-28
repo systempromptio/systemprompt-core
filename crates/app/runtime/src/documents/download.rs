@@ -8,7 +8,8 @@
 //! The content route verifies it with
 //! `verify_bearer(token, &[JwtAudience::Resource(DOWNLOAD_AUDIENCE)])`,
 //! checks the purpose against the requested path and then authorizes the
-//! read as the token's subject.
+//! read as the token's subject. A `format=pdf` query on the same URL serves
+//! the revision rendered as PDF under the same token.
 //!
 //! [`TokenAuthority`]: systemprompt_models::auth::TokenAuthority
 //!
@@ -24,6 +25,8 @@ use systemprompt_models::modules::ApiPaths;
 
 pub const DOWNLOAD_AUDIENCE: &str = "documents.download";
 pub const DOWNLOAD_TOKEN_QUERY: &str = "access_token";
+pub const DOWNLOAD_FORMAT_QUERY: &str = "format";
+pub const DOWNLOAD_FORMAT_PDF: &str = "pdf";
 pub const DOWNLOAD_TTL: Duration = Duration::minutes(10);
 
 #[must_use]
@@ -36,8 +39,15 @@ pub fn download_purpose(document: &DocumentId, revision: &DocumentRevisionId) ->
 #[error("the download link could not be signed")]
 pub struct DownloadLinkError(#[source] TokenError);
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Rendition {
+    Native,
+    Pdf,
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct DownloadTarget<'a> {
+    pub rendition: Rendition,
     pub base_url: &'a str,
     pub user: &'a AuthenticatedUser,
     pub session_id: &'a SessionId,
@@ -63,8 +73,12 @@ pub fn signed_download_url(
     let token = authority
         .mint_user_jwt(&request)
         .map_err(DownloadLinkError)?;
+    let rendition = match target.rendition {
+        Rendition::Native => String::new(),
+        Rendition::Pdf => format!("&{DOWNLOAD_FORMAT_QUERY}={DOWNLOAD_FORMAT_PDF}"),
+    };
     let url = format!(
-        "{base}{path}/{document}/content?revision={revision}&{DOWNLOAD_TOKEN_QUERY}={token}",
+        "{base}{path}/{document}/content?revision={revision}{rendition}&{DOWNLOAD_TOKEN_QUERY}={token}",
         base = target.base_url.trim_end_matches('/'),
         path = ApiPaths::DOCUMENTS,
         document = target.document,
