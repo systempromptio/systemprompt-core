@@ -102,7 +102,7 @@ impl DocumentService {
             };
             match self.access.probe_with(check, pairs).await {
                 Ok(_) => folders.push(child),
-                Err(DocumentsError::Forbidden { .. }) => {},
+                Err(DocumentsError::Forbidden { .. } | DocumentsError::NotFound { .. }) => {},
                 Err(other) => return Err(other),
             }
         }

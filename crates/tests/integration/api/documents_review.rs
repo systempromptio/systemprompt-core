@@ -54,11 +54,23 @@ fn str_of(value: &Value, field: &str) -> String {
 async fn a_proposal_is_listed_read_accepted_once_and_a_second_is_rejected() -> Result<()> {
     let (pool, _ctx, state) = fixture().await?;
     let owner = seed_bridge_credential(&pool, "docs-proposals").await?;
+    let editor = seed_bridge_credential(&pool, "docs-proposals-editor").await?;
     let created = create_markdown(&state, &owner).await?;
     let id = id_of(&created);
     let head = head_of(&created);
+    let share = json!({
+        "subject_kind": "user",
+        "subject_value": editor.user_id.as_str(),
+        "level": "edit"
+    });
+    let added = send(
+        app(&state, &owner),
+        json_request(Method::POST, &format!("/{id}/grants"), &share),
+    )
+    .await?;
+    assert_eq!(added.status, StatusCode::CREATED, "{}", added.json());
 
-    let first = propose(&state, &owner, &id, "first suggestion").await?;
+    let first = propose(&state, &editor, &id, "first suggestion").await?;
     assert_eq!(first.status, StatusCode::CREATED, "{}", first.json());
     let proposal = first.json()["proposal"].clone();
     let pid = str_of(&proposal, "id");
@@ -146,7 +158,7 @@ async fn a_proposal_is_listed_read_accepted_once_and_a_second_is_rejected() -> R
     assert_eq!(again.status, StatusCode::CONFLICT, "{}", again.json());
     assert_eq!(again.json()["error_key"], "proposal_closed");
 
-    let second = propose(&state, &owner, &id, "second suggestion").await?;
+    let second = propose(&state, &editor, &id, "second suggestion").await?;
     assert_eq!(second.status, StatusCode::CREATED, "{}", second.json());
     let second_id = str_of(&second.json()["proposal"], "id");
     let rejected = send(
@@ -541,10 +553,20 @@ async fn folders_nest_rename_govern_move_and_refuse_a_non_recursive_delete() -> 
 
     let listed = send(
         folders(&state, &owner),
-        empty(Method::GET, &format!("/?folder_id={parent_id}")),
+        empty(Method::GET, &format!("/?folder={parent_id}")),
     )
     .await?;
     assert_eq!(listed.status, StatusCode::OK, "{}", listed.json());
+    let children = listed.json()["folders"]
+        .as_array()
+        .map(|folders| {
+            folders
+                .iter()
+                .map(|folder| str_of(folder, "id"))
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    assert_eq!(children, vec![child_id.clone()], "{}", listed.json());
 
     let refused = send(
         folders(&state, &owner),
