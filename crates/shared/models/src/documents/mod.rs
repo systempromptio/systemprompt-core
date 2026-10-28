@@ -14,6 +14,7 @@
 
 pub mod access;
 pub mod awareness;
+pub mod collab_events;
 pub mod comment_events;
 pub mod drive;
 pub mod events;
@@ -37,10 +38,10 @@ pub use drive::{
     DriveManifest, DriveProposal, DriveProposals, PresenceBeacon, PresenceSource, PresenceState,
 };
 pub use events::{
-    DocumentAccessRequestedEvent, DocumentCollabUpdateEvent, DocumentCommentCreatedEvent,
-    DocumentCommentResolvedEvent, DocumentConflictEvent, DocumentEventName, DocumentLockEvent,
-    DocumentOwnershipTransferredEvent, DocumentPresenceEvent, DocumentProposalEvent,
-    DocumentRevisionCreatedEvent, DocumentSharedEvent, SHARED_EVENT_VERSION,
+    DocumentAccessRequestedEvent, DocumentCollabDegradedEvent, DocumentCollabUpdateEvent,
+    DocumentCommentCreatedEvent, DocumentCommentResolvedEvent, DocumentConflictEvent,
+    DocumentEventName, DocumentLockEvent, DocumentOwnershipTransferredEvent, DocumentPresenceEvent,
+    DocumentProposalEvent, DocumentRevisionCreatedEvent, DocumentSharedEvent, SHARED_EVENT_VERSION,
 };
 pub use systemprompt_provider_contracts::documents::{
     CellValue, ContentAs, DocumentFormat, EditOp, NodeKind, NodeTarget, Projection, ProjectionNode,

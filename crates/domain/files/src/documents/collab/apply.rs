@@ -60,14 +60,11 @@ impl CollabService {
         engine
             .check_update(&request.update)
             .map_err(CollabError::InvalidUpdate)?;
-        let models = check_on_fork(entry.doc.as_ref(), &request.update, level)?;
+        check_on_fork(entry.doc.as_ref(), &request.update, level)?;
         let seq = self
             .log_update(&mut entry, &request.update, &who.id)
             .await?;
         entry.record_activity(Some(who));
-        if let Some((before, after)) = &models {
-            entry.images.record(before, after, &who.id);
-        }
         let version = entry.doc.version();
         if entry.unsnapshotted >= self.tuning.snapshot_after_updates {
             self.snapshot(&mut entry).await?;
@@ -118,13 +115,7 @@ impl CollabService {
     }
 }
 
-/// Checks the update on a fork; a rich-text update answers the models
-/// before and after it, so the caller can record the images it placed.
-fn check_on_fork(
-    doc: &dyn EngineDoc,
-    update: &[u8],
-    level: EditLevel,
-) -> Result<Option<(RichText, RichText)>, CollabError> {
+fn check_on_fork(doc: &dyn EngineDoc, update: &[u8], level: EditLevel) -> Result<(), CollabError> {
     let mut draft = doc.fork();
     draft
         .apply_update(update)
@@ -137,13 +128,12 @@ fn check_on_fork(
                 ModelView::Body(_) => RichText::default(),
             };
             validate(&before, &after, level, &Limits::default())
-                .map_err(CollabError::UpdateRejected)?;
-            Ok(Some((before, after)))
+                .map_err(CollabError::UpdateRejected)
         },
         after if level == EditLevel::Comment && after != before => Err(
             CollabError::UpdateRejected(ModelRejection::BeyondCommentLevel),
         ),
-        ModelView::Body(_) => Ok(None),
+        ModelView::Body(_) => Ok(()),
     }
 }
 

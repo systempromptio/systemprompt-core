@@ -41,7 +41,7 @@ const CONFLICT_MESSAGE: &str = "Live edit session body that conflicted with the 
 impl CollabService {
     pub(super) async fn snapshot(&self, entry: &mut CollabEntry) -> Result<(), CollabError> {
         self.catch_up(entry).await?;
-        let bytes = entry.doc.snapshot()?;
+        let bytes = entry.images.seal(&entry.doc.snapshot()?);
         let version = entry.doc.version();
         let blob = self.documents.blobs().put(&bytes).await?;
         let moved = self
@@ -84,10 +84,12 @@ impl CollabService {
         let live = self
             .admit_live(entry.format, &owners, &base_bytes, exported)
             .await;
-        if live.degraded
-            && let Err(error) = self.write_back(entry, who, &live.model, trace).await
+        if !live.refused.is_empty()
+            && let Err(error) = self
+                .notify_degraded(entry, who, live.refused.clone(), trace)
+                .await
         {
-            tracing::warn!(%error, "placeholder could not be written into the live document");
+            tracing::warn!(%error, "degraded checkpoint could not be announced");
         }
         let unchanged = unchanged_from(entry.format, &base_bytes, &live.model, &live.media)
             .inspect_err(|error| {

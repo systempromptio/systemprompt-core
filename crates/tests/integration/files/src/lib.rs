@@ -14,6 +14,8 @@ mod documents_blob_store;
 #[cfg(test)]
 mod documents_collab;
 #[cfg(test)]
+mod documents_collab_images;
+#[cfg(test)]
 mod documents_collab_settle;
 #[cfg(test)]
 mod documents_collab_timer;

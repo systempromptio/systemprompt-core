@@ -1,17 +1,17 @@
 use systemprompt_files::documents::codecs::docx::{
-    import_rich, materialise_rich, materialise_rich_with,
+    blank_docx, import_rich, materialise_rich, materialise_rich_with, saved_upload_hashes,
 };
 use systemprompt_files::documents::collab::ImageOwners;
 use systemprompt_files::documents::model::layout::{Margins, Section};
 use systemprompt_files::documents::model::{
-    Block, BlockKind, EditLevel, Limits, ModelRejection, RichText, validate,
+    Block, BlockKind, EditLevel, Limits, Media, MediaBlob, ModelRejection, RichText, validate,
 };
 use systemprompt_files::documents::service::held_media_refs;
 use systemprompt_identifiers::UserId;
-use systemprompt_provider_contracts::documents::DocumentFormat;
+use systemprompt_provider_contracts::documents::{DocumentFormat, content_hash};
 
 use super::docx_fixture::{entries, fixture, package_with, part};
-use super::model_docx_roundtrip::{BLOB, media, written};
+use super::model_docx_roundtrip::{BLOB, media, png, written};
 
 fn raw_block(id: &str) -> Block {
     Block::new(
@@ -205,13 +205,38 @@ fn an_edited_mid_body_break_keeps_its_untouched_children() {
     assert!(xml.contains("w:header=\"708\""));
 }
 
-#[test]
-fn a_saved_docx_upload_counts_as_held() {
-    assert!(held_media_refs(DocumentFormat::Docx, &written()).contains(&BLOB.to_owned()));
+fn with_upload(reference: &str, bytes: Vec<u8>) -> Vec<u8> {
+    let image = BlockKind::image(reference.to_owned(), String::new());
+    let model = RichText::of(vec![Block::new("img", image, "")]);
+    let mut media = Media::new();
+    media.insert(
+        reference.to_owned(),
+        MediaBlob {
+            bytes,
+            mime: "image/png".to_owned(),
+        },
+    );
+    materialise_rich_with(&blank_docx().expect("blank"), &model, &media).expect("materialise")
 }
 
 #[test]
-fn an_image_keeps_its_inserting_editor_when_another_editor_types() {
+fn a_saved_docx_upload_counts_as_held() {
+    let bytes = png(64, 32);
+    let hash = content_hash(&bytes).as_str().to_owned();
+    let saved = with_upload(&hash, bytes);
+    assert!(held_media_refs(DocumentFormat::Docx, &saved).contains(&hash));
+}
+
+#[test]
+fn a_part_named_for_another_upload_is_not_held() {
+    let other = "1111111111111111111111111111111111111111111111111111111111111111";
+    let crafted = with_upload(other, png(8, 8));
+    assert!(saved_upload_hashes(&crafted).is_empty());
+    assert!(!held_media_refs(DocumentFormat::Docx, &crafted).contains(&other.to_owned()));
+}
+
+#[test]
+fn an_image_keeps_the_editor_the_log_records_as_its_inserter() {
     let alice = UserId::new("alice");
     let bob = UserId::new("bob");
     let typed = RichText::of(vec![Block::new("p1", BlockKind::Paragraph, "Notes")]);
@@ -226,7 +251,25 @@ fn an_image_keeps_its_inserting_editor_when_another_editor_types() {
     let mut owners = ImageOwners::default();
     owners.record(&typed, &inserted, &alice);
     owners.record(&inserted, &more, &bob);
-    let placing = owners.owners(BLOB);
-    assert_eq!(placing.first(), Some(&alice));
-    assert!(placing.contains(&bob), "every session editor may place it too");
+    assert_eq!(owners.owner(BLOB), Some(&alice));
+}
+
+#[test]
+fn a_rebuilt_entry_keeps_its_image_owners() {
+    let alice = UserId::new("alice");
+    let mut inserted = RichText::default();
+    inserted.blocks.push(Block::new(
+        "img",
+        BlockKind::image(BLOB.to_owned(), String::new()),
+        "",
+    ));
+    let mut owners = ImageOwners::default();
+    owners.record(&RichText::default(), &inserted, &alice);
+    let blob = owners.seal(b"engine-snapshot");
+    let (reopened, snapshot) = ImageOwners::open(&blob);
+    assert_eq!(snapshot, b"engine-snapshot");
+    assert_eq!(reopened, owners);
+    let (legacy, raw) = ImageOwners::open(b"engine-snapshot");
+    assert_eq!(raw, b"engine-snapshot");
+    assert_eq!(legacy.owner(BLOB), None);
 }

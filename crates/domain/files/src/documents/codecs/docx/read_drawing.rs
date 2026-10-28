@@ -9,11 +9,16 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::io::{Cursor, Read};
+
+use systemprompt_provider_contracts::documents::content_hash;
+use zip::ZipArchive;
+
+use super::parts::read_part;
+use super::read::ReadCtx;
 use crate::documents::codecs::xml_tree::Element;
 use crate::documents::model::BlockKind;
 use crate::documents::model::layout::ImageWrap;
-
-use super::read::ReadCtx;
 
 pub(super) const EMU_PER_PX: u64 = 9525;
 
@@ -113,4 +118,39 @@ pub(super) fn image_type(bytes: &[u8]) -> Option<(&'static str, &'static str)> {
     } else {
         None
     }
+}
+
+/// The uploads a package holds as `word/media/sp-<hash>.<ext>` whose bytes
+/// really hash to `<hash>`. A part named for someone else's upload but
+/// holding other bytes is not one, so it can never stand in for that
+/// upload.
+pub fn saved_upload_hashes(bytes: &[u8]) -> Vec<String> {
+    let Ok(mut archive) = ZipArchive::new(Cursor::new(bytes)) else {
+        return Vec::new();
+    };
+    let names: Vec<String> = archive
+        .file_names()
+        .filter_map(Result::ok)
+        .filter(|name| name.starts_with("word/media/sp-"))
+        .map(std::borrow::Cow::into_owned)
+        .collect();
+    names
+        .into_iter()
+        .filter_map(|name| {
+            let stem = name.strip_prefix("word/media/sp-")?.split('.').next()?.to_owned();
+            let mut content = Vec::new();
+            archive.by_name(&name).ok()?.read_to_end(&mut content).ok()?;
+            (content_hash(&content).as_str() == stem).then_some(stem)
+        })
+        .collect()
+}
+
+/// The picture part a package holds for upload `hash`, by its target
+/// relative to `word/`, when the part's bytes hash to `hash`.
+pub(super) fn saved_upload_target(bytes: &[u8], hash: &str) -> Option<String> {
+    ["png", "jpeg", "gif"].iter().find_map(|extension| {
+        let target = format!("media/sp-{hash}.{extension}");
+        let content = read_part(bytes, &format!("word/{target}")).ok()??;
+        (content_hash(&content).as_str() == hash).then_some(target)
+    })
 }

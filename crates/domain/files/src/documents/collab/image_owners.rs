@@ -1,31 +1,37 @@
-//! Who placed each uploaded image in a live session.
+//! Who inserted each uploaded image of a live session.
 //!
-//! An update that adds an image reference records its editor as the
-//! image's owner in the session; any later editor (someone who only types)
-//! does not change it. A checkpoint asks the uploads service whether any
-//! of the image's owners, or any editor of the session, uploaded it, so an
-//! image A inserted survives a checkpoint B's typing triggers.
+//! Owners are derived from the shared update log, which stores the editor
+//! of every update: each update a replica imports (catch-up, rebuild or its
+//! own apply) records its editor as the owner of every image reference the
+//! update added. Later editors (someone who only types) never change an
+//! owner, and only the recorded inserter's upload may place an image.
+//!
+//! A snapshot prunes the log it covers, so the owners travel inside the
+//! snapshot blob as an envelope ([`ImageOwners::seal`],
+//! [`ImageOwners::open`]): a magic line, the owners as JSON with its
+//! length, then the engine snapshot. A snapshot written before owners
+//! existed has no envelope and opens with none.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
+use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::UserId;
 
 use crate::documents::model::{RichText, media_refs};
 
-const MAX_EDITORS: usize = 64;
+const MAGIC: &[u8] = b"SPOWNERS1\n";
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ImageOwners {
-    by_ref: HashMap<String, UserId>,
-    editors: Vec<UserId>,
+    by_ref: BTreeMap<String, UserId>,
 }
 
 impl ImageOwners {
     /// Records `editor` as the owner of every image `after` holds that
-    /// `before` did not, and as an editor of the session.
+    /// `before` did not; an image already owned keeps its owner.
     pub fn record(&mut self, before: &RichText, after: &RichText, editor: &UserId) {
         let held = media_refs(before);
         for reference in media_refs(after) {
@@ -35,21 +41,44 @@ impl ImageOwners {
                     .or_insert_with(|| editor.clone());
             }
         }
-        if !self.editors.contains(editor) && self.editors.len() < MAX_EDITORS {
-            self.editors.push(editor.clone());
-        }
     }
 
-    /// Everyone whose upload may place `reference`: the editor who inserted
-    /// it first, then every editor of the session.
+    /// The editor who inserted `reference`, if the log recorded one.
     #[must_use]
-    pub fn owners(&self, reference: &str) -> Vec<UserId> {
-        let mut owners: Vec<UserId> = self.by_ref.get(reference).cloned().into_iter().collect();
-        for editor in &self.editors {
-            if !owners.contains(editor) {
-                owners.push(editor.clone());
-            }
-        }
-        owners
+    pub fn owner(&self, reference: &str) -> Option<&UserId> {
+        self.by_ref.get(reference)
+    }
+
+    /// A snapshot blob: the owners, then the engine snapshot.
+    #[must_use]
+    pub fn seal(&self, snapshot: &[u8]) -> Vec<u8> {
+        let owners = serde_json::to_vec(self).unwrap_or_default();
+        let len = u32::try_from(owners.len()).unwrap_or(0);
+        let mut out = Vec::with_capacity(MAGIC.len() + 4 + owners.len() + snapshot.len());
+        out.extend_from_slice(MAGIC);
+        out.extend_from_slice(&len.to_be_bytes());
+        out.extend_from_slice(&owners[..len as usize]);
+        out.extend_from_slice(snapshot);
+        out
+    }
+
+    /// The owners and the engine snapshot of a snapshot blob.
+    #[must_use]
+    pub fn open(blob: &[u8]) -> (Self, &[u8]) {
+        let Some(rest) = blob.strip_prefix(MAGIC) else {
+            return (Self::default(), blob);
+        };
+        let Some((len, rest)) = rest.split_first_chunk::<4>() else {
+            return (Self::default(), blob);
+        };
+        let len = u32::from_be_bytes(*len) as usize;
+        let Some((owners, snapshot)) = rest.split_at_checked(len) else {
+            return (Self::default(), blob);
+        };
+        let owners = serde_json::from_slice(owners).unwrap_or_else(|error| {
+            tracing::warn!(%error, "edit session image owners unreadable; starting with none");
+            Self::default()
+        });
+        (owners, snapshot)
     }
 }

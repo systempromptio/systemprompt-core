@@ -1,24 +1,23 @@
 //! The images a live checkpoint may place, and a materialise that never
 //! wedges a session on one.
 //!
-//! An uploaded image is placed when its inserting editor or any editor of
-//! the session uploaded it ([`ImageOwners`]), or when the revision the
-//! checkpoint builds on already holds it (a docx holds a saved upload as
-//! `media/sp-<hash>.<ext>`). Any other image is degraded to a placeholder
-//! paragraph, and the placeholder is written back into the live document as
-//! an ordinary update, so every editor sees it and the next checkpoint is
-//! stable. The admitted bytes are read once per checkpoint and serve both
-//! the unchanged check and the write.
+//! An uploaded image is placed when the editor the update log records as
+//! its inserter uploaded it ([`ImageOwners`]), or when the revision the
+//! checkpoint builds on already holds it (a docx part whose bytes hash to
+//! the reference). Any other image is saved as a placeholder paragraph in
+//! the checkpoint's bytes only: the live document keeps the image, so a
+//! wrong refusal recovers on the next checkpoint, and the editors get a
+//! `document.collab.degraded` event. The admitted bytes are read once per
+//! checkpoint and serve both the unchanged check and the write.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_identifiers::TraceId;
 use systemprompt_models::auth::AuthenticatedUser;
-use systemprompt_models::documents::{DocumentAction, DocumentFormat};
+use systemprompt_models::documents::{DocumentAction, DocumentCollabDegradedEvent, DocumentFormat};
 use systemprompt_provider_contracts::documents::CodecError;
 
-use super::apply::update_event;
 use super::document::{ModelError, materialise};
 use super::entry::CollabEntry;
 use super::image_owners::ImageOwners;
@@ -32,7 +31,9 @@ pub(super) struct LiveModel {
     pub(super) model: ModelView,
     pub(super) media: Media,
     held: Vec<String>,
-    pub(super) degraded: bool,
+    /// The images saved as placeholders; the live document still holds
+    /// them, so a later checkpoint saves them once they are admitted.
+    pub(super) refused: Vec<String>,
 }
 
 impl CollabService {
@@ -50,12 +51,13 @@ impl CollabService {
                     model: other,
                     media: Media::new(),
                     held: Vec::new(),
-                    degraded: false,
+                    refused: Vec::new(),
                 };
             },
         };
         let held = held_media_refs(format, base_bytes);
-        let owners_of = |reference: &str| owners.owners(reference);
+        let owners_of =
+            |reference: &str| owners.owner(reference).cloned().into_iter().collect::<Vec<_>>();
         let admitted = self
             .documents
             .admit_media(self.uploads.as_deref(), &owners_of, media_refs(&rich), &held)
@@ -64,39 +66,37 @@ impl CollabService {
             tracing::warn!(
                 %format,
                 blob = %refused,
-                "live checkpoint left out an image no editor of the session may place"
+                "live checkpoint saved a placeholder for an image its inserter may not place"
             );
         }
-        let degraded = placeholders(&mut rich, &admitted.refused);
+        placeholders(&mut rich, &admitted.refused);
         LiveModel {
             model: ModelView::RichText(rich),
             media: admitted.media,
             held,
-            degraded,
+            refused: admitted.refused,
         }
     }
 
-    /// Writes a degraded model back into the live document as an update
-    /// every editor receives, so the placeholder is what they see.
-    pub(super) async fn write_back(
+    /// Tells the session's editors which images a checkpoint saved as
+    /// placeholders; the live document itself is left as it is.
+    pub(super) async fn notify_degraded(
         &self,
-        entry: &mut CollabEntry,
+        entry: &CollabEntry,
         who: &AuthenticatedUser,
-        model: &ModelView,
+        images: Vec<String>,
         trace: &TraceId,
     ) -> Result<(), CollabError> {
-        let Some(update) = entry.doc.update_to_model(model)? else {
-            return Ok(());
-        };
-        let seq = self.log_update(entry, &update, &who.id).await?;
         let document = self
             .authorized(who, &entry.session.document_id, DocumentAction::View, trace)
             .await?;
-        self.broadcast(
-            &document,
-            update_event(&document, &entry.session.id, seq, &update, &who.id),
-        )
-        .await;
+        let to = self.recipients(&document).await;
+        let event = DocumentCollabDegradedEvent {
+            document_id: document.id.clone(),
+            edit_session_id: entry.session.id.clone(),
+            images,
+        };
+        self.documents.events().collab_degraded(&to, &event).await?;
         Ok(())
     }
 }

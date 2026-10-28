@@ -16,6 +16,7 @@ use systemprompt_identifiers::{
 
 use super::access::{ActorKind, ProposalStatus, RevisionOriginKind};
 use super::awareness::DocumentAwarenessEvent;
+pub use super::collab_events::{DocumentCollabDegradedEvent, DocumentCollabUpdateEvent};
 use super::comment_events::{
     DocumentCommentDeletedEvent, DocumentCommentMentionedEvent, DocumentCommentUpdatedEvent,
 };
@@ -64,10 +65,12 @@ pub enum DocumentEventName {
     Awareness,
     #[serde(rename = "document.access_requested")]
     AccessRequested,
+    #[serde(rename = "document.collab.degraded")]
+    CollabDegraded,
 }
 
 impl DocumentEventName {
-    pub const ALL: [Self; 18] = [
+    pub const ALL: [Self; 19] = [
         Self::RevisionCreated,
         Self::Presence,
         Self::Lock,
@@ -86,6 +89,7 @@ impl DocumentEventName {
         Self::ProposalSuperseded,
         Self::Awareness,
         Self::AccessRequested,
+        Self::CollabDegraded,
     ];
 
     #[must_use]
@@ -109,6 +113,7 @@ impl DocumentEventName {
             Self::ProposalSuperseded => DocumentProposalEvent::SUPERSEDED,
             Self::Awareness => DocumentAwarenessEvent::NAME,
             Self::AccessRequested => DocumentAccessRequestedEvent::NAME,
+            Self::CollabDegraded => DocumentCollabDegradedEvent::NAME,
         }
     }
 
@@ -180,19 +185,11 @@ impl DocumentConflictEvent {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-pub struct DocumentCollabUpdateEvent {
-    pub document_id: DocumentId,
-    pub edit_session_id: DocumentEditSessionId,
-    pub seq: i64,
-    pub update_b64: String,
-    pub author_id: UserId,
-}
-
-impl DocumentCollabUpdateEvent {
-    pub const NAME: &'static str = "document.collab.update";
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[expect(
+    clippy::struct_field_names,
+    reason = "the document event wire vocabulary names every reference document_id, comment_id, \
+              node_id, parent_id and author_id, as the sibling events do"
+)]
 pub struct DocumentCommentCreatedEvent {
     pub document_id: DocumentId,
     pub comment_id: DocumentCommentId,

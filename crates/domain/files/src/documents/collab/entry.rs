@@ -70,7 +70,7 @@ impl CollabService {
             }
             self.cache_remove(&document.id);
         }
-        let doc = self.load_doc(document, session).await?;
+        let (doc, images) = self.load_doc(document, session).await?;
         let built = Arc::new(Mutex::new(CollabEntry {
             session: session.clone(),
             format: document.format,
@@ -81,7 +81,7 @@ impl CollabService {
             checkpoint_due_from: None,
             last_editor: None,
             touched: Instant::now(),
-            images: ImageOwners::default(),
+            images,
             checkpoint_failures: 0,
             checkpoint_retry_at: None,
         }));
@@ -92,12 +92,13 @@ impl CollabService {
         &self,
         document: &Document,
         session: &DocumentEditSession,
-    ) -> Result<Box<dyn EngineDoc>, CollabError> {
+    ) -> Result<(Box<dyn EngineDoc>, ImageOwners), CollabError> {
         let engine = self.engine()?;
         let limit = self.documents.config().max_upload_bytes;
         if let Some(hash) = &session.snapshot_sha256 {
             let bytes = self.documents.blobs().read_all(hash, u64::MAX).await?;
-            return Ok(engine.open(&bytes)?);
+            let (owners, snapshot) = ImageOwners::open(&bytes);
+            return Ok((engine.open(snapshot)?, owners));
         }
         let model = match &session.base_revision_id {
             Some(revision) => {
@@ -106,7 +107,7 @@ impl CollabService {
             },
             None => ModelView::RichText(RichText::default()),
         };
-        Ok(engine.seed(&model)?)
+        Ok((engine.seed(&model)?, ImageOwners::default()))
     }
 
     pub(super) async fn revision_bytes(
@@ -139,7 +140,13 @@ impl CollabService {
             .list_after(&entry.session.id, entry.last_seq)
             .await?;
         for row in rows {
+            let before = entry.doc.export_model();
             entry.doc.apply_update(&row.update)?;
+            if let (ModelView::RichText(before), ModelView::RichText(after)) =
+                (&before, &entry.doc.export_model())
+            {
+                entry.images.record(before, after, &row.author_user_id);
+            }
             entry.last_seq = entry.last_seq.max(row.seq);
         }
         Ok(())
