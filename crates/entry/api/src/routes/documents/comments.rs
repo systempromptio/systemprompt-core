@@ -13,7 +13,7 @@ use systemprompt_files::documents::models::CommentAnchor;
 use systemprompt_files::documents::service::{CommentRequest, ResolveCommentRequest};
 use systemprompt_identifiers::{DocumentCommentId, DocumentNodeId, DocumentRevisionId};
 use systemprompt_models::RequestContext;
-use systemprompt_runtime::documents::mcp::{CommentItem, CommentOutput};
+use systemprompt_runtime::documents::views::{CommentItem, CommentOutput, comments_view};
 
 use super::DocumentsState;
 use super::caller::caller;
@@ -27,10 +27,9 @@ pub(super) async fn list(
 ) -> DocumentsResult<Json<CommentOutput>> {
     let who = caller(&state, &req_ctx).await?;
     let id = document_id(&id)?;
-    let comments = state.service.comments(&who.user, &id, &who.trace).await?;
-    Ok(Json(CommentOutput {
-        comments: comments.into_iter().map(CommentItem::from).collect(),
-    }))
+    Ok(Json(
+        comments_view(&state.service, &who.user, &id, &who.trace).await?,
+    ))
 }
 
 #[derive(Debug, Deserialize)]

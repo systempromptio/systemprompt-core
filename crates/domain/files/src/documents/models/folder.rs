@@ -1,4 +1,5 @@
-//! Folder rows and the folder insert request.
+//! Folder rows and the folder insert request. A trashed folder carries
+//! `trashed_at`, stored in the `document_folders.deleted_at` column.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -17,7 +18,7 @@ pub struct DocumentFolder {
     pub created_by: UserId,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
-    pub deleted_at: Option<DateTime<Utc>>,
+    pub trashed_at: Option<DateTime<Utc>>,
     pub agent_edit_policy: AgentEditPolicy,
 }
 

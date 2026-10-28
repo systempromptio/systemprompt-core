@@ -60,11 +60,13 @@ impl DocumentService {
             .find(&stored.ack.revision_id)
             .await?
             .ok_or_else(|| DocumentsError::not_found("revision", &stored.ack.revision_id))?;
+        let document = self.load_document(&revision.document_id).await?;
+        let projection = self.projected(&document, &revision).await?.ids;
         let merged = stored.ack.merged_from.is_some();
         let landed = Box::new(LandedCommit {
             revision,
             ack: stored.ack,
-            projection: None,
+            projection,
             replayed: true,
             warnings: Vec::new(),
         });

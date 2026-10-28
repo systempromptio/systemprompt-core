@@ -19,7 +19,7 @@ use super::guide_topics::{
 };
 use super::inputs::GuideInput;
 use super::outputs::GuideOutput;
-use super::refusal::RefusalCode;
+use crate::documents::refusal::RefusalCode;
 
 fn formats(tools: &DocumentsMcpTools) -> String {
     let service = tools.service();

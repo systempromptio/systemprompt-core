@@ -11,9 +11,9 @@ use systemprompt_mcp::McpToolHandler;
 use systemprompt_models::execution::context::RequestContext;
 
 use super::DocumentsMcpTools;
-use super::access_records::AccessOutput;
 use super::inputs::AccessInput;
 use super::support::{caller, tool_error};
+use crate::documents::views::{AccessOutput, access_view};
 
 #[derive(Debug, Clone, Copy)]
 pub struct AccessHandler<'a> {
@@ -43,12 +43,15 @@ impl McpToolHandler for AccessHandler<'_> {
         _exec_id: &McpExecutionId,
     ) -> Result<(AccessOutput, String), McpError> {
         let who = caller(ctx)?;
-        let access = self
-            .tools
-            .service()
-            .access_of(who, &input.document_id, input.history, ctx.trace_id())
-            .await
-            .map_err(tool_error)?;
+        let access = access_view(
+            self.tools.service(),
+            who,
+            &input.document_id,
+            input.history,
+            ctx.trace_id(),
+        )
+        .await
+        .map_err(tool_error)?;
         let summary = format!(
             "owner {}, {} grants, {} inherited, {} open requests; you hold {}",
             access.owner,
@@ -57,6 +60,6 @@ impl McpToolHandler for AccessHandler<'_> {
             access.requests.len(),
             access.my_access
         );
-        Ok((AccessOutput::from(access), summary))
+        Ok((access, summary))
     }
 }

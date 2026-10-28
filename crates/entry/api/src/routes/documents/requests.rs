@@ -22,7 +22,7 @@ use systemprompt_models::RequestContext;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::documents::AccessLevel;
 use systemprompt_runtime::documents::active_user_display;
-use systemprompt_runtime::documents::mcp::AccessRequestItem;
+use systemprompt_runtime::documents::views::AccessRequestItem;
 
 use crate::error::ApiHttpError;
 
@@ -60,23 +60,6 @@ pub(super) async fn with_request_hint<T: IntoResponse>(
     }
 }
 
-fn request_error(error: DocumentsError) -> DocumentsHttpError {
-    let message = error.to_string();
-    let api = match error {
-        DocumentsError::AccessRequestOpen { .. } => {
-            ApiError::conflict(message).with_error_key("access_request_open")
-        },
-        DocumentsError::AccessRequestClosed { .. } => {
-            ApiError::conflict(message).with_error_key("access_request_closed")
-        },
-        DocumentsError::AccessRequestNotNeeded { .. } => {
-            ApiError::bad_request(message).with_error_key("access_request_not_needed")
-        },
-        other => return other.into(),
-    };
-    ApiHttpError::from(api).into()
-}
-
 #[derive(Debug, Deserialize)]
 pub(super) struct RequestBody {
     level: AccessLevel,
@@ -102,8 +85,7 @@ pub(super) async fn create(
                 message: body.message,
             },
         )
-        .await
-        .map_err(request_error)?;
+        .await?;
     Ok((StatusCode::CREATED, Json(AccessRequestItem::from(request))).into_response())
 }
 
@@ -161,7 +143,6 @@ async fn decide(
     let decided = state
         .service
         .decide_access_request(&who.user, request, &who.trace)
-        .await
-        .map_err(request_error)?;
+        .await?;
     Ok(Json(AccessRequestItem::from(decided)))
 }

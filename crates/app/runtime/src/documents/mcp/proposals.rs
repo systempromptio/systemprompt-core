@@ -21,11 +21,12 @@ use systemprompt_models::execution::context::RequestContext;
 
 use super::DocumentsMcpTools;
 use super::inputs::{ProposalAction, ProposalsInput};
-use super::lines::written_lines;
-use super::outputs::{EditOutput, ProposalItem, ProposalsOutput, ReviewOutput};
-use super::refusal::{RefusalCode, refusal};
+use super::outputs::{ProposalItem, ProposalsOutput, ReviewOutput};
+use super::refusal::refusal;
 use super::support::{agent_author, caller, tool_error};
 use super::write::EditCall;
+use crate::documents::refusal::RefusalCode;
+use crate::documents::views::{EditOutput, written_lines};
 
 pub(super) async fn propose_ops(call: EditCall<'_>) -> Result<(EditOutput, String), McpError> {
     let applied = call.ops.len();

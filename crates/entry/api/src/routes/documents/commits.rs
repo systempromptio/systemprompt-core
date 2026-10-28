@@ -1,6 +1,7 @@
 //! Commits: raw-byte writes with an `If-Match` base and node-guarded edit
 //! ops, answered with the new revision (with `merged_from` when the head
-//! moved under the write) or a 409 naming head and base. An `op_id` (query
+//! moved under the write) or a 409 `stale_base` naming head, its content hash
+//! and base under `detail`. An `op_id` (query
 //! parameter on a byte write, body field on edits) makes the write
 //! idempotent: the commit stores its acknowledgement in its own transaction,
 //! and a repeat of the same request (over REST or MCP) answers it with
@@ -26,11 +27,12 @@ use systemprompt_identifiers::{DocumentCommentId, DocumentId, DocumentOpId, Docu
 use systemprompt_models::RequestContext;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::documents::{ActorKind, EditMode, EditOp};
+use systemprompt_runtime::documents::refusal::stale_base;
 
 use super::DocumentsState;
 use super::caller::{api_author, caller};
 use super::content::request_context;
-use super::error::{DocumentsResult, conflict_response};
+use super::error::{DocumentsResult, refused_response, status_of};
 use super::headers::{base_revision, etag};
 use super::items::document_id;
 use super::proposals::proposed_response;
@@ -65,19 +67,14 @@ pub(super) fn outcome_response(outcome: CommitOutcome, document: &DocumentId) ->
         CommitOutcome::Committed(landed) | CommitOutcome::Merged(landed) => {
             landed_response(*landed)
         },
-        CommitOutcome::Conflict { head, base } => {
-            let error = DocumentsError::Conflict {
+        CommitOutcome::Conflict { head, base } => refused_response(
+            status_of(&DocumentsError::Conflict {
                 document_id: document.clone(),
                 head: head.id.clone(),
                 base: base.clone(),
-            };
-            conflict_response(
-                error.to_string(),
-                &head.id,
-                Some(&head.content_sha256),
-                base.as_ref(),
-            )
-        },
+            }),
+            stale_base(document, &head, base.as_ref()),
+        ),
     }
 }
 

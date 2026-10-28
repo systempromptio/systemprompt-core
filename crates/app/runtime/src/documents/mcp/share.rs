@@ -14,11 +14,12 @@ use systemprompt_models::execution::context::RequestContext;
 use crate::documents::{active_user_display, subject_display};
 
 use super::DocumentsMcpTools;
-use super::access_records::GrantItem;
 use super::inputs::ShareInput;
 use super::outputs::ShareOutput;
-use super::refusal::{RefusalCode, refusal};
+use super::refusal::refusal;
 use super::support::{caller, tool_error};
+use crate::documents::refusal::RefusalCode;
+use crate::documents::views::GrantItem;
 
 #[derive(Debug, Clone, Copy)]
 pub struct ShareHandler<'a> {

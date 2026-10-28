@@ -12,7 +12,7 @@ use axum::{Extension, Json};
 use systemprompt_files::documents::models::GrantTarget;
 use systemprompt_identifiers::DocumentFolderId;
 use systemprompt_models::RequestContext;
-use systemprompt_runtime::documents::mcp::AccessOutput;
+use systemprompt_runtime::documents::views::{AccessOutput, folder_access_view};
 
 use super::DocumentsState;
 use super::access::HistoryQuery;
@@ -61,9 +61,7 @@ pub(super) async fn access(
 ) -> DocumentsResult<Json<AccessOutput>> {
     let who = caller(&state, &req_ctx).await?;
     let id = DocumentFolderId::try_new(&id)?;
-    let access = state
-        .service
-        .folder_access_of(&who.user, &id, query.history, &who.trace)
-        .await?;
-    Ok(Json(AccessOutput::from(access)))
+    let access =
+        folder_access_view(&state.service, &who.user, &id, query.history, &who.trace).await?;
+    Ok(Json(access))
 }

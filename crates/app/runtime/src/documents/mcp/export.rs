@@ -13,12 +13,13 @@ use systemprompt_models::documents::DocumentFormat;
 use systemprompt_models::execution::context::RequestContext;
 
 use super::DocumentsMcpTools;
-use super::download::{DownloadTarget, signed_download_url};
 use super::inputs::{ExportAs, ExportFormat, ExportInput};
 use super::outputs::ExportOutput;
 use super::preview::preview_resource_uri;
-use super::refusal::{RefusalCode, refusal};
+use super::refusal::refusal;
 use super::support::{caller, tool_error};
+use crate::documents::download::{DownloadTarget, signed_download_url};
+use crate::documents::refusal::RefusalCode;
 
 enum Plan {
     Link,
@@ -119,7 +120,11 @@ impl McpToolHandler for ExportHandler<'_> {
                         document: &input.document_id,
                         revision: &revision,
                     },
-                )?;
+                )
+                .map_err(|error| {
+                    tracing::error!(error = %error, cause = ?std::error::Error::source(&error), "document download token was not minted");
+                    McpError::internal_error("the download link could not be signed", None)
+                })?;
                 let summary = format!("download link valid until {}", expires_at.to_rfc3339());
                 Ok((
                     ExportOutput {

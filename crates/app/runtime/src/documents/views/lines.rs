@@ -1,4 +1,4 @@
-//! Hashline rendering of a projection for `documents_read`.
+//! Hashline rendering of a projection for the read views.
 //!
 //! A line is `<node id>:<hash8>| <text>`; a spreadsheet cell renders as
 //! `<sheet>!<cell>:<hash8>| <value>`. The hash is the anchor an edit quotes
@@ -14,15 +14,13 @@
 
 use std::collections::HashMap;
 
-use rmcp::ErrorData as McpError;
-use systemprompt_identifiers::{DocumentNodeId, DocumentRevisionId};
+use systemprompt_files::documents::DocumentsError;
 use systemprompt_models::documents::{NodeKind, Projection, ProjectionNode};
 
 use systemprompt_files::documents::nodes::path_of;
 
-use super::inputs::{NodeRange, ReadInput, ReadView};
-use super::refusal::{Refusal, RefusalCode};
-use super::views::{node_lines, outline, search_lines};
+use super::outline::{node_lines, outline, search_lines};
+use super::types::{NodeRange, ReadInput, ReadView};
 
 pub const MAX_LINES: usize = 2000;
 pub const MAX_WRITTEN: usize = 100;
@@ -33,25 +31,18 @@ pub struct RenderedLines {
     pub truncated: bool,
 }
 
-pub fn render(
-    projection: &Projection,
-    input: &ReadInput,
-    revision: &DocumentRevisionId,
-) -> Result<RenderedLines, McpError> {
+pub fn render(projection: &Projection, input: &ReadInput) -> Result<RenderedLines, DocumentsError> {
     let lines = match input.view {
         ReadView::Text | ReadView::Changes | ReadView::Meta => structured(projection, shows),
         ReadView::Outline => outline(projection),
-        ReadView::Node => node_lines(projection, input.node_id.as_ref(), revision)?,
+        ReadView::Node => node_lines(projection, input.node_id.as_ref())?,
         ReadView::Search => search_lines(projection, input.text.as_deref())?,
         ReadView::Range => {
-            let range = input.range.as_ref().ok_or_else(|| {
-                McpError::invalid_params(
-                    "view range needs range.from_node and range.to_node; read the outline for \
-                     node ids",
-                    None,
-                )
+            let range = input.range.as_ref().ok_or(DocumentsError::InvalidParams {
+                detail: "view range needs range.from_node and range.to_node; read the outline \
+                         for node ids",
             })?;
-            range_lines(projection, range, revision)?
+            range_lines(projection, range)?
         },
         ReadView::Cells => cell_lines(projection, input.sheet.as_deref(), input.cells.as_deref())?,
     };
@@ -75,7 +66,7 @@ pub fn structured_line(node: &ProjectionNode, slide: usize) -> String {
     format!("{}:{}| {shown}", node.id.as_str(), node.hash8)
 }
 
-pub(super) fn structured(
+pub(crate) fn structured(
     projection: &Projection,
     mut keep: impl FnMut(&ProjectionNode) -> bool,
 ) -> Vec<String> {
@@ -91,7 +82,7 @@ pub(super) fn structured(
         .collect()
 }
 
-pub(super) fn shows(node: &ProjectionNode) -> bool {
+pub(crate) fn shows(node: &ProjectionNode) -> bool {
     node.text.is_some() || node.kind == NodeKind::Slide
 }
 
@@ -132,20 +123,16 @@ pub(super) const fn is_outline(kind: NodeKind) -> bool {
     )
 }
 
-pub(super) fn truncate(mut lines: Vec<String>) -> RenderedLines {
+pub(crate) fn truncate(mut lines: Vec<String>) -> RenderedLines {
     let truncated = lines.len() > MAX_LINES;
     lines.truncate(MAX_LINES);
     RenderedLines { lines, truncated }
 }
 
-fn range_lines(
-    projection: &Projection,
-    range: &NodeRange,
-    revision: &DocumentRevisionId,
-) -> Result<Vec<String>, McpError> {
+fn range_lines(projection: &Projection, range: &NodeRange) -> Result<Vec<String>, DocumentsError> {
     for node in [&range.from_node, &range.to_node] {
         if projection.find(node).is_none() {
-            return Err(unknown_node(node, revision));
+            return Err(DocumentsError::UnknownNode { node: node.clone() });
         }
     }
     let mut inside = false;
@@ -158,22 +145,11 @@ fn range_lines(
     }))
 }
 
-pub(super) fn unknown_node(node: &DocumentNodeId, revision: &DocumentRevisionId) -> McpError {
-    Refusal {
-        node: Some(node.clone()),
-        ..Refusal::new(RefusalCode::NotFound)
-    }
-    .into_error(format!(
-        "node {node} does not exist in revision {revision}; read the outline again for current \
-         node ids"
-    ))
-}
-
 fn cell_lines(
     projection: &Projection,
     sheet: Option<&str>,
     cells: Option<&str>,
-) -> Result<Vec<String>, McpError> {
+) -> Result<Vec<String>, DocumentsError> {
     let bounds = cells.map(parse_range).transpose()?;
     Ok(projection
         .nodes()
@@ -203,12 +179,9 @@ pub fn split_cell_id(id: &str) -> Option<(&str, &str)> {
 
 type Cell = (u32, u32);
 
-fn parse_range(range: &str) -> Result<(Cell, Cell), McpError> {
-    let invalid = || {
-        McpError::invalid_params(
-            format!("cells \"{range}\" is not an A1 cell or range such as B7 or A1:C9"),
-            None,
-        )
+fn parse_range(range: &str) -> Result<(Cell, Cell), DocumentsError> {
+    let invalid = || DocumentsError::InvalidParams {
+        detail: "cells is not an A1 cell or range such as B7 or A1:C9",
     };
     let (start, end) = range.split_once(':').unwrap_or((range, range));
     let start = parse_cell(start).ok_or_else(invalid)?;

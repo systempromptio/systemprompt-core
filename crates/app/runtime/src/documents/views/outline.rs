@@ -13,12 +13,12 @@
 
 use std::collections::HashMap;
 
-use rmcp::ErrorData as McpError;
+use systemprompt_files::documents::DocumentsError;
 use systemprompt_files::documents::nodes::{ChangeItem, NodeChanges, changes};
-use systemprompt_identifiers::{DocumentNodeId, DocumentRevisionId};
+use systemprompt_identifiers::DocumentNodeId;
 use systemprompt_models::documents::{NodeKind, Projection, ProjectionNode};
 
-use super::lines::{is_outline, shows, structured, structured_line, unknown_node};
+use super::lines::{is_outline, shows, structured, structured_line};
 
 const FOLD_AFTER: usize = 3;
 
@@ -66,17 +66,13 @@ pub fn outline(projection: &Projection) -> Vec<String> {
 pub fn node_lines(
     projection: &Projection,
     node: Option<&DocumentNodeId>,
-    revision: &DocumentRevisionId,
-) -> Result<Vec<String>, McpError> {
-    let node = node.ok_or_else(|| {
-        McpError::invalid_params(
-            "view node needs node_id; read the outline for node ids",
-            None,
-        )
+) -> Result<Vec<String>, DocumentsError> {
+    let node = node.ok_or(DocumentsError::InvalidParams {
+        detail: "view node needs node_id; read the outline for node ids",
     })?;
     let found = projection
         .find(node)
-        .ok_or_else(|| unknown_node(node, revision))?;
+        .ok_or_else(|| DocumentsError::UnknownNode { node: node.clone() })?;
     let subtree = Projection {
         format: projection.format,
         root: vec![found.clone()],
@@ -85,10 +81,15 @@ pub fn node_lines(
     Ok(structured(&subtree, |n| shows(n) || n.id == *node))
 }
 
-pub fn search_lines(projection: &Projection, text: Option<&str>) -> Result<Vec<String>, McpError> {
+pub fn search_lines(
+    projection: &Projection,
+    text: Option<&str>,
+) -> Result<Vec<String>, DocumentsError> {
     let needle = text
         .filter(|text| !text.trim().is_empty())
-        .ok_or_else(|| McpError::invalid_params("view search needs text to find", None))?
+        .ok_or(DocumentsError::InvalidParams {
+            detail: "view search needs text to find",
+        })?
         .to_lowercase();
     let contains = |node: &ProjectionNode| {
         node.text

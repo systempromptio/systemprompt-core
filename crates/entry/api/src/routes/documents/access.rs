@@ -15,7 +15,7 @@ use systemprompt_files::documents::service::TransferRequest;
 use systemprompt_identifiers::UserId;
 use systemprompt_models::RequestContext;
 use systemprompt_runtime::documents::active_user_display;
-use systemprompt_runtime::documents::mcp::AccessOutput;
+use systemprompt_runtime::documents::views::access_view;
 
 use crate::error::ApiHttpError;
 
@@ -40,11 +40,9 @@ pub(super) async fn access(
 ) -> DocumentsResult<Response> {
     let who = caller(&state, &req_ctx).await?;
     let id = document_id(&id)?;
-    let access = state
-        .service
-        .access_of(&who.user, &id, query.history, &who.trace)
+    let access = access_view(&state.service, &who.user, &id, query.history, &who.trace)
         .await
-        .map(|access| Json(AccessOutput::from(access)))
+        .map(Json)
         .map_err(DocumentsHttpError::from);
     with_request_hint(&state, &who, &id, access).await
 }

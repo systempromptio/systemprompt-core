@@ -15,9 +15,10 @@ use systemprompt_models::execution::context::RequestContext;
 
 use super::DocumentsMcpTools;
 use super::inputs::{CommentAction, CommentInput};
-use super::records::{CommentItem, CommentOutput};
-use super::refusal::{RefusalCode, refusal};
+use super::refusal::refusal;
 use super::support::{caller, tool_error};
+use crate::documents::refusal::RefusalCode;
+use crate::documents::views::{CommentOutput, comments_view};
 
 #[derive(Debug, Clone, Copy)]
 pub struct CommentHandler<'a> {
@@ -111,17 +112,14 @@ impl McpToolHandler for CommentHandler<'_> {
         let output = match input.action {
             CommentAction::Create => self.create(who, input, ctx).await?,
             CommentAction::Resolve => self.resolve(who, input, ctx).await?,
-            CommentAction::List => CommentOutput {
-                comments: self
-                    .tools
-                    .service()
-                    .comments(who, &input.document_id, ctx.trace_id())
-                    .await
-                    .map_err(tool_error)?
-                    .into_iter()
-                    .map(CommentItem::from)
-                    .collect(),
-            },
+            CommentAction::List => comments_view(
+                self.tools.service(),
+                who,
+                &input.document_id,
+                ctx.trace_id(),
+            )
+            .await
+            .map_err(tool_error)?,
         };
         let summary = format!("{} comments", output.comments.len());
         Ok((output, summary))

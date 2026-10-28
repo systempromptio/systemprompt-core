@@ -15,29 +15,22 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod access;
-mod access_records;
-mod acks;
 mod browse;
 mod comment;
-mod download;
 mod export;
 mod guide;
 mod guide_topics;
 mod inputs;
 mod lifecycle;
-mod lines;
 mod listing;
 mod outputs;
 mod preview;
 mod proposals;
 mod read;
-mod read_meta;
 mod records;
 mod refusal;
 mod share;
 mod support;
-mod tool_error;
-mod views;
 mod write;
 
 use std::sync::Arc;
@@ -55,44 +48,31 @@ use systemprompt_models::execution::context::RequestContext;
 use systemprompt_users::UserRepository;
 
 pub use access::AccessHandler;
-pub use access_records::{
-    AccessOutput, AccessRequestItem, GrantEventItem, GrantItem, InheritedFrom,
-};
 pub use browse::{HistoryHandler, ListHandler, SearchHandler};
 pub use comment::CommentHandler;
-pub use download::{
-    DOWNLOAD_AUDIENCE, DOWNLOAD_TOKEN_QUERY, DOWNLOAD_TTL, DownloadTarget, download_purpose,
-    signed_download_url,
-};
 pub use export::ExportHandler;
 pub use guide::GuideHandler;
 pub use inputs::{
-    AccessInput, CommentAction, CommentInput, CopyInput, CreateInput, DocumentInput, EditInput,
-    ExportAs, ExportFormat, ExportInput, GuideInput, HistoryInput, ListInput, ListScopeInput,
-    ListSortInput, NodeRange, ProposalAction, ProposalsInput, QuoteAnchor, ReadInput, ReadView,
-    SearchInput, ShareInput, UpdateInput,
+    AccessInput, CommentAction, CommentInput, CopyInput, CreateInput, DocumentInput, EditInput, ExportAs,
+    ExportFormat, ExportInput, GuideInput, HistoryInput, ListInput, ListScopeInput, ListSortInput,
+    ProposalAction, ProposalsInput, QuoteAnchor, SearchInput, ShareInput, UpdateInput,
 };
-pub use lifecycle::{CopyHandler, RestoreHandler, TrashHandler, UpdateHandler};
-pub use lines::{
-    MAX_LINES, MAX_WRITTEN, RenderedLines, parse_cell, render, split_cell_id, structured_line,
-    written_lines,
-};
+pub use lifecycle::{CopyHandler, TrashHandler, UntrashHandler, UpdateHandler};
 pub use outputs::{
-    CreateOutput, DocumentItem, DocumentMeta, EditOutput, EditingNow, ExportOutput, FolderItem,
-    GuideOutput, HistoryOutput, ListOutput, ProposalItem, ProposalsOutput, ReadOutput,
-    ReviewOutput, RevisionAttributionItem, RevisionItem, SearchHit, SearchOutput, ShareOutput,
+    CreateOutput, DocumentItem, ExportOutput, FolderItem, GuideOutput, HistoryOutput, ListOutput,
+    ProposalItem, ProposalsOutput, ReviewOutput, RevisionAttributionItem, RevisionItem, SearchHit,
+    SearchOutput, ShareOutput,
 };
 pub use preview::{
     PREVIEW_RESOURCE_NAME, preview_resource, preview_resource_list, preview_resource_uri,
     preview_template, preview_tool_meta, read_preview_resource,
 };
 pub use proposals::ProposalsHandler;
-pub use read::{ReadHandler, read_view};
-pub use records::{CommentAnchorItem, CommentItem, CommentOutput, DocumentAck};
-pub use refusal::{Refusal, RefusalCode, refusal, refusal_code, refusal_result};
+pub use read::ReadHandler;
+pub use records::DocumentAck;
+pub use refusal::{refusal, refusal_code, refusal_result, refused_error};
 pub use share::ShareHandler;
 pub use support::tool_error;
-pub use views::{change_lines, node_lines, outline, proposal_lines, search_lines};
 pub use write::{CreateHandler, EditHandler};
 
 use support::run;
@@ -113,7 +93,7 @@ pub const TOOL_NAMES: [&str; 16] = [
     "documents_copy",
     "documents_update",
     "documents_trash",
-    "documents_restore_document",
+    "documents_untrash",
     "documents_export",
     "documents_guide",
 ];
@@ -266,9 +246,7 @@ impl DocumentsMcpTools {
             "documents_copy" => Box::pin(run(call, &CopyHandler { tools: self })).await,
             "documents_update" => Box::pin(run(call, &UpdateHandler { tools: self })).await,
             "documents_trash" => Box::pin(run(call, &TrashHandler { tools: self })).await,
-            "documents_restore_document" => {
-                Box::pin(run(call, &RestoreHandler { tools: self })).await
-            },
+            "documents_untrash" => Box::pin(run(call, &UntrashHandler { tools: self })).await,
             "documents_export" => Box::pin(run(call, &ExportHandler { tools: self })).await,
             "documents_guide" => Box::pin(run(call, &GuideHandler { tools: self })).await,
             other => Err(McpError::invalid_params(

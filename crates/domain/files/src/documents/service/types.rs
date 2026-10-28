@@ -188,13 +188,14 @@ pub enum CommitWarning {
 }
 
 /// A revision a commit landed, with the acknowledgement stored for it.
-/// `projection` is the new head's id-addressed projection; a replayed
-/// acknowledgement (`replayed`) carries none.
+/// `projection` is the landed revision's id-addressed projection: the one
+/// the commit built, or for a replayed acknowledgement (`replayed`) the
+/// acknowledged revision's.
 #[derive(Debug, Clone, PartialEq)]
 pub struct LandedCommit {
     pub revision: DocumentRevision,
     pub ack: WriteAck,
-    pub projection: Option<Projection>,
+    pub projection: Projection,
     pub replayed: bool,
     pub warnings: Vec<CommitWarning>,
 }

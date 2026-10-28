@@ -10,17 +10,16 @@
 
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use systemprompt_identifiers::{
     ContentHash, ContextId, DocumentFolderId, DocumentId, DocumentProposalId, DocumentRevisionId,
     SessionId, TaskId, TraceId, UserId,
 };
 use systemprompt_mcp::McpOutputSchema;
 
-use super::access_records::GrantItem;
+use crate::documents::views::{EditOutput, GrantItem, ReadOutput};
 use systemprompt_models::documents::{
-    AccessLevel, ActorKind, DocumentFormat, DocumentUri, PresenceSource, PresenceState,
-    ProposalStatus,
+    AccessLevel, ActorKind, DocumentFormat, DocumentUri, ProposalStatus,
 };
 
 macro_rules! documents_output_impl {
@@ -97,61 +96,7 @@ pub struct CreateOutput {
     pub written: Vec<String>,
 }
 documents_output_impl!(CreateOutput, "documents_create");
-
-#[derive(Debug, Clone, Serialize, JsonSchema)]
-pub struct ReadOutput {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub uri: Option<DocumentUri>,
-    pub revision_id: DocumentRevisionId,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub content_sha256: Option<ContentHash>,
-    pub format: DocumentFormat,
-    pub lines: Vec<String>,
-    #[serde(skip_serializing_if = "std::ops::Not::not")]
-    pub truncated: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub meta: Option<DocumentMeta>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub paths: Vec<String>,
-}
 documents_output_impl!(ReadOutput, "documents_read");
-
-#[derive(Debug, Clone, Serialize, JsonSchema)]
-pub struct DocumentMeta {
-    pub name: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub folder_path: Option<String>,
-    pub access: AccessLevel,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub size_bytes: Option<i64>,
-    pub updated_at: DateTime<Utc>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub editing: Vec<EditingNow>,
-}
-
-#[derive(Debug, Clone, Serialize, JsonSchema)]
-pub struct EditingNow {
-    pub user_id: UserId,
-    pub source: PresenceSource,
-    pub state: PresenceState,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct EditOutput {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub uri: Option<DocumentUri>,
-    pub revision_id: DocumentRevisionId,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub parent_revision_id: Option<DocumentRevisionId>,
-    pub applied: usize,
-    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
-    pub merged: bool,
-    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
-    pub replayed: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub proposal_id: Option<DocumentProposalId>,
-    pub written: Vec<String>,
-}
 documents_output_impl!(EditOutput, "documents_edit");
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]

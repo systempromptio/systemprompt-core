@@ -154,7 +154,7 @@ pub fn router(state: DocumentsState) -> Router {
         .route("/{id}/access", get(access::access))
         .route("/{id}/transfer", post(access::transfer))
         .route("/{id}/grants/all", delete(access::revoke_all))
-        .route("/{id}/restore", post(lifecycle::restore))
+        .route("/{id}/untrash", post(lifecycle::untrash))
         .route("/{id}/copy", post(lifecycle::copy))
         .route("/subject-kinds", get(access::subject_kinds))
         .route("/subjects", get(access::subjects))

@@ -82,7 +82,7 @@ pub enum DocumentsError {
         owner: Option<UserId>,
     },
     #[error(
-        "document {document_id} is in the trash; restore it with documents_restore_document \
+        "document {document_id} is in the trash; restore it with documents_untrash \
          before reading, editing or sharing it"
     )]
     Trashed { document_id: DocumentId },
@@ -96,6 +96,8 @@ pub enum DocumentsError {
     InvalidComment { detail: &'static str },
     #[error("invalid awareness state: {detail}")]
     InvalidAwareness { detail: &'static str },
+    #[error("{detail}")]
+    InvalidParams { detail: &'static str },
     #[error("comment {comment_id} does not belong to document {document_id}")]
     CommentNotFound {
         document_id: DocumentId,

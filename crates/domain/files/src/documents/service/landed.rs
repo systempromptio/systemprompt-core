@@ -89,7 +89,7 @@ impl DocumentService {
         let landed = Box::new(LandedCommit {
             revision: stored.revision,
             ack: stored.ack,
-            projection: Some(stored.ids),
+            projection: stored.ids,
             replayed: false,
             warnings,
         });

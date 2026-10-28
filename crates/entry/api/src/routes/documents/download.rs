@@ -17,7 +17,7 @@ use axum::response::{IntoResponse, Response};
 use systemprompt_identifiers::{DocumentRevisionId, TraceId, UserId};
 use systemprompt_models::api::ApiError;
 use systemprompt_models::auth::JwtAudience;
-use systemprompt_runtime::documents::mcp::{
+use systemprompt_runtime::documents::download::{
     DOWNLOAD_AUDIENCE, DOWNLOAD_TOKEN_QUERY, download_purpose,
 };
 

@@ -2,8 +2,10 @@
 //!
 //! [`DocumentsRuntime`] is built once by the [`AppContext`] builder from the
 //! context's database, file storage, authz hook, subject source and event
-//! router, and reached through [`AppContext::documents`]. [`mcp`] holds the
-//! MCP tool handlers an extension's MCP server binary composes through
+//! router, and reached through [`AppContext::documents`]. [`views`] assembles
+//! the transport-neutral views both surfaces answer with and [`refusal`] the
+//! one refusal vocabulary; [`mcp`] holds the MCP tool handlers an
+//! extension's MCP server binary composes through
 //! [`mcp::DocumentsMcpTools`].
 //!
 //! [`AppContext`]: crate::AppContext
@@ -13,9 +15,15 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod directory;
+/// Signed, short-lived document download links.
+pub mod download;
 /// MCP tool handlers over the document service.
 pub mod mcp;
+/// The refusal vocabulary shared by the MCP tools and the HTTP routes.
+pub mod refusal;
 mod subjects;
+/// Read views, access, comments, proposals and write acks as plain structs.
+pub mod views;
 mod wiring;
 
 pub use directory::UserSubjectDirectory;

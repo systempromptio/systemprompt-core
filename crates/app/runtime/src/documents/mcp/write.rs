@@ -29,12 +29,11 @@ use systemprompt_models::execution::context::RequestContext;
 use systemprompt_provider_contracts::documents::TemplateParams;
 
 use super::DocumentsMcpTools;
-use super::acks::edit_output;
 use super::inputs::{CreateInput, EditInput};
-use super::lines::written_lines;
-use super::outputs::{CreateOutput, EditOutput};
+use super::outputs::CreateOutput;
 use super::proposals::propose_ops;
 use super::support::{agent_author, caller, stale_base, tool_error};
+use crate::documents::views::{EditOutput, edit_ack, written_lines};
 
 pub(super) struct EditCall<'a> {
     pub(super) tools: &'a DocumentsMcpTools,
@@ -94,7 +93,7 @@ async fn commit_ops(call: EditCall<'_>) -> Result<(EditOutput, String), McpError
             return Err(stale_base(&call.document, &head, base.as_ref()));
         },
     };
-    let output = edit_output(&call, landed).await?;
+    let output = edit_ack(&call.document, landed, call.verbose);
     let summary = if output.replayed {
         format!(
             "revision {}: op {} already applied",

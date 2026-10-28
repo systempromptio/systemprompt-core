@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::refusal::RefusalCode;
+use crate::documents::refusal::RefusalCode;
 
 pub(super) const EDITING: &str = "\
 Read: documents_read view outline first; each line is `<node>:<hash>| <text>`, with `# ` per \
@@ -86,7 +86,7 @@ records the edit's revision on the comment.";
 
 pub(super) const LIFECYCLE: &str = "\
 documents_trash {document_id} moves a document to the trash: it leaves listings, and reads, \
-edits and shares refuse not_found with trashed: true. documents_restore_document \
+edits and shares refuse trashed. documents_untrash \
 {document_id} brings it back; trashed documents are deleted for good after the retention \
 period. Both need own. documents_copy {document_id, name?, folder_id?} starts a new document \
 you own from the head, with its own history. documents_update {document_id, name?, \
@@ -113,7 +113,7 @@ pub(super) const fn refusal_text(code: RefusalCode) -> &'static str {
     match code {
         RefusalCode::StaleBase => {
             "stale_base: a restore or whole-file write named a base that is no longer the head; \
-             head_revision, written_by, actor_kind and at say who moved it. The head edit wins: \
+             head_revision, written_by, actor_kind and at say who moved it, base_revision what you sent. The head edit wins: \
              read head_revision, re-aim at the text as it stands, never resend your old text."
         },
         RefusalCode::GuardMismatch => {
@@ -146,8 +146,23 @@ pub(super) const fn refusal_text(code: RefusalCode) -> &'static str {
         },
         RefusalCode::NotFound => {
             "not_found: the document, folder, revision, comment or node does not exist or is \
-             deleted; read the outline again for node ids. trashed: true means the document is \
-             in the trash: documents_restore_document brings it back."
+             deleted; read the outline again for node ids."
+        },
+        RefusalCode::Trashed => {
+            "trashed: the document is in the trash; documents_untrash brings it back before \
+             you read, edit or share it."
+        },
+        RefusalCode::FolderNotEmpty => {
+            "folder_not_empty: the folder still holds documents or folders; move or trash them \
+             first, or delete recursively."
+        },
+        RefusalCode::ProposalClosed => {
+            "proposal_closed: the proposal was already accepted, rejected or superseded; only an \
+             open proposal can be reviewed. List open proposals again."
+        },
+        RefusalCode::IntegrityMismatch => {
+            "integrity_mismatch: the uploaded bytes do not hash to the declared content hash; \
+             the upload was corrupted, send it again."
         },
         RefusalCode::Locked => "locked: another holder has the document locked; wait and retry.",
         RefusalCode::AnchorsAffected => {

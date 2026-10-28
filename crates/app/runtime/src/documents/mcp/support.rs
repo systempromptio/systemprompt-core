@@ -1,16 +1,17 @@
 //! What every handler shares: the caller, the revision author, and the
 //! translation of document errors into tool errors an agent can act on.
 //!
-//! Every [`DocumentsError`] maps to one refusal code here. Refusals keep the
-//! service's Display text, which names the node, hashes, revision or level
-//! involved. Infrastructure failures are logged with their cause and
-//! answered with a fixed message as a protocol error.
+//! Every [`DocumentsError`] maps to one refusal code through
+//! [`refusal_of`], shared with the HTTP routes. Infrastructure failures are
+//! logged with their cause and answered with a fixed message as a protocol
+//! error.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use rmcp::ErrorData as McpError;
 use rmcp::model::CallToolResult;
+use systemprompt_files::documents::DocumentsError;
 use systemprompt_files::documents::models::{DocumentRevision, RevisionAttribution};
 use systemprompt_files::documents::service::{Author, RevisionOrigin};
 use systemprompt_identifiers::{DocumentId, DocumentRevisionId, McpExecutionId};
@@ -20,8 +21,8 @@ use systemprompt_models::documents::ActorKind;
 use systemprompt_models::execution::context::RequestContext;
 
 use super::DocumentsToolCall;
-use super::refusal::{Refusal, RefusalCode, refusal, refusal_result};
-pub use super::tool_error::tool_error;
+use super::refusal::{refusal, refusal_result, refused_error};
+use crate::documents::refusal::{RefusalCode, refusal_of, stale_base as stale_base_refusal};
 
 pub(super) const DEFAULT_LIMIT: i64 = 50;
 
@@ -55,29 +56,26 @@ pub(super) fn clamp_limit(limit: Option<i64>) -> i64 {
     limit.unwrap_or(DEFAULT_LIMIT).clamp(1, MAX_LIMIT)
 }
 
+#[must_use]
+pub fn tool_error(error: DocumentsError) -> McpError {
+    refusal_of(&error).map_or_else(|| internal_failure(&error), refused_error)
+}
+
 pub(super) fn stale_base(
     document: &DocumentId,
     head: &DocumentRevision,
     base: Option<&DocumentRevisionId>,
 ) -> McpError {
-    let base = base.map_or_else(|| "none".to_owned(), ToString::to_string);
-    Refusal {
-        head_revision: Some(head.id.clone()),
-        written_by: Some(head.author_user_id.clone()),
-        actor_kind: Some(head.actor_kind),
-        at: Some(head.created_at),
-        ..Refusal::new(RefusalCode::StaleBase)
-    }
-    .into_error(format!(
-        "stale base: document {document} is at head revision {head_id}, written by {author} \
-         ({actor}) at {time}, not your base_revision {base}. Their edit wins: read revision \
-         {head_id}, re-aim your change at the text as it stands and never resend your old text \
-         over it",
-        head_id = head.id,
-        author = head.author_user_id,
-        actor = head.actor_kind,
-        time = head.created_at.to_rfc3339(),
-    ))
+    refused_error(stale_base_refusal(document, head, base))
+}
+
+fn internal_failure(error: &DocumentsError) -> McpError {
+    tracing::error!(
+        error = %error,
+        cause = ?std::error::Error::source(error),
+        "document tool failed"
+    );
+    McpError::internal_error("the document store failed; try the call again", None)
 }
 
 pub(super) async fn run<H: McpToolHandler>(

@@ -231,7 +231,7 @@ impl DocumentService {
             .folders
             .find(folder)
             .await?
-            .filter(|f| f.deleted_at.is_none())
+            .filter(|f| f.trashed_at.is_none())
             .ok_or_else(|| DocumentsError::not_found("folder", folder))
     }
 }

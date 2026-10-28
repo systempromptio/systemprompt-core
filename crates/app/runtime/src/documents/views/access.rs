@@ -1,6 +1,6 @@
-//! What `documents_access` and the access routes return: grants, inherited
-//! grants with the folder they come from, the grant audit log and open
-//! access requests.
+//! Access as a plain struct: grants, inherited grants with the folder they
+//! come from, the grant audit log and open access requests, read the same
+//! way by `documents_access` and the access routes.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -12,13 +12,12 @@ use systemprompt_files::documents::models::{
     DocumentAccessRequest, DocumentGrant, DocumentGrantEvent, GrantTarget,
 };
 use systemprompt_files::documents::service::{DocumentAccess, FolderAccess, InheritedGrant};
+use systemprompt_files::documents::{DocumentService, DocumentsError};
 use systemprompt_identifiers::{
     DocumentAccessRequestId, DocumentFolderId, DocumentId, TraceId, UserId,
 };
-use systemprompt_mcp::McpOutputSchema;
+use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{AccessLevel, AccessRequestStatus, GrantEventKind};
-
-use super::outputs::documents_output;
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct InheritedFrom {
@@ -165,8 +164,6 @@ pub struct AccessOutput {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub requests: Vec<AccessRequestItem>,
 }
-documents_output!(AccessOutput, "documents_access");
-
 impl From<DocumentAccess> for AccessOutput {
     fn from(access: DocumentAccess) -> Self {
         Self {
@@ -207,4 +204,26 @@ impl From<FolderAccess> for AccessOutput {
             requests: Vec::new(),
         }
     }
+}
+
+pub async fn access_view(
+    service: &DocumentService,
+    who: &AuthenticatedUser,
+    document: &DocumentId,
+    history: bool,
+    trace: &TraceId,
+) -> Result<AccessOutput, DocumentsError> {
+    let access = service.access_of(who, document, history, trace).await?;
+    Ok(AccessOutput::from(access))
+}
+
+pub async fn folder_access_view(
+    service: &DocumentService,
+    who: &AuthenticatedUser,
+    folder: &DocumentFolderId,
+    history: bool,
+    trace: &TraceId,
+) -> Result<AccessOutput, DocumentsError> {
+    let access = service.folder_access_of(who, folder, history, trace).await?;
+    Ok(AccessOutput::from(access))
 }

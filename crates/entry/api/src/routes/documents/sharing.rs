@@ -27,6 +27,7 @@ use super::caller::{Caller, caller};
 use super::error::{DocumentsResult, with_detail};
 use super::items::document_id;
 use super::views::{GrantJson, LockJson, PresenceJson};
+use systemprompt_runtime::documents::refusal::{Refusal, RefusalCode};
 
 const DEFAULT_LOCK_SECS: u64 = 300;
 const MAX_LOCK_SECS: u64 = 3600;
@@ -227,10 +228,11 @@ pub(super) async fn acquire_lock(
                  expire",
                 current.holder_kind, current.holder_id
             ))
-            .with_error_key("lock_held");
+            .with_error_key(RefusalCode::Locked.as_str());
             with_detail(
                 &error,
                 HeldDetail {
+                    refusal: Refusal::new(RefusalCode::Locked),
                     lock: LockJson::from(current),
                 },
             )
@@ -240,6 +242,8 @@ pub(super) async fn acquire_lock(
 
 #[derive(Debug, Serialize)]
 struct HeldDetail {
+    #[serde(flatten)]
+    refusal: Refusal,
     lock: LockJson,
 }
 

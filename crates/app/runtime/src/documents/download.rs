@@ -1,4 +1,5 @@
-//! Short-lived download URLs for `documents_export`.
+//! Short-lived download URLs for `documents_export`, verified by the HTTP
+//! content route.
 //!
 //! The URL carries a user JWT minted by the deployment's
 //! [`TokenAuthority`] for the caller, with the audience
@@ -15,9 +16,10 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use chrono::{DateTime, Duration, Utc};
-use rmcp::ErrorData as McpError;
 use systemprompt_identifiers::{AccessTokenId, DocumentId, DocumentRevisionId, SessionId};
-use systemprompt_models::auth::{AuthenticatedUser, JwtAudience, TokenAuthority, UserJwtRequest};
+use systemprompt_models::auth::{
+    AuthenticatedUser, JwtAudience, TokenAuthority, TokenError, UserJwtRequest,
+};
 use systemprompt_models::modules::ApiPaths;
 
 pub const DOWNLOAD_AUDIENCE: &str = "documents.download";
@@ -28,6 +30,11 @@ pub const DOWNLOAD_TTL: Duration = Duration::minutes(10);
 pub fn download_purpose(document: &DocumentId, revision: &DocumentRevisionId) -> String {
     format!("document_download:{document}@{revision}")
 }
+
+/// Why a download link could not be signed.
+#[derive(Debug, thiserror::Error)]
+#[error("the download link could not be signed")]
+pub struct DownloadLinkError(#[source] TokenError);
 
 #[derive(Debug, Clone, Copy)]
 pub struct DownloadTarget<'a> {
@@ -41,7 +48,7 @@ pub struct DownloadTarget<'a> {
 pub fn signed_download_url(
     authority: &dyn TokenAuthority,
     target: DownloadTarget<'_>,
-) -> Result<(String, DateTime<Utc>), McpError> {
+) -> Result<(String, DateTime<Utc>), DownloadLinkError> {
     let request = UserJwtRequest {
         user: target.user.clone(),
         session_id: target.session_id.clone(),
@@ -53,10 +60,9 @@ pub fn signed_download_url(
         purpose: Some(download_purpose(target.document, target.revision)),
         plugin_id: None,
     };
-    let token = authority.mint_user_jwt(&request).map_err(|error| {
-        tracing::error!(error = %error, "document download token was not minted");
-        McpError::internal_error("the download link could not be signed", None)
-    })?;
+    let token = authority
+        .mint_user_jwt(&request)
+        .map_err(DownloadLinkError)?;
     let url = format!(
         "{base}{path}/{document}/content?revision={revision}&{DOWNLOAD_TOKEN_QUERY}={token}",
         base = target.base_url.trim_end_matches('/'),

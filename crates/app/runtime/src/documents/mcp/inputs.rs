@@ -74,49 +74,6 @@ pub struct CreateInput {
     pub message: Option<String>,
 }
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum ReadView {
-    Outline,
-    #[default]
-    Text,
-    Range,
-    Cells,
-    Changes,
-    Node,
-    Search,
-    Meta,
-}
-
-#[derive(Debug, Clone, Deserialize, JsonSchema)]
-pub struct NodeRange {
-    pub from_node: DocumentNodeId,
-    pub to_node: DocumentNodeId,
-}
-
-#[derive(Debug, Clone, Deserialize, JsonSchema)]
-pub struct ReadInput {
-    pub document_id: DocumentId,
-    #[serde(default)]
-    pub view: ReadView,
-    #[serde(default)]
-    pub range: Option<NodeRange>,
-    #[serde(default)]
-    pub sheet: Option<String>,
-    #[serde(default)]
-    pub cells: Option<String>,
-    #[serde(default)]
-    pub revision_id: Option<DocumentRevisionId>,
-    #[serde(default)]
-    pub since_revision: Option<DocumentRevisionId>,
-    #[serde(default)]
-    pub node_id: Option<DocumentNodeId>,
-    #[serde(default)]
-    pub text: Option<String>,
-    #[serde(default)]
-    pub verbose: bool,
-}
-
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 pub struct EditInput {
     pub document_id: DocumentId,

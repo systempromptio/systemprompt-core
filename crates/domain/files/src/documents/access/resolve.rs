@@ -66,7 +66,7 @@ impl DocumentAccessService {
                     .folders
                     .find(id)
                     .await?
-                    .filter(|f| f.deleted_at.is_none())
+                    .filter(|f| f.trashed_at.is_none())
                     .ok_or_else(|| DocumentsError::not_found("folder", id))?;
                 let level = if folder.owner_user_id == who.id {
                     Some(AccessLevel::Own)

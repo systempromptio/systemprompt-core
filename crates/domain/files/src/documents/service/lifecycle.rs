@@ -128,7 +128,7 @@ impl DocumentService {
         Ok(())
     }
 
-    pub async fn restore_document(
+    pub async fn untrash(
         &self,
         who: &AuthenticatedUser,
         document: &DocumentId,
