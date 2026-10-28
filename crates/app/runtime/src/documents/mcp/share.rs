@@ -103,7 +103,7 @@ impl McpToolHandler for ShareHandler<'_> {
     }
 
     fn description(&self) -> &'static str {
-        "Grant, transfer ownership or revoke access."
+        "Grant, transfer or revoke access."
     }
 
     async fn handle(

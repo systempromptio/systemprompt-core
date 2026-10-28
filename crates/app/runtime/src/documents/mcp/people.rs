@@ -36,7 +36,7 @@ impl McpToolHandler for PeopleHandler<'_> {
     }
 
     fn description(&self) -> &'static str {
-        "Find people to mention or share with."
+        "Find people to mention or share."
     }
 
     fn read_only(&self) -> bool {

@@ -103,7 +103,7 @@ impl McpToolHandler for ExportHandler<'_> {
     }
 
     fn description(&self) -> &'static str {
-        "Export a download url or HTML preview."
+        "Export a url or HTML preview."
     }
 
     fn read_only(&self) -> bool {

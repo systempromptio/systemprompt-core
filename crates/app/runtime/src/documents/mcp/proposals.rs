@@ -201,7 +201,7 @@ impl McpToolHandler for ProposalsHandler<'_> {
     }
 
     fn description(&self) -> &'static str {
-        "List proposals, or accept or reject one."
+        "List, accept or reject proposals."
     }
 
     async fn handle(

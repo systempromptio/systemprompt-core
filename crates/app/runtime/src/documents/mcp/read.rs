@@ -43,7 +43,7 @@ impl McpToolHandler for ReadHandler<'_> {
     }
 
     fn description(&self) -> &'static str {
-        "Read hashline views of a document. Guide: editing."
+        "Read a document. Guide: editing."
     }
 
     fn read_only(&self) -> bool {
