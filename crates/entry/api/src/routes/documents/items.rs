@@ -2,8 +2,9 @@
 //!
 //! `POST /` takes JSON to create from a template, or `multipart/form-data`
 //! to import an uploaded file (parts `file`, optional `name`, `folder_id`,
-//! `format`). A file of no known format is kept as a `file` document under
-//! the part's content type.
+//! `format`). A multipart file is first stored as an upload, so it passes
+//! the same content checks, quota and recorded MIME type as the resumable
+//! API, and is then imported from that blob exactly as `POST /import` does.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -14,21 +15,24 @@ use axum::response::{IntoResponse, Response};
 use axum::{Extension, Json};
 use serde::{Deserialize, Deserializer};
 use systemprompt_files::documents::models::ListCursor;
-use systemprompt_files::documents::service::{
-    Author, CreateRequest, FolderMove, ImportRequest, UpdateRequest,
-};
+use systemprompt_files::documents::service::{CreateRequest, FolderMove, UpdateRequest};
+use systemprompt_files::uploads::NewUpload;
 use systemprompt_identifiers::{DocumentFolderId, DocumentId, DocumentTemplateId};
 use systemprompt_models::RequestContext;
 use systemprompt_models::api::ApiError;
-use systemprompt_models::documents::DocumentFormat;
+use systemprompt_models::documents::{DocumentFormat, content_hash};
 use systemprompt_provider_contracts::documents::TemplateParams;
 
 use super::DocumentsState;
 use super::caller::{api_author, caller};
 use super::error::DocumentsResult;
 use super::headers::etag;
+use super::import::{ImportBody, import_blob};
 use super::requests::with_request_hint;
 use super::views::{CreatedJson, DocumentDetail};
+use crate::error::ApiHttpError;
+
+const OPAQUE_MIME: &str = "application/octet-stream";
 
 pub(super) fn document_id(raw: &str) -> DocumentsResult<DocumentId> {
     Ok(DocumentId::try_new(raw)?)
@@ -105,9 +109,27 @@ pub(super) async fn create(
         .and_then(|value| value.to_str().ok())
         .is_some_and(|value| value.starts_with("multipart/form-data"));
     let (document, revision) = if multipart {
+        let headers = request.headers().clone();
         let form = Multipart::from_request(request, &state).await?;
-        let import = read_import(form, author).await?;
-        state.service.import(&who.user, import, &who.trace).await?
+        let file = read_file(form).await?;
+        let upload = NewUpload {
+            name: file.name.clone(),
+            mime: file.mime,
+            size: file.bytes.len() as u64,
+            sha256: content_hash(&file.bytes),
+        };
+        let done = state
+            .uploads
+            .put_whole(req_ctx.user_id(), upload, file.bytes, req_ctx.trace_id())
+            .await
+            .map_err(ApiHttpError::from)?;
+        let body = ImportBody {
+            blob_ref: done.blob,
+            folder_id: file.folder,
+            name: file.name,
+            format: file.format,
+        };
+        import_blob(&state, &req_ctx, &headers, body).await?
     } else {
         let Json(body) = Json::<CreateBody>::from_request(request, &state).await?;
         let create = CreateRequest {
@@ -131,17 +153,25 @@ pub(super) async fn create(
     Ok((StatusCode::CREATED, Json(created)).into_response())
 }
 
-async fn read_import(mut form: Multipart, author: Author) -> DocumentsResult<ImportRequest> {
+struct MultipartFile {
+    name: String,
+    folder: Option<DocumentFolderId>,
+    format: Option<DocumentFormat>,
+    mime: String,
+    bytes: Vec<u8>,
+}
+
+async fn read_file(mut form: Multipart) -> DocumentsResult<MultipartFile> {
     let mut name = None;
     let mut folder = None;
     let mut format = None;
     let mut file: Option<(Option<String>, Vec<u8>)> = None;
-    let mut mime_type = None;
+    let mut mime = None;
     while let Some(field) = form.next_field().await? {
         let part = field.name().unwrap_or_default().to_owned();
         let file_name = field.file_name().map(str::to_owned);
         if part == "file" {
-            mime_type = field.content_type().map(str::to_owned);
+            mime = field.content_type().map(str::to_owned);
         }
         let bytes = field.bytes().await?;
         let text = || String::from_utf8_lossy(&bytes).trim().to_owned();
@@ -163,13 +193,12 @@ async fn read_import(mut form: Multipart, author: Author) -> DocumentsResult<Imp
     let name = name
         .or(file_name)
         .ok_or_else(|| ApiError::bad_request("multipart import needs a `name`"))?;
-    Ok(ImportRequest {
-        folder,
+    Ok(MultipartFile {
         name,
+        folder,
         format,
-        mime_type,
+        mime: mime.unwrap_or_else(|| OPAQUE_MIME.to_owned()),
         bytes,
-        author,
     })
 }
 

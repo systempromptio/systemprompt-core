@@ -5,6 +5,7 @@
 //! `If-None-Match` is `304`, a single `Range` is `206` (unless a stale
 //! `If-Range` asks for the whole body). A read with `format=pdf` answers the
 //! revision rendered as PDF, whole, with the rendering's hash as its `ETag`.
+//! Every body is served as user content (`nosniff`, a sandbox CSP).
 //! A write names its base revision in `If-Match`; a base that is no longer
 //! the head answers `409` with both.
 //!
@@ -33,6 +34,7 @@ use super::error::DocumentsResult;
 use super::headers::{content_disposition, etag, if_range_holds, none_match, range};
 use super::items::document_id;
 use crate::error::ApiHttpError;
+use crate::routes::user_content::{USER_CONTENT_CSP, harden};
 
 #[derive(Debug, Deserialize)]
 pub(super) struct RevisionQuery {
@@ -203,6 +205,7 @@ fn stream_response(read: StoredFileRead, served: &Served<'_>) -> Response {
     if let Some(range) = read.range {
         set(header::CONTENT_RANGE, range.content_range());
     }
+    harden(&mut response, USER_CONTENT_CSP);
     response
 }
 
@@ -244,6 +247,7 @@ async fn serve_pdf(
         rendered.revision.id.as_str().to_owned(),
     );
     set(header::CONTENT_LENGTH, length.to_string());
+    harden(&mut response, USER_CONTENT_CSP);
     Ok(response)
 }
 

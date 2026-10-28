@@ -21,6 +21,7 @@ use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::{Extension, Json};
 use serde::Deserialize;
+use systemprompt_files::documents::models::{Document, DocumentRevision};
 use systemprompt_files::documents::service::ImportRequest;
 use systemprompt_identifiers::{ContentHash, DocumentFolderId};
 use systemprompt_models::RequestContext;
@@ -34,12 +35,12 @@ use crate::error::ApiHttpError;
 
 #[derive(Debug, Deserialize)]
 pub(super) struct ImportBody {
-    blob_ref: ContentHash,
+    pub(super) blob_ref: ContentHash,
     #[serde(default)]
-    folder_id: Option<DocumentFolderId>,
-    name: String,
+    pub(super) folder_id: Option<DocumentFolderId>,
+    pub(super) name: String,
     #[serde(default)]
-    format: Option<DocumentFormat>,
+    pub(super) format: Option<DocumentFormat>,
 }
 
 pub(super) async fn import(
@@ -49,7 +50,25 @@ pub(super) async fn import(
     body: Result<Json<ImportBody>, JsonRejection>,
 ) -> DocumentsResult<Response> {
     let Json(body) = body?;
-    let who = caller(&state, &req_ctx).await?;
+    let (document, revision) = import_blob(&state, &req_ctx, &headers, body).await?;
+    let created = CreatedJson {
+        document: document.into(),
+        revision: revision.into(),
+    };
+    Ok((StatusCode::CREATED, Json(created)).into_response())
+}
+
+/// A document from a blob the caller uploaded: the one import path both
+/// `POST /import` and the multipart `POST /` take, so the format is
+/// resolved, the blob's content check enforced and its recorded MIME type
+/// used the same way for both.
+pub(super) async fn import_blob(
+    state: &DocumentsState,
+    req_ctx: &RequestContext,
+    headers: &HeaderMap,
+    body: ImportBody,
+) -> DocumentsResult<(Document, DocumentRevision)> {
+    let who = caller(state, req_ctx).await?;
     let limit = state.service.config().max_upload_bytes;
     let format = body
         .format
@@ -70,12 +89,7 @@ pub(super) async fn import(
         format: Some(format),
         mime_type: Some(origin.mime),
         bytes,
-        author: api_author(&req_ctx, &headers),
+        author: api_author(req_ctx, headers),
     };
-    let (document, revision) = state.service.import(&who.user, request, &who.trace).await?;
-    let created = CreatedJson {
-        document: document.into(),
-        revision: revision.into(),
-    };
-    Ok((StatusCode::CREATED, Json(created)).into_response())
+    Ok(state.service.import(&who.user, request, &who.trace).await?)
 }

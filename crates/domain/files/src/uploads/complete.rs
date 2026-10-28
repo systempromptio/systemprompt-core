@@ -211,6 +211,20 @@ impl UploadService {
                 limit: self.limits.inline_max_bytes,
             });
         }
+        self.put_whole(owner, request, bytes, trace).await
+    }
+
+    /// Uploads a body already held in memory (a multipart import or an
+    /// inline MCP body) as one session, through the same quota, checks and
+    /// completion as a resumable upload.
+    pub async fn put_whole(
+        &self,
+        owner: &UserId,
+        request: NewUpload,
+        bytes: Vec<u8>,
+        trace: &TraceId,
+    ) -> UploadResult<CompletedUpload> {
+        let size = bytes.len() as u64;
         if size != request.size {
             return Err(UploadError::Invalid(format!(
                 "declared size {} but the body is {size} bytes",

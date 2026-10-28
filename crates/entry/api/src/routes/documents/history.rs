@@ -2,7 +2,9 @@
 //!
 //! A `file` document that is a PDF previews as the PDF itself, served
 //! inline as `application/pdf` (never as the type it was stored under) for
-//! the browser's own viewer; an image previews inline in the sandboxed HTML.
+//! the browser's own viewer, sandboxed by CSP, `nosniff`, and frameable only
+//! by the app (`frame-ancestors 'self'`); an image previews inline in the
+//! sandboxed HTML.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -28,6 +30,7 @@ use super::error::{DocumentsHttpError, DocumentsResult};
 use super::headers::etag;
 use super::items::{cursor, document_id};
 use super::views::RevisionJson;
+use crate::routes::user_content::{INLINE_PREVIEW_CSP, harden};
 
 const PREVIEW_CSP: &str = "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:";
 const PDF_MIME: &str = "application/pdf";
@@ -177,21 +180,15 @@ fn is_pdf_file(view: &DocumentView) -> bool {
 
 fn pdf_preview(body: FileByteStream, hash: &ContentHash) -> Response {
     let mut response = Response::new(Body::from_stream(body));
-    response
-        .extensions_mut()
-        .insert(FrameOptionsOverride(FrameOptions::SameOrigin));
     let headers = response.headers_mut();
     headers.insert(header::CONTENT_TYPE, HeaderValue::from_static(PDF_MIME));
     headers.insert(
         header::CONTENT_DISPOSITION,
         HeaderValue::from_static("inline"),
     );
-    headers.insert(
-        header::X_CONTENT_TYPE_OPTIONS,
-        HeaderValue::from_static("nosniff"),
-    );
     if let Ok(value) = HeaderValue::from_str(&etag(hash)) {
         headers.insert(header::ETAG, value);
     }
+    harden(&mut response, INLINE_PREVIEW_CSP);
     response
 }

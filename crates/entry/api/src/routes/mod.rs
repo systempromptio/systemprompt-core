@@ -30,6 +30,7 @@ pub mod stream;
 pub mod sync;
 pub mod teams;
 pub mod uploads;
+pub(crate) mod user_content;
 pub mod users;
 pub mod wellknown;
 

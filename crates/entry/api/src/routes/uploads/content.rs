@@ -1,6 +1,7 @@
 //! `GET /{id}/content`: the blob a completed upload produced, streamed from
 //! storage. A single `Range` answers `206`, an unsatisfiable one `416`; the
 //! blob hash is the `ETag`, and a matching `If-None-Match` answers `304`.
+//! The body is served as user content: `nosniff` and a sandbox CSP.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -17,6 +18,7 @@ use super::handlers::upload_id;
 use super::principal::uploader;
 use crate::error::ApiHttpError;
 use crate::routes::documents::DocumentsState;
+use crate::routes::user_content::{USER_CONTENT_CSP, harden};
 
 pub(super) async fn content(
     State(state): State<DocumentsState>,
@@ -95,6 +97,7 @@ pub(super) async fn content(
     if let Some(range) = read.range {
         set(header::CONTENT_RANGE, range.content_range());
     }
+    harden(&mut response, USER_CONTENT_CSP);
     Ok(response)
 }
 

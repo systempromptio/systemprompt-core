@@ -104,7 +104,13 @@ pub(crate) async fn inspect(
             ),
         ));
     }
-    let checked = if is_zip(&head) { Kind::Zip } else { expected };
+    let checked = if is_zip(&head) {
+        Kind::Zip
+    } else if expected == Kind::Opaque && sniff(&head) == Some(Kind::Text) {
+        Kind::Text
+    } else {
+        expected
+    };
     let replacement = match checked {
         Kind::Zip => {
             office::check(subject.storage, subject.id, subject.size, limits).await?;
