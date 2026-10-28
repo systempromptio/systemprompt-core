@@ -25,6 +25,7 @@ fn refused(detail: String) -> CodecError {
     CodecError::Refused { detail }
 }
 
+// JSON: an op payload, RichText v2 JSON parsed into the named model type.
 fn parse<T: DeserializeOwned>(what: &str, value: &serde_json::Value) -> Result<T, CodecError> {
     serde_json::from_value(value.clone())
         .map_err(|error| refused(format!("{what} is not valid RichText v2 JSON: {error}")))

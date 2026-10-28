@@ -69,6 +69,7 @@ pub struct CreateInput {
     #[serde(default)]
     pub params: std::collections::BTreeMap<String, String>,
     #[serde(default)]
+    // JSON: `{model}` or `{markdown}`, untyped for size; create_content checks it.
     pub content: Option<serde_json::Value>,
     #[serde(default)]
     pub ops: Vec<EditOp>,

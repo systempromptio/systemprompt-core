@@ -74,6 +74,7 @@ pub struct ReadOutput {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub paths: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    // JSON: a ModelViewV2, carried as the value the read view serialised.
     pub model: Option<serde_json::Value>,
 }
 

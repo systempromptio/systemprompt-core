@@ -26,6 +26,7 @@ pub struct SetParagraph {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub expected_hash: Option<String>,
     #[schemars(description = "Paragraph attributes: `style`, `align`, `indent`, `space_before`, `space_after`, `keep_with_next`. Merged into the block's attributes; a `null` value clears that attribute.")]
+    // JSON: RichText v2 JSON; this crate sits below the model that parses it.
     pub attrs: serde_json::Value,
 }
 
@@ -33,6 +34,7 @@ pub struct SetParagraph {
 pub struct InsertBlock {
     pub after: NodeTarget,
     #[schemars(description = "One `RichText` block of any type, without `id`.")]
+    // JSON: RichText v2 JSON; this crate sits below the model that parses it.
     pub block: serde_json::Value,
 }
 
@@ -45,6 +47,7 @@ pub struct CellUpdate {
     pub text: Option<String>,
     #[schemars(description = "Cell styling: `shade`, `align`, `valign`, `colspan`, `rowspan`.")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    // JSON: RichText v2 JSON; this crate sits below the model that parses it.
     pub props: Option<serde_json::Value>,
 }
 
@@ -67,17 +70,20 @@ pub struct UpdateTable {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct SetSection {
     #[schemars(description = "Page size, orientation, margins, headers and footers of the document's last section.")]
+    // JSON: RichText v2 JSON; this crate sits below the model that parses it.
     pub section: serde_json::Value,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct SetStyle {
     #[schemars(description = "One style definition, added or replacing the style with its `id`.")]
+    // JSON: RichText v2 JSON; this crate sits below the model that parses it.
     pub style: serde_json::Value,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct ApplyTheme {
     #[schemars(description = "`heading_font`, `body_font` and up to six `palette` colours.")]
+    // JSON: RichText v2 JSON; this crate sits below the model that parses it.
     pub theme: serde_json::Value,
 }
