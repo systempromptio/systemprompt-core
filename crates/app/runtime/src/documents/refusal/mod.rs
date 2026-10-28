@@ -1,7 +1,7 @@
 //! Refusals: the one vocabulary both document surfaces answer a client
 //! error in.
 //!
-//! [`refusal_of`] maps every `DocumentsError` a client can act on to one
+//! `refusal_of` maps every `DocumentsError` a client can act on to one
 //! `RefusalCode` and the typed detail the failure knows (the head revision
 //! and who wrote it, a node's current text, the kinds a format accepts),
 //! with the service's Display text as the message. An infrastructure failure

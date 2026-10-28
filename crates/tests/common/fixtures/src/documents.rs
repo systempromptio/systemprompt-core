@@ -52,6 +52,10 @@ pub fn fixture_documents_runtime_on(
     )
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "a fixture mirrors the runtime's constructor inputs one to one"
+)]
 pub fn fixture_documents_runtime_configured(
     pool: &DbPool,
     file_storage: &Arc<dyn FileStorage>,

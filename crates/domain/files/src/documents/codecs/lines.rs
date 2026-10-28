@@ -109,11 +109,7 @@ impl LineDoc {
             (ContentAs::Text, _) => Self::split_inserted(text),
             (ContentAs::Markdown, DocumentFormat::Markdown) => {
                 let body = Self::split_inserted(text.trim_matches('\n'));
-                if lead {
-                    std::iter::once(String::new()).chain(body).collect()
-                } else {
-                    body
-                }
+                lead.then(String::new).into_iter().chain(body).collect()
             },
             (ContentAs::Markdown, _) => plain_lines(&lower(text)),
         }

@@ -184,11 +184,13 @@ mod routes_agent_runs;
 
 #[cfg(test)]
 mod documents;
+#[cfg(test)]
 mod documents_access_requests;
 #[cfg(test)]
 mod documents_collab;
 #[cfg(test)]
 mod documents_parity;
+#[cfg(test)]
 mod documents_pdf;
 #[cfg(test)]
 mod documents_read_parity;

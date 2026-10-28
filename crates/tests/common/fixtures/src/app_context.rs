@@ -246,9 +246,10 @@ fn enabled_documents() -> DocumentsConfig {
 }
 
 fn fixture_files_yaml(documents: DocumentsConfig) -> systemprompt_files::FilesConfigYaml {
-    let mut yaml = systemprompt_files::FilesConfigYaml::default();
-    yaml.documents = documents;
-    yaml
+    systemprompt_files::FilesConfigYaml {
+        documents,
+        ..systemprompt_files::FilesConfigYaml::default()
+    }
 }
 
 // The collaborators a test may swap out; everything else is built from the

@@ -2,7 +2,7 @@
 //! translation of document errors into tool errors an agent can act on.
 //!
 //! Every `DocumentsError` maps to one refusal code through
-//! [`refusal_of`], shared with the HTTP routes. Infrastructure failures are
+//! `refusal_of`, shared with the HTTP routes. Infrastructure failures are
 //! logged with their cause and answered with a fixed message as a protocol
 //! error.
 //!

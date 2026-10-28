@@ -133,7 +133,7 @@ impl EditOp {
         )
     }
 
-    pub fn rich_target(&mut self) -> Option<RichTarget<'_>> {
+    pub const fn rich_target(&mut self) -> Option<RichTarget<'_>> {
         let (node, expected_hash) = match self {
             Self::SetMarks(op) => (&mut op.node, Some(&mut op.expected_hash)),
             Self::SetBlockType(op) => (&mut op.node, Some(&mut op.expected_hash)),

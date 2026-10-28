@@ -204,10 +204,7 @@ pub fn with_download_tokens(router: Router, state: DocumentsState) -> Router {
 pub fn folders_router(state: DocumentsState) -> Router {
     Router::new()
         .route("/", get(folders::list).post(folders::create))
-        .route(
-            "/{id}",
-            patch(folders::update).delete(folders::delete),
-        )
+        .route("/{id}", patch(folders::update).delete(folders::delete))
         .route(
             "/{id}/grants",
             get(folder_sharing::list_grants)

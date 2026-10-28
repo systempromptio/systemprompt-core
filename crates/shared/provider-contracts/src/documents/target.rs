@@ -73,29 +73,14 @@ pub fn resolve_targets(
                 expected_hash,
                 text,
                 content_as,
-            } => {
-                let resolved = resolve(projection, &node, expected_hash, true)?;
-                batch.matches.extend(resolved.matches);
-                if content_as == ContentAs::Markdown {
-                    batch.ops.push(EditOp::InsertAfter {
-                        node: NodeTarget::Id(resolved.node.clone()),
-                        kind: super::projection::NodeKind::Paragraph,
-                        text,
-                        content_as,
-                    });
-                    batch.ops.push(EditOp::Delete {
-                        node: NodeTarget::Id(resolved.node),
-                        expected_hash: Some(resolved.hash),
-                    });
-                } else {
-                    batch.ops.push(EditOp::ReplaceText {
-                        node: NodeTarget::Id(resolved.node),
-                        expected_hash: Some(resolved.hash),
-                        text,
-                        content_as,
-                    });
-                }
-            },
+            } => resolve_replace_text(
+                projection,
+                &mut batch,
+                node,
+                expected_hash,
+                text,
+                content_as,
+            )?,
             EditOp::Delete {
                 node,
                 expected_hash,
@@ -139,6 +124,38 @@ pub fn resolve_targets(
         }
     }
     Ok(batch)
+}
+
+fn resolve_replace_text(
+    projection: &Projection,
+    batch: &mut ResolvedBatch,
+    node: NodeTarget,
+    expected_hash: Option<String>,
+    text: String,
+    content_as: ContentAs,
+) -> Result<(), TargetError> {
+    let resolved = resolve(projection, &node, expected_hash, true)?;
+    batch.matches.extend(resolved.matches);
+    if content_as == ContentAs::Markdown {
+        batch.ops.push(EditOp::InsertAfter {
+            node: NodeTarget::Id(resolved.node.clone()),
+            kind: super::projection::NodeKind::Paragraph,
+            text,
+            content_as,
+        });
+        batch.ops.push(EditOp::Delete {
+            node: NodeTarget::Id(resolved.node),
+            expected_hash: Some(resolved.hash),
+        });
+    } else {
+        batch.ops.push(EditOp::ReplaceText {
+            node: NodeTarget::Id(resolved.node),
+            expected_hash: Some(resolved.hash),
+            text,
+            content_as,
+        });
+    }
+    Ok(())
 }
 
 fn resolve(
