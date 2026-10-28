@@ -151,9 +151,10 @@ fn a_hung_client_is_stopped_at_the_deadline() {
 
 #[test]
 fn no_client_on_any_search_path_is_not_installed() {
-    if installed_outside_path() {
-        return;
-    }
+    assert!(
+        !installed_outside_path(),
+        "an opencode install in a fixed system location makes NotInstalled unreachable"
+    );
     let sb = Sandbox::new();
     assert!(matches!(
         sb.run(probe_client_version),

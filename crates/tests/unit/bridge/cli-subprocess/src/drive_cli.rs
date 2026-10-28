@@ -5,7 +5,7 @@ use systemprompt_bridge::drive::{ConflictNotice, DriveState, OpenProposal};
 use systemprompt_identifiers::{DocumentId, DocumentProposalId, DocumentRevisionId, UserId};
 use tempfile::TempDir;
 
-fn bridge_bin() -> Option<PathBuf> {
+fn bridge_bin() -> PathBuf {
     let candidate = match std::env::var_os("SP_BRIDGE_BIN") {
         Some(explicit) => PathBuf::from(explicit),
         None => PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -18,15 +18,12 @@ fn bridge_bin() -> Option<PathBuf> {
             .join("debug")
             .join("systemprompt-bridge"),
     };
-    if candidate.is_file() {
-        return Some(candidate);
-    }
     assert!(
-        std::env::var_os("CI").is_none(),
-        "bridge binary {} unavailable under CI; scripts/test-shard.sh must prebuild it",
+        candidate.is_file(),
+        "bridge binary {} missing; build bin/bridge or set SP_BRIDGE_BIN",
         candidate.display()
     );
-    None
+    candidate
 }
 
 struct Home {
@@ -54,8 +51,8 @@ impl Home {
         .expect("config");
     }
 
-    fn run(&self, args: &[&str]) -> Option<Output> {
-        let bin = bridge_bin()?;
+    fn run(&self, args: &[&str]) -> Output {
+        let bin = bridge_bin();
         let root = self.dir.path();
         let mut cmd = Command::new(bin);
         cmd.arg("drive").args(args);
@@ -67,7 +64,7 @@ impl Home {
         cmd.env("XDG_CACHE_HOME", root.join(".cache"));
         cmd.env("XDG_DATA_HOME", root.join(".data"));
         cmd.env("XDG_STATE_HOME", root.join(".state"));
-        Some(cmd.output().expect("spawn bridge"))
+        cmd.output().expect("spawn bridge")
     }
 }
 
@@ -122,7 +119,7 @@ fn seed(drive: &Path) -> (DocumentProposalId, ConflictNotice, DocumentId) {
 #[test]
 fn status_without_a_folder_says_drive_is_not_set_up() {
     let home = Home::new();
-    let Some(out) = home.run(&[]) else { return };
+    let out = home.run(&[]);
     assert!(out.status.success(), "{}", stderr(&out));
     let text = stdout(&out);
     assert!(text.contains("drive folder:"), "{text}");
@@ -133,9 +130,7 @@ fn status_without_a_folder_says_drive_is_not_set_up() {
 fn status_lists_pending_uploads_conflicts_and_proposals() {
     let home = Home::new();
     let (proposal, _, unpathed) = seed(&home.drive());
-    let Some(out) = home.run(&["status"]) else {
-        return;
-    };
+    let out = home.run(&["status"]);
     assert!(out.status.success(), "{}", stderr(&out));
     let text = stdout(&out);
     assert!(text.contains("conflicts: 1"), "{text}");
@@ -154,9 +149,7 @@ fn status_lists_pending_uploads_conflicts_and_proposals() {
 fn conflicts_lists_each_kept_local_edit() {
     let home = Home::new();
     let (_, conflict, _) = seed(&home.drive());
-    let Some(out) = home.run(&["conflicts"]) else {
-        return;
-    };
+    let out = home.run(&["conflicts"]);
     assert!(out.status.success(), "{}", stderr(&out));
     let text = stdout(&out);
     assert!(
@@ -172,9 +165,7 @@ fn conflicts_lists_each_kept_local_edit() {
 fn conflicts_with_none_open_says_so() {
     let home = Home::new();
     std::fs::create_dir_all(home.drive()).expect("drive");
-    let Some(out) = home.run(&["conflicts"]) else {
-        return;
-    };
+    let out = home.run(&["conflicts"]);
     assert!(out.status.success(), "{}", stderr(&out));
     assert!(stdout(&out).contains("no drive conflicts"));
 }
@@ -184,9 +175,7 @@ fn a_corrupt_state_file_fails_once_and_is_quarantined() {
     let home = Home::new();
     std::fs::create_dir_all(home.drive()).expect("drive");
     std::fs::write(home.drive().join(".drive-state.json"), b"{not json").expect("state");
-    let Some(out) = home.run(&["conflicts"]) else {
-        return;
-    };
+    let out = home.run(&["conflicts"]);
     assert_eq!(out.status.code(), Some(1));
     assert!(stderr(&out).contains("corrupt"), "{}", stderr(&out));
     let quarantined = std::fs::read_dir(home.drive())
@@ -194,18 +183,14 @@ fn a_corrupt_state_file_fails_once_and_is_quarantined() {
         .filter_map(Result::ok)
         .any(|e| e.file_name().to_string_lossy().contains(".corrupt-"));
     assert!(quarantined);
-    let Some(again) = home.run(&["status"]) else {
-        return;
-    };
+    let again = home.run(&["status"]);
     assert!(again.status.success(), "{}", stderr(&again));
 }
 
 #[test]
 fn an_unknown_subcommand_is_a_usage_error() {
     let home = Home::new();
-    let Some(out) = home.run(&["frobnicate"]) else {
-        return;
-    };
+    let out = home.run(&["frobnicate"]);
     assert_eq!(out.status.code(), Some(64));
     assert!(
         stderr(&out).contains("unknown subcommand"),
@@ -218,9 +203,7 @@ fn an_unknown_subcommand_is_a_usage_error() {
 fn sync_without_a_credential_fails_with_the_reason() {
     let home = Home::new();
     home.gateway("http://127.0.0.1:9");
-    let Some(out) = home.run(&["sync"]) else {
-        return;
-    };
+    let out = home.run(&["sync"]);
     assert_eq!(out.status.code(), Some(1), "{}", stdout(&out));
     assert!(
         stderr(&out).contains("drive sync failed"),
