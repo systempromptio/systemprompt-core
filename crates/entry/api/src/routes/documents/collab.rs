@@ -1,10 +1,14 @@
 //! `/api/v1/documents/{id}/collab/*`: live co-editing of HTML and Markdown
 //! documents.
 //!
-//! Clients join a document's edit session, post Loro updates and leave;
-//! everyone's updates reach them as `document.collab.update` events on
-//! their existing AG-UI stream. Binary payloads (snapshots, updates and
-//! version vectors) travel as standard base64.
+//! Protocol v2. Clients join a document's edit session (`edit`, `comment`
+//! or `view`) and learn the engine, wire version, model and access level to
+//! bind to; they post engine updates, each validated on a server-side fork
+//! and refused as `update_rejected` with a `reason` (resync from a fresh
+//! join), and leave. Everyone's updates reach them as
+//! `document.collab.update` events on their existing AG-UI stream. Binary
+//! payloads (snapshots, updates and version vectors) travel as standard
+//! base64.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -21,6 +25,7 @@ use systemprompt_files::documents::collab::{
 use systemprompt_identifiers::{DocumentEditSessionId, DocumentProposalId, DocumentRevisionId};
 use systemprompt_models::RequestContext;
 use systemprompt_models::api::ApiError;
+use systemprompt_models::documents::AccessLevel;
 
 use super::DocumentsState;
 use super::caller::caller;
@@ -31,6 +36,7 @@ use super::items::document_id;
 #[serde(rename_all = "snake_case")]
 pub(super) enum ModeJson {
     Edit,
+    Comment,
     View,
 }
 
@@ -39,14 +45,24 @@ pub(super) struct JoinBody {
     mode: ModeJson,
 }
 
+/// Protocol v2 join response: the session state plus the engine, wire
+/// version, model and access level the client binds its editor to.
 #[derive(Debug, Serialize)]
 pub(super) struct JoinedJson {
+    protocol: u32,
     session_id: DocumentEditSessionId,
     snapshot_b64: String,
     vv: String,
     seq: i64,
     head_revision: Option<DocumentRevisionId>,
+    engine: &'static str,
+    wire_version: &'static str,
+    model: &'static str,
+    model_version: u32,
+    level: AccessLevel,
 }
+
+const PROTOCOL_VERSION: u32 = 2;
 
 #[derive(Debug, Deserialize)]
 pub(super) struct UpdateBody {
@@ -124,6 +140,7 @@ pub(super) async fn join(
     let who = caller(&state, &req_ctx).await?;
     let mode = match body.mode {
         ModeJson::Edit => JoinMode::Edit,
+        ModeJson::Comment => JoinMode::Comment,
         ModeJson::View => JoinMode::View,
     };
     let joined = state
@@ -131,11 +148,17 @@ pub(super) async fn join(
         .join(&who.user, &document_id(&id)?, mode, &who.trace)
         .await?;
     Ok(Json(JoinedJson {
+        protocol: PROTOCOL_VERSION,
         session_id: joined.session_id,
         snapshot_b64: STANDARD.encode(joined.snapshot),
         vv: STANDARD.encode(joined.version),
         seq: joined.seq,
         head_revision: joined.head_revision,
+        engine: joined.engine,
+        wire_version: joined.wire_version,
+        model: joined.model,
+        model_version: joined.model_version,
+        level: joined.level,
     }))
 }
 
@@ -232,6 +255,11 @@ fn collab_error(error: CollabError) -> DocumentsHttpError {
         CollabError::InvalidUpdate(source) | CollabError::InvalidVersion(source) => {
             Http::from(ApiError::bad_request(message).with_source(source))
         },
+        CollabError::UpdateRejected(rejection) => Http::from(
+            ApiError::bad_request(message)
+                .with_error_key("update_rejected")
+                .with_details(rejection.reason()),
+        ),
         CollabError::NotText { .. } => Http::from(ApiError::bad_request(message)),
         CollabError::EngineUnavailable => Http::from(
             ApiError::service_unavailable("no live session engine is enabled")

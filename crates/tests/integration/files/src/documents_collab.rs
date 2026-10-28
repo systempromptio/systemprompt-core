@@ -2,13 +2,14 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use loro::{ExportMode, LoroDoc, VersionVector};
-use systemprompt_engine_loro::{BODY_CONTAINER, LoroEngine};
+use systemprompt_engine_loro::{LoroEngine, rich, write_model};
 use systemprompt_events::Broadcaster;
 use systemprompt_files::documents::DocumentsError;
 use systemprompt_files::documents::collab::{
     ApplyRequest, CollabError, CollabService, CollabTuning, JoinMode, Joined,
 };
 use systemprompt_files::documents::engine::DocumentEngine;
+use systemprompt_files::documents::model::{RichText, html};
 use systemprompt_identifiers::{ConnectionId, DocumentId};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::RevisionOriginKind;
@@ -54,17 +55,30 @@ pub(crate) fn loro() -> Option<Arc<dyn DocumentEngine>> {
 
 pub(crate) fn client(joined: &Joined) -> LoroDoc {
     let doc = LoroDoc::new();
+    rich::configure(&doc);
     doc.import(&joined.snapshot).expect("import snapshot");
     doc
 }
 
-pub(crate) fn edit(doc: &LoroDoc, text: &str) -> Vec<u8> {
+/// Rewrites the client's model with `change` and returns the update.
+pub(crate) fn change(doc: &LoroDoc, change: impl FnOnce(&mut RichText)) -> Vec<u8> {
     let before = doc.oplog_vv();
-    let body = doc.get_text(BODY_CONTAINER);
-    body.insert(body.len_unicode(), text).expect("insert");
+    let mut model = rich::read(doc);
+    change(&mut model);
+    write_model(doc, &model).expect("write model");
     doc.commit();
     doc.export(ExportMode::updates(&before))
         .expect("export update")
+}
+
+/// Appends the blocks of an HTML fragment, each with a fresh id.
+pub(crate) fn edit(doc: &LoroDoc, fragment: &str) -> Vec<u8> {
+    change(doc, |model| {
+        for mut block in html::import(fragment).blocks {
+            block.id = format!("t{}", uuid::Uuid::new_v4().simple());
+            model.blocks.push(block);
+        }
+    })
 }
 
 pub(crate) fn request(
@@ -185,10 +199,7 @@ async fn a_second_replica_sees_updates_applied_on_the_first() {
         .await
         .expect("join on second replica");
     let mirror = client(&rejoined);
-    assert_eq!(
-        mirror.get_text(BODY_CONTAINER).to_string(),
-        doc.get_text(BODY_CONTAINER).to_string()
-    );
+    assert_eq!(rich::read(&mirror), rich::read(&doc));
 }
 
 #[tokio::test]

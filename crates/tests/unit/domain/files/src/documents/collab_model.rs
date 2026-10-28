@@ -1,6 +1,6 @@
 use loro::{ExportMode, LoroDoc, VersionVector};
 use systemprompt_engine_loro::{BODY_CONTAINER, body_text, seed};
-use systemprompt_files::documents::collab::model::{body_of, is_collab_format, materialise};
+use systemprompt_files::documents::collab::model::{body_of, is_collab_format, splice_body};
 use systemprompt_provider_contracts::documents::DocumentFormat;
 
 const PAGE: &str = "<!doctype html>\n<html><head><title>Plan</title></head>\n<BODY class=\"x\"><p>One</p></BODY>\n</html>\n";
@@ -88,7 +88,7 @@ fn html_body_is_the_inner_markup_of_body() {
 
 #[test]
 fn html_materialises_inside_the_base_document() {
-    let out = materialise(DocumentFormat::Html, PAGE, "<p>Two</p>");
+    let out = splice_body(DocumentFormat::Html, PAGE, "<p>Two</p>");
     assert_eq!(
         out,
         "<!doctype html>\n<html><head><title>Plan</title></head>\n<BODY class=\"x\"><p>Two</p></BODY>\n</html>\n"
@@ -100,7 +100,7 @@ fn html_without_body_is_edited_whole() {
     let fragment = "<p>bare</p>";
     assert_eq!(body_of(DocumentFormat::Html, fragment), fragment);
     assert_eq!(
-        materialise(DocumentFormat::Html, fragment, "<p>new</p>"),
+        splice_body(DocumentFormat::Html, fragment, "<p>new</p>"),
         "<p>new</p>"
     );
 }
@@ -116,7 +116,7 @@ fn markdown_is_edited_whole() {
     let md = "# Plan\n\n- one\n";
     assert_eq!(body_of(DocumentFormat::Markdown, md), md);
     assert_eq!(
-        materialise(DocumentFormat::Markdown, md, "# New\n"),
+        splice_body(DocumentFormat::Markdown, md, "# New\n"),
         "# New\n"
     );
 }

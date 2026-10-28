@@ -7,6 +7,10 @@
 - The `collab` feature links no CRDT crate: live sessions run over the new `documents::engine::DocumentEngine` seam (`EngineDoc`, `FormulaEngine`, `RenderEngine`, `ModelView`, `EngineError`), and `CollabService::new` takes `Option<Arc<dyn DocumentEngine>>`. The Loro implementation is `systemprompt-engine-loro`.
 - The vendored `loro-crdt` WebAssembly, `documents-collab.js` and `sp-document-editor` are removed; core ships no third-party frontend code.
 
+### Added
+
+- `documents::model`: the `RichText` model, HTML and Markdown import and materialise, `validate` with `Limits` and `EditLevel`, `carry_ids`, `rich_text_schema`. Collab protocol v2 join fields, comment-mode joins, and server-side validation of every update on a fork (`CollabError::UpdateRejected`).
+
 ## [0.74.0] - 2026-10-27
 
 ### Breaking

@@ -1,19 +1,25 @@
 //! The Loro implementation of the files domain's [`DocumentEngine`].
 //!
-//! A document holds one [`LoroText`] container named [`BODY_CONTAINER`]
-//! whose value is [`ModelView::Body`]. [`LoroEngine::seed`] writes the
-//! initial body with peer id [`SEED_PEER`] and timestamps off, then moves to
-//! a random peer id, so every replica that seeds from the same revision
-//! produces the same operations and can import any client's updates without
-//! a shared snapshot. A browser editor mirrors the same container with
-//! `loro-crdt` at [`WIRE_VERSION`], the `loro` crate version this engine is
-//! pinned to.
+//! A document holds the [`RichText`] model in the containers described in
+//! [`rich`]. [`LoroEngine::seed`] writes the initial model with peer id
+//! [`SEED_PEER`], then moves to a random peer id, so every replica that seeds
+//! from the same revision produces the same operations and can import any
+//! client's updates without a shared snapshot. A session opened before the
+//! model existed holds one [`LoroText`] named [`BODY_CONTAINER`] instead and
+//! exports as [`ModelView::Body`]. A browser editor mirrors the containers
+//! with `loro-crdt` at [`WIRE_VERSION`] and configures [`rich::TEXT_STYLES`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod rich;
+mod sync;
+
+pub use sync::write_model;
+
 use loro::{ExportMode, LoroDoc, LoroText, PeerID, UpdateOptions, VersionVector};
 use systemprompt_files::documents::engine::{DocumentEngine, EngineDoc, EngineError, ModelView};
+use systemprompt_files::documents::model::RichText;
 
 pub const BODY_CONTAINER: &str = "body";
 pub const SEED_PEER: PeerID = 0;
@@ -32,11 +38,12 @@ impl DocumentEngine for LoroEngine {
     }
 
     fn seed(&self, model: &ModelView) -> Result<Box<dyn EngineDoc>, EngineError> {
-        Ok(Box::new(LoroEngineDoc(seed(model.body()).map_err(state)?)))
+        Ok(Box::new(LoroEngineDoc(seed_model(model).map_err(state)?)))
     }
 
     fn open(&self, snapshot: &[u8]) -> Result<Box<dyn EngineDoc>, EngineError> {
         let doc = LoroDoc::new();
+        rich::configure(&doc);
         doc.import(snapshot).map_err(state)?;
         Ok(Box::new(LoroEngineDoc(doc)))
     }
@@ -77,20 +84,30 @@ impl EngineDoc for LoroEngineDoc {
     }
 
     fn export_model(&self) -> ModelView {
-        ModelView::Body(body_text(&self.0))
+        export(&self.0)
+    }
+
+    fn fork(&self) -> Box<dyn EngineDoc> {
+        let fork = self.0.fork();
+        rich::configure(&fork);
+        Box::new(Self(fork))
     }
 
     fn update_to_model(&self, model: &ModelView) -> Result<Option<Vec<u8>>, EngineError> {
-        let target = model.body();
-        if body_text(&self.0) == target {
+        if export(&self.0) == *model {
             return Ok(None);
         }
         let before = self.0.oplog_vv();
         let draft = self.0.fork();
-        draft
-            .get_text(BODY_CONTAINER)
-            .update(target, UpdateOptions::default())
-            .map_err(|e| EngineError::State(Box::new(e)))?;
+        rich::configure(&draft);
+        match model {
+            ModelView::RichText(target) => write_model(&draft, target).map_err(state)?,
+            ModelView::Body(target) => draft
+                .get_text(BODY_CONTAINER)
+                .update(target, UpdateOptions::default())
+                .map_err(|e| EngineError::State(Box::new(e)))?,
+            _ => return Err(EngineError::Unsupported),
+        }
         draft.commit();
         draft
             .export(ExportMode::updates(&before))
@@ -99,19 +116,50 @@ impl EngineDoc for LoroEngineDoc {
     }
 }
 
+/// The model a document holds: its blocks, or the flat body of a session
+/// opened before the model existed.
+#[must_use]
+pub fn export(doc: &LoroDoc) -> ModelView {
+    let body = body_text(doc);
+    if rich::blocks(doc).is_empty() && !body.is_empty() {
+        ModelView::Body(body)
+    } else {
+        ModelView::RichText(rich::read(doc))
+    }
+}
+
 #[must_use]
 pub fn body_text(doc: &LoroDoc) -> String {
     doc.get_text(BODY_CONTAINER).to_string()
 }
 
-pub fn seed(body: &str) -> Result<LoroDoc, loro::LoroError> {
+/// A document seeded with `model` by [`SEED_PEER`].
+pub fn seed_model(model: &ModelView) -> Result<LoroDoc, loro::LoroError> {
     let doc = LoroDoc::new();
+    rich::configure(&doc);
     doc.set_peer_id(SEED_PEER)?;
-    let text: LoroText = doc.get_text(BODY_CONTAINER);
-    text.insert(0, body)?;
+    match model {
+        ModelView::RichText(rich) => write_model(&doc, rich)?,
+        ModelView::Body(body) => {
+            let text: LoroText = doc.get_text(BODY_CONTAINER);
+            text.insert(0, body)?;
+        },
+        _ => return Err(loro::LoroError::NotImplemented("model kind")),
+    }
     doc.commit();
     doc.set_peer_id(replica_peer())?;
     Ok(doc)
+}
+
+/// A document seeded with a flat body; kept for sessions opened before the
+/// `RichText` model.
+pub fn seed(body: &str) -> Result<LoroDoc, loro::LoroError> {
+    seed_model(&ModelView::Body(body.to_owned()))
+}
+
+/// A document seeded with `model`'s blocks.
+pub fn seed_rich(model: &RichText) -> Result<LoroDoc, loro::LoroError> {
+    seed_model(&ModelView::RichText(model.clone()))
 }
 
 #[must_use]

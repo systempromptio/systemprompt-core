@@ -9,6 +9,7 @@ use systemprompt_traits::RepositoryError;
 use crate::documents::blob_store::BlobStoreError;
 use crate::documents::engine::EngineError;
 use crate::documents::error::DocumentsError;
+use crate::documents::model::ModelRejection;
 
 #[derive(Debug, thiserror::Error)]
 pub enum CollabError {
@@ -28,6 +29,8 @@ pub enum CollabError {
     NotJoined { document_id: DocumentId },
     #[error("the update is not a valid update of the live session engine")]
     InvalidUpdate(#[source] EngineError),
+    #[error("the update was rejected: {0}")]
+    UpdateRejected(#[source] ModelRejection),
     #[error("the version is not a valid version of the live session engine")]
     InvalidVersion(#[source] EngineError),
     #[error("no live session engine is enabled on this installation")]

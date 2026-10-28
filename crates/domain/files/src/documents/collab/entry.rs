@@ -12,9 +12,9 @@ use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::DocumentFormat;
 use tokio::sync::Mutex;
 
-use super::model::body_of;
+use super::model::import;
 use super::{CollabError, CollabService};
-use crate::documents::engine::{EngineDoc, ModelView};
+use crate::documents::engine::EngineDoc;
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{Document, DocumentEditSession};
 
@@ -91,14 +91,14 @@ impl CollabService {
             let bytes = self.documents.blobs().read_all(hash, u64::MAX).await?;
             return Ok(engine.open(&bytes)?);
         }
-        let body = match &session.base_revision_id {
+        let text = match &session.base_revision_id {
             Some(revision) => {
                 let bytes = self.revision_bytes(revision, limit).await?;
-                body_of(document.format, &utf8(&document.id, bytes)?)
+                utf8(&document.id, bytes)?
             },
             None => String::new(),
         };
-        Ok(engine.seed(&ModelView::Body(body))?)
+        Ok(engine.seed(&import(document.format, &text))?)
     }
 
     pub(super) async fn revision_bytes(

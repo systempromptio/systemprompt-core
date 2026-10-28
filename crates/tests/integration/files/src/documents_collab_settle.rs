@@ -1,8 +1,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use loro::{ExportMode, UpdateOptions};
-use systemprompt_engine_loro::BODY_CONTAINER;
+use systemprompt_engine_loro::rich;
 use systemprompt_files::documents::collab::{
     ApplyRequest, Checkpoint, CollabError, CollabService, CollabTuning, JoinMode,
 };
@@ -13,7 +12,7 @@ use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::ProposalStatus;
 use systemprompt_test_fixtures::test_db_pool;
 
-use crate::documents_collab::{Collab, client, collab, edit, html_document, loro, request};
+use crate::documents_collab::{Collab, change, client, collab, edit, html_document, loro, request};
 use crate::documents_service_fixture::{api_author, person, trace};
 
 async fn head_text(
@@ -73,13 +72,11 @@ async fn leaving_on_a_conflicting_checkpoint_lands_a_proposal_and_keeps_the_sess
         .expect("join");
     write(&c, &owner, &document, "alpha", "outside").await;
     let doc = client(&joined);
-    let before = doc.oplog_vv();
-    let text = doc.get_text(BODY_CONTAINER);
-    let live = text.to_string().replacen("alpha", "live", 1);
-    text.update(&live, UpdateOptions::default())
-        .expect("update");
-    doc.commit();
-    let update = doc.export(ExportMode::updates(&before)).expect("export");
+    let update = change(&doc, |model| {
+        if let Some(block) = model.blocks.iter_mut().find(|b| b.text.contains("alpha")) {
+            block.text = block.text.replacen("alpha", "live", 1);
+        }
+    });
     c.collab
         .apply(&owner, request(&document, &joined, &doc, update), &trace())
         .await
@@ -214,10 +211,7 @@ async fn sequence_numbers_follow_commit_order_across_replicas() {
         .await
         .expect("rejoin first replica");
     assert_eq!(rejoined.seq, 2);
-    assert_eq!(
-        client(&rejoined).get_text(BODY_CONTAINER).to_string(),
-        doc.get_text(BODY_CONTAINER).to_string()
-    );
+    assert_eq!(rich::read(&client(&rejoined)), rich::read(&doc));
 }
 
 #[tokio::test]

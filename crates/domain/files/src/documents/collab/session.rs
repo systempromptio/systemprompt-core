@@ -13,6 +13,9 @@ use systemprompt_models::documents::{
 
 use super::model::is_collab_format;
 use super::{Checkpoint, CollabError, CollabService, CursorRequest, JoinMode, Joined, Left};
+use crate::documents::error::DocumentsError;
+use crate::documents::model::RICH_TEXT_VERSION;
+use crate::documents::models::{Document, DocumentEditSession, EditSessionOpen, PresenceUpsert};
 
 struct Announcement<'a> {
     state: PresenceState,
@@ -20,9 +23,6 @@ struct Announcement<'a> {
     // JSON: editor cursor position; the shape belongs to the client's editor.
     cursor: Option<serde_json::Value>,
 }
-use crate::documents::access::AccessTarget;
-use crate::documents::error::DocumentsError;
-use crate::documents::models::{Document, DocumentEditSession, EditSessionOpen, PresenceUpsert};
 
 impl CollabService {
     pub async fn join(
@@ -34,10 +34,11 @@ impl CollabService {
     ) -> Result<Joined, CollabError> {
         let action = match mode {
             JoinMode::Edit => DocumentAction::Edit,
+            JoinMode::Comment => DocumentAction::Comment,
             JoinMode::View => DocumentAction::View,
         };
-        self.engine()?;
-        let document = self.authorized(who, document, action, trace).await?;
+        let engine = self.engine()?;
+        let (document, level) = self.granted(who, document, action, trace).await?;
         if !is_collab_format(document.format) {
             return Err(DocumentsError::UnsupportedFormat {
                 format: document.format,
@@ -54,10 +55,15 @@ impl CollabService {
             version: entry.doc.version(),
             seq: entry.last_seq,
             head_revision: document.head_revision_id.clone(),
+            engine: engine.name(),
+            wire_version: engine.wire_version(),
+            model: entry.doc.export_model().kind(),
+            model_version: RICH_TEXT_VERSION,
+            level,
         };
         drop(entry);
         let state = match mode {
-            JoinMode::Edit => PresenceState::Editing,
+            JoinMode::Edit | JoinMode::Comment => PresenceState::Editing,
             JoinMode::View => PresenceState::Viewing,
         };
         self.mark_present(who, &document, state, None).await?;
@@ -164,38 +170,6 @@ impl CollabService {
         )
         .await;
         Ok(())
-    }
-
-    pub(super) async fn authorized(
-        &self,
-        who: &AuthenticatedUser,
-        document: &DocumentId,
-        action: DocumentAction,
-        trace: &TraceId,
-    ) -> Result<Document, CollabError> {
-        self.documents
-            .access()
-            .authorize(who, AccessTarget::Document(document.clone()), action, trace)
-            .await?
-            .document
-            .ok_or_else(|| DocumentsError::not_found("document", document).into())
-    }
-
-    pub(super) async fn open_matching(
-        &self,
-        document: &DocumentId,
-        session: &DocumentEditSessionId,
-    ) -> Result<DocumentEditSession, CollabError> {
-        self.documents
-            .repositories()
-            .edit_sessions
-            .find_open(document)
-            .await?
-            .filter(|open| open.id == *session)
-            .ok_or_else(|| CollabError::SessionClosed {
-                document_id: document.clone(),
-                session_id: session.clone(),
-            })
     }
 
     async fn open_session(&self, document: &Document) -> Result<DocumentEditSession, CollabError> {

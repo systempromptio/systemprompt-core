@@ -20,6 +20,7 @@ mod codecs_text;
 mod codecs_xlsx;
 mod codecs_xlsx_paths;
 mod collab_model;
+mod model_rich_text;
 mod commit_plan;
 mod docx_fixture;
 mod engine_loro;

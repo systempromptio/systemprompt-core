@@ -21,20 +21,27 @@ use std::fmt;
 
 pub use error::EngineError;
 
-/// Core's engine-agnostic view of a document's editable content. `Body`
-/// holds the editable body as one text: the inner markup of `<body>` for
-/// HTML, the whole text for Markdown.
+use super::model::RichText;
+
+/// Core's engine-agnostic view of a document's editable content.
+/// `RichText` is a text document as typed blocks with marks. `Body` is the
+/// editable body as one flat text (the inner markup of `<body>` for HTML,
+/// the whole text for Markdown) that only sessions opened before the
+/// `RichText` model still hold; new sessions never seed it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum ModelView {
     Body(String),
+    RichText(RichText),
 }
 
 impl ModelView {
+    /// The model's wire name, reported to a joining client.
     #[must_use]
-    pub fn body(&self) -> &str {
+    pub const fn kind(&self) -> &'static str {
         match self {
-            Self::Body(text) => text,
+            Self::Body(_) => "body",
+            Self::RichText(_) => "rich_text",
         }
     }
 }
@@ -73,6 +80,8 @@ pub trait EngineDoc: Send + fmt::Debug {
     fn missing_since(&self, version: &[u8]) -> Result<Option<Vec<u8>>, EngineError>;
 
     fn export_model(&self) -> ModelView;
+
+    fn fork(&self) -> Box<dyn EngineDoc>;
 
     fn update_to_model(&self, model: &ModelView) -> Result<Option<Vec<u8>>, EngineError>;
 }

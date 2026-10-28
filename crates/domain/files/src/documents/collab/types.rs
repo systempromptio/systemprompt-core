@@ -8,13 +8,20 @@ use std::time::Duration;
 use systemprompt_identifiers::{
     DocumentEditSessionId, DocumentId, DocumentProposalId, DocumentRevisionId,
 };
+use systemprompt_models::documents::AccessLevel;
 
+/// How a client joins: `edit` needs edit access, `comment` comment access
+/// (its updates may only add or remove comment marks), `view` read access.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum JoinMode {
     Edit,
+    Comment,
     View,
 }
 
+/// Protocol v2 join: the session state plus what a client needs to bind an
+/// editor to it — the engine and wire version it must speak, the model and
+/// its schema version, and the caller's access level.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Joined {
     pub session_id: DocumentEditSessionId,
@@ -22,6 +29,11 @@ pub struct Joined {
     pub version: Vec<u8>,
     pub seq: i64,
     pub head_revision: Option<DocumentRevisionId>,
+    pub engine: &'static str,
+    pub wire_version: &'static str,
+    pub model: &'static str,
+    pub model_version: u32,
+    pub level: AccessLevel,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

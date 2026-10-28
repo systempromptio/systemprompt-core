@@ -17,8 +17,10 @@
 //!
 //! [`live`] is the document-scoped live channel (topic `document:<id>`)
 //! and the awareness participants share over it; it needs no CRDT engine.
-//! With the `collab` feature, `collab` co-edits HTML and Markdown documents
-//! live over a Loro CRDT.
+//! [`model`] holds core's engine-agnostic document models (`RichText`) and
+//! the server-side validation of live updates. With the `collab` feature,
+//! `collab` co-edits HTML and Markdown documents live over whichever
+//! [`engine::DocumentEngine`] the composition root selects.
 //!
 //! [`TemplateRegistry`]: templates::TemplateRegistry
 //! [`DocumentCodec`]: systemprompt_provider_contracts::documents::DocumentCodec
@@ -37,6 +39,7 @@ pub mod error;
 pub mod events;
 pub mod jobs;
 pub mod live;
+pub mod model;
 pub mod models;
 pub mod nodes;
 pub mod repository;

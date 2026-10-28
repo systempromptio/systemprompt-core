@@ -1,5 +1,6 @@
 use systemprompt_engine_loro::{LoroEngine, WIRE_VERSION};
 use systemprompt_files::documents::engine::{DocumentEngine, EngineError, ModelView};
+use systemprompt_files::documents::model::{Block, BlockKind, Mark, MarkKind, RichText};
 
 #[test]
 fn wire_version_is_the_pinned_loro_crate() {
@@ -54,4 +55,76 @@ fn garbage_is_refused_as_an_update_and_as_a_version() {
         doc.missing_since(b"\xff\xff"),
         Err(EngineError::InvalidVersion(_))
     ));
+}
+
+fn rich(blocks: Vec<Block>) -> ModelView {
+    ModelView::RichText(RichText { blocks })
+}
+
+#[test]
+fn rich_text_replicas_converge_on_concurrent_edits() {
+    let seed = rich(vec![
+        Block::new("b1", BlockKind::Heading { level: 1 }, "Title"),
+        Block::new("b2", BlockKind::Paragraph, "Body"),
+    ]);
+    let mut left = LoroEngine.seed(&seed).expect("seed");
+    let mut right = LoroEngine.seed(&seed).expect("seed");
+    let mut bold = Block::new("b2", BlockKind::Paragraph, "Body text");
+    bold.marks.push(Mark {
+        start: 0,
+        end: 4,
+        kind: MarkKind::Bold,
+    });
+    let from_left = left
+        .update_to_model(&rich(vec![
+            Block::new("b1", BlockKind::Heading { level: 1 }, "Title"),
+            bold,
+        ]))
+        .expect("diff")
+        .expect("changed");
+    let from_right = right
+        .update_to_model(&rich(vec![
+            Block::new("b1", BlockKind::Heading { level: 2 }, "Title"),
+            Block::new("b2", BlockKind::Paragraph, "Body"),
+            Block::new("r.1", BlockKind::Paragraph, "Added"),
+        ]))
+        .expect("diff")
+        .expect("changed");
+    for doc in [&mut left, &mut right] {
+        doc.apply_update(&from_left).expect("left update");
+        doc.apply_update(&from_right).expect("right update");
+    }
+    assert_eq!(left.export_model(), right.export_model());
+    let ModelView::RichText(merged) = left.export_model() else {
+        panic!("rich text");
+    };
+    assert_eq!(merged.blocks.len(), 3);
+    assert_eq!(merged.blocks[0].kind, BlockKind::Heading { level: 2 });
+    assert_eq!(merged.blocks[1].text, "Body text");
+    assert_eq!(
+        merged.blocks[1].marks,
+        vec![Mark {
+            start: 0,
+            end: 4,
+            kind: MarkKind::Bold
+        }]
+    );
+}
+
+#[test]
+fn a_fork_takes_an_update_without_changing_the_document() {
+    let doc = LoroEngine
+        .seed(&rich(vec![Block::new("b1", BlockKind::Paragraph, "a")]))
+        .expect("seed");
+    let update = doc
+        .update_to_model(&rich(vec![Block::new("b1", BlockKind::Paragraph, "ab")]))
+        .expect("diff")
+        .expect("changed");
+    let mut fork = doc.fork();
+    fork.apply_update(&update).expect("apply");
+    assert_ne!(fork.export_model(), doc.export_model());
+    assert_eq!(
+        doc.export_model(),
+        rich(vec![Block::new("b1", BlockKind::Paragraph, "a")])
+    );
 }
