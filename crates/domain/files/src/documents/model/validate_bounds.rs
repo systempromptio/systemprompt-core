@@ -38,8 +38,11 @@ pub(super) fn image_ok(blob: &str, width: Option<u32>, height: Option<u32>) -> b
     size_ok && blob_ok(blob)
 }
 
-/// One blob form: a URL, a picture the docx holds (`docx-media:media/…`
-/// with an image extension and no `..`), or the bare hash of an upload.
+/// The blob forms: an http(s) URL, a picture the docx holds
+/// (`docx-media:media/…` with an image extension and no `..`), or a path
+/// with no scheme, which is how an upload is named (its bare hash) and how
+/// an HTML or Markdown document names a relative image. Every other scheme
+/// (`blob:`, `data:`, `javascript:`) is refused.
 fn blob_ok(blob: &str) -> bool {
     let lower = blob.trim().to_ascii_lowercase();
     if let Some(target) = lower.strip_prefix("docx-media:") {
@@ -51,7 +54,10 @@ fn blob_ok(blob: &str) -> bool {
     if lower.starts_with("https:") || lower.starts_with("http:") {
         return true;
     }
-    lower.len() == 64 && lower.chars().all(|c| c.is_ascii_hexdigit())
+    lower
+        .split(['/', '?', '#'])
+        .next()
+        .is_some_and(|head| !head.contains(':'))
 }
 
 pub(super) fn table_ok(rows: &[Vec<RichText>], props: &TableProps) -> bool {
