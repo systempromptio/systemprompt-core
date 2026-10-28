@@ -128,7 +128,10 @@ fn tables_keep_their_merges_shading_widths_and_header_rows() {
     assert_eq!(props.cell(0, 0).colspan(), 2);
     assert_eq!(props.cell(0, 0).shade.as_deref(), Some("1F4E79"));
     assert_eq!(props.cell(1, 0).rowspan(), 2);
-    assert!(rows[2][0].blocks.is_empty(), "the covered cell keeps its slot");
+    assert!(
+        rows[2][0].blocks.is_empty(),
+        "the covered cell keeps its slot"
+    );
     let xml = part(&written(), "word/document.xml");
     assert!(xml.contains("<w:gridSpan w:val=\"2\"/>"));
     assert!(xml.contains("<w:vMerge w:val=\"restart\"/>"));
@@ -155,8 +158,16 @@ fn numbering_sections_images_and_fields_survive_the_round_trip() {
     assert_eq!(section.size.map(|s| (s.width, s.height)), Some((595, 842)));
     let footer = section.footer.expect("footer");
     assert_eq!(footer.blocks[0].text, "Page 1");
-    assert!(footer.blocks[0].marks.iter().any(|m| m.kind.key() == "field"));
-    assert_eq!(section.header.expect("header").blocks[0].text, "Confidential");
+    assert!(
+        footer.blocks[0]
+            .marks
+            .iter()
+            .any(|m| m.kind.key() == "field")
+    );
+    assert_eq!(
+        section.header.expect("header").blocks[0].text,
+        "Confidential"
+    );
     let (blob, width, caption, wrap) = model
         .blocks
         .iter()

@@ -35,7 +35,10 @@ async fn a_degraded_checkpoint_saves_a_placeholder_and_leaves_the_live_image() {
         .await
         .expect("join");
     let doc = client(&joined);
-    let update = edit(&doc, &format!("<p>Chart</p><img src=\"{UNOWNED}\" alt=\"chart\">"));
+    let update = edit(
+        &doc,
+        &format!("<p>Chart</p><img src=\"{UNOWNED}\" alt=\"chart\">"),
+    );
     collab
         .apply(&owner, request(&document, &joined, &doc, update), &trace())
         .await
@@ -47,7 +50,10 @@ async fn a_degraded_checkpoint_saves_a_placeholder_and_leaves_the_live_image() {
         .await
         .expect("read");
     let saved = String::from_utf8(bytes).expect("utf8");
-    assert!(saved.contains("[image not available]"), "the saved bytes degrade");
+    assert!(
+        saved.contains("[image not available]"),
+        "the saved bytes degrade"
+    );
     assert!(!saved.contains(UNOWNED), "the unowned image is not saved");
     let again = collab
         .join(&owner, &document, JoinMode::View, &trace())

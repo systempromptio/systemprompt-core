@@ -263,7 +263,6 @@ async fn stale_upload(
     let request = CommitRequest {
         body: CommitBody::Bytes(upload),
         ..ops(&document, Some(&rev0), Vec::new())
-        media: Media::new(),
     };
     h.service
         .commit(owner, request, &trace())

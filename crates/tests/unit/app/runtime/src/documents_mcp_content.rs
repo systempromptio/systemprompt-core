@@ -25,7 +25,11 @@ fn malformed_content_is_refused_with_the_expected_shapes() {
         json!({"model": {"blocks": "nope"}}),
     ] {
         let error = create_content(Some(bad.clone())).expect_err("refused");
-        assert_eq!(refusal_code(&error), Some(RefusalCode::InvalidParams), "{bad}");
+        assert_eq!(
+            refusal_code(&error),
+            Some(RefusalCode::InvalidParams),
+            "{bad}"
+        );
         assert!(
             error.message.contains("/api/v1/documents/schema"),
             "{bad}: {}",

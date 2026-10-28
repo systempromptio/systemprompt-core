@@ -54,7 +54,12 @@ fn raw_markup_in_a_section_break_footer_is_refused() {
         "",
     )]);
     assert_eq!(
-        validate(&RichText::default(), &model, EditLevel::Edit, &Limits::default()),
+        validate(
+            &RichText::default(),
+            &model,
+            EditLevel::Edit,
+            &Limits::default()
+        ),
         Err(ModelRejection::RawChanged("evil".to_owned()))
     );
 }
@@ -94,7 +99,10 @@ fn a_new_header_part_never_overwrites_an_existing_one() {
         part(&first, "word/sp-header1.xml")
     );
     let names: Vec<String> = entries(&again).into_iter().map(|(name, ..)| name).collect();
-    let headers = names.iter().filter(|name| name.contains("sp-header")).count();
+    let headers = names
+        .iter()
+        .filter(|name| name.contains("sp-header"))
+        .count();
     assert_eq!(headers, 2);
     let model = import_rich(&again).expect("reimport");
     let section = model.settings().section.expect("section");
@@ -240,7 +248,10 @@ fn an_oversized_saved_upload_part_is_skipped() {
     let hash = content_hash(&bytes).as_str().to_owned();
     let saved = with_upload(&hash, bytes);
     let wanted = [hash.clone()];
-    assert_eq!(saved_upload_hashes(&saved, &wanted, MAX_PART_BYTES), vec![hash.clone()]);
+    assert_eq!(
+        saved_upload_hashes(&saved, &wanted, MAX_PART_BYTES),
+        vec![hash.clone()]
+    );
     assert!(saved_upload_hashes(&saved, &wanted, 8).is_empty());
     assert!(saved_upload_hashes(&saved, &[], MAX_PART_BYTES).is_empty());
 }
@@ -251,8 +262,10 @@ fn a_part_named_for_another_upload_is_not_held() {
     let crafted = with_upload(other, png(8, 8));
     let wanted = [other.to_owned()];
     assert!(saved_upload_hashes(&crafted, &wanted, MAX_PART_BYTES).is_empty());
-    assert!(!held_media_refs(DocumentFormat::Docx, &crafted, &wanted, MAX_PART_BYTES)
-        .contains(&wanted[0]));
+    assert!(
+        !held_media_refs(DocumentFormat::Docx, &crafted, &wanted, MAX_PART_BYTES)
+            .contains(&wanted[0])
+    );
 }
 
 #[test]

@@ -62,13 +62,20 @@ fn a_new_colour_goes_before_an_unmodelled_kern() {
     let style = restyled();
     assert!(style.contains("<w:color w:val=\"FF0000\"/>"));
     assert!(before(&style, "<w:color", "<w:kern w:val=\"2\"/>"));
-    assert!(style.contains("w:eastAsia=\"SimSun\""), "rFonts merges attribute by attribute");
+    assert!(
+        style.contains("w:eastAsia=\"SimSun\""),
+        "rFonts merges attribute by attribute"
+    );
 }
 
 #[test]
 fn a_new_jc_goes_before_an_unmodelled_text_alignment() {
     let style = restyled();
-    assert!(before(&style, "<w:jc w:val=\"center\"/>", "<w:textAlignment"));
+    assert!(before(
+        &style,
+        "<w:jc w:val=\"center\"/>",
+        "<w:textAlignment"
+    ));
     assert!(style.contains("<w:uiPriority w:val=\"9\"/>"));
 }
 
