@@ -155,9 +155,15 @@ pub(super) fn settings(
         Some(name) => part_text(bytes, &name)?.and_then(|xml| read_theme(&xml)),
         None => None,
     };
-    let section = final_sect(src)
-        .and_then(|range| parse_xml("word/document.xml", &src[range]).ok())
-        .map(|element| section(&element, ctx));
+    let section = final_sect(src).and_then(|range| {
+        match parse_xml("word/document.xml", &src[range]) {
+            Ok(element) => Some(section(&element, ctx)),
+            Err(error) => {
+                tracing::warn!(%error, "final sectPr unreadable; the base section is kept");
+                None
+            },
+        }
+    });
     Ok(DocumentSettings {
         styles,
         theme,

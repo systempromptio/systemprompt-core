@@ -26,8 +26,12 @@ pub(super) const ACCENTS: [&str; 6] = [
 ];
 
 pub(super) fn read_styles(xml: &str) -> Vec<(StyleDef, std::ops::Range<usize>)> {
-    let Ok(root) = parse_xml("word/styles.xml", xml) else {
-        return Vec::new();
+    let root = match parse_xml("word/styles.xml", xml) {
+        Ok(root) => root,
+        Err(error) => {
+            tracing::warn!(%error, "styles.xml unreadable; the base styles are kept as they are");
+            return Vec::new();
+        },
     };
     root.children_named("w:style")
         .filter_map(|style| Some((style_def(style)?, style.start..style.end)))
@@ -71,7 +75,13 @@ fn style_def(style: &Element) -> Option<StyleDef> {
 }
 
 pub(super) fn read_theme(xml: &str) -> Option<Theme> {
-    let root = parse_xml("word/theme/theme1.xml", xml).ok()?;
+    let root = match parse_xml("word/theme/theme1.xml", xml) {
+        Ok(root) => root,
+        Err(error) => {
+            tracing::warn!(%error, "theme part unreadable; the base theme is kept as it is");
+            return None;
+        },
+    };
     let typeface = |name: &str| {
         root.find(name)
             .and_then(|font| font.child("a:latin"))

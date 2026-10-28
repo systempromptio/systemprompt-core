@@ -76,7 +76,13 @@ pub fn read(doc: &LoroDoc) -> RichText {
 
 fn read_settings(doc: &LoroDoc) -> Option<Box<DocumentSettings>> {
     let json = string_of(&doc.get_map(DOCUMENT_CONTAINER), "settings")?;
-    serde_json::from_str(&json).ok().map(Box::new)
+    match serde_json::from_str(&json) {
+        Ok(settings) => Some(Box::new(settings)),
+        Err(error) => {
+            tracing::warn!(%error, "live document settings unreadable; the base settings are kept");
+            None
+        },
+    }
 }
 
 pub fn sync_settings(doc: &LoroDoc, settings: Option<&DocumentSettings>) -> Result<(), WriteError> {

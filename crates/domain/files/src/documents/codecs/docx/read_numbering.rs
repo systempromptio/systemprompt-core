@@ -35,8 +35,12 @@ pub(super) struct NumberingMap {
 impl NumberingMap {
     pub(super) fn read(xml: &str) -> Self {
         let mut map = Self::default();
-        let Ok(root) = parse_xml(NUMBERING, xml) else {
-            return map;
+        let root = match parse_xml(NUMBERING, xml) {
+            Ok(root) => root,
+            Err(error) => {
+                tracing::warn!(%error, "numbering.xml unreadable; its lists are kept as they are");
+                return map;
+            },
         };
         let mut abstracts: HashMap<&str, (Option<&str>, Vec<NumberingLevel>)> = HashMap::new();
         for abs in root.children_named("w:abstractNum") {
