@@ -191,7 +191,7 @@ impl DocumentService {
         trace: &TraceId,
     ) -> Result<bool, DocumentsError> {
         let checked = self.check_share(who, share, trace).await?;
-        let mut tx = self.repos.access_requests.begin().await?;
+        let mut tx = self.repos.documents.begin().await?;
         if !DocumentAccessRequestRepository::decide_in(
             &mut tx,
             request,
@@ -203,11 +203,7 @@ impl DocumentService {
             tx.rollback().await.map_err(sql)?;
             return Ok(false);
         }
-        let grant = self
-            .repos
-            .grants
-            .insert(&mut tx, checked.grant.clone())
-            .await?;
+        let grant = self.insert_checked(&mut tx, &checked).await?;
         self.record_checked(&mut tx, who, &checked, &grant).await?;
         tx.commit().await.map_err(sql)?;
         self.announce_checked(who, checked, &grant).await;

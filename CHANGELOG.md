@@ -42,6 +42,10 @@
 - **Breaking:** **Manifest:** `Profile` gains `notifications: NotificationsProfile`. The YAML block is optional and defaulted. Migrate struct literals by adding `notifications: NotificationsProfile::default()`.
 - **Breaking:** **Bridge:** `ProxyDeps` gains `notification_signals: NotificationSignals`, and `HostApp` gains the defaulted method `start_session`. Migrate struct literals by passing the signals from `NotificationSignals::channel()`.
 - **Breaking:** **Notifications:** `PipelineParts` gains `actors: Arc<dyn NotificationActorDirectory>`, and `NewNotifications` gains `actor_display: Option<String>`. The consumer stores the actor's display name on each row (notifications migration `003`), so the feed no longer joins `users`. Migrate by passing a directory (the runtime's `UserRoleAudienceResolver` implements it).
+- **Breaking:** **Files:** `DocumentFolderRepository::move_to` takes a `FolderRelocation` (folder, destination, the destination's ancestor chain read before authorizing, and the mover) and answers `FolderMoveOutcome::{Moved, Refused, DestinationChanged}` instead of a row count. Migrate callers by passing the relocation and matching the outcome.
+- **Breaking:** **Files:** `DocumentRepository::path_changes_since` takes the caller's `SubjectPairs`, and `DocumentPathChange` gains `access: Option<SubjectAccess>` (`Lost` or `Gained`) for a row recording one subject's change of access. Migrate by passing the reader's pairs and matching the new field.
+- **Breaking:** **Governance:** `ChainFingerprint` is `{ version: i64 }`, read from `config_version`, which every access-control rule and entity write advances. Migrate by comparing versions instead of the former counts and timestamp.
+- **Breaking:** **Files:** moving a folder moves every document another user owns in the moved subtree to its owner's root in the same transaction, with a path change on the Drive feed, instead of carrying it under the new parent's grants. Migrate callers that expected a collaborator's document to move with the folder.
 - **Breaking:** **Files:** `FilesConfigYaml` gains `issues: IssuesConfig`, and **Runtime:** `DocumentsRuntimeParts` gains `issues: Arc<IssueService>`. Migrate struct literals by adding `issues: IssuesConfig::default()` to `FilesConfigYaml` and an `IssueService` built from `IssueReportRepository::new(&db)`, the notification sink and `files_config.issues_config().clone()`.
 
 ### Added
@@ -72,8 +76,25 @@
 - **Scheduler:** the `notification_retention` job runs every five minutes and purges, each under its own batch and time budget, read rows past the profile retention and a stream's rows past the stream's retention, delivery failures past `failure_retention_days`, and unread rows past `unread_max_age_days`.
 - **Users:** `UserRepository::is_active_with_role`, and a GIN index on `users.roles` serving role membership and role listing.
 
+- **Files:** `DocumentGrantRepository::insert_bounded` writes a grant only if it does not change an existing grant above a given level, answering `None` when it would.
+- **Files:** migration `036_document_path_change_subject` adds `subject_kind`/`subject_value` to `document_path_changes` and the `document_drive_path(folder, name)` SQL function.
+
 ### Fixed
 
+- **Files:** a user who gains access to a document (a new grant or approved access request, an ownership transfer, or the document or a folder above it moving under a grant they hold) receives it on their Drive feed as `Created` with its current path, head revision and content hash; a user who loses access by a document move receives `Deleted`, as revokes already did.
+- **Governance:** the folder-chain cache revalidates on `config_version`, so a rule delete and insert in one transaction that keeps the row count and latest timestamp no longer leaves a stale index trusted until its time-to-live.
+- **Files:** a recursive folder delete re-checks each document's owner inside its locked transaction, so a document given to another user after the delete read its subtree is neither trashed nor re-homed, and the delete answers `SubtreeChanged`.
+- **Files:** a folder move re-checks inside its locked transaction that the destination still has the ancestor chain the caller was authorized against, and answers `SubtreeChanged` when it moved.
+- **Files:** renaming or moving a folder writes a path change for every live document beneath it, in the same transaction, so the Drive feed reports each as renamed instead of leaving devices on the old paths.
+- **Files:** a revoked or expired grant, a re-home out of a granted folder and a folder moved away from a granted ancestor write a path change naming each affected subject, and the Drive feed reports the document as deleted to a reader that subject covers once the reader can no longer see it; readers who keep access get nothing.
+- **Files:** the search index is written only while the revision it extracted is still the document's head, so an older revision that finishes extracting last never replaces newer text.
+- **Files:** sharing or approving an access request never lowers an existing grant above the sharer's own level, checked by the grant write itself, so a concurrent stronger grant is not downgraded; the request is refused with `ShareBelowExisting` and its decision rolls back.
+- **Files:** a merged, conflicting or followed head written back into a live session is logged under the `collab-write-back` system actor and is nobody's authorship, so a participant who only joined or commented never becomes the checkpoint author and a commenter's session still settles.
+- **Files:** a snapshot never prunes logged updates its session's last checkpoint does not cover, so the checkpoint author, level and actor are always read from the whole uncheckpointed log.
+- **Files:** following an outside write waits while a checkpoint is due or backing off, and decides whether the head moved and whether the live model holds its own edits before claiming the checkpoint lease, so an idle replica no longer claims the lease on every tick.
+- **Files:** catching a live session up reads the update log and any reopened snapshot without holding the session's entry, so a slow read no longer blocks updates to the same document.
+- **Events:** an outbox row the relay cannot read is announced as relay-lost on the live topics, as every other gap in the relay is.
+- **Gateway:** `POST /v1/messages/count_tokens` refuses a body it cannot read as `/v1/messages` does: `413` past the inference body limit and `400` for any other read failure, instead of counting it as an empty request.
 - **Cache expiry and relay reconnects no longer fan out into one load per caller.** The
   gateway policy cache, the authz parent-chain index, the OIDC discovery document and the
   JWKS client each loaded on a miss with no coordination, so an expiry, or the epoch bump a

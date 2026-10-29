@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM document_collab_updates u\n                 USING document_edit_sessions s\n                 WHERE u.session_id = $1::text::uuid AND s.id = u.session_id\n                   AND u.seq <= LEAST($2, s.checkpoint_seq)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "dd9a995664d11d3c34ca8ccbfe084af82182f5210c54a38ae49f727d01d92470"
+}

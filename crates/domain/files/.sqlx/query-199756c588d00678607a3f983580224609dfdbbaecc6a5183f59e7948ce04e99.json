@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO document_path_changes\n               (document_id, from_path, subject_kind, subject_value, subject_access)\n           SELECT DISTINCT d.id, document_drive_path(d.folder_id, d.name),\n                  g.subject_kind, g.subject_value, 'lost'\n           FROM document_folders r\n           JOIN document_grants g ON g.folder_id = ANY(r.ancestor_ids)\n           JOIN document_folders f\n             ON (f.id = r.id OR r.id = ANY(f.ancestor_ids)) AND f.deleted_at IS NULL\n           JOIN documents d ON d.folder_id = f.id AND d.deleted_at IS NULL\n           WHERE r.id = $1::text::uuid",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "199756c588d00678607a3f983580224609dfdbbaecc6a5183f59e7948ce04e99"
+}

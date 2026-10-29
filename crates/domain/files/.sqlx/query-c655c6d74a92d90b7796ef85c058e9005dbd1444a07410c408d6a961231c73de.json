@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT d.id::text AS \"id!\", document_drive_path(d.folder_id, d.name) AS \"path!\"\n           FROM documents d\n           JOIN document_folders f ON f.id = d.folder_id\n           WHERE (f.id = $1::text::uuid OR $1::text::uuid = ANY(f.ancestor_ids))\n             AND d.deleted_at IS NULL\n           ORDER BY d.id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "path!",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "c655c6d74a92d90b7796ef85c058e9005dbd1444a07410c408d6a961231c73de"
+}

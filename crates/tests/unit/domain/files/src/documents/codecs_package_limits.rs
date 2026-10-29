@@ -68,6 +68,28 @@ fn bytes_with_a_zip_signature_that_do_not_open_are_refused() {
 }
 
 #[test]
+fn a_large_binary_with_a_signature_by_chance_in_its_middle_passes_through() {
+    let mut binary = vec![0x5a_u8; 200 * 1024];
+    binary[1024..1028].copy_from_slice(b"PK\x03\x04");
+    binary[4096..4100].copy_from_slice(b"PK\x05\x06");
+    inspect_package(&binary, SMALL).expect("not a package");
+}
+
+#[test]
+fn an_end_of_directory_record_in_the_tail_that_does_not_open_is_refused() {
+    let mut broken = vec![0x5a_u8; 4096];
+    broken.extend_from_slice(b"PK\x05\x06");
+    broken.extend_from_slice(&[0, 0, 0, 0, 5, 0, 5, 0]);
+    broken.extend_from_slice(&46_u32.to_le_bytes());
+    broken.extend_from_slice(&0xffff_ff00_u32.to_le_bytes());
+    broken.extend_from_slice(&[0, 0]);
+    assert!(matches!(
+        inspect_package(&broken, SMALL),
+        Err(CodecError::Parse { .. })
+    ));
+}
+
+#[test]
 fn a_part_that_inflates_past_its_cap_is_too_large() {
     let bomb = docx_with(&[("word/media/bomb.bin".to_owned(), 2 * MIB)]);
     assert!(

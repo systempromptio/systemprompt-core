@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT document_id::text AS \"document_id!: DocumentId\",\n                      from_path, to_path,\n                      landing_xid AS \"landing_xid!\", landing_seq AS \"landing_seq!\"\n               FROM document_path_changes\n               WHERE landing_xid IS NOT NULL\n                 AND landing_xid < $3\n                 AND (landing_xid, landing_seq) > ($1, $2)\n               ORDER BY landing_xid, landing_seq\n               LIMIT $4",
+  "query": "SELECT document_id::text AS \"document_id!: DocumentId\",\n                      from_path, to_path,\n                      subject_access,\n                      landing_xid AS \"landing_xid!\", landing_seq AS \"landing_seq!\"\n               FROM document_path_changes\n               WHERE landing_xid IS NOT NULL\n                 AND landing_xid < $3\n                 AND (landing_xid, landing_seq) > ($1, $2)\n                 AND (subject_kind IS NULL\n                      OR (subject_kind, subject_value) IN (\n                          SELECT k, v FROM UNNEST($5::text[], $6::text[]) AS p(k, v)))\n               ORDER BY landing_xid, landing_seq\n               LIMIT $4",
   "describe": {
     "columns": [
       {
@@ -33,6 +33,17 @@
       },
       {
         "ordinal": 3,
+        "name": "subject_access",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_path_changes",
+            "name": "subject_access"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
         "name": "landing_xid!",
         "type_info": "Int8",
         "origin": {
@@ -43,7 +54,7 @@
         }
       },
       {
-        "ordinal": 4,
+        "ordinal": 5,
         "name": "landing_seq!",
         "type_info": "Int8",
         "origin": {
@@ -59,7 +70,9 @@
         "Int8",
         "Int8",
         "Int8",
-        "Int8"
+        "Int8",
+        "TextArray",
+        "TextArray"
       ]
     },
     "nullable": [
@@ -67,8 +80,9 @@
       true,
       true,
       true,
+      true,
       true
     ]
   },
-  "hash": "fb5b183713bf314787e9cc75c5605b580ee44574fae1ed49537daac17926bcd6"
+  "hash": "23efa7ffc483768ca9843da9d4ef55b04f5e1748be26ffb537bbf52eadf3c816"
 }

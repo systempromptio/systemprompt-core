@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO document_path_changes (document_id, from_path, to_path)\n           SELECT d.id, b.from_path, document_drive_path(d.folder_id, d.name)\n           FROM UNNEST($1::text[], $2::text[]) AS b(id, from_path)\n           JOIN documents d ON d.id = b.id::uuid\n           WHERE d.deleted_at IS NULL\n             AND document_drive_path(d.folder_id, d.name) <> b.from_path",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "TextArray",
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "e3977249c3ee7c8c903efd2006b53d55ff5e8566d6cf168331d32d8d556b2834"
+}

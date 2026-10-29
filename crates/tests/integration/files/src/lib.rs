@@ -86,6 +86,8 @@ mod documents_sharing_guards;
 #[cfg(test)]
 mod documents_sharing_hardening;
 #[cfg(test)]
+mod documents_sharing_review;
+#[cfg(test)]
 mod documents_upload_cleanup;
 #[cfg(test)]
 mod documents_upload_contract;

@@ -192,8 +192,8 @@ pub enum DocumentsError {
     #[error("folder {folder_id} is not empty; delete its contents first or delete recursively")]
     FolderNotEmpty { folder_id: DocumentFolderId },
     #[error(
-        "folder {folder_id} gained documents while it was being deleted; nothing was deleted, \
-         delete it again"
+        "folder {folder_id} changed while it was being deleted or moved (a document or subfolder \
+         was added, moved or given away, or the destination moved); nothing changed, try again"
     )]
     SubtreeChanged { folder_id: DocumentFolderId },
     #[error(

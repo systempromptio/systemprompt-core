@@ -89,8 +89,7 @@ impl CollabService {
             })?;
         let shared = self.entry(&document, &session).await?;
         let missing = {
-            let mut entry = shared.lock().await;
-            self.catch_up(&mut entry).await?;
+            let entry = self.caught_up(&shared).await?;
             request
                 .version
                 .as_deref()
@@ -156,8 +155,7 @@ impl CollabService {
         let key = SessionKey::of(&*shared.lock().await);
         for _ in 0..APPEND_ATTEMPTS {
             let (draft, before, on_seq) = {
-                let mut entry = shared.lock().await;
-                self.catch_up(&mut entry).await?;
+                let entry = self.caught_up(shared).await?;
                 (entry.doc.fork(), entry.doc.export_model()?, entry.last_seq)
             };
             check_on_fork(draft, before, candidate).await?;
@@ -166,7 +164,7 @@ impl CollabService {
                 .await?
             {
                 CollabAppend::Appended(seq) => {
-                    self.catch_up(&mut *shared.lock().await).await?;
+                    self.refresh(shared).await?;
                     return Ok(seq);
                 },
                 CollabAppend::Behind => {},
@@ -191,12 +189,11 @@ impl CollabService {
             .collab
             .append(&key.session, update, author)
             .await;
-        let mut entry = shared.lock().await;
         let seq = match appended {
             Ok(Some(seq)) => seq,
             Ok(None) => return Err(key.closed()),
             Err(error) => {
-                if let Err(caught) = self.catch_up(&mut entry).await {
+                if let Err(caught) = self.caught_up(shared).await {
                     tracing::warn!(
                         session_id = %key.session,
                         error = %caught,
@@ -207,8 +204,7 @@ impl CollabService {
                 return Err(error.into());
             },
         };
-        self.catch_up(&mut entry).await?;
-        drop(entry);
+        self.refresh(shared).await?;
         Ok(seq)
     }
 

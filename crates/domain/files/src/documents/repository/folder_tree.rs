@@ -92,44 +92,6 @@ impl DocumentFolderRepository {
         row.try_into()
     }
 
-    pub async fn move_to(
-        &self,
-        id: &DocumentFolderId,
-        new_parent: Option<&DocumentFolderId>,
-    ) -> RepoResult<u64> {
-        let mut touched = vec![id.as_str()];
-        touched.extend(new_parent.map(DocumentFolderId::as_str));
-        let mut tx = begin_tree_locked(&self.pools.write, &touched).await?;
-        let result = sqlx::query!(
-            r#"WITH target AS (
-                   SELECT id, ancestor_ids FROM document_folders
-                   WHERE id = $1::text::uuid AND deleted_at IS NULL
-               ),
-               destination AS (
-                   SELECT COALESCE(
-                       (SELECT p.ancestor_ids || p.id FROM document_folders p
-                        WHERE p.id = $2::text::uuid AND p.deleted_at IS NULL),
-                       '{}'::uuid[]) AS ancestors
-               )
-               UPDATE document_folders f
-               SET ancestor_ids = d.ancestors || f.ancestor_ids[cardinality(t.ancestor_ids) + 1:],
-                   parent_id = CASE WHEN f.id = t.id THEN $2::text::uuid ELSE f.parent_id END,
-                   updated_at = now()
-               FROM target t, destination d
-               WHERE (f.id = t.id OR t.id = ANY(f.ancestor_ids))
-                 AND ($2::text IS NULL OR EXISTS (
-                     SELECT 1 FROM document_folders p
-                     WHERE p.id = $2::text::uuid AND p.deleted_at IS NULL
-                       AND p.id <> t.id AND NOT (t.id = ANY(p.ancestor_ids))))"#,
-            id.as_str(),
-            new_parent.map(DocumentFolderId::as_str),
-        )
-        .execute(&mut *tx)
-        .await?;
-        tx.commit().await?;
-        Ok(result.rows_affected())
-    }
-
     pub async fn subtree_folder_ids(
         &self,
         root: &DocumentFolderId,
@@ -214,7 +176,11 @@ impl DocumentFolderRepository {
             return Ok(SubtreeTrash::Changed);
         }
         let documents = trash_subtree_documents(&mut tx, root, by, &authorized).await?;
-        let rehomed = rehome_subtree_documents(&mut tx, root, &rehome).await?;
+        let rehomed = rehome_subtree_documents(&mut tx, root, by, &rehome).await?;
+        if !counts_match(documents, authorized.len()) || !counts_match(rehomed, rehome.len()) {
+            tx.rollback().await?;
+            return Ok(SubtreeTrash::Changed);
+        }
         let trashed_folders = sqlx::query!(
             "UPDATE document_folders SET deleted_at = now(), updated_at = now()
              WHERE (id = $1::text::uuid OR $1::text::uuid = ANY(ancestor_ids))
@@ -236,4 +202,8 @@ impl DocumentFolderRepository {
             folders: trashed_folders,
         })
     }
+}
+
+fn counts_match(written: i64, planned: usize) -> bool {
+    usize::try_from(written).is_ok_and(|written| written == planned)
 }

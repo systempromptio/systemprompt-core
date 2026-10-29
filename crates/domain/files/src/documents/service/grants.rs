@@ -103,11 +103,7 @@ impl DocumentService {
     ) -> Result<DocumentGrant, DocumentsError> {
         let checked = self.check_share(who, request, trace).await?;
         let mut tx = self.repos.documents.begin().await?;
-        let grant = self
-            .repos
-            .grants
-            .insert(&mut tx, checked.grant.clone())
-            .await?;
+        let grant = self.insert_checked(&mut tx, &checked).await?;
         self.record_checked(&mut tx, who, &checked, &grant).await?;
         tx.commit().await.map_err(RepositoryError::from)?;
         self.announce_checked(who, checked, &grant).await;

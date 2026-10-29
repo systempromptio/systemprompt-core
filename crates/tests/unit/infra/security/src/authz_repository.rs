@@ -340,8 +340,8 @@ async fn chain_fingerprint_moves_with_rule_and_entity_writes() {
         .expect("entity");
     let with_entity = repo.chain_fingerprint().await.expect("fingerprint");
     assert!(
-        with_entity.entity_count > empty.entity_count || with_entity != empty,
-        "an entity upsert must change the fingerprint"
+        with_entity.version > empty.version,
+        "an entity upsert must advance the fingerprint"
     );
 
     repo.upsert_rule(UpsertRuleParams {
@@ -356,13 +356,32 @@ async fn chain_fingerprint_moves_with_rule_and_entity_writes() {
     .await
     .expect("rule");
     let with_rule = repo.chain_fingerprint().await.expect("fingerprint");
-    assert_ne!(
-        with_rule, with_entity,
-        "a rule upsert must change the fingerprint"
-    );
     assert!(
-        with_rule.rules_updated_at.is_some(),
-        "a populated rules table reports its newest updated_at"
+        with_rule.version > with_entity.version,
+        "a rule upsert must advance the fingerprint"
+    );
+
+    let before_swap = with_rule;
+    let mut tx = db.write_pool().begin().await.expect("begin");
+    sqlx::query("DELETE FROM access_control_rules WHERE entity_id = $1 AND rule_value = 'admin'")
+        .bind(&id)
+        .execute(&mut *tx)
+        .await
+        .expect("delete");
+    sqlx::query(
+        "INSERT INTO access_control_rules (entity_type, entity_id, rule_type, rule_value, access, source) \
+         VALUES ($1, $2, 'role', 'eng', 'allow', 'code:test')",
+    )
+    .bind(KIND.as_str())
+    .bind(&id)
+    .execute(&mut *tx)
+    .await
+    .expect("insert");
+    tx.commit().await.expect("commit");
+    let after_swap = repo.chain_fingerprint().await.expect("fingerprint");
+    assert!(
+        after_swap.version > before_swap.version,
+        "a delete and an insert that keep the row count still advance the fingerprint"
     );
 
     cleanup(&db, &id).await;

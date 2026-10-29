@@ -2,6 +2,11 @@
 //! update is computed on the checkpoint's fork, logged as the session's next
 //! update and broadcast to the session's participants.
 //!
+//! A write-back carries content a revision already holds, so it is logged
+//! under the `collab-write-back` system actor rather than as anyone's edit:
+//! choosing the checkpoint author and folding the checkpoint actor skip it,
+//! and the participant who happened to trigger it never becomes an author.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -18,9 +23,12 @@ use super::error::{model_error, utf8};
 use super::model::body_of;
 use super::persist_commit::Body;
 use super::{CollabError, CollabService};
+use crate::documents::agents::DocumentActor;
 use crate::documents::engine::ModelView;
 use crate::documents::model::{EditLevel, carry_ids};
 use crate::documents::repository::UpdateAuthor;
+
+pub(super) const WRITE_BACK_ACTOR: &str = "collab-write-back";
 
 pub(super) struct WriteBack<'a> {
     pub(super) who: &'a AuthenticatedUser,
@@ -58,7 +66,7 @@ impl CollabService {
         let Some(update) = update else {
             return Ok(());
         };
-        let actor = body.state.actor.clone();
+        let actor = DocumentActor::system(WRITE_BACK_ACTOR);
         let author = UpdateAuthor {
             user: &who.id,
             actor: &actor,

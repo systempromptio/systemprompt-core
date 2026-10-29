@@ -7,7 +7,8 @@ use systemprompt_files::documents::models::{
     RevisionAttribution, ScopedListing, SubjectPairs,
 };
 use systemprompt_files::documents::repository::{
-    CheckpointClaim, CheckpointLease, DocumentRepositories, DocumentRepository, HeadMove,
+    CheckpointClaim, CheckpointLease, DocumentRepositories, DocumentRepository, FolderMoveOutcome,
+    FolderRelocation, HeadMove,
 };
 use systemprompt_identifiers::{
     ContentHash, DocumentFolderId, DocumentId, DocumentRevisionId, UserId,
@@ -171,26 +172,55 @@ async fn folder_move_rewrites_descendant_ancestors() {
     assert_eq!(c.ancestor_ids, vec![a.id.clone(), b.id.clone()]);
 
     let other = folder(&repos, None, &owner).await;
-    let moved = repos
-        .folders
-        .move_to(&b.id, Some(&other.id))
-        .await
-        .expect("move");
-    assert_eq!(moved, 2, "folder and its one descendant are rewritten");
+    let relocate = |parent: Option<&DocumentFolderId>, chain: Vec<DocumentFolderId>| {
+        let repos = &repos;
+        let folder = b.id.clone();
+        let parent = parent.cloned();
+        let owner = owner.clone();
+        async move {
+            repos
+                .folders
+                .move_to(FolderRelocation {
+                    folder: &folder,
+                    parent: parent.as_ref(),
+                    parent_chain: &chain,
+                    mover: &owner,
+                })
+                .await
+                .expect("move")
+        }
+    };
+    assert_eq!(
+        relocate(Some(&other.id), Vec::new()).await,
+        FolderMoveOutcome::Moved {
+            folders: 2,
+            rehomed: 0
+        },
+        "folder and its one descendant are rewritten"
+    );
     let c_after = repos.folders.find(&c.id).await.expect("find").expect("c");
     assert_eq!(c_after.ancestor_ids, vec![other.id.clone(), b.id.clone()]);
     let path = repos.folders.path(&c.id).await.expect("path");
     assert_eq!(path, format!("{}/{}/{}", other.name, b.name, c.name));
 
-    let cycle = repos
-        .folders
-        .move_to(&b.id, Some(&c.id))
-        .await
-        .expect("cycle move");
-    assert_eq!(cycle, 0, "a folder cannot move under its own descendant");
+    assert_eq!(
+        relocate(Some(&c.id), vec![other.id.clone(), b.id.clone()]).await,
+        FolderMoveOutcome::Refused,
+        "a folder cannot move under its own descendant"
+    );
+    assert_eq!(
+        relocate(Some(&other.id), vec![a.id.clone()]).await,
+        FolderMoveOutcome::DestinationChanged,
+        "a destination whose chain changed since it was authorized is refused"
+    );
 
-    let root = repos.folders.move_to(&b.id, None).await.expect("to root");
-    assert_eq!(root, 2);
+    assert_eq!(
+        relocate(None, Vec::new()).await,
+        FolderMoveOutcome::Moved {
+            folders: 2,
+            rehomed: 0
+        }
+    );
     assert_eq!(
         repos.folders.ancestors(&c.id).await.expect("ancestors"),
         vec![b.id.clone()]
@@ -642,6 +672,10 @@ async fn text_search_respects_visibility() {
     let stranger = user("stranger");
     let doc = document(&repos, None, &owner, &unique("doc")).await;
     let rev = revision(&repos, &doc, None, &owner).await;
+    assert!(
+        cas(&repos, &doc, None, &rev).await,
+        "the indexed revision is the head"
+    );
     let word = format!("zeta{}", Uuid::new_v4().simple());
     repos
         .text_index

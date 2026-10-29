@@ -241,6 +241,7 @@ impl PostgresEventBridge {
             },
             Err(e) => {
                 error!(error = %e, row_id = %id, "event bridge: failed to load outbox row");
+                self.relay_lost("outbox row unreadable");
                 return;
             },
         };

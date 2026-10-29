@@ -3,17 +3,19 @@ use std::time::Duration;
 
 use systemprompt_engine_loro::rich;
 use systemprompt_files::documents::agents::{DocumentActor, act_as};
-use systemprompt_files::documents::collab::{CollabService, CollabTuning, JoinMode};
-use systemprompt_files::documents::model::EditLevel;
+use systemprompt_files::documents::collab::{Checkpoint, CollabService, CollabTuning, JoinMode};
+use systemprompt_files::documents::model::{EditLevel, Media};
 use systemprompt_files::documents::repository::{
     CheckpointClaim, CheckpointLease, CollabAppend, UpdateAuthor,
 };
+use systemprompt_files::documents::revision::CommitBody;
+use systemprompt_files::documents::service::{CommentPolicy, CommitRequest};
 use systemprompt_identifiers::DocumentId;
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_test_fixtures::test_db_pool;
 
 use crate::documents_collab::{Collab, client, collab, edit, html_document, loro, request};
-use crate::documents_service_fixture::{person, trace};
+use crate::documents_service_fixture::{api_author, person, trace};
 
 fn replica(c: &Collab, tuning: CollabTuning) -> Arc<CollabService> {
     Arc::new(CollabService::new(Arc::clone(&c.documents), tuning, loro()))
@@ -537,6 +539,115 @@ async fn a_session_whose_last_writer_only_commented_still_settles() {
     assert!(
         head.contains(r#"<span data-comment="t-commenter">owner</span> text"#),
         "the owner's text and the commenter's mark both land: {head}"
+    );
+}
+
+#[tokio::test]
+async fn a_followed_head_is_nobodys_authorship_and_a_commenter_still_settles() {
+    let c = collab().await;
+    let service = eager(&c);
+    let owner = person("follow-owner");
+    let commenter = person("follow-commenter");
+    let document = html_document(&c, &owner).await;
+    crate::documents_proposals::grant(
+        &c.h,
+        &owner,
+        &document,
+        &commenter,
+        systemprompt_models::documents::AccessLevel::Comment,
+    )
+    .await;
+    let commenting = service
+        .join(&commenter, &document, JoinMode::Comment, &trace())
+        .await
+        .expect("commenter joins");
+
+    let (head, bytes) = c
+        .documents
+        .read_bytes(&owner, &document, None, &trace())
+        .await
+        .expect("read");
+    let outside =
+        String::from_utf8(bytes)
+            .expect("utf8")
+            .replacen("<body>", "<body><h1>Outside</h1>", 1);
+    c.documents
+        .commit(
+            &owner,
+            CommitRequest {
+                document_id: document.clone(),
+                base_revision: Some(head.id),
+                body: CommitBody::Bytes(outside.into_bytes()),
+                author: api_author(),
+                message: None,
+                lock_holder_id: None,
+                comments: CommentPolicy::default(),
+                op_id: None,
+                media: Media::new(),
+            },
+            &trace(),
+        )
+        .await
+        .expect("outside commit");
+    service.tick().await;
+
+    let authors =
+        c.h.repos
+            .collab
+            .list_authors_since_checkpoint(&commenting.session_id)
+            .await
+            .expect("authors");
+    assert!(
+        !authors.is_empty()
+            && authors
+                .iter()
+                .all(|author| author.actor == Some(DocumentActor::system("collab-write-back"))),
+        "the followed head is logged as the write-back, not as the commenter: {authors:?}"
+    );
+
+    let commenting = service
+        .join(&commenter, &document, JoinMode::Comment, &trace())
+        .await
+        .expect("commenter rejoins the followed session");
+    let notes = client(&commenting);
+    let update = crate::documents_collab::change(&notes, |model| {
+        let block = model
+            .blocks
+            .iter_mut()
+            .find(|block| block.text.contains("Outside"))
+            .expect("followed heading");
+        block
+            .marks
+            .push(systemprompt_files::documents::model::Mark {
+                start: 0,
+                end: 7,
+                kind: systemprompt_files::documents::model::MarkKind::Comment {
+                    thread: "t-follow".to_owned(),
+                },
+            });
+    });
+    service
+        .apply(
+            &commenter,
+            request(&document, &commenting, &notes, update),
+            &trace(),
+        )
+        .await
+        .expect("commenter comments");
+    let left = service
+        .leave(&commenter, &document, &commenting.session_id, &trace())
+        .await
+        .expect("the commenter's leave settles");
+    assert!(left.closed, "{left:?}");
+    assert!(
+        matches!(
+            left.checkpoint,
+            Checkpoint::Conflict {
+                proposal: Some(_),
+                ..
+            }
+        ),
+        "the comment-level body is kept as a proposal: {left:?}"
     );
 }
 

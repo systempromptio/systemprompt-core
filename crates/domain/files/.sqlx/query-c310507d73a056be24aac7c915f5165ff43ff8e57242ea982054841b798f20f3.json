@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT ancestor_ids::text[] AS \"chain!\" FROM document_folders\n                   WHERE id = $1::text::uuid AND deleted_at IS NULL",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "chain!",
+        "type_info": "TextArray",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "c310507d73a056be24aac7c915f5165ff43ff8e57242ea982054841b798f20f3"
+}

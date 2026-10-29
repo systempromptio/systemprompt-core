@@ -3,6 +3,15 @@
 //! collaborators' documents to their owners' roots, and the live-document
 //! re-check.
 //!
+//! A re-homed document leaves its folder chain's grants behind, so the
+//! re-home also writes a path history row per subject those grants named,
+//! for the Drive feed to retract it from devices that lost access.
+//!
+//! Each write re-checks the owner the caller partitioned by, so a document
+//! whose ownership changed after the partition was read is neither trashed
+//! for its new owner nor re-homed away from the deleter; the caller compares
+//! the counts with its plan and rolls back on any difference.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -53,6 +62,7 @@ pub(super) async fn trash_subtree_documents(
                WHERE f.id = d.folder_id
                  AND (f.id = $1::text::uuid OR $1::text::uuid = ANY(f.ancestor_ids))
                  AND d.deleted_at IS NULL
+                 AND d.owner_user_id = $2
                  AND d.id = ANY($3::text[]::uuid[])
                RETURNING d.id, d.name, f.ancestor_ids || f.id AS chain),
            logged AS (
@@ -75,6 +85,7 @@ pub(super) async fn trash_subtree_documents(
 pub(super) async fn rehome_subtree_documents(
     tx: &mut sqlx::PgConnection,
     root: &DocumentFolderId,
+    by: &UserId,
     rehome: &[String],
 ) -> RepoResult<i64> {
     sqlx::query_scalar!(
@@ -85,6 +96,7 @@ pub(super) async fn rehome_subtree_documents(
                WHERE f.id = d.folder_id
                  AND (f.id = $1::text::uuid OR $1::text::uuid = ANY(f.ancestor_ids))
                  AND d.deleted_at IS NULL
+                 AND d.owner_user_id <> $3
                  AND d.id = ANY($2::text[]::uuid[])
                RETURNING d.id, d.name, f.ancestor_ids || f.id AS chain),
            logged AS (
@@ -94,10 +106,22 @@ pub(super) async fn rehome_subtree_documents(
                        FROM unnest(h.chain) WITH ORDINALITY AS u(folder_id, ord)
                        JOIN document_folders a ON a.id = u.folder_id) || '/' || h.name,
                       h.name
-               FROM homed h RETURNING 1)
+               FROM homed h RETURNING 1),
+           lost AS (
+               INSERT INTO document_path_changes
+                   (document_id, from_path, subject_kind, subject_value, subject_access)
+               SELECT DISTINCT h.id,
+                      (SELECT string_agg(a.name, '/' ORDER BY u.ord)
+                       FROM unnest(h.chain) WITH ORDINALITY AS u(folder_id, ord)
+                       JOIN document_folders a ON a.id = u.folder_id) || '/' || h.name,
+                      g.subject_kind, g.subject_value, 'lost'
+               FROM homed h
+               JOIN document_grants g ON g.folder_id = ANY(h.chain)
+               RETURNING 1)
            SELECT COUNT(*) AS "rehomed!" FROM homed"#,
         root.as_str(),
         rehome,
+        by.as_str(),
     )
     .fetch_one(tx)
     .await

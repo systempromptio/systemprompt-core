@@ -177,7 +177,7 @@ impl PostgresEventBridge {
         }
     }
 
-    fn relay_lost(&self, reason: &'static str) {
+    pub(super) fn relay_lost(&self, reason: &'static str) {
         let notified = self.broadcasters().topics.publish_relay_lost();
         warn!(
             reason,

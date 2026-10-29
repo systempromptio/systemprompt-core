@@ -4,11 +4,12 @@
 //! Loading the index costs three sequential round trips, which against a
 //! cross-region database is 0.5–1 s on every authz decision. The cache
 //! bounds staleness two ways. Within `recheck` of the last check it answers
-//! from memory. Past that it spends one round trip on the fingerprint (row
-//! counts plus `MAX(updated_at)` of both tables) and reloads only when it
-//! moved, so a rule change is visible within `recheck` of its `updated_at`
-//! bump and a delete moves the count. The `ttl` forces a reload regardless,
-//! bounding any change the fingerprint cannot see. A rule write on any
+//! from memory. Past that it spends one round trip on the fingerprint (the
+//! committed `config_version`, which every rule and entity write advances in
+//! commit order) and reloads only when it moved, so any committed rule or
+//! entity change is visible within `recheck`. The fingerprint is read before
+//! the index loads, so an index is never paired with a newer version than it
+//! reflects. The `ttl` forces a reload regardless. A rule write on any
 //! replica advances the [`CacheDomain::Authz`] epoch, which forces a reload
 //! on the next decision regardless of either bound.
 //!

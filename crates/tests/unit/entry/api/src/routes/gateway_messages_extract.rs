@@ -19,7 +19,7 @@ use systemprompt_api::routes::gateway::messages::extract::attribution::{
     AttributionHeaders, classify_client, entry_origin,
 };
 use systemprompt_api::routes::gateway::messages::extract::headers::{
-    optional_gateway_conversation_id, optional_session_id, read_gateway_body,
+    body_read_error, optional_gateway_conversation_id, optional_session_id, read_gateway_body,
 };
 use systemprompt_api::routes::gateway::messages::extract::{RejectionPartial, derive_conversation};
 use systemprompt_gateway::protocol::canonical::{
@@ -451,6 +451,31 @@ async fn a_body_over_the_buffer_limit_is_rejected_rather_than_buffered() {
         partial.body.is_none(),
         "an unread body must not be recorded on the rejection partial"
     );
+}
+
+#[tokio::test]
+async fn a_body_read_past_the_limit_maps_to_413() {
+    let oversized = vec![b'x'; 64];
+    let error = axum::body::to_bytes(Body::from(oversized), 16)
+        .await
+        .expect_err("a body past the limit fails to read");
+
+    assert_eq!(body_read_error(error).status, StatusCode::PAYLOAD_TOO_LARGE);
+}
+
+#[test]
+fn a_body_read_that_fails_for_any_other_reason_maps_to_400() {
+    let error = axum::Error::new(std::io::Error::new(
+        std::io::ErrorKind::ConnectionReset,
+        "client went away",
+    ));
+
+    let RejectionError {
+        status, message, ..
+    } = body_read_error(error);
+
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert!(message.contains("failed to read request body"), "{message}");
 }
 
 #[test]

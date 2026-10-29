@@ -10,8 +10,8 @@
 //! records a snapshot covering `seq`, with the version vector it encodes,
 //! only when the stored one covers less, and prunes the updates the new
 //! snapshot already contains in the same transaction; updates after the
-//! session's last checkpoint are kept, up to a bound, so the checkpoint
-//! author and actor can still be read from them.
+//! session's last checkpoint are never pruned, so the checkpoint author,
+//! level and actor are always read from the complete uncheckpointed log.
 //! [`DocumentCollabRepository::seed_snapshot`] records the snapshot a session
 //! is first built from, once, so every replica opens the same engine state;
 //! [`DocumentCollabRepository::backlog`] reads, in one statement, the stored
@@ -28,8 +28,6 @@ use super::Pools;
 use super::collab_peers::{ActorColumns, UpdateAuthor, actor_from, level_str};
 use super::rows::RepoResult;
 use crate::documents::agents::DocumentActor;
-
-const RETAINED_AFTER_CHECKPOINT: i64 = 10_000;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CollabUpdateRow {
@@ -277,10 +275,9 @@ impl DocumentCollabRepository {
                 "DELETE FROM document_collab_updates u
                  USING document_edit_sessions s
                  WHERE u.session_id = $1::text::uuid AND s.id = u.session_id
-                   AND u.seq <= GREATEST(LEAST($2, s.checkpoint_seq), $2 - $3)",
+                   AND u.seq <= LEAST($2, s.checkpoint_seq)",
                 session.as_str(),
                 seq,
-                RETAINED_AFTER_CHECKPOINT,
             )
             .execute(&mut *tx)
             .await?;

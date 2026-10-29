@@ -88,10 +88,9 @@ impl CollabService {
     ) -> Result<Joined, CollabError> {
         let session = self.open_session(document).await?;
         let peer = self.assign_peer(&session.id, &who.id).await?;
-        let entry = self.entry(document, &session).await?;
-        let mut entry = entry.lock().await;
-        entry.last_joiner = Some(who.clone());
-        self.catch_up(&mut entry).await?;
+        let shared = self.entry(document, &session).await?;
+        shared.lock().await.last_joiner = Some(who.clone());
+        let entry = self.caught_up(&shared).await?;
         Ok(Joined {
             peer,
             session_id: session.id.clone(),

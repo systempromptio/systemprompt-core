@@ -46,6 +46,7 @@
 mod access;
 mod apply;
 mod binding;
+mod catch_up;
 mod committer;
 pub mod document;
 mod entry;

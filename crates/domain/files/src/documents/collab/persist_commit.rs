@@ -60,8 +60,7 @@ impl CollabService {
         &self,
         shared: &SharedEntry,
     ) -> Result<Option<Body>, CollabError> {
-        let mut entry = shared.lock().await;
-        self.catch_up(&mut entry).await?;
+        let mut entry = self.caught_up(shared).await?;
         let body = body_of_entry(&entry)?;
         if body.is_some() {
             entry.checkpoint_due_from = None;
@@ -74,8 +73,7 @@ impl CollabService {
         &self,
         shared: &SharedEntry,
     ) -> Result<Option<Body>, CollabError> {
-        let mut entry = shared.lock().await;
-        self.catch_up(&mut entry).await?;
+        let entry = self.caught_up(shared).await?;
         body_of_entry(&entry)
     }
 

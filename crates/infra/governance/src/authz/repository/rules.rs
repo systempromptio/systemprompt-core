@@ -6,40 +6,33 @@
 use std::collections::HashMap;
 use std::str::FromStr;
 
-use chrono::{DateTime, Utc};
 use systemprompt_identifiers::RuleId;
 
 use super::{AccessControlRepository, ExportRuleRow, UpsertRuleParams};
 use crate::authz::error::AuthzResult;
 use crate::authz::types::{Access, AccessRule, EntityKind, RuleType};
 
+/// The committed config version the parent-chain cache revalidates against.
+///
+/// Every statement that writes `access_control_rules` or
+/// `access_control_entities` bumps the single `config_version` row from a
+/// statement trigger, and that row update serialises plane writers until they
+/// commit, so the version strictly increases in commit order. Row counts and
+/// `MAX(updated_at)` do not: a rule deleted while another is inserted leaves
+/// the count unchanged, and a transaction stamped earlier can commit later.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ChainFingerprint {
-    pub rule_count: i64,
-    pub rules_updated_at: Option<DateTime<Utc>>,
-    pub entity_count: i64,
-    pub entities_updated_at: Option<DateTime<Utc>>,
+    pub version: i64,
 }
 
 impl AccessControlRepository {
     pub async fn chain_fingerprint(&self) -> AuthzResult<ChainFingerprint> {
-        let row = sqlx::query!(
-            r#"
-            SELECT
-                (SELECT COUNT(*) FROM access_control_rules) AS "rule_count!",
-                (SELECT MAX(updated_at) FROM access_control_rules) AS "rules_updated_at?",
-                (SELECT COUNT(*) FROM access_control_entities) AS "entity_count!",
-                (SELECT MAX(updated_at) FROM access_control_entities) AS "entities_updated_at?"
-            "#,
+        let version = sqlx::query_scalar!(
+            r#"SELECT COALESCE((SELECT version FROM config_version WHERE id = 1), 0) AS "version!""#,
         )
         .fetch_one(&*self.pool)
         .await?;
-        Ok(ChainFingerprint {
-            rule_count: row.rule_count,
-            rules_updated_at: row.rules_updated_at,
-            entity_count: row.entity_count,
-            entities_updated_at: row.entities_updated_at,
-        })
+        Ok(ChainFingerprint { version })
     }
 
     pub async fn list_role_rules_for_export(&self) -> AuthzResult<Vec<ExportRuleRow>> {

@@ -111,6 +111,10 @@ approval-sweep-db = { max-threads = 1 }
 # not just the one under test, so two of these interleaved delete each other's
 # grants. The file carried a `static SERIAL: Mutex` for this, which cannot work
 # — nextest runs each test in its own process, so that lock never contends.
+# The catalog prune also deletes every non-glob `gateway_route` entity outside
+# its keep list, with its rules, so the tests that seed route rows in the
+# shared database (`rule_based_hook`, `gateway_principal_parity`, the
+# `access_plane_db` prune test) share the slot.
 gateway-reconcile-db = { max-threads = 1 }
 
 # Why: `db_migrate_repair_db` tampers with checksums in `extension_migrations`
@@ -271,7 +275,7 @@ filter = 'package(systemprompt-security-tests) and test(/policy_approval::/)'
 test-group = 'approval-sweep-db'
 
 [[profile.default.overrides]]
-filter = 'package(systemprompt-security-integration-tests) and test(/gateway_reconcile_tests::/)'
+filter = '(package(systemprompt-security-integration-tests) and test(/gateway_reconcile_tests::/)) or (package(systemprompt-security-authz-tests) and test(/access_plane_db::a_route_glob_survives_the_gateway_catalog_prune|rule_based_hook::a_rule_added_after_a_cached_decision/)) or (package(systemprompt-api-integration-tests) and test(/gateway_principal_parity::/))'
 test-group = 'gateway-reconcile-db'
 
 [[profile.default.overrides]]
@@ -287,7 +291,7 @@ filter = 'package(systemprompt-security-tests) and test(/policy_approval::/)'
 test-group = 'approval-sweep-db'
 
 [[profile.ci.overrides]]
-filter = 'package(systemprompt-security-integration-tests) and test(/gateway_reconcile_tests::/)'
+filter = '(package(systemprompt-security-integration-tests) and test(/gateway_reconcile_tests::/)) or (package(systemprompt-security-authz-tests) and test(/access_plane_db::a_route_glob_survives_the_gateway_catalog_prune|rule_based_hook::a_rule_added_after_a_cached_decision/)) or (package(systemprompt-api-integration-tests) and test(/gateway_principal_parity::/))'
 test-group = 'gateway-reconcile-db'
 
 [[profile.ci.overrides]]
@@ -483,7 +487,7 @@ filter = 'package(systemprompt-security-tests) and test(/policy_approval::/)'
 test-group = 'approval-sweep-db'
 
 [[profile.coverage.overrides]]
-filter = 'package(systemprompt-security-integration-tests) and test(/gateway_reconcile_tests::/)'
+filter = '(package(systemprompt-security-integration-tests) and test(/gateway_reconcile_tests::/)) or (package(systemprompt-security-authz-tests) and test(/access_plane_db::a_route_glob_survives_the_gateway_catalog_prune|rule_based_hook::a_rule_added_after_a_cached_decision/)) or (package(systemprompt-api-integration-tests) and test(/gateway_principal_parity::/))'
 test-group = 'gateway-reconcile-db'
 
 [[profile.coverage.overrides]]

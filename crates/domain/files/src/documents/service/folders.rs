@@ -1,10 +1,11 @@
 //! Folder operations and folder listings.
 //!
 //! A recursive delete authorizes the root and every folder below it through
-//! the hook, decides the documents in one pass (the caller must own them all),
-//! trashes the subtree in one transaction, and then closes the live editing
-//! state of every document it trashed, in order. A delete whose teardown
-//! fails for a document still trashed the subtree and reports that failure.
+//! the hook, partitions the documents into the caller's own (trashed) and
+//! everyone else's (moved to their owners' roots), applies both in one
+//! transaction that re-checks each owner, and then closes the live editing
+//! state of every document it trashed. A delete whose teardown fails for a
+//! document still trashed the subtree and reports that failure.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -16,8 +17,8 @@ use systemprompt_traits::RepositoryError;
 
 use super::lifecycle::TRASHED_NOTE;
 use super::support::validate_name;
-use super::{AgentCapTarget, DocumentService, NewFolderRequest};
-use crate::documents::access::{AccessTarget, MoveTarget};
+use super::{DocumentService, NewFolderRequest};
+use crate::documents::access::AccessTarget;
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{Document, DocumentFolder, GrantTarget, NewFolder, NewGrant};
 use crate::documents::repository::{SubtreeTrash, SubtreeTrashPlan};
@@ -111,51 +112,6 @@ impl DocumentService {
             .await?;
         if !self.repos.folders.rename(folder, name).await? {
             return Err(DocumentsError::not_found("folder", folder));
-        }
-        self.load_folder(folder).await
-    }
-
-    pub async fn move_folder(
-        &self,
-        who: &AuthenticatedUser,
-        folder: &DocumentFolderId,
-        parent: Option<&DocumentFolderId>,
-        trace: &TraceId,
-    ) -> Result<DocumentFolder, DocumentsError> {
-        if parent == Some(folder) {
-            return Err(DocumentsError::InvalidMove {
-                folder_id: folder.clone(),
-            });
-        }
-        self.access
-            .authorize(
-                who,
-                AccessTarget::Folder(Some(folder.clone())),
-                DocumentAction::Own,
-                trace,
-            )
-            .await?;
-        self.access
-            .authorize(
-                who,
-                AccessTarget::Folder(parent.cloned()),
-                DocumentAction::Create,
-                trace,
-            )
-            .await?;
-        let moving = self.load_folder(folder).await?;
-        let pin = self
-            .access
-            .check_move(who, MoveTarget::Folder(&moving), parent)
-            .await?;
-        if self.repos.folders.move_to(folder, parent).await? == 0 {
-            return Err(DocumentsError::InvalidMove {
-                folder_id: folder.clone(),
-            });
-        }
-        if let Some(cap) = pin {
-            self.pin_agent_cap(&AgentCapTarget::Folder(folder.clone()), cap)
-                .await?;
         }
         self.load_folder(folder).await
     }

@@ -14,6 +14,11 @@
 //! a fork, one export per run of one author, so each new reference is
 //! attributed to the editor whose update added it.
 //!
+//! The backlog read and any snapshot blob it reopens run without the entry
+//! held; the entry is then taken, and the fetched updates apply only when no
+//! other caller caught it up meanwhile (otherwise the read is retried), so a
+//! slow read never blocks the updates applied to the same session.
+//!
 //! A session whose snapshot or log the engine cannot read is closed rather
 //! than left failing every call: the next join opens a new session seeded
 //! from the head revision, so the document stays readable and editable.
@@ -29,10 +34,9 @@ use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::DocumentFormat;
 use tokio::sync::Mutex;
 
-use super::binding::fold_actor;
 use super::document::import;
 use super::error::model_error;
-use super::image_owners::{ImageOwners, adds_media, attribute_runs, author_runs};
+use super::image_owners::ImageOwners;
 use super::{CollabError, CollabService};
 use crate::documents::agents::DocumentActor;
 use crate::documents::engine::{EngineDoc, EngineError, ModelView};
@@ -153,7 +157,7 @@ impl CollabService {
         Ok((doc, owners, stored.seq))
     }
 
-    async fn open_snapshot(
+    pub(super) async fn open_snapshot(
         &self,
         hash: &ContentHash,
     ) -> Result<(Box<dyn EngineDoc>, ImageOwners), CollabError> {
@@ -186,61 +190,11 @@ impl CollabService {
             .await?)
     }
 
-    pub(super) async fn catch_up(&self, entry: &mut CollabEntry) -> Result<(), CollabError> {
-        match self.import_backlog(entry).await {
-            Err(error) if is_unreadable(&error) => {
-                Err(self.quarantine(&entry.session, &error).await)
-            },
-            other => other,
-        }
-    }
-
-    async fn import_backlog(&self, entry: &mut CollabEntry) -> Result<(), CollabError> {
-        let backlog = self
-            .documents
-            .repositories()
-            .collab
-            .backlog(&entry.session.id, entry.last_seq)
-            .await?;
-        if let Some(stored) = backlog.snapshot {
-            let (doc, images) = self.open_snapshot(&stored.hash).await?;
-            entry.doc = doc;
-            entry.images = images;
-            entry.last_seq = stored.seq;
-            entry.session.snapshot_sha256 = Some(stored.hash);
-        }
-        if backlog.rows.is_empty() {
-            return Ok(());
-        }
-        let engine = self.engine()?;
-        let before = entry.doc.export_model()?;
-        let replay = (author_runs(&backlog.rows) > 1).then(|| entry.doc.fork());
-        for row in &backlog.rows {
-            engine.check_update(&row.update, None)?;
-            entry.doc.apply_update(&row.update)?;
-            entry.last_seq = entry.last_seq.max(row.seq);
-            entry.last_actor = Some(fold_actor(
-                entry.last_actor.as_ref(),
-                row.actor.clone().unwrap_or(DocumentActor::Human),
-            ));
-        }
-        let after = entry.doc.export_model()?;
-        let (ModelView::RichText(prior), ModelView::RichText(next)) = (&before, &after) else {
-            return Ok(());
-        };
-        if !adds_media(prior, next) {
-            return Ok(());
-        }
-        match replay {
-            None => entry
-                .images
-                .record(prior, next, &backlog.rows[0].author_user_id),
-            Some(fork) => attribute_runs(&mut entry.images, fork, before, &backlog.rows)?,
-        }
-        Ok(())
-    }
-
-    async fn quarantine(&self, session: &DocumentEditSession, error: &CollabError) -> CollabError {
+    pub(super) async fn quarantine(
+        &self,
+        session: &DocumentEditSession,
+        error: &CollabError,
+    ) -> CollabError {
         tracing::error!(
             document_id = %session.document_id,
             session_id = %session.id,
@@ -269,7 +223,7 @@ impl CollabService {
     }
 }
 
-const fn is_unreadable(error: &CollabError) -> bool {
+pub(super) const fn is_unreadable(error: &CollabError) -> bool {
     matches!(
         error,
         CollabError::Engine(

@@ -11,8 +11,9 @@
 //! Forwarding to an upstream counter would need the full provider credential
 //! and endpoint resolution of the dispatch path for a figure the client only
 //! uses to decide when to compact, so the estimate is the contract. Only a
-//! missing or invalid credential is refused; a body that cannot be read
-//! counts as zero rather than failing the caller.
+//! missing or invalid credential is refused, and a body that cannot be read
+//! is refused as `/messages` refuses it: `413` past the inference body limit,
+//! `400` for any other read failure.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -28,6 +29,7 @@ use systemprompt_runtime::AppContext;
 
 use super::messages::auth::{AuthInputs, authenticate};
 use super::messages::error::RejectionError;
+use super::messages::extract::headers::body_read_error;
 use super::messages::{GatewayHandles, extract_credential};
 use crate::services::middleware::JwtContextExtractor;
 
@@ -96,13 +98,7 @@ async fn count(
         systemprompt_models::net::INFERENCE_BODY_LIMIT_BYTES,
     )
     .await
-    .map_err(|e| {
-        RejectionError::client(
-            StatusCode::PAYLOAD_TOO_LARGE,
-            "Request body could not be read",
-        )
-        .with_cause(e)
-    })?;
+    .map_err(body_read_error)?;
     Ok(estimate_input_tokens(&body))
 }
 

@@ -14,9 +14,11 @@
 //! Whether bytes are a package is decided by opening them, never by their
 //! leading bytes: an archive reader finds the central directory from the end
 //! of the input, so a package behind prepended bytes still opens. Bytes that
-//! do not open and carry no zip header or end-of-directory signature are not
-//! a package and pass through; bytes that carry one but do not open are
-//! refused.
+//! do not open are refused as a malformed package only when they start with
+//! a local file header or hold an end-of-central-directory record where a
+//! reader searches for one (the last 65,557 bytes); anything else is not a
+//! package and passes through, so a signature that occurs by chance inside a
+//! large binary does not refuse it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -34,7 +36,9 @@ use crate::config::{
 };
 
 const CONTAINER: &str = "zip container";
-const ZIP_SIGNATURES: [&[u8]; 2] = [b"PK\x03\x04", b"PK\x05\x06"];
+const LOCAL_HEADER: &[u8] = b"PK\x03\x04";
+const END_OF_CENTRAL_DIRECTORY: &[u8] = b"PK\x05\x06";
+const END_RECORD_SEARCH: usize = 22 + u16::MAX as usize;
 
 pub(crate) fn parse_error(
     part: &str,
@@ -108,11 +112,12 @@ fn add_inflated(total: u64, part: &[u8], caps: PackageCaps) -> Result<u64, Codec
 }
 
 fn carries_zip_signature(bytes: &[u8]) -> bool {
-    ZIP_SIGNATURES.iter().any(|signature| {
-        bytes
-            .windows(signature.len())
-            .any(|window| window == *signature)
-    })
+    if bytes.starts_with(LOCAL_HEADER) {
+        return true;
+    }
+    let tail = &bytes[bytes.len().saturating_sub(END_RECORD_SEARCH)..];
+    tail.windows(END_OF_CENTRAL_DIRECTORY.len())
+        .any(|window| window == END_OF_CENTRAL_DIRECTORY)
 }
 
 pub fn inspect_package(bytes: &[u8], caps: PackageCaps) -> Result<(), CodecError> {

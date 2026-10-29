@@ -73,11 +73,13 @@ impl CollabService {
     }
 
     async fn seal(&self, shared: &SharedEntry) -> Result<Option<Sealed>, CollabError> {
-        let mut entry = shared.lock().await;
+        if shared.lock().await.snapshotting {
+            return Ok(None);
+        }
+        let mut entry = self.caught_up(shared).await?;
         if entry.snapshotting {
             return Ok(None);
         }
-        self.catch_up(&mut entry).await?;
         let sealed = Sealed {
             session: entry.session.id.clone(),
             bytes: entry.images.seal(&entry.doc.snapshot()?),
@@ -195,8 +197,7 @@ impl CollabService {
             let checkpoint = self.settle_once(shared, fence, &committer).await?;
             settled = combine(settled, checkpoint);
             let settled_seq = {
-                let mut entry = shared.lock().await;
-                self.catch_up(&mut entry).await?;
+                let entry = self.caught_up(shared).await?;
                 entry.last_seq
             };
             if sessions

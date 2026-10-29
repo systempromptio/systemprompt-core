@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT d.id::text AS \"id!\"\n           FROM documents d\n           JOIN document_folders f ON f.id = d.folder_id\n           WHERE (f.id = $1::text::uuid OR $1::text::uuid = ANY(f.ancestor_ids))\n             AND d.deleted_at IS NULL\n             AND d.owner_user_id <> $2\n           ORDER BY d.id\n           FOR UPDATE OF d",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "691307ec92a2e40b9b4be1c9ff3717f1890a8aba9ed0b57200c9bd5b82810d2e"
+}

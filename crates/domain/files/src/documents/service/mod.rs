@@ -39,6 +39,7 @@ mod drive_blob;
 mod drive_commit;
 mod drive_feed;
 mod first_revision;
+mod folder_moves;
 mod folders;
 mod fragments;
 mod grants;

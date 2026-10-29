@@ -138,18 +138,6 @@ r#"SELECT id::text AS "id!: DocumentFolderId",
         })
     }
 
-    pub async fn rename(&self, id: &DocumentFolderId, name: &str) -> RepoResult<bool> {
-        let result = sqlx::query!(
-            "UPDATE document_folders SET name = $2, updated_at = now()
-             WHERE id = $1::text::uuid AND deleted_at IS NULL",
-            id.as_str(),
-            name,
-        )
-        .execute(&*self.pools.write)
-        .await?;
-        Ok(result.rows_affected() == 1)
-    }
-
     pub async fn soft_delete(&self, id: &DocumentFolderId) -> RepoResult<bool> {
         let result = sqlx::query!(
             "UPDATE document_folders SET deleted_at = now(), updated_at = now()
