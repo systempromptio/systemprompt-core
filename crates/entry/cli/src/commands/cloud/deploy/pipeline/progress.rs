@@ -44,9 +44,20 @@ pub enum DeployEvent<'a> {
         count: usize,
     },
     ProfilePathConfigured,
+    SecretsExternal {
+        keys: &'a [String],
+    },
     DeployStarted,
+    RolloutCommitted {
+        commit: &'a str,
+        image: &'a str,
+    },
     Deployed {
         status: &'a str,
         app_url: Option<&'a str>,
+    },
+    ReadinessWaitStarted,
+    TenantReady {
+        version: Option<&'a str>,
     },
 }

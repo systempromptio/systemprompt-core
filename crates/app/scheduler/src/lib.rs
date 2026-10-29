@@ -62,7 +62,9 @@ pub use jobs::{
 };
 pub use models::{JobConfig, JobRunRecord, JobStatus, ScheduledJob, SchedulerConfig, SkippedJob};
 pub use repository::otlp::{OtlpExportState, OtlpExportStateRepository};
-pub use repository::{JobRepository, SchedulerRepository};
+pub use repository::{
+    JobRepository, LicenceCheckinRepository, LicenceCheckinState, SchedulerRepository,
+};
 pub use services::{
     ApiListenerStop, DbServiceRecord, DesiredStatus, JobBatchReport, JobExecutionService,
     JobRunReport, JobSelection, OrphanCleanupReport, OrphanDisposition, OrphanOutcome,

@@ -4,13 +4,16 @@
 //! root-relative storage id [`crate::LocalFileStorage`] uses, so a domain
 //! crate cannot tell the backends apart. Authentication is an injected
 //! [`GcsTokenSource`]; the API and upload endpoints are parameters, so tests
-//! point them at a local server.
+//! point them at a local server. A streamed write
+//! ([`FileStorage::store_stream`]) is a resumable upload, so an object of
+//! any size is written holding one chunk in memory.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 mod client;
 mod error;
+mod resumable;
 mod token;
 
 use std::path::Path;
@@ -18,17 +21,19 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use systemprompt_traits::{
-    ByteRange, FileStorage, FileStorageError, FileStorageResult, StoredFileId, StoredFileMetadata,
-    StoredFileRead,
+    ByteRange, FileByteStream, FileStorage, FileStorageError, FileStorageResult, StoredFileId,
+    StoredFileMetadata, StoredFileRead,
 };
 use url::Url;
 
 pub use error::GcsError;
 pub use token::{DEFAULT_METADATA_TOKEN_URL, GcsTokenSource, MetadataServerTokens};
 
+use crate::chunks::Lookahead;
 use crate::object_id::{id_for, mime_for, relative_path};
 use crate::remote_read::RemoteRead;
 use client::Lookup;
+use resumable::StreamUploadError;
 
 pub const DEFAULT_GCS_ENDPOINT: &str = "https://storage.googleapis.com/";
 
@@ -112,6 +117,23 @@ impl FileStorage for GcsFileStorage {
             .await
             .map_err(|e| e.into_storage(&id))?;
         Ok(id)
+    }
+
+    async fn store_stream(
+        &self,
+        path: &Path,
+        body: FileByteStream,
+    ) -> FileStorageResult<StoredFileId> {
+        let id = id_for(relative_path(path)?);
+        let chunks = Lookahead::new(body).await?;
+        match self
+            .upload_stream(&self.name_for(&id), mime_for(path), chunks)
+            .await
+        {
+            Ok(()) => Ok(id),
+            Err(StreamUploadError::Source(error)) => Err(error),
+            Err(StreamUploadError::Gcs(error)) => Err(error.into_storage(&id)),
+        }
     }
 
     async fn open(

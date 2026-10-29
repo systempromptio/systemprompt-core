@@ -216,12 +216,11 @@ async fn try_remote_routing(
 ) -> Result<BootstrapOutcome> {
     use super::routing;
 
-    let decision = decide_routing(
-        routing::determine_execution_target(profile),
-        profile,
-        desc.routing_class(),
-        desc.data_impact(),
-    )?;
+    let target = match routing::determine_execution_target(profile) {
+        Ok(target) => routing::authorize_target(target).await,
+        Err(e) => Err(e),
+    };
+    let decision = decide_routing(target, profile, desc.routing_class(), desc.data_impact())?;
     let RoutingDecision::ExecuteRemote {
         hostname,
         token,

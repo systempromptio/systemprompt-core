@@ -15,7 +15,7 @@ use crate::models::JwtClaims;
 use systemprompt_identifiers::{AccessTokenId, ClientId, PluginId, SessionId, UserId};
 use systemprompt_models::auth::{
     AccountKind, ActClaim, AuthenticatedUser, JwtAudience, Permission, TokenAuthority,
-    UserJwtRequest,
+    TokenInteraction, UserJwtRequest,
 };
 use systemprompt_security::jwt::{encode_rs256, user_claims};
 use systemprompt_security::keys::SigningKeys;
@@ -42,6 +42,10 @@ pub struct JwtConfig {
     pub client_id: Option<ClientId>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub purpose: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub interaction: Option<TokenInteraction>,
+    #[serde(default)]
+    pub browser_session: bool,
 }
 
 const MAX_TOKEN_LIFETIME: Duration = Duration::days(365);
@@ -89,6 +93,8 @@ impl Default for JwtConfig {
             plugin_id: None,
             client_id: None,
             purpose: None,
+            interaction: None,
+            browser_session: false,
         }
     }
 }
@@ -138,6 +144,8 @@ fn build_claims(
         client_id: config.client_id,
         purpose: config.purpose,
         plugin_id: config.plugin_id,
+        interaction: config.interaction,
+        browser_session: config.browser_session,
     };
     Ok(user_claims(signing.issuer, &request)?)
 }
@@ -192,6 +200,8 @@ pub fn generate_anonymous_jwt_with_expiry(
         client_id: Some(client_id.clone()),
         purpose: None,
         plugin_id: None,
+        interaction: None,
+        browser_session: false,
     };
     Ok(authority.mint_user_jwt(&request)?)
 }

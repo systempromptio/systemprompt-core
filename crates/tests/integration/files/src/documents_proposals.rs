@@ -100,6 +100,8 @@ pub(crate) async fn grant(
                 subject_display: None,
                 level,
                 valid_until: None,
+                message: None,
+                via_agent: None,
             },
             &trace(),
         )
@@ -128,7 +130,7 @@ pub(crate) async fn propose(
         .await
 }
 
-async fn mode(
+pub(crate) async fn mode(
     h: &Harness,
     who: &AuthenticatedUser,
     document: &DocumentId,
@@ -148,7 +150,7 @@ async fn mode(
         .await
 }
 
-async fn folder(
+pub(crate) async fn folder(
     h: &Harness,
     owner: &AuthenticatedUser,
     parent: Option<&DocumentFolderId>,
@@ -201,7 +203,12 @@ async fn an_agent_proposes_under_a_folder_that_inherits_propose() {
     assert_eq!(proposed.revision.parent_revision_id.as_ref(), Some(&base));
     let head = outline(&h, &owner, &document, None).await;
     assert_eq!(texts(&head), vec!["alpha", "beta", "gamma"]);
-    let after = outline(&h, &owner, &document, Some(&proposed.revision.id)).await;
+    let after = h
+        .service
+        .proposal_view(&owner, &proposed.proposal.id, &trace())
+        .await
+        .expect("proposal view")
+        .proposed;
     assert_eq!(texts(&after), vec!["ALPHA", "beta", "gamma"]);
     let ids = |p: &Projection| p.nodes().map(|n| n.id.clone()).collect::<Vec<_>>();
     assert_eq!(ids(&before), ids(&after));
@@ -371,7 +378,7 @@ async fn only_share_access_sets_the_folder_policy() {
         .set_folder_agent_edit_policy(&stranger, &target, AgentEditPolicy::Propose, &trace())
         .await;
     assert!(
-        matches!(refused, Err(DocumentsError::Forbidden { .. })),
+        matches!(refused, Err(DocumentsError::NotFound { .. })),
         "{refused:?}"
     );
 }

@@ -27,3 +27,5 @@ mod stream_tap_pipeline;
 mod stream_tap_raw;
 #[cfg(test)]
 mod support;
+#[cfg(test)]
+mod user_key_billing;

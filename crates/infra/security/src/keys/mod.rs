@@ -23,7 +23,7 @@ pub mod jwks;
 pub mod jwks_client;
 pub mod signing_keys;
 
-pub use jwks::{Jwk, Jwks};
+pub use jwks::{ES256, Jwk, Jwks, RS256, VerificationKey, VerificationKeySet};
 pub use jwks_client::{JwksClient, JwksClientError};
 pub use signing_keys::{SigningKeys, SigningKeysError, SigningKeysResult};
 

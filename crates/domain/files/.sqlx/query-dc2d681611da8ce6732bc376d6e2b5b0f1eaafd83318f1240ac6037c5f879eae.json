@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM document_presence p\n             USING documents d, document_folders f\n             WHERE p.document_id = d.id AND d.folder_id = f.id\n               AND (f.id = $1::text::uuid OR $1::text::uuid = ANY(f.ancestor_ids))\n               AND p.user_id = ANY($2::text[])",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "dc2d681611da8ce6732bc376d6e2b5b0f1eaafd83318f1240ac6037c5f879eae"
+}

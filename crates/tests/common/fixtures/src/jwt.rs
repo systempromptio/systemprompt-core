@@ -71,6 +71,8 @@ pub fn mint_bridge_jwt(user_id: &UserId, email: &str, issuer: &str) -> JwtToken 
             plugin_id: None,
             act: None,
             purpose: None,
+            interaction: None,
+            browser_session: false,
         },
     };
 

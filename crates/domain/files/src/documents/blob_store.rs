@@ -6,6 +6,10 @@
 //! never served, and [`BlobStore::put`] removes an object it just stored
 //! when the row cannot be written.
 //!
+//! [`BlobStore::adopt`] (in `blob_adopt`) registers an object already
+//! written elsewhere (an assembled upload) under its verified hash, moving
+//! it to the same content-addressed path a `put` uses.
+//!
 //! Garbage collection deletes the row first, because the repository refuses
 //! to delete a row a revision or edit session still references; only then is
 //! the object removed. A failed object delete leaves an orphaned object and
@@ -25,6 +29,7 @@ use systemprompt_traits::{
     ByteRange, FileStorage, FileStorageError, RepositoryError, StoredFileId, StoredFileRead,
 };
 
+use super::models::DocumentBlob;
 use super::repository::DocumentBlobRepository;
 
 #[derive(Debug, thiserror::Error)]
@@ -62,8 +67,8 @@ pub struct GcReport {
 
 #[derive(Clone)]
 pub struct BlobStore {
-    storage: Arc<dyn FileStorage>,
-    blobs: Arc<DocumentBlobRepository>,
+    pub(super) storage: Arc<dyn FileStorage>,
+    pub(super) blobs: Arc<DocumentBlobRepository>,
 }
 
 impl std::fmt::Debug for BlobStore {
@@ -145,11 +150,26 @@ impl BlobStore {
         hash: &ContentHash,
         max_bytes: u64,
     ) -> Result<Vec<u8>, BlobStoreError> {
-        let row = self
-            .blobs
-            .find(hash)
-            .await?
-            .ok_or_else(|| BlobStoreError::NotFound { hash: hash.clone() })?;
+        let row = self.blobs.find(hash).await?;
+        self.read_row(hash, row, max_bytes).await
+    }
+
+    pub async fn read_all_primary(
+        &self,
+        hash: &ContentHash,
+        max_bytes: u64,
+    ) -> Result<Vec<u8>, BlobStoreError> {
+        let row = self.blobs.find_on_primary(hash).await?;
+        self.read_row(hash, row, max_bytes).await
+    }
+
+    async fn read_row(
+        &self,
+        hash: &ContentHash,
+        row: Option<DocumentBlob>,
+        max_bytes: u64,
+    ) -> Result<Vec<u8>, BlobStoreError> {
+        let row = row.ok_or_else(|| BlobStoreError::NotFound { hash: hash.clone() })?;
         let declared = row.size_bytes.unsigned_abs();
         if declared > max_bytes {
             return Err(BlobStoreError::TooLarge {

@@ -56,7 +56,7 @@ tree](#provider-catalog-and-gateway--moved-to-the-services-tree).
 | `db_type` | `type` | string | yes | — | Database backend selector. PostgreSQL is the supported backend. |
 | `external_db_access` | `external_db_access` | bool | no | `false` | When `true`, the platform uses `external_database_url` from the secrets document if present (`secrets.rs:85`). |
 
-| `pool` | `pool` | object | no | engine defaults | Connection-pool sizing: `max_connections` (1–500, default 50), `max_connections_by_role` (`all`, `gateway`, `admin`, `runner`; each 1–500, overrides `max_connections` for that `server.role`), `session_max_connections` (1–500, default 10; sizes the pool `database_session_url` opens), `acquire_timeout_secs`, `idle_timeout_secs`, `max_lifetime_secs`, `statement_cache_capacity`. See [guides/database-connections.md](../guides/database-connections.md). |
+| `pool` | `pool` | object | no | engine defaults | Connection-pool sizing: `max_connections` (1–500, default 50), `max_connections_by_role` (`all`, `gateway`, `api`, `worker`, `runner`; each 1–500, overrides `max_connections` for that `server.role`), `session_max_connections` (1–500, default 10; sizes the pool `database_session_url` opens), `acquire_timeout_secs`, `idle_timeout_secs`, `max_lifetime_secs`, `statement_cache_capacity`. See [guides/database-connections.md](../guides/database-connections.md). |
 
 The connection string itself is never in `profile.yaml`; it lives in the secrets document as `database_url` (see [Secrets envelope](#secrets-envelope)).
 
@@ -77,6 +77,8 @@ Derived, never stated (`crates/shared/manifest/src/profile/derived.rs`): `api_se
 | `instance_id` | string | no (required on `cloud` unless `HOSTNAME` is set) | `HOSTNAME`, else a random id on local targets | Stable replica identifier. Keys the service registry, event outbox origin and node-scoped scheduler runs; stamped on logs, `ai_requests`, metrics and `x-served-by`. A cloud profile that resolves to neither refuses to boot. |
 | `metrics_port` | u16 | no | unset | Serve `GET /metrics` on a second listener bound to `host:metrics_port`. Unset means no metrics endpoint. Must differ from `port`. |
 | `max_concurrent_streams` | usize | no | `256` | Global cap on concurrent A2A SSE streams for this replica (`config/mod.rs:34`). |
+| `role` | `all` \| `gateway` \| `api` \| `worker` \| `runner` | no | `all` | Which surfaces and background work the node runs; see [deploy-production.md §3.1](../guides/deploy-production.md). `admin` is not a role: a profile that names it is refused with an error naming `api` and `worker`. `api` and `worker` with `storage.backend: local` require `storage.shared: true`. |
+| `advertise_url` | string | required on `worker` | unset | Absolute `http(s)` URL peers use to reach this node (e.g. `http://${POD_IP}:8080`). A worker records it with every registry heartbeat; `api` replicas forward MCP and agent traffic to the worker that owns the process through it. |
 | `trusted_proxies` | list of CIDR string | required on `cloud` | `[]` | Peer CIDRs allowed to set `X-Forwarded-For`, `X-Real-IP`, `CF-Connecting-IP`. Empty means every connection is treated as direct and those headers are ignored. A bare address without `/` is read as `/32` (IPv4) or `/128` (IPv6). |
 | `shutdown` | object | no | see below | Shutdown deadlines. |
 
@@ -314,6 +316,29 @@ Only the first source may be a base bundle. Every later source must own nothing 
 | `tool_policy` | enum `allow` \| `deny` \| `prompt` | yes, for every enabled server | — | The decision a bridge-managed client (Claude Code, Claude Desktop) applies to every tool the server exposes. `allow` skips the per-call prompt; `prompt` asks; `deny` blocks. A server without it is withheld from the signed bridge manifest and `admin config validate` / startup report `mcp_servers.<name>.tool_policy` as an error. |
 | `endpoint` | string | for `external` servers | — | Absolute URL, or a path relative to the gateway. |
 | `external_auth` | object | no | absent | Per-user bearer resolution for an `external` server (`token_endpoint`, `header`, `scheme`). |
+
+### Document store (`services/config/files.yaml`)
+
+`crates/domain/files/src/config/documents.rs` and `document_limits.rs`. The `files.documents` section of `services/config/files.yaml` configures the shared document store ([documents.md](../documents.md)). It is implementation configuration, so it lives in the services tree, not the profile. Every key is optional; the store is off by default and a value outside its bounds is a validation error at boot.
+
+| Key | Type | Default | Bounds | Meaning |
+|-----|------|---------|--------|---------|
+| `enabled` | bool | `false` | | Mounts `/api/v1/documents`, `/api/v1/document-folders` and `/v1/bridge/drive/*`, runs the document jobs and lets an MCP server compose the document tools. Off, every path answers `404` and the jobs return without work. |
+| `maxUploadBytes` | integer | `67108864` (64 MiB) | 1 MiB to 2 GiB | Largest accepted document body; the document router's body limit is this plus 64 KiB. |
+| `blobGcGraceHours` | integer | `24` | at least 1 | Age before an unreferenced blob may be deleted by `document_blob_gc`. |
+| `presenceTtlSecs` | integer | `90` | at least 1 | How long a presence beacon or awareness state stays valid. |
+| `trashRetentionDays` | integer | `30` | at least 1 | How long a trashed document is kept before `document_trash_purge` deletes it. |
+| `accessRequests` | bool | `false` | | Lets a signed-in user with no level request access from the owner, and adds `can_request: true` to that user's `not_found` refusals on an existing document (which discloses that the document exists). |
+| `limits.maxOpsPerCall` | integer | `200` | 1 to 10,000 | Edit operations in one call. |
+| `limits.maxOpTextBytes` | integer | `1048576` (1 MiB) | 1 KiB to 64 MiB | Text one operation carries. |
+| `limits.maxMarkdownBytes` | integer | `1048576` (1 MiB) | 1 KiB to 64 MiB | Markdown, HTML or whole-document text one operation carries. |
+| `limits.maxCommentBytes` | integer | `16384` (16 KiB) | 256 B to 1 MiB | A comment body. |
+| `limits.maxCollabUpdateBytes` | integer | `4194304` (4 MiB) | 1 KiB to 64 MiB | One live co-editing update. |
+| `limits.maxCursorBytes` | integer | `4096` (4 KiB) | 256 B to 64 KiB | One editor cursor payload. |
+| `limits.pdfPages` | integer | `500` | 1 to 5,000 | Pages a PDF export may run to; a longer rendering is refused as `too_large`. |
+| `limits.agentEditsPerHour` | integer | `600` | 1 to 1,000,000 | Edit operations a user's agents may make per hour, per replica; more are refused as `agent_rate_limited`. |
+
+A request over any `limits.*` value or `maxUploadBytes` is refused with `too_large` (HTTP 413). The MCP server declaration (`services/mcp/<name>.yaml` `enabled:`) and the bridge's `[drive] enabled` setting are the two further switches that decide whether agents and devices use the store.
 
 ## `extensions`
 

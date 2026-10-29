@@ -65,7 +65,10 @@ impl EnvOverrides {
             non_interactive: lookup("SYSTEMPROMPT_NON_INTERACTIVE").is_some(),
             profile: lookup("SYSTEMPROMPT_PROFILE"),
             rust_log: lookup("RUST_LOG"),
-            is_deployment_host: systemprompt_models::subprocess::is_deployment_host(&lookup),
+            is_deployment_host: systemprompt_models::subprocess::is_deployment_host(
+                systemprompt_models::subprocess::ANY_DEPLOYMENT_HOST_MARKERS,
+                &lookup,
+            ),
             is_remote_cli: lookup("SYSTEMPROMPT_CLI_REMOTE").is_some(),
             session: SessionEnv {
                 user_id: lookup("SYSTEMPROMPT_USER_ID").and_then(|value| {

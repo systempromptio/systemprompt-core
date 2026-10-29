@@ -117,6 +117,8 @@ mod profile_observability;
 #[cfg(test)]
 mod profile_server_capacity;
 #[cfg(test)]
+mod profile_server_role;
+#[cfg(test)]
 mod profile_server_shutdown;
 
 #[cfg(test)]
@@ -145,6 +147,9 @@ mod ai_tool_model_config;
 
 #[cfg(test)]
 mod text_utils;
+
+#[cfg(test)]
+mod licence_checkin;
 
 #[cfg(test)]
 mod mime;
@@ -401,3 +406,6 @@ mod documents_uri;
 
 #[cfg(test)]
 mod documents_drive;
+
+#[cfg(test)]
+mod builder_edges;

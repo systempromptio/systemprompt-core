@@ -344,6 +344,43 @@ The ceilings run as a quota window with `subject: api_key`, so they reserve, set
 
 See [Context webhooks](#context-webhooks--base-apiv1webhook-authenticated) above. Base `/api/v1/webhook`, authenticated, with `/broadcast`, `/agui`, and `/a2a`.
 
+## Documents
+
+The shared document store ([documents.md](../documents.md)). Mounted only while `files.documents.enabled` is on; otherwise every path answers `404`. All routes are user-authenticated. Bodies are bounded by `files.documents.maxUploadBytes` plus 64 KiB on this router, not the global 2 MiB limit.
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET, POST | `/api/v1/documents` | List by `scope` (`folder`, `shared`, `mine`, `recent`), `folder`, `query`, `sort` (`name`, `updated`, `recent`) and cursor; create from a template (JSON) or import (multipart). |
+| GET, HEAD, PATCH, DELETE | `/api/v1/documents/{id}` | Metadata (`ETag` is the head revision); rename or move (`folder_id: null` moves to the root); trash (owner only). |
+| POST | `/api/v1/documents/{id}/untrash`, `/copy` | Bring back from the trash (owner); copy into a new document owned by the caller. |
+| GET, HEAD, PUT | `/api/v1/documents/{id}/content` | Download with `Range` and conditional headers, at `?revision=`; `?format=pdf` serves the revision rendered as `application/pdf` (whole body, the rendering's hash as `ETag`, `.pdf` file name); `?access_token=` from `documents_export` opens it without a session. `PUT` replaces the bytes with `If-Match: "<revision_id>"` and optional `?op_id=`; a stale base merges or answers `409`. |
+| POST | `/api/v1/documents/{id}/edits` | Structured edit operations with optional `base_revision`, `op_id`, `answering`, `allow_detach` and `mode` (`land`, `propose`); a proposal answers `201`. |
+| GET | `/api/v1/documents/{id}/read` | The `documents_read` views: `view=outline`, `text`, `range`, `cells`, `changes`, `node`, `search`, `meta`; `revision_id`, `verbose`. |
+| GET | `/api/v1/documents/{id}/revisions`, `/projection`, `/preview` | History; node projection; sanitised sandboxed HTML preview. |
+| GET, POST | `/api/v1/documents/{id}/comments` | Comment threads; `POST .../comments/{comment_id}/resolve` resolves one. |
+| GET | `/api/v1/documents/{id}/proposals`, `/proposals/{pid}` | Proposals (`?status=`); one proposal with its changed lines. |
+| POST | `/api/v1/documents/{id}/proposals/{pid}/accept`, `/reject` | Review with an optional `note`; `self_review` for one's own. |
+| GET, POST, DELETE | `/api/v1/documents/{id}/grants` | Grants; `POST` takes `subject_kind`, `subject_value`, `level`, `valid_until?`, `message?`. |
+| GET | `/api/v1/documents/{id}/access` | Owner, grants, inherited grants, the caller's level, open access requests (holders of `share`); `?history=true` adds the grant audit log. |
+| POST | `/api/v1/documents/{id}/transfer` | Transfer ownership to an active user (owner only). |
+| DELETE | `/api/v1/documents/{id}/grants/all` | Revoke every grant (owner only). |
+| POST | `/api/v1/documents/{id}/access-requests` | `{level, message?}`; needs `files.documents.accessRequests`. |
+| POST | `/api/v1/documents/{id}/access-requests/{rid}/grant`, `/decline` | Answer a request (holders of `share`). |
+| GET | `/api/v1/documents/subject-kinds`, `/subjects` | Accepted grant subject kinds; subject search by `kind`, `q`, `limit` (max 20). |
+| PUT, GET | `/api/v1/documents/{id}/presence` | Presence beacon; who is present. |
+| POST, DELETE | `/api/v1/documents/{id}/lock` | Lease lock. |
+| GET | `/api/v1/documents/{id}/live` | Document-scoped SSE channel (`Last-Event-ID` or `?last_event_id=` resumes). |
+| POST | `/api/v1/documents/{id}/collab/awareness` | Publish an awareness state. |
+| POST | `/api/v1/documents/{id}/collab/join`, `/updates`, `/leave`, `/cursor` | Live co-editing session routes (`files-collab` feature; `503 collab_engine_unavailable` without an engine). |
+| GET, POST | `/api/v1/document-folders` | List; create. |
+| PATCH, DELETE | `/api/v1/document-folders/{id}` | Rename, move, set `agent_edit_policy`; delete (`?recursive=true`). |
+| GET, POST, DELETE | `/api/v1/document-folders/{id}/grants` | Folder grants. |
+| GET | `/api/v1/document-folders/{id}/access` | Folder access read-back (`?history=true`). |
+| GET | `/v1/bridge/drive/manifest`, `/changes?since=`, `/blob/{sha256}`, `/proposals` | Bridge Drive feed (device bearer). |
+| POST, PUT | `/v1/bridge/drive/commit`, `/presence` | Bridge Drive commit (multipart, `If-Match`) and presence. |
+
+A refused document request answers the common error envelope with `error_key` set to one of the 23 refusal codes shared with the MCP tools and the refusal's typed detail (head and base revisions, node, hash, current text, accepted kinds, owner, existing level, comments, `trashed`, `can_request`) under a `detail` object. Statuses: `409` for `stale_base`, `guard_mismatch`, `anchors_affected`, `proposal_conflict`, `proposal_closed`, `folder_not_empty`, `op_id_mismatch`, `access_request_open`, `access_request_closed` and `not_found` for a node id; `403` for `forbidden` and `self_review`; `404` for `not_found` and `trashed`; `413` for `too_large`; `422` for `integrity_mismatch` and `template_failed`; `423` for `locked`; `400` for `invalid_params`, `unsupported_op`, `unsupported_format`, `unknown_subject` and `access_request_not_needed`. A server-side failure answers `500` with a fixed message and its cause logged. The code table is in [documents.md § Refusals](../documents.md#mcp-tools).
+
 ## Other mounted areas
 
 These areas are mounted by `mount_content_and_misc` (`protocol.rs:149`).
@@ -351,6 +388,7 @@ These areas are mounted by `mount_content_and_misc` (`protocol.rs:149`).
 | Base path | Auth | Purpose |
 |-----------|------|---------|
 | `/api/v1/content` | Public + User | Content query and link resolution. |
+| `/api/v1/documents`, `/api/v1/document-folders`, `/v1/bridge/drive` | User; device | The document store, listed under [Documents](#documents) above. |
 | `/api/v1/sync` | Restricted (Service) | Cloud sync of files. |
 | `/api/v1/marketplace` | Public | Marketplace catalog. |
 | `/api/v1/analytics` | Admin | Analytics events and streams. |

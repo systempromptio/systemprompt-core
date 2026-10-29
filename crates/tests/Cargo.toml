@@ -242,6 +242,7 @@ keyring-core = "1"
 linux-keyutils-keyring-store = "1"
 tar = "0.4"
 flate2 = "1.1"
+lopdf = { version = "=0.45.0", default-features = false }
 hex = "0.4"
 
 # Property-based testing
@@ -290,6 +291,7 @@ systemprompt-agent-runs = { path = "../app/agent-runs" }
 systemprompt-generator = { path = "../app/generator" }
 systemprompt-oauth-issuance = { path = "../app/oauth-issuance" }
 systemprompt-gateway = { path = "../app/gateway" }
+systemprompt-engine-loro = { path = "../app/engine-loro" }
 systemprompt-api = { path = "../entry/api" }
 systemprompt-cli = { path = "../entry/cli" }
 systemprompt-bridge = { path = "../../bin/bridge" }

@@ -75,7 +75,10 @@ pub use resources::{
     ArtifactViewerConfig, build_artifact_viewer_resource, build_resource_template_list_result,
     default_server_icons, read_artifact_resource, read_artifact_viewer_resource,
 };
-pub use response::{McpResponseBuilder, ResponseServices, ToolIdentity, UI_RESOURCE_URI_META_KEY};
+pub use response::{
+    McpResponseBuilder, ResponseServices, ToolIdentity, UI_RESOURCE_URI_META_KEY,
+    terse_execution_meta,
+};
 pub use schema::McpOutputSchema;
 pub use services::artifact_ingest::{
     ArtifactIngest, ArtifactScanner, FINGERPRINT_WINDOW_SECONDS, IngestOutcome, IngestRequest,

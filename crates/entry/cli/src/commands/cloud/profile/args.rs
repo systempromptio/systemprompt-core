@@ -113,10 +113,20 @@ impl CreateArgs {
     }
 }
 
-#[derive(Clone, Copy, Debug, ValueEnum)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
 pub enum TenantTypeArg {
     Local,
     Cloud,
+}
+
+impl TenantTypeArg {
+    #[must_use]
+    pub const fn admits(self, tenant: &systemprompt_cloud::StoredTenant) -> bool {
+        match self {
+            Self::Local => tenant.is_local(),
+            Self::Cloud => tenant.provider.is_hosted(),
+        }
+    }
 }
 
 #[derive(Debug, Args)]

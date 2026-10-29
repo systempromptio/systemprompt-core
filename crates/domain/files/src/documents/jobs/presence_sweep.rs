@@ -1,5 +1,7 @@
-//! The document presence sweep job: deletes expired presence rows and write
-//! acknowledgements older than the replay window.
+//! The document presence sweep job: deletes expired presence rows, grants
+//! past their `valid_until` (with their users' presence on that document) and
+//! write acknowledgements older than the replay window, and reopens proposals
+//! accepted more than five minutes ago whose landing never settled.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -11,33 +13,21 @@ use systemprompt_database::DbPool;
 use systemprompt_traits::{Job, JobContext, JobResult, JobScope, ProviderError, ProviderResult};
 
 use crate::FilesConfig;
-use crate::documents::repository::{DocumentPresenceRepository, DocumentWriteAckRepository};
+use crate::documents::agents::{DocumentActor, act_as};
+use crate::documents::repository::{
+    DocumentGrantRepository, DocumentPresenceRepository, DocumentProposalRepository,
+    DocumentWriteAckRepository,
+};
 
 const BATCH: i64 = 1000;
 const ACK_RETENTION_DAYS: i32 = 7;
+const UNLANDED_ACCEPT_MINUTES: i32 = 5;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct DocumentPresenceSweepJob;
 
-#[async_trait]
-impl Job for DocumentPresenceSweepJob {
-    fn name(&self) -> &'static str {
-        "document_presence_sweep"
-    }
-
-    fn description(&self) -> &'static str {
-        "Removes expired document presence rows and write acknowledgements"
-    }
-
-    fn schedule(&self) -> &'static str {
-        "0 * * * * *"
-    }
-
-    fn scope(&self) -> JobScope {
-        JobScope::Cluster
-    }
-
-    async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
+impl DocumentPresenceSweepJob {
+    async fn run(ctx: &JobContext) -> ProviderResult<JobResult> {
         if !ctx
             .get::<Arc<FilesConfig>>()?
             .documents_config()
@@ -56,12 +46,46 @@ impl Job for DocumentPresenceSweepJob {
             .sweep_older_than(ACK_RETENTION_DAYS, BATCH)
             .await
             .map_err(|error| ProviderError::Internal(Box::new(error)))?;
-        let swept = swept + acks;
+        let grants = DocumentGrantRepository::new(db)
+            .sweep_expired(BATCH)
+            .await
+            .map_err(|error| ProviderError::Internal(Box::new(error)))?;
+        let reopened = DocumentProposalRepository::new(db)
+            .reopen_unlanded(UNLANDED_ACCEPT_MINUTES, BATCH)
+            .await
+            .map_err(|error| ProviderError::Internal(Box::new(error)))?;
+        if reopened > 0 {
+            tracing::warn!(reopened, "Reopened accepted proposals that never landed");
+        }
+        let swept = swept + acks + grants + reopened;
         let duration_ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
         tracing::debug!(swept, duration_ms, "Document presence sweep completed");
         Ok(JobResult::success()
             .with_stats(swept, 0)
             .with_duration(duration_ms))
+    }
+}
+
+#[async_trait]
+impl Job for DocumentPresenceSweepJob {
+    fn name(&self) -> &'static str {
+        "document_presence_sweep"
+    }
+
+    fn description(&self) -> &'static str {
+        "Removes expired document presence rows, expired grants and write acknowledgements, and reopens unlanded accepted proposals"
+    }
+
+    fn schedule(&self) -> &'static str {
+        "0 * * * * *"
+    }
+
+    fn scope(&self) -> JobScope {
+        JobScope::Cluster
+    }
+
+    async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
+        act_as(DocumentActor::system(self.name()), Self::run(ctx)).await
     }
 }
 

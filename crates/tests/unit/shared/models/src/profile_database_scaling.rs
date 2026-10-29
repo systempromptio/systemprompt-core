@@ -19,7 +19,8 @@ fn a_role_override_wins_and_other_roles_fall_back() {
         ..RoleMaxConnections::default()
     });
     assert_eq!(pool.max_connections_for(NodeRole::Gateway), Some(15));
-    assert_eq!(pool.max_connections_for(NodeRole::Admin), Some(40));
+    assert_eq!(pool.max_connections_for(NodeRole::Api), Some(40));
+    assert_eq!(pool.max_connections_for(NodeRole::Worker), Some(40));
     assert_eq!(pool.max_connections_for(NodeRole::All), Some(40));
 }
 
@@ -34,14 +35,14 @@ fn no_pool_ceiling_leaves_the_engine_default() {
 #[test]
 fn role_overrides_parse_from_yaml() {
     let pool: PoolConfig = serde_yaml::from_str(
-        "max_connections: 30\nmax_connections_by_role:\n  gateway: 12\n  admin: 30\n",
+        "max_connections: 30\nmax_connections_by_role:\n  gateway: 12\n  worker: 30\n",
     )
     .expect("pool yaml");
     assert_eq!(pool.max_connections_for(NodeRole::Gateway), Some(12));
     assert_eq!(pool.max_connections_for(NodeRole::Runner), Some(30));
     assert!(
-        serde_yaml::from_str::<PoolConfig>("max_connections_by_role:\n  worker: 3\n").is_err(),
-        "an unknown role is rejected"
+        serde_yaml::from_str::<PoolConfig>("max_connections_by_role:\n  admin: 3\n").is_err(),
+        "the retired admin role is rejected"
     );
 }
 
@@ -50,10 +51,10 @@ fn an_out_of_range_role_ceiling_is_rejected() {
     for bad in [0, 501] {
         let mut p = valid_profile();
         p.database.pool = Some(pool_with_roles(RoleMaxConnections {
-            admin: Some(bad),
+            worker: Some(bad),
             ..RoleMaxConnections::default()
         }));
-        assert!(errors_of(&p).contains("database.pool.max_connections_by_role.admin"));
+        assert!(errors_of(&p).contains("database.pool.max_connections_by_role.worker"));
     }
 }
 
@@ -63,7 +64,8 @@ fn in_range_role_ceilings_are_accepted() {
     p.database.pool = Some(pool_with_roles(RoleMaxConnections {
         all: Some(50),
         gateway: Some(1),
-        admin: Some(500),
+        api: Some(20),
+        worker: Some(500),
         runner: Some(10),
     }));
     assert!(!errors_of(&p).contains("database.pool"));

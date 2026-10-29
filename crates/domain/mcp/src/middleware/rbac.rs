@@ -19,8 +19,8 @@ use systemprompt_governance::authz::{
 use systemprompt_identifiers::{Actor, JwtToken, McpServerId, UserId};
 use systemprompt_manifest::services::ServicesConfig;
 use systemprompt_models::RequestContext;
-use systemprompt_models::auth::{AuthenticatedUser, JwtClaims, TokenAuthority};
-use systemprompt_models::execution::context::ExecutionContext;
+use systemprompt_models::auth::{AuthenticatedUser, JwtClaims, TokenAuthority, TokenInteraction};
+use systemprompt_models::execution::context::{ExecutionContext, UserInteractionMode};
 
 use super::{extract_bearer_token, extract_request_context};
 
@@ -270,6 +270,12 @@ fn build_authenticated_context(
     // a service account's broker sees the run that issued the token.
     if let Some(purpose) = claims.custom.purpose.clone() {
         context = context.with_caller_purpose(purpose);
+    }
+    if let Some(interaction) = claims.custom.interaction {
+        context = context.with_interaction_mode(match interaction {
+            TokenInteraction::Interactive => UserInteractionMode::Interactive,
+            TokenInteraction::NonInteractive => UserInteractionMode::NonInteractive,
+        });
     }
 
     Ok(AuthenticatedRequestContext::new(context, token))

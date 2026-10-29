@@ -5,20 +5,22 @@
 
 use rmcp::ErrorData as McpError;
 use systemprompt_files::documents::models::GrantTarget;
-use systemprompt_files::documents::service::ShareRequest;
+use systemprompt_files::documents::service::{ShareRequest, TransferRequest};
 use systemprompt_identifiers::McpExecutionId;
 use systemprompt_mcp::McpToolHandler;
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::execution::context::RequestContext;
 
-use crate::documents::subject_display;
+use crate::documents::{active_user_display, subject_display};
 
 use super::DocumentsMcpTools;
 use super::inputs::ShareInput;
+use super::mentions::agent_origin;
 use super::outputs::ShareOutput;
-use super::records::GrantItem;
-use super::refusal::{RefusalCode, refusal};
+use super::refusal::refusal;
 use super::support::{caller, tool_error};
+use crate::documents::refusal::RefusalCode;
+use crate::documents::views::GrantItem;
 
 #[derive(Debug, Clone, Copy)]
 pub struct ShareHandler<'a> {
@@ -70,6 +72,8 @@ impl ShareHandler<'_> {
                     subject_display: Some(display),
                     level,
                     valid_until: input.valid_until,
+                    message: input.message,
+                    via_agent: agent_origin(ctx).via_agent,
                 },
                 ctx.trace_id(),
             )
@@ -99,7 +103,7 @@ impl McpToolHandler for ShareHandler<'_> {
     }
 
     fn description(&self) -> &'static str {
-        "Grant, transfer ownership or revoke access."
+        "Grant, transfer or revoke access."
     }
 
     async fn handle(
@@ -117,8 +121,26 @@ impl McpToolHandler for ShareHandler<'_> {
             &input.document_id,
         ) {
             (Some(to), _, Some(document)) => {
+                let to_display =
+                    active_user_display(self.tools.users(), &to)
+                        .await
+                        .map_err(|error| {
+                            tracing::error!(error = %error, "transfer recipient was not looked up");
+                            McpError::internal_error(
+                                "the transfer recipient could not be looked up",
+                                None,
+                            )
+                        })?;
                 service
-                    .transfer_ownership(who, document, &to, trace)
+                    .transfer_ownership(
+                        who,
+                        document,
+                        TransferRequest {
+                            to: to.clone(),
+                            to_display,
+                        },
+                        trace,
+                    )
                     .await
                     .map_err(tool_error)?;
                 let summary = format!("ownership transferred to {to}");

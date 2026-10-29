@@ -203,56 +203,6 @@ r#"SELECT d.id::text AS "id!: DocumentId",
         Ok((documents, next))
     }
 
-    pub async fn rename(&self, id: &DocumentId, name: &str) -> RepoResult<bool> {
-        let result = sqlx::query!(
-            "UPDATE documents SET name = $2, updated_at = now()
-             WHERE id = $1::text::uuid AND deleted_at IS NULL",
-            id.as_str(),
-            name,
-        )
-        .execute(&*self.pools.write)
-        .await?;
-        Ok(result.rows_affected() == 1)
-    }
-
-    pub async fn move_to(
-        &self,
-        id: &DocumentId,
-        folder: Option<&DocumentFolderId>,
-    ) -> RepoResult<bool> {
-        let result = sqlx::query!(
-            "UPDATE documents SET folder_id = $2::text::uuid, updated_at = now()
-             WHERE id = $1::text::uuid AND deleted_at IS NULL",
-            id.as_str(),
-            folder.map(DocumentFolderId::as_str),
-        )
-        .execute(&*self.pools.write)
-        .await?;
-        Ok(result.rows_affected() == 1)
-    }
-
-    pub async fn set_head_if(
-        &self,
-        id: &DocumentId,
-        expected: Option<&DocumentRevisionId>,
-        new: &DocumentRevisionId,
-    ) -> RepoResult<bool> {
-        let result = sqlx::query!(
-            "UPDATE documents SET head_revision_id = $3::text::uuid, updated_at = now()
-             WHERE id = $1::text::uuid
-               AND head_revision_id IS NOT DISTINCT FROM $2::text::uuid
-               AND deleted_at IS NULL
-               AND EXISTS (SELECT 1 FROM document_revisions r
-                           WHERE r.id = $3::text::uuid AND r.document_id = $1::text::uuid)",
-            id.as_str(),
-            expected.map(DocumentRevisionId::as_str),
-            new.as_str(),
-        )
-        .execute(&*self.pools.write)
-        .await?;
-        Ok(result.rows_affected() == 1)
-    }
-
     pub async fn set_template(
         &self,
         id: &DocumentId,

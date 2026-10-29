@@ -382,6 +382,7 @@ async fn authenticate_accepts_seeded_api_key() -> Result<()> {
             limits: &systemprompt_users::ApiKeyLimits::default(),
             scopes: &[],
             purpose: None,
+            kind: systemprompt_users::ApiKeyKind::User,
         })
         .await?;
 

@@ -32,6 +32,7 @@ pub(super) async fn issue_pat(
             limits: &limits,
             scopes: &req.scopes,
             purpose: req.purpose.as_deref(),
+            kind: systemprompt_users::ApiKeyKind::User,
         })
         .await
         .map_err(|source| AgentRunsError::ApiKey {

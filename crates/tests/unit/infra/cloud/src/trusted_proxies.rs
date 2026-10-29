@@ -1,9 +1,9 @@
 //! Unit tests for the trusted-proxy defaults and Fly-peer coverage check.
 
 use systemprompt_cloud::trusted_proxies::{
-    covers_fly_peer, covers_fly_public_edge, default_cloud_trusted_proxies,
-    default_local_trusted_proxies,
+    covers_fly_peer, covers_fly_public_edge, default_trusted_proxies,
 };
+use systemprompt_manifest::HostingProvider;
 
 fn as_strings(nets: &[ipnet::IpNet]) -> Vec<String> {
     nets.iter().map(ToString::to_string).collect()
@@ -11,7 +11,7 @@ fn as_strings(nets: &[ipnet::IpNet]) -> Vec<String> {
 
 #[test]
 fn cloud_defaults_cover_private_fly_and_cloudflare_ranges() {
-    let nets = default_cloud_trusted_proxies();
+    let nets = default_trusted_proxies(HostingProvider::Systemprompt);
     let strings = as_strings(&nets);
     for expected in [
         "127.0.0.0/8",
@@ -47,7 +47,7 @@ fn covers_fly_public_edge_accepts_exact_and_supernet_ranges() {
 
 #[test]
 fn local_defaults_are_private_only() {
-    let nets = default_local_trusted_proxies();
+    let nets = default_trusted_proxies(HostingProvider::DockerLocal);
     let strings = as_strings(&nets);
     assert!(strings.contains(&"127.0.0.0/8".to_owned()));
     assert!(strings.contains(&"192.168.0.0/16".to_owned()));
@@ -92,7 +92,7 @@ fn every_built_in_proxy_range_parses_rather_than_being_dropped() {
         + proxies::CLOUDFLARE_RANGES.len();
 
     assert_eq!(
-        default_cloud_trusted_proxies().len(),
+        default_trusted_proxies(HostingProvider::Systemprompt).len(),
         declared,
         "a built-in proxy CIDR failed to parse and was silently dropped"
     );
@@ -103,8 +103,28 @@ fn every_private_range_parses_for_the_local_default() {
     use systemprompt_cloud::constants::proxies;
 
     assert_eq!(
-        default_local_trusted_proxies().len(),
+        default_trusted_proxies(HostingProvider::DockerLocal).len(),
         proxies::PRIVATE_RANGES.len(),
         "a private-range CIDR failed to parse and was silently dropped"
     );
+}
+
+#[test]
+fn kubernetes_preset_never_trusts_fly_or_cloudflare() {
+    let nets = default_trusted_proxies(HostingProvider::Kubernetes);
+    let strings = as_strings(&nets);
+    assert!(strings.contains(&"10.0.0.0/8".to_owned()));
+    assert!(!covers_fly_peer(&nets));
+    assert!(!covers_fly_public_edge(&nets));
+    assert!(!strings.iter().any(|s| s == "104.16.0.0/13"));
+}
+
+#[test]
+fn gke_preset_adds_google_load_balancer_ranges_only() {
+    let nets = default_trusted_proxies(HostingProvider::Gke);
+    let strings = as_strings(&nets);
+    assert!(strings.contains(&"35.191.0.0/16".to_owned()));
+    assert!(strings.contains(&"130.211.0.0/22".to_owned()));
+    assert!(!covers_fly_peer(&nets));
+    assert!(!strings.iter().any(|s| s == "104.16.0.0/13"));
 }

@@ -22,7 +22,8 @@ fn opened(document: &DocumentId) -> String {
 #[test]
 fn a_proposal_opened_frame_becomes_a_proposal_notice() {
     let document = DocumentId::generate();
-    let notice = notice_for(DocumentProposalEvent::OPENED, &opened(&document)).expect("notice");
+    let notice =
+        notice_for(DocumentProposalEvent::OPENED, &opened(&document), None).expect("notice");
     assert_eq!(notice.kind, NoticeKind::ProposalOpened);
     assert_eq!(notice.document_id, document);
     assert_eq!(notice.from.as_str(), "agent-user");
@@ -30,23 +31,55 @@ fn a_proposal_opened_frame_becomes_a_proposal_notice() {
     assert_eq!(notice.detail.as_deref(), Some("tighten intro"));
 }
 
+fn shared_frame(document: &DocumentId, recipient: &str) -> String {
+    format!(
+        r#"{{"document_id":"{document}","document_name":"Plan.docx","recipient_user_id":"{recipient}","subject_kind":"role","subject_value":"team","level":"edit","by":"owner-1","shared_by":"Olivia Owner"}}"#
+    )
+}
+
 #[test]
-fn a_shared_frame_becomes_a_shared_notice_naming_the_level() {
+fn a_shared_frame_for_this_user_becomes_a_notice_naming_document_and_sharer() {
     let document = DocumentId::generate();
-    let frame = format!(
-        r#"{{"document_id":"{document}","subject_kind":"user","subject_value":"me","level":"edit","by":"owner-1"}}"#
-    );
-    let notice = notice_for("document.shared", &frame).expect("notice");
+    let me = UserId::new("me");
+    let notice =
+        notice_for("document.shared", &shared_frame(&document, "me"), Some(&me)).expect("notice");
     assert_eq!(notice.kind, NoticeKind::Shared);
     assert_eq!(notice.from.as_str(), "owner-1");
     assert_eq!(notice.detail.as_deref(), Some("edit"));
+    let text = notice_text(&DriveHandle::new().status(), &notice);
+    assert_eq!(text.title_key, "drive-shared-title");
+    assert!(
+        text.args
+            .iter()
+            .any(|(k, v)| *k == "document" && v == "Plan.docx")
+    );
+    assert!(
+        text.args
+            .iter()
+            .any(|(k, v)| *k == "from" && v == "Olivia Owner")
+    );
+}
+
+#[test]
+fn a_shared_frame_for_another_user_makes_no_notice() {
+    let document = DocumentId::generate();
+    let me = UserId::new("me");
+    assert!(
+        notice_for(
+            "document.shared",
+            &shared_frame(&document, "someone-else"),
+            Some(&me)
+        )
+        .is_none()
+    );
+    assert!(notice_for("document.shared", &shared_frame(&document, "me"), None).is_none());
 }
 
 #[test]
 fn other_and_malformed_frames_make_no_notice() {
     let document = DocumentId::generate();
-    assert!(notice_for(DocumentProposalEvent::ACCEPTED, &opened(&document)).is_none());
-    assert!(notice_for("document.shared", "{\"nope\":1}").is_none());
+    assert!(notice_for(DocumentProposalEvent::ACCEPTED, &opened(&document), None).is_none());
+    assert!(notice_for("document.shared", "{\"nope\":1}", Some(&UserId::new("me"))).is_none());
 }
 
 #[test]
@@ -54,7 +87,8 @@ fn queued_notices_are_numbered_and_bounded_and_render_their_keys() {
     let handle = DriveHandle::new();
     let document = DocumentId::generate();
     for _ in 0..25 {
-        let notice = notice_for(DocumentProposalEvent::OPENED, &opened(&document)).expect("notice");
+        let notice =
+            notice_for(DocumentProposalEvent::OPENED, &opened(&document), None).expect("notice");
         handle.push_notice(notice);
     }
     let status = handle.status();
@@ -67,5 +101,29 @@ fn queued_notices_are_numbered_and_bounded_and_render_their_keys() {
         text.args
             .iter()
             .any(|(k, v)| *k == "document" && v == document.as_str())
+    );
+}
+
+#[test]
+fn a_shared_frame_with_a_message_shows_the_message_in_the_toast() {
+    let document = DocumentId::generate();
+    let me = UserId::new("me");
+    let frame = format!(
+        r#"{{"document_id":"{document}","document_name":"Plan.docx","recipient_user_id":"me","subject_kind":"user","subject_value":"me","level":"view","by":"owner-1","shared_by":"Olivia Owner","message":"please review by Friday"}}"#
+    );
+    let notice = notice_for("document.shared", &frame, Some(&me)).expect("notice");
+    assert_eq!(notice.message.as_deref(), Some("please review by Friday"));
+    let text = notice_text(&DriveHandle::new().status(), &notice);
+    assert_eq!(text.body_key, "drive-shared-body-message");
+    assert!(
+        text.args
+            .iter()
+            .any(|(k, v)| *k == "message" && v == "please review by Friday")
+    );
+    let plain =
+        notice_for("document.shared", &shared_frame(&document, "me"), Some(&me)).expect("notice");
+    assert_eq!(
+        notice_text(&DriveHandle::new().status(), &plain).body_key,
+        "drive-shared-body"
     );
 }

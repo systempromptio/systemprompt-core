@@ -26,6 +26,7 @@ mod services_cleanup_owned_lifecycle;
 mod services_cleanup_reporting;
 mod services_commands;
 mod services_restart_ctx;
+mod services_serve_port_conflict;
 mod services_start_ctx;
 mod services_status_exec_ctx;
 mod services_status_output;

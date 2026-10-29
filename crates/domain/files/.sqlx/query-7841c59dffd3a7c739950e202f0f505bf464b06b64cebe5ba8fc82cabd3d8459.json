@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM document_write_acks\n             WHERE document_id = $1::text::uuid AND op_id = $2 AND user_id IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "7841c59dffd3a7c739950e202f0f505bf464b06b64cebe5ba8fc82cabd3d8459"
+}

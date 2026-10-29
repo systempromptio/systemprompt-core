@@ -1,37 +1,129 @@
-//! Reading access back, the install's grant subject kinds, ownership
-//! transfer and revoking every grant on a document.
+//! Reading access back (with the grant audit log on `?history=true`), the
+//! install's grant subject kinds and subject search (with each user's level
+//! on one document when `document_id` is given), ownership transfer and
+//! revoking every grant on a document.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use axum::extract::{Path, State};
+use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
+use axum::response::Response;
 use axum::{Extension, Json};
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::UserId;
+use systemprompt_files::documents::MAX_SUBJECT_SEARCH;
+use systemprompt_files::documents::service::TransferRequest;
+use systemprompt_identifiers::{DocumentId, UserId};
 use systemprompt_models::RequestContext;
-use systemprompt_runtime::documents::mcp::{AccessOutput, GrantItem};
+use systemprompt_models::documents::AccessLevel;
+use systemprompt_runtime::documents::active_user_display;
+use systemprompt_runtime::documents::views::access_view;
+
+use crate::error::ApiHttpError;
 
 use super::DocumentsState;
 use super::caller::caller;
-use super::error::DocumentsResult;
+use super::error::{DocumentsHttpError, DocumentsResult};
 use super::items::document_id;
+use super::requests::with_request_hint;
 use super::views::DocumentJson;
+
+#[derive(Debug, Default, Deserialize)]
+pub(super) struct HistoryQuery {
+    #[serde(default)]
+    pub(super) history: bool,
+}
 
 pub(super) async fn access(
     State(state): State<DocumentsState>,
     Extension(req_ctx): Extension<RequestContext>,
     Path(id): Path<String>,
-) -> DocumentsResult<Json<AccessOutput>> {
+    Query(query): Query<HistoryQuery>,
+) -> DocumentsResult<Response> {
     let who = caller(&state, &req_ctx).await?;
     let id = document_id(&id)?;
-    let access = state.service.access_of(&who.user, &id, &who.trace).await?;
-    Ok(Json(AccessOutput {
-        document_id: access.document.id,
-        owner: access.owner,
-        my_access: access.my_access,
-        grants: access.grants.into_iter().map(GrantItem::from).collect(),
-        inherited: access.inherited.into_iter().map(GrantItem::from).collect(),
+    let access = access_view(&state.service, &who.user, &id, query.history, &who.trace)
+        .await
+        .map(Json)
+        .map_err(DocumentsHttpError::from);
+    with_request_hint(&state, &who, &id, access).await
+}
+
+#[derive(Debug, Deserialize)]
+pub(super) struct SubjectsQuery {
+    kind: String,
+    #[serde(default)]
+    q: String,
+    #[serde(default)]
+    limit: Option<usize>,
+    #[serde(default)]
+    document_id: Option<DocumentId>,
+}
+
+#[derive(Debug, Serialize)]
+pub(super) struct SubjectJson {
+    value: String,
+    display_name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    detail: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    access_level: Option<&'static str>,
+}
+
+#[derive(Debug, Serialize)]
+pub(super) struct SubjectsJson {
+    kind: String,
+    searchable: bool,
+    subjects: Vec<SubjectJson>,
+}
+
+pub(super) async fn subjects(
+    State(state): State<DocumentsState>,
+    Extension(req_ctx): Extension<RequestContext>,
+    Query(query): Query<SubjectsQuery>,
+) -> DocumentsResult<Json<SubjectsJson>> {
+    let who = caller(&state, &req_ctx).await?;
+    let found = state
+        .service
+        .access()
+        .search_subjects(
+            &query.kind,
+            &query.q,
+            query.limit.unwrap_or(MAX_SUBJECT_SEARCH),
+        )
+        .await?;
+    let levels = match query.document_id.as_ref().filter(|_| found.kind == "user") {
+        Some(document) => {
+            let users: Vec<UserId> = found
+                .matches
+                .iter()
+                .map(|subject| UserId::new(subject.value.clone()))
+                .collect();
+            let levels = state
+                .service
+                .levels_on(&who.user, document, &users, &who.trace)
+                .await?;
+            levels
+                .into_iter()
+                .map(|level| Some(level.map_or("none", AccessLevel::as_str)))
+                .collect()
+        },
+        None => vec![None; found.matches.len()],
+    };
+    Ok(Json(SubjectsJson {
+        kind: found.kind,
+        searchable: found.searchable,
+        subjects: found
+            .matches
+            .into_iter()
+            .zip(levels)
+            .map(|(subject, access_level)| SubjectJson {
+                value: subject.value,
+                display_name: subject.display,
+                detail: subject.detail,
+                access_level,
+            })
+            .collect(),
     }))
 }
 
@@ -63,9 +155,16 @@ pub(super) async fn transfer(
 ) -> DocumentsResult<Json<DocumentJson>> {
     let who = caller(&state, &req_ctx).await?;
     let id = document_id(&id)?;
+    let to_display = active_user_display(&state.user_repository, &body.transfer_to)
+        .await
+        .map_err(ApiHttpError::from)?;
+    let request = TransferRequest {
+        to: body.transfer_to,
+        to_display,
+    };
     let document = state
         .service
-        .transfer_ownership(&who.user, &id, &body.transfer_to, &who.trace)
+        .transfer_ownership(&who.user, &id, request, &who.trace)
         .await?;
     Ok(Json(document.into()))
 }

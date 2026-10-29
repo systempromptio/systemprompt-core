@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Result, anyhow};
-use systemprompt_cloud::{CloudCredentials, CredentialsBootstrap, StoredTenant, TenantType};
+use systemprompt_cloud::{CloudCredentials, CredentialsBootstrap, StoredTenant};
 use systemprompt_identifiers::TenantId;
 use systemprompt_manifest::Profile;
 
@@ -22,13 +22,7 @@ pub fn select_tenant<'a>(
 ) -> Result<&'a StoredTenant> {
     let options: Vec<String> = tenants
         .iter()
-        .map(|t| {
-            let type_str = match t.tenant_type {
-                TenantType::Local => "local",
-                TenantType::Cloud => "cloud",
-            };
-            format!("{} ({})", t.name, type_str)
-        })
+        .map(|t| format!("{} ({})", t.name, t.provider))
         .collect();
 
     let selection = prompter.select("Select tenant", &options)?;

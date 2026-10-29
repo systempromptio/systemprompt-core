@@ -86,21 +86,28 @@ impl TokenExtractor {
     }
 
     pub fn extract(&self, headers: &HeaderMap) -> Result<String, TokenExtractionError> {
+        self.extract_with_method(headers).map(|(token, _)| token)
+    }
+
+    pub fn extract_with_method(
+        &self,
+        headers: &HeaderMap,
+    ) -> Result<(String, ExtractionMethod), TokenExtractionError> {
         for method in &self.fallback_chain {
             match method {
                 ExtractionMethod::AuthorizationHeader => {
                     if let Ok(token) = Self::extract_from_authorization(headers) {
-                        return Ok(token);
+                        return Ok((token, *method));
                     }
                 },
                 ExtractionMethod::McpProxyHeader => {
                     if let Ok(token) = self.extract_from_mcp_proxy(headers) {
-                        return Ok(token);
+                        return Ok((token, *method));
                     }
                 },
                 ExtractionMethod::Cookie => {
                     if let Ok(token) = self.extract_from_cookie(headers) {
-                        return Ok(token);
+                        return Ok((token, *method));
                     }
                 },
             }

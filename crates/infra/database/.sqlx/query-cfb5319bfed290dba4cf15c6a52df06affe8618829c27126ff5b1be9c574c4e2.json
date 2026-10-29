@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT p.instance_id AS \"instance_id!: InstanceId\"\n            FROM instance_presence p\n            JOIN instance_endpoints e ON e.instance_id = p.instance_id\n            WHERE p.role = $1\n              AND p.heartbeat_at\n                  >= CURRENT_TIMESTAMP - make_interval(secs => $2::double precision)\n              AND e.heartbeat_at\n                  >= CURRENT_TIMESTAMP - make_interval(secs => $2::double precision)\n            ORDER BY p.instance_id\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "instance_id!: InstanceId",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "instance_presence",
+            "name": "instance_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Float8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "cfb5319bfed290dba4cf15c6a52df06affe8618829c27126ff5b1be9c574c4e2"
+}

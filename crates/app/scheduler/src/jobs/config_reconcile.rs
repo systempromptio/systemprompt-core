@@ -1,4 +1,6 @@
-//! Job reporting every declared configuration plane's drift (see
+//! Job converging every `file`-authority plane to its declaration (file
+//! wins, see [`crate::services::ConfigApplyService::apply_file_managed`]),
+//! then reporting every declared plane's drift (see
 //! [`crate::services::ConfigReconcileService`]).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -8,11 +10,14 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use async_trait::async_trait;
+use systemprompt_provider_contracts::ChangeActor;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 
 use crate::repository::ConfigReconcileRepository;
-use crate::services::{ConfigReconcileService, ReconcileTrigger};
+use crate::services::{
+    ConfigApplyService, ConfigReconcileService, RECONCILE_LOCK_WAIT, ReconcileTrigger,
+};
 
 #[derive(Debug, Clone, Copy)]
 pub struct ConfigReconcileJob;
@@ -24,7 +29,7 @@ impl Job for ConfigReconcileJob {
     }
 
     fn description(&self) -> &'static str {
-        "Reports drift between each declared config plane and the database; writes nothing"
+        "Applies file-authority config planes (file wins) and reports drift on the rest"
     }
 
     fn schedule(&self) -> &'static str {
@@ -38,12 +43,23 @@ impl Job for ConfigReconcileJob {
             app,
             ConfigReconcileRepository::new(app.db_pool()),
         )?;
-        let report = service.reconcile_all(ReconcileTrigger::Scheduled).await;
+        let applier = ConfigApplyService::new(service);
+        let file_planes = applier
+            .apply_file_managed(
+                ChangeActor::Reconciler,
+                "file-authority planes re-applied",
+                RECONCILE_LOCK_WAIT,
+            )
+            .await?;
+        let report = applier
+            .reconcile()
+            .reconcile_all(ReconcileTrigger::Scheduled)
+            .await;
         let failures = report.failures();
         let duration_ms = started.elapsed().as_millis() as u64;
         if failures.is_empty() {
             return Ok(JobResult::success()
-                .with_stats(report.drift_rows() as u64, 0)
+                .with_stats((report.drift_rows() + file_planes.applied()) as u64, 0)
                 .with_duration(duration_ms));
         }
         let planes: Vec<&str> = failures.iter().map(|p| p.plane.as_str()).collect();

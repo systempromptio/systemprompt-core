@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE documents SET agent_cap = $2, updated_at = now()\n               WHERE id = $1::text::uuid AND deleted_at IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4beda4e3ea3cf86f27fc42529015632f11b8cbb56ba1cb6065ec963b287e309e"
+}

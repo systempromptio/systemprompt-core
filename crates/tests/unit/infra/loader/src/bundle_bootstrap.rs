@@ -11,7 +11,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use systemprompt_loader::bundle::{BundleCache, ServicesSourceBootstrap};
-use systemprompt_manifest::profile::FetchFailurePolicy;
+use systemprompt_manifest::profile::{FetchFailurePolicy, NodeRole};
 use systemprompt_manifest::services::root::ServicesProvenance;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -469,4 +469,61 @@ async fn a_kit_the_binary_cannot_load_is_never_swapped_in() {
         BundleCache::new(cache.path()).read_degraded().is_none(),
         "a composition that loads clears the record"
     );
+}
+
+#[tokio::test]
+async fn an_api_node_reads_the_worker_composition_without_fetching() {
+    let work = tempfile::tempdir().expect("tempdir");
+    let services = tempfile::tempdir().expect("tempdir");
+    let cache = tempfile::tempdir().expect("tempdir");
+    let base = serve(
+        packed_bytes(base_tree, work.path(), "base.tar.gz"),
+        "base-v1",
+        "/base.tar.gz",
+    )
+    .await;
+    let worker = profile(
+        services.path(),
+        cache.path(),
+        vec![https_source(
+            "base",
+            &format!("{}/base.tar.gz", base.server.uri()),
+            vec![pubkey()],
+        )],
+        FetchFailurePolicy::UseLastGood,
+    );
+    let mut api = worker.clone();
+    api.server.role = NodeRole::Api;
+
+    let err = ServicesSourceBootstrap::resolve(&api, no_secrets, CORE)
+        .await
+        .expect_err("nothing composed yet");
+    assert!(err.to_string().contains("server.role 'api'"), "{err}");
+    assert_eq!(base.hits.load(Ordering::SeqCst), 0, "api never fetches");
+
+    let composed = ServicesSourceBootstrap::resolve(&worker, no_secrets, CORE)
+        .await
+        .expect("worker composes");
+    let hits = base.hits.load(Ordering::SeqCst);
+    let read = ServicesSourceBootstrap::resolve(&api, no_secrets, CORE)
+        .await
+        .expect("api reads the shared composition");
+
+    assert_eq!(base.hits.load(Ordering::SeqCst), hits, "api never fetches");
+    assert_eq!(read.path, composed.path);
+    let (
+        ServicesProvenance::Fetched {
+            composed_hash: worker_hash,
+            ..
+        },
+        ServicesProvenance::Fetched {
+            composed_hash: api_hash,
+            versions,
+        },
+    ) = (&composed.provenance, &read.provenance)
+    else {
+        panic!("both report the fetched composition");
+    };
+    assert_eq!(worker_hash, api_hash);
+    assert!(versions.contains_key("base"));
 }

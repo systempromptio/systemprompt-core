@@ -3,24 +3,24 @@
 //! history or list adds the `document://` URIs and content hashes. A write
 //! acknowledges what it wrote as read lines, so the next edit anchors on
 //! the ack without a re-read. Outputs reach the wire once, as structured
-//! content.
+//! content. A history item names its author as `author`, its actor kind as
+//! `actor` and its time as `at`, to the second.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use systemprompt_identifiers::{
     ContentHash, ContextId, DocumentFolderId, DocumentId, DocumentProposalId, DocumentRevisionId,
     SessionId, TaskId, TraceId, UserId,
 };
 use systemprompt_mcp::McpOutputSchema;
 
-use super::records::GrantItem;
+use crate::documents::views::{EditOutput, GrantItem, ReadOutput};
 use systemprompt_models::documents::{
-    AccessLevel, ActorKind, DocumentFormat, DocumentUri, PresenceSource, PresenceState,
-    ProposalStatus,
+    AccessLevel, ActorKind, DocumentFormat, DocumentUri, ProposalStatus,
 };
 
 macro_rules! documents_output_impl {
@@ -38,6 +38,10 @@ macro_rules! documents_output_impl {
 }
 
 pub(super) use documents_output_impl as documents_output;
+
+fn seconds<S: serde::Serializer>(at: &DateTime<Utc>, serializer: S) -> Result<S::Ok, S::Error> {
+    serializer.serialize_str(&at.to_rfc3339_opts(chrono::SecondsFormat::Secs, true))
+}
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct FolderItem {
@@ -97,61 +101,7 @@ pub struct CreateOutput {
     pub written: Vec<String>,
 }
 documents_output_impl!(CreateOutput, "documents_create");
-
-#[derive(Debug, Clone, Serialize, JsonSchema)]
-pub struct ReadOutput {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub uri: Option<DocumentUri>,
-    pub revision_id: DocumentRevisionId,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub content_sha256: Option<ContentHash>,
-    pub format: DocumentFormat,
-    pub lines: Vec<String>,
-    #[serde(skip_serializing_if = "std::ops::Not::not")]
-    pub truncated: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub meta: Option<DocumentMeta>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub paths: Vec<String>,
-}
 documents_output_impl!(ReadOutput, "documents_read");
-
-#[derive(Debug, Clone, Serialize, JsonSchema)]
-pub struct DocumentMeta {
-    pub name: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub folder_path: Option<String>,
-    pub access: AccessLevel,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub size_bytes: Option<i64>,
-    pub updated_at: DateTime<Utc>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub editing: Vec<EditingNow>,
-}
-
-#[derive(Debug, Clone, Serialize, JsonSchema)]
-pub struct EditingNow {
-    pub user_id: UserId,
-    pub source: PresenceSource,
-    pub state: PresenceState,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct EditOutput {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub uri: Option<DocumentUri>,
-    pub revision_id: DocumentRevisionId,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub parent_revision_id: Option<DocumentRevisionId>,
-    pub applied: usize,
-    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
-    pub merged: bool,
-    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
-    pub replayed: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub proposal_id: Option<DocumentProposalId>,
-    pub written: Vec<String>,
-}
 documents_output_impl!(EditOutput, "documents_edit");
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
@@ -161,7 +111,9 @@ pub struct RevisionItem {
     pub revision_id: DocumentRevisionId,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub parent_revision_id: Option<DocumentRevisionId>,
+    #[serde(rename = "author")]
     pub author_user_id: UserId,
+    #[serde(rename = "actor")]
     pub actor_kind: ActorKind,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub message: Option<String>,
@@ -169,6 +121,7 @@ pub struct RevisionItem {
     pub content_sha256: Option<ContentHash>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub attribution: Option<RevisionAttributionItem>,
+    #[serde(rename = "at", serialize_with = "seconds")]
     pub created_at: DateTime<Utc>,
 }
 
@@ -202,6 +155,24 @@ pub struct ShareOutput {
     pub revoked: Option<u64>,
 }
 documents_output_impl!(ShareOutput, "documents_share");
+
+/// `access` is the level held on the asked document, absent for none or
+/// when no document was asked.
+#[derive(Debug, Clone, Serialize, JsonSchema)]
+pub struct PersonItem {
+    pub user_id: UserId,
+    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub email: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub access: Option<AccessLevel>,
+}
+
+#[derive(Debug, Clone, Serialize, JsonSchema)]
+pub struct PeopleOutput {
+    pub people: Vec<PersonItem>,
+}
+documents_output_impl!(PeopleOutput, "documents_people");
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct ExportOutput {

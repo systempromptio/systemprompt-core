@@ -69,52 +69,12 @@ pub struct CreateInput {
     #[serde(default)]
     pub params: std::collections::BTreeMap<String, String>,
     #[serde(default)]
+    // JSON: `{model}` or `{markdown}`, untyped for size; create_content checks it.
+    pub content: Option<serde_json::Value>,
+    #[serde(default)]
     pub ops: Vec<EditOp>,
     #[serde(default)]
     pub message: Option<String>,
-}
-
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum ReadView {
-    Outline,
-    #[default]
-    Text,
-    Range,
-    Cells,
-    Changes,
-    Node,
-    Search,
-    Meta,
-}
-
-#[derive(Debug, Clone, Deserialize, JsonSchema)]
-pub struct NodeRange {
-    pub from_node: DocumentNodeId,
-    pub to_node: DocumentNodeId,
-}
-
-#[derive(Debug, Clone, Deserialize, JsonSchema)]
-pub struct ReadInput {
-    pub document_id: DocumentId,
-    #[serde(default)]
-    pub view: ReadView,
-    #[serde(default)]
-    pub range: Option<NodeRange>,
-    #[serde(default)]
-    pub sheet: Option<String>,
-    #[serde(default)]
-    pub cells: Option<String>,
-    #[serde(default)]
-    pub revision_id: Option<DocumentRevisionId>,
-    #[serde(default)]
-    pub since_revision: Option<DocumentRevisionId>,
-    #[serde(default)]
-    pub node_id: Option<DocumentNodeId>,
-    #[serde(default)]
-    pub text: Option<String>,
-    #[serde(default)]
-    pub verbose: bool,
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
@@ -164,6 +124,8 @@ pub struct ShareInput {
     pub transfer_to: Option<UserId>,
     #[serde(default)]
     pub revoke_all: bool,
+    #[serde(default)]
+    pub message: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, JsonSchema)]
@@ -206,6 +168,8 @@ pub enum CommentAction {
     Create,
     List,
     Resolve,
+    Edit,
+    Delete,
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
@@ -231,11 +195,29 @@ pub struct CommentInput {
     pub comment_id: Option<DocumentCommentId>,
     #[serde(default)]
     pub answering: Option<DocumentRevisionId>,
+    #[serde(default)]
+    pub mentions: Vec<UserId>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize, JsonSchema)]
+pub struct PeopleInput {
+    pub query: String,
+    #[serde(default)]
+    pub document_id: Option<DocumentId>,
+    #[serde(default)]
+    pub limit: Option<i64>,
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 pub struct DocumentInput {
     pub document_id: DocumentId,
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct AccessInput {
+    pub document_id: DocumentId,
+    #[serde(default)]
+    pub history: bool,
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]

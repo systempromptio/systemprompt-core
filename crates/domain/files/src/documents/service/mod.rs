@@ -1,5 +1,5 @@
 //! [`DocumentService`]: folders, documents, the revision engine, locks,
-//! presence, sharing, search and the bridge Drive feed.
+//! presence, sharing, access requests, search and the bridge Drive feed.
 //!
 //! Every method authorizes through [`DocumentAccessService`] before it reads
 //! or writes, and returns [`DocumentsError`](super::error::DocumentsError).
@@ -19,48 +19,84 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod access_requests;
+mod access_view;
 mod acks;
+mod agent_caps;
+mod agent_rules;
 mod apply;
 mod byte_diff;
 mod comments;
+mod comments_edit;
+mod comments_export;
 mod commit;
 mod commit_build;
+mod content;
 mod documents;
 mod drive;
 mod drive_blob;
 mod drive_commit;
+mod drive_feed;
+mod first_revision;
 mod folders;
+mod fragments;
 mod grants;
+mod ingest;
+mod landed;
+mod landing;
 mod lifecycle;
+mod limits;
 mod listing;
 mod locks;
+mod media;
+mod mentions;
 mod node_ids;
 mod ownership;
+mod pdf;
+mod prepare;
+mod proposal_body;
 mod proposal_reads;
 mod proposal_review;
 mod proposals;
 mod publish;
 mod reads;
+mod suggested_write;
 mod support;
 mod types;
+mod visibility;
 
 use std::sync::Arc;
 
+pub use access_requests::{AccessDecision, AccessRequestInput, DecideRequest};
+pub use access_view::{
+    DocumentAccess, FolderAccess, InheritedGrant, MAX_GRANT_HISTORY, TargetAccess,
+};
+pub use agent_caps::{AgentCapTarget, AgentCapView};
 pub use comments::{CommentRequest, ResolveCommentRequest};
-pub use drive::{CHANGE_LAG, parse_drive_cursor};
-pub use grants::ShareRequest;
+pub use comments_edit::{DeleteCommentRequest, EditCommentRequest};
+pub use comments_export::ExportedDocument;
+pub use drive::parse_drive_cursor;
+pub use drive_feed::CHANGE_LAG;
+pub use grants::{MAX_SHARE_MESSAGE_BYTES, ShareRequest};
 pub use lifecycle::{CopyRequest, FolderMove, UpdateRequest};
-pub use ownership::DocumentAccess;
+pub use media::{AdmittedMedia, held_media_refs};
+pub use mentions::CommentOrigin;
+pub use ownership::TransferRequest;
+pub use pdf::RenderedPdf;
+pub use proposal_body::ProposeBodyRequest;
 pub use proposal_reads::ProposalView;
 pub use proposal_review::{Accepted, ReviewRequest};
 pub use proposals::{EditModeRequest, ProposeRequest, Proposed};
+pub use suggested_write::ExternalWrite;
 pub use types::{
     AcquireLockRequest, Author, CommentPolicy, CommitOutcome, CommitRequest, CommitWarning,
-    CreateRequest, DocumentView, HistoryPage, ImportRequest, ListFolderRequest, Listing,
-    NewFolderRequest, RevisionOrigin, SearchResult, StreamRequest,
+    CreateRequest, DocumentView, HistoryPage, ImportRequest, LandedCommit, ListFolderRequest,
+    Listing, NewFolderRequest, RevisionOrigin, SearchResult, StreamRequest,
 };
+pub use visibility::MAX_VISIBILITY_BATCH;
 
 use super::access::DocumentAccessService;
+use super::agents::{AgentRateLimiter, RewriteTracker};
 use super::blob_store::BlobStore;
 use super::codecs::CodecRegistry;
 use super::events::DocumentEvents;
@@ -79,6 +115,11 @@ pub struct DocumentService {
     access: Arc<DocumentAccessService>,
     events: Arc<DocumentEvents>,
     config: DocumentsConfig,
+    uploads: Arc<std::sync::OnceLock<Arc<crate::uploads::UploadService>>>,
+    agent_edits: Arc<AgentRateLimiter>,
+    agent_rewrites: Arc<RewriteTracker>,
+    #[cfg(feature = "collab")]
+    collab: Arc<std::sync::OnceLock<std::sync::Weak<super::collab::CollabService>>>,
 }
 
 /// The collaborators a [`DocumentService`] is built from.
@@ -103,8 +144,28 @@ impl DocumentService {
             templates: parts.templates,
             access: parts.access,
             events: parts.events,
+            agent_edits: Arc::new(AgentRateLimiter::new(
+                parts.config.limits.agent_edits_per_hour,
+                parts.config.limits.agent_edits_per_hour_per_user,
+            )),
+            agent_rewrites: Arc::new(RewriteTracker::new()),
             config: parts.config,
+            uploads: Arc::default(),
+            #[cfg(feature = "collab")]
+            collab: Arc::default(),
         }
+    }
+
+    #[cfg(feature = "collab")]
+    pub fn attach_collab(&self, collab: &Arc<super::collab::CollabService>) {
+        if self.collab.set(Arc::downgrade(collab)).is_err() {
+            tracing::warn!("A live co-editing service is already attached to the document service");
+        }
+    }
+
+    #[cfg(feature = "collab")]
+    pub(super) fn collab(&self) -> Option<Arc<super::collab::CollabService>> {
+        self.collab.get().and_then(std::sync::Weak::upgrade)
     }
 
     #[must_use]

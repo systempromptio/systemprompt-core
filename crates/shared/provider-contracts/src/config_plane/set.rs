@@ -7,12 +7,13 @@
 //! plane follows the planes it depends on (registration order breaks ties).
 //! The reconciler walks [`ConfigPlaneSet::planes`] in that order.
 //!
-//! A console or API writer edits a plane's rows only while holding a
-//! [`PlaneWriter`] for it, and [`ConfigPlaneSet::writer`] mints one only when
-//! the plane is not file-managed: a plane whose declaration exists under
-//! `file` authority answers [`ConfigPlaneError::FileManaged`], because the
-//! next `config apply` would take the file over the edit. A plane whose file is
-//! absent is never file-managed, whatever the profile says.
+//! A plane the profile does not name runs under `db` authority. A console or
+//! API writer edits a plane's rows only while holding a [`PlaneWriter`] for
+//! it, and [`ConfigPlaneSet::writer`] mints one only when the plane is not
+//! file-managed: a plane the profile names `file` whose declaration exists
+//! answers [`ConfigPlaneError::FileManaged`], because the next `config apply`
+//! takes the file over the edit. A plane whose file is absent is undeclared
+//! and never file-managed, whatever the profile says.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -27,14 +28,14 @@ use serde::{Deserialize, Serialize};
 use super::{ConfigPlane, ConfigPlaneError, ConfigPlaneResult};
 
 /// The authority a profile names for one plane under
-/// `config_planes.authority`.
+/// `config_planes.authority`; a plane the profile does not name is `db`.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, schemars::JsonSchema,
 )]
 #[serde(rename_all = "lowercase")]
 pub enum PlaneAuthority {
-    #[default]
     File,
+    #[default]
     Db,
 }
 
@@ -169,15 +170,17 @@ impl ConfigPlaneSet {
 
     #[must_use]
     pub fn authority_of(&self, plane: &dyn ConfigPlane) -> EffectiveAuthority {
+        if !self.declared_exists(plane) {
+            return EffectiveAuthority::Undeclared;
+        }
         match self
             .authority
             .get(plane.name())
             .copied()
             .unwrap_or_default()
         {
+            PlaneAuthority::File => EffectiveAuthority::File,
             PlaneAuthority::Db => EffectiveAuthority::Db,
-            PlaneAuthority::File if self.declared_exists(plane) => EffectiveAuthority::File,
-            PlaneAuthority::File => EffectiveAuthority::Undeclared,
         }
     }
 

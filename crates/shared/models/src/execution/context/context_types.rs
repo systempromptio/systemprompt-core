@@ -29,6 +29,10 @@ pub struct AuthContext {
     pub jti: Option<AccessTokenId>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub token_exp: Option<i64>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub browser_session: bool,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub cookie_transport: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

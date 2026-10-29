@@ -10,6 +10,7 @@ use systemprompt_database::{
     ServiceRepository, ServiceStatus,
 };
 use systemprompt_identifiers::{AdvisoryLockKey, InstanceId, LeaseKey, ServiceName};
+use systemprompt_manifest::profile::NodeRole;
 use systemprompt_test_fixtures::test_database_url;
 use systemprompt_traits::{AdvisoryLocks, CoordinationError, InstanceRegistry, LeaseRepository};
 
@@ -383,4 +384,137 @@ async fn dropping_an_advisory_lock_frees_it() {
         .expect("lock")
         .expect("a dropped lock's session is closed, freeing it");
     next.release().await;
+}
+
+#[tokio::test]
+async fn a_held_claim_reports_its_instance_and_session() {
+    let db = db_pool().await;
+    let target = replica(&db);
+    let claim = target.services.claim_instance().await.expect("claim");
+
+    assert_eq!(claim.instance_id(), target.services.instance_id());
+    let rendered = format!("{claim:?}");
+    assert!(rendered.contains("held: true"), "{rendered}");
+    assert!(
+        rendered.contains(target.services.instance_id().as_str()),
+        "{rendered}"
+    );
+    claim.release().await;
+}
+
+#[tokio::test]
+async fn an_unreachable_database_fails_the_claim_as_a_repository_error() {
+    let dead = Arc::new(
+        sqlx::postgres::PgPoolOptions::new()
+            .max_connections(1)
+            .acquire_timeout(Duration::from_millis(250))
+            .connect_lazy("postgres://nobody:nobody@127.0.0.1:1/does-not-exist")
+            .expect("lazy pool"),
+    );
+    let db: DbPool = Arc::new(Database::from_pools(Arc::clone(&dead), Some(dead)));
+    let repo = ServiceRepository::new(&db, InstanceId::new(unique("dead")));
+
+    let err = repo.claim_instance().await.expect_err("no database");
+
+    assert!(
+        matches!(
+            err,
+            systemprompt_database::InstanceClaimError::Repository(_)
+        ),
+        "{err:?}"
+    );
+}
+
+#[tokio::test]
+async fn the_process_owner_is_the_live_replica_running_it_with_an_advertised_endpoint() {
+    let db = db_pool().await;
+    let owner = replica(&db);
+    let api = replica(&db);
+    let name = ServiceName::new(unique("mcp"));
+
+    assert_eq!(
+        api.services
+            .find_process_owner(&name)
+            .await
+            .expect("lookup"),
+        None,
+        "no replica runs it yet"
+    );
+
+    owner
+        .services
+        .create_service(CreateServiceInput {
+            name: &name,
+            module_name: ServiceModule::Mcp,
+            status: ServiceStatus::Running,
+            port: 5556,
+            binary_mtime: None,
+        })
+        .await
+        .expect("register owner row");
+    assert_eq!(
+        api.services
+            .find_process_owner(&name)
+            .await
+            .expect("lookup"),
+        None,
+        "an owner that advertises no endpoint is unreachable"
+    );
+
+    owner
+        .services
+        .advertise_endpoint("http://10.0.0.7:8080")
+        .await
+        .expect("advertise");
+    owner
+        .services
+        .touch_presence(NodeRole::Worker)
+        .await
+        .expect("presence");
+    assert_eq!(
+        api.services
+            .find_process_owner(&name)
+            .await
+            .expect("lookup"),
+        None,
+        "a worker that does not hold the process lease is not its owner"
+    );
+
+    owner
+        .coordination
+        .leases
+        .claim(
+            &LeaseKey::new(format!("mcp:{}", name.as_str())),
+            Duration::from_secs(45),
+        )
+        .await
+        .expect("claim")
+        .expect("lease won");
+    let found = api
+        .services
+        .find_process_owner(&name)
+        .await
+        .expect("lookup")
+        .expect("owner found");
+    assert_eq!(&found.instance_id, owner.services.instance_id());
+    assert_eq!(found.advertise_url, "http://10.0.0.7:8080");
+    assert_eq!(
+        owner
+            .services
+            .find_process_owner(&name)
+            .await
+            .expect("lookup"),
+        None,
+        "a replica never forwards to itself"
+    );
+
+    age_heartbeat(&db, owner.services.instance_id()).await;
+    assert_eq!(
+        api.services
+            .find_process_owner(&name)
+            .await
+            .expect("lookup"),
+        None,
+        "a stale owner is never chosen"
+    );
 }

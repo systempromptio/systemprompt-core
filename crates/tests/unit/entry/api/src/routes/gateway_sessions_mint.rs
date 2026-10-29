@@ -60,6 +60,7 @@ async fn mint_key(pool: &DbPool, user_id: &UserId) -> String {
         limits: &systemprompt_users::ApiKeyLimits::default(),
         scopes: &[],
         purpose: None,
+        kind: systemprompt_users::ApiKeyKind::User,
     })
     .await
     .expect("issue")
@@ -166,6 +167,7 @@ async fn revoked_api_key_no_longer_mints() {
             limits: &systemprompt_users::ApiKeyLimits::default(),
             scopes: &[],
             purpose: None,
+            kind: systemprompt_users::ApiKeyKind::User,
         })
         .await
         .expect("issue");

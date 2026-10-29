@@ -4,11 +4,14 @@
 //! The edit mode of a call is decided once: an explicit `land` needs `edit`
 //! access; a caller holding `comment` but not `edit` always proposes; an
 //! agent proposes when the document's folder, or any folder above it, sets
-//! the `propose` agent edit policy. A proposed revision's parent is its
-//! base, its ops are applied under the same node guards as a commit on the
-//! head, and its node ids carry forward from the base; the head never moves.
-//! A newer proposal from the same proposer on the same document supersedes
-//! the open one.
+//! the `propose` agent edit policy, and an agent's explicit `land` there is
+//! refused, since the folder policy outranks the request. An agent whose
+//! cap on the document is `suggest` always proposes, even when it asked to
+//! land: the edit is converted, not refused. A proposed revision's
+//! parent is its base, its ops are applied under the same node guards as a
+//! commit on the head, and its node ids carry forward from the base; the head
+//! never moves. A newer proposal from the same proposer on the same document
+//! supersedes the open one.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -19,12 +22,15 @@ use systemprompt_models::documents::{
     AccessLevel, ActorKind, AgentEditPolicy, DocumentAction, EditMode, EditOp, ProposalStatus,
 };
 
-use super::apply::apply_on_head;
-use super::commit::Landed;
+use super::apply::{HeadEdit, apply_on_head};
+use super::landing::{LandResult, Placement};
+use super::prepare::{Applied, Draft};
 use super::support::blocking;
-use super::{Author, DocumentService};
+use super::{Author, CommentPolicy, DocumentService};
 use crate::documents::access::AccessTarget;
+use crate::documents::agents::AgentCap;
 use crate::documents::error::DocumentsError;
+use crate::documents::model::Media;
 use crate::documents::models::{
     Document, DocumentProposal, DocumentRevision, NewProposal, ProposalReview,
 };
@@ -68,34 +74,51 @@ impl DocumentService {
                 trace,
             )
             .await?;
+        if granted
+            .agent_cap
+            .as_ref()
+            .is_some_and(|cap| cap.cap == AgentCap::Suggest)
+        {
+            return Ok(EditMode::Propose);
+        }
         let can_land = granted.level >= AccessLevel::Edit;
-        match request.requested {
-            Some(EditMode::Land) if !can_land => Err(DocumentsError::Forbidden {
+        let held = granted.level;
+        let document = granted.document;
+        let forbidden =
+            |policy: Option<String>, document: Option<Document>| DocumentsError::Forbidden {
                 action: DocumentAction::Edit,
                 needed: AccessLevel::Edit,
-                held: Some(granted.level),
-                policy: None,
-                owner: granted.document.map(|document| document.owner_user_id),
-            }),
-            Some(mode) => Ok(mode),
-            None if !can_land => Ok(EditMode::Propose),
-            None if request.actor == ActorKind::Agent => {
-                let folder = granted.document.and_then(|document| document.folder_id);
-                let policy = match folder {
-                    Some(folder) => {
-                        self.repos
-                            .folders
-                            .effective_agent_edit_policy(&folder)
-                            .await?
-                    },
-                    None => AgentEditPolicy::Direct,
-                };
-                Ok(match policy {
-                    AgentEditPolicy::Propose => EditMode::Propose,
-                    AgentEditPolicy::Direct => EditMode::Land,
-                })
+                held: Some(held),
+                policy,
+                owner: document.map(|document| document.owner_user_id),
+            };
+        if !can_land {
+            return match request.requested {
+                Some(EditMode::Land) => Err(forbidden(None, document)),
+                _ => Ok(EditMode::Propose),
+            };
+        }
+        if request.actor != ActorKind::Agent {
+            return Ok(request.requested.unwrap_or(EditMode::Land));
+        }
+        let policy = match document
+            .as_ref()
+            .and_then(|document| document.folder_id.as_ref())
+        {
+            Some(folder) => {
+                self.repos
+                    .folders
+                    .effective_agent_edit_policy(folder)
+                    .await?
             },
-            None => Ok(EditMode::Land),
+            None => AgentEditPolicy::Direct,
+        };
+        match (policy, request.requested) {
+            (AgentEditPolicy::Propose, Some(EditMode::Land)) => {
+                Err(forbidden(Some("propose".to_owned()), document))
+            },
+            (AgentEditPolicy::Propose, _) => Ok(EditMode::Propose),
+            (AgentEditPolicy::Direct, requested) => Ok(requested.unwrap_or(EditMode::Land)),
         }
     }
 
@@ -111,34 +134,34 @@ impl DocumentService {
         let base = self
             .resolve_revision(&document, request.base_revision.as_ref())
             .await?;
-        let mut ops = Vec::with_capacity(request.ops.len());
-        for op in request.ops {
-            ops.push(self.expand_op(&document, op).await?);
-        }
-        let (projected, bytes) = self.projected_with_bytes(&document, &base).await?;
-        let codec = self.codec(document.format)?;
-        let format = document.format;
-        let previous = projected.ids.clone();
-        let applied_ops = ops.clone();
-        let applied = blocking(move || {
-            apply_on_head(codec.as_ref(), format, &bytes, &projected, applied_ops)
-        })
-        .await?;
-        let (revision, _) = self
-            .store_revision(
+        self.check_ops_limits(&request.ops)?;
+        let reserved = self.reserve_agent_edits(who, request.ops.len())?;
+        let applied = self.apply_proposed(&document, &base, request.ops).await?;
+        let prepared = self
+            .prepare(
                 who,
                 &document,
-                Landed {
-                    bytes: &applied.bytes,
-                    retired: applied.retired,
-                    previous: Some(previous),
+                Draft {
+                    applied,
                     parent: Some(base.id.clone()),
-                    edit_ops: Some(ops),
                     message: request.message.clone(),
                     author: &request.author,
                 },
             )
             .await?;
+        let revision = match self
+            .land(
+                &document,
+                prepared,
+                Placement::proposal(&CommentPolicy::default()),
+            )
+            .await?
+        {
+            LandResult::Landed(stored) => stored.revision,
+            LandResult::HeadMoved | LandResult::Claimed(_) => {
+                return Err(DocumentsError::not_found("proposed revision", &document.id));
+            },
+        };
         let superseded = self
             .repos
             .proposals
@@ -171,10 +194,46 @@ impl DocumentService {
             self.announce_proposal(&document, closed).await;
         }
         self.announce_proposal(&document, &proposal).await;
+        reserved.keep();
         Ok(Proposed {
             proposal,
             revision,
             superseded,
+        })
+    }
+
+    async fn apply_proposed(
+        &self,
+        document: &Document,
+        base: &DocumentRevision,
+        requested: Vec<EditOp>,
+    ) -> Result<Applied, DocumentsError> {
+        let mut ops = Vec::with_capacity(requested.len());
+        let mut fragments = Vec::new();
+        for op in requested {
+            let (op, fragment) = self.expand_op(document, op).await?;
+            ops.push(op);
+            fragments.extend(fragment);
+        }
+        let (projected, bytes) = self.projected_with_bytes(document, base).await?;
+        let codec = self.codec(document.format)?;
+        let format = document.format;
+        let previous = projected.ids.clone();
+        let applied_ops = ops.clone();
+        let applied = blocking(move || {
+            let edit = HeadEdit {
+                ops: applied_ops,
+                fragments,
+                media: Media::new(),
+            };
+            apply_on_head(codec.as_ref(), format, &bytes, &projected, edit)
+        })
+        .await?;
+        Ok(Applied {
+            ops: applied,
+            previous: Some(previous),
+            merged: false,
+            edit_ops: Some(ops),
         })
     }
 

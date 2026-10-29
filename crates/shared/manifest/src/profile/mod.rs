@@ -14,6 +14,7 @@
 mod cloud;
 mod config_planes;
 mod database;
+mod deploy;
 pub mod derived;
 mod error;
 mod external_secrets;
@@ -21,6 +22,7 @@ mod governance;
 mod judge;
 pub mod layered;
 mod legacy;
+mod licence;
 mod masking;
 mod node_role;
 mod observability;
@@ -41,9 +43,13 @@ mod style;
 mod validation;
 mod vault;
 
-pub use cloud::{CloudConfig, CloudValidationMode};
+pub use cloud::{CloudConfig, CloudValidationMode, HostingProvider, UnknownHostingProvider};
 pub use config_planes::{ConfigPlanesConfig, PlaneAuthority};
 pub use database::{DatabaseConfig, PoolConfig, RoleMaxConnections};
+pub use deploy::{
+    DEFAULT_GITOPS_COMMIT_MESSAGE, DeployConfig, GitOpsConfig, OperatorAuthConfig,
+    default_operator_scopes,
+};
 pub use error::{ProfileError, ProfileResult};
 pub use external_secrets::{ExternalSecretsConfig, MIN_EXTERNAL_REFRESH_SECS};
 pub use governance::{
@@ -53,7 +59,8 @@ pub use governance::{
 pub use judge::JudgeProfile;
 pub use layered::{BASE_PROFILE_FILE, OVERLAY_PROFILE_FILE, merge_yaml};
 pub use legacy::MIGRATE_COMMAND;
-pub use node_role::NodeRole;
+pub use licence::{LICENCE_SIGNING_SECRET, LicenceConfig};
+pub use node_role::{NodeRole, NodeRoleParseError};
 pub use observability::{
     LogFormat, ObservabilityConfig, OtlpExportConfig, OtlpProtocol, OtlpSignal,
 };
@@ -184,6 +191,9 @@ pub struct Profile {
 
     #[serde(default)]
     pub config_planes: ConfigPlanesConfig,
+
+    #[serde(default)]
+    pub licence: LicenceConfig,
 }
 
 impl Profile {
@@ -192,6 +202,17 @@ impl Profile {
         self.cloud
             .as_ref()
             .map_or_else(|| self.target.is_local(), CloudConfig::is_local_trial)
+    }
+
+    #[must_use]
+    pub fn hosting_provider(&self) -> HostingProvider {
+        self.cloud
+            .as_ref()
+            .map_or_else(HostingProvider::default, |cloud| cloud.provider)
+    }
+
+    pub fn is_deployment_host(&self, lookup: impl Fn(&str) -> Option<String>) -> bool {
+        self.hosting_provider().is_deployment_host(lookup)
     }
 
     #[must_use]

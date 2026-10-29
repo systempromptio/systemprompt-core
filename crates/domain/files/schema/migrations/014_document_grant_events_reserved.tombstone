@@ -1,0 +1,5 @@
+Slot 014 is spent, not free.
+
+The document grant events migration was planned for this slot while
+015_document_grant_events_and_access_requests.sql landed above it carrying
+that work; this marker keeps 014 from being reused.

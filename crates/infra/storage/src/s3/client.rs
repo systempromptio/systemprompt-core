@@ -1,4 +1,5 @@
-//! Signed S3 object calls: `PUT`, `GET`, `DELETE` and `HEAD`.
+//! Signed S3 object calls: `PUT`, `GET`, `DELETE` and `HEAD`, and the
+//! signed request the multipart calls are built on.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -17,6 +18,15 @@ pub(crate) struct ObjectHead {
     pub size_bytes: Option<i64>,
     pub etag: Option<String>,
     pub last_modified: DateTime<Utc>,
+}
+
+pub(crate) struct Call<'a> {
+    pub method: Method,
+    pub name: &'a str,
+    pub query: &'a str,
+    pub content_type: Option<&'a str>,
+    pub payload: &'a [u8],
+    pub range: Option<ByteRange>,
 }
 
 pub(crate) enum Lookup<T> {
@@ -67,35 +77,51 @@ impl S3FileStorage {
         upload: Option<(&str, &[u8])>,
         range: Option<ByteRange>,
     ) -> Result<Response, S3Error> {
-        let payload = upload.map_or(&b""[..], |(_, payload)| payload);
-        let (url, host) = self.object_url(name)?;
+        let call = Call {
+            method,
+            name,
+            query: "",
+            content_type: upload.map(|(content_type, _)| content_type),
+            payload: upload.map_or(&b""[..], |(_, payload)| payload),
+            range,
+        };
+        self.call(call).await
+    }
+
+    pub(crate) async fn call(&self, call: Call<'_>) -> Result<Response, S3Error> {
+        let (mut url, host) = self.object_url(call.name)?;
+        if !call.query.is_empty() {
+            url.set_query(Some(call.query));
+        }
         let signed = sign(
             &self.credentials,
             &SigningInput {
-                method: method.as_str(),
+                method: call.method.as_str(),
                 host: &host,
                 canonical_uri: url.path(),
-                payload,
+                canonical_query: call.query,
+                payload: call.payload,
                 region: &self.params.region,
                 now: Utc::now(),
             },
         )?;
         let mut request = self
             .http
-            .request(method, url)
+            .request(call.method, url)
             .header("x-amz-date", signed.amz_date)
             .header("x-amz-content-sha256", signed.content_sha256)
             .header(reqwest::header::AUTHORIZATION, signed.authorization);
         if let Some(token) = self.credentials.session_token.as_deref() {
             request = request.header("x-amz-security-token", token);
         }
-        if let Some(range) = range {
+        if let Some(range) = call.range {
             request = request.header(reqwest::header::RANGE, range.header_value());
         }
-        if let Some((content_type, payload)) = upload {
-            request = request
-                .header(CONTENT_TYPE, content_type)
-                .body(payload.to_vec());
+        if let Some(content_type) = call.content_type {
+            request = request.header(CONTENT_TYPE, content_type);
+        }
+        if !call.payload.is_empty() || call.content_type.is_some() {
+            request = request.body(call.payload.to_vec());
         }
         let response = request.send().await?;
         let status = response.status();

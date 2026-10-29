@@ -101,10 +101,11 @@ pub use repository::{
     CLAIM_DEAD_PEER_SECS, CoordinationRepositories, CreateServiceInput, EXTENSION_LOCK_CLASS,
     INSTANCE_CLAIM_CLASS, INSTANCE_DEAD_AFTER_SECS, InstanceClaim, InstanceClaimError,
     InstanceLeaseRepository, PLANE_NOT_APPLIED_HINT, PgConfigVersion, PgDbPool, PlaneTransaction,
-    Reaped, ReapedService, ReleaseGate, ReleaseRun, ReleaseStampError, ReleaseStampRepository,
-    ServiceConfig, ServiceModule, ServiceRepository, ServiceStatus, SessionAdvisoryLock,
-    SessionAdvisoryLocks, StampOutcome, UpsertServiceProcessInput, find_config_plane_applied,
-    record_config_plane_applied, release_key, with_change_context,
+    ProcessOwner, Reaped, ReapedService, ReleaseGate, ReleaseRun, ReleaseStampError,
+    ReleaseStampRepository, RoleCount, ServiceConfig, ServiceModule, ServiceRepository,
+    ServiceStatus, SessionAdvisoryLock, SessionAdvisoryLocks, StampOutcome,
+    UpsertServiceProcessInput, find_config_plane_applied, record_config_plane_applied, release_key,
+    with_change_context,
 };
 
 pub use admin::{

@@ -56,25 +56,34 @@ export const previewUrl = (id, revision) => doc(id, `/preview${query({ revision 
 export const getProjection = (id, params) => request("GET", doc(id, `/projection${query(params)}`));
 export const listRevisions = (id, params) => request("GET", doc(id, `/revisions${query(params)}`));
 
-export const postEdits = (id, { baseRevision, ops, message }) =>
-  request("POST", doc(id, "/edits"), { base_revision: baseRevision, ops, message, op_id: opId() });
+export const postEdits = (id, { baseRevision, ops, message, opId: editId }) =>
+  request("POST", doc(id, "/edits"), { base_revision: baseRevision, ops, message, op_id: editId });
 
-export const restoreRevision = (id, { revisionId, headRevision }) =>
-  postEdits(id, { baseRevision: headRevision, ops: [{ op: "restore", revision_id: revisionId }], message: "restore" });
+export const restoreRevision = (id, { revisionId, headRevision, opId: editId }) =>
+  postEdits(id, { baseRevision: headRevision, ops: [{ op: "restore", revision_id: revisionId }], message: "restore", opId: editId });
 
 export const readView = (id, params) => request("GET", doc(id, `/read${query(params)}`));
-export const getAccess = (id) => request("GET", doc(id, "/access"));
+const folder = (id, tail = "") => `${FOLDERS}/${encodeURIComponent(id)}${tail}`;
+
+export const getAccess = (id, { history } = {}) => request("GET", doc(id, `/access${query({ history })}`));
+export const getFolderAccess = (id, { history } = {}) => request("GET", folder(id, `/access${query({ history })}`));
 export const listSubjectKinds = () => request("GET", `${DOCUMENTS}/subject-kinds`);
+export const searchSubjects = ({ kind, q, limit }) => request("GET", `${DOCUMENTS}/subjects${query({ kind, q, limit })}`);
 export const transferOwnership = (id, userId) => request("POST", doc(id, "/transfer"), { transfer_to: userId });
 export const revokeAllGrants = (id) => request("DELETE", doc(id, "/grants/all"));
-export const shareDocument = (id, { subjectKind, subjectValue, level, validUntil }) =>
+export const shareDocument = (id, { subjectKind, subjectValue, level, validUntil, message }) =>
   request("POST", doc(id, "/grants"), {
     subject_kind: subjectKind,
     subject_value: subjectValue,
     level,
     valid_until: validUntil || undefined,
+    message: message || undefined,
   });
 export const revokeGrant = (id, grantId) => request("DELETE", doc(id, `/grants${query({ grant_id: grantId })}`));
+export const requestAccess = (id, { level, message }) =>
+  request("POST", doc(id, "/access-requests"), { level, message: message || undefined });
+export const decideAccessRequest = (id, requestId, decision) =>
+  request("POST", doc(id, `/access-requests/${encodeURIComponent(requestId)}/${decision}`));
 
 export const getPresence = (id) => request("GET", doc(id, "/presence"));
 export const touchPresence = (id, state) => request("PUT", doc(id, "/presence"), { state });

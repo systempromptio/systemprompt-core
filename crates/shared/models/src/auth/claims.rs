@@ -139,6 +139,18 @@ pub struct CustomClaims {
     pub act: Option<ActClaim>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub purpose: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub interaction: Option<TokenInteraction>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub browser_session: bool,
+}
+
+/// The `interaction` claim: how the caller of a token is attended.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TokenInteraction {
+    Interactive,
+    NonInteractive,
 }
 
 fn serialize_audiences<S>(auds: &[JwtAudience], s: S) -> Result<S::Ok, S::Error>

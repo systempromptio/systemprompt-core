@@ -10,8 +10,11 @@
 //!    folder grant covers its whole subtree. Creating a folder grants its
 //!    creator `own` on it, so the subtree stays theirs after documents from
 //!    others land in it. The action's required level must not exceed the level
-//!    held. Administrators are not special-cased: they reach documents through
-//!    grants to their role like anyone else.
+//!    held. A grant never confers `own`: the level read from grants is capped
+//!    at `share`, so `own`-gated actions (delete, trash, restore, move,
+//!    transfer, revoke every grant) belong to the owner alone. Administrators
+//!    are not special-cased: they reach documents through grants to their role
+//!    like anyone else.
 //! 2. **Policy.** The authz hook must allow an [`AuthzRequest`] whose entity is
 //!    the nearest folder and whose context is `document.access`. Documents and
 //!    folders at the root are checked against the root folder entity
@@ -23,6 +26,9 @@
 //! create documents and folders there (subject to the hook), and what they
 //! create is visible only to its owner until it is shared.
 //!
+//! A caller who holds no level on an existing document or folder is told it
+//! does not exist; the owner is named only to callers who hold some level.
+//!
 //! Every step fails closed: a subject provider error, an unknown target or a
 //! hook deny is a refusal, never a partial answer.
 //!
@@ -31,11 +37,20 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod agent;
+mod agent_moves;
+mod agent_queries;
 mod catalog;
+mod directory;
+mod request;
 mod resolve;
+mod search;
 mod service;
 mod subjects;
 
+pub use agent_moves::MoveTarget;
+pub use directory::{SubjectDirectory, SubjectDirectoryError, SubjectMatch};
+pub use search::{MAX_SUBJECT_SEARCH, SubjectSearch};
 pub use service::{
     AccessCheck, AccessTarget, DocumentAccessRepositories, DocumentAccessService, Granted,
     root_folder_entity,

@@ -7,7 +7,8 @@
 //! resolved op carries the matched node's id and, unless the caller quoted
 //! one, its current hash. A `replace_text` with Markdown content resolves to
 //! an `insert_after` of the lowered blocks followed by a `delete` of the
-//! node, so codecs only lower Markdown on insert.
+//! node, so codecs only lower Markdown on insert. A rich-text or table op
+//! resolves its one target the same way, keeping its guard when it has one.
 //!
 //! A block is a node with text, outside any subtree marked `read_only`,
 //! that has no descendant which also matches; a quote that spans two
@@ -72,29 +73,16 @@ pub fn resolve_targets(
                 expected_hash,
                 text,
                 content_as,
-            } => {
-                let resolved = resolve(projection, &node, expected_hash, true)?;
-                batch.matches.extend(resolved.matches);
-                if content_as == ContentAs::Markdown {
-                    batch.ops.push(EditOp::InsertAfter {
-                        node: NodeTarget::Id(resolved.node.clone()),
-                        kind: super::projection::NodeKind::Paragraph,
-                        text,
-                        content_as,
-                    });
-                    batch.ops.push(EditOp::Delete {
-                        node: NodeTarget::Id(resolved.node),
-                        expected_hash: Some(resolved.hash),
-                    });
-                } else {
-                    batch.ops.push(EditOp::ReplaceText {
-                        node: NodeTarget::Id(resolved.node),
-                        expected_hash: Some(resolved.hash),
-                        text,
-                        content_as,
-                    });
-                }
-            },
+            } => resolve_replace_text(
+                projection,
+                &mut batch,
+                ReplaceText {
+                    node,
+                    expected_hash,
+                    text,
+                    content_as,
+                },
+            )?,
             EditOp::Delete {
                 node,
                 expected_hash,
@@ -121,10 +109,65 @@ pub fn resolve_targets(
                     content_as,
                 });
             },
-            other => batch.ops.push(other),
+            mut other => {
+                if let Some(target) = other.rich_target() {
+                    let anchored = target.expected_hash.is_some();
+                    let mut slot = target.expected_hash;
+                    let hash = slot.as_deref_mut().and_then(Option::take);
+                    let resolved = resolve(projection, target.node, hash, anchored)?;
+                    batch.matches.extend(resolved.matches);
+                    *target.node = NodeTarget::Id(resolved.node);
+                    if let Some(held) = slot {
+                        *held = Some(resolved.hash);
+                    }
+                }
+                batch.ops.push(other);
+            },
         }
     }
     Ok(batch)
+}
+
+struct ReplaceText {
+    node: NodeTarget,
+    expected_hash: Option<String>,
+    text: String,
+    content_as: ContentAs,
+}
+
+fn resolve_replace_text(
+    projection: &Projection,
+    batch: &mut ResolvedBatch,
+    op: ReplaceText,
+) -> Result<(), TargetError> {
+    let ReplaceText {
+        node,
+        expected_hash,
+        text,
+        content_as,
+    } = op;
+    let resolved = resolve(projection, &node, expected_hash, true)?;
+    batch.matches.extend(resolved.matches);
+    if content_as == ContentAs::Markdown {
+        batch.ops.push(EditOp::InsertAfter {
+            node: NodeTarget::Id(resolved.node.clone()),
+            kind: super::projection::NodeKind::Paragraph,
+            text,
+            content_as,
+        });
+        batch.ops.push(EditOp::Delete {
+            node: NodeTarget::Id(resolved.node),
+            expected_hash: Some(resolved.hash),
+        });
+    } else {
+        batch.ops.push(EditOp::ReplaceText {
+            node: NodeTarget::Id(resolved.node),
+            expected_hash: Some(resolved.hash),
+            text,
+            content_as,
+        });
+    }
+    Ok(())
 }
 
 fn resolve(

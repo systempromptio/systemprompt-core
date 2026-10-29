@@ -1,5 +1,6 @@
 //! Grant resolution: the level a user holds on a target before the hook is
-//! asked.
+//! asked. The folder chain it resolves through is nearest-first: the
+//! target's folder (or the folder itself), then each folder above it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -10,6 +11,10 @@ use systemprompt_models::documents::{AccessLevel, DocumentAction};
 use super::service::{AccessTarget, DocumentAccessService, Resolved, no_document};
 use crate::documents::error::DocumentsError;
 use crate::documents::models::SubjectPairs;
+
+pub(super) fn granted_ceiling(level: AccessLevel) -> AccessLevel {
+    level.min(AccessLevel::Share)
+}
 
 impl DocumentAccessService {
     pub(super) async fn resolve(
@@ -30,12 +35,15 @@ impl DocumentAccessService {
                 let mut chain = Vec::new();
                 if let Some(folder) = &document.folder_id {
                     chain.push(folder.clone());
-                    chain.extend(self.folders.ancestors(folder).await?);
+                    chain.extend(self.folders.ancestors(folder).await?.into_iter().rev());
                 }
                 let level = if document.owner_user_id == who.id {
                     Some(AccessLevel::Own)
                 } else {
-                    self.grants.effective_level(id, &chain, pairs).await?
+                    self.grants
+                        .effective_level(id, &chain, pairs)
+                        .await?
+                        .map(granted_ceiling)
                 };
                 match (document.trashed_at.is_some(), trashed) {
                     (true, false) if level.is_some() => {
@@ -52,6 +60,7 @@ impl DocumentAccessService {
                     nearest_folder: document.folder_id.clone(),
                     document: Some(document),
                     folder: None,
+                    chain,
                 })
             },
             AccessTarget::Folder(Some(id)) => {
@@ -59,22 +68,24 @@ impl DocumentAccessService {
                     .folders
                     .find(id)
                     .await?
-                    .filter(|f| f.deleted_at.is_none())
+                    .filter(|f| f.trashed_at.is_none())
                     .ok_or_else(|| DocumentsError::not_found("folder", id))?;
+                let mut chain = vec![folder.id.clone()];
+                chain.extend(folder.ancestor_ids.iter().rev().cloned());
                 let level = if folder.owner_user_id == who.id {
                     Some(AccessLevel::Own)
                 } else {
-                    let mut chain = vec![folder.id.clone()];
-                    chain.extend(folder.ancestor_ids.iter().cloned());
                     self.grants
                         .effective_level(&no_document(), &chain, pairs)
                         .await?
+                        .map(granted_ceiling)
                 };
                 Ok(Resolved {
                     level,
                     nearest_folder: Some(folder.id.clone()),
                     document: None,
                     folder: Some(folder),
+                    chain,
                 })
             },
             AccessTarget::Folder(None) => Ok(Resolved {
@@ -83,6 +94,7 @@ impl DocumentAccessService {
                 document: None,
                 folder: None,
                 nearest_folder: None,
+                chain: Vec::new(),
             }),
         }
     }

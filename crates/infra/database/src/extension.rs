@@ -55,6 +55,24 @@ impl Extension for DatabaseExtension {
                 "expires_at".into(),
             ]),
             SchemaDefinition::new(
+                "instance_endpoints",
+                include_str!("../schema/instance_endpoints.sql"),
+            )
+            .with_required_columns(vec![
+                "instance_id".into(),
+                "advertise_url".into(),
+                "heartbeat_at".into(),
+            ]),
+            SchemaDefinition::new(
+                "instance_presence",
+                include_str!("../schema/instance_presence.sql"),
+            )
+            .with_required_columns(vec![
+                "instance_id".into(),
+                "role".into(),
+                "heartbeat_at".into(),
+            ]),
+            SchemaDefinition::new(
                 "release_stamps",
                 include_str!("../schema/release_stamps.sql"),
             )

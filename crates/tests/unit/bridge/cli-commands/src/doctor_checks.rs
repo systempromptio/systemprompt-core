@@ -51,6 +51,7 @@ fn bearer() -> HelperOutput {
         token: BearerToken::new("test-bearer"),
         ttl: 3600,
         headers: std::collections::HashMap::new(),
+        device_token: None,
     }
 }
 

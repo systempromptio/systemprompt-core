@@ -2,13 +2,17 @@ use std::sync::Arc;
 
 use systemprompt_database::DbPool;
 use systemprompt_events::{EventBroadcasters, EventRouter};
+use systemprompt_files::documents::agents::DocumentActor;
 use systemprompt_files::DocumentsConfig;
 use systemprompt_governance::authz::{
     AccessControlRepository, SharedAuthzHook, SubjectProviderSet,
 };
 use systemprompt_models::authz::SubjectAttributeSource;
-use systemprompt_runtime::documents::{DocumentsRuntime, DocumentsRuntimeParts};
-use systemprompt_traits::FileStorage;
+use systemprompt_runtime::documents::{
+    DocumentsRuntime, DocumentsRuntimeParts, UserSubjectDirectory,
+};
+use systemprompt_traits::{BackgroundTasks, FileStorage};
+use systemprompt_users::UserRepository;
 
 pub fn fixture_documents_runtime(
     pool: &DbPool,
@@ -29,14 +33,52 @@ pub fn fixture_documents_runtime_with(
     hook: &SharedAuthzHook,
     subjects: Arc<dyn SubjectAttributeSource>,
 ) -> Arc<DocumentsRuntime> {
+    fixture_documents_runtime_on(pool, file_storage, hook, subjects, BackgroundTasks::new())
+}
+
+pub fn fixture_documents_runtime_on(
+    pool: &DbPool,
+    file_storage: &Arc<dyn FileStorage>,
+    hook: &SharedAuthzHook,
+    subjects: Arc<dyn SubjectAttributeSource>,
+    background_tasks: BackgroundTasks,
+) -> Arc<DocumentsRuntime> {
+    fixture_documents_runtime_configured(
+        pool,
+        file_storage,
+        hook,
+        subjects,
+        background_tasks,
+        DocumentsConfig::default(),
+    )
+}
+
+#[expect(
+    clippy::too_many_arguments,
+    reason = "a fixture mirrors the runtime's constructor inputs one to one"
+)]
+pub fn fixture_documents_runtime_configured(
+    pool: &DbPool,
+    file_storage: &Arc<dyn FileStorage>,
+    hook: &SharedAuthzHook,
+    subjects: Arc<dyn SubjectAttributeSource>,
+    background_tasks: BackgroundTasks,
+    config: DocumentsConfig,
+) -> Arc<DocumentsRuntime> {
     Arc::new(DocumentsRuntime::new(DocumentsRuntimeParts {
         database: Arc::clone(pool),
         file_storage: Arc::clone(file_storage),
         access_entities: Arc::new(AccessControlRepository::new(pool)),
         authz_hook: Arc::clone(hook),
         subjects,
+        directory: Arc::new(UserSubjectDirectory::new(
+            Arc::new(UserRepository::new(pool)),
+            Vec::new(),
+        )),
         event_router: EventRouter::local_only(Arc::new(EventBroadcasters::new())),
         catalog: Vec::new(),
-        config: DocumentsConfig::default(),
+        config,
+        background_tasks,
+        unscoped_actor: Some(DocumentActor::Human),
     }))
 }

@@ -82,6 +82,6 @@ pub use services::{
     CACHE_INVALIDATION_CHANNEL, CACHE_INVALIDATIONS_RECEIVED_TOTAL, ConnectionGuard,
     ContextBroadcaster, EventBridgeHandle, EventBroadcasters, EventRouter, EventsOwnerReassignment,
     GenericBroadcaster, HEARTBEAT_INTERVAL, HEARTBEAT_JSON, OUTBOX_CHANNEL, OutboxChannel,
-    PostgresEventBridge, RelayStatus, invalidate_all_cache_domains, receive_cache_invalidation,
-    standard_keep_alive,
+    PostgresEventBridge, RelayStatus, TOPIC_BUFFER, TopicBroadcaster, TopicEvent,
+    invalidate_all_cache_domains, receive_cache_invalidation, standard_keep_alive,
 };

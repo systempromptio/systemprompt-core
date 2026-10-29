@@ -160,6 +160,23 @@ impl McpOrchestrator {
             lifecycle: &self.lifecycle,
             event_bus: &self.event_bus,
             registry: &self.registry,
+            owned: None,
+            events,
+        })
+        .await
+    }
+
+    pub async fn reconcile_owned(
+        &self,
+        owned: &std::collections::BTreeSet<ServiceName>,
+        events: Option<&StartupEventSender>,
+    ) -> McpDomainResult<usize> {
+        reconciliation::reconcile(ReconcileParams {
+            database: &self.database,
+            lifecycle: &self.lifecycle,
+            event_bus: &self.event_bus,
+            registry: &self.registry,
+            owned: Some(owned),
             events,
         })
         .await

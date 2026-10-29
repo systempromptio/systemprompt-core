@@ -104,6 +104,7 @@ pub(super) async fn execute(service: &ApiKeyService, args: IssueArgs) -> Result<
         limits: &limits,
         scopes: &args.scopes,
         purpose: None,
+        kind: systemprompt_users::ApiKeyKind::User,
     };
     let ensured = if args.if_absent {
         let renew_before = TimeDelta::days(i64::from(args.renew_before_days));

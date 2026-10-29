@@ -7,7 +7,9 @@ CREATE TABLE IF NOT EXISTS document_edit_sessions (
     checkpoint_revision_id UUID REFERENCES document_revisions(id) ON DELETE SET NULL,
     opened_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    closed_at TIMESTAMPTZ
+    closed_at TIMESTAMPTZ,
+    next_seq BIGINT NOT NULL DEFAULT 1,
+    snapshot_vv BYTEA
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS uq_document_edit_sessions_open

@@ -14,7 +14,7 @@
 
 use std::collections::BTreeMap;
 use systemprompt_identifiers::{AccessTokenId, Actor, ClientId, SessionId, UserId};
-use systemprompt_models::auth::{Permission, UserType};
+use systemprompt_models::auth::{Permission, TokenInteraction, UserType};
 
 use super::validate::{ValidationPolicy, decode_session_claims};
 use crate::error::{AuthError, AuthResult};
@@ -33,6 +33,8 @@ pub struct JwtUserContext {
     pub jti: Option<AccessTokenId>,
     pub exp: i64,
     pub purpose: Option<String>,
+    pub interaction: Option<TokenInteraction>,
+    pub browser_session: bool,
 }
 
 pub fn extract_user_context(
@@ -40,7 +42,15 @@ pub fn extract_user_context(
     token: &str,
     issuer: &str,
 ) -> AuthResult<JwtUserContext> {
-    let claims = decode_session_claims(keys, token, &ValidationPolicy::session_context(issuer))?;
+    extract_user_context_for(keys, token, &ValidationPolicy::session_context(issuer))
+}
+
+pub fn extract_user_context_for(
+    keys: &SigningKeys,
+    token: &str,
+    policy: &ValidationPolicy<'_>,
+) -> AuthResult<JwtUserContext> {
+    let claims = decode_session_claims(keys, token, policy)?;
 
     let session_id = claims
         .custom
@@ -65,5 +75,7 @@ pub fn extract_user_context(
         jti: (!claims.registered.jti.is_empty()).then(|| AccessTokenId::new(claims.registered.jti)),
         exp: claims.registered.exp,
         purpose: claims.custom.purpose,
+        interaction: claims.custom.interaction,
+        browser_session: claims.custom.browser_session,
     })
 }

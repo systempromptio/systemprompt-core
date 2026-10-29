@@ -1,35 +1,39 @@
 //! The revision engine: [`DocumentService::commit`] executes a
 //! [`CommitPlan`].
 //!
-//! Order: authorize `edit`, refuse when another holder has the lock, load
-//! the head, refuse a whole-document op (`set_text`, `set_html`, `restore`)
-//! whose base is not the head, since it touches every node, expand revision
-//! ops (`restore`, `insert_from_revision`), plan,
-//! build the new bytes (store, apply ops to the head under node guards,
+//! Order: authorize `edit`, check the input limits, answer a repeated op id
+//! from its stored acknowledgement (also after a refusal, when a concurrent
+//! call with the same op id landed first), refuse when another holder has the
+//! lock, load the head from the primary, refuse a whole-document op
+//! (`set_text`, `set_html`, `restore`) whose base is not the head, since it
+//! touches every node, expand revision ops (`restore`, `insert_from_revision`),
+//! plan, build the new bytes (store, apply ops to the head under node guards,
 //! merge text three ways, or diff an Office upload into ops on the head),
-//! write the blob and the revision, record the revision's stable node ids,
-//! refuse when the new revision drops text a comment is anchored to (unless
-//! the request allows detaching), then move the head by compare-and-swap and
-//! settle the comments the commit detached or answered. Index and event
-//! failures after the swap are returned as [`CommitWarning`]s; the commit
-//! stands.
+//! write the blob, and land the revision in one transaction (see
+//! `landing`): ids, op id acknowledgement and the head's compare-and-swap
+//! commit together or not at all. Comments the commit detached or answered
+//! are settled after it lands. Index and event failures after the swap are
+//! returned as [`CommitWarning`]s; the commit stands.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::HashSet;
-
-use systemprompt_identifiers::{DocumentNodeId, DocumentRevisionId, TraceId};
+use systemprompt_identifiers::{DocumentProposalId, DocumentRevisionId, TraceId};
 use systemprompt_models::auth::AuthenticatedUser;
-use systemprompt_models::documents::{DocumentAction, EditOp, Projection};
+use systemprompt_models::documents::{DocumentAction, EditOp};
+use systemprompt_provider_contracts::documents::NodeFragment;
 
+use super::agent_rules::body_ops;
 use super::apply::AppliedOps;
 use super::commit_build::Conflicted;
-use super::node_ids::IdSources;
-use super::{Author, CommitOutcome, CommitRequest, CommitWarning, DocumentService};
+use super::landed::Pending;
+use super::landing::{OpClaim, Placement};
+use super::{CommitOutcome, CommitRequest, DocumentService};
 use crate::documents::error::DocumentsError;
-use crate::documents::models::{Document, DocumentRevision, NewRevision};
-use crate::documents::revision::{CommitBody, CommitPlan};
+use crate::documents::model::Media;
+use crate::documents::models::{Document, DocumentRevision};
+use crate::documents::nodes::CarryHints;
+use crate::documents::revision::CommitBody;
 
 pub(super) enum Built {
     Applied(AppliedOps),
@@ -40,15 +44,24 @@ impl Built {
     pub(super) fn stored(bytes: Vec<u8>) -> Self {
         Self::Applied(AppliedOps {
             bytes,
-            retired: HashSet::new(),
+            hints: CarryHints::default(),
         })
     }
 }
+
+#[derive(Clone, Copy)]
+struct Scope<'a> {
+    document: &'a Document,
+    settles: Option<&'a DocumentProposalId>,
+    digest: &'a str,
+}
+
 
 pub(super) struct Landing<'a> {
     pub document: &'a Document,
     pub head: Option<&'a DocumentRevision>,
     pub base: Option<&'a DocumentRevisionId>,
+    pub media: &'a Media,
 }
 
 impl DocumentService {
@@ -58,10 +71,61 @@ impl DocumentService {
         request: CommitRequest,
         trace: &TraceId,
     ) -> Result<CommitOutcome, DocumentsError> {
+        self.commit_settling(who, request, None, trace).await
+    }
+
+    pub(super) async fn commit_settling(
+        &self,
+        who: &AuthenticatedUser,
+        request: CommitRequest,
+        settles: Option<&DocumentProposalId>,
+        trace: &TraceId,
+    ) -> Result<CommitOutcome, DocumentsError> {
         let document = self
             .authorized_document(who, &request.document_id, DocumentAction::Edit, trace)
             .await?;
-        self.check_lock(&document, request.lock_holder_id.as_deref())
+        self.check_body_limits(&request.body)?;
+        self.agent_write_rules(who, &document, &request.body)
+            .await?;
+        let digest = super::acks::request_digest(request.base_revision.as_ref(), &request.body)?;
+        let scope = Scope {
+            document: &document,
+            settles,
+            digest: &digest,
+        };
+        let ops = body_ops(&request.body);
+        let Some(op_id) = request.op_id.clone() else {
+            let reserved = self.reserve_agent_edits(who, ops)?;
+            let outcome = self.commit_document(who, request, scope).await;
+            reserved.keep_if_landed(&outcome);
+            return outcome;
+        };
+        if let Some(stored) = self.repos.write_acks.find(&document.id, &op_id).await? {
+            return self.replay(who, &op_id, &digest, stored).await;
+        }
+        let reserved = self.reserve_agent_edits(who, ops)?;
+        let outcome = self.commit_document(who, request, scope).await;
+        reserved.keep_if_landed(&outcome);
+        if matches!(outcome, Err(_) | Ok(CommitOutcome::Conflict { .. }))
+            && let Some(stored) = self.repos.write_acks.find(&document.id, &op_id).await?
+        {
+            return self.replay(who, &op_id, &digest, stored).await;
+        }
+        outcome
+    }
+
+    async fn commit_document(
+        &self,
+        who: &AuthenticatedUser,
+        request: CommitRequest,
+        Scope {
+            document,
+            settles,
+            digest,
+        }: Scope<'_>,
+    ) -> Result<CommitOutcome, DocumentsError> {
+        let document = document.clone();
+        self.refuse_lock(&document, request.lock_holder_id.as_deref())
             .await?;
         let head = self.repos.revisions.head(&document.id).await?;
         let base = request.base_revision.clone();
@@ -69,12 +133,9 @@ impl DocumentService {
             document: &document,
             head: head.as_ref(),
             base: base.as_ref(),
+            media: &request.media,
         };
-        let applied = match self.expand(&landing, request.body).await? {
-            Some(body) => self.apply_body(&landing, body).await?,
-            None => None,
-        };
-        let Some((AppliedOps { bytes, retired }, previous, merged, edit_ops)) = applied else {
+        let Some(applied) = self.build_body(&landing, request.body).await? else {
             return self
                 .conflict(
                     who,
@@ -88,57 +149,65 @@ impl DocumentService {
                 .await;
         };
         let parent = head.as_ref().map(|h| h.id.clone());
-        let author = request.author;
-        let (revision, ids) = self
-            .store_revision(
+        let bytes = applied.ops.bytes.clone();
+        let prepared = self
+            .prepare(
                 who,
                 &document,
-                Landed {
-                    bytes: &bytes,
-                    retired,
-                    previous,
-                    parent: parent.clone(),
-                    edit_ops,
+                super::prepare::Draft {
+                    applied,
+                    parent,
                     message: request.message,
-                    author: &author,
+                    author: &request.author,
                 },
             )
             .await?;
-        let detached = self
-            .affected_anchors(&document.id, &ids, &request.comments)
-            .await?;
-        if !self
-            .repos
-            .documents
-            .set_head_if(&document.id, parent.as_ref(), &revision.id)
-            .await?
-        {
-            let head = self.repos.revisions.head(&document.id).await?;
-            return self
-                .conflict(
-                    who,
-                    &document,
-                    Conflicted {
-                        head,
-                        base,
-                        author: &author,
-                    },
-                )
-                .await;
+        let placement = Placement {
+            moves_head: true,
+            lock_holder: request.lock_holder_id.as_deref(),
+            op: request.op_id.as_ref().map(|op_id| OpClaim {
+                op_id,
+                user: &who.id,
+                request_sha256: digest,
+            }),
+            settles,
+            comments: &request.comments,
+        };
+        let result = self.land(&document, prepared, placement).await?;
+        self.after_landing(
+            who,
+            &document,
+            result,
+            Pending {
+                op_id: request.op_id.as_ref(),
+                digest,
+                comments: &request.comments,
+                base,
+                author: &request.author,
+                bytes,
+            },
+        )
+        .await
+    }
+
+    async fn build_body(
+        &self,
+        landing: &Landing<'_>,
+        body: CommitBody,
+    ) -> Result<Option<super::prepare::Applied>, DocumentsError> {
+        match self.expand(landing, body).await? {
+            Some((body, fragments)) => self.apply_body(landing, body, fragments).await,
+            None => Ok(None),
         }
-        self.settle_comments(&document.id, &revision.id, &detached, &request.comments)
-            .await?;
-        let merged_from = parent.filter(|_| merged);
-        Ok(self.finish(&document, revision, bytes, merged_from).await)
     }
 
     async fn expand(
         &self,
         landing: &Landing<'_>,
         body: CommitBody,
-    ) -> Result<Option<CommitBody>, DocumentsError> {
+    ) -> Result<Option<(CommitBody, Vec<NodeFragment>)>, DocumentsError> {
         let CommitBody::Ops(ops) = body else {
-            return Ok(Some(body));
+            return Ok(Some((body, Vec::new())));
         };
         let at_head = landing
             .head
@@ -156,130 +225,18 @@ impl DocumentService {
             let restored = self
                 .resolve_revision(landing.document, Some(revision_id))
                 .await?;
-            return Ok(Some(CommitBody::Bytes(
-                self.revision_bytes(&restored).await?,
+            return Ok(Some((
+                CommitBody::Bytes(self.parent_bytes(&restored).await?),
+                Vec::new(),
             )));
         }
         let mut expanded = Vec::with_capacity(ops.len());
+        let mut fragments = Vec::new();
         for op in ops {
-            expanded.push(self.expand_op(landing.document, op).await?);
+            let (op, fragment) = self.expand_op(landing.document, op).await?;
+            expanded.push(op);
+            fragments.extend(fragment);
         }
-        Ok(Some(CommitBody::Ops(expanded)))
-    }
-
-    pub(super) async fn finish(
-        &self,
-        document: &Document,
-        revision: DocumentRevision,
-        bytes: Vec<u8>,
-        merged_from: Option<DocumentRevisionId>,
-    ) -> CommitOutcome {
-        let mut warnings = Vec::new();
-        if !self.index_text(document, &revision, bytes).await {
-            warnings.push(CommitWarning::SearchIndexStale);
-        }
-        if !self.announce_revision(document, &revision).await {
-            warnings.push(CommitWarning::EventsNotDelivered);
-        }
-        match merged_from {
-            Some(merged_from) => CommitOutcome::Merged {
-                revision,
-                merged_from,
-                warnings,
-            },
-            None => CommitOutcome::Committed { revision, warnings },
-        }
-    }
-
-    async fn check_lock(
-        &self,
-        document: &Document,
-        holder_id: Option<&str>,
-    ) -> Result<(), DocumentsError> {
-        match self.repos.locks.current(&document.id).await? {
-            Some(lock) if Some(lock.holder_id.as_str()) != holder_id => {
-                Err(DocumentsError::LockHeld {
-                    document_id: document.id.clone(),
-                    holder_kind: lock.holder_kind,
-                    holder_id: lock.holder_id,
-                })
-            },
-            _ => Ok(()),
-        }
-    }
-}
-
-pub(super) struct Landed<'a> {
-    pub(super) bytes: &'a [u8],
-    pub(super) retired: HashSet<DocumentNodeId>,
-    pub(super) previous: Option<Projection>,
-    pub(super) parent: Option<DocumentRevisionId>,
-    pub(super) edit_ops: Option<Vec<EditOp>>,
-    pub(super) message: Option<String>,
-    pub(super) author: &'a Author,
-}
-
-type Applied = (AppliedOps, Option<Projection>, bool, Option<Vec<EditOp>>);
-
-impl DocumentService {
-    async fn apply_body(
-        &self,
-        landing: &Landing<'_>,
-        body: CommitBody,
-    ) -> Result<Option<Applied>, DocumentsError> {
-        let head_id = landing.head.map(|h| &h.id);
-        let plan = CommitPlan::decide(head_id, landing.base, landing.document.format, &body);
-        let merged = plan.merges(head_id, landing.base);
-        let edit_ops = match &body {
-            CommitBody::Ops(ops) => Some(ops.clone()),
-            CommitBody::Bytes(_) => None,
-        };
-        let (built, previous) = self.build(plan, landing, body).await?;
-        Ok(match built {
-            Built::Applied(applied) => Some((applied, previous, merged, edit_ops)),
-            Built::Conflict => None,
-        })
-    }
-
-    pub(super) async fn store_revision(
-        &self,
-        who: &AuthenticatedUser,
-        document: &Document,
-        landed: Landed<'_>,
-    ) -> Result<(DocumentRevision, Projection), DocumentsError> {
-        self.check_size(landed.bytes.len())?;
-        let blob = self.blobs.put(landed.bytes).await?;
-        let author = landed.author;
-        let revision = self
-            .repos
-            .revisions
-            .insert(NewRevision {
-                document_id: document.id.clone(),
-                parent_revision_id: landed.parent,
-                content_sha256: blob.hash,
-                author_user_id: who.id.clone(),
-                actor_kind: author.actor_kind,
-                origin_kind: author.origin.kind(),
-                origin_id: author.origin.id(),
-                message: landed.message,
-                edit_ops: landed.edit_ops,
-                attribution: author.attribution.clone(),
-            })
-            .await?;
-        let next = self
-            .project_paths(document.format, landed.bytes.to_vec())
-            .await?;
-        let ids = self
-            .record_ids(
-                document,
-                &revision,
-                IdSources {
-                    previous: landed.previous.as_ref(),
-                    next: &next,
-                    retired: &landed.retired,
-                },
-            )
-            .await?;
-        Ok((revision, ids))
+        Ok(Some((CommitBody::Ops(expanded), fragments)))
     }
 }

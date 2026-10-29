@@ -12,12 +12,13 @@ use systemprompt_models::documents::{
 };
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_runtime::documents::mcp::{
-    DocumentsMcpTools, EditHandler, EditInput, EditOutput, GuideHandler, GuideInput,
-    ProposalAction, ProposalsHandler, ProposalsInput,
+    DocumentsMcpTools, EditHandler, EditInput, GuideHandler, GuideInput, ProposalAction,
+    ProposalsHandler, ProposalsInput,
 };
+use systemprompt_runtime::documents::views::EditOutput;
 
 use crate::documents_mcp_support::{
-    create_text, ctx_for, exec, harness, line_for, person, read_text,
+    create_text, ctx_for, exec, harness, line_for, read_text, registered,
 };
 
 async fn edit(
@@ -73,6 +74,8 @@ async fn share(
                 subject_display: None,
                 level,
                 valid_until: None,
+                message: None,
+                via_agent: None,
             },
             &TraceId::generate(),
         )
@@ -80,7 +83,7 @@ async fn share(
         .expect("share");
 }
 
-fn texts(read: &systemprompt_runtime::documents::mcp::ReadOutput) -> Vec<String> {
+fn texts(read: &systemprompt_runtime::documents::views::ReadOutput) -> Vec<String> {
     read.lines
         .iter()
         .filter_map(|line| line.split_once("| ").map(|(_, text)| text.to_owned()))
@@ -90,7 +93,7 @@ fn texts(read: &systemprompt_runtime::documents::mcp::ReadOutput) -> Vec<String>
 #[tokio::test]
 async fn mode_propose_acknowledges_a_proposal_and_review_accepts_it() {
     let h = harness().await;
-    let owner = person("mcp-propose");
+    let owner = registered("mcp-propose").await;
     let ctx = ctx_for(Some(&owner));
     let (document, _) = create_text(&h.tools, &ctx, "one\ntwo\nthree").await;
 
@@ -128,17 +131,27 @@ async fn mode_propose_acknowledges_a_proposal_and_review_accepts_it() {
     assert_eq!(listed.proposals[0].proposal_id, proposal);
     assert!(summary.contains("suggestion"), "{summary}");
 
+    let accept = ProposalsInput {
+        action: ProposalAction::Accept,
+        document_id: None,
+        proposal_id: Some(proposal.clone()),
+        note: None,
+    };
+    let own = ProposalsHandler { tools: &h.tools }
+        .handle(accept.clone(), &ctx, &exec())
+        .await
+        .expect_err("a proposer cannot accept their own proposal");
+    let code = own
+        .data
+        .as_ref()
+        .and_then(|d| d.get("code"))
+        .and_then(|c| c.as_str());
+    assert_eq!(code, Some("self_review"));
+
+    let reviewer = registered("mcp-reviewer").await;
+    share(&h.tools, &owner, &document, &reviewer, AccessLevel::Edit).await;
     let (output, _) = ProposalsHandler { tools: &h.tools }
-        .handle(
-            ProposalsInput {
-                action: ProposalAction::Accept,
-                document_id: None,
-                proposal_id: Some(proposal.clone()),
-                note: None,
-            },
-            &ctx,
-            &exec(),
-        )
+        .handle(accept, &ctx_for(Some(&reviewer)), &exec())
         .await
         .expect("accept");
     let reviewed = output.reviewed.expect("reviewed");
@@ -151,9 +164,9 @@ async fn mode_propose_acknowledges_a_proposal_and_review_accepts_it() {
 #[tokio::test]
 async fn a_comment_only_edit_proposes_and_a_viewer_review_is_refused() {
     let h = harness().await;
-    let owner = person("mcp-owner");
-    let commenter = person("mcp-commenter");
-    let viewer = person("mcp-viewer");
+    let owner = registered("mcp-owner").await;
+    let commenter = registered("mcp-commenter").await;
+    let viewer = registered("mcp-viewer").await;
     let owner_ctx = ctx_for(Some(&owner));
     let (document, _) = create_text(&h.tools, &owner_ctx, "red\ngreen").await;
     share(
@@ -206,7 +219,7 @@ async fn a_comment_only_edit_proposes_and_a_viewer_review_is_refused() {
 #[tokio::test]
 async fn the_proposals_guide_topic_names_the_review_actions() {
     let h = harness().await;
-    let owner = person("mcp-guide");
+    let owner = registered("mcp-guide").await;
     let (_, text) = GuideHandler { tools: &h.tools }
         .handle(
             GuideInput {

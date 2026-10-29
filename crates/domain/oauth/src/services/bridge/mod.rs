@@ -25,7 +25,8 @@ use systemprompt_identifiers::{
     AccessTokenId, ClientId, PolicyVersion, SessionId, SessionSource, TraceId, UserId, headers,
 };
 use systemprompt_manifest::Config;
-use systemprompt_models::auth::{AuthenticatedUser, JwtAudience};
+use systemprompt_models::auth::{AuthenticatedUser, JwtAudience, TokenInteraction};
+use systemprompt_models::documents::BRIDGE_DEVICE_AUDIENCE;
 use systemprompt_security::keys::SigningKeys;
 use systemprompt_traits::{
     AnalyticsProvider, CreateSessionInput, ExtractSignals, SessionProvider, UserProvider,
@@ -42,6 +43,7 @@ pub struct BridgeAuthResult {
     pub token: String,
     pub ttl: u64,
     pub headers: HashMap<String, String>,
+    pub device_token: Option<String>,
 }
 
 #[derive(Debug)]
@@ -54,6 +56,7 @@ pub struct BridgeAccessRequest<'a> {
     pub session_source: SessionSource,
     pub ttl_seconds: u64,
     pub purpose: Option<String>,
+    pub interactive: bool,
 }
 
 impl<'a> BridgeAccessRequest<'a> {
@@ -72,7 +75,14 @@ impl<'a> BridgeAccessRequest<'a> {
             session_source: SessionSource::Bridge,
             ttl_seconds: DEFAULT_ACCESS_TTL_SECONDS,
             purpose: None,
+            interactive: false,
         }
+    }
+
+    #[must_use]
+    pub const fn interactive(mut self) -> Self {
+        self.interactive = true;
+        self
     }
 
     pub fn with_purpose(mut self, purpose: Option<String>) -> Self {
@@ -129,6 +139,7 @@ pub async fn issue_bridge_access(
         session_source,
         ttl_seconds,
         purpose,
+        interactive,
     } = request;
 
     let auth_user = load_authenticated_user(users, user_id).await?;
@@ -138,18 +149,25 @@ pub async fn issue_bridge_access(
     let policy_version = PolicyVersion::unversioned();
 
     let ttl = ChronoDuration::seconds(i64::try_from(ttl_seconds).unwrap_or(i64::MAX));
-    let config = build_bridge_jwt_config(&auth_user, ttl, purpose);
+    let interaction = (interactive && purpose.is_none()).then_some(TokenInteraction::Interactive);
+    let device_config = (client_id == ClientId::bridge() && purpose.is_none())
+        .then(|| device_jwt_config(&auth_user, ttl, interaction));
+    let config = build_bridge_jwt_config(&auth_user, ttl, purpose, interaction);
     let signing = JwtSigningParams {
         issuer: &global_config.jwt_issuer,
         keys,
     };
-    let token = generate_jwt(
-        &auth_user,
-        config,
-        AccessTokenId::generate(),
-        &session_id,
-        &signing,
-    )?;
+    let mint = |config: JwtConfig| {
+        generate_jwt(
+            &auth_user,
+            config,
+            AccessTokenId::generate(),
+            &session_id,
+            &signing,
+        )
+    };
+    let token = mint(config)?;
+    let device_token = device_config.map(mint).transpose()?;
 
     let session_analytics = analytics.extract_analytics(
         request_headers,
@@ -184,13 +202,26 @@ pub async fn issue_bridge_access(
         token,
         ttl: ttl_seconds,
         headers: hdrs,
+        device_token,
     })
+}
+
+fn device_jwt_config(
+    auth_user: &AuthenticatedUser,
+    ttl: ChronoDuration,
+    interaction: Option<TokenInteraction>,
+) -> JwtConfig {
+    JwtConfig {
+        audience: vec![JwtAudience::Resource(BRIDGE_DEVICE_AUDIENCE.to_owned())],
+        ..build_bridge_jwt_config(auth_user, ttl, None, interaction)
+    }
 }
 
 fn build_bridge_jwt_config(
     auth_user: &AuthenticatedUser,
     ttl: ChronoDuration,
     purpose: Option<String>,
+    interaction: Option<TokenInteraction>,
 ) -> JwtConfig {
     JwtConfig {
         permissions: auth_user.permissions().to_vec(),
@@ -200,6 +231,8 @@ fn build_bridge_jwt_config(
         plugin_id: None,
         client_id: Some(ClientId::bridge()),
         purpose,
+        interaction,
+        browser_session: false,
     }
 }
 

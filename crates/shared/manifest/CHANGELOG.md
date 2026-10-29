@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.75.0] - 2026-10-28
+
+### Breaking
+
+- **Breaking:** `server.role: admin` is replaced by `api` and `worker`. `api` serves the console, agent, MCP, content, stream, messaging, extension and static routes and runs no scheduler or MCP/agent processes; `worker` runs the scheduler, owns the MCP and agent processes and requires `server.advertise_url`. A profile that names `admin` is refused with an error naming both. `NodeRole::Admin`, `NodeRole::serves_admin` and `NodeRole::runs_workers` are removed; `NodeRole::ALL_ROLES` lists five roles and `NodeRole::from_str` returns `NodeRoleParseError`. Migrate to `NodeRole::{Api, Worker}`, `serves_api`, `runs_scheduler`, `supervises_processes` and `writes_shared_caches`.
+- **Breaking:** `database.pool.max_connections_by_role` takes `api` and `worker` instead of `admin`, and `RoleMaxConnections::entries` returns five entries. Migrate by renaming the key.
+- **Breaking:** `ServerConfig` and `Config` gain `advertise_url: Option<String>`. Migrate struct literals by adding `advertise_url: None`.
+- **Breaking:** `CloudConfig` gains `provider: HostingProvider` (`systemprompt`, `kubernetes`, `gke`, `docker_local`), `deploy: Option<DeployConfig>` and `operator: Option<OperatorAuthConfig>`. Migrate struct literals by adding `provider: HostingProvider::default(), deploy: None, operator: None`.
+- **Breaking:** `Profile` gains `licence: LicenceConfig`. Migrate struct literals by adding `licence: LicenceConfig::default()`.
+- **Breaking:** `ProfileError` gains `ReadOnly { path, source }`, returned when an overlay write hits a read-only or permission-denied filesystem. Migrate by adding an arm (or a wildcard) to exhaustive matches.
+- **Breaking:** a plane the profile does not name under `config_planes.authority` now runs under `db` authority (previously `file`), and a plane whose declaration file is absent is `undeclared` whatever the profile says. Migrate a deployment that relied on the implicit `file` default by naming each such plane `file`.
+
+### Added
+
+- `HostingProvider` with `ALL`, `as_str`, `is_systemprompt`, `is_docker_local`, `is_self_managed`, `is_hosted`, `deployment_host_markers` and `is_deployment_host`; `UnknownHostingProvider` for an unrecognised value; `Profile::hosting_provider` and `Profile::is_deployment_host`.
+- `DeployConfig`, `GitOpsConfig` (`digest_key_segments`, `render_commit_message`, `DEFAULT_GITOPS_COMMIT_MESSAGE`) and `OperatorAuthConfig` (`default_operator_scopes`) under `cloud.deploy` and `cloud.operator`, validated for a self-managed provider.
+- `LicenceConfig` (`multi_tenant`, `licence_id`, `endpoint`, `interval_secs`, `enabled`, `effective_interval_secs`) and the `LICENCE_SIGNING_SECRET` key; a multi-tenant licence is validated at profile load.
+- `NodeRole::shares_process_ownership`, `reads_shared_services_composition` and `is_single_node`.
+
+### Changed
+
+- A profile overlay is written through a staged file in the same directory and renamed into place, so a reader never sees a partial profile.
+- The deployment host identity consults `POD_NAME` before `HOSTNAME` and `FLY_MACHINE_ID`.
+
 ## [0.74.0] - 2026-10-27
 
 ### Breaking

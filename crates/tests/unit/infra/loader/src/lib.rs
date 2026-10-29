@@ -89,3 +89,5 @@ mod vertex_discovery_source;
 
 #[cfg(test)]
 mod boot_context_config;
+#[cfg(test)]
+mod tree_fingerprint;

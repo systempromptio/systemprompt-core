@@ -105,6 +105,16 @@ impl DocumentLockRepository {
         Ok(result.rows_affected() == 1)
     }
 
+    pub async fn release_all(&self, document_id: &DocumentId) -> RepoResult<u64> {
+        let result = sqlx::query!(
+            "DELETE FROM document_locks WHERE document_id = $1::text::uuid",
+            document_id.as_str(),
+        )
+        .execute(&*self.pools.write)
+        .await?;
+        Ok(result.rows_affected())
+    }
+
     pub async fn current(&self, document_id: &DocumentId) -> RepoResult<Option<DocumentLock>> {
         sqlx::query_as!(
             LockRow,

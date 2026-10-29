@@ -9,9 +9,9 @@
 
 use systemprompt_identifiers::error::IdValidationError;
 use systemprompt_identifiers::{
-    AgentName, AiRequestId, ApiKeyId, CampaignId, CategoryId, Email, ExtensionId, JobName,
-    LinkClickId, LinkId, McpServerId, McpToolName, ModelId, PluginId, ProfileName, ProviderId,
-    SecretName, ServiceName, SkillId, TenantId, TraceId,
+    AgentName, AiRequestId, ApiKeyId, CampaignId, CategoryId, ClientId, Email, ExtensionId,
+    JobName, LinkClickId, LinkId, McpServerId, McpToolName, ModelId, PluginId, ProfileName,
+    ProviderId, SecretName, ServiceName, SkillId, TenantId, TraceId,
 };
 
 macro_rules! id_parsers {
@@ -33,6 +33,7 @@ id_parsers! {
     parse_api_key_id => ApiKeyId,
     parse_campaign_id => CampaignId,
     parse_category_id => CategoryId,
+    parse_client_id => ClientId,
     parse_job_name => JobName,
     parse_link_click_id => LinkClickId,
     parse_link_id => LinkId,

@@ -69,6 +69,8 @@ mod outbound_refused_fields;
 #[cfg(test)]
 mod outbound_retry;
 #[cfg(test)]
+mod outbound_unparsable;
+#[cfg(test)]
 mod outbound_vertex;
 #[cfg(test)]
 mod parse;

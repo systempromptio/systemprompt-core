@@ -9,17 +9,21 @@
 //! replica, and a database-backed window keyed by verified identity only,
 //! which bounds a caller's budget across every replica of the deployment.
 //!
-//! The database-backed window applies only to routers that carry `with_auth`:
-//! the identity comes from a
-//! [`RequestContext`](systemprompt_models::RequestContext) in the request's
-//! extensions, and a router that authenticates inside its handlers never puts
-//! one there. On those routers every request is anonymous to that layer and
-//! passes straight through, so the per-address governor is the only limit in
-//! force.
+//! On routers that carry `with_auth` the database-backed window reads the
+//! identity from the [`RequestContext`](systemprompt_models::RequestContext)
+//! in the request's extensions. A router that authenticates inside its
+//! handlers never puts one there, so it adds `RouterExt::with_bearer_window`,
+//! which charges the same window by the signature-verified bearer token;
+//! without it the per-replica governor would be the only limit, and the
+//! effective budget would multiply with the replica count. A `worker` mounts
+//! its MCP and agent routes with [`RateLimitState::unmetered`]: only `api`
+//! replicas that already charged the caller forward to it, and charging the
+//! same window twice would halve every forwarded caller's budget.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod bearer;
 mod global;
 mod key;
 
@@ -27,6 +31,7 @@ use crate::services::middleware::authz::{AuthzPolicy, authz_gate};
 use crate::services::middleware::context::{
     A2AContextMiddleware, McpContextMiddleware, PublicContextMiddleware, UserOnlyContextMiddleware,
 };
+use crate::services::middleware::jwt::JwtContextExtractor;
 use axum::Router;
 use axum::extract::Request;
 use axum::middleware::Next;
@@ -42,7 +47,10 @@ use systemprompt_manifest::profile::RateLimitsConfig;
 use systemprompt_runtime::AppContext;
 use systemprompt_users::UserRateLimitBucketRepository;
 
+use self::bearer::{BearerWindow, bearer_user_rate_limit};
 use self::global::{GLOBAL_WINDOW_SECS, GlobalUserLimit, global_user_rate_limit};
+
+pub use self::bearer::bearer_jwt;
 pub use self::key::IdentityOrTrustedIpKey;
 
 #[derive(Clone, Debug)]
@@ -65,6 +73,26 @@ impl RateLimitState {
     pub fn from_context(ctx: &AppContext) -> Self {
         let buckets = crate::repository::user_rate_limit_buckets(ctx.db_pool());
         Self::new(ctx.config(), buckets)
+    }
+
+    #[must_use]
+    pub const fn unmetered(mut self) -> Self {
+        self.config.disabled = true;
+        self
+    }
+
+    const fn burst(&self, per_second: u64) -> u64 {
+        per_second.saturating_mul(self.config.burst_multiplier)
+    }
+
+    fn global_limit(&self, per_second: u64, scope: &'static str) -> GlobalUserLimit {
+        let window_secs = u64::try_from(GLOBAL_WINDOW_SECS).unwrap_or(u64::MAX);
+        let budget = self.burst(per_second).saturating_mul(window_secs);
+        GlobalUserLimit {
+            buckets: Arc::clone(&self.buckets),
+            scope,
+            budget: i64::try_from(budget).unwrap_or(i64::MAX),
+        }
     }
 }
 
@@ -105,6 +133,14 @@ pub trait RouterExt<S>: Sized {
     ) -> Result<Self, LoaderError>;
 
     fn with_auth<L: ContextLayer>(self, auth: L, policy: AuthzPolicy) -> Self;
+
+    fn with_bearer_window(
+        self,
+        limits: &RateLimitState,
+        jwt: &Arc<JwtContextExtractor>,
+        per_second: u64,
+        scope: &'static str,
+    ) -> Self;
 }
 
 impl<S> RouterExt<S> for Router<S>
@@ -122,7 +158,7 @@ where
             return Ok(self);
         }
 
-        let burst = per_second.saturating_mul(rate_config.burst_multiplier);
+        let burst = limits.burst(per_second);
         let burst_u32 = u32::try_from(burst).unwrap_or(u32::MAX).max(1);
         let per_second_clamped = per_second.max(1);
 
@@ -148,13 +184,7 @@ where
                 ),
             })?;
 
-        let window_secs = u64::try_from(GLOBAL_WINDOW_SECS).unwrap_or(u64::MAX);
-        let budget = burst.saturating_mul(window_secs);
-        let global = GlobalUserLimit {
-            buckets: Arc::clone(&limits.buckets),
-            scope,
-            budget: i64::try_from(budget).unwrap_or(i64::MAX),
-        };
+        let global = limits.global_limit(per_second, scope);
 
         Ok(self
             .layer(axum::middleware::from_fn_with_state(
@@ -172,5 +202,25 @@ where
             let auth = auth.clone();
             async move { auth.handle(req, next).await }
         }))
+    }
+
+    fn with_bearer_window(
+        self,
+        limits: &RateLimitState,
+        jwt: &Arc<JwtContextExtractor>,
+        per_second: u64,
+        scope: &'static str,
+    ) -> Self {
+        if limits.config.disabled {
+            return self;
+        }
+        let window = BearerWindow {
+            limit: limits.global_limit(per_second, scope),
+            jwt: Arc::clone(jwt),
+        };
+        self.layer(axum::middleware::from_fn_with_state(
+            window,
+            bearer_user_rate_limit,
+        ))
     }
 }

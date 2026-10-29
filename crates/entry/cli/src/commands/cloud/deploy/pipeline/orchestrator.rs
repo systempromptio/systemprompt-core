@@ -3,21 +3,18 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::HashMap;
-use std::path::Path;
 
-use anyhow::{Result, bail};
-use systemprompt_cloud::constants::{container, paths};
+use anyhow::Result;
+use systemprompt_cloud::DockerCli;
+use systemprompt_cloud::deploy::provider::{BuiltImage, DeployProvider};
 use systemprompt_cloud::deploy::{find_services_config, validate_profile_dockerfile};
-use systemprompt_cloud::{CloudApiClient, CloudCredentials, DockerCli, secrets_env};
 use systemprompt_loader::ConfigLoader;
 
 use super::artifacts::DeployArtifacts;
 use super::progress::{DeployEvent, DeployProgress};
-use super::request::{DeployReport, DeployRequest, DeploySecretsSource};
+use super::request::{DeployReport, DeployRequest};
 
-const SIGNING_KEY_ENV: &str = "SIGNING_KEY_PEM";
-const PROFILE_ENV: &str = "SYSTEMPROMPT_PROFILE";
+use super::secrets::provision_secrets;
 
 #[derive(Debug, Default)]
 pub struct DeployOrchestrator {
@@ -36,8 +33,9 @@ impl DeployOrchestrator {
         self
     }
 
-    pub async fn deploy(
+    pub async fn deploy<P: DeployProvider>(
         &self,
+        provider: &P,
         request: &DeployRequest,
         progress: &dyn DeployProgress,
     ) -> Result<DeployReport> {
@@ -56,45 +54,56 @@ impl DeployOrchestrator {
             &services_config,
         )?;
 
-        let api_client = CloudApiClient::new(
-            &request.credentials.api_url,
-            request.credentials.api_token.as_str(),
-        )?;
-
         let image = self
-            .build_and_push(&api_client, request, &artifacts, progress)
+            .build_and_push(provider, request, &artifacts, progress)
             .await?;
-        provision_secrets(&api_client, request, progress).await?;
+        provision_secrets(provider, request, progress).await?;
 
         progress.event(&DeployEvent::DeployStarted);
-        let response = api_client.deploy(&request.tenant_id, &image).await?;
+        let rollout = provider
+            .rollout(&BuiltImage {
+                reference: image,
+                pushed: !request.options.skip_push,
+            })
+            .await?;
+        if let Some(commit) = rollout.commit.as_deref() {
+            progress.event(&DeployEvent::RolloutCommitted {
+                commit,
+                image: &rollout.image,
+            });
+        }
         progress.event(&DeployEvent::Deployed {
-            status: &response.status,
-            app_url: response.app_url.as_deref(),
+            status: &rollout.status,
+            app_url: rollout.app_url.as_deref(),
         });
 
+        if request.options.wait_ready {
+            progress.event(&DeployEvent::ReadinessWaitStarted);
+            let health = provider.status().await?;
+            progress.event(&DeployEvent::TenantReady {
+                version: health.version.as_deref(),
+            });
+        }
+
         Ok(DeployReport {
-            image,
-            status: response.status,
-            app_url: response.app_url,
+            image: rollout.image,
+            status: rollout.status,
+            app_url: rollout.app_url,
         })
     }
 
-    async fn build_and_push(
+    async fn build_and_push<P: DeployProvider>(
         &self,
-        api_client: &CloudApiClient,
+        provider: &P,
         request: &DeployRequest,
         artifacts: &DeployArtifacts,
         progress: &dyn DeployProgress,
     ) -> Result<String> {
         progress.event(&DeployEvent::RegistryAuthStarted);
-        let registry_token = api_client.get_registry_token(&request.tenant_id).await?;
+        let target = provider.registry_credentials().await?;
         progress.event(&DeployEvent::RegistryAuthFinished);
 
-        let image = format!(
-            "{}/{}:{}",
-            registry_token.registry, registry_token.repository, registry_token.tag
-        );
+        let image = target.image;
         progress.event(&DeployEvent::ImageResolved { image: &image });
 
         progress.event(&DeployEvent::BuildStarted);
@@ -106,138 +115,14 @@ impl DeployOrchestrator {
             progress.event(&DeployEvent::PushSkipped);
         } else {
             progress.event(&DeployEvent::PushStarted);
-            self.docker.login(
-                &registry_token.registry,
-                &registry_token.username,
-                &registry_token.token,
-            )?;
+            if let Some(login) = &target.login {
+                self.docker
+                    .login(&login.registry, &login.username, &login.token)?;
+            }
             self.docker.push(&image)?;
             progress.event(&DeployEvent::PushFinished);
         }
 
         Ok(image)
     }
-}
-
-async fn provision_secrets(
-    api_client: &CloudApiClient,
-    request: &DeployRequest,
-    progress: &dyn DeployProgress,
-) -> Result<()> {
-    progress.event(&DeployEvent::SecretsPhaseStarted);
-
-    match &request.secrets {
-        DeploySecretsSource::EnvFromFile { path } => {
-            push_file_secrets(api_client, request, path, progress).await?;
-        },
-        DeploySecretsSource::Vault { bootstrap_env } => {
-            push_vault_bootstrap(api_client, request, bootstrap_env, progress).await?;
-        },
-    }
-
-    progress.event(&DeployEvent::CredentialsSyncStarted);
-    let keys = api_client
-        .set_secrets(&request.tenant_id, credentials_env(&request.credentials))
-        .await?;
-    progress.event(&DeployEvent::CredentialsSynced { count: keys.len() });
-
-    let profile_env_path = format!(
-        "{}/{}/{}",
-        container::PROFILES,
-        request.profile_name,
-        paths::PROFILE_CONFIG
-    );
-    let mut profile_secret = HashMap::new();
-    profile_secret.insert(PROFILE_ENV.to_owned(), profile_env_path);
-    api_client
-        .set_secrets(&request.tenant_id, profile_secret)
-        .await?;
-    progress.event(&DeployEvent::ProfilePathConfigured);
-
-    Ok(())
-}
-
-async fn push_file_secrets(
-    api_client: &CloudApiClient,
-    request: &DeployRequest,
-    path: &Path,
-    progress: &dyn DeployProgress,
-) -> Result<()> {
-    let mut env_secrets = if path.exists() {
-        secrets_env::map_secrets_to_env_vars(secrets_env::load_secrets_json(path)?)
-    } else {
-        progress.event(&DeployEvent::SecretsFileMissing);
-        HashMap::new()
-    };
-
-    if !env_secrets.contains_key(SIGNING_KEY_ENV)
-        && let Some(pem) = secrets_env::read_signing_key_pem(&request.signing_key_path)?
-    {
-        env_secrets.insert(SIGNING_KEY_ENV.to_owned(), pem);
-    }
-
-    if !env_secrets.is_empty() {
-        progress.event(&DeployEvent::SecretsSyncStarted);
-        let keys = api_client
-            .set_secrets(&request.tenant_id, env_secrets)
-            .await?;
-        progress.event(&DeployEvent::SecretsSynced { count: keys.len() });
-    }
-    Ok(())
-}
-
-async fn push_vault_bootstrap(
-    api_client: &CloudApiClient,
-    request: &DeployRequest,
-    bootstrap_env: &[String],
-    progress: &dyn DeployProgress,
-) -> Result<()> {
-    let bootstrap = collect_bootstrap_env(bootstrap_env, |name| std::env::var(name).ok())?;
-    if bootstrap.is_empty() {
-        return Ok(());
-    }
-    progress.event(&DeployEvent::SecretsSyncStarted);
-    let keys = api_client
-        .set_secrets(&request.tenant_id, bootstrap)
-        .await?;
-    progress.event(&DeployEvent::VaultBootstrapSynced { count: keys.len() });
-    Ok(())
-}
-
-pub fn collect_bootstrap_env(
-    names: &[String],
-    lookup: impl Fn(&str) -> Option<String>,
-) -> Result<HashMap<String, String>> {
-    let mut collected = HashMap::new();
-    let mut missing = Vec::new();
-    for name in names {
-        match lookup(name).filter(|value| !value.trim().is_empty()) {
-            Some(value) => {
-                collected.insert(name.clone(), value);
-            },
-            None => missing.push(name.clone()),
-        }
-    }
-    if !missing.is_empty() {
-        bail!(
-            "The profile fetches its secrets from Vault, so the deploy pushes only the Vault \
-             bootstrap credentials. These are not set in this shell: {}.",
-            missing.join(", ")
-        );
-    }
-    Ok(collected)
-}
-
-fn credentials_env(creds: &CloudCredentials) -> HashMap<String, String> {
-    HashMap::from([
-        (
-            "SYSTEMPROMPT_API_TOKEN".to_owned(),
-            creds.api_token.as_str().to_owned(),
-        ),
-        (
-            "SYSTEMPROMPT_USER_EMAIL".to_owned(),
-            creds.user_email.as_str().to_owned(),
-        ),
-        ("SYSTEMPROMPT_CLI_REMOTE".to_owned(), "true".to_owned()),
-    ])
 }

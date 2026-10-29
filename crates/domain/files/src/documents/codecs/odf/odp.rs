@@ -8,9 +8,11 @@ use systemprompt_provider_contracts::documents::{
     CodecError, DocumentCodec, DocumentFormat, EditOp, Projection, TemplateParams,
 };
 
+use crate::documents::codecs::fragments::leaf_hashes;
+
 use super::apply::FlowBatch;
 use super::package::malformed;
-use super::{OdpCodec, check_base, deck, finish, instantiate, projection, read};
+use super::{OdpCodec, check_base, deck, finish, fragment, instantiate, projection, read};
 use crate::documents::codecs::xml_tree::parse_xml;
 use crate::documents::codecs::zip_package::Package;
 
@@ -99,5 +101,14 @@ impl DocumentCodec for OdpCodec {
 
     fn instantiate(&self, template: &[u8], params: &TemplateParams) -> Result<Vec<u8>, CodecError> {
         instantiate::instantiate(template, params)
+    }
+
+    fn style_hashes(&self, bytes: &[u8]) -> Result<Vec<(DocumentNodeId, String)>, CodecError> {
+        let (_, content) = read(bytes)?;
+        let paras = deck::read(&content)?.paras;
+        Ok(leaf_hashes(
+            &self.project(bytes)?,
+            &fragment::styled(&content.xml, &paras)?,
+        ))
     }
 }

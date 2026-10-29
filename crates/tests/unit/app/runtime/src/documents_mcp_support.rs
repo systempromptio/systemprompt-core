@@ -12,8 +12,9 @@ use systemprompt_models::documents::EditOp;
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_runtime::documents::mcp::{
     CreateHandler, CreateInput, DocumentsMcpConfig, DocumentsMcpTools, EditHandler, EditInput,
-    ReadHandler, ReadInput, ReadOutput, ReadView,
+    ReadHandler,
 };
+use systemprompt_runtime::documents::views::{ReadInput, ReadOutput, ReadView};
 use systemprompt_storage::LocalFileStorage;
 use systemprompt_traits::FileStorage;
 use tempfile::TempDir;
@@ -30,6 +31,9 @@ pub(crate) fn allow() -> SharedAuthzHook {
     Arc::new(AllowAllHook::null())
 }
 
+/// The tools driven through their handlers directly, as the person: these
+/// tests cover what each tool does, and the agent caps the MCP surface puts
+/// around them are covered in the files integration tests.
 pub(crate) async fn harness() -> McpHarness {
     let pool = systemprompt_test_fixtures::test_db_pool().await;
     let storage = TempDir::new().expect("tempdir");
@@ -37,6 +41,7 @@ pub(crate) async fn harness() -> McpHarness {
     let runtime = systemprompt_test_fixtures::fixture_documents_runtime(&pool, &files, &allow());
     let tools = DocumentsMcpTools::new(DocumentsMcpConfig {
         service: Arc::clone(runtime.service()),
+        uploads: Some(Arc::clone(runtime.uploads())),
         users: Arc::new(UserRepository::new(&pool)),
         tokens: systemprompt_test_fixtures::test_token_authority("documents-test"),
         server_name: McpServerId::new(SERVER),
@@ -89,6 +94,7 @@ pub(crate) async fn create_text(
                 folder_id: None,
                 name: format!("notes-{}", Uuid::new_v4().simple()),
                 params: Default::default(),
+                content: None,
                 ops: Vec::new(),
                 message: None,
             },
@@ -155,4 +161,16 @@ pub(crate) fn line_for<'a>(read: &'a ReadOutput, text: &str) -> (&'a str, &'a st
         .unwrap_or_else(|| panic!("no line for {text} in {:?}", read.lines));
     let (anchor, _) = line.split_once('|').expect("hashline");
     anchor.rsplit_once(':').expect("node:hash")
+}
+
+pub(crate) async fn registered(prefix: &str) -> AuthenticatedUser {
+    let user = person(prefix);
+    let pool = systemprompt_test_fixtures::test_db_pool().await;
+    sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2) ON CONFLICT DO NOTHING")
+        .bind(user.id.as_str())
+        .bind(&user.email)
+        .execute(&*pool.write_pool())
+        .await
+        .expect("user row");
+    user
 }

@@ -159,6 +159,35 @@ impl ApiKeyLimits {
     }
 }
 
+/// What minted an API key: a person or a tool (`user`), or a bridge device
+/// enrolment (`device`), the PAT of the interactive host a person installed.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ApiKeyKind {
+    #[default]
+    User,
+    Device,
+}
+
+impl ApiKeyKind {
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::User => "user",
+            Self::Device => "device",
+        }
+    }
+
+    #[must_use]
+    pub fn from_stored(value: &str) -> Self {
+        if value == "device" {
+            Self::Device
+        } else {
+            Self::User
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserApiKey {
     pub id: ApiKeyId,
@@ -173,9 +202,16 @@ pub struct UserApiKey {
     pub limits: ApiKeyLimits,
     pub scopes: Vec<ScopeBinding>,
     pub purpose: Option<String>,
+    #[serde(default)]
+    pub kind: ApiKeyKind,
 }
 
 impl UserApiKey {
+    #[must_use]
+    pub const fn is_interactive_host(&self) -> bool {
+        matches!(self.kind, ApiKeyKind::Device) && self.purpose.is_none()
+    }
+
     pub fn is_active(&self, now: DateTime<Utc>) -> bool {
         if self.revoked_at.is_some() {
             return false;

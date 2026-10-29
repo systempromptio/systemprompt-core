@@ -64,7 +64,9 @@ fn test_local_profile_defaults() {
     assert!(profile.rate_limits.disabled);
     assert_eq!(
         profile.server.trusted_proxies,
-        systemprompt_cloud::trusted_proxies::default_local_trusted_proxies()
+        systemprompt_cloud::trusted_proxies::default_trusted_proxies(
+            systemprompt_manifest::HostingProvider::DockerLocal
+        )
     );
     assert!(matches!(
         profile.runtime.environment,
@@ -150,7 +152,9 @@ fn test_cloud_profile_defaults() {
     assert!(!profile.rate_limits.disabled);
     assert_eq!(
         profile.server.trusted_proxies,
-        systemprompt_cloud::trusted_proxies::default_cloud_trusted_proxies()
+        systemprompt_cloud::trusted_proxies::default_trusted_proxies(
+            systemprompt_manifest::HostingProvider::Systemprompt
+        )
     );
     assert!(systemprompt_cloud::trusted_proxies::covers_fly_peer(
         &profile.server.trusted_proxies
@@ -275,4 +279,58 @@ fn local_profile_paths_are_canonicalized() {
         profile.path_resolution(),
         systemprompt_manifest::paths::PathResolution::Canonicalize
     );
+}
+
+#[test]
+fn cloud_profile_defaults_to_the_systemprompt_provider() {
+    let profile = CloudProfileBuilder::new("prod").build().unwrap();
+
+    assert_eq!(
+        profile.hosting_provider(),
+        systemprompt_manifest::HostingProvider::Systemprompt
+    );
+}
+
+#[test]
+fn local_profile_is_docker_local_and_a_local_trial() {
+    let profile = LocalProfileBuilder::new("local", "./secrets.json", "/srv/services")
+        .build()
+        .unwrap();
+
+    assert_eq!(
+        profile.hosting_provider(),
+        systemprompt_manifest::HostingProvider::DockerLocal
+    );
+    assert!(profile.is_local_trial());
+}
+
+#[test]
+fn a_kubernetes_profile_requires_explicit_trusted_proxies() {
+    let err = CloudProfileBuilder::new("prod")
+        .with_provider(systemprompt_manifest::HostingProvider::Kubernetes)
+        .build()
+        .unwrap_err();
+
+    assert!(err.to_string().contains("trusted_proxies"), "{err}");
+}
+
+#[test]
+fn a_kubernetes_profile_carries_its_provider_and_proxies() {
+    let ingress: Vec<ipnet::IpNet> = vec!["10.96.0.0/12".parse().unwrap()];
+    let profile = CloudProfileBuilder::new("prod")
+        .with_provider(systemprompt_manifest::HostingProvider::Kubernetes)
+        .with_trusted_proxies(ingress.clone())
+        .with_external_url("https://acme.example.com")
+        .build()
+        .unwrap();
+
+    assert_eq!(
+        profile.hosting_provider(),
+        systemprompt_manifest::HostingProvider::Kubernetes
+    );
+    assert_eq!(profile.server.trusted_proxies, ingress);
+    assert_eq!(profile.server.host, "0.0.0.0");
+    assert_eq!(profile.paths.system, "/app");
+    assert!(matches!(profile.target, ProfileType::Cloud));
+    assert!(!profile.is_local_trial());
 }

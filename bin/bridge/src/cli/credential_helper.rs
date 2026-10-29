@@ -73,7 +73,7 @@ fn emit_host_token(ctx: &BridgeContext, host: HostKind) -> ExitCode {
 }
 
 fn emit_claude(out: &crate::gateway::types::HelperOutput) -> ExitCode {
-    match serde_json::to_string(out) {
+    match serde_json::to_string(&out.for_host()) {
         Ok(s) => {
             stdio::print_line(&s);
             ExitCode::SUCCESS

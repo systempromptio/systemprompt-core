@@ -1,0 +1,37 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT r.created_at, r.id::text AS \"id!: DocumentRevisionId\"\n               FROM document_revisions r\n               WHERE NOT EXISTS (SELECT 1 FROM document_node_ids n WHERE n.revision_id = r.id)\n                 AND ($1::timestamptz IS NULL\n                      OR (r.created_at, r.id) > ($1::timestamptz, $2::text::uuid))\n               ORDER BY r.created_at, r.id\n               LIMIT $3",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "document_revisions",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "id!: DocumentRevisionId",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      null
+    ]
+  },
+  "hash": "b5efa27bf6cf8f947947064184009d3b0f6fe48629e8788b6160b36e8230215b"
+}

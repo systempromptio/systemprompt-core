@@ -33,17 +33,26 @@
 mod codec;
 mod edit_op;
 mod format;
+mod layout_op;
 mod projection;
+mod rich_op;
 mod target;
 mod template;
 
 pub use codec::{
-    CodecError, DocumentCodec, DocumentCodecRegistration, TemplateParams, codec_for,
-    registered_codecs,
+    CodecError, DocumentCodec, DocumentCodecRegistration, NodeFragment, TemplateParams, codec_for,
+    fragment_insert_op, registered_codecs, text_fragment,
 };
 pub use edit_op::{CellValue, ContentAs, EditOp, NodeTarget, QuoteTarget, required_hash};
 pub use format::{DocumentFormat, UnknownDocumentFormat};
+pub use layout_op::{
+    ApplyTheme, CellUpdate, InsertBlock, SetParagraph, SetSection, SetStyle, UpdateTable,
+};
 pub use projection::{NodeKind, Projection, ProjectionNode, content_hash, hash8};
+pub use rich_op::{
+    InsertImage, InsertTable, MarkSpec, RichTarget, SetBlockType, SetMarks, TableDelete,
+    TableInsert, TextBlockType,
+};
 pub use target::{ClosestBlock, READ_ONLY_ATTR, ResolvedBatch, TargetError, resolve_targets};
 pub use template::{
     DocumentTemplate, DocumentTemplateProvider, DocumentTemplateProviderRegistration,

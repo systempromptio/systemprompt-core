@@ -4,14 +4,16 @@
 //! credentials carry a purpose also gets an `aud=mcp` JWT for the run's user
 //! with that purpose as its signed `purpose` claim. The MCP server reads the
 //! claim as the caller purpose, which is how a service account's credential
-//! broker sees `farm:<run_id>`. Its `jti` is revoked when the run ends.
+//! broker sees `farm:<run_id>`. It carries `interaction: non_interactive`,
+//! since no person is attached to a run, which marks the MCP calls it makes
+//! unattended. Its `jti` is revoked when the run ends.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use chrono::{DateTime, Utc};
 use systemprompt_identifiers::{AccessTokenId, SessionId, UserId};
-use systemprompt_models::auth::{JwtAudience, TokenAuthority, UserJwtRequest};
+use systemprompt_models::auth::{JwtAudience, TokenAuthority, TokenInteraction, UserJwtRequest};
 use systemprompt_oauth::services::load_authenticated_user;
 use systemprompt_traits::UserProvider;
 
@@ -49,6 +51,8 @@ pub(super) async fn mint_mcp_token(
         client_id: None,
         purpose: Some(req.purpose.to_owned()),
         plugin_id: None,
+        interaction: Some(TokenInteraction::NonInteractive),
+        browser_session: false,
     };
     let token =
         req.authority

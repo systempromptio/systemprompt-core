@@ -8,7 +8,8 @@ use std::collections::HashMap;
 
 use systemprompt_cli::cloud::doctor::CheckStatus;
 use systemprompt_cli::cloud::doctor::distributed::{
-    check_identity_fingerprints, check_instance_id, check_trusted_proxies,
+    check_identity_fingerprints, check_instance_id, check_session_url, check_trusted_proxies,
+    looks_like_transaction_pooler,
 };
 use systemprompt_manifest::Profile;
 use systemprompt_manifest::profile::ProfileType;
@@ -96,4 +97,33 @@ fn trusted_proxies_fail_when_empty_on_cloud_and_warn_on_local() {
     assert_eq!(check_trusted_proxies(&profile).status, CheckStatus::Warn);
     profile.server.trusted_proxies = vec!["fc00::/7".parse().unwrap()];
     assert_eq!(check_trusted_proxies(&profile).status, CheckStatus::Pass);
+}
+
+#[test]
+fn session_url_warns_when_absent() {
+    let result = check_session_url(&secrets(&[]));
+    assert_eq!(result.status, CheckStatus::Warn);
+    assert!(result.detail.contains("LISTEN/NOTIFY"));
+}
+
+#[test]
+fn session_url_warns_on_a_transaction_pooler() {
+    for url in [
+        "postgres://app@pgbouncer.db.svc:6432/app",
+        "postgres://app@db-pooler-rw.db.svc:5432/app",
+        "postgres://app@aws-0-eu.pooler.supabase.com:5432/app",
+        "postgres://app@db.example.com:5433/app",
+    ] {
+        assert!(looks_like_transaction_pooler(url), "{url}");
+        let result = check_session_url(&secrets(&[("database_session_url", url)]));
+        assert_eq!(result.status, CheckStatus::Warn, "{url}");
+    }
+}
+
+#[test]
+fn session_url_passes_on_a_direct_primary_connection() {
+    let url = "postgres://app@cluster-rw.db.svc:5432/app";
+    assert!(!looks_like_transaction_pooler(url));
+    let result = check_session_url(&secrets(&[("database_session_url", url)]));
+    assert_eq!(result.status, CheckStatus::Pass);
 }

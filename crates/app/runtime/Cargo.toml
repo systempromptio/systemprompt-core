@@ -22,6 +22,8 @@ workspace = true
 [features]
 default = []
 geolocation = ["dep:maxminddb", "systemprompt-analytics/geolocation"]
+collab = ["systemprompt-files/collab"]
+engine-loro = ["collab", "dep:systemprompt-engine-loro"]
 
 [dependencies]
 tokio = { workspace = true }
@@ -31,6 +33,7 @@ thiserror = { workspace = true }
 tracing = { workspace = true }
 maxminddb = { workspace = true, optional = true }
 systemprompt-identifiers = { workspace = true }
+systemprompt-engine-loro = { workspace = true, optional = true }
 systemprompt-models = { workspace = true }
 systemprompt-manifest = { workspace = true }
 systemprompt-provider-contracts = { workspace = true }
@@ -56,6 +59,7 @@ systemprompt-content = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 schemars = { workspace = true }
+base64 = { workspace = true }
 rmcp = { workspace = true }
 async-trait = { workspace = true }
 reqwest = { workspace = true }

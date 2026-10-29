@@ -31,6 +31,7 @@ fn test_config() -> Config {
         metrics_port: None,
         max_concurrent_streams: 256,
         role: Default::default(),
+        advertise_url: None,
         max_in_flight: None,
         shutdown: Default::default(),
         sitename: "test".to_string(),

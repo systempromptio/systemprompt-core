@@ -63,6 +63,7 @@ pub(super) fn build(params: &ProfileBuildParams<'_>) -> Result<Profile> {
         storage: systemprompt_manifest::profile::StorageConfig::default(),
         observability: systemprompt_manifest::profile::ObservabilityConfig::default(),
         config_planes: systemprompt_manifest::profile::ConfigPlanesConfig::default(),
+        licence: systemprompt_manifest::profile::LicenceConfig::default(),
         name: env_name.to_owned(),
         display_name: generate_display_name(env_name),
         target: ProfileType::Local,
@@ -86,7 +87,10 @@ pub(super) fn build(params: &ProfileBuildParams<'_>) -> Result<Profile> {
         runtime: sections::runtime(runtime_env, is_prod),
         cloud: Some(CloudConfig {
             tenant_id: None,
+            provider: systemprompt_manifest::HostingProvider::default(),
             validation: CloudValidationMode::Skip,
+            deploy: None,
+            operator: None,
         }),
         secrets: Some(SecretsConfig {
             secrets_path: Some(secrets_path.to_owned()),

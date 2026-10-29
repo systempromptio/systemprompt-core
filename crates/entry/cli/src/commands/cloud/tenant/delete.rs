@@ -1,14 +1,16 @@
 //! `cloud tenant delete` command.
 //!
 //! Removes a tenant from the store, cancelling its cloud subscription via the
-//! API or tearing down its own Docker `PostgreSQL` project for local tenants.
+//! API for systemprompt.io tenants, tearing down its own Docker `PostgreSQL`
+//! project for local tenants, and only forgetting the record of a
+//! self-managed (Kubernetes, GKE) tenant.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Result, anyhow, bail};
 use systemprompt_cloud::{
-    CloudApiClient, CloudPath, DockerCli, StoredTenant, TenantStore, TenantType, get_cloud_paths,
+    CloudApiClient, CloudPath, DockerCli, StoredTenant, TenantStore, get_cloud_paths,
 };
 use systemprompt_identifiers::TenantId;
 use systemprompt_logging::CliService;
@@ -43,7 +45,7 @@ pub async fn delete_tenant(
         .ok_or_else(|| anyhow!("Tenant not found: {}", tenant_id.as_str()))?
         .clone();
 
-    let is_cloud = tenant.tenant_type == TenantType::Cloud;
+    let is_cloud = tenant.is_systemprompt_managed();
 
     if !args.yes && !confirm_delete(&tenant, is_cloud, prompter, config)? {
         let output = SuccessOutput::new("Cancelled");
@@ -107,6 +109,11 @@ fn confirm_delete(
         format!(
             "Delete cloud tenant '{}'? This will cancel your subscription and delete all data.",
             tenant.name
+        )
+    } else if tenant.provider.is_hosted() {
+        format!(
+            "Remove the record of {} tenant '{}'? The deployment itself is not touched.",
+            tenant.provider, tenant.name
         )
     } else {
         format!("Delete tenant '{}'?", tenant.name)

@@ -11,10 +11,10 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, PoisonError};
 
-use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode, decode_header};
+use jsonwebtoken::{Algorithm, Validation, decode, decode_header};
 use systemprompt_manifest::Config;
 use systemprompt_manifest::profile::TrustedIssuer;
-use systemprompt_models::auth::{ActClaim, JwtAudience, JwtClaims, Permission};
+use systemprompt_models::auth::{ActClaim, JwtAudience, JwtClaims, Permission, TokenInteraction};
 use systemprompt_oauth::services::EnterprisePrincipal;
 use systemprompt_security::jwt::reject_critical_header;
 use systemprompt_security::keys::{JwksClient, SigningKeys};
@@ -31,6 +31,7 @@ struct IssOnly {
 pub struct SubjectIdentity {
     pub scope: Vec<Permission>,
     pub prior_act: Option<ActClaim>,
+    pub interaction: Option<TokenInteraction>,
     pub principal: Option<EnterprisePrincipal>,
     pub bound_resource: Option<String>,
 }
@@ -84,11 +85,17 @@ pub async fn validate_subject_token(
         .await
         .map_err(|e| IssuanceError::malformed("subject_token", "JWKS resolution failed", e))?;
 
-    let decoding_key = DecodingKey::from_rsa_components(&jwk.n, &jwk.e).map_err(|e| {
-        IssuanceError::malformed("subject_token", "invalid RSA components in JWK", e)
+    if header.alg != jwk.algorithm() {
+        return Err(IssuanceError::InvalidRequest {
+            field: "subject_token".to_owned(),
+            message: format!("algorithm {:?} does not match the issuer key", header.alg),
+        });
+    }
+    let decoding_key = jwk.decoding_key().map_err(|e| {
+        IssuanceError::malformed("subject_token", "invalid key components in JWK", e)
     })?;
 
-    let mut validation = Validation::new(Algorithm::RS256);
+    let mut validation = Validation::new(jwk.algorithm());
     validation.set_issuer(&[&trusted.issuer]);
     validation.set_audience(&[&trusted.audience]);
     validation.set_required_spec_claims(&REQUIRED_CLAIMS);
@@ -104,6 +111,7 @@ pub async fn validate_subject_token(
     Ok(SubjectIdentity {
         scope: data.claims.custom.scope,
         prior_act: data.claims.custom.act,
+        interaction: None,
         principal: None,
         bound_resource: None,
     })
@@ -165,6 +173,7 @@ fn validate_self_issued(
     Ok(SubjectIdentity {
         scope: data.claims.custom.scope,
         prior_act: data.claims.custom.act,
+        interaction: data.claims.custom.interaction,
         principal: None,
         bound_resource: None,
     })

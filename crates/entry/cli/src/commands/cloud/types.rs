@@ -107,7 +107,7 @@ pub struct LogoutOutput {
 pub struct TenantSummary {
     pub id: TenantId,
     pub name: String,
-    pub tenant_type: String,
+    pub provider: systemprompt_manifest::HostingProvider,
     pub has_database: bool,
 }
 
@@ -121,7 +121,7 @@ pub struct TenantListOutput {
 pub struct TenantDetailOutput {
     pub id: TenantId,
     pub name: String,
-    pub tenant_type: String,
+    pub provider: systemprompt_manifest::HostingProvider,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub app_id: Option<CloudAppId>,
     #[serde(skip_serializing_if = "Option::is_none")]

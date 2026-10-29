@@ -8,10 +8,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::Result;
-use chrono::Utc;
-use systemprompt_cloud::{
-    CloudApiClient, CloudPath, StoredTenant, TenantStore, TenantType, get_cloud_paths,
-};
+use systemprompt_cloud::{CloudApiClient, CloudPath, StoredTenant, TenantStore, get_cloud_paths};
 use systemprompt_logging::CliService;
 
 use super::select::get_credentials;
@@ -32,7 +29,7 @@ pub async fn list_tenants(prompter: &dyn Prompter, config: &CliConfig) -> Result
         .map(|t| TenantSummary {
             id: t.id.clone(),
             name: t.name.clone(),
-            tenant_type: format!("{:?}", t.tenant_type).to_lowercase(),
+            provider: t.provider,
             has_database: t.has_database_url(),
         })
         .collect();
@@ -49,7 +46,7 @@ pub async fn list_tenants(prompter: &dyn Prompter, config: &CliConfig) -> Result
             CliService::info("Run 'systemprompt cloud tenant create' to create one.");
         }
         return Ok(CommandOutput::table_of(
-            vec!["id", "name", "tenant_type", "has_database"],
+            vec!["id", "name", "provider", "has_database"],
             &output.tenants,
         )
         .with_title("Tenants"));
@@ -64,17 +61,14 @@ pub async fn list_tenants(prompter: &dyn Prompter, config: &CliConfig) -> Result
     }
 
     Ok(CommandOutput::table_of(
-        vec!["id", "name", "tenant_type", "has_database"],
+        vec!["id", "name", "provider", "has_database"],
         &output.tenants,
     )
     .with_title("Tenants"))
 }
 
 fn tenant_label(tenant: &StoredTenant) -> String {
-    let type_str = match tenant.tenant_type {
-        TenantType::Local => "local",
-        TenantType::Cloud => "cloud",
-    };
+    let type_str = tenant.provider.as_str();
     let db_status = if tenant.has_database_url() {
         "✓ db"
     } else {
@@ -124,7 +118,7 @@ fn render_tenant_lines(store: &TenantStore) {
 fn display_tenant_details(tenant: &StoredTenant) {
     CliService::section(&format!("Tenant: {}", tenant.name));
     CliService::key_value("ID", tenant.id.as_str());
-    CliService::key_value("Type", &format!("{:?}", tenant.tenant_type));
+    CliService::key_value("Provider", tenant.provider.as_str());
 
     if let Some(ref app_id) = tenant.app_id {
         CliService::key_value("App ID", app_id.as_str());
@@ -168,21 +162,7 @@ async fn sync_and_load_tenants(tenants_path: &std::path::Path) -> TenantStore {
         },
     };
 
-    for cloud_info in &cloud_tenant_infos {
-        if let Some(existing) = local_store
-            .tenants
-            .iter_mut()
-            .find(|t| t.id.as_str() == cloud_info.id)
-        {
-            existing.update_from_tenant_info(cloud_info);
-        } else {
-            local_store
-                .tenants
-                .push(StoredTenant::from_tenant_info(cloud_info));
-        }
-    }
-
-    local_store.synced_at = Utc::now();
+    local_store.merge_control_plane(&cloud_tenant_infos);
 
     if let Err(e) = local_store.save_to_path(tenants_path) {
         CliService::warning(&format!("Failed to save synced tenants: {}", e));

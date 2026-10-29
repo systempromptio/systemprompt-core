@@ -2,8 +2,9 @@
 //!
 //! [`DeployOrchestrator`] sequences the tenant deploy pipeline —
 //! build-artifact validation, Docker image build and push, secret
-//! provisioning (including the `SIGNING_KEY_PEM` transport), and the final
-//! deploy call against the cloud API. Every user-facing rendering decision is
+//! provisioning (including the `SIGNING_KEY_PEM` transport), and the rollout —
+//! over a [`DeployProvider`](systemprompt_cloud::deploy::provider::DeployProvider)
+//! that decides where each step lands. Every user-facing rendering decision is
 //! delegated to a caller-supplied [`DeployProgress`] implementation: the
 //! pipeline owns sequencing, the caller owns presentation.
 //!
@@ -18,11 +19,13 @@ mod artifacts;
 mod orchestrator;
 mod progress;
 mod request;
+mod secrets;
 
 pub use artifacts::DeployArtifacts;
-pub use orchestrator::{DeployOrchestrator, collect_bootstrap_env};
+pub use orchestrator::DeployOrchestrator;
 pub use progress::{DeployEvent, DeployProgress};
 pub use request::{
     DeployOptions, DeployReport, DeployRequest, DeploySecretsSource, VAULT_ADDR_ENV,
     VAULT_NAMESPACE_ENV, bootstrap_env_names,
 };
+pub use secrets::collect_bootstrap_env;

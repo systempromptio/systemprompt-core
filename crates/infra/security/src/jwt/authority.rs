@@ -87,6 +87,8 @@ pub fn user_claims(issuer: &str, req: &UserJwtRequest) -> TokenResult<JwtClaims>
             plugin_id: req.plugin_id.clone(),
             act: None,
             purpose: req.purpose.clone(),
+            interaction: req.interaction,
+            browser_session: req.browser_session,
         },
     })
 }

@@ -98,13 +98,19 @@ readinessProbe:
 
 Rolling deploys are safe within a release line: replace one replica at a time and wait for `/readyz` to answer `200` before moving on. An upgrade whose migration batch is not rolling-safe (§9.3), such as 0.69 → 0.70 (§9.4), needs a `Recreate` rollout instead.
 
-**Node roles.** `server.role` splits the platform across Deployments. `all` (the default) serves everything. `gateway` serves the AI gateway (`/v1/*`, `/api/public/gateway`), the bridge consumer surface, OAuth, well-known and health routes, and runs no scheduler, MCP servers or agents, so it scales horizontally on request load alone. `admin` serves everything except the gateway and the bridge consumer surface, and runs the scheduler and the MCP and agent processes. A gateway node renders no `web/dist` and does not serve the static site. `runner` serves only the health, liveness and readiness probes (and the metrics port), runs no scheduler, MCP servers or agents, and starts the long-running services extensions declare with `Extension::runner_services`, for work such as executing workflow steps.
+**Node roles.** `server.role` splits the platform across Deployments. `all` (the default) serves everything and runs everything on one node. `gateway` serves the AI gateway (`/v1/*`, `/api/public/gateway`), the bridge consumer surface, OAuth, well-known and health routes, and runs no scheduler, MCP servers or agents, so it scales horizontally on request load alone. `api` serves everything except the gateway and the bridge consumer surface — the console, agent, MCP, content, stream, messaging, extension and static routes — and runs no scheduler and supervises no MCP or agent process, so it scales horizontally too. `worker` runs the scheduler and owns the MCP and agent processes; it serves the probes plus the MCP and agent routes `api` replicas forward to, and must set `server.advertise_url` to an address those replicas can reach. `runner` serves only the health, liveness and readiness probes (and the metrics port), runs no scheduler, MCP servers or agents, and starts the long-running services extensions declare with `Extension::runner_services`, for work such as executing workflow steps. `admin` is no longer a role; a profile that names it is refused with an error pointing at `api` and `worker`.
+
+Exactly one worker at a time owns the MCP and agent processes: workers compete for a lease in `instance_leases`, the holder reconciles and supervises every process, and the others stand by and take over when the holder's instance claim lapses or its lease expires. A worker that loses the lease restarts so its children stop. An `api` replica that receives MCP or agent traffic looks up the live owner in the service registry and forwards the request unchanged to the owner's `advertise_url`; with no live owner it answers `503`. A worker meters nothing itself, because only `api` replicas that already charged the caller reach it — keep its port off the public balancer.
+
+Only `all` and `worker` nodes render `web/dist` and compose the services bundle cache; an `api` node serves both read-only, so it needs no writable volume for them. Give `api` replicas `web/dist` and `services.cache_dir` from a volume the worker writes (or bake `web/dist` into the image); an `api` node with `services.sources` reads the composition the worker recorded and refuses to boot while there is none.
 
 ```yaml
-# Two Deployments from one image; the mounted profile differs only in server.role.
+# Three Deployments from one image; the mounted profile differs only in server.role.
 # gateway Deployment: replicas: 4,  profile server.role: gateway
-# admin Deployment:   replicas: 1+, profile server.role: admin (see Scheduler scope below)
-# Route /v1/* and /api/public/gateway to the gateway Service, everything else to admin.
+# api Deployment:     replicas: 3,  profile server.role: api
+# worker Deployment:  replicas: 2,  profile server.role: worker
+#                     server.advertise_url: http://${POD_IP}:8080 (one owns the processes, one stands by)
+# Route /v1/* and /api/public/gateway to the gateway Service, everything else to api.
 ```
 
 ### 3.2 Database tier
@@ -172,13 +178,13 @@ One image, N replicas, one Postgres primary. Every replica must agree with the o
 - **`server.trusted_proxies` is required on cloud profiles.** Without it every request resolves to the balancer's address and all callers share one rate-limit bucket and one ban target. Validation refuses the profile.
 - **`/metrics` on its own port.** Set `server.metrics_port`; the scrape endpoint is served on that port only and never on the public router. Leave it unset and no metrics endpoint is exposed.
 - **Storage.** `paths.storage` holds uploads and generated images. With `storage.shared: true` it must be one mount every replica sees (NFS, EFS, SMB), and `paths.data` must point at a per-node writable volume (an `emptyDir` on node disk is enough) so the gateway journal and scratch trees stay off the shared mount — validation refuses a shared profile without it; the boot probe writes a marker per instance and warns when it finds none from other nodes. With `shared: false` those files are node-local and a request for a file uploaded through another replica is a 404 — acceptable only for a single node. Alternatively set `storage.backend: gcs` to keep these files in a Cloud Storage bucket every replica reaches; no shared mount is needed and the shared-mount probe is skipped. On GKE, bind the Kubernetes service account to a Google service account with `roles/storage.objectAdmin` on the bucket (annotation `iam.gke.io/gcp-service-account`) and leave `credentials` at `workload_identity`. See [configure.md](configure.md#file-storage).
-- **Scheduler scope.** Only `all` and `admin` nodes run the scheduler; a `gateway` node runs none. Jobs are `cluster` by default and run on exactly one replica under an advisory lock (`scheduler.distributed_lock`, on by default). Jobs whose effect is local to the node declare `scope: node` and run on every replica: the renderers (`content_prerender`, `page_prerender`, `copy_extension_assets`) so each serves a current `web/dist`, `managed_inventory_refresh`, and `file_ingestion`, which walks the node's own view of `paths.storage`. Override per job in `services.yaml` with `scope: cluster | node`. A manual `infra jobs run` takes the same lock for a `cluster` job and fails when another replica holds it; `--lock-wait-secs N` waits up to N seconds instead. Several `admin` replicas are therefore safe for the scheduler; what still has to hold is shared storage (or the `gcs` backend) and MCP routing to the replica that owns each child.
+- **Scheduler scope.** Only `all` and `worker` nodes run the scheduler; a `gateway` node runs none. Jobs are `cluster` by default and run on exactly one replica under an advisory lock (`scheduler.distributed_lock`, on by default). Jobs whose effect is local to the node declare `scope: node` and run on every replica: the renderers (`content_prerender`, `page_prerender`, `copy_extension_assets`) so each serves a current `web/dist`, `managed_inventory_refresh`, and `file_ingestion`, which walks the node's own view of `paths.storage`. Override per job in `services.yaml` with `scope: cluster | node`. A manual `infra jobs run` takes the same lock for a `cluster` job and fails when another replica holds it; `--lock-wait-secs N` waits up to N seconds instead. Several `worker` replicas are therefore safe for the scheduler; what still has to hold is shared storage (or the `gcs`/`s3` backend), which profile validation enforces for `api` and `worker`.
 - **Unlisted jobs.** `scheduler.unlisted_jobs` decides what happens to a job the build registers but `scheduler.jobs` does not name: `default` (the default) schedules it on its declared default schedule when the job declares one (the read-model rollups do) and warns about the rest; `warn` only warns; `error` refuses to start the scheduler while any job is unlisted. Name a job with `enabled: false` to keep it off the schedule. `systemprompt admin config validate --strict` fails on unlisted jobs, so a CI check catches a new job before it ships.
 - **Databases.** `database_write_url` is the primary; `database_url` is the nearest replica. Security-critical lookups (session attestation, token and revocation checks, API keys, bans, MCP sessions) always read the primary, so a fresh login is valid in every region at once; listings and analytics read the replica. The cross-replica event relay (`LISTEN`/`NOTIFY`) also runs on the primary.
 - **MCP service registry.** Rows are keyed `(instance_id, name)`; each replica registers, reconciles and reaps only its own children, heartbeats every 15 s, and a scheduler job removes rows whose replica stopped heartbeating for 90 s and no longer holds its identity claim, so a stalled but live replica is never reaped. Replicas may boot concurrently; the post-reconcile registration check retries for up to about a second before failing the boot.
 - **Session-free.** Passkey challenges, MCP proxy session identities and Gemini thought signatures live in Postgres, so no balancer affinity is required.
 
-**Known per-node behaviour.** Anonymous (IP-keyed) HTTP throttles and the analytics anomaly counters are process-local, so their effective thresholds scale with the replica count; user-keyed HTTP limits, AI quotas and the `rate_limit` governance policy (a fixed window per session and user, counted in Postgres) are global. `web/dist` is rendered per node.
+**Known per-node behaviour.** Anonymous (IP-keyed) HTTP throttles and the analytics anomaly counters are process-local, so their effective thresholds scale with the replica count; user-keyed HTTP limits (including the gateway and bridge routes, which charge the same window by the verified bearer token), AI quotas and the `rate_limit` governance policy (a fixed window per session and user, counted in Postgres) are global. `web/dist` is rendered per node.
 
 ### 3.5 Writable paths and a read-only root filesystem
 
@@ -258,6 +264,64 @@ pg_ctl start
 ```
 
 Test restore quarterly. A backup that has not been restored is a hope, not a recovery strategy.
+
+### 4.3 Kubernetes: CloudNativePG and object storage
+
+On Kubernetes, the CloudNativePG operator runs the same base-backup-plus-WAL scheme through its `barman-cloud` integration: base backups and archived WAL go to an object-store bucket, and a restore is a new `Cluster` bootstrapped from that bucket with a recovery target.
+
+```yaml
+# Backups: continuous WAL archive plus a scheduled base backup
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: systemprompt-db
+spec:
+  instances: 3
+  backup:
+    retentionPolicy: "35d"
+    barmanObjectStore:
+      destinationPath: s3://<backup-bucket>/systemprompt-db
+      s3Credentials:
+        accessKeyId: { name: backup-creds, key: ACCESS_KEY_ID }
+        secretAccessKey: { name: backup-creds, key: SECRET_ACCESS_KEY }
+      wal:
+        compression: gzip
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: systemprompt-db-daily
+spec:
+  schedule: "0 0 2 * * *"
+  cluster:
+    name: systemprompt-db
+---
+# Restore: a new cluster recovered to a point in time
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: systemprompt-db-restored
+spec:
+  instances: 3
+  bootstrap:
+    recovery:
+      source: systemprompt-db
+      recoveryTarget:
+        targetTime: "2026-05-22 14:30:00+00"
+  externalClusters:
+    - name: systemprompt-db
+      barmanObjectStore:
+        destinationPath: s3://<backup-bucket>/systemprompt-db
+        s3Credentials:
+          accessKeyId: { name: backup-creds, key: ACCESS_KEY_ID }
+          secretAccessKey: { name: backup-creds, key: SECRET_ACCESS_KEY }
+```
+
+Point the profile's `database_url` at the restored cluster's read-write Service and restart the replicas.
+
+**Files are not in the database.** Point-in-time recovery restores database rows only. Uploaded files on `storage.backend: local` live on a node's volume, outside that recovery, so a restored database can reference files that no longer exist. Any deployment with more than one role (`server.role` other than `all`) should use `storage.backend: s3` or `gcs` with bucket versioning enabled, so the files can be recovered to the same point as the database. `systemprompt cloud doctor` warns when a split-role profile uses local storage.
+
+**Restore the database, not an older image.** Migrations are forward-only. A database restored from a newer release, or a deployment rolled back to an older image after a migration ran, holds migrations the running binary does not know. That binary does not apply or verify the schema it finds. `systemprompt cloud doctor` fails in this state with `migrations are forward-only: restore the database, not an older image`. To go back, restore the database to a point before the migration ran (§4.2) and deploy the image that matches it.
 
 ## 5. Disaster recovery
 

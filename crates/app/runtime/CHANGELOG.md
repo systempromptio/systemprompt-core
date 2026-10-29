@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.75.0] - 2026-10-28
+
+### Breaking
+
+- **Breaking:** `DocumentsRuntimeParts` gains `unscoped_actor: Option<DocumentActor>`, `DocumentsMcpConfig` gains `uploads`, `CreateInput` gains `content`, `ShareInput` gains `message`, `CommentInput` gains `mentions`, `CommentAction` gains `Edit` and `Delete`, and `RestoreHandler` is `UntrashHandler`. Migrate struct literals, exhaustive matches and imports.
+- **Breaking:** `RefusalCode` and `Refusal` move from `documents::mcp` to `documents::refusal`; `RefusalCode` gains `Trashed`, `FolderNotEmpty`, `ProposalClosed`, `UnknownSubject`, `TooLarge`, `IntegrityMismatch`, `OpIdMismatch`, `SelfReview`, `AccessRequestOpen`, `AccessRequestNotNeeded` and `AccessRequestClosed`, and `Refusal` gains `head_content_sha256`, `base_revision` and `existing_level`. A trashed document refuses `trashed` instead of `not_found`. Migrate imports, matches and struct literals.
+- **Breaking:** the read views, `ReadInput`, `ReadView`, `NodeRange`, `ReadOutput`, `EditOutput`, the comment and access outputs and the hashline helpers move from `documents::mcp` to `documents::views`, and the download-link helpers to `documents::download`. Migrate imports.
+- **Breaking:** `documents_restore_document` is `documents_untrash`. Migrate tool lists.
+- **Breaking:** `documents_history` items serialise `author`, `actor` and `at`. Migrate clients reading `author_user_id`, `actor_kind` or `created_at`.
+- **Breaking:** `DocumentsRuntimeParts` gains `directory: Arc<dyn SubjectDirectory>` and `background_tasks`; with the `collab` feature the runtime builds the one `CollabService` and starts its timer. Migrate struct literals and read the service from `DocumentsRuntime::collab`.
+- **Breaking:** `DownloadTarget` gains `rendition: Rendition`. Migrate struct literals by adding `rendition: Rendition::Native`.
+- **Breaking:** `AccessOutput` carries `document_id` and `folder_id` as options plus `history` and `requests`, `GrantItem` gains `inherited_from`, and `documents_access` takes `AccessInput { document_id, history }`.
+
+### Added
+
+- `UserSubjectDirectory`, resolving grant subjects to users.
+- `documents_create` takes `content: {model} | {markdown}`; `documents_read` gains `view: model`; new ops `set_paragraph`, `insert_block`, `update_table`, `set_section`, `set_style` and `apply_theme`; the `documents_upload` tool.
+- `documents_export {format: pdf, as: url}` returns a signed download link for every format; `Rendition`, `DOWNLOAD_FORMAT_QUERY` and `DOWNLOAD_FORMAT_PDF`.
+- The documents tools run as an agent actor (`act_as`) with the agent's name from the credential.
+
+### Changed
+
+- `documents_edit` acknowledgements render from the projection the commit returns instead of reading the head again.
+
 ## [0.74.0] - 2026-10-27
 
 ### Breaking

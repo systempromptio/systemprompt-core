@@ -17,7 +17,8 @@ CREATE TABLE IF NOT EXISTS users (
     archive_reason TEXT,
     legal_hold BOOLEAN NOT NULL DEFAULT false,
     account_kind TEXT NOT NULL DEFAULT 'person'
-        CONSTRAINT users_account_kind_check CHECK (account_kind IN ('person', 'service'))
+        CONSTRAINT users_account_kind_check CHECK (account_kind IN ('person', 'service')),
+    declared_source TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_users_archived_at ON users(archived_at) WHERE archived_at IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_users_name ON users(name);

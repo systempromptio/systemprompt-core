@@ -15,7 +15,8 @@ use systemprompt_models::attribution::ScopeBinding;
 use systemprompt_traits::RepositoryError;
 
 use super::{
-    AccountKind, ApiKeyLimits, User, UserActivity, UserApiKey, UserStatus, UserWithSessions,
+    AccountKind, ApiKeyKind, ApiKeyLimits, User, UserActivity, UserApiKey, UserStatus,
+    UserWithSessions,
 };
 use crate::error::UserError;
 
@@ -149,6 +150,7 @@ pub(crate) struct UserApiKeyRow {
     pub max_requests: Option<i32>,
     pub request_window_seconds: Option<i32>,
     pub purpose: Option<String>,
+    pub kind: String,
     pub scope_dimensions: Vec<String>,
     pub scope_values: Vec<String>,
 }
@@ -172,6 +174,7 @@ impl From<UserApiKeyRow> for UserApiKey {
                 request_window_seconds: row.request_window_seconds,
             },
             purpose: row.purpose,
+            kind: ApiKeyKind::from_stored(&row.kind),
             scopes: row
                 .scope_dimensions
                 .into_iter()

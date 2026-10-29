@@ -80,6 +80,7 @@ pub use extraction::{
 };
 pub use jwt::{
     AdminTokenParams, DeploymentTokenAuthority, JwtService, JwtUserContext, extract_user_context,
+    extract_user_context_for,
 };
 pub use services::ScannerDetector;
 pub use session::{SessionGenerator, SessionParams, ValidatedSessionClaims};

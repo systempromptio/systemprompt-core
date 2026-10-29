@@ -3,7 +3,8 @@
 //! A `folder` listing authorizes the folder and lists its visible subfolders
 //! on the first page; `shared`, `mine` and `recent` span every folder. The
 //! repository decides grant visibility, and every row then passes the authz
-//! hook for its folder, so a listing never shows what a read would refuse.
+//! hook for its folder, so a listing never shows what a read would refuse,
+//! and a document whose agent cap is `none` is dropped for an agent caller.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -67,7 +68,7 @@ impl DocumentService {
             .list_scoped(&listing, &pairs, &who.id)
             .await?;
         let documents = self
-            .hook_filter(who, page, |listed| listed.document.folder_id.clone(), trace)
+            .hook_filter(who, page, |listed| &listed.document, trace)
             .await;
         Ok(Listing {
             folders,
@@ -102,7 +103,7 @@ impl DocumentService {
             };
             match self.access.probe_with(check, pairs).await {
                 Ok(_) => folders.push(child),
-                Err(DocumentsError::Forbidden { .. }) => {},
+                Err(DocumentsError::Forbidden { .. } | DocumentsError::NotFound { .. }) => {},
                 Err(other) => return Err(other),
             }
         }
@@ -115,21 +116,20 @@ impl DocumentService {
         documents: Vec<Document>,
         trace: &TraceId,
     ) -> Vec<Document> {
-        self.hook_filter(who, documents, |d| d.folder_id.clone(), trace)
-            .await
+        self.hook_filter(who, documents, |d| d, trace).await
     }
 
     async fn hook_filter<T>(
         &self,
         who: &AuthenticatedUser,
         items: Vec<T>,
-        folder_of: impl Fn(&T) -> Option<DocumentFolderId>,
+        document_of: impl Fn(&T) -> &Document,
         trace: &TraceId,
     ) -> Vec<T> {
         let mut allowed: HashMap<Option<DocumentFolderId>, bool> = HashMap::new();
-        let mut visible = Vec::with_capacity(items.len());
+        let mut admitted = Vec::with_capacity(items.len());
         for item in items {
-            let key = folder_of(&item);
+            let key = document_of(&item).folder_id.clone();
             let admit = if let Some(admit) = allowed.get(&key) {
                 *admit
             } else {
@@ -138,9 +138,18 @@ impl DocumentService {
                 admit
             };
             if admit {
-                visible.push(item);
+                admitted.push(item);
             }
         }
-        visible
+        let documents: Vec<&Document> = admitted.iter().map(&document_of).collect();
+        let hidden = self
+            .access
+            .hidden_from_agent_many(who, &documents, trace)
+            .await;
+        admitted
+            .into_iter()
+            .zip(hidden)
+            .filter_map(|(item, hidden)| (!hidden).then_some(item))
+            .collect()
     }
 }

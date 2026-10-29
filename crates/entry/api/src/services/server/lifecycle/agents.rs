@@ -64,7 +64,7 @@ pub async fn reconcile_agents(
     Ok(started)
 }
 
-async fn build_orchestrator(
+pub(super) async fn build_orchestrator(
     ctx: &AppContext,
     events: Option<&StartupEventSender>,
 ) -> Result<AgentOrchestrator> {
@@ -196,7 +196,7 @@ async fn handle_failed_agents(
     Ok(started)
 }
 
-async fn enforce_clean_agent_state(
+pub(super) async fn enforce_clean_agent_state(
     orchestrator: &AgentOrchestrator,
     agent: &str,
     desired_port: u16,
@@ -245,7 +245,7 @@ async fn enforce_clean_agent_state(
     }
 }
 
-async fn stop_recorded_agent(
+pub(super) async fn stop_recorded_agent(
     pid: u32,
     agent_name: &systemprompt_identifiers::AgentName,
     events: Option<&StartupEventSender>,

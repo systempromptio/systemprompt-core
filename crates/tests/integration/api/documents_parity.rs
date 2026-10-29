@@ -24,7 +24,9 @@ async fn send(app: Router, req: Request<Body>) -> Result<(StatusCode, Value)> {
 }
 
 fn app(state: &DocumentsState, user: &AuthedFixture) -> Router {
-    router(state.clone()).layer(Extension(request_context(user.user_id.as_str())))
+    router(state.clone()).layer(Extension(
+        request_context(user.user_id.as_str()).with_browser_session(),
+    ))
 }
 
 fn empty(method: Method, uri: &str) -> Request<Body> {
@@ -182,7 +184,7 @@ async fn access_subject_kinds_transfer_and_revoke_all() -> Result<()> {
         json_request(
             Method::POST,
             &format!("/{id}/grants"),
-            &json!({ "subject_kind": "role", "subject_value": "staff", "level": "view" }),
+            &json!({ "subject_kind": "role", "subject_value": "admin", "level": "view" }),
         ),
     )
     .await?;
@@ -218,7 +220,7 @@ async fn access_subject_kinds_transfer_and_revoke_all() -> Result<()> {
             .map(|grant| grant["display_name"].clone())
     };
     assert_eq!(display("user"), Some(json!("Next Reader")));
-    assert_eq!(display("role"), Some(json!("staff")));
+    assert_eq!(display("role"), Some(json!("admin")));
 
     let (status, _) = send(
         app(&state, &owner),
@@ -247,12 +249,13 @@ async fn access_subject_kinds_transfer_and_revoke_all() -> Result<()> {
     )
     .await?;
     assert_eq!(status, StatusCode::FORBIDDEN, "{refused}");
-    assert_eq!(refused["owner"], next.user_id.as_str());
+    assert_eq!(refused["error_key"], "forbidden");
+    assert_eq!(refused["detail"]["owner"], next.user_id.as_str());
     Ok(())
 }
 
 #[tokio::test]
-async fn trash_restore_copy_and_scoped_listing() -> Result<()> {
+async fn trash_untrash_copy_and_scoped_listing() -> Result<()> {
     let (pool, state) = fixture().await?;
     let owner = seed_bridge_credential(&pool, "docs-trash").await?;
     let prefix = format!("trash-{}", Uuid::new_v4().simple());
@@ -266,10 +269,11 @@ async fn trash_restore_copy_and_scoped_listing() -> Result<()> {
     assert_eq!(status, StatusCode::NO_CONTENT);
     let (status, gone) = send(app(&state, &owner), empty(Method::GET, &format!("/{id}"))).await?;
     assert_eq!(status, StatusCode::NOT_FOUND, "{gone}");
-    assert_eq!(gone["trashed"], true);
+    assert_eq!(gone["error_key"], "trashed");
+    assert_eq!(gone["detail"]["trashed"], true);
     let (status, restored) = send(
         app(&state, &owner),
-        empty(Method::POST, &format!("/{id}/restore")),
+        empty(Method::POST, &format!("/{id}/untrash")),
     )
     .await?;
     assert_eq!(status, StatusCode::OK, "{restored}");
@@ -338,5 +342,79 @@ async fn an_x_context_id_header_lands_on_the_revision() -> Result<()> {
             .fetch_one(&*pool.pool())
             .await?;
     assert_eq!(stored.as_deref(), Some(context.as_str()));
+    Ok(())
+}
+
+#[tokio::test]
+async fn non_members_get_not_found_and_viewers_see_only_owner_and_self() -> Result<()> {
+    let (pool, state) = fixture().await?;
+    let owner = seed_bridge_credential(&pool, "docs-guard-owner").await?;
+    let viewer = seed_bridge_credential(&pool, "docs-guard-viewer").await?;
+    let editor = seed_bridge_credential(&pool, "docs-guard-editor").await?;
+    let stranger = seed_bridge_credential(&pool, "docs-guard-stranger").await?;
+    let (id, _) = create(
+        &state,
+        &owner,
+        &format!("guard-{}.md", Uuid::new_v4().simple()),
+    )
+    .await?;
+    for (user, level) in [(&viewer, "view"), (&editor, "edit")] {
+        let (status, body) = send(
+            app(&state, &owner),
+            json_request(
+                Method::POST,
+                &format!("/{id}/grants"),
+                &json!({ "subject_kind": "user", "subject_value": user.user_id.as_str(), "level": level }),
+            ),
+        )
+        .await?;
+        assert_eq!(status, StatusCode::CREATED, "{body}");
+    }
+    let (status, own) = send(
+        app(&state, &owner),
+        json_request(
+            Method::POST,
+            &format!("/{id}/grants"),
+            &json!({ "subject_kind": "user", "subject_value": viewer.user_id.as_str(), "level": "own" }),
+        ),
+    )
+    .await?;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{own}");
+
+    let (status, probe) = send(
+        app(&state, &stranger),
+        empty(Method::GET, &format!("/{id}/access")),
+    )
+    .await?;
+    assert_eq!(status, StatusCode::NOT_FOUND, "{probe}");
+    assert!(
+        !probe.to_string().contains(owner.user_id.as_str()),
+        "{probe}"
+    );
+
+    let (status, access) = send(
+        app(&state, &viewer),
+        empty(Method::GET, &format!("/{id}/access")),
+    )
+    .await?;
+    assert_eq!(status, StatusCode::OK, "{access}");
+    assert_eq!(access["owner"], owner.user_id.as_str());
+    assert_eq!(access["my_access"], "view");
+    assert_eq!(access["grants"], json!([]));
+    assert!(
+        !access.to_string().contains(editor.user_id.as_str()),
+        "{access}"
+    );
+
+    let (status, refused) = send(
+        app(&state, &owner),
+        json_request(
+            Method::POST,
+            &format!("/{id}/transfer"),
+            &json!({ "transfer_to": format!("ghost-{}", Uuid::new_v4().simple()) }),
+        ),
+    )
+    .await?;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{refused}");
     Ok(())
 }

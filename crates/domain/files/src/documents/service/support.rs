@@ -1,6 +1,9 @@
 //! Shared steps of the document service: codec lookup, blocking codec
 //! calls, name rules, blob reads, event recipients and paths.
 //!
+//! Event recipients are the owner and every present user who still holds
+//! `view` or better when the event is emitted.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -46,6 +49,9 @@ pub(super) fn validate_name(name: &str) -> Result<(), DocumentsError> {
 
 pub(super) fn document_name(name: &str, format: DocumentFormat) -> Result<String, DocumentsError> {
     validate_name(name)?;
+    if format.is_file() {
+        return Ok(name.to_owned());
+    }
     let has_extension = name
         .rsplit_once('.')
         .and_then(|(_, ext)| DocumentFormat::from_extension(ext))
@@ -65,6 +71,15 @@ pub(super) fn apply_with(
     bytes: &[u8],
     ops: Vec<EditOp>,
 ) -> Result<Vec<u8>, DocumentsError> {
+    if format.is_file()
+        && let Some(op) = ops.first()
+    {
+        return Err(DocumentsError::UnsupportedOp {
+            op: op.name(),
+            format,
+            accepted_kinds: &[],
+        });
+    }
     let projection = codec.project(bytes)?;
     let resolved = resolve_targets(&projection, ops)?;
     codec
@@ -110,7 +125,11 @@ impl DocumentService {
         let size = size as u64;
         let limit = self.config.max_upload_bytes;
         if size > limit {
-            return Err(DocumentsError::TooLarge { size, limit });
+            return Err(DocumentsError::TooLarge {
+                what: "document content (bytes)",
+                size,
+                limit,
+            });
         }
         Ok(())
     }
@@ -125,6 +144,16 @@ impl DocumentService {
             .await?)
     }
 
+    pub(super) async fn parent_bytes(
+        &self,
+        revision: &DocumentRevision,
+    ) -> Result<Vec<u8>, DocumentsError> {
+        Ok(self
+            .blobs
+            .read_all_primary(&revision.content_sha256, self.config.max_upload_bytes)
+            .await?)
+    }
+
     pub(super) async fn plain_text_of(
         &self,
         format: DocumentFormat,
@@ -134,16 +163,40 @@ impl DocumentService {
         blocking(move || Ok(codec.plain_text(&bytes)?)).await
     }
 
-    pub(super) async fn recipients(&self, document: &Document) -> Vec<UserId> {
+    pub async fn recipients(&self, document: &Document) -> Vec<UserId> {
         let mut users = BTreeSet::new();
         users.insert(document.owner_user_id.clone());
-        match self.repos.presence.users_present(&document.id).await {
-            Ok(present) => users.extend(present),
-            Err(error) => tracing::warn!(
-                document_id = %document.id,
-                error = %error,
-                "Present users could not be read; the event reaches the owner only"
-            ),
+        let present = match self.repos.presence.users_present(&document.id).await {
+            Ok(present) => present,
+            Err(error) => {
+                tracing::warn!(
+                    document_id = %document.id,
+                    error = %error,
+                    "Present users could not be read; the event reaches the owner only"
+                );
+                Vec::new()
+            },
+        };
+        for user in present {
+            if users.contains(&user) {
+                continue;
+            }
+            match self.access.level_of(document, &user).await {
+                Ok(Some(_)) => {
+                    users.insert(user);
+                },
+                Ok(None) => tracing::debug!(
+                    document_id = %document.id,
+                    user_id = %user,
+                    "Present user no longer holds access; event withheld"
+                ),
+                Err(error) => tracing::warn!(
+                    document_id = %document.id,
+                    user_id = %user,
+                    error = %error,
+                    "Present user's access could not be read; event withheld"
+                ),
+            }
         }
         users.into_iter().collect()
     }

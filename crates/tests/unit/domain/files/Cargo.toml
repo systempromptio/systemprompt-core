@@ -23,6 +23,7 @@ systemprompt-extension = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-config = { workspace = true }
 systemprompt-manifest = { workspace = true }
+systemprompt-models = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true }
@@ -35,6 +36,7 @@ tempfile = { workspace = true }
 serde_yaml = { workspace = true }
 zip = { workspace = true }
 loro = { workspace = true }
+systemprompt-engine-loro = { workspace = true }
 
 [package.metadata.cargo-machete]
 ignored = ["reqwest"]

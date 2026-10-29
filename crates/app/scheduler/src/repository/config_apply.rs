@@ -165,6 +165,26 @@ impl ConfigReconcileRepository {
         Ok(())
     }
 
+    pub async fn resolve_conflict_file(
+        &self,
+        tx: &mut PlaneTransaction,
+        plane: &str,
+        entity: &str,
+        actor: &str,
+    ) -> SchedulerResult<()> {
+        sqlx::query!(
+            r"UPDATE config_conflicts
+                 SET resolved_by = $3, resolved_at = NOW(), resolution = 'file'
+               WHERE plane = $1 AND entity = $2 AND resolved_at IS NULL",
+            plane,
+            entity,
+            actor,
+        )
+        .execute(&mut **tx)
+        .await?;
+        Ok(())
+    }
+
     pub async fn update_conflict_converged(
         &self,
         tx: &mut PlaneTransaction,

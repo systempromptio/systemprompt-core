@@ -75,3 +75,16 @@ pub(super) fn replace_part(
     }
     Ok(writer.finish().map_err(zip_error)?.into_inner())
 }
+
+pub(super) fn add_part(bytes: &[u8], name: &str, content: &[u8]) -> Result<Vec<u8>, CodecError> {
+    let mut archive = ZipArchive::new(Cursor::new(bytes)).map_err(zip_error)?;
+    let mut writer = ZipWriter::new(Cursor::new(Vec::new()));
+    for index in 0..archive.len() {
+        let file = archive.by_index_raw(index).map_err(zip_error)?;
+        writer.raw_copy_file(file).map_err(zip_error)?;
+    }
+    let options = SimpleFileOptions::default().compression_method(CompressionMethod::Deflated);
+    writer.start_file(name, options).map_err(zip_error)?;
+    writer.write_all(content)?;
+    Ok(writer.finish().map_err(zip_error)?.into_inner())
+}

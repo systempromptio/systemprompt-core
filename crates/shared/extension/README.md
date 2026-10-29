@@ -37,7 +37,7 @@ An extension declares its schemas, API routes, scheduled jobs, providers, seeds,
 
 ```toml
 [dependencies]
-systemprompt-extension = "0.74"
+systemprompt-extension = "0.75"
 ```
 
 ```rust

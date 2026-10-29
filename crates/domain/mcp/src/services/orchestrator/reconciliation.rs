@@ -3,17 +3,20 @@
 //! [`reconcile`] is the single entry point the orchestrator runs at boot: it
 //! prunes stale, crashed, and disabled services, validates schemas, kills any
 //! surviving processes from a prior run, then starts every managed (subprocess)
-//! server from a clean slate. External servers are remote endpoints with no
-//! local process and are excluded from reconciliation entirely. Helpers here
-//! own the cleanup-and-notify steps that feed [`StartupEventSender`] progress
-//! events.
+//! server from a clean slate. An owned set narrows the sync, cleanup, kill and
+//! start steps to the named servers, so a replica that owns only some of the
+//! servers never touches the rest; every step reads and writes this
+//! replica's own `services` rows only. External servers are remote endpoints
+//! with no local process and are excluded from reconciliation entirely. Helpers
+//! here own the cleanup-and-notify steps that feed [`StartupEventSender`]
+//! progress events.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::error::McpDomainResult;
 use crate::services::spawn_target::SpawnTarget;
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashSet};
 use std::sync::Arc;
 use systemprompt_identifiers::{McpServerId, ServiceName};
 use systemprompt_traits::{StartupEvent, StartupEventSender};
@@ -37,6 +40,7 @@ pub struct ReconcileParams<'a> {
     pub lifecycle: &'a LifecycleService,
     pub event_bus: &'a Arc<EventBus>,
     pub registry: &'a RegistryService,
+    pub owned: Option<&'a BTreeSet<ServiceName>>,
     pub events: Option<&'a StartupEventSender>,
 }
 
@@ -46,6 +50,7 @@ pub(super) async fn reconcile(params: ReconcileParams<'_>) -> McpDomainResult<us
         lifecycle,
         event_bus,
         registry,
+        owned,
         events,
     } = params;
 
@@ -67,13 +72,18 @@ pub(super) async fn reconcile(params: ReconcileParams<'_>) -> McpDomainResult<us
             notify_cleanup(events, deleted, "no longer enabled in configuration");
         }
 
-        database.sync_state(&enabled_servers).await?;
-        cleanup_orphaned_and_stale(database, &enabled_servers, events).await?;
+        let target_servers: Vec<McpServerConfig> = enabled_servers
+            .into_iter()
+            .filter(|server| owned.is_none_or(|names| names.contains(&server.service_name())))
+            .collect();
 
-        kill_all_running_servers(database, events).await?;
+        database.sync_state(&target_servers).await?;
+        cleanup_orphaned_and_stale(database, &target_servers, events).await?;
+
+        kill_running_servers(database, owned, events).await?;
         let running_names = HashSet::new();
         start_pending_servers(StartPendingServersParams {
-            servers: &enabled_servers,
+            servers: &target_servers,
             running_names: &running_names,
             lifecycle,
             database,
@@ -143,13 +153,17 @@ fn log_and_notify_cleanup(
     }
 }
 
-async fn kill_all_running_servers(
+async fn kill_running_servers(
     database: &DatabaseService,
+    owned: Option<&BTreeSet<ServiceName>>,
     events: Option<&StartupEventSender>,
 ) -> McpDomainResult<()> {
     let running_servers = database.get_running_servers().await?;
 
-    for server in running_servers {
+    for server in running_servers
+        .into_iter()
+        .filter(|server| owned.is_none_or(|names| names.contains(&server.service_name())))
+    {
         let port = server.spawn_port()?;
         kill_single_server(database, &server.server_id(), events).await?;
         if let Err(e) = port::wait_for_port_release(port).await {

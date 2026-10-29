@@ -17,6 +17,9 @@ domain_error! {
         #[error("user already exists with email: {0}")]
         EmailAlreadyExists(String),
 
+        #[error("user {0} exists with a different account kind; the declaration cannot convert it")]
+        AccountKindMismatch(String),
+
         #[error("invalid status: {0}")]
         InvalidStatus(String),
 

@@ -1,0 +1,25 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO document_node_counters (document_id, writer, next)\n               SELECT $1::text::uuid, $2,\n                      COALESCE((SELECT MAX(split_part(node_id, '.', 2)::bigint)\n                                FROM document_node_ids\n                                WHERE document_id = $1::text::uuid\n                                  AND split_part(node_id, '.', 1) = $2\n                                  AND split_part(node_id, '.', 2) ~ '^[0-9]{1,18}$'), 0) + 1 + $3\n               ON CONFLICT (document_id, writer)\n                   DO UPDATE SET next = document_node_counters.next + $3\n               RETURNING next - $3 AS \"first!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "first!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "20ed39d1e57bc7e7ab8f6565525c2ca7f43165ada2ef462011b56fc0a6684920"
+}

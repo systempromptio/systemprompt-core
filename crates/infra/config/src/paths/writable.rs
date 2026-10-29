@@ -3,9 +3,10 @@
 //! On a read-only root filesystem every path the server writes must be a
 //! mounted volume. [`AppPaths::writable_roots`] is that contract: the boot
 //! probe creates and write-tests each root, so a missing mount fails the
-//! boot by name instead of failing the first request that writes. A
-//! `gateway` node renders no `web/dist` and fetches no services bundle, so
-//! it needs neither.
+//! boot by name instead of failing the first request that writes. Only the
+//! roles that run the scheduler (`all`, `worker`) render `web/dist` and
+//! compose the services bundle cache; `gateway`, `api` and `runner` nodes read
+//! them from a shared or prebuilt path and need neither writable.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -42,7 +43,7 @@ impl AppPaths {
             WritableRoot::new("storage.data", storage.data()),
             WritableRoot::new("storage.scratch", storage.scratch()),
         ];
-        if role.runs_workers() {
+        if role.writes_shared_caches() {
             roots.push(WritableRoot::new("web.dist", self.web().dist()));
             roots.push(WritableRoot::new("services.cache_dir", services_cache));
         }

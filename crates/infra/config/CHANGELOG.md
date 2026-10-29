@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.75.0] - 2026-10-28
+
+### Breaking
+
+- **Breaking:** a profile with `secrets.source: file` reads its secrets file on every host; `OAUTH_AT_REST_PEPPER` in the environment no longer substitutes environment secrets.
+- **Breaking:** `SecretsBootstrapError` gains `LicenceSigningSecretRequired`.
+
+### Changed
+
+- `POD_NAME` is the first stable instance-id source, ahead of `HOSTNAME` and `FLY_MACHINE_ID`.
+
 ## [0.73.0] - 2026-10-25
 
 ### Breaking

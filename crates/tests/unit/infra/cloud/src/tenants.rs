@@ -2,32 +2,82 @@
 
 use chrono::{TimeDelta, Utc};
 use systemprompt_cloud::tenants::NewCloudTenantParams;
-use systemprompt_cloud::{CloudTenantInfo, StoredTenant, TenantStore, TenantType};
+use systemprompt_cloud::{CloudTenantInfo, StoredTenant, TenantStore};
 use systemprompt_identifiers::{CloudAppId, TenantId};
+use systemprompt_manifest::HostingProvider;
 
 #[test]
-fn test_tenant_type_default_is_local() {
-    let default = TenantType::default();
-    assert_eq!(default, TenantType::Local);
+fn a_record_without_a_provider_is_a_local_docker_tenant() {
+    let tenant: StoredTenant = serde_json::from_str(r#"{"id":"t1","name":"Legacy"}"#).unwrap();
+    assert_eq!(tenant.provider, HostingProvider::DockerLocal);
 }
 
 #[test]
-fn test_tenant_type_variants() {
-    let local = TenantType::Local;
-    let cloud = TenantType::Cloud;
-
-    assert_ne!(local, cloud);
+fn a_legacy_cloud_tenant_type_reads_as_the_systemprompt_provider() {
+    let tenant: StoredTenant =
+        serde_json::from_str(r#"{"id":"t1","name":"Astound","tenant_type":"cloud"}"#).unwrap();
+    assert_eq!(tenant.provider, HostingProvider::Systemprompt);
+    assert!(tenant.is_systemprompt_managed());
 }
 
 #[test]
-fn test_tenant_type_serialization() {
-    let local = TenantType::Local;
-    let json = serde_json::to_string(&local).unwrap();
-    assert_eq!(json, "\"local\"");
+fn a_legacy_local_tenant_type_reads_as_docker_local() {
+    let tenant: StoredTenant =
+        serde_json::from_str(r#"{"id":"t1","name":"Dev","tenant_type":"local"}"#).unwrap();
+    assert_eq!(tenant.provider, HostingProvider::DockerLocal);
+    assert!(tenant.is_local());
+}
 
-    let cloud = TenantType::Cloud;
-    let json = serde_json::to_string(&cloud).unwrap();
-    assert_eq!(json, "\"cloud\"");
+#[test]
+fn a_legacy_record_is_rewritten_with_provider_on_save() {
+    let tenant: StoredTenant =
+        serde_json::from_str(r#"{"id":"t1","name":"Astound","tenant_type":"cloud"}"#).unwrap();
+    let json = serde_json::to_string(&tenant).unwrap();
+    assert!(json.contains("\"provider\":\"systemprompt\""), "{json}");
+    assert!(!json.contains("tenant_type"), "{json}");
+}
+
+#[test]
+fn a_legacy_tenants_file_loads_and_saves_in_the_new_shape() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("tenants.json");
+    std::fs::write(
+        &path,
+        r#"{"tenants":[
+            {"id":"t-cloud","name":"Prod","app_id":"sp-prod","hostname":"prod.example.com","region":"lhr","internal_database_url":"postgres://i/db","tenant_type":"cloud","external_db_access":false},
+            {"id":"t-local","name":"Dev","database_url":"postgres://l/db","tenant_type":"local"}
+        ],"synced_at":"2026-10-01T00:00:00Z"}"#,
+    )
+    .unwrap();
+
+    let store = TenantStore::load_from_path(&path).unwrap();
+    assert_eq!(store.tenants[0].provider, HostingProvider::Systemprompt);
+    assert_eq!(store.tenants[1].provider, HostingProvider::DockerLocal);
+
+    store.save_to_path(&path).unwrap();
+    let saved = std::fs::read_to_string(&path).unwrap();
+    assert!(!saved.contains("tenant_type"), "{saved}");
+    let value: serde_json::Value = serde_json::from_str(&saved).unwrap();
+    assert_eq!(value["tenants"][0]["provider"], "systemprompt");
+    assert_eq!(value["tenants"][1]["provider"], "docker_local");
+}
+
+#[test]
+fn an_unknown_provider_is_refused() {
+    let err = serde_json::from_str::<StoredTenant>(r#"{"id":"t1","name":"X","provider":"heroku"}"#)
+        .unwrap_err();
+    assert!(err.to_string().contains("heroku"), "{err}");
+}
+
+#[test]
+fn every_provider_round_trips_through_the_store_format() {
+    for provider in HostingProvider::ALL {
+        let mut tenant = StoredTenant::new(TenantId::new("t1"), "X".to_owned());
+        tenant.provider = provider;
+        let json = serde_json::to_string(&tenant).unwrap();
+        let back: StoredTenant = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.provider, provider);
+    }
 }
 
 #[test]
@@ -40,7 +90,7 @@ fn test_stored_tenant_new() {
     assert!(tenant.hostname.is_none());
     assert!(tenant.region.is_none());
     assert!(tenant.database_url.is_none());
-    assert_eq!(tenant.tenant_type, TenantType::Local);
+    assert_eq!(tenant.provider, HostingProvider::DockerLocal);
 }
 
 #[test]
@@ -69,7 +119,7 @@ fn test_stored_tenant_new_local() {
         tenant.database_url,
         Some("postgres://localhost/dev".to_string())
     );
-    assert_eq!(tenant.tenant_type, TenantType::Local);
+    assert_eq!(tenant.provider, HostingProvider::DockerLocal);
     assert!(tenant.app_id.is_none());
 }
 
@@ -93,7 +143,7 @@ fn test_stored_tenant_new_cloud() {
     assert_eq!(tenant.app_id, Some(CloudAppId::new("app-456")));
     assert_eq!(tenant.hostname, Some("prod.systemprompt.io".to_string()));
     assert_eq!(tenant.region, Some("iad".to_string()));
-    assert_eq!(tenant.tenant_type, TenantType::Cloud);
+    assert_eq!(tenant.provider, HostingProvider::Systemprompt);
 }
 
 #[test]
@@ -114,7 +164,7 @@ fn test_stored_tenant_new_cloud_minimal() {
     assert!(tenant.app_id.is_none());
     assert!(tenant.hostname.is_none());
     assert!(tenant.region.is_none());
-    assert_eq!(tenant.tenant_type, TenantType::Cloud);
+    assert_eq!(tenant.provider, HostingProvider::Systemprompt);
 }
 
 #[test]
@@ -140,7 +190,7 @@ fn test_stored_tenant_from_tenant_info() {
     assert_eq!(tenant.app_id, Some(CloudAppId::new("app-789")));
     assert_eq!(tenant.hostname, Some("info.systemprompt.io".to_string()));
     assert_eq!(tenant.region, Some("lhr".to_string()));
-    assert_eq!(tenant.tenant_type, TenantType::Cloud);
+    assert_eq!(tenant.provider, HostingProvider::Systemprompt);
 }
 
 #[test]
@@ -197,7 +247,7 @@ fn test_stored_tenant_serialization() {
     let json = serde_json::to_string(&tenant).unwrap();
     assert!(json.contains("\"id\":\"ser-123\""));
     assert!(json.contains("\"name\":\"Serialize Me\""));
-    assert!(json.contains("\"tenant_type\":\"local\""));
+    assert!(json.contains("\"provider\":\"docker_local\""));
 }
 
 #[test]
@@ -366,4 +416,112 @@ fn test_tenant_store_serialization() {
     assert!(json.contains("\"tenants\""));
     assert!(json.contains("\"synced_at\""));
     assert!(json.contains("\"id\":\"t1\""));
+}
+
+fn control_plane_info(id: &str, name: &str) -> CloudTenantInfo {
+    CloudTenantInfo {
+        id: TenantId::new(id),
+        name: name.to_string(),
+        subscription_id: None,
+        subscription_status: None,
+        app_id: None,
+        hostname: Some(format!("{id}.systemprompt.io")),
+        region: None,
+        plan: None,
+        status: None,
+        external_db_access: false,
+        database_url: format!("postgres://{id}"),
+    }
+}
+
+fn self_managed(id: &str, provider: HostingProvider) -> StoredTenant {
+    StoredTenant::new_self_managed(systemprompt_cloud::NewSelfManagedTenantParams {
+        id: TenantId::new(id),
+        name: "Acme".to_owned(),
+        provider,
+        hostname: "ai.acme.example".to_owned(),
+        region: Some("europe-west1".to_owned()),
+        database_url: None,
+    })
+}
+
+#[test]
+fn control_plane_sync_never_touches_a_self_managed_record() {
+    let mut store = TenantStore::new(vec![self_managed("acme", HostingProvider::Kubernetes)]);
+
+    store.merge_control_plane(&[control_plane_info("acme", "Renamed by control plane")]);
+
+    let tenant = store.find_tenant(&TenantId::new("acme")).unwrap();
+    assert_eq!(tenant.provider, HostingProvider::Kubernetes);
+    assert_eq!(tenant.name, "Acme");
+    assert_eq!(tenant.hostname.as_deref(), Some("ai.acme.example"));
+    assert_eq!(store.len(), 1);
+}
+
+#[test]
+fn control_plane_sync_drops_systemprompt_tenants_the_account_no_longer_lists() {
+    let gone = StoredTenant::from_tenant_info(&control_plane_info("sp-gone", "Gone"));
+    let mut store = TenantStore::new(vec![gone, self_managed("k8s-1", HostingProvider::Gke)]);
+
+    store.merge_control_plane(&[control_plane_info("sp-1", "Listed")]);
+
+    assert_eq!(store.len(), 2);
+    assert!(store.find_tenant(&TenantId::new("sp-gone")).is_none());
+    assert!(store.find_tenant(&TenantId::new("sp-1")).is_some());
+    assert!(store.find_tenant(&TenantId::new("k8s-1")).is_some());
+}
+
+#[test]
+fn control_plane_sync_updates_and_adds_systemprompt_tenants_beside_self_managed_ones() {
+    let mut existing = StoredTenant::from_tenant_info(&control_plane_info("sp-1", "Old"));
+    existing.name = "Old".to_owned();
+    let mut store = TenantStore::new(vec![existing, self_managed("k8s-1", HostingProvider::Gke)]);
+
+    store.merge_control_plane(&[
+        control_plane_info("sp-1", "New"),
+        control_plane_info("sp-2", "Second"),
+    ]);
+
+    assert_eq!(store.len(), 3);
+    assert_eq!(
+        store.find_tenant(&TenantId::new("sp-1")).unwrap().name,
+        "New"
+    );
+    assert_eq!(
+        store.find_tenant(&TenantId::new("sp-2")).unwrap().provider,
+        HostingProvider::Systemprompt
+    );
+    assert_eq!(
+        store.find_tenant(&TenantId::new("k8s-1")).unwrap().provider,
+        HostingProvider::Gke
+    );
+}
+
+#[test]
+fn insert_self_managed_refuses_systemprompt_and_duplicate_ids() {
+    let mut store = TenantStore::default();
+    store
+        .insert_self_managed(self_managed("acme", HostingProvider::Kubernetes))
+        .unwrap();
+
+    let duplicate = store.insert_self_managed(self_managed("acme", HostingProvider::Gke));
+    assert!(matches!(
+        duplicate,
+        Err(systemprompt_cloud::CloudError::TenantAlreadyExists { .. })
+    ));
+
+    let managed = store.insert_self_managed(self_managed("sp", HostingProvider::Systemprompt));
+    assert!(matches!(
+        managed,
+        Err(systemprompt_cloud::CloudError::TenantNotSelfManaged { .. })
+    ));
+}
+
+#[test]
+fn a_self_managed_tenant_reads_its_database_url_not_the_internal_one() {
+    let mut tenant = self_managed("acme", HostingProvider::Kubernetes);
+    assert!(!tenant.has_database_url());
+    tenant.database_url = Some("postgres://acme/db".to_owned());
+    assert!(tenant.has_database_url());
+    assert!(!tenant.has_missing_credentials());
 }

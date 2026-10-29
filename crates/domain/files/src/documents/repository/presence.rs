@@ -7,7 +7,7 @@ use std::time::Duration;
 
 use chrono::{DateTime, Utc};
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{DocumentId, UserId};
+use systemprompt_identifiers::{DocumentFolderId, DocumentId, UserId};
 use systemprompt_traits::RepositoryError;
 
 use super::Pools;
@@ -110,6 +110,16 @@ impl DocumentPresenceRepository {
         .await?)
     }
 
+    pub async fn clear(&self, document_id: &DocumentId) -> RepoResult<u64> {
+        let result = sqlx::query!(
+            "DELETE FROM document_presence WHERE document_id = $1::text::uuid",
+            document_id.as_str(),
+        )
+        .execute(&*self.pools.write)
+        .await?;
+        Ok(result.rows_affected())
+    }
+
     pub async fn sweep_expired(&self, limit: i64) -> RepoResult<u64> {
         let result = sqlx::query!(
             "DELETE FROM document_presence
@@ -118,6 +128,43 @@ impl DocumentPresenceRepository {
                  WHERE expires_at <= now()
                  LIMIT $1)",
             limit.max(1),
+        )
+        .execute(&*self.pools.write)
+        .await?;
+        Ok(result.rows_affected())
+    }
+
+    pub async fn delete_for_users(
+        &self,
+        document_id: &DocumentId,
+        users: &[UserId],
+    ) -> RepoResult<u64> {
+        let users: Vec<String> = users.iter().map(|u| u.as_str().to_owned()).collect();
+        let result = sqlx::query!(
+            "DELETE FROM document_presence
+             WHERE document_id = $1::text::uuid AND user_id = ANY($2::text[])",
+            document_id.as_str(),
+            &users,
+        )
+        .execute(&*self.pools.write)
+        .await?;
+        Ok(result.rows_affected())
+    }
+
+    pub async fn delete_for_users_under(
+        &self,
+        folder_id: &DocumentFolderId,
+        users: &[UserId],
+    ) -> RepoResult<u64> {
+        let users: Vec<String> = users.iter().map(|u| u.as_str().to_owned()).collect();
+        let result = sqlx::query!(
+            "DELETE FROM document_presence p
+             USING documents d, document_folders f
+             WHERE p.document_id = d.id AND d.folder_id = f.id
+               AND (f.id = $1::text::uuid OR $1::text::uuid = ANY(f.ancestor_ids))
+               AND p.user_id = ANY($2::text[])",
+            folder_id.as_str(),
+            &users,
         )
         .execute(&*self.pools.write)
         .await?;

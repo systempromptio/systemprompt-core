@@ -105,10 +105,13 @@ fn every_relative_import_resolves_to_a_shipped_file() {
     assert!(checked > 20, "only {checked} imports were checked");
 }
 
+fn asset(name: &str) -> String {
+    std::fs::read_to_string(assets_root().join("js").join(name)).expect("asset")
+}
+
 #[test]
-fn wasm_glue_loads_the_shipped_module() {
-    let collab =
-        std::fs::read_to_string(assets_root().join("js/documents-collab.js")).expect("collab");
-    assert!(collab.contains("\"../wasm/loro.wasm\""));
-    assert!(collab.contains("\"../wasm/loro.js\""));
+fn post_edits_takes_a_caller_stable_op_id() {
+    let api = asset("documents-api.js");
+    assert!(api.contains("op_id: editId"));
+    assert!(!api.contains("op_id: opId()"));
 }

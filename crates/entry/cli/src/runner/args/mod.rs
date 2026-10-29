@@ -222,6 +222,9 @@ impl Commands {
                 ),
             ) => CommandDescriptor::PROFILE_SECRETS_AND_PATHS,
             Self::Infra(cmd) => infra_descriptor(cmd),
+            Self::Admin(admin::AdminCommands::Licence(_)) => {
+                CommandDescriptor::FULL.with_read_only()
+            },
             Self::Analytics(_) => CommandDescriptor::FULL
                 .with_skip_validation()
                 .with_read_only(),

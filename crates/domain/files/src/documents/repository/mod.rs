@@ -8,21 +8,33 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod access_requests;
+mod agent_batch;
+mod agent_caps;
 mod blobs;
 mod collab_updates;
 mod documents;
 mod edit_sessions;
 
 mod comments;
+mod comments_granting;
+mod comments_write;
 mod folder_contents;
 mod folders;
+mod grant_events;
+mod grant_levels;
+mod grant_row;
 mod grants;
+mod head;
 mod listing;
 mod locks;
 mod node_ids;
+mod path_changes;
 mod presence;
+mod proposal_settle;
 mod proposals;
 mod purge;
+mod revision_landing;
 mod revisions;
 mod rows;
 mod text_index;
@@ -34,15 +46,22 @@ use std::sync::Arc;
 use sqlx::PgPool;
 use systemprompt_database::DbPool;
 
+pub use access_requests::DocumentAccessRequestRepository;
+pub use agent_batch::FolderChain;
+pub use agent_caps::{AgentFacts, AgentReadRecord, CapOverride};
 pub use blobs::DocumentBlobRepository;
-pub use collab_updates::{CollabUpdateRow, DocumentCollabRepository};
+pub use collab_updates::{CollabUpdateRow, DocumentCollabRepository, SnapshotMark};
 pub use comments::DocumentCommentRepository;
+pub use comments_write::CommentBodyEdit;
 pub use documents::DocumentRepository;
 pub use edit_sessions::DocumentEditSessionRepository;
 pub use folders::DocumentFolderRepository;
+pub use grant_events::DocumentGrantEventRepository;
 pub use grants::DocumentGrantRepository;
+pub use head::HeadMove;
 pub use locks::DocumentLockRepository;
 pub use node_ids::DocumentNodeIdRepository;
+pub use path_changes::{DocumentPathChange, PathMove};
 pub use presence::DocumentPresenceRepository;
 pub use proposals::DocumentProposalRepository;
 pub use revisions::DocumentRevisionRepository;
@@ -55,7 +74,10 @@ pub struct DocumentRepositories {
     pub documents: Arc<DocumentRepository>,
     pub revisions: Arc<DocumentRevisionRepository>,
     pub blobs: Arc<DocumentBlobRepository>,
+    pub uploads: Arc<crate::uploads::DocumentUploadRepository>,
     pub grants: Arc<DocumentGrantRepository>,
+    pub grant_events: Arc<DocumentGrantEventRepository>,
+    pub access_requests: Arc<DocumentAccessRequestRepository>,
     pub locks: Arc<DocumentLockRepository>,
     pub presence: Arc<DocumentPresenceRepository>,
     pub edit_sessions: Arc<DocumentEditSessionRepository>,
@@ -74,7 +96,10 @@ impl DocumentRepositories {
             documents: Arc::new(DocumentRepository::new(db)),
             revisions: Arc::new(DocumentRevisionRepository::new(db)),
             blobs: Arc::new(DocumentBlobRepository::new(db)),
+            uploads: Arc::new(crate::uploads::DocumentUploadRepository::new(db)),
             grants: Arc::new(DocumentGrantRepository::new(db)),
+            grant_events: Arc::new(DocumentGrantEventRepository::new(db)),
+            access_requests: Arc::new(DocumentAccessRequestRepository::new(db)),
             locks: Arc::new(DocumentLockRepository::new(db)),
             presence: Arc::new(DocumentPresenceRepository::new(db)),
             edit_sessions: Arc::new(DocumentEditSessionRepository::new(db)),

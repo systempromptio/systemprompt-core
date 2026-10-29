@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.75.0] - 2026-10-28
+
+### Added
+
+- `SubjectAttributeProvider::known_values` and `SubjectAttributeSource::known_values`, defaulting to `None`, let a dimension list its values for sharing.
+
 ## [0.74.0] - 2026-10-27
 
 ### Breaking

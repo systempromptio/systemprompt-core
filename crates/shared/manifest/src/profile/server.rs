@@ -56,6 +56,9 @@ pub struct ServerConfig {
     #[serde(default)]
     pub role: super::NodeRole,
 
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub advertise_url: Option<String>,
+
     #[serde(default)]
     pub max_in_flight: Option<std::num::NonZeroU32>,
 
@@ -90,6 +93,7 @@ impl ServerConfig {
             metrics_port: None,
             max_concurrent_streams: default_max_concurrent_streams(),
             role: super::NodeRole::default(),
+            advertise_url: None,
             max_in_flight: None,
             trusted_proxies: Vec::new(),
             shutdown: super::ShutdownConfig::default(),

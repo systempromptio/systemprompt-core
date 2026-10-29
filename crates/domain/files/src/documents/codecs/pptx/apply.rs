@@ -260,12 +260,7 @@ fn apply_edit(package: &mut Package<'_>, op: &EditOp) -> Result<usize, CodecErro
             };
             slides::insert_slide(package, &new).map(|()| 0)
         },
-        EditOp::Delete { .. }
-        | EditOp::SetCells { .. }
-        | EditOp::SetHtml { .. }
-        | EditOp::SetText { .. }
-        | EditOp::Restore { .. }
-        | EditOp::InsertFromRevision { .. } => Err(CodecError::UnsupportedOp {
+        _ => Err(CodecError::UnsupportedOp {
             op: op.name(),
             format: DocumentFormat::Pptx,
         }),

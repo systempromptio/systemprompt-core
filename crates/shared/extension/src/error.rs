@@ -36,6 +36,13 @@ pub enum LoaderError {
         message: String,
     },
 
+    #[error("Failed to initialize extension '{extension}': {source}")]
+    InitializationStepFailed {
+        extension: ExtensionId,
+        #[source]
+        source: BoxedSource,
+    },
+
     #[error("Failed to install schema for extension '{extension}': {message}")]
     SchemaInstallationFailed {
         extension: ExtensionId,

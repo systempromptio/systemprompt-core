@@ -232,3 +232,67 @@ async fn streaming_truncation_still_wins_over_the_tool_call() {
     let sse = sse_stream("max_tokens");
     assert_eq!(relay_streaming(&sse).await, sse);
 }
+
+async fn relay_buffered_text(upstream: &str) -> Bytes {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/messages"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("content-type", "application/json")
+                .set_body_string(upstream),
+        )
+        .mount(&server)
+        .await;
+    let route = route();
+    let req = request(false);
+    let raw = raw_request(false);
+    let ctx = OutboundCtx {
+        target: &route,
+        upstream: &support::api_key_call(&server.uri(), "k"),
+        http: &reqwest::Client::new(),
+        request: &req,
+        upstream_model: "upstream-1",
+        model_limits: None,
+        automatic_prompt_caching: false,
+        forward_headers: &[],
+        raw_body: Some(&raw),
+    };
+    let prepared = AnthropicOutbound.build_body(&ctx).expect("build");
+    match AnthropicOutbound.send(ctx, &prepared).await.expect("send") {
+        OutboundOutcome::RawBuffered { body, .. } => body,
+        _ => panic!("expected the passthrough lane"),
+    }
+}
+
+#[tokio::test]
+async fn buffered_correction_skips_lookalike_tokens_and_tolerates_whitespace() {
+    let upstream = r#"{"content":[{"type":"text","text":"stop_reason"},{"type":"tool_use","id":"tu_1","name":"t","input":{"stop_reason" : "other"}}], "stop_reason" :  "end_turn", "usage":{"input_tokens":1,"output_tokens":1}}"#;
+    let relayed = relay_buffered_text(upstream).await;
+    let expected = upstream.replace(
+        r#""stop_reason" :  "end_turn""#,
+        r#""stop_reason" :  "tool_use""#,
+    );
+    assert_eq!(String::from_utf8_lossy(&relayed), expected);
+}
+
+#[tokio::test]
+async fn buffered_bodies_without_a_stop_reason_are_untouched() {
+    let no_reason = r#"{"content":[{"type":"tool_use","id":"tu_1","name":"t","input":{}}]}"#;
+    assert_eq!(
+        relay_buffered_text(no_reason).await.as_ref(),
+        no_reason.as_bytes()
+    );
+}
+
+#[tokio::test]
+async fn streaming_comment_frames_and_reasonless_deltas_pass_through() {
+    let mut sse = String::from(": keepalive\n\n");
+    sse.push_str(&sse_stream("tool_use"));
+    sse.push_str(&format!(
+        "event: message_delta\ndata: {}\n\n",
+        json!({ "type": "message_delta", "delta": {}, "usage": { "output_tokens": 3 } })
+    ));
+    sse.push_str("data: trailing");
+    assert_eq!(relay_streaming(&sse).await, sse);
+}

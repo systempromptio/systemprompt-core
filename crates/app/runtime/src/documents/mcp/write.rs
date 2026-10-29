@@ -6,16 +6,21 @@
 //! touches: a node that changed at the head is refused as `guard_mismatch`
 //! with its current text, and an edit that landed while the head moved past
 //! `base_revision` answers `merged`. A `restore` whose base is not the head
-//! is refused as `stale_base`. An `op_id` makes the call idempotent: a
-//! repeat returns the stored acknowledgement with `replayed`. Every write
-//! answers with the lines it wrote, diffed against the parent revision, so
-//! the next edit anchors on the ack. An edit whose mode resolves to
-//! `propose` is written as a proposal instead (see `proposals`).
+//! is refused as `stale_base`. An `op_id` makes the call idempotent: the
+//! commit stores its acknowledgement in the same transaction, and a repeat
+//! of the same request returns it with `replayed`. Every write answers with
+//! the lines it wrote, diffed against the parent revision, so the next edit
+//! anchors on the ack. An edit whose mode resolves to
+//! `propose` is written as a proposal instead (see `proposals`), and when
+//! the caller did not ask for one (an agent capped at `suggest`) the summary
+//! says it was converted.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use rmcp::ErrorData as McpError;
+use systemprompt_files::documents::DocumentsError;
+use systemprompt_files::documents::model::{ModelViewV2, RICH_TEXT_VERSION, RichText, markdown};
 use systemprompt_files::documents::revision::CommitBody;
 use systemprompt_files::documents::service::{
     CommentPolicy, CommitOutcome, CommitRequest, CreateRequest, EditModeRequest,
@@ -23,17 +28,23 @@ use systemprompt_files::documents::service::{
 use systemprompt_identifiers::{DocumentId, DocumentOpId, DocumentRevisionId, McpExecutionId};
 use systemprompt_mcp::McpToolHandler;
 use systemprompt_models::auth::AuthenticatedUser;
-use systemprompt_models::documents::{ActorKind, DocumentUri, EditMode, EditOp};
+use systemprompt_models::documents::{ActorKind, EditMode, EditOp};
 use systemprompt_models::execution::context::RequestContext;
-use systemprompt_provider_contracts::documents::TemplateParams;
+use systemprompt_provider_contracts::documents::{CodecError, TemplateParams};
 
 use super::DocumentsMcpTools;
-use super::acks::{remember, replay};
 use super::inputs::{CreateInput, EditInput};
-use super::lines::written_lines;
-use super::outputs::{CreateOutput, EditOutput};
+use super::media::{image_refs, resolve_media};
+use super::outputs::CreateOutput;
 use super::proposals::propose_ops;
+use super::refusal::refusal;
 use super::support::{agent_author, caller, stale_base, tool_error};
+use crate::documents::refusal::RefusalCode;
+use crate::documents::views::{EditOutput, edit_ack, written_lines};
+
+const CONVERTED: &str = "Written as a proposal, not landed: agents may only suggest on this \
+                         document (its agent cap is suggest, or its folder's agent edit policy \
+                         is propose), or you hold comment but not edit";
 
 pub(super) struct EditCall<'a> {
     pub(super) tools: &'a DocumentsMcpTools,
@@ -50,34 +61,44 @@ pub(super) struct EditCall<'a> {
     pub(super) verbose: bool,
 }
 
-pub(super) async fn written(
-    call: &EditCall<'_>,
-    parent: Option<&DocumentRevisionId>,
-    revision: &DocumentRevisionId,
-) -> Result<Vec<String>, McpError> {
-    let service = call.tools.service();
-    let trace = call.ctx.trace_id();
-    let (_, head) = service
-        .project(call.who, &call.document, Some(revision), trace)
-        .await
-        .map_err(tool_error)?;
-    let base = match parent {
-        Some(parent) => Some(
-            service
-                .project(call.who, &call.document, Some(parent), trace)
-                .await
-                .map_err(tool_error)?
-                .1,
-        ),
-        None => None,
+const CONTENT_SHAPES: &str = "content is exactly {\"model\": <ModelViewV2>} or {\"markdown\": \
+                              \"<text>\"} (schema: GET /api/v1/documents/schema)";
+
+// JSON: the untyped create content, checked here against its two shapes.
+pub fn create_content(content: Option<serde_json::Value>) -> Result<Option<RichText>, McpError> {
+    let invalid = |detail: String| refusal(RefusalCode::InvalidParams, detail);
+    let Some(content) = content else {
+        return Ok(None);
     };
-    Ok(written_lines(base.as_ref(), &head))
+    let entry = content
+        .as_object()
+        .filter(|object| object.len() == 1)
+        .and_then(|object| object.iter().next());
+    match entry {
+        Some((key, serde_json::Value::String(markdown))) if key == "markdown" => {
+            Ok(Some(markdown::import(markdown)))
+        },
+        Some((key, value)) if key == "model" => {
+            let view: ModelViewV2 = serde_json::from_value(value.clone()).map_err(|source| {
+                tool_error(DocumentsError::Codec(CodecError::Payload {
+                    what: "content.model",
+                    source,
+                }))
+            })?;
+            if view.version > RICH_TEXT_VERSION || view.kind != "rich_text" {
+                return Err(invalid(format!(
+                    "content.model is {} v{}; this server reads rich_text up to v{RICH_TEXT_VERSION}; \
+                     {CONTENT_SHAPES}",
+                    view.kind, view.version
+                )));
+            }
+            Ok(Some(view.model))
+        },
+        _ => Err(invalid(CONTENT_SHAPES.to_owned())),
+    }
 }
 
 async fn commit_ops(call: EditCall<'_>) -> Result<(EditOutput, String), McpError> {
-    if let Some(replayed) = replay(&call).await? {
-        return Ok(replayed);
-    }
     let mode = call
         .tools
         .service()
@@ -93,9 +114,15 @@ async fn commit_ops(call: EditCall<'_>) -> Result<(EditOutput, String), McpError
         .await
         .map_err(tool_error)?;
     if mode == EditMode::Propose {
-        return propose_ops(call).await;
+        let asked = call.mode;
+        let (output, summary) = propose_ops(call).await?;
+        if asked == Some(EditMode::Propose) {
+            return Ok((output, summary));
+        }
+        return Ok((output, format!("{summary}. {CONVERTED}")));
     }
-    let applied = call.ops.len();
+    let refs = image_refs(None, &call.ops);
+    let media = resolve_media(call.tools, call.ctx, refs, Some(&call.document)).await?;
     let outcome = call
         .tools
         .service()
@@ -109,37 +136,28 @@ async fn commit_ops(call: EditCall<'_>) -> Result<(EditOutput, String), McpError
                 message: call.message.clone(),
                 lock_holder_id: None,
                 comments: call.comments.clone(),
+                op_id: call.op_id.clone(),
+                media,
             },
             call.ctx.trace_id(),
         )
         .await
         .map_err(tool_error)?;
-    let (revision, merged) = match outcome {
-        CommitOutcome::Committed { revision, .. } => (revision, false),
-        CommitOutcome::Merged { revision, .. } => (revision, true),
+    let landed = match outcome {
+        CommitOutcome::Committed(landed) | CommitOutcome::Merged(landed) => *landed,
         CommitOutcome::Conflict { head, base } => {
             return Err(stale_base(&call.document, &head, base.as_ref()));
         },
     };
-    let written = written(&call, revision.parent_revision_id.as_ref(), &revision.id).await?;
-    let summary = format!(
-        "revision {}: {applied} ops, {} lines written",
-        revision.id,
-        written.len()
-    );
-    let verbose = call.verbose;
-    let output = EditOutput {
-        uri: verbose
-            .then(|| DocumentUri::new(call.document.clone()).at_revision(revision.id.clone())),
-        parent_revision_id: revision.parent_revision_id.filter(|_| verbose),
-        revision_id: revision.id,
-        applied,
-        merged,
-        replayed: false,
-        proposal_id: None,
-        written,
+    let output = edit_ack(&call.document, landed, call.verbose);
+    let summary = if output.replayed {
+        format!(
+            "op {} replayed",
+            call.op_id.as_ref().map_or("", |op| op.as_str())
+        )
+    } else {
+        format!("wrote {}", output.written.len())
     };
-    remember(&call, &output).await;
     Ok((output, summary))
 }
 
@@ -157,7 +175,7 @@ impl McpToolHandler for CreateHandler<'_> {
     }
 
     fn description(&self) -> &'static str {
-        "Create from a template, optionally with ops."
+        "Create from a template. Guide: model."
     }
 
     async fn handle(
@@ -168,6 +186,9 @@ impl McpToolHandler for CreateHandler<'_> {
     ) -> Result<(CreateOutput, String), McpError> {
         let who = caller(ctx)?;
         let applied = input.ops.len();
+        let content = create_content(input.content)?;
+        let refs = image_refs(content.as_ref(), &input.ops);
+        let media = resolve_media(self.tools, ctx, refs, None).await?;
         let (document, revision) = self
             .tools
             .service()
@@ -183,6 +204,8 @@ impl McpToolHandler for CreateHandler<'_> {
                     ops: input.ops,
                     author: agent_author(ctx, exec_id),
                     message: input.message,
+                    content,
+                    media,
                 },
                 ctx.trace_id(),
             )
@@ -228,7 +251,7 @@ impl McpToolHandler for EditHandler<'_> {
     }
 
     fn description(&self) -> &'static str {
-        "Apply ops on the head, or as a proposal with mode: propose. Guide: editing."
+        "Apply ops, or propose them. Guide: editing."
     }
 
     async fn handle(

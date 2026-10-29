@@ -136,7 +136,20 @@ impl<'d> FlowBatch<'d> {
             | EditOp::SetHtml { .. }
             | EditOp::SetText { .. }
             | EditOp::Restore { .. }
-            | EditOp::InsertFromRevision { .. } => return Err(self.unsupported(op)),
+            | EditOp::InsertFromRevision { .. }
+            | EditOp::SetMarks(_)
+            | EditOp::SetBlockType(_)
+            | EditOp::InsertTable(_)
+            | EditOp::TableInsertRow(_)
+            | EditOp::TableInsertCol(_)
+            | EditOp::TableDelete(_)
+            | EditOp::InsertImage(_)
+            | EditOp::SetParagraph(_)
+            | EditOp::InsertBlock(_)
+            | EditOp::UpdateTable(_)
+            | EditOp::SetSection(_)
+            | EditOp::SetStyle(_)
+            | EditOp::ApplyTheme(_) => return Err(self.unsupported(op)),
         }
         Ok(())
     }

@@ -1,5 +1,6 @@
-//! Document access levels, the actions they gate, and the provenance
-//! vocabulary recorded on every revision.
+//! Document access levels, the actions they gate, the provenance
+//! vocabulary recorded on every revision, and the sharing audit and access
+//! request vocabulary.
 //!
 //! [`AccessLevel`] is totally ordered: holding a level grants every level
 //! below it, so a grant check is a single comparison against
@@ -193,4 +194,38 @@ pub enum EditMode {
 wire_enum!(EditMode, "edit mode", {
     Land => "land",
     Propose => "propose",
+});
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum GrantEventKind {
+    Granted,
+    Changed,
+    Revoked,
+    RevokedAll,
+    Transferred,
+    Expired,
+}
+
+wire_enum!(GrantEventKind, "grant event", {
+    Granted => "granted",
+    Changed => "changed",
+    Revoked => "revoked",
+    RevokedAll => "revoked_all",
+    Transferred => "transferred",
+    Expired => "expired",
+});
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum AccessRequestStatus {
+    Open,
+    Granted,
+    Declined,
+}
+
+wire_enum!(AccessRequestStatus, "access request status", {
+    Open => "open",
+    Granted => "granted",
+    Declined => "declined",
 });

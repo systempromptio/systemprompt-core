@@ -1,4 +1,5 @@
 mod pipeline;
+mod sharing;
 mod standards;
 
 use std::collections::BTreeSet;

@@ -29,7 +29,7 @@ A token grant crosses domains: clients, codes and refresh tokens live in `system
 
 ```toml
 [dependencies]
-systemprompt-oauth-issuance = "0.74"
+systemprompt-oauth-issuance = "0.75"
 ```
 
 ```rust

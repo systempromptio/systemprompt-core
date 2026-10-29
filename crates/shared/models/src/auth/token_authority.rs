@@ -16,7 +16,7 @@ use systemprompt_identifiers::{AccessTokenId, ClientId, PluginId, SessionId};
 use systemprompt_traits::BoxedSource;
 use thiserror::Error;
 
-use super::{AuthenticatedUser, JwtAudience, JwtClaims, Permission};
+use super::{AuthenticatedUser, JwtAudience, JwtClaims, Permission, TokenInteraction};
 
 #[derive(Debug, Error)]
 #[non_exhaustive]
@@ -68,6 +68,8 @@ pub struct UserJwtRequest {
     pub client_id: Option<ClientId>,
     pub purpose: Option<String>,
     pub plugin_id: Option<PluginId>,
+    pub interaction: Option<TokenInteraction>,
+    pub browser_session: bool,
 }
 
 pub trait TokenAuthority: Send + Sync + std::fmt::Debug {

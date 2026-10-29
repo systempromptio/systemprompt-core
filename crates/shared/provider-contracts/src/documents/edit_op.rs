@@ -12,6 +12,10 @@
 //! `as: markdown`, as Markdown that each codec lowers into native blocks;
 //! `append_markdown` adds lowered blocks at the end of the document body.
 //!
+//! The rich-text and table ops (`set_marks`, `set_block_type`, the table
+//! ops, `insert_image`) carry their payload as a struct from `rich_op` and
+//! apply through the document's `RichText` model.
+//!
 //! `restore` and `insert_from_revision` name an earlier revision; the
 //! document service expands them (into the revision's bytes, or an
 //! `insert_after` of the named node's text) before a codec sees the batch.
@@ -26,7 +30,9 @@ use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{DocumentNodeId, DocumentRevisionId};
 
 use super::codec::CodecError;
+use super::layout_op::{ApplyTheme, InsertBlock, SetParagraph, SetSection, SetStyle, UpdateTable};
 use super::projection::NodeKind;
+use super::rich_op::{InsertImage, InsertTable, SetBlockType, SetMarks, TableDelete, TableInsert};
 
 /// The node an anchored op addresses: a node id from a read, or a quote of
 /// the block's text.
@@ -99,7 +105,9 @@ impl EditOp {
             Self::Restore { .. } | Self::InsertFromRevision { .. } => Err(CodecError::Malformed {
                 detail: "a revision op reached the codec unexpanded",
             }),
-            _ => Ok(()),
+            _ => self
+                .rich_guard()
+                .map_or(Ok(()), |(node, _)| node.resolved().map(|_| ())),
         }
     }
 }
@@ -185,6 +193,19 @@ pub enum EditOp {
         node: DocumentNodeId,
         after: NodeTarget,
     },
+    SetMarks(SetMarks),
+    SetBlockType(SetBlockType),
+    InsertTable(InsertTable),
+    TableInsertRow(TableInsert),
+    TableInsertCol(TableInsert),
+    TableDelete(TableDelete),
+    InsertImage(InsertImage),
+    SetParagraph(SetParagraph),
+    InsertBlock(InsertBlock),
+    UpdateTable(UpdateTable),
+    SetSection(SetSection),
+    SetStyle(SetStyle),
+    ApplyTheme(ApplyTheme),
 }
 
 impl EditOp {
@@ -202,6 +223,19 @@ impl EditOp {
             Self::AppendMarkdown { .. } => "append_markdown",
             Self::Restore { .. } => "restore",
             Self::InsertFromRevision { .. } => "insert_from_revision",
+            Self::SetMarks(_) => "set_marks",
+            Self::SetBlockType(_) => "set_block_type",
+            Self::InsertTable(_) => "insert_table",
+            Self::TableInsertRow(_) => "table_insert_row",
+            Self::TableInsertCol(_) => "table_insert_col",
+            Self::TableDelete(_) => "table_delete",
+            Self::InsertImage(_) => "insert_image",
+            Self::SetParagraph(_) => "set_paragraph",
+            Self::InsertBlock(_) => "insert_block",
+            Self::UpdateTable(_) => "update_table",
+            Self::SetSection(_) => "set_section",
+            Self::SetStyle(_) => "set_style",
+            Self::ApplyTheme(_) => "apply_theme",
         }
     }
 
@@ -213,11 +247,27 @@ impl EditOp {
             | Self::Delete { node, .. } => node.id(),
             Self::InsertFromRevision { after, .. } => after.id(),
             Self::InsertSlide { after, .. } => after.as_ref(),
+            Self::SetMarks(_)
+            | Self::SetBlockType(_)
+            | Self::InsertTable(_)
+            | Self::TableInsertRow(_)
+            | Self::TableInsertCol(_)
+            | Self::TableDelete(_)
+            | Self::InsertImage(_)
+            | Self::SetParagraph(_)
+            | Self::InsertBlock(_)
+            | Self::UpdateTable(_) => match self.rich_guard() {
+                Some((node, _)) => node.id(),
+                None => None,
+            },
             Self::SetCells { .. }
             | Self::StrReplace { .. }
             | Self::SetHtml { .. }
             | Self::SetText { .. }
             | Self::AppendMarkdown { .. }
+            | Self::SetSection(_)
+            | Self::SetStyle(_)
+            | Self::ApplyTheme(_)
             | Self::Restore { .. } => None,
         }
     }

@@ -124,12 +124,14 @@ fn drive_routes(ctx: &AppContext, jwt_extractor: &Arc<JwtContextExtractor>) -> R
     crate::routes::documents::drive::router(crate::routes::documents::drive::DriveState::new(
         crate::routes::documents::document_service(ctx),
         Arc::clone(jwt_extractor),
+        ctx.token_authority(),
     ))
 }
 
 struct GatewayParts {
     traffic: Router,
     bridge_auth: Router,
+    jwt_extractor: Arc<JwtContextExtractor>,
 }
 
 fn gateway_parts(ctx: &AppContext, engines: &Arc<GatewayEngines>) -> anyhow::Result<GatewayParts> {
@@ -153,6 +155,7 @@ fn gateway_parts(ctx: &AppContext, engines: &Arc<GatewayEngines>) -> anyhow::Res
             .route("/models", get(models::list).with_state(ctx.clone()))
             .route("/", get(models::root)),
         bridge_auth: bridge_auth_routes(ctx, &jwt_extractor),
+        jwt_extractor,
     })
 }
 
@@ -180,15 +183,24 @@ pub fn gateway_mount_router(
     let parts = gateway_parts(ctx, engines)?;
     let rate_config = &ctx.config().rate_limits;
 
-    let traffic =
-        parts
-            .traffic
-            .with_rate_limit(limits, rate_config.gateway_per_second, "gateway")?;
-    let bridge_auth = parts.bridge_auth.with_rate_limit(
-        limits,
-        rate_config.bridge_auth_per_second,
-        "bridge_auth",
-    )?;
+    let traffic = parts
+        .traffic
+        .with_rate_limit(limits, rate_config.gateway_per_second, "gateway")?
+        .with_bearer_window(
+            limits,
+            &parts.jwt_extractor,
+            rate_config.gateway_per_second,
+            "gateway",
+        );
+    let bridge_auth = parts
+        .bridge_auth
+        .with_rate_limit(limits, rate_config.bridge_auth_per_second, "bridge_auth")?
+        .with_bearer_window(
+            limits,
+            &parts.jwt_extractor,
+            rate_config.bridge_auth_per_second,
+            "bridge_auth",
+        );
 
     Ok(common_layers(ctx, traffic.merge(bridge_auth)))
 }

@@ -6,18 +6,19 @@
 use std::time::Duration;
 
 use systemprompt_identifiers::{
-    DocumentCommentId, DocumentEditSessionId, DocumentFolderId, DocumentId, DocumentRevisionId,
-    DocumentTemplateId, DriveDeviceId, McpExecutionId, SessionId,
+    DocumentCommentId, DocumentEditSessionId, DocumentFolderId, DocumentId, DocumentOpId,
+    DocumentRevisionId, DocumentTemplateId, DriveDeviceId, McpExecutionId, SessionId,
 };
 use systemprompt_models::documents::{
-    AccessLevel, ActorKind, DocumentFormat, EditOp, RevisionOriginKind,
+    AccessLevel, ActorKind, DocumentFormat, EditOp, Projection, RevisionOriginKind,
 };
 use systemprompt_provider_contracts::documents::TemplateParams;
 use systemprompt_traits::ByteRange;
 
+use crate::documents::model::{Media, RichText};
 use crate::documents::models::{
     Document, DocumentFolder, DocumentRevision, DocumentSearchHit, ListCursor, ListScope, ListSort,
-    ListedDocument, ListingCursor, LockHolderKind, RevisionAttribution,
+    ListedDocument, ListingCursor, LockHolderKind, RevisionAttribution, WriteAck,
 };
 use crate::documents::revision::CommitBody;
 
@@ -121,6 +122,8 @@ pub struct CreateRequest {
     pub ops: Vec<EditOp>,
     pub author: Author,
     pub message: Option<String>,
+    pub content: Option<RichText>,
+    pub media: Media,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -128,6 +131,7 @@ pub struct ImportRequest {
     pub folder: Option<DocumentFolderId>,
     pub name: String,
     pub format: Option<DocumentFormat>,
+    pub mime_type: Option<String>,
     pub bytes: Vec<u8>,
     pub author: Author,
 }
@@ -155,6 +159,8 @@ pub struct CommitRequest {
     pub message: Option<String>,
     pub lock_holder_id: Option<String>,
     pub comments: CommentPolicy,
+    pub op_id: Option<DocumentOpId>,
+    pub media: Media,
 }
 
 /// How a commit treats comment anchors.
@@ -186,19 +192,36 @@ pub enum CommitWarning {
     EventsNotDelivered,
 }
 
+/// A revision a commit landed, with the acknowledgement stored for it.
+///
+/// `projection` is the landed revision's id-addressed projection: the one
+/// the commit built, or for a replayed acknowledgement (`replayed`) the
+/// acknowledged revision's.
+#[derive(Debug, Clone, PartialEq)]
+pub struct LandedCommit {
+    pub revision: DocumentRevision,
+    pub ack: WriteAck,
+    pub projection: Projection,
+    pub replayed: bool,
+    pub warnings: Vec<CommitWarning>,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum CommitOutcome {
-    Committed {
-        revision: DocumentRevision,
-        warnings: Vec<CommitWarning>,
-    },
-    Merged {
-        revision: DocumentRevision,
-        merged_from: DocumentRevisionId,
-        warnings: Vec<CommitWarning>,
-    },
+    Committed(Box<LandedCommit>),
+    Merged(Box<LandedCommit>),
     Conflict {
-        head: DocumentRevision,
+        head: Box<DocumentRevision>,
         base: Option<DocumentRevisionId>,
     },
+}
+
+impl CommitOutcome {
+    #[must_use]
+    pub fn landed(&self) -> Option<&LandedCommit> {
+        match self {
+            Self::Committed(landed) | Self::Merged(landed) => Some(landed),
+            Self::Conflict { .. } => None,
+        }
+    }
 }

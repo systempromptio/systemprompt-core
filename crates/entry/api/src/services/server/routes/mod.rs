@@ -78,7 +78,11 @@ fn build_routes(
     .map_err(|source| RouteMountError::initialization("prometheus_metrics", source))?;
 
     let jwt_extractor = build_jwt_extractor(ctx)?;
-    let limits = RateLimitState::from_context(ctx);
+    let limits = if role.shares_process_ownership() {
+        RateLimitState::from_context(ctx).unmetered()
+    } else {
+        RateLimitState::from_context(ctx)
+    };
 
     let public_middleware = PublicContextMiddleware::new();
     let user_middleware = UserOnlyContextMiddleware::new(jwt_extractor.clone());
@@ -132,7 +136,22 @@ fn build_routes(
     }
 
     router = router.layer(axum::Extension(refresh_lock));
+    Ok(finish_router(
+        router,
+        ctx,
+        &serves,
+        public_middleware,
+        events,
+    ))
+}
 
+fn finish_router(
+    mut router: Router,
+    ctx: &AppContext,
+    serves: &impl Fn(RouteGroup) -> bool,
+    public_middleware: PublicContextMiddleware,
+    events: Option<&StartupEventSender>,
+) -> Router {
     let banned_ip_repo = crate::repository::banned_ips(ctx.db_pool());
     let trusted_proxies = Arc::new(ctx.config().trusted_proxies.clone());
 
@@ -150,7 +169,7 @@ fn build_routes(
         ));
     }
 
-    Ok(router.layer(axum::middleware::from_fn(super::metrics::track_metrics)))
+    router.layer(axum::middleware::from_fn(super::metrics::track_metrics))
 }
 
 fn mount_discovery(

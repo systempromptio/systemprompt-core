@@ -1,5 +1,9 @@
 //! Security response headers (CSP, frame options, HSTS).
 //!
+//! A route that sets `X-Content-Type-Options: nosniff` itself (user
+//! content) keeps it; any other value, or none, is replaced by the
+//! configured one.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -50,7 +54,11 @@ pub async fn inject_security_headers(
         }
     }
 
-    if let Ok(value) = HeaderValue::from_str(&config.content_type_options) {
+    let route_nosniff = headers
+        .get("x-content-type-options")
+        .and_then(|value| value.to_str().ok())
+        .is_some_and(|value| value.trim().eq_ignore_ascii_case("nosniff"));
+    if !route_nosniff && let Ok(value) = HeaderValue::from_str(&config.content_type_options) {
         headers.insert("x-content-type-options", value);
     }
 

@@ -163,6 +163,7 @@ pub(crate) struct GuiApp {
     pub(crate) unattended_repairs: HashSet<systemprompt_models::bridge::host::HostKind>,
     pub(crate) drive_watch: tokio::sync::watch::Receiver<u64>,
     pub(crate) drive_notice_seq: u64,
+    pub(crate) drive_review_since: chrono::DateTime<chrono::Utc>,
 }
 
 impl GuiApp {
@@ -187,6 +188,7 @@ impl GuiApp {
             unattended_repairs: HashSet::new(),
             drive_watch,
             drive_notice_seq: 0,
+            drive_review_since: chrono::Utc::now(),
         }
     }
 

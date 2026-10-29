@@ -284,7 +284,7 @@ async fn minting_a_session_for_an_unknown_user_fails() {
 }
 
 #[tokio::test]
-async fn provider_listing_keeps_one_of_a_duplicated_id_and_skips_disabled_ones() {
+async fn provider_listing_skips_disabled_providers() {
     let h = harness().await;
 
     let ids = h.driver.provider_ids();

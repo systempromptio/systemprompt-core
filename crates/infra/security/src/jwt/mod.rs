@@ -25,7 +25,7 @@ pub mod mint;
 pub mod validate;
 
 pub use authority::{DeploymentTokenAuthority, encode_rs256, user_claims};
-pub use decode::{JwtUserContext, extract_user_context};
+pub use decode::{JwtUserContext, extract_user_context, extract_user_context_for};
 pub use mint::{AdminTokenParams, JwtService};
 pub use validate::{
     JWT_LEEWAY_SECONDS, ValidationPolicy, decode_rs256_claims, decode_session_claims,

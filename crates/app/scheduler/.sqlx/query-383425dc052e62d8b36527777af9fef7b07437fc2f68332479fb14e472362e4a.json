@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE licence_checkin_state\n            SET last_success_at = NOW(), last_status = $1, last_error = NULL,\n                last_error_at = NULL, updated_at = NOW()\n            WHERE id\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "383425dc052e62d8b36527777af9fef7b07437fc2f68332479fb14e472362e4a"
+}

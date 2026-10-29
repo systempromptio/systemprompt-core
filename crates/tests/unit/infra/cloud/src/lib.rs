@@ -22,6 +22,8 @@ mod deploy_dockerfile;
 #[cfg(test)]
 mod deploy_dockerfile_extensions;
 #[cfg(test)]
+mod deploy_provider;
+#[cfg(test)]
 mod deploy_validation;
 #[cfg(test)]
 mod discovered_project;

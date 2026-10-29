@@ -3,8 +3,11 @@
 //!
 //! A read answers with the revision's content hash as its `ETag`: a matching
 //! `If-None-Match` is `304`, a single `Range` is `206` (unless a stale
-//! `If-Range` asks for the whole body). A write names its base revision in
-//! `If-Match`; a base that is no longer the head answers `409` with both.
+//! `If-Range` asks for the whole body). A read with `format=pdf` answers the
+//! revision rendered as PDF, whole, with the rendering's hash as its `ETag`.
+//! Every body is served as user content (`nosniff`, a sandbox CSP).
+//! A write names its base revision in `If-Match`; a base that is no longer
+//! the head answers `409` with both.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -17,9 +20,12 @@ use axum::response::{IntoResponse, Response};
 use serde::Deserialize;
 use systemprompt_files::documents::DocumentsError;
 use systemprompt_files::documents::blob_store::BlobStoreError;
+use systemprompt_files::documents::pdf::PDF_MIME_TYPE;
 use systemprompt_files::documents::service::StreamRequest;
 use systemprompt_identifiers::{DocumentId, DocumentRevisionId};
 use systemprompt_models::RequestContext;
+use systemprompt_models::documents::content_hash;
+use systemprompt_runtime::documents::download::{DOWNLOAD_FORMAT_PDF, Rendition};
 use systemprompt_traits::{FileStorageError, StoredFileRead};
 
 use super::DocumentsState;
@@ -28,14 +34,27 @@ use super::error::DocumentsResult;
 use super::headers::{content_disposition, etag, if_range_holds, none_match, range};
 use super::items::document_id;
 use crate::error::ApiHttpError;
+use crate::routes::user_content::{USER_CONTENT_CSP, harden};
 
 #[derive(Debug, Deserialize)]
 pub(super) struct RevisionQuery {
     pub(super) revision: Option<String>,
+    pub(super) format: Option<String>,
 }
 
 pub(super) fn revision_id(raw: Option<&str>) -> DocumentsResult<Option<DocumentRevisionId>> {
     Ok(raw.map(DocumentRevisionId::try_new).transpose()?)
+}
+
+pub(super) fn rendition(raw: Option<&str>) -> DocumentsResult<Rendition> {
+    match raw {
+        None => Ok(Rendition::Native),
+        Some(DOWNLOAD_FORMAT_PDF) => Ok(Rendition::Pdf),
+        Some(other) => Err(ApiHttpError::bad_request(format!(
+            "format `{other}` is not a download format; omit it or pass {DOWNLOAD_FORMAT_PDF}"
+        ))
+        .into()),
+    }
 }
 
 pub(super) async fn read(
@@ -53,6 +72,7 @@ pub(super) async fn read(
         headers: &parts.headers,
         id: &id,
         revision,
+        rendition: rendition(query.format.as_deref())?,
     };
     serve(&state, request).await
 }
@@ -69,6 +89,7 @@ pub(super) struct ContentRequest<'a> {
     pub(super) headers: &'a HeaderMap,
     pub(super) id: &'a DocumentId,
     pub(super) revision: Option<DocumentRevisionId>,
+    pub(super) rendition: Rendition,
 }
 
 pub(super) async fn serve(
@@ -80,8 +101,12 @@ pub(super) async fn serve(
         method,
         headers,
         id,
-        revision,
+        ref revision,
+        rendition,
     } = request;
+    if rendition == Rendition::Pdf {
+        return serve_pdf(state, &request).await;
+    }
     let view = state.service.get(&who.user, id, &who.trace).await?;
     let wanted = (*method == Method::GET).then(|| range(headers)).flatten();
     let request = StreamRequest {
@@ -180,7 +205,50 @@ fn stream_response(read: StoredFileRead, served: &Served<'_>) -> Response {
     if let Some(range) = read.range {
         set(header::CONTENT_RANGE, range.content_range());
     }
+    harden(&mut response, USER_CONTENT_CSP);
     response
+}
+
+async fn serve_pdf(
+    state: &DocumentsState,
+    request: &ContentRequest<'_>,
+) -> DocumentsResult<Response> {
+    let who = request.who;
+    let rendered = state
+        .service
+        .render_pdf(&who.user, request.id, request.revision.as_ref(), &who.trace)
+        .await?;
+    let tag = etag(&content_hash(&rendered.bytes));
+    if none_match(request.headers, &tag) {
+        return Ok(not_modified(&tag));
+    }
+    let length = rendered.bytes.len();
+    let body = if *request.method == Method::HEAD {
+        Body::empty()
+    } else {
+        Body::from(rendered.bytes)
+    };
+    let mut response = Response::new(body);
+    let response_headers = response.headers_mut();
+    let mut set = |name, value: String| {
+        if let Ok(value) = HeaderValue::from_str(&value) {
+            response_headers.insert(name, value);
+        }
+    };
+    set(header::CONTENT_TYPE, PDF_MIME_TYPE.to_owned());
+    set(header::ETAG, tag);
+    set(header::CACHE_CONTROL, "private, no-cache".to_owned());
+    set(
+        header::CONTENT_DISPOSITION,
+        content_disposition(&rendered.file_name),
+    );
+    set(
+        header::HeaderName::from_static("x-revision-id"),
+        rendered.revision.id.as_str().to_owned(),
+    );
+    set(header::CONTENT_LENGTH, length.to_string());
+    harden(&mut response, USER_CONTENT_CSP);
+    Ok(response)
 }
 
 fn not_modified(tag: &str) -> Response {

@@ -80,11 +80,15 @@ fn deployment_host_uses_env_for_env_source_with_or_without_a_pepper() {
 }
 
 #[test]
-fn deployment_host_with_a_pepper_overrides_a_file_source() {
-    let cfg = config(SecretsSource::File, Some("secrets.json"), false);
+fn an_explicit_file_source_reads_the_file_on_a_deployment_host_with_a_pepper() {
+    let cfg = config(
+        SecretsSource::File,
+        Some("/etc/systemprompt/secrets.json"),
+        false,
+    );
     assert_eq!(
         resolve_source(Some(&cfg), false, true, true).unwrap(),
-        ResolvedSource::DeploymentHostEnv
+        ResolvedSource::File("/etc/systemprompt/secrets.json")
     );
 }
 

@@ -84,7 +84,7 @@ pub async fn exchange_bridge_session_code(
         analytics,
         sessions,
         users,
-        BridgeAccessRequest::bridge(config, request_headers, caller_ip, &user_id),
+        BridgeAccessRequest::bridge(config, request_headers, caller_ip, &user_id).interactive(),
     )
     .await?;
     Ok(Some(result))

@@ -3,18 +3,19 @@ use systemprompt_mcp::McpToolHandler;
 use systemprompt_models::documents::{AccessLevel, ActorKind, ContentAs, EditOp, NodeTarget};
 use systemprompt_runtime::documents::mcp::{
     EditHandler, EditInput, ExportAs, ExportFormat, ExportHandler, ExportInput, HistoryHandler,
-    HistoryInput, ListHandler, ListInput, ListScopeInput, ListSortInput, ReadHandler, ReadInput,
-    ReadView, ShareHandler, ShareInput,
+    HistoryInput, ListHandler, ListInput, ListScopeInput, ListSortInput, ReadHandler, ShareHandler,
+    ShareInput,
 };
+use systemprompt_runtime::documents::views::{ReadInput, ReadView};
 
 use crate::documents_mcp_support::{
-    create_text, ctx_for, exec, harness, line_for, person, read_text,
+    create_text, ctx_for, exec, harness, line_for, read_text, registered,
 };
 
 #[tokio::test]
 async fn read_returns_hashlines_and_terse_ids() {
     let h = harness().await;
-    let owner = person("reader");
+    let owner = registered("reader").await;
     let ctx = ctx_for(Some(&owner));
     let (document, revision) = create_text(&h.tools, &ctx, "alpha\nbeta").await;
     let read = read_text(&h.tools, &ctx, &document).await;
@@ -30,7 +31,7 @@ async fn read_returns_hashlines_and_terse_ids() {
 #[tokio::test]
 async fn stale_anchor_names_node_hashes_and_current_text() {
     let h = harness().await;
-    let owner = person("anchor");
+    let owner = registered("anchor").await;
     let ctx = ctx_for(Some(&owner));
     let (document, revision) = create_text(&h.tools, &ctx, "alpha\nbeta").await;
     let read = read_text(&h.tools, &ctx, &document).await;
@@ -70,7 +71,7 @@ async fn stale_anchor_names_node_hashes_and_current_text() {
 #[tokio::test]
 async fn edit_acknowledges_the_written_lines_and_records_the_message() {
     let h = harness().await;
-    let owner = person("editor");
+    let owner = registered("editor").await;
     let ctx = ctx_for(Some(&owner));
     let (document, revision) = create_text(&h.tools, &ctx, "alpha\nbeta").await;
     let read = read_text(&h.tools, &ctx, &document).await;
@@ -130,7 +131,7 @@ async fn edit_acknowledges_the_written_lines_and_records_the_message() {
 #[tokio::test]
 async fn str_replace_reports_the_match_count() {
     let h = harness().await;
-    let owner = person("replace");
+    let owner = registered("replace").await;
     let ctx = ctx_for(Some(&owner));
     let (document, revision) = create_text(&h.tools, &ctx, "alpha\nbeta\nalpha").await;
     let replace = |old: &str| EditInput {
@@ -180,7 +181,7 @@ async fn str_replace_reports_the_match_count() {
 #[tokio::test]
 async fn stale_base_names_the_head_revision() {
     let h = harness().await;
-    let owner = person("stale");
+    let owner = registered("stale").await;
     let ctx = ctx_for(Some(&owner));
     let (document, base) = create_text(&h.tools, &ctx, "alpha\nbeta").await;
     let set = |text: &str| EditInput {
@@ -219,10 +220,10 @@ async fn stale_base_names_the_head_revision() {
 }
 
 #[tokio::test]
-async fn forbidden_names_the_needed_and_held_level() {
+async fn a_stranger_is_told_not_found_until_shared() {
     let h = harness().await;
-    let owner = person("owner");
-    let stranger = person("stranger");
+    let owner = registered("owner").await;
+    let stranger = registered("stranger").await;
     let (document, _) = create_text(&h.tools, &ctx_for(Some(&owner)), "secret").await;
     let read = |document| ReadInput {
         document_id: document,
@@ -240,9 +241,16 @@ async fn forbidden_names_the_needed_and_held_level() {
         .handle(read(document.clone()), &ctx_for(Some(&stranger)), &exec())
         .await
         .expect_err("stranger cannot read");
-    assert!(error.message.contains("forbidden"), "{}", error.message);
-    assert!(error.message.contains("view access"), "{}", error.message);
-    assert!(error.message.contains("no access"), "{}", error.message);
+    assert!(
+        error.message.contains("does not exist"),
+        "{}",
+        error.message
+    );
+    assert!(
+        !error.message.contains(owner.id.as_str()),
+        "{}",
+        error.message
+    );
 
     ShareHandler { tools: &h.tools }
         .handle(
@@ -255,6 +263,7 @@ async fn forbidden_names_the_needed_and_held_level() {
                 valid_until: None,
                 transfer_to: None,
                 revoke_all: false,
+                message: None,
             },
             &ctx_for(Some(&owner)),
             &exec(),
@@ -296,7 +305,7 @@ async fn a_call_without_an_authenticated_user_is_refused() {
 #[tokio::test]
 async fn list_shows_the_owners_root_document() {
     let h = harness().await;
-    let owner = person("lister");
+    let owner = registered("lister").await;
     let ctx = ctx_for(Some(&owner));
     let (document, _) = create_text(&h.tools, &ctx, "x").await;
     let (listed, _) = ListHandler { tools: &h.tools }
@@ -321,7 +330,7 @@ async fn list_shows_the_owners_root_document() {
 #[tokio::test]
 async fn export_links_and_previews_the_revision() {
     let h = harness().await;
-    let owner = person("download");
+    let owner = registered("download").await;
     let ctx = ctx_for(Some(&owner));
     let (document, revision) = create_text(&h.tools, &ctx, "hello").await;
     let input = |format, export_as| ExportInput {
@@ -359,12 +368,24 @@ async fn export_links_and_previews_the_revision() {
             .as_deref()
             .is_some_and(|html| html.contains("hello"))
     );
-    let pdf = ExportHandler { tools: &h.tools }
+    let (pdf, _) = ExportHandler { tools: &h.tools }
         .handle(input(ExportFormat::Pdf, ExportAs::Url), &ctx, &exec())
         .await
-        .expect_err("no codec renders pdf");
+        .expect("pdf url");
+    assert_eq!(pdf.revision_id, revision);
+    assert!(
+        pdf.url.as_deref().is_some_and(|url| url.starts_with(&format!(
+            "https://docs.example.test/api/v1/documents/{document}/content?revision={revision}&format=pdf&access_token="
+        ))),
+        "{:?}",
+        pdf.url
+    );
+    let preview = ExportHandler { tools: &h.tools }
+        .handle(input(ExportFormat::Pdf, ExportAs::Preview), &ctx, &exec())
+        .await
+        .expect_err("pdf has no preview");
     assert_eq!(
-        pdf.data.as_ref().expect("refusal")["code"],
+        preview.data.as_ref().expect("refusal")["code"],
         "unsupported_format"
     );
 }
@@ -375,7 +396,7 @@ async fn create_applies_ops_in_the_first_revision_and_acknowledges_them() {
     use systemprompt_models::documents::NodeKind;
     use systemprompt_runtime::documents::mcp::{CreateHandler, CreateInput};
     let h = harness().await;
-    let owner = person("creator");
+    let owner = registered("creator").await;
     let ctx = ctx_for(Some(&owner));
     let (created, _) = CreateHandler { tools: &h.tools }
         .handle(
@@ -384,6 +405,7 @@ async fn create_applies_ops_in_the_first_revision_and_acknowledges_them() {
                 folder_id: None,
                 name: format!("memo-{}", uuid::Uuid::new_v4().simple()),
                 params: Default::default(),
+                content: None,
                 ops: vec![
                     EditOp::InsertAfter {
                         node: NodeTarget::Id(DocumentNodeId::new("body/h1[1]")),

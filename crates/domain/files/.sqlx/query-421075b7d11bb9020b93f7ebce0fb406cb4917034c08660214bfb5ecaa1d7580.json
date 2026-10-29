@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT EXISTS (SELECT 1 FROM document_node_ids\n                              WHERE revision_id = $1::text::uuid) AS \"stored!\"\n               FROM document_revisions WHERE id = $1::text::uuid FOR UPDATE",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "stored!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "421075b7d11bb9020b93f7ebce0fb406cb4917034c08660214bfb5ecaa1d7580"
+}

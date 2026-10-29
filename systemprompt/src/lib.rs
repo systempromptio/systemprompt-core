@@ -30,7 +30,7 @@
 //! | `full` | `api`, `mcp`, `cloud`, `cli`, `config`, `logging`, `loader`, `events`, `storage`, `client`, `security`, `analytics`, and the domain crates (`agent`, `ai`, `mcp`, `oauth`, `users`, `content`, `marketplace`, `scheduler`, `generator`, `files`) | Building a product binary. The `slack` and `teams` modules stay opt-in. |
 //!
 //! ```toml
-//! systemprompt = { version = "0.74.0", features = ["full"] }
+//! systemprompt = { version = "0.75.0", features = ["full"] }
 //! ```
 //!
 //! Crates are reachable as a module of the same name (`systemprompt::models`,
@@ -272,8 +272,12 @@ pub mod oauth_issuance {
 #[cfg(any(feature = "full", feature = "files-office"))]
 #[cfg_attr(docsrs, doc(cfg(any(feature = "full", feature = "files-office"))))]
 pub mod files {
-    pub use systemprompt_files::*;
+    pub use systemprompt_files::{register_agent_access_policy, *};
 }
+
+#[cfg(any(feature = "full", feature = "files-office"))]
+#[cfg_attr(docsrs, doc(cfg(any(feature = "full", feature = "files-office"))))]
+pub use systemprompt_files::register_agent_access_policy;
 
 #[cfg(feature = "cloud")]
 #[cfg_attr(docsrs, doc(cfg(feature = "cloud")))]

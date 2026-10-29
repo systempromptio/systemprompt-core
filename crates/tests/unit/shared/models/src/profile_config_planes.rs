@@ -3,12 +3,26 @@ use systemprompt_manifest::profile::{ConfigPlanesConfig, PlaneAuthority};
 use crate::profile_validation::{errors_of, valid_profile};
 
 #[test]
-fn unnamed_planes_default_to_file_authority() {
+fn unnamed_planes_default_to_db_authority() {
     let profile = valid_profile();
     assert_eq!(
         profile.config_planes.authority_for("groups"),
+        PlaneAuthority::Db
+    );
+}
+
+#[test]
+fn a_plane_named_file_is_file_authority_and_validates() {
+    let mut profile = valid_profile();
+    profile
+        .config_planes
+        .authority
+        .insert("identity".to_string(), PlaneAuthority::File);
+    assert_eq!(
+        profile.config_planes.authority_for("identity"),
         PlaneAuthority::File
     );
+    assert!(errors_of(&profile).is_empty());
 }
 
 #[test]

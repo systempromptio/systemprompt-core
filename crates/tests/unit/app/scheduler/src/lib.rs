@@ -42,6 +42,8 @@ mod jobs_db;
 #[cfg(test)]
 mod jobs_seeded_db;
 #[cfg(test)]
+mod licence_checkin;
+#[cfg(test)]
 mod manual_run_lock_db;
 #[cfg(test)]
 mod models;
@@ -55,6 +57,8 @@ mod orchestration;
 mod otlp_export;
 #[cfg(test)]
 mod plans;
+#[cfg(test)]
+mod projection_jobs_db;
 #[cfg(test)]
 mod reconciler_db;
 #[cfg(test)]

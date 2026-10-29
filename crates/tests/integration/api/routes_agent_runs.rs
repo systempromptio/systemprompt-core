@@ -181,3 +181,136 @@ async fn the_event_stream_replays_from_last_event_id_and_ends_on_a_terminal_run(
     assert!(text.contains("event: end"));
     Ok(())
 }
+
+const OUTPUTS_ORIGIN: &str = "sp_test_api_outputs_origin";
+
+systemprompt_agent_runs::register_run_origin!(OUTPUTS_ORIGIN);
+
+const CLAIM_ORIGIN: &str = "sp_test_api_claim_origin";
+
+systemprompt_agent_runs::register_run_origin!(CLAIM_ORIGIN);
+
+async fn claim(
+    state: &AgentRunsState,
+    origin: &str,
+    id: &systemprompt_identifiers::AgentRunId,
+) -> Result<()> {
+    while let Some(row) = state
+        .runs()
+        .claim_queued(origin, "covapi-worker", std::time::Duration::from_secs(60))
+        .await?
+    {
+        if &row.id == id {
+            return Ok(());
+        }
+    }
+    anyhow::bail!("run {id} was never claimed")
+}
+
+#[tokio::test]
+async fn outputs_are_listed_and_read_from_the_run_directory_only() -> Result<()> {
+    let (pool, ctx) = setup_ctx().await?;
+    let owner = seed_admin_credential(&pool, "agent-runs-outputs").await?;
+    let state = AgentRunsState::build(&ctx);
+    let user = owner.user_id.as_str();
+    let body = json!({
+        "origin_kind": OUTPUTS_ORIGIN,
+        "idempotency_key": format!("outputs-{user}"),
+        "request": request("o")
+    });
+    let (status, created) = send(app(state.clone(), user), json_post("/", body)).await?;
+    assert_eq!(status, StatusCode::ACCEPTED, "{created}");
+    let id = created["id"].as_str().expect("id").to_owned();
+
+    let (status, empty) = send(
+        app(state.clone(), user),
+        empty_get(&format!("/{id}/outputs")),
+    )
+    .await?;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(empty["files"], json!([]));
+
+    let run_id = systemprompt_identifiers::AgentRunId::new(&id);
+    claim(&state, OUTPUTS_ORIGIN, &run_id).await?;
+    let dir = tempfile::tempdir()?;
+    let root = dir.path().to_path_buf();
+    state
+        .runs()
+        .update_started(
+            &run_id,
+            systemprompt_agent_runs::repository::RunStarted {
+                run_dir: &root,
+                pid: None,
+                gateway_session_id: None,
+                api_key_id: None,
+            },
+        )
+        .await?;
+    tokio::fs::create_dir_all(root.join("outputs")).await?;
+    tokio::fs::write(root.join("outputs/report.txt"), b"report body").await?;
+    let manifest = json!([{ "path": "report.txt", "size": 11, "sha256": "ab" }]);
+    tokio::fs::write(root.join("outputs.json"), manifest.to_string()).await?;
+
+    let (status, listed) = send(
+        app(state.clone(), user),
+        empty_get(&format!("/{id}/outputs")),
+    )
+    .await?;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(listed["files"], manifest);
+
+    let resp = app(state.clone(), user)
+        .oneshot(empty_get(&format!("/{id}/outputs/report.txt")))
+        .await?;
+    assert_eq!(
+        resp.headers()[http::header::CONTENT_TYPE],
+        "application/octet-stream"
+    );
+    let (status, text) = body_to_string(resp).await?;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(text, "report body");
+
+    let (status, _) = send(
+        app(state.clone(), user),
+        empty_get(&format!("/{id}/outputs/missing.txt")),
+    )
+    .await?;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    let (status, _) = send(
+        app(state.clone(), user),
+        empty_get(&format!("/{id}/outputs/..%2Foutputs.json")),
+    )
+    .await?;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn cancelling_a_claimed_run_records_the_request() -> Result<()> {
+    let (pool, ctx) = setup_ctx().await?;
+    let owner = seed_admin_credential(&pool, "agent-runs-cancel-claimed").await?;
+    let state = AgentRunsState::build(&ctx);
+    let user = owner.user_id.as_str();
+    let origin = CLAIM_ORIGIN;
+    let body = json!({
+        "origin_kind": origin,
+        "idempotency_key": format!("claimed-{user}"),
+        "request": request("c")
+    });
+    let (_, created) = send(app(state.clone(), user), json_post("/", body)).await?;
+    let id = systemprompt_identifiers::AgentRunId::new(created["id"].as_str().expect("id"));
+
+    claim(&state, origin, &id).await?;
+
+    let (status, _) = send(
+        app(state.clone(), user),
+        json_post(&format!("/{id}/cancel"), json!({})),
+    )
+    .await?;
+    assert_eq!(status, StatusCode::ACCEPTED);
+    let row = state.runs().find_run(&id).await?.expect("row");
+    assert!(row.cancel_requested_at.is_some(), "{row:?}");
+    assert_eq!(row.status, "preparing");
+    Ok(())
+}

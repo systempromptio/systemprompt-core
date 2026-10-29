@@ -7,15 +7,18 @@
 use std::sync::Arc;
 use std::time::Instant;
 
-use loro::LoroDoc;
 use systemprompt_identifiers::{DocumentId, DocumentRevisionId};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::DocumentFormat;
 use tokio::sync::Mutex;
 
-use super::model::{body_of, seed};
+use super::document::{ModelError, import};
+use super::image_owners::ImageOwners;
 use super::{CollabError, CollabService};
+use crate::documents::agents::DocumentActor;
+use crate::documents::engine::{EngineDoc, ModelView};
 use crate::documents::error::DocumentsError;
+use crate::documents::model::RichText;
 use crate::documents::models::{Document, DocumentEditSession};
 
 pub(super) type SharedEntry = Arc<Mutex<CollabEntry>>;
@@ -24,13 +27,17 @@ pub(super) type SharedEntry = Arc<Mutex<CollabEntry>>;
 pub(super) struct CollabEntry {
     pub(super) session: DocumentEditSession,
     pub(super) format: DocumentFormat,
-    pub(super) doc: LoroDoc,
+    pub(super) doc: Box<dyn EngineDoc>,
     pub(super) last_seq: i64,
     pub(super) unsnapshotted: u32,
     pub(super) snapshot_due_from: Option<Instant>,
     pub(super) checkpoint_due_from: Option<Instant>,
     pub(super) last_editor: Option<AuthenticatedUser>,
+    pub(super) last_actor: Option<DocumentActor>,
     pub(super) touched: Instant,
+    pub(super) images: ImageOwners,
+    pub(super) checkpoint_failures: u32,
+    pub(super) checkpoint_retry_at: Option<Instant>,
 }
 
 impl CollabEntry {
@@ -41,13 +48,18 @@ impl CollabEntry {
             .or(self.session.base_revision_id.as_ref())
     }
 
-    pub(super) fn record_activity(&mut self, editor: Option<&AuthenticatedUser>) {
+    pub(super) fn record_activity(
+        &mut self,
+        editor: Option<&AuthenticatedUser>,
+        actor: DocumentActor,
+    ) {
         let now = Instant::now();
         self.unsnapshotted = self.unsnapshotted.saturating_add(1);
         self.snapshot_due_from.get_or_insert(now);
         self.checkpoint_due_from.get_or_insert(now);
         if let Some(editor) = editor {
             self.last_editor = Some(editor.clone());
+            self.last_actor = Some(actor);
         }
         self.touched = now;
     }
@@ -65,7 +77,7 @@ impl CollabService {
             }
             self.cache_remove(&document.id);
         }
-        let doc = self.load_doc(document, session).await?;
+        let (doc, images) = self.load_doc(document, session).await?;
         let built = Arc::new(Mutex::new(CollabEntry {
             session: session.clone(),
             format: document.format,
@@ -75,7 +87,11 @@ impl CollabService {
             snapshot_due_from: None,
             checkpoint_due_from: None,
             last_editor: None,
+            last_actor: None,
             touched: Instant::now(),
+            images,
+            checkpoint_failures: 0,
+            checkpoint_retry_at: None,
         }));
         Ok(self.cache_insert(document.id.clone(), built))
     }
@@ -84,22 +100,22 @@ impl CollabService {
         &self,
         document: &Document,
         session: &DocumentEditSession,
-    ) -> Result<LoroDoc, CollabError> {
+    ) -> Result<(Box<dyn EngineDoc>, ImageOwners), CollabError> {
+        let engine = self.engine()?;
         let limit = self.documents.config().max_upload_bytes;
         if let Some(hash) = &session.snapshot_sha256 {
             let bytes = self.documents.blobs().read_all(hash, u64::MAX).await?;
-            let doc = LoroDoc::new();
-            doc.import(&bytes).map_err(CollabError::Crdt)?;
-            return Ok(doc);
+            let (owners, snapshot) = ImageOwners::open(&bytes);
+            return Ok((engine.open(snapshot)?, owners));
         }
-        let body = match &session.base_revision_id {
+        let model = match &session.base_revision_id {
             Some(revision) => {
                 let bytes = self.revision_bytes(revision, limit).await?;
-                body_of(document.format, &utf8(&document.id, bytes)?)
+                import(document.format, &bytes).map_err(model_error(&document.id))?
             },
-            None => String::new(),
+            None => ModelView::RichText(RichText::default()),
         };
-        seed(&body).map_err(CollabError::Crdt)
+        Ok((engine.seed(&model)?, ImageOwners::default()))
     }
 
     pub(super) async fn revision_bytes(
@@ -132,10 +148,24 @@ impl CollabService {
             .list_after(&entry.session.id, entry.last_seq)
             .await?;
         for row in rows {
-            entry.doc.import(&row.update).map_err(CollabError::Crdt)?;
+            let before = entry.doc.export_model();
+            entry.doc.apply_update(&row.update)?;
+            if let (ModelView::RichText(before), ModelView::RichText(after)) =
+                (&before, &entry.doc.export_model())
+            {
+                entry.images.record(before, after, &row.author_user_id);
+            }
             entry.last_seq = entry.last_seq.max(row.seq);
         }
         Ok(())
+    }
+}
+
+pub(super) fn model_error(document: &DocumentId) -> impl FnOnce(ModelError) -> CollabError {
+    let document_id = document.clone();
+    move |source| CollabError::Model {
+        document_id,
+        source,
     }
 }
 

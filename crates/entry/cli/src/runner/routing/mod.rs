@@ -4,6 +4,13 @@
 //! into an [`ExecutionTarget`]; [`execute_remote`] adapts the terminal to the
 //! SSE transport in `systemprompt_client::RemoteCliExecutor`.
 //!
+//! A managed tenant routes with the stored `admin session login` session. A
+//! self-managed (kubernetes/gke) tenant resolves to
+//! [`ExecutionTarget::SelfManaged`]; [`authorize_target`] turns it into a
+//! remote target by exchanging the operator's OIDC sign-in for a tenant
+//! session at the tenant's token endpoint, so no database URL or signing key
+//! is needed on the operator's machine.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -11,7 +18,11 @@ use std::io::{self, Write};
 
 use anyhow::{Context, Result};
 use systemprompt_client::{OutputSink, RemoteCliExecutor, RemoteCliRequest};
-use systemprompt_cloud::{SessionKey, SessionStore, StoredTenant, TenantStore};
+use systemprompt_cloud::deploy::provider::tenant_base_url;
+use systemprompt_cloud::operator::{OperatorCredentials, exchange_for_tenant};
+use systemprompt_cloud::{
+    CloudPath, SessionKey, SessionStore, StoredTenant, TenantStore, get_cloud_paths,
+};
 use systemprompt_identifiers::{ContextId, SessionToken};
 use systemprompt_logging::CliService;
 use systemprompt_manifest::Profile;
@@ -26,6 +37,9 @@ pub enum ExecutionTarget {
         hostname: String,
         token: SessionToken,
         context: ContextId,
+    },
+    SelfManaged {
+        hostname: String,
     },
 }
 
@@ -59,6 +73,16 @@ pub fn determine_execution_target(profile: &Profile) -> Result<ExecutionTarget> 
         .context("Tenant has no hostname configured")?
         .clone();
 
+    if tenant.provider.is_self_managed() {
+        tracing::debug!(
+            hostname = %hostname,
+            tenant_id = %tenant_id,
+            provider = %tenant.provider,
+            "Self-managed tenant, routing through the operator sign-in"
+        );
+        return Ok(ExecutionTarget::SelfManaged { hostname });
+    }
+
     let session_key = SessionKey::Tenant(tenant_id.clone());
     let session = load_session_for_key(profile, &session_key, &profile.security.issuer)?;
 
@@ -73,6 +97,27 @@ pub fn determine_execution_target(profile: &Profile) -> Result<ExecutionTarget> 
         token: session.session_token,
         context: session.context_id,
     })
+}
+
+pub async fn authorize_target(target: ExecutionTarget) -> Result<ExecutionTarget> {
+    let ExecutionTarget::SelfManaged { hostname } = target else {
+        return Ok(target);
+    };
+    let token = operator_tenant_token(&hostname).await?;
+    Ok(ExecutionTarget::Remote {
+        hostname,
+        token,
+        context: ContextId::generate(),
+    })
+}
+
+pub async fn operator_tenant_token(hostname: &str) -> Result<SessionToken> {
+    let path = get_cloud_paths().resolve(CloudPath::OperatorCredentials);
+    let operator = OperatorCredentials::load_valid(&path)?;
+    let session = exchange_for_tenant(&tenant_base_url(hostname), &operator)
+        .await
+        .with_context(|| format!("Operator token exchange with {hostname} failed"))?;
+    Ok(SessionToken::new(session.access_token))
 }
 
 pub fn resolve_tenant(
@@ -139,7 +184,7 @@ pub async fn execute_remote(
     args: &[String],
     timeout_secs: u64,
 ) -> Result<i32> {
-    let executor = RemoteCliExecutor::new(&format!("https://{hostname}"), timeout_secs)
+    let executor = RemoteCliExecutor::new(&tenant_base_url(hostname), timeout_secs)
         .context("Failed to create HTTP client")?;
     let mut sink = StdioSink {
         stdout: io::stdout(),

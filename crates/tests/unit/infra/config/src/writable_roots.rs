@@ -31,7 +31,7 @@ fn names(roots: &[WritableRoot]) -> Vec<&'static str> {
 fn worker_roles_declare_every_runtime_writer() {
     let paths = app_paths(Path::new("/app"));
     let cache = PathBuf::from("/app/system/services-cache");
-    for role in [NodeRole::All, NodeRole::Admin] {
+    for role in [NodeRole::All, NodeRole::Worker] {
         assert_eq!(
             names(&paths.writable_roots(role, &cache)),
             vec![
@@ -48,24 +48,26 @@ fn worker_roles_declare_every_runtime_writer() {
 }
 
 #[test]
-fn gateway_role_needs_no_web_dist_or_services_cache() {
+fn read_only_roles_need_no_web_dist_or_services_cache() {
     let paths = app_paths(Path::new("/app"));
-    let roots = paths.writable_roots(NodeRole::Gateway, Path::new("/app/system/services-cache"));
-    assert_eq!(
-        names(&roots),
-        vec![
-            "system.logs",
-            "storage.files",
-            "storage.exports",
-            "storage.data",
-            "storage.scratch",
-        ]
-    );
-    let scratch = roots
-        .iter()
-        .find(|r| r.name == "storage.scratch")
-        .expect("scratch root");
-    assert_eq!(scratch.path, PathBuf::from("/app/storage/data/scratch"));
+    for role in [NodeRole::Gateway, NodeRole::Api, NodeRole::Runner] {
+        let roots = paths.writable_roots(role, Path::new("/app/system/services-cache"));
+        assert_eq!(
+            names(&roots),
+            vec![
+                "system.logs",
+                "storage.files",
+                "storage.exports",
+                "storage.data",
+                "storage.scratch",
+            ]
+        );
+        let scratch = roots
+            .iter()
+            .find(|r| r.name == "storage.scratch")
+            .expect("scratch root");
+        assert_eq!(scratch.path, PathBuf::from("/app/storage/data/scratch"));
+    }
 }
 
 #[test]

@@ -9,7 +9,9 @@
 //!
 //! A `document.shared` or `document.proposal.opened` frame becomes a
 //! [`DocumentNotice`] the desktop shows as a toast; [`notice_for`] is that
-//! mapping, kept free of any windowing code so every platform shares it.
+//! mapping, kept free of any windowing code so every platform shares it. A
+//! share notice is raised only when the frame names this device's user as
+//! its recipient.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -45,21 +47,30 @@ pub struct DocumentNotice {
     pub kind: NoticeKind,
     pub document_id: DocumentId,
     pub from: UserId,
+    pub from_name: Option<String>,
+    pub document_name: Option<String>,
     pub proposal_id: Option<DocumentProposalId>,
     pub detail: Option<String>,
+    pub message: Option<String>,
 }
 
 #[must_use]
-pub fn notice_for(name: &str, value: &str) -> Option<DocumentNotice> {
+pub fn notice_for(name: &str, value: &str, viewer: Option<&UserId>) -> Option<DocumentNotice> {
     match name {
         DocumentSharedEvent::NAME => {
             let shared: DocumentSharedEvent = decode_frame(name, value)?;
+            if viewer != Some(&shared.recipient_user_id) {
+                return None;
+            }
             Some(DocumentNotice {
                 kind: NoticeKind::Shared,
                 document_id: shared.document_id,
                 from: shared.by,
+                from_name: Some(shared.shared_by),
+                document_name: Some(shared.document_name),
                 proposal_id: None,
                 detail: Some(shared.level.to_string()),
+                message: shared.message,
             })
         },
         DocumentProposalEvent::OPENED => {
@@ -68,8 +79,11 @@ pub fn notice_for(name: &str, value: &str) -> Option<DocumentNotice> {
                 kind: NoticeKind::ProposalOpened,
                 document_id: opened.document_id,
                 from: opened.proposer_id,
+                from_name: None,
+                document_name: None,
                 proposal_id: Some(opened.proposal_id),
                 detail: opened.message,
+                message: None,
             })
         },
         _ => None,

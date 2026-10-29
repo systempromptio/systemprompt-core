@@ -1,17 +1,25 @@
-//! Applying a client's Loro update: import, log, broadcast.
+//! Applying a client's engine update: validate, log, import, broadcast.
+//!
+//! An update is first applied to a fork of the replica's live document; the
+//! fork's model is checked against the model schema, the limits and the
+//! caller's access level ([`validate`]), and only an accepted update is
+//! logged. An update enters a replica's cache only from the log, after the
+//! transaction that numbered it has committed, so a failed append leaves
+//! the cache as it was.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
-use loro::{ExportMode, VersionVector};
 use systemprompt_identifiers::{DocumentEditSessionId, TraceId, UserId};
 use systemprompt_models::auth::AuthenticatedUser;
-use systemprompt_models::documents::{DocumentAction, DocumentCollabUpdateEvent};
+use systemprompt_models::documents::{AccessLevel, DocumentAction, DocumentCollabUpdateEvent};
 
 use super::entry::CollabEntry;
 use super::{Applied, ApplyRequest, CollabError, CollabService};
+use crate::documents::engine::{EngineDoc, ModelView};
+use crate::documents::model::{EditLevel, Limits, ModelRejection, RichText, validate};
 use crate::documents::models::Document;
 
 impl CollabService {
@@ -21,9 +29,14 @@ impl CollabService {
         request: ApplyRequest,
         trace: &TraceId,
     ) -> Result<Applied, CollabError> {
-        let document = self
-            .authorized(who, &request.document_id, DocumentAction::Edit, trace)
+        let (document, level) = self
+            .granted(who, &request.document_id, DocumentAction::Comment, trace)
             .await?;
+        let level = if level >= AccessLevel::Edit {
+            EditLevel::Edit
+        } else {
+            EditLevel::Comment
+        };
         let repos = self.documents.repositories();
         if !repos.collab.is_editing(&document.id, &who.id).await? {
             return Err(CollabError::NotEditing {
@@ -33,30 +46,26 @@ impl CollabService {
         let session = self
             .open_matching(&document.id, &request.session_id)
             .await?;
-        let client_version = request
-            .version
-            .as_deref()
-            .map(VersionVector::decode)
-            .transpose()
-            .map_err(CollabError::InvalidVersion)?;
+        let engine = self.engine()?;
         let entry = self.entry(&document, &session).await?;
         let mut entry = entry.lock().await;
         self.catch_up(&mut entry).await?;
-        let missing = match &client_version {
-            Some(known) if !known.includes_vv(&entry.doc.oplog_vv()) => {
-                Some(entry.doc.export(ExportMode::updates(known))?)
-            },
-            _ => None,
-        };
-        entry
-            .doc
-            .import(&request.update)
+        let missing = request
+            .version
+            .as_deref()
+            .map(|known| entry.doc.missing_since(known))
+            .transpose()
+            .map_err(CollabError::InvalidVersion)?
+            .flatten();
+        engine
+            .check_update(&request.update)
             .map_err(CollabError::InvalidUpdate)?;
+        check_on_fork(entry.doc.as_ref(), &request.update, level)?;
         let seq = self
             .log_update(&mut entry, &request.update, &who.id)
             .await?;
-        entry.record_activity(Some(who));
-        let version = entry.doc.oplog_vv().encode();
+        entry.record_activity(Some(who), self.documents.access().actor());
+        let version = entry.doc.version();
         if entry.unsnapshotted >= self.tuning.snapshot_after_updates {
             self.snapshot(&mut entry).await?;
         }
@@ -84,7 +93,11 @@ impl CollabService {
             .repositories()
             .collab
             .append(&entry.session.id, update, author)
-            .await?;
+            .await?
+            .ok_or_else(|| CollabError::SessionClosed {
+                document_id: entry.session.document_id.clone(),
+                session_id: entry.session.id.clone(),
+            })?;
         self.catch_up(entry).await?;
         Ok(seq)
     }
@@ -99,6 +112,28 @@ impl CollabService {
                 "Collab update event not delivered"
             );
         }
+    }
+}
+
+fn check_on_fork(doc: &dyn EngineDoc, update: &[u8], level: EditLevel) -> Result<(), CollabError> {
+    let mut draft = doc.fork();
+    draft
+        .apply_update(update)
+        .map_err(CollabError::InvalidUpdate)?;
+    let before = doc.export_model();
+    match draft.export_model() {
+        ModelView::RichText(after) => {
+            let before = match before {
+                ModelView::RichText(before) => before,
+                ModelView::Body(_) => RichText::default(),
+            };
+            validate(&before, &after, level, &Limits::default())
+                .map_err(CollabError::UpdateRejected)
+        },
+        after if level == EditLevel::Comment && after != before => Err(
+            CollabError::UpdateRejected(ModelRejection::BeyondCommentLevel),
+        ),
+        ModelView::Body(_) => Ok(()),
     }
 }
 

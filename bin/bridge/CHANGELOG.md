@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.75.0] - 2026-10-28
+
+### Breaking
+
+- **Breaking:** Drive sync authenticates with a private device token that is never handed to a host and alone trades for the Drive sync token; a 0.75 bridge needs a 0.75 gateway for Drive. Upgrade the server and the bridge together where the Drive is used.
+
+### Added
+
+- A desktop notice for Drive edits sent for review, and share notifications that show the share message and name the document and sharer.
+
+### Fixed
+
+- Drive sync treats a `proposed` commit as sent for review rather than an error.
+- A Drive pull keeps an edit made during the download, and status lists received shares.
+- A share notification is raised only for its recipient.
+
 ## [0.73.0] - 2026-10-25
 
 ### Breaking

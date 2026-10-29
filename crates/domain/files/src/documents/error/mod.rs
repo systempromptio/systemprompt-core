@@ -12,21 +12,27 @@
 use systemprompt_events::RelayError;
 use systemprompt_governance::authz::AuthzError;
 use systemprompt_identifiers::{
-    ContentHash, DocumentCommentId, DocumentFolderId, DocumentId, DocumentNodeId,
-    DocumentProposalId, DocumentRevisionId, DocumentTemplateId, UserId,
+    ContentHash, DocumentAccessRequestId, DocumentCommentId, DocumentFolderId, DocumentId,
+    DocumentNodeId, DocumentOpId, DocumentProposalId, DocumentRevisionId, DocumentTemplateId,
+    UserId,
 };
 use systemprompt_models::authz::SubjectSourceError;
-use systemprompt_models::documents::{AccessLevel, DocumentAction, DocumentFormat, ProposalStatus};
-use systemprompt_provider_contracts::documents::{ClosestBlock, CodecError, TargetError};
+use systemprompt_models::documents::{
+    AccessLevel, AccessRequestStatus, DocumentAction, DocumentFormat, ProposalStatus,
+};
+use systemprompt_provider_contracts::documents::{ClosestBlock, CodecError};
 use systemprompt_traits::RepositoryError;
 
 use self::labels::{
     base_label, closest_label, comment_list, conflict_label, held_label, kinds_label, policy_label,
 };
+use super::access::SubjectDirectoryError;
+use super::agents::AgentRefusal;
 use super::blob_store::BlobStoreError;
 use super::models::{ListCursorError, LockHolderKind};
 use super::templates::TemplateError;
 
+mod conversions;
 mod labels;
 
 #[derive(Debug, thiserror::Error)]
@@ -79,7 +85,7 @@ pub enum DocumentsError {
         owner: Option<UserId>,
     },
     #[error(
-        "document {document_id} is in the trash; restore it with documents_restore_document \
+        "document {document_id} is in the trash; restore it with documents_untrash \
          before reading, editing or sharing it"
     )]
     Trashed { document_id: DocumentId },
@@ -91,6 +97,10 @@ pub enum DocumentsError {
     AnchorsAffected { comments: Vec<DocumentCommentId> },
     #[error("invalid comment: {detail}")]
     InvalidComment { detail: &'static str },
+    #[error("invalid awareness state: {detail}")]
+    InvalidAwareness { detail: &'static str },
+    #[error("{detail}")]
+    InvalidParams { detail: &'static str },
     #[error("comment {comment_id} does not belong to document {document_id}")]
     CommentNotFound {
         document_id: DocumentId,
@@ -107,7 +117,7 @@ pub enum DocumentsError {
     },
     #[error(
         "operation {op} is not supported for {format} documents{}",
-        kinds_label(.op, .accepted_kinds)
+        kinds_label(.op, .format, .accepted_kinds)
     )]
     UnsupportedOp {
         op: &'static str,
@@ -116,12 +126,33 @@ pub enum DocumentsError {
     },
     #[error("no codec is registered for {format} documents")]
     UnsupportedFormat { format: DocumentFormat },
+    #[error("the content was refused ({code}): {detail}")]
+    ContentRefused { code: &'static str, detail: String },
     #[error("cannot tell the document format of \"{name}\"; give the name a known extension")]
     UnknownFormat { name: String },
     #[error("{what} {id} does not exist or has been deleted")]
     NotFound { what: &'static str, id: String },
-    #[error("content of {size} bytes exceeds the {limit}-byte document limit")]
-    TooLarge { size: u64, limit: u64 },
+    #[error("{what} of {size} exceeds the limit of {limit}")]
+    TooLarge {
+        what: &'static str,
+        size: u64,
+        limit: u64,
+    },
+    #[error(
+        "op id {op_id} was already used for a different request; send a new op id for a new \
+         write"
+    )]
+    OpIdMismatch { op_id: DocumentOpId },
+    #[error(
+        "{op} on node {node} needs expected_hash, the node's hash8 from your last read; a quote \
+         target resolves its own"
+    )]
+    GuardMissing {
+        op: &'static str,
+        node: DocumentNodeId,
+    },
+    #[error("proposal {proposal_id} was proposed by the reviewer; another editor must review it")]
+    SelfReview { proposal_id: DocumentProposalId },
     #[error(
         "uploaded bytes hash to {actual} but the commit declared {declared}; the upload was \
          corrupted, send it again"
@@ -137,6 +168,25 @@ pub enum DocumentsError {
     InvalidName { name: String },
     #[error("subject kind \"{kind}\" is not user, role or a registered subject dimension")]
     UnknownSubjectKind { kind: String },
+    #[error(
+        "no active {kind} \"{value}\" exists; name an existing, active subject (a user id for \
+         a user)"
+    )]
+    UnknownSubject { kind: String, value: String },
+    #[error(
+        "own is not a grant level: it belongs to the owner alone. Grant share to let someone \
+         manage access, or transfer ownership"
+    )]
+    OwnNotGrantable,
+    #[error(
+        "forbidden: the subject already holds {existing} here, above your {held}; only a holder \
+         of {existing} or the owner can change that grant"
+    )]
+    ShareBelowExisting {
+        existing: AccessLevel,
+        held: AccessLevel,
+        owner: Option<UserId>,
+    },
     #[error("folder {folder_id} is not empty; delete its contents first or delete recursively")]
     FolderNotEmpty { folder_id: DocumentFolderId },
     #[error("folder {folder_id} cannot move into itself or one of its own subfolders")]
@@ -158,11 +208,33 @@ pub enum DocumentsError {
         node: Option<DocumentNodeId>,
         current_text: Option<String>,
     },
+    #[error(
+        "you already have an open access request on document {document_id}; wait for the \
+         owner to answer it"
+    )]
+    AccessRequestOpen { document_id: DocumentId },
+    #[error(
+        "you already hold {held} access to document {document_id}; ask someone who holds share \
+         to raise it"
+    )]
+    AccessRequestNotNeeded {
+        document_id: DocumentId,
+        held: AccessLevel,
+    },
+    #[error(
+        "access request {request_id} is already {status}; only an open request can be answered"
+    )]
+    AccessRequestClosed {
+        request_id: DocumentAccessRequestId,
+        status: AccessRequestStatus,
+    },
     #[error("proposal {proposal_id} is already {status}; only an open proposal can be reviewed")]
     ProposalClosed {
         proposal_id: DocumentProposalId,
         status: ProposalStatus,
     },
+    #[error(transparent)]
+    Agent(#[from] AgentRefusal),
     #[error("document codec failed")]
     Codec(#[source] CodecError),
     #[error("document template {template_id} failed: {source}")]
@@ -171,6 +243,8 @@ pub enum DocumentsError {
         #[source]
         source: TemplateError,
     },
+    #[error("the document's live edit session could not be closed")]
+    LiveSession(#[source] Box<dyn std::error::Error + Send + Sync>),
     #[error("document blob storage failed")]
     Blob(#[from] BlobStoreError),
     #[error("document store query failed")]
@@ -185,6 +259,8 @@ pub enum DocumentsError {
     },
     #[error("document worker task failed")]
     Worker(#[from] tokio::task::JoinError),
+    #[error("grant subjects could not be resolved to users")]
+    Directory(#[from] SubjectDirectoryError),
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -201,50 +277,6 @@ pub enum EventFailure {
     Serialize(#[from] serde_json::Error),
     #[error("event could not be relayed to other replicas")]
     Relay(#[from] RelayError),
-}
-
-impl From<CodecError> for DocumentsError {
-    fn from(error: CodecError) -> Self {
-        match error {
-            CodecError::StaleAnchor {
-                node,
-                expected,
-                actual,
-                current_text,
-            } => Self::StaleAnchor {
-                node,
-                expected,
-                actual,
-                current_text,
-            },
-            CodecError::UnknownNode { node } => Self::UnknownNode { node },
-            other => Self::Codec(other),
-        }
-    }
-}
-
-impl From<TargetError> for DocumentsError {
-    fn from(error: TargetError) -> Self {
-        match error {
-            TargetError::FindNone { find, closest } => Self::FindNone { find, closest },
-            TargetError::UnknownNode { node } => Self::UnknownNode { node },
-            TargetError::MissingHash { .. } => Self::Codec(CodecError::Malformed {
-                detail: "expected_hash is required when node names a node id",
-            }),
-        }
-    }
-}
-
-impl From<SubjectSourceError> for DocumentsError {
-    fn from(error: SubjectSourceError) -> Self {
-        Self::Authz(AuthzFailure::Subjects(error))
-    }
-}
-
-impl From<AuthzError> for DocumentsError {
-    fn from(error: AuthzError) -> Self {
-        Self::Authz(AuthzFailure::Catalog(error))
-    }
 }
 
 impl DocumentsError {

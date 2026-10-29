@@ -213,7 +213,10 @@ async fn oidc_rejects_a_non_rs256_id_token() {
     )
     .await);
 
-    assert!(message.contains("must be RS256-signed"), "{message}");
+    assert!(
+        message.contains("must be RS256- or ES256-signed"),
+        "{message}"
+    );
 }
 
 #[tokio::test]

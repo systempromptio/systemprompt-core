@@ -73,6 +73,7 @@ pub const fn spinner_message(event: &DeployEvent<'_>) -> Option<&'static str> {
         DeployEvent::SecretsSyncStarted => Some("Syncing secrets..."),
         DeployEvent::CredentialsSyncStarted => Some("Syncing cloud credentials..."),
         DeployEvent::DeployStarted => Some("Deploying..."),
+        DeployEvent::ReadinessWaitStarted => Some("Waiting for the tenant to report ready..."),
         _ => None,
     }
 }
@@ -108,6 +109,26 @@ fn render_event(event: &DeployEvent<'_>) {
             CliService::success(&format!("Synced {} cloud credentials", count));
         },
         DeployEvent::ProfilePathConfigured => CliService::success("Profile path configured"),
+        DeployEvent::SecretsExternal { keys } => {
+            CliService::info(
+                "Secrets come from the cluster's secret store; the deploy pushes none. The \
+                 instance expects these keys:",
+            );
+            for key in *keys {
+                CliService::info(&format!("  {key}"));
+            }
+        },
+        DeployEvent::RolloutCommitted { commit, image } => {
+            CliService::success("Image digest pinned in the ops repository");
+            CliService::key_value("Image", image);
+            CliService::key_value("Commit", commit);
+        },
+        DeployEvent::TenantReady { version } => {
+            CliService::success("Tenant is ready");
+            if let Some(version) = version {
+                CliService::key_value("Version", version);
+            }
+        },
         DeployEvent::Deployed { status, app_url } => {
             CliService::success("Deployed!");
             CliService::key_value("Status", status);

@@ -66,6 +66,8 @@ impl PluginTokenService {
             client_id: None,
             purpose: None,
             plugin_id: Some(plugin_id),
+            interaction: None,
+            browser_session: false,
         };
         let token = authority.mint_user_jwt(&request)?;
 

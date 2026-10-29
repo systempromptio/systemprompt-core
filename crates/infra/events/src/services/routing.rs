@@ -31,7 +31,10 @@ use systemprompt_identifiers::{EventOutboxId, InstanceId, UserId};
 use tracing::debug;
 
 use super::repository::EventOutboxRepository;
-use super::{A2ABroadcaster, AgUiBroadcaster, AnalyticsBroadcaster, ContextBroadcaster};
+use super::{
+    A2ABroadcaster, AgUiBroadcaster, AnalyticsBroadcaster, ContextBroadcaster, TopicBroadcaster,
+    TopicEvent,
+};
 use crate::Broadcaster;
 use crate::error::{RelayError, RelayOutcome, RouteOutcome};
 use systemprompt_identifiers::Actor;
@@ -47,6 +50,7 @@ pub struct EventBroadcasters {
     pub agui: Arc<AgUiBroadcaster>,
     pub a2a: Arc<A2ABroadcaster>,
     pub analytics: Arc<AnalyticsBroadcaster>,
+    pub topics: Arc<TopicBroadcaster>,
 }
 
 impl EventBroadcasters {
@@ -79,6 +83,7 @@ pub enum OutboxChannel {
     A2A,
     System,
     Analytics,
+    Topic,
 }
 
 impl OutboxChannel {
@@ -89,6 +94,7 @@ impl OutboxChannel {
             Self::A2A => "a2a",
             Self::System => "system",
             Self::Analytics => "analytics",
+            Self::Topic => "topic",
         }
     }
 
@@ -99,6 +105,7 @@ impl OutboxChannel {
             "a2a" => Some(Self::A2A),
             "system" => Some(Self::System),
             "analytics" => Some(Self::Analytics),
+            "topic" => Some(Self::Topic),
             _ => None,
         }
     }
@@ -269,6 +276,18 @@ impl EventRouter {
             .enqueue_outbox(OutboxChannel::Analytics, user_id, &event)
             .await;
         let local = self.route_analytics_local(user_id, event).await;
+        RouteOutcome { local, relay }
+    }
+
+    pub fn route_topic_local(&self, event: TopicEvent) -> usize {
+        self.broadcasters.topics.publish(event)
+    }
+
+    pub async fn route_topic(&self, actor: &UserId, event: TopicEvent) -> RouteOutcome<usize> {
+        let relay = self
+            .enqueue_outbox(OutboxChannel::Topic, actor, &event)
+            .await;
+        let local = self.route_topic_local(event);
         RouteOutcome { local, relay }
     }
 }

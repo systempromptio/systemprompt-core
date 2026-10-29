@@ -12,7 +12,7 @@ use systemprompt_manifest::profile::{
 };
 use systemprompt_manifest::services::SystemAdminConfig;
 use systemprompt_manifest::{
-    CloudConfig, CloudValidationMode, ExtensionsConfig, PathsConfig, Profile,
+    CloudConfig, CloudValidationMode, ExtensionsConfig, HostingProvider, PathsConfig, Profile,
     ProfileDatabaseConfig, ProfileType, RateLimitsConfig, ServerConfig, SiteConfig,
 };
 
@@ -59,6 +59,7 @@ impl LocalProfileBuilder {
             storage: systemprompt_manifest::profile::StorageConfig::default(),
             observability: systemprompt_manifest::profile::ObservabilityConfig::default(),
             config_planes: systemprompt_manifest::profile::ConfigPlanesConfig::default(),
+            licence: systemprompt_manifest::profile::LicenceConfig::default(),
             name: self.name,
             display_name,
             target: ProfileType::Local,
@@ -94,7 +95,10 @@ impl LocalProfileBuilder {
             runtime: local_runtime_config(),
             cloud: Some(CloudConfig {
                 tenant_id: self.tenant_id,
+                provider: HostingProvider::DockerLocal,
                 validation: CloudValidationMode::Warn,
+                deploy: None,
+                operator: None,
             }),
             secrets: Some(SecretsConfig {
                 secrets_path: Some(self.secrets_path),
@@ -123,6 +127,7 @@ fn local_server_config(local_url: String) -> ServerConfig {
     let mut server = ServerConfig::new(consts::LOCAL_HOST, consts::DEFAULT_PORT, local_url);
     server.extra_cors_origins = vec!["http://localhost:5173".to_owned()];
     server.role = systemprompt_manifest::profile::NodeRole::All;
-    server.trusted_proxies = crate::trusted_proxies::default_local_trusted_proxies();
+    server.trusted_proxies =
+        crate::trusted_proxies::default_trusted_proxies(HostingProvider::DockerLocal);
     server
 }

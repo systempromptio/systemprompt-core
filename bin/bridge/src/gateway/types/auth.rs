@@ -30,6 +30,8 @@ pub struct AuthResponse {
     pub ttl: u64,
     #[serde(default, with = "header_map_serde")]
     pub headers: HashMap<http::HeaderName, http::HeaderValue>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub device_token: Option<BearerToken>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -38,6 +40,18 @@ pub struct HelperOutput {
     pub ttl: u64,
     #[serde(default, with = "header_map_serde")]
     pub headers: HashMap<http::HeaderName, http::HeaderValue>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub device_token: Option<BearerToken>,
+}
+
+impl HelperOutput {
+    #[must_use]
+    pub fn for_host(&self) -> Self {
+        Self {
+            device_token: None,
+            ..self.clone()
+        }
+    }
 }
 
 impl From<AuthResponse> for HelperOutput {
@@ -46,6 +60,7 @@ impl From<AuthResponse> for HelperOutput {
             token: r.token,
             ttl: r.ttl,
             headers: r.headers,
+            device_token: r.device_token,
         }
     }
 }

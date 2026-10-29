@@ -87,9 +87,13 @@ agent-runs = ["dep:systemprompt-agent-runs"]
 # Office document codecs (.docx) for the files domain. `full` implies it.
 files-office = ["dep:systemprompt-files", "systemprompt-files/office"]
 
-# Live co-editing of HTML and Markdown documents (Loro CRDT) and its HTTP
+# Live co-editing of HTML and Markdown documents (engine-agnostic) and its HTTP
 # routes. `full` implies it.
-files-collab = ["dep:systemprompt-files", "systemprompt-files/collab", "systemprompt-api?/collab"]
+files-collab = ["dep:systemprompt-files", "systemprompt-files/collab", "systemprompt-runtime?/collab", "systemprompt-api?/collab"]
+
+# The Loro CRDT engine for live sessions. Without it `files-collab` mounts the
+# routes and every session answers `collab_engine_unavailable`.
+files-collab-loro = ["files-collab", "systemprompt-runtime?/engine-loro"]
 
 # Full functionality including all domain modules and CLI
 full = [
@@ -112,7 +116,7 @@ full = [
     "config",
     "dep:systemprompt-files",
     "files-office",
-    "files-collab",
+    "files-collab-loro",
     "agent-runs",
     # Infrastructure crates for extension authors
     "loader",

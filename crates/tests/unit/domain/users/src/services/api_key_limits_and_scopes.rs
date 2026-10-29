@@ -60,6 +60,7 @@ async fn limits_and_scopes_round_trip_through_issue_verify_and_list() {
             limits: &limited(),
             scopes: &scopes,
             purpose: None,
+            kind: systemprompt_users::ApiKeyKind::User,
         })
         .await
         .expect("issue");
@@ -97,6 +98,7 @@ async fn an_unlimited_key_has_no_limits_and_allows_every_model() {
             limits: &ApiKeyLimits::default(),
             scopes: &[],
             purpose: None,
+            kind: systemprompt_users::ApiKeyKind::User,
         })
         .await
         .expect("issue");
@@ -115,6 +117,7 @@ async fn rejected(ctx: &Ctx, limits: ApiKeyLimits, scopes: &[ScopeBinding]) -> S
             limits: &limits,
             scopes,
             purpose: None,
+            kind: systemprompt_users::ApiKeyKind::User,
         })
         .await
     {
@@ -179,6 +182,7 @@ async fn the_database_refuses_a_ceiling_without_a_window() {
             limits: &limits,
             scopes: &[],
             purpose: None,
+            kind: systemprompt_users::ApiKeyKind::User,
         })
         .await;
     let error = result.expect_err("the window CHECK refuses the row");

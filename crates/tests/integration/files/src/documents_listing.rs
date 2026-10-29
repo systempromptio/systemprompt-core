@@ -1,3 +1,4 @@
+use systemprompt_files::documents::model::Media;
 use systemprompt_files::documents::models::{
     CommentAnchor, GrantTarget, ListScope, ListSort, ListedDocument,
 };
@@ -49,6 +50,8 @@ async fn share(
                 subject_display: None,
                 level,
                 valid_until: None,
+                message: None,
+                via_agent: None,
             },
             &trace(),
         )
@@ -186,6 +189,8 @@ async fn recent_orders_by_the_callers_last_touch() {
         .create_comment(
             &reader,
             CommentRequest {
+                range: None,
+                mentions: Vec::new(),
                 document: commented.clone(),
                 anchor: Some(CommentAnchor {
                     node,
@@ -219,6 +224,8 @@ async fn recent_orders_by_the_callers_last_touch() {
                 message: None,
                 lock_holder_id: None,
                 comments: CommentPolicy::default(),
+                op_id: None,
+                media: Media::new(),
             },
             &trace(),
         )
@@ -270,4 +277,49 @@ async fn the_name_query_escapes_like_wildcards_and_pages_by_name() {
         .expect("second page");
     assert_eq!(ids(&second.documents), vec![third]);
     assert!(second.next_cursor.is_none());
+}
+
+#[tokio::test]
+async fn a_root_listing_skips_folders_the_caller_cannot_see() {
+    let h = harness(allow(), GroupSource::new(&[])).await;
+    let other = person("root-other");
+    let caller = person("root-caller");
+    let hidden = h
+        .service
+        .create_folder(
+            &other,
+            NewFolderRequest {
+                parent: None,
+                name: unique("Hidden"),
+            },
+            &trace(),
+        )
+        .await
+        .expect("folder")
+        .id;
+    let own = h
+        .service
+        .create_folder(
+            &caller,
+            NewFolderRequest {
+                parent: None,
+                name: unique("Own"),
+            },
+            &trace(),
+        )
+        .await
+        .expect("folder")
+        .id;
+    let listed = h
+        .service
+        .list_folder(
+            &caller,
+            listing(ListScope::Folder, None, ListSort::Name),
+            &trace(),
+        )
+        .await
+        .expect("a root listing ignores folders the caller cannot see");
+    let folders: Vec<DocumentFolderId> = listed.folders.iter().map(|f| f.id.clone()).collect();
+    assert!(folders.contains(&own), "{folders:?}");
+    assert!(!folders.contains(&hidden), "{folders:?}");
 }

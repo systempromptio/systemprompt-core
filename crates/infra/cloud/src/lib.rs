@@ -13,6 +13,8 @@
 //! - [`StoredTenant`] / [`TenantStore`] — persistent tenants index.
 //! - [`CliSession`] / [`SessionStore`] — multi-tenant CLI sessions.
 //! - [`run_oauth_flow`] — browser-driven OAuth login flow.
+//! - [`operator`] — OIDC operator sign-in for self-managed tenants and the RFC
+//!   8693 exchange that turns it into a tenant session.
 //! - [`clear_cloud_state`] — logout cleanup of credentials, tenants, and
 //!   tenant-scoped sessions.
 //! - [`CloudPaths`] — XDG-aware discovery of credentials, sessions, tenants,
@@ -20,7 +22,8 @@
 //! - [`profile_authoring`] — pure [`Profile`](systemprompt_manifest::Profile)
 //!   construction for local and cloud deployment targets.
 //! - [`deploy`] — Dockerfile rendering ([`DockerfileBuilder`]) and validation
-//!   for the deployment image.
+//!   for the deployment image, and the per-provider
+//!   [`DeployProvider`](deploy::provider::DeployProvider) seam.
 //! - [`secrets_env`] — deploy-time mapping of `secrets.json` to environment
 //!   variables, including the signing-key PEM transport encoding.
 //! - [`DockerCli`] — Docker invocations behind a [`CommandRunner`] seam.
@@ -55,6 +58,7 @@ pub mod docker;
 pub mod error;
 pub mod logout;
 pub mod oauth;
+pub mod operator;
 pub mod paths;
 mod private_dir;
 pub mod profile_authoring;
@@ -82,7 +86,7 @@ pub use paths::{
     CloudPath, CloudPaths, DiscoveredProject, ProfilePath, ProjectContext, ProjectPath,
     UnifiedContext, expand_home, get_cloud_paths, resolve_path,
 };
-pub use tenants::{StoredTenant, TenantStore, TenantType};
+pub use tenants::{NewSelfManagedTenantParams, StoredTenant, TenantStore};
 
 use clap::ValueEnum;
 

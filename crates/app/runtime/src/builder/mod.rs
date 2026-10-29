@@ -237,6 +237,7 @@ impl AppContextBuilder {
         );
         let plugins = new_plugins(extensions, mcp_registry, self.marketplace_filter, &market);
         let (router, bridge) = event_plane(self.event_router, &database, &config, &cache_epochs);
+        let background_tasks = self.background_tasks.unwrap_or_default();
         let documents = documents::build_documents(&documents::DocumentsInputs {
             boot: &self.boot,
             database: &database,
@@ -245,6 +246,8 @@ impl AppContextBuilder {
             subjects: &plugins.subjects,
             event_router: &router,
             files_config: &files_config,
+            background_tasks: &background_tasks,
+            extensions: &plugins.extension_registry,
         })?;
         let subsystems = Subsystems {
             ai_service,
@@ -262,7 +265,7 @@ impl AppContextBuilder {
             geoip_reader: content.geoip_reader,
             file_storage,
             shutdown: self.shutdown.unwrap_or_default(),
-            background_tasks: self.background_tasks.unwrap_or_default(),
+            background_tasks,
             spawner: new_spawner()?,
             publish_guard: Arc::default(),
             connector_tokens,

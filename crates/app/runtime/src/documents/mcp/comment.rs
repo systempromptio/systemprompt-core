@@ -1,6 +1,8 @@
 //! Comment threads anchor to a stable node id and an optional quote inside
 //! it, so a thread survives edits elsewhere in the document and is detached,
-//! not lost, when its words go.
+//! not lost, when its words go. A comment may mention users by id or email
+//! (`mentions`), which shares the document with any of them who cannot see
+//! it; its author can edit it, and it can be deleted (`comment_edit`).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -15,9 +17,11 @@ use systemprompt_models::execution::context::RequestContext;
 
 use super::DocumentsMcpTools;
 use super::inputs::{CommentAction, CommentInput};
-use super::records::{CommentItem, CommentOutput};
-use super::refusal::{RefusalCode, refusal};
+use super::mentions::{agent_origin, resolve_mentions};
+use super::refusal::refusal;
 use super::support::{caller, tool_error};
+use crate::documents::refusal::RefusalCode;
+use crate::documents::views::{CommentOutput, comments_view};
 
 #[derive(Debug, Clone, Copy)]
 pub struct CommentHandler<'a> {
@@ -40,17 +44,21 @@ impl CommentHandler<'_> {
             find: input.anchor.as_ref().map(|a| a.find.clone()),
             nth: input.anchor.as_ref().and_then(|a| a.nth),
         });
+        let resolved = resolve_mentions(self.tools.users(), input.mentions, body).await?;
         let comment = self
             .tools
             .service()
-            .create_comment(
+            .create_comment_from(
                 who,
                 CommentRequest {
                     document: input.document_id,
                     anchor,
-                    body,
+                    range: None,
+                    body: resolved.body,
+                    mentions: resolved.ids,
                     parent_id: input.parent_id,
                 },
+                &agent_origin(ctx),
                 ctx.trace_id(),
             )
             .await
@@ -98,7 +106,7 @@ impl McpToolHandler for CommentHandler<'_> {
     }
 
     fn description(&self) -> &'static str {
-        "Create, list or resolve anchored comments."
+        "Anchored comments and mentions. Guide: comments."
     }
 
     async fn handle(
@@ -111,17 +119,16 @@ impl McpToolHandler for CommentHandler<'_> {
         let output = match input.action {
             CommentAction::Create => self.create(who, input, ctx).await?,
             CommentAction::Resolve => self.resolve(who, input, ctx).await?,
-            CommentAction::List => CommentOutput {
-                comments: self
-                    .tools
-                    .service()
-                    .comments(who, &input.document_id, ctx.trace_id())
-                    .await
-                    .map_err(tool_error)?
-                    .into_iter()
-                    .map(CommentItem::from)
-                    .collect(),
-            },
+            CommentAction::Edit => self.edit(who, input, ctx).await?,
+            CommentAction::Delete => self.delete(who, input, ctx).await?,
+            CommentAction::List => comments_view(
+                self.tools.service(),
+                who,
+                &input.document_id,
+                ctx.trace_id(),
+            )
+            .await
+            .map_err(tool_error)?,
         };
         let summary = format!("{} comments", output.comments.len());
         Ok((output, summary))

@@ -6,7 +6,7 @@
 
 use systemprompt_identifiers::{DocumentCommentId, DocumentNodeId, DocumentRevisionId, UserId};
 use systemprompt_models::documents::AccessLevel;
-use systemprompt_provider_contracts::documents::ClosestBlock;
+use systemprompt_provider_contracts::documents::{ClosestBlock, DocumentFormat};
 
 pub(super) fn base_label(base: Option<&DocumentRevisionId>) -> String {
     base.map_or_else(
@@ -15,7 +15,12 @@ pub(super) fn base_label(base: Option<&DocumentRevisionId>) -> String {
     )
 }
 
-pub(super) fn kinds_label(op: &str, kinds: &[&str]) -> String {
+pub(super) fn kinds_label(op: &str, format: &DocumentFormat, kinds: &[&str]) -> String {
+    if format.is_file() {
+        return "; a file document (a PDF, an image, any other upload) is stored bytes and is never \
+                edited: download or export it, or write a new version of the whole file"
+            .to_owned();
+    }
     match (op, kinds) {
         ("insert_after", []) => "; this format takes no insert_after".to_owned(),
         ("insert_after", kinds) => format!("; insert_after accepts kind {}", kinds.join(", ")),

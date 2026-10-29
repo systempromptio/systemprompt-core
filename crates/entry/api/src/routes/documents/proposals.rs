@@ -19,7 +19,7 @@ use systemprompt_files::documents::service::{Proposed, ReviewRequest};
 use systemprompt_identifiers::{DocumentId, DocumentProposalId, DocumentRevisionId, UserId};
 use systemprompt_models::RequestContext;
 use systemprompt_models::documents::{ActorKind, ProposalStatus};
-use systemprompt_runtime::documents::mcp::proposal_lines;
+use systemprompt_runtime::documents::views::proposal_lines;
 
 use super::DocumentsState;
 use super::caller::{Caller, api_author, caller};

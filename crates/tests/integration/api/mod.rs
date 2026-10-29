@@ -185,9 +185,21 @@ mod routes_agent_runs;
 #[cfg(test)]
 mod documents;
 #[cfg(test)]
+mod documents_access_requests;
+#[cfg(test)]
 mod documents_collab;
 #[cfg(test)]
+mod documents_drive_policy;
+#[cfg(test)]
 mod documents_parity;
+#[cfg(test)]
+mod documents_pdf;
+#[cfg(test)]
+mod documents_read_parity;
+#[cfg(test)]
+mod documents_review;
+#[cfg(test)]
+mod documents_sharing;
 #[cfg(test)]
 #[path = "routes_oauth_token.rs"]
 mod routes_oauth_token;
@@ -619,3 +631,7 @@ mod gateway_principal_parity;
 #[cfg(test)]
 #[path = "gateway_api_key_session_binding.rs"]
 mod gateway_api_key_session_binding;
+
+#[cfg(test)]
+#[path = "process_leases.rs"]
+mod process_leases;

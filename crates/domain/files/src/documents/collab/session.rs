@@ -3,10 +3,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::BTreeSet;
 use std::time::Duration;
 
-use loro::ExportMode;
 use systemprompt_identifiers::{DocumentEditSessionId, DocumentId, TraceId, UserId};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{
@@ -14,7 +12,10 @@ use systemprompt_models::documents::{
 };
 
 use super::model::is_collab_format;
-use super::{CollabError, CollabService, CursorRequest, JoinMode, Joined, Left};
+use super::{Checkpoint, CollabError, CollabService, CursorRequest, JoinMode, Joined, Left};
+use crate::documents::error::DocumentsError;
+use crate::documents::model::RICH_TEXT_VERSION;
+use crate::documents::models::{Document, DocumentEditSession, EditSessionOpen, PresenceUpsert};
 
 struct Announcement<'a> {
     state: PresenceState,
@@ -22,9 +23,6 @@ struct Announcement<'a> {
     // JSON: editor cursor position; the shape belongs to the client's editor.
     cursor: Option<serde_json::Value>,
 }
-use crate::documents::access::AccessTarget;
-use crate::documents::error::DocumentsError;
-use crate::documents::models::{Document, DocumentEditSession, EditSessionOpen, PresenceUpsert};
 
 impl CollabService {
     pub async fn join(
@@ -36,9 +34,11 @@ impl CollabService {
     ) -> Result<Joined, CollabError> {
         let action = match mode {
             JoinMode::Edit => DocumentAction::Edit,
+            JoinMode::Comment => DocumentAction::Comment,
             JoinMode::View => DocumentAction::View,
         };
-        let document = self.authorized(who, document, action, trace).await?;
+        let engine = self.engine()?;
+        let (document, level) = self.granted(who, document, action, trace).await?;
         if !is_collab_format(document.format) {
             return Err(DocumentsError::UnsupportedFormat {
                 format: document.format,
@@ -51,13 +51,19 @@ impl CollabService {
         self.catch_up(&mut entry).await?;
         let joined = Joined {
             session_id: session.id.clone(),
-            snapshot: entry.doc.export(ExportMode::Snapshot)?,
-            version: entry.doc.oplog_vv().encode(),
+            snapshot: entry.doc.snapshot()?,
+            version: entry.doc.version(),
+            seq: entry.last_seq,
             head_revision: document.head_revision_id.clone(),
+            engine: engine.name(),
+            wire_version: engine.wire_version(),
+            model: entry.doc.export_model().kind(),
+            model_version: RICH_TEXT_VERSION,
+            level,
         };
         drop(entry);
         let state = match mode {
-            JoinMode::Edit => PresenceState::Editing,
+            JoinMode::Edit | JoinMode::Comment => PresenceState::Editing,
             JoinMode::View => PresenceState::Viewing,
         };
         self.mark_present(who, &document, state, None).await?;
@@ -85,26 +91,38 @@ impl CollabService {
             .authorized(who, document, DocumentAction::View, trace)
             .await?;
         let repos = self.documents.repositories();
+        let was_editing = repos.collab.is_editing(&document.id, &who.id).await?;
         repos
             .collab
             .remove_web_presence(&document.id, &who.id)
             .await?;
+        let stays_open = Left {
+            closed: false,
+            checkpoint: Checkpoint::Unchanged,
+        };
         let open = repos.edit_sessions.find_open(&document.id).await?;
         let Some(open) = open.filter(|open| open.id == *session) else {
-            return Ok(Left {
-                closed: false,
-                checkpoint: None,
-            });
+            return Ok(stays_open);
         };
         if repos.collab.count_editors(&document.id).await? > 0 {
-            return Ok(Left {
-                closed: false,
-                checkpoint: None,
-            });
+            return Ok(stays_open);
         }
         let entry = self.entry(&document, &open).await?;
         let mut entry = entry.lock().await;
-        let checkpoint = self.checkpoint(&mut entry, who, trace).await?;
+        let editor = entry
+            .last_editor
+            .clone()
+            .or_else(|| was_editing.then(|| who.clone()));
+        let Some(editor) = editor else {
+            return Ok(stays_open);
+        };
+        let checkpoint = self.settle(&mut entry, &editor, trace).await?;
+        if matches!(checkpoint, Checkpoint::Conflict { .. }) {
+            return Ok(Left {
+                closed: false,
+                checkpoint,
+            });
+        }
         let closed = repos.edit_sessions.close(&open.id).await?;
         drop(entry);
         self.cache_remove(&document.id);
@@ -152,38 +170,6 @@ impl CollabService {
         )
         .await;
         Ok(())
-    }
-
-    pub(super) async fn authorized(
-        &self,
-        who: &AuthenticatedUser,
-        document: &DocumentId,
-        action: DocumentAction,
-        trace: &TraceId,
-    ) -> Result<Document, CollabError> {
-        self.documents
-            .access()
-            .authorize(who, AccessTarget::Document(document.clone()), action, trace)
-            .await?
-            .document
-            .ok_or_else(|| DocumentsError::not_found("document", document).into())
-    }
-
-    pub(super) async fn open_matching(
-        &self,
-        document: &DocumentId,
-        session: &DocumentEditSessionId,
-    ) -> Result<DocumentEditSession, CollabError> {
-        self.documents
-            .repositories()
-            .edit_sessions
-            .find_open(document)
-            .await?
-            .filter(|open| open.id == *session)
-            .ok_or_else(|| CollabError::SessionClosed {
-                document_id: document.clone(),
-                session_id: session.clone(),
-            })
     }
 
     async fn open_session(&self, document: &Document) -> Result<DocumentEditSession, CollabError> {
@@ -260,21 +246,6 @@ impl CollabService {
     }
 
     pub(super) async fn recipients(&self, document: &Document) -> Vec<UserId> {
-        let mut users = BTreeSet::from([document.owner_user_id.clone()]);
-        match self
-            .documents
-            .repositories()
-            .presence
-            .users_present(&document.id)
-            .await
-        {
-            Ok(present) => users.extend(present),
-            Err(error) => tracing::warn!(
-                document_id = %document.id,
-                error = %error,
-                "Present users could not be read; the event reaches the owner only"
-            ),
-        }
-        users.into_iter().collect()
+        self.documents.recipients(document).await
     }
 }

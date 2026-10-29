@@ -12,7 +12,7 @@ use systemprompt_provider_contracts::{
 };
 
 use super::merge::{EntityMerge, Verdict, merge_plane};
-use super::{APPLY_MODE, ApplyOptions, ConfigApplyService, PlaneMerge};
+use super::{APPLY_MODE, ApplyOptions, ConfigApplyService, FILE_WINS_MODE, PlaneMerge};
 use crate::error::SchedulerResult;
 use crate::repository::{
     BaseRecord, ConfigChangeRecord, ConflictRecord, LastApply, PlaneTransaction,
@@ -22,6 +22,7 @@ const ABSENT_SIDE_HASH: &str = "absent";
 
 struct Sides<'a> {
     plane: &'a dyn ConfigPlane,
+    mode: &'static str,
     options: &'a ApplyOptions<'a>,
     declared: &'a DeclaredEntities,
     declared_hash: &'a str,
@@ -53,8 +54,15 @@ impl ConfigApplyService {
         let current = plane.read(&ctx, &mut PlaneTx::new(&mut tx)).await?;
         let adopt = !repo.find_plane_applied(&mut tx, plane.name()).await?;
         let base = repo.list_base(&mut tx, plane.name()).await?;
-        let merges = merge_plane(&declared, &current, &base, adopt);
-        result.adopted = adopt;
+        let file_wins = set.authority_of(plane).is_file_managed();
+        let mode = if file_wins {
+            FILE_WINS_MODE
+        } else {
+            APPLY_MODE
+        };
+        let merges = merge_plane(&declared, &current, &base, adopt, file_wins);
+        result.adopted = adopt && !file_wins;
+        result.file_wins = file_wins;
 
         let groups = write_groups(plane, &declared, &merges);
         for (source, entities) in &groups {
@@ -71,6 +79,7 @@ impl ConfigApplyService {
         };
         let sides = Sides {
             plane,
+            mode,
             options,
             declared: &declared,
             declared_hash: &declared_hash,
@@ -87,7 +96,7 @@ impl ConfigApplyService {
                 authority: set.authority_of(plane).as_str(),
                 declared_hash: &declared_hash,
                 actor: options.actor.label(),
-                mode: APPLY_MODE,
+                mode,
                 drift_rows,
             },
         )
@@ -144,6 +153,7 @@ impl ConfigApplyService {
                     }
                     let record = change_record(name, entity, sides);
                     repo.record_changes(tx, &[record]).await?;
+                    repo.resolve_conflict_file(tx, name, entity, actor).await?;
                     result.applied.push(merge.entity.clone());
                 },
                 Verdict::Converged => {
@@ -226,7 +236,7 @@ fn change_record<'a>(plane: &'a str, entity: &'a str, sides: &Sides<'a>) -> Conf
         change_kind,
         before_value,
         after_value,
-        mode: APPLY_MODE,
+        mode: sides.mode,
         actor: options.actor.label(),
         reason: options.reason,
         declared_hash: sides.declared_hash,

@@ -1,8 +1,8 @@
 //! `cloud` command tree for systemprompt.io Cloud.
 //!
 //! Routes [`CloudCommands`] to the auth, init, tenant, profile, deploy,
-//! backup, status, dockerfile and sync subcommands, and declares each command's
-//! profile/secret requirements via [`DescribeCommand`].
+//! backup, status, fleet, dockerfile and sync subcommands, and declares each
+//! command's profile/secret requirements via [`DescribeCommand`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -11,6 +11,7 @@ pub mod auth;
 pub mod backup;
 pub mod deploy;
 pub mod doctor;
+pub mod fleet;
 pub mod init;
 pub mod profile;
 mod status;
@@ -51,7 +52,7 @@ pub enum CloudCommands {
         command: Option<profile::ProfileCommands>,
     },
 
-    #[command(about = "Deploy to systemprompt.io Cloud")]
+    #[command(about = "Deploy the profile's tenant (systemprompt.io Cloud or GitOps)")]
     Deploy {
         #[arg(long)]
         skip_push: bool,
@@ -66,6 +67,12 @@ pub enum CloudCommands {
 
         #[arg(long, help = "Run the pre-deploy preflight only, without deploying")]
         check: bool,
+
+        #[arg(
+            long,
+            help = "After the rollout, wait until the tenant's /readyz reports ready"
+        )]
+        wait: bool,
     },
 
     #[command(about = "Download the tenant's runtime services/ tree to a local directory")]
@@ -110,6 +117,12 @@ pub enum CloudCommands {
     #[command(about = "Check cloud deployment status")]
     Status,
 
+    #[command(
+        subcommand,
+        about = "Across every tenant: run read-only commands, report versions"
+    )]
+    Fleet(fleet::FleetCommands),
+
     #[command(about = "Generate Dockerfile based on discovered extensions")]
     Dockerfile,
 
@@ -145,12 +158,14 @@ pub async fn execute(cmd: CloudCommands, ctx: &CommandContext) -> Result<()> {
             skip_push,
             profile,
             check,
+            wait,
         } => {
             deploy::execute(
                 deploy::DeployArgs {
                     skip_push,
                     profile_name: profile_name(profile)?,
                     check,
+                    wait,
                 },
                 ctx.prompter(),
                 &ctx.cli,
@@ -191,6 +206,7 @@ pub async fn execute(cmd: CloudCommands, ctx: &CommandContext) -> Result<()> {
             crate::shared::render_result(&result, &ctx.cli);
             Ok(())
         },
+        CloudCommands::Fleet(cmd) => fleet::execute(cmd, ctx).await,
         CloudCommands::Dockerfile => execute_dockerfile(&ctx.cli),
         CloudCommands::Sync(cmd) => sync::execute(cmd, ctx).await,
     }

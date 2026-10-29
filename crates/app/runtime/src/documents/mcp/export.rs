@@ -1,6 +1,7 @@
 //! A link opens the stored file, so a link in another format is offered only
-//! when the document already is that format. No codec renders PDF, so a PDF
-//! export is refused as `unsupported_format`.
+//! when the document already is that format, except PDF: a `pdf` url is a
+//! link to the revision rendered by the core PDF renderer, for every format
+//! but `file`, whose only link is its own bytes.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -13,36 +14,46 @@ use systemprompt_models::documents::DocumentFormat;
 use systemprompt_models::execution::context::RequestContext;
 
 use super::DocumentsMcpTools;
-use super::download::{DownloadTarget, signed_download_url};
 use super::inputs::{ExportAs, ExportFormat, ExportInput};
 use super::outputs::ExportOutput;
 use super::preview::preview_resource_uri;
-use super::refusal::{RefusalCode, refusal};
+use super::refusal::refusal;
 use super::support::{caller, tool_error};
+use crate::documents::actor::signed_agent_name;
+use crate::documents::download::{DownloadTarget, Rendition, signed_download_url};
+use crate::documents::refusal::RefusalCode;
 
 enum Plan {
-    Link,
+    Link(Rendition),
     Preview,
 }
 
 fn plan(input: &ExportInput, format: DocumentFormat) -> Result<Plan, McpError> {
+    if format.is_file() && !matches!(input.format, ExportFormat::Native | ExportFormat::Html) {
+        return Err(refusal(
+            RefusalCode::UnsupportedFormat,
+            "a file document exports as native url (its own bytes) or html preview only".to_owned(),
+        ));
+    }
     match (input.format, input.export_as) {
         (ExportFormat::Native | ExportFormat::Html, ExportAs::Preview) => Ok(Plan::Preview),
-        (ExportFormat::Native, ExportAs::Url) => Ok(Plan::Link),
-        (ExportFormat::Md, ExportAs::Url) if format == DocumentFormat::Markdown => Ok(Plan::Link),
-        (ExportFormat::Html, ExportAs::Url) if format == DocumentFormat::Html => Ok(Plan::Link),
-        (ExportFormat::Pdf, _) => Err(refusal(
+        (ExportFormat::Native, ExportAs::Url) => Ok(Plan::Link(Rendition::Native)),
+        (ExportFormat::Pdf, ExportAs::Url) => Ok(Plan::Link(Rendition::Pdf)),
+        (ExportFormat::Md, ExportAs::Url) if format == DocumentFormat::Markdown => {
+            Ok(Plan::Link(Rendition::Native))
+        },
+        (ExportFormat::Html, ExportAs::Url) if format == DocumentFormat::Html => {
+            Ok(Plan::Link(Rendition::Native))
+        },
+        (ExportFormat::Pdf, ExportAs::Preview) => Err(refusal(
             RefusalCode::UnsupportedFormat,
-            format!(
-                "no codec renders {format} documents as PDF; export native as url, or html as \
-                 preview"
-            ),
+            "pdf exports as url only; export pdf as url, or html as preview".to_owned(),
         )),
         (_, _) => Err(refusal(
             RefusalCode::UnsupportedFormat,
             format!(
-                "a {format} document exports as url only in its own format; export native as \
-                 url, or html as preview"
+                "a {format} document exports as url only in its own format or as pdf; export \
+                 native or pdf as url, or html as preview"
             ),
         )),
     }
@@ -93,7 +104,7 @@ impl McpToolHandler for ExportHandler<'_> {
     }
 
     fn description(&self) -> &'static str {
-        "Export as a signed download url or an HTML preview."
+        "Export a url or HTML preview."
     }
 
     fn read_only(&self) -> bool {
@@ -109,17 +120,23 @@ impl McpToolHandler for ExportHandler<'_> {
         let who = caller(ctx)?;
         let (format, revision) = revision(self.tools, who, &input, ctx).await?;
         match plan(&input, format)? {
-            Plan::Link => {
+            Plan::Link(rendition) => {
                 let (url, expires_at) = signed_download_url(
                     self.tools.token_authority(),
                     DownloadTarget {
+                        rendition,
                         base_url: self.tools.api_external_url(),
                         user: who,
                         session_id: ctx.session_id(),
                         document: &input.document_id,
                         revision: &revision,
+                        agent: &signed_agent_name(ctx),
                     },
-                )?;
+                )
+                .map_err(|error| {
+                    tracing::error!(error = %error, cause = ?std::error::Error::source(&error), "document download token was not minted");
+                    McpError::internal_error("the download link could not be signed", None)
+                })?;
                 let summary = format!("download link valid until {}", expires_at.to_rfc3339());
                 Ok((
                     ExportOutput {

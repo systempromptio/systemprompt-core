@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO document_collab_updates (session_id, seq, payload, author_user_id)\n             VALUES ($1::text::uuid, $2, $3, $4)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8",
+        "Bytea",
+        "Varchar"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "3fa7adbba839d5c1e5bc62740a8a8404f3db9f61d18eb72acf178aeb958728ee"
+}

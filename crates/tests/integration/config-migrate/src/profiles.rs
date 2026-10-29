@@ -51,7 +51,7 @@ fn standalone_072(name: &str, url: &str) -> String {
     )
 }
 
-fn tree() -> tempfile::TempDir {
+pub(crate) fn tree() -> tempfile::TempDir {
     let dir = tempfile::tempdir().expect("tempdir");
     let profiles = dir.path().join("profiles");
     std::fs::create_dir_all(profiles.join("staging")).expect("mkdir");
@@ -69,7 +69,7 @@ fn tree() -> tempfile::TempDir {
     dir
 }
 
-fn profiles(dir: &tempfile::TempDir) -> std::path::PathBuf {
+pub(crate) fn profiles(dir: &tempfile::TempDir) -> std::path::PathBuf {
     dir.path().join("profiles")
 }
 

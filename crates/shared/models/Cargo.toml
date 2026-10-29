@@ -55,6 +55,7 @@ regex = { workspace = true }
 # Crypto (managed-bundle content hashing)
 sha2 = { workspace = true }
 hex = { workspace = true }
+hmac = { workspace = true }
 serde_jcs = { workspace = true }
 
 # Async streaming

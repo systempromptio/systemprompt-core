@@ -42,16 +42,17 @@ pub use extension::UsersExtension;
 
 pub use error::{Result, UserError, UserResult};
 pub use models::{
-    AccountKind, ApiKeyLimits, NewApiKey, User, UserActivity, UserApiKey, UserCountBreakdown,
-    UserDeviceCert, UserExport, UserRole, UserSession, UserStats, UserStatus, UserWithSessions,
-    normalise_email,
+    AccountKind, ApiKeyKind, ApiKeyLimits, NewApiKey, User, UserActivity, UserApiKey,
+    UserCountBreakdown, UserDeviceCert, UserExport, UserRole, UserSession, UserStats, UserStatus,
+    UserWithSessions, normalise_email,
 };
 pub use repository::{
     ArchiveOutcome, ArchiveParams, ArchiveState, BanDuration, BanIpParams, BanIpWithMetadataParams,
-    BannedIp, BannedIpRepository, CreateApiKeyParams, EnrollDeviceCertParams,
-    EnsuredServiceAccount, MERGE_EXCLUDED_SECURITY_TABLES, MergeResult, NewServiceAccount,
-    NewSsoLoginEvent, PurgeCount, SessionRepository, SessionTrafficRollupRepository, SsoLoginEvent,
-    SsoLoginEventRepository, UserRateLimitBucketRepository, UserRepository, UsersRoleDirectory,
+    BannedIp, BannedIpRepository, CreateApiKeyParams, DeclaredUserRow, DeclaredUserWrite,
+    EnrollDeviceCertParams, EnsuredServiceAccount, MERGE_EXCLUDED_SECURITY_TABLES, MergeResult,
+    NewServiceAccount, NewSsoLoginEvent, PurgeCount, SessionRepository,
+    SessionTrafficRollupRepository, SsoLoginEvent, SsoLoginEventRepository,
+    UserRateLimitBucketRepository, UserRepository, UsersRoleDirectory,
 };
 pub use services::{
     API_KEY_PREFIX, ApiKeyLifetime, ApiKeyService, DEVICE_FINGERPRINT_FOREIGN_USER, DemoteResult,

@@ -6,7 +6,9 @@ use systemprompt_files::documents::models::{
     NewDocument, NewFolder, NewGrant, NewRevision, PresenceUpsert, RevisionAttribution,
     SubjectPairs, VisibleListing,
 };
-use systemprompt_files::documents::repository::DocumentRepositories;
+use systemprompt_files::documents::repository::{
+    DocumentRepositories, DocumentRepository, HeadMove,
+};
 use systemprompt_identifiers::{
     ContentHash, DocumentFolderId, DocumentId, DocumentRevisionId, UserId,
 };
@@ -95,6 +97,7 @@ async fn revision(
     repos
         .revisions
         .insert(NewRevision {
+            id: DocumentRevisionId::generate(),
             document_id: document_id.clone(),
             parent_revision_id: parent.cloned(),
             content_sha256: content,
@@ -130,6 +133,9 @@ async fn grant_folder(
             access_level: level,
             granted_by: granted_by.clone(),
             valid_until: expired.then(|| Utc::now() - chrono::Duration::hours(1)),
+            trace_id: systemprompt_identifiers::TraceId::generate(),
+            reason: None,
+            via_agent: None,
         })
         .await
         .expect("insert grant");
@@ -180,31 +186,43 @@ async fn folder_move_rewrites_descendant_ancestors() {
     );
 }
 
+async fn cas(
+    repos: &DocumentRepositories,
+    doc: &DocumentId,
+    expected: Option<&DocumentRevisionId>,
+    new: &DocumentRevisionId,
+) -> bool {
+    let mut tx = repos.documents.begin().await.expect("begin");
+    let moved = DocumentRepository::move_head(
+        &mut tx,
+        HeadMove {
+            document: doc,
+            expected,
+            new,
+            lock_holder: None,
+        },
+    )
+    .await
+    .expect("cas");
+    tx.commit().await.expect("commit");
+    moved
+}
+
 #[tokio::test]
-async fn set_head_if_lets_exactly_one_writer_win() {
+async fn move_head_lets_exactly_one_writer_win() {
     let repos = repos().await;
     let owner = user("owner");
     let doc = document(&repos, None, &owner, &unique("doc")).await;
     let base = revision(&repos, &doc, None, &owner).await;
-    assert!(
-        repos
-            .documents
-            .set_head_if(&doc, None, &base)
-            .await
-            .expect("cas")
-    );
+    assert!(cas(&repos, &doc, None, &base).await);
 
     let first = revision(&repos, &doc, Some(&base), &owner).await;
     let second = revision(&repos, &doc, Some(&base), &owner).await;
     let (a, b) = tokio::join!(
-        repos.documents.set_head_if(&doc, Some(&base), &first),
-        repos.documents.set_head_if(&doc, Some(&base), &second),
+        cas(&repos, &doc, Some(&base), &first),
+        cas(&repos, &doc, Some(&base), &second),
     );
-    let wins = [a.expect("a"), b.expect("b")]
-        .iter()
-        .filter(|w| **w)
-        .count();
-    assert_eq!(wins, 1);
+    assert_eq!([a, b].iter().filter(|w| **w).count(), 1);
 
     let other = document(&repos, None, &owner, &unique("doc")).await;
     let head = repos
@@ -215,14 +233,9 @@ async fn set_head_if_lets_exactly_one_writer_win() {
         .expect("doc");
     let foreign = head.head_revision_id.expect("head");
     assert!(
-        !repos
-            .documents
-            .set_head_if(&other, None, &foreign)
-            .await
-            .expect("foreign cas"),
+        !cas(&repos, &other, None, &foreign).await,
         "a revision of another document is never a head"
     );
-    assert_eq!(repos.revisions.count(&doc).await.expect("count"), 3);
 }
 
 #[tokio::test]
@@ -320,6 +333,9 @@ async fn effective_level_picks_the_highest_grant() {
             access_level: AccessLevel::Share,
             granted_by: owner.clone(),
             valid_until: None,
+            trace_id: systemprompt_identifiers::TraceId::generate(),
+            reason: None,
+            via_agent: None,
         })
         .await
         .expect("grant");

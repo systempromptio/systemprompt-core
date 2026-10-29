@@ -83,7 +83,7 @@ impl McpToolHandler for ListHandler<'_> {
     }
 
     fn description(&self) -> &'static str {
-        "List documents by scope; pass next_cursor as cursor."
+        "List documents by scope."
     }
 
     fn read_only(&self) -> bool {
@@ -167,7 +167,7 @@ impl McpToolHandler for SearchHandler<'_> {
     }
 
     fn description(&self) -> &'static str {
-        "Full-text search of documents you may view."
+        "Search documents you may view."
     }
 
     fn read_only(&self) -> bool {

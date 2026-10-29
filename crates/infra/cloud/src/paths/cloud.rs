@@ -5,13 +5,14 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::constants::{cli_session, credentials, dir_names, tenants};
+use crate::constants::{cli_session, credentials, dir_names, operator, tenants};
 
 use super::{ProjectContext, resolve_path};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum CloudPath {
     Credentials,
+    OperatorCredentials,
     Tenants,
     CliSession,
     SessionsDir,
@@ -22,6 +23,7 @@ impl CloudPath {
     pub const fn default_filename(&self) -> &'static str {
         match self {
             Self::Credentials => credentials::DEFAULT_FILE_NAME,
+            Self::OperatorCredentials => operator::DEFAULT_FILE_NAME,
             Self::Tenants => tenants::DEFAULT_FILE_NAME,
             Self::CliSession => cli_session::DEFAULT_FILE_NAME,
             Self::SessionsDir => dir_names::SESSIONS,
@@ -32,6 +34,7 @@ impl CloudPath {
     pub const fn default_dirname(&self) -> &'static str {
         match self {
             Self::Credentials => credentials::DEFAULT_DIR_NAME,
+            Self::OperatorCredentials => operator::DEFAULT_DIR_NAME,
             Self::Tenants => tenants::DEFAULT_DIR_NAME,
             Self::CliSession | Self::SessionsDir => cli_session::DEFAULT_DIR_NAME,
         }
@@ -117,6 +120,7 @@ impl CloudPaths {
                 .credentials_path
                 .clone()
                 .unwrap_or_else(|| self.base_dir.join(credentials::DEFAULT_FILE_NAME)),
+            CloudPath::OperatorCredentials => self.base_dir.join(operator::DEFAULT_FILE_NAME),
             CloudPath::Tenants => self
                 .tenants_path
                 .clone()

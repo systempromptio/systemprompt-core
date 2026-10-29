@@ -30,6 +30,6 @@ pub use release_stamp::{
 };
 pub use service::{
     CLAIM_DEAD_PEER_SECS, CreateServiceInput, INSTANCE_CLAIM_CLASS, INSTANCE_DEAD_AFTER_SECS,
-    InstanceClaim, InstanceClaimError, Reaped, ReapedService, ServiceConfig, ServiceModule,
-    ServiceRepository, ServiceStatus, UpsertServiceProcessInput,
+    InstanceClaim, InstanceClaimError, ProcessOwner, Reaped, ReapedService, RoleCount,
+    ServiceConfig, ServiceModule, ServiceRepository, ServiceStatus, UpsertServiceProcessInput,
 };

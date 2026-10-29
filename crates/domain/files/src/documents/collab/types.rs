@@ -5,20 +5,35 @@
 
 use std::time::Duration;
 
-use systemprompt_identifiers::{DocumentEditSessionId, DocumentId, DocumentRevisionId};
+use systemprompt_identifiers::{
+    DocumentEditSessionId, DocumentId, DocumentProposalId, DocumentRevisionId,
+};
+use systemprompt_models::documents::AccessLevel;
 
+/// How a client joins: `edit` needs edit access, `comment` comment access
+/// (its updates may only add or remove comment marks), `view` read access.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum JoinMode {
     Edit,
+    Comment,
     View,
 }
 
+/// Protocol v2 join: the session state plus what a client needs to bind an
+/// editor to it — the engine and wire version it must speak, the model and
+/// its schema version, and the caller's access level.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Joined {
     pub session_id: DocumentEditSessionId,
     pub snapshot: Vec<u8>,
     pub version: Vec<u8>,
+    pub seq: i64,
     pub head_revision: Option<DocumentRevisionId>,
+    pub engine: &'static str,
+    pub wire_version: &'static str,
+    pub model: &'static str,
+    pub model_version: u32,
+    pub level: AccessLevel,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -44,10 +59,35 @@ pub struct Applied {
     pub missing: Option<Vec<u8>>,
 }
 
+/// The outcome of committing a session's live body.
+///
+/// A conflicting body is kept as a proposal on the session's checkpoint base
+/// when the session is being left or closed, and is otherwise retried at the
+/// next checkpoint.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Checkpoint {
+    Unchanged,
+    Committed(DocumentRevisionId),
+    Conflict {
+        head: DocumentRevisionId,
+        proposal: Option<DocumentProposalId>,
+    },
+}
+
+impl Checkpoint {
+    #[must_use]
+    pub const fn revision(&self) -> Option<&DocumentRevisionId> {
+        match self {
+            Self::Committed(revision) => Some(revision),
+            Self::Unchanged | Self::Conflict { .. } => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Left {
     pub closed: bool,
-    pub checkpoint: Option<DocumentRevisionId>,
+    pub checkpoint: Checkpoint,
 }
 
 /// When a replica snapshots and checkpoints the sessions it holds.

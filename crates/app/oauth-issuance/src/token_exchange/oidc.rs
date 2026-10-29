@@ -5,7 +5,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode, decode_header};
+use jsonwebtoken::{Algorithm, Validation, decode, decode_header};
 use serde::Deserialize;
 use systemprompt_manifest::Config;
 use systemprompt_oauth::services::validation::id_jag::bool_or_bool_string;
@@ -96,10 +96,10 @@ pub async fn validate_oidc_subject(
         });
     }
 
-    if header.alg != Algorithm::RS256 {
+    if !matches!(header.alg, Algorithm::RS256 | Algorithm::ES256) {
         return Err(IssuanceError::InvalidRequest {
             field: "subject_token".to_owned(),
-            message: "id_token must be RS256-signed".to_owned(),
+            message: "id_token must be RS256- or ES256-signed".to_owned(),
         });
     }
     let kid = header.kid.ok_or_else(|| IssuanceError::InvalidRequest {
@@ -112,11 +112,20 @@ pub async fn validate_oidc_subject(
         .fetch_at(&trusted.issuer, &trusted.jwks_uri, &kid)
         .await
         .map_err(|e| IssuanceError::malformed("subject_token", "JWKS resolution failed", e))?;
-    let key = DecodingKey::from_rsa_components(&jwk.n, &jwk.e).map_err(|e| {
-        IssuanceError::malformed("subject_token", "invalid RSA components in JWK", e)
+    if header.alg != jwk.algorithm() {
+        return Err(IssuanceError::InvalidRequest {
+            field: "subject_token".to_owned(),
+            message: format!(
+                "id_token algorithm {:?} does not match the issuer key",
+                header.alg
+            ),
+        });
+    }
+    let key = jwk.decoding_key().map_err(|e| {
+        IssuanceError::malformed("subject_token", "invalid key components in JWK", e)
     })?;
 
-    let mut validation = Validation::new(Algorithm::RS256);
+    let mut validation = Validation::new(jwk.algorithm());
     validation.set_issuer(&[&trusted.issuer]);
     validation.set_audience(&[&trusted.audience]);
     validation.set_required_spec_claims(&REQUIRED_CLAIMS);

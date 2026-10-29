@@ -19,12 +19,18 @@ use std::sync::Arc;
 
 use crate::services::middleware::context::ContextExtractor;
 use systemprompt_identifiers::{ContextId, headers as sp_headers};
+use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::execution::context::{ContextExtractionError, RequestContext};
+use systemprompt_security::jwt::ValidationPolicy;
 use systemprompt_security::keys::SigningKeys;
-use systemprompt_security::{JwtUserContext, TokenExtractor, extract_user_context};
+use systemprompt_security::{
+    JwtUserContext, TokenExtractor, extract_user_context, extract_user_context_for,
+};
 use systemprompt_traits::{SessionProvider, UserProvider};
 
-use super::params::{BuildContextParams, build_context, extract_common_headers};
+use super::params::{
+    BuildContextParams, build_context, extract_common_headers, is_cookie_transport,
+};
 use super::revocation::JtiRevocationChecker;
 use super::validation::{UserCache, user_is_admin, validate_session_exists, validate_user_exists};
 
@@ -134,6 +140,7 @@ impl JwtContextExtractor {
             task_id,
             auth_token,
             user_type,
+            cookie_transport: is_cookie_transport(&self.token_extractor, headers),
         }))
     }
 
@@ -150,6 +157,22 @@ impl JwtContextExtractor {
         )
         .await
         .map(|validated| validated.user)
+    }
+
+    pub fn verified_claims(&self, token: &str) -> Option<JwtUserContext> {
+        extract_user_context(&self.keys, token, &self.issuer).ok()
+    }
+
+    pub async fn decode_for_audiences(
+        &self,
+        jwt_token: &systemprompt_identifiers::JwtToken,
+        audiences: &[JwtAudience],
+    ) -> Result<(JwtUserContext, systemprompt_traits::AuthUser), ContextExtractionError> {
+        let policy = ValidationPolicy::issuer_scoped(&self.issuer, audiences);
+        let jwt_context = extract_user_context_for(&self.keys, jwt_token.as_str(), &policy)
+            .map_err(|e| ContextExtractionError::InvalidToken(e.into()))?;
+        let user = self.validate(&jwt_context, "drive sync").await?;
+        Ok((jwt_context, user))
     }
 
     pub async fn decode_for_gateway(
@@ -221,6 +244,7 @@ impl JwtContextExtractor {
             task_id,
             auth_token,
             user_type,
+            cookie_transport: is_cookie_transport(&self.token_extractor, &headers),
         });
 
         Ok((ctx, reconstructed_request))

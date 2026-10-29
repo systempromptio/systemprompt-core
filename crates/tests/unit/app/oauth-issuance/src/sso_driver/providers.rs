@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex, OnceLock};
 
 use async_trait::async_trait;
 use systemprompt_identifiers::{SsoAssertionId, UserId};
-use systemprompt_oauth_issuance::sso::{RoleResolver, SsoHookContext};
+use systemprompt_oauth_issuance::sso::{RoleResolver, SsoHookContext, SsoProviderError};
 use systemprompt_oauth_issuance::{
     register_auth_event_sink, register_role_resolver, register_sso_provider,
 };
@@ -179,30 +179,25 @@ impl SsoProvider for FakeProvider {
     }
 }
 
-fn open_factory(_ctx: &SsoHookContext) -> Option<Arc<dyn SsoProvider>> {
-    Some(Arc::new(provider(OPEN)))
+type ProviderResult = Result<Option<Arc<dyn SsoProvider>>, SsoProviderError>;
+
+fn open_factory(_ctx: &SsoHookContext) -> ProviderResult {
+    Ok(Some(Arc::new(provider(OPEN))))
 }
 
-// Why: inventory order is unspecified, so either registration of the
-// duplicated id may be kept; both must behave identically for the flow tests.
-fn duplicate_open_factory(_ctx: &SsoHookContext) -> Option<Arc<dyn SsoProvider>> {
-    Some(Arc::new(provider(OPEN)))
+fn closed_factory(_ctx: &SsoHookContext) -> ProviderResult {
+    Ok(Some(Arc::new(provider(CLOSED))))
 }
 
-fn closed_factory(_ctx: &SsoHookContext) -> Option<Arc<dyn SsoProvider>> {
-    Some(Arc::new(provider(CLOSED)))
+fn blank_factory(_ctx: &SsoHookContext) -> ProviderResult {
+    Ok(Some(Arc::new(provider(BLANK))))
 }
 
-fn blank_factory(_ctx: &SsoHookContext) -> Option<Arc<dyn SsoProvider>> {
-    Some(Arc::new(provider(BLANK)))
-}
-
-fn disabled_factory(_ctx: &SsoHookContext) -> Option<Arc<dyn SsoProvider>> {
-    None
+fn disabled_factory(_ctx: &SsoHookContext) -> ProviderResult {
+    Ok(None)
 }
 
 register_sso_provider!(open_factory);
-register_sso_provider!(duplicate_open_factory);
 register_sso_provider!(closed_factory);
 register_sso_provider!(blank_factory);
 register_sso_provider!(disabled_factory);

@@ -2,7 +2,7 @@ CREATE TABLE IF NOT EXISTS documents (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     folder_id UUID REFERENCES document_folders(id) ON DELETE RESTRICT,
     name TEXT NOT NULL CHECK (length(name) > 0),
-    format TEXT NOT NULL CHECK (format IN ('docx', 'xlsx', 'pptx', 'odt', 'ods', 'odp', 'html', 'markdown', 'text')),
+    format TEXT NOT NULL CHECK (format IN ('docx', 'xlsx', 'pptx', 'odt', 'ods', 'odp', 'html', 'markdown', 'text', 'file')),
     mime_type TEXT NOT NULL,
     head_revision_id UUID,
     template_id TEXT,
@@ -11,7 +11,9 @@ CREATE TABLE IF NOT EXISTS documents (
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMPTZ,
-    trashed_by VARCHAR(255)
+    trashed_by VARCHAR(255),
+    agent_cap TEXT CHECK (agent_cap IN ('none', 'read', 'comment', 'suggest', 'edit')),
+    created_by_agent TEXT CHECK (created_by_agent IS NULL OR length(created_by_agent) BETWEEN 1 AND 64)
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS uq_documents_folder_name

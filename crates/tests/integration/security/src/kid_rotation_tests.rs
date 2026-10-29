@@ -13,13 +13,13 @@ async fn old_kid_resolves_when_jwks_contains_both_during_rotation() {
         .fetch(&mock.issuer(), &old.kid)
         .await
         .expect("old kid resolves");
-    assert_eq!(resolved_old.kid, old.kid);
+    assert_eq!(resolved_old.kid(), old.kid.as_str());
 
     let resolved_new = client
         .fetch(&mock.issuer(), &new.kid)
         .await
         .expect("new kid resolves from same cached document");
-    assert_eq!(resolved_new.kid, new.kid);
+    assert_eq!(resolved_new.kid(), new.kid.as_str());
 
     assert_eq!(
         mock.responder.fetches(),
@@ -47,7 +47,7 @@ async fn unknown_kid_triggers_refetch_and_resolves_after_rotation() {
         .fetch(&mock.issuer(), &new.kid)
         .await
         .expect("unknown kid forces refetch");
-    assert_eq!(resolved.kid, new.kid);
+    assert_eq!(resolved.kid(), new.kid.as_str());
     assert_eq!(
         mock.responder.fetches(),
         2,

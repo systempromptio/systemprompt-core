@@ -39,7 +39,7 @@ impl TryFrom<FolderRow> for DocumentFolder {
             created_by: row.created_by,
             created_at: row.created_at,
             updated_at: row.updated_at,
-            deleted_at: row.deleted_at,
+            trashed_at: row.deleted_at,
         })
     }
 }

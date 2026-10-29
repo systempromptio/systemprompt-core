@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Result, anyhow, bail};
-use systemprompt_cloud::{CloudPath, StoredTenant, TenantStore, TenantType, get_cloud_paths};
+use systemprompt_cloud::{CloudPath, StoredTenant, TenantStore, get_cloud_paths};
 use systemprompt_identifiers::{CloudAppId, TenantId};
 use systemprompt_logging::CliService;
 
@@ -57,18 +57,16 @@ pub fn edit_tenant(
     }
     tenant.name.clone_from(&new_name);
 
-    if tenant.tenant_type == TenantType::Local {
-        edit_local_tenant_database(tenant, prompter)?;
-    }
-
-    if tenant.tenant_type == TenantType::Cloud {
+    if tenant.is_systemprompt_managed() {
         display_readonly_cloud_fields(tenant);
+    } else {
+        edit_local_tenant_database(tenant, prompter)?;
     }
 
     let output = TenantDetailOutput {
         id: tenant.id.clone(),
         name: tenant.name.clone(),
-        tenant_type: format!("{:?}", tenant.tenant_type).to_lowercase(),
+        provider: tenant.provider,
         app_id: tenant.app_id.clone().map(CloudAppId::new),
         hostname: tenant.hostname.clone(),
         region: tenant.region.clone(),

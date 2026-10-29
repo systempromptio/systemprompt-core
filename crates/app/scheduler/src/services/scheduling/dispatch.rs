@@ -18,6 +18,7 @@
 
 use std::collections::HashMap;
 use std::sync::Arc;
+use systemprompt_files::documents::agents::{DocumentActor, act_as};
 
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{Actor, InstanceId, JobName};
@@ -132,7 +133,11 @@ async fn find_and_execute_job(
         SchedulerError::job_not_found(job_name.clone())
     })?;
 
-    match AssertUnwindSafe(job.execute(ctx)).catch_unwind().await {
+    let actor = DocumentActor::system(job.name());
+    match AssertUnwindSafe(act_as(actor, job.execute(ctx)))
+        .catch_unwind()
+        .await
+    {
         Ok(result) => result.map_err(|e| SchedulerError::job_execution_failed(job_name.clone(), e)),
         Err(payload) => {
             let msg = payload

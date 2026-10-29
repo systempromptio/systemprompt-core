@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use systemprompt_events::Broadcaster;
 use systemprompt_files::documents::DocumentsError;
+use systemprompt_files::documents::model::Media;
 use systemprompt_files::documents::models::CommentAnchor;
 use systemprompt_files::documents::revision::CommitBody;
 use systemprompt_files::documents::service::{
@@ -60,6 +61,8 @@ fn ops(document: &DocumentId, ops: Vec<EditOp>, comments: CommentPolicy) -> Comm
         message: None,
         lock_holder_id: None,
         comments,
+        op_id: None,
+        media: Media::new(),
     }
 }
 
@@ -83,6 +86,8 @@ async fn comment_on(
         .create_comment(
             owner,
             CommentRequest {
+                range: None,
+                mentions: Vec::new(),
                 document: document.clone(),
                 anchor: Some(CommentAnchor {
                     node: node.id.clone(),
@@ -101,9 +106,7 @@ async fn comment_on(
 
 fn revision_of(outcome: CommitOutcome) -> DocumentRevisionId {
     match outcome {
-        CommitOutcome::Committed { revision, .. } | CommitOutcome::Merged { revision, .. } => {
-            revision.id
-        },
+        CommitOutcome::Committed(landed) | CommitOutcome::Merged(landed) => landed.revision.id,
         CommitOutcome::Conflict { head, .. } => panic!("conflict at {}", head.id),
     }
 }
@@ -128,6 +131,8 @@ async fn comments_are_created_listed_replied_to_and_resolved_with_events() {
         .create_comment(
             &owner,
             CommentRequest {
+                range: None,
+                mentions: Vec::new(),
                 document: document.clone(),
                 anchor: None,
                 body: "agreed".to_owned(),
@@ -187,6 +192,8 @@ async fn a_comment_needs_a_quote_the_node_contains() {
         .create_comment(
             &owner,
             CommentRequest {
+                range: None,
+                mentions: Vec::new(),
                 document: document.clone(),
                 anchor: Some(CommentAnchor {
                     node: node.id,

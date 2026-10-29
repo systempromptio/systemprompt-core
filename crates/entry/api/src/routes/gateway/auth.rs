@@ -39,6 +39,8 @@ pub struct AuthResponse {
     pub token: String,
     pub ttl: u64,
     pub headers: HashMap<String, String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub device_token: Option<String>,
 }
 
 impl From<BridgeAuthResult> for AuthResponse {
@@ -47,6 +49,7 @@ impl From<BridgeAuthResult> for AuthResponse {
             token: r.token,
             ttl: r.ttl,
             headers: r.headers,
+            device_token: r.device_token,
         }
     }
 }
@@ -99,12 +102,31 @@ pub async fn pat(ctx: AppContext, request: Request) -> Result<Json<AuthResponse>
             })?
             .as_ref(),
         users.as_ref(),
-        BridgeAccessRequest::bridge(ctx.config(), request.headers(), caller_ip, &record.user_id)
-            .with_purpose(record.purpose.clone()),
+        bridge_access_from_pat(
+            BridgeAccessRequest::bridge(
+                ctx.config(),
+                request.headers(),
+                caller_ip,
+                &record.user_id,
+            ),
+            &record,
+        ),
     )
     .await?;
 
     Ok(Json(result.into()))
+}
+
+fn bridge_access_from_pat<'a>(
+    request: BridgeAccessRequest<'a>,
+    record: &systemprompt_users::UserApiKey,
+) -> BridgeAccessRequest<'a> {
+    let request = request.with_purpose(record.purpose.clone());
+    if record.is_interactive_host() {
+        request.interactive()
+    } else {
+        request
+    }
 }
 
 pub async fn session(
@@ -199,6 +221,7 @@ async fn mint_device_pat(
             limits: &systemprompt_users::ApiKeyLimits::default(),
             scopes: &[],
             purpose: None,
+            kind: systemprompt_users::ApiKeyKind::Device,
         })
         .await?;
 

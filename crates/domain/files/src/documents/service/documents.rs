@@ -13,11 +13,13 @@ use systemprompt_identifiers::{DocumentFolderId, DocumentId, DocumentTemplateId,
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{DocumentAction, DocumentFormat, EditOp};
 
-use super::support::{apply_with, blocking, document_name, format_of_name};
-use super::{Author, CreateRequest, DocumentService, DocumentView, ImportRequest};
-use crate::documents::access::AccessTarget;
+use super::content::{apply_content, apply_rich_on_new};
+use super::support::{apply_with, blocking, document_name, format_of_name, join_path};
+use super::{AgentCapTarget, Author, CreateRequest, DocumentService, DocumentView, ImportRequest};
+use crate::documents::access::{AccessTarget, MoveTarget};
 use crate::documents::error::DocumentsError;
-use crate::documents::models::{Document, DocumentRevision, NewDocument, NewRevision};
+use crate::documents::models::{Document, DocumentRevision, NewDocument};
+use crate::documents::repository::PathMove;
 
 pub(super) struct NewContent {
     pub(super) folder: Option<DocumentFolderId>,
@@ -28,6 +30,7 @@ pub(super) struct NewContent {
     pub(super) author: Author,
     pub(super) message: Option<String>,
     pub(super) ops: Option<Vec<EditOp>>,
+    pub(super) mime_type: Option<String>,
 }
 
 impl DocumentService {
@@ -45,6 +48,7 @@ impl DocumentService {
         let params = request.params;
         let ops = request.ops;
         let recorded = (!ops.is_empty()).then(|| ops.clone());
+        let (content, media) = (request.content, request.media);
         let instantiated = blocking(move || {
             let mut made = templates
                 .instantiate(&template_id, &params, &codecs)
@@ -52,6 +56,9 @@ impl DocumentService {
                     template_id,
                     source,
                 })?;
+            if let Some(content) = &content {
+                made.bytes = apply_content(made.format, &made.bytes, content, &media)?;
+            }
             if !ops.is_empty() {
                 let codec =
                     codecs
@@ -59,7 +66,11 @@ impl DocumentService {
                         .ok_or(DocumentsError::UnsupportedFormat {
                             format: made.format,
                         })?;
-                made.bytes = apply_with(codec.as_ref(), made.format, &made.bytes, ops)?;
+                made.bytes = if ops.iter().all(EditOp::is_rich) {
+                    apply_rich_on_new(codec.as_ref(), made.format, &made.bytes, ops, &media)?
+                } else {
+                    apply_with(codec.as_ref(), made.format, &made.bytes, ops)?
+                };
             }
             Ok(made)
         })
@@ -75,6 +86,7 @@ impl DocumentService {
                 author: request.author,
                 message: request.message,
                 ops: recorded,
+                mime_type: None,
             },
         )
         .await
@@ -90,10 +102,12 @@ impl DocumentService {
         let format = request
             .format
             .or_else(|| format_of_name(&request.name))
-            .ok_or_else(|| DocumentsError::UnknownFormat {
-                name: request.name.clone(),
-            })?;
+            .unwrap_or(DocumentFormat::File);
         let name = document_name(&request.name, format)?;
+        let mime_type = format
+            .is_file()
+            .then(|| request.mime_type.clone())
+            .flatten();
         self.authorize_create(who, request.folder.as_ref(), trace)
             .await?;
         let codec = self.codec(format)?;
@@ -113,6 +127,7 @@ impl DocumentService {
                 author: request.author,
                 message: None,
                 ops: None,
+                mime_type,
             },
         )
         .await
@@ -149,12 +164,21 @@ impl DocumentService {
                 folder_id: content.folder.clone(),
                 name: content.name.clone(),
                 format: content.format,
-                mime_type: content.format.mime_type().to_owned(),
+                mime_type: content
+                    .mime_type
+                    .clone()
+                    .unwrap_or_else(|| content.format.mime_type().to_owned()),
                 template_id: content.template_id.clone(),
                 owner_user_id: who.id.clone(),
                 created_by: who.id.clone(),
             })
             .await?;
+        if let Some(agent) = self.access.actor().as_agent() {
+            self.repos
+                .documents
+                .set_created_by_agent(&document.id, &agent.name)
+                .await?;
+        }
         let revision = match self
             .first_revision(who, &document, blob.hash, &content)
             .await
@@ -175,46 +199,6 @@ impl DocumentService {
         self.announce_revision(&document, &revision).await;
         let document = self.load_document(&document.id).await?;
         Ok((document, revision))
-    }
-
-    async fn first_revision(
-        &self,
-        who: &AuthenticatedUser,
-        document: &Document,
-        hash: systemprompt_identifiers::ContentHash,
-        content: &NewContent,
-    ) -> Result<DocumentRevision, DocumentsError> {
-        let author = &content.author;
-        let revision = self
-            .repos
-            .revisions
-            .insert(NewRevision {
-                document_id: document.id.clone(),
-                parent_revision_id: None,
-                content_sha256: hash,
-                author_user_id: who.id.clone(),
-                actor_kind: author.actor_kind,
-                origin_kind: author.origin.kind(),
-                origin_id: author.origin.id(),
-                message: content.message.clone(),
-                edit_ops: content.ops.clone(),
-                attribution: author.attribution.clone(),
-            })
-            .await?;
-        if !self
-            .repos
-            .documents
-            .set_head_if(&document.id, None, &revision.id)
-            .await?
-        {
-            let head = self.repos.revisions.head(&document.id).await?;
-            return Err(DocumentsError::Conflict {
-                document_id: document.id.clone(),
-                head: head.map_or_else(|| revision.id.clone(), |head| head.id),
-                base: None,
-            });
-        }
-        Ok(revision)
     }
 
     pub async fn get(
@@ -256,7 +240,14 @@ impl DocumentService {
             .authorized_document(who, document, DocumentAction::Edit, trace)
             .await?;
         let name = document_name(name, current.format)?;
-        if !self.repos.documents.rename(document, &name).await? {
+        let folder = self.folder_path(current.folder_id.as_ref()).await?;
+        let from = join_path(folder.as_deref(), &current.name);
+        let to = join_path(folder.as_deref(), &name);
+        let paths = PathMove {
+            from: &from,
+            to: &to,
+        };
+        if !self.repos.documents.rename(document, &name, paths).await? {
             return Err(DocumentsError::not_found("document", document));
         }
         self.load_document(document).await
@@ -269,11 +260,31 @@ impl DocumentService {
         folder: Option<&DocumentFolderId>,
         trace: &TraceId,
     ) -> Result<Document, DocumentsError> {
-        self.authorized_document(who, document, DocumentAction::Own, trace)
+        let current = self
+            .authorized_document(who, document, DocumentAction::Own, trace)
             .await?;
         self.authorize_create(who, folder, trace).await?;
-        if !self.repos.documents.move_to(document, folder).await? {
+        let pin = self
+            .access
+            .check_move(who, MoveTarget::Document(&current), folder)
+            .await?;
+        let from = self.document_path(&current).await?;
+        let to = join_path(self.folder_path(folder).await?.as_deref(), &current.name);
+        let paths = PathMove {
+            from: &from,
+            to: &to,
+        };
+        if !self
+            .repos
+            .documents
+            .move_to(document, folder, paths)
+            .await?
+        {
             return Err(DocumentsError::not_found("document", document));
+        }
+        if let Some(cap) = pin {
+            self.pin_agent_cap(&AgentCapTarget::Document(document.clone()), cap)
+                .await?;
         }
         self.load_document(document).await
     }

@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.75.0] - 2026-10-28
+
+### Breaking
+
+- **Breaking:** `DocumentSharedEvent` gains `v`, `via_agent`, `comment_id` and `created_at`, and `DocumentEventName` gains `CollabDegraded` (`DocumentEventName::ALL` holds 19). Migrate struct literals and exhaustive matches.
+- **Breaking:** `subprocess::deployment_host` and `is_deployment_host` take the marker variables to consult; `ANY_DEPLOYMENT_HOST_MARKERS` is the profile-independent set.
+- **Breaking:** `DocumentSharedEvent` gains `document_name`, `recipient_user_id`, `shared_by` and `message`; `DocumentEventName` gains `Awareness`, `AccessRequested`, `CommentUpdated`, `CommentDeleted` and `CommentMentioned`.
+- **Breaking:** `TokenInteraction` gains `Interactive`, and `BridgeAccessRequest` gains `interactive`.
+
+### Added
+
+- `AwarenessState`, `AwarenessMode`, `AwarenessCursor`, `AwarenessViewport`, `DocumentAwarenessEvent`, `DocumentLiveReadyEvent`, `DocumentLiveResyncEvent` with `LiveResyncReason`, and `DocumentLiveClosedEvent`.
+- The bridge `device_token` and the Drive `proposed` commit status.
+
 ## [0.74.0] - 2026-10-27
 
 ### Breaking

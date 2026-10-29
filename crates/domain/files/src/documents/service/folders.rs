@@ -8,8 +8,8 @@ use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{AccessLevel, DocumentAction};
 
 use super::support::validate_name;
-use super::{DocumentService, NewFolderRequest};
-use crate::documents::access::AccessTarget;
+use super::{AgentCapTarget, DocumentService, NewFolderRequest};
+use crate::documents::access::{AccessTarget, MoveTarget};
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{DocumentFolder, GrantTarget, NewFolder, NewGrant};
 
@@ -41,7 +41,7 @@ impl DocumentService {
                 created_by: who.id.clone(),
             })
             .await?;
-        if let Err(error) = self.complete_folder(who, &folder).await {
+        if let Err(error) = self.complete_folder(who, &folder, trace).await {
             if let Err(undo) = self.repos.folders.soft_delete(&folder.id).await {
                 tracing::error!(
                     folder_id = %folder.id,
@@ -58,6 +58,7 @@ impl DocumentService {
         &self,
         who: &AuthenticatedUser,
         folder: &DocumentFolder,
+        trace: &TraceId,
     ) -> Result<(), DocumentsError> {
         self.access.register_folder_entity(&folder.id).await?;
         self.repos
@@ -67,9 +68,12 @@ impl DocumentService {
                 subject_kind: "user".to_owned(),
                 subject_value: who.id.as_str().to_owned(),
                 subject_display: Some(who.username.clone()),
-                access_level: AccessLevel::Own,
+                access_level: AccessLevel::Share,
                 granted_by: who.id.clone(),
                 valid_until: None,
+                trace_id: trace.clone(),
+                reason: None,
+                via_agent: None,
             })
             .await?;
         Ok(())
@@ -125,10 +129,19 @@ impl DocumentService {
                 trace,
             )
             .await?;
+        let moving = self.load_folder(folder).await?;
+        let pin = self
+            .access
+            .check_move(who, MoveTarget::Folder(&moving), parent)
+            .await?;
         if self.repos.folders.move_to(folder, parent).await? == 0 {
             return Err(DocumentsError::InvalidMove {
                 folder_id: folder.clone(),
             });
+        }
+        if let Some(cap) = pin {
+            self.pin_agent_cap(&AgentCapTarget::Folder(folder.clone()), cap)
+                .await?;
         }
         self.load_folder(folder).await
     }
@@ -187,7 +200,8 @@ impl DocumentService {
                 return Ok(());
             }
             for id in ids {
-                self.access
+                let granted = self
+                    .access
                     .authorize(
                         who,
                         AccessTarget::Document(id.clone()),
@@ -195,7 +209,11 @@ impl DocumentService {
                         trace,
                     )
                     .await?;
-                self.repos.documents.trash(&id, &who.id).await?;
+                let document = granted
+                    .document
+                    .ok_or_else(|| DocumentsError::not_found("document", &id))?;
+                let from = self.document_path(&document).await?;
+                self.repos.documents.trash(&id, &who.id, &from).await?;
             }
         }
     }
@@ -224,7 +242,7 @@ impl DocumentService {
             .folders
             .find(folder)
             .await?
-            .filter(|f| f.deleted_at.is_none())
+            .filter(|f| f.trashed_at.is_none())
             .ok_or_else(|| DocumentsError::not_found("folder", folder))
     }
 }

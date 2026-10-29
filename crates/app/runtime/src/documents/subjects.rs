@@ -2,7 +2,8 @@
 //!
 //! A `user` subject shows the user's display name, falling back to the full
 //! name and then the account name; an unknown user and every other subject
-//! kind show the subject value itself.
+//! kind show the subject value itself. A transfer recipient must be an
+//! active user; [`active_user_display`] answers `None` otherwise.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -11,6 +12,7 @@ use systemprompt_identifiers::UserId;
 use systemprompt_users::{UserError, UserRepository};
 
 pub const USER_SUBJECT_KIND: &str = "user";
+pub const ROLE_SUBJECT_KIND: &str = "role";
 
 pub async fn subject_display(
     users: &UserRepository,
@@ -25,4 +27,15 @@ pub async fn subject_display(
         || subject_value.to_owned(),
         |user| user.display_name.or(user.full_name).unwrap_or(user.name),
     ))
+}
+
+pub async fn active_user_display(
+    users: &UserRepository,
+    user: &UserId,
+) -> Result<Option<String>, UserError> {
+    Ok(users
+        .find_by_id(user)
+        .await?
+        .filter(systemprompt_users::User::is_active)
+        .map(|user| user.display_name.or(user.full_name).unwrap_or(user.name)))
 }

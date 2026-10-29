@@ -24,9 +24,10 @@ pub struct DeployRequest {
     pub tenant_name: String,
     pub profile_name: ProfileName,
     pub project_root: PathBuf,
-    pub credentials: CloudCredentials,
+    pub platform_credentials: Option<CloudCredentials>,
     pub secrets: DeploySecretsSource,
     pub signing_key_path: PathBuf,
+    pub licence_secret_required: bool,
     pub options: DeployOptions,
 }
 
@@ -100,6 +101,7 @@ fn placeholder_var(value: &str, fallback: &str) -> String {
 #[derive(Debug, Clone, Copy)]
 pub struct DeployOptions {
     pub skip_push: bool,
+    pub wait_ready: bool,
 }
 
 #[derive(Debug)]

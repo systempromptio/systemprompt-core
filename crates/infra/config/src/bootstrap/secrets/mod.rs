@@ -49,7 +49,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use base64::Engine;
-use systemprompt_manifest::profile::{Profile, resolve_with_home};
+use systemprompt_manifest::profile::{LICENCE_SIGNING_SECRET, Profile, resolve_with_home};
 use systemprompt_manifest::secrets::Secrets;
 
 use super::manifest::{MANIFEST_SIGNING_SEED_BYTES, decode_seed, generate_seed, persist_seed};
@@ -176,14 +176,16 @@ impl SecretsService {
         if Self::signing_key_pem_required(profile) && secrets.signing_key_pem.is_none() {
             return Err(SecretsBootstrapError::SigningKeyPemRequired.into());
         }
+
+        if profile.licence.enabled() && secrets.get(LICENCE_SIGNING_SECRET).is_none() {
+            return Err(SecretsBootstrapError::LicenceSigningSecretRequired.into());
+        }
         Ok(())
     }
 
     #[must_use]
     pub fn signing_key_pem_required(profile: &Profile) -> bool {
-        let is_deployment_host =
-            systemprompt_models::subprocess::is_deployment_host(|name| std::env::var(name).ok());
-        is_deployment_host || profile.target.is_cloud()
+        profile.target.is_cloud() || profile.is_deployment_host(|name| std::env::var(name).ok())
     }
 
     #[must_use]

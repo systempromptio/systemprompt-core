@@ -1,5 +1,7 @@
 //! Comment threads on one document: list, create (a node anchor with an
-//! optional quote, or a reply by `parent_id`) and resolve.
+//! optional quote and range of engine cursors, or a reply by `parent_id`,
+//! with optional mentions), resolve, edit (the author's body and mentions)
+//! and delete.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -9,11 +11,13 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::{Extension, Json};
 use serde::Deserialize;
-use systemprompt_files::documents::models::CommentAnchor;
-use systemprompt_files::documents::service::{CommentRequest, ResolveCommentRequest};
-use systemprompt_identifiers::{DocumentCommentId, DocumentNodeId, DocumentRevisionId};
+use systemprompt_files::documents::models::{CommentAnchor, CommentRange};
+use systemprompt_files::documents::service::{
+    CommentRequest, DeleteCommentRequest, EditCommentRequest, ResolveCommentRequest,
+};
+use systemprompt_identifiers::{DocumentCommentId, DocumentNodeId, DocumentRevisionId, UserId};
 use systemprompt_models::RequestContext;
-use systemprompt_runtime::documents::mcp::{CommentItem, CommentOutput};
+use systemprompt_runtime::documents::views::{CommentItem, CommentOutput, comments_view};
 
 use super::DocumentsState;
 use super::caller::caller;
@@ -27,10 +31,9 @@ pub(super) async fn list(
 ) -> DocumentsResult<Json<CommentOutput>> {
     let who = caller(&state, &req_ctx).await?;
     let id = document_id(&id)?;
-    let comments = state.service.comments(&who.user, &id, &who.trace).await?;
-    Ok(Json(CommentOutput {
-        comments: comments.into_iter().map(CommentItem::from).collect(),
-    }))
+    Ok(Json(
+        comments_view(&state.service, &who.user, &id, &who.trace).await?,
+    ))
 }
 
 #[derive(Debug, Deserialize)]
@@ -40,6 +43,8 @@ pub(super) struct AnchorBody {
     find: Option<String>,
     #[serde(default)]
     nth: Option<i32>,
+    #[serde(default)]
+    range: Option<CommentRange>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -47,6 +52,8 @@ pub(super) struct CommentBody {
     #[serde(default)]
     anchor: Option<AnchorBody>,
     body: String,
+    #[serde(default)]
+    mentions: Vec<UserId>,
     #[serde(default)]
     parent_id: Option<DocumentCommentId>,
 }
@@ -58,14 +65,23 @@ pub(super) async fn create(
     Json(body): Json<CommentBody>,
 ) -> DocumentsResult<Response> {
     let who = caller(&state, &req_ctx).await?;
+    let (anchor, range) = body
+        .anchor
+        .map(|anchor| {
+            let node = CommentAnchor {
+                node: anchor.node,
+                find: anchor.find,
+                nth: anchor.nth,
+            };
+            (node, anchor.range)
+        })
+        .unzip();
     let request = CommentRequest {
         document: document_id(&id)?,
-        anchor: body.anchor.map(|anchor| CommentAnchor {
-            node: anchor.node,
-            find: anchor.find,
-            nth: anchor.nth,
-        }),
+        anchor,
+        range: range.flatten(),
         body: body.body,
+        mentions: body.mentions,
         parent_id: body.parent_id,
     };
     let comment = state
@@ -99,4 +115,48 @@ pub(super) async fn resolve(
         .resolve_comment(&who.user, request, &who.trace)
         .await?;
     Ok(Json(CommentItem::from(resolved)))
+}
+
+#[derive(Debug, Deserialize)]
+pub(super) struct EditBody {
+    body: String,
+    #[serde(default)]
+    mentions: Vec<UserId>,
+}
+
+pub(super) async fn edit(
+    State(state): State<DocumentsState>,
+    Extension(req_ctx): Extension<RequestContext>,
+    Path((id, comment)): Path<(String, String)>,
+    Json(body): Json<EditBody>,
+) -> DocumentsResult<Json<CommentItem>> {
+    let who = caller(&state, &req_ctx).await?;
+    let request = EditCommentRequest {
+        document: document_id(&id)?,
+        comment: DocumentCommentId::try_new(&comment)?,
+        body: body.body,
+        mentions: body.mentions,
+    };
+    let edited = state
+        .service
+        .edit_comment(&who.user, request, &who.trace)
+        .await?;
+    Ok(Json(CommentItem::from(edited)))
+}
+
+pub(super) async fn delete(
+    State(state): State<DocumentsState>,
+    Extension(req_ctx): Extension<RequestContext>,
+    Path((id, comment)): Path<(String, String)>,
+) -> DocumentsResult<StatusCode> {
+    let who = caller(&state, &req_ctx).await?;
+    let request = DeleteCommentRequest {
+        document: document_id(&id)?,
+        comment: DocumentCommentId::try_new(&comment)?,
+    };
+    state
+        .service
+        .delete_comment(&who.user, request, &who.trace)
+        .await?;
+    Ok(StatusCode::NO_CONTENT)
 }

@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE document_uploads SET checked_kind = $3\n             WHERE owner_user_id = $1 AND blob_sha256 = $2 AND status = 'completed'\n               AND checked_kind IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "dd0722576c64cce5ce644ab6219546cd7950639fc7a29c8c0ca3e63caff6f09b"
+}

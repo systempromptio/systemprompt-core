@@ -2,6 +2,7 @@
 //! a moved head, the conflict refusal, reject with a note and authz.
 
 use systemprompt_files::documents::DocumentsError;
+use systemprompt_files::documents::model::Media;
 use systemprompt_files::documents::revision::CommitBody;
 use systemprompt_files::documents::service::{
     Accepted, CommentPolicy, CommitOutcome, CommitRequest, ReviewRequest,
@@ -53,6 +54,8 @@ async fn owner_edit(
                 message: None,
                 lock_holder_id: None,
                 comments: CommentPolicy::default(),
+                op_id: None,
+                media: Media::new(),
             },
             &trace(),
         )

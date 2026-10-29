@@ -168,11 +168,15 @@ pub(super) async fn check_database_reachable(secrets: &HashMap<String, String>) 
         Ok(Ok(_)) => CheckResult::pass("database", format!("reachable at {host}:{port}")),
         Ok(Err(err)) => CheckResult::warn(
             "database",
-            format!("{host}:{port} unreachable from here ({err}) — fine if DB is Fly-internal"),
+            format!(
+                "{host}:{port} unreachable from here ({err}) — fine if the database is private to the deployment network"
+            ),
         ),
         Err(_) => CheckResult::warn(
             "database",
-            format!("{host}:{port} did not answer within 5s — fine if DB is Fly-internal"),
+            format!(
+                "{host}:{port} did not answer within 5s — fine if the database is private to the deployment network"
+            ),
         ),
     }
 }
@@ -180,6 +184,26 @@ pub(super) async fn check_database_reachable(secrets: &HashMap<String, String>) 
 pub fn check_proxy_topology(profile: &Profile) -> CheckResult {
     if !profile.target.is_cloud() {
         return CheckResult::pass("proxy-topology", "not a cloud profile");
+    }
+    let provider = profile.hosting_provider();
+    if !provider.is_systemprompt() {
+        if profile.server.trusted_proxies.is_empty() {
+            return CheckResult::warn(
+                "proxy-topology",
+                format!(
+                    "server.trusted_proxies is empty on a {provider} profile — forwarded \
+                     client-IP headers are ignored and every request resolves to the ingress \
+                     address. List the ingress / load-balancer ranges in server.trusted_proxies."
+                ),
+            );
+        }
+        return CheckResult::pass(
+            "proxy-topology",
+            format!(
+                "{provider} profile trusts {} configured proxy range(s)",
+                profile.server.trusted_proxies.len()
+            ),
+        );
     }
     if systemprompt_cloud::trusted_proxies::covers_fly_peer(&profile.server.trusted_proxies) {
         if !systemprompt_cloud::trusted_proxies::covers_fly_public_edge(

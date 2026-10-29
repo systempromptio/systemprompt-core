@@ -16,60 +16,23 @@
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use systemprompt_identifiers::DriveDeviceId;
 
-use super::conflict::prune_resolved;
 use super::error::{DriveError, DriveResult};
 use super::presence::{PresenceThrottle, document_for, send_editing};
-use super::pull::{PullReport, pull};
-use super::scan::local_changes;
 use super::state::DriveState;
 use super::status::DriveHandle;
-use super::upload::{UploadReport, upload};
 use super::{Cycle, DriveClient, DriveRoot, watcher};
 use crate::config::SharedRuntimeConfig;
+use crate::ids::BearerToken;
 use crate::proxy::drive_signal::{DriveSignal, DriveSignalReceiver};
 use crate::proxy::token_cache::TokenCache;
 
+pub use super::cycle::{CycleReport, ensure_enabled, sync_once};
+
 pub const TICK: Duration = Duration::from_secs(20);
 const AUTH_THRESHOLD_SECS: u64 = 300;
-
-#[derive(Debug, Default, Clone, PartialEq, Eq)]
-pub struct CycleReport {
-    pub pull: PullReport,
-    pub upload: UploadReport,
-    pub pending_uploads: usize,
-}
-
-pub async fn sync_once(cycle: Cycle<'_>, handle: &DriveHandle) -> DriveResult<CycleReport> {
-    let _serialised = handle.cycle.lock().await;
-    let state_path = cycle.root.state_path();
-    let mut state = DriveState::load(&state_path)?;
-    if prune_resolved(cycle.root, &mut state) {
-        state.save(&state_path)?;
-    }
-    let pull = pull(cycle, &mut state).await?;
-    mark_server_enabled(handle, cycle.root);
-    let upload = upload(cycle, &mut state).await?;
-    if super::proposals::refresh(cycle, &mut state).await {
-        state.save(&state_path)?;
-    }
-    let pending_uploads = local_changes(cycle.root, &state)?.len();
-    let report = CycleReport {
-        pull,
-        upload,
-        pending_uploads,
-    };
-    handle.update(|status| {
-        status.synced_at = Some(Utc::now());
-        status.pending_uploads = report.pending_uploads;
-        status.conflicts.clone_from(&state.conflicts);
-        status.proposals.clone_from(&state.proposals);
-        status.last_error = None;
-    });
-    Ok(report)
-}
 
 /// What the Drive loop runs against: the folder, the gateway and credential
 /// the proxy already holds, and the signals the proxy forwards.
@@ -92,6 +55,8 @@ impl std::fmt::Debug for DriveDeps {
     }
 }
 
+const SYNC_TOKEN_MARGIN_SECS: i64 = 60;
+
 pub async fn run_loop(deps: DriveDeps) {
     let DriveDeps {
         handle,
@@ -113,6 +78,7 @@ pub async fn run_loop(deps: DriveDeps) {
         device_id: &device_id,
         host_name: &host_name,
         throttle: PresenceThrottle::default(),
+        sync_token: None,
     };
     let mut watch = None;
     let mut interval = tokio::time::interval(TICK);
@@ -164,6 +130,7 @@ struct Runner<'a> {
     device_id: &'a DriveDeviceId,
     host_name: &'a str,
     throttle: PresenceThrottle,
+    sync_token: Option<(BearerToken, DateTime<Utc>)>,
 }
 
 impl Runner<'_> {
@@ -206,11 +173,16 @@ impl Runner<'_> {
             Ok(()) => {},
             Err(DriveError::ServerDisabled { endpoint }) => {
                 tracing::debug!(endpoint, "drive disabled on the server");
-                mark_server_disabled(self.handle);
+                self.handle.mark_disabled();
             },
             Err(error) => {
                 if let DriveError::Unauthorized { endpoint } = &error {
-                    self.token_cache.reject_upstream(endpoint).await;
+                    self.sync_token = None;
+                    let bridge_token_refused =
+                        *endpoint == systemprompt_models::ApiPaths::BRIDGE_DRIVE_TOKEN;
+                    if bridge_token_refused {
+                        self.token_cache.reject_upstream(endpoint).await;
+                    }
                 }
                 tracing::warn!(%error, root = %self.root.dir().display(), "drive sync cycle failed");
                 let message = error.to_string();
@@ -233,9 +205,14 @@ impl Runner<'_> {
             .current(AUTH_THRESHOLD_SECS)
             .await
             .map_err(DriveError::Token)?;
+        let device = token
+            .device_token
+            .as_ref()
+            .ok_or(DriveError::DeviceTokenMissing)?;
+        let sync = self.sync_bearer(&client, device).await?;
         let cycle = Cycle {
             client: &client,
-            bearer: &token.token,
+            bearer: &sync,
             root: self.root,
             device_id: self.device_id,
             host_name: self.host_name,
@@ -245,6 +222,22 @@ impl Runner<'_> {
         }
         sync_once(cycle, self.handle).await?;
         self.beacon(cycle).await
+    }
+
+    async fn sync_bearer(
+        &mut self,
+        client: &DriveClient,
+        device: &BearerToken,
+    ) -> DriveResult<BearerToken> {
+        if let Some((token, expires_at)) = &self.sync_token
+            && *expires_at - chrono::Duration::seconds(SYNC_TOKEN_MARGIN_SECS) > Utc::now()
+        {
+            return Ok(token.clone());
+        }
+        let issued = client.sync_token(device).await?;
+        let token = BearerToken::new(issued.token);
+        self.sync_token = Some((token.clone(), issued.expires_at));
+        Ok(token)
     }
 
     async fn beacon(&mut self, cycle: Cycle<'_>) -> DriveResult<()> {
@@ -260,39 +253,4 @@ impl Runner<'_> {
         send_editing(cycle, &mut self.throttle, documents, Instant::now()).await?;
         Ok(())
     }
-}
-
-pub async fn ensure_enabled(cycle: Cycle<'_>, handle: &DriveHandle) -> DriveResult<bool> {
-    let dir = cycle.root.dir();
-    if !dir.is_dir() {
-        let manifest = match cycle.client.manifest(cycle.bearer).await {
-            Ok(manifest) => manifest,
-            Err(DriveError::ServerDisabled { .. }) => {
-                mark_server_disabled(handle);
-                return Ok(false);
-            },
-            Err(error) => return Err(error),
-        };
-        if manifest.entries.is_empty() {
-            return Ok(false);
-        }
-        std::fs::create_dir_all(dir).map_err(|e| DriveError::io("create Drive folder", dir, e))?;
-        tracing::info!(root = %dir.display(), documents = manifest.entries.len(), "drive folder created");
-        mark_server_enabled(handle, cycle.root);
-    }
-    Ok(true)
-}
-
-fn mark_server_enabled(handle: &DriveHandle, root: &DriveRoot) {
-    handle.update(|status| {
-        status.enabled = true;
-        status.root = Some(root.dir().to_path_buf());
-    });
-}
-
-pub fn mark_server_disabled(handle: &DriveHandle) {
-    handle.update(|status| {
-        status.enabled = false;
-        status.last_error = None;
-    });
 }

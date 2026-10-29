@@ -21,6 +21,7 @@ Command reference for cloud. Use the installed command’s `--help` output for i
 | `cloud init` | Initialize project structure | No |
 | `cloud tenant` | Interactive tenant menu | No |
 | `cloud tenant create` | Create a tenant (local Docker or external Postgres) | No |
+| `cloud tenant add` | Record a self-managed (Kubernetes, GKE, local Docker) tenant | No |
 | `cloud tenant list / show / edit / delete` | Manage stored tenants | No |
 | `cloud tenant rotate-credentials` | Rotate a managed tenant's database credentials | Yes |
 | `cloud profile` | Interactive profile menu | No |

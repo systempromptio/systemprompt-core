@@ -109,6 +109,7 @@ async fn issue_key(
             limits: &body.limits,
             scopes: &body.scopes,
             purpose: None,
+            kind: systemprompt_users::ApiKeyKind::User,
         })
         .await?;
 

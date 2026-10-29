@@ -118,7 +118,7 @@ prost = { workspace = true }
 opentelemetry-proto = { workspace = true }
 
 [features]
-collab = ["systemprompt-files/collab"]
+collab = ["systemprompt-files/collab", "systemprompt-runtime/collab"]
 
 [lints]
 workspace = true

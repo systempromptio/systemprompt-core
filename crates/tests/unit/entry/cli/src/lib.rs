@@ -23,6 +23,8 @@ mod cli_settings;
 #[cfg(test)]
 mod cloud_deploy_progress;
 #[cfg(test)]
+mod cloud_fleet_guard;
+#[cfg(test)]
 mod cloud_init_templates;
 #[cfg(test)]
 mod cloud_profile_api_keys;

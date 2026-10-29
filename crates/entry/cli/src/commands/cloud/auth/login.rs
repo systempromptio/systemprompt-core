@@ -81,8 +81,9 @@ pub async fn complete_login(api_url: &str, token: String) -> Result<CommandOutpu
     creds.save_to_path(&save_path)?;
     CliService::key_value("Credentials saved to", &save_path.display().to_string());
 
-    let tenant_store = TenantStore::from_tenant_infos(&response.tenants);
     let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
+    let mut tenant_store = TenantStore::load_from_path(&tenants_path).unwrap_or_default();
+    tenant_store.merge_control_plane(&response.tenants);
     tenant_store.save_to_path(&tenants_path)?;
     CliService::key_value("Tenants synced to", &tenants_path.display().to_string());
 

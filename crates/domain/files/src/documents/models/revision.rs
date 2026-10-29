@@ -31,6 +31,7 @@ pub struct DocumentRevision {
     pub edit_ops: Option<Vec<EditOp>>,
     pub attribution: RevisionAttribution,
     pub created_at: DateTime<Utc>,
+    pub landed_at: Option<DateTime<Utc>>,
 }
 
 /// The request a revision was written in: the session, conversation context,
@@ -46,6 +47,7 @@ pub struct RevisionAttribution {
 
 #[derive(Debug, Clone)]
 pub struct NewRevision {
+    pub id: DocumentRevisionId,
     pub document_id: DocumentId,
     pub parent_revision_id: Option<DocumentRevisionId>,
     pub content_sha256: ContentHash,

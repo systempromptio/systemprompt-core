@@ -6,10 +6,10 @@
 use std::time::Instant;
 
 use super::JwksClient;
-use crate::keys::jwks::{Jwk, Jwks};
+use crate::keys::jwks::{VerificationKey, VerificationKeySet};
 
 pub(in crate::keys) enum CacheProbe {
-    Hit(Jwk),
+    Hit(VerificationKey),
     Miss,
     Expired,
     KidMissRefetchAllowed,
@@ -18,7 +18,7 @@ pub(in crate::keys) enum CacheProbe {
 
 #[derive(Clone)]
 pub(in crate::keys) struct CachedJwks {
-    pub(in crate::keys) jwks: Jwks,
+    pub(in crate::keys) jwks: VerificationKeySet,
     pub(in crate::keys) expires_at: Instant,
     pub(in crate::keys) last_kid_miss_refetch_at: Option<Instant>,
 }
@@ -36,7 +36,7 @@ impl JwksClient {
             guard.pop(issuer);
             return CacheProbe::Expired;
         }
-        if let Some(jwk) = entry.jwks.keys.iter().find(|k| k.kid == kid).cloned() {
+        if let Some(jwk) = entry.jwks.keys.iter().find(|k| k.kid() == kid).cloned() {
             return CacheProbe::Hit(jwk);
         }
         match entry.last_kid_miss_refetch_at {

@@ -16,7 +16,8 @@ use systemprompt_models::artifacts::{
 /// An output whose `terse_wire` is true reaches the client once: a client
 /// that takes `structuredContent` gets the summary alone as text and the
 /// untagged output as structured content; any other client gets the summary
-/// followed by the compact JSON. The stored artifact is unchanged.
+/// followed by the compact JSON, and `_meta` carries only the artifact and
+/// execution ids. The stored artifact is unchanged.
 pub trait McpOutputSchema: JsonSchema {
     fn artifact_type() -> &'static str;
 

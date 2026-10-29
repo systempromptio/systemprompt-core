@@ -1,10 +1,11 @@
 use std::collections::BTreeMap;
 
-use systemprompt_identifiers::{DocumentId, DocumentNodeId, DocumentRevisionId};
+use systemprompt_files::documents::DocumentsError;
+use systemprompt_identifiers::{DocumentId, DocumentNodeId};
 use systemprompt_models::documents::{
     DocumentFormat, NodeKind, Projection, ProjectionNode, content_hash, hash8,
 };
-use systemprompt_runtime::documents::mcp::{
+use systemprompt_runtime::documents::views::{
     MAX_LINES, NodeRange, ReadInput, ReadView, parse_cell, render, split_cell_id,
 };
 
@@ -84,12 +85,7 @@ fn a1_cells_parse_to_column_and_row() {
 
 #[test]
 fn cells_render_as_sheet_bang_cell_hashlines() {
-    let rendered = render(
-        &sheet(),
-        &input(ReadView::Cells),
-        &DocumentRevisionId::generate(),
-    )
-    .expect("cells");
+    let rendered = render(&sheet(), &input(ReadView::Cells)).expect("cells");
     assert_eq!(
         rendered.lines,
         vec![
@@ -100,7 +96,7 @@ fn cells_render_as_sheet_bang_cell_hashlines() {
     let mut narrowed = input(ReadView::Cells);
     narrowed.cells = Some("B1:C9".to_owned());
     narrowed.sheet = Some("Sales".to_owned());
-    let rendered = render(&sheet(), &narrowed, &DocumentRevisionId::generate()).expect("cells");
+    let rendered = render(&sheet(), &narrowed).expect("cells");
     assert_eq!(
         rendered.lines,
         vec![format!("Sales!B7:{}| 1234.5", hash8("1234.5"))]
@@ -111,12 +107,12 @@ fn cells_render_as_sheet_bang_cell_hashlines() {
 fn bad_cell_range_names_the_input() {
     let mut bad = input(ReadView::Cells);
     bad.cells = Some("not a range".to_owned());
-    let error = render(&sheet(), &bad, &DocumentRevisionId::generate()).expect_err("bad range");
+    let error = render(&sheet(), &bad).expect_err("bad range");
     assert!(
-        error.message.contains("\"not a range\""),
-        "{}",
-        error.message
+        matches!(error, DocumentsError::InvalidParams { .. }),
+        "{error}"
     );
+    assert!(error.to_string().contains("A1 cell or range"), "{error}");
 }
 
 #[test]
@@ -132,12 +128,7 @@ fn text_view_renders_node_hash_text() {
             Vec::new(),
         )],
     )]);
-    let rendered = render(
-        &doc,
-        &input(ReadView::Text),
-        &DocumentRevisionId::generate(),
-    )
-    .expect("text");
+    let rendered = render(&doc, &input(ReadView::Text)).expect("text");
     assert_eq!(
         rendered.lines,
         vec![format!("body/p[12]:{}| hello", hash8("hello"))]
@@ -147,28 +138,17 @@ fn text_view_renders_node_hash_text() {
 
 #[test]
 fn range_view_needs_a_range_and_known_nodes() {
-    let revision = DocumentRevisionId::generate();
-    let error = render(&sheet(), &input(ReadView::Range), &revision).expect_err("no range");
-    assert!(
-        error.message.contains("range.from_node"),
-        "{}",
-        error.message
-    );
+    let error = render(&sheet(), &input(ReadView::Range)).expect_err("no range");
+    assert!(error.to_string().contains("range.from_node"), "{error}");
     let mut unknown = input(ReadView::Range);
     unknown.range = Some(NodeRange {
         from_node: DocumentNodeId::new("sheet[Sales]/A1"),
         to_node: DocumentNodeId::new("sheet[Sales]/Z99"),
     });
-    let error = render(&sheet(), &unknown, &revision).expect_err("unknown node");
+    let error = render(&sheet(), &unknown).expect_err("unknown node");
     assert!(
-        error.message.contains("sheet[Sales]/Z99"),
-        "{}",
-        error.message
-    );
-    assert!(
-        error.message.contains(revision.as_str()),
-        "{}",
-        error.message
+        matches!(&error, DocumentsError::UnknownNode { node } if node.as_str() == "sheet[Sales]/Z99"),
+        "{error}"
     );
 }
 
@@ -177,12 +157,7 @@ fn long_documents_are_truncated() {
     let lines: Vec<ProjectionNode> = (0..=MAX_LINES)
         .map(|n| node(&format!("line[{n}]"), NodeKind::Text, Some("x"), Vec::new()))
         .collect();
-    let rendered = render(
-        &projection(lines),
-        &input(ReadView::Text),
-        &DocumentRevisionId::generate(),
-    )
-    .expect("text");
+    let rendered = render(&projection(lines), &input(ReadView::Text)).expect("text");
     assert_eq!(rendered.lines.len(), MAX_LINES);
     assert!(rendered.truncated);
 }
@@ -211,12 +186,7 @@ fn text_view_carries_headings_lists_cells_and_slides() {
             ],
         ),
     ]);
-    let rendered = render(
-        &doc,
-        &input(ReadView::Text),
-        &DocumentRevisionId::generate(),
-    )
-    .expect("text");
+    let rendered = render(&doc, &input(ReadView::Text)).expect("text");
     let shown: Vec<&str> = rendered
         .lines
         .iter()
@@ -232,12 +202,7 @@ fn text_view_carries_headings_lists_cells_and_slides() {
             "| a"
         ]
     );
-    let outline = render(
-        &doc,
-        &input(ReadView::Outline),
-        &DocumentRevisionId::generate(),
-    )
-    .expect("outline");
+    let outline = render(&doc, &input(ReadView::Outline)).expect("outline");
     assert_eq!(outline.lines[1], rendered.lines[1]);
 }
 
@@ -257,14 +222,14 @@ fn written_lines_are_the_nodes_a_revision_added_or_changed() {
         ),
     ]);
     assert_eq!(
-        systemprompt_runtime::documents::mcp::written_lines(Some(&base), &head),
+        systemprompt_runtime::documents::views::written_lines(Some(&base), &head),
         vec![
             format!("p[1]:{}| new", hash8("new")),
             format!("p[3]:{}| # Title", hash8("Title")),
         ]
     );
     assert_eq!(
-        systemprompt_runtime::documents::mcp::written_lines(None, &base).len(),
+        systemprompt_runtime::documents::views::written_lines(None, &base).len(),
         2
     );
 }

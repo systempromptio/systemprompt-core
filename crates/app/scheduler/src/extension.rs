@@ -83,6 +83,16 @@ impl Extension for SchedulerExtension {
                 "watermark_id".into(),
                 "batches_total".into(),
             ]),
+            SchemaDefinition::new(
+                "licence_checkin_state",
+                include_str!("../schema/licence_checkin_state.sql"),
+            )
+            .with_required_columns(vec![
+                "id".into(),
+                "last_attempt_at".into(),
+                "last_success_at".into(),
+                "last_error".into(),
+            ]),
         ]
     }
 

@@ -20,7 +20,7 @@ use systemprompt_models::documents::DocumentAction;
 use systemprompt_traits::{ConstraintKind, RepositoryError};
 
 use super::documents::NewContent;
-use super::support::document_name;
+use super::support::{document_name, join_path};
 use super::{Author, DocumentService};
 use crate::documents::access::AccessTarget;
 use crate::documents::error::DocumentsError;
@@ -88,13 +88,47 @@ impl DocumentService {
             .await?;
         self.reject_open_for_document(&trashed, Some(TRASHED_NOTE.to_owned()))
             .await?;
-        if !self.repos.documents.trash(document, &who.id).await? {
+        self.close_live_state(who, &trashed, trace).await?;
+        let from = self.document_path(&trashed).await?;
+        if !self.repos.documents.trash(document, &who.id, &from).await? {
             return Err(DocumentsError::not_found("document", document));
         }
         Ok(())
     }
 
-    pub async fn restore_document(
+    #[cfg(feature = "collab")]
+    async fn close_live_state(
+        &self,
+        who: &AuthenticatedUser,
+        document: &Document,
+        trace: &TraceId,
+    ) -> Result<(), DocumentsError> {
+        if let Some(collab) = self.collab() {
+            collab
+                .close_for_trash(who, document, trace)
+                .await
+                .map_err(|source| DocumentsError::LiveSession(Box::new(source)))?;
+        }
+        self.release_live_state(document).await
+    }
+
+    #[cfg(not(feature = "collab"))]
+    async fn close_live_state(
+        &self,
+        _who: &AuthenticatedUser,
+        document: &Document,
+        _trace: &TraceId,
+    ) -> Result<(), DocumentsError> {
+        self.release_live_state(document).await
+    }
+
+    async fn release_live_state(&self, document: &Document) -> Result<(), DocumentsError> {
+        self.repos.locks.release_all(&document.id).await?;
+        self.repos.presence.clear(&document.id).await?;
+        Ok(())
+    }
+
+    pub async fn untrash(
         &self,
         who: &AuthenticatedUser,
         document: &DocumentId,
@@ -128,7 +162,8 @@ impl DocumentService {
             if name != current.name {
                 self.repos.documents.rename_any(document, &name).await?;
             }
-            match self.repos.documents.restore(document).await {
+            let to = join_path(self.folder_path(folder.as_ref()).await?.as_deref(), &name);
+            match self.repos.documents.restore(document, &to).await {
                 Ok(true) => return self.load_document(document).await,
                 Ok(false) => return Err(DocumentsError::not_found("trashed document", document)),
                 Err(error) if attempt == 1 && is_name_taken(&error) => {},
@@ -143,14 +178,13 @@ impl DocumentService {
         request: CopyRequest,
         trace: &TraceId,
     ) -> Result<(Document, DocumentRevision), DocumentsError> {
-        let (source, bytes) = {
-            let source = self
-                .authorized_document(who, &request.source, DocumentAction::View, trace)
-                .await?;
-            let head = self.resolve_revision(&source, None).await?;
-            let bytes = self.revision_bytes(&head).await?;
-            (source, bytes)
-        };
+        let source = self
+            .authorized_document(who, &request.source, DocumentAction::View, trace)
+            .await?;
+        let bytes = self
+            .revision_bytes(&self.resolve_revision(&source, None).await?)
+            .await?;
+        let carried = self.access.check_copy(who, &source).await?;
         let folder = request.folder.or_else(|| source.folder_id.clone());
         self.authorize_create(who, folder.as_ref(), trace).await?;
         let explicit = request
@@ -173,10 +207,12 @@ impl DocumentService {
                 author: request.author.clone(),
                 message: Some(format!("copy of {}", source.id)),
                 ops: None,
+                mime_type: Some(source.mime_type.clone()),
             };
             match self.create_with_bytes(who, content).await {
                 Err(DocumentsError::Repository(error))
                     if attempt == 1 && explicit.is_none() && is_name_taken(&error) => {},
+                Ok(copied) => return self.carry_cap(who, &source, copied, carried).await,
                 other => return other,
             }
         }

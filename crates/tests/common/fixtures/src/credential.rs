@@ -101,6 +101,32 @@ pub async fn seed_user_session(
     Ok(())
 }
 
+/// A user token for `fixture`'s user and session, with its claims changed by
+/// `edit` before signing.
+fn mint_edited(fixture: &AuthedFixture, edit: impl FnOnce(&mut JwtClaims)) -> JwtToken {
+    mint_claims(
+        claims_for(
+            &fixture.user_id,
+            &fixture.session_id,
+            &fixture.email,
+            crate::app_context::FIXTURE_JWT_ISSUER,
+            UserType::User,
+            vec![Permission::User],
+            vec!["user".to_owned()],
+            RateLimitTier::User,
+        ),
+        edit,
+    )
+}
+
+fn mint_claims(mut claims: JwtClaims, edit: impl FnOnce(&mut JwtClaims)) -> JwtToken {
+    edit(&mut claims);
+    let keys = test_signing_keys();
+    let mut header = Header::new(Algorithm::RS256);
+    header.kid = Some(keys.active_kid().to_owned());
+    JwtToken::new(encode(&header, &claims, keys.encoding_key()).expect("encode jwt"))
+}
+
 #[allow(
     clippy::too_many_arguments,
     reason = "test JWT minter threads each claim explicitly"
@@ -115,10 +141,38 @@ fn mint_jwt_internal(
     roles: Vec<String>,
     rate_limit_tier: RateLimitTier,
 ) -> JwtToken {
-    let keys = test_signing_keys();
+    mint_claims(
+        claims_for(
+            user_id,
+            session_id,
+            email,
+            issuer,
+            user_type,
+            scope,
+            roles,
+            rate_limit_tier,
+        ),
+        |_| {},
+    )
+}
+
+#[allow(
+    clippy::too_many_arguments,
+    reason = "test JWT minter threads each claim explicitly"
+)]
+fn claims_for(
+    user_id: &UserId,
+    session_id: &SessionId,
+    email: &str,
+    issuer: &str,
+    user_type: UserType,
+    scope: Vec<Permission>,
+    roles: Vec<String>,
+    rate_limit_tier: RateLimitTier,
+) -> JwtClaims {
     let now = Utc::now();
     let expiry = now + Duration::hours(1);
-    let claims = JwtClaims {
+    JwtClaims {
         registered: RegisteredClaims {
             sub: user_id.to_string(),
             iat: now.timestamp(),
@@ -143,12 +197,10 @@ fn mint_jwt_internal(
             plugin_id: None,
             act: None,
             purpose: None,
+            interaction: None,
+            browser_session: false,
         },
-    };
-    let mut header = Header::new(Algorithm::RS256);
-    header.kid = Some(keys.active_kid().to_owned());
-    let token = encode(&header, &claims, keys.encoding_key()).expect("encode jwt");
-    JwtToken::new(token)
+    }
 }
 
 pub async fn seed_admin_credential(pool: &DbPool, email_base: &str) -> Result<AuthedFixture> {
@@ -197,6 +249,50 @@ pub async fn seed_bridge_credential(pool: &DbPool, email_base: &str) -> Result<A
         email,
         jwt,
     })
+}
+
+/// A bridge device's own token, as the exchange-code flow issues it: the
+/// bridge client, first-party audiences, an optional `purpose`.
+pub async fn seed_bridge_client_credential(
+    pool: &DbPool,
+    email_base: &str,
+    purpose: Option<&str>,
+) -> Result<AuthedFixture> {
+    let mut fixture = seed_bridge_credential(pool, email_base).await?;
+    fixture.jwt = mint_edited(&fixture, |claims| {
+        claims.custom.client_id = Some(systemprompt_identifiers::ClientId::bridge());
+        claims.custom.purpose = purpose.map(str::to_owned);
+    });
+    Ok(fixture)
+}
+
+/// A bridge device's private device token, as a bridge exchange mints it
+/// beside the host token: the bridge client, audience `bridge.device` alone.
+pub async fn seed_bridge_device_credential(
+    pool: &DbPool,
+    email_base: &str,
+) -> Result<AuthedFixture> {
+    let mut fixture = seed_bridge_credential(pool, email_base).await?;
+    fixture.jwt = mint_edited(&fixture, |claims| {
+        claims.registered.aud = vec![JwtAudience::Resource(
+            systemprompt_models::documents::BRIDGE_DEVICE_AUDIENCE.to_owned(),
+        )];
+        claims.custom.client_id = Some(systemprompt_identifiers::ClientId::bridge());
+    });
+    Ok(fixture)
+}
+
+/// A bridge device's Drive sync credential, as `POST /bridge/drive/token`
+/// issues it: the bridge client, audience `bridge.drive_sync`, no purpose.
+pub async fn seed_drive_credential(pool: &DbPool, email_base: &str) -> Result<AuthedFixture> {
+    let mut fixture = seed_bridge_credential(pool, email_base).await?;
+    fixture.jwt = mint_edited(&fixture, |claims| {
+        claims.registered.aud = vec![JwtAudience::Resource(
+            systemprompt_models::documents::DRIVE_SYNC_AUDIENCE.to_owned(),
+        )];
+        claims.custom.client_id = Some(systemprompt_identifiers::ClientId::bridge());
+    });
+    Ok(fixture)
 }
 
 fn unique_email(base: &str, user_id: &UserId) -> String {

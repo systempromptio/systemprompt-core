@@ -3,14 +3,14 @@ use systemprompt_identifiers::{DocumentId, DocumentNodeId};
 use systemprompt_mcp::McpToolHandler;
 use systemprompt_models::documents::{AccessLevel, ContentAs, EditOp, NodeTarget};
 use systemprompt_runtime::documents::mcp::{
-    AccessHandler, CommentAction, CommentHandler, CommentInput, CopyHandler, CopyInput,
-    DocumentInput, EditHandler, EditInput, GuideHandler, GuideInput, ListHandler, ListInput,
-    ListScopeInput, ListSortInput, QuoteAnchor, RestoreHandler, ShareHandler, ShareInput,
-    TrashHandler, UpdateHandler, UpdateInput, refusal_result,
+    AccessHandler, AccessInput, CommentAction, CommentHandler, CommentInput, CopyHandler,
+    CopyInput, DocumentInput, EditHandler, EditInput, GuideHandler, GuideInput, ListHandler,
+    ListInput, ListScopeInput, ListSortInput, QuoteAnchor, ShareHandler, ShareInput, TrashHandler,
+    UntrashHandler, UpdateHandler, UpdateInput, refusal_result,
 };
 
 use crate::documents_mcp_support::{
-    create_text, ctx_for, exec, harness, line_for, person, read_text,
+    create_text, ctx_for, exec, harness, line_for, person, read_text, registered,
 };
 
 fn comment(action: CommentAction, document: &DocumentId) -> CommentInput {
@@ -21,6 +21,7 @@ fn comment(action: CommentAction, document: &DocumentId) -> CommentInput {
         anchor: None,
         body: None,
         parent_id: None,
+        mentions: Vec::new(),
         comment_id: None,
         answering: None,
     }
@@ -36,13 +37,14 @@ fn share(document: &DocumentId) -> ShareInput {
         valid_until: None,
         transfer_to: None,
         revoke_all: false,
+        message: None,
     }
 }
 
 #[tokio::test]
 async fn comment_tool_creates_lists_and_resolves_and_edits_refuse_anchors_affected() {
     let h = harness().await;
-    let owner = person("mcp-comment");
+    let owner = registered("mcp-comment").await;
     let ctx = ctx_for(Some(&owner));
     let (document, _) = create_text(&h.tools, &ctx, "alpha beta\nsecond\n").await;
     let read = read_text(&h.tools, &ctx, &document).await;
@@ -117,13 +119,17 @@ async fn comment_tool_creates_lists_and_resolves_and_edits_refuse_anchors_affect
 }
 
 #[tokio::test]
-async fn trash_restore_copy_update_and_access_tools() {
+async fn trash_untrash_copy_update_and_access_tools() {
     let h = harness().await;
-    let owner = person("mcp-life");
+    let owner = registered("mcp-life").await;
     let ctx = ctx_for(Some(&owner));
     let (document, _) = create_text(&h.tools, &ctx, "body\n").await;
     let input = || DocumentInput {
         document_id: document.clone(),
+    };
+    let access_input = || AccessInput {
+        document_id: document.clone(),
+        history: false,
     };
 
     let (trashed, _) = TrashHandler { tools: &h.tools }
@@ -132,15 +138,15 @@ async fn trash_restore_copy_update_and_access_tools() {
         .expect("trash");
     assert!(trashed.trashed);
     let refused = AccessHandler { tools: &h.tools }
-        .handle(input(), &ctx, &exec())
+        .handle(access_input(), &ctx, &exec())
         .await
         .expect_err("trashed");
     let data = refusal_result(&refused)
         .and_then(|r| r.structured_content)
         .expect("refusal");
-    assert_eq!(data["code"], "not_found");
+    assert_eq!(data["code"], "trashed");
     assert_eq!(data["trashed"], true);
-    RestoreHandler { tools: &h.tools }
+    UntrashHandler { tools: &h.tools }
         .handle(input(), &ctx, &exec())
         .await
         .expect("restore");
@@ -174,7 +180,7 @@ async fn trash_restore_copy_update_and_access_tools() {
     assert_ne!(copied.document.document_id, document);
 
     let (access, _) = AccessHandler { tools: &h.tools }
-        .handle(input(), &ctx, &exec())
+        .handle(access_input(), &ctx, &exec())
         .await
         .expect("access");
     assert_eq!(access.owner, owner.id);
@@ -184,9 +190,13 @@ async fn trash_restore_copy_update_and_access_tools() {
 #[tokio::test]
 async fn share_transfers_ownership_and_lists_show_access() {
     let h = harness().await;
-    let owner = person("mcp-transfer");
-    let next = person("mcp-next");
+    let owner = registered("mcp-transfer").await;
+    let next = registered("mcp-next").await;
     let ctx = ctx_for(Some(&owner));
+    let pool = systemprompt_test_fixtures::test_db_pool().await;
+    systemprompt_test_fixtures::seed_user_row(&pool, &next.id, &next.email)
+        .await
+        .expect("seed recipient");
     let (document, _) = create_text(&h.tools, &ctx, "body\n").await;
     let (out, _) = ShareHandler { tools: &h.tools }
         .handle(
@@ -229,7 +239,7 @@ async fn share_transfers_ownership_and_lists_show_access() {
 #[tokio::test]
 async fn the_guide_explains_comments_lifecycle_and_skeletons() {
     let h = harness().await;
-    let owner = person("mcp-guide-new");
+    let owner = registered("mcp-guide-new").await;
     let (_, text) = GuideHandler { tools: &h.tools }
         .handle(
             GuideInput {
@@ -244,7 +254,7 @@ async fn the_guide_explains_comments_lifecycle_and_skeletons() {
         )
         .await
         .expect("guide");
-    for needle in ["allow_detach", "documents_restore_document", "pending"] {
+    for needle in ["allow_detach", "documents_untrash", "pending"] {
         assert!(text.contains(needle), "guide lacks {needle}");
     }
 }
@@ -267,7 +277,7 @@ fn update_folder_id_is_tri_state() {
 #[tokio::test]
 async fn update_moves_a_document_back_to_the_root() {
     let h = harness().await;
-    let owner = person("mcp-root");
+    let owner = registered("mcp-root").await;
     let ctx = ctx_for(Some(&owner));
     let (document, _) = create_text(&h.tools, &ctx, "body\n").await;
     let folder = h
@@ -304,7 +314,7 @@ async fn update_moves_a_document_back_to_the_root() {
 #[tokio::test]
 async fn shared_grants_show_the_user_display_name_and_the_role_value() {
     let h = harness().await;
-    let owner = person("mcp-display-owner");
+    let owner = registered("mcp-display-owner").await;
     let reader = person("mcp-display-reader");
     let pool = systemprompt_test_fixtures::test_db_pool().await;
     sqlx::query(
@@ -317,7 +327,7 @@ async fn shared_grants_show_the_user_display_name_and_the_role_value() {
     .expect("user row");
     let ctx = ctx_for(Some(&owner));
     let (document, _) = create_text(&h.tools, &ctx, "body\n").await;
-    for (kind, value) in [("user", reader.id.as_str()), ("role", "staff")] {
+    for (kind, value) in [("user", reader.id.as_str()), ("role", "admin")] {
         ShareHandler { tools: &h.tools }
             .handle(
                 ShareInput {
@@ -334,8 +344,9 @@ async fn shared_grants_show_the_user_display_name_and_the_role_value() {
     }
     let (access, _) = AccessHandler { tools: &h.tools }
         .handle(
-            DocumentInput {
+            AccessInput {
                 document_id: document.clone(),
+                history: false,
             },
             &ctx,
             &exec(),
@@ -350,5 +361,5 @@ async fn shared_grants_show_the_user_display_name_and_the_role_value() {
             .and_then(|grant| grant.display_name.clone())
     };
     assert_eq!(display("user").as_deref(), Some("Grace Reader"));
-    assert_eq!(display("role").as_deref(), Some("staff"));
+    assert_eq!(display("role").as_deref(), Some("admin"));
 }

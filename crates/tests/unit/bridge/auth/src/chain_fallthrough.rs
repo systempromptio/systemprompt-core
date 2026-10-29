@@ -55,6 +55,7 @@ fn ok_token() -> HelperOutput {
         token: BearerToken::new("stub"),
         ttl: 3600,
         headers: Default::default(),
+        device_token: None,
     }
 }
 

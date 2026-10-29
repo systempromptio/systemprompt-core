@@ -15,8 +15,12 @@
 //! format. [`templates`] holds the [`TemplateRegistry`] that merges template
 //! providers with the services catalog, and the core blank templates.
 //!
-//! With the `collab` feature, `collab` co-edits HTML and Markdown documents
-//! live over a Loro CRDT.
+//! [`live`] is the document-scoped live channel (topic `document:<id>`)
+//! and the awareness participants share over it; it needs no CRDT engine.
+//! [`model`] holds core's engine-agnostic document models (`RichText`) and
+//! the server-side validation of live updates. With the `collab` feature,
+//! `collab` co-edits HTML and Markdown documents live over whichever
+//! [`engine::DocumentEngine`] the composition root selects.
 //!
 //! [`TemplateRegistry`]: templates::TemplateRegistry
 //! [`DocumentCodec`]: systemprompt_provider_contracts::documents::DocumentCodec
@@ -26,22 +30,32 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod access;
+pub mod agents;
+mod blob_adopt;
 pub mod blob_store;
 pub mod codecs;
 #[cfg(feature = "collab")]
 pub mod collab;
+mod collab_events;
+mod comment_events;
+pub mod engine;
 pub mod error;
 pub mod events;
 pub mod jobs;
+pub mod live;
+pub mod model;
 pub mod models;
 pub mod nodes;
+pub mod pdf;
 pub mod repository;
 pub mod revision;
 pub mod service;
+mod sharing_events;
 pub mod templates;
 
 pub use access::{
     AccessCheck, AccessTarget, DocumentAccessRepositories, DocumentAccessService, Granted,
+    MAX_SUBJECT_SEARCH, SubjectDirectory, SubjectDirectoryError, SubjectMatch, SubjectSearch,
 };
 pub use error::DocumentsError;
 pub use events::DocumentEvents;

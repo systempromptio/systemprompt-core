@@ -26,7 +26,7 @@ fn stored_tenant_json_matches_legacy_string_schema() {
         r#""hostname":"acme.fly.dev","region":"lhr","#,
         r#""database_url":"postgres://ext/db","#,
         r#""internal_database_url":"postgres://int/db","#,
-        r#""tenant_type":"cloud","external_db_access":true}"#
+        r#""provider":"systemprompt","external_db_access":true}"#
     );
     assert_eq!(json, expected);
 
@@ -41,7 +41,7 @@ fn stored_tenant_json_matches_legacy_string_schema() {
         roundtripped.internal_database_url,
         tenant.internal_database_url
     );
-    assert_eq!(roundtripped.tenant_type, tenant.tenant_type);
+    assert_eq!(roundtripped.provider, tenant.provider);
     assert_eq!(roundtripped.external_db_access, tenant.external_db_access);
     assert_eq!(roundtripped.docker_project, tenant.docker_project);
 }

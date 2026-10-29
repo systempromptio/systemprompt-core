@@ -3,7 +3,10 @@
 //! [`UsersCommands`] groups the user CRUD, search, export, stats, merge, and
 //! the `bulk`, `role`, `session`, `ban`, and `webauthn` subcommand trees. On a
 //! `--database-url` invocation only the read-only commands are served; write
-//! operations require a full profile context.
+//! operations require a full profile context. While the `identity` config
+//! plane is file-managed, every command that writes users, roles or service
+//! accounts is refused: the declaration under `services/identity/` is the
+//! source of truth.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -130,6 +133,9 @@ pub async fn execute(cmd: UsersCommands, ctx: &CommandContext) -> Result<()> {
     {
         bail!("Write operations require full profile context");
     }
+    if !ctx.is_database_scoped() && writes_identity(&cmd) {
+        refuse_file_managed_identity(ctx).await?;
+    }
 
     match cmd {
         UsersCommands::Bulk(cmd) => Box::pin(bulk::execute(cmd, ctx)).await,
@@ -143,6 +149,33 @@ pub async fn execute(cmd: UsersCommands, ctx: &CommandContext) -> Result<()> {
             Ok(())
         },
     }
+}
+
+const fn writes_identity(cmd: &UsersCommands) -> bool {
+    matches!(
+        cmd,
+        UsersCommands::Create(_)
+            | UsersCommands::Update(_)
+            | UsersCommands::Delete(_)
+            | UsersCommands::Restore(_)
+            | UsersCommands::Merge(_)
+            | UsersCommands::Bulk(_)
+            | UsersCommands::Role(_)
+            | UsersCommands::ServiceAccount(_)
+    )
+}
+
+async fn refuse_file_managed_identity(ctx: &CommandContext) -> Result<()> {
+    let authority = ctx
+        .profile()?
+        .config_planes
+        .authority_for(systemprompt_oauth_issuance::IDENTITY_PLANE);
+    if authority != systemprompt_manifest::profile::PlaneAuthority::File {
+        return Ok(());
+    }
+    let planes = ctx.app_context().await?.config_planes()?;
+    planes.writer(systemprompt_oauth_issuance::IDENTITY_PLANE)?;
+    Ok(())
 }
 
 async fn render_output(cmd: UsersCommands, ctx: &CommandContext) -> Result<CommandOutput> {

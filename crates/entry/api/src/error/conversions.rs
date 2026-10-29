@@ -141,6 +141,7 @@ impl From<UserError> for ApiHttpError {
             UserError::Repository(inner) => ApiError::from(inner),
             e @ UserError::NotFound(_) => ApiError::not_found(e.to_string()),
             e @ (UserError::EmailAlreadyExists(_)
+            | UserError::AccountKindMismatch(_)
             | UserError::LegalHold(_)
             | UserError::NotArchived(_)
             | UserError::RestoreRefused { .. }) => ApiError::conflict(e.to_string()),
@@ -236,6 +237,7 @@ impl From<BundleError> for ApiHttpError {
             | BundleError::Policy { .. }
             | BundleError::TooLarge { .. }) => ApiError::bad_request(e.to_string()),
             e @ BundleError::SourceMissing { .. } => ApiError::not_found(e.to_string()),
+            e @ BundleError::NoSharedComposition { .. } => ApiError::conflict(e.to_string()),
             e @ (BundleError::Fetch { .. } | BundleError::Extract { .. } | BundleError::Io(_)) => {
                 ApiError::internal("Services bundle operation failed", e)
             },

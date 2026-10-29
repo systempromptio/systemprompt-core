@@ -50,6 +50,22 @@ fn print_status(root: &DriveRoot) -> ExitCode {
     }
     stdio::print_line(&format!("  pending uploads: {}", status.pending_uploads));
     stdio::print_line(&format!("  conflicts: {}", status.conflicts.len()));
+    stdio::print_line(&format!(
+        "  shares received since the last sync: {}",
+        status.shares.len()
+    ));
+    for share in &status.shares {
+        stdio::print_line(&format!(
+            "    {}  from {}  ({}, {})",
+            share
+                .document_name
+                .as_deref()
+                .unwrap_or(share.document_id.as_str()),
+            share.shared_by.as_ref().map_or("someone", |by| by.as_str()),
+            share.level.as_deref().unwrap_or("access"),
+            share.received_at,
+        ));
+    }
     stdio::print_line(&format!("  open proposals: {}", status.proposals.len()));
     for proposal in &status.proposals {
         stdio::print_line(&format!(
@@ -90,13 +106,21 @@ fn sync(ctx: &BridgeContext, root: &DriveRoot) -> ExitCode {
     match ctx.block_on(sync_once(ctx, root)) {
         Ok(report) => {
             stdio::print_line(&format!(
-                "drive synced: {} pulled, {} committed, {} merged, {} conflicts, {} pending",
+                "drive synced: {} pulled, {} committed, {} merged, {} sent for review, {} \
+                 conflicts, {} pending",
                 report.pull.applied,
                 report.upload.committed,
                 report.upload.merged,
+                report.upload.sent_for_review.len(),
                 report.pull.conflicts.len() + report.upload.conflicts.len(),
                 report.pending_uploads,
             ));
+            for sent in &report.upload.sent_for_review {
+                stdio::print_line(&format!(
+                    "  {} was sent for review (proposal {}); your local copy is kept",
+                    sent.path, sent.proposal_id
+                ));
+            }
             ExitCode::SUCCESS
         },
         Err(error) => {
@@ -114,17 +138,19 @@ async fn sync_once(
     let cfg = crate::config::load().map_err(DriveError::Config)?;
     let gateway = crate::config::gateway_url_or_default(&cfg);
     let session_id = crate::auth::session_identity::stable_session_id(&cfg);
-    let bearer = crate::auth::obtain_live_token(&cfg, &session_id, &ctx.http)
+    let device = crate::auth::obtain_live_token(&cfg, &session_id, &ctx.http)
         .await
         .map_err(DriveError::Credential)?
-        .token;
+        .device_token
+        .ok_or(DriveError::DeviceTokenMissing)?;
     let device_id = systemprompt_identifiers::DriveDeviceId::try_new(ctx.install_id().as_str())
         .map_err(DriveError::DeviceId)?;
     let host_name = crate::sysproc::host_name().unwrap_or_else(|| "this device".to_owned());
     let client = DriveClient::new(gateway, ctx.http.clone());
+    let sync = crate::ids::BearerToken::new(client.sync_token(&device).await?.token);
     let cycle = Cycle {
         client: &client,
-        bearer: &bearer,
+        bearer: &sync,
         root,
         device_id: &device_id,
         host_name: &host_name,

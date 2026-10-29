@@ -1,4 +1,5 @@
-//! Grants, presence and edit locks on one document.
+//! Grants, presence and edit locks on one document; the grant handlers
+//! also serve folders.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -22,10 +23,11 @@ use systemprompt_runtime::documents::subject_display;
 use uuid::Uuid;
 
 use super::DocumentsState;
-use super::caller::caller;
+use super::caller::{Caller, caller};
 use super::error::{DocumentsResult, with_detail};
 use super::items::document_id;
 use super::views::{GrantJson, LockJson, PresenceJson};
+use systemprompt_runtime::documents::refusal::{Refusal, RefusalCode};
 
 const DEFAULT_LOCK_SECS: u64 = 300;
 const MAX_LOCK_SECS: u64 = 3600;
@@ -41,7 +43,14 @@ pub(super) async fn list_grants(
     Path(id): Path<String>,
 ) -> DocumentsResult<Json<GrantsJson>> {
     let who = caller(&state, &req_ctx).await?;
-    let target = GrantTarget::Document(document_id(&id)?);
+    list_on(&state, &who, GrantTarget::Document(document_id(&id)?)).await
+}
+
+pub(super) async fn list_on(
+    state: &DocumentsState,
+    who: &Caller,
+    target: GrantTarget,
+) -> DocumentsResult<Json<GrantsJson>> {
     let grants = state.service.grants(&who.user, &target, &who.trace).await?;
     Ok(Json(GrantsJson {
         grants: grants.into_iter().map(Into::into).collect(),
@@ -55,6 +64,8 @@ pub(super) struct ShareBody {
     level: AccessLevel,
     #[serde(default)]
     valid_until: Option<DateTime<Utc>>,
+    #[serde(default)]
+    message: Option<String>,
 }
 
 pub(super) async fn share(
@@ -64,6 +75,15 @@ pub(super) async fn share(
     Json(body): Json<ShareBody>,
 ) -> DocumentsResult<Response> {
     let who = caller(&state, &req_ctx).await?;
+    share_on(&state, &who, GrantTarget::Document(document_id(&id)?), body).await
+}
+
+pub(super) async fn share_on(
+    state: &DocumentsState,
+    who: &Caller,
+    target: GrantTarget,
+    body: ShareBody,
+) -> DocumentsResult<Response> {
     let display = subject_display(
         &state.user_repository,
         &body.subject_kind,
@@ -72,12 +92,14 @@ pub(super) async fn share(
     .await
     .map_err(ApiHttpError::from)?;
     let request = ShareRequest {
-        target: GrantTarget::Document(document_id(&id)?),
+        target,
         subject_kind: body.subject_kind,
         subject_value: body.subject_value,
         subject_display: Some(display),
         level: body.level,
         valid_until: body.valid_until,
+        message: body.message,
+        via_agent: None,
     };
     let grant = state.service.share(&who.user, request, &who.trace).await?;
     Ok((StatusCode::CREATED, Json(GrantJson::from(grant))).into_response())
@@ -95,7 +117,21 @@ pub(super) async fn revoke(
     Query(query): Query<RevokeQuery>,
 ) -> DocumentsResult<StatusCode> {
     let who = caller(&state, &req_ctx).await?;
-    let target = GrantTarget::Document(document_id(&id)?);
+    revoke_on(
+        &state,
+        &who,
+        GrantTarget::Document(document_id(&id)?),
+        &query,
+    )
+    .await
+}
+
+pub(super) async fn revoke_on(
+    state: &DocumentsState,
+    who: &Caller,
+    target: GrantTarget,
+    query: &RevokeQuery,
+) -> DocumentsResult<StatusCode> {
     state
         .service
         .revoke(&who.user, &target, query.grant_id, &who.trace)
@@ -193,10 +229,11 @@ pub(super) async fn acquire_lock(
                  expire",
                 current.holder_kind, current.holder_id
             ))
-            .with_error_key("lock_held");
+            .with_error_key(RefusalCode::Locked.as_str());
             with_detail(
                 &error,
                 HeldDetail {
+                    refusal: Refusal::new(RefusalCode::Locked),
                     lock: LockJson::from(current),
                 },
             )
@@ -206,6 +243,8 @@ pub(super) async fn acquire_lock(
 
 #[derive(Debug, Serialize)]
 struct HeldDetail {
+    #[serde(flatten)]
+    refusal: Refusal,
     lock: LockJson,
 }
 

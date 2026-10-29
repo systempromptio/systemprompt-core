@@ -198,6 +198,7 @@ impl RouteClassifier {
                     | "webp"
                     | "mp4"
                     | "webm"
+                    | "wasm"
             )
         ) || path == "/favicon.ico"
     }

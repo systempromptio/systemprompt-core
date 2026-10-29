@@ -41,9 +41,10 @@ pub use env::{contains_placeholder, interpolate, none_if_blank, read_env_optiona
 pub use paths::PathResolution;
 pub use profile::{
     CloudConfig, CloudValidationMode, ContentNegotiationConfig,
-    DatabaseConfig as ProfileDatabaseConfig, Environment, ExtensionsConfig, LogLevel, OutputFormat,
-    PathsConfig, Profile, ProfileStyle, ProfileType, RateLimitsConfig, RuntimeConfig,
-    SecurityConfig, SecurityHeadersConfig, ServerConfig, SiteConfig,
+    DatabaseConfig as ProfileDatabaseConfig, DeployConfig, Environment, ExtensionsConfig,
+    GitOpsConfig, HostingProvider, LogLevel, OperatorAuthConfig, OutputFormat, PathsConfig,
+    Profile, ProfileStyle, ProfileType, RateLimitsConfig, RuntimeConfig, SecurityConfig,
+    SecurityHeadersConfig, ServerConfig, SiteConfig, default_operator_scopes,
 };
 pub use secrets::Secrets;
 pub use services::{

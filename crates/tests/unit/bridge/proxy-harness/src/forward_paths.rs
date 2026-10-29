@@ -39,6 +39,7 @@ fn counting_refresh(mints: &Arc<AtomicUsize>) -> RefreshFn {
                 token: BearerToken::new(format!("upstream-jwt-{n}")),
                 ttl: 3600,
                 headers: Default::default(),
+                device_token: None,
             })
         })
     })

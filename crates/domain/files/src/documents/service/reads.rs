@@ -55,7 +55,7 @@ impl DocumentService {
                 .revisions
                 .find(id)
                 .await?
-                .filter(|r| r.document_id == document.id)
+                .filter(|r| r.document_id == document.id && r.landed_at.is_some())
                 .ok_or_else(|| DocumentsError::not_found("revision", id));
         }
         self.repos
@@ -63,6 +63,19 @@ impl DocumentService {
             .head(&document.id)
             .await?
             .ok_or_else(|| DocumentsError::not_found("head revision of document", &document.id))
+    }
+
+    pub(super) async fn proposed_revision(
+        &self,
+        document: &Document,
+        id: &DocumentRevisionId,
+    ) -> Result<DocumentRevision, DocumentsError> {
+        self.repos
+            .revisions
+            .find(id)
+            .await?
+            .filter(|r| r.document_id == document.id)
+            .ok_or_else(|| DocumentsError::not_found("revision", id))
     }
 
     pub async fn history(
@@ -105,7 +118,7 @@ impl DocumentService {
         Ok((revision, bytes))
     }
 
-    async fn read(
+    pub(super) async fn read(
         &self,
         who: &AuthenticatedUser,
         document: &DocumentId,

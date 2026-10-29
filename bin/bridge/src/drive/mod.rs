@@ -24,6 +24,7 @@
 
 pub mod client;
 pub mod conflict;
+pub mod cycle;
 pub mod error;
 pub mod hash;
 pub mod notice;
@@ -33,6 +34,7 @@ pub mod pull;
 pub mod root;
 pub mod run;
 pub mod scan;
+pub mod shares;
 pub mod state;
 pub mod status;
 pub mod upload;
@@ -42,7 +44,7 @@ pub mod write;
 pub use client::DriveClient;
 pub use error::DriveError;
 pub use root::DriveRoot;
-pub use state::{DriveEntryState, DriveState, OpenProposal};
+pub use state::{DriveEntryState, DriveState, OpenProposal, SentForReview};
 pub use status::{ConflictNotice, DriveHandle, DriveStatus, EditorPresence};
 
 use systemprompt_identifiers::DriveDeviceId;

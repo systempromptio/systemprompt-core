@@ -1,8 +1,10 @@
 //! Server run loop: MCP orchestrator wiring and lifecycle supervision.
 //!
 //! Phases follow `server.role` ([`super::routes::role::lifecycle_plan`]): a
-//! gateway node runs no MCP servers, agents or scheduler; a runner node starts
-//! each extension's [`systemprompt_traits::RunnerService`].
+//! gateway or api node runs no MCP servers, agents or scheduler; an `all` node
+//! supervises them all itself; a worker supervises the processes whose
+//! per-process leases it holds ([`super::lifecycle::process_ownership`]); a
+//! runner node starts each extension's [`systemprompt_traits::RunnerService`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -13,16 +15,17 @@ use systemprompt_identifiers::Actor;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::services::SchedulerHandle;
 use systemprompt_traits::{
-    Dependencies, JobContext, OwnedTask, Phase, StartupEvent, StartupEventExt, StartupEventSender,
+    Dependencies, JobContext, OwnedTask, Phase, StartupEventExt, StartupEventSender,
 };
 
 use super::lifecycle::{
-    initialize_scheduler, reconcile_agents, reconcile_system_services, start_event_bridge,
-    start_governance_watch, start_registry_heartbeat, start_schema_watch, start_secrets_refresh,
+    reconcile_system_services, start_event_bridge, start_governance_watch,
+    start_leased_supervision, start_registry_heartbeat, start_schema_watch, start_secrets_refresh,
     start_services_watch,
 };
+use super::phases::{run_agents_phase, run_scheduler_phase};
 use super::readiness::ReadinessState;
-use super::routes::role::LifecyclePlan;
+use super::routes::role::{LifecyclePlan, ProcessOwnership};
 use super::scheduler_health::SchedulerHealth;
 
 pub async fn run_server(
@@ -38,7 +41,13 @@ pub async fn run_server(
     tracing::info!(instance_id = %instance_claim.instance_id(), "replica identity claimed");
 
     let plan = super::routes::role::lifecycle_plan(ctx.config().role);
-    tracing::info!(role = %ctx.config().role, "node role");
+    tracing::info!(
+        role = %ctx.config().role,
+        scheduler = plan.scheduler,
+        process_ownership = ?plan.process_ownership,
+        runner_services = plan.runner_services,
+        "node role"
+    );
 
     let scheduler_handle =
         start_role_phases(&ctx, plan, events.as_ref(), early.scheduler_health()).await?;
@@ -89,12 +98,18 @@ async fn start_role_phases(
     start_registry_heartbeat(ctx);
     start_secrets_refresh(ctx);
     start_schema_watch(ctx);
-    if plan.reconcile_mcp {
-        let mcp_orchestrator = create_mcp_orchestrator(ctx)?;
-        reconcile_system_services(ctx, &mcp_orchestrator, events).await?;
-    }
-    if plan.reconcile_agents {
-        run_agents_phase(ctx, events).await?;
+    match plan.process_ownership {
+        ProcessOwnership::None => {},
+        ProcessOwnership::Local => {
+            if plan.reconcile_mcp {
+                let mcp_orchestrator = create_mcp_orchestrator(ctx)?;
+                reconcile_system_services(ctx, &mcp_orchestrator, events).await?;
+            }
+            if plan.reconcile_agents {
+                run_agents_phase(ctx, events).await?;
+            }
+        },
+        ProcessOwnership::Leased => start_leased_supervision(ctx),
     }
     let scheduler_handle = if plan.scheduler {
         run_scheduler_phase(ctx, events, scheduler_health).await?
@@ -176,83 +191,7 @@ fn start_runner_services(ctx: &AppContext) {
     tracing::info!(started, "runner services started");
 }
 
-async fn run_agents_phase(ctx: &AppContext, events: Option<&StartupEventSender>) -> Result<()> {
-    if let Some(tx) = events {
-        tx.phase_started(Phase::Agents);
-    }
-    match reconcile_agents(ctx, events).await {
-        Ok(started_count) => {
-            if let Some(tx) = events {
-                send_startup_event(
-                    tx,
-                    StartupEvent::AgentReconciliationComplete {
-                        running: started_count,
-                        total: started_count,
-                    },
-                );
-                tx.phase_completed(Phase::Agents);
-            }
-            Ok(())
-        },
-        Err(e) => Err(fail_phase(
-            events,
-            Phase::Agents,
-            format!("Agent reconciliation failed: {e}"),
-            e,
-        )),
-    }
-}
-
-async fn run_scheduler_phase(
-    ctx: &AppContext,
-    events: Option<&StartupEventSender>,
-    scheduler_health: &SchedulerHealth,
-) -> Result<Option<SchedulerHandle>> {
-    if let Some(tx) = events {
-        tx.phase_started(Phase::Scheduler);
-    }
-    match initialize_scheduler(ctx, events, scheduler_health).await {
-        Ok(handle) => {
-            if let Some(tx) = events {
-                tx.phase_completed(Phase::Scheduler);
-            }
-            Ok(handle)
-        },
-        Err(e) => Err(fail_phase(
-            events,
-            Phase::Scheduler,
-            format!("Scheduler initialization failed: {e}"),
-            e,
-        )),
-    }
-}
-
-fn fail_phase(
-    events: Option<&StartupEventSender>,
-    phase: Phase,
-    message: String,
-    error: anyhow::Error,
-) -> anyhow::Error {
-    if let Some(tx) = events {
-        tx.phase_failed(phase, error.to_string());
-        send_startup_event(
-            tx,
-            StartupEvent::Error {
-                message,
-                fatal: true,
-            },
-        );
-    }
-    error
-}
-
-fn send_startup_event(tx: &StartupEventSender, event: StartupEvent) {
-    if tx.unbounded_send(event).is_err() {
-        tracing::debug!("Startup event receiver dropped");
-    }
-}
-
-fn create_mcp_orchestrator(
+pub(in crate::services::server) fn create_mcp_orchestrator(
     ctx: &AppContext,
 ) -> Result<Arc<systemprompt_mcp::services::McpOrchestrator>> {
     use systemprompt_mcp::services::McpOrchestrator;

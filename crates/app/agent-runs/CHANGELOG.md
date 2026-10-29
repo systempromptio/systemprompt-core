@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.75.0] - 2026-10-28
+
+### Changed
+
+- An agent run's MCP token carries `interaction: non_interactive`, so the documents surface treats the run as an unattended agent.
+
 ## [0.74.0] - 2026-10-27
 
 ### Changed

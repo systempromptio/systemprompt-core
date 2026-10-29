@@ -1,11 +1,12 @@
 use systemprompt_mcp::McpToolHandler;
-use systemprompt_runtime::documents::mcp::{GuideHandler, GuideInput, RefusalCode};
+use systemprompt_runtime::documents::mcp::{GuideHandler, GuideInput};
+use systemprompt_runtime::documents::refusal::RefusalCode;
 
-use crate::documents_mcp_support::{ctx_for, exec, harness, person};
+use crate::documents_mcp_support::{ctx_for, exec, harness, registered};
 
 async fn guide(topics: &[&str]) -> String {
     let h = harness().await;
-    let owner = person("guide");
+    let owner = registered("guide").await;
     GuideHandler { tools: &h.tools }
         .handle(
             GuideInput {

@@ -401,3 +401,21 @@ async fn discovery_filters_the_mixed_listing_and_isolates_a_malformed_credential
         "a listed preview is withheld, not misreported as absent: {report:?}"
     );
 }
+
+#[test]
+fn catalog_debug_counts_sources_and_card_entries() {
+    let card = card();
+    let sources = systemprompt_loader::vertex_discovery::default_sources(card.clone());
+    let rendered = format!(
+        "{:?}",
+        Catalog {
+            sources: &sources,
+            card: &card,
+        }
+    );
+    assert!(rendered.contains("sources: 1"), "{rendered}");
+    assert!(
+        rendered.contains(&format!("card_entries: {}", card.entries.len())),
+        "{rendered}"
+    );
+}

@@ -3,7 +3,9 @@
 //! [`decide_routing`] turns the resolved target into one [`RoutingDecision`]:
 //! a remote run, or a local continuation the profile and the command's
 //! [`RoutingClass`] / [`DataImpact`] allow. A cloud profile that cannot route
-//! never silently falls back for a destructive command.
+//! never silently falls back for a destructive command. A cloud profile that
+//! names no `cloud.tenant_id` has no tenant to route to — an in-cluster job
+//! whose profile carries the database it runs against — so it runs locally.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -32,17 +34,27 @@ pub fn decide_routing(
     use super::routing::ExecutionTarget;
 
     let is_cloud = profile.target.is_cloud();
-    match target {
+    let target = match target {
+        Ok(ExecutionTarget::SelfManaged { hostname }) => Err(anyhow::anyhow!(
+            "self-managed tenant {hostname} has no tenant session; sign in as an operator with \
+             'systemprompt cloud auth login --issuer <url> --client-id <id>'"
+        )),
         Ok(ExecutionTarget::Remote {
             hostname,
             token,
             context,
-        }) => Ok(RoutingDecision::ExecuteRemote {
+        }) => Ok(Some((hostname, token, context))),
+        Ok(ExecutionTarget::Local) => Ok(None),
+        Err(e) => Err(e),
+    };
+    match target {
+        Ok(Some((hostname, token, context))) => Ok(RoutingDecision::ExecuteRemote {
             hostname,
             token,
             context,
         }),
-        Ok(ExecutionTarget::Local) if is_cloud => {
+        Ok(None) if is_cloud && !names_tenant(profile) => Ok(RoutingDecision::ContinueLocal),
+        Ok(None) if is_cloud => {
             allow_local_execution(profile, class, "no tenant is configured")?;
             Ok(RoutingDecision::ContinueLocal)
         },
@@ -60,12 +72,19 @@ pub fn decide_routing(
             allow_local_execution(profile, class, &reason)?;
             Ok(RoutingDecision::ContinueLocal)
         },
-        Ok(ExecutionTarget::Local) => Ok(RoutingDecision::ContinueLocal),
+        Ok(None) => Ok(RoutingDecision::ContinueLocal),
         Err(e) => {
             tracing::debug!(error = %e, "Routing failed on a local profile; continuing locally");
             Ok(RoutingDecision::ContinueLocal)
         },
     }
+}
+
+fn names_tenant(profile: &systemprompt_manifest::Profile) -> bool {
+    profile
+        .cloud
+        .as_ref()
+        .is_some_and(|cloud| cloud.tenant_id.is_some())
 }
 
 pub fn allow_local_execution(
@@ -100,7 +119,10 @@ pub fn allow_local_execution(
 }
 
 pub fn remediation_for(reason: &str) -> &'static str {
-    if reason.contains("load tenants") || reason.contains("tenant") {
+    if reason.to_ascii_lowercase().contains("operator") {
+        "Run 'systemprompt cloud auth login --issuer <url> --client-id <id>' to sign in as an \
+         operator of the self-managed tenant."
+    } else if reason.contains("load tenants") || reason.contains("tenant") {
         "Run 'systemprompt cloud tenant list' to sync the tenant store, and check you are in the \
          project directory this profile belongs to."
     } else {

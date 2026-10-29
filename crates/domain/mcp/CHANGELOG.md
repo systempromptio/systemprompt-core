@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.75.0] - 2026-10-28
+
+### Breaking
+
+- **Breaking:** `ReconcileParams` gains `owned: Option<&BTreeSet<ServiceName>>`; `McpOrchestrator::reconcile_owned` reconciles an owned set. Migrate struct literals by adding `owned: None`.
+- **Breaking:** an output whose `terse_wire` is true carries only `artifact_id` and `mcp_execution_id` under `io.systemprompt/execution` in `_meta`.
+
+### Added
+
+- `terse_execution_meta`.
+- A call whose token carries `interaction: non_interactive` is marked `UserInteractionMode::NonInteractive`.
+
 ## [0.74.0] - 2026-10-27
 
 ### Added

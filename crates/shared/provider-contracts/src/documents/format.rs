@@ -1,5 +1,10 @@
 //! The document formats the store understands.
 //!
+//! [`DocumentFormat::File`] is any other upload (a PDF, an image, an
+//! archive): stored and served as bytes, listed like any document, never
+//! projected or edited. It is never inferred from an extension except its
+//! own `bin`; an import falls back to it when no other format fits.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -23,6 +28,7 @@ pub enum DocumentFormat {
     Html,
     Markdown,
     Text,
+    File,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -32,7 +38,7 @@ pub struct UnknownDocumentFormat {
 }
 
 impl DocumentFormat {
-    pub const ALL: [Self; 9] = [
+    pub const ALL: [Self; 10] = [
         Self::Docx,
         Self::Xlsx,
         Self::Pptx,
@@ -42,6 +48,7 @@ impl DocumentFormat {
         Self::Html,
         Self::Markdown,
         Self::Text,
+        Self::File,
     ];
 
     #[must_use]
@@ -56,6 +63,7 @@ impl DocumentFormat {
             Self::Html => "html",
             Self::Markdown => "markdown",
             Self::Text => "text",
+            Self::File => "file",
         }
     }
 
@@ -73,6 +81,7 @@ impl DocumentFormat {
             Self::Html => "text/html",
             Self::Markdown => "text/markdown",
             Self::Text => "text/plain",
+            Self::File => "application/octet-stream",
         }
     }
 
@@ -81,6 +90,7 @@ impl DocumentFormat {
         match self {
             Self::Markdown => "md",
             Self::Text => "txt",
+            Self::File => "bin",
             other => other.as_str(),
         }
     }
@@ -91,7 +101,9 @@ impl DocumentFormat {
         match lower.as_str() {
             "htm" => Some(Self::Html),
             "md" | "markdown" => Some(Self::Markdown),
-            "txt" | "text" => Some(Self::Text),
+            "txt" | "text" | "csv" => Some(Self::Text),
+            "bin" => Some(Self::File),
+            "file" => None,
             other => Self::ALL.into_iter().find(|f| f.as_str() == other),
         }
     }
@@ -102,6 +114,11 @@ impl DocumentFormat {
             self,
             Self::Docx | Self::Xlsx | Self::Pptx | Self::Odt | Self::Ods | Self::Odp
         )
+    }
+
+    #[must_use]
+    pub const fn is_file(self) -> bool {
+        matches!(self, Self::File)
     }
 
     #[must_use]

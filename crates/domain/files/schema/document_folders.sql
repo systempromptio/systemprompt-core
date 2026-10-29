@@ -8,7 +8,8 @@ CREATE TABLE IF NOT EXISTS document_folders (
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMPTZ,
-    agent_edit_policy TEXT NOT NULL DEFAULT 'direct' CHECK (agent_edit_policy IN ('direct', 'propose'))
+    agent_edit_policy TEXT NOT NULL DEFAULT 'direct' CHECK (agent_edit_policy IN ('direct', 'propose')),
+    agent_cap TEXT CHECK (agent_cap IN ('none', 'read', 'comment', 'suggest', 'edit'))
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS uq_document_folders_parent_name

@@ -5,7 +5,9 @@
 //! the response back (with SSE keep-alive). For MCP it also maintains the
 //! persisted session identity so a session-only follow-up request can be
 //! enriched, on any replica, with the identity established on the
-//! authenticated initialize call.
+//! authenticated initialize call. A node that supervises no processes, or a
+//! worker that does not hold the process's lease, forwards to the owning
+//! replica instead (see [`owner`]).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -16,6 +18,7 @@ mod external_sessions;
 pub mod fixed_arguments;
 mod handlers;
 pub mod mcp_session;
+pub mod owner;
 mod target;
 
 use axum::body::Body;
@@ -61,6 +64,7 @@ pub struct ProxyService {
     artifact_ingest: Option<Arc<systemprompt_mcp::ArtifactIngest>>,
     mcp_client: Arc<McpClient>,
     secrets: Arc<SecretsService>,
+    owners: Arc<owner::OwnerCache>,
 }
 
 impl ProxyService {
@@ -83,6 +87,7 @@ impl ProxyService {
                 Arc::clone(&secrets),
             )),
             secrets,
+            owners: Arc::new(owner::OwnerCache::default()),
         }
     }
 
@@ -127,18 +132,19 @@ impl ProxyService {
                 .await;
         }
 
-        let service = match ServiceResolver::resolve(service_name, &ctx).await {
-            Ok(svc) => svc,
-            Err(err) => {
-                return Err(unknown_service_error(
-                    service_name,
-                    proxy_kind,
-                    &request,
-                    &ctx,
-                    err,
-                ));
-            },
-        };
+        if !ctx.config().role.supervises_processes() {
+            return self.forward_to_owner(service_name, request, &ctx).await;
+        }
+        if ctx.config().role.shares_process_ownership()
+            && !request.headers().contains_key(owner::FORWARDED_TO_OWNER)
+            && let Some(owner) = self.process_owner(service_name, &ctx).await?
+        {
+            return self.forward_to(&owner, service_name, request).await;
+        }
+
+        let service = ServiceResolver::resolve(service_name, &ctx)
+            .await
+            .map_err(|err| unknown_service_error(service_name, proxy_kind, &request, &ctx, err))?;
 
         let req_ctx = request.extensions().get::<RequestContext>().cloned();
         let authenticated_user = AccessValidator::validate(

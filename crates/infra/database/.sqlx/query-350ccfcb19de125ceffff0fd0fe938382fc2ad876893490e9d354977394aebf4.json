@@ -1,0 +1,35 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT role, COUNT(*) AS \"instances!\"\n            FROM instance_presence\n            WHERE heartbeat_at\n                  >= CURRENT_TIMESTAMP - make_interval(secs => $1::double precision)\n            GROUP BY role\n            ORDER BY role\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "role",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "instance_presence",
+            "name": "role"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "instances!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Float8"
+      ]
+    },
+    "nullable": [
+      false,
+      null
+    ]
+  },
+  "hash": "350ccfcb19de125ceffff0fd0fe938382fc2ad876893490e9d354977394aebf4"
+}

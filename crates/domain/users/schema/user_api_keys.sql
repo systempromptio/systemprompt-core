@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS user_api_keys (
     max_requests INTEGER,
     request_window_seconds INTEGER,
     purpose TEXT,
+    kind TEXT NOT NULL DEFAULT 'user' CHECK (kind IN ('user', 'device')),
     CONSTRAINT user_api_keys_window_required CHECK (
         (budget_microdollars IS NULL AND max_requests IS NULL)
         OR COALESCE(request_window_seconds, 0) > 0

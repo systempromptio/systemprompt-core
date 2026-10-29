@@ -2,12 +2,14 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use loro::{ExportMode, LoroDoc, VersionVector};
+use systemprompt_engine_loro::{LoroEngine, rich, write_model};
 use systemprompt_events::Broadcaster;
 use systemprompt_files::documents::DocumentsError;
-use systemprompt_files::documents::collab::model::BODY_CONTAINER;
 use systemprompt_files::documents::collab::{
     ApplyRequest, CollabError, CollabService, CollabTuning, JoinMode, Joined,
 };
+use systemprompt_files::documents::engine::DocumentEngine;
+use systemprompt_files::documents::model::{RichText, html};
 use systemprompt_identifiers::{ConnectionId, DocumentId};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::RevisionOriginKind;
@@ -17,16 +19,20 @@ use crate::documents_service_fixture::{
     GroupSource, Harness, allow, create, harness, person, trace,
 };
 
-struct Collab {
-    h: Harness,
-    documents: Arc<systemprompt_files::documents::DocumentService>,
-    collab: CollabService,
+pub(crate) struct Collab {
+    pub(crate) h: Harness,
+    pub(crate) documents: Arc<systemprompt_files::documents::DocumentService>,
+    pub(crate) collab: Arc<CollabService>,
 }
 
-async fn collab() -> Collab {
+pub(crate) async fn collab() -> Collab {
     let h = harness(allow(), GroupSource::new(&[])).await;
     let documents = Arc::new(h.service.clone());
-    let collab = CollabService::new(Arc::clone(&documents), CollabTuning::default());
+    let collab = Arc::new(CollabService::new(
+        Arc::clone(&documents),
+        CollabTuning::default(),
+        loro(),
+    ));
     Collab {
         h,
         documents,
@@ -34,7 +40,7 @@ async fn collab() -> Collab {
     }
 }
 
-async fn html_document(c: &Collab, owner: &AuthenticatedUser) -> DocumentId {
+pub(crate) async fn html_document(c: &Collab, owner: &AuthenticatedUser) -> DocumentId {
     let (document, _) = c
         .documents
         .create_from_template(owner, create("blank-html", None), &trace())
@@ -43,22 +49,44 @@ async fn html_document(c: &Collab, owner: &AuthenticatedUser) -> DocumentId {
     document.id
 }
 
-fn client(joined: &Joined) -> LoroDoc {
+pub(crate) fn loro() -> Option<Arc<dyn DocumentEngine>> {
+    Some(Arc::new(LoroEngine))
+}
+
+pub(crate) fn client(joined: &Joined) -> LoroDoc {
     let doc = LoroDoc::new();
+    rich::configure(&doc);
     doc.import(&joined.snapshot).expect("import snapshot");
     doc
 }
 
-fn edit(doc: &LoroDoc, text: &str) -> Vec<u8> {
+/// Rewrites the client's model with `change` and returns the update.
+pub(crate) fn change(doc: &LoroDoc, change: impl FnOnce(&mut RichText)) -> Vec<u8> {
     let before = doc.oplog_vv();
-    let body = doc.get_text(BODY_CONTAINER);
-    body.insert(body.len_unicode(), text).expect("insert");
+    let mut model = rich::read(doc);
+    change(&mut model);
+    write_model(doc, &model).expect("write model");
     doc.commit();
     doc.export(ExportMode::updates(&before))
         .expect("export update")
 }
 
-fn request(document: &DocumentId, joined: &Joined, doc: &LoroDoc, update: Vec<u8>) -> ApplyRequest {
+/// Appends the blocks of an HTML fragment, each with a fresh id.
+pub(crate) fn edit(doc: &LoroDoc, fragment: &str) -> Vec<u8> {
+    change(doc, |model| {
+        for mut block in html::import(fragment).blocks {
+            block.id = format!("t{}", uuid::Uuid::new_v4().simple());
+            model.blocks.push(block);
+        }
+    })
+}
+
+pub(crate) fn request(
+    document: &DocumentId,
+    joined: &Joined,
+    doc: &LoroDoc,
+    update: Vec<u8>,
+) -> ApplyRequest {
     ApplyRequest {
         document_id: document.clone(),
         session_id: joined.session_id.clone(),
@@ -152,7 +180,7 @@ async fn apply_logs_the_update_and_broadcasts_it_to_present_users() {
 #[tokio::test]
 async fn a_second_replica_sees_updates_applied_on_the_first() {
     let c = collab().await;
-    let other = CollabService::new(Arc::clone(&c.documents), CollabTuning::default());
+    let other = CollabService::new(Arc::clone(&c.documents), CollabTuning::default(), loro());
     let owner = person("collab-replica");
     let document = html_document(&c, &owner).await;
     let joined = c
@@ -171,10 +199,7 @@ async fn a_second_replica_sees_updates_applied_on_the_first() {
         .await
         .expect("join on second replica");
     let mirror = client(&rejoined);
-    assert_eq!(
-        mirror.get_text(BODY_CONTAINER).to_string(),
-        doc.get_text(BODY_CONTAINER).to_string()
-    );
+    assert_eq!(rich::read(&mirror), rich::read(&doc));
 }
 
 #[tokio::test]
@@ -234,7 +259,11 @@ async fn the_last_editor_leaving_commits_an_edit_session_revision_and_closes() {
         .await
         .expect("leave");
     assert!(left.closed);
-    let revision_id = left.checkpoint.expect("checkpoint revision");
+    let revision_id = left
+        .checkpoint
+        .revision()
+        .cloned()
+        .expect("checkpoint revision");
     let revision =
         c.h.repos
             .revisions
@@ -266,14 +295,14 @@ async fn the_last_editor_leaving_commits_an_edit_session_revision_and_closes() {
 }
 
 #[tokio::test]
-async fn office_documents_cannot_be_joined() {
+async fn spreadsheets_cannot_be_joined() {
     let c = collab().await;
-    let owner = person("collab-office");
+    let owner = person("collab-sheet");
     let (document, _) = c
         .documents
-        .create_from_template(&owner, create("blank-docx", None), &trace())
+        .create_from_template(&owner, create("blank-xlsx", None), &trace())
         .await
-        .expect("create docx");
+        .expect("create xlsx");
     let refused = c
         .collab
         .join(&owner, &document.id, JoinMode::Edit, &trace())

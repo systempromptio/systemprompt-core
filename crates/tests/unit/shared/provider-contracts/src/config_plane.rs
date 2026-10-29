@@ -101,3 +101,68 @@ fn plane_effect_defaults_to_live() {
     assert_eq!(PlaneEffect::default(), PlaneEffect::Live);
     assert_eq!(PlaneEffect::OnRestart.as_str(), "on_restart");
 }
+
+mod resolve {
+    use systemprompt_provider_contracts::{
+        ApplyMode, ApplyRequest, ChangeActor, ChangeRequest, ChangeSource, DeclaredState,
+        EntityScope, resolve_apply,
+    };
+
+    use super::snapshot;
+
+    fn run(mode: ApplyMode, scope: EntityScope<'_>) -> Vec<(String, Option<String>)> {
+        let declared = DeclaredState::from_entries(snapshot(&[("a", "1"), ("b", "2"), ("c", "3")]));
+        let current = snapshot(&[("b", "2"), ("c", "old"), ("gone", "x")]);
+        let change = ChangeRequest {
+            actor: ChangeActor::Cli,
+            reason: "test",
+        };
+        let request = ApplyRequest {
+            declared: &declared,
+            mode,
+            change: &change,
+            scope,
+        };
+        let resolved = resolve_apply(&request, &current, "planes/x.yaml");
+        for entity in resolved.values() {
+            assert_eq!(
+                entity.source,
+                ChangeSource::Code("planes/x.yaml".to_owned())
+            );
+        }
+        resolved.into_iter().map(|(k, e)| (k, e.value)).collect()
+    }
+
+    fn pair(k: &str, v: Option<&str>) -> (String, Option<String>) {
+        (k.to_owned(), v.map(str::to_owned))
+    }
+
+    #[test]
+    fn overwrite_writes_differences_and_deletes_undeclared_rows() {
+        assert_eq!(
+            run(ApplyMode::Overwrite, EntityScope::All),
+            vec![
+                pair("a", Some("1")),
+                pair("c", Some("3")),
+                pair("gone", None)
+            ]
+        );
+    }
+
+    #[test]
+    fn insert_only_adds_absent_entities_and_deletes_nothing() {
+        assert_eq!(
+            run(ApplyMode::InsertOnly, EntityScope::All),
+            vec![pair("a", Some("1"))]
+        );
+    }
+
+    #[test]
+    fn a_scoped_apply_touches_only_the_named_entities() {
+        let keys = ["c".to_owned(), "gone".to_owned()];
+        assert_eq!(
+            run(ApplyMode::SeedIfEmpty, EntityScope::Entities(&keys)),
+            vec![pair("c", Some("3")), pair("gone", None)]
+        );
+    }
+}

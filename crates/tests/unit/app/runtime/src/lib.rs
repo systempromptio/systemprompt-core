@@ -35,6 +35,10 @@ mod database_context_live;
 #[cfg(test)]
 mod display_tests;
 #[cfg(test)]
+mod documents_actor;
+#[cfg(test)]
+mod documents_mcp_content;
+#[cfg(test)]
 mod documents_mcp_guide;
 #[cfg(test)]
 mod documents_mcp_handlers;
@@ -51,9 +55,13 @@ mod documents_mcp_schema;
 #[cfg(test)]
 mod documents_mcp_shared;
 #[cfg(test)]
+mod documents_mcp_sharing;
+#[cfg(test)]
 mod documents_mcp_sizes;
 #[cfg(test)]
 mod documents_mcp_support;
+#[cfg(test)]
+mod documents_refusal_parity;
 #[cfg(test)]
 mod error_variants;
 #[cfg(test)]

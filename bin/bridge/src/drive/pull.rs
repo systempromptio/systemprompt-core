@@ -5,7 +5,9 @@
 //! advance only after the file on disk matches them, and the state is saved
 //! after every applied change, so an interrupted pull resumes where it
 //! stopped. A local file with edits the state does not know of is never
-//! overwritten: it is kept as a conflict sibling first.
+//! overwritten: it is kept as a conflict sibling first. The local file is
+//! hashed again just before the downloaded head replaces it, so an edit made
+//! while the blob was downloading is kept beside too.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -18,7 +20,7 @@ use super::conflict::{HeadRef, keep_local_beside};
 use super::error::{DriveError, DriveResult};
 use super::hash::hash_file;
 use super::state::{ConflictNotice, DriveState};
-use super::write::{move_file, move_to_trash, synced_entry, write_verified};
+use super::write::{GuardedWrite, move_file, move_to_trash, synced_entry, write_unless_changed};
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct PullReport {
@@ -71,6 +73,11 @@ async fn apply(
     match &change.kind {
         DriveChangeKind::Created | DriveChangeKind::Updated => {
             let head = head_of(change)?;
+            if let Some(known) = state.path_of(&change.document_id).map(str::to_owned)
+                && known != change.path
+            {
+                rename(cycle, state, &known, &change.path, &change.document_id)?;
+            }
             place_head(cycle, state, &change.path, head, report).await
         },
         DriveChangeKind::Renamed { from } => {
@@ -140,12 +147,14 @@ async fn place_head(
     let unsynced_edit = local
         .as_ref()
         .is_some_and(|sha| known.as_ref().is_none_or(|e| &e.sha256 != sha));
-    if unsynced_edit {
+    let written = !unsynced_edit
+        && write_unless_changed(&path, &bytes, &head.sha256, local.as_ref())?
+            == GuardedWrite::Written;
+    if written {
+        adopt(state, &path, rel, head)?;
+    } else {
         let notice = keep_local_beside(cycle, state, rel, &bytes, head)?;
         report.conflicts.push(notice);
-    } else {
-        write_verified(&path, &bytes, &head.sha256)?;
-        adopt(state, &path, rel, head)?;
     }
     report.applied += 1;
     Ok(())

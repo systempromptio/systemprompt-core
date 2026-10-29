@@ -1,10 +1,10 @@
 //! The database-backed window keyed by verified identity, which bounds a
 //! caller's budget across every replica of the deployment.
 //!
-//! It applies only to routers that carry `with_auth`: the identity comes from
-//! a [`RequestContext`] in the request's extensions, and a router that
-//! authenticates inside its handlers never puts one there. On those routers
-//! every request is anonymous to this layer and passes straight through.
+//! On routers that carry `with_auth` the identity comes from the
+//! [`RequestContext`] in the request's extensions. A router that authenticates
+//! inside its handlers never puts one there; it charges the same window
+//! through [`super::bearer`], keyed by the signature-verified bearer token.
 //!
 //! The window fails closed: when the bucket cannot be charged, an
 //! authenticated request answers `503` with `Retry-After` rather than
@@ -19,6 +19,7 @@ use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 use chrono::{DateTime, Utc};
 use std::sync::Arc;
+use systemprompt_identifiers::UserId;
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::UserType;
 use systemprompt_users::UserRateLimitBucketRepository;
@@ -71,10 +72,18 @@ pub(super) async fn global_user_rate_limit(
     let Some(user_id) = user_id else {
         return next.run(req).await;
     };
+    charge(&limit, &user_id, req, next).await
+}
 
+pub(super) async fn charge(
+    limit: &GlobalUserLimit,
+    user_id: &UserId,
+    req: Request,
+    next: Next,
+) -> Response {
     let now = Utc::now();
     let start = window_start(now);
-    match limit.buckets.hit(&user_id, limit.scope, start).await {
+    match limit.buckets.hit(user_id, limit.scope, start).await {
         Ok(hits) if hits > limit.budget => {
             tracing::debug!(
                 user_id = %user_id,

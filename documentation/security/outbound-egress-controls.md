@@ -42,8 +42,11 @@ A refusal surfaces to the caller as a typed `GuardedConnectError` naming the hos
 | Authz hook, JWKS, client-metadata fetch | profile and OAuth discovery | connect-time |
 | Teams token and OpenID endpoints | profile | parse-time; operator-configured constants |
 | Provider base URLs, bundle sources, Vault | profile | parse-time; operator-configured |
+| Document store: previews, Office codecs, PDF export | nobody | none needed: no outbound request is made |
 
 The rule: any URL a request caller can influence goes through the connect-time guard. Operator-configured URLs may use the parse-time guard alone, because the operator is already trusted to point the platform at their own infrastructure.
+
+The document store makes no outbound request at all. Office codecs parse package XML in-process and never follow an external part; the HTML preview is sanitised and served under a `default-src 'none'` sandbox so the viewer's browser loads nothing remote; PDF export (`documents_export {format: pdf}`, `GET /api/v1/documents/{id}/content?format=pdf`) renders from the codec projection with `pdf-writer` and the standard fonts, omits images rather than fetching them, and starts no subprocess. The only document-store traffic that leaves the binary is the event fan-out to connected clients and bridges, and the bridge's own calls to the gateway.
 
 ## 4. What the deployment still owns
 

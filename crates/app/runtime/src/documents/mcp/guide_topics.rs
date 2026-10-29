@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::refusal::RefusalCode;
+use crate::documents::refusal::RefusalCode;
 
 pub(super) const EDITING: &str = "\
 Read: documents_read view outline first; each line is `<node>:<hash>| <text>`, with `# ` per \
@@ -12,7 +12,8 @@ prefix is display only. Node ids are stable: an id names the same block in every
 until the block is deleted. Long lists fold to `gap blocks=N`; view node {node_id} pages one \
 node and its children; view search {text} finds blocks; view meta gives head, size and who is \
 in the document now; view changes {since_revision} returns only the blocks changed since that \
-revision, `gap blocks=N` for unchanged runs and `gone <id>` for deletions.
+revision, `gap blocks=N` for unchanged runs and `gone <id>` for deletions; a block that \
+only moved is not reported as changed.
 Edit: documents_edit {document_id, base_revision?, ops, message, op_id?}. Ops: replace_text \
 {node, expected_hash, text}; delete {node, expected_hash}; insert_after {node, kind: {type: \
 heading, level} | {type: paragraph} | {type: list_item} | {type: row} | {type: text}, text}; \
@@ -20,7 +21,17 @@ str_replace {old_str, new_str} (old_str must occur once); set_cells {sheet, rang
 insert_slide {after, layout, title, body}; set_text {text}; set_html {html}; append_markdown \
 {markdown}; insert_from_revision {revision_id, node, after} copies a block back from history; \
 restore {revision_id} alone makes an old revision the head (base_revision must be the head).
-Target: an anchored op names node by id with expected_hash, or node: {find: \"quoted text\", \
+Rich ops (html, markdown, docx, odt; a batch of only these): set_marks {node, expected_hash, \
+find?, nth?, add: [{mark: bold|italic|underline|strike|code|link|color|highlight, value?}], \
+remove: [mark]}; set_block_type {node, expected_hash, block: {type: paragraph} | {type: \
+heading, level} | {type: list_item, level?, ordered?} | {type: quote} | {type: code}}; \
+insert_table {after, rows: [[text]]}; table_insert_row / table_insert_col {table, \
+expected_hash, at?, cells?}; table_delete {table, expected_hash, row? | col?} (neither deletes \
+the table); insert_image {after, blob, alt?} (html, markdown and docx; in docx blob is a \
+documents_upload blob_ref). Rows and columns count from 0. set_block_type gives docx and odt \
+no quote or code blocks, odt takes no marks. Styles, layout, any block type, tables with \
+widths, shading and merges, sections and themes: guide topic model.
+Target: an anchored op names node by id with expected_hash (required), or node: {find: \"quoted text\", \
 nth?, within?: node} to hit the block containing the quote; no match refuses find_none with \
 the closest block. Content: replace_text and insert_after take as: \"markdown\" to write \
 headings, lists, tables, bold, italic and links as native formatting.
@@ -29,8 +40,11 @@ you read it; edits elsewhere in the document land and the ack says merged.
 Batch: every target resolves against the document as it stood before the call; ops apply in \
 order, so two insert_after on one node land in op order; all ops apply or none.
 Ack: an edit or create returns `written`, the lines it changed or created; anchor the next \
-edit on them. Do not re-read between your own writes. op_id: a retry with the same op_id \
-returns the first ack with replayed instead of applying twice.
+edit on them. Do not re-read between your own writes. op_id: a retry with the same op_id and \
+the same request returns the first ack with replayed instead of applying twice, over MCP or \
+REST alike; reusing an op_id for a different request refuses op_id_mismatch.
+Limits: at most 200 ops per call and 1 MiB of text per op or of markdown, unless the operator \
+set other limits; larger calls refuse too_large.
 Skeleton then fill: lay a document out first with insert_after kind {type: pending} (or ops \
 in documents_create), whose text is the intent of the section, e.g. \"Goals: three outcomes\". \
 A pending block reads as kind pending with its intent as text; replace_text on its id lands the \
@@ -61,11 +75,13 @@ paragraph or list_item. Every id in one call names the deck as read.";
 pub(super) const SHARING: &str = "\
 documents_share {document_id | folder_id, subject_kind, subject_value, level, valid_until}. \
 subject_kind is user, role or a registered subject dimension such as group or project; level \
-is view, comment, edit, share or own. A folder grant covers its subtree. Sharing needs share \
-access. documents_share {document_id, transfer_to: user_id} makes that user the owner and \
-keeps edit for the previous owner; {document_id, revoke_all: true} removes every grant on the \
-document; both need own. documents_access {document_id} reads back the owner, each grant with \
-the subject's display name, the grants inherited from folders, and your level.";
+is view, comment, edit or share (own stays with the owner). A folder grant covers its subtree. \
+Sharing needs share access, and you cannot change a grant above your own level. \
+documents_share {document_id, transfer_to: user_id} makes that active user the owner and keeps \
+edit for the previous owner; {document_id, revoke_all: true} removes every grant on the \
+document; only the owner can do either. documents_access {document_id} reads back the owner \
+and your level and, with share, each grant (expired: true once past valid_until) and the \
+grants inherited from folders.";
 
 pub(super) const COMMENTS: &str = "\
 documents_comment {action: create, document_id, node, anchor?: {find, nth?}, body} anchors a \
@@ -76,11 +92,19 @@ answering_revision_id. {action: resolve, document_id, comment_id, answering?: re
 resolves it. Anchors are stable ids, so edits elsewhere never move them; an edit that deletes \
 the node or the quoted words refuses anchors_affected unless allow_detach: true, and a \
 detached comment keeps its node and drops its quote. documents_edit answering: <comment_id> \
-records the edit's revision on the comment.";
+records the edit's revision on the comment. mentions: [user_id or email] on create or edit \
+mentions active people: each is written into the body as @[Name](user:<id>) (a plain \
+@<email> or @<id> in the body becomes that token, otherwise it is appended), and the body's \
+tokens are the mention list. Each newly mentioned user is notified; one who cannot see the \
+document is given comment access in the same call, which needs your share access. \
+documents_people {query, document_id?} finds people and the access each holds on the \
+document. {action: edit, document_id, comment_id, body, mentions?} rewrites your \
+own comment; {action: delete, document_id, comment_id} deletes yours (or any, with share \
+access) and returns the remaining threads.";
 
 pub(super) const LIFECYCLE: &str = "\
 documents_trash {document_id} moves a document to the trash: it leaves listings, and reads, \
-edits and shares refuse not_found with trashed: true. documents_restore_document \
+edits and shares refuse trashed. documents_untrash \
 {document_id} brings it back; trashed documents are deleted for good after the retention \
 period. Both need own. documents_copy {document_id, name?, folder_id?} starts a new document \
 you own from the head, with its own history. documents_update {document_id, name?, \
@@ -93,19 +117,36 @@ pub(super) const PROPOSALS: &str = "\
 An edit lands on the head, or is written as a proposal: a revision off the head that a \
 reviewer accepts or rejects. documents_edit mode: propose always proposes; mode: land needs \
 edit access. Without mode, a caller holding comment but not edit access proposes, and an \
-agent proposes in a folder whose agent edit policy (or an ancestor's) is propose. The ack \
+agent proposes in a folder whose agent edit policy (or an ancestor's) is propose; there an \
+agent's mode: land refuses forbidden. The ack \
 carries proposal_id; revision_id is the proposed revision and written its lines against the \
 base. A newer proposal of yours on the same document supersedes your open one. \
 documents_proposals {document_id} lists them; documents_proposals {action: accept | reject, \
-proposal_id, note?} reviews one and needs edit access. Accept makes the proposed revision the head when \
+proposal_id, note?} reviews one and needs edit access; nobody accepts their own proposal \
+(self_review). Accept makes the proposed revision the head when \
 the head is still its base; otherwise its ops apply again on the head, and a node changed in \
 between refuses as proposal_conflict.";
+
+pub(super) const AGENTS: &str = "\
+You act for your user, never above them, and each document caps what an agent may do there: \
+none (the document is invisible to you: lists, search and reads skip it), read, comment, \
+suggest (your edits are written as proposals for a person to accept; the ack says so) or \
+edit. Your level is the lower of your user's and the cap. The cap comes from the \
+deployment's agent policy and an owner's override on the document or a folder above it, \
+which can only tighten it; documents_access shows your agent_cap and why. Whatever the cap, \
+agents do not share or change grants, give access by mentioning someone (mention only people \
+who can already see the document), trash, untrash or delete, move or transfer, restore an \
+old revision, replace the whole content (a whole file, set_text or set_html, or ops rewriting \
+more than half the nodes: edit what you mean to change), accept and reject proposals, or copy \
+a document capped below edit (a copy keeps its source's cap), unless the policy allows it: \
+ask your user. Agent \
+edits are limited per user per hour (agent_rate_limited).";
 
 pub(super) const fn refusal_text(code: RefusalCode) -> &'static str {
     match code {
         RefusalCode::StaleBase => {
             "stale_base: a restore or whole-file write named a base that is no longer the head; \
-             head_revision, written_by, actor_kind and at say who moved it. The head edit wins: \
+             head_revision, written_by, actor_kind and at say who moved it, base_revision what you sent. The head edit wins: \
              read head_revision, re-aim at the text as it stands, never resend your old text."
         },
         RefusalCode::GuardMismatch => {
@@ -121,24 +162,47 @@ pub(super) const fn refusal_text(code: RefusalCode) -> &'static str {
         },
         RefusalCode::UnsupportedOp => {
             "unsupported_op: this format does not take the op or node kind; accepted_kinds lists \
-             what insert_after takes. See topic formats."
+             what insert_after takes. A file document (PDF, image, any upload) takes no op at \
+             all. See topic formats."
         },
         RefusalCode::UnsupportedFormat => {
-            "unsupported_format: no codec handles the requested format; export native as url, \
-             or html as preview."
+            "unsupported_format: no codec handles the requested format; export native or pdf \
+             as url, or html as preview."
         },
         RefusalCode::TemplateFailed => {
             "template_failed: the template could not be instantiated; the text names the \
              template and the cause. Pick another template or report it."
         },
+        _ => access_refusal_text(code),
+    }
+}
+
+const fn access_refusal_text(code: RefusalCode) -> &'static str {
+    match code {
         RefusalCode::Forbidden => {
             "forbidden: you lack the access level the action needs; the text names the level \
-             held and needed, and owner names who can share it. Ask the owner to share."
+             held and needed, and owner names who can share it. existing_level means the \
+             subject already holds more than you; leave that grant to its owner."
         },
         RefusalCode::NotFound => {
             "not_found: the document, folder, revision, comment or node does not exist or is \
-             deleted; read the outline again for node ids. trashed: true means the document is \
-             in the trash: documents_restore_document brings it back."
+             deleted; read the outline again for node ids."
+        },
+        RefusalCode::Trashed => {
+            "trashed: the document is in the trash; documents_untrash brings it back before \
+             you read, edit or share it."
+        },
+        RefusalCode::FolderNotEmpty => {
+            "folder_not_empty: the folder still holds documents or folders; move or trash them \
+             first, or delete recursively."
+        },
+        RefusalCode::ProposalClosed => {
+            "proposal_closed: the proposal was already accepted, rejected or superseded; only an \
+             open proposal can be reviewed. List open proposals again."
+        },
+        RefusalCode::IntegrityMismatch => {
+            "integrity_mismatch: the uploaded bytes do not hash to the declared content hash; \
+             the upload was corrupted, send it again."
         },
         RefusalCode::Locked => "locked: another holder has the document locked; wait and retry.",
         RefusalCode::AnchorsAffected => {
@@ -152,7 +216,60 @@ pub(super) const fn refusal_text(code: RefusalCode) -> &'static str {
              again on head_revision."
         },
         RefusalCode::InvalidParams => {
-            "invalid_params: the call is malformed; fix the named field and resend."
+            "invalid_params: the call is malformed; fix the named field and resend. An op that \
+             names a node by id without expected_hash is refused this way."
         },
+        RefusalCode::TooLarge => {
+            "too_large: the call exceeds an input limit (ops per call, op text, markdown, \
+             comment body, collaborative update or cursor); split it into smaller calls."
+        },
+        RefusalCode::OpIdMismatch => {
+            "op_id_mismatch: this op_id was already used for a different request; send a new \
+             op_id for a new write."
+        },
+        RefusalCode::SelfReview => {
+            "self_review: you proposed this; another editor has to accept it."
+        },
+        RefusalCode::UnknownSubject => {
+            "unknown_subject: no active user or subject has that id; check the id and resend."
+        },
+        RefusalCode::AccessRequestOpen => {
+            "access_request_open: you already have an open request on this document; wait for \
+             the owner to answer it."
+        },
+        RefusalCode::AccessRequestNotNeeded => {
+            "access_request_not_needed: you already hold a level on this document; ask a holder \
+             of share to raise it."
+        },
+        RefusalCode::AccessRequestClosed => {
+            "access_request_closed: the request was already granted or declined; only an open \
+             request can be answered."
+        },
+        _ => agent_refusal_text(code),
+    }
+}
+
+pub(super) const UPLOADS: &str = "\
+documents_upload: send content_base64 (up to 5 MiB) and get a blob_ref back; for a larger file \
+declare size and sha256 and get signed part URLs and a token, then complete it for the \
+blob_ref; upload_id re-issues the token. Import a blob_ref as a document, or place it as an \
+image in a docx (guide topic model). A blob_ref is yours: another user's never resolves.";
+
+const fn agent_refusal_text(code: RefusalCode) -> &'static str {
+    match code {
+        RefusalCode::AgentForbidden => {
+            "agent_forbidden: your user may do this but agents may not here: the document's \
+             agent cap is below the action, or the action is one agents never take. Ask your \
+             user. See topic agents."
+        },
+        RefusalCode::AgentSuggestOnly => {
+            "agent_suggest_only: agents may only suggest on this document; resend the change \
+             with mode: propose and a person reviews it."
+        },
+        RefusalCode::AgentRateLimited => {
+            "agent_rate_limited: your user's agents have made the most edits allowed this \
+             hour; wait the seconds the message names, then retry with the same op_id."
+        },
+        _ => "",
     }
 }

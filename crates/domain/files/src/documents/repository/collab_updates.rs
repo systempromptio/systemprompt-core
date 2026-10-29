@@ -2,10 +2,14 @@
 //! sequence number its stored snapshot covers, and the web presence rows the
 //! co-editing service joins and leaves.
 //!
+//! An update's sequence number is drawn from its session row under a row
+//! lock in the transaction that logs it, so sequence order is commit order
+//! and a reader that has seen `seq` has seen every update below it.
+//!
 //! A snapshot only moves forward: [`DocumentCollabRepository::set_snapshot`]
-//! records a snapshot covering `seq` only when the stored one covers less,
-//! and prunes the updates the new snapshot already contains in the same
-//! transaction.
+//! records a snapshot covering `seq`, with the version vector it encodes,
+//! only when the stored one covers less, and prunes the updates the new
+//! snapshot already contains in the same transaction.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -21,6 +25,13 @@ pub struct CollabUpdateRow {
     pub seq: i64,
     pub update: Vec<u8>,
     pub author_user_id: UserId,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct SnapshotMark<'a> {
+    pub hash: &'a ContentHash,
+    pub seq: i64,
+    pub version: &'a [u8],
 }
 
 #[derive(Debug, Clone)]
@@ -40,17 +51,38 @@ impl DocumentCollabRepository {
         session: &DocumentEditSessionId,
         update: &[u8],
         author: &UserId,
-    ) -> RepoResult<i64> {
-        Ok(sqlx::query_scalar!(
-            "INSERT INTO document_collab_updates (session_id, payload, author_user_id)
-             VALUES ($1::text::uuid, $2, $3)
-             RETURNING seq",
+    ) -> RepoResult<Option<i64>> {
+        let mut tx = self.pools.write.begin().await?;
+        let Some(seq) = sqlx::query_scalar!(
+            "SELECT next_seq FROM document_edit_sessions
+             WHERE id = $1::text::uuid AND closed_at IS NULL
+             FOR UPDATE",
             session.as_str(),
+        )
+        .fetch_optional(&mut *tx)
+        .await?
+        else {
+            return Ok(None);
+        };
+        sqlx::query!(
+            "UPDATE document_edit_sessions SET next_seq = next_seq + 1
+             WHERE id = $1::text::uuid",
+            session.as_str(),
+        )
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query!(
+            "INSERT INTO document_collab_updates (session_id, seq, payload, author_user_id)
+             VALUES ($1::text::uuid, $2, $3, $4)",
+            session.as_str(),
+            seq,
             update,
             author.as_str(),
         )
-        .fetch_one(&*self.pools.write)
-        .await?)
+        .execute(&mut *tx)
+        .await?;
+        tx.commit().await?;
+        Ok(Some(seq))
     }
 
     pub async fn list_after(
@@ -83,17 +115,18 @@ impl DocumentCollabRepository {
     pub async fn set_snapshot(
         &self,
         session: &DocumentEditSessionId,
-        hash: &ContentHash,
-        seq: i64,
+        snapshot: SnapshotMark<'_>,
     ) -> RepoResult<bool> {
+        let SnapshotMark { hash, seq, version } = snapshot;
         let mut tx = self.pools.write.begin().await?;
         let moved = sqlx::query!(
             "UPDATE document_edit_sessions
-             SET snapshot_sha256 = $2, snapshot_seq = $3, updated_at = now()
+             SET snapshot_sha256 = $2, snapshot_seq = $3, snapshot_vv = $4, updated_at = now()
              WHERE id = $1::text::uuid AND closed_at IS NULL AND snapshot_seq < $3",
             session.as_str(),
             hash.as_str(),
             seq,
+            version,
         )
         .execute(&mut *tx)
         .await?

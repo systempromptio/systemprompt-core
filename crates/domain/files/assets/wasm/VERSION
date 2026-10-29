@@ -1,8 +1,0 @@
-package: loro-crdt
-version: 1.17.1
-build: web (ESM)
-source: https://registry.npmjs.org/loro-crdt/-/loro-crdt-1.17.1.tgz
-licence: MIT (Copyright (c) 2022 Zixuan Chen)
-files: web/loro_wasm_bg.wasm -> loro.wasm, web/index.js -> loro.js, web/loro_wasm.js -> loro_wasm.js, web/snippets/*/inline0.js -> loro-snippet.js
-loro.wasm sha256: 856987111b0535924540a54c4d20ef2f44997a8c6966df4a25443c6e9fe47be2
-matches: the Rust `loro` crate pinned at =1.17.1 in the workspace Cargo.toml

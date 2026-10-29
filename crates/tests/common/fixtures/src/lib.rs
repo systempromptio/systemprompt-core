@@ -27,6 +27,7 @@ pub mod net;
 pub mod oauth;
 pub mod orphans;
 pub mod paths;
+pub mod pdf;
 pub mod poll;
 pub mod schema;
 pub mod secrets;
@@ -42,9 +43,9 @@ pub use agent::{
 };
 pub use app_context::{
     default_governance_engine, default_governance_watch, fixture_analytics_repositories,
-    fixture_app_context_documents_disabled, fixture_app_context_on_bootstrap,
-    fixture_app_context_on_bootstrap_with_paths, fixture_app_context_with,
-    fixture_app_context_with_config, fixture_app_context_with_extensions,
+    fixture_app_context_documents_configured, fixture_app_context_documents_disabled,
+    fixture_app_context_on_bootstrap, fixture_app_context_on_bootstrap_with_paths,
+    fixture_app_context_with, fixture_app_context_with_config, fixture_app_context_with_extensions,
     fixture_app_context_with_hook, fixture_app_context_with_user_repository,
     fixture_artifact_ingest, fixture_config, fixture_event_bridge, fixture_extension_context,
     fixture_fingerprint_repository, fixture_secret_store, fixture_services_state,
@@ -62,12 +63,16 @@ pub use bootstrap::{
     TEST_TEAMS_UNRESOLVABLE_APP_ID, TEST_TEAMS_UNRESOLVABLE_TENANT_ID,
 };
 pub use credential::{
-    seed_admin_credential, seed_bridge_credential, seed_fixture_system_admin, seed_user_row,
+    seed_admin_credential, seed_bridge_client_credential, seed_bridge_credential,
+    seed_bridge_device_credential, seed_drive_credential, seed_fixture_system_admin, seed_user_row,
     seed_user_row_with_roles, seed_user_session, AuthedFixture,
 };
 pub use db::{closed_db_pool, lazy_pg_pool, test_database_url, test_db_pool, test_pg_pool};
 pub use disposable_db::DisposableDb;
-pub use documents::{fixture_documents_runtime, fixture_documents_runtime_with};
+pub use documents::{
+    fixture_documents_runtime, fixture_documents_runtime_configured, fixture_documents_runtime_on,
+    fixture_documents_runtime_with,
+};
 pub use governance::{apply_governance, apply_governance_plane, record_plane_applied};
 pub use instance::{unique_agent_name, unique_instance, unique_name, unique_service_name};
 pub use jwt::{
@@ -83,6 +88,7 @@ pub use oauth::{
     OAuthClientFixture, PkcePair, TEST_CLIENT_SECRET, TEST_CLIENT_SECRET_HASH, TEST_REDIRECT_URI,
 };
 pub use paths::{canonical_tempdir, repo_path, repo_root};
+pub use pdf::{parse_pdf, ParsedPdf};
 pub use poll::{block_on, eventually};
 pub use schema::{install_extension_schemas, install_extension_schemas_with_config};
 pub use secrets::{ensure_test_secrets_bootstrap, fixture_at_rest_cipher, install_named_secret};

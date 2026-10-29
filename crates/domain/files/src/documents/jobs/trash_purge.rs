@@ -14,6 +14,7 @@ use systemprompt_database::DbPool;
 use systemprompt_traits::{Job, JobContext, JobResult, JobScope, ProviderError, ProviderResult};
 
 use crate::FilesConfig;
+use crate::documents::agents::{DocumentActor, act_as};
 use crate::documents::repository::DocumentRepository;
 
 const BATCH: i64 = 200;
@@ -39,6 +40,22 @@ impl DocumentTrashPurgeJob {
     }
 }
 
+impl DocumentTrashPurgeJob {
+    async fn run(ctx: &JobContext) -> ProviderResult<JobResult> {
+        let documents = *ctx.get::<Arc<FilesConfig>>()?.documents_config();
+        if !documents.is_enabled() {
+            return Ok(JobResult::success().with_message("document store disabled"));
+        }
+        let started = std::time::Instant::now();
+        let purged = Self::purge(ctx.get::<DbPool>()?, documents.trash_retention_days).await?;
+        let duration_ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
+        tracing::info!(purged, duration_ms, "Document trash purge completed");
+        Ok(JobResult::success()
+            .with_stats(purged, 0)
+            .with_duration(duration_ms))
+    }
+}
+
 #[async_trait]
 impl Job for DocumentTrashPurgeJob {
     fn name(&self) -> &'static str {
@@ -58,17 +75,7 @@ impl Job for DocumentTrashPurgeJob {
     }
 
     async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
-        let documents = *ctx.get::<Arc<FilesConfig>>()?.documents_config();
-        if !documents.is_enabled() {
-            return Ok(JobResult::success().with_message("document store disabled"));
-        }
-        let started = std::time::Instant::now();
-        let purged = Self::purge(ctx.get::<DbPool>()?, documents.trash_retention_days).await?;
-        let duration_ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
-        tracing::info!(purged, duration_ms, "Document trash purge completed");
-        Ok(JobResult::success()
-            .with_stats(purged, 0)
-            .with_duration(duration_ms))
+        act_as(DocumentActor::system(self.name()), Self::run(ctx)).await
     }
 }
 

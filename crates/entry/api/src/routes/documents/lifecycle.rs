@@ -1,4 +1,4 @@
-//! Restoring a trashed document and copying a document's head into a new
+//! Untrashing a document and copying a document's head into a new
 //! document the caller owns.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -19,17 +19,14 @@ use super::error::DocumentsResult;
 use super::items::document_id;
 use super::views::{CreatedJson, DocumentJson};
 
-pub(super) async fn restore(
+pub(super) async fn untrash(
     State(state): State<DocumentsState>,
     Extension(req_ctx): Extension<RequestContext>,
     Path(id): Path<String>,
 ) -> DocumentsResult<Json<DocumentJson>> {
     let who = caller(&state, &req_ctx).await?;
     let id = document_id(&id)?;
-    let document = state
-        .service
-        .restore_document(&who.user, &id, &who.trace)
-        .await?;
+    let document = state.service.untrash(&who.user, &id, &who.trace).await?;
     Ok(Json(document.into()))
 }
 

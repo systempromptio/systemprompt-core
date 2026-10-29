@@ -3,8 +3,9 @@
 //! `has_missing_credentials`, `uses_managed_container`,
 //! `get_local_database_url`, and `new_local_docker`.
 
-use systemprompt_cloud::{CloudTenantInfo, StoredTenant, TenantType};
+use systemprompt_cloud::{CloudTenantInfo, StoredTenant};
 use systemprompt_identifiers::{CloudAppId, TenantId};
+use systemprompt_manifest::HostingProvider;
 
 fn make_tenant_info(id: &str, db_url: &str) -> CloudTenantInfo {
     CloudTenantInfo {
@@ -41,7 +42,7 @@ fn new_local_docker_sets_correct_fields() {
         tenant.docker_project,
         Some("systemprompt-postgres-local".to_string())
     );
-    assert_eq!(tenant.tenant_type, TenantType::Local);
+    assert_eq!(tenant.provider, HostingProvider::DockerLocal);
     assert!(tenant.app_id.is_none());
     assert!(!tenant.external_db_access);
 }
@@ -266,7 +267,7 @@ fn is_database_url_masked_false_when_no_internal_url() {
 #[test]
 fn has_missing_credentials_true_for_cloud_tenant_with_masked_url() {
     let mut tenant = StoredTenant::new(TenantId::new("t-1"), "Name".to_string());
-    tenant.tenant_type = TenantType::Cloud;
+    tenant.provider = HostingProvider::Systemprompt;
     tenant.internal_database_url = Some("postgres://user:***@host/db".to_string());
     assert!(tenant.has_missing_credentials());
 }
@@ -274,7 +275,7 @@ fn has_missing_credentials_true_for_cloud_tenant_with_masked_url() {
 #[test]
 fn has_missing_credentials_false_for_cloud_tenant_with_real_url() {
     let mut tenant = StoredTenant::new(TenantId::new("t-1"), "Name".to_string());
-    tenant.tenant_type = TenantType::Cloud;
+    tenant.provider = HostingProvider::Systemprompt;
     tenant.internal_database_url = Some("postgres://user:realpass@host/db".to_string());
     assert!(!tenant.has_missing_credentials());
 }
@@ -282,7 +283,7 @@ fn has_missing_credentials_false_for_cloud_tenant_with_real_url() {
 #[test]
 fn has_missing_credentials_false_for_local_tenant_even_with_masked_url() {
     let mut tenant = StoredTenant::new(TenantId::new("t-1"), "Name".to_string());
-    tenant.tenant_type = TenantType::Local;
+    tenant.provider = HostingProvider::DockerLocal;
     tenant.internal_database_url = Some("postgres://user:***@host/db".to_string());
     assert!(!tenant.has_missing_credentials());
 }
@@ -290,15 +291,15 @@ fn has_missing_credentials_false_for_local_tenant_even_with_masked_url() {
 #[test]
 fn has_missing_credentials_false_when_no_internal_url() {
     let mut tenant = StoredTenant::new(TenantId::new("t-1"), "Name".to_string());
-    tenant.tenant_type = TenantType::Cloud;
+    tenant.provider = HostingProvider::Systemprompt;
     assert!(!tenant.has_missing_credentials());
 }
 
 #[test]
-fn is_cloud_true_for_cloud_tenant() {
+fn is_systemprompt_managed_true_for_systemprompt_tenant() {
     let mut tenant = StoredTenant::new(TenantId::new("t-1"), "Name".to_string());
-    tenant.tenant_type = TenantType::Cloud;
-    assert!(tenant.is_cloud());
+    tenant.provider = HostingProvider::Systemprompt;
+    assert!(tenant.is_systemprompt_managed());
     assert!(!tenant.is_local());
 }
 
@@ -310,13 +311,13 @@ fn is_local_true_for_local_tenant() {
         "postgres://x".to_string(),
     );
     assert!(tenant.is_local());
-    assert!(!tenant.is_cloud());
+    assert!(!tenant.is_systemprompt_managed());
 }
 
 #[test]
 fn has_database_url_cloud_true_when_internal_url_set() {
     let mut tenant = StoredTenant::new(TenantId::new("t-1"), "Name".to_string());
-    tenant.tenant_type = TenantType::Cloud;
+    tenant.provider = HostingProvider::Systemprompt;
     tenant.internal_database_url = Some("postgres://internal".to_string());
     assert!(tenant.has_database_url());
 }
@@ -324,7 +325,7 @@ fn has_database_url_cloud_true_when_internal_url_set() {
 #[test]
 fn has_database_url_cloud_false_when_internal_url_empty_string() {
     let mut tenant = StoredTenant::new(TenantId::new("t-1"), "Name".to_string());
-    tenant.tenant_type = TenantType::Cloud;
+    tenant.provider = HostingProvider::Systemprompt;
     tenant.internal_database_url = Some(String::new());
     assert!(!tenant.has_database_url());
 }

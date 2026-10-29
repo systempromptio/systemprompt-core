@@ -195,3 +195,32 @@ async fn a_governance_epoch_swaps_in_the_rebuilt_engine() {
     driver.await.expect("driver");
     db.drop_now().await;
 }
+
+#[test]
+fn the_plane_refuses_an_invalid_or_unreadable_declaration() {
+    let plane = GovernancePlane;
+    assert!(plane.supports_scoped_apply());
+    let root = tempfile::tempdir().expect("tempdir");
+    let path = root.path().join(GOVERNANCE_FILE);
+    std::fs::create_dir_all(path.parent().expect("parent")).expect("mkdir");
+    std::fs::write(&path, "governance:\n  mode: warnn\n  policies: []\n").expect("write");
+    let invalid = plane.load_declared(root.path()).expect_err("bad mode");
+    assert!(invalid.to_string().contains(GOVERNANCE_FILE), "{invalid}");
+
+    std::fs::remove_file(&path).expect("rm");
+    std::fs::create_dir_all(&path).expect("a directory where the file belongs");
+    let unreadable = plane.load_declared(root.path()).expect_err("unreadable");
+    assert!(
+        unreadable.to_string().contains(GOVERNANCE_FILE),
+        "{unreadable}"
+    );
+}
+
+#[test]
+fn rendered_declarations_parse_back_to_the_same_entities() {
+    let entities = declared_entities(CHAIN).expect("entities");
+    let rendered = GovernancePlane
+        .render_declarations(&entities)
+        .expect("renders");
+    assert_eq!(declared_entities(&rendered).expect("reparses"), entities);
+}

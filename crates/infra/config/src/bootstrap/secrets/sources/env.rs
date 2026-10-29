@@ -12,6 +12,8 @@ use systemprompt_manifest::secrets::Secrets;
 use crate::bootstrap::secrets::SecretsBootstrapError;
 use crate::error::ConfigResult;
 
+const LICENCE_SIGNING_SECRET_ENV: &str = "LICENCE_SIGNING_SECRET";
+
 pub(in crate::bootstrap::secrets) fn load_from_env() -> ConfigResult<Secrets> {
     let oauth_at_rest_pepper = read_env_required(
         "OAUTH_AT_REST_PEPPER",
@@ -20,14 +22,18 @@ pub(in crate::bootstrap::secrets) fn load_from_env() -> ConfigResult<Secrets> {
     let database_url =
         read_env_required("DATABASE_URL", SecretsBootstrapError::DatabaseUrlRequired)?;
 
-    let custom = read_env_optional(env_vars::CUSTOM_SECRETS).map_or_else(HashMap::new, |keys| {
-        keys.split(',')
-            .filter_map(|key| {
-                let key = key.trim();
-                read_env_optional(key).map(|v| (key.to_owned(), v))
-            })
-            .collect()
-    });
+    let mut custom =
+        read_env_optional(env_vars::CUSTOM_SECRETS).map_or_else(HashMap::new, |keys| {
+            keys.split(',')
+                .filter_map(|key| {
+                    let key = key.trim();
+                    read_env_optional(key).map(|v| (key.to_owned(), v))
+                })
+                .collect()
+        });
+    if let Some(secret) = read_env_optional(LICENCE_SIGNING_SECRET_ENV) {
+        custom.insert(LICENCE_SIGNING_SECRET_ENV.to_owned(), secret);
+    }
 
     let secrets = Secrets {
         oauth_at_rest_pepper,

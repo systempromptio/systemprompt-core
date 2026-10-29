@@ -7,6 +7,8 @@ mod catalog;
 #[cfg(test)]
 mod conditional;
 #[cfg(test)]
+mod device_token;
+#[cfg(test)]
 mod gateway_client;
 #[cfg(test)]
 mod model_view_clients;

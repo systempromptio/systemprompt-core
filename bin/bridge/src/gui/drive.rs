@@ -1,5 +1,6 @@
 //! Projecting the Drive status onto the GUI: the `drive.changed` event, the
-//! tray's Drive line and the conflict, editor, sharing and proposal toasts.
+//! tray's Drive line and the conflict, editor, sharing, proposal and
+//! sent-for-review toasts.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -24,6 +25,22 @@ pub(crate) fn tick(app: &mut GuiApp) {
     }
     raise_toasts(app, &status);
     raise_notices(app, &status);
+    raise_reviews(app, &status);
+}
+
+fn raise_reviews(app: &mut GuiApp, status: &DriveStatus) {
+    let since = app.drive_review_since;
+    for sent in status
+        .sent_for_review
+        .iter()
+        .filter(|sent| sent.sent_at > since)
+    {
+        crate::gui::window::notify_user(
+            &i18n::t("drive-review-title"),
+            &i18n::t_args("drive-review-body", &[("path", &sent.path)]),
+        );
+        app.drive_review_since = app.drive_review_since.max(sent.sent_at);
+    }
 }
 
 fn raise_notices(app: &mut GuiApp, status: &DriveStatus) {

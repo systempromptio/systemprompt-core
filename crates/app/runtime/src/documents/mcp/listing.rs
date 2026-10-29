@@ -2,7 +2,10 @@
 //!
 //! Descriptions are one line and the working detail lives in
 //! `documents_guide`, so the list stays small. Edit ops are listed by name
-//! with their fields left open; the `editing` topic carries their shapes.
+//! with their fields left open; the `editing` topic carries their shapes,
+//! and `documents_create` lists its ops as a plain array. An id property
+//! (`*_id`, `*_revision`) with no `type` is a string: every id is one, so
+//! the schema leaves that type implied; every other string keeps it.
 //! A tool advertises no output schema and no artifact-viewer `_meta`, since
 //! results arrive as summary text and untagged structured content and this
 //! server serves only the document-preview resource, which `documents_export`
@@ -20,8 +23,9 @@ use systemprompt_mcp::McpToolHandler;
 
 use super::{
     AccessHandler, CommentHandler, CopyHandler, CreateHandler, DocumentsMcpTools, EditHandler,
-    ExportHandler, GuideHandler, HistoryHandler, ListHandler, ProposalsHandler, ReadHandler,
-    RestoreHandler, SearchHandler, ShareHandler, TrashHandler, UpdateHandler, preview_tool_meta,
+    ExportHandler, GuideHandler, HistoryHandler, ListHandler, PeopleHandler, ProposalsHandler,
+    ReadHandler, SearchHandler, ShareHandler, TrashHandler, UntrashHandler, UpdateHandler,
+    UploadHandler, preview_tool_meta,
 };
 
 const OP_NAMES: [&str; 8] = [
@@ -126,7 +130,22 @@ fn slim(property: &mut JsonValue, defs: &Map<String, JsonValue>) {
         map.insert("enum".to_owned(), values);
     }
     if let Some(JsonValue::Object(properties)) = map.get_mut("properties") {
-        properties.values_mut().for_each(|inner| slim(inner, defs));
+        slim_properties(properties, defs);
+    }
+}
+
+// JSON: slims each property, and leaves an id's `string` type implied
+fn slim_properties(properties: &mut Map<String, JsonValue>, defs: &Map<String, JsonValue>) {
+    for (name, property) in properties.iter_mut() {
+        slim(property, defs);
+        let is_id = name.ends_with("_id") || name.ends_with("_revision");
+        if let JsonValue::Object(map) = property
+            && is_id
+            && map.len() == 1
+            && map.get("type").and_then(JsonValue::as_str) == Some("string")
+        {
+            map.clear();
+        }
     }
 }
 
@@ -144,15 +163,24 @@ fn compact_input(schema: &Map<String, JsonValue>) -> Map<String, JsonValue> {
         _ => Map::new(),
     };
     if let Some(JsonValue::Object(properties)) = schema.get_mut("properties") {
-        properties
-            .values_mut()
-            .for_each(|property| slim(property, &defs));
+        slim_properties(properties, &defs);
         if properties.contains_key("ops") {
             properties.insert("ops".to_owned(), ops_schema());
         }
     }
     prune_definitions(&mut schema);
     schema
+}
+
+fn plain_ops(mut tool: Tool) -> Tool {
+    let mut schema = (*tool.input_schema).clone();
+    if let Some(JsonValue::Object(properties)) = schema.get_mut("properties")
+        && properties.contains_key("ops")
+    {
+        properties.insert("ops".to_owned(), json!({ "type": "array" }));
+    }
+    tool.input_schema = Arc::new(schema);
+    tool
 }
 
 fn compact(mut tool: Tool, keep_meta: bool) -> Tool {
@@ -171,7 +199,10 @@ pub(super) fn tool_list(tools: &DocumentsMcpTools) -> Vec<Tool> {
     vec![
         compact(ListHandler { tools }.tool_definition(server), false),
         compact(SearchHandler { tools }.tool_definition(server), false),
-        compact(CreateHandler { tools }.tool_definition(server), false),
+        plain_ops(compact(
+            CreateHandler { tools }.tool_definition(server),
+            false,
+        )),
         compact(ReadHandler { tools }.tool_definition(server), false),
         compact(EditHandler { tools }.tool_definition(server), false),
         compact(CommentHandler { tools }.tool_definition(server), false),
@@ -182,8 +213,10 @@ pub(super) fn tool_list(tools: &DocumentsMcpTools) -> Vec<Tool> {
         compact(CopyHandler { tools }.tool_definition(server), false),
         compact(UpdateHandler { tools }.tool_definition(server), false),
         compact(TrashHandler { tools }.tool_definition(server), false),
-        compact(RestoreHandler { tools }.tool_definition(server), false),
+        compact(UntrashHandler { tools }.tool_definition(server), false),
         compact(export, true),
+        compact(UploadHandler { tools }.tool_definition(server), false),
         compact(GuideHandler { tools }.tool_definition(server), false),
+        compact(PeopleHandler { tools }.tool_definition(server), false),
     ]
 }

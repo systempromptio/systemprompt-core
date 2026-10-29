@@ -7,8 +7,16 @@
 //! without touching the process environment.
 
 use systemprompt_models::subprocess::{
-    DEPLOYMENT_HOST_ENV, deployment_host, inherited_parent_env, is_deployment_host,
+    ANY_DEPLOYMENT_HOST_MARKERS, DEPLOYMENT_HOST_ENV, inherited_parent_env,
 };
+
+fn deployment_host(lookup: impl Fn(&str) -> Option<String>) -> Option<String> {
+    systemprompt_models::subprocess::deployment_host(ANY_DEPLOYMENT_HOST_MARKERS, lookup)
+}
+
+fn is_deployment_host(lookup: impl Fn(&str) -> Option<String>) -> bool {
+    systemprompt_models::subprocess::is_deployment_host(ANY_DEPLOYMENT_HOST_MARKERS, lookup)
+}
 
 fn nothing_set(_: &str) -> Option<String> {
     None
@@ -110,6 +118,7 @@ fn the_inherited_set_is_exactly_the_allowlist_that_is_set() {
         "PATH" => Some("/usr/bin".to_owned()),
         "HOME" => Some("/home/sp".to_owned()),
         "HOSTNAME" => Some("node-a".to_owned()),
+        "POD_NAME" => Some("sp-api-7c9f".to_owned()),
         "FLY_MACHINE_ID" => Some("0801e1a2".to_owned()),
         _ => None,
     };
@@ -122,6 +131,7 @@ fn the_inherited_set_is_exactly_the_allowlist_that_is_set() {
             (DEPLOYMENT_HOST_ENV.to_owned(), "sp-tenant".to_owned()),
             ("FLY_APP_NAME".to_owned(), "sp-fly".to_owned()),
             ("HOSTNAME".to_owned(), "node-a".to_owned()),
+            ("POD_NAME".to_owned(), "sp-api-7c9f".to_owned()),
             ("FLY_MACHINE_ID".to_owned(), "0801e1a2".to_owned()),
             ("PATH".to_owned(), "/usr/bin".to_owned()),
             ("HOME".to_owned(), "/home/sp".to_owned()),
@@ -156,4 +166,50 @@ fn the_trusted_hosts_allowlist_rides_along_with_the_inherited_set() {
             "a.example,b.example".to_owned()
         )]
     );
+}
+
+#[test]
+fn a_marker_outside_the_given_set_is_not_consulted() {
+    let fly_only = only("FLY_APP_NAME", "sp-fly");
+    assert!(!systemprompt_models::subprocess::is_deployment_host(
+        &[DEPLOYMENT_HOST_ENV],
+        fly_only
+    ));
+}
+
+#[test]
+fn the_systemprompt_provider_still_honours_flys_marker() {
+    use systemprompt_manifest::HostingProvider;
+    assert!(HostingProvider::Systemprompt.is_deployment_host(only("FLY_APP_NAME", "sp-fly")));
+}
+
+// Why: a Kubernetes pod that happens to carry FLY_APP_NAME (a copied env
+// block, a migration script) must not be mistaken for a Fly machine.
+#[test]
+fn a_kubernetes_provider_ignores_flys_marker_and_reads_the_generated_one() {
+    use systemprompt_manifest::HostingProvider;
+    assert!(!HostingProvider::Kubernetes.is_deployment_host(only("FLY_APP_NAME", "sp-fly")));
+    assert!(HostingProvider::Kubernetes.is_deployment_host(only(DEPLOYMENT_HOST_ENV, "acme")));
+}
+
+#[test]
+fn a_profile_without_a_provider_is_the_systemprompt_cloud() {
+    let cloud: systemprompt_manifest::CloudConfig =
+        serde_yaml::from_str("validation: strict").unwrap();
+    assert_eq!(
+        cloud.provider,
+        systemprompt_manifest::HostingProvider::Systemprompt
+    );
+}
+
+#[test]
+fn providers_parse_from_snake_case() {
+    use systemprompt_manifest::HostingProvider;
+    for provider in HostingProvider::ALL {
+        assert_eq!(
+            provider.as_str().parse::<HostingProvider>().unwrap(),
+            provider
+        );
+    }
+    assert!("fly".parse::<HostingProvider>().is_err());
 }

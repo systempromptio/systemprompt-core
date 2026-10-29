@@ -24,7 +24,8 @@ async fn app() -> axum::Router {
         ctx.user_provider().expect("user"),
         systemprompt_test_fixtures::test_oauth_signing(),
     );
-    router(SsoRouteState::build(&ctx, &oauth)).layer(axum::Extension(ctx.config_arc().clone()))
+    router(SsoRouteState::build(&ctx, &oauth).expect("sso routes build"))
+        .layer(axum::Extension(ctx.config_arc().clone()))
 }
 
 fn assert_refused_unavailable(resp: &axum::response::Response) {

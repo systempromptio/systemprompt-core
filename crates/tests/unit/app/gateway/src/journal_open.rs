@@ -30,3 +30,12 @@ fn an_unwritable_state_dir_is_a_named_boot_failure() {
     let error = GatewayJournal::open(file.path(), KEY).expect_err("a file is not a state dir");
     assert!(error.to_string().contains("gateway journal"), "{error}");
 }
+
+#[test]
+fn the_journal_debug_names_its_root_and_never_its_key() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let journal = GatewayJournal::open(dir.path(), KEY).expect("valid key");
+    let rendered = format!("{journal:?}");
+    assert!(rendered.contains("gateway-journal"), "{rendered}");
+    assert!(!rendered.contains("171"), "{rendered}");
+}

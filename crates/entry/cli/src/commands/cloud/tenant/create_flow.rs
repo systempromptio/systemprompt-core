@@ -68,7 +68,7 @@ fn render_created_tenant(tenant: &StoredTenant) {
     CliService::success("Tenant created");
     CliService::key_value("ID", tenant.id.as_str());
     CliService::key_value("Name", &tenant.name);
-    CliService::key_value("Type", &format!("{:?}", tenant.tenant_type));
+    CliService::key_value("Provider", tenant.provider.as_str());
 
     if let Some(ref url) = tenant.database_url
         && !url.is_empty()

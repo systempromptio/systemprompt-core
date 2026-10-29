@@ -63,6 +63,7 @@ mod cloud_doctor_consistency;
 mod cloud_doctor_distributed;
 mod cloud_doctor_distributed_probes;
 mod cloud_doctor_profile_checks;
+mod cloud_doctor_restore_checks;
 mod cloud_edit_prompts;
 mod cloud_init_scaffolding;
 mod cloud_local_tenant_failed_start_cleanup;

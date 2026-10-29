@@ -21,6 +21,7 @@ fn counting_refresh(counter: &Arc<AtomicUsize>) -> RefreshFn {
                 token: BearerToken::new("test-jwt"),
                 ttl: 3600,
                 headers: Default::default(),
+                device_token: None,
             })
         })
     })

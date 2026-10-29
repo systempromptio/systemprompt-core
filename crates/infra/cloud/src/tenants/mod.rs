@@ -1,15 +1,19 @@
-//! On-disk representation of cloud tenants the CLI knows about.
+//! On-disk representation of the tenants the CLI knows about.
 //!
 //! [`StoredTenant`] is the per-tenant record; [`TenantStore`] (in
-//! `tenant_store.rs`) is the persistent map keyed by tenant id.
+//! `tenant_store.rs`) is the persistent map keyed by tenant id. Each record
+//! names its [`HostingProvider`]: only `systemprompt` tenants are reconciled
+//! with the control plane, every other record is self-managed and written by
+//! `cloud tenant add`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 mod tenant_store;
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use systemprompt_identifiers::{CloudAppId, TenantId};
+use systemprompt_manifest::HostingProvider;
 use validator::Validate;
 
 use crate::api_client::CloudTenantInfo;
@@ -28,12 +32,14 @@ pub struct NewCloudTenantParams {
     pub external_db_access: bool,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
-#[serde(rename_all = "snake_case")]
-pub enum TenantType {
-    #[default]
-    Local,
-    Cloud,
+#[derive(Debug)]
+pub struct NewSelfManagedTenantParams {
+    pub id: TenantId,
+    pub name: String,
+    pub provider: HostingProvider,
+    pub hostname: String,
+    pub region: Option<String>,
+    pub database_url: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]
@@ -58,8 +64,12 @@ pub struct StoredTenant {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub internal_database_url: Option<String>,
 
-    #[serde(default)]
-    pub tenant_type: TenantType,
+    #[serde(
+        alias = "tenant_type",
+        default = "absent_provider",
+        deserialize_with = "deserialize_provider"
+    )]
+    pub provider: HostingProvider,
 
     #[serde(default)]
     pub external_db_access: bool,
@@ -70,7 +80,7 @@ pub struct StoredTenant {
 
 impl StoredTenant {
     #[must_use]
-    pub fn new(id: TenantId, name: String) -> Self {
+    pub const fn new(id: TenantId, name: String) -> Self {
         Self {
             id,
             name,
@@ -79,7 +89,7 @@ impl StoredTenant {
             region: None,
             database_url: None,
             internal_database_url: None,
-            tenant_type: TenantType::default(),
+            provider: HostingProvider::DockerLocal,
             external_db_access: false,
             docker_project: None,
         }
@@ -95,7 +105,7 @@ impl StoredTenant {
             region: None,
             database_url: Some(database_url),
             internal_database_url: None,
-            tenant_type: TenantType::Local,
+            provider: HostingProvider::DockerLocal,
             external_db_access: false,
             docker_project: None,
         }
@@ -116,7 +126,7 @@ impl StoredTenant {
             region: None,
             database_url: Some(database_url),
             internal_database_url: None,
-            tenant_type: TenantType::Local,
+            provider: HostingProvider::DockerLocal,
             external_db_access: false,
             docker_project: Some(docker_project),
         }
@@ -132,7 +142,7 @@ impl StoredTenant {
             region: params.region,
             database_url: params.database_url,
             internal_database_url: Some(params.internal_database_url),
-            tenant_type: TenantType::Cloud,
+            provider: HostingProvider::Systemprompt,
             external_db_access: params.external_db_access,
             docker_project: None,
         }
@@ -148,8 +158,24 @@ impl StoredTenant {
             region: info.region.clone(),
             database_url: None,
             internal_database_url: Some(info.database_url.clone()),
-            tenant_type: TenantType::Cloud,
+            provider: HostingProvider::Systemprompt,
             external_db_access: info.external_db_access,
+            docker_project: None,
+        }
+    }
+
+    #[must_use]
+    pub fn new_self_managed(params: NewSelfManagedTenantParams) -> Self {
+        Self {
+            id: params.id,
+            name: params.name,
+            app_id: None,
+            hostname: Some(params.hostname),
+            region: params.region,
+            database_url: params.database_url,
+            internal_database_url: None,
+            provider: params.provider,
+            external_db_access: false,
             docker_project: None,
         }
     }
@@ -161,16 +187,12 @@ impl StoredTenant {
 
     #[must_use]
     pub fn has_database_url(&self) -> bool {
-        match self.tenant_type {
-            TenantType::Cloud => self
-                .internal_database_url
-                .as_ref()
-                .is_some_and(|url| !url.is_empty()),
-            TenantType::Local => self
-                .database_url
-                .as_ref()
-                .is_some_and(|url| !url.is_empty()),
-        }
+        let url = if self.provider.is_systemprompt() {
+            self.internal_database_url.as_ref()
+        } else {
+            self.database_url.as_ref()
+        };
+        url.is_some_and(|url| !url.is_empty())
     }
 
     #[must_use]
@@ -181,13 +203,18 @@ impl StoredTenant {
     }
 
     #[must_use]
-    pub const fn is_cloud(&self) -> bool {
-        matches!(self.tenant_type, TenantType::Cloud)
+    pub const fn is_systemprompt_managed(&self) -> bool {
+        self.provider.is_systemprompt()
+    }
+
+    #[must_use]
+    pub const fn is_self_managed(&self) -> bool {
+        !self.provider.is_systemprompt()
     }
 
     #[must_use]
     pub const fn is_local(&self) -> bool {
-        matches!(self.tenant_type, TenantType::Local)
+        self.provider.is_docker_local()
     }
 
     pub fn update_from_tenant_info(&mut self, info: &CloudTenantInfo) {
@@ -211,6 +238,22 @@ impl StoredTenant {
 
     #[must_use]
     pub fn has_missing_credentials(&self) -> bool {
-        self.tenant_type == TenantType::Cloud && self.is_database_url_masked()
+        self.provider.is_systemprompt() && self.is_database_url_masked()
+    }
+}
+
+const fn absent_provider() -> HostingProvider {
+    HostingProvider::DockerLocal
+}
+
+fn deserialize_provider<'de, D>(deserializer: D) -> Result<HostingProvider, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let raw = String::deserialize(deserializer)?;
+    match raw.as_str() {
+        "cloud" => Ok(HostingProvider::Systemprompt),
+        "local" => Ok(HostingProvider::DockerLocal),
+        other => other.parse().map_err(serde::de::Error::custom),
     }
 }

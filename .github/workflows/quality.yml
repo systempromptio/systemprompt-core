@@ -244,6 +244,8 @@ jobs:
         if: ${{ !cancelled() }}
       - run: just lint-repo-hygiene
         if: ${{ !cancelled() }}
+      - run: just check-no-vendor
+        if: ${{ !cancelled() }}
 
   source-gates-errors:
     name: "Source gates: error handling / tasks / contracts"

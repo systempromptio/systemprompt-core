@@ -7,9 +7,9 @@ use axum::http::HeaderMap;
 use systemprompt_identifiers::{
     Actor, AgentName, ContextId, JwtToken, SessionId, TaskId, TraceId, UserId,
 };
-use systemprompt_models::auth::UserType;
-use systemprompt_models::execution::context::RequestContext;
-use systemprompt_security::{HeaderExtractor, JwtUserContext, TokenExtractor};
+use systemprompt_models::auth::{TokenInteraction, UserType};
+use systemprompt_models::execution::context::{RequestContext, UserInteractionMode};
+use systemprompt_security::{ExtractionMethod, HeaderExtractor, JwtUserContext, TokenExtractor};
 
 #[derive(Debug)]
 pub struct BuildContextParams {
@@ -22,6 +22,7 @@ pub struct BuildContextParams {
     pub task_id: Option<TaskId>,
     pub auth_token: Option<String>,
     pub user_type: UserType,
+    pub cookie_transport: bool,
 }
 
 pub fn build_context(params: BuildContextParams) -> RequestContext {
@@ -35,6 +36,7 @@ pub fn build_context(params: BuildContextParams) -> RequestContext {
         task_id,
         auth_token,
         user_type,
+        cookie_transport,
     } = params;
     let mut ctx = RequestContext::new(
         session_id,
@@ -64,7 +66,30 @@ pub fn build_context(params: BuildContextParams) -> RequestContext {
     if let Some(purpose) = jwt_context.purpose {
         ctx = ctx.with_caller_purpose(purpose);
     }
+    if let Some(interaction) = jwt_context.interaction {
+        ctx = ctx.with_interaction_mode(match interaction {
+            TokenInteraction::Interactive => UserInteractionMode::Interactive,
+            TokenInteraction::NonInteractive => UserInteractionMode::NonInteractive,
+        });
+    }
+    if cookie_transport {
+        ctx = ctx.with_cookie_transport();
+        // Why: only a token the first-party web login minted, sent as its
+        // cookie, is the person; a bridge, OAuth, MCP or PAT-derived token in
+        // the cookie stays an agent and the documents routes refuse it.
+        if jwt_context.browser_session {
+            ctx = ctx.with_browser_session();
+        }
+    }
     ctx
+}
+
+#[must_use]
+pub fn is_cookie_transport(token_extractor: &TokenExtractor, headers: &HeaderMap) -> bool {
+    matches!(
+        token_extractor.extract_with_method(headers),
+        Ok((_, ExtractionMethod::Cookie))
+    )
 }
 
 pub fn extract_common_headers(

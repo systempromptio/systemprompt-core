@@ -1,6 +1,7 @@
-//! `GET /{id}/read`: the `documents_read` views over HTTP (outline, text,
-//! changes, node, search and meta), assembled by the same code the MCP tool
-//! runs so both surfaces answer alike.
+//! `GET /{id}/read`: the read views over HTTP (outline, text, range, cells,
+//! changes, node, search and meta), assembled by the same view code the
+//! `documents_read` tool runs, with the same parameters: a range is
+//! `from_node` and `to_node`, a cell read takes `sheet` and `cells`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -8,15 +9,16 @@
 use axum::extract::{Path, Query, State};
 use axum::{Extension, Json};
 use serde::Deserialize;
+use systemprompt_files::documents::DocumentsError;
 use systemprompt_identifiers::{DocumentNodeId, DocumentRevisionId};
 use systemprompt_models::RequestContext;
-use systemprompt_runtime::documents::mcp::{
-    ReadInput, ReadOutput, ReadView, read_view, refusal_code,
+use systemprompt_runtime::documents::views::{
+    NodeRange, ReadInput, ReadOutput, ReadView, read_view,
 };
 
 use super::DocumentsState;
 use super::caller::caller;
-use super::error::{DocumentsResult, tool_failure};
+use super::error::DocumentsResult;
 use super::items::document_id;
 
 #[derive(Debug, Deserialize)]
@@ -31,6 +33,29 @@ pub(super) struct ReadQuery {
     text: Option<String>,
     #[serde(default)]
     revision_id: Option<DocumentRevisionId>,
+    #[serde(default)]
+    from_node: Option<DocumentNodeId>,
+    #[serde(default)]
+    to_node: Option<DocumentNodeId>,
+    #[serde(default)]
+    sheet: Option<String>,
+    #[serde(default)]
+    cells: Option<String>,
+    #[serde(default)]
+    verbose: bool,
+}
+
+fn range(
+    from_node: Option<DocumentNodeId>,
+    to_node: Option<DocumentNodeId>,
+) -> Result<Option<NodeRange>, DocumentsError> {
+    match (from_node, to_node) {
+        (Some(from_node), Some(to_node)) => Ok(Some(NodeRange { from_node, to_node })),
+        (None, None) => Ok(None),
+        _ => Err(DocumentsError::InvalidParams {
+            detail: "a range needs both from_node and to_node",
+        }),
+    }
 }
 
 pub(super) async fn read(
@@ -43,17 +68,16 @@ pub(super) async fn read(
     let input = ReadInput {
         document_id: document_id(&id)?,
         view: query.view,
-        range: None,
-        sheet: None,
-        cells: None,
+        range: range(query.from_node, query.to_node)?,
+        sheet: query.sheet,
+        cells: query.cells,
         revision_id: query.revision_id,
         since_revision: query.since_revision,
         node_id: query.node_id,
         text: query.text,
-        verbose: false,
+        verbose: query.verbose,
     };
-    let (output, _) = read_view(&state.service, &who.user, input, &who.trace)
-        .await
-        .map_err(|error| tool_failure(refusal_code(&error), error.message.to_string()))?;
-    Ok(Json(output))
+    Ok(Json(
+        read_view(&state.service, &who.user, input, &who.trace).await?,
+    ))
 }

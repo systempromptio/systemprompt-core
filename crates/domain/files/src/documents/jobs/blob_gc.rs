@@ -12,6 +12,7 @@ use systemprompt_extension::ExtensionContext;
 use systemprompt_traits::{Job, JobContext, JobResult, JobScope, ProviderError, ProviderResult};
 
 use crate::FilesConfig;
+use crate::documents::agents::{DocumentActor, act_as};
 use crate::documents::blob_store::BlobStore;
 use crate::documents::repository::DocumentBlobRepository;
 
@@ -20,25 +21,8 @@ const BATCH: u32 = 500;
 #[derive(Debug, Clone, Copy, Default)]
 pub struct DocumentBlobGcJob;
 
-#[async_trait]
-impl Job for DocumentBlobGcJob {
-    fn name(&self) -> &'static str {
-        "document_blob_gc"
-    }
-
-    fn description(&self) -> &'static str {
-        "Deletes document blobs no revision or edit session references"
-    }
-
-    fn schedule(&self) -> &'static str {
-        "0 15 3 * * *"
-    }
-
-    fn scope(&self) -> JobScope {
-        JobScope::Cluster
-    }
-
-    async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
+impl DocumentBlobGcJob {
+    async fn run(ctx: &JobContext) -> ProviderResult<JobResult> {
         let started = std::time::Instant::now();
         let db_pool = ctx.get::<DbPool>()?;
         let documents = *ctx.get::<Arc<FilesConfig>>()?.documents_config();
@@ -70,6 +54,29 @@ impl Job for DocumentBlobGcJob {
                 report.examined, report.deleted, report.failed
             ))
             .with_duration(duration_ms))
+    }
+}
+
+#[async_trait]
+impl Job for DocumentBlobGcJob {
+    fn name(&self) -> &'static str {
+        "document_blob_gc"
+    }
+
+    fn description(&self) -> &'static str {
+        "Deletes document blobs no revision or edit session references"
+    }
+
+    fn schedule(&self) -> &'static str {
+        "0 15 3 * * *"
+    }
+
+    fn scope(&self) -> JobScope {
+        JobScope::Cluster
+    }
+
+    async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
+        act_as(DocumentActor::system(self.name()), Self::run(ctx)).await
     }
 }
 

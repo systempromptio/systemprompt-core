@@ -1,0 +1,225 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH c AS (\n                   INSERT INTO document_comments\n                       (document_id, node_id, anchor_find, anchor_nth, anchor_start, anchor_end,\n                        author_user_id, body, mentions, parent_id, via_agent)\n                   VALUES ($1::text::uuid, $2, $3, $4, $5, $6, $7, $8, $9, $10::text::uuid, $11)\n                   RETURNING *),\n               prev AS (\n                   SELECT subject_value, access_level FROM document_grants\n                   WHERE document_id = $1::text::uuid AND folder_id IS NULL\n                     AND subject_kind = 'user' AND subject_value = ANY($13::text[])),\n               g AS (\n                   INSERT INTO document_grants\n                       (document_id, subject_kind, subject_value, access_level, granted_by)\n                   SELECT $1::text::uuid, 'user', grantee, 'comment', $12\n                   FROM unnest($13::text[]) AS grantee\n                   ON CONFLICT (document_id, folder_id, subject_kind, subject_value) DO UPDATE\n                       SET access_level = 'comment', valid_until = NULL,\n                           granted_by = EXCLUDED.granted_by, updated_at = now()\n                       WHERE document_grants.valid_until IS NOT NULL\n                         AND document_grants.valid_until <= now()\n                   RETURNING *),\n               e AS (\n                   INSERT INTO document_grant_events\n                       (event, target_kind, target_id, subject_kind, subject_value, old_level,\n                        new_level, actor_user_id, trace_id, reason, via_agent)\n                   SELECT CASE WHEN prev.access_level IS NULL THEN 'granted' ELSE 'changed' END,\n                          'document', g.document_id, g.subject_kind, g.subject_value,\n                          prev.access_level, g.access_level, $12, $14,\n                          'mentioned in comment ' || (SELECT c.id::text FROM c), $11\n                   FROM g LEFT JOIN prev ON prev.subject_value = g.subject_value)\n               SELECT c.id::text AS \"id!: DocumentCommentId\",\n                      c.document_id::text AS \"document_id!: DocumentId\",\n                      c.node_id AS \"node_id!: DocumentNodeId\",\n                      c.anchor_find, c.anchor_nth, c.anchor_start, c.anchor_end,\n                      c.author_user_id AS \"author_user_id!: UserId\",\n                      c.body AS \"body!\", c.mentions AS \"mentions!\",\n                      c.parent_id::text AS \"parent_id: DocumentCommentId\",\n                      c.resolved_at, c.resolved_by AS \"resolved_by: UserId\",\n                      c.answering_revision_id::text AS \"answering_revision_id: DocumentRevisionId\",\n                      c.created_at AS \"created_at!\", c.updated_at AS \"updated_at!\",\n                      c.edited_at, c.deleted_at\n               FROM c",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!: DocumentCommentId",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "document_id!: DocumentId",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "node_id!: DocumentNodeId",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_comments",
+            "name": "node_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "anchor_find",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_comments",
+            "name": "anchor_find"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "anchor_nth",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "document_comments",
+            "name": "anchor_nth"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "anchor_start",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_comments",
+            "name": "anchor_start"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "anchor_end",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_comments",
+            "name": "anchor_end"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "author_user_id!: UserId",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "document_comments",
+            "name": "author_user_id"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "body!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_comments",
+            "name": "body"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "mentions!",
+        "type_info": "TextArray",
+        "origin": {
+          "Table": {
+            "table": "document_comments",
+            "name": "mentions"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "parent_id: DocumentCommentId",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 11,
+        "name": "resolved_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "document_comments",
+            "name": "resolved_at"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "resolved_by: UserId",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "document_comments",
+            "name": "resolved_by"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "answering_revision_id: DocumentRevisionId",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 14,
+        "name": "created_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "document_comments",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "updated_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "document_comments",
+            "name": "updated_at"
+          }
+        }
+      },
+      {
+        "ordinal": 16,
+        "name": "edited_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "document_comments",
+            "name": "edited_at"
+          }
+        }
+      },
+      {
+        "ordinal": 17,
+        "name": "deleted_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "document_comments",
+            "name": "deleted_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Int4",
+        "Text",
+        "Text",
+        "Varchar",
+        "Text",
+        "TextArray",
+        "Text",
+        "Text",
+        "Varchar",
+        "TextArray",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      false,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false,
+      false,
+      null,
+      true,
+      true,
+      null,
+      false,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "30702adf681e53ad4e5eaa20e2e484f5c76aed6c1ce515659a97194ad6552276"
+}

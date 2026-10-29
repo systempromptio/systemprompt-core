@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO oauth_clients (client_id, client_secret_hash, client_name,\n                                       token_endpoint_auth_method, application_type,\n                                       is_active, created_at, updated_at, owner_user_id,\n                                       declared_source, declared_secret_key)\n            VALUES ($1, $2, $3, $4, 'web', $5, $6, $6, $7, $8, $9)\n            ON CONFLICT (client_id) DO UPDATE\n            SET client_secret_hash = EXCLUDED.client_secret_hash,\n                client_name = EXCLUDED.client_name,\n                token_endpoint_auth_method = EXCLUDED.token_endpoint_auth_method,\n                is_active = EXCLUDED.is_active,\n                owner_user_id = EXCLUDED.owner_user_id,\n                declared_source = EXCLUDED.declared_source,\n                declared_secret_key = EXCLUDED.declared_secret_key,\n                updated_at = EXCLUDED.updated_at\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Varchar",
+        "Text",
+        "Bool",
+        "Timestamptz",
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "394c0cc0a5e301b13a5fa9bfeae0c2f0e216be3d82b09a729688401bc30ed6cc"
+}

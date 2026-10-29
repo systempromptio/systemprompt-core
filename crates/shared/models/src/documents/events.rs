@@ -1,7 +1,8 @@
 //! Payloads of the AG-UI custom events the document store emits.
 //!
 //! Each payload carries its event name as `NAME`; [`DocumentEventName`]
-//! enumerates them for routing and subscription filters.
+//! enumerates them for routing and subscription filters. The sharing
+//! payloads live in [`super::sharing_events`] and are re-exported here.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -13,8 +14,18 @@ use systemprompt_identifiers::{
     DocumentProposalId, DocumentRevisionId, DriveDeviceId, UserId,
 };
 
-use super::access::{AccessLevel, ActorKind, ProposalStatus, RevisionOriginKind};
+use super::access::{ActorKind, ProposalStatus, RevisionOriginKind};
+use super::awareness::DocumentAwarenessEvent;
+pub use super::collab_events::{DocumentCollabDegradedEvent, DocumentCollabUpdateEvent};
+use super::comment_events::{
+    DocumentCommentDeletedEvent, DocumentCommentMentionedEvent, DocumentCommentUpdatedEvent,
+};
 use super::drive::{PresenceSource, PresenceState};
+
+pub use super::sharing_events::{
+    DocumentAccessRequestedEvent, DocumentOwnershipTransferredEvent, DocumentSharedEvent,
+    SHARED_EVENT_VERSION,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
 pub enum DocumentEventName {
@@ -32,6 +43,12 @@ pub enum DocumentEventName {
     CommentCreated,
     #[serde(rename = "document.comment.resolved")]
     CommentResolved,
+    #[serde(rename = "document.comment.updated")]
+    CommentUpdated,
+    #[serde(rename = "document.comment.deleted")]
+    CommentDeleted,
+    #[serde(rename = "document.comment.mentioned")]
+    CommentMentioned,
     #[serde(rename = "document.shared")]
     Shared,
     #[serde(rename = "document.ownership_transferred")]
@@ -44,10 +61,16 @@ pub enum DocumentEventName {
     ProposalRejected,
     #[serde(rename = "document.proposal.superseded")]
     ProposalSuperseded,
+    #[serde(rename = "document.awareness")]
+    Awareness,
+    #[serde(rename = "document.access_requested")]
+    AccessRequested,
+    #[serde(rename = "document.collab.degraded")]
+    CollabDegraded,
 }
 
 impl DocumentEventName {
-    pub const ALL: [Self; 13] = [
+    pub const ALL: [Self; 19] = [
         Self::RevisionCreated,
         Self::Presence,
         Self::Lock,
@@ -55,12 +78,18 @@ impl DocumentEventName {
         Self::CollabUpdate,
         Self::CommentCreated,
         Self::CommentResolved,
+        Self::CommentUpdated,
+        Self::CommentDeleted,
+        Self::CommentMentioned,
         Self::Shared,
         Self::OwnershipTransferred,
         Self::ProposalOpened,
         Self::ProposalAccepted,
         Self::ProposalRejected,
         Self::ProposalSuperseded,
+        Self::Awareness,
+        Self::AccessRequested,
+        Self::CollabDegraded,
     ];
 
     #[must_use]
@@ -73,12 +102,18 @@ impl DocumentEventName {
             Self::CollabUpdate => DocumentCollabUpdateEvent::NAME,
             Self::CommentCreated => DocumentCommentCreatedEvent::NAME,
             Self::CommentResolved => DocumentCommentResolvedEvent::NAME,
+            Self::CommentUpdated => DocumentCommentUpdatedEvent::NAME,
+            Self::CommentDeleted => DocumentCommentDeletedEvent::NAME,
+            Self::CommentMentioned => DocumentCommentMentionedEvent::NAME,
             Self::Shared => DocumentSharedEvent::NAME,
             Self::OwnershipTransferred => DocumentOwnershipTransferredEvent::NAME,
             Self::ProposalOpened => DocumentProposalEvent::OPENED,
             Self::ProposalAccepted => DocumentProposalEvent::ACCEPTED,
             Self::ProposalRejected => DocumentProposalEvent::REJECTED,
             Self::ProposalSuperseded => DocumentProposalEvent::SUPERSEDED,
+            Self::Awareness => DocumentAwarenessEvent::NAME,
+            Self::AccessRequested => DocumentAccessRequestedEvent::NAME,
+            Self::CollabDegraded => DocumentCollabDegradedEvent::NAME,
         }
     }
 
@@ -150,24 +185,6 @@ impl DocumentConflictEvent {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-pub struct DocumentCollabUpdateEvent {
-    pub document_id: DocumentId,
-    pub edit_session_id: DocumentEditSessionId,
-    pub seq: i64,
-    pub update_b64: String,
-    pub author_id: UserId,
-}
-
-impl DocumentCollabUpdateEvent {
-    pub const NAME: &'static str = "document.collab.update";
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[expect(
-    clippy::struct_field_names,
-    reason = "the document event wire vocabulary names every reference document_id, comment_id, \
-              node_id, parent_id and author_id, as the sibling events do"
-)]
 pub struct DocumentCommentCreatedEvent {
     pub document_id: DocumentId,
     pub comment_id: DocumentCommentId,
@@ -175,6 +192,8 @@ pub struct DocumentCommentCreatedEvent {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub parent_id: Option<DocumentCommentId>,
     pub author_id: UserId,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub mentions: Vec<UserId>,
 }
 
 impl DocumentCommentCreatedEvent {
@@ -190,30 +209,6 @@ pub struct DocumentCommentResolvedEvent {
 
 impl DocumentCommentResolvedEvent {
     pub const NAME: &'static str = "document.comment.resolved";
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-pub struct DocumentSharedEvent {
-    pub document_id: DocumentId,
-    pub subject_kind: String,
-    pub subject_value: String,
-    pub level: AccessLevel,
-    pub by: UserId,
-}
-
-impl DocumentSharedEvent {
-    pub const NAME: &'static str = "document.shared";
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-pub struct DocumentOwnershipTransferredEvent {
-    pub document_id: DocumentId,
-    pub from: UserId,
-    pub to: UserId,
-}
-
-impl DocumentOwnershipTransferredEvent {
-    pub const NAME: &'static str = "document.ownership_transferred";
 }
 
 /// The payload of every `document.proposal.*` event; the event name says

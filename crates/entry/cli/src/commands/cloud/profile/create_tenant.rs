@@ -4,20 +4,22 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Result, bail};
-use systemprompt_cloud::{StoredTenant, TenantStore, TenantType};
+use systemprompt_cloud::{StoredTenant, TenantStore};
+
+use super::TenantTypeArg;
 
 use crate::interactive::Prompter;
 
-pub fn select_tenant_type(prompter: &dyn Prompter, store: &TenantStore) -> Result<TenantType> {
+pub fn select_tenant_type(prompter: &dyn Prompter, store: &TenantStore) -> Result<TenantTypeArg> {
     let local_count = store
         .tenants
         .iter()
-        .filter(|t| t.tenant_type == TenantType::Local)
+        .filter(|t| TenantTypeArg::Local.admits(t))
         .count();
     let cloud_count = store
         .tenants
         .iter()
-        .filter(|t| t.tenant_type == TenantType::Cloud)
+        .filter(|t| TenantTypeArg::Cloud.admits(t))
         .count();
 
     let local_label = match local_count {
@@ -43,7 +45,7 @@ pub fn select_tenant_type(prompter: &dyn Prompter, store: &TenantStore) -> Resul
                  'Local' to create one."
             );
         }
-        Ok(TenantType::Local)
+        Ok(TenantTypeArg::Local)
     } else {
         if cloud_count == 0 {
             bail!(
@@ -51,18 +53,18 @@ pub fn select_tenant_type(prompter: &dyn Prompter, store: &TenantStore) -> Resul
                  'Cloud' to create one."
             );
         }
-        Ok(TenantType::Cloud)
+        Ok(TenantTypeArg::Cloud)
     }
 }
 
 pub(super) fn get_tenants_by_type(
     store: &TenantStore,
-    tenant_type: TenantType,
+    tenant_type: TenantTypeArg,
 ) -> Vec<StoredTenant> {
     store
         .tenants
         .iter()
-        .filter(|t| t.tenant_type == tenant_type)
+        .filter(|t| tenant_type.admits(t))
         .cloned()
         .collect()
 }

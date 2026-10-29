@@ -22,6 +22,7 @@ pub mod health_detail;
 pub mod lifecycle;
 pub mod metrics;
 pub mod ops_metrics;
+mod phases;
 mod pool_metrics;
 mod probes;
 pub mod readiness;

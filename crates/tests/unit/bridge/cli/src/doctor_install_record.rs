@@ -180,6 +180,7 @@ fn the_cached_scope_check_reports_a_token_minted_for_another_gateway() {
             token: systemprompt_bridge::ids::BearerToken::new("token"),
             ttl: 600,
             headers: Default::default(),
+            device_token: None,
         };
         cache::write_bound(&cfg, &gateway, &output, &binding).expect("cache the token");
     });

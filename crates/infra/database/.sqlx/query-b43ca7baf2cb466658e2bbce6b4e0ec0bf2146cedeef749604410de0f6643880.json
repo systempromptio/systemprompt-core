@@ -1,0 +1,44 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT s.instance_id AS \"instance_id: InstanceId\", e.advertise_url\n            FROM services s\n            JOIN instance_endpoints e ON e.instance_id = s.instance_id\n            JOIN instance_presence p ON p.instance_id = s.instance_id\n            WHERE s.name = $1\n              AND s.status = $2\n              AND s.instance_id <> $3\n              AND s.heartbeat_at\n                  >= CURRENT_TIMESTAMP - make_interval(secs => $4::double precision)\n              AND e.heartbeat_at\n                  >= CURRENT_TIMESTAMP - make_interval(secs => $4::double precision)\n              AND (\n                  p.role <> $5\n                  OR EXISTS (\n                      SELECT 1 FROM instance_leases l\n                      WHERE l.lease_key = s.module_name || ':' || s.name\n                        AND l.owner_instance_id = s.instance_id\n                        AND l.expires_at > CURRENT_TIMESTAMP\n                  )\n              )\n            ORDER BY s.heartbeat_at DESC\n            LIMIT 1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "instance_id: InstanceId",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "services",
+            "name": "instance_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "advertise_url",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "instance_endpoints",
+            "name": "advertise_url"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Float8",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "b43ca7baf2cb466658e2bbce6b4e0ec0bf2146cedeef749604410de0f6643880"
+}

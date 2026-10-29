@@ -14,6 +14,7 @@ fn fake_token(ttl: u64) -> HelperOutput {
         token: BearerToken::new("fake"),
         ttl,
         headers: Default::default(),
+        device_token: None,
     }
 }
 
@@ -923,6 +924,7 @@ fn credential_rotation_during_refresh_discards_the_minted_token_then_retries() {
                                 }),
                                 ttl: 3600,
                                 headers: Default::default(),
+                                device_token: None,
                             })
                         })
                     });

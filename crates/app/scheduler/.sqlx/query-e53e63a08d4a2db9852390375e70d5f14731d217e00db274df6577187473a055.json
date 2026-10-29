@@ -1,0 +1,98 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT last_attempt_at, last_success_at, last_status, last_error, last_error_at,\n                   attempts_total, failures_total\n            FROM licence_checkin_state\n            WHERE id\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "last_attempt_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "licence_checkin_state",
+            "name": "last_attempt_at"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "last_success_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "licence_checkin_state",
+            "name": "last_success_at"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "last_status",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "licence_checkin_state",
+            "name": "last_status"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "last_error",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "licence_checkin_state",
+            "name": "last_error"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "last_error_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "licence_checkin_state",
+            "name": "last_error_at"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "attempts_total",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "licence_checkin_state",
+            "name": "attempts_total"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "failures_total",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "licence_checkin_state",
+            "name": "failures_total"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "e53e63a08d4a2db9852390375e70d5f14731d217e00db274df6577187473a055"
+}

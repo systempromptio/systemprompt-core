@@ -5,7 +5,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use chrono::{DateTime, Utc};
-use systemprompt_identifiers::{DocumentFolderId, DocumentId, UserId};
+use systemprompt_identifiers::{DocumentFolderId, DocumentId, TraceId, UserId};
 use systemprompt_models::documents::AccessLevel;
 use uuid::Uuid;
 
@@ -29,6 +29,13 @@ pub struct DocumentGrant {
     pub subject_display: Option<String>,
 }
 
+impl DocumentGrant {
+    #[must_use]
+    pub fn is_expired(&self, now: DateTime<Utc>) -> bool {
+        self.valid_until.is_some_and(|until| until <= now)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct NewGrant {
     pub target: GrantTarget,
@@ -38,6 +45,9 @@ pub struct NewGrant {
     pub access_level: AccessLevel,
     pub granted_by: UserId,
     pub valid_until: Option<DateTime<Utc>>,
+    pub trace_id: TraceId,
+    pub reason: Option<String>,
+    pub via_agent: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]

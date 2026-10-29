@@ -7,12 +7,16 @@
 //! policy and provisioning, mints the browser session and audits the outcome
 //! to every [`AuthEventSink`](systemprompt_traits::sso::AuthEventSink).
 //!
+//! [`oidc`] is the one provider core ships: a generic `OpenID Connect`
+//! relying party, off unless `services/web/config/oidc.yaml` enables it.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 mod cookie;
 mod driver;
 mod finish;
+pub mod oidc;
 mod registry;
 mod resolve;
 mod roles;
@@ -22,7 +26,10 @@ mod start;
 pub use cookie::{BINDER_COOKIE_NAME, CookieSpec, binder_from_cookie_header};
 pub use driver::{FinishOutcome, SsoDriver, StartOutcome};
 pub use finish::SsoCallback;
-pub use registry::{AuthEventSinkRegistration, SsoHookContext, SsoProviderRegistration};
+pub use registry::{
+    AuthEventSinkRegistration, SsoHookContext, SsoProviderError, SsoProviderFactory,
+    SsoProviderRegistration,
+};
 pub use resolve::{ResolutionPlan, ResolvedUser, plan_resolution};
 pub use roles::{DirectoryOnlyRoleResolver, RoleResolver, RoleResolverRegistration};
 pub use session::{

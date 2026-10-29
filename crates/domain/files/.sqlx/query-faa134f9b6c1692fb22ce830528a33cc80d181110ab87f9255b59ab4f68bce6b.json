@@ -1,0 +1,25 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH trashed AS (\n                   UPDATE documents SET deleted_at = now(), trashed_by = $2, updated_at = now()\n                   WHERE id = $1::text::uuid AND deleted_at IS NULL RETURNING id),\n               logged AS (\n                   INSERT INTO document_path_changes (document_id, from_path)\n                   SELECT id, $3 FROM trashed RETURNING 1)\n               SELECT COUNT(*) AS \"updated!\" FROM trashed",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "updated!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Varchar",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "faa134f9b6c1692fb22ce830528a33cc80d181110ab87f9255b59ab4f68bce6b"
+}

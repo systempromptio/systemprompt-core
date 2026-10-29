@@ -3,11 +3,12 @@ use std::time::Duration;
 use systemprompt_events::Broadcaster;
 use systemprompt_files::documents::DocumentsError;
 use systemprompt_files::documents::jobs::DocumentTrashPurgeJob;
+use systemprompt_files::documents::model::Media;
 use systemprompt_files::documents::models::GrantTarget;
 use systemprompt_files::documents::revision::CommitBody;
 use systemprompt_files::documents::service::{
     CommentPolicy, CommitRequest, CopyRequest, FolderMove, HistoryPage, NewFolderRequest,
-    ShareRequest, UpdateRequest,
+    ShareRequest, TransferRequest, UpdateRequest,
 };
 use systemprompt_identifiers::{ConnectionId, DocumentFolderId, DocumentId};
 use systemprompt_models::auth::AuthenticatedUser;
@@ -16,7 +17,8 @@ use systemprompt_test_fixtures::test_db_pool;
 use tokio::sync::mpsc;
 
 use crate::documents_service_fixture::{
-    GroupSource, Harness, allow, api_author, create, harness, person, trace, unique,
+    GroupSource, Harness, RoleDirectory, allow, api_author, create, harness, harness_with, person,
+    trace, unique,
 };
 
 async fn document(h: &Harness, owner: &AuthenticatedUser) -> DocumentId {
@@ -64,6 +66,8 @@ async fn share(
                 subject_display: None,
                 level,
                 valid_until: None,
+                message: None,
+                via_agent: None,
             },
             &trace(),
         )
@@ -82,6 +86,8 @@ fn set_text(document: &DocumentId, text: &str) -> CommitRequest {
         message: None,
         lock_holder_id: None,
         comments: CommentPolicy::default(),
+        op_id: None,
+        media: Media::new(),
     }
 }
 
@@ -115,7 +121,7 @@ async fn trash_hides_a_document_and_restore_brings_it_back() {
 
     let restored = h
         .service
-        .restore_document(&owner, &id, &trace())
+        .untrash(&owner, &id, &trace())
         .await
         .expect("restore");
     assert!(restored.trashed_at.is_none());
@@ -305,7 +311,13 @@ async fn update_renames_and_moves_and_names_the_owner_when_refused() {
 
 #[tokio::test]
 async fn access_lists_owner_direct_and_inherited_grants_with_display_names() {
-    let h = harness(allow(), GroupSource::new(&[])).await;
+    let h = harness_with(
+        allow(),
+        GroupSource::new(&[]),
+        std::sync::Arc::new(tempfile::TempDir::new().expect("tempdir")),
+        RoleDirectory::default().with_role("staff", &[]),
+    )
+    .await;
     let owner = person("access-owner");
     let reader = person("access-reader");
     let parent = folder(&h, &owner).await;
@@ -328,6 +340,8 @@ async fn access_lists_owner_direct_and_inherited_grants_with_display_names() {
                 subject_display: Some("Ada Reader".to_owned()),
                 level: AccessLevel::Comment,
                 valid_until: None,
+                message: None,
+                via_agent: None,
             },
             &trace(),
         )
@@ -351,11 +365,18 @@ async fn access_lists_owner_direct_and_inherited_grants_with_display_names() {
     .await;
     let access = h
         .service
-        .access_of(&reader, &doc.id, &trace())
+        .access_of(&owner, &doc.id, false, &trace())
         .await
         .expect("access");
     assert_eq!(access.owner, owner.id);
-    assert_eq!(access.my_access, AccessLevel::Comment);
+    assert_eq!(access.my_access, AccessLevel::Own);
+    let below_share = h
+        .service
+        .access_of(&reader, &doc.id, false, &trace())
+        .await
+        .expect("reader access");
+    assert_eq!(below_share.my_access, AccessLevel::Comment);
+    assert!(below_share.grants.is_empty() && below_share.inherited.is_empty());
     assert_eq!(access.grants.len(), 1);
     assert_eq!(
         access.grants[0].subject_display.as_deref(),
@@ -365,9 +386,10 @@ async fn access_lists_owner_direct_and_inherited_grants_with_display_names() {
         access
             .inherited
             .iter()
-            .any(|grant| grant.subject_kind == "role"
-                && grant.subject_value == "staff"
-                && grant.subject_display.is_none())
+            .any(|inherited| inherited.grant.subject_kind == "role"
+                && inherited.grant.subject_value == "staff"
+                && inherited.grant.subject_display.is_none()
+                && inherited.folder_id == parent)
     );
 }
 
@@ -386,7 +408,15 @@ async fn ownership_moves_and_the_previous_owner_keeps_edit() {
     );
     let moved = h
         .service
-        .transfer_ownership(&owner, &id, &next.id, &trace())
+        .transfer_ownership(
+            &owner,
+            &id,
+            TransferRequest {
+                to: next.id.clone(),
+                to_display: Some(next.username.clone()),
+            },
+            &trace(),
+        )
         .await
         .expect("transfer");
     assert_eq!(moved.owner_user_id, next.id);
@@ -403,9 +433,9 @@ async fn ownership_moves_and_the_previous_owner_keeps_edit() {
     assert_eq!(view.my_access, AccessLevel::Edit);
     let access = h
         .service
-        .access_of(&owner, &id, &trace())
+        .access_of(&next, &id, false, &trace())
         .await
-        .expect("previous owner reads access");
+        .expect("new owner reads access");
     let kept = access
         .grants
         .iter()
@@ -417,7 +447,15 @@ async fn ownership_moves_and_the_previous_owner_keeps_edit() {
     );
     let refused = h
         .service
-        .transfer_ownership(&owner, &id, &owner.id, &trace())
+        .transfer_ownership(
+            &owner,
+            &id,
+            TransferRequest {
+                to: owner.id.clone(),
+                to_display: Some(owner.username.clone()),
+            },
+            &trace(),
+        )
         .await
         .expect_err("only the owner transfers");
     assert!(
@@ -428,7 +466,13 @@ async fn ownership_moves_and_the_previous_owner_keeps_edit() {
 
 #[tokio::test]
 async fn revoke_all_removes_every_grant() {
-    let h = harness(allow(), GroupSource::new(&[])).await;
+    let h = harness_with(
+        allow(),
+        GroupSource::new(&[]),
+        std::sync::Arc::new(tempfile::TempDir::new().expect("tempdir")),
+        RoleDirectory::default().with_role("staff", &[]),
+    )
+    .await;
     let owner = person("revoke-owner");
     let reader = person("revoke-reader");
     let id = document(&h, &owner).await;
@@ -475,7 +519,7 @@ async fn revoke_all_removes_every_grant() {
         .await
         .expect_err("access is gone");
     assert!(
-        matches!(refused, DocumentsError::Forbidden { .. }),
+        matches!(refused, DocumentsError::NotFound { .. }),
         "{refused:?}"
     );
 }
@@ -546,12 +590,12 @@ async fn repeated_copies_and_restores_take_the_next_free_name() {
         .expect("a live document takes the name");
     let first_back = h
         .service
-        .restore_document(&owner, &source.id, &trace())
+        .untrash(&owner, &source.id, &trace())
         .await
         .expect("restore source");
     let second_back = h
         .service
-        .restore_document(&owner, &twin.id, &trace())
+        .untrash(&owner, &twin.id, &trace())
         .await
         .expect("restore twin");
     assert_eq!(first_back.name, format!("{name} (restored).txt"));

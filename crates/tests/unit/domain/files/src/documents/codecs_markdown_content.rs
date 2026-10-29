@@ -125,12 +125,19 @@ fn html_writes_semantic_elements() {
 fn docx_writes_styled_paragraphs_runs_and_a_table() {
     let before = super::docx_fixture::fixture();
     let after = apply(&DocxCodec, &before, &[insert_markdown("pid:2B3C4D5E")]);
-    assert_eq!(changed_entries(&before, &after), vec!["word/document.xml"]);
+    assert_eq!(
+        changed_entries(&before, &after),
+        vec!["word/document.xml", "word/_rels/document.xml.rels"]
+    );
     let xml = super::docx_fixture::part(&after, "word/document.xml");
     assert!(xml.contains("<w:pPr><w:pStyle w:val=\"Heading1\"/></w:pPr><w:r><w:t>Plan</w:t>"));
     assert!(xml.contains("<w:r><w:rPr><w:b/></w:rPr><w:t>bold</w:t></w:r>"));
     assert!(xml.contains("<w:r><w:rPr><w:i/></w:rPr><w:t>italic</w:t></w:r>"));
-    assert!(xml.contains("<w:t xml:space=\"preserve\"> (https://example.com)</w:t>"));
+    assert!(xml.contains("<w:hyperlink r:id=\"rIdLink1\"><w:r><w:rPr><w:color w:val=\"0563C1\"/>"));
+    assert!(!xml.contains("(https://example.com)"));
+    let rels = super::docx_fixture::part(&after, "word/_rels/document.xml.rels");
+    assert!(rels.contains("Id=\"rIdLink1\""));
+    assert!(rels.contains("Target=\"https://example.com\" TargetMode=\"External\""));
     assert_eq!(xml.matches("<w:tbl>").count(), 2);
     let plan = xml.find(">Plan<").expect("plan");
     assert!(xml.find("strongly.").expect("anchor") < plan);

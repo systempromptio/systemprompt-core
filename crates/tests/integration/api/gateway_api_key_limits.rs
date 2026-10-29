@@ -65,6 +65,7 @@ async fn issue(
             limits: &limits,
             scopes,
             purpose: None,
+            kind: systemprompt_users::ApiKeyKind::User,
         })
         .await
         .expect("issue");

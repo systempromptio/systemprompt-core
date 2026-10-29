@@ -23,27 +23,30 @@ use systemprompt_database::DbPool;
 use systemprompt_models::RouteClassifier;
 use systemprompt_models::documents::content_hash;
 use systemprompt_runtime::AppContext;
-use systemprompt_test_fixtures::{AuthedFixture, seed_bridge_credential};
+use systemprompt_test_fixtures::{
+    AuthedFixture, seed_bridge_client_credential, seed_bridge_credential,
+    seed_bridge_device_credential, seed_drive_credential,
+};
 use tower::ServiceExt;
 use uuid::Uuid;
 
 use super::common::{request_context, setup_ctx};
 
-const BOUNDARY: &str = "sp-documents-test-boundary";
+pub(super) const BOUNDARY: &str = "sp-documents-test-boundary";
 
-struct Reply {
-    status: StatusCode,
-    headers: HeaderMap,
-    body: Vec<u8>,
+pub(super) struct Reply {
+    pub(super) status: StatusCode,
+    pub(super) headers: HeaderMap,
+    pub(super) body: Vec<u8>,
 }
 
 impl Reply {
-    fn json(&self) -> Value {
+    pub(super) fn json(&self) -> Value {
         serde_json::from_slice(&self.body).unwrap_or(Value::Null)
     }
 }
 
-async fn send(app: Router, req: Request<Body>) -> Result<Reply> {
+pub(super) async fn send(app: Router, req: Request<Body>) -> Result<Reply> {
     let resp = app.oneshot(req).await?;
     let status = resp.status();
     let headers = resp.headers().clone();
@@ -55,28 +58,33 @@ async fn send(app: Router, req: Request<Body>) -> Result<Reply> {
     })
 }
 
-fn app(state: &DocumentsState, user: &AuthedFixture) -> Router {
-    router(state.clone()).layer(Extension(request_context(user.user_id.as_str())))
+pub(super) fn app(state: &DocumentsState, user: &AuthedFixture) -> Router {
+    router(state.clone()).layer(Extension(
+        request_context(user.user_id.as_str()).with_browser_session(),
+    ))
 }
 
-fn request(method: Method, uri: &str) -> axum::http::request::Builder {
+pub(super) fn request(method: Method, uri: &str) -> axum::http::request::Builder {
     Request::builder().method(method).uri(uri)
 }
 
-fn json_request(method: Method, uri: &str, body: &Value) -> Request<Body> {
+pub(super) fn json_request(method: Method, uri: &str, body: &Value) -> Request<Body> {
     request(method, uri)
         .header(header::CONTENT_TYPE, "application/json")
         .body(Body::from(body.to_string()))
         .expect("request")
 }
 
-async fn fixture() -> Result<(DbPool, Arc<AppContext>, DocumentsState)> {
+pub(super) async fn fixture() -> Result<(DbPool, Arc<AppContext>, DocumentsState)> {
     let (pool, ctx) = setup_ctx().await?;
     let state = DocumentsState::build(&ctx)?;
     Ok((pool, ctx, state))
 }
 
-async fn create_markdown(state: &DocumentsState, owner: &AuthedFixture) -> Result<Value> {
+pub(super) async fn create_markdown(
+    state: &DocumentsState,
+    owner: &AuthedFixture,
+) -> Result<Value> {
     let body = json!({
         "template_id": "blank-markdown",
         "name": format!("notes-{}.md", Uuid::new_v4().simple()),
@@ -87,18 +95,18 @@ async fn create_markdown(state: &DocumentsState, owner: &AuthedFixture) -> Resul
     Ok(reply.json())
 }
 
-fn id_of(created: &Value) -> String {
+pub(super) fn id_of(created: &Value) -> String {
     created["document"]["id"].as_str().expect("id").to_owned()
 }
 
-fn head_of(created: &Value) -> String {
+pub(super) fn head_of(created: &Value) -> String {
     created["revision"]["id"]
         .as_str()
         .expect("revision")
         .to_owned()
 }
 
-async fn put_content(
+pub(super) async fn put_content(
     state: &DocumentsState,
     owner: &AuthedFixture,
     id: &str,
@@ -193,10 +201,12 @@ async fn a_put_against_a_stale_base_is_409_with_head_and_base() -> Result<()> {
     assert_eq!(stale.status, StatusCode::CONFLICT);
     let body = stale.json();
     assert_eq!(body["code"], "conflict_error");
-    assert_eq!(body["head"], head.as_str());
-    assert_eq!(body["base"], base.as_str());
+    assert_eq!(body["error_key"], "stale_base");
+    assert_eq!(body["detail"]["code"], "stale_base");
+    assert_eq!(body["detail"]["head_revision"], head.as_str());
+    assert_eq!(body["detail"]["base_revision"], base.as_str());
     assert_eq!(
-        body["head_content_sha256"],
+        body["detail"]["head_content_sha256"],
         content_hash(b"# Ours\n").as_str()
     );
 
@@ -212,7 +222,7 @@ async fn a_put_against_a_stale_base_is_409_with_head_and_base() -> Result<()> {
     Ok(())
 }
 
-fn first_text_node(nodes: &Value) -> Option<Value> {
+pub(super) fn first_text_node(nodes: &Value) -> Option<Value> {
     nodes.as_array()?.iter().find_map(|node| {
         let has_text = node["text"].as_str().is_some_and(|text| !text.is_empty());
         if has_text {
@@ -253,15 +263,15 @@ async fn an_edit_with_a_stale_anchor_is_409_with_the_current_text() -> Result<()
     .await?;
     assert_eq!(reply.status, StatusCode::CONFLICT, "{}", reply.json());
     let body = reply.json();
-    assert_eq!(body["error_key"], "stale_anchor");
-    assert_eq!(body["node"], node_id.as_str());
-    assert_eq!(body["expected"], "00000000");
-    assert_eq!(body["current_text"], text.as_str());
+    assert_eq!(body["error_key"], "guard_mismatch");
+    assert_eq!(body["detail"]["node"], node_id.as_str());
+    assert_ne!(body["detail"]["hash"], "00000000");
+    assert_eq!(body["detail"]["current_text"], text.as_str());
     Ok(())
 }
 
 #[tokio::test]
-async fn grants_are_added_listed_and_revoked_and_a_non_grantee_is_forbidden() -> Result<()> {
+async fn grants_are_added_listed_and_revoked_and_a_non_grantee_is_not_found() -> Result<()> {
     let (pool, _ctx, state) = fixture().await?;
     let owner = seed_bridge_credential(&pool, "docs-owner").await?;
     let reader = seed_bridge_credential(&pool, "docs-reader").await?;
@@ -276,7 +286,7 @@ async fn grants_are_added_listed_and_revoked_and_a_non_grantee_is_forbidden() ->
         )
     };
 
-    assert_eq!(get(&stranger).await?.status, StatusCode::FORBIDDEN);
+    assert_eq!(get(&stranger).await?.status, StatusCode::NOT_FOUND);
 
     let share = json!({
         "subject_kind": "user",
@@ -310,7 +320,7 @@ async fn grants_are_added_listed_and_revoked_and_a_non_grantee_is_forbidden() ->
     );
 
     assert_eq!(get(&reader).await?.status, StatusCode::OK);
-    assert_eq!(get(&stranger).await?.status, StatusCode::FORBIDDEN);
+    assert_eq!(get(&stranger).await?.status, StatusCode::NOT_FOUND);
     let reader_grants = send(
         app(&state, &reader),
         request(Method::GET, &format!("/{id}/grants"))
@@ -328,7 +338,7 @@ async fn grants_are_added_listed_and_revoked_and_a_non_grantee_is_forbidden() ->
     )
     .await?;
     assert_eq!(revoked.status, StatusCode::NO_CONTENT);
-    assert_eq!(get(&reader).await?.status, StatusCode::FORBIDDEN);
+    assert_eq!(get(&reader).await?.status, StatusCode::NOT_FOUND);
     Ok(())
 }
 
@@ -383,7 +393,7 @@ async fn presence_lists_the_editor_until_its_ttl() -> Result<()> {
     Ok(())
 }
 
-fn multipart(meta: &Value, blob: &[u8]) -> Vec<u8> {
+pub(super) fn multipart(meta: &Value, blob: &[u8]) -> Vec<u8> {
     let mut body = Vec::new();
     body.extend_from_slice(
         format!(
@@ -398,14 +408,18 @@ fn multipart(meta: &Value, blob: &[u8]) -> Vec<u8> {
     body
 }
 
-fn bridge(token: &AuthedFixture, method: Method, uri: &str) -> axum::http::request::Builder {
+pub(super) fn bridge(
+    token: &AuthedFixture,
+    method: Method,
+    uri: &str,
+) -> axum::http::request::Builder {
     request(method, uri).header(
         header::AUTHORIZATION,
         format!("Bearer {}", token.jwt.as_str()),
     )
 }
 
-async fn drive_commit(
+pub(super) async fn drive_commit(
     gateway: &Router,
     device: &AuthedFixture,
     meta: &Value,
@@ -427,7 +441,7 @@ async fn drive_commit(
     .await
 }
 
-fn commit_meta(path: &str, blob: &[u8], document: Option<&str>) -> Value {
+pub(super) fn commit_meta(path: &str, blob: &[u8], document: Option<&str>) -> Value {
     json!({
         "document_id": document,
         "path": path,
@@ -470,7 +484,21 @@ async fn change_for(
 async fn a_drive_commit_of_a_new_file_appears_in_the_change_feed() -> Result<()> {
     let (pool, ctx) = setup_ctx().await?;
     let gateway = gateway_router(&ctx)?;
-    let device = seed_bridge_credential(&pool, "drive-feed").await?;
+    let device = seed_drive_credential(&pool, "drive-feed").await?;
+    let plain_bridge = seed_bridge_credential(&pool, "drive-feed-plain").await?;
+
+    let plain = send(
+        gateway.clone(),
+        bridge(&plain_bridge, Method::GET, "/bridge/drive/manifest")
+            .body(Body::empty())
+            .expect("request"),
+    )
+    .await?;
+    assert_eq!(
+        plain.status,
+        StatusCode::UNAUTHORIZED,
+        "a plain bridge token is not the Drive sync credential"
+    );
 
     let unauthenticated = send(
         gateway.clone(),
@@ -530,7 +558,7 @@ async fn a_drive_commit_of_a_new_file_appears_in_the_change_feed() -> Result<()>
     assert_eq!(downloaded.status, StatusCode::OK);
     assert_eq!(downloaded.body, blob);
 
-    let other = seed_bridge_credential(&pool, "drive-other").await?;
+    let other = seed_drive_credential(&pool, "drive-other").await?;
     let foreign = send(
         gateway.clone(),
         bridge(
@@ -550,7 +578,7 @@ async fn a_drive_commit_of_a_new_file_appears_in_the_change_feed() -> Result<()>
 async fn a_stale_drive_commit_is_409_with_the_head_content_hash() -> Result<()> {
     let (pool, ctx) = setup_ctx().await?;
     let gateway = gateway_router(&ctx)?;
-    let device = seed_bridge_credential(&pool, "drive-conflict").await?;
+    let device = seed_drive_credential(&pool, "drive-conflict").await?;
     let manifest = send(
         gateway.clone(),
         bridge(&device, Method::GET, "/bridge/drive/manifest")
@@ -648,7 +676,7 @@ async fn the_files_server_cannot_reach_document_blobs() -> Result<()> {
     Ok(())
 }
 
-fn mint_download(
+pub(super) fn mint_download(
     authority: &dyn systemprompt_models::auth::TokenAuthority,
     owner: &AuthedFixture,
     audience: &str,
@@ -673,6 +701,8 @@ fn mint_download(
         client_id: None,
         purpose: Some(purpose),
         plugin_id: None,
+        interaction: None,
+        browser_session: false,
     };
     authority.mint_user_jwt(&request).expect("download token")
 }
@@ -690,7 +720,9 @@ fn foreign_authority(ctx: &AppContext) -> Result<systemprompt_security::Deployme
 async fn a_signed_download_link_reads_only_its_document_revision() -> Result<()> {
     use systemprompt_api::routes::documents::with_download_tokens;
     use systemprompt_identifiers::{DocumentId, DocumentRevisionId};
-    use systemprompt_runtime::documents::mcp::{DOWNLOAD_AUDIENCE, DOWNLOAD_TTL, download_purpose};
+    use systemprompt_runtime::documents::download::{
+        DOWNLOAD_AUDIENCE, DOWNLOAD_TTL, download_purpose,
+    };
 
     let (pool, ctx, state) = fixture().await?;
     let owner = seed_bridge_credential(&pool, "docs-download").await?;
@@ -766,7 +798,9 @@ async fn the_mounted_content_route_takes_a_download_link_and_refuses_no_credenti
     use systemprompt_api::services::server::{ReadinessState, setup_api_server};
     use systemprompt_identifiers::{DocumentId, DocumentRevisionId};
     use systemprompt_manifest::profile::RateLimitsConfig;
-    use systemprompt_runtime::documents::mcp::{DOWNLOAD_AUDIENCE, DOWNLOAD_TTL, download_purpose};
+    use systemprompt_runtime::documents::download::{
+        DOWNLOAD_AUDIENCE, DOWNLOAD_TTL, download_purpose,
+    };
     use systemprompt_test_fixtures::{
         ensure_test_bootstrap, fixture_app_context_with_config, fixture_config, test_db_pool,
     };
@@ -874,8 +908,9 @@ async fn patch_moves_into_a_folder_and_an_explicit_null_moves_to_the_root() -> R
     let (pool, _ctx, state) = fixture().await?;
     let owner = seed_bridge_credential(&pool, "docs-move").await?;
     let id = id_of(&create_markdown(&state, &owner).await?);
-    let folders =
-        folders_router(state.clone()).layer(Extension(request_context(owner.user_id.as_str())));
+    let folders = folders_router(state.clone()).layer(Extension(
+        request_context(owner.user_id.as_str()).with_browser_session(),
+    ));
     let folder = send(
         folders,
         json_request(
@@ -949,5 +984,43 @@ async fn a_disabled_store_mounts_no_document_or_drive_route() -> Result<()> {
     )
     .await?;
     assert_eq!(manifest.status, StatusCode::NOT_FOUND);
+    Ok(())
+}
+
+#[tokio::test]
+async fn only_the_private_device_token_trades_for_a_drive_sync_token() -> Result<()> {
+    let (pool, ctx) = setup_ctx().await?;
+    let gateway = gateway_router(&ctx)?;
+    let trade = |fixture: &AuthedFixture| {
+        bridge(fixture, Method::POST, "/bridge/drive/token")
+            .body(Body::empty())
+            .expect("request")
+    };
+
+    let device = seed_bridge_device_credential(&pool, "drive-trade").await?;
+    let traded = send(gateway.clone(), trade(&device)).await?;
+    assert_eq!(traded.status, StatusCode::OK, "{}", traded.json());
+    let sync = traded.json()["token"].as_str().expect("token").to_owned();
+    let manifest = send(
+        gateway.clone(),
+        request(Method::GET, "/bridge/drive/manifest")
+            .header(header::AUTHORIZATION, format!("Bearer {sync}"))
+            .body(Body::empty())
+            .expect("request"),
+    )
+    .await?;
+    assert_eq!(manifest.status, StatusCode::OK, "{}", manifest.json());
+
+    let host = seed_bridge_client_credential(&pool, "drive-trade-host", None).await?;
+    let refused = send(gateway.clone(), trade(&host)).await?;
+    assert_eq!(
+        refused.status,
+        StatusCode::UNAUTHORIZED,
+        "the token Claude Code is handed cannot trade"
+    );
+
+    let run = seed_bridge_client_credential(&pool, "drive-trade-run", Some("farm:run-1")).await?;
+    let refused = send(gateway, trade(&run)).await?;
+    assert_eq!(refused.status, StatusCode::UNAUTHORIZED, "a purposed token");
     Ok(())
 }

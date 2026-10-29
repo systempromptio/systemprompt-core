@@ -156,3 +156,51 @@ async fn a_merged_commit_is_recorded_and_the_next_pull_brings_the_merge_down() {
     assert!(pulled.conflicts.is_empty());
     assert_eq!(fx.read("docs/brief.docx"), combined);
 }
+
+#[tokio::test]
+async fn a_proposed_edit_is_sent_for_review_kept_locally_and_not_resent() {
+    let server = MockServer::start().await;
+    let fx = Fixture::new(&server.uri());
+    let doc = DocumentId::generate();
+    let base = DocumentRevisionId::generate();
+    let proposed = DocumentRevisionId::generate();
+    let proposal = systemprompt_identifiers::DocumentProposalId::generate();
+    fx.write("plan.md", b"v1");
+    fx.synced("plan.md", &doc, &base);
+    std::thread::sleep(std::time::Duration::from_millis(1100));
+    fx.write("plan.md", b"v2 suggested");
+
+    Mock::given(method("POST"))
+        .and(path(ApiPaths::BRIDGE_DRIVE_COMMIT))
+        .respond_with(ResponseTemplate::new(201).set_body_json(serde_json::json!({
+            "status": "proposed",
+            "proposal_id": proposal.as_str(),
+            "revision_id": proposed.as_str(),
+        })))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let mut state = fx.state();
+    let report = upload(fx.cycle(), &mut state)
+        .await
+        .expect("a proposal is not an error");
+    assert_eq!(report.committed, 0);
+    assert_eq!(report.sent_for_review.len(), 1);
+    assert_eq!(report.sent_for_review[0].proposal_id, proposal);
+
+    let saved = fx.state();
+    let entry = saved.entries.get("plan.md").expect("entry");
+    assert_eq!(entry.revision_id, base, "the head did not move");
+    assert_eq!(entry.sha256, content_hash(b"v2 suggested"));
+    assert_eq!(saved.sent_for_review.len(), 1);
+    assert_eq!(
+        fx.read("plan.md"),
+        b"v2 suggested",
+        "the local edit is kept"
+    );
+
+    let mut again = fx.state();
+    let second = upload(fx.cycle(), &mut again).await.expect("second cycle");
+    assert!(second.sent_for_review.is_empty(), "the edit is not resent");
+}

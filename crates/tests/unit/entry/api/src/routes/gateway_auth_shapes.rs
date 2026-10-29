@@ -19,6 +19,7 @@ fn a_minted_bridge_credential_becomes_the_wire_body_intact() {
         token: "minted-token".to_owned(),
         ttl: 3600,
         headers,
+        device_token: None,
     };
 
     let response: AuthResponse = result.into();

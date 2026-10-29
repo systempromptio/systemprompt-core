@@ -7,6 +7,7 @@ mod call_source;
 mod caller_purpose;
 mod context_error;
 mod context_types;
+mod credential;
 mod propagation;
 
 pub use call_source::CallSource;
@@ -54,6 +55,8 @@ impl RequestContext {
                 act_chain: Vec::new(),
                 jti: None,
                 token_exp: None,
+                browser_session: false,
+                cookie_transport: false,
             },
             request: RequestMetadata {
                 session_id,
@@ -143,19 +146,8 @@ impl RequestContext {
     }
 
     #[must_use]
-    pub const fn with_token_exp(mut self, token_exp: i64) -> Self {
-        self.auth.token_exp = Some(token_exp);
-        self
-    }
-
-    #[must_use]
     pub const fn jti(&self) -> Option<&AccessTokenId> {
         self.auth.jti.as_ref()
-    }
-
-    #[must_use]
-    pub const fn token_exp(&self) -> Option<i64> {
-        self.auth.token_exp
     }
 
     #[must_use]

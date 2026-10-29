@@ -7,8 +7,9 @@
 //! path.
 //!
 //! [`SecurityRepository`] / [`IpSessionRecord`] are exposed for direct use by
-//! the `crate::jobs::malicious_ip_blacklist` job and [`otlp`] backs the OTLP
-//! exporter. Retention deletes are not here: `database_cleanup` dispatches to
+//! the `crate::jobs::malicious_ip_blacklist` job, [`otlp`] backs the OTLP
+//! exporter and [`LicenceCheckinRepository`] the licence check-in.
+//! Retention deletes are not here: `database_cleanup` dispatches to
 //! the owning crates' repositories.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -19,6 +20,7 @@ mod config_apply;
 mod config_reconcile;
 mod job_lock;
 mod jobs;
+mod licence;
 pub mod otlp;
 mod security;
 
@@ -31,6 +33,7 @@ pub use config_reconcile::{
 pub(crate) use job_lock::JobLockGuard;
 use job_lock::JobLockRepository;
 pub use jobs::JobRepository;
+pub use licence::{LicenceCheckinRepository, LicenceCheckinState};
 pub use security::{IpSessionRecord, SecurityRepository};
 
 use systemprompt_database::DbPool;

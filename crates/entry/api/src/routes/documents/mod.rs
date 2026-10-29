@@ -7,29 +7,42 @@
 //! blob store directly. Content is streamed with the head's content hash as
 //! the `ETag`, and writes name their base revision in `If-Match`. With the
 //! `collab` feature the `/{id}/collab/*` routes co-edit HTML and Markdown
-//! documents live.
+//! documents live. `/{id}/live` is the document's live channel and
+//! `/{id}/collab/awareness` posts awareness; both work without an engine.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 mod access;
+pub mod actor_scope;
+mod agent_cap;
 mod caller;
 #[cfg(feature = "collab")]
 mod collab;
+#[cfg(feature = "collab")]
+mod collab_updates;
 mod comments;
 mod commits;
 mod content;
 mod download;
 pub mod drive;
+mod drive_token;
 mod error;
+mod export;
+mod folder_sharing;
 mod folders;
 mod headers;
 mod history;
+mod import;
 mod items;
+mod items_multipart;
 mod lifecycle;
 mod listing;
+mod live;
 mod proposals;
 mod read;
+mod requests;
+mod schema;
 mod sharing;
 mod views;
 
@@ -37,20 +50,23 @@ use std::sync::Arc;
 
 use axum::Router;
 use axum::extract::DefaultBodyLimit;
-use axum::routing::{delete, get, post, put};
+use axum::routing::{delete, get, patch, post, put};
 use systemprompt_files::documents::DocumentService;
 #[cfg(feature = "collab")]
-use systemprompt_files::documents::collab::{CollabService, CollabTuning};
+use systemprompt_files::documents::collab::CollabService;
+use systemprompt_files::uploads::UploadService;
 use systemprompt_models::auth::TokenAuthority;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{AppContext as _, UserProvider};
 use systemprompt_users::UserRepository;
 
-/// Router-scoped state of the document routes: the one document service and
-/// the user provider that resolves a caller's roles.
+/// Router-scoped state of the document and upload routes: the one document
+/// service, the upload service and the user provider that resolves a
+/// caller's roles.
 #[derive(Clone)]
 pub struct DocumentsState {
     pub(crate) service: Arc<DocumentService>,
+    pub(crate) uploads: Arc<UploadService>,
     pub(crate) users: Arc<dyn UserProvider>,
     pub(crate) user_repository: Arc<UserRepository>,
     pub(crate) tokens: Arc<dyn TokenAuthority>,
@@ -74,6 +90,7 @@ impl DocumentsState {
     pub fn build(ctx: &AppContext) -> Result<Self, DocumentsMountError> {
         Ok(Self {
             service: document_service(ctx),
+            uploads: Arc::clone(ctx.documents().uploads()),
             users: ctx
                 .user_provider()
                 .ok_or(DocumentsMountError::MissingUserProvider)?,
@@ -106,19 +123,14 @@ pub fn document_service(ctx: &AppContext) -> Arc<DocumentService> {
 
 #[cfg(feature = "collab")]
 fn collab_service(ctx: &AppContext) -> Arc<CollabService> {
-    let service = Arc::new(CollabService::new(
-        document_service(ctx),
-        CollabTuning::default(),
-    ));
-    service.start(ctx.background_tasks());
-    service
+    Arc::clone(ctx.documents().collab())
 }
 
 #[cfg(feature = "collab")]
 fn with_collab(router: Router<DocumentsState>) -> Router<DocumentsState> {
     router
         .route("/{id}/collab/join", post(collab::join))
-        .route("/{id}/collab/updates", post(collab::updates))
+        .route("/{id}/collab/updates", post(collab_updates::updates))
         .route("/{id}/collab/leave", post(collab::leave))
         .route("/{id}/collab/cursor", post(collab::cursor))
 }
@@ -132,6 +144,8 @@ pub fn router(state: DocumentsState) -> Router {
     let limit = state.max_body_bytes();
     with_collab(Router::new())
         .route("/", get(listing::list).post(items::create))
+        .route("/import", post(import::import))
+        .route("/schema", get(schema::schema))
         .route(
             "/{id}",
             get(items::get)
@@ -145,17 +159,35 @@ pub fn router(state: DocumentsState) -> Router {
         )
         .route("/{id}/edits", post(commits::edits))
         .route("/{id}/read", get(read::read))
+        .route("/{id}/live", get(live::live))
+        .route("/{id}/collab/awareness", post(live::awareness))
         .route("/{id}/comments", get(comments::list).post(comments::create))
         .route(
             "/{id}/comments/{comment_id}/resolve",
             post(comments::resolve),
         )
+        .route(
+            "/{id}/comments/{comment_id}",
+            patch(comments::edit).delete(comments::delete),
+        )
+        .route("/{id}/export/docx", get(export::docx))
         .route("/{id}/access", get(access::access))
+        .route(
+            "/{id}/agent-cap",
+            get(agent_cap::get_document).put(agent_cap::put_document),
+        )
         .route("/{id}/transfer", post(access::transfer))
         .route("/{id}/grants/all", delete(access::revoke_all))
-        .route("/{id}/restore", post(lifecycle::restore))
+        .route("/{id}/untrash", post(lifecycle::untrash))
         .route("/{id}/copy", post(lifecycle::copy))
         .route("/subject-kinds", get(access::subject_kinds))
+        .route("/subjects", get(access::subjects))
+        .route("/{id}/access-requests", post(requests::create))
+        .route("/{id}/access-requests/{rid}/grant", post(requests::grant))
+        .route(
+            "/{id}/access-requests/{rid}/decline",
+            post(requests::decline),
+        )
         .route("/{id}/revisions", get(history::revisions))
         .route("/{id}/proposals", get(proposals::list))
         .route("/{id}/proposals/{pid}", get(proposals::get))
@@ -178,6 +210,7 @@ pub fn router(state: DocumentsState) -> Router {
             post(sharing::acquire_lock).delete(sharing::release_lock),
         )
         .layer(DefaultBodyLimit::max(limit))
+        .route_layer(axum::middleware::from_fn(actor_scope::scope))
         .with_state(state)
 }
 
@@ -188,9 +221,18 @@ pub fn with_download_tokens(router: Router, state: DocumentsState) -> Router {
 pub fn folders_router(state: DocumentsState) -> Router {
     Router::new()
         .route("/", get(folders::list).post(folders::create))
+        .route("/{id}", patch(folders::update).delete(folders::delete))
         .route(
-            "/{id}",
-            axum::routing::patch(folders::update).delete(folders::delete),
+            "/{id}/grants",
+            get(folder_sharing::list_grants)
+                .post(folder_sharing::share)
+                .delete(folder_sharing::revoke),
         )
+        .route("/{id}/access", get(folder_sharing::access))
+        .route(
+            "/{id}/agent-cap",
+            get(agent_cap::get_folder).put(agent_cap::put_folder),
+        )
+        .route_layer(axum::middleware::from_fn(actor_scope::scope))
         .with_state(state)
 }

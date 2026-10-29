@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH c AS (\n                   UPDATE document_comments\n                   SET body = $4, mentions = $5, edited_at = now(), updated_at = now()\n                   WHERE id = $1::text::uuid AND document_id = $2::text::uuid\n                     AND author_user_id = $3 AND deleted_at IS NULL\n                   RETURNING id, document_id),\n               prev AS (\n                   SELECT subject_value, access_level FROM document_grants\n                   WHERE document_id = $2::text::uuid AND folder_id IS NULL\n                     AND subject_kind = 'user' AND subject_value = ANY($6::text[])),\n               g AS (\n                   INSERT INTO document_grants\n                       (document_id, subject_kind, subject_value, access_level, granted_by)\n                   SELECT c.document_id, 'user', grantee, 'comment', $3\n                   FROM c CROSS JOIN unnest($6::text[]) AS grantee\n                   ON CONFLICT (document_id, folder_id, subject_kind, subject_value) DO UPDATE\n                       SET access_level = 'comment', valid_until = NULL,\n                           granted_by = EXCLUDED.granted_by, updated_at = now()\n                       WHERE document_grants.valid_until IS NOT NULL\n                         AND document_grants.valid_until <= now()\n                   RETURNING *),\n               e AS (\n                   INSERT INTO document_grant_events\n                       (event, target_kind, target_id, subject_kind, subject_value, old_level,\n                        new_level, actor_user_id, trace_id, reason, via_agent)\n                   SELECT CASE WHEN prev.access_level IS NULL THEN 'granted' ELSE 'changed' END,\n                          'document', g.document_id, g.subject_kind, g.subject_value,\n                          prev.access_level, g.access_level, $3, $7,\n                          'mentioned in comment ' || $1, $8\n                   FROM g LEFT JOIN prev ON prev.subject_value = g.subject_value)\n               SELECT COUNT(*) AS \"updated!\" FROM c",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "updated!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "TextArray",
+        "TextArray",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "88aaf3a61093aa0f4c176873c41451383460811cc39b08e29f1b6732721069bc"
+}

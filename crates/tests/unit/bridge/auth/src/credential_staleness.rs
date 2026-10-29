@@ -31,6 +31,7 @@ fn token(ttl: u64) -> HelperOutput {
         token: systemprompt_bridge::ids::BearerToken::new("header.payload.signature"),
         ttl,
         headers: std::collections::HashMap::new(),
+        device_token: None,
     }
 }
 

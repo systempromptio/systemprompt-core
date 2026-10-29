@@ -4,7 +4,7 @@
 
 use std::collections::BTreeMap;
 
-use systemprompt_identifiers::{DocumentId, DocumentNodeId, DocumentOpId, DocumentRevisionId};
+use systemprompt_identifiers::{DocumentId, DocumentNodeId, DocumentOpId};
 use systemprompt_mcp::McpToolHandler;
 use systemprompt_models::documents::{
     ContentAs, DocumentFormat, EditOp, NodeKind, NodeTarget, Projection, ProjectionNode,
@@ -12,12 +12,14 @@ use systemprompt_models::documents::{
 };
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_runtime::documents::mcp::{
-    DocumentsMcpTools, EditHandler, EditInput, EditOutput, HistoryHandler, HistoryInput,
-    ReadHandler, ReadInput, ReadOutput, ReadView, node_lines, outline, search_lines,
+    DocumentsMcpTools, EditHandler, EditInput, HistoryHandler, HistoryInput, ReadHandler,
+};
+use systemprompt_runtime::documents::views::{
+    EditOutput, ReadInput, ReadOutput, ReadView, node_lines, outline, search_lines,
 };
 
 use crate::documents_mcp_support::{
-    create_text, ctx_for, exec, harness, line_for, person, read_text,
+    create_text, ctx_for, exec, harness, line_for, read_text, registered,
 };
 
 fn read_input(document: &DocumentId, view: ReadView) -> ReadInput {
@@ -82,7 +84,7 @@ async fn replace_line(
 #[tokio::test]
 async fn changes_since_a_revision_return_only_what_changed() {
     let h = harness().await;
-    let owner = person("since");
+    let owner = registered("since").await;
     let ctx = ctx_for(Some(&owner));
     let (document, first) = create_text(&h.tools, &ctx, "alpha\nbeta\ngamma\ndelta").await;
     let before = read_text(&h.tools, &ctx, &document).await;
@@ -108,45 +110,69 @@ async fn changes_since_a_revision_return_only_what_changed() {
     assert!(!changed.lines.iter().any(|line| line.ends_with("| alpha")));
 }
 
+fn edit_input(document: &DocumentId, op_id: &DocumentOpId, op: EditOp) -> EditInput {
+    EditInput {
+        document_id: document.clone(),
+        base_revision: None,
+        mode: None,
+        op_id: Some(op_id.clone()),
+        answering: None,
+        allow_detach: false,
+        ops: vec![op],
+        message: None,
+        verbose: false,
+    }
+}
+
 #[tokio::test]
 async fn a_repeated_op_id_replays_the_first_ack() {
     let h = harness().await;
-    let owner = person("replay");
+    let owner = registered("replay").await;
     let ctx = ctx_for(Some(&owner));
     let (document, _) = create_text(&h.tools, &ctx, "one\ntwo").await;
     let op_id = DocumentOpId::new(format!("op-{}", uuid::Uuid::new_v4()));
-    let first = replace_line(&h.tools, &ctx, &document, "two", "TWO", Some(op_id.clone())).await;
+    let current = read_text(&h.tools, &ctx, &document).await;
+    let (node, hash) = line_for(&current, "two");
+    let op = EditOp::ReplaceText {
+        node: NodeTarget::Id(DocumentNodeId::new(node)),
+        expected_hash: Some(hash.to_owned()),
+        text: "TWO".to_owned(),
+        content_as: ContentAs::Text,
+    };
+    let handler = EditHandler { tools: &h.tools };
+    let (first, _) = handler
+        .handle(edit_input(&document, &op_id, op.clone()), &ctx, &exec())
+        .await
+        .expect("first");
     assert!(!first.replayed);
-    let (again, summary) = EditHandler { tools: &h.tools }
-        .handle(
-            EditInput {
-                document_id: document.clone(),
-                base_revision: None,
-                mode: None,
-                op_id: Some(op_id),
-                answering: None,
-                allow_detach: false,
-                ops: vec![EditOp::StrReplace {
-                    old_str: "never applied".to_owned(),
-                    new_str: "x".to_owned(),
-                }],
-                message: None,
-                verbose: false,
-            },
-            &ctx,
-            &exec(),
-        )
+    let (again, summary) = handler
+        .handle(edit_input(&document, &op_id, op), &ctx, &exec())
         .await
         .expect("replay");
     assert!(again.replayed, "{summary}");
     assert_eq!(again.revision_id, first.revision_id);
     assert_eq!(again.written, first.written);
+
+    let different = EditOp::StrReplace {
+        old_str: "never applied".to_owned(),
+        new_str: "x".to_owned(),
+    };
+    let refused = handler
+        .handle(edit_input(&document, &op_id, different), &ctx, &exec())
+        .await
+        .expect_err("a different request under the same op id");
+    let code = refused
+        .data
+        .as_ref()
+        .and_then(|data| data.get("code"))
+        .and_then(|code| code.as_str());
+    assert_eq!(code, Some("op_id_mismatch"));
 }
 
 #[tokio::test]
 async fn search_and_meta_views_answer_without_a_full_read() {
     let h = harness().await;
-    let owner = person("views");
+    let owner = registered("views").await;
     let ctx = ctx_for(Some(&owner));
     let (document, revision) = create_text(&h.tools, &ctx, "Revenue grew\ncosts fell").await;
     let mut input = read_input(&document, ReadView::Search);
@@ -166,7 +192,7 @@ async fn search_and_meta_views_answer_without_a_full_read() {
 #[tokio::test]
 async fn a_verbose_read_lists_codec_paths_and_history_shows_attribution() {
     let h = harness().await;
-    let owner = person("attribution");
+    let owner = registered("attribution").await;
     let ctx = ctx_for(Some(&owner));
     let (document, _) = create_text(&h.tools, &ctx, "first\nsecond").await;
     let mut input = read_input(&document, ReadView::Text);
@@ -243,12 +269,11 @@ fn a_node_read_pages_one_node_and_its_children() {
         table,
         block("a.5", NodeKind::Paragraph, "after"),
     ]);
-    let revision = DocumentRevisionId::generate();
-    let lines = node_lines(&doc, Some(&DocumentNodeId::new("a.2")), &revision).expect("node");
+    let lines = node_lines(&doc, Some(&DocumentNodeId::new("a.2"))).expect("node");
     assert_eq!(lines.len(), 3, "{lines:?}");
     assert!(lines[1].ends_with("| | a"));
-    assert!(node_lines(&doc, Some(&DocumentNodeId::new("a.9")), &revision).is_err());
-    assert!(node_lines(&doc, None, &revision).is_err());
+    assert!(node_lines(&doc, Some(&DocumentNodeId::new("a.9"))).is_err());
+    assert!(node_lines(&doc, None).is_err());
     let found = search_lines(&doc, Some("AFT")).expect("search");
     assert_eq!(found.len(), 1);
 }

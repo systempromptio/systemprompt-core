@@ -18,8 +18,9 @@ pub use systemprompt_oauth_issuance::sso::{
     AuthEventSinkRegistration, BINDER_COOKIE_NAME, BrowserSessionSubject, CookieSpec,
     DirectoryOnlyRoleResolver, FinishOutcome, MintedSession, ResolutionPlan, ResolvedUser,
     RoleResolver, RoleResolverRegistration, SSO_STATE_TTL_SECS, SsoCallback, SsoDriver,
-    SsoHookContext, SsoProviderRegistration, StartOutcome, binder_from_cookie_header,
-    mint_browser_session, permissions_for_roles, plan_resolution, sanitize_return_to,
+    SsoHookContext, SsoProviderError, SsoProviderFactory, SsoProviderRegistration, StartOutcome,
+    binder_from_cookie_header, mint_browser_session, permissions_for_roles, plan_resolution,
+    sanitize_return_to,
 };
 pub use systemprompt_oauth_issuance::{
     register_auth_event_sink, register_role_resolver, register_sso_provider,

@@ -11,17 +11,24 @@ Each plane runs under one authority. The profile sets it under `config_planes.au
 ```yaml
 config_planes:
   authority:
-    access_control: db   # the console owns the rows; the file only seeds them
-    # every plane not listed is `file`
+    access_control: file   # managed in Git; the console cannot edit it
+    identity: file
+    # every plane not listed is `db`
 ```
 
-| Effective authority | When | What the reconciler does |
+| Effective authority | When | What the host does |
 |---|---|---|
-| `file` | The profile says `file` (the default) and the declaration file exists. | Overwrites any database drift back to the file, at boot and on every `config_reconcile` run (each minute). Console writers are refused. |
-| `db` | The profile says `db`. | Seeds the plane from its file while the projection is empty, with mode `seed_if_empty` and actor `seed`. After that, drift is only reported and never written. |
-| `undeclared` | The profile says `file` but the file is absent. | Never writes. A missing file never empties a table. |
+| `db` | The profile does not name the plane, or names it `db`, and the declaration file exists. | `config apply` merges the file three ways against the base the last apply recorded: what only the file changed is written, what only the console changed is kept and reported as drift, and what both changed is recorded as a conflict and left for an operator. Console writers are allowed. |
+| `file` | The profile names the plane `file` and the declaration file exists. | The plane is managed in Git. `config apply`, the scheduler node's boot and every `config_reconcile` run (each minute) overwrite the database with the file, deleting rows the file does not declare. Each write is audited with mode `overwrite`, and any open conflict on a written entity is resolved as `file`. Console writers are refused. |
+| `undeclared` | The declaration file is absent, whatever the profile says. | Never writes. A missing file never empties a table. |
 
-Two more rules protect live data. An empty declaration under `file` authority never deletes every row unattended; the reconciler fails that plane instead. An apply that does not leave the database equal to the declaration fails and is rolled back.
+An apply that does not leave the database equal to the declaration fails and is rolled back.
+
+### GitOps deployments
+
+With every plane the deployment manages from Git set to `file`, a post-sync job running `systemprompt admin config apply` converges without an operator: a `file` plane never leaves a conflict, so the command exits zero. The scheduler node applies the same planes at boot and re-applies them each minute, so a console or database edit is reverted within one `config_reconcile` run. The services tree is also watched on disk, so an updated ConfigMap reloads within one watch interval without a restart.
+
+The `identity` plane declares users (email, name, roles, status), service accounts (`kind: service`) and static OAuth clients in `services/identity/*.yaml`. A client's secret is named by its key in the secrets document, never written inline. Only rows a declaration created or adopted are managed, and removing a declaration deactivates the row instead of deleting it. API keys are not part of any plane.
 
 ## Ordering and effect
 
@@ -39,7 +46,7 @@ Each plane's read, apply and audit run in one database transaction. The host pas
 
 An extension that edits a plane's rows directly (an admin page or an API route) must hold a `PlaneWriter` for that plane. The only way to get one is `ConfigPlaneSet::writer(name)`, available as `ExtensionContext::config_planes()?.writer(name)?`. `PlaneWriter` has no public constructor, so a write path that takes `&PlaneWriter` cannot run without that check.
 
-`writer()` refuses a plane under effective `file` authority with `ConfigPlaneError::FileManaged`. Converted to an HTTP error, this becomes `409 Conflict` with error key `config_plane_file_managed`, because the reconciler would overwrite the edit on its next pass. An unknown plane is `404`. A plane under `db` or `undeclared` authority gets a writer.
+`writer()` refuses a plane under effective `file` authority with `ConfigPlaneError::FileManaged`. Converted to an HTTP error, this becomes `409 Conflict` with error key `config_plane_file_managed`, because the next apply would overwrite the edit. An unknown plane is `404`. A plane under `db` or `undeclared` authority gets a writer.
 
 ## Optional capabilities
 
@@ -64,12 +71,12 @@ systemprompt admin config planes apply --plane access_control --reason "OPS-123"
 
 ## Runbook: moving a plane from `db` to `file` authority
 
-Under `file` authority the declaration replaces whatever the console wrote. Rows that exist only in the database are deleted on the first pass. Capture them first:
+Under `file` authority the declaration replaces whatever the console wrote. Rows that exist only in the database are deleted on the first apply. Capture them first:
 
 1. Leave the plane at `db` authority and run `admin config planes export --plane <name> --out <declared path>` against the production database.
 2. Review the exported file, commit it to the services tree, and deploy the tree.
 3. Run `admin config planes diff --plane <name>` and confirm it reports no drift rows.
-4. Remove the plane's `db` entry from `config_planes.authority` (or set it to `file`) and roll out the profile.
-5. The next pass reports `in_sync`. Console writers for the plane now receive `409 config_plane_file_managed`.
+4. Set `config_planes.authority.<name>: file` and roll out the profile.
+5. The next apply reports `in_sync`. Console writers for the plane now receive `409 config_plane_file_managed`.
 
 A plane whose `export` is unsupported cannot be captured this way. Write its declaration by hand from `diff`, which lists every `extra` row the file would delete, and repeat step 3 until no drift remains.

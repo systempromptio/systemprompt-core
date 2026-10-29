@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.75.0] - 2026-10-28
+
+### Breaking
+
+- **Breaking:** `merge_plane` takes a fifth argument, `file_wins: bool`, and `PlaneMerge` gains `file_wins`. Migrate by passing `false` for the three-way merge.
+
+### Added
+
+- The report-only `licence_checkin` job for profiles with `licence.multi_tenant: true` (migration `007_licence_checkin_state`).
+- The `document_node_ids_backfill` job mints node ids for revisions written before ids existed, once per release.
+- `ConfigApplyService::apply_file_managed` runs at boot and on every `config_reconcile` run, and the `identity` config plane.
+
+### Changed
+
+- Every scheduled job runs documents work as the system actor.
+
 ## [0.74.0] - 2026-10-27
 
 ### Added

@@ -20,12 +20,13 @@ use systemprompt_models::documents::{DocumentUri, ProposalStatus};
 use systemprompt_models::execution::context::RequestContext;
 
 use super::DocumentsMcpTools;
-use super::acks::remember;
 use super::inputs::{ProposalAction, ProposalsInput};
-use super::outputs::{EditOutput, ProposalItem, ProposalsOutput, ReviewOutput};
-use super::refusal::{RefusalCode, refusal};
+use super::outputs::{ProposalItem, ProposalsOutput, ReviewOutput};
+use super::refusal::refusal;
 use super::support::{agent_author, caller, tool_error};
-use super::write::{EditCall, written};
+use super::write::EditCall;
+use crate::documents::refusal::RefusalCode;
+use crate::documents::views::{EditOutput, written_lines};
 
 pub(super) async fn propose_ops(call: EditCall<'_>) -> Result<(EditOutput, String), McpError> {
     let applied = call.ops.len();
@@ -46,7 +47,13 @@ pub(super) async fn propose_ops(call: EditCall<'_>) -> Result<(EditOutput, Strin
         .await
         .map_err(tool_error)?;
     let revision = proposed.revision;
-    let written = written(&call, revision.parent_revision_id.as_ref(), &revision.id).await?;
+    let view = call
+        .tools
+        .service()
+        .proposal_view(call.who, &proposed.proposal.id, call.ctx.trace_id())
+        .await
+        .map_err(tool_error)?;
+    let written = written_lines(Some(&view.base), &view.proposed);
     let summary = format!(
         "proposal {} (revision {}): {applied} ops, {} lines written; a reviewer accepts or \
          rejects it",
@@ -66,7 +73,6 @@ pub(super) async fn propose_ops(call: EditCall<'_>) -> Result<(EditOutput, Strin
         proposal_id: Some(proposed.proposal.id),
         written,
     };
-    remember(&call, &output).await;
     Ok((output, summary))
 }
 
@@ -195,7 +201,7 @@ impl McpToolHandler for ProposalsHandler<'_> {
     }
 
     fn description(&self) -> &'static str {
-        "List proposals, or accept or reject one."
+        "List, accept or reject proposals."
     }
 
     async fn handle(

@@ -155,6 +155,11 @@ lint-inline-tests:
 lint-layers:
     ./scripts/lint-layers.sh
 
+# Core ships no third-party frontend code (vendor dirs, package.json, .wasm,
+# external script URLs); see the script header.
+check-no-vendor:
+    ./scripts/check-no-vendor.sh
+
 # One EnforcementMode and one ServiceStatus vocabulary; copies fail
 lint-mode-enums:
     ./scripts/lint-mode-enums.sh
@@ -217,6 +222,13 @@ lint-repo-hygiene:
         exit 1
     fi
     echo "✓ no stray status/plan/report docs tracked"
+    build=$(git ls-files | grep -E '(^|/)target(-[^/]+)?/' || true)
+    if [ -n "$build" ]; then
+        echo "✗ cargo build output tracked ($(echo "$build" | wc -l) files):" >&2
+        echo "$build" | cut -d/ -f1-2 | sort -u | sed 's/^/    /' >&2
+        exit 1
+    fi
+    echo "✓ no cargo build output tracked"
 
 # Every source gate, then a workspace check
 check: check-gates
@@ -673,7 +685,7 @@ coverage:
     PROFDIR="$ROOT/coverage-report/profraw"
     TDIR="${COVERAGE_TARGET_DIR:-$ROOT/coverage-report/target}"
     : "${CARGO_BUILD_JOBS:=2}"
-    : "${CARGO_PROFILE_DEV_DEBUG:=line-tables-only}"
+    : "${CARGO_PROFILE_DEV_DEBUG:=0}"
     : "${CARGO_INCREMENTAL:=0}"
     export CARGO_BUILD_JOBS CARGO_PROFILE_DEV_DEBUG CARGO_INCREMENTAL
     rm -rf "$PROFDIR" "$ROOT/coverage-report/tests.profdata"

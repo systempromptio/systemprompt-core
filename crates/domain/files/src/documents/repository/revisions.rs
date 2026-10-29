@@ -1,5 +1,9 @@
 //! [`DocumentRevisionRepository`]: immutable revisions and the changes feed.
 //!
+//! History, the changes feed and counts list landed revisions only: a
+//! revision is landed once it has been the head (`landed_at`); a proposed
+//! revision, or one whose commit lost the head race, never is.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -12,31 +16,32 @@ use systemprompt_models::documents::EditOp;
 
 use super::Pools;
 use super::rows::{RepoResult, parse};
-use crate::documents::models::{DocumentRevision, ListCursor, NewRevision, RevisionAttribution};
+use crate::documents::models::{DocumentRevision, ListCursor, RevisionAttribution};
 
 #[derive(Debug, Clone)]
 pub struct DocumentRevisionRepository {
-    pools: Pools,
+    pub(super) pools: Pools,
 }
 
-struct RevisionRow {
-    id: DocumentRevisionId,
-    document_id: DocumentId,
-    parent_revision_id: Option<DocumentRevisionId>,
-    content_sha256: ContentHash,
-    author_user_id: UserId,
-    actor_kind: String,
-    origin_kind: String,
-    origin_id: Option<String>,
-    message: Option<String>,
+pub(super) struct RevisionRow {
+    pub(super) id: DocumentRevisionId,
+    pub(super) document_id: DocumentId,
+    pub(super) parent_revision_id: Option<DocumentRevisionId>,
+    pub(super) content_sha256: ContentHash,
+    pub(super) author_user_id: UserId,
+    pub(super) actor_kind: String,
+    pub(super) origin_kind: String,
+    pub(super) origin_id: Option<String>,
+    pub(super) message: Option<String>,
     // JSON: the JSONB edit_ops column, decoded into EditOp values on read.
-    edit_ops: Option<serde_json::Value>,
-    session_id: Option<SessionId>,
-    context_id: Option<ContextId>,
-    trace_id: Option<TraceId>,
-    task_id: Option<TaskId>,
-    on_behalf_of: Option<UserId>,
-    created_at: DateTime<Utc>,
+    pub(super) edit_ops: Option<serde_json::Value>,
+    pub(super) session_id: Option<SessionId>,
+    pub(super) context_id: Option<ContextId>,
+    pub(super) trace_id: Option<TraceId>,
+    pub(super) task_id: Option<TaskId>,
+    pub(super) on_behalf_of: Option<UserId>,
+    pub(super) created_at: DateTime<Utc>,
+    pub(super) landed_at: Option<DateTime<Utc>>,
 }
 
 impl TryFrom<RevisionRow> for DocumentRevision {
@@ -66,11 +71,12 @@ impl TryFrom<RevisionRow> for DocumentRevision {
                 on_behalf_of: row.on_behalf_of,
             },
             created_at: row.created_at,
+            landed_at: row.landed_at,
         })
     }
 }
 
-fn convert(rows: Vec<RevisionRow>) -> RepoResult<Vec<DocumentRevision>> {
+pub(super) fn convert(rows: Vec<RevisionRow>) -> RepoResult<Vec<DocumentRevision>> {
     rows.into_iter().map(DocumentRevision::try_from).collect()
 }
 
@@ -79,56 +85,6 @@ impl DocumentRevisionRepository {
         Self {
             pools: Pools::new(db),
         }
-    }
-
-    pub async fn insert(&self, request: NewRevision) -> RepoResult<DocumentRevision> {
-        let edit_ops = request
-            .edit_ops
-            .as_ref()
-            .map(serde_json::to_value)
-            .transpose()?;
-        let attribution = &request.attribution;
-        let row = sqlx::query_as!(
-            RevisionRow,
-            r#"INSERT INTO document_revisions
-                   (document_id, parent_revision_id, content_sha256, author_user_id,
-                    actor_kind, origin_kind, origin_id, message, edit_ops,
-                    session_id, context_id, trace_id, task_id, on_behalf_of)
-               VALUES ($1::text::uuid, $2::text::uuid, $3, $4, $5, $6, $7, $8, $9,
-                       $10, $11, $12, $13, $14)
-               RETURNING id::text AS "id!: DocumentRevisionId",
-                         document_id::text AS "document_id!: DocumentId",
-                         parent_revision_id::text AS "parent_revision_id: DocumentRevisionId",
-                         content_sha256 AS "content_sha256: ContentHash",
-                         author_user_id AS "author_user_id: UserId",
-                         actor_kind, origin_kind, origin_id, message, edit_ops,
-                         session_id AS "session_id: SessionId",
-                         context_id AS "context_id: ContextId",
-                         trace_id AS "trace_id: TraceId",
-                         task_id AS "task_id: TaskId",
-                         on_behalf_of AS "on_behalf_of: UserId",
-                         created_at"#,
-            request.document_id.as_str(),
-            request
-                .parent_revision_id
-                .as_ref()
-                .map(DocumentRevisionId::as_str),
-            request.content_sha256.as_str(),
-            request.author_user_id.as_str(),
-            request.actor_kind.as_str(),
-            request.origin_kind.as_str(),
-            request.origin_id,
-            request.message,
-            edit_ops,
-            attribution.session_id.as_ref().map(SessionId::as_str),
-            attribution.context_id.as_ref().map(ContextId::as_str),
-            attribution.trace_id.as_ref().map(TraceId::as_str),
-            attribution.task_id.as_ref().map(TaskId::as_str),
-            attribution.on_behalf_of.as_ref().map(UserId::as_str),
-        )
-        .fetch_one(&*self.pools.write)
-        .await?;
-        row.try_into()
     }
 
     pub async fn find(&self, id: &DocumentRevisionId) -> RepoResult<Option<DocumentRevision>> {
@@ -145,11 +101,11 @@ impl DocumentRevisionRepository {
                       trace_id AS "trace_id: TraceId",
                       task_id AS "task_id: TaskId",
                       on_behalf_of AS "on_behalf_of: UserId",
-                      created_at
+                      created_at, landed_at
                FROM document_revisions WHERE id = $1::text::uuid"#,
             id.as_str()
         )
-        .fetch_optional(&*self.pools.read)
+        .fetch_optional(&*self.pools.write)
         .await?
         .map(DocumentRevision::try_from)
         .transpose()
@@ -169,11 +125,11 @@ r#"SELECT id::text AS "id!: DocumentRevisionId",
                       trace_id AS "trace_id: TraceId",
                       task_id AS "task_id: TaskId",
                       on_behalf_of AS "on_behalf_of: UserId",
-                      created_at
+                      created_at, landed_at
                FROM document_revisions WHERE id = (SELECT head_revision_id FROM documents WHERE id = $1::text::uuid)"#,
             document_id.as_str()
         )
-        .fetch_optional(&*self.pools.read)
+        .fetch_optional(&*self.pools.write)
         .await?
         .map(DocumentRevision::try_from)
         .transpose()
@@ -198,8 +154,9 @@ r#"SELECT id::text AS "id!: DocumentRevisionId",
                       trace_id AS "trace_id: TraceId",
                       task_id AS "task_id: TaskId",
                       on_behalf_of AS "on_behalf_of: UserId",
-                      created_at
+                      created_at, landed_at
                FROM document_revisions WHERE document_id = $1::text::uuid
+               AND landed_at IS NOT NULL
                AND ($2::timestamptz IS NULL OR (created_at, id) < ($2, $3::uuid))
              ORDER BY created_at DESC, id DESC
              LIMIT $4"#,
@@ -219,8 +176,8 @@ r#"SELECT id::text AS "id!: DocumentRevisionId",
         limit: i64,
     ) -> RepoResult<Vec<DocumentRevision>> {
         let rows = sqlx::query_as!(
-RevisionRow,
-r#"SELECT id::text AS "id!: DocumentRevisionId",
+            RevisionRow,
+            r#"SELECT id::text AS "id!: DocumentRevisionId",
                       document_id::text AS "document_id!: DocumentId",
                       parent_revision_id::text AS "parent_revision_id: DocumentRevisionId",
                       content_sha256 AS "content_sha256: ContentHash",
@@ -231,8 +188,9 @@ r#"SELECT id::text AS "id!: DocumentRevisionId",
                       trace_id AS "trace_id: TraceId",
                       task_id AS "task_id: TaskId",
                       on_behalf_of AS "on_behalf_of: UserId",
-                      created_at
-               FROM document_revisions WHERE ($1::timestamptz IS NULL OR (created_at, id) > ($1, $2::uuid))
+                      created_at, landed_at
+               FROM document_revisions WHERE landed_at IS NOT NULL
+               AND ($1::timestamptz IS NULL OR (created_at, id) > ($1, $2::uuid))
              ORDER BY created_at, id
              LIMIT $3"#,
             cursor.map(|c| c.updated_at),
@@ -262,7 +220,7 @@ r#"SELECT id::text AS "id!: DocumentRevisionId",
                       trace_id AS "trace_id: TraceId",
                       task_id AS "task_id: TaskId",
                       on_behalf_of AS "on_behalf_of: UserId",
-                      created_at
+                      created_at, landed_at
                FROM document_revisions WHERE content_sha256 = $1
              ORDER BY created_at DESC, id DESC
              LIMIT $2"#,
@@ -276,7 +234,7 @@ r#"SELECT id::text AS "id!: DocumentRevisionId",
 
     pub async fn count(&self, document_id: &DocumentId) -> RepoResult<i64> {
         let count = sqlx::query_scalar!(
-            r#"SELECT COUNT(*) AS "count!" FROM document_revisions WHERE document_id = $1::text::uuid"#,
+            r#"SELECT COUNT(*) AS "count!" FROM document_revisions WHERE document_id = $1::text::uuid AND landed_at IS NOT NULL"#,
             document_id.as_str(),
         )
         .fetch_one(&*self.pools.read)

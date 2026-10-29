@@ -93,3 +93,19 @@ async fn every_named_safety_scanner_resolves() {
         assert!(registry.create(name, &safety).is_some(), "{name}");
     }
 }
+
+#[tokio::test]
+async fn registry_debug_lists_what_each_registry_dispatches() {
+    let upstreams = format!("{:?}", GatewayUpstreamRegistry::new());
+    assert!(upstreams.contains("GatewayUpstreamRegistry"), "{upstreams}");
+    assert!(upstreams.contains("anthropic"), "{upstreams}");
+
+    let scanners = format!(
+        "{:?}",
+        SafetyScannerRegistry::discover(&systemprompt_test_fixtures::fixture_extension_context(
+            &systemprompt_test_fixtures::test_db_pool().await,
+        ))
+    );
+    assert!(scanners.contains("heuristic"), "{scanners}");
+    assert!(scanners.contains("null"), "{scanners}");
+}

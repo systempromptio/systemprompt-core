@@ -39,7 +39,7 @@ pub enum ConfigPlaneError {
 
     #[error(
         "config plane '{plane}' is file-managed: {path} is the source of truth and `config \
-         apply` writes it to the database; change the file instead"
+         apply` writes it to the database; it is managed in Git, so change the file there"
     )]
     FileManaged { plane: String, path: String },
 

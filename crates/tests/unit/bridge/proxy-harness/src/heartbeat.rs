@@ -33,6 +33,7 @@ fn counting_cache(refresh_calls: Arc<AtomicU32>) -> Arc<TokenCache> {
                 token: BearerToken::new("heartbeat-bearer"),
                 ttl: 3600,
                 headers: std::collections::HashMap::new(),
+                device_token: None,
             })
         })
     })))
