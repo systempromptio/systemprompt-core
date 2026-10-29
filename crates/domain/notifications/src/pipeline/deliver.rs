@@ -1,27 +1,33 @@
-//! The delivery step, run on committed `pending` rows: hand each row to
-//! every channel that delivers its attention and has no `delivered` receipt
-//! for it yet, eight rows at a time, each channel call under the profile's
-//! channel timeout. A success writes a `delivered` receipt for its surface;
-//! a failure or timeout writes a `deliver:<surface>` failure row. Once every
-//! eligible channel of a row has one or the other, the row moves to
-//! `delivered`; a row whose outcome could not be recorded stays `pending`
-//! for the sweep.
+//! The delivery step, run on committed `pending` rows inside one
+//! transaction: lock the rows still `pending` with `SKIP LOCKED` (a row
+//! another pass holds is left to it), hand each row to every channel that
+//! delivers its attention and has neither a `delivered` receipt nor a
+//! permanent failure for it, eight rows at a time, each channel call under
+//! the profile's channel timeout, then write the pass's receipts, failures
+//! and closed rows on the same transaction. The [`Ledger`] decides which
+//! rows close; a row is marked `delivered` only at the `delivery_seq` it was
+//! locked at. A pass whose outcome cannot be written rolls back and leaves
+//! its rows `pending` for the sweep.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::Duration;
 
-use systemprompt_extension::notifications::{ChannelError, NotificationChannel};
+use sqlx::PgConnection;
+use systemprompt_extension::notifications::NotificationChannel;
 use systemprompt_identifiers::{NotificationId, UserId};
 use systemprompt_models::notifications::{Notification, ReceiptState};
-use tokio::task::JoinSet;
+use tokio::task::{JoinError, JoinSet};
 
-use super::{NotificationPipeline, metrics};
+use super::NotificationPipeline;
+use super::ledger::{Attempt, Ledger, LockedRow};
 use crate::error::NotificationsResult;
-use crate::repository::NotificationFailureRepository;
+use crate::repository::{
+    NotificationFailureRepository, NotificationReceiptRepository, NotificationRepository,
+};
 
 const CONCURRENCY: usize = 8;
 
@@ -32,15 +38,8 @@ pub struct DeliverOutcome {
     pub failed: u32,
 }
 
-enum Attempt {
-    Delivered,
-    Failed(ChannelError),
-    TimedOut,
-}
-
 struct RowResult {
     id: NotificationId,
-    recipient: UserId,
     attempts: Vec<(&'static str, Attempt)>,
 }
 
@@ -63,7 +62,6 @@ async fn deliver_row(
     }
     RowResult {
         id: notification.id,
-        recipient: notification.recipient,
         attempts,
     }
 }
@@ -71,7 +69,7 @@ async fn deliver_row(
 impl NotificationPipeline {
     #[tracing::instrument(skip_all, fields(count = ids.len()))]
     pub async fn deliver(&self, ids: &[NotificationId]) -> DeliverOutcome {
-        match self.try_deliver(ids).await {
+        match self.deliver_in_transaction(ids).await {
             Ok(outcome) => outcome,
             Err(error) => {
                 tracing::error!(error = %error, count = ids.len(), "Notification delivery could not be recorded");
@@ -83,35 +81,60 @@ impl NotificationPipeline {
         }
     }
 
-    async fn try_deliver(&self, ids: &[NotificationId]) -> NotificationsResult<DeliverOutcome> {
+    async fn deliver_in_transaction(
+        &self,
+        ids: &[NotificationId],
+    ) -> NotificationsResult<DeliverOutcome> {
         if ids.is_empty() {
             return Ok(DeliverOutcome::default());
         }
-        let repos = &self.parts.repos;
-        let rows = repos.notifications.find_pending(ids).await?;
-        let done = repos.receipts.delivered_surfaces(ids).await?;
+        let mut tx = self.parts.repos.write_pool().begin().await?;
+        let outcome = self.deliver_on(&mut tx, ids).await?;
+        tx.commit().await?;
+        Ok(outcome)
+    }
+
+    pub(super) async fn deliver_on(
+        &self,
+        conn: &mut PgConnection,
+        ids: &[NotificationId],
+    ) -> NotificationsResult<DeliverOutcome> {
+        if ids.is_empty() {
+            return Ok(DeliverOutcome::default());
+        }
+        let rows = NotificationRepository::lock_pending(&mut *conn, ids).await?;
+        if rows.is_empty() {
+            return Ok(DeliverOutcome::default());
+        }
+        let locked_ids: Vec<NotificationId> = rows.iter().map(|(n, _)| n.id.clone()).collect();
+        let done =
+            NotificationReceiptRepository::delivered_surfaces(&mut *conn, &locked_ids).await?;
+        let mut history =
+            NotificationFailureRepository::delivery_history(&mut *conn, &locked_ids).await?;
         let recipients: Vec<UserId> = rows
             .iter()
-            .map(|n| n.recipient.clone())
+            .map(|(n, _)| n.recipient.clone())
             .collect::<HashSet<_>>()
             .into_iter()
             .collect();
-        let unread: HashMap<UserId, i64> = repos
-            .notifications
-            .unread_counts(&recipients)
-            .await?
-            .into_iter()
-            .map(|(user, count, _)| (user, count))
-            .collect();
+        let unread: HashMap<UserId, i64> =
+            NotificationRepository::unread_counts_on(&mut *conn, &recipients)
+                .await?
+                .into_iter()
+                .map(|(user, count, _)| (user, count))
+                .collect();
         let timeout = Duration::from_millis(self.parts.profile.consumer.channel_timeout_ms);
         let mut set: JoinSet<RowResult> = JoinSet::new();
+        let mut owners: HashMap<tokio::task::Id, NotificationId> = HashMap::new();
+        let mut locked: HashMap<NotificationId, LockedRow> = HashMap::new();
         let mut results = Vec::with_capacity(rows.len());
-        for notification in rows {
+        for (notification, seq) in rows {
             while set.len() >= CONCURRENCY {
                 if let Some(joined) = set.join_next().await {
                     results.push(joined);
                 }
             }
+            let past = history.remove(&notification.id).unwrap_or_default();
             let delivered = done.get(&notification.id);
             let eligible: Vec<Arc<dyn NotificationChannel>> = self
                 .parts
@@ -119,70 +142,61 @@ impl NotificationPipeline {
                 .iter()
                 .filter(|c| c.delivers(notification.attention))
                 .filter(|c| !delivered.is_some_and(|s| s.contains(c.surface())))
+                .filter(|c| !past.permanent.contains(c.surface()))
                 .cloned()
                 .collect();
             let count = unread.get(&notification.recipient).copied().unwrap_or(0);
-            set.spawn(deliver_row(eligible, notification, count, timeout));
+            let id = notification.id.clone();
+            locked.insert(
+                id.clone(),
+                LockedRow {
+                    recipient: notification.recipient.clone(),
+                    seq,
+                    attempts: past.attempts,
+                },
+            );
+            let task = set.spawn(deliver_row(eligible, notification, count, timeout));
+            owners.insert(task.id(), id);
         }
         while let Some(joined) = set.join_next().await {
             results.push(joined);
         }
-        self.record(results).await
+        record(conn, results, &owners, &locked).await
     }
+}
 
-    async fn record(
-        &self,
-        results: Vec<Result<RowResult, tokio::task::JoinError>>,
-    ) -> NotificationsResult<DeliverOutcome> {
-        let repos = &self.parts.repos;
-        let mut outcome = DeliverOutcome::default();
-        let mut receipts: BTreeMap<&'static str, Vec<NotificationId>> = BTreeMap::new();
-        let mut failures: Vec<(Option<UserId>, String, String)> = Vec::new();
-        let mut finished = Vec::new();
-        for joined in results {
-            let row = match joined {
-                Ok(row) => row,
-                Err(error) => {
+async fn record(
+    conn: &mut PgConnection,
+    results: Vec<Result<RowResult, JoinError>>,
+    owners: &HashMap<tokio::task::Id, NotificationId>,
+    locked: &HashMap<NotificationId, LockedRow>,
+) -> NotificationsResult<DeliverOutcome> {
+    let mut ledger = Ledger::default();
+    for joined in results {
+        match joined {
+            Ok(result) => {
+                if let Some(row) = locked.get(&result.id) {
+                    ledger.row(&result.id, row, result.attempts);
+                }
+            },
+            Err(error) => {
+                let owned = owners
+                    .get(&error.id())
+                    .and_then(|id| locked.get(id).map(|row| (id, row)));
+                let Some((id, row)) = owned else {
                     tracing::error!(error = %error, "Notification delivery task failed");
                     continue;
-                },
-            };
-            for (surface, attempt) in row.attempts {
-                let reason = match attempt {
-                    Attempt::Delivered => {
-                        metrics::delivery(surface, "delivered");
-                        outcome.delivered += 1;
-                        receipts.entry(surface).or_default().push(row.id.clone());
-                        continue;
-                    },
-                    Attempt::Failed(error) => {
-                        tracing::warn!(notification_id = %row.id, surface, error = %error, "Notification channel delivery failed");
-                        metrics::delivery(surface, "failed");
-                        error.to_string()
-                    },
-                    Attempt::TimedOut => {
-                        tracing::warn!(notification_id = %row.id, surface, "Notification channel delivery timed out");
-                        metrics::delivery(surface, "timeout");
-                        "channel_timeout".to_owned()
-                    },
                 };
-                outcome.failed += 1;
-                failures.push((
-                    Some(row.recipient.clone()),
-                    format!("deliver:{surface}"),
-                    reason,
-                ));
-            }
-            finished.push(row.id);
+                tracing::error!(notification_id = %id, error = %error, "Notification delivery task failed");
+                ledger.task_failed(id, row, error.to_string());
+            },
         }
-        for (surface, ids) in receipts {
-            repos
-                .receipts
-                .record_detached(&ids, surface, ReceiptState::Delivered)
-                .await?;
-        }
-        NotificationFailureRepository::record_many(repos.write_pool(), None, &failures).await?;
-        repos.notifications.mark_delivered(&finished).await?;
-        Ok(outcome)
     }
+    for (surface, ids) in &ledger.receipts {
+        NotificationReceiptRepository::record(&mut *conn, ids, surface, ReceiptState::Delivered)
+            .await?;
+    }
+    NotificationFailureRepository::record_deliveries(&mut *conn, &ledger.failures).await?;
+    NotificationRepository::mark_delivered(&mut *conn, &ledger.finished).await?;
+    Ok(ledger.outcome)
 }

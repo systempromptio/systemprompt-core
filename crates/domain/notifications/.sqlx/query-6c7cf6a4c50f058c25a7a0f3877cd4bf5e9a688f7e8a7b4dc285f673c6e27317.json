@@ -1,0 +1,42 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT notification_id::text AS \"id!: NotificationId\", stage,\n                      COUNT(*) AS \"count!\"\n               FROM notification_delivery_failures\n               WHERE notification_id = ANY($1::text[]::uuid[]) AND stage LIKE 'deliver%'\n               GROUP BY notification_id, stage",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!: NotificationId",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "stage",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "notification_delivery_failures",
+            "name": "stage"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "TextArray"
+      ]
+    },
+    "nullable": [
+      null,
+      false,
+      null
+    ]
+  },
+  "hash": "6c7cf6a4c50f058c25a7a0f3877cd4bf5e9a688f7e8a7b4dc285f673c6e27317"
+}

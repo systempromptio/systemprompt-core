@@ -8,12 +8,15 @@
 //!
 //! The default publish policy admits a publisher the stream declares, as a
 //! user, or as a role or dimension the registered audience resolvers answer
-//! [`Membership::Member`] for; it never lists an audience's members.
+//! [`Membership::Member`] for; it never lists an audience's members. Each
+//! membership check runs under the resolver timeout, and a check that times
+//! out refuses the publish.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
+use std::time::Duration;
 
 use async_trait::async_trait;
 use systemprompt_extension::notifications::{
@@ -77,38 +80,49 @@ impl NotificationRouter for DefaultRouter {
 #[derive(Clone)]
 pub struct DefaultPublishPolicy {
     audiences: Vec<Arc<dyn NotificationAudienceResolver>>,
+    timeout: Duration,
 }
 
 impl std::fmt::Debug for DefaultPublishPolicy {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("DefaultPublishPolicy")
             .field("audiences", &self.audiences.len())
+            .field("timeout", &self.timeout)
             .finish()
     }
 }
 
 impl DefaultPublishPolicy {
     #[must_use]
-    pub const fn new(audiences: Vec<Arc<dyn NotificationAudienceResolver>>) -> Self {
-        Self { audiences }
+    pub const fn new(
+        audiences: Vec<Arc<dyn NotificationAudienceResolver>>,
+        timeout: Duration,
+    ) -> Self {
+        Self { audiences, timeout }
     }
 
     async fn is_member(
         &self,
         subject: &AudienceSubject,
         publisher: &UserId,
-    ) -> Result<bool, PublishPolicyError> {
+    ) -> Result<Option<bool>, PublishPolicyError> {
         let Some(resolver) = self.audiences.iter().find(|r| r.handles(subject)) else {
-            return Ok(false);
+            return Ok(Some(false));
         };
-        let membership = resolver
-            .is_member(subject, publisher)
-            .await
-            .map_err(|error| PublishPolicyError::Other {
-                policy: "stream-publishers",
-                source: Box::new(error),
-            })?;
-        Ok(membership == Membership::Member)
+        let Ok(answer) =
+            tokio::time::timeout(self.timeout, resolver.is_member(subject, publisher)).await
+        else {
+            tracing::warn!(
+                resolver = resolver.name(),
+                "Publisher membership check timed out"
+            );
+            return Ok(None);
+        };
+        let membership = answer.map_err(|error| PublishPolicyError::Other {
+            policy: "stream-publishers",
+            source: Box::new(error),
+        })?;
+        Ok(Some(membership == Membership::Member))
     }
 }
 
@@ -127,7 +141,14 @@ impl PublishPolicy for DefaultPublishPolicy {
             let admitted = match subject {
                 AudienceSubject::Everyone => true,
                 AudienceSubject::User(user) => user == publisher,
-                other => self.is_member(other, publisher).await?,
+                other => match self.is_member(other, publisher).await? {
+                    Some(member) => member,
+                    None => {
+                        return Ok(PublishVerdict::Refuse {
+                            reason: "publisher membership check timed out".to_owned(),
+                        });
+                    },
+                },
             };
             if admitted {
                 return Ok(PublishVerdict::Admit);

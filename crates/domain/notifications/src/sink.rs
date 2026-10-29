@@ -1,5 +1,6 @@
-//! [`OutboxNotificationSink`]: the production [`NotificationSink`], appending
-//! the event as a durable fact for the notifications consumer on the
+//! [`OutboxNotificationSink`]: the production [`NotificationSink`].
+//!
+//! It appends the event as a durable fact for the notifications consumer on the
 //! producer's own connection, so the event commits or rolls back with the
 //! change that caused it.
 //!

@@ -83,7 +83,7 @@ impl NotificationReceiptRepository {
     }
 
     pub async fn delivered_surfaces(
-        &self,
+        executor: impl PgExecutor<'_>,
         ids: &[NotificationId],
     ) -> Result<HashMap<NotificationId, HashSet<String>>, RepositoryError> {
         let ids: Vec<String> = ids.iter().map(|id| id.as_str().to_owned()).collect();
@@ -94,7 +94,7 @@ impl NotificationReceiptRepository {
             &ids,
             ReceiptState::Delivered.as_str(),
         )
-        .fetch_all(&*self.pools.write)
+        .fetch_all(executor)
         .await?;
         let mut out: HashMap<NotificationId, HashSet<String>> = HashMap::new();
         for row in rows {

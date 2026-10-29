@@ -1,13 +1,14 @@
 //! Notification seams: the outbox sink, routers, audience resolvers, publish
 //! policies, resource visibility and delivery channels.
 //!
-//! Producers emit through the injected [`NotificationSink`] inside their own
+//! Producers emit through the injected `NotificationSink` inside their own
 //! transaction. Extensions contribute the other five seams with the
 //! `register_notification_*!`/`register_resource_visibility!` macros; each
 //! registration carries a `priority` and a factory over the
-//! [`ExtensionContext`], and the matching `discover_*` function returns them
-//! sorted by ascending priority. Every trait is held as `Arc<dyn _>`, so each
-//! uses `#[async_trait]`; native `async fn` in traits is not `dyn`-compatible.
+//! [`crate::ExtensionContext`], and the matching `discover_*` function returns
+//! them sorted by ascending priority. Every trait is held as `Arc<dyn _>`, so
+//! each uses `#[async_trait]`; native `async fn` in traits is not
+//! `dyn`-compatible.
 //!
 //! Audience resolvers also answer [`NotificationAudienceResolver::is_member`]
 //! with a [`Membership`] so a subscription can be checked against its

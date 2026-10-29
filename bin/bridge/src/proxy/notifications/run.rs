@@ -225,9 +225,9 @@ impl Inbox {
                 return Err(error);
             },
         };
-        let body = MarkSeen { ids };
-        if let Err(error) = client.mark_notifications_seen(&bearer, &body).await {
-            self.handle.release_seen(&body.ids);
+        let claimed = MarkSeen { ids };
+        if let Err(error) = client.mark_notifications_seen(&bearer, &claimed).await {
+            self.handle.release_seen(&claimed.ids);
             return Err(error.into());
         }
         Ok(())

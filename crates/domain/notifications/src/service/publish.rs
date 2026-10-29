@@ -81,7 +81,7 @@ impl NotificationsService {
             event = event.with_sender_attention(attention);
         }
         let mut tx = self.db.write_pool().begin().await?;
-        self.sink.emit(&mut *tx, &event).await?;
+        self.sink.emit(&mut tx, &event).await?;
         tx.commit().await?;
         Ok(PublishOutcome { enqueued: true })
     }

@@ -24,7 +24,9 @@ CREATE TABLE IF NOT EXISTS notifications (
     held_until TIMESTAMPTZ,
     outbox_id TEXT NOT NULL,
     delivery_state TEXT NOT NULL DEFAULT 'pending'
-        CHECK (delivery_state IN ('pending', 'delivered', 'held'))
+        CHECK (delivery_state IN ('pending', 'delivered', 'held')),
+    delivery_seq BIGINT NOT NULL DEFAULT 0,
+    pending_since TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE INDEX IF NOT EXISTS idx_notifications_unread
@@ -37,7 +39,9 @@ CREATE INDEX IF NOT EXISTS idx_notifications_read_at
     ON notifications (read_at) WHERE read_at IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_notifications_held
     ON notifications (held_until) WHERE delivery_state = 'held';
-CREATE INDEX IF NOT EXISTS idx_notifications_delivery_pending
-    ON notifications (created_at) WHERE delivery_state IN ('pending', 'held');
+CREATE INDEX IF NOT EXISTS idx_notifications_pending_since
+    ON notifications (pending_since) WHERE delivery_state IN ('pending', 'held');
+CREATE INDEX IF NOT EXISTS idx_notifications_unread_age
+    ON notifications (created_at) WHERE read_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_notifications_stream_created
     ON notifications (stream_id, created_at) WHERE stream_id IS NOT NULL;

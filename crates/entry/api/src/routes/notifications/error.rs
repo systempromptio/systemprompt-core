@@ -2,9 +2,10 @@
 //! an unknown notification, subscription or stream is 404, a refused
 //! publish or a subscription outside the stream audience 403, an escalation
 //! of an item already at or above `human`, a write to a configuration-declared
-//! row or a storage conflict 409, and an invalid declaration, kind or argument
-//! 400, each with its `error_key`. Every other failure is the fixed 5xx body
-//! with its cause logged.
+//! row or a storage conflict 409, a resource subscription to a kind no
+//! visibility provider handles 422, and an invalid declaration, kind or
+//! argument 400, each with its `error_key`. Every other failure is the fixed
+//! 5xx body with its cause logged.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -32,6 +33,10 @@ impl From<NotificationsError> for ApiHttpError {
             },
             NotificationsError::DeclaredByConfig { .. } => {
                 ApiError::conflict(error.to_string()).with_error_key("declared_by_config")
+            },
+            NotificationsError::UnknownResourceKind { .. } => {
+                ApiError::validation_error(error.to_string(), Vec::new())
+                    .with_error_key("unknown_resource_kind")
             },
             NotificationsError::PublishRefused { .. } => {
                 ApiError::forbidden(error.to_string()).with_error_key("publish_refused")

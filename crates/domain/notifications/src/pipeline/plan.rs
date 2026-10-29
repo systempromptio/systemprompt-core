@@ -5,10 +5,10 @@
 //! [`decide`] turns one planned recipient into a delivery or a withholding
 //! without touching the database, in a fixed policy order: the routed
 //! attention (core default, sender, extension routers), the stream floor and
-//! ceiling, the recipient's rules, the subscription ceiling, then quiet
-//! hours. `attention_reason` names the stream band or rule that changed the
-//! attention last; a subscription ceiling or quiet hours lowers the
-//! attention and keeps the reason it had.
+//! ceiling, the recipient's rules, the stream ceiling again (a rule never
+//! lifts an item above its stream's ceiling), the subscription ceiling, then
+//! quiet hours. `attention_reason` names the step that changed the attention
+//! last: a stream band, a rule, the subscription ceiling or quiet hours.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -63,7 +63,7 @@ pub(crate) async fn plan(
     ctx: &mut BatchContext,
     event: &NotificationEvent,
 ) -> NotificationsResult<Plan> {
-    let (mut routed, mut failures) = route::route(routers, event).await;
+    let (mut routed, mut failures) = route::route(routers, event, members.timeout).await?;
     let audience = expand_audience(&mut *conn, ctx, members, event, &mut routed).await?;
     failures.extend(audience.failures);
     routed.recipients.retain(|d| d.user != event.actor);
@@ -148,25 +148,34 @@ pub(crate) fn decide(
         now,
     };
     let outcome = RuleEvaluator::evaluate(&rules, &ctx, attention);
-    let Some(mut attention) = outcome.attention else {
+    let Some(attention) = outcome.attention else {
         return Decision::Muted {
             matched: outcome.matched,
         };
     };
-    let mut reason = outcome.changed_by.map_or(reason, AttentionReason::Rule);
+    let reason = outcome.changed_by.map_or(reason, AttentionReason::Rule);
+    let stream_ceiling = plan.stream.as_ref().and_then(|stream| {
+        stream
+            .attention
+            .ceiling
+            .map(|ceiling| (ceiling, AttentionReason::StreamCeiling(stream.id.clone())))
+    });
+    let (attention, reason) = capped(attention, reason, stream_ceiling);
     let constraint = plan.constraints.get(user);
-    if let Some(ceiling) = constraint.and_then(|c| c.ceiling)
-        && attention > ceiling
-    {
-        attention = ceiling;
-        reason = AttentionReason::SubscriptionCeiling;
-    }
+    let (attention, reason) = capped(
+        attention,
+        reason,
+        constraint
+            .and_then(|c| c.ceiling)
+            .map(|ceiling| (ceiling, AttentionReason::SubscriptionCeiling)),
+    );
     let quiet =
         outcome.quiet || constraint.is_some_and(|c| c.quiet.iter().any(|q| in_quiet_hours(q, now)));
-    if quiet && attention > Attention::Agent {
-        attention = Attention::Agent;
-        reason = AttentionReason::QuietHours;
-    }
+    let (attention, reason) = capped(
+        attention,
+        reason,
+        quiet.then_some((Attention::Agent, AttentionReason::QuietHours)),
+    );
     Decision::Deliver {
         attention,
         reason,
@@ -175,5 +184,16 @@ pub(crate) fn decide(
             .coalesce_window_secs
             .or_else(|| plan.stream.as_ref().and_then(|s| s.coalesce_window_secs)),
         digest: outcome.digest.or_else(|| constraint.and_then(|c| c.digest)),
+    }
+}
+
+fn capped(
+    attention: Attention,
+    reason: AttentionReason,
+    ceiling: Option<(Attention, AttentionReason)>,
+) -> (Attention, AttentionReason) {
+    match ceiling {
+        Some((ceiling, cause)) if attention > ceiling => (ceiling, cause),
+        _ => (attention, reason),
     }
 }

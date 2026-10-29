@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id::text AS \"id!: NotificationId\" FROM notifications\n               WHERE delivery_state = $3 AND created_at < $1\n               ORDER BY created_at LIMIT $2",
+  "query": "SELECT id::text AS \"id!: NotificationId\" FROM notifications\n               WHERE delivery_state = $3 AND pending_since < $1\n               ORDER BY pending_since LIMIT $2\n               FOR NO KEY UPDATE SKIP LOCKED",
   "describe": {
     "columns": [
       {
@@ -21,5 +21,5 @@
       null
     ]
   },
-  "hash": "a8ea55a65c238e2c3de51049465c027e91d9bfc36f83d2e2f03fd1ce1613466e"
+  "hash": "1bb10253d8ba63ff8f70b41512184de72b5bdb4f6d0f2a7b7982b8c03368980d"
 }

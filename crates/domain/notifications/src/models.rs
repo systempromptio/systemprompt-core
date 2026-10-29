@@ -109,8 +109,9 @@ pub(crate) fn to_i32(
 ) -> Result<Option<i32>, RepositoryError> {
     value
         .map(|v| {
-            i32::try_from(v)
-                .map_err(|_| RepositoryError::invalid_argument(field, "exceeds the INT range"))
+            i32::try_from(v).map_err(|_overflow| {
+                RepositoryError::invalid_argument(field, "exceeds the INT range")
+            })
         })
         .transpose()
 }
@@ -138,6 +139,7 @@ pub(crate) struct NotificationRow {
     pub(crate) escalation_note: Option<String>,
     pub(crate) held_until: Option<DateTime<Utc>>,
     pub(crate) delivery_state: String,
+    pub(crate) delivery_seq: i64,
 }
 
 impl TryFrom<NotificationRow> for Notification {

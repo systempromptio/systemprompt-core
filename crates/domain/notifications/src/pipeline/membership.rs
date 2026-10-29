@@ -42,7 +42,7 @@ impl Members<'_> {
         let asked = self.limit.saturating_add(1);
         let members = tokio::time::timeout(self.timeout, resolver.members(subject, asked))
             .await
-            .map_err(|_| Withheld::Timeout)?
+            .map_err(|_elapsed| Withheld::Timeout)?
             .map_err(|error| match error {
                 NotificationAudienceError::TooLarge { .. } => {
                     Withheld::OverLimit { limit: self.limit }
@@ -72,7 +72,7 @@ impl Members<'_> {
         };
         tokio::time::timeout(self.timeout, resolver.is_member(subject, user))
             .await
-            .map_err(|_| Withheld::Timeout)?
+            .map_err(|_elapsed| Withheld::Timeout)?
             .map_err(|error| Withheld::Resolver(Arc::new(error)))
     }
 

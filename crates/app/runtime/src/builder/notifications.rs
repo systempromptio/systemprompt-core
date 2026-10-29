@@ -12,6 +12,7 @@
 
 use std::fmt;
 use std::sync::Arc;
+use std::time::Duration;
 
 use sqlx::PgPool;
 use systemprompt_database::DbPool;
@@ -143,7 +144,10 @@ impl NotificationsCore {
             Arc::clone(self.documents.repositories()),
         )));
         channels.push(Arc::new(AguiChannel::new(Arc::clone(&self.router))));
-        publish_policies.push(Arc::new(DefaultPublishPolicy::new(audiences.clone())));
+        publish_policies.push(Arc::new(DefaultPublishPolicy::new(
+            audiences.clone(),
+            Duration::from_millis(self.profile.consumer.resolver_timeout_ms),
+        )));
         let pipeline = Arc::new(NotificationPipeline::new(PipelineParts {
             routers,
             audiences,

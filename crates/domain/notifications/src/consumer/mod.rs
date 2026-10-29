@@ -4,20 +4,25 @@
 //! Each round claims up to one profile batch of facts, one at a time, each
 //! on its own transaction: the fact is processed inside a savepoint and the
 //! outbox row is acknowledged in the same transaction, so one large fact
-//! never holds the others and a crash rolls back only the fact in hand. A
-//! fact that fails, or whose version this build does not read, is rolled
-//! back to its savepoint, recorded as a failure and acknowledged, so one bad
-//! fact never blocks the queue. Rows a committed fact left `pending` are
-//! delivered right after the commit. The round shares one
-//! [`BatchContext`](crate::pipeline::BatchContext).
+//! never holds the others and a crash rolls back only the fact in hand.
+//!
+//! A fact that cannot succeed (it does not decode, or its version is one this
+//! build does not read) is recorded as a `decode` failure and acknowledged.
+//! A fact that fails for a reason that may pass (storage, a seam call, a
+//! router timeout) is rolled back unacknowledged, recorded as a `process`
+//! failure and retried from the next round after the poll interval; its
+//! [`MAX_FACT_ATTEMPTS`]th failure is recorded as `fact_abandoned` and
+//! acknowledged, so one bad fact never blocks the queue. Rows a committed
+//! fact left `pending` are delivered right after the commit. The round shares
+//! one [`BatchContext`](crate::pipeline::BatchContext).
 //!
 //! When nothing is pending it listens on
 //! [`NOTIFICATION_FACTS_CHANNEL`](systemprompt_events::NOTIFICATION_FACTS_CHANNEL)
 //! on the listener pool, with the poll interval as a backstop because a
 //! notification can be lost on reconnect; a listener error reconnects with
 //! backoff and never ends the runner. Every `sweep_secs` the consumer runs
-//! [`NotificationPipeline::sweep`] under a Postgres advisory lock, so one
-//! replica sweeps at a time.
+//! [`NotificationPipeline::sweep`], which holds a transaction-scoped
+//! advisory lock, so one replica sweeps at a time.
 //!
 //! The runtime builder constructs and starts it, because it owns the seams
 //! the pipeline is assembled from.
@@ -28,6 +33,8 @@
 mod drain;
 mod wake;
 
+pub use drain::MAX_FACT_ATTEMPTS;
+
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::time::{Duration, Instant};
@@ -35,7 +42,7 @@ use std::time::{Duration, Instant};
 use async_trait::async_trait;
 use chrono::Utc;
 use serde::Serialize;
-use sqlx::{Connection, PgPool};
+use sqlx::PgPool;
 use systemprompt_events::services::durable::OutboxConsumer;
 use systemprompt_manifest::profile::ConsumerProfile;
 use systemprompt_traits::{JobContext, RunnerService};
@@ -44,7 +51,6 @@ use tokio_util::sync::CancellationToken;
 use self::wake::Wake;
 use crate::error::NotificationsResult;
 use crate::pipeline::{NotificationPipeline, metrics};
-use crate::repository::NotificationRepository;
 
 /// What the consumer is doing right now.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -140,22 +146,7 @@ impl NotificationsConsumer {
         usize::try_from(self.settings.batch.max(1)).unwrap_or(usize::MAX)
     }
 
-    async fn sweep_locked(&self) {
-        let mut conn = match self.pool.acquire().await {
-            Ok(conn) => conn,
-            Err(error) => {
-                tracing::error!(error = %error, "Notification sweep could not acquire a connection");
-                return;
-            },
-        };
-        match NotificationRepository::try_sweep_lock(&mut conn).await {
-            Ok(true) => {},
-            Ok(false) => return,
-            Err(error) => {
-                tracing::error!(error = %error, "Notification sweep lock could not be taken");
-                return;
-            },
-        }
+    async fn sweep(&self) {
         match self.pipeline.sweep(Utc::now()).await {
             Ok(outcome) if outcome.delivered + outcome.failed > 0 => tracing::debug!(
                 delivered = outcome.delivered,
@@ -164,12 +155,6 @@ impl NotificationsConsumer {
             ),
             Ok(_) => {},
             Err(error) => tracing::error!(error = %error, "Notification sweep failed"),
-        }
-        if let Err(error) = NotificationRepository::release_sweep_lock(&mut conn).await {
-            tracing::warn!(error = %error, "Notification sweep lock release failed; closing its session");
-            if let Err(error) = conn.detach().close().await {
-                tracing::warn!(error = %error, "Notification sweep session close failed");
-            }
         }
     }
 
@@ -201,7 +186,7 @@ impl RunnerService for NotificationsConsumer {
                 },
             };
             if Instant::now() >= next_sweep {
-                self.sweep_locked().await;
+                self.sweep().await;
                 self.report_backlog().await;
                 next_sweep = Instant::now() + sweep_every;
             }

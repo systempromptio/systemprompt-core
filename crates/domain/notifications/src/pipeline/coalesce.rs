@@ -1,10 +1,11 @@
 //! Coalesce keys: `<kind>:<stream>:<primary kind>:<primary
-//! id>:<actor>:<bucket>` (`-` for an absent stream or subject), where the
-//! bucket is the event time divided by the coalescing window. Two actors never
-//! share a key, so a fold never mixes whose event the row announces. Without a
-//! window the bucket is the outbox id, so every event keeps its own row.
-//! A digest holds a row until the end of the digest window its event falls
-//! in.
+//! id>:<actor>:<bucket>`.
+//!
+//! `-` stands for an absent stream or subject, and the bucket is the event
+//! time divided by the coalescing window. Two actors never share a key, so a
+//! fold never mixes whose event the row announces. Without a window the bucket
+//! is the outbox id, so every event keeps its own row. A digest holds a row
+//! until the end of the digest window its event falls in.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

@@ -1,8 +1,9 @@
-//! The `notifications` config plane: `services/notifications/streams.yaml`,
-//! `rules.yaml` and `subscriptions.yaml`, merged into one
-//! [`NotificationsDoc`] and projected into `notification_streams`, the
-//! ownerless `notification_rules` and the `code:`-sourced
-//! `notification_subscriptions`.
+//! The `notifications` config plane.
+//!
+//! `services/notifications/streams.yaml`, `rules.yaml` and
+//! `subscriptions.yaml` are merged into one [`NotificationsDoc`] and projected
+//! into `notification_streams`, the ownerless `notification_rules` and the
+//! `code:`-sourced `notification_subscriptions`.
 //!
 //! Entities are keyed `stream/<id>`, `rule/<id>` and
 //! `subscription/<subject>|stream:<id>` or

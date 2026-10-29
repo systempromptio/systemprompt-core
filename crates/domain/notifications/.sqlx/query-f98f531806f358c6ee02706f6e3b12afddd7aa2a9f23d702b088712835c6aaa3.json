@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT COUNT(*) AS \"pending!\",\n                      EXTRACT(EPOCH FROM now() - MIN(created_at))::BIGINT AS oldest\n               FROM notifications WHERE delivery_state = $1",
+  "query": "SELECT COUNT(*) AS \"pending!\",\n                      EXTRACT(EPOCH FROM now() - MIN(pending_since))::BIGINT AS oldest\n               FROM notifications WHERE delivery_state = $1",
   "describe": {
     "columns": [
       {
@@ -26,5 +26,5 @@
       null
     ]
   },
-  "hash": "68f3297c5e6ad61fc51e11a2de13f83988a30e0bdc88974cdab2995814ea6a69"
+  "hash": "f98f531806f358c6ee02706f6e3b12afddd7aa2a9f23d702b088712835c6aaa3"
 }

@@ -26,12 +26,16 @@ use std::sync::Arc;
 use sqlx::PgPool;
 use systemprompt_database::DbPool;
 
-pub use failures::{NewFailure, NotificationFailureRepository};
+pub use failures::{
+    DELIVER_RETRY_STAGE, DELIVER_STAGE, DeliveryFailure, DeliveryHistory, NewFailure,
+    NotificationFailureRepository,
+};
 pub use notifications::NotificationRepository;
 pub use receipts::NotificationReceiptRepository;
 pub use rules::NotificationRuleRepository;
 pub use streams::NotificationStreamRepository;
 pub use subscriptions::NotificationSubscriptionRepository;
+pub use sweep::SWEEP_LOCK_KEY;
 pub use unread::UNREAD_CAP;
 
 /// Every notifications repository, constructed together from one pool.

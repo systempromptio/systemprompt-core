@@ -33,8 +33,13 @@ impl NotificationPipeline {
             .iter()
             .map(|(user, _)| (user.clone(), plan.in_audience.contains(user)))
             .collect();
-        let verdicts =
-            visibility::check_many(&self.parts.visibilities, &event.subjects, &readers).await;
+        let verdicts = visibility::check_many(
+            &self.parts.visibilities,
+            &event.subjects,
+            &readers,
+            self.members().timeout,
+        )
+        .await;
         let decisions = plan
             .routed
             .recipients

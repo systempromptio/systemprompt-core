@@ -1,5 +1,6 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::time::Duration;
 
 use async_trait::async_trait;
 use systemprompt_extension::notifications::{
@@ -14,6 +15,8 @@ use systemprompt_models::notifications::{
 use systemprompt_notifications::defaults::{DefaultPublishPolicy, DefaultRouter};
 
 use crate::fixtures::{event, stream, stream_id};
+
+const TIMEOUT: Duration = Duration::from_secs(5);
 
 fn user(id: &str) -> UserId {
     UserId::new(id)
@@ -153,13 +156,16 @@ impl NotificationAudienceResolver for Roles {
 }
 
 fn policy(fail: bool) -> DefaultPublishPolicy {
-    DefaultPublishPolicy::new(vec![Arc::new(Roles {
-        members: vec![(
-            AudienceSubject::Role("leads".to_owned()),
-            vec![user("lead")],
-        )],
-        fail,
-    })])
+    DefaultPublishPolicy::new(
+        vec![Arc::new(Roles {
+            members: vec![(
+                AudienceSubject::Role("leads".to_owned()),
+                vec![user("lead")],
+            )],
+            fail,
+        })],
+        TIMEOUT,
+    )
 }
 
 fn publishers(subjects: Vec<AudienceSubject>) -> systemprompt_models::notifications::StreamDecl {
@@ -278,9 +284,10 @@ impl NotificationAudienceResolver for MembershipOnly {
 #[tokio::test]
 async fn a_publisher_outside_a_role_is_refused_by_membership_without_listing_the_role() {
     let resolver = Arc::new(MembershipOnly::default());
-    let policy = DefaultPublishPolicy::new(vec![
-        Arc::clone(&resolver) as Arc<dyn NotificationAudienceResolver>
-    ]);
+    let policy = DefaultPublishPolicy::new(
+        vec![Arc::clone(&resolver) as Arc<dyn NotificationAudienceResolver>],
+        TIMEOUT,
+    );
     let decl = publishers(vec![AudienceSubject::Role("everyone-at-scale".to_owned())]);
 
     assert!(matches!(
@@ -336,7 +343,7 @@ async fn an_unknown_membership_never_admits_a_publisher() {
         }
     }
 
-    let policy = DefaultPublishPolicy::new(vec![Arc::new(Unsure)]);
+    let policy = DefaultPublishPolicy::new(vec![Arc::new(Unsure)], TIMEOUT);
     let decl = publishers(vec![AudienceSubject::Role("leads".to_owned())]);
     assert!(matches!(
         policy
@@ -345,4 +352,51 @@ async fn an_unknown_membership_never_admits_a_publisher() {
             .expect("verdict"),
         PublishVerdict::Refuse { .. }
     ));
+}
+
+#[tokio::test]
+async fn a_membership_check_that_times_out_refuses_the_publish() {
+    struct Stalled;
+
+    #[async_trait]
+    impl NotificationAudienceResolver for Stalled {
+        fn name(&self) -> &'static str {
+            "test-stalled"
+        }
+
+        fn handles(&self, _subject: &AudienceSubject) -> bool {
+            true
+        }
+
+        async fn members(
+            &self,
+            _subject: &AudienceSubject,
+            _limit: usize,
+        ) -> Result<Vec<UserId>, NotificationAudienceError> {
+            Ok(vec![user("lead")])
+        }
+
+        async fn is_member(
+            &self,
+            _subject: &AudienceSubject,
+            _user: &UserId,
+        ) -> Result<Membership, NotificationAudienceError> {
+            tokio::time::sleep(Duration::from_secs(30)).await;
+            Ok(Membership::Member)
+        }
+    }
+
+    let policy = DefaultPublishPolicy::new(vec![Arc::new(Stalled)], Duration::from_millis(50));
+    let decl = publishers(vec![AudienceSubject::Role("leads".to_owned())]);
+    let verdict = tokio::time::timeout(
+        Duration::from_secs(5),
+        policy.may_publish(&user("lead"), &decl),
+    )
+    .await
+    .expect("the policy answers within its timeout")
+    .expect("verdict");
+    assert!(
+        matches!(verdict, PublishVerdict::Refuse { .. }),
+        "{verdict:?}"
+    );
 }

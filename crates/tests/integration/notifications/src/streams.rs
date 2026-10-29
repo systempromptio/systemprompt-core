@@ -1,7 +1,7 @@
 use systemprompt_identifiers::NotificationStreamId;
 use systemprompt_models::notifications::{
-    Attention, AttentionReason, AudienceSubject, StreamAttention, StreamDecl, SubscriptionDecl,
-    SubscriptionTarget,
+    Attention, AttentionReason, AudienceSubject, RuleAction, RuleMatch, StreamAttention,
+    StreamDecl, SubscriptionDecl, SubscriptionTarget,
 };
 use systemprompt_notifications::NotificationsError;
 use systemprompt_notifications::repository::{
@@ -140,6 +140,47 @@ async fn publishing_to_an_undeclared_stream_is_not_found() {
     assert!(
         matches!(error, NotificationsError::StreamNotFound { .. }),
         "{error:?}"
+    );
+    h.finish().await;
+}
+
+#[tokio::test]
+async fn a_rule_never_lifts_a_stream_item_above_the_stream_ceiling() {
+    let h = Harness::new("notif_stream_ceiling_rule").await;
+    let lead = h.user("lead", &["sales_lead"]).await;
+    let member = h.user("member", &["sales"]).await;
+    let stream = declare(
+        &h,
+        StreamAttention {
+            default: Attention::Silent,
+            floor: None,
+            ceiling: Some(Attention::Agent),
+        },
+    )
+    .await;
+    h.declare_rule(
+        RuleMatch {
+            streams: vec![stream.clone()],
+            ..RuleMatch::default()
+        },
+        RuleAction {
+            set: Some(Attention::Human),
+            ..RuleAction::default()
+        },
+    )
+    .await;
+
+    h.service
+        .publish(&lead, &stream, announcement())
+        .await
+        .expect("publish");
+    h.drain().await;
+
+    let rows = h.rows_for(&member).await;
+    assert_eq!(rows[0].attention, Attention::Agent);
+    assert_eq!(
+        rows[0].attention_reason,
+        AttentionReason::StreamCeiling(stream)
     );
     h.finish().await;
 }

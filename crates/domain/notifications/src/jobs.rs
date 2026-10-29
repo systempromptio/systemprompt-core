@@ -121,7 +121,7 @@ impl Job for NotificationRetentionJob {
         let started = Instant::now();
         let profile = ctx.get::<Arc<NotificationsProfile>>()?;
         let repos = NotificationRepositories::new(ctx.get::<DbPool>()?);
-        let purged = Self::purge(&repos, &profile)
+        let purged = Self::purge(&repos, profile)
             .await
             .map_err(|e| ProviderError::Internal(Box::new(e)))?;
         if purged > 0 {

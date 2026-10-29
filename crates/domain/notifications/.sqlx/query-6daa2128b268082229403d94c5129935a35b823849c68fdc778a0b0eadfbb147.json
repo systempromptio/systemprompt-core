@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT n.id::text AS \"id!: NotificationId\",\n                      n.recipient_user_id AS \"recipient_user_id: UserId\", n.kind,\n                      n.stream_id AS \"stream_id: NotificationStreamId\",\n                      n.actor_user_id AS \"actor_user_id: UserId\", u.display_name AS actor_display,\n                      n.actor_is_agent, n.via_agent,\n                      n.subjects AS \"subjects: Json<Vec<SubjectRef>>\", n.attention,\n                      n.attention_reason, n.action AS \"action: Json<ActionPrompt>\", n.excerpt,\n                      n.coalesce_count, n.first_event_at, n.last_event_at, n.created_at,\n                      n.read_at, n.escalated_from, n.escalation_note, n.held_until,\n                      n.delivery_state\n               FROM notifications n LEFT JOIN users u ON u.id = n.actor_user_id\n               WHERE n.recipient_user_id = $1 AND n.id = ANY($2::text[]::uuid[])\n               ORDER BY n.created_at DESC, n.id DESC",
+  "query": "SELECT n.id::text AS \"id!: NotificationId\",\n                      n.recipient_user_id AS \"recipient_user_id: UserId\", n.kind,\n                      n.stream_id AS \"stream_id: NotificationStreamId\",\n                      n.actor_user_id AS \"actor_user_id: UserId\", u.display_name AS actor_display,\n                      n.actor_is_agent, n.via_agent,\n                      n.subjects AS \"subjects: Json<Vec<SubjectRef>>\", n.attention,\n                      n.attention_reason, n.action AS \"action: Json<ActionPrompt>\", n.excerpt,\n                      n.coalesce_count, n.first_event_at, n.last_event_at, n.created_at,\n                      n.read_at, n.escalated_from, n.escalation_note, n.held_until,\n                      n.delivery_state, n.delivery_seq\n               FROM notifications n LEFT JOIN users u ON u.id = n.actor_user_id\n               WHERE n.recipient_user_id = $1 AND n.id = ANY($2::text[]::uuid[])\n               ORDER BY n.created_at DESC, n.id DESC",
   "describe": {
     "columns": [
       {
@@ -239,6 +239,17 @@
             "name": "delivery_state"
           }
         }
+      },
+      {
+        "ordinal": 22,
+        "name": "delivery_seq",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "notifications",
+            "name": "delivery_seq"
+          }
+        }
       }
     ],
     "parameters": {
@@ -269,8 +280,9 @@
       true,
       true,
       true,
+      false,
       false
     ]
   },
-  "hash": "fc79aa8dbd02bed3d12b02db02b39888ea1538a888e4950df16b14fb7c378be9"
+  "hash": "6daa2128b268082229403d94c5129935a35b823849c68fdc778a0b0eadfbb147"
 }

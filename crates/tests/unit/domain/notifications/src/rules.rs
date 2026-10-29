@@ -127,19 +127,13 @@ fn kind_predicates_are_globs_over_the_kind() {
 }
 
 #[test]
-fn an_unparsable_glob_falls_back_to_an_exact_match() {
+fn an_unparsable_glob_never_matches_a_valid_kind() {
     let broken = rule(1, kinds(&["document.[shared"]), set(Attention::Silent));
     assert_eq!(
         Case::new("document.shared")
-            .evaluate(std::slice::from_ref(&broken), Attention::Agent)
-            .attention,
-        Some(Attention::Agent)
-    );
-    assert_eq!(
-        Case::new("document.[shared")
             .evaluate(&[broken], Attention::Agent)
             .attention,
-        Some(Attention::Silent)
+        Some(Attention::Agent)
     );
 }
 

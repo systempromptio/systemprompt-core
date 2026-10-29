@@ -1,9 +1,15 @@
 //! Catch-up: the newest-first walk that fills what the stream missed.
 //!
 //! Every catch-up starts at the newest notification and pages down until a
-//! page overlaps an id the inbox already holds, the feed ends, or
-//! [`MAX_ITEMS`] have been fetched. The fetch is injected, so the walk is the
-//! same against the gateway and against a scripted feed.
+//! whole page is ids the inbox already holds, the feed ends, or
+//! [`MAX_ITEMS`] have been fetched. Every fetched item replaces the stored
+//! copy with its id, so a row the server folded in place (a newer excerpt,
+//! a higher `coalesce_count`) is refreshed, not skipped. The fetch is injected,
+//! so the walk is the same against the gateway and against a scripted feed.
+//!
+//! The load-older cursor moves only when the walk never reached a held item:
+//! a walk that overlaps the inbox leaves the oldest held item, and so the
+//! cursor below it, where it was.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -27,9 +33,11 @@ where
     let mut fresh = Vec::new();
     let mut cursor = None;
     let mut fetched = 0usize;
+    let mut touched_held = false;
     loop {
         let page = fetch(cursor.take(), CATCH_UP_PAGE).await?;
         let merged = handle.update(|state| state.merge_newest(page));
+        touched_held |= merged.fresh.len() < merged.fetched;
         fresh.extend(merged.fresh);
         fetched += merged.fetched;
         let short = merged.fetched < CATCH_UP_PAGE as usize;
@@ -37,7 +45,9 @@ where
             break;
         }
         if short || fetched >= MAX_ITEMS || merged.next_cursor.is_none() {
-            handle.update(|state| state.older_cursor = merged.next_cursor);
+            if !touched_held {
+                handle.update(|state| state.older_cursor = merged.next_cursor);
+            }
             break;
         }
         cursor = merged.next_cursor;

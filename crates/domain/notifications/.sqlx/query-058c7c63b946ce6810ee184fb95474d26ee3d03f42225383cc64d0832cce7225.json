@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE notifications\n               SET escalated_from = attention, attention = 'human',\n                   attention_reason = 'escalated', escalation_note = $3,\n                   held_until = NULL, delivery_state = $4,\n                   delivery_seq = delivery_seq + 1, pending_since = now()\n               WHERE recipient_user_id = $1 AND id = $2::text::uuid AND attention = 'agent'\n               RETURNING id::text AS \"id!: NotificationId\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!: NotificationId",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "058c7c63b946ce6810ee184fb95474d26ee3d03f42225383cc64d0832cce7225"
+}

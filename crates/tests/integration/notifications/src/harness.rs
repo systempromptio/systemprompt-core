@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -136,6 +137,14 @@ impl Harness {
     }
 
     pub(crate) async fn with_profile(prefix: &str, profile: NotificationsProfile) -> Self {
+        Self::with_seams(prefix, profile, |_| {}).await
+    }
+
+    pub(crate) async fn with_seams(
+        prefix: &str,
+        profile: NotificationsProfile,
+        customise: impl FnOnce(&mut PipelineParts),
+    ) -> Self {
         let db = DisposableDb::with_schema(prefix).await;
         let pool = db.test_pool().await;
         let repos = Arc::new(NotificationRepositories::new(&pool));
@@ -144,14 +153,17 @@ impl Harness {
             Arc::new(UserRoleAudienceResolver::new(users));
         let hidden = Arc::new(Hidden::default());
         let channel = Arc::new(Recorded::default());
-        let pipeline = Arc::new(NotificationPipeline::new(PipelineParts {
+        let resolver_timeout = Duration::from_millis(profile.consumer.resolver_timeout_ms);
+        let mut parts = PipelineParts {
             routers: vec![Arc::new(DefaultRouter)],
             audiences: vec![Arc::clone(&audience)],
             visibilities: vec![Arc::clone(&hidden) as Arc<dyn ResourceVisibility>],
             channels: vec![Arc::clone(&channel) as Arc<dyn NotificationChannel>],
             repos: Arc::clone(&repos),
             profile,
-        }));
+        };
+        customise(&mut parts);
+        let pipeline = Arc::new(NotificationPipeline::new(parts));
         let outbox = DurableOutbox::new(pool.write_pool().as_ref().clone(), unique_instance());
         let sink: DynNotificationSink = Arc::new(OutboxNotificationSink::new(Arc::new(outbox)));
         let service = NotificationsService::new(NotificationsServiceParts {
@@ -159,7 +171,10 @@ impl Harness {
             router: Arc::new(EventRouter::local_only(Arc::new(EventBroadcasters::new()))),
             sink: Arc::clone(&sink),
             pipeline: Arc::clone(&pipeline),
-            publish_policies: vec![Arc::new(DefaultPublishPolicy::new(vec![audience]))],
+            publish_policies: vec![Arc::new(DefaultPublishPolicy::new(
+                vec![audience],
+                resolver_timeout,
+            ))],
             db: Arc::clone(&pool),
         });
         Self {
@@ -408,4 +423,14 @@ pub(crate) fn share(
     )
     .with_subject(SubjectRef::new("document", document.as_str()))
     .with_direct_recipient(recipient.clone(), None)
+}
+
+pub(crate) async fn delivery_state(h: &Harness, id: &NotificationId) -> (String, i64) {
+    sqlx::query_as::<_, (String, i64)>(
+        "SELECT delivery_state, delivery_seq FROM notifications WHERE id = $1::uuid",
+    )
+    .bind(id.as_str())
+    .fetch_one(h.pool.write_pool().as_ref())
+    .await
+    .expect("delivery state")
 }

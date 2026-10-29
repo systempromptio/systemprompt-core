@@ -1,5 +1,7 @@
 //! One drain round: claim, process and acknowledge facts one transaction at
-//! a time, then deliver each committed fact's `pending` rows.
+//! a time, then deliver each committed fact's `pending` rows. A fact that
+//! failed transiently ends the round unacknowledged, so the next round
+//! retries it after the poll interval.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -14,15 +16,25 @@ use systemprompt_models::notifications::{
 };
 
 use super::NotificationsConsumer;
-use crate::error::NotificationsResult;
+use crate::error::{NotificationsError, NotificationsResult};
 use crate::pipeline::{BatchContext, metrics};
 use crate::repository::{NewFailure, NotificationFailureRepository};
+
+pub const MAX_FACT_ATTEMPTS: i64 = 5;
+const DECODE_STAGE: &str = "decode";
+const PROCESS_STAGE: &str = "process";
+
+enum Handled {
+    Done(Vec<NotificationId>),
+    Retry(NotificationsError),
+}
 
 impl NotificationsConsumer {
     pub(super) async fn drain_round(&self) -> NotificationsResult<bool> {
         let started = Instant::now();
         let mut ctx: Option<BatchContext> = None;
         let mut claimed = 0;
+        let mut retry_later = false;
         while claimed < self.batch() {
             let Some(mut delivery) = self.outbox.claim(NOTIFICATIONS_CONSUMER).await? else {
                 break;
@@ -35,21 +47,29 @@ impl NotificationsConsumer {
                 break;
             };
             let id = delivery.id();
-            let pending = self.handle(&mut delivery, &id, context).await;
-            if let Err(error) = delivery.acknowledge().await {
-                tracing::error!(outbox_id = %id, error = %error, "Notification fact acknowledgement failed");
-                metrics::fact("ack_failed");
-                break;
-            }
-            if !pending.is_empty() {
-                self.pipeline.deliver(&pending).await;
+            match self.handle(&mut delivery, &id, context).await {
+                Handled::Done(pending) => {
+                    if let Err(error) = delivery.acknowledge().await {
+                        tracing::error!(outbox_id = %id, error = %error, "Notification fact acknowledgement failed");
+                        metrics::fact("ack_failed");
+                        break;
+                    }
+                    if !pending.is_empty() {
+                        self.pipeline.deliver(&pending).await;
+                    }
+                },
+                Handled::Retry(error) => {
+                    self.release_for_retry(delivery, &id, &error).await;
+                    retry_later = true;
+                    break;
+                },
             }
         }
         if claimed > 0 {
             metrics::batch_seconds(started.elapsed().as_secs_f64());
             self.report_backlog().await;
         }
-        Ok(claimed > 0)
+        Ok(claimed > 0 && !retry_later)
     }
 
     // JSON: the fact envelope is decoded per fact, and its data only after
@@ -59,27 +79,27 @@ impl NotificationsConsumer {
         delivery: &mut Delivery,
         id: &EventOutboxId,
         ctx: &mut BatchContext,
-    ) -> Vec<NotificationId> {
+    ) -> Handled {
         let fact = match delivery.fact::<serde_json::Value>() {
             Ok(fact) => fact,
             Err(error) => {
                 metrics::fact("decode_failed");
-                fail(delivery.connection(), id, "decode", &error.to_string()).await;
-                return Vec::new();
+                fail(delivery.connection(), id, DECODE_STAGE, &error.to_string()).await;
+                return Handled::Done(Vec::new());
             },
         };
         if fact.version != NOTIFICATION_EVENT_VERSION {
             metrics::fact("unsupported_version");
             let reason = format!("unsupported fact version {}", fact.version);
-            fail(delivery.connection(), id, "decode", &reason).await;
-            return Vec::new();
+            fail(delivery.connection(), id, DECODE_STAGE, &reason).await;
+            return Handled::Done(Vec::new());
         }
         let event: NotificationEvent = match serde_json::from_value(fact.data) {
             Ok(event) => event,
             Err(error) => {
                 metrics::fact("decode_failed");
-                fail(delivery.connection(), id, "decode", &error.to_string()).await;
-                return Vec::new();
+                fail(delivery.connection(), id, DECODE_STAGE, &error.to_string()).await;
+                return Handled::Done(Vec::new());
             },
         };
         match self
@@ -88,15 +108,63 @@ impl NotificationsConsumer {
         {
             Ok(pending) => {
                 metrics::fact("processed");
-                pending
+                Handled::Done(pending)
+            },
+            Err(error) if error.is_transient() => {
+                self.retry_or_abandon(delivery.connection(), id, &event, error)
+                    .await
             },
             Err(error) => {
                 metrics::fact("failed");
                 tracing::warn!(outbox_id = %id, kind = %event.kind, error = %error, "Notification fact failed");
-                fail(delivery.connection(), id, "process", &error.to_string()).await;
-                Vec::new()
+                fail(delivery.connection(), id, PROCESS_STAGE, &error.to_string()).await;
+                Handled::Done(Vec::new())
             },
         }
+    }
+
+    async fn retry_or_abandon(
+        &self,
+        conn: &mut PgConnection,
+        id: &EventOutboxId,
+        event: &NotificationEvent,
+        error: NotificationsError,
+    ) -> Handled {
+        let earlier = match NotificationFailureRepository::count_for_outbox(
+            &mut *conn,
+            id,
+            PROCESS_STAGE,
+        )
+        .await
+        {
+            Ok(count) => count,
+            Err(count_error) => {
+                tracing::warn!(outbox_id = %id, error = %count_error, "Notification fact attempts could not be read");
+                return Handled::Retry(error);
+            },
+        };
+        if earlier + 1 < MAX_FACT_ATTEMPTS {
+            return Handled::Retry(error);
+        }
+        metrics::fact("abandoned");
+        tracing::error!(outbox_id = %id, kind = %event.kind, attempts = earlier + 1, error = %error, "Notification fact abandoned");
+        let reason = format!("fact_abandoned: {error}");
+        fail(conn, id, PROCESS_STAGE, &reason).await;
+        Handled::Done(Vec::new())
+    }
+
+    async fn release_for_retry(
+        &self,
+        delivery: Delivery,
+        id: &EventOutboxId,
+        error: &NotificationsError,
+    ) {
+        metrics::fact("retry");
+        tracing::warn!(outbox_id = %id, error = %error, "Notification fact failed; retrying");
+        if let Err(rollback) = delivery.rollback().await {
+            tracing::error!(outbox_id = %id, error = %rollback, "Notification fact rollback failed");
+        }
+        fail(&self.pool, id, PROCESS_STAGE, &error.to_string()).await;
     }
 
     async fn process_in_savepoint(
@@ -128,14 +196,14 @@ impl NotificationsConsumer {
     }
 }
 
-async fn fail(conn: &mut PgConnection, id: &EventOutboxId, stage: &str, reason: &str) {
+async fn fail(executor: impl sqlx::PgExecutor<'_>, id: &EventOutboxId, stage: &str, reason: &str) {
     let failure = NewFailure {
         outbox_id: Some(id),
         recipient: None,
         stage,
         reason,
     };
-    if let Err(error) = NotificationFailureRepository::record(conn, failure).await {
+    if let Err(error) = NotificationFailureRepository::record(executor, failure).await {
         tracing::error!(outbox_id = %id, stage, error = %error, "Notification failure could not be recorded");
     }
 }

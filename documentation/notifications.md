@@ -26,10 +26,11 @@ A server built without the feature behaves as follows:
 
 - **Transactional capture.** An event is appended to the durable outbox on the producer's own connection. A comment, share or publish never commits without its event, and an event never exists for a change that rolled back.
 - **Nothing announced that can roll back.** Rows are written inside the consumer's transaction for that event. Channels run only after that transaction commits.
-- **At-least-once announcement.** Every row records its `delivery_state` in the same transaction that writes it. A row moves to `delivered` only after every eligible channel has either accepted it or had its failure recorded. A timed sweep announces any row still `pending`, so a crash between commit and announcement delays a notification but never loses it.
+- **At-least-once announcement.** Every row records its `delivery_state` in the same transaction that writes it. A row moves to `delivered` only after every eligible channel has accepted it or failed permanently. A channel that times out or fails transiently leaves the row `pending`, and a timed sweep announces it again, up to five passes. A crash between commit and announcement delays a notification but never loses it.
+- **Bounded retries.** A fact that fails for a reason that may pass, such as a storage error or a router timeout, is rolled back without acknowledgement and retried, up to five attempts. A fact that can never succeed is recorded and acknowledged at once. After the last attempt the fact or row is recorded as abandoned and the queue moves on.
 - **Idempotent processing.** A re-delivered outbox fact produces no second row for a recipient who already has one.
 - **The audience is a gate.** A stream reaches only members of its declared audience. A subscription never widens a stream's audience.
-- **Fail closed.** A failure only ever makes delivery quieter or narrower, never louder or wider. A missing audience resolver, a resolver error, a resolver timeout or an audience above the configured limit withholds that audience whole. A membership no resolver can confirm withholds the recipient. A document, folder or comment the reader cannot see withholds the notification. An excerpt is shown only when visibility allows it. A rule whose role or dimension cannot be resolved may lower attention but never raise it. An unknown time zone in quiet hours counts as inside the window.
+- **Fail closed.** A failure only ever makes delivery quieter or narrower, never louder or wider. A missing audience resolver, a resolver error, a resolver timeout or an audience above the configured limit withholds that audience whole. A membership no resolver can confirm withholds the recipient. A resource the reader cannot see, a resource kind no visibility provider handles, or a visibility check that times out withholds the notification. A publisher membership check that times out refuses the publish. An excerpt is shown only when visibility allows it. A rule whose role or dimension cannot be resolved may lower attention but never raise it. An unknown time zone in quiet hours counts as inside the window.
 - **Every withholding is recorded.** Each withheld recipient and failed step is a row in `notification_delivery_failures` with its stage and a stable reason code. See [Failure records](#failure-records).
 - **Bounded storage.** Feed reads write nothing, receipts are unique per notification, surface and state, unread counts stop at a fixed cap, and every table the pipeline writes has a retention bound.
 - **Private to the recipient.** Realtime notification frames go to the recipient's own event stream only, never to a document's shared topic, so other viewers of a document do not learn who was notified.
@@ -89,7 +90,7 @@ Resolvers are asked for at most `max_audience + 1` members of a subject. A subje
 
 A subscription attaches an audience subject to a stream or to one resource (`{kind, id}`, for example a document). A subscription may carry an `attention_ceiling`, `quiet_hours` and a `digest` window that apply to the users it reaches. When several subscriptions reach one user, the lowest ceiling and the shortest digest win.
 
-Users manage their own subscriptions. A user may subscribe to a stream only when the resolvers confirm the user is a member of the stream's audience; otherwise the request is refused with `403 not_in_audience` and nothing is stored. Subscriptions to a resource are not audience-gated; resource visibility decides each delivery.
+Users manage their own subscriptions. A user may subscribe to a stream only when the resolvers confirm the user is a member of the stream's audience; otherwise the request is refused with `403 not_in_audience` and nothing is stored. Subscriptions to a resource are not audience-gated; resource visibility decides each delivery. A resource subscription to a kind no visibility provider handles is refused with `422 unknown_resource_kind`, because nothing about such a resource could ever be delivered.
 
 Subscriptions for roles and dimensions are declared in configuration. See [Ownership](#ownership).
 
@@ -119,10 +120,11 @@ Each recipient's level is decided by these steps, in this order. `attention_reas
 3. **Extension routers.** Registered routers add recipients; when two plans name one recipient, the louder level wins.
 4. **Stream floor and ceiling.** The stream's band clamps the level.
 5. **Recipient rules.** Declared rules, then the recipient's own rules (`set`, `cap`, `floor`, `mute`).
-6. **Subscription ceiling.** The lowest `attention_ceiling` of the subscriptions that reach the recipient lowers the level to at most that.
-7. **Quiet hours.** An open quiet-hours window from a matching rule or a reaching subscription lowers the level to at most `agent`.
+6. **Stream ceiling, again.** The stream's ceiling applies once more, so no rule raises a stream item above it.
+7. **Subscription ceiling.** The lowest `attention_ceiling` of the subscriptions that reach the recipient lowers the level to at most that.
+8. **Quiet hours.** An open quiet-hours window from a matching rule or a reaching subscription lowers the level to at most `agent`.
 
-Because the stream band applies before the rules, a recipient's own `cap` can lower an item below the stream's floor. Because the subscription ceiling and quiet hours apply last, no rule can raise an item above them.
+Because the stream floor applies before the rules, a recipient's own `cap` can lower an item below the stream's floor. Because the stream ceiling, the subscription ceiling and quiet hours apply after the rules, no rule can raise an item above them.
 
 ### Quiet hours, coalescing and digests
 
@@ -137,13 +139,23 @@ An event's excerpt is denied by default. A recipient's row carries the excerpt o
 - every subject of the event is visible to the recipient with its excerpt allowed by that subject's `ResourceVisibility` provider; or
 - the event has no subjects and the recipient passed the stream's audience gate.
 
-A subject kind with no visibility provider is visible without its excerpt, except the document store's own kinds (`document`, `folder`, `comment`), which are withheld with `no_visibility_provider`. A subject hidden from the recipient withholds the whole notification with `hidden`.
+A subject kind with no visibility provider is withheld with `no_visibility_provider`; nothing is assumed visible. A provider that does not answer within `consumer.resolver_timeout_ms` withholds the subject from every reader it was asked about with `visibility_timeout`. A subject hidden from the recipient withholds the whole notification with `hidden`.
 
 ### Delivery
 
-Rows commit with `delivery_state` `pending`, or `held` when a digest applies. After the commit the consumer hands each `pending` row to every registered channel that delivers its attention and has not already recorded a `delivered` receipt for it, eight rows at a time. Each channel call runs under `consumer.channel_timeout_ms`. A success writes a `delivered` receipt for that surface. A failure or timeout writes a `deliver:<surface>` failure row. When every eligible channel has one or the other, the row moves to `delivered`.
+Rows commit with `delivery_state` `pending`, or `held` when a digest applies. After the commit the consumer announces the `pending` rows in one transaction. It locks the rows with `SKIP LOCKED`, so a row another replica or the sweep is announcing is left to it. It hands each row to every registered channel that delivers its attention and has neither a `delivered` receipt nor a permanent failure for it, eight rows at a time. Each channel call runs under `consumer.channel_timeout_ms`.
 
-Every `consumer.sweep_secs` one replica, holding a Postgres advisory lock, runs the sweep. It releases `held` rows whose window has closed and announces `pending` rows older than `sweep_secs`, at most `consumer.batch` of each per pass. A row whose announcement was interrupted is therefore retried. A channel may see the same row twice after a crash between its call and the receipt, so channels treat the notification id as idempotent.
+| Channel outcome | Recorded | Row |
+|---|---|---|
+| Success | A `delivered` receipt for the surface | Closes when no surface is left to retry |
+| Permanent failure, such as a payload that cannot be encoded | A `deliver:<surface>` failure row; the surface is not asked again | Closes when no surface is left to retry |
+| Timeout, retryable channel error or a failed delivery task | A `deliver_retry:<surface>` failure row | Stays `pending` for the sweep |
+
+On the fifth pass that still has a transient failure the row closes as `delivered` with a final `delivery_abandoned` failure row.
+
+Every transition to `pending` (a new row, a fold that raises the attention, an escalation, a digest release) advances the row's `delivery_seq` and restarts its `pending_since`. A pass closes a row only at the `delivery_seq` it locked, so a row re-pended while the pass ran stays `pending` and is announced again.
+
+Every `consumer.sweep_secs` the sweep runs in one transaction under a transaction-scoped Postgres advisory lock, so one replica sweeps at a time and the lock ends with the transaction. It releases `held` rows whose window has closed and announces rows that have been `pending` for longer than `sweep_secs`, measured from `pending_since`, at most `consumer.batch` of each per pass. A channel may see the same row twice after a crash between its call and the receipt, so channels treat the notification id as idempotent.
 
 ### Receipts
 
@@ -242,8 +254,8 @@ notifications:
   consumer:
     batch: 64                  # facts per drain round; rows per sweep pass
     poll_secs: 5               # backstop poll when no wake-up signal arrives
-    sweep_secs: 30             # sweep interval, and the age a pending row must reach to be swept
-    resolver_timeout_ms: 5000  # bound on each audience resolver call
+    sweep_secs: 30             # sweep interval, and how long a row must have been pending to be swept
+    resolver_timeout_ms: 5000  # bound on each router, resolver, visibility and publisher check
     channel_timeout_ms: 5000   # bound on each channel call
 ```
 
@@ -255,8 +267,8 @@ notifications:
 | `failure_retention_days` | `30` | `notification_delivery_failures` rows older than this are deleted |
 | `consumer.batch` | `64` | Outbox facts per drain round, and rows per sweep pass |
 | `consumer.poll_secs` | `5` | Longest wait between drain rounds when no wake-up arrives |
-| `consumer.sweep_secs` | `30` | Sweep interval and the grace before a `pending` row is swept |
-| `consumer.resolver_timeout_ms` | `5000` | A resolver call past this withholds its subject as `audience_timeout` |
+| `consumer.sweep_secs` | `30` | Sweep interval, and how long a row must have been `pending` before it is swept |
+| `consumer.resolver_timeout_ms` | `5000` | Bound on each router, audience resolver, visibility provider and publisher membership call. A router past it retries the fact; a resolver past it withholds the subject as `audience_timeout`; a visibility provider past it withholds the subject as `visibility_timeout`; a publisher check past it refuses the publish |
 | `consumer.channel_timeout_ms` | `5000` | A channel call past this records `channel_timeout` |
 
 The `notifications_per_second` key of `rate_limits` bounds the notification routes.
@@ -300,6 +312,7 @@ Each notification carries `delivery_state`: `pending`, `held` or `delivered`.
 | `404` | `stream_not_found` | The stream is not declared |
 | `409` | `not_escalatable` | The notification is not at `agent` attention |
 | `409` | `declared_by_config` | The write would change a subscription or rule declared in configuration |
+| `422` | `unknown_resource_kind` | A resource subscription names a kind no visibility provider handles |
 | `500` | None | A server-side failure; the body is a fixed message and the cause is logged |
 
 ### Simulation
@@ -342,7 +355,10 @@ Receipts are deleted with their notification. Deleting a user removes their noti
 
 ## Consumer and health
 
-The consumer processes each outbox fact on its own transaction and acknowledges the fact in that transaction, so one large fact never holds the others. A fact that fails, or whose version the build does not read, is rolled back, recorded as a `decode` or `process` failure and acknowledged, so it never blocks the queue.
+The consumer processes each outbox fact on its own transaction and acknowledges the fact in that transaction, so one large fact never holds the others.
+
+- **A fact that can never succeed** does not decode, or carries a version the build does not read. It is recorded as a `decode` failure and acknowledged at once.
+- **A fact that fails for a reason that may pass** hit a storage error, a seam error or a router timeout. It is rolled back without acknowledgement and recorded as a `process` failure, and the consumer retries it after `poll_secs`. Its fifth failure is recorded as `fact_abandoned: <error>` and the fact is acknowledged, so it never blocks the queue.
 
 Between rounds the consumer listens on the Postgres channel `systemprompt_notification_facts`, which carries only notification facts. The `poll_secs` interval is a backstop. A lost listener reconnects with exponential backoff from one to thirty seconds while the consumer keeps polling.
 
@@ -358,9 +374,9 @@ Between rounds the consumer listens on the Postgres channel `systemprompt_notifi
 
 | Series | Type | Labels |
 |---|---|---|
-| `notifications_facts_total` | Counter | `outcome`: `processed`, `failed`, `decode_failed`, `unsupported_version`, `ack_failed` |
+| `notifications_facts_total` | Counter | `outcome`: `processed`, `failed`, `retry`, `abandoned`, `decode_failed`, `unsupported_version`, `ack_failed` |
 | `notifications_recipients_total` | Counter | `decision`: `inserted`, `coalesced`, `held`, `muted`, or the failure reason that withheld the recipient |
-| `notifications_deliveries_total` | Counter | `surface`, and `status`: `delivered`, `failed`, `timeout` |
+| `notifications_deliveries_total` | Counter | `surface` (`task` for a failed delivery task), and `status`: `delivered`, `failed`, `timeout` |
 | `notifications_batch_seconds` | Histogram | None; one sample per drain round |
 | `notifications_backlog_pending` | Gauge | None |
 | `notifications_backlog_oldest_seconds` | Gauge | None; `0` when nothing is pending |
@@ -372,9 +388,12 @@ Between rounds the consumer listens on the Postgres channel `systemprompt_notifi
 | `route` | `<router>: <error>` |
 | `audience` | `not_in_audience`, `audience_unknown`, `audience_over_limit`, `audience_timeout`, `no_resolver`, `audience_resolver_failed`, `unknown_stream <id>` |
 | `rules` | `audience_over_limit`, `audience_timeout`, `no_resolver`, `audience_resolver_failed` |
-| `visibility` | `hidden`, `no_visibility_provider`, `visibility_failed` |
-| `decode`, `process` | The decode or processing error |
-| `deliver:<surface>` | `channel_timeout`, or the channel's error |
+| `visibility` | `hidden`, `no_visibility_provider`, `visibility_failed`, `visibility_timeout` |
+| `decode` | The decode error, or `unsupported fact version <n>` |
+| `process` | The processing error (`route_timeout: <router>` for a router that timed out), or `fact_abandoned: <error>` on the last attempt |
+| `deliver:<surface>` | The channel's permanent error |
+| `deliver_retry:<surface>` | `channel_timeout`, the channel's retryable error, or the failed delivery task |
+| `deliver` | `delivery_abandoned` |
 
 A recipient-specific failure names the recipient. A failure about a whole subject, such as `audience_over_limit`, is recorded once with no recipient.
 

@@ -1,8 +1,10 @@
 //! A user's own subscriptions. The subject is always the caller; declared
 //! subscriptions to roles and dimensions come from the config plane. A
 //! stream subscription requires the caller to be a member of the stream's
-//! audience, and a subscription the configuration declares cannot be
-//! overwritten from the console.
+//! audience, a resource subscription requires a visibility provider for the
+//! resource's kind (with none, nothing about it could ever be delivered),
+//! and a subscription the configuration declares cannot be overwritten from
+//! the console.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -29,6 +31,13 @@ impl NotificationsService {
             subject: AudienceSubject::User(user.clone()),
             ..decl
         };
+        if let SubscriptionTarget::Resource(resource) = &decl.target
+            && !self.pipeline.handles_resource_kind(&resource.kind)
+        {
+            return Err(NotificationsError::UnknownResourceKind {
+                kind: resource.kind.clone(),
+            });
+        }
         if let SubscriptionTarget::Stream(stream) = &decl.target {
             let declared = self
                 .repos

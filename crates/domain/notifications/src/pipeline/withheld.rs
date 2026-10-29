@@ -30,6 +30,8 @@ pub enum Withheld {
     Resolver(#[source] Arc<NotificationAudienceError>),
     #[error("visibility_failed")]
     Visibility(#[source] Arc<VisibilityError>),
+    #[error("visibility_timeout")]
+    VisibilityTimeout { kind: String },
 }
 
 impl Withheld {
@@ -45,6 +47,7 @@ impl Withheld {
             Self::NoProvider { .. } => "no_visibility_provider",
             Self::Resolver(_) => "audience_resolver_failed",
             Self::Visibility(_) => "visibility_failed",
+            Self::VisibilityTimeout { .. } => "visibility_timeout",
         }
     }
 }

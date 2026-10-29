@@ -137,7 +137,7 @@ async fn catch_up_fetches_newer_items_even_with_a_stored_older_cursor() {
 }
 
 #[tokio::test]
-async fn catch_up_stops_at_the_first_page_holding_a_known_id() {
+async fn catch_up_walks_a_mixed_page_and_stops_where_the_feed_ends() {
     let page = CATCH_UP_PAGE;
     let handle = seeded(1, 10);
     let mut feed = Feed::new(1, 10 + page + 5);
@@ -146,7 +146,11 @@ async fn catch_up_stops_at_the_first_page_holding_a_known_id() {
         .await
         .expect("infallible");
 
-    assert_eq!(feed.calls.len(), 2, "the second page overlaps the inbox");
+    assert_eq!(
+        feed.calls.len(),
+        2,
+        "the second page reaches the end of the feed"
+    );
     assert_eq!(fresh.len(), (page + 5) as usize);
     assert!(
         fresh.iter().all(|id| *id != nid(10)),
@@ -205,4 +209,32 @@ fn a_failed_seen_report_is_claimable_again() {
     handle.release_seen(&claimed);
 
     assert_eq!(handle.claim_unseen(&[nid(1)]), vec![nid(1)]);
+}
+
+#[tokio::test]
+async fn catch_up_refreshes_a_row_folded_in_place_below_the_first_mixed_page() {
+    let handle = seeded(1, 120);
+    let mut feed = Feed::new(1, 140);
+    let folded = feed
+        .newest_first
+        .iter_mut()
+        .find(|n| n.id == nid(60))
+        .expect("item 60 in the feed");
+    folded.coalesce_count = 7;
+    folded.excerpt = Some("latest of seven".to_owned());
+
+    let fresh = catch_up(&handle, |c, l| feed.fetch(c, l))
+        .await
+        .expect("infallible");
+
+    assert_eq!(fresh.len(), 20);
+    assert_eq!(
+        feed.calls.len(),
+        2,
+        "the first page mixes new and known ids, the second is wholly known"
+    );
+    let state = handle.snapshot();
+    let refreshed = state.find(&nid(60)).expect("item 60 kept");
+    assert_eq!(refreshed.coalesce_count, 7);
+    assert_eq!(refreshed.excerpt.as_deref(), Some("latest of seven"));
 }

@@ -59,9 +59,12 @@ pub struct InboxState {
     pub toasted_through: Option<DateTime<Utc>>,
 }
 
-/// What one newest-first page did to the inbox: the ids it added, how many
-/// items it carried, whether it overlapped what the inbox already held, and
-/// the cursor below it.
+/// What one newest-first page did to the inbox.
+///
+/// It records the ids the page added, how many items it carried, whether
+/// every item on it was already held, and the cursor below it. Held items on
+/// the page replace their stored copies, so a row the server folded in place is
+/// refreshed.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PageMerge {
     pub fresh: Vec<NotificationId>,
@@ -129,10 +132,11 @@ impl InboxState {
     }
 
     pub fn merge_newest(&mut self, page: NotificationPage) -> PageMerge {
-        let reached_known = page
-            .notifications
-            .iter()
-            .any(|item| self.find(&item.id).is_some());
+        let reached_known = !page.notifications.is_empty()
+            && page
+                .notifications
+                .iter()
+                .all(|item| self.find(&item.id).is_some());
         let fetched = page.notifications.len();
         let fresh = self.merge_items(page.notifications);
         self.unread = page.unread;

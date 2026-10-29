@@ -10,8 +10,9 @@
 //! digest), and [`NotificationPipeline::deliver`] announces the committed
 //! `pending` rows and moves them to `delivered`.
 //! [`NotificationPipeline::sweep`] releases due `held` rows and delivers
-//! every `pending` row older than the sweep grace, so a crash between commit
-//! and delivery only delays an announcement.
+//! every row `pending` for longer than the sweep grace, so a crash between
+//! commit and delivery, or a channel's transient failure, only delays an
+//! announcement.
 //!
 //! [`NotificationPipeline::simulate`] runs the same planning and decisions on
 //! a read connection and writes nothing.
@@ -24,6 +25,7 @@ mod audience;
 pub mod coalesce;
 mod context;
 mod deliver;
+mod ledger;
 mod membership;
 pub(crate) mod metrics;
 mod plan;
@@ -47,6 +49,7 @@ use systemprompt_manifest::profile::NotificationsProfile;
 pub use action::ActionPromptBuilder;
 pub use context::BatchContext;
 pub use deliver::DeliverOutcome;
+pub use ledger::{DELIVERY_ABANDONED, MAX_DELIVERY_ATTEMPTS};
 pub use rules::{RuleContext, RuleEvaluator, RuleOutcome};
 pub use withheld::Withheld;
 
@@ -146,6 +149,11 @@ impl NotificationPipeline {
     #[must_use]
     pub fn repositories(&self) -> &NotificationRepositories {
         &self.parts.repos
+    }
+
+    #[must_use]
+    pub fn handles_resource_kind(&self, kind: &str) -> bool {
+        visibility::has_provider(&self.parts.visibilities, kind)
     }
 
     pub(crate) fn members(&self) -> Members<'_> {

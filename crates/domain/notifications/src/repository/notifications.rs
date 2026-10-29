@@ -6,11 +6,15 @@
 //! Persistence, state changes, the delivery sweep, unread counts and
 //! retention live in sibling modules on the same type.
 //!
+//! [`NotificationRepository::lock_pending`] row-locks the `pending` rows a
+//! delivery pass announces with `SKIP LOCKED`, together with the
+//! `delivery_seq` each was read at, so two passes never announce one row.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use sqlx::PgExecutor;
 use sqlx::types::Json;
+use sqlx::{PgConnection, PgExecutor};
 use systemprompt_identifiers::{NotificationId, NotificationStreamId, UserId};
 use systemprompt_models::notifications::{
     ActionPrompt, Attention, DeliveryState, Notification, SubjectRef,
@@ -68,7 +72,7 @@ impl NotificationRepository {
                       n.attention_reason, n.action AS "action: Json<ActionPrompt>", n.excerpt,
                       n.coalesce_count, n.first_event_at, n.last_event_at, n.created_at,
                       n.read_at, n.escalated_from, n.escalation_note, n.held_until,
-                      n.delivery_state
+                      n.delivery_state, n.delivery_seq
                FROM notifications n LEFT JOIN users u ON u.id = n.actor_user_id
                WHERE n.recipient_user_id = $1 AND n.id = ANY($2::text[]::uuid[])
                ORDER BY n.created_at DESC, n.id DESC"#,
@@ -82,10 +86,10 @@ impl NotificationRepository {
         .collect()
     }
 
-    pub async fn find_pending(
-        &self,
+    pub async fn lock_pending(
+        conn: &mut PgConnection,
         ids: &[NotificationId],
-    ) -> Result<Vec<Notification>, RepositoryError> {
+    ) -> Result<Vec<(Notification, i64)>, RepositoryError> {
         let ids: Vec<String> = ids.iter().map(|id| id.as_str().to_owned()).collect();
         sqlx::query_as!(
             NotificationRow,
@@ -98,17 +102,21 @@ impl NotificationRepository {
                       n.attention_reason, n.action AS "action: Json<ActionPrompt>", n.excerpt,
                       n.coalesce_count, n.first_event_at, n.last_event_at, n.created_at,
                       n.read_at, n.escalated_from, n.escalation_note, n.held_until,
-                      n.delivery_state
+                      n.delivery_state, n.delivery_seq
                FROM notifications n LEFT JOIN users u ON u.id = n.actor_user_id
                WHERE n.id = ANY($1::text[]::uuid[]) AND n.delivery_state = $2
-               ORDER BY n.created_at, n.id"#,
+               ORDER BY n.created_at, n.id
+               FOR NO KEY UPDATE OF n SKIP LOCKED"#,
             &ids,
             DeliveryState::Pending.as_str(),
         )
-        .fetch_all(&*self.pools.write)
+        .fetch_all(conn)
         .await?
         .into_iter()
-        .map(Notification::try_from)
+        .map(|row| {
+            let seq = row.delivery_seq;
+            Notification::try_from(row).map(|notification| (notification, seq))
+        })
         .collect()
     }
 
@@ -132,7 +140,7 @@ impl NotificationRepository {
                       n.attention_reason, n.action AS "action: Json<ActionPrompt>", n.excerpt,
                       n.coalesce_count, n.first_event_at, n.last_event_at, n.created_at,
                       n.read_at, n.escalated_from, n.escalation_note, n.held_until,
-                      n.delivery_state
+                      n.delivery_state, n.delivery_seq
                FROM notifications n LEFT JOIN users u ON u.id = n.actor_user_id
                WHERE n.recipient_user_id = $1
                  AND ($2::timestamptz IS NULL OR (n.created_at, n.id) < ($2, $3::text::uuid))

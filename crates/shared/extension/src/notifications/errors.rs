@@ -100,3 +100,10 @@ pub enum ChannelError {
         source: BoxedSource,
     },
 }
+
+impl ChannelError {
+    #[must_use]
+    pub const fn is_retryable(&self) -> bool {
+        !matches!(self, Self::Encode(_))
+    }
+}

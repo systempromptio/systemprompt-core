@@ -11,9 +11,13 @@ mod consumer;
 #[cfg(test)]
 mod delivery;
 #[cfg(test)]
+mod delivery_retries;
+#[cfg(test)]
 mod digest;
 #[cfg(test)]
 mod escalation;
+#[cfg(test)]
+mod fact_retries;
 #[cfg(test)]
 mod harness;
 #[cfg(test)]

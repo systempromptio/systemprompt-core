@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT pg_try_advisory_lock($1) AS \"locked!\"",
+  "query": "SELECT pg_try_advisory_xact_lock($1) AS \"locked!\"",
   "describe": {
     "columns": [
       {
@@ -19,5 +19,5 @@
       null
     ]
   },
-  "hash": "a7ebf2b984ba41056d794295439d40b108d6332d77af6cbfc052f9def7d5a9e5"
+  "hash": "d16c80faa5ae1838379bc05841bdd43c59c936c5f8d801256df4860eb04d7779"
 }
