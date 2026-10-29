@@ -402,14 +402,33 @@ fn reset_re_arms_a_latched_cache() {
 }
 
 #[test]
-fn a_fresh_token_rejected_upstream_latches_instead_of_re_minting() {
+fn a_fresh_token_rejected_upstream_re_mints_once() {
+    with_credentials(2, async {
+        let counter = Arc::new(AtomicUsize::new(0));
+        let cache = TokenCache::new(counting_refresh(Arc::clone(&counter), 3600));
+
+        cache.current(300).await.expect("mint");
+        assert!(
+            cache.reject_upstream("/v1/bridge/heartbeat").await,
+            "a restarted gateway voids fresh tokens too; one re-mint is owed"
+        );
+        cache.current(300).await.expect("re-mint");
+        assert_eq!(counter.load(Ordering::SeqCst), 2);
+        assert!(!cache.sign_in_required());
+    });
+}
+
+#[test]
+fn a_re_minted_token_rejected_again_latches() {
     with_credentials(2, async {
         let counter = Arc::new(AtomicUsize::new(0));
         let cache = TokenCache::new(counting_refresh(Arc::clone(&counter), 3600));
         let mut state = cache.auth_state();
 
         cache.current(300).await.expect("mint");
-        cache.reject_upstream("/v1/bridge/heartbeat").await;
+        assert!(cache.reject_upstream("/v1/bridge/heartbeat").await);
+        cache.current(300).await.expect("re-mint");
+        assert!(!cache.reject_upstream("/v1/bridge/heartbeat").await);
 
         let err = cache
             .current(300)
@@ -419,7 +438,7 @@ fn a_fresh_token_rejected_upstream_latches_instead_of_re_minting() {
             matches!(&err, ForwardError::Auth(d) if d.contains("sign in")),
             "{err:?}"
         );
-        assert_eq!(counter.load(Ordering::SeqCst), 1, "no second mint");
+        assert_eq!(counter.load(Ordering::SeqCst), 2, "no third mint");
         match state.borrow_and_update().clone() {
             AuthState::SignInRequired { reason } => {
                 assert!(reason.contains("/v1/bridge/heartbeat"), "{reason}");
@@ -436,6 +455,8 @@ fn repeated_rejections_publish_a_single_transition() {
         let mut state = cache.auth_state();
 
         cache.current(300).await.expect("mint");
+        cache.reject_upstream("/v1/bridge/heartbeat").await;
+        cache.current(300).await.expect("re-mint");
         cache.reject_upstream("/v1/bridge/heartbeat").await;
         cache.reject_upstream("/v1/bridge/stream").await;
         cache.current(300).await.expect_err("latched");
@@ -965,13 +986,15 @@ fn a_rejection_is_stale_only_past_the_two_minute_window() {
 }
 
 #[test]
-fn rejecting_a_fresh_token_reports_no_retry() {
+fn rejecting_a_re_minted_fresh_token_reports_no_retry() {
     with_credentials(2, async {
         let cache = TokenCache::new(counting_refresh(Arc::new(AtomicUsize::new(0)), 3600));
         cache.current(300).await.expect("mint");
+        assert!(cache.reject_upstream("/mcp/dynbrain").await, "first fresh rejection retries");
+        cache.current(300).await.expect("re-mint");
         assert!(
             !cache.reject_upstream("/mcp/dynbrain").await,
-            "a fresh rejection latches; the forward path must not resend"
+            "a second fresh rejection latches; the forward path must not resend"
         );
         assert!(
             !cache.reject_upstream("/mcp/dynbrain").await,

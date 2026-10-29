@@ -14,7 +14,6 @@
 use std::future::Future;
 use std::time::{Duration, Instant};
 
-use super::rejection::rejection_is_stale;
 use crate::gateway::errors::GatewayError;
 use crate::gateway::types::BridgeProfile;
 use crate::gateway::{GatewayClient, ensure_success, record_span};
@@ -95,10 +94,10 @@ impl GatewayClient {
                 profile,
                 bearer: bearer.token,
             }),
-            Err(error) if is_unauthorized(&error) && rejection_is_stale(bearer.age) => {
+            Err(error) if is_unauthorized(&error) => {
                 tracing::info!(
                     age_secs = bearer.age.as_secs(),
-                    "gateway refused a stale bearer for the bridge profile; re-minting once"
+                    "gateway refused the bearer for the bridge profile; re-minting once"
                 );
                 let fresh = remint().await?;
                 let profile = self.fetch_bridge_profile(&fresh).await?;

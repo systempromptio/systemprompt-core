@@ -10,6 +10,7 @@
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
 use tokio::sync::Mutex;
@@ -43,6 +44,9 @@ struct CachedEntry {
     // interval; `minted_at` stays on std time because the rejection window
     // measures real elapsed time against the gateway.
     stamp_checked_at: tokio::time::Instant,
+    // Why: set when this token was minted to retry a fresh rejection; a fresh
+    // rejection of it too is what proves the credential revoked.
+    remint_after_fresh_rejection: bool,
 }
 
 /// The cached gateway token and its refresh machinery.
@@ -65,6 +69,7 @@ pub struct TokenCache {
     // long-lived streams opened against the previous gateway can end instead
     // of living on until that gateway drops them.
     generation: tokio::sync::watch::Sender<u64>,
+    fresh_rejection_pending: AtomicBool,
 }
 
 impl TokenCache {
@@ -76,6 +81,7 @@ impl TokenCache {
             refresh,
             latch: SignInLatch::default(),
             generation: tokio::sync::watch::Sender::new(0),
+            fresh_rejection_pending: AtomicBool::new(false),
         }
     }
 
@@ -168,6 +174,7 @@ impl TokenCache {
             minted_at: Instant::now(),
             stamp,
             stamp_checked_at: tokio::time::Instant::now(),
+            remint_after_fresh_rejection: self.fresh_rejection_pending.swap(false, Ordering::AcqRel),
         });
         Ok(token)
     }
@@ -185,14 +192,24 @@ impl TokenCache {
         let Some(entry) = guard.take() else {
             return false;
         };
-        if rejection_is_stale(entry.minted_at.elapsed()) {
+        let age = entry.minted_at.elapsed();
+        if rejection_is_stale(age) {
             tracing::info!(endpoint, "token cache invalidated (upstream rejected JWT)");
+            true
+        } else if !entry.remint_after_fresh_rejection {
+            drop(guard);
+            self.fresh_rejection_pending.store(true, Ordering::Release);
+            tracing::info!(
+                endpoint,
+                age_secs = age.as_secs(),
+                "upstream rejected a fresh JWT; re-minting once before requiring sign-in"
+            );
             true
         } else {
             drop(guard);
             self.latch.engage(&format!(
-                "{endpoint} rejected a credential issued {}s ago",
-                entry.minted_at.elapsed().as_secs()
+                "{endpoint} rejected a re-minted credential issued {}s ago",
+                age.as_secs()
             ));
             false
         }
@@ -200,6 +217,7 @@ impl TokenCache {
 
     pub async fn reset(&self) {
         self.invalidate().await;
+        self.fresh_rejection_pending.store(false, Ordering::Release);
         self.latch.release();
         self.generation.send_modify(|g| *g += 1);
     }

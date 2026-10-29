@@ -1,8 +1,8 @@
 //! The bridge profile is fetched as a user and cached per `(gateway, user)`.
 //!
-//! Two users of one gateway get separate entries; a 401 on a stale bearer
-//! re-mints exactly once; a second 401 (or a 401 on a fresh bearer) is an
-//! error, and no request ever goes out without a bearer.
+//! Two users of one gateway get separate entries; a 401 on any bearer, stale
+//! or fresh, re-mints exactly once; a second 401 is an error, and no request
+//! ever goes out without a bearer.
 
 use std::ffi::OsString;
 use std::fs;
@@ -207,14 +207,14 @@ fn second_401_is_an_error_with_no_anonymous_fallback() {
 }
 
 #[test]
-fn fresh_bearer_401_is_not_reminted() {
+fn fresh_bearer_401_remints_once() {
     in_sandbox(|rt, server, gateway| {
         let calls = Arc::new(AtomicUsize::new(0));
         rt.block_on(async {
             Mock::given(method("GET"))
                 .and(path("/v1/bridge/profile"))
                 .respond_with(ResponseTemplate::new(401))
-                .expect(1)
+                .expect(2)
                 .mount(server)
                 .await;
             let client = GatewayClient::new(gateway, reqwest::Client::new());
@@ -227,7 +227,11 @@ fn fresh_bearer_401_is_not_reminted() {
             .unwrap_err();
             assert!(matches!(&err, ProfileFetchError::Gateway(e) if is_unauthorized(e)));
         });
-        assert_eq!(calls.load(Ordering::SeqCst), 0);
+        assert_eq!(
+            calls.load(Ordering::SeqCst),
+            1,
+            "a restarted gateway voids fresh bearers too"
+        );
     });
 }
 
