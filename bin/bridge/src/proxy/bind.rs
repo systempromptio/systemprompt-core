@@ -92,7 +92,7 @@ pub(super) fn persist_and_announce(port: u16, ours: &InstallId) -> std::io::Resu
     portfile::write(port, ours)?;
 
     if port == DEFAULT_PROXY_PORT {
-        tracing::info!(target: "systemprompt_bridge", "proxy: listening on localhost:{port}");
+        tracing::info!(target: "systemprompt_bridge", port, "proxy: listening on localhost");
         return Ok(());
     }
 

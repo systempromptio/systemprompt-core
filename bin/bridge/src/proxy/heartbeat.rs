@@ -131,8 +131,12 @@ fn report_feedback(faults: &WarnOnce, result: crate::feedback::Result<()>, messa
     };
     match current {
         None => faults.clear(message),
-        Some(error) if faults.changed(message, &error) => tracing::warn!(%error, "{message}"),
-        Some(error) => tracing::debug!(%error, "{message} (unchanged)"),
+        Some(error) if faults.changed(message, &error) => {
+            tracing::warn!(%error, stage = message, "feedback delivery remains pending");
+        },
+        Some(error) => {
+            tracing::debug!(%error, stage = message, "feedback delivery still pending (unchanged)");
+        },
     }
 }
 

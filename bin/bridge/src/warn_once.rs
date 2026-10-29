@@ -7,10 +7,12 @@
 use std::collections::HashMap;
 use std::sync::Mutex;
 
-/// The last reported state per key; built by `BridgeContext::start` and
-/// shared with the loops that report through it. `changed` records a state
-/// and answers true when it differs from the last one (a first sighting
-/// included); `clear` forgets a key so its next fault warns again.
+/// The last reported state per key.
+///
+/// Built by `BridgeContext::start` and shared with the loops that report
+/// through it. `changed` records a state and answers true when it differs from
+/// the last one (a first sighting included); `clear` forgets a key so its next
+/// fault warns again.
 #[derive(Debug, Default)]
 pub struct WarnOnce {
     seen: Mutex<HashMap<String, String>>,
