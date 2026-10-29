@@ -171,7 +171,7 @@ fn bearer_of(req: &wiremock::Request) -> String {
 }
 
 #[test]
-fn an_upstream_401_on_a_fresh_jwt_latches_sign_in_instead_of_reminting() {
+fn an_upstream_401_on_a_fresh_jwt_remints_once_then_latches() {
     with_credentials(async {
         let h = spawn_harness().await;
         Mock::given(method("POST"))
@@ -184,7 +184,7 @@ fn an_upstream_401_on_a_fresh_jwt_latches_sign_in_instead_of_reminting() {
         assert_eq!(
             first.status().as_u16(),
             401,
-            "the upstream status is relayed to the caller"
+            "the re-minted retry is refused too, and its status is relayed"
         );
 
         let second = h.authed_post("/v1/messages", r#"{"messages":[]}"#).await;
@@ -196,16 +196,17 @@ fn an_upstream_401_on_a_fresh_jwt_latches_sign_in_instead_of_reminting() {
 
         assert_eq!(
             h.mints.load(Ordering::Relaxed),
-            1,
-            "a credential refused moments after minting cannot be fixed by re-minting"
+            2,
+            "a fresh rejection re-mints exactly once before latching"
         );
         let requests = h.upstream_requests().await;
         assert_eq!(
             requests.len(),
-            1,
-            "the second request never reaches upstream"
+            2,
+            "the original and its one re-minted retry; the second call never reaches upstream"
         );
         assert_eq!(bearer_of(&requests[0]), "Bearer upstream-jwt-1");
+        assert_eq!(bearer_of(&requests[1]), "Bearer upstream-jwt-2");
     });
 }
 

@@ -567,7 +567,7 @@ fn comparable(
 }
 
 #[test]
-fn skill_md_emits_owned_keys_then_authored_frontmatter_and_escapes_quotes() {
+fn skill_md_emits_owned_keys_then_sorted_frontmatter_and_escapes_quotes() {
     let mut skill = skill_entry("quote_skill", "a \"quoted\" desc", "  trim me  ");
     let mut frontmatter = serde_yaml::Mapping::new();
     frontmatter.insert("disable-model-invocation".into(), true.into());
@@ -601,8 +601,8 @@ fn skill_md_emits_owned_keys_then_authored_frontmatter_and_escapes_quotes() {
     assert_eq!(
         md,
         "---\nname: quote-skill\ndescription: \"a \\\"quoted\\\" desc\"\n\
-         disable-model-invocation: true\nallowed-tools:\n- Read\n- Bash(git *)\n---\n\ntrim me\n",
-        "SKILL.md carries name and description, then the authored keys in order, never an owned key",
+         allowed-tools:\n- Read\n- Bash(git *)\ndisable-model-invocation: true\n---\n\ntrim me\n",
+        "SKILL.md carries name and description, then the authored keys sorted, never an owned key",
     );
 }
 

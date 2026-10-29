@@ -330,7 +330,7 @@ fn a_session_id_carrying_path_characters_is_flattened_to_one_safe_filename() {
 }
 
 #[test]
-fn a_rejected_subscription_latches_sign_in_and_stops_retrying() {
+fn a_rejected_subscription_remints_once_then_latches_and_stops_retrying() {
     let sb = Sandbox::new();
     let counter = Arc::new(AtomicUsize::new(0));
     let requests = sb.drive(
@@ -339,13 +339,13 @@ fn a_rejected_subscription_latches_sign_in_and_stops_retrying() {
         counting_refresh(&counter),
     );
     assert_eq!(
-        requests, 1,
-        "the latch stops the subscription instead of retrying it; saw {requests}"
+        requests, 2,
+        "one re-minted retry, then the latch stops the subscription; saw {requests}"
     );
     assert_eq!(
         counter.load(Ordering::SeqCst),
-        1,
-        "a credential refused moments after minting is not re-minted; minted {}",
+        2,
+        "a fresh rejection re-mints once and the second rejection latches; minted {}",
         counter.load(Ordering::SeqCst)
     );
 }

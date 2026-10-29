@@ -28,6 +28,7 @@ pub mod headers;
 mod hook;
 pub mod replay;
 mod retry;
+mod status;
 pub mod route;
 
 use body::prepare_upstream_body;
@@ -37,6 +38,7 @@ use headers::{UpstreamHeaderInputs, build_upstream_headers, copy_response_header
 use hook::{authenticate_hook_track, require_hook_credential};
 pub use replay::{Replay, describe, replay_policy, should_replay};
 use retry::{UpstreamSend, send_upstream};
+use status::{UpstreamStatus, note_upstream_status};
 use route::{Route, RouteResolution, resolve_route, same_origin_as};
 
 pub type ProxyBody = http_body_util::combinators::BoxBody<Bytes, std::io::Error>;
@@ -227,51 +229,6 @@ pub(crate) async fn forward(
     Ok(response_builder.body(body)?)
 }
 
-struct UpstreamStatus<'a> {
-    status: StatusCode,
-    request_path: &'a str,
-    upstream: &'a str,
-    session_context: &'a SessionContext,
-    plugin_tokens: &'a crate::auth::plugin_oauth::PluginTokenCache,
-    gateway_base: &'a ValidatedUrl,
-    hook_plugin: Option<&'a crate::ids::PluginId>,
-    gateway_signed: bool,
-}
-
-fn note_upstream_status(seen: &UpstreamStatus<'_>) {
-    let &UpstreamStatus {
-        status,
-        request_path,
-        upstream,
-        session_context,
-        plugin_tokens,
-        gateway_base,
-        hook_plugin,
-        gateway_signed,
-    } = seen;
-    if status.is_success() {
-        if usage::is_messages_path(request_path) {
-            session_context.touch_activity();
-        }
-        tracing::debug!(upstream_status = status.as_u16(), "upstream forwarded");
-    } else {
-        if systemprompt_models::ApiPaths::is_otel(request_path) {
-            tracing::debug!(upstream_status = status.as_u16(), url = %upstream, "telemetry upstream non-2xx; dropped");
-        } else {
-            tracing::warn!(upstream_status = status.as_u16(), url = %upstream, "upstream non-2xx");
-        }
-        if status == StatusCode::UNAUTHORIZED {
-            note_unauthorized(
-                plugin_tokens,
-                gateway_base,
-                hook_plugin,
-                gateway_signed,
-                upstream,
-            );
-        }
-    }
-}
-
 fn not_found_response(body: &str) -> ForwardResult<Response<ProxyBody>> {
     let bytes = Bytes::copy_from_slice(body.as_bytes());
     let body: ProxyBody = Full::new(bytes).map_err(|never| match never {}).boxed();
@@ -285,25 +242,3 @@ const _: fn() = || {
     const fn assert_send<T: Send>() {}
     assert_send::<ForwardResult<Response<ProxyBody>>>();
 };
-
-fn note_unauthorized(
-    plugin_tokens: &crate::auth::plugin_oauth::PluginTokenCache,
-    gateway_base: &ValidatedUrl,
-    hook_plugin: Option<&crate::ids::PluginId>,
-    gateway_signed: bool,
-    upstream: &str,
-) {
-    if let Some(plugin_id) = hook_plugin {
-        plugin_tokens.invalidate(gateway_base.as_str(), plugin_id);
-    } else if !gateway_signed {
-        // Why: only the gateway that minted the credential can say it
-        // is bad. A managed MCP upstream elsewhere (or a stale entry
-        // for a previous gateway) rejecting it is neither a sign-out
-        // nor a reason to re-mint.
-        tracing::warn!(
-            upstream = %upstream,
-            gateway = %gateway_base,
-            "401 from a non-gateway upstream; the gateway token is kept"
-        );
-    }
-}

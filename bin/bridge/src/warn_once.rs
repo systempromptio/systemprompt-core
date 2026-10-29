@@ -8,15 +8,15 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 
 /// The last reported state per key; built by `BridgeContext::start` and
-/// shared with the loops that report through it.
+/// shared with the loops that report through it. `changed` records a state
+/// and answers true when it differs from the last one (a first sighting
+/// included); `clear` forgets a key so its next fault warns again.
 #[derive(Debug, Default)]
 pub struct WarnOnce {
     seen: Mutex<HashMap<String, String>>,
 }
 
 impl WarnOnce {
-    /// Records `state` for `key`, returning true when it differs from the
-    /// state last recorded (a first sighting included).
     pub fn changed(&self, key: &str, state: &str) -> bool {
         let Ok(mut seen) = self.seen.lock() else {
             return true;
@@ -28,7 +28,6 @@ impl WarnOnce {
         true
     }
 
-    /// Forgets `key`, so its next fault warns again.
     pub fn clear(&self, key: &str) {
         if let Ok(mut seen) = self.seen.lock() {
             seen.remove(key);

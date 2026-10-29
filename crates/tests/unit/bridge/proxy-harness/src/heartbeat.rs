@@ -16,7 +16,7 @@ use systemprompt_bridge::proxy::token_cache::TokenCache;
 use systemprompt_bridge::update::automatic::UpdateGate;
 use systemprompt_identifiers::ValidatedUrl;
 use wiremock::matchers::{header, method, path};
-use wiremock::{Mock, MockServer, Request, Respond, ResponseTemplate};
+use wiremock::{Mock, MockServer, Request, ResponseTemplate};
 
 fn runtime_config(uri: &str) -> SharedRuntimeConfig {
     Arc::new(ArcSwap::from_pointee(RuntimeConfig {
@@ -123,29 +123,13 @@ fn heartbeat_posts_payload_with_bearer() {
     });
 }
 
-struct UnauthorizedOnce {
-    calls: AtomicU32,
-}
-
-impl Respond for UnauthorizedOnce {
-    fn respond(&self, _request: &Request) -> ResponseTemplate {
-        if self.calls.fetch_add(1, Ordering::SeqCst) == 0 {
-            ResponseTemplate::new(401)
-        } else {
-            ResponseTemplate::new(200)
-        }
-    }
-}
-
 #[test]
-fn heartbeat_401_latches_sign_in_and_stops_the_loop() {
+fn heartbeat_401_remints_once_then_latches_and_stops_the_loop() {
     with_credentials(async {
         let server = MockServer::start().await;
         Mock::given(method("POST"))
             .and(path("/v1/bridge/heartbeat"))
-            .respond_with(UnauthorizedOnce {
-                calls: AtomicU32::new(0),
-            })
+            .respond_with(ResponseTemplate::new(401))
             .mount(&server)
             .await;
 
@@ -160,7 +144,7 @@ fn heartbeat_401_latches_sign_in_and_stops_the_loop() {
             update_gate: UpdateGate::default(),
         }));
 
-        wait_for_requests(&server, 1).await;
+        wait_for_requests(&server, 2).await;
         // Why: wiremock records the request before the loop has read the 401,
         // so the latch is awaited on its own; under load a fixed number of
         // stepped ticks left this assertion racing the response.
@@ -177,19 +161,19 @@ fn heartbeat_401_latches_sign_in_and_stops_the_loop() {
 
         assert!(
             cache.sign_in_required(),
-            "a heartbeat 401 against a freshly minted token latches sign-in"
+            "a heartbeat 401 against the re-minted token latches sign-in"
         );
         assert_eq!(
             refresh_calls.load(Ordering::SeqCst),
-            1,
+            2,
             "the latched loop idles instead of minting on every tick (refresh calls: {})",
             refresh_calls.load(Ordering::SeqCst)
         );
         let sent = server.received_requests().await.unwrap_or_default();
         assert_eq!(
             sent.len(),
-            1,
-            "no further heartbeats are sent while latched"
+            2,
+            "one heartbeat on the re-minted token, then none while latched"
         );
     });
 }
