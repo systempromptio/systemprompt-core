@@ -24,7 +24,9 @@ async fn send(app: Router, req: Request<Body>) -> Result<(StatusCode, Value)> {
 }
 
 fn app(state: &DocumentsState, user: &AuthedFixture) -> Router {
-    router(state.clone()).layer(Extension(request_context(user.user_id.as_str())))
+    router(state.clone()).layer(Extension(
+        request_context(user.user_id.as_str()).with_browser_session(),
+    ))
 }
 
 fn empty(method: Method, uri: &str) -> Request<Body> {

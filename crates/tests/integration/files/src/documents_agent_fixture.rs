@@ -100,7 +100,7 @@ pub(crate) async fn edit(
         author: api_author(),
         message: None,
         lock_holder_id: None,
-        comments: CommentPolicy::default(),
+        comments: CommentPolicy::detach(),
         op_id: None,
         media: Media::new(),
     };

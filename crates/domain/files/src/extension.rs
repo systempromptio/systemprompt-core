@@ -49,6 +49,11 @@ const WEB_ASSETS: &[(&str, &str, AssetType)] = &[
         AssetType::JavaScript,
     ),
     (
+        "js/documents-browser-view.js",
+        "assets/documents/js/documents-browser-view.js",
+        AssetType::JavaScript,
+    ),
+    (
         "js/sp-document-preview.js",
         "assets/documents/js/sp-document-preview.js",
         AssetType::JavaScript,

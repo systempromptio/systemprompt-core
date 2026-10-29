@@ -5,20 +5,34 @@
 use systemprompt_files::DocumentsConfig;
 use systemprompt_files::documents::DocumentsError;
 use systemprompt_files::documents::agents::{AgentCap, AgentRefusal};
-use systemprompt_files::documents::models::{ListScope, ListSort};
+use systemprompt_files::documents::models::{CommentAnchor, ListScope, ListSort};
 use systemprompt_files::documents::service::{
     AgentCapTarget, CommentRequest, EditModeRequest, ListFolderRequest, NewFolderRequest,
 };
 use systemprompt_identifiers::DocumentId;
+use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{ActorKind, EditMode};
 
 use crate::documents_agent_fixture::{agent_harness, agent_refusal, as_agent, document, edit};
-use crate::documents_service_fixture::{RoleDirectory, create, person, trace, unique};
+use crate::documents_service_fixture::{Harness, RoleDirectory, create, person, trace, unique};
 
-fn comment_on(id: &DocumentId) -> CommentRequest {
+async fn comment_on(h: &Harness, owner: &AuthenticatedUser, id: &DocumentId) -> CommentRequest {
+    let (_, projection) = h
+        .service
+        .project(owner, id, None, &trace())
+        .await
+        .expect("project");
+    let node = projection
+        .nodes()
+        .find(|node| node.text.is_some())
+        .expect("line");
     CommentRequest {
         document: id.clone(),
-        anchor: None,
+        anchor: Some(CommentAnchor {
+            node: node.id.clone(),
+            find: None,
+            nth: None,
+        }),
         range: None,
         body: "looks right".to_owned(),
         mentions: Vec::new(),
@@ -40,7 +54,8 @@ async fn each_cap_leaves_the_agent_what_it_names_and_a_person_is_never_capped() 
         let id = document(&h, &owner).await;
 
         let read = as_agent(h.service.get(&owner, &id, &trace())).await;
-        let comment = as_agent(h.service.create_comment(&owner, comment_on(&id), &trace())).await;
+        let request = comment_on(&h, &owner, &id).await;
+        let comment = as_agent(h.service.create_comment(&owner, request, &trace())).await;
         let wrote = as_agent(edit(&h, &owner, &id, "agent\n")).await;
         match cap {
             AgentCap::None => {
@@ -58,7 +73,7 @@ async fn each_cap_leaves_the_agent_what_it_names_and_a_person_is_never_capped() 
                 assert!(wrote.is_err());
             },
             AgentCap::Comment => {
-                assert!(read.is_ok() && comment.is_ok());
+                assert!(read.is_ok() && comment.is_ok(), "{read:?} {comment:?}");
                 let refused = wrote.expect_err("comment refuses edit");
                 assert!(matches!(
                     agent_refusal(&refused),
@@ -66,7 +81,7 @@ async fn each_cap_leaves_the_agent_what_it_names_and_a_person_is_never_capped() 
                 ));
             },
             AgentCap::Suggest => {
-                assert!(read.is_ok() && comment.is_ok());
+                assert!(read.is_ok() && comment.is_ok(), "{read:?} {comment:?}");
                 let refused = wrote.expect_err("suggest refuses a direct edit");
                 assert!(matches!(
                     agent_refusal(&refused),
@@ -196,12 +211,10 @@ async fn an_override_only_tightens_and_an_agent_cannot_set_one() {
     assert_eq!(view.own_override, Some(AgentCap::Read));
     assert_eq!(view.effective.cap, AgentCap::Read);
 
-    let refused = as_agent(
-        h.service
-            .create_comment(&owner, comment_on(&inside.id), &trace()),
-    )
-    .await
-    .expect_err("the folder override reaches the document inside");
+    let request = comment_on(&h, &owner, &inside.id).await;
+    let refused = as_agent(h.service.create_comment(&owner, request, &trace()))
+        .await
+        .expect_err("the folder override reaches the document inside");
     assert!(matches!(
         agent_refusal(&refused),
         Some(AgentRefusal::CapExceeded {
