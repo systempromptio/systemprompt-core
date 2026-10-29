@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use systemprompt_bridge::elevation_gate::{Admission, ElevationGate, GateOutcome, Requester};
 
@@ -13,7 +13,6 @@ fn run_prompt(
     match gate.request(content, Requester::Attended) {
         Admission::Run(ticket) => {
             prompts.fetch_add(1, Ordering::SeqCst);
-            std::thread::sleep(Duration::from_millis(80));
             ticket.finish(outcome);
             outcome
         },
@@ -23,26 +22,32 @@ fn run_prompt(
     }
 }
 
+fn staged(gate: &ElevationGate, content: &str) {
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while gate.pending().as_deref() != Some(content) {
+        assert!(Instant::now() < deadline, "{content} was never staged");
+        std::thread::yield_now();
+    }
+}
+
 #[test]
-fn concurrent_requests_for_the_same_policy_share_one_prompt() {
+fn a_request_for_the_content_in_flight_takes_its_result_without_prompting() {
     let gate = Arc::new(ElevationGate::new());
     let prompts = Arc::new(AtomicUsize::new(0));
-    let handles: Vec<_> = (0..4)
-        .map(|_| {
-            let gate = Arc::clone(&gate);
-            let prompts = Arc::clone(&prompts);
-            std::thread::spawn(move || {
-                run_prompt(&gate, "policy-a", &prompts, GateOutcome::Applied)
-            })
-        })
-        .collect();
-    for h in handles {
-        assert_eq!(h.join().unwrap(), GateOutcome::Applied);
-    }
+    let Admission::Run(ticket) = gate.request("policy-a", Requester::Attended) else {
+        panic!("an idle gate runs the first request");
+    };
+    let waiter = {
+        let (gate, prompts) = (Arc::clone(&gate), Arc::clone(&prompts));
+        std::thread::spawn(move || run_prompt(&gate, "policy-a", &prompts, GateOutcome::Applied))
+    };
+    staged(&gate, "policy-a");
+    ticket.finish(GateOutcome::Applied);
+    assert_eq!(waiter.join().unwrap(), GateOutcome::Applied);
     assert_eq!(
         prompts.load(Ordering::SeqCst),
-        1,
-        "four callers, one approval"
+        0,
+        "the waiter rode the run in flight"
     );
 }
 
@@ -50,28 +55,59 @@ fn concurrent_requests_for_the_same_policy_share_one_prompt() {
 fn changes_arriving_during_a_prompt_coalesce_into_one_more() {
     let gate = Arc::new(ElevationGate::new());
     let prompts = Arc::new(AtomicUsize::new(0));
-    let first = {
-        let (gate, prompts) = (Arc::clone(&gate), Arc::clone(&prompts));
-        std::thread::spawn(move || run_prompt(&gate, "v1", &prompts, GateOutcome::Applied))
+    let Admission::Run(ticket) = gate.request("v1", Requester::Attended) else {
+        panic!("an idle gate runs the first request");
     };
-    std::thread::sleep(Duration::from_millis(20));
-    let later: Vec<_> = ["v2", "v3", "v3"]
-        .into_iter()
-        .map(|c| {
-            let (gate, prompts) = (Arc::clone(&gate), Arc::clone(&prompts));
-            std::thread::spawn(move || run_prompt(&gate, c, &prompts, GateOutcome::Applied))
-        })
-        .collect();
-    first.join().unwrap();
-    for h in later {
-        h.join().unwrap();
+    let mut later = Vec::new();
+    for content in ["v2", "v3"] {
+        let (shared, prompts) = (Arc::clone(&gate), Arc::clone(&prompts));
+        later.push(std::thread::spawn(move || {
+            run_prompt(&shared, content, &prompts, GateOutcome::Applied)
+        }));
+        staged(&gate, content);
     }
-    assert!(
-        prompts.load(Ordering::SeqCst) <= 2,
-        "every change made during the first prompt rides one more, got {}",
-        prompts.load(Ordering::SeqCst)
+    ticket.finish(GateOutcome::Applied);
+    for h in later {
+        assert_eq!(h.join().unwrap(), GateOutcome::Applied);
+    }
+    assert_eq!(
+        prompts.load(Ordering::SeqCst),
+        1,
+        "both changes made during the first prompt ride one more"
     );
     assert!(gate.pending().is_none(), "the newest content was applied");
+}
+
+#[test]
+fn a_waiter_is_not_answered_until_the_run_covering_it_finishes() {
+    let gate = Arc::new(ElevationGate::new());
+    let Admission::Run(first) = gate.request("v1", Requester::Attended) else {
+        panic!("an idle gate runs the first request");
+    };
+    let answered = Arc::new(AtomicUsize::new(0));
+    let waiter = {
+        let (gate, answered) = (Arc::clone(&gate), Arc::clone(&answered));
+        std::thread::spawn(move || {
+            let admission = gate.request("v2", Requester::Attended);
+            answered.fetch_add(1, Ordering::SeqCst);
+            match admission {
+                Admission::Run(ticket) => {
+                    ticket.finish(GateOutcome::Applied);
+                    GateOutcome::Applied
+                },
+                Admission::Joined(o) => o,
+                Admission::Suppressed | Admission::Queued => GateOutcome::Failed,
+            }
+        })
+    };
+    staged(&gate, "v2");
+    first.finish(GateOutcome::Declined);
+    assert_eq!(
+        waiter.join().unwrap(),
+        GateOutcome::Applied,
+        "v2 was staged after v1 started, so v1's decline is not its answer"
+    );
+    assert_eq!(answered.load(Ordering::SeqCst), 1);
 }
 
 #[test]
