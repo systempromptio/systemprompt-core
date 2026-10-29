@@ -25,6 +25,9 @@ use super::errors::{
 /// `is_available` is `false` and whose `emit` returns
 /// [`NotificationSinkError::Unavailable`]; producers check availability
 /// before their transaction and skip recording rather than roll back.
+///
+/// `#[async_trait]` keeps the trait dyn-compatible: producers hold it as
+/// `Arc<dyn NotificationSink>`.
 #[cfg(feature = "sqlx")]
 #[async_trait::async_trait]
 pub trait NotificationSink: Send + Sync {
