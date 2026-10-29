@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.75.0] - 2026-10-28
+
+### Breaking
+
+- **Breaking:** `BridgeAuthResult` gains `device_token`. Migrate struct literals by adding the field.
+
+### Added
+
+- OAuth clients record their declared source (migration `022_oauth_client_declared_source`), so the `identity` config plane can manage static clients.
+- The `browser_session` and `interaction` claims, and the private bridge `device_token` that alone trades for the Drive sync token.
+
+### Changed
+
+- While `config_planes.authority.identity` is `file`, the client write paths refuse with `config_plane_file_managed`.
+
 ## [0.74.0] - 2026-10-27
 
 ### Breaking

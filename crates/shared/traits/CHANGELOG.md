@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.75.0] - 2026-10-28
+
+### Added
+
+- `FileStorage::store_stream`.
+
 ## [0.73.0] - 2026-10-25
 
 ### Breaking

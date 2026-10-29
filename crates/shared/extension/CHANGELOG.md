@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.75.0] - 2026-10-28
+
+### Breaking
+
+- **Breaking:** `LoaderError` gains `InitializationStepFailed { extension, source }`.
+
 ## [0.74.0] - 2026-10-27
 
 ### Breaking

@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.75.0] - 2026-10-28
+
+### Breaking
+
+- **Breaking:** `IssueApiKeyParams`, `CreateApiKeyParams` and `UserApiKey` gain `kind: ApiKeyKind` (migration `031_api_key_kind`). Migrate struct literals with `kind: ApiKeyKind::User`.
+- **Breaking:** `UserError` gains `AccountKindMismatch`. Migrate by adding an arm (or a wildcard) to exhaustive matches.
+
+### Added
+
+- Users record their declared source (migration `030_users_declared_source`) for the `identity` config plane.
+- `UserRepository::search_active_by_prefix`, `list_active_roles` and `list_active_ids_with_role`.
+
 ## [0.73.0] - 2026-10-25
 
 ### Added

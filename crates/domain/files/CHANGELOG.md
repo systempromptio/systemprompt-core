@@ -1,21 +1,11 @@
 # Changelog
 
-## [Unreleased]
-
-### Added
-
-- Agent access caps on documents: `documents::agents` (`DocumentActor`, `act_as`, `AgentCap`, `AgentCapability`, the `AgentAccessPolicy` seam and `register_agent_access_policy!`), owner overrides on documents and folders that only tighten (migration 024), the `document_agent_reads` audit, and the `limits.agentEditsPerHour` ceiling.
-
-- The agent access policy is async and built from the database pool; `DocumentContext` carries `created_by_agent` and a nearest-first folder chain; `DocumentService::visible_documents` batch-checks view access; `sp-document-browser` gains `registerRowExtension` and `registerFolderMenuItem`.
+## [0.75.0] - 2026-10-28
 
 ### Breaking
 
+- `CreateRequest` gains `content: Option<RichText>`, `ImportRequest` gains `mime_type: Option<String>`, `NewGrant` gains `reason` and `via_agent`, `collab::Joined` gains `seq`, `DocumentRepositories` gains `uploads`, `grant_events` and `access_requests`, and `DocumentNodeIdRepository::insert` is an associated function taking a connection. Migrate struct literals and calls.
 - `DocumentsError` gains `Agent(AgentRefusal)`, `Granted` and `TargetAccess` gain `agent_cap`, and `DocumentLimits` gains `agent_edits_per_hour`. Migrate by adding arms (or a wildcard) to exhaustive matches and the fields to struct literals.
-
-## [0.75.0] - 2026-10-27
-
-### Breaking
-
 - The Loro CRDT moves out of `systemprompt-files` into the new `systemprompt-engine-loro` crate behind the `documents::engine::DocumentEngine` seam (with `FormulaEngine`, `RenderEngine` and the engine-agnostic `ModelView`); `systemprompt-files` links no CRDT crate. `CollabService::new` takes a third argument, `Option<Arc<dyn DocumentEngine>>`; with `None` every session call answers `CollabError::EngineUnavailable` (HTTP 503, `collab_engine_unavailable`). `CollabError::{Crdt, Encode, Reconcile}` collapse into `Engine(EngineError)`, and `InvalidUpdate`/`InvalidVersion` carry an `EngineError`. `collab::model::{BODY_CONTAINER, SEED_PEER, seed, body_text, replica_peer}` move to `systemprompt_engine_loro`. Migrate by passing `Some(Arc::new(LoroEngine))` and enabling the facade's `files-collab-loro` feature (`full` implies it); `files-collab` alone mounts the routes without an engine.
 - Core ships no third-party frontend code: the vendored `loro-crdt` WebAssembly (`assets/documents/wasm/*`), the `documents-collab.js` client and the `sp-document-editor` component are removed. Migrate by vendoring a Loro client in the installation that serves the editor, at `systemprompt_engine_loro::WIRE_VERSION`.
 - `DocumentAccessService::new` takes a fourth argument, `Arc<dyn SubjectDirectory>`, which resolves grant subjects to users. Migrate by passing `UserSubjectDirectory` from `systemprompt-runtime` or your own implementation.
@@ -42,6 +32,8 @@
 
 ### Added
 
+- Agent access caps on documents: `documents::agents` (`DocumentActor`, `act_as`, `AgentCap`, `AgentCapability`, the `AgentAccessPolicy` seam and `register_agent_access_policy!`), owner overrides on documents and folders that only tighten (migration 024), the `document_agent_reads` audit, and the `limits.agentEditsPerHour` ceiling.
+- The agent access policy is async and built from the database pool; `DocumentContext` carries `created_by_agent` and a nearest-first folder chain; `DocumentService::visible_documents` batch-checks view access; `sp-document-browser` gains `registerRowExtension` and `registerFolderMenuItem`.
 - Comments v2: ranges of engine cursors, mentions, author edits and soft deletion (`edit_comment`, `delete_comment`, migration `016_document_comment_ranges`), the `document.comment.{updated, deleted, mentioned}` events, and `export_with_comments` writing open comments as native `w:comment`s in `docx` (`codecs::docx::with_comments`).
 - `documents::model::ops::apply_rich_ops`: the `set_marks`, `set_block_type`, `insert_table`, `table_insert_row`, `table_insert_col`, `table_delete` and `insert_image` edit ops, applied through the `RichText` model of `html`, `markdown`, `docx` and `odt` documents. `documents::model::{formats, html_body}` hold the per-format import and materialise and the `<body>` splice.
 - `docx` hyperlinks are native `w:hyperlink`s with an external relationship; new `docx` and `odt` tables are written natively.

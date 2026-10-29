@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.75.0] - 2026-10-28
+
+### Breaking
+
+- **Breaking:** `TenantSummary` and `TenantDetailOutput` replace `tenant_type: String` with `provider: HostingProvider`; `DeployRequest` gains `licence_secret_required`; `DeployEvent` gains `SecretsExternal`, `RolloutCommitted`, `ReadinessWaitStarted` and `TenantReady`; `CloudCommands::Deploy` gains `wait`; and `CloudCommands` gains `Fleet`, `TenantCommands` gains `Add` and `AdminCommands` gains `Licence`. Migrate struct literals and add arms (or a wildcard) to exhaustive matches.
+- **Breaking:** `DeployOrchestrator::deploy` takes the `DeployProvider` as its first argument, `DeployRequest::credentials` is replaced by `platform_credentials: Option<CloudCredentials>`, `DeployOptions` gains `wait_ready`, and `AuthCommands` is no longer `Copy` (`Login` gains `issuer` and `client_id`).
+- **Breaking:** `ExecutionTarget` gains `SelfManaged { hostname }`; `routing::authorize_target` exchanges it for a `Remote` target.
+
+### Added
+
+- `cloud deploy` to `kubernetes` and `gke` through GitOps, `cloud tenant add`/`delete` for self-managed tenants, `cloud auth login --issuer --client-id`, `cloud fleet run`, `cloud doctor --distributed` and `admin licence status`.
+- `cloud doctor` fails on a database holding migrations newer than the binary.
+
+### Changed
+
+- A cloud profile with no `cloud.tenant_id` runs routed commands locally; the deploy preflight is its own step.
+
 ## [0.74.0] - 2026-10-27
 
 ### Breaking

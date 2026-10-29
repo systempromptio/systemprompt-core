@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.75.0] - 2026-10-28
+
+### Breaking
+
+- **Breaking:** `EventBroadcasters` gains `topics` and `OutboxChannel` gains `Topic`. Migrate by adding arms (or a wildcard) to exhaustive matches and the field to struct literals.
+
+### Added
+
+- The document-scoped live channel and typed awareness events.
+
 ## [0.73.0] - 2026-10-25
 
 ### Breaking

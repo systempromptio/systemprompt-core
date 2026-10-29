@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.75.0] - 2026-10-28
+
+### Breaking
+
+- **Breaking:** `DriveState::new` is no longer `const`.
+- **Breaking:** `AuthResponse` gains `device_token: Option<String>`. Migrate struct literals by adding `device_token: None`.
+- **Breaking:** `RouterExt` gains the required method `with_bearer_window`. Migrate an out-of-tree implementation by implementing it.
+- **Breaking:** the `/v1/bridge/drive/*` routes refuse a plain bridge token; clients trade it at `/v1/bridge/drive/token`. `DriveState::new` takes the `TokenAuthority`.
+- **Breaking:** `LifecyclePlan` gains `process_ownership: ProcessOwnership`, and `ProxyError` gains `NoLiveOwner` (503, `no_live_owner`).
+- **Breaking:** document route errors use the refusal codes as `error_key` and carry the typed detail under `detail`; `template_failed` answers `422`.
+- **Breaking:** `POST /api/v1/documents/{id}/restore` is `POST /api/v1/documents/{id}/untrash`.
+
+### Added
+
+- Each MCP server and agent is owned by one worker through its own lease in `instance_leases`, spread by rendezvous hashing over the reachable workers.
+- `RouterExt::with_bearer_window` charges the per-user rate-limit window on routers that authenticate inside their handlers.
+- Resumable uploads (`/api/v1/uploads`), `POST /api/v1/documents/import`, PDF content (`?format=pdf`), `view=range`/`view=cells` reads, the document-scoped `GET /api/v1/documents/{id}/live` channel, collab awareness, subject search, folder grants and access requests.
+- `/v1/bridge/drive/token` and a commit answered `status: proposed`.
+
+### Changed
+
+- The services watch reloads when a file under the services tree changes on disk.
+
+### Fixed
+
+- User-supplied bytes are served with `X-Content-Type-Options: nosniff` and a sandboxing `Content-Security-Policy`; the security-headers middleware keeps a route's own `nosniff`.
+- `.wasm` files are served as static assets, and a refused document write answers `422`.
+
 ## [0.74.0] - 2026-10-27
 
 ### Breaking

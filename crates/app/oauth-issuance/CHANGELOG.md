@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.75.0] - 2026-10-28
+
+### Breaking
+
+- **Breaking:** `SubjectIdentity` gains `interaction: Option<TokenInteraction>`. Migrate struct literals by adding `interaction: None`.
+- **Breaking:** `SsoProviderRegistration::factory` returns `Result<Option<Arc<dyn SsoProvider>>, SsoProviderError>`, and `SsoDriver::discover` and `SsoRouteState::build` return `Result`. An enabled provider whose configuration is unusable, or two providers with one id, fail boot. Migrate factories by returning `Ok(None)` when the provider is not configured and `Err(SsoProviderError::config(id, e))` when it is enabled but invalid.
+
+### Added
+
+- A generic OpenID Connect console sign-in provider (`sso::oidc`, id `oidc`): authorization code with PKCE (S256), `state` and `nonce`, discovery and JWKS fetched through the guarded outbound client.
+- Token exchange and ID-JAG subject tokens from trusted issuers verify ES256 (P-256) as well as RS256 signatures.
+- First-party web logins (SSO, and OAuth tokens for the `sp_web` client) mint the signed `browser_session` claim; token exchange carries the `interaction` claim.
+
 ## [0.73.0] - 2026-10-25
 
 ### Breaking

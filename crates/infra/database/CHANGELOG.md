@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.75.0] - 2026-10-28
+
+### Breaking
+
+- **Breaking:** `ExtensionMigrationStatus` gains `ahead: Vec<u32>`. Migrate struct literals by adding `ahead: vec![]`.
+
+### Added
+
+- Migration `007_instance_endpoints` and `ServiceRepository::{advertise_endpoint, find_process_owner, delete_stale_endpoints}`.
+- Migration `008_instance_presence`: every replica records its `server.role` with each registry heartbeat; `ServiceRepository::count_live_instances_by_role`.
+
 ## [0.73.0] - 2026-10-25
 
 ### Breaking

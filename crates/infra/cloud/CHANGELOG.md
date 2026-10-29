@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.75.0] - 2026-10-28
+
+### Breaking
+
+- **Breaking:** `TenantType` is replaced by `HostingProvider` and `StoredTenant::tenant_type` by `StoredTenant::provider`; `is_cloud` is replaced by `is_systemprompt_managed` and `is_self_managed`. Existing `tenants.json` records load unchanged.
+- **Breaking:** `default_cloud_trusted_proxies` and `default_local_trusted_proxies` are replaced by `default_trusted_proxies(HostingProvider)`.
+- **Breaking:** `CloudError` gains `ProviderNotDeployable`, `DeployNotConfigured`, `GitOps`, `ValuesFile`, `TenantUnready`, `OperatorAuth`, `OperatorEndpoint`, `OperatorEmail` and `OperatorNotAuthenticated`; `CloudPath` gains `OperatorCredentials`, and `ClearedCloudState` gains `operator_credentials_path`.
+
+### Added
+
+- `deploy::provider::DeployProvider`, selected by `DeployProviderKind::for_provider`; `TenantStore::merge_control_plane` and `insert_self_managed`; `CloudProfileBuilder::with_provider` and `with_trusted_proxies`.
+
+### Fixed
+
+- `cloud auth login` drops `systemprompt`-managed tenants the account no longer lists and keeps every self-managed one.
+
 ## [0.73.0] - 2026-10-25
 
 ### Breaking

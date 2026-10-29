@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.75.0] - 2026-10-28
+
+### Breaking
+
+- **Breaking:** `Jwk` and `Jwks` are publish-only; an issuer's key set is read as `VerificationKeySet`, and `JwksClient::fetch`/`fetch_at` return `VerificationKey` (`Rsa` or P-256 `Ec`). A token verifies only when its header `alg` equals the key's algorithm.
+- **Breaking:** `CustomClaims`, `UserJwtRequest`, `JwtConfig` and `JwtUserContext` gain `browser_session` and `interaction`; `AuthContext` gains `cookie_transport`. Migrate struct literals with `browser_session: false` and `interaction: None`.
+
 ## [0.73.0] - 2026-10-25
 
 ### Breaking

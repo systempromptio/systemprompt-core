@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.75.0] - 2026-10-28
+
+### Breaking
+
+- **Breaking:** `BundleError` gains `NoSharedComposition`.
+
+### Added
+
+- `tree_fingerprint` hashes the path, size and modification time of every file under a directory.
+
+### Changed
+
+- An `api` node with `services.sources` reads the composition a worker recorded in `services.cache_dir` instead of fetching.
+
 ## [0.74.0] - 2026-10-27
 
 ### Breaking

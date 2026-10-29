@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.75.0] - 2026-10-28
+
+### Added
+
+- `FileStorage::store_stream` writes an object from a byte stream: the local backend stages and renames, S3 uses multipart uploads and Cloud Storage resumable sessions, aborting the remote upload when the caller drops the stream.
+- The uploads storage path.
+
 ## [0.71.0] - 2026-10-21
 
 ### Changed

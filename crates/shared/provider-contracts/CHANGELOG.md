@@ -1,10 +1,12 @@
 # Changelog
 
-## [Unreleased]
+## [0.75.0] - 2026-10-28
 
 ### Breaking
 
+- `EditOp` gains `SetParagraph`, `InsertBlock`, `UpdateTable`, `SetSection`, `SetStyle` and `ApplyTheme`. Migrate by adding arms (or a wildcard) to exhaustive matches.
 - `EditOp` gains `SetMarks`, `SetBlockType`, `InsertTable`, `TableInsertRow`, `TableInsertCol`, `TableDelete` and `InsertImage`, with their payload types (`SetMarks`, `MarkSpec`, `SetBlockType`, `TextBlockType`, `InsertTable`, `TableInsert`, `TableDelete`, `InsertImage`) and `EditOp::{is_rich, rich_target, rich_guard}`; `resolve_targets` resolves their targets. Exhaustive matches need new arms.
+- `DocumentFormat` gains `File` (any upload with no editable format), `CodecError` gains `Refused` and `Payload`, and Markdown `materialise` returns `Result`. Migrate by adding arms (or a wildcard) to exhaustive matches and handling the error.
 
 ## [0.74.0] - 2026-10-27
 
