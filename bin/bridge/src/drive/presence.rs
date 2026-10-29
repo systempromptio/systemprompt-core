@@ -39,10 +39,19 @@ impl PresenceThrottle {
     }
 }
 
+/// The document a touched path belongs to, when the touch is a person's edit.
+/// The bridge's own pull writes the synced revision's bytes and the watcher
+/// reports that write like any other, so a file whose bytes still hash to
+/// the synced revision was not edited and files no beacon.
 #[must_use]
 pub fn document_for(root: &DriveRoot, state: &DriveState, path: &Path) -> Option<DocumentId> {
     let rel = root.relative(path)?;
-    state.entries.get(&rel)?.document_id.clone()
+    let entry = state.entries.get(&rel)?;
+    let unchanged = super::hash::hash_file(path).is_ok_and(|(sha, _)| sha == entry.sha256);
+    if unchanged {
+        return None;
+    }
+    entry.document_id.clone()
 }
 
 #[must_use]

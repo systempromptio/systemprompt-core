@@ -57,6 +57,10 @@ pub struct AwarenessState {
     pub selection: Vec<AwarenessCursor>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub viewport: Option<AwarenessViewport>,
+    /// Set when the participant is an agent acting for the user, named so a
+    /// client draws it as its own caret beside the person's.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agent: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]

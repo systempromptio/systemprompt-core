@@ -83,6 +83,11 @@ pub(super) fn apply_on_head(
         match op {
             EditOp::Delete { node, .. } => hints.retired.extend(node.id().cloned()),
             EditOp::ReplaceText { node, .. } => hints.rewritten.extend(node.id().cloned()),
+            EditOp::SetMarks(_) | EditOp::SetBlockType(_) => {
+                if let Some((node, _)) = op.rich_guard() {
+                    hints.rewritten.extend(node.id().cloned());
+                }
+            },
             _ => {},
         }
     }

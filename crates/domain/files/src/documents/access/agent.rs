@@ -85,6 +85,7 @@ const CAPABILITIES: [AgentCapability; 9] = [
     AgentCapability::Administer,
     AgentCapability::RestoreRevision,
     AgentCapability::ReplaceContent,
+    AgentCapability::BroadRewrite,
     AgentCapability::ReviewProposal,
     AgentCapability::CopyOut,
     AgentCapability::EditTemplate,

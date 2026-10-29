@@ -207,7 +207,9 @@ fn service_refusal(error: &DocumentsError) -> Option<Refusal> {
 
 const fn agent_code(refusal: &AgentRefusal) -> RefusalCode {
     match refusal {
-        AgentRefusal::CapExceeded { .. } | AgentRefusal::HardRule { .. } => {
+        AgentRefusal::CapExceeded { .. }
+        | AgentRefusal::HardRule { .. }
+        | AgentRefusal::BroadRewrite { .. } => {
             RefusalCode::AgentForbidden
         },
         AgentRefusal::SuggestOnly { .. } => RefusalCode::AgentSuggestOnly,

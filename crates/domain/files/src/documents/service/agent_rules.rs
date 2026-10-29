@@ -17,7 +17,7 @@ use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::EditOp;
 
 use super::{CommitOutcome, DocumentService};
-use crate::documents::agents::{AgentCapability, AgentRateLimiter, Reservation};
+use crate::documents::agents::{AgentActor, AgentCapability, AgentRateLimiter, AgentRefusal, Reservation};
 use crate::documents::error::DocumentsError;
 use crate::documents::models::Document;
 use crate::documents::revision::CommitBody;
@@ -44,19 +44,58 @@ impl DocumentService {
             CommitBody::Ops(ops) if ops.iter().any(replaces) => {
                 Some(AgentCapability::ReplaceContent)
             },
-            CommitBody::Ops(ops) if self.rewrites_most(document, ops).await? => {
-                Some(AgentCapability::ReplaceContent)
-            },
             CommitBody::Ops(_) => None,
         };
-        match capability {
-            Some(capability) => {
-                self.access
-                    .require_agent_capability(who, document, capability)
-                    .await
-            },
-            None => Ok(()),
+        if let Some(capability) = capability {
+            return self
+                .access
+                .require_agent_capability(who, document, capability)
+                .await;
         }
+        let CommitBody::Ops(ops) = body else {
+            return Ok(());
+        };
+        self.broad_rewrite_rule(who, document, ops).await
+    }
+
+    /// An agent that has rewritten, within the hour, as many of a document's
+    /// blocks as replacing it needs `BroadRewrite`; the count is recorded only
+    /// for a write the rule lets through, so a refused attempt never counts.
+    async fn broad_rewrite_rule(
+        &self,
+        who: &AuthenticatedUser,
+        document: &Document,
+        ops: &[EditOp],
+    ) -> Result<(), DocumentsError> {
+        let Some((touched, agent)) = self.rewritten_nodes(ops) else {
+            return Ok(());
+        };
+        let now = Instant::now();
+        let reach = self
+            .agent_rewrites
+            .would_reach(&document.id, &agent.name, &touched, now);
+        if reach >= MIN_BROAD_REWRITE {
+            let head = self.resolve_revision(document, None).await?;
+            let blocks = self.projected(document, &head).await?.ids.nodes().count();
+            if reach.saturating_mul(2) > blocks {
+                let allowed = self
+                    .access
+                    .require_agent_capability(who, document, AgentCapability::BroadRewrite)
+                    .await;
+                if let Err(DocumentsError::Agent(AgentRefusal::HardRule { .. })) = allowed {
+                    return Err(AgentRefusal::BroadRewrite {
+                        agent: agent.name,
+                        rewritten: reach,
+                        blocks,
+                    }
+                    .into());
+                }
+                allowed?;
+            }
+        }
+        self.agent_rewrites
+            .touch(&document.id, &agent.name, &touched, now);
+        Ok(())
     }
 
     pub(super) fn reserve_agent_edits(
@@ -81,11 +120,7 @@ impl DocumentService {
 }
 
 impl DocumentService {
-    async fn rewrites_most(
-        &self,
-        document: &Document,
-        ops: &[EditOp],
-    ) -> Result<bool, DocumentsError> {
+    fn rewritten_nodes(&self, ops: &[EditOp]) -> Option<(HashSet<&DocumentNodeId>, AgentActor)> {
         let rewrites = |op: &&EditOp| {
             matches!(
                 op,
@@ -98,23 +133,13 @@ impl DocumentService {
         let touched: HashSet<&DocumentNodeId> = ops
             .iter()
             .filter(rewrites)
-            .filter_map(EditOp::touches)
+            .filter_map(|op| op.touches().or_else(|| op.rich_guard().and_then(|(node, _)| node.id())))
             .collect();
         if touched.is_empty() {
-            return Ok(false);
+            return None;
         }
-        let Some(agent) = self.access.actor().as_agent().cloned() else {
-            return Ok(false);
-        };
-        let cumulative =
-            self.agent_rewrites
-                .touch(&document.id, &agent.name, &touched, Instant::now());
-        if cumulative < MIN_BROAD_REWRITE {
-            return Ok(false);
-        }
-        let head = self.resolve_revision(document, None).await?;
-        let nodes = self.projected(document, &head).await?.ids.nodes().count();
-        Ok(cumulative.saturating_mul(2) > nodes)
+        let agent = self.access.actor().as_agent().cloned()?;
+        Some((touched, agent))
     }
 }
 

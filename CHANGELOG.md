@@ -13,6 +13,11 @@
   edits the head is re-imported into the live document and broadcast, and with
   local edits pending the checkpoint runs at once so its merge carries the outside
   write in.
+- **An agent's rewrites are refused with their own reason, and never for a write it did not land.** Rewriting over an hour as many blocks as replacing the document needs the new `broad_rewrite` capability instead of `replace_content`; the refusal names how many of the document's blocks the agent rewrote and points at `mode: propose`; a refused attempt no longer counts against the agent; `set_marks` and `set_block_type` count like `replace_text`.
+- **`set_marks` and `set_block_type` keep a block's id.** The id carry treated a paragraph retyped as a heading or list item as a new block and minted a fresh id, which broke every anchor on it.
+- **The documents MCP server files the agent's own presence (`agent`) and places its caret on the first block it wrote**, as a `document.awareness` event carrying `agent`, so a console shows the person and their assistant side by side and a tab sees where the agent is working.
+- **The bridge no longer reports its own pull as the person editing.** A touched file whose bytes still hash to the synced revision files no `editing` beacon.
+- **The blank Word template sets fonts and spacing** (Aptos 11pt, Aptos Display headings in Word's heading colour, 1.15 line spacing), so a document created by an agent opens in Word with a consistent face instead of the viewer's fallback.
 - **`documents_guide` carries its text in the structured content.** A host that
   shows the model only `structuredContent` (Claude Code does) saw the topic names
   and none of the guidance; the output now carries the guide text as `guide`.

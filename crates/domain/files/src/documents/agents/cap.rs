@@ -87,6 +87,8 @@ pub enum AgentCapability {
     Administer,
     RestoreRevision,
     ReplaceContent,
+    /// Rewriting, over an hour, as many blocks as replacing the document.
+    BroadRewrite,
     ReviewProposal,
     CopyOut,
     EditTemplate,
@@ -102,6 +104,7 @@ impl AgentCapability {
             Self::Administer => "administer",
             Self::RestoreRevision => "restore_revision",
             Self::ReplaceContent => "replace_content",
+            Self::BroadRewrite => "broad_rewrite",
             Self::ReviewProposal => "review_proposal",
             Self::CopyOut => "copy_out",
             Self::EditTemplate => "edit_template",

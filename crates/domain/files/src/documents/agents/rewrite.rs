@@ -40,6 +40,34 @@ impl RewriteTracker {
         Self::default()
     }
 
+    /// The distinct count `touch` would answer, without recording anything:
+    /// a refused write must not count against the agent.
+    #[must_use]
+    pub fn would_reach(
+        &self,
+        document: &DocumentId,
+        agent: &str,
+        nodes: &HashSet<&DocumentNodeId>,
+        now: Instant,
+    ) -> usize {
+        let windows = self
+            .windows
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let key = (document.clone(), agent.to_owned());
+        let mut distinct: HashSet<&DocumentNodeId> = nodes.iter().copied().collect();
+        if let Some(touches) = windows.get(&key) {
+            distinct.extend(
+                touches
+                    .entries
+                    .iter()
+                    .filter(|(at, _)| now.saturating_duration_since(*at) < WINDOW)
+                    .flat_map(|(_, nodes)| nodes.iter()),
+            );
+        }
+        distinct.len()
+    }
+
     pub fn touch(
         &self,
         document: &DocumentId,

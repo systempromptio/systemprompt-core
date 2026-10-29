@@ -19,7 +19,7 @@ use std::mem::discriminant;
 
 use systemprompt_identifiers::DocumentNodeId;
 
-use systemprompt_models::documents::{Projection, ProjectionNode};
+use systemprompt_models::documents::{NodeKind, Projection, ProjectionNode};
 
 use super::flat::flatten;
 use super::minter::NodeIdMinter;
@@ -98,6 +98,15 @@ pub fn carry_forward(
         .collect()
 }
 
+/// A block that stays a block of text when its type changes: a paragraph
+/// retyped as a heading or list item is the same block, rewritten in place.
+fn text_kind(node: &ProjectionNode) -> bool {
+    matches!(
+        node.kind,
+        NodeKind::Paragraph | NodeKind::Heading { .. } | NodeKind::ListItem | NodeKind::Pending
+    )
+}
+
 fn same_key(a: &ProjectionNode, b: &ProjectionNode) -> bool {
     a.kind == b.kind && a.hash8 == b.hash8
 }
@@ -162,7 +171,8 @@ impl Gap<'_, '_> {
         let (old, new) = (self.old[o], self.new[n]);
         similar(old, new)
             || (self.rewritten.contains(&old.id)
-                && discriminant(&old.kind) == discriminant(&new.kind))
+                && (discriminant(&old.kind) == discriminant(&new.kind)
+                    || (text_kind(old) && text_kind(new))))
     }
 }
 
@@ -176,7 +186,10 @@ fn pair_gap(
     let new_len = new_to.saturating_sub(new_from);
     if old_len == 1
         && new_len == 1
-        && discriminant(&gap.old[old_from].kind) == discriminant(&gap.new[new_from].kind)
+        && (discriminant(&gap.old[old_from].kind) == discriminant(&gap.new[new_from].kind)
+            || (gap.rewritten.contains(&gap.old[old_from].id)
+                && text_kind(gap.old[old_from])
+                && text_kind(gap.new[new_from])))
     {
         matched[new_from] = Some(old_from);
         return;
