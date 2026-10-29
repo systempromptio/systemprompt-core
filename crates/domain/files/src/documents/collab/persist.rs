@@ -17,6 +17,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::time::Instant;
+
 use systemprompt_identifiers::TraceId;
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{ActorKind, DocumentAction};
@@ -135,6 +137,67 @@ impl CollabService {
             .await?;
         entry.session.checkpoint_revision_id = Some(revision.id.clone());
         Ok(Checkpoint::Committed(revision.id))
+    }
+
+    /// Follows a write that landed outside the session: an agent over MCP,
+    /// the API or an import. When the head has moved past the checkpoint
+    /// base and the live model holds nothing of its own, the head is
+    /// re-imported into the live document and broadcast, so an open tab
+    /// shows the change without anyone typing first. With local edits
+    /// pending the checkpoint is made due now, so the timer's own run (with
+    /// its back-off) merges the outside write in. Answers whether the head
+    /// moved.
+    pub(super) async fn follow_head(
+        &self,
+        entry: &mut CollabEntry,
+        now: Instant,
+    ) -> Result<bool, CollabError> {
+        let Some(who) = entry.last_editor.clone().or_else(|| entry.last_joiner.clone()) else {
+            return Ok(false);
+        };
+        let document_id = entry.session.document_id.clone();
+        let Some(document) = self
+            .documents
+            .repositories()
+            .documents
+            .find(&document_id)
+            .await?
+        else {
+            return Ok(false);
+        };
+        let Some(head) = document.head_revision_id.clone() else {
+            return Ok(false);
+        };
+        let Some(base) = entry.checkpoint_base().cloned() else {
+            return Ok(false);
+        };
+        if base == head {
+            return Ok(false);
+        }
+        let trace = TraceId::system();
+        let limit = self.documents.config().max_upload_bytes;
+        let base_bytes = self.revision_bytes(&base, limit).await?;
+        let state = LiveState::of(entry);
+        if self.changed_live(state, &who, &base_bytes, &trace).await.is_some() {
+            let due = now
+                .checked_sub(self.tuning.checkpoint_after)
+                .unwrap_or(now);
+            entry.checkpoint_due_from = Some(due);
+            return Ok(true);
+        }
+        let head_bytes = self.revision_bytes(&head, limit).await?;
+        let actor = entry
+            .last_actor
+            .clone()
+            .unwrap_or_else(|| self.documents.access().actor());
+        act_as(actor, self.reconcile(entry, &who, &head_bytes, &trace)).await?;
+        self.documents
+            .repositories()
+            .edit_sessions
+            .set_checkpoint(&entry.session.id, &head)
+            .await?;
+        entry.session.checkpoint_revision_id = Some(head);
+        Ok(true)
     }
 
     pub(super) async fn settle(

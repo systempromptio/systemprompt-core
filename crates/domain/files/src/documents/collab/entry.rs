@@ -34,6 +34,9 @@ pub(super) struct CollabEntry {
     pub(super) checkpoint_due_from: Option<Instant>,
     pub(super) last_editor: Option<AuthenticatedUser>,
     pub(super) last_actor: Option<DocumentActor>,
+    /// The last person to join: the reader an outside write is followed for
+    /// when nobody has edited yet.
+    pub(super) last_joiner: Option<AuthenticatedUser>,
     pub(super) touched: Instant,
     pub(super) images: ImageOwners,
     pub(super) checkpoint_failures: u32,
@@ -88,6 +91,7 @@ impl CollabService {
             checkpoint_due_from: None,
             last_editor: None,
             last_actor: None,
+            last_joiner: None,
             touched: Instant::now(),
             images,
             checkpoint_failures: 0,

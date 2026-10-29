@@ -48,6 +48,7 @@ impl CollabService {
         let session = self.open_session(&document).await?;
         let entry = self.entry(&document, &session).await?;
         let mut entry = entry.lock().await;
+        entry.last_joiner = Some(who.clone());
         self.catch_up(&mut entry).await?;
         let joined = Joined {
             session_id: session.id.clone(),

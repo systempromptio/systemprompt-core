@@ -47,6 +47,12 @@ impl CollabService {
         if snapshot_due && let Err(error) = self.snapshot(&mut entry).await {
             tracing::warn!(session_id = %session, error = %error, "Edit session snapshot failed");
         }
+        // Why: core lands MCP and API writes on the head without touching the
+        // live session, so each tick asks the head whether it moved (one row
+        // read per open document) and pulls the change in when it did.
+        if let Err(error) = self.follow_head(&mut entry, now).await {
+            tracing::warn!(session_id = %session, error = %error, "Edit session could not follow the head");
+        }
         let checkpoint_due = entry
             .checkpoint_due_from
             .is_some_and(|from| now.duration_since(from) >= self.tuning.checkpoint_after);

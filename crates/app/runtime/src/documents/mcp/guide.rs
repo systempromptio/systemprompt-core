@@ -121,6 +121,7 @@ impl McpToolHandler for GuideHandler<'_> {
         Ok((
             GuideOutput {
                 topics: input.topics,
+                guide: text.clone(),
             },
             text,
         ))

@@ -1,5 +1,23 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- **Documents: an open tab follows writes that land outside its live session.** An
+  edit an agent lands over MCP, or the API or an import lands on the head, reached a
+  live editing session only when that session next checkpointed, and a session
+  with no local edits never checkpointed, so a tab left open on the document showed
+  nothing of the agent's work until it was reloaded. The collab timer now asks the
+  head each tick whether it moved past the session's checkpoint base; with no local
+  edits the head is re-imported into the live document and broadcast, and with
+  local edits pending the checkpoint runs at once so its merge carries the outside
+  write in.
+- **`documents_guide` carries its text in the structured content.** A host that
+  shows the model only `structuredContent` (Claude Code does) saw the topic names
+  and none of the guidance; the output now carries the guide text as `guide`.
+
+## [0.75.0] - 2026-10-27
 ## [0.76.0] - 2026-10-29
 
 ### Breaking
