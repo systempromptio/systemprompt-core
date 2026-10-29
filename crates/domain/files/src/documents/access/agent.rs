@@ -78,7 +78,7 @@ impl AgentGate {
     }
 }
 
-const CAPABILITIES: [AgentCapability; 9] = [
+const CAPABILITIES: [AgentCapability; 10] = [
     AgentCapability::Share,
     AgentCapability::MentionGrant,
     AgentCapability::Trash,

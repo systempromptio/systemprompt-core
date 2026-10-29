@@ -72,7 +72,7 @@ pub struct CreateInput {
     #[serde(default)]
     // JSON: `{model}` or `{markdown}`, untyped for size; create_content checks it.
     pub content: Option<serde_json::Value>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "super::op_inputs::ops")]
     pub ops: Vec<EditOp>,
     #[serde(default)]
     pub message: Option<String>,
@@ -83,6 +83,7 @@ pub struct EditInput {
     pub document_id: DocumentId,
     #[serde(default)]
     pub base_revision: Option<DocumentRevisionId>,
+    #[serde(deserialize_with = "super::op_inputs::ops")]
     pub ops: Vec<EditOp>,
     #[serde(default)]
     pub mode: Option<EditMode>,

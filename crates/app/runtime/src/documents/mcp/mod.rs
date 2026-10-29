@@ -30,6 +30,7 @@ mod lifecycle;
 mod listing;
 mod media;
 mod mentions;
+mod op_inputs;
 mod outputs;
 mod people;
 mod preview;

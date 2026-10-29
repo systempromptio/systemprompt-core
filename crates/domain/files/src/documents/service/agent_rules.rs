@@ -17,7 +17,9 @@ use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::EditOp;
 
 use super::{CommitOutcome, DocumentService};
-use crate::documents::agents::{AgentActor, AgentCapability, AgentRateLimiter, AgentRefusal, Reservation};
+use crate::documents::agents::{
+    AgentActor, AgentCapability, AgentRateLimiter, AgentRefusal, Reservation,
+};
 use crate::documents::error::DocumentsError;
 use crate::documents::models::Document;
 use crate::documents::revision::CommitBody;
@@ -120,7 +122,10 @@ impl DocumentService {
 }
 
 impl DocumentService {
-    fn rewritten_nodes(&self, ops: &[EditOp]) -> Option<(HashSet<&DocumentNodeId>, AgentActor)> {
+    fn rewritten_nodes<'a>(
+        &self,
+        ops: &'a [EditOp],
+    ) -> Option<(HashSet<&'a DocumentNodeId>, AgentActor)> {
         let rewrites = |op: &&EditOp| {
             matches!(
                 op,
@@ -133,7 +138,10 @@ impl DocumentService {
         let touched: HashSet<&DocumentNodeId> = ops
             .iter()
             .filter(rewrites)
-            .filter_map(|op| op.touches().or_else(|| op.rich_guard().and_then(|(node, _)| node.id())))
+            .filter_map(|op| {
+                op.touches()
+                    .or_else(|| op.rich_guard().and_then(|(node, _)| node.id()))
+            })
             .collect();
         if touched.is_empty() {
             return None;

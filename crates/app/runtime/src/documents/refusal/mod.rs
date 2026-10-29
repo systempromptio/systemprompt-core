@@ -209,9 +209,7 @@ const fn agent_code(refusal: &AgentRefusal) -> RefusalCode {
     match refusal {
         AgentRefusal::CapExceeded { .. }
         | AgentRefusal::HardRule { .. }
-        | AgentRefusal::BroadRewrite { .. } => {
-            RefusalCode::AgentForbidden
-        },
+        | AgentRefusal::BroadRewrite { .. } => RefusalCode::AgentForbidden,
         AgentRefusal::SuggestOnly { .. } => RefusalCode::AgentSuggestOnly,
         AgentRefusal::RateLimited { .. } => RefusalCode::AgentRateLimited,
         AgentRefusal::OverrideLooser { .. } | AgentRefusal::MoveRefused { .. } => {

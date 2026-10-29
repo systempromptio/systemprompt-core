@@ -152,7 +152,11 @@ impl CollabService {
         entry: &mut CollabEntry,
         now: Instant,
     ) -> Result<bool, CollabError> {
-        let Some(who) = entry.last_editor.clone().or_else(|| entry.last_joiner.clone()) else {
+        let Some(who) = entry
+            .last_editor
+            .clone()
+            .or_else(|| entry.last_joiner.clone())
+        else {
             return Ok(false);
         };
         let document_id = entry.session.document_id.clone();
@@ -178,10 +182,12 @@ impl CollabService {
         let limit = self.documents.config().max_upload_bytes;
         let base_bytes = self.revision_bytes(&base, limit).await?;
         let state = LiveState::of(entry);
-        if self.changed_live(state, &who, &base_bytes, &trace).await.is_some() {
-            let due = now
-                .checked_sub(self.tuning.checkpoint_after)
-                .unwrap_or(now);
+        if self
+            .changed_live(state, &who, &base_bytes, &trace)
+            .await
+            .is_some()
+        {
+            let due = now.checked_sub(self.tuning.checkpoint_after).unwrap_or(now);
             entry.checkpoint_due_from = Some(due);
             return Ok(true);
         }

@@ -18,6 +18,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use chrono::Utc;
 use rmcp::ErrorData as McpError;
 use systemprompt_files::documents::DocumentsError;
 use systemprompt_files::documents::model::{ModelViewV2, RICH_TEXT_VERSION, RichText, markdown};
@@ -25,7 +26,6 @@ use systemprompt_files::documents::revision::CommitBody;
 use systemprompt_files::documents::service::{
     CommentPolicy, CommitOutcome, CommitRequest, CreateRequest, EditModeRequest,
 };
-use chrono::Utc;
 use systemprompt_identifiers::{
     DocumentId, DocumentNodeId, DocumentOpId, DocumentRevisionId, McpExecutionId,
 };

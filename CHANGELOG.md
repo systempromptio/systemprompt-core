@@ -17,6 +17,7 @@
 - **`set_marks` and `set_block_type` keep a block's id.** The id carry treated a paragraph retyped as a heading or list item as a new block and minted a fresh id, which broke every anchor on it.
 - **The documents MCP server files the agent's own presence (`agent`) and places its caret on the first block it wrote**, as a `document.awareness` event carrying `agent`, so a console shows the person and their assistant side by side and a tab sees where the agent is working.
 - **The bridge no longer reports its own pull as the person editing.** A touched file whose bytes still hash to the synced revision files no `editing` beacon.
+- **`set_text` or `set_html` with a `node` is refused.** Both replace the whole document, and the stray `node` was ignored, so an agent that meant to change one block rewrote everything. `documents_edit` and `documents_create` now refuse the op and name `replace_text {node, text}`.
 - **`documents_read` lists a one-paragraph table cell once.** The text, range and node views printed the cell line and then its paragraph with the same text and hash, so every table read twice its size.
 - **The blank Word template sets fonts and spacing** (Aptos 11pt, Aptos Display headings in Word's heading colour, 1.15 line spacing), so a document created by an agent opens in Word with a consistent face instead of the viewer's fallback.
 - **`documents_guide` carries its text in the structured content.** A host that
