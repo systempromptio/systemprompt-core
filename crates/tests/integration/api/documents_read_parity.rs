@@ -142,7 +142,9 @@ async fn create(state: &DocumentsState, owner: &AuthedFixture) -> Result<(String
 }
 
 fn rest(state: &DocumentsState, user: &AuthedFixture) -> Router {
-    router(state.clone()).layer(Extension(request_context(user.user_id.as_str())))
+    router(state.clone()).layer(Extension(
+        request_context(user.user_id.as_str()).with_browser_session(),
+    ))
 }
 
 fn first_node(read: &Value) -> String {

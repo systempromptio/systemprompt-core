@@ -25,7 +25,9 @@ fn empty(method: Method, uri: &str) -> axum::http::Request<Body> {
 }
 
 fn folders(state: &DocumentsState, user: &AuthedFixture) -> Router {
-    folders_router(state.clone()).layer(Extension(request_context(user.user_id.as_str())))
+    folders_router(state.clone()).layer(Extension(
+        request_context(user.user_id.as_str()).with_browser_session(),
+    ))
 }
 
 async fn propose(
