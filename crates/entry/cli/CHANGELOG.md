@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.76.0] - 2026-10-29
+
+### Added
+
+- `systemprompt admin issues list|show|triage`.
+- `admin bridge list` shows each session's release version and state.
+
+### Changed
+
+- `admin config rate-limits` covers `notifications_per_second`.
+
 ## [0.75.0] - 2026-10-28
 
 ### Breaking

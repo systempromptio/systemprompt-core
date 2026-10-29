@@ -29,19 +29,16 @@
 - **Breaking:** **API:** a collab leave or checkpoint that finds another replica holding the session's checkpoint lease answers `409` with `error_key` `checkpoint_busy`, and one whose lease was lost answers `409` with `checkpoint_lease_lost`. Migrate clients by retrying the leave on either key.
 - **Breaking:** **API:** `GET /v1/bridge/drive/changes` answers a cursor that is not a landing position with `410 Gone` and `error_key` `cursor_reset`; `DocumentsError` gains `CursorReset`, `RefusalCode` gains `CursorReset`, `ErrorCode` gains `Gone` (`410`) and `ApiError` gains `gone`. Migrate Drive clients by dropping the cursor and reading the manifest on `cursor_reset`, and exhaustive matches by adding the variants.
 - **Breaking:** **Files:** `DocumentEngine::check_update` takes the caller's assigned peers (`Option<&[u64]>`) and refuses from the encoded header alone an oversized, non-incremental or inconsistent update, or one carrying operations of an unassigned peer. Migrate engines by validating the header against the bounds and `peers`.
-- **Breaking:** **Files:** `DocumentCollabRepository::append` and `append_on` take an `UpdateAuthor` (user, actor, admitted level), `CollabUpdateRow` gains `actor`, and `DocumentEditSessionRepository::set_checkpoint` takes the sequence number the checkpoint covers. Migrate callers by passing the author and covered sequence number.
-- **Breaking:** **Events:** `TopicBroadcaster::publish_relay_lost` reaches only topics subscribed with the new `subscribe_resumable`. Migrate subscribers that resume from `RELAY_LOST_EVENT` by subscribing with `subscribe_resumable`.
+- **Breaking:** **Files:** `DocumentCollabRepository::append` takes an `UpdateAuthor` (user, actor, admitted level), as does the new `append_on`, `CollabUpdateRow` gains `actor`, and `DocumentEditSessionRepository::set_checkpoint` takes the sequence number the checkpoint covers. Migrate callers by passing the author and covered sequence number.
 - **Breaking:** **Files:** `DocumentCommentRepository::{insert, insert_granting, update_body, update_body_granting}` and `DocumentGrantRepository::insert` take a `&mut PgConnection` after `&self`, so the write and its notification event commit in one transaction. Migrate by opening a transaction on the write pool and passing `&mut *tx`.
 - **Breaking:** **Files:** `DocumentServiceParts` gains `notifications: DynNotificationSink`, and `CommentRequest` and `EditCommentRequest` gain `mention_options: Vec<MentionOption>`. Migrate struct literals by passing the runtime's sink (`systemprompt_runtime::notification_sink`, or `NotificationsUnavailableSink` without the `notifications` feature) and `mention_options: Vec::new()`.
 - **Breaking:** **Files:** `DocumentsError` gains `Notifications(NotificationSinkError)` and `NotificationKind(NotificationKindError)`. Migrate by adding arms (or a wildcard) to exhaustive matches.
 - **Breaking:** **Runtime:** `DocumentsRuntimeParts` gains `notifications: DynNotificationSink`, `Subsystems` gains `notifications: Arc<NotificationsHandle>`, and `DocumentsMcpConfig` gains `notifications: Arc<NotificationsService>`. Migrate struct literals by passing the context's handle.
 - **Breaking:** **Runtime:** `UserSubjectDirectory::new` takes a third argument, `systemprompt_runtime::documents::ExtensionAudiences`. Migrate by passing `ExtensionAudiences::default()` or the audiences discovered for the context.
-- **Breaking:** **Extension:** `NotificationSink` gains the required method `is_available`, and `NotificationSinkError` gains `Unavailable`. Migrate implementations by returning `true` from `is_available`.
-- **Breaking:** **Runtime:** The `notifications` module, `AppContext::notifications`, `Subsystems::notifications`, `DocumentsMcpConfig::notifications`, `core_notifications`, `notification_sink` and `NotificationsInputs` exist only with the runtime's `notifications` feature. Migrate by enabling the feature where the handle is used.
 - **Breaking:** **Events:** `SseEvent` gains `FactOnly` and `Topic`, and `OutboxChannel` gains `Fact`. Migrate by adding arms (or a wildcard) to exhaustive matches.
 - **Breaking:** **Manifest:** `Profile` gains `notifications: NotificationsProfile`. The YAML block is optional and defaulted. Migrate struct literals by adding `notifications: NotificationsProfile::default()`.
+- **Breaking:** **Manifest:** `RateLimitsConfig` gains `notifications_per_second` (YAML optional, defaulted), and `per_second_budgets` returns fourteen entries. Migrate struct literals by adding the field or `..RateLimitsConfig::default()`.
 - **Breaking:** **Bridge:** `ProxyDeps` gains `notification_signals: NotificationSignals`, and `HostApp` gains the defaulted method `start_session`. Migrate struct literals by passing the signals from `NotificationSignals::channel()`.
-- **Breaking:** **Notifications:** `PipelineParts` gains `actors: Arc<dyn NotificationActorDirectory>`, and `NewNotifications` gains `actor_display: Option<String>`. The consumer stores the actor's display name on each row (notifications migration `003`), so the feed no longer joins `users`. Migrate by passing a directory (the runtime's `UserRoleAudienceResolver` implements it).
 - **Breaking:** **Files:** `DocumentFolderRepository::move_to` takes a `FolderRelocation` (folder, destination, the destination's ancestor chain read before authorizing, and the mover) and answers `FolderMoveOutcome::{Moved, Refused, DestinationChanged}` instead of a row count. Migrate callers by passing the relocation and matching the outcome.
 - **Breaking:** **Files:** `DocumentRepository::path_changes_since` takes the caller's `SubjectPairs`, and `DocumentPathChange` gains `access: Option<SubjectAccess>` (`Lost` or `Gained`) for a row recording one subject's change of access. Migrate by passing the reader's pairs and matching the new field.
 - **Breaking:** **Governance:** `ChainFingerprint` is `{ version: i64 }`, read from `config_version`, which every access-control rule and entity write advances. Migrate by comparing versions instead of the former counts and timestamp.
@@ -93,9 +90,15 @@
 - **Manifest:** the optional `notifications` profile block: `retention_days` (90), `max_audience` (500), `unread_max_age_days` (180), `failure_retention_days` (30) and `consumer.{batch (64), poll_secs (5), sweep_secs (30), resolver_timeout_ms (5000), channel_timeout_ms (5000)}`.
 - **Scheduler:** the `notification_retention` job runs every five minutes and purges, each under its own batch and time budget, read rows past the profile retention and a stream's rows past the stream's retention, delivery failures past `failure_retention_days`, and unread rows past `unread_max_age_days`.
 - **Users:** `UserRepository::is_active_with_role`, and a GIN index on `users.roles` serving role membership and role listing.
-
 - **Files:** `DocumentGrantRepository::insert_bounded` writes a grant only if it does not change an existing grant above a given level, answering `None` when it would.
 - **Files:** migration `036_document_path_change_subject` adds `subject_kind`/`subject_value` to `document_path_changes` and the `document_drive_path(folder, name)` SQL function.
+- **API:** `GET /api/v1/documents/{id}/media?ref=<blob>` serves an image the head holds (a `docx-media:` part, an upload a `docx` saved, or an uploaded blob an HTML or Markdown head names) to anyone who can view the document, with its hash as the `ETag`; any other reference is `404`.
+- **Gateway:** `POST /v1/messages/count_tokens` answers an authenticated token estimate for a `/v1/messages` body.
+- **Events:** `TopicBroadcaster::subscribe_resumable` and `publish_relay_lost`; a relay-lost event reaches only topics subscribed resumably.
+- **Extension:** the `NotificationSink` trait (`is_available`, `NotificationSinkError`), through which the document store records notification events.
+- **Traits:** `backoff::jittered`, which spreads a retry delay uniformly over its upper half.
+- **Identifiers:** `IssueReportId`, `NotificationId`, `NotificationSubscriptionId`, `NotificationRuleId` and `NotificationStreamId` (1-64 characters of lowercase ASCII letters, digits, `_` and `-`).
+- **Facade:** the `notifications` feature, in `full` and not in `core`; `agent`, `ai`, `oauth`, `users`, `content` and `scheduler` re-exports move to their own modules.
 
 ### Fixed
 
@@ -116,21 +119,8 @@
 - **Bridge:** clearing Claude Desktop removes what the bridge wrote instead of rewriting the managed policy with an empty server list, so a disabled host leaves the gateway. A policy is the bridge's only when it carries this install's loopback secret; on macOS the bridge's configuration profile is removed with `profiles remove`, an administrator's or device-management policy is reported and left in place, and a host with nothing written is left untouched.
 - **Bridge:** the Cowork personal session is found by Desktop's 8-character folder prefix, and a Cowork clear visits every session the bridge may have written to rather than failing the sync as partial when the choice is ambiguous.
 - **Bridge:** an older bridge's profile cache reads as absent, a file replace that Windows denies while another handle holds the file is retried, rules already present no longer warn that no Claude Code settings file is managed, an inconclusive MCP probe keeps the tool names last confirmed, and repeated heartbeat and event-stream failures warn once.
-- **Cache expiry and relay reconnects no longer fan out into one load per caller.** The
-  gateway policy cache, the authz parent-chain index, the OIDC discovery document and the
-  JWKS client each loaded on a miss with no coordination, so an expiry, or the epoch bump a
-  policy write or a relay reconnect sends, made every in-flight request on every replica run
-  the same query or fetch the same issuer document. Each now loads once: concurrent misses
-  queue on one load lock and re-read the cache when they hold it, and an expired discovery
-  document is served while a single refresh runs. The parent-chain cache also no longer holds
-  its write lock across the fingerprint query, so readers of a fresh index never wait on a
-  revalidation.
-- **Retry delays are jittered.** The event relay's reconnect backoff, the agent-run listener's
-  reconnect, the initial Postgres connect, Vault reads and OTLP export retries slept fixed or
-  doubling delays, so replicas that failed together retried together after a database or
-  collector outage. Each delay is now drawn from its upper half
-  (`systemprompt_traits::backoff::jittered`; the Postgres connect turns on the jitter its
-  `RetryConfig` already supported).
+- **Gateway, Governance, OAuth, Security:** the gateway policy cache, the authz parent-chain index, the OIDC discovery document and the JWKS client load once per miss: concurrent misses queue on one load lock and re-read the cache when they hold it, an expired discovery document is served while a single refresh runs, and JWKS refreshes are single-flight per issuer. The parent-chain cache does not hold its write lock across the fingerprint query.
+- **Events, Runtime, Database, Config, Scheduler:** the event relay reconnect, the agent-run listener reconnect, the initial Postgres connect, Vault reads and OTLP export retries draw each delay uniformly from its upper half (`systemprompt_traits::backoff::jittered`), so replicas that fail together do not retry in step.
 - **API:** `POST /v1/bridge/drive/token` mints the Drive sync token with the `user` permission alone, whatever else the device token carried, and refuses a device token without it.
 - **Events:** the cross-replica relay notices a dropped listener session and replays the outbox rows it missed while reconnecting.
 - **Events:** the relay replays a window wide enough for a long outbox transaction that commits during an outage, and remembers delivered ids by time rather than by a fixed count.
@@ -144,7 +134,6 @@
 - **Files:** a live session whose state the engine cannot read is closed and the next join reseeds it from the head revision.
 - **Files:** a write-back update after a merged or conflicting checkpoint is computed on a fork of the checkpointed body under its own engine peer, so it never reuses operation ids and never reverts edits made while the revision landed.
 - **Files:** catching up on the update log checks each logged update's header before import and computes image ownership once per run of updates by one author.
-
 - **Files:** a recursive folder delete is authorized over the whole subtree before anything changes, then trashed in one transaction; a document added meanwhile refuses the delete with `SubtreeChanged`.
 - **Files:** an access request is answered by a compare-and-set from `open` before any grant is written, so of two concurrent answers exactly one lands and a declined request never leaves a grant.
 - **Files:** every read an authorization decision rests on runs on the primary, so a revocation, trash or transfer applies to the next request and to signed download links.
@@ -195,33 +184,22 @@
 - **Files:** a live checkpoint runs as an agent only when every update since the previous checkpoint came from that agent, and as the human otherwise; the degraded-images notice runs under the same actor.
 - **Files:** an awareness post never demotes an editing presence to viewing, and every accepted collab update extends its author's presence.
 - **Files:** the agent-edit and awareness rate ceilings are documented as per replica.
-- **Documents: an open tab follows writes that land outside its live session.** An
-  edit an agent lands over MCP, or the API or an import lands on the head, reached a
-  live editing session only when that session next checkpointed, and a session
-  with no local edits never checkpointed, so a tab left open on the document showed
-  nothing of the agent's work until it was reloaded. The collab timer now asks the
-  head each tick whether it moved past the session's checkpoint base; with no local
-  edits the head is re-imported into the live document and broadcast, and with
-  local edits pending the checkpoint runs at once so its merge carries the outside
-  write in.
-- **An agent's rewrites are refused with their own reason, and never for a write it did not land.** Rewriting over an hour as many blocks as replacing the document needs the new `broad_rewrite` capability instead of `replace_content`; the refusal names how many of the document's blocks the agent rewrote and points at `mode: propose`; a refused attempt no longer counts against the agent; `set_marks` and `set_block_type` count like `replace_text`.
-- **`set_marks` and `set_block_type` keep a block's id.** The id carry treated a paragraph retyped as a heading or list item as a new block and minted a fresh id, which broke every anchor on it.
-- **The documents MCP server files the agent's own presence (`agent`) and places its caret on the first block it wrote**, as a `document.awareness` event carrying `agent`, so a console shows the person and their assistant side by side and a tab sees where the agent is working.
-- **The bridge no longer reports its own pull as the person editing.** A touched file whose bytes still hash to the synced revision files no `editing` beacon. Beacons are sent before the cycle uploads, while an edited file still differs from the synced revision, and a failed beacon no longer stops the sync.
-- **A live editor can draw a document's images.** `GET /api/v1/documents/{id}/media?ref=<blob>` serves an image the head holds (a `docx-media:` part, an upload a `docx` saved, or an uploaded blob an HTML or Markdown head names) to anyone who can view the document, with its hash as the `ETag`; any other reference is `404`.
-- **`set_text` or `set_html` with a `node` is refused.** Both replace the whole document, and the stray `node` was ignored, so an agent that meant to change one block rewrote everything. `documents_edit` and `documents_create` now refuse the op and name `replace_text {node, text}`.
-- **`documents_read` lists a one-paragraph table cell once.** The text, range and node views printed the cell line and then its paragraph with the same text and hash, so every table read twice its size.
-- **The blank Word template sets fonts and spacing** (Aptos 11pt, Aptos Display headings in Word's heading colour, 1.15 line spacing), so a document created by an agent opens in Word with a consistent face instead of the viewer's fallback.
-- **`documents_guide` carries its text in the structured content.** A host that
-  shows the model only `structuredContent` (Claude Code does) saw the topic names
-  and none of the guidance; the output now carries the guide text as `guide`.
-
-
-## [0.75.1] - 2026-10-29
-
-### Fixed
-
-- **Users:** concurrent first token exchanges for one federated principal link a single account; the second waits on a transaction-scoped lock and finds the first's link instead of answering 500.
+- **Files:** a live editing session follows writes that land outside it. Each collab tick checks whether the head moved past the session's checkpoint base; with no local edits the head is imported into the live document and broadcast, and with local edits pending the checkpoint runs at once so its merge carries the outside write.
+- **MCP:** an agent rewriting within an hour as many blocks as replacing the document needs the `broad_rewrite` capability rather than `replace_content`; the refusal names how many of the document's blocks the agent rewrote and points at `mode: propose`. A refused attempt does not count against the agent, and `set_marks` and `set_block_type` count like `replace_text`.
+- **Files:** `set_marks` and `set_block_type` keep a block's id when a paragraph is retyped as a heading or list item, so anchors on it hold.
+- **MCP:** the documents server files the agent's own presence (`agent`) and places its caret on the first block it wrote, as a `document.awareness` event carrying `agent`.
+- **Bridge:** a touched file whose bytes still hash to the synced revision files no `editing` beacon; beacons are sent before the cycle uploads, while an edited file still differs from the synced revision, and a failed beacon does not stop the sync.
+- **MCP:** `documents_edit` and `documents_create` refuse `set_text` or `set_html` carrying a `node`, since both replace the whole document, and name `replace_text {node, text}`.
+- **MCP:** `documents_read` lists a one-paragraph table cell once in its text, range and node views.
+- **Files:** the blank Word template sets fonts and spacing (Aptos 11pt, Aptos Display headings in Word's heading colour, 1.15 line spacing).
+- **MCP:** `documents_guide` carries the guide text in its structured content as `guide`, for hosts that show the model only `structuredContent`.
+- **Users:** concurrent first token exchanges for one federated principal link a single account; the second waits on a transaction-scoped lock and finds the first's link.
+- **Bridge:** a token rejected within its first 120 seconds, as after a gateway restart, is re-minted once before sign-in latches; the latch engages only when the re-minted token is rejected too. The bridge-profile fetch and the OTLP forward share the `/v1/messages` 401 re-mint path.
+- **Bridge:** a `403` on consumer evidence is terminal and evictable in the feedback outbox; `401` stays retryable. Re-enqueueing an observation keeps its attempt count, and the heartbeat's feedback report warns only when the error changes.
+- **Bridge, Models:** skill frontmatter pass-through keys render sorted at every depth on both the gateway and the bridge, so the bridge reproduces the signed skill digest. Repeated withholding warns once per skill and failure, then logs at debug.
+- **Bridge:** a withheld managed MCP server warns once per state and repeats at debug; OTLP forward failures log at debug; the proxy listening line logs at info.
+- **Bridge:** the GUI fetches only shipped i18n catalogs and matches a locale by its base subtag.
+- **Bridge:** every elevated write on macOS and Windows runs through the elevation gate, one at a time and never alongside a host-profile install; a waiter is answered only by a run that covers the change it staged.
 
 ## [0.75.0] - 2026-10-28
 

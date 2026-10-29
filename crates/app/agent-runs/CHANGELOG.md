@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.76.0] - 2026-10-29
+
+### Fixed
+
+- The run listener's reconnect delay is jittered (`systemprompt_traits::backoff::jittered`).
+
 ## [0.75.0] - 2026-10-28
 
 ### Changed

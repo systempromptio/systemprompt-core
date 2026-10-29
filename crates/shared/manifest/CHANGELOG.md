@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.76.0] - 2026-10-29
+
+### Breaking
+
+- **Breaking:** `Profile` gains `notifications: NotificationsProfile`. The YAML block is optional and defaulted. Migrate struct literals by adding `notifications: NotificationsProfile::default()`.
+- **Breaking:** `RateLimitsConfig` gains `notifications_per_second` (YAML optional, defaulted), and `per_second_budgets` returns fourteen entries. Migrate struct literals by adding the field or `..RateLimitsConfig::default()`.
+- **Breaking:** `GatewayConfigSpec` and `GatewayConfig` gain `bridge_instance: Option<BridgeInstanceSpec>`; `BridgeReleasesSpec` gains `min_version`, `max_version` (`Option<semver::Version>`) and `enforce_max: bool`; `BridgePolicyConfig` gains `allow_user_disable: bool`. Every YAML field is optional and defaulted. Migrate struct literals by adding `bridge_instance: None`, `min_version: None, max_version: None, enforce_max: false` and `allow_user_disable: false`.
+- **Breaking:** `GatewayProfileError` gains `BridgeInstancePathNotRelative`, `BridgeVersionBuildMetadata`, `BridgeVersionWindowInverted`, `BridgePinnedVersionInvalid` and `BridgePinnedVersionOutsideWindow`. Migrate by adding arms (or a wildcard) to exhaustive matches.
+
+### Added
+
+- The `gateway.bridge_instance` block, the bridge release window (`min_version`, `max_version`, `enforce_max`) and `bridge_policy.allow_user_disable`, validated at load.
+- The optional `notifications` profile block and the `notifications` services config plane.
+
 ## [0.75.0] - 2026-10-28
 
 ### Breaking

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.76.0] - 2026-10-29
+
+### Changed
+
+- Authored profiles carry the default `notifications` block.
+
 ## [0.75.0] - 2026-10-28
 
 ### Breaking

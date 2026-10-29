@@ -1,6 +1,7 @@
 # Changelog
 
-## [0.75.0] - 2026-10-29
+## [0.76.0] - 2026-10-29
 
 ### Added
-- `NotificationsService`, the notifications outbox consumer, the `notifications` config plane and the hourly `notification_retention` job.
+
+- Initial release: notification streams, rules, subscriptions, the per-user feed, at-least-once delivery through the outbox consumer, digests and coalescing, attention levels, retention, and the extension seams `NotificationRouter`, `NotificationAudienceResolver`, `PublishPolicy`, `ResourceVisibility` and `NotificationChannel`.

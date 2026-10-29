@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.76.0] - 2026-10-29
+
+### Added
+
+- `IssueReportId`, `NotificationId`, `NotificationSubscriptionId`, `NotificationRuleId` and `NotificationStreamId` (1-64 characters of lowercase ASCII letters, digits, `_` and `-`).
+
 ## [0.75.0] - 2026-10-28
 
 ### Added

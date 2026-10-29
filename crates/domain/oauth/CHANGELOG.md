@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.76.0] - 2026-10-29
+
+### Breaking
+
+- **Breaking:** `UpsertBridgeSession` and `BridgeSessionRow` gain `release_version: Option<String>` and `state` (`Option<BridgeState>` on the upsert, the stored `Option<String>` on the row). Migrate struct literals by adding `release_version: None, state: None`.
+
+### Added
+
+- The bridge heartbeat stores `release_version` and `state` on `bridge_sessions` (migration `023`).
+
 ## [0.75.0] - 2026-10-28
 
 ### Breaking

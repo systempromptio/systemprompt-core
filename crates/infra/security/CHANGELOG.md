@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.76.0] - 2026-10-29
+
+### Fixed
+
+- JWKS refreshes are single-flight per issuer: concurrent misses queue on one fetch and re-read the cache.
+
 ## [0.75.0] - 2026-10-28
 
 ### Breaking

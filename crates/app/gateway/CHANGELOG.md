@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.76.0] - 2026-10-29
+
+### Fixed
+
+- The gateway policy cache loads once per miss: concurrent misses queue on one load lock and re-read the cache, so an expiry or epoch bump costs one policy query per replica.
+
 ## [0.73.0] - 2026-10-25
 
 ### Breaking

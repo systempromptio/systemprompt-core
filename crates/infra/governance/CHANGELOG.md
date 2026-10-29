@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.76.0] - 2026-10-29
+
+### Breaking
+
+- **Breaking:** `DecisionFacts` gains `folder_ancestors`, the folders above a folder entity nearest-first, whose rules cascade onto it ahead of every other parent. Migrate struct literals by adding `folder_ancestors: &[]` or `..DecisionFacts::default()`.
+- **Breaking:** `ChainFingerprint` is `{ version: i64 }`, read from `config_version`, which every access-control rule and entity write advances. Migrate by comparing versions instead of the former counts and timestamp.
+
+### Fixed
+
+- The folder-chain cache revalidates on `config_version`, loads once per miss, and does not hold its write lock across the fingerprint query.
+
 ## [0.75.0] - 2026-10-28
 
 ### Added

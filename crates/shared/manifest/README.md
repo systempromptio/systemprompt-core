@@ -13,7 +13,7 @@ Defines the services manifest, the on-disk profile, the secrets document and the
 
 ```toml
 [dependencies]
-systemprompt-manifest = "0.75"
+systemprompt-manifest = "0.76"
 ```
 
 ## Module map

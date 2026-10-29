@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.76.0] - 2026-10-29
+
+### Breaking
+
+- **Breaking:** `SseEvent` gains `FactOnly` and `Topic`, and `OutboxChannel` gains `Fact`. Migrate by adding arms (or a wildcard) to exhaustive matches.
+
+### Added
+
+- `TopicBroadcaster::subscribe_resumable` and `publish_relay_lost`; a relay-lost event reaches only resumable subscriptions.
+- `NOTIFICATION_FACTS_CHANNEL`, the channel the notifications consumer wakes on.
+
+### Fixed
+
+- The cross-replica relay notices a dropped listener session and replays the outbox rows it missed, or sends `topic.relay_lost` to every topic; an outbox row it cannot read is announced as relay-lost.
+- The relay replays a window wide enough for a long outbox transaction that commits during an outage, and remembers delivered ids by time.
+- The relay reconnect backoff is jittered.
+
 ## [0.75.0] - 2026-10-28
 
 ### Breaking

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.76.0] - 2026-10-29
+
+### Breaking
+
+- **Breaking:** `CodecError` gains `TooLarge { what, size, limit }`, mapped to `DocumentsError::TooLarge` and the `too_large` refusal. Migrate exhaustive matches by adding the variant.
+
 ## [0.75.0] - 2026-10-28
 
 ### Breaking

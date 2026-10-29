@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.76.0] - 2026-10-29
+
+### Added
+
+- The `notifications` feature and `systemprompt::notifications` module, in `full` and not in `core`.
+
+### Changed
+
+- The `database` feature enables `systemprompt-extension`'s `sqlx` feature.
+- The `agent`, `ai`, `oauth`, `users`, `content` and `scheduler` re-exports are their own modules.
+
 ## [0.74.0] - 2026-10-27
 
 ### Added

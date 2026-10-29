@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.76.0] - 2026-10-29
+
+### Breaking
+
+- **Breaking:** `DocumentLiveReadyEvent` gains `seq`, the last update the session had logged when the channel subscribed, and `LiveResyncReason` gains `RelayLost`. Migrate struct literals by adding the field and exhaustive matches by adding the variant.
+- **Breaking:** `SignedManifest` gains `allow_user_disable: bool`, `branding: Option<InstanceBranding>` and `bridge_versions: Option<BridgeVersionWindow>`. Older bridges ignore the keys. Migrate struct literals by adding `allow_user_disable: false, branding: None, bridge_versions: None`.
+
+### Added
+
+- Notification models (`notifications` module) and issue report models (`issues` module).
+- `bridge::instance`: the discovery document, `InstanceBranding` and `BridgeVersionWindow`.
+- `ErrorCode::Gone` and `ApiError::gone`.
+
+### Fixed
+
+- Skill frontmatter pass-through keys render sorted at every depth, so the bridge reproduces the signed skill digest.
+
 ## [0.75.0] - 2026-10-28
 
 ### Breaking
