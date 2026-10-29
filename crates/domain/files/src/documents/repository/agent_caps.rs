@@ -1,9 +1,12 @@
 //! Agent cap overrides on documents and folders, and the audit of agent
-//! reads made under a cap below `edit`.
+//! reads made under a cap below `edit`. The audit keeps one row per
+//! document, user, agent, action and cap per UTC day, and the agent read
+//! retention job deletes rows past the configured window in bounded batches.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use chrono::{DateTime, Utc};
 use systemprompt_identifiers::{DocumentFolderId, DocumentId, TraceId, UserId};
 
 use super::DocumentRepository;
@@ -58,7 +61,7 @@ impl DocumentRepository {
             r#"SELECT agent_cap, created_by_agent FROM documents WHERE id = $1::text::uuid"#,
             document.as_str(),
         )
-        .fetch_optional(&*self.pools.read)
+        .fetch_optional(self.pools.authz())
         .await?;
         if let Some(row) = row {
             facts.created_by_agent = row.created_by_agent;
@@ -79,7 +82,7 @@ impl DocumentRepository {
                WHERE id = ANY($1::text[]::uuid[]) AND agent_cap IS NOT NULL"#,
             &folder_ids,
         )
-        .fetch_all(&*self.pools.read)
+        .fetch_all(self.pools.authz())
         .await?;
         for row in rows {
             facts.overrides.push(CapOverride::Folder(
@@ -137,8 +140,14 @@ impl DocumentRepository {
         sqlx::query!(
             r#"INSERT INTO document_agent_reads
                    (document_id, user_id, agent_name, attended, action, effective_cap,
-                    cap_source, trace_id)
-               VALUES ($1::text::uuid, $2, $3, $4, $5, $6, $7, $8)"#,
+                    cap_source, trace_id, read_day)
+               VALUES ($1::text::uuid, $2::text, $3::text, $4::bool, $5::text, $6::text,
+                       $7::text, $8::text, (now() AT TIME ZONE 'UTC')::date)
+               ON CONFLICT (document_id, user_id, agent_name, attended, action,
+                            effective_cap, cap_source, read_day)
+               DO UPDATE SET reads = document_agent_reads.reads + 1,
+                             last_read_at = now(),
+                             last_trace_id = EXCLUDED.trace_id"#,
             record.document_id.as_str(),
             record.user_id.as_str(),
             record.agent,
@@ -151,5 +160,24 @@ impl DocumentRepository {
         .execute(&*self.pools.write)
         .await?;
         Ok(())
+    }
+
+    pub async fn purge_agent_reads_before(
+        &self,
+        cutoff: DateTime<Utc>,
+        limit: i64,
+    ) -> RepoResult<u64> {
+        let result = sqlx::query!(
+            r#"DELETE FROM document_agent_reads WHERE id IN (
+                   SELECT id FROM document_agent_reads
+                   WHERE created_at < $1
+                   ORDER BY created_at
+                   LIMIT $2)"#,
+            cutoff,
+            limit,
+        )
+        .execute(&*self.pools.write)
+        .await?;
+        Ok(result.rows_affected())
     }
 }

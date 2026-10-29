@@ -1,11 +1,15 @@
 //! [`DocumentAccessRequestRepository`]: requests for access a user with no
 //! level sends a document's owner. A user holds at most one open request per
-//! document; a second is not stored.
+//! document; a second is not stored. Answering is a compare-and-set from
+//! `open`, so exactly one answer lands;
+//! [`DocumentAccessRequestRepository::decide_in`] runs it inside a caller's
+//! transaction so a grant can commit with it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use chrono::{DateTime, Utc};
+use sqlx::{PgConnection, Postgres, Transaction};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{DocumentAccessRequestId, DocumentId, UserId};
 use systemprompt_models::documents::AccessRequestStatus;
@@ -124,8 +128,22 @@ impl DocumentAccessRequestRepository {
         .transpose()
     }
 
+    pub async fn begin(&self) -> RepoResult<Transaction<'static, Postgres>> {
+        Ok(self.pools.write.begin().await?)
+    }
+
     pub async fn decide(
         &self,
+        id: &DocumentAccessRequestId,
+        status: AccessRequestStatus,
+        decided_by: &UserId,
+    ) -> RepoResult<bool> {
+        let mut conn = self.pools.write.acquire().await?;
+        Self::decide_in(&mut conn, id, status, decided_by).await
+    }
+
+    pub async fn decide_in(
+        conn: &mut PgConnection,
         id: &DocumentAccessRequestId,
         status: AccessRequestStatus,
         decided_by: &UserId,
@@ -138,7 +156,7 @@ impl DocumentAccessRequestRepository {
             status.as_str(),
             decided_by.as_str(),
         )
-        .execute(&*self.pools.write)
+        .execute(&mut *conn)
         .await?;
         Ok(result.rows_affected() == 1)
     }

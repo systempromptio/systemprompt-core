@@ -11,6 +11,10 @@ mod upload_limits;
 mod validator;
 
 pub use document_limits::DocumentLimits;
+#[cfg(feature = "office")]
+pub(crate) use document_limits::{
+    PACKAGE_INFLATED_BYTES_CEILING, PACKAGE_PART_BYTES_CEILING, PACKAGE_PARTS_CEILING,
+};
 pub use documents::{DocumentsConfig, MAX_DOCUMENT_UPLOAD_BYTES, MIN_DOCUMENT_UPLOAD_BYTES};
 pub use issues::IssuesConfig;
 pub use types::{AllowedFileTypes, FilePersistenceMode, FileUploadConfig, FilesConfigYaml};

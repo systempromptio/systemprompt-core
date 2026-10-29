@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO document_presence (document_id, user_id, source, state, cursor, expires_at)\n             VALUES ($1::text::uuid, $2, $3, $4, $5, now() + $6::float8 * interval '1 second')\n             ON CONFLICT (document_id, user_id, source) DO UPDATE\n                 SET state = CASE\n                         WHEN document_presence.state = 'editing'\n                              AND document_presence.expires_at > now() THEN 'editing'\n                         ELSE EXCLUDED.state\n                     END,\n                     cursor = EXCLUDED.cursor,\n                     updated_at = now(),\n                     expires_at = EXCLUDED.expires_at",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Varchar",
+        "Text",
+        "Text",
+        "Jsonb",
+        "Float8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "dd94bd3b2ce313f8dfbc317b5e34627481e9433df3a3777e24424a84fe37bf0a"
+}

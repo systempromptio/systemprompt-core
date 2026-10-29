@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM document_locks WHERE document_id = ANY($1::text[]::uuid[])",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "97f9010bec62b432cc7fadb63159fdd10d5e25439c20f7978a366dbe29d2cd2b"
+}

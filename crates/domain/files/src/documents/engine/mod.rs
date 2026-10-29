@@ -51,7 +51,13 @@ impl ModelView {
 /// `wire_version` names the wire format a client must also speak. `seed`
 /// opens a document from a model, and every replica seeding the same model
 /// produces the same operations; `open` reads a snapshot this engine
-/// exported; `check_update` refuses a malformed update before it is logged.
+/// exported; `check_update` refuses a malformed update from its encoded
+/// header alone, before any engine import: an update that is not an
+/// incremental update, exceeds the engine's size, change, peer or operation
+/// bounds, carries inconsistent version ranges, or (when `peers` is given)
+/// adds operations of a peer outside `peers`. Callers rely on it as the
+/// guard against blobs that would crash the engine, since an engine panic
+/// aborts the process rather than unwinding.
 pub trait DocumentEngine: Send + Sync + fmt::Debug {
     fn name(&self) -> &'static str;
 
@@ -61,7 +67,19 @@ pub trait DocumentEngine: Send + Sync + fmt::Debug {
 
     fn open(&self, snapshot: &[u8]) -> Result<Box<dyn EngineDoc>, EngineError>;
 
-    fn check_update(&self, update: &[u8]) -> Result<(), EngineError>;
+    fn check_update(&self, update: &[u8], peers: Option<&[u64]>) -> Result<(), EngineError>;
+}
+
+/// What importing one update added to an [`EngineDoc`].
+///
+/// `peers` are the engine peers whose operations the update added, so a
+/// caller can bind an untrusted update to the peers its author was assigned.
+/// `pending` is set when part of the update depends on operations the
+/// document does not hold and was parked rather than applied.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct UpdateImport {
+    pub peers: Vec<u64>,
+    pub pending: bool,
 }
 
 /// One open document of a [`DocumentEngine`].
@@ -71,7 +89,7 @@ pub trait DocumentEngine: Send + Sync + fmt::Debug {
 /// lacks, or `None`. `update_to_model` computes, on a fork, the update that
 /// turns this document into a model, or `None` when it already matches.
 pub trait EngineDoc: Send + fmt::Debug {
-    fn apply_update(&mut self, update: &[u8]) -> Result<(), EngineError>;
+    fn apply_update(&mut self, update: &[u8]) -> Result<UpdateImport, EngineError>;
 
     fn snapshot(&self) -> Result<Vec<u8>, EngineError>;
 
@@ -79,7 +97,7 @@ pub trait EngineDoc: Send + fmt::Debug {
 
     fn missing_since(&self, version: &[u8]) -> Result<Option<Vec<u8>>, EngineError>;
 
-    fn export_model(&self) -> ModelView;
+    fn export_model(&self) -> Result<ModelView, EngineError>;
 
     fn fork(&self) -> Box<dyn EngineDoc>;
 

@@ -80,8 +80,6 @@ pub(crate) fn structured(
     lines
 }
 
-/// A cell holding one paragraph reads as the cell line alone: the paragraph
-/// carries the same text and hash, so listing it too doubled every table.
 fn folded_cell(node: &ProjectionNode) -> bool {
     node.kind == NodeKind::Cell
         && node.children.len() == 1

@@ -1,16 +1,22 @@
 //! Input limits (`files.documents.limits`): the number of ops in one call,
 //! the text one op carries, Markdown and whole-document text, comment
-//! bodies, collaborative updates and cursor payloads. Each refusal is
+//! bodies, collaborative updates, cursor payloads, template parameters and
+//! the inflated size of an Office zip package. Each refusal is
 //! [`DocumentsError::TooLarge`] naming the input.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_models::documents::{ContentAs, EditOp};
+use systemprompt_provider_contracts::documents::TemplateParams;
 
 use super::DocumentService;
+#[cfg(feature = "office")]
+use crate::documents::codecs::PackageCaps;
 use crate::documents::error::DocumentsError;
 use crate::documents::revision::CommitBody;
+
+const MAX_TEMPLATE_PARAMS: u64 = 256;
 
 fn within(what: &'static str, size: usize, limit: u64) -> Result<(), DocumentsError> {
     let size = u64::try_from(size).unwrap_or(u64::MAX);
@@ -57,7 +63,35 @@ impl DocumentService {
     pub(super) fn check_body_limits(&self, body: &CommitBody) -> Result<(), DocumentsError> {
         match body {
             CommitBody::Ops(ops) => self.check_ops_limits(ops),
-            CommitBody::Bytes(_) => Ok(()),
+            CommitBody::Bytes(bytes) => self.check_size(bytes.len()),
+        }
+    }
+
+    pub(super) fn check_template_limits(
+        &self,
+        params: &TemplateParams,
+        ops: &[EditOp],
+    ) -> Result<(), DocumentsError> {
+        self.check_ops_limits(ops)?;
+        within(
+            "template parameters",
+            params.values.len(),
+            MAX_TEMPLATE_PARAMS,
+        )?;
+        let limit = self.config.limits.max_op_text_bytes;
+        for (key, value) in &params.values {
+            within("template parameter (bytes)", key.len() + value.len(), limit)?;
+        }
+        Ok(())
+    }
+
+    #[cfg(feature = "office")]
+    pub(super) const fn package_caps(&self) -> PackageCaps {
+        let limits = &self.config.limits;
+        PackageCaps {
+            part_bytes: limits.max_package_part_bytes,
+            inflated_bytes: limits.max_package_inflated_bytes,
+            parts: limits.max_package_parts,
         }
     }
 

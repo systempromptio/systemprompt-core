@@ -51,8 +51,8 @@ pub async fn handle(
                 cause = ?rejection.cause,
                 "Gateway count_tokens rejected",
             );
-            let body = AnthropicMessagesInbound
-                .render_error(rejection.status, rejection.public_message());
+            let body =
+                AnthropicMessagesInbound.render_error(rejection.status, rejection.public_message());
             json_response(rejection.status, body)
         },
     }
@@ -96,7 +96,13 @@ async fn count(
         systemprompt_models::net::INFERENCE_BODY_LIMIT_BYTES,
     )
     .await
-    .unwrap_or_default();
+    .map_err(|e| {
+        RejectionError::client(
+            StatusCode::PAYLOAD_TOO_LARGE,
+            "Request body could not be read",
+        )
+        .with_cause(e)
+    })?;
     Ok(estimate_input_tokens(&body))
 }
 

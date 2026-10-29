@@ -28,6 +28,8 @@ mod documents_collab;
 #[cfg(test)]
 mod documents_collab_images;
 #[cfg(test)]
+mod documents_collab_replicas;
+#[cfg(test)]
 mod documents_collab_settle;
 #[cfg(test)]
 mod documents_collab_timer;
@@ -35,6 +37,10 @@ mod documents_collab_timer;
 mod documents_comments;
 #[cfg(test)]
 mod documents_comments_v2;
+#[cfg(test)]
+mod documents_commit_race;
+#[cfg(test)]
+mod documents_drive_feed_order;
 #[cfg(test)]
 mod documents_drive_paths;
 #[cfg(test)]
@@ -47,6 +53,8 @@ mod documents_foreign_lock;
 mod documents_lifecycle;
 #[cfg(test)]
 mod documents_listing;
+#[cfg(test)]
+mod documents_listing_scale;
 #[cfg(test)]
 mod documents_node_ids_backfill;
 #[cfg(test)]
@@ -75,6 +83,12 @@ mod documents_shared_editing;
 mod documents_sharing_audit;
 #[cfg(test)]
 mod documents_sharing_guards;
+#[cfg(test)]
+mod documents_sharing_hardening;
+#[cfg(test)]
+mod documents_upload_cleanup;
+#[cfg(test)]
+mod documents_upload_contract;
 #[cfg(test)]
 mod documents_write_acks;
 #[cfg(test)]

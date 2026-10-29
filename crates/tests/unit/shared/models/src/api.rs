@@ -372,6 +372,7 @@ fn error_code_serde_roundtrip() {
         ErrorCode::PayloadTooLarge,
         ErrorCode::Locked,
         ErrorCode::RateLimited,
+        ErrorCode::Gone,
         ErrorCode::ServiceUnavailable,
     ];
     for code in codes {

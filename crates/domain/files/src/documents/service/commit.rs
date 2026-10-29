@@ -11,7 +11,10 @@
 //! merge text three ways, or diff an Office upload into ops on the head),
 //! write the blob, and land the revision in one transaction (see
 //! `landing`): ids, op id acknowledgement and the head's compare-and-swap
-//! commit together or not at all. Comments the commit detached or answered
+//! commit together or not at all. A commit that loses the swap to another
+//! landing is rebuilt on the new head, at most three times, before it
+//! answers a conflict; a whole-document op still needs its base to be the
+//! head. Comments the commit detached or answered
 //! are settled after it lands. Index and event failures after the swap are
 //! returned as [`CommitWarning`]s; the commit stands.
 //!
@@ -27,7 +30,7 @@ use super::agent_rules::body_ops;
 use super::apply::AppliedOps;
 use super::commit_build::Conflicted;
 use super::landed::Pending;
-use super::landing::{OpClaim, Placement};
+use super::landing::{LandResult, OpClaim, Placement};
 use super::{CommitOutcome, CommitRequest, DocumentService};
 use crate::documents::error::DocumentsError;
 use crate::documents::model::Media;
@@ -49,13 +52,19 @@ impl Built {
     }
 }
 
+const REBUILD_ATTEMPTS: usize = 3;
+
+enum Attempt {
+    Refused(CommitOutcome),
+    Landed(LandResult, Vec<u8>),
+}
+
 #[derive(Clone, Copy)]
 struct Scope<'a> {
     document: &'a Document,
     settles: Option<&'a DocumentProposalId>,
     digest: &'a str,
 }
-
 
 pub(super) struct Landing<'a> {
     pub document: &'a Document,
@@ -87,7 +96,7 @@ impl DocumentService {
         self.check_body_limits(&request.body)?;
         self.agent_write_rules(who, &document, &request.body)
             .await?;
-        let digest = super::acks::request_digest(request.base_revision.as_ref(), &request.body)?;
+        let digest = super::acks::request_digest(&request)?;
         let scope = Scope {
             document: &document,
             settles,
@@ -118,46 +127,78 @@ impl DocumentService {
         &self,
         who: &AuthenticatedUser,
         request: CommitRequest,
-        Scope {
-            document,
-            settles,
-            digest,
-        }: Scope<'_>,
+        scope: Scope<'_>,
     ) -> Result<CommitOutcome, DocumentsError> {
-        let document = document.clone();
+        let document = scope.document.clone();
         self.refuse_lock(&document, request.lock_holder_id.as_deref())
             .await?;
-        let head = self.repos.revisions.head(&document.id).await?;
-        let base = request.base_revision.clone();
-        let landing = Landing {
-            document: &document,
-            head: head.as_ref(),
-            base: base.as_ref(),
-            media: &request.media,
-        };
-        let Some(applied) = self.build_body(&landing, request.body).await? else {
+        let mut attempt = 1;
+        loop {
+            let (result, bytes) = match self.attempt(who, &document, &request, scope).await? {
+                Attempt::Refused(outcome) => return Ok(outcome),
+                Attempt::Landed(result, bytes) => (result, bytes),
+            };
+            if matches!(result, LandResult::HeadMoved) && attempt < REBUILD_ATTEMPTS {
+                attempt += 1;
+                continue;
+            }
             return self
-                .conflict(
+                .after_landing(
                     who,
                     &document,
-                    Conflicted {
-                        head,
-                        base,
+                    result,
+                    Pending {
+                        op_id: request.op_id.as_ref(),
+                        digest: scope.digest,
+                        comments: &request.comments,
+                        base: request.base_revision.clone(),
                         author: &request.author,
+                        bytes,
                     },
                 )
                 .await;
+        }
+    }
+
+    async fn attempt(
+        &self,
+        who: &AuthenticatedUser,
+        document: &Document,
+        request: &CommitRequest,
+        scope: Scope<'_>,
+    ) -> Result<Attempt, DocumentsError> {
+        let head = self.repos.revisions.head(&document.id).await?;
+        let base = request.base_revision.as_ref();
+        let landing = Landing {
+            document,
+            head: head.as_ref(),
+            base,
+            media: &request.media,
+        };
+        let Some(applied) = self.build_body(&landing, request.body.clone()).await? else {
+            let outcome = self
+                .conflict(
+                    who,
+                    document,
+                    Conflicted {
+                        head,
+                        base: base.cloned(),
+                        author: &request.author,
+                    },
+                )
+                .await?;
+            return Ok(Attempt::Refused(outcome));
         };
         let parent = head.as_ref().map(|h| h.id.clone());
         let bytes = applied.ops.bytes.clone();
         let prepared = self
             .prepare(
                 who,
-                &document,
+                document,
                 super::prepare::Draft {
                     applied,
                     parent,
-                    message: request.message,
+                    message: request.message.clone(),
                     author: &request.author,
                 },
             )
@@ -168,26 +209,13 @@ impl DocumentService {
             op: request.op_id.as_ref().map(|op_id| OpClaim {
                 op_id,
                 user: &who.id,
-                request_sha256: digest,
+                request_sha256: scope.digest,
             }),
-            settles,
+            settles: scope.settles,
             comments: &request.comments,
         };
-        let result = self.land(&document, prepared, placement).await?;
-        self.after_landing(
-            who,
-            &document,
-            result,
-            Pending {
-                op_id: request.op_id.as_ref(),
-                digest,
-                comments: &request.comments,
-                base,
-                author: &request.author,
-                bytes,
-            },
-        )
-        .await
+        let result = self.land(document, prepared, placement).await?;
+        Ok(Attempt::Landed(result, bytes))
     }
 
     async fn build_body(

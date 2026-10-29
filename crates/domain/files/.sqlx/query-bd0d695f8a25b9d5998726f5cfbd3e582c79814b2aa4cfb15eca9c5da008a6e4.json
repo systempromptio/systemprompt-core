@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE document_revisions SET landed_at = COALESCE(landed_at, now()),\n                      landing_xid = COALESCE(landing_xid, pg_current_xact_id()::text::bigint),\n                      landing_seq = COALESCE(landing_seq, nextval('document_landing_seq'))\n               WHERE id = $1::text::uuid\n               RETURNING landed_at AS \"landed_at!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "landed_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "document_revisions",
+            "name": "landed_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "bd0d695f8a25b9d5998726f5cfbd3e582c79814b2aa4cfb15eca9c5da008a6e4"
+}

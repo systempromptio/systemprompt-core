@@ -72,7 +72,24 @@ impl DocumentService {
             },
         };
         if !self.repos.grant_events.transfer_owner(&transfer).await? {
-            return Err(DocumentsError::not_found("document", document));
+            return Err(
+                match self
+                    .repos
+                    .documents
+                    .find_including_trashed(document)
+                    .await?
+                {
+                    Some(found)
+                        if found.trashed_at.is_none()
+                            && found.owner_user_id != current.owner_user_id =>
+                    {
+                        DocumentsError::OwnershipChanged {
+                            document_id: document.clone(),
+                        }
+                    },
+                    _ => DocumentsError::not_found("document", document),
+                },
+            );
         }
         let event = DocumentOwnershipTransferredEvent {
             document_id: document.clone(),

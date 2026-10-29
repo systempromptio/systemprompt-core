@@ -825,6 +825,10 @@ async fn bridge_prune_deletes_expired_rows_and_keeps_fresh_ones() {
     );
 }
 
+async fn drain_quiet(rx: &mut tokio::sync::mpsc::Receiver<R>) {
+    while let Ok(Some(_)) = tokio::time::timeout(Duration::from_millis(750), rx.recv()).await {}
+}
+
 async fn notified_row_delivers(
     pool: &sqlx::PgPool,
     user: &UserId,
@@ -864,6 +868,7 @@ async fn bridge_skips_rows_it_originated_and_delivers_peer_rows() {
     broadcasters.analytics.register(&user, &conn, tx).await;
 
     let peer_delivered = notified_row_delivers(&pool, &user, "other-node", &mut rx).await;
+    drain_quiet(&mut rx).await;
     let own_delivered = notified_row_delivers(&pool, &user, self_node.as_str(), &mut rx).await;
 
     broadcasters.analytics.unregister(&user, &conn).await;

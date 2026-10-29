@@ -47,6 +47,20 @@ impl std::fmt::Display for RefusalReason {
 }
 
 #[derive(Debug, thiserror::Error)]
+pub enum SvgParseError {
+    #[error("it is not UTF-8")]
+    Utf8(#[source] std::str::Utf8Error),
+    #[error("it is not well-formed XML")]
+    Xml(#[source] quick_xml::Error),
+    #[error("a malformed attribute")]
+    Attribute(#[source] quick_xml::events::attributes::AttrError),
+    #[error("an unreadable attribute value")]
+    AttributeValue(#[source] quick_xml::Error),
+    #[error("an invalid character reference")]
+    CharRef(#[source] quick_xml::Error),
+}
+
+#[derive(Debug, thiserror::Error)]
 pub enum UploadError {
     #[error("{0}")]
     Invalid(String),
@@ -82,6 +96,8 @@ pub enum UploadError {
     Refused {
         reason: RefusalReason,
         detail: String,
+        #[source]
+        cause: Option<SvgParseError>,
     },
     #[error("blob {0} was not uploaded by the caller")]
     BlobNotOwned(ContentHash),
@@ -102,6 +118,7 @@ impl UploadError {
         Self::Refused {
             reason,
             detail: detail.into(),
+            cause: None,
         }
     }
 

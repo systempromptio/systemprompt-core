@@ -39,11 +39,6 @@ impl PresenceThrottle {
     }
 }
 
-/// The document a touched path belongs to, when the touch is a person's edit.
-///
-/// The bridge's own pull writes the synced revision's bytes and the watcher
-/// reports that write like any other, so a file whose bytes still hash to
-/// the synced revision was not edited and files no beacon.
 #[must_use]
 pub fn document_for(root: &DriveRoot, state: &DriveState, path: &Path) -> Option<DocumentId> {
     let rel = root.relative(path)?;

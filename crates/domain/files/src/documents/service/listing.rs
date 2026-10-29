@@ -1,10 +1,15 @@
 //! Scoped listings and the hook filter applied to every document listing.
 //!
 //! A `folder` listing authorizes the folder and lists its visible subfolders
-//! on the first page; `shared`, `mine` and `recent` span every folder. The
-//! repository decides grant visibility, and every row then passes the authz
-//! hook for its folder, so a listing never shows what a read would refuse,
-//! and a document whose agent cap is `none` is dropped for an agent caller.
+//! on the first page: one statement per page of children decides grant
+//! visibility for all of them, and each visible child then passes the authz
+//! hook (and, for an agent caller, the agent gate). Pages advance on the last
+//! fetched child, whether or not the hook admitted it, and stop at a fixed
+//! page bound; `shared`, `mine` and
+//! `recent` span every folder. The repository decides grant visibility, and
+//! every row then passes the authz hook for its folder, so a listing never
+//! shows what a read would refuse, and a document whose agent cap is `none` is
+//! dropped for an agent caller.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -16,16 +21,13 @@ use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::DocumentAction;
 
 use super::{DocumentService, ListFolderRequest, Listing};
-use crate::documents::access::{AccessCheck, AccessTarget};
+use crate::documents::access::{AccessCheck, AccessTarget, FolderProbe};
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{Document, DocumentFolder, ListScope, ScopedListing, SubjectPairs};
+use crate::documents::repository::{ChildFolderPage, like_pattern};
 
-fn name_matches(name: &str, query: Option<&str>) -> bool {
-    query
-        .map(str::trim)
-        .filter(|q| !q.is_empty())
-        .is_none_or(|q| name.to_lowercase().contains(&q.to_lowercase()))
-}
+const CHILD_FOLDER_PAGE: i64 = 200;
+const CHILD_FOLDER_PAGES: usize = 10;
 
 impl DocumentService {
     pub async fn list_folder(
@@ -84,30 +86,76 @@ impl DocumentService {
         pairs: &SubjectPairs,
         trace: &TraceId,
     ) -> Result<Vec<DocumentFolder>, DocumentsError> {
-        let mut folders = Vec::new();
-        for child in self
-            .repos
-            .folders
-            .list_children(request.folder.as_ref())
-            .await?
-        {
-            if !name_matches(&child.name, request.query.as_deref()) {
-                continue;
+        let pattern = like_pattern(request.query.as_deref());
+        let agent = self.access.actor().as_agent().is_some();
+        let mut child_ancestors = Vec::new();
+        if let Some(parent) = &request.folder {
+            child_ancestors.push(parent.clone());
+            child_ancestors.extend(self.access.ancestors_nearest_first(parent).await?);
+        }
+        let mut folders: Vec<DocumentFolder> = Vec::new();
+        let mut after: Option<DocumentFolder> = None;
+        for _ in 0..CHILD_FOLDER_PAGES {
+            let page = self
+                .repos
+                .folders
+                .list_visible_children(ChildFolderPage {
+                    parent: request.folder.as_ref(),
+                    caller: &who.id,
+                    subjects: pairs,
+                    pattern: pattern.as_deref(),
+                    after: after.as_ref(),
+                    limit: CHILD_FOLDER_PAGE,
+                })
+                .await?;
+            let full = page.len() as i64 == CHILD_FOLDER_PAGE;
+            after = page.last().cloned();
+            for child in page {
+                let admitted = if agent {
+                    self.agent_child_admitted(who, &child, pairs, trace).await?
+                } else {
+                    let probe = FolderProbe {
+                        folder: Some(&child.id),
+                        pairs,
+                        ancestors: &child_ancestors,
+                    };
+                    self.access.probe_folder_with(who, probe, trace).await
+                };
+                if admitted {
+                    folders.push(child);
+                }
             }
-            let target = AccessTarget::Folder(Some(child.id.clone()));
-            let check = AccessCheck {
-                who,
-                target: &target,
-                action: DocumentAction::View,
-                trace,
-            };
-            match self.access.probe_with(check, pairs).await {
-                Ok(_) => folders.push(child),
-                Err(DocumentsError::Forbidden { .. } | DocumentsError::NotFound { .. }) => {},
-                Err(other) => return Err(other),
+            if !full {
+                return Ok(folders);
             }
         }
+        tracing::warn!(
+            folder_id = request.folder.as_ref().map(DocumentFolderId::as_str),
+            shown = folders.len(),
+            "Document listing truncated a folder's subfolders at the page bound"
+        );
         Ok(folders)
+    }
+
+    async fn agent_child_admitted(
+        &self,
+        who: &AuthenticatedUser,
+        child: &DocumentFolder,
+        pairs: &SubjectPairs,
+        trace: &TraceId,
+    ) -> Result<bool, DocumentsError> {
+        let target = AccessTarget::Folder(Some(child.id.clone()));
+        let check = AccessCheck {
+            who,
+            target: &target,
+            action: DocumentAction::View,
+            trace,
+        };
+        match self.access.probe_with(check, pairs).await {
+            Ok(_) => Ok(true),
+            Err(DocumentsError::Forbidden { .. } | DocumentsError::NotFound { .. }) => Ok(false),
+            Err(other) => Err(other),
+        }
     }
 
     pub(super) async fn hook_visible(

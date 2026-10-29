@@ -38,9 +38,10 @@ use super::parent_chain::{
 };
 use super::registry::AuthzWiring;
 use super::repository::AccessControlRepository;
+use super::resolver::ResolveParent;
 use super::rule_based_cache::{EntityRules, EntityRulesCache};
 use super::subject::{SubjectAttributeSource, SubjectProviderSet};
-use super::types::{AuthzDecision, AuthzRequest, Decision, DenyReason, EntityKind};
+use super::types::{AuthzDecision, AuthzRequest, Decision, DenyReason, EntityKind, EntityRef};
 
 #[derive(Clone)]
 pub struct RuleBasedHook {
@@ -101,6 +102,28 @@ impl RuleBasedHook {
             .insert(index, kind, id, EntityRules { entity, rules }))
     }
 
+    async fn folder_ancestors(
+        &self,
+        index: &Arc<ParentChainIndex>,
+        req: &AuthzRequest,
+    ) -> AuthzResult<Vec<(EntityRef, Arc<EntityRules>)>> {
+        if req.entity.kind() != EntityKind::Folder {
+            return Ok(Vec::new());
+        }
+        let ids = req
+            .context
+            .document_access_ancestors()
+            .map_err(AuthzError::InvalidEntityId)?;
+        let mut loaded = Vec::with_capacity(ids.len());
+        for id in ids {
+            let rules = self
+                .entity_rules(index, EntityKind::Folder, id.as_str())
+                .await?;
+            loaded.push((EntityRef::Folder(id), rules));
+        }
+        Ok(loaded)
+    }
+
     async fn fault(&self, req: &AuthzRequest, error: &AuthzError) -> AuthzDecision {
         tracing::warn!(
             entity = %req.entity,
@@ -122,6 +145,15 @@ impl RuleBasedHook {
         let cached = self.entity_rules(&index, kind, id).await?;
         let EntityRules { entity, rules } = cached.as_ref();
         let attributes = self.providers.gather(&req.user_id).await?;
+        let ancestors = self.folder_ancestors(&index, req).await?;
+        let ancestor_parents: Vec<ResolveParent<'_>> = ancestors
+            .iter()
+            .map(|(entity, loaded)| ResolveParent {
+                entity,
+                rules: &loaded.rules,
+                default_included: loaded.entity.as_ref().map(|e| e.default_included),
+            })
+            .collect();
         let model = req.context.gateway_invocation_model();
         let provider = req.context.gateway_invocation_provider();
         let decision = index.resolve(
@@ -137,6 +169,7 @@ impl RuleBasedHook {
                 facts: DecisionFacts {
                     model: model.as_ref().map(ModelId::as_str),
                     provider: provider.as_ref().map(ProviderId::as_str),
+                    folder_ancestors: &ancestor_parents,
                 },
             },
         );

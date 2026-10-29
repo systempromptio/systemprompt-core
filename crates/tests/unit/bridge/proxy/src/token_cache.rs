@@ -990,7 +990,10 @@ fn rejecting_a_re_minted_fresh_token_reports_no_retry() {
     with_credentials(2, async {
         let cache = TokenCache::new(counting_refresh(Arc::new(AtomicUsize::new(0)), 3600));
         cache.current(300).await.expect("mint");
-        assert!(cache.reject_upstream("/mcp/dynbrain").await, "first fresh rejection retries");
+        assert!(
+            cache.reject_upstream("/mcp/dynbrain").await,
+            "first fresh rejection retries"
+        );
         cache.current(300).await.expect("re-mint");
         assert!(
             !cache.reject_upstream("/mcp/dynbrain").await,

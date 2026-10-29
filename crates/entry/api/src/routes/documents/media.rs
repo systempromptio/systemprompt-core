@@ -19,7 +19,7 @@ use super::DocumentsState;
 use super::caller::caller;
 use super::content::request_context;
 use super::error::DocumentsResult;
-use super::headers::{etag, none_match};
+use super::headers::{hash_etag, none_match};
 use super::items::document_id;
 use crate::routes::user_content::{USER_CONTENT_CSP, harden};
 
@@ -41,7 +41,7 @@ pub(super) async fn image(
         .service
         .held_image(&who.user, &id, &query.reference, &who.trace)
         .await?;
-    let tag = etag(&content_hash(&blob.bytes));
+    let tag = hash_etag(&content_hash(&blob.bytes));
     let mut response = if none_match(&parts.headers, &tag) {
         StatusCode::NOT_MODIFIED.into_response()
     } else {

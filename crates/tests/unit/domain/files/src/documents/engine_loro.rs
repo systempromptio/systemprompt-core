@@ -20,8 +20,8 @@ fn seeded_replicas_converge_on_one_update() {
         .expect("changed");
     left.apply_update(&update).expect("left");
     right.apply_update(&update).expect("right");
-    assert_eq!(left.export_model(), target);
-    assert_eq!(right.export_model(), target);
+    assert_eq!(left.export_model().expect("export"), target);
+    assert_eq!(right.export_model().expect("export"), target);
     assert!(left.update_to_model(&target).expect("diff").is_none());
 }
 
@@ -33,7 +33,10 @@ fn a_snapshot_reopens_with_its_body_and_version() {
     let reopened = LoroEngine
         .open(&doc.snapshot().expect("snapshot"))
         .expect("open");
-    assert_eq!(reopened.export_model(), doc.export_model());
+    assert_eq!(
+        reopened.export_model().expect("export"),
+        doc.export_model().expect("export")
+    );
     assert!(
         reopened
             .missing_since(&doc.version())
@@ -45,7 +48,7 @@ fn a_snapshot_reopens_with_its_body_and_version() {
 #[test]
 fn garbage_is_refused_as_an_update_and_as_a_version() {
     assert!(matches!(
-        LoroEngine.check_update(b"not loro"),
+        LoroEngine.check_update(b"not loro", None),
         Err(EngineError::InvalidUpdate(_))
     ));
     let doc = LoroEngine
@@ -94,8 +97,11 @@ fn rich_text_replicas_converge_on_concurrent_edits() {
         doc.apply_update(&from_left).expect("left update");
         doc.apply_update(&from_right).expect("right update");
     }
-    assert_eq!(left.export_model(), right.export_model());
-    let ModelView::RichText(merged) = left.export_model() else {
+    assert_eq!(
+        left.export_model().expect("export"),
+        right.export_model().expect("export")
+    );
+    let ModelView::RichText(merged) = left.export_model().expect("export") else {
         panic!("rich text");
     };
     assert_eq!(merged.blocks.len(), 3);
@@ -122,9 +128,56 @@ fn a_fork_takes_an_update_without_changing_the_document() {
         .expect("changed");
     let mut fork = doc.fork();
     fork.apply_update(&update).expect("apply");
-    assert_ne!(fork.export_model(), doc.export_model());
+    assert_ne!(
+        fork.export_model().expect("export"),
+        doc.export_model().expect("export")
+    );
     assert_eq!(
-        doc.export_model(),
+        doc.export_model().expect("export"),
         rich(vec![Block::new("b1", BlockKind::Paragraph, "a")])
     );
+}
+
+fn one_update_of(peer: u64) -> Vec<u8> {
+    let doc = loro::LoroDoc::new();
+    doc.set_peer_id(peer).expect("peer");
+    doc.get_text("body").insert(0, "hello").expect("insert");
+    doc.commit();
+    doc.export(loro::ExportMode::all_updates()).expect("export")
+}
+
+#[test]
+fn a_snapshot_posted_as_an_update_is_refused_from_its_header() {
+    let doc = LoroEngine
+        .seed(&ModelView::Body("<p>x</p>".to_owned()))
+        .expect("seed");
+    let snapshot = doc.snapshot().expect("snapshot");
+    assert!(matches!(
+        systemprompt_engine_loro::check_update_shape(&snapshot, None),
+        Err(systemprompt_engine_loro::UpdateShapeError::NotAnUpdate { .. })
+    ));
+    assert!(matches!(
+        LoroEngine.check_update(&snapshot, None),
+        Err(EngineError::InvalidUpdate(_))
+    ));
+}
+
+#[test]
+fn an_update_of_an_unassigned_peer_is_refused_before_import() {
+    let update = one_update_of(42);
+    assert!(LoroEngine.check_update(&update, Some(&[42])).is_ok());
+    assert!(LoroEngine.check_update(&update, None).is_ok());
+    assert!(matches!(
+        systemprompt_engine_loro::check_update_shape(&update, Some(&[7])),
+        Err(systemprompt_engine_loro::UpdateShapeError::PeerNotAssigned { peer: 42 })
+    ));
+}
+
+#[test]
+fn an_oversized_blob_is_refused_without_decoding() {
+    let blob = vec![0_u8; systemprompt_engine_loro::MAX_UPDATE_BYTES + 1];
+    assert!(matches!(
+        systemprompt_engine_loro::check_update_shape(&blob, None),
+        Err(systemprompt_engine_loro::UpdateShapeError::TooLarge { .. })
+    ));
 }

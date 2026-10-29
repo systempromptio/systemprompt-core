@@ -13,6 +13,12 @@
 //! `format=pdf` query on the same URL serves the revision rendered as PDF under
 //! the same token.
 //!
+//! The token carries no permissions: it opens that one revision and nothing
+//! else, whatever the minting user may do. It rides the query string because
+//! the link is followed by a browser or an agent's plain fetch, neither of
+//! which can attach a header; the lifetime and the single-revision purpose
+//! bound what a leaked URL opens.
+//!
 //! [`TokenAuthority`]: systemprompt_models::auth::TokenAuthority
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -101,7 +107,7 @@ pub fn signed_download_url(
         user: target.user.clone(),
         session_id: target.session_id.clone(),
         jti: AccessTokenId::generate(),
-        permissions: target.user.permissions().to_vec(),
+        permissions: Vec::new(),
         audience: vec![JwtAudience::Resource(DOWNLOAD_AUDIENCE.to_owned())],
         ttl: DOWNLOAD_TTL,
         client_id: None,

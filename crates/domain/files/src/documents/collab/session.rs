@@ -1,5 +1,13 @@
 //! Joining and leaving a live edit session, and cursor updates.
 //!
+//! The last editor leaving settles the session and closes it, unless another
+//! replica holds its checkpoint lease or updates keep arriving while it is
+//! settled; such a session stays open until it is left again or the idle
+//! session reaper settles it. Leaving a session that is already closed, or
+//! that another replica closed while this leave settled it, answers that it
+//! closed. A join that finds its session closed while binding to it (its
+//! state was unreadable and the session was closed) joins the new session.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -8,11 +16,12 @@ use std::time::Duration;
 use systemprompt_identifiers::{DocumentEditSessionId, DocumentId, TraceId, UserId};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{
-    DocumentAction, DocumentPresenceEvent, PresenceSource, PresenceState,
+    AccessLevel, DocumentAction, DocumentPresenceEvent, PresenceSource, PresenceState,
 };
 
 use super::model::is_collab_format;
 use super::{Checkpoint, CollabError, CollabService, CursorRequest, JoinMode, Joined, Left};
+use crate::documents::engine::DocumentEngine;
 use crate::documents::error::DocumentsError;
 use crate::documents::model::RICH_TEXT_VERSION;
 use crate::documents::models::{Document, DocumentEditSession, EditSessionOpen, PresenceUpsert};
@@ -45,24 +54,13 @@ impl CollabService {
             }
             .into());
         }
-        let session = self.open_session(&document).await?;
-        let entry = self.entry(&document, &session).await?;
-        let mut entry = entry.lock().await;
-        entry.last_joiner = Some(who.clone());
-        self.catch_up(&mut entry).await?;
-        let joined = Joined {
-            session_id: session.id.clone(),
-            snapshot: entry.doc.snapshot()?,
-            version: entry.doc.version(),
-            seq: entry.last_seq,
-            head_revision: document.head_revision_id.clone(),
-            engine: engine.name(),
-            wire_version: engine.wire_version(),
-            model: entry.doc.export_model().kind(),
-            model_version: RICH_TEXT_VERSION,
-            level,
-        };
-        drop(entry);
+        let joined = match self.bind(who, &document, level, engine.as_ref()).await {
+            Err(CollabError::SessionClosed { .. }) => {
+                self.bind(who, &document, level, engine.as_ref()).await
+            },
+            other => other,
+        }?;
+        let session_id = joined.session_id.clone();
         let state = match mode {
             JoinMode::Edit | JoinMode::Comment => PresenceState::Editing,
             JoinMode::View => PresenceState::Viewing,
@@ -73,12 +71,40 @@ impl CollabService {
             &document,
             Announcement {
                 state,
-                session: &session.id,
+                session: &session_id,
                 cursor: None,
             },
         )
         .await;
         Ok(joined)
+    }
+
+    async fn bind(
+        &self,
+        who: &AuthenticatedUser,
+        document: &Document,
+        level: AccessLevel,
+        engine: &dyn DocumentEngine,
+    ) -> Result<Joined, CollabError> {
+        let session = self.open_session(document).await?;
+        let peer = self.assign_peer(&session.id, &who.id).await?;
+        let entry = self.entry(document, &session).await?;
+        let mut entry = entry.lock().await;
+        entry.last_joiner = Some(who.clone());
+        self.catch_up(&mut entry).await?;
+        Ok(Joined {
+            peer,
+            session_id: session.id.clone(),
+            snapshot: entry.doc.snapshot()?,
+            version: entry.doc.version(),
+            seq: entry.last_seq,
+            head_revision: document.head_revision_id.clone(),
+            engine: engine.name(),
+            wire_version: engine.wire_version(),
+            model: entry.doc.export_model()?.kind(),
+            model_version: RICH_TEXT_VERSION,
+            level,
+        })
     }
 
     pub async fn leave(
@@ -103,31 +129,43 @@ impl CollabService {
         };
         let open = repos.edit_sessions.find_open(&document.id).await?;
         let Some(open) = open.filter(|open| open.id == *session) else {
-            return Ok(stays_open);
+            return Ok(already_closed());
         };
         if repos.collab.count_editors(&document.id).await? > 0 {
             return Ok(stays_open);
         }
-        let entry = self.entry(&document, &open).await?;
-        let mut entry = entry.lock().await;
-        let editor = entry
-            .last_editor
-            .clone()
-            .or_else(|| was_editing.then(|| who.clone()));
-        let Some(editor) = editor else {
-            return Ok(stays_open);
+        let entry = match self.entry(&document, &open).await {
+            Err(CollabError::SessionClosed { .. }) => return Ok(already_closed()),
+            other => other?,
         };
-        let checkpoint = self.settle(&mut entry, &editor, trace).await?;
-        if matches!(checkpoint, Checkpoint::Conflict { .. }) {
-            return Ok(Left {
-                closed: false,
-                checkpoint,
-            });
+        if !was_editing && entry.lock().await.last_editor.is_none() {
+            return Ok(stays_open);
         }
-        let closed = repos.edit_sessions.close(&open.id).await?;
-        drop(entry);
-        self.cache_remove(&document.id);
-        Ok(Left { closed, checkpoint })
+        let settled = match self.settle(&entry, who, trace).await {
+            Err(CollabError::CheckpointLeaseLost { .. }) => self.settle(&entry, who, trace).await,
+            other => other,
+        };
+        let left = match settled {
+            Err(CollabError::CheckpointBusy { .. }) => stays_open,
+            Err(CollabError::SessionClosed { .. }) => already_closed(),
+            Err(CollabError::CheckpointLeaseLost { .. }) => {
+                if repos
+                    .edit_sessions
+                    .find_open(&document.id)
+                    .await?
+                    .is_some_and(|still| still.id == open.id)
+                {
+                    stays_open
+                } else {
+                    already_closed()
+                }
+            },
+            other => other?,
+        };
+        if left.closed {
+            self.cache_remove(&document.id);
+        }
+        Ok(left)
     }
 
     pub async fn cursor(
@@ -248,5 +286,12 @@ impl CollabService {
 
     pub(super) async fn recipients(&self, document: &Document) -> Vec<UserId> {
         self.documents.recipients(document).await
+    }
+}
+
+const fn already_closed() -> Left {
+    Left {
+        closed: true,
+        checkpoint: Checkpoint::Unchanged,
     }
 }

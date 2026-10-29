@@ -17,6 +17,7 @@ use chrono::Utc;
 use systemprompt_identifiers::{DocumentUploadId, TraceId, UserId};
 use systemprompt_traits::{BackgroundTasks, FileByteStream, FileStorage};
 
+use super::attempts::PartReservation;
 use super::error::{UploadError, UploadResult};
 use super::models::{
     Allowance, NewUpload, UploadPart, UploadProgress, UploadSession, UploadStatus,
@@ -119,7 +120,8 @@ impl UploadService {
             max_open: i64::try_from(self.limits.max_open_sessions).unwrap_or(i64::MAX),
             daily_quota: i64::try_from(self.limits.daily_quota_bytes).unwrap_or(i64::MAX),
             one_shot: allowance.one_shot(),
-            quota_exempt: allowance.quota_exempt(),
+            quota_user: allowance.charged_to(owner),
+            new_bytes_only: allowance.new_bytes_only(),
         };
         let session = match self.uploads.insert_admitted(&request, terms).await? {
             Admission::Admitted(session) => *session,
@@ -231,12 +233,18 @@ impl UploadService {
         if !self.uploads.reserve_part_bytes(id, expected).await? {
             return Err(self.part_refusal(id).await?);
         }
+        let mut reservation = PartReservation::new(
+            Arc::clone(&self.uploads),
+            self.tasks.clone(),
+            id.clone(),
+            expected,
+        );
         let attempt = part_storage_id(id.as_str(), part);
-        let stored = self.store_part(id, part, expected, &attempt, body).await;
-        if stored.is_err()
-            && let Err(refund) = self.uploads.refund_part_bytes(id, expected).await
-        {
-            tracing::warn!(upload_id = %id, error = %refund, "Failed to refund a part attempt");
+        let stored = self
+            .store_part(id, part, expected, &attempt, body, &mut reservation)
+            .await;
+        if stored.is_err() {
+            reservation.refund().await;
         }
         stored
     }

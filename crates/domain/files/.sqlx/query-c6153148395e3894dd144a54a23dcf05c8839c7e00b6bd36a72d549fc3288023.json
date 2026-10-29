@@ -1,0 +1,25 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE document_node_counters SET next = next + $3\n               WHERE document_id = $1::text::uuid AND writer = $2\n               RETURNING next - $3 AS \"first!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "first!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "c6153148395e3894dd144a54a23dcf05c8839c7e00b6bd36a72d549fc3288023"
+}

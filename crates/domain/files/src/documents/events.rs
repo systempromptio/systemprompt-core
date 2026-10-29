@@ -12,9 +12,16 @@
 //! Every event except the per-recipient ones (`document.shared`,
 //! `document.comment.mentioned`) is also published once on the document's
 //! live topic ([`live_topic`]) and relayed to other replicas, so the
-//! document-scoped live channel sees it whoever the recipients were; a collab
-//! update carries `<session>:<seq>` as its resume id. Awareness goes to the
-//! topic only, at most once per [`AWARENESS_INTERVAL`] per participant.
+//! document-scoped live channel sees it whoever the recipients were.
+//! Collab updates and awareness go to the topic only, as one outbox row
+//! each, and never to a user's AG-UI stream; a collab update carries
+//! `<session>:<seq>` as its resume id; a collab update that could not be
+//! relayed is followed by a relay-lost event on its topic, so subscribers on
+//! other replicas resynchronise instead of waiting on the missing sequence
+//! number. Awareness is published at most once
+//! per [`AWARENESS_INTERVAL`] per participant on each replica, so a
+//! participant posting through `n` replicas may publish up to `n` times as
+//! often.
 //!
 //! Every `emit` reports a relay failure as [`DocumentsError::Events`] after
 //! logging it; local delivery has already happened by then. Callers that
@@ -29,7 +36,7 @@ use std::sync::{Arc, Mutex, PoisonError};
 use std::time::{Duration, Instant};
 
 use serde::Serialize;
-use systemprompt_events::{EventRouter, RelayOutcome, TopicEvent};
+use systemprompt_events::{EventRouter, RelayOutcome, TopicEvent, relay_lost_event};
 use systemprompt_identifiers::{DocumentId, UserId};
 use systemprompt_models::agui::{AgUiEventBuilder, CustomPayload, GenericCustomPayload};
 use systemprompt_models::documents::{
@@ -87,7 +94,7 @@ impl DocumentEvents {
             event: name,
             source: EventFailure::Serialize(source),
         })?;
-        self.publish_topic(name, &event.user_id, value)
+        self.publish_topic(name, &event.user_id, value, None)
             .await
             .map(|()| true)
     }
@@ -147,10 +154,31 @@ impl DocumentEvents {
 
     pub async fn collab_update(
         &self,
-        to: &[UserId],
         event: &DocumentCollabUpdateEvent,
     ) -> Result<(), DocumentsError> {
-        self.emit(DocumentCollabUpdateEvent::NAME, to, event).await
+        let name = DocumentCollabUpdateEvent::NAME;
+        let value = serde_json::to_value(event).map_err(|source| DocumentsError::Events {
+            event: name,
+            source: EventFailure::Serialize(source),
+        })?;
+        let resume_id = format!("{}:{}", event.edit_session_id, event.seq);
+        let published = self
+            .publish_topic(name, &event.author_id, value, Some(resume_id))
+            .await;
+        if published.is_err() {
+            let lost = relay_lost_event(&live_topic(&event.document_id));
+            if let RelayOutcome::Failed(error) =
+                self.router.route_topic(&event.author_id, lost).await.relay
+            {
+                tracing::warn!(
+                    document_id = %event.document_id,
+                    seq = event.seq,
+                    error = %error,
+                    "Collab update gap could not be announced to other replicas"
+                );
+            }
+        }
+        published
     }
 
     pub async fn proposal(
@@ -185,7 +213,7 @@ impl DocumentEvents {
         })?;
         if audience == Audience::RecipientsAndTopic
             && let Some(actor) = to.first()
-            && let Err(error) = self.publish_topic(name, actor, value.clone()).await
+            && let Err(error) = self.publish_topic(name, actor, value.clone(), None).await
         {
             tracing::warn!(event = name, error = %error, "Document event not published on its live topic");
         }
@@ -220,6 +248,7 @@ impl DocumentEvents {
         name: &'static str,
         actor: &UserId,
         value: serde_json::Value,
+        resume_id: Option<String>,
     ) -> Result<(), DocumentsError> {
         let Some(document) = value.get("document_id").and_then(serde_json::Value::as_str) else {
             return Ok(());
@@ -227,7 +256,7 @@ impl DocumentEvents {
         let event = TopicEvent {
             topic: format!("{LIVE_TOPIC_PREFIX}{document}"),
             name: name.to_owned(),
-            resume_id: resume_id(name, &value),
+            resume_id,
             value,
         };
         match self.router.route_topic(actor, event).await.relay {
@@ -238,14 +267,4 @@ impl DocumentEvents {
             RelayOutcome::Relayed | RelayOutcome::NotInstalled => Ok(()),
         }
     }
-}
-
-// JSON: a serialized document event; only collab updates carry a resume id.
-fn resume_id(name: &str, value: &serde_json::Value) -> Option<String> {
-    if name != DocumentCollabUpdateEvent::NAME {
-        return None;
-    }
-    let session = value.get("edit_session_id")?.as_str()?;
-    let seq = value.get("seq")?.as_i64()?;
-    Some(format!("{session}:{seq}"))
 }

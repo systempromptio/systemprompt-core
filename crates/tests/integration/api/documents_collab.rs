@@ -66,8 +66,14 @@ async fn create_html(state: &DocumentsState, owner: &AuthedFixture) -> Result<St
 }
 
 fn update_from(joined: &Value, text: &str) -> Result<(String, String)> {
+    let peer = joined["peer_id"].as_u64().expect("peer_id");
+    update_as(joined, text, peer)
+}
+
+fn update_as(joined: &Value, text: &str, peer: u64) -> Result<(String, String)> {
     let doc = LoroDoc::new();
     doc.import(&STANDARD.decode(joined["snapshot_b64"].as_str().expect("snapshot"))?)?;
+    doc.set_peer_id(peer)?;
     let before = doc.oplog_vv();
     let blocks = doc.get_movable_list("blocks");
     let Some(ValueOrContainer::Container(Container::Map(block))) = blocks.get(0) else {
@@ -252,5 +258,136 @@ async fn a_stranger_cannot_join_and_a_closed_session_is_a_conflict() -> Result<(
     )
     .await?;
     assert_eq!(status, StatusCode::CONFLICT, "{body}");
+    Ok(())
+}
+
+#[tokio::test]
+async fn an_update_under_a_peer_the_caller_was_not_assigned_is_refused() -> Result<()> {
+    let (pool, _ctx, state) = fixture().await?;
+    let owner = seed_bridge_credential(&pool, "collab-peer-spoof").await?;
+    let id = create_html(&state, &owner).await?;
+    let (status, joined) = post(
+        &state,
+        &owner,
+        &format!("/{id}/collab/join"),
+        &json!({"mode": "edit"}),
+    )
+    .await?;
+    assert_eq!(status, StatusCode::OK, "{joined}");
+    assert_eq!(joined["protocol"], json!(3));
+    let assigned = joined["peer_id"].as_u64().expect("peer_id");
+    assert!(assigned > 0 && assigned < (1_u64 << 53));
+    let session = joined["session_id"].as_str().expect("session").to_owned();
+
+    let (update, vv) = update_as(&joined, "<p>Spoofed</p>", assigned ^ 1)?;
+    let (status, refused) = post(
+        &state,
+        &owner,
+        &format!("/{id}/collab/updates"),
+        &json!({"session_id": session, "vv": vv, "update_b64": update}),
+    )
+    .await?;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{refused}");
+    assert!(
+        refused.to_string().contains("peer_not_assigned"),
+        "{refused}"
+    );
+
+    let (update, vv) = update_from(&joined, "<p>Mine</p>")?;
+    let (status, applied) = post(
+        &state,
+        &owner,
+        &format!("/{id}/collab/updates"),
+        &json!({"session_id": session, "vv": vv, "update_b64": update}),
+    )
+    .await?;
+    assert_eq!(status, StatusCode::OK, "{applied}");
+    Ok(())
+}
+
+#[tokio::test]
+async fn an_update_with_missing_dependencies_is_refused_and_not_logged() -> Result<()> {
+    let (pool, _ctx, state) = fixture().await?;
+    let owner = seed_bridge_credential(&pool, "collab-pending").await?;
+    let id = create_html(&state, &owner).await?;
+    let (_, joined) = post(
+        &state,
+        &owner,
+        &format!("/{id}/collab/join"),
+        &json!({"mode": "edit"}),
+    )
+    .await?;
+    let session = joined["session_id"].as_str().expect("session").to_owned();
+    let peer = joined["peer_id"].as_u64().expect("peer_id");
+
+    let doc = LoroDoc::new();
+    doc.import(&STANDARD.decode(joined["snapshot_b64"].as_str().expect("snapshot"))?)?;
+    doc.set_peer_id(peer)?;
+    let blocks = doc.get_movable_list("blocks");
+    let Some(ValueOrContainer::Container(Container::Map(block))) = blocks.get(0) else {
+        bail!("no first block");
+    };
+    let Some(ValueOrContainer::Container(Container::Text(body))) = block.get("text") else {
+        bail!("no text");
+    };
+    body.insert(0, "first")?;
+    doc.commit();
+    let middle = doc.oplog_vv();
+    body.insert(0, "second")?;
+    doc.commit();
+    let dependent = doc.export(ExportMode::updates(&middle))?;
+
+    let (status, refused) = post(
+        &state,
+        &owner,
+        &format!("/{id}/collab/updates"),
+        &json!({"session_id": session, "update_b64": STANDARD.encode(dependent)}),
+    )
+    .await?;
+    assert_eq!(status, StatusCode::CONFLICT, "{refused}");
+    assert!(
+        refused.to_string().contains("update_dependencies_missing"),
+        "{refused}"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn hostile_update_bytes_are_refused_without_failing_the_caller() -> Result<()> {
+    let (pool, _ctx, state) = fixture().await?;
+    let owner = seed_bridge_credential(&pool, "collab-hostile").await?;
+    let id = create_html(&state, &owner).await?;
+    let (_, joined) = post(
+        &state,
+        &owner,
+        &format!("/{id}/collab/join"),
+        &json!({"mode": "edit"}),
+    )
+    .await?;
+    let session = joined["session_id"].as_str().expect("session").to_owned();
+    let (good, _) = update_from(&joined, "x")?;
+    let mut bytes = STANDARD.decode(good)?;
+    let middle = bytes.len() / 2;
+    for byte in &mut bytes[middle..] {
+        *byte = byte.wrapping_mul(31).wrapping_add(7);
+    }
+    let (status, _) = post(
+        &state,
+        &owner,
+        &format!("/{id}/collab/updates"),
+        &json!({"session_id": session, "update_b64": STANDARD.encode(&bytes)}),
+    )
+    .await?;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+
+    let (update, vv) = update_from(&joined, "<p>Still alive</p>")?;
+    let (status, applied) = post(
+        &state,
+        &owner,
+        &format!("/{id}/collab/updates"),
+        &json!({"session_id": session, "vv": vv, "update_b64": update}),
+    )
+    .await?;
+    assert_eq!(status, StatusCode::OK, "{applied}");
     Ok(())
 }

@@ -1,5 +1,7 @@
 //! The upload expiry job: closes upload sessions left open past their
-//! lifetime and deletes the parts they stored.
+//! lifetime, deletes the parts they stored, and deletes a bounded batch of
+//! orphaned upload objects. An object whose delete fails stays recorded
+//! and is retried on the next run.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -46,15 +48,29 @@ impl DocumentUploadExpiryJob {
             limits: documents.uploads,
             tasks: BackgroundTasks::new(),
         });
-        let expired = service
+        let expiry = service
             .expire(BATCH)
             .await
             .map_err(|error| ProviderError::Internal(Box::new(error)))?;
+        let sweep = service
+            .sweep_orphans(BATCH)
+            .await
+            .map_err(|error| ProviderError::Internal(Box::new(error)))?;
         let duration_ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
-        tracing::info!(expired, duration_ms, "Document upload expiry completed");
+        let retained = sweep.retained;
+        tracing::info!(
+            expired = expiry.expired,
+            swept = sweep.deleted,
+            retained,
+            duration_ms,
+            "Document upload expiry completed"
+        );
         Ok(JobResult::success()
-            .with_stats(expired, 0)
-            .with_message(format!("Expired: {expired}"))
+            .with_stats(expiry.expired + sweep.deleted, retained)
+            .with_message(format!(
+                "Expired: {}, orphans deleted: {}, orphans retained: {retained}",
+                expiry.expired, sweep.deleted
+            ))
             .with_duration(duration_ms))
     }
 }
@@ -66,7 +82,7 @@ impl Job for DocumentUploadExpiryJob {
     }
 
     fn description(&self) -> &'static str {
-        "Closes resumable uploads left open past their lifetime and deletes their parts"
+        "Closes resumable uploads left open past their lifetime, deletes their parts and sweeps orphaned upload objects"
     }
 
     fn schedule(&self) -> &'static str {

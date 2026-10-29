@@ -9,12 +9,15 @@
 //! page setup travel inside `kind`, so a cell edit replaces its table's
 //! `kind`. The document's styles, theme, numbering and final section live
 //! as one JSON string under `settings` in the root map [`DOCUMENT_CONTAINER`].
+//! [`read`] fails with a [`ReadError`] on a block it cannot read.
 //!
 //! Every replica must configure the same mark expansion before it edits
 //! ([`configure`]); a browser client mirrors [`TEXT_STYLES`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
+
+use std::fmt;
 
 use loro::{
     Container, ExpandType, LoroDoc, LoroError, LoroMap, LoroMovableList, LoroText, LoroValue,
@@ -30,6 +33,47 @@ pub const BLOCKS_CONTAINER: &str = "blocks";
 pub const DOCUMENT_CONTAINER: &str = "document";
 
 pub type WriteError = Box<dyn std::error::Error + Send + Sync>;
+
+/// A block in [`BLOCKS_CONTAINER`] that does not read as a model block.
+///
+/// Reading refuses the whole document rather than leaving the block out, so
+/// a checkpoint never lands a body that silently lost content.
+#[derive(Debug)]
+pub enum ReadError {
+    NotABlock {
+        at: usize,
+    },
+    MissingId {
+        at: usize,
+    },
+    MissingKind {
+        id: String,
+    },
+    Kind {
+        id: String,
+        source: serde_json::Error,
+    },
+}
+
+impl fmt::Display for ReadError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::NotABlock { at } => write!(f, "list entry {at} is not a block"),
+            Self::MissingId { at } => write!(f, "block {at} has no id"),
+            Self::MissingKind { id } => write!(f, "block {id} has no kind"),
+            Self::Kind { id, .. } => write!(f, "block {id} has an unreadable kind"),
+        }
+    }
+}
+
+impl std::error::Error for ReadError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Kind { source, .. } => Some(source),
+            _ => None,
+        }
+    }
+}
 
 pub const TEXT_STYLES: [(&str, ExpandType); 16] = [
     ("bold", ExpandType::After),
@@ -63,15 +107,18 @@ pub fn blocks(doc: &LoroDoc) -> LoroMovableList {
     doc.get_movable_list(BLOCKS_CONTAINER)
 }
 
-#[must_use]
-pub fn read(doc: &LoroDoc) -> RichText {
+pub fn read(doc: &LoroDoc) -> Result<RichText, ReadError> {
     let list = blocks(doc);
-    RichText {
-        blocks: (0..list.len())
-            .filter_map(|at| block_map(&list, at).and_then(|m| read_block(&m)))
-            .collect(),
+    let blocks = (0..list.len())
+        .map(|at| {
+            let map = block_map(&list, at).ok_or(ReadError::NotABlock { at })?;
+            read_block(at, &map)
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(RichText {
+        blocks,
         document: read_settings(doc),
-    }
+    })
 }
 
 fn read_settings(doc: &LoroDoc) -> Option<Box<DocumentSettings>> {
@@ -122,16 +169,22 @@ pub(crate) fn text_of(map: &LoroMap) -> Option<LoroText> {
     }
 }
 
-fn read_block(map: &LoroMap) -> Option<Block> {
-    let id = string_of(map, "id")?;
-    let kind: BlockKind = serde_json::from_str(&string_of(map, "kind")?).ok()?;
+fn read_block(at: usize, map: &LoroMap) -> Result<Block, ReadError> {
+    let id = string_of(map, "id").ok_or(ReadError::MissingId { at })?;
+    let Some(kind) = string_of(map, "kind") else {
+        return Err(ReadError::MissingKind { id });
+    };
+    let kind: BlockKind = match serde_json::from_str(&kind) {
+        Ok(kind) => kind,
+        Err(source) => return Err(ReadError::Kind { id, source }),
+    };
     let attrs: ParaAttrs = string_of(map, "attrs")
         .and_then(|json| serde_json::from_str(&json).ok())
         .unwrap_or_default();
     let (text, marks) = text_of(map)
         .map(|text| read_text(&text))
         .unwrap_or_default();
-    Some(Block {
+    Ok(Block {
         id,
         kind,
         attrs,
@@ -217,10 +270,12 @@ pub(crate) fn mark_all(text: &LoroText, marks: &[Mark]) -> Result<(), LoroError>
 }
 
 pub fn sync_text(text: &LoroText, block: &Block) -> Result<(), WriteError> {
-    if read_text(text).0 != block.text {
+    let (held, mut marks) = read_text(text);
+    if held != block.text {
         text.update(&block.text, loro::UpdateOptions::default())?;
+        marks = read_text(text).1;
     }
-    if read_text(text).1 != block.marks {
+    if marks != block.marks {
         let len = text.len_unicode();
         if len > 0 {
             for key in MarkKind::KEYS {

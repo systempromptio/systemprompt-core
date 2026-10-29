@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id::text AS \"id!: DocumentFolderId\"\n               FROM document_folders\n               WHERE (id = $1::text::uuid OR $1::text::uuid = ANY(ancestor_ids))\n                 AND deleted_at IS NULL\n               ORDER BY cardinality(ancestor_ids), id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!: DocumentFolderId",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "9fdc349c74d2371a87ead4e887d67416be404332b3fc88b1010d8c08fc2b4c88"
+}

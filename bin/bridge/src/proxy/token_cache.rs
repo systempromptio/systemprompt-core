@@ -174,7 +174,9 @@ impl TokenCache {
             minted_at: Instant::now(),
             stamp,
             stamp_checked_at: tokio::time::Instant::now(),
-            remint_after_fresh_rejection: self.fresh_rejection_pending.swap(false, Ordering::AcqRel),
+            remint_after_fresh_rejection: self
+                .fresh_rejection_pending
+                .swap(false, Ordering::AcqRel),
         });
         Ok(token)
     }

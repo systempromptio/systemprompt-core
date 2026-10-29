@@ -1,10 +1,11 @@
 //! Revision content: streamed reads, byte and op commits, history,
 //! projections and the HTML preview.
 //!
-//! A read answers with the revision's content hash as its `ETag`: a matching
-//! `If-None-Match` is `304`, a single `Range` is `206` (unless a stale
-//! `If-Range` asks for the whole body). A read with `format=pdf` answers the
-//! revision rendered as PDF, whole, with the rendering's hash as its `ETag`.
+//! A read answers with the quoted revision id as its `ETag` and the content
+//! hash in `x-document-content-sha256`: a matching `If-None-Match` is `304`,
+//! a single `Range` is `206` (unless a stale `If-Range` asks for the whole
+//! body). A read with `format=pdf` answers the revision rendered as PDF,
+//! whole, with the rendering's hash as its `ETag`.
 //! Every body is served as user content (`nosniff`, a sandbox CSP).
 //! A write names its base revision in `If-Match`; a base that is no longer
 //! the head answers `409` with both.
@@ -22,7 +23,7 @@ use systemprompt_files::documents::DocumentsError;
 use systemprompt_files::documents::blob_store::BlobStoreError;
 use systemprompt_files::documents::pdf::PDF_MIME_TYPE;
 use systemprompt_files::documents::service::StreamRequest;
-use systemprompt_identifiers::{DocumentId, DocumentRevisionId};
+use systemprompt_identifiers::{ContentHash, DocumentId, DocumentRevisionId};
 use systemprompt_models::RequestContext;
 use systemprompt_models::documents::content_hash;
 use systemprompt_runtime::documents::download::{DOWNLOAD_FORMAT_PDF, Rendition};
@@ -31,7 +32,10 @@ use systemprompt_traits::{FileStorageError, StoredFileRead};
 use super::DocumentsState;
 use super::caller::{Caller, caller};
 use super::error::DocumentsResult;
-use super::headers::{content_disposition, etag, if_range_holds, none_match, range};
+use super::headers::{
+    content_disposition, hash_etag, if_range_holds, none_match, range, revision_etag,
+    set_content_sha256,
+};
 use super::items::document_id;
 use crate::error::ApiHttpError;
 use crate::routes::user_content::{USER_CONTENT_CSP, harden};
@@ -124,7 +128,7 @@ pub(super) async fn serve(
         ))) => return Ok(range_not_satisfiable(size)),
         other => other?,
     };
-    let tag = etag(&revision.content_sha256);
+    let tag = revision_etag(&revision.id);
     if none_match(headers, &tag) {
         return Ok(not_modified(&tag));
     }
@@ -147,6 +151,7 @@ pub(super) async fn serve(
         mime: &view.document.mime_type,
         name: &view.document.name,
         revision: &revision.id,
+        hash: &revision.content_sha256,
         head: *method == Method::HEAD,
     };
     Ok(stream_response(read, &served))
@@ -157,6 +162,7 @@ struct Served<'a> {
     mime: &'a str,
     name: &'a str,
     revision: &'a DocumentRevisionId,
+    hash: &'a ContentHash,
     head: bool,
 }
 
@@ -205,6 +211,7 @@ fn stream_response(read: StoredFileRead, served: &Served<'_>) -> Response {
     if let Some(range) = read.range {
         set(header::CONTENT_RANGE, range.content_range());
     }
+    set_content_sha256(headers, served.hash);
     harden(&mut response, USER_CONTENT_CSP);
     response
 }
@@ -218,7 +225,7 @@ async fn serve_pdf(
         .service
         .render_pdf(&who.user, request.id, request.revision.as_ref(), &who.trace)
         .await?;
-    let tag = etag(&content_hash(&rendered.bytes));
+    let tag = hash_etag(&content_hash(&rendered.bytes));
     if none_match(request.headers, &tag) {
         return Ok(not_modified(&tag));
     }

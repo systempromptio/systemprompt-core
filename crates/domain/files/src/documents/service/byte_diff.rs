@@ -9,7 +9,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-
 use systemprompt_identifiers::{DocumentNodeId, DocumentRevisionId};
 use systemprompt_models::documents::{NodeKind, Projection};
 
@@ -17,6 +16,8 @@ use super::DocumentService;
 use super::apply::{AppliedOps, HeadEdit, apply_on_head};
 use super::node_ids::Projected;
 use super::support::blocking;
+#[cfg(feature = "office")]
+use crate::documents::codecs::inspect_package;
 use crate::documents::error::DocumentsError;
 use crate::documents::models::Document;
 use crate::documents::nodes::{
@@ -65,7 +66,11 @@ impl DocumentService {
         let (base, base_bytes) = self.projected_with_bytes(document, &base_revision).await?;
         let codec = self.codec(document.format)?;
         let format = document.format;
+        #[cfg(feature = "office")]
+        let caps = self.package_caps();
         blocking(move || {
+            #[cfg(feature = "office")]
+            inspect_package(&input.uploaded, caps)?;
             let uploaded = codec.project(&input.uploaded)?;
             let mut minter = NodeIdMinter::new(UPLOAD_WRITER.to_owned(), 0);
             let entries = carry_forward(&base.ids, &uploaded, &CarryHints::default(), &mut minter);

@@ -1,5 +1,14 @@
 //! The per-replica background task that snapshots and checkpoints the
-//! sessions this replica holds, and evicts idle ones from its cache.
+//! sessions this replica holds, follows writes that land on the head
+//! outside a session, and evicts idle ones from its cache.
+//!
+//! Each tick works through the cached sessions a few at a time. An entry's
+//! lock is held only to read what is due and to record outcomes, never
+//! across a snapshot's blob write or a checkpoint, so one slow session does
+//! not hold up the rest or the updates applied to it. A
+//! checkpoint another replica is running is left to it and retried on a
+//! later tick; a checkpoint that fails or conflicts with the head backs off
+//! exponentially; a session closed elsewhere is evicted.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -7,11 +16,15 @@
 use std::sync::Arc;
 use std::time::Instant;
 
+use futures_util::stream::{self, StreamExt};
+
 use systemprompt_identifiers::TraceId;
 use systemprompt_traits::BackgroundTasks;
 
-use super::CollabService;
-use super::entry::SharedEntry;
+use super::entry::{CollabEntry, SharedEntry};
+use super::{Checkpoint, CollabError, CollabService};
+
+const TICK_CONCURRENCY: usize = 8;
 
 impl CollabService {
     pub fn start(self: &Arc<Self>, tasks: &BackgroundTasks) {
@@ -29,54 +42,60 @@ impl CollabService {
     }
 
     pub async fn tick(&self) {
-        for (document, entry) in self.cached_entries() {
-            if self.tick_entry(&entry).await {
-                self.cache_remove(&document);
-            }
-        }
+        stream::iter(self.cached_entries())
+            .for_each_concurrent(TICK_CONCURRENCY, |(document, entry)| async move {
+                if self.tick_entry(&entry).await {
+                    self.cache_remove(&document);
+                }
+            })
+            .await;
     }
 
-    async fn tick_entry(&self, entry: &SharedEntry) -> bool {
-        let mut entry = entry.lock().await;
+    async fn tick_entry(&self, shared: &SharedEntry) -> bool {
         let now = Instant::now();
-        let session = entry.session.id.clone();
-        let snapshot_due = entry.unsnapshotted > 0
-            && entry
-                .snapshot_due_from
-                .is_some_and(|from| now.duration_since(from) >= self.tuning.snapshot_after);
-        if snapshot_due && let Err(error) = self.snapshot(&mut entry).await {
-            tracing::warn!(session_id = %session, error = %error, "Edit session snapshot failed");
-        }
-        // Why: core lands MCP and API writes on the head without touching the
-        // live session, so each tick asks the head whether it moved (one row
-        // read per open document) and pulls the change in when it did.
-        if let Err(error) = self.follow_head(&mut entry, now).await {
+        let session = shared.lock().await.session.id.clone();
+        if let Err(error) = self.follow_head(shared, now).await {
             tracing::warn!(session_id = %session, error = %error, "Edit session could not follow the head");
         }
-        let checkpoint_due = entry
-            .checkpoint_due_from
-            .is_some_and(|from| now.duration_since(from) >= self.tuning.checkpoint_after);
-        let backing_off = entry.checkpoint_retry_at.is_some_and(|at| now < at);
-        if checkpoint_due
-            && !backing_off
-            && let Some(editor) = entry.last_editor.clone()
-        {
-            let trace = TraceId::system();
-            match self.checkpoint(&mut entry, &editor, &trace).await {
-                Ok(_) => {
+        let (snapshot_due, checkpoint_due) = {
+            let entry = shared.lock().await;
+            let snapshot_due = entry.unsnapshotted > 0
+                && entry
+                    .snapshot_due_from
+                    .is_some_and(|from| now.duration_since(from) >= self.tuning.snapshot_after);
+            let due = entry
+                .checkpoint_due_from
+                .is_some_and(|from| now.duration_since(from) >= self.tuning.checkpoint_after);
+            let backing_off = entry.checkpoint_retry_at.is_some_and(|at| now < at);
+            drop(entry);
+            (snapshot_due, due && !backing_off)
+        };
+        if snapshot_due && let Err(error) = self.snapshot(shared).await {
+            tracing::warn!(session_id = %session, error = %error, "Edit session snapshot failed");
+        }
+        if checkpoint_due {
+            let outcome = self.checkpoint(shared, &TraceId::system()).await;
+            let mut entry = shared.lock().await;
+            match outcome {
+                Ok(Some(Checkpoint::Unchanged | Checkpoint::Committed(_))) => {
                     entry.checkpoint_failures = 0;
                     entry.checkpoint_retry_at = None;
                 },
+                Ok(None) => {
+                    entry.checkpoint_due_from.get_or_insert(now);
+                },
+                Err(CollabError::SessionClosed { .. }) => return true,
+                Ok(Some(Checkpoint::Conflict { head, .. })) => {
+                    self.back_off(&mut entry, now);
+                    tracing::warn!(
+                        session_id = %session,
+                        head_revision_id = %head,
+                        failures = entry.checkpoint_failures,
+                        "Edit session checkpoint conflicted with the head; backing off"
+                    );
+                },
                 Err(error) => {
-                    entry.checkpoint_failures = entry.checkpoint_failures.saturating_add(1);
-                    let wait = self
-                        .tuning
-                        .checkpoint_after
-                        .saturating_mul(1 << entry.checkpoint_failures.min(6));
-                    entry.checkpoint_retry_at = Some(now + wait);
-                    if entry.checkpoint_due_from.is_none() {
-                        entry.checkpoint_due_from = Some(now);
-                    }
+                    self.back_off(&mut entry, now);
                     tracing::warn!(
                         session_id = %session,
                         error = %error,
@@ -85,9 +104,24 @@ impl CollabService {
                     );
                 },
             }
+            drop(entry);
         }
-        entry.unsnapshotted == 0
+        let entry = shared.lock().await;
+        let idle = entry.unsnapshotted == 0
+            && !entry.snapshotting
             && entry.checkpoint_due_from.is_none()
-            && now.duration_since(entry.touched) >= self.tuning.evict_after
+            && now.duration_since(entry.touched) >= self.tuning.evict_after;
+        drop(entry);
+        idle
+    }
+
+    fn back_off(&self, entry: &mut CollabEntry, now: Instant) {
+        entry.checkpoint_failures = entry.checkpoint_failures.saturating_add(1);
+        let wait = self
+            .tuning
+            .checkpoint_after
+            .saturating_mul(1 << entry.checkpoint_failures.min(6));
+        entry.checkpoint_retry_at = Some(now + wait);
+        entry.checkpoint_due_from.get_or_insert(now);
     }
 }

@@ -282,6 +282,10 @@ const fn agent_refusal_text(code: RefusalCode) -> &'static str {
             "agent_rate_limited: your user's agents have made the most edits allowed this \
              hour; wait the seconds the message names, then retry with the same op_id."
         },
+        RefusalCode::CursorReset => {
+            "cursor_reset: the Drive cursor sent is not a position of the current change \
+             feed; drop it, read the manifest again and continue from its cursor."
+        },
         _ => "",
     }
 }

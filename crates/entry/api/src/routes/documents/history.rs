@@ -31,7 +31,7 @@ use super::DocumentsState;
 use super::caller::{Caller, caller};
 use super::content::{RevisionQuery, revision_id};
 use super::error::{DocumentsHttpError, DocumentsResult};
-use super::headers::etag;
+use super::headers::set_revision_tags;
 use super::items::{cursor, document_id};
 use super::views::RevisionJson;
 use crate::routes::user_content::{INLINE_PDF_CSP, harden};
@@ -163,9 +163,7 @@ pub(super) async fn preview(
         header::CONTENT_SECURITY_POLICY,
         HeaderValue::from_static(PREVIEW_CSP),
     );
-    if let Ok(value) = HeaderValue::from_str(&etag(&revision.content_sha256)) {
-        headers.insert(header::ETAG, value);
-    }
+    set_revision_tags(headers, &revision.id, &revision.content_sha256);
     Ok(response)
 }
 
@@ -212,9 +210,7 @@ async fn pdf_preview(
         header::CONTENT_DISPOSITION,
         HeaderValue::from_static("inline"),
     );
-    if let Ok(value) = HeaderValue::from_str(&etag(&revision.content_sha256)) {
-        headers.insert(header::ETAG, value);
-    }
+    set_revision_tags(headers, &revision.id, &revision.content_sha256);
     harden(&mut response, INLINE_PDF_CSP);
     Ok(Some(response))
 }

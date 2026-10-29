@@ -11,6 +11,7 @@ use axum::extract::State;
 use axum::http::{HeaderMap, Method, Request, StatusCode, Uri, header};
 use axum::response::IntoResponse;
 use axum::{Extension, Router};
+use base64::Engine;
 use chrono::{DateTime, Utc};
 use serde_json::{Value, json};
 use systemprompt_api::routes::documents::{DocumentsState, router};
@@ -127,7 +128,7 @@ async fn content_reads_carry_an_etag_honour_if_none_match_and_ranges() -> Result
     let created = create_markdown(&state, &owner).await?;
     let id = id_of(&created);
     let sha = created["revision"]["content_sha256"].as_str().expect("sha");
-    let etag = format!("\"{sha}\"");
+    let etag = format!("\"{}\"", head_of(&created));
 
     let full = send(
         app(&state, &owner),
@@ -138,6 +139,7 @@ async fn content_reads_carry_an_etag_honour_if_none_match_and_ranges() -> Result
     .await?;
     assert_eq!(full.status, StatusCode::OK);
     assert_eq!(full.headers[header::ETAG], etag.as_str());
+    assert_eq!(full.headers["x-document-content-sha256"], sha);
     assert_eq!(content_hash(&full.body).as_str(), sha);
     assert!(
         full.headers[header::CONTENT_DISPOSITION]
@@ -180,6 +182,7 @@ async fn content_reads_carry_an_etag_honour_if_none_match_and_ranges() -> Result
     .await?;
     assert_eq!(head.status, StatusCode::OK);
     assert_eq!(head.headers[header::ETAG], etag.as_str());
+    assert_eq!(head.headers["x-document-content-sha256"], sha);
     Ok(())
 }
 
@@ -219,6 +222,7 @@ async fn a_put_against_a_stale_base_is_409_with_head_and_base() -> Result<()> {
     )
     .await?;
     assert_eq!(unquoted.status, StatusCode::BAD_REQUEST);
+    assert_eq!(unquoted.json()["error_key"], "invalid_if_match");
     Ok(())
 }
 
@@ -1001,6 +1005,17 @@ async fn only_the_private_device_token_trades_for_a_drive_sync_token() -> Result
     let traded = send(gateway.clone(), trade(&device)).await?;
     assert_eq!(traded.status, StatusCode::OK, "{}", traded.json());
     let sync = traded.json()["token"].as_str().expect("token").to_owned();
+    let payload = sync.split('.').nth(1).expect("jwt payload");
+    let claims: Value = serde_json::from_slice(
+        &base64::engine::general_purpose::URL_SAFE_NO_PAD
+            .decode(payload)
+            .expect("payload decodes"),
+    )?;
+    assert_eq!(
+        claims["scope"],
+        json!("user"),
+        "the Drive sync token carries only the permission the Drive routes act on"
+    );
     let manifest = send(
         gateway.clone(),
         request(Method::GET, "/bridge/drive/manifest")

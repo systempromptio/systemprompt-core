@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM document_upload_objects WHERE storage_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a38195d572d33aa2fc7d00cc8d3742a63c7a199be059c2eac1a28e9aaeeb13d2"
+}

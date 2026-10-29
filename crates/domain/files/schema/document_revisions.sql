@@ -1,3 +1,5 @@
+CREATE SEQUENCE IF NOT EXISTS document_landing_seq AS BIGINT;
+
 CREATE TABLE IF NOT EXISTS document_revisions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
@@ -15,7 +17,9 @@ CREATE TABLE IF NOT EXISTS document_revisions (
     task_id VARCHAR(255),
     on_behalf_of VARCHAR(255),
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    landed_at TIMESTAMPTZ
+    landed_at TIMESTAMPTZ,
+    landing_xid BIGINT,
+    landing_seq BIGINT
 );
 
 CREATE INDEX IF NOT EXISTS idx_document_revisions_document_created
@@ -26,3 +30,8 @@ CREATE INDEX IF NOT EXISTS idx_document_revisions_content_sha256
     ON document_revisions (content_sha256);
 CREATE INDEX IF NOT EXISTS idx_document_revisions_context_created
     ON document_revisions (context_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_document_revisions_landing
+    ON document_revisions (landing_xid, landing_seq)
+    WHERE landing_xid IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_document_revisions_author_document
+    ON document_revisions (author_user_id, document_id, created_at);

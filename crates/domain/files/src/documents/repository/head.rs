@@ -3,7 +3,17 @@
 //!
 //! The swap succeeds only when the head is still the revision the commit was
 //! built on, the document is not trashed, the new revision belongs to it, and
-//! no unexpired lock is held by anyone but the committing holder.
+//! no unexpired lock is held by anyone but the committing holder. The
+//! document row is locked `FOR NO KEY UPDATE` before the swap, so the swap's
+//! own snapshot is taken after every writer that holds that row lock has
+//! committed, and a lock acquired under `FOR SHARE` of the same row is always
+//! seen. The mode leaves the `FOR KEY SHARE` that a revision insert's foreign
+//! key takes on the row free, so two landings on one document queue on the
+//! row rather than deadlock.
+//!
+//! Every landing transaction opens with [`DocumentRepository::begin`], which
+//! registers it with the Drive feed horizon before it writes anything (see
+//! the `feed` module).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -24,10 +34,20 @@ pub struct HeadMove<'a> {
 
 impl DocumentRepository {
     pub async fn begin(&self) -> RepoResult<Transaction<'static, Postgres>> {
-        Ok(self.pools.write.begin().await?)
+        let mut tx = self.pools.write.begin().await?;
+        sqlx::query!("LOCK TABLE document_revisions IN ROW EXCLUSIVE MODE")
+            .execute(&mut *tx)
+            .await?;
+        Ok(tx)
     }
 
     pub async fn move_head(conn: &mut PgConnection, head: HeadMove<'_>) -> RepoResult<bool> {
+        sqlx::query_scalar!(
+            r#"SELECT 1 AS "locked!" FROM documents WHERE id = $1::text::uuid FOR NO KEY UPDATE"#,
+            head.document.as_str(),
+        )
+        .fetch_optional(&mut *conn)
+        .await?;
         let result = sqlx::query!(
             "UPDATE documents SET head_revision_id = $3::text::uuid, updated_at = now()
              WHERE id = $1::text::uuid

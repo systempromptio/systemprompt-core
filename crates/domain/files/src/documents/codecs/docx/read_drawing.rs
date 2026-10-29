@@ -171,8 +171,6 @@ fn is_hash(stem: &str) -> bool {
     stem.len() == 64 && stem.chars().all(|c| c.is_ascii_hexdigit())
 }
 
-/// The bytes and type of an image the package holds: a `docx-media:` part
-/// under `word/`, or an upload a write saved as `media/sp-<hash>`.
 #[must_use]
 pub fn held_image(bytes: &[u8], reference: &str, limit: u64) -> Option<(String, Vec<u8>)> {
     let content = match reference.strip_prefix(MEDIA_SCHEME) {

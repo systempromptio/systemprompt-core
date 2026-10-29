@@ -1,0 +1,113 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT s.snapshot_seq AS \"snapshot_seq!\",\n                      s.snapshot_sha256 AS \"snapshot_sha256: ContentHash\",\n                      u.seq AS \"seq?\",\n                      u.payload AS \"update?\",\n                      u.author_user_id AS \"author_user_id?: UserId\",\n                      u.actor_kind AS \"actor_kind?\",\n                      u.actor_name AS \"actor_name?\",\n                      u.actor_attended AS \"actor_attended?\"\n               FROM document_edit_sessions s\n               LEFT JOIN document_collab_updates u\n                 ON u.session_id = s.id AND u.seq > GREATEST($2, s.snapshot_seq)\n               WHERE s.id = $1::text::uuid\n               ORDER BY u.seq",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "snapshot_seq!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "document_edit_sessions",
+            "name": "snapshot_seq"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "snapshot_sha256: ContentHash",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_edit_sessions",
+            "name": "snapshot_sha256"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "seq?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "document_collab_updates",
+            "name": "seq"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "update?",
+        "type_info": "Bytea",
+        "origin": {
+          "Table": {
+            "table": "document_collab_updates",
+            "name": "payload"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "author_user_id?: UserId",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "document_collab_updates",
+            "name": "author_user_id"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "actor_kind?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_collab_updates",
+            "name": "actor_kind"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "actor_name?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_collab_updates",
+            "name": "actor_name"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "actor_attended?",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "document_collab_updates",
+            "name": "actor_attended"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "bbb91ccd92a9ff9bfc98d462342fcee0f690711191695e6a51164b81f1afdc90"
+}

@@ -9,7 +9,8 @@
 //! other host receive is the bridge token, which has no device audience and
 //! so cannot trade. A purposed or delegated token is refused too. The new
 //! token carries the device token's user, session and `interaction` claim,
-//! never more, and expires no later than it.
+//! never more, and expires no later than it. Its only permission is `user`,
+//! the one the Drive routes act on, whatever else the device token held.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -21,7 +22,7 @@ use chrono::{Duration, TimeZone, Utc};
 use systemprompt_files::documents::agents::{AgentChannel, DocumentActor};
 use systemprompt_identifiers::{AccessTokenId, ClientId, JwtToken};
 use systemprompt_models::api::ApiError;
-use systemprompt_models::auth::{AuthenticatedUser, JwtAudience, UserJwtRequest};
+use systemprompt_models::auth::{AuthenticatedUser, JwtAudience, Permission, UserJwtRequest};
 use systemprompt_models::documents::{BRIDGE_DEVICE_AUDIENCE, DRIVE_SYNC_AUDIENCE, DriveSyncToken};
 use systemprompt_runtime::documents::actor::bearer_actor;
 
@@ -72,8 +73,11 @@ pub(super) async fn issue(
         return Err(ApiHttpError::unauthorized("the bridge token has expired").into());
     }
     let who = authenticated(user);
+    if !who.has_permission(Permission::User) {
+        return Err(ApiHttpError::forbidden("a Drive sync needs a user account").into());
+    }
     let request = UserJwtRequest {
-        permissions: who.permissions().to_vec(),
+        permissions: vec![Permission::User],
         user: who,
         session_id: claims.session_id.clone(),
         jti: AccessTokenId::generate(),

@@ -98,9 +98,7 @@ pub fn carry_forward(
         .collect()
 }
 
-/// A block that stays a block of text when its type changes: a paragraph
-/// retyped as a heading or list item is the same block, rewritten in place.
-fn text_kind(node: &ProjectionNode) -> bool {
+const fn text_kind(node: &ProjectionNode) -> bool {
     matches!(
         node.kind,
         NodeKind::Paragraph | NodeKind::Heading { .. } | NodeKind::ListItem | NodeKind::Pending

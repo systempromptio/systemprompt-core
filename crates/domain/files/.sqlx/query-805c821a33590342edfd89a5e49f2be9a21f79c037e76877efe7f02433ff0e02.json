@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT peer_id FROM document_collab_peers\n             WHERE session_id = $1::text::uuid AND user_id = $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "peer_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "document_collab_peers",
+            "name": "peer_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "805c821a33590342edfd89a5e49f2be9a21f79c037e76877efe7f02433ff0e02"
+}

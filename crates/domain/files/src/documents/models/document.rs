@@ -9,7 +9,7 @@ use systemprompt_identifiers::{
 };
 use systemprompt_models::documents::{AccessLevel, DocumentFormat};
 
-use super::{ListCursor, ListingCursor};
+use super::ListingCursor;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Document {
@@ -37,14 +37,6 @@ pub struct NewDocument {
     pub template_id: Option<DocumentTemplateId>,
     pub owner_user_id: UserId,
     pub created_by: UserId,
-}
-
-#[derive(Debug, Clone)]
-pub struct VisibleListing {
-    pub folder_id: Option<DocumentFolderId>,
-    pub query: Option<String>,
-    pub cursor: Option<ListCursor>,
-    pub limit: i64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

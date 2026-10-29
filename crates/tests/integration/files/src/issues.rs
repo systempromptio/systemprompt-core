@@ -86,9 +86,9 @@ async fn upload(db: &DbPool, owner: &UserId, status: &str) -> (DocumentUploadId,
         .expect("blob");
     let id: String = sqlx::query_scalar(
         "INSERT INTO document_uploads \
-             (owner_user_id, file_name, declared_mime, declared_size, declared_sha256, \
+             (owner_user_id, quota_user_id, file_name, declared_mime, declared_size, declared_sha256, \
               part_size, status, blob_sha256, detected_mime, trace_id, expires_at, finished_at) \
-         VALUES ($1, 'screen.png', 'image/png', 128, $2, 128, $3, \
+         VALUES ($1, $1, 'screen.png', 'image/png', 128, $2, 128, $3, \
                  CASE WHEN $3 = 'completed' THEN $2 END, 'image/png', 'issues-test', \
                  now() + interval '1 hour', now()) \
          RETURNING id::text",

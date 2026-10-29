@@ -23,7 +23,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use systemprompt_identifiers::{DocumentUploadId, UserId};
-use systemprompt_traits::{OwnedTask, StoredFileId};
+use systemprompt_traits::{FileStorageError, OwnedTask, StoredFileId};
 
 use super::error::{RefusalReason, UploadError, UploadResult};
 use super::models::{CompletedUpload, UploadPart, UploadSession, UploadStatus};
@@ -88,9 +88,17 @@ impl UploadService {
             })
         };
         match self.finish(&session).await {
-            Err(UploadError::Refused { reason, detail }) => {
+            Err(UploadError::Refused {
+                reason,
+                detail,
+                cause,
+            }) => {
                 self.refuse(&session, reason, &detail).await?;
-                Err(UploadError::Refused { reason, detail })
+                Err(UploadError::Refused {
+                    reason,
+                    detail,
+                    cause,
+                })
             },
             Err(error) => {
                 if let Err(release) = self.uploads.release(&session.id).await {
@@ -123,7 +131,7 @@ impl UploadService {
         let blob = match inspected.replacement {
             Some(bytes) => {
                 let stored = self.blobs.put(&bytes).await?;
-                self.discard(&assembled).await;
+                self.discard(&session.id, &assembled).await?;
                 stored
             },
             None => {
@@ -133,7 +141,8 @@ impl UploadService {
             },
         };
         for part in &progress.parts {
-            self.discard(&part.storage_id.as_str().into()).await;
+            self.discard(&session.id, &StoredFileId::new(part.storage_id.as_str()))
+                .await?;
         }
         let closed = self
             .uploads
@@ -148,7 +157,8 @@ impl UploadService {
             if blob.inserted
                 && let Some(object) = self.uploads.withdraw_blob(&blob.hash).await?
             {
-                self.discard(&object.as_str().into()).await;
+                self.drop_withdrawn(session, StoredFileId::new(object))
+                    .await?;
             }
             return Err(UploadError::Closed {
                 status: UploadStatus::Expired,
@@ -172,6 +182,21 @@ impl UploadService {
             checked_kind: inspected.checked.as_str().to_owned(),
             deduplicated: !blob.inserted,
         })
+    }
+
+    async fn drop_withdrawn(
+        &self,
+        session: &UploadSession,
+        object: StoredFileId,
+    ) -> UploadResult<()> {
+        if object == assembled_storage_id(session.id.as_str()) {
+            self.discard(&session.id, &object).await?;
+            return Ok(());
+        }
+        match self.storage.delete(&object).await {
+            Ok(()) | Err(FileStorageError::NotFound(_)) => Ok(()),
+            Err(error) => Err(error.into()),
+        }
     }
 
     async fn assemble(

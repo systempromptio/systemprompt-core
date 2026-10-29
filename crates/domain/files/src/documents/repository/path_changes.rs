@@ -11,8 +11,9 @@
 use systemprompt_identifiers::{DocumentFolderId, DocumentId, UserId};
 
 use super::documents::DocumentRepository;
+use super::feed::FeedHorizon;
 use super::rows::RepoResult;
-use crate::documents::models::ListCursor;
+use crate::documents::models::DriveCursor;
 
 /// The path a document had and has after one trash, restore, rename or move.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -25,7 +26,7 @@ pub struct PathMove<'a> {
 /// for a trash.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DocumentPathChange {
-    pub cursor: ListCursor,
+    pub cursor: DriveCursor,
     pub document_id: DocumentId,
     pub from_path: Option<String>,
     pub to_path: Option<String>,
@@ -62,10 +63,16 @@ impl DocumentRepository {
         folder: Option<&DocumentFolderId>,
         paths: PathMove<'_>,
     ) -> RepoResult<bool> {
+        let folders: Vec<&str> = folder.map(DocumentFolderId::as_str).into_iter().collect();
+        let mut tx = super::folder_locks::begin_tree_locked(&self.pools.write, &folders).await?;
         let updated = sqlx::query_scalar!(
             r#"WITH moved AS (
                    UPDATE documents SET folder_id = $2::text::uuid, updated_at = now()
-                   WHERE id = $1::text::uuid AND deleted_at IS NULL RETURNING id),
+                   WHERE id = $1::text::uuid AND deleted_at IS NULL
+                     AND ($2::text IS NULL OR EXISTS (
+                         SELECT 1 FROM document_folders f
+                         WHERE f.id = $2::text::uuid AND f.deleted_at IS NULL))
+                   RETURNING id),
                logged AS (
                    INSERT INTO document_path_changes (document_id, from_path, to_path)
                    SELECT id, $3, $4 FROM moved WHERE $3 <> $4 RETURNING 1)
@@ -75,8 +82,9 @@ impl DocumentRepository {
             paths.from,
             paths.to,
         )
-        .fetch_one(&*self.pools.write)
+        .fetch_one(&mut *tx)
         .await?;
+        tx.commit().await?;
         Ok(updated == 1)
     }
 
@@ -117,26 +125,34 @@ impl DocumentRepository {
 
     pub async fn path_changes_since(
         &self,
-        cursor: Option<ListCursor>,
+        after: DriveCursor,
+        horizon: FeedHorizon,
         limit: i64,
     ) -> RepoResult<Vec<DocumentPathChange>> {
         let rows = sqlx::query!(
-            r#"SELECT id, document_id::text AS "document_id!: DocumentId",
-                      from_path, to_path, changed_at
+            r#"SELECT document_id::text AS "document_id!: DocumentId",
+                      from_path, to_path,
+                      landing_xid AS "landing_xid!", landing_seq AS "landing_seq!"
                FROM document_path_changes
-               WHERE ($1::timestamptz IS NULL OR (changed_at, id) > ($1, $2::uuid))
-               ORDER BY changed_at, id
-               LIMIT $3"#,
-            cursor.map(|c| c.updated_at),
-            cursor.map(|c| c.id),
+               WHERE landing_xid IS NOT NULL
+                 AND landing_xid < $3
+                 AND (landing_xid, landing_seq) > ($1, $2)
+               ORDER BY landing_xid, landing_seq
+               LIMIT $4"#,
+            after.xid,
+            after.seq,
+            horizon.0,
             limit.max(1),
         )
-        .fetch_all(&*self.pools.read)
+        .fetch_all(&*self.pools.write)
         .await?;
         Ok(rows
             .into_iter()
             .map(|row| DocumentPathChange {
-                cursor: ListCursor::new(row.changed_at, row.id),
+                cursor: DriveCursor {
+                    xid: row.landing_xid,
+                    seq: row.landing_seq,
+                },
                 document_id: row.document_id,
                 from_path: row.from_path,
                 to_path: row.to_path,

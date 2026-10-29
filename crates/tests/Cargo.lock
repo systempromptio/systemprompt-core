@@ -9436,6 +9436,7 @@ dependencies = [
  "loro",
  "serde_json",
  "systemprompt-files",
+ "thiserror 2.0.21",
  "tracing",
  "uuid",
 ]
@@ -9623,10 +9624,14 @@ version = "0.0.11"
 dependencies = [
  "async-trait",
  "base64 0.23.1",
+ "bytes",
  "chrono",
+ "futures",
+ "hex",
  "loro",
  "reqwest",
  "serde_json",
+ "sha2 0.11.1",
  "sqlx",
  "systemprompt-config",
  "systemprompt-database",
@@ -9644,6 +9649,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "uuid",
+ "zip",
 ]
 
 [[package]]
@@ -9660,6 +9666,7 @@ dependencies = [
  "systemprompt-config",
  "systemprompt-database",
  "systemprompt-engine-loro",
+ "systemprompt-events",
  "systemprompt-extension",
  "systemprompt-files",
  "systemprompt-identifiers",

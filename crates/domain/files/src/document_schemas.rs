@@ -75,6 +75,11 @@ pub(crate) const DOCUMENT_SCHEMAS: &[SchemaEntry] = &[
         &["session_id", "seq", "payload"],
     ),
     (
+        "document_collab_peers",
+        include_str!("../schema/document_collab_peers.sql"),
+        &["session_id", "peer_id", "user_id"],
+    ),
+    (
         "document_text_index",
         include_str!("../schema/document_text_index.sql"),
         &["document_id", "revision_id", "body"],
@@ -161,5 +166,10 @@ pub(crate) const DOCUMENT_SCHEMAS: &[SchemaEntry] = &[
         "issue_report_attachments",
         include_str!("../schema/issue_report_attachments.sql"),
         &["report_id", "upload_id", "content_sha256"],
+    ),
+    (
+        "document_upload_objects",
+        include_str!("../schema/document_upload_objects.sql"),
+        &["storage_id", "upload_id", "created_at"],
     ),
 ];

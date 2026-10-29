@@ -52,7 +52,7 @@ pub fn render_passthrough_frontmatter(
 // manifest agree only when both render the keys in one sorted order.
 fn sorted_mapping(mapping: &Mapping) -> Mapping {
     let mut entries: Vec<(&Value, &Value)> = mapping.iter().collect();
-    entries.sort_by(|(a, _), (b, _)| sort_key(a).cmp(&sort_key(b)));
+    entries.sort_by_key(|(key, _)| sort_key(key));
     entries
         .into_iter()
         .map(|(key, value)| (key.clone(), sorted_value(value)))

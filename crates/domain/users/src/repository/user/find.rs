@@ -31,6 +31,25 @@ impl UserRepository {
         Ok(row)
     }
 
+    pub async fn find_by_ids(&self, ids: &[UserId]) -> Result<Vec<User>> {
+        let deleted_status = UserStatus::Deleted.as_str();
+        let ids: Vec<String> = ids.iter().map(|id| id.as_str().to_owned()).collect();
+        let rows = sqlx::query_as!(
+            UserRow,
+            r#"
+            SELECT id, name, email, full_name, display_name, status, email_verified,
+                   roles, avatar_url, is_bot, is_scanner, created_at, updated_at, account_kind
+            FROM users
+            WHERE id = ANY($1::text[]) AND status != $2
+            "#,
+            &ids,
+            deleted_status
+        )
+        .fetch_all(&*self.pool)
+        .await?;
+        rows.into_iter().map(User::try_from).collect()
+    }
+
     pub async fn find_by_email(&self, email: &str) -> Result<Option<User>> {
         let email = crate::models::normalise_email(email);
         let deleted_status = UserStatus::Deleted.as_str();

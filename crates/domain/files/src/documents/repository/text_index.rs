@@ -63,6 +63,7 @@ impl DocumentTextIndexRepository {
                JOIN documents d ON d.id = t.document_id AND d.deleted_at IS NULL
                LEFT JOIN document_folders f ON f.id = d.folder_id
                WHERE t.body @@ q
+                 AND (d.folder_id IS NULL OR f.deleted_at IS NULL)
                  AND (d.owner_user_id = $2 OR EXISTS (
                      SELECT 1 FROM document_grants g
                      WHERE (g.document_id = d.id OR g.folder_id = ANY(f.ancestor_ids || f.id))
@@ -77,7 +78,7 @@ impl DocumentTextIndexRepository {
             &subjects.values,
             limit.max(1),
         )
-        .fetch_all(&*self.pools.read)
+        .fetch_all(self.pools.authz())
         .await?)
     }
 }

@@ -69,7 +69,7 @@ fn template_failure_names_the_template_and_its_cause() {
         template_id: id.clone(),
         source: TemplateError::NotFound { id },
     });
-    assert_eq!(data["code"], "template_failed");
+    assert_eq!(data["code"], "not_found");
     assert!(text.contains("astound-word"), "{text}");
     assert!(text.contains("does not exist"), "{text}");
 }

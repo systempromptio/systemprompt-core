@@ -1,6 +1,7 @@
 use systemprompt_files::documents::service::{
     FolderMove, NewFolderRequest, UpdateRequest, parse_drive_cursor,
 };
+use systemprompt_identifiers::DocumentId;
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{DriveChange, DriveChangeKind};
 
@@ -21,7 +22,6 @@ async fn drain(h: &Harness, who: &AuthenticatedUser, start: &str) -> Vec<DriveCh
             .changes
             .iter()
             .map(|c| parse_drive_cursor(&c.cursor).expect("change cursor"))
-            .map(|c| (c.updated_at, c.id))
             .collect();
         assert!(
             keys.windows(2).all(|w| w[0] < w[1]),
@@ -38,11 +38,32 @@ async fn drain(h: &Harness, who: &AuthenticatedUser, start: &str) -> Vec<DriveCh
         }
         cursor = next;
     }
-    seen.sort_by_key(|c| {
-        let k = parse_drive_cursor(&c.cursor).expect("cursor");
-        (k.updated_at, k.id)
-    });
+    seen.sort_by_key(|c| parse_drive_cursor(&c.cursor).expect("cursor"));
     seen
+}
+
+async fn drain_settled(
+    h: &Harness,
+    who: &AuthenticatedUser,
+    start: &str,
+    done: impl Fn(&[DriveChange]) -> bool,
+) -> Vec<DriveChange> {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    loop {
+        let changes = drain(h, who, start).await;
+        if done(&changes) || std::time::Instant::now() >= deadline {
+            return changes;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+}
+
+fn after_creation(changes: Vec<DriveChange>, document: &DocumentId) -> Vec<DriveChange> {
+    changes
+        .into_iter()
+        .filter(|c| &c.document_id == document)
+        .skip_while(|c| c.kind == DriveChangeKind::Created)
+        .collect()
 }
 
 #[tokio::test]
@@ -103,12 +124,11 @@ async fn drive_feed_reports_rename_move_trash_and_restore_in_order() {
         .expect("restore");
 
     let moved = format!("{folder_name}/{renamed}");
-    let changes: Vec<_> = drain(&h, &owner, &start)
-        .await
-        .into_iter()
-        .filter(|c| c.document_id == document.id)
-        .filter(|c| !(c.kind == DriveChangeKind::Created && c.path == document.name))
-        .collect();
+    let settled = drain_settled(&h, &owner, &start, |seen| {
+        after_creation(seen.to_vec(), &document.id).len() >= 4
+    })
+    .await;
+    let changes = after_creation(settled, &document.id);
     let kinds: Vec<_> = changes
         .iter()
         .map(|c| (c.kind.clone(), c.path.clone()))
@@ -159,8 +179,11 @@ async fn drive_feed_reports_a_trashed_document_as_deleted_and_skips_its_revision
         .await
         .expect("trash");
 
-    let changes: Vec<_> = drain(&h, &owner, &start)
-        .await
+    let settled = drain_settled(&h, &owner, &start, |seen| {
+        seen.iter().any(|c| c.document_id == document.id)
+    })
+    .await;
+    let changes: Vec<_> = settled
         .into_iter()
         .filter(|c| c.document_id == document.id)
         .collect();

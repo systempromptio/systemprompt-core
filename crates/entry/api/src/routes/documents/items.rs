@@ -10,7 +10,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::extract::{FromRequest, Multipart, Path, Request, State};
-use axum::http::{HeaderValue, Method, StatusCode, header};
+use axum::http::{Method, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use axum::{Extension, Json};
 use serde::{Deserialize, Deserializer};
@@ -27,7 +27,7 @@ use systemprompt_provider_contracts::documents::TemplateParams;
 use super::DocumentsState;
 use super::caller::{api_author, caller};
 use super::error::DocumentsResult;
-use super::headers::etag;
+use super::headers::set_revision_tags;
 use super::import::{ImportBody, import_blob};
 use super::items_multipart::read_file;
 use super::requests::with_request_hint;
@@ -175,14 +175,17 @@ pub(super) async fn get(
             return with_request_hint::<Response>(&state, &who, &id, Err(error.into())).await;
         },
     };
-    let tag = view.head.as_ref().map(|head| etag(&head.content_sha256));
+    let head = view
+        .head
+        .as_ref()
+        .map(|head| (head.id.clone(), head.content_sha256.clone()));
     let mut response = if method == Method::HEAD {
         StatusCode::OK.into_response()
     } else {
         Json(DocumentDetail::from(view)).into_response()
     };
-    if let Some(tag) = tag.and_then(|tag| HeaderValue::from_str(&tag).ok()) {
-        response.headers_mut().insert(header::ETAG, tag);
+    if let Some((revision, hash)) = head {
+        set_revision_tags(response.headers_mut(), &revision, &hash);
     }
     Ok(response)
 }

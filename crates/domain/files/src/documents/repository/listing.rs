@@ -1,12 +1,14 @@
 //! Scoped document listings: a folder, documents shared with the caller,
 //! the caller's own documents, or the documents the caller touched last.
 //!
-//! One statement decides visibility, the scope, the escaped name filter, the
-//! ordering and the keyset page, and computes each row's head blob size and
-//! the caller's grant level. A grant reaches a document directly or through
-//! any folder in its ancestor chain, and matches any of the caller's subject
-//! pairs, exactly as access checks resolve it. A touch is a revision the
-//! caller authored, a comment the caller wrote, or the caller's presence.
+//! Each scope has its own statement that first builds a bounded candidate
+//! set from an index (the folder's documents, the caller's own, the
+//! documents the caller's grants reach directly or through a folder chain, or
+//! the documents the caller authored, commented on or is present in), then
+//! ranks and pages it, and only then reads the head blob size and the touch
+//! time for the rows on the page. A grant matches any of the caller's subject
+//! pairs, exactly as access checks resolve it, and a stored `own` grant reports
+//! as `share`, as resolution caps it; only the owner reports `own`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -20,26 +22,27 @@ use uuid::Uuid;
 use super::documents::{DocumentRepository, DocumentRow};
 use super::rows::{RepoResult, parse};
 use crate::documents::models::{
-    Document, ListCursor, ListSort, ListedDocument, ListingCursor, ScopedListing, SubjectPairs,
+    Document, ListCursor, ListScope, ListSort, ListedDocument, ListingCursor, ScopedListing,
+    SubjectPairs,
 };
 
-struct ListedRow {
-    id: DocumentId,
-    folder_id: Option<DocumentFolderId>,
-    name: String,
-    format: String,
-    mime_type: String,
-    head_revision_id: Option<DocumentRevisionId>,
-    template_id: Option<DocumentTemplateId>,
-    owner_user_id: UserId,
-    created_by: UserId,
-    created_at: DateTime<Utc>,
-    updated_at: DateTime<Utc>,
-    trashed_at: Option<DateTime<Utc>>,
-    trashed_by: Option<UserId>,
-    size_bytes: Option<i64>,
-    my_access: Option<String>,
-    touched_at: Option<DateTime<Utc>>,
+pub(super) struct ListedRow {
+    pub(super) id: DocumentId,
+    pub(super) folder_id: Option<DocumentFolderId>,
+    pub(super) name: String,
+    pub(super) format: String,
+    pub(super) mime_type: String,
+    pub(super) head_revision_id: Option<DocumentRevisionId>,
+    pub(super) template_id: Option<DocumentTemplateId>,
+    pub(super) owner_user_id: UserId,
+    pub(super) created_by: UserId,
+    pub(super) created_at: DateTime<Utc>,
+    pub(super) updated_at: DateTime<Utc>,
+    pub(super) trashed_at: Option<DateTime<Utc>>,
+    pub(super) trashed_by: Option<UserId>,
+    pub(super) size_bytes: Option<i64>,
+    pub(super) my_access: Option<String>,
+    pub(super) touched_at: Option<DateTime<Utc>>,
 }
 
 impl ListedRow {
@@ -72,7 +75,7 @@ impl ListedRow {
     }
 }
 
-fn like_pattern(query: Option<&str>) -> Option<String> {
+pub(crate) fn like_pattern(query: Option<&str>) -> Option<String> {
     query.map(str::trim).filter(|q| !q.is_empty()).map(|q| {
         format!(
             "%{}%",
@@ -83,10 +86,19 @@ fn like_pattern(query: Option<&str>) -> Option<String> {
     })
 }
 
-struct Keyset {
-    at: Option<DateTime<Utc>>,
-    name: Option<String>,
-    id: Option<Uuid>,
+pub(super) struct Keyset {
+    pub(super) at: Option<DateTime<Utc>>,
+    pub(super) name: Option<String>,
+    pub(super) id: Option<Uuid>,
+}
+
+pub(super) struct ListArgs<'a> {
+    pub(super) caller: &'a UserId,
+    pub(super) subjects: &'a SubjectPairs,
+    pub(super) pattern: Option<String>,
+    pub(super) sort: &'static str,
+    pub(super) key: Keyset,
+    pub(super) limit: i64,
 }
 
 fn keyset(cursor: Option<&ListingCursor>) -> Keyset {
@@ -126,10 +138,6 @@ fn next_cursor(sort: ListSort, last: &ListedDocument) -> RepoResult<ListingCurso
 }
 
 impl DocumentRepository {
-    #[expect(
-        clippy::too_many_lines,
-        reason = "one query! literal; the scoped listing is a single SQL statement"
-    )]
     pub async fn list_scoped(
         &self,
         listing: &ScopedListing,
@@ -137,79 +145,21 @@ impl DocumentRepository {
         caller: &UserId,
     ) -> RepoResult<(Vec<ListedDocument>, Option<ListingCursor>)> {
         let limit = listing.limit.max(1);
-        let key = keyset(listing.cursor.as_ref());
-        let rows = sqlx::query_as!(
-            ListedRow,
-            r#"WITH access AS (
-                   SELECT d.id AS document_id,
-                          CASE WHEN d.owner_user_id = $1 THEN 5 ELSE (
-                              SELECT MAX(array_position(
-                                  ARRAY['view','comment','edit','share','own'], g.access_level))
-                              FROM document_grants g
-                              LEFT JOIN document_folders f ON f.id = d.folder_id
-                              WHERE (g.document_id = d.id
-                                     OR g.folder_id = ANY(f.ancestor_ids || f.id))
-                                AND (g.subject_kind, g.subject_value) IN (
-                                    SELECT * FROM UNNEST($2::text[], $3::text[]))
-                                AND (g.valid_until IS NULL OR g.valid_until > now()))
-                          END AS rank,
-                          GREATEST(
-                              (SELECT MAX(r.created_at) FROM document_revisions r
-                               WHERE r.document_id = d.id AND r.author_user_id = $1),
-                              (SELECT MAX(c.created_at) FROM document_comments c
-                               WHERE c.document_id = d.id AND c.author_user_id = $1),
-                              (SELECT MAX(p.updated_at) FROM document_presence p
-                               WHERE p.document_id = d.id AND p.user_id = $1)) AS touched_at
-                   FROM documents d
-                   WHERE d.deleted_at IS NULL
-                     AND ($4 <> 'folder' OR d.folder_id IS NOT DISTINCT FROM $5::text::uuid)
-                     AND ($4 <> 'mine' OR d.owner_user_id = $1)
-                     AND ($4 <> 'shared' OR d.owner_user_id <> $1)
-                     AND ($6::text IS NULL OR d.name ILIKE $6)
-               )
-               SELECT d.id::text AS "id!: DocumentId",
-                      d.folder_id::text AS "folder_id: DocumentFolderId",
-                      d.name, d.format, d.mime_type,
-                      d.head_revision_id::text AS "head_revision_id: DocumentRevisionId",
-                      d.template_id AS "template_id: DocumentTemplateId",
-                      d.owner_user_id AS "owner_user_id: UserId",
-                      d.created_by AS "created_by: UserId",
-                      d.created_at, d.updated_at, d.deleted_at AS trashed_at,
-                      d.trashed_by AS "trashed_by: UserId",
-                      b.size_bytes AS "size_bytes?",
-                      (ARRAY['view','comment','edit','share','own'])[a.rank] AS my_access,
-                      a.touched_at
-               FROM access a
-               JOIN documents d ON d.id = a.document_id
-               LEFT JOIN document_revisions r ON r.id = d.head_revision_id
-               LEFT JOIN document_blobs b ON b.content_sha256 = r.content_sha256
-               WHERE a.rank IS NOT NULL
-                 AND ($4 <> 'recent' OR a.touched_at IS NOT NULL)
-                 AND ($10::uuid IS NULL OR CASE $7
-                       WHEN 'name' THEN (d.name, d.id) > ($9::text, $10::uuid)
-                       WHEN 'recent' THEN (COALESCE(a.touched_at, 'epoch'::timestamptz), d.id)
-                                          < ($8::timestamptz, $10::uuid)
-                       ELSE (d.updated_at, d.id) < ($8::timestamptz, $10::uuid) END)
-               ORDER BY CASE WHEN $7 = 'name' THEN d.name END ASC,
-                        CASE WHEN $7 = 'name' THEN d.id END ASC,
-                        CASE WHEN $7 = 'recent' THEN COALESCE(a.touched_at, 'epoch'::timestamptz) END DESC,
-                        CASE WHEN $7 = 'updated' THEN d.updated_at END DESC,
-                        d.id DESC
-               LIMIT $11"#,
-            caller.as_str(),
-            &subjects.kinds,
-            &subjects.values,
-            listing.scope.as_str(),
-            listing.folder_id.as_ref().map(DocumentFolderId::as_str),
-            like_pattern(listing.query.as_deref()),
-            listing.sort.as_str(),
-            key.at,
-            key.name,
-            key.id,
-            limit + 1,
-        )
-        .fetch_all(&*self.pools.read)
-        .await?;
+        let args = ListArgs {
+            caller,
+            subjects,
+            pattern: like_pattern(listing.query.as_deref()),
+            sort: listing.sort.as_str(),
+            key: keyset(listing.cursor.as_ref()),
+            limit: limit + 1,
+        };
+        let rows = match (listing.scope, listing.folder_id.as_ref()) {
+            (ListScope::Folder, Some(folder)) => self.list_in_folder(folder, &args).await?,
+            (ListScope::Folder, None) => self.list_at_root(&args).await?,
+            (ListScope::Mine, _) => self.list_mine(&args).await?,
+            (ListScope::Shared, _) => self.list_shared(&args).await?,
+            (ListScope::Recent, _) => self.list_recent(&args).await?,
+        };
         let mut documents = rows
             .into_iter()
             .map(ListedRow::into_listed)

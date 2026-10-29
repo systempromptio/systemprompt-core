@@ -2,12 +2,20 @@
 //!
 //! A document holds the [`RichText`] model in the containers described in
 //! [`rich`]. [`LoroEngine::seed`] writes the initial model with peer id
-//! [`SEED_PEER`], then moves to a random peer id, so every replica that seeds
-//! from the same revision produces the same operations and can import any
-//! client's updates without a shared snapshot. A session opened before the
-//! model existed holds one [`LoroText`] named [`BODY_CONTAINER`] instead and
-//! exports as [`ModelView::Body`]. A browser editor mirrors the containers
-//! with `loro-crdt` at [`WIRE_VERSION`] and configures [`rich::TEXT_STYLES`].
+//! [`SEED_PEER`], then moves to a random peer id. The files domain seeds a
+//! session once, stores the seed's snapshot and has every replica
+//! [`DocumentEngine::open`] that snapshot, so replicas never depend on two
+//! seeds of one revision producing identical operations. A session opened
+//! before the model existed holds one [`LoroText`] named [`BODY_CONTAINER`]
+//! instead and exports as [`ModelView::Body`]. A browser editor mirrors the
+//! containers with `loro-crdt` at [`WIRE_VERSION`] and configures
+//! [`rich::TEXT_STYLES`].
+//!
+//! Loro can panic on a hostile blob, and the release profile aborts on
+//! panic, so no caller can contain one. Every update is therefore checked by
+//! [`check_update_shape`] from its encoded header before any import: its
+//! size, its mode, its change, peer and operation counts, the consistency of
+//! its version ranges and, for a client update, its peers.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -17,8 +25,10 @@ mod sync;
 
 pub use sync::write_model;
 
-use loro::{ExportMode, LoroDoc, LoroText, PeerID, UpdateOptions, VersionVector};
-use systemprompt_files::documents::engine::{DocumentEngine, EngineDoc, EngineError, ModelView};
+use loro::{EncodedBlobMode, ExportMode, LoroDoc, LoroText, PeerID, UpdateOptions, VersionVector};
+use systemprompt_files::documents::engine::{
+    DocumentEngine, EngineDoc, EngineError, ModelView, UpdateImport,
+};
 use systemprompt_files::documents::model::RichText;
 
 pub const BODY_CONTAINER: &str = "body";
@@ -50,19 +60,105 @@ impl DocumentEngine for LoroEngine {
         Ok(Box::new(LoroEngineDoc(doc)))
     }
 
-    fn check_update(&self, update: &[u8]) -> Result<(), EngineError> {
-        LoroDoc::decode_import_blob_meta(update, true)
-            .map(drop)
-            .map_err(|e| EngineError::InvalidUpdate(Box::new(e)))
+    fn check_update(&self, update: &[u8], peers: Option<&[u64]>) -> Result<(), EngineError> {
+        check_update_shape(update, peers).map_err(|error| match error {
+            UpdateShapeError::PeerNotAssigned { peer } => EngineError::PeerNotAssigned { peer },
+            other => EngineError::InvalidUpdate(Box::new(other)),
+        })
     }
+}
+
+/// Why an update was refused from its encoded header, before any import.
+#[derive(Debug, thiserror::Error)]
+pub enum UpdateShapeError {
+    #[error("the update is {len} bytes, over the {max} byte bound")]
+    TooLarge { len: usize, max: usize },
+    #[error("the update header could not be decoded")]
+    Header(#[source] loro::LoroError),
+    #[error("the blob is a {mode}, not an incremental update")]
+    NotAnUpdate { mode: EncodedBlobMode },
+    #[error("the update carries {changes} changes, over the {max} change bound")]
+    TooManyChanges { changes: u32, max: u32 },
+    #[error("the update spans {peers} peers, over the {max} peer bound")]
+    TooManyPeers { peers: usize, max: usize },
+    #[error("the update's version range for peer {peer} is inconsistent")]
+    InconsistentRange { peer: PeerID },
+    #[error("the update spans {ops} operations of peer {peer}, over the {max} bound")]
+    RangeTooWide { peer: PeerID, ops: i64, max: i64 },
+    #[error("the update carries operations of peer {peer}, which the caller was not assigned")]
+    PeerNotAssigned { peer: PeerID },
+}
+
+pub const MAX_UPDATE_BYTES: usize = 8 * 1024 * 1024;
+pub const MAX_UPDATE_CHANGES: u32 = 50_000;
+pub const MAX_UPDATE_PEERS: usize = 64;
+pub const MAX_UPDATE_PEER_OPS: i64 = 1_000_000;
+
+pub fn check_update_shape(update: &[u8], peers: Option<&[u64]>) -> Result<(), UpdateShapeError> {
+    if update.len() > MAX_UPDATE_BYTES {
+        return Err(UpdateShapeError::TooLarge {
+            len: update.len(),
+            max: MAX_UPDATE_BYTES,
+        });
+    }
+    let meta = LoroDoc::decode_import_blob_meta(update, true).map_err(UpdateShapeError::Header)?;
+    if !matches!(meta.mode, EncodedBlobMode::Updates) {
+        return Err(UpdateShapeError::NotAnUpdate { mode: meta.mode });
+    }
+    if meta.change_num > MAX_UPDATE_CHANGES {
+        return Err(UpdateShapeError::TooManyChanges {
+            changes: meta.change_num,
+            max: MAX_UPDATE_CHANGES,
+        });
+    }
+    let (start, end) = (&meta.partial_start_vv, &meta.partial_end_vv);
+    if end.len() > MAX_UPDATE_PEERS || start.len() > MAX_UPDATE_PEERS {
+        return Err(UpdateShapeError::TooManyPeers {
+            peers: end.len().max(start.len()),
+            max: MAX_UPDATE_PEERS,
+        });
+    }
+    if let Some(peer) = start.keys().find(|peer| !end.contains_key(*peer)) {
+        return Err(UpdateShapeError::InconsistentRange { peer: *peer });
+    }
+    for (peer, last) in end.iter() {
+        let first = start.get(peer).copied().unwrap_or(0);
+        if first < 0 || *last < first {
+            return Err(UpdateShapeError::InconsistentRange { peer: *peer });
+        }
+        let ops = i64::from(*last) - i64::from(first);
+        if ops > MAX_UPDATE_PEER_OPS {
+            return Err(UpdateShapeError::RangeTooWide {
+                peer: *peer,
+                ops,
+                max: MAX_UPDATE_PEER_OPS,
+            });
+        }
+        if ops > 0
+            && let Some(assigned) = peers
+            && !assigned.contains(peer)
+        {
+            return Err(UpdateShapeError::PeerNotAssigned { peer: *peer });
+        }
+    }
+    Ok(())
 }
 
 #[derive(Debug)]
 pub struct LoroEngineDoc(pub LoroDoc);
 
 impl EngineDoc for LoroEngineDoc {
-    fn apply_update(&mut self, update: &[u8]) -> Result<(), EngineError> {
-        self.0.import(update).map(drop).map_err(state)
+    fn apply_update(&mut self, update: &[u8]) -> Result<UpdateImport, EngineError> {
+        let status = self.0.import(update).map_err(state)?;
+        Ok(UpdateImport {
+            peers: status
+                .success
+                .iter()
+                .filter(|(_, (start, end))| end > start)
+                .map(|(peer, _)| *peer)
+                .collect(),
+            pending: status.pending.is_some(),
+        })
     }
 
     fn snapshot(&self) -> Result<Vec<u8>, EngineError> {
@@ -85,7 +181,7 @@ impl EngineDoc for LoroEngineDoc {
             .map_err(encode)
     }
 
-    fn export_model(&self) -> ModelView {
+    fn export_model(&self) -> Result<ModelView, EngineError> {
         export(&self.0)
     }
 
@@ -96,11 +192,12 @@ impl EngineDoc for LoroEngineDoc {
     }
 
     fn update_to_model(&self, model: &ModelView) -> Result<Option<Vec<u8>>, EngineError> {
-        if export(&self.0) == *model {
+        if export(&self.0)? == *model {
             return Ok(None);
         }
         let before = self.0.oplog_vv();
         let draft = self.0.fork();
+        draft.set_peer_id(self.0.peer_id()).map_err(state)?;
         rich::configure(&draft);
         match model {
             ModelView::RichText(target) => {
@@ -120,13 +217,14 @@ impl EngineDoc for LoroEngineDoc {
     }
 }
 
-#[must_use]
-pub fn export(doc: &LoroDoc) -> ModelView {
+pub fn export(doc: &LoroDoc) -> Result<ModelView, EngineError> {
     let body = body_text(doc);
     if rich::blocks(doc).is_empty() && !body.is_empty() {
-        ModelView::Body(body)
+        Ok(ModelView::Body(body))
     } else {
-        ModelView::RichText(rich::read(doc))
+        Ok(ModelView::RichText(
+            rich::read(doc).map_err(|e| EngineError::Model(Box::new(e)))?,
+        ))
     }
 }
 

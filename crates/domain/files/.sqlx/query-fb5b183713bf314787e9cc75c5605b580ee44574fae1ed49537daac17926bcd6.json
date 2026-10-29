@@ -1,0 +1,74 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT document_id::text AS \"document_id!: DocumentId\",\n                      from_path, to_path,\n                      landing_xid AS \"landing_xid!\", landing_seq AS \"landing_seq!\"\n               FROM document_path_changes\n               WHERE landing_xid IS NOT NULL\n                 AND landing_xid < $3\n                 AND (landing_xid, landing_seq) > ($1, $2)\n               ORDER BY landing_xid, landing_seq\n               LIMIT $4",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "document_id!: DocumentId",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "from_path",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_path_changes",
+            "name": "from_path"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "to_path",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_path_changes",
+            "name": "to_path"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "landing_xid!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "document_path_changes",
+            "name": "landing_xid"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "landing_seq!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "document_path_changes",
+            "name": "landing_seq"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "fb5b183713bf314787e9cc75c5605b580ee44574fae1ed49537daac17926bcd6"
+}

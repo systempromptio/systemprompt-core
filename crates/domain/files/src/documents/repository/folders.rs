@@ -10,19 +10,19 @@ use systemprompt_models::documents::AgentEditPolicy;
 
 use super::Pools;
 use super::rows::{RepoResult, parse};
-use crate::documents::models::{DocumentFolder, NewFolder};
+use crate::documents::models::DocumentFolder;
 
-struct FolderRow {
-    id: DocumentFolderId,
-    parent_id: Option<DocumentFolderId>,
-    name: String,
-    ancestor_ids: Vec<DocumentFolderId>,
-    owner_user_id: UserId,
-    created_by: UserId,
-    created_at: DateTime<Utc>,
-    updated_at: DateTime<Utc>,
-    deleted_at: Option<DateTime<Utc>>,
-    agent_edit_policy: String,
+pub(super) struct FolderRow {
+    pub(super) id: DocumentFolderId,
+    pub(super) parent_id: Option<DocumentFolderId>,
+    pub(super) name: String,
+    pub(super) ancestor_ids: Vec<DocumentFolderId>,
+    pub(super) owner_user_id: UserId,
+    pub(super) created_by: UserId,
+    pub(super) created_at: DateTime<Utc>,
+    pub(super) updated_at: DateTime<Utc>,
+    pub(super) deleted_at: Option<DateTime<Utc>>,
+    pub(super) agent_edit_policy: String,
 }
 
 impl TryFrom<FolderRow> for DocumentFolder {
@@ -46,7 +46,7 @@ impl TryFrom<FolderRow> for DocumentFolder {
 
 #[derive(Debug, Clone)]
 pub struct DocumentFolderRepository {
-    pools: Pools,
+    pub(super) pools: Pools,
 }
 
 impl DocumentFolderRepository {
@@ -54,44 +54,6 @@ impl DocumentFolderRepository {
         Self {
             pools: Pools::new(db),
         }
-    }
-
-    pub async fn insert(&self, request: NewFolder) -> RepoResult<DocumentFolder> {
-        let row = sqlx::query_as!(
-            FolderRow,
-            r#"INSERT INTO document_folders (parent_id, name, ancestor_ids, owner_user_id, created_by)
-               SELECT $1::text::uuid, $2,
-                      COALESCE((SELECT p.ancestor_ids || p.id FROM document_folders p
-                                WHERE p.id = $1::text::uuid AND p.deleted_at IS NULL),
-                               '{}'::uuid[]),
-                      $3, $4
-               WHERE $1::text IS NULL OR EXISTS (
-                   SELECT 1 FROM document_folders p
-                   WHERE p.id = $1::text::uuid AND p.deleted_at IS NULL)
-               RETURNING id::text AS "id!: DocumentFolderId",
-                         parent_id::text AS "parent_id: DocumentFolderId",
-                         name,
-                         ancestor_ids::text[] AS "ancestor_ids!: Vec<DocumentFolderId>",
-                         owner_user_id AS "owner_user_id: UserId",
-                         created_by AS "created_by: UserId",
-                         created_at, updated_at, deleted_at, agent_edit_policy"#,
-            request.parent_id.as_ref().map(DocumentFolderId::as_str),
-            request.name,
-            request.owner_user_id.as_str(),
-            request.created_by.as_str(),
-        )
-        .fetch_optional(&*self.pools.write)
-        .await?;
-        row.ok_or_else(|| {
-            systemprompt_traits::RepositoryError::not_found(
-                "document folder",
-                request
-                    .parent_id
-                    .as_ref()
-                    .map_or("<root>", DocumentFolderId::as_str),
-            )
-        })?
-        .try_into()
     }
 
     pub async fn find(&self, id: &DocumentFolderId) -> RepoResult<Option<DocumentFolder>> {
@@ -107,7 +69,7 @@ impl DocumentFolderRepository {
                FROM document_folders WHERE id = $1::text::uuid AND deleted_at IS NULL"#,
             id.as_str()
         )
-        .fetch_optional(&*self.pools.read)
+        .fetch_optional(self.pools.authz())
         .await?
         .map(DocumentFolder::try_from)
         .transpose()
@@ -167,7 +129,7 @@ r#"SELECT id::text AS "id!: DocumentFolderId",
                ) AS "proposes!""#,
             id.as_str(),
         )
-        .fetch_one(&*self.pools.read)
+        .fetch_one(self.pools.authz())
         .await?;
         Ok(if proposes {
             AgentEditPolicy::Propose
@@ -188,40 +150,6 @@ r#"SELECT id::text AS "id!: DocumentFolderId",
         Ok(result.rows_affected() == 1)
     }
 
-    pub async fn move_to(
-        &self,
-        id: &DocumentFolderId,
-        new_parent: Option<&DocumentFolderId>,
-    ) -> RepoResult<u64> {
-        let result = sqlx::query!(
-            r#"WITH target AS (
-                   SELECT id, ancestor_ids FROM document_folders
-                   WHERE id = $1::text::uuid AND deleted_at IS NULL
-               ),
-               destination AS (
-                   SELECT COALESCE(
-                       (SELECT p.ancestor_ids || p.id FROM document_folders p
-                        WHERE p.id = $2::text::uuid AND p.deleted_at IS NULL),
-                       '{}'::uuid[]) AS ancestors
-               )
-               UPDATE document_folders f
-               SET ancestor_ids = d.ancestors || f.ancestor_ids[cardinality(t.ancestor_ids) + 1:],
-                   parent_id = CASE WHEN f.id = t.id THEN $2::text::uuid ELSE f.parent_id END,
-                   updated_at = now()
-               FROM target t, destination d
-               WHERE (f.id = t.id OR t.id = ANY(f.ancestor_ids))
-                 AND ($2::text IS NULL OR EXISTS (
-                     SELECT 1 FROM document_folders p
-                     WHERE p.id = $2::text::uuid AND p.deleted_at IS NULL
-                       AND p.id <> t.id AND NOT (t.id = ANY(p.ancestor_ids))))"#,
-            id.as_str(),
-            new_parent.map(DocumentFolderId::as_str),
-        )
-        .execute(&*self.pools.write)
-        .await?;
-        Ok(result.rows_affected())
-    }
-
     pub async fn soft_delete(&self, id: &DocumentFolderId) -> RepoResult<bool> {
         let result = sqlx::query!(
             "UPDATE document_folders SET deleted_at = now(), updated_at = now()
@@ -239,7 +167,7 @@ r#"SELECT id::text AS "id!: DocumentFolderId",
                FROM document_folders WHERE id = $1::text::uuid"#,
             id.as_str(),
         )
-        .fetch_optional(&*self.pools.read)
+        .fetch_optional(self.pools.authz())
         .await?;
         row.ok_or_else(|| systemprompt_traits::RepositoryError::not_found("document folder", id))
     }

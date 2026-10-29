@@ -17,6 +17,7 @@ systemprompt-files = { workspace = true, features = ["office", "collab"] }
 systemprompt-provider-contracts = { workspace = true }
 umya-spreadsheet = { workspace = true }
 systemprompt-identifiers = { workspace = true }
+systemprompt-events = { workspace = true }
 systemprompt-traits = { workspace = true }
 systemprompt-storage = { workspace = true }
 systemprompt-extension = { workspace = true }

@@ -1,17 +1,17 @@
 //! Landing a revision in one transaction on the primary.
 //!
-//! Inside the transaction: reserve the writer's node id counter, carry ids
-//! forward from the parent (on a blocking thread), insert the revision and
-//! its ids, claim the op id's acknowledgement, move the head by
+//! Before the transaction: carry ids forward from the parent (see
+//! `landing_ids`) and check which comment anchors the commit detaches. Inside
+//! it: reserve the created nodes' ids and renumber them, insert the revision
+//! and its ids, claim the op id's acknowledgement, move the head by
 //! compare-and-swap (which also refuses a foreign lock), mark the revision
-//! landed, and settle the proposal being accepted. Any refusal rolls the
-//! whole transaction back, so a commit that loses the race leaves no
-//! revision behind. A proposal's revision is stored the same way without
-//! moving the head, and stays unlanded.
+//! landed, and settle the proposal being accepted. Any refusal rolls the whole
+//! transaction back, so a commit that loses the race leaves no revision behind.
+//! A proposal's revision is stored the same way without moving the head, and
+//! stays unlanded.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
-
 
 use systemprompt_identifiers::{
     DocumentCommentId, DocumentId, DocumentOpId, DocumentProposalId, DocumentRevisionId, UserId,
@@ -19,16 +19,13 @@ use systemprompt_identifiers::{
 use systemprompt_models::documents::Projection;
 use systemprompt_traits::RepositoryError;
 
-use super::support::blocking;
+use super::landing_ids::{carry, reserve};
 use super::{CommentPolicy, DocumentService};
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{
     AckClaim, Document, DocumentRevision, NewRevision, NodeIdEntry, StoredWriteAck, WriteAck,
 };
-use crate::documents::nodes::{
-    CarryHints, NodeIdMinter, carry_forward, created_nodes, mint_all, with_ids, writer_tag,
-    written_nodes,
-};
+use crate::documents::nodes::{CarryHints, created_nodes, with_ids, writer_tag, written_nodes};
 use crate::documents::repository::{
     DocumentNodeIdRepository, DocumentProposalRepository, DocumentRepository,
     DocumentRevisionRepository, DocumentWriteAckRepository, HeadMove,
@@ -71,12 +68,6 @@ impl Placement<'_> {
     }
 }
 
-struct Carry {
-    next: Projection,
-    previous: Option<Projection>,
-    hints: CarryHints,
-}
-
 pub(super) struct Stored {
     pub(super) revision: DocumentRevision,
     pub(super) ids: Projection,
@@ -88,16 +79,6 @@ pub(super) enum LandResult {
     Landed(Box<Stored>),
     HeadMoved,
     Claimed(StoredWriteAck),
-}
-
-fn writer_key(revision: &NewRevision) -> String {
-    revision
-        .attribution
-        .session_id
-        .as_ref()
-        .map(ToString::to_string)
-        .or_else(|| revision.origin_id.clone())
-        .unwrap_or_else(|| revision.id.to_string())
 }
 
 fn sql(error: sqlx::Error) -> DocumentsError {
@@ -138,25 +119,28 @@ impl DocumentService {
             merged_from,
             applied,
         } = prepared;
-        let mut tx = self.repos.documents.begin().await?;
-        let (entries, next, previous) = Self::mint_entries(
-            &mut tx,
-            &document.id,
-            &revision,
-            Carry {
-                next,
-                previous,
-                hints,
-            },
-        )
-        .await?;
-        let ids = with_ids(next, &entries);
+        let carried = carry(next, previous, hints).await?;
         let detached = if placement.moves_head {
-            self.affected_anchors(&document.id, &ids, placement.comments)
+            let entries: Vec<NodeIdEntry> =
+                carried.entries.iter().map(|c| c.entry.clone()).collect();
+            let provisional = with_ids(carried.next.clone(), &entries);
+            self.affected_anchors(&document.id, &provisional, placement.comments)
                 .await?
         } else {
             Vec::new()
         };
+        let mut tx = self.repos.documents.begin().await?;
+        let writer = writer_tag(revision.author_user_id.as_str());
+        let entries = reserve(
+            &mut tx,
+            &document.id,
+            &writer,
+            carried.entries,
+            carried.created,
+        )
+        .await?;
+        let previous = carried.previous;
+        let ids = with_ids(carried.next, &entries);
         let parent = revision.parent_revision_id.clone();
         let mut revision = DocumentRevisionRepository::insert_in(&mut tx, revision).await?;
         DocumentNodeIdRepository::insert(&mut tx, &document.id, &revision.id, &entries).await?;
@@ -185,8 +169,12 @@ impl DocumentService {
             }
             revision.landed_at =
                 Some(DocumentRevisionRepository::mark_landed(&mut tx, &revision.id).await?);
-            if let Some(proposal) = placement.settles {
-                self.settle_in(&mut tx, proposal, &revision.id).await?;
+            if let Some(proposal) = placement.settles
+                && !DocumentProposalRepository::settle_landed(&mut tx, proposal, &revision.id)
+                    .await?
+            {
+                drop(tx);
+                return Err(self.proposal_closed(proposal).await);
             }
         }
         tx.commit().await.map_err(sql)?;
@@ -196,31 +184,6 @@ impl DocumentService {
             ack,
             detached,
         })))
-    }
-
-    async fn mint_entries(
-        tx: &mut sqlx::PgConnection,
-        document: &DocumentId,
-        revision: &NewRevision,
-        carry: Carry,
-    ) -> Result<(Vec<NodeIdEntry>, Projection, Option<Projection>), DocumentsError> {
-        let Carry {
-            next,
-            previous,
-            hints,
-        } = carry;
-        let writer = writer_tag(&writer_key(revision));
-        let count = i64::try_from(next.nodes().count()).unwrap_or(i64::MAX);
-        let first = DocumentNodeIdRepository::reserve(tx, document, &writer, count).await?;
-        let mut minter = NodeIdMinter::new(writer, u64::try_from(first - 1).unwrap_or(0));
-        blocking(move || {
-            let entries = match previous.as_ref() {
-                Some(previous) => carry_forward(previous, &next, &hints, &mut minter),
-                None => mint_all(&next, &mut minter),
-            };
-            Ok((entries, next, previous))
-        })
-        .await
     }
 
     pub(super) async fn land_existing(
@@ -244,48 +207,11 @@ impl DocumentService {
         }
         proposed.landed_at =
             Some(DocumentRevisionRepository::mark_landed(&mut tx, &proposed.id).await?);
-        self.settle_in(&mut tx, proposal, &proposed.id).await?;
+        if !DocumentProposalRepository::settle_landed(&mut tx, proposal, &proposed.id).await? {
+            drop(tx);
+            return Err(self.proposal_closed(proposal).await);
+        }
         tx.commit().await.map_err(sql)?;
         Ok(true)
-    }
-
-    async fn settle_in(
-        &self,
-        tx: &mut sqlx::PgConnection,
-        proposal: &DocumentProposalId,
-        revision: &DocumentRevisionId,
-    ) -> Result<(), DocumentsError> {
-        if DocumentProposalRepository::settle_landed(tx, proposal, revision).await? {
-            return Ok(());
-        }
-        let status = self
-            .repos
-            .proposals
-            .find(proposal)
-            .await?
-            .map_or(systemprompt_models::documents::ProposalStatus::Open, |p| {
-                p.status
-            });
-        Err(DocumentsError::ProposalClosed {
-            proposal_id: proposal.clone(),
-            status,
-        })
-    }
-
-    pub(super) async fn refuse_lock(
-        &self,
-        document: &Document,
-        holder_id: Option<&str>,
-    ) -> Result<(), DocumentsError> {
-        match self.repos.locks.current(&document.id).await? {
-            Some(lock) if Some(lock.holder_id.as_str()) != holder_id => {
-                Err(DocumentsError::LockHeld {
-                    document_id: document.id.clone(),
-                    holder_kind: lock.holder_kind,
-                    holder_id: lock.holder_id,
-                })
-            },
-            _ => Ok(()),
-        }
     }
 }

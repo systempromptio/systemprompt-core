@@ -14,8 +14,8 @@
 
 use axum::body::Bytes;
 use axum::extract::{Path, Query, State};
+use axum::http::HeaderMap;
 use axum::http::request::Parts;
-use axum::http::{HeaderMap, HeaderValue, header};
 use axum::response::{IntoResponse, Response};
 use axum::{Extension, Json};
 use serde::{Deserialize, Serialize};
@@ -36,7 +36,7 @@ use super::DocumentsState;
 use super::caller::{api_author, caller};
 use super::content::request_context;
 use super::error::{DocumentsResult, refused_response, status_of};
-use super::headers::{base_revision, etag};
+use super::headers::{base_revision, set_content_sha256, set_revision_tags};
 use super::items::document_id;
 use super::proposals::proposed_response;
 use super::views::RevisionJson;
@@ -51,7 +51,8 @@ pub(super) struct CommittedJson {
 }
 
 fn landed_response(landed: LandedCommit) -> Response {
-    let tag = etag(&landed.revision.content_sha256);
+    let revision_id = landed.revision.id.clone();
+    let hash = landed.revision.content_sha256.clone();
     let merged = landed.ack.merged_from.is_some();
     let mut response = Json(CommittedJson {
         revision: landed.revision.into(),
@@ -59,8 +60,10 @@ fn landed_response(landed: LandedCommit) -> Response {
         replayed: landed.replayed,
     })
     .into_response();
-    if !merged && let Ok(value) = HeaderValue::from_str(&tag) {
-        response.headers_mut().insert(header::ETAG, value);
+    if merged {
+        set_content_sha256(response.headers_mut(), &hash);
+    } else {
+        set_revision_tags(response.headers_mut(), &revision_id, &hash);
     }
     response
 }

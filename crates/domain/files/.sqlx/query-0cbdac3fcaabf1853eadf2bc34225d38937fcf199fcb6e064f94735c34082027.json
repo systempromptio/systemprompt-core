@@ -1,0 +1,87 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH doc AS (SELECT id FROM documents WHERE id = $1::text::uuid FOR SHARE)\n               INSERT INTO document_locks (document_id, holder_user_id, holder_kind, holder_id, expires_at)\n               SELECT doc.id, $2, $3, $4, now() + $5::float8 * interval '1 second' FROM doc\n               ON CONFLICT (document_id) DO UPDATE\n                   SET holder_user_id = EXCLUDED.holder_user_id,\n                       holder_kind = EXCLUDED.holder_kind,\n                       holder_id = EXCLUDED.holder_id,\n                       acquired_at = CASE WHEN document_locks.holder_id = EXCLUDED.holder_id\n                                          AND document_locks.expires_at > now()\n                                          THEN document_locks.acquired_at ELSE now() END,\n                       expires_at = EXCLUDED.expires_at\n                   WHERE document_locks.holder_id = EXCLUDED.holder_id\n                      OR document_locks.expires_at <= now()\n               RETURNING document_id::text AS \"document_id!: DocumentId\",\n                         holder_user_id AS \"holder_user_id: UserId\",\n                         holder_kind, holder_id, acquired_at, expires_at",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "document_id!: DocumentId",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "holder_user_id: UserId",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "document_locks",
+            "name": "holder_user_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "holder_kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_locks",
+            "name": "holder_kind"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "holder_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_locks",
+            "name": "holder_id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "acquired_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "document_locks",
+            "name": "acquired_at"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "expires_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "document_locks",
+            "name": "expires_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Varchar",
+        "Text",
+        "Text",
+        "Float8"
+      ]
+    },
+    "nullable": [
+      null,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "0cbdac3fcaabf1853eadf2bc34225d38937fcf199fcb6e064f94735c34082027"
+}

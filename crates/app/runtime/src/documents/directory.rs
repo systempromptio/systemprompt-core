@@ -12,6 +12,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -80,6 +81,22 @@ impl SubjectDirectory for UserSubjectDirectory {
     async fn roles_of(&self, user: &UserId) -> Result<Option<Vec<String>>, SubjectDirectoryError> {
         let found = self.users.find_by_id(user).await.map_err(lookup_failed)?;
         Ok(found.filter(User::is_active).map(|u| u.roles))
+    }
+
+    async fn roles_of_many(
+        &self,
+        users: &[UserId],
+    ) -> Result<Vec<Option<Vec<String>>>, SubjectDirectoryError> {
+        let mut found: HashMap<UserId, Vec<String>> = self
+            .users
+            .find_by_ids(users)
+            .await
+            .map_err(lookup_failed)?
+            .into_iter()
+            .filter(User::is_active)
+            .map(|u| (u.id, u.roles))
+            .collect();
+        Ok(users.iter().map(|user| found.remove(user)).collect())
     }
 
     async fn members(

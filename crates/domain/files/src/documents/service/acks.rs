@@ -1,41 +1,82 @@
 //! Idempotent writes: the digest a commit's op id is bound to, and the
 //! replay of a stored acknowledgement.
 //!
-//! The digest covers the base revision and the body (the ops as JSON, or
-//! the uploaded bytes), so the same edit sent over REST or MCP under one op
-//! id replays, and a different request under a used op id is refused. An
-//! acknowledgement replays only for the user who wrote it.
+//! The digest covers the base revision, the body (the ops as JSON, or the
+//! uploaded bytes), the message, the actor kind, the lock holder and the
+//! comment policy. The origin and trace attribution are left out, so the
+//! same edit sent over REST or MCP under one op id replays, and any other
+//! request under a used op id is refused. An acknowledgement replays only
+//! for the user who wrote it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use sha2::{Digest, Sha256};
-use systemprompt_identifiers::{DocumentOpId, DocumentRevisionId};
+use systemprompt_identifiers::{DocumentCommentId, DocumentOpId, DocumentRevisionId};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_traits::RepositoryError;
 
-use super::{CommitOutcome, DocumentService, LandedCommit};
+use super::{CommitOutcome, CommitRequest, DocumentService, LandedCommit};
 use crate::documents::error::DocumentsError;
 use crate::documents::models::StoredWriteAck;
 use crate::documents::revision::CommitBody;
 
-pub(super) fn request_digest(
-    base: Option<&DocumentRevisionId>,
-    body: &CommitBody,
-) -> Result<String, DocumentsError> {
+fn field(hasher: &mut Sha256, bytes: &[u8]) {
+    hasher.update(u64::try_from(bytes.len()).unwrap_or(u64::MAX).to_be_bytes());
+    hasher.update(bytes);
+}
+
+pub(super) fn request_digest(request: &CommitRequest) -> Result<String, DocumentsError> {
     let mut hasher = Sha256::new();
-    hasher.update(base.map_or("", DocumentRevisionId::as_str).as_bytes());
-    hasher.update([0]);
-    match body {
+    field(
+        &mut hasher,
+        request
+            .base_revision
+            .as_ref()
+            .map_or("", DocumentRevisionId::as_str)
+            .as_bytes(),
+    );
+    match &request.body {
         CommitBody::Ops(ops) => {
-            hasher.update(b"ops");
-            hasher.update(serde_json::to_vec(ops).map_err(RepositoryError::from)?);
+            field(&mut hasher, b"ops");
+            field(
+                &mut hasher,
+                &serde_json::to_vec(ops).map_err(RepositoryError::from)?,
+            );
         },
         CommitBody::Bytes(bytes) => {
-            hasher.update(b"bytes");
-            hasher.update(bytes);
+            field(&mut hasher, b"bytes");
+            field(&mut hasher, bytes);
         },
     }
+    field(
+        &mut hasher,
+        request.message.as_deref().unwrap_or_default().as_bytes(),
+    );
+    field(&mut hasher, &[u8::from(request.message.is_some())]);
+    field(
+        &mut hasher,
+        &serde_json::to_vec(&request.author.actor_kind).map_err(RepositoryError::from)?,
+    );
+    field(
+        &mut hasher,
+        request
+            .lock_holder_id
+            .as_deref()
+            .unwrap_or_default()
+            .as_bytes(),
+    );
+    field(&mut hasher, &[u8::from(request.lock_holder_id.is_some())]);
+    field(&mut hasher, &[u8::from(request.comments.allow_detach)]);
+    field(
+        &mut hasher,
+        request
+            .comments
+            .answering
+            .as_ref()
+            .map_or("", DocumentCommentId::as_str)
+            .as_bytes(),
+    );
     Ok(hex::encode(hasher.finalize()))
 }
 

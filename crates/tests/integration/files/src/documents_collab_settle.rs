@@ -63,7 +63,7 @@ async fn seeded(c: &Collab, owner: &AuthenticatedUser) -> DocumentId {
 }
 
 #[tokio::test]
-async fn leaving_on_a_conflicting_checkpoint_lands_a_proposal_and_keeps_the_session() {
+async fn leaving_on_a_conflicting_checkpoint_lands_one_proposal_and_rebases_the_session() {
     let c = collab().await;
     let owner = person("settle-conflict");
     let document = seeded(&c, &owner).await;
@@ -73,6 +73,7 @@ async fn leaving_on_a_conflicting_checkpoint_lands_a_proposal_and_keeps_the_sess
         .await
         .expect("join");
     write(&c, &owner, &document, "alpha", "outside").await;
+    let (head, outside) = head_text(&c, &owner, &document).await;
     let doc = client(&joined);
     let update = change(&doc, |model| {
         if let Some(block) = model.blocks.iter_mut().find(|b| b.text.contains("alpha")) {
@@ -88,7 +89,7 @@ async fn leaving_on_a_conflicting_checkpoint_lands_a_proposal_and_keeps_the_sess
         .leave(&owner, &document, &joined.session_id, &trace())
         .await
         .expect("leave");
-    assert!(!left.closed);
+    assert!(left.closed, "the rebased session closes");
     let Checkpoint::Conflict { proposal, .. } = left.checkpoint else {
         panic!("expected a conflict, got {:?}", left.checkpoint);
     };
@@ -99,15 +100,32 @@ async fn leaving_on_a_conflicting_checkpoint_lands_a_proposal_and_keeps_the_sess
             .list(&document, Some(ProposalStatus::Open), 50)
             .await
             .expect("open proposals");
-    assert!(open.iter().any(|p| p.id == proposal));
-    assert!(
-        c.h.repos
-            .edit_sessions
-            .find_open(&document)
-            .await
-            .expect("find")
-            .is_some()
+    assert_eq!(
+        open.iter().map(|p| p.id.clone()).collect::<Vec<_>>(),
+        vec![proposal]
     );
+    assert_eq!(head_text(&c, &owner, &document).await, (head, outside));
+
+    let rejoined = c
+        .collab
+        .join(&owner, &document, JoinMode::Edit, &trace())
+        .await
+        .expect("rejoin");
+    assert_ne!(rejoined.session_id, joined.session_id);
+    let again = c
+        .collab
+        .leave(&owner, &document, &rejoined.session_id, &trace())
+        .await
+        .expect("leave again");
+    assert!(again.closed);
+    assert_eq!(again.checkpoint, Checkpoint::Unchanged);
+    let open =
+        c.h.repos
+            .proposals
+            .list(&document, Some(ProposalStatus::Open), 50)
+            .await
+            .expect("open proposals");
+    assert_eq!(open.len(), 1, "the conflicting body is proposed once");
 }
 
 #[tokio::test]
@@ -213,7 +231,10 @@ async fn sequence_numbers_follow_commit_order_across_replicas() {
         .await
         .expect("rejoin first replica");
     assert_eq!(rejoined.seq, 2);
-    assert_eq!(rich::read(&client(&rejoined)), rich::read(&doc));
+    assert_eq!(
+        rich::read(&client(&rejoined)).expect("read rejoined"),
+        rich::read(&doc).expect("read doc")
+    );
 }
 
 #[tokio::test]

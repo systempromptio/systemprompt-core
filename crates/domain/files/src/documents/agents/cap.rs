@@ -87,7 +87,6 @@ pub enum AgentCapability {
     Administer,
     RestoreRevision,
     ReplaceContent,
-    /// Rewriting, over an hour, as many blocks as replacing the document.
     BroadRewrite,
     ReviewProposal,
     CopyOut,

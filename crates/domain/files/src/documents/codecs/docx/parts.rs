@@ -4,12 +4,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::io::{Cursor, Read, Write};
+use std::io::{Cursor, Write};
 
 use systemprompt_provider_contracts::documents::CodecError;
 use zip::result::ZipError;
 use zip::write::SimpleFileOptions;
 use zip::{CompressionMethod, ZipArchive, ZipWriter};
+
+use crate::documents::codecs::zip_package::{PackageCaps, open_archive, read_bounded};
 
 pub(super) const DOCUMENT: &str = "word/document.xml";
 pub(super) const STYLES: &str = "word/styles.xml";
@@ -27,15 +29,13 @@ pub(super) fn zip_error(source: ZipError) -> CodecError {
 }
 
 pub(super) fn read_part(bytes: &[u8], name: &str) -> Result<Option<Vec<u8>>, CodecError> {
-    let mut archive = ZipArchive::new(Cursor::new(bytes)).map_err(zip_error)?;
-    let mut file = match archive.by_name(name) {
+    let mut archive = open_archive(bytes)?;
+    let file = match archive.by_name(name) {
         Ok(file) => file,
         Err(ZipError::FileNotFound) => return Ok(None),
         Err(source) => return Err(zip_error(source)),
     };
-    let mut out = Vec::new();
-    file.read_to_end(&mut out)?;
-    Ok(Some(out))
+    read_bounded(file, PackageCaps::CEILING.part_bytes).map(Some)
 }
 
 pub(super) fn read_document(bytes: &[u8]) -> Result<String, CodecError> {

@@ -9,6 +9,10 @@
 //! hashed again just before the downloaded head replaces it, so an edit made
 //! while the blob was downloading is kept beside too.
 //!
+//! A cursor the gateway answers with `410 Gone` and error key `cursor_reset`
+//! is no longer a feed position: it is dropped, saved as dropped, and the
+//! folder is reconciled against the full manifest in the same pull.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -22,6 +26,8 @@ use super::hash::hash_file;
 use super::state::{ConflictNotice, DriveState};
 use super::write::{GuardedWrite, move_file, move_to_trash, synced_entry, write_unless_changed};
 
+const CURSOR_RESET: &str = "cursor_reset";
+
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct PullReport {
     pub applied: usize,
@@ -33,7 +39,17 @@ pub async fn pull(cycle: Cycle<'_>, state: &mut DriveState) -> DriveResult<PullR
         let manifest = cycle.client.manifest(cycle.bearer).await?;
         return reconcile(cycle, state, manifest).await;
     };
-    let feed = cycle.client.changes(cycle.bearer, &since).await?;
+    let feed = match cycle.client.changes(cycle.bearer, &since).await {
+        Ok(feed) => feed,
+        Err(error) if is_cursor_reset(&error) => {
+            tracing::warn!(cursor = %since, "drive cursor reset by the gateway; re-reading the manifest");
+            state.cursor = None;
+            state.save(&cycle.root.state_path())?;
+            let manifest = cycle.client.manifest(cycle.bearer).await?;
+            return reconcile(cycle, state, manifest).await;
+        },
+        Err(error) => return Err(error),
+    };
     let mut report = PullReport::default();
     for change in &feed.changes {
         apply(cycle, state, change, &mut report).await?;
@@ -43,6 +59,15 @@ pub async fn pull(cycle: Cycle<'_>, state: &mut DriveState) -> DriveResult<PullR
     state.cursor = Some(feed.next_cursor);
     state.save(&cycle.root.state_path())?;
     Ok(report)
+}
+
+fn is_cursor_reset(error: &DriveError) -> bool {
+    matches!(
+        error,
+        DriveError::Rejected { status, rejection, .. }
+            if *status == reqwest::StatusCode::GONE
+                && rejection.error_key.as_deref() == Some(CURSOR_RESET)
+    )
 }
 
 pub async fn reconcile(

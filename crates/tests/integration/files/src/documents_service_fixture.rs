@@ -131,6 +131,17 @@ impl SubjectDirectory for RoleDirectory {
         ))
     }
 
+    async fn roles_of_many(
+        &self,
+        users: &[UserId],
+    ) -> Result<Vec<Option<Vec<String>>>, SubjectDirectoryError> {
+        let mut found = Vec::with_capacity(users.len());
+        for user in users {
+            found.push(self.roles_of(user).await?);
+        }
+        Ok(found)
+    }
+
     async fn members(
         &self,
         kind: &str,

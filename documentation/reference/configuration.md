@@ -337,6 +337,9 @@ Only the first source may be a base bundle. Every later source must own nothing 
 | `limits.maxCursorBytes` | integer | `4096` (4 KiB) | 256 B to 64 KiB | One editor cursor payload. |
 | `limits.pdfPages` | integer | `500` | 1 to 5,000 | Pages a PDF export may run to; a longer rendering is refused as `too_large`. |
 | `limits.agentEditsPerHour` | integer | `600` | 1 to 1,000,000 | Edit operations a user's agents may make per hour, per replica; more are refused as `agent_rate_limited`. |
+| `limits.maxPackagePartBytes` | integer | `67108864` (64 MiB) | 1 MiB to 256 MiB | Bytes one part of an Office zip package (docx, xlsx, pptx, odt, ods, odp) may inflate to. |
+| `limits.maxPackageInflatedBytes` | integer | `268435456` (256 MiB) | 1 MiB to 1 GiB | Bytes all parts of an Office zip package may inflate to together. |
+| `limits.maxPackageParts` | integer | `4096` | 16 to 65,536 | Entries an Office zip package may list. |
 
 A request over any `limits.*` value or `maxUploadBytes` is refused with `too_large` (HTTP 413). The MCP server declaration (`services/mcp/<name>.yaml` `enabled:`) and the bridge's `[drive] enabled` setting are the two further switches that decide whether agents and devices use the store.
 

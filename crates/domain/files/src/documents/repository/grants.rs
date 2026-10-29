@@ -208,8 +208,13 @@ impl DocumentGrantRepository {
                    RETURNING *),
                p AS (
                    DELETE FROM document_presence p USING g
-                   WHERE g.subject_kind = 'user' AND p.document_id = g.document_id
-                     AND p.user_id = g.subject_value
+                   WHERE g.subject_kind = 'user' AND p.user_id = g.subject_value
+                     AND (p.document_id = g.document_id
+                          OR (g.folder_id IS NOT NULL AND EXISTS (
+                              SELECT 1 FROM documents d
+                              JOIN document_folders f ON f.id = d.folder_id
+                              WHERE d.id = p.document_id
+                                AND (f.id = g.folder_id OR g.folder_id = ANY(f.ancestor_ids)))))
                    RETURNING 1),
                e AS (INSERT INTO document_grant_events
                    (event, target_kind, target_id, subject_kind, subject_value, old_level,
@@ -250,7 +255,7 @@ impl DocumentGrantRepository {
             &subjects.kinds,
             &subjects.values,
         )
-        .fetch_one(&*self.pools.read)
+        .fetch_one(self.pools.authz())
         .await?;
         Ok(rank.and_then(level_from_rank))
     }

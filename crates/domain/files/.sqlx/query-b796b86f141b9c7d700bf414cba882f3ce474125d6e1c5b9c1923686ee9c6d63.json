@@ -1,0 +1,88 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT u.seq, u.author_user_id AS \"user: UserId\", u.actor_kind, u.actor_name,\n                      u.actor_attended, u.edit_level\n               FROM document_collab_updates u\n               JOIN document_edit_sessions s ON s.id = u.session_id\n               WHERE u.session_id = $1::text::uuid AND u.seq > s.checkpoint_seq\n               ORDER BY u.seq",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "seq",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "document_collab_updates",
+            "name": "seq"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "user: UserId",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "document_collab_updates",
+            "name": "author_user_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "actor_kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_collab_updates",
+            "name": "actor_kind"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "actor_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_collab_updates",
+            "name": "actor_name"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "actor_attended",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "document_collab_updates",
+            "name": "actor_attended"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "edit_level",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_collab_updates",
+            "name": "edit_level"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "b796b86f141b9c7d700bf414cba882f3ce474125d6e1c5b9c1923686ee9c6d63"
+}

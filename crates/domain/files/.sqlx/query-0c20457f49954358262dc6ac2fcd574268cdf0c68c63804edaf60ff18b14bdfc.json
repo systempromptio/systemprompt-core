@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH moved AS (\n                   UPDATE documents SET folder_id = $2::text::uuid, updated_at = now()\n                   WHERE id = $1::text::uuid AND deleted_at IS NULL\n                     AND ($2::text IS NULL OR EXISTS (\n                         SELECT 1 FROM document_folders f\n                         WHERE f.id = $2::text::uuid AND f.deleted_at IS NULL))\n                   RETURNING id),\n               logged AS (\n                   INSERT INTO document_path_changes (document_id, from_path, to_path)\n                   SELECT id, $3, $4 FROM moved WHERE $3 <> $4 RETURNING 1)\n               SELECT COUNT(*) AS \"updated!\" FROM moved",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "updated!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "0c20457f49954358262dc6ac2fcd574268cdf0c68c63804edaf60ff18b14bdfc"
+}

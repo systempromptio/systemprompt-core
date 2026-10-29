@@ -60,9 +60,6 @@ impl DocumentService {
         self.broad_rewrite_rule(who, document, ops).await
     }
 
-    /// An agent that has rewritten, within the hour, as many of a document's
-    /// blocks as replacing it needs `BroadRewrite`; the count is recorded only
-    /// for a write the rule lets through, so a refused attempt never counts.
     async fn broad_rewrite_rule(
         &self,
         who: &AuthenticatedUser,

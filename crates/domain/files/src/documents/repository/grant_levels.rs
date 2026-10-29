@@ -52,7 +52,7 @@ impl DocumentGrantRepository {
             &kinds,
             &values,
         )
-        .fetch_all(&*self.pools.read)
+        .fetch_all(self.pools.authz())
         .await?;
         let mut levels = vec![None; subjects.len()];
         for row in rows {

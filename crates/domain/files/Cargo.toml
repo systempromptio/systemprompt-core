@@ -61,11 +61,11 @@ diffy = { workspace = true }
 flate2 = { workspace = true }
 pdf-writer = { workspace = true }
 zip = { workspace = true, optional = true }
-quick-xml = { workspace = true, optional = true }
+quick-xml = { workspace = true }
 umya-spreadsheet = { workspace = true, optional = true }
 
 [features]
-office = ["dep:zip", "dep:quick-xml", "dep:umya-spreadsheet"]
+office = ["dep:zip", "dep:umya-spreadsheet"]
 collab = []
 
 [package.metadata.cargo-machete]

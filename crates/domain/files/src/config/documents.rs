@@ -1,6 +1,7 @@
 //! The `files.documents` section: the document store's on/off switch
 //! (off by default), upload limit, blob
-//! garbage-collection grace, presence time-to-live, trash retention,
+//! garbage-collection grace, presence time-to-live, trash retention, the
+//! retention of the agent read audit (`agentReadRetentionDays`),
 //! per-request input limits, the resumable upload limits (`uploads`) and
 //! whether a user with no access may request it
 //! (`accessRequests`, off by default).
@@ -23,6 +24,7 @@ const DEFAULT_MAX_UPLOAD_BYTES: u64 = 64 * 1024 * 1024;
 const DEFAULT_BLOB_GC_GRACE_HOURS: u32 = 24;
 const DEFAULT_PRESENCE_TTL_SECS: u32 = 90;
 const DEFAULT_TRASH_RETENTION_DAYS: u32 = 30;
+const DEFAULT_AGENT_READ_RETENTION_DAYS: u32 = 90;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -37,6 +39,8 @@ pub struct DocumentsConfig {
     pub presence_ttl_secs: u32,
     #[serde(default = "default_trash_retention_days")]
     pub trash_retention_days: u32,
+    #[serde(default = "default_agent_read_retention_days")]
+    pub agent_read_retention_days: u32,
     #[serde(default)]
     pub limits: DocumentLimits,
     #[serde(default)]
@@ -61,6 +65,10 @@ const fn default_trash_retention_days() -> u32 {
     DEFAULT_TRASH_RETENTION_DAYS
 }
 
+const fn default_agent_read_retention_days() -> u32 {
+    DEFAULT_AGENT_READ_RETENTION_DAYS
+}
+
 impl Default for DocumentsConfig {
     fn default() -> Self {
         Self {
@@ -69,6 +77,7 @@ impl Default for DocumentsConfig {
             blob_gc_grace_hours: DEFAULT_BLOB_GC_GRACE_HOURS,
             presence_ttl_secs: DEFAULT_PRESENCE_TTL_SECS,
             trash_retention_days: DEFAULT_TRASH_RETENTION_DAYS,
+            agent_read_retention_days: DEFAULT_AGENT_READ_RETENTION_DAYS,
             limits: DocumentLimits::default(),
             uploads: UploadLimits::default(),
             access_requests: false,

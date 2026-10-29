@@ -1,0 +1,36 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT o.upload_id::text AS \"upload_id!: DocumentUploadId\", o.storage_id\n               FROM document_upload_objects o\n               WHERE NOT EXISTS (\n                       SELECT 1 FROM document_upload_parts p\n                       JOIN document_uploads u ON u.id = p.upload_id\n                       WHERE p.storage_id = o.storage_id\n                         AND u.status IN ('open', 'completing'))\n                 AND (o.created_at < now() - make_interval(hours => $2)\n                      OR NOT EXISTS (SELECT 1 FROM document_uploads u\n                                     WHERE u.id = o.upload_id AND u.status = 'open'))\n               ORDER BY o.created_at LIMIT $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "upload_id!: DocumentUploadId",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "storage_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_upload_objects",
+            "name": "storage_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      null,
+      false
+    ]
+  },
+  "hash": "9e0ce6f26901e1978cfe0ce0e191501432b0c3df3868268e9bef86e23005e452"
+}

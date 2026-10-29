@@ -125,6 +125,12 @@ cli-migration-ledger-db = { max-threads = 1 }
 # database lifecycle suite that overlaps it fails with DanglingTriggerRoutine.
 database-lifecycle-db = { max-threads = 1 }
 
+# Why: `CollabService::reap_idle` lists stale edit sessions across the whole
+# database, so two reaper tests running at once each settle the other's aged
+# session through their own harness, contend for its checkpoint lease and
+# report it failed.
+collab-reaper-db = { max-threads = 1 }
+
 [[profile.default.overrides]]
 filter = 'package(systemprompt-database-tests) and test(/lifecycle::/)'
 test-group = 'database-lifecycle-db'
@@ -299,6 +305,18 @@ test-group = 'generator-config-db'
 [[profile.ci.overrides]]
 filter = 'package(systemprompt-generator-tests) and test(/(sitemap_generator_db|pipeline_full|prerender_public_db)::/)'
 test-group = 'generator-config-db'
+
+[[profile.default.overrides]]
+filter = 'package(systemprompt-files-integration-tests) and test(/documents_collab_replicas::the_reaper_/)'
+test-group = 'collab-reaper-db'
+
+[[profile.ci.overrides]]
+filter = 'package(systemprompt-files-integration-tests) and test(/documents_collab_replicas::the_reaper_/)'
+test-group = 'collab-reaper-db'
+
+[[profile.coverage.overrides]]
+filter = 'package(systemprompt-files-integration-tests) and test(/documents_collab_replicas::the_reaper_/)'
+test-group = 'collab-reaper-db'
 
 [profile.default]
 # A test still running after 60s is flagged slow; after 3 such periods (180s)

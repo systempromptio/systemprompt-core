@@ -1,35 +1,36 @@
 # Changelog
 
-## [Unreleased]
-
-### Fixed
-
-- **Documents: an open tab follows writes that land outside its live session.** An
-  edit an agent lands over MCP, or the API or an import lands on the head, reached a
-  live editing session only when that session next checkpointed, and a session
-  with no local edits never checkpointed, so a tab left open on the document showed
-  nothing of the agent's work until it was reloaded. The collab timer now asks the
-  head each tick whether it moved past the session's checkpoint base; with no local
-  edits the head is re-imported into the live document and broadcast, and with
-  local edits pending the checkpoint runs at once so its merge carries the outside
-  write in.
-- **An agent's rewrites are refused with their own reason, and never for a write it did not land.** Rewriting over an hour as many blocks as replacing the document needs the new `broad_rewrite` capability instead of `replace_content`; the refusal names how many of the document's blocks the agent rewrote and points at `mode: propose`; a refused attempt no longer counts against the agent; `set_marks` and `set_block_type` count like `replace_text`.
-- **`set_marks` and `set_block_type` keep a block's id.** The id carry treated a paragraph retyped as a heading or list item as a new block and minted a fresh id, which broke every anchor on it.
-- **The documents MCP server files the agent's own presence (`agent`) and places its caret on the first block it wrote**, as a `document.awareness` event carrying `agent`, so a console shows the person and their assistant side by side and a tab sees where the agent is working.
-- **The bridge no longer reports its own pull as the person editing.** A touched file whose bytes still hash to the synced revision files no `editing` beacon. Beacons are sent before the cycle uploads, while an edited file still differs from the synced revision, and a failed beacon no longer stops the sync.
-- **A live editor can draw a document's images.** `GET /api/v1/documents/{id}/media?ref=<blob>` serves an image the head holds (a `docx-media:` part, an upload a `docx` saved, or an uploaded blob an HTML or Markdown head names) to anyone who can view the document, with its hash as the `ETag`; any other reference is `404`.
-- **`set_text` or `set_html` with a `node` is refused.** Both replace the whole document, and the stray `node` was ignored, so an agent that meant to change one block rewrote everything. `documents_edit` and `documents_create` now refuse the op and name `replace_text {node, text}`.
-- **`documents_read` lists a one-paragraph table cell once.** The text, range and node views printed the cell line and then its paragraph with the same text and hash, so every table read twice its size.
-- **The blank Word template sets fonts and spacing** (Aptos 11pt, Aptos Display headings in Word's heading colour, 1.15 line spacing), so a document created by an agent opens in Word with a consistent face instead of the viewer's fallback.
-- **`documents_guide` carries its text in the structured content.** A host that
-  shows the model only `structuredContent` (Claude Code does) saw the topic names
-  and none of the guidance; the output now carries the guide text as `guide`.
-
-## [0.75.0] - 2026-10-27
 ## [0.76.0] - 2026-10-29
 
 ### Breaking
 
+- **Breaking:** **Files:** `EngineError` gains `PeerNotAssigned { peer }`, raised when an update carries changes under an engine peer the session did not assign to the caller. Migrate by adding an arm (or a wildcard) to exhaustive matches.
+- **Breaking:** **Files:** the Drive change feed cursor is a landing position (`DriveCursor`); `drive_changes` and `parse_drive_cursor` take and return it, `DocumentPathChange::cursor` is a `DriveCursor`, `ListCursorError` gains `Position`, and a cursor that is not a landing position is refused with `CursorReset`. Migrate Drive clients by restarting from a fresh manifest cursor when a cursor is reset.
+- **Breaking:** **Files:** `CHANGE_LAG` and `DocumentRevisionRepository::changes_since` are removed; `path_changes_since` takes a `DriveCursor` and a `FeedHorizon`. Migrate by reading the feed through `DocumentService::drive_changes`.
+- **Breaking:** **Engine (Loro):** `rich::read` returns `Result<RichText, rich::ReadError>` and fails on a block whose id or kind cannot be read instead of leaving it out. Migrate by handling the error.
+- **Breaking:** **Files:** `EngineDoc::export_model` returns `Result<ModelView, EngineError>`, and `EngineError` gains `Model`, reported when an engine holds content that does not read as a model. Migrate by propagating the error from `export_model`.
+- **Breaking:** **Files:** `SubjectDirectory` gains `roles_of_many`, which answers the roles of several users in one lookup, in input order. Migrate custom directories by implementing it.
+- **Breaking:** **Files:** `DocumentsConfig` gains `agent_read_retention_days` (`files.documents.agentReadRetentionDays`, default `90`, at least `1`), and the new cluster job `document_agent_read_retention` deletes agent read audit rows older than it. Migrate struct literals by adding the field or `..DocumentsConfig::default()`.
+- **Breaking:** **Files:** `DocumentEditSessionRepository::set_checkpoint` takes a `CheckpointLease`, and the repository gains `claim_checkpoint`, `release_checkpoint`, `close_settled` and `list_stale`; `CollabError` gains `CheckpointBusy`, `CheckpointLeaseLost` and `ImageOwners`. Migrate by claiming a lease before recording a checkpoint and adding arms (or a wildcard) to exhaustive matches.
+- **Breaking:** **API:** a document read, revision preview and commit answer the quoted revision id as `ETag` and carry the content hash in `x-document-content-sha256`; `If-Match` must be a quoted revision id and any other value is `400` with `error_key` `invalid_if_match`. Migrate clients that read the hash from `ETag` by reading `x-document-content-sha256`.
+- **Breaking:** **Provider contracts:** `CodecError` gains `TooLarge { what, size, limit }`, mapped to `DocumentsError::TooLarge` and the `too_large` refusal. Migrate exhaustive matches by adding the variant.
+- **Breaking:** **Files:** `DocumentLimits` gains `max_package_part_bytes` (`limits.maxPackagePartBytes`, default 64 MiB), `max_package_inflated_bytes` (`limits.maxPackageInflatedBytes`, default 256 MiB) and `max_package_parts` (`limits.maxPackageParts`, default 4,096), and `bounded()` returns twelve entries. Migrate struct literals by adding the fields or `..DocumentLimits::default()`.
+- **Breaking:** **Files:** `TemplateError::NotFound` refuses as `not_found` (404); `Io`, `NoCodec` and `Catalog` answer the fixed 5xx body, and their messages no longer carry a file path or the catalog cause. Migrate clients matching `template_failed` for an unknown template by matching `not_found`.
+- **Breaking:** **Files:** `UploadService::abort` returns an `ObjectRemoval` listing the objects whose delete failed, and `UploadService::expire` returns an `ExpiryOutcome`; `UploadService::sweep_orphans` and `DocumentUploadRepository::{track_object, untrack_object, list_orphaned_objects}` are added. Migrate by reading or discarding the returned outcome.
+- **Breaking:** **Files:** `ImageOwners::open` returns `Result<_, ImageOwnersError>` and `ImageOwners::owner` is replaced by `inserters`, which answers every editor who inserted a reference. Migrate by propagating the error and checking each inserter.
+- **Breaking:** **Files:** `DocumentsError` gains `SubtreeChanged` (409, refusal `folder_not_empty`) and `OwnershipChanged` (409, refusal `forbidden`). Migrate exhaustive matches by adding the variants.
+- **Breaking:** **Files:** `Allowance::Save` carries the document `owner` and `Allowance` is no longer `Copy`; `quota_exempt` is replaced by `charged_to` and `new_bytes_only`, and `SessionTerms` replaces `quota_exempt` with `quota_user` and `new_bytes_only`. Migrate by passing the document's owner to `Allowance::Save`.
+- **Breaking:** **Governance:** `DecisionFacts` gains `folder_ancestors`, the folders above a folder entity nearest-first, whose rules cascade onto it ahead of every other parent. Migrate struct literals by adding `folder_ancestors: &[]` or `..DecisionFacts::default()`.
+- **Breaking:** **Files:** recursively deleting a folder requires `delete` on every folder in the subtree; the caller's own documents are trashed with it, and every document another user owns is moved to its owner's root in the same transaction, with a path change on the Drive feed, instead of being trashed. Migrate callers that expected a collaborator's document to be trashed with the folder.
+- **Breaking:** **API:** `document.collab.update` is published only on the document's live channel (`GET /api/v1/documents/{id}/live`), once per update, and no longer on each user's AG-UI stream; `DocumentEvents::collab_update` takes only the event. Migrate editor clients by subscribing to the live channel.
+- **Breaking:** **API:** collab protocol 3: a join answers `peer_id`, the engine peer the client's editor must use, and an update adding operations of any other peer is refused with `peer_not_assigned`; an update whose operations depend on ones the session lacks is refused with `update_dependencies_missing` (409), and one that keeps losing the log to other replicas with `update_contended` (409). Migrate clients by calling `setPeerId(peer_id)` after each join and re-joining on these refusals.
+- **Breaking:** **Files:** `EngineDoc::apply_update` returns an `UpdateImport` naming the peers an update added and whether part of it is pending; `Joined` gains `peer`; `CollabError` gains `PeerNotAssigned`, `MissingDependencies` and `UpdateContended`. Migrate engines by returning the import status and exhaustive matches by adding the variants.
+- **Breaking:** **Models:** `DocumentLiveReadyEvent` gains `seq`, the last update the session had logged when the channel subscribed, and `LiveResyncReason` gains `RelayLost`. Migrate struct literals by adding the field and exhaustive matches by adding the variant.
+- **Breaking:** **API:** a collab leave or checkpoint that finds another replica holding the session's checkpoint lease answers `409` with `error_key` `checkpoint_busy`, and one whose lease was lost answers `409` with `checkpoint_lease_lost`. Migrate clients by retrying the leave on either key.
+- **Breaking:** **API:** `GET /v1/bridge/drive/changes` answers a cursor that is not a landing position with `410 Gone` and `error_key` `cursor_reset`; `DocumentsError` gains `CursorReset`, `RefusalCode` gains `CursorReset`, `ErrorCode` gains `Gone` (`410`) and `ApiError` gains `gone`. Migrate Drive clients by dropping the cursor and reading the manifest on `cursor_reset`, and exhaustive matches by adding the variants.
+- **Breaking:** **Files:** `DocumentEngine::check_update` takes the caller's assigned peers (`Option<&[u64]>`) and refuses from the encoded header alone an oversized, non-incremental or inconsistent update, or one carrying operations of an unassigned peer. Migrate engines by validating the header against the bounds and `peers`.
+- **Breaking:** **Files:** `DocumentCollabRepository::append` and `append_on` take an `UpdateAuthor` (user, actor, admitted level), `CollabUpdateRow` gains `actor`, and `DocumentEditSessionRepository::set_checkpoint` takes the sequence number the checkpoint covers. Migrate callers by passing the author and covered sequence number.
+- **Breaking:** **Events:** `TopicBroadcaster::publish_relay_lost` reaches only topics subscribed with the new `subscribe_resumable`. Migrate subscribers that resume from `RELAY_LOST_EVENT` by subscribing with `subscribe_resumable`.
 - **Breaking:** **Files:** `DocumentCommentRepository::{insert, insert_granting, update_body, update_body_granting}` and `DocumentGrantRepository::insert` take a `&mut PgConnection` after `&self`, so the write and its notification event commit in one transaction. Migrate by opening a transaction on the write pool and passing `&mut *tx`.
 - **Breaking:** **Files:** `DocumentServiceParts` gains `notifications: DynNotificationSink`, and `CommentRequest` and `EditCommentRequest` gain `mention_options: Vec<MentionOption>`. Migrate struct literals by passing the runtime's sink (`systemprompt_runtime::notification_sink`, or `NotificationsUnavailableSink` without the `notifications` feature) and `mention_options: Vec::new()`.
 - **Breaking:** **Files:** `DocumentsError` gains `Notifications(NotificationSinkError)` and `NotificationKind(NotificationKindError)`. Migrate by adding arms (or a wildcard) to exhaustive matches.
@@ -87,6 +88,91 @@
   collector outage. Each delay is now drawn from its upper half
   (`systemprompt_traits::backoff::jittered`; the Postgres connect turns on the jitter its
   `RetryConfig` already supported).
+- **API:** `POST /v1/bridge/drive/token` mints the Drive sync token with the `user` permission alone, whatever else the device token carried, and refuses a device token without it.
+- **Events:** the cross-replica relay notices a dropped listener session and replays the outbox rows it missed while reconnecting.
+- **Events:** the relay replays a window wide enough for a long outbox transaction that commits during an outage, and remembers delivered ids by time rather than by a fixed count.
+- **Files:** a collab update whose event could not be relayed is followed by a relay-lost event on its live topic, so other replicas resynchronise instead of waiting on the missing sequence number.
+- **Files:** every logged collab update records its actor and admitted level, and a checkpoint commits as the most recent edit-level author in the log under the actor folded from it, on whichever replica it runs.
+- **Files:** a session whose recent authors only commented settles by keeping the body as a proposal instead of failing the checkpoint, and the idle-session reaper never commits as a user who did not write to the session.
+- **Files:** a checkpoint renews its lease while it runs and is abandoned when the lease is lost, and its lease poll and commit run without blocking updates to the session.
+- **Files:** the periodic checkpoint task works through sessions concurrently with a small bound.
+- **Files:** a collab append is refused unless the session's next sequence number follows what the update was validated against, and refreshes the session's activity time.
+- **Files:** leaving a session that is already closed, or that another replica closed during the leave, answers `closed: true` instead of `409`.
+- **Files:** a live session whose state the engine cannot read is closed and the next join reseeds it from the head revision.
+- **Files:** a write-back update after a merged or conflicting checkpoint is computed on a fork of the checkpointed body under its own engine peer, so it never reuses operation ids and never reverts edits made while the revision landed.
+- **Files:** catching up on the update log checks each logged update's header before import and computes image ownership once per run of updates by one author.
+
+- **Files:** a recursive folder delete is authorized over the whole subtree before anything changes, then trashed in one transaction; a document added meanwhile refuses the delete with `SubtreeChanged`.
+- **Files:** an access request is answered by a compare-and-set from `open` before any grant is written, so of two concurrent answers exactly one lands and a declined request never leaves a grant.
+- **Files:** every read an authorization decision rests on runs on the primary, so a revocation, trash or transfer applies to the next request and to signed download links.
+- **Files:** folder create and move hold a transaction-scoped lock on each affected tree root, so crossed moves cannot create a cycle and a create never copies a stale ancestor chain.
+- **Files:** document create and move take the destination tree's lock, and a create or move into a trashed folder is refused, so a recursive delete cannot miss a document landing in its subtree.
+- **Files:** every tree-locked transaction takes `ROW EXCLUSIVE` on `document_path_changes` before its first row lock, so the Drive feed horizon never serves past a path change still landing.
+- **Files:** an ownership transfer applies only while the transferring owner still owns the document; otherwise it is refused with `OwnershipChanged`.
+- **API:** a REST document write made by an agent is recorded with actor kind `agent`, on behalf of the signed-in user.
+- **Files:** the authz hook receives the folder's ancestor chain and the caller's subject attributes with every document decision, so a rule on an ancestor folder governs its subfolders.
+- **Files:** a save of an existing document is charged to the document owner's daily upload quota, for bytes the store does not already hold.
+- **Runtime:** a signed download link carries no permissions.
+- **Files:** an expired folder grant clears its subject's presence on every document below the folder.
+- **Files:** the Drive change feed orders changes by the transaction that landed them and serves only changes below the oldest transaction still in flight, so a late commit or an accepted proposal is delivered after any cursor a client holds; the feed reads the primary.
+- **Files:** a commit that loses the head's compare-and-swap to a concurrent landing is rebuilt on the new head, up to three attempts, before it answers a conflict; `set_text`, `set_html` and `restore` still require their base to be the head.
+- **Files:** concurrent landings on one document lock its row `FOR NO KEY UPDATE`, so they queue instead of deadlocking against the revision insert's foreign-key lock.
+- **Files:** an Office package is recognised by opening it rather than by its leading bytes, so a package behind prepended bytes is held to the configured inflation caps on import, upload and stale-base merge.
+- **Files:** the Drive change feed horizon counts only transactions that can land a change, so an unrelated long or idle transaction no longer holds the feed back.
+- **Files:** a landing renumbers exactly the node ids it minted, tracked when they are minted, onto the author's reserved ids.
+- **Bridge:** Drive sync drops a cursor the gateway answers with `cursor_reset` and reconciles against the manifest in the same pull.
+- **Files:** node ids are minted from one counter per author and document, so sessionless commits no longer create a counter row per commit, and a new counter is seeded with a prefix match the node id index serves.
+- **Files:** the landing transaction carries node ids forward and checks comment anchors before it begins, reserves ids only for nodes the commit created, and uses no second connection while it is open.
+- **Files:** an op id is bound to the commit's message, actor kind, lock holder and comment policy as well as its base and body; a request that differs in any of them is refused with `OpIdMismatch`.
+- **Files:** the head swap locks the document row before it checks for a foreign lock, so the check reads a fresh snapshot.
+- **Engine (Loro):** a server-side write to a live document reuses the document's peer id instead of minting a new peer per write.
+- **Engine (Loro):** writing a model into a document matches blocks through an id index and reads each block's text once, so a write of `n` blocks is `O(n log n)`.
+- **Files:** the `shared` and `recent` listings build their candidates from the caller's grants, folder chains, revisions, comments and presence through indexes, then rank and page them; the touch time and head size are read only for the page. Each scope runs its own statement, and new indexes cover revisions and presence by author.
+- **Files:** a listing reports a stored `own` grant as `share`, as access resolution caps it; only the owner reports `own`.
+- **Files:** a folder listing decides the visibility of its child folders with one statement per page of children instead of a probe per child, and recipient levels resolve their roles with one directory lookup.
+- **Files:** the agent read audit records one row per document, user, agent, action and cap per UTC day, keyed by a unique index on `read_day`, so concurrent first reads share the row; repeat reads bump `reads`, `last_read_at` and `last_trace_id`. `document_agent_read_retention` runs hourly.
+- **Files:** a live-session replica whose cached document fell behind a snapshot taken on another replica reopens that snapshot before importing later updates, so no pruned update is skipped.
+- **Files:** a live session's first snapshot is the seed of its base revision, stored once; every replica opens it instead of seeding again.
+- **Files:** one replica at a time checkpoints a live session, under a lease on the session row, from the checkpoint base the row records.
+- **Files:** a live session closes only when no update was logged after the settled body; otherwise it is settled again.
+- **Files:** a live session whose settled body conflicts with the head lands it as one proposal, writes the head into the live model, records the head as the checkpoint base and closes.
+- **Files:** the cluster job `document_collab_reaper` settles and closes edit sessions idle for 10 minutes with no web presence.
+- **Files:** every Office zip part is read with a bounded inflate, and an imported, uploaded or diffed package is checked against the configured part, total and entry caps before a codec parses it; a package past a cap is refused as `too_large`.
+- **Files:** a whole-file commit is checked against `maxUploadBytes` before a stale-base upload is parsed.
+- **Files:** creating a document from a template checks its ops against the op limits and bounds its parameters to 256 entries of at most `maxOpTextBytes` each.
+- **Files:** a part upload's byte reservation is refunded when its request future is dropped, not only when it fails.
+- **Files:** a part attempt's object is recorded before its bytes are stored, and the `document_upload_expiry` job deletes a bounded batch of objects no part row holds; a failed delete is kept and retried rather than logged and lost.
+- **Files:** an image in a live session is placed when any editor who inserted it uploaded it, so inserting another user's hash first no longer blocks the uploader; an unreadable owner envelope is an error instead of an empty owner set.
+- **Files:** SVG uploads are parsed as XML and checked against an element and attribute allow-list, so character references, whitespace and protocol-relative URLs no longer pass the active-content check.
+- **Files:** the upload expiry scan reads open and stale completing sessions through separate indexes.
+- **Files:** a live channel subscribes before it reads the session, and each collab update's SSE id names the highest sequence number below which every update was delivered, so a resume never skips an update relayed out of order.
+- **Events:** a cross-replica relay that reconnects replays the outbox rows it missed, or sends `topic.relay_lost` to every topic (surfaced as `document.live.resync` with reason `relay_lost`) when they cannot be replayed.
+- **Files:** a collab update is imported on a fork on a blocking thread, so update bytes that panic the engine are refused rather than failing the caller.
+- **Files:** a collab update is validated against the log it is appended to, retrying when another replica logged first.
+- **Files:** a live checkpoint runs as an agent only when every update since the previous checkpoint came from that agent, and as the human otherwise; the degraded-images notice runs under the same actor.
+- **Files:** an awareness post never demotes an editing presence to viewing, and every accepted collab update extends its author's presence.
+- **Files:** the agent-edit and awareness rate ceilings are documented as per replica.
+- **Documents: an open tab follows writes that land outside its live session.** An
+  edit an agent lands over MCP, or the API or an import lands on the head, reached a
+  live editing session only when that session next checkpointed, and a session
+  with no local edits never checkpointed, so a tab left open on the document showed
+  nothing of the agent's work until it was reloaded. The collab timer now asks the
+  head each tick whether it moved past the session's checkpoint base; with no local
+  edits the head is re-imported into the live document and broadcast, and with
+  local edits pending the checkpoint runs at once so its merge carries the outside
+  write in.
+- **An agent's rewrites are refused with their own reason, and never for a write it did not land.** Rewriting over an hour as many blocks as replacing the document needs the new `broad_rewrite` capability instead of `replace_content`; the refusal names how many of the document's blocks the agent rewrote and points at `mode: propose`; a refused attempt no longer counts against the agent; `set_marks` and `set_block_type` count like `replace_text`.
+- **`set_marks` and `set_block_type` keep a block's id.** The id carry treated a paragraph retyped as a heading or list item as a new block and minted a fresh id, which broke every anchor on it.
+- **The documents MCP server files the agent's own presence (`agent`) and places its caret on the first block it wrote**, as a `document.awareness` event carrying `agent`, so a console shows the person and their assistant side by side and a tab sees where the agent is working.
+- **The bridge no longer reports its own pull as the person editing.** A touched file whose bytes still hash to the synced revision files no `editing` beacon. Beacons are sent before the cycle uploads, while an edited file still differs from the synced revision, and a failed beacon no longer stops the sync.
+- **A live editor can draw a document's images.** `GET /api/v1/documents/{id}/media?ref=<blob>` serves an image the head holds (a `docx-media:` part, an upload a `docx` saved, or an uploaded blob an HTML or Markdown head names) to anyone who can view the document, with its hash as the `ETag`; any other reference is `404`.
+- **`set_text` or `set_html` with a `node` is refused.** Both replace the whole document, and the stray `node` was ignored, so an agent that meant to change one block rewrote everything. `documents_edit` and `documents_create` now refuse the op and name `replace_text {node, text}`.
+- **`documents_read` lists a one-paragraph table cell once.** The text, range and node views printed the cell line and then its paragraph with the same text and hash, so every table read twice its size.
+- **The blank Word template sets fonts and spacing** (Aptos 11pt, Aptos Display headings in Word's heading colour, 1.15 line spacing), so a document created by an agent opens in Word with a consistent face instead of the viewer's fallback.
+- **`documents_guide` carries its text in the structured content.** A host that
+  shows the model only `structuredContent` (Claude Code does) saw the topic names
+  and none of the guidance; the output now carries the guide text as `guide`.
+
 
 ## [0.75.1] - 2026-10-29
 

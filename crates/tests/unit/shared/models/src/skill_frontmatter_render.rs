@@ -46,7 +46,10 @@ fn nested_mappings_render_in_sorted_order() {
     inner.insert(Value::String("b".into()), Value::String("2".into()));
     inner.insert(Value::String("a".into()), Value::String("1".into()));
     let mut authored = Mapping::new();
-    authored.insert(Value::String("model".into()), Value::String("sonnet".into()));
+    authored.insert(
+        Value::String("model".into()),
+        Value::String("sonnet".into()),
+    );
     authored.insert(Value::String("metadata".into()), Value::Mapping(inner));
     let rendered = render_passthrough_frontmatter(Some(&authored)).unwrap();
     assert_eq!(rendered, "metadata:\n  a: '1'\n  b: '2'\nmodel: sonnet\n");

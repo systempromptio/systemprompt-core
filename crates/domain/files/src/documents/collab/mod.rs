@@ -3,27 +3,36 @@
 //!
 //! [`CollabService`] keeps at most one open edit session per document
 //! (`document_edit_sessions`) and, on each replica, one cached engine document
-//! per session. A cached document is rebuilt from the session's snapshot blob,
-//! or seeded from its base revision as a `RichText` model when it has none
-//! (see [`document`]), and
-//! then every logged update after it is imported. Before each read or write
-//! a replica imports the updates other replicas logged since it last
-//! looked, so every replica converges on the same log.
+//! per session. A cached document is opened from the session's snapshot
+//! blob; a new session's first snapshot is the seed of its base revision as
+//! a `RichText` model (see [`document`]), recorded once and opened by every
+//! replica. Every logged update after the snapshot is then imported. Before
+//! each read or write a replica imports the updates other replicas logged since
+//! it last looked, so every replica converges on the same log.
 //!
 //! Clients join (`edit` needs edit access, `comment` comment access, `view`
 //! read access) and learn the engine, wire version, model and access level
 //! they are bound to; they post engine updates, each applied to a fork and
 //! validated before it is logged, and receive everyone's updates as
-//! `document.collab.update` events on their own AG-UI stream; the event router
-//! relays them to other replicas. Each update is logged with a sequence number
-//! before it is broadcast.
+//! `document.collab.update` events on the document's live channel, published
+//! once per update and relayed to other replicas by the event router. Each
+//! update is logged with a sequence number before it is broadcast. A join is
+//! assigned the engine peer id its editor must use.
 //!
 //! One background task per replica, started by [`CollabService::start`],
 //! snapshots a session to a blob 30 s after its first unsnapshotted update
 //! or after 200 updates, pruning the updates the snapshot covers, and
 //! commits the live model as a revision with origin `edit_session` after
 //! 2 min of activity; the last editor leaving commits and closes the
-//! session. When a checkpoint merges with writes made outside the session,
+//! session. A checkpoint runs under the session's checkpoint lease, renewed
+//! while it runs, and from the base the session row records, so replicas
+//! never checkpoint one session concurrently or from a stale base. It
+//! commits as the most recent edit-level author the shared update log
+//! records since the previous checkpoint, under the actor folded from that
+//! log, so its author never depends on which replica runs it. Sessions nobody
+//! settled are settled and closed by [`CollabService::reap_idle`], which the
+//! `document_collab_reaper` job runs. When a checkpoint merges with writes
+//! made outside the session,
 //! the merged document is written back into the live model so the next
 //! checkpoint keeps them. Spreadsheets and decks are refused with
 //! [`DocumentsError::UnsupportedFormat`](super::DocumentsError).
@@ -36,13 +45,20 @@
 
 mod access;
 mod apply;
+mod binding;
+mod committer;
 pub mod document;
 mod entry;
 mod error;
+mod follow;
 mod image_owners;
+mod lease;
 mod live_media;
 pub mod model;
 mod persist;
+mod persist_commit;
+mod reaper;
+mod reconcile;
 mod session;
 mod timer;
 mod trash;
@@ -54,7 +70,7 @@ use std::sync::{Arc, Mutex, PoisonError};
 use systemprompt_identifiers::DocumentId;
 
 pub use error::CollabError;
-pub use image_owners::ImageOwners;
+pub use image_owners::{ImageOwners, ImageOwnersError};
 pub use types::{
     Applied, ApplyRequest, Checkpoint, CollabTuning, CursorRequest, JoinMode, Joined, Left,
 };

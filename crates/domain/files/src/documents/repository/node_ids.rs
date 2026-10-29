@@ -6,8 +6,10 @@
 //! transaction that writes the revision; a second write of the same
 //! revision's ids is an error. Counters are reserved in blocks on the
 //! primary (`document_node_counters`), so two commits by one writer never
-//! mint the same id however far a replica lags. [`Self::without_ids`] pages
-//! the revisions that have no ids, oldest first, for the backfill job.
+//! mint the same id however far a replica lags. A counter is seeded from the
+//! writer's highest stored id once, when its row is first created.
+//! [`Self::without_ids`] pages the revisions that have no ids, oldest first,
+//! for the backfill job.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -84,13 +86,26 @@ impl DocumentNodeIdRepository {
         count: i64,
     ) -> RepoResult<i64> {
         let count = count.max(1);
+        let advanced = sqlx::query_scalar!(
+            r#"UPDATE document_node_counters SET next = next + $3
+               WHERE document_id = $1::text::uuid AND writer = $2
+               RETURNING next - $3 AS "first!""#,
+            document.as_str(),
+            writer,
+            count,
+        )
+        .fetch_optional(&mut *conn)
+        .await?;
+        if let Some(first) = advanced {
+            return Ok(first);
+        }
         Ok(sqlx::query_scalar!(
             r#"INSERT INTO document_node_counters (document_id, writer, next)
                SELECT $1::text::uuid, $2,
                       COALESCE((SELECT MAX(split_part(node_id, '.', 2)::bigint)
                                 FROM document_node_ids
                                 WHERE document_id = $1::text::uuid
-                                  AND split_part(node_id, '.', 1) = $2
+                                  AND node_id LIKE $2 || '.%'
                                   AND split_part(node_id, '.', 2) ~ '^[0-9]{1,18}$'), 0) + 1 + $3
                ON CONFLICT (document_id, writer)
                    DO UPDATE SET next = document_node_counters.next + $3

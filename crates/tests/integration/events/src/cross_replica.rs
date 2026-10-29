@@ -23,6 +23,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use sqlx::PgPool;
+use sqlx::postgres::PgPoolOptions;
 use systemprompt_events::{
     Broadcaster, EventBridgeHandle, EventBroadcasters, EventRouter, EventSender,
     PostgresEventBridge, RelayOutcome,
@@ -185,4 +186,86 @@ async fn relayed_event_reaches_only_the_addressed_user() {
         matches!(target_extra, Err(TryRecvError::Empty)),
         "the addressed user must not receive the bystander's event"
     );
+}
+
+async fn start_replica_with_named_listener(
+    pool: &PgPool,
+    application_name: &str,
+) -> (EventRouter, EventBridgeHandle) {
+    let broadcasters = Arc::new(EventBroadcasters::new());
+    let router =
+        EventRouter::with_outbox(pool.clone(), unique_instance(), Arc::clone(&broadcasters));
+    let options = (*pool.connect_options())
+        .clone()
+        .application_name(application_name);
+    let listener_pool = PgPoolOptions::new()
+        .max_connections(2)
+        .connect_with(options)
+        .await
+        .expect("listener pool");
+    let bridge = PostgresEventBridge::new(
+        pool.clone(),
+        unique_instance(),
+        systemprompt_traits::CacheEpochs::new(),
+        broadcasters,
+    )
+    .with_listener_pool(listener_pool)
+    .start();
+    assert!(
+        bounded("the relay LISTEN", bridge.listening()).await,
+        "the relay stopped before it was listening"
+    );
+    (router, bridge)
+}
+
+async fn insert_unannounced_row(pool: &PgPool, user: &UserId) {
+    let payload = serde_json::to_value(sample_event()).expect("event payload");
+    bounded(
+        "insert an outbox row without NOTIFY",
+        sqlx::query(
+            "INSERT INTO event_outbox (id, channel, user_id, payload, actor_kind, actor_id, \
+             origin_instance_id) VALUES ($1, 'a2a', $2, $3, 'user', $2, 'replica-elsewhere')",
+        )
+        .bind(uuid::Uuid::new_v4().to_string())
+        .bind(user.as_str())
+        .bind(payload)
+        .execute(pool),
+    )
+    .await
+    .expect("insert outbox row");
+}
+
+#[tokio::test]
+async fn a_row_written_while_the_relay_was_disconnected_is_replayed_on_reconnect() {
+    let pool = setup_test_pool().await;
+    let application_name = format!("bridge-replay-{}", uuid::Uuid::new_v4().simple());
+    let (router, bridge) = start_replica_with_named_listener(&pool, &application_name).await;
+    let user = unique_user_id("evt-replay");
+    let (connection, mut rx) = subscribe(&router, &user, "replica-b-replay").await;
+
+    insert_unannounced_row(&pool, &user).await;
+    let terminated: Vec<bool> = bounded(
+        "terminate this relay's listener",
+        sqlx::query_scalar(
+            "SELECT pg_terminate_backend(pid) FROM pg_stat_activity \
+             WHERE application_name = $1 AND pid <> pg_backend_pid()",
+        )
+        .bind(&application_name)
+        .fetch_all(&*pool),
+    )
+    .await
+    .expect("terminate listener");
+    assert!(
+        terminated.iter().any(|done| *done),
+        "the relay's own listener session must be found and terminated"
+    );
+
+    next_delivery(&mut rx, "the replayed delivery after reconnect").await;
+
+    router
+        .broadcasters()
+        .a2a
+        .unregister(&user, &connection)
+        .await;
+    teardown(&pool, bridge, &[&user]).await;
 }

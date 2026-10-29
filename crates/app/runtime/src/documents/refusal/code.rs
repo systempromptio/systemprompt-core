@@ -36,10 +36,11 @@ pub enum RefusalCode {
     AgentForbidden,
     AgentSuggestOnly,
     AgentRateLimited,
+    CursorReset,
 }
 
 impl RefusalCode {
-    pub const ALL: [Self; 26] = [
+    pub const ALL: [Self; 27] = [
         Self::StaleBase,
         Self::GuardMismatch,
         Self::FindNone,
@@ -66,6 +67,7 @@ impl RefusalCode {
         Self::AgentForbidden,
         Self::AgentSuggestOnly,
         Self::AgentRateLimited,
+        Self::CursorReset,
     ];
 
     #[must_use]
@@ -97,6 +99,7 @@ impl RefusalCode {
             Self::AgentForbidden => "agent_forbidden",
             Self::AgentSuggestOnly => "agent_suggest_only",
             Self::AgentRateLimited => "agent_rate_limited",
+            Self::CursorReset => "cursor_reset",
         }
     }
 

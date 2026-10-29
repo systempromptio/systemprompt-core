@@ -20,3 +20,4 @@ task_messages
 message_parts
 document_revisions
 document_presence
+document_agent_reads

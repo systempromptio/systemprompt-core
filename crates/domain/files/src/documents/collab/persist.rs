@@ -1,299 +1,280 @@
 //! Snapshots and checkpoints of a live edit session.
 //!
 //! A snapshot stores the session's engine state as a blob and prunes the
-//! logged updates it covers. A checkpoint materialises the live model and
-//! commits it as a revision with origin `edit_session`, based on the
+//! logged updates it covers. The state is sealed while the replica's entry
+//! is held; the blob write and the snapshot mark run without it, and one
+//! snapshot at a time runs per entry. A checkpoint materialises the live model
+//! and commits it as a revision with origin `edit_session`, based on the
 //! session's previous checkpoint (or its base revision); when the revision
 //! engine merges it with outside writes, the merged document is re-imported
 //! with the live block ids carried over and written back into the live
 //! model, logged and broadcast like any other update.
 //!
-//! A checkpoint always runs as the session's last editor, under the actor
-//! that editor's request ran as. Settling a
-//! session that is being left or closed lands a conflicting body as a
-//! proposal on the checkpoint base, authored by that editor, so no live
-//! edit is lost.
+//! A checkpoint runs under the session's checkpoint lease: the lease claim
+//! re-reads the session row, so the checkpoint is based on the base the last
+//! checkpoint on any replica recorded, and one replica at a time checkpoints
+//! a session. The claim also reads who wrote since that checkpoint and the
+//! actors they ran as (see the sibling `committer` module), so the
+//! checkpoint's author and actor never depend on which replica runs it. The
+//! lease is renewed while the checkpoint runs; a renewal that finds the
+//! lease gone abandons the checkpoint before it records anything. The lease
+//! poll and the commit run without holding the replica's session entry, so
+//! updates keep being applied while a revision lands.
+//!
+//! Settling a session that is being left or closed lands a conflicting body
+//! as a proposal on the checkpoint base, authored by the committer, then
+//! writes the head into the live model and records the head as the
+//! checkpoint base, so the same body is never proposed twice and no live
+//! edit is lost. The session closes only when no update was logged after
+//! the settled body; otherwise it is settled again.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::time::Instant;
-
-use systemprompt_identifiers::TraceId;
+use systemprompt_identifiers::{ContentHash, DocumentEditSessionId, TraceId};
 use systemprompt_models::auth::AuthenticatedUser;
-use systemprompt_models::documents::{ActorKind, DocumentAction};
 
-use super::apply::update_event;
-use super::document::import_rich_text;
-use super::entry::{CollabEntry, model_error, utf8};
-use super::live_media::{LiveState, materialise_or_strip};
-use super::model::body_of;
-use super::{Checkpoint, CollabError, CollabService};
-use crate::documents::agents::{AgentChannel, act_as};
-use crate::documents::engine::ModelView;
-use crate::documents::model::{Media, carry_ids};
-use crate::documents::models::RevisionAttribution;
-use crate::documents::repository::SnapshotMark;
-use crate::documents::revision::CommitBody;
-use crate::documents::service::{
-    Author, CommentPolicy, CommitOutcome, CommitRequest, ProposeBodyRequest, RevisionOrigin,
-};
+use super::committer::{Committer, fold_logged};
+use super::entry::SharedEntry;
+use super::lease::{ClaimWait, Fence, SessionKey, SettledBy};
+use super::persist_commit::Rebase;
+use super::{Checkpoint, CollabError, CollabService, Left};
+use crate::documents::model::EditLevel;
+use crate::documents::repository::{CheckpointLease, SnapshotMark};
 
-const CHECKPOINT_MESSAGE: &str = "Live edit session checkpoint";
-const CONFLICT_MESSAGE: &str = "Live edit session body that conflicted with the head";
+const SETTLE_ATTEMPTS: u32 = 3;
+
+struct Sealed {
+    session: DocumentEditSessionId,
+    bytes: Vec<u8>,
+    version: Vec<u8>,
+    seq: i64,
+    covers: u32,
+}
 
 impl CollabService {
-    pub(super) async fn snapshot(&self, entry: &mut CollabEntry) -> Result<(), CollabError> {
-        self.catch_up(entry).await?;
-        let bytes = entry.images.seal(&entry.doc.snapshot()?);
-        let version = entry.doc.version();
-        let blob = self.documents.blobs().put(&bytes).await?;
+    pub(super) async fn snapshot(&self, shared: &SharedEntry) -> Result<(), CollabError> {
+        let Some(sealed) = self.seal(shared).await? else {
+            return Ok(());
+        };
+        let stored = self.store(&sealed).await;
+        let mut entry = shared.lock().await;
+        entry.snapshotting = false;
+        let moved = stored?;
+        if let Some(hash) = moved {
+            entry.session.snapshot_sha256 = Some(hash);
+        }
+        entry.unsnapshotted = entry.unsnapshotted.saturating_sub(sealed.covers);
+        if entry.unsnapshotted == 0 {
+            entry.snapshot_due_from = None;
+        }
+        drop(entry);
+        Ok(())
+    }
+
+    async fn seal(&self, shared: &SharedEntry) -> Result<Option<Sealed>, CollabError> {
+        let mut entry = shared.lock().await;
+        if entry.snapshotting {
+            return Ok(None);
+        }
+        self.catch_up(&mut entry).await?;
+        let sealed = Sealed {
+            session: entry.session.id.clone(),
+            bytes: entry.images.seal(&entry.doc.snapshot()?),
+            version: entry.doc.version(),
+            seq: entry.last_seq,
+            covers: entry.unsnapshotted,
+        };
+        entry.snapshotting = true;
+        drop(entry);
+        Ok(Some(sealed))
+    }
+
+    async fn store(&self, sealed: &Sealed) -> Result<Option<ContentHash>, CollabError> {
+        let blob = self.documents.blobs().put(&sealed.bytes).await?;
         let moved = self
             .documents
             .repositories()
             .collab
             .set_snapshot(
-                &entry.session.id,
+                &sealed.session,
                 SnapshotMark {
                     hash: &blob.hash,
-                    seq: entry.last_seq,
-                    version: &version,
+                    seq: sealed.seq,
+                    version: &sealed.version,
                 },
             )
             .await?;
-        if moved {
-            entry.session.snapshot_sha256 = Some(blob.hash);
-        }
-        entry.unsnapshotted = 0;
-        entry.snapshot_due_from = None;
-        Ok(())
+        Ok(moved.then_some(blob.hash))
     }
 
     pub(super) async fn checkpoint(
         &self,
-        entry: &mut CollabEntry,
-        who: &AuthenticatedUser,
+        shared: &SharedEntry,
         trace: &TraceId,
-    ) -> Result<Checkpoint, CollabError> {
-        self.catch_up(entry).await?;
-        let document_id = entry.session.document_id.clone();
-        let Some(base) = entry.checkpoint_base().cloned() else {
-            return Ok(Checkpoint::Unchanged);
-        };
-        let limit = self.documents.config().max_upload_bytes;
-        let base_bytes = self.revision_bytes(&base, limit).await?;
-        entry.checkpoint_due_from = None;
-        let state = LiveState::of(entry);
-        let Some(live) = self.changed_live(state, who, &base_bytes, trace).await else {
-            return Ok(Checkpoint::Unchanged);
-        };
-        let next = materialise_or_strip(entry.format, &base_bytes, &live)
-            .map_err(model_error(&document_id))?;
-        let actor = entry
-            .last_actor
-            .clone()
-            .unwrap_or_else(|| self.documents.access().actor())
-            .on(AgentChannel::LiveCheckpoint);
-        let commit = self.documents.commit(
-            who,
-            CommitRequest {
-                document_id: document_id.clone(),
-                base_revision: Some(base),
-                body: CommitBody::Bytes(next),
-                author: session_author(entry, trace),
-                message: Some(CHECKPOINT_MESSAGE.to_owned()),
-                lock_holder_id: None,
-                comments: CommentPolicy::detach(),
-                op_id: None,
-                media: Media::new(),
-            },
+    ) -> Result<Option<Checkpoint>, CollabError> {
+        let key = SessionKey::of(&*shared.lock().await);
+        let lease = CheckpointLease::generate();
+        let fence = Fence {
+            key: &key,
+            lease: &lease,
             trace,
-        );
-        let outcome = Box::pin(act_as(actor.clone(), commit)).await?;
-        let revision = match outcome {
-            CommitOutcome::Committed(landed) => landed.revision,
-            CommitOutcome::Merged(landed) => {
-                let revision = landed.revision;
-                let merged = self.revision_bytes(&revision.id, limit).await?;
-                act_as(actor, self.reconcile(entry, who, &merged, trace)).await?;
-                revision
+            by: SettledBy::Participant,
+        };
+        let Some(committer) = self.claim(shared, &fence, ClaimWait::No, None).await? else {
+            return Ok(None);
+        };
+        let outcome = match committer {
+            Committer::Editor(editor) => {
+                let work = self.checkpoint_leased(shared, &editor, &fence);
+                self.fenced(&key, &lease, Box::pin(work)).await
             },
-            CommitOutcome::Conflict { head, .. } => {
-                tracing::warn!(
-                    document_id = %document_id,
-                    head_revision_id = %head.id,
-                    "Edit session checkpoint conflicted with the head"
-                );
-                return Ok(Checkpoint::Conflict {
-                    head: head.id,
-                    proposal: None,
-                });
+            Committer::Commenter(_) | Committer::Nobody => {
+                shared.lock().await.checkpoint_due_from = None;
+                Ok(Checkpoint::Unchanged)
             },
         };
-        self.documents
-            .repositories()
-            .edit_sessions
-            .set_checkpoint(&entry.session.id, &revision.id)
-            .await?;
-        entry.session.checkpoint_revision_id = Some(revision.id.clone());
-        Ok(Checkpoint::Committed(revision.id))
-    }
-
-    /// Follows a write that landed outside the session: an agent over MCP,
-    /// the API or an import. When the head has moved past the checkpoint
-    /// base and the live model holds nothing of its own, the head is
-    /// re-imported into the live document and broadcast, so an open tab
-    /// shows the change without anyone typing first. With local edits
-    /// pending the checkpoint is made due now, so the timer's own run (with
-    /// its back-off) merges the outside write in. Answers whether the head
-    /// moved.
-    pub(super) async fn follow_head(
-        &self,
-        entry: &mut CollabEntry,
-        now: Instant,
-    ) -> Result<bool, CollabError> {
-        let Some(who) = entry
-            .last_editor
-            .clone()
-            .or_else(|| entry.last_joiner.clone())
-        else {
-            return Ok(false);
-        };
-        let document_id = entry.session.document_id.clone();
-        let Some(document) = self
-            .documents
-            .repositories()
-            .documents
-            .find(&document_id)
-            .await?
-        else {
-            return Ok(false);
-        };
-        let Some(head) = document.head_revision_id.clone() else {
-            return Ok(false);
-        };
-        let Some(base) = entry.checkpoint_base().cloned() else {
-            return Ok(false);
-        };
-        if base == head {
-            return Ok(false);
-        }
-        let trace = TraceId::system();
-        let limit = self.documents.config().max_upload_bytes;
-        let base_bytes = self.revision_bytes(&base, limit).await?;
-        let state = LiveState::of(entry);
-        if self
-            .changed_live(state, &who, &base_bytes, &trace)
-            .await
-            .is_some()
-        {
-            let due = now.checked_sub(self.tuning.checkpoint_after).unwrap_or(now);
-            entry.checkpoint_due_from = Some(due);
-            return Ok(true);
-        }
-        let head_bytes = self.revision_bytes(&head, limit).await?;
-        let actor = entry
-            .last_actor
-            .clone()
-            .unwrap_or_else(|| self.documents.access().actor());
-        act_as(actor, self.reconcile(entry, &who, &head_bytes, &trace)).await?;
-        self.documents
-            .repositories()
-            .edit_sessions
-            .set_checkpoint(&entry.session.id, &head)
-            .await?;
-        entry.session.checkpoint_revision_id = Some(head);
-        Ok(true)
+        self.release(&key.session, &lease).await;
+        outcome.map(Some)
     }
 
     pub(super) async fn settle(
         &self,
-        entry: &mut CollabEntry,
-        editor: &AuthenticatedUser,
+        shared: &SharedEntry,
+        who: &AuthenticatedUser,
         trace: &TraceId,
-    ) -> Result<Checkpoint, CollabError> {
-        let checkpoint = self.checkpoint(entry, editor, trace).await?;
-        let Checkpoint::Conflict { head, .. } = checkpoint else {
-            return Ok(checkpoint);
+    ) -> Result<Left, CollabError> {
+        self.settle_as(shared, Some(who), trace, SettledBy::Participant)
+            .await
+    }
+
+    pub(super) async fn settle_as(
+        &self,
+        shared: &SharedEntry,
+        known: Option<&AuthenticatedUser>,
+        trace: &TraceId,
+        by: SettledBy,
+    ) -> Result<Left, CollabError> {
+        let key = SessionKey::of(&*shared.lock().await);
+        let lease = CheckpointLease::generate();
+        let fence = Fence {
+            key: &key,
+            lease: &lease,
+            trace,
+            by,
         };
-        let Some(base) = entry.checkpoint_base().cloned() else {
-            return Ok(Checkpoint::Conflict {
-                head,
-                proposal: None,
-            });
+        let Some(committer) = self
+            .claim(shared, &fence, ClaimWait::Bounded, known)
+            .await?
+        else {
+            return Err(key.lease_lost());
         };
-        let document_id = entry.session.document_id.clone();
-        let limit = self.documents.config().max_upload_bytes;
-        let base_bytes = self.revision_bytes(&base, limit).await?;
-        let exported = entry.doc.export_model();
-        let owners = entry.images.clone();
-        let live = self
-            .admit_live(entry.format, &owners, &base_bytes, exported)
-            .await;
-        let body = materialise_or_strip(entry.format, &base_bytes, &live)
-            .map_err(model_error(&document_id))?;
-        let proposed = self
-            .documents
-            .propose_body(
-                editor,
-                ProposeBodyRequest {
-                    document_id,
-                    base_revision: base,
-                    bytes: body,
-                    author: session_author(entry, trace),
-                    message: Some(CONFLICT_MESSAGE.to_owned()),
-                },
-                trace,
-            )
-            .await?;
-        Ok(Checkpoint::Conflict {
-            head,
-            proposal: Some(proposed.proposal.id),
+        let work = self.settle_leased(shared, &fence, committer);
+        let outcome = self.fenced(&key, &lease, Box::pin(work)).await;
+        if !matches!(outcome, Ok(Left { closed: true, .. })) {
+            self.release(&key.session, &lease).await;
+        }
+        outcome
+    }
+
+    async fn settle_leased(
+        &self,
+        shared: &SharedEntry,
+        fence: &Fence<'_>,
+        mut committer: Committer,
+    ) -> Result<Left, CollabError> {
+        let sessions = &self.documents.repositories().edit_sessions;
+        let mut settled = Checkpoint::Unchanged;
+        for attempt in 0..SETTLE_ATTEMPTS {
+            if attempt > 0 {
+                committer = self
+                    .claim(shared, fence, ClaimWait::No, None)
+                    .await?
+                    .ok_or_else(|| fence.key.lease_lost())?;
+            }
+            let checkpoint = self.settle_once(shared, fence, &committer).await?;
+            settled = combine(settled, checkpoint);
+            let settled_seq = {
+                let mut entry = shared.lock().await;
+                self.catch_up(&mut entry).await?;
+                entry.last_seq
+            };
+            if sessions
+                .close_settled(&fence.key.session, settled_seq, fence.lease)
+                .await?
+            {
+                return Ok(Left {
+                    closed: true,
+                    checkpoint: settled,
+                });
+            }
+        }
+        tracing::warn!(
+            session_id = %fence.key.session,
+            attempts = SETTLE_ATTEMPTS,
+            "Edit session kept receiving updates while it was settled; left open"
+        );
+        Ok(Left {
+            closed: false,
+            checkpoint: settled,
         })
     }
 
-    async fn reconcile(
+    async fn settle_once(
         &self,
-        entry: &mut CollabEntry,
-        who: &AuthenticatedUser,
-        merged: &[u8],
-        trace: &TraceId,
-    ) -> Result<(), CollabError> {
-        let document_id = entry.session.document_id.clone();
-        let target = match entry.doc.export_model() {
-            ModelView::RichText(live) => {
-                let mut next =
-                    import_rich_text(entry.format, merged).map_err(model_error(&document_id))?;
-                carry_ids(&live, &mut next);
-                ModelView::RichText(next)
+        shared: &SharedEntry,
+        fence: &Fence<'_>,
+        committer: &Committer,
+    ) -> Result<Checkpoint, CollabError> {
+        match committer {
+            Committer::Editor(editor) => match self.checkpoint_leased(shared, editor, fence).await?
+            {
+                Checkpoint::Conflict { head, .. } => {
+                    let rebase = Rebase {
+                        head,
+                        level: EditLevel::Edit,
+                    };
+                    self.propose_and_rebase(shared, editor, fence, rebase).await
+                },
+                other => Ok(other),
             },
-            ModelView::Body(_) => {
-                ModelView::Body(body_of(entry.format, &utf8(&document_id, merged.to_vec())?))
+            Committer::Commenter(commenter) => {
+                self.propose_comment_body(shared, commenter, fence).await
             },
+            Committer::Nobody => Ok(Checkpoint::Unchanged),
+        }
+    }
+
+    pub(super) async fn claim(
+        &self,
+        shared: &SharedEntry,
+        fence: &Fence<'_>,
+        wait: ClaimWait,
+        known: Option<&AuthenticatedUser>,
+    ) -> Result<Option<Committer>, CollabError> {
+        let Some(session) = self.claim_row(fence.key, fence.lease, wait).await? else {
+            return Ok(None);
         };
-        let Some(update) = entry.doc.update_to_model(&target)? else {
-            return Ok(());
-        };
-        let seq = self.log_update(entry, &update, &who.id).await?;
-        let document = self
-            .authorized(who, &entry.session.document_id, DocumentAction::View, trace)
+        let authors = self
+            .documents
+            .repositories()
+            .collab
+            .list_authors_since_checkpoint(&fence.key.session)
             .await?;
-        self.broadcast(
-            &document,
-            update_event(&document, &entry.session.id, seq, &update, &who.id),
-        )
-        .await;
-        Ok(())
+        let mut entry = shared.lock().await;
+        entry.session = session;
+        entry.last_actor = fold_logged(&authors);
+        let last_editor = entry.last_editor.clone();
+        drop(entry);
+        let known: Vec<&AuthenticatedUser> = last_editor.iter().chain(known).collect();
+        Ok(Some(Committer::from_log(&authors, &known)))
     }
 }
 
-fn session_author(entry: &CollabEntry, trace: &TraceId) -> Author {
-    Author {
-        actor_kind: ActorKind::User,
-        origin: RevisionOrigin::EditSession(entry.session.id.clone()),
-        attribution: RevisionAttribution {
-            trace_id: Some(trace.clone()),
-            ..RevisionAttribution::default()
-        },
+fn combine(settled: Checkpoint, next: Checkpoint) -> Checkpoint {
+    match (settled, next) {
+        (conflict @ Checkpoint::Conflict { .. }, _) => conflict,
+        (settled, Checkpoint::Unchanged) => settled,
+        (_, next) => next,
     }
 }

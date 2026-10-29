@@ -111,10 +111,16 @@ impl DocumentUploadRepository {
 
     pub async fn list_expired(&self, limit: i64) -> RepoResult<Vec<DocumentUploadId>> {
         Ok(sqlx::query_scalar!(
-            r#"SELECT id::text AS "id!: DocumentUploadId" FROM document_uploads
-               WHERE (status = 'open' AND expires_at < now())
-                  OR (status = 'completing' AND claimed_at < now() - interval '1 hour')
-               ORDER BY expires_at LIMIT $1"#,
+            r#"SELECT u.id::text AS "id!: DocumentUploadId" FROM (
+                   (SELECT id, expires_at FROM document_uploads
+                    WHERE status = 'open' AND expires_at < now()
+                    ORDER BY expires_at LIMIT $1)
+                   UNION ALL
+                   (SELECT id, expires_at FROM document_uploads
+                    WHERE status = 'completing' AND claimed_at < now() - interval '1 hour'
+                    ORDER BY claimed_at LIMIT $1)
+               ) u
+               ORDER BY u.expires_at LIMIT $1"#,
             limit,
         )
         .fetch_all(&*self.read)

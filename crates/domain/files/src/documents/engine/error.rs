@@ -15,6 +15,12 @@ pub enum EngineError {
     State(#[source] Source),
     #[error("the engine could not encode the document state")]
     Encode(#[source] Source),
+    #[error("the engine holds content that does not read as a model")]
+    Model(#[source] Source),
+    #[error(
+        "the update carries operations of engine peer {peer}, which the caller was not assigned"
+    )]
+    PeerNotAssigned { peer: u64 },
     #[error("the engine does not support this model")]
     Unsupported,
 }

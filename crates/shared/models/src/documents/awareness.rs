@@ -57,8 +57,9 @@ pub struct AwarenessState {
     pub selection: Vec<AwarenessCursor>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub viewport: Option<AwarenessViewport>,
-    /// Set when the participant is an agent acting for the user, named so a
-    /// client draws it as its own caret beside the person's.
+    #[schemars(
+        description = "Set when the participant is an agent acting for the user, named so a client draws it as its own caret beside the person's."
+    )]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub agent: Option<String>,
 }
@@ -83,14 +84,21 @@ pub enum LiveResyncReason {
     SessionChanged,
     UpdatesCompacted,
     Lagged,
+    RelayLost,
 }
 
 /// The first event of every live channel, and of every resumed one.
+///
+/// `seq` is the last update the open edit session had logged when the
+/// channel subscribed; every later update reaches the channel. A client whose
+/// editor holds less reconnects with `Last-Event-ID: <session>:<its seq>`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct DocumentLiveReadyEvent {
     pub document_id: DocumentId,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub edit_session_id: Option<DocumentEditSessionId>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub seq: Option<i64>,
     pub replayed: usize,
 }
 

@@ -13,7 +13,11 @@ use systemprompt_provider_contracts::documents::NodeFragment;
 use super::apply::AppliedOps;
 use super::commit::{Built, Landing};
 use super::landing::Prepared;
+#[cfg(feature = "office")]
+use super::support::blocking;
 use super::{Author, DocumentService};
+#[cfg(feature = "office")]
+use crate::documents::codecs::inspect_package;
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{Document, NewRevision};
 use crate::documents::revision::{CommitBody, CommitPlan};
@@ -72,6 +76,17 @@ impl DocumentService {
         } = draft;
         let bytes = applied.ops.bytes;
         self.check_size(bytes.len())?;
+        #[cfg(feature = "office")]
+        let bytes = if applied.edit_ops.is_none() {
+            let caps = self.package_caps();
+            blocking(move || {
+                inspect_package(&bytes, caps)?;
+                Ok(bytes)
+            })
+            .await?
+        } else {
+            bytes
+        };
         let blob = self.blobs.put(&bytes).await?;
         let next = self.project_paths(document.format, bytes).await?;
         let count = applied.edit_ops.as_ref().map_or(0, Vec::len);

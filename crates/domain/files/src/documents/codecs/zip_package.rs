@@ -4,6 +4,20 @@
 //! after the original entries, so a leading `mimetype` entry stays first and
 //! keeps its compression method.
 //!
+//! Every inflated read is bounded: a part may not inflate past
+//! `PackageCaps::part_bytes`, the parts one package hands out may not
+//! inflate past `PackageCaps::inflated_bytes` together, and an archive may
+//! not list more than `PackageCaps::parts` entries. Codecs read under
+//! `PackageCaps::CEILING`; the document service runs `inspect_package` under
+//! the operator's configured caps before any codec sees uploaded bytes.
+//!
+//! Whether bytes are a package is decided by opening them, never by their
+//! leading bytes: an archive reader finds the central directory from the end
+//! of the input, so a package behind prepended bytes still opens. Bytes that
+//! do not open and carry no zip header or end-of-directory signature are not
+//! a package and pass through; bytes that carry one but do not open are
+//! refused.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -15,7 +29,12 @@ use zip::result::ZipError;
 use zip::write::SimpleFileOptions;
 use zip::{CompressionMethod, ZipArchive, ZipWriter};
 
+use crate::config::{
+    PACKAGE_INFLATED_BYTES_CEILING, PACKAGE_PART_BYTES_CEILING, PACKAGE_PARTS_CEILING,
+};
+
 const CONTAINER: &str = "zip container";
+const ZIP_SIGNATURES: [&[u8]; 2] = [b"PK\x03\x04", b"PK\x05\x06"];
 
 pub(crate) fn parse_error(
     part: &str,
@@ -31,18 +50,101 @@ fn zip_error(source: ZipError) -> CodecError {
     parse_error(CONTAINER, source)
 }
 
+/// Inflation caps for one Office zip package: bytes of one part, bytes
+/// across all parts, and listed entries.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PackageCaps {
+    pub part_bytes: u64,
+    pub inflated_bytes: u64,
+    pub parts: u64,
+}
+
+impl PackageCaps {
+    pub const CEILING: Self = Self {
+        part_bytes: PACKAGE_PART_BYTES_CEILING,
+        inflated_bytes: PACKAGE_INFLATED_BYTES_CEILING,
+        parts: PACKAGE_PARTS_CEILING,
+    };
+}
+
+const fn too_large(what: &'static str, size: u64, limit: u64) -> CodecError {
+    CodecError::TooLarge { what, size, limit }
+}
+
+fn check_part_count(count: usize, caps: PackageCaps) -> Result<(), CodecError> {
+    let count = u64::try_from(count).unwrap_or(u64::MAX);
+    if count > caps.parts {
+        return Err(too_large("zip package parts", count, caps.parts));
+    }
+    Ok(())
+}
+
+pub(crate) fn read_bounded(file: impl Read, limit: u64) -> Result<Vec<u8>, CodecError> {
+    let mut raw = Vec::new();
+    file.take(limit.saturating_add(1)).read_to_end(&mut raw)?;
+    let size = u64::try_from(raw.len()).unwrap_or(u64::MAX);
+    if size > limit {
+        return Err(too_large("zip package part (inflated bytes)", size, limit));
+    }
+    Ok(raw)
+}
+
+pub(crate) fn open_archive(bytes: &[u8]) -> Result<ZipArchive<Cursor<&[u8]>>, CodecError> {
+    let archive = ZipArchive::new(Cursor::new(bytes)).map_err(zip_error)?;
+    check_part_count(archive.len(), PackageCaps::CEILING)?;
+    Ok(archive)
+}
+
+fn add_inflated(total: u64, part: &[u8], caps: PackageCaps) -> Result<u64, CodecError> {
+    let total = total.saturating_add(u64::try_from(part.len()).unwrap_or(u64::MAX));
+    if total > caps.inflated_bytes {
+        return Err(too_large(
+            "zip package (inflated bytes)",
+            total,
+            caps.inflated_bytes,
+        ));
+    }
+    Ok(total)
+}
+
+fn carries_zip_signature(bytes: &[u8]) -> bool {
+    ZIP_SIGNATURES.iter().any(|signature| {
+        bytes
+            .windows(signature.len())
+            .any(|window| window == *signature)
+    })
+}
+
+pub fn inspect_package(bytes: &[u8], caps: PackageCaps) -> Result<(), CodecError> {
+    let mut archive = match ZipArchive::new(Cursor::new(bytes)) {
+        Ok(archive) => archive,
+        Err(_) if !carries_zip_signature(bytes) => return Ok(()),
+        Err(source) => return Err(zip_error(source)),
+    };
+    check_part_count(archive.len(), caps)?;
+    let mut total = 0;
+    for index in 0..archive.len() {
+        let file = archive.by_index(index).map_err(zip_error)?;
+        let part = read_bounded(file, caps.part_bytes)?;
+        total = add_inflated(total, &part, caps)?;
+    }
+    Ok(())
+}
+
 pub(crate) struct Package<'a> {
     archive: ZipArchive<Cursor<&'a [u8]>>,
     overrides: BTreeMap<String, String>,
     added: Vec<(String, String)>,
+    inflated: u64,
 }
 
 impl<'a> Package<'a> {
     pub(crate) fn open(bytes: &'a [u8]) -> Result<Self, CodecError> {
         Ok(Self {
-            archive: ZipArchive::new(Cursor::new(bytes)).map_err(zip_error)?,
+            archive: open_archive(bytes)?,
             overrides: BTreeMap::new(),
             added: Vec::new(),
+            inflated: 0,
         })
     }
 
@@ -64,13 +166,14 @@ impl<'a> Package<'a> {
         if let Some((_, xml)) = self.added.iter().find(|(added, _)| added == name) {
             return Ok(Some(xml.clone()));
         }
-        let mut file = match self.archive.by_name(name) {
+        let file = match self.archive.by_name(name) {
             Ok(file) => file,
             Err(ZipError::FileNotFound) => return Ok(None),
             Err(source) => return Err(zip_error(source)),
         };
-        let mut raw = Vec::new();
-        file.read_to_end(&mut raw)?;
+        let caps = PackageCaps::CEILING;
+        let raw = read_bounded(file, caps.part_bytes)?;
+        self.inflated = add_inflated(self.inflated, &raw, caps)?;
         String::from_utf8(raw)
             .map(Some)
             .map_err(|source| parse_error(name, source))

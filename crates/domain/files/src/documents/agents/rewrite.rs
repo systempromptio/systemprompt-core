@@ -40,8 +40,6 @@ impl RewriteTracker {
         Self::default()
     }
 
-    /// The distinct count `touch` would answer, without recording anything:
-    /// a refused write must not count against the agent.
     #[must_use]
     pub fn would_reach(
         &self,
@@ -65,7 +63,10 @@ impl RewriteTracker {
                     .flat_map(|(_, nodes)| nodes.iter()),
             );
         }
-        distinct.len()
+        let reached = distinct.len();
+        drop(distinct);
+        drop(windows);
+        reached
     }
 
     pub fn touch(

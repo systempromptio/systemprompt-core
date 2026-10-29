@@ -43,7 +43,7 @@ use systemprompt_models::documents::{
 
 use super::drive_token::device_user;
 use super::error::DocumentsResult;
-use super::headers::{base_revision, etag, none_match, range};
+use super::headers::{base_revision, hash_etag, none_match, range};
 use crate::services::middleware::JwtContextExtractor;
 
 const DEFAULT_CHANGES: i64 = 500;
@@ -170,7 +170,7 @@ async fn blob(
     let (who, actor) = device_user(&state, &headers).await?;
     let trace = TraceId::generate();
     let hash = ContentHash::try_new(sha256).map_err(ApiError::from)?;
-    let tag = etag(&hash);
+    let tag = hash_etag(&hash);
     if none_match(&headers, &tag) {
         return Ok(StatusCode::NOT_MODIFIED.into_response());
     }

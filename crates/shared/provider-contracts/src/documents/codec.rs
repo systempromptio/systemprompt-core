@@ -57,6 +57,12 @@ pub enum CodecError {
     Malformed { detail: &'static str },
     #[error("the document cannot hold this content: {detail}")]
     Refused { detail: String },
+    #[error("{what} of {size} exceeds the limit of {limit}")]
+    TooLarge {
+        what: &'static str,
+        size: u64,
+        limit: u64,
+    },
     #[error(
         "{what} is not valid RichText v2 JSON: {source} (schema: GET /api/v1/documents/schema)"
     )]

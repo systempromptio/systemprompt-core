@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE document_edit_sessions\n             SET checkpoint_lease_until = now() + make_interval(secs => $3)\n             WHERE id = $1::text::uuid AND closed_at IS NULL AND checkpoint_lease_id = $2\n               AND checkpoint_lease_until > now()",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Uuid",
+        "Float8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "cc258310df9d554b1155f4fb7d3bd01b2c0a559d631f16c0a74673654619fa0a"
+}

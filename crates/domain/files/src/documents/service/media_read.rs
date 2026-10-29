@@ -39,7 +39,9 @@ impl DocumentService {
         if !held_media_refs(document.format, &bytes, &wanted, limit).contains(&wanted[0]) {
             return Err(missing());
         }
-        let hash = ContentHash::try_new(reference).map_err(|_| missing())?;
+        let Ok(hash) = ContentHash::try_new(reference) else {
+            return Err(missing());
+        };
         let content = self.media_bytes(&hash).await?;
         let mime = sniff(&content).ok_or_else(missing)?;
         Ok(MediaBlob {
