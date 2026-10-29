@@ -167,7 +167,8 @@ fn start_runner_services(ctx: &AppContext) {
     let mut started = 0usize;
     #[cfg(feature = "notifications")]
     {
-        let consumer: Arc<dyn RunnerService> = ctx.notifications().consumer.clone();
+        let consumer = Arc::clone(&ctx.notifications().consumer);
+        let consumer: Arc<dyn RunnerService> = consumer;
         spawn_runner_service(ctx, &shared, consumer);
         tracing::info!(service = "notifications", "runner service started");
         started += 1;

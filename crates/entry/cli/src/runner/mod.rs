@@ -169,7 +169,7 @@ async fn dispatch_command(command: Option<args::Commands>, ctx: &CommandContext)
     }
 
     match command {
-        Some(args::Commands::Core(cmd)) => core::execute(cmd, ctx).await?,
+        Some(args::Commands::Core(cmd)) => Box::pin(core::execute(cmd, ctx)).await?,
         Some(args::Commands::Infra(cmd)) => infrastructure::execute(cmd, ctx).await?,
         Some(args::Commands::Admin(cmd)) => Box::pin(admin::execute(cmd, ctx)).await?,
         Some(args::Commands::Cloud(cmd)) => cloud::execute(cmd, ctx).await?,

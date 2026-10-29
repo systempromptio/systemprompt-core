@@ -7,8 +7,8 @@
 //! Extension seams (routers, audience resolvers, publish policies, channels
 //! and resource visibility) are discovered over the built context and the
 //! core defaults are appended after them: [`UserRoleAudienceResolver`] for
-//! users, roles and everyone, and [`DocumentVisibility`] for documents,
-//! folders and comments.
+//! users, roles and everyone, [`DocumentVisibility`] for documents,
+//! folders and comments, and [`IssueVisibility`] for issue reports.
 //!
 //! [`AppContext`]: crate::AppContext
 //!
@@ -16,6 +16,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod audience;
+mod issue_visibility;
 mod visibility;
 
 use std::sync::Arc;
@@ -25,6 +26,7 @@ use systemprompt_notifications::consumer::NotificationsConsumer;
 use systemprompt_notifications::service::NotificationsService;
 
 pub use audience::UserRoleAudienceResolver;
+pub use issue_visibility::IssueVisibility;
 pub use visibility::DocumentVisibility;
 
 /// The runtime's notifications service, producer sink and outbox consumer.

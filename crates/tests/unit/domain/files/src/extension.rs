@@ -35,7 +35,7 @@ fn test_files_extension_metadata_version() {
 fn test_files_extension_schemas_count() {
     let ext = FilesExtension;
     let schemas = ext.schemas();
-    assert_eq!(schemas.len(), 25);
+    assert_eq!(schemas.len(), 27);
 }
 
 #[test]
@@ -45,6 +45,8 @@ fn test_files_extension_schemas_names() {
     let names: Vec<&str> = schemas.iter().filter_map(|s| s.table.as_deref()).collect();
     assert!(names.contains(&"files"));
     assert!(names.contains(&"content_files"));
+    assert!(names.contains(&"issue_reports"));
+    assert!(names.contains(&"issue_report_attachments"));
 }
 
 #[test]

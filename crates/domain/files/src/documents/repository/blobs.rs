@@ -78,6 +78,8 @@ impl DocumentBlobRepository {
                                  WHERE r.content_sha256 = b.content_sha256)
                  AND NOT EXISTS (SELECT 1 FROM document_edit_sessions s
                                  WHERE s.snapshot_sha256 = b.content_sha256)
+                 AND NOT EXISTS (SELECT 1 FROM issue_report_attachments f
+                                 WHERE f.content_sha256 = b.content_sha256)
                ORDER BY b.created_at
                LIMIT $2"#,
             i32::try_from(interval_hours).unwrap_or(i32::MAX),
@@ -93,7 +95,9 @@ impl DocumentBlobRepository {
                AND NOT EXISTS (SELECT 1 FROM document_revisions r
                                WHERE r.content_sha256 = b.content_sha256)
                AND NOT EXISTS (SELECT 1 FROM document_edit_sessions s
-                               WHERE s.snapshot_sha256 = b.content_sha256)",
+                               WHERE s.snapshot_sha256 = b.content_sha256)
+               AND NOT EXISTS (SELECT 1 FROM issue_report_attachments f
+                               WHERE f.content_sha256 = b.content_sha256)",
             hash.as_str(),
         )
         .execute(&*self.pools.write)

@@ -18,6 +18,7 @@ use systemprompt_files::documents::{
     DocumentAccessRepositories, DocumentAccessService, DocumentEvents, DocumentService,
     DocumentServiceParts, DocumentsError, SubjectDirectory,
 };
+use systemprompt_files::issues::IssueService;
 use systemprompt_files::uploads::{UploadService, UploadServiceParts};
 use systemprompt_governance::authz::{AccessControlRepository, SharedAuthzHook};
 use systemprompt_models::authz::SubjectAttributeSource;
@@ -41,6 +42,7 @@ pub struct DocumentsRuntimeParts {
     pub notifications: DynNotificationSink,
     pub catalog: Vec<CatalogTemplate>,
     pub config: DocumentsConfig,
+    pub issues: Arc<IssueService>,
     pub background_tasks: BackgroundTasks,
     pub unscoped_actor: Option<DocumentActor>,
 }
@@ -60,13 +62,15 @@ impl std::fmt::Debug for DocumentsRuntimeParts {
 /// and, with the `collab` feature, the process's one live co-editing
 /// service, whose timer runs on the runtime's background tasks. Beside it
 /// sits the [`UploadService`] the resumable upload API runs on, over the
-/// same blob store.
+/// same blob store, and the [`IssueService`] whose report attachments are
+/// that service's uploads.
 #[derive(Debug, Clone)]
 pub struct DocumentsRuntime {
     repositories: Arc<DocumentRepositories>,
     access: Arc<DocumentAccessService>,
     service: Arc<DocumentService>,
     uploads: Arc<UploadService>,
+    issues: Arc<IssueService>,
     #[cfg(feature = "collab")]
     collab: Arc<CollabService>,
 }
@@ -85,6 +89,7 @@ impl DocumentsRuntime {
             notifications,
             catalog,
             config,
+            issues,
             background_tasks,
             unscoped_actor,
         } = parts;
@@ -140,6 +145,7 @@ impl DocumentsRuntime {
             access,
             service,
             uploads,
+            issues,
             #[cfg(feature = "collab")]
             collab,
         }
@@ -169,6 +175,11 @@ impl DocumentsRuntime {
     #[must_use]
     pub const fn uploads(&self) -> &Arc<UploadService> {
         &self.uploads
+    }
+
+    #[must_use]
+    pub const fn issues(&self) -> &Arc<IssueService> {
+        &self.issues
     }
 
     pub async fn reconcile_folder_entities(&self) -> Result<u64, DocumentsError> {

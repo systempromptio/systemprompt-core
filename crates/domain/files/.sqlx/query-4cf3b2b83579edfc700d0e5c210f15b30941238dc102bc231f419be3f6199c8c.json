@@ -1,0 +1,54 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO issue_reports\n                   (reporter_user_id, via_agent, kind, severity, title, body, fingerprint,\n                    trace_id, context_id, session_id, task_id, mcp_execution_id, client)\n               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)\n               ON CONFLICT (reporter_user_id, fingerprint)\n                   WHERE status IN ('open', 'triaged', 'needs_info')\n               DO UPDATE SET\n                   occurrences = issue_reports.occurrences + 1,\n                   last_seen_at = now(),\n                   updated_at = now(),\n                   severity = CASE\n                       WHEN array_position(ARRAY['low','medium','high','critical'], EXCLUDED.severity)\n                          > array_position(ARRAY['low','medium','high','critical'], issue_reports.severity)\n                       THEN EXCLUDED.severity ELSE issue_reports.severity END,\n                   trace_id = EXCLUDED.trace_id,\n                   context_id = EXCLUDED.context_id,\n                   session_id = EXCLUDED.session_id,\n                   task_id = EXCLUDED.task_id,\n                   mcp_execution_id = EXCLUDED.mcp_execution_id\n               RETURNING id::text AS \"id!: IssueReportId\", (xmax = 0) AS \"inserted!\",\n                         occurrences",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!: IssueReportId",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "inserted!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "occurrences",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "issue_reports",
+            "name": "occurrences"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Jsonb"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      false
+    ]
+  },
+  "hash": "4cf3b2b83579edfc700d0e5c210f15b30941238dc102bc231f419be3f6199c8c"
+}

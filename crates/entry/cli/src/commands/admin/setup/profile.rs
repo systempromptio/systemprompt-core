@@ -86,21 +86,8 @@ pub(super) fn build(params: &ProfileBuildParams<'_>) -> Result<Profile> {
             ..Default::default()
         },
         runtime: sections::runtime(runtime_env, is_prod),
-        cloud: Some(CloudConfig {
-            tenant_id: None,
-            provider: systemprompt_manifest::HostingProvider::default(),
-            validation: CloudValidationMode::Skip,
-            deploy: None,
-            operator: None,
-        }),
-        secrets: Some(SecretsConfig {
-            secrets_path: Some(secrets_path.to_owned()),
-            validation: SecretsValidationMode::Warn,
-            source: SecretsSource::File,
-            vault: None,
-            external: None,
-            refresh_secs: None,
-        }),
+        cloud: Some(local_cloud()),
+        secrets: Some(file_secrets(secrets_path)),
         extensions: ExtensionsConfig::default(),
         governance: Some(governance),
         judge: systemprompt_manifest::profile::JudgeProfile::default(),
@@ -191,4 +178,25 @@ pub(super) fn run_migrations(profile_path: &Path) -> Result<()> {
         "Database migrations failed ({}); the profile was written but setup did not complete",
         output.status
     )
+}
+
+fn local_cloud() -> CloudConfig {
+    CloudConfig {
+        tenant_id: None,
+        provider: systemprompt_manifest::HostingProvider::default(),
+        validation: CloudValidationMode::Skip,
+        deploy: None,
+        operator: None,
+    }
+}
+
+fn file_secrets(secrets_path: &str) -> SecretsConfig {
+    SecretsConfig {
+        secrets_path: Some(secrets_path.to_owned()),
+        validation: SecretsValidationMode::Warn,
+        source: SecretsSource::File,
+        vault: None,
+        external: None,
+        refresh_secs: None,
+    }
 }

@@ -27,6 +27,7 @@ mod context_traits;
 mod database_context;
 pub mod documents;
 mod error;
+pub mod issues;
 pub mod managed;
 #[cfg(feature = "notifications")]
 pub mod notifications;

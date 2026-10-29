@@ -37,6 +37,7 @@ mod document_schemas;
 pub mod documents;
 pub mod error;
 pub(crate) mod extension;
+pub mod issues;
 pub(crate) mod jobs;
 pub(crate) mod models;
 pub(crate) mod repository;
@@ -50,7 +51,7 @@ pub use extension::FilesExtension;
 
 pub use config::{
     AllowedFileTypes, DocumentLimits, DocumentsConfig, FilePersistenceMode, FileUploadConfig,
-    FilesConfig, FilesConfigValidator, FilesConfigYaml, MAX_DOCUMENT_UPLOAD_BYTES,
+    FilesConfig, FilesConfigValidator, FilesConfigYaml, IssuesConfig, MAX_DOCUMENT_UPLOAD_BYTES,
     MIN_DOCUMENT_UPLOAD_BYTES, UploadLimits,
 };
 pub use jobs::FileIngestionJob;

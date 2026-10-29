@@ -1,6 +1,8 @@
-//! The notification operations both HTTP surfaces share: the user routes
-//! and the bridge routes parse their own request and caller, then call one
-//! of these with the service, the user and the surface they record.
+//! The notification operations both HTTP surfaces share.
+//!
+//! The user routes and the bridge routes parse their own request and caller,
+//! then call one of these with the service, the user and the surface they
+//! record.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -59,7 +61,12 @@ pub struct SubscriptionList {
     pub subscriptions: Vec<SubscriptionView>,
 }
 
-fn feed_query(params: FeedParams) -> Result<FeedQuery, ApiHttpError> {
+#[expect(
+    clippy::result_large_err,
+    reason = "ApiHttpError is the handler error type; boxing it here would propagate to every \
+              caller for negligible gain"
+)]
+fn feed_query(params: &FeedParams) -> Result<FeedQuery, ApiHttpError> {
     let since = params
         .since
         .as_deref()
@@ -79,7 +86,7 @@ pub async fn feed(
     user: &UserId,
     params: FeedParams,
 ) -> Result<NotificationPage, ApiHttpError> {
-    Ok(service.feed(user, feed_query(params)?).await?)
+    Ok(service.feed(user, feed_query(&params)?).await?)
 }
 
 pub async fn unread(

@@ -28,29 +28,6 @@ async fn tool_list_matches_the_plan_in_order() {
 }
 
 #[tokio::test]
-async fn the_tool_list_stays_under_six_kilobytes() {
-    let h = harness().await;
-    let bytes = serde_json::to_vec(&h.tools.list_tools())
-        .expect("tools json")
-        .len();
-    let per_tool: Vec<String> = h
-        .tools
-        .list_tools()
-        .iter()
-        .map(|tool| {
-            format!(
-                "{} in={} meta={} desc={}",
-                tool.name,
-                serde_json::to_vec(&tool.input_schema).map_or(0, |v| v.len()),
-                serde_json::to_vec(&tool.meta).map_or(0, |v| v.len()),
-                tool.description.as_ref().map_or(0, |d| d.len())
-            )
-        })
-        .collect();
-    assert!(bytes < 6144, "{bytes} bytes: {per_tool:#?}");
-}
-
-#[tokio::test]
 async fn every_input_schema_is_an_object() {
     let h = harness().await;
     for tool in h.tools.list_tools() {

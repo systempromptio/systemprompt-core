@@ -10,6 +10,7 @@ use systemprompt_events::EventRouter;
 use systemprompt_extension::{DynNotificationSink, ExtensionRegistry};
 use systemprompt_files::FilesConfig;
 use systemprompt_files::documents::templates::load_catalog;
+use systemprompt_files::issues::{IssueReportRepository, IssueService};
 use systemprompt_governance::authz::{AccessControlRepository, SharedAuthzHook};
 use systemprompt_loader::BootContext;
 use systemprompt_models::authz::{SubjectAttributeSource, SubjectSourceHandle};
@@ -57,6 +58,11 @@ pub(super) fn build_documents(
         notifications: Arc::clone(inputs.notifications),
         catalog,
         config: *inputs.files_config.documents_config(),
+        issues: Arc::new(IssueService::new(
+            IssueReportRepository::new(inputs.database),
+            Arc::clone(inputs.notifications),
+            inputs.files_config.issues_config().clone(),
+        )),
         background_tasks: inputs.background_tasks.clone(),
         unscoped_actor: None,
     })))

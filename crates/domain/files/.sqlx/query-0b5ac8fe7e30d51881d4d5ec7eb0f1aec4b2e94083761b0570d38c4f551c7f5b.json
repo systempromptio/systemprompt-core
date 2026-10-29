@@ -1,0 +1,31 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT status IN ('open', 'triaged', 'needs_info') AS \"active!\",\n                      (SELECT COUNT(*) FROM issue_report_attachments a\n                       WHERE a.report_id = r.id) AS \"attachments!\"\n               FROM issue_reports r\n               WHERE r.id = $1::text::uuid AND r.reporter_user_id = $2\n               FOR UPDATE",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "active!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "attachments!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "0b5ac8fe7e30d51881d4d5ec7eb0f1aec4b2e94083761b0570d38c4f551c7f5b"
+}

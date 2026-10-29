@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM issue_reports WHERE id IN (\n                 SELECT id FROM issue_reports\n                 WHERE closed_at < now() - make_interval(days => $1::int)\n                 ORDER BY closed_at LIMIT $2)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "fa947fcfba726228166eb43c00258d36b1ab2ede8cc9a33d559636f30353395e"
+}

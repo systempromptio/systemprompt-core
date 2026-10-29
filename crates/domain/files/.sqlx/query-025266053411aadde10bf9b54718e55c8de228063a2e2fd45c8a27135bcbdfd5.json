@@ -1,0 +1,83 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT upload_id::text AS \"upload_id!: DocumentUploadId\",\n                      content_sha256 AS \"content_sha256!: ContentHash\",\n                      file_name, mime_type, size_bytes, created_at\n               FROM issue_report_attachments WHERE report_id = $1::text::uuid\n               ORDER BY created_at, upload_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "upload_id!: DocumentUploadId",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "content_sha256!: ContentHash",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "issue_report_attachments",
+            "name": "content_sha256"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "file_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "issue_report_attachments",
+            "name": "file_name"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "mime_type",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "issue_report_attachments",
+            "name": "mime_type"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "size_bytes",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "issue_report_attachments",
+            "name": "size_bytes"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "issue_report_attachments",
+            "name": "created_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "025266053411aadde10bf9b54718e55c8de228063a2e2fd45c8a27135bcbdfd5"
+}

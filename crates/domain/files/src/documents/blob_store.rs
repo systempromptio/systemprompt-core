@@ -11,10 +11,10 @@
 //! it to the same content-addressed path a `put` uses.
 //!
 //! Garbage collection deletes the row first, because the repository refuses
-//! to delete a row a revision or edit session still references; only then is
-//! the object removed. A failed object delete leaves an orphaned object and
-//! no row. The orphan is never served, and a later `put` of the same bytes
-//! finds it and restores the row.
+//! to delete a row a revision, edit session or issue report attachment still
+//! references; only then is the object removed. A failed object delete
+//! leaves an orphaned object and no row. The orphan is never served, and a
+//! later `put` of the same bytes finds it and restores the row.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

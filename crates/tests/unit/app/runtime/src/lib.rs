@@ -50,6 +50,7 @@ mod documents_mcp_lines;
 mod documents_mcp_proposals;
 #[cfg(test)]
 mod documents_mcp_refusals;
+
 #[cfg(test)]
 mod documents_mcp_schema;
 #[cfg(test)]
@@ -66,6 +67,8 @@ mod documents_refusal_parity;
 mod error_variants;
 #[cfg(test)]
 mod ext_fixtures;
+#[cfg(test)]
+mod issues_mcp_refusals;
 #[cfg(all(test, unix))]
 mod managed_inventory_lifecycle;
 #[cfg(test)]

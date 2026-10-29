@@ -1,6 +1,8 @@
-//! `/api/v1/notifications` and `/api/v1/admin/notifications`: a user's
-//! notification feed, seen, read and escalation state, streams, subscriptions
-//! and personal rules over HTTP, and the admin routing simulator.
+//! `/api/v1/notifications` and `/api/v1/admin/notifications` over HTTP.
+//!
+//! They serve a user's notification feed, seen, read and escalation state,
+//! streams, subscriptions and personal rules, and the admin routing
+//! simulator.
 //!
 //! Each handler resolves the caller and calls one operation of the shared
 //! [`ops`] layer, which the bridge routes under `/v1/bridge/notifications`

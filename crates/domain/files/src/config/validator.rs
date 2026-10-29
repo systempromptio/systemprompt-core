@@ -13,6 +13,7 @@ use systemprompt_traits::ConfigProvider;
 use super::FilesConfig;
 use super::document_limits::DocumentLimits;
 use super::documents::{MAX_DOCUMENT_UPLOAD_BYTES, MIN_DOCUMENT_UPLOAD_BYTES};
+use super::issues::IssuesConfig;
 use super::types::FilesConfigYaml;
 use super::upload_limits::UploadLimits;
 
@@ -131,6 +132,7 @@ impl DomainConfig for FilesConfigValidator {
         }
         validate_limits(&mut report, &documents.limits);
         validate_upload_limits(&mut report, &documents.uploads);
+        validate_issues(&mut report, &config.issues, documents.enabled);
 
         Ok(report)
     }
@@ -155,5 +157,38 @@ fn validate_upload_limits(report: &mut ValidationReport, limits: &UploadLimits) 
                 format!("{field} must be between {low} and {high}"),
             ));
         }
+    }
+}
+
+fn validate_issues(report: &mut ValidationReport, issues: &IssuesConfig, documents: bool) {
+    if !issues.enabled {
+        return;
+    }
+    if issues.max_reports_per_hour == 0 {
+        report.add_error(ValidationIssue::new(
+            "files.issues.maxReportsPerHour",
+            "At least one report per hour must be allowed",
+        ));
+    }
+    if issues.retention_days == 0 {
+        report.add_error(ValidationIssue::new(
+            "files.issues.retentionDays",
+            "Report retention must be at least one day",
+        ));
+    }
+    if issues.triage_roles.is_empty() {
+        report.add_error(ValidationIssue::new(
+            "files.issues.triageRoles",
+            "At least one role must triage reports",
+        ));
+    }
+    if issues.max_attachments > 0 && !documents {
+        report.add_warning(
+            ValidationWarning::new(
+                "files.issues.maxAttachments",
+                "Report attachments are document-store uploads; with files.documents off, reports carry none",
+            )
+            .with_suggestion("Enable files.documents or set maxAttachments to 0"),
+        );
     }
 }

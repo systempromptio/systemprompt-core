@@ -23,6 +23,8 @@ impl NotificationKind {
     pub const MENTIONED: &'static str = "document.comment.mentioned";
     pub const SHARED: &'static str = "document.shared";
     pub const STREAM_PUBLISHED: &'static str = "stream.published";
+    pub const ISSUE_REPORTED: &'static str = "issue.reported";
+    pub const ISSUE_STATUS_CHANGED: &'static str = "issue.status_changed";
 
     pub fn new(value: impl Into<String>) -> Result<Self, NotificationKindError> {
         let value = value.into();

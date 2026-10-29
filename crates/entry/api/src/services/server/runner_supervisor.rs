@@ -1,5 +1,7 @@
-//! Supervision of runner services: a runner that panics or returns while the
-//! server is up is started again on the same background task, after an
+//! Supervision of runner services.
+//!
+//! A runner that panics or returns while the server is up is started again
+//! on the same background task, after an
 //! exponential backoff from one second to a sixty-second cap. A run that
 //! stayed up for five minutes resets the backoff. Every restart is logged and
 //! counted in `runner_restarts_total{runner}`.

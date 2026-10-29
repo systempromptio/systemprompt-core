@@ -18,6 +18,7 @@ pub mod content;
 pub mod documents;
 pub mod engagement;
 pub mod gateway;
+pub mod issues;
 pub mod managed;
 pub mod marketplace;
 pub mod mcp;

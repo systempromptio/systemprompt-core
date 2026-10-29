@@ -83,6 +83,7 @@ pub mod execution;
 pub mod extension;
 pub mod feedback;
 pub mod hooks;
+pub mod issues;
 pub mod licence;
 pub mod managed;
 pub mod mcp;

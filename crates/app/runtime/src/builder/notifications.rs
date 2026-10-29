@@ -36,7 +36,9 @@ use systemprompt_notifications::sink::OutboxNotificationSink;
 use systemprompt_users::UserRepository;
 
 use crate::documents::DocumentsRuntime;
-use crate::notifications::{DocumentVisibility, NotificationsHandle, UserRoleAudienceResolver};
+use crate::notifications::{
+    DocumentVisibility, IssueVisibility, NotificationsHandle, UserRoleAudienceResolver,
+};
 
 pub fn notification_sink(database: &DbPool, instance_id: InstanceId) -> DynNotificationSink {
     let outbox = DurableOutbox::new(database.write_pool().as_ref().clone(), instance_id);
@@ -142,6 +144,10 @@ impl NotificationsCore {
         visibilities.push(Arc::new(DocumentVisibility::new(
             Arc::clone(self.documents.access()),
             Arc::clone(self.documents.repositories()),
+        )));
+        visibilities.push(Arc::new(IssueVisibility::new(
+            Arc::clone(self.documents.issues()),
+            Arc::clone(&self.users),
         )));
         channels.push(Arc::new(AguiChannel::new(Arc::clone(&self.router))));
         publish_policies.push(Arc::new(DefaultPublishPolicy::new(

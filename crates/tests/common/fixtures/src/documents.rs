@@ -103,6 +103,14 @@ pub fn fixture_documents_runtime_configured(
         notifications: fixture_notification_sink(pool),
         catalog: Vec::new(),
         config,
+        issues: Arc::new(systemprompt_files::issues::IssueService::new(
+            systemprompt_files::issues::IssueReportRepository::new(pool),
+            fixture_notification_sink(pool),
+            systemprompt_files::IssuesConfig {
+                enabled: true,
+                ..systemprompt_files::IssuesConfig::default()
+            },
+        )),
         background_tasks,
         unscoped_actor: Some(DocumentActor::Human),
     }))

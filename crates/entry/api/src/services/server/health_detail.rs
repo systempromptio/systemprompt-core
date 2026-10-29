@@ -1,4 +1,6 @@
-//! Detailed health probes: service counts, static-content presence and, with
+//! Detailed health probes.
+//!
+//! They report service counts, static-content presence and, with
 //! notifications built in, the notification consumer's state and delivery
 //! backlog. A backlog that cannot be read reports the entry degraded.
 //!

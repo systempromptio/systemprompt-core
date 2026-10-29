@@ -80,6 +80,8 @@ mod documents_write_acks;
 #[cfg(test)]
 mod file_ingestion;
 #[cfg(test)]
+mod issues;
+#[cfg(test)]
 mod repository;
 #[cfg(test)]
 mod services;

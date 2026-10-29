@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT b.content_sha256 AS \"content_sha256: ContentHash\",\n                      b.size_bytes, b.storage_id, b.created_at\n               FROM document_blobs b\n               WHERE b.created_at < now() - make_interval(hours => $1::int)\n                 AND NOT EXISTS (SELECT 1 FROM document_revisions r\n                                 WHERE r.content_sha256 = b.content_sha256)\n                 AND NOT EXISTS (SELECT 1 FROM document_edit_sessions s\n                                 WHERE s.snapshot_sha256 = b.content_sha256)\n               ORDER BY b.created_at\n               LIMIT $2",
+  "query": "SELECT b.content_sha256 AS \"content_sha256: ContentHash\",\n                      b.size_bytes, b.storage_id, b.created_at\n               FROM document_blobs b\n               WHERE b.created_at < now() - make_interval(hours => $1::int)\n                 AND NOT EXISTS (SELECT 1 FROM document_revisions r\n                                 WHERE r.content_sha256 = b.content_sha256)\n                 AND NOT EXISTS (SELECT 1 FROM document_edit_sessions s\n                                 WHERE s.snapshot_sha256 = b.content_sha256)\n                 AND NOT EXISTS (SELECT 1 FROM issue_report_attachments f\n                                 WHERE f.content_sha256 = b.content_sha256)\n               ORDER BY b.created_at\n               LIMIT $2",
   "describe": {
     "columns": [
       {
@@ -61,5 +61,5 @@
       false
     ]
   },
-  "hash": "1f06dc6363b7a518a7dc1fd50761350a9eadc444b53a961c61202449213453ad"
+  "hash": "19f5411ca0c5f418cb02ee1655befe3c34dfbb0a49d6d4a0a117aa4446a17fe0"
 }
