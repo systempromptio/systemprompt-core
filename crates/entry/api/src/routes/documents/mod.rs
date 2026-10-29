@@ -39,6 +39,7 @@ mod items_multipart;
 mod lifecycle;
 mod listing;
 mod live;
+mod media;
 mod proposals;
 mod read;
 mod requests;
@@ -171,6 +172,7 @@ pub fn router(state: DocumentsState) -> Router {
             patch(comments::edit).delete(comments::delete),
         )
         .route("/{id}/export/docx", get(export::docx))
+        .route("/{id}/media", get(media::image))
         .route("/{id}/access", get(access::access))
         .route(
             "/{id}/agent-cap",

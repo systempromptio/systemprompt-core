@@ -50,6 +50,7 @@ mod limits;
 mod listing;
 mod locks;
 mod media;
+mod media_read;
 mod mentions;
 mod node_ids;
 mod notify;
