@@ -41,6 +41,6 @@ pub use registry::{
 #[cfg(feature = "sqlx")]
 pub use traits::{DynNotificationSink, NotificationSink};
 pub use traits::{
-    Membership, NotificationAudienceResolver, NotificationChannel, NotificationRouter,
-    PublishPolicy, PublishVerdict, ResourceVisibility, Visibility,
+    Membership, NotificationActorDirectory, NotificationAudienceResolver, NotificationChannel,
+    NotificationRouter, PublishPolicy, PublishVerdict, ResourceVisibility, Visibility,
 };

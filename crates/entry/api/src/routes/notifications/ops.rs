@@ -9,7 +9,6 @@
 
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{NotificationId, NotificationSubscriptionId, UserId};
-use systemprompt_models::api::ApiError;
 use systemprompt_models::notifications::{
     Attention, Escalate, KeysetCursor, MarkRead, MarkSeen, Notification, NotificationPage,
     StreamDecl, SubscriptionDecl,
@@ -71,8 +70,7 @@ fn feed_query(params: &FeedParams) -> Result<FeedQuery, ApiHttpError> {
         .since
         .as_deref()
         .map(str::parse::<KeysetCursor>)
-        .transpose()
-        .map_err(|e| ApiError::bad_request("invalid since cursor").with_source(e))?;
+        .transpose()?;
     Ok(FeedQuery {
         since,
         limit: params.limit.unwrap_or(DEFAULT_LIMIT).clamp(1, MAX_LIMIT),

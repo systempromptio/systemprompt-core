@@ -159,6 +159,7 @@ impl NotificationsCore {
             audiences,
             visibilities,
             channels,
+            actors: Arc::new(UserRoleAudienceResolver::new(Arc::clone(&self.users))),
             repos: Arc::clone(&self.repos),
             profile: self.profile,
         }));

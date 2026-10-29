@@ -30,7 +30,8 @@ pub use attention::{Attention, AttentionReason, UnknownNotificationValue};
 pub use cursor::{KeysetCursor, KeysetCursorError};
 pub use declarations::{
     DeclError, DigestWindow, NotificationsDoc, QuietHours, RuleAction, RuleDecl, RuleMatch,
-    StreamAttention, StreamDecl, SubscriptionDecl, SubscriptionTarget, validate,
+    StreamAttention, StreamDecl, SubscriptionDecl, SubscriptionTarget, SubscriptionTargetError,
+    validate,
 };
 pub use event::{
     DirectRecipient, NOTIFICATION_EVENT_VERSION, NOTIFICATIONS_CONSUMER, NotificationEvent,

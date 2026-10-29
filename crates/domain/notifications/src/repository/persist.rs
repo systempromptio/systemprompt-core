@@ -62,18 +62,17 @@ impl NotificationRepository {
             r#"INSERT INTO notifications
                    (recipient_user_id, kind, stream_id, actor_user_id, actor_is_agent, via_agent, subjects,
                     primary_subject_kind, primary_subject_id, attention, attention_reason, action, excerpt,
-                    coalesce_key, first_event_at, last_event_at, outbox_id, held_until, delivery_state)
+                    coalesce_key, first_event_at, last_event_at, outbox_id, held_until, delivery_state, actor_display)
                SELECT r.recipient, $1, $2, $3, $4, $5, $6, $7, $8, r.attention, r.reason, $9,
                       r.excerpt, r.coalesce_key, $10, $10, $11, r.held_until,
-                      CASE WHEN r.held_until IS NULL THEN 'pending' ELSE 'held' END
+                      CASE WHEN r.held_until IS NULL THEN 'pending' ELSE 'held' END, $18
                FROM UNNEST($12::text[], $13::text[], $14::text[], $15::text[], $16::text[], $17::timestamptz[])
                     AS r(recipient, attention, reason, excerpt, coalesce_key, held_until)
                ON CONFLICT (recipient_user_id, coalesce_key) WHERE read_at IS NULL
                DO UPDATE SET
                    coalesce_count = notifications.coalesce_count + 1,
                    last_event_at = EXCLUDED.last_event_at,
-                   excerpt = EXCLUDED.excerpt,
-                   subjects = EXCLUDED.subjects,
+                   excerpt = EXCLUDED.excerpt, subjects = EXCLUDED.subjects,
                    action = EXCLUDED.action,
                    attention = CASE WHEN array_position(ARRAY['silent','agent','human'], EXCLUDED.attention) > array_position(ARRAY['silent','agent','human'], notifications.attention)
                        THEN EXCLUDED.attention ELSE notifications.attention END,
@@ -117,6 +116,7 @@ impl NotificationRepository {
             &cols.excerpts as _,
             &cols.keys,
             &cols.held as _,
+            batch.actor_display,
         )
         .fetch_all(&mut *conn)
         .await?;

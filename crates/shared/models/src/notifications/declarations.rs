@@ -55,11 +55,54 @@ pub struct SubscriptionDecl {
 }
 
 /// What a subscription follows: `{stream: <id>}` or `{resource: {kind, id}}`.
+///
+/// It reads and writes as a one-key map rather than a tagged enum, so YAML
+/// declarations use the plain map form.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case", deny_unknown_fields)]
+#[serde(try_from = "TargetMap", into = "TargetMap")]
 pub enum SubscriptionTarget {
     Stream(NotificationStreamId),
     Resource(SubjectRef),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct TargetMap {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    stream: Option<NotificationStreamId>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    resource: Option<SubjectRef>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("a subscription target names exactly one of `stream` or `resource`")]
+pub struct SubscriptionTargetError;
+
+impl TryFrom<TargetMap> for SubscriptionTarget {
+    type Error = SubscriptionTargetError;
+
+    fn try_from(map: TargetMap) -> Result<Self, Self::Error> {
+        match (map.stream, map.resource) {
+            (Some(stream), None) => Ok(Self::Stream(stream)),
+            (None, Some(resource)) => Ok(Self::Resource(resource)),
+            _ => Err(SubscriptionTargetError),
+        }
+    }
+}
+
+impl From<SubscriptionTarget> for TargetMap {
+    fn from(target: SubscriptionTarget) -> Self {
+        match target {
+            SubscriptionTarget::Stream(stream) => Self {
+                stream: Some(stream),
+                resource: None,
+            },
+            SubscriptionTarget::Resource(resource) => Self {
+                stream: None,
+                resource: Some(resource),
+            },
+        }
+    }
 }
 
 /// A daily window, in a named time zone, during which delivery is held.

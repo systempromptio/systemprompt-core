@@ -37,6 +37,7 @@ pub struct ReportInput {
     pub fingerprint: Option<String>,
     #[schemars(description = "Client facts: product and version, OS. A small JSON object.")]
     #[serde(default)]
+    // JSON: the reporter's client facts are a free-form, size-bounded object.
     pub client: Option<serde_json::Value>,
 }
 

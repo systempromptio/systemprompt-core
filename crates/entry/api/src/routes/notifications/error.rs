@@ -11,6 +11,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_models::api::ApiError;
+use systemprompt_models::notifications::KeysetCursorError;
 use systemprompt_notifications::NotificationsError;
 use systemprompt_traits::RepositoryError;
 
@@ -69,5 +70,14 @@ fn repository(error: RepositoryError) -> ApiError {
             ApiError::bad_request(error.to_string()).with_error_key("invalid_params")
         },
         other => ApiError::internal("notification storage failed", other),
+    }
+}
+
+impl From<KeysetCursorError> for ApiHttpError {
+    fn from(error: KeysetCursorError) -> Self {
+        ApiError::bad_request("invalid since cursor")
+            .with_error_key("invalid_cursor")
+            .with_source(error)
+            .into()
     }
 }

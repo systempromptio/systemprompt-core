@@ -66,14 +66,14 @@ impl NotificationRepository {
             r#"SELECT n.id::text AS "id!: NotificationId",
                       n.recipient_user_id AS "recipient_user_id: UserId", n.kind,
                       n.stream_id AS "stream_id: NotificationStreamId",
-                      n.actor_user_id AS "actor_user_id: UserId", u.display_name AS actor_display,
+                      n.actor_user_id AS "actor_user_id: UserId", n.actor_display,
                       n.actor_is_agent, n.via_agent,
                       n.subjects AS "subjects: Json<Vec<SubjectRef>>", n.attention,
                       n.attention_reason, n.action AS "action: Json<ActionPrompt>", n.excerpt,
                       n.coalesce_count, n.first_event_at, n.last_event_at, n.created_at,
                       n.read_at, n.escalated_from, n.escalation_note, n.held_until,
                       n.delivery_state, n.delivery_seq
-               FROM notifications n LEFT JOIN users u ON u.id = n.actor_user_id
+               FROM notifications n
                WHERE n.recipient_user_id = $1 AND n.id = ANY($2::text[]::uuid[])
                ORDER BY n.created_at DESC, n.id DESC"#,
             recipient.as_str(),
@@ -96,14 +96,14 @@ impl NotificationRepository {
             r#"SELECT n.id::text AS "id!: NotificationId",
                       n.recipient_user_id AS "recipient_user_id: UserId", n.kind,
                       n.stream_id AS "stream_id: NotificationStreamId",
-                      n.actor_user_id AS "actor_user_id: UserId", u.display_name AS actor_display,
+                      n.actor_user_id AS "actor_user_id: UserId", n.actor_display,
                       n.actor_is_agent, n.via_agent,
                       n.subjects AS "subjects: Json<Vec<SubjectRef>>", n.attention,
                       n.attention_reason, n.action AS "action: Json<ActionPrompt>", n.excerpt,
                       n.coalesce_count, n.first_event_at, n.last_event_at, n.created_at,
                       n.read_at, n.escalated_from, n.escalation_note, n.held_until,
                       n.delivery_state, n.delivery_seq
-               FROM notifications n LEFT JOIN users u ON u.id = n.actor_user_id
+               FROM notifications n
                WHERE n.id = ANY($1::text[]::uuid[]) AND n.delivery_state = $2
                ORDER BY n.created_at, n.id
                FOR NO KEY UPDATE OF n SKIP LOCKED"#,
@@ -134,14 +134,14 @@ impl NotificationRepository {
             r#"SELECT n.id::text AS "id!: NotificationId",
                       n.recipient_user_id AS "recipient_user_id: UserId", n.kind,
                       n.stream_id AS "stream_id: NotificationStreamId",
-                      n.actor_user_id AS "actor_user_id: UserId", u.display_name AS actor_display,
+                      n.actor_user_id AS "actor_user_id: UserId", n.actor_display,
                       n.actor_is_agent, n.via_agent,
                       n.subjects AS "subjects: Json<Vec<SubjectRef>>", n.attention,
                       n.attention_reason, n.action AS "action: Json<ActionPrompt>", n.excerpt,
                       n.coalesce_count, n.first_event_at, n.last_event_at, n.created_at,
                       n.read_at, n.escalated_from, n.escalation_note, n.held_until,
                       n.delivery_state, n.delivery_seq
-               FROM notifications n LEFT JOIN users u ON u.id = n.actor_user_id
+               FROM notifications n
                WHERE n.recipient_user_id = $1
                  AND ($2::timestamptz IS NULL OR (n.created_at, n.id) < ($2, $3::text::uuid))
                  AND ($4::text IS NULL OR n.attention = $4)

@@ -41,6 +41,7 @@
 - **Breaking:** **Events:** `SseEvent` gains `FactOnly` and `Topic`, and `OutboxChannel` gains `Fact`. Migrate by adding arms (or a wildcard) to exhaustive matches.
 - **Breaking:** **Manifest:** `Profile` gains `notifications: NotificationsProfile`. The YAML block is optional and defaulted. Migrate struct literals by adding `notifications: NotificationsProfile::default()`.
 - **Breaking:** **Bridge:** `ProxyDeps` gains `notification_signals: NotificationSignals`, and `HostApp` gains the defaulted method `start_session`. Migrate struct literals by passing the signals from `NotificationSignals::channel()`.
+- **Breaking:** **Notifications:** `PipelineParts` gains `actors: Arc<dyn NotificationActorDirectory>`, and `NewNotifications` gains `actor_display: Option<String>`. The consumer stores the actor's display name on each row (notifications migration `003`), so the feed no longer joins `users`. Migrate by passing a directory (the runtime's `UserRoleAudienceResolver` implements it).
 - **Breaking:** **Files:** `FilesConfigYaml` gains `issues: IssuesConfig`, and **Runtime:** `DocumentsRuntimeParts` gains `issues: Arc<IssueService>`. Migrate struct literals by adding `issues: IssuesConfig::default()` to `FilesConfigYaml` and an `IssueService` built from `IssueReportRepository::new(&db)`, the notification sink and `files_config.issues_config().clone()`.
 
 ### Added

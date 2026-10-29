@@ -11,6 +11,8 @@
 use systemprompt_files::issues::IssuesError;
 use systemprompt_models::api::ApiError;
 
+use systemprompt_runtime::documents::download::DownloadLinkError;
+
 use crate::error::ApiHttpError;
 
 impl From<IssuesError> for ApiHttpError {
@@ -46,5 +48,11 @@ impl From<IssuesError> for ApiHttpError {
             },
         };
         Self::from(api)
+    }
+}
+
+impl From<DownloadLinkError> for ApiHttpError {
+    fn from(error: DownloadLinkError) -> Self {
+        ApiError::internal("the upload links could not be signed", error).into()
     }
 }

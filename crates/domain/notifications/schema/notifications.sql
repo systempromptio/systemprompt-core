@@ -26,7 +26,8 @@ CREATE TABLE IF NOT EXISTS notifications (
     delivery_state TEXT NOT NULL DEFAULT 'pending'
         CHECK (delivery_state IN ('pending', 'delivered', 'held')),
     delivery_seq BIGINT NOT NULL DEFAULT 0,
-    pending_since TIMESTAMPTZ NOT NULL DEFAULT now()
+    pending_since TIMESTAMPTZ NOT NULL DEFAULT now(),
+    actor_display TEXT CHECK (actor_display IS NULL OR length(actor_display) <= 255)
 );
 
 CREATE INDEX IF NOT EXISTS idx_notifications_unread

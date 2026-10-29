@@ -41,7 +41,8 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use systemprompt_extension::notifications::{
-    NotificationAudienceResolver, NotificationChannel, NotificationRouter, ResourceVisibility,
+    NotificationActorDirectory, NotificationAudienceResolver, NotificationChannel,
+    NotificationRouter, ResourceVisibility,
 };
 use systemprompt_identifiers::{NotificationId, UserId};
 use systemprompt_manifest::profile::NotificationsProfile;
@@ -64,6 +65,7 @@ pub struct PipelineParts {
     pub audiences: Vec<Arc<dyn NotificationAudienceResolver>>,
     pub visibilities: Vec<Arc<dyn ResourceVisibility>>,
     pub channels: Vec<Arc<dyn NotificationChannel>>,
+    pub actors: Arc<dyn NotificationActorDirectory>,
     pub repos: Arc<NotificationRepositories>,
     pub profile: NotificationsProfile,
 }
@@ -154,6 +156,21 @@ impl NotificationPipeline {
     #[must_use]
     pub fn handles_resource_kind(&self, kind: &str) -> bool {
         visibility::has_provider(&self.parts.visibilities, kind)
+    }
+
+    async fn actor_display(&self, actor: &UserId) -> Option<String> {
+        let timeout = Duration::from_millis(self.parts.profile.consumer.resolver_timeout_ms);
+        match tokio::time::timeout(timeout, self.parts.actors.display_name(actor)).await {
+            Ok(Ok(name)) => name.map(|name| name.chars().take(255).collect()),
+            Ok(Err(error)) => {
+                tracing::warn!(actor = %actor, error = %error, "Actor display name lookup failed");
+                None
+            },
+            Err(_elapsed) => {
+                tracing::warn!(actor = %actor, "Actor display name lookup timed out");
+                None
+            },
+        }
     }
 
     pub(crate) fn members(&self) -> Members<'_> {

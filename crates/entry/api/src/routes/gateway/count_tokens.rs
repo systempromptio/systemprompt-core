@@ -2,7 +2,7 @@
 //!
 //! Claude Code asks for counts while it sizes its context, so the route must
 //! answer rather than 404. It authenticates exactly like `/messages` (bridge
-//! JWT, OAuth JWT or API key through [`messages::auth::authenticate`]), but it
+//! JWT, OAuth JWT or API key through [`authenticate`]), but it
 //! is not inference: no route is dispatched, no governance chain, quota or
 //! safety scan runs, and no `ai_requests` row is written.
 //!

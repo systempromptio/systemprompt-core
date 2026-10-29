@@ -152,6 +152,7 @@ pub struct IssueReport {
     pub body: String,
     pub occurrences: i32,
     pub context: IssueContext,
+    // JSON: the reporter's client facts are a free-form, size-bounded object.
     pub client: serde_json::Value,
     pub triage_note: Option<String>,
     pub triaged_by: Option<UserId>,

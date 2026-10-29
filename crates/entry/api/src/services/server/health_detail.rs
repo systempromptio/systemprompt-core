@@ -45,6 +45,7 @@ fn check_static_content(web_dir: &Path) -> (bool, bool) {
 }
 
 #[cfg(feature = "notifications")]
+// JSON: a /health/detail entry is a free-form diagnostic object.
 async fn check_notifications(ctx: &AppContext) -> Option<(serde_json::Value, bool)> {
     let probe = ctx.notifications().consumer.backlog();
     let entry = match tokio::time::timeout(super::health::HEALTH_PROBE_TIMEOUT, probe).await {
@@ -73,6 +74,7 @@ async fn check_notifications(ctx: &AppContext) -> Option<(serde_json::Value, boo
 }
 
 #[cfg(not(feature = "notifications"))]
+// JSON: a /health/detail entry is a free-form diagnostic object.
 fn check_notifications(_ctx: &AppContext) -> std::future::Ready<Option<(serde_json::Value, bool)>> {
     std::future::ready(None)
 }

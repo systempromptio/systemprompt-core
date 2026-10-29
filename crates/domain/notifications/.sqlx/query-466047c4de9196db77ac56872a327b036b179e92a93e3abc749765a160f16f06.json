@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT n.id::text AS \"id!: NotificationId\",\n                      n.recipient_user_id AS \"recipient_user_id: UserId\", n.kind,\n                      n.stream_id AS \"stream_id: NotificationStreamId\",\n                      n.actor_user_id AS \"actor_user_id: UserId\", u.display_name AS actor_display,\n                      n.actor_is_agent, n.via_agent,\n                      n.subjects AS \"subjects: Json<Vec<SubjectRef>>\", n.attention,\n                      n.attention_reason, n.action AS \"action: Json<ActionPrompt>\", n.excerpt,\n                      n.coalesce_count, n.first_event_at, n.last_event_at, n.created_at,\n                      n.read_at, n.escalated_from, n.escalation_note, n.held_until,\n                      n.delivery_state, n.delivery_seq\n               FROM notifications n LEFT JOIN users u ON u.id = n.actor_user_id\n               WHERE n.recipient_user_id = $1\n                 AND ($2::timestamptz IS NULL OR (n.created_at, n.id) < ($2, $3::text::uuid))\n                 AND ($4::text IS NULL OR n.attention = $4)\n                 AND (NOT $5 OR n.read_at IS NULL)\n               ORDER BY n.created_at DESC, n.id DESC\n               LIMIT $6",
+  "query": "SELECT n.id::text AS \"id!: NotificationId\",\n                      n.recipient_user_id AS \"recipient_user_id: UserId\", n.kind,\n                      n.stream_id AS \"stream_id: NotificationStreamId\",\n                      n.actor_user_id AS \"actor_user_id: UserId\", n.actor_display,\n                      n.actor_is_agent, n.via_agent,\n                      n.subjects AS \"subjects: Json<Vec<SubjectRef>>\", n.attention,\n                      n.attention_reason, n.action AS \"action: Json<ActionPrompt>\", n.excerpt,\n                      n.coalesce_count, n.first_event_at, n.last_event_at, n.created_at,\n                      n.read_at, n.escalated_from, n.escalation_note, n.held_until,\n                      n.delivery_state, n.delivery_seq\n               FROM notifications n\n               WHERE n.id = ANY($1::text[]::uuid[]) AND n.delivery_state = $2\n               ORDER BY n.created_at, n.id\n               FOR NO KEY UPDATE OF n SKIP LOCKED",
   "describe": {
     "columns": [
       {
@@ -56,11 +56,11 @@
       {
         "ordinal": 5,
         "name": "actor_display",
-        "type_info": "Varchar",
+        "type_info": "Text",
         "origin": {
           "Table": {
-            "table": "users",
-            "name": "display_name"
+            "table": "notifications",
+            "name": "actor_display"
           }
         }
       },
@@ -254,12 +254,8 @@
     ],
     "parameters": {
       "Left": [
-        "Text",
-        "Timestamptz",
-        "Text",
-        "Text",
-        "Bool",
-        "Int8"
+        "TextArray",
+        "Text"
       ]
     },
     "nullable": [
@@ -288,5 +284,5 @@
       false
     ]
   },
-  "hash": "21bd9f532d1e81746956c76924d10e588831b7e47788a8e574cec188d4fe55af"
+  "hash": "466047c4de9196db77ac56872a327b036b179e92a93e3abc749765a160f16f06"
 }

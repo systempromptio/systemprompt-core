@@ -63,6 +63,7 @@ impl NotificationPipeline {
             kind: event.kind.clone(),
             stream: plan.routed.stream.clone(),
             actor: event.actor.clone(),
+            actor_display: self.actor_display(&event.actor).await,
             actor_is_agent: event.actor_is_agent,
             via_agent: event.via_agent.clone(),
             subjects: event.subjects.clone(),

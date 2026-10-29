@@ -36,6 +36,7 @@ pub struct NewIssue {
     pub body: String,
     pub fingerprint: String,
     pub context: IssueContext,
+    // JSON: the reporter's client facts are a free-form, size-bounded object.
     pub client: serde_json::Value,
 }
 
@@ -77,6 +78,7 @@ pub(super) struct ReportRow {
     pub(super) session_id: Option<SessionId>,
     pub(super) task_id: Option<TaskId>,
     pub(super) mcp_execution_id: Option<McpExecutionId>,
+    // JSON: the stored client facts column is free-form JSONB.
     pub(super) client: serde_json::Value,
     pub(super) triage_note: Option<String>,
     pub(super) triaged_by: Option<UserId>,

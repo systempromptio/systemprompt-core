@@ -75,6 +75,19 @@ pub trait NotificationAudienceResolver: Send + Sync {
     ) -> Result<Membership, NotificationAudienceError>;
 }
 
+/// Names a notification's actor as the feed shows them.
+///
+/// Held as `Arc<dyn NotificationActorDirectory>`. The consumer asks once per
+/// fact and stores the answer on the rows it writes, so a feed read joins
+/// nothing.
+#[async_trait::async_trait]
+pub trait NotificationActorDirectory: Send + Sync {
+    async fn display_name(
+        &self,
+        actor: &UserId,
+    ) -> Result<Option<String>, NotificationAudienceError>;
+}
+
 /// A publish policy's decision on one publisher and stream.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PublishVerdict {

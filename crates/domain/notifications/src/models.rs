@@ -36,6 +36,7 @@ pub struct NewNotifications {
     pub kind: NotificationKind,
     pub stream: Option<NotificationStreamId>,
     pub actor: UserId,
+    pub actor_display: Option<String>,
     pub actor_is_agent: bool,
     pub via_agent: Option<String>,
     pub subjects: Vec<SubjectRef>,

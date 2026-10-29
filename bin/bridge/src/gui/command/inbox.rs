@@ -88,6 +88,7 @@ fn item(app: &GuiApp, id: &NotificationId) -> Result<Notification, BridgeError> 
     })
 }
 
+// JSON: a GUI IPC command answers with the webview's untyped reply value.
 fn open(app: &GuiApp, id: &NotificationId) -> Result<Value, BridgeError> {
     let notification = item(app, id)?;
     let url = notification
@@ -106,6 +107,7 @@ fn open(app: &GuiApp, id: &NotificationId) -> Result<Value, BridgeError> {
     Ok(Value::Null)
 }
 
+// JSON: a GUI IPC command answers with the webview's untyped reply value.
 fn start_session(prompt: &str) -> Result<Value, BridgeError> {
     let unsupported = || {
         BridgeError::new(
@@ -145,6 +147,7 @@ fn start_session(prompt: &str) -> Result<Value, BridgeError> {
     launched.map(|()| Value::Null)
 }
 
+// JSON: a GUI IPC command answers with the webview's untyped reply value.
 fn encode<T: Serialize>(value: &T) -> Result<Value, BridgeError> {
     serde_json::to_value(value).map_err(|e| {
         BridgeError::from_error_in(

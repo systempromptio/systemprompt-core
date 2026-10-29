@@ -150,7 +150,7 @@ impl Harness {
         let repos = Arc::new(NotificationRepositories::new(&pool));
         let users = Arc::new(UserRepository::new(&pool));
         let audience: Arc<dyn systemprompt_extension::notifications::NotificationAudienceResolver> =
-            Arc::new(UserRoleAudienceResolver::new(users));
+            Arc::new(UserRoleAudienceResolver::new(Arc::clone(&users)));
         let hidden = Arc::new(Hidden::default());
         let channel = Arc::new(Recorded::default());
         let resolver_timeout = Duration::from_millis(profile.consumer.resolver_timeout_ms);
@@ -159,6 +159,7 @@ impl Harness {
             audiences: vec![Arc::clone(&audience)],
             visibilities: vec![Arc::clone(&hidden) as Arc<dyn ResourceVisibility>],
             channels: vec![Arc::clone(&channel) as Arc<dyn NotificationChannel>],
+            actors: Arc::new(UserRoleAudienceResolver::new(users)),
             repos: Arc::clone(&repos),
             profile,
         };

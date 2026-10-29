@@ -28,6 +28,7 @@ pub struct IssueFiling {
     pub body: String,
     pub fingerprint_key: Option<String>,
     pub context: IssueContext,
+    // JSON: the reporter's client facts are a free-form, size-bounded object.
     pub client: serde_json::Value,
 }
 

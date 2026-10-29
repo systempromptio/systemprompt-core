@@ -15,7 +15,6 @@ use systemprompt_files::issues::IssuesError;
 use systemprompt_files::uploads::NewUpload;
 use systemprompt_identifiers::{DocumentUploadId, IssueReportId};
 use systemprompt_models::RequestContext;
-use systemprompt_models::api::ApiError;
 use systemprompt_runtime::documents::upload_links::{
     UPLOAD_TOKEN_HEADER, UploadGrant, UploadLinkTarget, signed_upload_links,
 };
@@ -76,8 +75,7 @@ pub(super) async fn declare(
             session_id: req_ctx.session_id(),
             upload: &session.id,
         },
-    )
-    .map_err(|error| ApiError::internal("the upload links could not be signed", error))?;
+    )?;
     Ok((
         StatusCode::CREATED,
         Json(AttachmentUploadJson {

@@ -34,6 +34,7 @@ pub struct NotificationEvent {
     pub direct_recipients: Vec<DirectRecipient>,
     pub sender_attention: Option<Attention>,
     pub excerpt: Option<String>,
+    // JSON: the producer's payload is the event's free-form contract field.
     pub payload: serde_json::Value,
     pub occurred_at: DateTime<Utc>,
 }
@@ -115,6 +116,7 @@ impl NotificationEvent {
     }
 
     #[must_use]
+    // JSON: the producer's payload is the event's free-form contract field.
     pub fn with_payload(mut self, payload: serde_json::Value) -> Self {
         self.payload = payload;
         self
