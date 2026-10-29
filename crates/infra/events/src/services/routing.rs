@@ -41,6 +41,7 @@ use systemprompt_identifiers::Actor;
 use systemprompt_models::{A2AEvent, AgUiEvent, AnalyticsEvent, ContextEvent, SystemEvent};
 
 pub const OUTBOX_CHANNEL: &str = "systemprompt_events";
+pub const NOTIFICATION_FACTS_CHANNEL: &str = "systemprompt_notification_facts";
 
 /// The fan-out points for every event kind, built once and shared by the
 /// router, the cross-replica bridge and the SSE endpoints of one process.
@@ -84,6 +85,7 @@ pub enum OutboxChannel {
     System,
     Analytics,
     Topic,
+    Fact,
 }
 
 impl OutboxChannel {
@@ -95,6 +97,7 @@ impl OutboxChannel {
             Self::System => "system",
             Self::Analytics => "analytics",
             Self::Topic => "topic",
+            Self::Fact => "fact",
         }
     }
 
@@ -106,6 +109,7 @@ impl OutboxChannel {
             "system" => Some(Self::System),
             "analytics" => Some(Self::Analytics),
             "topic" => Some(Self::Topic),
+            "fact" => Some(Self::Fact),
             _ => None,
         }
     }

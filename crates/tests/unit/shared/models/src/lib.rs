@@ -113,6 +113,8 @@ mod profile_instance_identity;
 #[cfg(test)]
 mod profile_judge;
 #[cfg(test)]
+mod profile_notifications;
+#[cfg(test)]
 mod profile_observability;
 #[cfg(test)]
 mod profile_server_capacity;

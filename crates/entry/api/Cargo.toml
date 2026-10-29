@@ -88,6 +88,7 @@ systemprompt-agent = { workspace = true }
 systemprompt-mcp = { workspace = true }
 systemprompt-content = { workspace = true }
 systemprompt-files = { workspace = true }
+systemprompt-notifications = { workspace = true, optional = true }
 systemprompt-provider-contracts = { workspace = true }
 systemprompt-storage = { workspace = true }
 systemprompt-database = { workspace = true }
@@ -119,6 +120,10 @@ opentelemetry-proto = { workspace = true }
 
 [features]
 collab = ["systemprompt-files/collab", "systemprompt-runtime/collab"]
+notifications = [
+    "dep:systemprompt-notifications",
+    "systemprompt-runtime/notifications",
+]
 
 [lints]
 workspace = true

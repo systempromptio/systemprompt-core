@@ -9,7 +9,9 @@
 //! `projection_backlog_depth{projection}` is sampled only on a node that runs
 //! the scheduler, since that is where the backlog drains.
 //! `log_entries_dropped_total` mirrors the database log sink's in-process drop
-//! counter.
+//! counter. With notifications built in, every replica samples the
+//! notification delivery backlog (`notifications_backlog_pending` and
+//! `notifications_backlog_oldest_seconds`) on the same cadence.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -31,6 +33,11 @@ use systemprompt_scheduler::services::job_metrics::{
 pub(super) const DB_POOL_ACQUIRE_SECONDS: &str = "db_pool_acquire_seconds";
 pub(super) const PROJECTION_BACKLOG_DEPTH: &str = "projection_backlog_depth";
 pub(super) const LOG_ENTRIES_DROPPED_TOTAL: &str = "log_entries_dropped_total";
+#[cfg(feature = "notifications")]
+pub(super) const NOTIFICATIONS_BACKLOG_PENDING: &str = "notifications_backlog_pending";
+#[cfg(feature = "notifications")]
+pub(super) const NOTIFICATIONS_BACKLOG_OLDEST_SECONDS: &str =
+    "notifications_backlog_oldest_seconds";
 
 const ACQUIRE_BUCKETS: [f64; 12] = [
     0.0005, 0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 5.0,
@@ -91,6 +98,22 @@ pub(super) fn describe() {
         systemprompt_events::CACHE_INVALIDATIONS_RECEIVED_TOTAL,
         "Cross-replica cache invalidations received, by cache domain"
     );
+    metrics::describe_counter!(
+        super::runner_supervisor::RUNNER_RESTARTS_TOTAL,
+        "Runner service restarts after a panic or an early return, by runner"
+    );
+    #[cfg(feature = "notifications")]
+    {
+        metrics::describe_gauge!(
+            NOTIFICATIONS_BACKLOG_PENDING,
+            "Notification rows committed and not yet delivered"
+        );
+        metrics::describe_gauge!(
+            NOTIFICATIONS_BACKLOG_OLDEST_SECONDS,
+            metrics::Unit::Seconds,
+            "Age of the oldest undelivered notification row"
+        );
+    }
 }
 
 pub(super) fn spawn_samplers(ctx: &AppContext, runs_scheduler: bool) {
@@ -100,6 +123,10 @@ pub(super) fn spawn_samplers(ctx: &AppContext, runs_scheduler: bool) {
         runs_scheduler,
         ctx.logging().sink().clone(),
     );
+    #[cfg(feature = "notifications")]
+    {
+        sampler = sampler.with_notifications(Arc::clone(&ctx.notifications().consumer));
+    }
     ctx.background_tasks()
         .spawn_cancellable("ops_metrics", |cancel| async move {
             let mut tick = tokio::time::interval(SAMPLE_INTERVAL);
@@ -124,6 +151,10 @@ pub struct OpsSampler {
     boot: BootContext,
     config_info: Option<ConfigFingerprint>,
     log_sink: systemprompt_logging::LogSink,
+    #[cfg(feature = "notifications")]
+    notifications: Option<Arc<systemprompt_notifications::NotificationsConsumer>>,
+    #[cfg(feature = "notifications")]
+    notifications_due: Instant,
 }
 
 impl OpsSampler {
@@ -147,7 +178,21 @@ impl OpsSampler {
             boot,
             config_info: None,
             log_sink,
+            #[cfg(feature = "notifications")]
+            notifications: None,
+            #[cfg(feature = "notifications")]
+            notifications_due: Instant::now(),
         }
+    }
+
+    #[cfg(feature = "notifications")]
+    #[must_use]
+    pub fn with_notifications(
+        mut self,
+        consumer: Arc<systemprompt_notifications::NotificationsConsumer>,
+    ) -> Self {
+        self.notifications = Some(consumer);
+        self
     }
 
     pub async fn sample(&mut self) {
@@ -162,6 +207,15 @@ impl OpsSampler {
         {
             self.backlog_due = Instant::now() + BACKLOG_INTERVAL;
             sample_backlog(pool, &mut self.seen_projections).await;
+        }
+        #[cfg(feature = "notifications")]
+        if let Some(consumer) = self.notifications.as_ref()
+            && Instant::now() >= self.notifications_due
+        {
+            self.notifications_due = Instant::now() + BACKLOG_INTERVAL;
+            if let Err(error) = consumer.backlog().await {
+                tracing::warn!(error = %error, "notification backlog sample failed");
+            }
         }
     }
 }

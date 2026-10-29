@@ -50,6 +50,8 @@ mod documents_listing;
 #[cfg(test)]
 mod documents_node_ids_backfill;
 #[cfg(test)]
+mod documents_notification_facts;
+#[cfg(test)]
 mod documents_proposals;
 #[cfg(test)]
 mod documents_proposals_review;

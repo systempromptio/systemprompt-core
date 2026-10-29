@@ -3,8 +3,8 @@
 //!
 //! A `user` subject names itself when the user is active, a `role` subject
 //! names the active users holding the role, and a subject dimension names
-//! nobody: dimension values have no reverse index, so events addressed by
-//! dimension reach only users found another way (presence).
+//! the members the first extension audience resolver that handles it
+//! returns; a dimension no resolver handles names nobody.
 //!
 //! The role catalogue is the built-in `admin` and `user` roles, the roles
 //! extensions declare, and every role an active user holds.
@@ -18,8 +18,10 @@ use async_trait::async_trait;
 use systemprompt_files::documents::{SubjectDirectory, SubjectDirectoryError, SubjectMatch};
 use systemprompt_identifiers::UserId;
 use systemprompt_models::auth::UserRole;
+use systemprompt_models::notifications::AudienceSubject;
 use systemprompt_users::{User, UserError, UserRepository};
 
+use super::ExtensionAudiences;
 use super::subjects::{ROLE_SUBJECT_KIND, USER_SUBJECT_KIND};
 
 /// The [`SubjectDirectory`] over the user repository.
@@ -27,15 +29,45 @@ use super::subjects::{ROLE_SUBJECT_KIND, USER_SUBJECT_KIND};
 pub struct UserSubjectDirectory {
     users: Arc<UserRepository>,
     catalog_roles: Vec<String>,
+    audiences: ExtensionAudiences,
 }
 
 impl UserSubjectDirectory {
     #[must_use]
-    pub const fn new(users: Arc<UserRepository>, catalog_roles: Vec<String>) -> Self {
+    pub const fn new(
+        users: Arc<UserRepository>,
+        catalog_roles: Vec<String>,
+        audiences: ExtensionAudiences,
+    ) -> Self {
         Self {
             users,
             catalog_roles,
+            audiences,
         }
+    }
+
+    async fn dimension_members(
+        &self,
+        kind: &str,
+        value: &str,
+        limit: usize,
+    ) -> Result<Vec<UserId>, SubjectDirectoryError> {
+        let subject = AudienceSubject::Dimension {
+            kind: kind.to_owned(),
+            value: value.to_owned(),
+        };
+        let Some(resolver) = self
+            .audiences
+            .resolvers()
+            .iter()
+            .find(|resolver| resolver.handles(&subject))
+        else {
+            return Ok(Vec::new());
+        };
+        resolver
+            .members(&subject, limit)
+            .await
+            .map_err(|error| SubjectDirectoryError(Box::new(error)))
     }
 }
 
@@ -71,7 +103,7 @@ impl SubjectDirectory for UserSubjectDirectory {
                 .list_active_ids_with_role(value, i64::try_from(limit).unwrap_or(i64::MAX))
                 .await
                 .map_err(lookup_failed),
-            _ => Ok(Vec::new()),
+            _ => self.dimension_members(kind, value, limit).await,
         }
     }
 

@@ -147,6 +147,7 @@ impl ApplicationHandler for GuiApp {
         crate::gui::handlers::auto_update::maybe_auto_check(self, woke_from_sleep);
         first_run::tick(self);
         crate::gui::drive::tick(self);
+        crate::gui::inbox::tick(self);
 
         if self.last_proxy_stats_tick.elapsed() >= Duration::from_secs(PROXY_STATS_TICK_SECS) {
             self.last_proxy_stats_tick = Instant::now();

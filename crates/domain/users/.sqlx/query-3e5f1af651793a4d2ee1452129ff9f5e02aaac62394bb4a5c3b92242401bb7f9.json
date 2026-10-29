@@ -1,0 +1,25 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT EXISTS(\n                   SELECT 1 FROM users\n                   WHERE id = $1 AND roles @> ARRAY[$2]::TEXT[] AND status = $3\n               ) AS \"exists!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "exists!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "3e5f1af651793a4d2ee1452129ff9f5e02aaac62394bb4a5c3b92242401bb7f9"
+}

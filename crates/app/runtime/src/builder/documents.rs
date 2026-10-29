@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use systemprompt_database::DbPool;
 use systemprompt_events::EventRouter;
-use systemprompt_extension::ExtensionRegistry;
+use systemprompt_extension::{DynNotificationSink, ExtensionRegistry};
 use systemprompt_files::FilesConfig;
 use systemprompt_files::documents::templates::load_catalog;
 use systemprompt_governance::authz::{AccessControlRepository, SharedAuthzHook};
@@ -17,7 +17,9 @@ use systemprompt_traits::{BackgroundTasks, FileStorage};
 
 use systemprompt_users::UserRepository;
 
-use crate::documents::{DocumentsRuntime, DocumentsRuntimeParts, UserSubjectDirectory};
+use crate::documents::{
+    DocumentsRuntime, DocumentsRuntimeParts, ExtensionAudiences, UserSubjectDirectory,
+};
 use crate::error::RuntimeResult;
 
 pub(super) struct DocumentsInputs<'a> {
@@ -30,6 +32,8 @@ pub(super) struct DocumentsInputs<'a> {
     pub(super) files_config: &'a FilesConfig,
     pub(super) background_tasks: &'a BackgroundTasks,
     pub(super) extensions: &'a ExtensionRegistry,
+    pub(super) notifications: &'a DynNotificationSink,
+    pub(super) audiences: &'a ExtensionAudiences,
 }
 
 pub(super) fn build_documents(
@@ -47,8 +51,10 @@ pub(super) fn build_documents(
         directory: Arc::new(UserSubjectDirectory::new(
             Arc::new(UserRepository::new(inputs.database)),
             catalog_roles(inputs.extensions),
+            inputs.audiences.clone(),
         )),
         event_router: inputs.event_router.clone(),
+        notifications: Arc::clone(inputs.notifications),
         catalog,
         config: *inputs.files_config.documents_config(),
         background_tasks: inputs.background_tasks.clone(),

@@ -31,7 +31,7 @@ core = [
 ]
 
 # Database support
-database = ["dep:systemprompt-database", "dep:sqlx"]
+database = ["dep:systemprompt-database", "dep:sqlx", "systemprompt-extension?/sqlx"]
 
 # Profile/secrets configuration loaders
 config = ["dep:systemprompt-config"]
@@ -95,6 +95,10 @@ files-collab = ["dep:systemprompt-files", "systemprompt-files/collab", "systempr
 # routes and every session answers `collab_engine_unavailable`.
 files-collab-loro = ["files-collab", "systemprompt-runtime?/engine-loro"]
 
+# The notifications domain: streams, rules, feed and the outbox consumer. `full` implies it.
+# Without it the server mounts no notification routes and comments record no notification.
+notifications = ["dep:systemprompt-notifications", "systemprompt-runtime?/notifications", "systemprompt-api?/notifications"]
+
 # Full functionality including all domain modules and CLI
 full = [
     "api",
@@ -118,6 +122,7 @@ full = [
     "files-office",
     "files-collab-loro",
     "agent-runs",
+    "notifications",
     # Infrastructure crates for extension authors
     "loader",
     "events",
@@ -172,6 +177,7 @@ systemprompt-teams = { workspace = true, optional = true }
 systemprompt-scheduler = { workspace = true, optional = true }
 systemprompt-agent-runs = { workspace = true, optional = true }
 systemprompt-files = { workspace = true, optional = true }
+systemprompt-notifications = { workspace = true, optional = true }
 
 # External dependencies for prelude re-exports
 axum = { workspace = true, optional = true }

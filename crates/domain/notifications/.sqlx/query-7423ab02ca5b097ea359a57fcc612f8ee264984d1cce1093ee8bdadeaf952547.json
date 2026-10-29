@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM notification_subscriptions\n             WHERE id = $1::text::uuid AND subject_user_id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "7423ab02ca5b097ea359a57fcc612f8ee264984d1cce1093ee8bdadeaf952547"
+}

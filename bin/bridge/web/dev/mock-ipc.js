@@ -54,6 +54,8 @@ async function loadFixture() {
   // a fixture has to stage it -- the value of the three-way distinction is
   // entirely in what the pane does with the third state.
   scheduleState = state.__schedule || "not_installed";
+  inbox = structuredClone(state.__inbox || EMPTY_INBOX);
+  delete state.__inbox;
   delete state.__latencyMs;
   delete state.__fail;
   delete state.__marketplace;
@@ -62,6 +64,38 @@ async function loadFixture() {
 }
 
 let marketplace = null;
+
+// `InboxPayload` (src/wire/inbox.rs). The real commands queue gateway work on
+// the inbox task and reply null; the change arrives as `inbox.changed`, so the
+// mock answers the same way rather than returning the new state inline.
+const EMPTY_INBOX = { unread: 0, unread_capped: false, has_older: false, items: [], can_start_session: false, available: true, last_error: null };
+let inbox = structuredClone(EMPTY_INBOX);
+
+function inboxItem(id) {
+  const item = inbox.items.find((n) => n.id === id);
+  if (!item) { throw { scope: "internal", code: "not_found", message: `notification ${id} is not in the inbox` }; }
+  return item;
+}
+
+function inboxMarkRead(ids, all) {
+  const at = new Date().toISOString();
+  for (const item of inbox.items) {
+    if (item.read_at == null && (all || ids.includes(item.id))) { item.read_at = at; }
+  }
+  inbox.unread = inbox.items.filter((n) => n.read_at == null).length;
+  emit("inbox.changed", structuredClone(inbox));
+  return null;
+}
+
+function inboxEscalate(id, note) {
+  const item = inboxItem(id);
+  item.escalated_from = item.attention;
+  item.attention = "human";
+  item.attention_reason = "escalated";
+  item.escalation_note = note ?? null;
+  emit("inbox.changed", structuredClone(inbox));
+  return null;
+}
 
 const SKILL_NAMES = [
   "rust-coding-standards", "brand-voice", "cli-usage", "content-publish",
@@ -304,6 +338,21 @@ const COMMANDS = {
   "mcp.auth.probe": () => ({}),
   "drive.status": () => state.__drive || { verdict: { tone: "unknown", code: "off" }, conflicts: [], editors: [], pending_uploads: 0, editing_count: 0 },
   "drive.sync_now": () => ({}),
+  "inbox.list": () => structuredClone(inbox),
+  "inbox.load_older": () => null,
+  "inbox.seen": () => null,
+  "inbox.read": ({ ids = [], all = false }) => inboxMarkRead(ids, all),
+  "inbox.escalate": ({ id, note }) => inboxEscalate(id, note),
+  "inbox.open": ({ id }) => {
+    const item = inboxItem(id);
+    if (!item.action.open_url) { throw { scope: "internal", code: "invalid_args", message: `notification ${id} has no link` }; }
+    window.open(new URL(item.action.open_url, state.gateway_url).href, "_blank", "noopener");
+    return inboxMarkRead([id], false);
+  },
+  "inbox.copy_prompt": ({ id }) => ({ prompt: inboxItem(id).action.prompt }),
+  "inbox.start_session": () => {
+    throw { scope: "host", code: "not_found", message: "no agent on this device can start a session from a prompt" };
+  },
   "settings.get": () => settingsPayload(),
   "validate": () => ({ ok: true }),
   "sync": () => {

@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO notification_streams\n                 (id, name, description, audience, publishers, attention_default,\n                  attention_floor, attention_ceiling, retention_days, coalesce_window_secs, source)\n             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)\n             ON CONFLICT (id) DO UPDATE SET\n                 name = EXCLUDED.name, description = EXCLUDED.description,\n                 audience = EXCLUDED.audience, publishers = EXCLUDED.publishers,\n                 attention_default = EXCLUDED.attention_default,\n                 attention_floor = EXCLUDED.attention_floor,\n                 attention_ceiling = EXCLUDED.attention_ceiling,\n                 retention_days = EXCLUDED.retention_days,\n                 coalesce_window_secs = EXCLUDED.coalesce_window_secs,\n                 source = EXCLUDED.source, updated_at = now()",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "TextArray",
+        "TextArray",
+        "Text",
+        "Text",
+        "Text",
+        "Int4",
+        "Int4",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "692b719712754bd4572c9db2da354795efa851451b1586b72be683b8a955a07d"
+}

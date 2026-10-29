@@ -127,6 +127,7 @@ impl Sandbox {
                             cache,
                             client,
                             systemprompt_bridge::proxy::drive_signal::DriveSignals::channel().0,
+                            systemprompt_bridge::proxy::notifications::NotificationSignals::channel().0,
                         ),
                     )
                     .await;

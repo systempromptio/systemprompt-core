@@ -1,0 +1,25 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id::text AS \"id!: NotificationId\" FROM notifications\n               WHERE delivery_state = $3 AND created_at < $1\n               ORDER BY created_at LIMIT $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!: NotificationId",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "a8ea55a65c238e2c3de51049465c027e91d9bfc36f83d2e2f03fd1ce1613466e"
+}

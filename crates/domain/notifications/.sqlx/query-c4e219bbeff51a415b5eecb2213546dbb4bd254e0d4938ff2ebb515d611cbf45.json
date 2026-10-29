@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE notifications SET read_at = now(), held_until = NULL,\n                   delivery_state = CASE WHEN delivery_state = 'held' THEN 'delivered'\n                                         ELSE delivery_state END\n               WHERE recipient_user_id = $1 AND id = ANY($2::text[]::uuid[]) AND read_at IS NULL\n               RETURNING id::text AS \"id!: NotificationId\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!: NotificationId",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "TextArray"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "c4e219bbeff51a415b5eecb2213546dbb4bd254e0d4938ff2ebb515d611cbf45"
+}

@@ -21,6 +21,8 @@ use rmcp::model::Tool;
 use serde_json::{Map, Value as JsonValue, json};
 use systemprompt_mcp::McpToolHandler;
 
+#[cfg(feature = "notifications")]
+use super::InboxHandler;
 use super::{
     AccessHandler, CommentHandler, CopyHandler, CreateHandler, DocumentsMcpTools, EditHandler,
     ExportHandler, GuideHandler, HistoryHandler, ListHandler, PeopleHandler, ProposalsHandler,
@@ -196,7 +198,7 @@ pub(super) fn tool_list(tools: &DocumentsMcpTools) -> Vec<Tool> {
     let server = tools.server_name();
     let mut export = ExportHandler { tools }.tool_definition(server);
     export.meta = Some(preview_tool_meta(server));
-    vec![
+    let tools_list = vec![
         compact(ListHandler { tools }.tool_definition(server), false),
         compact(SearchHandler { tools }.tool_definition(server), false),
         plain_ops(compact(
@@ -218,5 +220,15 @@ pub(super) fn tool_list(tools: &DocumentsMcpTools) -> Vec<Tool> {
         compact(UploadHandler { tools }.tool_definition(server), false),
         compact(GuideHandler { tools }.tool_definition(server), false),
         compact(PeopleHandler { tools }.tool_definition(server), false),
-    ]
+    ];
+    #[cfg(feature = "notifications")]
+    let tools_list = {
+        let mut tools_list = tools_list;
+        tools_list.push(compact(
+            InboxHandler { tools }.tool_definition(server),
+            false,
+        ));
+        tools_list
+    };
+    tools_list
 }

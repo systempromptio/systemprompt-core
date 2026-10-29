@@ -23,6 +23,8 @@ mod export;
 mod guide;
 mod guide_model;
 mod guide_topics;
+#[cfg(feature = "notifications")]
+mod inbox;
 mod inputs;
 mod lifecycle;
 mod listing;
@@ -54,6 +56,8 @@ use systemprompt_identifiers::McpServerId;
 use systemprompt_mcp::{ClientProfile, McpToolExecutor};
 use systemprompt_models::auth::TokenAuthority;
 use systemprompt_models::execution::context::RequestContext;
+#[cfg(feature = "notifications")]
+use systemprompt_notifications::service::NotificationsService;
 use systemprompt_users::UserRepository;
 
 pub use access::AccessHandler;
@@ -62,11 +66,13 @@ pub use catalog::{INSTRUCTIONS, TOOL_NAMES};
 pub use comment::CommentHandler;
 pub use export::ExportHandler;
 pub use guide::GuideHandler;
+#[cfg(feature = "notifications")]
+pub use inbox::{InboxAction, InboxHandler, InboxInput, InboxOutput};
 pub use inputs::{
     AccessInput, CommentAction, CommentInput, CopyInput, CreateInput, DocumentInput, EditInput,
     ExportAs, ExportFormat, ExportInput, GuideInput, HistoryInput, ListInput, ListScopeInput,
-    ListSortInput, PeopleInput, ProposalAction, ProposalsInput, QuoteAnchor, SearchInput,
-    ShareInput, UpdateInput,
+    ListSortInput, MentionOptionInput, PeopleInput, ProposalAction, ProposalsInput, QuoteAnchor,
+    SearchInput, ShareInput, UpdateInput,
 };
 pub use lifecycle::{CopyHandler, TrashHandler, UntrashHandler, UpdateHandler};
 pub use outputs::{
@@ -106,6 +112,8 @@ pub enum DocumentsMcpError {
 #[derive(Clone)]
 pub struct DocumentsMcpConfig {
     pub service: Arc<DocumentService>,
+    #[cfg(feature = "notifications")]
+    pub notifications: Arc<NotificationsService>,
     pub uploads: Option<Arc<UploadService>>,
     pub users: Arc<UserRepository>,
     pub tokens: Arc<dyn TokenAuthority>,
@@ -122,10 +130,12 @@ pub struct DocumentsToolCall<'a> {
     pub client: &'a ClientProfile,
 }
 
-/// The eighteen document tools and the preview resource of one MCP server.
+/// The nineteen document tools and the preview resource of one MCP server.
 #[derive(Clone)]
 pub struct DocumentsMcpTools {
     service: Arc<DocumentService>,
+    #[cfg(feature = "notifications")]
+    notifications: Arc<NotificationsService>,
     uploads: Option<Arc<UploadService>>,
     users: Arc<UserRepository>,
     tokens: Arc<dyn TokenAuthority>,
@@ -156,6 +166,8 @@ impl DocumentsMcpTools {
     pub fn new(config: DocumentsMcpConfig) -> Self {
         Self {
             service: config.service,
+            #[cfg(feature = "notifications")]
+            notifications: config.notifications,
             uploads: config.uploads,
             users: config.users,
             tokens: config.tokens,
@@ -173,6 +185,8 @@ impl DocumentsMcpTools {
         }
         Ok(Self::new(DocumentsMcpConfig {
             service: Arc::clone(ctx.documents().service()),
+            #[cfg(feature = "notifications")]
+            notifications: Arc::clone(&ctx.notifications().service),
             uploads: Some(Arc::clone(ctx.documents().uploads())),
             users: Arc::clone(ctx.user_repository()),
             tokens: ctx.token_authority(),
@@ -184,6 +198,12 @@ impl DocumentsMcpTools {
     #[must_use]
     pub fn service(&self) -> &DocumentService {
         &self.service
+    }
+
+    #[cfg(feature = "notifications")]
+    #[must_use]
+    pub fn notifications(&self) -> &NotificationsService {
+        &self.notifications
     }
 
     #[must_use]
@@ -245,6 +265,8 @@ impl DocumentsMcpTools {
             "documents_upload" => Box::pin(run(call, &UploadHandler { tools: self })).await,
             "documents_guide" => Box::pin(run(call, &GuideHandler { tools: self })).await,
             "documents_people" => Box::pin(run(call, &PeopleHandler { tools: self })).await,
+            #[cfg(feature = "notifications")]
+            "documents_inbox" => Box::pin(run(call, &InboxHandler { tools: self })).await,
             other => Err(McpError::invalid_params(
                 format!(
                     "Unknown tool: '{other}'. This server exposes: {}.",

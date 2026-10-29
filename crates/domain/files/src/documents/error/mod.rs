@@ -10,6 +10,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_events::RelayError;
+use systemprompt_extension::NotificationSinkError;
 use systemprompt_governance::authz::AuthzError;
 use systemprompt_identifiers::{
     ContentHash, DocumentAccessRequestId, DocumentCommentId, DocumentFolderId, DocumentId,
@@ -20,6 +21,7 @@ use systemprompt_models::authz::SubjectSourceError;
 use systemprompt_models::documents::{
     AccessLevel, AccessRequestStatus, DocumentAction, DocumentFormat, ProposalStatus,
 };
+use systemprompt_models::notifications::NotificationKindError;
 use systemprompt_provider_contracts::documents::{ClosestBlock, CodecError};
 use systemprompt_traits::RepositoryError;
 
@@ -261,6 +263,10 @@ pub enum DocumentsError {
     Worker(#[from] tokio::task::JoinError),
     #[error("grant subjects could not be resolved to users")]
     Directory(#[from] SubjectDirectoryError),
+    #[error("the notification could not be recorded; nothing was stored")]
+    Notifications(#[from] NotificationSinkError),
+    #[error("notification kind is invalid")]
+    NotificationKind(#[from] NotificationKindError),
 }
 
 #[derive(Debug, thiserror::Error)]

@@ -25,7 +25,10 @@ use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{AccessLevel, DocumentAction};
 use uuid::Uuid;
 
+use systemprompt_traits::RepositoryError;
+
 use super::DocumentService;
+use super::notify::ShareNotice;
 use super::ownership::{ShareCause, USER_SUBJECT};
 use crate::documents::access::{AccessTarget, Granted};
 use crate::documents::error::DocumentsError;
@@ -91,9 +94,69 @@ impl DocumentService {
         request: ShareRequest,
         trace: &TraceId,
     ) -> Result<DocumentGrant, DocumentsError> {
+        let granted = self.checked_share(who, &request, trace).await?;
+        let recipients = match &granted.document {
+            Some(_) => {
+                self.share_recipients(who, &request.subject_kind, &request.subject_value)
+                    .await?
+            },
+            None => Vec::new(),
+        };
+        let mut tx = self.repos.documents.begin().await?;
+        let grant = self
+            .repos
+            .grants
+            .insert(
+                &mut tx,
+                NewGrant {
+                    target: request.target,
+                    subject_kind: request.subject_kind,
+                    subject_value: request.subject_value,
+                    subject_display: request.subject_display,
+                    access_level: request.level,
+                    granted_by: who.id.clone(),
+                    valid_until: request.valid_until,
+                    trace_id: trace.clone(),
+                    reason: request.via_agent.as_ref().map(|_| AGENT_SHARE.to_owned()),
+                    via_agent: request.via_agent.clone(),
+                },
+            )
+            .await?;
+        if let Some(document) = &granted.document {
+            let notice = ShareNotice {
+                who,
+                document,
+                recipients: &recipients,
+                level: grant.access_level,
+                subject_kind: &grant.subject_kind,
+                subject_value: &grant.subject_value,
+                message: request.message.as_deref(),
+                via_agent: request.via_agent.as_deref(),
+                occurred_at: grant.updated_at,
+            };
+            self.record_share(&mut tx, notice).await?;
+        }
+        tx.commit().await.map_err(RepositoryError::from)?;
+        if let Some(document) = &granted.document {
+            let cause = ShareCause {
+                via_agent: request.via_agent,
+                comment_id: None,
+            };
+            self.announce_share(who, document, &grant, &recipients, request.message, &cause)
+                .await;
+        }
+        Ok(grant)
+    }
+
+    async fn checked_share(
+        &self,
+        who: &AuthenticatedUser,
+        request: &ShareRequest,
+        trace: &TraceId,
+    ) -> Result<Granted, DocumentsError> {
         if !self.access.is_known_subject_kind(&request.subject_kind) {
             return Err(DocumentsError::UnknownSubjectKind {
-                kind: request.subject_kind,
+                kind: request.subject_kind.clone(),
             });
         }
         if request.level == AccessLevel::Own {
@@ -128,31 +191,7 @@ impl DocumentService {
                 owner: owner_of(&granted),
             });
         }
-        let grant = self
-            .repos
-            .grants
-            .insert(NewGrant {
-                target: request.target,
-                subject_kind: request.subject_kind,
-                subject_value: request.subject_value,
-                subject_display: request.subject_display,
-                access_level: request.level,
-                granted_by: who.id.clone(),
-                valid_until: request.valid_until,
-                trace_id: trace.clone(),
-                reason: request.via_agent.as_ref().map(|_| AGENT_SHARE.to_owned()),
-                via_agent: request.via_agent.clone(),
-            })
-            .await?;
-        if let Some(document) = &granted.document {
-            let cause = ShareCause {
-                via_agent: request.via_agent,
-                comment_id: None,
-            };
-            self.announce_share(who, document, &grant, request.message, &cause)
-                .await;
-        }
-        Ok(grant)
+        Ok(granted)
     }
 
     pub async fn revoke(

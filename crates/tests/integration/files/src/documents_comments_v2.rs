@@ -65,6 +65,7 @@ fn request(
         body: tokens("look here", &mentions),
         mentions,
         parent_id: None,
+        mention_options: vec![],
     }
 }
 
@@ -100,6 +101,7 @@ async fn a_comment_keeps_its_range_and_mentions_and_is_edited_then_deleted() {
                 comment: comment.id.clone(),
                 body: "look again".to_owned(),
                 mentions: Vec::new(),
+                mention_options: vec![],
             },
             &trace(),
         )

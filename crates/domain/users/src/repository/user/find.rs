@@ -124,9 +124,37 @@ impl UserRepository {
         let active = UserStatus::Active.as_str();
         Ok(sqlx::query_scalar!(
             r#"SELECT id AS "id: UserId" FROM users
-               WHERE $1 = ANY(roles) AND status = $2
+               WHERE roles @> ARRAY[$1]::TEXT[] AND status = $2
                ORDER BY id LIMIT $3"#,
             role,
+            active,
+            limit.max(1),
+        )
+        .fetch_all(&*self.pool)
+        .await?)
+    }
+
+    pub async fn is_active_with_role(&self, user: &UserId, role: &str) -> Result<bool> {
+        let active = UserStatus::Active.as_str();
+        Ok(sqlx::query_scalar!(
+            r#"SELECT EXISTS(
+                   SELECT 1 FROM users
+                   WHERE id = $1 AND roles @> ARRAY[$2]::TEXT[] AND status = $3
+               ) AS "exists!""#,
+            user.as_str(),
+            role,
+            active,
+        )
+        .fetch_one(&*self.pool)
+        .await?)
+    }
+
+    pub async fn list_active_ids(&self, limit: i64) -> Result<Vec<UserId>> {
+        let active = UserStatus::Active.as_str();
+        Ok(sqlx::query_scalar!(
+            r#"SELECT id AS "id: UserId" FROM users
+               WHERE status = $1
+               ORDER BY id LIMIT $2"#,
             active,
             limit.max(1),
         )

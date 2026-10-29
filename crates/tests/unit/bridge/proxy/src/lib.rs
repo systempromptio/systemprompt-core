@@ -21,6 +21,8 @@ mod keepalive;
 #[cfg(test)]
 mod loopback_host;
 #[cfg(test)]
+mod notifications_inbox;
+#[cfg(test)]
 mod opencode_body;
 #[cfg(test)]
 mod peer_probe_body_complete;
@@ -30,5 +32,7 @@ mod portfile;
 mod route_class_parity;
 #[cfg(test)]
 mod secret;
+#[cfg(test)]
+mod stream_backoff;
 #[cfg(test)]
 mod token_cache;

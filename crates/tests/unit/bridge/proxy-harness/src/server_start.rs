@@ -50,6 +50,8 @@ fn parts(uri: &str) -> ServerParts {
             ),
             update_gate: systemprompt_bridge::update::automatic::UpdateGate::default(),
             drive_signals: systemprompt_bridge::proxy::drive_signal::DriveSignals::channel().0,
+            notification_signals:
+                systemprompt_bridge::proxy::notifications::NotificationSignals::channel().0,
         },
     }
 }

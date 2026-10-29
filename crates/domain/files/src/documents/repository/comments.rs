@@ -7,6 +7,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use chrono::{DateTime, Utc};
+use sqlx::PgConnection;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{
     DocumentCommentId, DocumentId, DocumentNodeId, DocumentRevisionId, UserId,
@@ -78,7 +79,11 @@ impl DocumentCommentRepository {
         }
     }
 
-    pub async fn insert(&self, request: NewComment) -> RepoResult<DocumentComment> {
+    pub async fn insert(
+        &self,
+        conn: &mut PgConnection,
+        request: NewComment,
+    ) -> RepoResult<DocumentComment> {
         let (start, end) = request.range.map(|range| (range.start, range.end)).unzip();
         let mentions: Vec<String> = request
             .mentions
@@ -112,9 +117,23 @@ impl DocumentCommentRepository {
             request.parent_id.as_ref().map(DocumentCommentId::as_str),
             request.via_agent,
         )
-        .fetch_one(&*self.pools.write)
+        .fetch_one(&mut *conn)
         .await?;
         Ok(row.into())
+    }
+
+    pub async fn find_live_document_of(
+        &self,
+        comment: &DocumentCommentId,
+    ) -> RepoResult<Option<DocumentId>> {
+        Ok(sqlx::query_scalar!(
+            r#"SELECT document_id::text AS "document_id!: DocumentId"
+               FROM document_comments
+               WHERE id = $1::text::uuid AND deleted_at IS NULL"#,
+            comment.as_str()
+        )
+        .fetch_optional(&*self.pools.read)
+        .await?)
     }
 
     pub async fn list_for_document(

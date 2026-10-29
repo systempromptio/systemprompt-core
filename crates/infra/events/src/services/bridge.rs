@@ -10,18 +10,19 @@
 //! through the router's *local-only* path — which deliberately does **not**
 //! touch the outbox, so the relay cannot loop.
 //!
+//! Fact-only rows notify [`crate::NOTIFICATION_FACTS_CHANNEL`] instead, which
+//! the bridge does not listen on, so the relay never wakes for a fact.
+//!
 //! The same listener also carries [`CACHE_INVALIDATION_CHANNEL`], whose
 //! payload is a cache domain; see [`super::cache_invalidation`].
 //!
 //! `LISTEN` holds a Postgres session for the bridge's lifetime, so the
 //! listener connects through its own pool
 //! ([`PostgresEventBridge::with_listener_pool`]): a direct, session-capable
-//! connection when the main pool sits behind a transaction-mode pooler.
-//! `NOTIFY` and the outbox writes are ordinary statements on the main pool.
+//! connection behind a transaction-mode pooler. `NOTIFY` and the outbox writes
+//! are ordinary statements on the main pool.
 //!
-//! The notification payload is only the row id (a UUID string) to stay
-//! well under Postgres' ~8 KB `NOTIFY` limit; the event body lives in the
-//! `jsonb` column.
+//! The payload is only the row id, well under the ~8 KB `NOTIFY` limit.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -92,6 +93,10 @@ impl PostgresEventBridge {
     }
 
     #[must_use]
+    pub const fn listener_pool(&self) -> &PgPool {
+        &self.listener_pool
+    }
+
     pub fn router(&self) -> EventRouter {
         EventRouter::from_outbox(self.outbox.clone(), Arc::clone(&self.broadcasters))
     }
@@ -220,6 +225,10 @@ impl PostgresEventBridge {
             error!(channel = %row.channel, row_id = %id, "event bridge: unknown outbox channel");
             return;
         };
+        if channel == OutboxChannel::Fact {
+            debug!(row_id = %id, "event bridge: fact-only outbox row carries no live frame");
+            return;
+        }
         if !row.deliver_to_origin && &row.origin_instance_id == self.outbox.instance_id() {
             debug!(
                 row_id = %id,
@@ -271,6 +280,7 @@ impl PostgresEventBridge {
                 },
                 Err(e) => error!(error = %e, "event bridge: failed to decode topic event"),
             },
+            OutboxChannel::Fact => {},
         }
     }
 

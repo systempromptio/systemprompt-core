@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM notification_subscriptions\n             WHERE subject = $1 AND source LIKE 'code:%'\n               AND target_stream IS NOT DISTINCT FROM $2\n               AND target_kind IS NOT DISTINCT FROM $3\n               AND target_id IS NOT DISTINCT FROM $4",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "df91a9e42b422efae8f8ce5c2d0190600e0451b718a264cea1e8fe53a3491ce2"
+}

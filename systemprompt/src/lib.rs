@@ -26,8 +26,9 @@
 //! | `slack` | the `systemprompt::slack` module | Slack Events API, slash commands, interactivity. Not part of `full`; the flag adds only the module re-export, since `api` compiles the crate regardless. |
 //! | `teams` | the `systemprompt::teams` module | Microsoft Teams Bot Framework activities. Not part of `full`; the flag adds only the module re-export, since `api` compiles the crate regardless. |
 //! | `agent-runs` | `systemprompt-agent-runs` | Durable, leased, governed coding-agent runs (Claude Code, Codex CLI) with a common event contract. In `full`. |
+//! | `notifications` | the `systemprompt::notifications` module, and the notification routes, `documents_inbox` tool and outbox consumer in the runtime and API | Notification streams, rules, the per-user feed and the outbox consumer. In `full`, not in `core`. Without it, comments and shares commit without recording a notification and a comment carrying `mention_options` is refused with `unsupported_op`. |
 //! | `files-office` | the `systemprompt::files` module with `systemprompt-files/office` | The `.docx` document codec. In `full`. |
-//! | `full` | `api`, `mcp`, `cloud`, `cli`, `config`, `logging`, `loader`, `events`, `storage`, `client`, `security`, `analytics`, and the domain crates (`agent`, `ai`, `mcp`, `oauth`, `users`, `content`, `marketplace`, `scheduler`, `generator`, `files`) | Building a product binary. The `slack` and `teams` modules stay opt-in. |
+//! | `full` | `api`, `mcp`, `cloud`, `cli`, `config`, `logging`, `loader`, `events`, `storage`, `client`, `security`, `analytics`, and the domain crates (`agent`, `ai`, `mcp`, `oauth`, `users`, `content`, `marketplace`, `scheduler`, `generator`, `files`, `notifications`) | Building a product binary. The `slack` and `teams` modules stay opt-in. |
 //!
 //! ```toml
 //! systemprompt = { version = "0.75.0", features = ["full"] }
@@ -183,15 +184,11 @@ pub use runtime::RuntimeError;
 
 #[cfg(feature = "full")]
 #[cfg_attr(docsrs, doc(cfg(feature = "full")))]
-pub mod agent {
-    pub use systemprompt_agent::*;
-}
+pub mod agent;
 
 #[cfg(feature = "full")]
 #[cfg_attr(docsrs, doc(cfg(feature = "full")))]
-pub mod ai {
-    pub use systemprompt_ai::*;
-}
+pub mod ai;
 
 #[cfg(feature = "full")]
 #[cfg_attr(docsrs, doc(cfg(feature = "full")))]
@@ -201,21 +198,15 @@ pub mod mcp {
 
 #[cfg(feature = "full")]
 #[cfg_attr(docsrs, doc(cfg(feature = "full")))]
-pub mod oauth {
-    pub use systemprompt_oauth::*;
-}
+pub mod oauth;
 
 #[cfg(feature = "full")]
 #[cfg_attr(docsrs, doc(cfg(feature = "full")))]
-pub mod users {
-    pub use systemprompt_users::*;
-}
+pub mod users;
 
 #[cfg(feature = "full")]
 #[cfg_attr(docsrs, doc(cfg(feature = "full")))]
-pub mod content {
-    pub use systemprompt_content::*;
-}
+pub mod content;
 
 #[cfg(feature = "analytics")]
 #[cfg_attr(docsrs, doc(cfg(feature = "analytics")))]
@@ -231,9 +222,7 @@ pub mod marketplace {
 
 #[cfg(feature = "full")]
 #[cfg_attr(docsrs, doc(cfg(feature = "full")))]
-pub mod scheduler {
-    pub use systemprompt_scheduler::*;
-}
+pub mod scheduler;
 
 #[cfg(feature = "slack")]
 #[cfg_attr(docsrs, doc(cfg(feature = "slack")))]
@@ -278,6 +267,12 @@ pub mod files {
 #[cfg(any(feature = "full", feature = "files-office"))]
 #[cfg_attr(docsrs, doc(cfg(any(feature = "full", feature = "files-office"))))]
 pub use systemprompt_files::register_agent_access_policy;
+
+#[cfg(feature = "notifications")]
+#[cfg_attr(docsrs, doc(cfg(feature = "notifications")))]
+pub mod notifications {
+    pub use systemprompt_notifications::*;
+}
 
 #[cfg(feature = "cloud")]
 #[cfg_attr(docsrs, doc(cfg(feature = "cloud")))]

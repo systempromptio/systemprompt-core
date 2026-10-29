@@ -1,0 +1,38 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id AS \"id: NotificationStreamId\", retention_days AS \"retention_days!\"\n               FROM notification_streams WHERE retention_days IS NOT NULL",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id: NotificationStreamId",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "notification_streams",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "retention_days!",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "notification_streams",
+            "name": "retention_days"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      true
+    ]
+  },
+  "hash": "e6d115477294e82ce9297022fb8f6af7ac963d4510c272f117a3c085d0b19f45"
+}

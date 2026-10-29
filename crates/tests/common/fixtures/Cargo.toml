@@ -17,7 +17,7 @@ systemprompt-loader = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-events = { workspace = true }
 systemprompt-provider-contracts = { workspace = true }
-systemprompt-extension = { workspace = true }
+systemprompt-extension = { workspace = true, features = ["sqlx"] }
 systemprompt-identifiers = { workspace = true }
 systemprompt-marketplace = { workspace = true }
 systemprompt-ai = { workspace = true }
@@ -30,7 +30,7 @@ systemprompt-content = { workspace = true }
 systemprompt-logging = { workspace = true }
 systemprompt-oauth = { workspace = true }
 systemprompt-traits = { workspace = true }
-systemprompt-runtime = { workspace = true }
+systemprompt-runtime = { workspace = true, features = ["notifications"] }
 systemprompt-security = { workspace = true }
 systemprompt-governance = { workspace = true }
 systemprompt-users = { workspace = true }

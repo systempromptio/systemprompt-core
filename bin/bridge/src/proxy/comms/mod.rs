@@ -16,13 +16,16 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::Instant;
 
 use futures_util::StreamExt;
 use serde::Deserialize;
 use systemprompt_identifiers::{UserId, ValidatedUrl};
 
+mod backoff;
 mod inbox;
+
+pub use backoff::{HEALTHY_AFTER, JITTER, RETRY_MAX, RETRY_MIN, ReconnectBackoff, jittered};
 
 use inbox::append;
 pub use inbox::{
@@ -31,13 +34,12 @@ pub use inbox::{
 
 use crate::config::SharedRuntimeConfig;
 use crate::proxy::drive_signal::{DriveSignal, DriveSignals, notice_for};
+use crate::proxy::notifications::{NotificationSignal, NotificationSignals, signal_for};
 use crate::proxy::token_cache::TokenCache;
 use systemprompt_models::ApiPaths;
 use systemprompt_models::documents::{DocumentPresenceEvent, DocumentRevisionCreatedEvent};
 
 const AUTH_THRESHOLD_SECS: u64 = 300;
-const RETRY_MIN: Duration = Duration::from_secs(1);
-const RETRY_MAX: Duration = Duration::from_secs(60);
 const EVENT_NAME: &str = "comms.message";
 
 #[derive(Debug, Deserialize)]
@@ -61,7 +63,12 @@ pub(super) struct CommsAnnouncement {
     preview: String,
 }
 
-fn handle_frame(data: &str, drive: &DriveSignals, viewer: Option<&UserId>) {
+fn handle_frame(
+    data: &str,
+    drive: &DriveSignals,
+    notifications: &NotificationSignals,
+    viewer: Option<&UserId>,
+) {
     let Ok(envelope) = serde_json::from_str::<AgUiEnvelope>(data) else {
         return;
     };
@@ -85,7 +92,9 @@ fn handle_frame(data: &str, drive: &DriveSignals, viewer: Option<&UserId>) {
             }
         },
         other => {
-            if let Some(notice) = notice_for(other, value.get(), viewer) {
+            if let Some(signal) = signal_for(other, &value) {
+                notifications.send(signal);
+            } else if let Some(notice) = notice_for(other, value.get(), viewer) {
                 drive.send(DriveSignal::Notice(Box::new(notice)));
             }
         },
@@ -122,34 +131,35 @@ pub async fn run_loop(
     token_cache: Arc<TokenCache>,
     client: reqwest::Client,
     drive: DriveSignals,
+    notifications: NotificationSignals,
 ) {
-    let mut backoff = RETRY_MIN;
+    let mut backoff = ReconnectBackoff::default();
     loop {
         let cfg = runtime_config.load_full();
         let mut generation = token_cache.generation();
         generation.mark_unchanged();
+        let started = Instant::now();
         let outcome = tokio::select! {
-            outcome = subscribe_once(cfg.gateway_base.as_ref(), token_cache.as_ref(), &client, &drive) => outcome,
+            outcome = subscribe_once(cfg.gateway_base.as_ref(), token_cache.as_ref(), &client, &drive, &notifications) => outcome,
             // Why: the stream belongs to the gateway it was opened against; a
             // swap means that gateway is no longer this bridge's, however
             // healthy the connection still is.
             _ = generation.changed() => {
                 tracing::info!(gateway = %cfg.gateway_base, "comms stream dropped: runtime config swapped");
-                backoff = RETRY_MIN;
+                backoff.reset();
                 continue;
             }
         };
+        let delay = backoff.next_delay(started.elapsed(), rand::random::<f64>());
         match outcome {
             Ok(()) => {
-                tracing::info!("comms stream closed by the gateway; reconnecting");
-                backoff = RETRY_MIN;
+                tracing::info!(retry_in = ?delay, "comms stream closed by the gateway; reconnecting");
             },
             Err(e) => {
-                tracing::warn!(error = %e, retry_in = ?backoff, "comms stream failed");
-                backoff = (backoff * 2).min(RETRY_MAX);
+                tracing::warn!(error = %e, retry_in = ?delay, "comms stream failed");
             },
         }
-        tokio::time::sleep(backoff).await;
+        tokio::time::sleep(delay).await;
     }
 }
 
@@ -173,6 +183,7 @@ async fn subscribe_once(
     token_cache: &TokenCache,
     client: &reqwest::Client,
     drive: &DriveSignals,
+    notifications: &NotificationSignals,
 ) -> Result<(), CommsError> {
     let token = token_cache.current(AUTH_THRESHOLD_SECS).await?;
 
@@ -200,6 +211,7 @@ async fn subscribe_once(
     let viewer = crate::auth::jwt::decode_unverified(token.token.expose())
         .and_then(|identity| identity.user_id);
     tracing::info!("comms stream open");
+    notifications.send(NotificationSignal::StreamOpened);
     let mut stream = response.bytes_stream();
     let mut buffer = String::new();
     while let Some(chunk) = stream.next().await {
@@ -210,7 +222,7 @@ async fn subscribe_once(
             buffer.drain(..idx + 2);
             for line in frame.lines() {
                 if let Some(data) = line.strip_prefix("data: ") {
-                    handle_frame(data, drive, viewer.as_ref());
+                    handle_frame(data, drive, notifications, viewer.as_ref());
                 }
             }
         }

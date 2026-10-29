@@ -155,6 +155,11 @@ fn collect_rate_differences(
             compare_with.content_per_second,
         ),
         (
+            "notifications_per_second",
+            current.notifications_per_second,
+            compare_with.notifications_per_second,
+        ),
+        (
             "gateway_per_second",
             current.gateway_per_second,
             compare_with.gateway_per_second,

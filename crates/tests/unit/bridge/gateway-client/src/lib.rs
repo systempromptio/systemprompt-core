@@ -13,6 +13,8 @@ mod gateway_client;
 #[cfg(test)]
 mod model_view_clients;
 #[cfg(test)]
+mod notifications_seen;
+#[cfg(test)]
 mod personal_keys_by_credential;
 #[cfg(test)]
 mod profile_cache_user_key;

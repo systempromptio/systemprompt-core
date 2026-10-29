@@ -63,7 +63,7 @@ pub struct SetArgs {
     #[arg(
         long,
         help = "Endpoint to modify: oauth_public, oauth_auth, contexts, tasks, artifacts, \
-                agent_registry, agents, mcp_registry, mcp, stream, content"
+                agent_registry, agents, mcp_registry, mcp, stream, content, notifications"
     )]
     pub endpoint: Option<String>,
 

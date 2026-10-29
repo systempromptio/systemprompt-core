@@ -43,6 +43,7 @@ impl CommentHandler<'_> {
                     comment,
                     body: resolved.body,
                     mentions: resolved.ids,
+                    mention_options: input.mention_options.into_iter().map(Into::into).collect(),
                 },
                 &agent_origin(ctx),
                 ctx.trace_id(),

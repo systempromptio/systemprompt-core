@@ -22,6 +22,8 @@
 @import url("./agents-status.css");
 @import url("./mcp-auth-status.css");
 @import url("./drive-status.css");
+@import url("./inbox.css");
+@import url("./inbox-row.css");
 @import url("./settings.css");
 @import url("./setup.css");
 @import url("./setup-finalizing.css");

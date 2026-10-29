@@ -16,6 +16,7 @@ use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{
     AccessLevel, EditOp, PresenceBeacon, PresenceSource, PresenceState,
 };
+use systemprompt_test_fixtures::test_db_pool;
 use tempfile::TempDir;
 use tokio::sync::mpsc;
 
@@ -51,20 +52,29 @@ fn grant(document: &DocumentId, kind: &str, value: &str, level: AccessLevel) -> 
 }
 
 async fn legacy_own_grant(h: &Harness, document: &DocumentId, owner: &UserId, user: &UserId) {
+    let pool = test_db_pool().await;
+    let mut conn = pool
+        .write_pool()
+        .acquire()
+        .await
+        .expect("acquire connection");
     h.repos
         .grants
-        .insert(NewGrant {
-            target: GrantTarget::Document(document.clone()),
-            subject_kind: "user".to_owned(),
-            subject_value: user.as_str().to_owned(),
-            subject_display: None,
-            access_level: AccessLevel::Own,
-            granted_by: owner.clone(),
-            valid_until: None,
-            trace_id: systemprompt_identifiers::TraceId::generate(),
-            reason: None,
-            via_agent: None,
-        })
+        .insert(
+            &mut conn,
+            NewGrant {
+                target: GrantTarget::Document(document.clone()),
+                subject_kind: "user".to_owned(),
+                subject_value: user.as_str().to_owned(),
+                subject_display: None,
+                access_level: AccessLevel::Own,
+                granted_by: owner.clone(),
+                valid_until: None,
+                trace_id: systemprompt_identifiers::TraceId::generate(),
+                reason: None,
+                via_agent: None,
+            },
+        )
         .await
         .expect("insert own grant");
 }

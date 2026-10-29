@@ -16,6 +16,9 @@ use crate::mcp_registry::{self, McpRegistrySlot};
 pub use crate::obs::StartupFault;
 use crate::probe_cache::StartMenuCache;
 use crate::proxy::identity::InstallId;
+use crate::proxy::notifications::{
+    self, InboxHandle, NotificationSignalReceiver, NotificationSignals,
+};
 use crate::proxy::{ProxyDeps, ProxyHandle};
 use crate::schedule::status::ScheduleStatusCache;
 
@@ -46,6 +49,7 @@ pub struct BridgeContext {
     pub elevation_attempted: AtomicBool,
     pub startup_faults: Vec<StartupFault>,
     pub drive: Arc<crate::drive::DriveHandle>,
+    pub inbox: Arc<InboxHandle>,
 }
 
 impl std::fmt::Debug for BridgeContext {
@@ -104,6 +108,7 @@ impl BridgeContext {
         };
         let update_gate = crate::update::automatic::UpdateGate::default();
         let (drive_signals, drive_receiver) = crate::proxy::drive_signal::DriveSignals::channel();
+        let (notification_signals, notification_receiver) = NotificationSignals::channel();
         let deps = ProxyDeps {
             install_id,
             mcp_registry: Arc::clone(&mcp_registry),
@@ -112,6 +117,7 @@ impl BridgeContext {
             plugin_tokens: Arc::clone(&plugin_tokens),
             update_gate: update_gate.clone(),
             drive_signals,
+            notification_signals,
         };
         let proxy = match mode {
             ProxyMode::Serve => ProxyHandle::serve(runtime.handle(), deps, &mut faults),
@@ -120,9 +126,11 @@ impl BridgeContext {
         let tasks = crate::tasks::TaskOwner::new(runtime.handle(), activity.clone());
         let drive = crate::drive::DriveHandle::new();
         spawn_drive(&tasks, &proxy, &drive, &http, drive_receiver);
+        let inbox = spawn_inbox(&tasks, &proxy, &http, notification_receiver);
         Ok(Arc::new(Self {
             tasks,
             drive,
+            inbox,
             runtime,
             install_id_durable,
             proxy,
@@ -182,6 +190,26 @@ impl BridgeContext {
     pub fn spawn(&self, fut: impl Future<Output = ()> + Send + 'static) {
         self.tasks.spawn(fut);
     }
+}
+
+fn spawn_inbox(
+    tasks: &crate::tasks::TaskOwner,
+    proxy: &ProxyHandle,
+    http: &reqwest::Client,
+    signals: NotificationSignalReceiver,
+) -> Arc<InboxHandle> {
+    let (inbox, requests) = InboxHandle::new(notifications::inbox_path());
+    if let Some(token_cache) = proxy.token_cache() {
+        tasks.spawn(notifications::run_loop(notifications::InboxDeps {
+            handle: Arc::clone(&inbox),
+            runtime_config: Arc::clone(proxy.runtime_config()),
+            token_cache: Arc::clone(token_cache),
+            http: http.clone(),
+            signals,
+            requests,
+        }));
+    }
+    inbox
 }
 
 fn spawn_drive(

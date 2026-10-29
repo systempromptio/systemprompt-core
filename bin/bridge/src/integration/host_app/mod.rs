@@ -12,12 +12,14 @@ use systemprompt_models::bridge::host::HostKind;
 
 mod error;
 mod probe;
+mod session;
 
 pub use crate::install::profile_inputs::{
     ModelProtocolOverrides, ProfileFacts, ProfileFactsError, ProfileGenInputs,
 };
 pub use error::HostAppError;
 pub use probe::{DesiredError, ProbeEnv};
+pub use session::{StartSession, session_starter};
 
 pub use crate::integration::profile_state::{
     AppInstallState, ProfileCode, ProfileProbe, ProfileState, StaleReason,
@@ -185,6 +187,13 @@ pub trait HostApp: Send + Sync + 'static {
 
     fn can_quit(&self) -> bool {
         false
+    }
+
+    // Why: no supported host exposes a launch-with-prompt deep link, and a
+    // terminal `claude "<prompt>"` is not portable across desktops, so every
+    // host answers `None` and the inbox hides its Start-session action.
+    fn start_session(&self, _prompt: &str) -> Option<StartSession> {
+        None
     }
 
     fn kind(&self) -> HostAppKind {

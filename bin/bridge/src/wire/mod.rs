@@ -12,6 +12,7 @@ pub mod drive;
 pub mod external_url;
 pub mod first_run;
 pub mod hosts;
+pub mod inbox;
 pub mod ipc;
 pub mod payloads;
 pub mod profile;

@@ -16,6 +16,7 @@ pub mod identity;
 pub mod keepalive;
 pub mod loopback;
 pub mod mcp_probe;
+pub mod notifications;
 pub mod peer;
 pub mod portfile;
 mod refresh;

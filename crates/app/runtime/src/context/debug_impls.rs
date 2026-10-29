@@ -79,7 +79,8 @@ impl std::fmt::Debug for Plugins {
 
 impl std::fmt::Debug for Subsystems {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Subsystems")
+        let mut debug = f.debug_struct("Subsystems");
+        debug
             .field("system_admin", &self.system_admin.username())
             .field("logging", &self.logging)
             .field("authz_hook", &"SharedAuthzHook")
@@ -105,7 +106,9 @@ impl std::fmt::Debug for Subsystems {
             .field("spawner", &"Spawner")
             .field("publish_guard", &"Mutex<PublishGuard>")
             .field("connector_tokens", &"TokenCache")
-            .field("documents", &self.documents)
-            .finish()
+            .field("documents", &self.documents);
+        #[cfg(feature = "notifications")]
+        debug.field("notifications", &self.notifications);
+        debug.finish()
     }
 }

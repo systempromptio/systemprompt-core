@@ -43,6 +43,7 @@ pub type ReplyId = Option<ReplyTarget>;
 #[derive(Debug, Clone)]
 pub enum UiEvent {
     OpenSettings,
+    OpenInbox,
     OpenDeviceAction(DeviceAction),
     SyncRequested {
         reply_to: ReplyId,

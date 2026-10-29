@@ -96,6 +96,7 @@ async fn comment_on(
                 }),
                 body: "check this".to_owned(),
                 parent_id: None,
+                mention_options: vec![],
             },
             &trace(),
         )
@@ -137,6 +138,7 @@ async fn comments_are_created_listed_replied_to_and_resolved_with_events() {
                 anchor: None,
                 body: "agreed".to_owned(),
                 parent_id: Some(root.clone()),
+                mention_options: vec![],
             },
             &trace(),
         )
@@ -202,6 +204,7 @@ async fn a_comment_needs_a_quote_the_node_contains() {
                 }),
                 body: "x".to_owned(),
                 parent_id: None,
+                mention_options: vec![],
             },
             &trace(),
         )

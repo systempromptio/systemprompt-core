@@ -69,6 +69,7 @@ async fn an_agent_cannot_share_mention_grant_or_trash_under_an_edit_cap() {
         body: format!("@[Colleague](user:{}) please look", colleague.id),
         mentions: vec![colleague.id.clone()],
         parent_id: None,
+        mention_options: vec![],
     };
     let mentioned = as_agent(h.service.create_comment(&owner, mention, &trace()))
         .await

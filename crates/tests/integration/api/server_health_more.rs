@@ -311,5 +311,15 @@ async fn handle_health_detail_reports_checks() -> anyhow::Result<()> {
     let (status, body) = body_json(app, "/health/detail").await;
     assert!(status == StatusCode::OK || status == StatusCode::SERVICE_UNAVAILABLE);
     assert!(body["checks"]["database"].is_object());
+    let notifications = &body["checks"]["notifications"];
+    assert_eq!(notifications["status"], "healthy", "{notifications}");
+    assert!(notifications["state"].is_string(), "{notifications}");
+    assert!(notifications["pending"].is_i64(), "{notifications}");
+    assert!(
+        notifications
+            .as_object()
+            .is_some_and(|entry| entry.contains_key("oldest_seconds")),
+        "{notifications}"
+    );
     Ok(())
 }

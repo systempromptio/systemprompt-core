@@ -169,6 +169,7 @@ async fn comments_anchor_on_nested_text_and_refuse_bad_requests() {
                 }),
                 body: "nested".to_owned(),
                 parent_id: None,
+                mention_options: vec![],
             },
             &trace(),
         )
@@ -184,6 +185,7 @@ async fn comments_anchor_on_nested_text_and_refuse_bad_requests() {
             anchor,
             body: "x".to_owned(),
             parent_id,
+            mention_options: vec![],
         };
     let neither = h
         .service

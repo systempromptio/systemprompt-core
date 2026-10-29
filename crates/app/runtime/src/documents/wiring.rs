@@ -7,6 +7,7 @@ use std::sync::Arc;
 
 use systemprompt_database::DbPool;
 use systemprompt_events::EventRouter;
+use systemprompt_extension::DynNotificationSink;
 use systemprompt_files::DocumentsConfig;
 use systemprompt_files::documents::agents::{DocumentActor, registered_policy};
 use systemprompt_files::documents::blob_store::BlobStore;
@@ -37,6 +38,7 @@ pub struct DocumentsRuntimeParts {
     pub subjects: Arc<dyn SubjectAttributeSource>,
     pub directory: Arc<dyn SubjectDirectory>,
     pub event_router: EventRouter,
+    pub notifications: DynNotificationSink,
     pub catalog: Vec<CatalogTemplate>,
     pub config: DocumentsConfig,
     pub background_tasks: BackgroundTasks,
@@ -62,6 +64,7 @@ impl std::fmt::Debug for DocumentsRuntimeParts {
 #[derive(Debug, Clone)]
 pub struct DocumentsRuntime {
     repositories: Arc<DocumentRepositories>,
+    access: Arc<DocumentAccessService>,
     service: Arc<DocumentService>,
     uploads: Arc<UploadService>,
     #[cfg(feature = "collab")]
@@ -79,6 +82,7 @@ impl DocumentsRuntime {
             subjects,
             directory,
             event_router,
+            notifications,
             catalog,
             config,
             background_tasks,
@@ -108,8 +112,9 @@ impl DocumentsRuntime {
             blobs,
             codecs: Arc::new(CodecRegistry::discover()),
             templates: Arc::new(TemplateRegistry::discover(catalog)),
-            access,
+            access: Arc::clone(&access),
             events: Arc::new(DocumentEvents::new(Arc::new(event_router))),
+            notifications,
             config,
         }));
         service.attach_uploads(&uploads);
@@ -132,6 +137,7 @@ impl DocumentsRuntime {
         drop(background_tasks);
         Self {
             repositories,
+            access,
             service,
             uploads,
             #[cfg(feature = "collab")]
@@ -148,6 +154,11 @@ impl DocumentsRuntime {
     #[must_use]
     pub const fn repositories(&self) -> &Arc<DocumentRepositories> {
         &self.repositories
+    }
+
+    #[must_use]
+    pub const fn access(&self) -> &Arc<DocumentAccessService> {
+        &self.access
     }
 
     #[must_use]

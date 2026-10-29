@@ -1,3 +1,4 @@
+use systemprompt_extension::NotificationSinkError;
 use systemprompt_files::documents::DocumentsError;
 use systemprompt_files::documents::agents::{AgentCap, AgentCapability, AgentRefusal};
 use systemprompt_files::documents::models::LockHolderKind;
@@ -50,6 +51,8 @@ const fn listed(error: &DocumentsError) -> bool {
         | DocumentsError::AccessRequestNotNeeded { .. }
         | DocumentsError::AccessRequestClosed { .. }
         | DocumentsError::Codec(_)
+        | DocumentsError::Notifications(_)
+        | DocumentsError::NotificationKind(_)
         | DocumentsError::Template { .. }
         | DocumentsError::LiveSession(_)
         | DocumentsError::Blob(_)
@@ -318,6 +321,10 @@ fn table() -> Vec<(DocumentsError, RefusalCode)> {
                 policy_cap: AgentCap::Read,
             }),
             RefusalCode::InvalidParams,
+        ),
+        (
+            DocumentsError::Notifications(NotificationSinkError::Unavailable),
+            RefusalCode::UnsupportedOp,
         ),
         (
             DocumentsError::Codec(CodecError::NoMatch),

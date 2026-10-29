@@ -342,6 +342,7 @@ nav-marketplace = Marketplace
 nav-agents = Agents
 nav-status = Status
 nav-settings = Settings
+nav-inbox = Inbox
 
 # Profile tab ----------------------------------------------------------------
 profile-heading = Profile
@@ -717,3 +718,31 @@ personal-keys-fix-retry = Try again
 personal-keys-error-generic = The gateway did not answer.
 toast-personal-key-saved = Key verified and saved. Your agents are being updated.
 toast-personal-key-removed = Key removed.
+
+# Inbox ------------------------------------------------------------------------
+tray-inbox = Inbox ({ $count })
+inbox-toast-title = { $actor } needs you
+inbox-toast-body = Open the inbox to see what is waiting.
+inbox-toast-more-title = More need you
+inbox-toast-more-body = { $count } more notifications need you. Open the inbox to see them.
+inbox-empty = Nothing needs you right now.
+inbox-count-capped = { $count }+
+inbox-load-older = Load older
+inbox-unavailable = Notifications are not enabled on this server.
+inbox-mark-all-read = Mark all read
+inbox-mark-read = Mark read
+inbox-open = Open
+inbox-copy-prompt = Copy prompt
+inbox-copied = Prompt copied
+inbox-copy-fallback = Copy the prompt below
+inbox-escalate = Escalate
+inbox-escalate-note = Note for the reader (optional)
+inbox-escalate-send = Escalate to me
+inbox-escalated = Escalated
+inbox-cancel = Cancel
+inbox-start-session = Start session
+inbox-coalesced = ×{ $count }
+inbox-via = via { $agent }
+inbox-attention-human = Needs you
+inbox-attention-agent = For your agent
+inbox-attention-silent = FYI

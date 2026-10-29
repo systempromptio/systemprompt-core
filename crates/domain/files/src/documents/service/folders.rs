@@ -6,6 +6,7 @@
 use systemprompt_identifiers::{DocumentFolderId, TraceId};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{AccessLevel, DocumentAction};
+use systemprompt_traits::RepositoryError;
 
 use super::support::validate_name;
 use super::{AgentCapTarget, DocumentService, NewFolderRequest};
@@ -61,21 +62,26 @@ impl DocumentService {
         trace: &TraceId,
     ) -> Result<(), DocumentsError> {
         self.access.register_folder_entity(&folder.id).await?;
+        let mut tx = self.repos.documents.begin().await?;
         self.repos
             .grants
-            .insert(NewGrant {
-                target: GrantTarget::Folder(folder.id.clone()),
-                subject_kind: "user".to_owned(),
-                subject_value: who.id.as_str().to_owned(),
-                subject_display: Some(who.username.clone()),
-                access_level: AccessLevel::Share,
-                granted_by: who.id.clone(),
-                valid_until: None,
-                trace_id: trace.clone(),
-                reason: None,
-                via_agent: None,
-            })
+            .insert(
+                &mut tx,
+                NewGrant {
+                    target: GrantTarget::Folder(folder.id.clone()),
+                    subject_kind: "user".to_owned(),
+                    subject_value: who.id.as_str().to_owned(),
+                    subject_display: Some(who.username.clone()),
+                    access_level: AccessLevel::Share,
+                    granted_by: who.id.clone(),
+                    valid_until: None,
+                    trace_id: trace.clone(),
+                    reason: None,
+                    via_agent: None,
+                },
+            )
             .await?;
+        tx.commit().await.map_err(RepositoryError::from)?;
         Ok(())
     }
 

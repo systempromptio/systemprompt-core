@@ -459,6 +459,10 @@ fn fixture_app_context_assembled_on(
         documents_config,
     );
     let instance_id = config.instance_id.clone();
+    let event_router = systemprompt_events::EventRouter::local_only(Arc::new(
+        systemprompt_events::EventBroadcasters::new(),
+    ));
+    let notifications = crate::fixture_notifications(pool, &event_router, &documents);
     let config = Arc::new(config);
     let fixture_boot = &bootstrap.boot;
     let boot = BootContext::new(
@@ -553,9 +557,7 @@ fn fixture_app_context_assembled_on(
                 systemprompt_database::SchemaInstallReport::default(),
             )),
             event_bridge: fixture_event_bridge(pool),
-            event_router: systemprompt_events::EventRouter::local_only(Arc::new(
-                systemprompt_events::EventBroadcasters::new(),
-            )),
+            event_router,
             geoip_reader: None,
             file_storage,
             shutdown: Default::default(),
@@ -566,6 +568,7 @@ fn fixture_app_context_assembled_on(
             )),
             connector_tokens: Arc::default(),
             documents,
+            notifications,
         },
     );
 

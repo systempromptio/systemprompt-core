@@ -1,0 +1,83 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT owner_user_id AS \"owner!: UserId\", id::text AS \"id!: NotificationRuleId\",\n                      name, priority, match AS \"match!: Json<RuleMatch>\",\n                      action AS \"action!: Json<RuleAction>\"\n               FROM notification_rules WHERE owner_user_id = ANY($1)\n               ORDER BY owner_user_id, priority, id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "owner!: UserId",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "notification_rules",
+            "name": "owner_user_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "id!: NotificationRuleId",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "notification_rules",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "priority",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "notification_rules",
+            "name": "priority"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "match!: Json<RuleMatch>",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "notification_rules",
+            "name": "match"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "action!: Json<RuleAction>",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "notification_rules",
+            "name": "action"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "TextArray"
+      ]
+    },
+    "nullable": [
+      true,
+      null,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "d7457eeeb81a455b758dda951800aff30c927359d30747b30bcb3af273f1f69d"
+}

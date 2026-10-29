@@ -14,10 +14,14 @@ export class SpRail extends SpElement {
     this.activeTab = readInitialTab();
     this.agentCount = 0;
     this.marketplaceCount = 0;
+    this.inboxUnread = null;
     this._onResize = () => this._syncIndicator();
     this._onMktCount = (e) => {
       const total = e.detail && e.detail.total;
       if (typeof total === "number") { this.marketplaceCount = total; }
+    };
+    this._onInboxCount = (e) => {
+      this.inboxUnread = e.detail?.label ?? null;
     };
     this._onRailKey = (e) => {
       const tabs = Array.from(this.querySelectorAll(".sp-rail-tab"));
@@ -38,6 +42,8 @@ export class SpRail extends SpElement {
       this.agentCount = (s && s.agent_fleet && s.agent_fleet.set_up) ? s.agent_fleet.set_up.total : 0;
     });
     this._unsubMkt = onBridgeEvent("mkt:count", this._onMktCount);
+    this._unsubInbox = onBridgeEvent("inbox:count", this._onInboxCount);
+    this.bridgeSubscribe("inbox.show", () => this.activateTab("inbox", { moveFocus: true }));
     window.addEventListener("resize", this._onResize);
     this.addEventListener("keydown", this._onRailKey);
     queueMicrotask(() => this.activateTab(this.activeTab));
@@ -45,6 +51,7 @@ export class SpRail extends SpElement {
 
   onDisconnect() {
     if (this._unsubMkt) { this._unsubMkt(); this._unsubMkt = null; }
+    if (this._unsubInbox) { this._unsubInbox(); this._unsubInbox = null; }
     window.removeEventListener("resize", this._onResize);
     this.removeEventListener("keydown", this._onRailKey);
   }
@@ -113,5 +120,5 @@ export class SpRail extends SpElement {
   }
 }
 
-reactive(SpRail.prototype, ["activeTab", "agentCount", "marketplaceCount"]);
+reactive(SpRail.prototype, ["activeTab", "agentCount", "marketplaceCount", "inboxUnread"]);
 customElements.define("sp-rail", SpRail);

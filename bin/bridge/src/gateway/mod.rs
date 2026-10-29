@@ -14,6 +14,7 @@ pub mod manifest;
 mod manifest_hosts;
 pub mod manifest_version;
 pub mod model_view;
+mod notifications;
 pub mod personal_keys;
 pub mod profile_fetch;
 pub mod rejection;

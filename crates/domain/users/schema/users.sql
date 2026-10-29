@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS users (
 );
 CREATE INDEX IF NOT EXISTS idx_users_archived_at ON users(archived_at) WHERE archived_at IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_users_name ON users(name);
+CREATE INDEX IF NOT EXISTS idx_users_roles_gin ON users USING GIN (roles);
 CREATE INDEX IF NOT EXISTS idx_users_bot_status ON users(is_bot, is_scanner);
 CREATE INDEX IF NOT EXISTS idx_users_service_accounts ON users(created_at)
     WHERE account_kind = 'service';

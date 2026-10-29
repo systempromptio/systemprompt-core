@@ -199,6 +199,7 @@ async fn recent_orders_by_the_callers_last_touch() {
                 }),
                 body: "seen".to_owned(),
                 parent_id: None,
+                mention_options: vec![],
             },
             &trace(),
         )

@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO notification_rules (id, name, priority, owner_user_id, match, action, source)\n         VALUES ($1::text::uuid, $2, $3, $4, $5, $6, $7)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Int4",
+        "Text",
+        "Jsonb",
+        "Jsonb",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4cc488a2911bf8f874e500e2ca73eb07c657c5fd531d8778140dda9e062390c2"
+}

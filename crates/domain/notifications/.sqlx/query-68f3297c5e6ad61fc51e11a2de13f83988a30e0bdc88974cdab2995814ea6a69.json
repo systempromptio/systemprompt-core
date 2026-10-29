@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT COUNT(*) AS \"pending!\",\n                      EXTRACT(EPOCH FROM now() - MIN(created_at))::BIGINT AS oldest\n               FROM notifications WHERE delivery_state = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "pending!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "oldest",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "68f3297c5e6ad61fc51e11a2de13f83988a30e0bdc88974cdab2995814ea6a69"
+}

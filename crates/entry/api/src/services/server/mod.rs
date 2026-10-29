@@ -29,6 +29,7 @@ pub mod readiness;
 mod replica_identity;
 pub mod routes;
 pub mod runner;
+pub mod runner_supervisor;
 pub mod scheduler_health;
 pub mod shutdown;
 pub mod startup;

@@ -25,6 +25,7 @@ pub use cache_invalidation::{
 };
 pub use repository::EventsOwnerReassignment;
 pub use routing::{
-    BroadcasterConnections, EventBroadcasters, EventRouter, OUTBOX_CHANNEL, OutboxChannel,
+    BroadcasterConnections, EventBroadcasters, EventRouter, NOTIFICATION_FACTS_CHANNEL,
+    OUTBOX_CHANNEL, OutboxChannel,
 };
 pub use topics::{TOPIC_BUFFER, TopicBroadcaster, TopicEvent};

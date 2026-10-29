@@ -89,6 +89,7 @@ pub mod mcp;
 pub mod mime;
 pub mod modules;
 pub mod net;
+pub mod notifications;
 pub mod oauth;
 pub mod origin;
 pub mod plugin;

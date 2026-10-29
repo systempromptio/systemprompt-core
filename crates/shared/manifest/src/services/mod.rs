@@ -30,6 +30,7 @@ mod marketplace_mirror;
 mod marketplace_opencode;
 pub mod marketplace_publication;
 pub mod mcp;
+pub mod notifications;
 pub mod plugin;
 pub mod registry;
 pub mod root;

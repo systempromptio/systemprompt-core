@@ -1,4 +1,6 @@
-//! Detailed health probes: service counts and static-content presence.
+//! Detailed health probes: service counts, static-content presence and, with
+//! notifications built in, the notification consumer's state and delivery
+//! backlog. A backlog that cannot be read reports the entry degraded.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -40,6 +42,39 @@ fn check_static_content(web_dir: &Path) -> (bool, bool) {
     )
 }
 
+#[cfg(feature = "notifications")]
+async fn check_notifications(ctx: &AppContext) -> Option<(serde_json::Value, bool)> {
+    let probe = ctx.notifications().consumer.backlog();
+    let entry = match tokio::time::timeout(super::health::HEALTH_PROBE_TIMEOUT, probe).await {
+        Ok(Ok(backlog)) => (
+            json!({
+                "status": "healthy",
+                "state": backlog.state,
+                "pending": backlog.pending,
+                "oldest_seconds": backlog.oldest_seconds,
+            }),
+            true,
+        ),
+        Ok(Err(error)) => {
+            tracing::warn!(error = %error, "Notification backlog health probe failed");
+            (
+                json!({ "status": "degraded", "error": "backlog unavailable" }),
+                false,
+            )
+        },
+        Err(_) => (
+            json!({ "status": "degraded", "error": "backlog probe timed out" }),
+            false,
+        ),
+    };
+    Some(entry)
+}
+
+#[cfg(not(feature = "notifications"))]
+fn check_notifications(_ctx: &AppContext) -> std::future::Ready<Option<(serde_json::Value, bool)>> {
+    std::future::ready(None)
+}
+
 pub async fn handle_health_detail(
     axum::extract::State(ctx): axum::extract::State<AppContext>,
 ) -> impl axum::response::IntoResponse {
@@ -59,6 +94,7 @@ pub async fn handle_health_detail(
     };
 
     let (agent_count, agent_status, mcp_count, mcp_status) = check_service_counts(&ctx).await;
+    let notifications = check_notifications(&ctx).await;
     let web_dir = ctx.app_paths().web().dist().to_path_buf();
     let (memory, (index_exists, sitemap_exists)) =
         tokio::task::spawn_blocking(move || (get_process_memory(), check_static_content(&web_dir)))
@@ -71,17 +107,19 @@ pub async fn handle_health_detail(
     let db_healthy = db_status == "healthy";
     let services_ok = agent_status != "error" && mcp_status != "error";
     let content_ok = index_exists && sitemap_exists;
+    let notifications_ok = notifications.as_ref().is_none_or(|(_, ok)| *ok);
 
-    let (overall_status, http_status) = match (db_healthy, services_ok && content_ok) {
-        (false, _) => ("unhealthy", StatusCode::SERVICE_UNAVAILABLE),
-        (true, false) => ("degraded", StatusCode::OK),
-        (true, true) => ("healthy", StatusCode::OK),
-    };
+    let (overall_status, http_status) =
+        match (db_healthy, services_ok && content_ok && notifications_ok) {
+            (false, _) => ("unhealthy", StatusCode::SERVICE_UNAVAILABLE),
+            (true, false) => ("degraded", StatusCode::OK),
+            (true, true) => ("healthy", StatusCode::OK),
+        };
 
     let system_stats = get_system_stats(ctx.db_pool().as_ref()).await;
     let check_duration_ms = start.elapsed().as_millis();
 
-    let data = json!({
+    let mut data = json!({
         "status": overall_status,
         "timestamp": chrono::Utc::now().to_rfc3339(),
         "version": env!("CARGO_PKG_VERSION"),
@@ -99,6 +137,14 @@ pub async fn handle_health_detail(
         "system": system_stats,
         "response_time_ms": check_duration_ms
     });
+
+    if let Some((entry, _)) = notifications
+        && let Some(checks) = data
+            .get_mut("checks")
+            .and_then(serde_json::Value::as_object_mut)
+    {
+        checks.insert("notifications".to_owned(), entry);
+    }
 
     (http_status, Json(data))
 }

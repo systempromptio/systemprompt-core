@@ -8,6 +8,7 @@ use crate::gui::events::UiEvent;
 pub(crate) const fn event_kind(event: &UiEvent) -> &'static str {
     match event {
         UiEvent::OpenSettings => "OpenSettings",
+        UiEvent::OpenInbox => "OpenInbox",
         UiEvent::OpenDeviceAction(_) => "OpenDeviceAction",
         UiEvent::SyncRequested { .. } => "SyncRequested",
         UiEvent::ValidateRequested { .. } => "ValidateRequested",

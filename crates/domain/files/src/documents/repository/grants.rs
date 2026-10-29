@@ -6,6 +6,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use sqlx::PgConnection;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{DocumentFolderId, DocumentId, UserId};
 use systemprompt_models::documents::AccessLevel;
@@ -28,7 +29,11 @@ impl DocumentGrantRepository {
         }
     }
 
-    pub async fn insert(&self, request: NewGrant) -> RepoResult<DocumentGrant> {
+    pub async fn insert(
+        &self,
+        conn: &mut PgConnection,
+        request: NewGrant,
+    ) -> RepoResult<DocumentGrant> {
         let (document_id, folder_id) = match &request.target {
             GrantTarget::Document(id) => (Some(id.as_str()), None),
             GrantTarget::Folder(id) => (None, Some(id.as_str())),
@@ -81,7 +86,7 @@ impl DocumentGrantRepository {
             request.reason,
             request.via_agent,
         )
-        .fetch_one(&*self.pools.write)
+        .fetch_one(&mut *conn)
         .await?;
         row.try_into()
     }

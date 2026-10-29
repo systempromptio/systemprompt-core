@@ -37,6 +37,7 @@ async fn comment_on(h: &Harness, owner: &AuthenticatedUser, id: &DocumentId) -> 
         body: "looks right".to_owned(),
         mentions: Vec::new(),
         parent_id: None,
+        mention_options: vec![],
     }
 }
 

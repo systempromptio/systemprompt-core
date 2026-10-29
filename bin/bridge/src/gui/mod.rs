@@ -12,6 +12,7 @@ mod event_kind;
 pub mod events;
 pub mod first_run;
 pub mod handlers;
+mod inbox;
 
 pub mod hosts;
 pub mod ipc_runtime;
@@ -164,11 +165,17 @@ pub(crate) struct GuiApp {
     pub(crate) drive_watch: tokio::sync::watch::Receiver<u64>,
     pub(crate) drive_notice_seq: u64,
     pub(crate) drive_review_since: chrono::DateTime<chrono::Utc>,
+    pub(crate) inbox_watch: tokio::sync::watch::Receiver<u64>,
+    pub(crate) inbox_show_pending: std::sync::atomic::AtomicBool,
 }
 
 impl GuiApp {
     fn new(state: Arc<AppState>, proxy: UiEventProxy, ctx: Arc<BridgeContext>) -> Self {
         let drive_watch = ctx.drive.subscribe();
+        let mut inbox_watch = ctx.inbox.subscribe();
+        inbox_watch.mark_changed();
+        ctx.inbox
+            .request(crate::proxy::notifications::InboxRequest::Refresh);
         Self {
             state,
             proxy,
@@ -189,6 +196,8 @@ impl GuiApp {
             drive_watch,
             drive_notice_seq: 0,
             drive_review_since: chrono::Utc::now(),
+            inbox_watch,
+            inbox_show_pending: std::sync::atomic::AtomicBool::new(false),
         }
     }
 

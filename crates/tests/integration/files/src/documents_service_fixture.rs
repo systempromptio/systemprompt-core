@@ -29,7 +29,7 @@ use systemprompt_models::authz::{
 use systemprompt_models::documents::ActorKind;
 use systemprompt_provider_contracts::documents::TemplateParams;
 use systemprompt_storage::LocalFileStorage;
-use systemprompt_test_fixtures::test_db_pool;
+use systemprompt_test_fixtures::{fixture_notification_sink, test_db_pool};
 use systemprompt_traits::{BackgroundTasks, FileStorage};
 use tempfile::TempDir;
 use uuid::Uuid;
@@ -291,6 +291,7 @@ pub(crate) fn harness_with_policy(
         templates: Arc::new(TemplateRegistry::discover(Vec::new())),
         access,
         events,
+        notifications: fixture_notification_sink(&db),
         config,
     });
     service.attach_uploads(&uploads);

@@ -9,7 +9,6 @@
 
 use std::sync::Arc;
 
-
 use systemprompt_agent::repository::A2ARepositories;
 use systemprompt_ai::repository::AiRepositories;
 use systemprompt_analytics::repository::AnalyticsRepositories;
@@ -117,6 +116,8 @@ pub struct Subsystems {
     pub publish_guard: Arc<tokio::sync::Mutex<PublishGuard>>,
     pub connector_tokens: Arc<TokenCache>,
     pub documents: Arc<crate::documents::DocumentsRuntime>,
+    #[cfg(feature = "notifications")]
+    pub notifications: Arc<crate::notifications::NotificationsHandle>,
 }
 
 /// Application-wide runtime container shared across the HTTP server, the

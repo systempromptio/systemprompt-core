@@ -1,0 +1,23 @@
+[package]
+name = "systemprompt-notifications-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Unit tests for the systemprompt-notifications crate"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-notifications = { workspace = true }
+systemprompt-extension = { workspace = true }
+systemprompt-models = { workspace = true }
+systemprompt-identifiers = { workspace = true }
+
+[dev-dependencies]
+async-trait = { workspace = true }
+chrono = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }

@@ -139,6 +139,7 @@ impl ExtensionContext for AppContext {
             .with(Arc::clone(self.db_pool()))
             .with(Arc::clone(self.app_paths_arc()))
             .with(Arc::clone(self.files_config()))
+            .with(Arc::new(self.profile().notifications))
             .with(Arc::clone(self.oauth_repositories()))
             .with(Arc::clone(self.ai_repositories()));
         if self.files_config().documents_config().is_enabled() {

@@ -16,9 +16,13 @@ readme = "README.md"
 [lints]
 workspace = true
 
+[features]
+sqlx = ["dep:sqlx"]
+
 [dependencies]
 thiserror = { workspace = true }
 inventory = { workspace = true }
+sqlx = { workspace = true, optional = true }
 async-trait = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

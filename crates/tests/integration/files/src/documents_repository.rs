@@ -123,20 +123,29 @@ async fn grant_folder(
     granted_by: &UserId,
     expired: bool,
 ) {
+    let pool = test_db_pool().await;
+    let mut conn = pool
+        .write_pool()
+        .acquire()
+        .await
+        .expect("acquire connection");
     repos
         .grants
-        .insert(NewGrant {
-            target: GrantTarget::Folder(folder.clone()),
-            subject_kind: kind.to_owned(),
-            subject_value: value.to_owned(),
-            subject_display: None,
-            access_level: level,
-            granted_by: granted_by.clone(),
-            valid_until: expired.then(|| Utc::now() - chrono::Duration::hours(1)),
-            trace_id: systemprompt_identifiers::TraceId::generate(),
-            reason: None,
-            via_agent: None,
-        })
+        .insert(
+            &mut conn,
+            NewGrant {
+                target: GrantTarget::Folder(folder.clone()),
+                subject_kind: kind.to_owned(),
+                subject_value: value.to_owned(),
+                subject_display: None,
+                access_level: level,
+                granted_by: granted_by.clone(),
+                valid_until: expired.then(|| Utc::now() - chrono::Duration::hours(1)),
+                trace_id: systemprompt_identifiers::TraceId::generate(),
+                reason: None,
+                via_agent: None,
+            },
+        )
         .await
         .expect("insert grant");
 }
@@ -323,20 +332,29 @@ async fn effective_level_picks_the_highest_grant() {
         false,
     )
     .await;
+    let pool = test_db_pool().await;
+    let mut conn = pool
+        .write_pool()
+        .acquire()
+        .await
+        .expect("acquire connection");
     repos
         .grants
-        .insert(NewGrant {
-            target: GrantTarget::Document(doc.clone()),
-            subject_kind: "user".to_owned(),
-            subject_value: person.clone(),
-            subject_display: None,
-            access_level: AccessLevel::Share,
-            granted_by: owner.clone(),
-            valid_until: None,
-            trace_id: systemprompt_identifiers::TraceId::generate(),
-            reason: None,
-            via_agent: None,
-        })
+        .insert(
+            &mut conn,
+            NewGrant {
+                target: GrantTarget::Document(doc.clone()),
+                subject_kind: "user".to_owned(),
+                subject_value: person.clone(),
+                subject_display: None,
+                access_level: AccessLevel::Share,
+                granted_by: owner.clone(),
+                valid_until: None,
+                trace_id: systemprompt_identifiers::TraceId::generate(),
+                reason: None,
+                via_agent: None,
+            },
+        )
         .await
         .expect("grant");
     let subjects = SubjectPairs::default()

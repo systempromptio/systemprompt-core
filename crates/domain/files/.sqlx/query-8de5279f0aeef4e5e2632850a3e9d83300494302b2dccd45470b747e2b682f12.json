@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT document_id::text AS \"document_id!: DocumentId\"\n               FROM document_comments\n               WHERE id = $1::text::uuid AND deleted_at IS NULL",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "document_id!: DocumentId",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "8de5279f0aeef4e5e2632850a3e9d83300494302b2dccd45470b747e2b682f12"
+}

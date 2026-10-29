@@ -25,6 +25,7 @@ mod legacy;
 mod licence;
 mod masking;
 mod node_role;
+mod notifications;
 mod observability;
 mod oci_reference;
 pub mod overlay;
@@ -61,6 +62,7 @@ pub use layered::{BASE_PROFILE_FILE, OVERLAY_PROFILE_FILE, merge_yaml};
 pub use legacy::MIGRATE_COMMAND;
 pub use licence::{LICENCE_SIGNING_SECRET, LicenceConfig};
 pub use node_role::{NodeRole, NodeRoleParseError};
+pub use notifications::{ConsumerProfile, NotificationsProfile};
 pub use observability::{
     LogFormat, ObservabilityConfig, OtlpExportConfig, OtlpProtocol, OtlpSignal,
 };
@@ -194,6 +196,9 @@ pub struct Profile {
 
     #[serde(default)]
     pub licence: LicenceConfig,
+
+    #[serde(default)]
+    pub notifications: NotificationsProfile,
 }
 
 impl Profile {

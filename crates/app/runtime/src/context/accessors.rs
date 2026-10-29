@@ -19,6 +19,12 @@ use systemprompt_security::credential::TokenCache;
 use super::AppContext;
 
 impl AppContext {
+    #[cfg(feature = "notifications")]
+    #[must_use]
+    pub fn notifications(&self) -> &crate::notifications::NotificationsHandle {
+        &self.subsystems.notifications
+    }
+
     pub const fn boot(&self) -> &BootContext {
         &self.cfg.boot
     }

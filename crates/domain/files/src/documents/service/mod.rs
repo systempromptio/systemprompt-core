@@ -26,6 +26,7 @@ mod agent_caps;
 mod agent_rules;
 mod apply;
 mod byte_diff;
+mod comment_anchors;
 mod comments;
 mod comments_edit;
 mod comments_export;
@@ -51,6 +52,7 @@ mod locks;
 mod media;
 mod mentions;
 mod node_ids;
+mod notify;
 mod ownership;
 mod pdf;
 mod prepare;
@@ -67,6 +69,8 @@ mod visibility;
 
 use std::sync::Arc;
 
+use systemprompt_extension::DynNotificationSink;
+
 pub use access_requests::{AccessDecision, AccessRequestInput, DecideRequest};
 pub use access_view::{
     DocumentAccess, FolderAccess, InheritedGrant, MAX_GRANT_HISTORY, TargetAccess,
@@ -81,6 +85,7 @@ pub use grants::{MAX_SHARE_MESSAGE_BYTES, ShareRequest};
 pub use lifecycle::{CopyRequest, FolderMove, UpdateRequest};
 pub use media::{AdmittedMedia, held_media_refs};
 pub use mentions::CommentOrigin;
+pub use notify::MentionOption;
 pub use ownership::TransferRequest;
 pub use pdf::RenderedPdf;
 pub use proposal_body::ProposeBodyRequest;
@@ -106,7 +111,7 @@ use crate::config::DocumentsConfig;
 
 /// The document store's application service, built once at a composition
 /// root and shared.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct DocumentService {
     repos: Arc<DocumentRepositories>,
     blobs: Arc<BlobStore>,
@@ -114,6 +119,7 @@ pub struct DocumentService {
     templates: Arc<TemplateRegistry>,
     access: Arc<DocumentAccessService>,
     events: Arc<DocumentEvents>,
+    notifications: DynNotificationSink,
     config: DocumentsConfig,
     uploads: Arc<std::sync::OnceLock<Arc<crate::uploads::UploadService>>>,
     agent_edits: Arc<AgentRateLimiter>,
@@ -123,7 +129,7 @@ pub struct DocumentService {
 }
 
 /// The collaborators a [`DocumentService`] is built from.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct DocumentServiceParts {
     pub repos: Arc<DocumentRepositories>,
     pub blobs: Arc<BlobStore>,
@@ -131,7 +137,24 @@ pub struct DocumentServiceParts {
     pub templates: Arc<TemplateRegistry>,
     pub access: Arc<DocumentAccessService>,
     pub events: Arc<DocumentEvents>,
+    pub notifications: DynNotificationSink,
     pub config: DocumentsConfig,
+}
+
+impl std::fmt::Debug for DocumentService {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DocumentService")
+            .field("config", &self.config)
+            .finish_non_exhaustive()
+    }
+}
+
+impl std::fmt::Debug for DocumentServiceParts {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DocumentServiceParts")
+            .field("config", &self.config)
+            .finish_non_exhaustive()
+    }
 }
 
 impl DocumentService {
@@ -144,6 +167,7 @@ impl DocumentService {
             templates: parts.templates,
             access: parts.access,
             events: parts.events,
+            notifications: parts.notifications,
             agent_edits: Arc::new(AgentRateLimiter::new(
                 parts.config.limits.agent_edits_per_hour,
                 parts.config.limits.agent_edits_per_hour_per_user,

@@ -31,6 +31,7 @@ fn make_profile(services: &Path) -> Profile {
         observability: Default::default(),
         config_planes: Default::default(),
         licence: Default::default(),
+        notifications: Default::default(),
         name: "test".to_string(),
         display_name: "Test".to_string(),
         target: ProfileType::Local,

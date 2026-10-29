@@ -79,6 +79,12 @@ pub enum GatewayError {
     ReleaseDecode(Box<reqwest::Error>),
     #[error("malformed device enrolment response: {0}")]
     DeviceEnrollDecode(Box<reqwest::Error>),
+    #[error("notifications request failed: {0}")]
+    NotificationsRequest(Box<reqwest::Error>),
+    #[error("malformed notifications response: {0}")]
+    NotificationsDecode(Box<reqwest::Error>),
+    #[error("notifications url is invalid: {0}")]
+    NotificationsUrl(#[source] url::ParseError),
     #[error("serialize: {0}")]
     Serialize(#[from] serde_json::Error),
 }

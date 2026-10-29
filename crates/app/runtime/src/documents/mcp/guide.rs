@@ -22,6 +22,11 @@ use super::inputs::GuideInput;
 use super::outputs::GuideOutput;
 use crate::documents::refusal::RefusalCode;
 
+#[cfg(feature = "notifications")]
+const INBOX_TOPIC: &str = "inbox and ";
+#[cfg(not(feature = "notifications"))]
+const INBOX_TOPIC: &str = "and ";
+
 fn formats(tools: &DocumentsMcpTools) -> String {
     let service = tools.service();
     let mut out =
@@ -56,6 +61,8 @@ fn topic(tools: &DocumentsMcpTools, name: &str) -> String {
         "model" => model_topic(),
         "uploads" => UPLOADS.to_owned(),
         "agents" => AGENTS.to_owned(),
+        #[cfg(feature = "notifications")]
+        "inbox" => super::guide_topics::INBOX.to_owned(),
         other => RefusalCode::ALL
             .iter()
             .find(|code| other.strip_prefix("refusal.") == Some(code.as_str()))
@@ -63,8 +70,8 @@ fn topic(tools: &DocumentsMcpTools, name: &str) -> String {
                 || {
                     format!(
                         "unknown topic; topics are editing, model, formats, uploads, sheets, \
-                         slides, sharing, comments, lifecycle, proposals, agents and refusal.<code> for \
-                         {}",
+                         slides, sharing, comments, lifecycle, proposals, agents, {INBOX_TOPIC}\
+                         refusal.<code> for {}",
                         RefusalCode::ALL.map(RefusalCode::as_str).join(", ")
                     )
                 },

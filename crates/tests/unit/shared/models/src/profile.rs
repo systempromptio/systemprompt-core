@@ -72,6 +72,7 @@ fn make_profile(name: &str) -> Profile {
         observability: Default::default(),
         config_planes: Default::default(),
         licence: Default::default(),
+        notifications: Default::default(),
         name: name.to_string(),
         display_name: format!("Test {name}"),
         target: ProfileType::Local,

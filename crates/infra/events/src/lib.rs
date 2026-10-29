@@ -81,7 +81,8 @@ pub use services::{
     A2ABroadcaster, AgUiBroadcaster, AnalyticsBroadcaster, BroadcasterConnections,
     CACHE_INVALIDATION_CHANNEL, CACHE_INVALIDATIONS_RECEIVED_TOTAL, ConnectionGuard,
     ContextBroadcaster, EventBridgeHandle, EventBroadcasters, EventRouter, EventsOwnerReassignment,
-    GenericBroadcaster, HEARTBEAT_INTERVAL, HEARTBEAT_JSON, OUTBOX_CHANNEL, OutboxChannel,
-    PostgresEventBridge, RelayStatus, TOPIC_BUFFER, TopicBroadcaster, TopicEvent,
-    invalidate_all_cache_domains, receive_cache_invalidation, standard_keep_alive,
+    GenericBroadcaster, HEARTBEAT_INTERVAL, HEARTBEAT_JSON, NOTIFICATION_FACTS_CHANNEL,
+    OUTBOX_CHANNEL, OutboxChannel, PostgresEventBridge, RelayStatus, TOPIC_BUFFER,
+    TopicBroadcaster, TopicEvent, invalidate_all_cache_domains, receive_cache_invalidation,
+    standard_keep_alive,
 };

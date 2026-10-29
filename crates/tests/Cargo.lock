@@ -7828,6 +7828,7 @@ dependencies = [
  "systemprompt-marketplace",
  "systemprompt-mcp",
  "systemprompt-models",
+ "systemprompt-notifications",
  "systemprompt-oauth",
  "systemprompt-oauth-issuance",
  "systemprompt-runtime",
@@ -8176,6 +8177,7 @@ dependencies = [
  "systemprompt-marketplace",
  "systemprompt-mcp",
  "systemprompt-models",
+ "systemprompt-notifications",
  "systemprompt-oauth",
  "systemprompt-oauth-issuance",
  "systemprompt-provider-contracts",
@@ -8267,6 +8269,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-api-notifications-tests"
+version = "0.0.11"
+dependencies = [
+ "async-trait",
+ "axum",
+ "serde_json",
+ "sqlx",
+ "systemprompt-api",
+ "systemprompt-identifiers",
+ "systemprompt-models",
+ "systemprompt-notifications",
+ "systemprompt-runtime",
+ "systemprompt-test-fixtures",
+ "tokio",
+ "tower",
+ "uuid",
+]
+
+[[package]]
 name = "systemprompt-api-tests"
 version = "0.0.11"
 dependencies = [
@@ -8323,6 +8344,7 @@ dependencies = [
  "tar",
  "tempfile",
  "tokio",
+ "tokio-util",
  "tower",
  "url",
  "uuid",
@@ -9487,6 +9509,7 @@ dependencies = [
  "inventory",
  "serde",
  "serde_json",
+ "sqlx",
  "systemprompt-identifiers",
  "systemprompt-manifest",
  "systemprompt-models",
@@ -10225,6 +10248,7 @@ name = "systemprompt-models"
 version = "0.75.0"
 dependencies = [
  "async-trait",
+ "base64 0.23.1",
  "chrono",
  "futures",
  "hex",
@@ -10247,6 +10271,19 @@ dependencies = [
  "thiserror 2.0.21",
  "tracing",
  "url",
+ "uuid",
+]
+
+[[package]]
+name = "systemprompt-models-notifications-tests"
+version = "0.0.11"
+dependencies = [
+ "base64 0.23.1",
+ "chrono",
+ "serde_json",
+ "serde_yaml_ng",
+ "systemprompt-identifiers",
+ "systemprompt-models",
  "uuid",
 ]
 
@@ -10274,6 +10311,73 @@ dependencies = [
  "systemprompt-traits",
  "systemprompt-wire",
  "tempfile",
+ "tokio",
+]
+
+[[package]]
+name = "systemprompt-notifications"
+version = "0.75.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "globset",
+ "inventory",
+ "metrics",
+ "serde",
+ "serde_json",
+ "serde_yaml_ng",
+ "sqlx",
+ "systemprompt-database",
+ "systemprompt-events",
+ "systemprompt-extension",
+ "systemprompt-identifiers",
+ "systemprompt-manifest",
+ "systemprompt-models",
+ "systemprompt-provider-contracts",
+ "systemprompt-traits",
+ "thiserror 2.0.21",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "systemprompt-notifications-integration-tests"
+version = "0.0.11"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "metrics",
+ "metrics-util",
+ "serde_json",
+ "sqlx",
+ "systemprompt-database",
+ "systemprompt-events",
+ "systemprompt-extension",
+ "systemprompt-identifiers",
+ "systemprompt-manifest",
+ "systemprompt-models",
+ "systemprompt-notifications",
+ "systemprompt-runtime",
+ "systemprompt-test-fixtures",
+ "systemprompt-traits",
+ "systemprompt-users",
+ "tokio",
+ "tokio-util",
+]
+
+[[package]]
+name = "systemprompt-notifications-tests"
+version = "0.0.11"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "serde_json",
+ "systemprompt-extension",
+ "systemprompt-identifiers",
+ "systemprompt-models",
+ "systemprompt-notifications",
  "tokio",
 ]
 
@@ -10519,6 +10623,7 @@ dependencies = [
  "systemprompt-marketplace",
  "systemprompt-mcp",
  "systemprompt-models",
+ "systemprompt-notifications",
  "systemprompt-oauth",
  "systemprompt-provider-contracts",
  "systemprompt-security",

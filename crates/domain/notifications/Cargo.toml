@@ -1,0 +1,52 @@
+[package]
+name = "systemprompt-notifications"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+keywords.workspace = true
+categories.workspace = true
+description = "Notification streams, routing rules, per-user feeds and the outbox consumer for systemprompt.io AI governance infrastructure."
+readme = "README.md"
+include = ["src/**/*", "schema/**/*", "Cargo.toml", "README.md", "CHANGELOG.md", ".sqlx/**/*", "build.rs"]
+
+[package.metadata.docs.rs]
+all-features = true
+
+[lints]
+workspace = true
+
+[build-dependencies]
+systemprompt-extension = { workspace = true }
+
+[dependencies]
+systemprompt-database = { workspace = true }
+systemprompt-events = { workspace = true }
+systemprompt-extension = { workspace = true, features = ["sqlx"] }
+systemprompt-identifiers = { workspace = true, features = ["sqlx"] }
+systemprompt-manifest = { workspace = true }
+systemprompt-models = { workspace = true }
+systemprompt-provider-contracts = { workspace = true }
+systemprompt-traits = { workspace = true, features = ["sqlx"] }
+async-trait = { workspace = true }
+chrono = { workspace = true }
+globset = { workspace = true }
+inventory = { workspace = true }
+metrics = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+sqlx = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tokio-util = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true }
+
+[package.metadata.cargo-machete]
+# inventory: compile-time registration via register_extension!/submit_job! (::inventory::submit!)
+ignored = ["inventory"]

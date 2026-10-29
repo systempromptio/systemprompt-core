@@ -1,0 +1,31 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id::text AS \"id!: NotificationRuleId\", owner_user_id IS NULL AS \"declared!\"\n               FROM notification_rules\n               WHERE id = ANY($1::text[]::uuid[]) AND owner_user_id IS DISTINCT FROM $2\n               ORDER BY id LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!: NotificationRuleId",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "declared!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "TextArray",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "343c759f01913ad1d1b36ecaece451505545711b9b48ad63677216bce5a79596"
+}
