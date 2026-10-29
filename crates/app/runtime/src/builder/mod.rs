@@ -191,7 +191,7 @@ impl AppContextBuilder {
             notifications: notifications_core.assemble(notifications::ExtensionSeams::default()),
         };
 
-        let context = AppContext::from_parts(
+        let app = AppContext::from_parts(
             build_data_plane(
                 database,
                 content.analytics_service,
@@ -211,13 +211,13 @@ impl AppContextBuilder {
             subsystems,
         );
         #[cfg(feature = "notifications")]
-        let context = {
-            let mut context = context;
-            let seams = notifications::ExtensionSeams::discover(&context);
+        let app = {
+            let mut app = app;
+            let seams = notifications::ExtensionSeams::discover(&app);
             audiences.bind(seams.audiences.clone());
-            context.subsystems.notifications = notifications_core.assemble(seams);
-            context
+            app.subsystems.notifications = notifications_core.assemble(seams);
+            app
         };
-        Ok(context)
+        Ok(app)
     }
 }

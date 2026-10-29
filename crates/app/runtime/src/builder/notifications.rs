@@ -135,7 +135,7 @@ impl NotificationsCore {
             mut channels,
             mut publish_policies,
         } = seams;
-        routers.push(Arc::new(DefaultRouter::default()));
+        routers.push(Arc::new(DefaultRouter));
         audiences.push(Arc::new(UserRoleAudienceResolver::new(Arc::clone(
             &self.users,
         ))));
