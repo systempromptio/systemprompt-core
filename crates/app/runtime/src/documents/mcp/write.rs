@@ -18,7 +18,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use chrono::Utc;
 use rmcp::ErrorData as McpError;
 use systemprompt_files::documents::DocumentsError;
 use systemprompt_files::documents::model::{ModelViewV2, RICH_TEXT_VERSION, RichText, markdown};
@@ -26,19 +25,15 @@ use systemprompt_files::documents::revision::CommitBody;
 use systemprompt_files::documents::service::{
     CommentPolicy, CommitOutcome, CommitRequest, CreateRequest, EditModeRequest,
 };
-use systemprompt_identifiers::{
-    DocumentId, DocumentNodeId, DocumentOpId, DocumentRevisionId, McpExecutionId,
-};
+use systemprompt_identifiers::{DocumentId, DocumentOpId, DocumentRevisionId, McpExecutionId};
 use systemprompt_mcp::McpToolHandler;
 use systemprompt_models::auth::AuthenticatedUser;
-use systemprompt_models::documents::{
-    ActorKind, AwarenessCursor, AwarenessMode, AwarenessState, DocumentAwarenessEvent, EditMode,
-    EditOp, PresenceBeacon, PresenceSource, PresenceState,
-};
+use systemprompt_models::documents::{ActorKind, EditMode, EditOp};
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_provider_contracts::documents::{CodecError, TemplateParams};
 
 use super::DocumentsMcpTools;
+use super::agent_presence::announce_agent;
 use super::inputs::{CreateInput, EditInput};
 use super::media::{image_refs, resolve_media};
 use super::outputs::CreateOutput;
@@ -103,62 +98,6 @@ pub fn create_content(content: Option<serde_json::Value>) -> Result<Option<RichT
         _ => Err(invalid(CONTENT_SHAPES.to_owned())),
     }
 }
-
-/// Files the agent's own presence on the document (source `agent`, so a
-/// console shows the person and their assistant side by side) and places its
-/// caret on the first block it wrote, so open tabs see where it is working.
-/// Neither is part of the write: a failure is logged and the ack stands.
-async fn announce_agent(call: &EditCall<'_>, output: &EditOutput) {
-    let agent = call.ctx.agent_name().to_string();
-    let service = call.tools.service();
-    let beacon = PresenceBeacon {
-        document_id: call.document.clone(),
-        state: PresenceState::Editing,
-        source_kind: PresenceSource::Agent,
-        source_ref: agent.clone(),
-        cursor: None,
-    };
-    if let Err(error) = service
-        .touch_presence(call.who, beacon, call.ctx.trace_id())
-        .await
-    {
-        tracing::warn!(document_id = %call.document, %error, "agent presence not recorded");
-    }
-    let Some(block) = output
-        .written
-        .first()
-        .and_then(|line| line.split(':').next())
-        .and_then(|id| DocumentNodeId::try_new(id).ok())
-    else {
-        return;
-    };
-    let cursor = AwarenessCursor {
-        block,
-        anchor: String::new(),
-        head: String::new(),
-    };
-    let event = DocumentAwarenessEvent {
-        document_id: call.document.clone(),
-        user_id: call.who.id.clone(),
-        display_name: format!("{agent} for {}", call.who.username),
-        state: AwarenessState {
-            session_id: None,
-            color: AGENT_CARET_COLOR.to_owned(),
-            mode: AwarenessMode::Editing,
-            cursor: Some(cursor),
-            selection: Vec::new(),
-            viewport: None,
-            agent: Some(agent),
-        },
-        expires_at: Utc::now() + chrono::Duration::seconds(AGENT_CARET_SECS),
-    };
-    if let Err(error) = service.events().awareness(&event).await {
-        tracing::warn!(document_id = %call.document, %error, "agent caret not announced");
-    }
-}
-
-const AGENT_CARET_COLOR: &str = "tone-agent";
-const AGENT_CARET_SECS: i64 = 30;
 
 async fn commit_ops(call: EditCall<'_>) -> Result<(EditOutput, String), McpError> {
     let mode = call

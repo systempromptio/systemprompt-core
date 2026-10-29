@@ -207,6 +207,7 @@ fn the_loop_syncs_and_folds_proxy_signals_into_the_status() {
         assert_eq!(status.editors[0].path.as_deref(), Some("plan.md"));
         assert_eq!(status.notices[0].notice.kind, NoticeKind::ProposalOpened);
 
+        fx.write("plan.md", b"# plan, edited");
         run.signals
             .send(DriveSignal::Touched(fx.root.dir().join("plan.md")));
         run.signals.send(DriveSignal::Touched(

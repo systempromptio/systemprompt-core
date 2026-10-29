@@ -15,6 +15,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod access;
+mod agent_presence;
 mod browse;
 mod catalog;
 mod comment;

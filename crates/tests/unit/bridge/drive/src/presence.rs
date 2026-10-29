@@ -37,6 +37,9 @@ async fn touched_drive_file_sends_one_editing_beacon_within_the_window() {
         .await;
 
     let state = fx.state();
+    let pulled = fx.root.dir().join("sheet.xlsx");
+    assert!(document_for(&fx.root, &state, &pulled).is_none());
+    fx.write("sheet.xlsx", b"cells, edited");
     let mapped = document_for(&fx.root, &state, &fx.root.dir().join("sheet.xlsx")).expect("mapped");
     assert_eq!(mapped, doc);
     assert!(
