@@ -110,10 +110,30 @@ async fn flush_feedback(gateway: &str, session: Arc<SessionContext>) {
     report_feedback(retried, "Installation feedback retry remains pending");
 }
 
+static LAST_FEEDBACK_ERROR: std::sync::LazyLock<
+    std::sync::Mutex<std::collections::HashMap<&'static str, String>>,
+> = std::sync::LazyLock::new(Default::default);
+
+// Why: the heartbeat ticks every few seconds and an unchanged feedback fault
+// warned on each one; it now warns when the error changes and stays quiet
+// while it persists.
 fn report_feedback(result: crate::feedback::Result<()>, message: &'static str) {
-    match result {
-        Ok(()) | Err(crate::feedback::FeedbackError::EnrollmentRequired) => {},
-        Err(error) => tracing::warn!(%error, "{message}"),
+    let current = match result {
+        Ok(()) | Err(crate::feedback::FeedbackError::EnrollmentRequired) => None,
+        Err(error) => Some(error.to_string()),
+    };
+    let Ok(mut last) = LAST_FEEDBACK_ERROR.lock() else {
+        return;
+    };
+    match current {
+        None => {
+            last.remove(message);
+        },
+        Some(error) if last.get(message) != Some(&error) => {
+            tracing::warn!(%error, "{message}");
+            last.insert(message, error);
+        },
+        Some(error) => tracing::debug!(%error, "{message} (unchanged)"),
     }
 }
 

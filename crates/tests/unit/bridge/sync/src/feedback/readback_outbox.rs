@@ -124,7 +124,19 @@ fn conflicted_receipt_is_replaced_by_a_fresh_readback() {
     assert_eq!(outbox.enqueue(fresh).unwrap(), key);
     let entry = &outbox.entries().unwrap()[0].1;
     assert!(matches!(entry.delivery, Delivery::Unacknowledged));
-    assert_eq!(entry.attempts, 0);
+    assert_eq!(entry.attempts, 1, "a re-observation keeps the backoff");
+}
+
+#[test]
+fn a_forbidden_receipt_is_terminal_not_retried() {
+    let (dir, receipt) = prepared(EvaluatorClient::Codex);
+    let outbox = Outbox::new(dir.path().join("outbox.json"), scope("device"));
+    let key = outbox.enqueue(receipt).unwrap();
+    outbox.delivery(&key, Err(403)).unwrap();
+    assert!(matches!(
+        outbox.entries().unwrap()[0].1.delivery,
+        Delivery::Rejected(403)
+    ));
 }
 
 #[test]

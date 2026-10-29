@@ -147,9 +147,10 @@ impl Outbox {
                 }
                 request.observed_at = observed_at;
                 existing.request = request;
+                // Why: a re-observation is not a delivery; keeping `attempts`
+                // keeps the backoff, so a receipt re-read every sync cannot
+                // reset itself into a hot retry loop.
                 existing.delivery = Delivery::Unacknowledged;
-                existing.attempts = 0;
-                existing.next_attempt = Utc::now();
                 return Ok(key);
             }
             if state.entries.len() >= MAX_ENTRIES {
@@ -244,8 +245,11 @@ impl Outbox {
             entry.delivery = match result {
                 Ok(response) => Delivery::Acknowledged(response),
                 Err(409) => Delivery::Conflict,
-                Err(401 | 403) => Delivery::CredentialRejected,
-                Err(status @ (400 | 404 | 422)) => Delivery::Rejected(status),
+                Err(401) => Delivery::CredentialRejected,
+                // Why: the gateway's 403 says this identity may not file
+                // consumer evidence at all; retrying a permanent refusal only
+                // grew the outbox, so it is terminal and evictable.
+                Err(status @ (400 | 403 | 404 | 422)) => Delivery::Rejected(status),
                 Err(_) => Delivery::Unacknowledged,
             };
             let backoff = 2i64.pow(entry.attempts.min(10)).min(3600);
