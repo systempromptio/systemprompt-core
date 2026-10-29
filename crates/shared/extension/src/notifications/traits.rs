@@ -1,4 +1,7 @@
 //! The notification seam traits and their verdict types.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 #[cfg(feature = "sqlx")]
 use std::sync::Arc;

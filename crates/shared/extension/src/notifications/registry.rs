@@ -1,5 +1,8 @@
 //! Compile-time registrations, discovery functions and registration macros
 //! for the extension-contributed notification seams.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 

@@ -1,4 +1,7 @@
 //! Error types for the notification seams.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_models::notifications::AudienceSubject;
 use systemprompt_traits::{BoxedSource, RepositoryError};
