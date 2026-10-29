@@ -27,7 +27,7 @@ pub(crate) fn policy_dir() -> PathBuf {
     crate::config::paths::claude_code_policy_dir()
 }
 
-pub(crate) fn clear_policy() -> std::io::Result<()> {
+pub(crate) fn clear_policy(gate: &crate::elevation_gate::ElevationGate) -> std::io::Result<()> {
     let dir = policy_dir();
     let mcp_path = dir.join(MANAGED_MCP_FILE);
     let settings_path = dir.join(MANAGED_SETTINGS_FILE);
@@ -57,7 +57,7 @@ pub(crate) fn clear_policy() -> std::io::Result<()> {
     match write::clear_direct(owned_mcp, &settings_path, stripped.as_deref()) {
         Ok(()) => Ok(()),
         Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => {
-            write::clear_elevated(owned_mcp, &settings_path, stripped.as_deref())
+            write::clear_elevated(gate, owned_mcp, &settings_path, stripped.as_deref())
         },
         Err(e) => Err(std::io::Error::new(
             e.kind(),

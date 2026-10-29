@@ -124,11 +124,19 @@ impl HostApp for OpenCodeAppHost {
         Ok(install::write_profile(inputs)?)
     }
 
-    fn install_profile(&self, path: &str) -> Result<ProfileInstalled, HostAppError> {
+    fn install_profile(
+        &self,
+        path: &str,
+        _gate: &crate::elevation_gate::ElevationGate,
+    ) -> Result<ProfileInstalled, HostAppError> {
         install::install_profile(path)
     }
 
-    fn install_profile_unattended(&self, path: &str) -> Result<ProfileInstalled, HostAppError> {
+    fn install_profile_unattended(
+        &self,
+        path: &str,
+        _gate: &crate::elevation_gate::ElevationGate,
+    ) -> Result<ProfileInstalled, HostAppError> {
         install::install_profile(path)
     }
 
@@ -196,11 +204,19 @@ impl HostApp for OpenCodeCliHost {
         Ok(install::write_profile(inputs)?)
     }
 
-    fn install_profile(&self, path: &str) -> Result<ProfileInstalled, HostAppError> {
+    fn install_profile(
+        &self,
+        path: &str,
+        _gate: &crate::elevation_gate::ElevationGate,
+    ) -> Result<ProfileInstalled, HostAppError> {
         install::install_profile(path)
     }
 
-    fn install_profile_unattended(&self, path: &str) -> Result<ProfileInstalled, HostAppError> {
+    fn install_profile_unattended(
+        &self,
+        path: &str,
+        _gate: &crate::elevation_gate::ElevationGate,
+    ) -> Result<ProfileInstalled, HostAppError> {
         install::install_profile(path)
     }
 

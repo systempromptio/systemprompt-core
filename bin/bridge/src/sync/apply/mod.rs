@@ -147,6 +147,7 @@ async fn emit_to_hosts(
         loopback,
         mcp_registry: &registry,
         start_menu: &bridge.start_menu,
+        elevation_gate: &bridge.elevation_gate,
     };
     let emitters: Vec<&'static dyn host_sync::HostSync> = host_sync::registry().to_vec();
     let hosts = hosts::emit_hosts(&emitters, &ctx, bridge).await;

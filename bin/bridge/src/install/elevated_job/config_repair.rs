@@ -9,7 +9,9 @@ use std::path::{Path, PathBuf};
 use super::{ElevatedJob, PrivateDirJob, elevate_and_run};
 use crate::install::approval::GatedChangeError;
 
-pub(crate) fn repair_config_dir_elevated() -> std::io::Result<PathBuf> {
+pub(crate) fn repair_config_dir_elevated(
+    gate: &crate::elevation_gate::ElevationGate,
+) -> std::io::Result<PathBuf> {
     let config = crate::config::config_path()
         .ok_or_else(|| std::io::Error::other("config path unresolvable on this platform"))?;
     let dir = config
@@ -26,7 +28,7 @@ pub(crate) fn repair_config_dir_elevated() -> std::io::Result<PathBuf> {
         }],
         ..Default::default()
     };
-    elevate_and_run(&stage_dir, &job)
+    elevate_and_run(gate, &stage_dir, &job)
         .and_then(|receipt| Ok(receipt.require("own", &dir)?))
         .map_err(|e| match e {
             GatedChangeError::Io(e) => e,

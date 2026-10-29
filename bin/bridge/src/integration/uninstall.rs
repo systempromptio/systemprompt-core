@@ -15,12 +15,12 @@ pub fn uninstall(
     ctx: &crate::context::BridgeContext,
 ) -> Result<crate::install::UninstallSummary, crate::install::InstallError> {
     let mut summary = crate::install::uninstall(purge, ctx)?;
-    summary.host_warnings = clear_hosts();
+    summary.host_warnings = clear_hosts(&ctx.elevation_gate);
     Ok(summary)
 }
 
-pub fn clear_hosts() -> Vec<String> {
-    let mut warnings = clear_gateway_content();
+pub fn clear_hosts(gate: &crate::elevation_gate::ElevationGate) -> Vec<String> {
+    let mut warnings = clear_gateway_content(gate);
     warnings.extend(remove_all_host_profiles());
     for warning in &warnings {
         diag(&format!("warning: {warning}"));
@@ -28,7 +28,7 @@ pub fn clear_hosts() -> Vec<String> {
     warnings
 }
 
-pub fn clear_gateway_content() -> Vec<String> {
+pub fn clear_gateway_content(gate: &crate::elevation_gate::ElevationGate) -> Vec<String> {
     let mut warnings = Vec::new();
     match super::cowork_plugins::resolve_target() {
         Ok(Some(target)) => {
@@ -39,7 +39,7 @@ pub fn clear_gateway_content() -> Vec<String> {
         Ok(None) => {},
         Err(e) => warnings.push(format!("Cowork session could not be resolved: {e}")),
     }
-    if let Err(e) = super::claude_code_cli::clear_install() {
+    if let Err(e) = super::claude_code_cli::clear_install(gate) {
         warnings.push(format!("Claude Code CLI cleanup failed: {e}"));
     }
     warnings

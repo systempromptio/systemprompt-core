@@ -421,19 +421,33 @@ impl HostApp for PromptingHost {
         &self,
         _inputs: &ProfileGenInputs,
     ) -> Result<GeneratedProfile, HostAppError> {
+        let staged = std::path::PathBuf::from(
+            std::env::var_os("XDG_CACHE_HOME").expect("the sandbox sets a cache home"),
+        )
+        .join("prompting-host.profile");
+        let profile = b"prompting host profile\n";
+        std::fs::write(&staged, profile).map_err(HostAppError::from)?;
         Ok(GeneratedProfile {
-            path: "prompting-host.profile".to_owned(),
-            bytes: 0,
+            path: staged.display().to_string(),
+            bytes: profile.len(),
             payload_uuid: String::new(),
             profile_uuid: String::new(),
         })
     }
 
-    fn install_profile(&self, _path: &str) -> Result<ProfileInstalled, HostAppError> {
+    fn install_profile(
+        &self,
+        _path: &str,
+        _gate: &systemprompt_bridge::elevation_gate::ElevationGate,
+    ) -> Result<ProfileInstalled, HostAppError> {
         Ok(ProfileInstalled::ok())
     }
 
-    fn install_profile_unattended(&self, _path: &str) -> Result<ProfileInstalled, HostAppError> {
+    fn install_profile_unattended(
+        &self,
+        _path: &str,
+        _gate: &systemprompt_bridge::elevation_gate::ElevationGate,
+    ) -> Result<ProfileInstalled, HostAppError> {
         if self.os_denied {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::PermissionDenied,
@@ -504,4 +518,24 @@ fn an_operating_system_denial_is_a_failure_not_a_decline() {
         ),
         "a write the OS refused is reported as failed, never as declined: {outcome:?}"
     );
+}
+
+#[test]
+fn a_staged_profile_that_cannot_be_read_is_an_error_not_a_path_hash() {
+    let gate = systemprompt_bridge::elevation_gate::ElevationGate::new();
+    let missing = tempfile::tempdir()
+        .expect("tempdir")
+        .path()
+        .join("never-staged.profile");
+    let result = systemprompt_bridge::integration::reapply::install_gated(
+        &gate,
+        &PROMPTING_HOST,
+        &missing.display().to_string(),
+        systemprompt_bridge::elevation_gate::Requester::Attended,
+    );
+    assert!(
+        matches!(&result, Err(HostAppError::Io(e)) if e.kind() == std::io::ErrorKind::NotFound),
+        "{result:?}"
+    );
+    assert!(gate.pending().is_none(), "nothing was staged for approval");
 }

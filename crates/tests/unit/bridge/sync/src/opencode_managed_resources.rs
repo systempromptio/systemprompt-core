@@ -172,6 +172,9 @@ fn clear(root: &Path) -> Result<(), ApplyError> {
         loopback: &LOOPBACK,
         mcp_registry: &EMPTY_REGISTRY,
         start_menu: &START_MENU,
+        elevation_gate: Box::leak(Box::new(
+            systemprompt_bridge::elevation_gate::ElevationGate::new(),
+        )),
     };
     OpenCodeSync.clear(&ctx)
 }
@@ -192,6 +195,9 @@ pub(crate) fn apply(m: &SignedManifest, root: &Path) -> Result<(), ApplyError> {
         loopback: &LOOPBACK,
         mcp_registry: &EMPTY_REGISTRY,
         start_menu: &START_MENU,
+        elevation_gate: Box::leak(Box::new(
+            systemprompt_bridge::elevation_gate::ElevationGate::new(),
+        )),
     };
     tokio::runtime::Builder::new_current_thread()
         .enable_all()

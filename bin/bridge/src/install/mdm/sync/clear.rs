@@ -79,6 +79,7 @@ pub(super) fn clear_bridge_policy(
     mcp: &super::super::MdmPayloadInputs<'_>,
 ) -> Result<Vec<String>, crate::host_sync::ApplyError> {
     super::super::macos_remove::clear_bridge_preferences(
+        mcp.elevation_gate,
         mcp.loopback.secret_fingerprint().as_deref(),
     )
     .map_err(|e| step("remove the bridge's Claude Desktop managed preferences", e))

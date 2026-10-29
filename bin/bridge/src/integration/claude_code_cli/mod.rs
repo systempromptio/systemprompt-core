@@ -58,8 +58,8 @@ impl HostSync for ClaudeCodeCliSync {
         apply_install(ctx)
     }
 
-    fn clear(&self, _ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
-        clear_install()
+    fn clear(&self, ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
+        clear_install(ctx.elevation_gate)
     }
 }
 
@@ -111,13 +111,15 @@ fn apply_install(ctx: &HostSyncCtx<'_>) -> Result<HostSyncReport, ApplyError> {
                  for the Claude Code CLI — upgrade the gateway",
             );
         }
-        clear_install()?;
+        clear_install(ctx.elevation_gate)?;
         return Ok(report);
     }
 
-    crate::install::managed_mcp::clear_policy().map_err(|source| ApplyError::Io {
-        context: "remove managed MCP policy".to_owned(),
-        source,
+    crate::install::managed_mcp::clear_policy(ctx.elevation_gate).map_err(|source| {
+        ApplyError::Io {
+            context: "remove managed MCP policy".to_owned(),
+            source,
+        }
     })?;
 
     let current: Vec<MarketplaceId> = marketplaces.iter().map(|m| m.id.clone()).collect();
@@ -180,8 +182,8 @@ fn ensure_routed(ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
     })
 }
 
-pub(crate) fn clear_install() -> Result<(), ApplyError> {
-    crate::install::managed_mcp::clear_policy().map_err(|source| ApplyError::Io {
+pub(crate) fn clear_install(gate: &crate::elevation_gate::ElevationGate) -> Result<(), ApplyError> {
+    crate::install::managed_mcp::clear_policy(gate).map_err(|source| ApplyError::Io {
         context: "remove managed MCP policy".to_owned(),
         source,
     })?;

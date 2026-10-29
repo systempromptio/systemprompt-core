@@ -112,6 +112,7 @@ pub struct HostSyncCtx<'a> {
     pub loopback: &'a crate::proxy::LoopbackEndpoint,
     pub mcp_registry: &'a crate::mcp_registry::McpRegistry,
     pub start_menu: &'a crate::probe_cache::StartMenuCache,
+    pub elevation_gate: &'a crate::elevation_gate::ElevationGate,
 }
 
 /// One emitter per host configuration tree.

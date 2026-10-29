@@ -66,6 +66,7 @@ pub struct MdmPayloadInputs<'a> {
     pub registry: &'a crate::mcp_registry::McpRegistry,
     pub egress_allowed_hosts: Option<&'a [String]>,
     pub overrides: &'a crate::install::profile_inputs::ModelProtocolOverrides,
+    pub elevation_gate: &'a crate::elevation_gate::ElevationGate,
 }
 
 // Why: the machine writers mint the loopback secret when none exists yet;

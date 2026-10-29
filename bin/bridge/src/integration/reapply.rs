@@ -218,15 +218,9 @@ pub fn install_gated(
 ) -> Result<crate::integration::host_app::ProfileInstalled, HostAppError> {
     use crate::elevation_gate::{Admission, GateOutcome, Requester};
 
-    let content = match std::fs::read(path) {
-        Ok(bytes) => crate::hash::sha256_hex(&bytes),
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-            crate::hash::sha256_hex(path.as_bytes())
-        },
-        Err(e) => return Err(e.into()),
-    };
+    let content = crate::hash::sha256_hex(&std::fs::read(path)?);
     if requester == Requester::Unattended {
-        let result = host.install_profile_unattended(path);
+        let result = host.install_profile_unattended(path, gate);
         if matches!(&result, Err(e) if e.is_refusal()) {
             gate.note_pending(&content);
         }
@@ -234,7 +228,7 @@ pub fn install_gated(
     }
     match gate.request(&content, requester) {
         Admission::Run(ticket) => {
-            let result = host.install_profile(path);
+            let result = host.install_profile(path, gate);
             ticket.finish(match &result {
                 Ok(_) => GateOutcome::Applied,
                 Err(HostAppError::Declined) => GateOutcome::Declined,

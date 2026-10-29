@@ -61,7 +61,7 @@ fn release_gateway(
     remove_profiles: bool,
 ) -> Result<Released, LifecycleError> {
     let foreign_plugins = crate::install::remove_synced_plugins()?;
-    let mut warnings = crate::integration::uninstall::clear_gateway_content();
+    let mut warnings = crate::integration::uninstall::clear_gateway_content(&bridge.elevation_gate);
     if remove_profiles {
         warnings.extend(crate::integration::uninstall::remove_all_host_profiles());
     }

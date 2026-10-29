@@ -57,7 +57,10 @@ fn a_scalar_where_the_bridge_owns_a_table_refuses_the_install_and_keeps_the_file
             .expect("codex host registered");
         let profile = host.generate_profile(&inputs()).expect("generate");
         let err = host
-            .install_profile(&profile.path)
+            .install_profile(
+                &profile.path,
+                &systemprompt_bridge::elevation_gate::ElevationGate::new(),
+            )
             .expect_err("a foreign shape refuses the merge");
 
         assert!(

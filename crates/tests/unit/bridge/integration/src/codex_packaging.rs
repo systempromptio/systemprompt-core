@@ -115,7 +115,10 @@ fn both_hosts_write_the_same_config_and_the_second_write_is_a_no_op() {
             .generate_profile(&inputs_for(&CODEX_APP_HOST))
             .expect("app profile generated");
         CODEX_APP_HOST
-            .install_profile(&first.path)
+            .install_profile(
+                &first.path,
+                &systemprompt_bridge::elevation_gate::ElevationGate::new(),
+            )
             .expect("app install");
         let after_app = std::fs::read(managed).expect("managed config written by the app host");
 
@@ -123,7 +126,10 @@ fn both_hosts_write_the_same_config_and_the_second_write_is_a_no_op() {
             .generate_profile(&inputs_for(&CODEX_CLI_HOST))
             .expect("cli profile generated");
         CODEX_CLI_HOST
-            .install_profile(&second.path)
+            .install_profile(
+                &second.path,
+                &systemprompt_bridge::elevation_gate::ElevationGate::new(),
+            )
             .expect("cli install");
         let after_cli = std::fs::read(managed).expect("managed config still present");
         assert_eq!(

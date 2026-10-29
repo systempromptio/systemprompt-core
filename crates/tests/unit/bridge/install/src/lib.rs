@@ -5,6 +5,8 @@ mod clear_plan;
 #[cfg(test)]
 mod elevation_gate;
 #[cfg(test)]
+mod elevation_gate_writes;
+#[cfg(test)]
 mod permission_carrier;
 
 #[cfg(test)]

@@ -88,7 +88,11 @@ fn install_merges_into_codex_system_config() {
         let host = find_host_by_id(systemprompt_bridge::integration::HostKind::CodexCli)
             .expect("codex host registered");
         let profile = host.generate_profile(&codex_inputs()).expect("generate");
-        host.install_profile(&profile.path).expect("install");
+        host.install_profile(
+            &profile.path,
+            &systemprompt_bridge::elevation_gate::ElevationGate::new(),
+        )
+        .expect("install");
 
         let target = if cfg!(target_os = "windows") {
             home.join("managed_config.toml")
@@ -127,7 +131,11 @@ fn install_preserves_existing_unrelated_keys_in_target() {
         let host = find_host_by_id(systemprompt_bridge::integration::HostKind::CodexCli)
             .expect("codex host registered");
         let profile = host.generate_profile(&codex_inputs()).expect("generate");
-        host.install_profile(&profile.path).expect("install");
+        host.install_profile(
+            &profile.path,
+            &systemprompt_bridge::elevation_gate::ElevationGate::new(),
+        )
+        .expect("install");
 
         let written = fs::read_to_string(&target).expect("read merged target");
         assert!(
@@ -170,7 +178,11 @@ fn install_overwrites_stale_systemprompt_provider_entry() {
         let host = find_host_by_id(systemprompt_bridge::integration::HostKind::CodexCli)
             .expect("codex host registered");
         let profile = host.generate_profile(&codex_inputs()).expect("generate");
-        host.install_profile(&profile.path).expect("install");
+        host.install_profile(
+            &profile.path,
+            &systemprompt_bridge::elevation_gate::ElevationGate::new(),
+        )
+        .expect("install");
 
         let written = fs::read_to_string(&target).expect("read merged target");
         assert!(
@@ -264,8 +276,11 @@ fn install_round_trips_future_profile_value_types_while_preserving_operator_conf
         fs::write(&profile.path, toml::to_string(&generated).unwrap())
             .expect("extend generated profile fixture at the root");
 
-        host.install_profile(&profile.path)
-            .expect("newer profile value types merge into the current host config");
+        host.install_profile(
+            &profile.path,
+            &systemprompt_bridge::elevation_gate::ElevationGate::new(),
+        )
+        .expect("newer profile value types merge into the current host config");
         let merged: toml::Value = toml::from_str(&fs::read_to_string(&target).unwrap()).unwrap();
         assert_eq!(merged["operator_key"].as_str(), Some("retain"));
         assert_eq!(merged["future_ratio"].as_float(), Some(1.25));

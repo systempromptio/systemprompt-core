@@ -171,12 +171,20 @@ impl HostApp for ClaudeDesktopHost {
         os::write_profile(inputs)
     }
 
-    fn install_profile(&self, path: &str) -> Result<ProfileInstalled, HostAppError> {
-        os::install_profile(path)
+    fn install_profile(
+        &self,
+        path: &str,
+        gate: &crate::elevation_gate::ElevationGate,
+    ) -> Result<ProfileInstalled, HostAppError> {
+        os::install_profile(path, gate)
     }
 
-    fn install_profile_unattended(&self, path: &str) -> Result<ProfileInstalled, HostAppError> {
-        os::install_profile_unattended(path)
+    fn install_profile_unattended(
+        &self,
+        path: &str,
+        gate: &crate::elevation_gate::ElevationGate,
+    ) -> Result<ProfileInstalled, HostAppError> {
+        os::install_profile_unattended(path, gate)
     }
 
     fn remove_profile(&self) -> Result<ProfileRemoval, HostAppError> {

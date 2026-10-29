@@ -25,7 +25,9 @@ fn user_prefs_path() -> Result<std::path::PathBuf, MdmError> {
     )))
 }
 
-pub(crate) fn remove_profile() -> Result<bool, MdmError> {
+pub(crate) fn remove_profile(
+    gate: &crate::elevation_gate::ElevationGate,
+) -> Result<bool, MdmError> {
     let cli_removed = !super::claude_code_settings::remove_all()?.is_empty();
     let paths = [
         std::path::PathBuf::from(MANAGED_PREFS_PATH),
@@ -50,7 +52,7 @@ pub(crate) fn remove_profile() -> Result<bool, MdmError> {
     if existing.is_empty() && unprivileged_inventory_is_clean()? {
         return Ok(cli_removed);
     }
-    let was_installed = profile_inventory()?;
+    let was_installed = profile_inventory(gate)?;
     if existing.is_empty() {
         return Ok(was_installed || cli_removed);
     }
@@ -61,6 +63,7 @@ pub(crate) fn remove_profile() -> Result<bool, MdmError> {
     }
     script.push_str("/usr/bin/killall cfprefsd\n");
     crate::install::elevate::run_privileged(
+        gate,
         &script,
         "Bridge needs administrator privileges to remove its managed preferences.",
     )?;
@@ -82,7 +85,7 @@ pub(crate) fn remove_profile() -> Result<bool, MdmError> {
 // Why: the privileged script records the inventory before and after the
 // removal so the receipt says whether the profile was ever there, and the
 // after-listing proves it is gone rather than trusting `profiles remove`.
-fn profile_inventory() -> Result<bool, MdmError> {
+fn profile_inventory(gate: &crate::elevation_gate::ElevationGate) -> Result<bool, MdmError> {
     let stage = tempfile::tempdir().map_err(|source| MdmError::Io {
         action: "stage profile removal",
         path: std::env::temp_dir(),
@@ -99,6 +102,7 @@ fn profile_inventory() -> Result<bool, MdmError> {
         listing = quote(&listing.display().to_string())
     );
     crate::install::elevate::run_privileged(
+        gate,
         &script,
         "Bridge needs administrator privileges to inspect and remove its managed profile.",
     )?;

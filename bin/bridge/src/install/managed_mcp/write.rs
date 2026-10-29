@@ -44,6 +44,7 @@ fn stage_clear(body: &str) -> Result<(tempfile::TempDir, std::path::PathBuf), st
 
 #[cfg(target_os = "macos")]
 pub(super) fn clear_elevated(
+    gate: &crate::elevation_gate::ElevationGate,
     mcp_path: Option<&Path>,
     settings_path: &Path,
     stripped_settings_body: Option<&str>,
@@ -56,6 +57,7 @@ pub(super) fn clear_elevated(
             .map(|(_, staged)| (staged.as_path(), settings_path)),
     );
     crate::install::elevate::run_privileged(
+        gate,
         &script,
         "Bridge needs administrator privileges to remove the Claude Code enterprise MCP policy.",
     )
@@ -65,6 +67,7 @@ pub(super) fn clear_elevated(
 
 #[cfg(target_os = "windows")]
 pub(super) fn clear_elevated(
+    gate: &crate::elevation_gate::ElevationGate,
     mcp_path: Option<&Path>,
     settings_path: &Path,
     stripped_settings_body: Option<&str>,
@@ -92,7 +95,7 @@ pub(super) fn clear_elevated(
     let stage_dir = staging
         .as_ref()
         .map_or_else(std::env::temp_dir, |(dir, _)| dir.path().to_path_buf());
-    let receipt = crate::install::elevated_job::elevate_and_run(&stage_dir, &job)
+    let receipt = crate::install::elevated_job::elevate_and_run(gate, &stage_dir, &job)
         .map_err(std::io::Error::other)?;
     for file in &job.managed_files {
         receipt
@@ -109,6 +112,7 @@ pub(super) fn clear_elevated(
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
 pub(super) fn clear_elevated(
+    _: &crate::elevation_gate::ElevationGate,
     _: Option<&Path>,
     settings_path: &Path,
     _: Option<&str>,

@@ -10,10 +10,20 @@
 //! asks again or the content changes, and an unattended caller never prompts —
 //! it records the content as pending for the GUI to offer.
 //!
+//! Every other elevated write (a managed file, a policy clear, a directory
+//! repair) runs through [`ElevationGate::single_flight`]: it never overlaps a
+//! profile install or another write, and a caller asking for the write already
+//! in flight takes that run's result instead of prompting a second time.
+//! Distinct writes are never folded into one another; each runs its own.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::sync::{Condvar, Mutex, MutexGuard, PoisonError};
+
+mod single_flight;
+
+use single_flight::FinishedWrite;
 
 /// Who is asking for the elevated write.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -44,9 +54,13 @@ pub enum Admission<'a> {
 struct State {
     staged: u64,
     in_flight: Option<(String, u64)>,
+    in_flight_owner: Option<std::thread::ThreadId>,
     pending: Option<(String, u64)>,
     declined: Option<String>,
     last: Option<Finished>,
+    writes: u64,
+    write_in_flight: Option<(String, u64)>,
+    last_write: Option<FinishedWrite>,
 }
 
 #[derive(Debug, Clone)]
@@ -110,7 +124,7 @@ impl ElevationGate {
             if let Some(finished) = state.last.as_ref().filter(|f| f.covers >= mine) {
                 return Admission::Joined(finished.outcome);
             }
-            if state.in_flight.is_none() {
+            if state.in_flight.is_none() && state.write_in_flight.is_none() {
                 break;
             }
             state = self
@@ -123,6 +137,7 @@ impl ElevationGate {
             .take()
             .unwrap_or_else(|| (content.to_owned(), mine));
         state.in_flight = Some((run.clone(), covers));
+        state.in_flight_owner = Some(std::thread::current().id());
         drop(state);
         Admission::Run(Ticket {
             gate: self,
@@ -148,6 +163,7 @@ impl ElevationGate {
     fn finish(&self, content: &str, covers: u64, outcome: GateOutcome) {
         let mut state = self.lock();
         state.in_flight = None;
+        state.in_flight_owner = None;
         if outcome == GateOutcome::Declined {
             state.declined = Some(content.to_owned());
         }

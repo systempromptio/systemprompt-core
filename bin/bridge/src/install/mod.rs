@@ -201,12 +201,13 @@ pub fn uninstall(
         removal => removal,
     };
 
-    let managed_profile = match managed_profile::remove(&bridge.policy_store) {
-        ManagedProfileOutcome::RemoveFailed(e) => {
-            return Err(InstallError::ManagedProfileRemove(e));
-        },
-        outcome => outcome,
-    };
+    let managed_profile =
+        match managed_profile::remove(&bridge.policy_store, &bridge.elevation_gate) {
+            ManagedProfileOutcome::RemoveFailed(e) => {
+                return Err(InstallError::ManagedProfileRemove(e));
+            },
+            outcome => outcome,
+        };
 
     let credentials = if purge {
         match crate::auth::setup::logout(bridge.secrets()) {

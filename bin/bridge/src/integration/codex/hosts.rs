@@ -112,7 +112,11 @@ impl HostApp for CodexAppHost {
         install::write_profile(inputs)
     }
 
-    fn install_profile(&self, path: &str) -> Result<ProfileInstalled, HostAppError> {
+    fn install_profile(
+        &self,
+        path: &str,
+        _gate: &crate::elevation_gate::ElevationGate,
+    ) -> Result<ProfileInstalled, HostAppError> {
         install::install_profile(path).map(|()| ProfileInstalled::ok())
     }
 
@@ -189,7 +193,11 @@ impl HostApp for CodexCliHost {
         install::write_profile(inputs)
     }
 
-    fn install_profile(&self, path: &str) -> Result<ProfileInstalled, HostAppError> {
+    fn install_profile(
+        &self,
+        path: &str,
+        _gate: &crate::elevation_gate::ElevationGate,
+    ) -> Result<ProfileInstalled, HostAppError> {
         install::install_profile(path).map(|()| ProfileInstalled::ok())
     }
 

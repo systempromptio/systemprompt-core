@@ -11,7 +11,10 @@ use super::{unprivileged_inventory_is_clean, user_prefs_path};
 // Why: Claude Desktop reads both the per-user and the machine managed plist,
 // and only an administrator can change either; one privileged script edits
 // every file the bridge wrote and restarts cfprefsd once.
-pub(crate) fn clear_bridge_preferences(ours: Option<&str>) -> Result<Vec<String>, MdmError> {
+pub(crate) fn clear_bridge_preferences(
+    gate: &crate::elevation_gate::ElevationGate,
+    ours: Option<&str>,
+) -> Result<Vec<String>, MdmError> {
     use super::super::clear_plan::{ClearPlan, plan_clear};
 
     let quote = crate::install::elevation_script::shell_quote;
@@ -66,6 +69,7 @@ pub(crate) fn clear_bridge_preferences(ours: Option<&str>) -> Result<Vec<String>
     }
     script.push_str("/usr/bin/killall cfprefsd || true\n");
     crate::install::elevate::run_privileged(
+        gate,
         &script,
         "Bridge needs administrator privileges to remove its Claude Desktop managed preferences.",
     )?;

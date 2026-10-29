@@ -60,7 +60,10 @@ fn install() {
         .generate_profile(&inputs_for(&OPENCODE_HOST))
         .expect("profile generated");
     OPENCODE_HOST
-        .install_profile(&generated.path)
+        .install_profile(
+            &generated.path,
+            &systemprompt_bridge::elevation_gate::ElevationGate::new(),
+        )
         .expect("installed");
     _ = std::fs::remove_file(&generated.path);
 }

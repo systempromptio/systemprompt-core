@@ -35,7 +35,7 @@ pub fn install(
         bootstrap_install(&location, &binary, gateway_str, &mut completed)?;
         persist_optional_config(gateway_str, pubkey_str, &mut completed)?;
         let target_os = opts.print_mdm.unwrap_or_else(Os::current);
-        let mdm = run_mdm_step(opts, target_os, loopback, &registry, &bridge.policy_store)?;
+        let mdm = run_mdm_step(opts, target_os, loopback, &registry, bridge)?;
         completed.push(super::InstallStep::Policy {
             outcome: mdm.clone(),
         });
@@ -135,18 +135,19 @@ fn run_mdm_step(
     target_os: Os,
     loopback: &LoopbackEndpoint,
     registry: &McpRegistry,
-    policy_store: &config::store::PolicyStore,
+    bridge: &BridgeContext,
 ) -> Result<MdmDisplay, InstallError> {
     let pubkey_str = opts.pubkey.as_ref().map(PinnedPubKey::as_str);
     let inference_base_url = loopback.origin();
     let overrides = super::profile_inputs::ProfileFacts::persisted_overrides()
         .map_err(|e| InstallError::MdmApply(mdm::MdmError::from(e)))?;
     let mcp = mdm::MdmPayloadInputs {
-        policy_store,
+        policy_store: &bridge.policy_store,
         loopback,
         registry,
         egress_allowed_hosts: opts.egress_allowed_hosts.as_deref(),
         overrides: &overrides,
+        elevation_gate: &bridge.elevation_gate,
     };
     if opts.apply_mobileconfig {
         return run_apply_mobileconfig(&mcp, &inference_base_url, pubkey_str);

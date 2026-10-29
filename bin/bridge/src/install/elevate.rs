@@ -44,12 +44,23 @@ impl From<ElevationError> for super::approval::GatedChangeError {
     }
 }
 
-pub(crate) fn run_privileged(script: &str, prompt: &str) -> Result<(), ElevationError> {
-    if std::io::stdin().is_terminal() {
-        sudo_direct(script)
-    } else {
-        osascript_admin(script, prompt)
-    }
+pub(crate) fn run_privileged(
+    gate: &crate::elevation_gate::ElevationGate,
+    script: &str,
+    prompt: &str,
+) -> Result<(), ElevationError> {
+    gate.single_flight(
+        &crate::hash::sha256_hex(script.as_bytes()),
+        || {
+            if std::io::stdin().is_terminal() {
+                sudo_direct(script)
+            } else {
+                osascript_admin(script, prompt)
+            }
+        },
+        |error| matches!(error, ElevationError::UserCancelled),
+        || ElevationError::UserCancelled,
+    )
 }
 
 fn sudo_direct(script: &str) -> Result<(), ElevationError> {

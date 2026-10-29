@@ -154,6 +154,7 @@ impl crate::host_sync::HostSync for ClaudeDesktopMdmSync {
             registry: ctx.mcp_registry,
             egress_allowed_hosts: None,
             overrides: &ctx.manifest.host_model_protocols,
+            elevation_gate: ctx.elevation_gate,
         };
         #[cfg(target_os = "windows")]
         let report = {
@@ -220,6 +221,7 @@ impl crate::host_sync::HostSync for ClaudeDesktopMdmSync {
             registry: &empty,
             egress_allowed_hosts: None,
             overrides: &ctx.manifest.host_model_protocols,
+            elevation_gate: ctx.elevation_gate,
         })?;
         for line in &lines {
             tracing::info!(target: "bridge::mdm", %line, "Claude Desktop policy clear");
