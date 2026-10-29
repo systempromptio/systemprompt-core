@@ -6,6 +6,7 @@
 
 - **Breaking:** `DocumentLiveReadyEvent` gains `seq`, the last update the session had logged when the channel subscribed, and `LiveResyncReason` gains `RelayLost`. Migrate struct literals by adding the field and exhaustive matches by adding the variant.
 - **Breaking:** `SignedManifest` gains `allow_user_disable: bool`, `branding: Option<InstanceBranding>` and `bridge_versions: Option<BridgeVersionWindow>`. Older bridges ignore the keys. Migrate struct literals by adding `allow_user_disable: false, branding: None, bridge_versions: None`.
+- **Breaking:** `ErrorCode` gains `Gone`, declared before `ServiceUnavailable`, so the implicit discriminant of `ErrorCode::ServiceUnavailable` moves from 10 to 11. Migrate by adding an arm (or a wildcard) to exhaustive matches, and by not persisting or comparing `ErrorCode` as an integer.
 
 ### Added
 
