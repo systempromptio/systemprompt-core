@@ -4,32 +4,19 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::BTreeSet;
-use std::sync::{LazyLock, Mutex};
-
 use super::policy::McpServerEntry;
+use crate::warn_once::WarnOnce;
 
 // Why: `ProfileFacts::load` re-runs this projection on every GUI and
 // diagnostics refresh, several times a second; a withheld server is already
 // surfaced in the UI, so its warning is emitted once per state, not per pass.
-static WARNED: LazyLock<Mutex<BTreeSet<(Withheld, String)>>> =
-    LazyLock::new(|| Mutex::new(BTreeSet::new()));
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-enum Withheld {
-    NoToolPolicy,
-    UnexpandedWildcard,
+fn first_sighting(seen: Option<&WarnOnce>, slug: &str, reason: &str) -> bool {
+    seen.is_none_or(|seen| seen.changed(&format!("mdm.withheld.{slug}"), reason))
 }
 
-fn first_sighting(reason: Withheld, slug: &str) -> bool {
-    WARNED
-        .lock()
-        .map_or(true, |mut set| set.insert((reason, slug.to_owned())))
-}
-
-fn clear_sighting(reason: Withheld, slug: &str) {
-    if let Ok(mut set) = WARNED.lock() {
-        set.remove(&(reason, slug.to_owned()));
+fn clear_sighting(seen: Option<&WarnOnce>, slug: &str) {
+    if let Some(seen) = seen {
+        seen.clear(&format!("mdm.withheld.{slug}"));
     }
 }
 
@@ -41,18 +28,20 @@ fn clear_sighting(reason: Withheld, slug: &str) {
 pub fn mcp_entries(
     loopback: &crate::proxy::LoopbackEndpoint,
     registry: &crate::mcp_registry::McpRegistry,
+    seen: Option<&WarnOnce>,
 ) -> std::io::Result<Option<Vec<McpServerEntry>>> {
     if registry.is_empty() {
         return Ok(Some(Vec::new()));
     }
     let catalog = super::tool_catalog::read()?;
-    Ok(mcp_entries_with(loopback, registry, &catalog))
+    Ok(mcp_entries_with(loopback, registry, &catalog, seen))
 }
 
 pub fn mcp_entries_with(
     loopback: &crate::proxy::LoopbackEndpoint,
     registry: &crate::mcp_registry::McpRegistry,
     catalog: &super::tool_catalog::ToolCatalog,
+    seen: Option<&WarnOnce>,
 ) -> Option<Vec<McpServerEntry>> {
     if registry.is_empty() {
         return Some(Vec::new());
@@ -66,14 +55,13 @@ pub fn mcp_entries_with(
             continue;
         };
         if upstream.tool_policy.is_empty() {
-            if first_sighting(Withheld::NoToolPolicy, slug) {
+            if first_sighting(seen, slug, "no tool policy") {
                 tracing::warn!(target: "bridge::mdm", slug = %slug, "managed MCP server has no tool policy; withheld from the desktop policy");
             } else {
                 tracing::debug!(target: "bridge::mdm", slug = %slug, "managed MCP server still has no tool policy");
             }
             continue;
         }
-        clear_sighting(Withheld::NoToolPolicy, slug);
         if super::desktop_tool_policy::denied_outright(upstream) {
             continue;
         }
@@ -81,7 +69,7 @@ pub fn mcp_entries_with(
             upstream,
             catalog.get(slug).map_or(&[][..], Vec::as_slice),
         ) else {
-            if first_sighting(Withheld::UnexpandedWildcard, slug) {
+            if first_sighting(seen, slug, "unexpanded wildcard") {
                 tracing::warn!(target: "bridge::mdm", slug = %slug, "tool catalog has no names for a wildcard tool policy; this server skipped, the rest still written");
             } else {
                 tracing::debug!(target: "bridge::mdm", slug = %slug, "tool catalog still has no names for a wildcard tool policy");
@@ -89,7 +77,7 @@ pub fn mcp_entries_with(
             unexpanded = true;
             continue;
         };
-        clear_sighting(Withheld::UnexpandedWildcard, slug);
+        clear_sighting(seen, slug);
         out.push(McpServerEntry {
             name: slug.clone(),
             url: loopback.mcp_url(slug.as_str()),

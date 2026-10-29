@@ -184,27 +184,16 @@ pub(crate) async fn forward(
 
     let status = StatusCode::from_u16(upstream_response.status().as_u16())
         .unwrap_or(StatusCode::BAD_GATEWAY);
-    if status.is_success() {
-        if usage::is_messages_path(&request_path) {
-            session_context.touch_activity();
-        }
-        tracing::debug!(upstream_status = status.as_u16(), "upstream forwarded");
-    } else {
-        if systemprompt_models::ApiPaths::is_otel(&request_path) {
-            tracing::debug!(upstream_status = status.as_u16(), url = %route.url, "telemetry upstream non-2xx; dropped");
-        } else {
-            tracing::warn!(upstream_status = status.as_u16(), url = %route.url, "upstream non-2xx");
-        }
-        if status == StatusCode::UNAUTHORIZED {
-            note_unauthorized(
-                &plugin_tokens,
-                gateway_base,
-                hook_plugin.as_ref(),
-                gateway_signed,
-                &route.url,
-            );
-        }
-    }
+    note_upstream_status(&UpstreamStatus {
+        status,
+        request_path: &request_path,
+        upstream: &route.url,
+        session_context,
+        plugin_tokens: &plugin_tokens,
+        gateway_base,
+        hook_plugin: hook_plugin.as_ref(),
+        gateway_signed,
+    });
 
     let mut response_builder = Response::builder().status(status);
     if let Some(headers_mut) = response_builder.headers_mut() {
@@ -236,6 +225,51 @@ pub(crate) async fn forward(
     };
 
     Ok(response_builder.body(body)?)
+}
+
+struct UpstreamStatus<'a> {
+    status: StatusCode,
+    request_path: &'a str,
+    upstream: &'a str,
+    session_context: &'a SessionContext,
+    plugin_tokens: &'a crate::auth::plugin_oauth::PluginTokenCache,
+    gateway_base: &'a ValidatedUrl,
+    hook_plugin: Option<&'a crate::ids::PluginId>,
+    gateway_signed: bool,
+}
+
+fn note_upstream_status(seen: &UpstreamStatus<'_>) {
+    let &UpstreamStatus {
+        status,
+        request_path,
+        upstream,
+        session_context,
+        plugin_tokens,
+        gateway_base,
+        hook_plugin,
+        gateway_signed,
+    } = seen;
+    if status.is_success() {
+        if usage::is_messages_path(request_path) {
+            session_context.touch_activity();
+        }
+        tracing::debug!(upstream_status = status.as_u16(), "upstream forwarded");
+    } else {
+        if systemprompt_models::ApiPaths::is_otel(request_path) {
+            tracing::debug!(upstream_status = status.as_u16(), url = %upstream, "telemetry upstream non-2xx; dropped");
+        } else {
+            tracing::warn!(upstream_status = status.as_u16(), url = %upstream, "upstream non-2xx");
+        }
+        if status == StatusCode::UNAUTHORIZED {
+            note_unauthorized(
+                plugin_tokens,
+                gateway_base,
+                hook_plugin,
+                gateway_signed,
+                upstream,
+            );
+        }
+    }
 }
 
 fn not_found_response(body: &str) -> ForwardResult<Response<ProxyBody>> {

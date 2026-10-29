@@ -99,11 +99,11 @@ export async function init() {
   if (fallbackCatalog) {
     for (const [k, v] of fallbackCatalog) messages.set(k, v);
   }
-  const locale = shippedLocale(requested);
-  if (locale && locale !== fallback) {
-    const localeCatalog = await loadCatalog(locale);
+  const shipped = shippedLocale(requested);
+  if (shipped && shipped !== fallback) {
+    const localeCatalog = await loadCatalog(shipped);
     if (localeCatalog) {
-      activeLocale = locale;
+      activeLocale = shipped;
       for (const [k, v] of localeCatalog) messages.set(k, v);
     }
   }

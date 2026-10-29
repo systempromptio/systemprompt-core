@@ -65,6 +65,7 @@ pub mod update;
 pub mod user_alert;
 pub mod validate;
 pub mod verdict;
+pub mod warn_once;
 pub mod web_assets;
 pub mod webview2;
 pub mod window_state;

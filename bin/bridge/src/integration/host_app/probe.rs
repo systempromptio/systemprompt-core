@@ -36,7 +36,14 @@ impl ProbeEnv {
     pub fn for_bridge(bridge: &crate::context::BridgeContext) -> Self {
         let loopback = bridge.proxy.loopback();
         let facts = ProfileFacts::persisted_overrides()
-            .and_then(|overrides| ProfileFacts::load(loopback, &bridge.mcp_registry(), overrides))
+            .and_then(|overrides| {
+                ProfileFacts::load(
+                    loopback,
+                    &bridge.mcp_registry(),
+                    overrides,
+                    Some(&bridge.warn_once),
+                )
+            })
             .map_err(|error| {
                 tracing::warn!(error = %error, "host profile facts are unreadable; host probes report their settings as unverifiable");
                 Arc::new(error)

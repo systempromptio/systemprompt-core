@@ -123,7 +123,7 @@ async fn emit_to_hosts(
     let mcp_servers =
         loopback::rewrite_loopback_urls(&manifest.managed_mcp_servers, client.base_url());
     let mut manifest_for_write = loopback::manifest_with_servers(manifest, mcp_servers.clone());
-    skill_bodies::resolve(&mut manifest_for_write, root);
+    skill_bodies::resolve(&mut manifest_for_write, root, &bridge.warn_once);
     report
         .receipts
         .push(write_user(meta_dir, manifest.user.as_ref())?);

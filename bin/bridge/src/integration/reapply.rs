@@ -89,7 +89,12 @@ pub async fn build_profile_inputs(
         .await
         .map_err(ProfileInputsError::BridgeProfile)?;
 
-    let mut facts = ProfileFacts::load(loopback, &bridge.mcp_registry.load(), overrides.clone())?;
+    let mut facts = ProfileFacts::load(
+        loopback,
+        &bridge.mcp_registry.load(),
+        overrides.clone(),
+        Some(&bridge.warn_once),
+    )?;
     facts.profile = Some(server_profile);
     Ok(facts.inputs_for(host.profile_identity()))
 }

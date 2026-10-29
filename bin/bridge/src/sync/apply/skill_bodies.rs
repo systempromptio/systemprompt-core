@@ -11,9 +11,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::HashSet;
 use std::path::Path;
-use std::sync::{LazyLock, Mutex};
 
 use systemprompt_models::bridge::manifest::skill_frontmatter::render_passthrough_frontmatter;
 
@@ -21,8 +19,9 @@ use super::ApplyError;
 use super::safe_path::join_under;
 use crate::gateway::manifest::{SignedManifest, SkillEntry};
 use crate::hash::sha256_hex;
+use crate::warn_once::WarnOnce;
 
-pub(super) fn resolve(manifest: &mut SignedManifest, org_plugins_root: &Path) {
+pub(super) fn resolve(manifest: &mut SignedManifest, org_plugins_root: &Path, seen: &WarnOnce) {
     manifest.skills.retain_mut(|skill| {
         if skill.instructions.is_some() {
             return true;
@@ -39,7 +38,7 @@ pub(super) fn resolve(manifest: &mut SignedManifest, org_plugins_root: &Path) {
                 skill.instructions = Some(body);
                 true
             },
-            Err(reason) if first_report(skill.id.as_str(), &reason) => {
+            Err(reason) if first_report(seen, skill.id.as_str(), &reason) => {
                 tracing::warn!(
                     target: "bridge::sync",
                     skill = %skill.id,
@@ -63,16 +62,10 @@ pub(super) fn resolve(manifest: &mut SignedManifest, org_plugins_root: &Path) {
     });
 }
 
-static REPORTED: LazyLock<Mutex<HashSet<(String, String)>>> =
-    LazyLock::new(|| Mutex::new(HashSet::new()));
-
 // Why: sync runs on a timer, and the same unrecoverable body would otherwise
 // warn on every pass; a skill is reported once per distinct failure.
-fn first_report(skill_id: &str, reason: &SkillBodyError) -> bool {
-    let key = (skill_id.to_owned(), reason.to_string());
-    REPORTED
-        .lock()
-        .map_or(true, |mut reported| reported.insert(key))
+fn first_report(seen: &WarnOnce, skill_id: &str, reason: &SkillBodyError) -> bool {
+    seen.changed(&format!("sync.skill_body.{skill_id}"), &reason.to_string())
 }
 
 /// Why a schema-2 skill body could not be taken from its plugin file.

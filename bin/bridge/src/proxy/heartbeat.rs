@@ -20,6 +20,7 @@ use crate::proxy::server::ProxyStats;
 use crate::proxy::session::SessionContext;
 use crate::proxy::token_cache::TokenCache;
 use crate::update::automatic::UpdateGate;
+use crate::warn_once::WarnOnce;
 use systemprompt_models::ApiPaths;
 
 pub const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(30);
@@ -67,6 +68,7 @@ pub async fn run_loop(deps: HeartbeatDeps) {
     interval.tick().await;
     let mut waiting_for_sign_in = false;
     let mut staging = tokio::task::JoinSet::new();
+    let feedback_faults = WarnOnce::default();
     loop {
         interval.tick().await;
         while let Some(finished) = staging.try_join_next() {
@@ -75,7 +77,12 @@ pub async fn run_loop(deps: HeartbeatDeps) {
             }
         }
         let cfg = runtime_config.load_full();
-        flush_feedback(cfg.gateway_base.as_str(), Arc::clone(&session)).await;
+        flush_feedback(
+            cfg.gateway_base.as_str(),
+            Arc::clone(&session),
+            &feedback_faults,
+        )
+        .await;
         if token_cache.sign_in_required() {
             if !waiting_for_sign_in {
                 tracing::warn!("bridge heartbeat paused until the user signs in");
@@ -98,41 +105,33 @@ pub async fn run_loop(deps: HeartbeatDeps) {
     }
 }
 
-async fn flush_feedback(gateway: &str, session: Arc<SessionContext>) {
+async fn flush_feedback(gateway: &str, session: Arc<SessionContext>, faults: &WarnOnce) {
     let gateway_for_flush = gateway.to_owned();
     let flushed =
         tokio::task::spawn_blocking(move || session.native_sessions().flush(&gateway_for_flush))
             .await
             .map_err(|error| crate::feedback::FeedbackError::Io(std::io::Error::other(error)))
             .and_then(|result| result);
-    report_feedback(flushed, "Native session bindings remain unqueued");
+    report_feedback(faults, flushed, "Native session bindings remain unqueued");
     let retried = crate::feedback::retry_pending(gateway).await;
-    report_feedback(retried, "Installation feedback retry remains pending");
+    report_feedback(
+        faults,
+        retried,
+        "Installation feedback retry remains pending",
+    );
 }
-
-static LAST_FEEDBACK_ERROR: std::sync::LazyLock<
-    std::sync::Mutex<std::collections::HashMap<&'static str, String>>,
-> = std::sync::LazyLock::new(Default::default);
 
 // Why: the heartbeat ticks every few seconds and an unchanged feedback fault
 // warned on each one; it now warns when the error changes and stays quiet
 // while it persists.
-fn report_feedback(result: crate::feedback::Result<()>, message: &'static str) {
+fn report_feedback(faults: &WarnOnce, result: crate::feedback::Result<()>, message: &str) {
     let current = match result {
         Ok(()) | Err(crate::feedback::FeedbackError::EnrollmentRequired) => None,
         Err(error) => Some(error.to_string()),
     };
-    let Ok(mut last) = LAST_FEEDBACK_ERROR.lock() else {
-        return;
-    };
     match current {
-        None => {
-            last.remove(message);
-        },
-        Some(error) if last.get(message) != Some(&error) => {
-            tracing::warn!(%error, "{message}");
-            last.insert(message, error);
-        },
+        None => faults.clear(message),
+        Some(error) if faults.changed(message, &error) => tracing::warn!(%error, "{message}"),
         Some(error) => tracing::debug!(%error, "{message} (unchanged)"),
     }
 }

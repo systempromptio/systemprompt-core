@@ -50,6 +50,7 @@ pub struct BridgeContext {
     pub startup_faults: Vec<StartupFault>,
     pub drive: Arc<crate::drive::DriveHandle>,
     pub inbox: Arc<InboxHandle>,
+    pub warn_once: Arc<crate::warn_once::WarnOnce>,
 }
 
 impl std::fmt::Debug for BridgeContext {
@@ -146,6 +147,7 @@ impl BridgeContext {
             update_gate,
             elevation_attempted: AtomicBool::new(false),
             startup_faults: faults,
+            warn_once: Arc::default(),
         }))
     }
 
