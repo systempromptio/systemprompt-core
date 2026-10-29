@@ -28,7 +28,7 @@ fn only_platform_owned_keys_render_nothing() {
 }
 
 #[test]
-fn owned_keys_are_filtered_and_author_order_is_preserved() {
+fn owned_keys_are_filtered_and_keys_are_sorted() {
     let authored = mapping(&[
         ("zeta", "1"),
         ("title", "dropped"),
@@ -37,7 +37,19 @@ fn owned_keys_are_filtered_and_author_order_is_preserved() {
         ("model", "sonnet"),
     ]);
     let rendered = render_passthrough_frontmatter(Some(&authored)).unwrap();
-    assert_eq!(rendered, "zeta: '1'\nallowed-tools: Read\nmodel: sonnet\n");
+    assert_eq!(rendered, "allowed-tools: Read\nmodel: sonnet\nzeta: '1'\n");
+}
+
+#[test]
+fn nested_mappings_render_in_sorted_order() {
+    let mut inner = Mapping::new();
+    inner.insert(Value::String("b".into()), Value::String("2".into()));
+    inner.insert(Value::String("a".into()), Value::String("1".into()));
+    let mut authored = Mapping::new();
+    authored.insert(Value::String("model".into()), Value::String("sonnet".into()));
+    authored.insert(Value::String("metadata".into()), Value::Mapping(inner));
+    let rendered = render_passthrough_frontmatter(Some(&authored)).unwrap();
+    assert_eq!(rendered, "metadata:\n  a: '1'\n  b: '2'\nmodel: sonnet\n");
 }
 
 #[test]

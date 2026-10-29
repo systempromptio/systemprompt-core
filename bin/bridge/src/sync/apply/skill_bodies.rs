@@ -11,7 +11,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::collections::HashSet;
 use std::path::Path;
+use std::sync::{LazyLock, Mutex};
 
 use systemprompt_models::bridge::manifest::skill_frontmatter::render_passthrough_frontmatter;
 
@@ -37,7 +39,7 @@ pub(super) fn resolve(manifest: &mut SignedManifest, org_plugins_root: &Path) {
                 skill.instructions = Some(body);
                 true
             },
-            Err(reason) => {
+            Err(reason) if first_report(skill.id.as_str(), &reason) => {
                 tracing::warn!(
                     target: "bridge::sync",
                     skill = %skill.id,
@@ -48,8 +50,29 @@ pub(super) fn resolve(manifest: &mut SignedManifest, org_plugins_root: &Path) {
                 );
                 false
             },
+            Err(reason) => {
+                tracing::debug!(
+                    target: "bridge::sync",
+                    skill = %skill.id,
+                    reason = %reason,
+                    "skill body still withheld; already reported"
+                );
+                false
+            },
         }
     });
+}
+
+static REPORTED: LazyLock<Mutex<HashSet<(String, String)>>> =
+    LazyLock::new(|| Mutex::new(HashSet::new()));
+
+// Why: sync runs on a timer, and the same unrecoverable body would otherwise
+// warn on every pass; a skill is reported once per distinct failure.
+fn first_report(skill_id: &str, reason: &SkillBodyError) -> bool {
+    let key = (skill_id.to_owned(), reason.to_string());
+    REPORTED
+        .lock()
+        .map_or(true, |mut reported| reported.insert(key))
 }
 
 /// Why a schema-2 skill body could not be taken from its plugin file.
