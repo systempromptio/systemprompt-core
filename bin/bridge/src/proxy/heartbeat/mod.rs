@@ -24,6 +24,12 @@ use crate::warn_once::WarnOnce;
 use systemprompt_models::ApiPaths;
 use systemprompt_models::bridge::instance::{BridgeState, WindowStatus};
 
+mod feedback;
+mod release;
+
+use feedback::flush_feedback;
+use release::stage_required_release;
+
 pub const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(30);
 const HEARTBEAT_AUTH_THRESHOLD_SECS: u64 = 300;
 
@@ -116,41 +122,6 @@ pub async fn run_loop(deps: HeartbeatDeps) {
             },
             Ok(()) => {},
         }
-    }
-}
-
-async fn flush_feedback(gateway: &str, session: Arc<SessionContext>, faults: &WarnOnce) {
-    let gateway_for_flush = gateway.to_owned();
-    let flushed =
-        tokio::task::spawn_blocking(move || session.native_sessions().flush(&gateway_for_flush))
-            .await
-            .map_err(|error| crate::feedback::FeedbackError::Io(std::io::Error::other(error)))
-            .and_then(|result| result);
-    report_feedback(faults, flushed, "Native session bindings remain unqueued");
-    let retried = crate::feedback::retry_pending(gateway).await;
-    report_feedback(
-        faults,
-        retried,
-        "Installation feedback retry remains pending",
-    );
-}
-
-// Why: the heartbeat ticks every few seconds and an unchanged feedback fault
-// warned on each one; it now warns when the error changes and stays quiet
-// while it persists.
-fn report_feedback(faults: &WarnOnce, result: crate::feedback::Result<()>, message: &str) {
-    let current = match result {
-        Ok(()) | Err(crate::feedback::FeedbackError::EnrollmentRequired) => None,
-        Err(error) => Some(error.to_string()),
-    };
-    match current {
-        None => faults.clear(message),
-        Some(error) if faults.changed(message, &error) => {
-            tracing::warn!(%error, stage = message, "feedback delivery remains pending");
-        },
-        Some(error) => {
-            tracing::debug!(%error, stage = message, "feedback delivery still pending (unchanged)");
-        },
     }
 }
 
@@ -258,29 +229,6 @@ async fn send_one(
     Ok(())
 }
 
-async fn stage_required_release(
-    update_gate: UpdateGate,
-    gateway_base: ValidatedUrl,
-    bearer: crate::ids::BearerToken,
-    http: reqwest::Client,
-) {
-    use crate::update::automatic::{self, AutomaticError, Outcome, Skipped, Trigger};
-
-    let client = crate::gateway::GatewayClient::new(gateway_base, http);
-    match automatic::run(&update_gate, Trigger::Unsupported, &client, &bearer).await {
-        Ok(Outcome::Staged { version, .. }) => {
-            tracing::info!(%version, "required bridge release staged for the next launch");
-        },
-        Ok(Outcome::Current)
-        | Err(AutomaticError::Skipped(Skipped::NotDue | Skipped::InFlight)) => {},
-        Err(AutomaticError::Skipped(skipped @ Skipped::Policy(_))) => {
-            tracing::warn!(reason = %skipped, "a newer bridge is required; update manually");
-        },
-        Err(AutomaticError::Update(e)) => {
-            tracing::error!(error = %e, "a newer bridge is required but staging it failed");
-        },
-    }
-}
 
 #[derive(Debug, serde::Deserialize)]
 struct HeartbeatResponse {

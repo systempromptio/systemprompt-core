@@ -69,6 +69,8 @@ pub(crate) fn on_instance_requested(app: &GuiApp, op: InstanceOp, reply_to: Repl
     });
 }
 
+// JSON: webview IPC reply — the instance operation's outcome as the GUI reads
+// it
 fn run(ctx: &crate::context::BridgeContext, op: &InstanceOp) -> Result<Value, Arc<GuiError>> {
     let wrap = Arc::new;
     match op {
@@ -127,6 +129,8 @@ fn run(ctx: &crate::context::BridgeContext, op: &InstanceOp) -> Result<Value, Ar
     }
 }
 
+// JSON: webview IPC reply — the instance operation's outcome as the GUI reads
+// it
 fn machine_profile(ctx: &crate::context::BridgeContext) -> Value {
     use crate::integration::lifecycle::MachineProfileRefresh;
     match ctx.block_on(lifecycle::refresh_machine_profile(ctx)) {
@@ -139,6 +143,8 @@ fn machine_profile(ctx: &crate::context::BridgeContext) -> Value {
     }
 }
 
+// JSON: webview IPC reply — the instance operation's outcome as the GUI reads
+// it
 async fn refresh_discovery(ctx: &crate::context::BridgeContext, op: &InstanceOp, value: &Value) {
     let result = match op {
         InstanceOp::Add(_) => {
@@ -169,6 +175,7 @@ async fn refresh_discovery(ctx: &crate::context::BridgeContext, op: &InstanceOp,
 pub(crate) fn on_instance_finished(
     app: &mut GuiApp,
     op: &InstanceOp,
+    // JSON: webview IPC reply — the instance operation's outcome as the GUI reads it
     result: Result<Value, Arc<GuiError>>,
     reply_to: ReplyId,
 ) {

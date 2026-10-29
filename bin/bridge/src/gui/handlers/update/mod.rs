@@ -14,6 +14,14 @@ use crate::gui::{GuiApp, UiEventProxy, emit};
 use crate::update::{self, UpdateUiState};
 use crate::wire::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
 
+mod approval;
+mod fetch;
+
+pub(crate) use approval::approve_after_update;
+use approval::remember_pending_approval;
+pub(super) use fetch::client_and_bearer;
+use fetch::{check, install};
+
 pub(super) fn progress_reporter(
     proxy: UiEventProxy,
     version: String,
@@ -197,55 +205,6 @@ pub(crate) fn on_update_restart_requested(app: &mut GuiApp, event_loop: &dyn Act
     crate::gui::handlers::quit::on_quit(app, event_loop);
 }
 
-async fn check(http: reqwest::Client) -> Result<UpdateUiState, GuiError> {
-    let (client, bearer) = client_and_bearer(http).await?;
-    let (status, _) = update::check_now(&client, &bearer).await?;
-    Ok(UpdateUiState::from(&status))
-}
-
-async fn install(
-    version: &str,
-    http: reqwest::Client,
-    on_progress: &(dyn Fn(update::DownloadProgress) + Send + Sync),
-) -> Result<InstalledUpdate, GuiError> {
-    let (client, bearer) = client_and_bearer(http).await?;
-    let (_, manifest) = update::check(&client, &bearer).await?;
-    if manifest.version != version {
-        return Err(update::UpdateError::VersionChanged {
-            expected: version.to_owned(),
-            actual: manifest.version,
-        }
-        .into());
-    }
-    let path = update::apply(&client, &bearer, &manifest, on_progress).await?;
-    Ok(InstalledUpdate {
-        version: manifest.version,
-        path,
-    })
-}
-
-pub(super) async fn client_and_bearer(
-    http: reqwest::Client,
-) -> Result<(crate::gateway::GatewayClient, crate::ids::BearerToken), GuiError> {
-    let cfg = crate::config::load()?;
-    let gateway_url = crate::config::gateway_url_or_default(&cfg);
-    let bearer = crate::auth::obtain_live_token(
-        &cfg,
-        &crate::auth::session_identity::stable_session_id(&cfg),
-        &http,
-    )
-    .await
-    .map(|out| out.token)
-    .map_err(|e| GuiError::Profile {
-        context: "update authentication".into(),
-        source: std::io::Error::other(e),
-    })?;
-    Ok((
-        crate::gateway::GatewayClient::new(gateway_url, http),
-        bearer,
-    ))
-}
-
 fn reply<T: serde::Serialize>(
     app: &GuiApp,
     reply_to: ReplyId,
@@ -260,57 +219,4 @@ fn reply<T: serde::Serialize>(
         BridgeError::from_error(ErrorScope::Internal, ErrorCode::Internal, &*err)
     });
     emit::finish(app, reply_to, result);
-}
-
-const APPROVE_AFTER_UPDATE: &str = "approve-after-update.json";
-
-fn approval_marker() -> Option<std::path::PathBuf> {
-    crate::config::paths::bridge_metadata_dir().map(|d| d.join(APPROVE_AFTER_UPDATE))
-}
-
-// Why: a machine-policy change waiting on approval is rendered again by the
-// updated binary; carrying the request across the restart lets the new
-// process ask once, instead of once before and once after.
-fn remember_pending_approval(gate: &crate::elevation_gate::ElevationGate) {
-    if gate.pending().is_none() {
-        return;
-    }
-    if let Some(path) = approval_marker()
-        && let Err(error) = crate::fsutil::atomic_write_0600(&path, b"{}")
-    {
-        tracing::warn!(%error, "update: the pending administrator approval was not carried over");
-    }
-}
-
-pub(crate) fn approve_after_update(app: &mut GuiApp) {
-    if app.approval_after_update_checked {
-        return;
-    }
-    let snap = app.state.snapshot();
-    if !app.did_initial_sync || snap.sync_in_flight {
-        return;
-    }
-    app.approval_after_update_checked = true;
-    let Some(path) = approval_marker().filter(|p| p.exists()) else {
-        return;
-    };
-    if let Err(error) = crate::fsutil::remove_verified(&path) {
-        tracing::warn!(%error, "update: approval marker could not be removed");
-        return;
-    }
-    app.append_log("update: applying the policy change approved with the restart");
-    let ctx = Arc::clone(&app.ctx);
-    app.ctx.spawn(async move {
-        let overrides = crate::integration::reapply::ModelProtocolOverrides::new();
-        let reports = crate::integration::reapply::reapply_stale_profiles(
-            &ctx,
-            &overrides,
-            crate::integration::reapply::Attendance::Attended,
-        )
-        .await;
-        tracing::info!(
-            report = %crate::integration::reapply::render(&reports),
-            "post-update policy approval"
-        );
-    });
 }

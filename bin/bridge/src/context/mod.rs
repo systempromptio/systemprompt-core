@@ -6,8 +6,7 @@
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 
-use tokio::runtime::{Handle, Runtime};
-
+use tokio::runtime::Handle;
 
 use crate::activity::ActivityLog;
 use crate::auth::plugin_oauth::{PluginTokenCache, SecretStore};
@@ -16,11 +15,15 @@ use crate::mcp_registry::{self, McpRegistrySlot};
 pub use crate::obs::StartupFault;
 use crate::probe_cache::StartMenuCache;
 use crate::proxy::identity::InstallId;
-use crate::proxy::notifications::{
-    self, InboxHandle, NotificationSignalReceiver, NotificationSignals,
-};
+use crate::proxy::notifications::{InboxHandle, NotificationSignals};
 use crate::proxy::{ProxyDeps, ProxyHandle};
 use crate::schedule::status::ScheduleStatusCache;
+
+mod background;
+mod runtime;
+
+use background::{spawn_drive, spawn_inbox};
+use runtime::OwnedRuntime;
 
 /// Whether this process should own the loopback port or find the process that
 /// does.
@@ -203,107 +206,4 @@ impl BridgeContext {
     pub fn spawn(&self, fut: impl Future<Output = ()> + Send + 'static) {
         self.tasks.spawn(fut);
     }
-}
-
-fn spawn_inbox(
-    tasks: &crate::tasks::TaskOwner,
-    proxy: &ProxyHandle,
-    http: &reqwest::Client,
-    signals: NotificationSignalReceiver,
-) -> Arc<InboxHandle> {
-    let (inbox, requests) = InboxHandle::new(notifications::inbox_path());
-    if let Some(token_cache) = proxy.token_cache() {
-        tasks.spawn(notifications::run_loop(notifications::InboxDeps {
-            handle: Arc::clone(&inbox),
-            runtime_config: Arc::clone(proxy.runtime_config()),
-            token_cache: Arc::clone(token_cache),
-            http: http.clone(),
-            signals,
-            requests,
-        }));
-    }
-    inbox
-}
-
-fn spawn_drive(
-    tasks: &crate::tasks::TaskOwner,
-    proxy: &ProxyHandle,
-    drive: &Arc<crate::drive::DriveHandle>,
-    http: &reqwest::Client,
-    signals: crate::proxy::drive_signal::DriveSignalReceiver,
-) {
-    let Some(token_cache) = proxy.token_cache() else {
-        return;
-    };
-    let disabled = match crate::config::load() {
-        Ok(cfg) => cfg.drive.and_then(|drive| drive.enabled) == Some(false),
-        Err(error) => {
-            tracing::warn!(%error, "drive sync reads no config; it runs with the defaults");
-            false
-        },
-    };
-    let Some(root) = crate::drive::DriveRoot::resolve() else {
-        tracing::info!("drive sync off: this brand has no workspace folder");
-        return;
-    };
-    if disabled {
-        tracing::info!("drive sync off: disabled in the bridge config");
-        return;
-    }
-    let device_id =
-        match systemprompt_identifiers::DriveDeviceId::try_new(proxy.install_id().as_str()) {
-            Ok(id) => id,
-            Err(error) => {
-                tracing::warn!(%error, "drive sync off: the install id is not a device id");
-                return;
-            },
-        };
-    tasks.spawn(crate::drive::run::run_loop(crate::drive::run::DriveDeps {
-        handle: Arc::clone(drive),
-        root,
-        runtime_config: Arc::clone(proxy.runtime_config()),
-        token_cache: Arc::clone(token_cache),
-        http: http.clone(),
-        device_id,
-        host_name: crate::sysproc::host_name().unwrap_or_else(|| "this device".to_owned()),
-        signals,
-    }));
-}
-
-// Why: Tokio runtime drop panics inside an async task; the final owner may be
-// dropped there.
-struct OwnedRuntime {
-    runtime: Option<Runtime>,
-    handle: Handle,
-}
-
-impl OwnedRuntime {
-    fn build() -> std::io::Result<Self> {
-        let rt = tokio::runtime::Builder::new_multi_thread()
-            .worker_threads(worker_thread_count())
-            .thread_name("bridge-rt")
-            .enable_all()
-            .build()?;
-        let handle = rt.handle().clone();
-        Ok(Self {
-            runtime: Some(rt),
-            handle,
-        })
-    }
-
-    const fn handle(&self) -> &Handle {
-        &self.handle
-    }
-}
-
-impl Drop for OwnedRuntime {
-    fn drop(&mut self) {
-        if let Some(rt) = self.runtime.take() {
-            rt.shutdown_background();
-        }
-    }
-}
-
-fn worker_thread_count() -> usize {
-    std::thread::available_parallelism().map_or(2, |n| (n.get() / 2).max(2))
 }

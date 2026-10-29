@@ -7,6 +7,7 @@ mod agents;
 mod args;
 mod diagnostics;
 mod drive;
+mod gateway;
 mod general;
 mod hosts;
 mod inbox;
@@ -24,7 +25,8 @@ use crate::wire::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload, Repl
 use agents::agent_dispatch;
 use diagnostics::diagnostics_dispatch;
 use drive::drive_dispatch;
-use general::{auth_dispatch, gateway_dispatch, meta_dispatch, sync_dispatch};
+use gateway::gateway_dispatch;
+use general::{auth_dispatch, meta_dispatch, sync_dispatch};
 use hosts::host_dispatch;
 use inbox::inbox_dispatch;
 use window::window_dispatch;

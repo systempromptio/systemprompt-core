@@ -1,6 +1,7 @@
-//! `/.well-known/systemprompt-bridge`: the unauthenticated discovery document
-//! a shared bridge binary reads to find this instance's sign-in and identity
-//! routes, its branding and the hosts it serves. It carries no trust
+//! `/.well-known/systemprompt-bridge`, the unauthenticated discovery document.
+//!
+//! A shared bridge binary reads it to find this instance's sign-in and
+//! identity routes, its branding and the hosts it serves. It carries no trust
 //! material.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.

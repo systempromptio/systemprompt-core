@@ -3,6 +3,7 @@ import { escapeHtml } from "/assets/js/utils/escape.js";
 import { bridge } from "/assets/js/bridge.js";
 import { runAction } from "/assets/js/utils/action.js";
 import { repairHost } from "/assets/js/utils/host-actions.js";
+import { HOST_ID } from "/assets/js/utils/host-ids.js";
 import { t } from "/assets/js/i18n.js";
 
 // One banner for every machine-policy change waiting on an administrator:
@@ -14,7 +15,7 @@ export class SpApprovalBanner extends SpElement {
     this.registerAction("approve-machine-policy", (trigger) => runAction(trigger, {
       run: async () => {
         await bridge.elevationApprove();
-        await repairHost("claude-desktop");
+        await repairHost(HOST_ID.claudeDesktop);
       },
       success: t("toast-approval-applied") || "Claude Desktop's policy is up to date.",
       context: t("approval-banner-title") || "Claude Desktop needs one administrator approval",

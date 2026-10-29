@@ -145,6 +145,7 @@ pub enum UiEvent {
     },
     InstanceFinished {
         op: crate::gui::handlers::instance::InstanceOp,
+        // JSON: webview IPC reply carrying the instance operation's outcome
         result: Result<Value, Arc<GuiError>>,
         reply_to: ReplyId,
     },
