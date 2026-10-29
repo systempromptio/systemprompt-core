@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.75.1] - 2026-10-29
+
+### Fixed
+
+- **Users:** concurrent first token exchanges for one federated principal link a single account; the second waits on a transaction-scoped lock and finds the first's link instead of answering 500.
+
 ## [0.75.0] - 2026-10-28
 
 ### Breaking
