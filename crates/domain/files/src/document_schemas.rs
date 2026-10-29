@@ -1,4 +1,5 @@
-//! The document store tables: each table's declarative schema and the
+//! The document store tables, and the issue report tables whose
+//! attachments are store blobs: each table's declarative schema and the
 //! columns the schema validator requires of it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -74,6 +75,11 @@ pub(crate) const DOCUMENT_SCHEMAS: &[SchemaEntry] = &[
         &["session_id", "seq", "payload"],
     ),
     (
+        "document_collab_peers",
+        include_str!("../schema/document_collab_peers.sql"),
+        &["session_id", "peer_id", "user_id"],
+    ),
+    (
         "document_text_index",
         include_str!("../schema/document_text_index.sql"),
         &["document_id", "revision_id", "body"],
@@ -144,5 +150,26 @@ pub(crate) const DOCUMENT_SCHEMAS: &[SchemaEntry] = &[
         "document_upload_parts",
         include_str!("../schema/document_upload_parts.sql"),
         &["upload_id", "part_number", "size_bytes", "storage_id"],
+    ),
+    (
+        "issue_reports",
+        include_str!("../schema/issue_reports.sql"),
+        &[
+            "id",
+            "reporter_user_id",
+            "fingerprint",
+            "status",
+            "last_seen_at",
+        ],
+    ),
+    (
+        "issue_report_attachments",
+        include_str!("../schema/issue_report_attachments.sql"),
+        &["report_id", "upload_id", "content_sha256"],
+    ),
+    (
+        "document_upload_objects",
+        include_str!("../schema/document_upload_objects.sql"),
+        &["storage_id", "upload_id", "created_at"],
     ),
 ];

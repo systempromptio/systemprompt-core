@@ -109,22 +109,35 @@ pub struct UploadPart {
 }
 
 /// What a session counts against.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+///
+/// A `Save` writes an existing document and
+/// is charged to that document's `owner`, not to the user who sent the
+/// bytes, and only when its blob is new: a save of bytes the store already
+/// holds costs nothing.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Allowance {
     Session,
     OneShot,
-    Save,
+    Save { owner: UserId },
 }
 
 impl Allowance {
     #[must_use]
-    pub const fn one_shot(self) -> bool {
+    pub const fn one_shot(&self) -> bool {
         !matches!(self, Self::Session)
     }
 
     #[must_use]
-    pub const fn quota_exempt(self) -> bool {
-        matches!(self, Self::Save)
+    pub const fn charged_to<'a>(&'a self, uploader: &'a UserId) -> &'a UserId {
+        match self {
+            Self::Save { owner } => owner,
+            Self::Session | Self::OneShot => uploader,
+        }
+    }
+
+    #[must_use]
+    pub const fn new_bytes_only(&self) -> bool {
+        matches!(self, Self::Save { .. })
     }
 }
 

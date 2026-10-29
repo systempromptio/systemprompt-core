@@ -72,6 +72,11 @@ pub struct Reservation {
     at: Instant,
 }
 
+/// The agent-edit ceilings of one replica.
+///
+/// Windows live in process memory, so `n` replicas admit up to `n` times the
+/// configured `agent_edits_per_hour` and `agent_edits_per_hour_per_user`
+/// between them; size those limits per replica.
 #[derive(Debug)]
 pub struct AgentRateLimiter {
     per_agent: u64,

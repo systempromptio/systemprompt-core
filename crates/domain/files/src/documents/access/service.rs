@@ -16,7 +16,7 @@ use uuid::Uuid;
 
 use super::SubjectDirectory;
 use super::agent::{AgentGate, held_level, owner_of};
-use super::request::authz_request;
+use super::request::{HookTarget, authz_request};
 use crate::documents::agents::{
     AgentAccessPolicy, DefaultAgentAccessPolicy, DocumentActor, EffectiveCap, unscoped_actor,
 };
@@ -171,33 +171,6 @@ impl DocumentAccessService {
         self.decide(check, pairs.clone(), HookMode::Probe).await
     }
 
-    pub async fn probe_folder(
-        &self,
-        who: &AuthenticatedUser,
-        folder: Option<&DocumentFolderId>,
-        trace: &TraceId,
-    ) -> bool {
-        let entity = folder.cloned().unwrap_or_else(root_folder_entity);
-        let request = authz_request(
-            who,
-            EntityRef::Folder(entity),
-            AuthzContext::document_access(DocumentAction::View, None, folder),
-            trace,
-        );
-        match self.hook.probe(request).await {
-            AuthzDecision::Allow => true,
-            AuthzDecision::Deny { reason, policy } => {
-                tracing::debug!(
-                    folder_id = folder.map(DocumentFolderId::as_str),
-                    policy = %policy,
-                    reason = %reason,
-                    "Document listing withheld a folder the authz hook denies"
-                );
-                false
-            },
-        }
-    }
-
     async fn decide(
         &self,
         check: AccessCheck<'_>,
@@ -226,8 +199,16 @@ impl DocumentAccessService {
             action,
             document_id.as_ref(),
             resolved.nearest_folder.as_ref(),
-        );
-        let request = authz_request(who, entity, context, trace);
+        )
+        .with_folder_ancestors(resolved.chain.get(1..).unwrap_or_default());
+        let request = authz_request(HookTarget {
+            who,
+            pairs: &pairs,
+            entity,
+            context,
+            trace,
+            actor: self.actor(),
+        });
         let decision = match mode {
             HookMode::Evaluate => self.hook.evaluate(request).await,
             HookMode::Probe => self.hook.probe(request).await,

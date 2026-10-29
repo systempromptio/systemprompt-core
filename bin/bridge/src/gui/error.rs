@@ -40,6 +40,12 @@ pub enum GuiError {
     #[error("install: {0}")]
     Install(#[source] Box<crate::install::InstallError>),
 
+    #[error(transparent)]
+    GatewayProfile(#[from] crate::config::gateways::ProfileError),
+
+    #[error(transparent)]
+    Lifecycle(#[from] crate::integration::lifecycle::LifecycleError),
+
     #[error("profile: {context}: {source}")]
     Profile {
         context: String,

@@ -83,6 +83,9 @@ fn manifest() -> SignedManifest {
         auto_update: Default::default(),
         diagnostics: Vec::new(),
         marketplaces: Vec::new(),
+        allow_user_disable: false,
+        branding: None,
+        bridge_versions: None,
     }
 }
 
@@ -102,6 +105,9 @@ fn apply(m: &SignedManifest, home: &Path, loopback: &LoopbackEndpoint) {
         loopback,
         mcp_registry: &EMPTY_REGISTRY,
         start_menu: &START_MENU,
+        elevation_gate: Box::leak(Box::new(
+            systemprompt_bridge::elevation_gate::ElevationGate::new(),
+        )),
     };
     tokio::runtime::Builder::new_current_thread()
         .enable_all()

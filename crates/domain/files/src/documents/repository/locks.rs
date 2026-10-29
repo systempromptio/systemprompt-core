@@ -1,5 +1,8 @@
 //! [`DocumentLockRepository`]: one expiring lease per document.
 //!
+//! Acquiring a lease shares-locks the document row, so an acquire and a head
+//! swap (which locks the row for update) always observe each other.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -67,8 +70,9 @@ impl DocumentLockRepository {
     async fn try_acquire(&self, request: &LockRequest) -> RepoResult<Option<DocumentLock>> {
         sqlx::query_as!(
             LockRow,
-            r#"INSERT INTO document_locks (document_id, holder_user_id, holder_kind, holder_id, expires_at)
-               VALUES ($1::text::uuid, $2, $3, $4, now() + $5::float8 * interval '1 second')
+            r#"WITH doc AS (SELECT id FROM documents WHERE id = $1::text::uuid FOR SHARE)
+               INSERT INTO document_locks (document_id, holder_user_id, holder_kind, holder_id, expires_at)
+               SELECT doc.id, $2, $3, $4, now() + $5::float8 * interval '1 second' FROM doc
                ON CONFLICT (document_id) DO UPDATE
                    SET holder_user_id = EXCLUDED.holder_user_id,
                        holder_kind = EXCLUDED.holder_kind,
@@ -105,10 +109,11 @@ impl DocumentLockRepository {
         Ok(result.rows_affected() == 1)
     }
 
-    pub async fn release_all(&self, document_id: &DocumentId) -> RepoResult<u64> {
+    pub async fn release_all_for(&self, documents: &[DocumentId]) -> RepoResult<u64> {
+        let ids: Vec<String> = documents.iter().map(|id| id.as_str().to_owned()).collect();
         let result = sqlx::query!(
-            "DELETE FROM document_locks WHERE document_id = $1::text::uuid",
-            document_id.as_str(),
+            "DELETE FROM document_locks WHERE document_id = ANY($1::text[]::uuid[])",
+            &ids,
         )
         .execute(&*self.pools.write)
         .await?;

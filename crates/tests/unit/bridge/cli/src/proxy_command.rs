@@ -38,7 +38,8 @@ fn the_proxy_command_stands_down_when_a_sibling_already_serves() {
             ("SUDO_USER", None),
         ],
         || {
-            let serving = BridgeContext::start(ProxyMode::Serve).expect("runtime builds");
+            let serving = BridgeContext::start(ProxyMode::Serve, std::sync::Arc::new(|| None))
+                .expect("runtime builds");
             let ProxyRole::Serving(served) = serving.proxy.role() else {
                 panic!(
                     "the fixture proxy must be the one serving: {:?}",

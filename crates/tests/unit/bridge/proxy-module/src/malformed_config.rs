@@ -32,7 +32,7 @@ fn a_malformed_config_file_makes_the_proxy_refuse_to_serve() {
         )
         .expect("seed");
 
-        let ctx = BridgeContext::start(ProxyMode::Serve)
+        let ctx = BridgeContext::start(ProxyMode::Serve, std::sync::Arc::new(|| None))
             .expect("a refused proxy is a state the context reports, not a start failure");
 
         let ProxyRole::Failed(ProxyFailure::Config(error)) = ctx.proxy.role() else {

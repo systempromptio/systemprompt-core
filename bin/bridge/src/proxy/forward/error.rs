@@ -13,6 +13,14 @@ use super::replay::describe;
 pub enum ForwardError {
     #[error("routing unavailable: {0}")]
     Routing(String),
+    #[error(
+        "model `{model}` is served by gateway profile `{profile}`, not the active gateway; \
+         switch to `{profile}` to use it"
+    )]
+    ModelServedElsewhere {
+        model: String,
+        profile: crate::config::gateways::GatewayProfileId,
+    },
     #[error("authentication unavailable: {0}")]
     Auth(String),
     #[error("authentication temporarily unavailable, retrying: {0}")]
@@ -88,9 +96,10 @@ impl ForwardError {
             | Self::Routing(_) => StatusCode::SERVICE_UNAVAILABLE,
             Self::Scope { .. } => StatusCode::UNAUTHORIZED,
             Self::BodyTooLarge { .. } => StatusCode::PAYLOAD_TOO_LARGE,
-            Self::BadMethod { .. } | Self::BadHeader(_) | Self::InvalidHeader { .. } => {
-                StatusCode::BAD_REQUEST
-            },
+            Self::BadMethod { .. }
+            | Self::BadHeader(_)
+            | Self::InvalidHeader { .. }
+            | Self::ModelServedElsewhere { .. } => StatusCode::BAD_REQUEST,
             Self::Upstream(_) | Self::BuildResponse(_) | Self::ReadBody(_) => {
                 StatusCode::BAD_GATEWAY
             },

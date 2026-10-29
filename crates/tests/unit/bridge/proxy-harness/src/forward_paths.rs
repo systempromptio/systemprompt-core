@@ -171,7 +171,7 @@ fn bearer_of(req: &wiremock::Request) -> String {
 }
 
 #[test]
-fn an_upstream_401_on_a_fresh_jwt_latches_sign_in_instead_of_reminting() {
+fn an_upstream_401_on_a_fresh_jwt_re_mints_once_then_latches_sign_in() {
     with_credentials(async {
         let h = spawn_harness().await;
         Mock::given(method("POST"))
@@ -191,21 +191,32 @@ fn an_upstream_401_on_a_fresh_jwt_latches_sign_in_instead_of_reminting() {
         assert_eq!(
             second.status().as_u16(),
             503,
-            "the latch answers locally rather than forwarding again"
+            "the re-minted token was refused too, so sign-in latches"
         );
-
         assert_eq!(
             h.mints.load(Ordering::Relaxed),
-            1,
-            "a credential refused moments after minting cannot be fixed by re-minting"
+            2,
+            "a fresh token refused once is re-minted exactly once"
         );
         let requests = h.upstream_requests().await;
         assert_eq!(
-            requests.len(),
-            1,
-            "the second request never reaches upstream"
+            requests.iter().map(bearer_of).collect::<Vec<_>>(),
+            ["Bearer upstream-jwt-1", "Bearer upstream-jwt-2"],
+            "the re-minted token is tried once"
         );
-        assert_eq!(bearer_of(&requests[0]), "Bearer upstream-jwt-1");
+
+        let third = h.authed_post("/v1/messages", r#"{"messages":[]}"#).await;
+        assert_eq!(third.status().as_u16(), 503, "the latch answers locally");
+        assert_eq!(
+            h.mints.load(Ordering::Relaxed),
+            2,
+            "no further mint while latched"
+        );
+        assert_eq!(
+            h.upstream_requests().await.len(),
+            2,
+            "nothing more reaches upstream"
+        );
     });
 }
 
@@ -707,11 +718,8 @@ fn a_bare_otel_post_is_rewritten_to_v1_otel() {
 #[test]
 fn an_unreachable_gateway_yields_502_and_is_recorded() {
     with_credentials(async {
-        let dead = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
-            .await
-            .expect("reserve a port");
+        let dead = refusing_port();
         let dead_port = dead.local_addr().expect("addr").port();
-        drop(dead);
 
         let h = spawn_with_base(
             MockServer::start().await,
@@ -1249,6 +1257,9 @@ fn test_deps() -> systemprompt_bridge::proxy::ProxyDeps {
         ),
         update_gate: systemprompt_bridge::update::automatic::UpdateGate::default(),
         drive_signals: systemprompt_bridge::proxy::drive_signal::DriveSignals::channel().0,
+        notification_signals:
+            systemprompt_bridge::proxy::notifications::NotificationSignals::channel().0,
+        desktop_policy_key_fp: std::sync::Arc::new(|| None),
     }
 }
 
@@ -1380,4 +1391,15 @@ fn a_tools_call_that_dies_after_the_socket_opened_is_not_replayed() {
             );
         });
     });
+}
+
+// Why: a port bound but never listened on refuses every connect for as long
+// as the socket lives; a port released after `bind` can be handed to another
+// test's listener before the request is sent.
+fn refusing_port() -> tokio::net::TcpSocket {
+    let socket = tokio::net::TcpSocket::new_v4().expect("socket");
+    socket
+        .bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .expect("reserve a port");
+    socket
 }

@@ -63,6 +63,7 @@ pub(crate) fn on_set_gateway_finished(
             crate::mcp_registry::clear(&app.ctx.mcp_registry);
             app.state.reload();
             crate::gui::handlers::gateway_probe::spawn_probe(app, None);
+            crate::gui::handlers::instance::spawn_discovery_refresh(app);
             Ok(())
         },
         Err(e) if e.is_cancelled() => {

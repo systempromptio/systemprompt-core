@@ -29,12 +29,18 @@ pub enum ReleaseError {
     UnknownPlatform { platform: String },
     #[error("no {prefix}* release found in {repo}")]
     NoRelease { prefix: String, repo: String },
-    #[error("no {prefix}* release in {repo} is supported by this server ({ceiling})")]
+    #[error(
+        "no {prefix}* release in {repo} is supported by this server ({ceiling}) within the \
+         configured window {window}"
+    )]
     NoCompatibleRelease {
         prefix: String,
         repo: String,
         ceiling: String,
+        window: String,
     },
+    #[error("pinned release {pinned} lies outside the configured window {window}")]
+    PinnedOutsideWindow { pinned: String, window: String },
     #[error("release {tag} has no asset {asset}")]
     MissingAsset { tag: String, asset: String },
     #[error("release {version} publishes no SHA256SUMS")]
@@ -97,6 +103,7 @@ impl ReleaseError {
             | Self::UnknownPlatform { .. }
             | Self::NoRelease { .. }
             | Self::NoCompatibleRelease { .. }
+            | Self::PinnedOutsideWindow { .. }
             | Self::MissingAsset { .. } => StatusCode::NOT_FOUND,
             Self::NoChecksums { .. }
             | Self::ChecksumMissing { .. }
@@ -137,6 +144,7 @@ impl ReleaseError {
             Self::UnknownPlatform { .. } => "platform_not_published",
             Self::NoRelease { .. } => "release_not_found",
             Self::NoCompatibleRelease { .. } => "compatible_release_not_found",
+            Self::PinnedOutsideWindow { .. } => "pinned_release_outside_window",
             Self::MissingAsset { .. } => "release_asset_not_found",
             Self::NoChecksums { .. } | Self::ChecksumMissing { .. } => {
                 "release_checksum_unavailable"

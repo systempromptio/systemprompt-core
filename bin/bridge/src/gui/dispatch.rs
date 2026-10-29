@@ -46,6 +46,11 @@ fn dispatch_window(
 ) -> Result<(), Box<UiEvent>> {
     match event {
         UiEvent::OpenSettings => handlers::settings::on_open_settings(app, event_loop),
+        UiEvent::OpenInbox => {
+            let was_open = app.settings_window.is_some();
+            handlers::settings::on_open_settings(app, event_loop);
+            crate::gui::inbox::show(app, was_open);
+        },
         UiEvent::OpenDeviceAction(action) => {
             app.state.set_pending_device_action(Some(action));
             handlers::settings::on_open_settings(app, event_loop);
@@ -110,6 +115,9 @@ fn dispatch_request(
         UiEvent::SetGatewayRequested { url, reply_to } => {
             handlers::auth::on_set_gateway_requested(app, &url, reply_to);
         },
+        UiEvent::InstanceRequested { op, reply_to } => {
+            handlers::instance::on_instance_requested(app, op, reply_to);
+        },
         UiEvent::GatewayProbeRequested { reply_to } => {
             handlers::gateway_probe::on_gateway_probe_requested(app, reply_to);
         },
@@ -168,6 +176,13 @@ fn dispatch_finished(app: &mut GuiApp, event: UiEvent) -> Result<(), Box<UiEvent
         },
         UiEvent::SetGatewayFinished { result, reply_to } => {
             handlers::auth::on_set_gateway_finished(app, result, reply_to);
+        },
+        UiEvent::InstanceFinished {
+            op,
+            result,
+            reply_to,
+        } => {
+            handlers::instance::on_instance_finished(app, &op, result, reply_to);
         },
         UiEvent::GatewayProbeFinished { outcome, reply_to } => {
             handlers::gateway_probe::on_gateway_probe_finished(app, outcome, reply_to);

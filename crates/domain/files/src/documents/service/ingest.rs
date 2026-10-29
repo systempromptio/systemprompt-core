@@ -6,8 +6,9 @@
 //! (templates, restores, live checkpoints) take [`DocumentService::import`]
 //! and [`DocumentService::commit`] directly.
 //!
-//! A new document's import counts toward the daily upload quota; a save of
-//! an existing document runs every check but does not spend it
+//! A new document's import counts toward the importer's daily upload quota;
+//! a save of an existing document runs every check and counts toward its
+//! owner's quota, for bytes the store does not already hold
 //! ([`Allowance::Save`]).
 //!
 //! With no upload service attached, external bytes are refused rather than
@@ -130,7 +131,9 @@ impl DocumentService {
                     document.format,
                     std::mem::take(bytes),
                     trace,
-                    Allowance::Save,
+                    Allowance::Save {
+                        owner: document.owner_user_id.clone(),
+                    },
                 )
                 .await?;
             *bytes = checked;

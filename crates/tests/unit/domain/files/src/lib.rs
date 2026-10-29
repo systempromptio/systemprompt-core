@@ -40,3 +40,6 @@ mod documents;
 
 #[cfg(test)]
 mod web_assets;
+
+#[cfg(test)]
+mod issues;

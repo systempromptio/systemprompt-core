@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH covered AS (\n               SELECT d.id, d.folder_id, d.name, d.owner_user_id,\n                      COALESCE(f.ancestor_ids || f.id, '{}'::uuid[]) AS chain\n               FROM documents d\n               LEFT JOIN document_folders f ON f.id = d.folder_id\n               WHERE d.id = $1::text::uuid AND d.deleted_at IS NULL\n               UNION ALL\n               SELECT d.id, d.folder_id, d.name, d.owner_user_id, f.ancestor_ids || f.id\n               FROM document_folders f\n               JOIN documents d ON d.folder_id = f.id AND d.deleted_at IS NULL\n               WHERE $2::text IS NOT NULL\n                 AND (f.id = $2::text::uuid OR $2::text::uuid = ANY(f.ancestor_ids))\n                 AND f.deleted_at IS NULL)\n           INSERT INTO document_path_changes\n               (document_id, to_path, subject_kind, subject_value, subject_access)\n           SELECT c.id, document_drive_path(c.folder_id, c.name), $3, $4, 'gained'\n           FROM covered c\n           WHERE NOT ($3 = 'user' AND $4 = c.owner_user_id)\n             AND NOT EXISTS (\n                 SELECT 1 FROM document_grants o\n                 WHERE o.subject_kind = $3 AND o.subject_value = $4\n                   AND (o.document_id = c.id OR o.folder_id = ANY(c.chain)))",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "b998d387d6e4b3d41bd9fcc6bdc1c5d7c8c72ba06780df596d3c829ac34cc4a8"
+}

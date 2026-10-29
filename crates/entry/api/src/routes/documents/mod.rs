@@ -4,8 +4,9 @@
 //! Every handler is thin: it resolves the caller, converts path and query
 //! values to typed ids, calls [`DocumentService`] and maps the outcome. The
 //! service authorizes every call; a handler never reads the store or the
-//! blob store directly. Content is streamed with the head's content hash as
-//! the `ETag`, and writes name their base revision in `If-Match`. With the
+//! blob store directly. Content is streamed with the quoted revision id as
+//! the `ETag` and the content hash in `x-document-content-sha256`, and writes
+//! name that revision in `If-Match`. With the
 //! `collab` feature the `/{id}/collab/*` routes co-edit HTML and Markdown
 //! documents live. `/{id}/live` is the document's live channel and
 //! `/{id}/collab/awareness` posts awareness; both work without an engine.
@@ -39,6 +40,7 @@ mod items_multipart;
 mod lifecycle;
 mod listing;
 mod live;
+mod media;
 mod proposals;
 mod read;
 mod requests;
@@ -171,6 +173,7 @@ pub fn router(state: DocumentsState) -> Router {
             patch(comments::edit).delete(comments::delete),
         )
         .route("/{id}/export/docx", get(export::docx))
+        .route("/{id}/media", get(media::image))
         .route("/{id}/access", get(access::access))
         .route(
             "/{id}/agent-cap",

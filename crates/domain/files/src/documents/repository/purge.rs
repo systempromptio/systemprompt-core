@@ -2,7 +2,9 @@
 //!
 //! Documents, folders and revisions are shared content: they move to a new
 //! owner through `FilesOwnerReassignment` rather than being purged. Only the
-//! user's own leases, presence rows and user-subject grants are deleted.
+//! user's own leases, presence rows, live-session peer ids and user-subject
+//! grants are deleted, with the issue reports they filed (their attachment rows
+//! cascade).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -13,8 +15,10 @@ user_purge_tables!(
     "systemprompt-files",
     [
         ("document_presence", "user_id"),
+        ("document_collab_peers", "user_id"),
         ("document_locks", "holder_user_id"),
         ("document_grants", "subject_value", "subject_kind = 'user'"),
         ("document_access_requests", "requester_user_id"),
+        ("issue_reports", "reporter_user_id"),
     ]
 );

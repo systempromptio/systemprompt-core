@@ -1,0 +1,128 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH subject AS (\n                   SELECT s.kind, s.value FROM UNNEST($3::text[], $4::text[]) AS s(kind, value)\n               )\n               SELECT f.id::text AS \"id!: DocumentFolderId\",\n                      f.parent_id::text AS \"parent_id: DocumentFolderId\",\n                      f.name,\n                      f.ancestor_ids::text[] AS \"ancestor_ids!: Vec<DocumentFolderId>\",\n                      f.owner_user_id AS \"owner_user_id: UserId\",\n                      f.created_by AS \"created_by: UserId\",\n                      f.created_at, f.updated_at, f.deleted_at, f.agent_edit_policy\n               FROM document_folders f\n               WHERE f.parent_id IS NOT DISTINCT FROM $1::text::uuid\n                 AND f.deleted_at IS NULL\n                 AND ($5::text IS NULL OR f.name ILIKE $5)\n                 AND ($6::text IS NULL OR (f.name, f.id) > ($6::text, $7::text::uuid))\n                 AND (f.owner_user_id = $2 OR EXISTS (\n                     SELECT 1 FROM document_grants g\n                     JOIN subject s ON s.kind = g.subject_kind AND s.value = g.subject_value\n                     WHERE g.folder_id = ANY(f.ancestor_ids || f.id)\n                       AND (g.valid_until IS NULL OR g.valid_until > now())))\n               ORDER BY f.name, f.id\n               LIMIT $8",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!: DocumentFolderId",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "parent_id: DocumentFolderId",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_folders",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "ancestor_ids!: Vec<DocumentFolderId>",
+        "type_info": "TextArray",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "owner_user_id: UserId",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "document_folders",
+            "name": "owner_user_id"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "created_by: UserId",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "document_folders",
+            "name": "created_by"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "document_folders",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "updated_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "document_folders",
+            "name": "updated_at"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "deleted_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "document_folders",
+            "name": "deleted_at"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "agent_edit_policy",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_folders",
+            "name": "agent_edit_policy"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "TextArray",
+        "TextArray",
+        "Text",
+        "Text",
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      false,
+      null,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "0a2f033c66fa77f52b12bd82ba77be445728c9ad3ed0fe102cf37ea5f55d9c6d"
+}

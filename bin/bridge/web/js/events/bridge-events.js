@@ -1,6 +1,6 @@
 import { TAB_KEYS, activateRailTab, isTextInput } from "/assets/js/utils/rail-tabs.js";
 
-const FORWARDED_EVENTS = ["mkt:count", "setup-open", "sp:toast"];
+const FORWARDED_EVENTS = ["mkt:count", "inbox:count", "setup-open", "sp:toast"];
 const handlers = new Map();
 for (const name of FORWARDED_EVENTS) { handlers.set(name, new Set()); }
 

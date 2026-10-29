@@ -20,7 +20,11 @@ fn in_sandbox<R>(state: &TempDir, f: impl FnOnce() -> R) -> R {
 }
 
 fn seed_config(state: &TempDir, gateway: &str) {
-    let config_dir = state.path().join("systemprompt");
+    let config_dir = state
+        .path()
+        .join("systemprompt")
+        .join("gateways")
+        .join("default");
     std::fs::create_dir_all(&config_dir).expect("config dir");
     std::fs::write(
         config_dir.join("systemprompt-bridge.toml"),

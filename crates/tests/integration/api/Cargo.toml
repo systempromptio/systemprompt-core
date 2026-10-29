@@ -22,9 +22,9 @@ systemprompt-catalog-fixtures = { workspace = true }
 async-trait = { workspace = true }
 inventory = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }
-systemprompt-api = { workspace = true, features = ["collab"] }
+systemprompt-api = { workspace = true, features = ["collab", "notifications"] }
 systemprompt-gateway = { workspace = true }
-systemprompt-runtime = { workspace = true, features = ["engine-loro"] }
+systemprompt-runtime = { workspace = true, features = ["engine-loro", "notifications"] }
 systemprompt-storage = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-manifest = { workspace = true }

@@ -1,0 +1,22 @@
+[package]
+name = "systemprompt-models-notifications-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Unit tests for the notification models in systemprompt-models"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-models = { workspace = true }
+systemprompt-identifiers = { workspace = true }
+
+[dev-dependencies]
+base64 = { workspace = true }
+chrono = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+uuid = { workspace = true }

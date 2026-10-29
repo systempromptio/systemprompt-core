@@ -189,7 +189,7 @@ where
         max_attempts,
         base_delay: Duration::from_millis(delays_ms.first().copied().unwrap_or(100)),
         max_delay: Duration::from_millis(delays_ms.iter().copied().max().unwrap_or(1600)),
-        jitter: false,
+        jitter: true,
     };
     let classify = |err: &sqlx::Error| {
         if is_retryable(err) {

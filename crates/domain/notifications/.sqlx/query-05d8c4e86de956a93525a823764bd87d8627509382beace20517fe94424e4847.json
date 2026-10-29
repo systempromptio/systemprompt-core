@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO notification_receipts (notification_id, surface, state)\n             SELECT t.id::uuid, $2, $3 FROM UNNEST($1::text[]) AS t(id)\n             ON CONFLICT (notification_id, surface, state) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "TextArray",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "05d8c4e86de956a93525a823764bd87d8627509382beace20517fe94424e4847"
+}

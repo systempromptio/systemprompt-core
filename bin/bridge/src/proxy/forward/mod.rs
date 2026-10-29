@@ -29,6 +29,7 @@ mod hook;
 pub mod replay;
 mod retry;
 pub mod route;
+mod status;
 
 use body::prepare_upstream_body;
 pub use body::{CHAT_COMPLETIONS_PATH, stamp_opencode_session};
@@ -38,6 +39,7 @@ use hook::{authenticate_hook_track, require_hook_credential};
 pub use replay::{Replay, describe, replay_policy, should_replay};
 use retry::{UpstreamSend, send_upstream};
 use route::{Route, RouteResolution, resolve_route, same_origin_as};
+use status::{UpstreamStatus, note_upstream_status};
 
 pub type ProxyBody = http_body_util::combinators::BoxBody<Bytes, std::io::Error>;
 
@@ -56,6 +58,30 @@ pub(crate) struct ForwardDeps<'a> {
     pub plugin_tokens: Arc<crate::auth::plugin_oauth::PluginTokenCache>,
     pub credential: LoopbackCredential,
     pub drive_signals: &'a crate::proxy::drive_signal::DriveSignals,
+    pub foreign_models: &'a BTreeMap<String, crate::config::gateways::GatewayProfileId>,
+}
+
+pub fn refuse_foreign_model(
+    foreign_models: &BTreeMap<String, crate::config::gateways::GatewayProfileId>,
+    body: &[u8],
+) -> ForwardResult<()> {
+    #[derive(serde::Deserialize)]
+    struct ModelField {
+        model: Option<String>,
+    }
+    if foreign_models.is_empty() {
+        return Ok(());
+    }
+    let Some(model) = serde_json::from_slice::<ModelField>(body)
+        .ok()
+        .and_then(|f| f.model)
+    else {
+        return Ok(());
+    };
+    let Some(profile) = foreign_models.get(&model).cloned() else {
+        return Ok(());
+    };
+    Err(ForwardError::ModelServedElsewhere { model, profile })
 }
 
 #[tracing::instrument(
@@ -84,6 +110,7 @@ pub(crate) async fn forward(
         plugin_tokens,
         credential,
         drive_signals,
+        foreign_models,
     } = deps;
     let token = token_cache.current(REFRESH_THRESHOLD_SECS).await?;
 
@@ -140,6 +167,9 @@ pub(crate) async fn forward(
 
     let (buffered_body, gateway_conversation_id) =
         prepare_upstream_body(body, session_context, &parts.headers, &request_path).await?;
+    if attest.is_some() {
+        refuse_foreign_model(foreign_models, &buffered_body)?;
+    }
 
     if let Err(error) = session_context.native_sessions().observe(
         credential.verified_host(),
@@ -184,23 +214,16 @@ pub(crate) async fn forward(
 
     let status = StatusCode::from_u16(upstream_response.status().as_u16())
         .unwrap_or(StatusCode::BAD_GATEWAY);
-    if status.is_success() {
-        if usage::is_messages_path(&request_path) {
-            session_context.touch_activity();
-        }
-        tracing::debug!(upstream_status = status.as_u16(), "upstream forwarded");
-    } else {
-        tracing::warn!(upstream_status = status.as_u16(), url = %route.url, "upstream non-2xx");
-        if status == StatusCode::UNAUTHORIZED {
-            note_unauthorized(
-                &plugin_tokens,
-                gateway_base,
-                hook_plugin.as_ref(),
-                gateway_signed,
-                &route.url,
-            );
-        }
-    }
+    note_upstream_status(&UpstreamStatus {
+        status,
+        request_path: &request_path,
+        upstream: &route.url,
+        session_context,
+        plugin_tokens: &plugin_tokens,
+        gateway_base,
+        hook_plugin: hook_plugin.as_ref(),
+        gateway_signed,
+    });
 
     let mut response_builder = Response::builder().status(status);
     if let Some(headers_mut) = response_builder.headers_mut() {
@@ -247,25 +270,3 @@ const _: fn() = || {
     const fn assert_send<T: Send>() {}
     assert_send::<ForwardResult<Response<ProxyBody>>>();
 };
-
-fn note_unauthorized(
-    plugin_tokens: &crate::auth::plugin_oauth::PluginTokenCache,
-    gateway_base: &ValidatedUrl,
-    hook_plugin: Option<&crate::ids::PluginId>,
-    gateway_signed: bool,
-    upstream: &str,
-) {
-    if let Some(plugin_id) = hook_plugin {
-        plugin_tokens.invalidate(gateway_base.as_str(), plugin_id);
-    } else if !gateway_signed {
-        // Why: only the gateway that minted the credential can say it
-        // is bad. A managed MCP upstream elsewhere (or a stale entry
-        // for a previous gateway) rejecting it is neither a sign-out
-        // nor a reason to re-mint.
-        tracing::warn!(
-            upstream = %upstream,
-            gateway = %gateway_base,
-            "401 from a non-gateway upstream; the gateway token is kept"
-        );
-    }
-}

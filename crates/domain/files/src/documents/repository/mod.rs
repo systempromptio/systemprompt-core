@@ -5,6 +5,12 @@
 //! the caller owns it, or when an unexpired grant on the document or on any
 //! folder in its ancestor chain names one of the caller's subject pairs.
 //!
+//! Every query that feeds an authorization decision (the effective level,
+//! the folder ancestor chain, the document a decision is taken on, listing
+//! visibility) runs on the primary pool rather than the read replica:
+//! revocation, trashing and ownership transfer write the primary, and a
+//! lagging replica would keep granting access the caller no longer holds.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -12,21 +18,35 @@ mod access_requests;
 mod agent_batch;
 mod agent_caps;
 mod blobs;
+mod collab_peers;
 mod collab_updates;
+mod collab_web_presence;
 mod documents;
 mod edit_sessions;
+mod feed;
 
 mod comments;
 mod comments_granting;
 mod comments_write;
-mod folder_contents;
+mod folder_listing;
+mod folder_locks;
+mod folder_move;
+mod folder_paths;
+mod folder_trash;
+mod folder_tree;
 mod folders;
 mod grant_events;
+mod grant_gains;
 mod grant_levels;
+mod grant_removals;
 mod grant_row;
 mod grants;
 mod head;
 mod listing;
+mod listing_scopes;
+mod listing_scopes_personal;
+mod listing_scopes_root;
+mod listing_scopes_shared;
 mod locks;
 mod node_ids;
 mod path_changes;
@@ -50,18 +70,27 @@ pub use access_requests::DocumentAccessRequestRepository;
 pub use agent_batch::FolderChain;
 pub use agent_caps::{AgentFacts, AgentReadRecord, CapOverride};
 pub use blobs::DocumentBlobRepository;
-pub use collab_updates::{CollabUpdateRow, DocumentCollabRepository, SnapshotMark};
+pub use collab_peers::{CollabAppend, LoggedAuthor, UpdateAuthor};
+pub use collab_updates::{
+    CollabBacklog, CollabUpdateRow, DocumentCollabRepository, SnapshotMark, StoredSnapshot,
+};
 pub use comments::DocumentCommentRepository;
 pub use comments_write::CommentBodyEdit;
 pub use documents::DocumentRepository;
-pub use edit_sessions::DocumentEditSessionRepository;
+pub use edit_sessions::{CheckpointClaim, CheckpointLease, DocumentEditSessionRepository};
+pub use folder_listing::ChildFolderPage;
+pub use folder_move::{FolderMoveOutcome, FolderRelocation};
+pub use folder_tree::{SubtreeTrash, SubtreeTrashPlan};
 pub use folders::DocumentFolderRepository;
 pub use grant_events::DocumentGrantEventRepository;
 pub use grants::DocumentGrantRepository;
 pub use head::HeadMove;
+pub(crate) use listing::like_pattern;
+pub use listing_scopes_root::ROOT_LISTING_SQL;
+pub use listing_scopes_shared::SHARED_LISTING_SQL;
 pub use locks::DocumentLockRepository;
 pub use node_ids::DocumentNodeIdRepository;
-pub use path_changes::{DocumentPathChange, PathMove};
+pub use path_changes::{DocumentPathChange, PathMove, SubjectAccess};
 pub use presence::DocumentPresenceRepository;
 pub use proposals::DocumentProposalRepository;
 pub use revisions::DocumentRevisionRepository;
@@ -125,5 +154,9 @@ impl Pools {
             read: db.pool(),
             write: db.write_pool(),
         }
+    }
+
+    fn authz(&self) -> &PgPool {
+        &self.write
     }
 }

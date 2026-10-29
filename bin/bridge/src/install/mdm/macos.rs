@@ -126,6 +126,7 @@ pub(crate) fn apply(
     if changed {
         script.push_str("/usr/bin/killall cfprefsd\n");
         crate::install::elevate::run_privileged(
+            mcp.elevation_gate,
             &script,
             "Bridge needs administrator privileges to install the Claude Desktop managed preferences.",
         )?;

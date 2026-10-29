@@ -6,13 +6,14 @@
 //! own statement, so swaps of one upload are serial and the swap that
 //! follows reads (under READ COMMITTED) the part row as the last swap left
 //! it: two first attempts of a part cannot both see no previous object and
-//! orphan the loser's.
+//! orphan the loser's. A refund takes the same row lock and skips an attempt
+//! whose object a committed swap already recorded.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_identifiers::DocumentUploadId;
-use systemprompt_traits::RepositoryError;
+use systemprompt_traits::{RepositoryError, StoredFileId};
 
 use super::models::UploadPart;
 use super::repository::DocumentUploadRepository;
@@ -85,17 +86,34 @@ impl DocumentUploadRepository {
         })
     }
 
-    pub async fn refund_part_bytes(&self, id: &DocumentUploadId, bytes: u64) -> RepoResult<()> {
+    pub async fn refund_part_bytes(
+        &self,
+        id: &DocumentUploadId,
+        attempt: Option<&StoredFileId>,
+        bytes: u64,
+    ) -> RepoResult<()> {
         let bytes = i64::try_from(bytes)
             .map_err(|source| RepositoryError::decode("document_uploads.received_bytes", source))?;
+        let mut tx = self.write.begin().await?;
+        sqlx::query_scalar!(
+            r#"SELECT 1 AS "locked!" FROM document_uploads WHERE id = $1::text::uuid FOR UPDATE"#,
+            id.as_str(),
+        )
+        .fetch_optional(&mut *tx)
+        .await?;
         sqlx::query!(
             "UPDATE document_uploads SET received_bytes = GREATEST(received_bytes - $2, 0)
-             WHERE id = $1::text::uuid",
+             WHERE id = $1::text::uuid
+               AND ($3::text IS NULL OR NOT EXISTS (
+                   SELECT 1 FROM document_upload_parts
+                   WHERE upload_id = $1::text::uuid AND storage_id = $3))",
             id.as_str(),
             bytes,
+            attempt.map(StoredFileId::as_str),
         )
-        .execute(&*self.write)
+        .execute(&mut *tx)
         .await?;
+        tx.commit().await?;
         Ok(())
     }
 }

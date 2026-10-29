@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.76.0] - 2026-10-29
+
+### Fixed
+
+- The OIDC discovery document refreshes single-flight; an expired document is served while one refresh runs.
+
 ## [0.75.0] - 2026-10-28
 
 ### Breaking

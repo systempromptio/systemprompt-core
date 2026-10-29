@@ -74,7 +74,7 @@ pub async fn read_gateway_body(
     Ok((body_bytes, canonical))
 }
 
-fn body_read_error(error: axum::Error) -> RejectionError {
+pub fn body_read_error(error: axum::Error) -> RejectionError {
     let oversized = std::error::Error::source(&error)
         .is_some_and(<dyn std::error::Error>::is::<http_body_util::LengthLimitError>);
     if oversized {

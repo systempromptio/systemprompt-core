@@ -17,6 +17,8 @@ use super::content::{apply_content, apply_rich_on_new};
 use super::support::{apply_with, blocking, document_name, format_of_name, join_path};
 use super::{AgentCapTarget, Author, CreateRequest, DocumentService, DocumentView, ImportRequest};
 use crate::documents::access::{AccessTarget, MoveTarget};
+#[cfg(feature = "office")]
+use crate::documents::codecs::inspect_package;
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{Document, DocumentRevision, NewDocument};
 use crate::documents::repository::PathMove;
@@ -40,6 +42,7 @@ impl DocumentService {
         request: CreateRequest,
         trace: &TraceId,
     ) -> Result<(Document, DocumentRevision), DocumentsError> {
+        self.check_template_limits(&request.params, &request.ops)?;
         self.authorize_create(who, request.folder.as_ref(), trace)
             .await?;
         let templates = Arc::clone(&self.templates);
@@ -111,7 +114,11 @@ impl DocumentService {
         self.authorize_create(who, request.folder.as_ref(), trace)
             .await?;
         let codec = self.codec(format)?;
+        #[cfg(feature = "office")]
+        let caps = self.package_caps();
         let bytes = blocking(move || {
+            #[cfg(feature = "office")]
+            inspect_package(&request.bytes, caps)?;
             codec.project(&request.bytes)?;
             Ok(request.bytes)
         })

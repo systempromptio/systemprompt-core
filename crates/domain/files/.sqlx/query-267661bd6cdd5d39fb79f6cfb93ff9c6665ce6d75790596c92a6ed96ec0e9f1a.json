@@ -1,0 +1,192 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH subject AS (\n                   SELECT s.kind, s.value FROM UNNEST($8::text[], $9::text[]) AS s(kind, value)\n               ),\n               folder_rank AS (\n                   SELECT MAX(array_position(ARRAY['view','comment','edit','share','own'], g.access_level)) AS rank\n                   FROM document_folders f\n                   JOIN document_grants g ON g.folder_id = ANY(f.ancestor_ids || f.id)\n                   JOIN subject s ON s.kind = g.subject_kind AND s.value = g.subject_value\n                   WHERE f.id = $10::text::uuid\n                     AND (g.valid_until IS NULL OR g.valid_until > now())\n               ),\n               ranked AS (\n                   SELECT d.id, d.name, d.updated_at,\n                          CASE WHEN d.owner_user_id = $1 THEN 5 ELSE GREATEST(\n                              (SELECT fr.rank FROM folder_rank fr),\n                              (SELECT MAX(array_position(ARRAY['view','comment','edit','share','own'], g.access_level))\n                    FROM document_grants g\n                    JOIN subject s ON s.kind = g.subject_kind AND s.value = g.subject_value\n                    WHERE g.document_id = d.id\n                      AND (g.valid_until IS NULL OR g.valid_until > now()))) END AS rank,\n                          CASE WHEN $3 = 'recent' THEN GREATEST(\n                   (SELECT MAX(r.created_at) FROM document_revisions r\n                    WHERE r.document_id = d.id AND r.author_user_id = $1),\n                   (SELECT MAX(c.created_at) FROM document_comments c\n                    WHERE c.document_id = d.id AND c.author_user_id = $1),\n                   (SELECT MAX(pr.updated_at) FROM document_presence pr\n                    WHERE pr.document_id = d.id AND pr.user_id = $1)) END AS sort_touched\n                   FROM documents d\n                   WHERE d.folder_id = $10::text::uuid AND d.deleted_at IS NULL\n                     AND ($2::text IS NULL OR d.name ILIKE $2)\n               ),\n               page AS (\n                   SELECT k.id, k.rank, k.sort_touched FROM ranked k\n                   WHERE k.rank IS NOT NULL\n                     AND ($6::uuid IS NULL OR CASE $3\n                           WHEN 'name' THEN (k.name, k.id) > ($5::text, $6::uuid)\n                           WHEN 'recent' THEN (COALESCE(k.sort_touched, 'epoch'::timestamptz), k.id)\n                                              < ($4::timestamptz, $6::uuid)\n                           ELSE (k.updated_at, k.id) < ($4::timestamptz, $6::uuid) END)\n                   ORDER BY CASE WHEN $3 = 'name' THEN k.name END ASC,\n                            CASE WHEN $3 = 'name' THEN k.id END ASC,\n                            CASE WHEN $3 = 'recent'\n                                 THEN COALESCE(k.sort_touched, 'epoch'::timestamptz) END DESC,\n                            CASE WHEN $3 = 'updated' THEN k.updated_at END DESC,\n                            k.id DESC\n                   LIMIT $7\n               )\n               SELECT d.id::text AS \"id!: DocumentId\",\n                      d.folder_id::text AS \"folder_id: DocumentFolderId\",\n                      d.name, d.format, d.mime_type,\n                      d.head_revision_id::text AS \"head_revision_id: DocumentRevisionId\",\n                      d.template_id AS \"template_id: DocumentTemplateId\",\n                      d.owner_user_id AS \"owner_user_id: UserId\",\n                      d.created_by AS \"created_by: UserId\",\n                      d.created_at, d.updated_at, d.deleted_at AS trashed_at,\n                      d.trashed_by AS \"trashed_by: UserId\",\n                      b.size_bytes AS \"size_bytes?\",\n                      CASE WHEN d.owner_user_id = $1 THEN 'own'\n                           ELSE (ARRAY['view','comment','edit','share','share'])[p.rank]\n                      END AS my_access,\n                      GREATEST(\n                   (SELECT MAX(r.created_at) FROM document_revisions r\n                    WHERE r.document_id = d.id AND r.author_user_id = $1),\n                   (SELECT MAX(c.created_at) FROM document_comments c\n                    WHERE c.document_id = d.id AND c.author_user_id = $1),\n                   (SELECT MAX(pr.updated_at) FROM document_presence pr\n                    WHERE pr.document_id = d.id AND pr.user_id = $1)) AS touched_at\n               FROM page p\n               JOIN documents d ON d.id = p.id\n               LEFT JOIN document_revisions r ON r.id = d.head_revision_id\n               LEFT JOIN document_blobs b ON b.content_sha256 = r.content_sha256\n               ORDER BY CASE WHEN $3 = 'name' THEN d.name END ASC,\n                        CASE WHEN $3 = 'name' THEN d.id END ASC,\n                        CASE WHEN $3 = 'recent'\n                             THEN COALESCE(p.sort_touched, 'epoch'::timestamptz) END DESC,\n                        CASE WHEN $3 = 'updated' THEN d.updated_at END DESC,\n                        d.id DESC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!: DocumentId",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "folder_id: DocumentFolderId",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "documents",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "format",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "documents",
+            "name": "format"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "mime_type",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "documents",
+            "name": "mime_type"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "head_revision_id: DocumentRevisionId",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 6,
+        "name": "template_id: DocumentTemplateId",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "documents",
+            "name": "template_id"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "owner_user_id: UserId",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "documents",
+            "name": "owner_user_id"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "created_by: UserId",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "documents",
+            "name": "created_by"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "documents",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "updated_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "documents",
+            "name": "updated_at"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "trashed_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "documents",
+            "name": "deleted_at"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "trashed_by: UserId",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "documents",
+            "name": "trashed_by"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "size_bytes?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "document_blobs",
+            "name": "size_bytes"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "my_access",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 15,
+        "name": "touched_at",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Timestamptz",
+        "Text",
+        "Uuid",
+        "Int8",
+        "TextArray",
+        "TextArray",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      false,
+      false,
+      false,
+      null,
+      true,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      null,
+      null
+    ]
+  },
+  "hash": "267661bd6cdd5d39fb79f6cfb93ff9c6665ce6d75790596c92a6ed96ec0e9f1a"
+}

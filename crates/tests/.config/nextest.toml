@@ -91,6 +91,12 @@ cloud-checkout-port = { max-threads = 1 }
 # collision that says nothing about the code under test. The headless `proxy`
 # black-box test serves from a spawned bridge binary on the same candidates, and
 # the proxy-harness stats test serves through `ProxyHandle::serve`.
+# `purge_device` probes the default port for another install and reports any
+# bridge answering there as foreign, so a sibling test serving on it turns the
+# purge test's "nothing else answered" check red; it shares the slot.
+# `enrol_hosts` reports a host installed only when its probe matches the
+# profile against the proxy on the default port, so a sibling serving there
+# leaves the enrolment `Pending`.
 bridge-proxy-port = { max-threads = 1 }
 # Why: `McpProxyIdentityRepository::cleanup_expired` is an unscoped
 # `DELETE FROM mcp_proxy_identities WHERE expires_at <= NOW()`, so it reaps
@@ -111,6 +117,10 @@ approval-sweep-db = { max-threads = 1 }
 # not just the one under test, so two of these interleaved delete each other's
 # grants. The file carried a `static SERIAL: Mutex` for this, which cannot work
 # — nextest runs each test in its own process, so that lock never contends.
+# The catalog prune also deletes every non-glob `gateway_route` entity outside
+# its keep list, with its rules, so the tests that seed route rows in the
+# shared database (`rule_based_hook`, `gateway_principal_parity`, the
+# `access_plane_db` prune test) share the slot.
 gateway-reconcile-db = { max-threads = 1 }
 
 # Why: `db_migrate_repair_db` tampers with checksums in `extension_migrations`
@@ -124,6 +134,12 @@ cli-migration-ledger-db = { max-threads = 1 }
 # deliberately leaves a dangling trigger for a moment, so any install in the
 # database lifecycle suite that overlaps it fails with DanglingTriggerRoutine.
 database-lifecycle-db = { max-threads = 1 }
+
+# Why: `CollabService::reap_idle` lists stale edit sessions across the whole
+# database, so two reaper tests running at once each settle the other's aged
+# session through their own harness, contend for its checkpoint lease and
+# report it failed.
+collab-reaper-db = { max-threads = 1 }
 
 [[profile.default.overrides]]
 filter = 'package(systemprompt-database-tests) and test(/lifecycle::/)'
@@ -173,11 +189,11 @@ filter = 'package(systemprompt-scheduler-tests) and test(orphaned_tool_execution
 test-group = 'logs-cleanup-db'
 
 [[profile.default.overrides]]
-filter = 'package(systemprompt-bridge-integration-tests) and test(/reapply_decision::/) or package(systemprompt-bridge-proxy-module-tests) or package(systemprompt-bridge-cli-tests) and test(/proxy_command::/) or package(systemprompt-bridge-proxy-tests) and test(/comms::/) or package(systemprompt-bridge-cli-subprocess-tests) and test(proxy_headless_starts_and_stops_on_sigint) or package(systemprompt-bridge-proxy-harness-tests) and test(public_proxy_stats_follow_forwarding_failures_and_reset_with_a_restarted_owner)'
+filter = 'package(systemprompt-bridge-integration-tests) and test(/reapply_decision::|enrol_hosts::/) or package(systemprompt-bridge-proxy-module-tests) or package(systemprompt-bridge-cli-tests) and test(/proxy_command::/) or package(systemprompt-bridge-proxy-tests) and test(/comms::/) or package(systemprompt-bridge-cli-subprocess-tests) and test(proxy_headless_starts_and_stops_on_sigint) or package(systemprompt-bridge-proxy-harness-tests) and test(public_proxy_stats_follow_forwarding_failures_and_reset_with_a_restarted_owner) or package(systemprompt-bridge-cli-dispatch-tests) and test(/install_cmd::purge_device/)'
 test-group = 'bridge-proxy-port'
 
 [[profile.ci.overrides]]
-filter = 'package(systemprompt-bridge-integration-tests) and test(/reapply_decision::/) or package(systemprompt-bridge-proxy-module-tests) or package(systemprompt-bridge-cli-tests) and test(/proxy_command::/) or package(systemprompt-bridge-proxy-tests) and test(/comms::/) or package(systemprompt-bridge-cli-subprocess-tests) and test(proxy_headless_starts_and_stops_on_sigint) or package(systemprompt-bridge-proxy-harness-tests) and test(public_proxy_stats_follow_forwarding_failures_and_reset_with_a_restarted_owner)'
+filter = 'package(systemprompt-bridge-integration-tests) and test(/reapply_decision::|enrol_hosts::/) or package(systemprompt-bridge-proxy-module-tests) or package(systemprompt-bridge-cli-tests) and test(/proxy_command::/) or package(systemprompt-bridge-proxy-tests) and test(/comms::/) or package(systemprompt-bridge-cli-subprocess-tests) and test(proxy_headless_starts_and_stops_on_sigint) or package(systemprompt-bridge-proxy-harness-tests) and test(public_proxy_stats_follow_forwarding_failures_and_reset_with_a_restarted_owner) or package(systemprompt-bridge-cli-dispatch-tests) and test(/install_cmd::purge_device/)'
 test-group = 'bridge-proxy-port'
 
 [[profile.default.overrides]]
@@ -265,7 +281,7 @@ filter = 'package(systemprompt-security-tests) and test(/policy_approval::/)'
 test-group = 'approval-sweep-db'
 
 [[profile.default.overrides]]
-filter = 'package(systemprompt-security-integration-tests) and test(/gateway_reconcile_tests::/)'
+filter = '(package(systemprompt-security-integration-tests) and test(/gateway_reconcile_tests::/)) or (package(systemprompt-security-authz-tests) and test(/access_plane_db::a_route_glob_survives_the_gateway_catalog_prune|rule_based_hook::a_rule_added_after_a_cached_decision/)) or (package(systemprompt-api-integration-tests) and test(/gateway_principal_parity::/))'
 test-group = 'gateway-reconcile-db'
 
 [[profile.default.overrides]]
@@ -281,7 +297,7 @@ filter = 'package(systemprompt-security-tests) and test(/policy_approval::/)'
 test-group = 'approval-sweep-db'
 
 [[profile.ci.overrides]]
-filter = 'package(systemprompt-security-integration-tests) and test(/gateway_reconcile_tests::/)'
+filter = '(package(systemprompt-security-integration-tests) and test(/gateway_reconcile_tests::/)) or (package(systemprompt-security-authz-tests) and test(/access_plane_db::a_route_glob_survives_the_gateway_catalog_prune|rule_based_hook::a_rule_added_after_a_cached_decision/)) or (package(systemprompt-api-integration-tests) and test(/gateway_principal_parity::/))'
 test-group = 'gateway-reconcile-db'
 
 [[profile.ci.overrides]]
@@ -299,6 +315,18 @@ test-group = 'generator-config-db'
 [[profile.ci.overrides]]
 filter = 'package(systemprompt-generator-tests) and test(/(sitemap_generator_db|pipeline_full|prerender_public_db)::/)'
 test-group = 'generator-config-db'
+
+[[profile.default.overrides]]
+filter = 'package(systemprompt-files-integration-tests) and test(/documents_collab_replicas::the_reaper_/)'
+test-group = 'collab-reaper-db'
+
+[[profile.ci.overrides]]
+filter = 'package(systemprompt-files-integration-tests) and test(/documents_collab_replicas::the_reaper_/)'
+test-group = 'collab-reaper-db'
+
+[[profile.coverage.overrides]]
+filter = 'package(systemprompt-files-integration-tests) and test(/documents_collab_replicas::the_reaper_/)'
+test-group = 'collab-reaper-db'
 
 [profile.default]
 # A test still running after 60s is flagged slow; after 3 such periods (180s)
@@ -465,7 +493,7 @@ filter = 'package(systemprompt-security-tests) and test(/policy_approval::/)'
 test-group = 'approval-sweep-db'
 
 [[profile.coverage.overrides]]
-filter = 'package(systemprompt-security-integration-tests) and test(/gateway_reconcile_tests::/)'
+filter = '(package(systemprompt-security-integration-tests) and test(/gateway_reconcile_tests::/)) or (package(systemprompt-security-authz-tests) and test(/access_plane_db::a_route_glob_survives_the_gateway_catalog_prune|rule_based_hook::a_rule_added_after_a_cached_decision/)) or (package(systemprompt-api-integration-tests) and test(/gateway_principal_parity::/))'
 test-group = 'gateway-reconcile-db'
 
 [[profile.coverage.overrides]]

@@ -3,7 +3,9 @@
 //!
 //! A state that names the editing mode needs edit access, any other view
 //! access. The presence row holds the last state even when publishing was
-//! throttled, so a channel opened later starts from it.
+//! throttled, so a channel opened later starts from it. A state in any other
+//! mode never demotes a live editing presence: the editor stays joined until
+//! it leaves or its presence expires.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -72,7 +74,10 @@ impl DocumentService {
                 }
             })?),
         };
-        self.repositories().presence.upsert(&presence, ttl).await?;
+        self.repositories()
+            .collab
+            .upsert_awareness(&presence, ttl)
+            .await?;
         let published = self.events().awareness(&event).await?;
         Ok(AwarenessPublished { published, event })
     }

@@ -46,6 +46,7 @@ systemprompt-logging = { workspace = true }
 [dev-dependencies]
 async-trait = { workspace = true }
 tokio = { workspace = true }
+tokio-util = { workspace = true }
 chrono = { workspace = true }
 jsonwebtoken = { workspace = true }
 serde = { workspace = true }

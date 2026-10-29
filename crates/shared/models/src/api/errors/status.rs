@@ -20,6 +20,7 @@ impl ErrorCode {
             Self::PayloadTooLarge => StatusCode::PAYLOAD_TOO_LARGE,
             Self::Locked => StatusCode::LOCKED,
             Self::RateLimited => StatusCode::TOO_MANY_REQUESTS,
+            Self::Gone => StatusCode::GONE,
             Self::ServiceUnavailable => StatusCode::SERVICE_UNAVAILABLE,
             Self::InternalError => StatusCode::INTERNAL_SERVER_ERROR,
         }

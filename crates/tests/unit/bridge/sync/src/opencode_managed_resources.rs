@@ -34,7 +34,10 @@ pub(crate) fn with_sandbox<R>(body: impl FnOnce(&Sandbox) -> R) -> R {
             .join("plugins")
             .join("systemprompt-hooks.js"),
     };
-    let bridge_dir = config_home.join("systemprompt");
+    let bridge_dir = config_home
+        .join("systemprompt")
+        .join("gateways")
+        .join("default");
     std::fs::create_dir_all(&bridge_dir).expect("bridge config dir");
     std::fs::write(
         bridge_dir.join("systemprompt-bridge.toml"),
@@ -93,6 +96,9 @@ pub(crate) fn manifest_with(skills: Vec<SkillEntry>, mcp: Vec<ManagedMcpServer>)
         auto_update: Default::default(),
         diagnostics: Vec::new(),
         marketplaces: Vec::new(),
+        allow_user_disable: false,
+        branding: None,
+        bridge_versions: None,
     }
 }
 
@@ -166,6 +172,9 @@ fn clear(root: &Path) -> Result<(), ApplyError> {
         loopback: &LOOPBACK,
         mcp_registry: &EMPTY_REGISTRY,
         start_menu: &START_MENU,
+        elevation_gate: Box::leak(Box::new(
+            systemprompt_bridge::elevation_gate::ElevationGate::new(),
+        )),
     };
     OpenCodeSync.clear(&ctx)
 }
@@ -186,6 +195,9 @@ pub(crate) fn apply(m: &SignedManifest, root: &Path) -> Result<(), ApplyError> {
         loopback: &LOOPBACK,
         mcp_registry: &EMPTY_REGISTRY,
         start_menu: &START_MENU,
+        elevation_gate: Box::leak(Box::new(
+            systemprompt_bridge::elevation_gate::ElevationGate::new(),
+        )),
     };
     tokio::runtime::Builder::new_current_thread()
         .enable_all()

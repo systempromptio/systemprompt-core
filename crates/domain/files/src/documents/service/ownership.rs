@@ -8,8 +8,10 @@
 //! previous owner's `edit` grant and their audit rows are one statement.
 //!
 //! `document.shared` is addressed per recipient: a `user` subject is the
-//! user, a role or dimension subject is resolved to its members at emit time
-//! (capped, with the truncation logged). The sharer is never a recipient.
+//! user, a role or dimension subject is resolved to its members before the
+//! grant is written (capped, with the truncation logged), and the grant
+//! records one durable notification per recipient in its own transaction.
+//! The sharer is never a recipient.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -70,7 +72,24 @@ impl DocumentService {
             },
         };
         if !self.repos.grant_events.transfer_owner(&transfer).await? {
-            return Err(DocumentsError::not_found("document", document));
+            return Err(
+                match self
+                    .repos
+                    .documents
+                    .find_including_trashed(document)
+                    .await?
+                {
+                    Some(found)
+                        if found.trashed_at.is_none()
+                            && found.owner_user_id != current.owner_user_id =>
+                    {
+                        DocumentsError::OwnershipChanged {
+                            document_id: document.clone(),
+                        }
+                    },
+                    _ => DocumentsError::not_found("document", document),
+                },
+            );
         }
         let event = DocumentOwnershipTransferredEvent {
             document_id: document.clone(),
@@ -116,32 +135,18 @@ impl DocumentService {
 
     #[expect(
         clippy::too_many_arguments,
-        reason = "the share notice names the actor, the document, the grant, the message and the cause, each distinct"
+        reason = "the share notice names the actor, the document, the grant, its recipients, the message and the cause, each distinct"
     )]
     pub(super) async fn announce_share(
         &self,
         who: &AuthenticatedUser,
         document: &Document,
         grant: &DocumentGrant,
+        recipients: &[UserId],
         message: Option<String>,
         cause: &ShareCause,
     ) {
-        let recipients = if grant.subject_kind == USER_SUBJECT {
-            vec![UserId::new(grant.subject_value.clone())]
-        } else {
-            match self
-                .access
-                .subject_members(&grant.subject_kind, &grant.subject_value)
-                .await
-            {
-                Ok(members) => members,
-                Err(error) => {
-                    tracing::warn!(document_id = %document.id, error = %error, "Share recipients were not resolved; no share event sent");
-                    return;
-                },
-            }
-        };
-        for recipient in recipients.into_iter().filter(|user| *user != who.id) {
+        for recipient in recipients {
             let event = DocumentSharedEvent {
                 document_id: document.id.clone(),
                 document_name: document.name.clone(),
@@ -159,7 +164,7 @@ impl DocumentService {
             };
             if let Err(error) = self
                 .events
-                .shared(std::slice::from_ref(&recipient), &event)
+                .shared(std::slice::from_ref(recipient), &event)
                 .await
             {
                 tracing::warn!(document_id = %document.id, error = %error, "Share event not relayed");

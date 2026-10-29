@@ -41,6 +41,8 @@ impl Sandbox {
         self.config
             .path()
             .join("systemprompt")
+            .join("gateways")
+            .join("default")
             .join("systemprompt-bridge.pat")
     }
 
@@ -76,7 +78,7 @@ impl Sandbox {
 }
 
 fn bridge() -> std::sync::Arc<BridgeContext> {
-    BridgeContext::start(ProxyMode::Attach).expect("runtime builds")
+    BridgeContext::start(ProxyMode::Attach, std::sync::Arc::new(|| None)).expect("runtime builds")
 }
 
 fn seed_file(path: &Path, body: &str) {
@@ -193,6 +195,10 @@ fn uninstall_leaves_dotfiles_and_loose_files_in_the_plugin_root() {
 fn purging_removes_the_stored_credential_and_names_the_file() {
     let sandbox = Sandbox::new();
     seed_file(&sandbox.pat_file(), "sp-live-a.b");
+    seed_file(
+        &sandbox.pat_file().with_extension("toml"),
+        "[pat]\nstore = \"file\"\n",
+    );
     std::fs::create_dir_all(sandbox.org_plugins()).expect("org-plugins root");
 
     let summary = sandbox
@@ -221,6 +227,8 @@ fn corrupt_ownership_checkpoint_blocks_uninstall_until_repaired_without_touching
         .config
         .path()
         .join(brand.config_dir)
+        .join("gateways")
+        .join("default")
         .join(brand.config_file);
     seed_file(&owned, "owned");
     seed_file(&foreign, "foreign");

@@ -56,6 +56,8 @@ pub enum MdmError {
     },
     #[error("cannot resolve {0}")]
     Resolve(&'static str),
+    #[error("gateway profiles: {0}")]
+    GatewayProfiles(#[source] Box<crate::config::gateways::ProfileError>),
     #[error("{path} is not valid JSON: {source}")]
     Json {
         path: PathBuf,

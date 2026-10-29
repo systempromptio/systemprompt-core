@@ -14,6 +14,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use sqlx::PgConnection;
 use systemprompt_identifiers::{
     DocumentCommentId, DocumentId, DocumentNodeId, DocumentRevisionId, UserId,
 };
@@ -29,6 +30,7 @@ fn ids(users: &[UserId]) -> Vec<String> {
 impl DocumentCommentRepository {
     pub async fn insert_granting(
         &self,
+        conn: &mut PgConnection,
         request: NewComment,
         grants: &MentionGrants,
     ) -> RepoResult<DocumentComment> {
@@ -94,7 +96,7 @@ impl DocumentCommentRepository {
             &grantees,
             grants.trace_id.as_str(),
         )
-        .fetch_one(&*self.pools.write)
+        .fetch_one(&mut *conn)
         .await?;
         Ok(row.into())
     }
@@ -105,6 +107,7 @@ impl DocumentCommentRepository {
     )]
     pub async fn update_body_granting(
         &self,
+        conn: &mut PgConnection,
         document: &DocumentId,
         comment: &DocumentCommentId,
         body: &str,
@@ -154,7 +157,7 @@ impl DocumentCommentRepository {
             grants.trace_id.as_str(),
             grants.via_agent,
         )
-        .fetch_one(&*self.pools.write)
+        .fetch_one(&mut *conn)
         .await?;
         Ok(updated == 1)
     }

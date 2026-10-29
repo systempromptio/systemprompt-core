@@ -5,6 +5,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use sqlx::PgConnection;
 use systemprompt_identifiers::{DocumentCommentId, DocumentId, DocumentRevisionId, UserId};
 
 use super::comments::DocumentCommentRepository;
@@ -78,6 +79,7 @@ impl DocumentCommentRepository {
 
     pub async fn update_body(
         &self,
+        conn: &mut PgConnection,
         document: &DocumentId,
         edit: CommentBodyEdit<'_>,
     ) -> RepoResult<bool> {
@@ -102,7 +104,7 @@ impl DocumentCommentRepository {
             body,
             &mentions,
         )
-        .execute(&*self.pools.write)
+        .execute(&mut *conn)
         .await?;
         Ok(result.rows_affected() == 1)
     }

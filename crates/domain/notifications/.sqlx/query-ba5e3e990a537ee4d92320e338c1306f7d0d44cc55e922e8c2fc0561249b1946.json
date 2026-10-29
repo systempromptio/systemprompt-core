@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO notification_delivery_failures (outbox_id, recipient_user_id, stage, reason)\n             SELECT $1, f.recipient, f.stage, f.reason\n             FROM UNNEST($2::text[], $3::text[], $4::text[]) AS f(recipient, stage, reason)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "TextArray",
+        "TextArray",
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "ba5e3e990a537ee4d92320e338c1306f7d0d44cc55e922e8c2fc0561249b1946"
+}

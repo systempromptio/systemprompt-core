@@ -121,6 +121,27 @@ fn authenticated_probe_replaces_sorted_tools_while_a_failed_probe_drops_the_stal
             tool_catalog::read().expect("durable catalog"),
             after_failure
         );
+
+        tool_catalog::record(&[result(McpAuthState::Authenticated, &["read_issue"])])
+            .expect("confirmed again");
+        for inconclusive in [
+            McpAuthState::ProbeTimeout,
+            McpAuthState::ProxyUnreachable,
+            McpAuthState::LocalError,
+        ] {
+            let kept = tool_catalog::record(&[result(inconclusive, &[])]).expect("record");
+            assert_eq!(
+                kept["atlassian"],
+                vec!["read_issue"],
+                "{inconclusive:?} says nothing about the server; confirmed names stay"
+            );
+        }
+
+        tool_catalog::record(&[result(McpAuthState::ProviderNotConnected, &[])]).expect("record");
+        assert!(tool_catalog::needs_connection().contains("atlassian"));
+        tool_catalog::record(&[result(McpAuthState::Authenticated, &["read_issue"])])
+            .expect("record");
+        assert!(tool_catalog::needs_connection().is_empty());
     });
 }
 

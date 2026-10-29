@@ -108,7 +108,11 @@ impl HostApp for HermesHost {
         install::write_profile(inputs)
     }
 
-    fn install_profile(&self, path: &str) -> Result<ProfileInstalled, HostAppError> {
+    fn install_profile(
+        &self,
+        path: &str,
+        _gate: &crate::elevation_gate::ElevationGate,
+    ) -> Result<ProfileInstalled, HostAppError> {
         install::install_profile(path).map(|()| ProfileInstalled::ok())
     }
 

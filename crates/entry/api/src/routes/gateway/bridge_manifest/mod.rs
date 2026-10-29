@@ -18,8 +18,9 @@ use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use chrono::{DateTime, Duration, Utc};
 use systemprompt_identifiers::UserId;
-use systemprompt_manifest::services::BridgePolicyConfig;
+use systemprompt_manifest::services::{BridgePolicyConfig, BridgeReleasesSpec};
 use systemprompt_marketplace::{ManifestService, MarketplaceCandidate};
+use systemprompt_models::bridge::instance::{BridgeVersionWindow, InstanceBranding};
 use systemprompt_models::bridge::manifest::{
     MANIFEST_INLINE_SCHEMA_VERSION, SignedManifest, SignedManifestEnvelope,
     manifest_min_bridge_version,
@@ -49,6 +50,7 @@ pub async fn manifest(
     let services = ctx.services_config();
     let instance_hosts = services.instance_hosts();
     let desktop_policy = desktop_policy(&services);
+    let (branding, bridge_versions) = instance_presentation(&services);
 
     let (candidate, bridge_policy) = assemble_candidate(
         &ctx,
@@ -102,6 +104,9 @@ pub async fn manifest(
         allow_claude_ai_connectors: bridge_policy.allow_claude_ai_connectors,
         desktop_policy,
         auto_update: bridge_policy.auto_update,
+        allow_user_disable: bridge_policy.allow_user_disable,
+        branding,
+        bridge_versions,
         diagnostics,
         marketplaces,
     };
@@ -191,6 +196,21 @@ fn desktop_policy(
         .find(|agent| agent.id.as_str() == "claude_desktop")
         .map(|agent| agent.desktop_policy.clone())
         .unwrap_or_default()
+}
+
+fn instance_presentation(
+    services: &systemprompt_manifest::services::ServicesConfig,
+) -> (Option<InstanceBranding>, Option<BridgeVersionWindow>) {
+    let gateway = services.gateway_config();
+    let branding = gateway
+        .and_then(|g| g.bridge_instance.as_ref())
+        .map(|instance| instance.branding.to_branding())
+        .filter(|branding| !branding.is_empty());
+    let window = gateway
+        .and_then(|g| g.bridge_releases.as_ref())
+        .map(BridgeReleasesSpec::version_window)
+        .filter(|window| !window.is_open());
+    (branding, window)
 }
 
 pub(crate) async fn assemble_candidate(

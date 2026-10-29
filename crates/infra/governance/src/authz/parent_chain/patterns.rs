@@ -27,12 +27,18 @@ use crate::authz::repository::AccessControlRepository;
 use crate::authz::resolver::ResolveParent;
 use crate::authz::types::{EntityKind, EntityRef};
 
-/// What a gateway decision knows beyond the route: the requested model and
-/// the provider serving it.
+/// What a decision knows beyond the entity.
+///
+/// For a gateway route, the requested model and the provider serving it; for a
+/// document folder, the folders above it nearest-first. A deny on any of them
+/// governs the whole subtree and no nearer ruleset overrides it; their
+/// allows cascade nearest-first, and their `default_included` sentinels are
+/// never consulted.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct DecisionFacts<'a> {
     pub model: Option<&'a str>,
     pub provider: Option<&'a str>,
+    pub folder_ancestors: &'a [ResolveParent<'a>],
 }
 
 pub(super) async fn load_patterns(

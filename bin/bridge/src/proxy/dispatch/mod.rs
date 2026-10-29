@@ -13,6 +13,8 @@ use crate::proxy::forward::ProxyBody;
 use crate::proxy::server::ProxyContext;
 
 mod auth;
+mod stale_secret;
+pub use stale_secret::{StaleSecretRemedy, stale_secret_remedy};
 mod forwarding;
 mod responses;
 

@@ -54,7 +54,7 @@ fn publication() -> ManagedPublicationRef {
 fn configure_cowork_session(root: &Path) -> std::path::PathBuf {
     let session = root.join("cowork-session/org");
     fs::create_dir_all(session.join("cowork_plugins")).unwrap();
-    let config_dir = root.join("config/systemprompt");
+    let config_dir = root.join("config/systemprompt/gateways/default");
     fs::create_dir_all(&config_dir).unwrap();
     fs::write(
         config_dir.join("systemprompt-bridge.toml"),
@@ -564,6 +564,9 @@ fn manifest() -> SignedManifest {
         auto_update: Default::default(),
         diagnostics: vec![],
         marketplaces: vec![],
+        allow_user_disable: false,
+        branding: None,
+        bridge_versions: None,
     }
 }
 
@@ -626,6 +629,9 @@ fn context<'a>(
         loopback: &LOOPBACK,
         mcp_registry: &REGISTRY,
         start_menu: &START_MENU,
+        elevation_gate: Box::leak(Box::new(
+            systemprompt_bridge::elevation_gate::ElevationGate::new(),
+        )),
     }
 }
 

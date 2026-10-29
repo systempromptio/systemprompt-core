@@ -20,7 +20,7 @@ use systemprompt_models::ApiPaths;
 
 use super::{
     auth, bridge, bridge_device, bridge_heartbeat, bridge_manifest, bridge_plugin_file,
-    bridge_profile_usage, bridge_stream, bridge_whoami, messages, otel,
+    bridge_profile_usage, bridge_stream, bridge_whoami, count_tokens, messages, otel,
 };
 
 pub(super) fn otel_routes(ctx: &AppContext, jwt_extractor: &Arc<JwtContextExtractor>) -> Router {
@@ -60,7 +60,10 @@ pub(super) fn inference_routes(
     };
     let handles_messages = handles.clone();
     let handles_responses = handles.clone();
-    let handles_chat = handles;
+    let handles_chat = handles.clone();
+    let handles_count = handles;
+    let ctx_count = ctx.clone();
+    let jwt_count = Arc::clone(jwt_extractor);
     let ctx_messages = ctx.clone();
     let ctx_responses = ctx.clone();
     let ctx_chat = ctx.clone();
@@ -80,6 +83,15 @@ pub(super) fn inference_routes(
                 let handles = handles_messages.clone();
                 let inbound = Arc::clone(&anthropic_inbound);
                 async move { messages::handle(inbound, extractor, context, handles, request).await }
+            }),
+        )
+        .route(
+            "/messages/count_tokens",
+            post(move |request| {
+                let extractor = Arc::clone(&jwt_count);
+                let context = ctx_count.clone();
+                let handles = handles_count.clone();
+                async move { count_tokens::handle(extractor, context, handles, request).await }
             }),
         )
         .route(

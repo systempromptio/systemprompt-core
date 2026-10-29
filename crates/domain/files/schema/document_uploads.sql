@@ -20,12 +20,17 @@ CREATE TABLE IF NOT EXISTS document_uploads (
     claimed_at TIMESTAMPTZ,
     received_bytes BIGINT NOT NULL DEFAULT 0,
     one_shot BOOLEAN NOT NULL DEFAULT false,
-    quota_exempt BOOLEAN NOT NULL DEFAULT false
+    quota_exempt BOOLEAN NOT NULL DEFAULT false,
+    quota_user_id VARCHAR(255) NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_document_uploads_owner_created
     ON document_uploads (owner_user_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_document_uploads_quota_created
+    ON document_uploads (quota_user_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_document_uploads_open_expiry
     ON document_uploads (expires_at) WHERE status = 'open';
 CREATE INDEX IF NOT EXISTS idx_document_uploads_owner_blob
     ON document_uploads (owner_user_id, blob_sha256) WHERE status = 'completed';
+CREATE INDEX IF NOT EXISTS idx_document_uploads_completing_claim
+    ON document_uploads (claimed_at) WHERE status = 'completing';

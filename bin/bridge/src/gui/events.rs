@@ -43,6 +43,7 @@ pub type ReplyId = Option<ReplyTarget>;
 #[derive(Debug, Clone)]
 pub enum UiEvent {
     OpenSettings,
+    OpenInbox,
     OpenDeviceAction(DeviceAction),
     SyncRequested {
         reply_to: ReplyId,
@@ -95,6 +96,10 @@ pub enum UiEvent {
         url: String,
         reply_to: ReplyId,
     },
+    InstanceRequested {
+        op: crate::gui::handlers::instance::InstanceOp,
+        reply_to: ReplyId,
+    },
     GatewayProbeRequested {
         reply_to: ReplyId,
     },
@@ -136,6 +141,12 @@ pub enum UiEvent {
     },
     SetGatewayFinished {
         result: Result<(), Arc<GuiError>>,
+        reply_to: ReplyId,
+    },
+    InstanceFinished {
+        op: crate::gui::handlers::instance::InstanceOp,
+        // JSON: webview IPC reply carrying the instance operation's outcome
+        result: Result<Value, Arc<GuiError>>,
         reply_to: ReplyId,
     },
     GatewayProbeFinished {

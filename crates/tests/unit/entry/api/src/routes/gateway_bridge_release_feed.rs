@@ -31,6 +31,9 @@ fn spec_with_token(server: &MockServer, token_secret: Option<&str>) -> BridgeRel
         pinned_version: None,
         assets,
         api_base: Some(server.uri()),
+        min_version: None,
+        max_version: None,
+        enforce_max: false,
     }
 }
 
@@ -492,4 +495,85 @@ async fn a_pinned_version_ahead_of_the_server_is_still_served() {
         .expect("an operator pin overrides the ceiling");
 
     assert_eq!(resolved.manifest.version, "0.74.0");
+}
+
+#[tokio::test]
+async fn the_newest_release_inside_the_window_is_served_over_newer_ones_above_it() {
+    let server = MockServer::start().await;
+    let sums = format!("{}/sums", server.uri());
+    mount_releases(
+        &server,
+        serde_json::json!([
+            release("bridge-v0.73.4", &sums, "https://example.test/above"),
+            release("bridge-v0.73.2", &sums, "https://example.test/inside"),
+            release("bridge-v0.72.0", &sums, "https://example.test/below"),
+        ]),
+    )
+    .await;
+    mount_sums(&server, &format!("{DIGEST}  {ASSET}\n")).await;
+    let mut windowed = spec(&server);
+    windowed.min_version = Some(semver::Version::new(0, 73, 0));
+    windowed.max_version = Some(semver::Version::new(0, 73, 3));
+
+    let resolved = ReleaseFeed::with_ceiling(semver::Version::new(0, 73, 0))
+        .resolve(&windowed, &secrets(), "linux-x64")
+        .await
+        .expect("0.73.2 sits inside [0.73.0, 0.73.3]");
+
+    assert_eq!(resolved.manifest.version, "0.73.2");
+    assert_eq!(resolved.asset.url, "https://example.test/inside");
+}
+
+#[tokio::test]
+async fn a_window_no_published_release_falls_inside_is_not_found() {
+    let server = MockServer::start().await;
+    let sums = format!("{}/sums", server.uri());
+    mount_releases(
+        &server,
+        serde_json::json!([release(
+            "bridge-v0.72.0",
+            &sums,
+            "https://example.test/below"
+        )]),
+    )
+    .await;
+    let mut windowed = spec(&server);
+    windowed.min_version = Some(semver::Version::new(0, 73, 0));
+
+    let error = ReleaseFeed::with_ceiling(semver::Version::new(0, 73, 0))
+        .resolve(&windowed, &secrets(), "linux-x64")
+        .await
+        .expect_err("0.72.0 is below the window floor");
+
+    assert!(
+        matches!(error, ReleaseError::NoCompatibleRelease { ref window, .. } if window == "[0.73.0, *]"),
+        "{error:?}"
+    );
+    assert_eq!(error.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn a_pinned_version_outside_the_window_is_refused_without_a_lookup() {
+    let server = MockServer::start().await;
+    let mut pinned = spec(&server);
+    pinned.pinned_version = Some("0.72.0".to_owned());
+    pinned.min_version = Some(semver::Version::new(0, 73, 0));
+
+    let error = ReleaseFeed::with_ceiling(semver::Version::new(0, 73, 0))
+        .resolve(&pinned, &secrets(), "linux-x64")
+        .await
+        .expect_err("the pin lies below the window");
+
+    assert!(
+        matches!(error, ReleaseError::PinnedOutsideWindow { ref pinned, .. } if pinned == "0.72.0"),
+        "{error:?}"
+    );
+    assert_eq!(error.status(), StatusCode::NOT_FOUND);
+    assert!(
+        server
+            .received_requests()
+            .await
+            .is_some_and(|requests| requests.is_empty()),
+        "a refused pin never reaches GitHub"
+    );
 }

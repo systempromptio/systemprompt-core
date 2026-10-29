@@ -117,7 +117,11 @@ fn apply(
     steps: &mut Vec<CompletedStep>,
 ) -> Result<(), PolicyWriterError> {
     let store = store::managed_policy_store();
-    let anchor = read_anchor(store.as_ref())?.ok_or(PolicyWriterError::NoAnchor)?;
+    let anchors = read_anchor(store.as_ref())?;
+    let requested = systemprompt_identifiers::ValidatedUrl::try_new(&request.gateway)
+        .map_err(|e| PolicyWriterError::Anchor(crate::config::TrustError::GatewayInvalid(e)))?;
+    let anchor = crate::config::trust::select_pin(anchors, &requested)?
+        .ok_or(PolicyWriterError::NoAnchor)?;
     let manifest = verify_against_anchor(request, &anchor)?;
     let existing = store.read_policy_document(
         PolicyHive::Machine,

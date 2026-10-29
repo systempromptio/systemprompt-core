@@ -4,6 +4,8 @@
 mod access_denied;
 
 #[cfg(test)]
+mod gateway_profiles;
+#[cfg(test)]
 mod hive_report;
 #[cfg(test)]
 mod policy_store;
@@ -11,6 +13,8 @@ mod policy_store;
 mod redaction;
 #[cfg(test)]
 mod round_trip;
+#[cfg(test)]
+mod served_models;
 #[cfg(test)]
 mod trust;
 #[cfg(test)]

@@ -143,7 +143,7 @@ fn doctor_run_checks_returns_named_checks() {
 }
 
 fn bridge() -> std::sync::Arc<BridgeContext> {
-    BridgeContext::start(ProxyMode::Attach).expect("runtime builds")
+    BridgeContext::start(ProxyMode::Attach, std::sync::Arc::new(|| None)).expect("runtime builds")
 }
 
 #[test]

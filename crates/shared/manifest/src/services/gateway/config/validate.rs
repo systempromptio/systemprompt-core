@@ -10,7 +10,7 @@ use std::collections::HashSet;
 
 use systemprompt_models::providers::has_context_variant;
 
-use crate::services::gateway::config::GatewayConfig;
+use crate::services::gateway::config::{BridgeInstanceSpec, BridgeReleasesSpec, GatewayConfig};
 use crate::services::gateway::error::{GatewayProfileError, GatewayResult};
 use crate::services::gateway::route::GatewayRoute;
 
@@ -55,8 +55,64 @@ impl GatewayConfig {
         for rule in &self.system_prompt_overrides {
             rule.validate()?;
         }
+        if let Some(releases) = self.bridge_releases.as_ref() {
+            validate_bridge_releases(releases)?;
+        }
+        if let Some(instance) = self.bridge_instance.as_ref() {
+            validate_bridge_instance(instance)?;
+        }
         Ok(())
     }
+}
+
+fn validate_bridge_instance(instance: &BridgeInstanceSpec) -> GatewayResult<()> {
+    for (field, value) in [
+        ("device_link_path", &instance.device_link_path),
+        ("identity_path", &instance.identity_path),
+    ] {
+        if !value.starts_with('/') || value.starts_with("//") || value.contains("://") {
+            return Err(GatewayProfileError::BridgeInstancePathNotRelative {
+                field,
+                value: value.clone(),
+            });
+        }
+    }
+    Ok(())
+}
+
+fn validate_bridge_releases(releases: &BridgeReleasesSpec) -> GatewayResult<()> {
+    for (field, bound) in [
+        ("min_version", releases.min_version.as_ref()),
+        ("max_version", releases.max_version.as_ref()),
+    ] {
+        if let Some(version) = bound.filter(|v| !v.build.is_empty()) {
+            return Err(GatewayProfileError::BridgeVersionBuildMetadata {
+                field,
+                version: version.clone(),
+            });
+        }
+    }
+    let window = releases.version_window();
+    if let (Some(min), Some(max)) = (&window.min, &window.max)
+        && window.is_empty()
+    {
+        return Err(GatewayProfileError::BridgeVersionWindowInverted {
+            min: min.clone(),
+            max: max.clone(),
+        });
+    }
+    if let Some(value) = releases.pinned_version.as_deref() {
+        let pinned = semver::Version::parse(value).map_err(|source| {
+            GatewayProfileError::BridgePinnedVersionInvalid {
+                value: value.to_owned(),
+                source,
+            }
+        })?;
+        if !window.admits(&pinned) {
+            return Err(GatewayProfileError::BridgePinnedVersionOutsideWindow { pinned });
+        }
+    }
+    Ok(())
 }
 
 fn validate_route(route: &GatewayRoute) -> GatewayResult<()> {

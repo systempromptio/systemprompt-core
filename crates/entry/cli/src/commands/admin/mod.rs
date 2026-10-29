@@ -1,10 +1,10 @@
 //! `admin` command tree: privileged platform administration.
 //!
 //! [`AdminCommands`] groups user, agent, configuration, session, bridge,
-//! access-control, signing-key and licence check-in management plus the setup
-//! and bootstrap flows. On a `--database-url` invocation only the
-//! user-management subgroup is served; the rest require a full profile
-//! context.
+//! access-control, signing-key, issue-report triage and licence check-in
+//! management plus the setup and bootstrap flows. On a `--database-url`
+//! invocation only the user-management subgroup is served; the rest require a
+//! full profile context.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -15,6 +15,7 @@ pub mod bootstrap;
 pub mod bridge;
 pub mod config;
 pub mod identity;
+pub mod issues;
 pub mod keys;
 pub mod licence;
 pub mod session;
@@ -78,6 +79,9 @@ pub enum AdminCommands {
     )]
     Identity(identity::IdentityCommands),
 
+    #[command(subcommand, about = "Issue report triage (bug and feedback reports)")]
+    Issues(issues::IssuesCommands),
+
     #[command(subcommand, about = "Report-only licence check-in status")]
     Licence(licence::LicenceCommands),
 }
@@ -113,6 +117,7 @@ pub async fn execute(cmd: AdminCommands, ctx: &CommandContext) -> Result<()> {
         AdminCommands::AccessControl(cmd) => access_control::execute(cmd, ctx).await,
         AdminCommands::Keys(cmd) => keys::execute(cmd, ctx).await,
         AdminCommands::Identity(cmd) => identity::execute(cmd, ctx),
+        AdminCommands::Issues(cmd) => issues::execute(cmd, ctx).await,
         AdminCommands::Licence(cmd) => licence::execute(cmd, ctx).await,
     }
 }
@@ -122,6 +127,7 @@ impl AdminCommands {
         match self {
             Self::Users(cmd) => cmd.data_impact(),
             Self::Agents(cmd) => cmd.data_impact(),
+            Self::Issues(cmd) => cmd.data_impact(),
             Self::Bootstrap(_) | Self::Bridge(bridge::BridgeCommands::RotateSigningKey(_)) => {
                 DataImpact::Destructive
             },

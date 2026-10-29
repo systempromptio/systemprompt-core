@@ -626,6 +626,9 @@ fn sample_manifest(version: &ManifestVersion) -> SignedManifest {
         allow_claude_ai_connectors: false,
         desktop_policy: systemprompt_models::bridge::desktop_policy::DesktopPolicy::default(),
         auto_update: Default::default(),
+        allow_user_disable: false,
+        branding: None,
+        bridge_versions: None,
         diagnostics: Vec::new(),
         marketplaces: Vec::new(),
     }

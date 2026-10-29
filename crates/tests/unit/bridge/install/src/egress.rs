@@ -181,5 +181,8 @@ fn mdm_inputs(
         registry: &MDM_REGISTRY,
         egress_allowed_hosts,
         overrides: &MDM_OVERRIDES,
+        elevation_gate: Box::leak(Box::new(
+            systemprompt_bridge::elevation_gate::ElevationGate::new(),
+        )),
     }
 }

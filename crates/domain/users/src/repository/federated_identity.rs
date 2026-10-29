@@ -54,6 +54,11 @@ impl UserRepository {
         let mut conn = self.write_pool.acquire().await?;
         let mut tx = conn.begin().await?;
 
+        lock_first_touch(&mut tx, &format!("federated:{issuer}\n{external_sub}")).await?;
+        if let (true, Some(addr)) = (claims.email_verified, claims.email.as_deref()) {
+            lock_first_touch(&mut tx, &format!("email:{}", normalise_email(addr))).await?;
+        }
+
         if let Some(existing) = touch_existing_link(&mut tx, issuer, external_sub).await? {
             tx.commit().await?;
             return Ok(existing);
@@ -70,6 +75,13 @@ impl UserRepository {
         tx.commit().await?;
         Ok(user)
     }
+}
+
+async fn lock_first_touch(tx: &mut sqlx::Transaction<'_, sqlx::Postgres>, key: &str) -> Result<()> {
+    sqlx::query!("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", key)
+        .fetch_one(&mut **tx)
+        .await?;
+    Ok(())
 }
 
 async fn touch_existing_link(

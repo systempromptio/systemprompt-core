@@ -6,6 +6,7 @@
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 
+use systemprompt_bridge::elevation_gate::ElevationGate;
 use systemprompt_bridge::install::approval::GatedChangeError;
 use systemprompt_bridge::install::managed_file::{
     ManagedWrite, remove_managed_file, write_managed_file,
@@ -35,7 +36,8 @@ fn scratch() -> (TempDir, PathBuf) {
 #[test]
 fn a_file_that_was_never_there_is_written_and_reported_as_written() {
     let (dir, path) = scratch();
-    let outcome = write_managed_file(&path, b"{\"a\":1}", PROMPT).expect("write");
+    let outcome =
+        write_managed_file(&ElevationGate::new(), &path, b"{\"a\":1}", PROMPT).expect("write");
     assert_eq!(outcome, ManagedWrite::Written);
     assert_eq!(std::fs::read(&path).expect("read back"), b"{\"a\":1}");
     drop(dir);
@@ -44,10 +46,11 @@ fn a_file_that_was_never_there_is_written_and_reported_as_written() {
 #[test]
 fn writing_the_same_body_again_is_reported_unchanged_and_does_not_touch_the_file() {
     let (dir, path) = scratch();
-    write_managed_file(&path, b"{\"a\":1}", PROMPT).expect("first write");
+    write_managed_file(&ElevationGate::new(), &path, b"{\"a\":1}", PROMPT).expect("first write");
     let before = std::fs::metadata(&path).expect("metadata").modified().ok();
 
-    let outcome = write_managed_file(&path, b"{\"a\":1}", PROMPT).expect("second write");
+    let outcome = write_managed_file(&ElevationGate::new(), &path, b"{\"a\":1}", PROMPT)
+        .expect("second write");
     assert_eq!(
         outcome,
         ManagedWrite::Unchanged,
@@ -61,9 +64,10 @@ fn writing_the_same_body_again_is_reported_unchanged_and_does_not_touch_the_file
 #[test]
 fn a_changed_body_replaces_the_previous_contents_and_reports_written() {
     let (dir, path) = scratch();
-    write_managed_file(&path, b"old", PROMPT).expect("first write");
+    write_managed_file(&ElevationGate::new(), &path, b"old", PROMPT).expect("first write");
 
-    let outcome = write_managed_file(&path, b"new", PROMPT).expect("second write");
+    let outcome =
+        write_managed_file(&ElevationGate::new(), &path, b"new", PROMPT).expect("second write");
     assert_eq!(outcome, ManagedWrite::Written);
     assert_eq!(std::fs::read(&path).expect("read back"), b"new");
     drop(dir);
@@ -75,7 +79,7 @@ fn a_write_refused_for_permissions_reports_that_root_is_needed_and_names_the_pat
     let path = dir.path().join("managed-settings.json");
     sealed(dir.path());
 
-    let err = write_managed_file(&path, b"{}", PROMPT)
+    let err = write_managed_file(&ElevationGate::new(), &path, b"{}", PROMPT)
         .expect_err("an unwritable directory cannot be escalated past on this platform");
 
     unseal(dir.path());
@@ -100,7 +104,8 @@ fn a_write_refused_for_permissions_reports_that_root_is_needed_and_names_the_pat
 fn removing_a_file_that_is_not_there_reports_that_nothing_was_removed() {
     let (dir, path) = scratch();
     assert!(
-        !remove_managed_file(&path, PROMPT).expect("an absent file is not an error"),
+        !remove_managed_file(&ElevationGate::new(), &path, PROMPT)
+            .expect("an absent file is not an error"),
         "nothing was there to remove"
     );
     drop(dir);
@@ -109,9 +114,9 @@ fn removing_a_file_that_is_not_there_reports_that_nothing_was_removed() {
 #[test]
 fn removing_a_file_that_is_there_reports_that_it_was_removed() {
     let (dir, path) = scratch();
-    write_managed_file(&path, b"{}", PROMPT).expect("write");
+    write_managed_file(&ElevationGate::new(), &path, b"{}", PROMPT).expect("write");
 
-    assert!(remove_managed_file(&path, PROMPT).expect("remove"));
+    assert!(remove_managed_file(&ElevationGate::new(), &path, PROMPT).expect("remove"));
     assert!(!path.exists());
     drop(dir);
 }
@@ -120,11 +125,12 @@ fn removing_a_file_that_is_there_reports_that_it_was_removed() {
 fn a_removal_refused_for_permissions_reports_that_root_is_needed() {
     let dir = TempDir::new().expect("tempdir");
     let path = dir.path().join("managed-settings.json");
-    write_managed_file(&path, b"{}", PROMPT).expect("write while still writable");
+    write_managed_file(&ElevationGate::new(), &path, b"{}", PROMPT)
+        .expect("write while still writable");
     sealed(dir.path());
 
-    let err =
-        remove_managed_file(&path, PROMPT).expect_err("an unwritable directory refuses the unlink");
+    let err = remove_managed_file(&ElevationGate::new(), &path, PROMPT)
+        .expect_err("an unwritable directory refuses the unlink");
 
     unseal(dir.path());
 
@@ -141,7 +147,7 @@ fn a_failure_that_elevation_could_not_fix_is_returned_as_itself() {
     let (dir, path) = scratch();
     std::fs::create_dir(&path).expect("occupy the path with a directory");
 
-    let err = write_managed_file(&path, b"{}", PROMPT)
+    let err = write_managed_file(&ElevationGate::new(), &path, b"{}", PROMPT)
         .expect_err("a directory in the way is not a permissions problem");
     assert!(
         matches!(&err, GatedChangeError::Io(e) if e.kind() != std::io::ErrorKind::PermissionDenied),

@@ -31,6 +31,8 @@ mod enrol_selection;
 #[cfg(test)]
 mod gateway_hook_token;
 #[cfg(test)]
+mod gateway_lifecycle;
+#[cfg(test)]
 mod generated_profile_privacy;
 #[cfg(test)]
 mod hermes_host;

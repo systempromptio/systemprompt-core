@@ -13,12 +13,24 @@ fn missing_pin_error_offers_explicit_tofu() {
 
 #[test]
 fn bridge_policy_binds_validated_key_to_gateway() {
+    let home = tempfile::tempdir().expect("config home");
     let gateway = ValidatedUrl::try_new("https://gateway.example").expect("gateway");
-    let values = install::bridge_policy_values(Some(KEY), &gateway).expect("policy");
+    let values = temp_env::with_vars(
+        [
+            ("XDG_CONFIG_HOME", Some(home.path().display().to_string())),
+            ("SP_BRIDGE_CONFIG", None),
+        ],
+        || install::bridge_policy_values(Some(KEY), &gateway),
+    )
+    .expect("policy");
     assert_eq!(values.len(), 1);
     assert_eq!(values[0].0, "manifestTrust");
     assert_eq!(values[0].1, "REG_SZ");
     let record: serde_json::Value = serde_json::from_str(&values[0].2).expect("trust JSON");
+    assert!(
+        record.is_object(),
+        "a single pin keeps the single-record shape"
+    );
     assert_eq!(record["gateway"], "https://gateway.example");
     assert_eq!(record["key"], KEY);
     assert_eq!(record["source"], "policy");

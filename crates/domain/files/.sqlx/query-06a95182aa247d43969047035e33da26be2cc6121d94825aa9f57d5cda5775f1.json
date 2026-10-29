@@ -1,0 +1,89 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT seq, payload, author_user_id AS \"author_user_id: UserId\", actor_kind,\n                      actor_name, actor_attended\n               FROM document_collab_updates\n               WHERE session_id = $1::text::uuid AND seq > $2\n               ORDER BY seq",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "seq",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "document_collab_updates",
+            "name": "seq"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "payload",
+        "type_info": "Bytea",
+        "origin": {
+          "Table": {
+            "table": "document_collab_updates",
+            "name": "payload"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "author_user_id: UserId",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "document_collab_updates",
+            "name": "author_user_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "actor_kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_collab_updates",
+            "name": "actor_kind"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "actor_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_collab_updates",
+            "name": "actor_name"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "actor_attended",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "document_collab_updates",
+            "name": "actor_attended"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "06a95182aa247d43969047035e33da26be2cc6121d94825aa9f57d5cda5775f1"
+}

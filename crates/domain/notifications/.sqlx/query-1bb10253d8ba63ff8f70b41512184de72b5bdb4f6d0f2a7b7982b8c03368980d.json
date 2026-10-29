@@ -1,0 +1,25 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id::text AS \"id!: NotificationId\" FROM notifications\n               WHERE delivery_state = $3 AND pending_since < $1\n               ORDER BY pending_since LIMIT $2\n               FOR NO KEY UPDATE SKIP LOCKED",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!: NotificationId",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "1bb10253d8ba63ff8f70b41512184de72b5bdb4f6d0f2a7b7982b8c03368980d"
+}

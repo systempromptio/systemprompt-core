@@ -93,7 +93,10 @@ pub(super) fn write_profile(inputs: &ProfileGenInputs) -> Result<GeneratedProfil
     })
 }
 
-pub(super) fn install_profile(path: &str) -> Result<ProfileInstalled, HostAppError> {
+pub(super) fn install_profile(
+    path: &str,
+    _gate: &crate::elevation_gate::ElevationGate,
+) -> Result<ProfileInstalled, HostAppError> {
     let status = Command::new("/usr/bin/open").arg(path).status()?;
     if !status.success() {
         return Err(std::io::Error::other("could not open the configuration profile").into());
@@ -112,7 +115,10 @@ pub(super) fn install_profile(path: &str) -> Result<ProfileInstalled, HostAppErr
     ))
 }
 
-pub(super) fn install_profile_unattended(_path: &str) -> Result<ProfileInstalled, HostAppError> {
+pub(super) fn install_profile_unattended(
+    _path: &str,
+    _gate: &crate::elevation_gate::ElevationGate,
+) -> Result<ProfileInstalled, HostAppError> {
     Err(ApprovalRefusal::NeedsPrompt {
         reason: "a configuration profile is approved by the user in System Settings; use Repair",
     }

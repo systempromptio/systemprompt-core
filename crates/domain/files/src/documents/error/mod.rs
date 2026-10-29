@@ -9,17 +9,16 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_events::RelayError;
-use systemprompt_governance::authz::AuthzError;
+use systemprompt_extension::NotificationSinkError;
 use systemprompt_identifiers::{
     ContentHash, DocumentAccessRequestId, DocumentCommentId, DocumentFolderId, DocumentId,
     DocumentNodeId, DocumentOpId, DocumentProposalId, DocumentRevisionId, DocumentTemplateId,
     UserId,
 };
-use systemprompt_models::authz::SubjectSourceError;
 use systemprompt_models::documents::{
     AccessLevel, AccessRequestStatus, DocumentAction, DocumentFormat, ProposalStatus,
 };
+use systemprompt_models::notifications::NotificationKindError;
 use systemprompt_provider_contracts::documents::{ClosestBlock, CodecError};
 use systemprompt_traits::RepositoryError;
 
@@ -32,8 +31,11 @@ use super::blob_store::BlobStoreError;
 use super::models::{ListCursorError, LockHolderKind};
 use super::templates::TemplateError;
 
+mod causes;
 mod conversions;
 mod labels;
+
+pub use causes::{AuthzFailure, EventFailure};
 
 #[derive(Debug, thiserror::Error)]
 pub enum DocumentsError {
@@ -189,8 +191,24 @@ pub enum DocumentsError {
     },
     #[error("folder {folder_id} is not empty; delete its contents first or delete recursively")]
     FolderNotEmpty { folder_id: DocumentFolderId },
+    #[error(
+        "folder {folder_id} changed while it was being deleted or moved (a document or subfolder \
+         was added, moved or given away, or the destination moved); nothing changed, try again"
+    )]
+    SubtreeChanged { folder_id: DocumentFolderId },
+    #[error(
+        "document {document_id} changed owner while the transfer was in flight; nothing was \
+         transferred"
+    )]
+    OwnershipChanged { document_id: DocumentId },
     #[error("folder {folder_id} cannot move into itself or one of its own subfolders")]
     InvalidMove { folder_id: DocumentFolderId },
+    #[error("drive cursor \"{cursor}\" is not a feed position; restart from the manifest")]
+    CursorReset {
+        cursor: String,
+        #[source]
+        source: ListCursorError,
+    },
     #[error("cursor \"{cursor}\" is not valid; restart from the manifest cursor")]
     InvalidCursor {
         cursor: String,
@@ -261,22 +279,10 @@ pub enum DocumentsError {
     Worker(#[from] tokio::task::JoinError),
     #[error("grant subjects could not be resolved to users")]
     Directory(#[from] SubjectDirectoryError),
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum AuthzFailure {
-    #[error("subject attributes could not be resolved")]
-    Subjects(#[from] SubjectSourceError),
-    #[error("access control catalog could not be updated")]
-    Catalog(#[from] AuthzError),
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum EventFailure {
-    #[error("event payload could not be serialised")]
-    Serialize(#[from] serde_json::Error),
-    #[error("event could not be relayed to other replicas")]
-    Relay(#[from] RelayError),
+    #[error("the notification could not be recorded; nothing was stored")]
+    Notifications(#[from] NotificationSinkError),
+    #[error("notification kind is invalid")]
+    NotificationKind(#[from] NotificationKindError),
 }
 
 impl DocumentsError {

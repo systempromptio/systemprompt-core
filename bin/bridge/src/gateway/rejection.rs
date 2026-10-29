@@ -1,5 +1,6 @@
-//! The one rule for a gateway 401: whether the rejected token is old enough
-//! that a re-mint is worth one try.
+//! The one rule for a gateway 401: a rejected token is re-minted once, and the
+//! credential is held revoked only when a token minted moments ago is
+//! rejected again.
 //!
 //! The proxy's token cache and the bridge-profile fetch both answer a 401
 //! with this rule, so a credential is retried, or refused, the same way
@@ -12,9 +13,10 @@ use std::time::Duration;
 
 pub const FRESH_REJECTION_WINDOW: Duration = Duration::from_secs(120);
 
-// Why: a gateway rejecting a token minted moments ago means the credential
-// itself is revoked; an older one was more likely voided by a redeploy or key
-// rotation, and one re-mint is worth trying.
+// Why: a gateway restart or key rotation voids even a token minted moments
+// ago, so a fresh rejection alone never proves revocation. A stale rejection
+// always earns a re-mint; a fresh one earns exactly one, and a revoked
+// credential then fails the mint itself or is rejected again.
 #[must_use]
 pub fn rejection_is_stale(token_age: Duration) -> bool {
     token_age > FRESH_REJECTION_WINDOW

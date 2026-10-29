@@ -54,6 +54,8 @@ async function loadFixture() {
   // a fixture has to stage it -- the value of the three-way distinction is
   // entirely in what the pane does with the third state.
   scheduleState = state.__schedule || "not_installed";
+  inbox = structuredClone(state.__inbox || EMPTY_INBOX);
+  delete state.__inbox;
   delete state.__latencyMs;
   delete state.__fail;
   delete state.__marketplace;
@@ -62,6 +64,38 @@ async function loadFixture() {
 }
 
 let marketplace = null;
+
+// `InboxPayload` (src/wire/inbox.rs). The real commands queue gateway work on
+// the inbox task and reply null; the change arrives as `inbox.changed`, so the
+// mock answers the same way rather than returning the new state inline.
+const EMPTY_INBOX = { unread: 0, unread_capped: false, has_older: false, items: [], can_start_session: false, available: true, last_error: null };
+let inbox = structuredClone(EMPTY_INBOX);
+
+function inboxItem(id) {
+  const item = inbox.items.find((n) => n.id === id);
+  if (!item) { throw { scope: "internal", code: "not_found", message: `notification ${id} is not in the inbox` }; }
+  return item;
+}
+
+function inboxMarkRead(ids, all) {
+  const at = new Date().toISOString();
+  for (const item of inbox.items) {
+    if (item.read_at == null && (all || ids.includes(item.id))) { item.read_at = at; }
+  }
+  inbox.unread = inbox.items.filter((n) => n.read_at == null).length;
+  emit("inbox.changed", structuredClone(inbox));
+  return null;
+}
+
+function inboxEscalate(id, note) {
+  const item = inboxItem(id);
+  item.escalated_from = item.attention;
+  item.attention = "human";
+  item.attention_reason = "escalated";
+  item.escalation_note = note ?? null;
+  emit("inbox.changed", structuredClone(inbox));
+  return null;
+}
 
 const SKILL_NAMES = [
   "rust-coding-standards", "brand-voice", "cli-usage", "content-publish",
@@ -304,6 +338,21 @@ const COMMANDS = {
   "mcp.auth.probe": () => ({}),
   "drive.status": () => state.__drive || { verdict: { tone: "unknown", code: "off" }, conflicts: [], editors: [], pending_uploads: 0, editing_count: 0 },
   "drive.sync_now": () => ({}),
+  "inbox.list": () => structuredClone(inbox),
+  "inbox.load_older": () => null,
+  "inbox.seen": () => null,
+  "inbox.read": ({ ids = [], all = false }) => inboxMarkRead(ids, all),
+  "inbox.escalate": ({ id, note }) => inboxEscalate(id, note),
+  "inbox.open": ({ id }) => {
+    const item = inboxItem(id);
+    if (!item.action.open_url) { throw { scope: "internal", code: "invalid_args", message: `notification ${id} has no link` }; }
+    window.open(new URL(item.action.open_url, state.gateway_url).href, "_blank", "noopener");
+    return inboxMarkRead([id], false);
+  },
+  "inbox.copy_prompt": ({ id }) => ({ prompt: inboxItem(id).action.prompt }),
+  "inbox.start_session": () => {
+    throw { scope: "host", code: "not_found", message: "no agent on this device can start a session from a prompt" };
+  },
   "settings.get": () => settingsPayload(),
   "validate": () => ({ ok: true }),
   "sync": () => {
@@ -323,6 +372,41 @@ const COMMANDS = {
     return {};
   },
   "gateway.probe": () => ({}),
+  "gateway.list": () => ({ profiles: state.gateway_profiles || [] }),
+  "gateway.add": ({ url }) => {
+    const id = new URL(url).hostname.replace(/[^a-z0-9]+/gi, "-").toLowerCase();
+    state.gateway_profiles = [...(state.gateway_profiles || []),
+      { id, gateway_url: url, display_name: null, active: false, disabled: false }];
+    emit("state.changed", state);
+    return { id };
+  },
+  "gateway.use": ({ id }) => {
+    state.gateway_profiles = (state.gateway_profiles || []).map((p) => ({ ...p, active: p.id === id }));
+    const active = state.gateway_profiles.find((p) => p.active);
+    if (active && active.gateway_url) state.gateway_url = active.gateway_url;
+    emit("state.changed", state);
+    return { id };
+  },
+  "gateway.remove": ({ id }) => {
+    state.gateway_profiles = (state.gateway_profiles || []).filter((p) => p.id !== id);
+    emit("state.changed", state);
+    return {};
+  },
+  "instance.disable": () => {
+    state.instance_disabled = true;
+    emit("state.changed", state);
+    return { already_disabled: false, still_managed: [], foreign_plugins: [], warnings: [] };
+  },
+  "elevation.approve": () => {
+    state.admin_approval_declined = false;
+    emit("state.changed", state);
+    return {};
+  },
+  "instance.enable": () => {
+    state.instance_disabled = false;
+    emit("state.changed", state);
+    return { changed: true };
+  },
   "session.login": ({ gateway }) => {
     state.gateway_url = gateway || state.gateway_url;
     state.gateway_configured = true;
@@ -469,6 +553,12 @@ const FAIL_SCOPE = {
   "marketplace.list": "marketplace",
   "gateway.set": "gateway",
   "gateway.probe": "gateway",
+  "gateway.list": "gateway",
+  "gateway.add": "gateway",
+  "gateway.use": "gateway",
+  "gateway.remove": "gateway",
+  "instance.disable": "gateway",
+  "instance.enable": "gateway",
   "session.login": "identity",
   login: "identity",
   logout: "identity",

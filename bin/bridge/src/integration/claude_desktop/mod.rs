@@ -22,6 +22,56 @@ pub use shared::{PlistValueTexts, ProfileGenInputs, default_models, plist_value_
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 #[must_use]
+pub(crate) fn policy_api_key_fingerprint() -> Option<String> {
+    os::read_domain(shared::DESKTOP_DOMAIN, &shared::keys_to_read(None)).api_key_fp
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+#[must_use]
+pub(crate) const fn policy_api_key_fingerprint() -> Option<String> {
+    None
+}
+
+#[must_use]
+pub fn installed_secret_fingerprint() -> Option<String> {
+    let path = crate::proxy::secret::secret_path()?;
+    crate::proxy::secret::load(&path)
+        .ok()
+        .flatten()
+        .map(|s| crate::proxy::secret::fingerprint(s.as_str()))
+}
+
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+#[must_use]
+pub fn policy_ownership(ours: Option<&str>) -> crate::install::mdm::clear_plan::ClearPlan {
+    let read = os::read_domain(shared::DESKTOP_DOMAIN, &shared::keys_to_read(None));
+    let observed = crate::install::mdm::clear_plan::ObservedPolicy {
+        keys: read.observed.keys().cloned().collect(),
+        base_url: read.observed.get("inferenceGatewayBaseUrl").cloned(),
+        api_key_fingerprint: read.api_key_fp,
+        profile_managed: profile_managed(),
+    };
+    crate::install::mdm::clear_plan::plan_clear(Some(&observed), ours)
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+#[must_use]
+pub const fn policy_ownership(_ours: Option<&str>) -> crate::install::mdm::clear_plan::ClearPlan {
+    crate::install::mdm::clear_plan::ClearPlan::NothingWritten
+}
+
+#[cfg(target_os = "macos")]
+fn profile_managed() -> bool {
+    crate::install::mdm::foreign_profile_installed()
+}
+
+#[cfg(target_os = "windows")]
+const fn profile_managed() -> bool {
+    false
+}
+
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+#[must_use]
 pub(crate) fn policy_summary() -> Vec<String> {
     let read = os::read_domain(shared::DESKTOP_DOMAIN, &shared::keys_to_read(None));
     let mut lines = vec![format!(
@@ -121,12 +171,20 @@ impl HostApp for ClaudeDesktopHost {
         os::write_profile(inputs)
     }
 
-    fn install_profile(&self, path: &str) -> Result<ProfileInstalled, HostAppError> {
-        os::install_profile(path)
+    fn install_profile(
+        &self,
+        path: &str,
+        gate: &crate::elevation_gate::ElevationGate,
+    ) -> Result<ProfileInstalled, HostAppError> {
+        os::install_profile(path, gate)
     }
 
-    fn install_profile_unattended(&self, path: &str) -> Result<ProfileInstalled, HostAppError> {
-        os::install_profile_unattended(path)
+    fn install_profile_unattended(
+        &self,
+        path: &str,
+        gate: &crate::elevation_gate::ElevationGate,
+    ) -> Result<ProfileInstalled, HostAppError> {
+        os::install_profile_unattended(path, gate)
     }
 
     fn remove_profile(&self) -> Result<ProfileRemoval, HostAppError> {

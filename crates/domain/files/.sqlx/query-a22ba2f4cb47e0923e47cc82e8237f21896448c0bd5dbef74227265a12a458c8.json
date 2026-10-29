@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO document_path_changes\n               (document_id, to_path, subject_kind, subject_value, subject_access)\n           SELECT DISTINCT d.id, document_drive_path(d.folder_id, d.name),\n                  g.subject_kind, g.subject_value, 'gained'\n           FROM document_folders r\n           JOIN document_grants g\n             ON g.folder_id = ANY(r.ancestor_ids)\n            AND NOT (g.folder_id = ANY($2::text[]::uuid[]))\n           JOIN document_folders f\n             ON (f.id = r.id OR r.id = ANY(f.ancestor_ids)) AND f.deleted_at IS NULL\n           JOIN documents d ON d.folder_id = f.id AND d.deleted_at IS NULL\n           WHERE r.id = $1::text::uuid\n             AND NOT (g.subject_kind = 'user' AND g.subject_value = d.owner_user_id)\n             AND NOT EXISTS (\n                 SELECT 1 FROM document_grants o\n                 WHERE o.subject_kind = g.subject_kind\n                   AND o.subject_value = g.subject_value\n                   AND (o.document_id = d.id\n                        OR o.folder_id = ANY($2::text[]::uuid[])\n                        OR (o.folder_id = ANY(f.ancestor_ids || f.id)\n                            AND NOT (o.folder_id = ANY(r.ancestor_ids)))))",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a22ba2f4cb47e0923e47cc82e8237f21896448c0bd5dbef74227265a12a458c8"
+}

@@ -31,7 +31,10 @@ fn install(home: &Path) {
         .generate_profile(&inputs())
         .expect("profile generated");
     HERMES_HOST
-        .install_profile(&generated.path)
+        .install_profile(
+            &generated.path,
+            &systemprompt_bridge::elevation_gate::ElevationGate::new(),
+        )
         .expect("install merges into config.yaml");
     assert!(
         !Path::new(&generated.path).exists(),

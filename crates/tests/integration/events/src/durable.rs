@@ -149,7 +149,6 @@ async fn transactional_delivery_preserves_sse_and_recovers_processing() {
         1
     );
 
-    // A row from a different instance still reaches the existing subscriber.
     let remote_id = systemprompt_identifiers::EventOutboxId::generate();
     sqlx::query("INSERT INTO event_outbox (id,channel,user_id,payload,actor_kind,actor_id,origin_instance_id) VALUES ($1,'analytics',$2,$3,'user',$2,'remote')")
         .bind(remote_id.as_str()).bind(user.as_str()).bind(sqlx::types::Json(&event))
@@ -254,8 +253,6 @@ async fn transactional_delivery_preserves_sse_and_recovers_processing() {
         1
     );
 
-    // The later insert commits first; neither claim order nor acknowledgement
-    // may hide the earlier insert when it eventually commits.
     let mut early = pool.begin().await.unwrap();
     let early_id = outbox
         .append(&mut early, &actor, SseEvent::Analytics(&event), &fact)
@@ -430,7 +427,7 @@ async fn verify_all_channels(pool: &sqlx::PgPool, outbox: &DurableOutbox, router
                     .await
                     .into_local_logged();
             },
-            SseEvent::System(_) => unreachable!(),
+            SseEvent::System(_) | SseEvent::Topic(_) | SseEvent::FactOnly => unreachable!(),
         }
         let legacy = tokio::time::timeout(Duration::from_secs(2), rx.recv())
             .await
@@ -453,7 +450,6 @@ async fn verify_all_channels(pool: &sqlx::PgPool, outbox: &DurableOutbox, router
                 .is_err()
         );
     }
-    // AG-UI and A2A each fan into the context stream once per publication.
     let mut context_events = Vec::new();
     for _ in 0..4 {
         let event = tokio::time::timeout(Duration::from_secs(2), context_rx.recv())

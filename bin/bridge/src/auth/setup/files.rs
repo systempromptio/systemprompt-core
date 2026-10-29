@@ -12,9 +12,6 @@ pub(super) fn ensure_dir(dir: &Path) -> Result<(), SetupError> {
         source,
     })
 }
-pub(super) fn write_pat_file(path: &Path, token: &str) -> Result<(), SetupError> {
-    atomic_write(path, token.trim().as_bytes(), true)
-}
 pub(super) fn atomic_write(path: &Path, bytes: &[u8], secret: bool) -> Result<(), SetupError> {
     let result = if secret {
         crate::fsutil::atomic_write_0600(path, bytes)

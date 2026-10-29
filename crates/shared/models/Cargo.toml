@@ -23,6 +23,7 @@ semver = { workspace = true, features = ["serde"] }
 serde_json = { workspace = true }
 chrono = { workspace = true }
 uuid = { workspace = true }
+base64 = { workspace = true }
 indexmap = { workspace = true }
 
 # Error handling

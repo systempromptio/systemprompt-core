@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE document_edit_sessions\n             SET snapshot_sha256 = $2, snapshot_vv = $3, updated_at = now()\n             WHERE id = $1::text::uuid AND snapshot_sha256 IS NULL AND snapshot_seq = 0",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Bytea"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "e3d6aca787ab3f6456ff67d5898e308729cf9c52dd19154f57ced0ea4eb06a58"
+}

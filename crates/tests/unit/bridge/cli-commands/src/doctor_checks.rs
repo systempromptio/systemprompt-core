@@ -224,7 +224,11 @@ fn gateway_reachable_passes_on_health_200_and_fails_on_a_closed_port() {
             .mount(&server),
     );
     sandbox(|root| {
-        let cfg_file = root.join("systemprompt").join("systemprompt-bridge.toml");
+        let cfg_file = root
+            .join("systemprompt")
+            .join("gateways")
+            .join("default")
+            .join("systemprompt-bridge.toml");
         std::fs::create_dir_all(cfg_file.parent().unwrap()).expect("config dir");
         std::fs::write(&cfg_file, format!("gateway_url = \"{}\"\n", server.uri())).expect("config");
         let cfg = config::load().expect("valid config");

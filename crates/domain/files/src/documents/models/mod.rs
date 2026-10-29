@@ -20,10 +20,9 @@ mod session;
 mod sharing;
 
 pub use comment::{CommentAnchor, CommentRange, DocumentComment, MentionGrants, NewComment};
-pub use cursor::{ListCursor, ListCursorError, ListingCursor};
+pub use cursor::{DriveCursor, ListCursor, ListCursorError, ListingCursor};
 pub use document::{
     Document, DocumentSearchHit, ListScope, ListSort, ListedDocument, NewDocument, ScopedListing,
-    VisibleListing,
 };
 pub use folder::{DocumentFolder, NewFolder};
 pub use grant::{DocumentGrant, GrantTarget, NewGrant, SubjectPairs};

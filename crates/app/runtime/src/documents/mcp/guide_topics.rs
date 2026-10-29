@@ -102,6 +102,18 @@ document. {action: edit, document_id, comment_id, body, mentions?} rewrites your
 own comment; {action: delete, document_id, comment_id} deletes yours (or any, with share \
 access) and returns the remaining threads.";
 
+#[cfg(feature = "notifications")]
+pub(super) const INBOX: &str = "\
+documents_inbox {action: list, since?, limit?, attention?, unread?} pages your user's \
+notifications newest first; pass next_cursor as since for the next page. Items at attention \
+agent are your backlog; human items are for the person. For each item: read the thread \
+(documents_comment {action: list, document_id}) and its anchor (documents_read view node \
+{node_id}), then reply with documents_comment {action: create, document_id, parent_id, body, \
+mentions?, mention_options?: [{user_id, attention}]} and clear it with documents_inbox \
+{action: mark_read, ids} (or all: true). When unsure, escalate instead of guessing: \
+documents_inbox {action: escalate, id, note} hands the item to the person with your note. \
+Everything you do is attributed as <user>'s agent.";
+
 pub(super) const LIFECYCLE: &str = "\
 documents_trash {document_id} moves a document to the trash: it leaves listings, and reads, \
 edits and shares refuse trashed. documents_untrash \
@@ -269,6 +281,10 @@ const fn agent_refusal_text(code: RefusalCode) -> &'static str {
         RefusalCode::AgentRateLimited => {
             "agent_rate_limited: your user's agents have made the most edits allowed this \
              hour; wait the seconds the message names, then retry with the same op_id."
+        },
+        RefusalCode::CursorReset => {
+            "cursor_reset: the Drive cursor sent is not a position of the current change \
+             feed; drop it, read the manifest again and continue from its cursor."
         },
         _ => "",
     }

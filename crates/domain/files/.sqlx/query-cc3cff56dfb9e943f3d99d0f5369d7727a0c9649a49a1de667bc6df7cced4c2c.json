@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO document_text_index (document_id, revision_id, plain_text, body)\n             SELECT d.id, d.head_revision_id, $3, to_tsvector('simple', $3)\n             FROM documents d\n             WHERE d.id = $1::text::uuid AND d.head_revision_id = $2::text::uuid\n             ON CONFLICT (document_id) DO UPDATE\n                 SET revision_id = EXCLUDED.revision_id,\n                     plain_text = EXCLUDED.plain_text,\n                     body = EXCLUDED.body,\n                     updated_at = now()\n                 WHERE EXISTS (\n                     SELECT 1 FROM documents d\n                     WHERE d.id = EXCLUDED.document_id\n                       AND d.head_revision_id = EXCLUDED.revision_id)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "cc3cff56dfb9e943f3d99d0f5369d7727a0c9649a49a1de667bc6df7cced4c2c"
+}

@@ -49,7 +49,7 @@ fn a_corrupt_port_file_degrades_the_start_instead_of_stopping_it() {
     sandbox(&config, &state, || {
         seed_port_file(b"{ not json");
 
-        let ctx = BridgeContext::start(ProxyMode::Attach)
+        let ctx = BridgeContext::start(ProxyMode::Attach, std::sync::Arc::new(|| None))
             .expect("a corrupt port record must not stop the commands that repair it");
 
         let fault = fault_for(&ctx.startup_faults, "proxy port file");
@@ -79,7 +79,7 @@ fn a_corrupt_registry_cache_degrades_the_start_and_leaves_the_registry_empty() {
         )
         .expect("seed a corrupt registry cache");
 
-        let ctx = BridgeContext::start(ProxyMode::Attach)
+        let ctx = BridgeContext::start(ProxyMode::Attach, std::sync::Arc::new(|| None))
             .expect("a corrupt registry cache must not stop the start");
 
         let fault = fault_for(&ctx.startup_faults, "mcp registry cache");
@@ -106,7 +106,7 @@ fn a_recorded_port_held_by_an_unidentified_listener_is_not_followed() {
         let ours = InstallId::establish().expect("the sandbox mints an install id");
         portfile::write(port, &ours).expect("record the port the squatter holds");
 
-        let ctx = BridgeContext::start(ProxyMode::Attach)
+        let ctx = BridgeContext::start(ProxyMode::Attach, std::sync::Arc::new(|| None))
             .expect("a squatted port must not stop the start");
 
         let fault = fault_for(&ctx.startup_faults, "proxy port file");
@@ -142,7 +142,7 @@ fn a_recorded_port_with_nothing_listening_is_abandoned() {
         let ours = InstallId::establish().expect("the sandbox mints an install id");
         portfile::write(port, &ours).expect("record a port nothing is serving");
 
-        let ctx = BridgeContext::start(ProxyMode::Attach)
+        let ctx = BridgeContext::start(ProxyMode::Attach, std::sync::Arc::new(|| None))
             .expect("an unreachable recorded port must not stop the start");
 
         assert_eq!(
@@ -167,7 +167,8 @@ fn a_clean_sandbox_starts_without_a_proxy_or_registry_fault() {
     let config = tempfile::tempdir().expect("config tempdir");
     let state = tempfile::tempdir().expect("state tempdir");
     sandbox(&config, &state, || {
-        let ctx = BridgeContext::start(ProxyMode::Attach).expect("a clean start");
+        let ctx = BridgeContext::start(ProxyMode::Attach, std::sync::Arc::new(|| None))
+            .expect("a clean start");
         let components: Vec<&str> = ctx
             .startup_faults
             .iter()
@@ -197,7 +198,8 @@ fn loopback_secret_io_failure_claims_no_port_and_repaired_retry_serves_health() 
             .expect("secret parent");
         std::fs::create_dir(&secret_path).expect("directory blocks secret file creation");
 
-        let failed = BridgeContext::start(ProxyMode::Serve).expect("startup reports proxy fault");
+        let failed = BridgeContext::start(ProxyMode::Serve, std::sync::Arc::new(|| None))
+            .expect("startup reports proxy fault");
         let fault = fault_for(&failed.startup_faults, "loopback secret");
         assert!(fault.error.contains("directory"), "{fault}");
         let proxy::ProxyRole::Failed(failure) = failed.proxy.role() else {
@@ -213,7 +215,8 @@ fn loopback_secret_io_failure_claims_no_port_and_repaired_retry_serves_health() 
         drop(failed);
 
         std::fs::remove_dir(&secret_path).expect("repair blocking directory");
-        let repaired = BridgeContext::start(ProxyMode::Serve).expect("repaired proxy starts");
+        let repaired = BridgeContext::start(ProxyMode::Serve, std::sync::Arc::new(|| None))
+            .expect("repaired proxy starts");
         assert!(matches!(
             repaired.proxy.role(),
             proxy::ProxyRole::Serving(_)
@@ -260,7 +263,7 @@ fn unpublished_port_remains_live_and_repair_restores_peer_discovery() {
         std::fs::create_dir_all(record.parent().expect("record parent")).expect("record parent");
         std::fs::create_dir(&record).expect("directory blocks port publication");
 
-        let serving = BridgeContext::start(ProxyMode::Serve)
+        let serving = BridgeContext::start(ProxyMode::Serve, std::sync::Arc::new(|| None))
             .expect("port publication failure must not discard the live listener");
         let proxy::ProxyRole::Serving(served) = serving.proxy.role() else {
             panic!("listener remains live: {:?}", serving.proxy.role());
@@ -287,7 +290,8 @@ fn unpublished_port_remains_live_and_repair_restores_peer_discovery() {
 
         std::fs::remove_dir(&record).expect("repair record path");
         proxy::portfile::write(port, serving.install_id()).expect("publish existing live listener");
-        let attached = BridgeContext::start(ProxyMode::Attach).expect("attach after repair");
+        let attached = BridgeContext::start(ProxyMode::Attach, std::sync::Arc::new(|| None))
+            .expect("attach after repair");
         assert_eq!(attached.proxy.port(), port);
         assert!(
             matches!(attached.proxy.peer(), proxy::peer::PeerIdentity::Ours(ref peer) if peer.port == port)

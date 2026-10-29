@@ -101,6 +101,7 @@ pub(crate) fn valid_profile() -> Profile {
         observability: Default::default(),
         config_planes: Default::default(),
         licence: Default::default(),
+        notifications: Default::default(),
         name: "p".to_string(),
         display_name: "Profile P".to_string(),
         target: ProfileType::Local,

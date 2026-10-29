@@ -88,6 +88,7 @@ mod locale;
 mod managed;
 mod marketplace;
 mod mcp;
+mod notifications;
 mod oauth;
 mod path;
 mod plugin;
@@ -137,7 +138,7 @@ pub use context::ContextId;
 pub use documents::{
     ContentHash, DocumentAccessRequestId, DocumentCommentId, DocumentEditSessionId,
     DocumentFolderId, DocumentId, DocumentNodeId, DocumentOpId, DocumentProposalId,
-    DocumentRevisionId, DocumentTemplateId, DocumentUploadId, DriveDeviceId,
+    DocumentRevisionId, DocumentTemplateId, DocumentUploadId, DriveDeviceId, IssueReportId,
 };
 pub use email::Email;
 pub use engagement::{AnalyticsEventId, EngagementEventId};
@@ -162,6 +163,9 @@ pub use managed::{
 pub use marketplace::{LibraryArtifactId, MarketplaceId, MarketplaceRuleId, RuleName};
 pub use mcp::{
     AiToolCallId, ConnectorAppId, ConnectorInstallationId, McpExecutionId, McpServerId, McpToolName,
+};
+pub use notifications::{
+    NotificationId, NotificationRuleId, NotificationStreamId, NotificationSubscriptionId,
 };
 pub use oauth::{
     AccessTokenId, AuthorizationCode, ChallengeId, RefreshTokenFamilyId, RefreshTokenId,

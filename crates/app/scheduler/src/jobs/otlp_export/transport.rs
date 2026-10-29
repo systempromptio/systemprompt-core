@@ -2,9 +2,10 @@
 //! `otlp_export_batches_total{signal,status}` counter.
 //!
 //! A batch gets [`RETRY_DELAYS`] retries in-run, each after the listed
-//! pause. One that fails every attempt keeps its watermark and is retried at
-//! the next tick, so the in-run budget only needs to ride out a blip, not an
-//! outage.
+//! pause jittered over its upper half, so replicas sharing a collector do
+//! not retry in step. One that fails every attempt keeps its watermark and is
+//! retried at the next tick, so the in-run budget only needs to ride out a
+//! blip, not an outage.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -127,7 +128,9 @@ pub(super) async fn post_signal<M: Message>(
             "OTLP export attempt failed"
         );
         match delays.next() {
-            Some(delay) if retry => tokio::time::sleep(*delay).await,
+            Some(delay) if retry => {
+                tokio::time::sleep(systemprompt_traits::backoff::jittered(*delay)).await;
+            },
             _ => {
                 record(signal, "error");
                 return Err(error);

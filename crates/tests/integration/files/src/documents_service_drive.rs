@@ -60,10 +60,7 @@ async fn drive_changes_hide_invisible_documents_and_page_by_cursor() {
         if mine.iter().all(|id| seen.contains(id)) || next == cursor {
             break;
         }
-        assert!(
-            (next.updated_at, next.id) > (cursor.updated_at, cursor.id),
-            "the feed must advance"
-        );
+        assert!(next > cursor, "the feed must advance");
         cursor = next;
     }
     assert!(

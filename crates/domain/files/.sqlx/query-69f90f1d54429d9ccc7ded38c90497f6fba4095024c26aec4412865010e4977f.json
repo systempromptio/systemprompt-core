@@ -1,0 +1,21 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO document_agent_reads\n                   (document_id, user_id, agent_name, attended, action, effective_cap,\n                    cap_source, trace_id, read_day)\n               VALUES ($1::text::uuid, $2::text, $3::text, $4::bool, $5::text, $6::text,\n                       $7::text, $8::text, (now() AT TIME ZONE 'UTC')::date)\n               ON CONFLICT (document_id, user_id, agent_name, attended, action,\n                            effective_cap, cap_source, read_day)\n               DO UPDATE SET reads = document_agent_reads.reads + 1,\n                             last_read_at = now(),\n                             last_trace_id = EXCLUDED.trace_id",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Bool",
+        "Text",
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "69f90f1d54429d9ccc7ded38c90497f6fba4095024c26aec4412865010e4977f"
+}

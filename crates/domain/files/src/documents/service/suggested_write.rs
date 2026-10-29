@@ -102,7 +102,9 @@ impl DocumentService {
                 document.format,
                 bytes,
                 trace,
-                Allowance::Save,
+                Allowance::Save {
+                    owner: document.owner_user_id.clone(),
+                },
             )
             .await?;
         let base = match base_revision {

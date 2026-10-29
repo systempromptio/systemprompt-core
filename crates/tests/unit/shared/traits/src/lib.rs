@@ -8,6 +8,9 @@
 mod auth;
 
 #[cfg(test)]
+mod backoff;
+
+#[cfg(test)]
 mod cache_epoch;
 
 #[cfg(test)]

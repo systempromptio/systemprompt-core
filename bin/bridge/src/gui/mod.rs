@@ -12,6 +12,7 @@ mod event_kind;
 pub mod events;
 pub mod first_run;
 pub mod handlers;
+mod inbox;
 
 pub mod hosts;
 pub mod ipc_runtime;
@@ -159,16 +160,23 @@ pub(crate) struct GuiApp {
     // — the one-second tick runs between the two and would otherwise queue a
     // second start-up sync behind the login-triggered one.
     pub(crate) did_initial_sync: bool,
+    pub(crate) approval_after_update_checked: bool,
     pub(crate) active_signals: HashSet<notify::Signal>,
     pub(crate) unattended_repairs: HashSet<systemprompt_models::bridge::host::HostKind>,
     pub(crate) drive_watch: tokio::sync::watch::Receiver<u64>,
     pub(crate) drive_notice_seq: u64,
     pub(crate) drive_review_since: chrono::DateTime<chrono::Utc>,
+    pub(crate) inbox_watch: tokio::sync::watch::Receiver<u64>,
+    pub(crate) inbox_show_pending: std::sync::atomic::AtomicBool,
 }
 
 impl GuiApp {
     fn new(state: Arc<AppState>, proxy: UiEventProxy, ctx: Arc<BridgeContext>) -> Self {
         let drive_watch = ctx.drive.subscribe();
+        let mut inbox_watch = ctx.inbox.subscribe();
+        inbox_watch.mark_changed();
+        ctx.inbox
+            .request(crate::proxy::notifications::InboxRequest::Refresh);
         Self {
             state,
             proxy,
@@ -184,11 +192,14 @@ impl GuiApp {
             last_semantic_state: None,
             current_mount: None,
             did_initial_sync: false,
+            approval_after_update_checked: false,
             active_signals: HashSet::new(),
             unattended_repairs: HashSet::new(),
             drive_watch,
             drive_notice_seq: 0,
             drive_review_since: chrono::Utc::now(),
+            inbox_watch,
+            inbox_show_pending: std::sync::atomic::AtomicBool::new(false),
         }
     }
 
@@ -211,6 +222,9 @@ impl GuiApp {
 
     pub(crate) fn refresh_ui(&mut self) {
         let snap = self.state.snapshot();
+        if let Some(window) = &self.settings_window {
+            window.winit_window().set_title(&snap.display.window_title);
+        }
         if let Some(handles) = &mut self.tray
             && let Err(e) = tray::refresh(handles, &snap, &self.ctx.schedule)
         {

@@ -113,7 +113,10 @@ fn installing_then_removing_leaves_no_managed_config_behind() {
                 .generate_profile(&inputs())
                 .expect("generate");
             CODEX_CLI_HOST
-                .install_profile(&generated.path)
+                .install_profile(
+                    &generated.path,
+                    &systemprompt_bridge::elevation_gate::ElevationGate::new(),
+                )
                 .expect("install into the sandbox");
             let merged = fs::read_to_string(&paths.managed).expect("managed config written");
             assert!(
@@ -166,7 +169,10 @@ fn an_unbuildable_managed_directory_fails_with_the_elevation_hint() {
                 .generate_profile(&inputs())
                 .expect("generate");
             let err = CODEX_CLI_HOST
-                .install_profile(&generated.path)
+                .install_profile(
+                    &generated.path,
+                    &systemprompt_bridge::elevation_gate::ElevationGate::new(),
+                )
                 .expect_err("a directory that cannot exist must not report a successful install");
             assert!(err.is_permission_denied(), "{err:?}");
             assert!(
@@ -200,7 +206,10 @@ fn a_managed_path_with_no_parent_is_refused_before_anything_is_written() {
                 .generate_profile(&inputs())
                 .expect("generate");
             let err = CODEX_CLI_HOST
-                .install_profile(&generated.path)
+                .install_profile(
+                    &generated.path,
+                    &systemprompt_bridge::elevation_gate::ElevationGate::new(),
+                )
                 .expect_err("the filesystem root has no parent to install into");
             assert!(err.is_permission_denied(), "{err:?}");
             assert!(
@@ -227,7 +236,10 @@ fn a_malformed_managed_codex_target_keeps_the_generated_profile_for_repair_and_r
             let generated_bytes = fs::read(&generated.path).expect("generated profile bytes");
 
             CODEX_CLI_HOST
-                .install_profile(&generated.path)
+                .install_profile(
+                    &generated.path,
+                    &systemprompt_bridge::elevation_gate::ElevationGate::new(),
+                )
                 .expect_err("malformed target must not merge");
             assert_eq!(
                 fs::read(&generated.path).expect("retained generated profile"),
@@ -238,7 +250,10 @@ fn a_malformed_managed_codex_target_keeps_the_generated_profile_for_repair_and_r
 
             fs::write(&paths.managed, "operator_key = \"keep\"\n").unwrap();
             CODEX_CLI_HOST
-                .install_profile(&generated.path)
+                .install_profile(
+                    &generated.path,
+                    &systemprompt_bridge::elevation_gate::ElevationGate::new(),
+                )
                 .expect("repaired target retries the generated profile");
             assert!(!std::path::Path::new(&generated.path).exists());
             let raw = fs::read_to_string(&paths.managed).expect("merged config");

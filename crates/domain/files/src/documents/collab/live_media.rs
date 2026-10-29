@@ -1,14 +1,15 @@
 //! The images a live checkpoint may place, and a materialise that never
 //! wedges a session on one.
 //!
-//! An uploaded image is placed when the editor the update log records as
-//! its inserter uploaded it ([`ImageOwners`]), or when the revision the
+//! An uploaded image is placed when an editor the update log records as
+//! one of its inserters uploaded it ([`ImageOwners`]), or when the revision the
 //! checkpoint builds on already holds it (a docx part whose bytes hash to
 //! the reference). Any other image is saved as a placeholder paragraph in
 //! the checkpoint's bytes only: the live document keeps the image, so a
 //! wrong refusal recovers on the next checkpoint, and the editors get a
 //! `document.collab.degraded` event. The admitted bytes are read once per
-//! checkpoint and serve both the unchanged check and the write.
+//! checkpoint and serve both the unchanged check and the write. The
+//! degraded event is announced under the checkpoint's actor.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -18,10 +19,12 @@ use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{DocumentAction, DocumentCollabDegradedEvent, DocumentFormat};
 use systemprompt_provider_contracts::documents::CodecError;
 
+use super::binding::checkpoint_actor;
 use super::document::{ModelError, materialise, unchanged_from};
 use super::entry::CollabEntry;
 use super::image_owners::ImageOwners;
 use super::{CollabError, CollabService};
+use crate::documents::agents::{DocumentActor, act_as};
 use crate::documents::engine::ModelView;
 use crate::documents::model::{BlockKind, Media, RichText, media_refs};
 use crate::documents::models::DocumentEditSession;
@@ -34,21 +37,24 @@ pub(super) struct LiveModel {
     pub(super) refused: Vec<String>,
 }
 
+#[derive(Debug, Clone)]
 pub(super) struct LiveState {
     pub(super) format: DocumentFormat,
     pub(super) session: DocumentEditSession,
     pub(super) owners: ImageOwners,
     pub(super) model: ModelView,
+    pub(super) actor: DocumentActor,
 }
 
 impl LiveState {
-    pub(super) fn of(entry: &CollabEntry) -> Self {
-        Self {
+    pub(super) fn of(entry: &CollabEntry) -> Result<Self, CollabError> {
+        Ok(Self {
             format: entry.format,
             session: entry.session.clone(),
             owners: entry.images.clone(),
-            model: entry.doc.export_model(),
-        }
+            model: entry.doc.export_model()?,
+            actor: checkpoint_actor(entry),
+        })
     }
 }
 
@@ -74,13 +80,7 @@ impl CollabService {
         let wanted = media_refs(&rich);
         let limit = self.documents.config().max_upload_bytes;
         let held = held_media_refs(format, base_bytes, &wanted, limit);
-        let owners_of = |reference: &str| {
-            owners
-                .owner(reference)
-                .cloned()
-                .into_iter()
-                .collect::<Vec<_>>()
-        };
+        let owners_of = |reference: &str| owners.inserters(reference);
         let admitted = self
             .documents
             .admit_media(self.uploads.as_deref(), &owners_of, wanted, &held)
@@ -112,9 +112,11 @@ impl CollabService {
             .admit_live(state.format, &state.owners, base_bytes, state.model)
             .await;
         if !live.refused.is_empty()
-            && let Err(error) = self
-                .notify_degraded(&state.session, who, live.refused.clone(), trace)
-                .await
+            && let Err(error) = act_as(
+                state.actor,
+                self.notify_degraded(&state.session, who, live.refused.clone(), trace),
+            )
+            .await
         {
             tracing::warn!(%error, "degraded checkpoint could not be announced");
         }

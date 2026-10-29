@@ -9,6 +9,8 @@ use anyhow::Result;
 use clap::Args;
 use serde::Serialize;
 use systemprompt_identifiers::{SessionId, UserId};
+use systemprompt_manifest::services::BridgeReleasesSpec;
+use systemprompt_models::bridge::instance::{BridgeVersionWindow, WindowStatus};
 use systemprompt_oauth::repository::{BridgeSessionRepository, BridgeSessionRow};
 
 use crate::context::CommandContext;
@@ -40,6 +42,9 @@ pub(super) struct BridgeSessionSummary {
     pub user_id: UserId,
     pub hostname: String,
     pub bridge_version: String,
+    pub release_version: Option<String>,
+    pub state: Option<String>,
+    pub window_status: WindowStatus,
     pub os: String,
     pub last_heartbeat_at: String,
     pub last_activity_at: Option<String>,
@@ -56,7 +61,16 @@ pub(super) async fn execute(args: ListArgs, ctx: &CommandContext) -> Result<Comm
         None => repo.list_active(within).await?,
     };
 
-    let summaries = rows.into_iter().map(summary).collect::<Vec<_>>();
+    let window = app
+        .services_config()
+        .gateway_config()
+        .and_then(|g| g.bridge_releases.as_ref())
+        .map(BridgeReleasesSpec::version_window)
+        .unwrap_or_default();
+    let summaries = rows
+        .into_iter()
+        .map(|row| summary(row, &window))
+        .collect::<Vec<_>>();
     let title = format!(
         "Active bridge sessions ({} total, last {}s)",
         summaries.len(),
@@ -71,12 +85,19 @@ pub(super) async fn execute(args: ListArgs, ctx: &CommandContext) -> Result<Comm
     Ok(CommandOutput::card_value(title, &output))
 }
 
-fn summary(row: BridgeSessionRow) -> BridgeSessionSummary {
+fn summary(row: BridgeSessionRow, window: &BridgeVersionWindow) -> BridgeSessionSummary {
+    let window_status = row
+        .release_version
+        .as_deref()
+        .map_or(WindowStatus::Unknown, |release| window.status(release));
     BridgeSessionSummary {
         session_id: row.session_id,
         user_id: row.user_id,
         hostname: row.hostname,
         bridge_version: row.bridge_version,
+        release_version: row.release_version,
+        state: row.state,
+        window_status,
         os: row.os,
         last_heartbeat_at: row.last_heartbeat_at.to_rfc3339(),
         last_activity_at: row.last_activity_at.map(|t| t.to_rfc3339()),

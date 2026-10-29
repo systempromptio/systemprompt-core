@@ -51,11 +51,11 @@ fn an_unparseable_body_gets_the_read_policy() {
 // and must not repeat a message the outer error already contains.
 #[tokio::test]
 async fn describe_appends_the_source_chain_once() {
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("bind");
-    let port = listener.local_addr().expect("addr").port();
-    drop(listener);
+    let refusing = tokio::net::TcpSocket::new_v4().expect("socket");
+    refusing
+        .bind("127.0.0.1:0".parse().expect("loopback address"))
+        .expect("bind without listening");
+    let port = refusing.local_addr().expect("addr").port();
     let err = reqwest::Client::new()
         .get(format!("http://127.0.0.1:{port}/"))
         .send()

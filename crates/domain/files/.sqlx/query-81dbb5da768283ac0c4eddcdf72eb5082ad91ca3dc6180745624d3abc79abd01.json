@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT snapshot_sha256 AS \"hash!: ContentHash\", snapshot_seq AS seq\n               FROM document_edit_sessions\n               WHERE id = $1::text::uuid AND snapshot_sha256 IS NOT NULL",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "hash!: ContentHash",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_edit_sessions",
+            "name": "snapshot_sha256"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "seq",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "document_edit_sessions",
+            "name": "snapshot_seq"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      true,
+      false
+    ]
+  },
+  "hash": "81dbb5da768283ac0c4eddcdf72eb5082ad91ca3dc6180745624d3abc79abd01"
+}

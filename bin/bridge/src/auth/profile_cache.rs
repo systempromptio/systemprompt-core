@@ -17,6 +17,7 @@ use systemprompt_identifiers::UserId;
 use crate::gateway::types::BridgeProfile;
 
 const CACHE_FILE: &str = "bridge-profile.json";
+const SCHEMA: u32 = 2;
 
 #[derive(Debug, Deserialize, Serialize)]
 struct Entry {
@@ -27,6 +28,9 @@ struct Entry {
 
 #[derive(Debug, Default, Deserialize, Serialize)]
 struct Cached {
+    #[serde(default)]
+    schema: u32,
+    #[serde(default)]
     entries: Vec<Entry>,
 }
 
@@ -36,11 +40,6 @@ pub enum ProfileCacheError {
     Io {
         path: std::path::PathBuf,
         source: std::io::Error,
-    },
-    #[error("decode cached bridge profile {path}: {source}")]
-    Json {
-        path: std::path::PathBuf,
-        source: serde_json::Error,
     },
     #[error(transparent)]
     Config(#[from] crate::config::ConfigReadError),
@@ -63,7 +62,16 @@ fn read_cached() -> Result<Cached, ProfileCacheError> {
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Cached::default()),
         Err(source) => return Err(ProfileCacheError::Io { path, source }),
     };
-    serde_json::from_slice(&bytes).map_err(|source| ProfileCacheError::Json { path, source })
+    match serde_json::from_slice::<Cached>(&bytes) {
+        Ok(cached) if cached.schema == SCHEMA => Ok(cached),
+        _ => {
+            tracing::info!(
+                path = %path.display(),
+                "cached bridge profile is from another bridge version; treated as absent"
+            );
+            Ok(Cached::default())
+        },
+    }
 }
 
 pub(crate) fn remember(
@@ -83,13 +91,34 @@ pub(crate) fn remember(
     cached
         .entries
         .retain(|e| !(e.gateway == gateway && &e.user == user));
+    cached.schema = SCHEMA;
     cached.entries.push(Entry {
-        gateway,
+        gateway: gateway.clone(),
         user: user.clone(),
         profile: profile.clone(),
     });
     let bytes = serde_json::to_vec(&cached).map_err(std::io::Error::other)?;
-    crate::fsutil::atomic_write_0600(&path, &bytes)
+    crate::fsutil::atomic_write_0600(&path, &bytes)?;
+    record_served_models(&gateway, profile)
+}
+
+fn record_served_models(gateway: &str, profile: &BridgeProfile) -> std::io::Result<()> {
+    let active = crate::config::gateways::active().map_err(std::io::Error::other)?;
+    let gateway = Some(
+        systemprompt_identifiers::ValidatedUrl::try_new(gateway).map_err(std::io::Error::other)?,
+    );
+    crate::config::gateways::write_served_models(
+        &active,
+        &crate::config::gateways::ServedModels {
+            gateway,
+            models: profile
+                .models
+                .iter()
+                .map(|m| m.as_str().to_owned())
+                .collect(),
+        },
+    )
+    .map_err(std::io::Error::other)
 }
 
 pub fn load_for(gateway: &str, user: &UserId) -> Result<Option<BridgeProfile>, ProfileCacheError> {

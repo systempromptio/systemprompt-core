@@ -30,9 +30,7 @@ pub const SYNC_ONLY_AGENTS: &[SyncOnlyAgent] = &[SyncOnlyAgent {
 }];
 
 pub fn sync_only_agents() -> impl Iterator<Item = &'static SyncOnlyAgent> {
-    SYNC_ONLY_AGENTS
-        .iter()
-        .filter(|agent| !super::registry::is_suppressed(agent.id))
+    SYNC_ONLY_AGENTS.iter()
 }
 
 #[must_use]

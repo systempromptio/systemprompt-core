@@ -760,7 +760,7 @@ fn login_stdin_persists_a_pat_without_echoing_it() {
     let stored = sb
         ._home
         .path()
-        .join(".config/systemprompt/systemprompt-bridge.pat");
+        .join(".config/systemprompt/gateways/default/systemprompt-bridge.pat");
     assert_eq!(std::fs::read_to_string(stored).unwrap().trim(), pat);
 }
 
@@ -873,10 +873,17 @@ fn rejected_device_rotation_preserves_the_working_enrolment_and_a_retry_replaces
 #[test]
 fn status_reports_owned_inventory_rows_without_disclosing_the_pat() {
     let mut sb = sandbox(None);
-    let config = sb._home.path().join(".config/systemprompt");
+    let config = sb
+        ._home
+        .path()
+        .join(".config/systemprompt/gateways/default");
     std::fs::create_dir_all(&config).unwrap();
     let config_file = config.join("systemprompt-bridge.toml");
-    std::fs::write(&config_file, "gateway_url = \"http://127.0.0.1:1\"\n").unwrap();
+    std::fs::write(
+        &config_file,
+        "gateway_url = \"http://127.0.0.1:1\"\n[pat]\nstore = \"file\"\n",
+    )
+    .unwrap();
     let secret_file = config.join("systemprompt-bridge.pat");
     let pat = "sp-live-status-secret-not-for-output";
     std::fs::write(&secret_file, pat).unwrap();
@@ -912,7 +919,7 @@ fn status_reports_owned_inventory_rows_without_disclosing_the_pat() {
         config_file.display()
     )));
     assert!(text.contains(&format!(
-        "secret file: {}\n  present: true",
+        "secret: {} (0600)\n  present: true",
         secret_file.display()
     )));
     assert!(text.contains(&format!("  last sync: {}", sentinel.display())));

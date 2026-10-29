@@ -14,10 +14,11 @@ export function shortcut(key) {
   return `${modKey()}${key}`;
 }
 
-export const TAB_KEYS = { "1": "account", "2": "marketplace", "3": "agents", "4": "settings", "5": "status", "6": "activity" };
+export const TAB_KEYS = { "1": "account", "2": "inbox", "3": "marketplace", "4": "agents", "5": "settings", "6": "status", "7": "activity" };
 
 export const TAB_GLYPHS = {
   account: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="10" r="3.2"/><path d="M5.5 19a7 7 0 0 1 13 0"/></svg>`,
+  inbox: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13h5l1.5 3h5L16 13h5"/><path d="M5.5 5h13L21 13v6H3v-6z"/></svg>`,
   marketplace: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5 21 7v10l-9 4.5L3 17V7l9-4.5z"/><path d="M3 7l9 4.5L21 7"/><path d="M12 11.5V21.5"/></svg>`,
   agents: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>`,
   status: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg>`,
@@ -28,15 +29,16 @@ export const TAB_GLYPHS = {
 // Ordered by how often a person needs the pane, not by how much is on it.
 // Account leads because it answers the question every other pane depends on --
 // which account this computer is linked to -- and it is where a person lands on
-// open; Status and Activity are diagnostics, not daily destinations, so they
-// close the rail.
+// open; the Inbox follows because it holds what needs the person now; Status
+// and Activity are diagnostics, not daily destinations, so they close the rail.
 export const TAB_DEFS = [
   { name: "account", label: "Account", l10n: "nav-account", key: "1", showCount: false },
-  { name: "marketplace", label: "Marketplace", l10n: "nav-marketplace", key: "2", showCount: true, countFor: "marketplaceCount" },
-  { name: "agents", label: "Agents", l10n: "nav-agents", key: "3", showCount: true, countFor: "agentCount" },
-  { name: "settings", label: "Settings", l10n: "nav-settings", key: "4", showCount: false },
-  { name: "status", label: "Status", l10n: "nav-status", key: "5", showCount: false },
-  { name: "activity", label: "Activity", l10n: "nav-activity", key: "6", showCount: false },
+  { name: "inbox", label: "Inbox", l10n: "nav-inbox", key: "2", showCount: true, countFor: "inboxUnread" },
+  { name: "marketplace", label: "Marketplace", l10n: "nav-marketplace", key: "3", showCount: true, countFor: "marketplaceCount" },
+  { name: "agents", label: "Agents", l10n: "nav-agents", key: "4", showCount: true, countFor: "agentCount" },
+  { name: "settings", label: "Settings", l10n: "nav-settings", key: "5", showCount: false },
+  { name: "status", label: "Status", l10n: "nav-status", key: "6", showCount: false },
+  { name: "activity", label: "Activity", l10n: "nav-activity", key: "7", showCount: false },
 ];
 
 // Why: the bridge is a window a person opens to check on their deployment, not

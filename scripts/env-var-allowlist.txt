@@ -36,7 +36,7 @@ bin/bridge/src/auth/providers/pat.rs  # <PREFIX>_PAT inline PAT
 bin/bridge/src/basedirs.rs  # HOME and XDG_CONFIG_HOME / XDG_CACHE_HOME / XDG_DATA_HOME / XDG_STATE_HOME base-directory probes
 bin/bridge/src/cli/args.rs  # __CFBundleIdentifier LaunchServices app-bundle launch probe (macOS GUI-by-default)
 bin/bridge/src/cli/doctor/claude_code.rs  # ANTHROPIC_API_KEY / ANTHROPIC_AUTH_TOKEN presence probes: the doctor reports what the shell's Claude Code will read
-bin/bridge/src/config/mod.rs  # <PREFIX>_CONFIG config-file path
+bin/bridge/src/config/gateways/mod.rs  # <PREFIX>_CONFIG pins the process to one config file instead of the gateway profiles
 bin/bridge/src/sysproc/mod.rs  # PATH lookup for host tool binaries
 bin/bridge/src/config/paths/dirs.rs  # LOCALAPPDATA / USERPROFILE Windows folder probes
 bin/bridge/src/config/paths/mod.rs  # CLAUDE_CONFIG_DIR (Claude Code-defined config-dir override): which user settings file this user's Claude Code reads; <PREFIX>_ORG_PLUGINS_SYSTEM system org-plugins root; ProgramFiles / ProgramData / LOCALAPPDATA Windows folder probes
@@ -45,7 +45,7 @@ bin/bridge/src/i18n.rs  # LANG locale probe for GUI language selection
 bin/bridge/src/install/bootstrap/unix.rs  # SUDO_USER to resolve the invoking user under sudo
 bin/bridge/src/install/mdm/egress.rs  # <PREFIX>_EGRESS_ALLOWED_HOSTS Cowork egress allowlist when --egress-allowed-hosts is absent
 bin/bridge/src/install/mdm/macos.rs  # USER for the per-user managed-preferences plist (macOS MDM apply)
-bin/bridge/src/install/mdm/macos_remove.rs  # USER for the per-user managed-preferences plist (macOS MDM remove)
+bin/bridge/src/install/mdm/macos_remove/mod.rs  # USER for the per-user managed-preferences plist (macOS MDM remove)
 bin/bridge/src/install/mdm/windows/mod.rs  # USERPROFILE Windows home probe for the MDM payload
 bin/bridge/src/integration/app_launch/mod.rs  # PATH lookup for the host app binary
 bin/bridge/src/integration/claude_desktop/macos.rs  # USER for the Claude Desktop per-user managed preferences (macOS)
@@ -54,7 +54,7 @@ bin/bridge/src/integration/codex/config.rs  # CODEX_HOME / CODEX_SYSTEM_CONFIG (
 bin/bridge/src/integration/hermes/config.rs  # HERMES_HOME (Hermes-defined home override)
 bin/bridge/src/integration/opencode/config.rs  # ProgramData / APPDATA Windows folder probes; USER for the per-user config path; SP_BRIDGE_OPENCODE_MANAGED_DIR managed-dir override via basedirs::env_dir
 bin/bridge/src/obs/mod.rs  # <PREFIX>_LOG_FORMAT, RUST_LOG filter presence, LOCALAPPDATA log directory (Windows)
-bin/bridge/src/sync/manifest.rs  # <PREFIX>_CONFIG presence noted in the credential-location diagnostic
+bin/bridge/src/sync/manifest/errors.rs  # <PREFIX>_CONFIG presence noted in the credential-location diagnostic
 bin/bridge/src/winproc.rs  # SystemRoot to address System32 binaries by absolute path from the elevated child (Windows)
 bin/bridge/src/sync/provision.rs  # USER as the chown target when the elevated provisioning script creates the workspace (macOS)
 crates/app/agent-runs/src/execute/command.rs  # PATH, LANG, LC_ALL, TERM, TZ: the only server variables a headless host child inherits after env_clear()

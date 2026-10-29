@@ -110,10 +110,11 @@ impl DocumentPresenceRepository {
         .await?)
     }
 
-    pub async fn clear(&self, document_id: &DocumentId) -> RepoResult<u64> {
+    pub async fn clear_for(&self, documents: &[DocumentId]) -> RepoResult<u64> {
+        let ids: Vec<String> = documents.iter().map(|id| id.as_str().to_owned()).collect();
         let result = sqlx::query!(
-            "DELETE FROM document_presence WHERE document_id = $1::text::uuid",
-            document_id.as_str(),
+            "DELETE FROM document_presence WHERE document_id = ANY($1::text[]::uuid[])",
+            &ids,
         )
         .execute(&*self.pools.write)
         .await?;

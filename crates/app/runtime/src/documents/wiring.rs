@@ -7,6 +7,7 @@ use std::sync::Arc;
 
 use systemprompt_database::DbPool;
 use systemprompt_events::EventRouter;
+use systemprompt_extension::DynNotificationSink;
 use systemprompt_files::DocumentsConfig;
 use systemprompt_files::documents::agents::{DocumentActor, registered_policy};
 use systemprompt_files::documents::blob_store::BlobStore;
@@ -17,6 +18,7 @@ use systemprompt_files::documents::{
     DocumentAccessRepositories, DocumentAccessService, DocumentEvents, DocumentService,
     DocumentServiceParts, DocumentsError, SubjectDirectory,
 };
+use systemprompt_files::issues::IssueService;
 use systemprompt_files::uploads::{UploadService, UploadServiceParts};
 use systemprompt_governance::authz::{AccessControlRepository, SharedAuthzHook};
 use systemprompt_models::authz::SubjectAttributeSource;
@@ -37,8 +39,10 @@ pub struct DocumentsRuntimeParts {
     pub subjects: Arc<dyn SubjectAttributeSource>,
     pub directory: Arc<dyn SubjectDirectory>,
     pub event_router: EventRouter,
+    pub notifications: DynNotificationSink,
     pub catalog: Vec<CatalogTemplate>,
     pub config: DocumentsConfig,
+    pub issues: Arc<IssueService>,
     pub background_tasks: BackgroundTasks,
     pub unscoped_actor: Option<DocumentActor>,
 }
@@ -58,12 +62,15 @@ impl std::fmt::Debug for DocumentsRuntimeParts {
 /// and, with the `collab` feature, the process's one live co-editing
 /// service, whose timer runs on the runtime's background tasks. Beside it
 /// sits the [`UploadService`] the resumable upload API runs on, over the
-/// same blob store.
+/// same blob store, and the [`IssueService`] whose report attachments are
+/// that service's uploads.
 #[derive(Debug, Clone)]
 pub struct DocumentsRuntime {
     repositories: Arc<DocumentRepositories>,
+    access: Arc<DocumentAccessService>,
     service: Arc<DocumentService>,
     uploads: Arc<UploadService>,
+    issues: Arc<IssueService>,
     #[cfg(feature = "collab")]
     collab: Arc<CollabService>,
 }
@@ -79,8 +86,10 @@ impl DocumentsRuntime {
             subjects,
             directory,
             event_router,
+            notifications,
             catalog,
             config,
+            issues,
             background_tasks,
             unscoped_actor,
         } = parts;
@@ -108,8 +117,9 @@ impl DocumentsRuntime {
             blobs,
             codecs: Arc::new(CodecRegistry::discover()),
             templates: Arc::new(TemplateRegistry::discover(catalog)),
-            access,
+            access: Arc::clone(&access),
             events: Arc::new(DocumentEvents::new(Arc::new(event_router))),
+            notifications,
             config,
         }));
         service.attach_uploads(&uploads);
@@ -132,8 +142,10 @@ impl DocumentsRuntime {
         drop(background_tasks);
         Self {
             repositories,
+            access,
             service,
             uploads,
+            issues,
             #[cfg(feature = "collab")]
             collab,
         }
@@ -151,6 +163,11 @@ impl DocumentsRuntime {
     }
 
     #[must_use]
+    pub const fn access(&self) -> &Arc<DocumentAccessService> {
+        &self.access
+    }
+
+    #[must_use]
     pub const fn service(&self) -> &Arc<DocumentService> {
         &self.service
     }
@@ -158,6 +175,11 @@ impl DocumentsRuntime {
     #[must_use]
     pub const fn uploads(&self) -> &Arc<UploadService> {
         &self.uploads
+    }
+
+    #[must_use]
+    pub const fn issues(&self) -> &Arc<IssueService> {
+        &self.issues
     }
 
     pub async fn reconcile_folder_entities(&self) -> Result<u64, DocumentsError> {

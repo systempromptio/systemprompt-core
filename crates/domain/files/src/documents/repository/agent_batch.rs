@@ -35,7 +35,7 @@ impl DocumentRepository {
                  AND (agent_cap IS NOT NULL OR created_by_agent IS NOT NULL)"#,
             &ids,
         )
-        .fetch_all(&*self.pools.read)
+        .fetch_all(self.pools.authz())
         .await?;
         let mut facts = HashMap::with_capacity(rows.len());
         for row in rows {
@@ -70,7 +70,7 @@ impl DocumentRepository {
                WHERE f.id = ANY($1::text[]::uuid[])"#,
             &ids,
         )
-        .fetch_all(&*self.pools.read)
+        .fetch_all(self.pools.authz())
         .await?;
         let mut chains = HashMap::with_capacity(rows.len());
         for row in rows {

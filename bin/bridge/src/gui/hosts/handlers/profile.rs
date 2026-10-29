@@ -163,15 +163,21 @@ pub(crate) fn on_profile_install_requested(
     }
     let path_clone = path.clone();
     let proxy = app.proxy.clone();
+    let gate = Arc::clone(&app.ctx.elevation_gate);
     app.ctx.spawn(async move {
         let result = match tokio::task::spawn_blocking(move || {
-            host.install_profile(&path)
-                .map(|installed| (path_clone, installed.warnings))
-                .map_err(|source| GuiError::HostApp {
-                    context: "host install_profile",
-                    source,
-                })
-                .map_err(Arc::new)
+            crate::integration::reapply::install_gated(
+                &gate,
+                host,
+                &path,
+                crate::elevation_gate::Requester::UserAction,
+            )
+            .map(|installed| (path_clone, installed.warnings))
+            .map_err(|source| GuiError::HostApp {
+                context: "host install_profile",
+                source,
+            })
+            .map_err(Arc::new)
         })
         .await
         {

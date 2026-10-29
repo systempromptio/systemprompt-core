@@ -226,7 +226,10 @@ fn installing_a_profile_merges_it_into_the_managed_config() {
             .generate_profile(&inputs())
             .expect("profile generated");
         CODEX_CLI_HOST
-            .install_profile(&generated.path)
+            .install_profile(
+                &generated.path,
+                &systemprompt_bridge::elevation_gate::ElevationGate::new(),
+            )
             .expect("install merges into the managed config");
         _ = std::fs::remove_file(&generated.path);
     });

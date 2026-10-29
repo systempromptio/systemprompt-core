@@ -94,7 +94,7 @@ fn finish_login(
             let bin = crate::brand::brand().binary_name;
             stdio::print_line(&format!("Stored PAT for {bin} helper."));
             stdio::print_line(&format!("  config: {}", paths.config_file.display()));
-            stdio::print_line(&format!("  secret: {} (0600)", paths.pat_file.display()));
+            stdio::print_line(&format!("  secret: {}", paths.pat_location()));
             stdio::print_line(&format!("Next: run `{bin}` to fetch a JWT."));
             enroll_device_after_login(ctx, gateway);
             reapply_after_login(ctx, has_flag(args, "--no-reapply"));
@@ -119,6 +119,8 @@ fn sso_code(
     }
 
     let base_url = resolve_gateway(gateway)?;
+    let http = ctx.http.clone();
+    ctx.block_on(crate::gateway::discovery::refresh_logged(&http, &base_url));
 
     if !no_browser {
         return ctx.block_on(async move {

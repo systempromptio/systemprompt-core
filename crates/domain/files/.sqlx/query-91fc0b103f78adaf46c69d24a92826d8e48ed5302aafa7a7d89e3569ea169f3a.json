@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM document_presence WHERE document_id = ANY($1::text[]::uuid[])",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "91fc0b103f78adaf46c69d24a92826d8e48ed5302aafa7a7d89e3569ea169f3a"
+}

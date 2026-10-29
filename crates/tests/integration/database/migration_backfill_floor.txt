@@ -18,6 +18,7 @@ files=012
 governance=027
 logging=009
 marketplace=016
+notifications=001
 mcp=017
 oauth=021
 scheduler=003

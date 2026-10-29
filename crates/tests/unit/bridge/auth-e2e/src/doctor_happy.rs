@@ -41,14 +41,15 @@ fn sandbox_vars(home: &TempDir) -> Vec<(&'static str, Option<String>)> {
     ]
 }
 
-fn write_config(root: &Path, gateway: &str, pat_file: &Path) {
+fn write_config(root: &Path, gateway: &str, pat: &str) {
     let dir = root.join(".config").join("systemprompt");
-    fs::create_dir_all(&dir).unwrap();
+    let profile = dir.join("gateways").join("default");
+    fs::create_dir_all(&profile).unwrap();
+    fs::write(profile.join("systemprompt-bridge.pat"), pat).unwrap();
     fs::write(
-        dir.join("systemprompt-bridge.toml"),
+        profile.join("systemprompt-bridge.toml"),
         format!(
-            "gateway_url = \"{gateway}\"\n[pat]\nfile = \"{}\"\n[sync.trust]\ngateway = \"{gateway}\"\nsource = \"operator\"\nkey = \"11qYAYKxCrfVS/7TyWQHOg7hcvPapiMlrwIaaPcHURo=\"\n",
-            pat_file.display()
+            "gateway_url = \"{gateway}\"\n[pat]\nstore = \"file\"\n[sync.trust]\ngateway = \"{gateway}\"\nsource = \"operator\"\nkey = \"11qYAYKxCrfVS/7TyWQHOg7hcvPapiMlrwIaaPcHURo=\"\n",
         ),
     )
     .unwrap();
@@ -157,9 +158,7 @@ fn fully_provisioned_sandbox_yields_no_failing_checks() {
     });
     let _ = &server;
 
-    let pat_file = root.join("pat.txt");
-    fs::write(&pat_file, "sp-live-doctor-pat").unwrap();
-    write_config(&root, &uri, &pat_file);
+    write_config(&root, &uri, "sp-live-doctor-pat");
     write_cowork_state(&root);
     write_org_plugin(&root);
 
@@ -247,9 +246,7 @@ fn hook_token_mint_rejection_is_reported_as_failure() {
     });
     let _ = &server;
 
-    let pat_file = root.join("pat.txt");
-    fs::write(&pat_file, "sp-live-doctor-pat").unwrap();
-    write_config(&root, &uri, &pat_file);
+    write_config(&root, &uri, "sp-live-doctor-pat");
 
     temp_env::with_vars(sandbox_vars(&home), || {
         plugin_oauth::store_creds(
@@ -305,9 +302,7 @@ fn a_revoked_pat_is_reported_as_a_whoami_401() {
     });
     let _ = &server;
 
-    let pat_file = root.join("pat.txt");
-    fs::write(&pat_file, "sp-live-doctor-pat").unwrap();
-    write_config(&root, &uri, &pat_file);
+    write_config(&root, &uri, "sp-live-doctor-pat");
 
     temp_env::with_vars(sandbox_vars(&home), || {
         let (checks, any_fail) = block_on(doctor::run_checks(&bridge()));
@@ -344,9 +339,7 @@ fn a_gateway_that_rejects_the_exchange_fails_mint_and_skips_whoami() {
     });
     let _ = &server;
 
-    let pat_file = root.join("pat.txt");
-    fs::write(&pat_file, "sp-live-doctor-pat").unwrap();
-    write_config(&root, &uri, &pat_file);
+    write_config(&root, &uri, "sp-live-doctor-pat");
 
     temp_env::with_vars(sandbox_vars(&home), || {
         let (checks, any_fail) = block_on(doctor::run_checks(&bridge()));
@@ -399,5 +392,5 @@ fn an_unconfigured_sandbox_fails_the_credential_source_check() {
 }
 
 fn bridge() -> std::sync::Arc<BridgeContext> {
-    BridgeContext::start(ProxyMode::Attach).expect("runtime builds")
+    BridgeContext::start(ProxyMode::Attach, std::sync::Arc::new(|| None)).expect("runtime builds")
 }

@@ -1,4 +1,5 @@
-//! Opaque keyset cursor over `(timestamp, id)` orderings.
+//! Opaque keyset cursors: `(timestamp, id)` for listings and the landing
+//! position for the bridge Drive change feed.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -29,6 +30,8 @@ pub enum ListCursorError {
     Timestamp(#[source] chrono::ParseError),
     #[error("cursor id is invalid")]
     Id(#[source] uuid::Error),
+    #[error("cursor landing position is invalid")]
+    Position(#[source] std::num::ParseIntError),
 }
 
 impl ListCursor {
@@ -100,6 +103,44 @@ impl FromStr for ListingCursor {
         Ok(Self::Name {
             name: name.to_owned(),
             id,
+        })
+    }
+}
+
+/// A position in the bridge Drive change feed: the id of the transaction
+/// that landed a change and its value from the shared landing sequence.
+///
+/// Positions order changes by landing, not by when their transaction began,
+/// and the feed only hands out positions below the oldest transaction still
+/// in flight, so no later commit can land behind a position a client holds.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
+pub struct DriveCursor {
+    pub xid: i64,
+    pub seq: i64,
+}
+
+const DRIVE_TAG: &str = "l|";
+
+impl fmt::Display for DriveCursor {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let raw = format!("{DRIVE_TAG}{}|{}", self.xid, self.seq);
+        f.write_str(&URL_SAFE_NO_PAD.encode(raw))
+    }
+}
+
+impl FromStr for DriveCursor {
+    type Err = ListCursorError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let bytes = URL_SAFE_NO_PAD
+            .decode(s)
+            .map_err(ListCursorError::Encoding)?;
+        let raw = String::from_utf8(bytes).map_err(ListCursorError::Utf8)?;
+        let rest = raw.strip_prefix(DRIVE_TAG).ok_or(ListCursorError::Shape)?;
+        let (xid, seq) = rest.split_once('|').ok_or(ListCursorError::Shape)?;
+        Ok(Self {
+            xid: xid.parse().map_err(ListCursorError::Position)?,
+            seq: seq.parse().map_err(ListCursorError::Position)?,
         })
     }
 }

@@ -24,6 +24,22 @@ pub enum CollabError {
         document_id: DocumentId,
         session_id: DocumentEditSessionId,
     },
+    #[error(
+        "edit session {session_id} of document {document_id} is being checkpointed by another \
+         replica"
+    )]
+    CheckpointBusy {
+        document_id: DocumentId,
+        session_id: DocumentEditSessionId,
+    },
+    #[error(
+        "the checkpoint lease of edit session {session_id} of document {document_id} expired \
+         before the checkpoint was recorded"
+    )]
+    CheckpointLeaseLost {
+        document_id: DocumentId,
+        session_id: DocumentEditSessionId,
+    },
     #[error("join document {document_id} in edit mode before sending updates")]
     NotEditing { document_id: DocumentId },
     #[error("join document {document_id} before sending a cursor")]
@@ -32,6 +48,21 @@ pub enum CollabError {
     InvalidUpdate(#[source] EngineError),
     #[error("the update was rejected: {0}")]
     UpdateRejected(#[source] ModelRejection),
+    #[error(
+        "the update carries operations of engine peer {peer}, which this caller was not \
+         assigned; join the document again"
+    )]
+    PeerNotAssigned { peer: u64 },
+    #[error(
+        "the update depends on operations the edit session does not hold; join the document \
+         again"
+    )]
+    MissingDependencies,
+    #[error(
+        "updates to document {document_id} kept landing on other replicas; send the update \
+         again"
+    )]
+    UpdateContended { document_id: DocumentId },
     #[error("the version is not a valid version of the live session engine")]
     InvalidVersion(#[source] EngineError),
     #[error("no live session engine is enabled on this installation")]
@@ -48,10 +79,27 @@ pub enum CollabError {
         #[source]
         source: ModelError,
     },
+    #[error("the live session's image owners are unreadable")]
+    ImageOwners(#[from] super::image_owners::ImageOwnersError),
     #[error("edit session state could not be updated")]
     Engine(#[from] EngineError),
     #[error("edit session store query failed")]
     Repository(#[from] RepositoryError),
     #[error("edit session snapshot storage failed")]
     Blob(#[from] BlobStoreError),
+}
+
+pub(super) fn model_error(document: &DocumentId) -> impl FnOnce(ModelError) -> CollabError {
+    let document_id = document.clone();
+    move |source| CollabError::Model {
+        document_id,
+        source,
+    }
+}
+
+pub(super) fn utf8(document: &DocumentId, bytes: Vec<u8>) -> Result<String, CollabError> {
+    String::from_utf8(bytes).map_err(|source| CollabError::NotText {
+        document_id: document.clone(),
+        source,
+    })
 }

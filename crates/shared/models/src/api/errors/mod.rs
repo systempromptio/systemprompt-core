@@ -42,6 +42,7 @@ pub enum ErrorCode {
     PayloadTooLarge,
     Locked,
     RateLimited,
+    Gone,
     ServiceUnavailable,
 }
 
@@ -175,6 +176,10 @@ impl ApiError {
 
     pub fn rate_limited(message: impl Into<String>) -> Self {
         Self::new(ErrorCode::RateLimited, message)
+    }
+
+    pub fn gone(message: impl Into<String>) -> Self {
+        Self::new(ErrorCode::Gone, message)
     }
 
     pub fn validation_error(message: impl Into<String>, errors: Vec<ValidationError>) -> Self {

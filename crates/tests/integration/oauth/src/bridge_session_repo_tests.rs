@@ -17,6 +17,8 @@ fn make_upsert(user_id: &systemprompt_identifiers::UserId, suffix: &str) -> Upse
         forwarded_total: 10,
         tokens_in_total: 100,
         tokens_out_total: 200,
+        release_version: None,
+        state: None,
     }
 }
 

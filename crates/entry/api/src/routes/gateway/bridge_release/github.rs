@@ -9,6 +9,7 @@ use axum::http::header;
 use serde::Deserialize;
 use systemprompt_manifest::Secrets;
 use systemprompt_manifest::services::BridgeReleasesSpec;
+use systemprompt_models::bridge::instance::BridgeVersionWindow;
 
 use super::error::ReleaseError;
 
@@ -41,7 +42,15 @@ pub(super) async fn resolve_release(
     secrets: &Secrets,
     ceiling: &semver::Version,
 ) -> Result<GhRelease, ReleaseError> {
+    let window = spec.version_window();
     if let Some(pinned) = spec.pinned_version.as_deref() {
+        let admitted = semver::Version::parse(pinned).is_ok_and(|v| window.admits(&v));
+        if !admitted {
+            return Err(ReleaseError::PinnedOutsideWindow {
+                pinned: pinned.to_owned(),
+                window: describe_window(&window),
+            });
+        }
         let tag = format!("{}{pinned}", spec.tag_prefix);
         let url = format!(
             "{}/repos/{}/releases/tags/{tag}",
@@ -75,13 +84,24 @@ pub(super) async fn resolve_release(
     published
         .into_iter()
         .filter(|(v, _)| (v.major, v.minor) <= (ceiling.major, ceiling.minor))
+        .filter(|(v, _)| window.admits(v))
         .max_by(|(a, _), (b, _)| a.cmp(b))
         .map(|(_, r)| r)
         .ok_or_else(|| ReleaseError::NoCompatibleRelease {
             prefix: spec.tag_prefix.clone(),
             repo: spec.repo.clone(),
             ceiling: ceiling.to_string(),
+            window: describe_window(&window),
         })
+}
+
+fn describe_window(window: &BridgeVersionWindow) -> String {
+    let bound = |v: Option<&semver::Version>| v.map_or_else(|| "*".to_owned(), ToString::to_string);
+    format!(
+        "[{}, {}]",
+        bound(window.min.as_ref()),
+        bound(window.max.as_ref())
+    )
 }
 
 pub(super) fn sums_url(release: &GhRelease) -> Option<&str> {

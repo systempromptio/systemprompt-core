@@ -6,7 +6,7 @@
 use systemprompt_identifiers::ModelId;
 
 use crate::services::gateway::config::{
-    BridgeReleasesSpec, GatewayConfigSpec, QuotaFaultMode, default_auth_scheme,
+    BridgeInstanceSpec, BridgeReleasesSpec, GatewayConfigSpec, QuotaFaultMode, default_auth_scheme,
     default_inference_path_prefix,
 };
 use crate::services::gateway::override_rule::SystemPromptRule;
@@ -30,6 +30,7 @@ pub struct GatewayConfig {
     pub inference_path_prefix: String,
     pub system_prompt_overrides: Vec<SystemPromptRule>,
     pub bridge_releases: Option<BridgeReleasesSpec>,
+    pub bridge_instance: Option<BridgeInstanceSpec>,
 }
 
 impl Default for GatewayConfig {
@@ -45,6 +46,7 @@ impl Default for GatewayConfig {
             inference_path_prefix: default_inference_path_prefix(),
             system_prompt_overrides: Vec::new(),
             bridge_releases: None,
+            bridge_instance: None,
         }
     }
 }
@@ -68,6 +70,7 @@ impl GatewayConfig {
             inference_path_prefix: self.inference_path_prefix.clone(),
             system_prompt_overrides: self.system_prompt_overrides.clone(),
             bridge_releases: self.bridge_releases.clone(),
+            bridge_instance: self.bridge_instance.clone(),
         }
     }
 }

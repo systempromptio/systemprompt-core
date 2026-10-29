@@ -66,6 +66,7 @@ fn only_internal_and_unavailable_are_server_errors() {
         ErrorCode::PayloadTooLarge,
         ErrorCode::Locked,
         ErrorCode::RateLimited,
+        ErrorCode::Gone,
     ] {
         assert!(!code.is_server_error(), "{code:?}");
     }

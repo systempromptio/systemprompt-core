@@ -18,15 +18,20 @@ use systemprompt_identifiers::{
 };
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{
-    DocumentAction, DocumentCommentCreatedEvent, DocumentCommentResolvedEvent, Projection,
-    ProjectionNode,
+    DocumentAction, DocumentCommentCreatedEvent, DocumentCommentResolvedEvent,
 };
 
+use super::DocumentService;
+use super::comment_anchors::anchor_holds;
 use super::comments_edit::check_range;
 use super::mentions::{CommentOrigin, MentionInput};
-use super::{CommentPolicy, DocumentService};
+use super::notify::{MentionContext, MentionNotice, MentionOption, check_mention_options};
+use systemprompt_traits::RepositoryError;
+
 use crate::documents::error::DocumentsError;
-use crate::documents::models::{CommentAnchor, CommentRange, DocumentComment, NewComment};
+use crate::documents::models::{
+    CommentAnchor, CommentRange, Document, DocumentComment, MentionGrants, NewComment,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ResolveCommentRequest {
@@ -42,31 +47,8 @@ pub struct CommentRequest {
     pub range: Option<CommentRange>,
     pub body: String,
     pub mentions: Vec<UserId>,
+    pub mention_options: Vec<MentionOption>,
     pub parent_id: Option<DocumentCommentId>,
-}
-
-fn node_text(node: &ProjectionNode) -> String {
-    let mut text = node.text.clone().unwrap_or_default();
-    for child in &node.children {
-        let inner = node_text(child);
-        if !inner.is_empty() {
-            if !text.is_empty() {
-                text.push('\n');
-            }
-            text.push_str(&inner);
-        }
-    }
-    text
-}
-
-fn anchor_holds(ids: &Projection, anchor: &CommentAnchor) -> bool {
-    let Some(node) = ids.find(&anchor.node) else {
-        return false;
-    };
-    anchor.find.as_deref().is_none_or(|find| {
-        let nth = usize::try_from(anchor.nth.unwrap_or(0)).unwrap_or(0);
-        node_text(node).matches(find).count() > nth
-    })
 }
 
 impl DocumentService {
@@ -100,29 +82,15 @@ impl DocumentService {
         let plan = self
             .plan_mentions(who, &document, input, (origin, trace))
             .await?;
-        let (anchor, range) = match (&request.parent_id, request.anchor) {
-            (Some(parent), _) => {
-                let parent = self.comment_of(&document.id, parent).await?;
-                (parent.anchor, parent.range)
-            },
-            (None, Some(anchor)) => (anchor, request.range),
-            (None, None) => {
-                return Err(DocumentsError::InvalidComment {
-                    detail: "a comment needs a node anchor or a parent_id",
-                });
-            },
-        };
-        let head = self.resolve_revision(&document, None).await?;
-        let ids = self.projected(&document, &head).await?.ids;
-        if ids.find(&anchor.node).is_none() {
-            return Err(DocumentsError::UnknownNode { node: anchor.node });
-        }
-        if !anchor_holds(&ids, &anchor) {
-            return Err(DocumentsError::FindNone {
-                find: anchor.find.unwrap_or_default(),
-                closest: None,
-            });
-        }
+        check_mention_options(self, &request.mention_options, &plan.mentions)?;
+        let (anchor, range) = self
+            .comment_anchor(
+                &document,
+                request.parent_id.as_ref(),
+                request.anchor,
+                request.range,
+            )
+            .await?;
         let new = NewComment {
             document_id: document.id.clone(),
             anchor,
@@ -133,14 +101,14 @@ impl DocumentService {
             parent_id: request.parent_id,
             via_agent: origin.via_agent.clone(),
         };
-        let comment = if plan.grants.users.is_empty() {
-            self.repos.comments.insert(new).await?
-        } else {
-            self.repos
-                .comments
-                .insert_granting(new, &plan.grants)
-                .await?
+        let context = MentionContext {
+            who,
+            document: &document,
+            granted: &plan.grants.users,
+            via_agent: origin.via_agent.as_deref(),
+            options: &request.mention_options,
         };
+        let comment = self.store_comment(new, &plan.grants, context).await?;
         let event = DocumentCommentCreatedEvent {
             document_id: document.id.clone(),
             comment_id: comment.id.clone(),
@@ -156,6 +124,71 @@ impl DocumentService {
         self.announce_mentions(who, &document, &comment, &comment.mentions, &plan.grants)
             .await;
         Ok(comment)
+    }
+
+    async fn store_comment(
+        &self,
+        new: NewComment,
+        grants: &MentionGrants,
+        context: MentionContext<'_>,
+    ) -> Result<DocumentComment, DocumentsError> {
+        let mut tx = self.repos.documents.begin().await?;
+        let comment = if grants.users.is_empty() {
+            self.repos.comments.insert(&mut tx, new).await?
+        } else {
+            self.repos
+                .comments
+                .insert_granting(&mut tx, new, grants)
+                .await?
+        };
+        self.record_mentions(
+            &mut tx,
+            MentionNotice {
+                context,
+                comment: &comment.id,
+                body: &comment.body,
+                anchor_quote: comment.anchor.find.as_deref(),
+                mentions: &comment.mentions,
+                notify: &comment.mentions,
+                occurred_at: comment.created_at,
+            },
+        )
+        .await?;
+        tx.commit().await.map_err(RepositoryError::from)?;
+        Ok(comment)
+    }
+
+    async fn comment_anchor(
+        &self,
+        document: &Document,
+        parent: Option<&DocumentCommentId>,
+        anchor: Option<CommentAnchor>,
+        range: Option<CommentRange>,
+    ) -> Result<(CommentAnchor, Option<CommentRange>), DocumentsError> {
+        let (anchor, range) = match (parent, anchor) {
+            (Some(parent), _) => {
+                let parent = self.comment_of(&document.id, parent).await?;
+                (parent.anchor, parent.range)
+            },
+            (None, Some(anchor)) => (anchor, range),
+            (None, None) => {
+                return Err(DocumentsError::InvalidComment {
+                    detail: "a comment needs a node anchor or a parent_id",
+                });
+            },
+        };
+        let head = self.resolve_revision(document, None).await?;
+        let ids = self.projected(document, &head).await?.ids;
+        if ids.find(&anchor.node).is_none() {
+            return Err(DocumentsError::UnknownNode { node: anchor.node });
+        }
+        if !anchor_holds(&ids, &anchor) {
+            return Err(DocumentsError::FindNone {
+                find: anchor.find.unwrap_or_default(),
+                closest: None,
+            });
+        }
+        Ok((anchor, range))
     }
 
     pub async fn comments(
@@ -237,54 +270,5 @@ impl DocumentService {
                 document_id: document.clone(),
                 comment_id: comment.clone(),
             })
-    }
-
-    pub(super) async fn affected_anchors(
-        &self,
-        document: &DocumentId,
-        ids: &Projection,
-        policy: &CommentPolicy,
-    ) -> Result<Vec<DocumentCommentId>, DocumentsError> {
-        let affected: Vec<DocumentCommentId> = self
-            .repos
-            .comments
-            .list_for_document(document)
-            .await?
-            .into_iter()
-            .filter(|c| {
-                c.resolved_at.is_none() && c.deleted_at.is_none() && !anchor_holds(ids, &c.anchor)
-            })
-            .map(|c| c.id)
-            .collect();
-        if !affected.is_empty() && !policy.allow_detach {
-            return Err(DocumentsError::AnchorsAffected { comments: affected });
-        }
-        Ok(affected)
-    }
-
-    pub(super) async fn settle_comments(
-        &self,
-        document: &DocumentId,
-        revision: &DocumentRevisionId,
-        detached: &[DocumentCommentId],
-        policy: &CommentPolicy,
-    ) -> Result<(), DocumentsError> {
-        if !detached.is_empty() {
-            self.repos.comments.detach(document, detached).await?;
-        }
-        if let Some(comment) = &policy.answering
-            && !self
-                .repos
-                .comments
-                .set_answering(document, comment, revision)
-                .await?
-        {
-            tracing::warn!(
-                document_id = %document,
-                comment_id = %comment,
-                "Answered comment is not on this document; the revision stands"
-            );
-        }
-        Ok(())
     }
 }

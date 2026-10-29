@@ -1,5 +1,47 @@
 # Changelog
 
+## [0.76.0] - 2026-10-29
+
+### Breaking
+
+- **Breaking:** `EngineError` gains `PeerNotAssigned { peer }`, raised when an update carries changes under an engine peer the session did not assign to the caller. Migrate by adding an arm (or a wildcard) to exhaustive matches.
+- **Breaking:** the Drive change feed cursor is a landing position (`DriveCursor`); `drive_changes` and `parse_drive_cursor` take and return it, `DocumentPathChange::cursor` is a `DriveCursor`, `ListCursorError` gains `Position`, and a cursor that is not a landing position is refused with `CursorReset`. Migrate Drive clients by restarting from a fresh manifest cursor when a cursor is reset.
+- **Breaking:** `CHANGE_LAG` and `DocumentRevisionRepository::changes_since` are removed; `path_changes_since` takes a `DriveCursor` and a `FeedHorizon`. Migrate by reading the feed through `DocumentService::drive_changes`.
+- **Breaking:** `EngineDoc::export_model` returns `Result<ModelView, EngineError>`, and `EngineError` gains `Model`, reported when an engine holds content that does not read as a model. Migrate by propagating the error from `export_model`.
+- **Breaking:** `SubjectDirectory` gains `roles_of_many`, which answers the roles of several users in one lookup, in input order. Migrate custom directories by implementing it.
+- **Breaking:** `DocumentsConfig` gains `agent_read_retention_days` (`files.documents.agentReadRetentionDays`, default `90`, at least `1`), and the new cluster job `document_agent_read_retention` deletes agent read audit rows older than it. Migrate struct literals by adding the field or `..DocumentsConfig::default()`.
+- **Breaking:** `DocumentEditSessionRepository::set_checkpoint` takes a `CheckpointLease`, and the repository gains `claim_checkpoint`, `release_checkpoint`, `close_settled` and `list_stale`; `CollabError` gains `CheckpointBusy`, `CheckpointLeaseLost` and `ImageOwners`. Migrate by claiming a lease before recording a checkpoint and adding arms (or a wildcard) to exhaustive matches.
+- **Breaking:** `DocumentLimits` gains `max_package_part_bytes` (`limits.maxPackagePartBytes`, default 64 MiB), `max_package_inflated_bytes` (`limits.maxPackageInflatedBytes`, default 256 MiB) and `max_package_parts` (`limits.maxPackageParts`, default 4,096), and `bounded()` returns twelve entries. Migrate struct literals by adding the fields or `..DocumentLimits::default()`.
+- **Breaking:** `TemplateError::NotFound` refuses as `not_found` (404); `Io`, `NoCodec` and `Catalog` answer the fixed 5xx body, and their messages no longer carry a file path or the catalog cause. Migrate clients matching `template_failed` for an unknown template by matching `not_found`.
+- **Breaking:** `UploadService::abort` returns an `ObjectRemoval` listing the objects whose delete failed, and `UploadService::expire` returns an `ExpiryOutcome`; `UploadService::sweep_orphans` and `DocumentUploadRepository::{track_object, untrack_object, list_orphaned_objects}` are added. Migrate by reading or discarding the returned outcome.
+- **Breaking:** `ImageOwners::open` returns `Result<_, ImageOwnersError>` and `ImageOwners::owner` is replaced by `inserters`, which answers every editor who inserted a reference. Migrate by propagating the error and checking each inserter.
+- **Breaking:** `DocumentsError` gains `SubtreeChanged` (409, refusal `folder_not_empty`) and `OwnershipChanged` (409, refusal `forbidden`). Migrate exhaustive matches by adding the variants.
+- **Breaking:** `Allowance::Save` carries the document `owner` and `Allowance` is no longer `Copy`; `quota_exempt` is replaced by `charged_to` and `new_bytes_only`, and `SessionTerms` replaces `quota_exempt` with `quota_user` and `new_bytes_only`. Migrate by passing the document's owner to `Allowance::Save`.
+- **Breaking:** recursively deleting a folder requires `delete` on every folder in the subtree; the caller's own documents are trashed with it, and every document another user owns is moved to its owner's root in the same transaction, with a path change on the Drive feed, instead of being trashed. Migrate callers that expected a collaborator's document to be trashed with the folder.
+- **Breaking:** `EngineDoc::apply_update` returns an `UpdateImport` naming the peers an update added and whether part of it is pending; `Joined` gains `peer`; `CollabError` gains `PeerNotAssigned`, `MissingDependencies` and `UpdateContended`. Migrate engines by returning the import status and exhaustive matches by adding the variants.
+- **Breaking:** `DocumentEngine::check_update` takes the caller's assigned peers (`Option<&[u64]>`) and refuses from the encoded header alone an oversized, non-incremental or inconsistent update, or one carrying operations of an unassigned peer. Migrate engines by validating the header against the bounds and `peers`.
+- **Breaking:** `DocumentCollabRepository::append` takes an `UpdateAuthor` (user, actor, admitted level), as does the new `append_on`, `CollabUpdateRow` gains `actor`, and `DocumentEditSessionRepository::set_checkpoint` takes the sequence number the checkpoint covers. Migrate callers by passing the author and covered sequence number.
+- **Breaking:** `DocumentCommentRepository::{insert, insert_granting, update_body, update_body_granting}` and `DocumentGrantRepository::insert` take a `&mut PgConnection` after `&self`, so the write and its notification event commit in one transaction. Migrate by opening a transaction on the write pool and passing `&mut *tx`.
+- **Breaking:** `DocumentServiceParts` gains `notifications: DynNotificationSink`, and `CommentRequest` and `EditCommentRequest` gain `mention_options: Vec<MentionOption>`. Migrate struct literals by passing the runtime's sink (`systemprompt_runtime::notification_sink`, or `NotificationsUnavailableSink` without the `notifications` feature) and `mention_options: Vec::new()`.
+- **Breaking:** `DocumentsError` gains `Notifications(NotificationSinkError)` and `NotificationKind(NotificationKindError)`. Migrate by adding arms (or a wildcard) to exhaustive matches.
+- **Breaking:** `AgentCapability` and `AgentRefusal` gain a `BroadRewrite` variant, declared before the existing tail variants, so the implicit discriminants of `AgentCapability::{ReviewProposal, CopyOut, EditTemplate}` and `AgentRefusal::{SuggestOnly, RateLimited, OverrideLooser, MoveRefused}` move up by one. Migrate by adding arms (or a wildcard) to exhaustive matches, and by not persisting or comparing these enums as integers.
+- **Breaking:** `DocumentRepository::list_visible` and its `VisibleListing` argument are removed; folder listings go through `list_visible_children`. `DocumentRepository::ids_in_folder` is removed.
+- **Breaking:** `DocumentLockRepository::release_all(&DocumentId)` is replaced by `release_all_for(&[DocumentId])`, and `DocumentPresenceRepository::clear(&DocumentId)` by `clear_for(&[DocumentId])`. Migrate single-document callers by passing a one-element slice.
+- **Breaking:** `DocumentFolderRepository::move_to` takes a `FolderRelocation` (folder, destination, the destination's ancestor chain read before authorizing, and the mover) and answers `FolderMoveOutcome::{Moved, Refused, DestinationChanged}` instead of a row count. Migrate callers by passing the relocation and matching the outcome.
+- **Breaking:** `DocumentRepository::path_changes_since` takes the caller's `SubjectPairs`, and `DocumentPathChange` gains `access: Option<SubjectAccess>` (`Lost` or `Gained`) for a row recording one subject's change of access. Migrate by passing the reader's pairs and matching the new field.
+- **Breaking:** moving a folder moves every document another user owns in the moved subtree to its owner's root in the same transaction, with a path change on the Drive feed, instead of carrying it under the new parent's grants. Migrate callers that expected a collaborator's document to move with the folder.
+- **Breaking:** `FilesConfigYaml` gains `issues: IssuesConfig`, and **Runtime:** `DocumentsRuntimeParts` gains `issues: Arc<IssueService>`. Migrate struct literals by adding `issues: IssuesConfig::default()` to `FilesConfigYaml` and an `IssueService` built from `IssueReportRepository::new(&db)`, the notification sink and `files_config.issues_config().clone()`.
+
+### Added
+
+- Issue reports (`IssueReportRepository`, `IssueService`, `IssuesConfig` under `files.issues`, files migration `025`, the `issue_report_retention` job).
+- Comment mentions and shares record `document.comment.mentioned` and `document.shared` notification events inside the write's transaction.
+- `DocumentGrantRepository::insert_bounded`, migration `036_document_path_change_subject`, the `document_collab_reaper` and `document_agent_read_retention` cluster jobs.
+
+### Fixed
+
+- Live editing, the commit path, folder moves and deletes, sharing, the Drive change feed, uploads and Office packages are hardened; see the workspace CHANGELOG for each change.
+
 ## [0.75.0] - 2026-10-28
 
 ### Breaking

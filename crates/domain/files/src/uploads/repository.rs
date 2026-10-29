@@ -104,7 +104,8 @@ pub struct SessionTerms<'a> {
     pub max_open: i64,
     pub daily_quota: i64,
     pub one_shot: bool,
-    pub quota_exempt: bool,
+    pub quota_user: &'a UserId,
+    pub new_bytes_only: bool,
 }
 
 /// Whether [`DocumentUploadRepository::insert_admitted`] opened the session.
@@ -131,12 +132,7 @@ impl DocumentUploadRepository {
         let size = i64::try_from(request.size)
             .map_err(|source| RepositoryError::decode("document_uploads.declared_size", source))?;
         let mut tx = self.write.begin().await?;
-        sqlx::query_scalar!(
-            r#"SELECT 1 AS "locked!" FROM (SELECT pg_advisory_xact_lock(hashtext($1))) AS lock"#,
-            terms.owner.as_str(),
-        )
-        .fetch_one(&mut *tx)
-        .await?;
+        Self::lock_accounts(&mut tx, [terms.owner.as_str(), terms.quota_user.as_str()]).await?;
         let open = sqlx::query_scalar!(
             r#"SELECT COUNT(*)::bigint AS "count!" FROM document_uploads
                WHERE owner_user_id = $1 AND status IN ('open', 'completing')
@@ -154,13 +150,21 @@ impl DocumentUploadRepository {
             r#"SELECT COALESCE(SUM(CASE WHEN status = 'aborted' THEN received_bytes
                                         ELSE declared_size END), 0)::bigint AS "total!"
                FROM document_uploads
-               WHERE owner_user_id = $1 AND NOT quota_exempt
+               WHERE quota_user_id = $1 AND NOT quota_exempt
                  AND created_at > now() - interval '1 day'"#,
-            terms.owner.as_str(),
+            terms.quota_user.as_str(),
         )
         .fetch_one(&mut *tx)
         .await?;
-        if !terms.quota_exempt && used.saturating_add(size) > terms.daily_quota {
+        let quota_exempt = terms.new_bytes_only
+            && sqlx::query_scalar!(
+                r#"SELECT EXISTS (SELECT 1 FROM document_blobs WHERE content_sha256 = $1)
+                       AS "held!""#,
+                request.sha256.as_str(),
+            )
+            .fetch_one(&mut *tx)
+            .await?;
+        if !quota_exempt && used.saturating_add(size) > terms.daily_quota {
             return Ok(Admission::QuotaExceeded {
                 used: used.unsigned_abs(),
             });
@@ -169,9 +173,9 @@ impl DocumentUploadRepository {
             SessionRow,
             r#"INSERT INTO document_uploads
                    (owner_user_id, file_name, declared_mime, declared_size, declared_sha256,
-                    part_size, trace_id, expires_at, one_shot, quota_exempt)
+                    part_size, trace_id, expires_at, one_shot, quota_exempt, quota_user_id)
                VALUES ($1, $2, $3, $4, $5, $6, $7, now() + make_interval(hours => $8::int), $9,
-                       $10)
+                       $10, $11)
                RETURNING id::text AS "id!: DocumentUploadId",
                          owner_user_id AS "owner_user_id: UserId", file_name, declared_mime,
                          declared_size, declared_sha256 AS "declared_sha256: ContentHash",
@@ -187,13 +191,32 @@ impl DocumentUploadRepository {
             terms.trace.as_str(),
             terms.ttl_hours,
             terms.one_shot,
-            terms.quota_exempt,
+            quota_exempt,
+            terms.quota_user.as_str(),
         )
         .fetch_one(&mut *tx)
         .await?
         .try_into()?;
         tx.commit().await?;
         Ok(Admission::Admitted(Box::new(session)))
+    }
+
+    async fn lock_accounts(
+        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+        accounts: [&str; 2],
+    ) -> RepoResult<()> {
+        let mut accounts = accounts.to_vec();
+        accounts.sort_unstable();
+        accounts.dedup();
+        for account in accounts {
+            sqlx::query_scalar!(
+                r#"SELECT 1 AS "locked!" FROM (SELECT pg_advisory_xact_lock(hashtext($1))) AS lock"#,
+                account,
+            )
+            .fetch_one(&mut **tx)
+            .await?;
+        }
+        Ok(())
     }
 
     pub async fn find(&self, id: &DocumentUploadId) -> RepoResult<Option<UploadSession>> {

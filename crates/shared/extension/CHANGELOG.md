@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.76.0] - 2026-10-29
+
+### Added
+
+- The notification seams: `NotificationSink` (with `is_available` and `NotificationSinkError`), `NotificationRouter`, `NotificationAudienceResolver`, `PublishPolicy`, `ResourceVisibility` and `NotificationChannel`, and their registry.
+
 ## [0.75.0] - 2026-10-28
 
 ### Breaking

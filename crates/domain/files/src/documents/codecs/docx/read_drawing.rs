@@ -170,3 +170,18 @@ fn read_capped(file: impl Read, limit: u64) -> Option<Vec<u8>> {
 fn is_hash(stem: &str) -> bool {
     stem.len() == 64 && stem.chars().all(|c| c.is_ascii_hexdigit())
 }
+
+#[must_use]
+pub fn held_image(bytes: &[u8], reference: &str, limit: u64) -> Option<(String, Vec<u8>)> {
+    let content = match reference.strip_prefix(MEDIA_SCHEME) {
+        Some(target) if !target.split('/').any(|seg| seg == ".." || seg.is_empty()) => {
+            let mut archive = ZipArchive::new(Cursor::new(bytes)).ok()?;
+            let file = archive.by_name(&format!("word/{target}")).ok()?;
+            read_capped(file, limit)?
+        },
+        Some(_) => return None,
+        None => saved_upload_part(bytes, reference, limit)?.1,
+    };
+    let (_, mime) = image_type(&content)?;
+    Some((mime.to_owned(), content))
+}

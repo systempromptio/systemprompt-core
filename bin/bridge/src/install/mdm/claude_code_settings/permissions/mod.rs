@@ -183,39 +183,43 @@ pub enum PermissionOutcome {
     NoCarrier { rules: usize, standalone: PathBuf },
 }
 
-pub(crate) fn apply_permissions(rules: &PermissionRules) -> Result<PermissionOutcome, MdmError> {
+pub fn apply_permissions(rules: &PermissionRules) -> Result<PermissionOutcome, MdmError> {
     let previously = read_sidecar()?;
     let mut lines = Vec::new();
+    let mut carried = false;
     let standalone =
         standalone_settings_path().ok_or(MdmError::Resolve("the user's config directory"))?;
-    if let Some(mut root) = read_json_object(&standalone)?
-        && splice_rules(&mut root, &previously, rules)
-    {
-        write_atomic(&standalone, &render(root, &standalone)?)?;
-        lines.push(format!(
-            "wrote: {} (permissions, {} allow / {} deny)",
-            standalone.display(),
-            rules.allow.len(),
-            rules.deny.len()
-        ));
+    if let Some(mut root) = read_json_object(&standalone)? {
+        carried = true;
+        if splice_rules(&mut root, &previously, rules) {
+            write_atomic(&standalone, &render(root, &standalone)?)?;
+            lines.push(format!(
+                "wrote: {} (permissions, {} allow / {} deny)",
+                standalone.display(),
+                rules.allow.len(),
+                rules.deny.len()
+            ));
+        }
     }
     let settings = managed_settings_path().ok_or(MdmError::Resolve("the managed settings path"))?;
     // Why: only a settings file the bridge already configured (it holds our
     // apiKeyHelper) is ours to add rules to; a stranger's file is left alone.
     if let Some(mut root) = read_json_object(&settings)?
         && root.contains_key("apiKeyHelper")
-        && splice_rules(&mut root, &previously, rules)
     {
-        write_atomic(&settings, &render(root, &settings)?)?;
-        lines.push(format!(
-            "wrote: {} (permissions, {} allow / {} deny)",
-            settings.display(),
-            rules.allow.len(),
-            rules.deny.len()
-        ));
+        carried = true;
+        if splice_rules(&mut root, &previously, rules) {
+            write_atomic(&settings, &render(root, &settings)?)?;
+            lines.push(format!(
+                "wrote: {} (permissions, {} allow / {} deny)",
+                settings.display(),
+                rules.allow.len(),
+                rules.deny.len()
+            ));
+        }
     }
     write_sidecar(rules)?;
-    if lines.is_empty() && !rules.is_empty() {
+    if !carried && !rules.is_empty() {
         return Ok(PermissionOutcome::NoCarrier {
             rules: rules.allow.len() + rules.deny.len(),
             standalone,

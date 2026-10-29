@@ -18,6 +18,7 @@ mod decision;
 mod entity_ref;
 mod kinds;
 mod request;
+mod request_document;
 mod rule;
 mod subject_ref;
 

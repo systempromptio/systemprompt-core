@@ -10,8 +10,10 @@
 //!
 //! Sessions are bounded per user by the `files.documents.uploads` limits
 //! ([`UploadLimits`](crate::UploadLimits)); [`jobs`] closes the ones left
-//! open past their lifetime. An unimported blob is collected by the
-//! document blob GC after its grace period, like any unreferenced blob.
+//! open past their lifetime and deletes the objects an interrupted attempt
+//! or a failed delete left behind ([`objects`]). An unimported blob is
+//! collected by the document blob GC after its grace period, like any
+//! unreferenced blob.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -25,6 +27,7 @@ mod ingest;
 pub mod jobs;
 mod lifecycle;
 pub mod models;
+pub mod objects;
 mod parts;
 pub mod repository;
 mod safety;
@@ -32,9 +35,10 @@ mod service;
 mod stream;
 mod whole;
 
-pub use error::{RefusalReason, UploadError, UploadResult};
+pub use error::{RefusalReason, SvgParseError, UploadError, UploadResult};
 pub use ingest::Ingested;
 pub use jobs::DocumentUploadExpiryJob;
+pub use lifecycle::{Discarded, ExpiryOutcome, ObjectRemoval, SweepOutcome};
 pub use models::{
     Allowance, BlobOrigin, CompletedUpload, NewUpload, UploadPart, UploadProgress, UploadSession,
     UploadStatus,

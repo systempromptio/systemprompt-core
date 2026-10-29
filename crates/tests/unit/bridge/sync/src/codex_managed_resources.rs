@@ -59,6 +59,9 @@ fn manifest_with(
         auto_update: Default::default(),
         diagnostics: Vec::new(),
         marketplaces: Vec::new(),
+        allow_user_disable: false,
+        branding: None,
+        bridge_versions: None,
     }
 }
 
@@ -108,6 +111,9 @@ fn ctx<'a>(
         loopback: &LOOPBACK,
         mcp_registry: &EMPTY_REGISTRY,
         start_menu: &START_MENU,
+        elevation_gate: Box::leak(Box::new(
+            systemprompt_bridge::elevation_gate::ElevationGate::new(),
+        )),
     }
 }
 

@@ -14,6 +14,7 @@ use crate::proxy::forward::ProxyBody;
 use crate::proxy::secret;
 use crate::proxy::server::ProxyContext;
 
+use super::stale_secret::{first_stale_pair, remediation_for};
 use super::{owned_response, simple_response};
 
 pub(super) struct RequestLog<'a> {
@@ -127,9 +128,19 @@ fn log_rejection(
         },
         Rejection::SecretMismatch => {
             let expected_fp = secret::fingerprint(ctx.secret.as_ref().as_str());
+            if !first_stale_pair(ctx, &presented_fp, &expected_fp) {
+                tracing::debug!(
+                    target: "systemprompt_bridge::proxy",
+                    req_id = %req_id,
+                    path = %path,
+                    presented_fp = %presented_fp,
+                    "reject: stale loopback secret (repeat)"
+                );
+                return;
+            }
             let secret_path = secret::secret_path()
                 .map_or_else(|| "<no config dir>".to_owned(), |p| p.display().to_string());
-            let remediation = secret::reapply_hint();
+            let remediation = remediation_for(ctx, user_agent, &presented_fp).text();
             tracing::warn!(
                 target: "systemprompt_bridge::proxy",
                 req_id = %req_id,

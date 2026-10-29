@@ -1,14 +1,31 @@
 //! Applying a client's engine update: validate, log, import, broadcast.
 //!
-//! An update is first applied to a fork of the replica's live document; the
-//! fork's model is checked against the model schema, the limits and the
-//! caller's access level ([`validate`]), and only an accepted update is
-//! logged. An update enters a replica's cache only from the log, after the
-//! transaction that numbered it has committed, so a failed append leaves
-//! the cache as it was.
+//! An update's encoded header is checked first, before the engine imports
+//! anything: the engine refuses an oversized, non-incremental or
+//! inconsistent blob, or one carrying operations of a peer the server did
+//! not assign to the caller's joins. That check is the crash guard: the
+//! release profile aborts on panic, so the blocking thread the update is
+//! then applied on (a fork of the replica's live document) isolates CPU
+//! time, not panics. The fork's import must add operations only of the
+//! caller's peers and must not park operations whose dependencies the
+//! session lacks. The fork's model is then checked against
+//! the model schema, the limits and the caller's access level
+//! ([`validate`]). An accepted update is logged only on top of the log it
+//! was validated against: when another replica logged first, the update is
+//! caught up and validated again, a bounded number of times. An update
+//! enters a replica's cache only from the log, after the transaction that
+//! numbered it has committed, so a failed append leaves the cache as it was.
+//!
+//! Each accepted update extends its author's web presence and is logged with
+//! the actor it ran as and the level it was admitted at; every replica folds
+//! those into the session's checkpoint actor as it imports the log: one
+//! agent while every update since the last checkpoint came from that agent,
+//! a human otherwise.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
+
+use std::time::Duration;
 
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
@@ -16,11 +33,22 @@ use systemprompt_identifiers::{DocumentEditSessionId, TraceId, UserId};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{AccessLevel, DocumentAction, DocumentCollabUpdateEvent};
 
-use super::entry::CollabEntry;
+use super::entry::SharedEntry;
+use super::lease::SessionKey;
 use super::{Applied, ApplyRequest, CollabError, CollabService};
-use crate::documents::engine::{EngineDoc, ModelView};
+use crate::documents::engine::{EngineDoc, EngineError, ModelView};
 use crate::documents::model::{EditLevel, Limits, ModelRejection, RichText, validate};
 use crate::documents::models::Document;
+use crate::documents::repository::{CollabAppend, UpdateAuthor};
+
+const APPEND_ATTEMPTS: u32 = 4;
+
+struct Candidate<'a> {
+    update: &'a [u8],
+    level: EditLevel,
+    peers: &'a [u64],
+    author: UpdateAuthor<'a>,
+}
 
 impl CollabService {
     pub async fn apply(
@@ -38,7 +66,12 @@ impl CollabService {
             EditLevel::Comment
         };
         let repos = self.documents.repositories();
-        if !repos.collab.is_editing(&document.id, &who.id).await? {
+        let ttl = Duration::from_secs(u64::from(self.documents.config().presence_ttl_secs));
+        if !repos
+            .collab
+            .refresh_editing(&document.id, &who.id, ttl)
+            .await?
+        {
             return Err(CollabError::NotEditing {
                 document_id: document.id,
             });
@@ -47,29 +80,37 @@ impl CollabService {
             .open_matching(&document.id, &request.session_id)
             .await?;
         let engine = self.engine()?;
-        let entry = self.entry(&document, &session).await?;
-        let mut entry = entry.lock().await;
-        self.catch_up(&mut entry).await?;
-        let missing = request
-            .version
-            .as_deref()
-            .map(|known| entry.doc.missing_since(known))
-            .transpose()
-            .map_err(CollabError::InvalidVersion)?
-            .flatten();
+        let peers = self.peers_of(&session.id, &who.id).await?;
         engine
-            .check_update(&request.update)
-            .map_err(CollabError::InvalidUpdate)?;
-        check_on_fork(entry.doc.as_ref(), &request.update, level)?;
-        let seq = self
-            .log_update(&mut entry, &request.update, &who.id)
-            .await?;
-        entry.record_activity(Some(who), self.documents.access().actor());
-        let version = entry.doc.version();
-        if entry.unsnapshotted >= self.tuning.snapshot_after_updates {
-            self.snapshot(&mut entry).await?;
-        }
-        drop(entry);
+            .check_update(&request.update, Some(&peers))
+            .map_err(|error| match error {
+                EngineError::PeerNotAssigned { peer } => CollabError::PeerNotAssigned { peer },
+                other => CollabError::InvalidUpdate(other),
+            })?;
+        let shared = self.entry(&document, &session).await?;
+        let missing = {
+            let entry = self.caught_up(&shared).await?;
+            request
+                .version
+                .as_deref()
+                .map(|known| entry.doc.missing_since(known))
+                .transpose()
+                .map_err(CollabError::InvalidVersion)?
+                .flatten()
+        };
+        let actor = self.documents.access().actor();
+        let candidate = Candidate {
+            update: &request.update,
+            level,
+            peers: &peers,
+            author: UpdateAuthor {
+                user: &who.id,
+                actor: &actor,
+                level,
+            },
+        };
+        let seq = self.append_validated(&shared, &candidate).await?;
+        let version = self.record_and_snapshot(&shared, who, &session.id).await;
         self.broadcast(
             &document,
             update_event(&document, &session.id, seq, &request.update, &who.id),
@@ -82,29 +123,93 @@ impl CollabService {
         })
     }
 
+    async fn record_and_snapshot(
+        &self,
+        shared: &SharedEntry,
+        who: &AuthenticatedUser,
+        session_id: &DocumentEditSessionId,
+    ) -> Vec<u8> {
+        let (version, snapshot_due) = {
+            let mut entry = shared.lock().await;
+            entry.record_activity(who);
+            let due =
+                !entry.snapshotting && entry.unsnapshotted >= self.tuning.snapshot_after_updates;
+            (entry.doc.version(), due)
+        };
+        if snapshot_due && let Err(error) = self.snapshot(shared).await {
+            tracing::warn!(
+                session_id = %session_id,
+                error = %error,
+                "Edit session snapshot failed; the timer retries it"
+            );
+        }
+        version
+    }
+
+    async fn append_validated(
+        &self,
+        shared: &SharedEntry,
+        candidate: &Candidate<'_>,
+    ) -> Result<i64, CollabError> {
+        let collab = &self.documents.repositories().collab;
+        let key = SessionKey::of(&*shared.lock().await);
+        for _ in 0..APPEND_ATTEMPTS {
+            let (draft, before, on_seq) = {
+                let entry = self.caught_up(shared).await?;
+                (entry.doc.fork(), entry.doc.export_model()?, entry.last_seq)
+            };
+            check_on_fork(draft, before, candidate).await?;
+            match collab
+                .append_on(&key.session, on_seq, candidate.update, candidate.author)
+                .await?
+            {
+                CollabAppend::Appended(seq) => {
+                    self.refresh(shared).await?;
+                    return Ok(seq);
+                },
+                CollabAppend::Behind => {},
+                CollabAppend::Closed => return Err(key.closed()),
+            }
+        }
+        Err(CollabError::UpdateContended {
+            document_id: key.document,
+        })
+    }
+
     pub(super) async fn log_update(
         &self,
-        entry: &mut CollabEntry,
+        shared: &SharedEntry,
+        key: &SessionKey,
         update: &[u8],
-        author: &UserId,
+        author: UpdateAuthor<'_>,
     ) -> Result<i64, CollabError> {
-        let seq = self
+        let appended = self
             .documents
             .repositories()
             .collab
-            .append(&entry.session.id, update, author)
-            .await?
-            .ok_or_else(|| CollabError::SessionClosed {
-                document_id: entry.session.document_id.clone(),
-                session_id: entry.session.id.clone(),
-            })?;
-        self.catch_up(entry).await?;
+            .append(&key.session, update, author)
+            .await;
+        let seq = match appended {
+            Ok(Some(seq)) => seq,
+            Ok(None) => return Err(key.closed()),
+            Err(error) => {
+                if let Err(caught) = self.caught_up(shared).await {
+                    tracing::warn!(
+                        session_id = %key.session,
+                        error = %caught,
+                        "Live session not caught up after a failed log write; reopening it"
+                    );
+                    self.cache_remove(&key.document);
+                }
+                return Err(error.into());
+            },
+        };
+        self.refresh(shared).await?;
         Ok(seq)
     }
 
     pub(super) async fn broadcast(&self, document: &Document, event: DocumentCollabUpdateEvent) {
-        let to = self.recipients(document).await;
-        if let Err(error) = self.documents.events().collab_update(&to, &event).await {
+        if let Err(error) = self.documents.events().collab_update(&event).await {
             tracing::warn!(
                 document_id = %document.id,
                 seq = event.seq,
@@ -115,22 +220,55 @@ impl CollabService {
     }
 }
 
-fn check_on_fork(doc: &dyn EngineDoc, update: &[u8], level: EditLevel) -> Result<(), CollabError> {
-    let mut draft = doc.fork();
-    draft
-        .apply_update(update)
-        .map_err(CollabError::InvalidUpdate)?;
-    let before = doc.export_model();
-    match draft.export_model() {
+async fn check_on_fork(
+    mut draft: Box<dyn EngineDoc>,
+    before: ModelView,
+    candidate: &Candidate<'_>,
+) -> Result<(), CollabError> {
+    let update = candidate.update.to_vec();
+    let imported = tokio::task::spawn_blocking(move || {
+        let import = draft.apply_update(&update)?;
+        let after = draft.export_model()?;
+        Ok::<_, EngineError>((import, after))
+    })
+    .await;
+    let (import, after) = match imported {
+        Ok(result) => result.map_err(CollabError::InvalidUpdate)?,
+        Err(error) => {
+            tracing::warn!(
+                error = %error,
+                panicked = error.is_panic(),
+                "Collab update import did not complete on its fork"
+            );
+            return Err(CollabError::InvalidUpdate(EngineError::State(Box::new(
+                error,
+            ))));
+        },
+    };
+    if import.pending {
+        return Err(CollabError::MissingDependencies);
+    }
+    if let Some(peer) = import
+        .peers
+        .iter()
+        .find(|peer| !candidate.peers.contains(peer))
+    {
+        return Err(CollabError::PeerNotAssigned { peer: *peer });
+    }
+    check_model(&before, after, candidate.level)
+}
+
+fn check_model(before: &ModelView, after: ModelView, level: EditLevel) -> Result<(), CollabError> {
+    match after {
         ModelView::RichText(after) => {
+            let empty = RichText::default();
             let before = match before {
                 ModelView::RichText(before) => before,
-                ModelView::Body(_) => RichText::default(),
+                ModelView::Body(_) => &empty,
             };
-            validate(&before, &after, level, &Limits::default())
-                .map_err(CollabError::UpdateRejected)
+            validate(before, &after, level, &Limits::default()).map_err(CollabError::UpdateRejected)
         },
-        after if level == EditLevel::Comment && after != before => Err(
+        after if level == EditLevel::Comment && after != *before => Err(
             CollabError::UpdateRejected(ModelRejection::BeyondCommentLevel),
         ),
         ModelView::Body(_) => Ok(()),

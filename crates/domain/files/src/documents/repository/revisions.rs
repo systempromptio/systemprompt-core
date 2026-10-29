@@ -1,6 +1,6 @@
-//! [`DocumentRevisionRepository`]: immutable revisions and the changes feed.
+//! [`DocumentRevisionRepository`]: immutable revisions.
 //!
-//! History, the changes feed and counts list landed revisions only: a
+//! History, the Drive change feed and counts list landed revisions only: a
 //! revision is landed once it has been the head (`landed_at`); a proposed
 //! revision, or one whose commit lost the head race, never is.
 //!
@@ -163,38 +163,6 @@ r#"SELECT id::text AS "id!: DocumentRevisionId",
             document_id.as_str(),
             before.map(|c| c.updated_at),
             before.map(|c| c.id),
-            limit.max(1),
-        )
-        .fetch_all(&*self.pools.read)
-        .await?;
-        convert(rows)
-    }
-
-    pub async fn changes_since(
-        &self,
-        cursor: Option<ListCursor>,
-        limit: i64,
-    ) -> RepoResult<Vec<DocumentRevision>> {
-        let rows = sqlx::query_as!(
-            RevisionRow,
-            r#"SELECT id::text AS "id!: DocumentRevisionId",
-                      document_id::text AS "document_id!: DocumentId",
-                      parent_revision_id::text AS "parent_revision_id: DocumentRevisionId",
-                      content_sha256 AS "content_sha256: ContentHash",
-                      author_user_id AS "author_user_id: UserId",
-                      actor_kind, origin_kind, origin_id, message, edit_ops,
-                      session_id AS "session_id: SessionId",
-                      context_id AS "context_id: ContextId",
-                      trace_id AS "trace_id: TraceId",
-                      task_id AS "task_id: TaskId",
-                      on_behalf_of AS "on_behalf_of: UserId",
-                      created_at, landed_at
-               FROM document_revisions WHERE landed_at IS NOT NULL
-               AND ($1::timestamptz IS NULL OR (created_at, id) > ($1, $2::uuid))
-             ORDER BY created_at, id
-             LIMIT $3"#,
-            cursor.map(|c| c.updated_at),
-            cursor.map(|c| c.id),
             limit.max(1),
         )
         .fetch_all(&*self.pools.read)

@@ -25,6 +25,7 @@ impl From<CodecError> for DocumentsError {
                 current_text,
             },
             CodecError::UnknownNode { node } => Self::UnknownNode { node },
+            CodecError::TooLarge { what, size, limit } => Self::TooLarge { what, size, limit },
             other => Self::Codec(other),
         }
     }

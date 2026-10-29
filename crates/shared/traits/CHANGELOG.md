@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.76.0] - 2026-10-29
+
+### Added
+
+- `backoff::jittered`, which spreads a retry delay uniformly over its upper half.
+
 ## [0.75.0] - 2026-10-28
 
 ### Added

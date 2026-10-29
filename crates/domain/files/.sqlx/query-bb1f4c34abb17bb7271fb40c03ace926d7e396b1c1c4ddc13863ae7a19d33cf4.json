@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT DISTINCT COALESCE(ancestor_ids[1], id)::text AS \"root!\"\n           FROM document_folders WHERE id = ANY($1::text[]::uuid[])",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "root!",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "TextArray"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "bb1f4c34abb17bb7271fb40c03ace926d7e396b1c1c4ddc13863ae7a19d33cf4"
+}

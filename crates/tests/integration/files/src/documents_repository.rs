@@ -2,12 +2,13 @@ use std::time::Duration;
 
 use chrono::Utc;
 use systemprompt_files::documents::models::{
-    DocumentFolder, EditSessionOpen, GrantTarget, LockHolderKind, LockOutcome, LockRequest,
-    NewDocument, NewFolder, NewGrant, NewRevision, PresenceUpsert, RevisionAttribution,
-    SubjectPairs, VisibleListing,
+    DocumentFolder, EditSessionOpen, GrantTarget, ListScope, ListSort, LockHolderKind, LockOutcome,
+    LockRequest, NewDocument, NewFolder, NewGrant, NewRevision, PresenceUpsert,
+    RevisionAttribution, ScopedListing, SubjectPairs,
 };
 use systemprompt_files::documents::repository::{
-    DocumentRepositories, DocumentRepository, HeadMove,
+    CheckpointClaim, CheckpointLease, DocumentRepositories, DocumentRepository, FolderMoveOutcome,
+    FolderRelocation, HeadMove,
 };
 use systemprompt_identifiers::{
     ContentHash, DocumentFolderId, DocumentId, DocumentRevisionId, UserId,
@@ -123,28 +124,39 @@ async fn grant_folder(
     granted_by: &UserId,
     expired: bool,
 ) {
+    let pool = test_db_pool().await;
+    let mut conn = pool
+        .write_pool()
+        .acquire()
+        .await
+        .expect("acquire connection");
     repos
         .grants
-        .insert(NewGrant {
-            target: GrantTarget::Folder(folder.clone()),
-            subject_kind: kind.to_owned(),
-            subject_value: value.to_owned(),
-            subject_display: None,
-            access_level: level,
-            granted_by: granted_by.clone(),
-            valid_until: expired.then(|| Utc::now() - chrono::Duration::hours(1)),
-            trace_id: systemprompt_identifiers::TraceId::generate(),
-            reason: None,
-            via_agent: None,
-        })
+        .insert(
+            &mut conn,
+            NewGrant {
+                target: GrantTarget::Folder(folder.clone()),
+                subject_kind: kind.to_owned(),
+                subject_value: value.to_owned(),
+                subject_display: None,
+                access_level: level,
+                granted_by: granted_by.clone(),
+                valid_until: expired.then(|| Utc::now() - chrono::Duration::hours(1)),
+                trace_id: systemprompt_identifiers::TraceId::generate(),
+                reason: None,
+                via_agent: None,
+            },
+        )
         .await
         .expect("insert grant");
 }
 
-fn listing_by_name(name: &str) -> VisibleListing {
-    VisibleListing {
+fn listing_by_name(scope: ListScope, name: &str) -> ScopedListing {
+    ScopedListing {
+        scope,
         folder_id: None,
         query: Some(name.to_owned()),
+        sort: ListSort::Updated,
         cursor: None,
         limit: 50,
     }
@@ -160,26 +172,55 @@ async fn folder_move_rewrites_descendant_ancestors() {
     assert_eq!(c.ancestor_ids, vec![a.id.clone(), b.id.clone()]);
 
     let other = folder(&repos, None, &owner).await;
-    let moved = repos
-        .folders
-        .move_to(&b.id, Some(&other.id))
-        .await
-        .expect("move");
-    assert_eq!(moved, 2, "folder and its one descendant are rewritten");
+    let relocate = |parent: Option<&DocumentFolderId>, chain: Vec<DocumentFolderId>| {
+        let repos = &repos;
+        let folder = b.id.clone();
+        let parent = parent.cloned();
+        let owner = owner.clone();
+        async move {
+            repos
+                .folders
+                .move_to(FolderRelocation {
+                    folder: &folder,
+                    parent: parent.as_ref(),
+                    parent_chain: &chain,
+                    mover: &owner,
+                })
+                .await
+                .expect("move")
+        }
+    };
+    assert_eq!(
+        relocate(Some(&other.id), Vec::new()).await,
+        FolderMoveOutcome::Moved {
+            folders: 2,
+            rehomed: 0
+        },
+        "folder and its one descendant are rewritten"
+    );
     let c_after = repos.folders.find(&c.id).await.expect("find").expect("c");
     assert_eq!(c_after.ancestor_ids, vec![other.id.clone(), b.id.clone()]);
     let path = repos.folders.path(&c.id).await.expect("path");
     assert_eq!(path, format!("{}/{}/{}", other.name, b.name, c.name));
 
-    let cycle = repos
-        .folders
-        .move_to(&b.id, Some(&c.id))
-        .await
-        .expect("cycle move");
-    assert_eq!(cycle, 0, "a folder cannot move under its own descendant");
+    assert_eq!(
+        relocate(Some(&c.id), vec![other.id.clone(), b.id.clone()]).await,
+        FolderMoveOutcome::Refused,
+        "a folder cannot move under its own descendant"
+    );
+    assert_eq!(
+        relocate(Some(&other.id), vec![a.id.clone()]).await,
+        FolderMoveOutcome::DestinationChanged,
+        "a destination whose chain changed since it was authorized is refused"
+    );
 
-    let root = repos.folders.move_to(&b.id, None).await.expect("to root");
-    assert_eq!(root, 2);
+    assert_eq!(
+        relocate(None, Vec::new()).await,
+        FolderMoveOutcome::Moved {
+            folders: 2,
+            rehomed: 0
+        }
+    );
     assert_eq!(
         repos.folders.ancestors(&c.id).await.expect("ancestors"),
         vec![b.id.clone()]
@@ -239,7 +280,7 @@ async fn move_head_lets_exactly_one_writer_win() {
 }
 
 #[tokio::test]
-async fn list_visible_honours_folder_grants_owner_and_expiry() {
+async fn scoped_listings_honour_folder_grants_owner_and_expiry() {
     let repos = repos().await;
     let owner = user("owner");
     let reader = user("reader");
@@ -262,22 +303,29 @@ async fn list_visible_honours_folder_grants_owner_and_expiry() {
     let sales = SubjectPairs::default().with("group", group.clone());
     let (docs, _) = repos
         .documents
-        .list_visible(listing_by_name(&name), &sales, &reader)
+        .list_scoped(&listing_by_name(ListScope::Shared, &name), &sales, &reader)
         .await
         .expect("list");
-    assert_eq!(docs.iter().map(|d| &d.id).collect::<Vec<_>>(), vec![&doc]);
+    assert_eq!(
+        docs.iter().map(|d| &d.document.id).collect::<Vec<_>>(),
+        vec![&doc]
+    );
 
     let hr = SubjectPairs::default().with("group", unique("hr"));
     let (docs, _) = repos
         .documents
-        .list_visible(listing_by_name(&name), &hr, &reader)
+        .list_scoped(&listing_by_name(ListScope::Shared, &name), &hr, &reader)
         .await
         .expect("list");
     assert!(docs.is_empty());
 
     let (docs, _) = repos
         .documents
-        .list_visible(listing_by_name(&name), &SubjectPairs::default(), &owner)
+        .list_scoped(
+            &listing_by_name(ListScope::Mine, &name),
+            &SubjectPairs::default(),
+            &owner,
+        )
         .await
         .expect("list");
     assert_eq!(docs.len(), 1, "owner sees own documents without grants");
@@ -295,8 +343,8 @@ async fn list_visible_honours_folder_grants_owner_and_expiry() {
     .await;
     let (docs, _) = repos
         .documents
-        .list_visible(
-            listing_by_name(&name),
+        .list_scoped(
+            &listing_by_name(ListScope::Shared, &name),
             &SubjectPairs::default().with("group", stale),
             &reader,
         )
@@ -323,20 +371,29 @@ async fn effective_level_picks_the_highest_grant() {
         false,
     )
     .await;
+    let pool = test_db_pool().await;
+    let mut conn = pool
+        .write_pool()
+        .acquire()
+        .await
+        .expect("acquire connection");
     repos
         .grants
-        .insert(NewGrant {
-            target: GrantTarget::Document(doc.clone()),
-            subject_kind: "user".to_owned(),
-            subject_value: person.clone(),
-            subject_display: None,
-            access_level: AccessLevel::Share,
-            granted_by: owner.clone(),
-            valid_until: None,
-            trace_id: systemprompt_identifiers::TraceId::generate(),
-            reason: None,
-            via_agent: None,
-        })
+        .insert(
+            &mut conn,
+            NewGrant {
+                target: GrantTarget::Document(doc.clone()),
+                subject_kind: "user".to_owned(),
+                subject_value: person.clone(),
+                subject_display: None,
+                access_level: AccessLevel::Share,
+                granted_by: owner.clone(),
+                valid_until: None,
+                trace_id: systemprompt_identifiers::TraceId::generate(),
+                reason: None,
+                via_agent: None,
+            },
+        )
         .await
         .expect("grant");
     let subjects = SubjectPairs::default()
@@ -510,12 +567,47 @@ async fn edit_session_allows_one_open_per_document() {
             .await
             .expect("snap")
     );
+    let lease = CheckpointLease::generate();
+    assert!(matches!(
+        repos
+            .edit_sessions
+            .claim_checkpoint(&session.id, &lease, Duration::from_secs(60))
+            .await
+            .expect("claim"),
+        CheckpointClaim::Claimed(_)
+    ));
+    assert_eq!(
+        repos
+            .edit_sessions
+            .claim_checkpoint(
+                &session.id,
+                &CheckpointLease::generate(),
+                Duration::from_secs(60)
+            )
+            .await
+            .expect("second claim"),
+        CheckpointClaim::Busy
+    );
+    assert!(
+        !repos
+            .edit_sessions
+            .set_checkpoint(&session.id, &base, 0, &CheckpointLease::generate())
+            .await
+            .expect("ckpt without the lease")
+    );
     assert!(
         repos
             .edit_sessions
-            .set_checkpoint(&session.id, &base)
+            .set_checkpoint(&session.id, &base, 0, &lease)
             .await
             .expect("ckpt")
+    );
+    assert!(
+        repos
+            .edit_sessions
+            .release_checkpoint(&session.id, &lease)
+            .await
+            .expect("release")
     );
     let open = repos
         .edit_sessions
@@ -580,6 +672,10 @@ async fn text_search_respects_visibility() {
     let stranger = user("stranger");
     let doc = document(&repos, None, &owner, &unique("doc")).await;
     let rev = revision(&repos, &doc, None, &owner).await;
+    assert!(
+        cas(&repos, &doc, None, &rev).await,
+        "the indexed revision is the head"
+    );
     let word = format!("zeta{}", Uuid::new_v4().simple());
     repos
         .text_index
@@ -615,18 +711,20 @@ async fn keyset_cursor_round_trips_and_pages_without_duplicates() {
     let mut seen = Vec::new();
     let mut cursor = None;
     loop {
-        let listing = VisibleListing {
+        let listing = ScopedListing {
+            scope: ListScope::Mine,
             folder_id: None,
             query: Some(tag.clone()),
+            sort: ListSort::Updated,
             cursor,
             limit: 2,
         };
         let (page, next) = repos
             .documents
-            .list_visible(listing, &SubjectPairs::default(), &owner)
+            .list_scoped(&listing, &SubjectPairs::default(), &owner)
             .await
             .expect("page");
-        seen.extend(page.into_iter().map(|d| d.id));
+        seen.extend(page.into_iter().map(|d| d.document.id));
         let Some(next) = next else { break };
         let encoded = next.to_string();
         let decoded = encoded.parse().expect("cursor parses");

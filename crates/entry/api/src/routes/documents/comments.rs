@@ -13,10 +13,11 @@ use axum::{Extension, Json};
 use serde::Deserialize;
 use systemprompt_files::documents::models::{CommentAnchor, CommentRange};
 use systemprompt_files::documents::service::{
-    CommentRequest, DeleteCommentRequest, EditCommentRequest, ResolveCommentRequest,
+    CommentRequest, DeleteCommentRequest, EditCommentRequest, MentionOption, ResolveCommentRequest,
 };
 use systemprompt_identifiers::{DocumentCommentId, DocumentNodeId, DocumentRevisionId, UserId};
 use systemprompt_models::RequestContext;
+use systemprompt_models::notifications::Attention;
 use systemprompt_runtime::documents::views::{CommentItem, CommentOutput, comments_view};
 
 use super::DocumentsState;
@@ -48,12 +49,30 @@ pub(super) struct AnchorBody {
 }
 
 #[derive(Debug, Deserialize)]
+pub(super) struct MentionOptionBody {
+    user_id: UserId,
+    attention: Attention,
+}
+
+fn mention_options(options: Vec<MentionOptionBody>) -> Vec<MentionOption> {
+    options
+        .into_iter()
+        .map(|option| MentionOption {
+            user_id: option.user_id,
+            attention: option.attention,
+        })
+        .collect()
+}
+
+#[derive(Debug, Deserialize)]
 pub(super) struct CommentBody {
     #[serde(default)]
     anchor: Option<AnchorBody>,
     body: String,
     #[serde(default)]
     mentions: Vec<UserId>,
+    #[serde(default)]
+    mention_options: Vec<MentionOptionBody>,
     #[serde(default)]
     parent_id: Option<DocumentCommentId>,
 }
@@ -82,6 +101,7 @@ pub(super) async fn create(
         range: range.flatten(),
         body: body.body,
         mentions: body.mentions,
+        mention_options: mention_options(body.mention_options),
         parent_id: body.parent_id,
     };
     let comment = state
@@ -122,6 +142,8 @@ pub(super) struct EditBody {
     body: String,
     #[serde(default)]
     mentions: Vec<UserId>,
+    #[serde(default)]
+    mention_options: Vec<MentionOptionBody>,
 }
 
 pub(super) async fn edit(
@@ -136,6 +158,7 @@ pub(super) async fn edit(
         comment: DocumentCommentId::try_new(&comment)?,
         body: body.body,
         mentions: body.mentions,
+        mention_options: mention_options(body.mention_options),
     };
     let edited = state
         .service

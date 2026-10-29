@@ -7,6 +7,7 @@
 mod child;
 #[cfg(target_os = "windows")]
 mod config_repair;
+mod content_key;
 
 use std::path::{Path, PathBuf};
 
@@ -119,7 +120,7 @@ fn io(
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[must_use]
 pub(crate) struct ElevatedReceipt {
     steps: Vec<CompletedStep>,
@@ -145,9 +146,19 @@ impl ElevatedReceipt {
 }
 
 pub(crate) fn elevate_and_run(
+    gate: &crate::elevation_gate::ElevationGate,
     stage_dir: &Path,
     job: &ElevatedJob,
 ) -> Result<ElevatedReceipt, GatedChangeError> {
+    gate.single_flight(
+        &content_key::content_key(job)?,
+        || run_job(stage_dir, job),
+        |error| matches!(error, GatedChangeError::Refused(ApprovalRefusal::Declined)),
+        || ApprovalRefusal::Declined.into(),
+    )
+}
+
+fn run_job(stage_dir: &Path, job: &ElevatedJob) -> Result<ElevatedReceipt, GatedChangeError> {
     let stage = tempfile::Builder::new()
         .prefix("elevated-job-")
         .tempdir_in(stage_dir)?;

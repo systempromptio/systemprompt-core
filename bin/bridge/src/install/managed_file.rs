@@ -14,6 +14,7 @@
 use std::io;
 use std::path::Path;
 
+use crate::elevation_gate::ElevationGate;
 use crate::install::approval::GatedChangeError;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -23,6 +24,7 @@ pub enum ManagedWrite {
 }
 
 pub fn write_managed_file(
+    gate: &ElevationGate,
     path: &Path,
     bytes: &[u8],
     prompt: &str,
@@ -40,7 +42,7 @@ pub fn write_managed_file(
     match crate::fsutil::atomic_write_0644(path, bytes) {
         Ok(()) => Ok(ManagedWrite::Written),
         Err(e) if e.kind() == io::ErrorKind::PermissionDenied => {
-            write_elevated(path, bytes, prompt)?;
+            write_elevated(gate, path, bytes, prompt)?;
             crate::fsutil::verify_contents(path, bytes)?;
             Ok(ManagedWrite::Written)
         },
@@ -48,7 +50,11 @@ pub fn write_managed_file(
     }
 }
 
-pub fn remove_managed_file(path: &Path, prompt: &str) -> Result<bool, GatedChangeError> {
+pub fn remove_managed_file(
+    gate: &ElevationGate,
+    path: &Path,
+    prompt: &str,
+) -> Result<bool, GatedChangeError> {
     match std::fs::remove_file(path) {
         Ok(()) => {
             verify_absent(path)?;
@@ -56,7 +62,7 @@ pub fn remove_managed_file(path: &Path, prompt: &str) -> Result<bool, GatedChang
         },
         Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(false),
         Err(e) if e.kind() == io::ErrorKind::PermissionDenied => {
-            remove_elevated(path, prompt)?;
+            remove_elevated(gate, path, prompt)?;
             verify_absent(path)?;
             Ok(true)
         },
@@ -65,7 +71,12 @@ pub fn remove_managed_file(path: &Path, prompt: &str) -> Result<bool, GatedChang
 }
 
 #[cfg(target_os = "macos")]
-fn write_elevated(path: &Path, bytes: &[u8], prompt: &str) -> Result<(), GatedChangeError> {
+fn write_elevated(
+    gate: &ElevationGate,
+    path: &Path,
+    bytes: &[u8],
+    prompt: &str,
+) -> Result<(), GatedChangeError> {
     let staging = tempfile::Builder::new()
         .prefix("systemprompt-managed-")
         .tempdir()?;
@@ -75,22 +86,33 @@ fn write_elevated(path: &Path, bytes: &[u8], prompt: &str) -> Result<(), GatedCh
     crate::fsutil::atomic_write_0600(&staged, bytes)?;
     let dir = path.parent().unwrap_or(path);
     let script = crate::install::elevation_script::write_managed_file_script(dir, &staged, path);
-    run(&script, prompt)
+    run(gate, &script, prompt)
 }
 
 #[cfg(target_os = "macos")]
-fn remove_elevated(path: &Path, prompt: &str) -> Result<(), GatedChangeError> {
+fn remove_elevated(
+    gate: &ElevationGate,
+    path: &Path,
+    prompt: &str,
+) -> Result<(), GatedChangeError> {
     let script = crate::install::elevation_script::remove_managed_file_script(path);
-    run(&script, prompt)
+    run(gate, &script, prompt)
 }
 
 #[cfg(target_os = "macos")]
-fn run(script: &str, prompt: &str) -> Result<(), GatedChangeError> {
-    Ok(crate::install::elevate::run_privileged(script, prompt)?)
+fn run(gate: &ElevationGate, script: &str, prompt: &str) -> Result<(), GatedChangeError> {
+    Ok(crate::install::elevate::run_privileged(
+        gate, script, prompt,
+    )?)
 }
 
 #[cfg(target_os = "windows")]
-fn write_elevated(path: &Path, bytes: &[u8], _prompt: &str) -> Result<(), GatedChangeError> {
+fn write_elevated(
+    gate: &ElevationGate,
+    path: &Path,
+    bytes: &[u8],
+    _prompt: &str,
+) -> Result<(), GatedChangeError> {
     use crate::install::elevated_job::{ElevatedJob, ManagedFileJob};
     let staging = tempfile::Builder::new()
         .prefix("systemprompt-managed-")
@@ -110,13 +132,17 @@ fn write_elevated(path: &Path, bytes: &[u8], _prompt: &str) -> Result<(), GatedC
         private_dirs: Vec::new(),
     };
     Ok(
-        crate::install::elevated_job::elevate_and_run(staging.path(), &job)?
+        crate::install::elevated_job::elevate_and_run(gate, staging.path(), &job)?
             .require("install", path)?,
     )
 }
 
 #[cfg(target_os = "windows")]
-fn remove_elevated(path: &Path, _prompt: &str) -> Result<(), GatedChangeError> {
+fn remove_elevated(
+    gate: &ElevationGate,
+    path: &Path,
+    _prompt: &str,
+) -> Result<(), GatedChangeError> {
     use crate::install::elevated_job::ElevatedJob;
     let staging = tempfile::Builder::new()
         .prefix("systemprompt-managed-")
@@ -131,18 +157,27 @@ fn remove_elevated(path: &Path, _prompt: &str) -> Result<(), GatedChangeError> {
         private_dirs: Vec::new(),
     };
     Ok(
-        crate::install::elevated_job::elevate_and_run(staging.path(), &job)?
+        crate::install::elevated_job::elevate_and_run(gate, staging.path(), &job)?
             .require("remove", path)?,
     )
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-fn write_elevated(path: &Path, _bytes: &[u8], _prompt: &str) -> Result<(), GatedChangeError> {
+fn write_elevated(
+    _gate: &ElevationGate,
+    path: &Path,
+    _bytes: &[u8],
+    _prompt: &str,
+) -> Result<(), GatedChangeError> {
     Err(root_required(path).into())
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-fn remove_elevated(path: &Path, _prompt: &str) -> Result<(), GatedChangeError> {
+fn remove_elevated(
+    _gate: &ElevationGate,
+    path: &Path,
+    _prompt: &str,
+) -> Result<(), GatedChangeError> {
     Err(root_required(path).into())
 }
 

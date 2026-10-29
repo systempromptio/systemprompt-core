@@ -30,6 +30,7 @@ mod marketplace_mirror;
 mod marketplace_opencode;
 pub mod marketplace_publication;
 pub mod mcp;
+pub mod notifications;
 pub mod plugin;
 pub mod registry;
 pub mod root;
@@ -78,11 +79,11 @@ pub use enforcement::{EnforcementMode, UnknownEnforcementMode};
 pub use external_agent::{ExternalAgentConfig, ExternalAgentKind};
 pub use frontmatter::{Frontmatter, split_frontmatter, strip_frontmatter};
 pub use gateway::{
-    BridgeReleasesSpec, GatewayConfig, GatewayConfigSpec, GatewayProfileError, GatewayResult,
-    GatewayRoute, GatewayState, ModelGlobs, OverrideRuleAction, QuotaFaultMode, ResponseFormatKind,
-    RouteAlias, RouteDeployment, RouteMatch, RouteRequirements, SelectionStrategy,
-    SystemPromptRule, WeightedDeployment, estimate_input_tokens, slugify_pattern,
-    synthesize_route_id,
+    BridgeBrandingSpec, BridgeInstanceSpec, BridgeReleasesSpec, GatewayConfig, GatewayConfigSpec,
+    GatewayProfileError, GatewayResult, GatewayRoute, GatewayState, ModelGlobs, OverrideRuleAction,
+    QuotaFaultMode, ResponseFormatKind, RouteAlias, RouteDeployment, RouteMatch, RouteRequirements,
+    SelectionStrategy, SystemPromptRule, WeightedDeployment, estimate_input_tokens,
+    slugify_pattern, synthesize_route_id,
 };
 pub use hooks::{
     DiskHookConfig, HOOK_CONFIG_FILENAME, HookAction, HookEventsConfig, HookMatcher, HookType,

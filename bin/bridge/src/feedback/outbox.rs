@@ -11,10 +11,13 @@ use std::path::{Path, PathBuf};
 use systemprompt_identifiers::{DeviceId, UserId};
 use systemprompt_models::feedback::receipts::{ConsumerReceiptRequest, ConsumerReceiptResponse};
 
+#[path = "outbox_delivery.rs"]
+mod delivery_impl;
 #[path = "outbox_installations.rs"]
 mod installations_impl;
 #[path = "outbox_sessions.rs"]
 mod sessions_impl;
+use delivery_impl::refused_anywhere;
 pub use installations_impl::PendingInstallation;
 
 const MAX_ENTRIES: usize = 512;
@@ -37,6 +40,8 @@ pub struct Entry {
     pub attempts: u32,
     pub next_attempt: DateTime<Utc>,
     pub session_bindings: BTreeMap<String, bool>,
+    #[serde(default)]
+    pub refused_sessions: BTreeMap<String, u16>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -147,9 +152,10 @@ impl Outbox {
                 }
                 request.observed_at = observed_at;
                 existing.request = request;
+                // Why: a re-observation is not a delivery; keeping `attempts`
+                // keeps the backoff, so a receipt re-read every sync cannot
+                // reset itself into a hot retry loop.
                 existing.delivery = Delivery::Unacknowledged;
-                existing.attempts = 0;
-                existing.next_attempt = Utc::now();
                 return Ok(key);
             }
             if state.entries.len() >= MAX_ENTRIES {
@@ -182,7 +188,7 @@ impl Outbox {
                 }
                 let (host, session): (systemprompt_models::feedback::EvaluatorClient, String) =
                     serde_json::from_str(session_key)?;
-                if host == request.host {
+                if host == request.host && !refused_anywhere(state, host, &session) {
                     session_bindings.insert(session, false);
                 }
             }
@@ -194,6 +200,7 @@ impl Outbox {
                     attempts: 0,
                     next_attempt: Utc::now(),
                     session_bindings,
+                    refused_sessions: BTreeMap::new(),
                 },
             );
             Ok(key)
@@ -209,50 +216,10 @@ impl Outbox {
                 .collect())
         })
     }
+}
 
-    // Why: a receipt the gateway has already acknowledged for this exact
-    // publication is evidence on file; re-planning it on every sync is one
-    // bundle round-trip per skill per host for nothing.
-    pub fn has_acknowledged_receipt(
-        &self,
-        host: systemprompt_models::feedback::EvaluatorClient,
-        publication: &systemprompt_models::bridge::manifest::ManagedPublicationRef,
-    ) -> Result<bool> {
-        self.read_locked(|state| {
-            Ok(state.entries.values().any(|entry| {
-                matches!(entry.delivery, Delivery::Acknowledged(_))
-                    && entry.request.host == host
-                    && entry.request.publication_id == publication.publication_id
-                    && entry.request.revision_id == publication.revision_id
-                    && entry.request.generation == publication.generation
-                    && entry.request.bundle_digest.as_str() == publication.bundle_digest.as_str()
-            }))
-        })
-    }
-
-    pub fn delivery(
-        &self,
-        key: &str,
-        result: std::result::Result<ConsumerReceiptResponse, u16>,
-    ) -> Result<()> {
-        self.mutate(|state| {
-            let entry = state.entries.get_mut(key).ok_or(FeedbackError::Scope)?;
-            if matches!(entry.delivery, Delivery::Acknowledged(_)) {
-                return Ok(());
-            }
-            entry.attempts = entry.attempts.saturating_add(1);
-            entry.delivery = match result {
-                Ok(response) => Delivery::Acknowledged(response),
-                Err(409) => Delivery::Conflict,
-                Err(401 | 403) => Delivery::CredentialRejected,
-                Err(status @ (400 | 404 | 422)) => Delivery::Rejected(status),
-                Err(_) => Delivery::Unacknowledged,
-            };
-            let backoff = 2i64.pow(entry.attempts.min(10)).min(3600);
-            entry.next_attempt = Utc::now() + chrono::Duration::seconds(backoff);
-            Ok(())
-        })
-    }
+pub(super) fn retry_after(attempts: u32) -> chrono::Duration {
+    chrono::Duration::seconds(2i64.pow(attempts.min(10)).min(3600))
 }
 
 fn key(request: &ConsumerReceiptRequest) -> Result<String> {

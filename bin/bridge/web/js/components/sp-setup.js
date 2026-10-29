@@ -6,7 +6,7 @@ import { notifyErr } from "/assets/js/utils/notify.js";
 import { stepsFromSnapshot } from "/assets/js/utils/setup-steps.js";
 import { clearSettleTimer, trackSettle, retrySettle } from "/assets/js/utils/setup-settle.js";
 import { renderSetupHeading, renderSetupFinalizing, renderSetupAgentsStep, renderSetupSettleNotice, renderSetupUpdateNotice } from "/assets/js/components/setup-sections.js";
-import { renderSetupBrand } from "/assets/js/components/setup-brand.js";
+import { renderSetupBrand, appNameOf } from "/assets/js/components/setup-brand.js";
 import { maybeCheckForUpdate, installUpdate, restartForUpdate } from "/assets/js/utils/update-check.js";
 import "/assets/js/components/sp-setup-gateway.js";
 import "/assets/js/components/sp-setup-agents.js";
@@ -107,8 +107,17 @@ export class SpSetup extends SpElement {
   afterRender() {
     document.body.dataset.setupStep = this.step;
     const slot = this.querySelector("[data-logo-slot]");
-    if (slot && this._logoFragment && !slot.firstElementChild) {
-      slot.append(this._logoFragment.cloneNode(true));
+    const logoUrl = this.snapshot && this.snapshot.logo_url;
+    if (slot && !slot.firstElementChild) {
+      if (logoUrl) {
+        const img = document.createElement("img");
+        img.src = logoUrl;
+        img.alt = appNameOf(this);
+        img.className = "sp-setup__logo-img";
+        slot.append(img);
+      } else if (this._logoFragment) {
+        slot.append(this._logoFragment.cloneNode(true));
+      }
     }
   }
 

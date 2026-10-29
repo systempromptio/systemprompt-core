@@ -201,12 +201,13 @@ pub fn uninstall(
         removal => removal,
     };
 
-    let managed_profile = match managed_profile::remove(&bridge.policy_store) {
-        ManagedProfileOutcome::RemoveFailed(e) => {
-            return Err(InstallError::ManagedProfileRemove(e));
-        },
-        outcome => outcome,
-    };
+    let managed_profile =
+        match managed_profile::remove(&bridge.policy_store, &bridge.elevation_gate) {
+            ManagedProfileOutcome::RemoveFailed(e) => {
+                return Err(InstallError::ManagedProfileRemove(e));
+            },
+            outcome => outcome,
+        };
 
     let credentials = if purge {
         match crate::auth::setup::logout(bridge.secrets()) {
@@ -226,6 +227,16 @@ pub fn uninstall(
         schedule,
         host_warnings: Vec::new(),
     })
+}
+
+pub fn remove_synced_plugins() -> Result<Vec<String>, InstallError> {
+    let location = paths::org_plugins_effective().ok_or(InstallError::OrgPluginsUnresolvable)?;
+    let metadata = paths::bridge_metadata_dir().ok_or(InstallError::MetadataUnresolvable)?;
+    let owned = crate::last_sync::read_last_sync(&metadata.join(paths::LAST_SYNC_SENTINEL))
+        .map_err(InstallError::LastSync)?
+        .map(|state| state.present_plugins)
+        .unwrap_or_default();
+    purge_plugin_dirs(&location.path, &owned)
 }
 
 // Why: only the plugin directories the last sync recorded are the bridge's to

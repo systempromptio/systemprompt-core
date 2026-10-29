@@ -26,6 +26,8 @@ pub use ownership::EventsOwnerReassignment;
 const PRUNE_BATCH_ROWS: i64 = 5000;
 
 pub(super) struct OutboxRow {
+    pub id: EventOutboxId,
+    pub created_at: chrono::DateTime<chrono::Utc>,
     pub channel: String,
     pub user_id: UserId,
     pub origin_instance_id: InstanceId,
@@ -87,6 +89,8 @@ impl EventOutboxRepository {
             OutboxRow,
             r#"
             SELECT
+                id as "id: EventOutboxId",
+                created_at,
                 channel,
                 user_id as "user_id: UserId",
                 payload,
@@ -99,6 +103,41 @@ impl EventOutboxRepository {
         )
         .fetch_optional(&self.pool)
         .await
+    }
+
+    pub(super) async fn list_since(
+        &self,
+        since: chrono::DateTime<chrono::Utc>,
+        limit: i64,
+    ) -> Result<Vec<OutboxRow>, sqlx::Error> {
+        sqlx::query_as!(
+            OutboxRow,
+            r#"
+            SELECT
+                id as "id: EventOutboxId",
+                created_at,
+                channel,
+                user_id as "user_id: UserId",
+                payload,
+                origin_instance_id as "origin_instance_id: InstanceId",
+                deliver_to_origin
+            FROM event_outbox
+            WHERE created_at >= $1 AND (origin_instance_id <> $2 OR deliver_to_origin)
+            ORDER BY created_at, id
+            LIMIT $3
+            "#,
+            since,
+            self.instance_id.as_str(),
+            limit,
+        )
+        .fetch_all(&self.pool)
+        .await
+    }
+
+    pub(super) async fn now(&self) -> Result<chrono::DateTime<chrono::Utc>, sqlx::Error> {
+        sqlx::query_scalar!(r#"SELECT now() AS "now!""#)
+            .fetch_one(&self.pool)
+            .await
     }
 
     pub(super) async fn prune(

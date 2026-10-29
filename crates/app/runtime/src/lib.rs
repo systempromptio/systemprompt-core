@@ -27,7 +27,10 @@ mod context_traits;
 mod database_context;
 pub mod documents;
 mod error;
+pub mod issues;
 pub mod managed;
+#[cfg(feature = "notifications")]
+pub mod notifications;
 pub mod schema_currency;
 pub mod services_reconcile;
 mod startup_validation;
@@ -35,6 +38,8 @@ pub mod storage;
 pub mod trace;
 mod validation;
 
+#[cfg(feature = "notifications")]
+pub use builder::notifications::{NotificationsInputs, core_notifications, notification_sink};
 pub use builder::{AppContextBuilder, discover_vertex_models, owner_reassignments};
 pub use context::{AppContext, ConfigPlane, DataPlane, Plugins, ShutdownRequest, Subsystems};
 pub use database_context::DatabaseContext;

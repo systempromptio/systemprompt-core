@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id::text AS \"id!\" FROM document_folders\n               WHERE (id = $1::text::uuid OR $1::text::uuid = ANY(ancestor_ids))\n                 AND deleted_at IS NULL\n               ORDER BY id FOR UPDATE",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "dec5eab8298c30cea24ff29239ab281577b036abfeb9602a92f7bfcf023e3d91"
+}

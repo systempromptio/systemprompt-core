@@ -5,11 +5,12 @@
 
 #![cfg(target_os = "windows")]
 
+mod approval;
 mod org_plugins;
 mod writer;
 
+use self::approval::{Approver, install_needing_approval};
 use self::org_plugins::require_org_plugins_provisioned;
-use self::writer::install_through_writer;
 use super::shared::{DESKTOP_DOMAIN, DomainRead, ProfileGenInputs};
 use crate::config::store::{
     PolicyWrite, clear_managed_claude_policy, machine_claude_policy_keys, managed_policy_store,
@@ -114,12 +115,18 @@ pub(super) fn write_profile(inputs: &ProfileGenInputs) -> Result<GeneratedProfil
     })
 }
 
-pub(super) fn install_profile(path: &str) -> Result<ProfileInstalled, HostAppError> {
-    install_profile_with(path, Attendance::Attended)
+pub(super) fn install_profile(
+    path: &str,
+    gate: &crate::elevation_gate::ElevationGate,
+) -> Result<ProfileInstalled, HostAppError> {
+    install_profile_with(path, Attendance::Attended, gate)
 }
 
-pub(super) fn install_profile_unattended(path: &str) -> Result<ProfileInstalled, HostAppError> {
-    install_profile_with(path, Attendance::Unattended)
+pub(super) fn install_profile_unattended(
+    path: &str,
+    gate: &crate::elevation_gate::ElevationGate,
+) -> Result<ProfileInstalled, HostAppError> {
+    install_profile_with(path, Attendance::Unattended, gate)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -131,6 +138,7 @@ enum Attendance {
 fn install_profile_with(
     path: &str,
     attendance: Attendance,
+    gate: &crate::elevation_gate::ElevationGate,
 ) -> Result<ProfileInstalled, HostAppError> {
     let elevated = winproc::is_elevated();
     tracing::info!(path, elevated, "installing Claude Desktop profile");
@@ -148,7 +156,7 @@ fn install_profile_with(
             return install_needing_approval(
                 path,
                 &entries,
-                attendance,
+                Approver { attendance, gate },
                 "the machine policy holds other values; replacing it needs administrator \
                  approval — use Repair",
                 &differing,
@@ -161,7 +169,7 @@ fn install_profile_with(
             return install_needing_approval(
                 path,
                 &entries,
-                attendance,
+                Approver { attendance, gate },
                 "writing the Claude policy needs administrator approval — use Update as \
                  administrator",
                 &[],
@@ -218,52 +226,6 @@ fn log_policy_write(outcome: PolicyWrite) {
             tracing::info!("HKLM already holds this policy; per-user copy not written");
         },
     }
-}
-
-fn install_needing_approval(
-    path: &str,
-    entries: &[(String, String)],
-    attendance: Attendance,
-    reason: &'static str,
-    differing: &[String],
-) -> Result<ProfileInstalled, HostAppError> {
-    match install_through_writer(entries) {
-        Ok(Some(installed)) => return Ok(installed),
-        Ok(None) => {},
-        Err(e) => tracing::warn!(
-            path,
-            error = %e,
-            "the elevated policy writer did not apply the profile; asking for approval"
-        ),
-    }
-    if attendance == Attendance::Unattended {
-        tracing::warn!(path, differing = ?differing, reason, "an unattended repair cannot elevate");
-        return Err(ApprovalRefusal::NeedsPrompt { reason }.into());
-    }
-    tracing::warn!(path, differing = ?differing, reason, "requesting administrator approval");
-    install_profile_elevated(path)
-}
-
-fn install_profile_elevated(path: &str) -> Result<ProfileInstalled, HostAppError> {
-    let org = crate::install::elevated_job::ElevatedJob::org_plugins_for_current_user()?;
-    let stage_dir = std::env::temp_dir().join(crate::brand::brand().working_dir_name);
-    std::fs::create_dir_all(&stage_dir)?;
-    let job = crate::install::elevated_job::ElevatedJob {
-        reg_path: Some(path.to_owned()),
-        org_plugins: Some(org),
-        clear_values: Vec::new(),
-        bridge_values: Vec::new(),
-        managed_files: Vec::new(),
-        remove_files: Vec::new(),
-        private_dirs: Vec::new(),
-    };
-    let receipt = crate::install::elevated_job::elevate_and_run(&stage_dir, &job)?;
-    receipt.require("policy", std::path::Path::new(path))?;
-    tracing::info!(
-        path,
-        "Claude Desktop profile installed through an elevated write"
-    );
-    Ok(ProfileInstalled::ok())
 }
 
 pub(super) fn remove_profile() -> Result<ProfileRemoval, HostAppError> {

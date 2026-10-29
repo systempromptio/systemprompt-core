@@ -30,7 +30,10 @@ impl Outbox {
         session: &str,
     ) -> Result<()> {
         self.mutate(|state| {
-            let entry = state.entries.get_mut(key).ok_or(FeedbackError::Scope)?;
+            let entry = state
+                .entries
+                .get_mut(key)
+                .ok_or(FeedbackError::EntryMissing)?;
             let verified = match &entry.delivery {
                 Delivery::Acknowledged(response) => {
                     &response.receipt_id == receipt && response.fully_verified
@@ -47,9 +50,34 @@ impl Outbox {
             let bound = entry
                 .session_bindings
                 .get_mut(session)
-                .ok_or(FeedbackError::Scope)?;
+                .ok_or(FeedbackError::EntryMissing)?;
             *bound = true;
+            entry.attempts = 0;
             compact_completed(state)?;
+            Ok(())
+        })
+    }
+
+    pub fn refuse_session(&self, key: &str, session: &str, status: u16) -> Result<()> {
+        self.mutate(|state| {
+            let entry = state
+                .entries
+                .get_mut(key)
+                .ok_or(FeedbackError::EntryMissing)?;
+            entry.session_bindings.remove(session);
+            entry.refused_sessions.insert(session.to_owned(), status);
+            compact_completed(state)
+        })
+    }
+
+    pub fn defer_session_bindings(&self, key: &str) -> Result<()> {
+        self.mutate(|state| {
+            let entry = state
+                .entries
+                .get_mut(key)
+                .ok_or(FeedbackError::EntryMissing)?;
+            entry.attempts = entry.attempts.saturating_add(1);
+            entry.next_attempt = chrono::Utc::now() + super::retry_after(entry.attempts);
             Ok(())
         })
     }
@@ -128,6 +156,9 @@ fn bind_session(
             && !entry.session_bindings.contains_key(session)
         {
             return Err(FeedbackError::Full);
+        }
+        if entry.refused_sessions.contains_key(session) {
+            continue;
         }
         publications.push(entry.request.publication_id.clone());
         entry

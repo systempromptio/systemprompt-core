@@ -99,7 +99,10 @@ pub fn device_link_url(base: &str, callback: Option<&str>) -> String {
 }
 
 fn build_auth_url(base: &str, callback: Option<&str>) -> String {
-    let path = crate::brand::brand().device_link_path;
+    let path = ValidatedUrl::try_new(base).map_or_else(
+        |_| crate::brand::brand().device_link_path.to_owned(),
+        |gateway| crate::gateway::discovery::device_link_path_for(&gateway),
+    );
     let base = base.trim_end_matches('/');
     callback.map_or_else(
         || format!("{base}{path}"),

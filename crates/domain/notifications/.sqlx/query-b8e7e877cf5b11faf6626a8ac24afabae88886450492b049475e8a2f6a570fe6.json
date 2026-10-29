@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM notification_delivery_failures WHERE id IN (\n                 SELECT id FROM notification_delivery_failures WHERE at < $1 LIMIT $2)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "b8e7e877cf5b11faf6626a8ac24afabae88886450492b049475e8a2f6a570fe6"
+}

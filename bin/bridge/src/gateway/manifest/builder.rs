@@ -5,6 +5,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_models::bridge::host::HostKind;
+use systemprompt_models::bridge::instance::{BridgeVersionWindow, InstanceBranding};
 
 use super::{
     AgentEntry, ApiKeyId, ArtifactEntry, AutoUpdatePolicy, HookEntry,
@@ -34,6 +35,9 @@ pub struct SignedManifestBuilder {
     desktop_policy: systemprompt_models::bridge::desktop_policy::DesktopPolicy,
     auto_update: AutoUpdatePolicy,
     marketplaces: Vec<ManifestMarketplace>,
+    allow_user_disable: bool,
+    branding: Option<InstanceBranding>,
+    bridge_versions: Option<BridgeVersionWindow>,
 }
 
 impl SignedManifestBuilder {
@@ -65,6 +69,9 @@ impl SignedManifestBuilder {
             desktop_policy: systemprompt_models::bridge::desktop_policy::DesktopPolicy::default(),
             auto_update: AutoUpdatePolicy::default(),
             marketplaces: Vec::new(),
+            allow_user_disable: false,
+            branding: None,
+            bridge_versions: None,
         }
     }
 
@@ -162,6 +169,24 @@ impl SignedManifestBuilder {
     }
 
     #[must_use]
+    pub const fn with_allow_user_disable(mut self, allow: bool) -> Self {
+        self.allow_user_disable = allow;
+        self
+    }
+
+    #[must_use]
+    pub fn with_branding(mut self, branding: InstanceBranding) -> Self {
+        self.branding = Some(branding);
+        self
+    }
+
+    #[must_use]
+    pub fn with_bridge_versions(mut self, window: BridgeVersionWindow) -> Self {
+        self.bridge_versions = Some(window);
+        self
+    }
+
+    #[must_use]
     pub fn build(self) -> SignedManifest {
         SignedManifest {
             min_schema_version: MANIFEST_INLINE_SCHEMA_VERSION,
@@ -185,6 +210,9 @@ impl SignedManifestBuilder {
             allow_claude_ai_connectors: self.allow_claude_ai_connectors,
             desktop_policy: self.desktop_policy,
             auto_update: self.auto_update,
+            allow_user_disable: self.allow_user_disable,
+            branding: self.branding,
+            bridge_versions: self.bridge_versions,
             diagnostics: Vec::new(),
             marketplaces: self.marketplaces,
         }

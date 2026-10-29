@@ -4,12 +4,17 @@
 //! The channel is server-sent events gated on view access. It opens with
 //! `document.live.ready` and the awareness states still alive, then carries
 //! every event published on the document's topic: collab updates, awareness,
-//! comments, revisions, locks and presence. Each collab update's SSE id is
-//! `<session>:<seq>`; a client that reconnects with that `Last-Event-ID`
-//! header (or `?last_event_id=`) first receives the updates it missed, or a
-//! `document.live.resync` asking it to re-join when the log was compacted or
-//! the session changed. Access is re-checked every 30 s; a revoked caller
-//! receives `document.live.closed` and the stream ends.
+//! comments, revisions, locks and presence. The channel subscribes before
+//! it reads the session, and the ready event carries the last sequence
+//! number the session had logged then. Each collab update's SSE id is
+//! `<session>:<seq>` where `seq` is the highest number below which the
+//! channel delivered every update, so an update relayed out of order is
+//! never skipped by a resume. A client that reconnects with that
+//! `Last-Event-ID` header (or `?last_event_id=`) first receives the updates
+//! after it, or a `document.live.resync` asking it to re-join when the log
+//! was compacted, the session changed, the channel lagged or the
+//! cross-replica relay lost events. Access is re-checked every 30 s; a
+//! revoked caller receives `document.live.closed` and the stream ends.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -24,11 +29,12 @@ use axum::response::{IntoResponse, Response};
 use axum::{Extension, Json};
 use futures_util::Stream;
 use serde::{Deserialize, Serialize};
-use systemprompt_events::{TopicEvent, standard_keep_alive};
+use systemprompt_events::{RELAY_LOST_EVENT, TopicEvent, standard_keep_alive};
 use systemprompt_files::documents::agents::act_as;
 use systemprompt_files::documents::events::live_topic;
-use systemprompt_files::documents::live::{LiveOpen, LiveReplay, ResumeToken};
-use systemprompt_identifiers::DocumentEditSessionId;
+use systemprompt_files::documents::live::{
+    LiveCursor, LiveDelivery, LiveOpen, LiveReplay, ResumeToken,
+};
 use systemprompt_models::RequestContext;
 use systemprompt_models::documents::{
     AwarenessState, DocumentAwarenessEvent, DocumentCollabUpdateEvent, DocumentLiveClosedEvent,
@@ -68,17 +74,17 @@ pub(super) async fn live(
 ) -> DocumentsResult<Response> {
     let who = caller(&state, &req_ctx).await?;
     let document = document_id(&id)?;
-    let open = state
-        .service
-        .live_open(&who.user, &document, &who.trace)
-        .await?;
     let topic = state
         .service
         .events()
         .router()
         .broadcasters()
         .topics
-        .subscribe(&live_topic(&document));
+        .subscribe_resumable(&live_topic(&document));
+    let open = state
+        .service
+        .live_open(&who.user, &document, &who.trace)
+        .await?;
     let resume = headers
         .get("last-event-id")
         .and_then(|value| value.to_str().ok())
@@ -90,7 +96,8 @@ pub(super) async fn live(
         Some(token) => Some(state.service.live_replay(&open, token).await?),
         None => None,
     };
-    let stream = channel(state, who, open, replay, topic);
+    let delivered = LiveCursor::start(&open, resume.as_ref(), replay.as_ref());
+    let stream = channel(state, who, open, (replay, delivered), topic);
     Ok(Sse::new(stream)
         .keep_alive(standard_keep_alive())
         .into_response())
@@ -117,12 +124,11 @@ fn channel(
     state: DocumentsState,
     who: Caller,
     open: LiveOpen,
-    replay: Option<LiveReplay>,
+    (replay, mut delivered): (Option<LiveReplay>, LiveCursor),
     mut topic: tokio::sync::broadcast::Receiver<TopicEvent>,
 ) -> impl Stream<Item = Result<Event, Infallible>> {
     async_stream::stream! {
         let document = open.document.id.clone();
-        let mut seen: Option<(DocumentEditSessionId, i64)> = None;
         let mut replayed = 0;
         let mut resync = None;
         let mut updates = Vec::new();
@@ -134,6 +140,7 @@ fn channel(
         yield Ok(frame(DocumentLiveReadyEvent::NAME, None, &DocumentLiveReadyEvent {
             document_id: document.clone(),
             edit_session_id: open.edit_session.clone(),
+            seq: open.seq,
             replayed: updates.len(),
         }));
         if let Some(reason) = resync {
@@ -141,8 +148,8 @@ fn channel(
         }
         for update in updates {
             replayed += 1;
-            seen = Some((update.edit_session_id.clone(), update.seq));
-            yield Ok(update_frame(&update));
+            let id = delivered.replayed(&update.edit_session_id, update.seq);
+            yield Ok(frame(DocumentCollabUpdateEvent::NAME, Some(id), &update));
         }
         tracing::debug!(document_id = %document, replayed, "Live channel opened");
         for aware in &open.awareness {
@@ -156,9 +163,12 @@ fn channel(
                 _ = recheck.tick() => Step::Recheck,
             };
             match step {
+                Step::Received(Ok(event)) if event.name == RELAY_LOST_EVENT => {
+                    yield Ok(resync_frame(&open, LiveResyncReason::RelayLost));
+                },
                 Step::Received(Ok(event)) => {
-                    if !already_seen(&event, seen.as_ref()) {
-                        yield Ok(topic_frame(&event));
+                    if let LiveDelivery::Deliver(id) = delivered.live(&event) {
+                        yield Ok(frame(&event.name, id, &event.value));
                     }
                 },
                 Step::Received(Err(RecvError::Lagged(_))) => {
@@ -183,15 +193,6 @@ fn channel(
     }
 }
 
-fn already_seen(event: &TopicEvent, seen: Option<&(DocumentEditSessionId, i64)>) -> bool {
-    let Some((session, seq)) = seen else {
-        return false;
-    };
-    event.name == DocumentCollabUpdateEvent::NAME
-        && serde_json::from_value::<DocumentCollabUpdateEvent>(event.value.clone())
-            .is_ok_and(|update| update.edit_session_id == *session && update.seq <= *seq)
-}
-
 fn resync_frame(open: &LiveOpen, reason: LiveResyncReason) -> Event {
     frame(
         DocumentLiveResyncEvent::NAME,
@@ -201,15 +202,6 @@ fn resync_frame(open: &LiveOpen, reason: LiveResyncReason) -> Event {
             reason,
         },
     )
-}
-
-fn update_frame(update: &DocumentCollabUpdateEvent) -> Event {
-    let id = format!("{}:{}", update.edit_session_id, update.seq);
-    frame(DocumentCollabUpdateEvent::NAME, Some(id), update)
-}
-
-fn topic_frame(event: &TopicEvent) -> Event {
-    frame(&event.name, event.resume_id.clone(), &event.value)
 }
 
 fn frame<T: Serialize>(name: &str, id: Option<String>, payload: &T) -> Event {

@@ -6,7 +6,12 @@
 use super::super::state::{AppStateSnapshot, GatewayStatus};
 
 pub(super) fn tooltip(snap: &AppStateSnapshot) -> String {
-    format!("{}\n{}", format_identity(snap), format_last_sync(snap))
+    format!(
+        "{}\n{}\n{}",
+        snap.display.app_name,
+        format_identity(snap),
+        format_last_sync(snap)
+    )
 }
 
 pub(super) const fn is_signed_in(snap: &AppStateSnapshot) -> bool {

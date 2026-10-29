@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO notification_subscriptions\n                           (subject, target_kind, target_id, attention_ceiling, quiet_hours,\n                            digest, source, created_by)\n                       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)\n                       ON CONFLICT (subject, target_kind, target_id) WHERE target_kind IS NOT NULL\n                       DO UPDATE SET attention_ceiling = EXCLUDED.attention_ceiling,\n                                     quiet_hours = EXCLUDED.quiet_hours,\n                                     digest = EXCLUDED.digest\n                       WHERE (notification_subscriptions.source LIKE 'code:%')\n                           = (EXCLUDED.source LIKE 'code:%')\n                       RETURNING id::text AS \"id!: NotificationSubscriptionId\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!: NotificationSubscriptionId",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Jsonb",
+        "Jsonb",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "0fe9e2f41e9cac64311bb472afdc7b161487ef5b0605024e4327e91186a2f488"
+}

@@ -6,6 +6,7 @@
 
 mod bridge;
 mod bridge_handle;
+mod bridge_replay;
 mod broadcaster;
 pub mod cache_invalidation;
 pub mod durable;
@@ -25,6 +26,7 @@ pub use cache_invalidation::{
 };
 pub use repository::EventsOwnerReassignment;
 pub use routing::{
-    BroadcasterConnections, EventBroadcasters, EventRouter, OUTBOX_CHANNEL, OutboxChannel,
+    BroadcasterConnections, EventBroadcasters, EventRouter, NOTIFICATION_FACTS_CHANNEL,
+    OUTBOX_CHANNEL, OutboxChannel,
 };
-pub use topics::{TOPIC_BUFFER, TopicBroadcaster, TopicEvent};
+pub use topics::{RELAY_LOST_EVENT, TOPIC_BUFFER, TopicBroadcaster, TopicEvent, relay_lost_event};

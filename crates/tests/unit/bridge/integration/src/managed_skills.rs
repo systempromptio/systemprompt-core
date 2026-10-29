@@ -119,6 +119,9 @@ fn manifest(skills: Vec<SkillEntry>) -> SignedManifest {
         auto_update: Default::default(),
         diagnostics: Vec::new(),
         marketplaces: Vec::new(),
+        allow_user_disable: false,
+        branding: None,
+        bridge_versions: None,
     }
 }
 
@@ -142,6 +145,9 @@ fn apply<H: HostSync>(host: &H, m: &SignedManifest, sb: &Sandbox) -> Result<(), 
         loopback: &LOOPBACK,
         mcp_registry: &EMPTY_REGISTRY,
         start_menu: &START_MENU,
+        elevation_gate: Box::leak(Box::new(
+            systemprompt_bridge::elevation_gate::ElevationGate::new(),
+        )),
     };
     block_on(host.apply(&ctx)).map(|_| ())
 }
@@ -377,6 +383,9 @@ fn clearing_a_host_removes_the_managed_dirs_and_the_sidecar() {
             loopback: &LOOPBACK,
             mcp_registry: &EMPTY_REGISTRY,
             start_menu: &START_MENU,
+            elevation_gate: Box::leak(Box::new(
+                systemprompt_bridge::elevation_gate::ElevationGate::new(),
+            )),
         };
         HermesSync.clear(&ctx).expect("clear");
         assert!(

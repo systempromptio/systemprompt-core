@@ -5,12 +5,18 @@
 
 mod document_limits;
 mod documents;
+mod issues;
 mod types;
 mod upload_limits;
 mod validator;
 
 pub use document_limits::DocumentLimits;
+#[cfg(feature = "office")]
+pub(crate) use document_limits::{
+    PACKAGE_INFLATED_BYTES_CEILING, PACKAGE_PART_BYTES_CEILING, PACKAGE_PARTS_CEILING,
+};
 pub use documents::{DocumentsConfig, MAX_DOCUMENT_UPLOAD_BYTES, MIN_DOCUMENT_UPLOAD_BYTES};
+pub use issues::IssuesConfig;
 pub use types::{AllowedFileTypes, FilePersistenceMode, FileUploadConfig, FilesConfigYaml};
 pub use upload_limits::UploadLimits;
 pub use validator::FilesConfigValidator;
@@ -30,6 +36,7 @@ pub struct FilesConfig {
     cache_control: Option<String>,
     upload: FileUploadConfig,
     documents: DocumentsConfig,
+    issues: IssuesConfig,
 }
 
 impl FilesConfig {
@@ -54,6 +61,7 @@ impl FilesConfig {
             cache_control: yaml.cache_control,
             upload: yaml.upload,
             documents: yaml.documents,
+            issues: yaml.issues,
         }
     }
 
@@ -85,6 +93,10 @@ impl FilesConfig {
 
     pub const fn documents_config(&self) -> &DocumentsConfig {
         &self.documents
+    }
+
+    pub const fn issues_config(&self) -> &IssuesConfig {
+        &self.issues
     }
 
     pub fn validate(&self) -> FilesResult<()> {

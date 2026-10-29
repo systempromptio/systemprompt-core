@@ -7,12 +7,13 @@
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::Deserialize;
-use systemprompt_files::documents::service::FolderMove;
+use systemprompt_files::documents::service::{FolderMove, MentionOption};
 use systemprompt_identifiers::{
     DocumentCommentId, DocumentFolderId, DocumentId, DocumentNodeId, DocumentOpId,
     DocumentProposalId, DocumentRevisionId, DocumentTemplateId, UserId,
 };
 use systemprompt_models::documents::{AccessLevel, DocumentFormat, EditMode, EditOp};
+use systemprompt_models::notifications::Attention;
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 pub struct ListInput {
@@ -71,7 +72,7 @@ pub struct CreateInput {
     #[serde(default)]
     // JSON: `{model}` or `{markdown}`, untyped for size; create_content checks it.
     pub content: Option<serde_json::Value>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "super::op_inputs::ops")]
     pub ops: Vec<EditOp>,
     #[serde(default)]
     pub message: Option<String>,
@@ -82,6 +83,7 @@ pub struct EditInput {
     pub document_id: DocumentId,
     #[serde(default)]
     pub base_revision: Option<DocumentRevisionId>,
+    #[serde(deserialize_with = "super::op_inputs::ops")]
     pub ops: Vec<EditOp>,
     #[serde(default)]
     pub mode: Option<EditMode>,
@@ -180,6 +182,21 @@ pub struct QuoteAnchor {
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct MentionOptionInput {
+    pub user_id: UserId,
+    pub attention: Attention,
+}
+
+impl From<MentionOptionInput> for MentionOption {
+    fn from(input: MentionOptionInput) -> Self {
+        Self {
+            user_id: input.user_id,
+            attention: input.attention,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
 pub struct CommentInput {
     pub action: CommentAction,
     pub document_id: DocumentId,
@@ -197,6 +214,8 @@ pub struct CommentInput {
     pub answering: Option<DocumentRevisionId>,
     #[serde(default)]
     pub mentions: Vec<UserId>,
+    #[serde(default)]
+    pub mention_options: Vec<MentionOptionInput>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize, JsonSchema)]

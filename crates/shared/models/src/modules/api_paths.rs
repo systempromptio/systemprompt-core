@@ -62,6 +62,7 @@ impl ApiPaths {
     pub const WELLKNOWN_OPENID_CONFIG: &'static str = "/.well-known/openid-configuration";
     pub const WELLKNOWN_OAUTH_PROTECTED: &'static str = "/.well-known/oauth-protected-resource";
     pub const WELLKNOWN_JWKS: &'static str = "/.well-known/jwks.json";
+    pub const WELLKNOWN_BRIDGE: &'static str = "/.well-known/systemprompt-bridge";
 
     pub const A2A_CARD: &'static str = "/api/a2a/card";
 
@@ -101,6 +102,16 @@ impl ApiPaths {
     pub const BRIDGE_DEVICE: &'static str = "/v1/bridge/device";
     pub const BRIDGE_HEARTBEAT: &'static str = "/v1/bridge/heartbeat";
     pub const BRIDGE_STREAM: &'static str = "/v1/bridge/stream";
+    pub const BRIDGE_NOTIFICATIONS: &'static str = "/v1/bridge/notifications";
+    pub const BRIDGE_NOTIFICATIONS_READ: &'static str = "/v1/bridge/notifications/read";
+    pub const BRIDGE_NOTIFICATIONS_SEEN: &'static str = "/v1/bridge/notifications/seen";
+    pub const BRIDGE_NOTIFICATIONS_ESCALATE_ROUTE: &'static str =
+        "/v1/bridge/notifications/{id}/escalate";
+    pub const BRIDGE_NOTIFICATIONS_SUBSCRIPTIONS: &'static str =
+        "/v1/bridge/notifications/subscriptions";
+    pub const BRIDGE_NOTIFICATIONS_SUBSCRIPTION_ROUTE: &'static str =
+        "/v1/bridge/notifications/subscriptions/{id}";
+    pub const BRIDGE_NOTIFICATIONS_STREAMS: &'static str = "/v1/bridge/notifications/streams";
     pub const BRIDGE_DRIVE_MANIFEST: &'static str = "/v1/bridge/drive/manifest";
     pub const BRIDGE_DRIVE_CHANGES: &'static str = "/v1/bridge/drive/changes";
     pub const BRIDGE_DRIVE_BLOB: &'static str = "/v1/bridge/drive/blob";
@@ -112,6 +123,9 @@ impl ApiPaths {
     pub const DOCUMENTS: &'static str = "/api/v1/documents";
     pub const DOCUMENT_FOLDERS: &'static str = "/api/v1/document-folders";
     pub const UPLOADS: &'static str = "/api/v1/uploads";
+    pub const NOTIFICATIONS: &'static str = "/api/v1/notifications";
+    pub const NOTIFICATIONS_SEEN: &'static str = "/api/v1/notifications/seen";
+    pub const ADMIN_NOTIFICATIONS: &'static str = "/api/v1/admin/notifications";
     pub const BRIDGE_AUTH_PAT: &'static str = "/v1/auth/bridge/pat";
     pub const BRIDGE_AUTH_SESSION: &'static str = "/v1/auth/bridge/session";
     pub const BRIDGE_AUTH_SESSION_PAT: &'static str = "/v1/auth/bridge/session-pat";

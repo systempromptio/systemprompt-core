@@ -19,9 +19,14 @@ pub enum JoinMode {
     View,
 }
 
-/// Protocol v2 join: the session state plus what a client needs to bind an
+/// Protocol v3 join result.
+///
+/// The session state plus what a client needs to bind an
 /// editor to it — the engine and wire version it must speak, the model and
-/// its schema version, and the caller's access level.
+/// its schema version, and the caller's access level. `peer` is the engine
+/// peer id the server assigned to this join; the client's editor must use it,
+/// and an update carrying operations of a peer the caller was not assigned is
+/// refused.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Joined {
     pub session_id: DocumentEditSessionId,
@@ -34,6 +39,7 @@ pub struct Joined {
     pub model: &'static str,
     pub model_version: u32,
     pub level: AccessLevel,
+    pub peer: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

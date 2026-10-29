@@ -20,8 +20,11 @@ use systemprompt_models::documents::{
 
 use super::DocumentService;
 use super::mentions::{CommentOrigin, MentionInput};
+use super::notify::{MentionContext, MentionNotice, MentionOption, check_mention_options};
+use systemprompt_traits::RepositoryError;
+
 use crate::documents::error::DocumentsError;
-use crate::documents::models::{CommentRange, DocumentComment};
+use crate::documents::models::{CommentRange, DocumentComment, MentionGrants};
 use crate::documents::repository::CommentBodyEdit;
 
 const MAX_CURSOR_CHARS: usize = 1_024;
@@ -32,6 +35,7 @@ pub struct EditCommentRequest {
     pub comment: DocumentCommentId,
     pub body: String,
     pub mentions: Vec<UserId>,
+    pub mention_options: Vec<MentionOption>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -88,49 +92,45 @@ impl DocumentService {
         let plan = self
             .plan_mentions(who, &document, input, (origin, trace))
             .await?;
+        check_mention_options(self, &request.mention_options, &plan.mentions)?;
         let mentions = plan.mentions.clone();
-        let updated = if plan.grants.users.is_empty() {
-            self.repos
-                .comments
-                .update_body(
-                    &document.id,
-                    CommentBodyEdit {
-                        comment: &request.comment,
-                        author: &who.id,
-                        body: &request.body,
-                        mentions: &mentions,
-                    },
-                )
-                .await?
-        } else {
-            self.repos
-                .comments
-                .update_body_granting(
-                    &document.id,
-                    &request.comment,
-                    &request.body,
-                    &mentions,
-                    &plan.grants,
-                )
-                .await?
+        let fresh: Vec<UserId> = mentions
+            .iter()
+            .filter(|user| !before.mentions.contains(user))
+            .cloned()
+            .collect();
+        let edit = CommentBodyEdit {
+            comment: &request.comment,
+            author: &who.id,
+            body: &request.body,
+            mentions: &mentions,
         };
-        if !updated {
-            return Err(missing(&document.id, &request.comment));
-        }
+        let notice = MentionNotice {
+            context: MentionContext {
+                who,
+                document: &document,
+                granted: &plan.grants.users,
+                via_agent: origin.via_agent.as_deref(),
+                options: &request.mention_options,
+            },
+            comment: &request.comment,
+            body: &request.body,
+            anchor_quote: before.anchor.find.as_deref(),
+            mentions: &mentions,
+            notify: &fresh,
+            occurred_at: chrono::Utc::now(),
+        };
+        self.store_edit(edit, &plan.grants, notice).await?;
         let event = DocumentCommentUpdatedEvent {
             document_id: document.id.clone(),
             comment_id: request.comment.clone(),
             edited_by: who.id.clone(),
-            mentions: mentions.clone(),
+            mentions,
         };
         let to = self.recipients(&document).await;
         if let Err(error) = self.events.comment_updated(&to, &event).await {
             tracing::warn!(document_id = %document.id, error = %error, "Comment event not relayed");
         }
-        let fresh: Vec<UserId> = mentions
-            .into_iter()
-            .filter(|user| !before.mentions.contains(user))
-            .collect();
         let edited = self.comment_of(&document.id, &request.comment).await?;
         self.announce_mentions(who, &document, &edited, &fresh, &plan.grants)
             .await;
@@ -168,6 +168,41 @@ impl DocumentService {
         if let Err(error) = self.events.comment_deleted(&to, &event).await {
             tracing::warn!(document_id = %document.id, error = %error, "Comment event not relayed");
         }
+        Ok(())
+    }
+
+    async fn store_edit(
+        &self,
+        edit: CommentBodyEdit<'_>,
+        grants: &MentionGrants,
+        notice: MentionNotice<'_>,
+    ) -> Result<(), DocumentsError> {
+        let target = notice.context.document;
+        let document = &target.id;
+        let mut tx = self.repos.documents.begin().await?;
+        let updated = if grants.users.is_empty() {
+            self.repos
+                .comments
+                .update_body(&mut tx, document, edit)
+                .await?
+        } else {
+            self.repos
+                .comments
+                .update_body_granting(
+                    &mut tx,
+                    document,
+                    edit.comment,
+                    edit.body,
+                    edit.mentions,
+                    grants,
+                )
+                .await?
+        };
+        if !updated {
+            return Err(missing(document, edit.comment));
+        }
+        self.record_mentions(&mut tx, notice).await?;
+        tx.commit().await.map_err(RepositoryError::from)?;
         Ok(())
     }
 

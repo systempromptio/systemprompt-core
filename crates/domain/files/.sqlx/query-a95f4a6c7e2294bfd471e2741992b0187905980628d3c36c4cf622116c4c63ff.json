@@ -1,0 +1,55 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE issue_reports r\n               SET status = $2, triage_note = COALESCE($3, r.triage_note), triaged_by = $4,\n                   updated_at = now(),\n                   closed_at = CASE WHEN $2 IN ('resolved', 'closed')\n                                    THEN COALESCE(r.closed_at, now()) ELSE NULL END\n               FROM (SELECT id, status FROM issue_reports WHERE id = $1::text::uuid FOR UPDATE) prior\n               WHERE r.id = prior.id\n               RETURNING r.reporter_user_id AS \"reporter!: UserId\", prior.status AS \"from!\",\n                         r.title",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "reporter!: UserId",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "issue_reports",
+            "name": "reporter_user_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "from!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "issue_reports",
+            "name": "status"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "title",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "issue_reports",
+            "name": "title"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Varchar"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "a95f4a6c7e2294bfd471e2741992b0187905980628d3c36c4cf622116c4c63ff"
+}

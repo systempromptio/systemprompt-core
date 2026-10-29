@@ -113,6 +113,8 @@ mod profile_instance_identity;
 #[cfg(test)]
 mod profile_judge;
 #[cfg(test)]
+mod profile_notifications;
+#[cfg(test)]
 mod profile_observability;
 #[cfg(test)]
 mod profile_server_capacity;
@@ -240,6 +242,9 @@ mod bridge_ids;
 
 #[cfg(test)]
 mod bridge_manifest_version;
+
+#[cfg(test)]
+mod bridge_version_window;
 
 #[cfg(test)]
 mod mcp_deployment;

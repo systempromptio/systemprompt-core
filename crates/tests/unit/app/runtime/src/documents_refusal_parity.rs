@@ -1,9 +1,11 @@
+use systemprompt_extension::NotificationSinkError;
 use systemprompt_files::documents::DocumentsError;
 use systemprompt_files::documents::agents::{AgentCap, AgentCapability, AgentRefusal};
-use systemprompt_files::documents::models::LockHolderKind;
+use systemprompt_files::documents::models::{ListCursorError, LockHolderKind};
+use systemprompt_files::documents::templates::TemplateError;
 use systemprompt_identifiers::{
     ContentHash, DocumentAccessRequestId, DocumentCommentId, DocumentFolderId, DocumentId,
-    DocumentNodeId, DocumentOpId, DocumentProposalId, DocumentRevisionId,
+    DocumentNodeId, DocumentOpId, DocumentProposalId, DocumentRevisionId, DocumentTemplateId,
 };
 use systemprompt_models::documents::{
     AccessLevel, AccessRequestStatus, DocumentAction, DocumentFormat, ProposalStatus,
@@ -42,14 +44,19 @@ const fn listed(error: &DocumentsError) -> bool {
         | DocumentsError::OwnNotGrantable
         | DocumentsError::ShareBelowExisting { .. }
         | DocumentsError::FolderNotEmpty { .. }
+        | DocumentsError::SubtreeChanged { .. }
+        | DocumentsError::OwnershipChanged { .. }
         | DocumentsError::InvalidMove { .. }
         | DocumentsError::InvalidCursor { .. }
+        | DocumentsError::CursorReset { .. }
         | DocumentsError::ProposalConflict { .. }
         | DocumentsError::ProposalClosed { .. }
         | DocumentsError::AccessRequestOpen { .. }
         | DocumentsError::AccessRequestNotNeeded { .. }
         | DocumentsError::AccessRequestClosed { .. }
         | DocumentsError::Codec(_)
+        | DocumentsError::Notifications(_)
+        | DocumentsError::NotificationKind(_)
         | DocumentsError::Template { .. }
         | DocumentsError::LiveSession(_)
         | DocumentsError::Blob(_)
@@ -241,6 +248,18 @@ fn table() -> Vec<(DocumentsError, RefusalCode)> {
             RefusalCode::FolderNotEmpty,
         ),
         (
+            DocumentsError::SubtreeChanged {
+                folder_id: folder(),
+            },
+            RefusalCode::FolderNotEmpty,
+        ),
+        (
+            DocumentsError::OwnershipChanged {
+                document_id: DocumentId::generate(),
+            },
+            RefusalCode::Forbidden,
+        ),
+        (
             DocumentsError::InvalidMove {
                 folder_id: folder(),
             },
@@ -320,6 +339,17 @@ fn table() -> Vec<(DocumentsError, RefusalCode)> {
             RefusalCode::InvalidParams,
         ),
         (
+            DocumentsError::Notifications(NotificationSinkError::Unavailable),
+            RefusalCode::UnsupportedOp,
+        ),
+        (
+            DocumentsError::CursorReset {
+                cursor: "legacy".to_owned(),
+                source: ListCursorError::Shape,
+            },
+            RefusalCode::CursorReset,
+        ),
+        (
             DocumentsError::Codec(CodecError::NoMatch),
             RefusalCode::FindNone,
         ),
@@ -357,4 +387,45 @@ fn every_code_parses_back() {
     for code in RefusalCode::ALL {
         assert_eq!(RefusalCode::parse(code.as_str()), Some(code));
     }
+}
+
+fn template(source: TemplateError) -> DocumentsError {
+    DocumentsError::Template {
+        template_id: DocumentTemplateId::new("report"),
+        source,
+    }
+}
+
+#[test]
+fn an_unknown_template_refuses_as_not_found() {
+    let error = template(TemplateError::NotFound {
+        id: DocumentTemplateId::new("report"),
+    });
+    let refused = refusal_of(&error).expect("a client error refuses");
+    assert_eq!(refused.refusal.code, RefusalCode::NotFound);
+}
+
+#[test]
+fn a_missing_placeholder_refuses_as_template_failed() {
+    let error = template(TemplateError::MissingPlaceholder {
+        key: "client".to_owned(),
+    });
+    let refused = refusal_of(&error).expect("a client error refuses");
+    assert_eq!(refused.refusal.code, RefusalCode::TemplateFailed);
+}
+
+#[test]
+fn a_template_server_fault_refuses_nothing_and_names_no_path() {
+    let error = template(TemplateError::Io {
+        path: std::path::PathBuf::from("/srv/services/templates/report.docx"),
+        source: std::io::Error::other("gone"),
+    });
+    assert!(refusal_of(&error).is_none());
+    assert!(refusal_result(&tool_error(error)).is_none());
+    let display = template(TemplateError::Io {
+        path: std::path::PathBuf::from("/srv/services/templates/report.docx"),
+        source: std::io::Error::other("gone"),
+    })
+    .to_string();
+    assert!(!display.contains("/srv/"), "{display}");
 }

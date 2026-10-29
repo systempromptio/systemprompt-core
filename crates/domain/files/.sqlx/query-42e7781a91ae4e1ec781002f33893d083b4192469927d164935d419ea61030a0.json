@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM document_agent_reads WHERE id IN (\n                   SELECT id FROM document_agent_reads\n                   WHERE created_at < $1\n                   ORDER BY created_at\n                   LIMIT $2)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "42e7781a91ae4e1ec781002f33893d083b4192469927d164935d419ea61030a0"
+}

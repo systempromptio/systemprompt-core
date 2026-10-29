@@ -5,6 +5,20 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::policy::McpServerEntry;
+use crate::warn_once::WarnOnce;
+
+// Why: `ProfileFacts::load` re-runs this projection on every GUI and
+// diagnostics refresh, several times a second; a withheld server is already
+// surfaced in the UI, so its warning is emitted once per state, not per pass.
+fn first_sighting(seen: Option<&WarnOnce>, slug: &str, reason: &str) -> bool {
+    seen.is_none_or(|seen| seen.changed(&format!("mdm.withheld.{slug}"), reason))
+}
+
+fn clear_sighting(seen: Option<&WarnOnce>, slug: &str) {
+    if let Some(seen) = seen {
+        seen.clear(&format!("mdm.withheld.{slug}"));
+    }
+}
 
 // Why: Desktop's `toolPolicy` names tools one by one, so a wildcard can only
 // be expressed over names the catalog knows. A server denied outright or one
@@ -14,18 +28,20 @@ use super::policy::McpServerEntry;
 pub fn mcp_entries(
     loopback: &crate::proxy::LoopbackEndpoint,
     registry: &crate::mcp_registry::McpRegistry,
+    seen: Option<&WarnOnce>,
 ) -> std::io::Result<Option<Vec<McpServerEntry>>> {
     if registry.is_empty() {
         return Ok(Some(Vec::new()));
     }
     let catalog = super::tool_catalog::read()?;
-    Ok(mcp_entries_with(loopback, registry, &catalog))
+    Ok(mcp_entries_with(loopback, registry, &catalog, seen))
 }
 
 pub fn mcp_entries_with(
     loopback: &crate::proxy::LoopbackEndpoint,
     registry: &crate::mcp_registry::McpRegistry,
     catalog: &super::tool_catalog::ToolCatalog,
+    seen: Option<&WarnOnce>,
 ) -> Option<Vec<McpServerEntry>> {
     if registry.is_empty() {
         return Some(Vec::new());
@@ -34,12 +50,17 @@ pub fn mcp_entries_with(
     slugs.sort();
     let mut out = Vec::with_capacity(slugs.len());
     let mut unexpanded = false;
+    let needs_connection = super::tool_catalog::needs_connection();
     for slug in slugs {
         let Some(upstream) = registry.get(slug) else {
             continue;
         };
         if upstream.tool_policy.is_empty() {
-            tracing::warn!(target: "bridge::mdm", slug = %slug, "managed MCP server has no tool policy; withheld from the desktop policy");
+            if first_sighting(seen, slug, "no tool policy") {
+                tracing::warn!(target: "bridge::mdm", slug = %slug, "managed MCP server has no tool policy; withheld from the desktop policy");
+            } else {
+                tracing::debug!(target: "bridge::mdm", slug = %slug, "managed MCP server still has no tool policy");
+            }
             continue;
         }
         if super::desktop_tool_policy::denied_outright(upstream) {
@@ -49,10 +70,22 @@ pub fn mcp_entries_with(
             upstream,
             catalog.get(slug).map_or(&[][..], Vec::as_slice),
         ) else {
-            tracing::warn!(target: "bridge::mdm", slug = %slug, "tool catalog has no names for a wildcard tool policy; this server skipped, the rest still written");
+            if needs_connection.contains(slug.as_str()) {
+                if first_sighting(seen, slug, "needs connection") {
+                    tracing::info!(target: "bridge::mdm", slug = %slug, "managed MCP server needs its account connected; withheld from the desktop policy until the user connects it");
+                }
+                unexpanded = true;
+                continue;
+            }
+            if first_sighting(seen, slug, "unexpanded wildcard") {
+                tracing::warn!(target: "bridge::mdm", slug = %slug, "tool catalog has no names for a wildcard tool policy; this server skipped, the rest still written");
+            } else {
+                tracing::debug!(target: "bridge::mdm", slug = %slug, "tool catalog still has no names for a wildcard tool policy");
+            }
             unexpanded = true;
             continue;
         };
+        clear_sighting(seen, slug);
         out.push(McpServerEntry {
             name: slug.clone(),
             url: loopback.mcp_url(slug.as_str()),

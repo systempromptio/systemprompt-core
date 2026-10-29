@@ -1,0 +1,28 @@
+[package]
+name = "systemprompt-api-notifications-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Route tests for the systemprompt-api notifications router"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-api = { workspace = true, features = ["notifications"] }
+systemprompt-models = { workspace = true }
+systemprompt-identifiers = { workspace = true }
+systemprompt-notifications = { workspace = true }
+systemprompt-runtime = { workspace = true, features = ["notifications"] }
+systemprompt-test-fixtures = { workspace = true }
+
+[dev-dependencies]
+async-trait = { workspace = true }
+axum = { workspace = true }
+serde_json = { workspace = true }
+sqlx = { workspace = true }
+tokio = { workspace = true }
+tower = { workspace = true }
+uuid = { workspace = true }

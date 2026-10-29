@@ -3,13 +3,18 @@
 //! Every claim and acknowledgement runs on the caller's transaction so the
 //! projection writes and the acknowledgement commit together.
 //!
+//! An append wakes exactly one listener channel: a fact-only row notifies
+//! [`NOTIFICATION_FACTS_CHANNEL`] (the durable consumers), a row with a live
+//! frame notifies [`OUTBOX_CHANNEL`] (the cross-replica relay), so neither
+//! listener wakes for the other's rows.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use sqlx::{PgConnection, PgPool};
 use systemprompt_identifiers::{Actor, EventOutboxId, InstanceId};
 
-use crate::services::routing::{OUTBOX_CHANNEL, OutboxChannel};
+use crate::services::routing::{NOTIFICATION_FACTS_CHANNEL, OUTBOX_CHANNEL, OutboxChannel};
 
 #[derive(Debug)]
 pub(crate) struct FactRow {
@@ -57,7 +62,12 @@ impl DurableOutboxRepository {
         )
         .execute(&mut *conn)
         .await?;
-        sqlx::query!("SELECT pg_notify($1, $2)", OUTBOX_CHANNEL, row.id.as_str())
+        let wake = if matches!(row.channel, OutboxChannel::Fact) {
+            NOTIFICATION_FACTS_CHANNEL
+        } else {
+            OUTBOX_CHANNEL
+        };
+        sqlx::query!("SELECT pg_notify($1, $2)", wake, row.id.as_str())
             .fetch_one(&mut *conn)
             .await?;
         Ok(())

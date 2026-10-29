@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM notifications WHERE id IN (\n                 SELECT id FROM notifications\n                 WHERE read_at IS NOT NULL AND read_at < $1 LIMIT $2)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "5a8d9ca51bef4933d49881538b5770480d140ac0e6d8c8d694197a0e62e727e9"
+}

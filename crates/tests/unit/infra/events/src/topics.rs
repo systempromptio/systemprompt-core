@@ -55,3 +55,19 @@ async fn a_local_router_publishes_topics_without_relaying() {
     ));
     assert_eq!(receiver.recv().await.expect("event").name, "y");
 }
+
+#[test]
+fn a_lost_relay_reaches_every_resumable_topic_once() {
+    let topics = TopicBroadcaster::new();
+    let mut first = topics.subscribe_resumable("document:a");
+    let mut second = topics.subscribe_resumable("document:b");
+    let mut plain = topics.subscribe("presence:c");
+    assert_eq!(topics.publish_relay_lost(), 2);
+    assert!(plain.try_recv().is_err());
+    let a = first.try_recv().expect("first topic told");
+    let b = second.try_recv().expect("second topic told");
+    assert_eq!(a.name, systemprompt_events::RELAY_LOST_EVENT);
+    assert_eq!(a.topic, "document:a");
+    assert_eq!(b.topic, "document:b");
+    assert!(first.try_recv().is_err());
+}

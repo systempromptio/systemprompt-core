@@ -26,6 +26,16 @@ pub enum AgentRefusal {
         capability: AgentCapability,
     },
     #[error(
+        "agent {agent} has rewritten {rewritten} of this document's {blocks} blocks in the last \
+         hour, which is as much as replacing it; land further rewrites with mode: propose for a \
+         person to review, or ask the user to make the change"
+    )]
+    BroadRewrite {
+        agent: String,
+        rewritten: usize,
+        blocks: usize,
+    },
+    #[error(
         "agents may only suggest on this document: {reason}. Write the change with mode: \
          propose and a person will review it"
     )]

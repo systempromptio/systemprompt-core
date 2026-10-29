@@ -67,6 +67,8 @@ pub struct RateLimitsConfig {
     pub stream_per_second: u64,
     #[serde(default = "default_content")]
     pub content_per_second: u64,
+    #[serde(default = "default_content")]
+    pub notifications_per_second: u64,
     #[serde(default = "default_gateway")]
     pub gateway_per_second: u64,
     #[serde(default = "default_bridge_auth")]
@@ -121,7 +123,7 @@ pub const fn default_burst() -> u64 {
 
 impl RateLimitsConfig {
     #[must_use]
-    pub const fn per_second_budgets(&self) -> [(&'static str, u64); 13] {
+    pub const fn per_second_budgets(&self) -> [(&'static str, u64); 14] {
         [
             ("oauth_public_per_second", self.oauth_public_per_second),
             ("oauth_auth_per_second", self.oauth_auth_per_second),
@@ -134,6 +136,7 @@ impl RateLimitsConfig {
             ("mcp_per_second", self.mcp_per_second),
             ("stream_per_second", self.stream_per_second),
             ("content_per_second", self.content_per_second),
+            ("notifications_per_second", self.notifications_per_second),
             ("gateway_per_second", self.gateway_per_second),
             ("bridge_auth_per_second", self.bridge_auth_per_second),
         ]
@@ -159,6 +162,7 @@ impl RateLimitsConfig {
             mcp_per_second: 10000,
             stream_per_second: 10000,
             content_per_second: 10000,
+            notifications_per_second: 10000,
             gateway_per_second: 10000,
             bridge_auth_per_second: 10000,
             burst_multiplier: 100,
@@ -188,6 +192,7 @@ impl Default for RateLimitsConfig {
             mcp_per_second: default_mcp(),
             stream_per_second: default_stream(),
             content_per_second: default_content(),
+            notifications_per_second: default_content(),
             gateway_per_second: default_gateway(),
             bridge_auth_per_second: default_bridge_auth(),
             burst_multiplier: default_burst(),

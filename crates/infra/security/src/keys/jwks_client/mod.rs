@@ -8,6 +8,8 @@
 //! when the header is missing or unparseable). Callers resolve a `(issuer,
 //! kid)` pair to a concrete [`super::jwks::VerificationKey`]; a cache miss for
 //! the `kid` forces a refresh in case the issuer rotated keys mid-window.
+//! Refreshes are single-flight per issuer: concurrent misses queue on one
+//! fetch and re-read the cache, so an expiry costs the issuer one request.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -15,8 +17,9 @@
 mod cache;
 mod fetch;
 
+use std::collections::HashMap;
 use std::num::NonZeroUsize;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use lru::LruCache;
@@ -70,6 +73,7 @@ pub struct JwksClient {
     pub(super) http: Option<Client>,
     pub(super) allowed_hosts: Vec<String>,
     pub(super) cache: Mutex<LruCache<String, CachedJwks>>,
+    pub(super) refreshing: Mutex<HashMap<String, Arc<tokio::sync::Mutex<()>>>>,
     pub(super) min_refresh_interval: Duration,
     pub(super) min_cache_ttl: Duration,
     pub(super) max_cache_ttl: Duration,
@@ -97,6 +101,7 @@ impl JwksClient {
                 .ok(),
             allowed_hosts,
             cache: Mutex::new(LruCache::new(cap)),
+            refreshing: Mutex::new(HashMap::new()),
             min_refresh_interval: DEFAULT_MIN_REFRESH_INTERVAL,
             min_cache_ttl: MIN_CACHE_TTL,
             max_cache_ttl: MAX_CACHE_TTL,

@@ -23,7 +23,12 @@ impl Sandbox {
             data: TempDir::new().expect("data"),
             state: TempDir::new().expect("state"),
         };
-        let dir = sandbox.config.path().join("systemprompt");
+        let dir = sandbox
+            .config
+            .path()
+            .join("systemprompt")
+            .join("gateways")
+            .join("default");
         std::fs::create_dir_all(&dir).expect("config dir");
         std::fs::write(
             dir.join("systemprompt-bridge.toml"),
@@ -76,7 +81,8 @@ impl Sandbox {
 
 fn report(sandbox: &Sandbox) -> ValidationReport {
     sandbox.run(|| {
-        let ctx = BridgeContext::start(ProxyMode::Attach).expect("runtime builds");
+        let ctx = BridgeContext::start(ProxyMode::Attach, std::sync::Arc::new(|| None))
+            .expect("runtime builds");
         block_on(validate::run(&ctx.http))
     })
 }
@@ -186,6 +192,8 @@ fn a_pin_written_for_another_gateway_is_not_reported_as_pinned() {
         .config
         .path()
         .join("systemprompt")
+        .join("gateways")
+        .join("default")
         .join("systemprompt-bridge.toml");
     let body = std::fs::read_to_string(&config_file).expect("read config");
     std::fs::write(

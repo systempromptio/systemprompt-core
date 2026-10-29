@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT EXISTS (\n               SELECT 1 FROM documents d\n               JOIN document_folders f ON f.id = d.folder_id\n               WHERE (f.id = $1::text::uuid OR $1::text::uuid = ANY(f.ancestor_ids))\n                 AND d.deleted_at IS NULL\n           ) AS \"remaining!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "remaining!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "30b0131e14f327aaf3794f207a4b4daa3e59dabbbe5c70736e4f4b760905a969"
+}

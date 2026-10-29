@@ -24,14 +24,11 @@ pub fn cmd_clean(ctx: &crate::context::BridgeContext) -> ExitCode {
                 ));
             }
             if report.pat_removed {
-                stdio::print_line(&format!(
-                    "Removed PAT:    {}",
-                    report.paths.pat_file.display()
-                ));
+                stdio::print_line(&format!("Removed PAT:    {}", report.paths.pat_location()));
             } else {
                 stdio::print_line(&format!(
                     "No PAT at    {} (already clean)",
-                    report.paths.pat_file.display()
+                    report.paths.pat_location()
                 ));
             }
             stdio::print_line("Token cache cleared.");

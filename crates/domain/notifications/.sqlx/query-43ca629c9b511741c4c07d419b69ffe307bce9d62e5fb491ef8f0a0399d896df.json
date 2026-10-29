@@ -1,0 +1,31 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT u.id AS \"user!: UserId\",\n                      (SELECT COUNT(*) FROM (SELECT 1 FROM notifications n\n                                             WHERE n.recipient_user_id = u.id\n                                               AND n.read_at IS NULL\n                                             LIMIT $2) capped) AS \"count!\"\n               FROM UNNEST($1::text[]) AS u(id)",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "user!: UserId",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "TextArray",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "43ca629c9b511741c4c07d419b69ffe307bce9d62e5fb491ef8f0a0399d896df"
+}

@@ -89,7 +89,12 @@ pub async fn build_profile_inputs(
         .await
         .map_err(ProfileInputsError::BridgeProfile)?;
 
-    let mut facts = ProfileFacts::load(loopback, &bridge.mcp_registry.load(), overrides.clone())?;
+    let mut facts = ProfileFacts::load(
+        loopback,
+        &bridge.mcp_registry.load(),
+        overrides.clone(),
+        Some(&bridge.warn_once),
+    )?;
     facts.profile = Some(server_profile);
     Ok(facts.inputs_for(host.profile_identity()))
 }
@@ -153,10 +158,11 @@ async fn reapply_one(
         Ok(g) => g,
         Err(e) => return (failed(e), Vec::new()),
     };
-    let installed = match attendance {
-        Attendance::Attended => host.install_profile(&generated.path),
-        Attendance::Unattended => host.install_profile_unattended(&generated.path),
+    let requester = match attendance {
+        Attendance::Attended => crate::elevation_gate::Requester::Attended,
+        Attendance::Unattended => crate::elevation_gate::Requester::Unattended,
     };
+    let installed = install_gated(&bridge.elevation_gate, host, &generated.path, requester);
     match installed {
         Ok(installed) => (verify(host, env), installed.warnings),
         Err(e) if e.is_refusal() => (Outcome::Declined, Vec::new()),
@@ -202,4 +208,43 @@ pub fn render(reports: &[Report]) -> String {
         }
     }
     out
+}
+
+pub fn install_gated(
+    gate: &crate::elevation_gate::ElevationGate,
+    host: &dyn HostApp,
+    path: &str,
+    requester: crate::elevation_gate::Requester,
+) -> Result<crate::integration::host_app::ProfileInstalled, HostAppError> {
+    use crate::elevation_gate::{Admission, GateOutcome, Requester};
+
+    let content = crate::hash::sha256_hex(&std::fs::read(path)?);
+    if requester == Requester::Unattended {
+        let result = host.install_profile_unattended(path, gate);
+        if matches!(&result, Err(e) if e.is_refusal()) {
+            gate.note_pending(&content);
+        }
+        return result;
+    }
+    match gate.request(&content, requester) {
+        Admission::Run(ticket) => {
+            let result = host.install_profile(path, gate);
+            ticket.finish(match &result {
+                Ok(_) => GateOutcome::Applied,
+                Err(HostAppError::Declined) => GateOutcome::Declined,
+                Err(_) => GateOutcome::Failed,
+            });
+            result
+        },
+        Admission::Joined(GateOutcome::Applied) => {
+            Ok(crate::integration::host_app::ProfileInstalled::ok())
+        },
+        Admission::Joined(GateOutcome::Declined) | Admission::Suppressed => {
+            Err(HostAppError::Declined)
+        },
+        Admission::Joined(GateOutcome::Failed) | Admission::Queued => Err(std::io::Error::other(
+            "the shared administrator approval for this profile did not complete",
+        )
+        .into()),
+    }
 }

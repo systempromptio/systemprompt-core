@@ -39,8 +39,16 @@ impl DocumentAccessService {
         let Some(roles) = self.directory.roles_of(user).await? else {
             return Ok(None);
         };
+        Ok(Some(self.pairs_with_roles(user, &roles).await?))
+    }
+
+    async fn pairs_with_roles(
+        &self,
+        user: &UserId,
+        roles: &[String],
+    ) -> Result<SubjectPairs, DocumentsError> {
         let mut pairs = SubjectPairs::default().with(USER_KIND, user.as_str());
-        for role in &roles {
+        for role in roles {
             pairs.push(ROLE_KIND, role.as_str());
         }
         let attributes = self.subjects.resolve_all(user).await?;
@@ -49,7 +57,7 @@ impl DocumentAccessService {
                 pairs.push(dimension.rule_type.as_str(), value.as_str());
             }
         }
-        Ok(Some(pairs))
+        Ok(pairs)
     }
 
     pub async fn level_of(
@@ -80,9 +88,13 @@ impl DocumentAccessService {
         document: &Document,
         users: &[UserId],
     ) -> Result<Vec<Option<AccessLevel>>, DocumentsError> {
+        let roles = self.directory.roles_of_many(users).await?;
         let mut pairs = Vec::with_capacity(users.len());
-        for user in users {
-            pairs.push(self.pairs_of(user).await?.unwrap_or_default());
+        for (user, roles) in users.iter().zip(roles) {
+            pairs.push(match roles {
+                Some(roles) => self.pairs_with_roles(user, &roles).await?,
+                None => SubjectPairs::default(),
+            });
         }
         let mut chain = Vec::new();
         if let Some(folder) = &document.folder_id {

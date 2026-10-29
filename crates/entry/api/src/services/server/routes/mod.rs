@@ -18,7 +18,10 @@ mod documents;
 mod error;
 mod extension_mount;
 mod gateway;
+mod issues;
 mod managed;
+#[cfg(feature = "notifications")]
+mod notifications;
 mod oauth_mount;
 mod protocol;
 pub mod role;
@@ -111,6 +114,11 @@ fn build_routes(
     if serves(RouteGroup::ContentAndMisc) {
         router = protocol::mount_content_and_misc(router, &mount)?;
         router = documents::mount_documents(router, &mount)?;
+        router = issues::mount_issues(router, &mount)?;
+        #[cfg(feature = "notifications")]
+        {
+            router = notifications::mount_notifications(router, &mount)?;
+        }
     }
     if serves(RouteGroup::Managed) {
         router = managed::mount(router, &mount)?;

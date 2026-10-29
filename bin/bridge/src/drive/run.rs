@@ -1,7 +1,9 @@
 //! The Drive sync loop and the one-shot cycle it repeats.
 //!
 //! A cycle pulls before it uploads, so a local edit is always committed on
-//! top of the newest head this device knows of. Cycles are woken by the
+//! top of the newest head this device knows of. Editing beacons go first,
+//! while a touched file still differs from the synced revision, and a beacon
+//! that fails never holds up the sync. Cycles are woken by the
 //! watcher, a `document.revision.created` frame, an explicit "sync now" or the
 //! [`TICK`], and serialised on the handle's cycle lock. Every failure is
 //! logged and recorded as the status's `last_error`; `synced_at` moves only
@@ -220,8 +222,11 @@ impl Runner<'_> {
         if !ensure_enabled(cycle, self.handle).await? {
             return Ok(());
         }
+        if let Err(error) = self.beacon(cycle).await {
+            tracing::debug!(%error, "drive editing beacon not sent");
+        }
         sync_once(cycle, self.handle).await?;
-        self.beacon(cycle).await
+        Ok(())
     }
 
     async fn sync_bearer(

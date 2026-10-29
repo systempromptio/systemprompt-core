@@ -6,6 +6,10 @@
 //! loss; SSE itself retains its live-only delivery semantics. A bridge must run
 //! on the emitting instance to deliver transactionally appended SSE events.
 //!
+//! [`SseEvent::FactOnly`] appends a fact with no live frame: the row is
+//! stored on the `fact` channel with a null payload, and the bridge skips it
+//! on the origin and on every replica, so only its durable consumer sees it.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -17,6 +21,7 @@ use systemprompt_models::{A2AEvent, AgUiEvent, AnalyticsEvent, SystemEvent};
 
 use super::repository::durable::{DurableOutboxRepository, DurableRow, FactRow};
 use super::routing::OutboxChannel;
+use super::topics::TopicEvent;
 
 #[derive(Debug, thiserror::Error)]
 pub enum DurableEventError {
@@ -42,6 +47,8 @@ pub enum SseEvent<'a> {
     A2A(&'a A2AEvent),
     System(&'a SystemEvent),
     Analytics(&'a AnalyticsEvent),
+    Topic(&'a TopicEvent),
+    FactOnly,
 }
 
 impl SseEvent<'_> {
@@ -52,6 +59,8 @@ impl SseEvent<'_> {
             Self::A2A(event) => (OutboxChannel::A2A, serde_json::to_value(event)?),
             Self::System(event) => (OutboxChannel::System, serde_json::to_value(event)?),
             Self::Analytics(event) => (OutboxChannel::Analytics, serde_json::to_value(event)?),
+            Self::Topic(event) => (OutboxChannel::Topic, serde_json::to_value(event)?),
+            Self::FactOnly => (OutboxChannel::Fact, serde_json::Value::Null),
         })
     }
 }
@@ -82,13 +91,23 @@ impl DurableOutbox {
         event: SseEvent<'_>,
         fact: &ReportingFact<T>,
     ) -> Result<EventOutboxId, DurableEventError> {
+        self.append_on(tx.as_mut(), actor, event, fact).await
+    }
+
+    pub async fn append_on<T: Serialize + Sync>(
+        &self,
+        conn: &mut PgConnection,
+        actor: &Actor,
+        event: SseEvent<'_>,
+        fact: &ReportingFact<T>,
+    ) -> Result<EventOutboxId, DurableEventError> {
         if fact.consumer.trim().is_empty() || fact.kind.trim().is_empty() || fact.version == 0 {
             return Err(DurableEventError::InvalidContract);
         }
         let (channel, payload) = event.encode()?;
         let id = EventOutboxId::generate();
         DurableOutboxRepository::insert(
-            tx,
+            conn,
             DurableRow {
                 id: &id,
                 channel,

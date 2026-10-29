@@ -4,6 +4,7 @@
 use std::time::Duration;
 
 use systemprompt_identifiers::{SessionId, UserId};
+use systemprompt_models::bridge::instance::BridgeState;
 use systemprompt_oauth::repository::{BridgeSessionRepository, UpsertBridgeSession};
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, seed_user_row, test_db_pool, unique_user_id,
@@ -36,6 +37,8 @@ fn upsert_params(session_id: &SessionId, user_id: &UserId) -> UpsertBridgeSessio
         forwarded_total: 3,
         tokens_in_total: 100,
         tokens_out_total: 200,
+        release_version: None,
+        state: None,
     }
 }
 
@@ -125,4 +128,40 @@ async fn delete_stale_removes_recent_with_zero_window() {
         .await
         .expect("delete_stale");
     assert!(removed >= 1);
+}
+
+#[tokio::test]
+async fn upsert_records_and_replaces_the_release_version_and_state() {
+    let ctx = setup().await;
+    let session_id = SessionId::generate();
+    let mut reported = upsert_params(&session_id, &ctx.user_id);
+    reported.release_version = Some("0.75.1".to_owned());
+    reported.state = Some(BridgeState::Disabled);
+    ctx.repo.upsert(reported).await.expect("upsert");
+
+    let found = ctx
+        .repo
+        .list_active_for_user(&ctx.user_id, Duration::from_secs(3600))
+        .await
+        .expect("list for user")
+        .into_iter()
+        .find(|r| r.session_id == session_id)
+        .expect("present");
+    assert_eq!(found.release_version.as_deref(), Some("0.75.1"));
+    assert_eq!(found.state.as_deref(), Some("disabled"));
+
+    ctx.repo
+        .upsert(upsert_params(&session_id, &ctx.user_id))
+        .await
+        .expect("upsert from a bridge that reports neither");
+    let found = ctx
+        .repo
+        .list_active(Duration::from_secs(3600))
+        .await
+        .expect("list_active")
+        .into_iter()
+        .find(|r| r.session_id == session_id)
+        .expect("present");
+    assert_eq!(found.release_version, None);
+    assert_eq!(found.state, None);
 }

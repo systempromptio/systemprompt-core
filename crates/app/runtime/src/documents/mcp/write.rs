@@ -33,6 +33,7 @@ use systemprompt_models::execution::context::RequestContext;
 use systemprompt_provider_contracts::documents::{CodecError, TemplateParams};
 
 use super::DocumentsMcpTools;
+use super::agent_presence::announce_agent;
 use super::inputs::{CreateInput, EditInput};
 use super::media::{image_refs, resolve_media};
 use super::outputs::CreateOutput;
@@ -150,6 +151,9 @@ async fn commit_ops(call: EditCall<'_>) -> Result<(EditOutput, String), McpError
         },
     };
     let output = edit_ack(&call.document, landed, call.verbose);
+    if !output.replayed {
+        announce_agent(&call, &output).await;
+    }
     let summary = if output.replayed {
         format!(
             "op {} replayed",

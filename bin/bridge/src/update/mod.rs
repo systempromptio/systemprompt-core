@@ -144,7 +144,11 @@ pub async fn check(
 ) -> Result<(UpdateStatus, ReleaseManifest), UpdateError> {
     let platform = platform_slug().ok_or(UpdateError::UnsupportedPlatform)?;
     let manifest = client.fetch_latest_release(bearer, platform).await?;
-    let status = compare(crate::brand::brand().version, &manifest)?;
+    let status = decide(
+        crate::brand::brand().version,
+        &manifest,
+        &combined_window()?,
+    )?;
     Ok((status, manifest))
 }
 
@@ -154,32 +158,56 @@ pub async fn check_now(
 ) -> Result<(UpdateStatus, ReleaseManifest), UpdateError> {
     let platform = platform_slug().ok_or(UpdateError::UnsupportedPlatform)?;
     let manifest = client.fetch_latest_release_fresh(bearer, platform).await?;
-    let status = compare(crate::brand::brand().version, &manifest)?;
+    let status = decide(
+        crate::brand::brand().version,
+        &manifest,
+        &combined_window()?,
+    )?;
     Ok((status, manifest))
 }
 
-pub fn compare(local: &str, manifest: &ReleaseManifest) -> Result<UpdateStatus, UpdateError> {
-    let remote_version = semver::Version::parse(&manifest.version).map_err(|source| {
-        UpdateError::BadRemoteVersion {
-            version: manifest.version.clone(),
-            source,
-        }
-    })?;
-    let local_version =
-        semver::Version::parse(local).map_err(|source| UpdateError::BadLocalVersion {
+fn combined_window() -> Result<crate::instance::window::CombinedWindow, UpdateError> {
+    crate::instance::window::combined().map_err(|e| UpdateError::Window(Box::new(e)))
+}
+
+pub fn decide(
+    local: &str,
+    manifest: &ReleaseManifest,
+    combined: &crate::instance::window::CombinedWindow,
+) -> Result<UpdateStatus, UpdateError> {
+    let remote = parse_remote(manifest)?;
+    let local_version = parse_local(local)?;
+    let ordering = remote.cmp_precedence(&local_version);
+    if ordering.is_eq() {
+        return Ok(UpdateStatus::Current {
             version: local.to_owned(),
-            source,
-        })?;
-    if remote_version > local_version {
-        Ok(UpdateStatus::Available {
-            version: manifest.version.clone(),
-            notes_url: manifest.notes_url.clone(),
-        })
-    } else {
-        Ok(UpdateStatus::Current {
-            version: local.to_owned(),
-        })
+        });
     }
+    let local_admitted = crate::instance::window::admit_candidate(combined, &local_version).is_ok();
+    if ordering.is_lt() && local_admitted {
+        return Ok(UpdateStatus::Current {
+            version: local.to_owned(),
+        });
+    }
+    crate::instance::window::admit_candidate(combined, &remote)?;
+    Ok(UpdateStatus::Available {
+        version: manifest.version.clone(),
+        notes_url: manifest.notes_url.clone(),
+    })
+}
+
+fn parse_remote(manifest: &ReleaseManifest) -> Result<semver::Version, UpdateError> {
+    semver::Version::parse(&manifest.version).map_err(|source| UpdateError::BadRemoteVersion {
+        version: manifest.version.clone(),
+        source,
+    })
+}
+
+fn parse_local(local: &str) -> Result<semver::Version, UpdateError> {
+    semver::Version::parse(local).map_err(|source| UpdateError::BadLocalVersion {
+        version: local.to_owned(),
+        source,
+    })
 }
 
 pub async fn apply(

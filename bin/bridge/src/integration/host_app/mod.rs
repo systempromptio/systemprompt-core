@@ -12,12 +12,14 @@ use systemprompt_models::bridge::host::HostKind;
 
 mod error;
 mod probe;
+mod session;
 
 pub use crate::install::profile_inputs::{
     ModelProtocolOverrides, ProfileFacts, ProfileFactsError, ProfileGenInputs,
 };
 pub use error::HostAppError;
 pub use probe::{DesiredError, ProbeEnv};
+pub use session::{StartSession, session_starter};
 
 pub use crate::integration::profile_state::{
     AppInstallState, ProfileCode, ProfileProbe, ProfileState, StaleReason,
@@ -150,15 +152,23 @@ pub trait HostApp: Send + Sync + 'static {
     fn app_installed(&self, start_menu: &crate::probe_cache::StartMenuCache) -> AppInstallState;
     fn generate_profile(&self, inputs: &ProfileGenInputs)
     -> Result<GeneratedProfile, HostAppError>;
-    fn install_profile(&self, path: &str) -> Result<ProfileInstalled, HostAppError>;
+    fn install_profile(
+        &self,
+        path: &str,
+        gate: &crate::elevation_gate::ElevationGate,
+    ) -> Result<ProfileInstalled, HostAppError>;
     fn install_action_label(&self) -> &'static str;
 
     // Why: a repair the bridge starts on its own — at launch, after an upgrade
     // changed what a profile must contain — may not raise an operating-system
     // prompt the user did not ask for. A host whose install needs one answers
     // `HostAppError::NeedsPrompt` here and is left for the user's own Repair.
-    fn install_profile_unattended(&self, path: &str) -> Result<ProfileInstalled, HostAppError> {
-        self.install_profile(path)
+    fn install_profile_unattended(
+        &self,
+        path: &str,
+        gate: &crate::elevation_gate::ElevationGate,
+    ) -> Result<ProfileInstalled, HostAppError> {
+        self.install_profile(path, gate)
     }
 
     fn remove_profile(&self) -> Result<ProfileRemoval, HostAppError> {
@@ -185,6 +195,13 @@ pub trait HostApp: Send + Sync + 'static {
 
     fn can_quit(&self) -> bool {
         false
+    }
+
+    // Why: no supported host exposes a launch-with-prompt deep link, and a
+    // terminal `claude "<prompt>"` is not portable across desktops, so every
+    // host answers `None` and the inbox hides its Start-session action.
+    fn start_session(&self, _prompt: &str) -> Option<StartSession> {
+        None
     }
 
     fn kind(&self) -> HostAppKind {

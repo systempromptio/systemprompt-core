@@ -1,12 +1,15 @@
 //! `/api/v1/documents/{id}/collab/*`: live co-editing of HTML and Markdown
 //! documents.
 //!
-//! Protocol v2. Clients join a document's edit session (`edit`, `comment`
-//! or `view`) and learn the engine, wire version, model and access level to
-//! bind to; they post engine updates, each validated on a server-side fork
-//! and refused as `update_rejected` with a `reason` (resync from a fresh
-//! join), and leave. Everyone's updates reach them as
-//! `document.collab.update` events on their existing AG-UI stream. Binary
+//! Protocol v3. Clients join a document's edit session (`edit`, `comment`
+//! or `view`) and learn the engine, wire version, model, access level and
+//! the engine peer id (`peer_id`) their editor must use; they post engine
+//! updates, each validated on a server-side fork and refused as
+//! `update_rejected` with a `reason`, `peer_not_assigned` or
+//! `update_dependencies_missing` (resync from a fresh join), or as
+//! `update_contended` (send again), and leave. Everyone's updates reach them
+//! as `document.collab.update` events on the document's live channel
+//! (`GET /api/v1/documents/{id}/live`). Binary
 //! payloads (snapshots, updates and version vectors) travel as standard
 //! base64 in JSON; an update may instead be posted as raw
 //! `application/octet-stream` bytes (`collab_updates`).
@@ -59,9 +62,10 @@ pub(super) struct JoinedJson {
     model: &'static str,
     model_version: u32,
     level: AccessLevel,
+    peer_id: u64,
 }
 
-const PROTOCOL_VERSION: u32 = 2;
+const PROTOCOL_VERSION: u32 = 3;
 
 #[derive(Debug, Deserialize)]
 pub(super) struct LeaveBody {
@@ -143,6 +147,7 @@ pub(super) async fn join(
         model: joined.model,
         model_version: joined.model_version,
         level: joined.level,
+        peer_id: joined.peer,
     }))
 }
 
@@ -207,6 +212,12 @@ fn collab_error(error: CollabError) -> DocumentsHttpError {
         CollabError::SessionClosed { .. } => {
             Http::from(ApiError::conflict(message).with_error_key("session_closed"))
         },
+        CollabError::CheckpointBusy { .. } => {
+            Http::from(ApiError::conflict(message).with_error_key("checkpoint_busy"))
+        },
+        CollabError::CheckpointLeaseLost { .. } => {
+            Http::from(ApiError::conflict(message).with_error_key("checkpoint_lease_lost"))
+        },
         CollabError::NotJoined { .. } => {
             Http::from(ApiError::conflict(message).with_error_key("not_joined"))
         },
@@ -221,6 +232,15 @@ fn collab_error(error: CollabError) -> DocumentsHttpError {
                 .with_error_key("update_rejected")
                 .with_details(rejection.reason()),
         ),
+        CollabError::PeerNotAssigned { .. } => {
+            Http::from(ApiError::bad_request(message).with_error_key("peer_not_assigned"))
+        },
+        CollabError::MissingDependencies => {
+            Http::from(ApiError::conflict(message).with_error_key("update_dependencies_missing"))
+        },
+        CollabError::UpdateContended { .. } => {
+            Http::from(ApiError::conflict(message).with_error_key("update_contended"))
+        },
         CollabError::NotText { .. } => Http::from(ApiError::bad_request(message)),
         CollabError::EngineUnavailable => Http::from(
             ApiError::service_unavailable("no live session engine is enabled")

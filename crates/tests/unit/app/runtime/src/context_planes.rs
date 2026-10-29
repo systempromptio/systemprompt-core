@@ -154,6 +154,11 @@ async fn plane_debug_impls_flag_optional_members() {
         });
     let documents =
         systemprompt_test_fixtures::fixture_documents_runtime(&pool, &file_storage, &authz_hook);
+    let event_router = systemprompt_events::EventRouter::local_only(Arc::new(
+        systemprompt_events::EventBroadcasters::new(),
+    ));
+    let notifications =
+        systemprompt_test_fixtures::fixture_notifications(&pool, &event_router, &documents);
     let subsystems = Subsystems {
         system_admin: Arc::new(fixture_system_admin("planeadmin")),
         logging: systemprompt_test_fixtures::fixture_logging_runtime(),
@@ -169,9 +174,7 @@ async fn plane_debug_impls_flag_optional_members() {
             systemprompt_database::SchemaInstallReport::default(),
         )),
         event_bridge: systemprompt_test_fixtures::fixture_event_bridge(&pool),
-        event_router: systemprompt_events::EventRouter::local_only(Arc::new(
-            systemprompt_events::EventBroadcasters::new(),
-        )),
+        event_router,
         geoip_reader: None,
         file_storage: Arc::clone(&file_storage),
         shutdown: Default::default(),
@@ -182,6 +185,7 @@ async fn plane_debug_impls_flag_optional_members() {
         )),
         connector_tokens: Arc::default(),
         documents,
+        notifications,
     };
     let dbg = format!("{subsystems:?}");
     assert!(dbg.contains("Subsystems"), "got: {dbg}");

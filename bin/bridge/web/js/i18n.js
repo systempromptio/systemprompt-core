@@ -83,6 +83,15 @@ async function loadCatalog(locale) {
   }
 }
 
+// Catalogs shipped under web/i18n/; a locale not listed here is never fetched.
+const SHIPPED_LOCALES = ["en-US"];
+
+function shippedLocale(requested) {
+  if (SHIPPED_LOCALES.includes(requested)) return requested;
+  const base = requested.split("-")[0];
+  return SHIPPED_LOCALES.find((l) => l === base || l.split("-")[0] === base) ?? null;
+}
+
 export async function init() {
   const requested = (navigator.language || "en-US").replace("_", "-");
   const fallback = "en-US";
@@ -90,10 +99,11 @@ export async function init() {
   if (fallbackCatalog) {
     for (const [k, v] of fallbackCatalog) messages.set(k, v);
   }
-  if (requested !== fallback) {
-    const localeCatalog = await loadCatalog(requested);
+  const shipped = shippedLocale(requested);
+  if (shipped && shipped !== fallback) {
+    const localeCatalog = await loadCatalog(shipped);
     if (localeCatalog) {
-      activeLocale = requested;
+      activeLocale = shipped;
       for (const [k, v] of localeCatalog) messages.set(k, v);
     }
   }

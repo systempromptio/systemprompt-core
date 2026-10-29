@@ -61,6 +61,7 @@ fn decide(
             facts: DecisionFacts {
                 model: Some(model),
                 provider: Some("vertex"),
+                folder_ancestors: &[],
             },
         },
     )
@@ -188,6 +189,7 @@ fn decide_model(index: &ParentChainIndex, roles: &[&str], model: &str) -> Decisi
             facts: DecisionFacts {
                 model: Some(model),
                 provider: Some("vertex"),
+                folder_ancestors: &[],
             },
         },
     )

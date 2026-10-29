@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE document_uploads SET received_bytes = GREATEST(received_bytes - $2, 0)\n             WHERE id = $1::text::uuid\n               AND ($3::text IS NULL OR NOT EXISTS (\n                   SELECT 1 FROM document_upload_parts\n                   WHERE upload_id = $1::text::uuid AND storage_id = $3))",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "501bbe5c78b8349e515a7fd322ab7d432d1b141034d19497670166147c28dda2"
+}

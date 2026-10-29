@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO issue_report_attachments\n                   (report_id, upload_id, content_sha256, file_name, mime_type, size_bytes)\n               SELECT $1::text::uuid, u.id, u.blob_sha256, u.file_name,\n                      COALESCE(u.detected_mime, u.declared_mime), u.declared_size\n               FROM document_uploads u\n               WHERE u.id = $2::text::uuid AND u.owner_user_id = $3 AND u.status = 'completed'\n                 AND u.blob_sha256 IS NOT NULL\n               ON CONFLICT DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "e47c50e6648d3c0fcaebd66dec48ac92b6ad45f03866d46df0421904823ce0f9"
+}

@@ -14,9 +14,13 @@ mod authz;
 mod composition;
 mod core_layer;
 mod database;
+mod debug_impl;
 mod documents;
 mod events;
 mod governance;
+#[cfg(feature = "notifications")]
+pub(crate) mod notifications;
+mod options;
 pub use composition::owner_reassignments;
 use composition::{
     build_artifact_ingest, build_data_plane, build_domain_layer, new_plugins, new_spawner,
@@ -27,14 +31,13 @@ use std::sync::Arc;
 use systemprompt_database::MigrationConfig;
 use systemprompt_events::EventRouter;
 use systemprompt_extension::ExtensionRegistry;
-use systemprompt_governance::authz::{AuthzDecisionHook, SharedAuthzHook};
 use systemprompt_loader::BootContext;
 use systemprompt_marketplace::MarketplaceFilter;
-use systemprompt_security::keys::SigningKeys;
 use systemprompt_traits::BackgroundTasks;
 use systemprompt_users::UserService;
 
 use crate::context::{AppContext, ConfigPlane, DataPlane, ShutdownRequest, Subsystems};
+use crate::documents::ExtensionAudiences;
 use crate::error::RuntimeResult;
 pub use core_layer::discover_vertex_models;
 use core_layer::{CoreLayer, CoreOverrides, SchemaPolicy, init_core};
@@ -63,27 +66,6 @@ pub struct AppContextBuilder {
     event_router: Option<EventRouter>,
 }
 
-impl std::fmt::Debug for AppContextBuilder {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("AppContextBuilder")
-            .field("boot", &self.boot)
-            .field("extension_registry", &self.extension_registry.is_some())
-            .field("show_startup_warnings", &self.show_startup_warnings)
-            .field("marketplace_filter", &self.marketplace_filter.is_some())
-            .field("authz_hook", &self.core.authz_hook.is_some())
-            .field("signing_keys", &self.core.signing_keys.is_some())
-            .field("install_schemas", &self.schema.install)
-            .field("verify_schema", &self.schema.verify)
-            .field("database_url_override", &self.core.database_url.is_some())
-            .field("migration_config", &self.migration_config)
-            .field("shutdown", &self.shutdown.is_some())
-            .field("background_tasks", &self.background_tasks.is_some())
-            .field("event_router", &self.event_router)
-            .field("services", &self.core.services.is_some())
-            .finish()
-    }
-}
-
 impl AppContextBuilder {
     #[must_use]
     pub fn new(boot: BootContext) -> Self {
@@ -99,93 +81,6 @@ impl AppContextBuilder {
             background_tasks: None,
             event_router: None,
         }
-    }
-
-    #[must_use]
-    pub fn with_extensions(mut self, registry: ExtensionRegistry) -> Self {
-        self.extension_registry = Some(registry);
-        self
-    }
-
-    #[must_use]
-    pub const fn with_startup_warnings(mut self, show: bool) -> Self {
-        self.show_startup_warnings = show;
-        self
-    }
-
-    #[must_use]
-    pub fn with_marketplace_filter(mut self, filter: Arc<dyn MarketplaceFilter>) -> Self {
-        self.marketplace_filter = Some(filter);
-        self
-    }
-
-    #[must_use]
-    pub const fn with_migrations(mut self, install: bool) -> Self {
-        self.schema.install = install;
-        self
-    }
-
-    #[must_use]
-    pub const fn with_schema_verification(mut self, verify: bool) -> Self {
-        self.schema.verify = verify;
-        self
-    }
-
-    #[must_use]
-    pub fn with_authz_hook<H>(mut self, hook: H) -> Self
-    where
-        H: AuthzDecisionHook + 'static,
-    {
-        self.core.authz_hook = Some(Arc::new(hook));
-        self
-    }
-
-    #[must_use]
-    pub fn with_signing_keys(mut self, keys: SigningKeys) -> Self {
-        self.core.signing_keys = Some(keys);
-        self
-    }
-
-    #[must_use]
-    pub fn with_shared_authz_hook(mut self, hook: SharedAuthzHook) -> Self {
-        self.core.authz_hook = Some(hook);
-        self
-    }
-
-    #[must_use]
-    pub fn with_shutdown(mut self, shutdown: ShutdownRequest) -> Self {
-        self.shutdown = Some(shutdown);
-        self
-    }
-
-    #[must_use]
-    pub fn with_background_tasks(mut self, tasks: BackgroundTasks) -> Self {
-        self.background_tasks = Some(tasks);
-        self
-    }
-
-    #[must_use]
-    pub fn with_event_router(mut self, router: EventRouter) -> Self {
-        self.event_router = Some(router);
-        self
-    }
-
-    #[must_use]
-    pub fn with_database_url(mut self, url: impl Into<String>) -> Self {
-        self.core.database_url = Some(url.into());
-        self
-    }
-
-    #[must_use]
-    pub fn with_services(mut self, services: systemprompt_loader::ServicesState) -> Self {
-        self.core.services = Some(services);
-        self
-    }
-
-    #[must_use]
-    pub const fn with_migration_config(mut self, config: MigrationConfig) -> Self {
-        self.migration_config = config;
-        self
     }
 
     #[expect(
@@ -236,8 +131,18 @@ impl AppContextBuilder {
             &services,
         );
         let plugins = new_plugins(extensions, mcp_registry, self.marketplace_filter, &market);
-        let (router, bridge) = event_plane(self.event_router, &database, &config, &cache_epochs);
+        let (router, bridge, listener_pool) =
+            event_plane(self.event_router, &database, &config, &cache_epochs);
         let background_tasks = self.background_tasks.unwrap_or_default();
+        #[cfg(feature = "notifications")]
+        let notification_sink =
+            notifications::notification_sink(&database, config.instance_id.clone());
+        #[cfg(not(feature = "notifications"))]
+        let notification_sink: systemprompt_extension::DynNotificationSink =
+            Arc::new(crate::documents::NotificationsUnavailableSink);
+        #[cfg(not(feature = "notifications"))]
+        drop(listener_pool);
+        let audiences = ExtensionAudiences::default();
         let documents = documents::build_documents(&documents::DocumentsInputs {
             boot: &self.boot,
             database: &database,
@@ -248,7 +153,19 @@ impl AppContextBuilder {
             files_config: &files_config,
             background_tasks: &background_tasks,
             extensions: &plugins.extension_registry,
+            notifications: &notification_sink,
+            audiences: &audiences,
         })?;
+        #[cfg(feature = "notifications")]
+        let notifications_core =
+            notifications::NotificationsCore::new(&notifications::NotificationsInputs {
+                database: &database,
+                event_router: &router,
+                sink: &notification_sink,
+                listener_pool: &listener_pool,
+                documents: &documents,
+                profile: &self.boot.profile().notifications,
+            });
         let subsystems = Subsystems {
             ai_service,
             artifact_ingest: build_artifact_ingest(&database, &governance.get()),
@@ -270,9 +187,11 @@ impl AppContextBuilder {
             publish_guard: Arc::default(),
             connector_tokens,
             documents,
+            #[cfg(feature = "notifications")]
+            notifications: notifications_core.assemble(notifications::ExtensionSeams::default()),
         };
 
-        Ok(AppContext::from_parts(
+        let app = AppContext::from_parts(
             build_data_plane(
                 database,
                 content.analytics_service,
@@ -290,6 +209,15 @@ impl AppContextBuilder {
             },
             plugins,
             subsystems,
-        ))
+        );
+        #[cfg(feature = "notifications")]
+        let app = {
+            let mut app = app;
+            let seams = notifications::ExtensionSeams::discover(&app);
+            audiences.bind(seams.audiences.clone());
+            app.subsystems.notifications = notifications_core.assemble(seams);
+            app
+        };
+        Ok(app)
     }
 }

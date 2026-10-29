@@ -16,6 +16,13 @@
 //! The decision-time pattern and entitlement levels (`patterns`) sit between
 //! the entity and its owner chains.
 //!
+//! Document folder ancestors fold in with their own semantics: a deny any
+//! ancestor's ruleset yields for the subject wins outright, ahead of the
+//! entity's own rules and of any nearer folder's allow; otherwise they cascade
+//! as nearest-first levels whose rulesets close the chain, but an ancestor
+//! never votes `default_included`, so a folder closed by its own sentinel is
+//! not reopened by the folder above it.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -31,7 +38,7 @@ use systemprompt_identifiers::{MarketplaceId, PluginId, UserId};
 
 use super::error::{AuthzError, AuthzResult};
 use super::repository::AccessControlRepository;
-use super::resolver::{ResolveInput, ResolveParent, resolve};
+use super::resolver::{ResolveInput, ResolveParent, first_ruleset_deny, resolve};
 use super::subject::{SubjectAttributes, SubjectDimension};
 use super::types::{AccessRule, Decision, DenyReason, EntityKind, EntityRef};
 
@@ -144,20 +151,31 @@ impl ParentChainIndex {
                 };
             },
         };
-        let resolve_with = |parents: &[ResolveParent<'_>]| {
-            resolve(ResolveInput {
-                entity: &entity,
-                rules: base.rules,
-                user_id: base.user_id,
-                user_roles: base.user_roles,
-                default_included: base.default_included,
-                parents,
-                attributes: base.attributes,
-                dimensions: base.dimensions,
-            })
+        let input = ResolveInput {
+            entity: &entity,
+            rules: base.rules,
+            user_id: base.user_id,
+            user_roles: base.user_roles,
+            default_included: base.default_included,
+            parents: &[],
+            attributes: base.attributes,
+            dimensions: base.dimensions,
         };
+        let resolve_with =
+            |parents: &[ResolveParent<'_>]| resolve(ResolveInput { parents, ..input });
 
-        let nearer = self.pattern_parents(kind, id, base.facts);
+        let ancestors = base.facts.folder_ancestors;
+        if let Some(deny) = first_ruleset_deny(input, ancestors) {
+            return deny;
+        }
+        let mut nearer: Vec<ResolveParent<'_>> = ancestors
+            .iter()
+            .map(|ancestor| ResolveParent {
+                default_included: None,
+                ..*ancestor
+            })
+            .collect();
+        nearer.extend(self.pattern_parents(kind, id, base.facts));
         let mut first_deny = None;
         for chain in self.chains_for(kind, id) {
             let mut levels = nearer.clone();

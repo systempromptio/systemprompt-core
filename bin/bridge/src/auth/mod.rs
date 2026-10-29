@@ -123,13 +123,14 @@ pub fn has_credential_source(cfg: &config::Config) -> bool {
     {
         return true;
     }
-    if let Some(pat) = cfg.pat.as_ref()
-        && let Some(file) = pat.file.as_ref()
-    {
-        let expanded = expand_home(file);
-        if std::path::Path::new(&expanded).exists() {
+    match cfg.pat.and_then(|pat| pat.store) {
+        Some(config::gateways::credential::PatStore::Keyring) => return true,
+        Some(config::gateways::credential::PatStore::File)
+            if config::gateways::active().is_ok_and(|p| p.pat_file().exists()) =>
+        {
             return true;
-        }
+        },
+        Some(config::gateways::credential::PatStore::File) | None => {},
     }
     if let Some(session) = cfg.session.as_ref()
         && session.enabled.unwrap_or(false)
@@ -137,15 +138,6 @@ pub fn has_credential_source(cfg: &config::Config) -> bool {
         return true;
     }
     false
-}
-
-pub(crate) fn expand_home(path: &str) -> String {
-    if let Some(rest) = path.strip_prefix("~/")
-        && let Some(home) = crate::basedirs::home_dir()
-    {
-        return home.join(rest).to_string_lossy().into_owned();
-    }
-    path.to_owned()
 }
 
 #[must_use]

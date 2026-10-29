@@ -214,6 +214,8 @@ fn the_config_check_fails_when_the_file_exists_but_cannot_be_read() {
         .config
         .path()
         .join("systemprompt")
+        .join("gateways")
+        .join("default")
         .join("systemprompt-bridge.toml");
     std::fs::create_dir_all(path.parent().expect("parent")).expect("mkdir");
     std::fs::write(&path, "gateway_url = \"https://gw.invalid\"\n").expect("seed config");

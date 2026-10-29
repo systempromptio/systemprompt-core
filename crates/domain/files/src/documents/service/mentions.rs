@@ -256,7 +256,16 @@ impl DocumentService {
                     .any(|user| user.as_str() == grant.subject_value)
         });
         for grant in granted {
-            self.announce_share(who, document, grant, None, cause).await;
+            let recipient = UserId::new(grant.subject_value.clone());
+            self.announce_share(
+                who,
+                document,
+                grant,
+                std::slice::from_ref(&recipient),
+                None,
+                cause,
+            )
+            .await;
         }
     }
 }

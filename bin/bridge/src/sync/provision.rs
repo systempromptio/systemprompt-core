@@ -77,9 +77,11 @@ pub(super) async fn provision_system_org_plugins(
         path = %path.display(),
         "requesting one-time administrator approval to provision org-plugins for Cowork"
     );
+    let gate = std::sync::Arc::clone(&bridge.elevation_gate);
     let outcome = tokio::task::spawn_blocking(move || {
         let _operation = operation;
         crate::install::elevate::run_privileged(
+            &gate,
             &script,
             "Bridge needs administrator privileges to create the Claude Desktop org-plugins folder.",
         )
@@ -221,9 +223,10 @@ pub(super) async fn heal_org_plugins_scope(
         reg_path: None,
         org_plugins: Some(org),
     };
+    let gate = std::sync::Arc::clone(&bridge.elevation_gate);
     let outcome = tokio::task::spawn_blocking(move || {
         let _operation = operation;
-        crate::install::elevated_job::elevate_and_run(&stage_dir, &job)
+        crate::install::elevated_job::elevate_and_run(&gate, &stage_dir, &job)
     })
     .await;
     let receipt = outcome

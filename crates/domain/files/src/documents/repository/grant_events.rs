@@ -116,8 +116,21 @@ impl DocumentGrantEventRepository {
         let moved = sqlx::query_scalar!(
             r#"WITH d AS (
                    UPDATE documents SET owner_user_id = $3, updated_at = now()
-                   WHERE id = $1::text::uuid AND deleted_at IS NULL
-                   RETURNING id),
+                   WHERE id = $1::text::uuid AND deleted_at IS NULL AND owner_user_id = $2
+                   RETURNING id, folder_id, name),
+               gained AS (
+                   INSERT INTO document_path_changes
+                       (document_id, to_path, subject_kind, subject_value, subject_access)
+                   SELECT d.id, document_drive_path(d.folder_id, d.name), 'user', $3, 'gained'
+                   FROM d LEFT JOIN document_folders f ON f.id = d.folder_id
+                   WHERE $2 <> $3
+                     AND NOT EXISTS (
+                         SELECT 1 FROM document_grants o
+                         WHERE o.subject_kind = 'user' AND o.subject_value = $3
+                           AND (o.document_id = d.id
+                                OR o.folder_id = ANY(COALESCE(f.ancestor_ids || f.id,
+                                                              '{}'::uuid[]))))
+                   RETURNING 1),
                prev AS (
                    SELECT g.access_level FROM document_grants g, d
                    WHERE g.document_id = d.id AND g.subject_kind = 'user'

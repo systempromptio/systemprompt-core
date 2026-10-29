@@ -42,7 +42,12 @@ impl PresenceThrottle {
 #[must_use]
 pub fn document_for(root: &DriveRoot, state: &DriveState, path: &Path) -> Option<DocumentId> {
     let rel = root.relative(path)?;
-    state.entries.get(&rel)?.document_id.clone()
+    let entry = state.entries.get(&rel)?;
+    let unchanged = super::hash::hash_file(path).is_ok_and(|(sha, _)| sha == entry.sha256);
+    if unchanged {
+        return None;
+    }
+    entry.document_id.clone()
 }
 
 #[must_use]

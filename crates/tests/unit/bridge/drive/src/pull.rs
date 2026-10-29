@@ -6,7 +6,7 @@ use systemprompt_models::documents::content_hash;
 use wiremock::matchers::{method, path, query_param};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-use crate::support::Fixture;
+use crate::support::{Fixture, manifest_json};
 
 async fn feed(server: &MockServer, changes: serde_json::Value) {
     Mock::given(method("GET"))
@@ -142,4 +142,64 @@ async fn pull_refuses_a_path_outside_the_drive_folder() {
     let mut state = fx.state();
     let err = pull(fx.cycle(), &mut state).await.expect_err("unsafe path");
     assert!(matches!(err, DriveError::UnsafePath(_)), "{err:?}");
+}
+
+#[tokio::test]
+async fn a_cursor_reset_drops_the_cursor_and_reconciles_from_the_manifest() {
+    let server = MockServer::start().await;
+    let fx = Fixture::new(&server.uri());
+    fx.synced_empty();
+    let doc = DocumentId::generate();
+    let rev = DocumentRevisionId::generate();
+    let body: &[u8] = b"from the manifest";
+
+    Mock::given(method("GET"))
+        .and(path(ApiPaths::BRIDGE_DRIVE_CHANGES))
+        .and(query_param("since", "c0"))
+        .respond_with(ResponseTemplate::new(410).set_body_json(serde_json::json!({
+            "code": "gone", "error_key": "cursor_reset",
+            "message": "drive cursor \"c0\" is not a feed position; restart from the manifest",
+        })))
+        .expect(1)
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path(ApiPaths::BRIDGE_DRIVE_MANIFEST))
+        .respond_with(
+            ResponseTemplate::new(200).set_body_json(manifest_json(&[(&doc, "a.md", &rev, body)])),
+        )
+        .expect(1)
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path(ApiPaths::bridge_drive_blob(&content_hash(body))))
+        .respond_with(ResponseTemplate::new(200).set_body_bytes(body.to_vec()))
+        .mount(&server)
+        .await;
+
+    let mut state = fx.state();
+    pull(fx.cycle(), &mut state)
+        .await
+        .expect("pull after reset");
+    assert_eq!(fx.read("a.md"), body);
+    assert_eq!(fx.state().cursor.as_deref(), Some("c-manifest"));
+}
+
+#[tokio::test]
+async fn a_gone_answer_without_the_reset_key_is_an_error() {
+    let server = MockServer::start().await;
+    let fx = Fixture::new(&server.uri());
+    fx.synced_empty();
+    Mock::given(method("GET"))
+        .and(path(ApiPaths::BRIDGE_DRIVE_CHANGES))
+        .respond_with(ResponseTemplate::new(410).set_body_json(serde_json::json!({
+            "code": "gone", "message": "gone",
+        })))
+        .mount(&server)
+        .await;
+
+    let mut state = fx.state();
+    let err = pull(fx.cycle(), &mut state).await.expect_err("not a reset");
+    assert!(matches!(err, DriveError::Rejected { .. }), "{err:?}");
+    assert_eq!(fx.state().cursor.as_deref(), Some("c0"));
 }

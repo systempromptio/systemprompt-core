@@ -67,7 +67,11 @@ impl HostApp for BareHost {
         .into())
     }
 
-    fn install_profile(&self, _path: &str) -> Result<ProfileInstalled, HostAppError> {
+    fn install_profile(
+        &self,
+        _path: &str,
+        _gate: &systemprompt_bridge::elevation_gate::ElevationGate,
+    ) -> Result<ProfileInstalled, HostAppError> {
         Ok(ProfileInstalled::ok())
     }
 

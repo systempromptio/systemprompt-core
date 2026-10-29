@@ -56,6 +56,7 @@ async fn run_session_login(
     }
     let cfg = crate::config::load()?;
     let base = crate::config::gateway_url_or_default(&cfg);
+    crate::gateway::discovery::refresh_logged(&http, &base).await;
 
     let code = tokio::select! {
         () = cancel.cancelled() => {

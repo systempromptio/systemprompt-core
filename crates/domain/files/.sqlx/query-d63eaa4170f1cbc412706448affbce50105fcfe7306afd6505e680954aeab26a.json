@@ -1,0 +1,25 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH g AS (DELETE FROM document_grants WHERE id = $1 RETURNING *),\n               lost AS (\n                   INSERT INTO document_path_changes\n                       (document_id, from_path, subject_kind, subject_value, subject_access)\n                   SELECT d.id, document_drive_path(d.folder_id, d.name),\n                          g.subject_kind, g.subject_value, 'lost'\n                   FROM g JOIN documents d ON d.id = g.document_id\n                   WHERE d.deleted_at IS NULL\n                   UNION ALL\n                   SELECT d.id, document_drive_path(d.folder_id, d.name),\n                          g.subject_kind, g.subject_value, 'lost'\n                   FROM g\n                   JOIN document_folders f\n                     ON (f.id = g.folder_id OR g.folder_id = ANY(f.ancestor_ids))\n                    AND f.deleted_at IS NULL\n                   JOIN documents d ON d.folder_id = f.id AND d.deleted_at IS NULL\n                   RETURNING 1),\n               e AS (INSERT INTO document_grant_events\n                   (event, target_kind, target_id, subject_kind, subject_value, old_level,\n                    valid_until, actor_user_id, trace_id)\n               SELECT 'revoked', CASE WHEN g.document_id IS NULL THEN 'folder' ELSE 'document' END,\n                      COALESCE(g.document_id, g.folder_id), g.subject_kind, g.subject_value,\n                      g.access_level, g.valid_until, $2, $3\n               FROM g)\n               SELECT COUNT(*) AS \"deleted!\" FROM g",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "deleted!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Varchar",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "d63eaa4170f1cbc412706448affbce50105fcfe7306afd6505e680954aeab26a"
+}

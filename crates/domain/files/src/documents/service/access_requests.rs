@@ -5,10 +5,11 @@
 //! them off a request is refused as `not_found`, exactly like any document
 //! the caller cannot see. A user holds at most one open request per
 //! document. A request reaches the document's owner as
-//! `document.access_requested`. Answering needs `share`: granting shares the
-//! requested level with the requester through [`DocumentService::share`],
-//! so every sharing rule and the audit log apply; declining only closes the
-//! request.
+//! `document.access_requested`. Answering needs `share`. Granting first runs
+//! every sharing rule [`DocumentService::share`] applies, then records the
+//! answer as a compare-and-set from `open` and writes the grant and its audit
+//! row in one transaction, so of two concurrent answers exactly one lands and
+//! a request is never granted without its grant. Declining only closes it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -18,12 +19,14 @@ use systemprompt_models::auth::{AuthenticatedUser, Permission};
 use systemprompt_models::documents::{
     AccessLevel, AccessRequestStatus, DocumentAccessRequestedEvent, DocumentAction,
 };
+use systemprompt_traits::RepositoryError;
 
 use super::DocumentService;
 use super::grants::{ShareRequest, check_message};
 use super::ownership::USER_SUBJECT;
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{DocumentAccessRequest, GrantTarget, NewAccessRequest};
+use crate::documents::repository::DocumentAccessRequestRepository;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AccessRequestInput {
@@ -149,33 +152,28 @@ impl DocumentService {
         self.authorized_document(who, document, DocumentAction::Share, trace)
             .await?;
         let open = self.open_request(document, request).await?;
-        let status = match decision {
+        let decided = match decision {
             AccessDecision::Grant { subject_display } => {
-                self.share(
-                    who,
-                    ShareRequest {
-                        target: GrantTarget::Document(document.clone()),
-                        subject_kind: USER_SUBJECT.to_owned(),
-                        subject_value: open.requester_user_id.as_str().to_owned(),
-                        subject_display,
-                        level: open.level,
-                        valid_until: None,
-                        message: None,
-                        via_agent: None,
-                    },
-                    trace,
-                )
-                .await?;
-                AccessRequestStatus::Granted
+                let share = ShareRequest {
+                    target: GrantTarget::Document(document.clone()),
+                    subject_kind: USER_SUBJECT.to_owned(),
+                    subject_value: open.requester_user_id.as_str().to_owned(),
+                    subject_display,
+                    level: open.level,
+                    valid_until: None,
+                    message: None,
+                    via_agent: None,
+                };
+                self.grant_request(who, request, share, trace).await?
             },
-            AccessDecision::Decline => AccessRequestStatus::Declined,
+            AccessDecision::Decline => {
+                self.repos
+                    .access_requests
+                    .decide(request, AccessRequestStatus::Declined, &who.id)
+                    .await?
+            },
         };
-        if !self
-            .repos
-            .access_requests
-            .decide(request, status, &who.id)
-            .await?
-        {
+        if !decided {
             let current = self.load_request(document, request).await?;
             return Err(DocumentsError::AccessRequestClosed {
                 request_id: request.clone(),
@@ -183,6 +181,33 @@ impl DocumentService {
             });
         }
         self.load_request(document, request).await
+    }
+
+    async fn grant_request(
+        &self,
+        who: &AuthenticatedUser,
+        request: &DocumentAccessRequestId,
+        share: ShareRequest,
+        trace: &TraceId,
+    ) -> Result<bool, DocumentsError> {
+        let checked = self.check_share(who, share, trace).await?;
+        let mut tx = self.repos.documents.begin().await?;
+        if !DocumentAccessRequestRepository::decide_in(
+            &mut tx,
+            request,
+            AccessRequestStatus::Granted,
+            &who.id,
+        )
+        .await?
+        {
+            tx.rollback().await.map_err(sql)?;
+            return Ok(false);
+        }
+        let grant = self.insert_checked(&mut tx, &checked).await?;
+        self.record_checked(&mut tx, who, &checked, &grant).await?;
+        tx.commit().await.map_err(sql)?;
+        self.announce_checked(who, checked, &grant).await;
+        Ok(true)
     }
 
     async fn open_request(
@@ -212,4 +237,8 @@ impl DocumentService {
             .await?
             .ok_or_else(|| DocumentsError::not_found("access request", request))
     }
+}
+
+fn sql(error: sqlx::Error) -> DocumentsError {
+    DocumentsError::Repository(RepositoryError::from(error))
 }

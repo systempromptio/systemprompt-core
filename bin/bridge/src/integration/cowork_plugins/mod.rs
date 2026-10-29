@@ -19,8 +19,8 @@ mod upsert;
 pub use choose::{ChooseSessionError, CoworkSessionChoice, choose_session, usable_sessions};
 pub use emit::{CoworkTarget, EmitReport, apply_enable, clear_all};
 pub use resolve::{
-    ResolveTargetError, TargetSource, choose_target, dir_names_org, match_org, pick_target,
-    resolve_target, resolve_target_with_source,
+    ResolveTargetError, TargetSource, choose_target, clear_targets, dir_names_org, match_org,
+    pick_target, resolve_target, resolve_target_with_source,
 };
 
 pub use settings::{
@@ -117,17 +117,24 @@ impl HostSync for CoworkSync {
     }
 
     fn clear(&self, _ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
-        let Some(target) = resolve_target().map_err(|e| ApplyError::Step {
-            context: "resolve the Cowork session directory",
-            source: Box::new(e),
-        })?
-        else {
-            return Ok(());
+        let targets = match clear_targets() {
+            Ok(targets) => targets,
+            Err(error) => {
+                tracing::warn!(
+                    target: "bridge::cowork",
+                    %error,
+                    "Cowork sessions unreadable; nothing the bridge wrote there was cleared"
+                );
+                return Ok(());
+            },
         };
-        clear_all(&target).map_err(|e| ApplyError::Step {
-            context: "cowork clear",
-            source: Box::new(e),
-        })
+        for target in &targets {
+            clear_all(target).map_err(|e| ApplyError::Step {
+                context: "cowork clear",
+                source: Box::new(e),
+            })?;
+        }
+        Ok(())
     }
 }
 

@@ -117,8 +117,9 @@ pub(crate) fn on_reset_proxy_secret(app: &GuiApp, reply_to: ReplyId) {
 pub(crate) fn on_config_dir_repair_requested(app: &GuiApp, reply_to: ReplyId) {
     app.append_log(i18n::t("config-dir-repair-started"));
     let proxy = app.proxy.clone();
+    let gate = Arc::clone(&app.ctx.elevation_gate);
     app.ctx.spawn(async move {
-        let result = match tokio::task::spawn_blocking(repair_config_dir).await {
+        let result = match tokio::task::spawn_blocking(move || repair_config_dir(&gate)).await {
             Ok(r) => r.map_err(|e| Arc::new(GuiError::Io(e))),
             Err(join_err) => Err(Arc::new(GuiError::Io(io::Error::other(format!(
                 "config dir repair task join: {join_err}"
@@ -156,12 +157,13 @@ pub(crate) fn on_config_dir_repair_finished(
 }
 
 #[cfg(target_os = "windows")]
-fn repair_config_dir() -> io::Result<String> {
-    crate::install::elevated_job::repair_config_dir_elevated().map(|dir| dir.display().to_string())
+fn repair_config_dir(gate: &crate::elevation_gate::ElevationGate) -> io::Result<String> {
+    crate::install::elevated_job::repair_config_dir_elevated(gate)
+        .map(|dir| dir.display().to_string())
 }
 
 #[cfg(not(target_os = "windows"))]
-fn repair_config_dir() -> io::Result<String> {
+fn repair_config_dir(_gate: &crate::elevation_gate::ElevationGate) -> io::Result<String> {
     Err(io::Error::new(
         io::ErrorKind::Unsupported,
         "the configuration directory carries no Windows access control list to repair",

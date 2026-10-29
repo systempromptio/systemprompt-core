@@ -13,7 +13,7 @@ pub(super) fn event_plane(
     database: &systemprompt_database::DbPool,
     config: &Config,
     cache_epochs: &systemprompt_traits::CacheEpochs,
-) -> (EventRouter, EventBridgeHandle) {
+) -> (EventRouter, EventBridgeHandle, sqlx::PgPool) {
     let event_router = event_router_or_outbox(configured, database, config);
     // Why: LISTEN/NOTIFY, the outbox insert and the retention prune need the
     // primary, so the relay takes the write pool; the LISTEN session itself
@@ -25,9 +25,9 @@ pub(super) fn event_plane(
         cache_epochs.clone(),
         Arc::clone(event_router.broadcasters()),
     )
-    .with_listener_pool(database.session_pool().as_ref().clone())
-    .into_idle_handle();
-    (event_router, bridge)
+    .with_listener_pool(database.session_pool().as_ref().clone());
+    let listener_pool = bridge.listener_pool().clone();
+    (event_router, bridge.into_idle_handle(), listener_pool)
 }
 
 fn event_router_or_outbox(

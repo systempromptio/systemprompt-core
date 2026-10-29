@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.76.0] - 2026-10-29
+
+### Added
+
+- The `notification_retention` job.
+
+### Fixed
+
+- OTLP export retries jitter each delay over its upper half.
+
 ## [0.75.0] - 2026-10-28
 
 ### Breaking

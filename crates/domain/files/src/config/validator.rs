@@ -12,7 +12,8 @@ use systemprompt_traits::ConfigProvider;
 
 use super::FilesConfig;
 use super::document_limits::DocumentLimits;
-use super::documents::{MAX_DOCUMENT_UPLOAD_BYTES, MIN_DOCUMENT_UPLOAD_BYTES};
+use super::documents::{DocumentsConfig, MAX_DOCUMENT_UPLOAD_BYTES, MIN_DOCUMENT_UPLOAD_BYTES};
+use super::issues::IssuesConfig;
 use super::types::FilesConfigYaml;
 use super::upload_limits::UploadLimits;
 
@@ -103,34 +104,10 @@ impl DomainConfig for FilesConfigValidator {
         }
 
         let documents = &config.documents;
-        if !(MIN_DOCUMENT_UPLOAD_BYTES..=MAX_DOCUMENT_UPLOAD_BYTES)
-            .contains(&documents.max_upload_bytes)
-        {
-            report.add_error(ValidationIssue::new(
-                "files.documents.maxUploadBytes",
-                "Document upload limit must be between 1 MiB and 2 GiB",
-            ));
-        }
-        if documents.blob_gc_grace_hours == 0 {
-            report.add_error(ValidationIssue::new(
-                "files.documents.blobGcGraceHours",
-                "Blob garbage-collection grace must be at least one hour",
-            ));
-        }
-        if documents.presence_ttl_secs == 0 {
-            report.add_error(ValidationIssue::new(
-                "files.documents.presenceTtlSecs",
-                "Presence time-to-live must be at least one second",
-            ));
-        }
-        if documents.trash_retention_days == 0 {
-            report.add_error(ValidationIssue::new(
-                "files.documents.trashRetentionDays",
-                "Trash retention must be at least one day",
-            ));
-        }
+        validate_documents(&mut report, documents);
         validate_limits(&mut report, &documents.limits);
         validate_upload_limits(&mut report, &documents.uploads);
+        validate_issues(&mut report, &config.issues, documents.enabled);
 
         Ok(report)
     }
@@ -155,5 +132,73 @@ fn validate_upload_limits(report: &mut ValidationReport, limits: &UploadLimits) 
                 format!("{field} must be between {low} and {high}"),
             ));
         }
+    }
+}
+
+fn validate_issues(report: &mut ValidationReport, issues: &IssuesConfig, documents: bool) {
+    if !issues.enabled {
+        return;
+    }
+    if issues.max_reports_per_hour == 0 {
+        report.add_error(ValidationIssue::new(
+            "files.issues.maxReportsPerHour",
+            "At least one report per hour must be allowed",
+        ));
+    }
+    if issues.retention_days == 0 {
+        report.add_error(ValidationIssue::new(
+            "files.issues.retentionDays",
+            "Report retention must be at least one day",
+        ));
+    }
+    if issues.triage_roles.is_empty() {
+        report.add_error(ValidationIssue::new(
+            "files.issues.triageRoles",
+            "At least one role must triage reports",
+        ));
+    }
+    if issues.max_attachments > 0 && !documents {
+        report.add_warning(
+            ValidationWarning::new(
+                "files.issues.maxAttachments",
+                "Report attachments are document-store uploads; with files.documents off, reports carry none",
+            )
+            .with_suggestion("Enable files.documents or set maxAttachments to 0"),
+        );
+    }
+}
+
+fn validate_documents(report: &mut ValidationReport, documents: &DocumentsConfig) {
+    if !(MIN_DOCUMENT_UPLOAD_BYTES..=MAX_DOCUMENT_UPLOAD_BYTES)
+        .contains(&documents.max_upload_bytes)
+    {
+        report.add_error(ValidationIssue::new(
+            "files.documents.maxUploadBytes",
+            "Document upload limit must be between 1 MiB and 2 GiB",
+        ));
+    }
+    if documents.blob_gc_grace_hours == 0 {
+        report.add_error(ValidationIssue::new(
+            "files.documents.blobGcGraceHours",
+            "Blob garbage-collection grace must be at least one hour",
+        ));
+    }
+    if documents.presence_ttl_secs == 0 {
+        report.add_error(ValidationIssue::new(
+            "files.documents.presenceTtlSecs",
+            "Presence time-to-live must be at least one second",
+        ));
+    }
+    if documents.trash_retention_days == 0 {
+        report.add_error(ValidationIssue::new(
+            "files.documents.trashRetentionDays",
+            "Trash retention must be at least one day",
+        ));
+    }
+    if documents.agent_read_retention_days == 0 {
+        report.add_error(ValidationIssue::new(
+            "files.documents.agentReadRetentionDays",
+            "Agent read audit retention must be at least one day",
+        ));
     }
 }

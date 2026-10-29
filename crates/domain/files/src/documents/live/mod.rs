@@ -3,17 +3,22 @@
 //! A live channel subscribes to the document's topic
 //! ([`live_topic`](super::events::live_topic)), which carries every document
 //! event once whoever its recipients were, relayed across replicas by the
-//! event router. [`DocumentService::live_open`] gates the channel on view
-//! access and returns what a channel starts with: the open edit session and
-//! the awareness states still alive. [`DocumentService::live_replay`] turns a
-//! client's `Last-Event-ID` (`<session>:<seq>`) into the collab updates it
-//! missed, or a [`LiveResyncReason`] when the log can no longer supply them.
+//! event router. A channel subscribes before [`DocumentService::live_open`],
+//! which gates it on view access and returns what it starts with: the open
+//! edit session, the last sequence number that session had logged, and the
+//! awareness states still alive. [`DocumentService::live_replay`] turns a
+//! client's `Last-Event-ID` (`<session>:<seq>`, the highest sequence number
+//! below which the channel delivered every update) into the collab updates
+//! after it, or a [`LiveResyncReason`] when the log can no longer supply
+//! them.
+//! [`LiveCursor`] tracks what a channel delivered and names its resume id.
 //! The `awareness` submodule validates and publishes awareness states.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 mod awareness;
+mod cursor;
 
 use systemprompt_identifiers::{DocumentEditSessionId, DocumentId, TraceId};
 use systemprompt_models::auth::AuthenticatedUser;
@@ -22,13 +27,15 @@ use systemprompt_models::documents::{
 };
 
 pub use awareness::{AWARENESS_SELECTION_MAX, AwarenessPublished};
+pub use cursor::{LiveCursor, LiveDelivery};
 
 use super::access::AccessTarget;
 use super::error::DocumentsError;
 use super::models::Document;
 use super::service::DocumentService;
 
-/// Where a resumed channel left off: the last collab update it received.
+/// Where a resumed channel left off: every collab update of `session` up to
+/// and including `seq` was delivered.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ResumeToken {
     pub session: DocumentEditSessionId,
@@ -50,6 +57,7 @@ impl ResumeToken {
 pub struct LiveOpen {
     pub document: Document,
     pub edit_session: Option<DocumentEditSessionId>,
+    pub seq: Option<i64>,
     pub awareness: Vec<DocumentAwarenessEvent>,
 }
 
@@ -75,6 +83,10 @@ impl DocumentService {
             .find_open(&document.id)
             .await?
             .map(|open| open.id);
+        let seq = match &edit_session {
+            Some(session) => repos.collab.head_seq(session).await?,
+            None => None,
+        };
         let awareness = repos
             .presence
             .list_active(&document.id)
@@ -86,6 +98,7 @@ impl DocumentService {
         Ok(LiveOpen {
             document,
             edit_session,
+            seq,
             awareness,
         })
     }

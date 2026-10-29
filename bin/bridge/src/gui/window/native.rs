@@ -136,7 +136,7 @@ fn initial_attributes(
 ) -> (WindowAttributes, Option<WindowGeometry>) {
     let mut attrs = chrome_attributes(
         WindowAttributes::default()
-            .with_title(crate::brand::brand().window_title)
+            .with_title(crate::instance::DisplayBrand::resolve().window_title)
             .with_surface_size(LogicalSize::new(DEFAULT_WIDTH, DEFAULT_HEIGHT))
             .with_min_surface_size(LogicalSize::new(MIN_WIDTH, MIN_HEIGHT))
             .with_visible(false)

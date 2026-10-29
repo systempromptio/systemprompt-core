@@ -21,6 +21,8 @@ use wiremock::{Mock, MockServer, Request, Respond, ResponseTemplate};
 fn runtime_config(uri: &str) -> SharedRuntimeConfig {
     Arc::new(ArcSwap::from_pointee(RuntimeConfig {
         gateway_base: Arc::new(ValidatedUrl::try_new(uri).expect("valid ValidatedUrl")),
+        disabled: false,
+        foreign_models: Default::default(),
     }))
 }
 
@@ -138,14 +140,12 @@ impl Respond for UnauthorizedOnce {
 }
 
 #[test]
-fn heartbeat_401_latches_sign_in_and_stops_the_loop() {
+fn heartbeat_401s_re_mint_once_then_latch_sign_in_and_stop_the_loop() {
     with_credentials(async {
         let server = MockServer::start().await;
         Mock::given(method("POST"))
             .and(path("/v1/bridge/heartbeat"))
-            .respond_with(UnauthorizedOnce {
-                calls: AtomicU32::new(0),
-            })
+            .respond_with(ResponseTemplate::new(401))
             .mount(&server)
             .await;
 
@@ -177,19 +177,19 @@ fn heartbeat_401_latches_sign_in_and_stops_the_loop() {
 
         assert!(
             cache.sign_in_required(),
-            "a heartbeat 401 against a freshly minted token latches sign-in"
+            "a re-minted token refused again latches sign-in"
         );
         assert_eq!(
             refresh_calls.load(Ordering::SeqCst),
-            1,
+            2,
             "the latched loop idles instead of minting on every tick (refresh calls: {})",
             refresh_calls.load(Ordering::SeqCst)
         );
         let sent = server.received_requests().await.unwrap_or_default();
         assert_eq!(
             sent.len(),
-            1,
-            "no further heartbeats are sent while latched"
+            2,
+            "one heartbeat per token, then none while latched"
         );
     });
 }
@@ -248,6 +248,43 @@ fn heartbeat_without_credentials_sends_nothing() {
         assert!(
             received.is_empty(),
             "auth-unavailable ticks must not POST heartbeats"
+        );
+    });
+}
+
+#[test]
+fn a_single_heartbeat_401_is_cured_by_one_re_mint_without_latching() {
+    with_credentials(async {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/v1/bridge/heartbeat"))
+            .respond_with(UnauthorizedOnce {
+                calls: AtomicU32::new(0),
+            })
+            .mount(&server)
+            .await;
+
+        let refresh_calls = Arc::new(AtomicU32::new(0));
+        let cache = counting_cache(Arc::clone(&refresh_calls));
+        let handle = tokio::spawn(run_loop(HeartbeatDeps {
+            runtime_config: runtime_config(&server.uri()),
+            token_cache: Arc::clone(&cache),
+            session: Arc::new(SessionContext::new()),
+            stats: Arc::new(ProxyStats::default()),
+            client: reqwest::Client::new(),
+            update_gate: UpdateGate::default(),
+        }));
+        wait_for_requests(&server, 2).await;
+        handle.abort();
+
+        assert!(
+            !cache.sign_in_required(),
+            "a re-minted token the gateway accepts needs no sign-in"
+        );
+        assert_eq!(
+            refresh_calls.load(Ordering::SeqCst),
+            2,
+            "exactly one re-mint"
         );
     });
 }

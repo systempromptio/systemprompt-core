@@ -16,6 +16,7 @@ pub mod cowork;
 mod desktop_policy;
 pub mod filesystem;
 pub mod hooks;
+mod instance;
 pub mod marketplace;
 pub mod opencode;
 pub mod proxy;
@@ -90,6 +91,7 @@ pub async fn run_checks(bridge: &BridgeContext) -> (Vec<Check>, bool) {
         auth::check_cached_gateway(&cfg),
         auth::check_install_record(&cfg),
     ]);
+    checks.extend(instance::checks(&cfg));
     let bearer = auth::check_mint_jwt(&cfg, &mut checks, &bridge.http).await;
     let client = auth::check_gateway_reachable(&cfg, &mut checks, &bridge.http).await;
     auth::check_whoami(&client, bearer.as_ref(), &mut checks).await;

@@ -192,6 +192,10 @@ documents_output_impl!(ExportOutput, "documents_export");
 #[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct GuideOutput {
     pub topics: Vec<String>,
+    #[schemars(
+        description = "The guide text itself. A host that shows the model only the structured content (Claude Code does) would otherwise see the topic names and nothing else."
+    )]
+    pub guide: String,
 }
 documents_output_impl!(GuideOutput, "documents_guide");
 

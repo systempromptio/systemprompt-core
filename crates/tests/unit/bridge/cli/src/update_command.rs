@@ -92,7 +92,8 @@ fn the_first_two_argv_entries_are_the_binary_and_the_command_not_flags() {
 #[test]
 fn an_unparseable_command_line_exits_sixty_four_without_contacting_a_gateway() {
     let exit = in_sandbox(|| {
-        let ctx = BridgeContext::start(ProxyMode::Attach).expect("attach context");
+        let ctx = BridgeContext::start(ProxyMode::Attach, std::sync::Arc::new(|| None))
+            .expect("attach context");
         cmd_update(&ctx, &argv(&["--nope"]))
     });
     assert_eq!(
@@ -105,7 +106,8 @@ fn an_unparseable_command_line_exits_sixty_four_without_contacting_a_gateway() {
 #[test]
 fn with_no_credential_stored_the_command_exits_five_and_says_to_log_in() {
     let exit = in_sandbox(|| {
-        let ctx = BridgeContext::start(ProxyMode::Attach).expect("attach context");
+        let ctx = BridgeContext::start(ProxyMode::Attach, std::sync::Arc::new(|| None))
+            .expect("attach context");
         cmd_update(&ctx, &argv(&["--check"]))
     });
     assert_eq!(
@@ -118,11 +120,13 @@ fn with_no_credential_stored_the_command_exits_five_and_says_to_log_in() {
 #[test]
 fn the_no_credential_exit_is_distinct_from_the_usage_and_failure_codes() {
     let no_credential = in_sandbox(|| {
-        let ctx = BridgeContext::start(ProxyMode::Attach).expect("attach");
+        let ctx =
+            BridgeContext::start(ProxyMode::Attach, std::sync::Arc::new(|| None)).expect("attach");
         cmd_update(&ctx, &argv(&[]))
     });
     let usage = in_sandbox(|| {
-        let ctx = BridgeContext::start(ProxyMode::Attach).expect("attach");
+        let ctx =
+            BridgeContext::start(ProxyMode::Attach, std::sync::Arc::new(|| None)).expect("attach");
         cmd_update(&ctx, &argv(&["--bad"]))
     });
 

@@ -50,20 +50,33 @@ pub fn open_external_url(url: &ExternalUrl) {
 }
 
 pub fn notify_user(title: &str, message: &str) {
-    tracing::info!(title = %title, message = %message, "notifying user");
+    notify_user_with_action(title, message, None);
+}
+
+// Why: only a Windows toast can carry a click action; `osascript` and
+// `notify-send` toasts open nothing, so on those platforms the link is
+// reached from the inbox pane.
+pub fn notify_user_with_action(title: &str, message: &str, open_url: Option<ExternalUrl>) {
+    tracing::info!(title = %title, message = %message, has_link = open_url.is_some(), "notifying user");
     #[cfg(target_os = "windows")]
     {
-        if let Err(e) = tauri_winrt_notification::Toast::new(crate::brand::brand().aumid)
+        let mut toast = tauri_winrt_notification::Toast::new(crate::brand::brand().aumid)
             .title(title)
             .text1(message)
-            .duration(tauri_winrt_notification::Duration::Short)
-            .show()
-        {
+            .duration(tauri_winrt_notification::Duration::Short);
+        if let Some(url) = open_url {
+            toast = toast.on_activated(move |_action| {
+                open_external_url(&url);
+                Ok(())
+            });
+        }
+        if let Err(e) = toast.show() {
             tracing::warn!(error = %e, "toast notification failed");
         }
     }
     #[cfg(not(target_os = "windows"))]
     {
+        drop(open_url);
         let title = title.replace(['"', '\''], "");
         let message = message.replace(['"', '\''], "");
         let spawned = std::cfg_select! {

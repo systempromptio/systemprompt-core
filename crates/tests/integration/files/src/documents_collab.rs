@@ -57,13 +57,14 @@ pub(crate) fn client(joined: &Joined) -> LoroDoc {
     let doc = LoroDoc::new();
     rich::configure(&doc);
     doc.import(&joined.snapshot).expect("import snapshot");
+    doc.set_peer_id(joined.peer).expect("assigned peer");
     doc
 }
 
 /// Rewrites the client's model with `change` and returns the update.
 pub(crate) fn change(doc: &LoroDoc, change: impl FnOnce(&mut RichText)) -> Vec<u8> {
     let before = doc.oplog_vv();
-    let mut model = rich::read(doc);
+    let mut model = rich::read(doc).expect("read model");
     change(&mut model);
     write_model(doc, &model).expect("write model");
     doc.commit();
@@ -125,7 +126,7 @@ async fn join_opens_one_session_and_a_second_join_reuses_it() {
 }
 
 #[tokio::test]
-async fn apply_logs_the_update_and_broadcasts_it_to_present_users() {
+async fn apply_logs_the_update_and_publishes_it_once_on_the_live_topic_only() {
     let c = collab().await;
     let owner = person("collab-apply");
     let document = html_document(&c, &owner).await;
@@ -136,6 +137,12 @@ async fn apply_logs_the_update_and_broadcasts_it_to_present_users() {
             .register(&owner.id, &ConnectionId::generate(), tx)
             .await
     );
+    let mut topic =
+        c.h.broadcasters
+            .topics
+            .subscribe(&systemprompt_files::documents::events::live_topic(
+                &document,
+            ));
     let joined = c
         .collab
         .join(&owner, &document, JoinMode::Edit, &trace())
@@ -165,16 +172,22 @@ async fn apply_logs_the_update_and_broadcasts_it_to_present_users() {
     assert_eq!(rows[0].update, update);
     assert_eq!(rows[0].author_user_id, owner.id);
 
-    let mut saw_update = false;
+    let mut on_agui = false;
     while let Ok(Some(event)) = tokio::time::timeout(Duration::from_millis(200), rx.recv()).await {
         if format!("{event:?}").contains("document.collab.update") {
-            saw_update = true;
+            on_agui = true;
         }
     }
-    assert!(
-        saw_update,
-        "the owner's stream must carry document.collab.update"
-    );
+    assert!(!on_agui, "collab updates never reach a user's AG-UI stream");
+    let mut on_topic = Vec::new();
+    while let Ok(event) = topic.try_recv() {
+        if event.name == "document.collab.update" {
+            on_topic.push(event);
+        }
+    }
+    assert_eq!(on_topic.len(), 1, "one topic event per update");
+    let expected = format!("{}:{}", joined.session_id, applied.seq);
+    assert_eq!(on_topic[0].resume_id.as_deref(), Some(expected.as_str()));
 }
 
 #[tokio::test]
@@ -199,11 +212,14 @@ async fn a_second_replica_sees_updates_applied_on_the_first() {
         .await
         .expect("join on second replica");
     let mirror = client(&rejoined);
-    assert_eq!(rich::read(&mirror), rich::read(&doc));
+    assert_eq!(
+        rich::read(&mirror).expect("read mirror"),
+        rich::read(&doc).expect("read doc")
+    );
 }
 
 #[tokio::test]
-async fn two_hundred_updates_store_a_snapshot_and_prune_the_log() {
+async fn two_hundred_updates_store_a_snapshot_and_keep_the_uncheckpointed_log() {
     let c = collab().await;
     let owner = person("collab-snapshot");
     let document = html_document(&c, &owner).await;
@@ -234,7 +250,11 @@ async fn two_hundred_updates_store_a_snapshot_and_prune_the_log() {
             .list_after(&joined.session_id, 0)
             .await
             .expect("rows");
-    assert!(left.is_empty(), "the snapshot covers every logged update");
+    assert_eq!(
+        left.len(),
+        200,
+        "updates after the last checkpoint stay readable for its author and actor"
+    );
 }
 
 #[tokio::test]

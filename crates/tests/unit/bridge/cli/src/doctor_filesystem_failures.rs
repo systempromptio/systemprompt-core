@@ -30,6 +30,8 @@ impl Sandbox {
         self.config
             .path()
             .join("systemprompt")
+            .join("gateways")
+            .join("default")
             .join("systemprompt-bridge.toml")
     }
 

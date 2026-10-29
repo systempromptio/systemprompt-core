@@ -182,7 +182,7 @@ fn install_is_idempotent() {
 }
 
 fn bridge() -> std::sync::Arc<BridgeContext> {
-    BridgeContext::start(ProxyMode::Attach).expect("runtime builds")
+    BridgeContext::start(ProxyMode::Attach, std::sync::Arc::new(|| None)).expect("runtime builds")
 }
 
 #[cfg(unix)]
@@ -312,6 +312,8 @@ fn config_write_failure_reports_durable_bootstrap_and_repair_retry_finishes() {
     let (config_file, error) = dirs.run(None, || {
         let config_file = systemprompt_bridge::config::config_path().expect("config path");
         let config_parent = config_file.parent().expect("config parent");
+        std::fs::create_dir_all(config_parent.parent().expect("profiles dir"))
+            .expect("profiles dir");
         std::fs::write(config_parent, "operator blocker").expect("block config directory");
         let error =
             install(&options, &bridge()).expect_err("config path failure makes install partial");

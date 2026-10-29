@@ -19,6 +19,7 @@ pub fn derive_policy(
         &loopback,
         &registry,
         &request.tool_catalog,
+        None,
     );
     let policy = crate::install::mdm::policy::claude_desktop_policy_with(
         &crate::install::mdm::policy::PolicyInputs {

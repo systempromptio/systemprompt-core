@@ -22,10 +22,12 @@ pub(super) fn get_endpoint_rate(limits: &RateLimitsConfig, endpoint: &str) -> Re
         "mcp" => Ok(limits.mcp_per_second),
         "stream" => Ok(limits.stream_per_second),
         "content" => Ok(limits.content_per_second),
+        "notifications" => Ok(limits.notifications_per_second),
         "gateway" => Ok(limits.gateway_per_second),
         _ => bail!(
             "Unknown endpoint: {}. Valid endpoints: oauth_public, oauth_auth, contexts, tasks, \
-             artifacts, agent_registry, agents, mcp_registry, mcp, stream, content, gateway",
+             artifacts, agent_registry, agents, mcp_registry, mcp, stream, content, \
+             notifications, gateway",
             endpoint
         ),
     }
@@ -48,10 +50,12 @@ pub(super) fn set_endpoint_rate(
         "mcp" => limits.mcp_per_second = value,
         "stream" => limits.stream_per_second = value,
         "content" => limits.content_per_second = value,
+        "notifications" => limits.notifications_per_second = value,
         "gateway" => limits.gateway_per_second = value,
         _ => bail!(
             "Unknown endpoint: {}. Valid endpoints: oauth_public, oauth_auth, contexts, tasks, \
-             artifacts, agent_registry, agents, mcp_registry, mcp, stream, content, gateway",
+             artifacts, agent_registry, agents, mcp_registry, mcp, stream, content, \
+             notifications, gateway",
             endpoint
         ),
     }
@@ -64,68 +68,11 @@ pub(super) fn collect_endpoint_changes(
     defaults: &RateLimitsConfig,
     changes: &mut Vec<ResetChange>,
 ) {
-    let endpoints = [
-        (
-            "oauth_public_per_second",
-            current.oauth_public_per_second,
-            defaults.oauth_public_per_second,
-        ),
-        (
-            "oauth_auth_per_second",
-            current.oauth_auth_per_second,
-            defaults.oauth_auth_per_second,
-        ),
-        (
-            "contexts_per_second",
-            current.contexts_per_second,
-            defaults.contexts_per_second,
-        ),
-        (
-            "tasks_per_second",
-            current.tasks_per_second,
-            defaults.tasks_per_second,
-        ),
-        (
-            "artifacts_per_second",
-            current.artifacts_per_second,
-            defaults.artifacts_per_second,
-        ),
-        (
-            "agent_registry_per_second",
-            current.agent_registry_per_second,
-            defaults.agent_registry_per_second,
-        ),
-        (
-            "agents_per_second",
-            current.agents_per_second,
-            defaults.agents_per_second,
-        ),
-        (
-            "mcp_registry_per_second",
-            current.mcp_registry_per_second,
-            defaults.mcp_registry_per_second,
-        ),
-        (
-            "mcp_per_second",
-            current.mcp_per_second,
-            defaults.mcp_per_second,
-        ),
-        (
-            "stream_per_second",
-            current.stream_per_second,
-            defaults.stream_per_second,
-        ),
-        (
-            "content_per_second",
-            current.content_per_second,
-            defaults.content_per_second,
-        ),
-        (
-            "gateway_per_second",
-            current.gateway_per_second,
-            defaults.gateway_per_second,
-        ),
-    ];
+    let endpoints = current
+        .per_second_budgets()
+        .into_iter()
+        .zip(defaults.per_second_budgets())
+        .map(|((name, current_val), (_, default_val))| (name, current_val, default_val));
 
     for (name, current_val, default_val) in endpoints {
         if current_val != default_val {

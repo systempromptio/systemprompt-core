@@ -15,8 +15,11 @@ fn install(host: &dyn HostApp) {
     let generated = host
         .generate_profile(&inputs_for(host))
         .expect("profile generated");
-    host.install_profile(&generated.path)
-        .expect("profile installed");
+    host.install_profile(
+        &generated.path,
+        &systemprompt_bridge::elevation_gate::ElevationGate::new(),
+    )
+    .expect("profile installed");
     _ = std::fs::remove_file(&generated.path);
 }
 

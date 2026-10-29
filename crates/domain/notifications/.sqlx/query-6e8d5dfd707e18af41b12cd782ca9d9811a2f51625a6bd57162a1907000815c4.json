@@ -1,0 +1,69 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id::text AS \"id!: NotificationRuleId\", name, priority,\n                      match AS \"match!: Json<RuleMatch>\", action AS \"action!: Json<RuleAction>\"\n               FROM notification_rules WHERE owner_user_id IS NULL\n               ORDER BY priority, id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!: NotificationRuleId",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "notification_rules",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "priority",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "notification_rules",
+            "name": "priority"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "match!: Json<RuleMatch>",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "notification_rules",
+            "name": "match"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "action!: Json<RuleAction>",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "notification_rules",
+            "name": "action"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "6e8d5dfd707e18af41b12cd782ca9d9811a2f51625a6bd57162a1907000815c4"
+}

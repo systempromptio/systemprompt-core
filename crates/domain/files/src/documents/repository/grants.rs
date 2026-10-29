@@ -1,20 +1,23 @@
 //! [`DocumentGrantRepository`]: subject-keyed grants on documents and
 //! folders, and the effective level a set of subject pairs holds. Every
 //! statement that changes a grant writes its `document_grant_events` row in
-//! the same statement.
+//! the same statement. A grant that gives its subject access it did not hold
+//! first writes its `gained` path history rows (`grant_gains`) on the same
+//! connection; the statements that remove grants live in `grant_removals`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use sqlx::PgConnection;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{DocumentFolderId, DocumentId, UserId};
 use systemprompt_models::documents::AccessLevel;
-use uuid::Uuid;
 
 use super::Pools;
+use super::grant_gains::record_gained;
 use super::grant_row::{GrantRow, level_from_rank};
 use super::rows::RepoResult;
-use crate::documents::models::{DocumentGrant, GrantActor, GrantTarget, NewGrant, SubjectPairs};
+use crate::documents::models::{DocumentGrant, GrantTarget, NewGrant, SubjectPairs};
 
 #[derive(Debug, Clone)]
 pub struct DocumentGrantRepository {
@@ -28,11 +31,30 @@ impl DocumentGrantRepository {
         }
     }
 
-    pub async fn insert(&self, request: NewGrant) -> RepoResult<DocumentGrant> {
+    pub async fn insert(
+        &self,
+        conn: &mut PgConnection,
+        request: NewGrant,
+    ) -> RepoResult<DocumentGrant> {
+        let target = request.subject_value.clone();
+        self.insert_bounded(conn, request, AccessLevel::Own)
+            .await?
+            .ok_or_else(|| {
+                systemprompt_traits::RepositoryError::not_found("document grant", target)
+            })
+    }
+
+    pub async fn insert_bounded(
+        &self,
+        conn: &mut PgConnection,
+        request: NewGrant,
+        held: AccessLevel,
+    ) -> RepoResult<Option<DocumentGrant>> {
         let (document_id, folder_id) = match &request.target {
             GrantTarget::Document(id) => (Some(id.as_str()), None),
             GrantTarget::Folder(id) => (None, Some(id.as_str())),
         };
+        record_gained(conn, &request).await?;
         let row = sqlx::query_as!(
             GrantRow,
             r#"WITH prev AS (
@@ -51,6 +73,12 @@ impl DocumentGrantRepository {
                        subject_display = COALESCE(EXCLUDED.subject_display,
                                                   document_grants.subject_display),
                        updated_at = now()
+                   WHERE (CASE document_grants.access_level
+                              WHEN 'view' THEN 1 WHEN 'comment' THEN 2 WHEN 'edit' THEN 3
+                              WHEN 'share' THEN 4 WHEN 'own' THEN 5 END)
+                      <= (CASE $12
+                              WHEN 'view' THEN 1 WHEN 'comment' THEN 2 WHEN 'edit' THEN 3
+                              WHEN 'share' THEN 4 WHEN 'own' THEN 5 END)
                RETURNING *),
                e AS (INSERT INTO document_grant_events
                    (event, target_kind, target_id, subject_kind, subject_value, old_level,
@@ -80,30 +108,11 @@ impl DocumentGrantRepository {
             request.trace_id.as_str(),
             request.reason,
             request.via_agent,
+            held.as_str(),
         )
-        .fetch_one(&*self.pools.write)
+        .fetch_optional(&mut *conn)
         .await?;
-        row.try_into()
-    }
-
-    pub async fn delete(&self, id: Uuid, actor: &GrantActor) -> RepoResult<bool> {
-        let deleted = sqlx::query_scalar!(
-            r#"WITH g AS (DELETE FROM document_grants WHERE id = $1 RETURNING *),
-               e AS (INSERT INTO document_grant_events
-                   (event, target_kind, target_id, subject_kind, subject_value, old_level,
-                    valid_until, actor_user_id, trace_id)
-               SELECT 'revoked', CASE WHEN g.document_id IS NULL THEN 'folder' ELSE 'document' END,
-                      COALESCE(g.document_id, g.folder_id), g.subject_kind, g.subject_value,
-                      g.access_level, g.valid_until, $2, $3
-               FROM g)
-               SELECT COUNT(*) AS "deleted!" FROM g"#,
-            id,
-            actor.user.as_str(),
-            actor.trace.as_str(),
-        )
-        .fetch_one(&*self.pools.write)
-        .await?;
-        Ok(deleted == 1)
+        row.map(TryInto::try_into).transpose()
     }
 
     pub async fn list_for_document(&self, id: &DocumentId) -> RepoResult<Vec<DocumentGrant>> {
@@ -170,57 +179,6 @@ impl DocumentGrantRepository {
         .collect()
     }
 
-    pub async fn delete_for_document(
-        &self,
-        id: &DocumentId,
-        actor: &GrantActor,
-    ) -> RepoResult<u64> {
-        let revoked = sqlx::query_scalar!(
-            r#"WITH g AS (DELETE FROM document_grants WHERE document_id = $1::text::uuid
-                          RETURNING *),
-               e AS (INSERT INTO document_grant_events
-                   (event, target_kind, target_id, subject_kind, subject_value, old_level,
-                    valid_until, actor_user_id, trace_id)
-               SELECT 'revoked_all', 'document', g.document_id, g.subject_kind,
-                      g.subject_value, g.access_level, g.valid_until, $2, $3
-               FROM g)
-               SELECT COUNT(*) AS "revoked!" FROM g"#,
-            id.as_str(),
-            actor.user.as_str(),
-            actor.trace.as_str(),
-        )
-        .fetch_one(&*self.pools.write)
-        .await?;
-        Ok(u64::try_from(revoked).unwrap_or(0))
-    }
-
-    pub async fn sweep_expired(&self, limit: i64) -> RepoResult<u64> {
-        let swept = sqlx::query_scalar!(
-            r#"WITH g AS (
-                   DELETE FROM document_grants
-                   WHERE id IN (SELECT id FROM document_grants
-                                WHERE valid_until <= now() LIMIT $1)
-                   RETURNING *),
-               p AS (
-                   DELETE FROM document_presence p USING g
-                   WHERE g.subject_kind = 'user' AND p.document_id = g.document_id
-                     AND p.user_id = g.subject_value
-                   RETURNING 1),
-               e AS (INSERT INTO document_grant_events
-                   (event, target_kind, target_id, subject_kind, subject_value, old_level,
-                    valid_until)
-               SELECT 'expired', CASE WHEN g.document_id IS NULL THEN 'folder' ELSE 'document' END,
-                      COALESCE(g.document_id, g.folder_id), g.subject_kind, g.subject_value,
-                      g.access_level, g.valid_until
-               FROM g)
-               SELECT COUNT(*) AS "swept!" FROM g"#,
-            limit.max(1),
-        )
-        .fetch_one(&*self.pools.write)
-        .await?;
-        Ok(u64::try_from(swept.max(0)).unwrap_or(0))
-    }
-
     pub async fn effective_level(
         &self,
         document_id: &DocumentId,
@@ -245,7 +203,7 @@ impl DocumentGrantRepository {
             &subjects.kinds,
             &subjects.values,
         )
-        .fetch_one(&*self.pools.read)
+        .fetch_one(self.pools.authz())
         .await?;
         Ok(rank.and_then(level_from_rank))
     }

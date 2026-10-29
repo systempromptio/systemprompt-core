@@ -5,8 +5,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::{DocumentOpId, DocumentRevisionId};
+use systemprompt_identifiers::{DocumentOpId, DocumentProposalId, DocumentRevisionId};
 use systemprompt_models::auth::AuthenticatedUser;
+use systemprompt_models::documents::ProposalStatus;
 
 use super::commit_build::Conflicted;
 use super::landing::{LandResult, Stored};
@@ -97,6 +98,33 @@ impl DocumentService {
             CommitOutcome::Merged(landed)
         } else {
             CommitOutcome::Committed(landed)
+        }
+    }
+
+    pub(super) async fn proposal_closed(&self, proposal: &DocumentProposalId) -> DocumentsError {
+        match self.repos.proposals.find(proposal).await {
+            Ok(found) => DocumentsError::ProposalClosed {
+                proposal_id: proposal.clone(),
+                status: found.map_or(ProposalStatus::Open, |p| p.status),
+            },
+            Err(error) => error.into(),
+        }
+    }
+
+    pub(super) async fn refuse_lock(
+        &self,
+        document: &Document,
+        holder_id: Option<&str>,
+    ) -> Result<(), DocumentsError> {
+        match self.repos.locks.current(&document.id).await? {
+            Some(lock) if Some(lock.holder_id.as_str()) != holder_id => {
+                Err(DocumentsError::LockHeld {
+                    document_id: document.id.clone(),
+                    holder_kind: lock.holder_kind,
+                    holder_id: lock.holder_id,
+                })
+            },
+            _ => Ok(()),
         }
     }
 }

@@ -24,6 +24,8 @@
 //!   feed bodies.
 //! - [`host`] — [`host::HostKind`], the closed set of host applications the
 //!   bridge integrates with.
+//! - [`instance`] — the public discovery document, instance branding and the
+//!   per-instance release window.
 //! - [`ids`] — typed newtypes for manifest-scoped identifiers (plugin id,
 //!   sha256 digest, signature, tool policy, …) so wire fields carry their
 //!   semantics through every layer.
@@ -44,6 +46,7 @@ pub mod cowork_artifact;
 pub mod gateway;
 pub mod host;
 pub mod ids;
+pub mod instance;
 pub mod manifest;
 pub mod manifest_version;
 pub mod opencode;

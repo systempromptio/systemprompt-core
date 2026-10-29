@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM notification_rules WHERE id = $1::text::uuid AND owner_user_id IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "018351c16eea9c080cc9d80e6100a439cb0c1dd2fe68f1a919bcbf135bee15ac"
+}

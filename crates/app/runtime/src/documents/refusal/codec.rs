@@ -63,6 +63,7 @@ pub(super) fn codec_refusal(error: &CodecError) -> Option<Refused> {
         CodecError::Malformed { .. } | CodecError::Parse { .. } | CodecError::Payload { .. } => {
             Refusal::new(RefusalCode::InvalidParams)
         },
+        CodecError::TooLarge { .. } => Refusal::new(RefusalCode::TooLarge),
         CodecError::Io(_) => return None,
     };
     Some(refusal.with_message(message))

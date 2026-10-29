@@ -25,6 +25,8 @@ pub enum FeedbackError {
     EnrollmentRequired,
     #[error("feedback belongs to a different gateway or device")]
     Scope,
+    #[error("feedback outbox has no entry for this receipt or installation")]
+    EntryMissing,
     #[error("feedback outbox is full; installation remains unacknowledged")]
     Full,
     #[error("host installation is unavailable for readback")]
@@ -95,9 +97,8 @@ pub enum ConfigurationFailure {
 impl From<crate::config::ConfigReadError> for FeedbackError {
     fn from(error: crate::config::ConfigReadError) -> Self {
         let safe = match error {
-            crate::config::ConfigReadError::PathUnresolvable => {
-                ConfigurationFailure::PathUnavailable
-            },
+            crate::config::ConfigReadError::PathUnresolvable
+            | crate::config::ConfigReadError::Profile(_) => ConfigurationFailure::PathUnavailable,
             crate::config::ConfigReadError::Read { source, .. } => {
                 ConfigurationFailure::Read(source.kind())
             },

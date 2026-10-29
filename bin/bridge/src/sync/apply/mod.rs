@@ -123,7 +123,7 @@ async fn emit_to_hosts(
     let mcp_servers =
         loopback::rewrite_loopback_urls(&manifest.managed_mcp_servers, client.base_url());
     let mut manifest_for_write = loopback::manifest_with_servers(manifest, mcp_servers.clone());
-    skill_bodies::resolve(&mut manifest_for_write, root);
+    skill_bodies::resolve(&mut manifest_for_write, root, &bridge.warn_once);
     report
         .receipts
         .push(write_user(meta_dir, manifest.user.as_ref())?);
@@ -147,9 +147,9 @@ async fn emit_to_hosts(
         loopback,
         mcp_registry: &registry,
         start_menu: &bridge.start_menu,
+        elevation_gate: &bridge.elevation_gate,
     };
-    let emitters: Vec<&'static dyn host_sync::HostSync> =
-        crate::integration::host_syncs().collect();
+    let emitters: Vec<&'static dyn host_sync::HostSync> = host_sync::registry().to_vec();
     let hosts = hosts::emit_hosts(&emitters, &ctx, bridge).await;
     report.host_warnings.extend(hosts.warnings);
     report.host_failures.extend(hosts.failures);

@@ -34,7 +34,9 @@ pub async fn deliver(enrollment: &Enrollment, outbox: &Outbox) -> Result<()> {
                 entry.next_attempt <= chrono::Utc::now()
             },
             Delivery::Acknowledged(response) => {
-                response.fully_verified && entry.session_bindings.values().any(|bound| !bound)
+                response.fully_verified
+                    && entry.next_attempt <= chrono::Utc::now()
+                    && entry.session_bindings.values().any(|bound| !bound)
             },
             Delivery::Conflict | Delivery::Rejected(_) => false,
         })
@@ -78,7 +80,19 @@ pub async fn deliver(enrollment: &Enrollment, outbox: &Outbox) -> Result<()> {
             };
             match super::transport::bind(enrollment, &request).await {
                 Ok(()) => outbox.acknowledge_session(&key, &response.receipt_id, &session)?,
+                Err(FeedbackError::Rejected { status, rejection }) if is_terminal(status) => {
+                    tracing::warn!(
+                        target: "bridge::feedback",
+                        status,
+                        receipt_id = %response.receipt_id,
+                        session = %session,
+                        detail = %rejection,
+                        "gateway refused the session binding; it will not be retried"
+                    );
+                    outbox.refuse_session(&key, &session, status)?;
+                },
                 Err(error) => {
+                    outbox.defer_session_bindings(&key)?;
                     failure = Some(error);
                     break;
                 },
@@ -86,6 +100,10 @@ pub async fn deliver(enrollment: &Enrollment, outbox: &Outbox) -> Result<()> {
         }
     }
     failure.map_or(Ok(()), Err)
+}
+
+const fn is_terminal(status: u16) -> bool {
+    matches!(status, 400 | 403 | 404 | 409 | 422)
 }
 
 async fn recover_installation(

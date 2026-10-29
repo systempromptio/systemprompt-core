@@ -14,7 +14,7 @@ pub fn cmd_logout(ctx: &crate::context::BridgeContext) -> ExitCode {
         Ok(paths) => {
             stdio::print_line("Removed PAT.");
             stdio::print_line(&format!("  config: {}", paths.config_file.display()));
-            stdio::print_line(&format!("  secret: {}", paths.pat_file.display()));
+            stdio::print_line(&format!("  secret: {}", paths.pat_location()));
             ExitCode::SUCCESS
         },
         Err(e) => {

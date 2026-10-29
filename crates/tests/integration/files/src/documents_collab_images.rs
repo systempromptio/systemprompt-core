@@ -59,7 +59,7 @@ async fn a_degraded_checkpoint_saves_a_placeholder_and_leaves_the_live_image() {
         .join(&owner, &document, JoinMode::View, &trace())
         .await
         .expect("rejoin");
-    let live = rich::read(&client(&again));
+    let live = rich::read(&client(&again)).expect("read live");
     assert!(
         live.blocks.iter().any(|block| matches!(
             &block.kind,

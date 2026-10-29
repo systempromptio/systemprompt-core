@@ -5,8 +5,11 @@
 //! See <https://systemprompt.io> for licensing details.
 
 #[cfg(target_os = "macos")]
-pub(super) fn remove(_store: &crate::config::store::PolicyStore) -> super::ManagedProfileOutcome {
-    match super::mdm::macos::remove_profile() {
+pub(super) fn remove(
+    _store: &crate::config::store::PolicyStore,
+    gate: &crate::elevation_gate::ElevationGate,
+) -> super::ManagedProfileOutcome {
+    match super::mdm::macos::remove_profile(gate) {
         Ok(true) => super::ManagedProfileOutcome::Removed(super::mdm::macos::PAYLOAD_IDENTIFIER),
         Ok(false) => {
             super::ManagedProfileOutcome::NotInstalled(super::mdm::macos::PAYLOAD_IDENTIFIER)
@@ -19,7 +22,10 @@ pub(super) fn remove(_store: &crate::config::store::PolicyStore) -> super::Manag
 }
 
 #[cfg(target_os = "windows")]
-pub(super) fn remove(store: &crate::config::store::PolicyStore) -> super::ManagedProfileOutcome {
+pub(super) fn remove(
+    store: &crate::config::store::PolicyStore,
+    gate: &crate::elevation_gate::ElevationGate,
+) -> super::ManagedProfileOutcome {
     let removed = match super::mdm::remove_windows_policy(store) {
         Ok(removed) => removed,
         Err(e) => {
@@ -33,7 +39,7 @@ pub(super) fn remove(store: &crate::config::store::PolicyStore) -> super::Manage
     if let Err(e) = super::policy_writer::remove() {
         crate::stdio::diag(&format!("policy writer: {e}"));
     }
-    match remove_machine_claude_policy(store) {
+    match remove_machine_claude_policy(store, gate) {
         Ok(true) => {
             super::ManagedProfileOutcome::Removed("HKLM Policies\\Claude (+ any HKCU copy)")
         },
@@ -51,6 +57,7 @@ pub(super) fn remove(store: &crate::config::store::PolicyStore) -> super::Manage
 #[cfg(target_os = "windows")]
 fn remove_machine_claude_policy(
     store: &crate::config::store::PolicyStore,
+    gate: &crate::elevation_gate::ElevationGate,
 ) -> std::io::Result<bool> {
     use crate::config::store::{PolicyHive, PolicyTarget};
     let keys = super::mdm::policy::WRITTEN_POLICY_KEYS;
@@ -88,7 +95,7 @@ fn remove_machine_claude_policy(
         remove_files: Vec::new(),
         private_dirs: Vec::new(),
     };
-    super::elevated_job::elevate_and_run(&stage_dir, &job)
+    super::elevated_job::elevate_and_run(gate, &stage_dir, &job)
         .map_err(std::io::Error::other)?
         .require(
             "clear_policy",
@@ -99,7 +106,10 @@ fn remove_machine_claude_policy(
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-pub(super) fn remove(_store: &crate::config::store::PolicyStore) -> super::ManagedProfileOutcome {
+pub(super) fn remove(
+    _store: &crate::config::store::PolicyStore,
+    _gate: &crate::elevation_gate::ElevationGate,
+) -> super::ManagedProfileOutcome {
     let lines = match super::mdm::linux::remove() {
         Ok(lines) => lines,
         Err(e) => return super::ManagedProfileOutcome::RemoveFailed(e.into()),

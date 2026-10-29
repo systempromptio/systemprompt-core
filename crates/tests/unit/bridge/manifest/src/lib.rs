@@ -10,3 +10,5 @@ mod envelope;
 mod marketplace_claude_code;
 #[cfg(test)]
 mod marketplace_opencode;
+#[cfg(test)]
+mod release_window;

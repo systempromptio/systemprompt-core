@@ -9,7 +9,8 @@ use systemprompt_bridge::proxy::{self, ProxyRole};
 fn a_serving_context_binds_a_candidate_port_and_publishes_its_endpoint() {
     let temp = tempfile::tempdir().expect("config tempdir");
     temp_env::with_var("XDG_CONFIG_HOME", Some(temp.path().as_os_str()), || {
-        let ctx = BridgeContext::start(ProxyMode::Serve).expect("runtime builds");
+        let ctx = BridgeContext::start(ProxyMode::Serve, std::sync::Arc::new(|| None))
+            .expect("runtime builds");
         let ProxyRole::Serving(served) = ctx.proxy.role() else {
             panic!(
                 "the proxy binds one of its candidate ports: {:?}",
@@ -67,7 +68,8 @@ fn a_serving_context_binds_a_candidate_port_and_publishes_its_endpoint() {
 
         // A second serving context in the same install finds the first one
         // rather than binding beside it.
-        let sibling = BridgeContext::start(ProxyMode::Serve).expect("runtime builds");
+        let sibling = BridgeContext::start(ProxyMode::Serve, std::sync::Arc::new(|| None))
+            .expect("runtime builds");
         let ProxyRole::AlreadyRunning { port, pid, .. } = sibling.proxy.role() else {
             panic!("a sibling stands down: {:?}", sibling.proxy.role());
         };
@@ -78,7 +80,8 @@ fn a_serving_context_binds_a_candidate_port_and_publishes_its_endpoint() {
 
         // An attached context (what `install --apply` and `sync` build) resolves
         // the same port from the record without binding anything.
-        let attached = BridgeContext::start(ProxyMode::Attach).expect("runtime builds");
+        let attached = BridgeContext::start(ProxyMode::Attach, std::sync::Arc::new(|| None))
+            .expect("runtime builds");
         assert!(matches!(attached.proxy.role(), ProxyRole::Attached));
         assert_eq!(attached.proxy.port(), served.port);
         assert_eq!(
@@ -107,7 +110,8 @@ fn a_taken_default_port_moves_the_proxy_instead_of_failing() {
         });
 
     temp_env::with_var("XDG_CONFIG_HOME", Some(temp.path().as_os_str()), || {
-        let ctx = BridgeContext::start(ProxyMode::Serve).expect("runtime builds");
+        let ctx = BridgeContext::start(ProxyMode::Serve, std::sync::Arc::new(|| None))
+            .expect("runtime builds");
         let ProxyRole::Serving(served) = ctx.proxy.role() else {
             panic!(
                 "a taken default port must not stop the proxy: {:?}",
@@ -145,7 +149,8 @@ fn a_taken_default_port_moves_the_proxy_instead_of_failing() {
 fn an_attached_context_without_a_record_names_the_default_port() {
     let temp = tempfile::tempdir().expect("config tempdir");
     temp_env::with_var("XDG_CONFIG_HOME", Some(temp.path().as_os_str()), || {
-        let ctx = BridgeContext::start(ProxyMode::Attach).expect("runtime builds");
+        let ctx = BridgeContext::start(ProxyMode::Attach, std::sync::Arc::new(|| None))
+            .expect("runtime builds");
         assert!(matches!(ctx.proxy.role(), ProxyRole::Attached));
         assert_eq!(ctx.proxy.port(), proxy::DEFAULT_PROXY_PORT);
         assert!(
@@ -157,7 +162,8 @@ fn an_attached_context_without_a_record_names_the_default_port() {
 
 #[test]
 fn block_on_and_spawn_share_the_context_runtime() {
-    let ctx = BridgeContext::start(ProxyMode::Attach).expect("runtime builds");
+    let ctx = BridgeContext::start(ProxyMode::Attach, std::sync::Arc::new(|| None))
+        .expect("runtime builds");
     assert_eq!(ctx.block_on(async { 40 + 2 }), 42);
     let (tx, rx) = std::sync::mpsc::channel();
     ctx.spawn(async move {
@@ -185,7 +191,8 @@ fn reloading_the_runtime_config_republishes_the_configured_gateway() {
     .expect("seed config");
 
     let gateway = temp_env::with_var("XDG_CONFIG_HOME", Some(temp.path().as_os_str()), || {
-        let ctx = BridgeContext::start(ProxyMode::Attach).expect("runtime builds");
+        let ctx = BridgeContext::start(ProxyMode::Attach, std::sync::Arc::new(|| None))
+            .expect("runtime builds");
         ctx.proxy.reload_runtime_config().expect("reload config");
         ctx.proxy
             .runtime_config()
@@ -201,7 +208,8 @@ fn reloading_the_runtime_config_republishes_the_configured_gateway() {
 fn an_ipv4_bind_collision_never_publishes_an_ipv6_only_listener() {
     let temp = tempfile::tempdir().expect("config tempdir");
     temp_env::with_var("XDG_CONFIG_HOME", Some(temp.path().as_os_str()), || {
-        let ctx = BridgeContext::start(ProxyMode::Attach).expect("runtime builds");
+        let ctx = BridgeContext::start(ProxyMode::Attach, std::sync::Arc::new(|| None))
+            .expect("runtime builds");
         let occupied = std::net::TcpListener::bind(("127.0.0.1", 0)).expect("IPv4 fixture");
         let address = occupied.local_addr().expect("fixture address");
 
@@ -210,10 +218,16 @@ fn an_ipv4_bind_collision_never_publishes_an_ipv6_only_listener() {
             .expect_err("an IPv6 listener cannot serve the advertised IPv4 endpoint");
         assert_eq!(error.kind(), std::io::ErrorKind::AddrInUse);
 
-        drop(occupied);
         let successor = ctx
-            .block_on(proxy::server::try_bind(address.port()))
-            .expect("released IPv4 port can be acquired");
-        assert_eq!(successor.local_addr().expect("successor address"), address);
+            .block_on(proxy::server::try_bind(0))
+            .expect("a free port is acquired");
+        let bound = successor.local_addr().expect("successor address");
+        assert_eq!(
+            bound.ip(),
+            address.ip(),
+            "the proxy listens on IPv4 loopback"
+        );
+        assert_ne!(bound.port(), address.port());
+        drop(occupied);
     });
 }

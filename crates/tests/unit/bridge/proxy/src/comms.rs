@@ -108,7 +108,7 @@ impl Sandbox {
                 rt.block_on(async {
                     let server = MockServer::start().await;
                     setup(&server).await;
-                    let dir = root.join("systemprompt");
+                    let dir = root.join("systemprompt").join("gateways").join("default");
                     std::fs::create_dir_all(&dir).expect("config dir");
                     std::fs::write(
                         dir.join("systemprompt-bridge.toml"),
@@ -127,6 +127,7 @@ impl Sandbox {
                             cache,
                             client,
                             systemprompt_bridge::proxy::drive_signal::DriveSignals::channel().0,
+                            systemprompt_bridge::proxy::notifications::NotificationSignals::channel().0,
                         ),
                     )
                     .await;
@@ -329,7 +330,7 @@ fn a_session_id_carrying_path_characters_is_flattened_to_one_safe_filename() {
 }
 
 #[test]
-fn a_rejected_subscription_latches_sign_in_and_stops_retrying() {
+fn a_rejected_subscription_re_mints_once_then_latches_sign_in() {
     let sb = Sandbox::new();
     let counter = Arc::new(AtomicUsize::new(0));
     let requests = sb.drive(
@@ -338,13 +339,13 @@ fn a_rejected_subscription_latches_sign_in_and_stops_retrying() {
         counting_refresh(&counter),
     );
     assert_eq!(
-        requests, 1,
-        "the latch stops the subscription instead of retrying it; saw {requests}"
+        requests, 2,
+        "one retry on the re-minted token, then the latch stops the subscription; saw {requests}"
     );
     assert_eq!(
         counter.load(Ordering::SeqCst),
-        1,
-        "a credential refused moments after minting is not re-minted; minted {}",
+        2,
+        "a fresh credential refused once is re-minted exactly once; minted {}",
         counter.load(Ordering::SeqCst)
     );
 }

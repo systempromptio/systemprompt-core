@@ -12,10 +12,6 @@ use systemprompt_bridge::probe_cache::StartMenuCache;
 use systemprompt_bridge::{host_sync, register_host_app};
 use systemprompt_models::bridge::host::HostKind;
 
-// Why: this binary suppresses Hermes below (the white-label shape), so it is
-// in neither the registry nor the sync-only table for every test here.
-const SUPPRESSED: HostKind = HostKind::Hermes;
-
 fn desktop_offered() -> bool {
     cfg!(any(target_os = "macos", target_os = "windows"))
 }
@@ -45,7 +41,6 @@ fn known_hosts_cover_every_local_and_sync_only_agent() {
     bridge.dedup();
     let mut known: Vec<HostKind> = HostKind::ALL
         .into_iter()
-        .filter(|kind| *kind != SUPPRESSED)
         .filter(|kind| desktop_offered() || *kind != HostKind::ClaudeDesktop)
         .collect();
     known.sort_unstable();
@@ -152,7 +147,11 @@ impl HostApp for ShadowCodexHost {
     ) -> Result<GeneratedProfile, HostAppError> {
         Ok(empty_profile())
     }
-    fn install_profile(&self, _path: &str) -> Result<ProfileInstalled, HostAppError> {
+    fn install_profile(
+        &self,
+        _path: &str,
+        _gate: &systemprompt_bridge::elevation_gate::ElevationGate,
+    ) -> Result<ProfileInstalled, HostAppError> {
         Ok(ProfileInstalled::ok())
     }
     fn install_action_label(&self) -> &'static str {
@@ -190,7 +189,7 @@ fn no_known_host_resolves_as_unknown() {
         assert!(
             matches!(
                 resolve_host(id),
-                ResolvedHost::Local(_) | ResolvedHost::SyncOnly(_) | ResolvedHost::Suppressed
+                ResolvedHost::Local(_) | ResolvedHost::SyncOnly(_)
             ),
             "{id} resolves as Unknown — a per-host command for it would answer \
              \"unknown host: {id}\""
@@ -224,33 +223,4 @@ fn a_kind_this_build_has_no_host_for_is_the_only_unknown() {
 fn a_host_id_outside_the_closed_set_cannot_be_named() {
     assert!("no-such-agent".parse::<HostKind>().is_err());
     assert!("open-code".parse::<HostKind>().is_err());
-}
-
-systemprompt_bridge::suppress_host_app!(SUPPRESSED);
-
-// Why: this is the Astound shape — a white-label build calls
-// `suppress_host_app!(HostKind::CodexCli)`, and the id is then in neither the
-// registry nor the sync-only table. "Not offered on this installation" is the
-// truthful answer; "unknown host" is not.
-#[test]
-fn suppressed_host_is_not_unknown() {
-    assert!(find_host_by_id(SUPPRESSED).is_none());
-    assert!(matches!(resolve_host(SUPPRESSED), ResolvedHost::Suppressed));
-}
-
-#[test]
-fn a_suppressed_host_has_no_host_sync_to_apply_or_clear() {
-    assert!(
-        systemprompt_bridge::integration::host_syncs()
-            .all(|emitter| emitter.host_id() != SUPPRESSED),
-        "a suppressed host's settings must never be written, not even to clear them"
-    );
-}
-
-#[test]
-fn a_suppressed_host_is_not_offered_as_a_sync_only_agent() {
-    assert!(systemprompt_bridge::integration::is_suppressed(SUPPRESSED));
-    assert!(
-        systemprompt_bridge::integration::sync_only_agents().all(|agent| agent.id != SUPPRESSED)
-    );
 }

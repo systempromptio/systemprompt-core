@@ -6,6 +6,10 @@
 //! steer the token exchange or the key fetch somewhere else. A failed refresh
 //! keeps serving the last good document.
 //!
+//! A refresh is single-flight: one caller fetches while the others serve the
+//! expired document, or wait for the fetch when there is none yet, so an
+//! expiry under a login wave costs the issuer one request.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -52,14 +56,16 @@ pub(super) struct DiscoveryCache {
     url: String,
     issuer: String,
     current: Mutex<Option<(Arc<OidcDiscovery>, Instant)>>,
+    refresh: tokio::sync::Mutex<()>,
 }
 
 impl DiscoveryCache {
-    pub(super) const fn new(url: String, issuer: String) -> Self {
+    pub(super) fn new(url: String, issuer: String) -> Self {
         Self {
             url,
             issuer,
             current: Mutex::new(None),
+            refresh: tokio::sync::Mutex::new(()),
         }
     }
 
@@ -75,6 +81,17 @@ impl DiscoveryCache {
         &self,
         http: &reqwest::Client,
     ) -> Result<Arc<OidcDiscovery>, OidcProviderError> {
+        let cached = self.cached();
+        if let Some((doc, fetched_at)) = &cached
+            && fetched_at.elapsed() < DISCOVERY_TTL
+        {
+            return Ok(Arc::clone(doc));
+        }
+        let _refresh = match (self.refresh.try_lock(), &cached) {
+            (Ok(guard), _) => guard,
+            (Err(_busy), Some((doc, _))) => return Ok(Arc::clone(doc)),
+            (Err(_busy), None) => self.refresh.lock().await,
+        };
         let cached = self.cached();
         if let Some((doc, fetched_at)) = &cached
             && fetched_at.elapsed() < DISCOVERY_TTL

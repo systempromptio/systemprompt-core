@@ -1,0 +1,25 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH trashed AS (\n               UPDATE documents d\n               SET deleted_at = now(), trashed_by = $2, updated_at = now()\n               FROM document_folders f\n               WHERE f.id = d.folder_id\n                 AND (f.id = $1::text::uuid OR $1::text::uuid = ANY(f.ancestor_ids))\n                 AND d.deleted_at IS NULL\n                 AND d.owner_user_id = $2\n                 AND d.id = ANY($3::text[]::uuid[])\n               RETURNING d.id, d.name, f.ancestor_ids || f.id AS chain),\n           logged AS (\n               INSERT INTO document_path_changes (document_id, from_path)\n               SELECT t.id,\n                      (SELECT string_agg(a.name, '/' ORDER BY u.ord)\n                       FROM unnest(t.chain) WITH ORDINALITY AS u(folder_id, ord)\n                       JOIN document_folders a ON a.id = u.folder_id) || '/' || t.name\n               FROM trashed t RETURNING 1)\n           SELECT COUNT(*) AS \"trashed!\" FROM trashed",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "trashed!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "TextArray"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "3646aab2490002d9661d4f7bbd2f4bef7fe4b932e135c48243dbbe26cfd8899c"
+}

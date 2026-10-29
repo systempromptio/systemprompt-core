@@ -115,9 +115,11 @@ fn a_listener_that_answers_nothing_is_unknown_not_unreachable() {
 #[test]
 fn a_closed_port_is_unreachable() {
     let ours = InstallId::ephemeral();
-    let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
-    let port = listener.local_addr().expect("addr").port();
-    drop(listener);
+    let refusing = tokio::net::TcpSocket::new_v4().expect("socket");
+    refusing
+        .bind("127.0.0.1:0".parse().expect("loopback address"))
+        .expect("bind without listening");
+    let port = refusing.local_addr().expect("addr").port();
     assert!(matches!(
         probe_identity(port, &ours),
         PeerIdentity::Unreachable

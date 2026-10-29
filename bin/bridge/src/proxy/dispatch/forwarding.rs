@@ -43,6 +43,15 @@ pub(super) async fn forward_to_gateway(
         method,
         path,
     };
+    if cfg.disabled {
+        return Ok(owned_response(
+            StatusCode::SERVICE_UNAVAILABLE,
+            format!(
+                "{} is disabled on this device; enable it to route through the gateway",
+                crate::brand::brand().app_name
+            ),
+        ));
+    }
     match forward::forward(
         req,
         forward::ForwardDeps {
@@ -56,6 +65,7 @@ pub(super) async fn forward_to_gateway(
             gateway_http: ctx.deps.http.clone(),
             plugin_tokens: Arc::clone(&ctx.deps.plugin_tokens),
             drive_signals: &ctx.deps.drive_signals,
+            foreign_models: cfg.foreign_models.as_ref(),
             credential,
         },
     )
@@ -130,6 +140,18 @@ fn log_forward_failure(
         ctx.deps.activity.append_warn(format!(
             "proxy: {method} {path} → client disconnected [{req_id}]"
         ));
+    } else if systemprompt_models::ApiPaths::is_otel(path) {
+        // Why: Claude Code retries its OTLP exporter on its own schedule; a
+        // dropped batch loses telemetry, never a user's request.
+        tracing::debug!(
+            target: "systemprompt_bridge::proxy",
+            req_id = %req_id,
+            method = %method,
+            path = %path,
+            latency_ms,
+            error = %e,
+            "req out: telemetry forward dropped"
+        );
     } else {
         tracing::error!(
             target: "systemprompt_bridge::proxy",

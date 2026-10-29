@@ -7,8 +7,10 @@ mod agents;
 mod args;
 mod diagnostics;
 mod drive;
+mod gateway;
 mod general;
 mod hosts;
+mod inbox;
 mod removal;
 mod window;
 
@@ -23,8 +25,10 @@ use crate::wire::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload, Repl
 use agents::agent_dispatch;
 use diagnostics::diagnostics_dispatch;
 use drive::drive_dispatch;
-use general::{auth_dispatch, gateway_dispatch, meta_dispatch, sync_dispatch};
+use gateway::gateway_dispatch;
+use general::{auth_dispatch, meta_dispatch, sync_dispatch};
 use hosts::host_dispatch;
+use inbox::inbox_dispatch;
 use window::window_dispatch;
 
 #[derive(Debug)]
@@ -61,6 +65,9 @@ pub(crate) fn dispatch(
         return out;
     }
     if let Some(out) = diagnostics_dispatch(app, cmd, reply_id) {
+        return out;
+    }
+    if let Some(out) = inbox_dispatch(app, cmd, args.clone()) {
         return out;
     }
     if let Some(out) = drive_dispatch(app, cmd) {

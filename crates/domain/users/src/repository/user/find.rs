@@ -31,6 +31,25 @@ impl UserRepository {
         Ok(row)
     }
 
+    pub async fn find_by_ids(&self, ids: &[UserId]) -> Result<Vec<User>> {
+        let deleted_status = UserStatus::Deleted.as_str();
+        let ids: Vec<String> = ids.iter().map(|id| id.as_str().to_owned()).collect();
+        let rows = sqlx::query_as!(
+            UserRow,
+            r#"
+            SELECT id, name, email, full_name, display_name, status, email_verified,
+                   roles, avatar_url, is_bot, is_scanner, created_at, updated_at, account_kind
+            FROM users
+            WHERE id = ANY($1::text[]) AND status != $2
+            "#,
+            &ids,
+            deleted_status
+        )
+        .fetch_all(&*self.pool)
+        .await?;
+        rows.into_iter().map(User::try_from).collect()
+    }
+
     pub async fn find_by_email(&self, email: &str) -> Result<Option<User>> {
         let email = crate::models::normalise_email(email);
         let deleted_status = UserStatus::Deleted.as_str();
@@ -124,9 +143,37 @@ impl UserRepository {
         let active = UserStatus::Active.as_str();
         Ok(sqlx::query_scalar!(
             r#"SELECT id AS "id: UserId" FROM users
-               WHERE $1 = ANY(roles) AND status = $2
+               WHERE roles @> ARRAY[$1]::TEXT[] AND status = $2
                ORDER BY id LIMIT $3"#,
             role,
+            active,
+            limit.max(1),
+        )
+        .fetch_all(&*self.pool)
+        .await?)
+    }
+
+    pub async fn is_active_with_role(&self, user: &UserId, role: &str) -> Result<bool> {
+        let active = UserStatus::Active.as_str();
+        Ok(sqlx::query_scalar!(
+            r#"SELECT EXISTS(
+                   SELECT 1 FROM users
+                   WHERE id = $1 AND roles @> ARRAY[$2]::TEXT[] AND status = $3
+               ) AS "exists!""#,
+            user.as_str(),
+            role,
+            active,
+        )
+        .fetch_one(&*self.pool)
+        .await?)
+    }
+
+    pub async fn list_active_ids(&self, limit: i64) -> Result<Vec<UserId>> {
+        let active = UserStatus::Active.as_str();
+        Ok(sqlx::query_scalar!(
+            r#"SELECT id AS "id: UserId" FROM users
+               WHERE status = $1
+               ORDER BY id LIMIT $2"#,
             active,
             limit.max(1),
         )

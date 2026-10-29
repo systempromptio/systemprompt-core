@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.76.0] - 2026-10-29
+
+### Breaking
+
+- **Breaking:** `DocumentsRuntimeParts` gains `notifications: DynNotificationSink`, `Subsystems` gains `notifications: Arc<NotificationsHandle>`, and `DocumentsMcpConfig` gains `notifications: Arc<NotificationsService>`. Migrate struct literals by passing the context's handle.
+- **Breaking:** `UserSubjectDirectory::new` takes a third argument, `systemprompt_runtime::documents::ExtensionAudiences`. Migrate by passing `ExtensionAudiences::default()` or the audiences discovered for the context.
+
+### Added
+
+- The `notifications` feature: `AppContext::notifications`, the notifications module, the outbox consumer, the `documents_inbox` MCP tool and `NotificationsUnavailableSink` for builds without it.
+- Issue reports: `IssueService` wiring and the `IssuesMcpTools` library (`report_issue`, `issue_attachment`, `issues_list`, `issue_status`) for an install's own MCP server.
+- The documents MCP server files the agent's own presence (`agent`) and places its caret on the first block it wrote.
+
+### Fixed
+
+- A signed download link carries no permissions.
+- Refusals: a broad rewrite needs the `broad_rewrite` capability; `set_text` or `set_html` with a `node` is refused; `documents_read` lists a one-paragraph table cell once; `documents_guide` carries its text in structured content as `guide`.
+- The agent-run listener reconnect delay is jittered.
+
 ## [0.75.0] - 2026-10-28
 
 ### Breaking

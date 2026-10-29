@@ -17,7 +17,9 @@
 //! because the two have opposite shapes: inference is high-volume and elastic,
 //! sign-in is a handful of requests that must succeed. Sharing one budget let
 //! a saturated gateway refuse every credential exchange, which presents to the
-//! user as a rejected token rather than as the rate limit it is.
+//! user as a rejected token rather than as the rate limit it is. The bridge
+//! inbox routes take the notifications budget, so inbox polling and inference
+//! never starve each other.
 //!
 //! The access log layer is outside both limiters so that a refused request
 //! still produces a record; an instance 429ing every sign-in shows it in its
@@ -34,6 +36,8 @@ pub mod bridge_device;
 pub mod bridge_error;
 pub mod bridge_heartbeat;
 pub mod bridge_manifest;
+#[cfg(feature = "notifications")]
+mod bridge_notifications;
 pub mod bridge_plugin_archive;
 pub mod bridge_plugin_file;
 pub mod bridge_profile_usage;
@@ -41,6 +45,7 @@ pub mod bridge_release;
 pub mod bridge_resolved;
 pub mod bridge_stream;
 pub mod bridge_whoami;
+pub mod count_tokens;
 pub mod messages;
 pub mod models;
 pub mod otel;
@@ -131,6 +136,7 @@ fn drive_routes(ctx: &AppContext, jwt_extractor: &Arc<JwtContextExtractor>) -> R
 struct GatewayParts {
     traffic: Router,
     bridge_auth: Router,
+    notifications: Router,
     jwt_extractor: Arc<JwtContextExtractor>,
 }
 
@@ -138,16 +144,21 @@ fn gateway_parts(ctx: &AppContext, engines: &Arc<GatewayEngines>) -> anyhow::Res
     let jwt_extractor = build_jwt_extractor(ctx)?;
     let gateway_repos = Arc::new(gateway_repositories(ctx)?);
 
+    let traffic = Router::new()
+        .merge(inference_routes(
+            ctx,
+            &jwt_extractor,
+            &gateway_repos,
+            engines,
+        ))
+        .merge(bridge_profile_routes(ctx, &jwt_extractor))
+        .merge(bridge_session_routes(ctx, &jwt_extractor));
+    #[cfg(feature = "notifications")]
+    let notifications = bridge_notifications::routes(ctx, &jwt_extractor);
+    #[cfg(not(feature = "notifications"))]
+    let notifications = Router::new();
     Ok(GatewayParts {
-        traffic: Router::new()
-            .merge(inference_routes(
-                ctx,
-                &jwt_extractor,
-                &gateway_repos,
-                engines,
-            ))
-            .merge(bridge_profile_routes(ctx, &jwt_extractor))
-            .merge(bridge_session_routes(ctx, &jwt_extractor))
+        traffic: traffic
             .merge(drive_routes(ctx, &jwt_extractor))
             .merge(provider_credentials::routes(ctx, &jwt_extractor))
             .merge(bridge_release::routes(ctx, &jwt_extractor))
@@ -155,6 +166,7 @@ fn gateway_parts(ctx: &AppContext, engines: &Arc<GatewayEngines>) -> anyhow::Res
             .route("/models", get(models::list).with_state(ctx.clone()))
             .route("/", get(models::root)),
         bridge_auth: bridge_auth_routes(ctx, &jwt_extractor),
+        notifications,
         jwt_extractor,
     })
 }
@@ -172,7 +184,13 @@ pub fn gateway_engines(
 
 pub fn gateway_router(ctx: &AppContext) -> anyhow::Result<Router> {
     let parts = gateway_parts(ctx, &Arc::new(gateway_engines(ctx)?))?;
-    Ok(common_layers(ctx, parts.traffic.merge(parts.bridge_auth)))
+    Ok(common_layers(
+        ctx,
+        parts
+            .traffic
+            .merge(parts.bridge_auth)
+            .merge(parts.notifications),
+    ))
 }
 
 pub fn gateway_mount_router(
@@ -201,8 +219,24 @@ pub fn gateway_mount_router(
             rate_config.bridge_auth_per_second,
             "bridge_auth",
         );
+    let notifications = parts
+        .notifications
+        .with_rate_limit(
+            limits,
+            rate_config.notifications_per_second,
+            "bridge_notifications",
+        )?
+        .with_bearer_window(
+            limits,
+            &parts.jwt_extractor,
+            rate_config.notifications_per_second,
+            "bridge_notifications",
+        );
 
-    Ok(common_layers(ctx, traffic.merge(bridge_auth)))
+    Ok(common_layers(
+        ctx,
+        traffic.merge(bridge_auth).merge(notifications),
+    ))
 }
 
 fn common_layers(ctx: &AppContext, router: Router) -> Router {

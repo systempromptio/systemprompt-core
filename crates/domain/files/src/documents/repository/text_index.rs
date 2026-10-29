@@ -1,6 +1,11 @@
 //! [`DocumentTextIndexRepository`]: the per-head full-text index and a
 //! visibility-filtered search over it.
 //!
+//! The index is written after a revision lands, so two heads in quick
+//! succession can finish extracting out of order. A write is applied only
+//! while its revision is still the document's head, so the slower, older
+//! write never replaces the newer text.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -31,12 +36,18 @@ impl DocumentTextIndexRepository {
     ) -> RepoResult<()> {
         sqlx::query!(
             "INSERT INTO document_text_index (document_id, revision_id, plain_text, body)
-             VALUES ($1::text::uuid, $2::text::uuid, $3, to_tsvector('simple', $3))
+             SELECT d.id, d.head_revision_id, $3, to_tsvector('simple', $3)
+             FROM documents d
+             WHERE d.id = $1::text::uuid AND d.head_revision_id = $2::text::uuid
              ON CONFLICT (document_id) DO UPDATE
                  SET revision_id = EXCLUDED.revision_id,
                      plain_text = EXCLUDED.plain_text,
                      body = EXCLUDED.body,
-                     updated_at = now()",
+                     updated_at = now()
+                 WHERE EXISTS (
+                     SELECT 1 FROM documents d
+                     WHERE d.id = EXCLUDED.document_id
+                       AND d.head_revision_id = EXCLUDED.revision_id)",
             document_id.as_str(),
             revision_id.as_str(),
             text,
@@ -63,6 +74,7 @@ impl DocumentTextIndexRepository {
                JOIN documents d ON d.id = t.document_id AND d.deleted_at IS NULL
                LEFT JOIN document_folders f ON f.id = d.folder_id
                WHERE t.body @@ q
+                 AND (d.folder_id IS NULL OR f.deleted_at IS NULL)
                  AND (d.owner_user_id = $2 OR EXISTS (
                      SELECT 1 FROM document_grants g
                      WHERE (g.document_id = d.id OR g.folder_id = ANY(f.ancestor_ids || f.id))
@@ -77,7 +89,7 @@ impl DocumentTextIndexRepository {
             &subjects.values,
             limit.max(1),
         )
-        .fetch_all(&*self.pools.read)
+        .fetch_all(self.pools.authz())
         .await?)
     }
 }

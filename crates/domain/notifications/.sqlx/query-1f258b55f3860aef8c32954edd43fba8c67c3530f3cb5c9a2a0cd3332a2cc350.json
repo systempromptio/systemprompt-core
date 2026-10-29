@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE notifications n\n               SET delivery_state = $3, held_until = NULL,\n                   delivery_seq = n.delivery_seq + 1, pending_since = now()\n               FROM (SELECT id FROM notifications\n                     WHERE delivery_state = $4 AND held_until <= $1\n                     ORDER BY held_until LIMIT $2\n                     FOR NO KEY UPDATE SKIP LOCKED) due\n               WHERE n.id = due.id\n               RETURNING n.id::text AS \"id!: NotificationId\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!: NotificationId",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Int8",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "1f258b55f3860aef8c32954edd43fba8c67c3530f3cb5c9a2a0cd3332a2cc350"
+}

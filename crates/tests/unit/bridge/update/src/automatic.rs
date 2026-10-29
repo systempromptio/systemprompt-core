@@ -21,7 +21,11 @@ fn seed_last_sync(state: &TempDir, gateway: &ValidatedUrl, auto_update: &str) {
         serde_json::json!({ "gateway": gateway, "auto_update": auto_update }).to_string(),
     )
     .expect("seed last-sync");
-    let config_dir = state.path().join("systemprompt");
+    let config_dir = state
+        .path()
+        .join("systemprompt")
+        .join("gateways")
+        .join("default");
     std::fs::create_dir_all(&config_dir).expect("config dir");
     std::fs::write(
         config_dir.join("systemprompt-bridge.toml"),

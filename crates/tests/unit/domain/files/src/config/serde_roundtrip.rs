@@ -145,6 +145,7 @@ fn files_config_yaml_roundtrip() {
             allowed_types: AllowedFileTypes::default(),
         },
         documents: systemprompt_files::DocumentsConfig::default(),
+        issues: systemprompt_files::IssuesConfig::default(),
     };
     let json = serde_json::to_string(&original).unwrap();
     let back: FilesConfigYaml = serde_json::from_str(&json).unwrap();

@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.76.0] - 2026-10-29
+
+### Added
+
+- `UserRepository::is_active_with_role`, and a GIN index on `users.roles`.
+
+### Fixed
+
+- Concurrent first token exchanges for one federated principal link a single account; the second waits on a transaction-scoped lock and finds the first's link.
+
 ## [0.75.0] - 2026-10-28
 
 ### Breaking

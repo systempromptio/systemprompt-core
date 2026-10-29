@@ -115,3 +115,68 @@ fn half_initialised_personal_dir_is_skipped_for_personal_match() {
     let picked = pick_target(&candidates).expect("the real org resolves");
     assert_eq!(picked, Some((real, TargetSource::OnlySession)));
 }
+
+#[test]
+fn a_personal_session_named_by_its_prefix_wins_among_several() {
+    let s = Sessions::new();
+    let prefix = &PERSONAL[..8];
+    let personal = s.add("acct", prefix, true);
+    let real = s.add("acct", REAL_ORG, true);
+    let other = s.add("acct", OTHER_ORG, true);
+
+    let candidates = vec![
+        (t(9_000), real),
+        (t(1_000), personal.clone()),
+        (t(5_000), other),
+    ];
+
+    let picked =
+        pick_target(&candidates).expect("Desktop's prefix-named personal session resolves");
+    assert_eq!(picked, Some((personal, TargetSource::Personal)));
+}
+
+#[test]
+fn a_prefix_shorter_than_eight_characters_is_not_the_personal_session() {
+    let s = Sessions::new();
+    let short = s.add("acct", &PERSONAL[..4], true);
+    let real = s.add("acct", REAL_ORG, true);
+    let candidates = vec![(t(1_000), short), (t(2_000), real)];
+    assert!(matches!(
+        pick_target(&candidates),
+        Err(ResolveTargetError::Ambiguous { .. })
+    ));
+}
+
+#[test]
+fn a_clear_visits_every_usable_session_when_the_choice_is_ambiguous() {
+    let home = tempfile::tempdir().expect("home");
+    let sessions = home
+        .path()
+        .join("Claude-3p")
+        .join("local-agent-mode-sessions")
+        .join("acct");
+    for org in [REAL_ORG, OTHER_ORG] {
+        fs::create_dir_all(sessions.join(org).join("cowork_plugins")).expect("session");
+    }
+    let vars = vec![
+        ("XDG_CONFIG_HOME", Some(home.path().display().to_string())),
+        ("HOME", Some(home.path().display().to_string())),
+        ("SP_BRIDGE_CONFIG", None),
+    ];
+    temp_env::with_vars(vars, || {
+        assert!(matches!(
+            systemprompt_bridge::integration::cowork_plugins::resolve_target(),
+            Err(ResolveTargetError::Ambiguous { .. })
+        ));
+        let mut targets: Vec<PathBuf> =
+            systemprompt_bridge::integration::cowork_plugins::clear_targets()
+                .expect("an ambiguous tree still yields every session to clear")
+                .into_iter()
+                .map(|t| t.session_org_dir)
+                .collect();
+        targets.sort();
+        let mut expected = vec![sessions.join(OTHER_ORG), sessions.join(REAL_ORG)];
+        expected.sort();
+        assert_eq!(targets, expected);
+    });
+}

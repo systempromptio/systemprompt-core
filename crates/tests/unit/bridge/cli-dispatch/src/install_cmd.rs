@@ -50,6 +50,8 @@ fn install_with_a_gateway_persists_it_to_config_and_sentinel() {
         sb.config
             .path()
             .join("systemprompt")
+            .join("gateways")
+            .join("default")
             .join("systemprompt-bridge.toml"),
     )
     .expect("install persists a config file");
@@ -155,6 +157,8 @@ fn uninstall_clears_metadata_and_plugin_dirs_but_keeps_credentials() {
         sb.config
             .path()
             .join("systemprompt")
+            .join("gateways")
+            .join("default")
             .join("systemprompt-bridge.pat")
             .exists(),
         "without --purge the PAT survives"
@@ -178,6 +182,8 @@ fn uninstall_purge_also_removes_the_stored_credential() {
         !sb.config
             .path()
             .join("systemprompt")
+            .join("gateways")
+            .join("default")
             .join("systemprompt-bridge.pat")
             .exists(),
         "--purge removes the PAT file"
@@ -204,7 +210,8 @@ fn purge_device_returns_the_machine_to_a_never_installed_state() {
     use systemprompt_bridge::integration::uninstall::purge_device;
 
     let sb = Sandbox::new();
-    let config_dir = sb.config.path().join("systemprompt");
+    let root_dir = sb.config.path().join("systemprompt");
+    let config_dir = root_dir.join("gateways").join("default");
     let report = sb.run(|| {
         let _ = run_with_args(&argv(&[
             "login",
@@ -228,13 +235,14 @@ fn purge_device_returns_the_machine_to_a_never_installed_state() {
             sb.metadata().join("onboarded.json").exists(),
             "precondition: onboarding recorded"
         );
-        std::fs::write(config_dir.join("bridge-loopback.key"), "stale-secret")
+        std::fs::write(root_dir.join("bridge-loopback.key"), "stale-secret")
             .expect("seed a loopback key");
-        let ctx = BridgeContext::start(ProxyMode::Attach).expect("runtime builds");
+        let ctx = BridgeContext::start(ProxyMode::Attach, std::sync::Arc::new(|| None))
+            .expect("runtime builds");
         purge_device(&ctx).expect("purge succeeds in a sandbox")
     });
     assert!(
-        !config_dir.join("bridge-loopback.key").exists(),
+        !root_dir.join("bridge-loopback.key").exists(),
         "the loopback key goes with everything else; a kept key keeps its fault"
     );
     assert!(

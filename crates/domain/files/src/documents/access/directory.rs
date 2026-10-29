@@ -37,6 +37,11 @@ pub struct SubjectDirectoryError(#[source] pub Box<dyn std::error::Error + Send 
 pub trait SubjectDirectory: Send + Sync {
     async fn roles_of(&self, user: &UserId) -> Result<Option<Vec<String>>, SubjectDirectoryError>;
 
+    async fn roles_of_many(
+        &self,
+        users: &[UserId],
+    ) -> Result<Vec<Option<Vec<String>>>, SubjectDirectoryError>;
+
     async fn members(
         &self,
         kind: &str,

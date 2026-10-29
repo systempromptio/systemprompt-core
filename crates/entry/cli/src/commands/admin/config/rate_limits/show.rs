@@ -30,6 +30,7 @@ pub(super) fn execute_show(ctx: &CommandContext) -> Result<()> {
         mcp_per_second: limits.mcp_per_second,
         stream_per_second: limits.stream_per_second,
         content_per_second: limits.content_per_second,
+        notifications_per_second: limits.notifications_per_second,
         gateway_per_second: limits.gateway_per_second,
         burst_multiplier: limits.burst_multiplier,
     };

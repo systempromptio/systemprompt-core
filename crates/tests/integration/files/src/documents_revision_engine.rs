@@ -418,6 +418,7 @@ async fn inputs_over_the_limits_are_refused() {
                 anchor: None,
                 parent_id: None,
                 body: "c".repeat(16 * 1024 + 1),
+                mention_options: vec![],
             },
             &trace(),
         )

@@ -2,7 +2,7 @@ use systemprompt_files::documents::codecs::docx::{
     MAX_PART_BYTES, blank_docx, import_rich, materialise_rich, materialise_rich_with,
     saved_upload_hashes,
 };
-use systemprompt_files::documents::collab::ImageOwners;
+use systemprompt_files::documents::collab::{ImageOwners, ImageOwnersError};
 use systemprompt_files::documents::model::layout::{Margins, Section};
 use systemprompt_files::documents::model::{
     Block, BlockKind, EditLevel, Limits, Media, MediaBlob, ModelRejection, RichText, validate,
@@ -284,7 +284,7 @@ fn an_image_keeps_the_editor_the_log_records_as_its_inserter() {
     let mut owners = ImageOwners::default();
     owners.record(&typed, &inserted, &alice);
     owners.record(&inserted, &more, &bob);
-    assert_eq!(owners.owner(BLOB), Some(&alice));
+    assert_eq!(owners.inserters(BLOB), vec![alice]);
 }
 
 #[test]
@@ -299,10 +299,64 @@ fn a_rebuilt_entry_keeps_its_image_owners() {
     let mut owners = ImageOwners::default();
     owners.record(&RichText::default(), &inserted, &alice);
     let blob = owners.seal(b"engine-snapshot");
-    let (reopened, snapshot) = ImageOwners::open(&blob);
+    let (reopened, snapshot) = ImageOwners::open(&blob).expect("sealed owners open");
     assert_eq!(snapshot, b"engine-snapshot");
     assert_eq!(reopened, owners);
-    let (legacy, raw) = ImageOwners::open(b"engine-snapshot");
+    let (bare, raw) = ImageOwners::open(b"engine-snapshot").expect("bare snapshot opens");
     assert_eq!(raw, b"engine-snapshot");
-    assert_eq!(legacy.owner(BLOB), None);
+    assert!(bare.inserters(BLOB).is_empty());
+}
+
+fn image_doc() -> RichText {
+    let mut inserted = RichText::default();
+    inserted.blocks.push(Block::new(
+        "img",
+        BlockKind::image(BLOB.to_owned(), String::new()),
+        "",
+    ));
+    inserted
+}
+
+#[test]
+fn an_editor_inserting_first_does_not_displace_the_uploader() {
+    let mallory = UserId::new("mallory");
+    let alice = UserId::new("alice");
+    let inserted = image_doc();
+    let mut owners = ImageOwners::default();
+    owners.record(&RichText::default(), &inserted, &mallory);
+    owners.record(&RichText::default(), &inserted, &alice);
+    let inserters = owners.inserters(BLOB);
+    assert!(inserters.contains(&alice));
+    assert!(inserters.contains(&mallory));
+    let typed_only = ImageOwners::default();
+    assert!(typed_only.inserters(BLOB).is_empty());
+}
+
+#[test]
+fn a_corrupt_owner_envelope_is_an_error() {
+    let mut owners = ImageOwners::default();
+    owners.record(&RichText::default(), &image_doc(), &UserId::new("alice"));
+    let mut blob = owners.seal(b"engine-snapshot");
+    blob[14] = b'!';
+    assert!(matches!(
+        ImageOwners::open(&blob),
+        Err(ImageOwnersError::Decode(_))
+    ));
+    let truncated = &owners.seal(b"")[..12];
+    assert!(matches!(
+        ImageOwners::open(truncated),
+        Err(ImageOwnersError::Truncated)
+    ));
+}
+
+#[test]
+fn a_single_owner_envelope_opens_as_one_inserter() {
+    let json = br#"{"by_ref":{"BLOBREF":"alice"}}"#;
+    let mut blob = b"SPOWNERS1\n".to_vec();
+    blob.extend_from_slice(&u32::try_from(json.len()).expect("len").to_be_bytes());
+    blob.extend_from_slice(json);
+    blob.extend_from_slice(b"snap");
+    let (owners, snapshot) = ImageOwners::open(&blob).expect("single owner envelope opens");
+    assert_eq!(snapshot, b"snap");
+    assert_eq!(owners.inserters("BLOBREF"), vec![UserId::new("alice")]);
 }

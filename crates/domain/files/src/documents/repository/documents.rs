@@ -1,5 +1,6 @@
-//! [`DocumentRepository`]: document rows, visible listings and the
-//! compare-and-swap head revision.
+//! [`DocumentRepository`]: document rows and the compare-and-swap head
+//! revision. A document created in a folder takes that folder's tree lock and
+//! requires the folder to be live.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -9,11 +10,12 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::{
     DocumentFolderId, DocumentId, DocumentRevisionId, DocumentTemplateId, UserId,
 };
-use uuid::Uuid;
+use systemprompt_traits::RepositoryError;
 
 use super::Pools;
+use super::folder_locks::begin_tree_locked;
 use super::rows::{RepoResult, parse};
-use crate::documents::models::{Document, ListCursor, NewDocument, SubjectPairs, VisibleListing};
+use crate::documents::models::{Document, NewDocument};
 
 #[derive(Debug, Clone)]
 pub struct DocumentRepository {
@@ -37,7 +39,7 @@ pub(super) struct DocumentRow {
 }
 
 impl TryFrom<DocumentRow> for Document {
-    type Error = systemprompt_traits::RepositoryError;
+    type Error = RepositoryError;
 
     fn try_from(row: DocumentRow) -> RepoResult<Self> {
         Ok(Self {
@@ -58,10 +60,6 @@ impl TryFrom<DocumentRow> for Document {
     }
 }
 
-pub(super) fn convert(rows: Vec<DocumentRow>) -> RepoResult<Vec<Document>> {
-    rows.into_iter().map(Document::try_from).collect()
-}
-
 impl DocumentRepository {
     pub fn new(db: &DbPool) -> Self {
         Self {
@@ -70,10 +68,19 @@ impl DocumentRepository {
     }
 
     pub async fn insert(&self, request: NewDocument) -> RepoResult<Document> {
+        let folder: Vec<&str> = request
+            .folder_id
+            .iter()
+            .map(DocumentFolderId::as_str)
+            .collect();
+        let mut tx = begin_tree_locked(&self.pools.write, &folder).await?;
         let row = sqlx::query_as!(
             DocumentRow,
             r#"INSERT INTO documents (folder_id, name, format, mime_type, template_id, owner_user_id, created_by)
-               VALUES ($1::text::uuid, $2, $3, $4, $5, $6, $7)
+               SELECT $1::text::uuid, $2, $3, $4, $5, $6, $7
+               WHERE $1::text IS NULL OR EXISTS (
+                   SELECT 1 FROM document_folders f
+                   WHERE f.id = $1::text::uuid AND f.deleted_at IS NULL)
                RETURNING id::text AS "id!: DocumentId",
                          folder_id::text AS "folder_id: DocumentFolderId",
                          name, format, mime_type,
@@ -91,8 +98,18 @@ impl DocumentRepository {
             request.owner_user_id.as_str(),
             request.created_by.as_str(),
         )
-        .fetch_one(&*self.pools.write)
-        .await?;
+        .fetch_optional(&mut *tx)
+        .await?
+        .ok_or_else(|| {
+            RepositoryError::not_found(
+                "document folder",
+                request
+                    .folder_id
+                    .as_ref()
+                    .map_or("<root>", DocumentFolderId::as_str),
+            )
+        })?;
+        tx.commit().await?;
         row.try_into()
     }
 
@@ -143,66 +160,6 @@ r#"SELECT d.id::text AS "id!: DocumentId",
         .transpose()
     }
 
-    pub async fn list_visible(
-        &self,
-        listing: VisibleListing,
-        subjects: &SubjectPairs,
-        owner: &UserId,
-    ) -> RepoResult<(Vec<Document>, Option<ListCursor>)> {
-        let limit = listing.limit.max(1);
-        let pattern = listing.query.as_deref().map(|q| {
-            format!(
-                "%{}%",
-                q.replace('\\', "\\\\")
-                    .replace('%', "\\%")
-                    .replace('_', "\\_")
-            )
-        });
-        let rows = sqlx::query_as!(
-            DocumentRow,
-            r#"SELECT d.id::text AS "id!: DocumentId",
-                      d.folder_id::text AS "folder_id: DocumentFolderId",
-                      d.name, d.format, d.mime_type,
-                      d.head_revision_id::text AS "head_revision_id: DocumentRevisionId",
-                      d.template_id AS "template_id: DocumentTemplateId",
-                      d.owner_user_id AS "owner_user_id: UserId",
-                      d.created_by AS "created_by: UserId",
-                      d.created_at, d.updated_at, d.deleted_at AS trashed_at,
-                      d.trashed_by AS "trashed_by: UserId"
-               FROM documents d LEFT JOIN document_folders f ON f.id = d.folder_id
-               WHERE d.deleted_at IS NULL
-                 AND ($1::text IS NULL OR d.folder_id = $1::text::uuid)
-                 AND ($2::text IS NULL OR d.name ILIKE $2)
-                 AND ($3::timestamptz IS NULL OR (d.updated_at, d.id) < ($3, $4::uuid))
-                 AND (d.owner_user_id = $5 OR EXISTS (
-                     SELECT 1 FROM document_grants g
-                     WHERE (g.document_id = d.id OR g.folder_id = ANY(f.ancestor_ids || f.id))
-                       AND (g.subject_kind, g.subject_value) IN (
-                           SELECT * FROM UNNEST($6::text[], $7::text[]))
-                       AND (g.valid_until IS NULL OR g.valid_until > now())))
-               ORDER BY d.updated_at DESC, d.id DESC
-               LIMIT $8"#,
-            listing.folder_id.as_ref().map(DocumentFolderId::as_str),
-            pattern,
-            listing.cursor.map(|c| c.updated_at),
-            listing.cursor.map(|c| c.id),
-            owner.as_str(),
-            &subjects.kinds,
-            &subjects.values,
-            limit + 1,
-        )
-        .fetch_all(&*self.pools.read)
-        .await?;
-        let mut documents = convert(rows)?;
-        let next = if documents.len() as i64 > limit {
-            documents.truncate(usize::try_from(limit).unwrap_or(usize::MAX));
-            documents.last().map(cursor_of).transpose()?
-        } else {
-            None
-        };
-        Ok((documents, next))
-    }
-
     pub async fn set_template(
         &self,
         id: &DocumentId,
@@ -218,10 +175,4 @@ r#"SELECT d.id::text AS "id!: DocumentId",
         .await?;
         Ok(result.rows_affected() == 1)
     }
-}
-
-pub(super) fn cursor_of(document: &Document) -> RepoResult<ListCursor> {
-    let id = Uuid::parse_str(document.id.as_str())
-        .map_err(|source| systemprompt_traits::RepositoryError::decode("documents.id", source))?;
-    Ok(ListCursor::new(document.updated_at, id))
 }

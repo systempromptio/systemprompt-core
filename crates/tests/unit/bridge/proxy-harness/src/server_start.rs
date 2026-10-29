@@ -18,6 +18,8 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 fn runtime_config(uri: &str) -> SharedRuntimeConfig {
     Arc::new(ArcSwap::from_pointee(RuntimeConfig {
         gateway_base: Arc::new(ValidatedUrl::try_new(uri).expect("valid ValidatedUrl")),
+        disabled: false,
+        foreign_models: Default::default(),
     }))
 }
 
@@ -50,6 +52,9 @@ fn parts(uri: &str) -> ServerParts {
             ),
             update_gate: systemprompt_bridge::update::automatic::UpdateGate::default(),
             drive_signals: systemprompt_bridge::proxy::drive_signal::DriveSignals::channel().0,
+            notification_signals:
+                systemprompt_bridge::proxy::notifications::NotificationSignals::channel().0,
+            desktop_policy_key_fp: std::sync::Arc::new(|| None),
         },
     }
 }

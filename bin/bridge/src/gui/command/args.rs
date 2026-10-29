@@ -15,6 +15,11 @@ pub(super) struct GatewaySetArgs {
 }
 
 #[derive(Debug, Deserialize)]
+pub(super) struct GatewayProfileArgs {
+    pub(super) id: String,
+}
+
+#[derive(Debug, Deserialize)]
 pub(super) struct LoginArgs {
     pub(super) token: Secret,
     #[serde(default)]

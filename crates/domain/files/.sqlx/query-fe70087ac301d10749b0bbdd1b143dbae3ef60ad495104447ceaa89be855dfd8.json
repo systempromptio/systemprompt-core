@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE document_edit_sessions\n             SET checkpoint_revision_id = $2::text::uuid,\n                 checkpoint_seq = GREATEST(checkpoint_seq, $4),\n                 updated_at = now()\n             WHERE id = $1::text::uuid AND closed_at IS NULL AND checkpoint_lease_id = $3",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Uuid",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "fe70087ac301d10749b0bbdd1b143dbae3ef60ad495104447ceaa89be855dfd8"
+}

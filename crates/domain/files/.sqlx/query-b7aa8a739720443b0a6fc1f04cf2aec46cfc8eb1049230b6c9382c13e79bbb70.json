@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO document_upload_objects (storage_id, upload_id)\n             VALUES ($1, $2::text::uuid)\n             ON CONFLICT (storage_id) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "b7aa8a739720443b0a6fc1f04cf2aec46cfc8eb1049230b6c9382c13e79bbb70"
+}

@@ -1,8 +1,9 @@
 //! Resolving the authenticated caller into the user the document service
 //! authorizes: the account's current roles, read from the user provider so
 //! a role change applies to the next request; and the author a REST write
-//! records, attributed to the request's session, trace and task and to the
-//! conversation named by an `x-context-id` header.
+//! records, attributed to the actor the request was made by (a person, or an
+//! agent acting for the signed-in user), to the request's session, trace and
+//! task and to the conversation named by an `x-context-id` header.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -60,10 +61,22 @@ pub(crate) fn authenticated(user: AuthUser) -> AuthenticatedUser {
     AuthenticatedUser::new_with_roles(user.id, user.name, user.email, vec![permission], user.roles)
 }
 
+const fn actor_kind(actor: &DocumentActor) -> ActorKind {
+    match actor {
+        DocumentActor::Human => ActorKind::User,
+        DocumentActor::Agent(_) => ActorKind::Agent,
+        DocumentActor::System { .. } => ActorKind::System,
+    }
+}
+
 pub(super) fn api_author(ctx: &RequestContext, headers: &HeaderMap) -> Author {
     let present = |value: &str| !value.is_empty();
+    let actor_kind = actor_kind(&request_actor(ctx));
+    let on_behalf_of = (actor_kind == ActorKind::Agent)
+        .then(|| ctx.user_id().clone())
+        .filter(|id| present(id.as_str()));
     Author {
-        actor_kind: ActorKind::User,
+        actor_kind,
         origin: RevisionOrigin::Api,
         attribution: RevisionAttribution {
             session_id: Some(ctx.session_id().clone()).filter(|id| present(id.as_str())),
@@ -73,7 +86,7 @@ pub(super) fn api_author(ctx: &RequestContext, headers: &HeaderMap) -> Author {
                 .and_then(context_id),
             trace_id: Some(ctx.trace_id().clone()).filter(|id| present(id.as_str())),
             task_id: ctx.task_id().cloned(),
-            on_behalf_of: None,
+            on_behalf_of,
         },
     }
 }

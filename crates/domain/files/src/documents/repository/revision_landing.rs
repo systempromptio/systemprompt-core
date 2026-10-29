@@ -1,5 +1,6 @@
 //! Writing revisions: the insert, and marking a revision landed when it
-//! becomes the head, both inside the commit transaction.
+//! becomes the head, both inside the commit transaction. Marking it landed
+//! also stamps its Drive feed position from the landing transaction.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -79,7 +80,9 @@ impl DocumentRevisionRepository {
         id: &DocumentRevisionId,
     ) -> RepoResult<DateTime<Utc>> {
         Ok(sqlx::query_scalar!(
-            r#"UPDATE document_revisions SET landed_at = COALESCE(landed_at, now())
+            r#"UPDATE document_revisions SET landed_at = COALESCE(landed_at, now()),
+                      landing_xid = COALESCE(landing_xid, pg_current_xact_id()::text::bigint),
+                      landing_seq = COALESCE(landing_seq, nextval('document_landing_seq'))
                WHERE id = $1::text::uuid
                RETURNING landed_at AS "landed_at!""#,
             id.as_str(),

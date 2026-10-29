@@ -29,7 +29,7 @@ impl DocumentRepository {
                FROM documents d WHERE d.id = $1::text::uuid"#,
             id.as_str()
         )
-        .fetch_optional(&*self.pools.read)
+        .fetch_optional(self.pools.authz())
         .await?
         .map(Document::try_from)
         .transpose()
@@ -74,14 +74,20 @@ impl DocumentRepository {
         id: &DocumentId,
         folder: Option<&DocumentFolderId>,
     ) -> RepoResult<bool> {
+        let folders: Vec<&str> = folder.map(DocumentFolderId::as_str).into_iter().collect();
+        let mut tx = super::folder_locks::begin_tree_locked(&self.pools.write, &folders).await?;
         let result = sqlx::query!(
             "UPDATE documents SET folder_id = $2::text::uuid, updated_at = now()
-             WHERE id = $1::text::uuid",
+             WHERE id = $1::text::uuid
+               AND ($2::text IS NULL OR EXISTS (
+                   SELECT 1 FROM document_folders f
+                   WHERE f.id = $2::text::uuid AND f.deleted_at IS NULL))",
             id.as_str(),
             folder.map(DocumentFolderId::as_str),
         )
-        .execute(&*self.pools.write)
+        .execute(&mut *tx)
         .await?;
+        tx.commit().await?;
         Ok(result.rows_affected() == 1)
     }
 }

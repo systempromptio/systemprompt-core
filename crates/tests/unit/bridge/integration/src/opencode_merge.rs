@@ -13,7 +13,10 @@ struct Paths {
 }
 
 fn write_bridge_config(config_home: &Path, managed_dir: &Path) {
-    let dir = config_home.join("systemprompt");
+    let dir = config_home
+        .join("systemprompt")
+        .join("gateways")
+        .join("default");
     std::fs::create_dir_all(&dir).expect("bridge config dir");
     std::fs::write(
         dir.join("systemprompt-bridge.toml"),
@@ -70,7 +73,10 @@ fn install(models: &[&str]) {
         .generate_profile(&inputs(models))
         .expect("generate");
     OPENCODE_HOST
-        .install_profile(&generated.path)
+        .install_profile(
+            &generated.path,
+            &systemprompt_bridge::elevation_gate::ElevationGate::new(),
+        )
         .expect("install");
     _ = std::fs::remove_file(&generated.path);
 }
@@ -210,7 +216,10 @@ fn a_non_object_user_config_is_never_overwritten() {
             .generate_profile(&inputs(&["claude-sonnet-5"]))
             .expect("generate");
         let err = OPENCODE_HOST
-            .install_profile(&generated.path)
+            .install_profile(
+                &generated.path,
+                &systemprompt_bridge::elevation_gate::ElevationGate::new(),
+            )
             .expect_err("a foreign config aborts the install");
         assert!(err.to_string().contains("refusing"), "{err}");
         assert_eq!(

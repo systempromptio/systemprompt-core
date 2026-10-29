@@ -4,7 +4,8 @@
 //! gateway or api node runs no MCP servers, agents or scheduler; an `all` node
 //! supervises them all itself; a worker supervises the processes whose
 //! per-process leases it holds ([`super::lifecycle::process_ownership`]); a
-//! runner node starts each extension's [`systemprompt_traits::RunnerService`].
+//! runner node starts each extension's [`systemprompt_traits::RunnerService`]
+//! under a supervisor that restarts it with backoff when it stops.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -15,7 +16,7 @@ use systemprompt_identifiers::Actor;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::services::SchedulerHandle;
 use systemprompt_traits::{
-    Dependencies, JobContext, OwnedTask, Phase, StartupEventExt, StartupEventSender,
+    Dependencies, JobContext, OwnedTask, Phase, RunnerService, StartupEventExt, StartupEventSender,
 };
 
 use super::lifecycle::{
@@ -164,22 +165,18 @@ async fn serve_until_shutdown(
 fn start_runner_services(ctx: &AppContext) {
     let shared = Arc::new(ctx.clone());
     let mut started = 0usize;
+    #[cfg(feature = "notifications")]
+    {
+        let consumer = Arc::clone(&ctx.notifications().consumer);
+        let consumer: Arc<dyn RunnerService> = consumer;
+        spawn_runner_service(ctx, &shared, consumer);
+        tracing::info!(service = "notifications", "runner service started");
+        started += 1;
+    }
     for extension in ctx.extension_registry().extensions() {
         for service in extension.runner_services() {
             let name = service.name();
-            let actor = Actor::job(ctx.system_admin().id().clone(), name);
-            let dependencies = Dependencies::new()
-                .with(Arc::clone(ctx.app_paths_arc()))
-                .with(Arc::clone(ctx.db_pool()))
-                .with::<Arc<dyn systemprompt_extension::ExtensionContext>>(
-                    Arc::<AppContext>::clone(&shared),
-                )
-                .with(Arc::clone(&shared));
-            let job_ctx = JobContext::new(actor, dependencies);
-            ctx.background_tasks()
-                .spawn_cancellable(name, move |shutdown| async move {
-                    service.run(job_ctx, shutdown).await;
-                });
+            spawn_runner_service(ctx, &shared, service);
             tracing::info!(
                 extension = extension.id(),
                 service = name,
@@ -189,6 +186,26 @@ fn start_runner_services(ctx: &AppContext) {
         }
     }
     tracing::info!(started, "runner services started");
+}
+
+fn spawn_runner_service(
+    ctx: &AppContext,
+    shared: &Arc<AppContext>,
+    service: Arc<dyn RunnerService>,
+) {
+    let name = service.name();
+    let admin = ctx.system_admin().id().clone();
+    let shared = Arc::clone(shared);
+    super::runner_supervisor::supervise(ctx.background_tasks(), service, move || {
+        let dependencies = Dependencies::new()
+            .with(Arc::clone(shared.app_paths_arc()))
+            .with(Arc::clone(shared.db_pool()))
+            .with::<Arc<dyn systemprompt_extension::ExtensionContext>>(Arc::<AppContext>::clone(
+                &shared,
+            ))
+            .with(Arc::clone(&shared));
+        JobContext::new(Actor::job(admin.clone(), name), dependencies)
+    });
 }
 
 pub(in crate::services::server) fn create_mcp_orchestrator(

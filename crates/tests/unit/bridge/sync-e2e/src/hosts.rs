@@ -121,16 +121,13 @@ fn sandbox(gateway_uri: &str) -> HostSandbox {
         .join(PERSONAL_SESSION_UUID);
     fs::create_dir_all(session_org_dir.join("cowork_plugins")).unwrap();
 
-    let pat_file = base.join("pat.txt");
+    let pat_file = config_home.join("systemprompt-bridge.pat");
     fs::write(&pat_file, "sp-live-test-pat").unwrap();
 
     let config_file = config_home.join("systemprompt-bridge.toml");
     fs::write(
         &config_file,
-        format!(
-            "gateway_url = \"{gateway_uri}\"\n[pat]\nfile = \"{}\"\n",
-            pat_file.display()
-        ),
+        format!("gateway_url = \"{gateway_uri}\"\n[pat]\nstore = \"file\"\n",),
     )
     .unwrap();
 
@@ -264,6 +261,9 @@ fn manifest(enabled_hosts: Vec<HostKind>, populated: bool, suffix: &str) -> Sign
         auto_update: Default::default(),
         diagnostics: Vec::new(),
         marketplaces,
+        allow_user_disable: false,
+        branding: None,
+        bridge_versions: None,
     }
 }
 
@@ -624,13 +624,9 @@ fn run_once_with_hosts_disabled_clears_all_host_state() {
         server
     });
     let disable_uri = disable_server.uri();
-    let pat_path = dirs._temp.path().join("pat.txt");
     fs::write(
         &dirs.config_file,
-        format!(
-            "gateway_url = \"{disable_uri}\"\n[pat]\nfile = \"{}\"\n",
-            pat_path.display()
-        ),
+        format!("gateway_url = \"{disable_uri}\"\n[pat]\nstore = \"file\"\n"),
     )
     .unwrap();
 
@@ -673,7 +669,7 @@ fn run_once_with_hosts_disabled_clears_all_host_state() {
 }
 
 fn bridge() -> std::sync::Arc<BridgeContext> {
-    BridgeContext::start(ProxyMode::Attach).expect("runtime builds")
+    BridgeContext::start(ProxyMode::Attach, std::sync::Arc::new(|| None)).expect("runtime builds")
 }
 
 // Seeds a marketplace nothing in the sidecar owns beside one the user

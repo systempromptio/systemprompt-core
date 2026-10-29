@@ -213,6 +213,9 @@ fn manifest(plugins: Vec<PluginEntry>, marketplaces: Vec<ManifestMarketplace>) -
         auto_update: Default::default(),
         diagnostics: Vec::new(),
         marketplaces,
+        allow_user_disable: false,
+        branding: None,
+        bridge_versions: None,
     }
 }
 

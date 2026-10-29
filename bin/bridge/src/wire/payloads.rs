@@ -196,3 +196,60 @@ pub struct VerifiedIdentityPayload<'a> {
     pub exp_unix: Option<u64>,
     pub verified_at_unix: u64,
 }
+
+#[derive(Debug, Serialize)]
+#[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
+pub struct GatewayProfilePayload<'a> {
+    pub id: &'a str,
+    pub gateway_url: Option<&'a str>,
+    pub display_name: Option<&'a str>,
+    pub active: bool,
+    pub disabled: bool,
+}
+
+impl<'a> From<&'a crate::config::gateways::ProfileSummary> for GatewayProfilePayload<'a> {
+    fn from(p: &'a crate::config::gateways::ProfileSummary) -> Self {
+        Self {
+            id: p.id.as_str(),
+            gateway_url: p.gateway_url.as_deref(),
+            display_name: p.display_name.as_deref(),
+            active: p.active,
+            disabled: p.disabled,
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+#[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
+pub struct ReleaseWindowPayload<'a> {
+    pub status: &'static str,
+    pub tone: Tone,
+    pub min: Option<&'a str>,
+    pub max: Option<&'a str>,
+    pub enforce_max: bool,
+    pub conflict: Option<&'a str>,
+}
+
+impl<'a> From<&'a crate::instance::window::ReleaseWindowReport> for ReleaseWindowPayload<'a> {
+    fn from(r: &'a crate::instance::window::ReleaseWindowReport) -> Self {
+        use systemprompt_models::bridge::instance::WindowStatus;
+        let tone = match r.status {
+            _ if r.conflict.is_some() => Tone::Warn,
+            WindowStatus::Below => Tone::Err,
+            WindowStatus::Above if r.enforce_max => Tone::Err,
+            WindowStatus::Above => Tone::Warn,
+            WindowStatus::Within => Tone::Ok,
+            WindowStatus::Unknown => Tone::Unknown,
+        };
+        Self {
+            status: r.status.as_str(),
+            tone,
+            min: r.min.as_deref(),
+            max: r.max.as_deref(),
+            enforce_max: r.enforce_max,
+            conflict: r.conflict.as_deref(),
+        }
+    }
+}

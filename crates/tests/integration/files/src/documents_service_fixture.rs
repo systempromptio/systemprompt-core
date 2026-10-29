@@ -29,7 +29,7 @@ use systemprompt_models::authz::{
 use systemprompt_models::documents::ActorKind;
 use systemprompt_provider_contracts::documents::TemplateParams;
 use systemprompt_storage::LocalFileStorage;
-use systemprompt_test_fixtures::test_db_pool;
+use systemprompt_test_fixtures::{fixture_notification_sink, test_db_pool};
 use systemprompt_traits::{BackgroundTasks, FileStorage};
 use tempfile::TempDir;
 use uuid::Uuid;
@@ -129,6 +129,17 @@ impl SubjectDirectory for RoleDirectory {
                 .map(|(role, _)| role.clone())
                 .collect(),
         ))
+    }
+
+    async fn roles_of_many(
+        &self,
+        users: &[UserId],
+    ) -> Result<Vec<Option<Vec<String>>>, SubjectDirectoryError> {
+        let mut found = Vec::with_capacity(users.len());
+        for user in users {
+            found.push(self.roles_of(user).await?);
+        }
+        Ok(found)
     }
 
     async fn members(
@@ -291,6 +302,7 @@ pub(crate) fn harness_with_policy(
         templates: Arc::new(TemplateRegistry::discover(Vec::new())),
         access,
         events,
+        notifications: fixture_notification_sink(&db),
         config,
     });
     service.attach_uploads(&uploads);

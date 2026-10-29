@@ -105,6 +105,7 @@ impl CloudProfileBuilder {
             observability: systemprompt_manifest::profile::ObservabilityConfig::default(),
             config_planes: systemprompt_manifest::profile::ConfigPlanesConfig::default(),
             licence: systemprompt_manifest::profile::LicenceConfig::default(),
+            notifications: systemprompt_manifest::profile::NotificationsProfile::default(),
             name: self.name,
             display_name,
             target: ProfileType::Cloud,

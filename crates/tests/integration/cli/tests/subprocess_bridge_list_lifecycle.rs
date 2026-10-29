@@ -68,6 +68,9 @@ fn projected_row(row: &systemprompt_oauth::repository::BridgeSessionRow) -> Valu
         "user_id": row.user_id.as_str(),
         "hostname": row.hostname,
         "bridge_version": row.bridge_version,
+        "release_version": row.release_version,
+        "state": row.state,
+        "window_status": "unknown",
         "os": row.os,
         "last_heartbeat_at": row.last_heartbeat_at.to_rfc3339(),
         "last_activity_at": row.last_activity_at.map(|value| value.to_rfc3339()),
@@ -104,6 +107,8 @@ fn bridge_row(
         forwarded_total: forwarded,
         tokens_in_total: 10,
         tokens_out_total: 20,
+        release_version: None,
+        state: None,
     }
 }
 

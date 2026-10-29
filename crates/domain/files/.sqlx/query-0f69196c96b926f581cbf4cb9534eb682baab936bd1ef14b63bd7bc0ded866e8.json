@@ -1,0 +1,93 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT s.id::text AS \"id!: DocumentEditSessionId\",\n                      s.document_id::text AS \"document_id!: DocumentId\",\n                      s.base_revision_id::text AS \"base_revision_id: DocumentRevisionId\",\n                      s.snapshot_sha256 AS \"snapshot_sha256: ContentHash\",\n                      s.checkpoint_revision_id::text AS \"checkpoint_revision_id: DocumentRevisionId\",\n                      s.opened_at, s.updated_at, s.closed_at\n               FROM document_edit_sessions s\n               WHERE s.closed_at IS NULL\n                 AND s.updated_at < now() - make_interval(secs => $1)\n                 AND (s.checkpoint_lease_until IS NULL OR s.checkpoint_lease_until < now())\n                 AND NOT EXISTS (\n                     SELECT 1 FROM document_presence p\n                     WHERE p.document_id = s.document_id AND p.source = 'web'\n                       AND p.expires_at > now())\n               ORDER BY s.updated_at\n               LIMIT $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!: DocumentEditSessionId",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "document_id!: DocumentId",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "base_revision_id: DocumentRevisionId",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "snapshot_sha256: ContentHash",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_edit_sessions",
+            "name": "snapshot_sha256"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "checkpoint_revision_id: DocumentRevisionId",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "opened_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "document_edit_sessions",
+            "name": "opened_at"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "updated_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "document_edit_sessions",
+            "name": "updated_at"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "closed_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "document_edit_sessions",
+            "name": "closed_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Float8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      true,
+      null,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "0f69196c96b926f581cbf4cb9534eb682baab936bd1ef14b63bd7bc0ded866e8"
+}

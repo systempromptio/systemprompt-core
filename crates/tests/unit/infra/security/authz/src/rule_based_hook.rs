@@ -93,10 +93,11 @@ async fn a_rule_added_after_a_cached_decision_applies_once_the_index_revalidates
     );
 
     for _ in 0..3 {
-        assert!(matches!(
-            hook.evaluate(request_for(&route, &user)).await,
-            AuthzDecision::Deny { .. }
-        ));
+        let decision = hook.evaluate(request_for(&route, &user)).await;
+        assert!(
+            matches!(decision, AuthzDecision::Deny { .. }),
+            "{decision:?}"
+        );
     }
 
     repo.upsert_rule(UpsertRuleParams {
@@ -116,5 +117,5 @@ async fn a_rule_added_after_a_cached_decision_applies_once_the_index_revalidates
         tokio::time::sleep(std::time::Duration::from_millis(250)).await;
         decision = hook.evaluate(request_for(&route, &user)).await;
     }
-    assert!(matches!(decision, AuthzDecision::Allow));
+    assert!(matches!(decision, AuthzDecision::Allow), "{decision:?}");
 }

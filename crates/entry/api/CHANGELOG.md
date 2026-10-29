@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.76.0] - 2026-10-29
+
+### Breaking
+
+- **Breaking:** a document read, revision preview and commit answer the quoted revision id as `ETag` and carry the content hash in `x-document-content-sha256`; `If-Match` must be a quoted revision id and any other value is `400` with `error_key` `invalid_if_match`. Migrate clients that read the hash from `ETag` by reading `x-document-content-sha256`.
+- **Breaking:** `document.collab.update` is published only on the document's live channel (`GET /api/v1/documents/{id}/live`), once per update, and no longer on each user's AG-UI stream; `DocumentEvents::collab_update` takes only the event. Migrate editor clients by subscribing to the live channel.
+- **Breaking:** collab protocol 3: a join answers `peer_id`, the engine peer the client's editor must use, and an update adding operations of any other peer is refused with `peer_not_assigned`; an update whose operations depend on ones the session lacks is refused with `update_dependencies_missing` (409), and one that keeps losing the log to other replicas with `update_contended` (409). Migrate clients by calling `setPeerId(peer_id)` after each join and re-joining on these refusals.
+- **Breaking:** a collab leave or checkpoint that finds another replica holding the session's checkpoint lease answers `409` with `error_key` `checkpoint_busy`, and one whose lease was lost answers `409` with `checkpoint_lease_lost`. Migrate clients by retrying the leave on either key.
+- **Breaking:** `GET /v1/bridge/drive/changes` answers a cursor that is not a landing position with `410 Gone` and `error_key` `cursor_reset`; `DocumentsError` gains `CursorReset`, `RefusalCode` gains `CursorReset`, `ErrorCode` gains `Gone` (`410`) and `ApiError` gains `gone`. Migrate Drive clients by dropping the cursor and reading the manifest on `cursor_reset`, and exhaustive matches by adding the variants.
+- **Breaking:** `ReleaseError::NoCompatibleRelease` gains `window: String`, and `ReleaseError` gains `PinnedOutsideWindow` (404, `pinned_release_outside_window`). Migrate by adding the field to patterns that name every field and an arm to exhaustive matches.
+
+### Added
+
+- `/api/v1/notifications`, `POST /api/v1/admin/notifications/simulate` and `/v1/bridge/notifications` (with the `notifications` feature).
+- `/api/v1/issues` and `/api/v1/issues/admin`.
+- `GET /api/v1/documents/{id}/media?ref=<blob>`.
+- `GET /.well-known/systemprompt-bridge`, the bridge instance discovery document.
+- `POST /v1/messages/count_tokens` answers an authenticated token estimate.
+
+### Fixed
+
+- `POST /v1/bridge/drive/token` mints the Drive sync token with the `user` permission alone.
+- A REST document write made by an agent is recorded with actor kind `agent`, on behalf of the signed-in user.
+
 ## [0.75.0] - 2026-10-28
 
 ### Breaking

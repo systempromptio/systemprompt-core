@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.76.0] - 2026-10-29
+
+### Fixed
+
+- The initial Postgres connect retry jitters its delay.
+
 ## [0.75.0] - 2026-10-28
 
 ### Breaking

@@ -8,10 +8,9 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{
-    Actor, ActorKind, AgentId, ClientId, ContextId, DocumentFolderId, DocumentId, McpToolName,
-    ModelId, ProviderId, SessionId, TaskId, TraceId, UserId,
+    Actor, ActorKind, AgentId, ClientId, ContextId, McpToolName, ModelId, ProviderId, SessionId,
+    TaskId, TraceId, UserId,
 };
-use systemprompt_models::documents::DocumentAction;
 
 use super::decision::DenyReason;
 use super::entity_ref::EntityRef;
@@ -30,8 +29,9 @@ use crate::policy::types::AccessScope;
 ///   (`provider` absent when the caller has not resolved one).
 /// - `"mcp.tool_call"` — payload `{ "tool": "..." }`.
 /// - `"document.access"` — payload `{ "action": "...", "document_id": "...",
-///   "folder_id": "..." }` (either id absent when the action has no such
-///   target).
+///   "folder_id": "...", "folder_ancestors": ["...", ...] }` (either id absent
+///   when the action has no such target; `folder_ancestors` lists the folders
+///   above `folder_id` nearest-first and is absent at the root).
 ///
 /// Tenants mint their own (e.g. `"acme.order_submission"`) and recognise
 /// them in their hook. Core never interprets `payload`.
@@ -83,57 +83,6 @@ impl AuthzContext {
         }
     }
 
-    #[must_use]
-    pub fn document_access(
-        action: DocumentAction,
-        document_id: Option<&DocumentId>,
-        folder_id: Option<&DocumentFolderId>,
-    ) -> Self {
-        let mut payload = serde_json::Map::new();
-        payload.insert("action".to_owned(), action.as_str().into());
-        if let Some(document_id) = document_id {
-            payload.insert("document_id".to_owned(), document_id.as_str().into());
-        }
-        if let Some(folder_id) = folder_id {
-            payload.insert("folder_id".to_owned(), folder_id.as_str().into());
-        }
-        Self {
-            kind: Cow::Borrowed(Self::DOCUMENT_ACCESS_KIND),
-            payload: serde_json::Value::Object(payload),
-        }
-    }
-
-    #[must_use]
-    pub fn document_action(&self) -> Option<DocumentAction> {
-        if self.kind != Self::DOCUMENT_ACCESS_KIND {
-            return None;
-        }
-        self.payload
-            .get("action")
-            .and_then(|v| v.as_str())
-            .and_then(|action| action.parse().ok())
-    }
-
-    #[must_use]
-    pub fn document_access_document(&self) -> Option<DocumentId> {
-        self.document_access_field("document_id")
-            .and_then(|id| DocumentId::try_new(id).ok())
-    }
-
-    #[must_use]
-    pub fn document_access_folder(&self) -> Option<DocumentFolderId> {
-        self.document_access_field("folder_id")
-            .and_then(|id| DocumentFolderId::try_new(id).ok())
-    }
-
-    fn document_access_field(&self, key: &str) -> Option<&str> {
-        if self.kind != Self::DOCUMENT_ACCESS_KIND {
-            return None;
-        }
-        self.payload.get(key).and_then(|v| v.as_str())
-    }
-
-    #[must_use]
     // JSON: extension authz context; the registering extension owns its shape.
     pub fn extension(kind: impl Into<Cow<'static, str>>, payload: serde_json::Value) -> Self {
         Self {

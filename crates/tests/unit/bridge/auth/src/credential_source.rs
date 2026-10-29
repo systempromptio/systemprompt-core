@@ -29,36 +29,35 @@ fn an_inline_pat_env_var_counts_but_an_empty_one_does_not() {
 }
 
 #[test]
-fn a_pat_file_counts_only_when_it_exists_on_disk() {
-    let dir = TempDir::new().expect("tempdir");
-    // TOML literal strings: a Windows tempdir path in a basic string would
-    // parse `\U` as a unicode escape.
-    let missing = dir.path().join("absent.pat");
-    assert!(!without_env(|| has_credential_source(&config(&format!(
-        "[pat]\nfile = '{}'\n",
-        missing.display()
-    )))));
-
-    let present = dir.path().join("present.pat");
-    std::fs::write(&present, "sp-live-x.y").expect("write pat");
-    assert!(without_env(|| has_credential_source(&config(&format!(
-        "[pat]\nfile = '{}'\n",
-        present.display()
-    )))));
+fn a_file_store_counts_only_when_the_profile_pat_exists() {
+    let home = TempDir::new().expect("home");
+    let vars = vec![
+        ("SP_BRIDGE_PAT", None),
+        ("SP_BRIDGE_CONFIG", None),
+        ("XDG_CONFIG_HOME", Some(home.path().display().to_string())),
+    ];
+    temp_env::with_vars(vars, || {
+        let file_store = config("[pat]\nstore = 'file'\n");
+        assert!(
+            !has_credential_source(&file_store),
+            "no PAT has been written yet"
+        );
+        let profile = systemprompt_bridge::config::gateways::active().expect("profile");
+        std::fs::create_dir_all(&profile.dir).expect("profile dir");
+        std::fs::write(profile.pat_file(), "sp-live-x.y").expect("write pat");
+        assert!(has_credential_source(&file_store));
+        assert!(
+            !has_credential_source(&config("[pat]\n")),
+            "no recorded store"
+        );
+    });
 }
 
 #[test]
-fn a_tilde_pat_path_is_expanded_against_home() {
-    let home = TempDir::new().expect("home");
-    std::fs::write(home.path().join("bridge.pat"), "sp-live-x.y").expect("write pat");
-    let found = temp_env::with_vars(
-        vec![
-            ("SP_BRIDGE_PAT", None),
-            ("HOME", Some(home.path().display().to_string())),
-        ],
-        || has_credential_source(&config("[pat]\nfile = \"~/bridge.pat\"\n")),
-    );
-    assert!(found, "a `~/` PAT path resolves against HOME");
+fn a_keyring_store_counts_without_reading_the_secret() {
+    assert!(without_env(|| has_credential_source(&config(
+        "[pat]\nstore = 'keyring'\n"
+    ))));
 }
 
 #[test]

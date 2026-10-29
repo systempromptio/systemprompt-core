@@ -10,3 +10,5 @@ CREATE TABLE IF NOT EXISTS document_presence (
 );
 
 CREATE INDEX IF NOT EXISTS idx_document_presence_expires_at ON document_presence (expires_at);
+CREATE INDEX IF NOT EXISTS idx_document_presence_user
+    ON document_presence (user_id, document_id);

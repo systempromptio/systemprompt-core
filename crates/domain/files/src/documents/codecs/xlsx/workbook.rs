@@ -11,9 +11,12 @@ use systemprompt_identifiers::DocumentNodeId;
 use systemprompt_provider_contracts::documents::CodecError;
 use umya_spreadsheet::{Cell, Workbook, Worksheet, XlsxError};
 
+use crate::documents::codecs::zip_package::{PackageCaps, inspect_package};
+
 pub(super) type RowMap<'a> = BTreeMap<u32, BTreeMap<u32, &'a Cell>>;
 
 pub(super) fn load(bytes: &[u8]) -> Result<Workbook, CodecError> {
+    inspect_package(bytes, PackageCaps::CEILING)?;
     umya_spreadsheet::reader::xlsx::read_reader(Cursor::new(bytes), true).map_err(|source| {
         CodecError::Parse {
             part: "workbook".to_owned(),

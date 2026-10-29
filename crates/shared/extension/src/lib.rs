@@ -71,6 +71,7 @@ pub mod gateway_guard;
 pub mod health;
 pub mod metadata;
 pub mod migration;
+pub mod notifications;
 pub mod purge;
 pub mod registry;
 pub mod router;
@@ -91,6 +92,18 @@ pub use health::{
 };
 pub use metadata::{ExtensionMetadata, ExtensionRole, SchemaDefinition};
 pub use migration::Migration;
+pub use notifications::{
+    ChannelError, Membership, NotificationActorDirectory, NotificationAudienceError,
+    NotificationAudienceRegistration, NotificationAudienceResolver, NotificationChannel,
+    NotificationChannelRegistration, NotificationRouter, NotificationRouterError,
+    NotificationRouterRegistration, NotificationSinkError, PublishPolicy, PublishPolicyError,
+    PublishPolicyRegistration, PublishVerdict, ResourceVisibility, ResourceVisibilityRegistration,
+    Visibility, VisibilityError, discover_notification_audiences, discover_notification_channels,
+    discover_notification_publish_policies, discover_notification_routers,
+    discover_resource_visibilities,
+};
+#[cfg(feature = "sqlx")]
+pub use notifications::{DynNotificationSink, NotificationSink};
 pub use purge::{UserPurgeTable, registered_user_purge_tables};
 pub use registry::{ExtensionRegistration, ExtensionRegistry, RESERVED_PATHS};
 pub use router::{ExtensionRouter, ExtensionRouterConfig, SiteAuthConfig};

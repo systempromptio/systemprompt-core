@@ -90,7 +90,10 @@ fn a_host_generated_profile_is_private_and_gone_once_installed() {
         assert_eq!(mode, 0o600, "{}", generated.path);
 
         HERMES_HOST
-            .install_profile(&generated.path)
+            .install_profile(
+                &generated.path,
+                &systemprompt_bridge::elevation_gate::ElevationGate::new(),
+            )
             .expect("install merges into config.yaml");
         assert!(
             !Path::new(&generated.path).exists(),

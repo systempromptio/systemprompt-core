@@ -9,7 +9,9 @@ CREATE TABLE IF NOT EXISTS bridge_sessions (
     last_activity_at TIMESTAMPTZ,
     forwarded_total BIGINT NOT NULL DEFAULT 0,
     tokens_in_total BIGINT NOT NULL DEFAULT 0,
-    tokens_out_total BIGINT NOT NULL DEFAULT 0
+    tokens_out_total BIGINT NOT NULL DEFAULT 0,
+    release_version TEXT,
+    state TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_bridge_sessions_user_active
     ON bridge_sessions(user_id, last_heartbeat_at DESC);

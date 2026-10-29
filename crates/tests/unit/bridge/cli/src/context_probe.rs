@@ -18,7 +18,7 @@ fn a_bridge_context_can_be_started_in_attach_mode_without_binding_a_port() {
             ("SP_BRIDGE_CONFIG", None),
             ("SUDO_USER", None),
         ],
-        || BridgeContext::start(ProxyMode::Attach),
+        || BridgeContext::start(ProxyMode::Attach, std::sync::Arc::new(|| None)),
     );
 
     let ctx = built.expect("attach mode builds a context without serving");

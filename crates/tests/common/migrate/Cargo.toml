@@ -31,6 +31,7 @@ systemprompt-events = { workspace = true }
 systemprompt-files = { workspace = true }
 systemprompt-logging = { workspace = true }
 systemprompt-mcp = { workspace = true }
+systemprompt-notifications = { workspace = true }
 systemprompt-oauth = { workspace = true }
 systemprompt-scheduler = { workspace = true }
 systemprompt-security = { workspace = true }

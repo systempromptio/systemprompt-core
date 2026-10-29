@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT LEAST(\n                   pg_snapshot_xmax($1::text::pg_snapshot)::text::bigint,\n                   (SELECT min(x::text::bigint)\n                    FROM pg_snapshot_xip($1::text::pg_snapshot) AS x\n                    WHERE x::text::bigint % 4294967296 IN (\n                        SELECT own.transactionid::text::bigint\n                        FROM pg_locks own\n                        JOIN pg_locks rel ON rel.pid = own.pid\n                        WHERE own.locktype = 'transactionid'\n                          AND own.mode = 'ExclusiveLock'\n                          AND own.granted\n                          AND rel.locktype = 'relation'\n                          AND rel.mode = 'RowExclusiveLock'\n                          AND rel.database = (SELECT oid FROM pg_database\n                                              WHERE datname = current_database())\n                          AND rel.relation IN ('document_revisions'::regclass,\n                                               'document_path_changes'::regclass)))\n               ) AS \"horizon!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "horizon!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "189f8121b3a131b7c3321ef1dfde464536a074796de093d60aa71e04df00deef"
+}

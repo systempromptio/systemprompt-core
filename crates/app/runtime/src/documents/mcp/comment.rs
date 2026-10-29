@@ -56,6 +56,7 @@ impl CommentHandler<'_> {
                     range: None,
                     body: resolved.body,
                     mentions: resolved.ids,
+                    mention_options: input.mention_options.into_iter().map(Into::into).collect(),
                     parent_id: input.parent_id,
                 },
                 &agent_origin(ctx),

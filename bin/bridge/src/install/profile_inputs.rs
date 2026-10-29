@@ -80,12 +80,13 @@ impl ProfileFacts {
         loopback: &crate::proxy::LoopbackEndpoint,
         registry: &crate::mcp_registry::McpRegistry,
         overrides: ModelProtocolOverrides,
+        seen: Option<&crate::warn_once::WarnOnce>,
     ) -> Result<Self, ProfileFactsError> {
         let secret = loopback
             .secret()
             .map_err(ProfileFactsError::LoopbackSecret)?;
         let mcp_servers = if crate::mcp_registry::fragment_exists() {
-            crate::install::mdm::policy_mcp::mcp_entries(loopback, registry)
+            crate::install::mdm::policy_mcp::mcp_entries(loopback, registry, seen)
                 .map_err(ProfileFactsError::ManagedServers)?
         } else {
             None

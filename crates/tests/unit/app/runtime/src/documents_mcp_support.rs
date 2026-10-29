@@ -39,8 +39,14 @@ pub(crate) async fn harness() -> McpHarness {
     let storage = TempDir::new().expect("tempdir");
     let files: Arc<dyn FileStorage> = Arc::new(LocalFileStorage::new(storage.path().to_path_buf()));
     let runtime = systemprompt_test_fixtures::fixture_documents_runtime(&pool, &files, &allow());
+    let event_router = systemprompt_events::EventRouter::local_only(Arc::new(
+        systemprompt_events::EventBroadcasters::new(),
+    ));
+    let notifications =
+        systemprompt_test_fixtures::fixture_notifications(&pool, &event_router, &runtime);
     let tools = DocumentsMcpTools::new(DocumentsMcpConfig {
         service: Arc::clone(runtime.service()),
+        notifications: Arc::clone(&notifications.service),
         uploads: Some(Arc::clone(runtime.uploads())),
         users: Arc::new(UserRepository::new(&pool)),
         tokens: systemprompt_test_fixtures::test_token_authority("documents-test"),

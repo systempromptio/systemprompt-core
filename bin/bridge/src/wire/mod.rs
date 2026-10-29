@@ -12,6 +12,7 @@ pub mod drive;
 pub mod external_url;
 pub mod first_run;
 pub mod hosts;
+pub mod inbox;
 pub mod ipc;
 pub mod payloads;
 pub mod profile;
@@ -84,14 +85,24 @@ pub struct StatePayload<'a> {
     pub mcp_auth_tone: Tone,
     pub update: UpdatePayload<'a>,
     pub pending_device_action: Option<DeviceAction>,
-    pub app_name: &'static str,
-    pub sign_in_label: &'static str,
-    pub sign_in_hint: &'static str,
-    pub docs_url: &'static str,
-    pub contact_email: &'static str,
-    pub pitch_head: &'static str,
-    pub pitch_body: &'static str,
+    pub app_name: &'a str,
+    pub window_title: &'a str,
+    pub sign_in_label: &'a str,
+    pub sign_in_hint: &'a str,
+    pub docs_url: &'a str,
+    pub contact_email: &'a str,
+    pub pitch_head: &'a str,
+    pub pitch_body: &'a str,
+    pub logo_url: Option<&'a str>,
+    pub theme_css_url: Option<&'a str>,
     pub demo_notice: Option<&'static str>,
+    pub gateway_profiles: Vec<payloads::GatewayProfilePayload<'a>>,
+    pub release_window: payloads::ReleaseWindowPayload<'a>,
+    pub instance_disabled: bool,
+    pub disable_allowed: bool,
+    pub admin_approval_pending: bool,
+    pub admin_approval_declined: bool,
+    pub stale_bridge_policy: bool,
     #[serde(flatten)]
     #[cfg_attr(feature = "ts-export", ts(flatten))]
     pub hosts: hosts::HostsPayload<'a>,

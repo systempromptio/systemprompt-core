@@ -128,6 +128,24 @@ pub fn resolve(input: ResolveInput<'_>) -> Decision {
     not_assigned(entity, user_id, user_roles)
 }
 
+#[must_use]
+pub fn first_ruleset_deny(
+    input: ResolveInput<'_>,
+    levels: &[ResolveParent<'_>],
+) -> Option<Decision> {
+    let ladder = ladder(input.dimensions);
+    let subject = Subject {
+        user_id: input.user_id,
+        user_roles: input.user_roles,
+        attributes: input.attributes,
+        ladder: &ladder,
+    };
+    levels.iter().find_map(|level| {
+        match_ruleset(level.entity, level.rules, &subject)
+            .filter(|decision| matches!(decision, Decision::Deny { .. }))
+    })
+}
+
 fn closed_decision(
     entity: &EntityRef,
     user_id: &UserId,

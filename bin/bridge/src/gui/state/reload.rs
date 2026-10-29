@@ -9,7 +9,7 @@ use crate::config::{self, paths};
 
 use super::counters::{count_malformed_plugin_dirs, count_plugin_dirs};
 
-pub(super) fn reload_into(snap: &mut AppStateSnapshot) {
+pub(super) fn reload_into(snap: &mut AppStateSnapshot, ctx: &crate::context::BridgeContext) {
     let cfg = match config::load() {
         Ok(cfg) => cfg,
         Err(e) => {
@@ -48,6 +48,7 @@ pub(super) fn reload_into(snap: &mut AppStateSnapshot) {
         };
     reload_credential(snap, &cfg);
     reload_last_sync(snap, &cfg);
+    reload_instance(snap, &cfg, ctx);
 
     if let Some(loc) = loc {
         snap.plugin_count = count_plugin_dirs(&loc.path);
@@ -60,7 +61,7 @@ pub(super) fn reload_into(snap: &mut AppStateSnapshot) {
 fn reload_setup_paths(snap: &mut AppStateSnapshot) {
     if let Ok(s) = setup::status() {
         snap.config_file = s.paths.config_file.display().to_string();
-        snap.pat_file = s.paths.pat_file.display().to_string();
+        snap.pat_file = s.paths.pat_location();
         snap.config_present = s.config_present;
         snap.pat_present = s.pat_present;
     } else {
@@ -105,12 +106,47 @@ fn reload_last_sync(snap: &mut AppStateSnapshot, cfg: &config::Config) {
                 snap.last_sync_summary = Some(record.summary_line());
                 snap.enabled_hosts = record.enabled_hosts;
             },
-            Ok(_) => {},
+            Ok(_) => {
+                snap.enabled_hosts = crate::gateway::discovery::enabled_hosts().unwrap_or_default();
+            },
             Err(e) => {
                 snap.last_sync_summary = Some(format!("unreadable: {e}"));
             },
         }
     }
+}
+
+fn reload_instance(
+    snap: &mut AppStateSnapshot,
+    cfg: &config::Config,
+    ctx: &crate::context::BridgeContext,
+) {
+    snap.display = crate::instance::DisplayBrand::resolve();
+    let gate = &ctx.elevation_gate;
+    snap.admin_approval_pending = gate.pending().is_some();
+    snap.admin_approval_declined = gate.declined().is_some();
+    snap.stale_bridge_policy = matches!(
+        crate::integration::claude_desktop::policy_ownership(
+            crate::integration::claude_desktop::installed_secret_fingerprint().as_deref()
+        ),
+        crate::install::mdm::clear_plan::ClearPlan::StaleBridgePolicy
+    );
+    snap.instance_disabled = cfg.is_disabled();
+    snap.disable_allowed = crate::integration::lifecycle::disable_allowed().is_ok();
+    snap.release_window = match crate::instance::window::report() {
+        Ok(report) => report,
+        Err(e) => {
+            tracing::warn!(error = %e, "release window unreadable");
+            crate::instance::window::ReleaseWindowReport::default()
+        },
+    };
+    snap.gateway_profiles = match config::gateways::list() {
+        Ok(profiles) => profiles,
+        Err(e) => {
+            tracing::warn!(error = %e, "gateway profiles unreadable");
+            Vec::new()
+        },
+    };
 }
 
 #[cfg(target_os = "windows")]

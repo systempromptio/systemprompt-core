@@ -1,5 +1,10 @@
 use systemprompt_bridge::gateway::types::ReleaseManifest;
-use systemprompt_bridge::update::{UpdateError, UpdateStatus, compare};
+use systemprompt_bridge::instance::window::CombinedWindow;
+use systemprompt_bridge::update::{UpdateError, UpdateStatus, decide};
+
+fn compare(local: &str, m: &ReleaseManifest) -> Result<UpdateStatus, UpdateError> {
+    decide(local, m, &CombinedWindow::Open)
+}
 
 fn manifest(version: &str) -> ReleaseManifest {
     ReleaseManifest {
@@ -123,6 +128,54 @@ fn a_newer_prerelease_does_not_supersede_the_release() {
 fn major_version_jump_is_available() {
     assert!(matches!(
         compare("1.9.9", &manifest("2.0.0")),
+        Ok(UpdateStatus::Available { .. })
+    ));
+}
+
+fn bounded(min: Option<&str>, max: Option<&str>) -> CombinedWindow {
+    use systemprompt_models::bridge::instance::BridgeVersionWindow;
+    CombinedWindow::Window(BridgeVersionWindow {
+        min: min.map(|v| semver::Version::parse(v).unwrap()),
+        max: max.map(|v| semver::Version::parse(v).unwrap()),
+        enforce_max: false,
+    })
+}
+
+#[test]
+fn a_newer_release_outside_the_combined_window_is_not_offered() {
+    let err = decide(
+        "0.74.0",
+        &manifest("0.76.0"),
+        &bounded(None, Some("0.75.0")),
+    )
+    .expect_err("a release the instances do not admit is never staged");
+    assert!(matches!(err, UpdateError::OutsideWindow(_)), "{err:?}");
+}
+
+#[test]
+fn an_older_release_is_offered_only_when_this_one_is_above_the_window() {
+    assert!(matches!(
+        decide("0.76.0", &manifest("0.75.0"), &bounded(None, Some("0.75.0"))),
+        Ok(UpdateStatus::Available { ref version, .. }) if version == "0.75.0"
+    ));
+    assert!(matches!(
+        decide(
+            "0.75.0",
+            &manifest("0.74.0"),
+            &bounded(None, Some("0.76.0"))
+        ),
+        Ok(UpdateStatus::Current { .. })
+    ));
+}
+
+#[test]
+fn a_release_inside_the_window_is_offered_as_usual() {
+    assert!(matches!(
+        decide(
+            "0.74.0",
+            &manifest("0.75.1"),
+            &bounded(Some("0.75.0"), Some("0.76.0"))
+        ),
         Ok(UpdateStatus::Available { .. })
     ));
 }

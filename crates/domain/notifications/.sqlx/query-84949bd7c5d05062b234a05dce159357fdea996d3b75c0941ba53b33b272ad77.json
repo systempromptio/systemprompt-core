@@ -1,0 +1,119 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id::text AS \"id!: NotificationSubscriptionId\", subject,\n                          target_stream AS \"target_stream: NotificationStreamId\",\n                          target_kind, target_id, attention_ceiling,\n                          quiet_hours AS \"quiet_hours: Json<QuietHours>\",\n                          digest AS \"digest: Json<DigestWindow>\", source\n                   FROM notification_subscriptions WHERE target_stream = $1\n                   ORDER BY created_at, id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!: NotificationSubscriptionId",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "subject",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "notification_subscriptions",
+            "name": "subject"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "target_stream: NotificationStreamId",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "notification_subscriptions",
+            "name": "target_stream"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "target_kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "notification_subscriptions",
+            "name": "target_kind"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "target_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "notification_subscriptions",
+            "name": "target_id"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "attention_ceiling",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "notification_subscriptions",
+            "name": "attention_ceiling"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "quiet_hours: Json<QuietHours>",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "notification_subscriptions",
+            "name": "quiet_hours"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "digest: Json<DigestWindow>",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "notification_subscriptions",
+            "name": "digest"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "source",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "notification_subscriptions",
+            "name": "source"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "84949bd7c5d05062b234a05dce159357fdea996d3b75c0941ba53b33b272ad77"
+}

@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO notification_receipts (notification_id, surface, state)\n             SELECT n.id, $3, $4 FROM notifications n\n             WHERE n.recipient_user_id = $1 AND n.id = ANY($2::text[]::uuid[])\n             ON CONFLICT (notification_id, surface, state) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "TextArray",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "14f81cad88ba2615cea5fdcc047fca093cecf88dcaf0b2c479b462e5b813948d"
+}

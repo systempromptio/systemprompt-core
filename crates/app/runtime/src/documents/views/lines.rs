@@ -73,15 +73,38 @@ pub(crate) fn structured(
     mut keep: impl FnMut(&ProjectionNode) -> bool,
 ) -> Vec<String> {
     let mut slide = 0;
-    projection
-        .nodes()
-        .filter_map(|node| {
-            if node.kind == NodeKind::Slide {
-                slide += 1;
-            }
-            keep(node).then(|| structured_line(node, slide))
-        })
-        .collect()
+    let mut lines = Vec::new();
+    for node in &projection.root {
+        walk(node, &mut slide, &mut keep, &mut lines);
+    }
+    lines
+}
+
+fn folded_cell(node: &ProjectionNode) -> bool {
+    node.kind == NodeKind::Cell
+        && node.children.len() == 1
+        && node.children[0].kind == NodeKind::Paragraph
+        && node.children[0].text == node.text
+}
+
+fn walk(
+    node: &ProjectionNode,
+    slide: &mut usize,
+    keep: &mut impl FnMut(&ProjectionNode) -> bool,
+    lines: &mut Vec<String>,
+) {
+    if node.kind == NodeKind::Slide {
+        *slide += 1;
+    }
+    if keep(node) {
+        lines.push(structured_line(node, *slide));
+    }
+    if folded_cell(node) {
+        return;
+    }
+    for child in &node.children {
+        walk(child, slide, keep, lines);
+    }
 }
 
 pub(crate) fn shows(node: &ProjectionNode) -> bool {

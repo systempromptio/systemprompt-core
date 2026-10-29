@@ -6,6 +6,7 @@
 use serde::{Deserialize, Serialize};
 
 use super::documents::DocumentsConfig;
+use super::issues::IssuesConfig;
 
 const DEFAULT_URL_PREFIX: &str = "/files";
 pub(super) const DEFAULT_MAX_FILE_SIZE_BYTES: u64 = 50 * 1024 * 1024;
@@ -80,6 +81,8 @@ pub struct FilesConfigYaml {
     pub upload: FileUploadConfig,
     #[serde(default)]
     pub documents: DocumentsConfig,
+    #[serde(default)]
+    pub issues: IssuesConfig,
 }
 
 fn default_url_prefix() -> String {
@@ -93,6 +96,7 @@ impl Default for FilesConfigYaml {
             cache_control: None,
             upload: FileUploadConfig::default(),
             documents: DocumentsConfig::default(),
+            issues: IssuesConfig::default(),
         }
     }
 }

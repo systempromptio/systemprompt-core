@@ -1,0 +1,36 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT notification_id::text AS \"id!: NotificationId\", surface\n               FROM notification_receipts\n               WHERE notification_id = ANY($1::text[]::uuid[]) AND state = $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!: NotificationId",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "surface",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "notification_receipts",
+            "name": "surface"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "TextArray",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null,
+      false
+    ]
+  },
+  "hash": "4322906a770110136cb35dc870bb9cb9c5e6a152959b430d0fbc16b046b72b75"
+}

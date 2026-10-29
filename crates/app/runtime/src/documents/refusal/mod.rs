@@ -18,9 +18,11 @@ mod codec;
 
 use chrono::{DateTime, Utc};
 use serde::Serialize;
+use systemprompt_extension::NotificationSinkError;
 use systemprompt_files::documents::DocumentsError;
 use systemprompt_files::documents::agents::AgentRefusal;
 use systemprompt_files::documents::models::DocumentRevision;
+use systemprompt_files::documents::templates::TemplateError;
 use systemprompt_identifiers::{
     ContentHash, DocumentCommentId, DocumentId, DocumentNodeId, DocumentRevisionId, UserId,
 };
@@ -206,13 +208,25 @@ fn service_refusal(error: &DocumentsError) -> Option<Refusal> {
 
 const fn agent_code(refusal: &AgentRefusal) -> RefusalCode {
     match refusal {
-        AgentRefusal::CapExceeded { .. } | AgentRefusal::HardRule { .. } => {
-            RefusalCode::AgentForbidden
-        },
+        AgentRefusal::CapExceeded { .. }
+        | AgentRefusal::HardRule { .. }
+        | AgentRefusal::BroadRewrite { .. } => RefusalCode::AgentForbidden,
         AgentRefusal::SuggestOnly { .. } => RefusalCode::AgentSuggestOnly,
         AgentRefusal::RateLimited { .. } => RefusalCode::AgentRateLimited,
         AgentRefusal::OverrideLooser { .. } | AgentRefusal::MoveRefused { .. } => {
             RefusalCode::InvalidParams
+        },
+    }
+}
+
+const fn template_code(error: &TemplateError) -> Option<RefusalCode> {
+    match error {
+        TemplateError::NotFound { .. } => Some(RefusalCode::NotFound),
+        TemplateError::MissingPlaceholder { .. } | TemplateError::Codec(_) => {
+            Some(RefusalCode::TemplateFailed)
+        },
+        TemplateError::Io { .. } | TemplateError::NoCodec { .. } | TemplateError::Catalog(_) => {
+            None
         },
     }
 }
@@ -227,22 +241,29 @@ const fn plain_code(error: &DocumentsError) -> Option<RefusalCode> {
         DocumentsError::Trashed { .. } => Some(RefusalCode::Trashed),
         DocumentsError::AnchorsAffected { .. } => Some(RefusalCode::AnchorsAffected),
         DocumentsError::FindNone { .. } => Some(RefusalCode::FindNone),
-        DocumentsError::UnsupportedOp { .. } => Some(RefusalCode::UnsupportedOp),
+        DocumentsError::UnsupportedOp { .. }
+        | DocumentsError::Notifications(NotificationSinkError::Unavailable) => {
+            Some(RefusalCode::UnsupportedOp)
+        },
         DocumentsError::ProposalConflict { .. } => Some(RefusalCode::ProposalConflict),
         DocumentsError::UnknownNode { .. }
         | DocumentsError::NotFound { .. }
         | DocumentsError::CommentNotFound { .. } => Some(RefusalCode::NotFound),
         DocumentsError::UnknownSubject { .. } => Some(RefusalCode::UnknownSubject),
         DocumentsError::LockHeld { .. } => Some(RefusalCode::Locked),
-        DocumentsError::FolderNotEmpty { .. } => Some(RefusalCode::FolderNotEmpty),
+        DocumentsError::FolderNotEmpty { .. } | DocumentsError::SubtreeChanged { .. } => {
+            Some(RefusalCode::FolderNotEmpty)
+        },
+        DocumentsError::OwnershipChanged { .. } => Some(RefusalCode::Forbidden),
         DocumentsError::ProposalClosed { .. } => Some(RefusalCode::ProposalClosed),
         DocumentsError::IntegrityMismatch { .. } => Some(RefusalCode::IntegrityMismatch),
         DocumentsError::UnsupportedFormat { .. } | DocumentsError::UnknownFormat { .. } => {
             Some(RefusalCode::UnsupportedFormat)
         },
-        DocumentsError::Template { .. } => Some(RefusalCode::TemplateFailed),
+        DocumentsError::Template { source, .. } => template_code(source),
         DocumentsError::TooLarge { .. } => Some(RefusalCode::TooLarge),
         DocumentsError::OpIdMismatch { .. } => Some(RefusalCode::OpIdMismatch),
+        DocumentsError::CursorReset { .. } => Some(RefusalCode::CursorReset),
         DocumentsError::SelfReview { .. } => Some(RefusalCode::SelfReview),
         DocumentsError::AccessRequestOpen { .. } => Some(RefusalCode::AccessRequestOpen),
         DocumentsError::AccessRequestNotNeeded { .. } => Some(RefusalCode::AccessRequestNotNeeded),
@@ -257,8 +278,10 @@ const fn plain_code(error: &DocumentsError) -> Option<RefusalCode> {
         | DocumentsError::InvalidMove { .. }
         | DocumentsError::InvalidCursor { .. }
         | DocumentsError::InvalidComment { .. }
+        | DocumentsError::NotificationKind(_)
         | DocumentsError::InvalidAwareness { .. } => Some(RefusalCode::InvalidParams),
         DocumentsError::Codec(_)
+        | DocumentsError::Notifications(_)
         | DocumentsError::Blob(_)
         | DocumentsError::Repository(_)
         | DocumentsError::Authz(_)
