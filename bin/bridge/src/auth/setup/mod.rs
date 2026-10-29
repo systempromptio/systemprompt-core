@@ -17,8 +17,11 @@ use config_file::{
 };
 use files::{
     atomic_write, ensure_dir, remove_if_exists, remove_managed_mcp_fragment, remove_sync_state,
-    write_pat_file,
 };
+
+use crate::config::gateways::credential::{self, PatStore};
+use crate::config::gateways::{self, ActiveProfile};
+use crate::config::write;
 use std::fs;
 use std::path::PathBuf;
 
@@ -86,37 +89,63 @@ pub enum SetupError {
     Gateway(#[from] crate::gateway::GatewayError),
     #[error("cancelled")]
     Cancelled,
+    #[error("PAT store: {0}")]
+    Credential(#[from] credential::CredentialError),
+    #[error(transparent)]
+    Profile(#[from] gateways::ProfileError),
 }
 
 #[derive(Debug)]
 pub struct PathLayout {
+    pub profile: ActiveProfile,
     pub config_dir: PathBuf,
     pub config_file: PathBuf,
     pub pat_file: PathBuf,
+    pub pat_store: Option<PatStore>,
+}
+
+impl PathLayout {
+    #[must_use]
+    pub fn pat_location(&self) -> String {
+        match self.pat_store {
+            Some(PatStore::Keyring) => format!(
+                "OS credential store ({} / pat:{})",
+                crate::brand::brand().keyring_service,
+                self.profile.id
+            ),
+            Some(PatStore::File) => format!("{} (0600)", self.pat_file.display()),
+            None => "none".to_owned(),
+        }
+    }
 }
 
 pub fn resolve_paths() -> Result<PathLayout, SetupError> {
-    let base =
-        crate::basedirs::config_dir().ok_or(SetupError::Unresolvable("OS config directory"))?;
-    let brand = crate::brand::brand();
-    let config_dir = base.join(brand.config_dir);
-    let config_file = config_dir.join(brand.config_file);
-    let pat_file = config_dir.join(brand.pat_file);
+    let profile = gateways::active()?;
+    let pat_store = crate::config::read_file(&profile.config_file)?
+        .pat
+        .and_then(|p| p.store);
     Ok(PathLayout {
-        config_dir,
-        config_file,
-        pat_file,
+        config_dir: profile.dir.clone(),
+        config_file: profile.config_file.clone(),
+        pat_file: profile.pat_file(),
+        pat_store,
+        profile,
     })
 }
 
 #[tracing::instrument(level = "debug", skip(token), fields(has_gateway = gateway_url.is_some()))]
 pub fn login(token: &str, gateway_url: Option<&str>) -> Result<PathLayout, SetupError> {
     validate_token(token)?;
-    let paths = resolve_paths()?;
+    let mut paths = resolve_paths()?;
     ensure_dir(&paths.config_dir)?;
     let previous = configured_gateway()?;
-    write_pat_file(&paths.pat_file, token)?;
-    write_config_file(&paths.config_file, &paths.pat_file, gateway_url)?;
+    let store = credential::select_store();
+    credential::write(&paths.profile, store, token)?;
+    if let Some(old) = paths.pat_store.filter(|old| *old != store) {
+        credential::delete(&paths.profile, old)?;
+    }
+    write_config_file(&paths.config_file, store, gateway_url)?;
+    paths.pat_store = Some(store);
     invalidate_cached_token()?;
     forget_gateway_state_if_moved(&previous)?;
     tracing::info!(config_file = %paths.config_file.display(), "login: PAT and config written");
@@ -157,7 +186,13 @@ pub fn set_gateway_url(gateway_url: &str) -> Result<PathLayout, SetupError> {
     let paths = resolve_paths()?;
     ensure_dir(&paths.config_dir)?;
     let previous = configured_gateway()?;
-    write_config_file(&paths.config_file, &paths.pat_file, Some(trimmed))?;
+    let gateway = resolve_gateway(&paths.config_file, Some(trimmed))?;
+    let store = paths.pat_store;
+    merge_config_file(&paths.config_file, &gateway, "pat", |doc| {
+        store.map_or(Ok(()), |store| {
+            write::set(doc, &["pat", "store"], store.as_str())
+        })
+    })?;
     invalidate_cached_token()?;
     forget_gateway_state_if_moved(&previous)?;
     Ok(paths)
@@ -166,7 +201,9 @@ pub fn set_gateway_url(gateway_url: &str) -> Result<PathLayout, SetupError> {
 #[tracing::instrument(level = "debug")]
 pub fn logout(secrets: &crate::auth::plugin_oauth::SecretStore) -> Result<PathLayout, SetupError> {
     let paths = resolve_paths()?;
-    remove_if_exists(&paths.pat_file)?;
+    if let Some(store) = paths.pat_store {
+        credential::delete(&paths.profile, store)?;
+    }
     remove_managed_mcp_fragment()?;
     remove_sync_state()?;
     crate::auth::cache::clear().map_err(SetupError::Cache)?;
@@ -190,8 +227,10 @@ pub fn logout(secrets: &crate::auth::plugin_oauth::SecretStore) -> Result<PathLa
 #[tracing::instrument(level = "debug")]
 pub fn clean(secrets: &crate::auth::plugin_oauth::SecretStore) -> Result<CleanReport, SetupError> {
     let paths = resolve_paths()?;
-    let pat_removed = paths.pat_file.exists();
-    remove_if_exists(&paths.pat_file)?;
+    let pat_removed = paths.pat_store.is_some();
+    if let Some(store) = paths.pat_store {
+        credential::delete(&paths.profile, store)?;
+    }
     let config_removed = paths.config_file.exists();
     remove_if_exists(&paths.config_file)?;
     remove_managed_mcp_fragment()?;
@@ -223,7 +262,7 @@ pub struct CleanReport {
 pub fn status() -> Result<StatusReport, SetupError> {
     let paths = resolve_paths()?;
     let config_present = paths.config_file.exists();
-    let pat_present = paths.pat_file.exists();
+    let pat_present = paths.pat_store.is_some();
     let oauth_creds_path = crate::auth::plugin_oauth::creds_path();
     let oauth_creds_present = oauth_creds_path.as_ref().is_some_and(|p| p.exists());
     Ok(StatusReport {
@@ -249,8 +288,8 @@ pub fn session_setup(gateway_url: Option<&str>) -> Result<PathLayout, SetupError
     ensure_dir(&paths.config_dir)?;
     let gateway = resolve_gateway(&paths.config_file, gateway_url)?;
     merge_config_file(&paths.config_file, &gateway, "session", |doc| {
-        crate::config::write::set(doc, &["session", "enabled"], true)?;
-        crate::config::write::set(
+        write::set(doc, &["session", "enabled"], true)?;
+        write::set(
             doc,
             &["session", "generation"],
             uuid::Uuid::new_v4().to_string(),

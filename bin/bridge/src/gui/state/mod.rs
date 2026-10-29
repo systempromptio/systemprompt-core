@@ -48,7 +48,7 @@ impl AppState {
     pub fn new_loaded(ctx: Arc<crate::context::BridgeContext>) -> Arc<Self> {
         let mut snap = AppStateSnapshot::default();
         snap.startup_faults.clone_from(&ctx.startup_faults);
-        reload::reload_into(&mut snap);
+        reload::reload_into(&mut snap, &ctx);
         Arc::new(Self {
             inner: RwLock::new(Inner {
                 snapshot: snap,
@@ -77,7 +77,7 @@ impl AppState {
 
     pub fn reload(&self) {
         let mut guard = self.snap_mut();
-        reload::reload_into(&mut guard);
+        reload::reload_into(&mut guard, &self.ctx);
     }
 
     pub fn set_sync_in_flight(&self, flag: bool) {

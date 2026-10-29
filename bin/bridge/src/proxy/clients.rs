@@ -14,6 +14,11 @@ use std::time::Duration;
 // this cannot.
 const UPSTREAM_POOL_IDLE: Duration = Duration::from_secs(15);
 
+// Why: forwarded inference and MCP responses include SSE streams the host
+// holds open for as long as it likes; a total timeout cut every one of them at
+// a fixed age. Only an upstream that goes silent is bounded.
+const UPSTREAM_READ_IDLE: Duration = Duration::from_mins(10);
+
 pub(super) fn build_upstream_client() -> std::io::Result<reqwest::Client> {
     reqwest::Client::builder()
         .dns_resolver(Arc::new(crate::gateway::Ipv4FirstResolver))
@@ -21,7 +26,7 @@ pub(super) fn build_upstream_client() -> std::io::Result<reqwest::Client> {
         .pool_idle_timeout(UPSTREAM_POOL_IDLE)
         .tcp_nodelay(true)
         .connect_timeout(Duration::from_secs(15))
-        .timeout(Duration::from_mins(10))
+        .read_timeout(UPSTREAM_READ_IDLE)
         .build()
         .map_err(|source| {
             std::io::Error::other(ClientBuildError {

@@ -104,6 +104,62 @@ async fn incompatible_heartbeat_is_recorded_with_its_usage_and_reported_incompat
 }
 
 #[tokio::test]
+async fn heartbeat_records_the_release_version_and_state_and_reports_the_window_status()
+-> anyhow::Result<()> {
+    let (app, pool) = router_and_pool().await?;
+    let credential = seed_bridge_credential(&pool, "heartbeat-release@example.invalid").await?;
+    let response = app
+        .oneshot(authed_post(
+            "/bridge/heartbeat",
+            credential.jwt.as_str(),
+            serde_json::json!({
+                "session_id": credential.session_id.as_str(),
+                "bridge_version": "1.0.0",
+                "release_version": "0.75.1",
+                "state": "disabled",
+                "os": "linux",
+                "hostname": "released-bridge"
+            }),
+        ))
+        .await?;
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = read_body(response).await?;
+    assert_eq!(body["window_status"], "within");
+    let persisted = BridgeSessionRepository::new(&pool)
+        .list_active_for_user(&credential.user_id, Duration::from_secs(60))
+        .await?
+        .into_iter()
+        .find(|session| session.session_id == credential.session_id)
+        .expect("heartbeat recorded");
+    assert_eq!(persisted.release_version.as_deref(), Some("0.75.1"));
+    assert_eq!(persisted.state.as_deref(), Some("disabled"));
+    Ok(())
+}
+
+#[tokio::test]
+async fn heartbeat_without_a_release_version_reports_an_unknown_window_status() -> anyhow::Result<()>
+{
+    let (app, pool) = router_and_pool().await?;
+    let credential = seed_bridge_credential(&pool, "heartbeat-legacy@example.invalid").await?;
+    let response = app
+        .oneshot(authed_post(
+            "/bridge/heartbeat",
+            credential.jwt.as_str(),
+            serde_json::json!({
+                "session_id": credential.session_id.as_str(),
+                "bridge_version": "1.0.0",
+                "os": "linux",
+                "hostname": "legacy-bridge"
+            }),
+        ))
+        .await?;
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = read_body(response).await?;
+    assert_eq!(body["window_status"], "unknown");
+    Ok(())
+}
+
+#[tokio::test]
 async fn heartbeat_storage_failure_is_reported_and_a_retry_records_the_session()
 -> anyhow::Result<()> {
     let database =

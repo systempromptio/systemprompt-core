@@ -11,7 +11,8 @@ use systemprompt_bridge::integration::{AppInstallState, HostAppSnapshot, Profile
 use systemprompt_models::bridge::host::HostKind;
 
 fn state() -> std::sync::Arc<AppState> {
-    let ctx = BridgeContext::start(ProxyMode::Attach).expect("runtime builds");
+    let ctx = BridgeContext::start(ProxyMode::Attach, std::sync::Arc::new(|| None))
+        .expect("runtime builds");
     AppState::new_loaded(ctx)
 }
 

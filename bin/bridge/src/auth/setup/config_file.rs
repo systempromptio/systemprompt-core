@@ -52,13 +52,12 @@ pub(super) fn resolve_gateway(
 
 pub(super) fn write_config_file(
     path: &Path,
-    pat_file: &Path,
+    store: crate::config::gateways::credential::PatStore,
     gateway_url_override: Option<&str>,
 ) -> Result<(), SetupError> {
     let gateway = resolve_gateway(path, gateway_url_override)?;
-    let pat_file = pat_file.to_string_lossy().into_owned();
     merge_config_file(path, &gateway, "pat", |doc| {
-        write::set(doc, &["pat", "file"], pat_file.as_str())
+        write::set(doc, &["pat", "store"], store.as_str())
     })
 }
 

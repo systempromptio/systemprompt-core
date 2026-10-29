@@ -165,6 +165,19 @@ impl Permit {
         install::preflight()?;
         let (status, manifest) = check(client, bearer).await?;
         match status {
+            UpdateStatus::Available { ref version, .. } if is_downgrade(version) => {
+                if downgrade_enforced() {
+                    Ok(Some(manifest))
+                } else {
+                    tracing::warn!(
+                        local = %crate::brand::brand().version,
+                        offered = %version,
+                        "this release is newer than the instance admits; install the offered \
+                         release from the update panel"
+                    );
+                    Ok(None)
+                }
+            },
             UpdateStatus::Available { .. } => Ok(Some(manifest)),
             UpdateStatus::Current { .. } => {
                 if self.trigger == Trigger::Unsupported {
@@ -193,6 +206,26 @@ impl Permit {
             "automatic update staged; the next launch runs it",
         );
         Ok(path)
+    }
+}
+
+fn is_downgrade(offered: &str) -> bool {
+    match (
+        semver::Version::parse(offered),
+        semver::Version::parse(crate::brand::brand().version),
+    ) {
+        (Ok(offered), Ok(local)) => offered.cmp_precedence(&local).is_lt(),
+        _ => false,
+    }
+}
+
+fn downgrade_enforced() -> bool {
+    match crate::instance::window::report() {
+        Ok(report) => report.enforce_max,
+        Err(error) => {
+            tracing::warn!(%error, "release window unreadable; an older release is not staged");
+            false
+        },
     }
 }
 

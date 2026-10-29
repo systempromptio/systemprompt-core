@@ -26,6 +26,8 @@ pub(crate) const fn event_kind(event: &UiEvent) -> &'static str {
         UiEvent::DisconnectRequested { .. } => "DisconnectRequested",
         UiEvent::CredentialRejected { .. } => "CredentialRejected",
         UiEvent::SetGatewayRequested { .. } => "SetGatewayRequested",
+        UiEvent::InstanceRequested { .. } => "InstanceRequested",
+        UiEvent::InstanceFinished { .. } => "InstanceFinished",
         UiEvent::GatewayProbeRequested { .. } => "GatewayProbeRequested",
         UiEvent::McpAuthProbeRequested { .. } => "McpAuthProbeRequested",
         UiEvent::ProfileFetchRequested { .. } => "ProfileFetchRequested",

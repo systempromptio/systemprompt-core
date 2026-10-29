@@ -50,6 +50,40 @@ pub enum GatewayProfileError {
 
     #[error("route `when.tool_types_any` entry `{0}` is not a server tool type prefix")]
     RouteMatchBadToolType(String),
+
+    #[error(
+        "gateway `bridge_instance.{field}` is '{value}': it must be a path on this gateway \
+         starting with '/', with no scheme or host"
+    )]
+    BridgeInstancePathNotRelative { field: &'static str, value: String },
+
+    #[error(
+        "gateway `bridge_releases.{field}` is '{version}': build metadata ('+...') is ignored by \
+         semver precedence, so a window bound must not carry it"
+    )]
+    BridgeVersionBuildMetadata {
+        field: &'static str,
+        version: semver::Version,
+    },
+
+    #[error("gateway `bridge_releases.min_version` {min} is above `max_version` {max}")]
+    BridgeVersionWindowInverted {
+        min: semver::Version,
+        max: semver::Version,
+    },
+
+    #[error("gateway `bridge_releases.pinned_version` '{value}' is not a semver version")]
+    BridgePinnedVersionInvalid {
+        value: String,
+        #[source]
+        source: semver::Error,
+    },
+
+    #[error(
+        "gateway `bridge_releases.pinned_version` {pinned} lies outside the window \
+         [`min_version`, `max_version`]"
+    )]
+    BridgePinnedVersionOutsideWindow { pinned: semver::Version },
 }
 
 pub type GatewayResult<T> = Result<T, GatewayProfileError>;

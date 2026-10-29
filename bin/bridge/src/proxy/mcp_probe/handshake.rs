@@ -65,7 +65,7 @@ pub async fn probe_endpoint(
     };
 
     let status = resp.status();
-    if status.is_client_error() && !matches!(status.as_u16(), 401 | 403 | 404) {
+    if status.is_client_error() && !matches!(status.as_u16(), 401 | 403 | 404 | 409) {
         drop(resp);
         return probe_legacy(&target).await;
     }
@@ -171,6 +171,7 @@ async fn rejected(resp: reqwest::Response, started: Instant) -> ProbeOutcome {
         403 => McpAuthState::LoopbackMismatch,
         401 => McpAuthState::GatewayUnauthorized,
         404 => McpAuthState::NotRegistered,
+        409 => McpAuthState::ProviderNotConnected,
         _ => McpAuthState::UpstreamError,
     };
     let error = match resp.text().await {

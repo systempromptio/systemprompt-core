@@ -372,6 +372,41 @@ const COMMANDS = {
     return {};
   },
   "gateway.probe": () => ({}),
+  "gateway.list": () => ({ profiles: state.gateway_profiles || [] }),
+  "gateway.add": ({ url }) => {
+    const id = new URL(url).hostname.replace(/[^a-z0-9]+/gi, "-").toLowerCase();
+    state.gateway_profiles = [...(state.gateway_profiles || []),
+      { id, gateway_url: url, display_name: null, active: false, disabled: false }];
+    emit("state.changed", state);
+    return { id };
+  },
+  "gateway.use": ({ id }) => {
+    state.gateway_profiles = (state.gateway_profiles || []).map((p) => ({ ...p, active: p.id === id }));
+    const active = state.gateway_profiles.find((p) => p.active);
+    if (active && active.gateway_url) state.gateway_url = active.gateway_url;
+    emit("state.changed", state);
+    return { id };
+  },
+  "gateway.remove": ({ id }) => {
+    state.gateway_profiles = (state.gateway_profiles || []).filter((p) => p.id !== id);
+    emit("state.changed", state);
+    return {};
+  },
+  "instance.disable": () => {
+    state.instance_disabled = true;
+    emit("state.changed", state);
+    return { already_disabled: false, still_managed: [], foreign_plugins: [], warnings: [] };
+  },
+  "elevation.approve": () => {
+    state.admin_approval_declined = false;
+    emit("state.changed", state);
+    return {};
+  },
+  "instance.enable": () => {
+    state.instance_disabled = false;
+    emit("state.changed", state);
+    return { changed: true };
+  },
   "session.login": ({ gateway }) => {
     state.gateway_url = gateway || state.gateway_url;
     state.gateway_configured = true;
@@ -518,6 +553,12 @@ const FAIL_SCOPE = {
   "marketplace.list": "marketplace",
   "gateway.set": "gateway",
   "gateway.probe": "gateway",
+  "gateway.list": "gateway",
+  "gateway.add": "gateway",
+  "gateway.use": "gateway",
+  "gateway.remove": "gateway",
+  "instance.disable": "gateway",
+  "instance.enable": "gateway",
   "session.login": "identity",
   login: "identity",
   logout: "identity",

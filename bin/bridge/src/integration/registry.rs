@@ -37,27 +37,6 @@ impl std::fmt::Debug for HostAppRegistration {
 
 inventory::collect!(HostAppRegistration);
 
-/// Removes a host from the registry by `id()`, Claude Code included.
-///
-/// Shadowing can only replace a host; a white-label crate whose install must
-/// not offer one at all suppresses it instead, and every surface — onboarding
-/// cards, first-run provisioning, GUI payloads, doctor — stops seeing it.
-#[derive(Debug, Clone, Copy)]
-pub struct HostAppSuppression {
-    pub id: HostKind,
-}
-
-inventory::collect!(HostAppSuppression);
-
-#[macro_export]
-macro_rules! suppress_host_app {
-    ($id:expr $(,)?) => {
-        ::inventory::submit! {
-            $crate::integration::registry::HostAppSuppression { id: $id }
-        }
-    };
-}
-
 #[macro_export]
 macro_rules! register_host_app {
     ($e:expr, priority = $p:expr $(,)?) => {
@@ -80,7 +59,6 @@ register_host_app!(super::opencode::OPENCODE_CLI_HOST);
 
 struct Registry {
     hosts: Vec<&'static dyn HostApp>,
-    suppressed: BTreeSet<HostKind>,
 }
 
 static REGISTRY: LazyLock<Registry> = LazyLock::new(|| {
@@ -91,36 +69,18 @@ static REGISTRY: LazyLock<Registry> = LazyLock::new(|| {
             .cmp(&a.priority)
             .then_with(|| a.app.id().cmp(&b.app.id()))
     });
-    let suppressed: BTreeSet<HostKind> = inventory::iter::<HostAppSuppression>()
-        .map(|s| s.id)
-        .collect();
     let mut seen: BTreeSet<HostKind> = BTreeSet::new();
     let mut hosts: Vec<&'static dyn HostApp> = regs
         .into_iter()
-        .filter(|r| !suppressed.contains(&r.app.id()))
         .filter(|r| seen.insert(r.app.id()))
         .map(|r| r.app)
         .collect();
     hosts.sort_by_key(|h| h.id());
-    Registry { hosts, suppressed }
+    Registry { hosts }
 });
 
 pub fn host_apps() -> &'static [&'static dyn HostApp] {
     REGISTRY.hosts.as_slice()
-}
-
-#[must_use]
-pub fn is_suppressed(id: HostKind) -> bool {
-    REGISTRY.suppressed.contains(&id)
-}
-
-// Why: host_sync sits below integration, so the suppression filter over its
-// registry lives here; sync dispatches through this, never the raw registry.
-pub fn host_syncs() -> impl Iterator<Item = &'static dyn crate::host_sync::HostSync> {
-    crate::host_sync::registry()
-        .iter()
-        .copied()
-        .filter(|emitter| !is_suppressed(emitter.host_id()))
 }
 
 #[must_use]
@@ -132,13 +92,12 @@ pub fn find_host_by_id(id: HostKind) -> Option<&'static dyn HostApp> {
 ///
 /// Every caller acting on a user-supplied host id resolves it through
 /// [`resolve_host`] rather than treating a [`find_host_by_id`] miss as an
-/// unknown id: three of the four states below are perfectly ordinary, and only
+/// unknown id: a sync-only agent is ordinary, and only
 /// [`ResolvedHost::Unknown`] is a caller error.
 #[derive(Clone, Copy)]
 pub enum ResolvedHost {
     Local(&'static dyn HostApp),
     SyncOnly(&'static super::sync_only::SyncOnlyAgent),
-    Suppressed,
     Unknown,
 }
 
@@ -147,7 +106,6 @@ impl std::fmt::Debug for ResolvedHost {
         match *self {
             Self::Local(host) => f.debug_tuple("Local").field(&host.id()).finish(),
             Self::SyncOnly(agent) => f.debug_tuple("SyncOnly").field(&agent.id).finish(),
-            Self::Suppressed => f.write_str("Suppressed"),
             Self::Unknown => f.write_str("Unknown"),
         }
     }
@@ -160,9 +118,6 @@ pub fn resolve_host(id: HostKind) -> ResolvedHost {
     }
     if let Some(agent) = super::sync_only::sync_only_agent(id) {
         return ResolvedHost::SyncOnly(agent);
-    }
-    if is_suppressed(id) {
-        return ResolvedHost::Suppressed;
     }
     ResolvedHost::Unknown
 }

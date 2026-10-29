@@ -62,10 +62,25 @@ impl HostSync for CoworkArtifactsSync {
         if let Some(ws) = crate::config::paths::workspace_artifacts_dir() {
             workspace_sink::remove_bundle(&ws)?;
         }
-        let Some(dir) = emit::resolve_artifacts_dir().map_err(resolve_err)? else {
-            return Ok(());
+        let targets = match crate::integration::cowork_plugins::clear_targets() {
+            Ok(targets) => targets,
+            Err(error) => {
+                tracing::warn!(
+                    target: "bridge::cowork",
+                    %error,
+                    "Cowork sessions unreadable; no artifacts there were cleared"
+                );
+                return Ok(());
+            },
         };
-        emit::remove_dir(&dir)
+        for target in targets {
+            emit::remove_dir(
+                &target
+                    .session_org_dir
+                    .join(crate::config::paths::COWORK_ARTIFACTS_SUBDIR),
+            )?;
+        }
+        Ok(())
     }
 }
 

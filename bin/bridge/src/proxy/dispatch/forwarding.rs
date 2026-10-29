@@ -43,6 +43,15 @@ pub(super) async fn forward_to_gateway(
         method,
         path,
     };
+    if cfg.disabled {
+        return Ok(owned_response(
+            StatusCode::SERVICE_UNAVAILABLE,
+            format!(
+                "{} is disabled on this device; enable it to route through the gateway",
+                crate::brand::brand().app_name
+            ),
+        ));
+    }
     match forward::forward(
         req,
         forward::ForwardDeps {
@@ -56,6 +65,7 @@ pub(super) async fn forward_to_gateway(
             gateway_http: ctx.deps.http.clone(),
             plugin_tokens: Arc::clone(&ctx.deps.plugin_tokens),
             drive_signals: &ctx.deps.drive_signals,
+            foreign_models: cfg.foreign_models.as_ref(),
             credential,
         },
     )

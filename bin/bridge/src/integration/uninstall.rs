@@ -20,6 +20,15 @@ pub fn uninstall(
 }
 
 pub fn clear_hosts() -> Vec<String> {
+    let mut warnings = clear_gateway_content();
+    warnings.extend(remove_all_host_profiles());
+    for warning in &warnings {
+        diag(&format!("warning: {warning}"));
+    }
+    warnings
+}
+
+pub fn clear_gateway_content() -> Vec<String> {
     let mut warnings = Vec::new();
     match super::cowork_plugins::resolve_target() {
         Ok(Some(target)) => {
@@ -30,14 +39,17 @@ pub fn clear_hosts() -> Vec<String> {
         Ok(None) => {},
         Err(e) => warnings.push(format!("Cowork session could not be resolved: {e}")),
     }
-
     if let Err(e) = super::claude_code_cli::clear_install() {
         warnings.push(format!("Claude Code CLI cleanup failed: {e}"));
     }
+    warnings
+}
 
-    // Why: a profile left on any host keeps pointing that host at a proxy port
-    // and secret the purge has just discarded; every enrolled host is cleared,
-    // not only the two the Cowork path knew about.
+// Why: a profile left on any host keeps pointing that host at a proxy port
+// and secret the purge has just discarded; every enrolled host is cleared,
+// not only the two the Cowork path knew about.
+pub fn remove_all_host_profiles() -> Vec<String> {
+    let mut warnings = Vec::new();
     match super::enrol::remove_host_profiles(&super::enrol::Selection::All, &[]) {
         Ok(reports) => {
             for report in reports {
@@ -59,9 +71,6 @@ pub fn clear_hosts() -> Vec<String> {
             }
         },
         Err(e) => warnings.push(format!("host profile removal failed: {e}")),
-    }
-    for warning in &warnings {
-        diag(&format!("warning: {warning}"));
     }
     warnings
 }

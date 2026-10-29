@@ -6,6 +6,7 @@ import { t } from "/assets/js/i18n.js";
 import { setTheme } from "/assets/js/theme.js";
 import { gatewayUrlError, loadPrefs } from "/assets/js/utils/settings-prefs.js";
 import { renderSettingsPaths, renderSettingsAppearance, renderSettingsSecurity } from "/assets/js/components/settings-sections.js";
+import { registerGatewayProfileActions, renderSettingsGateways } from "/assets/js/components/settings-gateways.js";
 import "/assets/js/components/sp-personal-keys.js";
 
 export class SpSettings extends SpElement {
@@ -26,6 +27,7 @@ export class SpSettings extends SpElement {
     }));
     this.registerAction("change:theme", (el) => { setTheme(el.value); this.invalidate(); });
     this._registerGatewayActions();
+    registerGatewayProfileActions(this);
   }
 
   // Why: the full-screen first-run wizard (`is-setup-mode`) has no cancel, so
@@ -65,7 +67,9 @@ export class SpSettings extends SpElement {
       : "";
     return `
       ${banner}
+      <sp-approval-banner></sp-approval-banner>
       ${renderSettingsPaths(this)}
+      ${renderSettingsGateways(this)}
       <sp-personal-keys></sp-personal-keys>
       ${renderSettingsAppearance()}
       ${renderSettingsSecurity(this)}
@@ -90,5 +94,5 @@ function renderLicensingNote(snap) {
       </p>`;
 }
 
-reactive(SpSettings.prototype, ["snapshot", "prefs", "gatewayDraft"]);
+reactive(SpSettings.prototype, ["snapshot", "prefs", "gatewayDraft", "profileDraft"]);
 customElements.define("sp-settings", SpSettings);

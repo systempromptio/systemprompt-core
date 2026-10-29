@@ -20,8 +20,8 @@ use crate::ids::PinnedPubKey;
 mod policy;
 mod record;
 
-pub use policy::parse_policy_trust;
 use policy::policy_trust;
+pub use policy::{parse_policy_trust, select_pin};
 pub use record::{GatewayIdentity, PinSource, PinnedPubkeyState, SyncConfig, TrustRecord};
 
 #[derive(Debug, thiserror::Error)]
@@ -63,7 +63,7 @@ pub fn pinned_pubkey_state_for(
     cfg: &Config,
     gateway: &ValidatedUrl,
 ) -> Result<PinnedPubkeyState, TrustError> {
-    let policy = policy_trust()?;
+    let policy = policy_trust(gateway)?;
     let operator = cfg.sync.as_ref().and_then(|s| s.trust.as_ref());
     resolve_pinned_pubkey_state(policy.as_ref(), operator, gateway)
 }

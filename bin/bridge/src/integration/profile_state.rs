@@ -126,6 +126,16 @@ impl ProfileState {
     }
 
     #[must_use]
+    pub fn stale_keys(&self) -> &[String] {
+        match self {
+            Self::Stale { keys, .. } => keys,
+            Self::Absent | Self::Installed | Self::Partial { .. } | Self::Unverifiable { .. } => {
+                &[]
+            },
+        }
+    }
+
+    #[must_use]
     pub fn missing_required(&self) -> &[String] {
         match self {
             Self::Partial { missing_required } => missing_required,

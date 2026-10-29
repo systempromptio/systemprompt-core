@@ -237,7 +237,7 @@ fn install_needing_approval(
         ),
     }
     if attendance == Attendance::Unattended {
-        tracing::warn!(path, differing = ?differing, reason, "an unattended repair cannot elevate");
+        tracing::warn!(path, differing = ?differing, reason, "an unattended repair cannot elevate; left for one approval");
         return Err(ApprovalRefusal::NeedsPrompt { reason }.into());
     }
     tracing::warn!(path, differing = ?differing, reason, "requesting administrator approval");

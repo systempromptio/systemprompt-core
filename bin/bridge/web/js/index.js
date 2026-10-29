@@ -3,10 +3,13 @@ import { initTheme } from "./theme.js";
 import { init as initI18n } from "./i18n.js";
 import { initBridgeEvents } from "/assets/js/events/bridge-events.js";
 import { initWindowDrag } from "./utils/window-drag.js";
+import { subscribeSnapshot } from "/assets/js/services/state-store.js";
+import { applyInstanceBrand } from "/assets/js/utils/instance-brand.js";
 
 initTheme();
 initBridgeEvents();
 initWindowDrag();
+subscribeSnapshot(applyInstanceBrand);
 initI18n().catch((e) => console.warn("i18n init failed", e));
 
 import "/assets/js/components/sp-cloud-status.js";
@@ -28,6 +31,7 @@ import "/assets/js/components/sp-agent-drawer.js";
 import "/assets/js/components/sp-device-action.js";
 import "/assets/js/components/sp-hosts-list.js";
 import "/assets/js/components/sp-settings.js";
+import "/assets/js/components/sp-approval-banner.js";
 import "/assets/js/components/sp-profile.js";
 import "/assets/js/components/sp-marketplace.js";
 import "/assets/js/components/sp-marketplace-list.js";

@@ -58,6 +58,9 @@ fn manifest() -> SignedManifest {
         auto_update: Default::default(),
         diagnostics: Vec::new(),
         marketplaces: Vec::new(),
+        allow_user_disable: false,
+        branding: None,
+        bridge_versions: None,
     }
 }
 
@@ -178,13 +181,10 @@ fn sandbox(gateway_uri: &str, pinned_pubkey: Option<&str>) -> VerifySandbox {
     }
     fs::create_dir_all(data_home.join("Claude").join("org-plugins")).unwrap();
 
-    let pat_file = base.join("pat.txt");
+    let pat_file = config_home.join("systemprompt-bridge.pat");
     fs::write(&pat_file, "sp-live-test-pat").unwrap();
 
-    let mut toml = format!(
-        "gateway_url = \"{gateway_uri}\"\n[pat]\nfile = \"{}\"\n",
-        pat_file.display()
-    );
+    let mut toml = format!("gateway_url = \"{gateway_uri}\"\n[pat]\nstore = \"file\"\n",);
     if let Some(pk) = pinned_pubkey {
         toml.push_str(&format!(
             "[sync.trust]\ngateway = \"{gateway_uri}\"\nsource = \"operator\"\nkey = \"{pk}\"\n"
@@ -493,7 +493,7 @@ fn version_floor_is_checked_against_the_compat_line_not_the_brand_display_versio
 }
 
 fn bridge() -> std::sync::Arc<BridgeContext> {
-    BridgeContext::start(ProxyMode::Attach).expect("runtime builds")
+    BridgeContext::start(ProxyMode::Attach, std::sync::Arc::new(|| None)).expect("runtime builds")
 }
 
 #[test]

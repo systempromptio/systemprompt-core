@@ -101,7 +101,10 @@ fn atomic_write_with_mode(path: &Path, bytes: &[u8], mode: u32) -> io::Result<()
     }
     io::Write::write_all(&mut staged, bytes)?;
     staged.as_file().sync_all()?;
+    #[cfg(not(target_os = "windows"))]
     staged.persist(path).map_err(|error| error.error)?;
+    #[cfg(target_os = "windows")]
+    persist_retrying(staged, path, &reader)?;
     verify_contents(path, bytes)?;
     #[cfg(target_os = "windows")]
     if mode == 0o600 {
@@ -113,6 +116,36 @@ fn atomic_write_with_mode(path: &Path, bytes: &[u8], mode: u32) -> io::Result<()
         fs::File::open(parent)?.sync_all()?;
     }
     Ok(())
+}
+
+// Why: Windows refuses to replace a file another handle holds open without
+// FILE_SHARE_DELETE — an antivirus scan, the indexer, a sibling bridge — and
+// those handles close within moments; a DACL that lost the owner's entry is
+// repaired once before the last attempt, as `read_private` does.
+#[cfg(target_os = "windows")]
+fn persist_retrying(
+    mut staged: tempfile::NamedTempFile,
+    path: &Path,
+    reader: &str,
+) -> io::Result<()> {
+    const BACKOFF_MS: [u64; 5] = [50, 80, 120, 160, 200];
+    for delay in BACKOFF_MS {
+        match staged.persist(path) {
+            Ok(_) => return Ok(()),
+            Err(e) if e.error.kind() == io::ErrorKind::PermissionDenied => {
+                staged = e.file;
+                std::thread::sleep(std::time::Duration::from_millis(delay));
+            },
+            Err(e) => return Err(e.error),
+        }
+    }
+    if path.exists() {
+        crate::windows_acl::repair_private(path, reader)?;
+    }
+    staged
+        .persist(path)
+        .map(|_| ())
+        .map_err(|e| io_context("replace after retries and DACL repair", e.error))
 }
 
 #[cfg(unix)]

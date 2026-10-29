@@ -186,6 +186,7 @@ pub(crate) fn on_update_restart_requested(app: &mut GuiApp, event_loop: &dyn Act
     if !drained {
         app.append_log("restart: proxy requests were still in flight at the drain deadline");
     }
+    remember_pending_approval(&app.ctx.elevation_gate);
     if let Err(e) = update::spawn_successor(&installed) {
         tracing::error!(error = %e, "update: relaunch failed; leaving this instance running");
         app.append_log(format!(
@@ -259,4 +260,57 @@ fn reply<T: serde::Serialize>(
         BridgeError::from_error(ErrorScope::Internal, ErrorCode::Internal, &*err)
     });
     emit::finish(app, reply_to, result);
+}
+
+const APPROVE_AFTER_UPDATE: &str = "approve-after-update.json";
+
+fn approval_marker() -> Option<std::path::PathBuf> {
+    crate::config::paths::bridge_metadata_dir().map(|d| d.join(APPROVE_AFTER_UPDATE))
+}
+
+// Why: a machine-policy change waiting on approval is rendered again by the
+// updated binary; carrying the request across the restart lets the new
+// process ask once, instead of once before and once after.
+fn remember_pending_approval(gate: &crate::elevation_gate::ElevationGate) {
+    if gate.pending().is_none() {
+        return;
+    }
+    if let Some(path) = approval_marker()
+        && let Err(error) = crate::fsutil::atomic_write_0600(&path, b"{}")
+    {
+        tracing::warn!(%error, "update: the pending administrator approval was not carried over");
+    }
+}
+
+pub(crate) fn approve_after_update(app: &mut GuiApp) {
+    if app.approval_after_update_checked {
+        return;
+    }
+    let snap = app.state.snapshot();
+    if !app.did_initial_sync || snap.sync_in_flight {
+        return;
+    }
+    app.approval_after_update_checked = true;
+    let Some(path) = approval_marker().filter(|p| p.exists()) else {
+        return;
+    };
+    if let Err(error) = crate::fsutil::remove_verified(&path) {
+        tracing::warn!(%error, "update: approval marker could not be removed");
+        return;
+    }
+    app.append_log("update: applying the policy change approved with the restart");
+    let ctx = Arc::clone(&app.ctx);
+    app.ctx.spawn(async move {
+        let overrides = crate::integration::reapply::ModelProtocolOverrides::new();
+        let reports = crate::integration::reapply::reapply_stale_profiles(
+            &ctx,
+            &overrides,
+            crate::integration::reapply::Attendance::Attended,
+        )
+        .await;
+        tracing::info!(
+            report = %crate::integration::reapply::render(&reports),
+            "post-update policy approval"
+        );
+    });
 }

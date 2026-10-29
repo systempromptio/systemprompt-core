@@ -37,6 +37,8 @@ pub struct Entry {
     pub attempts: u32,
     pub next_attempt: DateTime<Utc>,
     pub session_bindings: BTreeMap<String, bool>,
+    #[serde(default)]
+    pub refused_sessions: BTreeMap<String, u16>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -183,7 +185,7 @@ impl Outbox {
                 }
                 let (host, session): (systemprompt_models::feedback::EvaluatorClient, String) =
                     serde_json::from_str(session_key)?;
-                if host == request.host {
+                if host == request.host && !refused_anywhere(state, host, &session) {
                     session_bindings.insert(session, false);
                 }
             }
@@ -195,6 +197,7 @@ impl Outbox {
                     attempts: 0,
                     next_attempt: Utc::now(),
                     session_bindings,
+                    refused_sessions: BTreeMap::new(),
                 },
             );
             Ok(key)
@@ -237,26 +240,51 @@ impl Outbox {
         result: std::result::Result<ConsumerReceiptResponse, u16>,
     ) -> Result<()> {
         self.mutate(|state| {
-            let entry = state.entries.get_mut(key).ok_or(FeedbackError::Scope)?;
+            let entry = state
+                .entries
+                .get_mut(key)
+                .ok_or(FeedbackError::EntryMissing)?;
             if matches!(entry.delivery, Delivery::Acknowledged(_)) {
                 return Ok(());
             }
+            let status = match result {
+                Ok(response) => {
+                    entry.delivery = Delivery::Acknowledged(response);
+                    entry.attempts = 0;
+                    entry.next_attempt = Utc::now();
+                    return Ok(());
+                },
+                Err(status) => status,
+            };
             entry.attempts = entry.attempts.saturating_add(1);
-            entry.delivery = match result {
-                Ok(response) => Delivery::Acknowledged(response),
-                Err(409) => Delivery::Conflict,
-                Err(401) => Delivery::CredentialRejected,
+            entry.delivery = match status {
+                409 => Delivery::Conflict,
+                401 => Delivery::CredentialRejected,
                 // Why: the gateway's 403 says this identity may not file
                 // consumer evidence at all; retrying a permanent refusal only
                 // grew the outbox, so it is terminal and evictable.
-                Err(status @ (400 | 403 | 404 | 422)) => Delivery::Rejected(status),
-                Err(_) => Delivery::Unacknowledged,
+                400 | 403 | 404 | 422 => Delivery::Rejected(status),
+                _ => Delivery::Unacknowledged,
             };
-            let backoff = 2i64.pow(entry.attempts.min(10)).min(3600);
-            entry.next_attempt = Utc::now() + chrono::Duration::seconds(backoff);
+            entry.next_attempt = Utc::now() + retry_after(entry.attempts);
             Ok(())
         })
     }
+}
+
+fn refused_anywhere(
+    state: &State,
+    host: systemprompt_models::feedback::EvaluatorClient,
+    session: &str,
+) -> bool {
+    state
+        .entries
+        .values()
+        .any(|entry| entry.request.host == host && entry.refused_sessions.contains_key(session))
+}
+
+pub(super) fn retry_after(attempts: u32) -> chrono::Duration {
+    chrono::Duration::seconds(2i64.pow(attempts.min(10)).min(3600))
 }
 
 fn key(request: &ConsumerReceiptRequest) -> Result<String> {

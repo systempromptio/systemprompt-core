@@ -36,8 +36,10 @@ use identity::InstallId;
 pub use credential::LoopbackCredential;
 pub use handle::ProxyHandle;
 pub use loopback::LoopbackEndpoint;
-pub use role::{ProxyDeps, ProxyFailure, ProxyRole};
-pub use server::{DRAIN_DEADLINE, ProxyContext, ProxyStats, ServedProxy};
+pub use role::{DesktopPolicyKeyProbe, ProxyDeps, ProxyFailure, ProxyRole};
+pub use server::{
+    ConnectionEnd, DRAIN_DEADLINE, ProxyContext, ProxyStats, ServedProxy, classify_connection_end,
+};
 
 pub const DEFAULT_PROXY_PORT: u16 = 48217;
 pub(crate) const REFRESH_TICK: Duration = Duration::from_mins(1);

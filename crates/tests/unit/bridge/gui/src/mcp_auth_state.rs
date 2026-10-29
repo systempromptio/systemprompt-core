@@ -7,7 +7,8 @@ use systemprompt_bridge::gui::state::AppState;
 use systemprompt_bridge::proxy::mcp_probe::{McpAuthState, McpServerAuth};
 
 fn state() -> std::sync::Arc<AppState> {
-    let ctx = BridgeContext::start(ProxyMode::Attach).expect("runtime builds");
+    let ctx = BridgeContext::start(ProxyMode::Attach, std::sync::Arc::new(|| None))
+        .expect("runtime builds");
     AppState::new_loaded(ctx)
 }
 

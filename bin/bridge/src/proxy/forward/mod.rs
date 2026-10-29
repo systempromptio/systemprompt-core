@@ -58,6 +58,30 @@ pub(crate) struct ForwardDeps<'a> {
     pub plugin_tokens: Arc<crate::auth::plugin_oauth::PluginTokenCache>,
     pub credential: LoopbackCredential,
     pub drive_signals: &'a crate::proxy::drive_signal::DriveSignals,
+    pub foreign_models: &'a BTreeMap<String, crate::config::gateways::GatewayProfileId>,
+}
+
+pub fn refuse_foreign_model(
+    foreign_models: &BTreeMap<String, crate::config::gateways::GatewayProfileId>,
+    body: &[u8],
+) -> ForwardResult<()> {
+    #[derive(serde::Deserialize)]
+    struct ModelField {
+        model: Option<String>,
+    }
+    if foreign_models.is_empty() {
+        return Ok(());
+    }
+    let Some(model) = serde_json::from_slice::<ModelField>(body)
+        .ok()
+        .and_then(|f| f.model)
+    else {
+        return Ok(());
+    };
+    let Some(profile) = foreign_models.get(&model).cloned() else {
+        return Ok(());
+    };
+    Err(ForwardError::ModelServedElsewhere { model, profile })
 }
 
 #[tracing::instrument(
@@ -86,6 +110,7 @@ pub(crate) async fn forward(
         plugin_tokens,
         credential,
         drive_signals,
+        foreign_models,
     } = deps;
     let token = token_cache.current(REFRESH_THRESHOLD_SECS).await?;
 
@@ -142,6 +167,9 @@ pub(crate) async fn forward(
 
     let (buffered_body, gateway_conversation_id) =
         prepare_upstream_body(body, session_context, &parts.headers, &request_path).await?;
+    if attest.is_some() {
+        refuse_foreign_model(foreign_models, &buffered_body)?;
+    }
 
     if let Err(error) = session_context.native_sessions().observe(
         credential.verified_host(),

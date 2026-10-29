@@ -1,6 +1,6 @@
 //! Host resolution for GUI operations.
 //!
-//! Distinguishes installable, sync-only and suppressed hosts from unknown IDs.
+//! Distinguishes installable and sync-only hosts from unknown IDs.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -37,22 +37,6 @@ pub(crate) fn resolve_or_reply(
                     "changed": false,
                     "reason": "sync-only",
                     "detail": agent.description,
-                })),
-                reply_to,
-            );
-            None
-        },
-        ResolvedHost::Suppressed => {
-            app.append_log(format!(
-                "[{host_id}] {action}: nothing to do — this agent is not offered on this \
-                 installation"
-            ));
-            finish(
-                app,
-                Ok(json!({
-                    "host_id": host_id,
-                    "changed": false,
-                    "reason": "not-offered",
                 })),
                 reply_to,
             );

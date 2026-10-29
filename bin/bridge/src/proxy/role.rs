@@ -69,7 +69,13 @@ pub struct ProxyDeps {
     pub update_gate: crate::update::automatic::UpdateGate,
     pub drive_signals: super::drive_signal::DriveSignals,
     pub notification_signals: super::notifications::NotificationSignals,
+    pub desktop_policy_key_fp: DesktopPolicyKeyProbe,
 }
+
+/// Reads the fingerprint of the API key the Claude Desktop machine policy
+/// carries; supplied by the composition root because the policy reader sits
+/// above the proxy.
+pub type DesktopPolicyKeyProbe = Arc<dyn Fn() -> Option<String> + Send + Sync>;
 
 impl std::fmt::Debug for ProxyDeps {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

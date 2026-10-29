@@ -4,6 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod dir_owner;
+pub mod gateways;
 pub mod paths;
 mod profile;
 pub mod redaction;
@@ -15,7 +16,6 @@ pub mod write;
 pub use runtime::{RuntimeConfig, SharedRuntimeConfig, shared_from_config, shared_from_loaded};
 
 use serde::Deserialize;
-use std::env;
 use std::path::PathBuf;
 
 use systemprompt_identifiers::ValidatedUrl;
@@ -53,6 +53,14 @@ pub struct Config {
     pub opencode: Option<OpenCodeConfig>,
     #[serde(default)]
     pub drive: Option<DriveConfig>,
+    #[serde(default)]
+    pub instance: Option<InstanceConfig>,
+}
+
+#[derive(Debug, Clone, Copy, Default, Deserialize)]
+pub struct InstanceConfig {
+    #[serde(default)]
+    pub disabled: Option<bool>,
 }
 
 #[derive(Debug, Clone, Copy, Default, Deserialize)]
@@ -73,10 +81,10 @@ pub struct CoworkConfig {
     pub session_org_dir: Option<String>,
 }
 
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, Deserialize)]
 pub struct PatConfig {
     #[serde(default)]
-    pub file: Option<String>,
+    pub store: Option<gateways::credential::PatStore>,
 }
 
 #[derive(Debug, Clone, Copy, Default, Deserialize)]
@@ -88,6 +96,11 @@ pub struct SessionConfig {
 }
 
 impl Config {
+    #[must_use]
+    pub fn is_disabled(&self) -> bool {
+        self.instance.and_then(|i| i.disabled).unwrap_or(false)
+    }
+
     pub fn load() -> Result<Self, ConfigReadError> {
         let mut cfg = read()?;
         if cfg.gateway_url.is_none() {
@@ -103,18 +116,15 @@ pub fn load() -> Result<Config, ConfigReadError> {
 
 #[must_use]
 pub fn config_path() -> Option<PathBuf> {
-    if let Ok(explicit) = env::var(crate::brand::brand().env("CONFIG")) {
-        return Some(PathBuf::from(explicit));
-    }
-    let base = crate::basedirs::config_dir()?;
-    let brand = crate::brand::brand();
-    Some(base.join(brand.config_dir).join(brand.config_file))
+    gateways::active().ok().map(|profile| profile.config_file)
 }
 
 #[derive(Debug, thiserror::Error)]
 pub enum ConfigReadError {
     #[error("config path unresolvable on this platform")]
     PathUnresolvable,
+    #[error("gateway profile: {0}")]
+    Profile(#[source] Box<gateways::ProfileError>),
     #[error("read {path}: {source}")]
     Read {
         path: PathBuf,
@@ -128,7 +138,12 @@ pub enum ConfigReadError {
 }
 
 pub fn read() -> Result<Config, ConfigReadError> {
-    let path = config_path().ok_or(ConfigReadError::PathUnresolvable)?;
+    let profile = gateways::active().map_err(|e| ConfigReadError::Profile(Box::new(e)))?;
+    read_file(&profile.config_file)
+}
+
+pub fn read_file(path: &std::path::Path) -> Result<Config, ConfigReadError> {
+    let path = path.to_path_buf();
     let Some(body) =
         crate::fsutil::read_optional(&path).map_err(|source| ConfigReadError::Read {
             path: path.clone(),
@@ -141,6 +156,14 @@ pub fn read() -> Result<Config, ConfigReadError> {
         path,
         source: Box::new(source),
     })
+}
+
+#[must_use]
+pub fn same_origin(a: &ValidatedUrl, b: &ValidatedUrl) -> bool {
+    match (url::Url::parse(a.as_str()), url::Url::parse(b.as_str())) {
+        (Ok(a), Ok(b)) => a.origin() == b.origin(),
+        _ => a.as_str().trim_end_matches('/') == b.as_str().trim_end_matches('/'),
+    }
 }
 
 pub fn ensure_gateway_url(url: &str) -> Result<(), ConfigWriteError> {

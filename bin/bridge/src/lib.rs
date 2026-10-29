@@ -42,11 +42,13 @@ pub mod host_sync;
 
 pub mod drift;
 pub mod drive;
+pub mod elevation_gate;
 pub mod headers;
 mod help;
 pub mod i18n;
 pub mod ids;
 pub mod install;
+pub mod instance;
 pub mod integration;
 pub mod last_sync;
 pub mod mcp_registry;

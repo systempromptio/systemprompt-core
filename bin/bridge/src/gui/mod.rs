@@ -160,6 +160,7 @@ pub(crate) struct GuiApp {
     // — the one-second tick runs between the two and would otherwise queue a
     // second start-up sync behind the login-triggered one.
     pub(crate) did_initial_sync: bool,
+    pub(crate) approval_after_update_checked: bool,
     pub(crate) active_signals: HashSet<notify::Signal>,
     pub(crate) unattended_repairs: HashSet<systemprompt_models::bridge::host::HostKind>,
     pub(crate) drive_watch: tokio::sync::watch::Receiver<u64>,
@@ -191,6 +192,7 @@ impl GuiApp {
             last_semantic_state: None,
             current_mount: None,
             did_initial_sync: false,
+            approval_after_update_checked: false,
             active_signals: HashSet::new(),
             unattended_repairs: HashSet::new(),
             drive_watch,
@@ -220,6 +222,9 @@ impl GuiApp {
 
     pub(crate) fn refresh_ui(&mut self) {
         let snap = self.state.snapshot();
+        if let Some(window) = &self.settings_window {
+            window.winit_window().set_title(&snap.display.window_title);
+        }
         if let Some(handles) = &mut self.tray
             && let Err(e) = tray::refresh(handles, &snap, &self.ctx.schedule)
         {

@@ -91,6 +91,12 @@ cloud-checkout-port = { max-threads = 1 }
 # collision that says nothing about the code under test. The headless `proxy`
 # black-box test serves from a spawned bridge binary on the same candidates, and
 # the proxy-harness stats test serves through `ProxyHandle::serve`.
+# `purge_device` probes the default port for another install and reports any
+# bridge answering there as foreign, so a sibling test serving on it turns the
+# purge test's "nothing else answered" check red; it shares the slot.
+# `enrol_hosts` reports a host installed only when its probe matches the
+# profile against the proxy on the default port, so a sibling serving there
+# leaves the enrolment `Pending`.
 bridge-proxy-port = { max-threads = 1 }
 # Why: `McpProxyIdentityRepository::cleanup_expired` is an unscoped
 # `DELETE FROM mcp_proxy_identities WHERE expires_at <= NOW()`, so it reaps
@@ -183,11 +189,11 @@ filter = 'package(systemprompt-scheduler-tests) and test(orphaned_tool_execution
 test-group = 'logs-cleanup-db'
 
 [[profile.default.overrides]]
-filter = 'package(systemprompt-bridge-integration-tests) and test(/reapply_decision::/) or package(systemprompt-bridge-proxy-module-tests) or package(systemprompt-bridge-cli-tests) and test(/proxy_command::/) or package(systemprompt-bridge-proxy-tests) and test(/comms::/) or package(systemprompt-bridge-cli-subprocess-tests) and test(proxy_headless_starts_and_stops_on_sigint) or package(systemprompt-bridge-proxy-harness-tests) and test(public_proxy_stats_follow_forwarding_failures_and_reset_with_a_restarted_owner)'
+filter = 'package(systemprompt-bridge-integration-tests) and test(/reapply_decision::|enrol_hosts::/) or package(systemprompt-bridge-proxy-module-tests) or package(systemprompt-bridge-cli-tests) and test(/proxy_command::/) or package(systemprompt-bridge-proxy-tests) and test(/comms::/) or package(systemprompt-bridge-cli-subprocess-tests) and test(proxy_headless_starts_and_stops_on_sigint) or package(systemprompt-bridge-proxy-harness-tests) and test(public_proxy_stats_follow_forwarding_failures_and_reset_with_a_restarted_owner) or package(systemprompt-bridge-cli-dispatch-tests) and test(/install_cmd::purge_device/)'
 test-group = 'bridge-proxy-port'
 
 [[profile.ci.overrides]]
-filter = 'package(systemprompt-bridge-integration-tests) and test(/reapply_decision::/) or package(systemprompt-bridge-proxy-module-tests) or package(systemprompt-bridge-cli-tests) and test(/proxy_command::/) or package(systemprompt-bridge-proxy-tests) and test(/comms::/) or package(systemprompt-bridge-cli-subprocess-tests) and test(proxy_headless_starts_and_stops_on_sigint) or package(systemprompt-bridge-proxy-harness-tests) and test(public_proxy_stats_follow_forwarding_failures_and_reset_with_a_restarted_owner)'
+filter = 'package(systemprompt-bridge-integration-tests) and test(/reapply_decision::|enrol_hosts::/) or package(systemprompt-bridge-proxy-module-tests) or package(systemprompt-bridge-cli-tests) and test(/proxy_command::/) or package(systemprompt-bridge-proxy-tests) and test(/comms::/) or package(systemprompt-bridge-cli-subprocess-tests) and test(proxy_headless_starts_and_stops_on_sigint) or package(systemprompt-bridge-proxy-harness-tests) and test(public_proxy_stats_follow_forwarding_failures_and_reset_with_a_restarted_owner) or package(systemprompt-bridge-cli-dispatch-tests) and test(/install_cmd::purge_device/)'
 test-group = 'bridge-proxy-port'
 
 [[profile.default.overrides]]

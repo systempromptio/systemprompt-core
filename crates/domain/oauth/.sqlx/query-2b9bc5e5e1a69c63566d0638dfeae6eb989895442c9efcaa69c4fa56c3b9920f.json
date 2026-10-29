@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT session_id as \"session_id: SessionId\",\n                   user_id as \"user_id: UserId\",\n                   bridge_version, os, hostname,\n                   started_at, last_heartbeat_at, last_activity_at,\n                   forwarded_total, tokens_in_total, tokens_out_total\n            FROM bridge_sessions\n            WHERE user_id = $1\n              AND last_heartbeat_at > NOW() - make_interval(secs => $2::double precision)\n            ORDER BY last_heartbeat_at DESC\n            ",
+  "query": "\n            SELECT session_id as \"session_id: SessionId\",\n                   user_id as \"user_id: UserId\",\n                   bridge_version, os, hostname,\n                   started_at, last_heartbeat_at, last_activity_at,\n                   forwarded_total, tokens_in_total, tokens_out_total,\n                   release_version, state\n            FROM bridge_sessions\n            WHERE user_id = $1\n              AND last_heartbeat_at > NOW() - make_interval(secs => $2::double precision)\n            ORDER BY last_heartbeat_at DESC\n            ",
   "describe": {
     "columns": [
       {
@@ -123,6 +123,28 @@
             "name": "tokens_out_total"
           }
         }
+      },
+      {
+        "ordinal": 11,
+        "name": "release_version",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "bridge_sessions",
+            "name": "release_version"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "state",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "bridge_sessions",
+            "name": "state"
+          }
+        }
       }
     ],
     "parameters": {
@@ -142,8 +164,10 @@
       true,
       false,
       false,
-      false
+      false,
+      true,
+      true
     ]
   },
-  "hash": "65d861ddb8169beef753c2e4a4ccec9de9d47231891acd5608b9917f589c27c1"
+  "hash": "2b9bc5e5e1a69c63566d0638dfeae6eb989895442c9efcaa69c4fa56c3b9920f"
 }

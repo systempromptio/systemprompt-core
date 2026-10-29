@@ -228,6 +228,16 @@ pub fn uninstall(
     })
 }
 
+pub fn remove_synced_plugins() -> Result<Vec<String>, InstallError> {
+    let location = paths::org_plugins_effective().ok_or(InstallError::OrgPluginsUnresolvable)?;
+    let metadata = paths::bridge_metadata_dir().ok_or(InstallError::MetadataUnresolvable)?;
+    let owned = crate::last_sync::read_last_sync(&metadata.join(paths::LAST_SYNC_SENTINEL))
+        .map_err(InstallError::LastSync)?
+        .map(|state| state.present_plugins)
+        .unwrap_or_default();
+    purge_plugin_dirs(&location.path, &owned)
+}
+
 // Why: only the plugin directories the last sync recorded are the bridge's to
 // remove; anything else under org-plugins was put there by someone else and
 // is reported, not deleted.

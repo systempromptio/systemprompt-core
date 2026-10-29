@@ -46,15 +46,15 @@ fn sandbox(gateway_uri: &str, seed_managed: Option<&str>) -> Sandbox {
         "seeded-loopback-secret",
     )
     .expect("seed loopback secret");
-    let pat_file = base.join("pat.txt");
-    fs::write(&pat_file, "sp-live-test-pat").expect("seed pat");
+    fs::write(
+        config_home.join("systemprompt-bridge.pat"),
+        "sp-live-test-pat",
+    )
+    .expect("seed pat");
     let config_file = config_home.join("systemprompt-bridge.toml");
     fs::write(
         &config_file,
-        format!(
-            "gateway_url = \"{gateway_uri}\"\n[pat]\nfile = '{}'\n",
-            pat_file.display()
-        ),
+        format!("gateway_url = \"{gateway_uri}\"\n[pat]\nstore = \"file\"\n"),
     )
     .expect("write bridge config");
 
@@ -165,7 +165,8 @@ fn with_gateway<R>(
     let managed = sb.managed_config.clone();
     let vars = sb.vars.clone();
     temp_env::with_vars(vars, || {
-        let ctx = BridgeContext::start(ProxyMode::Attach).expect("bridge context");
+        let ctx = BridgeContext::start(ProxyMode::Attach, std::sync::Arc::new(|| None))
+            .expect("bridge context");
         body(&ctx, &managed)
     })
 }

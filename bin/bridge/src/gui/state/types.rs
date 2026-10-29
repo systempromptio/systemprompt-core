@@ -101,6 +101,15 @@ pub struct AppStateSnapshot {
 
     pub update: crate::update::UpdateUiState,
     pub pending_device_action: Option<crate::wire::DeviceAction>,
+
+    pub display: crate::instance::DisplayBrand,
+    pub release_window: crate::instance::window::ReleaseWindowReport,
+    pub gateway_profiles: Vec<crate::config::gateways::ProfileSummary>,
+    pub instance_disabled: bool,
+    pub disable_allowed: bool,
+    pub admin_approval_pending: bool,
+    pub admin_approval_declined: bool,
+    pub stale_bridge_policy: bool,
 }
 
 impl AppStateSnapshot {

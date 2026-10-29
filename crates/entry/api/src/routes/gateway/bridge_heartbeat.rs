@@ -14,6 +14,8 @@ use axum::http::HeaderMap;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::SessionId;
+use systemprompt_manifest::services::BridgeReleasesSpec;
+use systemprompt_models::bridge::instance::{BridgeState, BridgeVersionWindow, WindowStatus};
 use systemprompt_models::bridge::manifest::{bridge_version_is_supported, min_bridge_version};
 use systemprompt_oauth::repository::UpsertBridgeSession;
 use systemprompt_runtime::AppContext;
@@ -36,12 +38,17 @@ pub struct BridgeHeartbeatRequest {
     pub tokens_in_total: i64,
     #[serde(default)]
     pub tokens_out_total: i64,
+    #[serde(default)]
+    pub release_version: Option<String>,
+    #[serde(default)]
+    pub state: Option<BridgeState>,
 }
 
 #[derive(Debug, Serialize)]
 pub struct BridgeHeartbeatResponse {
     pub min_bridge_version: String,
     pub compatible: bool,
+    pub window_status: WindowStatus,
 }
 
 pub async fn handle(
@@ -77,6 +84,13 @@ pub async fn handle(
         );
     }
 
+    let window_status = payload
+        .release_version
+        .as_deref()
+        .map_or(WindowStatus::Unknown, |release| {
+            release_window(&ctx).status(release)
+        });
+
     repo.upsert(UpsertBridgeSession {
         session_id: payload.session_id,
         user_id: claims.user_id,
@@ -87,6 +101,8 @@ pub async fn handle(
         forwarded_total: payload.forwarded_total,
         tokens_in_total: payload.tokens_in_total,
         tokens_out_total: payload.tokens_out_total,
+        release_version: payload.release_version,
+        state: payload.state,
     })
     .await
     .map_err(BridgeError::from)?;
@@ -94,5 +110,14 @@ pub async fn handle(
     Ok(Json(BridgeHeartbeatResponse {
         min_bridge_version: floor.to_string(),
         compatible,
+        window_status,
     }))
+}
+
+fn release_window(ctx: &AppContext) -> BridgeVersionWindow {
+    ctx.services_config()
+        .gateway_config()
+        .and_then(|g| g.bridge_releases.as_ref())
+        .map(BridgeReleasesSpec::version_window)
+        .unwrap_or_default()
 }

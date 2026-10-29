@@ -211,11 +211,8 @@ fn sandbox(gateway_uri: &str, pat_file: &Path, pubkey: Option<&str>) -> SandboxD
     let config_file = config_home.join("systemprompt-bridge.toml");
     let mut toml = String::new();
     toml.push_str(&format!("gateway_url = \"{gateway_uri}\"\n"));
-    toml.push_str("[pat]\n");
-    // A literal string: a path's backslashes would be invalid escapes in a
-    // basic string. This suite is Linux-only today, but the next one to write
-    // a path here should copy the working form.
-    toml.push_str(&format!("file = '{}'\n", pat_file.display()));
+    toml.push_str("[pat]\nstore = \"file\"\n");
+    fs::copy(pat_file, config_home.join("systemprompt-bridge.pat")).unwrap();
     if let Some(pk) = pubkey {
         toml.push_str("[sync.trust]\n");
         toml.push_str(&format!(
@@ -356,6 +353,9 @@ fn run_once_applies_full_manifest_end_to_end() {
             auto_update: Default::default(),
             diagnostics: Vec::new(),
             marketplaces: Vec::new(),
+            allow_user_disable: false,
+            branding: None,
+            bridge_versions: None,
         };
 
         pat_mock().mount(&server).await;
@@ -523,6 +523,9 @@ fn run_once_empty_manifest_writes_no_plugins() {
             auto_update: Default::default(),
             diagnostics: Vec::new(),
             marketplaces: Vec::new(),
+            allow_user_disable: false,
+            branding: None,
+            bridge_versions: None,
         };
 
         pat_mock().mount(&server).await;
@@ -588,6 +591,9 @@ fn run_once_surfaces_plugin_file_404_as_apply_failure() {
             auto_update: Default::default(),
             diagnostics: Vec::new(),
             marketplaces: Vec::new(),
+            allow_user_disable: false,
+            branding: None,
+            bridge_versions: None,
         };
 
         pat_mock().mount(&server).await;
@@ -650,6 +656,9 @@ fn manifest_with(servers: Vec<ManagedMcpServer>, enabled_hosts: Vec<HostKind>) -
         auto_update: Default::default(),
         diagnostics: Vec::new(),
         marketplaces: Vec::new(),
+        allow_user_disable: false,
+        branding: None,
+        bridge_versions: None,
     }
 }
 
@@ -827,6 +836,9 @@ fn manifest_of(plugins: Vec<PluginEntry>, hooks: Vec<HookEntry>) -> SignedManife
         auto_update: Default::default(),
         diagnostics: Vec::new(),
         marketplaces: Vec::new(),
+        allow_user_disable: false,
+        branding: None,
+        bridge_versions: None,
     }
 }
 
@@ -1376,6 +1388,9 @@ fn empty_manifest() -> SignedManifest {
         auto_update: Default::default(),
         diagnostics: Vec::new(),
         marketplaces: Vec::new(),
+        allow_user_disable: false,
+        branding: None,
+        bridge_versions: None,
     }
 }
 
@@ -1506,7 +1521,7 @@ fn sync_fails_only_when_a_freshly_minted_token_is_also_rejected() {
 }
 
 fn bridge() -> std::sync::Arc<BridgeContext> {
-    BridgeContext::start(ProxyMode::Attach).expect("runtime builds")
+    BridgeContext::start(ProxyMode::Attach, std::sync::Arc::new(|| None)).expect("runtime builds")
 }
 
 #[test]
@@ -2032,13 +2047,9 @@ fn gateway_switch_during_download_refuses_publication_and_original_gateway_retry
         observed_rx
             .recv_timeout(Duration::from_secs(10))
             .expect("plugin request observed");
-        let pat = fixture.pat_dir.join("pat.txt");
         fs::write(
             &fixture.dirs.config_file,
-            format!(
-                "gateway_url = 'https://replacement.invalid'\n[pat]\nfile = '{}'\n",
-                pat.display()
-            ),
+            "gateway_url = 'https://replacement.invalid'\n[pat]\nstore = \"file\"\n",
         )
         .unwrap();
         release_tx.send(()).unwrap();
@@ -2079,9 +2090,8 @@ fn gateway_switch_during_download_refuses_publication_and_original_gateway_retry
     fs::write(
         &fixture.dirs.config_file,
         format!(
-            "gateway_url = {:?}\n[pat]\nfile = '{}'\n",
+            "gateway_url = {:?}\n[pat]\nstore = \"file\"\n",
             fixture.server.uri(),
-            fixture.pat_dir.join("pat.txt").display()
         ),
     )
     .unwrap();

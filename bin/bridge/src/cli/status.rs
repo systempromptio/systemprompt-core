@@ -38,7 +38,7 @@ pub fn cmd_status(ctx: &crate::context::BridgeContext) -> ExitCode {
 
     status_line("config file", s.paths.config_file.display());
     status_indent("present", s.config_present);
-    status_line("secret file", s.paths.pat_file.display());
+    status_line("secret", s.paths.pat_location());
     status_indent("present", s.pat_present);
 
     print_oauth_client_status(ctx.secrets(), &s);

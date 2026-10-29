@@ -67,7 +67,9 @@ fn conflicting_replay_cannot_replace_a_reserved_installation_plan() {
             EvaluatorClient::Codex,
             vec![dir.path().join("attacker-controlled-root")],
         )),
-        Err(FeedbackError::Scope)
+        Err(FeedbackError::Readback(
+            systemprompt_bridge::feedback::ReadbackFault::PlanMismatch
+        ))
     ));
 
     let pending = outbox.pending_installations().unwrap();
@@ -197,4 +199,36 @@ fn a_full_installation_outbox_reclaims_only_superseded_work_and_preserves_active
         Err(FeedbackError::Full)
     ));
     assert_eq!(std::fs::read(&active_path).unwrap(), active_bytes);
+}
+
+#[test]
+fn a_moved_install_root_replaces_the_reserved_roots_and_resets_the_retry() {
+    use systemprompt_bridge::feedback::outbox::PendingInstallation;
+
+    let dir = tempfile::tempdir().unwrap();
+    let outbox = Outbox::new(dir.path().join("outbox.json"), scope("device"));
+    let key = outbox
+        .reserve_installation(PendingInstallation::new(
+            publication(),
+            EvaluatorClient::ClaudeCode,
+            vec![dir.path().join("cache").join("old-marketplace")],
+        ))
+        .unwrap();
+    outbox.begin_installation_attempt(&key).unwrap();
+
+    let moved = vec![dir.path().join("cache").join("new-marketplace")];
+    let same = outbox
+        .reserve_installation(PendingInstallation::new(
+            publication(),
+            EvaluatorClient::ClaudeCode,
+            moved.clone(),
+        ))
+        .expect("a moved root is the same installation, not another scope");
+
+    assert_eq!(same, key);
+    let pending = outbox.pending_installations().unwrap();
+    assert_eq!(pending.len(), 1);
+    assert_eq!(pending[0].1.roots, moved);
+    assert_eq!(pending[0].1.attempts, 0);
+    assert!(pending[0].1.next_attempt <= chrono::Utc::now());
 }

@@ -77,8 +77,6 @@ impl Report {
 /// A `--host` selection that names a host this build cannot act on.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum SelectionError {
-    #[error("--host {id}: this build does not offer the '{id}' host")]
-    Suppressed { id: String },
     #[error("--host {id}: unknown host id; known ids: {known}")]
     Unknown { id: String, known: String },
 }
@@ -121,11 +119,6 @@ pub fn resolve(selection: &Selection) -> Result<Vec<Target>, SelectionError> {
         match resolve_host(id) {
             ResolvedHost::Local(host) => targets.push(Target::Local(host)),
             ResolvedHost::SyncOnly(agent) => targets.push(Target::SyncOnly(agent)),
-            ResolvedHost::Suppressed => {
-                return Err(SelectionError::Suppressed {
-                    id: id.as_str().to_owned(),
-                });
-            },
             ResolvedHost::Unknown => {
                 return Err(SelectionError::Unknown {
                     id: id.as_str().to_owned(),
@@ -203,7 +196,12 @@ async fn enrol_one(
         Ok(g) => g,
         Err(e) => return (Outcome::Failed(e.into()), Vec::new()),
     };
-    match host.install_profile(&generated.path) {
+    match crate::integration::reapply::install_gated(
+        &bridge.elevation_gate,
+        host,
+        &generated.path,
+        crate::elevation_gate::Requester::Attended,
+    ) {
         Ok(installed) => {
             let outcome = if matches!(host.probe(env).profile_state, ProfileState::Installed) {
                 Outcome::Installed

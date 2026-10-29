@@ -9,7 +9,11 @@ use tempfile::TempDir;
 
 fn with_config<R>(body: Option<&str>, f: impl FnOnce() -> R) -> R {
     let dir = TempDir::new().expect("config home");
-    let brand = dir.path().join("systemprompt");
+    let brand = dir
+        .path()
+        .join("systemprompt")
+        .join("gateways")
+        .join("default");
     std::fs::create_dir_all(&brand).expect("brand dir");
     if let Some(text) = body {
         std::fs::write(brand.join("systemprompt-bridge.toml"), text).expect("config");

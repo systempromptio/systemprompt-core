@@ -32,7 +32,8 @@ fn in_sandbox<R>(f: impl FnOnce() -> R) -> R {
 #[test]
 fn running_the_proxy_command_from_an_attached_context_is_an_internal_error() {
     let code = in_sandbox(|| {
-        let ctx = BridgeContext::start(ProxyMode::Attach).expect("attach context");
+        let ctx = BridgeContext::start(ProxyMode::Attach, std::sync::Arc::new(|| None))
+            .expect("attach context");
         assert!(
             !ctx.proxy.is_serving(),
             "attach mode is the precondition this arm reports on"
@@ -51,7 +52,8 @@ fn running_the_proxy_command_from_an_attached_context_is_an_internal_error() {
 fn the_attached_arm_returns_promptly_rather_than_blocking_on_a_ctrl_c_handler() {
     let started = std::time::Instant::now();
     in_sandbox(|| {
-        let ctx = BridgeContext::start(ProxyMode::Attach).expect("attach context");
+        let ctx = BridgeContext::start(ProxyMode::Attach, std::sync::Arc::new(|| None))
+            .expect("attach context");
         cmd_proxy(&ctx)
     });
 

@@ -137,6 +137,12 @@ pub struct SignedManifest {
     pub desktop_policy: crate::bridge::desktop_policy::DesktopPolicy,
     #[serde(default)]
     pub auto_update: AutoUpdatePolicy,
+    #[serde(default)]
+    pub allow_user_disable: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub branding: Option<crate::bridge::instance::InstanceBranding>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bridge_versions: Option<crate::bridge::instance::BridgeVersionWindow>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub diagnostics: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]

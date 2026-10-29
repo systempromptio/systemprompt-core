@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use systemprompt_bridge::config::gateways::{ActiveProfile, GatewayProfileId};
 
 use systemprompt_bridge::auth::setup::{CleanReport, PathLayout};
 use systemprompt_bridge::install::{
@@ -34,9 +35,16 @@ fn report(summary: UninstallSummary, foreign: Option<String>) -> PurgeReport {
         uninstall: summary,
         clean: CleanReport {
             paths: PathLayout {
+                profile: ActiveProfile {
+                    id: GatewayProfileId::default_profile(),
+                    dir: PathBuf::from("/tmp/none"),
+                    config_file: PathBuf::from("/tmp/none/bridge.toml"),
+                    pinned: false,
+                },
                 config_dir: PathBuf::from("/tmp/none"),
                 config_file: PathBuf::from("/tmp/none/bridge.toml"),
                 pat_file: PathBuf::from("/tmp/none/bridge.pat"),
+                pat_store: None,
             },
             pat_removed: true,
             config_removed: true,

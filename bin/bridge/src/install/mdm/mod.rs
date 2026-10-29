@@ -4,6 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod claude_code_settings;
+pub mod clear_plan;
 pub mod desktop_policy;
 mod desktop_settings;
 pub mod desktop_tool_policy;
@@ -87,9 +88,30 @@ pub(crate) fn desktop_policy_entries(
         mcp.overrides.clone(),
         None,
     )?;
-    let inputs = facts.inputs_for(systemprompt_models::bridge::host::HostKind::ClaudeDesktop);
+    let mut inputs = facts.inputs_for(systemprompt_models::bridge::host::HostKind::ClaudeDesktop);
+    inputs.models = machine_models(inputs.models)?;
     policy::desktop_policy(&inputs, mcp.egress_allowed_hosts)
 }
+
+// Why: the machine policy is installed once and serves every gateway
+// profile, and replacing it needs an administrator; listing every profile's
+// models keeps a switch from needing a new policy, and the loopback proxy
+// refuses a model the active gateway does not serve.
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+fn machine_models(active: Vec<String>) -> Result<Vec<String>, MdmError> {
+    let by_profile = crate::config::gateways::served_models_by_profile()
+        .map_err(|e| MdmError::GatewayProfiles(Box::new(e)))?;
+    let mut models = active;
+    for model in crate::config::gateways::model_union(&by_profile) {
+        if !models.contains(&model) {
+            models.push(model);
+        }
+    }
+    Ok(models)
+}
+
+#[cfg(target_os = "macos")]
+pub(crate) use macos_remove::foreign_profile_installed;
 
 #[cfg(target_os = "windows")]
 pub(crate) fn remove_windows_policy(
@@ -146,14 +168,43 @@ pub fn bridge_policy_values(
     let Some(key) = pubkey else {
         return Ok(Vec::new());
     };
-    let record =
+    let pinned =
         crate::config::trust::TrustRecord::new(gateway, key, crate::config::PinSource::Policy)?;
-    let value = serde_json::to_string(&record).map_err(crate::config::TrustError::RecordEncode)?;
+    let others = crate::config::gateways::profile_trust_pins()
+        .map_err(|e| MdmError::GatewayProfiles(Box::new(e)))?;
+    let set = machine_trust_set(pinned, others);
+    // Why: bridges before multi-instance and MDM-deployed profiles verify a
+    // single record; the set form is written only once a second gateway needs
+    // a pin.
+    let value = match set.as_slice() {
+        [only] => serde_json::to_string(only),
+        _ => serde_json::to_string(&set),
+    }
+    .map_err(crate::config::TrustError::RecordEncode)?;
     Ok(vec![(
         crate::config::store::MANIFEST_TRUST_KEY,
         "REG_SZ",
         value,
     )])
+}
+
+#[must_use]
+pub fn machine_trust_set(
+    pinned: crate::config::TrustRecord,
+    others: Vec<crate::config::TrustRecord>,
+) -> Vec<crate::config::TrustRecord> {
+    let mut set = vec![pinned];
+    for mut record in others {
+        if set
+            .iter()
+            .any(|existing| existing.gateway == record.gateway)
+        {
+            continue;
+        }
+        record.source = crate::config::PinSource::Policy;
+        set.push(record);
+    }
+    set
 }
 
 #[expect(

@@ -1,6 +1,13 @@
 #![allow(clippy::all)]
 
 #[cfg(test)]
+mod clear_plan;
+#[cfg(test)]
+mod elevation_gate;
+#[cfg(test)]
+mod permission_carrier;
+
+#[cfg(test)]
 mod approval;
 #[cfg(test)]
 mod bootstrap;

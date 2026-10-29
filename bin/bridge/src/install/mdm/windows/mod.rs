@@ -11,44 +11,13 @@ pub(super) use self::apply::apply;
 
 use super::error::MdmError;
 use super::windows_policy;
-use crate::config::store::{PolicyHive, PolicyWrite};
-
-pub(super) fn write_managed_mcp_servers_value(
-    store: &crate::config::store::PolicyStore,
-    value: &str,
-) -> Result<String, MdmError> {
-    let elevated = crate::winproc::is_elevated();
-    let entries = [("managedMcpServers".to_owned(), value.to_owned())];
-    let outcome = crate::config::store::verified::apply(
-        store.backend(),
-        crate::config::store::hive_for(elevated),
-        crate::config::store::PolicyTarget::Claude,
-        &crate::config::store::PolicyDocumentValue::strings(&entries),
-    )
-    .map_err(windows_policy::policy_err)?;
-    if elevated {
-        clear_stale_user_value("managedMcpServers")?;
-    }
-    Ok(match outcome.outcome() {
-        PolicyWrite::AlreadyVerified(hive) => format!("{} already verified", policy_key(hive)),
-        PolicyWrite::Written(hive) => format!("{} ← managedMcpServers", policy_key(hive)),
-        PolicyWrite::SatisfiedByMachine => format!(
-            "{} already holds this managedMcpServers value; the per-user copy was not written",
-            crate::cowork_compat::HKLM_POLICY_KEY
-        ),
-    })
-}
+use crate::config::store::PolicyHive;
 
 const fn policy_key(hive: PolicyHive) -> &'static str {
     match hive {
         PolicyHive::Machine => crate::cowork_compat::HKLM_POLICY_KEY,
         PolicyHive::User => crate::cowork_compat::HKCU_POLICY_KEY,
     }
-}
-
-fn clear_stale_user_value(name: &str) -> Result<(), MdmError> {
-    crate::config::store::clear_managed_claude_policy(false, &[name])?;
-    Ok(())
 }
 
 fn require_org_plugins() -> Result<(), MdmError> {

@@ -1,6 +1,6 @@
 use systemprompt_bridge::config::trust::{
     GatewayIdentity, PinSource, TrustError, TrustRecord, parse_policy_trust,
-    resolve_pinned_pubkey_state,
+    resolve_pinned_pubkey_state, select_pin,
 };
 use systemprompt_bridge::config::{Config, PinnedPubkeyState};
 use systemprompt_identifiers::ValidatedUrl;
@@ -62,7 +62,8 @@ fn operator_only(cfg: &Config, gateway: &ValidatedUrl) -> Result<PinnedPubkeySta
 }
 
 fn managed(record: &str, gateway: &ValidatedUrl) -> Result<PinnedPubkeyState, TrustError> {
-    let policy = parse_policy_trust(record).expect("the managed record parses");
+    let pins = parse_policy_trust(record).expect("the managed record parses");
+    let policy = select_pin(pins, gateway).expect("gateway").expect("a pin");
     resolve_pinned_pubkey_state(Some(&policy), None, gateway)
 }
 
@@ -174,7 +175,8 @@ fn a_managed_pin_for_the_current_gateway_is_still_refused_when_its_key_is_unusab
 fn a_managed_pin_outranks_an_operator_pin_for_the_same_gateway() {
     let gateway = ValidatedUrl::try_new("https://gw.example.com").expect("url");
     let policy = parse_policy_trust(&policy_record("https://gw.example.com", VALID_KEY))
-        .expect("managed record");
+        .expect("managed record")
+        .remove(0);
     let operator_key = "11qYAYKxCrfVS/7TyWQHOg7hcvPapiMlrwIaaPcHURo=";
     let operator =
         TrustRecord::new(&gateway, operator_key, PinSource::Operator).expect("operator record");
@@ -193,7 +195,7 @@ fn a_managed_pin_outranks_an_operator_pin_for_the_same_gateway() {
 fn a_managed_record_is_labelled_policy_whatever_source_it_claims() {
     let record = r#"{"gateway":"https://gw.example.com","key":"k","source":"operator"}"#;
     let parsed = parse_policy_trust(record).expect("record parses");
-    assert_eq!(parsed.source, PinSource::Policy);
+    assert_eq!(parsed[0].source, PinSource::Policy);
 }
 
 #[test]
@@ -216,4 +218,50 @@ fn the_process_environment_cannot_supply_or_replace_managed_trust() {
         matches!(result, Err(TrustError::KeyEncoding(_))),
         "the operator record is what is judged; the env record never wins: {result:?}"
     );
+}
+
+#[test]
+fn a_machine_trust_set_pins_each_gateway_and_selects_the_active_one() {
+    let other_key = "11qYAYKxCrfVS/7TyWQHOg7hcvPapiMlrwIaaPcHURo=";
+    let set = format!(
+        "[{},{}]",
+        policy_record("https://a.example.com", VALID_KEY),
+        policy_record("https://b.example.com", other_key)
+    );
+    let b = ValidatedUrl::try_new("https://b.example.com").unwrap();
+    let state = managed(&set, &b).unwrap();
+    assert!(
+        matches!(state, PinnedPubkeyState::Pinned { ref key, .. } if key.as_str() == other_key)
+    );
+
+    let c = ValidatedUrl::try_new("https://c.example.com").unwrap();
+    assert!(
+        matches!(
+            managed(&set, &c).unwrap(),
+            PinnedPubkeyState::StaleForGateway { .. }
+        ),
+        "a gateway the machine set does not pin is refused, never trusted on first use"
+    );
+}
+
+#[test]
+fn the_machine_trust_set_keeps_the_new_pin_and_one_per_other_gateway() {
+    use systemprompt_bridge::install::mdm::machine_trust_set;
+    let a = ValidatedUrl::try_new("https://a.example.com").unwrap();
+    let b = ValidatedUrl::try_new("https://b.example.com").unwrap();
+    let pinned = TrustRecord::new(&a, VALID_KEY, PinSource::Policy).unwrap();
+    let stale_a = TrustRecord::new(
+        &a,
+        "11qYAYKxCrfVS/7TyWQHOg7hcvPapiMlrwIaaPcHURo=",
+        PinSource::Operator,
+    )
+    .unwrap();
+    let other_b = TrustRecord::new(&b, VALID_KEY, PinSource::Operator).unwrap();
+    let set = machine_trust_set(pinned.clone(), vec![stale_a, other_b]);
+    assert_eq!(set.len(), 2);
+    assert_eq!(
+        set[0], pinned,
+        "the pin being installed wins for its gateway"
+    );
+    assert!(set.iter().all(|r| r.source == PinSource::Policy));
 }

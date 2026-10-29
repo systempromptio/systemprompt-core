@@ -23,7 +23,10 @@ mod route;
 mod route_id;
 mod state;
 
-pub use config::{BridgeReleasesSpec, GatewayConfig, GatewayConfigSpec, QuotaFaultMode};
+pub use config::{
+    BridgeBrandingSpec, BridgeInstanceSpec, BridgeReleasesSpec, GatewayConfig, GatewayConfigSpec,
+    QuotaFaultMode,
+};
 pub use error::{GatewayProfileError, GatewayResult};
 pub use override_rule::{OverrideRuleAction, SystemPromptRule};
 pub use route::{

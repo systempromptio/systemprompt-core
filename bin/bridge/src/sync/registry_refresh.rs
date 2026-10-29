@@ -37,6 +37,7 @@ pub async fn refresh_registry(bridge: &BridgeContext) -> Result<usize, SyncError
         config::pinned_pubkey_state(),
         Ok(config::PinnedPubkeyState::Unpinned)
     );
+    manifest::ensure_enabled(&config::load()?)?;
     let fetch = manifest::fetch_authenticated_manifest(&bridge.http, Freshness::Fresh).await?;
     let synced = manifest::verify_and_decode(&fetch, false, allow_tofu).await?;
     super::acceptance::accept(

@@ -22,6 +22,7 @@ use crate::proxy::token_cache::TokenCache;
 use crate::update::automatic::UpdateGate;
 use crate::warn_once::WarnOnce;
 use systemprompt_models::ApiPaths;
+use systemprompt_models::bridge::instance::{BridgeState, WindowStatus};
 
 pub const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(30);
 const HEARTBEAT_AUTH_THRESHOLD_SECS: u64 = 300;
@@ -36,6 +37,8 @@ struct HeartbeatPayload<'a> {
     forwarded_total: i64,
     tokens_in_total: i64,
     tokens_out_total: i64,
+    release_version: &'a str,
+    state: BridgeState,
 }
 
 /// What the heartbeat loop runs against, built from the proxy's own state.
@@ -67,6 +70,7 @@ pub async fn run_loop(deps: HeartbeatDeps) {
     interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
     interval.tick().await;
     let mut waiting_for_sign_in = false;
+    let mut failing = false;
     let mut staging = tokio::task::JoinSet::new();
     let feedback_faults = WarnOnce::default();
     loop {
@@ -93,14 +97,24 @@ pub async fn run_loop(deps: HeartbeatDeps) {
         waiting_for_sign_in = false;
         let tick = Tick {
             gateway_base: cfg.gateway_base.as_ref(),
+            disabled: cfg.disabled,
             token_cache: token_cache.as_ref(),
             session: session.as_ref(),
             stats: stats.as_ref(),
             client: &client,
             update_gate: &update_gate,
         };
-        if let Err(err) = send_one(tick, &mut staging).await {
-            tracing::warn!(error = %err, "bridge heartbeat tick failed");
+        match send_one(tick, &mut staging).await {
+            Err(err) if failing => tracing::debug!(error = %err, "bridge heartbeat still failing"),
+            Err(err) => {
+                tracing::warn!(error = %err, "bridge heartbeat tick failed");
+                failing = true;
+            },
+            Ok(()) if failing => {
+                tracing::info!("bridge heartbeat recovered");
+                failing = false;
+            },
+            Ok(()) => {},
         }
     }
 }
@@ -142,6 +156,7 @@ fn report_feedback(faults: &WarnOnce, result: crate::feedback::Result<()>, messa
 
 struct Tick<'a> {
     gateway_base: &'a ValidatedUrl,
+    disabled: bool,
     token_cache: &'a TokenCache,
     session: &'a SessionContext,
     stats: &'a ProxyStats,
@@ -155,6 +170,7 @@ async fn send_one(
 ) -> Result<(), HeartbeatError> {
     let Tick {
         gateway_base,
+        disabled,
         token_cache,
         session,
         stats,
@@ -176,6 +192,12 @@ async fn send_one(
         forwarded_total: i64_saturating(stats.forwarded_total.load(Ordering::Relaxed)),
         tokens_in_total: i64_saturating(stats.tokens_in_total.load(Ordering::Relaxed)),
         tokens_out_total: i64_saturating(stats.tokens_out_total.load(Ordering::Relaxed)),
+        release_version: crate::brand::brand().version,
+        state: if disabled {
+            BridgeState::Disabled
+        } else {
+            BridgeState::Active
+        },
     };
 
     let url = format!(
@@ -201,14 +223,30 @@ async fn send_one(
         let (status, rejection) = crate::gateway::GatewayRejection::read(response).await;
         return Err(HeartbeatError::Upstream { status, rejection });
     }
-    if let Ok(body) = response.json::<HeartbeatResponse>().await
-        && !body.compatible
-    {
+    let Ok(body) = response.json::<HeartbeatResponse>().await else {
+        return Ok(());
+    };
+    let below_window = body.window_status == Some(WindowStatus::Below);
+    if !body.compatible {
         tracing::warn!(
             local = %crate::brand::COMPAT_VERSION,
             required = %body.min_bridge_version,
             "gateway reports this bridge as unsupported",
         );
+    }
+    if below_window {
+        tracing::warn!(
+            release = %crate::brand::brand().version,
+            "gateway reports this bridge release below the window the instance admits",
+        );
+    }
+    if body.window_status == Some(WindowStatus::Above) {
+        tracing::warn!(
+            release = %crate::brand::brand().version,
+            "gateway reports this bridge release above the window the instance admits",
+        );
+    }
+    if !body.compatible || below_window {
         // Why: a staging download can take minutes; the heartbeat keeps its pace.
         staging.spawn(stage_required_release(
             update_gate.clone(),
@@ -248,6 +286,8 @@ async fn stage_required_release(
 struct HeartbeatResponse {
     min_bridge_version: String,
     compatible: bool,
+    #[serde(default)]
+    window_status: Option<WindowStatus>,
 }
 
 fn i64_saturating(value: u64) -> i64 {

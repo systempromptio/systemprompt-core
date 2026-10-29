@@ -36,7 +36,7 @@ bin/bridge/src/auth/providers/pat.rs  # <PREFIX>_PAT inline PAT
 bin/bridge/src/basedirs.rs  # HOME and XDG_CONFIG_HOME / XDG_CACHE_HOME / XDG_DATA_HOME / XDG_STATE_HOME base-directory probes
 bin/bridge/src/cli/args.rs  # __CFBundleIdentifier LaunchServices app-bundle launch probe (macOS GUI-by-default)
 bin/bridge/src/cli/doctor/claude_code.rs  # ANTHROPIC_API_KEY / ANTHROPIC_AUTH_TOKEN presence probes: the doctor reports what the shell's Claude Code will read
-bin/bridge/src/config/mod.rs  # <PREFIX>_CONFIG config-file path
+bin/bridge/src/config/gateways/mod.rs  # <PREFIX>_CONFIG pins the process to one config file instead of the gateway profiles
 bin/bridge/src/sysproc/mod.rs  # PATH lookup for host tool binaries
 bin/bridge/src/config/paths/dirs.rs  # LOCALAPPDATA / USERPROFILE Windows folder probes
 bin/bridge/src/config/paths/mod.rs  # CLAUDE_CONFIG_DIR (Claude Code-defined config-dir override): which user settings file this user's Claude Code reads; <PREFIX>_ORG_PLUGINS_SYSTEM system org-plugins root; ProgramFiles / ProgramData / LOCALAPPDATA Windows folder probes

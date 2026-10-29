@@ -24,17 +24,92 @@ fn enforce_managed_policy(mcp: &super::MdmPayloadInputs<'_>) -> Result<String, s
     }
 }
 
-#[cfg(any(target_os = "macos", target_os = "windows"))]
-fn write_empty_managed_mcp_servers(
+#[cfg(target_os = "windows")]
+fn clear_bridge_policy(
     mcp: &super::MdmPayloadInputs<'_>,
-) -> Result<String, super::MdmError> {
-    #[cfg(target_os = "windows")]
-    {
-        super::windows::write_managed_mcp_servers_value(mcp.policy_store, "[]")
+) -> Result<Vec<String>, crate::host_sync::ApplyError> {
+    use super::clear_plan::{ClearPlan, ObservedPolicy, plan_clear};
+    use crate::config::store::{PolicyHive, PolicyTarget};
+
+    let ours = mcp.loopback.secret_fingerprint();
+    let store = mcp.policy_store.backend();
+    let mut lines = Vec::new();
+    for hive in [PolicyHive::User, PolicyHive::Machine] {
+        let doc = store
+            .read_policy_document(
+                hive,
+                PolicyTarget::Claude,
+                super::policy::WRITTEN_POLICY_KEYS,
+            )
+            .map_err(|e| step("read the Claude Desktop policy", e))?;
+        let observed = ObservedPolicy {
+            keys: doc.keys().cloned().collect(),
+            api_key_fingerprint: doc
+                .get(crate::cowork_compat::POLICY_API_KEY)
+                .and_then(crate::config::store::PolicyDocumentValue::as_str)
+                .map(|v| crate::proxy::secret::fingerprint(v.trim())),
+            base_url: doc
+                .get("inferenceGatewayBaseUrl")
+                .and_then(crate::config::store::PolicyDocumentValue::as_str)
+                .map(str::to_owned),
+            profile_managed: false,
+        };
+        let names: Vec<&str> = match plan_clear(Some(&observed), ours.as_deref()) {
+            ClearPlan::NothingWritten => continue,
+            ClearPlan::StaleBridgePolicy => {
+                lines.push(format!(
+                    "{}: a previous bridge install's policy; replace it from the app to release it",
+                    hive.label()
+                ));
+                continue;
+            },
+            ClearPlan::ManagedElsewhere => {
+                lines.push(format!(
+                    "{}: managed by an administrator; left in place",
+                    hive.label()
+                ));
+                continue;
+            },
+            ClearPlan::RemoveAll => observed.keys.iter().map(String::as_str).collect(),
+            ClearPlan::RemoveKeys(keys) => keys,
+        };
+        if hive == PolicyHive::Machine && !crate::winproc::is_elevated() {
+            return Err(crate::host_sync::ApplyError::ElevationRequired {
+                what: "the Claude Desktop machine policy",
+                detail: format!("removing {} bridge value(s) from HKLM", names.len()),
+            });
+        }
+        let removed = crate::config::store::verified::remove_values(
+            store,
+            hive,
+            PolicyTarget::Claude,
+            &names,
+        )
+        .map_err(|e| step("remove the bridge's Claude Desktop policy", e))?;
+        lines.push(format!(
+            "{}: removed {removed} bridge value(s)",
+            hive.label()
+        ));
     }
-    #[cfg(not(target_os = "windows"))]
-    {
-        refresh_managed_mcp_servers(mcp)
+    Ok(lines)
+}
+
+#[cfg(target_os = "macos")]
+fn clear_bridge_policy(
+    mcp: &super::MdmPayloadInputs<'_>,
+) -> Result<Vec<String>, crate::host_sync::ApplyError> {
+    super::macos_remove::clear_bridge_preferences(mcp.loopback.secret_fingerprint().as_deref())
+        .map_err(|e| step("remove the bridge's Claude Desktop managed preferences", e))
+}
+
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+fn step(
+    context: &'static str,
+    e: impl std::error::Error + Send + Sync + 'static,
+) -> crate::host_sync::ApplyError {
+    crate::host_sync::ApplyError::Step {
+        context,
+        source: Box::new(e),
     }
 }
 
@@ -224,26 +299,17 @@ impl crate::host_sync::HostSync for ClaudeDesktopMdmSync {
         ctx: &crate::host_sync::HostSyncCtx<'_>,
     ) -> Result<(), crate::host_sync::ApplyError> {
         let empty = crate::mcp_registry::McpRegistry::new();
-        match write_empty_managed_mcp_servers(&super::MdmPayloadInputs {
+        let lines = clear_bridge_policy(&super::MdmPayloadInputs {
             policy_store: ctx.policy_store,
             loopback: ctx.loopback,
             registry: &empty,
             egress_allowed_hosts: None,
             overrides: &ctx.manifest.host_model_protocols,
-        }) {
-            Ok(line) => {
-                tracing::info!(
-                    target: "bridge::mdm",
-                    written = %line,
-                    "managedMcpServers policy cleared"
-                );
-                Ok(())
-            },
-            Err(e) => Err(crate::host_sync::ApplyError::Step {
-                context: "mdm clear",
-                source: Box::new(e),
-            }),
+        })?;
+        for line in &lines {
+            tracing::info!(target: "bridge::mdm", %line, "Claude Desktop policy clear");
         }
+        Ok(())
     }
 }
 

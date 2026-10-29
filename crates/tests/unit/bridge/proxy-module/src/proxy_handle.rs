@@ -8,7 +8,8 @@ use systemprompt_bridge::proxy::{self, ProxyRole};
 fn a_serving_proxy_identifies_itself_on_its_own_port() {
     let temp = tempfile::tempdir().expect("config tempdir");
     temp_env::with_var("XDG_CONFIG_HOME", Some(temp.path().as_os_str()), || {
-        let ctx = BridgeContext::start(ProxyMode::Serve).expect("runtime builds");
+        let ctx = BridgeContext::start(ProxyMode::Serve, std::sync::Arc::new(|| None))
+            .expect("runtime builds");
         let ProxyRole::Serving(served) = ctx.proxy.role() else {
             panic!("the proxy binds a candidate port: {:?}", ctx.proxy.role());
         };
@@ -41,7 +42,8 @@ fn a_serving_proxy_identifies_itself_on_its_own_port() {
 fn forgetting_the_recorded_port_removes_the_record() {
     let temp = tempfile::tempdir().expect("config tempdir");
     temp_env::with_var("XDG_CONFIG_HOME", Some(temp.path().as_os_str()), || {
-        let ctx = BridgeContext::start(ProxyMode::Serve).expect("runtime builds");
+        let ctx = BridgeContext::start(ProxyMode::Serve, std::sync::Arc::new(|| None))
+            .expect("runtime builds");
         assert!(
             proxy::portfile::read(ctx.install_id())
                 .expect("the record is readable")
@@ -66,7 +68,8 @@ fn forgetting_the_recorded_port_removes_the_record() {
 fn an_attached_proxy_serves_nothing_and_claims_no_peer_of_its_own() {
     let temp = tempfile::tempdir().expect("config tempdir");
     temp_env::with_var("XDG_CONFIG_HOME", Some(temp.path().as_os_str()), || {
-        let ctx = BridgeContext::start(ProxyMode::Attach).expect("runtime builds");
+        let ctx = BridgeContext::start(ProxyMode::Attach, std::sync::Arc::new(|| None))
+            .expect("runtime builds");
         assert!(!ctx.proxy.is_serving());
         assert!(ctx.proxy.served().is_none(), "attach binds nothing");
         assert!(
@@ -100,7 +103,8 @@ fn a_recorded_port_now_held_by_another_install_is_abandoned() {
 
     // A bridge from a different install (a different config dir) holding a port.
     let foreign = temp_env::with_var("XDG_CONFIG_HOME", Some(other.path().as_os_str()), || {
-        BridgeContext::start(ProxyMode::Serve).expect("runtime builds")
+        BridgeContext::start(ProxyMode::Serve, std::sync::Arc::new(|| None))
+            .expect("runtime builds")
     });
     let ProxyRole::Serving(served) = foreign.proxy.role() else {
         panic!("the foreign proxy binds a port: {:?}", foreign.proxy.role());
@@ -125,7 +129,8 @@ fn a_recorded_port_now_held_by_another_install_is_abandoned() {
         );
         proxy::portfile::write(foreign_port, &install).expect("record the stale port");
 
-        let ctx = BridgeContext::start(ProxyMode::Attach).expect("runtime builds");
+        let ctx = BridgeContext::start(ProxyMode::Attach, std::sync::Arc::new(|| None))
+            .expect("runtime builds");
         assert!(matches!(ctx.proxy.role(), ProxyRole::Attached));
         assert_eq!(
             ctx.proxy.port(),

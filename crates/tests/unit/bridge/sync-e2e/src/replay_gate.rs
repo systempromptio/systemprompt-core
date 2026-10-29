@@ -62,6 +62,9 @@ fn manifest(
         auto_update: Default::default(),
         diagnostics: Vec::new(),
         marketplaces: Vec::new(),
+        allow_user_disable: false,
+        branding: None,
+        bridge_versions: None,
     }
 }
 
@@ -107,16 +110,13 @@ fn build_sandbox(gateway_uri: &str) -> Sandbox {
     let org_plugins = data_home.join("Claude").join("org-plugins");
     fs::create_dir_all(&org_plugins).unwrap();
 
-    let pat_file = base.join("pat.txt");
+    let pat_file = config_home.join("systemprompt-bridge.pat");
     fs::write(&pat_file, "sp-live-test-pat").unwrap();
 
     let config_file = config_home.join("systemprompt-bridge.toml");
     fs::write(
         &config_file,
-        format!(
-            "gateway_url = \"{gateway_uri}\"\n[pat]\nfile = \"{}\"\n",
-            pat_file.display()
-        ),
+        format!("gateway_url = \"{gateway_uri}\"\n[pat]\nstore = \"file\"\n",),
     )
     .unwrap();
 
@@ -267,5 +267,5 @@ fn a_successful_non_forced_apply_persists_the_replay_sentinel() {
 }
 
 fn bridge() -> std::sync::Arc<BridgeContext> {
-    BridgeContext::start(ProxyMode::Attach).expect("runtime builds")
+    BridgeContext::start(ProxyMode::Attach, std::sync::Arc::new(|| None)).expect("runtime builds")
 }

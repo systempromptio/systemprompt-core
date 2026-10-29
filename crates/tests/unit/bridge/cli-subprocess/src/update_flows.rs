@@ -719,7 +719,15 @@ async fn login_no_browser_pastes_code_through_a_terminal_and_persists_the_pat() 
             "request paths: {paths:?}"
         );
     }
-    assert_eq!(paths.len(), 4, "no unexpected request: {paths:?}");
+    assert_eq!(
+        paths
+            .iter()
+            .filter(|path| **path == "/.well-known/systemprompt-bridge")
+            .count(),
+        1,
+        "sign-in reads the instance's discovery once: {paths:?}"
+    );
+    assert_eq!(paths.len(), 5, "no unexpected request: {paths:?}");
     let redemption = requests
         .iter()
         .find(|request| request.url.path() == "/v1/auth/bridge/session-pat")

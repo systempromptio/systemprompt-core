@@ -222,10 +222,9 @@ pub fn check_personal_session_sentinel() -> Option<Check> {
                 }
                 total_orgs += 1;
                 let name = org.file_name();
-                if name
-                    .to_str()
-                    .is_some_and(|s| s.eq_ignore_ascii_case(PERSONAL_SESSION_UUID))
-                {
+                if name.to_str().is_some_and(|s| {
+                    crate::integration::cowork_plugins::dir_names_org(s, PERSONAL_SESSION_UUID)
+                }) {
                     matched = true;
                 }
             }

@@ -52,10 +52,7 @@ fn unauthorized(
         .map(|label| format!(" for {label}"))
         .unwrap_or_default();
     let (config_file, pat_file) = match crate::auth::setup::resolve_paths() {
-        Ok(p) => (
-            p.config_file.display().to_string(),
-            p.pat_file.display().to_string(),
-        ),
+        Ok(p) => (p.config_file.display().to_string(), p.pat_location()),
         Err(_) => ("<unresolvable>".to_owned(), "<unresolvable>".to_owned()),
     };
     SyncError::GatewayUnauthorized(Box::new(super::error::CredentialRejection {
@@ -103,6 +100,12 @@ pub(super) fn map_manifest_error(err: ManifestError) -> SyncError {
         ManifestError::BridgeTooOld { local, required } => {
             SyncError::BridgeTooOld { local, required }
         },
+        ManifestError::BridgeBelowWindow { local, min } => {
+            SyncError::BridgeBelowWindow { local, min }
+        },
+        ManifestError::BridgeAboveWindow { local, max } => {
+            SyncError::BridgeAboveWindow { local, max }
+        },
         other => SyncError::ManifestShape(ManifestShapeCause::Manifest(other)),
     }
 }
@@ -115,6 +118,8 @@ fn signature_failure(
     match err {
         ManifestError::SchemaTooNew { .. }
         | ManifestError::BridgeTooOld { .. }
+        | ManifestError::BridgeBelowWindow { .. }
+        | ManifestError::BridgeAboveWindow { .. }
         | ManifestError::PayloadParse(_) => map_manifest_error(err),
         other => SyncError::SignatureFailed {
             detail: other.to_string(),
@@ -230,7 +235,9 @@ pub(super) async fn verify_and_decode(
                 pin_source: source.label(),
             });
         }
-        return decode_payload(&fetch.envelope).map_err(map_manifest_error);
+        let manifest = decode_payload(&fetch.envelope).map_err(map_manifest_error)?;
+        admit_release(&manifest)?;
+        return Ok(manifest);
     }
     let (pubkey, source, newly_trusted) = match state {
         config::PinnedPubkeyState::Pinned { key, source } => (key, source, false),
@@ -265,7 +272,53 @@ pub(super) async fn verify_and_decode(
     if newly_trusted {
         config::persist_pinned_pubkey(fetch.client.base_url(), pubkey.as_str())?;
     }
+    record_delivered_instance(fetch.client.base_url(), &manifest)?;
+    admit_release(&manifest)?;
     Ok(manifest)
+}
+
+fn record_delivered_instance(
+    gateway: &systemprompt_identifiers::ValidatedUrl,
+    manifest: &SignedManifest,
+) -> Result<(), SyncError> {
+    let profile = config::gateways::active().map_err(|e| SyncError::GatewayProfile(Box::new(e)))?;
+    config::gateways::write_delivered(
+        &profile,
+        &config::gateways::DeliveredInstance {
+            gateway: Some(gateway.clone()),
+            window: manifest.bridge_versions.clone(),
+            branding: manifest.branding.clone(),
+            allow_user_disable: manifest.allow_user_disable,
+        },
+    )
+    .map_err(|e| SyncError::GatewayProfile(Box::new(e)))
+}
+
+fn admit_release(manifest: &SignedManifest) -> Result<(), SyncError> {
+    let local = crate::brand::brand().version;
+    match crate::gateway::manifest::check_release_window(manifest, local)
+        .map_err(map_manifest_error)?
+    {
+        crate::gateway::manifest::WindowVerdict::Admitted => Ok(()),
+        crate::gateway::manifest::WindowVerdict::AboveTolerated { max } => {
+            tracing::warn!(
+                %local,
+                %max,
+                "this bridge release is newer than the instance admits; install the offered \
+                 release to return inside its window"
+            );
+            Ok(())
+        },
+    }
+}
+
+pub(super) fn ensure_enabled(config: &config::Config) -> Result<(), SyncError> {
+    if config.is_disabled() {
+        return Err(SyncError::Disabled {
+            bin: crate::brand::brand().binary_name,
+        });
+    }
+    Ok(())
 }
 
 async fn fetch_fresh_token(

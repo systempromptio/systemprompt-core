@@ -366,5 +366,6 @@ fn test_deps() -> systemprompt_bridge::proxy::ProxyDeps {
         drive_signals: systemprompt_bridge::proxy::drive_signal::DriveSignals::channel().0,
         notification_signals:
             systemprompt_bridge::proxy::notifications::NotificationSignals::channel().0,
+        desktop_policy_key_fp: std::sync::Arc::new(|| None),
     }
 }

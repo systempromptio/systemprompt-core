@@ -45,6 +45,7 @@ pub enum McpAuthState {
     LoopbackMismatch,
     GatewayUnauthorized,
     NotRegistered,
+    ProviderNotConnected,
     UpstreamError,
     ProxyUnreachable,
     ProbeTimeout,
@@ -70,7 +71,7 @@ impl McpAuthState {
     pub const fn tone(self) -> Tone {
         match self {
             Self::Authenticated => Tone::Ok,
-            Self::NoServers => Tone::Warn,
+            Self::NoServers | Self::ProviderNotConnected => Tone::Warn,
             Self::Unknown | Self::ProxyUnreachable | Self::ProbeTimeout | Self::LocalError => {
                 Tone::Unknown
             },
@@ -80,6 +81,11 @@ impl McpAuthState {
             | Self::UpstreamError
             | Self::ProtocolError => Tone::Err,
         }
+    }
+
+    #[must_use]
+    pub const fn needs_account_connection(self) -> bool {
+        matches!(self, Self::ProviderNotConnected)
     }
 
     #[must_use]

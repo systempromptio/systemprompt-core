@@ -50,6 +50,7 @@ pub fn mcp_entries_with(
     slugs.sort();
     let mut out = Vec::with_capacity(slugs.len());
     let mut unexpanded = false;
+    let needs_connection = super::tool_catalog::needs_connection();
     for slug in slugs {
         let Some(upstream) = registry.get(slug) else {
             continue;
@@ -69,6 +70,13 @@ pub fn mcp_entries_with(
             upstream,
             catalog.get(slug).map_or(&[][..], Vec::as_slice),
         ) else {
+            if needs_connection.contains(slug.as_str()) {
+                if first_sighting(seen, slug, "needs connection") {
+                    tracing::info!(target: "bridge::mdm", slug = %slug, "managed MCP server needs its account connected; withheld from the desktop policy until the user connects it");
+                }
+                unexpanded = true;
+                continue;
+            }
             if first_sighting(seen, slug, "unexpanded wildcard") {
                 tracing::warn!(target: "bridge::mdm", slug = %slug, "tool catalog has no names for a wildcard tool policy; this server skipped, the rest still written");
             } else {

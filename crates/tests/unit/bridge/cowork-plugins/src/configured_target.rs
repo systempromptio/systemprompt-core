@@ -27,11 +27,13 @@ impl Sandbox {
 
     fn with_config<R>(&self, session_org_dir: &Path, f: impl FnOnce() -> R) -> R {
         let config_home = self.dir.path().join("config");
-        std::fs::create_dir_all(config_home.join("systemprompt")).expect("config dir");
+        let profile = config_home
+            .join("systemprompt")
+            .join("gateways")
+            .join("default");
+        std::fs::create_dir_all(&profile).expect("config dir");
         std::fs::write(
-            config_home
-                .join("systemprompt")
-                .join("systemprompt-bridge.toml"),
+            profile.join("systemprompt-bridge.toml"),
             // A TOML literal string: a Windows path's backslashes are invalid
             // escapes in a basic string, so interpolating one there makes the
             // whole file unparseable and the setting silently absent.

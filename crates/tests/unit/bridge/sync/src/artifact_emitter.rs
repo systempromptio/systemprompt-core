@@ -59,6 +59,9 @@ fn manifest(artifacts: Vec<ArtifactEntry>) -> SignedManifest {
         auto_update: Default::default(),
         diagnostics: Vec::new(),
         marketplaces: Vec::new(),
+        allow_user_disable: false,
+        branding: None,
+        bridge_versions: None,
     }
 }
 

@@ -14,6 +14,7 @@ pub mod doctor;
 pub mod drive;
 mod feedback;
 pub mod flags;
+pub mod gateway;
 mod gui;
 mod install;
 mod install_claude_policy;
@@ -106,7 +107,10 @@ pub fn run_launch(args: &[String], launch: Launch) -> ExitCode {
     } else {
         ProxyMode::Attach
     };
-    let ctx = match BridgeContext::start(mode) {
+    let ctx = match BridgeContext::start(
+        mode,
+        Arc::new(crate::integration::claude_desktop::policy_api_key_fingerprint),
+    ) {
         Ok(ctx) => ctx,
         Err(e) => {
             diag(&format!("runtime init failed: {e}"));
@@ -127,6 +131,9 @@ fn dispatch(command: Option<&str>, args: &[String], ctx: Arc<BridgeContext>) -> 
         Some("feedback-status") => feedback::status(),
         Some("login") => login::cmd_login(&ctx, args),
         Some("logout") => logout::cmd_logout(&ctx),
+        Some("gateway") => gateway::cmd_gateway(&ctx, args),
+        Some("disable") => gateway::cmd_disable(&ctx),
+        Some("enable") => gateway::cmd_enable(&ctx),
         Some("clean") => clean::cmd_clean(&ctx),
         Some("status") => status::cmd_status(&ctx),
         Some("whoami") => whoami::cmd_whoami(&ctx),

@@ -88,6 +88,16 @@ pub fn resolve_target_with_source()
         .map(|(path, source)| (target_for(path), source)))
 }
 
+pub fn clear_targets() -> Result<Vec<CoworkTarget>, ResolveTargetError> {
+    match resolve_target() {
+        Ok(target) => Ok(target.into_iter().collect()),
+        Err(ResolveTargetError::Ambiguous { candidates }) => {
+            Ok(candidates.into_iter().map(target_for).collect())
+        },
+        Err(e) => Err(e),
+    }
+}
+
 pub fn choose_target(
     pinned: Option<PathBuf>,
     org: Option<&str>,
@@ -227,7 +237,7 @@ pub fn pick_target(
     }
 
     if let Some((_, path)) = candidates.iter().find(|(_, p)| {
-        org_uuid_of(p.as_path()).as_deref() == Some(PERSONAL_SESSION_UUID)
+        org_uuid_of(p.as_path()).is_some_and(|name| dir_names_org(&name, PERSONAL_SESSION_UUID))
             && usable_org_dir(p.as_path())
     }) {
         return Ok(Some((path.clone(), TargetSource::Personal)));

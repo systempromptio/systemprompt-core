@@ -61,3 +61,53 @@ fn non_string_keys_are_never_platform_owned() {
     assert!(!is_platform_owned_skill_key(&Value::String("model".into())));
     assert!(!is_platform_owned_skill_key(&Value::Bool(true)));
 }
+
+const SF_OFFICIAL_FRONTMATTER: &str = r#"name: sf-official-agentforce-architecture-analyze
+description: "Declared architecture snapshot for one Agentforce agent."
+metadata:
+  version: "1.0"
+  domains: ["Agentforce"]
+  minApiVersion: "64.0"
+  relatedSkills:
+    - "agentforce-d360-analyze"
+  cliTools:
+    - tool: ["sf"]
+      semver: ">=2.136.8"
+    - tool: ["python3"]
+      semver: ">=3.10.0"
+title: "agentforce-architecture-analyze — declared architecture snapshot (Salesforce official)"
+tags:
+- sfcore
+- salesforce
+- official
+category: development
+display_category: Salesforce Core
+"#;
+
+fn reversed(value: &Value) -> Value {
+    match value {
+        Value::Mapping(mapping) => Value::Mapping(
+            mapping
+                .iter()
+                .collect::<Vec<_>>()
+                .into_iter()
+                .rev()
+                .map(|(k, v)| (k.clone(), reversed(v)))
+                .collect(),
+        ),
+        Value::Sequence(items) => Value::Sequence(items.iter().map(reversed).collect()),
+        other => other.clone(),
+    }
+}
+
+#[test]
+fn nested_metadata_block_renders_identically_in_author_and_canonical_order() {
+    let authored: Mapping = serde_yaml::from_str(SF_OFFICIAL_FRONTMATTER).unwrap();
+    let Value::Mapping(reordered) = reversed(&Value::Mapping(authored.clone())) else {
+        unreachable!()
+    };
+    let gateway = render_passthrough_frontmatter(Some(&authored)).unwrap();
+    let bridge = render_passthrough_frontmatter(Some(&reordered)).unwrap();
+    assert_eq!(gateway, bridge);
+    assert!(gateway.starts_with("metadata:\n  cliTools:\n  - semver: '>=2.136.8'\n"));
+}

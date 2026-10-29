@@ -19,7 +19,10 @@ const MDM_BLOCK: &str = r#"{
 }"#;
 
 fn write_bridge_config(config_home: &Path, managed_dir: &Path) {
-    let dir = config_home.join("systemprompt");
+    let dir = config_home
+        .join("systemprompt")
+        .join("gateways")
+        .join("default");
     std::fs::create_dir_all(&dir).expect("bridge config dir");
     std::fs::write(
         dir.join("systemprompt-bridge.toml"),

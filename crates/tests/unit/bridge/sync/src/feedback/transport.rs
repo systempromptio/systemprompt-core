@@ -313,6 +313,18 @@ async fn acknowledged_receipt_retries_only_its_unbound_session_without_resending
         retained.session_bindings.get("native-session"),
         Some(&false)
     );
+    assert!(retained.next_attempt > Utc::now());
+    systemprompt_bridge::feedback::deliver(&enrollment, &outbox)
+        .await
+        .expect("a binding not yet due is not sent");
+    assert_eq!(attempts.load(std::sync::atomic::Ordering::SeqCst), 1);
+    tokio::time::sleep(
+        (retained.next_attempt - Utc::now())
+            .to_std()
+            .unwrap_or_default()
+            + std::time::Duration::from_millis(20),
+    )
+    .await;
 
     systemprompt_bridge::feedback::deliver(&enrollment, &outbox)
         .await
@@ -343,4 +355,64 @@ async fn acknowledged_receipt_retries_only_its_unbound_session_without_resending
         assert_eq!(body["session_id"], "native-session");
         assert_eq!(body["host"], serde_json::json!(EvaluatorClient::Codex));
     }
+}
+
+#[tokio::test]
+async fn a_refused_session_binding_is_recorded_once_and_never_resent() {
+    use wiremock::matchers::{method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    let (dir, request) = prepared(EvaluatorClient::Codex);
+    let response = ConsumerReceiptResponse {
+        receipt_id: InstallationReceiptId::new("retained-elsewhere"),
+        acknowledgement: ReceiptAcknowledgement::Accepted,
+        acknowledged_at: Utc::now(),
+        fully_verified: true,
+    };
+    let gateway = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/api/v1/consumer/session-bindings"))
+        .respond_with(ResponseTemplate::new(403).set_body_json(serde_json::json!({
+            "type": "about:blank",
+            "title": "Forbidden",
+            "status": 403,
+            "detail": "Consumer evidence is unavailable to this identity"
+        })))
+        .expect(1)
+        .mount(&gateway)
+        .await;
+    let enrollment = Enrollment::new(
+        &gateway.uri(),
+        DeviceId::try_new("refused-device").unwrap(),
+        UserId::new("00000000-0000-4000-8000-00000000c0c0"),
+        systemprompt_bridge::ids::BearerToken::new("sp_device_refused"),
+    )
+    .unwrap();
+    let outbox = Outbox::new(
+        enrollment.outbox_path(dir.path()),
+        OutboxScope::from_enrollment(&enrollment),
+    );
+    let key = outbox.enqueue(request).unwrap();
+    outbox.delivery(&key, Ok(response)).unwrap();
+    outbox
+        .queue_session(EvaluatorClient::Codex, "native-session")
+        .unwrap();
+
+    systemprompt_bridge::feedback::deliver(&enrollment, &outbox)
+        .await
+        .expect("a refused binding is an outcome, not a delivery failure");
+    let entry = outbox.entries().unwrap().remove(0).1;
+    assert!(entry.session_bindings.is_empty());
+    assert_eq!(entry.refused_sessions.get("native-session"), Some(&403));
+
+    systemprompt_bridge::feedback::deliver(&enrollment, &outbox)
+        .await
+        .expect("nothing left to send");
+    outbox
+        .queue_session(EvaluatorClient::Codex, "native-session")
+        .unwrap();
+    systemprompt_bridge::feedback::deliver(&enrollment, &outbox)
+        .await
+        .expect("re-queueing a refused session does not resend it");
+    assert!(outbox.entries().unwrap()[0].1.session_bindings.is_empty());
 }

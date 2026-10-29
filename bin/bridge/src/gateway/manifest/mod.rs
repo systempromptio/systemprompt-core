@@ -25,11 +25,13 @@ pub use systemprompt_models::plugin::PluginComponentRef;
 pub use systemprompt_identifiers::{AgentId, AgentName, ApiKeyId, TenantId, UserId, ValidatedUrl};
 
 mod builder;
+mod window;
 
 pub use super::manifest_hosts::{
     enables_host, skill_targets_host, skill_targets_product, unknown_skill_hosts,
 };
 pub use builder::SignedManifestBuilder;
+pub use window::{WindowVerdict, check_release_window, judge as judge_release_window};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ManifestError {
@@ -58,6 +60,16 @@ pub enum ManifestError {
     SchemaTooNew { required: u32, supported: u32 },
     #[error("bridge {local} is older than the {required} this gateway requires")]
     BridgeTooOld { local: String, required: String },
+    #[error("bridge release {local} is below {min}, the oldest release this instance admits")]
+    BridgeBelowWindow { local: String, min: String },
+    #[error("bridge release {local} is above {max}, the newest release this instance admits")]
+    BridgeAboveWindow { local: String, max: String },
+    #[error("bridge release version {local} is not semver: {source}")]
+    LocalVersion {
+        local: String,
+        #[source]
+        source: semver::Error,
+    },
 }
 
 pub fn verify_envelope(

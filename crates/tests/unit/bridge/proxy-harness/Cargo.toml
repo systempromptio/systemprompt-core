@@ -24,6 +24,9 @@ temp-env = { workspace = true }
 uuid = { workspace = true }
 hyper = { version = "1", features = ["http1", "server"] }
 hyper-util = { version = "0.1", features = ["server", "tokio"] }
+http-body-util = "0.1"
+bytes = { workspace = true }
+futures-util = { workspace = true }
 arc-swap = "1"
 
 # The kernel keyring backs the headless credential store on Linux CI; other

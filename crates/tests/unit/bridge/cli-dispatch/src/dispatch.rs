@@ -6,6 +6,8 @@ fn config_file(sb: &Sandbox) -> std::path::PathBuf {
     sb.config
         .path()
         .join("systemprompt")
+        .join("gateways")
+        .join("default")
         .join("systemprompt-bridge.toml")
 }
 
@@ -13,6 +15,8 @@ fn pat_file(sb: &Sandbox) -> std::path::PathBuf {
     sb.config
         .path()
         .join("systemprompt")
+        .join("gateways")
+        .join("default")
         .join("systemprompt-bridge.pat")
 }
 

@@ -13,6 +13,10 @@ pub enum UpdateError {
     Check(#[from] GatewayError),
     #[error("this platform has no published build")]
     UnsupportedPlatform,
+    #[error("nothing staged: {0}")]
+    OutsideWindow(#[from] crate::instance::window::CandidateRefusal),
+    #[error("release window: {0}")]
+    Window(#[source] Box<crate::config::gateways::ProfileError>),
     #[error("gateway advertised an unparseable version {version:?}: {source}")]
     BadRemoteVersion {
         version: String,

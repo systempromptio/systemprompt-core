@@ -1,6 +1,5 @@
-use std::io::Write;
-
 use systemprompt_bridge::auth::{self, ChainError, cache};
+use systemprompt_bridge::config::gateways::credential::PatStore;
 use systemprompt_bridge::config::{Config, PatConfig, SessionConfig};
 use systemprompt_identifiers::{SessionId, ValidatedUrl};
 use systemprompt_test_fixtures::block_on;
@@ -32,11 +31,10 @@ fn auth_response_body() -> serde_json::Value {
 fn has_credential_source_true_for_pat_file() {
     let home = TempDir::new().unwrap();
     temp_env::with_vars(sandbox_vars(&home), || {
-        let pat_path = home.path().join("pat.txt");
-        std::fs::write(&pat_path, "sp-live-abc").unwrap();
+        stored_pat("sp-live-abc");
         let cfg = Config {
             pat: Some(PatConfig {
-                file: Some(pat_path.to_string_lossy().into_owned()),
+                store: Some(PatStore::File),
             }),
             ..Config::default()
         };
@@ -82,18 +80,20 @@ fn sandbox_vars_with_config(home: &TempDir) -> Vec<(&'static str, Option<String>
     vars
 }
 
-fn persist_config(home: &TempDir, gateway: &str, pat_path: &std::path::Path) {
-    let path = config_file(home);
-    // A literal string: a path's backslashes would be invalid escapes in a
-    // basic string.
+fn persist_config(home: &TempDir, gateway: &str) {
     std::fs::write(
-        &path,
-        format!(
-            "gateway_url = \"{gateway}\"\n[pat]\nfile = '{}'\n",
-            pat_path.display()
-        ),
+        config_file(home),
+        format!("gateway_url = \"{gateway}\"\n[pat]\nstore = 'file'\n"),
     )
     .unwrap();
+}
+
+fn stored_pat(value: &str) -> std::path::PathBuf {
+    let profile = systemprompt_bridge::config::gateways::active().unwrap();
+    std::fs::create_dir_all(&profile.dir).unwrap();
+    let path = profile.pat_file();
+    std::fs::write(&path, value).unwrap();
+    path
 }
 
 #[test]
@@ -108,19 +108,17 @@ fn pat_provider_happy_path_yields_bearer_and_binds_the_cache_entry() {
                 .mount(&server)
                 .await;
 
-            let pat_path = home.path().join("pat.txt");
-            let mut f = std::fs::File::create(&pat_path).unwrap();
-            writeln!(f, "sp-live-secret-pat").unwrap();
+            let pat_path = stored_pat("sp-live-secret-pat");
 
             let gateway = ValidatedUrl::try_new(server.uri()).unwrap();
             let cfg = Config {
                 gateway_url: Some(gateway.clone()),
                 pat: Some(PatConfig {
-                    file: Some(pat_path.to_string_lossy().into_owned()),
+                    store: Some(PatStore::File),
                 }),
                 ..Config::default()
             };
-            persist_config(&home, &server.uri(), &pat_path);
+            persist_config(&home, &server.uri());
 
             let out = auth::acquire_bearer(&cfg, &SessionId::generate(), &reqwest::Client::new())
                 .await
@@ -160,13 +158,12 @@ fn acquire_bearer_caches_against_the_config_it_was_given_not_the_one_on_disk() {
                 .mount(&server)
                 .await;
 
-            let pat_path = home.path().join("pat.txt");
-            std::fs::write(&pat_path, "sp-live-secret-pat").unwrap();
+            stored_pat("sp-live-secret-pat");
             let gateway = ValidatedUrl::try_new(server.uri()).unwrap();
             let cfg = Config {
                 gateway_url: Some(gateway.clone()),
                 pat: Some(PatConfig {
-                    file: Some(pat_path.to_string_lossy().into_owned()),
+                    store: Some(PatStore::File),
                 }),
                 ..Config::default()
             };
@@ -203,13 +200,12 @@ fn pat_exchange_http_failure_names_the_failed_provider() {
                 .mount(&server)
                 .await;
 
-            let pat_path = home.path().join("pat.txt");
-            std::fs::write(&pat_path, "sp-live-secret-pat").unwrap();
+            stored_pat("sp-live-secret-pat");
 
             let cfg = Config {
                 gateway_url: Some(ValidatedUrl::try_new(server.uri()).unwrap()),
                 pat: Some(PatConfig {
-                    file: Some(pat_path.to_string_lossy().into_owned()),
+                    store: Some(PatStore::File),
                 }),
                 ..Config::default()
             };
@@ -248,13 +244,12 @@ fn pat_exchange_server_error_names_the_failed_provider() {
                 .mount(&server)
                 .await;
 
-            let pat_path = home.path().join("pat.txt");
-            std::fs::write(&pat_path, "sp-live-secret-pat").unwrap();
+            stored_pat("sp-live-secret-pat");
 
             let cfg = Config {
                 gateway_url: Some(ValidatedUrl::try_new(server.uri()).unwrap()),
                 pat: Some(PatConfig {
-                    file: Some(pat_path.to_string_lossy().into_owned()),
+                    store: Some(PatStore::File),
                 }),
                 ..Config::default()
             };
@@ -288,13 +283,12 @@ fn pat_exchange_transport_failure_is_not_terminal() {
     let home = TempDir::new().unwrap();
     temp_env::with_vars(sandbox_vars(&home), || {
         block_on(async {
-            let pat_path = home.path().join("pat.txt");
-            std::fs::write(&pat_path, "sp-live-secret-pat").unwrap();
+            stored_pat("sp-live-secret-pat");
 
             let cfg = Config {
                 gateway_url: Some(ValidatedUrl::try_new("http://127.0.0.1:1").unwrap()),
                 pat: Some(PatConfig {
-                    file: Some(pat_path.to_string_lossy().into_owned()),
+                    store: Some(PatStore::File),
                 }),
                 ..Config::default()
             };
@@ -330,13 +324,12 @@ fn no_credential_source_fails_before_the_chain_runs() {
     });
 }
 // Append to crates/tests/unit/bridge/auth-e2e/src/auth_chain.rs.
-fn pat_config(home: &TempDir, gateway: &str) -> Config {
-    let pat_path = home.path().join("pat.txt");
-    std::fs::write(&pat_path, "sp-live-session-bound-pat").unwrap();
+fn pat_config(gateway: &str) -> Config {
+    stored_pat("sp-live-session-bound-pat");
     Config {
         gateway_url: Some(ValidatedUrl::try_new(gateway).unwrap()),
         pat: Some(PatConfig {
-            file: Some(pat_path.to_string_lossy().into_owned()),
+            store: Some(PatStore::File),
         }),
         ..Config::default()
     }
@@ -374,7 +367,7 @@ fn read_or_refresh_reuses_only_the_session_that_minted_the_cached_token() {
                 .expect(2)
                 .mount(&server)
                 .await;
-            let cfg = pat_config(&home, &server.uri());
+            let cfg = pat_config(&server.uri());
             let first_session = SessionId::new("session-a");
             let second_session = SessionId::new("session-b");
             let first = auth::read_or_refresh(&cfg, 30, &first_session, &reqwest::Client::new())
@@ -426,7 +419,7 @@ fn read_or_refresh_replaces_a_corrupt_cache_with_a_fresh_session_bound_entry() {
                 .expect(2)
                 .mount(&server)
                 .await;
-            let cfg = pat_config(&home, &server.uri());
+            let cfg = pat_config(&server.uri());
             let original = SessionId::new("corrupt-original");
             auth::read_or_refresh(&cfg, 30, &original, &reqwest::Client::new())
                 .await
@@ -462,7 +455,7 @@ fn unreadable_cache_fails_closed_before_contacting_the_gateway() {
                 .expect(0)
                 .mount(&server)
                 .await;
-            let cfg = pat_config(&home, &server.uri());
+            let cfg = pat_config(&server.uri());
             let cache_dir = home.path().join(".cache");
             std::fs::create_dir_all(&cache_dir).unwrap();
             let expected = cache_dir.join(systemprompt_bridge::brand::brand().working_dir_name);

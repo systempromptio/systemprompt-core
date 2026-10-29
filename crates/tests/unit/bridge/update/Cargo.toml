@@ -13,6 +13,8 @@ workspace = true
 [dependencies]
 systemprompt-test-fixtures = { workspace = true }
 systemprompt-bridge = { workspace = true }
+systemprompt-models = { workspace = true }
+semver = { workspace = true }
 serde_json = { workspace = true }
 tempfile = { workspace = true }
 reqwest = { workspace = true }

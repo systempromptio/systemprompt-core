@@ -46,6 +46,7 @@ mod proxy_mcp_metadata;
 mod role_table;
 mod sso_unknown_provider;
 mod sync_types;
+mod wellknown_bridge_discovery;
 
 mod gateway_sessions_mint;
 

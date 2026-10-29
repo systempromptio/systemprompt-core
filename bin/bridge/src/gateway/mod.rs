@@ -6,10 +6,10 @@
 mod auth;
 pub mod catalog;
 pub mod conditional;
+pub mod discovery;
 pub mod errors;
 mod fetch;
 mod identity;
-pub mod identity_source;
 pub mod manifest;
 mod manifest_hosts;
 pub mod manifest_version;

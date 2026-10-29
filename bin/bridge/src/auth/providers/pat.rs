@@ -9,8 +9,8 @@ use crate::gateway::GatewayClient;
 use crate::gateway::types::HelperOutput;
 use crate::ids::PatToken;
 use async_trait::async_trait;
+use std::env;
 use std::sync::Arc;
-use std::{env, fs};
 use systemprompt_identifiers::{SessionId, ValidatedUrl};
 
 #[derive(Debug)]
@@ -61,40 +61,36 @@ impl AuthProvider for PatProvider {
     }
 }
 
+#[must_use]
+pub fn env_override_present() -> bool {
+    env::var(crate::brand::brand().env("PAT"))
+        .ok()
+        .is_some_and(|s| !s.is_empty())
+}
+
 pub(crate) fn read_source(config: &Config) -> std::io::Result<Option<PatToken>> {
-    let value = match env::var(crate::brand::brand().env("PAT")) {
-        Ok(value) => Some(value),
-        Err(env::VarError::NotPresent) => match config.pat.as_ref().and_then(|p| p.file.as_ref()) {
-            Some(path) => Some(
-                fs::read_to_string(crate::fsutil::expand_tilde(path)).map_err(|source| {
-                    std::io::Error::new(
-                        source.kind(),
-                        PatReadError {
-                            path: path.clone(),
-                            source,
-                        },
-                    )
-                })?,
-            ),
-            None => None,
+    match env::var(crate::brand::brand().env("PAT")) {
+        Ok(value) if value.trim().is_empty() => {
+            Err(std::io::Error::other("configured PAT is empty"))
         },
-        Err(e) => return Err(std::io::Error::other(e)),
-    };
-    value
-        .map(|s| {
-            if s.trim().is_empty() {
-                Err(std::io::Error::other("configured PAT is empty"))
-            } else {
-                Ok(PatToken::new(s.trim()))
-            }
-        })
-        .transpose()
+        Ok(value) => Ok(Some(PatToken::new(value.trim()))),
+        Err(env::VarError::NotPresent) => {
+            let Some(store) = config.pat.as_ref().and_then(|p| p.store) else {
+                return Ok(None);
+            };
+            let profile = crate::config::gateways::active()
+                .map_err(|e| std::io::Error::other(PatReadError::Profile(e)))?;
+            crate::config::gateways::credential::read(&profile, store)
+                .map_err(|e| std::io::Error::other(PatReadError::Store(e)))
+        },
+        Err(e) => Err(std::io::Error::other(e)),
+    }
 }
 
 #[derive(Debug, thiserror::Error)]
-#[error("read PAT {path}: {source}")]
-pub struct PatReadError {
-    path: String,
-    #[source]
-    source: std::io::Error,
+pub enum PatReadError {
+    #[error("read PAT: {0}")]
+    Store(#[source] crate::config::gateways::credential::CredentialError),
+    #[error("read PAT: {0}")]
+    Profile(#[source] crate::config::gateways::ProfileError),
 }

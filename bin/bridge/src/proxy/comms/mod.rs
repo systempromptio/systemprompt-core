@@ -134,6 +134,7 @@ pub async fn run_loop(
     notifications: NotificationSignals,
 ) {
     let mut backoff = ReconnectBackoff::default();
+    let mut last_error: Option<String> = None;
     loop {
         let cfg = runtime_config.load_full();
         let mut generation = token_cache.generation();
@@ -153,10 +154,19 @@ pub async fn run_loop(
         let delay = backoff.next_delay(started.elapsed(), rand::random::<f64>());
         match outcome {
             Ok(()) => {
+                if last_error.take().is_some() {
+                    tracing::info!("comms stream recovered");
+                }
                 tracing::info!(retry_in = ?delay, "comms stream closed by the gateway; reconnecting");
             },
             Err(e) => {
-                tracing::warn!(error = %e, retry_in = ?delay, "comms stream failed");
+                let text = e.to_string();
+                if last_error.as_deref() == Some(text.as_str()) {
+                    tracing::debug!(error = %e, retry_in = ?delay, "comms stream still failing");
+                } else {
+                    tracing::warn!(error = %e, retry_in = ?delay, "comms stream failed");
+                    last_error = Some(text);
+                }
             },
         }
         tokio::time::sleep(delay).await;

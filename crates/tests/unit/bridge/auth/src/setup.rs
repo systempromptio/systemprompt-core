@@ -1,5 +1,6 @@
 use systemprompt_bridge::auth::plugin_oauth::SecretStore;
 use systemprompt_bridge::auth::setup::{self, SetupError, TokenRejection};
+use systemprompt_bridge::config::gateways::credential::{CredentialError, PatStore};
 use tempfile::TempDir;
 
 const GOOD: &str = "sp-live-testprefix.secretsecretsecretsecretsecret012345";
@@ -16,6 +17,9 @@ fn sandbox<R>(f: impl FnOnce() -> R) -> (R, [TempDir; 3]) {
         ("XDG_CONFIG_HOME", Some(config.path().display().to_string())),
         ("XDG_STATE_HOME", Some(state.path().display().to_string())),
         ("XDG_CACHE_HOME", Some(home.path().display().to_string())),
+        ("SP_BRIDGE_CONFIG", None),
+        ("DBUS_SESSION_BUS_ADDRESS", None),
+        ("DISPLAY", None),
     ];
     let out = temp_env::with_vars(vars, f);
     (out, [config, state, home])
@@ -32,9 +36,14 @@ fn login_writes_a_private_pat_file_and_a_config_pointing_at_it() {
     // Windows path, so the serialized form never contains the raw one.
     let parsed: toml::Value = toml::from_str(&config).expect("config is valid TOML");
     assert_eq!(
-        parsed["pat"]["file"].as_str().map(std::path::Path::new),
-        Some(paths.pat_file.as_path()),
-        "config points at the PAT file: {config}"
+        parsed["pat"]["store"].as_str(),
+        Some("file"),
+        "config records where the PAT is stored: {config}"
+    );
+    assert_eq!(paths.pat_store, Some(PatStore::File));
+    assert!(
+        paths.pat_file.starts_with(&paths.config_dir),
+        "the PAT file lives in the gateway profile"
     );
     assert!(
         config.contains("http://localhost:8080"),
@@ -224,7 +233,7 @@ fn logout_on_a_config_that_is_only_a_pat_section_removes_the_file() {
     let ((exists, _), _cfg) = sandbox(|| {
         let paths = setup::resolve_paths().expect("paths");
         std::fs::create_dir_all(&paths.config_dir).expect("mkdir");
-        std::fs::write(&paths.config_file, "[pat]\nfile = \"/nowhere\"\n").expect("seed config");
+        std::fs::write(&paths.config_file, "[pat]\nstore = \"file\"\n").expect("seed config");
         let out = setup::logout(&SecretStore::resolve()).expect("logout");
         (out.config_file.exists(), out)
     });
@@ -274,12 +283,12 @@ fn login_fails_with_the_write_context_when_the_pat_path_is_a_directory() {
         setup::login(GOOD, None).expect_err("a directory squatting on the PAT path must fail")
     });
     match err {
-        SetupError::Io { action, path, .. } => assert!(
+        SetupError::Credential(CredentialError::File { action, path, .. }) => assert!(
             action == "write and verify" && path.extension().is_some_and(|e| e == "pat"),
             "the atomic-write step surfaces with the PAT path: {action} {}",
             path.display()
         ),
-        other => panic!("expected Io, got {other:?}"),
+        other => panic!("expected a file-store error, got {other:?}"),
     }
 }
 
@@ -290,25 +299,28 @@ fn logout_fails_with_the_read_config_context_when_the_config_path_is_a_directory
         std::fs::create_dir_all(&paths.config_file).unwrap();
         setup::logout(&SecretStore::resolve()).expect_err("an unreadable config must fail logout")
     });
-    match err {
-        SetupError::Io { action, .. } => {
-            assert_eq!(action, "read", "error names the failing step: {action}")
-        },
-        other => panic!("expected Io, got {other:?}"),
-    }
+    assert!(
+        matches!(
+            err,
+            SetupError::ConfigRead(systemprompt_bridge::config::ConfigReadError::Read { .. })
+        ),
+        "the config read surfaces: {err:?}"
+    );
 }
 
 #[test]
 fn clean_fails_with_the_remove_context_when_the_pat_path_is_a_directory() {
     let (err, _cfg) = sandbox(|| {
         let paths = setup::resolve_paths().unwrap();
+        std::fs::create_dir_all(&paths.config_dir).unwrap();
+        std::fs::write(&paths.config_file, "[pat]\nstore = 'file'\n").unwrap();
         std::fs::create_dir_all(&paths.pat_file).unwrap();
         setup::clean(&SecretStore::resolve()).expect_err("an unremovable PAT path must fail clean")
     });
     match err {
-        SetupError::Io { action, .. } => {
+        SetupError::Credential(CredentialError::File { action, .. }) => {
             assert_eq!(action, "remove", "error names the failing step: {action}")
         },
-        other => panic!("expected Io, got {other:?}"),
+        other => panic!("expected a file-store error, got {other:?}"),
     }
 }

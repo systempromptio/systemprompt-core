@@ -22,6 +22,7 @@ pub mod generated_profile;
 pub mod hermes;
 pub mod host_app;
 pub mod json_io;
+pub mod lifecycle;
 pub(crate) mod managed_skills;
 pub mod mcp_sidecar;
 pub mod opencode;
@@ -41,7 +42,5 @@ pub use host_app::{
     AppInstallState, ConfigFormat, GeneratedProfile, HostApp, HostAppError, HostAppSnapshot,
     ProfileGenInputs, ProfileProbe, ProfileState, StaleReason,
 };
-pub use registry::{
-    ResolvedHost, find_host_by_id, host_apps, host_syncs, is_suppressed, resolve_host,
-};
+pub use registry::{ResolvedHost, find_host_by_id, host_apps, resolve_host};
 pub use systemprompt_models::bridge::host::HostKind;

@@ -61,7 +61,12 @@ impl Sandbox {
     // The gateway env override was removed from the bridge, so tests point it
     // at a mock server the same way an operator would: through the config toml.
     pub fn write_gateway(&self, url: &str) {
-        let dir = self.config.path().join("systemprompt");
+        let dir = self
+            .config
+            .path()
+            .join("systemprompt")
+            .join("gateways")
+            .join("default");
         std::fs::create_dir_all(&dir).expect("config dir");
         std::fs::write(
             dir.join("systemprompt-bridge.toml"),

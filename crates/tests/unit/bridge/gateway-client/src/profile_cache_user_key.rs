@@ -257,3 +257,46 @@ fn a_bearer_naming_no_user_is_served_but_not_cached() {
         assert!(!meta.join("bridge-profile.json").exists());
     });
 }
+
+#[test]
+fn a_cache_from_an_older_bridge_reads_as_absent_and_is_replaced_on_fetch() {
+    in_sandbox(|rt, server, gateway| {
+        let cache = systemprompt_bridge::config::paths::bridge_metadata_dir()
+            .unwrap()
+            .join("bridge-profile.json");
+        fs::create_dir_all(cache.parent().unwrap()).unwrap();
+        fs::write(
+            &cache,
+            serde_json::json!({ "gateway": gateway.as_str(), "profile": profile_body("old") })
+                .to_string(),
+        )
+        .unwrap();
+        assert!(
+            load_for(gateway.as_str(), &user("user-alice"))
+                .unwrap()
+                .is_none(),
+            "a 0.69-shaped cache is a miss, not a decode error"
+        );
+        rt.block_on(async {
+            Mock::given(method("GET"))
+                .and(path("/v1/bridge/profile"))
+                .respond_with(ResponseTemplate::new(200).set_body_json(profile_body("new")))
+                .mount(server)
+                .await;
+            let client = GatewayClient::new(gateway.clone(), reqwest::Client::new());
+            fetch_as_user(
+                &client,
+                AgedBearer::fresh(BearerToken::new(ALICE)),
+                || async { unreachable!("a served bearer is not re-minted") },
+            )
+            .await
+            .unwrap();
+        });
+        assert!(fs::read_to_string(&cache).unwrap().contains("\"schema\":2"));
+        assert!(
+            load_for(gateway.as_str(), &user("user-alice"))
+                .unwrap()
+                .is_some()
+        );
+    });
+}

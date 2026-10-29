@@ -244,6 +244,9 @@ mod bridge_ids;
 mod bridge_manifest_version;
 
 #[cfg(test)]
+mod bridge_version_window;
+
+#[cfg(test)]
 mod mcp_deployment;
 
 #[cfg(test)]

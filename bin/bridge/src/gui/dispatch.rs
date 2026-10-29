@@ -115,6 +115,9 @@ fn dispatch_request(
         UiEvent::SetGatewayRequested { url, reply_to } => {
             handlers::auth::on_set_gateway_requested(app, &url, reply_to);
         },
+        UiEvent::InstanceRequested { op, reply_to } => {
+            handlers::instance::on_instance_requested(app, op, reply_to);
+        },
         UiEvent::GatewayProbeRequested { reply_to } => {
             handlers::gateway_probe::on_gateway_probe_requested(app, reply_to);
         },
@@ -173,6 +176,13 @@ fn dispatch_finished(app: &mut GuiApp, event: UiEvent) -> Result<(), Box<UiEvent
         },
         UiEvent::SetGatewayFinished { result, reply_to } => {
             handlers::auth::on_set_gateway_finished(app, result, reply_to);
+        },
+        UiEvent::InstanceFinished {
+            op,
+            result,
+            reply_to,
+        } => {
+            handlers::instance::on_instance_finished(app, &op, result, reply_to);
         },
         UiEvent::GatewayProbeFinished { outcome, reply_to } => {
             handlers::gateway_probe::on_gateway_probe_finished(app, outcome, reply_to);

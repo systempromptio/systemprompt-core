@@ -142,33 +142,37 @@ fn read_stamp(layout: &Layout) -> io::Result<WriterStamp> {
 }
 
 fn require_anchor() -> Result<(), PolicyWriterError> {
-    read_anchor(store::managed_policy_store().as_ref())?
-        .map(|_| ())
-        .ok_or(PolicyWriterError::NoAnchor)
+    if read_anchor(store::managed_policy_store().as_ref())?.is_empty() {
+        return Err(PolicyWriterError::NoAnchor);
+    }
+    Ok(())
 }
 
 // Why: the machine hive alone; the user hive and the environment override
 // are the user's to write, and the writer must not be steered by either.
 pub(crate) fn read_anchor(
     store: &dyn ConfigStore,
-) -> Result<Option<crate::config::TrustRecord>, PolicyWriterError> {
+) -> Result<Vec<crate::config::TrustRecord>, PolicyWriterError> {
     let doc = store.read_policy_document(
         PolicyHive::Machine,
         PolicyTarget::Bridge,
         &[store::MANIFEST_TRUST_KEY],
     )?;
     let Some(store::PolicyDocumentValue::Str(raw)) = doc.get(store::MANIFEST_TRUST_KEY) else {
-        return Ok(None);
+        return Ok(Vec::new());
     };
-    let record: crate::config::TrustRecord =
-        serde_json::from_str(raw).map_err(crate::config::TrustError::InvalidPolicy)?;
-    let gateway = systemprompt_identifiers::ValidatedUrl::try_new(record.gateway.as_str())
-        .map_err(crate::config::TrustError::GatewayInvalid)?;
-    Ok(Some(crate::config::TrustRecord::new(
-        &gateway,
-        record.key.as_str(),
-        crate::config::PinSource::Policy,
-    )?))
+    crate::config::trust::parse_policy_trust(raw)?
+        .into_iter()
+        .map(|record| {
+            let gateway = systemprompt_identifiers::ValidatedUrl::try_new(record.gateway.as_str())
+                .map_err(crate::config::TrustError::GatewayInvalid)?;
+            Ok(crate::config::TrustRecord::new(
+                &gateway,
+                record.key.as_str(),
+                crate::config::PinSource::Policy,
+            )?)
+        })
+        .collect()
 }
 
 pub(crate) fn write_policy(

@@ -34,7 +34,10 @@ pub(crate) fn with_sandbox<R>(body: impl FnOnce(&Sandbox) -> R) -> R {
             .join("plugins")
             .join("systemprompt-hooks.js"),
     };
-    let bridge_dir = config_home.join("systemprompt");
+    let bridge_dir = config_home
+        .join("systemprompt")
+        .join("gateways")
+        .join("default");
     std::fs::create_dir_all(&bridge_dir).expect("bridge config dir");
     std::fs::write(
         bridge_dir.join("systemprompt-bridge.toml"),
@@ -93,6 +96,9 @@ pub(crate) fn manifest_with(skills: Vec<SkillEntry>, mcp: Vec<ManagedMcpServer>)
         auto_update: Default::default(),
         diagnostics: Vec::new(),
         marketplaces: Vec::new(),
+        allow_user_disable: false,
+        branding: None,
+        bridge_versions: None,
     }
 }
 

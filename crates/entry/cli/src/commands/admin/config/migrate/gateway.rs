@@ -192,5 +192,6 @@ pub fn spec(
             .unwrap_or(defaults_spec.inference_path_prefix),
         system_prompt_overrides: overrides,
         bridge_releases: legacy.bridge_releases.clone(),
+        bridge_instance: None,
     }))
 }

@@ -49,13 +49,17 @@ impl Outbox {
             pending.host,
         ))?);
         self.mutate(|state| {
-            if let Some(existing) = state.pending_installations.get(&key) {
-                if existing.roots != pending.roots
-                    || existing.publication.bundle_digest != pending.publication.bundle_digest
+            if let Some(existing) = state.pending_installations.get_mut(&key) {
+                if existing.publication.bundle_digest != pending.publication.bundle_digest
                     || existing.publication.revision_id != pending.publication.revision_id
                     || existing.publication.generation != pending.publication.generation
                 {
-                    return Err(FeedbackError::Scope);
+                    return Err(FeedbackError::Readback(ReadbackFault::PlanMismatch));
+                }
+                if existing.roots != pending.roots {
+                    existing.roots = pending.roots;
+                    existing.attempts = 0;
+                    existing.next_attempt = Utc::now();
                 }
                 return Ok(key);
             }
@@ -110,10 +114,9 @@ impl Outbox {
             let pending = state
                 .pending_installations
                 .get_mut(key)
-                .ok_or(FeedbackError::Scope)?;
+                .ok_or(FeedbackError::EntryMissing)?;
             pending.attempts = pending.attempts.saturating_add(1);
-            pending.next_attempt = Utc::now()
-                + chrono::Duration::seconds(2i64.pow(pending.attempts.min(10)).min(3600));
+            pending.next_attempt = Utc::now() + super::retry_after(pending.attempts);
             Ok(())
         })
     }
@@ -123,12 +126,12 @@ impl Outbox {
             let pending = state
                 .pending_installations
                 .get(key)
-                .ok_or(FeedbackError::Scope)?;
+                .ok_or(FeedbackError::EntryMissing)?;
             if !state.entries.values().any(|entry| {
                 entry.request.host == pending.host
                     && entry.request.publication_id == pending.publication.publication_id
             }) {
-                return Err(FeedbackError::Scope);
+                return Err(FeedbackError::EntryMissing);
             }
             state.pending_installations.remove(key);
             Ok(())

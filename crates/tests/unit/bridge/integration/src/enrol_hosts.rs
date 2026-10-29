@@ -36,7 +36,7 @@ fn in_sandbox<R>(f: impl FnOnce() -> R) -> R {
 }
 
 fn context() -> std::sync::Arc<BridgeContext> {
-    BridgeContext::start(ProxyMode::Attach).expect("attach context")
+    BridgeContext::start(ProxyMode::Attach, std::sync::Arc::new(|| None)).expect("attach context")
 }
 
 fn runtime() -> tokio::runtime::Runtime {
@@ -306,14 +306,16 @@ fn enrolling_codex_through_the_public_host_workflow_writes_a_usable_managed_prov
         fs::create_dir_all(dir).expect("sandbox directory");
     }
     let bridge_config = config_home.join("systemprompt-bridge.toml");
-    let pat_file = home.path().join("pat.txt");
-    fs::write(&pat_file, "sp-live-test-pat").expect("pat file");
+    fs::write(
+        config_home.join("systemprompt-bridge.pat"),
+        "sp-live-test-pat",
+    )
+    .expect("pat file");
     fs::write(
         &bridge_config,
         format!(
-            "gateway_url = {:?}\n[pat]\nfile = {:?}\n",
-            server.uri(),
-            pat_file.display().to_string()
+            "gateway_url = {:?}\n[pat]\nstore = \"file\"\n",
+            server.uri()
         ),
     )
     .expect("bridge config");

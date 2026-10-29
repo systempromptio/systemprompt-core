@@ -62,6 +62,7 @@ impl ApiPaths {
     pub const WELLKNOWN_OPENID_CONFIG: &'static str = "/.well-known/openid-configuration";
     pub const WELLKNOWN_OAUTH_PROTECTED: &'static str = "/.well-known/oauth-protected-resource";
     pub const WELLKNOWN_JWKS: &'static str = "/.well-known/jwks.json";
+    pub const WELLKNOWN_BRIDGE: &'static str = "/.well-known/systemprompt-bridge";
 
     pub const A2A_CARD: &'static str = "/api/a2a/card";
 

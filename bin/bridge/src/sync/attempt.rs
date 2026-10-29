@@ -30,6 +30,7 @@ pub(super) async fn run_attempt(
     let operation: OperationGuard = Arc::new(Arc::clone(&bridge.sync_lock).lock_owned().await);
     let _across_processes = process_lock::acquire().await?;
     prepare_run(bridge)?;
+    manifest::ensure_enabled(&crate::config::load()?)?;
     let fetch = manifest::fetch_authenticated_manifest(&bridge.http, options.freshness).await?;
     let synced =
         manifest::verify_and_decode(&fetch, options.allow_unsigned, options.allow_tofu).await?;

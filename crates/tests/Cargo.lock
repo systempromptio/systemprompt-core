@@ -8763,6 +8763,9 @@ name = "systemprompt-bridge-proxy-harness-tests"
 version = "0.0.11"
 dependencies = [
  "arc-swap",
+ "bytes",
+ "futures-util",
+ "http-body-util",
  "hyper",
  "hyper-util",
  "linux-keyutils-keyring-store",
@@ -8880,10 +8883,12 @@ name = "systemprompt-bridge-update-tests"
 version = "0.0.11"
 dependencies = [
  "reqwest",
+ "semver",
  "serde_json",
  "sha2 0.11.1",
  "systemprompt-bridge",
  "systemprompt-identifiers",
+ "systemprompt-models",
  "systemprompt-test-fixtures",
  "temp-env",
  "tempfile",
@@ -10082,6 +10087,7 @@ name = "systemprompt-manifest-tests"
 version = "0.0.11"
 dependencies = [
  "chrono",
+ "semver",
  "serde_json",
  "serde_yaml_ng",
  "systemprompt-catalog-fixtures",
@@ -10307,6 +10313,7 @@ dependencies = [
  "indexmap",
  "reqwest",
  "rmcp",
+ "semver",
  "serde",
  "serde_json",
  "serde_yaml_ng",

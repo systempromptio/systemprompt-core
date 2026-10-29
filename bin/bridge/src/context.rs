@@ -51,6 +51,7 @@ pub struct BridgeContext {
     pub drive: Arc<crate::drive::DriveHandle>,
     pub inbox: Arc<InboxHandle>,
     pub warn_once: Arc<crate::warn_once::WarnOnce>,
+    pub elevation_gate: Arc<crate::elevation_gate::ElevationGate>,
 }
 
 impl std::fmt::Debug for BridgeContext {
@@ -62,16 +63,21 @@ impl std::fmt::Debug for BridgeContext {
 }
 
 impl BridgeContext {
-    pub fn start(mode: ProxyMode) -> std::io::Result<Arc<Self>> {
+    pub fn start(
+        mode: ProxyMode,
+        desktop_policy_key_fp: crate::proxy::DesktopPolicyKeyProbe,
+    ) -> std::io::Result<Arc<Self>> {
         Self::start_with_policy_store(
             mode,
             crate::config::store::PolicyStore::new(crate::config::store::managed_policy_store()),
+            desktop_policy_key_fp,
         )
     }
 
     pub fn start_with_policy_store(
         mode: ProxyMode,
         policy_store: crate::config::store::PolicyStore,
+        desktop_policy_key_fp: crate::proxy::DesktopPolicyKeyProbe,
     ) -> std::io::Result<Arc<Self>> {
         let runtime = OwnedRuntime::build()?;
         tracing::info!(
@@ -87,6 +93,9 @@ impl BridgeContext {
         let activity = ActivityLog::new();
         if let Err(e) = crate::activity::install_persistent_writer(&activity) {
             faults.push(StartupFault::new("activity log", e));
+        }
+        if let Err(e) = crate::config::gateways::migrate::migrate_legacy_layout() {
+            faults.push(StartupFault::new("gateway profile migration", e));
         }
         let mcp_registry = mcp_registry::empty_slot();
         match crate::config::load() {
@@ -119,6 +128,7 @@ impl BridgeContext {
             update_gate: update_gate.clone(),
             drive_signals,
             notification_signals,
+            desktop_policy_key_fp,
         };
         let proxy = match mode {
             ProxyMode::Serve => ProxyHandle::serve(runtime.handle(), deps, &mut faults),
@@ -148,6 +158,7 @@ impl BridgeContext {
             elevation_attempted: AtomicBool::new(false),
             startup_faults: faults,
             warn_once: Arc::default(),
+            elevation_gate: Arc::default(),
         }))
     }
 

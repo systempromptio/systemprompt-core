@@ -4,14 +4,17 @@
 //!
 //! Claude Desktop has no server-wide switch: `managedMcpServers[].toolPolicy`
 //! names tools one by one. The bridge learns the names through its MCP auth
-//! probe (`initialize` → `tools/list`) and keeps only what the latest probe
-//! of each server confirmed: a server that fails a probe loses its names, so
-//! a wildcard over it is withheld rather than expanded over a list that may
-//! miss new tools. An absent file is an empty catalog; an unreadable or
-//! corrupt one is an error, never an empty catalog. A catalog that could not
-//! be refreshed is invalidated (removed) so no policy is projected over it.
-//! Servers that leave the manifest are dropped so a retired server's names
-//! never leak into a later policy.
+//! probe (`initialize` → `tools/list`) and keeps only what a probe of each
+//! server confirmed: a server whose probe is refused loses its names, so a
+//! wildcard over it is withheld rather than expanded over a list that may
+//! miss new tools, while an inconclusive probe (timeout, proxy or local
+//! fault) keeps the names last confirmed. Servers whose gateway reports the
+//! user's account as not connected are recorded separately, so the policy
+//! writer can say so instead of reporting a catalog gap. An absent file is an
+//! empty catalog; an unreadable or corrupt one is an error, never an empty
+//! catalog. A catalog that could not be refreshed is invalidated (removed) so
+//! no policy is projected over it. Servers that leave the manifest are dropped
+//! so a retired server's names never leak into a later policy.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -22,6 +25,7 @@ use std::path::PathBuf;
 use crate::proxy::mcp_probe::{McpAuthState, McpServerAuth};
 
 const FILE: &str = "mcp-tools.json";
+const NEEDS_CONNECTION_FILE: &str = "mcp-needs-connection.json";
 
 #[derive(Debug, thiserror::Error)]
 enum CatalogFileError {
@@ -70,6 +74,9 @@ pub fn record(results: &[McpServerAuth]) -> std::io::Result<ToolCatalog> {
         if result.id.is_empty() {
             continue;
         }
+        if is_inconclusive(result.state) {
+            continue;
+        }
         if result.state != McpAuthState::Authenticated {
             catalog.remove(&result.id);
             continue;
@@ -83,7 +90,34 @@ pub fn record(results: &[McpServerAuth]) -> std::io::Result<ToolCatalog> {
         let body = serde_json::to_string_pretty(&catalog).map_err(std::io::Error::other)?;
         crate::fsutil::atomic_write_0644(&path, format!("{body}\n").as_bytes())?;
     }
+    let needing: std::collections::BTreeSet<String> = results
+        .iter()
+        .filter(|r| r.state.needs_account_connection())
+        .map(|r| r.id.clone())
+        .collect();
+    if let Some(dir) = crate::config::paths::bridge_metadata_dir() {
+        let body = serde_json::to_vec(&needing).map_err(std::io::Error::other)?;
+        crate::fsutil::atomic_write_0644(&dir.join(NEEDS_CONNECTION_FILE), &body)?;
+    }
     Ok(catalog)
+}
+
+const fn is_inconclusive(state: McpAuthState) -> bool {
+    matches!(
+        state,
+        McpAuthState::Unknown
+            | McpAuthState::ProxyUnreachable
+            | McpAuthState::ProbeTimeout
+            | McpAuthState::LocalError
+    )
+}
+
+#[must_use]
+pub fn needs_connection() -> std::collections::BTreeSet<String> {
+    crate::config::paths::bridge_metadata_dir()
+        .and_then(|dir| std::fs::read(dir.join(NEEDS_CONNECTION_FILE)).ok())
+        .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+        .unwrap_or_default()
 }
 
 pub fn retain(slugs: &[String]) -> std::io::Result<()> {

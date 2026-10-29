@@ -25,7 +25,8 @@ fn reachable() -> AppStateSnapshot {
 
 #[test]
 fn pending_device_action_survives_a_state_reload_until_dismissed() {
-    let ctx = BridgeContext::start(ProxyMode::Attach).expect("runtime builds");
+    let ctx = BridgeContext::start(ProxyMode::Attach, std::sync::Arc::new(|| None))
+        .expect("runtime builds");
     let state = AppState::new_loaded(ctx);
     state.set_pending_device_action(Some(DeviceAction::Purge));
     state.reload();
@@ -113,7 +114,8 @@ fn a_credential_error_alone_makes_health_failing() {
 
 #[test]
 fn applying_a_probe_carries_the_credential_error_into_the_snapshot() {
-    let ctx = BridgeContext::start(ProxyMode::Attach).expect("runtime builds");
+    let ctx = BridgeContext::start(ProxyMode::Attach, std::sync::Arc::new(|| None))
+        .expect("runtime builds");
     let state = AppState::new_loaded(ctx);
 
     state.apply_probe(GatewayProbeOutcome {
@@ -138,7 +140,8 @@ fn applying_a_probe_carries_the_credential_error_into_the_snapshot() {
 
 #[test]
 fn a_later_clean_probe_clears_the_credential_error() {
-    let ctx = BridgeContext::start(ProxyMode::Attach).expect("runtime builds");
+    let ctx = BridgeContext::start(ProxyMode::Attach, std::sync::Arc::new(|| None))
+        .expect("runtime builds");
     let state = AppState::new_loaded(ctx);
 
     state.apply_probe(GatewayProbeOutcome {
@@ -231,7 +234,8 @@ fn failure(id: HostKind, emitter: &str, needs_elevation: bool) -> HostFailure {
 }
 
 fn desktop_row(snap: &AppStateSnapshot) -> serde_json::Value {
-    let ctx = BridgeContext::start(ProxyMode::Attach).expect("runtime builds");
+    let ctx = BridgeContext::start(ProxyMode::Attach, std::sync::Arc::new(|| None))
+        .expect("runtime builds");
     let payload = serde_json::to_value(state_payload(snap, &ctx.proxy)).expect("payload");
     payload["host_apps"]
         .as_array()

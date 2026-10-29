@@ -21,7 +21,8 @@ fn sandboxed<T>(home: &Path, extra: Vec<(&str, Option<String>)>, run: impl FnOnc
 
 fn render_in(home: &Path, extra: Vec<(&str, Option<String>)>) -> String {
     sandboxed(home, extra, || {
-        let ctx = BridgeContext::start(ProxyMode::Attach).expect("attach context");
+        let ctx = BridgeContext::start(ProxyMode::Attach, std::sync::Arc::new(|| None))
+            .expect("attach context");
         systemprompt_bridge::diagnostics_state::render(&ctx)
     })
 }

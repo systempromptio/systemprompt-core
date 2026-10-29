@@ -89,6 +89,20 @@ pub enum SyncError {
     )]
     BridgeTooOld { local: String, required: String },
     #[error(
+        "this bridge release is {local} but the instance admits {min} or newer — the admitted \
+         release is staged automatically, or run `update`"
+    )]
+    BridgeBelowWindow { local: String, min: String },
+    #[error(
+        "this bridge release is {local} but the instance admits up to {max} and refuses newer \
+         releases — install the release it offers with `update`"
+    )]
+    BridgeAboveWindow { local: String, max: String },
+    #[error("the bridge is disabled on this device; run `{bin} enable` to sync again")]
+    Disabled { bin: &'static str },
+    #[error("gateway profile: {0}")]
+    GatewayProfile(#[source] Box<crate::config::gateways::ProfileError>),
+    #[error(
         "Cowork reads {system_path} but this process cannot write there — re-run `{bin} install \
          --apply` and approve the single administrator prompt (it provisions the Claude policy \
          and grants you write access to org-plugins), or disable the Claude Desktop host for \
@@ -189,9 +203,13 @@ impl SyncError {
             Self::ManifestSkew { .. } => ExitCode::from(7),
             Self::PubkeyNotPinned | Self::PubkeyStale { .. } => ExitCode::from(8),
             Self::ReplayStateCorrupt(_) => ExitCode::from(9),
-            Self::SchemaTooNew { .. } | Self::ManifestShape(_) | Self::BridgeTooOld { .. } => {
-                ExitCode::from(11)
-            },
+            Self::SchemaTooNew { .. }
+            | Self::ManifestShape(_)
+            | Self::BridgeTooOld { .. }
+            | Self::BridgeBelowWindow { .. }
+            | Self::BridgeAboveWindow { .. } => ExitCode::from(11),
+            Self::Disabled { .. } => ExitCode::from(15),
+            Self::GatewayProfile(_) => ExitCode::from(1),
             Self::OrgPluginsNeedElevation { .. } => ExitCode::from(12),
             Self::Superseded { .. } => ExitCode::from(13),
             Self::Cancelled { .. } => ExitCode::from(14),

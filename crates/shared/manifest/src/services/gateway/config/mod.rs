@@ -18,6 +18,7 @@ mod validate;
 
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::ModelId;
+use systemprompt_models::bridge::instance::{BridgeVersionWindow, InstanceBranding};
 
 use crate::services::gateway::override_rule::SystemPromptRule;
 use crate::services::gateway::route::GatewayRoute;
@@ -76,6 +77,54 @@ pub struct GatewayConfigSpec {
     pub system_prompt_overrides: Vec<SystemPromptRule>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub bridge_releases: Option<BridgeReleasesSpec>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bridge_instance: Option<BridgeInstanceSpec>,
+}
+
+/// The routes and branding a shared bridge binary discovers for this
+/// instance at `/.well-known/systemprompt-bridge`.
+///
+/// Both paths are relative to the gateway origin: the sign-in page and the
+/// identity endpoint belong to the instance, not to the bridge build.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct BridgeInstanceSpec {
+    pub device_link_path: String,
+    pub identity_path: String,
+    #[serde(default)]
+    pub branding: BridgeBrandingSpec,
+}
+
+/// Presentation the bridge shows for this instance before and after sign-in.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct BridgeBrandingSpec {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub display_name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub logo_url: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub theme_css_url: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sign_in_hint: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub docs_url: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub contact_email: Option<String>,
+}
+
+impl BridgeBrandingSpec {
+    #[must_use]
+    pub fn to_branding(&self) -> InstanceBranding {
+        InstanceBranding {
+            display_name: self.display_name.clone(),
+            logo_url: self.logo_url.clone(),
+            theme_css_url: self.theme_css_url.clone(),
+            sign_in_hint: self.sign_in_hint.clone(),
+            docs_url: self.docs_url.clone(),
+            contact_email: self.contact_email.clone(),
+        }
+    }
 }
 
 /// Release feed for the desktop bridge self-updater.
@@ -98,12 +147,29 @@ pub struct BridgeReleasesSpec {
     pub assets: std::collections::BTreeMap<String, String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub api_base: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(with = "Option<String>")]
+    pub min_version: Option<semver::Version>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(with = "Option<String>")]
+    pub max_version: Option<semver::Version>,
+    #[serde(default)]
+    pub enforce_max: bool,
 }
 
 impl BridgeReleasesSpec {
     #[must_use]
     pub fn api_base(&self) -> &str {
         self.api_base.as_deref().unwrap_or("https://api.github.com")
+    }
+
+    #[must_use]
+    pub fn version_window(&self) -> BridgeVersionWindow {
+        BridgeVersionWindow {
+            min: self.min_version.clone(),
+            max: self.max_version.clone(),
+            enforce_max: self.enforce_max,
+        }
     }
 }
 
@@ -124,6 +190,7 @@ impl Default for GatewayConfigSpec {
             inference_path_prefix: default_inference_path_prefix(),
             system_prompt_overrides: Vec::new(),
             bridge_releases: None,
+            bridge_instance: None,
         }
     }
 }
@@ -150,6 +217,7 @@ impl GatewayConfigSpec {
             inference_path_prefix,
             system_prompt_overrides,
             bridge_releases,
+            bridge_instance,
         } = self;
 
         GatewayConfig {
@@ -163,6 +231,7 @@ impl GatewayConfigSpec {
             inference_path_prefix,
             system_prompt_overrides,
             bridge_releases,
+            bridge_instance,
         }
     }
 }

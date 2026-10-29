@@ -41,6 +41,14 @@ Commands (credential helper):
                              org-plugins or managed profiles — see `uninstall --purge`.
   status                     Show config paths and what is currently set up
   whoami                     Print authenticated identity from the gateway
+  gateway list               List gateway profiles; `*` marks the active one
+  gateway add <url>          Add a gateway profile (sign in after `gateway use`)
+  gateway use <id>           Switch the active gateway: clears what the previous
+                             gateway delivered, then syncs the new one
+  gateway remove <id>        Remove an inactive profile and its stored PAT
+  disable                    Stop routing and syncing so hosts use their own
+                             sign-in (only where the gateway allows it)
+  enable                     Route and sync through the gateway again
 
 ",
         bin = b.binary_name,
@@ -150,7 +158,7 @@ fn env_overrides(b: &Brand) -> String {
     format!(
         "Env overrides:
   {config_env}           Path to {config_file}
-  {pat_env}              Inline PAT (overrides file-based [pat])
+  {pat_env}              Inline PAT (overrides the stored PAT)
   {egress_env}
                              Comma-separated Cowork egress allowlist; `loopback`
                              expands to 127.0.0.1. Unset means no restriction.

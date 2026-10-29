@@ -489,7 +489,9 @@ fn external_credential_change_invalidates_the_cached_token() {
                 std::fs::write(&paths.pat_file, "sp-live-a.b").expect("write pat");
                 std::fs::write(
                     &paths.config_file,
-                    format!("[pat]\nfile = {:?}\n", paths.pat_file.display().to_string()),
+                    "[pat]
+store = \"file\"
+",
                 )
                 .expect("point the config at the pat");
 
@@ -551,7 +553,9 @@ fn a_latched_cache_releases_when_the_credentials_change_on_disk() {
                 std::fs::write(&paths.pat_file, "sp-live-a.b").expect("write pat");
                 std::fs::write(
                     &paths.config_file,
-                    format!("[pat]\nfile = {:?}\n", paths.pat_file.display().to_string()),
+                    "[pat]
+store = \"file\"
+",
                 )
                 .expect("point the config at the pat");
 
@@ -620,7 +624,9 @@ where
                     std::fs::write(&paths.pat_file, "sp-live-a.b").expect("write pat");
                     std::fs::write(
                         &paths.config_file,
-                        format!("[pat]\nfile = {:?}\n", paths.pat_file.display().to_string()),
+                        "[pat]
+store = \"file\"
+",
                     )
                     .expect("point the config at the pat");
                     f(paths).await
@@ -742,14 +748,13 @@ where
             .expect("runtime")
             .block_on(async {
                 let server = wiremock::MockServer::start().await;
-                let pat = home.path().join("pat.txt");
+                let pat = config.with_file_name("systemprompt-bridge.pat");
                 std::fs::write(&pat, "sp-live-runtime-cache-pat").expect("PAT");
                 std::fs::write(
                     &config,
                     format!(
-                        "gateway_url = {:?}\n[pat]\nfile = {:?}\n",
-                        server.uri(),
-                        pat.display().to_string()
+                        "gateway_url = {:?}\n[pat]\nstore = \"file\"\n",
+                        server.uri()
                     ),
                 )
                 .expect("runtime config");
@@ -923,7 +928,9 @@ fn credential_rotation_during_refresh_discards_the_minted_token_then_retries() {
                     std::fs::write(&paths.pat_file, "sp-live-before-refresh").expect("PAT");
                     std::fs::write(
                         &paths.config_file,
-                        format!("[pat]\nfile = {:?}\n", paths.pat_file.display().to_string()),
+                        "[pat]
+store = \"file\"
+",
                     )
                     .expect("config");
                     let calls = Arc::new(AtomicUsize::new(0));

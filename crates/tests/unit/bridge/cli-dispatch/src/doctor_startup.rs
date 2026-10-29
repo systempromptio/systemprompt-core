@@ -14,7 +14,7 @@ fn a_corrupt_proxy_port_file_starts_the_context_and_is_reported_as_a_startup_fau
     let sb = Sandbox::new();
     corrupt_portfile(&sb);
     let faults = sb.run(|| {
-        let ctx = BridgeContext::start(ProxyMode::Attach)
+        let ctx = BridgeContext::start(ProxyMode::Attach, std::sync::Arc::new(|| None))
             .expect("a corrupt port file must not stop the bridge from starting");
         ctx.startup_faults.clone()
     });
@@ -35,7 +35,8 @@ fn doctor_prepends_one_failing_startup_check_per_startup_fault() {
     let sb = Sandbox::new();
     corrupt_portfile(&sb);
     let (names, startup): (Vec<&'static str>, Vec<String>) = sb.run(|| {
-        let ctx = BridgeContext::start(ProxyMode::Attach).expect("context starts");
+        let ctx = BridgeContext::start(ProxyMode::Attach, std::sync::Arc::new(|| None))
+            .expect("context starts");
         let (checks, any_fail) = ctx.block_on(run_checks(&ctx));
         assert!(any_fail, "a startup fault fails the doctor run");
         let names = checks.iter().map(|c| c.name).collect();

@@ -14,6 +14,7 @@ use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{SessionId, UserId};
+use systemprompt_models::bridge::instance::BridgeState;
 
 use crate::error::OauthResult;
 
@@ -33,6 +34,8 @@ pub struct UpsertBridgeSession {
     pub forwarded_total: i64,
     pub tokens_in_total: i64,
     pub tokens_out_total: i64,
+    pub release_version: Option<String>,
+    pub state: Option<BridgeState>,
 }
 
 #[derive(Debug, Clone)]
@@ -48,6 +51,8 @@ pub struct BridgeSessionRow {
     pub forwarded_total: i64,
     pub tokens_in_total: i64,
     pub tokens_out_total: i64,
+    pub release_version: Option<String>,
+    pub state: Option<String>,
 }
 
 impl BridgeSessionRepository {
@@ -63,9 +68,10 @@ impl BridgeSessionRepository {
             INSERT INTO bridge_sessions (
                 session_id, user_id, bridge_version, os, hostname,
                 last_heartbeat_at, last_activity_at,
-                forwarded_total, tokens_in_total, tokens_out_total
+                forwarded_total, tokens_in_total, tokens_out_total,
+                release_version, state
             )
-            VALUES ($1, $2, $3, $4, $5, NOW(), $6, $7, $8, $9)
+            VALUES ($1, $2, $3, $4, $5, NOW(), $6, $7, $8, $9, $10, $11)
             ON CONFLICT (session_id) DO UPDATE SET
                 last_heartbeat_at = NOW(),
                 last_activity_at = COALESCE(EXCLUDED.last_activity_at, bridge_sessions.last_activity_at),
@@ -74,7 +80,9 @@ impl BridgeSessionRepository {
                 hostname = EXCLUDED.hostname,
                 forwarded_total = EXCLUDED.forwarded_total,
                 tokens_in_total = EXCLUDED.tokens_in_total,
-                tokens_out_total = EXCLUDED.tokens_out_total
+                tokens_out_total = EXCLUDED.tokens_out_total,
+                release_version = EXCLUDED.release_version,
+                state = EXCLUDED.state
             "#,
             params.session_id.as_str(),
             params.user_id.as_str(),
@@ -85,6 +93,8 @@ impl BridgeSessionRepository {
             params.forwarded_total,
             params.tokens_in_total,
             params.tokens_out_total,
+            params.release_version,
+            params.state.map(BridgeState::as_str),
         )
         .execute(self.write_pool.as_ref())
         .await?;
@@ -100,7 +110,8 @@ impl BridgeSessionRepository {
                    user_id as "user_id: UserId",
                    bridge_version, os, hostname,
                    started_at, last_heartbeat_at, last_activity_at,
-                   forwarded_total, tokens_in_total, tokens_out_total
+                   forwarded_total, tokens_in_total, tokens_out_total,
+                   release_version, state
             FROM bridge_sessions
             WHERE last_heartbeat_at > NOW() - make_interval(secs => $1::double precision)
             ORDER BY last_heartbeat_at DESC
@@ -126,7 +137,8 @@ impl BridgeSessionRepository {
                    user_id as "user_id: UserId",
                    bridge_version, os, hostname,
                    started_at, last_heartbeat_at, last_activity_at,
-                   forwarded_total, tokens_in_total, tokens_out_total
+                   forwarded_total, tokens_in_total, tokens_out_total,
+                   release_version, state
             FROM bridge_sessions
             WHERE user_id = $1
               AND last_heartbeat_at > NOW() - make_interval(secs => $2::double precision)

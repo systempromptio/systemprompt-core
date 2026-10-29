@@ -213,6 +213,14 @@ async fn status_404_not_registered() {
 }
 
 #[tokio::test]
+async fn status_409_provider_not_connected_is_its_own_state_not_an_upstream_error() {
+    assert_error_status(409, McpAuthState::ProviderNotConnected).await;
+    assert!(McpAuthState::ProviderNotConnected.needs_account_connection());
+    assert!(McpAuthState::ProviderNotConnected.is_conclusive());
+    assert!(!McpAuthState::ProviderNotConnected.shows_tools());
+}
+
+#[tokio::test]
 async fn status_500_upstream_error() {
     assert_error_status(500, McpAuthState::UpstreamError).await;
 }

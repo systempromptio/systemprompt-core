@@ -154,13 +154,7 @@ pub fn rehydrate_from_disk(slot: &McpRegistrySlot, gateway: &ValidatedUrl) -> st
     Ok(())
 }
 
-#[must_use]
-pub fn same_origin(a: &ValidatedUrl, b: &ValidatedUrl) -> bool {
-    match (url::Url::parse(a.as_str()), url::Url::parse(b.as_str())) {
-        (Ok(a), Ok(b)) => a.origin() == b.origin(),
-        _ => a.as_str().trim_end_matches('/') == b.as_str().trim_end_matches('/'),
-    }
-}
+pub use crate::config::same_origin;
 
 #[must_use]
 pub fn normalize_key(name: &str) -> String {

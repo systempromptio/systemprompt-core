@@ -42,6 +42,7 @@ impl<'a> From<&'a ProxyHealth> for ProxyPayload<'a> {
 pub struct HostHealthPayload<'a> {
     pub profile: Verdict<ProfileCode>,
     pub missing_required: &'a [String],
+    pub stale_keys: &'a [String],
     pub app: Verdict<AppInstallState>,
     pub host_running: Option<bool>,
     pub probe_error: Option<&'a str>,
@@ -71,6 +72,7 @@ impl<'a> From<&'a HostAppSnapshot> for HostHealthPayload<'a> {
         Self {
             profile: s.profile_state.verdict(),
             missing_required: s.profile_state.missing_required(),
+            stale_keys: s.profile_state.stale_keys(),
             app: s.app_installed.verdict(),
             host_running: s.host_running,
             probe_error: s.probe_error.as_deref(),

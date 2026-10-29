@@ -109,7 +109,8 @@ fn claude_code_enrollment_preserves_bad_settings_then_recovers_after_repair() {
         let malformed = b"{ malformed settings";
         fs::write(&settings, malformed).expect("seed malformed settings");
 
-        let bridge = BridgeContext::start(ProxyMode::Attach).expect("attach bridge");
+        let bridge = BridgeContext::start(ProxyMode::Attach, std::sync::Arc::new(|| None))
+            .expect("attach bridge");
         let failed = enroll_claude_code(&bridge);
         match failed {
             Outcome::Failed(message) => assert!(
@@ -182,7 +183,7 @@ fn claude_code_enrollment_settings_directory_failure_preserves_contents_then_rec
         fs::create_dir_all(&dirs.settings()).expect("directory occupies settings path");
         let occupant = dirs.settings().join("operator-note");
         fs::write(&occupant, b"retain").unwrap();
-        let bridge = BridgeContext::start(ProxyMode::Attach).expect("attach bridge");
+        let bridge = BridgeContext::start(ProxyMode::Attach, std::sync::Arc::new(|| None)).expect("attach bridge");
 
         let failed = enroll_claude_code(&bridge);
         assert!(
@@ -244,7 +245,8 @@ fn enrolling_all_hosts_routes_an_installed_claude_code_cli() {
     let dirs = Sandbox::new();
     dirs.within(|| {
         fs::create_dir_all(dirs.home.path().join(".claude")).expect(".claude");
-        let bridge = BridgeContext::start(ProxyMode::Attach).expect("attach bridge");
+        let bridge = BridgeContext::start(ProxyMode::Attach, std::sync::Arc::new(|| None))
+            .expect("attach bridge");
 
         let reports = enrol_all(&bridge, &[HostKind::ClaudeCode]);
         let claude = reports
@@ -265,7 +267,8 @@ fn enrolling_all_hosts_respects_an_instance_that_does_not_enable_claude_code() {
     let dirs = Sandbox::new();
     dirs.within(|| {
         fs::create_dir_all(dirs.home.path().join(".claude")).expect(".claude");
-        let bridge = BridgeContext::start(ProxyMode::Attach).expect("attach bridge");
+        let bridge = BridgeContext::start(ProxyMode::Attach, std::sync::Arc::new(|| None))
+            .expect("attach bridge");
 
         let reports = enrol_all(&bridge, &[]);
         let claude = reports
@@ -290,7 +293,8 @@ fn enrolling_all_hosts_respects_an_instance_that_does_not_enable_claude_code() {
 fn enrolling_all_hosts_skips_claude_code_when_its_cli_is_absent() {
     let dirs = Sandbox::new();
     dirs.within(|| {
-        let bridge = BridgeContext::start(ProxyMode::Attach).expect("attach bridge");
+        let bridge = BridgeContext::start(ProxyMode::Attach, std::sync::Arc::new(|| None))
+            .expect("attach bridge");
         let reports = enrol_all(&bridge, &[HostKind::ClaudeCode]);
         assert!(
             reports.iter().all(|r| r.host_id != HostKind::ClaudeCode),

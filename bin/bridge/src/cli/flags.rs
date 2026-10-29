@@ -20,7 +20,10 @@ const NONE: CommandFlags = CommandFlags {
 pub fn command_flags(command: Option<&str>) -> Option<CommandFlags> {
     Some(match command? {
         "run" | "proxy" | "feedback-status" | "logout" | "clean" | "status" | "whoami"
-        | "validate" | "comms-drain" | "diagnostics" | "doctor" | "gui" => NONE,
+        | "validate" | "comms-drain" | "diagnostics" | "doctor" | "gui" | "disable" | "enable" => {
+            NONE
+        },
+
         "device-enroll" => CommandFlags {
             values: &["--token-file"],
             ..NONE
@@ -44,7 +47,7 @@ pub fn command_flags(command: Option<&str>) -> Option<CommandFlags> {
             ],
             ..NONE
         },
-        "__install-claude-policy" => CommandFlags {
+        "__install-claude-policy" | "gateway" => CommandFlags {
             positionals: 2,
             ..NONE
         },
