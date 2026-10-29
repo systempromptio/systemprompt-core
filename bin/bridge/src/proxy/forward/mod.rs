@@ -190,7 +190,11 @@ pub(crate) async fn forward(
         }
         tracing::debug!(upstream_status = status.as_u16(), "upstream forwarded");
     } else {
-        tracing::warn!(upstream_status = status.as_u16(), url = %route.url, "upstream non-2xx");
+        if systemprompt_models::ApiPaths::is_otel(&request_path) {
+            tracing::debug!(upstream_status = status.as_u16(), url = %route.url, "telemetry upstream non-2xx; dropped");
+        } else {
+            tracing::warn!(upstream_status = status.as_u16(), url = %route.url, "upstream non-2xx");
+        }
         if status == StatusCode::UNAUTHORIZED {
             note_unauthorized(
                 &plugin_tokens,

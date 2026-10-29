@@ -130,6 +130,18 @@ fn log_forward_failure(
         ctx.deps.activity.append_warn(format!(
             "proxy: {method} {path} → client disconnected [{req_id}]"
         ));
+    } else if systemprompt_models::ApiPaths::is_otel(path) {
+        // Why: Claude Code retries its OTLP exporter on its own schedule; a
+        // dropped batch loses telemetry, never a user's request.
+        tracing::debug!(
+            target: "systemprompt_bridge::proxy",
+            req_id = %req_id,
+            method = %method,
+            path = %path,
+            latency_ms,
+            error = %e,
+            "req out: telemetry forward dropped"
+        );
     } else {
         tracing::error!(
             target: "systemprompt_bridge::proxy",
