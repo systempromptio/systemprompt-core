@@ -11173,6 +11173,7 @@ dependencies = [
  "systemprompt-files",
  "systemprompt-logging",
  "systemprompt-mcp",
+ "systemprompt-notifications",
  "systemprompt-oauth",
  "systemprompt-scheduler",
  "systemprompt-security",
