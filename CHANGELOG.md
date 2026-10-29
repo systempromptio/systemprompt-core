@@ -67,6 +67,24 @@
 - **Scheduler:** the `notification_retention` job runs every five minutes and purges, each under its own batch and time budget, read rows past the profile retention and a stream's rows past the stream's retention, delivery failures past `failure_retention_days`, and unread rows past `unread_max_age_days`.
 - **Users:** `UserRepository::is_active_with_role`, and a GIN index on `users.roles` serving role membership and role listing.
 
+### Fixed
+
+- **Cache expiry and relay reconnects no longer fan out into one load per caller.** The
+  gateway policy cache, the authz parent-chain index, the OIDC discovery document and the
+  JWKS client each loaded on a miss with no coordination, so an expiry, or the epoch bump a
+  policy write or a relay reconnect sends, made every in-flight request on every replica run
+  the same query or fetch the same issuer document. Each now loads once: concurrent misses
+  queue on one load lock and re-read the cache when they hold it, and an expired discovery
+  document is served while a single refresh runs. The parent-chain cache also no longer holds
+  its write lock across the fingerprint query, so readers of a fresh index never wait on a
+  revalidation.
+- **Retry delays are jittered.** The event relay's reconnect backoff, the agent-run listener's
+  reconnect, the initial Postgres connect, Vault reads and OTLP export retries slept fixed or
+  doubling delays, so replicas that failed together retried together after a database or
+  collector outage. Each delay is now drawn from its upper half
+  (`systemprompt_traits::backoff::jittered`; the Postgres connect turns on the jitter its
+  `RetryConfig` already supported).
+
 ## [0.75.1] - 2026-10-29
 
 ### Fixed

@@ -89,7 +89,10 @@ impl VaultHttp {
 
         for attempt in 0..attempts {
             if attempt > 0 {
-                tokio::time::sleep(backoff_delay(attempt)).await;
+                tokio::time::sleep(systemprompt_traits::backoff::jittered(backoff_delay(
+                    attempt,
+                )))
+                .await;
             }
             match build()?.send().await {
                 Ok(response) if is_retryable(response.status()) => {

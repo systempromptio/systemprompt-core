@@ -59,7 +59,7 @@ impl RunEventNotifier {
             }
             tokio::select! {
                 () = cancel.cancelled() => return,
-                () = tokio::time::sleep(RECONNECT) => {},
+                () = tokio::time::sleep(systemprompt_traits::backoff::jittered(RECONNECT)) => {},
             }
         }
     }

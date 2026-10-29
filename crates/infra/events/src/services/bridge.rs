@@ -155,7 +155,7 @@ impl PostgresEventBridge {
                     Self::report_listener_failure(&e, backoff);
                     tokio::select! {
                         () = cancel.cancelled() => break,
-                        () = tokio::time::sleep(backoff) => {},
+                        () = tokio::time::sleep(systemprompt_traits::backoff::jittered(backoff)) => {},
                     }
                     backoff = (backoff * 2).min(RETRY_MAX);
                     continue;

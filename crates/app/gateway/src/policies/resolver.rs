@@ -9,6 +9,10 @@
 //! listening the TTL drops to a few seconds, since a write elsewhere cannot
 //! reach this cache.
 //!
+//! A miss is loaded once: concurrent callers that miss queue on one load lock
+//! and re-read the cache when they get it, so an expiry or an epoch bump costs
+//! one policy query per replica, not one per in-flight request.
+//!
 //! An empty policy table on a database where the `gateway_policies` plane was
 //! never applied follows the profile's `governance.unapplied_planes`: `deny`
 //! refuses with [`PolicyUnavailable::NotApplied`] whatever the fault mode,
@@ -64,6 +68,7 @@ pub enum PolicyUnavailable {
 pub struct PolicyResolver {
     repo: Arc<AiGatewayPolicyRepository>,
     cache: Arc<RwLock<Option<CachedEntry>>>,
+    load: Arc<tokio::sync::Mutex<()>>,
     epochs: CacheEpochs,
     unapplied: UnappliedPlaneMode,
 }
@@ -91,6 +96,7 @@ impl PolicyResolver {
         Self {
             repo: Arc::new(repo),
             cache: Arc::new(RwLock::new(None)),
+            load: Arc::new(tokio::sync::Mutex::new(())),
             epochs,
             unapplied,
         }
@@ -106,15 +112,12 @@ impl PolicyResolver {
         } else {
             UNRELAYED_CACHE_TTL
         };
-        if let Ok(cache) = self.cache.read()
-            && let Some(entry) = cache.as_ref()
-            && entry.fetched_at.elapsed() < ttl
-            && entry.epoch == epoch
-        {
-            if entry.unapplied {
-                warn_unapplied();
-            }
-            return Ok(entry.spec.clone());
+        if let Some(spec) = self.cached(epoch, ttl) {
+            return Ok(spec);
+        }
+        let _load = self.load.lock().await;
+        if let Some(spec) = self.cached(epoch, ttl) {
+            return Ok(spec);
         }
 
         let rows = match self.repo.list_for_global().await {
@@ -160,6 +163,20 @@ impl PolicyResolver {
             });
         }
         Ok(spec)
+    }
+
+    fn cached(&self, epoch: u64, ttl: Duration) -> Option<GatewayPolicySpec> {
+        let cache = self.cache.read().ok()?;
+        let hit = cache
+            .as_ref()
+            .filter(|e| e.fetched_at.elapsed() < ttl && e.epoch == epoch)
+            .map(|e| (e.spec.clone(), e.unapplied));
+        drop(cache);
+        let (spec, unapplied) = hit?;
+        if unapplied {
+            warn_unapplied();
+        }
+        Some(spec)
     }
 
     async fn plane_applied(&self) -> Result<bool, PolicyUnavailable> {

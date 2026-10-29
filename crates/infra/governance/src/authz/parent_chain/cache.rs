@@ -12,6 +12,11 @@
 //! replica advances the [`CacheDomain::Authz`] epoch, which forces a reload
 //! on the next decision regardless of either bound.
 //!
+//! Revalidation and reloads are single-flight: callers past `recheck` queue
+//! on one load lock and re-read the slot once they hold it, so a stale slot
+//! costs one fingerprint query and at most one index load per replica, while
+//! readers of a fresh slot never wait on it.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -19,7 +24,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use systemprompt_traits::{CacheDomain, CacheEpochs};
-use tokio::sync::RwLock;
+use tokio::sync::{Mutex, RwLock};
 
 use super::{ChainSources, ParentChainIndex};
 use crate::authz::error::AuthzResult;
@@ -40,6 +45,7 @@ struct CachedIndex {
 #[derive(Debug)]
 pub struct ChainIndexCache {
     slot: RwLock<Option<CachedIndex>>,
+    load: Mutex<()>,
     ttl: Duration,
     recheck: Duration,
     epochs: CacheEpochs,
@@ -50,6 +56,7 @@ impl ChainIndexCache {
     pub fn new(ttl: Duration, recheck: Duration, epochs: CacheEpochs) -> Self {
         Self {
             slot: RwLock::new(None),
+            load: Mutex::new(()),
             ttl,
             recheck,
             epochs,
@@ -66,36 +73,29 @@ impl ChainIndexCache {
         repo: &AccessControlRepository,
         sources: Arc<ChainSources>,
     ) -> AuthzResult<Arc<ParentChainIndex>> {
-        let now = Instant::now();
         let epoch = self.epochs.current(CacheDomain::Authz);
-        let fresh = {
-            let slot = self.slot.read().await;
-            slot.as_ref()
-                .filter(|cached| cached.epoch == epoch)
-                .filter(|cached| now.duration_since(cached.checked_at) < self.recheck)
-                .map(|cached| Arc::clone(&cached.index))
-        };
-        if let Some(index) = fresh {
+        if let Some(index) = self.fresh(epoch).await {
             return Ok(index);
         }
 
+        let _load = self.load.lock().await;
+        if let Some(index) = self.fresh(epoch).await {
+            return Ok(index);
+        }
+
+        let now = Instant::now();
+        let fingerprint = repo.chain_fingerprint().await?;
         {
             let mut slot = self.slot.write().await;
-            if let Some(cached) = slot.as_mut().filter(|cached| cached.epoch == epoch) {
-                if now.duration_since(cached.checked_at) < self.recheck {
-                    return Ok(Arc::clone(&cached.index));
-                }
-                if let Ok(fingerprint) = repo.chain_fingerprint().await
-                    && fingerprint == cached.fingerprint
-                    && now.duration_since(cached.loaded_at) < self.ttl
-                {
-                    cached.checked_at = now;
-                    return Ok(Arc::clone(&cached.index));
-                }
+            if let Some(cached) = slot.as_mut().filter(|cached| cached.epoch == epoch)
+                && fingerprint == cached.fingerprint
+                && now.duration_since(cached.loaded_at) < self.ttl
+            {
+                cached.checked_at = now;
+                return Ok(Arc::clone(&cached.index));
             }
         }
 
-        let fingerprint = repo.chain_fingerprint().await?;
         let index = Arc::new(ParentChainIndex::load(repo, sources).await?);
         *self.slot.write().await = Some(CachedIndex {
             index: Arc::clone(&index),
@@ -105,5 +105,13 @@ impl ChainIndexCache {
             epoch,
         });
         Ok(index)
+    }
+
+    async fn fresh(&self, epoch: u64) -> Option<Arc<ParentChainIndex>> {
+        let slot = self.slot.read().await;
+        slot.as_ref()
+            .filter(|cached| cached.epoch == epoch)
+            .filter(|cached| cached.checked_at.elapsed() < self.recheck)
+            .map(|cached| Arc::clone(&cached.index))
     }
 }

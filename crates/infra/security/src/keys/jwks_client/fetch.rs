@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use url::{Host, Url};
@@ -55,6 +56,18 @@ impl JwksClient {
         url: &Url,
         kid: &str,
     ) -> Result<VerificationKey, JwksClientError> {
+        let lock = self.refresh_lock(issuer);
+        let _refresh = lock.lock().await;
+        match self.lookup(issuer, kid) {
+            CacheProbe::Hit(jwk) => return Ok(jwk),
+            CacheProbe::KidMissRecentlyFetched => {
+                return Err(JwksClientError::KeyNotFound {
+                    issuer: issuer.to_owned(),
+                    kid: kid.to_owned(),
+                });
+            },
+            CacheProbe::Miss | CacheProbe::KidMissRefetchAllowed | CacheProbe::Expired => {},
+        }
         let (jwks, ttl) = self.fetch_remote(url).await?;
         let now = Instant::now();
         let kid_present = jwks.keys.iter().any(|k| k.kid() == kid);
@@ -74,6 +87,14 @@ impl JwksClient {
                 issuer: issuer.to_owned(),
                 kid: kid.to_owned(),
             })
+    }
+
+    fn refresh_lock(&self, issuer: &str) -> Arc<tokio::sync::Mutex<()>> {
+        let mut locks = self
+            .refreshing
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        Arc::clone(locks.entry(issuer.to_owned()).or_default())
     }
 
     fn build_jwks_url(&self, issuer: &str) -> Result<Url, JwksClientError> {
