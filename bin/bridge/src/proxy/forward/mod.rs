@@ -28,8 +28,8 @@ pub mod headers;
 mod hook;
 pub mod replay;
 mod retry;
-mod status;
 pub mod route;
+mod status;
 
 use body::prepare_upstream_body;
 pub use body::{CHAT_COMPLETIONS_PATH, stamp_opencode_session};
@@ -38,8 +38,8 @@ use headers::{UpstreamHeaderInputs, build_upstream_headers, copy_response_header
 use hook::{authenticate_hook_track, require_hook_credential};
 pub use replay::{Replay, describe, replay_policy, should_replay};
 use retry::{UpstreamSend, send_upstream};
-use status::{UpstreamStatus, note_upstream_status};
 use route::{Route, RouteResolution, resolve_route, same_origin_as};
+use status::{UpstreamStatus, note_upstream_status};
 
 pub type ProxyBody = http_body_util::combinators::BoxBody<Bytes, std::io::Error>;
 
