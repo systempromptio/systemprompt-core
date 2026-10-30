@@ -38,11 +38,19 @@ mod lower;
 mod nodes;
 mod package;
 mod paragraph;
+#[cfg(feature = "collab-loro")]
+mod picture;
 mod projection;
 mod rebase;
+#[cfg(feature = "collab-loro")]
+mod restyle;
+#[cfg(feature = "collab-loro")]
+mod runs;
 mod slides;
 #[cfg(feature = "collab-loro")]
 mod structure;
+#[cfg(feature = "collab-loro")]
+mod zorder;
 
 use std::sync::Arc;
 

@@ -4,9 +4,13 @@
 //! Every slide is paired with its target as the text passes paired it, so by
 //! now the deck holds exactly the target's slides. A moved or resized shape
 //! has its `a:off`/`a:ext` rewritten (an `a:xfrm` is written into its
-//! `p:spPr` when it inherited its frame), a removed shape is cut from the
-//! `p:spTree`, an added text shape is appended to it, and `p:sldIdLst` is
-//! rewritten in the target's order when that differs.
+//! `p:spPr` when it inherited its frame), a paired text shape's paragraphs
+//! take the target's marks and kinds ([`restyle`](super::restyle)), a removed
+//! shape is cut from the `p:spTree`, an added text shape or image
+//! ([`picture`](super::picture)) is placed in it, and `p:sldIdLst` is
+//! rewritten in the target's order when that differs. When the target puts
+//! the shapes in another z-order (the `p:spTree` order) the shapes are
+//! written out again in that order; otherwise each is edited in place.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -16,7 +20,10 @@ use systemprompt_provider_contracts::documents::CodecError;
 
 use super::deck::model_of;
 use super::lower::{shape_pairs, slide_pairs};
+use super::picture::picture_xml;
 use super::projection::{self, Slide, shape_elements, sp_tree};
+use super::restyle::paragraph_edits;
+use super::zorder::{Placed, in_order, reordered};
 use super::slides::{PRESENTATION, slide_refs};
 use crate::documents::codecs::xml_tree::{Element, parse_xml, splice};
 use crate::documents::codecs::zip_package::Package;
@@ -31,7 +38,8 @@ pub(super) fn restructure(bytes: &[u8], target: &DeckModel) -> Result<Vec<u8>, C
     let mut changed = false;
     for (t, paired) in pairs.iter().enumerate() {
         let Some(b) = *paired else { continue };
-        if let Some(xml) = slide_edits(&slides[b], &base.slides[b], &target.slides[t])? {
+        let edited = slide_edits(&mut package, &slides[b], &base.slides[b], &target.slides[t])?;
+        if let Some(xml) = edited {
             package.write(&slides[b].part, xml);
             changed = true;
         }
@@ -48,6 +56,7 @@ pub(super) fn restructure(bytes: &[u8], target: &DeckModel) -> Result<Vec<u8>, C
 }
 
 fn slide_edits(
+    package: &mut Package<'_>,
     slide: &Slide,
     base: &DeckSlide,
     target: &DeckSlide,
@@ -60,33 +69,55 @@ fn slide_edits(
     let pairs = shape_pairs(base, target);
     let mut kept = vec![false; base.shapes.len()];
     let mut edits = Vec::new();
+    let mut placed = Vec::new();
     let mut next_id = max_id(&root) + 1;
     for (t, paired) in pairs.iter().enumerate() {
         let shape = &target.shapes[t];
         match *paired {
             Some(b) => {
                 kept[b] = true;
-                if let (Some(frame), Some(element)) = (shape.frame, elements.get(b))
+                let Some(&element) = elements.get(b) else { continue };
+                if let Some(frame) = shape.frame
                     && base.shapes[b].frame != Some(frame)
                 {
                     edits.extend(frame_edits(element, &slide.xml, frame));
                 }
+                edits.extend(paragraph_edits(&slide.xml, element, &base.shapes[b], shape)?);
+                placed.push(Placed::Kept(element));
             },
             None if shape.kind.holds_text() => {
-                edits.push((tree.inner_end, tree.inner_end, shape_xml(next_id, shape)));
+                placed.push(Placed::Added(shape_xml(next_id, shape)));
                 next_id += 1;
             },
+            None if shape.kind == ShapeKind::Image => {
+                if let Some(xml) = picture_xml(package, &slide.part, next_id, shape)? {
+                    placed.push(Placed::Added(xml));
+                    next_id += 1;
+                }
+            },
             None => {
-                tracing::warn!(slide = %base.id, "only text shapes are added to a pptx slide");
+                tracing::warn!(slide = %base.id, "only text and image shapes are added to a slide");
             },
         }
     }
-    for (b, kept) in kept.iter().enumerate() {
-        if let (false, Some(element)) = (*kept, elements.get(b)) {
+    let removed: Vec<&Element> = kept
+        .iter()
+        .zip(&elements)
+        .filter(|(kept, _)| !**kept)
+        .map(|(_, element)| *element)
+        .collect();
+    if in_order(&placed) {
+        for element in removed {
             edits.push((element.start, element.end, String::new()));
         }
+        for added in placed {
+            if let Placed::Added(xml) = added {
+                edits.push((tree.inner_end, tree.inner_end, xml));
+            }
+        }
+        return Ok((!edits.is_empty()).then(|| splice(&slide.xml, edits)));
     }
-    Ok((!edits.is_empty()).then(|| splice(&slide.xml, edits)))
+    Ok(Some(reordered(&slide.xml, &elements, &placed, edits)))
 }
 
 fn max_id(element: &Element) -> u64 {
@@ -113,7 +144,7 @@ fn ext_xml(frame: Frame) -> String {
     )
 }
 
-fn xfrm_xml(frame: Frame) -> String {
+pub(super) fn xfrm_xml(frame: Frame) -> String {
     format!("<a:xfrm>{}{}</a:xfrm>", off_xml(frame), ext_xml(frame))
 }
 

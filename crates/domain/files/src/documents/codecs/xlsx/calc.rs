@@ -5,8 +5,10 @@
 //! `=…`) and merges, minting fresh row and column ids. [`checkpoint_xlsx`]
 //! builds an IronCalc model from the sheet model, recalculates it and
 //! writes it out, so the checkpoint's cached values are the ones a reader
-//! without a calc engine sees. Number formats and styles held in the sheet
-//! model are not yet written back. Locale, timezone and language match the
+//! without a calc engine sees. A cell's `style` is IronCalc's own [`Style`]
+//! as JSON (the shape the browser model's `getCellStyle` returns) and its
+//! `fmt` is the number-format code; both are read on import and written back
+//! at checkpoint, `fmt` overriding the style's `num_fmt`. Locale, timezone and language match the
 //! browser's IronCalc model (`workbook`, `en`, `UTC`, `en`).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -16,7 +18,7 @@ use std::collections::BTreeMap;
 use std::io::Cursor;
 
 use ironcalc::base::Model;
-use ironcalc::base::types::MergedCell;
+use ironcalc::base::types::{MergedCell, Style};
 use ironcalc::export::save_xlsx_to_writer;
 use ironcalc::import::load_from_xlsx_bytes;
 use systemprompt_provider_contracts::documents::CodecError;
@@ -54,15 +56,12 @@ pub fn sheet_model_from_xlsx(bytes: &[u8]) -> Result<SheetModel, CodecError> {
         let (Ok(col), Ok(row)) = (u32::try_from(index.column), u32::try_from(index.row)) else {
             continue;
         };
-        if !v.is_empty() {
-            grids.entry(index.index).or_default().push((
-                col,
-                row,
-                SheetCell {
-                    v,
-                    ..SheetCell::default()
-                },
-            ));
+        let (fmt, style) = cell_style(&model, index.index, index.row, index.column);
+        if !v.is_empty() || style.is_some() {
+            grids
+                .entry(index.index)
+                .or_default()
+                .push((col, row, SheetCell { v, fmt, style }));
         }
     }
     let sheets = (0u32..)
@@ -77,6 +76,35 @@ pub fn sheet_model_from_xlsx(bytes: &[u8]) -> Result<SheetModel, CodecError> {
         })
         .collect();
     Ok(SheetModel { sheets })
+}
+
+fn cell_style(
+    model: &Model<'_>,
+    sheet: u32,
+    row: i32,
+    column: i32,
+) -> (Option<String>, Option<String>) {
+    let Ok(style) = model.get_style_for_cell(sheet, row, column) else {
+        return (None, None);
+    };
+    if style == Style::default() {
+        return (None, None);
+    }
+    let fmt = (style.num_fmt != Style::default().num_fmt).then(|| style.num_fmt.clone());
+    (fmt, serde_json::to_string(&style).ok())
+}
+
+fn target_style(cell: &SheetCell) -> Option<Style> {
+    let mut style = match cell.style.as_deref() {
+        Some(json) => serde_json::from_str(json)
+            .inspect_err(|error| tracing::warn!(%error, "a cell style is not an IronCalc style"))
+            .unwrap_or_default(),
+        None => Style::default(),
+    };
+    if let Some(fmt) = &cell.fmt {
+        style.num_fmt.clone_from(fmt);
+    }
+    (style != Style::default()).then_some(style)
 }
 
 fn merge_a1(merge: &MergedCell) -> Option<String> {
@@ -105,6 +133,11 @@ pub fn checkpoint_xlsx(sheets: &SheetModel) -> Result<Vec<u8>, CodecError> {
             model
                 .set_user_input(index, row, column, cell.v.clone())
                 .map_err(parse_error("cell"))?;
+            if let Some(style) = target_style(cell) {
+                model
+                    .set_cell_style(index, row, column, &style)
+                    .map_err(parse_error("style"))?;
+            }
         }
         let merges = merged_cells(sheet);
         if let Some(worksheet) = model.workbook.worksheets.get_mut(index as usize) {

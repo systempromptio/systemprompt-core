@@ -3,7 +3,8 @@
 //! A slide's id is its part name, a shape's id its `cNvPr` id (its index on
 //! the slide when that is absent or repeated) and a paragraph's id is
 //! `<slide part>#<shape id>/p<index>`. Frames come from the shape's own
-//! `xfrm`; a shape that inherits its frame from its layout has none.
+//! `xfrm`; a shape that inherits its frame from its layout has none. A
+//! paragraph's marks are read from its runs ([`runs`](super::runs)).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -13,11 +14,12 @@ use std::collections::HashSet;
 use systemprompt_provider_contracts::documents::CodecError;
 
 use super::projection::{self, Content, Shape, Slide, shape_elements, sp_tree};
+use super::runs::read_marks;
 use crate::documents::codecs::xml_tree::{Element, parse_xml};
 use crate::documents::codecs::zip_package::Package;
 use crate::documents::engine::loro::deck::{DeckModel, DeckShape, DeckSlide, Frame, ShapeKind};
 use crate::documents::model::layout::ParaAttrs;
-use crate::documents::model::{Block, BlockKind};
+use crate::documents::model::{Block, BlockKind, Mark};
 
 pub fn deck_model(bytes: &[u8]) -> Result<DeckModel, CodecError> {
     model_of(&projection::load(&mut Package::open(bytes)?)?)
@@ -48,9 +50,10 @@ fn slide_of(slide: &Slide) -> Result<DeckSlide, CodecError> {
                 .map(str::to_owned)
                 .filter(|id| seen.insert(id.clone()))
                 .unwrap_or_else(|| format!("shape-{index}"));
-            shape_of(&slide.part, id, shape, element.and_then(frame_of))
+            let marks = element.map_or_else(|| Ok(Vec::new()), |el| paragraph_marks(slide, el))?;
+            Ok(shape_of(&slide.part, id, shape, element.and_then(frame_of), marks))
         })
-        .collect();
+        .collect::<Result<_, CodecError>>()?;
     Ok(DeckSlide {
         id: slide.part.clone(),
         layout: slide.layout.clone(),
@@ -69,7 +72,22 @@ fn kind_of(shape: &Shape) -> ShapeKind {
     }
 }
 
-fn shape_of(part: &str, id: String, shape: &Shape, frame: Option<Frame>) -> DeckShape {
+fn paragraph_marks(slide: &Slide, element: &Element) -> Result<Vec<Vec<Mark>>, CodecError> {
+    element
+        .child("p:txBody")
+        .map_or_else(Vec::new, |body| body.children_named("a:p").collect())
+        .into_iter()
+        .map(|p| read_marks(&slide.part, &slide.xml, p))
+        .collect()
+}
+
+fn shape_of(
+    part: &str,
+    id: String,
+    shape: &Shape,
+    frame: Option<Frame>,
+    mut marks: Vec<Vec<Mark>>,
+) -> DeckShape {
     let paragraphs = match &shape.content {
         Content::Text(paras) => paras
             .iter()
@@ -88,7 +106,7 @@ fn shape_of(part: &str, id: String, shape: &Shape, frame: Option<Frame>) -> Deck
                 },
                 attrs: ParaAttrs::default(),
                 text: para.text.clone(),
-                marks: Vec::new(),
+                marks: marks.get_mut(index).map(std::mem::take).unwrap_or_default(),
             })
             .collect(),
         _ => Vec::new(),

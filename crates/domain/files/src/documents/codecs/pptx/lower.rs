@@ -7,7 +7,7 @@
 //!
 //! Slides and shapes are paired by id, then an unpaired target entry takes
 //! the earliest unpaired deck entry that fits it ([`pair`]). Marks and
-//! paragraph kinds of existing paragraphs are not written.
+//! paragraph kinds are written by the structure pass once text agrees.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
