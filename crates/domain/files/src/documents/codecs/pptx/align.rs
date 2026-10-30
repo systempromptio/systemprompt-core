@@ -86,3 +86,42 @@ fn pair_gaps(raw: Vec<Step>) -> Vec<Step> {
     flush(&mut out, &mut removed, &mut added);
     out
 }
+
+/// Pairs each target entry with a base entry: first the base entry of the
+/// same id, then, in target order, the earliest unpaired base entry (by
+/// `rank`) that `fits`. The engine names a slide or shape it created by a
+/// fresh id while the deck names it by its part or `cNvPr` id, so the
+/// second pass is what keeps such an entry from being removed and re-added
+/// on every lowering.
+pub(super) fn pair<T>(
+    base: &[T],
+    target: &[T],
+    id: impl Fn(&T) -> &str,
+    rank: impl Fn(usize, &T) -> u64,
+    fits: impl Fn(&T, &T) -> bool,
+) -> Vec<Option<usize>> {
+    let mut by_id = std::collections::HashMap::new();
+    for (at, item) in base.iter().enumerate() {
+        by_id.entry(id(item)).or_insert(at);
+    }
+    let mut used = vec![false; base.len()];
+    let mut pairs: Vec<Option<usize>> = target
+        .iter()
+        .map(|item| {
+            let at = by_id.get(id(item)).copied().filter(|at| !used[*at])?;
+            used[at] = true;
+            Some(at)
+        })
+        .collect();
+    let mut free: Vec<usize> = (0..base.len()).filter(|at| !used[*at]).collect();
+    free.sort_by_key(|at| rank(*at, &base[*at]));
+    for (t, slot) in pairs.iter_mut().enumerate() {
+        if slot.is_some() {
+            continue;
+        }
+        if let Some(pos) = free.iter().position(|b| fits(&base[*b], &target[t])) {
+            *slot = Some(free.remove(pos));
+        }
+    }
+    pairs
+}

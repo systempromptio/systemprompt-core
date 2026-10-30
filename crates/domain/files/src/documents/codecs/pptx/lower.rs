@@ -1,14 +1,13 @@
 //! Lowering a [`DeckModel`] onto a deck's bytes.
 //!
-//! The target is aligned against the deck as read (slides and shapes by
-//! id, paragraphs by text, see [`align`](super::align)) and the difference
-//! becomes one batch of edit operations, which the ordinary apply path
+//! Paragraphs are aligned against the deck as read by text, see
+//! [`align`](super::align), and the text difference becomes one batch of
+//! edit operations, which the ordinary apply path
 //! splices into the slide parts; parts nothing touched keep their bytes.
 //!
-//! Lowering carries text and slide structure. Marks, paragraph kinds,
-//! frames, slide order, and shapes added to or removed from an existing
-//! slide are not written; a slide added in the target becomes a slide of its
-//! layout with its title and body text.
+//! Slides and shapes are paired by id, then an unpaired target entry takes
+//! the earliest unpaired deck entry that fits it ([`pair`]). Marks and
+//! paragraph kinds of existing paragraphs are not written.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -18,8 +17,9 @@ use systemprompt_provider_contracts::documents::{
     CodecError, ContentAs, DocumentFormat, EditOp, NodeKind, NodeTarget, Projection, content_hash,
 };
 
-use super::align::{Step, align};
+use super::align::{Step, align, pair};
 use super::deck::model_of;
+use super::structure::restructure;
 use super::{nodes, projection, rebase};
 use crate::documents::codecs::zip_package::Package;
 use crate::documents::engine::loro::deck::{DeckModel, DeckShape, DeckSlide, ShapeKind};
@@ -74,7 +74,46 @@ impl Batch<'_> {
 
 /// Writes `target` onto `bytes`, returning `bytes` unchanged when the deck
 /// already holds it.
+///
+/// Text and slide membership are lowered twice: the first pass removes and
+/// appends slides, the second writes the text of the slides it appended.
+/// The structure pass then writes frames, shapes and slide order.
 pub fn lower_deck(bytes: &[u8], target: &DeckModel) -> Result<Vec<u8>, CodecError> {
+    let first = lower_text(bytes, target)?;
+    let second = lower_text(&first, target)?;
+    restructure(&second, target)
+}
+
+pub(super) fn slide_pairs(base: &DeckModel, target: &DeckModel) -> Vec<Option<usize>> {
+    pair(
+        &base.slides,
+        &target.slides,
+        |slide| slide.id.as_str(),
+        |_, slide| part_number(&slide.id).unwrap_or(u64::MAX),
+        |_, _| true,
+    )
+}
+
+pub(super) fn shape_pairs(base: &DeckSlide, target: &DeckSlide) -> Vec<Option<usize>> {
+    pair(
+        &base.shapes,
+        &target.shapes,
+        |shape| shape.id.as_str(),
+        |at, _| at as u64,
+        |base, target| {
+            base.kind == target.kind || (base.kind.holds_text() && target.kind.holds_text())
+        },
+    )
+}
+
+fn part_number(part: &str) -> Option<u64> {
+    part.strip_prefix("ppt/slides/slide")?
+        .strip_suffix(".xml")?
+        .parse()
+        .ok()
+}
+
+fn lower_text(bytes: &[u8], target: &DeckModel) -> Result<Vec<u8>, CodecError> {
     let slides = projection::load(&mut Package::open(bytes)?)?;
     let base = model_of(&slides)?;
     let current = Projection {
@@ -86,17 +125,20 @@ pub fn lower_deck(bytes: &[u8], target: &DeckModel) -> Result<Vec<u8>, CodecErro
         current: &current,
         ops: Vec::new(),
     };
-    let base_ids: Vec<&str> = base.slides.iter().map(|s| s.id.as_str()).collect();
-    let target_ids: Vec<&str> = target.slides.iter().map(|s| s.id.as_str()).collect();
-    let mut anchor: Option<usize> = None;
-    for step in align(&base_ids, &target_ids) {
-        match step {
-            Step::Keep { base: b, target: t } | Step::Change { base: b, target: t } => {
+    let pairs = slide_pairs(&base, target);
+    let mut kept = vec![false; base.slides.len()];
+    for (t, paired) in pairs.iter().enumerate() {
+        match *paired {
+            Some(b) => {
+                kept[b] = true;
                 lower_slide(&mut batch, b + 1, &base.slides[b], &target.slides[t])?;
-                anchor = Some(b + 1);
             },
-            Step::Remove { base: b } => batch.delete(slide_id(b + 1))?,
-            Step::Add { target: t } => batch.ops.push(new_slide(anchor, &target.slides[t])),
+            None => batch.ops.push(new_slide(None, &target.slides[t])),
+        }
+    }
+    for (b, kept) in kept.iter().enumerate() {
+        if !kept {
+            batch.delete(slide_id(b + 1))?;
         }
     }
     if batch.ops.is_empty() {
@@ -136,16 +178,9 @@ fn lower_slide(
     base: &DeckSlide,
     target: &DeckSlide,
 ) -> Result<(), CodecError> {
-    let base_ids: Vec<&str> = base.shapes.iter().map(|s| s.id.as_str()).collect();
-    let target_ids: Vec<&str> = target.shapes.iter().map(|s| s.id.as_str()).collect();
-    for step in align(&base_ids, &target_ids) {
-        match step {
-            Step::Keep { base: b, target: t } | Step::Change { base: b, target: t } => {
-                lower_shape(batch, slide, b, &base.shapes[b], &target.shapes[t])?;
-            },
-            Step::Remove { .. } | Step::Add { .. } => {
-                tracing::warn!(slide = %base.id, "a shape added or removed is not lowered to pptx");
-            },
+    for (t, paired) in shape_pairs(base, target).into_iter().enumerate() {
+        if let Some(b) = paired {
+            lower_shape(batch, slide, b, &base.shapes[b], &target.shapes[t])?;
         }
     }
     Ok(())

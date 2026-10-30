@@ -41,6 +41,8 @@ mod paragraph;
 mod projection;
 mod rebase;
 mod slides;
+#[cfg(feature = "collab-loro")]
+mod structure;
 
 use std::sync::Arc;
 
