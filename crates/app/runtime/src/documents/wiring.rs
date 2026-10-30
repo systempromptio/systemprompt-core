@@ -80,6 +80,10 @@ pub struct DocumentsRuntime {
 
 impl DocumentsRuntime {
     #[must_use]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one composition root wiring every documents collaborator"
+    )]
     pub fn new(parts: DocumentsRuntimeParts) -> Self {
         let DocumentsRuntimeParts {
             database,
@@ -210,10 +214,10 @@ fn collab_tuning(config: &CollabConfig) -> CollabTuning {
 #[cfg(feature = "collab")]
 fn owner_address(config: &CollabConfig) -> String {
     let port = config.owner.advertise_port;
-    if let Ok(url) = std::env::var("SYSTEMPROMPT_COLLAB_ADVERTISE_URL") {
-        if !url.trim().is_empty() {
-            return url;
-        }
+    if let Ok(url) = std::env::var("SYSTEMPROMPT_COLLAB_ADVERTISE_URL")
+        && !url.trim().is_empty()
+    {
+        return url;
     }
     match std::env::var("FLY_PRIVATE_IP") {
         Ok(ip) if ip.contains(':') => format!("http://[{ip}]:{port}"),

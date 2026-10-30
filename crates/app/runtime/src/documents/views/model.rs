@@ -33,17 +33,16 @@ pub(super) async fn model_view(
         Some(_) => None,
         None => service.live_read(who, &input.document_id, trace).await?,
     };
-    let (revision, projection, bytes) = match live {
-        Some(live) => live,
-        None => {
-            let (revision, projection) = service
-                .project(who, &input.document_id, input.revision_id.as_ref(), trace)
-                .await?;
-            let (_, bytes) = service
-                .read_bytes(who, &input.document_id, Some(&revision.id), trace)
-                .await?;
-            (revision, projection, bytes)
-        },
+    let (revision, projection, bytes) = if let Some(live) = live {
+        live
+    } else {
+        let (revision, projection) = service
+            .project(who, &input.document_id, input.revision_id.as_ref(), trace)
+            .await?;
+        let (_, bytes) = service
+            .read_bytes(who, &input.document_id, Some(&revision.id), trace)
+            .await?;
+        (revision, projection, bytes)
     };
     let mut model = import_rich_text(projection.format, &bytes).map_err(|_unsupported| {
         DocumentsError::InvalidParams {

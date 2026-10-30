@@ -7,6 +7,7 @@
 # cargo build-script env, and OS-defined home/data directory probes.
 
 # --- core ---
+crates/app/runtime/src/documents/wiring.rs  # collab owner advertise address is per machine: FLY_PRIVATE_IP platform probe, SYSTEMPROMPT_COLLAB_ADVERTISE_URL per-replica override (a shared profile cannot hold a per-machine address)
 crates/infra/config/src/bootstrap/profile.rs  # SYSTEMPROMPT_PROFILE boot variable
 crates/infra/config/src/bootstrap/secrets/mod.rs  # deployment-host detection for the secrets bootstrap (SYSTEMPROMPT_* subprocess vars)
 crates/infra/config/src/bootstrap/secrets/loader.rs  # deployment-host / SYSTEMPROMPT_SUBPROCESS detection; OAUTH_AT_REST_PEPPER presence for `resolve_source`; Vault credentials from the secrets `env` source

@@ -28,7 +28,7 @@ const DEFAULT_TRASH_RETENTION_DAYS: u32 = 30;
 const DEFAULT_AGENT_READ_RETENTION_DAYS: u32 = 90;
 const DEFAULT_SNAPSHOT_AFTER_SECS: u32 = 30;
 const DEFAULT_SNAPSHOT_AFTER_UPDATES: u32 = 200;
-const DEFAULT_OWNER_PORT: u16 = 8080;
+const DEFAULT_OWNER_PORT: u16 = systemprompt_models::defaults::DEFAULT_API_PORT;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
