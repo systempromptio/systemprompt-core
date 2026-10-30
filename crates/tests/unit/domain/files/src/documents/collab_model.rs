@@ -128,14 +128,16 @@ fn markup_and_office_text_formats_are_collab_formats() {
         DocumentFormat::Markdown,
         DocumentFormat::Docx,
         DocumentFormat::Odt,
+        DocumentFormat::Xlsx,
+        DocumentFormat::Pptx,
     ] {
         assert!(is_collab_format(format), "{format:?}");
     }
     for format in [
-        DocumentFormat::Xlsx,
-        DocumentFormat::Pptx,
+        DocumentFormat::Ods,
+        DocumentFormat::Odp,
         DocumentFormat::Text,
     ] {
-        assert!(!is_collab_format(format));
+        assert!(!is_collab_format(format), "{format:?}");
     }
 }
