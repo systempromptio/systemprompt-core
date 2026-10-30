@@ -177,7 +177,11 @@ fn unknown_targets_and_ambiguous_quotes_are_refused() {
         },
     ];
     for op in refused {
-        assert!(doc.update_from_ops(std::slice::from_ref(&op), PEER).is_err(), "{op:?}");
+        assert!(
+            doc.update_from_ops(std::slice::from_ref(&op), PEER)
+                .is_err(),
+            "{op:?}"
+        );
         assert_eq!(doc.version(), before);
     }
 }

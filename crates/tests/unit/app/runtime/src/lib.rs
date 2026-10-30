@@ -56,6 +56,16 @@ mod documents_mcp_proposals;
 mod documents_mcp_refusals;
 
 #[cfg(test)]
+mod brain_live;
+#[cfg(test)]
+mod documents_mcp_browse;
+#[cfg(test)]
+mod documents_mcp_comments;
+#[cfg(test)]
+mod documents_mcp_inbox;
+#[cfg(test)]
+mod documents_mcp_rig;
+#[cfg(test)]
 mod documents_mcp_schema;
 #[cfg(test)]
 mod documents_mcp_shared;
@@ -66,6 +76,8 @@ mod documents_mcp_sizes;
 #[cfg(test)]
 mod documents_mcp_support;
 #[cfg(test)]
+mod documents_mcp_upload;
+#[cfg(test)]
 mod documents_refusal_parity;
 #[cfg(test)]
 mod error_variants;
@@ -73,6 +85,8 @@ mod error_variants;
 mod ext_fixtures;
 #[cfg(test)]
 mod issues_mcp_refusals;
+#[cfg(test)]
+mod issues_mcp_tools;
 #[cfg(all(test, unix))]
 mod managed_inventory_lifecycle;
 #[cfg(test)]
@@ -93,20 +107,6 @@ mod startup_validation;
 mod storage_backends;
 #[cfg(test)]
 mod trace;
-#[cfg(test)]
-mod brain_live;
-#[cfg(test)]
-mod documents_mcp_browse;
-#[cfg(test)]
-mod documents_mcp_comments;
-#[cfg(test)]
-mod documents_mcp_inbox;
-#[cfg(test)]
-mod documents_mcp_rig;
-#[cfg(test)]
-mod documents_mcp_upload;
-#[cfg(test)]
-mod issues_mcp_tools;
 #[cfg(test)]
 mod upload_grants;
 #[cfg(test)]

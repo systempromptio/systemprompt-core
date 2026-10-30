@@ -22,7 +22,12 @@ fn bullet() -> BlockKind {
     }
 }
 
-pub(super) fn added(id: &str, kind: ShapeKind, frame: Option<Frame>, paragraphs: Vec<Block>) -> DeckShape {
+pub(super) fn added(
+    id: &str,
+    kind: ShapeKind,
+    frame: Option<Frame>,
+    paragraphs: Vec<Block>,
+) -> DeckShape {
     DeckShape {
         id: id.to_owned(),
         kind,
