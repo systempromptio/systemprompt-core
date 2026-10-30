@@ -1,12 +1,17 @@
 //! MCP deployment manifest validation folded into the startup report.
 //!
+//! Toolset ids are not checked here: an extension's toolset is linked into
+//! its own MCP binary, which refuses an unknown id when it starts, so the
+//! main server cannot judge them. [`collect_toolset_errors`] stays public
+//! for a host binary or test that links the toolsets it hosts.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::path::Path;
 use systemprompt_loader::ExtensionBinaryIndex;
-use systemprompt_manifest::validators::validation_report::{ValidationIssue, ValidationWarning};
 use systemprompt_manifest::validators::{StartupValidationReport, ValidationReport};
+use systemprompt_manifest::validators::validation_report::ValidationIssue;
 use systemprompt_manifest::{Config, ServicesConfig};
 use systemprompt_models::mcp::McpServerType;
 
@@ -26,27 +31,6 @@ pub(super) fn validate_mcp_manifests(
     });
 
     merge_mcp_errors(report, mcp_errors);
-
-    // Why: an extension's toolset is linked into its own MCP binary, not
-    // necessarily into this one, so an id this binary does not know is a
-    // warning here; the host binary itself refuses it at start.
-    let known = crate::mcp_host::registered_toolset_ids();
-    let toolset_issues = collect_toolset_errors(services_config, &known);
-    if toolset_issues.is_empty() {
-        return;
-    }
-    if !report.domains.iter().any(|d| d.domain == "mcp") {
-        report.add_domain(ValidationReport::new("mcp"));
-    }
-    if let Some(mcp_report) = report.domains.iter_mut().find(|d| d.domain == "mcp") {
-        for issue in toolset_issues {
-            let mut warning = ValidationWarning::new(issue.field, issue.message);
-            if let Some(suggestion) = issue.suggestion {
-                warning = warning.with_suggestion(suggestion);
-            }
-            mcp_report.add_warning(warning);
-        }
-    }
 }
 
 pub fn collect_toolset_errors(
