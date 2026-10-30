@@ -51,7 +51,15 @@ fn slide_of(slide: &Slide) -> Result<DeckSlide, CodecError> {
                 .filter(|id| seen.insert(id.clone()))
                 .unwrap_or_else(|| format!("shape-{index}"));
             let marks = element.map_or_else(|| Ok(Vec::new()), |el| paragraph_marks(slide, el))?;
-            Ok(shape_of(&slide.part, id, shape, element.and_then(frame_of), marks))
+            let mut built = shape_of(&slide.part, id, shape, element.and_then(frame_of), marks);
+            if let Content::Image(rel) = &shape.content {
+                built.src = slide
+                    .images
+                    .iter()
+                    .find(|(id, _)| id == rel)
+                    .map(|(_, part)| part.clone());
+            }
+            Ok(built)
         })
         .collect::<Result<_, CodecError>>()?;
     Ok(DeckSlide {
@@ -116,6 +124,7 @@ fn shape_of(
         kind: kind_of(shape),
         frame,
         paragraphs,
+        src: None,
     }
 }
 

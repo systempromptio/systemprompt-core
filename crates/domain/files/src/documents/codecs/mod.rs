@@ -57,7 +57,7 @@ pub use registry::CodecRegistry;
 pub use text::TextCodec;
 
 #[cfg(feature = "office")]
-pub use zip_package::{PackageCaps, inspect_package};
+pub use zip_package::{PackageCaps, inspect_package, media_part};
 
 #[cfg(feature = "office")]
 pub mod docx;

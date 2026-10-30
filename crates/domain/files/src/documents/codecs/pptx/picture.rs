@@ -1,9 +1,8 @@
 //! Adds an image shape to a slide as a `p:pic` over a picture part the
 //! package already holds.
 //!
-//! The engine's deck shape carries no picture reference of its own yet, so an
-//! added image names its part (`ppt/media/image1.png`) as its one paragraph's
-//! text. A part the package does not hold, or an image with no frame, is
+//! An added image names its part (`ppt/media/image1.png`) in its `src`. A
+//! part the package does not hold, or an image with no frame, is
 //! logged and skipped; nothing is uploaded here. The slide's relationships
 //! gain an image relationship to the part under the next free `rId`.
 //!
@@ -80,7 +79,7 @@ pub(super) fn picture_xml(
     id: u64,
     shape: &DeckShape,
 ) -> Result<Option<String>, CodecError> {
-    let Some(media) = shape.paragraphs.first().map(|block| block.text.trim()) else {
+    let Some(media) = shape.src.as_deref() else {
         tracing::warn!(slide, shape = %shape.id, "an added image names no picture part");
         return Ok(None);
     };

@@ -65,6 +65,9 @@ pub struct DeckShape {
     pub kind: ShapeKind,
     pub frame: Option<Frame>,
     pub paragraphs: Vec<Block>,
+    /// An image's picture part in the package (`ppt/media/image1.png`),
+    /// held under the shape map's `src` key.
+    pub src: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

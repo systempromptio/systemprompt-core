@@ -58,6 +58,9 @@ fn insert_shape(list: &LoroMovableList, at: usize, shape: &DeckShape) -> Result<
     let map = list.insert_container(at, LoroMap::new())?;
     map.insert("id", shape.id.as_str())?;
     map.insert("kind", shape.kind.name())?;
+    if let Some(src) = &shape.src {
+        map.insert("src", src.as_str())?;
+    }
     if let Some(frame) = shape.frame {
         write_frame(&child_map(&map, "frame")?, frame)?;
     }
@@ -103,6 +106,7 @@ fn sync_slide(map: &LoroMap, slide: &DeckSlide) -> Result<(), WriteError> {
 
 fn sync_shape(map: &LoroMap, shape: &DeckShape) -> Result<(), WriteError> {
     sync_string(map, "kind", Some(shape.kind.name()))?;
+    sync_string(map, "src", shape.src.as_deref())?;
     match (shape.frame, map_of(map, "frame")) {
         (Some(frame), Some(held)) => write_frame(&held, frame)?,
         (Some(frame), None) => write_frame(&child_map(map, "frame")?, frame)?,

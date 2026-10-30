@@ -231,3 +231,17 @@ impl<'a> Package<'a> {
         Ok(writer.finish().map_err(zip_error)?.into_inner())
     }
 }
+
+/// The bytes of the package part `reference`, only when it sits directly
+/// under the media folder `prefix` (`ppt/media/`, `Pictures/`) with no
+/// `..` or empty segment, so a viewer can read a deck's pictures and
+/// nothing else of the package.
+pub fn media_part(bytes: &[u8], prefix: &str, reference: &str, limit: u64) -> Option<Vec<u8>> {
+    let rest = reference.strip_prefix(prefix)?;
+    if rest.is_empty() || rest.split('/').any(|seg| seg.is_empty() || seg == "..") {
+        return None;
+    }
+    let mut archive = open_archive(bytes).ok()?;
+    let file = archive.by_name(reference).ok()?;
+    read_bounded(file, limit).ok()
+}

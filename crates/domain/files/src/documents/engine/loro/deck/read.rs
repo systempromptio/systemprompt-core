@@ -114,6 +114,7 @@ fn read_shape(path: &str, map: &LoroMap) -> Result<DeckShape, DeckReadError> {
         kind,
         frame,
         paragraphs,
+        src: string_of(map, "src"),
     })
 }
 

@@ -124,6 +124,7 @@ fn text_shape(kind: ShapeKind, lines: &[String], list_item: bool) -> DeckShape {
         id: uuid::Uuid::new_v4().to_string(),
         kind,
         frame: None,
+        src: None,
         paragraphs: lines
             .iter()
             .map(|line| new_block(line, list_item))

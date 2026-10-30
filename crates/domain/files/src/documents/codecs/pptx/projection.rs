@@ -50,6 +50,8 @@ pub(super) struct Slide {
     pub layout: Option<String>,
     pub shapes: Vec<Shape>,
     pub notes: Vec<String>,
+    /// Each image relationship id's picture part.
+    pub images: Vec<(String, String)>,
 }
 
 impl Slide {
@@ -236,12 +238,18 @@ pub(super) fn load(package: &mut Package<'_>) -> Result<Vec<Slide>, CodecError> 
             None => None,
         };
         let notes = notes(package, &slide.part)?;
+        let images = relationships(package, &slide.part)?
+            .1
+            .into_iter()
+            .map(|rel| (rel.id, rel.target))
+            .collect();
         slides.push(Slide {
             part: slide.part,
             xml,
             layout,
             shapes,
             notes,
+            images,
         });
     }
     Ok(slides)
