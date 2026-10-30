@@ -72,7 +72,7 @@ user_purge_tables!(
         (
             "brain_facts",
             "owner_user_id",
-            "source_kind IN ('session','entered_by','run')"
+            "source_kind = 'session' OR source_kind = 'entered_by' OR source_kind = 'run'"
         ),
         ("brain_recalls", "principal_user_id"),
         ("brain_interests", "owner_user_id"),
