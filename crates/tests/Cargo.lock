@@ -8476,6 +8476,37 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-brain"
+version = "0.76.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "inventory",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "systemprompt-database",
+ "systemprompt-events",
+ "systemprompt-extension",
+ "systemprompt-identifiers",
+ "systemprompt-models",
+ "systemprompt-traits",
+ "thiserror 2.0.21",
+ "uuid",
+]
+
+[[package]]
+name = "systemprompt-brain-tests"
+version = "0.0.11"
+dependencies = [
+ "chrono",
+ "serde_json",
+ "systemprompt-brain",
+ "systemprompt-identifiers",
+ "systemprompt-models",
+]
+
+[[package]]
 name = "systemprompt-bridge"
 version = "0.76.0"
 dependencies = [
@@ -11309,6 +11340,7 @@ dependencies = [
  "systemprompt-agent-runs",
  "systemprompt-ai",
  "systemprompt-analytics",
+ "systemprompt-brain",
  "systemprompt-content",
  "systemprompt-database",
  "systemprompt-events",

@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM brain_facts WHERE id IN (\n                 SELECT id FROM brain_facts\n                 WHERE status = 'retired' AND NOT legal_hold AND updated_at < $1 LIMIT $2)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "279312864cf049e071c98ddc53149e5b3fa17a88978982699d199e95b244816b"
+}

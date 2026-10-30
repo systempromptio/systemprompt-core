@@ -1,0 +1,20 @@
+[package]
+name = "systemprompt-brain-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Unit tests for the systemprompt-brain crate"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-brain = { workspace = true }
+systemprompt-identifiers = { workspace = true }
+systemprompt-models = { workspace = true }
+
+[dev-dependencies]
+chrono = { workspace = true }
+serde_json = { workspace = true }

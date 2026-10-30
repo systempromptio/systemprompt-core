@@ -58,6 +58,7 @@ members = [
     "unit/domain/content",
     "unit/domain/files",
     "unit/domain/notifications",
+    "unit/domain/brain",
     "unit/domain/mcp",
     "unit/domain/oauth",
     "unit/domain/users",
@@ -281,6 +282,7 @@ systemprompt-users = { path = "../domain/users" }
 systemprompt-oauth = { path = "../domain/oauth" }
 systemprompt-files = { path = "../domain/files" }
 systemprompt-notifications = { path = "../domain/notifications" }
+systemprompt-brain = { path = "../domain/brain" }
 systemprompt-analytics = { path = "../domain/analytics" }
 maxminddb = "0.32"
 systemprompt-content = { path = "../domain/content" }

@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO brain_outcomes (id, recall_id, fact_id, signal, value, observed_at)\n             VALUES ($1, $2, $3, $4, $5, $6)\n             ON CONFLICT (recall_id, fact_id, signal) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Float8",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "98b5e475fd2030a845e141c21f8ff615e236d6abd6cef1531b2d1552c9b55f45"
+}

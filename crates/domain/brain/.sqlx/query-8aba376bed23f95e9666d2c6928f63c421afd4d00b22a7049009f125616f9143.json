@@ -1,0 +1,51 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO brain_facts (\n                   id, kind, subject_kind, subject_id, scope_level, scope_key, statement,\n                   fields, source, source_kind, source_document_id, source_revision_id,\n                   source_comment_id, topics, status, importance_base, valid_from, valid_to,\n                   review_after, retention_until, identity_hash, statement_hash,\n                   owner_user_id, pipeline_version)\n               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,\n                       $16, $17, $18, $19, $20, $21, $22, $23, $24)\n               ON CONFLICT (kind, identity_hash) DO NOTHING\n               RETURNING id AS \"id: BrainFactId\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id: BrainFactId",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "brain_facts",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Jsonb",
+        "Jsonb",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "TextArray",
+        "Text",
+        "Float8",
+        "Timestamptz",
+        "Timestamptz",
+        "Timestamptz",
+        "Timestamptz",
+        "Text",
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "8aba376bed23f95e9666d2c6928f63c421afd4d00b22a7049009f125616f9143"
+}

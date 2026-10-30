@@ -1,0 +1,328 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id AS \"id: BrainFactId\", kind AS \"kind: FactKindId\", subject_kind,\n                      subject_id, scope_level, scope_key, statement,\n                      fields AS \"fields: Json<FieldMap>\", source AS \"source: Json<FactSource>\",\n                      topics, status, confirmed_by AS \"confirmed_by: UserId\", confirmed_at,\n                      importance_base, valid_from, valid_to, review_after, retention_until,\n                      legal_hold, identity_hash, statement_hash, revision, pinned,\n                      owner_user_id AS \"owner_user_id: UserId\", created_at, updated_at\n               FROM brain_facts WHERE id = ANY($1) ORDER BY id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id: BrainFactId",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "brain_facts",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "kind: FactKindId",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "brain_facts",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "subject_kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "brain_facts",
+            "name": "subject_kind"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "subject_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "brain_facts",
+            "name": "subject_id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "scope_level",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "brain_facts",
+            "name": "scope_level"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "scope_key",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "brain_facts",
+            "name": "scope_key"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "statement",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "brain_facts",
+            "name": "statement"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "fields: Json<FieldMap>",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "brain_facts",
+            "name": "fields"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "source: Json<FactSource>",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "brain_facts",
+            "name": "source"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "topics",
+        "type_info": "TextArray",
+        "origin": {
+          "Table": {
+            "table": "brain_facts",
+            "name": "topics"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "status",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "brain_facts",
+            "name": "status"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "confirmed_by: UserId",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "brain_facts",
+            "name": "confirmed_by"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "confirmed_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "brain_facts",
+            "name": "confirmed_at"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "importance_base",
+        "type_info": "Float8",
+        "origin": {
+          "Table": {
+            "table": "brain_facts",
+            "name": "importance_base"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "valid_from",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "brain_facts",
+            "name": "valid_from"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "valid_to",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "brain_facts",
+            "name": "valid_to"
+          }
+        }
+      },
+      {
+        "ordinal": 16,
+        "name": "review_after",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "brain_facts",
+            "name": "review_after"
+          }
+        }
+      },
+      {
+        "ordinal": 17,
+        "name": "retention_until",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "brain_facts",
+            "name": "retention_until"
+          }
+        }
+      },
+      {
+        "ordinal": 18,
+        "name": "legal_hold",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "brain_facts",
+            "name": "legal_hold"
+          }
+        }
+      },
+      {
+        "ordinal": 19,
+        "name": "identity_hash",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "brain_facts",
+            "name": "identity_hash"
+          }
+        }
+      },
+      {
+        "ordinal": 20,
+        "name": "statement_hash",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "brain_facts",
+            "name": "statement_hash"
+          }
+        }
+      },
+      {
+        "ordinal": 21,
+        "name": "revision",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "brain_facts",
+            "name": "revision"
+          }
+        }
+      },
+      {
+        "ordinal": 22,
+        "name": "pinned",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "brain_facts",
+            "name": "pinned"
+          }
+        }
+      },
+      {
+        "ordinal": 23,
+        "name": "owner_user_id: UserId",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "brain_facts",
+            "name": "owner_user_id"
+          }
+        }
+      },
+      {
+        "ordinal": 24,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "brain_facts",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 25,
+        "name": "updated_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "brain_facts",
+            "name": "updated_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "TextArray"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "2c4a0ef2aa45005d95a39f2f4a0e3bc5c28f5074f99307208b1e5c8a5af8446b"
+}

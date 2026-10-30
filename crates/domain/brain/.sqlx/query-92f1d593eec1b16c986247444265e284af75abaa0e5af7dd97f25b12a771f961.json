@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM brain_extractions WHERE ctid IN (\n                 SELECT ctid FROM brain_extractions WHERE created_at < $1 LIMIT $2)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "92f1d593eec1b16c986247444265e284af75abaa0e5af7dd97f25b12a771f961"
+}

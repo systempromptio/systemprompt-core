@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE brain_disputes\n             SET status = $2, resolution = $3, resolved_by = $4, resolved_at = now()\n             WHERE id = $1 AND status = 'open'",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "b98d1c54845ae58db0a3ec5127e34a8842a59bab0870f23b9606ec3d961976ff"
+}

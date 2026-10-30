@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE brain_event_results\n             SET outcome = $3, filter = $4, facts_written = $5, finished_at = now()\n             WHERE outbox_id = $1 AND pipeline_version = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "ec8d2a8e5068c01859c148b8f90901b44d0b921b577227d50ab014afda14ff88"
+}

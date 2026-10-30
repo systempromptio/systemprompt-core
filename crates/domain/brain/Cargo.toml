@@ -1,0 +1,44 @@
+[package]
+name = "systemprompt-brain"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+keywords.workspace = true
+categories.workspace = true
+description = "Organisational memory store: revisioned facts, capture ledgers, recall audit and the brain outbox sink for systemprompt.io AI governance infrastructure."
+readme = "README.md"
+include = ["src/**/*", "schema/**/*", "Cargo.toml", "README.md", "CHANGELOG.md", ".sqlx/**/*", "build.rs"]
+
+[package.metadata.docs.rs]
+all-features = true
+
+[lints]
+workspace = true
+
+[build-dependencies]
+systemprompt-extension = { workspace = true }
+
+[dependencies]
+systemprompt-database = { workspace = true }
+systemprompt-events = { workspace = true }
+systemprompt-extension = { workspace = true, features = ["sqlx"] }
+systemprompt-identifiers = { workspace = true, features = ["sqlx"] }
+systemprompt-models = { workspace = true }
+systemprompt-traits = { workspace = true, features = ["sqlx"] }
+async-trait = { workspace = true }
+chrono = { workspace = true }
+inventory = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sqlx = { workspace = true }
+thiserror = { workspace = true }
+uuid = { workspace = true }
+
+[package.metadata.cargo-machete]
+# inventory: compile-time registration via register_extension!/user_purge_tables! (::inventory::submit!)
+ignored = ["inventory"]
