@@ -25,7 +25,9 @@ use systemprompt_models::authz::SubjectAttributeSource;
 use systemprompt_traits::{BackgroundTasks, FileStorage};
 
 #[cfg(feature = "collab")]
-use systemprompt_files::documents::collab::{CollabService, CollabTuning};
+use systemprompt_files::CollabConfig;
+#[cfg(feature = "collab")]
+use systemprompt_files::documents::collab::{CollabService, CollabTuning, OwnerConfig};
 #[cfg(feature = "collab")]
 use systemprompt_files::documents::engine::DocumentEngine;
 
@@ -106,6 +108,8 @@ impl DocumentsRuntime {
             Arc::clone(&file_storage),
             Arc::clone(&repositories.blobs),
         ));
+        #[cfg(feature = "collab")]
+        let collab_config = config.collab;
         let uploads = Arc::new(UploadService::new(UploadServiceParts {
             storage: file_storage,
             uploads: Arc::clone(&repositories.uploads),
@@ -134,10 +138,13 @@ impl DocumentsRuntime {
             ));
             #[cfg(not(feature = "engine-loro"))]
             let engine: Option<Arc<dyn DocumentEngine>> = None;
-            let collab = Arc::new(
-                CollabService::new(Arc::clone(&service), CollabTuning::default(), engine)
-                    .with_uploads(Arc::clone(&uploads)),
-            );
+            let mut built =
+                CollabService::new(Arc::clone(&service), collab_tuning(&collab_config), engine)
+                    .with_uploads(Arc::clone(&uploads));
+            if collab_config.owner.enabled {
+                built = built.with_owner(OwnerConfig::at(owner_address(&collab_config)));
+            }
+            let collab = Arc::new(built);
             service.attach_collab(&collab);
             collab.start(&background_tasks);
             collab
@@ -188,6 +195,32 @@ impl DocumentsRuntime {
 
     pub async fn reconcile_folder_entities(&self) -> Result<u64, DocumentsError> {
         self.service.access().reconcile_folder_entities().await
+    }
+}
+
+#[cfg(feature = "collab")]
+fn collab_tuning(config: &CollabConfig) -> CollabTuning {
+    CollabTuning {
+        snapshot_after: std::time::Duration::from_secs(u64::from(config.snapshot_after_secs)),
+        snapshot_after_updates: config.snapshot_after_updates,
+        ..CollabTuning::default()
+    }
+}
+
+/// Explicit `SYSTEMPROMPT_COLLAB_ADVERTISE_URL` first, then this machine's Fly
+/// private address, then loopback for a single local replica.
+#[cfg(feature = "collab")]
+fn owner_address(config: &CollabConfig) -> String {
+    let port = config.owner.advertise_port;
+    if let Ok(url) = std::env::var("SYSTEMPROMPT_COLLAB_ADVERTISE_URL") {
+        if !url.trim().is_empty() {
+            return url;
+        }
+    }
+    match std::env::var("FLY_PRIVATE_IP") {
+        Ok(ip) if ip.contains(':') => format!("http://[{ip}]:{port}"),
+        Ok(ip) if !ip.is_empty() => format!("http://{ip}:{port}"),
+        _ => format!("http://127.0.0.1:{port}"),
     }
 }
 

@@ -50,9 +50,9 @@ pub use error::{FilesError, FilesResult};
 pub use extension::FilesExtension;
 
 pub use config::{
-    AllowedFileTypes, DocumentLimits, DocumentsConfig, FilePersistenceMode, FileUploadConfig,
-    FilesConfig, FilesConfigValidator, FilesConfigYaml, IssuesConfig, MAX_DOCUMENT_UPLOAD_BYTES,
-    MIN_DOCUMENT_UPLOAD_BYTES, UploadLimits,
+    AllowedFileTypes, CollabConfig, CollabOwnerConfig, DocumentLimits, DocumentsConfig,
+    FilePersistenceMode, FileUploadConfig, FilesConfig, FilesConfigValidator, FilesConfigYaml,
+    IssuesConfig, MAX_DOCUMENT_UPLOAD_BYTES, MIN_DOCUMENT_UPLOAD_BYTES, UploadLimits,
 };
 pub use jobs::FileIngestionJob;
 pub use models::{

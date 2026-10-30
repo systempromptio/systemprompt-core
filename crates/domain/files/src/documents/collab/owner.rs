@@ -65,6 +65,7 @@ pub(super) struct OwnerRegistry {
 impl OwnerRegistry {
     fn new(config: OwnerConfig) -> Self {
         let client = reqwest::Client::builder()
+            .tls_backend_rustls()
             .timeout(config.forward_timeout)
             .build()
             .unwrap_or_default();

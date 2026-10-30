@@ -4,7 +4,8 @@
 //! retention of the agent read audit (`agentReadRetentionDays`),
 //! per-request input limits, the resumable upload limits (`uploads`) and
 //! whether a user with no access may request it
-//! (`accessRequests`, off by default).
+//! (`accessRequests`, off by default), and the live-session tuning
+//! (`collab`: snapshot cadence and the owner lease).
 //!
 //! Turning `accessRequests` on tells a signed-in caller that a document they
 //! cannot open exists (the refusal carries `can_request: true`); with it off
@@ -25,6 +26,9 @@ const DEFAULT_BLOB_GC_GRACE_HOURS: u32 = 24;
 const DEFAULT_PRESENCE_TTL_SECS: u32 = 90;
 const DEFAULT_TRASH_RETENTION_DAYS: u32 = 30;
 const DEFAULT_AGENT_READ_RETENTION_DAYS: u32 = 90;
+const DEFAULT_SNAPSHOT_AFTER_SECS: u32 = 30;
+const DEFAULT_SNAPSHOT_AFTER_UPDATES: u32 = 200;
+const DEFAULT_OWNER_PORT: u16 = 8080;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -47,6 +51,62 @@ pub struct DocumentsConfig {
     pub uploads: UploadLimits,
     #[serde(default)]
     pub access_requests: bool,
+    #[serde(default)]
+    pub collab: CollabConfig,
+}
+
+/// When a live session snapshots, and whether this replica takes part in the
+/// owner lease. A replica's advertised address is per machine, so only the
+/// port is configured; the host comes from the platform at boot.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct CollabConfig {
+    #[serde(default = "default_snapshot_after_secs")]
+    pub snapshot_after_secs: u32,
+    #[serde(default = "default_snapshot_after_updates")]
+    pub snapshot_after_updates: u32,
+    #[serde(default)]
+    pub owner: CollabOwnerConfig,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct CollabOwnerConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default = "default_owner_port")]
+    pub advertise_port: u16,
+}
+
+const fn default_snapshot_after_secs() -> u32 {
+    DEFAULT_SNAPSHOT_AFTER_SECS
+}
+
+const fn default_snapshot_after_updates() -> u32 {
+    DEFAULT_SNAPSHOT_AFTER_UPDATES
+}
+
+const fn default_owner_port() -> u16 {
+    DEFAULT_OWNER_PORT
+}
+
+impl Default for CollabConfig {
+    fn default() -> Self {
+        Self {
+            snapshot_after_secs: DEFAULT_SNAPSHOT_AFTER_SECS,
+            snapshot_after_updates: DEFAULT_SNAPSHOT_AFTER_UPDATES,
+            owner: CollabOwnerConfig::default(),
+        }
+    }
+}
+
+impl Default for CollabOwnerConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            advertise_port: DEFAULT_OWNER_PORT,
+        }
+    }
 }
 
 const fn default_max_upload_bytes() -> u64 {
@@ -81,6 +141,7 @@ impl Default for DocumentsConfig {
             limits: DocumentLimits::default(),
             uploads: UploadLimits::default(),
             access_requests: false,
+            collab: CollabConfig::default(),
         }
     }
 }
