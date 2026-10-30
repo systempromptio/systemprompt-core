@@ -19,13 +19,22 @@
 //! writes; text inside group shapes and `mc:AlternateContent` is not
 //! projected.
 //!
+//! With `collab-loro`, [`deck_model`] reads a deck as the engine's live
+//! deck model and [`lower_deck`] writes one back through the same splices.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+#[cfg(feature = "collab-loro")]
+mod align;
 mod apply;
 mod blank;
+#[cfg(feature = "collab-loro")]
+mod deck;
 mod fragment;
 mod layout;
+#[cfg(feature = "collab-loro")]
+mod lower;
 mod nodes;
 mod package;
 mod paragraph;
@@ -44,6 +53,10 @@ use systemprompt_provider_contracts::documents::{
 use systemprompt_provider_contracts::register_document_codec;
 
 pub use blank::blank_pptx;
+#[cfg(feature = "collab-loro")]
+pub use deck::deck_model;
+#[cfg(feature = "collab-loro")]
+pub use lower::lower_deck;
 
 use crate::documents::codecs::fragments::leaf_hashes;
 use crate::documents::codecs::xml_tree::{Element, parse_xml};
