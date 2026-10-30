@@ -128,6 +128,8 @@ fn context(
         api_key_windows: Vec::new(),
         access_log: None,
         context_bound: false,
+        actor: systemprompt_models::auth::RequestActor::Human,
+        memory: systemprompt_models::origin::MemoryPreference::Default,
     }
 }
 async fn settled(

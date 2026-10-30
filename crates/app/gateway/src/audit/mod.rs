@@ -85,6 +85,8 @@ pub struct GatewayRequestContext {
     pub api_key_windows: Vec<crate::policies::QuotaWindow>,
     pub access_log: Option<GatewayAccessLog>,
     pub context_bound: bool,
+    pub actor: systemprompt_models::auth::RequestActor,
+    pub memory: systemprompt_models::origin::MemoryPreference,
 }
 
 #[expect(

@@ -91,6 +91,8 @@ mod prompt_recovery_transport;
 #[cfg(test)]
 mod quota_calendar;
 #[cfg(test)]
+mod recall_encoding;
+#[cfg(test)]
 mod quota_estimate;
 #[cfg(test)]
 mod quota_subject_kind;
@@ -116,6 +118,8 @@ mod stream_tap_accumulator;
 mod support;
 #[cfg(test)]
 mod tool_validity;
+#[cfg(test)]
+mod turns_new_turn;
 #[cfg(test)]
 mod upstream_error;
 

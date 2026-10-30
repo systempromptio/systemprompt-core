@@ -20,7 +20,7 @@ pub use options::{
     CanonicalTool, CanonicalToolChoice, ReasoningEffort, ResponseFormat, SearchConfig,
     ThinkingConfig,
 };
-pub use turns::{INTERRUPTED_TOOL_RESULT, TurnMerge, normalize_turns};
+pub use turns::{INTERRUPTED_TOOL_RESULT, TurnMerge, is_new_user_turn, normalize_turns};
 
 use crate::inspect::ForwardedSurface;
 use serde_json::Value;

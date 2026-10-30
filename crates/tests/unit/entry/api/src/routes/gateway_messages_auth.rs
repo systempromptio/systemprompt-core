@@ -19,6 +19,7 @@ fn principal(roles: &[&str], scopes: Option<KeyScopes>) -> Principal {
         act_chain: Vec::new(),
         client_id: None,
         scopes,
+        actor: systemprompt_models::auth::RequestActor::Human,
     }
 }
 

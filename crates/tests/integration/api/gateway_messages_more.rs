@@ -296,6 +296,7 @@ fn api_key_principal(user: &str) -> AuthedPrincipal {
                 limits: systemprompt_users::ApiKeyLimits::default(),
                 scopes: Vec::new(),
             }),
+            actor: systemprompt_models::auth::RequestActor::Human,
         },
         trace_id: TraceId::generate(),
         session_id: SessionId::generate(),

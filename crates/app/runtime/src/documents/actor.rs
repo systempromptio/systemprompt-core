@@ -18,7 +18,7 @@ use std::future::Future;
 
 use systemprompt_files::documents::agents::{DocumentActor, act_as, unnamed_agent};
 use systemprompt_identifiers::{AgentName, ClientId};
-use systemprompt_models::auth::TokenInteraction;
+use systemprompt_models::auth::{self, RequestActor, TokenInteraction};
 use systemprompt_models::execution::context::{RequestContext, UserInteractionMode};
 
 pub async fn act_as_request<F: Future>(ctx: &RequestContext, work: F) -> F::Output {
@@ -46,18 +46,21 @@ pub fn bearer_actor(
     client: Option<&ClientId>,
     interaction: Option<TokenInteraction>,
 ) -> DocumentActor {
-    let attended = interaction == Some(TokenInteraction::Interactive) && purpose.is_none();
-    DocumentActor::agent(name_from(purpose, client), attended)
+    document_actor(auth::bearer_actor(purpose, client, interaction))
 }
 
 #[must_use]
 pub fn signed_agent_name(ctx: &RequestContext) -> AgentName {
-    name_from(ctx.caller_purpose(), ctx.client_id())
+    agent_name(auth::agent_name(ctx.caller_purpose(), ctx.client_id()))
 }
 
-fn name_from(purpose: Option<&str>, client: Option<&ClientId>) -> AgentName {
-    purpose
-        .or_else(|| client.map(ClientId::as_str))
-        .and_then(|name| AgentName::try_new(name).ok())
-        .unwrap_or_else(unnamed_agent)
+fn agent_name(name: String) -> AgentName {
+    AgentName::try_new(name).unwrap_or_else(|_| unnamed_agent())
+}
+
+fn document_actor(actor: RequestActor) -> DocumentActor {
+    match actor {
+        RequestActor::Human => DocumentActor::Human,
+        RequestActor::Agent { name, attended } => DocumentActor::agent(agent_name(name), attended),
+    }
 }

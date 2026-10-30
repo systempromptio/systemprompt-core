@@ -50,7 +50,9 @@ use self::guards::{enforce_quota, enforce_request_guards};
 use self::opening::{dispatch_policy, open_audit};
 use self::pricing::{dispatch_pricing, trace_dispatch};
 use self::resolve::{ResolvedUpstream, UpstreamQuery, resolve_upstream};
-use self::stages::{GovernedDispatch, PreparedDispatch, ScannedDispatch, UpstreamRelay};
+use self::stages::{
+    GovernedDispatch, PreparedDispatch, RecallStage, ScannedDispatch, UpstreamRelay,
+};
 use self::traced::send_traced;
 use super::audit::phases::GatewayPhase;
 use super::audit::{GatewayAudit, GatewayRequestContext};
@@ -241,6 +243,11 @@ async fn dispatch_opened(opened: OpenedDispatch<'_>) -> Result<Response<Body>, D
             raw_body: &raw_body,
             inbound: inbound.as_ref(),
             overrides: &engines.override_engine,
+            recall: RecallStage {
+                engine: engines.memory_recall.as_ref(),
+                ctx: &ctx,
+                profile: &repos.brain_recall,
+            },
         },
     )
     .await?;
@@ -252,6 +259,7 @@ async fn dispatch_opened(opened: OpenedDispatch<'_>) -> Result<Response<Body>, D
     let mut scanned =
         ScannedDispatch::enforce(governed, repos, scan, &ai_request_id, &audit).await?;
     commit_admission(&audit).await?;
+    stages::record_recall(&audit, engines.memory_recall.as_ref(), scanned.memory());
     audit.record_billing_source().await;
     crate::audit::phases::record(GatewayPhase::Admission, admission_started.elapsed());
 
@@ -281,5 +289,6 @@ async fn dispatch_opened(opened: OpenedDispatch<'_>) -> Result<Response<Body>, D
     )
     .await;
     stages::recovery::attach_recovery_count(&mut response, scanned.recovery_count());
+    stages::attach_memory_ids(&mut response, scanned.memory().ids_header.as_deref());
     Ok(attach_request_id(response, &ai_request_id))
 }

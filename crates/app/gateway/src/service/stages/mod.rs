@@ -6,6 +6,7 @@
 mod governance;
 mod outbound;
 mod rebind;
+mod recall;
 pub mod recovery;
 mod scanned;
 
@@ -21,6 +22,9 @@ use self::governance::{PromptEvaluation, evaluate_prompt, record_governance_deci
 pub(in crate::service) use self::outbound::audit_upstream_failure;
 use self::outbound::{
     CtxParts, outbound_ctx, resolve_url_images, send_bracketed, strip_caller_identity,
+};
+pub(in crate::service) use self::recall::{
+    RecallApplied, RecallStage, attach_memory_ids, record_recall,
 };
 pub(in crate::service) use self::scanned::SafetyScan;
 use super::super::audit::{GatewayAudit, GatewayRequestContext};
@@ -41,6 +45,7 @@ pub(super) struct UpstreamRelay<'a> {
     pub raw_body: &'a Bytes,
     pub inbound: &'a dyn InboundAdapter,
     pub overrides: &'a OverridePolicy,
+    pub recall: RecallStage<'a>,
 }
 
 pub(super) struct PreparedDispatch {
@@ -50,6 +55,7 @@ pub(super) struct PreparedDispatch {
     automatic_prompt_caching_enabled: bool,
     body: PreparedBody,
     recovery_count: usize,
+    memory: RecallApplied,
 }
 
 pub(super) struct GovernedDispatch(PreparedDispatch);
@@ -64,9 +70,15 @@ impl PreparedDispatch {
         audit: &GatewayAudit,
         relay: UpstreamRelay<'_>,
     ) -> Result<Self, DispatchError> {
+        let UpstreamRelay {
+            raw_body,
+            inbound,
+            overrides,
+            recall: recall_stage,
+        } = relay;
         let upstream_model = upstream.hop.upstream_model.clone();
         let override_descriptor = apply_system_prompt_override(
-            relay.overrides,
+            overrides,
             config,
             &upstream.hop.provider,
             &upstream_model,
@@ -76,12 +88,14 @@ impl PreparedDispatch {
         if let Some(descriptor) = &override_descriptor {
             audit.set_system_prompt_override(descriptor).await;
         }
+        let memory = recall::apply_team_memory(recall_stage, &mut request, audit).await;
         let model_limits = Some(upstream.model_limits());
-        let raw_body = match &override_descriptor {
-            Some(_) => None,
-            None => (relay.inbound.passthrough_wire() == Some(upstream.hop.wire))
-                .then_some(relay.raw_body),
-        };
+        let raw_body = passthrough_body(
+            raw_body,
+            inbound,
+            upstream,
+            override_descriptor.is_some() || memory.injected,
+        );
         strip_caller_identity(&mut request);
         resolve_url_images(upstream.hop.wire, &mut request, audit).await?;
 
@@ -112,8 +126,23 @@ impl PreparedDispatch {
             automatic_prompt_caching_enabled: config.automatic_prompt_caching,
             body,
             recovery_count: 0,
+            memory,
         })
     }
+}
+
+fn passthrough_body<'a>(
+    raw_body: &'a Bytes,
+    inbound: &dyn InboundAdapter,
+    upstream: &ResolvedUpstream<'_>,
+    mutated: bool,
+) -> Option<&'a Bytes> {
+    // Why: the passthrough forwards the client's bytes untouched, so any
+    // mutation of the canonical request must force re-encoding.
+    if mutated {
+        return None;
+    }
+    (inbound.passthrough_wire() == Some(upstream.hop.wire)).then_some(raw_body)
 }
 
 fn automatic_prompt_caching(enabled: bool, upstream: &ResolvedUpstream<'_>) -> bool {
@@ -209,6 +238,10 @@ fn governance_denial(policy: String, message: String, mut locations: Vec<String>
 impl ScannedDispatch {
     pub(super) const fn recovery_count(&self) -> usize {
         self.0.recovery_count
+    }
+
+    pub(super) const fn memory(&self) -> &RecallApplied {
+        &self.0.memory
     }
 
     pub(super) fn request_model(&self) -> &str {

@@ -12,8 +12,9 @@ use axum::extract::Request;
 use axum::http::{HeaderMap, StatusCode};
 use bytes::Bytes;
 use std::sync::Arc;
-use systemprompt_identifiers::headers::{GATEWAY_CONVERSATION_ID, SESSION_ID, TRACEPARENT};
+use systemprompt_identifiers::headers::{GATEWAY_CONVERSATION_ID, MEMORY, SESSION_ID, TRACEPARENT};
 use systemprompt_identifiers::{GatewayConversationId, SessionId};
+use systemprompt_models::origin::MemoryPreference;
 use systemprompt_wire::anthropic as wire_anthropic;
 
 use super::RejectionPartial;
@@ -97,10 +98,16 @@ pub(crate) struct ClientHeaders {
     pub forward: Vec<(String, String)>,
     pub identity: Vec<(String, String)>,
     pub traceparent: Option<String>,
+    pub memory: MemoryPreference,
+}
+
+pub fn memory_preference(headers: &HeaderMap) -> MemoryPreference {
+    MemoryPreference::from_header(headers.get(MEMORY).and_then(|value| value.to_str().ok()))
 }
 
 pub(super) fn classify_client_headers(headers: &HeaderMap) -> ClientHeaders {
     let mut classified = ClientHeaders::default();
+    classified.memory = memory_preference(headers);
     for (name, value) in headers {
         let Ok(value) = value.to_str() else {
             continue;

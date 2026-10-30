@@ -17,7 +17,9 @@ use systemprompt_database::DbPool;
 use systemprompt_governance::authz::SubjectProviderSet;
 use systemprompt_governance::policy::RateWindowRepository;
 use systemprompt_logging::LoggingRuntime;
-use systemprompt_manifest::profile::{AuditConfig, QuotaConfig, UnappliedPlaneMode};
+use systemprompt_manifest::profile::{
+    AuditConfig, BrainRecallProfile, QuotaConfig, UnappliedPlaneMode,
+};
 use systemprompt_security::at_rest::AtRestCipher;
 use systemprompt_traits::{BackgroundTasks, CacheEpochs, DynContextMaterializer};
 
@@ -61,6 +63,7 @@ pub struct GatewayRepositories {
     pub user_provider_credentials: UserProviderCredentialRepository,
     pub tool_validity: Arc<ToolValidityCache>,
     pub catalog: Arc<ResolvedCatalog>,
+    pub brain_recall: BrainRecallProfile,
 }
 
 impl std::fmt::Debug for GatewayRepositories {
@@ -116,6 +119,7 @@ impl GatewayRepositories {
             user_provider_credentials: UserProviderCredentialRepository::new(db, at_rest),
             tool_validity: Arc::new(ToolValidityCache::default()),
             catalog: Arc::clone(&services.catalog),
+            brain_recall: BrainRecallProfile::default(),
         }
     }
 
@@ -146,6 +150,12 @@ impl GatewayRepositories {
     #[must_use]
     pub fn with_session_store(mut self, sessions: systemprompt_traits::DynSessionStore) -> Self {
         self.sessions = Some(sessions);
+        self
+    }
+
+    #[must_use]
+    pub fn with_brain_recall(mut self, profile: BrainRecallProfile) -> Self {
+        self.brain_recall = profile;
         self
     }
 

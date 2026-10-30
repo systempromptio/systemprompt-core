@@ -94,6 +94,8 @@ async fn gateway_audit_open_is_atomic_under_concurrent_same_request_id() {
             api_key_windows: Vec::new(),
             access_log: None,
             context_bound: false,
+            actor: systemprompt_models::auth::RequestActor::Human,
+            memory: systemprompt_models::origin::MemoryPreference::Default,
         };
         let req_clone = request.clone();
         let body_clone = body.clone();
@@ -185,6 +187,8 @@ async fn gateway_audit_open_persists_derived_context_id() {
         api_key_windows: Vec::new(),
         access_log: None,
         context_bound: false,
+        actor: systemprompt_models::auth::RequestActor::Human,
+        memory: systemprompt_models::origin::MemoryPreference::Default,
     };
     let audit = GatewayAudit::new(&gateway_repos(&db), ctx);
     audit

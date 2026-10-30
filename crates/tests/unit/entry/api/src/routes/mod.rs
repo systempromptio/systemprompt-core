@@ -30,6 +30,7 @@ mod gateway_manifest_freshness;
 mod gateway_manifest_grants;
 mod gateway_manifest_policy_reads;
 mod gateway_manifest_shape;
+mod gateway_memory_header;
 mod gateway_messages_auth;
 mod gateway_messages_authenticate;
 mod gateway_messages_dispatch_errors;
