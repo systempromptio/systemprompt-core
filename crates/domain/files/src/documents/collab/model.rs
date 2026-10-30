@@ -2,7 +2,7 @@
 //! its text formats share.
 //!
 //! HTML and Markdown are always co-edited; with the `office` feature so are
-//! `docx` and `odt`, and the `xlsx` and `ods` workbooks held as a Loro sheet.
+//! `docx` and `odt`, and `xlsx` workbooks held as a Loro sheet (IronCalc cannot read `ods`).
 //! The `<body>` helpers live with the model, in `model::html_body`, and are
 //! re-exported here.
 //!
