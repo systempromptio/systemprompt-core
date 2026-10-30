@@ -12,29 +12,6 @@ use systemprompt_extension::prelude::*;
 
 use crate::document_schemas::DOCUMENT_SCHEMAS;
 
-const WEB_ASSETS: &[(&str, &str, AssetType)] = &[
-    (
-        "js/documents-api.js",
-        "assets/documents/js/documents-api.js",
-        AssetType::JavaScript,
-    ),
-    (
-        "js/documents-events.js",
-        "assets/documents/js/documents-events.js",
-        AssetType::JavaScript,
-    ),
-    (
-        "js/documents-html.js",
-        "assets/documents/js/documents-html.js",
-        AssetType::JavaScript,
-    ),
-    (
-        "js/documents-patch.js",
-        "assets/documents/js/documents-patch.js",
-        AssetType::JavaScript,
-    ),
-];
-
 #[derive(Debug, Clone, Copy, Default)]
 pub struct FilesExtension;
 
@@ -80,22 +57,6 @@ impl Extension for FilesExtension {
 
     fn migrations(&self) -> Vec<Migration> {
         extension_migrations!()
-    }
-
-    fn declares_assets(&self) -> bool {
-        true
-    }
-
-    fn required_assets(&self, _paths: &dyn AssetPaths) -> Vec<AssetDefinition> {
-        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("assets");
-        WEB_ASSETS
-            .iter()
-            .map(|(source, destination, kind)| {
-                AssetDefinition::builder(root.join(source), destination, *kind)
-                    .optional()
-                    .build()
-            })
-            .collect()
     }
 }
 

@@ -16,7 +16,6 @@ use systemprompt_models::execution::context::RequestContext;
 use super::DocumentsMcpTools;
 use super::inputs::{ExportAs, ExportFormat, ExportInput};
 use super::outputs::ExportOutput;
-use super::preview::preview_resource_uri;
 use super::refusal::refusal;
 use super::support::{caller, tool_error};
 use crate::documents::actor::signed_agent_name;
@@ -145,7 +144,6 @@ impl McpToolHandler for ExportHandler<'_> {
                         url: Some(url),
                         expires_at: Some(expires_at),
                         html: None,
-                        ui_resource: None,
                     },
                     summary,
                 ))
@@ -165,7 +163,6 @@ impl McpToolHandler for ExportHandler<'_> {
                         url: None,
                         expires_at: None,
                         html: Some(html),
-                        ui_resource: Some(preview_resource_uri(self.tools.server_name())),
                     },
                     summary,
                 ))

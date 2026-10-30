@@ -6,10 +6,9 @@
 //! [`DocumentsMcpTools::call`](crate::documents::mcp::DocumentsMcpTools::call)
 //! to run one tool through core's
 //! [`McpToolExecutor`](systemprompt_mcp::McpToolExecutor) after the binary has
-//! authenticated the request, and the `ui://<server>/document-preview` resource
-//! for `resources/list` and `resources/read`. Every handler acts as the
-//! authenticated user on the request context, and every write records the MCP
-//! execution as the revision's origin.
+//! authenticated the request. Every handler acts as the authenticated user on
+//! the request context, and every write records the MCP execution as the
+//! revision's origin.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -34,7 +33,6 @@ mod mentions;
 mod op_inputs;
 mod outputs;
 mod people;
-mod preview;
 mod proposals;
 mod read;
 mod records;
@@ -47,10 +45,7 @@ mod write;
 use std::sync::Arc;
 
 use rmcp::ErrorData as McpError;
-use rmcp::model::{
-    CallToolRequestParams, CallToolResult, ListResourcesResult, ReadResourceRequestParams,
-    ReadResourceResult, Tool,
-};
+use rmcp::model::{CallToolRequestParams, CallToolResult, Tool};
 use systemprompt_files::documents::DocumentService;
 use systemprompt_files::documents::agents::act_as;
 use systemprompt_files::uploads::UploadService;
@@ -83,10 +78,6 @@ pub use outputs::{
     RevisionItem, SearchHit, SearchOutput, ShareOutput,
 };
 pub use people::PeopleHandler;
-pub use preview::{
-    PREVIEW_RESOURCE_NAME, preview_resource, preview_resource_list, preview_resource_uri,
-    preview_template, preview_tool_meta, read_preview_resource,
-};
 pub use proposals::ProposalsHandler;
 pub use read::ReadHandler;
 pub use records::DocumentAck;
@@ -277,17 +268,5 @@ impl DocumentsMcpTools {
                 None,
             )),
         }
-    }
-
-    #[must_use]
-    pub fn list_resources(&self) -> ListResourcesResult {
-        preview_resource_list(&self.server_name)
-    }
-
-    pub fn read_resource(
-        &self,
-        request: &ReadResourceRequestParams,
-    ) -> Result<ReadResourceResult, McpError> {
-        read_preview_resource(request, &self.server_name)
     }
 }

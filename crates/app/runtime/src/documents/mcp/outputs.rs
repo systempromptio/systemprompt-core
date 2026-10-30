@@ -184,8 +184,6 @@ pub struct ExportOutput {
     pub expires_at: Option<DateTime<Utc>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub html: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub ui_resource: Option<String>,
 }
 documents_output_impl!(ExportOutput, "documents_export");
 
