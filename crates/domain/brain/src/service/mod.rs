@@ -169,8 +169,6 @@ impl BrainService {
             );
             return Ok(());
         };
-        sink.emit(conn, event)
-            .await
-            .map_err(|e| BrainError::Notify(Box::new(e)))
+        sink.emit(conn, event).await.map_err(BrainError::Notify)
     }
 }

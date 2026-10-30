@@ -5977,6 +5977,7 @@ dependencies = [
  "chrono",
  "futures",
  "inventory",
+ "metrics",
  "serde",
  "serde_json",
  "serde_yaml_ng",
@@ -5991,6 +5992,7 @@ dependencies = [
  "systemprompt-traits",
  "thiserror 2.0.21",
  "tokio",
+ "tokio-util",
  "tracing",
  "uuid",
 ]

@@ -8481,8 +8481,8 @@ version = "0.76.0"
 dependencies = [
  "async-trait",
  "chrono",
- "futures",
  "inventory",
+ "metrics",
  "serde",
  "serde_json",
  "sqlx",
@@ -8492,10 +8492,10 @@ dependencies = [
  "systemprompt-identifiers",
  "systemprompt-manifest",
  "systemprompt-models",
- "systemprompt-provider-contracts",
  "systemprompt-traits",
  "thiserror 2.0.21",
  "tokio",
+ "tokio-util",
  "tracing",
  "uuid",
 ]
@@ -8504,7 +8504,6 @@ dependencies = [
 name = "systemprompt-brain-tests"
 version = "0.0.11"
 dependencies = [
- "async-trait",
  "chrono",
  "serde_json",
  "systemprompt-brain",
@@ -8512,7 +8511,6 @@ dependencies = [
  "systemprompt-identifiers",
  "systemprompt-manifest",
  "systemprompt-models",
- "tokio",
 ]
 
 [[package]]

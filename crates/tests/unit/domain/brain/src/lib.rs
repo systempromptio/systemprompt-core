@@ -2,7 +2,9 @@
 //! each fact change to the revision it records, the row builders the
 //! repository tests share, the `brain` config plane (file side pure, apply
 //! round trip against the test database in `plane_db`), the recall stages
-//! (fusion, visibility, budget fill, same-turn reuse) and lifecycle authority.
+//! (fusion, visibility, budget fill, same-turn reuse), lifecycle authority,
+//! and the capture pipeline's pure stages (composite filter, dedupe decision,
+//! schema validator, importance formula, extraction schema and parser).
 
 #[cfg(test)]
 mod authority;
@@ -25,3 +27,15 @@ mod recall_fusion;
 mod recall_reuse;
 #[cfg(test)]
 mod recall_visible;
+#[cfg(test)]
+mod defaults_importance;
+#[cfg(test)]
+mod defaults_validator;
+#[cfg(test)]
+mod model_schema;
+#[cfg(test)]
+mod pipeline_dedupe;
+#[cfg(test)]
+mod pipeline_filter;
+#[cfg(test)]
+mod pipeline_fixtures;

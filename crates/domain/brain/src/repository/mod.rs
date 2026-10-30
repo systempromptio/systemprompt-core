@@ -18,6 +18,7 @@ mod fact_apply;
 mod fact_lifecycle;
 mod facts;
 mod failures;
+mod locks;
 mod outcomes;
 mod pipeline_versions;
 mod plane;
@@ -38,6 +39,7 @@ pub use event_results::EventResultRepository;
 pub use extractions::ExtractionRepository;
 pub use facts::{FactCounts, FactRepository};
 pub use failures::FailureRepository;
+pub use locks::BrainLocks;
 pub use outcomes::OutcomeRepository;
 pub use pipeline_versions::PipelineVersionRepository;
 pub use plane::{

@@ -73,7 +73,7 @@ fn disputed_event(
     if recipient == &caller.user_id {
         return Ok(None);
     }
-    let kind = NotificationKind::new(FACT_DISPUTED).map_err(|e| BrainError::Notify(Box::new(e)))?;
+    let kind = NotificationKind::new(FACT_DISPUTED).map_err(BrainError::NotifyKind)?;
     // JSON: the notification event's payload is its free-form contract field.
     let payload = serde_json::json!({ "fact_id": fact.id, "kind": fact.kind, "reason": reason });
     Ok(Some(

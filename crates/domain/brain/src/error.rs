@@ -8,10 +8,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_extension::brain::BrainSinkError;
+use systemprompt_extension::brain::{
+    BrainExtractError, BrainModelError, BrainSinkError, BrainValidateError, SourceContentError,
+};
+use systemprompt_extension::notifications::NotificationSinkError;
 use systemprompt_identifiers::{BrainFactId, FactKindId};
 use systemprompt_models::brain::{StatementError, SubjectKeyError};
-use systemprompt_traits::{BoxedSource, RepositoryError};
+use systemprompt_models::notifications::NotificationKindError;
+use systemprompt_traits::RepositoryError;
 
 pub type BrainResult<T> = Result<T, BrainError>;
 
@@ -38,16 +42,53 @@ pub enum BrainError {
     Forbidden { reason: String },
     #[error("fact {0} not found")]
     NotFound(BrainFactId),
+    #[error("brain event kind {0} is not one the pipeline reads")]
+    UnknownEvent(String),
+    #[error("brain extraction failed")]
+    Extract(#[from] BrainExtractError),
+    #[error("brain validator failed")]
+    Validate(#[from] BrainValidateError),
+    #[error("brain source content could not be read")]
+    Source(#[from] SourceContentError),
+    #[error("brain source content timed out")]
+    SourceTimeout,
     #[error("brain notification could not be emitted")]
-    Notify(#[source] BoxedSource),
+    Notify(#[from] NotificationSinkError),
+    #[error("brain notification kind is invalid")]
+    NotifyKind(#[from] NotificationKindError),
+    #[error("the daily extraction token budget is spent")]
+    BudgetExhausted,
 }
 
 impl BrainError {
     #[must_use]
-    pub const fn is_transient(&self) -> bool {
-        matches!(
-            self,
-            Self::Database(_) | Self::Repository(_) | Self::Sink(_) | Self::Notify(_)
-        )
+    pub fn is_transient(&self) -> bool {
+        match self {
+            Self::Database(_)
+            | Self::Repository(_)
+            | Self::Sink(_)
+            | Self::Validate(_)
+            | Self::Source(_)
+            | Self::SourceTimeout
+            | Self::Notify(_)
+            | Self::BudgetExhausted => true,
+            Self::Extract(BrainExtractError::Model(error)) => matches!(
+                error,
+                BrainModelError::Unavailable | BrainModelError::Timeout | BrainModelError::Other(_)
+            ),
+            _ => false,
+        }
+    }
+
+    #[must_use]
+    pub const fn stage(&self) -> &'static str {
+        match self {
+            Self::Extract(_) => "extract",
+            Self::Validate(_) => "validate",
+            Self::Source(_) | Self::SourceTimeout => "source",
+            Self::Notify(_) => "notify",
+            Self::BudgetExhausted => "budget",
+            _ => "process",
+        }
     }
 }

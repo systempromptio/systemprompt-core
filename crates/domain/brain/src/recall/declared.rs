@@ -17,13 +17,8 @@ use systemprompt_models::brain::{
 use tokio::sync::RwLock;
 
 use crate::error::BrainResult;
-use crate::models::PlaneRow;
-use crate::repository::{
-    BrainRepositories, ConfigDocRepository, KindRepository, TopicRepository, WorkflowRepository,
-};
+use crate::repository::BrainRepositories;
 
-const IMPORTANCE_DOC: &str = "importance";
-const RETRIEVAL_DOC: &str = "retrieval";
 const CACHE_TTL: Duration = Duration::from_secs(30);
 
 /// The declarations recall and the lifecycle services act on; an absent
@@ -59,36 +54,6 @@ impl DeclaredRecall {
             .iter()
             .find(|workflow| workflow.id.as_str() == name)
     }
-
-    fn from_rows(rows: PlaneRows) -> serde_json::Result<Self> {
-        let mut declared = Self {
-            kinds: decode_all(rows.kinds)?,
-            topics: decode_all(rows.topics)?,
-            workflows: decode_all(rows.workflows)?,
-            ..Self::default()
-        };
-        for row in rows.docs {
-            match row.id.as_str() {
-                IMPORTANCE_DOC => declared.importance = serde_json::from_value(row.body)?,
-                RETRIEVAL_DOC => declared.retrieval = serde_json::from_value(row.body)?,
-                _ => {},
-            }
-        }
-        Ok(declared)
-    }
-}
-
-struct PlaneRows {
-    kinds: Vec<PlaneRow>,
-    topics: Vec<PlaneRow>,
-    workflows: Vec<PlaneRow>,
-    docs: Vec<PlaneRow>,
-}
-
-fn decode_all<T: serde::de::DeserializeOwned>(rows: Vec<PlaneRow>) -> serde_json::Result<Vec<T>> {
-    rows.into_iter()
-        .map(|row| serde_json::from_value(row.body))
-        .collect()
 }
 
 /// Supplies the current declarations; held as `Arc<dyn DeclaredSource>`
@@ -118,13 +83,14 @@ impl PlaneDeclaredSource {
 
     async fn read(&self) -> BrainResult<DeclaredRecall> {
         let mut conn = self.repos.read_pool().acquire().await?;
-        let rows = PlaneRows {
-            kinds: KindRepository::list(&mut *conn).await?,
-            topics: TopicRepository::list(&mut *conn).await?,
-            workflows: WorkflowRepository::list(&mut *conn).await?,
-            docs: ConfigDocRepository::list(&mut *conn).await?,
-        };
-        Ok(DeclaredRecall::from_rows(rows)?)
+        let brain = crate::plane::load_declared_state(&mut conn).await?;
+        Ok(DeclaredRecall {
+            kinds: brain.kinds,
+            topics: brain.topics,
+            workflows: brain.workflows,
+            importance: brain.importance.unwrap_or_default(),
+            retrieval: brain.retrieval.unwrap_or_default(),
+        })
     }
 }
 

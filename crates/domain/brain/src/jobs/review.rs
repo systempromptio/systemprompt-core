@@ -83,8 +83,8 @@ async fn mark_one(
         (Some(sink), Ok(Some(event))) => sink
             .emit(&mut tx, &event)
             .await
-            .map_err(|e| BrainError::Notify(Box::new(e)))?,
-        (_, Err(e)) => return Err(BrainError::Notify(Box::new(e))),
+            .map_err(BrainError::Notify)?,
+        (_, Err(e)) => return Err(BrainError::NotifyKind(e)),
         _ => tracing::debug!(fact_id = %fact.id, "Brain review notice not sent"),
     }
     tx.commit().await?;
