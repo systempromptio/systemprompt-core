@@ -134,7 +134,7 @@ workspace SQLx macros require its database configuration.
 | Gateway quotas | Ordinary gateway cost buckets account for completed requests; concurrent in-flight requests can exceed a ceiling. | Size ordinary quotas for concurrent usage |
 | Audit integrity | The governance-decision UPDATE trigger rejects row updates while enabled; DELETE remains grant-controlled, and owners can disable the trigger | Apply table-specific least privilege and external retention; preserve required updates to mutable request records |
 | PostgreSQL compatibility | Deployment documentation specifies PostgreSQL 18+; CI service definitions use PostgreSQL 16 | Validate the deployment's PostgreSQL version before rollout |
-| Supply-chain automation | Actions are pinned to commit SHAs with least-privilege tokens; SBOMs and provenance are published for bridge releases. Crates on crates.io are unsigned, and dependency updates are reviewed manually rather than by a bot | Verify release attestations; build from a tagged source revision when crates are consumed directly |
+| Supply-chain automation | Actions are pinned to commit SHAs with least-privilege tokens; SBOMs and provenance are published for bridge releases. Crates on crates.io are unsigned, and dependency updates arrive through gated Renovate pull requests | Verify release attestations; build from a tagged source revision when crates are consumed directly |
 | External assurance | Third-party assessment artifacts are not included in this repository | Obtain current evidence with an explicit scope and date |
 
 ## 7. Verification

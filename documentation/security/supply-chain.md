@@ -20,10 +20,12 @@ release. Addresses ISO/IEC 27001:2022 A.5.19–5.22 and A.8.30 and SOC 2 CC9.2.
 
 ### Dependency updates
 
-Dependencies are updated deliberately by the maintainer, not by an automated pull-request bot.
-Each update passes through the full gate set. Advisory alerts are reviewed daily from the
-scheduled `supply-chain.yml` run; a new advisory against a dependency in use is handled under
-[Vulnerability management](vulnerability-management.md).
+Renovate ([`renovate.json`](../../renovate.json)) opens grouped minor and patch updates for
+Cargo dependencies and GitHub Actions once a month. It opens security updates as soon as an
+advisory is published. Each update is a pull request against `next` that runs the full gate set,
+and is merged only when every check passes. The merged commit is then gated again as a push to
+`next`, like any other change. Major-version upgrades are made by the maintainer. A new advisory
+against a dependency in use is also handled under [Vulnerability management](vulnerability-management.md).
 
 ## 2. Build and release integrity
 
@@ -69,8 +71,7 @@ The same commands apply to the `*.cdx.json` SBOM files.
 
 ## 4. Repository security signals
 
-- **OpenSSF Scorecard** runs weekly and publishes to the OpenSSF API (`scorecard.yml`). Two
-  checks score low by design: *Code-Review*, because the project has one maintainer (see
-  [Secure development policy § 6](secure-development-policy.md#6-review-and-segregation-of-duties)),
-  and *Dependency-Update-Tool*, because updates are manual (§ 1).
+- **OpenSSF Scorecard** runs weekly and publishes to the OpenSSF API (`scorecard.yml`). The
+  *Code-Review* check scores low by design, because the project has one maintainer (see
+  [Secure development policy § 6](secure-development-policy.md#6-review-and-segregation-of-duties)).
 - **CodeQL** results and **secret-scanning** results appear under the repository's Security tab.
