@@ -32,6 +32,7 @@
 pub mod error;
 pub mod extension;
 pub mod models;
+pub mod plane;
 pub mod repository;
 pub mod schema;
 pub mod sink;

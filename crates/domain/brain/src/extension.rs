@@ -7,8 +7,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::sync::Arc;
+
 use systemprompt_extension::prelude::*;
 
+use crate::plane::BrainPlane;
 use crate::schema::BRAIN_SCHEMAS;
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -43,6 +46,10 @@ impl Extension for BrainExtension {
 
     fn migrations(&self) -> Vec<Migration> {
         extension_migrations!()
+    }
+
+    fn config_planes(&self) -> Vec<Arc<dyn ConfigPlane>> {
+        vec![Arc::new(BrainPlane)]
     }
 }
 

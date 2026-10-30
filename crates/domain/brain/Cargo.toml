@@ -28,6 +28,7 @@ systemprompt-database = { workspace = true }
 systemprompt-events = { workspace = true }
 systemprompt-extension = { workspace = true, features = ["sqlx"] }
 systemprompt-identifiers = { workspace = true, features = ["sqlx"] }
+systemprompt-manifest = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-traits = { workspace = true, features = ["sqlx"] }
 async-trait = { workspace = true }
@@ -35,6 +36,7 @@ chrono = { workspace = true }
 inventory = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+serde_yaml = { workspace = true }
 sqlx = { workspace = true }
 thiserror = { workspace = true }
 uuid = { workspace = true }

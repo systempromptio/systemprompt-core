@@ -8484,11 +8484,13 @@ dependencies = [
  "inventory",
  "serde",
  "serde_json",
+ "serde_yaml_ng",
  "sqlx",
  "systemprompt-database",
  "systemprompt-events",
  "systemprompt-extension",
  "systemprompt-identifiers",
+ "systemprompt-manifest",
  "systemprompt-models",
  "systemprompt-traits",
  "thiserror 2.0.21",
@@ -8501,9 +8503,18 @@ version = "0.0.11"
 dependencies = [
  "chrono",
  "serde_json",
+ "serde_yaml_ng",
+ "sqlx",
  "systemprompt-brain",
+ "systemprompt-database",
+ "systemprompt-extension",
  "systemprompt-identifiers",
  "systemprompt-models",
+ "systemprompt-test-fixtures",
+ "systemprompt-traits",
+ "tempfile",
+ "tokio",
+ "uuid",
 ]
 
 [[package]]
@@ -9788,6 +9799,7 @@ dependencies = [
  "systemprompt-config",
  "systemprompt-database",
  "systemprompt-events",
+ "systemprompt-extension",
  "systemprompt-files",
  "systemprompt-governance",
  "systemprompt-identifiers",
@@ -9868,6 +9880,7 @@ dependencies = [
  "systemprompt-models",
  "systemprompt-security",
  "systemprompt-traits",
+ "systemprompt-users",
  "systemprompt-wire",
  "thiserror 2.0.21",
  "tokio",
@@ -9891,6 +9904,8 @@ dependencies = [
 name = "systemprompt-gateway-integration-tests"
 version = "0.0.11"
 dependencies = [
+ "anyhow",
+ "async-trait",
  "axum",
  "bytes",
  "futures",
@@ -9903,6 +9918,7 @@ dependencies = [
  "systemprompt-ai",
  "systemprompt-catalog-fixtures",
  "systemprompt-database",
+ "systemprompt-extension",
  "systemprompt-gateway",
  "systemprompt-governance",
  "systemprompt-identifiers",
@@ -9911,11 +9927,13 @@ dependencies = [
  "systemprompt-security",
  "systemprompt-test-fixtures",
  "systemprompt-traits",
+ "systemprompt-users",
  "systemprompt-wire",
  "tokio",
  "tracing",
  "tracing-subscriber",
  "uuid",
+ "wiremock",
 ]
 
 [[package]]
