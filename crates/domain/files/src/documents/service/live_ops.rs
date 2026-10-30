@@ -244,6 +244,14 @@ impl DocumentService {
         let base_ids = self.projected(document, &base).await?.ids;
         let bytes = view.bytes;
         let paths = self.project_paths(document.format, bytes.clone()).await?;
+        let hints = CarryHints {
+            rewritten: if view.model.is_none() {
+                base_ids.nodes().map(|node| node.id.clone()).collect()
+            } else {
+                HashSet::new()
+            },
+            ..CarryHints::default()
+        };
         let pins = view
             .model
             .as_ref()
@@ -253,8 +261,7 @@ impl DocumentService {
         let projected = paths.clone();
         let entries = blocking(move || {
             let mut minter = NodeIdMinter::new(writer, 0);
-            let mut entries =
-                carry_forward(&base_ids, &projected, &CarryHints::default(), &mut minter);
+            let mut entries = carry_forward(&base_ids, &projected, &hints, &mut minter);
             let pinned: HashSet<&DocumentNodeId> = pins.values().collect();
             for entry in &mut entries {
                 match pins.get(entry.path.as_str()) {
