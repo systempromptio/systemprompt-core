@@ -34,6 +34,7 @@ pub use reads::FactWhy;
 use crate::error::{BrainError, BrainResult};
 use crate::models::FactChange;
 use crate::recall::{DeclaredRecall, DeclaredSource, PlaneDeclaredSource};
+use crate::replay::ProposalReplay;
 use crate::repository::{BrainRepositories, FactRepository};
 
 /// The brain's person-facing service.
@@ -44,6 +45,7 @@ pub struct BrainService {
     notifications: Option<DynNotificationSink>,
     profile: Arc<BrainProfile>,
     declared: Arc<dyn DeclaredSource>,
+    replay: Option<ProposalReplay>,
 }
 
 impl std::fmt::Debug for BrainService {
@@ -51,6 +53,7 @@ impl std::fmt::Debug for BrainService {
         f.debug_struct("BrainService")
             .field("enabled", &self.profile.enabled)
             .field("notifications", &self.notifications.is_some())
+            .field("replay", &self.replay.is_some())
             .finish_non_exhaustive()
     }
 }
@@ -62,6 +65,7 @@ pub struct BrainServiceBuilder {
     profile: Arc<BrainProfile>,
     notifications: Option<DynNotificationSink>,
     declared: Option<Arc<dyn DeclaredSource>>,
+    replay: Option<ProposalReplay>,
 }
 
 impl std::fmt::Debug for BrainServiceBuilder {
@@ -86,6 +90,7 @@ impl BrainService {
             profile,
             notifications: None,
             declared: None,
+            replay: None,
         }
     }
 
@@ -109,6 +114,12 @@ impl BrainServiceBuilder {
     }
 
     #[must_use]
+    pub fn replay(mut self, replay: ProposalReplay) -> Self {
+        self.replay = Some(replay);
+        self
+    }
+
+    #[must_use]
     pub fn build(self) -> BrainService {
         let declared = self
             .declared
@@ -119,6 +130,7 @@ impl BrainServiceBuilder {
             notifications: self.notifications,
             profile: self.profile,
             declared,
+            replay: self.replay,
         }
     }
 }

@@ -12,6 +12,7 @@ use std::sync::Arc;
 use systemprompt_extension::prelude::*;
 use systemprompt_traits::Job;
 
+use crate::analyses::BrainAnalysisJob;
 use crate::jobs::{BrainRetentionJob, BrainReviewJob};
 use crate::plane::BrainPlane;
 use crate::schema::BRAIN_SCHEMAS;
@@ -55,7 +56,11 @@ impl Extension for BrainExtension {
     }
 
     fn jobs(&self) -> Vec<Arc<dyn Job>> {
-        vec![Arc::new(BrainReviewJob), Arc::new(BrainRetentionJob)]
+        vec![
+            Arc::new(BrainReviewJob),
+            Arc::new(BrainRetentionJob),
+            Arc::new(BrainAnalysisJob),
+        ]
     }
 }
 

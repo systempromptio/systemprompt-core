@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.77.0] - 2026-10-30
+
+### Added
+
+- `OutboxConsumer::replay_window` reads a consumer's facts in a time window, processed or not, ordered by `(created_at, id)` and keyset-paged, without locking; `OutboxReplayWindow`, `ReplayItem` and `ReportingFactRaw` carry the window and the rows.
+
 ## [0.76.0] - 2026-10-29
 
 ### Breaking

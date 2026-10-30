@@ -1,0 +1,43 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT client,\n                      count(*) AS \"recalls!\",\n                      count(*) FILTER (WHERE jsonb_array_length(injected) = 0) AS \"empty!\"\n               FROM brain_recalls\n               WHERE created_at >= $1 AND created_at < $2 AND skipped IS NULL\n               GROUP BY client ORDER BY client",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "client",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "brain_recalls",
+            "name": "client"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "recalls!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "empty!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false,
+      null,
+      null
+    ]
+  },
+  "hash": "09452382c91ba66c68f6cc179648d72c54d2153d26bf9bd567ade1d46ed775a3"
+}

@@ -108,6 +108,21 @@ impl ProposalRepository {
         Ok(result.rows_affected() > 0)
     }
 
+    pub async fn attach_replay(
+        executor: impl PgExecutor<'_>,
+        id: &BrainProposalId,
+        report: &serde_json::Value,
+    ) -> Result<bool, RepositoryError> {
+        let result = sqlx::query!(
+            "UPDATE brain_proposals SET replay = $2 WHERE id = $1",
+            id.as_str(),
+            report,
+        )
+        .execute(executor)
+        .await?;
+        Ok(result.rows_affected() > 0)
+    }
+
     pub async fn list_open(&self, limit: i64) -> Result<Vec<BrainProposal>, RepositoryError> {
         sqlx::query_as!(
             ProposalRow,

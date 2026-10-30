@@ -19,7 +19,9 @@ use sqlx::{PgConnection, PgPool, Postgres, Transaction};
 use systemprompt_identifiers::{Actor, EventOutboxId, InstanceId};
 use systemprompt_models::{A2AEvent, AgUiEvent, AnalyticsEvent, SystemEvent};
 
-use super::repository::durable::{DurableOutboxRepository, DurableRow, FactRow};
+use super::repository::durable::{
+    DurableOutboxRepository, DurableRow, FactRow, ReplayQuery, ReplayRow,
+};
 use super::routing::OutboxChannel;
 use super::topics::TopicEvent;
 
@@ -39,6 +41,39 @@ pub struct ReportingFact<T> {
     pub kind: String,
     pub version: u32,
     pub data: T,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ReportingFactRaw {
+    pub kind: String,
+    pub version: u32,
+    // JSON: the fact body is decoded by the consumer that owns the kind.
+    pub data: serde_json::Value,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OutboxReplayWindow {
+    pub since: chrono::DateTime<chrono::Utc>,
+    pub until: chrono::DateTime<chrono::Utc>,
+    pub limit: i64,
+    pub after: Option<EventOutboxId>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ReplayItem {
+    pub id: EventOutboxId,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub fact: ReportingFactRaw,
+}
+
+impl From<ReplayRow> for ReplayItem {
+    fn from(row: ReplayRow) -> Self {
+        Self {
+            id: row.id,
+            created_at: row.created_at,
+            fact: row.fact.0,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -148,6 +183,25 @@ impl OutboxConsumer {
             return Ok(None);
         }
         Ok(Some(DeliveryBatch { tx, rows }))
+    }
+
+    pub async fn replay_window(
+        &self,
+        consumer: &str,
+        window: &OutboxReplayWindow,
+    ) -> Result<Vec<ReplayItem>, sqlx::Error> {
+        let query = ReplayQuery {
+            consumer,
+            since: window.since,
+            until: window.until,
+            limit: window.limit,
+            after: window.after.as_ref(),
+        };
+        Ok(DurableOutboxRepository::replay_window(&self.pool, query)
+            .await?
+            .into_iter()
+            .map(ReplayItem::from)
+            .collect())
     }
 
     pub async fn claim(&self, consumer: &str) -> Result<Option<Delivery>, sqlx::Error> {

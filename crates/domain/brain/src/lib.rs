@@ -29,6 +29,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod analyses;
 pub mod consumer;
 pub mod defaults;
 pub mod error;
@@ -39,6 +40,7 @@ pub mod models;
 pub mod pipeline;
 pub mod plane;
 pub mod recall;
+pub mod replay;
 pub mod repository;
 pub mod schema;
 pub mod service;
