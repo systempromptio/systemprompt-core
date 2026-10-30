@@ -10,8 +10,9 @@ use serde_json::Value;
 
 use super::child::{child_list, child_map};
 use super::edit::{EditError, find_cell, find_row, located, rows_of};
+use super::props::to_loro;
 use super::rich::{list_of, string_of};
-use super::table::{fresh_id, is_table_map, new_entry, to_loro};
+use super::table::{fresh_id, is_table_map, new_entry};
 use super::write::insert_block;
 
 // JSON: a table prop is an untyped browser map entry.

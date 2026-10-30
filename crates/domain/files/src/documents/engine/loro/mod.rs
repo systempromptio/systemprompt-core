@@ -32,6 +32,7 @@ mod child;
 pub mod deck;
 pub mod edit;
 mod edit_table;
+mod props;
 pub mod rich;
 pub mod scope;
 mod seed;

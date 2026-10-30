@@ -84,7 +84,9 @@ pub(super) async fn updates(
     {
         let forward = ForwardRequest {
             address: &address,
-            path_and_query: uri.path_and_query().map_or(uri.path(), |pq| pq.as_str()),
+            path_and_query: uri
+                .path_and_query()
+                .map_or_else(|| uri.path(), |pq| pq.as_str()),
             authorization: text(&headers, header::AUTHORIZATION.as_str()),
             cookie: text(&headers, header::COOKIE.as_str()),
             content_type,

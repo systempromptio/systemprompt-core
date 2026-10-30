@@ -17,7 +17,9 @@ use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::DocumentAction;
 
 use super::apply::update_event;
-use super::document::{import, import_rich_text};
+#[cfg(feature = "collab-loro")]
+use super::document::import;
+use super::document::import_rich_text;
 use super::entry::SharedEntry;
 use super::error::{model_error, utf8};
 use super::model::body_of;
