@@ -22,6 +22,7 @@ use systemprompt_traits::RepositoryError;
 
 use super::AiRequestRepository;
 use super::attributions::insert_attributions;
+use super::memory_recall::update_memory_recall_with;
 use super::message_operations::{RequestMessageRow, insert_messages_with};
 use super::mutations::{
     insert_request_row, update_route_match_with, update_served_hop_with,
@@ -53,6 +54,7 @@ pub struct AdmissionWrite<'a> {
     pub route_match: Option<&'a str>,
     pub served_hop: Option<ServedHop<'a>>,
     pub system_prompt_override: Option<&'a str>,
+    pub memory_recall: Option<&'a str>,
     pub prepared: Option<PreparedDigest<'a>>,
     pub findings: &'a [InsertSafetyFinding<'a>],
     pub decisions: &'a [DecisionAudit],
@@ -103,6 +105,11 @@ async fn admit_best_effort(
         let mut sp = tx.begin().await?;
         let outcome = update_system_prompt_override_with(&mut *sp, write.id, descriptor).await;
         settle_savepoint(sp, outcome, "update_system_prompt_override failed").await?;
+    }
+    if let Some(descriptor) = write.memory_recall {
+        let mut sp = tx.begin().await?;
+        let outcome = update_memory_recall_with(&mut *sp, write.id, descriptor).await;
+        settle_savepoint(sp, outcome, "update_memory_recall failed").await?;
     }
     if let Some(prepared) = write.prepared {
         let mut sp = tx.begin().await?;

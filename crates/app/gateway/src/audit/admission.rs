@@ -32,6 +32,7 @@ pub(super) struct PendingAdmission {
     route_match: Option<String>,
     served_hop: Option<OwnedHop>,
     system_prompt_override: Option<String>,
+    memory_recall: Option<String>,
     // JSON: client tool definitions, stored verbatim as JSONB.
     prepared: Option<(String, Option<Value>)>,
     findings: Vec<PendingFinding>,
@@ -81,6 +82,7 @@ impl PendingAdmission {
             route_match: None,
             served_hop: None,
             system_prompt_override: None,
+            memory_recall: None,
             prepared: None,
             findings: Vec::new(),
             decisions: Vec::new(),
@@ -106,6 +108,23 @@ impl GatewayAudit {
 
     pub(super) fn stash_system_prompt_override(&self, descriptor: &str) -> bool {
         self.stash(|p| p.system_prompt_override = Some(descriptor.to_owned()))
+    }
+
+    fn stash_memory_recall(&self, descriptor: &str) -> bool {
+        self.stash(|p| p.memory_recall = Some(descriptor.to_owned()))
+    }
+
+    pub async fn set_memory_recall(&self, descriptor: &str) {
+        if self.stash_memory_recall(descriptor) {
+            return;
+        }
+        if let Err(e) = self
+            .requests
+            .update_memory_recall(&self.ctx.ai_request_id, descriptor)
+            .await
+        {
+            tracing::warn!(error = %e, "update_memory_recall failed");
+        }
     }
 
     // JSON: client tool definitions, stored verbatim as JSONB.
@@ -199,6 +218,7 @@ impl GatewayAudit {
                 route_match: pending.route_match.as_deref(),
                 served_hop: pending.served_hop.as_ref().map(OwnedHop::as_served),
                 system_prompt_override: pending.system_prompt_override.as_deref(),
+                memory_recall: pending.memory_recall.as_deref(),
                 prepared: pending
                     .prepared
                     .as_ref()

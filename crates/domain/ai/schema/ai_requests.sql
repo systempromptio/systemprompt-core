@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS ai_requests (
     model TEXT,
     requested_model TEXT,
     system_prompt_override TEXT,
+    memory_recall TEXT,
     route_match TEXT,
     temperature DOUBLE PRECISION,
     top_p DOUBLE PRECISION,

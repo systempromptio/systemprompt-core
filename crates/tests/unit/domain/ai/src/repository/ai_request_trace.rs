@@ -143,3 +143,33 @@ async fn conversation_sampling_selects_the_latest_turn_and_keeps_its_wire_eviden
         Some("policy-v2")
     );
 }
+
+#[tokio::test]
+async fn memory_recall_descriptor_is_recorded_on_the_request() {
+    let pool = bootstrapped_pool().await;
+    let repo = AiRequestRepository::new(&pool);
+    let owner = user();
+    systemprompt_test_fixtures::seed_user_row(&pool, &owner, &format!("{owner}@ai.invalid"))
+        .await
+        .unwrap();
+    let id = repo.insert(&completed_record(&owner)).await.unwrap();
+    let read = || async {
+        sqlx::query_scalar::<_, Option<String>>(
+            "SELECT memory_recall FROM ai_requests WHERE id = $1",
+        )
+        .bind(id.as_str())
+        .fetch_one(pool.write_pool().as_ref())
+        .await
+        .unwrap()
+    };
+    assert_eq!(read().await, None);
+
+    let descriptor = "injected=3 withheld=2 tokens=412 as_of=2026-10-30T10:00:00Z";
+    repo.update_memory_recall(&id, descriptor).await.unwrap();
+    assert_eq!(read().await.as_deref(), Some(descriptor));
+
+    repo.update_memory_recall(&id, "skipped=deadline")
+        .await
+        .unwrap();
+    assert_eq!(read().await.as_deref(), Some("skipped=deadline"));
+}
