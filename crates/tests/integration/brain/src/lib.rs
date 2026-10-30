@@ -3,6 +3,8 @@
 //! the review and retention jobs. Each test owns a disposable database.
 
 #[cfg(test)]
+mod consumer_drain;
+#[cfg(test)]
 mod dedupe_dispute;
 #[cfg(test)]
 mod disabled;
@@ -26,6 +28,8 @@ mod outbox_to_fact;
 mod plane;
 #[cfg(test)]
 mod plane_round_trip;
+#[cfg(test)]
+mod proposals;
 #[cfg(test)]
 mod purge;
 #[cfg(test)]
