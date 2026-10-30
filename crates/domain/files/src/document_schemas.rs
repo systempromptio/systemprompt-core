@@ -80,6 +80,11 @@ pub(crate) const DOCUMENT_SCHEMAS: &[SchemaEntry] = &[
         &["session_id", "peer_id", "user_id"],
     ),
     (
+        "document_collab_owners",
+        include_str!("../schema/document_collab_owners.sql"),
+        &["document_id", "owner_id", "address", "lease_until"],
+    ),
+    (
         "document_text_index",
         include_str!("../schema/document_text_index.sql"),
         &["document_id", "revision_id", "body"],

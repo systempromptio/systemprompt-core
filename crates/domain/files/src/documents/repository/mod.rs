@@ -19,6 +19,7 @@ mod agent_batch;
 mod agent_caps;
 mod blob_holders;
 mod blobs;
+mod collab_owners;
 mod collab_peers;
 mod collab_updates;
 mod collab_web_presence;
@@ -73,6 +74,7 @@ pub use agent_batch::FolderChain;
 pub use agent_caps::{AgentFacts, AgentReadRecord, CapOverride};
 pub use blob_holders::{BlobHolder, HeldAmong};
 pub use blobs::DocumentBlobRepository;
+pub use collab_owners::OwnerClaim;
 pub use collab_peers::{CollabAppend, LoggedAuthor, UpdateAuthor};
 pub use collab_updates::{
     CollabBacklog, CollabUpdateRow, DocumentCollabRepository, SnapshotMark, StoredSnapshot,

@@ -46,6 +46,7 @@ tracing = { workspace = true }
 async-trait = { workspace = true }
 inventory = { workspace = true }
 base64 = { workspace = true }
+reqwest = { workspace = true }
 sha2 = { workspace = true }
 hex = { workspace = true }
 thiserror = { workspace = true }
@@ -64,9 +65,10 @@ zip = { workspace = true, optional = true }
 quick-xml = { workspace = true }
 umya-spreadsheet = { workspace = true, optional = true }
 loro = { workspace = true, optional = true }
+ironcalc = { version = "=0.9.1", optional = true, default-features = false }
 
 [features]
-office = ["dep:zip", "dep:umya-spreadsheet"]
+office = ["dep:zip", "dep:umya-spreadsheet", "dep:ironcalc"]
 collab = []
 collab-loro = ["collab", "dep:loro"]
 

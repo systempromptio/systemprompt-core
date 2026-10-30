@@ -37,6 +37,10 @@
 //! checkpoint keeps them. Spreadsheets and decks are refused with
 //! [`DocumentsError::UnsupportedFormat`](super::DocumentsError).
 //!
+//! A replica built [`CollabService::with_owner`] takes part in a per-document
+//! owner lease: updates are forwarded to the replica holding it, falling back
+//! to the shared log's catch-up path when the lease lapses (see `owner`).
+//!
 //! The CRDT itself is a [`DocumentEngine`] the composition root passes in;
 //! with none, every session call answers [`CollabError::EngineUnavailable`].
 //!
@@ -56,6 +60,8 @@ mod image_owners;
 mod lease;
 mod live_media;
 pub mod model;
+mod owner;
+mod owner_forward;
 mod persist;
 mod persist_commit;
 mod reaper;
@@ -72,6 +78,8 @@ use systemprompt_identifiers::DocumentId;
 
 pub use error::CollabError;
 pub use image_owners::{ImageOwners, ImageOwnersError};
+pub use owner::{OwnerConfig, UpdateRoute};
+pub use owner_forward::{FORWARDED_HEADER, ForwardError, ForwardRequest, Forwarded};
 pub use types::{
     Applied, ApplyRequest, Checkpoint, CollabTuning, CursorRequest, JoinMode, Joined, Left,
 };
@@ -89,6 +97,7 @@ pub struct CollabService {
     tuning: CollabTuning,
     engine: Option<Arc<dyn DocumentEngine>>,
     uploads: Option<Arc<UploadService>>,
+    owner: Option<owner::OwnerRegistry>,
     cache: Mutex<HashMap<DocumentId, SharedEntry>>,
 }
 
@@ -104,6 +113,7 @@ impl CollabService {
             tuning,
             engine,
             uploads: None,
+            owner: None,
             cache: Mutex::new(HashMap::new()),
         }
     }

@@ -8,6 +8,7 @@
 //! (see the `committer` module), never as a user who did not write to the
 //! session, and closes them; a session whose document is gone or
 //! trashed, or whose format is not co-edited, is closed without a checkpoint.
+//! Closing a session releases this replica's owner lease of its document.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -60,6 +61,7 @@ impl CollabService {
         let document = repos.documents.find(&session.document_id).await?;
         let Some(document) = document.filter(|document| is_collab_format(document.format)) else {
             self.cache_remove(&session.document_id);
+            self.release_owner(&session.document_id).await;
             return Ok(repos.edit_sessions.close(&session.id).await?);
         };
         let entry = self.entry(&document, session).await?;
@@ -68,6 +70,7 @@ impl CollabService {
             .await?;
         if left.closed {
             self.cache_remove(&document.id);
+            self.release_owner(&document.id).await;
         }
         Ok(left.closed)
     }
