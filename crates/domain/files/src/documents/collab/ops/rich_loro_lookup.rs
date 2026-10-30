@@ -1,11 +1,11 @@
 //! Live-tree lookups behind the Loro text ops: a block by id or unique
-//! quote, its live text under an `expected_hash` guard, and the rows and
-//! columns of a live table.
+//! quote (searched through table cells, nested tables included), its live text
+//! under an `expected_hash` guard, and the rows and columns of a live table.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use loro::LoroDoc;
+use loro::{LoroDoc, LoroMovableList};
 use systemprompt_provider_contracts::documents::{MarkSpec, NodeTarget, hash8};
 
 use super::rich_loro::RichOpError;
@@ -52,25 +52,34 @@ pub(super) fn guarded(
 }
 
 pub(super) fn unique_quote(doc: &LoroDoc, find: &str) -> Result<(String, String), RichOpError> {
-    let list = blocks(doc);
-    let mut hits = (0..list.len()).filter_map(|at| {
-        let map = block_map(&list, at)?;
-        let text = text_of(&map)?.to_string();
-        let count = text.matches(find).count();
-        (count > 0).then(|| (string_of(&map, "id").unwrap_or_default(), text, count))
-    });
-    let first = hits.next();
-    let rest: usize = hits.map(|(_, _, count)| count).sum();
-    match first {
-        Some((id, text, 1)) if rest == 0 => Ok((id, text)),
-        Some((_, _, count)) => Err(RichOpError::Ambiguous {
+    let mut hits = Vec::new();
+    quote_hits(&blocks(doc), find, &mut hits);
+    let total: usize = hits.iter().map(|(_, _, count)| count).sum();
+    match hits.into_iter().next() {
+        Some((id, text, 1)) if total == 1 => Ok((id, text)),
+        _ => Err(RichOpError::Ambiguous {
             find: find.to_owned(),
-            matches: count + rest,
+            matches: total,
         }),
-        None => Err(RichOpError::Ambiguous {
-            find: find.to_owned(),
-            matches: 0,
-        }),
+    }
+}
+
+fn quote_hits(list: &LoroMovableList, find: &str, hits: &mut Vec<(String, String, usize)>) {
+    for at in 0..list.len() {
+        let Some(map) = block_map(list, at) else {
+            continue;
+        };
+        if let Some(text) = text_of(&map).map(|text| text.to_string()) {
+            let count = text.matches(find).count();
+            if count > 0 {
+                hits.push((string_of(&map, "id").unwrap_or_default(), text, count));
+            }
+        }
+        for cell in edit::cells_of(&map) {
+            if let Some(inner) = list_of(&cell, "blocks") {
+                quote_hits(&inner, find, hits);
+            }
+        }
     }
 }
 
