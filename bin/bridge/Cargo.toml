@@ -121,7 +121,7 @@ core-foundation = "0.10"
 core-foundation-sys = "0.8"
 tray-icon = "0.26"
 muda = "0.21"
-winit = "0.31.0-beta.3"
+winit = "=0.31.0-beta.3"
 wry = { version = "0.57", default-features = false, features = ["os-webview", "devtools"] }
 image = { version = "0.25", default-features = false, features = ["png"] }
 raw-window-handle = "0.6"
@@ -130,7 +130,7 @@ raw-window-handle = "0.6"
 windows-native-keyring-store = "1"
 tray-icon = "0.26"
 muda = "0.21"
-winit = "0.31.0-beta.3"
+winit = "=0.31.0-beta.3"
 wry = { version = "0.57", default-features = false, features = ["os-webview", "devtools"] }
 image = { version = "0.25", default-features = false, features = ["png", "ico"] }
 raw-window-handle = "0.6"
