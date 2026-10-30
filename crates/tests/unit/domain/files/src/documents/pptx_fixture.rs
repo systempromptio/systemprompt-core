@@ -148,6 +148,61 @@ pub fn two_slide_deck() -> Vec<u8> {
     )
 }
 
+pub const PNG: &[u8] = b"\x89PNG\r\n\x1a\n\x00\x00\x00\x0dIHDR\x00\x00\x00\x02\x00\x00\x00\x02";
+
+fn framed_sp(id: u32, ph: &str, sp_pr: &str, paragraphs: &str) -> String {
+    format!(
+        "<p:sp><p:nvSpPr><p:cNvPr id=\"{id}\" name=\"Shape {id}\"/><p:cNvSpPr/><p:nvPr>{ph}</p:nvPr></p:nvSpPr>{sp_pr}<p:txBody><a:bodyPr/><a:lstStyle/>{paragraphs}</p:txBody></p:sp>"
+    )
+}
+
+pub fn framed_slide() -> String {
+    let title = framed_sp(
+        2,
+        "<p:ph type=\"title\"/>",
+        "<p:spPr><a:xfrm><a:off x=\"100\" y=\"200\"/><a:ext cx=\"3000\" cy=\"400\"/></a:xfrm></p:spPr>",
+        "<a:p><a:r><a:rPr lang=\"en-US\" b=\"1\"/><a:t>Agenda</a:t></a:r></a:p>",
+    );
+    let body = framed_sp(
+        3,
+        "<p:ph idx=\"1\"/>",
+        "<p:spPr/>",
+        "<a:p><a:r><a:rPr lang=\"en-US\" b=\"1\" u=\"sng\" strike=\"sngStrike\" cap=\"all\" sz=\"2400\"><a:solidFill><a:srgbClr val=\"1f4e79\"/></a:solidFill><a:latin typeface=\"Georgia\"/></a:rPr><a:t>Bold</a:t></a:r><a:r><a:rPr lang=\"en-US\"/><a:t> plain</a:t></a:r></a:p><a:p><a:r><a:t>x</a:t></a:r><a:r><a:rPr baseline=\"30000\"><a:highlight><a:srgbClr val=\"FFFF00\"/></a:highlight></a:rPr><a:t>2</a:t></a:r><a:r><a:rPr baseline=\"-25000\"/><a:t>n</a:t></a:r></a:p><a:p><a:pPr lvl=\"1\"/><a:r><a:t>Hiring</a:t></a:r><a:br/><a:r><a:t>plan</a:t></a:r><a:endParaRPr lang=\"en-US\"/></a:p>",
+    );
+    let note = framed_sp(
+        4,
+        "",
+        "<p:spPr><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></p:spPr>",
+        "<a:p><a:r><a:rPr lang=\"en-US\" i=\"1\" sz=\"1050\"/><a:t>Note</a:t></a:r></a:p>",
+    );
+    let twin = framed_sp(
+        4,
+        "",
+        "<p:spPr><a:xfrm/></p:spPr>",
+        "<a:p><a:pPr><a:buNone/></a:pPr><a:r><a:t>Twin</a:t></a:r></a:p>",
+    );
+    let picture = "<p:pic><p:nvPicPr><p:cNvPr id=\"6\" name=\"Picture 5\"/><p:cNvPicPr/><p:nvPr/></p:nvPicPr><p:blipFill><a:blip r:embed=\"rId2\"/></p:blipFill><p:spPr><a:xfrm><a:off x=\"10\" y=\"20\"/><a:ext cx=\"30\" cy=\"40\"/></a:xfrm></p:spPr></p:pic>";
+    slide(&format!("{title}{body}{note}{twin}{picture}"))
+}
+
+pub fn framed_deck() -> Vec<u8> {
+    let base = rebuild(
+        &two_slide_deck(),
+        &[("ppt/slides/slide1.xml", framed_slide())],
+    );
+    let mut writer = ZipWriter::new(Cursor::new(Vec::new()));
+    let options = SimpleFileOptions::default();
+    let media = [
+        ("ppt/media/image1.png".to_owned(), PNG.to_vec()),
+        ("ppt/media/image2.png".to_owned(), PNG.to_vec()),
+    ];
+    for (name, raw) in entries(&base).into_iter().chain(media) {
+        writer.start_file(name, options).expect("start");
+        writer.write_all(&raw).expect("write");
+    }
+    writer.finish().expect("finish").into_inner()
+}
+
 pub fn project(bytes: &[u8]) -> Projection {
     PptxCodec.project(bytes).expect("project")
 }
