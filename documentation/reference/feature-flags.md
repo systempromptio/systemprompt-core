@@ -43,7 +43,7 @@ Cargo enables the transitive dependencies of each selected feature.
 `dependency/feature` enables a feature on that dependency. `full` excludes the opt-in
 `slack` and `teams` integrations. Enable them explicitly when required.
 
-`files-office` adds the Word, Excel, PowerPoint and OpenDocument codecs to the document store; the HTML, Markdown and text codecs and PDF export are always present. `files-collab` mounts the live co-editing routes and builds the `CollabService`; without an engine every session route answers `503 collab_engine_unavailable`. `files-collab-loro` adds the Loro engine (`systemprompt-engine-loro`), the only engine core ships. The document-scoped live channel and awareness route are mounted with the store itself and need no collab feature.
+`files-office` adds the Word, Excel, PowerPoint and OpenDocument codecs to the document store; the HTML, Markdown and text codecs and PDF export are always present. `files-collab` mounts the live co-editing routes and builds the `CollabService`; without an engine every session route answers `503 collab_engine_unavailable`. `files-collab-loro` adds the Loro engine (`systemprompt-files/collab-loro`), the only engine core ships. The document-scoped live channel and awareness route are mounted with the store itself and need no collab feature.
 
 The `mcp` feature exposes `rmcp`; the `systemprompt-mcp` domain crate is included by
 `full`. `runtime` enables the CLI-backed runtime builder. The `api` dependency on

@@ -1,16 +1,16 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use systemprompt_engine_loro::rich;
 use systemprompt_files::documents::agents::{DocumentActor, act_as};
 use systemprompt_files::documents::collab::{Checkpoint, CollabService, CollabTuning, JoinMode};
+use systemprompt_files::documents::engine::loro::rich;
 use systemprompt_files::documents::model::{EditLevel, Media};
 use systemprompt_files::documents::repository::{
     CheckpointClaim, CheckpointLease, CollabAppend, UpdateAuthor,
 };
 use systemprompt_files::documents::revision::CommitBody;
 use systemprompt_files::documents::service::{CommentPolicy, CommitRequest};
-use systemprompt_identifiers::DocumentId;
+use systemprompt_identifiers::{AgentName, DocumentId};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_test_fixtures::test_db_pool;
 
@@ -429,7 +429,7 @@ async fn every_replica_logs_the_actor_and_level_each_update_ran_as() {
     let doc = client(&joined);
     let update = edit(&doc, "<p>by the agent</p>");
     act_as(
-        DocumentActor::agent("replica-agent", false),
+        DocumentActor::agent(AgentName::new("replica-agent"), false),
         c.collab
             .apply(&owner, request(&document, &joined, &doc, update), &trace()),
     )
@@ -580,7 +580,7 @@ async fn a_followed_head_is_nobodys_authorship_and_a_commenter_still_settles() {
                 body: CommitBody::Bytes(outside.into_bytes()),
                 author: api_author(),
                 message: None,
-                lock_holder_id: None,
+                lock_holder: None,
                 comments: CommentPolicy::default(),
                 op_id: None,
                 media: Media::new(),

@@ -126,8 +126,9 @@ impl DocumentsRuntime {
         #[cfg(feature = "collab")]
         let collab = {
             #[cfg(feature = "engine-loro")]
-            let engine: Option<Arc<dyn DocumentEngine>> =
-                Some(Arc::new(systemprompt_engine_loro::LoroEngine));
+            let engine: Option<Arc<dyn DocumentEngine>> = Some(Arc::new(
+                systemprompt_files::documents::engine::loro::LoroEngine,
+            ));
             #[cfg(not(feature = "engine-loro"))]
             let engine: Option<Arc<dyn DocumentEngine>> = None;
             let collab = Arc::new(

@@ -8280,6 +8280,7 @@ dependencies = [
  "systemprompt-identifiers",
  "systemprompt-models",
  "systemprompt-notifications",
+ "systemprompt-provider-contracts",
  "systemprompt-runtime",
  "systemprompt-test-fixtures",
  "tokio",
@@ -9435,18 +9436,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "systemprompt-engine-loro"
-version = "0.76.0"
-dependencies = [
- "loro",
- "serde_json",
- "systemprompt-files",
- "thiserror 2.0.21",
- "tracing",
- "uuid",
-]
-
-[[package]]
 name = "systemprompt-events"
 version = "0.76.0"
 dependencies = [
@@ -9593,6 +9582,7 @@ dependencies = [
  "futures-util",
  "hex",
  "inventory",
+ "loro",
  "pdf-writer",
  "pulldown-cmark",
  "quick-xml 0.42.0",
@@ -9640,7 +9630,6 @@ dependencies = [
  "sqlx",
  "systemprompt-config",
  "systemprompt-database",
- "systemprompt-engine-loro",
  "systemprompt-events",
  "systemprompt-files",
  "systemprompt-governance",
@@ -9670,7 +9659,6 @@ dependencies = [
  "sqlx",
  "systemprompt-config",
  "systemprompt-database",
- "systemprompt-engine-loro",
  "systemprompt-events",
  "systemprompt-extension",
  "systemprompt-files",
@@ -10610,6 +10598,7 @@ dependencies = [
  "async-trait",
  "base64 0.23.1",
  "chrono",
+ "http",
  "indicatif",
  "maxminddb",
  "reqwest",
@@ -10625,7 +10614,6 @@ dependencies = [
  "systemprompt-config",
  "systemprompt-content",
  "systemprompt-database",
- "systemprompt-engine-loro",
  "systemprompt-events",
  "systemprompt-extension",
  "systemprompt-files",
@@ -10678,6 +10666,7 @@ version = "0.0.11"
 dependencies = [
  "async-trait",
  "chrono",
+ "http",
  "inventory",
  "reqwest",
  "rmcp",

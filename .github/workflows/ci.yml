@@ -68,7 +68,8 @@ jobs:
       - run: sccache --show-stats
 
   # Core builds with no third-party document engine: the files domain and
-  # its live-session routes compile without loro, a formula or a PDF crate,
+  # its live-session routes compile without loro (the `collab-loro` feature
+  # of systemprompt-files), a formula or a PDF crate,
   # and sessions then answer `collab_engine_unavailable`.
   build-no-engine:
     name: Build (no document engine)
@@ -84,8 +85,8 @@ jobs:
       - name: No engine crate in the graph
         run: |
           if cargo tree -p systemprompt --no-default-features --features files-office,files-collab,api -e normal --prefix none \
-              | grep -E '^(loro|systemprompt-engine-)' ; then
-            echo "::error::a document engine is linked without its engine-* feature"; exit 1
+              | grep -E '^loro' ; then
+            echo "::error::a document engine is linked without the collab-loro feature"; exit 1
           fi
       - run: scripts/check-no-vendor.sh
 

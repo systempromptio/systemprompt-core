@@ -1,10 +1,10 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use systemprompt_engine_loro::rich;
 use systemprompt_files::documents::collab::{
     ApplyRequest, Checkpoint, CollabError, CollabService, CollabTuning, JoinMode,
 };
+use systemprompt_files::documents::engine::loro::rich;
 use systemprompt_files::documents::model::Media;
 use systemprompt_files::documents::revision::CommitBody;
 use systemprompt_files::documents::service::{CommentPolicy, CommitOutcome, CommitRequest};
@@ -41,7 +41,7 @@ async fn write(c: &Collab, owner: &AuthenticatedUser, document: &DocumentId, fro
                 body: CommitBody::Bytes(text.replacen(from, to, 1).into_bytes()),
                 author: api_author(),
                 message: None,
-                lock_holder_id: None,
+                lock_holder: None,
                 comments: CommentPolicy::default(),
                 op_id: None,
                 media: Media::new(),

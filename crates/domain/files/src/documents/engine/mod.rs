@@ -2,7 +2,7 @@
 //! engine implements so the files domain never depends on one.
 //!
 //! `systemprompt-files` names no engine crate. A composition root picks an
-//! engine (for example `systemprompt-engine-loro` behind the facade's
+//! engine (for example the `loro` module behind the facade's
 //! `files-collab-loro` feature) and hands it to the service that needs it;
 //! with none selected, live sessions answer `collab_engine_unavailable`,
 //! formulas keep their cached values and PDF export is refused.
@@ -16,6 +16,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod error;
+
+#[cfg(feature = "collab-loro")]
+pub mod loro;
 
 use std::fmt;
 

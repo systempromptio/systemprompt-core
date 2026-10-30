@@ -2,13 +2,13 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use loro::{ExportMode, LoroDoc, VersionVector};
-use systemprompt_engine_loro::{LoroEngine, rich, write_model};
 use systemprompt_events::Broadcaster;
 use systemprompt_files::documents::DocumentsError;
 use systemprompt_files::documents::collab::{
     ApplyRequest, CollabError, CollabService, CollabTuning, JoinMode, Joined,
 };
 use systemprompt_files::documents::engine::DocumentEngine;
+use systemprompt_files::documents::engine::loro::{LoroEngine, rich, write_model};
 use systemprompt_files::documents::model::{RichText, html};
 use systemprompt_identifiers::{ConnectionId, DocumentId};
 use systemprompt_models::auth::AuthenticatedUser;
@@ -291,11 +291,8 @@ async fn the_last_editor_leaving_commits_an_edit_session_revision_and_closes() {
             .await
             .expect("find")
             .expect("revision");
-    assert_eq!(revision.origin_kind, RevisionOriginKind::EditSession);
-    assert_eq!(
-        revision.origin_id.as_deref(),
-        Some(joined.session_id.as_str())
-    );
+    assert_eq!(revision.origin.kind(), RevisionOriginKind::EditSession);
+    assert_eq!(revision.origin.id_str(), Some(joined.session_id.as_str()));
     let (_, bytes) = c
         .documents
         .read_bytes(&owner, &document, None, &trace())
