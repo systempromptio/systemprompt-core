@@ -56,9 +56,12 @@ mod structured {
 }
 
 pub fn import(format: DocumentFormat, document: &[u8]) -> Result<ModelView, ModelError> {
+    if format == DocumentFormat::Ods {
+        return Err(ModelError::Unsupported);
+    }
     #[cfg(all(feature = "office", feature = "collab-loro"))]
     match format {
-        DocumentFormat::Xlsx | DocumentFormat::Ods => {
+        DocumentFormat::Xlsx => {
             return Ok(ModelView::Sheet(
                 crate::documents::codecs::xlsx::sheet_model_from_xlsx(document)?,
             ));
