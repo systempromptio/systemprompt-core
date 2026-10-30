@@ -85,6 +85,22 @@ pub struct UpdateImport {
     pub pending: bool,
 }
 
+/// What one imported update changed, so a caller validates in proportion
+/// to it. `Blocks` holds only the blocks the update touched (with the
+/// document settings when it changed them); `Full` holds the whole model
+/// before and after, when the engine cannot or was not asked to scope it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ImportScope {
+    Blocks(RichText),
+    Full { before: ModelView, after: ModelView },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ScopedImport {
+    pub import: UpdateImport,
+    pub scope: ImportScope,
+}
+
 /// One open document of a [`DocumentEngine`].
 ///
 /// Re-applying an update is a no-op. `version` is the encoded version vector
@@ -105,6 +121,23 @@ pub trait EngineDoc: Send + fmt::Debug {
     fn fork(&self) -> Box<dyn EngineDoc>;
 
     fn update_to_model(&self, model: &ModelView) -> Result<Option<Vec<u8>>, EngineError>;
+
+    /// Imports `update` like [`Self::apply_update`] and reports what it
+    /// changed: scoped to the touched blocks when `scoped` and the engine
+    /// can tell, the whole model otherwise.
+    fn apply_update_scoped(
+        &mut self,
+        update: &[u8],
+        _scoped: bool,
+    ) -> Result<ScopedImport, EngineError> {
+        let before = self.export_model()?;
+        let import = self.apply_update(update)?;
+        let after = self.export_model()?;
+        Ok(ScopedImport {
+            import,
+            scope: ImportScope::Full { before, after },
+        })
+    }
 }
 
 /// Recalculates formulas. Without one, cells keep their cached values.

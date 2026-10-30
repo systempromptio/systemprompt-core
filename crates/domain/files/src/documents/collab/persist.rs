@@ -10,6 +10,11 @@
 //! with the live block ids carried over and written back into the live
 //! model, logged and broadcast like any other update.
 //!
+//! An apply validates only the blocks each update touched, so the whole
+//! live model is validated before it is checkpointed: a checkpoint of a
+//! model that fails the checks is refused, and a settle logs the failure
+//! and lands it anyway, so leaving a session never strands its edits.
+//!
 //! A checkpoint runs under the session's checkpoint lease: the lease claim
 //! re-reads the session row, so the checkpoint is based on the base the last
 //! checkpoint on any replica recorded, and one replica at a time checkpoints
@@ -39,7 +44,8 @@ use super::entry::SharedEntry;
 use super::lease::{ClaimWait, Fence, SessionKey, SettledBy};
 use super::persist_commit::Rebase;
 use super::{Checkpoint, CollabError, CollabService, Left};
-use crate::documents::model::EditLevel;
+use crate::documents::engine::ModelView;
+use crate::documents::model::{EditLevel, Limits, ModelRejection, validate};
 use crate::documents::repository::{CheckpointLease, SnapshotMark};
 
 const SETTLE_ATTEMPTS: u32 = 3;
@@ -116,6 +122,9 @@ impl CollabService {
         trace: &TraceId,
     ) -> Result<Option<Checkpoint>, CollabError> {
         let key = SessionKey::of(&*shared.lock().await);
+        check_live(shared)
+            .await?
+            .map_err(CollabError::UpdateRejected)?;
         let lease = CheckpointLease::generate();
         let fence = Fence {
             key: &key,
@@ -158,6 +167,13 @@ impl CollabService {
         by: SettledBy,
     ) -> Result<Left, CollabError> {
         let key = SessionKey::of(&*shared.lock().await);
+        if let Err(rejection) = check_live(shared).await? {
+            tracing::warn!(
+                session_id = %key.session,
+                rejection = %rejection,
+                "Live model fails validation; settling it anyway"
+            );
+        }
         let lease = CheckpointLease::generate();
         let fence = Fence {
             key: &key,
@@ -270,6 +286,14 @@ impl CollabService {
         let known: Vec<&AuthenticatedUser> = last_editor.iter().chain(known).collect();
         Ok(Some(Committer::from_log(&authors, &known)))
     }
+}
+
+async fn check_live(shared: &SharedEntry) -> Result<Result<(), ModelRejection>, CollabError> {
+    let model = shared.lock().await.doc.export_model()?;
+    Ok(match &model {
+        ModelView::RichText(model) => validate(model, model, EditLevel::Edit, &Limits::default()),
+        ModelView::Body(_) => Ok(()),
+    })
 }
 
 fn combine(settled: Checkpoint, next: Checkpoint) -> Checkpoint {

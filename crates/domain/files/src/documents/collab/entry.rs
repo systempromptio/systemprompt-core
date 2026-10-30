@@ -19,6 +19,12 @@
 //! other caller caught it up meanwhile (otherwise the read is retried), so a
 //! slow read never blocks the updates applied to the same session.
 //!
+//! A session whose snapshot predates the engine's current container shape
+//! (a table that keeps its cells in its `kind`) is upgraded when it is
+//! joined: the engine's update from the session to its own model is logged
+//! under the `collab-write-back` system actor and broadcast, so it is
+//! nobody's authorship and every replica converges on the new shape.
+//!
 //! A session whose snapshot or log the engine cannot read is closed rather
 //! than left failing every call: the next join opens a new session seeded
 //! from the head revision, so the document stays readable and editable.
@@ -34,15 +40,19 @@ use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::DocumentFormat;
 use tokio::sync::Mutex;
 
+use super::apply::update_event;
 use super::document::import;
 use super::error::model_error;
 use super::image_owners::ImageOwners;
+use super::lease::SessionKey;
+use super::reconcile::WRITE_BACK_ACTOR;
 use super::{CollabError, CollabService};
 use crate::documents::agents::DocumentActor;
 use crate::documents::engine::{EngineDoc, EngineError, ModelView};
 use crate::documents::error::DocumentsError;
-use crate::documents::model::RichText;
+use crate::documents::model::{EditLevel, RichText};
 use crate::documents::models::{Document, DocumentEditSession};
+use crate::documents::repository::UpdateAuthor;
 
 pub(super) type SharedEntry = Arc<Mutex<CollabEntry>>;
 
@@ -120,6 +130,35 @@ impl CollabService {
             checkpoint_retry_at: None,
         }));
         Ok(self.cache_insert(document.id.clone(), built))
+    }
+
+    pub(super) async fn upgrade_shape(
+        &self,
+        shared: &SharedEntry,
+        document: &Document,
+        who: &AuthenticatedUser,
+    ) -> Result<(), CollabError> {
+        let (update, key) = {
+            let entry = self.caught_up(shared).await?;
+            let own = entry.doc.export_model()?;
+            (entry.doc.update_to_model(&own)?, SessionKey::of(&entry))
+        };
+        let Some(update) = update else {
+            return Ok(());
+        };
+        let actor = DocumentActor::system(WRITE_BACK_ACTOR);
+        let author = UpdateAuthor {
+            user: &who.id,
+            actor: &actor,
+            level: EditLevel::Edit,
+        };
+        let seq = self.log_update(shared, &key, &update, author).await?;
+        self.broadcast(
+            document,
+            update_event(document, &key.session, seq, &update, &who.id),
+        )
+        .await;
+        Ok(())
     }
 
     async fn load_doc(

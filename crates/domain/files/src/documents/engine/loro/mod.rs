@@ -12,6 +12,12 @@
 //! containers with `loro-crdt` at [`WIRE_VERSION`] and configures
 //! [`rich::TEXT_STYLES`].
 //!
+//! A table opened from a snapshot written before tables were containers
+//! still keeps its cells in `kind`; [`EngineDoc::update_to_model`] of such a
+//! document never answers `None`, so writing its own model back upgrades it
+//! (see [`table`]). [`edit`] edits blocks, rows and cells by id, and
+//! [`scope`] reads which blocks an import touched.
+//!
 //! Loro can panic on a hostile blob, and the release profile aborts on
 //! panic, so no caller can contain one. Every update is therefore checked by
 //! [`check_update_shape`] from its encoded header before any import: its
@@ -22,14 +28,27 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod deck;
+pub mod edit;
+mod edit_table;
 pub mod rich;
+pub mod scope;
+mod shape;
 mod sync;
+pub mod table;
+mod write;
+
+pub use shape::{
+    MAX_UPDATE_BYTES, MAX_UPDATE_CHANGES, MAX_UPDATE_PEER_OPS, MAX_UPDATE_PEERS, UpdateShapeError,
+    check_update_shape,
+};
 
 pub use sync::write_model;
 
-use crate::documents::engine::{DocumentEngine, EngineDoc, EngineError, ModelView, UpdateImport};
+use crate::documents::engine::{
+    DocumentEngine, EngineDoc, EngineError, ImportScope, ModelView, ScopedImport, UpdateImport,
+};
 use crate::documents::model::RichText;
-use loro::{EncodedBlobMode, ExportMode, LoroDoc, LoroText, PeerID, UpdateOptions, VersionVector};
+use loro::{ExportMode, LoroDoc, LoroText, PeerID, UpdateOptions, VersionVector};
 
 pub const BODY_CONTAINER: &str = "body";
 pub const SEED_PEER: PeerID = 0;
@@ -66,82 +85,6 @@ impl DocumentEngine for LoroEngine {
             other => EngineError::InvalidUpdate(Box::new(other)),
         })
     }
-}
-
-/// Why an update was refused from its encoded header, before any import.
-#[derive(Debug, thiserror::Error)]
-pub enum UpdateShapeError {
-    #[error("the update is {len} bytes, over the {max} byte bound")]
-    TooLarge { len: usize, max: usize },
-    #[error("the update header could not be decoded")]
-    Header(#[source] loro::LoroError),
-    #[error("the blob is a {mode}, not an incremental update")]
-    NotAnUpdate { mode: EncodedBlobMode },
-    #[error("the update carries {changes} changes, over the {max} change bound")]
-    TooManyChanges { changes: u32, max: u32 },
-    #[error("the update spans {peers} peers, over the {max} peer bound")]
-    TooManyPeers { peers: usize, max: usize },
-    #[error("the update's version range for peer {peer} is inconsistent")]
-    InconsistentRange { peer: PeerID },
-    #[error("the update spans {ops} operations of peer {peer}, over the {max} bound")]
-    RangeTooWide { peer: PeerID, ops: i64, max: i64 },
-    #[error("the update carries operations of peer {peer}, which the caller was not assigned")]
-    PeerNotAssigned { peer: PeerID },
-}
-
-pub const MAX_UPDATE_BYTES: usize = 8 * 1024 * 1024;
-pub const MAX_UPDATE_CHANGES: u32 = 50_000;
-pub const MAX_UPDATE_PEERS: usize = 64;
-pub const MAX_UPDATE_PEER_OPS: i64 = 1_000_000;
-
-pub fn check_update_shape(update: &[u8], peers: Option<&[u64]>) -> Result<(), UpdateShapeError> {
-    if update.len() > MAX_UPDATE_BYTES {
-        return Err(UpdateShapeError::TooLarge {
-            len: update.len(),
-            max: MAX_UPDATE_BYTES,
-        });
-    }
-    let meta = LoroDoc::decode_import_blob_meta(update, true).map_err(UpdateShapeError::Header)?;
-    if !matches!(meta.mode, EncodedBlobMode::Updates) {
-        return Err(UpdateShapeError::NotAnUpdate { mode: meta.mode });
-    }
-    if meta.change_num > MAX_UPDATE_CHANGES {
-        return Err(UpdateShapeError::TooManyChanges {
-            changes: meta.change_num,
-            max: MAX_UPDATE_CHANGES,
-        });
-    }
-    let (start, end) = (&meta.partial_start_vv, &meta.partial_end_vv);
-    if end.len() > MAX_UPDATE_PEERS || start.len() > MAX_UPDATE_PEERS {
-        return Err(UpdateShapeError::TooManyPeers {
-            peers: end.len().max(start.len()),
-            max: MAX_UPDATE_PEERS,
-        });
-    }
-    if let Some(peer) = start.keys().find(|peer| !end.contains_key(*peer)) {
-        return Err(UpdateShapeError::InconsistentRange { peer: *peer });
-    }
-    for (peer, last) in end.iter() {
-        let first = start.get(peer).copied().unwrap_or(0);
-        if first < 0 || *last < first {
-            return Err(UpdateShapeError::InconsistentRange { peer: *peer });
-        }
-        let ops = i64::from(*last) - i64::from(first);
-        if ops > MAX_UPDATE_PEER_OPS {
-            return Err(UpdateShapeError::RangeTooWide {
-                peer: *peer,
-                ops,
-                max: MAX_UPDATE_PEER_OPS,
-            });
-        }
-        if ops > 0
-            && let Some(assigned) = peers
-            && !assigned.contains(peer)
-        {
-            return Err(UpdateShapeError::PeerNotAssigned { peer: *peer });
-        }
-    }
-    Ok(())
 }
 
 #[derive(Debug)]
@@ -191,8 +134,39 @@ impl EngineDoc for LoroEngineDoc {
         Box::new(Self(fork))
     }
 
+    fn apply_update_scoped(
+        &mut self,
+        update: &[u8],
+        scoped: bool,
+    ) -> Result<ScopedImport, EngineError> {
+        let before = self.0.state_frontiers();
+        let before_model = if scoped { None } else { Some(export(&self.0)?) };
+        let import = self.apply_update(update)?;
+        let after = self.0.state_frontiers();
+        let before_model = match before_model {
+            Some(model) => model,
+            None => {
+                if let Some(touched) = scope::touched(&self.0, &before, &after) {
+                    return Ok(ScopedImport {
+                        import,
+                        scope: ImportScope::Blocks(touched),
+                    });
+                }
+                export(&self.0.fork_at(&before).map_err(state)?)?
+            },
+        };
+        Ok(ScopedImport {
+            import,
+            scope: ImportScope::Full {
+                before: before_model,
+                after: export(&self.0)?,
+            },
+        })
+    }
+
     fn update_to_model(&self, model: &ModelView) -> Result<Option<Vec<u8>>, EngineError> {
-        if export(&self.0)? == *model {
+        let model = &canonical_view(model);
+        if !rich::has_legacy_tables(&self.0) && export(&self.0)? == *model {
             return Ok(None);
         }
         let before = self.0.oplog_vv();
@@ -214,6 +188,14 @@ impl EngineDoc for LoroEngineDoc {
             .map(Some)
             .map_err(encode)
     }
+}
+
+fn canonical_view(model: &ModelView) -> ModelView {
+    let mut model = model.clone();
+    if let ModelView::RichText(rich) = &mut model {
+        table::canonical(rich);
+    }
+    model
 }
 
 pub fn export(doc: &LoroDoc) -> Result<ModelView, EngineError> {

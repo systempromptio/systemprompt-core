@@ -90,6 +90,13 @@ impl CollabService {
         let peer = self.assign_peer(&session.id, &who.id).await?;
         let shared = self.entry(document, &session).await?;
         shared.lock().await.last_joiner = Some(who.clone());
+        if let Err(error) = self.upgrade_shape(&shared, document, who).await {
+            tracing::warn!(
+                session_id = %session.id,
+                error = %error,
+                "Live session not upgraded to the current container shape"
+            );
+        }
         let entry = self.caught_up(&shared).await?;
         Ok(Joined {
             peer,

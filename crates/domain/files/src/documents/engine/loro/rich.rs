@@ -5,11 +5,15 @@
 //! attributes as JSON, see [`BlockKind`]), `attrs` (its paragraph
 //! attributes as JSON, absent when default) and `text` (a [`LoroText`]
 //! whose marks are the block's marks). Flag marks are stored as `true`,
-//! valued marks as their string. Table cells, table geometry and section
-//! page setup travel inside `kind`, so a cell edit replaces its table's
-//! `kind`. The document's styles, theme, numbering and final section live
-//! as one JSON string under `settings` in the root map [`DOCUMENT_CONTAINER`].
-//! [`read`] fails with a [`ReadError`] on a block it cannot read.
+//! valued marks as their string. A table keeps only `{"type":"table"}` in
+//! `kind` and holds its geometry and cells in containers (see
+//! [`super::table`]), so a cell edit merges with its neighbours'. A table
+//! written before that shape keeps its cells inside `kind`; it still reads,
+//! and [`has_legacy_tables`] finds it for an upgrade. Section page setup
+//! travels inside `kind`. The document's styles, theme, numbering and final
+//! section live as one JSON string under `settings` in the root map
+//! [`DOCUMENT_CONTAINER`]. [`read`] fails with a [`ReadError`] on a block it
+//! cannot read.
 //!
 //! Every replica must configure the same mark expansion before it edits
 //! ([`configure`]); a browser client mirrors [`TEXT_STYLES`].
@@ -22,9 +26,12 @@ use std::fmt;
 use crate::documents::model::layout::ParaAttrs;
 use crate::documents::model::{Block, BlockKind, DocumentSettings, Mark, MarkKind, RichText};
 use loro::{
-    Container, ExpandType, LoroDoc, LoroError, LoroMap, LoroMovableList, LoroText, LoroValue,
-    StyleConfig, StyleConfigMap, TextDelta, ValueOrContainer,
+    Container, ExpandType, LoroDoc, LoroMap, LoroMovableList, LoroText, LoroValue, StyleConfig,
+    StyleConfigMap, TextDelta, ValueOrContainer,
 };
+
+use super::table::{TABLE_KIND, canonical_table, is_table_map, read_table};
+pub use super::write::{insert_block, sync_text};
 
 pub const BLOCKS_CONTAINER: &str = "blocks";
 
@@ -51,6 +58,9 @@ pub enum ReadError {
         id: String,
         source: serde_json::Error,
     },
+    Table {
+        id: String,
+    },
 }
 
 impl fmt::Display for ReadError {
@@ -60,6 +70,7 @@ impl fmt::Display for ReadError {
             Self::MissingId { at } => write!(f, "block {at} has no id"),
             Self::MissingKind { id } => write!(f, "block {id} has no kind"),
             Self::Kind { id, .. } => write!(f, "block {id} has an unreadable kind"),
+            Self::Table { id } => write!(f, "table {id} has an unreadable row or cell"),
         }
     }
 }
@@ -106,20 +117,36 @@ pub fn blocks(doc: &LoroDoc) -> LoroMovableList {
 }
 
 pub fn read(doc: &LoroDoc) -> Result<RichText, ReadError> {
-    let list = blocks(doc);
-    let blocks = (0..list.len())
-        .map(|at| {
-            let map = block_map(&list, at).ok_or(ReadError::NotABlock { at })?;
-            read_block(at, &map)
-        })
-        .collect::<Result<Vec<_>, _>>()?;
     Ok(RichText {
-        blocks,
+        blocks: read_blocks(&blocks(doc))?,
         document: read_settings(doc),
     })
 }
 
-fn read_settings(doc: &LoroDoc) -> Option<Box<DocumentSettings>> {
+pub(crate) fn read_blocks(list: &LoroMovableList) -> Result<Vec<Block>, ReadError> {
+    (0..list.len())
+        .map(|at| {
+            let map = block_map(list, at).ok_or(ReadError::NotABlock { at })?;
+            read_block(at, &map)
+        })
+        .collect()
+}
+
+/// Whether a top-level table still keeps its cells inside `kind`.
+#[must_use]
+pub fn has_legacy_tables(doc: &LoroDoc) -> bool {
+    let list = blocks(doc);
+    (0..list.len()).any(|at| {
+        block_map(&list, at).is_some_and(|map| {
+            !is_table_map(&map)
+                && string_of(&map, "kind").is_some_and(|kind| {
+                    kind != TABLE_KIND && kind.starts_with("{\"type\":\"table\"")
+                })
+        })
+    })
+}
+
+pub(crate) fn read_settings(doc: &LoroDoc) -> Option<Box<DocumentSettings>> {
     let json = string_of(&doc.get_map(DOCUMENT_CONTAINER), "settings")?;
     match serde_json::from_str(&json) {
         Ok(settings) => Some(Box::new(settings)),
@@ -160,6 +187,20 @@ pub(crate) fn string_of(map: &LoroMap, key: &str) -> Option<String> {
     }
 }
 
+pub(crate) fn list_of(map: &LoroMap, key: &str) -> Option<LoroMovableList> {
+    match map.get(key)? {
+        ValueOrContainer::Container(Container::MovableList(list)) => Some(list),
+        _ => None,
+    }
+}
+
+pub(crate) fn map_of(map: &LoroMap, key: &str) -> Option<LoroMap> {
+    match map.get(key)? {
+        ValueOrContainer::Container(Container::Map(map)) => Some(map),
+        _ => None,
+    }
+}
+
 pub(crate) fn text_of(map: &LoroMap) -> Option<LoroText> {
     match map.get("text")? {
         ValueOrContainer::Container(Container::Text(text)) => Some(text),
@@ -167,14 +208,25 @@ pub(crate) fn text_of(map: &LoroMap) -> Option<LoroText> {
     }
 }
 
-fn read_block(at: usize, map: &LoroMap) -> Result<Block, ReadError> {
+pub(crate) fn read_block(at: usize, map: &LoroMap) -> Result<Block, ReadError> {
     let id = string_of(map, "id").ok_or(ReadError::MissingId { at })?;
     let Some(kind) = string_of(map, "kind") else {
         return Err(ReadError::MissingKind { id });
     };
-    let kind: BlockKind = match serde_json::from_str(&kind) {
-        Ok(kind) => kind,
-        Err(source) => return Err(ReadError::Kind { id, source }),
+    let kind = if is_table_map(map) {
+        read_table(&id, map)?
+    } else {
+        match serde_json::from_str(&kind) {
+            Ok(BlockKind::Table {
+                mut rows,
+                mut props,
+            }) => {
+                canonical_table(&mut rows, &mut props);
+                BlockKind::Table { rows, props }
+            },
+            Ok(kind) => kind,
+            Err(source) => return Err(ReadError::Kind { id, source }),
+        }
     };
     let attrs: ParaAttrs = string_of(map, "attrs")
         .and_then(|json| serde_json::from_str(&json).ok())
@@ -224,63 +276,4 @@ pub fn read_text(text: &LoroText) -> (String, Vec<Mark>) {
     }
     marks.sort_by(|a, b| (a.start, a.end, &a.kind).cmp(&(b.start, b.end, &b.kind)));
     (out, marks)
-}
-
-pub fn insert_block(list: &LoroMovableList, at: usize, block: &Block) -> Result<(), WriteError> {
-    let map = list.insert_container(at, LoroMap::new())?;
-    map.insert("id", block.id.as_str())?;
-    map.insert("kind", kind_json(&block.kind)?)?;
-    sync_attrs(&map, &block.attrs)?;
-    let text = map.insert_container("text", LoroText::new())?;
-    text.insert(0, &block.text)?;
-    mark_all(&text, &block.marks)?;
-    Ok(())
-}
-
-pub(crate) fn sync_attrs(map: &LoroMap, attrs: &ParaAttrs) -> Result<(), WriteError> {
-    let held = string_of(map, "attrs");
-    if attrs.is_default() {
-        if held.is_some() {
-            map.delete("attrs")?;
-        }
-        return Ok(());
-    }
-    let json = serde_json::to_string(attrs)?;
-    if held.as_deref() != Some(json.as_str()) {
-        map.insert("attrs", json)?;
-    }
-    Ok(())
-}
-
-pub(crate) fn kind_json(kind: &BlockKind) -> serde_json::Result<String> {
-    serde_json::to_string(kind)
-}
-
-pub(crate) fn mark_all(text: &LoroText, marks: &[Mark]) -> Result<(), LoroError> {
-    for mark in marks {
-        let value: LoroValue = match mark.kind.value() {
-            "" => true.into(),
-            value => value.into(),
-        };
-        text.mark(mark.start..mark.end, mark.kind.key(), value)?;
-    }
-    Ok(())
-}
-
-pub fn sync_text(text: &LoroText, block: &Block) -> Result<(), WriteError> {
-    let (held, mut marks) = read_text(text);
-    if held != block.text {
-        text.update(&block.text, loro::UpdateOptions::default())?;
-        marks = read_text(text).1;
-    }
-    if marks != block.marks {
-        let len = text.len_unicode();
-        if len > 0 {
-            for key in MarkKind::KEYS {
-                text.unmark(0..len, key)?;
-            }
-        }
-        mark_all(text, &block.marks)?;
-    }
-    Ok(())
 }

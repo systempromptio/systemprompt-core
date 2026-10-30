@@ -1,7 +1,8 @@
 //! Turning a Loro document into a target `RichText` model with the fewest
 //! container operations: blocks are matched by id, so a block that only
 //! moved is moved, an edited block has only its changed parts rewritten,
-//! and a removed block is deleted.
+//! and a removed block is deleted. A table cell's blocks are written the
+//! same way, inside the cell's own list.
 //!
 //! The target is written left to right. Blocks still waiting to be placed
 //! keep their original index, and a Fenwick tree over those indices gives
@@ -16,10 +17,8 @@ use std::collections::{HashMap, HashSet};
 use crate::documents::model::{Block, RichText};
 use loro::{LoroDoc, LoroMovableList};
 
-use super::rich::{
-    WriteError, block_map, blocks, insert_block, kind_json, string_of, sync_attrs, sync_settings,
-    sync_text, text_of,
-};
+use super::rich::{WriteError, block_map, blocks, string_of, sync_settings, text_of};
+use super::write::{insert_block, sync_attrs, sync_kind, sync_text};
 
 struct Waiting {
     tree: Vec<usize>,
@@ -59,14 +58,13 @@ impl Waiting {
 
 pub fn write_model(doc: &LoroDoc, target: &RichText) -> Result<(), WriteError> {
     sync_settings(doc, target.document.as_deref())?;
-    let list = blocks(doc);
-    let wanted: HashSet<&str> = target
-        .blocks
-        .iter()
-        .map(|block| block.id.as_str())
-        .collect();
+    write_blocks(&blocks(doc), &target.blocks)
+}
+
+pub(crate) fn write_blocks(list: &LoroMovableList, target: &[Block]) -> Result<(), WriteError> {
+    let wanted: HashSet<&str> = target.iter().map(|block| block.id.as_str()).collect();
     let held: Vec<Option<String>> = (0..list.len())
-        .map(|at| block_map(&list, at).and_then(|map| string_of(&map, "id")))
+        .map(|at| block_map(list, at).and_then(|map| string_of(&map, "id")))
         .collect();
     let mut original: HashMap<&str, usize> = HashMap::with_capacity(wanted.len());
     let mut keep = vec![false; held.len()];
@@ -85,12 +83,12 @@ pub fn write_model(doc: &LoroDoc, target: &RichText) -> Result<(), WriteError> {
         }
     }
     let mut waiting = Waiting::all(original.len());
-    let mut placed: HashSet<&str> = HashSet::with_capacity(target.blocks.len());
-    for (at, block) in target.blocks.iter().enumerate() {
+    let mut placed: HashSet<&str> = HashSet::with_capacity(target.len());
+    for (at, block) in target.iter().enumerate() {
         let id = block.id.as_str();
         let first = placed.insert(id);
         let Some(&from_original) = original.get(id).filter(|_| first) else {
-            insert_block(&list, at, block)?;
+            insert_block(list, at, block)?;
             continue;
         };
         let from = at + waiting.before(from_original);
@@ -98,7 +96,7 @@ pub fn write_model(doc: &LoroDoc, target: &RichText) -> Result<(), WriteError> {
         if from != at {
             list.mov(from, at)?;
         }
-        sync_block(&list, at, block)?;
+        sync_block(list, at, block)?;
     }
     Ok(())
 }
@@ -107,10 +105,7 @@ fn sync_block(list: &LoroMovableList, at: usize, block: &Block) -> Result<(), Wr
     let Some(map) = block_map(list, at) else {
         return Ok(());
     };
-    let kind = kind_json(&block.kind)?;
-    if string_of(&map, "kind").as_deref() != Some(kind.as_str()) {
-        map.insert("kind", kind)?;
-    }
+    sync_kind(&map, block)?;
     sync_attrs(&map, &block.attrs)?;
     let text = match text_of(&map) {
         Some(text) => text,
