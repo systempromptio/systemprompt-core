@@ -17,7 +17,7 @@ use systemprompt_models::documents::DocumentUri;
 
 use super::support::tool_error;
 use super::write::EditCall;
-use crate::documents::views::{EditOutput, MAX_WRITTEN, structured_line, written_lines};
+use crate::documents::views::{self, EditOutput, written_lines};
 
 pub(super) async fn edit_live(
     call: &EditCall<'_>,
@@ -47,13 +47,7 @@ async fn touched_lines(call: &EditCall<'_>, touched: &[String]) -> Result<Vec<St
         .project(call.who, &call.document, None, call.ctx.trace_id())
         .await
         .map_err(tool_error)?;
-    let mut lines: Vec<String> = projection
-        .nodes()
-        .filter(|node| node.text.is_some() && touched.iter().any(|id| id == node.id.as_str()))
-        .map(|node| structured_line(node, 0))
-        .collect();
-    lines.truncate(MAX_WRITTEN);
-    Ok(lines)
+    Ok(views::touched_lines(&projection, touched))
 }
 
 fn live_ack(call: &EditCall<'_>, live: LiveEdit, written: Vec<String>) -> EditOutput {

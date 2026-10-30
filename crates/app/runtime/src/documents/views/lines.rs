@@ -137,6 +137,16 @@ pub fn written_lines(base: Option<&Projection>, head: &Projection) -> Vec<String
     lines
 }
 
+#[must_use]
+pub fn touched_lines(projection: &Projection, touched: &[String]) -> Vec<String> {
+    let named = |node: &ProjectionNode| touched.iter().any(|id| id == node.id.as_str());
+    let mut lines = structured(projection, |node| {
+        shows(node) && (named(node) || (folded_cell(node) && node.children.iter().any(named)))
+    });
+    lines.truncate(MAX_WRITTEN);
+    lines
+}
+
 pub(super) const fn is_outline(kind: NodeKind) -> bool {
     matches!(
         kind,

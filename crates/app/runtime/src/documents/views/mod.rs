@@ -29,7 +29,7 @@ pub use access::{
 pub use acks::edit_ack;
 pub use lines::{
     MAX_LINES, MAX_WRITTEN, RenderedLines, parse_cell, render, split_cell_id, structured_line,
-    written_lines,
+    touched_lines, written_lines,
 };
 pub use outline::{change_lines, node_lines, outline, proposal_lines, search_lines};
 pub use read::read_view;

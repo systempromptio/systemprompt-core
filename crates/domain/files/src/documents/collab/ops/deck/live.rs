@@ -1,4 +1,6 @@
-//! The `collab-loro` translation of a deck op batch into a Loro update.
+//! The `collab-loro` translation of a deck op batch into a Loro update,
+//! with the `slide[N]/shape[S]/p[P]` (or `slide[N]` for an inserted slide)
+//! ids it wrote, positional as of the op that wrote each.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -132,7 +134,11 @@ fn text_shape(kind: ShapeKind, lines: &[String], list_item: bool) -> DeckShape {
     }
 }
 
-fn str_replace(doc: &LoroDoc, old: &str, new: &str) -> Result<(), DeckOpError> {
+fn para_id(slide: usize, shape: usize, para: usize) -> String {
+    format!("slide[{}]/shape[{shape}]/p[{para}]", slide + 1)
+}
+
+fn str_replace(doc: &LoroDoc, old: &str, new: &str) -> Result<Vec<String>, DeckOpError> {
     if old.is_empty() {
         return Err(DeckOpError::NoMatch);
     }
@@ -152,17 +158,18 @@ fn str_replace(doc: &LoroDoc, old: &str, new: &str) -> Result<(), DeckOpError> {
                 };
                 let held = text.to_string();
                 hits.extend(
-                    held.match_indices(old)
-                        .map(|(at, _)| (text.clone(), held[..at].chars().count())),
+                    held.match_indices(old).map(|(at, _)| {
+                        (text.clone(), held[..at].chars().count(), para_id(s, h, p))
+                    }),
                 );
             }
         }
     }
     match hits.as_slice() {
         [] => Err(DeckOpError::NoMatch),
-        [(text, at)] => {
+        [(text, at, id)] => {
             text.splice(*at, old.chars().count(), new)?;
-            Ok(())
+            Ok(vec![id.clone()])
         },
         many => Err(DeckOpError::Ambiguous {
             matches: many.len(),
@@ -170,7 +177,7 @@ fn str_replace(doc: &LoroDoc, old: &str, new: &str) -> Result<(), DeckOpError> {
     }
 }
 
-fn apply(doc: &LoroDoc, op: &EditOp) -> Result<(), DeckOpError> {
+fn apply(doc: &LoroDoc, op: &EditOp) -> Result<Vec<String>, DeckOpError> {
     let resolved = |target: &systemprompt_models::documents::NodeTarget| {
         target
             .id()
@@ -179,15 +186,22 @@ fn apply(doc: &LoroDoc, op: &EditOp) -> Result<(), DeckOpError> {
     };
     match op {
         EditOp::ReplaceText { node, text, .. } => {
-            let (_, _, held) = paragraph_text(doc, &resolved(node)?)?;
+            let id = resolved(node)?;
+            let (_, _, held) = paragraph_text(doc, &id)?;
             held.update(text, loro::UpdateOptions::default())
-                .map_err(|e| DeckOpError::Write(Box::new(e)))
+                .map_err(|e| DeckOpError::Write(Box::new(e)))?;
+            Ok(vec![id])
         },
         EditOp::StrReplace { old_str, new_str } => str_replace(doc, old_str, new_str),
         EditOp::InsertAfter {
             node, kind, text, ..
         } => {
-            let (list, at, _) = paragraph_text(doc, &resolved(node)?)?;
+            let id = resolved(node)?;
+            let Node::Paragraph(slide, shape, _) = self::node(&id)? else {
+                return Err(DeckOpError::UnknownNode { node: id });
+            };
+            let (list, at, _) = paragraph_text(doc, &id)?;
+            let mut written = Vec::new();
             for (offset, line) in text.split('\n').enumerate() {
                 insert_paragraph(
                     &list,
@@ -195,14 +209,19 @@ fn apply(doc: &LoroDoc, op: &EditOp) -> Result<(), DeckOpError> {
                     &new_block(line, super::is_list_item(*kind)),
                 )
                 .map_err(DeckOpError::Write)?;
+                written.push(para_id(slide, shape, at + 1 + offset));
             }
-            Ok(())
+            Ok(written)
         },
         EditOp::Delete { node, .. } => match self::node(&resolved(node)?)? {
-            Node::Slide(at) if at < slides(doc).len() => Ok(slides(doc).delete(at, 1)?),
+            Node::Slide(at) if at < slides(doc).len() => {
+                slides(doc).delete(at, 1)?;
+                Ok(Vec::new())
+            },
             Node::Paragraph(..) => {
                 let (list, at, _) = paragraph_text(doc, &resolved(node)?)?;
-                Ok(list.delete(at, 1)?)
+                list.delete(at, 1)?;
+                Ok(Vec::new())
             },
             Node::Slide(_) => Err(DeckOpError::UnknownNode {
                 node: resolved(node)?,
@@ -242,7 +261,12 @@ fn apply(doc: &LoroDoc, op: &EditOp) -> Result<(), DeckOpError> {
                 layout: layout.clone(),
                 shapes,
             };
-            insert_slide(&list, at, &slide).map_err(DeckOpError::Write)
+            let mut written = vec![format!("slide[{}]", at + 1)];
+            for (h, shape) in slide.shapes.iter().enumerate() {
+                written.extend((0..shape.paragraphs.len()).map(|p| para_id(at, h, p)));
+            }
+            insert_slide(&list, at, &slide).map_err(DeckOpError::Write)?;
+            Ok(written)
         },
         other => Err(DeckOpError::Unsupported { op: other.name() }),
     }
@@ -252,13 +276,18 @@ pub(crate) fn deck_update(
     doc: &LoroDoc,
     ops: &[EditOp],
     peer: PeerID,
-) -> Result<Option<Vec<u8>>, DeckOpError> {
+) -> Result<Option<(Vec<u8>, Vec<String>)>, DeckOpError> {
     let before = doc.oplog_vv();
     let draft = doc.fork();
     crate::documents::engine::loro::rich::configure(&draft);
     draft.set_peer_id(peer)?;
+    let mut touched: Vec<String> = Vec::new();
     for op in ops {
-        apply(&draft, op)?;
+        for id in apply(&draft, op)? {
+            if !touched.contains(&id) {
+                touched.push(id);
+            }
+        }
     }
     draft.set_next_commit_origin("agent");
     draft.commit();
@@ -267,6 +296,6 @@ pub(crate) fn deck_update(
     }
     draft
         .export(ExportMode::updates(&before))
-        .map(Some)
+        .map(|update| Some((update, touched)))
         .map_err(|e| DeckOpError::Write(Box::new(e)))
 }

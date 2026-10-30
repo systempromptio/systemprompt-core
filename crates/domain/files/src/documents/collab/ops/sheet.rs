@@ -8,6 +8,9 @@
 //! lands, so an op batch either applies whole or not at all. The caller
 //! commits the doc under the agent's peer with origin `"agent"`.
 //!
+//! `apply_sheet_ops` answers the `sheet[Name]/A1` id of every cell it
+//! wrote, each once.
+//!
 //! The Loro engine's `update_from_ops` calls `apply_sheet_ops` on a fork
 //! of a workbook session's document; `ops::structured` logs the update.
 //!
@@ -25,7 +28,7 @@ mod translate {
     use systemprompt_provider_contracts::documents::{CellValue, NodeTarget};
 
     use crate::documents::engine::loro::rich::WriteError;
-    use crate::documents::engine::loro::sheet::a1::{A1Range, SheetTarget, parse_node};
+    use crate::documents::engine::loro::sheet::a1::{A1Range, SheetTarget, a1, parse_node};
     use crate::documents::engine::loro::sheet::edit::{
         ensure_cell_key, insert_row_after, set_cell_input, sheet_map,
     };
@@ -63,7 +66,10 @@ mod translate {
         },
     }
 
-    pub(crate) fn apply_sheet_ops(doc: &LoroDoc, ops: &[EditOp]) -> Result<usize, SheetOpError> {
+    pub(crate) fn apply_sheet_ops(
+        doc: &LoroDoc,
+        ops: &[EditOp],
+    ) -> Result<Vec<String>, SheetOpError> {
         let writes = ops
             .iter()
             .map(plan)
@@ -91,7 +97,18 @@ mod translate {
                 },
             }
         }
-        Ok(changes.len())
+        let mut touched: Vec<String> = Vec::new();
+        for change in &changes {
+            let id = format!(
+                "sheet[{}]/{}",
+                change.sheet.replace(']', "\\]"),
+                a1(change.col, change.row)
+            );
+            if !touched.contains(&id) {
+                touched.push(id);
+            }
+        }
+        Ok(touched)
     }
 
     fn unknown(sheet: &str) -> SheetOpError {

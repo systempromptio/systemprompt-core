@@ -2,7 +2,9 @@
 //! operations under the agent's peer: a workbook through the sheet
 //! translator on a fork committed with origin `agent`, a deck through the
 //! deck translator, a text document through the rich translator on a fork
-//! committed the same way. A translator's `Unsupported` answers
+//! committed the same way. Each translator names the ids it wrote: block
+//! ids for text, `sheet[Name]/A1` cells for a workbook,
+//! `slide[N]/shape[S]/p[P]` for a deck. A translator's `Unsupported` answers
 //! [`EngineError::Unsupported`], so its caller writes a model instead.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -26,12 +28,10 @@ pub(super) fn update_from_ops(
 ) -> Result<Option<OpsUpdate>, EngineError> {
     if !doc.get_movable_list(SHEETS_CONTAINER).is_empty() {
         return on_fork(doc, peer, |draft| {
-            apply_sheet_ops(draft, ops)
-                .map(|_| Vec::new())
-                .map_err(|error| match error {
-                    SheetOpError::Unsupported { .. } => EngineError::Unsupported,
-                    other => EngineError::Model(Box::new(other)),
-                })
+            apply_sheet_ops(draft, ops).map_err(|error| match error {
+                SheetOpError::Unsupported { .. } => EngineError::Unsupported,
+                other => EngineError::Model(Box::new(other)),
+            })
         });
     }
     if !doc.get_movable_list(SLIDES_CONTAINER).is_empty() {
@@ -39,10 +39,7 @@ pub(super) fn update_from_ops(
             DeckOpError::Unsupported { .. } => EngineError::Unsupported,
             other => EngineError::Model(Box::new(other)),
         })?;
-        return Ok(update.map(|update| OpsUpdate {
-            update,
-            touched: Vec::new(),
-        }));
+        return Ok(update.map(|(update, touched)| OpsUpdate { update, touched }));
     }
     on_fork(doc, peer, |draft| {
         apply_rich_ops_loro(draft, ops).map_err(|error| match error {
