@@ -180,6 +180,21 @@ impl DocumentService {
     }
 
     #[cfg(feature = "collab")]
+    pub(crate) async fn revision_ids(
+        &self,
+        document: &Document,
+        revision: &DocumentRevisionId,
+    ) -> Result<Projection, DocumentsError> {
+        let revision = self
+            .repos
+            .revisions
+            .find(revision)
+            .await?
+            .ok_or_else(|| DocumentsError::not_found("revision", revision))?;
+        Ok(self.projected(document, &revision).await?.ids)
+    }
+
+    #[cfg(feature = "collab")]
     pub(super) async fn live_projection(
         &self,
         document: &Document,
