@@ -161,10 +161,6 @@ impl CollabService {
         Ok(())
     }
 
-    /// Gives a seeded document the base revision's projection node ids, so
-    /// agent ops address the live blocks by the ids they read. A revision
-    /// without stored ids, or a projection that does not align, keeps the
-    /// seed's own ids.
     async fn adopt_projection_ids(
         &self,
         document: &Document,

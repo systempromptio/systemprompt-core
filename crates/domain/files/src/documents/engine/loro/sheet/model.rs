@@ -35,8 +35,6 @@ pub fn cell_key(row_id: &str, col_id: &str) -> String {
     format!("{row_id}:{col_id}")
 }
 
-/// A fresh row, column, sheet or cell id; random so concurrent replicas
-/// never mint the same one.
 #[must_use]
 pub fn new_id() -> String {
     uuid::Uuid::new_v4().simple().to_string()[..12].to_owned()
@@ -55,8 +53,6 @@ impl SheetModel {
 }
 
 impl Sheet {
-    /// A sheet named `name` with fresh ids, from 1-based `(col, row)`
-    /// cells and A1 merge ranges.
     #[must_use]
     pub fn from_grid(
         name: &str,
@@ -101,7 +97,6 @@ impl Sheet {
         sheet
     }
 
-    /// The `(row id, col id)` at a 1-based `(col, row)`.
     #[must_use]
     pub fn ids_at(&self, col: u32, row: u32) -> Option<(&str, &str)> {
         let r = self.rows.get(usize::try_from(row).ok()?.checked_sub(1)?)?;
@@ -109,7 +104,6 @@ impl Sheet {
         Some((r.as_str(), c.as_str()))
     }
 
-    /// The 1-based `(col, row)` a `"<rowId>:<colId>"` key sits at now.
     #[must_use]
     pub fn position(&self, key: &str) -> Option<(u32, u32)> {
         let (r, c) = key.split_once(':')?;
@@ -123,15 +117,12 @@ impl Sheet {
         self.position(key).map(|(col, row)| a1(col, row))
     }
 
-    /// A merge's A1 range, or `None` when a boundary id was deleted.
     #[must_use]
     pub fn merge_a1(&self, merge: &str) -> Option<String> {
         let (start, end) = merge.split_once('|')?;
         Some(format!("{}:{}", self.a1_of(start)?, self.a1_of(end)?))
     }
 
-    /// Every cell with a live position, as 1-based `(col, row, cell)`,
-    /// skipping cells whose row or column was deleted.
     #[must_use]
     pub fn grid(&self) -> Vec<(u32, u32, &SheetCell)> {
         let rows: BTreeMap<&str, u32> = (1u32..)

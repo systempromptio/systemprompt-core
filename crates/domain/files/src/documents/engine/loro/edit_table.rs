@@ -13,7 +13,7 @@ use super::rich::{list_of, string_of};
 use super::table::{fresh_id, is_table_map, new_entry, to_loro};
 use super::write::insert_block;
 
-/// Sets (or with `None` removes) one key of a table's `props`.
+// JSON: a table prop is an untyped browser map entry.
 pub fn set_table_prop(
     doc: &LoroDoc,
     table_id: &str,
@@ -25,7 +25,7 @@ pub fn set_table_prop(
     set_prop(&props, key, value)
 }
 
-/// Sets (or with `None` removes) one key of a cell's `props`.
+// JSON: a cell prop is an untyped browser map entry.
 pub fn set_cell_prop(
     doc: &LoroDoc,
     cell_id: &str,
@@ -39,6 +39,7 @@ pub fn set_cell_prop(
     set_prop(&props, key, value)
 }
 
+// JSON: one untyped browser map entry, set or removed.
 fn set_prop(map: &LoroMap, key: &str, value: Option<&Value>) -> Result<(), EditError> {
     match value {
         Some(value) => map.insert(key, to_loro(key, value)?)?,
@@ -48,7 +49,6 @@ fn set_prop(map: &LoroMap, key: &str, value: Option<&Value>) -> Result<(), EditE
     Ok(())
 }
 
-/// A cell's block list, created when the cell has none.
 pub fn cell_blocks(doc: &LoroDoc, cell_id: &str) -> Result<LoroMovableList, EditError> {
     let cell = find_cell(doc, cell_id).ok_or_else(|| EditError::NotFound {
         id: cell_id.to_owned(),
@@ -67,8 +67,6 @@ pub(crate) fn table(doc: &LoroDoc, table_id: &str) -> Result<LoroMap, EditError>
     }
 }
 
-/// Inserts an empty row of `columns` cells at `at`; returns the row's id
-/// and its cells' ids.
 pub fn insert_row(
     doc: &LoroDoc,
     table_id: &str,
@@ -85,7 +83,6 @@ pub fn insert_row(
     Ok((string_of(&row, "id").unwrap_or_default(), ids))
 }
 
-/// Inserts an empty cell at column `at` of every row; returns the new ids.
 pub fn insert_column(doc: &LoroDoc, table_id: &str, at: usize) -> Result<Vec<String>, EditError> {
     rows_of(&table(doc, table_id)?)
         .map(|row| {
@@ -102,7 +99,6 @@ pub fn delete_row(doc: &LoroDoc, row_id: &str) -> Result<(), EditError> {
     Ok(row.list.delete(row.at, 1)?)
 }
 
-/// Deletes column `at` from every row of a table that has it.
 pub fn delete_column(doc: &LoroDoc, table_id: &str, at: usize) -> Result<(), EditError> {
     for row in rows_of(&table(doc, table_id)?) {
         if let Some(cells) = list_of(&row, "cells")

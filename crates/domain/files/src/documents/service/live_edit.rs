@@ -20,9 +20,6 @@ use super::{CommitRequest, DocumentService, LiveEdit};
 use crate::documents::error::DocumentsError;
 
 impl DocumentService {
-    /// Writes `request`'s ops into the document's open live session, or
-    /// answers `None` when there is none (or its op id was already used),
-    /// so the caller commits `request` to the head.
     #[cfg(feature = "collab")]
     pub async fn edit_live(
         &self,
@@ -76,10 +73,6 @@ impl DocumentService {
         }
     }
 
-    /// Claims `op_id` before the live write applies, acknowledged against
-    /// the document's head, so a concurrent retry finds the claim and
-    /// replays instead of applying twice. `None` when the op id is already
-    /// taken: the caller's commit then replays it or refuses a mismatch.
     #[cfg(feature = "collab")]
     async fn claim_live<'r>(
         &self,

@@ -28,6 +28,8 @@ mod peers;
 mod rich;
 #[cfg(feature = "collab-loro")]
 pub(crate) mod rich_loro;
+#[cfg(feature = "collab-loro")]
+mod rich_loro_lookup;
 pub(crate) mod sheet;
 mod structured;
 
@@ -39,6 +41,8 @@ use systemprompt_models::documents::{DocumentFormat, EditOp};
 use super::{CollabError, CollabService};
 use crate::documents::error::DocumentsError;
 use crate::documents::service::{LiveEdit, LiveEditRequest};
+
+pub(crate) use self::peers::AgentPeers;
 
 /// The model family an op batch is translated against.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -60,8 +64,6 @@ impl OpsFormat {
 }
 
 impl CollabService {
-    /// Writes `request` into the document's open live session, or answers
-    /// `None` when there is none or its model has no live ops yet.
     pub async fn edit_live(
         &self,
         who: &AuthenticatedUser,
@@ -92,9 +94,6 @@ impl CollabService {
     }
 }
 
-/// Whole-document and revision ops (`set_text`, `set_html`, `restore`,
-/// `insert_from_revision`) replace or expand against revisions, so they keep
-/// committing to the head and the session follows them.
 const fn is_live_op(op: &EditOp) -> bool {
     !matches!(
         op,

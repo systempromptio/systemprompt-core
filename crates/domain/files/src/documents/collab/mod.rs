@@ -49,6 +49,7 @@
 
 mod access;
 mod apply;
+mod apply_check;
 mod binding;
 mod catch_up;
 mod committer;
@@ -65,9 +66,11 @@ mod owner;
 mod owner_forward;
 mod persist;
 mod persist_commit;
+mod presence;
 mod reaper;
 mod reconcile;
 mod session;
+mod snapshot;
 mod timer;
 mod trash;
 mod types;
@@ -101,6 +104,7 @@ pub struct CollabService {
     uploads: Option<Arc<UploadService>>,
     owner: Option<owner::OwnerRegistry>,
     cache: Mutex<HashMap<DocumentId, SharedEntry>>,
+    agent_peers: ops::AgentPeers,
 }
 
 impl CollabService {
@@ -117,6 +121,7 @@ impl CollabService {
             uploads: None,
             owner: None,
             cache: Mutex::new(HashMap::new()),
+            agent_peers: ops::AgentPeers::default(),
         }
     }
 

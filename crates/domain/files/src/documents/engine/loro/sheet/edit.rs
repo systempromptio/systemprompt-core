@@ -16,7 +16,6 @@ use super::model::{cell_key, new_id};
 use super::read::string;
 use crate::documents::engine::loro::rich::WriteError;
 
-/// The live map of the sheet named `name`.
 #[must_use]
 pub fn sheet_map(doc: &LoroDoc, name: &str) -> Option<LoroMap> {
     let list = doc.get_movable_list(SHEETS_CONTAINER);
@@ -41,8 +40,6 @@ fn id_at(list: &LoroMovableList, index: usize) -> Option<String> {
     }
 }
 
-/// The id at 0-based `index` of `rows` or `cols`, appending fresh ids
-/// until the axis is long enough.
 fn ensure_axis(sheet: &LoroMap, key: &str, index: usize) -> Result<String, WriteError> {
     let list = axis(sheet, key)?;
     while list.len() <= index {
@@ -51,8 +48,6 @@ fn ensure_axis(sheet: &LoroMap, key: &str, index: usize) -> Result<String, Write
     id_at(&list, index).ok_or_else(|| format!("{key}[{index}] is not an id").into())
 }
 
-/// The `"<rowId>:<colId>"` key at a 1-based `(col, row)`, growing the
-/// sheet when the address lies past its edge.
 pub fn ensure_cell_key(sheet: &LoroMap, col: u32, row: u32) -> Result<String, WriteError> {
     let row_id = ensure_axis(sheet, "rows", index_of(row)?)?;
     let col_id = ensure_axis(sheet, "cols", index_of(col)?)?;
@@ -66,8 +61,6 @@ fn index_of(one_based: u32) -> Result<usize, WriteError> {
         .ok_or_else(|| "addresses are 1-based".into())
 }
 
-/// Writes `v` as the input of the cell at `key`; an empty `v` removes the
-/// cell, keeping nothing behind but its row and column ids.
 pub fn set_cell_input(sheet: &LoroMap, key: &str, v: &str) -> Result<(), WriteError> {
     let cells = sheet.get_or_create_container("cells", LoroMap::new())?;
     if v.is_empty() {
@@ -79,8 +72,6 @@ pub fn set_cell_input(sheet: &LoroMap, key: &str, v: &str) -> Result<(), WriteEr
     Ok(())
 }
 
-/// Inserts a fresh row id after 1-based `row` (0 inserts at the top) and
-/// returns it.
 pub fn insert_row_after(sheet: &LoroMap, row: u32) -> Result<String, WriteError> {
     let rows = axis(sheet, "rows")?;
     let at = usize::try_from(row)?.min(rows.len());
@@ -89,7 +80,6 @@ pub fn insert_row_after(sheet: &LoroMap, row: u32) -> Result<String, WriteError>
     Ok(id)
 }
 
-/// The 1-based number of the row with id `row_id`.
 #[must_use]
 pub fn row_number(sheet: &LoroMap, row_id: &str) -> Option<u32> {
     let rows = axis(sheet, "rows").ok()?;

@@ -40,8 +40,6 @@ impl DocumentService {
         blocking(move || Ok(codec.project(&bytes)?)).await
     }
 
-    /// The projection of `revision` with its stored node ids, for a live
-    /// session seeded from it.
     pub(crate) async fn projection_with_ids(
         &self,
         document: &Document,

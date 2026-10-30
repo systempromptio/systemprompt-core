@@ -28,9 +28,6 @@ use super::rich::{
 
 pub const MAX_TOUCHED: usize = 256;
 
-/// The touched blocks of the import from `before` to `after`, with the
-/// document settings when the import changed them, or `None` when only the
-/// full model can be validated.
 #[must_use]
 pub fn touched(doc: &LoroDoc, before: &Frontiers, after: &Frontiers) -> Option<RichText> {
     let list = blocks(doc);

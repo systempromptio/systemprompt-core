@@ -163,11 +163,6 @@ impl DocumentService {
         })
     }
 
-    /// The id-addressed projection of the document's live session, when
-    /// this replica holds one: its materialised bytes projected, each node
-    /// carried from the base revision's ids and then pinned to the live
-    /// block id it aligns with, so a read names blocks added live by the ids
-    /// the session gave them.
     #[cfg(feature = "collab")]
     pub(super) async fn live_projection(
         &self,

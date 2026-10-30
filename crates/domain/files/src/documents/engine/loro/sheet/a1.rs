@@ -19,7 +19,6 @@ pub fn a1(col: u32, row: u32) -> String {
     format!("{}{row}", column_letters(col))
 }
 
-/// A 1-based `(col, row)` from an A1 reference such as `B12` or `$B$12`.
 #[must_use]
 pub fn parse_a1(text: &str) -> Option<(u32, u32)> {
     let text = text.trim().replace('$', "");

@@ -31,8 +31,6 @@ const fn is_office_text(_format: DocumentFormat) -> bool {
     false
 }
 
-/// Workbooks and decks are co-edited only with the Loro engine, which holds
-/// their cells and shapes.
 #[cfg(all(feature = "office", feature = "collab-loro"))]
 const fn is_structured(format: DocumentFormat) -> bool {
     matches!(format, DocumentFormat::Xlsx | DocumentFormat::Pptx)

@@ -12,7 +12,7 @@
 
 use super::CollabService;
 
-pub const FORWARDED_HEADER: &str = "x-systemprompt-collab-forwarded";
+pub const FORWARDED_HEADER: &str = systemprompt_identifiers::headers::COLLAB_FORWARDED;
 
 #[derive(Debug, Clone)]
 pub struct ForwardRequest<'a> {

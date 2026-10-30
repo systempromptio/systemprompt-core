@@ -108,7 +108,6 @@ pub(crate) fn write_table(
     truncate(&list, rows.len())
 }
 
-/// Removes the table containers from a block that is no longer a table.
 pub(crate) fn drop_table(map: &LoroMap) -> Result<(), WriteError> {
     for key in ["rows", "props"] {
         if map.get(key).is_some() {
@@ -118,14 +117,13 @@ pub(crate) fn drop_table(map: &LoroMap) -> Result<(), WriteError> {
     Ok(())
 }
 
-/// Inserts a new row or cell map with a fresh id at `at`.
 pub fn new_entry(list: &LoroMovableList, at: usize) -> Result<LoroMap, WriteError> {
     let map = list.insert_container(at, LoroMap::new())?;
     map.insert("id", fresh_id())?;
     Ok(map)
 }
 
-/// A cell's styling as JSON, without the spans of 1 a default cell has.
+// JSON: a cell's props as the browser's untyped Loro map entries.
 fn cell_json(style: &CellProps) -> serde_json::Result<Value> {
     let mut value = serde_json::to_value(style)?;
     if let Some(fields) = value.as_object_mut() {
@@ -187,7 +185,6 @@ pub fn canonical_table(rows: &mut [Vec<RichText>], props: &mut TableProps) {
     }
 }
 
-/// Puts every table in `model` into the form it reads back from Loro.
 pub fn canonical(model: &mut RichText) {
     for block in &mut model.blocks {
         if let BlockKind::Table { rows, props } = &mut block.kind {
@@ -196,9 +193,7 @@ pub fn canonical(model: &mut RichText) {
     }
 }
 
-/// Writes a JSON object's fields as map entries with native types, as the
-/// browser writes them: `columns` as JSON text, numbers as i64, everything
-/// else as its string. Keys the object lacks are removed.
+// JSON: an object written field by field into a Loro map, as the browser does.
 pub(crate) fn sync_props(map: &LoroMap, object: &Value) -> Result<(), WriteError> {
     let fields = object.as_object().cloned().unwrap_or_default();
     for key in map
@@ -223,6 +218,7 @@ pub(crate) fn sync_props(map: &LoroMap, object: &Value) -> Result<(), WriteError
     Ok(())
 }
 
+// JSON: one map field converted to its native Loro value.
 pub(crate) fn to_loro(key: &str, value: &Value) -> Result<LoroValue, WriteError> {
     Ok(match value {
         _ if key == JSON_KEY => serde_json::to_string(value)?.into(),
@@ -241,11 +237,6 @@ const JSON_KEY: &str = "columns";
 
 const NUMBER_KEYS: [&str; 3] = ["header_rows", "colspan", "rowspan"];
 
-/// Reads a props map leniently: `columns`, a number key, or a string that
-/// opens with a quote is JSON text (an earlier encoding wrote every value
-/// so); any other string is itself; raw numbers and flags read as they
-/// are. Keys the model does not know, such as a cell's `header`, are
-/// ignored.
 fn from_props<T: serde::de::DeserializeOwned>(map: &LoroMap) -> serde_json::Result<T> {
     let mut fields = Map::new();
     for key in map

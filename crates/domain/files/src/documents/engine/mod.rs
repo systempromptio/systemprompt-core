@@ -130,16 +130,12 @@ pub trait EngineDoc: Send + fmt::Debug {
 
     fn update_to_model(&self, model: &ModelView) -> Result<Option<Vec<u8>>, EngineError>;
 
-    /// [`Self::update_to_model`] with the update's operations under `peer`.
     fn update_to_model_as(
         &self,
         model: &ModelView,
         peer: u64,
     ) -> Result<Option<Vec<u8>>, EngineError>;
 
-    /// The update that applies `ops` to this document under `peer`, or
-    /// `None` when they change nothing. Only an engine that holds a format's
-    /// cells or shapes as containers translates ops itself.
     fn update_from_ops(
         &self,
         _ops: &[systemprompt_models::documents::EditOp],
@@ -148,9 +144,6 @@ pub trait EngineDoc: Send + fmt::Debug {
         Err(EngineError::Unsupported)
     }
 
-    /// Renames this freshly seeded document's blocks, rows and cells to the
-    /// node ids of `nodes` (the base revision's projection) when the two
-    /// align; answers whether they did.
     fn adopt_node_ids(
         &mut self,
         _nodes: &[systemprompt_provider_contracts::documents::ProjectionNode],
@@ -158,9 +151,6 @@ pub trait EngineDoc: Send + fmt::Debug {
         Ok(false)
     }
 
-    /// Imports `update` like [`Self::apply_update`] and reports what it
-    /// changed: scoped to the touched blocks when `scoped` and the engine
-    /// can tell, the whole model otherwise.
     fn apply_update_scoped(
         &mut self,
         update: &[u8],

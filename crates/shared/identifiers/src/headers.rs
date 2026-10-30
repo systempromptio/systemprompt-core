@@ -42,3 +42,4 @@ pub const CALLER_PURPOSE: &str = "x-systemprompt-caller";
 pub const MCP_SERVER: &str = "x-systemprompt-mcp-server";
 pub const MEMORY: &str = "x-systemprompt-memory";
 pub const MEMORY_IDS: &str = "x-systemprompt-memory-ids";
+pub const COLLAB_FORWARDED: &str = "x-systemprompt-collab-forwarded";

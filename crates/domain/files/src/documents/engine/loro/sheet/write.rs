@@ -9,8 +9,6 @@ use super::SHEETS_CONTAINER;
 use super::model::{Sheet, SheetCell, SheetModel};
 use crate::documents::engine::loro::rich::WriteError;
 
-/// Replaces the document's sheets with `model`. Used to seed a session;
-/// live edits go through [`super::edit`] so they stay cell-sized.
 pub fn write_sheets(doc: &LoroDoc, model: &SheetModel) -> Result<(), WriteError> {
     let list = doc.get_movable_list(SHEETS_CONTAINER);
     list.clear()?;
@@ -57,10 +55,6 @@ pub(super) fn write_cell(map: &LoroMap, cell: &SheetCell) -> Result<(), WriteErr
     Ok(())
 }
 
-/// Seeds `doc` from `model` unless it already holds a workbook. A doc whose
-/// only sheet is the empty one a browser creates when `sheets` is empty
-/// (`Sheet1`, no cells) counts as unseeded, and that sheet is replaced.
-/// Answers whether it wrote.
 pub fn seed_sheets(doc: &LoroDoc, model: &SheetModel) -> Result<bool, WriteError> {
     let current = super::read(doc)?;
     let placeholder = matches!(current.sheets.as_slice(), [only] if only.cells.is_empty());

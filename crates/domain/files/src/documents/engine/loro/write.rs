@@ -31,8 +31,6 @@ pub fn insert_block(list: &LoroMovableList, at: usize, block: &Block) -> Result<
     Ok(())
 }
 
-/// Brings an existing block map's kind in line with `block`, moving it
-/// between the table container shape and the JSON `kind` as its type changes.
 pub(crate) fn sync_kind(map: &LoroMap, block: &Block) -> Result<(), WriteError> {
     if let BlockKind::Table { rows, props } = &block.kind {
         return write_table(map, rows, props);

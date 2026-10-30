@@ -38,9 +38,6 @@ pub enum SheetValidationError {
     Formula { cell: String, message: String },
 }
 
-/// Checks every change against `sheet_names`, the grid bounds, the input
-/// length and the formula grammar. Formulas may reference any sheet in
-/// `sheet_names`.
 pub fn validate_sheet_changes(
     changes: &[SheetChange],
     sheet_names: &[String],
@@ -69,8 +66,7 @@ pub fn validate_sheet_changes(
             return Err(SheetValidationError::TooLong { cell, chars });
         }
         if let Some(formula) = change.v.strip_prefix('=') {
-            formula::check(formula, change, sheet_names)
-                .map_err(|message| SheetValidationError::Formula { cell, message })?;
+            formula::check(formula, change, sheet_names, &cell)?;
         }
     }
     Ok(())
@@ -83,21 +79,29 @@ mod formula {
     use ironcalc::base::expressions::parser::{Node, new_parser_english};
     use ironcalc::base::expressions::types::CellReferenceRC;
 
-    use super::SheetChange;
+    use super::{SheetChange, SheetValidationError};
 
     pub(super) fn check(
         formula: &str,
         change: &SheetChange,
         sheet_names: &[String],
-    ) -> Result<(), String> {
+        cell: &str,
+    ) -> Result<(), SheetValidationError> {
+        let out_of_bounds = |_| SheetValidationError::OutOfBounds {
+            col: change.col,
+            row: change.row,
+        };
         let mut parser = new_parser_english(sheet_names.to_vec(), Vec::new(), HashMap::new());
         let context = CellReferenceRC {
             sheet: change.sheet.clone(),
-            column: i32::try_from(change.col).map_err(|e| e.to_string())?,
-            row: i32::try_from(change.row).map_err(|e| e.to_string())?,
+            column: i32::try_from(change.col).map_err(out_of_bounds)?,
+            row: i32::try_from(change.row).map_err(out_of_bounds)?,
         };
         match parser.parse(formula, &context) {
-            Node::ParseErrorKind { message, .. } => Err(message),
+            Node::ParseErrorKind { message, .. } => Err(SheetValidationError::Formula {
+                cell: cell.to_owned(),
+                message,
+            }),
             _ => Ok(()),
         }
     }
@@ -105,13 +109,14 @@ mod formula {
 
 #[cfg(not(feature = "office"))]
 mod formula {
-    use super::SheetChange;
+    use super::{SheetChange, SheetValidationError};
 
     pub(super) const fn check(
         _formula: &str,
         _change: &SheetChange,
         _sheet_names: &[String],
-    ) -> Result<(), String> {
+        _cell: &str,
+    ) -> Result<(), SheetValidationError> {
         Ok(())
     }
 }

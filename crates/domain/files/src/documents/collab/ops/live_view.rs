@@ -17,7 +17,6 @@ use crate::documents::engine::ModelView;
 use crate::documents::model::RichText;
 use crate::documents::models::Document;
 
-/// A live session's base revision, its materialised bytes and its model.
 #[derive(Debug, Clone)]
 pub(crate) struct LiveView {
     pub base: DocumentRevisionId,

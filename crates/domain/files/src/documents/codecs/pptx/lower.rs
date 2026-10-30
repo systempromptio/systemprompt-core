@@ -72,12 +72,6 @@ impl Batch<'_> {
     }
 }
 
-/// Writes `target` onto `bytes`, returning `bytes` unchanged when the deck
-/// already holds it.
-///
-/// Text and slide membership are lowered twice: the first pass removes and
-/// appends slides, the second writes the text of the slides it appended.
-/// The structure pass then writes frames, shapes and slide order.
 pub fn lower_deck(bytes: &[u8], target: &DeckModel) -> Result<Vec<u8>, CodecError> {
     let first = lower_text(bytes, target)?;
     let second = lower_text(&first, target)?;
@@ -224,9 +218,6 @@ fn lower_shape(
     Ok(())
 }
 
-/// Paragraphs added before the first paragraph the deck kept have no
-/// paragraph to follow, so the kept one takes the first added text and the
-/// rest, then its own target text, are inserted after it.
 fn flush_front(
     batch: &mut Batch<'_>,
     slide: usize,

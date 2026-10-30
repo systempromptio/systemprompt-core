@@ -312,14 +312,14 @@ async fn the_last_editor_leaving_commits_an_edit_session_revision_and_closes() {
 }
 
 #[tokio::test]
-async fn spreadsheets_cannot_be_joined() {
+async fn ods_spreadsheets_cannot_be_joined() {
     let c = collab().await;
-    let owner = person("collab-sheet");
+    let owner = person("collab-ods");
     let (document, _) = c
         .documents
-        .create_from_template(&owner, create("blank-xlsx", None), &trace())
+        .create_from_template(&owner, create("blank-ods", None), &trace())
         .await
-        .expect("create xlsx");
+        .expect("create ods");
     let refused = c
         .collab
         .join(&owner, &document.id, JoinMode::Edit, &trace())

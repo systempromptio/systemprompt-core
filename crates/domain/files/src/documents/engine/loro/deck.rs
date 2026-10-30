@@ -36,7 +36,6 @@ pub fn slides(doc: &LoroDoc) -> LoroMovableList {
     doc.get_movable_list(SLIDES_CONTAINER)
 }
 
-/// Opens a fresh document holding `deck`, written by the seed peer.
 pub fn seed_deck(deck: &DeckModel) -> Result<LoroDoc, super::rich::WriteError> {
     let doc = LoroDoc::new();
     super::rich::configure(&doc);

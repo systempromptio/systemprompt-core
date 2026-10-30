@@ -87,12 +87,6 @@ fn pair_gaps(raw: Vec<Step>) -> Vec<Step> {
     out
 }
 
-/// Pairs each target entry with a base entry: first the base entry of the
-/// same id, then, in target order, the earliest unpaired base entry (by
-/// `rank`) that `fits`. The engine names a slide or shape it created by a
-/// fresh id while the deck names it by its part or `cNvPr` id, so the
-/// second pass is what keeps such an entry from being removed and re-added
-/// on every lowering.
 pub(super) fn pair<T>(
     base: &[T],
     target: &[T],

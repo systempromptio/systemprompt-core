@@ -28,6 +28,13 @@ const LOCALE: &str = "en";
 const LANGUAGE: &str = "en";
 const TIMEZONE: &str = "UTC";
 
+fn xlsx_error(part: &str) -> impl FnOnce(ironcalc::error::XlsxError) -> CodecError + '_ {
+    move |error| CodecError::Parse {
+        part: part.to_owned(),
+        source: Box::new(error),
+    }
+}
+
 fn parse_error(part: &str) -> impl FnOnce(String) -> CodecError + '_ {
     move |detail| CodecError::Parse {
         part: part.to_owned(),
@@ -37,7 +44,7 @@ fn parse_error(part: &str) -> impl FnOnce(String) -> CodecError + '_ {
 
 pub fn sheet_model_from_xlsx(bytes: &[u8]) -> Result<SheetModel, CodecError> {
     let workbook = load_from_xlsx_bytes(bytes, "workbook", LOCALE, TIMEZONE)
-        .map_err(|error| parse_error("workbook")(error.to_string()))?;
+        .map_err(xlsx_error("workbook"))?;
     let model = Model::from_workbook(workbook, LANGUAGE).map_err(parse_error("workbook"))?;
     let mut grids: BTreeMap<u32, Vec<(u32, u32, SheetCell)>> = BTreeMap::new();
     for index in model.get_all_cells() {
@@ -80,8 +87,6 @@ fn merge_a1(merge: &MergedCell) -> Option<String> {
     Some(format!("{}:{}", a1(col, row), a1(last_col, last_row)))
 }
 
-/// The `.xlsx` bytes of `sheets`, recalculated so every formula cell
-/// carries its cached value.
 pub fn checkpoint_xlsx(sheets: &SheetModel) -> Result<Vec<u8>, CodecError> {
     let mut model = Model::new_empty("workbook", LOCALE, TIMEZONE, LANGUAGE)
         .map_err(parse_error("workbook"))?;
@@ -107,8 +112,8 @@ pub fn checkpoint_xlsx(sheets: &SheetModel) -> Result<Vec<u8>, CodecError> {
         }
     }
     model.evaluate();
-    let cursor = save_xlsx_to_writer(&model, Cursor::new(Vec::new()))
-        .map_err(|error| parse_error("workbook")(error.to_string()))?;
+    let cursor =
+        save_xlsx_to_writer(&model, Cursor::new(Vec::new())).map_err(xlsx_error("workbook"))?;
     Ok(cursor.into_inner())
 }
 
@@ -128,8 +133,6 @@ fn merged_cells(sheet: &Sheet) -> Vec<MergedCell> {
         .collect()
 }
 
-/// Seeds a session doc's sheets from `.xlsx` bytes, keeping a workbook the
-/// doc already holds; see [`seed_sheets`].
 pub fn seed_doc_from_xlsx(doc: &loro::LoroDoc, bytes: &[u8]) -> Result<bool, CodecError> {
     let model = sheet_model_from_xlsx(bytes)?;
     seed_sheets(doc, &model).map_err(|source| CodecError::Parse {

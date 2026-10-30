@@ -63,7 +63,6 @@ mod translate {
         },
     }
 
-    /// Applies `ops` to `doc` and returns how many cells were written.
     pub(crate) fn apply_sheet_ops(doc: &LoroDoc, ops: &[EditOp]) -> Result<usize, SheetOpError> {
         let writes = ops
             .iter()

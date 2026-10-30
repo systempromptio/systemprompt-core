@@ -102,8 +102,6 @@ impl CollabService {
         self
     }
 
-    /// Where an update of `document` should be applied: here, or forwarded
-    /// to the replica that holds the document's owner lease.
     pub async fn update_route(&self, document: &DocumentId) -> UpdateRoute {
         let Some(owner) = &self.owner else {
             return UpdateRoute::Local;

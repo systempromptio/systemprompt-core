@@ -63,8 +63,6 @@ fn changed_cells(prior: Option<&Sheet>, sheet: &Sheet) -> Vec<SheetChange> {
         .collect()
 }
 
-/// A cell key's 1-based `(col, row)`; 0 for an id the sheet does not hold,
-/// which the bounds check refuses.
 fn position(sheet: &Sheet, key: &str) -> (u32, u32) {
     let (row_id, col_id) = key.split_once(':').unwrap_or((key, ""));
     let at = |ids: &[String], id: &str| {
@@ -81,11 +79,6 @@ pub(super) fn is_structured(doc: &LoroDoc) -> bool {
     sheet::is_sheet_doc(doc) || !deck::slides(doc).is_empty()
 }
 
-/// Gives a re-imported workbook the live session's ids, so writing it back
-/// touches only what changed: each sheet matches the live sheet of its
-/// name (else at its position), and its rows and columns take the live ids
-/// at the same position; rows and columns past the live ones keep their
-/// fresh ids, and cell keys and merges are rewritten to match.
 pub(crate) fn carry_sheet_ids(live: &SheetModel, next: &mut SheetModel) {
     for (at, sheet) in next.sheets.iter_mut().enumerate() {
         let held = live
@@ -127,12 +120,6 @@ fn carry_one(held: &Sheet, sheet: &mut Sheet) {
     sheet.id.clone_from(&held.id);
 }
 
-/// Gives a re-imported deck the live session's ids. An imported slide is
-/// keyed by its part and a shape by its `cNvPr`, so a slide or shape whose
-/// id the live deck holds keeps it; one the live deck does not hold takes
-/// the id of the live slide or shape at its position when that id is not
-/// otherwise in use (a slide or shape created live), so a write-back
-/// rewrites only what changed.
 pub(crate) fn carry_deck_ids(live: &deck::DeckModel, next: &mut deck::DeckModel) {
     let ids = |slides: &[deck::DeckSlide]| -> Vec<String> {
         slides.iter().map(|slide| slide.id.clone()).collect()

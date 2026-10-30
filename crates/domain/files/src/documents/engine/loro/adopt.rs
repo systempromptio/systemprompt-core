@@ -20,8 +20,6 @@ use systemprompt_provider_contracts::documents::{NodeKind, ProjectionNode};
 use super::rich::{WriteError, block_map, blocks, list_of};
 use super::table::is_table_map;
 
-/// Writes the projection's ids into `doc` when they align; answers whether
-/// they did.
 pub fn adopt(doc: &LoroDoc, nodes: &[ProjectionNode]) -> Result<bool, WriteError> {
     let flat = block_nodes(nodes);
     let list = blocks(doc);

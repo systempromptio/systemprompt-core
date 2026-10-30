@@ -52,8 +52,6 @@ pub(super) fn update_from_ops(
     })
 }
 
-/// Runs `edit` on a fork under `peer`, commits it with origin `agent` and
-/// returns what it added, or `None` when it added nothing.
 fn on_fork(
     doc: &LoroDoc,
     peer: u64,

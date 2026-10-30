@@ -1,16 +1,16 @@
 //! The Loro implementation of the files domain's [`DocumentEngine`], compiled
 //! only with the `collab-loro` feature.
 //!
-//! A document holds the [`RichText`] model in the containers described in
-//! [`rich`]. [`LoroEngine::seed`] writes the initial model with peer id
-//! [`SEED_PEER`], then moves to a random peer id. The files domain seeds a
-//! session once, stores the seed's snapshot and has every replica
-//! [`DocumentEngine::open`] that snapshot, so replicas never depend on two
-//! seeds of one revision producing identical operations. A session opened
-//! before the model existed holds one [`LoroText`] named [`BODY_CONTAINER`]
-//! instead and exports as [`ModelView::Body`]. A browser editor mirrors the
-//! containers with `loro-crdt` at [`WIRE_VERSION`] and configures
-//! [`rich::TEXT_STYLES`].
+//! A document holds the [`RichText`](crate::documents::model::RichText) model
+//! in the containers described in [`rich`]. [`LoroEngine::seed`] writes the
+//! initial model with peer id [`SEED_PEER`], then moves to a random peer id.
+//! The files domain seeds a session once, stores the seed's snapshot and has
+//! every replica [`DocumentEngine::open`] that snapshot, so replicas never
+//! depend on two seeds of one revision producing identical operations. A
+//! session opened before the model existed holds one
+//! [`LoroText`](loro::LoroText) named [`BODY_CONTAINER`] instead and exports as
+//! [`ModelView::Body`]. A browser editor mirrors the containers with
+//! `loro-crdt` at [`WIRE_VERSION`] and configures [`rich::TEXT_STYLES`].
 //!
 //! A table opened from a snapshot written before tables were containers
 //! still keeps its cells in `kind`; [`EngineDoc::update_to_model`] of such a
@@ -38,6 +38,7 @@ pub mod edit;
 mod edit_table;
 pub mod rich;
 pub mod scope;
+mod seed;
 mod shape;
 mod shape_ops;
 pub mod sheet;
@@ -52,13 +53,13 @@ pub use shape::{
     check_update_shape,
 };
 
+pub use seed::{body_text, export, replica_peer, seed, seed_model, seed_rich};
 pub use sync::write_model;
 
 use crate::documents::engine::{
     DocumentEngine, EngineDoc, EngineError, ImportScope, ModelView, ScopedImport, UpdateImport,
 };
-use crate::documents::model::RichText;
-use loro::{ExportMode, LoroDoc, LoroText, PeerID, UpdateOptions, VersionVector};
+use loro::{ExportMode, LoroDoc, PeerID, UpdateOptions, VersionVector};
 
 pub const BODY_CONTAINER: &str = "body";
 pub const SEED_PEER: PeerID = 0;
@@ -242,63 +243,6 @@ fn canonical_view(model: &ModelView) -> ModelView {
         table::canonical(rich);
     }
     model
-}
-
-pub fn export(doc: &LoroDoc) -> Result<ModelView, EngineError> {
-    if sheet::is_sheet_doc(doc) {
-        return sheet::read(doc)
-            .map(ModelView::Sheet)
-            .map_err(|e| EngineError::Model(Box::new(e)));
-    }
-    if !deck::slides(doc).is_empty() {
-        return deck::read(doc)
-            .map(ModelView::Deck)
-            .map_err(|e| EngineError::Model(Box::new(e)));
-    }
-    let body = body_text(doc);
-    if rich::blocks(doc).is_empty() && !body.is_empty() {
-        Ok(ModelView::Body(body))
-    } else {
-        Ok(ModelView::RichText(
-            rich::read(doc).map_err(|e| EngineError::Model(Box::new(e)))?,
-        ))
-    }
-}
-
-#[must_use]
-pub fn body_text(doc: &LoroDoc) -> String {
-    doc.get_text(BODY_CONTAINER).to_string()
-}
-
-pub fn seed_model(model: &ModelView) -> Result<LoroDoc, rich::WriteError> {
-    let doc = LoroDoc::new();
-    rich::configure(&doc);
-    doc.set_peer_id(SEED_PEER)?;
-    match model {
-        ModelView::RichText(rich) => write_model(&doc, rich)?,
-        ModelView::Sheet(sheets) => sheet::write_sheets(&doc, sheets)?,
-        ModelView::Deck(slides) => deck::write_deck(&doc, slides)?,
-        ModelView::Body(body) => {
-            let text: LoroText = doc.get_text(BODY_CONTAINER);
-            text.insert(0, body)?;
-        },
-    }
-    doc.commit();
-    doc.set_peer_id(replica_peer())?;
-    Ok(doc)
-}
-
-pub fn seed(body: &str) -> Result<LoroDoc, rich::WriteError> {
-    seed_model(&ModelView::Body(body.to_owned()))
-}
-
-pub fn seed_rich(model: &RichText) -> Result<LoroDoc, rich::WriteError> {
-    seed_model(&ModelView::RichText(model.clone()))
-}
-
-#[must_use]
-pub fn replica_peer() -> PeerID {
-    uuid::Uuid::new_v4().as_u64_pair().0.max(1)
 }
 
 pub(crate) fn state(error: loro::LoroError) -> EngineError {

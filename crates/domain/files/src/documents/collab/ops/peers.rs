@@ -11,7 +11,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashMap;
-use std::sync::{LazyLock, Mutex, PoisonError};
+use std::sync::{Mutex, PoisonError};
 
 use systemprompt_identifiers::{DocumentEditSessionId, UserId};
 
@@ -22,8 +22,8 @@ const MAX_PEERS: usize = 4096;
 
 type PeerKey = (DocumentEditSessionId, UserId, String);
 
-static AGENT_PEERS: LazyLock<Mutex<HashMap<PeerKey, u64>>> =
-    LazyLock::new(|| Mutex::new(HashMap::new()));
+#[derive(Debug, Default)]
+pub(crate) struct AgentPeers(Mutex<HashMap<PeerKey, u64>>);
 
 impl CollabService {
     pub(super) async fn actor_peer(
@@ -33,7 +33,9 @@ impl CollabService {
         actor: &DocumentActor,
     ) -> Result<u64, CollabError> {
         let key = (session.clone(), user.clone(), format!("{actor:?}"));
-        if let Some(peer) = AGENT_PEERS
+        if let Some(peer) = self
+            .agent_peers
+            .0
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
             .get(&key)
@@ -41,7 +43,11 @@ impl CollabService {
             return Ok(*peer);
         }
         let peer = self.assign_peer(session, user).await?;
-        let mut peers = AGENT_PEERS.lock().unwrap_or_else(PoisonError::into_inner);
+        let mut peers = self
+            .agent_peers
+            .0
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
         if peers.len() >= MAX_PEERS {
             peers.clear();
         }

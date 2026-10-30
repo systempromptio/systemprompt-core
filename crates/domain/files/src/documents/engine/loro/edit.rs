@@ -111,7 +111,6 @@ pub(crate) fn cells_of(table: &LoroMap) -> impl Iterator<Item = LoroMap> {
     })
 }
 
-/// The table, row list index and row map of a row id, searching every table.
 #[must_use]
 pub fn find_row(doc: &LoroDoc, row_id: &str) -> Option<(LoroMap, Located)> {
     tables(doc).find_map(|table| {
@@ -155,14 +154,12 @@ fn text(map: &LoroMap) -> Result<LoroText, EditError> {
     }
 }
 
-/// Replaces a block's text with the fewest text operations.
 pub fn set_text(doc: &LoroDoc, block_id: &str, value: &str) -> Result<(), EditError> {
     let text = text(&located(doc, block_id)?.map)?;
     text.update(value, UpdateOptions::default())
         .map_err(|error| EditError::Write(Box::new(error)))
 }
 
-/// Inserts at a Unicode scalar offset of a block's text.
 pub fn insert_text(doc: &LoroDoc, block_id: &str, at: usize, value: &str) -> Result<(), EditError> {
     Ok(text(&located(doc, block_id)?.map)?.insert(at, value)?)
 }
@@ -171,9 +168,6 @@ pub fn delete_text(doc: &LoroDoc, block_id: &str, at: usize, len: usize) -> Resu
     Ok(text(&located(doc, block_id)?.map)?.delete(at, len)?)
 }
 
-/// Marks `range` of a block's text with `kind`, stored as
-/// [`super::rich::TEXT_STYLES`] expects: `true` for a flag mark, the value's
-/// string otherwise.
 pub fn mark(
     doc: &LoroDoc,
     block_id: &str,
@@ -187,7 +181,6 @@ pub fn mark(
     Ok(text(&located(doc, block_id)?.map)?.mark(range, kind.key(), value)?)
 }
 
-/// Removes the mark stored under `key` (a [`MarkKind::key`]) from `range`.
 pub fn unmark(
     doc: &LoroDoc,
     block_id: &str,
@@ -197,7 +190,6 @@ pub fn unmark(
     Ok(text(&located(doc, block_id)?.map)?.unmark(range, key)?)
 }
 
-/// Sets a block's kind and attributes from `block`, leaving its text alone.
 pub fn set_kind(doc: &LoroDoc, block: &Block) -> Result<(), EditError> {
     let map = located(doc, &block.id)?.map;
     sync_kind(&map, block)?;
@@ -205,7 +197,6 @@ pub fn set_kind(doc: &LoroDoc, block: &Block) -> Result<(), EditError> {
     Ok(())
 }
 
-/// Inserts `block` next to `anchor` (after it, or before when `before`).
 pub fn insert_block_near(
     doc: &LoroDoc,
     anchor: &str,
@@ -217,7 +208,6 @@ pub fn insert_block_near(
     Ok(())
 }
 
-/// Inserts `block` at `at` of the root list, clamped to its length.
 pub fn insert_root_block(doc: &LoroDoc, at: usize, block: &Block) -> Result<(), EditError> {
     let list = blocks(doc);
     insert_block(&list, at.min(list.len()), block)?;
@@ -229,7 +219,6 @@ pub fn delete_block(doc: &LoroDoc, block_id: &str) -> Result<(), EditError> {
     Ok(list.delete(at, 1)?)
 }
 
-/// Moves a block to `to` within the list that holds it.
 pub fn move_block(doc: &LoroDoc, block_id: &str, to: usize) -> Result<(), EditError> {
     let Located { list, at, .. } = located(doc, block_id)?;
     let to = to.min(list.len().saturating_sub(1));

@@ -132,7 +132,6 @@ pub(crate) fn read_blocks(list: &LoroMovableList) -> Result<Vec<Block>, ReadErro
         .collect()
 }
 
-/// Whether a top-level table still keeps its cells inside `kind`.
 #[must_use]
 pub fn has_legacy_tables(doc: &LoroDoc) -> bool {
     let list = blocks(doc);

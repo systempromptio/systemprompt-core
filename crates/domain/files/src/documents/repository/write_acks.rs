@@ -109,8 +109,6 @@ impl DocumentWriteAckRepository {
         .map(Some)
     }
 
-    /// Removes `user`'s ack of `op_id`: a live write claims its ack before
-    /// it applies and releases it when the write fails.
     pub async fn release(
         &self,
         document: &DocumentId,

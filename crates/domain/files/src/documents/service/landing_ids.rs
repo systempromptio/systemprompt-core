@@ -35,9 +35,6 @@ pub(super) struct Carried {
 }
 
 impl Carried {
-    /// Records each pinned path under its pinned id, kept as is rather than
-    /// minted; an unpinned node already holding one of those ids is minted
-    /// afresh, so no id names two nodes.
     pub(super) fn pin(&mut self, pins: &HashMap<String, DocumentNodeId>) {
         if pins.is_empty() {
             return;

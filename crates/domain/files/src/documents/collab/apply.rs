@@ -10,16 +10,17 @@
 //! caller's peers and must not park operations whose dependencies the
 //! session lacks. What the import changed is then checked against
 //! the model schema, the limits and the caller's access level
-//! ([`validate`]): at edit level only the blocks the import touched (the
-//! engine's [`ImportScope::Blocks`]), so the check costs what the update
-//! changed; at comment level, or when the engine cannot scope the import,
-//! the whole model before and after. Block ids are unique only within that
-//! scope here; the checkpoint validates the whole model. An accepted update is
-//! logged only on top of the log it was validated against: when another replica
-//! logged first, the update is caught up and validated again, a bounded number
-//! of times. An update enters a replica's cache only from the log, after the
-//! transaction that numbered it has committed, so a failed append leaves the
-//! cache as it was.
+//! ([`validate`](crate::documents::model::validate)): at edit level only
+//! the blocks the import touched (the engine's
+//! [`ImportScope::Blocks`](crate::documents::engine::ImportScope::Blocks)),
+//! so the check costs what the update changed; at comment level, or when the
+//! engine cannot scope the import, the whole model before and after. Block ids
+//! are unique only within that scope here; the checkpoint validates the whole
+//! model. An accepted update is logged only on top of the log it was validated
+//! against: when another replica logged first, the update is caught up and
+//! validated again, a bounded number of times. An update enters a replica's
+//! cache only from the log, after the transaction that numbered it has
+//! committed, so a failed append leaves the cache as it was.
 //!
 //! Each accepted update extends its author's web presence and is logged with
 //! the actor it ran as and the level it was admitted at; every replica folds
@@ -38,22 +39,16 @@ use systemprompt_identifiers::{DocumentEditSessionId, TraceId, UserId};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{AccessLevel, DocumentAction, DocumentCollabUpdateEvent};
 
+use super::apply_check::{Candidate, check_on_fork};
 use super::entry::SharedEntry;
 use super::lease::SessionKey;
 use super::{Applied, ApplyRequest, CollabError, CollabService};
-use crate::documents::engine::{EngineDoc, EngineError, ImportScope, ModelView};
-use crate::documents::model::{EditLevel, Limits, ModelRejection, RichText, validate};
+use crate::documents::engine::EngineError;
+use crate::documents::model::EditLevel;
 use crate::documents::models::Document;
 use crate::documents::repository::{CollabAppend, UpdateAuthor};
 
 const APPEND_ATTEMPTS: u32 = 4;
-
-struct Candidate<'a> {
-    update: &'a [u8],
-    level: EditLevel,
-    peers: &'a [u64],
-    author: UpdateAuthor<'a>,
-}
 
 impl CollabService {
     pub async fn apply(
@@ -222,69 +217,6 @@ impl CollabService {
                 "Collab update event not delivered"
             );
         }
-    }
-}
-
-async fn check_on_fork(
-    mut draft: Box<dyn EngineDoc>,
-    candidate: &Candidate<'_>,
-) -> Result<(), CollabError> {
-    let update = candidate.update.to_vec();
-    let scoped = candidate.level == EditLevel::Edit;
-    let imported =
-        tokio::task::spawn_blocking(move || draft.apply_update_scoped(&update, scoped)).await;
-    let scoped = match imported {
-        Ok(result) => result.map_err(CollabError::InvalidUpdate)?,
-        Err(error) => {
-            tracing::warn!(
-                error = %error,
-                panicked = error.is_panic(),
-                "Collab update import did not complete on its fork"
-            );
-            return Err(CollabError::InvalidUpdate(EngineError::State(Box::new(
-                error,
-            ))));
-        },
-    };
-    let import = scoped.import;
-    if import.pending {
-        return Err(CollabError::MissingDependencies);
-    }
-    if let Some(peer) = import
-        .peers
-        .iter()
-        .find(|peer| !candidate.peers.contains(peer))
-    {
-        return Err(CollabError::PeerNotAssigned { peer: *peer });
-    }
-    match scoped.scope {
-        ImportScope::Blocks(touched) => validate(
-            &RichText::default(),
-            &touched,
-            EditLevel::Edit,
-            &Limits::default(),
-        )
-        .map_err(CollabError::UpdateRejected),
-        ImportScope::Full { before, after } => check_model(&before, after, candidate.level),
-    }
-}
-
-fn check_model(before: &ModelView, after: ModelView, level: EditLevel) -> Result<(), CollabError> {
-    match after {
-        ModelView::RichText(after) => {
-            let empty = RichText::default();
-            let before = match before {
-                ModelView::RichText(before) => before,
-                _ => &empty,
-            };
-            validate(before, &after, level, &Limits::default()).map_err(CollabError::UpdateRejected)
-        },
-        after if level == EditLevel::Comment && after != *before => Err(
-            CollabError::UpdateRejected(ModelRejection::BeyondCommentLevel),
-        ),
-        ModelView::Body(_) => Ok(()),
-        #[cfg(feature = "collab-loro")]
-        ModelView::Sheet(_) | ModelView::Deck(_) => Ok(()),
     }
 }
 

@@ -243,9 +243,6 @@ fn apply(doc: &LoroDoc, op: &EditOp) -> Result<(), DeckOpError> {
     }
 }
 
-/// Applies `ops` to a fork of `doc` as `peer` and returns the update,
-/// or `None` when the batch changed nothing. `doc` itself is untouched;
-/// the caller imports the update like any client update.
 pub(crate) fn deck_update(
     doc: &LoroDoc,
     ops: &[EditOp],

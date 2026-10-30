@@ -30,8 +30,6 @@ tokio::task_local! {
     static LIVE_MODEL: Arc<RichText>;
 }
 
-/// Runs `work` (a checkpoint commit) with `model` as the live model whose
-/// block ids its landing records.
 pub async fn with_live_model<F: Future>(model: RichText, work: F) -> F::Output {
     LIVE_MODEL.scope(Arc::new(model), work).await
 }
@@ -40,8 +38,6 @@ pub(super) fn live_model() -> Option<Arc<RichText>> {
     LIVE_MODEL.try_with(Arc::clone).ok()
 }
 
-/// Path to model block id, for every node of `next` that aligns with a
-/// block of `model`.
 pub(crate) fn pinned_ids(next: &Projection, model: &RichText) -> HashMap<String, DocumentNodeId> {
     let mut pins = HashMap::new();
     pin_list(&block_nodes(&next.root), &model.blocks, &mut pins);
