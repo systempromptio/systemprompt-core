@@ -298,6 +298,7 @@ CREATE TABLE IF NOT EXISTS brain_proposals (
     status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'approved', 'rejected')),
     summary TEXT NOT NULL,
     body JSONB NOT NULL,
+    replay JSONB,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     decided_by TEXT REFERENCES users(id) ON DELETE SET NULL,
     decided_at TIMESTAMPTZ
