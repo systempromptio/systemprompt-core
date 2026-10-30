@@ -28,3 +28,5 @@ const fn is_list_item(kind: NodeKind) -> bool {
 
 #[cfg(feature = "collab-loro")]
 mod live;
+#[cfg(feature = "collab-loro")]
+mod slide;

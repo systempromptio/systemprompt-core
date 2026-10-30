@@ -6,14 +6,14 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use loro::{ExportMode, LoroDoc, LoroMap, LoroMovableList, LoroText, PeerID};
+use systemprompt_identifiers::DocumentNodeId;
 use systemprompt_models::documents::EditOp;
 
+use super::slide::{new_block, text_shape};
 use crate::documents::engine::loro::deck::{
-    DeckShape, DeckSlide, ShapeKind, insert_paragraph, insert_slide, slides,
+    DeckSlide, ShapeKind, insert_paragraph, insert_slide, slides,
 };
 use crate::documents::engine::loro::rich::{WriteError, block_map, text_of};
-use crate::documents::model::layout::ParaAttrs;
-use crate::documents::model::{Block, BlockKind};
 
 #[derive(Debug, thiserror::Error)]
 pub(crate) enum DeckOpError {
@@ -35,6 +35,12 @@ impl From<loro::LoroError> for DeckOpError {
     }
 }
 
+fn unknown(id: &str) -> DeckOpError {
+    DeckOpError::UnknownNode {
+        node: id.to_owned(),
+    }
+}
+
 enum Node {
     Slide(usize),
     Paragraph(usize, usize, usize),
@@ -49,23 +55,20 @@ fn index(segment: &str, prefix: &str) -> Option<usize> {
 }
 
 fn node(id: &str) -> Result<Node, DeckOpError> {
-    let unknown = || DeckOpError::UnknownNode {
-        node: id.to_owned(),
-    };
     let parts: Vec<&str> = id.split('/').collect();
     let slide = parts
         .first()
         .and_then(|s| index(s, "slide["))
         .filter(|n| *n > 0)
-        .ok_or_else(unknown)?
+        .ok_or_else(|| unknown(id))?
         - 1;
     match parts.as_slice() {
         [_] => Ok(Node::Slide(slide)),
         [_, shape, para] => match (index(shape, "shape["), index(para, "p[")) {
             (Some(shape), Some(para)) => Ok(Node::Paragraph(slide, shape, para)),
-            _ => Err(unknown()),
+            _ => Err(unknown(id)),
         },
-        _ => Err(unknown()),
+        _ => Err(unknown(id)),
     }
 }
 
@@ -87,51 +90,13 @@ fn paragraph_text(
     id: &str,
 ) -> Result<(LoroMovableList, usize, LoroText), DeckOpError> {
     let Node::Paragraph(slide, shape, para) = node(id)? else {
-        return Err(DeckOpError::UnknownNode {
-            node: id.to_owned(),
-        });
+        return Err(unknown(id));
     };
-    let list = paragraphs(doc, slide, shape).ok_or_else(|| DeckOpError::UnknownNode {
-        node: id.to_owned(),
-    })?;
+    let list = paragraphs(doc, slide, shape).ok_or_else(|| unknown(id))?;
     let text = block_map(&list, para)
         .and_then(|map| text_of(&map))
-        .ok_or_else(|| DeckOpError::UnknownNode {
-            node: id.to_owned(),
-        })?;
+        .ok_or_else(|| unknown(id))?;
     Ok((list, para, text))
-}
-
-fn new_block(text: &str, list_item: bool) -> Block {
-    Block {
-        id: uuid::Uuid::new_v4().to_string(),
-        kind: if list_item {
-            BlockKind::ListItem {
-                level: 0,
-                ordered: false,
-                numbering: None,
-                checked: None,
-            }
-        } else {
-            BlockKind::Paragraph
-        },
-        attrs: ParaAttrs::default(),
-        text: text.to_owned(),
-        marks: Vec::new(),
-    }
-}
-
-fn text_shape(kind: ShapeKind, lines: &[String], list_item: bool) -> DeckShape {
-    DeckShape {
-        id: uuid::Uuid::new_v4().to_string(),
-        kind,
-        frame: None,
-        src: None,
-        paragraphs: lines
-            .iter()
-            .map(|line| new_block(line, list_item))
-            .collect(),
-    }
 }
 
 fn para_id(slide: usize, shape: usize, para: usize) -> String {
@@ -232,51 +197,61 @@ fn apply(doc: &LoroDoc, op: &EditOp) -> Result<Vec<String>, DeckOpError> {
             layout,
             title,
             body,
-        } => {
-            let list = slides(doc);
-            let at = match after {
-                Some(id) => match node(id.as_str())? {
-                    Node::Slide(at) if at < list.len() => at + 1,
-                    _ => {
-                        return Err(DeckOpError::UnknownNode {
-                            node: id.as_str().to_owned(),
-                        });
-                    },
-                },
-                None => list.len(),
-            };
-            let mut shapes = Vec::new();
-            if let Some(title) = title {
-                shapes.push(text_shape(
-                    ShapeKind::Title,
-                    std::slice::from_ref(title),
-                    false,
-                ));
-            }
-            if !body.is_empty() {
-                shapes.push(text_shape(ShapeKind::Body, body, true));
-            }
-            let slide = DeckSlide {
-                id: uuid::Uuid::new_v4().to_string(),
-                layout: layout.clone(),
-                shapes,
-            };
-            let mut written = vec![format!("slide[{}]", at + 1)];
-            for (h, shape) in slide.shapes.iter().enumerate() {
-                written.extend((0..shape.paragraphs.len()).map(|p| para_id(at, h, p)));
-            }
-            insert_slide(&list, at, &slide).map_err(DeckOpError::Write)?;
-            Ok(written)
-        },
+        } => new_slide(doc, after.as_ref(), layout.clone(), title.as_ref(), body),
         other => Err(DeckOpError::Unsupported { op: other.name() }),
     }
 }
+
+fn new_slide(
+    doc: &LoroDoc,
+    after: Option<&DocumentNodeId>,
+    layout: Option<String>,
+    title: Option<&String>,
+    body: &[String],
+) -> Result<Vec<String>, DeckOpError> {
+    let list = slides(doc);
+    let at = match after {
+        Some(id) => match node(id.as_str())? {
+            Node::Slide(at) if at < list.len() => at + 1,
+            _ => {
+                return Err(DeckOpError::UnknownNode {
+                    node: id.as_str().to_owned(),
+                });
+            },
+        },
+        None => list.len(),
+    };
+    let mut shapes = Vec::new();
+    if let Some(title) = title {
+        shapes.push(text_shape(
+            ShapeKind::Title,
+            std::slice::from_ref(title),
+            false,
+        ));
+    }
+    if !body.is_empty() {
+        shapes.push(text_shape(ShapeKind::Body, body, true));
+    }
+    let slide = DeckSlide {
+        id: uuid::Uuid::new_v4().to_string(),
+        layout,
+        shapes,
+    };
+    let mut written = vec![format!("slide[{}]", at + 1)];
+    for (h, shape) in slide.shapes.iter().enumerate() {
+        written.extend((0..shape.paragraphs.len()).map(|p| para_id(at, h, p)));
+    }
+    insert_slide(&list, at, &slide).map_err(DeckOpError::Write)?;
+    Ok(written)
+}
+
+type DeckUpdate = Option<(Vec<u8>, Vec<String>)>;
 
 pub(crate) fn deck_update(
     doc: &LoroDoc,
     ops: &[EditOp],
     peer: PeerID,
-) -> Result<Option<(Vec<u8>, Vec<String>)>, DeckOpError> {
+) -> Result<DeckUpdate, DeckOpError> {
     let before = doc.oplog_vv();
     let draft = doc.fork();
     crate::documents::engine::loro::rich::configure(&draft);
