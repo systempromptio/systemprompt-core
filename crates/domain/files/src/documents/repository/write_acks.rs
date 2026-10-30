@@ -109,6 +109,26 @@ impl DocumentWriteAckRepository {
         .map(Some)
     }
 
+    /// Removes `user`'s ack of `op_id`: a live write claims its ack before
+    /// it applies and releases it when the write fails.
+    pub async fn release(
+        &self,
+        document: &DocumentId,
+        op_id: &DocumentOpId,
+        user: &UserId,
+    ) -> RepoResult<()> {
+        sqlx::query!(
+            "DELETE FROM document_write_acks
+             WHERE document_id = $1::text::uuid AND op_id = $2 AND user_id = $3",
+            document.as_str(),
+            op_id.as_str(),
+            user.as_str(),
+        )
+        .execute(&*self.pools.write)
+        .await?;
+        Ok(())
+    }
+
     pub async fn sweep_older_than(&self, days: i32, limit: i64) -> RepoResult<u64> {
         let result = sqlx::query!(
             "DELETE FROM document_write_acks

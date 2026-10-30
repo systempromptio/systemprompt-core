@@ -5,16 +5,17 @@
 //! update and goes through the path a browser update takes: logged as the
 //! session's next update, imported by every replica and broadcast on the
 //! document's live channel. The update is written under an engine peer the
-//! server assigns to the caller for this batch (`document_collab_peers`), so
-//! it never reuses a browser's peer, and is logged with the actor the call
+//! server assigns once per session and actor (`peers`), so it never reuses
+//! a browser's peer, and is logged with the actor the call
 //! runs as, so an agent's batch folds into the checkpoint actor like any
 //! other update. No revision lands here; the session's checkpoint commits
 //! the result, which is why `follow_head` never sees an ops write as an
 //! outside revision.
 //!
-//! Translation is per model: [`OpsFormat::Rich`] covers text documents
-//! (`rich`); spreadsheets and decks go through `structured`, where the
-//! engine runs the `sheet` and `deck` translators on a fork. An unsupported
+//! Translation is per model, through `structured`, where the engine runs
+//! the `rich_loro`, `sheet` or `deck` translator on a fork. A text batch the
+//! Loro translator refuses falls back to `rich`, which applies it to the
+//! materialised bytes and writes the resulting model. An unsupported
 //! batch or a document with no open session is answered with `None`, so the
 //! caller commits it to the head as before.
 //!
@@ -22,7 +23,10 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub(crate) mod deck;
+mod peers;
 mod rich;
+#[cfg(feature = "collab-loro")]
+pub(crate) mod rich_loro;
 pub(crate) mod sheet;
 mod structured;
 
@@ -70,9 +74,13 @@ impl CollabService {
             .admit_live_ops(who, &request.document_id, &request.ops, trace)
             .await?;
         let outcome = match OpsFormat::of(document.format) {
-            OpsFormat::Rich => self.edit_rich(who, &document, request).await,
+            OpsFormat::Rich => match self.edit_structured(who, &document, &request, true).await {
+                Ok(Some(edit)) => Ok(Some(edit)),
+                Ok(None) => self.edit_rich(who, &document, request).await,
+                Err(error) => Err(error),
+            },
             OpsFormat::Sheet | OpsFormat::Deck => {
-                self.edit_structured(who, &document, request).await
+                self.edit_structured(who, &document, &request, false).await
             },
         };
         match outcome {

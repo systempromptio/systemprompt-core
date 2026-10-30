@@ -5,7 +5,7 @@
 //! live tree (`DocumentService::apply_ops_live`), and the result is imported
 //! back as a `RichText` model with the live block ids carried over. The
 //! engine computes the update from the live document to that model on a
-//! fork, written under a peer freshly assigned to the caller, checked like a
+//! fork, written under the caller's per-session peer, checked like a
 //! client update and logged, imported and broadcast as the session's next
 //! update. A batch that changes nothing is answered without an update.
 //!
@@ -49,7 +49,12 @@ impl CollabService {
         let limit = self.documents.config().max_upload_bytes;
         let base_bytes = self.revision_bytes(&body.base, limit).await?;
         let live = self
-            .admit_live(format, &body.state.owners, &base_bytes, body.state.model.clone())
+            .admit_live(
+                format,
+                &body.state.owners,
+                &base_bytes,
+                body.state.model.clone(),
+            )
             .await;
         let live_bytes =
             materialise_or_strip(format, &base_bytes, &live).map_err(model_error(&document.id))?;
@@ -64,9 +69,11 @@ impl CollabService {
                 media: request.media,
             })
             .await?;
-        let mut next = import_rich_text(format, &applied.bytes).map_err(model_error(&document.id))?;
+        let mut next =
+            import_rich_text(format, &applied.bytes).map_err(model_error(&document.id))?;
         carry_ids(current, &mut next);
-        let peer = self.assign_peer(&session.id, &who.id).await?;
+        let actor = self.documents.access().actor();
+        let peer = self.actor_peer(&session.id, &who.id, &actor).await?;
         let update = body
             .fork
             .lock()
@@ -86,7 +93,6 @@ impl CollabService {
         self.engine()?
             .check_update(&update, Some(&[peer]))
             .map_err(CollabError::InvalidUpdate)?;
-        let actor = self.documents.access().actor();
         let author = UpdateAuthor {
             user: &who.id,
             actor: &actor,

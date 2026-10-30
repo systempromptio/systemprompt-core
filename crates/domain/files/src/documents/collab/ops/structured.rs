@@ -1,13 +1,16 @@
-//! Sheet and deck ops in a live session.
+//! Ops translated by the engine in a live session: sheets, decks, and text
+//! documents first of all.
 //!
-//! Workbooks and decks hold their cells and shapes as engine containers, so
-//! the engine translates the batch itself (`EngineDoc::update_from_ops`,
-//! which the Loro engine answers with the `sheet` and `deck` translators)
+//! The engine translates the batch itself (`EngineDoc::update_from_ops`,
+//! which the Loro engine answers with the `sheet`, `deck` and `rich_loro`
+//! translators)
 //! on a fork of the live document under a peer freshly assigned to the
 //! caller. The update is then checked like a client update and logged,
-//! imported and broadcast as the session's next update. These models carry
-//! no node-id projection, so the ack's before and after trees are empty and
-//! its `written` lines are none.
+//! imported and broadcast as the session's next update. A `lenient` call
+//! (text documents) answers `None` on any translation refusal, so the
+//! caller retries the batch through the model, which answers the precise
+//! refusal. No node-id projection is built on this path, so the ack's
+//! before and after trees are empty and its `written` lines are none.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -29,14 +32,16 @@ impl CollabService {
         &self,
         who: &AuthenticatedUser,
         document: &Document,
-        request: LiveEditRequest,
+        request: &LiveEditRequest,
+        lenient: bool,
     ) -> Result<Option<LiveEdit>, CollabError> {
         let repos = self.documents.repositories();
         let Some(session) = repos.edit_sessions.find_open(&document.id).await? else {
             return Ok(None);
         };
         let shared = self.entry(document, &session).await?;
-        let peer = self.assign_peer(&session.id, &who.id).await?;
+        let actor = self.documents.access().actor();
+        let peer = self.actor_peer(&session.id, &who.id, &actor).await?;
         let (fork, key, base) = {
             let entry = self.caught_up(&shared).await?;
             let Some(base) = entry.checkpoint_base().cloned() else {
@@ -44,13 +49,14 @@ impl CollabService {
             };
             (entry.doc.fork(), SessionKey::of(&entry), base)
         };
-        let ops = request.ops;
+        let ops = request.ops.clone();
         let applied = ops.len();
         let translated = tokio::task::spawn_blocking(move || fork.update_from_ops(&ops, peer))
             .await
             .map_err(|error| CollabError::InvalidUpdate(EngineError::State(Box::new(error))))?;
         let update = match translated {
             Err(EngineError::Unsupported) => return Ok(None),
+            Err(_) if lenient => return Ok(None),
             other => other.map_err(CollabError::InvalidUpdate)?,
         };
         let empty = || Projection {
@@ -72,7 +78,6 @@ impl CollabService {
         self.engine()?
             .check_update(&update, Some(&[peer]))
             .map_err(CollabError::InvalidUpdate)?;
-        let actor = self.documents.access().actor();
         let author = UpdateAuthor {
             user: &who.id,
             actor: &actor,

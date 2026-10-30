@@ -2,14 +2,13 @@
 //! document's open live session instead of onto the head.
 //!
 //! The request is the commit the caller would otherwise make, so a live
-//! write keeps a commit's guarantees. An op id already acknowledged answers
-//! `None`, and the caller's commit replays the stored acknowledgement (or
-//! refuses a different request as `op_id_mismatch`). An agent's batch is
-//! charged against its edit rate like a commit and refunded unless it is
-//! written. A written batch with an op id stores its acknowledgement against
-//! the session's base revision, so a retry replays instead of applying the
-//! batch twice; a retry racing the first call between its log write and its
-//! acknowledgement can still apply twice.
+//! write keeps a commit's guarantees. An op id is claimed before the batch
+//! applies, acknowledged against the head, and released when the live write
+//! fails or does not happen; an op id already claimed answers `None`, and
+//! the caller's commit replays the stored acknowledgement (or refuses a
+//! different request as `op_id_mismatch`). An agent's batch is charged
+//! against its edit rate like a commit and refunded unless an update was
+//! logged.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -38,17 +37,13 @@ impl DocumentService {
         let CommitBody::Ops(ops) = &request.body else {
             return Ok(None);
         };
-        if let Some(op_id) = &request.op_id
-            && self
-                .repos
-                .write_acks
-                .find(&request.document_id, op_id)
-                .await?
-                .is_some()
-        {
-            return Ok(None);
-        }
-        let digest = super::acks::request_digest(request)?;
+        let claimed = match &request.op_id {
+            Some(op_id) => match self.claim_live(who, request, op_id, trace).await? {
+                Some(claimed) => Some(claimed),
+                None => return Ok(None),
+            },
+            None => None,
+        };
         let reserved = self.reserve_agent_edits(who, ops.len())?;
         let live = super::LiveEditRequest {
             document_id: request.document_id.clone(),
@@ -61,54 +56,75 @@ impl DocumentService {
             .map_err(|error| match error {
                 crate::documents::collab::CollabError::Documents(error) => error,
                 other => DocumentsError::LiveSession(Box::new(other)),
-            })?;
-        let Some(written) = written else {
-            return Ok(None);
-        };
-        if written.seq.is_some() {
-            reserved.keep();
+            });
+        match written {
+            Ok(Some(written)) => {
+                if written.seq.is_some() {
+                    reserved.keep();
+                }
+                Ok(Some(written))
+            },
+            other => {
+                if let Some(op_id) = claimed {
+                    self.repos
+                        .write_acks
+                        .release(&request.document_id, op_id, &who.id)
+                        .await?;
+                }
+                other
+            },
         }
-        if let Some(op_id) = &request.op_id {
-            self.acknowledge_live(who, request, op_id, &digest, &written)
-                .await?;
-        }
-        Ok(Some(written))
     }
 
+    /// Claims `op_id` before the live write applies, acknowledged against
+    /// the document's head, so a concurrent retry finds the claim and
+    /// replays instead of applying twice. `None` when the op id is already
+    /// taken: the caller's commit then replays it or refuses a mismatch.
     #[cfg(feature = "collab")]
-    async fn acknowledge_live(
+    async fn claim_live<'r>(
         &self,
         who: &AuthenticatedUser,
-        request: &CommitRequest,
-        op_id: &systemprompt_identifiers::DocumentOpId,
-        digest: &str,
-        written: &LiveEdit,
-    ) -> Result<(), DocumentsError> {
+        request: &'r CommitRequest,
+        op_id: &'r systemprompt_identifiers::DocumentOpId,
+        trace: &TraceId,
+    ) -> Result<Option<&'r systemprompt_identifiers::DocumentOpId>, DocumentsError> {
         use crate::documents::models::{AckClaim, WriteAck};
-        use crate::documents::nodes::{created_nodes, written_nodes};
         use crate::documents::repository::DocumentWriteAckRepository;
+        use crate::documents::revision::CommitBody;
+        use systemprompt_models::documents::DocumentAction;
         use systemprompt_traits::RepositoryError;
+        let document = self
+            .authorized_document(who, &request.document_id, DocumentAction::Edit, trace)
+            .await?;
+        let Some(head) = document.head_revision_id else {
+            return Ok(None);
+        };
+        let digest = super::acks::request_digest(request)?;
+        let applied = match &request.body {
+            CommitBody::Ops(ops) => ops.len(),
+            CommitBody::Bytes(_) => 0,
+        };
         let ack = WriteAck {
-            revision_id: written.base_revision.clone(),
+            revision_id: head,
             parent_revision_id: None,
             merged_from: None,
-            applied: written.applied,
-            written: written_nodes(Some(&written.before), &written.after),
-            created: created_nodes(Some(&written.before), &written.after),
+            applied,
+            written: Vec::new(),
+            created: Vec::new(),
         };
         let mut tx = self.repos.documents.begin().await?;
         let claim = AckClaim {
             document: &request.document_id,
             op_id,
             user: &who.id,
-            request_sha256: digest,
+            request_sha256: &digest,
             ack: &ack,
         };
-        DocumentWriteAckRepository::claim(&mut tx, claim).await?;
+        let taken = DocumentWriteAckRepository::claim(&mut tx, claim).await?;
         tx.commit()
             .await
             .map_err(|error| DocumentsError::Repository(RepositoryError::from(error)))?;
-        Ok(())
+        Ok(taken.is_none().then_some(op_id))
     }
 
     #[cfg(not(feature = "collab"))]
