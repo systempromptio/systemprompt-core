@@ -5,16 +5,16 @@
 //! than to the whole document.
 //!
 //! Every changed container, a mergeable map-key child included (its id is
-//! a root id that still resolves through its parent), is walked up to the top-level block that holds
-//! it; inserted root entries count as touched too, and the settings map
-//! touches the document settings. The touched blocks are read whole (a
-//! table with all its cells). The scope is refused, and the caller falls
-//! back to the full model, when the diff touches a root container other
-//! than [`BLOCKS_CONTAINER`] and [`DOCUMENT_CONTAINER`], when a container's
-//! path cannot be resolved, when more than [`MAX_TOUCHED`] blocks changed,
-//! when the root list outgrows the block limit, or when a touched block
-//! holds a `Raw` block (whose source must be compared with the model before
-//! the update).
+//! a root id that still resolves through its parent), is walked up to the
+//! top-level block that holds it; inserted root entries count as touched too,
+//! and the settings map touches the document settings. The touched blocks are
+//! read whole (a table with all its cells). The scope is refused, and the
+//! caller falls back to the full model, when the diff touches a root container
+//! other than [`BLOCKS_CONTAINER`] and [`DOCUMENT_CONTAINER`], when a
+//! container's path cannot be resolved, when more than [`MAX_TOUCHED`] blocks
+//! changed, when the root list outgrows the block limit, or when a touched
+//! block holds a `Raw` block (whose source must be compared with the model
+//! before the update).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
