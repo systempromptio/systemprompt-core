@@ -200,6 +200,9 @@ fn spawn_runner_service(
         let dependencies = Dependencies::new()
             .with(Arc::clone(shared.app_paths_arc()))
             .with(Arc::clone(shared.db_pool()))
+            .with(shared.signing_keys().clone())
+            .with(Arc::clone(shared.config_arc()))
+            .with(Arc::clone(shared.oauth_repositories()))
             .with::<Arc<dyn systemprompt_extension::ExtensionContext>>(Arc::<AppContext>::clone(
                 &shared,
             ))
