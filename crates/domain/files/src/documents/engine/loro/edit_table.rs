@@ -22,7 +22,7 @@ pub fn set_table_prop(
 ) -> Result<(), EditError> {
     let table = table(doc, table_id)?;
     let props = table.get_or_create_container("props", LoroMap::new())?;
-    set_prop(&props, key, value, key == "columns")
+    set_prop(&props, key, value)
 }
 
 /// Sets (or with `None` removes) one key of a cell's `props`.
@@ -36,12 +36,12 @@ pub fn set_cell_prop(
         id: cell_id.to_owned(),
     })?;
     let props = cell.get_or_create_container("props", LoroMap::new())?;
-    set_prop(&props, key, value, false)
+    set_prop(&props, key, value)
 }
 
-fn set_prop(map: &LoroMap, key: &str, value: Option<&Value>, json: bool) -> Result<(), EditError> {
+fn set_prop(map: &LoroMap, key: &str, value: Option<&Value>) -> Result<(), EditError> {
     match value {
-        Some(value) => map.insert(key, to_loro(value, json)?)?,
+        Some(value) => map.insert(key, to_loro(value)?)?,
         None if map.get(key).is_some() => map.delete(key)?,
         None => {},
     }

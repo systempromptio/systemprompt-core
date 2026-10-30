@@ -2,13 +2,13 @@
 //! cells, rows or properties merge instead of replacing the table.
 //!
 //! The block map keeps `kind` = [`TABLE_KIND`] and adds `props`, a map of
-//! the table's own properties (`columns` as JSON, `header_rows` as a number,
-//! `style` as a string), and `rows`, a movable list of row maps
-//! `{id, cells}`. `cells` is a movable list of cell maps `{id, props,
-//! blocks}`: `props` holds the cell's `shade`, `align` and `valign` as
-//! strings and `colspan` and `rowspan` as numbers (absent when default), and
-//! `blocks` is a movable list of block maps in the same shape as the root
-//! list. A browser editor mirrors this shape exactly.
+//! the table's own properties (`columns`, `header_rows`, `style`), and `rows`,
+//! a movable list of row maps `{id, cells}`. `cells` is a movable list of cell
+//! maps `{id, props, blocks}`: `props` holds the cell's `shade`, `align`,
+//! `valign`, `colspan` and `rowspan` (absent when default; a span of 1 is never
+//! written), and every props value is its JSON text, raw numbers and flags also
+//! read, and `blocks` is a movable list of block maps in the same shape as the
+//! root list. A browser editor mirrors this shape exactly.
 //!
 //! The model's `TableProps::cells` is sparse, so a table reads back in
 //! canonical form ([`canonical_table`]): cell styling beyond the table's
@@ -29,8 +29,6 @@ use super::sync::write_blocks;
 
 pub const TABLE_KIND: &str = "{\"type\":\"table\"}";
 
-const TABLE_JSON_KEYS: [&str; 1] = ["columns"];
-
 #[must_use]
 pub(crate) fn is_table_map(map: &LoroMap) -> bool {
     list_of(map, "rows").is_some()
@@ -44,7 +42,7 @@ pub fn fresh_id() -> String {
 pub(crate) fn read_table(id: &str, map: &LoroMap) -> Result<BlockKind, ReadError> {
     let bad = || ReadError::Table { id: id.to_owned() };
     let mut props: TableProps = map_of(map, "props")
-        .map(|props| from_props(&props, &TABLE_JSON_KEYS))
+        .map(|props| from_props(&props))
         .transpose()
         .map_err(|_| bad())?
         .unwrap_or_default();
@@ -67,7 +65,7 @@ pub(crate) fn read_table(id: &str, map: &LoroMap) -> Result<BlockKind, ReadError
                 document: None,
             });
             let style: CellProps = map_of(&cell, "props")
-                .map(|props| from_props(&props, &[]))
+                .map(|props| from_props(&props))
                 .transpose()
                 .map_err(|_| bad())?
                 .unwrap_or_default();
@@ -92,7 +90,7 @@ pub(crate) fn write_table(
     let mut own = props.clone();
     own.cells = Vec::new();
     let table_props = map.get_or_create_container("props", LoroMap::new())?;
-    sync_props(&table_props, &serde_json::to_value(&own)?, &TABLE_JSON_KEYS)?;
+    sync_props(&table_props, &serde_json::to_value(&own)?)?;
     let list = map.get_or_create_container("rows", LoroMovableList::new())?;
     for (r, row) in rows.iter().enumerate() {
         let row_map = slot(&list, r)?;
@@ -100,7 +98,7 @@ pub(crate) fn write_table(
         for (c, cell) in row.iter().enumerate() {
             let cell_map = slot(&cells, c)?;
             let style = cell_map.get_or_create_container("props", LoroMap::new())?;
-            sync_props(&style, &cell_json(&props.cell(r, c))?, &[])?;
+            sync_props(&style, &cell_json(&props.cell(r, c))?)?;
             let blocks = cell_map.get_or_create_container("blocks", LoroMovableList::new())?;
             write_blocks(&blocks, &cell.blocks)?;
         }
@@ -197,13 +195,9 @@ pub fn canonical(model: &mut RichText) {
     }
 }
 
-/// Writes a JSON object's fields as map entries: scalars natively, the keys
-/// in `json_keys` as JSON strings. Keys the object lacks are removed.
-pub(crate) fn sync_props(
-    map: &LoroMap,
-    object: &Value,
-    json_keys: &[&str],
-) -> Result<(), WriteError> {
+/// Writes a JSON object's fields as map entries, each value as its JSON
+/// text, as the browser writes them. Keys the object lacks are removed.
+pub(crate) fn sync_props(map: &LoroMap, object: &Value) -> Result<(), WriteError> {
     let fields = object.as_object().cloned().unwrap_or_default();
     for key in map
         .keys()
@@ -215,7 +209,7 @@ pub(crate) fn sync_props(
         }
     }
     for (key, value) in &fields {
-        let wanted = to_loro(value, json_keys.contains(&key.as_str()))?;
+        let wanted = to_loro(value)?;
         let held = match map.get(key) {
             Some(ValueOrContainer::Value(held)) => Some(held),
             _ => None,
@@ -227,24 +221,14 @@ pub(crate) fn sync_props(
     Ok(())
 }
 
-pub(crate) fn to_loro(value: &Value, as_json: bool) -> Result<LoroValue, WriteError> {
-    Ok(match value {
-        _ if as_json => serde_json::to_string(value)?.into(),
-        Value::Bool(flag) => (*flag).into(),
-        Value::Number(number) => match number.as_i64() {
-            Some(int) => int.into(),
-            None => number.as_f64().unwrap_or_default().into(),
-        },
-        Value::String(text) => text.as_str().into(),
-        Value::Null => LoroValue::Null,
-        Value::Array(_) | Value::Object(_) => serde_json::to_string(value)?.into(),
-    })
+pub(crate) fn to_loro(value: &Value) -> Result<LoroValue, WriteError> {
+    Ok(serde_json::to_string(value)?.into())
 }
 
-fn from_props<T: serde::de::DeserializeOwned>(
-    map: &LoroMap,
-    json_keys: &[&str],
-) -> serde_json::Result<T> {
+/// Reads a props map: a string is JSON text (a bare string that is not JSON
+/// reads as itself), and raw numbers and flags are accepted as they are.
+/// Keys the model does not know, such as a cell's `header`, are ignored.
+fn from_props<T: serde::de::DeserializeOwned>(map: &LoroMap) -> serde_json::Result<T> {
     let mut fields = Map::new();
     for key in map
         .keys()
@@ -255,10 +239,9 @@ fn from_props<T: serde::de::DeserializeOwned>(
             continue;
         };
         let value = match value {
-            LoroValue::String(text) if json_keys.contains(&key.as_str()) => {
-                serde_json::from_str(&text)?
+            LoroValue::String(text) => {
+                serde_json::from_str(&text).unwrap_or_else(|_| Value::String(text.to_string()))
             },
-            LoroValue::String(text) => Value::String(text.to_string()),
             LoroValue::I64(int) => Value::from(int),
             LoroValue::Double(float) => Value::from(float),
             LoroValue::Bool(flag) => Value::Bool(flag),
