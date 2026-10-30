@@ -73,3 +73,23 @@ fn an_unconfirmed_candidate_never_earns_the_owner_bonus() {
     assert!(close(confirmed - unconfirmed, 0.1));
     assert!(close(unconfirmed, 0.4));
 }
+
+#[test]
+fn in_context_scores_a_stored_fact_by_workflow_and_recency() {
+    use systemprompt_models::auth::RequestActor;
+    use systemprompt_models::brain::RecallCtx;
+
+    let mut fact = crate::recall_fixtures::brain_fact(1, "commitment");
+    fact.importance_base = 0.8;
+    let workflow = WorkflowId::try_new("sales").expect("workflow");
+    let ctx = RecallCtx::new(
+        crate::fixtures::user("u1"),
+        RequestActor::Human,
+        fact.updated_at + chrono::Duration::days(90),
+    )
+    .with_workflow(workflow);
+    let score = FormulaImportance
+        .in_context(&fact, &ctx, &config())
+        .expect("core formula always scores");
+    assert!(close(score, 0.8 * 0.5 * 0.5), "{score}");
+}

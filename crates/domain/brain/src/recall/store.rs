@@ -12,7 +12,9 @@ use std::collections::HashMap;
 use systemprompt_extension::brain::{FactRecallSource, RecallError, RecallOutcome, RecallReceipt};
 use systemprompt_identifiers::{BrainFactId, GatewayConversationId};
 use systemprompt_manifest::profile::StalePolicy;
-use systemprompt_models::brain::{BrainFact, FactRef, RecallAudit, RecallCtx, RecallQuery};
+use systemprompt_models::brain::{
+    BrainFact, FactRef, RecallAudit, RecallCtx, RecallQuery, StoredBlock,
+};
 
 use super::tiers::{self, TierFilter};
 use crate::models::NewRecall;
@@ -146,13 +148,8 @@ impl FactRecallSource for BrainRecallStore {
     async fn stored_block(
         &self,
         conversation: &GatewayConversationId,
-    ) -> Result<Option<String>, RecallError> {
-        Ok(self
-            .repos
-            .recalls
-            .stored_block_for(conversation)
-            .await?
-            .map(|stored| stored.rendered_block))
+    ) -> Result<Option<StoredBlock>, RecallError> {
+        Ok(self.repos.recalls.stored_block_for(conversation).await?)
     }
 
     async fn record_recall(&self, receipt: &RecallReceipt) -> Result<(), RecallError> {

@@ -12,5 +12,5 @@ mod importance;
 mod validator;
 
 pub use extractor::ModelExtractor;
-pub use importance::{FormulaImportance, InContextTerms};
+pub use importance::{FormulaImportance, InContextTerms, age_days};
 pub use validator::{SchemaCheck, SchemaValidator};

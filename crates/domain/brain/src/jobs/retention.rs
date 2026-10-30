@@ -87,7 +87,7 @@ impl BrainRetentionJob {
             let expired = repos.retention.expired(Utc::now(), BATCH).await?;
             let mut tx = repos.write_pool().begin().await?;
             for id in &expired {
-                FactRepository::apply(&mut tx, id, FactChange::Superseded { actor: None }).await?;
+                FactRepository::apply(&mut tx, id, FactChange::Expired).await?;
             }
             tx.commit().await?;
             retired += u64::try_from(expired.len()).unwrap_or(u64::MAX);

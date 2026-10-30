@@ -1,6 +1,7 @@
 use chrono::{TimeZone, Utc};
 use systemprompt_brain::recall::reuse::parse_stored;
 use systemprompt_extension::brain::{InjectedFact, RecallBlock};
+use systemprompt_models::brain::{FactRef, StoredBlock};
 
 use crate::recall_fixtures::id;
 
@@ -25,19 +26,60 @@ fn block() -> RecallBlock {
     })
 }
 
+fn stored(block: &RecallBlock) -> StoredBlock {
+    StoredBlock {
+        rendered: block.render(),
+        as_of: block.as_of,
+        facts: block
+            .facts
+            .iter()
+            .map(|fact| FactRef {
+                id: fact.id.clone(),
+                revision: fact.revision,
+            })
+            .collect(),
+    }
+}
+
 #[test]
 fn a_stored_block_parses_back_to_the_identical_bytes() {
-    let rendered = block().render();
-    let parsed = parse_stored(&rendered).expect("parses");
-    assert_eq!(parsed.render(), rendered);
+    let stored = stored(&block());
+    let parsed = parse_stored(&stored).expect("parses");
+    assert_eq!(parsed.render(), stored.rendered);
     assert_eq!(parsed.facts.len(), 2);
     assert_eq!(parsed.scope, "acme & co");
 }
 
 #[test]
+fn a_reused_block_names_each_fact_at_its_stored_revision() {
+    let original = block();
+    let parsed = parse_stored(&stored(&original)).expect("parses");
+    assert_eq!(parsed.ids(), format!("{}@3,{}@1", id(1), id(2)));
+    assert_eq!(parsed.ids(), original.ids());
+}
+
+#[test]
 fn text_that_is_not_a_block_is_not_reused() {
-    assert!(parse_stored("hello").is_none());
-    let mut rendered = block().render();
-    rendered.push(' ');
-    assert!(parse_stored(&rendered).is_none());
+    let mut not_a_block = stored(&block());
+    not_a_block.rendered = "hello".to_owned();
+    assert!(parse_stored(&not_a_block).is_none());
+    let mut trailing = stored(&block());
+    trailing.rendered.push(' ');
+    assert!(parse_stored(&trailing).is_none());
+}
+
+#[test]
+fn refs_that_disagree_with_the_text_are_not_reused() {
+    let mut missing = stored(&block());
+    missing.facts.pop();
+    assert!(parse_stored(&missing).is_none());
+    let mut extra = stored(&block());
+    extra.facts.push(FactRef {
+        id: id(3),
+        revision: 1,
+    });
+    assert!(parse_stored(&extra).is_none());
+    let mut swapped = stored(&block());
+    swapped.facts.reverse();
+    assert!(parse_stored(&swapped).is_none());
 }

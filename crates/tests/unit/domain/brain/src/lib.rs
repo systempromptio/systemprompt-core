@@ -16,6 +16,7 @@ mod fixtures;
 mod plane;
 #[cfg(test)]
 mod plane_db;
+#[cfg(test)]
 mod recall_budget;
 #[cfg(test)]
 mod recall_fakes;

@@ -14,8 +14,8 @@ use systemprompt_identifiers::FactKindId;
 #[cfg(feature = "sqlx")]
 use systemprompt_models::brain::BrainEvent;
 use systemprompt_models::brain::{
-    BrainEnvelope, BrainModelRequest, BrainModelResponse, ExtractionInput, ExtractionOutput,
-    FactCandidate, FactSource, ImportanceConfig, KindDecl, SourceText,
+    BrainEnvelope, BrainFact, BrainModelRequest, BrainModelResponse, ExtractionInput,
+    ExtractionOutput, FactCandidate, FactSource, ImportanceConfig, KindDecl, RecallCtx, SourceText,
 };
 
 #[cfg(feature = "sqlx")]
@@ -103,13 +103,21 @@ pub trait FactValidator: Send + Sync {
     ) -> Result<ValidationVerdict, BrainValidateError>;
 }
 
-/// Scores a candidate's stored base importance, purely; held as
+/// Scores importance purely: a candidate's stored base on write and a
+/// stored fact's in-context score per request; held as
 /// `Arc<dyn ImportanceModel>`. `None` abstains to the next model and
 /// finally to core's formula.
 pub trait ImportanceModel: Send + Sync {
     fn name(&self) -> &'static str;
 
     fn base(&self, candidate: &FactCandidate, config: &ImportanceConfig) -> Option<f64>;
+
+    fn in_context(
+        &self,
+        fact: &BrainFact,
+        ctx: &RecallCtx,
+        config: &ImportanceConfig,
+    ) -> Option<f64>;
 }
 
 /// Reads the text of the sources it handles; held as

@@ -7,6 +7,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use chrono::{Duration, Utc};
 use systemprompt_identifiers::BrainFactId;
 use systemprompt_models::brain::{FactRevision, identity_hash, render_statement};
 
@@ -22,8 +23,19 @@ impl BrainService {
         id: &BrainFactId,
     ) -> BrainResult<FactRevision> {
         let by = caller.user_id.clone();
-        self.govern(caller, id, |_, _| Ok(FactChange::Confirmed { by }))
-            .await
+        let default_days = self.profile.lifecycle.review_after_days;
+        self.govern(caller, id, |fact, declared| {
+            let days = declared
+                .kind(&fact.kind)
+                .and_then(|kind| kind.review_after_days)
+                .unwrap_or(default_days);
+            let review_after = Utc::now() + Duration::days(i64::from(days));
+            Ok(FactChange::Confirmed {
+                by,
+                review_after: Some(review_after),
+            })
+        })
+        .await
     }
 
     pub async fn retract(

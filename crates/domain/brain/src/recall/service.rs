@@ -17,9 +17,9 @@ use std::time::Duration;
 use chrono::Utc;
 use futures::future::join_all;
 use systemprompt_extension::brain::{
-    FactRecallSource, FactRetriever, InjectedFact, InjectionPolicy, MemoryRecall, RecallBlock,
-    RecallError, RecallOutcome, RecallReceipt, RecallRequest, ReuseHint, SkipReason, SourceAccess,
-    WithheldSummary,
+    FactRecallSource, FactRetriever, ImportanceModel, InjectedFact, InjectionPolicy, MemoryRecall,
+    RecallBlock, RecallError, RecallOutcome, RecallReceipt, RecallRequest, ReuseHint, SkipReason,
+    SourceAccess, WithheldSummary,
 };
 use systemprompt_extension::notifications::NotificationAudienceResolver;
 use systemprompt_manifest::profile::{BrainProfile, StalePolicy};
@@ -48,6 +48,7 @@ pub struct BrainRecallService {
     pub(super) profile: Arc<BrainProfile>,
     pub(super) retrievers: Vec<Arc<dyn FactRetriever>>,
     pub(super) injection: Vec<Arc<dyn InjectionPolicy>>,
+    pub(super) importance: Vec<Arc<dyn ImportanceModel>>,
     pub(super) audiences: Vec<Arc<dyn NotificationAudienceResolver>>,
     pub(super) source_timeout: Duration,
 }
@@ -148,21 +149,29 @@ impl BrainRecallService {
         }
         let candidates = visible
             .into_iter()
-            .map(|scored| {
-                let input = ScoreInput {
-                    config: &declared.importance.in_context,
-                    workflow: ctx.workflow.as_ref(),
-                    subject_matched: fusion::found_by(&scored, RetrievalTier::Subject),
-                    now: ctx.now,
-                };
-                Candidate {
-                    importance: score::in_context(&scored.fact, &input).total,
-                    text: fact_text(&scored.fact),
-                    scored,
-                }
+            .map(|scored| Candidate {
+                importance: self.importance(&scored, ctx, declared),
+                text: fact_text(&scored.fact),
+                scored,
             })
             .collect();
         budget::fill(candidates, &limits)
+    }
+
+    fn importance(&self, scored: &ScoredFact, ctx: &RecallCtx, declared: &DeclaredRecall) -> f64 {
+        if let Some(score) = self
+            .importance
+            .iter()
+            .find_map(|model| model.in_context(&scored.fact, ctx, &declared.importance))
+        {
+            return score;
+        }
+        let input = ScoreInput {
+            config: &declared.importance,
+            ctx,
+            subject_matched: fusion::found_by(scored, RetrievalTier::Subject),
+        };
+        score::in_context(&scored.fact, &input).total
     }
 
     async fn new_turn(&self, request: &RecallRequest) -> Result<RecallOutcome, RecallError> {
@@ -237,7 +246,7 @@ impl BrainRecallService {
             .store
             .stored_block(conversation)
             .await?
-            .as_deref()
+            .as_ref()
             .and_then(parse_stored)
             .map_or(not_new, RecallOutcome::Injected))
     }

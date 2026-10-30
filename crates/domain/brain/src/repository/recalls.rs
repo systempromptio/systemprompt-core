@@ -13,7 +13,10 @@ use systemprompt_identifiers::{
 use systemprompt_traits::RepositoryError;
 
 use super::Pools;
-use crate::models::{NewRecall, StoredBlock};
+use sqlx::types::Json;
+use systemprompt_models::brain::{FactRef, StoredBlock};
+
+use crate::models::NewRecall;
 
 #[derive(Debug, Clone)]
 pub struct RecallRepository {
@@ -62,16 +65,21 @@ impl RecallRepository {
         executor: impl PgExecutor<'_>,
         conversation: &GatewayConversationId,
     ) -> Result<Option<StoredBlock>, RepositoryError> {
-        Ok(sqlx::query_as!(
-            StoredBlock,
-            r#"SELECT id AS "recall_id: BrainRecallId", rendered_block AS "rendered_block!", as_of
+        let row = sqlx::query!(
+            r#"SELECT rendered_block AS "rendered!", as_of,
+                      injected AS "injected: Json<Vec<FactRef>>"
                FROM brain_recalls
                WHERE gateway_conversation_id = $1 AND rendered_block IS NOT NULL
                ORDER BY created_at DESC LIMIT 1"#,
             conversation.as_str(),
         )
         .fetch_optional(executor)
-        .await?)
+        .await?;
+        Ok(row.map(|row| StoredBlock {
+            rendered: row.rendered,
+            as_of: row.as_of,
+            facts: row.injected.0,
+        }))
     }
 
     pub async fn stored_block_for(

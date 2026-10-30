@@ -4,9 +4,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use chrono::{DateTime, Utc};
 use systemprompt_extension::brain::RecallConversation;
-use systemprompt_identifiers::{BrainRecallId, FactKindId, UserId};
+use systemprompt_identifiers::{FactKindId, UserId};
 use systemprompt_models::brain::{
     BrainOutcome, FactStatus, ProposalDraft, RecallAudit, SubjectKey,
 };
@@ -81,15 +80,6 @@ impl NewRecallBuilder {
     pub fn build(self) -> NewRecall {
         self.recall
     }
-}
-
-/// The block a conversation's last injecting recall sent, for same-turn
-/// reuse.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct StoredBlock {
-    pub recall_id: BrainRecallId,
-    pub rendered_block: String,
-    pub as_of: DateTime<Utc>,
 }
 
 /// Which facts a listing returns; empty `statuses` means every status.

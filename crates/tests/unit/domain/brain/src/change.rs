@@ -37,7 +37,10 @@ fn every_change() -> Vec<(FactChange, RevisionChange, Option<FactStatus>)> {
             None,
         ),
         (
-            FactChange::Confirmed { by: user("u1") },
+            FactChange::Confirmed {
+                by: user("u1"),
+                review_after: None,
+            },
             RevisionChange::Confirmed,
             Some(FactStatus::Confirmed),
         ),
@@ -80,6 +83,11 @@ fn every_change() -> Vec<(FactChange, RevisionChange, Option<FactStatus>)> {
             None,
         ),
         (FactChange::ReviewDue, RevisionChange::ReviewDue, None),
+        (
+            FactChange::Expired,
+            RevisionChange::Expired,
+            Some(FactStatus::Retired),
+        ),
     ]
 }
 
@@ -98,7 +106,7 @@ fn every_revision_kind_but_created_has_a_change() {
         .collect();
     recorded.sort_unstable();
     recorded.dedup();
-    assert_eq!(recorded.len(), 12);
+    assert_eq!(recorded.len(), 13);
     assert!(!recorded.contains(&RevisionChange::Created.as_str()));
 }
 
@@ -123,9 +131,13 @@ fn pin_changes_set_pinned_and_nothing_else_does() {
 
 #[test]
 fn confirmation_names_the_confirming_user() {
-    let change = FactChange::Confirmed { by: user("u9") };
+    let change = FactChange::Confirmed {
+        by: user("u9"),
+        review_after: None,
+    };
     assert_eq!(change.actor(), Some(&user("u9")));
     assert_eq!(FactChange::Staled.actor(), None);
+    assert_eq!(FactChange::Expired.actor(), None);
 }
 
 #[test]
@@ -138,4 +150,13 @@ fn new_fact_mints_an_id_and_hashes_its_statement() {
         statement_hash("billing is owned by ops")
     );
     assert_eq!(fact.status, FactStatus::Proposed);
+}
+
+#[test]
+fn an_expiry_is_recorded_as_expired_on_the_wire() {
+    assert_eq!(
+        serde_json::to_value(RevisionChange::Expired).expect("serialises"),
+        serde_json::json!("expired")
+    );
+    assert_eq!(RevisionChange::Expired.as_str(), "expired");
 }

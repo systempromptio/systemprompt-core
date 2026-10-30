@@ -151,7 +151,7 @@ CREATE TABLE IF NOT EXISTS brain_fact_revisions (
     change TEXT NOT NULL CHECK (change IN (
         'created', 'revised', 'merged', 'fields_edited', 'confirmed', 'disputed',
         'dispute_resolved', 'staled', 'superseded', 'retracted', 'pinned', 'unpinned',
-        'review_due'
+        'review_due', 'expired'
     )),
     actor_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
     status TEXT NOT NULL CHECK (status IN (

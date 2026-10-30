@@ -8481,10 +8481,12 @@ version = "0.76.0"
 dependencies = [
  "async-trait",
  "chrono",
+ "futures",
  "inventory",
  "metrics",
  "serde",
  "serde_json",
+ "serde_yaml_ng",
  "sqlx",
  "systemprompt-database",
  "systemprompt-events",
@@ -8492,6 +8494,7 @@ dependencies = [
  "systemprompt-identifiers",
  "systemprompt-manifest",
  "systemprompt-models",
+ "systemprompt-provider-contracts",
  "systemprompt-traits",
  "thiserror 2.0.21",
  "tokio",
@@ -8504,13 +8507,22 @@ dependencies = [
 name = "systemprompt-brain-tests"
 version = "0.0.11"
 dependencies = [
+ "async-trait",
  "chrono",
  "serde_json",
+ "serde_yaml_ng",
+ "sqlx",
  "systemprompt-brain",
+ "systemprompt-database",
  "systemprompt-extension",
  "systemprompt-identifiers",
  "systemprompt-manifest",
  "systemprompt-models",
+ "systemprompt-test-fixtures",
+ "systemprompt-traits",
+ "tempfile",
+ "tokio",
+ "uuid",
 ]
 
 [[package]]

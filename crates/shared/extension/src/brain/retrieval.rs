@@ -8,7 +8,7 @@ use chrono::{DateTime, Utc};
 use systemprompt_identifiers::{BrainFactId, GatewayConversationId};
 use systemprompt_models::brain::{
     BrainFact, BrainOutcome, InjectionPlan, OutcomeObservation, ProposalDraft, RecallCtx,
-    RecallQuery, ScoredFact,
+    RecallQuery, ScoredFact, StoredBlock,
 };
 
 use super::errors::{BrainAnalysisError, OutcomeSignalError, RecallError};
@@ -43,7 +43,7 @@ pub trait FactRecallSource: Send + Sync {
     async fn stored_block(
         &self,
         conversation: &GatewayConversationId,
-    ) -> Result<Option<String>, RecallError>;
+    ) -> Result<Option<StoredBlock>, RecallError>;
 
     async fn record_recall(&self, receipt: &RecallReceipt) -> Result<(), RecallError>;
 }

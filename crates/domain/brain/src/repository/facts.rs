@@ -220,7 +220,7 @@ impl FactRepository {
     ) -> Result<Vec<BrainFact>, RepositoryError> {
         let ids = sqlx::query_scalar!(
             r#"SELECT id AS "id: BrainFactId" FROM brain_facts
-               WHERE status = 'confirmed' AND review_after < $1
+               WHERE status IN ('confirmed', 'proposed') AND review_after < $1
                  AND (review_notified_at IS NULL OR review_notified_at < review_after)
                ORDER BY review_after, id LIMIT $2"#,
             now,

@@ -67,10 +67,9 @@ impl BrainService {
         let fact = self.get(caller, id).await?;
         let declared = self.declared.load().await?;
         let input = ScoreInput {
-            config: &declared.importance.in_context,
-            workflow: ctx.workflow.as_ref(),
+            config: &declared.importance,
+            ctx,
             subject_matched: false,
-            now: ctx.now,
         };
         let terms = score::in_context(&fact, &input);
         let inject_stale = self.profile.recall.stale == StalePolicy::Marker;

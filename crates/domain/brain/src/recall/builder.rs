@@ -1,6 +1,7 @@
 //! [`BrainRecallServiceBuilder`]: assembles a [`BrainRecallService`] from
 //! its store, source check, declarations and profile, with optional
-//! extension retrievers, injection policies and audience resolvers.
+//! extension retrievers, injection policies, importance models and
+//! audience resolvers.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -9,7 +10,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use systemprompt_extension::brain::{
-    FactRecallSource, FactRetriever, InjectionPolicy, SourceAccess,
+    FactRecallSource, FactRetriever, ImportanceModel, InjectionPolicy, SourceAccess,
 };
 use systemprompt_extension::notifications::NotificationAudienceResolver;
 use systemprompt_manifest::profile::BrainProfile;
@@ -24,6 +25,7 @@ impl std::fmt::Debug for BrainRecallService {
         f.debug_struct("BrainRecallService")
             .field("retrievers", &self.retrievers.len())
             .field("injection", &self.injection.len())
+            .field("importance", &self.importance.len())
             .field("audiences", &self.audiences.len())
             .finish_non_exhaustive()
     }
@@ -51,6 +53,7 @@ impl BrainRecallService {
                 profile,
                 retrievers: Vec::new(),
                 injection: Vec::new(),
+                importance: Vec::new(),
                 audiences: Vec::new(),
                 source_timeout: DEFAULT_SOURCE_TIMEOUT,
             },
@@ -68,6 +71,12 @@ impl BrainRecallServiceBuilder {
     #[must_use]
     pub fn injection_policies(mut self, policies: Vec<Arc<dyn InjectionPolicy>>) -> Self {
         self.service.injection = policies;
+        self
+    }
+
+    #[must_use]
+    pub fn importance(mut self, models: Vec<Arc<dyn ImportanceModel>>) -> Self {
+        self.service.importance = models;
         self
     }
 

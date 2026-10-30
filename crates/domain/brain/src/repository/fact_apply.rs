@@ -70,6 +70,10 @@ impl Patch {
                 importance_base: Some(*importance_base),
                 review_after: Some(*review_after),
             },
+            FactChange::Confirmed { review_after, .. } => Self {
+                review_after: Some(*review_after),
+                ..Self::default()
+            },
             FactChange::Merged { topics, .. } => Self {
                 topics: Some(topic_strings(topics)),
                 ..Self::default()
@@ -104,7 +108,7 @@ impl FactRepository {
         };
         let columns = source.as_ref().map(SourceColumns::of);
         let confirmed_by = match &change {
-            FactChange::Confirmed { by } => Some(by.as_str()),
+            FactChange::Confirmed { by, .. } => Some(by.as_str()),
             _ => None,
         };
         let row = sqlx::query!(
@@ -124,7 +128,9 @@ impl FactRepository {
                    confirmed_by = CASE WHEN $15::text IS NULL THEN confirmed_by ELSE $15 END,
                    confirmed_at = CASE WHEN $15::text IS NULL THEN confirmed_at ELSE now() END,
                    pinned = COALESCE($16, pinned),
-                   review_notified_at = CASE WHEN $17 THEN now() ELSE review_notified_at END,
+                   review_notified_at = CASE WHEN $17 THEN now()
+                                             WHEN $15::text IS NOT NULL THEN NULL
+                                             ELSE review_notified_at END,
                    revision = revision + 1,
                    updated_at = now()
                WHERE id = $1

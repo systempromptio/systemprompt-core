@@ -27,6 +27,7 @@ pub enum RevisionChange {
     Pinned,
     Unpinned,
     ReviewDue,
+    Expired,
 }
 
 impl RevisionChange {
@@ -46,6 +47,7 @@ impl RevisionChange {
             Self::Pinned => "pinned",
             Self::Unpinned => "unpinned",
             Self::ReviewDue => "review_due",
+            Self::Expired => "expired",
         }
     }
 }

@@ -59,7 +59,7 @@ pub use payload::{CommentAnchorRef, CommentResolved, RevisionLanded};
 pub use proposal::{BrainProposal, ProposalDraft, ProposalKind, ProposalStatus};
 pub use recall::{
     FactRef, InjectionPlan, RecallAudit, RecallCtx, RecallQuery, RetrievalTier, ScoredFact,
-    TierRank, WithheldFact, WithheldReason,
+    StoredBlock, TierRank, WithheldFact, WithheldReason,
 };
 pub use revision::{FactRevision, RevisionChange};
 pub use scope::{FactScope, ScopeLevel, UnknownScopeLevel};

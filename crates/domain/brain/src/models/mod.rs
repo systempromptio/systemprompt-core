@@ -15,5 +15,5 @@ pub use change::{FactChange, NewRevision};
 pub use fact::{Inserted, NewFact, NewFactBuilder};
 pub use ledger::{DisputeStatus, EventOutcome, EventResult, NewDispute, NewExtraction, NewFailure};
 pub use plane::{PlaneRow, PlaneSource};
-pub use read::{FactFilter, NewOutcome, NewProposal, NewRecall, NewRecallBuilder, StoredBlock};
+pub use read::{FactFilter, NewOutcome, NewProposal, NewRecall, NewRecallBuilder};
 pub(crate) use row::{FactRow, FieldMap, RevisionRow, decode_status};

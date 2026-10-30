@@ -36,6 +36,7 @@ pub enum FactChange {
     },
     Confirmed {
         by: UserId,
+        review_after: Option<DateTime<Utc>>,
     },
     Disputed {
         actor: Option<UserId>,
@@ -58,6 +59,7 @@ pub enum FactChange {
         actor: UserId,
     },
     ReviewDue,
+    Expired,
 }
 
 impl FactChange {
@@ -76,6 +78,7 @@ impl FactChange {
             Self::Pinned { .. } => RevisionChange::Pinned,
             Self::Unpinned { .. } => RevisionChange::Unpinned,
             Self::ReviewDue => RevisionChange::ReviewDue,
+            Self::Expired => RevisionChange::Expired,
         }
     }
 
@@ -87,7 +90,7 @@ impl FactChange {
             Self::Disputed { .. } => Some(FactStatus::Disputed),
             Self::Staled => Some(FactStatus::Stale),
             Self::Superseded { .. } => Some(FactStatus::Superseded),
-            Self::Retracted { .. } => Some(FactStatus::Retired),
+            Self::Retracted { .. } | Self::Expired => Some(FactStatus::Retired),
             Self::Merged { .. }
             | Self::FieldsEdited { .. }
             | Self::Pinned { .. }
@@ -117,8 +120,8 @@ impl FactChange {
             | Self::Retracted { actor }
             | Self::Pinned { actor }
             | Self::Unpinned { actor } => Some(actor),
-            Self::Confirmed { by } => Some(by),
-            Self::Staled | Self::ReviewDue => None,
+            Self::Confirmed { by, .. } => Some(by),
+            Self::Staled | Self::ReviewDue | Self::Expired => None,
         }
     }
 }

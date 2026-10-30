@@ -152,6 +152,15 @@ pub struct FactRef {
     pub revision: i32,
 }
 
+/// The block a conversation's last injecting recall sent and the facts,
+/// at their revisions, it named; same-turn reuse resends it unchanged.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StoredBlock {
+    pub rendered: String,
+    pub as_of: DateTime<Utc>,
+    pub facts: Vec<FactRef>,
+}
+
 /// The audit of one recall: what was injected, what was withheld by
 /// reason, the tokens spent and the instant the facts were read at.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

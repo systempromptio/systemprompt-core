@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id AS \"id: BrainFactId\" FROM brain_facts\n               WHERE status = 'confirmed' AND review_after < $1\n                 AND (review_notified_at IS NULL OR review_notified_at < review_after)\n               ORDER BY review_after, id LIMIT $2",
+  "query": "SELECT id AS \"id: BrainFactId\" FROM brain_facts\n               WHERE status IN ('confirmed', 'proposed') AND review_after < $1\n                 AND (review_notified_at IS NULL OR review_notified_at < review_after)\n               ORDER BY review_after, id LIMIT $2",
   "describe": {
     "columns": [
       {
@@ -25,5 +25,5 @@
       false
     ]
   },
-  "hash": "aac831afd60f2240b0711e226544b1096f6cf5b4153513b4446817708081c1bd"
+  "hash": "483ff7a7ba1ba479d7a5bad7dedeb76cafc095f968f2783adc47e6f83e055c31"
 }

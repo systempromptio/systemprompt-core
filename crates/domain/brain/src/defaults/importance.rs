@@ -8,12 +8,16 @@
 //! usage`, with `recency = 0.5^(age_days / half_life_days)` and `usage =
 //! cited_rate × cited_rate_weight − ignored_rate × ignored_penalty`.
 //!
+//! The seam's `in_context` sees no tier ranks or usage history, so it
+//! scores with no subject match and zero usage; recall itself scores
+//! through `recall::score`, which knows whether the subject tier matched.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_extension::brain::ImportanceModel;
 use systemprompt_identifiers::{FactKindId, WorkflowId};
-use systemprompt_models::brain::{FactCandidate, ImportanceConfig};
+use systemprompt_models::brain::{BrainFact, FactCandidate, ImportanceConfig, RecallCtx};
 
 /// Core's importance formula.
 #[derive(Debug, Clone, Copy, Default)]
@@ -93,4 +97,31 @@ impl ImportanceModel for FormulaImportance {
     fn base(&self, candidate: &FactCandidate, config: &ImportanceConfig) -> Option<f64> {
         Some(Self::base_with(candidate, config, false))
     }
+
+    fn in_context(
+        &self,
+        fact: &BrainFact,
+        ctx: &RecallCtx,
+        config: &ImportanceConfig,
+    ) -> Option<f64> {
+        let terms = InContextTerms {
+            base: fact.importance_base,
+            kind: &fact.kind,
+            workflow: ctx.workflow.as_ref(),
+            age_days: age_days(fact, ctx),
+            subject_matched: false,
+            cited_rate: 0.0,
+            ignored_rate: 0.0,
+        };
+        Some(Self::score(&terms, config))
+    }
+}
+
+const MINUTES_PER_DAY: f64 = 1_440.0;
+
+#[must_use]
+pub fn age_days(fact: &BrainFact, ctx: &RecallCtx) -> f64 {
+    let minutes =
+        u32::try_from((ctx.now - fact.updated_at).num_minutes().max(0)).unwrap_or(u32::MAX);
+    f64::from(minutes) / MINUTES_PER_DAY
 }

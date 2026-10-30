@@ -7,6 +7,11 @@ use systemprompt_identifiers::{
 use systemprompt_models::brain::{FactSource, Pathway, SourceClass, SourceSpan};
 use systemprompt_models::notifications::SubjectRef;
 
+const DOC: &str = "0b9d8a52-3f1e-4c7a-9e2d-5a6b7c8d9e0f";
+const REV: &str = "1c2d3e4f-5a6b-4c7d-8e9f-0a1b2c3d4e5f";
+const COMMENT: &str = "2d3e4f5a-6b7c-4d8e-9f0a-1b2c3d4e5f60";
+const RUN: &str = "3e4f5a6b-7c8d-4e9f-8a1b-2c3d4e5f6071";
+
 fn round_trip(source: &FactSource) {
     let encoded = serde_json::to_value(source).unwrap_or_else(|e| panic!("encode: {e}"));
     let decoded: FactSource =
@@ -16,8 +21,8 @@ fn round_trip(source: &FactSource) {
 
 fn document() -> FactSource {
     FactSource::Document {
-        document_id: DocumentId::new("doc-1"),
-        revision_id: DocumentRevisionId::new("rev-3"),
+        document_id: DocumentId::new(DOC),
+        revision_id: DocumentRevisionId::new(REV),
         span: Some(SourceSpan {
             node_id: DocumentNodeId::new("n-9"),
             hash8: "0a1b2c3d".to_owned(),
@@ -36,8 +41,8 @@ fn every_source_round_trips() {
     let sources = [
         document(),
         FactSource::Comment {
-            document_id: DocumentId::new("doc-1"),
-            comment_id: DocumentCommentId::new("c-1"),
+            document_id: DocumentId::new(DOC),
+            comment_id: DocumentCommentId::new(COMMENT),
         },
         FactSource::Session {
             session_id: SessionId::new("sess_1"),
@@ -51,7 +56,7 @@ fn every_source_round_trips() {
             reference: "deal/7".to_owned(),
         },
         FactSource::Run {
-            run_id: AgentRunId::new("run-1"),
+            run_id: AgentRunId::new(RUN),
         },
         FactSource::Aggregate {
             pathway: Pathway::DocumentRevision,
@@ -86,15 +91,15 @@ fn unknown_source_fields_are_refused() {
 fn visibility_subject_names_the_gating_resource() {
     assert_eq!(
         document().visibility_subject(),
-        Some(SubjectRef::new("document", "doc-1"))
+        Some(SubjectRef::new("document", DOC))
     );
     let comment = FactSource::Comment {
-        document_id: DocumentId::new("doc-1"),
-        comment_id: DocumentCommentId::new("c-1"),
+        document_id: DocumentId::new(DOC),
+        comment_id: DocumentCommentId::new(COMMENT),
     };
     assert_eq!(
         comment.visibility_subject(),
-        Some(SubjectRef::new("document", "doc-1"))
+        Some(SubjectRef::new("document", DOC))
     );
     let external = FactSource::External {
         system: "crm".to_owned(),
