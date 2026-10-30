@@ -179,7 +179,7 @@ pub(super) fn brain_caller(ctx: &RequestContext) -> Result<BrainCaller, McpError
             "brain tools act for the signed-in user; this call carried no authenticated user",
         )
     })?;
-    Ok(BrainCaller::new(user.id.clone(), user.roles.clone()))
+    Ok(BrainCaller::new(user.id.clone(), user.roles.clone()).with_actor(agent_actor(ctx)))
 }
 
 pub(super) fn agent_actor(ctx: &RequestContext) -> RequestActor {

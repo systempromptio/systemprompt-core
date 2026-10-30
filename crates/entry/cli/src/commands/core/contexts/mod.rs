@@ -53,31 +53,31 @@ pub enum ContextsCommands {
 pub async fn execute(cmd: ContextsCommands, ctx: &CommandContext) -> Result<()> {
     match cmd {
         ContextsCommands::List(args) => {
-            let result = list::execute(args, ctx).await?;
+            let result = Box::pin(list::execute(args, ctx)).await?;
             render_result(&result, &ctx.cli);
         },
         ContextsCommands::Show(args) => {
-            let result = show::execute(args, ctx).await?;
+            let result = Box::pin(show::execute(args, ctx)).await?;
             render_result(&result, &ctx.cli);
         },
         ContextsCommands::Create(args) => {
-            let result = create::execute(args, ctx).await?;
+            let result = Box::pin(create::execute(args, ctx)).await?;
             render_result(&result, &ctx.cli);
         },
         ContextsCommands::Edit(args) => {
-            let result = edit::execute(args, ctx).await?;
+            let result = Box::pin(edit::execute(args, ctx)).await?;
             render_result(&result, &ctx.cli);
         },
         ContextsCommands::Delete(args) => {
-            let result = delete::execute(args, ctx).await?;
+            let result = Box::pin(delete::execute(args, ctx)).await?;
             render_result(&result, &ctx.cli);
         },
         ContextsCommands::Use(args) => {
-            let result = use_context::execute(args, ctx).await?;
+            let result = Box::pin(use_context::execute(args, ctx)).await?;
             render_result(&result, &ctx.cli);
         },
         ContextsCommands::New(args) => {
-            let result = new::execute(args, ctx).await?;
+            let result = Box::pin(new::execute(args, ctx)).await?;
             render_result(&result, &ctx.cli);
         },
     }

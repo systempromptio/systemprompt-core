@@ -17,7 +17,7 @@ use systemprompt_manifest::profile::BrainProfile;
 use systemprompt_provider_contracts::{JobScope, submit_job};
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderError, ProviderResult};
 
-use super::{
+use crate::analyses::{
     AnalysisRepository, BloatAnalysis, BloatThresholds, CoverageAnalysis, CoverageThresholds,
     RelevanceAnalysis, RelevanceThresholds, fresh_drafts,
 };
@@ -105,7 +105,7 @@ impl Job for BrainAnalysisJob {
             since: until - Duration::days(1),
             until,
         };
-        let (mut stored, mut failed) = (0_u64, 0_u64);
+        let (mut stored, mut failed) = (0u64, 0u64);
         for analysis in analyses(&repos, ctx) {
             match store_fresh(&repos, analysis.as_ref(), window).await {
                 Ok(count) => stored += count,

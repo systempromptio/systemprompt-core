@@ -46,7 +46,7 @@ impl PipelineVersionInputs {
         for (kind, version) in &self.prompt_versions {
             hasher.update([0u8]);
             hasher.update(kind.as_str().as_bytes());
-            hasher.update([b'=']);
+            hasher.update(*b"=");
             hasher.update(version.as_bytes());
         }
         let mut digest = hex::encode(hasher.finalize());

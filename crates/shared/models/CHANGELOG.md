@@ -6,6 +6,11 @@
 
 - **Breaking:** `Notification` replaces `excerpt` and `actor_display` with `title` and `body`, and `NotificationEvent` replaces `excerpt`/`with_excerpt` with `title`, `body`, `with_title` and `with_body`; `with_via_agent` takes an `AgentName`. Migrate feed clients by rendering `title` and `body` and resolving the actor from `actor_user_id`, and producers by setting a title or body on the event.
 
+### Added
+
+- The `brain` module: facts, revisions, scopes, sources, subjects, statements, statuses, candidates, extraction requests, recall plans, outcomes, proposals, the `services/brain/` declaration types with their validation, and the pipeline version.
+- `RequestActor`, `bearer_actor` and `agent_name`, the actor a bearer credential acts as, and `MemoryPreference`, read from the `x-systemprompt-memory` header.
+
 ## [0.76.0] - 2026-10-29
 
 ### Breaking

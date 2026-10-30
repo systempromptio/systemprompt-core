@@ -60,9 +60,9 @@ impl DeclaredBrain {
         self.topics.extend(other.topics);
         self.interests.extend(other.interests);
         self.workflows.extend(other.workflows);
-        self.filters = other.filters.or(self.filters.take());
-        self.importance = other.importance.or(self.importance.take());
-        self.retrieval = other.retrieval.or(self.retrieval.take());
+        self.filters = other.filters.or_else(|| self.filters.take());
+        self.importance = other.importance.or_else(|| self.importance.take());
+        self.retrieval = other.retrieval.or_else(|| self.retrieval.take());
     }
 
     pub fn entity_list(&self) -> Result<Vec<(String, String)>, serde_json::Error> {
@@ -118,7 +118,7 @@ impl DeclaredBrain {
                     .workflows
                     .push(serde_json::from_str(value).map_err(fail)?),
                 (DOC, FILTERS_DOC) => {
-                    brain.filters = Some(serde_json::from_str(value).map_err(fail)?)
+                    brain.filters = Some(serde_json::from_str(value).map_err(fail)?);
                 },
                 (DOC, IMPORTANCE_DOC) => {
                     brain.importance = Some(serde_json::from_str(value).map_err(fail)?);

@@ -10,6 +10,7 @@ use systemprompt_brain::BrainRepositories;
 use systemprompt_brain::consumer::BrainConsumer;
 use systemprompt_brain::pipeline::PipelineSeams;
 use systemprompt_brain::recall::BrainRecallService;
+use systemprompt_brain::replay::{ProposalReplay, ReplayService};
 use systemprompt_brain::service::BrainService;
 use systemprompt_events::services::durable::OutboxConsumer;
 use systemprompt_extension::ExtensionContext;
@@ -138,6 +139,18 @@ impl BrainHandle {
         let consumer = self.consumer.get_or_init(|| {
             let mut seams = PipelineSeams::discover(extensions);
             seams.sources.push(Arc::clone(&self.source_content));
+            let replay = ReplayService::new(
+                Arc::clone(&self.repos),
+                (*self.outbox).clone(),
+                seams.clone(),
+                (*self.profile).clone(),
+            );
+            if !self.service.attach_replay(ProposalReplay {
+                service: Arc::new(replay),
+                model: Arc::clone(&model),
+            }) {
+                tracing::warn!("Brain proposal replay was already attached");
+            }
             Arc::new(
                 BrainConsumer::builder(
                     Arc::clone(&self.repos),

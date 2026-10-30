@@ -29,6 +29,8 @@ mod plane_round_trip;
 #[cfg(test)]
 mod purge;
 #[cfg(test)]
+mod read_visibility;
+#[cfg(test)]
 mod recall_seed;
 #[cfg(test)]
 mod recall_support;

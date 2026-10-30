@@ -86,7 +86,7 @@ impl OutcomeService {
         for (signal, result) in self.signals.iter().zip(observed) {
             match result {
                 Ok(found) => {
-                    outcomes.extend(found.into_iter().filter(|o| injected_by(&observation, o)))
+                    outcomes.extend(found.into_iter().filter(|o| injected_by(&observation, o)));
                 },
                 Err(error) => tracing::warn!(
                     signal = signal.name(),
@@ -96,7 +96,7 @@ impl OutcomeService {
                 ),
             }
         }
-        let mut written = 0_u32;
+        let mut written = 0u32;
         for outcome in &outcomes {
             if self.outcomes.record_detached(outcome).await? {
                 written += 1;

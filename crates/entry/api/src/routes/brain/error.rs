@@ -14,36 +14,36 @@ use systemprompt_extension::brain::RecallError;
 use systemprompt_identifiers::error::IdValidationError;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::brain::{SubjectKeyError, UnknownFactStatus};
-use systemprompt_traits::RepositoryError;
+use systemprompt_traits::{AuthProviderError, RepositoryError};
 
 use crate::error::ApiHttpError;
 
 /// A brain route failure, rendered through the shared API error envelope.
 #[derive(Debug)]
-pub struct BrainHttpError(ApiHttpError);
+pub struct BrainHttpError(Box<ApiHttpError>);
 
 impl BrainHttpError {
     #[must_use]
     pub fn into_inner(self) -> ApiError {
-        self.0.into_inner()
+        (*self.0).into_inner()
     }
 }
 
 impl IntoResponse for BrainHttpError {
     fn into_response(self) -> Response {
-        self.0.into_response()
+        (*self.0).into_response()
     }
 }
 
 impl From<ApiHttpError> for BrainHttpError {
     fn from(error: ApiHttpError) -> Self {
-        Self(error)
+        Self(Box::new(error))
     }
 }
 
 impl From<ApiError> for BrainHttpError {
     fn from(error: ApiError) -> Self {
-        Self(ApiHttpError::from(error))
+        Self(Box::new(ApiHttpError::from(error)))
     }
 }
 
@@ -56,6 +56,9 @@ impl From<BrainError> for BrainHttpError {
         let api = match error {
             BrainError::NotFound(_) => {
                 ApiError::not_found(error.to_string()).with_error_key("fact_not_found")
+            },
+            BrainError::ProposalNotFound(_) => {
+                ApiError::not_found(error.to_string()).with_error_key("proposal_not_found")
             },
             BrainError::Forbidden { .. } => {
                 ApiError::forbidden(error.to_string()).with_error_key("brain_forbidden")
@@ -92,6 +95,12 @@ fn repository(error: RepositoryError) -> ApiError {
         other => ApiError::service_unavailable("brain storage is unavailable")
             .with_error_key("brain_unavailable")
             .with_source(other),
+    }
+}
+
+impl From<AuthProviderError> for BrainHttpError {
+    fn from(error: AuthProviderError) -> Self {
+        ApiError::internal("user lookup failed", error).into()
     }
 }
 

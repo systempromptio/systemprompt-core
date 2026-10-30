@@ -1,8 +1,10 @@
-//! The filter stage: extension filters by ascending priority decide whether
-//! an event is worth reading. The first `Gather` or `Ignore` wins and an
-//! abstaining filter defers to the next; with no filter registered core
-//! gathers nothing. A person-entered fact bypasses the filters, and a
-//! pathway the profile does not capture is ignored before any filter runs.
+//! The filter stage.
+//!
+//! Extension filters by ascending priority decide whether an event is worth
+//! reading. The first `Gather` or `Ignore` wins and an abstaining filter
+//! defers to the next; with no filter registered core gathers nothing. A
+//! person-entered fact bypasses the filters, and a pathway the profile does
+//! not capture is ignored before any filter runs.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

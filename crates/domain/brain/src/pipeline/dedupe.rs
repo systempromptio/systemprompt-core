@@ -1,10 +1,11 @@
-//! The dedupe stage: how a validated candidate relates to what the store
-//! already holds. An erased identity is refused; the same identity revises
-//! the fact or, with an unchanged statement, leaves it; the same statement
-//! under another identity merges into that fact; a near-identical
-//! statement about the same subject and kind opens a dispute and never
-//! overwrites. [`decide`] is pure over a [`DedupeSnapshot`] the stage reads
-//! from the store.
+//! The dedupe stage.
+//!
+//! How a validated candidate relates to what the store already holds. An
+//! erased identity is refused; the same identity revises the fact or, with
+//! an unchanged statement, leaves it; the same statement under another
+//! identity merges into that fact; a near-identical statement about the
+//! same subject and kind opens a dispute and never overwrites. [`decide`]
+//! is pure over a [`DedupeSnapshot`] the stage reads from the store.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

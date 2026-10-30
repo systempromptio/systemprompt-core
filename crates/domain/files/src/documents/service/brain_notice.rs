@@ -47,7 +47,7 @@ impl DocumentService {
             revision_id: revision.id.clone(),
             parent_revision_id: revision.parent_revision_id.clone(),
             actor_kind: revision.actor_kind,
-            origin_kind: revision.origin_kind,
+            origin_kind: revision.origin.kind(),
             author: revision.author_user_id.clone(),
             session_id: attribution.session_id.clone(),
             context_id: attribution.context_id.clone(),

@@ -106,7 +106,7 @@ impl ConfigPlane for BrainPlane {
         tx: &mut PlaneTx<'_>,
     ) -> ConfigPlaneResult<PlaneSnapshot> {
         let tx = tx.get::<PlaneTransaction>()?;
-        let rows = PlaneRows::read(&mut **tx).await.map_err(backend)?;
+        let rows = PlaneRows::read(tx).await.map_err(backend)?;
         DeclaredBrain::from_rows(&rows)
             .and_then(|brain| brain.entities())
             .map_err(|e| invalid(BRAIN_DIR, &e))
@@ -121,7 +121,7 @@ impl ConfigPlane for BrainPlane {
         let tx = tx.get::<PlaneTransaction>()?;
         let mut outcome = ApplyOutcome::default();
         for (key, resolved) in entities {
-            write::write_entity(&mut **tx, key, resolved).await?;
+            write::write_entity(tx, key, resolved).await?;
             if resolved.value.is_some() {
                 outcome.updated += 1;
             } else {

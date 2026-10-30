@@ -56,9 +56,10 @@ pub enum FilterVerdict {
 }
 
 /// Decides, purely and before any model call, whether an event is worth
-/// reading; held as `Arc<dyn EventFilter>`. Filters run by priority and
-/// the first `Gather` or `Ignore` wins; an empty `kinds` gathers every
-/// kind.
+/// reading.
+///
+/// Held as `Arc<dyn EventFilter>`. Filters run by priority and the first
+/// `Gather` or `Ignore` wins; an empty `kinds` gathers every kind.
 pub trait EventFilter: Send + Sync {
     fn name(&self) -> &'static str;
 
@@ -103,10 +104,11 @@ pub trait FactValidator: Send + Sync {
     ) -> Result<ValidationVerdict, BrainValidateError>;
 }
 
-/// Scores importance purely: a candidate's stored base on write and a
-/// stored fact's in-context score per request; held as
-/// `Arc<dyn ImportanceModel>`. `None` abstains to the next model and
-/// finally to core's formula.
+/// Scores importance purely.
+///
+/// It gives a candidate's stored base on write and a stored fact's
+/// in-context score per request; held as `Arc<dyn ImportanceModel>`. `None`
+/// abstains to the next model and finally to core's formula.
 pub trait ImportanceModel: Send + Sync {
     fn name(&self) -> &'static str;
 

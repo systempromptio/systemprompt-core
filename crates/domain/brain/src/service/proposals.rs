@@ -47,11 +47,14 @@ impl BrainService {
         window: AnalysisWindow,
     ) -> BrainResult<ReplayReport> {
         authority::may_decide_proposals(caller)?;
-        let Some(replay) = self.replay.as_ref() else {
+        let Some(replay) = self.replay.get() else {
             return Err(BrainError::Forbidden {
                 reason: "replay is not configured".to_owned(),
             });
         };
+        if !ProposalRepository::exists(self.repos.write_pool(), id).await? {
+            return Err(BrainError::ProposalNotFound(id.clone()));
+        }
         let version = {
             let mut conn = self.repos.write_pool().acquire().await?;
             BatchContext::load(&mut conn).await?.version().clone()
@@ -63,9 +66,7 @@ impl BrainService {
         // JSON: the proposal's replay column stores the typed report.
         let stored = serde_json::to_value(&report)?;
         if !ProposalRepository::attach_replay(self.repos.write_pool(), id, &stored).await? {
-            return Err(BrainError::Forbidden {
-                reason: "the proposal does not exist".to_owned(),
-            });
+            return Err(BrainError::ProposalNotFound(id.clone()));
         }
         tracing::info!(proposal_id = %id, actor = %caller.user_id, events = report.events, "Brain proposal replayed");
         Ok(report)
@@ -80,6 +81,9 @@ impl BrainService {
         authority::may_decide_proposals(caller)?;
         if !ProposalRepository::decide(self.repos.write_pool(), id, status, &caller.user_id).await?
         {
+            if !ProposalRepository::exists(self.repos.write_pool(), id).await? {
+                return Err(BrainError::ProposalNotFound(id.clone()));
+            }
             return Err(BrainError::Forbidden {
                 reason: "the proposal is not open".to_owned(),
             });

@@ -23,7 +23,7 @@ pub fn parse_output(
 ) -> Result<Vec<FactCandidate>, ModelOutputError> {
     let output = match &response.structured {
         Some(value) => value.clone(),
-        None => serde_json::from_str(&response.text).map_err(|_| ModelOutputError::NotJson)?,
+        None => serde_json::from_str(&response.text).map_err(ModelOutputError::NotJson)?,
     };
     let Value::Object(mut root) = output else {
         return Err(schema("output is not an object"));
@@ -88,8 +88,9 @@ fn parse_fact(
 fn with_span(source: &FactSource, span: Option<Value>) -> Result<FactSource, ModelOutputError> {
     let span = match span {
         None | Some(Value::Null) => return Ok(source.clone()),
-        Some(value) => serde_json::from_value::<SourceSpan>(value)
-            .map_err(|_| schema("`span` is malformed"))?,
+        Some(value) => {
+            serde_json::from_value::<SourceSpan>(value).map_err(ModelOutputError::MalformedSpan)?
+        },
     };
     match source {
         FactSource::Document {

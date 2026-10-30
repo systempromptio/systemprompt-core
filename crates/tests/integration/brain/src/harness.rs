@@ -97,11 +97,13 @@ impl Harness {
         .build();
         let outbox = DurableOutbox::new(pg.clone(), unique_instance());
         let sink: DynBrainSink = Arc::new(OutboxBrainSink::new(Arc::new(outbox)));
+        let access = Arc::new(FakeSourceAccess::default());
         let service = BrainService::builder(
             (*repos).clone(),
             Arc::clone(&sink),
             Arc::new(setup.profile.clone()),
         )
+        .source_access(Arc::clone(&access) as _)
         .build();
         Self {
             db,
@@ -110,7 +112,7 @@ impl Harness {
             repos,
             model,
             parser,
-            access: Arc::new(FakeSourceAccess::default()),
+            access,
             sink,
             pipeline: Arc::new(pipeline),
             service,

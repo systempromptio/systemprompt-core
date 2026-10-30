@@ -1,7 +1,8 @@
-//! [`CoverageAnalysis`]: recalls that ran and injected nothing are requests
-//! the brain could not help. A client where most recalls come back empty
-//! gets a fact-actions proposal to add a kind or a capture pathway. Recalls
-//! carry no project, so the grouping is by client.
+//! [`CoverageAnalysis`].
+//!
+//! Recalls that ran and injected nothing are requests the brain could not
+//! help. A project where most recalls come back empty gets a fact-actions
+//! proposal to add a kind or a capture pathway.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -10,11 +11,11 @@ use serde::{Deserialize, Serialize};
 use systemprompt_extension::brain::{AnalysisWindow, BrainAnalysis, BrainAnalysisError};
 use systemprompt_models::brain::{ProposalDraft, ProposalKind};
 
-use super::store::{AnalysisRepository, ClientRecalls};
+use super::store::{AnalysisRepository, ProjectRecalls};
 
 pub const COVERAGE_ANALYSIS: &str = "coverage";
 
-/// A client is under-covered with at least `min_recalls` recalls of which
+/// A project is under-covered with at least `min_recalls` recalls of which
 /// at least `empty_share` injected nothing.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct CoverageThresholds {
@@ -39,14 +40,14 @@ pub enum CoverageAction {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CoverageNote {
-    pub client: String,
+    pub project: Option<String>,
     pub recalls: i64,
     pub empty: i64,
     pub action: CoverageAction,
 }
 
 #[must_use]
-pub fn under_covered(recalls: &ClientRecalls, thresholds: CoverageThresholds) -> bool {
+pub fn under_covered(recalls: &ProjectRecalls, thresholds: CoverageThresholds) -> bool {
     if recalls.recalls < thresholds.min_recalls.max(1) {
         return false;
     }
@@ -56,15 +57,15 @@ pub fn under_covered(recalls: &ClientRecalls, thresholds: CoverageThresholds) ->
 }
 
 pub fn coverage_drafts(
-    clients: &[ClientRecalls],
+    projects: &[ProjectRecalls],
     thresholds: CoverageThresholds,
 ) -> Result<Vec<ProposalDraft>, serde_json::Error> {
-    clients
+    projects
         .iter()
         .filter(|c| under_covered(c, thresholds))
         .map(|c| {
             let note = CoverageNote {
-                client: c.client.clone(),
+                project: c.project.clone(),
                 recalls: c.recalls,
                 empty: c.empty,
                 action: CoverageAction::AddKindOrPathway,
@@ -73,8 +74,10 @@ pub fn coverage_drafts(
                 analysis: COVERAGE_ANALYSIS.to_owned(),
                 kind: ProposalKind::FactActions,
                 summary: format!(
-                    "{} of {} recalls from {} injected no fact; add a kind or capture pathway",
-                    c.empty, c.recalls, c.client
+                    "{} of {} recalls for {} injected no fact; add a kind or capture pathway",
+                    c.empty,
+                    c.recalls,
+                    c.project.as_deref().unwrap_or("requests without a project")
                 ),
                 // JSON: the proposal body column stores the typed note.
                 body: serde_json::to_value(note)?,
@@ -107,8 +110,8 @@ impl BrainAnalysis for CoverageAnalysis {
         &self,
         window: AnalysisWindow,
     ) -> Result<Vec<ProposalDraft>, BrainAnalysisError> {
-        let clients = self.store.client_recalls(window).await?;
-        coverage_drafts(&clients, self.thresholds).map_err(|e| BrainAnalysisError::Other {
+        let projects = self.store.project_recalls(window).await?;
+        coverage_drafts(&projects, self.thresholds).map_err(|e| BrainAnalysisError::Other {
             analysis: COVERAGE_ANALYSIS,
             source: Box::new(e),
         })

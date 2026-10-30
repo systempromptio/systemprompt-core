@@ -59,6 +59,7 @@ mod documents_listing;
 mod documents_listing_scale;
 #[cfg(test)]
 mod documents_node_ids_backfill;
+#[cfg(test)]
 mod documents_notification_facts;
 #[cfg(test)]
 mod documents_proposals;

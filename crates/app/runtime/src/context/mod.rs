@@ -129,10 +129,8 @@ pub struct Subsystems {
 /// [`ConfigPlane`], [`Plugins`], [`Subsystems`]); each field is an [`Arc`] (or
 /// an `Arc`-internal handle such as [`DbPool`]), so `clone` is a
 /// reference-count bump rather than a deep copy. Construct it via
-/// [`AppContext::builder`] (or [`AppContext::new`] for the default build);
-/// [`AppContext::from_parts`] bypasses the bootstrap and is intended for tests
-/// and embedders that assemble the planes themselves. Read individual handles
-/// through the accessor methods.
+/// [`AppContext::builder`] or [`AppContext::new`]; [`AppContext::from_parts`]
+/// bypasses the bootstrap for tests and embedders that assemble the planes.
 #[derive(Clone)]
 pub struct AppContext {
     pub(crate) data: DataPlane,

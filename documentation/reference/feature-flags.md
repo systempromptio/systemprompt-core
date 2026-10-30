@@ -37,13 +37,17 @@ Cargo enables the transitive dependencies of each selected feature.
 | `agent-runs` | `dep:systemprompt-agent-runs` |
 | `slack` | `dep:systemprompt-slack` |
 | `teams` | `dep:systemprompt-teams` |
-| `full` | `api`, `mcp`, `cloud`, `cli`, `dep:systemprompt-agent`, `dep:systemprompt-ai`, `dep:systemprompt-mcp`, `dep:systemprompt-oauth`, `dep:systemprompt-users`, `dep:systemprompt-content`, `analytics`, `dep:systemprompt-marketplace`, `dep:systemprompt-scheduler`, `dep:systemprompt-generator`, `logging`, `systemprompt-logging/cli`, `config`, `dep:systemprompt-files`, `files-office`, `files-collab-loro`, `agent-runs`, `loader`, `events`, `storage`, `client`, `security` |
+| `notifications` | `dep:systemprompt-notifications`, `systemprompt-runtime?/notifications`, `systemprompt-api?/notifications` |
+| `brain` | `dep:systemprompt-brain`, `notifications`, `systemprompt-runtime?/brain`, `systemprompt-api?/brain` |
+| `full` | `api`, `mcp`, `cloud`, `cli`, `dep:systemprompt-agent`, `dep:systemprompt-ai`, `dep:systemprompt-mcp`, `dep:systemprompt-oauth`, `dep:systemprompt-users`, `dep:systemprompt-content`, `analytics`, `dep:systemprompt-marketplace`, `dep:systemprompt-scheduler`, `dep:systemprompt-generator`, `logging`, `systemprompt-logging/cli`, `config`, `dep:systemprompt-files`, `files-office`, `files-collab-loro`, `agent-runs`, `notifications`, `brain`, `loader`, `events`, `storage`, `client`, `security` |
 
 `dep:` selects an optional dependency; an unprefixed name selects another feature.
 `dependency/feature` enables a feature on that dependency. `full` excludes the opt-in
 `slack` and `teams` integrations. Enable them explicitly when required.
 
 `files-office` adds the Word, Excel, PowerPoint and OpenDocument codecs to the document store; the HTML, Markdown and text codecs and PDF export are always present. `files-collab` mounts the live co-editing routes and builds the `CollabService`; without an engine every session route answers `503 collab_engine_unavailable`. `files-collab-loro` adds the Loro engine (`systemprompt-files/collab-loro`), the only engine core ships. The document-scoped live channel and awareness route are mounted with the store itself and need no collab feature.
+
+`notifications` adds notification streams, rules, the per-user feed and their outbox consumer. `brain` adds the brain: its capture consumer, gateway recall, routes and jobs (see [the brain](../brain.md)); it implies `notifications`, and a profile with `brain.enabled: false` composes none of it.
 
 The `mcp` feature exposes `rmcp`; the `systemprompt-mcp` domain crate is included by
 `full`. `runtime` enables the CLI-backed runtime builder. The `api` dependency on

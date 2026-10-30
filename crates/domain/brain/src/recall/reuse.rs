@@ -1,9 +1,11 @@
-//! Same-turn reuse: a tool-result round trip sends the block its turn
-//! already sent. The stored text is parsed back into a [`RecallBlock`],
-//! each fact takes its revision from the stored refs, and the block is
-//! accepted only when the refs name the same facts in the same order and
-//! it renders to the identical bytes, so the prompt cache stays warm, the
-//! memory-ids header keeps its revisions and nothing drifts mid-task.
+//! Same-turn reuse.
+//!
+//! A tool-result round trip sends the block its turn already sent. The
+//! stored text is parsed back into a [`RecallBlock`], each fact takes its
+//! revision from the stored refs, and the block is accepted only when the
+//! refs name the same facts in the same order and it renders to the
+//! identical bytes, so the prompt cache stays warm, the memory-ids header
+//! keeps its revisions and nothing drifts mid-task.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

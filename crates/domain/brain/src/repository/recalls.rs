@@ -10,7 +10,7 @@ use std::collections::BTreeMap;
 use chrono::{DateTime, Utc};
 use sqlx::PgExecutor;
 use systemprompt_identifiers::{
-    AiRequestId, BrainRecallId, ContextId, GatewayConversationId, SessionId,
+    AiRequestId, BrainRecallId, ContextId, GatewayConversationId, SessionId, WorkflowId,
 };
 use systemprompt_traits::RepositoryError;
 
@@ -39,9 +39,9 @@ impl RecallRepository {
         sqlx::query!(
             "INSERT INTO brain_recalls
                  (id, principal_user_id, ai_request_id, gateway_conversation_id, session_id,
-                  context_id, client, project, injected, withheld, tokens, as_of, skipped,
-                  rendered_block)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)",
+                  context_id, client, project, workflow, injected, withheld, tokens, as_of,
+                  skipped, rendered_block)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)",
             audit.recall_id.as_str(),
             recall.principal.as_str(),
             conversation.ai_request_id.as_ref().map(AiRequestId::as_str),
@@ -53,6 +53,7 @@ impl RecallRepository {
             conversation.context_id.as_ref().map(ContextId::as_str),
             recall.client.as_str(),
             recall.project.as_deref(),
+            recall.workflow.as_ref().map(WorkflowId::as_str),
             serde_json::to_value(&audit.injected)?,
             serde_json::to_value(&audit.withheld)?,
             i32::try_from(audit.tokens).unwrap_or(i32::MAX),

@@ -8,7 +8,7 @@
 use chrono::{DateTime, Utc};
 use sqlx::PgConnection;
 use sqlx::types::Json;
-use systemprompt_identifiers::{BrainFactId, UserId};
+use systemprompt_identifiers::{BrainFactId, DocumentCommentId, DocumentId, DocumentRevisionId};
 use systemprompt_models::brain::{FactRevision, FactSource, statement_hash};
 use systemprompt_traits::RepositoryError;
 
@@ -18,21 +18,21 @@ use crate::models::{FactChange, FieldMap, NewRevision, decode_status};
 
 pub(super) struct SourceColumns<'a> {
     pub(super) kind: &'static str,
-    pub(super) document_id: Option<&'a str>,
-    pub(super) revision_id: Option<&'a str>,
-    pub(super) comment_id: Option<&'a str>,
+    pub(super) document_id: Option<&'a DocumentId>,
+    pub(super) revision_id: Option<&'a DocumentRevisionId>,
+    pub(super) comment_id: Option<&'a DocumentCommentId>,
 }
 
 impl<'a> SourceColumns<'a> {
-    pub(super) fn of(source: &'a FactSource) -> Self {
+    pub(super) const fn of(source: &'a FactSource) -> Self {
         let (revision_id, comment_id) = match source {
-            FactSource::Document { revision_id, .. } => (Some(revision_id.as_str()), None),
-            FactSource::Comment { comment_id, .. } => (None, Some(comment_id.as_str())),
+            FactSource::Document { revision_id, .. } => (Some(revision_id), None),
+            FactSource::Comment { comment_id, .. } => (None, Some(comment_id)),
             _ => (None, None),
         };
         Self {
             kind: source.class().as_str(),
-            document_id: source.document_id().map(|id| id.as_str()),
+            document_id: source.document_id(),
             revision_id,
             comment_id,
         }
@@ -43,11 +43,14 @@ impl<'a> SourceColumns<'a> {
 struct Patch {
     statement: Option<String>,
     statement_hash: Option<String>,
+    // JSON: the fact fields column stores the kind's declared field map.
     fields: Option<serde_json::Value>,
+    // JSON: the source column stores the serialised `FactSource`.
     source: Option<serde_json::Value>,
     topics: Option<Vec<String>>,
     importance_base: Option<f64>,
-    review_after: Option<Option<DateTime<Utc>>>,
+    sets_review_after: bool,
+    review_after: Option<DateTime<Utc>>,
 }
 
 impl Patch {
@@ -68,10 +71,12 @@ impl Patch {
                 source: Some(serde_json::to_value(source)?),
                 topics: Some(topic_strings(topics)),
                 importance_base: Some(*importance_base),
-                review_after: Some(*review_after),
+                sets_review_after: true,
+                review_after: *review_after,
             },
             FactChange::Confirmed { review_after, .. } => Self {
-                review_after: Some(*review_after),
+                sets_review_after: true,
+                review_after: *review_after,
                 ..Self::default()
             },
             FactChange::Merged { topics, .. } => Self {
@@ -136,19 +141,19 @@ impl FactRepository {
                WHERE id = $1
                RETURNING revision, status, statement, fields AS "fields: Json<FieldMap>""#,
             id.as_str(),
-            change.new_status().map(|s| s.as_str()),
+            change.new_status().map(systemprompt_models::brain::FactStatus::as_str),
             patch.statement,
             patch.statement_hash,
             patch.fields,
             patch.source,
             columns.as_ref().map(|c| c.kind),
-            columns.as_ref().and_then(|c| c.document_id),
-            columns.as_ref().and_then(|c| c.revision_id),
-            columns.as_ref().and_then(|c| c.comment_id),
+            columns.as_ref().and_then(|c| c.document_id).map(DocumentId::as_str),
+            columns.as_ref().and_then(|c| c.revision_id).map(DocumentRevisionId::as_str),
+            columns.as_ref().and_then(|c| c.comment_id).map(DocumentCommentId::as_str),
             patch.topics.as_deref(),
             patch.importance_base,
-            patch.review_after.is_some(),
-            patch.review_after.flatten(),
+            patch.sets_review_after,
+            patch.review_after,
             confirmed_by,
             change.new_pinned(),
             matches!(change, FactChange::ReviewDue),
@@ -162,7 +167,7 @@ impl FactRepository {
                 fact_id: id.clone(),
                 revision: row.revision,
                 change: change.revision_change(),
-                actor: change.actor().map(UserId::clone),
+                actor: change.actor().cloned(),
                 status: decode_status(&row.status)?,
                 statement: row.statement,
                 fields: row.fields.0,

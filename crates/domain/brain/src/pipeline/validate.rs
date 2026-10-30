@@ -5,6 +5,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashSet;
+use std::hash::BuildHasher;
 use std::sync::Arc;
 
 use systemprompt_extension::brain::{FactValidator, ValidationVerdict};
@@ -28,12 +29,12 @@ pub enum Validated {
     },
 }
 
-pub async fn validate(
+pub async fn validate<S: BuildHasher + Sync>(
     validators: &[Arc<dyn FactValidator>],
     candidate: FactCandidate,
     kind: &KindDecl,
     text: Option<&SourceText>,
-    topics: &HashSet<TopicId>,
+    topics: &HashSet<TopicId, S>,
 ) -> BrainResult<Validated> {
     let check = SchemaValidator::check(candidate, kind, text, topics);
     if !check.dropped_topics.is_empty() {

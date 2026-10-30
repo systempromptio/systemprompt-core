@@ -20,7 +20,7 @@ use systemprompt_identifiers::{
 use systemprompt_models::documents::Projection;
 use systemprompt_traits::RepositoryError;
 
-use super::landing_ids::{carry, reserve};
+use super::landing_ids::{Carried, carry, reserve};
 use super::{CommentPolicy, DocumentService};
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{
@@ -107,6 +107,21 @@ async fn claim_op(
 }
 
 impl DocumentService {
+    async fn detached_by(
+        &self,
+        document: &Document,
+        carried: &Carried,
+        placement: &Placement<'_>,
+    ) -> Result<Vec<DocumentCommentId>, DocumentsError> {
+        if !placement.moves_head {
+            return Ok(Vec::new());
+        }
+        let entries: Vec<NodeIdEntry> = carried.entries.iter().map(|c| c.entry.clone()).collect();
+        let provisional = with_ids(carried.next.clone(), &entries);
+        self.affected_anchors(&document.id, &provisional, placement.comments)
+            .await
+    }
+
     pub(super) async fn land(
         &self,
         document: &Document,
@@ -125,15 +140,7 @@ impl DocumentService {
         if let Some(model) = super::live_ids::live_model() {
             carried.pin(&super::live_ids::pinned_ids(&carried.next, &model));
         }
-        let detached = if placement.moves_head {
-            let entries: Vec<NodeIdEntry> =
-                carried.entries.iter().map(|c| c.entry.clone()).collect();
-            let provisional = with_ids(carried.next.clone(), &entries);
-            self.affected_anchors(&document.id, &provisional, placement.comments)
-                .await?
-        } else {
-            Vec::new()
-        };
+        let detached = self.detached_by(document, &carried, &placement).await?;
         let mut tx = self.repos.documents.begin().await?;
         let writer = writer_tag(revision.author_user_id.as_str());
         let entries = reserve(

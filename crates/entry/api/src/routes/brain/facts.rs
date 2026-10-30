@@ -11,7 +11,6 @@ use systemprompt_brain::FactFilter;
 use systemprompt_brain::service::FactWhy;
 use systemprompt_identifiers::{BrainFactId, FactKindId};
 use systemprompt_models::RequestContext;
-use systemprompt_models::auth::RequestActor;
 use systemprompt_models::brain::{
     BrainFact, EnteredFact, FactRevision, FactStatus, RecallCtx, SubjectKey,
 };
@@ -50,7 +49,10 @@ pub(super) async fn search(
     Extension(req_ctx): Extension<RequestContext>,
     Query(params): Query<SearchParams>,
 ) -> Result<Json<Vec<BrainFact>>, BrainHttpError> {
-    let caller = state.caller(req_ctx.user_id()).await?;
+    let caller = state
+        .caller(&req_ctx)
+        .await?
+        .with_project(params.project.clone());
     let filter = filter(params)?;
     Ok(Json(state.service.search(&caller, &filter).await?))
 }
@@ -60,7 +62,7 @@ pub(super) async fn subject(
     Extension(req_ctx): Extension<RequestContext>,
     Path((kind, id)): Path<(String, String)>,
 ) -> Result<Json<Vec<BrainFact>>, BrainHttpError> {
-    let caller = state.caller(req_ctx.user_id()).await?;
+    let caller = state.caller(&req_ctx).await?;
     let filter = FactFilter::new().with_subject(SubjectKey::new(kind, id));
     Ok(Json(state.service.search(&caller, &filter).await?))
 }
@@ -70,8 +72,8 @@ pub(super) async fn enter(
     Extension(req_ctx): Extension<RequestContext>,
     Json(body): Json<EnteredFact>,
 ) -> Result<(StatusCode, Json<EnterAccepted>), BrainHttpError> {
-    let caller = state.caller(req_ctx.user_id()).await?;
-    let outbox_id = state.service.enter(&caller.user_id, &body).await?;
+    let caller = state.caller(&req_ctx).await?;
+    let outbox_id = state.service.enter(&caller, &body).await?;
     Ok((StatusCode::ACCEPTED, Json(EnterAccepted { outbox_id })))
 }
 
@@ -80,7 +82,7 @@ pub(super) async fn get(
     Extension(req_ctx): Extension<RequestContext>,
     Path(id): Path<BrainFactId>,
 ) -> Result<Json<BrainFact>, BrainHttpError> {
-    let caller = state.caller(req_ctx.user_id()).await?;
+    let caller = state.caller(&req_ctx).await?;
     Ok(Json(state.service.get(&caller, &id).await?))
 }
 
@@ -89,7 +91,7 @@ pub(super) async fn timeline(
     Extension(req_ctx): Extension<RequestContext>,
     Path(id): Path<BrainFactId>,
 ) -> Result<Json<Vec<FactRevision>>, BrainHttpError> {
-    let caller = state.caller(req_ctx.user_id()).await?;
+    let caller = state.caller(&req_ctx).await?;
     Ok(Json(state.service.timeline(&caller, &id).await?))
 }
 
@@ -99,8 +101,11 @@ pub(super) async fn why(
     Path(id): Path<BrainFactId>,
     Query(params): Query<WhyParams>,
 ) -> Result<Json<FactWhy>, BrainHttpError> {
-    let caller = state.caller(req_ctx.user_id()).await?;
-    let mut ctx = RecallCtx::new(caller.user_id.clone(), RequestActor::Human, Utc::now())
+    let caller = state
+        .caller(&req_ctx)
+        .await?
+        .with_project(params.project.clone());
+    let mut ctx = RecallCtx::new(caller.user_id.clone(), caller.actor.clone(), Utc::now())
         .with_scopes(state.profile.recall.scopes.clone());
     if let Some(client) = params.client {
         ctx = ctx.with_client(client);

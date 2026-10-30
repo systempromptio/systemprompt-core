@@ -3,27 +3,26 @@
 //!
 //! The core analyses are [`BloatAnalysis`] (live facts per kind against
 //! injections), [`RelevanceAnalysis`] (injections against citations per
-//! kind) and [`CoverageAnalysis`] (recalls that injected nothing, per
-//! client); extensions add their own through the `BrainAnalysis` seam.
-//! [`BrainAnalysisJob`] runs them daily and stores each draft unless an open
-//! proposal from the same analysis already carries the same body.
+//! workflow and kind) and [`CoverageAnalysis`] (recalls that injected
+//! nothing, per project); extensions add their own through the
+//! `BrainAnalysis` seam. [`crate::jobs::BrainAnalysisJob`] runs them daily
+//! and stores each draft unless an open proposal from the same analysis
+//! already carries the same body.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod bloat;
 pub mod coverage;
-mod job;
 pub mod relevance;
 pub mod store;
 
 pub use bloat::{BLOAT_ANALYSIS, BloatAction, BloatAnalysis, BloatDiff, BloatThresholds};
 pub use coverage::{COVERAGE_ANALYSIS, CoverageAnalysis, CoverageNote, CoverageThresholds};
-pub use job::BrainAnalysisJob;
 pub use relevance::{
     RELEVANCE_ANALYSIS, RelevanceAnalysis, RelevanceDiff, RelevanceThresholds, WeightAdjustment,
 };
-pub use store::{AnalysisRepository, ClientRecalls, KindUsage};
+pub use store::{AnalysisRepository, KindUsage, ProjectRecalls, WorkflowKindUsage};
 
 use systemprompt_models::brain::{BrainProposal, ProposalDraft};
 

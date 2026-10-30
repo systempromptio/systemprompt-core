@@ -10,7 +10,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::{AiRequestId, ContextId, SessionId, TraceId};
+use systemprompt_identifiers::{AgentName, AiRequestId, ContextId, SessionId, TraceId};
 use systemprompt_manifest::services::catalog::ResolvedHop;
 use systemprompt_models::auth::RequestActor;
 use systemprompt_models::origin::{
@@ -71,7 +71,7 @@ pub(super) fn request_context(inputs: ContextInputs<'_>) -> GatewayRequestContex
         access_log: None,
         context_bound: false,
         actor: RequestActor::Agent {
-            name: "brain".to_owned(),
+            name: AgentName::new("brain"),
             attended: false,
         },
         memory: MemoryPreference::Off,

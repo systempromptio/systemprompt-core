@@ -12,6 +12,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod brain;
+mod brain_defaults;
 mod cloud;
 mod config_planes;
 mod database;

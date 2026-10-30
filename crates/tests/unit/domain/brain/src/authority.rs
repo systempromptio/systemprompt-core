@@ -1,6 +1,6 @@
 use systemprompt_brain::BrainError;
 use systemprompt_brain::service::authority::{
-    BrainCaller, may_decide_proposals, may_enter, may_govern, may_view,
+    BrainCaller, may_decide_proposals, may_enter, may_govern,
 };
 use systemprompt_identifiers::WorkflowId;
 use systemprompt_models::brain::{FactScope, WorkflowProfileDecl};
@@ -99,13 +99,46 @@ fn a_role_named_for_another_kind_or_no_role_at_all_is_refused() {
 }
 
 #[test]
-fn viewing_entering_and_deciding_proposals() {
+fn entering_needs_the_authority_that_governs_the_scope() {
+    let flows = [workflow("risk", Some("lead"))];
+    let risk = kind("risk");
     let bobs = FactScope::User(uid("bob"));
-    assert!(may_view(&caller("bob", &[]), &bobs).is_ok());
-    assert!(refused(may_view(&caller("carol", &["admin"]), &bobs)));
-    assert!(may_view(&caller("carol", &[]), &FactScope::Org).is_ok());
-    assert!(may_enter(&uid("bob"), &bobs).is_ok());
-    assert!(refused(may_enter(&uid("carol"), &bobs)));
+    assert!(may_enter(&caller("bob", &[]), &bobs, &risk, &flows).is_ok());
+    assert!(refused(may_enter(
+        &caller("carol", &["admin"]),
+        &bobs,
+        &risk,
+        &flows
+    )));
+    for scope in [
+        FactScope::Org,
+        FactScope::Project("apollo".to_owned()),
+        FactScope::Group("platform".to_owned()),
+    ] {
+        assert!(refused(may_enter(
+            &caller("sam", &["user"]),
+            &scope,
+            &risk,
+            &flows
+        )));
+        assert!(may_enter(&caller("ann", &["admin"]), &scope, &risk, &flows).is_ok());
+        assert!(may_enter(&caller("lee", &["lead"]), &scope, &risk, &flows).is_ok());
+        assert!(refused(may_enter(
+            &caller("lee", &["lead"]),
+            &scope,
+            &kind("other"),
+            &flows
+        )));
+    }
+}
+
+#[test]
+fn a_caller_without_an_actor_is_an_unattended_agent() {
+    assert!(caller("bob", &[]).actor.is_unattended_agent());
+}
+
+#[test]
+fn deciding_proposals_needs_an_admin() {
     assert!(may_decide_proposals(&caller("ann", &["admin"])).is_ok());
     assert!(refused(may_decide_proposals(&caller("sam", &["user"]))));
 }

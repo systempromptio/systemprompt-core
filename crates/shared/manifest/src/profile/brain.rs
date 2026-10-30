@@ -16,6 +16,15 @@ use systemprompt_identifiers::{ModelId, ProviderId};
 use systemprompt_models::brain::ScopeLevel;
 use systemprompt_models::origin::ClientKind;
 
+use super::brain_defaults::{
+    default_batch, default_budget_tokens, default_clients, default_correction_window_days,
+    default_daily_token_budget, default_deadline_ms, default_document_confirm,
+    default_extraction_timeout_ms, default_max_output_tokens, default_others_confirm,
+    default_poll_secs, default_recalls_retention_days, default_results_retention_days,
+    default_retired_retention_days, default_review_after_days, default_scopes,
+    default_source_timeout_ms, default_sources, default_sweep_secs,
+};
+
 /// The `brain:` profile block; every field has a default.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -130,6 +139,10 @@ pub struct BrainExtractionProfile {
 /// Review and retention windows.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
+#[expect(
+    clippy::struct_field_names,
+    reason = "field names are the profile YAML keys, where the unit suffix is the contract"
+)]
 pub struct BrainLifecycleProfile {
     #[serde(default = "default_review_after_days")]
     pub review_after_days: u32,
@@ -155,153 +168,4 @@ pub struct BrainConsumerProfile {
     pub sweep_secs: u32,
     #[serde(default = "default_source_timeout_ms")]
     pub source_timeout_ms: u64,
-}
-
-const fn default_budget_tokens() -> u32 {
-    800
-}
-
-const fn default_deadline_ms() -> u64 {
-    50
-}
-
-fn default_scopes() -> Vec<ScopeLevel> {
-    ScopeLevel::ALL.to_vec()
-}
-
-fn default_clients() -> BTreeMap<String, bool> {
-    [ClientKind::ClaudeCode, ClientKind::ClaudeDesktop]
-        .into_iter()
-        .map(|client| (client.as_str().to_owned(), true))
-        .collect()
-}
-
-fn default_sources() -> Vec<CaptureSource> {
-    vec![
-        CaptureSource::Document,
-        CaptureSource::Comment,
-        CaptureSource::Session,
-        CaptureSource::Entered,
-    ]
-}
-
-const fn default_document_confirm() -> AutoConfirm {
-    AutoConfirm::ProjectPolicy
-}
-
-const fn default_others_confirm() -> AutoConfirm {
-    AutoConfirm::Never
-}
-
-const fn default_max_output_tokens() -> u32 {
-    2048
-}
-
-const fn default_extraction_timeout_ms() -> u64 {
-    60_000
-}
-
-const fn default_daily_token_budget() -> u64 {
-    1_000_000
-}
-
-const fn default_correction_window_days() -> u32 {
-    14
-}
-
-const fn default_review_after_days() -> u32 {
-    90
-}
-
-const fn default_retired_retention_days() -> u32 {
-    365
-}
-
-const fn default_recalls_retention_days() -> u32 {
-    90
-}
-
-const fn default_results_retention_days() -> u32 {
-    30
-}
-
-const fn default_batch() -> u32 {
-    32
-}
-
-const fn default_poll_secs() -> u32 {
-    5
-}
-
-const fn default_sweep_secs() -> u32 {
-    300
-}
-
-const fn default_source_timeout_ms() -> u64 {
-    5000
-}
-
-impl Default for BrainRecallProfile {
-    fn default() -> Self {
-        Self {
-            budget_tokens: default_budget_tokens(),
-            deadline_ms: default_deadline_ms(),
-            scopes: default_scopes(),
-            clients: default_clients(),
-            stale: StalePolicy::default(),
-        }
-    }
-}
-
-impl Default for AutoConfirmPolicy {
-    fn default() -> Self {
-        Self {
-            document: default_document_confirm(),
-            others: default_others_confirm(),
-        }
-    }
-}
-
-impl Default for BrainCaptureProfile {
-    fn default() -> Self {
-        Self {
-            sources: default_sources(),
-            auto_confirm: AutoConfirmPolicy::default(),
-        }
-    }
-}
-
-impl Default for BrainExtractionProfile {
-    fn default() -> Self {
-        Self {
-            provider: None,
-            model: None,
-            max_output_tokens: default_max_output_tokens(),
-            timeout_ms: default_extraction_timeout_ms(),
-            daily_token_budget: default_daily_token_budget(),
-        }
-    }
-}
-
-impl Default for BrainLifecycleProfile {
-    fn default() -> Self {
-        Self {
-            review_after_days: default_review_after_days(),
-            retired_retention_days: default_retired_retention_days(),
-            recalls_retention_days: default_recalls_retention_days(),
-            results_retention_days: default_results_retention_days(),
-            correction_window_days: default_correction_window_days(),
-        }
-    }
-}
-
-impl Default for BrainConsumerProfile {
-    fn default() -> Self {
-        Self {
-            batch: default_batch(),
-            poll_secs: default_poll_secs(),
-            sweep_secs: default_sweep_secs(),
-            source_timeout_ms: default_source_timeout_ms(),
-        }
-    }
 }

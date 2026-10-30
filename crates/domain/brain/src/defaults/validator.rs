@@ -10,6 +10,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashSet;
+use std::hash::BuildHasher;
 
 use chrono::{DateTime, NaiveDate};
 use serde_json::Value;
@@ -35,21 +36,21 @@ impl SchemaValidator {
     pub const NAME: &'static str = "core.schema";
 
     #[must_use]
-    pub fn check(
+    pub fn check<S: BuildHasher>(
         mut candidate: FactCandidate,
         kind: &KindDecl,
         text: Option<&SourceText>,
-        known_topics: &HashSet<TopicId>,
+        known_topics: &HashSet<TopicId, S>,
     ) -> SchemaCheck {
         let (kept, dropped): (Vec<TopicId>, Vec<TopicId>) = candidate
             .topics
             .drain(..)
             .partition(|topic| known_topics.contains(topic));
         candidate.topics = kept;
-        let verdict = match Self::reason(&candidate, kind, text) {
-            Some(reason) => ValidationVerdict::Reject { reason },
-            None => ValidationVerdict::Accept,
-        };
+        let verdict = Self::reason(&candidate, kind, text)
+            .map_or(ValidationVerdict::Accept, |reason| {
+                ValidationVerdict::Reject { reason }
+            });
         SchemaCheck {
             candidate,
             verdict,

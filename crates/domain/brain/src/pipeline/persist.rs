@@ -1,8 +1,10 @@
-//! The persist stage: one decided candidate becomes a write through the
-//! fact repository. A new fact is inserted with revision 1; a revision,
-//! merge or dispute is a [`FactChange`] applied to the existing fact, so
-//! every change has its revision row; a dispute also opens a dispute row
-//! and never overwrites the fact.
+//! The persist stage.
+//!
+//! One decided candidate becomes a write through the fact repository. A new
+//! fact is inserted with revision 1; a revision, merge or dispute is a
+//! [`FactChange`] applied to the existing fact, so every change has its
+//! revision row; a dispute also opens a dispute row and never overwrites
+//! the fact.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

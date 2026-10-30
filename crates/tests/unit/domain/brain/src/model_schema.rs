@@ -100,14 +100,14 @@ fn the_text_is_parsed_when_no_structured_output_came_back() {
         &span_source(None),
         "core.model",
     );
-    assert_eq!(parsed.map(|c| c.len()), Ok(1));
+    assert_eq!(parsed.map(|c| c.len()).ok(), Some(1));
     let garbage = parse_output(
         &kind_decl(),
         &response(None, "sure! here you go"),
         &span_source(None),
         "core.model",
     );
-    assert_eq!(garbage, Err(ModelOutputError::NotJson));
+    assert!(matches!(garbage, Err(ModelOutputError::NotJson(_))));
 }
 
 #[test]
@@ -128,7 +128,7 @@ fn extra_keys_are_refused() {
         parse(no_subject),
         Err(ModelOutputError::Schema(_))
     ));
-    assert_eq!(parse(serde_json::json!({ "facts": [] })), Ok(0));
+    assert_eq!(parse(serde_json::json!({ "facts": [] })).ok(), Some(0));
 }
 
 #[test]

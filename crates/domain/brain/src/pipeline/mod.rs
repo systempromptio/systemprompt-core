@@ -119,8 +119,10 @@ impl BrainPipeline {
         if !EventResultRepository::claim(&mut *conn, delivery_id, ctx.version(), kind).await? {
             return Ok(ProcessOutcome::Skipped);
         }
-        let mut summary = EventSummary::default();
-        summary.staled = stale::mark_stale(conn, &event).await?.len();
+        let mut summary = EventSummary {
+            staled: stale::mark_stale(conn, &event).await?.len(),
+            ..EventSummary::default()
+        };
         let decision = filter::decide(&self.seams.filters, &self.profile.capture, &event.envelope);
         summary.filter = decision.filter_name().map(str::to_owned);
         let kinds: Vec<&KindDecl> = match &decision {

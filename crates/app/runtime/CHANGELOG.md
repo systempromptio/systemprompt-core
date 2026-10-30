@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.77.0] - 2026-10-30
+
+### Breaking
+
+- **Breaking:** `Subsystems` gains `brain: Option<Arc<BrainHandle>>` with the `brain` feature. Migrate struct literals by adding `brain: None` or the composed handle.
+
+### Added
+
+- The `brain` feature: `BrainCore` and `BrainHandle` (repositories, sink, service, recall and the capture consumer with proposal replay), `brain_sink`, `DocumentSourceAccess` and `DocumentSourceContent`, and the brain MCP tools (`BrainMcpTools`).
+
 ## [0.76.0] - 2026-10-29
 
 ### Breaking

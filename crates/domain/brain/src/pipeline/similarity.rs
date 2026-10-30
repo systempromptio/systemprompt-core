@@ -1,7 +1,8 @@
 //! Trigram similarity of two statements, computed the way Postgres
-//! `pg_trgm` computes `similarity()`: each lowercased alphanumeric word is
-//! padded with two leading spaces and one trailing space, and the score is
-//! the shared trigrams over the union.
+//! `pg_trgm` computes `similarity()`.
+//!
+//! Each lowercased alphanumeric word is padded with two leading spaces and
+//! one trailing space, and the score is the shared trigrams over the union.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

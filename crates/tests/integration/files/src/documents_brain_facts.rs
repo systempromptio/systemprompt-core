@@ -133,7 +133,7 @@ fn set_text(document: &DocumentId, text: &str) -> CommitRequest {
         }]),
         author: api_author(),
         message: None,
-        lock_holder_id: None,
+        lock_holder: None,
         comments: CommentPolicy::default(),
         op_id: None,
         media: Media::new(),

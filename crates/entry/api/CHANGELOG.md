@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.77.0] - 2026-10-30
+
+### Breaking
+
+- **Breaking:** the gateway `Principal` gains `actor: RequestActor`, derived from the bearer's purpose, client and interaction or, for an API key, the key's unattended agent. Migrate struct literals by adding the actor.
+
+### Added
+
+- The `brain` feature: `/api/v1/brain` and `/api/v1/admin/brain/simulate` behind the `brain_per_second` rate limit, the brain capture consumer on runner nodes, and gateway recall wiring. An enabled brain without the gateway or a user provider fails the start.
+
 ## [0.76.0] - 2026-10-29
 
 ### Breaking

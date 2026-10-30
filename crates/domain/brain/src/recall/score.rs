@@ -1,8 +1,10 @@
 //! In-context importance as recall orders facts by it, and the terms behind
-//! it for the why-view. The formula is [`FormulaImportance::score`]; this
-//! module supplies what recall knows per request (whether the subject tier
-//! found the fact) and breaks the score into its terms. Usage rates are not
-//! read on the recall path, so they contribute zero.
+//! it for the why-view.
+//!
+//! The formula is [`FormulaImportance::score`]; this module supplies what
+//! recall knows per request (whether the subject tier found the fact) and
+//! breaks the score into its terms. Usage rates are not read on the recall
+//! path, so they contribute zero.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

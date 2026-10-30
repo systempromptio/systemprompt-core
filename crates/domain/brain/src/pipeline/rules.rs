@@ -1,7 +1,9 @@
-//! The rules stage: deterministic enrichment of a candidate before it is
-//! validated. A kind's declared topics are added, the subject is resolved
-//! through its aliases, and an interest matches a stored fact by its
-//! declared kinds, topics, subjects, keywords and pathways.
+//! The rules stage.
+//!
+//! Deterministic enrichment of a candidate before it is validated. A kind's
+//! declared topics are added, the subject is resolved through its aliases,
+//! and an interest matches a stored fact by its declared kinds, topics,
+//! subjects, keywords and pathways.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

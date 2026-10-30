@@ -1,10 +1,11 @@
 //! The notify stage, run inside the event's savepoint so a notification
-//! commits or rolls back with the fact it reports: a proposed fact emits
-//! `brain.fact.proposed`, a dispute `brain.fact.disputed`, and each
-//! matching interest that asks for alerts `brain.interest.alert` to its
-//! owner. The fact's source is the notification's subject, so recipients
-//! are gated by the source's visibility. Without an available sink the
-//! stage only logs.
+//! commits or rolls back with the fact it reports.
+//!
+//! A proposed fact emits `brain.fact.proposed`, a dispute
+//! `brain.fact.disputed`, and each matching interest that asks for alerts
+//! `brain.interest.alert` to its owner. The fact's source is the
+//! notification's subject, so recipients are gated by the source's
+//! visibility. Without an available sink the stage only logs.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -23,7 +24,7 @@ use crate::error::BrainResult;
 pub const FACT_PROPOSED: &str = "brain.fact.proposed";
 pub const FACT_DISPUTED: &str = "brain.fact.disputed";
 pub const INTEREST_ALERT: &str = "brain.interest.alert";
-const EXCERPT_CHARS: usize = 200;
+const BODY_CHARS: usize = 200;
 
 /// The stored fact a notification reports.
 #[derive(Debug, Clone, Copy)]
@@ -90,11 +91,11 @@ fn event(kind: &str, notice: &Notice<'_>, fact: &BrainFactId) -> Option<Notifica
             return None;
         },
     };
-    let excerpt: String = notice.statement.chars().take(EXCERPT_CHARS).collect();
+    let body: String = notice.statement.chars().take(BODY_CHARS).collect();
     Some(
         NotificationEvent::new(kind, notice.actor.clone(), Utc::now())
             .with_subjects(notice.candidate.source.visibility_subject())
-            .with_excerpt(excerpt)
+            .with_body(body)
             .with_payload(payload(notice, fact, None)),
     )
 }

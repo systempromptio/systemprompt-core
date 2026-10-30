@@ -5,14 +5,19 @@
 //! disputes resolved) by an admin or by a caller holding the
 //! `confirm_role` of a workflow profile that lists the fact's kind; when no
 //! such role is declared and the caller is not an admin, the action is
-//! refused. Viewing and disputing need only that a personal fact is the
-//! caller's own.
+//! refused. Entering a shared fact needs the same authority as governing
+//! it. Which facts a caller may see is the recall visibility check, applied
+//! by the service's reads.
+//!
+//! A caller carries the actor the request acts as and, when the request
+//! names one, its project; a caller built without an actor is an unattended
+//! agent, the narrowest reader.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::{FactKindId, UserId};
-use systemprompt_models::auth::BaseRoles;
+use systemprompt_identifiers::{AgentName, FactKindId, UserId};
+use systemprompt_models::auth::{BaseRoles, RequestActor, UNNAMED_AGENT};
 use systemprompt_models::brain::{FactScope, WorkflowProfileDecl};
 
 use crate::error::{BrainError, BrainResult};
@@ -22,12 +27,34 @@ use crate::error::{BrainError, BrainResult};
 pub struct BrainCaller {
     pub user_id: UserId,
     pub roles: Vec<String>,
+    pub actor: RequestActor,
+    pub project: Option<String>,
 }
 
 impl BrainCaller {
     #[must_use]
-    pub const fn new(user_id: UserId, roles: Vec<String>) -> Self {
-        Self { user_id, roles }
+    pub fn new(user_id: UserId, roles: Vec<String>) -> Self {
+        Self {
+            user_id,
+            roles,
+            actor: RequestActor::Agent {
+                name: AgentName::new(UNNAMED_AGENT),
+                attended: false,
+            },
+            project: None,
+        }
+    }
+
+    #[must_use]
+    pub fn with_actor(mut self, actor: RequestActor) -> Self {
+        self.actor = actor;
+        self
+    }
+
+    #[must_use]
+    pub fn with_project(mut self, project: Option<String>) -> Self {
+        self.project = project;
+        self
     }
 
     #[must_use]
@@ -77,22 +104,13 @@ pub fn may_govern(
     }
 }
 
-pub fn may_view(caller: &BrainCaller, scope: &FactScope) -> BrainResult<()> {
-    match scope {
-        FactScope::User(owner) if owner != &caller.user_id => {
-            Err(refused("a personal fact is visible to its owner only"))
-        },
-        _ => Ok(()),
-    }
-}
-
-pub fn may_enter(caller: &UserId, scope: &FactScope) -> BrainResult<()> {
-    match scope {
-        FactScope::User(owner) if owner != caller => {
-            Err(refused("a personal fact may only be entered by its owner"))
-        },
-        _ => Ok(()),
-    }
+pub fn may_enter(
+    caller: &BrainCaller,
+    scope: &FactScope,
+    kind: &FactKindId,
+    workflows: &[WorkflowProfileDecl],
+) -> BrainResult<()> {
+    may_govern(caller, scope, kind, workflows)
 }
 
 pub fn may_decide_proposals(caller: &BrainCaller) -> BrainResult<()> {

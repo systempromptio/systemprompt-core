@@ -18,12 +18,48 @@
 - **Breaking:** **Files:** `AgentActor::name`, `via_agent` and `created_by_agent` are `AgentName`, and `DocumentActor::agent`, `AgentRateLimiter::reserve` and `RewriteTracker` take it; `holder_id`/`holder_kind` become `LockHolder`; `origin_id`/`origin_kind` become `RevisionOrigin` (now in `documents::models`); `storage_id` is `StoredFileId`. Migrate by constructing the typed values with `try_new`.
 - **Breaking:** **Identifiers:** `AgentName::try_new` and its `Deserialize` refuse names over 64 bytes or outside ASCII letters, digits and `-_.:/`, so a stored name outside that set no longer parses; `AgentName::new` stays unchecked.
 - **Breaking:** **Notifications:** `SubscriptionView::source` is a `ChangeSource`, and the failure ledger's `stage` is a `FailureStage` (`NewFailure::stage`, `DeliveryFailure::stage`) in place of the `DELIVER_STAGE` and `DELIVER_RETRY_STAGE` constants. Migrate by building the typed values; a stored `source` or `stage` that does not parse is a decode error.
+- **Breaking:** **Files:** `DocumentServiceParts` gains `brain: DynBrainSink`, and a landed revision or a resolved comment records a `document.revision.landed` or `document.comment.resolved` brain event in the same transaction. Migrate struct literals by passing the runtime's sink (`systemprompt_runtime::brain_sink`, the unavailable sink without the `brain` feature).
+- **Breaking:** **Files:** `DocumentsError` gains `Brain`, raised when the brain sink cannot record its event; the landing or resolution rolls back. Migrate exhaustive matches by adding the variant.
+- **Breaking:** **Files:** `DocumentCommentRepository::resolve` and `set_answering` are replaced by `resolve_in` and `set_answering_in`, which run on the caller's connection. Migrate by calling them inside a transaction.
+- **Breaking:** **Gateway:** `GatewayRequestContext` gains `actor: RequestActor` and `memory: MemoryPreference`, `GatewayEngines` gains `memory_recall` and `GatewayRepositories` gains `brain_recall: BrainRecallProfile`. Migrate struct literals by adding the actor the credential acts as, `MemoryPreference::Default`, `memory_recall: None` and `BrainRecallProfile::default()`.
+- **Breaking:** **API:** the gateway `Principal` gains `actor: RequestActor`, derived from the bearer's purpose, client and interaction or, for an API key, the key's unattended agent. Migrate struct literals by adding the actor.
+- **Breaking:** **AI:** `AdmissionWrite` gains `memory_recall: Option<&str>`, written to the new `ai_requests.memory_recall` column. Migrate struct literals by adding `memory_recall: None`.
+- **Breaking:** **Manifest:** `Profile` gains `brain: BrainProfile`. The YAML block is optional and defaulted, and `enabled` defaults to `false`. Migrate struct literals by adding `brain: BrainProfile::default()`.
+- **Breaking:** **Manifest:** `RateLimitsConfig` gains `brain_per_second` (YAML optional, default `50`), and `per_second_budgets` returns fifteen entries. Migrate struct literals by adding the field or `..RateLimitsConfig::default()`.
 
 ### Added
 
 - **MCP:** declarative toolsets. A deployment lists `toolsets: [{id, enabled, access}]` and per-tool `tools.<name>.access` (`scopes`, `roles`, `groups`, any of) and `tools.<name>.tool_policy`; access resolves tool, then toolset, then the server's `oauth.scopes`. The new `McpToolset` trait (`systemprompt::mcp::McpToolset`, `ToolsetCall`) is registered with `submit_toolset!(id, build)` from the runtime, and `systemprompt::mcp::host::serve(ctx, server_id)` serves a deployment's toolsets through the generic `ToolsetServer`: RBAC and the authz hook on every request, `tools/list` filtered per caller, a forbidden error and a recorded denial for a tool outside the caller's access. Access outcomes reach recorders registered with `register_mcp_access_recorder!`. Core registers the `issues` and `documents` toolsets. An unknown toolset id or a `tools:` entry no hosted toolset serves fails the host at start. See `documentation/guides/mcp-toolsets.md`.
 - **Marketplace:** the signed bridge manifest carries a per-tool `tool_policy` for every `tools:` entry that declares one, alongside the server default under `*`.
 - **Identifiers:** `EditorId`, the client-chosen key of an editor holding a document lock.
+- **Brain:** the `systemprompt-brain` crate and the `brain` facade feature (in `full`, implies `notifications`): revisioned organisational memory. Facts are captured from documents, comments and entered input through the durable outbox, extracted by a model, validated and confirmed by declared rules, and recalled into gateway requests as a `<team_memory>` block within a token budget and deadline. See `documentation/brain.md`.
+- **Brain:** the `services/brain/` declarations (kinds, topics, interests, workflow profiles, filters, importance and retrieval), projected into `brain_*` tables, with a pipeline version derived from the declarations, the code version and the prompt versions.
+- **Brain:** the `brain:` profile block (`enabled`, `recall`, `capture`, `extraction`, `lifecycle`, `consumer`).
+- **Brain:** `/api/v1/brain` routes for searching, reading, entering, confirming, disputing, retracting, erasing, pinning and editing facts, a fact's timeline and why-view, dispute resolution and the proposal queue with dry-run replay, and `/api/v1/admin/brain/simulate`, which previews a recall without recording it. Every read applies recall's per-fact visibility for the caller's actor and project, and entering a shared fact needs the authority that governs it.
+- **Brain:** the `brain_search`, `brain_propose`, `brain_dispute`, `brain_why`, `brain_recall_preview` and `brain_guide` MCP tools; an agent proposes and disputes and never confirms, retracts, pins or erases.
+- **Brain:** the `brain_review`, `brain_retention` and `brain_analysis` jobs. Analyses draft proposals for kinds that bloat recall, for importance weights per workflow and kind by citation rate, and for projects whose recalls come back empty; an admin may dry-run a proposal against past events.
+- **Brain:** the `v_brain_kind_health` and `v_brain_workflow_recall` report views, and outcome signals for facts cited in a response or corrected by the user.
+- **Brain:** the `register_brain_filter!`, `register_brain_extractor!`, `register_brain_validator!`, `register_brain_importance!`, `register_brain_source_content!`, `register_brain_retriever!`, `register_brain_injection_policy!`, `register_brain_outcome_signal!` and `register_brain_analysis!` extension seams. Core registers no event filter.
+- **Gateway:** an in-process `GatewayClient` that sends a request through the full gateway pipeline as a `ServicePrincipal`; the brain extracts through it as the `brain` service account (`brain@service.invalid`), so its model calls are metered, guarded and audited.
+- **Gateway:** the `x-systemprompt-memory` request header (`off` opts the request out of recall) and the `x-systemprompt-memory-ids` response header naming the injected facts.
+- **AI:** the `ai_requests.memory_recall` column, recording what recall did for a request.
+- **Events:** `OutboxConsumer::replay_window`, which reads a consumer's facts in a time window, processed or not, keyset-paged and without locking.
+- **Identifiers:** `BrainFactId`, `BrainProposalId`, `BrainRecallId`, `FactKindId`, `TopicId`, `InterestId`, `WorkflowId`, `PipelineVersion` and the other brain identifiers, and the `MEMORY` and `MEMORY_IDS` header constants.
+- **Models:** `RequestActor`, `bearer_actor` and `agent_name`, the actor a bearer credential acts as.
+
+### Changed
+
+- **Gates:** `check-no-vendor.sh` refuses tracked browser markup or script under `crates/` outside `scripts/core-markup-allowlist.txt`.
+- **Files:** blob collection asks the blob holders registered with `register_blob_holder!` instead of naming the issue attachment table, and the issue report user purge is registered by the issues module.
+- **OAuth issuance:** the Drive sync credential exchange moves from the API handler into `DriveSyncTokenService::exchange` (`systemprompt_oauth_issuance::drive_sync`), with `DriveSyncError` for its refusals; the TTL and rules are unchanged, and the handler decodes the device token and maps the error.
+- **Models:** `BaseRoles::permission_for` and `AuthenticatedUser::from_provider_user` are the one derivation of `Permission` from role names; the document, A2A and SSO paths use it.
+- **Files:** `DocumentService::create_from_file` stores a multipart file as an upload and imports it, and retracts the upload through the new `UploadService::retract` when the import fails.
+- **Files:** `DocumentService::update_folder` applies a folder's move, rename and agent edit policy in one tree-locked transaction after authorizing all three.
+- **Files:** `DocumentService::open_pdf_stream` owns the PDF magic-byte check and stream reopen for inline preview.
+- **Files:** `IssueService::ensure_attachable` and `IssueService::require_triager` own the attachment and triage rules; `IssuesError::TriageForbidden` answers 403 on the API.
+- **Runtime:** `upload_links::required_grant` and `purpose_permits` own the table matching an upload route to the grant its token needs.
+- **Brain:** these settings are accepted and have no effect in 0.77: `capture.sources: session` (no session producer), `capture.auto_confirm.document: project_policy` (behaves as `never` until a project policy source exists), `extraction.provider` (the model alone selects the extraction route), the stored `filters.yaml` declaration, and the interest `audience`, `granularity` and `memory`/`digest` delivery fields.
+- **Extension:** the notification seam registrations share one `seam_registration!` definition with the brain seams; `__register_notification_seam!` forwards to `__register_seam!`.
 
 ### Fixed
 
@@ -40,18 +76,6 @@
 
 - **Removed:** **Engine (Loro):** the `systemprompt-engine-loro` crate; the Loro engine is `systemprompt-files` feature `collab-loro` at `documents::engine::loro`. Migrate by enabling `collab-loro` (or the facade's `files-collab-loro`) and importing from `systemprompt_files`.
 - **Runtime:** the `ui://<server>/document-preview` MCP App resource and the UI `_meta` on `documents_export` are removed, along with `DocumentsMcpTools::list_resources`, `read_resource` and `ExportOutput::ui_resource`; the tool keeps answering the rendered HTML in `structuredContent`.
-
-### Changed
-
-- **Gates:** `check-no-vendor.sh` refuses tracked browser markup or script under `crates/` outside `scripts/core-markup-allowlist.txt`.
-- **Files:** blob collection asks the blob holders registered with `register_blob_holder!` instead of naming the issue attachment table, and the issue report user purge is registered by the issues module.
-- **OAuth issuance:** the Drive sync credential exchange moves from the API handler into `DriveSyncTokenService::exchange` (`systemprompt_oauth_issuance::drive_sync`), with `DriveSyncError` for its refusals; the TTL and rules are unchanged, and the handler decodes the device token and maps the error.
-- **Models:** `BaseRoles::permission_for` and `AuthenticatedUser::from_provider_user` are the one derivation of `Permission` from role names; the document, A2A and SSO paths use it.
-- **Files:** `DocumentService::create_from_file` stores a multipart file as an upload and imports it, and retracts the upload through the new `UploadService::retract` when the import fails.
-- **Files:** `DocumentService::update_folder` applies a folder's move, rename and agent edit policy in one tree-locked transaction after authorizing all three.
-- **Files:** `DocumentService::open_pdf_stream` owns the PDF magic-byte check and stream reopen for inline preview.
-- **Files:** `IssueService::ensure_attachable` and `IssueService::require_triager` own the attachment and triage rules; `IssuesError::TriageForbidden` answers 403 on the API.
-- **Runtime:** `upload_links::required_grant` and `purpose_permits` own the table matching an upload route to the grant its token needs.
 
 ## [0.76.0] - 2026-10-29
 

@@ -1,9 +1,11 @@
-//! Core injection fill: the visible facts in descending in-context
-//! importance (ties by fused score, then fact id) are taken while their
-//! kind is under its quota, the fact count is under `max_facts` and the
-//! estimated tokens fit the budget. A fact over its kind's quota is
-//! withheld as `Quota`; one that does not fit as `Budget`. Tokens are
-//! estimated as a quarter of the line's characters, rounded up.
+//! Core injection fill.
+//!
+//! The visible facts in descending in-context importance (ties by fused
+//! score, then fact id) are taken while their kind is under its quota, the
+//! fact count is under `max_facts` and the estimated tokens fit the budget.
+//! A fact over its kind's quota is withheld as `Quota`; one that does not
+//! fit as `Budget`. Tokens are estimated as a quarter of the line's
+//! characters, rounded up.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -85,15 +87,14 @@ pub fn fill(mut candidates: Vec<Candidate>, limits: &BudgetLimits) -> InjectionP
                 None
             }
         };
-        match reason {
-            Some(reason) => plan.withheld.push(WithheldFact {
+        if let Some(reason) = reason {
+            plan.withheld.push(WithheldFact {
                 id: fact.id.clone(),
                 reason,
-            }),
-            None => {
-                *per_kind.entry(fact.kind.clone()).or_default() += 1;
-                plan.facts.push(candidate.scored);
-            },
+            });
+        } else {
+            *per_kind.entry(fact.kind.clone()).or_default() += 1;
+            plan.facts.push(candidate.scored);
         }
     }
     plan

@@ -4,7 +4,7 @@
 //! - retired facts not under legal hold, untouched for
 //!   `lifecycle.retired_retention_days`, are deleted;
 //! - recalls older than `lifecycle.recalls_retention_days` are deleted;
-//! - per-event results and failures older than
+//! - per-event results, failures, extractions and outcome signals older than
 //!   `lifecycle.results_retention_days` are deleted;
 //! - facts past their `retention_until` and not under legal hold are taken out
 //!   of recall as superseded, one revision each.
@@ -77,7 +77,15 @@ impl BrainRetentionJob {
         .await?;
         let failures =
             drain(|| repos.retention.purge_failures_before(results_cutoff, BATCH)).await?;
-        Ok(facts + recalls + results + failures)
+        let extractions = drain(|| {
+            repos
+                .retention
+                .purge_extractions_before(results_cutoff, BATCH)
+        })
+        .await?;
+        let outcomes =
+            drain(|| repos.retention.purge_outcomes_before(results_cutoff, BATCH)).await?;
+        Ok(facts + recalls + results + failures + extractions + outcomes)
     }
 
     async fn retire_expired(repos: &BrainRepositories) -> Result<u64, RepositoryError> {
@@ -106,7 +114,7 @@ impl Job for BrainRetentionJob {
     }
 
     fn description(&self) -> &'static str {
-        "Deletes retired brain facts, old recalls and capture results past retention, and retires expired facts"
+        "Deletes retired brain facts, old recalls, capture results and outcome signals past retention, and retires expired facts"
     }
 
     fn schedule(&self) -> &'static str {

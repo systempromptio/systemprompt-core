@@ -9,6 +9,7 @@ use std::time::Duration;
 use chrono::{DateTime, Utc};
 use systemprompt_identifiers::{
     AiRequestId, BrainRecallId, ClientId, ContextId, GatewayConversationId, SessionId, UserId,
+    WorkflowId,
 };
 use systemprompt_models::auth::RequestActor;
 use systemprompt_models::origin::ClientKind;
@@ -38,6 +39,10 @@ pub struct RecallPrincipal {
 
 /// The conversation the request belongs to.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[expect(
+    clippy::struct_field_names,
+    reason = "each field is named for the identifier type it carries"
+)]
 pub struct RecallConversation {
     pub ai_request_id: Option<AiRequestId>,
     pub gateway_conversation_id: Option<GatewayConversationId>,
@@ -151,6 +156,7 @@ pub struct RecallReceipt {
     pub principal: RecallPrincipal,
     pub conversation: RecallConversation,
     pub outcome: RecallOutcome,
+    pub workflow: Option<WorkflowId>,
     pub recorded_at: DateTime<Utc>,
 }
 
@@ -167,6 +173,7 @@ impl RecallReceipt {
             principal: request.principal.clone(),
             conversation: request.conversation.clone(),
             outcome,
+            workflow: None,
             recorded_at: Utc::now(),
         }
     }

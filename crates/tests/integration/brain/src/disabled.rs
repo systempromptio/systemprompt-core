@@ -3,7 +3,6 @@ use std::sync::Arc;
 use systemprompt_brain::BrainError;
 use systemprompt_brain::service::BrainService;
 use systemprompt_extension::DynNotificationSink;
-use systemprompt_identifiers::InstanceId;
 use systemprompt_manifest::profile::BrainProfile;
 use systemprompt_models::brain::{EnteredFact, EnteredStatus, FactScope, SubjectKey};
 use systemprompt_runtime::documents::NotificationsUnavailableSink;
@@ -23,7 +22,7 @@ fn core(h: &Harness, enabled: bool) -> Option<BrainCore> {
     };
     BrainCore::new(&BrainInputs {
         database: &h.pool,
-        instance_id: &InstanceId::new("brain-disabled"),
+        instance_id: &systemprompt_test_fixtures::unique_instance(),
         listener_pool: &h.pg,
         notifications: &notifications,
         profile: &profile,
@@ -61,7 +60,7 @@ async fn a_disabled_brain_composes_nothing_and_its_producers_append_nothing() {
         status: EnteredStatus::Candidate,
     };
     let refused = service
-        .enter(&author, &entered)
+        .enter(&Harness::caller(&author, &[]), &entered)
         .await
         .expect_err("unavailable");
     assert!(matches!(refused, BrainError::Sink(_)), "{refused:?}");

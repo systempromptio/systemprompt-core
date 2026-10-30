@@ -12,7 +12,7 @@ use systemprompt_extension::brain::{
     BrainExtractError, BrainModelError, BrainSinkError, BrainValidateError, SourceContentError,
 };
 use systemprompt_extension::notifications::NotificationSinkError;
-use systemprompt_identifiers::{BrainFactId, FactKindId};
+use systemprompt_identifiers::{BrainFactId, BrainProposalId, FactKindId};
 use systemprompt_models::brain::{StatementError, SubjectKeyError};
 use systemprompt_models::notifications::NotificationKindError;
 use systemprompt_traits::RepositoryError;
@@ -42,6 +42,8 @@ pub enum BrainError {
     Forbidden { reason: String },
     #[error("fact {0} not found")]
     NotFound(BrainFactId),
+    #[error("proposal {0} not found")]
+    ProposalNotFound(BrainProposalId),
     #[error("brain event kind {0} is not one the pipeline reads")]
     UnknownEvent(String),
     #[error("brain extraction failed")]
@@ -62,7 +64,7 @@ pub enum BrainError {
 
 impl BrainError {
     #[must_use]
-    pub fn is_transient(&self) -> bool {
+    pub const fn is_transient(&self) -> bool {
         match self {
             Self::Database(_)
             | Self::Repository(_)

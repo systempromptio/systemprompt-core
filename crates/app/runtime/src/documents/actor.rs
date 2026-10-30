@@ -16,7 +16,7 @@
 
 use std::future::Future;
 
-use systemprompt_files::documents::agents::{DocumentActor, act_as, unnamed_agent};
+use systemprompt_files::documents::agents::{DocumentActor, act_as};
 use systemprompt_identifiers::{AgentName, ClientId};
 use systemprompt_models::auth::{self, RequestActor, TokenInteraction};
 use systemprompt_models::execution::context::{RequestContext, UserInteractionMode};
@@ -27,17 +27,25 @@ pub async fn act_as_request<F: Future>(ctx: &RequestContext, work: F) -> F::Outp
 
 #[must_use]
 pub fn request_actor(ctx: &RequestContext) -> DocumentActor {
+    document_actor(caller_actor(ctx))
+}
+
+#[must_use]
+pub fn caller_actor(ctx: &RequestContext) -> RequestActor {
     let interaction = ctx.settings.user_interaction_mode;
     let person = ctx.is_browser_session()
         && ctx.caller_purpose().is_none()
         && ctx.act_chain().is_empty()
         && interaction != Some(UserInteractionMode::NonInteractive);
     if person {
-        return DocumentActor::Human;
+        return RequestActor::Human;
     }
     let attended =
         interaction == Some(UserInteractionMode::Interactive) && ctx.caller_purpose().is_none();
-    DocumentActor::agent(signed_agent_name(ctx), attended)
+    RequestActor::Agent {
+        name: signed_agent_name(ctx),
+        attended,
+    }
 }
 
 #[must_use]
@@ -51,16 +59,12 @@ pub fn bearer_actor(
 
 #[must_use]
 pub fn signed_agent_name(ctx: &RequestContext) -> AgentName {
-    agent_name(auth::agent_name(ctx.caller_purpose(), ctx.client_id()))
-}
-
-fn agent_name(name: String) -> AgentName {
-    AgentName::try_new(name).unwrap_or_else(|_| unnamed_agent())
+    auth::agent_name(ctx.caller_purpose(), ctx.client_id())
 }
 
 fn document_actor(actor: RequestActor) -> DocumentActor {
     match actor {
         RequestActor::Human => DocumentActor::Human,
-        RequestActor::Agent { name, attended } => DocumentActor::agent(agent_name(name), attended),
+        RequestActor::Agent { name, attended } => DocumentActor::agent(name, attended),
     }
 }

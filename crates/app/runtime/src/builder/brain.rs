@@ -25,7 +25,7 @@ use systemprompt_database::DbPool;
 use systemprompt_events::services::durable::{DurableOutbox, OutboxConsumer};
 use systemprompt_extension::ExtensionContext;
 use systemprompt_extension::brain::{
-    DynBrainSink, FactRetriever, ImportanceModel, InjectionPolicy, OutcomeSignal,
+    DynBrainSink, FactRetriever, ImportanceModel, InjectionPolicy, OutcomeSignal, SourceAccess,
     discover_brain_importance_models, discover_brain_injection_policies,
     discover_brain_outcome_signals, discover_brain_retrievers,
 };
@@ -113,7 +113,6 @@ pub struct BrainCore {
     repos: Arc<BrainRepositories>,
     sink: DynBrainSink,
     declared: Arc<dyn DeclaredSource>,
-    service: Arc<BrainService>,
     users: Arc<UserRepository>,
     outbox: Arc<OutboxConsumer>,
     listener_pool: PgPool,
@@ -139,15 +138,10 @@ impl BrainCore {
         let sink: DynBrainSink = Arc::new(OutboxBrainSink::new(Arc::new(outbox)));
         let profile = Arc::new(inputs.profile.clone());
         let declared: Arc<dyn DeclaredSource> = Arc::new(PlaneDeclaredSource::new(repos.clone()));
-        let service = BrainService::builder(repos.clone(), Arc::clone(&sink), Arc::clone(&profile))
-            .notifications(Arc::clone(inputs.notifications))
-            .declared(Arc::clone(&declared))
-            .build();
         Some(Self {
             repos: Arc::new(repos),
             sink,
             declared,
-            service: Arc::new(service),
             users: Arc::new(UserRepository::new(inputs.database)),
             outbox: Arc::new(OutboxConsumer::new(write_pool)),
             listener_pool: inputs.listener_pool.clone(),
@@ -174,13 +168,23 @@ impl BrainCore {
             &self.users,
         ))));
         let store = BrainRecallStore::new((*self.repos).clone(), self.profile.recall.stale);
-        let source_access = DocumentSourceAccess::new(
+        let source_access: Arc<dyn SourceAccess> = Arc::new(DocumentSourceAccess::new(
             Arc::clone(documents.access()),
             Arc::clone(documents.repositories()),
-        );
+        ));
+        let service = BrainService::builder(
+            (*self.repos).clone(),
+            Arc::clone(&self.sink),
+            Arc::clone(&self.profile),
+        )
+        .notifications(Arc::clone(&self.notifications))
+        .declared(Arc::clone(&self.declared))
+        .source_access(Arc::clone(&source_access))
+        .audiences(audiences.clone())
+        .build();
         let recall = BrainRecallService::builder(
             Arc::new(store),
-            Arc::new(source_access),
+            source_access,
             Arc::clone(&self.declared),
             Arc::clone(&self.profile),
         )
@@ -200,7 +204,7 @@ impl BrainCore {
         );
         Arc::new(BrainHandle::new(BrainHandleParts {
             repos: Arc::clone(&self.repos),
-            service: Arc::clone(&self.service),
+            service: Arc::new(service),
             recall: Arc::new(recall),
             sink: Arc::clone(&self.sink),
             notifications: Arc::clone(&self.notifications),

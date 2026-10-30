@@ -26,9 +26,12 @@ impl PipelineVersionRepository {
         inputs: &PipelineVersionInputs,
     ) -> Result<PipelineVersion, RepositoryError> {
         let version = inputs.derive();
-        let code_version = i32::try_from(inputs.code_version).map_err(|_| {
-            RepositoryError::invalid_argument("code_version", "exceeds the column range")
-        })?;
+        let Ok(code_version) = i32::try_from(inputs.code_version) else {
+            return Err(RepositoryError::invalid_argument(
+                "code_version",
+                "exceeds the column range",
+            ));
+        };
         sqlx::query!(
             "INSERT INTO brain_pipeline_versions
                  (version, declared_hash, code_version, prompt_versions)

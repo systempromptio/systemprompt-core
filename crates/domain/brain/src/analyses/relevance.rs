@@ -1,17 +1,19 @@
-//! [`RelevanceAnalysis`]: how often an injected fact of a kind was cited.
-//! A kind cited rarely gets a lower importance weight, one cited often a
-//! higher one, as one config diff over `importance.yaml`. Recalls do not
-//! record their workflow, so the diff is per kind.
+//! [`RelevanceAnalysis`].
+//!
+//! How often an injected fact of a kind was cited, per workflow the recall
+//! selected. A kind cited rarely under a workflow gets a lower importance
+//! weight there, one cited often a higher one, as one config diff over
+//! `importance.yaml`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
 use systemprompt_extension::brain::{AnalysisWindow, BrainAnalysis, BrainAnalysisError};
-use systemprompt_identifiers::FactKindId;
+use systemprompt_identifiers::{FactKindId, WorkflowId};
 use systemprompt_models::brain::{ProposalDraft, ProposalKind};
 
-use super::store::{AnalysisRepository, KindUsage};
+use super::store::{AnalysisRepository, WorkflowKindUsage};
 
 pub const RELEVANCE_ANALYSIS: &str = "relevance";
 pub const IMPORTANCE_DOC: &str = "importance.yaml";
@@ -39,6 +41,7 @@ impl Default for RelevanceThresholds {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WeightAdjustment {
+    pub workflow: Option<WorkflowId>,
     pub kind: FactKindId,
     pub injected: i64,
     pub cited: i64,
@@ -54,7 +57,7 @@ pub struct RelevanceDiff {
 
 #[must_use]
 pub fn weight_adjustment(
-    usage: &KindUsage,
+    usage: &WorkflowKindUsage,
     thresholds: RelevanceThresholds,
 ) -> Option<WeightAdjustment> {
     if usage.injections < thresholds.min_injections.max(1) {
@@ -70,6 +73,7 @@ pub fn weight_adjustment(
         return None;
     };
     Some(WeightAdjustment {
+        workflow: usage.workflow.clone(),
         kind: usage.kind.clone(),
         injected: usage.injections,
         cited: usage.citations,
@@ -79,7 +83,7 @@ pub fn weight_adjustment(
 }
 
 pub fn relevance_drafts(
-    usage: &[KindUsage],
+    usage: &[WorkflowKindUsage],
     thresholds: RelevanceThresholds,
 ) -> Result<Vec<ProposalDraft>, serde_json::Error> {
     let adjustments: Vec<WeightAdjustment> = usage
@@ -90,7 +94,7 @@ pub fn relevance_drafts(
         return Ok(Vec::new());
     }
     let summary = format!(
-        "Adjust importance weights of {} kinds by citation rate",
+        "Adjust {} importance weights by citation rate per workflow and kind",
         adjustments.len()
     );
     let diff = RelevanceDiff {
@@ -130,7 +134,7 @@ impl BrainAnalysis for RelevanceAnalysis {
         &self,
         window: AnalysisWindow,
     ) -> Result<Vec<ProposalDraft>, BrainAnalysisError> {
-        let usage = self.store.kind_usage(window).await?;
+        let usage = self.store.workflow_kind_usage(window).await?;
         relevance_drafts(&usage, self.thresholds).map_err(|e| BrainAnalysisError::Other {
             analysis: RELEVANCE_ANALYSIS,
             source: Box::new(e),

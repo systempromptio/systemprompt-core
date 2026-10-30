@@ -51,7 +51,14 @@ async fn aggregates_over_an_empty_store_are_empty() {
     );
     assert!(
         store
-            .client_recalls(last_day())
+            .workflow_kind_usage(last_day())
+            .await
+            .expect("workflow usage")
+            .is_empty()
+    );
+    assert!(
+        store
+            .project_recalls(last_day())
             .await
             .expect("recalls")
             .is_empty()

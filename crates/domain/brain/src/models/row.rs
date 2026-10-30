@@ -112,18 +112,18 @@ impl TryFrom<RevisionRow> for FactRevision {
 pub(crate) fn decode_status(value: &str) -> Result<FactStatus, RepositoryError> {
     value
         .parse()
-        .map_err(|_| RepositoryError::invalid_data("status", format!("unknown status {value:?}")))
+        .map_err(|e| RepositoryError::decode(format!("fact status {value:?}"), e))
 }
 
 fn decode_change(value: &str) -> Result<RevisionChange, RepositoryError> {
     serde_json::from_value(serde_json::Value::String(value.to_owned()))
-        .map_err(|_| RepositoryError::invalid_data("change", format!("unknown change {value:?}")))
+        .map_err(|e| RepositoryError::decode(format!("revision change {value:?}"), e))
 }
 
 fn decode_scope(level: &str, key: Option<String>) -> Result<FactScope, RepositoryError> {
     let level: ScopeLevel = level
         .parse()
-        .map_err(|_| RepositoryError::invalid_data("scope_level", format!("unknown {level:?}")))?;
+        .map_err(|e| RepositoryError::decode(format!("scope level {level:?}"), e))?;
     let missing = || RepositoryError::invalid_data("scope_key", "missing for a keyed scope");
     Ok(match level {
         ScopeLevel::User => FactScope::User(UserId::new(key.ok_or_else(missing)?)),

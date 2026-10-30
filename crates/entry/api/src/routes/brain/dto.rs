@@ -12,6 +12,13 @@ use systemprompt_extension::brain::{InjectedFact, RecallBlock, RecallOutcome, Wi
 use systemprompt_identifiers::{BrainDisputeId, BrainFactId, EventOutboxId, UserId};
 use systemprompt_models::origin::ClientKind;
 
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(super) struct ReplayBody {
+    pub(super) since: DateTime<Utc>,
+    pub(super) until: DateTime<Utc>,
+}
+
 #[derive(Debug, Default, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SearchParams {
@@ -23,6 +30,8 @@ pub struct SearchParams {
     pub status: Option<String>,
     #[serde(default)]
     pub limit: Option<u32>,
+    #[serde(default)]
+    pub project: Option<String>,
 }
 
 #[derive(Debug, Default, Deserialize)]

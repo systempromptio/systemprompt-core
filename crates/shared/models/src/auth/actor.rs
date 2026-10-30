@@ -3,28 +3,27 @@
 //! A bearer token of any kind is an agent acting for its user. The agent's
 //! name comes from signed claims, never from request metadata: the token's
 //! `purpose` (an agent run's `farm:<run>`), else its `client_id`, else
-//! [`UNNAMED_AGENT`]; a name longer than [`MAX_AGENT_NAME`] or with a
-//! character outside `[A-Za-z0-9-_.:/]` falls back the same way. `attended`
-//! is `true` only for a token whose `interaction` claim is `interactive` and
-//! that carries no `purpose`.
+//! [`UNNAMED_AGENT`]; a name that is not a valid [`AgentName`] (over 64 bytes,
+//! or a character outside `[A-Za-z0-9-_.:/]`) falls back the same way.
+//! `attended` is `true` only for a token whose `interaction` claim is
+//! `interactive` and that carries no `purpose`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::ClientId;
+use systemprompt_identifiers::{AgentName, ClientId};
 
 use super::claims::TokenInteraction;
 
 pub const UNNAMED_AGENT: &str = "agent";
-pub const MAX_AGENT_NAME: usize = 64;
 
 /// Who a request acts as: the person, or an agent acting for them.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum RequestActor {
     Human,
-    Agent { name: String, attended: bool },
+    Agent { name: AgentName, attended: bool },
 }
 
 impl RequestActor {
@@ -59,13 +58,9 @@ pub fn bearer_actor(
 }
 
 #[must_use]
-pub fn agent_name(purpose: Option<&str>, client_id: Option<&ClientId>) -> String {
-    let allowed = |c: char| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.' | ':' | '/');
-    let valid =
-        |name: &str| !name.is_empty() && name.len() <= MAX_AGENT_NAME && name.chars().all(allowed);
+pub fn agent_name(purpose: Option<&str>, client_id: Option<&ClientId>) -> AgentName {
     purpose
         .or_else(|| client_id.map(ClientId::as_str))
-        .filter(|name| valid(name))
-        .unwrap_or(UNNAMED_AGENT)
-        .to_owned()
+        .and_then(|name| AgentName::try_new(name).ok())
+        .unwrap_or_else(|| AgentName::new(UNNAMED_AGENT))
 }

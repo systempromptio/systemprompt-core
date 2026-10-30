@@ -1,4 +1,5 @@
 use systemprompt_brain::replay::{FactState, ReplayChange, ReplayReport, classify, tally};
+use systemprompt_identifiers::PipelineVersion;
 use systemprompt_models::brain::FactStatus;
 
 fn fact(kind: &str, identity: &str, statement: &str, status: FactStatus) -> FactState {
@@ -51,7 +52,8 @@ fn tally_matches_by_kind_and_identity_and_counts_per_kind() {
         fact("b", "1", "s", FactStatus::Confirmed),
         fact("c", "1", "s", FactStatus::Confirmed),
     ];
-    let mut report = ReplayReport::default();
+    let mut report =
+        ReplayReport::new(PipelineVersion::try_new("0123456789abcdef").expect("version"));
     tally(&mut report, &replayed, &stored);
     assert_eq!(
         (

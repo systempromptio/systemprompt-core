@@ -30,11 +30,11 @@ pub enum ArtifactsCommands {
 pub async fn execute(cmd: ArtifactsCommands, ctx: &CommandContext) -> Result<()> {
     match cmd {
         ArtifactsCommands::List(args) => {
-            let result = list::execute(args, ctx).await?;
+            let result = Box::pin(list::execute(args, ctx)).await?;
             render_result(&result, &ctx.cli);
         },
         ArtifactsCommands::Show(args) => {
-            let result = show::execute(args, ctx).await?;
+            let result = Box::pin(show::execute(args, ctx)).await?;
             render_result(&result, &ctx.cli);
         },
     }

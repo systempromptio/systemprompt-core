@@ -1,6 +1,7 @@
 //! The stale stage, run before the filters so a source change stales the
-//! facts built on what it replaced even when nothing new is gathered: a
-//! landed revision stales the facts of earlier revisions of its document,
+//! facts built on what it replaced even when nothing new is gathered.
+//!
+//! A landed revision stales the facts of earlier revisions of its document,
 //! and a resolved comment stales the facts built on it. Each mark is a
 //! `Staled` revision written by the repository.
 //!

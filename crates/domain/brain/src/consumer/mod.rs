@@ -128,7 +128,7 @@ impl std::fmt::Debug for BrainConsumer {
 
 impl BrainConsumer {
     #[must_use]
-    pub fn pipeline(&self) -> &Arc<BrainPipeline> {
+    pub const fn pipeline(&self) -> &Arc<BrainPipeline> {
         &self.pipeline
     }
 

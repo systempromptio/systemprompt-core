@@ -1,9 +1,11 @@
-//! The route stage: who a fact is shared with and who owns it. An entered
-//! fact keeps the scope its author chose. A document fact is scoped to its
-//! folder's project when the document sits in a folder and otherwise to
-//! the person it was written for; its owner is that person (the author, or
-//! whom an agent wrote on behalf of). A comment fact follows the comment's
-//! author the same way.
+//! The route stage.
+//!
+//! Who a fact is shared with and who owns it. An entered fact keeps the
+//! scope its author chose. A document fact is scoped to its folder's
+//! project when the document sits in a folder and otherwise to the person
+//! it was written for; its owner is that person (the author, or whom an
+//! agent wrote on behalf of). A comment fact follows the comment's author
+//! the same way.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

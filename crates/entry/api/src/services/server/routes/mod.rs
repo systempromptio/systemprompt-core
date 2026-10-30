@@ -14,6 +14,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod agent_runs;
+#[cfg(feature = "brain")]
+mod brain;
 mod documents;
 mod error;
 mod extension_mount;
@@ -112,17 +114,7 @@ fn build_routes(
         router = protocol::mount_mcp_and_stream(router, &mount, mcp_middleware)?;
     }
     if serves(RouteGroup::ContentAndMisc) {
-        router = protocol::mount_content_and_misc(router, &mount)?;
-        router = documents::mount_documents(router, &mount)?;
-        router = issues::mount_issues(router, &mount)?;
-        #[cfg(feature = "notifications")]
-        {
-            router = notifications::mount_notifications(router, &mount)?;
-        }
-        #[cfg(feature = "brain")]
-        {
-            router = mount_brain_routes(router, &mount)?;
-        }
+        router = mount_content(router, &mount)?;
     }
     if serves(RouteGroup::Managed) {
         router = managed::mount(router, &mount)?;
@@ -272,32 +264,20 @@ fn wellknown_router(ctx: &AppContext) -> Result<Router, LoaderError> {
     Ok(crate::routes::oauth::wellknown_routes(ctx).merge(crate::routes::wellknown_router(ctx)?))
 }
 
-#[cfg(feature = "brain")]
-fn mount_brain_routes(
-    router: Router,
+fn mount_content(
+    mut router: Router,
     mount: &protocol::MountCtx<'_>,
-) -> Result<Router, LoaderError> {
-    let ctx = mount.ctx;
-    let routes = match ctx.brain() {
-        Some(brain) => {
-            let users = ctx
-                .user_provider()
-                .ok_or_else(|| LoaderError::InitializationFailed {
-                    extension: ExtensionId::new("brain"),
-                    message: "UserProvider is required for the brain routes".to_owned(),
-                })?;
-            let (service, recall, profile) = brain.routes();
-            Some(crate::routes::brain::BrainRoutes::new(
-                service, recall, profile, users,
-            ))
-        },
-        None => None,
-    };
-    crate::routes::brain::mount_brain(
-        router,
-        mount.limits,
-        mount.user_middleware,
-        ctx.config().rate_limits.brain_per_second,
-        routes,
-    )
+) -> Result<Router, RouteMountError> {
+    router = protocol::mount_content_and_misc(router, mount)?;
+    router = documents::mount_documents(router, mount)?;
+    router = issues::mount_issues(router, mount)?;
+    #[cfg(feature = "notifications")]
+    {
+        router = notifications::mount_notifications(router, mount)?;
+    }
+    #[cfg(feature = "brain")]
+    {
+        router = brain::mount_brain_routes(router, mount)?;
+    }
+    Ok(router)
 }

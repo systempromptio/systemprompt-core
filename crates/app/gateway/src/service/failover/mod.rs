@@ -65,7 +65,7 @@ pub(super) async fn send_with_failover(
         let _in_flight = enter_deployment(&send.engines.load, send.primary);
         return with_policy(
             current_policy(),
-            scanned.send(send.primary, send.forward_headers, send.audit),
+            Box::pin(scanned.send(send.primary, send.forward_headers, send.audit)),
         )
         .await;
     }

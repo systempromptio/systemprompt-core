@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.77.0] - 2026-10-30
+
+### Added
+
+- The brain seams: `BrainSink`, `EventFilter`, `FactExtractor`, `FactValidator`, `ImportanceModel`, `SourceContent`, `BrainModelClient`, `FactRecallSource`, `FactRetriever`, `InjectionPolicy`, `MemoryRecall` with `SourceAccess`, `OutcomeSignal` and `BrainAnalysis`, registered with the `register_brain_*!` macros and discovered by priority.
+
+### Changed
+
+- The notification seam registrations share one `seam_registration!` definition with the brain seams; `__register_notification_seam!` forwards to `__register_seam!`.
+
 ## [0.76.0] - 2026-10-29
 
 ### Added

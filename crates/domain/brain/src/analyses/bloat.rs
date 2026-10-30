@@ -1,7 +1,8 @@
-//! [`BloatAnalysis`]: a kind that holds many live facts recall almost never
-//! injects costs extraction and storage for nothing. It drafts a config
-//! diff that retires the kind when nothing was injected, else raises its
-//! materiality bar.
+//! [`BloatAnalysis`].
+//!
+//! A kind that holds many live facts recall almost never injects costs
+//! extraction and storage for nothing. It drafts a config diff that retires
+//! the kind when nothing was injected, else raises its materiality bar.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

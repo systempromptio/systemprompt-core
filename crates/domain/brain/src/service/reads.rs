@@ -1,7 +1,7 @@
 //! Reads for the REST and MCP surfaces: one fact, a filtered listing, a
 //! fact's revision timeline, and the why-view (the in-context importance
-//! terms and whether recall would withhold it). A personal fact is shown
-//! to its owner only.
+//! terms and whether recall would withhold it). Each applies recall's
+//! per-fact visibility; a hidden fact reads as not found.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -11,7 +11,7 @@ use systemprompt_identifiers::BrainFactId;
 use systemprompt_manifest::profile::StalePolicy;
 use systemprompt_models::brain::{BrainFact, FactRevision, RecallCtx, WithheldReason};
 
-use super::{BrainCaller, BrainService, authority};
+use super::{BrainCaller, BrainService};
 use crate::error::{BrainError, BrainResult};
 use crate::models::FactFilter;
 use crate::recall::score::{self, ImportanceTerms, ScoreInput};
@@ -33,8 +33,7 @@ impl BrainService {
             .find(id)
             .await?
             .ok_or_else(|| BrainError::NotFound(id.clone()))?;
-        authority::may_view(caller, &fact.scope)?;
-        Ok(fact)
+        self.require_visible(caller, fact).await
     }
 
     pub async fn search(
@@ -43,10 +42,7 @@ impl BrainService {
         filter: &FactFilter,
     ) -> BrainResult<Vec<BrainFact>> {
         let facts = self.repos.facts.list(filter).await?;
-        Ok(facts
-            .into_iter()
-            .filter(|fact| authority::may_view(caller, &fact.scope).is_ok())
-            .collect())
+        self.only_visible(caller, facts).await
     }
 
     pub async fn timeline(

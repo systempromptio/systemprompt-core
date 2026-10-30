@@ -147,6 +147,10 @@ impl BrainConsumer {
         }
     }
 
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "the delivery's connection, identity and batch context travel with the error"
+    )]
     async fn retry_or_abandon(
         &self,
         conn: &mut PgConnection,

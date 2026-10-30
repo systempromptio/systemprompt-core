@@ -35,7 +35,7 @@ pub async fn execute(cmd: IssuesCommands, ctx: &CommandContext) -> Result<()> {
     let result = match cmd {
         IssuesCommands::List(args) => list::execute(args, ctx).await?,
         IssuesCommands::Show(args) => show::execute(args, ctx).await?,
-        IssuesCommands::Triage(args) => triage::execute(args, ctx).await?,
+        IssuesCommands::Triage(args) => Box::pin(triage::execute(args, ctx)).await?,
     };
     render_result(&result, &ctx.cli);
     Ok(())

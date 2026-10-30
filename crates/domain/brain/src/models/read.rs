@@ -5,7 +5,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_extension::brain::RecallConversation;
-use systemprompt_identifiers::{FactKindId, UserId};
+use systemprompt_identifiers::{FactKindId, UserId, WorkflowId};
 use systemprompt_models::brain::{
     BrainOutcome, FactStatus, ProposalDraft, RecallAudit, SubjectKey,
 };
@@ -21,6 +21,7 @@ pub struct NewRecall {
     pub principal: UserId,
     pub client: ClientKind,
     pub project: Option<String>,
+    pub workflow: Option<WorkflowId>,
     pub conversation: RecallConversation,
     pub audit: RecallAudit,
     pub skipped: Option<String>,
@@ -39,6 +40,7 @@ impl NewRecall {
                 principal,
                 client,
                 project: None,
+                workflow: None,
                 conversation: RecallConversation {
                     ai_request_id: None,
                     gateway_conversation_id: None,
@@ -69,6 +71,12 @@ impl NewRecallBuilder {
     #[must_use]
     pub fn project(mut self, project: impl Into<String>) -> Self {
         self.recall.project = Some(project.into());
+        self
+    }
+
+    #[must_use]
+    pub fn workflow(mut self, workflow: WorkflowId) -> Self {
+        self.recall.workflow = Some(workflow);
         self
     }
 

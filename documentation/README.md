@@ -40,6 +40,7 @@ The set follows four documentation modes — learning, tasks, reference, and exp
 - [concepts/config-authority.md](concepts/config-authority.md) — declared configuration files projected into the database: authority, audit, the writer token, the export runbook.
 - [documents.md](documents.md) — the shared document store: versioned Office, OpenDocument and text documents, grants, MCP tools, HTTP API and bridge Drive sync.
 - [notifications.md](notifications.md) — notifications and subscriptions: attention levels, streams, rules, digests, receipts, the YAML declarations, HTTP API, bridge inbox and the `documents_inbox` MCP tool.
+- [brain.md](brain.md) — the brain: revisioned organisational memory captured from documents and comments, recalled into gateway requests; the `services/brain/` declarations, profile, HTTP API, MCP tools, headers, jobs and extension seams.
 - [issues.md](issues.md) — bug and feedback reports from users and agents: folding by fingerprint, attachments, triage, visibility, the MCP tools, HTTP API and CLI.
 
 ### Guides (how-to)

@@ -16,12 +16,13 @@ mod enter;
 mod lifecycle;
 mod proposals;
 mod reads;
+mod visibility;
 
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 use sqlx::PgConnection;
-use systemprompt_extension::brain::DynBrainSink;
-use systemprompt_extension::notifications::DynNotificationSink;
+use systemprompt_extension::brain::{DynBrainSink, SourceAccess};
+use systemprompt_extension::notifications::{DynNotificationSink, NotificationAudienceResolver};
 use systemprompt_identifiers::BrainFactId;
 use systemprompt_manifest::profile::BrainProfile;
 use systemprompt_models::brain::{BrainFact, FactRevision, RevisionChange};
@@ -46,7 +47,9 @@ pub struct BrainService {
     notifications: Option<DynNotificationSink>,
     profile: Arc<BrainProfile>,
     declared: Arc<dyn DeclaredSource>,
-    replay: Option<ProposalReplay>,
+    source_access: Arc<dyn SourceAccess>,
+    audiences: Vec<Arc<dyn NotificationAudienceResolver>>,
+    replay: Arc<OnceLock<ProposalReplay>>,
 }
 
 impl std::fmt::Debug for BrainService {
@@ -54,7 +57,7 @@ impl std::fmt::Debug for BrainService {
         f.debug_struct("BrainService")
             .field("enabled", &self.profile.enabled)
             .field("notifications", &self.notifications.is_some())
-            .field("replay", &self.replay.is_some())
+            .field("replay", &self.replay.get().is_some())
             .finish_non_exhaustive()
     }
 }
@@ -66,6 +69,8 @@ pub struct BrainServiceBuilder {
     profile: Arc<BrainProfile>,
     notifications: Option<DynNotificationSink>,
     declared: Option<Arc<dyn DeclaredSource>>,
+    source_access: Option<Arc<dyn SourceAccess>>,
+    audiences: Vec<Arc<dyn NotificationAudienceResolver>>,
     replay: Option<ProposalReplay>,
 }
 
@@ -91,6 +96,8 @@ impl BrainService {
             profile,
             notifications: None,
             declared: None,
+            source_access: None,
+            audiences: Vec::new(),
             replay: None,
         }
     }
@@ -98,6 +105,10 @@ impl BrainService {
     #[must_use]
     pub const fn profile(&self) -> &Arc<BrainProfile> {
         &self.profile
+    }
+
+    pub fn attach_replay(&self, replay: ProposalReplay) -> bool {
+        self.replay.set(replay).is_ok()
     }
 }
 
@@ -111,6 +122,18 @@ impl BrainServiceBuilder {
     #[must_use]
     pub fn declared(mut self, declared: Arc<dyn DeclaredSource>) -> Self {
         self.declared = Some(declared);
+        self
+    }
+
+    #[must_use]
+    pub fn source_access(mut self, source_access: Arc<dyn SourceAccess>) -> Self {
+        self.source_access = Some(source_access);
+        self
+    }
+
+    #[must_use]
+    pub fn audiences(mut self, audiences: Vec<Arc<dyn NotificationAudienceResolver>>) -> Self {
+        self.audiences = audiences;
         self
     }
 
@@ -131,7 +154,11 @@ impl BrainServiceBuilder {
             notifications: self.notifications,
             profile: self.profile,
             declared,
-            replay: self.replay,
+            source_access: self
+                .source_access
+                .unwrap_or_else(|| Arc::new(visibility::NoSourceAccess)),
+            audiences: self.audiences,
+            replay: Arc::new(self.replay.map_or_else(OnceLock::new, OnceLock::from)),
         }
     }
 }

@@ -1,9 +1,10 @@
-//! Reciprocal rank fusion of the retrieval tiers: a fact scores
-//! `Σ weight_tier / (k + rank)` over every tier that returned it (rank
-//! counted from 1), and facts are ordered by score with ties broken by
-//! fact id. Extension retrievers only re-rank facts a core tier already
-//! returned, so an extension cannot surface a fact the scope-filtered SQL
-//! did not admit.
+//! Reciprocal rank fusion of the retrieval tiers.
+//!
+//! A fact scores `Σ weight_tier / (k + rank)` over every tier that returned
+//! it (rank counted from 1), and facts are ordered by score with ties
+//! broken by fact id. Extension retrievers only re-rank facts a core tier
+//! already returned, so an extension cannot surface a fact the
+//! scope-filtered SQL did not admit.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

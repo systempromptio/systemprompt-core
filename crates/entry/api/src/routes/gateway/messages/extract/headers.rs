@@ -106,8 +106,10 @@ pub fn memory_preference(headers: &HeaderMap) -> MemoryPreference {
 }
 
 pub(super) fn classify_client_headers(headers: &HeaderMap) -> ClientHeaders {
-    let mut classified = ClientHeaders::default();
-    classified.memory = memory_preference(headers);
+    let mut classified = ClientHeaders {
+        memory: memory_preference(headers),
+        ..ClientHeaders::default()
+    };
     for (name, value) in headers {
         let Ok(value) = value.to_str() else {
             continue;

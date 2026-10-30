@@ -18,7 +18,7 @@ pub enum MemoryPreference {
 
 impl MemoryPreference {
     #[must_use]
-    pub fn from_header(value: Option<&str>) -> Self {
+    pub const fn from_header(value: Option<&str>) -> Self {
         match value {
             Some(value) if value.eq_ignore_ascii_case("off") => Self::Off,
             _ => Self::Default,

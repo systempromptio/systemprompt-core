@@ -77,15 +77,17 @@ impl FormulaImportance {
             .copied()
             .unwrap_or(1.0);
         let half_life = f64::from(ctx.recency.half_life_days.max(1));
-        let recency = 0.5_f64.powf(terms.age_days.max(0.0) / half_life);
+        let recency = 0.5f64.powf(terms.age_days.max(0.0) / half_life);
         let subject = if terms.subject_matched {
             ctx.subject_match
         } else {
             0.0
         };
-        let usage = terms.cited_rate * ctx.usage.cited_rate_weight
-            - terms.ignored_rate * ctx.usage.ignored_penalty;
-        terms.base * workflow * recency + subject + usage
+        let usage = terms.ignored_rate.mul_add(
+            -ctx.usage.ignored_penalty,
+            terms.cited_rate * ctx.usage.cited_rate_weight,
+        );
+        (terms.base * workflow).mul_add(recency, subject) + usage
     }
 }
 

@@ -1,10 +1,10 @@
-use systemprompt_identifiers::ClientId;
+use systemprompt_identifiers::{AgentName, ClientId};
 use systemprompt_models::auth::{RequestActor, TokenInteraction, bearer_actor};
 use systemprompt_models::origin::MemoryPreference;
 
 fn agent(name: &str, attended: bool) -> RequestActor {
     RequestActor::Agent {
-        name: name.to_owned(),
+        name: AgentName::new(name),
         attended,
     }
 }

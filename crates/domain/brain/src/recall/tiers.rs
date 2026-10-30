@@ -1,10 +1,12 @@
-//! The retrieval tiers' SQL. Every tier applies the same filter: the scope
-//! levels the context searches; a user-scoped fact only for its owner; a
-//! project fact for the principal's project or when a topic may widen it
-//! (decided later by `visible()`); confirmed facts, proposed facts only for
-//! their owner, and stale facts only when the profile injects them with a
-//! marker; never a fact whose review is due or that is outside its validity
-//! window. Each tier returns fact ids in rank order.
+//! The retrieval tiers' SQL.
+//!
+//! Every tier applies the same filter: the scope levels the context
+//! searches; a user-scoped fact only for its owner; a project fact for the
+//! principal's project or when a topic may widen it (decided later by
+//! `visible()`); confirmed facts, proposed facts only for their owner, and
+//! stale facts only when the profile injects them with a marker; never a
+//! fact whose review is due or that is outside its validity window. Each
+//! tier returns fact ids in rank order.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

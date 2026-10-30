@@ -24,8 +24,8 @@ use axum::routing::{get, patch, post};
 use systemprompt_brain::service::{BrainCaller, BrainService};
 use systemprompt_extension::LoaderError;
 use systemprompt_extension::brain::MemoryRecall;
-use systemprompt_identifiers::UserId;
 use systemprompt_manifest::profile::BrainProfile;
+use systemprompt_models::RequestContext;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_traits::UserProvider;
@@ -73,14 +73,12 @@ impl BrainRoutes {
         }
     }
 
-    async fn caller(&self, user_id: &UserId) -> Result<BrainCaller, BrainHttpError> {
-        let found = self
-            .users
-            .find_by_id(user_id)
-            .await
-            .map_err(|source| ApiError::internal("user lookup failed", source))?;
+    async fn caller(&self, req_ctx: &RequestContext) -> Result<BrainCaller, BrainHttpError> {
+        let found = self.users.find_by_id(req_ctx.user_id()).await?;
         match found {
-            Some(user) if user.is_active => Ok(BrainCaller::new(user.id, user.roles)),
+            Some(user) if user.is_active => Ok(BrainCaller::new(user.id, user.roles).with_actor(
+                systemprompt_runtime::documents::actor::caller_actor(req_ctx),
+            )),
             _ => Err(ApiHttpError::unauthorized("account is not active").into()),
         }
     }
@@ -117,6 +115,7 @@ pub fn router(routes: Option<BrainRoutes>) -> Router {
         .route("/proposals", get(proposals::list))
         .route("/proposals/{id}/approve", post(proposals::approve))
         .route("/proposals/{id}/reject", post(proposals::reject))
+        .route("/proposals/{id}/replay", post(proposals::replay))
         .with_state(state)
 }
 

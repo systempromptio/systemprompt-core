@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.77.0] - 2026-10-30
+
+### Breaking
+
+- **Breaking:** `GatewayRequestContext` gains `actor: RequestActor` and `memory: MemoryPreference`, `GatewayEngines` gains `memory_recall` and `GatewayRepositories` gains `brain_recall: BrainRecallProfile`. Migrate struct literals by adding the actor, `MemoryPreference::Default`, `memory_recall: None` and `BrainRecallProfile::default()`.
+
+### Added
+
+- The recall stage: with a `MemoryRecall` attached and recall on for the client, a request gains the team-memory block within the recall deadline, its receipt is recorded after admission, the response names the injected facts in `x-systemprompt-memory-ids`, and the completed response is observed for outcome signals. A recall that fails, times out or is off leaves the request unchanged.
+- `GatewayClient` (feature `brain`), which sends a request in process through the full gateway pipeline as a `ServicePrincipal`, audited as an unattended internal agent.
+
 ## [0.76.0] - 2026-10-29
 
 ### Fixed

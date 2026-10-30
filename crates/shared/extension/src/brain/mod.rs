@@ -1,9 +1,10 @@
-//! Brain seams: the outbox sink, the capture pipeline's filters,
-//! extractors, validators, importance models and source content, the model
-//! client, the read side's store contract, retrievers and injection
-//! policies, the gateway-facing [`MemoryRecall`] with its
-//! [`SourceAccess`] check, and the measure side's outcome signals and
-//! analyses.
+//! Brain seams, from capture through recall to measurement.
+//!
+//! They are the outbox sink, the capture pipeline's filters, extractors,
+//! validators, importance models and source content, the model client, the
+//! read side's store contract, retrievers and injection policies, the
+//! gateway-facing [`MemoryRecall`] with its [`SourceAccess`] check, and the
+//! measure side's outcome signals and analyses.
 //!
 //! Producers emit through the injected [`BrainSink`] inside their own
 //! transaction. Extensions contribute filters, extractors, validators,

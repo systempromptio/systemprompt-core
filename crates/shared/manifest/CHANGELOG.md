@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.77.0] - 2026-10-30
+
+### Breaking
+
+- **Breaking:** `Profile` gains `brain: BrainProfile`. The YAML block is optional and defaulted, and `enabled` defaults to `false`. Migrate struct literals by adding `brain: BrainProfile::default()`.
+- **Breaking:** `RateLimitsConfig` gains `brain_per_second` (YAML optional, default `50`), and `per_second_budgets` returns fifteen entries. Migrate struct literals by adding the field or `..RateLimitsConfig::default()`.
+
+### Changed
+
+- `BrainCaptureProfile.sources` accepts `session`, `AutoConfirmPolicy.document` accepts `project_policy` and `BrainExtractionProfile.provider` is accepted; in 0.77 the session pathway captures nothing, `project_policy` behaves as `never` and `provider` is not read.
+
 ## [0.76.0] - 2026-10-29
 
 ### Breaking

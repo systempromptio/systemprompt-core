@@ -139,13 +139,15 @@ fn known_topics<'a>(
     named: impl IntoIterator<Item = &'a TopicId>,
     declared: &HashSet<&TopicId>,
 ) -> Result<(), BrainDeclError> {
-    match named.into_iter().find(|topic| !declared.contains(topic)) {
-        Some(topic) => Err(BrainDeclError::UnknownTopic {
-            owner: owner.to_owned(),
-            topic: topic.clone(),
-        }),
-        None => Ok(()),
-    }
+    named
+        .into_iter()
+        .find(|topic| !declared.contains(topic))
+        .map_or(Ok(()), |topic| {
+            Err(BrainDeclError::UnknownTopic {
+                owner: owner.to_owned(),
+                topic: topic.clone(),
+            })
+        })
 }
 
 fn known_kinds<'a>(
@@ -153,13 +155,15 @@ fn known_kinds<'a>(
     named: impl IntoIterator<Item = &'a FactKindId>,
     declared: &HashSet<&FactKindId>,
 ) -> Result<(), BrainDeclError> {
-    match named.into_iter().find(|kind| !declared.contains(kind)) {
-        Some(kind) => Err(BrainDeclError::UnknownKind {
-            owner: owner.to_owned(),
-            kind: kind.clone(),
-        }),
-        None => Ok(()),
-    }
+    named
+        .into_iter()
+        .find(|kind| !declared.contains(kind))
+        .map_or(Ok(()), |kind| {
+            Err(BrainDeclError::UnknownKind {
+                owner: owner.to_owned(),
+                kind: kind.clone(),
+            })
+        })
 }
 
 fn weight(name: impl Into<String>, value: f64) -> Result<(), BrainDeclError> {

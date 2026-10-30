@@ -61,7 +61,7 @@ pub fn review_due_event(
         Utc::now(),
     )
     .with_subject(SubjectRef::new(FACT_SUBJECT, fact.id.as_str()))
-    .with_excerpt(fact.statement.clone())
+    .with_body(fact.statement.clone())
     .with_payload(payload);
     Ok(Some(match recipient {
         Some(user) => event.with_direct_recipient(user.clone(), Some(Attention::Agent)),
@@ -115,13 +115,13 @@ impl Job for BrainReviewJob {
             return Ok(JobResult::success().with_stats(0, 0));
         }
         let repos = BrainRepositories::new(ctx.get::<DbPool>()?);
-        let sink = ctx.get::<DynNotificationSink>().ok();
+        let sink = Some(ctx.get::<DynNotificationSink>()?);
         let due = repos
             .facts
             .list_review_due(Utc::now(), BATCH)
             .await
             .map_err(|e| systemprompt_traits::ProviderError::Internal(Box::new(e)))?;
-        let (mut marked, mut failed) = (0_u64, 0_u64);
+        let (mut marked, mut failed) = (0u64, 0u64);
         for fact in &due {
             match mark_one(&repos, sink, fact).await {
                 Ok(()) => marked += 1,

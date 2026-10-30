@@ -1,7 +1,8 @@
-//! The extraction model call: [`request_for`] builds a kind's
-//! [`BrainModelRequest`] (versioned prompt, strict output schema, output
-//! cap) and [`parse_output`] turns the answer into candidates, refusing any
-//! output the schema does not admit.
+//! The extraction model call.
+//!
+//! [`request_for`] builds a kind's [`BrainModelRequest`] (versioned prompt,
+//! strict output schema, output cap) and [`parse_output`] turns the answer
+//! into candidates, refusing any output the schema does not admit.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -18,12 +19,14 @@ use systemprompt_identifiers::FactKindId;
 use systemprompt_models::brain::{BrainModelRequest, ExtractorDecl, KindDecl, SourceText};
 
 /// Why a model request could not be built or its output not accepted.
-#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[derive(Debug, thiserror::Error)]
 pub enum ModelOutputError {
     #[error("kind {0} has no model extractor with a prompt version")]
     NoModelExtractor(FactKindId),
     #[error("model output is not JSON")]
-    NotJson,
+    NotJson(#[source] serde_json::Error),
+    #[error("model output `span` is malformed")]
+    MalformedSpan(#[source] serde_json::Error),
     #[error("model output does not match the schema: {0}")]
     Schema(String),
 }

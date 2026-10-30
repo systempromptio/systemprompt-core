@@ -81,7 +81,7 @@ fn disputed_event(
         NotificationEvent::new(kind, caller.user_id.clone(), Utc::now())
             .with_subject(SubjectRef::new(FACT_SUBJECT, fact.id.as_str()))
             .with_direct_recipient(recipient.clone(), Some(Attention::Agent))
-            .with_excerpt(fact.statement.clone())
+            .with_body(fact.statement.clone())
             .with_payload(payload),
     ))
 }
@@ -95,7 +95,7 @@ impl BrainService {
     ) -> BrainResult<BrainDisputeId> {
         let mut tx = self.repos.write_pool().begin().await?;
         let fact = Self::fact_on(&mut tx, id).await?;
-        authority::may_view(caller, &fact.scope)?;
+        let fact = self.require_visible(caller, fact).await?;
         let dispute = NewDispute {
             fact_id: id.clone(),
             candidate: as_candidate(&fact),
@@ -142,13 +142,10 @@ impl BrainService {
                 reason: "the dispute is not open on this fact".to_owned(),
             });
         }
-        let still_open: Vec<_> = open
-            .into_iter()
-            .filter(|dispute| dispute != &resolution.dispute_id)
-            .collect();
+        let others_open = open.iter().any(|dispute| dispute != &resolution.dispute_id);
         let status = match resolution.outcome {
             DisputeOutcome::Upheld => Some(FactStatus::Retired),
-            DisputeOutcome::Dismissed if still_open.is_empty() => Some(FactStatus::Confirmed),
+            DisputeOutcome::Dismissed if !others_open => Some(FactStatus::Confirmed),
             DisputeOutcome::Dismissed => None,
         };
         if let Some(status) = status {

@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.77.0] - 2026-10-30
+
+### Breaking
+
+- **Breaking:** `AdmissionWrite` gains `memory_recall: Option<&str>`. Migrate struct literals by adding `memory_recall: None`.
+
+### Added
+
+- The `ai_requests.memory_recall` column and `AiRequestRepository::update_memory_recall`, recording what gateway recall did for a request.
+
 ## [0.73.0] - 2026-10-25
 
 ### Breaking

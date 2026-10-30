@@ -8,7 +8,9 @@
 use chrono::{DateTime, Utc};
 use sqlx::types::Json;
 use sqlx::{PgConnection, PgExecutor};
-use systemprompt_identifiers::{BrainFactId, FactKindId, UserId};
+use systemprompt_identifiers::{
+    BrainFactId, DocumentCommentId, DocumentId, DocumentRevisionId, FactKindId, UserId,
+};
 use systemprompt_models::brain::{BrainFact, FactSource, FactStatus, RevisionChange};
 use systemprompt_traits::RepositoryError;
 
@@ -75,9 +77,9 @@ impl FactRepository {
             fields,
             source,
             columns.kind,
-            columns.document_id,
-            columns.revision_id,
-            columns.comment_id,
+            columns.document_id.map(DocumentId::as_str),
+            columns.revision_id.map(DocumentRevisionId::as_str),
+            columns.comment_id.map(DocumentCommentId::as_str),
             &topics,
             fact.status.as_str(),
             fact.importance_base,
@@ -88,7 +90,9 @@ impl FactRepository {
             fact.identity_hash,
             fact.statement_hash,
             fact.owner_user_id.as_ref().map(UserId::as_str),
-            fact.pipeline_version.as_ref().map(|v| v.as_str()),
+            fact.pipeline_version
+                .as_ref()
+                .map(systemprompt_identifiers::PipelineVersion::as_str),
         )
         .fetch_optional(&mut *conn)
         .await?;

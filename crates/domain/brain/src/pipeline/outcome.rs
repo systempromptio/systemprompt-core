@@ -77,7 +77,7 @@ impl Default for EventSummary {
 
 impl EventSummary {
     #[must_use]
-    pub fn with(mut self, outcome: EventOutcome) -> Self {
+    pub const fn with(mut self, outcome: EventOutcome) -> Self {
         self.outcome = outcome;
         self
     }

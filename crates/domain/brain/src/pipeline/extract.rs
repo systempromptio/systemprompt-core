@@ -1,9 +1,10 @@
-//! The extract stage. A person-entered fact is its own candidate. Any other
-//! event is read once through the composite [`SourceContent`] under the
-//! profile's timeout and handed to one extractor per gathered kind; a
-//! source nobody can read fails closed. Each extraction is recorded once
-//! per event and pipeline version, and the daily token budget is checked
-//! before every call.
+//! The extract stage.
+//!
+//! A person-entered fact is its own candidate. Any other event is read once
+//! through the composite [`SourceContent`] under the profile's timeout and
+//! handed to one extractor per gathered kind; a source nobody can read
+//! fails closed. Each extraction is recorded once per event and pipeline
+//! version, and the daily token budget is checked before every call.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -75,12 +76,12 @@ pub fn select_extractor<'a>(
         return extensions
             .iter()
             .find(|e| e.name() == name && e.handles(kind))
-            .map(|e| e.as_ref());
+            .map(AsRef::as_ref);
     }
     extensions
         .iter()
         .find(|e| e.handles(kind))
-        .map(|e| e.as_ref())
+        .map(AsRef::as_ref)
         .or_else(|| core.handles(kind).then_some(core))
 }
 

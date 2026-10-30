@@ -54,6 +54,7 @@ fn collect(segments: &[Segment], names: &mut Vec<String>) {
     }
 }
 
+// JSON: a fact's fields are the kind's declared field map.
 pub fn render_statement(
     template: &str,
     subject: &SubjectKey,
@@ -65,6 +66,7 @@ pub fn render_statement(
     Ok(out)
 }
 
+// JSON: a fact's fields are the kind's declared field map.
 fn render_into(
     segments: &[Segment],
     subject: &SubjectKey,
@@ -88,6 +90,7 @@ fn render_into(
     Ok(())
 }
 
+// JSON: a fact's fields are the kind's declared field map.
 fn lookup(name: &str, subject: &SubjectKey, fields: &Map<String, Value>) -> Option<String> {
     if name == SUBJECT_FIELD {
         return Some(subject.id.clone());
@@ -165,6 +168,7 @@ fn parse_placeholder(template: &str, open: usize) -> Result<(Segment, usize), St
 }
 
 #[must_use]
+// JSON: a fact's fields are the kind's declared field map.
 pub fn identity_hash(
     kind: &FactKindId,
     subject: &SubjectKey,

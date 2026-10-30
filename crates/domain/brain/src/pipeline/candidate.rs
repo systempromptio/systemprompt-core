@@ -37,6 +37,10 @@ struct Prepared<'a> {
 }
 
 impl BrainPipeline {
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "the stage threads the event's savepoint connection and batch context with the candidate"
+    )]
     pub(super) async fn candidate(
         &self,
         conn: &mut PgConnection,

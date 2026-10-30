@@ -96,6 +96,7 @@ fn response_text(response: &CanonicalResponse) -> String {
         .join("")
 }
 
+// JSON: the structured output is the document the caller's JSON schema shapes.
 fn structured_output(
     response: &CanonicalResponse,
     text: &str,

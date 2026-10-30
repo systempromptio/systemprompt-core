@@ -117,7 +117,7 @@ pub async fn execute(cmd: AdminCommands, ctx: &CommandContext) -> Result<()> {
         AdminCommands::AccessControl(cmd) => access_control::execute(cmd, ctx).await,
         AdminCommands::Keys(cmd) => keys::execute(cmd, ctx).await,
         AdminCommands::Identity(cmd) => identity::execute(cmd, ctx),
-        AdminCommands::Issues(cmd) => issues::execute(cmd, ctx).await,
+        AdminCommands::Issues(cmd) => Box::pin(issues::execute(cmd, ctx)).await,
         AdminCommands::Licence(cmd) => licence::execute(cmd, ctx).await,
     }
 }

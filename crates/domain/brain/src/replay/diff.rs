@@ -7,7 +7,7 @@
 use std::collections::{BTreeMap, HashMap};
 
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::FactKindId;
+use systemprompt_identifiers::{FactKindId, PipelineVersion};
 use systemprompt_models::brain::FactStatus;
 
 /// One fact's identity, statement and status, replayed or stored.
@@ -48,9 +48,9 @@ impl ChangeCounts {
 }
 
 /// What a dry run would have done to the stored facts.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ReplayReport {
-    pub pipeline_version: String,
+    pub pipeline_version: PipelineVersion,
     pub events: u64,
     pub failed: u64,
     pub undecodable: u64,
@@ -61,6 +61,25 @@ pub struct ReplayReport {
     pub unchanged: u64,
     pub tokens: u64,
     pub per_kind: BTreeMap<FactKindId, ChangeCounts>,
+}
+
+impl ReplayReport {
+    #[must_use]
+    pub const fn new(pipeline_version: PipelineVersion) -> Self {
+        Self {
+            pipeline_version,
+            events: 0,
+            failed: 0,
+            undecodable: 0,
+            truncated: false,
+            would_create: 0,
+            would_revise: 0,
+            would_dispute: 0,
+            unchanged: 0,
+            tokens: 0,
+            per_kind: BTreeMap::new(),
+        }
+    }
 }
 
 #[must_use]

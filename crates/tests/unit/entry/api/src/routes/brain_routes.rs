@@ -70,7 +70,10 @@ fn brain_errors_map_to_statuses() {
             },
             StatusCode::FORBIDDEN,
         ),
-        (BrainError::UnknownKind(kind), StatusCode::UNPROCESSABLE_ENTITY),
+        (
+            BrainError::UnknownKind(kind),
+            StatusCode::UNPROCESSABLE_ENTITY,
+        ),
         (BrainError::Tombstoned, StatusCode::CONFLICT),
         (
             BrainError::Repository(RepositoryError::not_found("fact", FACT)),

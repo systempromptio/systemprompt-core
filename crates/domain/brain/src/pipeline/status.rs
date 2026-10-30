@@ -1,8 +1,10 @@
-//! The status stage: a new fact's status, stored importance and review
-//! date. `Always` confirms; `Never` leaves an extracted fact `Proposed` and
-//! an entered fact in the status its author chose. `ProjectPolicy` names a
-//! per-project policy no project yet declares, so it confirms nothing. The
-//! base importance comes from the first extension model that scores the
+//! The status stage.
+//!
+//! A new fact's status, stored importance and review date. `Always`
+//! confirms; `Never` leaves an extracted fact `Proposed` and an entered
+//! fact in the status its author chose. `ProjectPolicy` names a per-project
+//! policy no project yet declares, so it confirms nothing. The base
+//! importance comes from the first extension model that scores the
 //! candidate, else from core's formula.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.

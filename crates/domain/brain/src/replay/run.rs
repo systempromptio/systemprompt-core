@@ -41,7 +41,7 @@ pub struct ReplayService {
 
 impl ReplayService {
     #[must_use]
-    pub fn new(
+    pub const fn new(
         repos: Arc<BrainRepositories>,
         outbox: OutboxConsumer,
         seams: PipelineSeams,
@@ -70,15 +70,12 @@ impl ReplayService {
     ) -> BrainResult<ReplayReport> {
         let budget = self.profile.extraction.daily_token_budget / BUDGET_SHARE;
         let counting = Arc::new(CountingModel::new(model, budget));
-        let client: Arc<dyn BrainModelClient> = counting.clone();
+        let client: Arc<dyn BrainModelClient> = Arc::<CountingModel>::clone(&counting);
         let pipeline =
             BrainPipeline::builder(Arc::clone(&self.repos), client, self.profile.clone())
                 .seams(self.seams.clone())
                 .build();
-        let mut report = ReplayReport {
-            pipeline_version: version.to_string(),
-            ..ReplayReport::default()
-        };
+        let mut report = ReplayReport::new(version.clone());
         let mut tx = self.repos.write_pool().begin().await?;
         let docs = load_declared_state(&mut tx).await?.docs();
         let ctx = BatchContext::from_docs(docs, version, Utc::now());

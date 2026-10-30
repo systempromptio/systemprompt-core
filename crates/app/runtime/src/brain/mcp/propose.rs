@@ -63,7 +63,7 @@ impl McpToolHandler for ProposeHandler<'_> {
         let outbox_id = self
             .tools
             .service()
-            .enter(&caller.user_id, &fact)
+            .enter(&caller, &fact)
             .await
             .map_err(brain_tool_error)?;
         tracing::info!(

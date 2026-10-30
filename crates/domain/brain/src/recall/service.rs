@@ -29,7 +29,7 @@ use systemprompt_models::brain::{
 };
 
 use super::budget::{self, BudgetLimits, Candidate};
-use super::declared::{DeclaredRecall, DeclaredSource};
+use super::declared::{DeclaredRecall, DeclaredSource, receipt_workflow};
 use super::fusion::{self, TierHits};
 use super::reuse::parse_stored;
 use super::score::{self, ScoreInput};
@@ -183,20 +183,13 @@ impl BrainRecallService {
         })?;
         let ctx = self.context(request, &declared);
         let mut withheld = WithheldSummary::default();
-        let ranked: Vec<ScoredFact> = self
-            .retrieve(request, &ctx, &declared)
-            .await?
-            .into_iter()
-            .filter(
-                |scored| match lifecycle_withheld(&scored.fact, ctx.now, self.inject_stale()) {
-                    Some(reason) => {
-                        withheld.add(reason);
-                        false
-                    },
-                    None => true,
-                },
-            )
-            .collect();
+        let mut ranked: Vec<ScoredFact> = Vec::new();
+        for scored in self.retrieve(request, &ctx, &declared).await? {
+            match lifecycle_withheld(&scored.fact, ctx.now, self.inject_stale()) {
+                Some(reason) => withheld.add(reason),
+                None => ranked.push(scored),
+            }
+        }
         let visibility = Visibility::new(Arc::clone(&self.source_access), self.source_timeout)
             .with_audiences(self.audiences.clone())
             .with_topics(declared.topics.clone());
@@ -268,7 +261,9 @@ impl MemoryRecall for BrainRecallService {
     }
 
     async fn record(&self, receipt: &RecallReceipt) -> Result<(), RecallError> {
-        self.store.record_recall(receipt).await
+        let mut receipt = receipt.clone();
+        receipt.workflow = receipt_workflow(self.declared.as_ref(), &receipt).await;
+        self.store.record_recall(&receipt).await
     }
 
     async fn observe(&self, observation: &RecallObservation) -> Result<(), RecallError> {

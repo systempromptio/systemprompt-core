@@ -107,6 +107,9 @@ pub fn new_recall(receipt: &RecallReceipt) -> NewRecall {
     if let Some(project) = &receipt.principal.project {
         builder = builder.project(project.clone());
     }
+    if let Some(workflow) = &receipt.workflow {
+        builder = builder.workflow(workflow.clone());
+    }
     builder.build()
 }
 

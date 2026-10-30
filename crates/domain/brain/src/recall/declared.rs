@@ -1,8 +1,10 @@
-//! [`DeclaredRecall`]: the plane declarations recall and the lifecycle
-//! services read (kinds, topics, workflow profiles, importance and
-//! retrieval documents), and [`PlaneDeclaredSource`], which reads them from
-//! the plane tables and keeps them for a short interval so a recall does not
-//! re-read every plane row.
+//! [`DeclaredRecall`].
+//!
+//! The plane declarations recall and the lifecycle services read (kinds,
+//! topics, workflow profiles, importance and retrieval documents), and
+//! [`PlaneDeclaredSource`], which reads them from the plane tables and
+//! keeps them for a short interval so a recall does not re-read every plane
+//! row.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -10,6 +12,7 @@
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use systemprompt_extension::brain::RecallReceipt;
 use systemprompt_identifiers::{FactKindId, TopicId, WorkflowId};
 use systemprompt_models::brain::{
     ImportanceConfig, KindDecl, RetrievalDoc, TopicDecl, WorkflowProfileDecl,
@@ -97,13 +100,33 @@ impl PlaneDeclaredSource {
 #[async_trait::async_trait]
 impl DeclaredSource for PlaneDeclaredSource {
     async fn load(&self) -> BrainResult<Arc<DeclaredRecall>> {
-        if let Some((at, declared)) = self.cached.read().await.as_ref() {
-            if at.elapsed() < CACHE_TTL {
-                return Ok(Arc::clone(declared));
-            }
+        if let Some((at, declared)) = self.cached.read().await.as_ref()
+            && at.elapsed() < CACHE_TTL
+        {
+            return Ok(Arc::clone(declared));
         }
         let declared = Arc::new(self.read().await?);
         *self.cached.write().await = Some((Instant::now(), Arc::clone(&declared)));
         Ok(declared)
+    }
+}
+
+pub async fn receipt_workflow(
+    declared: &dyn DeclaredSource,
+    receipt: &RecallReceipt,
+) -> Option<WorkflowId> {
+    let project = receipt.principal.project.as_ref()?;
+    match declared.load().await {
+        Ok(declared) => declared
+            .workflow_named(project)
+            .map(|workflow| workflow.id.clone()),
+        Err(error) => {
+            tracing::warn!(
+                recall_id = %receipt.recall_id,
+                error = %error,
+                "Brain declarations unavailable; recall recorded without its workflow"
+            );
+            None
+        },
     }
 }

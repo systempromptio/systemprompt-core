@@ -1,8 +1,9 @@
-//! The strict JSON schema a kind's extraction output must satisfy: an
-//! object holding `facts`, each fact an object with exactly the `subject`,
-//! `confidence`, `span` and declared field keys, every key required and an
-//! optional one nullable, with `additionalProperties: false` throughout as
-//! provider strict modes demand.
+//! The strict JSON schema a kind's extraction output must satisfy.
+//!
+//! An object holding `facts`, each fact an object with exactly the
+//! `subject`, `confidence`, `span` and declared field keys, every key
+//! required and an optional one nullable, with `additionalProperties:
+//! false` throughout as provider strict modes demand.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

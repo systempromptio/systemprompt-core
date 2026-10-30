@@ -22,7 +22,7 @@ pub(super) async fn confirm(
     Extension(req_ctx): Extension<RequestContext>,
     Path(id): Path<BrainFactId>,
 ) -> Revision {
-    let caller = state.caller(req_ctx.user_id()).await?;
+    let caller = state.caller(&req_ctx).await?;
     Ok(Json(state.service.confirm(&caller, &id).await?))
 }
 
@@ -31,7 +31,7 @@ pub(super) async fn pin(
     Extension(req_ctx): Extension<RequestContext>,
     Path(id): Path<BrainFactId>,
 ) -> Revision {
-    let caller = state.caller(req_ctx.user_id()).await?;
+    let caller = state.caller(&req_ctx).await?;
     Ok(Json(state.service.pin(&caller, &id).await?))
 }
 
@@ -40,7 +40,7 @@ pub(super) async fn unpin(
     Extension(req_ctx): Extension<RequestContext>,
     Path(id): Path<BrainFactId>,
 ) -> Revision {
-    let caller = state.caller(req_ctx.user_id()).await?;
+    let caller = state.caller(&req_ctx).await?;
     Ok(Json(state.service.unpin(&caller, &id).await?))
 }
 
@@ -50,7 +50,7 @@ pub(super) async fn retract(
     Path(id): Path<BrainFactId>,
     Json(body): Json<RetractBody>,
 ) -> Revision {
-    let caller = state.caller(req_ctx.user_id()).await?;
+    let caller = state.caller(&req_ctx).await?;
     Ok(Json(
         state.service.retract(&caller, &id, &body.reason).await?,
     ))
@@ -62,7 +62,7 @@ pub(super) async fn edit_fields(
     Path(id): Path<BrainFactId>,
     Json(body): Json<FieldsBody>,
 ) -> Revision {
-    let caller = state.caller(req_ctx.user_id()).await?;
+    let caller = state.caller(&req_ctx).await?;
     Ok(Json(
         state.service.edit_fields(&caller, &id, body.fields).await?,
     ))
@@ -73,7 +73,7 @@ pub(super) async fn erase(
     Extension(req_ctx): Extension<RequestContext>,
     Path(id): Path<BrainFactId>,
 ) -> Result<StatusCode, BrainHttpError> {
-    let caller = state.caller(req_ctx.user_id()).await?;
+    let caller = state.caller(&req_ctx).await?;
     state.service.erase(&caller, &id).await?;
     Ok(StatusCode::NO_CONTENT)
 }
@@ -84,7 +84,7 @@ pub(super) async fn dispute(
     Path(id): Path<BrainFactId>,
     Json(body): Json<DisputeBody>,
 ) -> Result<(StatusCode, Json<DisputeCreated>), BrainHttpError> {
-    let caller = state.caller(req_ctx.user_id()).await?;
+    let caller = state.caller(&req_ctx).await?;
     let dispute_id = state.service.dispute(&caller, &id, &body.reason).await?;
     Ok((StatusCode::CREATED, Json(DisputeCreated { dispute_id })))
 }
@@ -95,7 +95,7 @@ pub(super) async fn resolve(
     Path(id): Path<BrainDisputeId>,
     Json(body): Json<ResolveBody>,
 ) -> Result<StatusCode, BrainHttpError> {
-    let caller = state.caller(req_ctx.user_id()).await?;
+    let caller = state.caller(&req_ctx).await?;
     let resolution = DisputeResolution {
         fact_id: body.fact_id,
         dispute_id: id,

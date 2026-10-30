@@ -53,6 +53,8 @@ impl BrainFact {
 
     #[must_use]
     pub fn is_valid_at(&self, now: DateTime<Utc>) -> bool {
-        self.valid_from.is_none_or(|from| from <= now) && self.valid_to.is_none_or(|to| now < to)
+        let started = self.valid_from <= Some(now);
+        let ended = matches!(self.valid_to, Some(to) if to <= now);
+        started && !ended
     }
 }

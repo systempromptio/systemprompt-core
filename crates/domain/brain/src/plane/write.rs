@@ -118,6 +118,7 @@ async fn delete(conn: &mut PgConnection, key: &str, kind: &str, id: &str) -> Con
     deleted.map(|_| ()).map_err(backend)
 }
 
+// JSON: a plane entity body stays untyped until its kind picks the shape.
 fn typed<T: DeserializeOwned>(key: &str, body: &serde_json::Value) -> ConfigPlaneResult<T> {
     T::deserialize(body).map_err(|e| invalid(key, &e))
 }

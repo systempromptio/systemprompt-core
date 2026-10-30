@@ -19,6 +19,7 @@ struct ProposalRow {
     kind: String,
     status: String,
     summary: String,
+    // JSON: the body column stores the analysis's typed draft.
     body: serde_json::Value,
     created_at: DateTime<Utc>,
     decided_by: Option<UserId>,
@@ -108,6 +109,7 @@ impl ProposalRepository {
         Ok(result.rows_affected() > 0)
     }
 
+    // JSON: the replay column stores the serialised `ReplayReport`.
     pub async fn attach_replay(
         executor: impl PgExecutor<'_>,
         id: &BrainProposalId,
@@ -121,6 +123,19 @@ impl ProposalRepository {
         .execute(executor)
         .await?;
         Ok(result.rows_affected() > 0)
+    }
+
+    pub async fn exists(
+        executor: impl PgExecutor<'_>,
+        id: &BrainProposalId,
+    ) -> Result<bool, RepositoryError> {
+        let found = sqlx::query_scalar!(
+            r#"SELECT EXISTS (SELECT 1 FROM brain_proposals WHERE id = $1) AS "found!""#,
+            id.as_str(),
+        )
+        .fetch_one(executor)
+        .await?;
+        Ok(found)
     }
 
     pub async fn list_open(&self, limit: i64) -> Result<Vec<BrainProposal>, RepositoryError> {

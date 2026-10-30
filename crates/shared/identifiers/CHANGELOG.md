@@ -9,6 +9,8 @@
 ### Added
 
 - `EditorId`, the client-chosen key of an editor holding a document lock.
+- The brain identifiers: `BrainFactId` (`m_<uuid>`), the declared keys `FactKindId`, `TopicId`, `InterestId` and `WorkflowId`, the UUID-backed extraction, proposal, recall, dispute and revision ids, and `PipelineVersion`.
+- The `MEMORY` (`x-systemprompt-memory`) and `MEMORY_IDS` (`x-systemprompt-memory-ids`) header constants.
 
 ## [0.76.0] - 2026-10-29
 
