@@ -37,6 +37,10 @@ use super::model::RichText;
 pub enum ModelView {
     Body(String),
     RichText(RichText),
+    #[cfg(feature = "collab-loro")]
+    Sheet(loro::sheet::SheetModel),
+    #[cfg(feature = "collab-loro")]
+    Deck(loro::deck::DeckModel),
 }
 
 impl ModelView {
@@ -45,6 +49,10 @@ impl ModelView {
         match self {
             Self::Body(_) => "body",
             Self::RichText(_) => "rich_text",
+            #[cfg(feature = "collab-loro")]
+            Self::Sheet(_) => "sheet",
+            #[cfg(feature = "collab-loro")]
+            Self::Deck(_) => "deck",
         }
     }
 }

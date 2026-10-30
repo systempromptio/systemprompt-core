@@ -275,7 +275,7 @@ fn check_model(before: &ModelView, after: ModelView, level: EditLevel) -> Result
             let empty = RichText::default();
             let before = match before {
                 ModelView::RichText(before) => before,
-                ModelView::Body(_) => &empty,
+                _ => &empty,
             };
             validate(before, &after, level, &Limits::default()).map_err(CollabError::UpdateRejected)
         },
@@ -283,6 +283,8 @@ fn check_model(before: &ModelView, after: ModelView, level: EditLevel) -> Result
             CollabError::UpdateRejected(ModelRejection::BeyondCommentLevel),
         ),
         ModelView::Body(_) => Ok(()),
+        #[cfg(feature = "collab-loro")]
+        ModelView::Sheet(_) | ModelView::Deck(_) => Ok(()),
     }
 }
 

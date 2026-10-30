@@ -17,7 +17,7 @@ use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::DocumentAction;
 
 use super::apply::update_event;
-use super::document::import_rich_text;
+use super::document::{import, import_rich_text};
 use super::entry::SharedEntry;
 use super::error::{model_error, utf8};
 use super::model::body_of;
@@ -56,6 +56,10 @@ impl CollabService {
             },
             ModelView::Body(_) => {
                 ModelView::Body(body_of(format, &utf8(document_id, merged.to_vec())?))
+            },
+            #[cfg(feature = "collab-loro")]
+            ModelView::Sheet(_) | ModelView::Deck(_) => {
+                import(format, merged).map_err(model_error(document_id))?
             },
         };
         let update = body

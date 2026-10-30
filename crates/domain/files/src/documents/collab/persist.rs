@@ -293,6 +293,8 @@ async fn check_live(shared: &SharedEntry) -> Result<Result<(), ModelRejection>, 
     Ok(match &model {
         ModelView::RichText(model) => validate(model, model, EditLevel::Edit, &Limits::default()),
         ModelView::Body(_) => Ok(()),
+        #[cfg(feature = "collab-loro")]
+        ModelView::Sheet(_) | ModelView::Deck(_) => Ok(()),
     })
 }
 

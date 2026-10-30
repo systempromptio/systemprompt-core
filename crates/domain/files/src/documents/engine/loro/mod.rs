@@ -35,6 +35,7 @@ pub mod scope;
 mod shape;
 mod shape_ops;
 pub mod sheet;
+mod structured;
 mod sync;
 pub mod table;
 mod write;
@@ -142,6 +143,7 @@ impl EngineDoc for LoroEngineDoc {
         scoped: bool,
     ) -> Result<ScopedImport, EngineError> {
         let before = self.0.state_frontiers();
+        let scoped = scoped && !structured::is_structured(&self.0);
         let before_model = if scoped { None } else { Some(export(&self.0)?) };
         let import = self.apply_update(update)?;
         let after = self.0.state_frontiers();
@@ -157,11 +159,13 @@ impl EngineDoc for LoroEngineDoc {
                 export(&self.0.fork_at(&before).map_err(state)?)?
             },
         };
+        let after = export(&self.0)?;
+        structured::check(&self.0, &before_model, &after)?;
         Ok(ScopedImport {
             import,
             scope: ImportScope::Full {
                 before: before_model,
-                after: export(&self.0)?,
+                after,
             },
         })
     }
@@ -195,6 +199,12 @@ impl EngineDoc for LoroEngineDoc {
             ModelView::RichText(target) => {
                 write_model(&draft, target).map_err(EngineError::State)?;
             },
+            ModelView::Sheet(target) => {
+                sheet::write_sheets(&draft, target).map_err(EngineError::State)?;
+            },
+            ModelView::Deck(target) => {
+                deck::write_deck(&draft, target).map_err(EngineError::State)?;
+            },
             ModelView::Body(target) => draft
                 .get_text(BODY_CONTAINER)
                 .update(target, UpdateOptions::default())
@@ -217,6 +227,16 @@ fn canonical_view(model: &ModelView) -> ModelView {
 }
 
 pub fn export(doc: &LoroDoc) -> Result<ModelView, EngineError> {
+    if sheet::is_sheet_doc(doc) {
+        return sheet::read(doc)
+            .map(ModelView::Sheet)
+            .map_err(|e| EngineError::Model(Box::new(e)));
+    }
+    if !deck::slides(doc).is_empty() {
+        return deck::read(doc)
+            .map(ModelView::Deck)
+            .map_err(|e| EngineError::Model(Box::new(e)));
+    }
     let body = body_text(doc);
     if rich::blocks(doc).is_empty() && !body.is_empty() {
         Ok(ModelView::Body(body))
@@ -238,6 +258,8 @@ pub fn seed_model(model: &ModelView) -> Result<LoroDoc, rich::WriteError> {
     doc.set_peer_id(SEED_PEER)?;
     match model {
         ModelView::RichText(rich) => write_model(&doc, rich)?,
+        ModelView::Sheet(sheets) => sheet::write_sheets(&doc, sheets)?,
+        ModelView::Deck(slides) => deck::write_deck(&doc, slides)?,
         ModelView::Body(body) => {
             let text: LoroText = doc.get_text(BODY_CONTAINER);
             text.insert(0, body)?;

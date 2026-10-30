@@ -28,7 +28,48 @@ use crate::documents::model::formats::materialise_rich_text_live;
 
 pub use crate::documents::model::formats::{ModelError, import_rich_text};
 
+#[cfg(feature = "collab-loro")]
+mod structured {
+    use super::ModelError;
+    use crate::documents::engine::loro::deck::DeckModel;
+    use crate::documents::engine::loro::sheet::SheetModel;
+
+    #[cfg(feature = "office")]
+    pub(super) fn sheet_bytes(sheets: &SheetModel) -> Result<Vec<u8>, ModelError> {
+        Ok(crate::documents::codecs::xlsx::checkpoint_xlsx(sheets)?)
+    }
+
+    #[cfg(feature = "office")]
+    pub(super) fn deck_bytes(base: &[u8], deck: &DeckModel) -> Result<Vec<u8>, ModelError> {
+        Ok(crate::documents::codecs::pptx::lower_deck(base, deck)?)
+    }
+
+    #[cfg(not(feature = "office"))]
+    pub(super) fn sheet_bytes(_sheets: &SheetModel) -> Result<Vec<u8>, ModelError> {
+        Err(ModelError::Unsupported)
+    }
+
+    #[cfg(not(feature = "office"))]
+    pub(super) fn deck_bytes(_base: &[u8], _deck: &DeckModel) -> Result<Vec<u8>, ModelError> {
+        Err(ModelError::Unsupported)
+    }
+}
+
 pub fn import(format: DocumentFormat, document: &[u8]) -> Result<ModelView, ModelError> {
+    #[cfg(all(feature = "office", feature = "collab-loro"))]
+    match format {
+        DocumentFormat::Xlsx | DocumentFormat::Ods => {
+            return Ok(ModelView::Sheet(
+                crate::documents::codecs::xlsx::sheet_model_from_xlsx(document)?,
+            ));
+        },
+        DocumentFormat::Pptx => {
+            return Ok(ModelView::Deck(crate::documents::codecs::pptx::deck_model(
+                document,
+            )?));
+        },
+        _ => {},
+    }
     Ok(ModelView::RichText(import_rich_text(format, document)?))
 }
 
@@ -49,6 +90,10 @@ pub fn materialise(
         ModelView::Body(body) => {
             Ok(splice_body(format, std::str::from_utf8(base)?, body).into_bytes())
         },
+        #[cfg(feature = "collab-loro")]
+        ModelView::Sheet(sheets) => structured::sheet_bytes(sheets),
+        #[cfg(feature = "collab-loro")]
+        ModelView::Deck(deck) => structured::deck_bytes(base, deck),
     }
 }
 
@@ -60,7 +105,7 @@ pub fn unchanged_from(
 ) -> Result<bool, ModelError> {
     let next = materialise(format, base, model, media)?;
     Ok(match model {
-        ModelView::RichText(_) => next == materialise(format, base, &import(format, base)?, media)?,
         ModelView::Body(_) => next == base,
+        _ => next == materialise(format, base, &import(format, base)?, media)?,
     })
 }
