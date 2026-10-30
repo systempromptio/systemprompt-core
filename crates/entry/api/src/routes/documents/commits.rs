@@ -28,7 +28,7 @@ use systemprompt_files::documents::model::Media;
 use systemprompt_files::documents::revision::CommitBody;
 use systemprompt_files::documents::service::{
     CommentPolicy, CommitOutcome, CommitRequest, EditModeRequest, ExternalWrite, LandedCommit,
-    LiveEdit, LiveEditRequest, ProposeRequest,
+    LiveEdit, ProposeRequest,
 };
 use systemprompt_identifiers::{
     DocumentCommentId, DocumentEditSessionId, DocumentId, DocumentOpId, DocumentRevisionId,
@@ -208,18 +208,6 @@ pub(super) async fn edits(
             .await?;
         return Ok(proposed_response(proposed));
     }
-    let live = LiveEditRequest {
-        document_id: id.clone(),
-        ops: body.ops.clone(),
-        media: Media::new(),
-    };
-    if let Some(live) = state
-        .service
-        .edit_live(&who.user, live, &who.trace)
-        .await?
-    {
-        return Ok(live_response(live));
-    }
     let request = CommitRequest {
         document_id: id.clone(),
         base_revision: body.base_revision,
@@ -234,6 +222,13 @@ pub(super) async fn edits(
         op_id: body.op_id,
         media: Media::new(),
     };
+    if let Some(live) = state
+        .service
+        .edit_live(&who.user, &request, &who.trace)
+        .await?
+    {
+        return Ok(live_response(live));
+    }
     let outcome = state.service.commit(&who.user, request, &who.trace).await?;
     Ok(outcome_response(outcome, &id))
 }

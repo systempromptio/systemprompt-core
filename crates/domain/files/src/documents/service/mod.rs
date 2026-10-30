@@ -53,6 +53,7 @@ mod landing_ids;
 mod lifecycle;
 mod lifecycle_live;
 mod limits;
+mod live_edit;
 mod live_ops;
 mod listing;
 mod locks;

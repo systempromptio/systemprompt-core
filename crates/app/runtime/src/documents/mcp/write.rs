@@ -125,7 +125,18 @@ async fn commit_ops(call: EditCall<'_>) -> Result<(EditOutput, String), McpError
     }
     let refs = image_refs(None, &call.ops);
     let media = resolve_media(call.tools, call.ctx, refs, Some(&call.document)).await?;
-    if let Some(output) = edit_live(&call, &media).await? {
+    let request = CommitRequest {
+        document_id: call.document.clone(),
+        base_revision: call.base.clone(),
+        body: CommitBody::Ops(call.ops.clone()),
+        author: agent_author(call.ctx, call.exec_id),
+        message: call.message.clone(),
+        lock_holder: None,
+        comments: call.comments.clone(),
+        op_id: call.op_id.clone(),
+        media,
+    };
+    if let Some(output) = edit_live(&call, &request).await? {
         announce_agent(&call, &output).await;
         let summary = format!("wrote {} live", output.written.len());
         return Ok((output, summary));
@@ -133,21 +144,7 @@ async fn commit_ops(call: EditCall<'_>) -> Result<(EditOutput, String), McpError
     let outcome = call
         .tools
         .service()
-        .commit(
-            call.who,
-            CommitRequest {
-                document_id: call.document.clone(),
-                base_revision: call.base.clone(),
-                body: CommitBody::Ops(call.ops.clone()),
-                author: agent_author(call.ctx, call.exec_id),
-                message: call.message.clone(),
-                lock_holder: None,
-                comments: call.comments.clone(),
-                op_id: call.op_id.clone(),
-                media,
-            },
-            call.ctx.trace_id(),
-        )
+        .commit(call.who, request, call.ctx.trace_id())
         .await
         .map_err(tool_error)?;
     let landed = match outcome {

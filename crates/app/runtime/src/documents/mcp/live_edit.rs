@@ -11,8 +11,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use rmcp::ErrorData as McpError;
-use systemprompt_files::documents::model::Media;
-use systemprompt_files::documents::service::{LiveEdit, LiveEditRequest};
+use systemprompt_files::documents::service::{CommitRequest, LiveEdit};
 use systemprompt_models::documents::DocumentUri;
 
 use super::support::tool_error;
@@ -21,13 +20,8 @@ use crate::documents::views::{EditOutput, written_lines};
 
 pub(super) async fn edit_live(
     call: &EditCall<'_>,
-    media: &Media,
+    request: &CommitRequest,
 ) -> Result<Option<EditOutput>, McpError> {
-    let request = LiveEditRequest {
-        document_id: call.document.clone(),
-        ops: call.ops.clone(),
-        media: media.clone(),
-    };
     let live = call
         .tools
         .service()

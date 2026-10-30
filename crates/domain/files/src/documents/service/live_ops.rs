@@ -75,41 +75,6 @@ pub struct LiveOps<'a> {
 }
 
 impl DocumentService {
-    /// Writes an op batch into the document's open live session, or answers
-    /// `None` when there is none, so the caller commits it to the head.
-    #[cfg(feature = "collab")]
-    pub async fn edit_live(
-        &self,
-        who: &AuthenticatedUser,
-        request: LiveEditRequest,
-        trace: &TraceId,
-    ) -> Result<Option<LiveEdit>, DocumentsError> {
-        let Some(collab) = self.collab() else {
-            return Ok(None);
-        };
-        collab
-            .edit_live(who, request, trace)
-            .await
-            .map_err(|error| match error {
-                crate::documents::collab::CollabError::Documents(error) => error,
-                other => DocumentsError::LiveSession(Box::new(other)),
-            })
-    }
-
-    #[cfg(not(feature = "collab"))]
-    #[expect(
-        clippy::unused_async,
-        reason = "shares the signature of the collab build"
-    )]
-    pub async fn edit_live(
-        &self,
-        _who: &AuthenticatedUser,
-        _request: LiveEditRequest,
-        _trace: &TraceId,
-    ) -> Result<Option<LiveEdit>, DocumentsError> {
-        Ok(None)
-    }
-
     pub async fn admit_live_ops(
         &self,
         who: &AuthenticatedUser,
