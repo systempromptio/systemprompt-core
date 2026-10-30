@@ -159,7 +159,7 @@ impl BrainCore {
             mut audiences,
             retrievers,
             injection,
-            importance: _,
+            importance,
         } = seams;
         audiences.push(Arc::new(UserRoleAudienceResolver::new(Arc::clone(
             &self.users,
@@ -178,6 +178,7 @@ impl BrainCore {
         .retrievers(retrievers)
         .injection_policies(injection)
         .audiences(audiences)
+        .importance(importance)
         .build();
         let source_content = DocumentSourceContent::new(
             Arc::clone(documents.service()),
