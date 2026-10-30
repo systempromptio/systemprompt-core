@@ -12,7 +12,10 @@
 
 use systemprompt_identifiers::{AiRequestId, ContextId, SessionId, TraceId};
 use systemprompt_manifest::services::catalog::ResolvedHop;
-use systemprompt_models::origin::{ClientAttestation, ClientEvidence, RequestOrigin};
+use systemprompt_models::auth::RequestActor;
+use systemprompt_models::origin::{
+    ClientAttestation, ClientEvidence, MemoryPreference, RequestOrigin,
+};
 
 use super::principal::ServicePrincipal;
 use crate::audit::GatewayRequestContext;
@@ -67,5 +70,10 @@ pub(super) fn request_context(inputs: ContextInputs<'_>) -> GatewayRequestContex
         api_key_windows: Vec::new(),
         access_log: None,
         context_bound: false,
+        actor: RequestActor::Agent {
+            name: "brain".to_owned(),
+            attended: false,
+        },
+        memory: MemoryPreference::Off,
     }
 }

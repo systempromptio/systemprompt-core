@@ -112,18 +112,23 @@ async fn skipped(reason: SkipReason, audit: &GatewayAudit) -> RecallApplied {
     RecallApplied::default()
 }
 
+#[must_use]
+pub fn recall_principal(ctx: &GatewayRequestContext) -> RecallPrincipal {
+    RecallPrincipal {
+        user_id: ctx.user_id.clone(),
+        client: ctx.origin.client,
+        actor: ctx.actor.clone(),
+        project: ctx.attribution.value_for("project").map(str::to_owned),
+        client_id: ctx.client_id.clone(),
+    }
+}
+
 fn recall_request(
     ctx: &GatewayRequestContext,
     profile: &BrainRecallProfile,
     messages: &[CanonicalMessage],
 ) -> RecallRequest {
-    let principal = RecallPrincipal {
-        user_id: ctx.user_id.clone(),
-        client: ctx.origin.client,
-        actor: ctx.actor.clone(),
-        project: None,
-        client_id: ctx.client_id.clone(),
-    };
+    let principal = recall_principal(ctx);
     let conversation = RecallConversation {
         ai_request_id: Some(ctx.ai_request_id.clone()),
         gateway_conversation_id: ctx.gateway_conversation_id.clone(),

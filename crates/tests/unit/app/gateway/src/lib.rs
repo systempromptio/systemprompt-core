@@ -93,6 +93,8 @@ mod quota_calendar;
 #[cfg(test)]
 mod recall_encoding;
 #[cfg(test)]
+mod recall_principal;
+#[cfg(test)]
 mod quota_estimate;
 #[cfg(test)]
 mod quota_subject_kind;

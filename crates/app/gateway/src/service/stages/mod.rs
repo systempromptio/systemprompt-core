@@ -23,6 +23,7 @@ pub(in crate::service) use self::outbound::audit_upstream_failure;
 use self::outbound::{
     CtxParts, outbound_ctx, resolve_url_images, send_bracketed, strip_caller_identity,
 };
+pub use self::recall::recall_principal;
 pub(in crate::service) use self::recall::{
     RecallApplied, RecallStage, attach_memory_ids, record_recall,
 };
