@@ -134,7 +134,10 @@ impl BrainCore {
         }
         let write_pool = inputs.database.write_pool().as_ref().clone();
         let repos = BrainRepositories::new(inputs.database);
-        let outbox = DurableOutbox::new(write_pool.clone(), inputs.instance_id.clone());
+        let outbox = DurableOutbox::new(
+            write_pool.clone(),
+            systemprompt_events::process_origin(inputs.instance_id),
+        );
         let sink: DynBrainSink = Arc::new(OutboxBrainSink::new(Arc::new(outbox)));
         let profile = Arc::new(inputs.profile.clone());
         let declared: Arc<dyn DeclaredSource> = Arc::new(PlaneDeclaredSource::new(repos.clone()));

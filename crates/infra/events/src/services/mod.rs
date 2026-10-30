@@ -10,6 +10,7 @@ mod bridge_replay;
 mod broadcaster;
 pub mod cache_invalidation;
 pub mod durable;
+mod origin;
 mod repository;
 mod routing;
 mod topics;
@@ -24,6 +25,7 @@ pub use cache_invalidation::{
     CACHE_INVALIDATION_CHANNEL, CACHE_INVALIDATIONS_RECEIVED_TOTAL, invalidate_all_cache_domains,
     receive_cache_invalidation,
 };
+pub use origin::{process_origin, relays_row, scoped_origin};
 pub use repository::EventsOwnerReassignment;
 pub use routing::{
     BroadcasterConnections, EventBroadcasters, EventRouter, NOTIFICATION_FACTS_CHANNEL,
