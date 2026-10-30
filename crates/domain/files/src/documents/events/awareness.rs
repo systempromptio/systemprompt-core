@@ -8,7 +8,6 @@ use std::sync::PoisonError;
 use std::time::Instant;
 
 use systemprompt_identifiers::{DocumentId, UserId};
-use systemprompt_models::agui::CustomPayload;
 use systemprompt_models::documents::DocumentAwarenessEvent;
 
 use super::{AWARENESS_GATE_PRUNE_AT, AWARENESS_INTERVAL, DocumentEvents};
