@@ -9,6 +9,7 @@ agent=016
 # ai 052 rewrites the retired `synthetic` flag to the 'evaluation' traffic class before dropping the column.
 ai=052
 analytics=017
+brain=001
 content=005
 database=001
 events=009
