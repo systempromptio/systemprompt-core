@@ -8507,6 +8507,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-brain-integration-tests"
+version = "0.0.11"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "serde_json",
+ "sqlx",
+ "systemprompt-brain",
+ "systemprompt-database",
+ "systemprompt-events",
+ "systemprompt-extension",
+ "systemprompt-identifiers",
+ "systemprompt-manifest",
+ "systemprompt-models",
+ "systemprompt-runtime",
+ "systemprompt-test-fixtures",
+ "systemprompt-traits",
+ "systemprompt-users",
+ "tokio",
+ "tokio-util",
+]
+
+[[package]]
 name = "systemprompt-brain-tests"
 version = "0.0.11"
 dependencies = [

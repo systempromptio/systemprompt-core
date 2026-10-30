@@ -317,6 +317,14 @@ mod gateway_journal_drain;
 mod gateway_pipeline;
 
 #[cfg(test)]
+#[path = "gateway_recall.rs"]
+mod gateway_recall;
+
+#[cfg(test)]
+#[path = "gateway_recall_cases.rs"]
+mod gateway_recall_cases;
+
+#[cfg(test)]
 #[path = "gateway_failover.rs"]
 mod gateway_failover;
 

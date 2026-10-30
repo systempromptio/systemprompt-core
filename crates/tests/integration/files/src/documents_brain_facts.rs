@@ -22,16 +22,15 @@ use systemprompt_models::brain::{
     BRAIN_CONSUMER, BRAIN_EVENT_VERSION, BrainEvent, BrainEventKind, CommentResolved,
     RevisionLanded,
 };
-use systemprompt_models::documents::ActorKind;
-use systemprompt_models::documents::EditOp;
+use systemprompt_models::documents::{ActorKind, EditOp};
 use systemprompt_test_fixtures::{test_db_pool, unique_instance};
 use systemprompt_traits::RepositoryError;
 use tempfile::TempDir;
 
 use crate::documents_proposals::propose;
 use crate::documents_service_fixture::{
-    GroupSource, Harness, NoBrain, RoleDirectory, allow, api_author, create, harness_wired,
-    person, trace,
+    GroupSource, Harness, NoBrain, RoleDirectory, allow, api_author, create, harness_wired, person,
+    trace,
 };
 
 struct RecordingBrainSink {
@@ -56,7 +55,12 @@ impl BrainSink for RecordingBrainSink {
             data: event,
         };
         self.outbox
-            .append_on(conn, &Actor::user(event.actor.clone()), SseEvent::FactOnly, &fact)
+            .append_on(
+                conn,
+                &Actor::user(event.actor.clone()),
+                SseEvent::FactOnly,
+                &fact,
+            )
             .await
             .map_err(|_| {
                 BrainSinkError::Repository(RepositoryError::invalid_argument(
@@ -80,10 +84,9 @@ impl BrainSink for FailingBrainSink {
         _conn: &mut sqlx::PgConnection,
         _event: &BrainEvent,
     ) -> Result<EventOutboxId, BrainSinkError> {
-        Err(BrainSinkError::Repository(RepositoryError::invalid_argument(
-            "fact",
-            "refused by the test sink",
-        )))
+        Err(BrainSinkError::Repository(
+            RepositoryError::invalid_argument("fact", "refused by the test sink"),
+        ))
     }
 }
 
@@ -143,14 +146,10 @@ async fn commit(
     document: &DocumentId,
     text: &str,
 ) -> Result<DocumentRevisionId, DocumentsError> {
-    match h
-        .service
-        .commit(owner, set_text(document, text), &trace())
-        .await?
-    {
-        CommitOutcome::Committed(landed) | CommitOutcome::Merged(landed) => {
-            Ok(landed.revision.id)
-        },
+    let mut request = set_text(document, text);
+    request.base_revision = Some(head(h, owner, document).await);
+    match h.service.commit(owner, request, &trace()).await? {
+        CommitOutcome::Committed(landed) | CommitOutcome::Merged(landed) => Ok(landed.revision.id),
         CommitOutcome::Conflict { .. } => panic!("unexpected conflict"),
     }
 }

@@ -33,7 +33,7 @@ group_prefixes() {
                              /tests/integration/facade-macros/ \
                              /tests/integration/files/ /tests/integration/gateway/ \
                              /tests/integration/generator/ /tests/integration/mcp/ \
-                             /tests/integration/notifications/ \
+                             /tests/integration/brain/ /tests/integration/notifications/ \
                              /tests/integration/oauth/ /tests/integration/runtime/ \
                              /tests/integration/security/ /tests/integration/scheduler/ \
                              /tests/integration/users/" ;;

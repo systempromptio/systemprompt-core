@@ -22,6 +22,7 @@ members = [
     "integration/extension",
     "integration/facade-macros",
     "integration/files",
+    "integration/brain",
     "integration/notifications",
     "integration/gateway",
     "integration/generator",

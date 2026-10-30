@@ -1,0 +1,32 @@
+[package]
+name = "systemprompt-brain-integration-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Database-backed integration tests for the systemprompt-brain capture pipeline, lifecycle, recall and jobs"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-brain = { workspace = true }
+systemprompt-runtime = { workspace = true, features = ["brain"] }
+systemprompt-users = { workspace = true }
+systemprompt-events = { workspace = true }
+systemprompt-extension = { workspace = true, features = ["sqlx"] }
+systemprompt-models = { workspace = true }
+systemprompt-identifiers = { workspace = true }
+systemprompt-database = { workspace = true }
+systemprompt-test-fixtures = { workspace = true }
+systemprompt-manifest = { workspace = true }
+systemprompt-traits = { workspace = true }
+
+[dev-dependencies]
+async-trait = { workspace = true }
+chrono = { workspace = true }
+serde_json = { workspace = true }
+sqlx = { workspace = true }
+tokio = { workspace = true }
+tokio-util = { workspace = true }
