@@ -2,7 +2,8 @@
 //! its text formats share.
 //!
 //! HTML and Markdown are always co-edited; with the `office` feature so are
-//! `docx` and `odt`, and `xlsx` workbooks held as a Loro sheet (IronCalc cannot read `ods`).
+//! `docx` and `odt`, and `xlsx` workbooks held as a Loro sheet (IronCalc
+//! cannot read `ods`).
 //! The `<body>` helpers live with the model, in `model::html_body`, and are
 //! re-exported here.
 //!
@@ -25,7 +26,7 @@ const fn is_office_text(format: DocumentFormat) -> bool {
         DocumentFormat::Docx
             | DocumentFormat::Odt
             | DocumentFormat::Xlsx
-            | DocumentFormat::Ods
+           
             | DocumentFormat::Pptx
     )
 }
