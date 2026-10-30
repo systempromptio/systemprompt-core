@@ -13,6 +13,10 @@
 //! survive. Clearing a row empties its cells and never removes the row, so
 //! formula references stay stable.
 //!
+//! With `collab-loro`, a live session holds the workbook as a Loro sheet;
+//! [`sheet_model_from_xlsx`] seeds it and [`checkpoint_xlsx`] writes it back
+//! through IronCalc with recalculated cached values.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -20,6 +24,8 @@ mod apply;
 mod blank;
 mod cells;
 mod insert;
+#[cfg(feature = "collab-loro")]
+mod calc;
 mod projection;
 mod rebase;
 mod workbook;
@@ -31,6 +37,8 @@ use systemprompt_provider_contracts::documents::{
 };
 
 pub use blank::blank_xlsx;
+#[cfg(feature = "collab-loro")]
+pub use calc::{checkpoint_xlsx, sheet_model_from_xlsx};
 
 /// The `.xlsx` [`DocumentCodec`], registered at compile time.
 #[derive(Debug, Clone, Copy, Default)]

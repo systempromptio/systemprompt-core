@@ -2,7 +2,7 @@
 //! its text formats share.
 //!
 //! HTML and Markdown are always co-edited; with the `office` feature so are
-//! `docx` and `odt`. The `<body>` helpers live with the model, in
+//! `docx` and `odt`, and the `xlsx` and `ods` workbooks held as a Loro sheet. The `<body>` helpers live with the model, in
 //! `model::html_body`, and are re-exported here.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -19,7 +19,10 @@ pub const fn is_collab_format(format: DocumentFormat) -> bool {
 
 #[cfg(feature = "office")]
 const fn is_office_text(format: DocumentFormat) -> bool {
-    matches!(format, DocumentFormat::Docx | DocumentFormat::Odt)
+    matches!(
+        format,
+        DocumentFormat::Docx | DocumentFormat::Odt | DocumentFormat::Xlsx | DocumentFormat::Ods
+    )
 }
 
 #[cfg(not(feature = "office"))]
