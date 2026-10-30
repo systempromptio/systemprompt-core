@@ -30,6 +30,8 @@ use serde::{Deserialize, Serialize};
 ///   connection budget rather than a request one and is set high.
 /// - `content` — `/api/v1/content`, `/api/v1/sync`, `/api/v1/marketplace`,
 ///   `/api/v1/analytics` and `/track/engagement`.
+/// - `brain` — `/api/v1/brain` and `/api/v1/admin/brain`, fact reads,
+///   governance and the recall simulator.
 /// - `gateway` — inference traffic under `/v1`: `/v1/messages` and the
 ///   OpenAI-shaped `/v1/chat/completions`.
 /// - `bridge_auth` — `/v1/auth/bridge/*`, deliberately separate from
@@ -69,6 +71,8 @@ pub struct RateLimitsConfig {
     pub content_per_second: u64,
     #[serde(default = "default_content")]
     pub notifications_per_second: u64,
+    #[serde(default = "default_brain")]
+    pub brain_per_second: u64,
     #[serde(default = "default_gateway")]
     pub gateway_per_second: u64,
     #[serde(default = "default_bridge_auth")]
@@ -111,6 +115,9 @@ pub const fn default_stream() -> u64 {
 pub const fn default_content() -> u64 {
     50
 }
+const fn default_brain() -> u64 {
+    50
+}
 pub const fn default_gateway() -> u64 {
     100
 }
@@ -123,7 +130,7 @@ pub const fn default_burst() -> u64 {
 
 impl RateLimitsConfig {
     #[must_use]
-    pub const fn per_second_budgets(&self) -> [(&'static str, u64); 14] {
+    pub const fn per_second_budgets(&self) -> [(&'static str, u64); 15] {
         [
             ("oauth_public_per_second", self.oauth_public_per_second),
             ("oauth_auth_per_second", self.oauth_auth_per_second),
@@ -137,6 +144,7 @@ impl RateLimitsConfig {
             ("stream_per_second", self.stream_per_second),
             ("content_per_second", self.content_per_second),
             ("notifications_per_second", self.notifications_per_second),
+            ("brain_per_second", self.brain_per_second),
             ("gateway_per_second", self.gateway_per_second),
             ("bridge_auth_per_second", self.bridge_auth_per_second),
         ]
@@ -163,6 +171,7 @@ impl RateLimitsConfig {
             stream_per_second: 10000,
             content_per_second: 10000,
             notifications_per_second: 10000,
+            brain_per_second: 10000,
             gateway_per_second: 10000,
             bridge_auth_per_second: 10000,
             burst_multiplier: 100,
@@ -193,6 +202,7 @@ impl Default for RateLimitsConfig {
             stream_per_second: default_stream(),
             content_per_second: default_content(),
             notifications_per_second: default_content(),
+            brain_per_second: default_brain(),
             gateway_per_second: default_gateway(),
             bridge_auth_per_second: default_bridge_auth(),
             burst_multiplier: default_burst(),

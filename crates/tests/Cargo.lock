@@ -8444,6 +8444,7 @@ dependencies = [
  "systemprompt-ai",
  "systemprompt-analytics",
  "systemprompt-api",
+ "systemprompt-brain",
  "systemprompt-catalog-fixtures",
  "systemprompt-config",
  "systemprompt-content",
