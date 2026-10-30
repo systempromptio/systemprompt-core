@@ -47,9 +47,7 @@ pub(super) fn reordered(
         let local = edits
             .iter()
             .filter(|(start, end, _)| *start >= element.start && *end <= element.end)
-            .map(|(start, end, text)| {
-                (start - element.start, end - element.start, text.clone())
-            })
+            .map(|(start, end, text)| (start - element.start, end - element.start, text.clone()))
             .collect();
         splice(element.raw(xml), local)
     };

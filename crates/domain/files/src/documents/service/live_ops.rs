@@ -40,7 +40,9 @@ pub struct LiveEditRequest {
     pub media: Media,
 }
 
-/// An op batch written into a live session: the update's sequence number
+/// An op batch written into a live session.
+///
+/// It carries the update's sequence number
 /// (`None` when the batch changed nothing), the revision the session is
 /// based on, and the live tree before and after, so the caller answers with
 /// the lines it wrote. A batch the engine translated itself has empty trees

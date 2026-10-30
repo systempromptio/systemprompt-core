@@ -3,13 +3,13 @@
 //!
 //! An `.ods` workbook is read-only to live sessions: it is edited through
 //! this op batch, never through the Loro sheet model. The sheet model is
-//! moved in and out of bytes by IronCalc, which reads and writes only
-//! OOXML: it has no OpenDocument importer, so an `.ods` cannot seed a
+//! moved in and out of bytes by `IronCalc`, which reads and writes only
+//! `OOXML`: it has no `OpenDocument` importer, so an `.ods` cannot seed a
 //! session, and a checkpoint would be `.xlsx` bytes. The cell projection
-//! does not close that gap either: formulas are OpenFormula (`of:=[.A1]`)
+//! does not close that gap either: formulas are `OpenFormula` (`of:=[.A1]`)
 //! where the model holds Excel syntax, number formats and styles are
 //! automatic-style names rather than format codes, and repeated rows and
-//! columns are runs here but ids there. A live `.ods` waits on an OpenFormula
+//! columns are runs here but ids there. A live `.ods` waits on an `OpenFormula`
 //! translation and an `.ods` writer over the sheet model.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.

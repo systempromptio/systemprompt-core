@@ -5,7 +5,7 @@
 //! agent op writes and calls [`validate_sheet_changes`] before it commits.
 //! Each change is checked for its address against the sheet limits, its
 //! input length and, with the `office` feature, that a formula parses with
-//! IronCalc's parser.
+//! `IronCalc`'s parser.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -49,7 +49,7 @@ pub fn validate_sheet_changes(
         });
     }
     for change in changes {
-        if !sheet_names.iter().any(|name| *name == change.sheet) {
+        if !sheet_names.contains(&change.sheet) {
             return Err(SheetValidationError::UnknownSheet {
                 sheet: change.sheet.clone(),
             });

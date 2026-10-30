@@ -52,14 +52,14 @@ impl DocumentCollabRepository {
         if claimed.is_some() {
             return Ok(OwnerClaim::Owned);
         }
-        let held = sqlx::query_scalar!(
+        let holder = sqlx::query_scalar!(
             "SELECT address FROM document_collab_owners
              WHERE document_id = $1::text::uuid AND lease_until >= now()",
             document.as_str(),
         )
         .fetch_optional(&*self.pools.write)
         .await?;
-        Ok(held.map_or(OwnerClaim::Lapsed, |address| OwnerClaim::Held { address }))
+        Ok(holder.map_or(OwnerClaim::Lapsed, |address| OwnerClaim::Held { address }))
     }
 
     pub async fn release_owner(

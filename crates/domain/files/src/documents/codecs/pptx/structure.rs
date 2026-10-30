@@ -23,8 +23,8 @@ use super::lower::{shape_pairs, slide_pairs};
 use super::picture::picture_xml;
 use super::projection::{self, Slide, shape_elements, sp_tree};
 use super::restyle::paragraph_edits;
-use super::zorder::{Placed, in_order, reordered};
 use super::slides::{PRESENTATION, slide_refs};
+use super::zorder::{Placed, in_order, reordered};
 use crate::documents::codecs::xml_tree::{Element, parse_xml, splice};
 use crate::documents::codecs::zip_package::Package;
 use crate::documents::engine::loro::deck::{DeckModel, DeckShape, DeckSlide, Frame, ShapeKind};
@@ -76,13 +76,20 @@ fn slide_edits(
         match *paired {
             Some(b) => {
                 kept[b] = true;
-                let Some(&element) = elements.get(b) else { continue };
+                let Some(&element) = elements.get(b) else {
+                    continue;
+                };
                 if let Some(frame) = shape.frame
                     && base.shapes[b].frame != Some(frame)
                 {
                     edits.extend(frame_edits(element, &slide.xml, frame));
                 }
-                edits.extend(paragraph_edits(&slide.xml, element, &base.shapes[b], shape)?);
+                edits.extend(paragraph_edits(
+                    &slide.xml,
+                    element,
+                    &base.shapes[b],
+                    shape,
+                )?);
                 placed.push(Placed::Kept(element));
             },
             None if shape.kind.holds_text() => {

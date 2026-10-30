@@ -3,7 +3,7 @@
 //!
 //! HTML and Markdown are always co-edited; with the `office` feature so are
 //! `docx` and `odt`, and with `collab-loro` as well `xlsx` workbooks held as
-//! a Loro sheet (IronCalc cannot read `ods`) and `pptx` decks.
+//! a Loro sheet (`IronCalc` cannot read `ods`) and `pptx` decks.
 //! The `<body>` helpers live with the model, in `model::html_body`, and are
 //! re-exported here.
 //!

@@ -22,7 +22,7 @@ use crate::documents::model::{Block, BlockKind};
 const BULLETS: [&str; 4] = ["a:buNone", "a:buChar", "a:buAutoNum", "a:buBlip"];
 const BULLET_CHAR: &str = "<a:buChar char=\"\u{2022}\"/>";
 
-fn listed(block: &Block) -> bool {
+const fn listed(block: &Block) -> bool {
     matches!(block.kind, BlockKind::ListItem { .. })
 }
 

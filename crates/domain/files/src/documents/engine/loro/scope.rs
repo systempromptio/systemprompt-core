@@ -1,6 +1,8 @@
-//! The part of a rich document one import changed, read from the Loro diff
-//! between the frontiers before and after it, so the update is validated in
-//! proportion to what it touched rather than to the whole document.
+//! The part of a rich document one import changed.
+//!
+//! It is read from the Loro diff between the frontiers before and after the
+//! import, so the update is validated in proportion to what it touched rather
+//! than to the whole document.
 //!
 //! Every changed container is walked up to the top-level block that holds
 //! it; inserted root entries count as touched too, and the settings map

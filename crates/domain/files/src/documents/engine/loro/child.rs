@@ -17,17 +17,11 @@ use super::rich::{block_map, blocks, list_of, map_of};
 use super::table::is_table_map;
 
 pub(crate) fn child_map(parent: &LoroMap, key: &str) -> LoroResult<LoroMap> {
-    match map_of(parent, key) {
-        Some(map) => Ok(map),
-        None => parent.ensure_mergeable_map(key),
-    }
+    map_of(parent, key).map_or_else(|| parent.ensure_mergeable_map(key), Ok)
 }
 
 pub(crate) fn child_list(parent: &LoroMap, key: &str) -> LoroResult<LoroMovableList> {
-    match list_of(parent, key) {
-        Some(list) => Ok(list),
-        None => parent.ensure_mergeable_movable_list(key),
-    }
+    list_of(parent, key).map_or_else(|| parent.ensure_mergeable_movable_list(key), Ok)
 }
 
 pub(crate) fn fresh_map(parent: &LoroMap, key: &str) -> LoroResult<LoroMap> {
@@ -60,14 +54,13 @@ fn drop_legacy(parent: &LoroMap, key: &str) -> LoroResult<()> {
 }
 
 #[must_use]
-pub fn has_legacy_children(doc: &LoroDoc) -> bool {
+pub(crate) fn has_legacy_children(doc: &LoroDoc) -> bool {
     legacy_in(&blocks(doc))
 }
 
 fn legacy_in(list: &LoroMovableList) -> bool {
-    (0..list.len()).any(|at| {
-        block_map(list, at).is_some_and(|map| is_table_map(&map) && legacy_table(&map))
-    })
+    (0..list.len())
+        .any(|at| block_map(list, at).is_some_and(|map| is_table_map(&map) && legacy_table(&map)))
 }
 
 fn legacy_table(table: &LoroMap) -> bool {
@@ -77,17 +70,21 @@ fn legacy_table(table: &LoroMap) -> bool {
     let Some(rows) = list_of(table, "rows") else {
         return false;
     };
-    (0..rows.len()).filter_map(|r| block_map(&rows, r)).any(|row| {
-        if is_legacy(&row, "cells") {
-            return true;
-        }
-        let Some(cells) = list_of(&row, "cells") else {
-            return false;
-        };
-        (0..cells.len()).filter_map(|c| block_map(&cells, c)).any(|cell| {
-            is_legacy(&cell, "props")
-                || is_legacy(&cell, "blocks")
-                || list_of(&cell, "blocks").is_some_and(|inner| legacy_in(&inner))
+    (0..rows.len())
+        .filter_map(|r| block_map(&rows, r))
+        .any(|row| {
+            if is_legacy(&row, "cells") {
+                return true;
+            }
+            let Some(cells) = list_of(&row, "cells") else {
+                return false;
+            };
+            (0..cells.len())
+                .filter_map(|c| block_map(&cells, c))
+                .any(|cell| {
+                    is_legacy(&cell, "props")
+                        || is_legacy(&cell, "blocks")
+                        || list_of(&cell, "blocks").is_some_and(|inner| legacy_in(&inner))
+                })
         })
-    })
 }

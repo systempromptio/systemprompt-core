@@ -12,13 +12,12 @@
 use quick_xml::escape::escape;
 use systemprompt_provider_contracts::documents::CodecError;
 
-use super::package::{rels_part, relationships};
+use super::package::{relationships, rels_part};
 use super::structure::xfrm_xml;
 use crate::documents::codecs::zip_package::Package;
 use crate::documents::engine::loro::deck::DeckShape;
 
-const IMAGE_REL: &str =
-    "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image";
+const IMAGE_REL: &str = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image";
 const EMPTY_RELS: &str = concat!(
     "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n",
     "<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">",
@@ -29,11 +28,7 @@ fn relative(from_part: &str, to_part: &str) -> String {
     let from: Vec<&str> = from_part.split('/').collect();
     let to: Vec<&str> = to_part.split('/').collect();
     let dirs = &from[..from.len().saturating_sub(1)];
-    let common = dirs
-        .iter()
-        .zip(&to)
-        .take_while(|(a, b)| a == b)
-        .count();
+    let common = dirs.iter().zip(&to).take_while(|(a, b)| a == b).count();
     let mut parts: Vec<&str> = vec![".."; dirs.len() - common];
     parts.extend(&to[common..]);
     parts.join("/")
@@ -68,7 +63,10 @@ fn link(package: &mut Package<'_>, slide: &str, media: &str) -> Result<String, C
             detail: "a slide's relationships part has no closing tag",
         });
     };
-    package.write(&rels_part(slide), format!("{}{entry}{}", &xml[..at], &xml[at..]));
+    package.write(
+        &rels_part(slide),
+        format!("{}{entry}{}", &xml[..at], &xml[at..]),
+    );
     Ok(id)
 }
 
@@ -84,7 +82,11 @@ pub(super) fn picture_xml(
         return Ok(None);
     };
     if !package.names()?.iter().any(|name| name == media) {
-        tracing::warn!(slide, media, "an added image's picture part is not in the package");
+        tracing::warn!(
+            slide,
+            media,
+            "an added image's picture part is not in the package"
+        );
         return Ok(None);
     }
     let Some(frame) = shape.frame else {

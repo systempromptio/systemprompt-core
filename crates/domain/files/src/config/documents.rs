@@ -55,9 +55,11 @@ pub struct DocumentsConfig {
     pub collab: CollabConfig,
 }
 
-/// When a live session snapshots, and whether this replica takes part in the
-/// owner lease. A replica's advertised address is per machine, so only the
-/// port is configured; the host comes from the platform at boot.
+/// When a live session snapshots.
+///
+/// It also says whether this replica takes part in the owner lease. A replica's
+/// advertised address is per machine, so only the port is configured; the host
+/// comes from the platform at boot.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct CollabConfig {

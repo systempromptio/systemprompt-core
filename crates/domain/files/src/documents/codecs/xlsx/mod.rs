@@ -15,7 +15,7 @@
 //!
 //! With `collab-loro`, a live session holds the workbook as a Loro sheet;
 //! [`sheet_model_from_xlsx`] seeds it and [`checkpoint_xlsx`] writes it back
-//! through IronCalc with recalculated cached values.
+//! through `IronCalc` with recalculated cached values.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

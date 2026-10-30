@@ -13,10 +13,10 @@ use std::collections::HashSet;
 use crate::documents::model::Block;
 use loro::{LoroDoc, LoroMap, LoroMovableList, LoroText};
 
+use super::super::child::{child_list, child_map};
 use super::super::rich::{WriteError, block_map, insert_block, string_of, sync_text, text_of};
 use super::super::write::{kind_json, sync_attrs};
 use super::model::{DeckModel, DeckShape, DeckSlide, Frame};
-use super::super::child::{child_list, child_map};
 use super::read::map_of;
 
 pub fn write_deck(doc: &LoroDoc, target: &DeckModel) -> Result<(), WriteError> {

@@ -1,6 +1,6 @@
 //! A slide deck held in Loro containers.
 //!
-//! The root [`LoroMovableList`](loro::LoroMovableList) named
+//! The root [`loro::LoroMovableList`] named
 //! [`SLIDES_CONTAINER`] holds one map per slide: `id` (string), `layout`
 //! (string, absent when the slide names none) and `shapes`, a movable list
 //! of shape maps. A shape map holds `id`, `kind` (one of [`ShapeKind`]'s

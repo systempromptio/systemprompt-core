@@ -1,15 +1,16 @@
 //! Moves a workbook between `.xlsx` bytes and the Loro [`SheetModel`]
-//! through IronCalc, alongside the `umya-spreadsheet` edit path.
+//! through `IronCalc`, alongside the `umya-spreadsheet` edit path.
 //!
 //! [`sheet_model_from_xlsx`] reads every sheet's cell inputs (a formula as
 //! `=…`) and merges, minting fresh row and column ids. [`checkpoint_xlsx`]
-//! builds an IronCalc model from the sheet model, recalculates it and
+//! builds an `IronCalc` model from the sheet model, recalculates it and
 //! writes it out, so the checkpoint's cached values are the ones a reader
-//! without a calc engine sees. A cell's `style` is IronCalc's own [`Style`]
+//! without a calc engine sees. A cell's `style` is `IronCalc`'s own [`Style`]
 //! as JSON (the shape the browser model's `getCellStyle` returns) and its
 //! `fmt` is the number-format code; both are read on import and written back
-//! at checkpoint, `fmt` overriding the style's `num_fmt`. Locale, timezone and language match the
-//! browser's IronCalc model (`workbook`, `en`, `UTC`, `en`).
+//! at checkpoint, `fmt` overriding the style's `num_fmt`. Locale, timezone and
+//! language match the browser's `IronCalc` model (`workbook`, `en`, `UTC`,
+//! `en`).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -95,12 +96,11 @@ fn cell_style(
 }
 
 fn target_style(cell: &SheetCell) -> Option<Style> {
-    let mut style = match cell.style.as_deref() {
-        Some(json) => serde_json::from_str(json)
+    let mut style = cell.style.as_deref().map_or_else(Style::default, |json| {
+        serde_json::from_str(json)
             .inspect_err(|error| tracing::warn!(%error, "a cell style is not an IronCalc style"))
-            .unwrap_or_default(),
-        None => Style::default(),
-    };
+            .unwrap_or_default()
+    });
     if let Some(fmt) = &cell.fmt {
         style.num_fmt.clone_from(fmt);
     }

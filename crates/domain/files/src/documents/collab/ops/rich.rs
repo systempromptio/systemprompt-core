@@ -28,6 +28,10 @@ use crate::documents::repository::UpdateAuthor;
 use crate::documents::service::{LiveEdit, LiveEditRequest, LiveOps};
 
 impl CollabService {
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one live rich edit: lock, plan, write, ack and broadcast"
+    )]
     pub(super) async fn edit_rich(
         &self,
         who: &AuthenticatedUser,

@@ -228,7 +228,11 @@ fn apply(doc: &LoroDoc, op: &EditOp) -> Result<(), DeckOpError> {
             };
             let mut shapes = Vec::new();
             if let Some(title) = title {
-                shapes.push(text_shape(ShapeKind::Title, &[title.clone()], false));
+                shapes.push(text_shape(
+                    ShapeKind::Title,
+                    std::slice::from_ref(title),
+                    false,
+                ));
             }
             if !body.is_empty() {
                 shapes.push(text_shape(ShapeKind::Body, body, true));

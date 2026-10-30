@@ -112,10 +112,14 @@ enum Step {
     },
 }
 
-fn unsupported(op: &EditOp) -> RichOpError {
+const fn unsupported(op: &EditOp) -> RichOpError {
     RichOpError::Unsupported { op: op.name() }
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "one arm per rich edit op, each a short plan step"
+)]
 fn plan(doc: &LoroDoc, op: &EditOp) -> Result<Step, RichOpError> {
     match op {
         EditOp::ReplaceText {

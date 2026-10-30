@@ -189,8 +189,14 @@ fn base_parts(base: Option<&str>) -> (String, Vec<(u8, String)>) {
         .attrs
         .iter()
         .filter(|(key, _)| !CONTROLLED_ATTRS.contains(&key.as_str()))
-        .map(|(key, value)| format!(" {key}=\"{value}\""))
-        .collect();
+        .fold(String::new(), |mut attrs, (key, value)| {
+            attrs.push(' ');
+            attrs.push_str(key);
+            attrs.push_str("=\"");
+            attrs.push_str(value);
+            attrs.push('"');
+            attrs
+        });
     let children = root
         .children
         .iter()

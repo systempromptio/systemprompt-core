@@ -218,6 +218,10 @@ fn lower_shape(
     Ok(())
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "the batch, slide and shape position, the kept block and its front run"
+)]
 fn flush_front(
     batch: &mut Batch<'_>,
     slide: usize,

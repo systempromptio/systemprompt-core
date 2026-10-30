@@ -150,17 +150,16 @@ impl EngineDoc for LoroEngineDoc {
         let before_model = if scoped { None } else { Some(export(&self.0)?) };
         let import = self.apply_update(update)?;
         let after = self.0.state_frontiers();
-        let before_model = match before_model {
-            Some(model) => model,
-            None => {
-                if let Some(touched) = scope::touched(&self.0, &before, &after) {
-                    return Ok(ScopedImport {
-                        import,
-                        scope: ImportScope::Blocks(touched),
-                    });
-                }
-                export(&self.0.fork_at(&before).map_err(state)?)?
-            },
+        let before_model = if let Some(model) = before_model {
+            model
+        } else {
+            if let Some(touched) = scope::touched(&self.0, &before, &after) {
+                return Ok(ScopedImport {
+                    import,
+                    scope: ImportScope::Blocks(touched),
+                });
+            }
+            export(&self.0.fork_at(&before).map_err(state)?)?
         };
         let after = export(&self.0)?;
         structured::check(&self.0, &before_model, &after)?;

@@ -101,10 +101,12 @@ pub struct OpsUpdate {
     pub touched: Vec<String>,
 }
 
-/// What one imported update changed, so a caller validates in proportion
-/// to it. `Blocks` holds only the blocks the update touched (with the
-/// document settings when it changed them); `Full` holds the whole model
-/// before and after, when the engine cannot or was not asked to scope it.
+/// What one imported update changed.
+///
+/// A caller validates in proportion to it. `Blocks` holds only the blocks the
+/// update touched (with the document settings when it changed them); `Full`
+/// holds the whole model before and after, when the engine cannot or was not
+/// asked to scope it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ImportScope {
     Blocks(RichText),

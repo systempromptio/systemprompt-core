@@ -9,7 +9,7 @@
 //! from the positions of its ids, so inserting a row moves every later
 //! address without rewriting a single cell, and two replicas inserting rows
 //! at once both keep their edits. No computed value is ever stored here:
-//! values are recalculated by IronCalc on the client and at checkpoint.
+//! values are recalculated by `IronCalc` on the client and at checkpoint.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

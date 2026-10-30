@@ -19,7 +19,7 @@ pub(super) enum Step {
 
 pub(super) fn align<K: PartialEq>(base: &[K], target: &[K]) -> Vec<Step> {
     let (n, m) = (base.len(), target.len());
-    let mut table = vec![0_usize; (n + 1) * (m + 1)];
+    let mut table = vec![0usize; (n + 1) * (m + 1)];
     let at = |i: usize, j: usize| i * (m + 1) + j;
     for i in (0..n).rev() {
         for j in (0..m).rev() {
@@ -32,6 +32,10 @@ pub(super) fn align<K: PartialEq>(base: &[K], target: &[K]) -> Vec<Step> {
     }
     let mut raw = Vec::with_capacity(n.max(m));
     let (mut i, mut j) = (0, 0);
+    #[expect(
+        clippy::suspicious_operation_groupings,
+        reason = "an alignment compares base row i with target row j"
+    )]
     while i < n || j < m {
         if i < n && j < m && base[i] == target[j] {
             raw.push(Step::Keep { base: i, target: j });

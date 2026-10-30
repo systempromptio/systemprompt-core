@@ -27,8 +27,9 @@ use crate::documents::repository::OwnerClaim;
 const DEFAULT_HOLD: Duration = Duration::from_secs(15);
 const DEFAULT_FORWARD_TIMEOUT: Duration = Duration::from_secs(3);
 
-/// How this replica takes part in session ownership: the base URL other
-/// replicas reach it on (for example `http://10.0.0.7:8080`), how long a
+/// How this replica takes part in session ownership.
+///
+/// It carries the base URL other replicas reach it on (for example `http://10.0.0.7:8080`), how long a
 /// claim holds, and how long a forward may take before falling back.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OwnerConfig {

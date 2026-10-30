@@ -46,7 +46,7 @@ pub(crate) fn read_table(id: &str, map: &LoroMap) -> Result<BlockKind, ReadError
     let mut props: TableProps = map_of(map, "props")
         .map(|props| from_props(&props))
         .transpose()
-        .map_err(|_| bad())?
+        .map_err(|_malformed| bad())?
         .unwrap_or_default();
     let list = list_of(map, "rows").ok_or_else(bad)?;
     let mut rows = Vec::with_capacity(list.len());
@@ -69,7 +69,7 @@ pub(crate) fn read_table(id: &str, map: &LoroMap) -> Result<BlockKind, ReadError
             let style: CellProps = map_of(&cell, "props")
                 .map(|props| from_props(&props))
                 .transpose()
-                .map_err(|_| bad())?
+                .map_err(|_malformed| bad())?
                 .unwrap_or_default();
             row_styles.push(style);
         }
@@ -238,6 +238,10 @@ pub fn canonical(model: &mut RichText) {
 }
 
 // JSON: an object written field by field into a Loro map, as the browser does.
+#[expect(
+    clippy::needless_collect,
+    reason = "the keys are snapshotted before entries are deleted from the map"
+)]
 pub(crate) fn sync_props(map: &LoroMap, object: &Value) -> Result<(), WriteError> {
     let fields = object.as_object().cloned().unwrap_or_default();
     for key in map
@@ -267,10 +271,9 @@ pub(crate) fn to_loro(key: &str, value: &Value) -> Result<LoroValue, WriteError>
     Ok(match value {
         _ if key == JSON_KEY => serde_json::to_string(value)?.into(),
         Value::Bool(flag) => (*flag).into(),
-        Value::Number(number) => match number.as_i64() {
-            Some(int) => int.into(),
-            None => number.as_f64().unwrap_or_default().into(),
-        },
+        Value::Number(number) => number
+            .as_i64()
+            .map_or_else(|| number.as_f64().unwrap_or_default().into(), Into::into),
         Value::String(text) => text.as_str().into(),
         Value::Null => LoroValue::Null,
         Value::Array(_) | Value::Object(_) => serde_json::to_string(value)?.into(),
@@ -283,11 +286,7 @@ const NUMBER_KEYS: [&str; 3] = ["header_rows", "colspan", "rowspan"];
 
 fn from_props<T: serde::de::DeserializeOwned>(map: &LoroMap) -> serde_json::Result<T> {
     let mut fields = Map::new();
-    for key in map
-        .keys()
-        .map(|key| key.as_str().to_owned())
-        .collect::<Vec<_>>()
-    {
+    for key in map.keys().map(|key| key.as_str().to_owned()) {
         let Some(ValueOrContainer::Value(value)) = map.get(&key) else {
             continue;
         };

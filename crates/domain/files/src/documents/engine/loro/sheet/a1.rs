@@ -45,12 +45,11 @@ pub struct A1Range {
 impl A1Range {
     #[must_use]
     pub fn parse(text: &str) -> Option<Self> {
-        let (start, end) = match text.split_once(':') {
-            Some((a, b)) => (parse_a1(a)?, parse_a1(b)?),
-            None => {
-                let only = parse_a1(text)?;
-                (only, only)
-            },
+        let (start, end) = if let Some((a, b)) = text.split_once(':') {
+            (parse_a1(a)?, parse_a1(b)?)
+        } else {
+            let only = parse_a1(text)?;
+            (only, only)
         };
         Some(Self {
             start: (start.0.min(end.0), start.1.min(end.1)),
