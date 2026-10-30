@@ -14,6 +14,7 @@ pub mod connector;
 pub mod deployment;
 pub mod execution_source;
 pub mod execution_status;
+mod external_auth;
 pub mod registry;
 pub mod registry_trait;
 pub mod server;

@@ -11,6 +11,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod catalog;
+mod gate;
 mod recorder;
 mod server;
 

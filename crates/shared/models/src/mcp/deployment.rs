@@ -10,6 +10,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub use super::connector::{ConnectorConfig, ConnectorGrant, ConnectorIdentity};
+pub use super::external_auth::ExternalAuth;
+use super::external_auth::validate_external_auth;
 pub use super::toolset::{ResolvedAccess, ToolAccess, ToolsetRef};
 use crate::ai::ToolModelConfig;
 use crate::auth::{JwtAudience, Permission};
@@ -141,41 +143,6 @@ const fn is_removable(removable: &bool) -> bool {
     *removable
 }
 
-/// Per-user bearer resolution for an `external` MCP server.
-///
-/// The MCP gateway exposes no token vault of its own; instead an extension
-/// banks the calling user's third-party token and serves it from
-/// `token_endpoint`. At tool-call time core `GET`s that accessor with the
-/// user's systemprompt JWT and injects the returned bearer onto `header` (as
-/// `{scheme} {token}`), replacing the systemprompt credential so nothing
-/// internal reaches the third party.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ExternalAuth {
-    pub token_endpoint: String,
-    #[serde(default = "default_auth_header")]
-    pub header: String,
-    #[serde(default = "default_auth_scheme")]
-    pub scheme: String,
-}
-
-fn default_auth_header() -> String {
-    "Authorization".to_owned()
-}
-
-fn default_auth_scheme() -> String {
-    "Bearer".to_owned()
-}
-
-impl ExternalAuth {
-    pub fn header_value(&self, bearer: &str) -> String {
-        if self.scheme.trim().is_empty() {
-            bearer.to_owned()
-        } else {
-            format!("{} {bearer}", self.scheme)
-        }
-    }
-}
-
 impl Deployment {
     pub fn validate(&self, name: &str) -> Result<(), ServicesValidationError> {
         match self.server_type {
@@ -189,52 +156,6 @@ impl Deployment {
             validate_external_auth(name, ext)?;
         }
         self.validate_toolsets(name)
-    }
-
-    fn validate_toolsets(&self, name: &str) -> Result<(), ServicesValidationError> {
-        if self.toolsets.is_empty() {
-            return Ok(());
-        }
-        if !matches!(self.server_type, McpServerType::Internal) {
-            return Err(ServicesValidationError::invalid_field(format!(
-                "MCP server '{name}': toolsets are only valid on internal servers."
-            )));
-        }
-        let mut seen = std::collections::HashSet::new();
-        for toolset in &self.toolsets {
-            if toolset.id.trim().is_empty() {
-                return Err(ServicesValidationError::invalid_field(format!(
-                    "MCP server '{name}': a toolset entry has an empty id."
-                )));
-            }
-            if !seen.insert(toolset.id.as_str()) {
-                return Err(ServicesValidationError::invalid_field(format!(
-                    "MCP server '{name}': toolset '{}' is listed twice.",
-                    toolset.id
-                )));
-            }
-            if toolset.access.as_ref().is_some_and(ToolAccess::is_empty) {
-                return Err(ServicesValidationError::invalid_field(format!(
-                    "MCP server '{name}': toolset '{}' declares an empty access block; list \
-                     scopes, roles or groups, or remove it.",
-                    toolset.id
-                )));
-            }
-        }
-        for (tool, meta) in &self.tools {
-            if meta.access.as_ref().is_some_and(ToolAccess::is_empty) {
-                return Err(ServicesValidationError::invalid_field(format!(
-                    "MCP server '{name}': tool '{tool}' declares an empty access block; list \
-                     scopes, roles or groups, or remove it."
-                )));
-            }
-        }
-        Ok(())
-    }
-
-    #[must_use]
-    pub fn enabled_toolsets(&self) -> impl Iterator<Item = &ToolsetRef> {
-        self.toolsets.iter().filter(|toolset| toolset.enabled)
     }
 
     fn validate_internal(&self, name: &str) -> Result<(), ServicesValidationError> {
@@ -304,28 +225,6 @@ impl Deployment {
         }
         connector.validate(name)
     }
-}
-
-fn validate_external_auth(name: &str, ext: &ExternalAuth) -> Result<(), ServicesValidationError> {
-    if ext.token_endpoint.starts_with("http://") || ext.token_endpoint.starts_with("https://") {
-        return Err(ServicesValidationError::invalid_field(format!(
-            "MCP server '{name}': external_auth.token_endpoint must be a relative \
-                 path (e.g. /api/public/<provider>/token); the host is derived from \
-                 server.api_external_url. Remove the scheme+host prefix."
-        )));
-    }
-    if !ext.token_endpoint.starts_with('/') {
-        return Err(ServicesValidationError::invalid_field(format!(
-            "MCP server '{name}': external_auth.token_endpoint must be an absolute \
-                 path beginning with '/'."
-        )));
-    }
-    if ext.header.trim().is_empty() {
-        return Err(ServicesValidationError::invalid_field(format!(
-            "MCP server '{name}': external_auth.header must not be empty."
-        )));
-    }
-    Ok(())
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

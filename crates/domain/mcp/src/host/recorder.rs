@@ -2,7 +2,7 @@
 //!
 //! Core decides who may list and call a tool; where the outcome is written is
 //! the installation's choice. An extension implements [`McpAccessRecorder`]
-//! and registers a factory with [`register_mcp_access_recorder!`]; the host
+//! and registers a factory with `register_mcp_access_recorder!`; the host
 //! builds every registered recorder once at start and reports each outcome to
 //! all of them. A recorder is best-effort by contract: it returns nothing, so
 //! an audit write that fails can never fail the call it describes.
@@ -60,8 +60,9 @@ pub trait McpAccessRecorder: Send + Sync + Debug {
 
 pub type SharedMcpAccessRecorder = Arc<dyn McpAccessRecorder>;
 
-/// One inventory submission per [`register_mcp_access_recorder!`] call. The
-/// factory runs once when a host is built and must not block.
+/// One inventory submission per
+/// [`register_mcp_access_recorder!`](crate::register_mcp_access_recorder) call.
+/// The factory runs once when a host is built and must not block.
 #[derive(Debug, Clone, Copy)]
 pub struct McpAccessRecorderRegistration {
     pub factory: fn(&DbPool) -> SharedMcpAccessRecorder,

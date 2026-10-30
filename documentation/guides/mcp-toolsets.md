@@ -120,7 +120,7 @@ async fn main() -> anyhow::Result<()> {
 }
 ```
 
-`serve(ctx, server_id)` binds `0.0.0.0:$MCP_PORT`, falling back to the deployment's `port:`. `serve_on(ctx, server_id, listener)` takes a listener the binary bound before a slow bring-up. `build_server(&ctx, &server_id)` returns the `ToolsetServer` for composing the router yourself.
+`serve(ctx, server_id)` binds `0.0.0.0:<port:>` from the deployment. `serve_on(ctx, server_id, listener)` takes a listener the binary bound before a slow bring-up. `build_server(&ctx, &server_id)` returns the `ToolsetServer` for composing the router yourself.
 
 The crates that register toolsets, recorders, the authz hook and subject providers must be linked into the binary. Inventory only discovers what is linked.
 

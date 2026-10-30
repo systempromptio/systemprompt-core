@@ -1,11 +1,11 @@
 //! [`ToolsetServer`]: the rmcp `ServerHandler` that serves hosted toolsets.
 //!
 //! Every list and call authenticates through
-//! [`enforce_rbac_from_registry`], which also runs the governance authz hook
-//! for the server. `tools/list` then answers only the tools whose resolved
-//! access admits the caller; `tools/call` refuses a tool the caller may not
-//! see with a forbidden error and a recorded denial before the owning toolset
-//! runs.
+//! [`enforce_rbac_from_registry`](crate::middleware::rbac::enforce_rbac_from_registry),
+//! which also runs the governance authz hook for the server. `tools/list` then
+//! answers only the tools whose resolved access admits the caller; `tools/call`
+//! refuses a tool the caller may not see with a forbidden error and a recorded
+//! denial before the owning toolset runs.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -22,19 +22,15 @@ use rmcp::{ErrorData as McpError, ServerHandler};
 use systemprompt_governance::authz::{SharedAuthzHook, SubjectProviderSet};
 use systemprompt_identifiers::McpServerId;
 use systemprompt_manifest::services::ServicesView;
-use systemprompt_models::RequestContext as SysRequestContext;
 use systemprompt_models::auth::TokenAuthority;
 
 use super::catalog::{HostedCatalog, ToolsetHostError};
-use super::recorder::{McpAccessEvent, McpAccessOutcome, SharedMcpAccessRecorder};
-use crate::middleware::rbac::{AuthResult, JwtVerifier, enforce_rbac_from_registry};
+use super::recorder::{McpAccessOutcome, SharedMcpAccessRecorder};
 use crate::toolset::{McpToolset, ToolsetCall};
 use crate::{
     McpToolExecutor, WEBSITE_URL, build_tool_list_result, client_profile_from_peer,
     default_server_icons,
 };
-
-const GROUP_DIMENSION: &str = "group";
 
 /// What a [`ToolsetServer`] authorises against.
 #[derive(Clone)]
@@ -64,19 +60,19 @@ pub struct ToolsetServerParts {
 
 #[derive(Debug, Clone)]
 pub struct ToolsetServer {
-    inner: Arc<Inner>,
+    pub(super) inner: Arc<Inner>,
 }
 
 #[derive(Debug)]
-struct Inner {
-    server_id: McpServerId,
-    executor: McpToolExecutor,
-    authz: ToolsetAuthz,
-    recorders: Vec<SharedMcpAccessRecorder>,
-    toolsets: Vec<Box<dyn McpToolset>>,
-    catalog: HostedCatalog,
-    instructions: String,
-    title: String,
+pub(super) struct Inner {
+    pub(super) server_id: McpServerId,
+    pub(super) executor: McpToolExecutor,
+    pub(super) authz: ToolsetAuthz,
+    pub(super) recorders: Vec<SharedMcpAccessRecorder>,
+    pub(super) toolsets: Vec<Box<dyn McpToolset>>,
+    pub(super) catalog: HostedCatalog,
+    pub(super) instructions: String,
+    pub(super) title: String,
 }
 
 impl ToolsetServer {
@@ -126,143 +122,6 @@ impl ToolsetServer {
 
     fn serves_resources(&self) -> bool {
         self.inner.toolsets.iter().any(|t| t.serves_resources())
-    }
-
-    async fn record(
-        &self,
-        tool: &str,
-        ctx: Option<&SysRequestContext>,
-        outcome: McpAccessOutcome<'_>,
-    ) {
-        let event = McpAccessEvent {
-            server: &self.inner.server_id,
-            tool,
-            user_id: ctx.map(SysRequestContext::user_id),
-            outcome,
-        };
-        for recorder in &self.inner.recorders {
-            recorder.record(event).await;
-        }
-    }
-
-    async fn authenticate(
-        &self,
-        tool: &str,
-        ctx: &RequestContext<RoleServer>,
-    ) -> Result<SysRequestContext, McpError> {
-        let services = self.inner.authz.services.config();
-        let verifier = JwtVerifier {
-            authority: self.inner.authz.tokens.as_ref(),
-            config: &self.inner.authz.config,
-        };
-        match enforce_rbac_from_registry(
-            ctx,
-            &self.inner.server_id,
-            &self.inner.authz.hook,
-            &services,
-            &verifier,
-        )
-        .await
-        {
-            Ok(AuthResult::Authenticated(authenticated)) => {
-                self.record(
-                    tool,
-                    Some(&authenticated.context),
-                    McpAccessOutcome::Authenticated,
-                )
-                .await;
-                Ok(authenticated.context)
-            },
-            Ok(AuthResult::Anonymous(context)) => Ok(context),
-            Err(error) => {
-                self.record(
-                    tool,
-                    None,
-                    McpAccessOutcome::Rejected {
-                        reason: error.message.as_ref(),
-                    },
-                )
-                .await;
-                Err(error)
-            },
-        }
-    }
-
-    async fn caller_groups(&self, context: &SysRequestContext) -> Vec<String> {
-        let Some(user) = context.user.as_ref() else {
-            return Vec::new();
-        };
-        let Some(provider) = self.inner.authz.subjects.find(GROUP_DIMENSION) else {
-            return Vec::new();
-        };
-        provider.values_for(&user.id).await.unwrap_or_else(|error| {
-            tracing::warn!(
-                server = %self.inner.server_id,
-                error = %error,
-                "group lookup failed; group-scoped tools are hidden for this request"
-            );
-            Vec::new()
-        })
-    }
-
-    async fn visible_tools(&self, context: &SysRequestContext) -> Vec<rmcp::model::Tool> {
-        let services = self.inner.authz.services.config();
-        let Some(deployment) = services.mcp_servers.get(self.inner.server_id.as_str()) else {
-            return Vec::new();
-        };
-        let catalog = &self.inner.catalog;
-        let toolsets = &self.inner.toolsets;
-        let groups = if catalog.needs_groups(toolsets, deployment) {
-            self.caller_groups(context).await
-        } else {
-            Vec::new()
-        };
-        catalog.visible_tools(toolsets, deployment, context.user.as_ref(), &groups)
-    }
-
-    async fn authorise_tool(
-        &self,
-        tool: &str,
-        context: &SysRequestContext,
-    ) -> Result<(), McpError> {
-        let services = self.inner.authz.services.config();
-        let deployment = services
-            .mcp_servers
-            .get(self.inner.server_id.as_str())
-            .ok_or_else(|| McpError::internal_error("MCP server not found in registry", None))?;
-        let Some(access) = self
-            .inner
-            .catalog
-            .access_for(&self.inner.toolsets, deployment, tool)
-        else {
-            return Err(McpError::invalid_params(
-                format!(
-                    "Unknown tool: '{tool}'. This server exposes: {}.",
-                    self.inner.catalog.names().join(", ")
-                ),
-                None,
-            ));
-        };
-        let groups = if access.needs_groups() {
-            self.caller_groups(context).await
-        } else {
-            Vec::new()
-        };
-        if access.permits(context.user.as_ref(), &groups) {
-            return Ok(());
-        }
-        let reason = format!("tool '{tool}' is not granted to this caller");
-        tracing::warn!(server = %self.inner.server_id, tool, "tool access denied");
-        self.record(
-            tool,
-            Some(context),
-            McpAccessOutcome::Forbidden { reason: &reason },
-        )
-        .await;
-        Err(McpError::invalid_request(
-            format!("Forbidden: {reason}"),
-            Some(serde_json::json!({ "reason": "forbidden", "tool": tool })),
-        ))
     }
 }
 

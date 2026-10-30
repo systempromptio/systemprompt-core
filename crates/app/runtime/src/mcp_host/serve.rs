@@ -5,7 +5,7 @@
 //! factory inventory (an id no linked crate registers fails start), builds
 //! each toolset, discovers the registered access recorders and hands the lot
 //! to [`ToolsetServer`], which refuses a `tools:` entry no toolset serves.
-//! [`serve`] binds the port core's supervisor assigned and serves until the
+//! [`serve`] binds the deployment's `port:` and serves until the
 //! listener closes.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -24,8 +24,6 @@ use tokio::net::TcpListener;
 
 use super::factory::{ToolsetBuildError, find_toolset_factory, registered_toolset_ids};
 use crate::AppContext;
-
-const PORT_ENV: &str = "MCP_PORT";
 
 #[derive(Debug, thiserror::Error)]
 pub enum McpHostError {
@@ -49,7 +47,7 @@ pub enum McpHostError {
     },
     #[error(transparent)]
     Host(#[from] ToolsetHostError),
-    #[error("MCP server '{server}' has no port: set {PORT_ENV} or `port:` in its YAML")]
+    #[error("MCP server '{server}' has no `port:` in its YAML")]
     NoPort { server: McpServerId },
     #[error("failed to bind {addr}")]
     Bind {
@@ -150,12 +148,6 @@ pub async fn serve_on(
 }
 
 fn resolve_port(ctx: &AppContext, server_id: &McpServerId) -> Result<u16, McpHostError> {
-    if let Some(port) = std::env::var(PORT_ENV)
-        .ok()
-        .and_then(|raw| raw.parse::<u16>().ok())
-    {
-        return Ok(port);
-    }
     ctx.services_state()
         .view()
         .config()

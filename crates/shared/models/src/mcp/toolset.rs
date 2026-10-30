@@ -15,7 +15,9 @@
 
 use serde::{Deserialize, Serialize};
 
+use super::deployment::{Deployment, McpServerType};
 use crate::auth::{AuthenticatedUser, Permission};
+use crate::errors::ServicesValidationError;
 
 /// A toolset a deployment hosts, by the id its factory registers.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -44,12 +46,12 @@ pub struct ToolAccess {
 
 impl ToolAccess {
     #[must_use]
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.scopes.is_empty() && self.roles.is_empty() && self.groups.is_empty()
     }
 
     #[must_use]
-    pub fn needs_groups(&self) -> bool {
+    pub const fn needs_groups(&self) -> bool {
         !self.groups.is_empty()
     }
 
@@ -78,7 +80,7 @@ pub enum ResolvedAccess<'a> {
 
 impl<'a> ResolvedAccess<'a> {
     #[must_use]
-    pub fn resolve(tool: Option<&'a ToolAccess>, toolset: Option<&'a ToolAccess>) -> Self {
+    pub const fn resolve(tool: Option<&'a ToolAccess>, toolset: Option<&'a ToolAccess>) -> Self {
         match (tool, toolset) {
             (Some(access), _) => Self::Tool(access),
             (None, Some(access)) => Self::Toolset(access),
@@ -103,5 +105,52 @@ impl<'a> ResolvedAccess<'a> {
     pub fn permits(&self, user: Option<&AuthenticatedUser>, groups: &[String]) -> bool {
         self.access()
             .is_none_or(|access| access.permits(user, groups))
+    }
+}
+
+impl Deployment {
+    pub(super) fn validate_toolsets(&self, name: &str) -> Result<(), ServicesValidationError> {
+        if self.toolsets.is_empty() {
+            return Ok(());
+        }
+        if !matches!(self.server_type, McpServerType::Internal) {
+            return Err(ServicesValidationError::invalid_field(format!(
+                "MCP server '{name}': toolsets are only valid on internal servers."
+            )));
+        }
+        let mut seen = std::collections::HashSet::new();
+        for toolset in &self.toolsets {
+            if toolset.id.trim().is_empty() {
+                return Err(ServicesValidationError::invalid_field(format!(
+                    "MCP server '{name}': a toolset entry has an empty id."
+                )));
+            }
+            if !seen.insert(toolset.id.as_str()) {
+                return Err(ServicesValidationError::invalid_field(format!(
+                    "MCP server '{name}': toolset '{}' is listed twice.",
+                    toolset.id
+                )));
+            }
+            if toolset.access.as_ref().is_some_and(ToolAccess::is_empty) {
+                return Err(ServicesValidationError::invalid_field(format!(
+                    "MCP server '{name}': toolset '{}' declares an empty access block; list \
+                     scopes, roles or groups, or remove it.",
+                    toolset.id
+                )));
+            }
+        }
+        for (tool, meta) in &self.tools {
+            if meta.access.as_ref().is_some_and(ToolAccess::is_empty) {
+                return Err(ServicesValidationError::invalid_field(format!(
+                    "MCP server '{name}': tool '{tool}' declares an empty access block; list \
+                     scopes, roles or groups, or remove it."
+                )));
+            }
+        }
+        Ok(())
+    }
+
+    pub fn enabled_toolsets(&self) -> impl Iterator<Item = &ToolsetRef> {
+        self.toolsets.iter().filter(|toolset| toolset.enabled)
     }
 }
