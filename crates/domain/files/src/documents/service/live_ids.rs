@@ -6,7 +6,10 @@
 //! with. [`with_live_model`] scopes a checkpoint commit to the live model,
 //! and the landing then records each aligned node under that model's id
 //! instead of carrying or minting one, so the new head names every block by
-//! the id the session and its agents already used. [`pinned_ids`] aligns a
+//! the id the session and its agents already used. A workbook or deck
+//! checkpoint has no model to pin from, so [`with_live_ids_kept`] has the
+//! landing keep the previous revision's id for every node edited in place,
+//! the same ids the session's live reads report. [`pinned_ids`] aligns a
 //! path projection with a model the same way session seeding does: the
 //! block-level nodes (descending through `Body`, `Html`, `Markdown` and
 //! `Text`) with the root blocks in order, and a table cell's nodes with that
@@ -28,10 +31,19 @@ use crate::documents::nodes::path_of;
 
 tokio::task_local! {
     static LIVE_MODEL: Arc<RichText>;
+    static LIVE_IDS_KEPT: ();
 }
 
 pub async fn with_live_model<F: Future>(model: RichText, work: F) -> F::Output {
     LIVE_MODEL.scope(Arc::new(model), work).await
+}
+
+pub async fn with_live_ids_kept<F: Future>(work: F) -> F::Output {
+    LIVE_IDS_KEPT.scope((), work).await
+}
+
+pub(super) fn live_ids_kept() -> bool {
+    LIVE_IDS_KEPT.try_with(|()| ()).is_ok()
 }
 
 pub(super) fn live_model() -> Option<Arc<RichText>> {

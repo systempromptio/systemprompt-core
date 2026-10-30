@@ -235,6 +235,15 @@ impl DocumentService {
         let Some(view) = view else {
             return Ok(None);
         };
+        if self
+            .repos
+            .edit_sessions
+            .find_open(&document.id)
+            .await?
+            .is_none()
+        {
+            return Ok(None);
+        }
         let base = self
             .repos
             .revisions

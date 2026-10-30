@@ -40,7 +40,8 @@ use crate::documents::models::{RevisionAttribution, RevisionOrigin};
 use crate::documents::repository::CheckpointLease;
 use crate::documents::revision::CommitBody;
 use crate::documents::service::{
-    Author, CommentPolicy, CommitOutcome, CommitRequest, ProposeBodyRequest, with_live_model,
+    Author, CommentPolicy, CommitOutcome, CommitRequest, ProposeBodyRequest, with_live_ids_kept,
+    with_live_model,
 };
 
 const CHECKPOINT_MESSAGE: &str = "Live edit session checkpoint";
@@ -120,7 +121,7 @@ impl CollabService {
         let commit = act_as(body.state.actor.clone(), commit);
         let outcome = match &live.model {
             ModelView::RichText(model) => Box::pin(with_live_model(model.clone(), commit)).await?,
-            _ => Box::pin(commit).await?,
+            _ => Box::pin(with_live_ids_kept(commit)).await?,
         };
         let revision = match outcome {
             CommitOutcome::Committed(landed) => landed.revision,

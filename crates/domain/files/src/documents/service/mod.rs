@@ -96,7 +96,7 @@ pub use file_create::FileCreateRequest;
 pub use folder_update::FolderUpdateRequest;
 pub use grants::{MAX_SHARE_MESSAGE_BYTES, ShareRequest};
 pub use lifecycle::{CopyRequest, FolderMove, UpdateRequest};
-pub use live_ids::with_live_model;
+pub use live_ids::{with_live_ids_kept, with_live_model};
 pub use live_ops::{LiveApplied, LiveEdit, LiveEditRequest, LiveOps};
 pub use media::{AdmittedMedia, held_media_refs, refuse_unheld_media};
 pub use mentions::CommentOrigin;

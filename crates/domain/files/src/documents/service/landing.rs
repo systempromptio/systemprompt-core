@@ -132,10 +132,17 @@ impl DocumentService {
             revision,
             next,
             previous,
-            hints,
+            mut hints,
             merged_from,
             applied,
         } = prepared;
+        if super::live_ids::live_ids_kept()
+            && let Some(previous) = &previous
+        {
+            hints
+                .rewritten
+                .extend(previous.nodes().map(|node| node.id.clone()));
+        }
         let mut carried = carry(next, previous, hints).await?;
         if let Some(model) = super::live_ids::live_model() {
             carried.pin(&super::live_ids::pinned_ids(&carried.next, &model));
