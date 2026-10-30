@@ -6301,6 +6301,7 @@ dependencies = [
  "systemprompt-models",
  "systemprompt-security",
  "systemprompt-traits",
+ "systemprompt-users",
  "systemprompt-wire",
  "thiserror 2.0.21",
  "tokio",

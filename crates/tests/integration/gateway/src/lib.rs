@@ -14,6 +14,8 @@ mod ba6f9208_replay;
 #[cfg(test)]
 mod context_id_derivation;
 #[cfg(test)]
+mod in_process_client;
+#[cfg(test)]
 mod journal_recovery;
 #[cfg(test)]
 mod payload_truncation;

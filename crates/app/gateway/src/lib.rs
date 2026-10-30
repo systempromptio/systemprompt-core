@@ -13,6 +13,9 @@
 //! remote [`image_fetch`], the streaming [`stream_tap`], and the [`audit`]
 //! trail with its encrypted settlement journal.
 //!
+//! Core services call models through the in-process [`client`], which enters
+//! the same pipeline as a service principal.
+//!
 //! The crate owns no HTTP surface: `systemprompt-api` mounts the gateway
 //! routes and calls into [`GatewayService`] with the repositories bundled in
 //! [`GatewayRepositories`].
@@ -26,6 +29,7 @@ pub use ::inventory as __inventory;
 pub mod artifact_scanner;
 pub mod audit;
 pub mod captures;
+pub mod client;
 pub mod error;
 pub mod extension;
 pub mod image_fetch;
