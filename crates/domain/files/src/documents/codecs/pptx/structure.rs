@@ -15,7 +15,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use quick_xml::escape::escape;
 use systemprompt_provider_contracts::documents::CodecError;
 
 use super::deck::model_of;
@@ -23,12 +22,13 @@ use super::lower::{shape_pairs, slide_pairs};
 use super::picture::picture_xml;
 use super::projection::{self, Slide, shape_elements, sp_tree};
 use super::restyle::paragraph_edits;
+use super::runs::{runs_xml, segments};
 use super::slides::{PRESENTATION, slide_refs};
 use super::zorder::{Placed, in_order, reordered};
 use crate::documents::codecs::xml_tree::{Element, parse_xml, splice};
 use crate::documents::codecs::zip_package::Package;
 use crate::documents::engine::loro::deck::{DeckModel, DeckShape, DeckSlide, Frame, ShapeKind};
-use crate::documents::model::BlockKind;
+use crate::documents::model::{Block, BlockKind};
 
 pub(super) fn restructure(bytes: &[u8], target: &DeckModel) -> Result<Vec<u8>, CodecError> {
     let mut package = Package::open(bytes)?;
@@ -117,10 +117,15 @@ fn slide_edits(
         for element in removed {
             edits.push((element.start, element.end, String::new()));
         }
-        for added in placed {
-            if let Placed::Added(xml) = added {
-                edits.push((tree.inner_end, tree.inner_end, xml));
-            }
+        let added: String = placed
+            .into_iter()
+            .filter_map(|entry| match entry {
+                Placed::Added(xml) => Some(xml),
+                Placed::Kept(_) => None,
+            })
+            .collect();
+        if !added.is_empty() {
+            edits.push((tree.inner_end, tree.inner_end, added));
         }
         return Ok((!edits.is_empty()).then(|| splice(&slide.xml, edits)));
     }
@@ -209,10 +214,7 @@ fn shape_xml(id: u64, shape: &DeckShape) -> String {
         .paragraphs
         .iter()
         .map(|block| {
-            paragraph_xml(
-                &block.text,
-                matches!(block.kind, BlockKind::ListItem { .. }),
-            )
+            paragraph_xml(block, matches!(block.kind, BlockKind::ListItem { .. }))
         })
         .collect();
     if paragraphs.is_empty() {
@@ -223,19 +225,12 @@ fn shape_xml(id: u64, shape: &DeckShape) -> String {
     )
 }
 
-fn paragraph_xml(text: &str, bullet: bool) -> String {
+fn paragraph_xml(block: &Block, bullet: bool) -> String {
     let mut out = String::from("<a:p>");
     if bullet {
         out.push_str("<a:pPr marL=\"285750\" indent=\"-285750\"><a:buChar char=\"•\"/></a:pPr>");
     }
-    for (line, segment) in text.split('\n').enumerate() {
-        if line > 0 {
-            out.push_str("<a:br/>");
-        }
-        if !segment.is_empty() {
-            out.push_str(&format!("<a:r><a:t>{}</a:t></a:r>", escape(segment)));
-        }
-    }
+    out.push_str(&runs_xml(&segments(&block.text, &block.marks), None));
     out.push_str("<a:endParaRPr lang=\"en-US\"/></a:p>");
     out
 }
