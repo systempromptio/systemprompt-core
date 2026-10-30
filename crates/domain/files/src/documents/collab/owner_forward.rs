@@ -1,8 +1,8 @@
 //! Forwarding one collab update to the replica that owns its document.
 //!
 //! The raw request travels unchanged — its body, content type, query and
-//! the caller's `Authorization` and `Cookie` headers — to the same route on the owner,
-//! marked with [`FORWARDED_HEADER`] so the owner applies it rather than
+//! the caller's `Authorization` and `Cookie` headers — to the same route on the
+//! owner, marked with [`FORWARDED_HEADER`] so the owner applies it rather than
 //! forwarding again. The owner authenticates and authorises the caller
 //! itself. Any transport failure is returned to the caller, which then
 //! applies the update locally.

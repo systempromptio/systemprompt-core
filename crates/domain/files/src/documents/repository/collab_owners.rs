@@ -62,7 +62,11 @@ impl DocumentCollabRepository {
         Ok(held.map_or(OwnerClaim::Lapsed, |address| OwnerClaim::Held { address }))
     }
 
-    pub async fn release_owner(&self, document: &DocumentId, owner: uuid::Uuid) -> RepoResult<bool> {
+    pub async fn release_owner(
+        &self,
+        document: &DocumentId,
+        owner: uuid::Uuid,
+    ) -> RepoResult<bool> {
         let result = sqlx::query!(
             "DELETE FROM document_collab_owners
              WHERE document_id = $1::text::uuid AND owner_id = $2",

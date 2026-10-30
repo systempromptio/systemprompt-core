@@ -292,7 +292,8 @@ impl DocumentEvents {
     }
 }
 
-// JSON: the serialized payload of a document event; the first actor field it names.
+// JSON: the serialized payload of a document event; the first actor field it
+// names.
 fn topic_actor(value: &serde_json::Value) -> Option<UserId> {
     ACTOR_FIELDS
         .iter()

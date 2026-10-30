@@ -22,10 +22,10 @@
 
 mod apply;
 mod blank;
-mod cells;
-mod insert;
 #[cfg(feature = "collab-loro")]
 mod calc;
+mod cells;
+mod insert;
 mod projection;
 mod rebase;
 mod workbook;

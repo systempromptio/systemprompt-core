@@ -83,8 +83,8 @@ fn merge_a1(merge: &MergedCell) -> Option<String> {
 /// The `.xlsx` bytes of `sheets`, recalculated so every formula cell
 /// carries its cached value.
 pub fn checkpoint_xlsx(sheets: &SheetModel) -> Result<Vec<u8>, CodecError> {
-    let mut model =
-        Model::new_empty("workbook", LOCALE, TIMEZONE, LANGUAGE).map_err(parse_error("workbook"))?;
+    let mut model = Model::new_empty("workbook", LOCALE, TIMEZONE, LANGUAGE)
+        .map_err(parse_error("workbook"))?;
     for (index, sheet) in (0u32..).zip(&sheets.sheets) {
         if index == 0 {
             model

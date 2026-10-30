@@ -10,8 +10,8 @@
 
 use std::path::Path;
 use systemprompt_loader::ExtensionBinaryIndex;
-use systemprompt_manifest::validators::{StartupValidationReport, ValidationReport};
 use systemprompt_manifest::validators::validation_report::ValidationIssue;
+use systemprompt_manifest::validators::{StartupValidationReport, ValidationReport};
 use systemprompt_manifest::{Config, ServicesConfig};
 use systemprompt_models::mcp::McpServerType;
 
