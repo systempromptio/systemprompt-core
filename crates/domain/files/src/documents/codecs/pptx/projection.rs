@@ -111,9 +111,8 @@ pub(super) fn paragraph(
         .and_then(|el| el.attr("lvl"))
         .and_then(|lvl| lvl.parse::<u8>().ok())
         .unwrap_or(0);
-    let bullet = has_any(ppr, &["a:buChar", "a:buAutoNum"])
-        || level > 0
-        || (inherits_bullets && !has_any(ppr, &["a:buNone"]));
+    let bullet = !has_any(ppr, &["a:buNone"])
+        && (has_any(ppr, &["a:buChar", "a:buAutoNum"]) || level > 0 || inherits_bullets);
     Ok(Paragraph {
         text,
         bullet,

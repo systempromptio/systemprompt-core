@@ -187,6 +187,11 @@ fn paragraphs_become_and_stop_being_list_items() {
         BlockKind::Paragraph
     );
     assert_eq!(shape(&back, FRAMED, "3").paragraphs[2].text, "Hiring\nplan");
+    assert_eq!(
+        shape(&back, FRAMED, "3").paragraphs[2].kind,
+        BlockKind::Paragraph
+    );
+    assert_eq!(lower_deck(&out, &back).expect("relower"), out);
     let xml = part(&out, FRAMED);
     assert!(xml.contains("<a:pPr lvl=\"1\"><a:buNone/></a:pPr>"));
     assert!(!xml.contains("<a:buNone/></a:pPr><a:r><a:t>Twin"));
