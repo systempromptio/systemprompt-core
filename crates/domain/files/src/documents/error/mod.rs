@@ -129,6 +129,11 @@ pub enum DocumentsError {
     },
     #[error("no codec is registered for {format} documents")]
     UnsupportedFormat { format: DocumentFormat },
+    #[error(
+        "live editing is not available for {format} documents; edit them with document ops \
+         (documents_edit) instead"
+    )]
+    LiveUnsupported { format: DocumentFormat },
     #[error("the content was refused ({code}): {detail}")]
     ContentRefused { code: &'static str, detail: String },
     #[error("cannot tell the document format of \"{name}\"; give the name a known extension")]
@@ -169,6 +174,11 @@ pub enum DocumentsError {
          characters, \".\" or \"..\""
     )]
     InvalidName { name: String },
+    #[error(
+        "a document named \"{name}\" already exists in this folder; choose another name or \
+         edit that document"
+    )]
+    NameTaken { name: String },
     #[error("subject kind \"{kind}\" is not user, role or a registered subject dimension")]
     UnknownSubjectKind { kind: String },
     #[error(

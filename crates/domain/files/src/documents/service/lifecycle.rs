@@ -178,8 +178,7 @@ impl DocumentService {
                 mime_type: Some(source.mime_type.clone()),
             };
             match self.create_with_bytes(who, content).await {
-                Err(DocumentsError::Repository(error))
-                    if attempt == 1 && explicit.is_none() && is_name_taken(&error) => {},
+                Err(DocumentsError::NameTaken { .. }) if attempt == 1 && explicit.is_none() => {},
                 Ok(copied) => return self.carry_cap(who, &source, copied, carried).await,
                 other => return other,
             }
@@ -255,6 +254,17 @@ fn split_extension(name: &str) -> (&str, &str) {
     name.rfind('.')
         .filter(|&dot| dot > 0)
         .map_or((name, ""), |dot| name.split_at(dot))
+}
+
+/// A unique violation on insert is the folder's name already in use.
+pub(super) fn name_taken(error: RepositoryError, name: &str) -> DocumentsError {
+    if is_name_taken(&error) {
+        DocumentsError::NameTaken {
+            name: name.to_owned(),
+        }
+    } else {
+        DocumentsError::Repository(error)
+    }
 }
 
 const fn is_name_taken(error: &RepositoryError) -> bool {

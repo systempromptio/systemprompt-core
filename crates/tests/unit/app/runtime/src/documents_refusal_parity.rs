@@ -31,6 +31,7 @@ const fn listed(error: &DocumentsError) -> bool {
         | DocumentsError::LockHeld { .. }
         | DocumentsError::UnsupportedOp { .. }
         | DocumentsError::UnsupportedFormat { .. }
+        | DocumentsError::LiveUnsupported { .. }
         | DocumentsError::UnknownFormat { .. }
         | DocumentsError::NotFound { .. }
         | DocumentsError::TooLarge { .. }
@@ -40,6 +41,7 @@ const fn listed(error: &DocumentsError) -> bool {
         | DocumentsError::IntegrityMismatch { .. }
         | DocumentsError::ContentRefused { .. }
         | DocumentsError::InvalidName { .. }
+        | DocumentsError::NameTaken { .. }
         | DocumentsError::UnknownSubjectKind { .. }
         | DocumentsError::UnknownSubject { .. }
         | DocumentsError::OwnNotGrantable
@@ -219,6 +221,18 @@ fn table() -> Vec<(DocumentsError, RefusalCode)> {
                 name: "..".to_owned(),
             },
             RefusalCode::InvalidParams,
+        ),
+        (
+            DocumentsError::LiveUnsupported {
+                format: DocumentFormat::Ods,
+            },
+            RefusalCode::UnsupportedFormat,
+        ),
+        (
+            DocumentsError::NameTaken {
+                name: "plan.md".to_owned(),
+            },
+            RefusalCode::NameTaken,
         ),
         (
             DocumentsError::UnknownSubjectKind {

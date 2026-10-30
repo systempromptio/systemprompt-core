@@ -88,7 +88,9 @@ impl CollabService {
             },
         };
         match outcome {
-            Err(CollabError::Documents(DocumentsError::UnsupportedFormat { .. })) => Ok(None),
+            Err(CollabError::Documents(
+                DocumentsError::UnsupportedFormat { .. } | DocumentsError::LiveUnsupported { .. },
+            )) => Ok(None),
             other => other,
         }
     }

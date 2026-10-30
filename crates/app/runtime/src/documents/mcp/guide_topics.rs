@@ -286,6 +286,10 @@ const fn agent_refusal_text(code: RefusalCode) -> &'static str {
             "cursor_reset: the Drive cursor sent is not a position of the current change \
              feed; drop it, read the manifest again and continue from its cursor."
         },
+        RefusalCode::NameTaken => {
+            "name_taken: the folder already holds a document of that name; choose another name \
+             or edit the existing document."
+        },
         _ => "",
     }
 }

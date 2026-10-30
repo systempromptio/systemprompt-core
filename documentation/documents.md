@@ -186,6 +186,7 @@ There are 23 codes (`RefusalCode::ALL` in `crates/app/runtime/src/documents/refu
 | `access_request_open` | 409 | The caller already has an open request on the document. | |
 | `access_request_not_needed` | 400 | The caller already holds a level on the document. | |
 | `access_request_closed` | 409 | The request was already granted or declined. | |
+| `name_taken` | 409 | The folder already holds a document of that name. | |
 
 The detail object (`Refusal`) has the optional fields `head_revision`, `head_content_sha256`, `base_revision`, `written_by`, `actor_kind`, `at`, `node`, `hash`, `current_text`, `matches`, `accepted_kinds`, `owner`, `existing_level`, `trashed` and `comments`; absent fields are omitted.
 
@@ -239,7 +240,7 @@ A refused request answers the common error envelope ([reference/http-api.md](ref
 
 | Status | Codes |
 |---|---|
-| `409` | `stale_base`, `guard_mismatch`, `anchors_affected`, `find_none`, `proposal_conflict`, `proposal_closed`, `folder_not_empty`, `op_id_mismatch`, `access_request_open`, `access_request_closed`, and `not_found` for a node id |
+| `409` | `stale_base`, `guard_mismatch`, `anchors_affected`, `find_none`, `proposal_conflict`, `proposal_closed`, `folder_not_empty`, `op_id_mismatch`, `access_request_open`, `access_request_closed`, `name_taken`, and `not_found` for a node id |
 | `403` | `forbidden`, `self_review` |
 | `503` | `collab_engine_unavailable` (a live session route with `files-collab` and no engine) |
 | `404` | `not_found`, `trashed` |

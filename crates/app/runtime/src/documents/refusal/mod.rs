@@ -255,8 +255,11 @@ const fn plain_code(error: &DocumentsError) -> Option<RefusalCode> {
         },
         DocumentsError::OwnershipChanged { .. } => Some(RefusalCode::Forbidden),
         DocumentsError::ProposalClosed { .. } => Some(RefusalCode::ProposalClosed),
+        DocumentsError::NameTaken { .. } => Some(RefusalCode::NameTaken),
         DocumentsError::IntegrityMismatch { .. } => Some(RefusalCode::IntegrityMismatch),
-        DocumentsError::UnsupportedFormat { .. } | DocumentsError::UnknownFormat { .. } => {
+        DocumentsError::UnsupportedFormat { .. }
+        | DocumentsError::LiveUnsupported { .. }
+        | DocumentsError::UnknownFormat { .. } => {
             Some(RefusalCode::UnsupportedFormat)
         },
         DocumentsError::Template { source, .. } => template_code(source),

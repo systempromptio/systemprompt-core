@@ -40,7 +40,7 @@ impl CollabService {
         let engine = self.engine()?;
         let (document, level) = self.granted(who, document, action, trace).await?;
         if !is_collab_format(document.format) {
-            return Err(DocumentsError::UnsupportedFormat {
+            return Err(DocumentsError::LiveUnsupported {
                 format: document.format,
             }
             .into());
