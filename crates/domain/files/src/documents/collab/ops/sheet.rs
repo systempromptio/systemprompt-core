@@ -40,7 +40,10 @@ mod translate {
         #[error("operation {op} is not supported on a sheet")]
         Unsupported { op: &'static str },
         #[error("node {node} is not a sheet {expected} node")]
-        BadNode { node: String, expected: &'static str },
+        BadNode {
+            node: String,
+            expected: &'static str,
+        },
         #[error("range `{range}` is not an A1 range")]
         BadRange { range: String },
         #[error("set_cells values do not fit range {range}")]
@@ -55,12 +58,20 @@ mod translate {
 
     enum Write {
         Cell(SheetChange),
-        Row { sheet: String, after: u32, text: String },
+        Row {
+            sheet: String,
+            after: u32,
+            text: String,
+        },
     }
 
     /// Applies `ops` to `doc` and returns how many cells were written.
     pub(crate) fn apply_sheet_ops(doc: &LoroDoc, ops: &[EditOp]) -> Result<usize, SheetOpError> {
-        let writes = ops.iter().map(plan).collect::<Result<Vec<_>, _>>()?.concat();
+        let writes = ops
+            .iter()
+            .map(plan)
+            .collect::<Result<Vec<_>, _>>()?
+            .concat();
         let changes: Vec<SheetChange> = writes
             .iter()
             .flat_map(|write| match write {

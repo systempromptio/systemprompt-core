@@ -134,8 +134,14 @@ impl Sheet {
     /// skipping cells whose row or column was deleted.
     #[must_use]
     pub fn grid(&self) -> Vec<(u32, u32, &SheetCell)> {
-        let rows: BTreeMap<&str, u32> = (1u32..).zip(&self.rows).map(|(i, id)| (id.as_str(), i)).collect();
-        let cols: BTreeMap<&str, u32> = (1u32..).zip(&self.cols).map(|(i, id)| (id.as_str(), i)).collect();
+        let rows: BTreeMap<&str, u32> = (1u32..)
+            .zip(&self.rows)
+            .map(|(i, id)| (id.as_str(), i))
+            .collect();
+        let cols: BTreeMap<&str, u32> = (1u32..)
+            .zip(&self.cols)
+            .map(|(i, id)| (id.as_str(), i))
+            .collect();
         self.cells
             .iter()
             .filter_map(|(key, cell)| {
