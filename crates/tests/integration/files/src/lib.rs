@@ -28,7 +28,17 @@ mod documents_brain_facts;
 #[cfg(test)]
 mod documents_collab;
 #[cfg(test)]
+mod documents_collab_awareness;
+#[cfg(test)]
 mod documents_collab_images;
+#[cfg(test)]
+mod documents_collab_live_fixture;
+#[cfg(test)]
+mod documents_collab_live_ops;
+#[cfg(test)]
+mod documents_collab_live_structured;
+#[cfg(test)]
+mod documents_collab_owner;
 #[cfg(test)]
 mod documents_collab_replicas;
 #[cfg(test)]
