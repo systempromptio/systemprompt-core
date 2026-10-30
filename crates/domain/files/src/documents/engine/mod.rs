@@ -93,6 +93,14 @@ pub struct UpdateImport {
     pub pending: bool,
 }
 
+/// An op batch translated into one engine update, with the block and cell
+/// ids it wrote (empty when the translator does not name them).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OpsUpdate {
+    pub update: Vec<u8>,
+    pub touched: Vec<String>,
+}
+
 /// What one imported update changed, so a caller validates in proportion
 /// to it. `Blocks` holds only the blocks the update touched (with the
 /// document settings when it changed them); `Full` holds the whole model
@@ -140,7 +148,7 @@ pub trait EngineDoc: Send + fmt::Debug {
         &self,
         _ops: &[systemprompt_models::documents::EditOp],
         _peer: u64,
-    ) -> Result<Option<Vec<u8>>, EngineError> {
+    ) -> Result<Option<OpsUpdate>, EngineError> {
         Err(EngineError::Unsupported)
     }
 

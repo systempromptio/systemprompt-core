@@ -86,6 +86,7 @@ impl CollabService {
             before: applied.before,
             after: applied.after,
             applied: applied_ops,
+            touched: Vec::new(),
         };
         let Some(update) = update else {
             return Ok(Some(edit));

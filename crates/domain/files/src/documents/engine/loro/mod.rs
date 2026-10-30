@@ -192,7 +192,7 @@ impl EngineDoc for LoroEngineDoc {
         &self,
         ops: &[systemprompt_models::documents::EditOp],
         peer: u64,
-    ) -> Result<Option<Vec<u8>>, EngineError> {
+    ) -> Result<Option<super::OpsUpdate>, EngineError> {
         shape_ops::update_from_ops(&self.0, ops, peer)
     }
 

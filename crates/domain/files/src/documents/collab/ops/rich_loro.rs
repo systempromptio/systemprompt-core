@@ -15,7 +15,9 @@
 //! node the live tree does not hold as a block answers
 //! [`RichOpError::Unsupported`] or [`RichOpError::UnknownBlock`], so the
 //! caller writes the batch through the model instead, which also answers
-//! the precise refusal.
+//! the precise refusal. It answers the ids of the blocks it wrote (a table
+//! row's cell blocks for an inserted row), each once, so the ack names the
+//! lines the batch changed.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -59,15 +61,23 @@ impl From<EditError> for RichOpError {
     }
 }
 
-pub(crate) fn apply_rich_ops_loro(doc: &LoroDoc, ops: &[EditOp]) -> Result<usize, RichOpError> {
+pub(crate) fn apply_rich_ops_loro(
+    doc: &LoroDoc,
+    ops: &[EditOp],
+) -> Result<Vec<String>, RichOpError> {
     let planned = ops
         .iter()
         .map(|op| plan(doc, op))
         .collect::<Result<Vec<_>, _>>()?;
+    let mut touched: Vec<String> = Vec::new();
     for step in &planned {
-        write(doc, step)?;
+        for id in write(doc, step)? {
+            if !touched.contains(&id) {
+                touched.push(id);
+            }
+        }
     }
-    Ok(planned.len())
+    Ok(touched)
 }
 
 enum Step {
@@ -221,17 +231,25 @@ fn plan(doc: &LoroDoc, op: &EditOp) -> Result<Step, RichOpError> {
     }
 }
 
-fn write(doc: &LoroDoc, step: &Step) -> Result<(), RichOpError> {
-    match step {
-        Step::SetText { block, text } => edit::set_text(doc, block, text)?,
-        Step::Delete { block } => edit::delete_block(doc, block)?,
+fn write(doc: &LoroDoc, step: &Step) -> Result<Vec<String>, RichOpError> {
+    let touched = match step {
+        Step::SetText { block, text } => {
+            edit::set_text(doc, block, text)?;
+            vec![block.clone()]
+        },
+        Step::Delete { block } => {
+            edit::delete_block(doc, block)?;
+            Vec::new()
+        },
         Step::InsertAfter { block, kind, text } => {
+            let id = fresh_id();
             edit::insert_block_near(
                 doc,
                 block,
                 false,
-                &Block::new(fresh_id(), kind.clone(), text.clone()),
+                &Block::new(id.clone(), kind.clone(), text.clone()),
             )?;
+            vec![id]
         },
         Step::Mark {
             block,
@@ -245,19 +263,32 @@ fn write(doc: &LoroDoc, step: &Step) -> Result<(), RichOpError> {
             for key in remove {
                 edit::unmark(doc, block, range.clone(), key)?;
             }
+            vec![block.clone()]
         },
-        Step::SetKind { block } => edit::set_kind(doc, block)?,
+        Step::SetKind { block } => {
+            edit::set_kind(doc, block)?;
+            vec![block.id.clone()]
+        },
         Step::InsertRow { table, at, cells } => {
             let columns = columns(doc, table)?.max(cells.len()).max(1);
             let (_, ids) = edit::insert_row(doc, table, *at, columns)?;
-            for (cell, text) in ids.iter().zip(cells) {
+            let mut written = Vec::new();
+            for (index, cell) in ids.iter().enumerate() {
                 let list = edit::cell_blocks(doc, cell)?;
-                if let Some(id) = block_map(&list, 0).and_then(|map| string_of(&map, "id")) {
+                let Some(id) = block_map(&list, 0).and_then(|map| string_of(&map, "id")) else {
+                    continue;
+                };
+                if let Some(text) = cells.get(index) {
                     edit::set_text(doc, &id, text)?;
                 }
+                written.push(id);
             }
+            written
         },
-        Step::DeleteRow { row } => edit::delete_row(doc, row)?,
-    }
-    Ok(())
+        Step::DeleteRow { row } => {
+            edit::delete_row(doc, row)?;
+            Vec::new()
+        },
+    };
+    Ok(touched)
 }

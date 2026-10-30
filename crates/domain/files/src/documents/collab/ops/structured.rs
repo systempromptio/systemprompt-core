@@ -10,7 +10,9 @@
 //! (text documents) answers `None` on any translation refusal, so the
 //! caller retries the batch through the model, which answers the precise
 //! refusal. No node-id projection is built on this path, so the ack's
-//! before and after trees are empty and its `written` lines are none.
+//! before and after trees are empty; it names the block and cell ids the
+//! translator wrote instead, and the caller reads those lines from the live
+//! projection.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -21,7 +23,7 @@ use systemprompt_provider_contracts::documents::{Projection, content_hash};
 use crate::documents::collab::apply::update_event;
 use crate::documents::collab::lease::SessionKey;
 use crate::documents::collab::{CollabError, CollabService};
-use crate::documents::engine::EngineError;
+use crate::documents::engine::{EngineError, OpsUpdate};
 use crate::documents::model::EditLevel;
 use crate::documents::models::Document;
 use crate::documents::repository::UpdateAuthor;
@@ -71,10 +73,12 @@ impl CollabService {
             before: empty(),
             after: empty(),
             applied,
+            touched: Vec::new(),
         };
-        let Some(update) = update else {
+        let Some(OpsUpdate { update, touched }) = update else {
             return Ok(Some(edit));
         };
+        edit.touched = touched;
         self.engine()?
             .check_update(&update, Some(&[peer]))
             .map_err(CollabError::InvalidUpdate)?;

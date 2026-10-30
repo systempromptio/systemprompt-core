@@ -5,7 +5,9 @@
 //! Each top-level block that matches a node of the projection, in order,
 //! by text (or, for a table, by kind), carries that node's id, so the ids
 //! a model read answers are the ids `documents_edit` ops address. A block
-//! the projection does not show keeps its model id (`bN`).
+//! the projection does not show keeps its model id (`bN`). With a live
+//! session open and no revision asked for, the model is read from the live
+//! bytes the live projection was built from, never from the head's.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -27,12 +29,22 @@ pub(super) async fn model_view(
     input: &ReadInput,
     trace: &TraceId,
 ) -> Result<ReadOutput, DocumentsError> {
-    let (revision, projection) = service
-        .project(who, &input.document_id, input.revision_id.as_ref(), trace)
-        .await?;
-    let (_, bytes) = service
-        .read_bytes(who, &input.document_id, Some(&revision.id), trace)
-        .await?;
+    let live = match input.revision_id {
+        Some(_) => None,
+        None => service.live_read(who, &input.document_id, trace).await?,
+    };
+    let (revision, projection, bytes) = match live {
+        Some(live) => live,
+        None => {
+            let (revision, projection) = service
+                .project(who, &input.document_id, input.revision_id.as_ref(), trace)
+                .await?;
+            let (_, bytes) = service
+                .read_bytes(who, &input.document_id, Some(&revision.id), trace)
+                .await?;
+            (revision, projection, bytes)
+        },
+    };
     let mut model = import_rich_text(projection.format, &bytes).map_err(|_unsupported| {
         DocumentsError::InvalidParams {
             detail: "view model reads Markdown, HTML, docx and odt documents",

@@ -43,7 +43,8 @@ pub struct LiveEditRequest {
 /// An op batch written into a live session: the update's sequence number
 /// (`None` when the batch changed nothing), the revision the session is
 /// based on, and the live tree before and after, so the caller answers with
-/// the lines it wrote.
+/// the lines it wrote. A batch the engine translated itself has empty trees
+/// and instead names the block and cell ids it wrote in `touched`.
 #[derive(Debug, Clone)]
 pub struct LiveEdit {
     pub session_id: DocumentEditSessionId,
@@ -52,6 +53,7 @@ pub struct LiveEdit {
     pub before: Projection,
     pub after: Projection,
     pub applied: usize,
+    pub touched: Vec<String>,
 }
 
 /// The outcome of [`DocumentService::apply_ops_live`]: the edited bytes and
@@ -163,11 +165,52 @@ impl DocumentService {
         })
     }
 
+    /// The live projection of `document_id` with the bytes it was projected
+    /// from, or `None` when no session is open, so a caller pairing a
+    /// projection with bytes never pairs the live tree with the head's bytes.
+    pub async fn live_read(
+        &self,
+        who: &AuthenticatedUser,
+        document_id: &DocumentId,
+        trace: &TraceId,
+    ) -> Result<Option<(DocumentRevision, Projection, Vec<u8>)>, DocumentsError> {
+        let document = self
+            .authorized_document(who, document_id, DocumentAction::View, trace)
+            .await?;
+        self.live_projected(&document).await
+    }
+
     #[cfg(feature = "collab")]
     pub(super) async fn live_projection(
         &self,
         document: &Document,
     ) -> Result<Option<(DocumentRevision, Projection)>, DocumentsError> {
+        Ok(self
+            .live_projected(document)
+            .await?
+            .map(|(base, projection, _)| (base, projection)))
+    }
+
+    #[cfg(not(feature = "collab"))]
+    #[expect(
+        clippy::unused_async,
+        reason = "shares the signature of the collab build"
+    )]
+    async fn live_projected(
+        &self,
+        _document: &Document,
+    ) -> Result<Option<(DocumentRevision, Projection, Vec<u8>)>, DocumentsError> {
+        Ok(None)
+    }
+
+    #[cfg(feature = "collab")]
+    async fn live_projected(
+        &self,
+        document: &Document,
+    ) -> Result<Option<(DocumentRevision, Projection, Vec<u8>)>, DocumentsError> {
+        use std::collections::HashSet;
+
+        use systemprompt_identifiers::DocumentNodeId;
         let Some(collab) = self.collab() else {
             return Ok(None);
         };
@@ -185,7 +228,8 @@ impl DocumentService {
             .await?
             .ok_or_else(|| DocumentsError::not_found("revision", &view.base))?;
         let base_ids = self.projected(document, &base).await?.ids;
-        let paths = self.project_paths(document.format, view.bytes).await?;
+        let bytes = view.bytes;
+        let paths = self.project_paths(document.format, bytes.clone()).await?;
         let pins = super::live_ids::pinned_ids(&paths, &view.model);
         let writer = writer_tag(&format!("{LIVE_WRITER}:{}", document.id));
         let projected = paths.clone();
@@ -193,14 +237,17 @@ impl DocumentService {
             let mut minter = NodeIdMinter::new(writer, 0);
             let mut entries =
                 carry_forward(&base_ids, &projected, &CarryHints::default(), &mut minter);
+            let pinned: HashSet<&DocumentNodeId> = pins.values().collect();
             for entry in &mut entries {
-                if let Some(id) = pins.get(entry.path.as_str()) {
-                    entry.node_id = id.clone();
+                match pins.get(entry.path.as_str()) {
+                    Some(id) => entry.node_id = id.clone(),
+                    None if pinned.contains(&entry.node_id) => entry.node_id = minter.mint(),
+                    None => {},
                 }
             }
             Ok(entries)
         })
         .await?;
-        Ok(Some((base, with_ids(paths, &entries))))
+        Ok(Some((base, with_ids(paths, &entries), bytes)))
     }
 }

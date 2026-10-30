@@ -17,17 +17,17 @@ use super::{encode, rich, state};
 use crate::documents::collab::ops::deck::{DeckOpError, deck_update};
 use crate::documents::collab::ops::rich_loro::{RichOpError, apply_rich_ops_loro};
 use crate::documents::collab::ops::sheet::{SheetOpError, apply_sheet_ops};
-use crate::documents::engine::EngineError;
+use crate::documents::engine::{EngineError, OpsUpdate};
 
 pub(super) fn update_from_ops(
     doc: &LoroDoc,
     ops: &[EditOp],
     peer: u64,
-) -> Result<Option<Vec<u8>>, EngineError> {
+) -> Result<Option<OpsUpdate>, EngineError> {
     if !doc.get_movable_list(SHEETS_CONTAINER).is_empty() {
         return on_fork(doc, peer, |draft| {
             apply_sheet_ops(draft, ops)
-                .map(drop)
+                .map(|_| Vec::new())
                 .map_err(|error| match error {
                     SheetOpError::Unsupported { .. } => EngineError::Unsupported,
                     other => EngineError::Model(Box::new(other)),
@@ -35,33 +35,35 @@ pub(super) fn update_from_ops(
         });
     }
     if !doc.get_movable_list(SLIDES_CONTAINER).is_empty() {
-        return deck_update(doc, ops, peer).map_err(|error| match error {
+        let update = deck_update(doc, ops, peer).map_err(|error| match error {
             DeckOpError::Unsupported { .. } => EngineError::Unsupported,
             other => EngineError::Model(Box::new(other)),
-        });
+        })?;
+        return Ok(update.map(|update| OpsUpdate {
+            update,
+            touched: Vec::new(),
+        }));
     }
     on_fork(doc, peer, |draft| {
-        apply_rich_ops_loro(draft, ops)
-            .map(drop)
-            .map_err(|error| match error {
-                RichOpError::Unsupported { .. } | RichOpError::UnknownBlock { .. } => {
-                    EngineError::Unsupported
-                },
-                other => EngineError::Model(Box::new(other)),
-            })
+        apply_rich_ops_loro(draft, ops).map_err(|error| match error {
+            RichOpError::Unsupported { .. } | RichOpError::UnknownBlock { .. } => {
+                EngineError::Unsupported
+            },
+            other => EngineError::Model(Box::new(other)),
+        })
     })
 }
 
 fn on_fork(
     doc: &LoroDoc,
     peer: u64,
-    edit: impl FnOnce(&LoroDoc) -> Result<(), EngineError>,
-) -> Result<Option<Vec<u8>>, EngineError> {
+    edit: impl FnOnce(&LoroDoc) -> Result<Vec<String>, EngineError>,
+) -> Result<Option<OpsUpdate>, EngineError> {
     let before = doc.oplog_vv();
     let draft = doc.fork();
     rich::configure(&draft);
     draft.set_peer_id(peer).map_err(state)?;
-    edit(&draft)?;
+    let touched = edit(&draft)?;
     draft.set_next_commit_origin("agent");
     draft.commit();
     if draft.oplog_vv() == before {
@@ -69,6 +71,6 @@ fn on_fork(
     }
     draft
         .export(ExportMode::updates(&before))
-        .map(Some)
+        .map(|update| Some(OpsUpdate { update, touched }))
         .map_err(encode)
 }
