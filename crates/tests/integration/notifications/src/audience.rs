@@ -1,4 +1,5 @@
 use chrono::Utc;
+use systemprompt_extension::prelude::ChangeSource;
 use systemprompt_identifiers::DocumentId;
 use systemprompt_models::notifications::{
     Attention, AudienceSubject, NotificationEvent, NotificationKind, RuleAction, RuleMatch,
@@ -66,7 +67,7 @@ async fn subscribing_to_a_stream_outside_its_audience_is_refused_not_in_audience
         )
         .await
         .expect("a member may subscribe");
-    assert_eq!(admitted.source, format!("console:{member}"));
+    assert_eq!(admitted.source, ChangeSource::Console(member.clone()));
     h.finish().await;
 }
 
@@ -107,11 +108,8 @@ async fn a_declared_subscription_for_a_non_member_is_withheld_with_a_not_in_audi
     let rows = h.rows_for(&member).await;
     assert_eq!(rows.len(), 1);
     assert!(
-        rows[0]
-            .excerpt
-            .as_deref()
-            .is_some_and(|e| e.starts_with("Quarter closed")),
-        "a reader who passed the audience gate sees the excerpt"
+        rows[0].title.starts_with("Quarter closed"),
+        "a reader who passed the audience gate sees the title"
     );
     h.finish().await;
 }
@@ -156,8 +154,8 @@ async fn a_subscriber_no_resolver_can_place_is_withheld_audience_unknown() {
 }
 
 #[tokio::test]
-async fn a_subject_less_stream_item_withholds_its_excerpt_from_a_reader_outside_the_audience() {
-    let h = Harness::new("notif_excerpt_gate").await;
+async fn a_subject_less_stream_item_withholds_its_content_from_a_reader_outside_the_audience() {
+    let h = Harness::new("notif_content_gate").await;
     let lead = h.user("lead", &["sales_lead"]).await;
     let member = h.user("member", &["sales"]).await;
     let outsider = h.user("outsider", &["support"]).await;
@@ -177,7 +175,8 @@ async fn a_subject_less_stream_item_withholds_its_excerpt_from_a_reader_outside_
     .with_stream(stream)
     .with_direct_recipient(outsider.clone(), Some(Attention::Agent))
     .with_direct_recipient(member.clone(), Some(Attention::Agent))
-    .with_excerpt("confidential pipeline figures");
+    .with_title("confidential pipeline figures")
+    .with_body("q3 numbers");
 
     h.emit(&event).await;
     h.drain().await;
@@ -185,15 +184,14 @@ async fn a_subject_less_stream_item_withholds_its_excerpt_from_a_reader_outside_
     let outside = h.rows_for(&outsider).await;
     assert_eq!(outside.len(), 1);
     assert_eq!(
-        outside[0].excerpt, None,
-        "the excerpt is denied unless the reader passed the gate"
+        (outside[0].title.as_str(), outside[0].body.as_str()),
+        ("", ""),
+        "the title and body are denied unless the reader passed the gate"
     );
     let inside = h.rows_for(&member).await;
     assert_eq!(inside.len(), 1);
-    assert_eq!(
-        inside[0].excerpt.as_deref(),
-        Some("confidential pipeline figures")
-    );
+    assert_eq!(inside[0].title, "confidential pipeline figures");
+    assert_eq!(inside[0].body, "q3 numbers");
     h.finish().await;
 }
 

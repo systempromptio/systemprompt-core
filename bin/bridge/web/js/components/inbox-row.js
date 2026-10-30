@@ -55,12 +55,12 @@ export function renderInboxRow(row, { escalating, fallbackPrompt }) {
     <li class="sp-inbox-row${unread}" data-key="${escapeHtml(row.key)}">
       <div class="sp-inbox-row__head">
         <span class="sp-chip sp-inbox-row__chip sp-inbox-row__chip--${escapeHtml(row.attention)}">${escapeHtml(label(ATTENTION_L10N[row.attention], ATTENTION_LABEL[row.attention]))}</span>
-        <span class="sp-inbox-row__actor">${escapeHtml(row.actor)}</span>
+        <span class="sp-inbox-row__title">${escapeHtml(row.title)}</span>
         ${via}
         ${count}
         <time class="sp-inbox-row__time" ${attr("datetime", row.createdAt)}>${escapeHtml(row.age)}</time>
       </div>
-      <p class="sp-inbox-row__excerpt">${escapeHtml(row.excerpt)}</p>
+      <p class="sp-inbox-row__text">${escapeHtml(row.text)}</p>
       <div class="sp-inbox-row__actions">${actions(row)}</div>
       ${escalating ? escalateForm() : ""}
       ${fallbackPrompt == null ? "" : copyFallback(fallbackPrompt)}

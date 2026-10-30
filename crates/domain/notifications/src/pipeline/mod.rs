@@ -41,8 +41,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use systemprompt_extension::notifications::{
-    NotificationActorDirectory, NotificationAudienceResolver, NotificationChannel,
-    NotificationRouter, ResourceVisibility,
+    NotificationAudienceResolver, NotificationChannel, NotificationRouter, ResourceVisibility,
 };
 use systemprompt_identifiers::{NotificationId, UserId};
 use systemprompt_manifest::profile::NotificationsProfile;
@@ -55,7 +54,7 @@ pub use rules::{RuleContext, RuleEvaluator, RuleOutcome};
 pub use withheld::Withheld;
 
 use self::membership::Members;
-use crate::repository::NotificationRepositories;
+use crate::repository::{FailureStage, NotificationRepositories};
 
 /// The seams and repositories a pipeline runs over, assembled at the
 /// composition root from the `discover_notification_*` registrations.
@@ -65,7 +64,6 @@ pub struct PipelineParts {
     pub audiences: Vec<Arc<dyn NotificationAudienceResolver>>,
     pub visibilities: Vec<Arc<dyn ResourceVisibility>>,
     pub channels: Vec<Arc<dyn NotificationChannel>>,
-    pub actors: Arc<dyn NotificationActorDirectory>,
     pub repos: Arc<NotificationRepositories>,
     pub profile: NotificationsProfile,
 }
@@ -101,34 +99,38 @@ pub struct NotificationPipeline {
 
 #[derive(Debug, Clone)]
 pub(crate) struct StepFailure {
-    pub(crate) stage: String,
+    pub(crate) stage: FailureStage,
     pub(crate) recipient: Option<UserId>,
     pub(crate) reason: String,
 }
 
 impl StepFailure {
-    pub(crate) fn new(stage: &str, recipient: Option<UserId>, reason: impl Into<String>) -> Self {
+    pub(crate) fn new(
+        stage: FailureStage,
+        recipient: Option<UserId>,
+        reason: impl Into<String>,
+    ) -> Self {
         Self {
-            stage: stage.to_owned(),
+            stage,
             recipient,
             reason: reason.into(),
         }
     }
 
-    pub(crate) fn withheld(stage: &str, recipient: Option<UserId>, why: &Withheld) -> Self {
+    pub(crate) fn withheld(stage: FailureStage, recipient: Option<UserId>, why: &Withheld) -> Self {
         match why {
             Withheld::Resolver(source) => {
-                tracing::warn!(stage, error = %source, "Notification audience resolver failed");
+                tracing::warn!(%stage, error = %source, "Notification audience resolver failed");
             },
             Withheld::Visibility(source) => {
-                tracing::warn!(stage, error = %source, "Notification visibility check failed");
+                tracing::warn!(%stage, error = %source, "Notification visibility check failed");
             },
             _ => {},
         }
         Self::new(stage, recipient, why.to_string())
     }
 
-    pub(crate) fn row(&self) -> (Option<UserId>, String, String) {
+    pub(crate) fn row(&self) -> (Option<UserId>, FailureStage, String) {
         (
             self.recipient.clone(),
             self.stage.clone(),
@@ -156,21 +158,6 @@ impl NotificationPipeline {
     #[must_use]
     pub fn handles_resource_kind(&self, kind: &str) -> bool {
         visibility::has_provider(&self.parts.visibilities, kind)
-    }
-
-    async fn actor_display(&self, actor: &UserId) -> Option<String> {
-        let timeout = Duration::from_millis(self.parts.profile.consumer.resolver_timeout_ms);
-        match tokio::time::timeout(timeout, self.parts.actors.display_name(actor)).await {
-            Ok(Ok(name)) => name.map(|name| name.chars().take(255).collect()),
-            Ok(Err(error)) => {
-                tracing::warn!(actor = %actor, error = %error, "Actor display name lookup failed");
-                None
-            },
-            Err(_elapsed) => {
-                tracing::warn!(actor = %actor, "Actor display name lookup timed out");
-                None
-            },
-        }
     }
 
     pub(crate) fn members(&self) -> Members<'_> {

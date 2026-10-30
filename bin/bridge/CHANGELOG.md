@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.77.0] - 2026-10-30
+
+### Changed
+
+- The inbox and desktop toasts render a notification's `title` and `body`; the feed no longer carries `excerpt` or `actor_display`.
+
 ## [0.75.0] - 2026-10-28
 
 ### Breaking

@@ -22,8 +22,8 @@ pub enum InboxToast {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ItemToast {
     pub id: NotificationId,
-    pub actor: String,
-    pub excerpt: Option<String>,
+    pub title: String,
+    pub body: String,
     pub open_url: Option<String>,
 }
 
@@ -32,11 +32,8 @@ impl InboxToast {
     pub fn for_item(item: &Notification) -> Self {
         Self::Item(Box::new(ItemToast {
             id: item.id.clone(),
-            actor: item
-                .actor_display
-                .clone()
-                .unwrap_or_else(|| item.actor.to_string()),
-            excerpt: item.excerpt.clone(),
+            title: item.title.clone(),
+            body: item.body.clone(),
             open_url: item.action.open_url.clone(),
         }))
     }

@@ -37,7 +37,6 @@ fn item(n: u32) -> Notification {
         "kind": "document.comment.mentioned",
         "stream": null,
         "actor": "2f6e8d4a-91b3-4c5e-8f07-6a1d3b9e2c45",
-        "actor_display": "Priya",
         "actor_is_agent": false,
         "via_agent": null,
         "subjects": [],
@@ -49,7 +48,8 @@ fn item(n: u32) -> Notification {
             "kind": "document.comment.mentioned",
             "actor": "2f6e8d4a-91b3-4c5e-8f07-6a1d3b9e2c45"
         },
-        "excerpt": null,
+        "title": "Priya mentioned you",
+        "body": "p",
         "coalesce_count": 1,
         "first_event_at": at,
         "last_event_at": at,
@@ -221,7 +221,7 @@ async fn catch_up_refreshes_a_row_folded_in_place_below_the_first_mixed_page() {
         .find(|n| n.id == nid(60))
         .expect("item 60 in the feed");
     folded.coalesce_count = 7;
-    folded.excerpt = Some("latest of seven".to_owned());
+    folded.body = "latest of seven".to_owned();
 
     let fresh = catch_up(&handle, |c, l| feed.fetch(c, l))
         .await
@@ -236,5 +236,5 @@ async fn catch_up_refreshes_a_row_folded_in_place_below_the_first_mixed_page() {
     let state = handle.snapshot();
     let refreshed = state.find(&nid(60)).expect("item 60 kept");
     assert_eq!(refreshed.coalesce_count, 7);
-    assert_eq!(refreshed.excerpt.as_deref(), Some("latest of seven"));
+    assert_eq!(refreshed.body, "latest of seven");
 }

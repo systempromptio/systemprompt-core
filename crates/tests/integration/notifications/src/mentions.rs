@@ -49,10 +49,8 @@ async fn a_mention_flows_from_the_outbox_to_the_feed_and_read_state() {
     assert_eq!(row.coalesce_count, 1);
     assert_eq!(row.held_until, None);
     assert_eq!(row.delivery_state, DeliveryState::Delivered);
-    assert_eq!(
-        row.excerpt.as_deref(),
-        Some("please review the pricing table")
-    );
+    assert_eq!(row.body, "please review the pricing table");
+    assert_eq!(row.title, "");
     assert!(!row.action.prompt.is_empty());
     assert_eq!(
         row.action.open_url.as_deref(),

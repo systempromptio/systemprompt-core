@@ -20,7 +20,7 @@ test("rows run newest first whatever order the payload carries", () => {
 test("a human mention is unread, openable and not escalatable", () => {
   const [mention] = inboxRows(unread(), NOW);
   assert.equal(mention.attention, "human");
-  assert.equal(mention.actor, "Priya Natarajan");
+  assert.equal(mention.title, "Priya Natarajan mentioned you");
   assert.equal(mention.isUnread, true);
   assert.equal(mention.canOpen, true);
   assert.equal(mention.canEscalate, false);
@@ -38,12 +38,12 @@ test("only agent items offer escalation, and a coalesced item carries its count"
   assert.ok(others.every((r) => !r.canEscalate));
 });
 
-test("an item without a link cannot be opened, and falls back to its excerpt", () => {
+test("an item without a link cannot be opened, and falls back to its body", () => {
   const escalated = inboxRows(unread(), NOW).find((r) => r.key === "3a7c9e5b-1d46-4f2c-8b18-4e6f8a0b2c34");
   assert.equal(escalated.canOpen, false);
   assert.equal(escalated.attention, "human");
   assert.equal(escalated.isUnread, false);
-  assert.match(escalated.excerpt, /MSA/);
+  assert.match(escalated.text, /MSA/);
 });
 
 test("Start session is offered only when the payload says a host can start one", () => {

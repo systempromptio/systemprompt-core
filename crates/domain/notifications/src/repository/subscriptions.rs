@@ -56,7 +56,7 @@ impl TryFrom<SubscriptionRow> for SubscriptionView {
                 quiet_hours: row.quiet_hours.map(|q| q.0),
                 digest: row.digest.map(|d| d.0),
             },
-            source: row.source,
+            source: parse("notification_subscriptions.source", &row.source)?,
         })
     }
 }

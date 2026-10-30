@@ -54,7 +54,7 @@ impl NotificationsService {
                 });
             }
         }
-        let source = ChangeSource::Console(user.clone()).to_string();
+        let source = ChangeSource::Console(user.clone());
         let id = self
             .repos
             .subscriptions

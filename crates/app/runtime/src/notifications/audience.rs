@@ -1,8 +1,7 @@
 //! The core audience resolver over the user repository: a user subject is
 //! the user when active, a role the active users holding it, and everyone
-//! every active user. Dimension subjects belong to the
-//! extension that registers the dimension. The same resolver is the
-//! [`NotificationActorDirectory`]: an actor's display name is the user's.
+//! every active user. Dimension subjects belong to the extension that
+//! registers the dimension.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -10,9 +9,7 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use systemprompt_extension::{
-    Membership, NotificationActorDirectory, NotificationAudienceError, NotificationAudienceResolver,
-};
+use systemprompt_extension::{Membership, NotificationAudienceError, NotificationAudienceResolver};
 use systemprompt_identifiers::UserId;
 use systemprompt_models::notifications::AudienceSubject;
 use systemprompt_users::{User, UserError, UserRepository};
@@ -108,20 +105,5 @@ const fn membership(held: bool) -> Membership {
         Membership::Member
     } else {
         Membership::NotMember
-    }
-}
-
-#[async_trait]
-impl NotificationActorDirectory for UserRoleAudienceResolver {
-    async fn display_name(
-        &self,
-        actor: &UserId,
-    ) -> Result<Option<String>, NotificationAudienceError> {
-        Ok(self
-            .users
-            .find_by_id(actor)
-            .await
-            .map_err(failed)?
-            .and_then(|user| user.display_name))
     }
 }

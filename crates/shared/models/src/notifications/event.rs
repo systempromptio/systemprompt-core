@@ -6,7 +6,7 @@
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::{NotificationStreamId, UserId};
+use systemprompt_identifiers::{AgentName, NotificationStreamId, UserId};
 
 use super::attention::Attention;
 use super::kind::NotificationKind;
@@ -28,12 +28,13 @@ pub struct NotificationEvent {
     pub kind: NotificationKind,
     pub actor: UserId,
     pub actor_is_agent: bool,
-    pub via_agent: Option<String>,
+    pub via_agent: Option<AgentName>,
     pub subjects: Vec<SubjectRef>,
     pub stream: Option<NotificationStreamId>,
     pub direct_recipients: Vec<DirectRecipient>,
     pub sender_attention: Option<Attention>,
-    pub excerpt: Option<String>,
+    pub title: Option<String>,
+    pub body: Option<String>,
     // JSON: the producer's payload is the event's free-form contract field.
     pub payload: serde_json::Value,
     pub occurred_at: DateTime<Utc>,
@@ -51,7 +52,8 @@ impl NotificationEvent {
             stream: None,
             direct_recipients: Vec::new(),
             sender_attention: None,
-            excerpt: None,
+            title: None,
+            body: None,
             payload: serde_json::Value::Null,
             occurred_at,
         }
@@ -64,8 +66,8 @@ impl NotificationEvent {
     }
 
     #[must_use]
-    pub fn with_via_agent(mut self, via_agent: impl Into<String>) -> Self {
-        self.via_agent = Some(via_agent.into());
+    pub fn with_via_agent(mut self, via_agent: AgentName) -> Self {
+        self.via_agent = Some(via_agent);
         self
     }
 
@@ -110,8 +112,14 @@ impl NotificationEvent {
     }
 
     #[must_use]
-    pub fn with_excerpt(mut self, excerpt: impl Into<String>) -> Self {
-        self.excerpt = Some(excerpt.into());
+    pub fn with_title(mut self, title: impl Into<String>) -> Self {
+        self.title = Some(title.into());
+        self
+    }
+
+    #[must_use]
+    pub fn with_body(mut self, body: impl Into<String>) -> Self {
+        self.body = Some(body.into());
         self
     }
 

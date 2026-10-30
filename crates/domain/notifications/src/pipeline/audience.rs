@@ -27,7 +27,7 @@ use super::context::BatchContext;
 use super::membership::Members;
 use crate::error::NotificationsResult;
 use crate::models::SubscriptionView;
-use crate::repository::NotificationSubscriptionRepository;
+use crate::repository::{FailureStage, NotificationSubscriptionRepository};
 
 #[derive(Debug, Clone, Default)]
 pub(crate) struct SubscriptionConstraint {
@@ -98,7 +98,7 @@ pub(crate) async fn expand_audience(
                 outcome.stream = Some(stream);
             },
             None => outcome.failures.push(StepFailure::new(
-                "audience",
+                FailureStage::Audience,
                 None,
                 format!("unknown_stream {id}"),
             )),
@@ -114,9 +114,11 @@ pub(crate) async fn expand_audience(
                     reached.push(user);
                 }
             },
-            Err(withheld) => outcome
-                .failures
-                .push(StepFailure::withheld("audience", None, &withheld)),
+            Err(withheld) => outcome.failures.push(StepFailure::withheld(
+                FailureStage::Audience,
+                None,
+                &withheld,
+            )),
         }
     }
     let default = outcome
@@ -155,9 +157,11 @@ async fn gate_stream(
                     declared.insert(user);
                 }
             },
-            Err(withheld) => outcome
-                .failures
-                .push(StepFailure::withheld("audience", None, &withheld)),
+            Err(withheld) => outcome.failures.push(StepFailure::withheld(
+                FailureStage::Audience,
+                None,
+                &withheld,
+            )),
         }
     }
     outcome.in_audience.extend(declared.iter().cloned());
@@ -165,9 +169,11 @@ async fn gate_stream(
         let users = match members.expand(&view.decl.subject).await {
             Ok(users) => users,
             Err(withheld) => {
-                outcome
-                    .failures
-                    .push(StepFailure::withheld("audience", None, &withheld));
+                outcome.failures.push(StepFailure::withheld(
+                    FailureStage::Audience,
+                    None,
+                    &withheld,
+                ));
                 continue;
             },
         };
@@ -175,9 +181,11 @@ async fn gate_stream(
             if !declared.contains(&user)
                 && let Err(withheld) = members.gate(&stream.audience, &user).await
             {
-                outcome
-                    .failures
-                    .push(StepFailure::withheld("audience", Some(user), &withheld));
+                outcome.failures.push(StepFailure::withheld(
+                    FailureStage::Audience,
+                    Some(user),
+                    &withheld,
+                ));
                 continue;
             }
             outcome.reach(&user, &view.decl.subject, Some(view));

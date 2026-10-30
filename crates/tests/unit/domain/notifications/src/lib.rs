@@ -9,6 +9,8 @@ mod coalesce;
 #[cfg(test)]
 mod defaults;
 #[cfg(test)]
+mod failure_stage;
+#[cfg(test)]
 mod fixtures;
 #[cfg(test)]
 mod quiet_hours;

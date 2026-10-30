@@ -90,12 +90,12 @@ fn raise(app: &GuiApp, toast: InboxToast) {
                 .open_url
                 .as_deref()
                 .and_then(|link| resolve_open_url(app, link));
-            let body = item.excerpt.unwrap_or_else(|| i18n::t("inbox-toast-body"));
-            crate::gui::window::notify_user_with_action(
-                &i18n::t_args("inbox-toast-title", &[("actor", &item.actor)]),
-                &body,
-                url,
-            );
+            let body = if item.body.is_empty() {
+                i18n::t("inbox-toast-body")
+            } else {
+                item.body
+            };
+            crate::gui::window::notify_user_with_action(&item.title, &body, url);
         },
         InboxToast::More { count } => crate::gui::window::notify_user(
             &i18n::t("inbox-toast-more-title"),

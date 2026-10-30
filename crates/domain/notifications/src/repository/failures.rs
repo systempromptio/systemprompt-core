@@ -17,6 +17,7 @@ use systemprompt_identifiers::{EventOutboxId, NotificationId, UserId};
 use systemprompt_traits::RepositoryError;
 
 use super::Pools;
+use super::stage::FailureStage;
 
 /// A failure to record: the outbox fact it came from (if any), the recipient
 /// it concerns (if any), the pipeline stage and why.
@@ -24,7 +25,7 @@ use super::Pools;
 pub struct NewFailure<'a> {
     pub outbox_id: Option<&'a EventOutboxId>,
     pub recipient: Option<&'a UserId>,
-    pub stage: &'a str,
+    pub stage: &'a FailureStage,
     pub reason: &'a str,
 }
 
@@ -33,7 +34,7 @@ pub struct NewFailure<'a> {
 pub struct DeliveryFailure {
     pub notification: NotificationId,
     pub recipient: UserId,
-    pub stage: String,
+    pub stage: FailureStage,
     pub reason: String,
 }
 
@@ -44,9 +45,6 @@ pub struct DeliveryHistory {
     pub permanent: HashSet<String>,
     pub attempts: i64,
 }
-
-pub const DELIVER_STAGE: &str = "deliver:";
-pub const DELIVER_RETRY_STAGE: &str = "deliver_retry:";
 
 #[derive(Debug, Clone)]
 pub struct NotificationFailureRepository {
@@ -62,12 +60,13 @@ impl NotificationFailureRepository {
         executor: impl PgExecutor<'_>,
         failure: NewFailure<'_>,
     ) -> Result<(), RepositoryError> {
+        let stage = failure.stage.to_string();
         sqlx::query!(
             "INSERT INTO notification_delivery_failures (outbox_id, recipient_user_id, stage, reason)
              VALUES ($1, $2, $3, $4)",
             failure.outbox_id.map(EventOutboxId::as_str),
             failure.recipient.map(UserId::as_str),
-            failure.stage,
+            stage,
             failure.reason,
         )
         .execute(executor)
@@ -82,7 +81,7 @@ impl NotificationFailureRepository {
     pub async fn record_many(
         executor: impl PgExecutor<'_>,
         outbox_id: Option<&EventOutboxId>,
-        failures: &[(Option<UserId>, String, String)],
+        failures: &[(Option<UserId>, FailureStage, String)],
     ) -> Result<(), RepositoryError> {
         if failures.is_empty() {
             return Ok(());
@@ -91,7 +90,7 @@ impl NotificationFailureRepository {
             .iter()
             .map(|(r, _, _)| r.as_ref().map(|u| u.as_str().to_owned()))
             .collect();
-        let stages: Vec<String> = failures.iter().map(|(_, s, _)| s.clone()).collect();
+        let stages: Vec<String> = failures.iter().map(|(_, s, _)| s.to_string()).collect();
         let reasons: Vec<String> = failures.iter().map(|(_, _, r)| r.clone()).collect();
         sqlx::query!(
             "INSERT INTO notification_delivery_failures (outbox_id, recipient_user_id, stage, reason)
@@ -122,7 +121,7 @@ impl NotificationFailureRepository {
             .iter()
             .map(|f| f.recipient.as_str().to_owned())
             .collect();
-        let stages: Vec<String> = failures.iter().map(|f| f.stage.clone()).collect();
+        let stages: Vec<String> = failures.iter().map(|f| f.stage.to_string()).collect();
         let reasons: Vec<String> = failures.iter().map(|f| f.reason.clone()).collect();
         sqlx::query!(
             "INSERT INTO notification_delivery_failures
@@ -158,10 +157,17 @@ impl NotificationFailureRepository {
         let mut out: HashMap<NotificationId, DeliveryHistory> = HashMap::new();
         for row in rows {
             let history = out.entry(row.id).or_default();
-            if let Some(surface) = row.stage.strip_prefix(DELIVER_STAGE) {
-                history.permanent.insert(surface.to_owned());
-            } else if row.stage.starts_with(DELIVER_RETRY_STAGE) {
-                history.attempts = history.attempts.max(row.count);
+            let stage: FailureStage = row.stage.parse().map_err(|source| {
+                RepositoryError::decode("notification_delivery_failures.stage", source)
+            })?;
+            match stage {
+                FailureStage::Deliver { surface } => {
+                    history.permanent.insert(surface);
+                },
+                FailureStage::DeliverRetry { .. } => {
+                    history.attempts = history.attempts.max(row.count);
+                },
+                _ => {},
             }
         }
         Ok(out)
@@ -170,8 +176,9 @@ impl NotificationFailureRepository {
     pub async fn count_for_outbox(
         executor: impl PgExecutor<'_>,
         outbox_id: &EventOutboxId,
-        stage: &str,
+        stage: &FailureStage,
     ) -> Result<i64, RepositoryError> {
+        let stage = stage.to_string();
         Ok(sqlx::query_scalar!(
             r#"SELECT COUNT(*) AS "count!" FROM notification_delivery_failures
                WHERE outbox_id = $1 AND stage = $2"#,

@@ -93,12 +93,12 @@ pub use health::{
 pub use metadata::{ExtensionMetadata, ExtensionRole, SchemaDefinition};
 pub use migration::Migration;
 pub use notifications::{
-    ChannelError, Membership, NotificationActorDirectory, NotificationAudienceError,
-    NotificationAudienceRegistration, NotificationAudienceResolver, NotificationChannel,
-    NotificationChannelRegistration, NotificationRouter, NotificationRouterError,
-    NotificationRouterRegistration, NotificationSinkError, PublishPolicy, PublishPolicyError,
-    PublishPolicyRegistration, PublishVerdict, ResourceVisibility, ResourceVisibilityRegistration,
-    Visibility, VisibilityError, discover_notification_audiences, discover_notification_channels,
+    ChannelError, Membership, NotificationAudienceError, NotificationAudienceRegistration,
+    NotificationAudienceResolver, NotificationChannel, NotificationChannelRegistration,
+    NotificationRouter, NotificationRouterError, NotificationRouterRegistration,
+    NotificationSinkError, PublishPolicy, PublishPolicyError, PublishPolicyRegistration,
+    PublishVerdict, ResourceVisibility, ResourceVisibilityRegistration, Visibility,
+    VisibilityError, discover_notification_audiences, discover_notification_channels,
     discover_notification_publish_policies, discover_notification_routers,
     discover_resource_visibilities,
 };

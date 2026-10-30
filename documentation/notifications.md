@@ -30,7 +30,7 @@ A server built without the feature behaves as follows:
 - **Bounded retries.** A fact that fails for a reason that may pass, such as a storage error or a router timeout, is rolled back without acknowledgement and retried, up to five attempts. A fact that can never succeed is recorded and acknowledged at once. After the last attempt the fact or row is recorded as abandoned and the queue moves on.
 - **Idempotent processing.** A re-delivered outbox fact produces no second row for a recipient who already has one.
 - **The audience is a gate.** A stream reaches only members of its declared audience. A subscription never widens a stream's audience.
-- **Fail closed.** A failure only ever makes delivery quieter or narrower, never louder or wider. A missing audience resolver, a resolver error, a resolver timeout or an audience above the configured limit withholds that audience whole. A membership no resolver can confirm withholds the recipient. A resource the reader cannot see, a resource kind no visibility provider handles, or a visibility check that times out withholds the notification. A publisher membership check that times out refuses the publish. An excerpt is shown only when visibility allows it. A rule whose role or dimension cannot be resolved may lower attention but never raise it. An unknown time zone in quiet hours counts as inside the window.
+- **Fail closed.** A failure only ever makes delivery quieter or narrower, never louder or wider. A missing audience resolver, a resolver error, a resolver timeout or an audience above the configured limit withholds that audience whole. A membership no resolver can confirm withholds the recipient. A resource the reader cannot see, a resource kind no visibility provider handles, or a visibility check that times out withholds the notification. A publisher membership check that times out refuses the publish. A title and body are shown only when visibility allows it. A rule whose role or dimension cannot be resolved may lower attention but never raise it. An unknown time zone in quiet hours counts as inside the window.
 - **Every withholding is recorded.** Each withheld recipient and failed step is a row in `notification_delivery_failures` with its stage and a stable reason code. See [Failure records](#failure-records).
 - **Bounded storage.** Feed reads write nothing, receipts are unique per notification, surface and state, unread counts stop at a fixed cap, and every table the pipeline writes has a retention bound.
 - **Private to the recipient.** Realtime notification frames go to the recipient's own event stream only, never to a document's shared topic, so other viewers of a document do not learn who was notified.
@@ -39,7 +39,7 @@ A server built without the feature behaves as follows:
 
 ### Events
 
-An event names a `kind`, an actor, whether the actor is an agent (and which agent acted on whose behalf), the resources it concerns (`subjects`, each a `{kind, id}` pair), an optional stream, direct recipients, an optional sender-chosen attention, an excerpt and a free-form payload.
+An event names a `kind`, an actor, whether the actor is an agent (and which agent acted on whose behalf), the resources it concerns (`subjects`, each a `{kind, id}` pair), an optional stream, direct recipients, an optional sender-chosen attention, a title, a body and a free-form payload.
 
 Kinds are dotted lowercase names. Core produces three:
 
@@ -129,14 +129,14 @@ Because the stream floor applies before the rules, a recipient's own `cap` can l
 ### Quiet hours, coalescing and digests
 
 - **Quiet hours** (`start`, `end`, `tz`, optional `weekdays`) cap a recipient at `agent` while the window is open. `tz` is `UTC` or a fixed offset such as `+01:00`; any other value counts as inside the window. A window whose end is before its start runs overnight. Weekdays are evaluated in the window's own time zone.
-- **Coalescing** folds events into the recipient's existing unread row when they share a coalesce key: `<kind>:<stream>:<primary subject kind>:<primary subject id>:<actor>:<bucket>`, with `-` for an absent stream or subject. The bucket is the event time divided by the window. Events from two actors never share a key, so one row never mixes whose event it announces. A fold updates the excerpt, subjects, action prompt, `last_event_at` and `coalesce_count` together, so the row always describes its latest event. Without a window the bucket is the outbox id and every event keeps its own row. The window comes from a matching rule, else from the stream.
+- **Coalescing** folds events into the recipient's existing unread row when they share a coalesce key: `<kind>:<stream>:<primary subject kind>:<primary subject id>:<actor>:<bucket>`, with `-` for an absent stream or subject. The bucket is the event time divided by the window. Events from two actors never share a key, so one row never mixes whose event it announces. A fold updates the title, body, subjects, action prompt, `last_event_at` and `coalesce_count` together, so the row always describes its latest event. Without a window the bucket is the outbox id and every event keeps its own row. The window comes from a matching rule, else from the stream.
 - **A digest** holds a row until the end of the digest window its event falls in. A held row is in the feed with `delivery_state` `held` but is not pushed to any channel until the sweep releases it after the window closes.
 
 ### Excerpts
 
-An event's excerpt is denied by default. A recipient's row carries the excerpt only when one of these holds:
+An event's title and body are denied by default. A recipient's row carries them only when one of these holds:
 
-- every subject of the event is visible to the recipient with its excerpt allowed by that subject's `ResourceVisibility` provider; or
+- every subject of the event is visible to the recipient with its content allowed by that subject's `ResourceVisibility` provider; or
 - the event has no subjects and the recipient passed the stream's audience gate.
 
 A subject kind with no visibility provider is withheld with `no_visibility_provider`; nothing is assumed visible. A provider that does not answer within `consumer.resolver_timeout_ms` withholds the subject from every reader it was asked about with `visibility_timeout`. A subject hidden from the recipient withholds the whole notification with `hidden`.
@@ -406,7 +406,7 @@ Extensions add behaviour through compile-time registrations, each with a priorit
 | `NotificationRouter` | `register_notification_router!` | Plan recipients for an event; plans merge and the louder decision wins |
 | `NotificationAudienceResolver` | `register_notification_audience!` | Expand a role or dimension subject to users |
 | `PublishPolicy` | `register_notification_publish_policy!` | Admit or refuse a publisher; every policy must admit |
-| `ResourceVisibility` | `register_resource_visibility!` | Decide whether a reader may see a resource kind and its excerpt |
+| `ResourceVisibility` | `register_resource_visibility!` | Decide whether a reader may see a resource kind and its content |
 | `NotificationChannel` | `register_notification_channel!` | Deliver committed rows to another surface, such as email |
 
 Core registers a default router, a resolver for users, roles and `everyone`, the declared-publishers policy, document-store visibility and the AG-UI channel. No email channel ships in core.

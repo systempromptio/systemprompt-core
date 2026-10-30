@@ -14,6 +14,7 @@ mod persist;
 mod receipts;
 mod retention;
 mod rules;
+mod stage;
 mod state;
 mod streams;
 mod subscription_writes;
@@ -26,13 +27,11 @@ use std::sync::Arc;
 use sqlx::PgPool;
 use systemprompt_database::DbPool;
 
-pub use failures::{
-    DELIVER_RETRY_STAGE, DELIVER_STAGE, DeliveryFailure, DeliveryHistory, NewFailure,
-    NotificationFailureRepository,
-};
+pub use failures::{DeliveryFailure, DeliveryHistory, NewFailure, NotificationFailureRepository};
 pub use notifications::NotificationRepository;
 pub use receipts::NotificationReceiptRepository;
 pub use rules::NotificationRuleRepository;
+pub use stage::{FailureStage, FailureStageError};
 pub use streams::NotificationStreamRepository;
 pub use subscriptions::NotificationSubscriptionRepository;
 pub use sweep::SWEEP_LOCK_KEY;

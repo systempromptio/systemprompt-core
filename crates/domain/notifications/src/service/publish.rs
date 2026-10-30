@@ -15,8 +15,6 @@ use systemprompt_models::notifications::{
 use super::NotificationsService;
 use crate::error::{NotificationsError, NotificationsResult};
 
-const EXCERPT_CHARS: usize = 280;
-
 /// One item to publish on a stream.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PublishRequest {
@@ -33,12 +31,6 @@ pub struct PublishRequest {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PublishOutcome {
     pub enqueued: bool,
-}
-
-#[derive(Serialize)]
-struct PublishedPayload<'a> {
-    title: &'a str,
-    body: Option<&'a str>,
 }
 
 impl NotificationsService {
@@ -71,12 +63,10 @@ impl NotificationsService {
         let mut event = NotificationEvent::new(kind, user.clone(), Utc::now())
             .with_stream(stream.clone())
             .with_subjects(subjects)
-            .with_excerpt(excerpt(&title, body.as_deref()))
-            // JSON: `NotificationEvent::payload` is untyped by the event contract.
-            .with_payload(serde_json::to_value(PublishedPayload {
-                title: &title,
-                body: body.as_deref(),
-            })?);
+            .with_title(title);
+        if let Some(body) = body {
+            event = event.with_body(body);
+        }
         if let Some(attention) = attention {
             event = event.with_sender_attention(attention);
         }
@@ -85,9 +75,4 @@ impl NotificationsService {
         tx.commit().await?;
         Ok(PublishOutcome { enqueued: true })
     }
-}
-
-fn excerpt(title: &str, body: Option<&str>) -> String {
-    let full = body.map_or_else(|| title.to_owned(), |body| format!("{title}\n\n{body}"));
-    full.chars().take(EXCERPT_CHARS).collect()
 }

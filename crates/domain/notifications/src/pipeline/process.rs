@@ -20,9 +20,9 @@ use super::{
 };
 use crate::error::NotificationsResult;
 use crate::models::{NewNotifications, NewRecipient, PersistedRow};
-use crate::repository::{NotificationFailureRepository, NotificationRepository};
+use crate::repository::{FailureStage, NotificationFailureRepository, NotificationRepository};
 
-type FailureRow = (Option<UserId>, String, String);
+type FailureRow = (Option<UserId>, FailureStage, String);
 
 struct Candidate {
     user: UserId,
@@ -63,7 +63,6 @@ impl NotificationPipeline {
             kind: event.kind.clone(),
             stream: plan.routed.stream.clone(),
             actor: event.actor.clone(),
-            actor_display: self.actor_display(&event.actor).await,
             actor_is_agent: event.actor_is_agent,
             via_agent: event.via_agent.clone(),
             subjects: event.subjects.clone(),
@@ -134,8 +133,17 @@ impl NotificationPipeline {
         let mut failures = Vec::new();
         for (candidate, verdict) in candidates.into_iter().zip(verdicts) {
             match verdict {
-                Ok(excerpt_allowed) => recipients.push(NewRecipient {
-                    excerpt: event.excerpt.clone().filter(|_| excerpt_allowed),
+                Ok(content_allowed) => recipients.push(NewRecipient {
+                    title: event
+                        .title
+                        .clone()
+                        .filter(|_| content_allowed)
+                        .unwrap_or_default(),
+                    body: event
+                        .body
+                        .clone()
+                        .filter(|_| content_allowed)
+                        .unwrap_or_default(),
                     coalesce_key: coalesce::coalesce_key(
                         event,
                         candidate.coalesce_window_secs,
@@ -149,7 +157,12 @@ impl NotificationPipeline {
                 Err(withheld) => {
                     metrics::recipients(withheld.decision(), 1);
                     failures.push(
-                        StepFailure::withheld("visibility", Some(candidate.user), &withheld).row(),
+                        StepFailure::withheld(
+                            FailureStage::Visibility,
+                            Some(candidate.user),
+                            &withheld,
+                        )
+                        .row(),
                     );
                 },
             }

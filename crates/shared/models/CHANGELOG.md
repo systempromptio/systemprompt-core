@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.77.0] - 2026-10-30
+
+### Breaking
+
+- **Breaking:** `Notification` replaces `excerpt` and `actor_display` with `title` and `body`, and `NotificationEvent` replaces `excerpt`/`with_excerpt` with `title`, `body`, `with_title` and `with_body`; `with_via_agent` takes an `AgentName`. Migrate feed clients by rendering `title` and `body` and resolving the actor from `actor_user_id`, and producers by setting a title or body on the event.
+
 ## [0.76.0] - 2026-10-29
 
 ### Breaking

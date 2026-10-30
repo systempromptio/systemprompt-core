@@ -240,12 +240,15 @@ impl ConfigPlane for NotificationsPlane {
                 },
                 ("subscription", Some(v)) => {
                     let decl: SubscriptionDecl = decode(key, v)?;
-                    NotificationSubscriptionRepository::upsert(&mut **tx, &decl, &source, None)
-                        .await
-                        .map_err(backend)?
-                        .ok_or_else(|| {
-                            invalid(key, &"a user's own subscription holds this target")
-                        })?;
+                    NotificationSubscriptionRepository::upsert(
+                        &mut **tx,
+                        &decl,
+                        &resolved.source,
+                        None,
+                    )
+                    .await
+                    .map_err(backend)?
+                    .ok_or_else(|| invalid(key, &"a user's own subscription holds this target"))?;
                 },
                 ("subscription", None) => {
                     let stored = current

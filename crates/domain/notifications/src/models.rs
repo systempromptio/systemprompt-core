@@ -13,12 +13,14 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::types::Json;
 use systemprompt_identifiers::{
-    EventOutboxId, NotificationId, NotificationStreamId, NotificationSubscriptionId, UserId,
+    AgentName, EventOutboxId, NotificationId, NotificationStreamId, NotificationSubscriptionId,
+    UserId,
 };
 use systemprompt_models::notifications::{
     ActionPrompt, Attention, AttentionReason, DeliveryState, KeysetCursor, Notification,
     NotificationKind, SubjectRef, SubscriptionDecl,
 };
+use systemprompt_provider_contracts::ChangeSource;
 use systemprompt_traits::RepositoryError;
 
 /// A subscription row: its declaration plus id and origin.
@@ -26,7 +28,7 @@ use systemprompt_traits::RepositoryError;
 pub struct SubscriptionView {
     pub id: NotificationSubscriptionId,
     pub decl: SubscriptionDecl,
-    pub source: String,
+    pub source: ChangeSource,
 }
 
 /// One fact's rows as the pipeline persists them: the columns every
@@ -36,9 +38,8 @@ pub struct NewNotifications {
     pub kind: NotificationKind,
     pub stream: Option<NotificationStreamId>,
     pub actor: UserId,
-    pub actor_display: Option<String>,
     pub actor_is_agent: bool,
-    pub via_agent: Option<String>,
+    pub via_agent: Option<AgentName>,
     pub subjects: Vec<SubjectRef>,
     pub action: ActionPrompt,
     pub event_at: DateTime<Utc>,
@@ -52,7 +53,8 @@ pub struct NewRecipient {
     pub user: UserId,
     pub attention: Attention,
     pub reason: AttentionReason,
-    pub excerpt: Option<String>,
+    pub title: String,
+    pub body: String,
     pub coalesce_key: String,
     pub held_until: Option<DateTime<Utc>>,
 }
@@ -123,14 +125,14 @@ pub(crate) struct NotificationRow {
     pub(crate) kind: String,
     pub(crate) stream_id: Option<NotificationStreamId>,
     pub(crate) actor_user_id: UserId,
-    pub(crate) actor_display: Option<String>,
     pub(crate) actor_is_agent: bool,
-    pub(crate) via_agent: Option<String>,
+    pub(crate) via_agent: Option<AgentName>,
     pub(crate) subjects: Json<Vec<SubjectRef>>,
     pub(crate) attention: String,
     pub(crate) attention_reason: String,
     pub(crate) action: Json<ActionPrompt>,
-    pub(crate) excerpt: Option<String>,
+    pub(crate) title: String,
+    pub(crate) body: String,
     pub(crate) coalesce_count: i32,
     pub(crate) first_event_at: DateTime<Utc>,
     pub(crate) last_event_at: DateTime<Utc>,
@@ -153,14 +155,14 @@ impl TryFrom<NotificationRow> for Notification {
             kind: parse("notifications.kind", &row.kind)?,
             stream: row.stream_id,
             actor: row.actor_user_id,
-            actor_display: row.actor_display,
             actor_is_agent: row.actor_is_agent,
             via_agent: row.via_agent,
             subjects: row.subjects.0,
             attention: parse("notifications.attention", &row.attention)?,
             attention_reason: parse("notifications.attention_reason", &row.attention_reason)?,
             action: row.action.0,
-            excerpt: row.excerpt,
+            title: row.title,
+            body: row.body,
             coalesce_count: row.coalesce_count,
             first_event_at: row.first_event_at,
             last_event_at: row.last_event_at,

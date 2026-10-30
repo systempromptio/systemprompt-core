@@ -9,7 +9,7 @@ use std::str::FromStr;
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::{NotificationId, NotificationStreamId, UserId};
+use systemprompt_identifiers::{AgentName, NotificationId, NotificationStreamId, UserId};
 
 use super::action::ActionPrompt;
 use super::attention::{Attention, AttentionReason, UnknownNotificationValue};
@@ -64,14 +64,14 @@ pub struct Notification {
     pub kind: NotificationKind,
     pub stream: Option<NotificationStreamId>,
     pub actor: UserId,
-    pub actor_display: Option<String>,
     pub actor_is_agent: bool,
-    pub via_agent: Option<String>,
+    pub via_agent: Option<AgentName>,
     pub subjects: Vec<SubjectRef>,
     pub attention: Attention,
     pub attention_reason: AttentionReason,
     pub action: ActionPrompt,
-    pub excerpt: Option<String>,
+    pub title: String,
+    pub body: String,
     pub coalesce_count: i32,
     pub first_event_at: DateTime<Utc>,
     pub last_event_at: DateTime<Utc>,

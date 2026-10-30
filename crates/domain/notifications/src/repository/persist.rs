@@ -2,7 +2,7 @@
 //! the rows, folding into each recipient's unread row with the same key, and
 //! one for the fact ledger that makes a re-processed fact idempotent.
 //!
-//! A fold replaces the excerpt, subjects and action and advances
+//! A fold replaces the title, body, subjects and action and advances
 //! `last_event_at` and `coalesce_count` together; the attention only rises.
 //! A row is `held` while a digest holds it, else `pending`; a fold onto a
 //! `delivered` row stays `delivered` unless it raises the attention. A fold
@@ -16,7 +16,9 @@
 use std::collections::HashSet;
 
 use sqlx::PgConnection;
-use systemprompt_identifiers::{EventOutboxId, NotificationId, NotificationStreamId, UserId};
+use systemprompt_identifiers::{
+    AgentName, EventOutboxId, NotificationId, NotificationStreamId, UserId,
+};
 use systemprompt_traits::RepositoryError;
 
 use super::NotificationRepository;
@@ -61,18 +63,18 @@ impl NotificationRepository {
         let rows = sqlx::query!(
             r#"INSERT INTO notifications
                    (recipient_user_id, kind, stream_id, actor_user_id, actor_is_agent, via_agent, subjects,
-                    primary_subject_kind, primary_subject_id, attention, attention_reason, action, excerpt,
-                    coalesce_key, first_event_at, last_event_at, outbox_id, held_until, delivery_state, actor_display)
+                    primary_subject_kind, primary_subject_id, attention, attention_reason, action, title, body,
+                    coalesce_key, first_event_at, last_event_at, outbox_id, held_until, delivery_state)
                SELECT r.recipient, $1, $2, $3, $4, $5, $6, $7, $8, r.attention, r.reason, $9,
-                      r.excerpt, r.coalesce_key, $10, $10, $11, r.held_until,
-                      CASE WHEN r.held_until IS NULL THEN 'pending' ELSE 'held' END, $18
-               FROM UNNEST($12::text[], $13::text[], $14::text[], $15::text[], $16::text[], $17::timestamptz[])
-                    AS r(recipient, attention, reason, excerpt, coalesce_key, held_until)
+                      r.title, r.body, r.coalesce_key, $10, $10, $11, r.held_until,
+                      CASE WHEN r.held_until IS NULL THEN 'pending' ELSE 'held' END
+               FROM UNNEST($12::text[], $13::text[], $14::text[], $15::text[], $16::text[], $17::text[], $18::timestamptz[])
+                    AS r(recipient, attention, reason, title, body, coalesce_key, held_until)
                ON CONFLICT (recipient_user_id, coalesce_key) WHERE read_at IS NULL
                DO UPDATE SET
                    coalesce_count = notifications.coalesce_count + 1,
                    last_event_at = EXCLUDED.last_event_at,
-                   excerpt = EXCLUDED.excerpt, subjects = EXCLUDED.subjects,
+                   title = EXCLUDED.title, body = EXCLUDED.body, subjects = EXCLUDED.subjects,
                    action = EXCLUDED.action,
                    attention = CASE WHEN array_position(ARRAY['silent','agent','human'], EXCLUDED.attention) > array_position(ARRAY['silent','agent','human'], notifications.attention)
                        THEN EXCLUDED.attention ELSE notifications.attention END,
@@ -103,7 +105,7 @@ impl NotificationRepository {
             batch.stream.as_ref().map(NotificationStreamId::as_str),
             batch.actor.as_str(),
             batch.actor_is_agent,
-            batch.via_agent,
+            batch.via_agent.as_ref().map(AgentName::as_str),
             serde_json::to_value(&batch.subjects)?,
             batch.subjects.first().map(|s| s.kind.as_str()),
             batch.subjects.first().map(|s| s.id.as_str()),
@@ -113,10 +115,10 @@ impl NotificationRepository {
             &cols.users,
             &cols.attentions,
             &cols.reasons,
-            &cols.excerpts as _,
+            &cols.titles,
+            &cols.bodies,
             &cols.keys,
             &cols.held as _,
-            batch.actor_display,
         )
         .fetch_all(&mut *conn)
         .await?;
@@ -159,7 +161,8 @@ struct RecipientColumns {
     users: Vec<String>,
     attentions: Vec<String>,
     reasons: Vec<String>,
-    excerpts: Vec<Option<String>>,
+    titles: Vec<String>,
+    bodies: Vec<String>,
     keys: Vec<String>,
     held: Vec<Option<chrono::DateTime<chrono::Utc>>>,
 }
@@ -171,7 +174,8 @@ impl RecipientColumns {
             users: r.iter().map(|r| r.user.as_str().to_owned()).collect(),
             attentions: r.iter().map(|r| r.attention.as_str().to_owned()).collect(),
             reasons: r.iter().map(|r| r.reason.to_string()).collect(),
-            excerpts: r.iter().map(|r| r.excerpt.clone()).collect(),
+            titles: r.iter().map(|r| r.title.clone()).collect(),
+            bodies: r.iter().map(|r| r.body.clone()).collect(),
             keys: r.iter().map(|r| r.coalesce_key.clone()).collect(),
             held: r.iter().map(|r| r.held_until).collect(),
         }

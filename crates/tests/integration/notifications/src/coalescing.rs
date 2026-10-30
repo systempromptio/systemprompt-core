@@ -90,7 +90,7 @@ async fn coalescing_rule(h: &Harness) {
 }
 
 #[tokio::test]
-async fn two_actors_on_one_document_never_fold_into_one_row_or_share_an_excerpt() {
+async fn two_actors_on_one_document_never_fold_into_one_row_or_share_a_body() {
     let h = Harness::new("notif_coalesce_actors").await;
     let first = h.user("first", &[]).await;
     let second = h.user("second", &[]).await;
@@ -110,8 +110,8 @@ async fn two_actors_on_one_document_never_fold_into_one_row_or_share_an_excerpt(
         &document,
         start + chrono::Duration::seconds(20),
     );
-    h.emit(&one.with_excerpt("from the first actor")).await;
-    h.emit(&two.with_excerpt("from the second actor")).await;
+    h.emit(&one.with_body("from the first actor")).await;
+    h.emit(&two.with_body("from the second actor")).await;
 
     let drained = h.drain().await;
     let coalesced: u32 = drained.outcomes.iter().map(|o| o.coalesced).sum();
@@ -119,7 +119,7 @@ async fn two_actors_on_one_document_never_fold_into_one_row_or_share_an_excerpt(
 
     let rows = h.rows_for(&reader).await;
     assert_eq!(rows.len(), 2, "{rows:?}");
-    for (actor, excerpt, comment) in [
+    for (actor, body, comment) in [
         (&first, "from the first actor", &one_comment),
         (&second, "from the second actor", &two_comment),
     ] {
@@ -128,7 +128,7 @@ async fn two_actors_on_one_document_never_fold_into_one_row_or_share_an_excerpt(
             .find(|r| &r.actor == actor)
             .expect("a row per actor");
         assert_eq!(row.coalesce_count, 1);
-        assert_eq!(row.excerpt.as_deref(), Some(excerpt));
+        assert_eq!(row.body, body);
         assert_eq!(&row.action.actor, actor);
         assert_eq!(row.action.comment_id.as_ref(), Some(comment));
     }
@@ -136,7 +136,7 @@ async fn two_actors_on_one_document_never_fold_into_one_row_or_share_an_excerpt(
 }
 
 #[tokio::test]
-async fn a_fold_carries_the_latest_events_excerpt_action_and_subjects_together() {
+async fn a_fold_carries_the_latest_events_body_action_and_subjects_together() {
     let h = Harness::new("notif_coalesce_fold").await;
     let author = h.user("author", &[]).await;
     let reader = h.user("reader", &[]).await;
@@ -155,15 +155,15 @@ async fn a_fold_carries_the_latest_events_excerpt_action_and_subjects_together()
         &document,
         start + chrono::Duration::seconds(40),
     );
-    h.emit(&earlier.with_excerpt("first draft")).await;
-    h.emit(&later.with_excerpt("second draft")).await;
+    h.emit(&earlier.with_body("first draft")).await;
+    h.emit(&later.with_body("second draft")).await;
     h.drain().await;
 
     let rows = h.rows_for(&reader).await;
     assert_eq!(rows.len(), 1, "{rows:?}");
     let row = &rows[0];
     assert_eq!(row.coalesce_count, 2);
-    assert_eq!(row.excerpt.as_deref(), Some("second draft"));
+    assert_eq!(row.body, "second draft");
     assert_eq!(row.action.comment_id.as_ref(), Some(&later_comment));
     assert!(
         row.subjects
