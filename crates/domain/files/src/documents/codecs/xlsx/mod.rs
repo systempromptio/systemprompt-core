@@ -26,6 +26,8 @@ mod blank;
 mod calc;
 mod cells;
 mod insert;
+#[cfg(feature = "collab-loro")]
+mod ironcalc_input;
 mod projection;
 mod rebase;
 mod workbook;

@@ -32,6 +32,7 @@ mod blank;
 #[cfg(feature = "collab-loro")]
 mod deck;
 mod fragment;
+mod inherit;
 mod layout;
 #[cfg(feature = "collab-loro")]
 mod lower;

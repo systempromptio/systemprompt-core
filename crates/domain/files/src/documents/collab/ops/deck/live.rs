@@ -9,7 +9,7 @@ use loro::{ExportMode, LoroDoc, LoroMap, LoroMovableList, LoroText, PeerID};
 use systemprompt_identifiers::DocumentNodeId;
 use systemprompt_models::documents::EditOp;
 
-use super::slide::{new_block, text_shape};
+use super::slide::{frame_for, new_block, text_shape};
 use crate::documents::engine::loro::deck::{
     DeckSlide, ShapeKind, insert_paragraph, insert_slide, slides,
 };
@@ -225,12 +225,14 @@ fn new_slide(
     if let Some(title) = title {
         shapes.push(text_shape(
             ShapeKind::Title,
+            frame_for(doc, ShapeKind::Title),
             std::slice::from_ref(title),
             false,
         ));
     }
     if !body.is_empty() {
-        shapes.push(text_shape(ShapeKind::Body, body, true));
+        let frame = frame_for(doc, ShapeKind::Body);
+        shapes.push(text_shape(ShapeKind::Body, frame, body, true));
     }
     let slide = DeckSlide {
         id: uuid::Uuid::new_v4().to_string(),

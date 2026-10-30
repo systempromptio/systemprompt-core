@@ -3,7 +3,8 @@
 //! A slide's id is its part name, a shape's id its `cNvPr` id (its index on
 //! the slide when that is absent or repeated) and a paragraph's id is
 //! `<slide part>#<shape id>/p<index>`. Frames come from the shape's own
-//! `xfrm`; a shape that inherits its frame from its layout has none. A
+//! `xfrm`, or for a placeholder without one, the frame it inherits from its
+//! layout or master ([`inherit`](super::inherit)). A
 //! paragraph's marks are read from its runs ([`runs`](super::runs)).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -14,6 +15,7 @@ use std::collections::HashSet;
 use systemprompt_provider_contracts::documents::CodecError;
 
 use super::projection::{self, Content, Shape, Slide, shape_elements, sp_tree};
+use super::inherit::{Rect, inherited};
 use super::runs::read_marks;
 use crate::documents::codecs::xml_tree::{Element, parse_xml};
 use crate::documents::codecs::zip_package::Package;
@@ -51,7 +53,10 @@ fn slide_of(slide: &Slide) -> Result<DeckSlide, CodecError> {
                 .filter(|id| seen.insert(id.clone()))
                 .unwrap_or_else(|| format!("shape-{index}"));
             let marks = element.map_or_else(|| Ok(Vec::new()), |el| paragraph_marks(slide, el))?;
-            let mut built = shape_of(&slide.part, id, shape, element.and_then(frame_of), marks);
+            let frame = element.and_then(|el| {
+                frame_of(el).or_else(|| inherited(&slide.frames, el).map(rect_frame))
+            });
+            let mut built = shape_of(&slide.part, id, shape, frame, marks);
             if let Content::Image(rel) = &shape.content {
                 built.src = slide
                     .images
@@ -126,6 +131,10 @@ fn shape_of(
         paragraphs,
         src: None,
     }
+}
+
+const fn rect_frame((x, y, w, h): Rect) -> Frame {
+    Frame { x, y, w, h }
 }
 
 fn frame_of(element: &Element) -> Option<Frame> {

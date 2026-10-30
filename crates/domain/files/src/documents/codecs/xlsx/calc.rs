@@ -5,7 +5,9 @@
 //! `=…`) and merges, minting fresh row and column ids. [`checkpoint_xlsx`]
 //! builds an `IronCalc` model from the sheet model, recalculates it and
 //! writes it out, so the checkpoint's cached values are the ones a reader
-//! without a calc engine sees. A cell's `style` is `IronCalc`'s own [`Style`]
+//! without a calc engine sees. Bytes are made importable first
+//! ([`ironcalc_input`](super::ironcalc_input)), since IronCalc panics on a
+//! workbook missing a styles section. A cell's `style` is `IronCalc`'s own [`Style`]
 //! as JSON (the shape the browser model's `getCellStyle` returns) and its
 //! `fmt` is the number-format code; both are read on import and written back
 //! at checkpoint, `fmt` overriding the style's `num_fmt`. Locale, timezone and
@@ -24,6 +26,7 @@ use ironcalc::export::save_xlsx_to_writer;
 use ironcalc::import::load_from_xlsx_bytes;
 use systemprompt_provider_contracts::documents::CodecError;
 
+use super::ironcalc_input::{guarded, importable};
 use crate::documents::engine::loro::sheet::a1::{A1Range, a1};
 use crate::documents::engine::loro::sheet::{Sheet, SheetCell, SheetModel, seed_sheets};
 
@@ -46,9 +49,12 @@ fn parse_error(part: &str) -> impl FnOnce(String) -> CodecError + '_ {
 }
 
 pub fn sheet_model_from_xlsx(bytes: &[u8]) -> Result<SheetModel, CodecError> {
-    let workbook = load_from_xlsx_bytes(bytes, "workbook", LOCALE, TIMEZONE)
-        .map_err(xlsx_error("workbook"))?;
-    let model = Model::from_workbook(workbook, LANGUAGE).map_err(parse_error("workbook"))?;
+    let bytes = importable(bytes)?;
+    let model = guarded("workbook", || {
+        let workbook = load_from_xlsx_bytes(&bytes, "workbook", LOCALE, TIMEZONE)
+            .map_err(xlsx_error("workbook"))?;
+        Model::from_workbook(workbook, LANGUAGE).map_err(parse_error("workbook"))
+    })?;
     let mut grids: BTreeMap<u32, Vec<(u32, u32, SheetCell)>> = BTreeMap::new();
     for index in model.get_all_cells() {
         let v = model
