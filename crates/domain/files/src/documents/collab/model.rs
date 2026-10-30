@@ -26,7 +26,6 @@ const fn is_office_text(format: DocumentFormat) -> bool {
         DocumentFormat::Docx
             | DocumentFormat::Odt
             | DocumentFormat::Xlsx
-           
             | DocumentFormat::Pptx
     )
 }
