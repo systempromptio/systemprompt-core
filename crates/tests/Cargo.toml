@@ -35,6 +35,7 @@ members = [
     "unit/shared/extension",
     "unit/shared/traits",
     "unit/shared/models",
+    "unit/shared/models-brain",
     "unit/shared/models-notifications",
     "unit/shared/client",
     "unit/shared/identifiers",

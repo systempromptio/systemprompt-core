@@ -33,6 +33,8 @@
 //! - [`build`] — build-script helper that generates `Extension::migrations()`
 //!   from `schema/migrations/*.sql` files, paired with the
 //!   [`extension_migrations!`] macro.
+//! - [`brain`] — the organisational-memory seams: outbox sink, capture
+//!   pipeline, recall and measurement, registered with `register_brain_*!`.
 //! - [`purge`] — the user-keyed tables a deleted user's rows leave with them,
 //!   declared per crate with [`user_purge_tables!`], and the shared rows swept
 //!   once nothing references them, declared with [`orphan_sweeps!`].
@@ -54,6 +56,7 @@
 pub use ::inventory as __inventory;
 
 mod asset;
+pub mod brain;
 #[expect(
     clippy::panic,
     clippy::print_stdout,
@@ -75,10 +78,28 @@ pub mod notifications;
 pub mod purge;
 pub mod registry;
 pub mod router;
+mod seam;
 pub mod seed;
 mod traits;
 
 pub use asset::{AssetDefinition, AssetDefinitionBuilder, AssetPaths, AssetType};
+pub use brain::{
+    AnalysisWindow, BrainAnalysis, BrainAnalysisError, BrainAnalysisRegistration,
+    BrainExtractError, BrainExtractorRegistration, BrainFilterRegistration,
+    BrainImportanceRegistration, BrainInjectionPolicyRegistration, BrainModelClient,
+    BrainModelError, BrainOutcomeSignalRegistration, BrainRetrieverRegistration, BrainSinkError,
+    BrainSourceContentRegistration, BrainValidateError, BrainValidatorRegistration, EventFilter,
+    FactExtractor, FactRecallSource, FactRetriever, FactValidator, FilterVerdict, ImportanceModel,
+    InjectedFact, InjectionPolicy, MemoryRecall, OutcomeSignal, OutcomeSignalError, RecallBlock,
+    RecallConversation, RecallError, RecallOutcome, RecallPrincipal, RecallReceipt, RecallRequest,
+    ReuseHint, SkipReason, SourceAccess, SourceAccessError, SourceContent, SourceContentError,
+    SourceVerdict, ValidationVerdict, WithheldSummary, discover_brain_analyses,
+    discover_brain_extractors, discover_brain_filters, discover_brain_importance_models,
+    discover_brain_injection_policies, discover_brain_outcome_signals, discover_brain_retrievers,
+    discover_brain_source_contents, discover_brain_validators,
+};
+#[cfg(feature = "sqlx")]
+pub use brain::{BrainSink, DynBrainSink};
 pub use context::{DynExtensionContext, ExtensionContext};
 pub use cost::{CostDirective, CostDirectiveError, TriggerPolicy};
 pub use error::{ExtensionConfigError, LoaderError};

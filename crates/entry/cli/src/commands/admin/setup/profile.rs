@@ -65,6 +65,7 @@ pub(super) fn build(params: &ProfileBuildParams<'_>) -> Result<Profile> {
         config_planes: systemprompt_manifest::profile::ConfigPlanesConfig::default(),
         licence: systemprompt_manifest::profile::LicenceConfig::default(),
         notifications: systemprompt_manifest::profile::NotificationsProfile::default(),
+        brain: systemprompt_manifest::profile::BrainProfile::default(),
         name: env_name.to_owned(),
         display_name: generate_display_name(env_name),
         target: ProfileType::Local,

@@ -6202,6 +6202,7 @@ version = "0.76.0"
 dependencies = [
  "async-trait",
  "axum",
+ "chrono",
  "inventory",
  "serde",
  "serde_json",

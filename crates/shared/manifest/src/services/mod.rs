@@ -11,6 +11,7 @@
 pub mod agent_config;
 pub mod ai;
 pub mod artifacts;
+pub mod brain;
 pub mod bridge_policy;
 pub mod bundle;
 pub mod catalog;

@@ -65,6 +65,7 @@ mod agent;
 mod agent_run;
 mod ai;
 mod auth;
+mod brain;
 mod bridge;
 mod client;
 mod client_session;
@@ -125,6 +126,10 @@ pub use ai::{
 };
 pub use auth::{
     ApiKeyId, ApiKeySecret, CloudAuthToken, DeviceCertId, DeviceId, JwtToken, SessionToken,
+};
+pub use brain::{
+    BrainDisputeId, BrainExtractionId, BrainFactId, BrainFactRevisionId, BrainProposalId,
+    BrainRecallId, FactKindId, InterestId, PipelineVersion, TopicId, WorkflowId,
 };
 pub use bridge::{
     CommsMessageId, DeploymentOrganizationUuid, ElevatedJobId, HookSessionId, McpSessionId,

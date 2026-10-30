@@ -72,6 +72,7 @@ pub mod artifacts;
 pub mod attribution;
 pub mod auth;
 pub mod authz;
+pub mod brain;
 pub mod bridge;
 pub mod content;
 pub mod content_config;

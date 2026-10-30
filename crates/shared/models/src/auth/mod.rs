@@ -2,13 +2,15 @@
 //!
 //! JWT and cloud claim shapes, the [`AuthenticatedUser`] request
 //! identity, [`Permission`] parsing, base role definitions, and the
-//! OAuth/PKCE enums (`ResponseType`, `PkceMethod`). `GrantType` lives
+//! OAuth/PKCE enums (`ResponseType`, `PkceMethod`), and the
+//! [`RequestActor`] a bearer credential acts as. `GrantType` lives
 //! in `systemprompt_oauth` since it carries RFC 8693 token-exchange.
 //! Public functions return [`AuthRequestError`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod actor;
 pub mod claims;
 pub mod cloud_claims;
 pub mod enums;
@@ -17,6 +19,7 @@ pub mod roles;
 pub mod token_authority;
 pub mod types;
 
+pub use actor::{MAX_AGENT_NAME, RequestActor, UNNAMED_AGENT, agent_name, bearer_actor};
 pub use claims::{
     ActClaim, CustomClaims, JwtClaims, MAX_ACT_CHAIN_DEPTH, RegisteredClaims, TokenInteraction,
 };

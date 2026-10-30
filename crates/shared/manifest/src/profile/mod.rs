@@ -11,6 +11,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod brain;
 mod cloud;
 mod config_planes;
 mod database;
@@ -44,6 +45,11 @@ mod style;
 mod validation;
 mod vault;
 
+pub use brain::{
+    AutoConfirm, AutoConfirmPolicy, BrainCaptureProfile, BrainConsumerProfile,
+    BrainExtractionProfile, BrainLifecycleProfile, BrainProfile, BrainRecallProfile, CaptureSource,
+    StalePolicy,
+};
 pub use cloud::{CloudConfig, CloudValidationMode, HostingProvider, UnknownHostingProvider};
 pub use config_planes::{ConfigPlanesConfig, PlaneAuthority};
 pub use database::{DatabaseConfig, PoolConfig, RoleMaxConnections};
@@ -199,6 +205,9 @@ pub struct Profile {
 
     #[serde(default)]
     pub notifications: NotificationsProfile,
+
+    #[serde(default)]
+    pub brain: BrainProfile,
 }
 
 impl Profile {

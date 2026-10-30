@@ -6,7 +6,9 @@
 //! at the API edge. `MCP_SERVER` names the MCP server a credential-broker
 //! request is for. `API_KEY` is the Anthropic-style credential header a client
 //! or upstream presents, and `OPENCODE_SESSION` the per-session header an
-//! `OpenCode` client sends and a metered provider reads.
+//! `OpenCode` client sends and a metered provider reads. `MEMORY` is the
+//! request header a client sends as `off` to opt out of team-memory recall,
+//! and `MEMORY_IDS` the response header naming the facts that were injected.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -38,3 +40,5 @@ pub const CLIENT_ATTESTATION: &str = "x-systemprompt-client-attestation";
 pub const SCOPE_PREFIX: &str = "x-systemprompt-scope-";
 pub const CALLER_PURPOSE: &str = "x-systemprompt-caller";
 pub const MCP_SERVER: &str = "x-systemprompt-mcp-server";
+pub const MEMORY: &str = "x-systemprompt-memory";
+pub const MEMORY_IDS: &str = "x-systemprompt-memory-ids";

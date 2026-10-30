@@ -106,6 +106,7 @@ impl CloudProfileBuilder {
             config_planes: systemprompt_manifest::profile::ConfigPlanesConfig::default(),
             licence: systemprompt_manifest::profile::LicenceConfig::default(),
             notifications: systemprompt_manifest::profile::NotificationsProfile::default(),
+            brain: systemprompt_manifest::profile::BrainProfile::default(),
             name: self.name,
             display_name,
             target: ProfileType::Cloud,
