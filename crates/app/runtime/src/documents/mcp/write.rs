@@ -13,7 +13,8 @@
 //! anchors on the ack. An edit whose mode resolves to
 //! `propose` is written as a proposal instead (see `proposals`), and when
 //! the caller did not ask for one (an agent capped at `suggest`) the summary
-//! says it was converted.
+//! says it was converted. An edit on a document with an open live session
+//! is written into that session instead of onto the head (see `live_edit`).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -35,6 +36,7 @@ use systemprompt_provider_contracts::documents::{CodecError, TemplateParams};
 use super::DocumentsMcpTools;
 use super::agent_presence::announce_agent;
 use super::inputs::{CreateInput, EditInput};
+use super::live_edit::edit_live;
 use super::media::{image_refs, resolve_media};
 use super::outputs::CreateOutput;
 use super::proposals::propose_ops;
@@ -123,6 +125,11 @@ async fn commit_ops(call: EditCall<'_>) -> Result<(EditOutput, String), McpError
     }
     let refs = image_refs(None, &call.ops);
     let media = resolve_media(call.tools, call.ctx, refs, Some(&call.document)).await?;
+    if let Some(output) = edit_live(&call, &media).await? {
+        announce_agent(&call, &output).await;
+        let summary = format!("wrote {} live", output.written.len());
+        return Ok((output, summary));
+    }
     let outcome = call
         .tools
         .service()

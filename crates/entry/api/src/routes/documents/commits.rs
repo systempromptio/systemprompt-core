@@ -7,7 +7,11 @@
 //! and a repeat of the same request (over REST or MCP) answers it with
 //! `replayed`; a different request under a used op id is refused 409
 //! `op_id_mismatch`. A byte write by an agent capped at `suggest` is
-//! written as a proposal instead and answered `201` with it.
+//! written as a proposal instead and answered `201` with it. Edits on a
+//! document with an open live session are written into that session as one
+//! engine update instead of a revision, and answered `{live}` with the
+//! session, the update's sequence number and the revision it is based on;
+//! the session's checkpoint lands them.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -24,9 +28,11 @@ use systemprompt_files::documents::model::Media;
 use systemprompt_files::documents::revision::CommitBody;
 use systemprompt_files::documents::service::{
     CommentPolicy, CommitOutcome, CommitRequest, EditModeRequest, ExternalWrite, LandedCommit,
-    ProposeRequest,
+    LiveEdit, LiveEditRequest, ProposeRequest,
 };
-use systemprompt_identifiers::{DocumentCommentId, DocumentId, DocumentOpId, DocumentRevisionId};
+use systemprompt_identifiers::{
+    DocumentCommentId, DocumentEditSessionId, DocumentId, DocumentOpId, DocumentRevisionId,
+};
 use systemprompt_models::RequestContext;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::documents::{EditMode, EditOp};
@@ -48,6 +54,32 @@ pub(super) struct CommittedJson {
     merged_from: Option<DocumentRevisionId>,
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     replayed: bool,
+}
+
+#[derive(Debug, Serialize)]
+struct LiveJson {
+    session_id: DocumentEditSessionId,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    seq: Option<i64>,
+    base_revision_id: DocumentRevisionId,
+    applied: usize,
+}
+
+#[derive(Debug, Serialize)]
+struct LiveWrittenJson {
+    live: LiveJson,
+}
+
+fn live_response(live: LiveEdit) -> Response {
+    Json(LiveWrittenJson {
+        live: LiveJson {
+            session_id: live.session_id,
+            seq: live.seq,
+            base_revision_id: live.base_revision,
+            applied: live.applied,
+        },
+    })
+    .into_response()
 }
 
 fn landed_response(landed: LandedCommit) -> Response {
@@ -175,6 +207,18 @@ pub(super) async fn edits(
             .propose(&who.user, request, &who.trace)
             .await?;
         return Ok(proposed_response(proposed));
+    }
+    let live = LiveEditRequest {
+        document_id: id.clone(),
+        ops: body.ops.clone(),
+        media: Media::new(),
+    };
+    if let Some(live) = state
+        .service
+        .edit_live(&who.user, live, &who.trace)
+        .await?
+    {
+        return Ok(live_response(live));
     }
     let request = CommitRequest {
         document_id: id.clone(),

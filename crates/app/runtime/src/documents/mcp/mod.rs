@@ -28,6 +28,7 @@ mod inbox;
 mod inputs;
 mod lifecycle;
 mod listing;
+mod live_edit;
 mod media;
 mod mentions;
 mod op_inputs;

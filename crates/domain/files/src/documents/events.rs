@@ -12,9 +12,12 @@
 //! Every event except the per-recipient ones (`document.shared`,
 //! `document.comment.mentioned`) is also published once on the document's
 //! live topic ([`live_topic`]) and relayed to other replicas, so the
-//! document-scoped live channel sees it whoever the recipients were.
-//! Collab updates and awareness go to the topic only, as one outbox row
-//! each, and never to a user's AG-UI stream; a collab update carries
+//! document-scoped live channel sees it whoever the recipients were: the
+//! topic event is attributed to the actor the payload names (its author,
+//! proposer or user), so it is published even with no recipient.
+//! Revisions, collab updates and awareness go to the topic only, as one
+//! outbox row each, and never to a user's AG-UI stream, which carries only
+//! what belongs in an inbox; a collab update carries
 //! `<session>:<seq>` as its resume id; a collab update that could not be
 //! relayed is followed by a relay-lost event on its topic, so subscribers on
 //! other replicas resynchronise instead of waiting on the missing sequence
@@ -64,7 +67,10 @@ pub fn live_topic(document: &DocumentId) -> String {
 pub(crate) enum Audience {
     Recipients,
     RecipientsAndTopic,
+    Topic,
 }
+
+const ACTOR_FIELDS: [&str; 4] = ["author_id", "proposer_id", "actor_id", "user_id"];
 
 /// Builds and routes the document AG-UI events; held by `DocumentService`.
 #[derive(Debug, Clone)]
@@ -122,11 +128,15 @@ impl DocumentEvents {
 
     pub async fn revision_created(
         &self,
-        to: &[UserId],
         event: &DocumentRevisionCreatedEvent,
     ) -> Result<(), DocumentsError> {
-        self.emit(DocumentRevisionCreatedEvent::NAME, to, event)
-            .await
+        self.emit_to(
+            DocumentRevisionCreatedEvent::NAME,
+            std::slice::from_ref(&event.author_id),
+            event,
+            Audience::Topic,
+        )
+        .await
     }
 
     pub async fn presence(
@@ -215,11 +225,20 @@ impl DocumentEvents {
             event: name,
             source: EventFailure::Serialize(source),
         })?;
-        if audience == Audience::RecipientsAndTopic
-            && let Some(actor) = to.first()
-            && let Err(error) = self.publish_topic(name, actor, value.clone(), None).await
-        {
-            tracing::warn!(event = name, error = %error, "Document event not published on its live topic");
+        if audience != Audience::Recipients {
+            let published = match topic_actor(&value).or_else(|| to.first().cloned()) {
+                Some(actor) => self.publish_topic(name, &actor, value.clone(), None).await,
+                None => Ok(()),
+            };
+            if let Err(error) = published {
+                if audience == Audience::Topic {
+                    return Err(error);
+                }
+                tracing::warn!(event = name, error = %error, "Document event not published on its live topic");
+            }
+            if audience == Audience::Topic {
+                return Ok(());
+            }
         }
         let event = AgUiEventBuilder::custom(CustomPayload::Generic(GenericCustomPayload {
             name: name.to_owned(),
@@ -271,4 +290,12 @@ impl DocumentEvents {
             RelayOutcome::Relayed | RelayOutcome::NotInstalled => Ok(()),
         }
     }
+}
+
+// JSON: the serialized payload of a document event; the first actor field it names.
+fn topic_actor(value: &serde_json::Value) -> Option<UserId> {
+    ACTOR_FIELDS
+        .iter()
+        .find_map(|field| value.get(*field).and_then(serde_json::Value::as_str))
+        .and_then(|id| UserId::try_new(id).ok())
 }

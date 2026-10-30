@@ -60,6 +60,7 @@ mod image_owners;
 mod lease;
 mod live_media;
 pub mod model;
+mod ops;
 mod owner;
 mod owner_forward;
 mod persist;
@@ -78,6 +79,7 @@ use systemprompt_identifiers::DocumentId;
 
 pub use error::CollabError;
 pub use image_owners::{ImageOwners, ImageOwnersError};
+pub use ops::OpsFormat;
 pub use owner::{OwnerConfig, UpdateRoute};
 pub use owner_forward::{FORWARDED_HEADER, ForwardError, ForwardRequest, Forwarded};
 pub use types::{
