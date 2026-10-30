@@ -6,7 +6,8 @@
 //! builds an IronCalc model from the sheet model, recalculates it and
 //! writes it out, so the checkpoint's cached values are the ones a reader
 //! without a calc engine sees. Number formats and styles held in the sheet
-//! model are not yet written back.
+//! model are not yet written back. Locale, timezone and language match the
+//! browser's IronCalc model (`workbook`, `en`, `UTC`, `en`).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -21,7 +22,7 @@ use ironcalc::import::load_from_xlsx_bytes;
 use systemprompt_provider_contracts::documents::CodecError;
 
 use crate::documents::engine::loro::sheet::a1::{A1Range, a1};
-use crate::documents::engine::loro::sheet::{Sheet, SheetCell, SheetModel};
+use crate::documents::engine::loro::sheet::{Sheet, SheetCell, SheetModel, seed_sheets};
 
 const LOCALE: &str = "en";
 const LANGUAGE: &str = "en";
@@ -125,4 +126,14 @@ fn merged_cells(sheet: &Sheet) -> Vec<MergedCell> {
             })
         })
         .collect()
+}
+
+/// Seeds a session doc's sheets from `.xlsx` bytes, keeping a workbook the
+/// doc already holds; see [`seed_sheets`].
+pub fn seed_doc_from_xlsx(doc: &loro::LoroDoc, bytes: &[u8]) -> Result<bool, CodecError> {
+    let model = sheet_model_from_xlsx(bytes)?;
+    seed_sheets(doc, &model).map_err(|source| CodecError::Parse {
+        part: "sheets".to_owned(),
+        source,
+    })
 }

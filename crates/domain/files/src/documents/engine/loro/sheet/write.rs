@@ -56,3 +56,17 @@ pub(super) fn write_cell(map: &LoroMap, cell: &SheetCell) -> Result<(), WriteErr
     }
     Ok(())
 }
+
+/// Seeds `doc` from `model` unless it already holds a workbook. A doc whose
+/// only sheet is the empty one a browser creates when `sheets` is empty
+/// (`Sheet1`, no cells) counts as unseeded, and that sheet is replaced.
+/// Answers whether it wrote.
+pub fn seed_sheets(doc: &LoroDoc, model: &SheetModel) -> Result<bool, WriteError> {
+    let current = super::read(doc)?;
+    let placeholder = matches!(current.sheets.as_slice(), [only] if only.cells.is_empty());
+    if !current.sheets.is_empty() && !placeholder {
+        return Ok(false);
+    }
+    write_sheets(doc, model)?;
+    Ok(true)
+}

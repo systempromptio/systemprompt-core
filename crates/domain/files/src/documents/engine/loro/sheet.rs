@@ -24,7 +24,7 @@ mod write;
 pub use model::{Sheet, SheetCell, SheetModel, cell_key, new_id};
 pub use read::{SheetReadError, read};
 pub use validate::{SheetChange, SheetValidationError, validate_sheet_changes};
-pub use write::write_sheets;
+pub use write::{seed_sheets, write_sheets};
 
 pub const SHEETS_CONTAINER: &str = "sheets";
 

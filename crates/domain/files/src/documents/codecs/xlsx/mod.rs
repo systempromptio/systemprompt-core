@@ -38,7 +38,7 @@ use systemprompt_provider_contracts::documents::{
 
 pub use blank::blank_xlsx;
 #[cfg(feature = "collab-loro")]
-pub use calc::{checkpoint_xlsx, sheet_model_from_xlsx};
+pub use calc::{checkpoint_xlsx, seed_doc_from_xlsx, sheet_model_from_xlsx};
 
 /// The `.xlsx` [`DocumentCodec`], registered at compile time.
 #[derive(Debug, Clone, Copy, Default)]
