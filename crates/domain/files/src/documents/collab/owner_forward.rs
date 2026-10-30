@@ -5,7 +5,8 @@
 //! owner, marked with [`FORWARDED_HEADER`] so the owner applies it rather than
 //! forwarding again. The owner authenticates and authorises the caller
 //! itself. Any transport failure is returned to the caller, which then
-//! applies the update locally.
+//! applies the update locally. Every attempt counts in
+//! `collab_owner_forwards_total{outcome}` (`ok` or `error`).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -13,6 +14,7 @@
 use super::CollabService;
 
 pub const FORWARDED_HEADER: &str = systemprompt_identifiers::headers::COLLAB_FORWARDED;
+const FORWARDS_METRIC: &str = "collab_owner_forwards_total";
 
 #[derive(Debug, Clone)]
 pub struct ForwardRequest<'a> {
@@ -51,6 +53,7 @@ impl CollabService {
             request.address.trim_end_matches('/'),
             request.path_and_query
         );
+        tracing::debug!(owner = %url, "forwarding collab update to its owner");
         let mut outbound = owner
             .client
             .post(url)
@@ -65,7 +68,14 @@ impl CollabService {
         if let Some(content_type) = request.content_type {
             outbound = outbound.header(reqwest::header::CONTENT_TYPE, content_type);
         }
-        let response = outbound.send().await?;
+        let response = match outbound.send().await {
+            Ok(response) => response,
+            Err(error) => {
+                metrics::counter!(FORWARDS_METRIC, "outcome" => "error").increment(1);
+                return Err(error.into());
+            },
+        };
+        metrics::counter!(FORWARDS_METRIC, "outcome" => "ok").increment(1);
         let header = |name: reqwest::header::HeaderName| {
             response
                 .headers()
