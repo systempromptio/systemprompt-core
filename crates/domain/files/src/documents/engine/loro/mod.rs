@@ -33,6 +33,8 @@ mod edit_table;
 pub mod rich;
 pub mod scope;
 mod shape;
+mod shape_ops;
+pub mod sheet;
 mod sync;
 pub mod table;
 mod write;
@@ -165,13 +167,29 @@ impl EngineDoc for LoroEngineDoc {
     }
 
     fn update_to_model(&self, model: &ModelView) -> Result<Option<Vec<u8>>, EngineError> {
+        self.update_to_model_as(model, self.0.peer_id())
+    }
+
+    fn update_from_ops(
+        &self,
+        ops: &[systemprompt_models::documents::EditOp],
+        peer: u64,
+    ) -> Result<Option<Vec<u8>>, EngineError> {
+        shape_ops::update_from_ops(&self.0, ops, peer)
+    }
+
+    fn update_to_model_as(
+        &self,
+        model: &ModelView,
+        peer: u64,
+    ) -> Result<Option<Vec<u8>>, EngineError> {
         let model = &canonical_view(model);
         if !rich::has_legacy_tables(&self.0) && export(&self.0)? == *model {
             return Ok(None);
         }
         let before = self.0.oplog_vv();
         let draft = self.0.fork();
-        draft.set_peer_id(self.0.peer_id()).map_err(state)?;
+        draft.set_peer_id(peer).map_err(state)?;
         rich::configure(&draft);
         match model {
             ModelView::RichText(target) => {
@@ -243,10 +261,10 @@ pub fn replica_peer() -> PeerID {
     uuid::Uuid::new_v4().as_u64_pair().0.max(1)
 }
 
-fn state(error: loro::LoroError) -> EngineError {
+pub(crate) fn state(error: loro::LoroError) -> EngineError {
     EngineError::State(Box::new(error))
 }
 
-fn encode(error: loro::LoroEncodeError) -> EngineError {
+pub(crate) fn encode(error: loro::LoroEncodeError) -> EngineError {
     EngineError::Encode(Box::new(error))
 }

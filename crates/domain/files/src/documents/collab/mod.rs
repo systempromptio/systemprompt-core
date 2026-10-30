@@ -60,7 +60,7 @@ mod image_owners;
 mod lease;
 mod live_media;
 pub mod model;
-mod ops;
+pub(crate) mod ops;
 mod owner;
 mod owner_forward;
 mod persist;

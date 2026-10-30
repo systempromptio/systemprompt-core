@@ -122,6 +122,24 @@ pub trait EngineDoc: Send + fmt::Debug {
 
     fn update_to_model(&self, model: &ModelView) -> Result<Option<Vec<u8>>, EngineError>;
 
+    /// [`Self::update_to_model`] with the update's operations under `peer`.
+    fn update_to_model_as(
+        &self,
+        model: &ModelView,
+        peer: u64,
+    ) -> Result<Option<Vec<u8>>, EngineError>;
+
+    /// The update that applies `ops` to this document under `peer`, or
+    /// `None` when they change nothing. Only an engine that holds a format's
+    /// cells or shapes as containers translates ops itself.
+    fn update_from_ops(
+        &self,
+        _ops: &[systemprompt_models::documents::EditOp],
+        _peer: u64,
+    ) -> Result<Option<Vec<u8>>, EngineError> {
+        Err(EngineError::Unsupported)
+    }
+
     /// Imports `update` like [`Self::apply_update`] and reports what it
     /// changed: scoped to the touched blocks when `scoped` and the engine
     /// can tell, the whole model otherwise.

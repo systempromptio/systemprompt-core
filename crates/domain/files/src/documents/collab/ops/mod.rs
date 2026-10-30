@@ -21,9 +21,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod deck;
+pub(crate) mod deck;
 mod rich;
-mod sheet;
+pub(crate) mod sheet;
 mod structured;
 
 use systemprompt_identifiers::TraceId;
