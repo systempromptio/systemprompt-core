@@ -30,9 +30,10 @@
 pub mod adopt;
 pub mod deck;
 pub mod edit;
-// Why: Loro deprecates get_or_create_container for lazily created map-key children in favour of
-// ensure_mergeable_*. The browser replica creates the same children with setContainer, so both
-// sides must move to mergeable containers together or their container ids diverge.
+// Why: Loro deprecates get_or_create_container for lazily created map-key
+// children in favour of ensure_mergeable_*. The browser replica creates the
+// same children with setContainer, so both sides must move to mergeable
+// containers together or their container ids diverge.
 #[allow(deprecated)]
 mod edit_table;
 pub mod rich;
