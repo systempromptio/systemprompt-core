@@ -18,7 +18,11 @@ use systemprompt_files::documents::service::{
 };
 use systemprompt_identifiers::{Actor, DocumentId, DocumentRevisionId, EventOutboxId};
 use systemprompt_models::auth::AuthenticatedUser;
-use systemprompt_models::brain::{BRAIN_CONSUMER, BRAIN_EVENT_VERSION, BrainEvent, BrainEventKind};
+use systemprompt_models::brain::{
+    BRAIN_CONSUMER, BRAIN_EVENT_VERSION, BrainEvent, BrainEventKind, CommentResolved,
+    RevisionLanded,
+};
+use systemprompt_models::documents::ActorKind;
 use systemprompt_models::documents::EditOp;
 use systemprompt_test_fixtures::{test_db_pool, unique_instance};
 use systemprompt_traits::RepositoryError;
@@ -204,10 +208,12 @@ async fn a_head_moving_commit_appends_one_revision_landed_fact() {
     assert_eq!(event.kind.as_str(), BrainEventKind::REVISION_LANDED);
     assert_eq!(event.actor, owner.id);
     assert!(!event.actor_is_agent);
-    assert_eq!(event.payload["document_id"], document.as_str());
-    assert_eq!(event.payload["parent_revision_id"], parent.as_str());
-    assert_eq!(event.payload["author"], owner.id.as_str());
-    assert_eq!(event.payload["actor_kind"], "user");
+    let payload: RevisionLanded = serde_json::from_value(event.payload).expect("payload");
+    assert_eq!(payload.document_id, document);
+    assert_eq!(payload.revision_id, revision);
+    assert_eq!(payload.parent_revision_id, Some(parent));
+    assert_eq!(payload.author, owner.id);
+    assert_eq!(payload.actor_kind, ActorKind::User);
 }
 
 #[tokio::test]
@@ -285,11 +291,12 @@ async fn resolving_a_comment_appends_one_comment_resolved_fact() {
 
     let facts = brain_facts(BrainEventKind::COMMENT_RESOLVED, &document).await;
     assert_eq!(facts.len(), 1, "one resolved fact");
-    let payload = &facts[0]["payload"];
-    assert_eq!(payload["comment_id"], comment.id.as_str());
-    assert_eq!(payload["resolved_by"], owner.id.as_str());
-    assert_eq!(payload["node_id"], node.as_str());
-    assert_eq!(payload["anchor_find"], "beta");
+    let event: BrainEvent = serde_json::from_value(facts[0].clone()).expect("brain event");
+    let payload: CommentResolved = serde_json::from_value(event.payload).expect("payload");
+    assert_eq!(payload.comment_id, comment.id);
+    assert_eq!(payload.resolved_by, owner.id);
+    assert_eq!(payload.anchor.node_id, node);
+    assert_eq!(payload.anchor.find.as_deref(), Some("beta"));
 }
 
 #[tokio::test]

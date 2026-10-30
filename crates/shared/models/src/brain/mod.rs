@@ -25,6 +25,7 @@ pub mod extraction;
 pub mod fact;
 pub mod kind_decl;
 pub mod outcome;
+pub mod payload;
 pub mod proposal;
 pub mod recall;
 pub mod revision;
@@ -54,6 +55,7 @@ pub use extraction::{
 pub use fact::BrainFact;
 pub use kind_decl::{ExtractorDecl, FieldDecl, FieldType, KindDecl, Materiality, SUBJECT_FIELD};
 pub use outcome::{BrainOutcome, CITED_IN_RESPONSE, OutcomeObservation, USER_CORRECTED_FACT};
+pub use payload::{CommentAnchorRef, CommentResolved, RevisionLanded};
 pub use proposal::{BrainProposal, ProposalDraft, ProposalKind, ProposalStatus};
 pub use recall::{
     FactRef, InjectionPlan, RecallAudit, RecallCtx, RecallQuery, RetrievalTier, ScoredFact,
