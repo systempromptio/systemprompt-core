@@ -384,9 +384,26 @@ echo "    /readyz: $(cat "$WORK/readyz.json")"
 jq -e '.status == "ready"' "$WORK/readyz.json" >/dev/null || fail "/readyz is 200 but not ready"
 jq -e --arg v "${RUNG#v}" '.version == $v' "$WORK/readyz.json" >/dev/null \
     || fail "/readyz answered from a server that is not $RUNG"
+# A rung reports "ahead" only for extensions its binary links: a migration of
+# an extension the rung never compiled in is invisible to its schema watch, so
+# the newer set is narrowed to the extensions the rung's own migrate-status names.
 if [ "$HAS_LEDGER" = true ] && [ -s "$WORK/newer.txt" ]; then
-    jq -e '.schema == "ahead"' "$WORK/readyz.json" >/dev/null \
-        || fail "$RUNG serves a schema ahead of it without reporting \"schema\": \"ahead\"."
+    rung --json infra db migrate-status > "$WORK/known.json" 2> "$WORK/known.err" \
+        || { cat "$WORK/known.err"; fail "$RUNG could not report its migration status."; }
+    jq -r '[.. | objects | .extension_id? // empty] | unique | .[]' "$WORK/known.json" \
+        | LC_ALL=C sort -u > "$WORK/known-extensions.txt"
+    : > "$WORK/newer-known.txt"
+    while read -r file; do
+        ext="${file%/schema/migrations/*}"
+        ext="${ext##*/}"
+        if grep -qxF "$ext" "$WORK/known-extensions.txt"; then echo "$file" >> "$WORK/newer-known.txt"; fi
+    done < "$WORK/newer.txt"
+    if [ -s "$WORK/newer-known.txt" ]; then
+        jq -e '.schema == "ahead"' "$WORK/readyz.json" >/dev/null \
+            || fail "$RUNG serves a schema ahead of it without reporting \"schema\": \"ahead\"."
+    else
+        echo "    every newer migration belongs to an extension $RUNG does not link; no ahead report expected"
+    fi
 fi
 
 step "one gateway request through the seeded key must write its quota row"

@@ -14,7 +14,7 @@ use systemprompt_models::documents::content_hash;
 use systemprompt_test_fixtures::{AuthedFixture, seed_bridge_credential, seed_drive_credential};
 use uuid::Uuid;
 
-use super::common::request_context;
+use super::common::{browser_page, request_context};
 use super::documents::{
     BOUNDARY, Reply, app, bridge, commit_meta, create_markdown, drive_commit, fixture, head_of,
     id_of, json_request, multipart, request, send,
@@ -25,7 +25,7 @@ fn empty(method: Method, uri: &str) -> axum::http::Request<Body> {
 }
 
 fn folders(state: &DocumentsState, user: &AuthedFixture) -> Router {
-    folders_router(state.clone()).layer(Extension(
+    browser_page(folders_router(state.clone())).layer(Extension(
         request_context(user.user_id.as_str()).with_browser_session(),
     ))
 }

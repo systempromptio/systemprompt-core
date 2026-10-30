@@ -36,6 +36,7 @@ fn the_column_text_keeps_the_stored_vocabulary() {
     assert_eq!(
         texts,
         [
+            "decode",
             "process",
             "route",
             "rules",

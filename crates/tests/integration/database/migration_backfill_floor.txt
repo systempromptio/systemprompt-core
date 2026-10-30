@@ -18,7 +18,8 @@ files=012
 governance=027
 logging=009
 marketplace=016
-notifications=001
+# notifications 004 moves each row's excerpt text into body before dropping the column.
+notifications=004
 mcp=017
 oauth=021
 scheduler=003
