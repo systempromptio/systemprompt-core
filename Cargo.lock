@@ -5975,6 +5975,7 @@ version = "0.76.0"
 dependencies = [
  "async-trait",
  "chrono",
+ "futures",
  "inventory",
  "serde",
  "serde_json",
@@ -5986,8 +5987,11 @@ dependencies = [
  "systemprompt-identifiers",
  "systemprompt-manifest",
  "systemprompt-models",
+ "systemprompt-provider-contracts",
  "systemprompt-traits",
  "thiserror 2.0.21",
+ "tokio",
+ "tracing",
  "uuid",
 ]
 

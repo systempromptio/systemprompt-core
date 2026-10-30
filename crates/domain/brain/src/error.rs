@@ -11,7 +11,7 @@
 use systemprompt_extension::brain::BrainSinkError;
 use systemprompt_identifiers::{BrainFactId, FactKindId};
 use systemprompt_models::brain::{StatementError, SubjectKeyError};
-use systemprompt_traits::RepositoryError;
+use systemprompt_traits::{BoxedSource, RepositoryError};
 
 pub type BrainResult<T> = Result<T, BrainError>;
 
@@ -38,6 +38,8 @@ pub enum BrainError {
     Forbidden { reason: String },
     #[error("fact {0} not found")]
     NotFound(BrainFactId),
+    #[error("brain notification could not be emitted")]
+    Notify(#[source] BoxedSource),
 }
 
 impl BrainError {
@@ -45,7 +47,7 @@ impl BrainError {
     pub const fn is_transient(&self) -> bool {
         matches!(
             self,
-            Self::Database(_) | Self::Repository(_) | Self::Sink(_)
+            Self::Database(_) | Self::Repository(_) | Self::Sink(_) | Self::Notify(_)
         )
     }
 }

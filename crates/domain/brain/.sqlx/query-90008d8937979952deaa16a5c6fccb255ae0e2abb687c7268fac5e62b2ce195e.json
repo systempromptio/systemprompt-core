@@ -1,0 +1,34 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id AS \"id: BrainFactId\" FROM brain_facts\n           WHERE search @@ websearch_to_tsquery('simple', $7)\n             AND scope_level = ANY($1::text[])\n             AND (scope_level IN ('org', 'group')\n                  OR (scope_level = 'user' AND scope_key = $2)\n                  OR (scope_level = 'project' AND (scope_key = $3 OR cardinality(topics) > 0)))\n             AND (status = 'confirmed'\n                  OR (status = 'proposed' AND owner_user_id = $2)\n                  OR (status = 'stale' AND $4))\n             AND (review_after IS NULL OR review_after >= $5)\n             AND (valid_from IS NULL OR valid_from <= $5)\n             AND (valid_to IS NULL OR valid_to > $5)\n           ORDER BY ts_rank_cd(search, websearch_to_tsquery('simple', $7)) DESC, id\n           LIMIT $6",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id: BrainFactId",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "brain_facts",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "TextArray",
+        "Text",
+        "Text",
+        "Bool",
+        "Timestamptz",
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "90008d8937979952deaa16a5c6fccb255ae0e2abb687c7268fac5e62b2ce195e"
+}

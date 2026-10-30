@@ -31,10 +31,13 @@
 
 pub mod error;
 pub mod extension;
+pub mod jobs;
 pub mod models;
 pub mod plane;
+pub mod recall;
 pub mod repository;
 pub mod schema;
+pub mod service;
 pub mod sink;
 pub mod version;
 
