@@ -1,7 +1,7 @@
 use std::io::Cursor;
 
 use systemprompt_files::documents::codecs::xlsx::{
-    checkpoint_xlsx, seed_doc_from_xlsx, sheet_model_from_xlsx,
+    blank_xlsx, checkpoint_xlsx, seed_doc_from_xlsx, sheet_model_from_xlsx,
 };
 use systemprompt_files::documents::engine::loro::sheet::{
     Sheet, SheetCell, SheetModel, read as read_sheets,
@@ -167,4 +167,16 @@ fn seeding_a_loro_doc_from_a_checkpoint_reads_back_the_same_sheets() {
     let budget = seeded.sheet("Budget").expect("budget");
     assert_eq!(at(budget, 3, 4).map(|c| c.v.as_str()), Some("=B4*2"));
     assert_eq!(budget.merges.len(), 1);
+}
+
+#[test]
+fn blank_workbook_reads_back_through_the_calc_engine() {
+    let model = sheet_model_from_xlsx(&blank_xlsx().expect("blank")).expect("read blank");
+
+    assert_eq!(model.sheets.len(), 1);
+    assert_eq!(model.sheets[0].grid().len(), 0);
+
+    let doc = loro::LoroDoc::new();
+    seed_doc_from_xlsx(&doc, &blank_xlsx().expect("blank")).expect("seed blank");
+    assert_eq!(read_sheets(&doc).expect("read doc").sheets.len(), 1);
 }
