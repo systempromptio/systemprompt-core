@@ -4,7 +4,8 @@
 //! import, so the update is validated in proportion to what it touched rather
 //! than to the whole document.
 //!
-//! Every changed container is walked up to the top-level block that holds
+//! Every changed container, a mergeable map-key child included (its id is
+//! a root id that still resolves through its parent), is walked up to the top-level block that holds
 //! it; inserted root entries count as touched too, and the settings map
 //! touches the document settings. The touched blocks are read whole (a
 //! table with all its cells). The scope is refused, and the caller falls
@@ -41,7 +42,9 @@ pub fn touched(doc: &LoroDoc, before: &Frontiers, after: &Frontiers) -> Option<R
     let mut at = BTreeSet::new();
     let mut settings = false;
     for (id, change) in diff.iter() {
-        if let ContainerID::Root { name, .. } = id {
+        if let ContainerID::Root { name, .. } = id
+            && !id.is_mergeable()
+        {
             match name.as_str() {
                 BLOCKS_CONTAINER => inserted(change, &mut at),
                 DOCUMENT_CONTAINER => settings = true,
