@@ -17,9 +17,7 @@ use systemprompt_identifiers::{
     DocumentCommentId, DocumentId, DocumentRevisionId, TraceId, UserId,
 };
 use systemprompt_models::auth::AuthenticatedUser;
-use systemprompt_models::documents::{
-    DocumentAction, DocumentCommentCreatedEvent, DocumentCommentResolvedEvent,
-};
+use systemprompt_models::documents::{DocumentAction, DocumentCommentCreatedEvent};
 
 use super::DocumentService;
 use super::comment_anchors::anchor_holds;
@@ -207,52 +205,6 @@ impl DocumentService {
             .into_iter()
             .filter(|comment| comment.deleted_at.is_none())
             .collect())
-    }
-
-    pub async fn resolve_comment(
-        &self,
-        who: &AuthenticatedUser,
-        request: ResolveCommentRequest,
-        trace: &TraceId,
-    ) -> Result<DocumentComment, DocumentsError> {
-        let ResolveCommentRequest {
-            document,
-            comment,
-            answering,
-        } = request;
-        let (document, comment) = (&document, &comment);
-        let current = self
-            .authorized_document(who, document, DocumentAction::Comment, trace)
-            .await?;
-        if !self
-            .repos
-            .comments
-            .resolve(document, comment, &who.id)
-            .await?
-        {
-            return Err(DocumentsError::CommentNotFound {
-                document_id: document.clone(),
-                comment_id: comment.clone(),
-            });
-        }
-        if let Some(revision) = &answering {
-            self.resolve_revision(&current, Some(revision)).await?;
-            self.repos
-                .comments
-                .set_answering(document, comment, revision)
-                .await?;
-        }
-        let resolved = self.comment_of(document, comment).await?;
-        let event = DocumentCommentResolvedEvent {
-            document_id: document.clone(),
-            comment_id: comment.clone(),
-            resolved_by: who.id.clone(),
-        };
-        let to = self.recipients(&current).await;
-        if let Err(error) = self.events.comment_resolved(&to, &event).await {
-            tracing::warn!(document_id = %document, error = %error, "Comment event not relayed");
-        }
-        Ok(resolved)
     }
 
     pub(super) async fn comment_of(

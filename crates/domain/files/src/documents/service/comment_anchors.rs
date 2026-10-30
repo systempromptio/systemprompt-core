@@ -8,10 +8,12 @@
 
 use systemprompt_identifiers::{DocumentCommentId, DocumentId, DocumentRevisionId};
 use systemprompt_models::documents::{Projection, ProjectionNode};
+use systemprompt_traits::RepositoryError;
 
 use super::{CommentPolicy, DocumentService};
 use crate::documents::error::DocumentsError;
 use crate::documents::models::CommentAnchor;
+use crate::documents::repository::DocumentCommentRepository;
 
 fn node_text(node: &ProjectionNode) -> String {
     let mut text = node.text.clone().unwrap_or_default();
@@ -71,13 +73,15 @@ impl DocumentService {
         if !detached.is_empty() {
             self.repos.comments.detach(document, detached).await?;
         }
-        if let Some(comment) = &policy.answering
-            && !self
-                .repos
-                .comments
-                .set_answering(document, comment, revision)
-                .await?
-        {
+        let Some(comment) = &policy.answering else {
+            return Ok(());
+        };
+        let mut tx = self.repos.documents.begin().await?;
+        let answered =
+            DocumentCommentRepository::set_answering_in(&mut tx, document, comment, revision)
+                .await?;
+        tx.commit().await.map_err(RepositoryError::from)?;
+        if !answered {
             tracing::warn!(
                 document_id = %document,
                 comment_id = %comment,

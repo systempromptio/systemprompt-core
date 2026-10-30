@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use systemprompt_database::DbPool;
 use systemprompt_events::EventRouter;
-use systemprompt_extension::DynNotificationSink;
+use systemprompt_extension::{DynBrainSink, DynNotificationSink};
 use systemprompt_files::DocumentsConfig;
 use systemprompt_files::documents::agents::{DocumentActor, registered_policy};
 use systemprompt_files::documents::blob_store::BlobStore;
@@ -40,6 +40,7 @@ pub struct DocumentsRuntimeParts {
     pub directory: Arc<dyn SubjectDirectory>,
     pub event_router: EventRouter,
     pub notifications: DynNotificationSink,
+    pub brain: DynBrainSink,
     pub catalog: Vec<CatalogTemplate>,
     pub config: DocumentsConfig,
     pub issues: Arc<IssueService>,
@@ -87,6 +88,7 @@ impl DocumentsRuntime {
             directory,
             event_router,
             notifications,
+            brain,
             catalog,
             config,
             issues,
@@ -120,6 +122,7 @@ impl DocumentsRuntime {
             access: Arc::clone(&access),
             events: Arc::new(DocumentEvents::new(Arc::new(event_router))),
             notifications,
+            brain,
             config,
         }));
         service.attach_uploads(&uploads);

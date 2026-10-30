@@ -4,6 +4,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use systemprompt_database::DbPool;
 use systemprompt_events::{EventBroadcasters, EventRouter};
+use systemprompt_extension::{BrainSink, BrainSinkError, DynBrainSink};
 use systemprompt_files::DocumentsConfig;
 use systemprompt_files::documents::agents::{AgentAccessPolicy, DocumentActor};
 use systemprompt_files::documents::blob_store::BlobStore;
@@ -21,7 +22,10 @@ use systemprompt_files::uploads::{UploadService, UploadServiceParts};
 use systemprompt_governance::authz::{
     AccessControlRepository, AllowAllHook, DenyAllHook, RuleType, SharedAuthzHook,
 };
-use systemprompt_identifiers::{DocumentFolderId, DocumentTemplateId, TraceId, UserId};
+use systemprompt_identifiers::{
+    DocumentFolderId, DocumentTemplateId, EventOutboxId, TraceId, UserId,
+};
+use systemprompt_models::brain::BrainEvent;
 use systemprompt_models::auth::{AuthenticatedUser, Permission};
 use systemprompt_models::authz::{
     SubjectAttributeSource, SubjectAttributes, SubjectDimension, SubjectSourceError,
@@ -33,6 +37,23 @@ use systemprompt_test_fixtures::{fixture_notification_sink, test_db_pool};
 use systemprompt_traits::{BackgroundTasks, FileStorage};
 use tempfile::TempDir;
 use uuid::Uuid;
+
+pub(crate) struct NoBrain;
+
+#[async_trait]
+impl BrainSink for NoBrain {
+    fn is_available(&self) -> bool {
+        false
+    }
+
+    async fn emit(
+        &self,
+        _conn: &mut sqlx::PgConnection,
+        _event: &BrainEvent,
+    ) -> Result<EventOutboxId, BrainSinkError> {
+        Err(BrainSinkError::Unavailable)
+    }
+}
 
 pub(crate) const GROUP: RuleType = RuleType::extension_static("group");
 
@@ -259,6 +280,17 @@ pub(crate) fn harness_with_policy(
     config: DocumentsConfig,
     policy: Option<Arc<dyn AgentAccessPolicy>>,
 ) -> Harness {
+    let brain: DynBrainSink = Arc::new(NoBrain);
+    harness_wired(db, (hook, subjects, directory), storage, config, (policy, brain))
+}
+
+pub(crate) fn harness_wired(
+    db: DbPool,
+    (hook, subjects, directory): (SharedAuthzHook, GroupSource, RoleDirectory),
+    storage: Arc<TempDir>,
+    config: DocumentsConfig,
+    (policy, brain): (Option<Arc<dyn AgentAccessPolicy>>, DynBrainSink),
+) -> Harness {
     let repos = Arc::new(DocumentRepositories::new(&db));
     let access_entities = Arc::new(AccessControlRepository::new(&db));
     let access = DocumentAccessService::new(
@@ -303,6 +335,7 @@ pub(crate) fn harness_with_policy(
         access,
         events,
         notifications: fixture_notification_sink(&db),
+        brain,
         config,
     });
     service.attach_uploads(&uploads);

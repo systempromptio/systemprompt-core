@@ -5,7 +5,8 @@
 //! it: reserve the created nodes' ids and renumber them, insert the revision
 //! and its ids, claim the op id's acknowledgement, move the head by
 //! compare-and-swap (which also refuses a foreign lock), mark the revision
-//! landed, and settle the proposal being accepted. Any refusal rolls the whole
+//! landed, settle the proposal being accepted, and record the
+//! `document.revision.landed` brain fact. Any refusal rolls the whole
 //! transaction back, so a commit that loses the race leaves no revision behind.
 //! A proposal's revision is stored the same way without moving the head, and
 //! stays unlanded.
@@ -180,6 +181,8 @@ impl DocumentService {
                 drop(tx);
                 return Err(self.proposal_closed(proposal).await);
             }
+            self.record_revision_landed(&mut tx, document, &revision)
+                .await?;
         }
         tx.commit().await.map_err(sql)?;
         Ok(LandResult::Landed(Box::new(Stored {
@@ -215,6 +218,8 @@ impl DocumentService {
             drop(tx);
             return Err(self.proposal_closed(proposal).await);
         }
+        self.record_revision_landed(&mut tx, document, proposed)
+            .await?;
         tx.commit().await.map_err(sql)?;
         Ok(true)
     }

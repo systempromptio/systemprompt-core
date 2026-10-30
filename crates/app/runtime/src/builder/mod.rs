@@ -142,6 +142,8 @@ impl AppContextBuilder {
             Arc::new(crate::documents::NotificationsUnavailableSink);
         #[cfg(not(feature = "notifications"))]
         drop(listener_pool);
+        let brain_sink: systemprompt_extension::DynBrainSink =
+            Arc::new(crate::documents::BrainUnavailableSink);
         let audiences = ExtensionAudiences::default();
         let documents = documents::build_documents(&documents::DocumentsInputs {
             boot: &self.boot,
@@ -154,6 +156,7 @@ impl AppContextBuilder {
             background_tasks: &background_tasks,
             extensions: &plugins.extension_registry,
             notifications: &notification_sink,
+            brain: &brain_sink,
             audiences: &audiences,
         })?;
         #[cfg(feature = "notifications")]

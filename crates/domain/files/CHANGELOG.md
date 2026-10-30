@@ -11,6 +11,9 @@
 - **Breaking:** `UploadError::Invalid(String)` is replaced by `InvalidName`, `EmptyUpload`, `InvalidContentType`, `SizeMismatch`, `PartSizeOutOfRange` and `PartHashUnavailable`, and the HTTP status and `invalid_request` key are unchanged. Migrate by matching the typed variants.
 - **Breaking:** `DocumentService::admit_media` takes `&UploadService` instead of `Option<&UploadService>`, and `refuse_unheld_media` answers the no-uploads case. Migrate by calling `refuse_unheld_media(refs, &held)` where no `UploadService` is configured.
 - **Breaking:** `AgentActor::name`, `via_agent` and `created_by_agent` are `AgentName`, and `DocumentActor::agent`, `AgentRateLimiter::reserve` and `RewriteTracker` take it; `holder_id`/`holder_kind` become `LockHolder`; `origin_id`/`origin_kind` become `RevisionOrigin` (now in `documents::models`); `storage_id` is `StoredFileId`. Migrate by constructing the typed values with `try_new`.
+- **Breaking:** `DocumentServiceParts` gains a `brain` sink. Migrate by passing a `DynBrainSink` (the runtime's unavailable sink when the brain feature is off).
+- **Breaking:** `DocumentsError` gains `Brain`, raised when the brain sink cannot record a `document.revision.landed` or `document.comment.resolved` fact; the landing or resolution rolls back. Migrate exhaustive matches by adding the variant.
+- **Breaking:** `DocumentCommentRepository::resolve` and `set_answering` are replaced by `resolve_in` and `set_answering_in`, which run on the caller's connection. Migrate by calling them inside a transaction.
 
 ### Fixed
 

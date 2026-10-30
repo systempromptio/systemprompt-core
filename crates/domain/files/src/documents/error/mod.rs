@@ -9,7 +9,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_extension::NotificationSinkError;
+use systemprompt_extension::{BrainSinkError, NotificationSinkError};
 use systemprompt_identifiers::{
     ContentHash, DocumentAccessRequestId, DocumentCommentId, DocumentFolderId, DocumentId,
     DocumentNodeId, DocumentOpId, DocumentProposalId, DocumentRevisionId, DocumentTemplateId,
@@ -284,6 +284,8 @@ pub enum DocumentsError {
     Notifications(#[from] NotificationSinkError),
     #[error("notification kind is invalid")]
     NotificationKind(#[from] NotificationKindError),
+    #[error("the brain fact could not be recorded; nothing was stored")]
+    Brain(#[from] BrainSinkError),
 }
 
 impl DocumentsError {

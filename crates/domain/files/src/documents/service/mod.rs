@@ -25,11 +25,13 @@ mod acks;
 mod agent_caps;
 mod agent_rules;
 mod apply;
+mod brain_notice;
 mod byte_diff;
 mod comment_anchors;
 mod comments;
 mod comments_edit;
 mod comments_export;
+mod comments_resolve;
 mod commit;
 mod commit_build;
 mod content;
@@ -79,7 +81,7 @@ mod visibility;
 
 use std::sync::Arc;
 
-use systemprompt_extension::DynNotificationSink;
+use systemprompt_extension::{DynBrainSink, DynNotificationSink};
 
 pub use access_requests::{AccessDecision, AccessRequestInput, DecideRequest};
 pub use access_view::{
@@ -133,6 +135,7 @@ pub struct DocumentService {
     access: Arc<DocumentAccessService>,
     events: Arc<DocumentEvents>,
     notifications: DynNotificationSink,
+    brain: DynBrainSink,
     config: DocumentsConfig,
     uploads: Arc<std::sync::OnceLock<Arc<crate::uploads::UploadService>>>,
     agent_edits: Arc<AgentRateLimiter>,
@@ -151,6 +154,7 @@ pub struct DocumentServiceParts {
     pub access: Arc<DocumentAccessService>,
     pub events: Arc<DocumentEvents>,
     pub notifications: DynNotificationSink,
+    pub brain: DynBrainSink,
     pub config: DocumentsConfig,
 }
 
@@ -181,6 +185,7 @@ impl DocumentService {
             access: parts.access,
             events: parts.events,
             notifications: parts.notifications,
+            brain: parts.brain,
             agent_edits: Arc::new(AgentRateLimiter::new(
                 parts.config.limits.agent_edits_per_hour,
                 parts.config.limits.agent_edits_per_hour_per_user,

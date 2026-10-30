@@ -23,6 +23,7 @@ systemprompt-database = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }
 systemprompt-governance = { workspace = true }
 systemprompt-events = { workspace = true }
+systemprompt-extension = { workspace = true, features = ["sqlx"] }
 systemprompt-provider-contracts = { workspace = true }
 async-trait = { workspace = true }
 base64 = { workspace = true }
