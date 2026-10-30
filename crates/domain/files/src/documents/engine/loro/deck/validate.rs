@@ -15,8 +15,8 @@ use loro::LoroDoc;
 use super::model::DeckModel;
 use super::read::{DeckReadError, read};
 
-pub const MAX_SLIDES: usize = 2_000;
-pub const MAX_SHAPES_PER_SLIDE: usize = 500;
+pub(crate) const MAX_SLIDES: usize = 2_000;
+pub(crate) const MAX_SHAPES_PER_SLIDE: usize = 500;
 
 #[derive(Debug, thiserror::Error)]
 pub enum DeckInvalid {

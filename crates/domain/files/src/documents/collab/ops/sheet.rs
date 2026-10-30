@@ -14,7 +14,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_models::documents::EditOp;
 
 
 #[cfg(feature = "collab-loro")]
@@ -36,7 +35,7 @@ mod translate {
     };
 
     #[derive(Debug, thiserror::Error)]
-    pub enum SheetOpError {
+    pub(crate) enum SheetOpError {
         #[error("operation {op} is not supported on a sheet")]
         Unsupported { op: &'static str },
         #[error("node {node} is not a sheet {expected} node")]

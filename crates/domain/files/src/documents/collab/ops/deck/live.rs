@@ -14,7 +14,7 @@ use crate::documents::model::layout::ParaAttrs;
 use crate::documents::model::{Block, BlockKind};
 
 #[derive(Debug, thiserror::Error)]
-pub enum DeckOpError {
+pub(crate) enum DeckOpError {
     #[error("op {op} is not translated for a live deck")]
     Unsupported { op: &'static str },
     #[error("node {node} names nothing in the live deck")]
@@ -215,7 +215,7 @@ fn apply(doc: &LoroDoc, op: &EditOp) -> Result<(), DeckOpError> {
         } => {
             let list = slides(doc);
             let at = match after {
-                Some(id) => match self::node(id.as_str())? {
+                Some(id) => match node(id.as_str())? {
                     Node::Slide(at) if at < list.len() => at + 1,
                     _ => {
                         return Err(DeckOpError::UnknownNode {
@@ -246,7 +246,7 @@ fn apply(doc: &LoroDoc, op: &EditOp) -> Result<(), DeckOpError> {
 /// Applies `ops` to a fork of `doc` as `peer` and returns the update,
 /// or `None` when the batch changed nothing. `doc` itself is untouched;
 /// the caller imports the update like any client update.
-pub fn deck_update(
+pub(crate) fn deck_update(
     doc: &LoroDoc,
     ops: &[EditOp],
     peer: PeerID,

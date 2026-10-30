@@ -19,7 +19,7 @@ use crate::documents::models::Document;
 
 /// A live session's base revision, its materialised bytes and its model.
 #[derive(Debug, Clone)]
-pub struct LiveView {
+pub(crate) struct LiveView {
     pub base: DocumentRevisionId,
     pub bytes: Vec<u8>,
     pub model: RichText,

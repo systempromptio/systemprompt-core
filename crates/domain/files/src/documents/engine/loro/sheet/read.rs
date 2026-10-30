@@ -8,7 +8,7 @@ use loro::{Container, LoroDoc, LoroMap, LoroValue, ValueOrContainer};
 use super::SHEETS_CONTAINER;
 use super::model::{Sheet, SheetCell, SheetModel};
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, Clone, Copy, thiserror::Error)]
 pub enum SheetReadError {
     #[error("sheet list entry {at} is not a sheet")]
     NotASheet { at: usize },

@@ -19,7 +19,7 @@
 use systemprompt_models::documents::NodeKind;
 
 #[cfg(feature = "collab-loro")]
-pub use live::{DeckOpError, deck_update};
+pub(crate) use live::{DeckOpError, deck_update};
 
 #[cfg(feature = "collab-loro")]
 const fn is_list_item(kind: NodeKind) -> bool {

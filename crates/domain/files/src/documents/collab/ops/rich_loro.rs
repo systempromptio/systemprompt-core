@@ -33,7 +33,7 @@ use crate::documents::engine::loro::table::fresh_id;
 use crate::documents::model::{Block, BlockKind, MarkKind};
 
 #[derive(Debug, thiserror::Error)]
-pub enum RichOpError {
+pub(crate) enum RichOpError {
     #[error("op {op} is not translated for a live text document")]
     Unsupported { op: &'static str },
     #[error("node {node} is not a live block")]
@@ -61,7 +61,7 @@ impl From<EditError> for RichOpError {
 }
 
 /// Applies `ops` to `doc` without committing; answers how many applied.
-pub fn apply_rich_ops_loro(doc: &LoroDoc, ops: &[EditOp]) -> Result<usize, RichOpError> {
+pub(crate) fn apply_rich_ops_loro(doc: &LoroDoc, ops: &[EditOp]) -> Result<usize, RichOpError> {
     let planned = ops
         .iter()
         .map(|op| plan(doc, op))

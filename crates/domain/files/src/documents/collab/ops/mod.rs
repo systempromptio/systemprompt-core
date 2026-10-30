@@ -35,7 +35,6 @@ use systemprompt_identifiers::TraceId;
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{DocumentFormat, EditOp};
 
-pub(crate) use live_view::LiveView;
 
 use super::{CollabError, CollabService};
 use crate::documents::error::DocumentsError;

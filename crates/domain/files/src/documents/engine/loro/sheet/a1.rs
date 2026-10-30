@@ -61,7 +61,7 @@ impl A1Range {
 }
 
 /// What a projection node id (`sheet[<name>]`, `…/row[<n>]`, `…/<A1>`) names.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SheetTarget {
     Sheet,
     Row(u32),
