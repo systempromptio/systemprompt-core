@@ -24,8 +24,8 @@ use systemprompt_database::DbPool;
 use systemprompt_events::services::durable::{DurableOutbox, OutboxConsumer};
 use systemprompt_extension::ExtensionContext;
 use systemprompt_extension::brain::{
-    DynBrainSink, FactRetriever, InjectionPolicy, discover_brain_injection_policies,
-    discover_brain_retrievers,
+    DynBrainSink, FactRetriever, ImportanceModel, InjectionPolicy,
+    discover_brain_importance_models, discover_brain_injection_policies, discover_brain_retrievers,
 };
 use systemprompt_extension::notifications::{
     DynNotificationSink, NotificationAudienceResolver, discover_notification_audiences,
@@ -62,6 +62,7 @@ pub struct RecallSeams {
     pub audiences: Vec<Arc<dyn NotificationAudienceResolver>>,
     pub retrievers: Vec<Arc<dyn FactRetriever>>,
     pub injection: Vec<Arc<dyn InjectionPolicy>>,
+    pub importance: Vec<Arc<dyn ImportanceModel>>,
 }
 
 impl fmt::Debug for RecallSeams {
@@ -70,6 +71,7 @@ impl fmt::Debug for RecallSeams {
             .field("audiences", &self.audiences.len())
             .field("retrievers", &self.retrievers.len())
             .field("injection", &self.injection.len())
+            .field("importance", &self.importance.len())
             .finish()
     }
 }
@@ -87,6 +89,10 @@ impl RecallSeams {
                 .map(|registration| (registration.factory)(ctx))
                 .collect(),
             injection: discover_brain_injection_policies()
+                .iter()
+                .map(|registration| (registration.factory)(ctx))
+                .collect(),
+            importance: discover_brain_importance_models()
                 .iter()
                 .map(|registration| (registration.factory)(ctx))
                 .collect(),
@@ -153,6 +159,7 @@ impl BrainCore {
             mut audiences,
             retrievers,
             injection,
+            importance: _,
         } = seams;
         audiences.push(Arc::new(UserRoleAudienceResolver::new(Arc::clone(
             &self.users,

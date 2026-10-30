@@ -117,6 +117,14 @@ impl BrainHandle {
         )
     }
 
+    pub fn mcp_tools(&self) -> Result<super::mcp::BrainMcpTools, super::mcp::BrainMcpUnavailable> {
+        super::mcp::BrainMcpTools::from_parts(
+            Arc::clone(&self.service),
+            self.memory_recall(),
+            Arc::clone(&self.profile),
+        )
+    }
+
     #[must_use]
     pub fn consumer(&self) -> Option<&Arc<BrainConsumer>> {
         self.consumer.get()
