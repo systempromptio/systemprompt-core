@@ -37,6 +37,7 @@ pub mod extension;
 pub mod jobs;
 pub mod model;
 pub mod models;
+pub mod outcomes;
 pub mod pipeline;
 pub mod plane;
 pub mod recall;

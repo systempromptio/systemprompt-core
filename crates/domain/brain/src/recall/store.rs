@@ -104,6 +104,9 @@ pub fn new_recall(receipt: &RecallReceipt) -> NewRecall {
     if let Some(reason) = skipped {
         builder = builder.skipped(reason);
     }
+    if let Some(project) = &receipt.principal.project {
+        builder = builder.project(project.clone());
+    }
     builder.build()
 }
 

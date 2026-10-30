@@ -17,6 +17,7 @@ use systemprompt_models::notifications::{
 use super::{BrainCaller, BrainService, authority};
 use crate::error::{BrainError, BrainResult};
 use crate::models::{FactChange, NewDispute};
+use crate::outcomes;
 use crate::repository::{DisputeRepository, FactRepository};
 
 pub const FACT_SUBJECT: &str = "brain_fact";
@@ -110,6 +111,8 @@ impl BrainService {
             },
         )
         .await?;
+        let window = self.profile.lifecycle.correction_window_days;
+        outcomes::on_correction(&mut *tx, id, &caller.user_id, window).await?;
         if let Some(event) = disputed_event(&fact, caller, reason)? {
             self.notify(&mut tx, &event).await?;
         }

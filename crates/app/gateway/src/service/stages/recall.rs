@@ -175,6 +175,9 @@ pub(in crate::service) fn record_recall(
         return;
     };
     let engine = Arc::clone(engine);
+    if matches!(receipt.outcome, RecallOutcome::Injected(_)) {
+        audit.observe_recall_with(Arc::clone(&engine));
+    }
     audit
         .background()
         .spawn("gateway_memory_recall_record", async move {

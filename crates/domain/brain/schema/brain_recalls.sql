@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS brain_recalls (
     session_id TEXT,
     context_id TEXT,
     client TEXT NOT NULL,
+    project TEXT,
     injected JSONB NOT NULL,
     withheld JSONB NOT NULL,
     tokens INT NOT NULL DEFAULT 0 CHECK (tokens >= 0),

@@ -5,6 +5,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::collections::BTreeMap;
+
 use chrono::{DateTime, Utc};
 use sqlx::PgExecutor;
 use systemprompt_identifiers::{
@@ -14,7 +16,7 @@ use systemprompt_traits::RepositoryError;
 
 use super::Pools;
 use sqlx::types::Json;
-use systemprompt_models::brain::{FactRef, StoredBlock};
+use systemprompt_models::brain::{FactRef, RecallAudit, StoredBlock, WithheldReason};
 
 use crate::models::NewRecall;
 
@@ -37,8 +39,9 @@ impl RecallRepository {
         sqlx::query!(
             "INSERT INTO brain_recalls
                  (id, principal_user_id, ai_request_id, gateway_conversation_id, session_id,
-                  context_id, client, injected, withheld, tokens, as_of, skipped, rendered_block)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)",
+                  context_id, client, project, injected, withheld, tokens, as_of, skipped,
+                  rendered_block)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)",
             audit.recall_id.as_str(),
             recall.principal.as_str(),
             conversation.ai_request_id.as_ref().map(AiRequestId::as_str),
@@ -49,6 +52,7 @@ impl RecallRepository {
             conversation.session_id.as_ref().map(SessionId::as_str),
             conversation.context_id.as_ref().map(ContextId::as_str),
             recall.client.as_str(),
+            recall.project.as_deref(),
             serde_json::to_value(&audit.injected)?,
             serde_json::to_value(&audit.withheld)?,
             i32::try_from(audit.tokens).unwrap_or(i32::MAX),
@@ -94,6 +98,30 @@ impl RecallRepository {
         recall: &NewRecall,
     ) -> Result<BrainRecallId, RepositoryError> {
         Self::record(&*self.pools.write, recall).await
+    }
+
+    pub async fn audit_for_request(
+        &self,
+        ai_request_id: &AiRequestId,
+    ) -> Result<Option<RecallAudit>, RepositoryError> {
+        let row = sqlx::query!(
+            r#"SELECT id AS "id: BrainRecallId", as_of, tokens,
+                      injected AS "injected: Json<Vec<FactRef>>",
+                      withheld AS "withheld: Json<BTreeMap<WithheldReason, u32>>"
+               FROM brain_recalls
+               WHERE ai_request_id = $1 AND skipped IS NULL
+               ORDER BY created_at DESC LIMIT 1"#,
+            ai_request_id.as_str(),
+        )
+        .fetch_optional(&*self.pools.read)
+        .await?;
+        Ok(row.map(|row| RecallAudit {
+            recall_id: row.id,
+            injected: row.injected.0,
+            withheld: row.withheld.0,
+            tokens: u32::try_from(row.tokens).unwrap_or(0),
+            as_of: row.as_of,
+        }))
     }
 
     pub async fn purge_before(

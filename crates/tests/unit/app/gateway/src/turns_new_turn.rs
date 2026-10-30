@@ -39,7 +39,10 @@ fn a_user_text_turn_is_new() {
 
 #[test]
 fn a_user_turn_carrying_only_a_tool_result_is_not_new() {
-    assert!(!is_new_user_turn(&[message(Role::User, vec![tool_result()])]));
+    assert!(!is_new_user_turn(&[message(
+        Role::User,
+        vec![tool_result()]
+    )]));
 }
 
 #[test]

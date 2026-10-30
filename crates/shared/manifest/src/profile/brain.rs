@@ -139,6 +139,8 @@ pub struct BrainLifecycleProfile {
     pub recalls_retention_days: u32,
     #[serde(default = "default_results_retention_days")]
     pub results_retention_days: u32,
+    #[serde(default = "default_correction_window_days")]
+    pub correction_window_days: u32,
 }
 
 /// How the brain outbox consumer drains.
@@ -201,6 +203,10 @@ const fn default_extraction_timeout_ms() -> u64 {
 
 const fn default_daily_token_budget() -> u64 {
     1_000_000
+}
+
+const fn default_correction_window_days() -> u32 {
+    14
 }
 
 const fn default_review_after_days() -> u32 {
@@ -284,6 +290,7 @@ impl Default for BrainLifecycleProfile {
             retired_retention_days: default_retired_retention_days(),
             recalls_retention_days: default_recalls_retention_days(),
             results_retention_days: default_results_retention_days(),
+            correction_window_days: default_correction_window_days(),
         }
     }
 }

@@ -25,11 +25,11 @@ use systemprompt_governance::authz::{
 use systemprompt_identifiers::{
     DocumentFolderId, DocumentTemplateId, EventOutboxId, TraceId, UserId,
 };
-use systemprompt_models::brain::BrainEvent;
 use systemprompt_models::auth::{AuthenticatedUser, Permission};
 use systemprompt_models::authz::{
     SubjectAttributeSource, SubjectAttributes, SubjectDimension, SubjectSourceError,
 };
+use systemprompt_models::brain::BrainEvent;
 use systemprompt_models::documents::ActorKind;
 use systemprompt_provider_contracts::documents::TemplateParams;
 use systemprompt_storage::LocalFileStorage;
@@ -281,7 +281,13 @@ pub(crate) fn harness_with_policy(
     policy: Option<Arc<dyn AgentAccessPolicy>>,
 ) -> Harness {
     let brain: DynBrainSink = Arc::new(NoBrain);
-    harness_wired(db, (hook, subjects, directory), storage, config, (policy, brain))
+    harness_wired(
+        db,
+        (hook, subjects, directory),
+        storage,
+        config,
+        (policy, brain),
+    )
 }
 
 pub(crate) fn harness_wired(

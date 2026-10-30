@@ -2,9 +2,8 @@ use std::sync::Arc;
 
 use rmcp::ErrorData as McpError;
 use serde_json::json;
-use systemprompt_brain::BrainError;
-use systemprompt_brain::BrainRepositories;
 use systemprompt_brain::service::BrainService;
+use systemprompt_brain::{BrainError, BrainRepositories};
 use systemprompt_database::Database;
 use systemprompt_extension::brain::{
     BrainSink, BrainSinkError, MemoryRecall, RecallError, RecallOutcome, RecallReceipt,
@@ -150,7 +149,10 @@ fn brain_errors_map_to_refusal_codes() {
         refusal_of(&BrainError::UnknownKind(FactKindId::new("nope"))),
         Some(BrainRefusalCode::UnknownKind)
     );
-    assert_eq!(refusal_of(&BrainError::Tombstoned), Some(BrainRefusalCode::Tombstoned));
+    assert_eq!(
+        refusal_of(&BrainError::Tombstoned),
+        Some(BrainRefusalCode::Tombstoned)
+    );
     assert_eq!(
         refusal_of(&BrainError::Forbidden {
             reason: "no".to_owned()

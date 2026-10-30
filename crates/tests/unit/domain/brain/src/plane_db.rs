@@ -61,7 +61,12 @@ async fn applied_declarations_read_back_and_export() {
     assert!(exported.contains(&format!("kinds/owner-{tag}.yaml")));
 
     let typed = load_declared_state(&mut tx).await.expect("typed");
-    assert!(typed.kinds.iter().any(|k| k.kind.as_str() == format!("owner-{tag}")));
+    assert!(
+        typed
+            .kinds
+            .iter()
+            .any(|k| k.kind.as_str() == format!("owner-{tag}"))
+    );
     let first = current_pipeline_version(&mut tx, Default::default())
         .await
         .expect("version");

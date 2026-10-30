@@ -17,6 +17,7 @@ use systemprompt_manifest::profile::BrainProfile;
 
 use super::declared::DeclaredSource;
 use super::service::BrainRecallService;
+use crate::outcomes::OutcomeService;
 
 const DEFAULT_SOURCE_TIMEOUT: Duration = Duration::from_millis(40);
 
@@ -27,6 +28,7 @@ impl std::fmt::Debug for BrainRecallService {
             .field("injection", &self.injection.len())
             .field("importance", &self.importance.len())
             .field("audiences", &self.audiences.len())
+            .field("outcomes", &self.outcomes.is_some())
             .finish_non_exhaustive()
     }
 }
@@ -56,6 +58,7 @@ impl BrainRecallService {
                 importance: Vec::new(),
                 audiences: Vec::new(),
                 source_timeout: DEFAULT_SOURCE_TIMEOUT,
+                outcomes: None,
             },
         }
     }
@@ -89,6 +92,12 @@ impl BrainRecallServiceBuilder {
     #[must_use]
     pub const fn source_timeout(mut self, timeout: Duration) -> Self {
         self.service.source_timeout = timeout;
+        self
+    }
+
+    #[must_use]
+    pub fn outcomes(mut self, outcomes: OutcomeService) -> Self {
+        self.service.outcomes = Some(outcomes);
         self
     }
 

@@ -1,5 +1,5 @@
 //! The brain tables: each table's declarative DDL and the columns the
-//! schema validator requires of it.
+//! schema validator requires of it, and the two report views over them.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -123,4 +123,9 @@ pub const BRAIN_SCHEMAS: &[SchemaEntry] = &[
         include_str!("../schema/brain_proposals.sql"),
         &["id", "analysis", "kind", "status"],
     ),
+];
+
+pub const BRAIN_VIEWS: &[&str] = &[
+    include_str!("../schema/v_brain_kind_health.sql"),
+    include_str!("../schema/v_brain_workflow_recall.sql"),
 ];

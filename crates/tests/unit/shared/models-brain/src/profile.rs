@@ -27,6 +27,7 @@ fn defaults_match_the_contract() {
     assert_eq!(profile.lifecycle.retired_retention_days, 365);
     assert_eq!(profile.lifecycle.recalls_retention_days, 90);
     assert_eq!(profile.lifecycle.results_retention_days, 30);
+    assert_eq!(profile.lifecycle.correction_window_days, 14);
     assert_eq!(profile.consumer.batch, 32);
     assert_eq!(profile.consumer.poll_secs, 5);
     assert_eq!(profile.consumer.sweep_secs, 300);

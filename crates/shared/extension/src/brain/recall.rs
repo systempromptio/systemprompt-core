@@ -172,11 +172,21 @@ impl RecallReceipt {
     }
 }
 
+/// What the gateway saw come back for a request whose recall injected
+/// facts: the assistant's text, buffered or assembled from the stream.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RecallObservation {
+    pub ai_request_id: AiRequestId,
+    pub assistant_text: String,
+}
+
 /// Recalls team memory for a gateway request and records what it did;
 /// attached to the gateway engines as `Arc<dyn MemoryRecall>`.
 ///
 /// `recall` runs under the stage's deadline, before the upstream body is
-/// built; `record` runs after admission, when the request row exists.
+/// built; `record` runs after admission, when the request row exists;
+/// `observe` runs after the response completes and by default observes
+/// nothing.
 ///
 /// `#[async_trait]` keeps the trait dyn-compatible.
 #[async_trait::async_trait]
@@ -186,4 +196,8 @@ pub trait MemoryRecall: Send + Sync {
     async fn recall(&self, request: &RecallRequest) -> Result<RecallOutcome, RecallError>;
 
     async fn record(&self, receipt: &RecallReceipt) -> Result<(), RecallError>;
+
+    async fn observe(&self, _observation: &RecallObservation) -> Result<(), RecallError> {
+        Ok(())
+    }
 }

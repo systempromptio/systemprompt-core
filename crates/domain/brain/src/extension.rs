@@ -15,7 +15,7 @@ use systemprompt_traits::Job;
 use crate::analyses::BrainAnalysisJob;
 use crate::jobs::{BrainRetentionJob, BrainReviewJob};
 use crate::plane::BrainPlane;
-use crate::schema::BRAIN_SCHEMAS;
+use crate::schema::{BRAIN_SCHEMAS, BRAIN_VIEWS};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct BrainExtension;
@@ -36,6 +36,11 @@ impl Extension for BrainExtension {
                 SchemaDefinition::new(*table, *sql)
                     .with_required_columns(columns.iter().map(|c| (*c).into()).collect())
             })
+            .chain(
+                BRAIN_VIEWS
+                    .iter()
+                    .map(|sql| SchemaDefinition::sql_only(*sql)),
+            )
             .collect()
     }
 

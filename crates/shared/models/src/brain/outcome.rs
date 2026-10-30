@@ -5,7 +5,7 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::{BrainFactId, BrainRecallId};
+use systemprompt_identifiers::{AiRequestId, BrainFactId, BrainRecallId};
 
 use super::recall::RecallAudit;
 
@@ -22,10 +22,11 @@ pub struct BrainOutcome {
     pub observed_at: DateTime<Utc>,
 }
 
-/// What an outcome signal is shown: the recall and, when the response was
-/// tapped, the assistant's text.
+/// What an outcome signal is shown: the gateway request, its recall and,
+/// when the response was tapped, the assistant's text.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct OutcomeObservation {
+    pub ai_request_id: AiRequestId,
     pub recall: RecallAudit,
     pub response_text: Option<String>,
     pub observed_at: DateTime<Utc>,

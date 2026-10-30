@@ -18,8 +18,8 @@ use chrono::Utc;
 use futures::future::join_all;
 use systemprompt_extension::brain::{
     FactRecallSource, FactRetriever, ImportanceModel, InjectedFact, InjectionPolicy, MemoryRecall,
-    RecallBlock, RecallError, RecallOutcome, RecallReceipt, RecallRequest, ReuseHint, SkipReason,
-    SourceAccess, WithheldSummary,
+    RecallBlock, RecallError, RecallObservation, RecallOutcome, RecallReceipt, RecallRequest,
+    ReuseHint, SkipReason, SourceAccess, WithheldSummary,
 };
 use systemprompt_extension::notifications::NotificationAudienceResolver;
 use systemprompt_manifest::profile::{BrainProfile, StalePolicy};
@@ -34,6 +34,7 @@ use super::fusion::{self, TierHits};
 use super::reuse::parse_stored;
 use super::score::{self, ScoreInput};
 use super::visible::{Visibility, lifecycle_withheld};
+use crate::outcomes::OutcomeService;
 
 pub const STALE_MARKER: &str = " [stale: its source changed since it was confirmed]";
 const MIN_TIER_LIMIT: u32 = 8;
@@ -51,6 +52,7 @@ pub struct BrainRecallService {
     pub(super) importance: Vec<Arc<dyn ImportanceModel>>,
     pub(super) audiences: Vec<Arc<dyn NotificationAudienceResolver>>,
     pub(super) source_timeout: Duration,
+    pub(super) outcomes: Option<OutcomeService>,
 }
 
 #[must_use]
@@ -267,5 +269,24 @@ impl MemoryRecall for BrainRecallService {
 
     async fn record(&self, receipt: &RecallReceipt) -> Result<(), RecallError> {
         self.store.record_recall(receipt).await
+    }
+
+    async fn observe(&self, observation: &RecallObservation) -> Result<(), RecallError> {
+        let Some(outcomes) = &self.outcomes else {
+            return Ok(());
+        };
+        let written = outcomes
+            .observe_response(&observation.ai_request_id, &observation.assistant_text)
+            .await
+            .map_err(|e| RecallError::Other {
+                component: "outcomes",
+                source: Box::new(e),
+            })?;
+        tracing::debug!(
+            ai_request_id = %observation.ai_request_id,
+            written,
+            "Brain response outcomes recorded"
+        );
+        Ok(())
     }
 }

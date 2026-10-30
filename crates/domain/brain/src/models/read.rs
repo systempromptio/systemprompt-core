@@ -20,6 +20,7 @@ pub type NewProposal = ProposalDraft;
 pub struct NewRecall {
     pub principal: UserId,
     pub client: ClientKind,
+    pub project: Option<String>,
     pub conversation: RecallConversation,
     pub audit: RecallAudit,
     pub skipped: Option<String>,
@@ -37,6 +38,7 @@ impl NewRecall {
             recall: Self {
                 principal,
                 client,
+                project: None,
                 conversation: RecallConversation {
                     ai_request_id: None,
                     gateway_conversation_id: None,
@@ -61,6 +63,12 @@ impl NewRecallBuilder {
     #[must_use]
     pub fn conversation(mut self, conversation: RecallConversation) -> Self {
         self.recall.conversation = conversation;
+        self
+    }
+
+    #[must_use]
+    pub fn project(mut self, project: impl Into<String>) -> Self {
+        self.recall.project = Some(project.into());
         self
     }
 

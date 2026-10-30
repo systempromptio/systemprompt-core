@@ -12,7 +12,11 @@ fn topics() -> HashSet<TopicId> {
     [topic("ops")].into_iter().collect()
 }
 
-fn verdict(candidate: FactCandidate, kind: &KindDecl, text: Option<&SourceText>) -> ValidationVerdict {
+fn verdict(
+    candidate: FactCandidate,
+    kind: &KindDecl,
+    text: Option<&SourceText>,
+) -> ValidationVerdict {
     SchemaValidator::check(candidate, kind, text, &topics()).verdict
 }
 
@@ -28,7 +32,10 @@ fn rejected(verdict: &ValidationVerdict) -> bool {
 
 #[test]
 fn a_well_formed_candidate_is_accepted() {
-    assert_eq!(verdict(valid_candidate(), &kind_decl(), None), ValidationVerdict::Accept);
+    assert_eq!(
+        verdict(valid_candidate(), &kind_decl(), None),
+        ValidationVerdict::Accept
+    );
 }
 
 #[test]
@@ -62,7 +69,10 @@ fn a_cited_span_must_exist_in_the_source() {
     let text = source_text();
     let mut cited = valid_candidate();
     cited.source = span_source(Some(span("n1", "abcd1234", "owes billing")));
-    assert_eq!(verdict(cited.clone(), &kind, Some(&text)), ValidationVerdict::Accept);
+    assert_eq!(
+        verdict(cited.clone(), &kind, Some(&text)),
+        ValidationVerdict::Accept
+    );
     assert!(rejected(&verdict(cited, &kind, None)));
     let mut wrong_hash = valid_candidate();
     wrong_hash.source = span_source(Some(span("n1", "ffffffff", "owes billing")));

@@ -15,6 +15,7 @@ use std::fmt;
 use std::sync::Arc;
 
 use sqlx::PgPool;
+use systemprompt_brain::outcomes::OutcomeService;
 use systemprompt_brain::recall::{
     BrainRecallService, BrainRecallStore, DeclaredSource, PlaneDeclaredSource,
 };
@@ -24,8 +25,9 @@ use systemprompt_database::DbPool;
 use systemprompt_events::services::durable::{DurableOutbox, OutboxConsumer};
 use systemprompt_extension::ExtensionContext;
 use systemprompt_extension::brain::{
-    DynBrainSink, FactRetriever, ImportanceModel, InjectionPolicy,
-    discover_brain_importance_models, discover_brain_injection_policies, discover_brain_retrievers,
+    DynBrainSink, FactRetriever, ImportanceModel, InjectionPolicy, OutcomeSignal,
+    discover_brain_importance_models, discover_brain_injection_policies,
+    discover_brain_outcome_signals, discover_brain_retrievers,
 };
 use systemprompt_extension::notifications::{
     DynNotificationSink, NotificationAudienceResolver, discover_notification_audiences,
@@ -63,6 +65,7 @@ pub struct RecallSeams {
     pub retrievers: Vec<Arc<dyn FactRetriever>>,
     pub injection: Vec<Arc<dyn InjectionPolicy>>,
     pub importance: Vec<Arc<dyn ImportanceModel>>,
+    pub outcome_signals: Vec<Arc<dyn OutcomeSignal>>,
 }
 
 impl fmt::Debug for RecallSeams {
@@ -72,6 +75,7 @@ impl fmt::Debug for RecallSeams {
             .field("retrievers", &self.retrievers.len())
             .field("injection", &self.injection.len())
             .field("importance", &self.importance.len())
+            .field("outcome_signals", &self.outcome_signals.len())
             .finish()
     }
 }
@@ -93,6 +97,10 @@ impl RecallSeams {
                 .map(|registration| (registration.factory)(ctx))
                 .collect(),
             importance: discover_brain_importance_models()
+                .iter()
+                .map(|registration| (registration.factory)(ctx))
+                .collect(),
+            outcome_signals: discover_brain_outcome_signals()
                 .iter()
                 .map(|registration| (registration.factory)(ctx))
                 .collect(),
@@ -160,6 +168,7 @@ impl BrainCore {
             retrievers,
             injection,
             importance,
+            outcome_signals,
         } = seams;
         audiences.push(Arc::new(UserRoleAudienceResolver::new(Arc::clone(
             &self.users,
@@ -179,6 +188,11 @@ impl BrainCore {
         .injection_policies(injection)
         .audiences(audiences)
         .importance(importance)
+        .outcomes(OutcomeService::new(
+            Arc::clone(&self.repos.recalls),
+            Arc::clone(&self.repos.outcomes),
+            outcome_signals,
+        ))
         .build();
         let source_content = DocumentSourceContent::new(
             Arc::clone(documents.service()),

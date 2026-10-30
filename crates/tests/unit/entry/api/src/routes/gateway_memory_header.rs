@@ -14,12 +14,18 @@ fn with_memory(value: &'static str) -> HeaderMap {
 
 #[test]
 fn lowercase_off_disables_recall() {
-    assert_eq!(memory_preference(&with_memory("off")), MemoryPreference::Off);
+    assert_eq!(
+        memory_preference(&with_memory("off")),
+        MemoryPreference::Off
+    );
 }
 
 #[test]
 fn uppercase_off_disables_recall() {
-    assert_eq!(memory_preference(&with_memory("OFF")), MemoryPreference::Off);
+    assert_eq!(
+        memory_preference(&with_memory("OFF")),
+        MemoryPreference::Off
+    );
 }
 
 #[test]

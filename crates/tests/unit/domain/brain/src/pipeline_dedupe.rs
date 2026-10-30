@@ -35,21 +35,39 @@ fn a_tombstone_refuses_even_an_identity_hit() {
 #[test]
 fn an_identity_hit_with_the_same_statement_is_unchanged() {
     let id = fact_id();
-    let snapshot = DedupeSnapshot { by_identity: Some(existing(&id, STATEMENT)), ..DedupeSnapshot::default() };
-    assert_eq!(run("  acme OWES billing a refund of the march invoice ", &snapshot), DedupeDecision::Unchanged(id));
+    let snapshot = DedupeSnapshot {
+        by_identity: Some(existing(&id, STATEMENT)),
+        ..DedupeSnapshot::default()
+    };
+    assert_eq!(
+        run(
+            "  acme OWES billing a refund of the march invoice ",
+            &snapshot
+        ),
+        DedupeDecision::Unchanged(id)
+    );
 }
 
 #[test]
 fn an_identity_hit_with_a_new_statement_revises() {
     let id = fact_id();
-    let snapshot = DedupeSnapshot { by_identity: Some(existing(&id, STATEMENT)), ..DedupeSnapshot::default() };
-    assert_eq!(run("Acme owes billing nothing", &snapshot), DedupeDecision::Revise(id));
+    let snapshot = DedupeSnapshot {
+        by_identity: Some(existing(&id, STATEMENT)),
+        ..DedupeSnapshot::default()
+    };
+    assert_eq!(
+        run("Acme owes billing nothing", &snapshot),
+        DedupeDecision::Revise(id)
+    );
 }
 
 #[test]
 fn the_same_statement_under_another_identity_merges() {
     let id = fact_id();
-    let snapshot = DedupeSnapshot { neighbours: vec![existing(&id, STATEMENT)], ..DedupeSnapshot::default() };
+    let snapshot = DedupeSnapshot {
+        neighbours: vec![existing(&id, STATEMENT)],
+        ..DedupeSnapshot::default()
+    };
     assert_eq!(run(STATEMENT, &snapshot), DedupeDecision::Merge(id));
 }
 
@@ -58,12 +76,18 @@ fn a_near_identical_statement_disputes_and_never_revises() {
     let id = fact_id();
     let other = fact_id();
     let snapshot = DedupeSnapshot {
-        neighbours: vec![existing(&other, "Globex is a prospect"), existing(&id, STATEMENT)],
+        neighbours: vec![
+            existing(&other, "Globex is a prospect"),
+            existing(&id, STATEMENT),
+        ],
         ..DedupeSnapshot::default()
     };
     let near = "Acme owes billing a refund of the March invoices";
     match run(near, &snapshot) {
-        DedupeDecision::Dispute { fact, similarity: Some(score) } => {
+        DedupeDecision::Dispute {
+            fact,
+            similarity: Some(score),
+        } => {
             assert_eq!(fact, id);
             assert!(score > DISPUTE_SIMILARITY);
         },
@@ -73,17 +97,35 @@ fn a_near_identical_statement_disputes_and_never_revises() {
 
 #[test]
 fn an_unrelated_statement_inserts() {
-    let snapshot = DedupeSnapshot { neighbours: vec![existing(&fact_id(), STATEMENT)], ..DedupeSnapshot::default() };
-    assert_eq!(run("Globex renewed for two years", &snapshot), DedupeDecision::Insert);
+    let snapshot = DedupeSnapshot {
+        neighbours: vec![existing(&fact_id(), STATEMENT)],
+        ..DedupeSnapshot::default()
+    };
+    assert_eq!(
+        run("Globex renewed for two years", &snapshot),
+        DedupeDecision::Insert
+    );
 }
 
 #[test]
 fn a_validator_dispute_targets_the_identity_fact_only() {
     let id = fact_id();
-    let hit = DedupeSnapshot { by_identity: Some(existing(&id, STATEMENT)), ..DedupeSnapshot::default() };
-    assert_eq!(forced_dispute(&hit), Some(DedupeDecision::Dispute { fact: id, similarity: None }));
+    let hit = DedupeSnapshot {
+        by_identity: Some(existing(&id, STATEMENT)),
+        ..DedupeSnapshot::default()
+    };
+    assert_eq!(
+        forced_dispute(&hit),
+        Some(DedupeDecision::Dispute {
+            fact: id,
+            similarity: None
+        })
+    );
     assert_eq!(forced_dispute(&DedupeSnapshot::default()), None);
-    let erased = DedupeSnapshot { tombstoned: true, ..DedupeSnapshot::default() };
+    let erased = DedupeSnapshot {
+        tombstoned: true,
+        ..DedupeSnapshot::default()
+    };
     assert_eq!(forced_dispute(&erased), Some(DedupeDecision::Tombstoned));
 }
 

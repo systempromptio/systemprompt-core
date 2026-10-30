@@ -26,14 +26,18 @@ pub(crate) fn kind_decl() -> KindDecl {
 }
 
 pub(crate) fn valid_candidate() -> FactCandidate {
-    FactCandidate::builder(kind("commitment"), subject("client:acme"), span_source(None))
-        .field("owner", serde_json::json!("billing"))
-        .field("status", serde_json::json!("open"))
-        .field("due", serde_json::json!("2026-11-30"))
-        .field("amount", serde_json::json!(12))
-        .field("partner", serde_json::json!("client:globex"))
-        .extractor("test")
-        .build()
+    FactCandidate::builder(
+        kind("commitment"),
+        subject("client:acme"),
+        span_source(None),
+    )
+    .field("owner", serde_json::json!("billing"))
+    .field("status", serde_json::json!("open"))
+    .field("due", serde_json::json!("2026-11-30"))
+    .field("amount", serde_json::json!(12))
+    .field("partner", serde_json::json!("client:globex"))
+    .extractor("test")
+    .build()
 }
 
 pub(crate) fn span_source(span: Option<SourceSpan>) -> FactSource {

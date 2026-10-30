@@ -12,7 +12,10 @@ fn config() -> ImportanceConfig {
     let mut config = ImportanceConfig::default();
     config.base.kind_weight.insert(kind("commitment"), 0.5);
     config.base.source_weight.insert(SourceClass::Document, 0.8);
-    config.base.model_hint = Some(ModelHint { field: "severity".to_owned(), weight: 0.2 });
+    config.base.model_hint = Some(ModelHint {
+        field: "severity".to_owned(),
+        weight: 0.2,
+    });
     config.base.confirmed_by_owner = 0.1;
     let workflow = WorkflowId::try_new("sales").expect("workflow");
     config.in_context.workflow_weight =
@@ -31,19 +34,35 @@ fn close(left: f64, right: f64) -> bool {
 #[test]
 fn base_is_kind_times_source_plus_hint_plus_bonus() {
     let mut candidate = valid_candidate();
-    candidate.fields.insert("severity".to_owned(), serde_json::json!(0.5));
+    candidate
+        .fields
+        .insert("severity".to_owned(), serde_json::json!(0.5));
     let config = config();
-    assert!(close(FormulaImportance::base_with(&candidate, &config, false), 0.5));
-    assert!(close(FormulaImportance::base_with(&candidate, &config, true), 0.6));
+    assert!(close(
+        FormulaImportance::base_with(&candidate, &config, false),
+        0.5
+    ));
+    assert!(close(
+        FormulaImportance::base_with(&candidate, &config, true),
+        0.6
+    ));
     assert_eq!(FormulaImportance.base(&candidate, &config), Some(0.5));
 }
 
 #[test]
 fn the_hint_is_clamped_and_missing_weights_count_as_one() {
     let mut candidate = valid_candidate();
-    candidate.fields.insert("severity".to_owned(), serde_json::json!(3.0));
-    assert!(close(FormulaImportance::base_with(&candidate, &config(), false), 0.6));
-    assert!(close(FormulaImportance::base_with(&valid_candidate(), &ImportanceConfig::default(), false), 1.0));
+    candidate
+        .fields
+        .insert("severity".to_owned(), serde_json::json!(3.0));
+    assert!(close(
+        FormulaImportance::base_with(&candidate, &config(), false),
+        0.6
+    ));
+    assert!(close(
+        FormulaImportance::base_with(&valid_candidate(), &ImportanceConfig::default(), false),
+        1.0
+    ));
 }
 
 #[test]
@@ -60,8 +79,15 @@ fn score_applies_workflow_recency_subject_and_usage() {
         ignored_rate: 0.25,
     };
     assert!(close(FormulaImportance::score(&terms, &config()), 0.475));
-    let unmatched = InContextTerms { subject_matched: false, workflow: None, ..terms };
-    assert!(close(FormulaImportance::score(&unmatched, &config()), 0.5 * 0.5 + 0.15));
+    let unmatched = InContextTerms {
+        subject_matched: false,
+        workflow: None,
+        ..terms
+    };
+    assert!(close(
+        FormulaImportance::score(&unmatched, &config()),
+        0.5 * 0.5 + 0.15
+    ));
 }
 
 #[test]

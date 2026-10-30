@@ -91,12 +91,13 @@ pub use brain::{
     BrainSourceContentRegistration, BrainValidateError, BrainValidatorRegistration, EventFilter,
     FactExtractor, FactRecallSource, FactRetriever, FactValidator, FilterVerdict, ImportanceModel,
     InjectedFact, InjectionPolicy, MemoryRecall, OutcomeSignal, OutcomeSignalError, RecallBlock,
-    RecallConversation, RecallError, RecallOutcome, RecallPrincipal, RecallReceipt, RecallRequest,
-    ReuseHint, SkipReason, SourceAccess, SourceAccessError, SourceContent, SourceContentError,
-    SourceVerdict, ValidationVerdict, WithheldSummary, discover_brain_analyses,
-    discover_brain_extractors, discover_brain_filters, discover_brain_importance_models,
-    discover_brain_injection_policies, discover_brain_outcome_signals, discover_brain_retrievers,
-    discover_brain_source_contents, discover_brain_validators,
+    RecallConversation, RecallError, RecallObservation, RecallOutcome, RecallPrincipal,
+    RecallReceipt, RecallRequest, ReuseHint, SkipReason, SourceAccess, SourceAccessError,
+    SourceContent, SourceContentError, SourceVerdict, ValidationVerdict, WithheldSummary,
+    discover_brain_analyses, discover_brain_extractors, discover_brain_filters,
+    discover_brain_importance_models, discover_brain_injection_policies,
+    discover_brain_outcome_signals, discover_brain_retrievers, discover_brain_source_contents,
+    discover_brain_validators,
 };
 #[cfg(feature = "sqlx")]
 pub use brain::{BrainSink, DynBrainSink};

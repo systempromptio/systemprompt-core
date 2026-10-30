@@ -24,7 +24,7 @@ use systemprompt_extension::brain::DynBrainSink;
 use systemprompt_extension::notifications::DynNotificationSink;
 use systemprompt_identifiers::BrainFactId;
 use systemprompt_manifest::profile::BrainProfile;
-use systemprompt_models::brain::{BrainFact, FactRevision};
+use systemprompt_models::brain::{BrainFact, FactRevision, RevisionChange};
 use systemprompt_models::notifications::NotificationEvent;
 
 pub use authority::BrainCaller;
@@ -33,6 +33,7 @@ pub use reads::FactWhy;
 
 use crate::error::{BrainError, BrainResult};
 use crate::models::FactChange;
+use crate::outcomes;
 use crate::recall::{DeclaredRecall, DeclaredSource, PlaneDeclaredSource};
 use crate::replay::ProposalReplay;
 use crate::repository::{BrainRepositories, FactRepository};
@@ -152,6 +153,13 @@ impl BrainService {
         let change = change(&fact, &declared)?;
         let action = change.revision_change();
         let revision = FactRepository::apply(&mut tx, id, change).await?;
+        if matches!(
+            action,
+            RevisionChange::Retracted | RevisionChange::FieldsEdited
+        ) {
+            let window = self.profile.lifecycle.correction_window_days;
+            outcomes::on_correction(&mut *tx, id, &caller.user_id, window).await?;
+        }
         tx.commit().await?;
         tracing::info!(
             fact_id = %id,

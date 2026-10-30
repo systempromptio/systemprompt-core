@@ -2,11 +2,12 @@
 //! each fact change to the revision it records, the row builders the
 //! repository tests share, the `brain` config plane (file side pure, apply
 //! round trip against the test database in `plane_db`), the recall stages
-//! (fusion, visibility, budget fill, same-turn reuse), lifecycle authority,
-//! the capture pipeline's pure stages (composite filter, dedupe decision,
-//! schema validator, importance formula, extraction schema and parser), the
-//! analyses' threshold decisions and proposal dedupe, and the replay diff
-//! (dry runs against a disposable database in `replay_db`).
+//! (fusion, visibility, budget fill, same-turn reuse), outcome citation
+//! scanning (recorded against the test database in `outcomes_db`), lifecycle
+//! authority, the capture pipeline's pure stages (composite filter, dedupe
+//! decision, schema validator, importance formula, extraction schema and
+//! parser), the analyses' threshold decisions and proposal dedupe, and the
+//! replay diff (dry runs against a disposable database in `replay_db`).
 
 #[cfg(test)]
 mod analyses_bloat;
@@ -22,6 +23,10 @@ mod defaults_validator;
 mod fixtures;
 #[cfg(test)]
 mod model_schema;
+#[cfg(test)]
+mod outcomes_cited;
+#[cfg(test)]
+mod outcomes_db;
 #[cfg(test)]
 mod pipeline_dedupe;
 #[cfg(test)]

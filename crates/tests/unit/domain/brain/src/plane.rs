@@ -60,7 +60,12 @@ fn invalid_message(root: &Path) -> String {
 #[test]
 fn absent_directory_is_undeclared() {
     let root = tempfile::tempdir().expect("tempdir");
-    assert!(BrainPlane.load_declared(root.path()).expect("load").is_none());
+    assert!(
+        BrainPlane
+            .load_declared(root.path())
+            .expect("load")
+            .is_none()
+    );
 }
 
 #[test]
@@ -168,18 +173,12 @@ fn row_hash_equals_file_hash_and_tracks_changes() {
         .expect("load")
         .expect("declared");
     let mut rows = rows_of(&declared.entries);
-    assert_eq!(
-        declared_hash_from_rows(&rows).expect("hash"),
-        declared.hash
-    );
+    assert_eq!(declared_hash_from_rows(&rows).expect("hash"), declared.hash);
     let retrieval = rows
         .docs
         .iter_mut()
         .find(|row| row.id == "retrieval")
         .expect("retrieval row");
     retrieval.body["max_facts"] = serde_json::json!(9);
-    assert_ne!(
-        declared_hash_from_rows(&rows).expect("hash"),
-        declared.hash
-    );
+    assert_ne!(declared_hash_from_rows(&rows).expect("hash"), declared.hash);
 }

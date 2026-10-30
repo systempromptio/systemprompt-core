@@ -35,8 +35,8 @@ pub use errors::{
     OutcomeSignalError, RecallError, SourceAccessError, SourceContentError,
 };
 pub use recall::{
-    MAX_SUBJECT_HINTS, MemoryRecall, RecallConversation, RecallOutcome, RecallPrincipal,
-    RecallReceipt, RecallRequest, ReuseHint, SkipReason,
+    MAX_SUBJECT_HINTS, MemoryRecall, RecallConversation, RecallObservation, RecallOutcome,
+    RecallPrincipal, RecallReceipt, RecallRequest, ReuseHint, SkipReason,
 };
 pub use registry::{
     BrainAnalysisRegistration, BrainExtractorRegistration, BrainFilterRegistration,

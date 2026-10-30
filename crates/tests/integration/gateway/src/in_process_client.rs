@@ -43,7 +43,9 @@ impl GatewayRequestGuard for DenyServiceGuard {
         request: &GatewayGuardRequest<'_>,
     ) -> Result<(), GatewayDenyReason> {
         if DENIED_USER.lock().expect("denied user").as_deref() == Some(request.user_id.as_str()) {
-            return Err(GatewayDenyReason::forbidden("service principal is not allowed"));
+            return Err(GatewayDenyReason::forbidden(
+                "service principal is not allowed",
+            ));
         }
         Ok(())
     }
@@ -140,7 +142,10 @@ impl Fixture {
         );
     }
 
-    async fn audit_row(&self, id: &AiRequestId) -> Option<(String, String, String, Option<String>)> {
+    async fn audit_row(
+        &self,
+        id: &AiRequestId,
+    ) -> Option<(String, String, String, Option<String>)> {
         sqlx::query_as(
             "SELECT r.actor_kind, r.client_kind, r.status, a.value FROM ai_requests r \
              LEFT JOIN ai_request_attributions a \
@@ -174,8 +179,11 @@ fn message(content: serde_json::Value) -> serde_json::Value {
 #[tokio::test]
 async fn a_completion_reaches_the_upstream_and_leaves_a_job_audit_row() -> anyhow::Result<()> {
     let fx = fixture("inproc_complete", None).await?;
-    fx.mount(message(serde_json::json!([{"type": "text", "text": "hello brain"}])), 1)
-        .await;
+    fx.mount(
+        message(serde_json::json!([{"type": "text", "text": "hello brain"}])),
+        1,
+    )
+    .await;
     let completion = fx
         .client
         .complete(minimal_request(Some("be brief"), "hello gateway"), PURPOSE)
@@ -221,8 +229,11 @@ async fn an_exhausted_principal_quota_refuses_with_quota() -> anyhow::Result<()>
         "quota_windows": [{"window_seconds": 3600, "max_requests": 1}]
     });
     let fx = fixture("inproc_quota", Some(policy)).await?;
-    fx.mount(message(serde_json::json!([{"type": "text", "text": "ok"}])), 1)
-        .await;
+    fx.mount(
+        message(serde_json::json!([{"type": "text", "text": "ok"}])),
+        1,
+    )
+    .await;
     fx.client
         .complete(minimal_request(None, "first call"), PURPOSE)
         .await?;

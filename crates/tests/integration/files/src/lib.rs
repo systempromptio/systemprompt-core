@@ -24,6 +24,8 @@ mod documents_agent_visibility;
 #[cfg(test)]
 mod documents_blob_store;
 #[cfg(test)]
+mod documents_brain_facts;
+#[cfg(test)]
 mod documents_collab;
 #[cfg(test)]
 mod documents_collab_images;
@@ -57,8 +59,6 @@ mod documents_listing;
 mod documents_listing_scale;
 #[cfg(test)]
 mod documents_node_ids_backfill;
-#[cfg(test)]
-mod documents_brain_facts;
 mod documents_notification_facts;
 #[cfg(test)]
 mod documents_proposals;

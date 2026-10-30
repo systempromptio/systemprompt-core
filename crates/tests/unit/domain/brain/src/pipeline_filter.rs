@@ -44,12 +44,20 @@ fn no_filter_registered_gathers_nothing() {
 fn first_gather_wins_after_abstentions() {
     let filters = vec![
         filter("a", FilterVerdict::Abstain),
-        filter("b", FilterVerdict::Gather { kinds: vec![kind("commitment")] }),
+        filter(
+            "b",
+            FilterVerdict::Gather {
+                kinds: vec![kind("commitment")],
+            },
+        ),
         filter("c", FilterVerdict::Ignore),
     ];
     assert_eq!(
         composite(&filters, &landed()),
-        FilterDecision::Gather { filter: "b".to_owned(), kinds: vec![kind("commitment")] }
+        FilterDecision::Gather {
+            filter: "b".to_owned(),
+            kinds: vec![kind("commitment")]
+        }
     );
 }
 
@@ -61,16 +69,23 @@ fn an_earlier_ignore_beats_a_later_gather() {
     ];
     assert_eq!(
         composite(&filters, &landed()),
-        FilterDecision::Ignored { filter: "drop".to_owned() }
+        FilterDecision::Ignored {
+            filter: "drop".to_owned()
+        }
     );
 }
 
 #[test]
 fn all_abstaining_is_ignored_with_a_reason() {
-    let filters = vec![filter("a", FilterVerdict::Abstain), filter("b", FilterVerdict::Abstain)];
+    let filters = vec![
+        filter("a", FilterVerdict::Abstain),
+        filter("b", FilterVerdict::Abstain),
+    ];
     assert_eq!(
         composite(&filters, &landed()),
-        FilterDecision::Ignored { filter: ALL_ABSTAINED.to_owned() }
+        FilterDecision::Ignored {
+            filter: ALL_ABSTAINED.to_owned()
+        }
     );
 }
 
@@ -84,7 +99,10 @@ fn an_entered_fact_bypasses_filters() {
     );
     assert_eq!(
         decision,
-        FilterDecision::Gather { filter: ENTERED_BYPASS.to_owned(), kinds: Vec::new() }
+        FilterDecision::Gather {
+            filter: ENTERED_BYPASS.to_owned(),
+            kinds: Vec::new()
+        }
     );
 }
 
@@ -97,6 +115,8 @@ fn an_uncaptured_pathway_is_ignored_even_when_a_filter_gathers() {
     };
     assert_eq!(
         decide(&filters, &capture, &landed()),
-        FilterDecision::Ignored { filter: CAPTURE_SOURCES.to_owned() }
+        FilterDecision::Ignored {
+            filter: CAPTURE_SOURCES.to_owned()
+        }
     );
 }
