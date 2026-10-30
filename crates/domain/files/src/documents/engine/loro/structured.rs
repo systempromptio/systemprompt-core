@@ -126,3 +126,40 @@ fn carry_one(held: &Sheet, sheet: &mut Sheet) {
     }
     sheet.id.clone_from(&held.id);
 }
+
+/// Gives a re-imported deck the live session's ids. An imported slide is
+/// keyed by its part and a shape by its `cNvPr`, so a slide or shape whose
+/// id the live deck holds keeps it; one the live deck does not hold takes
+/// the id of the live slide or shape at its position when that id is not
+/// otherwise in use (a slide or shape created live), so a write-back
+/// rewrites only what changed.
+pub(crate) fn carry_deck_ids(live: &deck::DeckModel, next: &mut deck::DeckModel) {
+    let ids = |slides: &[deck::DeckSlide]| -> Vec<String> {
+        slides.iter().map(|slide| slide.id.clone()).collect()
+    };
+    let live_ids = ids(&live.slides);
+    let next_ids = ids(&next.slides);
+    for (at, slide) in next.slides.iter_mut().enumerate() {
+        if !live_ids.contains(&slide.id)
+            && let Some(held) = live.slides.get(at)
+            && !next_ids.contains(&held.id)
+        {
+            slide.id.clone_from(&held.id);
+        }
+        if let Some(held) = live.slides.iter().find(|held| held.id == slide.id) {
+            carry_shapes(&held.shapes, &mut slide.shapes);
+        }
+    }
+}
+
+fn carry_shapes(live: &[deck::DeckShape], next: &mut [deck::DeckShape]) {
+    let next_ids: Vec<String> = next.iter().map(|shape| shape.id.clone()).collect();
+    for (at, shape) in next.iter_mut().enumerate() {
+        if !live.iter().any(|held| held.id == shape.id)
+            && let Some(held) = live.get(at)
+            && !next_ids.contains(&held.id)
+        {
+            shape.id.clone_from(&held.id);
+        }
+    }
+}

@@ -44,7 +44,9 @@ pub(super) fn update_from_ops(
         apply_rich_ops_loro(draft, ops)
             .map(drop)
             .map_err(|error| match error {
-                RichOpError::Unsupported { .. } => EngineError::Unsupported,
+                RichOpError::Unsupported { .. } | RichOpError::UnknownBlock { .. } => {
+                    EngineError::Unsupported
+                },
                 other => EngineError::Model(Box::new(other)),
             })
     })

@@ -161,6 +161,31 @@ impl CollabService {
         Ok(())
     }
 
+    /// Gives a seeded document the base revision's projection node ids, so
+    /// agent ops address the live blocks by the ids they read. A revision
+    /// without stored ids, or a projection that does not align, keeps the
+    /// seed's own ids.
+    async fn adopt_projection_ids(
+        &self,
+        document: &Document,
+        revision: &DocumentRevisionId,
+        seeded: &mut dyn EngineDoc,
+    ) {
+        let adopted = match self.documents.projection_with_ids(document, revision).await {
+            Ok(projection) => seeded
+                .adopt_node_ids(&projection.root)
+                .map_err(CollabError::from),
+            Err(error) => Err(error.into()),
+        };
+        if let Err(error) = adopted {
+            tracing::warn!(
+                document_id = %document.id,
+                error = %error,
+                "Live session seeded without the projection's node ids"
+            );
+        }
+    }
+
     async fn load_doc(
         &self,
         document: &Document,
@@ -180,7 +205,11 @@ impl CollabService {
             },
             None => ModelView::RichText(RichText::default()),
         };
-        let seeded = engine.seed(&model)?;
+        let mut seeded = engine.seed(&model)?;
+        if let Some(revision) = &session.base_revision_id {
+            self.adopt_projection_ids(document, revision, seeded.as_mut())
+                .await;
+        }
         let sealed = ImageOwners::default().seal(&seeded.snapshot()?);
         let blob = self.documents.blobs().put(&sealed).await?;
         collab

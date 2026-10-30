@@ -27,6 +27,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod adopt;
 pub mod deck;
 pub mod edit;
 mod edit_table;
@@ -172,6 +173,17 @@ impl EngineDoc for LoroEngineDoc {
 
     fn update_to_model(&self, model: &ModelView) -> Result<Option<Vec<u8>>, EngineError> {
         self.update_to_model_as(model, self.0.peer_id())
+    }
+
+    fn adopt_node_ids(
+        &mut self,
+        nodes: &[systemprompt_provider_contracts::documents::ProjectionNode],
+    ) -> Result<bool, EngineError> {
+        let adopted = adopt::adopt(&self.0, nodes).map_err(EngineError::State)?;
+        if adopted {
+            self.0.commit();
+        }
+        Ok(adopted)
     }
 
     fn update_from_ops(

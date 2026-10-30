@@ -148,6 +148,16 @@ pub trait EngineDoc: Send + fmt::Debug {
         Err(EngineError::Unsupported)
     }
 
+    /// Renames this freshly seeded document's blocks, rows and cells to the
+    /// node ids of `nodes` (the base revision's projection) when the two
+    /// align; answers whether they did.
+    fn adopt_node_ids(
+        &mut self,
+        _nodes: &[systemprompt_provider_contracts::documents::ProjectionNode],
+    ) -> Result<bool, EngineError> {
+        Ok(false)
+    }
+
     /// Imports `update` like [`Self::apply_update`] and reports what it
     /// changed: scoped to the touched blocks when `scoped` and the engine
     /// can tell, the whole model otherwise.

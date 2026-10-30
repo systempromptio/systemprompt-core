@@ -26,7 +26,7 @@ use super::{CollabError, CollabService};
 use crate::documents::agents::DocumentActor;
 use crate::documents::engine::ModelView;
 #[cfg(feature = "collab-loro")]
-use crate::documents::engine::loro::structured::carry_sheet_ids;
+use crate::documents::engine::loro::structured::{carry_deck_ids, carry_sheet_ids};
 use crate::documents::model::{EditLevel, carry_ids};
 use crate::documents::repository::UpdateAuthor;
 
@@ -70,7 +70,15 @@ impl CollabService {
                 }
             },
             #[cfg(feature = "collab-loro")]
-            ModelView::Deck(_) => import(format, merged).map_err(model_error(document_id))?,
+            ModelView::Deck(live) => {
+                match import(format, merged).map_err(model_error(document_id))? {
+                    ModelView::Deck(mut next) => {
+                        carry_deck_ids(live, &mut next);
+                        ModelView::Deck(next)
+                    },
+                    other => other,
+                }
+            },
         };
         let update = body
             .fork
