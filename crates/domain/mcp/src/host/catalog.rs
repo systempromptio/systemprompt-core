@@ -100,17 +100,16 @@ impl HostedCatalog {
     ) -> Result<(), ToolsetHostError> {
         let mut declared: Vec<&String> = deployment.tools.keys().collect();
         declared.sort();
-        match declared
+        declared
             .into_iter()
             .find(|tool| !self.tools.contains_key(tool.as_str()))
-        {
-            Some(tool) => Err(ToolsetHostError::UnhostedTool {
-                server: server.clone(),
-                tool: tool.clone(),
-                hosted: self.names().join(", "),
-            }),
-            None => Ok(()),
-        }
+            .map_or(Ok(()), |tool| {
+                Err(ToolsetHostError::UnhostedTool {
+                    server: server.clone(),
+                    tool: tool.clone(),
+                    hosted: self.names().join(", "),
+                })
+            })
     }
 
     #[must_use]

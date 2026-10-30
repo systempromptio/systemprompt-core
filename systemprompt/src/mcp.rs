@@ -8,9 +8,11 @@ pub use systemprompt_mcp::{
     register_artifact_theme, register_mcp_access_recorder, register_ui_renderer, *,
 };
 
-/// The YAML-declared MCP server host: [`serve`] a deployment's
-/// `toolsets:`, register toolsets with [`submit_toolset!`] and access
-/// recorders with [`register_mcp_access_recorder!`].
+/// The YAML-declared MCP server host.
+///
+/// [`serve`](host::serve) a deployment's `toolsets:`, register toolsets with
+/// [`submit_toolset!`](host::submit_toolset) and access recorders with
+/// [`register_mcp_access_recorder!`].
 pub mod host {
     pub use systemprompt_mcp::host::*;
     pub use systemprompt_mcp::register_mcp_access_recorder;

@@ -17,10 +17,12 @@ use async_trait::async_trait;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{McpServerId, UserId};
 
-/// What happened to one request at the host's gate: the credential was
-/// accepted (`Authenticated`), the tool ran (`Used`), authentication or the
-/// governance chain refused it (`Rejected`), or the caller is authenticated
-/// but the tool's declared access excludes it (`Forbidden`).
+/// What happened to one request at the host's gate.
+///
+/// The credential was accepted (`Authenticated`), the tool ran (`Used`),
+/// authentication or the governance chain refused it (`Rejected`), or the
+/// caller is authenticated but the tool's declared access excludes it
+/// (`Forbidden`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum McpAccessOutcome<'a> {
     Authenticated,

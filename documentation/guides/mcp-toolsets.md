@@ -83,7 +83,7 @@ struct AdminToolset { /* services the tools need */ }
 impl McpToolset for AdminToolset {
     fn id(&self) -> &str { "admin" }
 
-    fn instructions(&self) -> &str { "Platform administration. ..." }
+    fn instructions(&self) -> &'static str { "Platform administration. ..." }
 
     fn tools(&self) -> Vec<rmcp::model::Tool> { /* handler.tool_definition(..) per tool */ }
 

@@ -49,7 +49,7 @@ pub struct ToolsetCall<'a> {
 pub trait McpToolset: Send + Sync + Debug {
     fn id(&self) -> &str;
 
-    fn instructions(&self) -> &str {
+    fn instructions(&self) -> &'static str {
         ""
     }
 

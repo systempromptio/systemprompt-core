@@ -30,7 +30,7 @@ impl McpToolset for IssuesToolset {
         ISSUES_TOOLSET
     }
 
-    fn instructions(&self) -> &str {
+    fn instructions(&self) -> &'static str {
         crate::issues::mcp::INSTRUCTIONS
     }
 
@@ -59,7 +59,7 @@ impl McpToolset for DocumentsToolset {
         DOCUMENTS_TOOLSET
     }
 
-    fn instructions(&self) -> &str {
+    fn instructions(&self) -> &'static str {
         crate::documents::mcp::INSTRUCTIONS
     }
 
