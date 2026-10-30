@@ -56,8 +56,9 @@ and Cargo dependency graph. Build-time dependencies also require supply-chain re
 
 The configured workflow runs `cargo deny` and a separate `cargo audit` job through
 `just audit`. Assess advisory coverage against the scanner versions, lockfiles and policies.
-The repository does not configure automatic SBOM publication. Generate an SBOM from the
-lockfile and build configuration used for the deployed artifact when required.
+From 0.77.0, bridge releases attach signed CycloneDX SBOMs for the bridge and core workspaces, and a
+build-provenance attestation for every asset. `gitleaks` scans the tracked tree in the
+same workflow; test fixtures are allowlisted in `.gitleaks.toml`.
 
 ## 3. Continuous integration
 
@@ -69,7 +70,9 @@ lockfile and build configuration used for the deployed artifact when required.
 | [Coverage](../../.github/workflows/coverage.yml) | Instrumented tests, coverage artifacts, configured floor and comparison with a baseline |
 | [Bridge coverage](../../.github/workflows/coverage-bridge.yml) | Platform-specific bridge coverage |
 | [Exercise suites](../../.github/workflows/exercise-suites.yml) | Fuzz smoke tests and benchmark/load-test compilation |
-| [Bridge release signing](../../.github/workflows/release-sign.yml) | Release builds, checksums and Sigstore signing |
+| [Bridge release signing](../../.github/workflows/release-sign.yml) | Release builds, checksums, CycloneDX SBOMs, build-provenance attestations and Sigstore signing |
+| [CodeQL](../../.github/workflows/codeql.yml) | Static analysis of Rust, JavaScript and workflow files; results in code scanning |
+| [OpenSSF Scorecard](../../.github/workflows/scorecard.yml) | Repository security-practice score, published to the OpenSSF API |
 
 Use the run associated with the evaluated commit for pass/fail results. Coverage percentages
 require a successful measurement for that commit and its declared instrumentation scope.
@@ -131,7 +134,7 @@ workspace SQLx macros require its database configuration.
 | Gateway quotas | Ordinary gateway cost buckets account for completed requests; concurrent in-flight requests can exceed a ceiling. | Size ordinary quotas for concurrent usage |
 | Audit integrity | The governance-decision UPDATE trigger rejects row updates while enabled; DELETE remains grant-controlled, and owners can disable the trigger | Apply table-specific least privilege and external retention; preserve required updates to mutable request records |
 | PostgreSQL compatibility | Deployment documentation specifies PostgreSQL 18+; CI service definitions use PostgreSQL 16 | Validate the deployment's PostgreSQL version before rollout |
-| Supply-chain automation | Workflow files use mutable Action tags; no dependency-update, CodeQL or SBOM workflow is committed | Assess build provenance and dependency controls for the deployment |
+| Supply-chain automation | Actions are pinned to commit SHAs with least-privilege tokens; SBOMs and provenance are published for bridge releases. Crates on crates.io are unsigned, and dependency updates are reviewed manually rather than by a bot | Verify release attestations; build from a tagged source revision when crates are consumed directly |
 | External assurance | Third-party assessment artifacts are not included in this repository | Obtain current evidence with an explicit scope and date |
 
 ## 7. Verification

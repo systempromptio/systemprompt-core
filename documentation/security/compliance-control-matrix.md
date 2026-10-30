@@ -77,7 +77,7 @@ Common Criteria mappings. Mirrors the 2017 TSC revision (effective through curre
 | Criterion | Systemprompt support | Evidence |
 |-----------|----------------------|----------|
 | CC9.1 Identifies, selects, and develops risk mitigation activities | Threat model; continuous dependency scanning with `cargo deny` (advisories, licences, banned crates, registry sources) across all seven workspaces, blocking on pull requests and on a daily schedule. Advisories assessed and accepted are recorded with written justification in `deny.toml` and disclosed in §5 below | [threat-model.md](threat-model.md), `.github/workflows/supply-chain.yml`, `deny.toml` |
-| CC9.2 Vendor and business partner risk management | Customer's responsibility. A CycloneDX SBOM is generated on demand via `cargo cyclonedx`; automated per-release SBOM publication is **not configured** (no `sbom.yml` workflow exists) | `deny.toml`; SBOM generation is currently a manual step |
+| CC9.2 Vendor and business partner risk management | Supplier evidence: signed CycloneDX SBOMs and build-provenance attestations on every bridge release from 0.77.0, `cargo deny`/`cargo audit`/`gitleaks` on every push and daily, CodeQL and OpenSSF Scorecard. See the [supplier mapping](soc2-iso-mapping.md) | [supply-chain.md](supply-chain.md), `.github/workflows/release-sign.yml` |
 
 ## 3. ISO/IEC 27001:2022 — Annex A (selected)
 
@@ -119,7 +119,7 @@ Pre-answers to the questions an enterprise security questionnaire (CAIQ, SIG, SI
 | Do you support audit logging? | Yes. Every governed request produces a structured audit event with full decision trace. |
 | How do you handle vulnerabilities? | SECURITY.md defines reporting, SLAs, and coordinated disclosure. `cargo deny` runs on every push, every pull request, and daily, with merge requirements determined by repository settings. Advisories we have assessed and accepted are published with justifications in §5.1. |
 | Do you run penetration tests? | No commissioned third-party report is included in this repository. Obtain current assessment scope, date and results from the vendor. Test the deployed configuration and its integration boundaries. |
-| Do you publish an SBOM? | Not currently attached to releases. A CycloneDX SBOM can be generated on demand from the committed `Cargo.lock` with `cargo cyclonedx`, and we will produce one for you on request. Automated per-release publication is tracked in [rfi-readiness-audit.md §6](rfi-readiness-audit.md). |
+| Do you publish an SBOM? | Yes, from 0.77.0. Each bridge release attaches signed CycloneDX SBOMs for the bridge and the core workspace, plus build-provenance attestations. See [supply-chain.md](supply-chain.md). |
 | Are releases signed? | `systemprompt-bridge` binaries are signed with Sigstore `cosign` (keyless, OIDC-bound to this repository and workflow) via `.github/workflows/release-sign.yml` on `bridge-v*` tags, with a Rekor transparency-log entry and a published `cosign verify-blob` command. The core platform ships as source and as crates.io packages rather than as binaries we distribute; organisations that repackage it for internal distribution sign the resulting artefact packs under their own key and provenance, under their deployment policy. |
 | What is your business continuity plan? | Source is distributed under the repository licence. Deployment continuity requires operator-managed backups, restore tests, dependency availability and applicable usage rights. |
 | Do you have cyber liability insurance? | Request current insurance documentation from the vendor. |
