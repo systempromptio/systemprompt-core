@@ -70,8 +70,10 @@ mod translate {
         let writes = ops
             .iter()
             .map(plan)
-            .collect::<Result<Vec<_>, _>>()?
-            .concat();
+            .collect::<Result<Vec<Vec<_>>, _>>()?
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>();
         let changes: Vec<SheetChange> = writes
             .iter()
             .flat_map(|write| match write {

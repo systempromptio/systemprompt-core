@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM document_collab_owners\n             WHERE document_id = $1::text::uuid AND owner_id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "74222bec4f2adc11a325cd684b7c981b63711c87e237ac67437a17846122a696"
+}

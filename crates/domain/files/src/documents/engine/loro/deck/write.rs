@@ -13,9 +13,8 @@ use std::collections::HashSet;
 use crate::documents::model::Block;
 use loro::{LoroDoc, LoroMap, LoroMovableList, LoroText};
 
-use super::super::rich::{
-    WriteError, block_map, insert_block, kind_json, string_of, sync_attrs, sync_text, text_of,
-};
+use super::super::rich::{WriteError, block_map, insert_block, string_of, sync_text, text_of};
+use super::super::write::{kind_json, sync_attrs};
 use super::model::{DeckModel, DeckShape, DeckSlide, Frame};
 use super::read::{list_of, map_of};
 
