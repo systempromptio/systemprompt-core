@@ -14,11 +14,6 @@ use crate::document_schemas::DOCUMENT_SCHEMAS;
 
 const WEB_ASSETS: &[(&str, &str, AssetType)] = &[
     (
-        "js/documents.js",
-        "assets/documents/js/documents.js",
-        AssetType::JavaScript,
-    ),
-    (
         "js/documents-api.js",
         "assets/documents/js/documents-api.js",
         AssetType::JavaScript,
@@ -37,86 +32,6 @@ const WEB_ASSETS: &[(&str, &str, AssetType)] = &[
         "js/documents-patch.js",
         "assets/documents/js/documents-patch.js",
         AssetType::JavaScript,
-    ),
-    (
-        "js/documents-element.js",
-        "assets/documents/js/documents-element.js",
-        AssetType::JavaScript,
-    ),
-    (
-        "js/sp-document-browser.js",
-        "assets/documents/js/sp-document-browser.js",
-        AssetType::JavaScript,
-    ),
-    (
-        "js/documents-browser-view.js",
-        "assets/documents/js/documents-browser-view.js",
-        AssetType::JavaScript,
-    ),
-    (
-        "js/sp-document-preview.js",
-        "assets/documents/js/sp-document-preview.js",
-        AssetType::JavaScript,
-    ),
-    (
-        "js/sp-presence-bar.js",
-        "assets/documents/js/sp-presence-bar.js",
-        AssetType::JavaScript,
-    ),
-    (
-        "js/sp-sheet-grid.js",
-        "assets/documents/js/sp-sheet-grid.js",
-        AssetType::JavaScript,
-    ),
-    (
-        "js/sp-slide-text.js",
-        "assets/documents/js/sp-slide-text.js",
-        AssetType::JavaScript,
-    ),
-    (
-        "js/sp-share-dialog.js",
-        "assets/documents/js/sp-share-dialog.js",
-        AssetType::JavaScript,
-    ),
-    (
-        "js/sp-subject-picker.js",
-        "assets/documents/js/sp-subject-picker.js",
-        AssetType::JavaScript,
-    ),
-    (
-        "js/documents-share-view.js",
-        "assets/documents/js/documents-share-view.js",
-        AssetType::JavaScript,
-    ),
-    (
-        "js/sp-proposal-list.js",
-        "assets/documents/js/sp-proposal-list.js",
-        AssetType::JavaScript,
-    ),
-    (
-        "js/sp-comments.js",
-        "assets/documents/js/sp-comments.js",
-        AssetType::JavaScript,
-    ),
-    (
-        "js/sp-history.js",
-        "assets/documents/js/sp-history.js",
-        AssetType::JavaScript,
-    ),
-    (
-        "css/documents.css",
-        "assets/documents/css/documents.css",
-        AssetType::Css,
-    ),
-    (
-        "css/documents-panels.css",
-        "assets/documents/css/documents-panels.css",
-        AssetType::Css,
-    ),
-    (
-        "css/documents-sharing.css",
-        "assets/documents/css/documents-sharing.css",
-        AssetType::Css,
     ),
 ];
 

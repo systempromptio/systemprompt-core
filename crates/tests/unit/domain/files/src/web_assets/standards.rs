@@ -3,24 +3,14 @@ use std::path::{Component, Path, PathBuf};
 
 use super::{assets_root, own_scripts, shipped_files};
 
-fn defined_tags(text: &str) -> Vec<String> {
-    text.match_indices("customElements.define(\"")
-        .filter_map(|(at, needle)| {
-            let rest = &text[at + needle.len()..];
-            rest.split('"').next().map(str::to_owned)
-        })
-        .collect()
-}
-
 #[test]
-fn every_component_file_defines_exactly_its_own_sp_element() {
+fn the_client_defines_no_elements_and_ships_no_styles() {
     for (name, text) in own_scripts() {
-        let tags = defined_tags(&text);
-        match name.strip_suffix(".js").filter(|n| n.starts_with("sp-")) {
-            Some(tag) => assert_eq!(tags, vec![tag.to_owned()], "{name}"),
-            None => assert!(tags.is_empty(), "{name} is not a component file"),
-        }
+        assert!(!text.contains("customElements.define"), "{name} defines an element");
+        assert!(!text.contains("extends HTMLElement"), "{name} is a component");
     }
+    let root = assets_root();
+    assert!(!root.join("css").exists(), "the client ships no CSS");
 }
 
 #[test]
@@ -102,7 +92,7 @@ fn every_relative_import_resolves_to_a_shipped_file() {
             checked += 1;
         }
     }
-    assert!(checked > 20, "only {checked} imports were checked");
+    assert!(checked > 0, "only {checked} imports were checked");
 }
 
 fn asset(name: &str) -> String {
@@ -114,4 +104,26 @@ fn post_edits_takes_a_caller_stable_op_id() {
     let api = asset("documents-api.js");
     assert!(api.contains("op_id: editId"));
     assert!(!api.contains("op_id: opId()"));
+}
+
+#[test]
+fn the_api_reaches_subjects_and_access_requests() {
+    let api = asset("documents-api.js");
+    assert!(api.contains("`${DOCUMENTS}/subjects${query({ kind, q, limit })}`"));
+    assert!(api.contains("/access-requests/${encodeURIComponent(requestId)}/${decision}"));
+}
+
+#[test]
+fn no_script_uses_native_dialogs_or_exceeds_the_line_limit() {
+    for (name, text) in own_scripts() {
+        for banned in ["alert(", "confirm(", "prompt("] {
+            let native = text.match_indices(banned).any(|(at, _)| {
+                at == 0
+                    || !text[..at].ends_with(['.', '_'])
+                        && !text[..at].ends_with(char::is_alphanumeric)
+            });
+            assert!(!native, "{name} calls {banned}");
+        }
+        assert!(text.lines().count() <= 150, "{name} is over 150 lines");
+    }
 }

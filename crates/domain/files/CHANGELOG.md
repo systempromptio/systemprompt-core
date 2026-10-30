@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Breaking
+
+- **Breaking:** the browser UI is removed: the `sp-*` web components (`sp-document-browser`, `sp-document-preview`, `sp-presence-bar`, `sp-sheet-grid`, `sp-slide-text`, `sp-share-dialog`, `sp-subject-picker`, `sp-history`, `sp-comments`, `sp-proposal-list`), the `documents.js` entry, the `DocumentsElement` base class, the browser and share views and `assets/documents/css/*`. Core keeps the headless client (`documents-api.js`, `documents-events.js`, `documents-patch.js`, `documents-html.js`). Migrate by building the document UI in the host extension on that client; Astound Digital is the reference.
+
 ## [0.76.0] - 2026-10-29
 
 ### Breaking

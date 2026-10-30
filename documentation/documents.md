@@ -275,32 +275,18 @@ The server stores a snapshot 30 seconds after the first unsaved update or after 
 
 While `files.documents.enabled` is on, the extension `Dependencies` carry `Arc<DocumentService>`; an extension router that serves a document page reads it with `ctx.dependencies().get::<Arc<DocumentService>>()` and authorizes the request through the service before rendering. With the store off the entry is absent, and a page that needs it is not mounted.
 
-## Web components
+## Browser client
 
-The files extension ships native ES module Web Components for browsing, previewing and editing documents. The generator's asset job copies them into the web distribution:
+Core ships no document UI. Pages, editors, panels and their styles belong to the host extension, which composes them from the HTTP API above and this headless client; the Astound Digital application is the reference implementation. The generator's asset job copies the client into the web distribution:
 
-| Path | Content |
+| Path | Exports |
 |---|---|
-| `assets/documents/js/documents.js` | Entry module; importing it defines every component |
-| `assets/documents/js/*.js` | One module per component, plus the HTTP client, the event stream and helpers |
-| `assets/documents/css/documents.css`, `documents-panels.css`, `documents-sharing.css` | Styles built on the install's `--sp-` design tokens |
+| `assets/documents/js/documents-api.js` | One function per route (documents, folders, projection, revisions, edits, restore, access, grants, transfer, access requests, subjects, presence, collab, proposals, comments), `opId()` and `STREAM_URL`; the only module that calls `fetch`, and every refusal is a `DocumentsApiError` carrying the error key |
+| `assets/documents/js/documents-events.js` | `subscribeDocument(documentId, fn)`: `document.*` AG-UI `CUSTOM` events for one document (or `"*"` for all), returning an unsubscribe function |
+| `assets/documents/js/documents-patch.js` | `patchChildren` and `patchHtml`: keyed DOM reconciliation for hosts that render from strings |
+| `assets/documents/js/documents-html.js` | `escapeHtml`, `attr`, `formatBytes`, `formatTime`, `errorText` |
 
-Core ships no third-party frontend code, so there is no live editor component: a live-session client vendors its own CRDT client at the engine's wire version (`systemprompt_engine_loro::WIRE_VERSION`) and speaks the collab routes above.
-
-| Element | Attributes | Uses |
-|---|---|---|
-| `sp-document-browser` | `scope` (`mine`, `shared`, `recent`) | `GET /documents` (folder navigation, scope and name filter); dispatches `sp-document-open` with `{id, format, name}` |
-| `sp-document-preview` | `document-id`, `revision` | `GET /{id}/preview` in a sandboxed frame without scripts, `PUT /{id}/presence` |
-| `sp-presence-bar` | `document-id` | `GET /{id}/presence`, `document.presence` events |
-| `sp-sheet-grid` | `document-id` | `GET /{id}/projection`, `POST /{id}/edits` with `set_cells` |
-| `sp-slide-text` | `document-id` | `GET /{id}/projection`, `POST /{id}/edits` with `replace_text` by node id and hash |
-| `sp-share-dialog` | `document-id` | `GET /{id}/access` (with `history` when the history panel is open) and `GET /subject-kinds`, `POST` and `DELETE /{id}/grants`, `DELETE /{id}/grants/all`, `POST /{id}/transfer` and the access-request answers; below `share` it shows who has access read-only; transfer and revoke-all ask for confirmation |
-| `sp-subject-picker` | `kinds`, `label` | `GET /subjects` as a debounced, keyboard-navigable typeahead inside the share and transfer forms |
-| `sp-history` | `document-id` | `GET /{id}/revisions`, a `restore` op on `POST /{id}/edits`, and `GET /{id}/read?view=changes` since a revision |
-| `sp-comments` | `document-id`, `anchor-node` | `/{id}/comments`; hidden when the install answers `404` |
-| `sp-proposal-list` | `document-id` | `GET /{id}/proposals`, the changed lines from `GET /{id}/proposals/{pid}`, accept or reject with a note, `document.proposal.*` events; hidden when the install answers `404` |
-
-Every edit carries a fresh `op_id`, so a retried request replays its first acknowledgement. A refusal is shown with its error key. All components on a page share one AG-UI stream (`/api/v1/stream/agui`), because each user may hold at most ten streams.
+Every edit carries a caller-stable `op_id`, so a retried request replays its first acknowledgement. All subscribers on a page share one AG-UI stream (`/api/v1/stream/agui`), because each user may hold at most ten streams. A live-session editor vendors its own CRDT client at the engine's wire version (`systemprompt_engine_loro::WIRE_VERSION`) and speaks the collab routes above.
 
 The asset sources resolve inside the `systemprompt-files` crate, so they are declared optional: a build that compiles core copies them, and a runtime without the crate's sources keeps the copies already in its web distribution.
 

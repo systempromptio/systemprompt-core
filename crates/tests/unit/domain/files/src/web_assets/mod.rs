@@ -1,5 +1,4 @@
 mod pipeline;
-mod sharing;
 mod standards;
 
 use std::collections::BTreeSet;
@@ -25,11 +24,11 @@ fn declared() -> Vec<AssetDefinition> {
 }
 
 fn assets_root() -> PathBuf {
-    let css = declared()
+    let api = declared()
         .into_iter()
-        .find(|a| a.source().ends_with("css/documents.css"))
-        .expect("documents.css is declared");
-    css.source()
+        .find(|a| a.source().ends_with("js/documents-api.js"))
+        .expect("documents-api.js is declared");
+    api.source()
         .parent()
         .and_then(Path::parent)
         .expect("assets root")
