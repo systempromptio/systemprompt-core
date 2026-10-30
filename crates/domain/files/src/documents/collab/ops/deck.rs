@@ -9,30 +9,17 @@
 //! with origin `agent` and returns the update. Node ids name the deck as it
 //! stands when each op runs, in the codec's `slide[N]/shape[S]/p[P]` form.
 //! Any other op answers `unsupported_format`, so the caller commits the
-//! batch to the head. [`edit`] keeps answering `unsupported_format` until
-//! the session holds a deck model, at which point it forks the live
-//! document and calls [`deck_update`].
+//! batch to the head. The Loro engine's `update_from_ops` calls
+//! [`deck_update`] for a deck session; `ops::structured` logs the update.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_models::documents::EditOp;
 #[cfg(feature = "collab-loro")]
 use systemprompt_models::documents::NodeKind;
 
-use crate::documents::collab::CollabError;
-use crate::documents::error::DocumentsError;
-use crate::documents::models::Document;
-use crate::documents::service::LiveEdit;
-
 #[cfg(feature = "collab-loro")]
 pub use live::{DeckOpError, deck_update};
-
-pub(super) fn edit(document: &Document, _ops: &[EditOp]) -> Result<Option<LiveEdit>, CollabError> {
-    Err(CollabError::Documents(DocumentsError::UnsupportedFormat {
-        format: document.format,
-    }))
-}
 
 #[cfg(feature = "collab-loro")]
 const fn is_list_item(kind: NodeKind) -> bool {

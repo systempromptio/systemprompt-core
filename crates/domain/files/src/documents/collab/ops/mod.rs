@@ -13,8 +13,8 @@
 //! outside revision.
 //!
 //! Translation is per model: [`OpsFormat::Rich`] covers text documents
-//! (`rich`); spreadsheets (`sheet`) and decks (`deck`) answer
-//! `unsupported_format` until their models are live, and an unsupported
+//! (`rich`); spreadsheets and decks go through `structured`, where the
+//! engine runs the `sheet` and `deck` translators on a fork. An unsupported
 //! batch or a document with no open session is answered with `None`, so the
 //! caller commits it to the head as before.
 //!
@@ -24,6 +24,7 @@
 mod deck;
 mod rich;
 mod sheet;
+mod structured;
 
 use systemprompt_identifiers::TraceId;
 use systemprompt_models::auth::AuthenticatedUser;
@@ -70,8 +71,9 @@ impl CollabService {
             .await?;
         let outcome = match OpsFormat::of(document.format) {
             OpsFormat::Rich => self.edit_rich(who, &document, request).await,
-            OpsFormat::Sheet => sheet::edit(&document, &request.ops),
-            OpsFormat::Deck => deck::edit(&document, &request.ops),
+            OpsFormat::Sheet | OpsFormat::Deck => {
+                self.edit_structured(who, &document, request).await
+            },
         };
         match outcome {
             Err(CollabError::Documents(DocumentsError::UnsupportedFormat { .. })) => Ok(None),

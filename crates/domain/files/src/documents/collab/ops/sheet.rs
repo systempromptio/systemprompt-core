@@ -8,28 +8,17 @@
 //! lands, so an op batch either applies whole or not at all. The caller
 //! commits the doc under the agent's peer with origin `"agent"`.
 //!
-//! `edit` is the session hook `ops` dispatches to; it answers
-//! `unsupported_format` until the session plumbing calls
-//! `apply_sheet_ops` on a draft fork of the session doc.
+//! The Loro engine's `update_from_ops` calls `apply_sheet_ops` on a fork
+//! of a workbook session's document; `ops::structured` logs the update.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_models::documents::EditOp;
 
-use crate::documents::collab::CollabError;
-use crate::documents::error::DocumentsError;
-use crate::documents::models::Document;
-use crate::documents::service::LiveEdit;
 
 #[cfg(feature = "collab-loro")]
 pub(crate) use translate::{SheetOpError, apply_sheet_ops};
-
-pub(super) fn edit(document: &Document, _ops: &[EditOp]) -> Result<Option<LiveEdit>, CollabError> {
-    Err(CollabError::Documents(DocumentsError::UnsupportedFormat {
-        format: document.format,
-    }))
-}
 
 #[cfg(feature = "collab-loro")]
 mod translate {
