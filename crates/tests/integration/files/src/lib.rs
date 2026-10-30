@@ -116,6 +116,8 @@ mod services;
 #[cfg(test)]
 mod upload_service;
 #[cfg(test)]
+mod uploads_admission;
+#[cfg(test)]
 mod uploads_rig;
 #[cfg(test)]
 mod uploads_safety_image;

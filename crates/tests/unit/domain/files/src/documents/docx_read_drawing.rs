@@ -42,7 +42,9 @@ fn image_block(id: &str, blob: &str, wrap: ImageWrap, width: Option<u32>) -> Blo
     )
 }
 
-fn images(bytes: &[u8]) -> Vec<(String, String, Option<u32>, Option<u32>, ImageWrap)> {
+type Image = (String, String, Option<u32>, Option<u32>, ImageWrap);
+
+fn images(bytes: &[u8]) -> Vec<Image> {
     import_rich(bytes)
         .expect("import")
         .blocks
@@ -118,7 +120,7 @@ fn an_unsized_image_takes_its_pixel_size_from_png_gif_and_jpeg_headers() {
         .map(|(at, bytes)| {
             image_block(
                 &format!("u{at}"),
-                &content_hash(bytes).as_str().to_owned(),
+                content_hash(bytes).as_str(),
                 ImageWrap::Inline,
                 None,
             )
@@ -146,8 +148,7 @@ fn an_unsized_image_takes_its_pixel_size_from_png_gif_and_jpeg_headers() {
         .collect();
     assert_eq!(mimes, vec!["image/png", "image/gif", "image/jpeg"]);
     assert_eq!(
-        held_image(&out, &content_hash(&g).as_str().to_owned(), MAX_PART_BYTES)
-            .map(|(_, bytes)| bytes),
+        held_image(&out, content_hash(&g).as_str(), MAX_PART_BYTES).map(|(_, bytes)| bytes),
         Some(g.clone())
     );
 }
