@@ -7,11 +7,11 @@
 //! writes it out, so the checkpoint's cached values are the ones a reader
 //! without a calc engine sees. Bytes are made importable first
 //! ([`ironcalc_input`](super::ironcalc_input)), since IronCalc panics on a
-//! workbook missing a styles section. A cell's `style` is `IronCalc`'s own [`Style`]
-//! as JSON (the shape the browser model's `getCellStyle` returns) and its
-//! `fmt` is the number-format code; both are read on import and written back
-//! at checkpoint, `fmt` overriding the style's `num_fmt`. Locale, timezone and
-//! language match the browser's `IronCalc` model (`workbook`, `en`, `UTC`,
+//! workbook missing a styles section. A cell's `style` is `IronCalc`'s own
+//! [`Style`] as JSON (the shape the browser model's `getCellStyle` returns) and
+//! its `fmt` is the number-format code; both are read on import and written
+//! back at checkpoint, `fmt` overriding the style's `num_fmt`. Locale, timezone
+//! and language match the browser's `IronCalc` model (`workbook`, `en`, `UTC`,
 //! `en`).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.

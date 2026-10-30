@@ -83,7 +83,6 @@ pub use services::{
     ContextBroadcaster, EventBridgeHandle, EventBroadcasters, EventRouter, EventsOwnerReassignment,
     GenericBroadcaster, HEARTBEAT_INTERVAL, HEARTBEAT_JSON, NOTIFICATION_FACTS_CHANNEL,
     OUTBOX_CHANNEL, OutboxChannel, PostgresEventBridge, RELAY_LOST_EVENT, RelayStatus,
-    TOPIC_BUFFER, TopicBroadcaster, TopicEvent, invalidate_all_cache_domains,
-    process_origin, receive_cache_invalidation, relay_lost_event, relays_row, scoped_origin,
-    standard_keep_alive,
+    TOPIC_BUFFER, TopicBroadcaster, TopicEvent, invalidate_all_cache_domains, process_origin,
+    receive_cache_invalidation, relay_lost_event, relays_row, scoped_origin, standard_keep_alive,
 };

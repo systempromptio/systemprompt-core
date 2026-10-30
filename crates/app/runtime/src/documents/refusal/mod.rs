@@ -259,9 +259,7 @@ const fn plain_code(error: &DocumentsError) -> Option<RefusalCode> {
         DocumentsError::IntegrityMismatch { .. } => Some(RefusalCode::IntegrityMismatch),
         DocumentsError::UnsupportedFormat { .. }
         | DocumentsError::LiveUnsupported { .. }
-        | DocumentsError::UnknownFormat { .. } => {
-            Some(RefusalCode::UnsupportedFormat)
-        },
+        | DocumentsError::UnknownFormat { .. } => Some(RefusalCode::UnsupportedFormat),
         DocumentsError::Template { source, .. } => template_code(source),
         DocumentsError::TooLarge { .. } => Some(RefusalCode::TooLarge),
         DocumentsError::OpIdMismatch { .. } => Some(RefusalCode::OpIdMismatch),

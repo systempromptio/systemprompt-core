@@ -14,8 +14,8 @@ use std::collections::HashSet;
 
 use systemprompt_provider_contracts::documents::CodecError;
 
-use super::projection::{self, Content, Shape, Slide, shape_elements, sp_tree};
 use super::inherit::{Rect, inherited};
+use super::projection::{self, Content, Shape, Slide, shape_elements, sp_tree};
 use super::runs::read_marks;
 use crate::documents::codecs::xml_tree::{Element, parse_xml};
 use crate::documents::codecs::zip_package::Package;
