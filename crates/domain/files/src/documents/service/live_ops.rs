@@ -244,7 +244,11 @@ impl DocumentService {
         let base_ids = self.projected(document, &base).await?.ids;
         let bytes = view.bytes;
         let paths = self.project_paths(document.format, bytes.clone()).await?;
-        let pins = super::live_ids::pinned_ids(&paths, &view.model);
+        let pins = view
+            .model
+            .as_ref()
+            .map(|model| super::live_ids::pinned_ids(&paths, model))
+            .unwrap_or_default();
         let writer = writer_tag(&format!("{LIVE_WRITER}:{}", document.id));
         let projected = paths.clone();
         let entries = blocking(move || {

@@ -1,6 +1,8 @@
 //! The live session's current content, for reads that should see what the
 //! open tabs see: the bytes its model materialises to on its base revision,
-//! and the model itself, whose block ids are the ids a read reports.
+//! and, for a text document, the model itself, whose block ids are the ids
+//! a read reports. A workbook or deck session materialises its sheet or
+//! deck model the same way, so a read sees its live cells and slides.
 //!
 //! Only a session this replica holds is read, so a read never opens or
 //! loads one; any other read answers from the head.
@@ -21,7 +23,7 @@ use crate::documents::models::Document;
 pub(crate) struct LiveView {
     pub base: DocumentRevisionId,
     pub bytes: Vec<u8>,
-    pub model: RichText,
+    pub model: Option<RichText>,
 }
 
 impl CollabService {
@@ -35,9 +37,6 @@ impl CollabService {
         let Some(body) = self.fork_body(&shared).await? else {
             return Ok(None);
         };
-        if !matches!(body.state.model, ModelView::RichText(_)) {
-            return Ok(None);
-        }
         let format = body.state.format;
         let limit = self.documents.config().max_upload_bytes;
         let base_bytes = self.revision_bytes(&body.base, limit).await?;
@@ -51,8 +50,9 @@ impl CollabService {
             .await;
         let bytes =
             materialise_or_strip(format, &base_bytes, &live).map_err(model_error(&document.id))?;
-        let ModelView::RichText(model) = live.model else {
-            return Ok(None);
+        let model = match live.model {
+            ModelView::RichText(model) => Some(model),
+            _ => None,
         };
         Ok(Some(LiveView {
             base: body.base,
