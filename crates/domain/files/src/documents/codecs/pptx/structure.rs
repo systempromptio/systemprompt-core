@@ -213,9 +213,7 @@ fn shape_xml(id: u64, shape: &DeckShape) -> String {
     let mut paragraphs: String = shape
         .paragraphs
         .iter()
-        .map(|block| {
-            paragraph_xml(block, matches!(block.kind, BlockKind::ListItem { .. }))
-        })
+        .map(|block| paragraph_xml(block, matches!(block.kind, BlockKind::ListItem { .. })))
         .collect();
     if paragraphs.is_empty() {
         paragraphs.push_str("<a:p><a:endParaRPr lang=\"en-US\"/></a:p>");
