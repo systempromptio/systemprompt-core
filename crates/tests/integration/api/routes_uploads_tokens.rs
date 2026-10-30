@@ -1,5 +1,6 @@
 //! Signed upload tokens routed through the uploads gate: a token is
-//! refused outside its upload and grant.
+//! refused outside its upload and grant, and inside them carries an upload
+//! from its part to its content.
 
 use anyhow::Result;
 use axum::body::Body;
@@ -16,7 +17,7 @@ use tower::ServiceExt;
 
 use super::common::setup_ctx;
 use super::documents::mint_download;
-use super::routes_uploads::open;
+use super::routes_uploads::{PAYLOAD, open};
 
 fn token(
     state_ctx: &systemprompt_runtime::AppContext,
@@ -115,5 +116,73 @@ async fn a_signed_token_is_refused_outside_its_upload_and_grant() -> Result<()> 
     assert_eq!(query.status(), StatusCode::FORBIDDEN);
     let untokened = gated(&state, Method::GET, &format!("/{id}"), None, Body::empty()).await?;
     assert_eq!(untokened.status(), StatusCode::UNAUTHORIZED);
+    Ok(())
+}
+
+async fn status_and_body(response: Response) -> Result<(StatusCode, Vec<u8>)> {
+    let status = response.status();
+    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX).await?;
+    Ok((status, bytes.to_vec()))
+}
+
+#[tokio::test]
+async fn a_signed_token_carries_an_upload_from_part_to_content() -> Result<()> {
+    let (pool, ctx) = setup_ctx().await?;
+    let state = DocumentsState::build(&ctx)?;
+    let user = seed_bridge_credential(&pool, "uploads-token-flow").await?;
+    let id = open(&state, &user).await?;
+    let write = token(&ctx, &user, UploadGrant::Write, &id);
+    let download = token(&ctx, &user, UploadGrant::Download, &id);
+
+    let put = gated(
+        &state,
+        Method::PUT,
+        &format!("/{id}/parts/1"),
+        Some(&write),
+        Body::from(PAYLOAD),
+    )
+    .await?;
+    let (status, body) = status_and_body(put).await?;
+    assert!(
+        status.is_success(),
+        "{status} {}",
+        String::from_utf8_lossy(&body)
+    );
+
+    let progress = gated(
+        &state,
+        Method::GET,
+        &format!("/{id}"),
+        Some(&write),
+        Body::empty(),
+    )
+    .await?;
+    let (status, body) = status_and_body(progress).await?;
+    assert_eq!(status, StatusCode::OK);
+    let progress: serde_json::Value = serde_json::from_slice(&body)?;
+    assert_eq!(progress["missing_parts"], serde_json::json!([]));
+
+    let complete = gated(
+        &state,
+        Method::POST,
+        &format!("/{id}/complete"),
+        Some(&write),
+        Body::empty(),
+    )
+    .await?;
+    let (status, body) = status_and_body(complete).await?;
+    assert_eq!(status, StatusCode::OK, "{}", String::from_utf8_lossy(&body));
+
+    let content = gated(
+        &state,
+        Method::GET,
+        &format!("/{id}/content?access_token={download}"),
+        None,
+        Body::empty(),
+    )
+    .await?;
+    let (status, body) = status_and_body(content).await?;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body, PAYLOAD);
     Ok(())
 }

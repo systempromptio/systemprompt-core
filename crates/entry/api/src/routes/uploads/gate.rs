@@ -6,7 +6,8 @@
 //! and progress; a download token only its `GET`/`HEAD /{id}/content`. The
 //! request is then routed, unauthenticated by session, as the token's
 //! subject, whose account must still be active. Every other request passes
-//! through.
+//! through. The gate wraps the session router as a fallback, so it runs
+//! before any route is matched and a tokened request is routed only once.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

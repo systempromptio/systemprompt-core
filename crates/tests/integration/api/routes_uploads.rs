@@ -15,7 +15,7 @@ use uuid::Uuid;
 
 use super::common::{read_json, request_context, setup_ctx};
 
-const PAYLOAD: &[u8] = b"hello upload world\n";
+pub(super) const PAYLOAD: &[u8] = b"hello upload world\n";
 
 fn authed(state: &DocumentsState, user: &AuthedFixture) -> Router {
     router(state.clone()).layer(Extension(request_context(user.user_id.as_str())))
