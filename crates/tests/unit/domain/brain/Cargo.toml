@@ -12,7 +12,6 @@ workspace = true
 
 [dependencies]
 systemprompt-brain = { workspace = true }
-systemprompt-database = { workspace = true }
 systemprompt-events = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-identifiers = { workspace = true }

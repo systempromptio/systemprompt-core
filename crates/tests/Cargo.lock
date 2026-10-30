@@ -8539,7 +8539,6 @@ dependencies = [
  "serde_yaml_ng",
  "sqlx",
  "systemprompt-brain",
- "systemprompt-database",
  "systemprompt-events",
  "systemprompt-extension",
  "systemprompt-identifiers",
