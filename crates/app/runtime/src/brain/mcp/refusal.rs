@@ -70,11 +70,18 @@ pub const fn refusal_of(error: &BrainError) -> Option<BrainRefusalCode> {
         BrainError::Forbidden { .. } => Some(BrainRefusalCode::Forbidden),
         BrainError::NotFound(_) => Some(BrainRefusalCode::NotFound),
         BrainError::Statement(_) | BrainError::Subject(_) => Some(BrainRefusalCode::InvalidInput),
+        BrainError::Validate(_) => Some(BrainRefusalCode::InvalidInput),
         BrainError::Database(_)
         | BrainError::Repository(_)
         | BrainError::Encode(_)
         | BrainError::Sink(_)
-        | BrainError::Notify(_) => None,
+        | BrainError::Notify(_)
+        | BrainError::NotifyKind(_)
+        | BrainError::UnknownEvent(_)
+        | BrainError::Extract(_)
+        | BrainError::Source(_)
+        | BrainError::SourceTimeout
+        | BrainError::BudgetExhausted => None,
     }
 }
 

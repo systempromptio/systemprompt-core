@@ -17,6 +17,8 @@ mod boot;
 #[cfg(test)]
 mod brain_mcp;
 #[cfg(test)]
+mod brain_composition;
+#[cfg(test)]
 mod builder_build_live;
 #[cfg(test)]
 mod builder_extra;

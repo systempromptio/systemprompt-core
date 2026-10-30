@@ -27,8 +27,9 @@
 //! | `teams` | the `systemprompt::teams` module | Microsoft Teams Bot Framework activities. Not part of `full`; the flag adds only the module re-export, since `api` compiles the crate regardless. |
 //! | `agent-runs` | `systemprompt-agent-runs` | Durable, leased, governed coding-agent runs (Claude Code, Codex CLI) with a common event contract. In `full`. |
 //! | `notifications` | the `systemprompt::notifications` module, and the notification routes, `documents_inbox` tool and outbox consumer in the runtime and API | Notification streams, rules, the per-user feed and the outbox consumer. In `full`, not in `core`. Without it, comments and shares commit without recording a notification and a comment carrying `mention_options` is refused with `unsupported_op`. |
+//! | `brain` | the `systemprompt::brain` module, and the brain composition, capture consumer and gateway recall in the runtime and API (implies `notifications`) | Revisioned organisational memory: facts captured from documents and comments, recalled into gateway requests. In `full`, not in `core`. Without it the document store records no brain event and the gateway injects no team memory; with it, `brain.enabled: false` in the profile composes nothing. |
 //! | `files-office` | the `systemprompt::files` module with `systemprompt-files/office` | The `.docx` document codec. In `full`. |
-//! | `full` | `api`, `mcp`, `cloud`, `cli`, `config`, `logging`, `loader`, `events`, `storage`, `client`, `security`, `analytics`, and the domain crates (`agent`, `ai`, `mcp`, `oauth`, `users`, `content`, `marketplace`, `scheduler`, `generator`, `files`, `notifications`) | Building a product binary. The `slack` and `teams` modules stay opt-in. |
+//! | `full` | `api`, `mcp`, `cloud`, `cli`, `config`, `logging`, `loader`, `events`, `storage`, `client`, `security`, `analytics`, and the domain crates (`agent`, `ai`, `mcp`, `oauth`, `users`, `content`, `marketplace`, `scheduler`, `generator`, `files`, `notifications`, `brain`) | Building a product binary. The `slack` and `teams` modules stay opt-in. |
 //!
 //! ```toml
 //! systemprompt = { version = "0.76.0", features = ["full"] }
@@ -270,6 +271,12 @@ pub use systemprompt_files::register_agent_access_policy;
 #[cfg_attr(docsrs, doc(cfg(feature = "notifications")))]
 pub mod notifications {
     pub use systemprompt_notifications::*;
+}
+
+#[cfg(feature = "brain")]
+#[cfg_attr(docsrs, doc(cfg(feature = "brain")))]
+pub mod brain {
+    pub use systemprompt_brain::*;
 }
 
 #[cfg(feature = "cloud")]

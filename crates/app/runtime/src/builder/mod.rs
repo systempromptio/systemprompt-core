@@ -11,6 +11,8 @@
 mod ai_service;
 mod assembly;
 mod authz;
+#[cfg(feature = "brain")]
+pub(crate) mod brain;
 mod composition;
 mod core_layer;
 mod database;
@@ -142,6 +144,17 @@ impl AppContextBuilder {
             Arc::new(crate::documents::NotificationsUnavailableSink);
         #[cfg(not(feature = "notifications"))]
         drop(listener_pool);
+        #[cfg(feature = "brain")]
+        let brain_core = brain::BrainCore::new(&brain::BrainInputs {
+            database: &database,
+            instance_id: &config.instance_id,
+            listener_pool: &listener_pool,
+            notifications: &notification_sink,
+            profile: &self.boot.profile().brain,
+        });
+        #[cfg(feature = "brain")]
+        let brain_sink = brain::brain_sink(brain_core.as_ref());
+        #[cfg(not(feature = "brain"))]
         let brain_sink: systemprompt_extension::DynBrainSink =
             Arc::new(crate::documents::BrainUnavailableSink);
         let audiences = ExtensionAudiences::default();
@@ -169,6 +182,10 @@ impl AppContextBuilder {
                 documents: &documents,
                 profile: &self.boot.profile().notifications,
             });
+        #[cfg(feature = "brain")]
+        let brain_handle = brain_core
+            .as_ref()
+            .map(|core| core.assemble(&documents, brain::RecallSeams::default()));
         let subsystems = Subsystems {
             ai_service,
             artifact_ingest: build_artifact_ingest(&database, &governance.get()),
@@ -192,6 +209,8 @@ impl AppContextBuilder {
             documents,
             #[cfg(feature = "notifications")]
             notifications: notifications_core.assemble(notifications::ExtensionSeams::default()),
+            #[cfg(feature = "brain")]
+            brain: brain_handle,
         };
 
         let app = AppContext::from_parts(
@@ -219,6 +238,15 @@ impl AppContextBuilder {
             let seams = notifications::ExtensionSeams::discover(&app);
             audiences.bind(seams.audiences.clone());
             app.subsystems.notifications = notifications_core.assemble(seams);
+            app
+        };
+        #[cfg(feature = "brain")]
+        let app = {
+            let mut app = app;
+            let seams = brain::RecallSeams::discover(&app);
+            app.subsystems.brain = brain_core
+                .as_ref()
+                .map(|core| core.assemble(&app.subsystems.documents, seams));
             app
         };
         Ok(app)

@@ -118,6 +118,8 @@ pub struct Subsystems {
     pub documents: Arc<crate::documents::DocumentsRuntime>,
     #[cfg(feature = "notifications")]
     pub notifications: Arc<crate::notifications::NotificationsHandle>,
+    #[cfg(feature = "brain")]
+    pub brain: Option<Arc<crate::brain::BrainHandle>>,
 }
 
 /// Application-wide runtime container shared across the HTTP server, the

@@ -41,6 +41,8 @@ pub mod storage;
 pub mod trace;
 mod validation;
 
+#[cfg(feature = "brain")]
+pub use builder::brain::{BrainCore, BrainInputs, RecallSeams, brain_sink};
 #[cfg(feature = "notifications")]
 pub use builder::notifications::{NotificationsInputs, core_notifications, notification_sink};
 pub use builder::{AppContextBuilder, discover_vertex_models, owner_reassignments};

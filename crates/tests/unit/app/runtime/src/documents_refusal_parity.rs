@@ -1,4 +1,4 @@
-use systemprompt_extension::NotificationSinkError;
+use systemprompt_extension::{BrainSinkError, NotificationSinkError};
 use systemprompt_files::documents::DocumentsError;
 use systemprompt_files::documents::agents::{AgentCap, AgentCapability, AgentRefusal};
 use systemprompt_files::documents::models::{ListCursorError, LockHolder};
@@ -57,6 +57,7 @@ const fn listed(error: &DocumentsError) -> bool {
         | DocumentsError::AccessRequestClosed { .. }
         | DocumentsError::Codec(_)
         | DocumentsError::Notifications(_)
+        | DocumentsError::Brain(_)
         | DocumentsError::NotificationKind(_)
         | DocumentsError::Template { .. }
         | DocumentsError::LiveSession(_)
@@ -340,6 +341,10 @@ fn table() -> Vec<(DocumentsError, RefusalCode)> {
         ),
         (
             DocumentsError::Notifications(NotificationSinkError::Unavailable),
+            RefusalCode::UnsupportedOp,
+        ),
+        (
+            DocumentsError::Brain(BrainSinkError::Unavailable),
             RefusalCode::UnsupportedOp,
         ),
         (

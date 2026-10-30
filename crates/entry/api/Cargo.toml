@@ -89,6 +89,7 @@ systemprompt-mcp = { workspace = true }
 systemprompt-content = { workspace = true }
 systemprompt-files = { workspace = true }
 systemprompt-notifications = { workspace = true, optional = true }
+systemprompt-brain = { workspace = true, optional = true }
 systemprompt-provider-contracts = { workspace = true }
 systemprompt-storage = { workspace = true }
 systemprompt-database = { workspace = true }
@@ -123,6 +124,12 @@ collab = ["systemprompt-files/collab", "systemprompt-runtime/collab"]
 notifications = [
     "dep:systemprompt-notifications",
     "systemprompt-runtime/notifications",
+]
+brain = [
+    "dep:systemprompt-brain",
+    "notifications",
+    "systemprompt-runtime/brain",
+    "systemprompt-gateway/brain",
 ]
 
 [lints]
