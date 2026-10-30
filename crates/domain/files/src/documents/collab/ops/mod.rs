@@ -56,7 +56,7 @@ impl OpsFormat {
     #[must_use]
     pub const fn of(format: DocumentFormat) -> Self {
         match format {
-            DocumentFormat::Xlsx | DocumentFormat::Ods => Self::Sheet,
+            DocumentFormat::Xlsx => Self::Sheet,
             DocumentFormat::Pptx | DocumentFormat::Odp => Self::Deck,
             _ => Self::Rich,
         }
