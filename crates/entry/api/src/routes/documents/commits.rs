@@ -29,7 +29,7 @@ use systemprompt_files::documents::service::{
 use systemprompt_identifiers::{DocumentCommentId, DocumentId, DocumentOpId, DocumentRevisionId};
 use systemprompt_models::RequestContext;
 use systemprompt_models::api::ApiError;
-use systemprompt_models::documents::{ActorKind, EditMode, EditOp};
+use systemprompt_models::documents::{EditMode, EditOp};
 use systemprompt_runtime::documents::refusal::stale_base;
 
 use super::DocumentsState;
@@ -107,7 +107,7 @@ pub(super) async fn write(
         body: CommitBody::Bytes(body.to_vec()),
         author: api_author(req_ctx, headers),
         message: query.message,
-        lock_holder_id: None,
+        lock_holder: None,
         comments: CommentPolicy::detach(),
         op_id: query.op_id,
         media: Media::new(),
@@ -158,7 +158,6 @@ pub(super) async fn edits(
             EditModeRequest {
                 document: &id,
                 requested: body.mode,
-                actor: ActorKind::User,
             },
             &who.trace,
         )
@@ -183,7 +182,7 @@ pub(super) async fn edits(
         body: CommitBody::Ops(body.ops),
         author: api_author(&req_ctx, &headers),
         message: body.message,
-        lock_holder_id: None,
+        lock_holder: None,
         comments: CommentPolicy {
             allow_detach: body.allow_detach,
             answering: body.answering,

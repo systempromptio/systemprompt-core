@@ -32,11 +32,11 @@ use super::{Checkpoint, CollabError, CollabService};
 use crate::documents::agents::act_as;
 use crate::documents::engine::EngineDoc;
 use crate::documents::model::{EditLevel, Media};
-use crate::documents::models::RevisionAttribution;
+use crate::documents::models::{RevisionAttribution, RevisionOrigin};
 use crate::documents::repository::CheckpointLease;
 use crate::documents::revision::CommitBody;
 use crate::documents::service::{
-    Author, CommentPolicy, CommitOutcome, CommitRequest, ProposeBodyRequest, RevisionOrigin,
+    Author, CommentPolicy, CommitOutcome, CommitRequest, ProposeBodyRequest,
 };
 
 const CHECKPOINT_MESSAGE: &str = "Live edit session checkpoint";
@@ -106,7 +106,7 @@ impl CollabService {
                 body: CommitBody::Bytes(next),
                 author: session_author(&body, who, fence),
                 message: Some(CHECKPOINT_MESSAGE.to_owned()),
-                lock_holder_id: None,
+                lock_holder: None,
                 comments: CommentPolicy::detach(),
                 op_id: None,
                 media: Media::new(),

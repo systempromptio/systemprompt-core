@@ -19,7 +19,7 @@
 use systemprompt_identifiers::{DocumentId, DocumentRevisionId, TraceId};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{
-    AccessLevel, ActorKind, AgentEditPolicy, DocumentAction, EditMode, EditOp, ProposalStatus,
+    AccessLevel, AgentEditPolicy, DocumentAction, EditMode, EditOp, ProposalStatus,
 };
 
 use super::apply::{HeadEdit, apply_on_head};
@@ -55,7 +55,6 @@ pub struct Proposed {
 pub struct EditModeRequest<'a> {
     pub document: &'a DocumentId,
     pub requested: Option<EditMode>,
-    pub actor: ActorKind,
 }
 
 impl DocumentService {
@@ -98,7 +97,7 @@ impl DocumentService {
                 _ => Ok(EditMode::Propose),
             };
         }
-        if request.actor != ActorKind::Agent {
+        if !self.access.actor().is_agent() {
             return Ok(request.requested.unwrap_or(EditMode::Land));
         }
         let policy = match document
@@ -185,8 +184,7 @@ impl DocumentService {
                 proposed_revision_id: revision.id.clone(),
                 proposer_user_id: who.id.clone(),
                 actor_kind: request.author.actor_kind,
-                origin_kind: request.author.origin.kind(),
-                origin_id: request.author.origin.id(),
+                origin: request.author.origin.clone(),
                 message: request.message,
             })
             .await?;

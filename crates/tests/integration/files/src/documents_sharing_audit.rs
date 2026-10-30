@@ -7,9 +7,9 @@ use std::time::Duration;
 use chrono::Utc;
 use systemprompt_events::Broadcaster;
 use systemprompt_files::DocumentsConfig;
-use systemprompt_files::documents::DocumentsError;
 use systemprompt_files::documents::models::GrantTarget;
 use systemprompt_files::documents::service::{NewFolderRequest, ShareRequest, TransferRequest};
+use systemprompt_files::documents::{DocumentsError, SubjectValidation};
 use systemprompt_identifiers::{ConnectionId, DocumentFolderId, DocumentId};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{AccessLevel, EditOp, GrantEventKind};
@@ -313,6 +313,50 @@ async fn unknown_roles_and_unlisted_dimension_values_are_refused() {
             .await
             .expect("known subject");
     }
+}
+
+#[tokio::test]
+async fn validating_a_subject_reports_valid_invalid_or_unenumerable() {
+    let listed = harness_configured(
+        allow(),
+        GroupSource::new(&[]).enumerable(&["engineering"]),
+        tmp(),
+        RoleDirectory::default().with_role("staff", &[]),
+        DocumentsConfig::default(),
+    )
+    .await;
+    let access = listed.service.access();
+    assert_eq!(
+        access
+            .validate_subject("role", "staff")
+            .await
+            .expect("role"),
+        SubjectValidation::Valid
+    );
+    assert_eq!(
+        access
+            .validate_subject("role", "nobody-holds-this")
+            .await
+            .expect("role"),
+        SubjectValidation::Invalid
+    );
+    assert_eq!(
+        access
+            .validate_subject(GROUP.as_str(), "marketing")
+            .await
+            .expect("group"),
+        SubjectValidation::Invalid
+    );
+    let unlisted = harness(allow(), GroupSource::new(&[])).await;
+    assert_eq!(
+        unlisted
+            .service
+            .access()
+            .validate_subject(GROUP.as_str(), "anything")
+            .await
+            .expect("unlisted"),
+        SubjectValidation::Unenumerable
+    );
 }
 
 #[tokio::test]

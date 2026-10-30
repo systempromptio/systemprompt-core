@@ -38,8 +38,10 @@ mod drive;
 mod drive_blob;
 mod drive_commit;
 mod drive_feed;
+mod file_create;
 mod first_revision;
 mod folder_moves;
+mod folder_update;
 mod folders;
 mod fragments;
 mod grants;
@@ -85,9 +87,11 @@ pub use comments::{CommentRequest, ResolveCommentRequest};
 pub use comments_edit::{DeleteCommentRequest, EditCommentRequest};
 pub use comments_export::ExportedDocument;
 pub use drive::parse_drive_cursor;
+pub use file_create::FileCreateRequest;
+pub use folder_update::FolderUpdateRequest;
 pub use grants::{MAX_SHARE_MESSAGE_BYTES, ShareRequest};
 pub use lifecycle::{CopyRequest, FolderMove, UpdateRequest};
-pub use media::{AdmittedMedia, held_media_refs};
+pub use media::{AdmittedMedia, held_media_refs, refuse_unheld_media};
 pub use mentions::CommentOrigin;
 pub use notify::MentionOption;
 pub use ownership::TransferRequest;
@@ -100,7 +104,7 @@ pub use suggested_write::ExternalWrite;
 pub use types::{
     AcquireLockRequest, Author, CommentPolicy, CommitOutcome, CommitRequest, CommitWarning,
     CreateRequest, DocumentView, HistoryPage, ImportRequest, LandedCommit, ListFolderRequest,
-    Listing, NewFolderRequest, RevisionOrigin, SearchResult, StreamRequest,
+    Listing, NewFolderRequest, SearchResult, StreamRequest,
 };
 pub use visibility::MAX_VISIBILITY_BATCH;
 

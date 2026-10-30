@@ -16,7 +16,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::{DocumentCommentId, DocumentId, TraceId, UserId};
+use systemprompt_identifiers::{AgentName, DocumentCommentId, DocumentId, TraceId, UserId};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{
     DocumentAction, DocumentOwnershipTransferredEvent, DocumentSharedEvent, SHARED_EVENT_VERSION,
@@ -30,7 +30,7 @@ pub(super) const USER_SUBJECT: &str = "user";
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(super) struct ShareCause {
-    pub(super) via_agent: Option<String>,
+    pub(super) via_agent: Option<AgentName>,
     pub(super) comment_id: Option<DocumentCommentId>,
 }
 

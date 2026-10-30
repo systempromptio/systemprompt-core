@@ -17,8 +17,8 @@ use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{
-    ContentHash, ContextId, DocumentUploadId, IssueReportId, McpExecutionId, SessionId, TaskId,
-    TraceId, UserId,
+    AgentName, ContentHash, ContextId, DocumentUploadId, IssueReportId, McpExecutionId, SessionId,
+    TaskId, TraceId, UserId,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -144,7 +144,7 @@ pub struct IssueAttachment {
 pub struct IssueReport {
     pub id: IssueReportId,
     pub reporter_user_id: UserId,
-    pub via_agent: Option<String>,
+    pub via_agent: Option<AgentName>,
     pub kind: IssueKind,
     pub severity: IssueSeverity,
     pub status: IssueStatus,

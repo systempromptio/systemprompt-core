@@ -130,6 +130,14 @@ impl systemprompt_files::documents::agents::AgentAccessPolicy for Hooks {
         "hooks"
     }
 
+    async fn cap(
+        &self,
+        _doc: &systemprompt_files::documents::agents::DocumentContext,
+        _agent: &systemprompt_files::documents::agents::AgentActor,
+    ) -> AgentCap {
+        AgentCap::Edit
+    }
+
     async fn on_move(
         &self,
         _doc: &systemprompt_files::documents::agents::DocumentContext,

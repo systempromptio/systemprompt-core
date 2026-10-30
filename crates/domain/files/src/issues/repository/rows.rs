@@ -8,7 +8,7 @@ use std::str::FromStr;
 
 use chrono::{DateTime, Utc};
 use systemprompt_identifiers::{
-    ContextId, IssueReportId, McpExecutionId, SessionId, TaskId, TraceId, UserId,
+    AgentName, ContextId, IssueReportId, McpExecutionId, SessionId, TaskId, TraceId, UserId,
 };
 use systemprompt_models::issues::{
     IssueContext, IssueKind, IssueReport, IssueSeverity, IssueStatus,
@@ -29,7 +29,7 @@ where
 #[derive(Debug, Clone)]
 pub struct NewIssue {
     pub reporter: UserId,
-    pub via_agent: Option<String>,
+    pub via_agent: Option<AgentName>,
     pub kind: IssueKind,
     pub severity: IssueSeverity,
     pub title: String,
@@ -93,7 +93,7 @@ impl ReportRow {
         Ok(IssueReport {
             id: self.id,
             reporter_user_id: self.reporter_user_id,
-            via_agent: self.via_agent,
+            via_agent: self.via_agent.map(AgentName::new),
             kind: parse("issue_reports.kind", &self.kind)?,
             severity: parse("issue_reports.severity", &self.severity)?,
             status: parse("issue_reports.status", &self.status)?,

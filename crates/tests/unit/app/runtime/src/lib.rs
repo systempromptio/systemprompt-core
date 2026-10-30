@@ -90,6 +90,8 @@ mod storage_backends;
 #[cfg(test)]
 mod trace;
 #[cfg(test)]
+mod upload_grants;
+#[cfg(test)]
 mod validate_database_path;
 #[cfg(test)]
 mod validation;

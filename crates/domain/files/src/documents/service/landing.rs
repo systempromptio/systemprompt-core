@@ -23,7 +23,8 @@ use super::landing_ids::{carry, reserve};
 use super::{CommentPolicy, DocumentService};
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{
-    AckClaim, Document, DocumentRevision, NewRevision, NodeIdEntry, StoredWriteAck, WriteAck,
+    AckClaim, Document, DocumentRevision, LockHolder, NewRevision, NodeIdEntry, StoredWriteAck,
+    WriteAck,
 };
 use crate::documents::nodes::{CarryHints, created_nodes, with_ids, writer_tag, written_nodes};
 use crate::documents::repository::{
@@ -50,7 +51,7 @@ pub(super) struct OpClaim<'a> {
 #[derive(Clone, Copy)]
 pub(super) struct Placement<'a> {
     pub(super) moves_head: bool,
-    pub(super) lock_holder: Option<&'a str>,
+    pub(super) lock_holder: Option<&'a LockHolder>,
     pub(super) op: Option<OpClaim<'a>>,
     pub(super) settles: Option<&'a DocumentProposalId>,
     pub(super) comments: &'a CommentPolicy,

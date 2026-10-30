@@ -12,7 +12,8 @@
 //! projection, minted once and carried across revisions;
 //! [`DocumentOpId`] is the caller-chosen key that makes a write idempotent;
 //! [`DocumentTemplateId`] names a registered template; [`DriveDeviceId`]
-//! names the bridge device that committed a revision.
+//! names the bridge device that committed a revision; [`EditorId`] is the
+//! client-chosen key of one open editor holding a document lock.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -37,6 +38,9 @@ crate::define_id!(DocumentOpId, checked, |value| {
 });
 crate::define_id!(DocumentTemplateId, checked, |value| {
     crate::macros::validate_non_empty("DocumentTemplateId", value)
+});
+crate::define_id!(EditorId, checked, |value| {
+    crate::macros::validate_non_empty("EditorId", value)
 });
 crate::define_id!(DriveDeviceId, checked, |value| {
     crate::macros::validate_non_empty("DriveDeviceId", value)

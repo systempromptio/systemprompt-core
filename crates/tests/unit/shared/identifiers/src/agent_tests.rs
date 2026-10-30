@@ -196,3 +196,37 @@ fn agent_name_try_new_rejects_unknown() {
         "{err}"
     );
 }
+
+#[test]
+fn agent_name_accepts_every_producer_shape() {
+    for name in ["cli-demo", "farm:run_1", "mcp/tool.v2", "A-b_c.d:e/f"] {
+        assert!(AgentName::try_new(name).is_ok(), "{name}");
+    }
+}
+
+#[test]
+fn agent_name_rejects_whitespace_and_symbols() {
+    for name in [
+        "has space",
+        "tab\t",
+        "emoji-🤖",
+        "semi;colon",
+        "quo\"te",
+        " lead",
+    ] {
+        assert!(AgentName::try_new(name).is_err(), "{name}");
+    }
+}
+
+#[test]
+fn agent_name_length_limit_is_64_bytes() {
+    assert!(AgentName::try_new("a".repeat(64)).is_ok());
+    let err = AgentName::try_new("a".repeat(65)).unwrap_err();
+    assert!(err.to_string().contains("64"));
+}
+
+#[test]
+fn agent_name_deserialize_enforces_the_rule() {
+    assert!(serde_json::from_str::<AgentName>("\"ok-name\"").is_ok());
+    assert!(serde_json::from_str::<AgentName>("\"not ok\"").is_err());
+}

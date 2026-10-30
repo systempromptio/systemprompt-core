@@ -9,9 +9,9 @@ use systemprompt_files::documents::agents::{AgentAccessPolicy, DocumentActor};
 use systemprompt_files::documents::blob_store::BlobStore;
 use systemprompt_files::documents::codecs::CodecRegistry;
 use systemprompt_files::documents::model::Media;
-use systemprompt_files::documents::models::RevisionAttribution;
+use systemprompt_files::documents::models::{RevisionAttribution, RevisionOrigin};
 use systemprompt_files::documents::repository::DocumentRepositories;
-use systemprompt_files::documents::service::{Author, CreateRequest, RevisionOrigin};
+use systemprompt_files::documents::service::{Author, CreateRequest};
 use systemprompt_files::documents::templates::TemplateRegistry;
 use systemprompt_files::documents::{
     DocumentAccessRepositories, DocumentAccessService, DocumentEvents, DocumentService,

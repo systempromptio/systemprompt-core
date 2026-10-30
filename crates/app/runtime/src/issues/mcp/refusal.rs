@@ -56,6 +56,7 @@ pub fn tool_error(error: IssuesError) -> McpError {
         IssuesError::Disabled => IssueRefusalCode::Disabled,
         IssuesError::Invalid { .. } => IssueRefusalCode::InvalidParams,
         IssuesError::RateLimited { .. } => IssueRefusalCode::RateLimited,
+        IssuesError::TriageForbidden => IssueRefusalCode::Forbidden,
         IssuesError::NotFound(_) => IssueRefusalCode::NotFound,
         IssuesError::NotActive(_) => IssueRefusalCode::NotActive,
         IssuesError::AttachmentsFull { .. } => IssueRefusalCode::AttachmentsFull,

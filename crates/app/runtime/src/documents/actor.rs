@@ -16,12 +16,10 @@
 
 use std::future::Future;
 
-use systemprompt_files::documents::agents::{DocumentActor, UNNAMED_AGENT, act_as};
-use systemprompt_identifiers::ClientId;
+use systemprompt_files::documents::agents::{DocumentActor, act_as, unnamed_agent};
+use systemprompt_identifiers::{AgentName, ClientId};
 use systemprompt_models::auth::TokenInteraction;
 use systemprompt_models::execution::context::{RequestContext, UserInteractionMode};
-
-const MAX_AGENT_NAME: usize = 64;
 
 pub async fn act_as_request<F: Future>(ctx: &RequestContext, work: F) -> F::Output {
     act_as(request_actor(ctx), work).await
@@ -53,17 +51,13 @@ pub fn bearer_actor(
 }
 
 #[must_use]
-pub fn signed_agent_name(ctx: &RequestContext) -> String {
+pub fn signed_agent_name(ctx: &RequestContext) -> AgentName {
     name_from(ctx.caller_purpose(), ctx.client_id())
 }
 
-fn name_from(purpose: Option<&str>, client: Option<&ClientId>) -> String {
-    let allowed = |c: char| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.' | ':' | '/');
-    let valid =
-        |name: &str| !name.is_empty() && name.len() <= MAX_AGENT_NAME && name.chars().all(allowed);
+fn name_from(purpose: Option<&str>, client: Option<&ClientId>) -> AgentName {
     purpose
         .or_else(|| client.map(ClientId::as_str))
-        .filter(|name| valid(name))
-        .unwrap_or(UNNAMED_AGENT)
-        .to_owned()
+        .and_then(|name| AgentName::try_new(name).ok())
+        .unwrap_or_else(unnamed_agent)
 }

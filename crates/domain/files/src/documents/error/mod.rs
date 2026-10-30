@@ -28,7 +28,7 @@ use self::labels::{
 use super::access::SubjectDirectoryError;
 use super::agents::AgentRefusal;
 use super::blob_store::BlobStoreError;
-use super::models::{ListCursorError, LockHolderKind};
+use super::models::{ListCursorError, LockHolder};
 use super::templates::TemplateError;
 
 mod causes;
@@ -109,13 +109,14 @@ pub enum DocumentsError {
         comment_id: DocumentCommentId,
     },
     #[error(
-        "document {document_id} is locked by {holder_kind} holder {holder_id}; wait for the lock \
-         to be released or to expire"
+        "document {document_id} is locked by {} holder {}; wait for the lock to be released or to \
+         expire",
+        .holder.kind(),
+        .holder.id_str()
     )]
     LockHeld {
         document_id: DocumentId,
-        holder_kind: LockHolderKind,
-        holder_id: String,
+        holder: LockHolder,
     },
     #[error(
         "operation {op} is not supported for {format} documents{}",

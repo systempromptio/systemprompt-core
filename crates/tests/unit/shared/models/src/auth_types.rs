@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use systemprompt_identifiers::{ClientId, UserId};
 use systemprompt_models::auth::{
-    AuthRequestError, AuthenticatedUser, Permission, PkceMethod, ResponseType, UserType,
+    AuthRequestError, AuthenticatedUser, BaseRoles, Permission, PkceMethod, ResponseType, UserType,
 };
 
 fn user_with_perms(perms: Vec<Permission>) -> AuthenticatedUser {
@@ -200,4 +200,36 @@ fn response_type_round_trips_code_and_token() {
 fn response_type_rejects_unknown() {
     let err = ResponseType::from_str("garbage").unwrap_err();
     assert!(matches!(err, AuthRequestError::InvalidRequest { .. }));
+}
+
+#[test]
+fn the_admin_role_alone_grants_the_admin_permission() {
+    let roles = |names: &[&str]| names.iter().map(|n| (*n).to_owned()).collect::<Vec<_>>();
+    assert_eq!(
+        BaseRoles::permission_for(&roles(&["user", "admin"])),
+        Permission::Admin
+    );
+    assert_eq!(
+        BaseRoles::permission_for(&roles(&["editor"])),
+        Permission::User
+    );
+    assert_eq!(BaseRoles::permission_for(&[]), Permission::User);
+}
+
+#[test]
+fn a_provider_user_carries_the_permission_its_roles_grant() {
+    let provider = |roles: Vec<String>| systemprompt_traits::AuthUser {
+        id: UserId::generate(),
+        name: "alice".to_owned(),
+        email: "alice@example.com".to_owned(),
+        roles,
+        is_active: true,
+        is_service_account: false,
+    };
+    let admin = AuthenticatedUser::from_provider_user(provider(vec!["admin".to_owned()]));
+    assert!(admin.is_admin());
+    assert_eq!(admin.roles(), ["admin".to_owned()]);
+    let plain = AuthenticatedUser::from_provider_user(provider(vec!["user".to_owned()]));
+    assert!(!plain.is_admin());
+    assert!(plain.has_permission(Permission::User));
 }

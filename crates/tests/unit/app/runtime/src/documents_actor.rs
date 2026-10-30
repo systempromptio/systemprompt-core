@@ -23,7 +23,7 @@ fn only_a_browser_session_is_the_person() {
     );
     assert_eq!(
         request_actor(&context()),
-        DocumentActor::agent("agent", false)
+        DocumentActor::agent(AgentName::new("agent"), false)
     );
 }
 
@@ -34,7 +34,7 @@ fn a_browser_session_with_a_purpose_or_delegation_is_an_agent() {
         .with_caller_purpose("farm:run-7".to_owned());
     assert_eq!(
         request_actor(&purposed),
-        DocumentActor::agent("farm:run-7", false)
+        DocumentActor::agent(AgentName::new("farm:run-7"), false)
     );
     let delegated = context()
         .with_browser_session()
@@ -79,4 +79,15 @@ async fn an_extension_runs_its_document_calls_as_the_request_actor() {
     let bearer = context().with_client_id(ClientId::bridge());
     let inside = act_as_request(&bearer, async { current_actor() }).await;
     assert!(inside.is_agent());
+}
+
+#[test]
+fn a_purpose_that_is_not_a_valid_agent_name_falls_back_to_the_unnamed_agent() {
+    for purpose in ["has space", "unknown", &"x".repeat(65)] {
+        let purposed = context().with_caller_purpose(purpose.to_owned());
+        let DocumentActor::Agent(agent) = request_actor(&purposed) else {
+            panic!("a bearer token is an agent");
+        };
+        assert_eq!(agent.name, "agent", "{purpose}");
+    }
 }

@@ -1,11 +1,12 @@
 use systemprompt_extension::NotificationSinkError;
 use systemprompt_files::documents::DocumentsError;
 use systemprompt_files::documents::agents::{AgentCap, AgentCapability, AgentRefusal};
-use systemprompt_files::documents::models::{ListCursorError, LockHolderKind};
+use systemprompt_files::documents::models::{ListCursorError, LockHolder};
 use systemprompt_files::documents::templates::TemplateError;
 use systemprompt_identifiers::{
-    ContentHash, DocumentAccessRequestId, DocumentCommentId, DocumentFolderId, DocumentId,
-    DocumentNodeId, DocumentOpId, DocumentProposalId, DocumentRevisionId, DocumentTemplateId,
+    AgentName, ContentHash, DocumentAccessRequestId, DocumentCommentId, DocumentFolderId,
+    DocumentId, DocumentNodeId, DocumentOpId, DocumentProposalId, DocumentRevisionId,
+    DocumentTemplateId, EditorId,
 };
 use systemprompt_models::documents::{
     AccessLevel, AccessRequestStatus, DocumentAction, DocumentFormat, ProposalStatus,
@@ -147,8 +148,7 @@ fn table() -> Vec<(DocumentsError, RefusalCode)> {
         (
             DocumentsError::LockHeld {
                 document_id: DocumentId::generate(),
-                holder_kind: LockHolderKind::Editor,
-                holder_id: "h".to_owned(),
+                holder: LockHolder::Editor(EditorId::new("h")),
             },
             RefusalCode::Locked,
         ),
@@ -303,14 +303,14 @@ fn table() -> Vec<(DocumentsError, RefusalCode)> {
         ),
         (
             DocumentsError::Agent(AgentRefusal::HardRule {
-                agent: "claude".to_owned(),
+                agent: AgentName::new("claude"),
                 capability: AgentCapability::Share,
             }),
             RefusalCode::AgentForbidden,
         ),
         (
             DocumentsError::Agent(AgentRefusal::CapExceeded {
-                agent: "claude".to_owned(),
+                agent: AgentName::new("claude"),
                 cap: AgentCap::Read,
                 action: "comment".to_owned(),
                 reason: "capped".to_owned(),
@@ -319,7 +319,7 @@ fn table() -> Vec<(DocumentsError, RefusalCode)> {
         ),
         (
             DocumentsError::Agent(AgentRefusal::SuggestOnly {
-                agent: "claude".to_owned(),
+                agent: AgentName::new("claude"),
                 reason: "capped".to_owned(),
             }),
             RefusalCode::AgentSuggestOnly,

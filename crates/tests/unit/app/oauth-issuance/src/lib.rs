@@ -8,6 +8,8 @@
 #[cfg(test)]
 mod client_credentials;
 #[cfg(test)]
+mod drive_sync;
+#[cfg(test)]
 mod error;
 #[cfg(test)]
 mod identity_plane;

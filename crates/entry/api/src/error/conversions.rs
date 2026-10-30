@@ -21,6 +21,7 @@ use systemprompt_models::errors::GlobalConfigError;
 use systemprompt_models::execution::ContextExtractionError;
 use systemprompt_oauth::services::SessionCreationError;
 use systemprompt_oauth::{OauthError, OauthErrorKind};
+use systemprompt_oauth_issuance::DriveSyncError;
 use systemprompt_traits::RepositoryError;
 use systemprompt_users::UserError;
 
@@ -243,5 +244,19 @@ impl From<BundleError> for ApiHttpError {
             },
         };
         Self(api)
+    }
+}
+
+impl From<DriveSyncError> for ApiHttpError {
+    fn from(error: DriveSyncError) -> Self {
+        match error {
+            DriveSyncError::NotDeviceToken | DriveSyncError::NoUserPermission => {
+                Self::forbidden(error.to_string())
+            },
+            DriveSyncError::Expired => Self::unauthorized(error.to_string()),
+            DriveSyncError::Mint(source) => {
+                Self::internal("drive sync token was not minted", source)
+            },
+        }
     }
 }

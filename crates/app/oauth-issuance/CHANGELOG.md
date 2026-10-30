@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.77.0] - 2026-10-30
+
+### Changed
+
+- `DriveSyncTokenService::exchange` and `DriveSyncError` (`drive_sync`) carry the Drive sync credential exchange previously inline in the API handler; rules and TTL are unchanged.
+
 ## [0.76.0] - 2026-10-29
 
 ### Fixed

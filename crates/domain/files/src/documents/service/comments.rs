@@ -105,7 +105,7 @@ impl DocumentService {
             who,
             document: &document,
             granted: &plan.grants.users,
-            via_agent: origin.via_agent.as_deref(),
+            via_agent: origin.via_agent.as_ref(),
             options: &request.mention_options,
         };
         let comment = self.store_comment(new, &plan.grants, context).await?;

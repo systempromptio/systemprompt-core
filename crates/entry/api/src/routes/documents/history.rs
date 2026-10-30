@@ -14,18 +14,13 @@ use axum::extract::{Path, Query, State};
 use axum::http::{HeaderValue, header};
 use axum::response::{Html, IntoResponse, Response};
 use axum::{Extension, Json};
-use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
 use systemprompt_extension::FrameOptionsOverride;
-use systemprompt_files::documents::DocumentsError;
-use systemprompt_files::documents::blob_store::BlobStoreError;
-use systemprompt_files::documents::codecs::file::is_pdf;
-use systemprompt_files::documents::service::{HistoryPage, StreamRequest};
+use systemprompt_files::documents::service::HistoryPage;
 use systemprompt_identifiers::{DocumentId, DocumentRevisionId};
 use systemprompt_models::RequestContext;
 use systemprompt_models::documents::{DocumentFormat, Projection};
 use systemprompt_provider_contracts::FrameOptions;
-use systemprompt_traits::{ByteRange, FileStorageError};
 
 use super::DocumentsState;
 use super::caller::{Caller, caller};
@@ -173,36 +168,13 @@ async fn pdf_preview(
     id: &DocumentId,
     revision: Option<&DocumentRevisionId>,
 ) -> Result<Option<Response>, DocumentsHttpError> {
-    let head = StreamRequest {
-        document: id,
-        revision,
-        range: Some(ByteRange::Bounded { start: 0, end: 7 }),
-    };
-    let opened = state.service.open_stream(&who.user, head, &who.trace).await;
-    let (_, mut read) = match opened {
-        Err(DocumentsError::Blob(BlobStoreError::Storage(
-            FileStorageError::RangeNotSatisfiable { .. },
-        ))) => return Ok(None),
-        other => other?,
-    };
-    let mut magic = Vec::new();
-    while let Some(chunk) = read.body.next().await {
-        magic.extend_from_slice(
-            &chunk.map_err(|source| DocumentsError::Blob(BlobStoreError::Storage(source)))?,
-        );
-    }
-    if !is_pdf(&magic) {
-        return Ok(None);
-    }
-    let whole = StreamRequest {
-        document: id,
-        revision,
-        range: None,
-    };
-    let (revision, read) = state
+    let Some((revision, read)) = state
         .service
-        .open_stream(&who.user, whole, &who.trace)
-        .await?;
+        .open_pdf_stream(&who.user, id, revision, &who.trace)
+        .await?
+    else {
+        return Ok(None);
+    };
     let mut response = Response::new(Body::from_stream(read.body));
     let headers = response.headers_mut();
     headers.insert(header::CONTENT_TYPE, HeaderValue::from_static(PDF_MIME));

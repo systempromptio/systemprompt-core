@@ -1,6 +1,6 @@
 use systemprompt_identifiers::{
     ContentHash, DocumentEditSessionId, DocumentFolderId, DocumentId, DocumentNodeId,
-    DocumentRevisionId, DocumentTemplateId, DriveDeviceId,
+    DocumentRevisionId, DocumentTemplateId, DriveDeviceId, EditorId,
 };
 
 const HASH: &str = "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08";
@@ -73,4 +73,10 @@ fn checked_ids_reject_empty_and_whitespace() {
         DocumentNodeId::try_new("p12").expect("valid").as_str(),
         "p12"
     );
+}
+
+#[test]
+fn editor_ids_reject_blank_values() {
+    assert!(EditorId::try_new("\t").is_err());
+    assert_eq!(EditorId::try_new("tab-1").expect("valid").as_str(), "tab-1");
 }

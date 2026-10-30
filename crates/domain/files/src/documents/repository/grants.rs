@@ -10,7 +10,7 @@
 
 use sqlx::PgConnection;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{DocumentFolderId, DocumentId, UserId};
+use systemprompt_identifiers::{AgentName, DocumentFolderId, DocumentId, UserId};
 use systemprompt_models::documents::AccessLevel;
 
 use super::Pools;
@@ -107,7 +107,7 @@ impl DocumentGrantRepository {
             request.valid_until,
             request.trace_id.as_str(),
             request.reason,
-            request.via_agent,
+            request.via_agent.as_ref().map(AgentName::as_str),
             held.as_str(),
         )
         .fetch_optional(&mut *conn)

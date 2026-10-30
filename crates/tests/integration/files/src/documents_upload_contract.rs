@@ -78,7 +78,7 @@ fn commit_bytes(document: &DocumentId, base: &DocumentRevisionId, bytes: Vec<u8>
         body: CommitBody::Bytes(bytes),
         author: api_author(),
         message: None,
-        lock_holder_id: None,
+        lock_holder: None,
         comments: CommentPolicy::default(),
         op_id: None,
         media: Media::new(),

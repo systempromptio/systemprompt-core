@@ -3,7 +3,7 @@ use std::time::Duration;
 use systemprompt_files::documents::DocumentsError;
 use systemprompt_files::documents::model::Media;
 use systemprompt_files::documents::models::{
-    GrantTarget, ListScope, ListSort, LockHolderKind, LockOutcome,
+    GrantTarget, ListScope, ListSort, LockHolder, LockOutcome,
 };
 use systemprompt_files::documents::revision::CommitBody;
 use systemprompt_files::documents::service::{
@@ -11,7 +11,7 @@ use systemprompt_files::documents::service::{
     LandedCommit, ListFolderRequest, NewFolderRequest, ShareRequest,
 };
 use systemprompt_governance::authz::EntityKind;
-use systemprompt_identifiers::{DocumentId, DocumentNodeId, DocumentRevisionId};
+use systemprompt_identifiers::{DocumentId, DocumentNodeId, DocumentRevisionId, DriveDeviceId};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{AccessLevel, ContentAs, DocumentFormat, EditOp, NodeTarget};
 
@@ -27,7 +27,7 @@ fn commit_bytes(document: &DocumentId, base: &DocumentRevisionId, bytes: Vec<u8>
         body: CommitBody::Bytes(bytes),
         author: api_author(),
         message: None,
-        lock_holder_id: None,
+        lock_holder: None,
         comments: CommentPolicy::default(),
         op_id: None,
         media: Media::new(),
@@ -447,8 +447,7 @@ async fn a_lock_held_by_another_holder_blocks_commits() {
             &owner,
             &document,
             AcquireLockRequest {
-                holder_kind: LockHolderKind::Bridge,
-                holder_id: "device-1".to_owned(),
+                holder: LockHolder::Bridge(DriveDeviceId::new("device-1")),
                 ttl: Duration::from_secs(60),
             },
             &trace(),
@@ -457,7 +456,7 @@ async fn a_lock_held_by_another_holder_blocks_commits() {
         .expect("acquire");
     assert!(matches!(outcome, LockOutcome::Acquired(_)));
     let request = CommitRequest {
-        lock_holder_id: Some("device-2".to_owned()),
+        lock_holder: Some(LockHolder::Bridge(DriveDeviceId::new("device-2"))),
         ..commit_bytes(&document, &first, b"two\n".to_vec())
     };
     let refused = h
@@ -469,7 +468,7 @@ async fn a_lock_held_by_another_holder_blocks_commits() {
     assert!(matches!(refused, DocumentsError::LockHeld { .. }));
     assert!(message.contains("device-1"), "{message}");
     let holder = CommitRequest {
-        lock_holder_id: Some("device-1".to_owned()),
+        lock_holder: Some(LockHolder::Bridge(DriveDeviceId::new("device-1"))),
         ..commit_bytes(&document, &first, b"two\n".to_vec())
     };
     let committed = h

@@ -14,7 +14,7 @@ use systemprompt_models::documents::{
 use super::{AcquireLockRequest, DocumentService};
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{
-    Document, DocumentPresenceRow, LockOutcome, LockRequest, PresenceUpsert,
+    Document, DocumentPresenceRow, LockHolder, LockOutcome, LockRequest, PresenceUpsert,
 };
 
 impl DocumentService {
@@ -34,8 +34,7 @@ impl DocumentService {
             .acquire(&LockRequest {
                 document_id: document.id.clone(),
                 holder_user_id: who.id.clone(),
-                holder_kind: request.holder_kind,
-                holder_id: request.holder_id,
+                holder: request.holder,
                 ttl: request.ttl,
             })
             .await?;
@@ -49,13 +48,13 @@ impl DocumentService {
         &self,
         who: &AuthenticatedUser,
         document: &DocumentId,
-        holder_id: &str,
+        holder: &LockHolder,
         trace: &TraceId,
     ) -> Result<bool, DocumentsError> {
         let document = self
             .authorized_document(who, document, DocumentAction::Edit, trace)
             .await?;
-        let released = self.repos.locks.release(&document.id, holder_id).await?;
+        let released = self.repos.locks.release(&document.id, holder).await?;
         if released {
             self.announce_lock(who, &document, false).await;
         }

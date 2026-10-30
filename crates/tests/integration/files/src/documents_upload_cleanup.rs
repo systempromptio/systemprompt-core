@@ -199,7 +199,7 @@ async fn a_refund_for_an_attempt_whose_part_landed_is_skipped() {
     rig.uploads
         .refund_part_bytes(
             &session.id,
-            Some(&StoredFileId::new(landed.storage_id.clone())),
+            Some(&StoredFileId::new(landed.storage_id.as_str())),
             landed.size_bytes,
         )
         .await
@@ -316,7 +316,7 @@ async fn a_failed_delete_is_reported_and_kept_for_the_sweep() {
     assert!(!removal.is_complete());
     assert_eq!(
         removal.retained,
-        vec![StoredFileId::new(part.storage_id.clone())]
+        vec![StoredFileId::new(part.storage_id.as_str())]
     );
     let sweep = rig.service.sweep_orphans(i64::MAX).await.expect("sweep");
     assert!(
@@ -328,7 +328,7 @@ async fn a_failed_delete_is_reported_and_kept_for_the_sweep() {
     rig.service.sweep_orphans(i64::MAX).await.expect("sweep");
     assert!(
         !rig.storage
-            .exists(&StoredFileId::new(part.storage_id))
+            .exists(&StoredFileId::new(part.storage_id.as_str()))
             .await
             .expect("exists")
     );

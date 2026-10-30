@@ -28,7 +28,7 @@ use systemprompt_files::documents::service::{
 use systemprompt_identifiers::{DocumentId, DocumentOpId, DocumentRevisionId, McpExecutionId};
 use systemprompt_mcp::McpToolHandler;
 use systemprompt_models::auth::AuthenticatedUser;
-use systemprompt_models::documents::{ActorKind, EditMode, EditOp};
+use systemprompt_models::documents::{EditMode, EditOp};
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_provider_contracts::documents::{CodecError, TemplateParams};
 
@@ -108,7 +108,6 @@ async fn commit_ops(call: EditCall<'_>) -> Result<(EditOutput, String), McpError
             EditModeRequest {
                 document: &call.document,
                 requested: call.mode,
-                actor: ActorKind::Agent,
             },
             call.ctx.trace_id(),
         )
@@ -135,7 +134,7 @@ async fn commit_ops(call: EditCall<'_>) -> Result<(EditOutput, String), McpError
                 body: CommitBody::Ops(call.ops.clone()),
                 author: agent_author(call.ctx, call.exec_id),
                 message: call.message.clone(),
-                lock_holder_id: None,
+                lock_holder: None,
                 comments: call.comments.clone(),
                 op_id: call.op_id.clone(),
                 media,

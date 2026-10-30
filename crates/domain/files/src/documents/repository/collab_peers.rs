@@ -24,7 +24,7 @@
 
 use std::time::Duration;
 
-use systemprompt_identifiers::{DocumentEditSessionId, DocumentId, UserId};
+use systemprompt_identifiers::{AgentName, DocumentEditSessionId, DocumentId, UserId};
 
 use super::DocumentCollabRepository;
 use super::rows::{RepoResult, presence_source_str, presence_state_str};
@@ -63,7 +63,7 @@ impl<'a> ActorColumns<'a> {
             },
             DocumentActor::Agent(agent) => Self {
                 kind: "agent",
-                name: Some(&agent.name),
+                name: Some(agent.name.as_str()),
                 attended: Some(agent.attended),
             },
             DocumentActor::System { name } => Self {
@@ -82,7 +82,10 @@ pub(super) fn actor_from(
 ) -> Option<DocumentActor> {
     match (kind?, name) {
         ("human", _) => Some(DocumentActor::Human),
-        ("agent", Some(name)) => Some(DocumentActor::agent(name, attended.unwrap_or(false))),
+        ("agent", Some(name)) => Some(DocumentActor::agent(
+            AgentName::new(name),
+            attended.unwrap_or(false),
+        )),
         ("system", Some(name)) => Some(DocumentActor::system(name)),
         _ => None,
     }

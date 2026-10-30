@@ -21,7 +21,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{DocumentFolderId, DocumentId, UserId};
+use systemprompt_identifiers::{AgentName, DocumentFolderId, DocumentId, UserId};
 use systemprompt_models::documents::DocumentFormat;
 
 use super::actor::AgentActor;
@@ -43,7 +43,7 @@ pub struct DocumentContext {
     pub owner: Option<UserId>,
     pub name: Option<String>,
     pub format: Option<DocumentFormat>,
-    pub created_by_agent: Option<String>,
+    pub created_by_agent: Option<AgentName>,
     pub on_behalf_of: UserId,
 }
 
@@ -51,18 +51,16 @@ pub struct DocumentContext {
 /// dyn-compatible: the access service holds it as `Arc<dyn AgentAccessPolicy>`
 /// built from its inventory registration.
 ///
-/// `cap` is the most an agent may do on a target (an owner override only
-/// lowers it); `allows` grants one [`AgentCapability`] (denied by default);
-/// `on_move` runs before a document or folder move commits and may refuse it;
-/// `on_copy` runs after every copy. A policy that cannot decide fails closed
-/// itself.
+/// `cap` is required, so no policy grants a cap by omission; it is the most an
+/// agent may do on a target (an owner override only lowers it); `allows` grants
+/// one [`AgentCapability`] (denied by default); `on_move` runs before a
+/// document or folder move commits and may refuse it; `on_copy` runs after
+/// every copy. A policy that cannot decide fails closed itself.
 #[async_trait]
 pub trait AgentAccessPolicy: Send + Sync + 'static {
     fn name(&self) -> &'static str;
 
-    async fn cap(&self, _doc: &DocumentContext, _agent: &AgentActor) -> AgentCap {
-        AgentCap::Edit
-    }
+    async fn cap(&self, doc: &DocumentContext, agent: &AgentActor) -> AgentCap;
 
     async fn allows(
         &self,
@@ -112,6 +110,10 @@ pub struct DefaultAgentAccessPolicy;
 impl AgentAccessPolicy for DefaultAgentAccessPolicy {
     fn name(&self) -> &'static str {
         "default"
+    }
+
+    async fn cap(&self, _doc: &DocumentContext, _agent: &AgentActor) -> AgentCap {
+        AgentCap::Edit
     }
 }
 

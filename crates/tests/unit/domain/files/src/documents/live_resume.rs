@@ -88,3 +88,13 @@ fn a_new_session_restarts_the_contiguous_count() {
         LiveDelivery::Deliver(Some(format!("{other}:1")))
     );
 }
+
+#[test]
+fn a_resume_token_displays_as_the_string_the_events_carry() {
+    let token = ResumeToken {
+        session: DocumentEditSessionId::new(SESSION),
+        seq: 7,
+    };
+    assert_eq!(token.to_string(), format!("{SESSION}:7"));
+    assert_eq!(ResumeToken::parse(&token.to_string()), Some(token));
+}

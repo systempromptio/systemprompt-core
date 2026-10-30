@@ -39,7 +39,8 @@ mod error;
 mod documents;
 
 #[cfg(test)]
-mod web_assets;
-
 #[cfg(test)]
 mod issues;
+
+#[cfg(test)]
+mod uploads;

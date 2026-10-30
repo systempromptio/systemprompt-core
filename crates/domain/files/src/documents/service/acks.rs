@@ -18,7 +18,7 @@ use systemprompt_traits::RepositoryError;
 
 use super::{CommitOutcome, CommitRequest, DocumentService, LandedCommit};
 use crate::documents::error::DocumentsError;
-use crate::documents::models::StoredWriteAck;
+use crate::documents::models::{LockHolder, StoredWriteAck};
 use crate::documents::revision::CommitBody;
 
 fn field(hasher: &mut Sha256, bytes: &[u8]) {
@@ -61,12 +61,12 @@ pub(super) fn request_digest(request: &CommitRequest) -> Result<String, Document
     field(
         &mut hasher,
         request
-            .lock_holder_id
-            .as_deref()
-            .unwrap_or_default()
+            .lock_holder
+            .as_ref()
+            .map_or("", LockHolder::id_str)
             .as_bytes(),
     );
-    field(&mut hasher, &[u8::from(request.lock_holder_id.is_some())]);
+    field(&mut hasher, &[u8::from(request.lock_holder.is_some())]);
     field(&mut hasher, &[u8::from(request.comments.allow_detach)]);
     field(
         &mut hasher,

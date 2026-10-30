@@ -55,10 +55,21 @@ const fn saved_uploads(_bytes: &[u8], _wanted: &[String], _limit: u64) -> Vec<St
     Vec::new()
 }
 
+#[must_use]
+pub fn refuse_unheld_media(refs: Vec<String>, held: &[String]) -> AdmittedMedia {
+    AdmittedMedia {
+        media: Media::default(),
+        refused: refs
+            .into_iter()
+            .filter(|reference| !held.contains(reference))
+            .collect(),
+    }
+}
+
 impl DocumentService {
     pub async fn admit_media(
         &self,
-        uploads: Option<&UploadService>,
+        uploads: &UploadService,
         owners: &(dyn Fn(&str) -> Vec<UserId> + Sync),
         refs: Vec<String>,
         held: &[String],
@@ -73,12 +84,10 @@ impl DocumentService {
                 continue;
             };
             let mut owned = None;
-            if let Some(uploads) = uploads {
-                for owner in owners(&reference) {
-                    if let Ok(origin) = uploads.require_owned_blob(&owner, &hash).await {
-                        owned = Some(origin);
-                        break;
-                    }
+            for owner in owners(&reference) {
+                if let Ok(origin) = uploads.require_owned_blob(&owner, &hash).await {
+                    owned = Some(origin);
+                    break;
                 }
             }
             let Some(origin) = owned else {

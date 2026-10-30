@@ -20,7 +20,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::{DocumentId, TraceId, UserId};
+use systemprompt_identifiers::{AgentName, DocumentId, TraceId, UserId};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{
     AccessLevel, DocumentAction, DocumentCommentMentionedEvent, MENTION_EVENT_VERSION,
@@ -29,7 +29,7 @@ use systemprompt_models::documents::{
 
 use super::DocumentService;
 use super::ownership::{ShareCause, USER_SUBJECT};
-use crate::documents::access::AccessTarget;
+use crate::documents::access::{AccessTarget, SubjectValidation};
 use crate::documents::agents::{AgentCapability, DocumentActor, act_as};
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{Document, DocumentComment, MentionGrants};
@@ -40,7 +40,7 @@ const MAX_MENTIONS: usize = 20;
 /// themselves, the agent's name when an agent did.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct CommentOrigin {
-    pub via_agent: Option<String>,
+    pub via_agent: Option<AgentName>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -151,9 +151,16 @@ impl DocumentService {
             .cloned()
             .collect();
         for user in &added {
-            self.access
+            let validation = self
+                .access
                 .validate_subject(USER_SUBJECT, user.as_str())
                 .await?;
+            if validation != SubjectValidation::Valid {
+                return Err(DocumentsError::UnknownSubject {
+                    kind: USER_SUBJECT.to_owned(),
+                    value: user.to_string(),
+                });
+            }
         }
         let levels = self.access.levels_of(document, &added).await?;
         let users: Vec<UserId> = added

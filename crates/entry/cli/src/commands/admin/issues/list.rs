@@ -54,7 +54,7 @@ impl From<IssueReport> for IssueRow {
             severity: report.severity,
             kind: report.kind,
             occurrences: report.occurrences,
-            via_agent: report.via_agent,
+            via_agent: report.via_agent.map(|agent| agent.as_str().to_owned()),
             reporter: report.reporter_user_id,
             last_seen_at: report.last_seen_at.format("%Y-%m-%d %H:%M:%S").to_string(),
             title: report.title,

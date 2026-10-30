@@ -1,8 +1,8 @@
 use systemprompt_files::documents::DocumentsError;
-use systemprompt_files::documents::service::NewFolderRequest;
+use systemprompt_files::documents::service::{FolderMove, FolderUpdateRequest, NewFolderRequest};
 use systemprompt_identifiers::{DocumentFolderId, DocumentId};
 use systemprompt_models::auth::AuthenticatedUser;
-use systemprompt_models::documents::EditOp;
+use systemprompt_models::documents::{AgentEditPolicy, EditOp};
 
 use crate::documents_service_fixture::{
     GroupSource, Harness, allow, create, deny, harness, harness_on, person, trace, unique,
@@ -197,4 +197,83 @@ async fn deny_hook_refuses_folder_mutations() {
         .expect("row");
     assert!(row.trashed_at.is_none());
     assert_ne!(row.name, "Nope");
+}
+
+#[tokio::test]
+async fn update_folder_moves_renames_and_sets_the_policy_together() {
+    let h = harness(allow(), GroupSource::new(&[])).await;
+    let owner = person("folder-update");
+    let parent = folder(&h, &owner, None).await;
+    let child = folder(&h, &owner, None).await;
+    let name = unique("Updated");
+    let updated = h
+        .service
+        .update_folder(
+            &owner,
+            &child,
+            FolderUpdateRequest {
+                name: Some(name.clone()),
+                parent: FolderMove::Into(parent.clone()),
+                agent_edit_policy: Some(AgentEditPolicy::Propose),
+            },
+            &trace(),
+        )
+        .await
+        .expect("update");
+    assert_eq!(updated.name, name);
+    assert_eq!(updated.parent_id.as_ref(), Some(&parent));
+    assert_eq!(updated.agent_edit_policy, AgentEditPolicy::Propose);
+}
+
+#[tokio::test]
+async fn update_folder_that_cannot_move_leaves_name_and_policy_unchanged() {
+    let h = harness(allow(), GroupSource::new(&[])).await;
+    let owner = person("folder-update-atomic");
+    let parent = folder(&h, &owner, None).await;
+    let child = folder(&h, &owner, Some(&parent)).await;
+    let before = h
+        .service
+        .update_folder(
+            &owner,
+            &parent,
+            FolderUpdateRequest {
+                name: None,
+                parent: FolderMove::Keep,
+                agent_edit_policy: Some(AgentEditPolicy::Direct),
+            },
+            &trace(),
+        )
+        .await
+        .expect("baseline");
+    let refused = h
+        .service
+        .update_folder(
+            &owner,
+            &parent,
+            FolderUpdateRequest {
+                name: Some(unique("Never")),
+                parent: FolderMove::Into(child),
+                agent_edit_policy: Some(AgentEditPolicy::Propose),
+            },
+            &trace(),
+        )
+        .await
+        .expect_err("a folder cannot move under its own descendant");
+    assert!(matches!(refused, DocumentsError::InvalidMove { .. }));
+    let after = h
+        .service
+        .update_folder(
+            &owner,
+            &parent,
+            FolderUpdateRequest {
+                name: None,
+                parent: FolderMove::Keep,
+                agent_edit_policy: Some(AgentEditPolicy::Direct),
+            },
+            &trace(),
+        )
+        .await
+        .expect("read back");
+    assert_eq!(after.name, before.name);
+    assert_eq!(after.agent_edit_policy, AgentEditPolicy::Direct);
 }

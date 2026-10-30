@@ -110,7 +110,7 @@ impl DocumentService {
                 who,
                 document: &document,
                 granted: &plan.grants.users,
-                via_agent: origin.via_agent.as_deref(),
+                via_agent: origin.via_agent.as_ref(),
                 options: &request.mention_options,
             },
             comment: &request.comment,

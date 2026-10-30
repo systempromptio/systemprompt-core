@@ -33,7 +33,7 @@ use crate::documents::models::{Document, DocumentRevision};
 use crate::documents::revision::CommitBody;
 use crate::uploads::{Allowance, UploadError, UploadService};
 
-fn refused(error: UploadError) -> DocumentsError {
+pub(super) fn refused(error: UploadError) -> DocumentsError {
     match error {
         UploadError::TooLarge { size, limit } => DocumentsError::TooLarge {
             what: "upload",

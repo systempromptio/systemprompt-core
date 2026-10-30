@@ -89,8 +89,7 @@ impl DocumentService {
                     proposed_revision_id: revision.id.clone(),
                     proposer_user_id: who.id.clone(),
                     actor_kind: author.actor_kind,
-                    origin_kind: author.origin.kind(),
-                    origin_id: author.origin.id(),
+                    origin: author.origin.clone(),
                     message,
                 },
             )

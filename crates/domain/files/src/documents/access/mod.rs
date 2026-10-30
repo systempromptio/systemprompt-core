@@ -64,7 +64,7 @@ mod subtree;
 pub use agent_moves::MoveTarget;
 pub use directory::{SubjectDirectory, SubjectDirectoryError, SubjectMatch};
 pub use probe::FolderProbe;
-pub use search::{MAX_SUBJECT_SEARCH, SubjectSearch};
+pub use search::{MAX_SUBJECT_SEARCH, SubjectSearch, SubjectValidation};
 pub use service::{
     AccessCheck, AccessTarget, DocumentAccessRepositories, DocumentAccessService, Granted,
     root_folder_entity,

@@ -10,9 +10,11 @@ use systemprompt_files::issues::{
     IssueFiling, IssueReportRepository, IssueRetentionJob, IssueService, IssuesError,
 };
 use systemprompt_identifiers::{ContentHash, DocumentUploadId, IssueReportId, UserId};
+use systemprompt_models::auth::{AuthenticatedUser, Permission};
 use systemprompt_models::issues::{IssueContext, IssueKind, IssueSeverity, IssueStatus};
 use systemprompt_models::notifications::{NOTIFICATIONS_CONSUMER, NotificationKind};
 use systemprompt_test_fixtures::{fixture_notification_sink, test_db_pool};
+use systemprompt_traits::StoredFileId;
 
 fn enabled() -> IssuesConfig {
     IssuesConfig {
@@ -81,7 +83,11 @@ fn random_hash() -> ContentHash {
 async fn upload(db: &DbPool, owner: &UserId, status: &str) -> (DocumentUploadId, ContentHash) {
     let hash = random_hash();
     DocumentBlobRepository::new(db)
-        .upsert(&hash, 128, &format!("issues-test/{}", hash.as_str()))
+        .upsert(
+            &hash,
+            128,
+            &StoredFileId::new(format!("issues-test/{}", hash.as_str())),
+        )
         .await
         .expect("blob");
     let id: String = sqlx::query_scalar(
@@ -447,4 +453,76 @@ async fn a_new_report_emits_one_fact_and_a_fold_emits_none() {
     assert_eq!(again, id);
     assert!(!folded.inserted);
     assert_eq!(reported_facts(&db, &id).await, 1);
+}
+
+#[tokio::test]
+async fn only_the_reporter_of_an_active_report_with_room_may_declare_an_attachment() {
+    let db = test_db_pool().await;
+    let issues = service(
+        &db,
+        IssuesConfig {
+            max_attachments: 1,
+            ..enabled()
+        },
+    );
+    let who = reporter("declare");
+    let stranger = reporter("stranger");
+    let (id, _) = issues
+        .file(filing(&who, "Declare early"))
+        .await
+        .expect("file");
+
+    issues.ensure_attachable(&id, &who).await.expect("room");
+    assert!(matches!(
+        issues.ensure_attachable(&id, &stranger).await,
+        Err(IssuesError::NotFound(_))
+    ));
+
+    let (held, _) = upload(&db, &who, "completed").await;
+    issues.attach(&id, &held, &who).await.expect("attach");
+    assert!(matches!(
+        issues.ensure_attachable(&id, &who).await,
+        Err(IssuesError::AttachmentsFull { limit: 1, .. })
+    ));
+
+    issues
+        .set_status(&id, IssueStatus::Closed, None, &who)
+        .await
+        .expect("close");
+    assert!(matches!(
+        issues.ensure_attachable(&id, &who).await,
+        Err(IssuesError::NotActive(_))
+    ));
+}
+
+#[tokio::test]
+async fn triage_is_open_to_admins_and_triage_roles_only() {
+    let db = test_db_pool().await;
+    let issues = service(
+        &db,
+        IssuesConfig {
+            triage_roles: vec!["triager".to_owned()],
+            ..enabled()
+        },
+    );
+    let account = |label: &str, permission: Permission, role: &str| {
+        AuthenticatedUser::new_with_roles(
+            reporter(label),
+            label.to_owned(),
+            format!("{label}@example.test"),
+            vec![permission],
+            vec![role.to_owned()],
+        )
+    };
+
+    issues
+        .require_triager(&account("admin", Permission::Admin, "admin"))
+        .expect("admin triages");
+    issues
+        .require_triager(&account("triager", Permission::User, "triager"))
+        .expect("triage role triages");
+    assert!(matches!(
+        issues.require_triager(&account("plain", Permission::User, "user")),
+        Err(IssuesError::TriageForbidden)
+    ));
 }

@@ -16,23 +16,21 @@ use axum::{Extension, Json};
 use serde::{Deserialize, Deserializer};
 use systemprompt_files::documents::model::Media;
 use systemprompt_files::documents::models::ListCursor;
-use systemprompt_files::documents::service::{CreateRequest, FolderMove, UpdateRequest};
-use systemprompt_files::uploads::{Allowance, NewUpload};
+use systemprompt_files::documents::service::{
+    CreateRequest, FileCreateRequest, FolderMove, UpdateRequest,
+};
 use systemprompt_identifiers::{DocumentFolderId, DocumentId, DocumentTemplateId};
 use systemprompt_models::RequestContext;
 use systemprompt_models::api::ApiError;
-use systemprompt_models::documents::content_hash;
 use systemprompt_provider_contracts::documents::TemplateParams;
 
 use super::DocumentsState;
 use super::caller::{api_author, caller};
 use super::error::DocumentsResult;
 use super::headers::set_revision_tags;
-use super::import::{ImportBody, import_blob};
 use super::items_multipart::read_file;
 use super::requests::with_request_hint;
 use super::views::{CreatedJson, DocumentDetail};
-use crate::error::ApiHttpError;
 
 pub(super) fn document_id(raw: &str) -> DocumentsResult<DocumentId> {
     Ok(DocumentId::try_new(raw)?)
@@ -70,10 +68,11 @@ impl FolderTarget {
         matches!(self, Self::Keep)
     }
 
-    pub(super) const fn folder(&self) -> Option<&DocumentFolderId> {
+    pub(super) fn into_move(self) -> FolderMove {
         match self {
-            Self::Keep | Self::Root => None,
-            Self::Folder(id) => Some(id),
+            Self::Keep => FolderMove::Keep,
+            Self::Root => FolderMove::Root,
+            Self::Folder(id) => FolderMove::Into(id),
         }
     }
 }
@@ -88,7 +87,7 @@ where
 
 #[derive(Debug, Deserialize)]
 pub(super) struct CreateBody {
-    template_id: String,
+    template_id: DocumentTemplateId,
     #[serde(default)]
     folder_id: Option<DocumentFolderId>,
     name: String,
@@ -109,37 +108,24 @@ pub(super) async fn create(
         .and_then(|value| value.to_str().ok())
         .is_some_and(|value| value.starts_with("multipart/form-data"));
     let (document, revision) = if multipart {
-        let headers = request.headers().clone();
         let form = Multipart::from_request(request, &state).await?;
         let file = read_file(form).await?;
-        let upload = NewUpload {
-            name: file.name.clone(),
-            mime: file.mime,
-            size: file.bytes.len() as u64,
-            sha256: content_hash(&file.bytes),
-        };
-        let done = state
-            .uploads
-            .put_whole(
-                req_ctx.user_id(),
-                upload,
-                file.bytes,
-                req_ctx.trace_id(),
-                Allowance::OneShot,
-            )
-            .await
-            .map_err(ApiHttpError::from)?;
-        let body = ImportBody {
-            blob_ref: done.blob,
-            folder_id: file.folder,
+        let create = FileCreateRequest {
             name: file.name,
+            folder: file.folder,
             format: file.format,
+            mime: file.mime,
+            bytes: file.bytes,
+            author,
         };
-        import_blob(&state, &req_ctx, &headers, body).await?
+        state
+            .service
+            .create_from_file(&who.user, create, &who.trace)
+            .await?
     } else {
         let Json(body) = Json::<CreateBody>::from_request(request, &state).await?;
         let create = CreateRequest {
-            template_id: DocumentTemplateId::try_new(&body.template_id).map_err(ApiError::from)?,
+            template_id: body.template_id,
             folder: body.folder_id,
             name: body.name,
             params: body.params,
@@ -209,11 +195,7 @@ pub(super) async fn update(
     if body.name.is_none() && body.folder_id.is_keep() {
         return Err(ApiError::bad_request("give a new `name`, a `folder_id`, or both").into());
     }
-    let folder = match body.folder_id {
-        FolderTarget::Keep => FolderMove::Keep,
-        FolderTarget::Root => FolderMove::Root,
-        FolderTarget::Folder(id) => FolderMove::Into(id),
-    };
+    let folder = body.folder_id.into_move();
     let document = state
         .service
         .update(

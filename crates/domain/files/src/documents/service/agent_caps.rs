@@ -21,12 +21,11 @@ use systemprompt_models::documents::DocumentAction;
 use super::DocumentService;
 use crate::documents::access::{AccessTarget, Granted};
 use crate::documents::agents::{
-    AgentActor, AgentCap, AgentChannel, AgentRefusal, DocumentActor, EffectiveCap,
+    AgentActor, AgentCap, AgentChannel, AgentRefusal, DocumentActor, EffectiveCap, unnamed_agent,
 };
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{Document, DocumentRevision};
 
-const GENERIC_AGENT: &str = "agent";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AgentCapTarget {
@@ -55,7 +54,7 @@ pub struct AgentCapView {
 
 fn reported_agent(actor: &DocumentActor) -> AgentActor {
     actor.as_agent().cloned().unwrap_or_else(|| AgentActor {
-        name: GENERIC_AGENT.to_owned(),
+        name: unnamed_agent(),
         attended: true,
         channel: AgentChannel::Direct,
     })

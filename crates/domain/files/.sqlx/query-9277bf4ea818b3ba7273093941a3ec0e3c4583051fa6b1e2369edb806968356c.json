@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT part_number, size_bytes, sha256 AS \"sha256: ContentHash\", storage_id\n               FROM document_upload_parts WHERE upload_id = $1::text::uuid\n               ORDER BY part_number",
+  "query": "SELECT part_number, size_bytes, sha256 AS \"sha256: ContentHash\",\n                      storage_id AS \"storage_id: StoredFileId\"\n               FROM document_upload_parts WHERE upload_id = $1::text::uuid\n               ORDER BY part_number",
   "describe": {
     "columns": [
       {
@@ -38,7 +38,7 @@
       },
       {
         "ordinal": 3,
-        "name": "storage_id",
+        "name": "storage_id: StoredFileId",
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -60,5 +60,5 @@
       false
     ]
   },
-  "hash": "cef528bd00f6632b5657472fbfdb524583061423e6aee077f18c679d7f2ab17c"
+  "hash": "9277bf4ea818b3ba7273093941a3ec0e3c4583051fa6b1e2369edb806968356c"
 }

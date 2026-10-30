@@ -9,9 +9,9 @@ use systemprompt_files::documents::models::{CommentAnchor, ListScope, ListSort};
 use systemprompt_files::documents::service::{
     AgentCapTarget, CommentRequest, EditModeRequest, ListFolderRequest, NewFolderRequest,
 };
-use systemprompt_identifiers::DocumentId;
+use systemprompt_identifiers::{DocumentFolderId, DocumentId};
 use systemprompt_models::auth::AuthenticatedUser;
-use systemprompt_models::documents::{ActorKind, EditMode};
+use systemprompt_models::documents::EditMode;
 
 use crate::documents_agent_fixture::{agent_harness, agent_refusal, as_agent, document, edit};
 use crate::documents_service_fixture::{Harness, RoleDirectory, create, person, trace, unique};
@@ -146,7 +146,6 @@ async fn under_suggest_an_edit_that_asked_to_land_becomes_a_proposal() {
         EditModeRequest {
             document: &id,
             requested: Some(EditMode::Land),
-            actor: ActorKind::Agent,
         },
         &trace(),
     ))
@@ -236,4 +235,30 @@ async fn an_override_only_tightens_and_an_agent_cannot_set_one() {
         agent_refusal(&by_agent),
         Some(AgentRefusal::HardRule { .. })
     ));
+}
+
+#[tokio::test]
+async fn a_listed_document_whose_folder_chain_is_missing_is_withheld_from_an_agent() {
+    let h = agent_harness(
+        AgentCap::Edit,
+        Vec::new(),
+        RoleDirectory::default(),
+        DocumentsConfig::default(),
+    )
+    .await;
+    let owner = person("orphan-owner");
+    let (rooted, _) = h
+        .service
+        .create_from_template(&owner, create("blank-text", None), &trace())
+        .await
+        .expect("create");
+    let mut orphan = rooted.clone();
+    orphan.folder_id = Some(DocumentFolderId::generate());
+    let hidden = as_agent(h.service.access().hidden_from_agent_many(
+        &owner,
+        &[&rooted, &orphan],
+        &trace(),
+    ))
+    .await;
+    assert_eq!(hidden, vec![false, true]);
 }

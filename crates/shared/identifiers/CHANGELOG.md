@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.77.0] - 2026-10-30
+
+### Breaking
+
+- **Breaking:** `AgentName::try_new` and its `Deserialize` refuse names over 64 bytes or outside ASCII letters, digits and `-_.:/`, so a stored name outside that set no longer parses; `AgentName::new` stays unchecked.
+
+### Added
+
+- `EditorId`, the client-chosen key of an editor holding a document lock.
+
 ## [0.76.0] - 2026-10-29
 
 ### Added

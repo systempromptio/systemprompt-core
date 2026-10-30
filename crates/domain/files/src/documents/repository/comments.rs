@@ -10,7 +10,7 @@ use chrono::{DateTime, Utc};
 use sqlx::PgConnection;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{
-    DocumentCommentId, DocumentId, DocumentNodeId, DocumentRevisionId, UserId,
+    AgentName, DocumentCommentId, DocumentId, DocumentNodeId, DocumentRevisionId, UserId,
 };
 
 use super::Pools;
@@ -115,7 +115,7 @@ impl DocumentCommentRepository {
             request.body,
             &mentions,
             request.parent_id.as_ref().map(DocumentCommentId::as_str),
-            request.via_agent,
+            request.via_agent.as_ref().map(AgentName::as_str),
         )
         .fetch_one(&mut *conn)
         .await?;

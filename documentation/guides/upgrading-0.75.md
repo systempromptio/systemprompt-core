@@ -126,7 +126,7 @@ If the Drive is in use, deploy the server and roll out the 0.75 bridge in the sa
 - `POST /api/v1/documents/{id}/restore` is `POST /api/v1/documents/{id}/untrash`, and the `documents_restore_document` MCP tool is `documents_untrash`.
 - `documents_history` items carry `author`, `actor` and `at`.
 - `own` is no longer a grantable level. A share of `own` is refused, and ownership moves by transfer. A share to an unknown subject is refused with `unknown_subject`.
-- Core no longer ships the vendored `loro-crdt` WebAssembly, the `documents-collab.js` client or the `sp-document-editor` component. An installation that serves the collaborative editor vendors a Loro client at `systemprompt_engine_loro::WIRE_VERSION`.
+- Core no longer ships the vendored `loro-crdt` WebAssembly, the `documents-collab.js` client or the `sp-document-editor` component. An installation that serves the collaborative editor vendors a Loro client at `systemprompt_files::documents::engine::loro::WIRE_VERSION`.
 - A web login that sets the session cookie mints a token with the `browser_session` claim. A token without the claim sent as the cookie is refused `401`.
 - An MCP output marked `terse_wire` carries only `artifact_id` and `mcp_execution_id` under `io.systemprompt/execution` in `_meta`.
 - An enabled SSO provider whose configuration is unusable, or two providers with one id, fail boot instead of leaving the provider off.

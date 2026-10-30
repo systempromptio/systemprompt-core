@@ -12,6 +12,7 @@ workspace = true
 
 [dependencies]
 reqwest = { workspace = true }
+http = { workspace = true }
 systemprompt-runtime = { workspace = true, features = ["geolocation", "notifications"] }
 systemprompt-models = { workspace = true }
 systemprompt-manifest = { workspace = true }

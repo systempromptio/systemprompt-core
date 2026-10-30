@@ -37,7 +37,7 @@ mod rewrite;
 
 pub use actor::{
     AgentActor, AgentChannel, DocumentActor, UNNAMED_AGENT, act_as, current_actor, scoped_actor,
-    unscoped_actor,
+    unnamed_agent, unscoped_actor,
 };
 pub use cap::{AgentCap, AgentCapability, CapSource, EffectiveCap};
 pub use error::AgentRefusal;

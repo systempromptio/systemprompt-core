@@ -35,7 +35,7 @@ impl AgentAccessPolicy for OwnDrafts {
         if let Ok(mut seen) = self.seen.lock() {
             seen.push(doc.folders.iter().map(ToString::to_string).collect());
         }
-        let own = doc.created_by_agent.as_deref() == Some(agent.name.as_str());
+        let own = doc.created_by_agent.as_ref() == Some(&agent.name);
         if doc.document_id.is_none() || own {
             AgentCap::Edit
         } else {

@@ -84,7 +84,7 @@ fn request(document: &DocumentId, ops: Vec<EditOp>) -> CommitRequest {
         body: CommitBody::Ops(ops),
         author: api_author(),
         message: None,
-        lock_holder_id: None,
+        lock_holder: None,
         comments: CommentPolicy::default(),
         op_id: None,
         media: Media::new(),

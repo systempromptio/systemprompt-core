@@ -31,6 +31,9 @@ impl From<IssuesError> for ApiHttpError {
             IssuesError::NotFound(_) => {
                 ApiError::not_found(error.to_string()).with_error_key("issue_not_found")
             },
+            IssuesError::TriageForbidden => {
+                ApiError::forbidden(error.to_string()).with_error_key("issue_triage_forbidden")
+            },
             IssuesError::NotActive(_) => {
                 ApiError::conflict(error.to_string()).with_error_key("issue_not_active")
             },

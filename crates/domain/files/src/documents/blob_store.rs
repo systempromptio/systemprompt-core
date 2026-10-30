@@ -105,11 +105,7 @@ impl BlobStore {
             true
         };
 
-        match self
-            .blobs
-            .upsert(&hash, size_column, storage_id.as_str())
-            .await
-        {
+        match self.blobs.upsert(&hash, size_column, &storage_id).await {
             Ok(inserted) => Ok(StoredBlob {
                 hash,
                 size_bytes: size,
@@ -141,7 +137,7 @@ impl BlobStore {
             .ok_or_else(|| BlobStoreError::NotFound { hash: hash.clone() })?;
         Ok(self
             .storage
-            .open(&StoredFileId::new(row.storage_id), range)
+            .open(&StoredFileId::new(row.storage_id.as_str()), range)
             .await?)
     }
 
@@ -179,7 +175,7 @@ impl BlobStore {
         }
         let mut read = self
             .storage
-            .open(&StoredFileId::new(row.storage_id), None)
+            .open(&StoredFileId::new(row.storage_id.as_str()), None)
             .await?;
         let mut bytes = Vec::with_capacity(usize::try_from(declared).unwrap_or(0));
         while let Some(chunk) = read.body.next().await {
@@ -220,7 +216,7 @@ impl BlobStore {
                     continue;
                 },
             }
-            let storage_id = StoredFileId::new(blob.storage_id);
+            let storage_id = StoredFileId::new(blob.storage_id.as_str());
             match self.storage.delete(&storage_id).await {
                 Ok(()) | Err(FileStorageError::NotFound(_)) => report.deleted += 1,
                 Err(error) => {

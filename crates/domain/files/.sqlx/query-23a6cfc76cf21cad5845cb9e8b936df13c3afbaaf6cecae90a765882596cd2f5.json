@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT content_sha256 AS \"content_sha256: ContentHash\",\n                      size_bytes, storage_id, created_at\n               FROM document_blobs WHERE content_sha256 = $1",
+  "query": "SELECT content_sha256 AS \"content_sha256: ContentHash\",\n                      size_bytes, storage_id AS \"storage_id: StoredFileId\", created_at\n               FROM document_blobs WHERE content_sha256 = $1",
   "describe": {
     "columns": [
       {
@@ -27,7 +27,7 @@
       },
       {
         "ordinal": 2,
-        "name": "storage_id",
+        "name": "storage_id: StoredFileId",
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -60,5 +60,5 @@
       false
     ]
   },
-  "hash": "9f5e738b17cbc743454eb933d610b50dea851b02bc8c47d93d07f7db6db66581"
+  "hash": "23a6cfc76cf21cad5845cb9e8b936df13c3afbaaf6cecae90a765882596cd2f5"
 }

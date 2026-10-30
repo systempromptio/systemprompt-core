@@ -1,16 +1,56 @@
 # Changelog
 
-## [Unreleased]
+## [0.77.0] - 2026-10-30
 
 ### Breaking
 
-- **Breaking:** **Files:** the browser UI is removed: the `sp-*` web components (`sp-document-browser`, `sp-document-preview`, `sp-presence-bar`, `sp-sheet-grid`, `sp-slide-text`, `sp-share-dialog`, `sp-subject-picker`, `sp-history`, `sp-comments`, `sp-proposal-list`), the `documents.js` entry, the `DocumentsElement` base class, the browser and share views and `assets/documents/css/*`. Core keeps the headless client (`documents-api.js`, `documents-events.js`, `documents-patch.js`, `documents-html.js`). Migrate by building the document UI in the host extension on that client; Astound Digital is the reference.
+- **Breaking:** **Notifications:** `actor_display` and `excerpt` are removed from notifications; a notification carries `actor_user_id`, `title` and `body` (migration 004). Migrate feed clients by resolving the actor's name from the users API and rendering `title`/`body`.
+- **Breaking:** **Notifications:** `NotificationEvent::excerpt` and `with_excerpt` are replaced by `title`, `body`, `with_title` and `with_body`, and `via_agent` is an `AgentName`. Migrate producers by setting the title and body and passing an `AgentName` to `with_via_agent`.
+- **Breaking:** **Extension:** `NotificationActorDirectory` and `PipelineParts::actors` are removed. Migrate by dropping the registration and the field.
+- **Breaking:** **Files:** the document browser client is removed: the `sp-*` web components (`sp-document-browser`, `sp-document-preview`, `sp-presence-bar`, `sp-sheet-grid`, `sp-slide-text`, `sp-share-dialog`, `sp-subject-picker`, `sp-history`, `sp-comments`, `sp-proposal-list`), the `documents.js` entry, the `DocumentsElement` base class, the browser and share views, `assets/documents/css/*` and the headless client modules `documents-api.js`, `documents-events.js`, `documents-patch.js` and `documents-html.js`. Migrate by vendoring the document client and UI in the host extension.
+- **Breaking:** **Runtime:** `DocumentsMcpTools::list_resources` and `read_resource`, the `preview` helpers (`preview_resource_uri`, `preview_tool_meta` and the rest) and `ExportOutput::ui_resource` are removed. Migrate by dropping the calls; the server serves no resources.
+- **Breaking:** **Files:** `EditModeRequest` no longer has an `actor` field, and `DocumentService::edit_mode` reads the document actor from the request scope like every other document call. Migrate by deleting the field and wrapping the call in `act_as`.
+- **Breaking:** **Files:** `AgentAccessPolicy::cap` is a required method. Migrate by implementing it; `DefaultAgentAccessPolicy` keeps answering `edit`.
+- **Breaking:** **Files:** `DocumentAccessService::validate_subject` returns `Result<SubjectValidation, DocumentsError>`, where `Unenumerable` marks a dimension whose values cannot be listed. Migrate by matching the outcome and refusing `Invalid`.
+- **Breaking:** **Files:** `UploadError::Invalid(String)` is replaced by `InvalidName`, `EmptyUpload`, `InvalidContentType`, `SizeMismatch`, `PartSizeOutOfRange` and `PartHashUnavailable`, and the HTTP status and `invalid_request` key are unchanged. Migrate by matching the typed variants.
+- **Breaking:** **Files:** `DocumentService::admit_media` takes `&UploadService` instead of `Option<&UploadService>`, and `refuse_unheld_media` answers the no-uploads case. Migrate by calling `refuse_unheld_media(refs, &held)` where no `UploadService` is configured.
 - **Breaking:** **MCP:** `Deployment` gains `description`, `removable` (default `true`) and `toolsets`, and `ToolMetadata` gains `access` and `tool_policy`. Migrate struct literals by adding the fields (`description: None, removable: true, toolsets: Vec::new()`) or `..ToolMetadata::default()`.
+- **Breaking:** **Files:** `AgentActor::name`, `via_agent` and `created_by_agent` are `AgentName`, and `DocumentActor::agent`, `AgentRateLimiter::reserve` and `RewriteTracker` take it; `holder_id`/`holder_kind` become `LockHolder`; `origin_id`/`origin_kind` become `RevisionOrigin` (now in `documents::models`); `storage_id` is `StoredFileId`. Migrate by constructing the typed values with `try_new`.
+- **Breaking:** **Identifiers:** `AgentName::try_new` and its `Deserialize` refuse names over 64 bytes or outside ASCII letters, digits and `-_.:/`, so a stored name outside that set no longer parses; `AgentName::new` stays unchecked.
+- **Breaking:** **Notifications:** `SubscriptionView::source` is a `ChangeSource`, and the failure ledger's `stage` is a `FailureStage` (`NewFailure::stage`, `DeliveryFailure::stage`) in place of the `DELIVER_STAGE` and `DELIVER_RETRY_STAGE` constants. Migrate by building the typed values; a stored `source` or `stage` that does not parse is a decode error.
 
 ### Added
 
 - **MCP:** declarative toolsets. A deployment lists `toolsets: [{id, enabled, access}]` and per-tool `tools.<name>.access` (`scopes`, `roles`, `groups`, any of) and `tools.<name>.tool_policy`; access resolves tool, then toolset, then the server's `oauth.scopes`. The new `McpToolset` trait (`systemprompt::mcp::McpToolset`, `ToolsetCall`) is registered with `submit_toolset!(id, build)` from the runtime, and `systemprompt::mcp::host::serve(ctx, server_id)` serves a deployment's toolsets through the generic `ToolsetServer`: RBAC and the authz hook on every request, `tools/list` filtered per caller, a forbidden error and a recorded denial for a tool outside the caller's access. Access outcomes reach recorders registered with `register_mcp_access_recorder!`. Core registers the `issues` and `documents` toolsets. An unknown toolset id or a `tools:` entry no hosted toolset serves fails the host at start. See `documentation/guides/mcp-toolsets.md`.
 - **Marketplace:** the signed bridge manifest carries a per-tool `tool_policy` for every `tools:` entry that declares one, alongside the server default under `*`.
+- **Identifiers:** `EditorId`, the client-chosen key of an editor holding a document lock.
+
+### Fixed
+
+- **Files:** `POST /documents/{id}/edits` applies a folder's agent edit policy to an agent bearer.
+- **Files:** A live document stream closes when its periodic access recheck fails, not only when access is withdrawn.
+- **Files:** An agent listing withholds a document whose folder chain cannot be read instead of treating it as having no overrides.
+- **Files:** The document routes refuse a request without an authenticated context with `401`, answer `500` when a browser-session request reaches them without the site configuration, and refuse a browser-session request carrying neither `Origin` nor `Sec-Fetch-Site`.
+- **Files:** `GET .../agent-cap` answers for an unattended agent unless `attended=true`, and validates `agent` as an `AgentName`.
+- **Files:** `GET /uploads/{id}/content` sends no `ETag` for an upload without a blob hash, so `If-None-Match` can no longer match an empty tag.
+- **Files:** A document image whose stored MIME type is not a valid header value is served as `application/octet-stream` instead of without a `Content-Type`.
+
+### Removed
+
+- **Removed:** **Engine (Loro):** the `systemprompt-engine-loro` crate; the Loro engine is `systemprompt-files` feature `collab-loro` at `documents::engine::loro`. Migrate by enabling `collab-loro` (or the facade's `files-collab-loro`) and importing from `systemprompt_files`.
+- **Runtime:** the `ui://<server>/document-preview` MCP App resource and the UI `_meta` on `documents_export` are removed, along with `DocumentsMcpTools::list_resources`, `read_resource` and `ExportOutput::ui_resource`; the tool keeps answering the rendered HTML in `structuredContent`.
+
+### Changed
+
+- **Gates:** `check-no-vendor.sh` refuses tracked browser markup or script under `crates/` outside `scripts/core-markup-allowlist.txt`.
+- **Files:** blob collection asks the blob holders registered with `register_blob_holder!` instead of naming the issue attachment table, and the issue report user purge is registered by the issues module.
+- **OAuth issuance:** the Drive sync credential exchange moves from the API handler into `DriveSyncTokenService::exchange` (`systemprompt_oauth_issuance::drive_sync`), with `DriveSyncError` for its refusals; the TTL and rules are unchanged, and the handler decodes the device token and maps the error.
+- **Models:** `BaseRoles::permission_for` and `AuthenticatedUser::from_provider_user` are the one derivation of `Permission` from role names; the document, A2A and SSO paths use it.
+- **Files:** `DocumentService::create_from_file` stores a multipart file as an upload and imports it, and retracts the upload through the new `UploadService::retract` when the import fails.
+- **Files:** `DocumentService::update_folder` applies a folder's move, rename and agent edit policy in one tree-locked transaction after authorizing all three.
+- **Files:** `DocumentService::open_pdf_stream` owns the PDF magic-byte check and stream reopen for inline preview.
+- **Files:** `IssueService::ensure_attachable` and `IssueService::require_triager` own the attachment and triage rules; `IssuesError::TriageForbidden` answers 403 on the API.
+- **Runtime:** `upload_links::required_grant` and `purpose_permits` own the table matching an upload route to the grant its token needs.
 
 ## [0.76.0] - 2026-10-29
 

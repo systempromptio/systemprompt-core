@@ -5,13 +5,13 @@ use std::time::Duration;
 
 use systemprompt_files::documents::DocumentsError;
 use systemprompt_files::documents::model::Media;
-use systemprompt_files::documents::models::{LockHolderKind, LockOutcome, LockRequest};
+use systemprompt_files::documents::models::{LockHolder, LockOutcome, LockRequest};
 use systemprompt_files::documents::repository::{DocumentRepository, HeadMove};
 use systemprompt_files::documents::revision::CommitBody;
 use systemprompt_files::documents::service::{
     AcquireLockRequest, CommentPolicy, CommitOutcome, CommitRequest,
 };
-use systemprompt_identifiers::{DocumentId, DocumentRevisionId};
+use systemprompt_identifiers::{DocumentId, DocumentRevisionId, DriveDeviceId};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::EditOp;
 
@@ -23,14 +23,18 @@ use crate::documents_service_fixture::{
 const DEVICE_A: &str = "device-a";
 const DEVICE_B: &str = "device-b";
 
-fn ops(document: &DocumentId, ops: Vec<EditOp>, holder: Option<&str>) -> CommitRequest {
+fn device(id: &str) -> LockHolder {
+    LockHolder::Bridge(DriveDeviceId::new(id))
+}
+
+fn ops(document: &DocumentId, ops: Vec<EditOp>, holder: Option<LockHolder>) -> CommitRequest {
     CommitRequest {
         document_id: document.clone(),
         base_revision: None,
         body: CommitBody::Ops(ops),
         author: api_author(),
         message: None,
-        lock_holder_id: holder.map(str::to_owned),
+        lock_holder: holder,
         comments: CommentPolicy::default(),
         op_id: None,
         media: Media::new(),
@@ -44,8 +48,7 @@ async fn lock(h: &Harness, who: &AuthenticatedUser, document: &DocumentId, holde
             who,
             document,
             AcquireLockRequest {
-                holder_kind: LockHolderKind::Bridge,
-                holder_id: holder.to_owned(),
+                holder: device(holder),
                 ttl: Duration::from_secs(60),
             },
             &trace(),
@@ -86,8 +89,8 @@ async fn an_ops_commit_under_a_foreign_lock_is_refused_as_lock_held_and_the_head
     assert!(
         matches!(
             &refused,
-            DocumentsError::LockHeld { document_id, holder_kind: LockHolderKind::Bridge, holder_id }
-                if *document_id == document && holder_id == DEVICE_A
+            DocumentsError::LockHeld { document_id, holder }
+                if *document_id == document && *holder == device(DEVICE_A)
         ),
         "{refused:?}"
     );
@@ -95,7 +98,7 @@ async fn an_ops_commit_under_a_foreign_lock_is_refused_as_lock_held_and_the_head
     let other = ops(
         &document,
         vec![rewrite(&projection, "beta", "BETA")],
-        Some(DEVICE_B),
+        Some(device(DEVICE_B)),
     );
     let refused = h
         .service
@@ -111,7 +114,7 @@ async fn an_ops_commit_under_a_foreign_lock_is_refused_as_lock_held_and_the_head
     let holder = ops(
         &document,
         vec![rewrite(&projection, "gamma", "GAMMA")],
-        Some(DEVICE_A),
+        Some(device(DEVICE_A)),
     );
     let landed = h
         .service
@@ -149,7 +152,8 @@ async fn the_head_swap_refuses_a_foreign_lock_and_ignores_an_expired_one() {
     assert_eq!(head_id(&h, &document).await, second);
 
     lock(&h, &owner, &document, DEVICE_A).await;
-    let back_to_first = |holder: Option<&'static str>| HeadMove {
+    let (holder_a, holder_b) = (device(DEVICE_A), device(DEVICE_B));
+    let back_to_first = |holder| HeadMove {
         document: &document,
         expected: Some(&second),
         new: &first,
@@ -161,11 +165,11 @@ async fn the_head_swap_refuses_a_foreign_lock_and_ignores_an_expired_one() {
         .await
         .expect("swap without a holder");
     assert!(!moved);
-    let moved = DocumentRepository::move_head(&mut tx, back_to_first(Some(DEVICE_B)))
+    let moved = DocumentRepository::move_head(&mut tx, back_to_first(Some(&holder_b)))
         .await
         .expect("swap by another holder");
     assert!(!moved);
-    let moved = DocumentRepository::move_head(&mut tx, back_to_first(Some(DEVICE_A)))
+    let moved = DocumentRepository::move_head(&mut tx, back_to_first(Some(&holder_a)))
         .await
         .expect("swap by the holder");
     assert!(moved);
@@ -178,8 +182,7 @@ async fn the_head_swap_refuses_a_foreign_lock_and_ignores_an_expired_one() {
         .acquire(&LockRequest {
             document_id: document.clone(),
             holder_user_id: owner.id.clone(),
-            holder_kind: LockHolderKind::Bridge,
-            holder_id: DEVICE_A.to_owned(),
+            holder: device(DEVICE_A),
             ttl: Duration::ZERO,
         })
         .await
@@ -194,7 +197,7 @@ async fn the_head_swap_refuses_a_foreign_lock_and_ignores_an_expired_one() {
             .is_none()
     );
     let mut tx = h.repos.documents.begin().await.expect("begin");
-    let moved = DocumentRepository::move_head(&mut tx, back_to_first(Some(DEVICE_B)))
+    let moved = DocumentRepository::move_head(&mut tx, back_to_first(Some(&holder_b)))
         .await
         .expect("swap past an expired lock");
     assert!(moved);

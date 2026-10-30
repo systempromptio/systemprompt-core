@@ -30,7 +30,7 @@ async fn acks_past_the_replay_window_are_swept() {
                 body: CommitBody::Ops(vec![rewrite(&head, "beta", "BETA")]),
                 author: api_author(),
                 message: None,
-                lock_holder_id: None,
+                lock_holder: None,
                 comments: CommentPolicy::default(),
                 op_id: Some(op_id.clone()),
                 media: Media::new(),

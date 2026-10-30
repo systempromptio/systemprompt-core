@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT b.content_sha256 AS \"content_sha256: ContentHash\",\n                      b.size_bytes, b.storage_id, b.created_at\n               FROM document_blobs b\n               WHERE b.created_at < now() - make_interval(hours => $1::int)\n                 AND NOT EXISTS (SELECT 1 FROM document_revisions r\n                                 WHERE r.content_sha256 = b.content_sha256)\n                 AND NOT EXISTS (SELECT 1 FROM document_edit_sessions s\n                                 WHERE s.snapshot_sha256 = b.content_sha256)\n                 AND NOT EXISTS (SELECT 1 FROM issue_report_attachments f\n                                 WHERE f.content_sha256 = b.content_sha256)\n               ORDER BY b.created_at\n               LIMIT $2",
+  "query": "SELECT b.content_sha256 AS \"content_sha256: ContentHash\",\n                          b.size_bytes, b.storage_id AS \"storage_id: StoredFileId\", b.created_at\n                   FROM document_blobs b\n                   WHERE b.created_at < now() - make_interval(hours => $1::int)\n                     AND ($3::timestamptz IS NULL\n                          OR (b.created_at, b.content_sha256) > ($3, $4::text))\n                     AND NOT EXISTS (SELECT 1 FROM document_revisions r\n                                     WHERE r.content_sha256 = b.content_sha256)\n                     AND NOT EXISTS (SELECT 1 FROM document_edit_sessions s\n                                     WHERE s.snapshot_sha256 = b.content_sha256)\n                   ORDER BY b.created_at, b.content_sha256\n                   LIMIT $2",
   "describe": {
     "columns": [
       {
@@ -27,7 +27,7 @@
       },
       {
         "ordinal": 2,
-        "name": "storage_id",
+        "name": "storage_id: StoredFileId",
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -51,7 +51,9 @@
     "parameters": {
       "Left": [
         "Int4",
-        "Int8"
+        "Int8",
+        "Timestamptz",
+        "Text"
       ]
     },
     "nullable": [
@@ -61,5 +63,5 @@
       false
     ]
   },
-  "hash": "19f5411ca0c5f418cb02ee1655befe3c34dfbb0a49d6d4a0a117aa4446a17fe0"
+  "hash": "5299757d80ccf3d038f5199878d4e4c056b4f1c38d59b071068cac6e33935cb1"
 }

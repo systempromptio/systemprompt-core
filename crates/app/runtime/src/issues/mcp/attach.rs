@@ -13,7 +13,6 @@ use chrono::{DateTime, Utc};
 use rmcp::ErrorData as McpError;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use systemprompt_files::issues::IssuesError;
 use systemprompt_files::uploads::models::NewUpload;
 use systemprompt_files::uploads::{UploadError, UploadService};
 use systemprompt_identifiers::{ContentHash, DocumentUploadId, IssueReportId, McpExecutionId};
@@ -122,20 +121,10 @@ impl AttachmentHandler<'_> {
     ) -> Result<AttachmentOutput, McpError> {
         let user = caller(ctx)?;
         let issues = self.tools.issues();
-        let report = issues
-            .find_visible(&input.report_id, &user.id, &[])
+        issues
+            .ensure_attachable(&input.report_id, &user.id)
             .await
             .map_err(tool_error)?;
-        if !report.status.is_active() {
-            return Err(tool_error(IssuesError::NotActive(report.id)));
-        }
-        let limit = issues.config().max_attachments;
-        if report.attachments.len() >= limit as usize {
-            return Err(tool_error(IssuesError::AttachmentsFull {
-                report: report.id,
-                limit,
-            }));
-        }
         let sha256 = input.sha256.ok_or_else(|| missing("sha256"))?;
         let request = NewUpload {
             name: input.name.ok_or_else(|| missing("name"))?,
@@ -168,7 +157,7 @@ impl AttachmentHandler<'_> {
             McpError::internal_error("the upload links could not be signed", None)
         })?;
         Ok(AttachmentOutput {
-            report_id: report.id,
+            report_id: input.report_id,
             upload_id: session.id,
             attached: false,
             part_size: Some(session.part_size),

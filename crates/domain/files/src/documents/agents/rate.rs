@@ -18,7 +18,7 @@ use std::collections::{HashMap, VecDeque};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{AgentName, UserId};
 
 use super::error::AgentRefusal;
 
@@ -67,7 +67,7 @@ impl Window {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Reservation {
     user: UserId,
-    agent: String,
+    agent: AgentName,
     ops: u64,
     at: Instant,
 }
@@ -97,12 +97,12 @@ impl AgentRateLimiter {
     pub fn reserve(
         &self,
         user: &UserId,
-        agent: &str,
+        agent: &AgentName,
         ops: u64,
         now: Instant,
     ) -> Result<Reservation, AgentRefusal> {
         let ops = ops.max(1);
-        let agent_key = (user.clone(), agent.to_owned());
+        let agent_key = (user.clone(), agent.as_str().to_owned());
         let user_key = (user.clone(), ALL_AGENTS.to_owned());
         let mut windows = self.lock();
         for (key, limit) in [(&agent_key, self.per_agent), (&user_key, self.per_user)] {
@@ -133,7 +133,7 @@ impl AgentRateLimiter {
         drop(windows);
         Ok(Reservation {
             user: user.clone(),
-            agent: agent.to_owned(),
+            agent: agent.clone(),
             ops,
             at: now,
         })

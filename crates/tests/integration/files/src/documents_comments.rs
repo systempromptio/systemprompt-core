@@ -59,7 +59,7 @@ fn ops(document: &DocumentId, ops: Vec<EditOp>, comments: CommentPolicy) -> Comm
         body: CommitBody::Ops(ops),
         author: api_author(),
         message: None,
-        lock_holder_id: None,
+        lock_holder: None,
         comments,
         op_id: None,
         media: Media::new(),

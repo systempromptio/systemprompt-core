@@ -40,6 +40,7 @@ use systemprompt_models::documents::{
     DriveChanges, DriveCommitMeta, DriveCommitResponse, DriveManifest, DriveProposal,
     DriveProposals, PresenceBeacon,
 };
+use systemprompt_oauth_issuance::DriveSyncTokenService;
 
 use super::drive_token::device_user;
 use super::error::DocumentsResult;
@@ -54,7 +55,7 @@ const DEFAULT_CHANGES: i64 = 500;
 pub struct DriveState {
     service: Arc<DocumentService>,
     jwt: Arc<JwtContextExtractor>,
-    tokens: Arc<dyn TokenAuthority>,
+    drive_sync: DriveSyncTokenService,
 }
 
 impl std::fmt::Debug for DriveState {
@@ -73,7 +74,7 @@ impl DriveState {
         Self {
             service,
             jwt,
-            tokens,
+            drive_sync: DriveSyncTokenService::new(tokens),
         }
     }
 
@@ -81,8 +82,8 @@ impl DriveState {
         &self.jwt
     }
 
-    pub(super) fn tokens(&self) -> &dyn TokenAuthority {
-        self.tokens.as_ref()
+    pub(super) const fn drive_sync(&self) -> &DriveSyncTokenService {
+        &self.drive_sync
     }
 }
 

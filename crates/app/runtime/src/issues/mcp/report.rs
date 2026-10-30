@@ -96,8 +96,9 @@ impl McpToolHandler for ReportHandler<'_> {
         let agent = ctx.agent_name();
         let filing = IssueFiling {
             reporter: user.id.clone(),
-            via_agent: (!agent.as_str().is_empty() && *agent != AgentName::system())
-                .then(|| agent.as_str().chars().take(64).collect()),
+            via_agent: AgentName::try_new(agent.as_str())
+                .ok()
+                .filter(|name| *name != AgentName::system()),
             kind: input.kind,
             severity: input.severity,
             title: input.title,

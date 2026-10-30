@@ -28,6 +28,7 @@ mod docx_fixture;
 mod engine_loro;
 mod engine_loro_model;
 mod live_resume;
+mod lock_origin;
 mod model_docx_review;
 mod model_docx_roundtrip;
 mod model_markdown_gfm;

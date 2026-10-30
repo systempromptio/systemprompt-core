@@ -18,7 +18,7 @@ use crate::documents::agents::{
 };
 use crate::documents::error::DocumentsError;
 use crate::documents::models::Document;
-use crate::documents::repository::AgentReadRecord;
+use crate::documents::repository::{AgentReadRecord, FolderChain};
 
 impl DocumentAccessService {
     pub async fn require_agent_capability(
@@ -160,12 +160,21 @@ impl DocumentAccessService {
         let mut caps = Vec::with_capacity(documents.len());
         for document in documents {
             let own = facts.remove(&document.id).unwrap_or_default();
-            let chain = document
-                .folder_id
-                .as_ref()
-                .and_then(|folder| chains.get(folder))
-                .cloned()
-                .unwrap_or_default();
+            let chain = match document.folder_id.as_ref() {
+                None => FolderChain::default(),
+                Some(folder) => {
+                    let Some(chain) = chains.get(folder) else {
+                        tracing::warn!(
+                            document_id = %document.id,
+                            folder_id = %folder,
+                            "Folder chain missing; the document is withheld from the agent"
+                        );
+                        caps.push(AgentCap::None);
+                        continue;
+                    };
+                    chain.clone()
+                },
+            };
             let mut context = document_context(who, document, chain.chain);
             context.created_by_agent = own.created_by_agent;
             let policy_cap = self.agents.cap(&context, agent).await;

@@ -13,7 +13,7 @@
 
 use rmcp::ErrorData as McpError;
 use systemprompt_files::documents::model::{Block, BlockKind, Media, RichText, media_refs};
-use systemprompt_files::documents::service::held_media_refs;
+use systemprompt_files::documents::service::{held_media_refs, refuse_unheld_media};
 use systemprompt_identifiers::DocumentId;
 use systemprompt_models::documents::EditOp;
 use systemprompt_models::execution::context::RequestContext;
@@ -82,14 +82,14 @@ pub(super) async fn resolve_media(
         },
         None => Vec::new(),
     };
-    let admitted = service
-        .admit_media(
-            tools.uploads(),
-            &|_| vec![ctx.user_id().clone()],
-            refs,
-            &held,
-        )
-        .await;
+    let admitted = match tools.uploads() {
+        Some(uploads) => {
+            service
+                .admit_media(uploads, &|_| vec![ctx.user_id().clone()], refs, &held)
+                .await
+        },
+        None => refuse_unheld_media(refs, &held),
+    };
     match admitted.refused.first() {
         Some(refused) => Err(refusal(
             RefusalCode::InvalidParams,

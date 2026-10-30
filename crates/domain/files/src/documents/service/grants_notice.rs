@@ -67,7 +67,7 @@ impl DocumentService {
             subject_kind: &grant.subject_kind,
             subject_value: &grant.subject_value,
             message: checked.message.as_deref(),
-            via_agent: checked.via_agent.as_deref(),
+            via_agent: checked.via_agent.as_ref(),
             occurred_at: grant.updated_at,
         };
         self.record_share(conn, notice).await

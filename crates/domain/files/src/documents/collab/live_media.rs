@@ -28,7 +28,7 @@ use crate::documents::agents::{DocumentActor, act_as};
 use crate::documents::engine::ModelView;
 use crate::documents::model::{BlockKind, Media, RichText, media_refs};
 use crate::documents::models::DocumentEditSession;
-use crate::documents::service::held_media_refs;
+use crate::documents::service::{held_media_refs, refuse_unheld_media};
 
 pub(super) struct LiveModel {
     pub(super) model: ModelView,
@@ -81,10 +81,14 @@ impl CollabService {
         let limit = self.documents.config().max_upload_bytes;
         let held = held_media_refs(format, base_bytes, &wanted, limit);
         let owners_of = |reference: &str| owners.inserters(reference);
-        let admitted = self
-            .documents
-            .admit_media(self.uploads.as_deref(), &owners_of, wanted, &held)
-            .await;
+        let admitted = match self.uploads.as_deref() {
+            Some(uploads) => {
+                self.documents
+                    .admit_media(uploads, &owners_of, wanted, &held)
+                    .await
+            },
+            None => refuse_unheld_media(wanted, &held),
+        };
         for refused in &admitted.refused {
             tracing::warn!(
                 %format,

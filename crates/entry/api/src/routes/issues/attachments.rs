@@ -11,7 +11,6 @@
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::{Extension, Json};
-use systemprompt_files::issues::IssuesError;
 use systemprompt_files::uploads::NewUpload;
 use systemprompt_identifiers::{DocumentUploadId, IssueReportId};
 use systemprompt_models::RequestContext;
@@ -23,30 +22,6 @@ use super::views::{AttachmentBody, AttachmentUploadJson};
 use super::{IssuesState, caller};
 use crate::error::ApiHttpError;
 
-async fn refuse_unless_attachable(
-    state: &IssuesState,
-    id: &IssueReportId,
-    req_ctx: &RequestContext,
-) -> Result<(), ApiHttpError> {
-    let user = caller(req_ctx)?;
-    let report = state.issues.find_visible(id, &user.id, &user.roles).await?;
-    if report.reporter_user_id != user.id {
-        return Err(IssuesError::NotFound(id.clone()).into());
-    }
-    if !report.status.is_active() {
-        return Err(IssuesError::NotActive(id.clone()).into());
-    }
-    let limit = state.issues.config().max_attachments;
-    if report.attachments.len() >= usize::try_from(limit).unwrap_or(usize::MAX) {
-        return Err(IssuesError::AttachmentsFull {
-            report: id.clone(),
-            limit,
-        }
-        .into());
-    }
-    Ok(())
-}
-
 pub(super) async fn declare(
     State(state): State<IssuesState>,
     Extension(req_ctx): Extension<RequestContext>,
@@ -54,8 +29,8 @@ pub(super) async fn declare(
     Json(body): Json<AttachmentBody>,
 ) -> Result<(StatusCode, Json<AttachmentUploadJson>), ApiHttpError> {
     let id = IssueReportId::try_new(&id)?;
-    refuse_unless_attachable(&state, &id, &req_ctx).await?;
     let user = caller(&req_ctx)?;
+    state.issues.ensure_attachable(&id, &user.id).await?;
     let request = NewUpload {
         name: body.file_name,
         mime: body.mime,

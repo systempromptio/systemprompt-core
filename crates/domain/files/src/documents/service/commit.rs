@@ -130,7 +130,7 @@ impl DocumentService {
         scope: Scope<'_>,
     ) -> Result<CommitOutcome, DocumentsError> {
         let document = scope.document.clone();
-        self.refuse_lock(&document, request.lock_holder_id.as_deref())
+        self.refuse_lock(&document, request.lock_holder.as_ref())
             .await?;
         let mut attempt = 1;
         loop {
@@ -205,7 +205,7 @@ impl DocumentService {
             .await?;
         let placement = Placement {
             moves_head: true,
-            lock_holder: request.lock_holder_id.as_deref(),
+            lock_holder: request.lock_holder.as_ref(),
             op: request.op_id.as_ref().map(|op_id| OpClaim {
                 op_id,
                 user: &who.id,

@@ -7,6 +7,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{ContentHash, DocumentUploadId, TraceId, UserId};
 use systemprompt_models::documents::DocumentFormat;
+use systemprompt_traits::StoredFileId;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -81,6 +82,11 @@ pub struct UploadSession {
 
 impl UploadSession {
     #[must_use]
+    pub fn etag(&self) -> Option<String> {
+        self.blob_sha256.as_ref().map(|hash| format!("\"{hash}\""))
+    }
+
+    #[must_use]
     pub fn part_count(&self) -> u32 {
         part_count(self.declared_size, self.part_size)
     }
@@ -105,7 +111,7 @@ pub struct UploadPart {
     pub size_bytes: u64,
     pub sha256: ContentHash,
     #[serde(skip)]
-    pub storage_id: String,
+    pub storage_id: StoredFileId,
 }
 
 /// What a session counts against.

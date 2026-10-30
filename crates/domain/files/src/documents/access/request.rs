@@ -57,7 +57,9 @@ pub(super) struct HookTarget<'a> {
 fn hook_actor(who: &AuthenticatedUser, actor: DocumentActor) -> Actor {
     match actor {
         DocumentActor::Human => Actor::user(who.id.clone()),
-        DocumentActor::Agent(agent) => Actor::agent(who.id.clone(), AgentId::new(agent.name)),
+        DocumentActor::Agent(agent) => {
+            Actor::agent(who.id.clone(), AgentId::new(agent.name.as_str()))
+        },
         DocumentActor::System { name } => Actor::job(who.id.clone(), name),
     }
 }

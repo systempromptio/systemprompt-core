@@ -12,8 +12,8 @@ use systemprompt_identifiers::{DocumentId, UserId};
 use systemprompt_traits::RepositoryError;
 
 use super::Pools;
-use super::rows::{RepoResult, parse};
-use crate::documents::models::{DocumentLock, LockOutcome, LockRequest};
+use super::rows::RepoResult;
+use crate::documents::models::{DocumentLock, LockHolder, LockOutcome, LockRequest};
 
 #[derive(Debug, Clone)]
 pub struct DocumentLockRepository {
@@ -34,10 +34,10 @@ impl TryFrom<LockRow> for DocumentLock {
 
     fn try_from(row: LockRow) -> RepoResult<Self> {
         Ok(Self {
-            holder_kind: parse("document_locks.holder_kind", &row.holder_kind)?,
+            holder: LockHolder::from_columns(&row.holder_kind, &row.holder_id)
+                .map_err(|source| RepositoryError::decode("document_locks.holder_id", source))?,
             document_id: row.document_id,
             holder_user_id: row.holder_user_id,
-            holder_id: row.holder_id,
             acquired_at: row.acquired_at,
             expires_at: row.expires_at,
         })
@@ -88,8 +88,8 @@ impl DocumentLockRepository {
                          holder_kind, holder_id, acquired_at, expires_at"#,
             request.document_id.as_str(),
             request.holder_user_id.as_str(),
-            request.holder_kind.as_str(),
-            request.holder_id,
+            request.holder.kind().as_str(),
+            request.holder.id_str(),
             request.ttl.as_secs_f64(),
         )
         .fetch_optional(&*self.pools.write)
@@ -98,11 +98,11 @@ impl DocumentLockRepository {
         .transpose()
     }
 
-    pub async fn release(&self, document_id: &DocumentId, holder_id: &str) -> RepoResult<bool> {
+    pub async fn release(&self, document_id: &DocumentId, holder: &LockHolder) -> RepoResult<bool> {
         let result = sqlx::query!(
             "DELETE FROM document_locks WHERE document_id = $1::text::uuid AND holder_id = $2",
             document_id.as_str(),
-            holder_id,
+            holder.id_str(),
         )
         .execute(&*self.pools.write)
         .await?;

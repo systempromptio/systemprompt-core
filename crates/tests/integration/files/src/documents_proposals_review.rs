@@ -52,7 +52,7 @@ async fn owner_edit(
                 body: CommitBody::Ops(vec![rewrite(&head, from, to)]),
                 author: api_author(),
                 message: None,
-                lock_holder_id: None,
+                lock_holder: None,
                 comments: CommentPolicy::default(),
                 op_id: None,
                 media: Media::new(),

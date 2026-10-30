@@ -9,12 +9,10 @@
 
 use systemprompt_identifiers::{AccessTokenId, SessionId, SessionSource, UserId};
 use systemprompt_manifest::Config;
-use systemprompt_models::auth::{AuthenticatedUser, Permission, UserJwtRequest};
+use systemprompt_models::auth::{AuthenticatedUser, BaseRoles, Permission, UserJwtRequest};
 use systemprompt_oauth::services::SessionCreationService;
 use systemprompt_traits::SessionAnalytics;
 use systemprompt_traits::sso::SsoError;
-
-const ADMIN_ROLE: &str = "admin";
 
 /// Who the session is for.
 #[derive(Debug, Clone, Copy)]
@@ -34,10 +32,9 @@ pub struct MintedSession {
 
 #[must_use]
 pub fn permissions_for_roles(roles: &[String]) -> Vec<Permission> {
-    if roles.iter().any(|role| role == ADMIN_ROLE) {
-        vec![Permission::Admin, Permission::User]
-    } else {
-        vec![Permission::User]
+    match BaseRoles::permission_for(roles) {
+        Permission::Admin => vec![Permission::Admin, Permission::User],
+        held => vec![held],
     }
 }
 

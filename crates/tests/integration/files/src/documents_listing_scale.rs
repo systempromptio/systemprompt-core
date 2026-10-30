@@ -17,7 +17,7 @@ use systemprompt_files::documents::service::{ListFolderRequest, NewFolderRequest
 use systemprompt_governance::authz::{
     AuthzDecision, AuthzDecisionHook, AuthzRequest, DenyReason, EntityRef, SharedAuthzHook,
 };
-use systemprompt_identifiers::{DocumentFolderId, DocumentId, TraceId, UserId};
+use systemprompt_identifiers::{AgentName, DocumentFolderId, DocumentId, TraceId, UserId};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{AccessLevel, EditOp};
 use systemprompt_test_fixtures::test_db_pool;
@@ -514,10 +514,11 @@ async fn an_agent_read_is_recorded_once_per_day() {
     let owner = person("dedup-owner");
     let document = named(&h, &owner, &unique("dedup"), None).await;
     let trace_id = TraceId::generate();
+    let agent = AgentName::new("dedup-agent");
     let record = || AgentReadRecord {
         document_id: &document,
         user_id: &owner.id,
-        agent: "dedup-agent",
+        agent: &agent,
         attended: true,
         action: "view",
         cap: AgentCap::Read,
@@ -566,11 +567,12 @@ async fn concurrent_first_agent_reads_land_on_one_row_with_the_latest_trace() {
     let owner = person("dedup-race");
     let document = named(&h, &owner, &unique("dedup-race"), None).await;
     let traces: Vec<TraceId> = (0..8).map(|_| TraceId::generate()).collect();
+    let agent = AgentName::new("race-agent");
     let reads = traces.iter().map(|trace_id| {
         h.repos.documents.insert_agent_read(AgentReadRecord {
             document_id: &document,
             user_id: &owner.id,
-            agent: "race-agent",
+            agent: &agent,
             attended: true,
             action: "view",
             cap: AgentCap::Read,
@@ -587,7 +589,7 @@ async fn concurrent_first_agent_reads_land_on_one_row_with_the_latest_trace() {
         .insert_agent_read(AgentReadRecord {
             document_id: &document,
             user_id: &owner.id,
-            agent: "race-agent",
+            agent: &agent,
             attended: true,
             action: "view",
             cap: AgentCap::Read,

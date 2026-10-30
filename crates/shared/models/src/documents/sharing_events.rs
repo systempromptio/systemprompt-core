@@ -10,7 +10,9 @@
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::{DocumentAccessRequestId, DocumentCommentId, DocumentId, UserId};
+use systemprompt_identifiers::{
+    AgentName, DocumentAccessRequestId, DocumentCommentId, DocumentId, UserId,
+};
 
 use super::access::AccessLevel;
 
@@ -29,7 +31,7 @@ pub struct DocumentSharedEvent {
     #[serde(default)]
     pub v: u32,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub via_agent: Option<String>,
+    pub via_agent: Option<AgentName>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub comment_id: Option<DocumentCommentId>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

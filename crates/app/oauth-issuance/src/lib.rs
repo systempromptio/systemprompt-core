@@ -15,6 +15,7 @@
 //!   intersecting scopes with the client grant and its owner's roles.
 //! - [`token_exchange`] validates subject tokens and ID-JAGs, assembles the
 //!   delegated `act` chain and issues ID-JAGs from upstream OIDC tokens.
+//! - [`drive_sync`] trades a bridge device token for the Drive sync token.
 //! - [`user_tokens`] mints the access/refresh pair for user-bound grants.
 //!
 //! - [`identity`] is the `identity` config plane: users, their roles, service
@@ -29,6 +30,7 @@
 pub use ::inventory as __inventory;
 
 pub mod client_credentials;
+pub mod drive_sync;
 pub mod error;
 mod extension;
 pub mod identity;
@@ -42,6 +44,7 @@ pub mod user_tokens;
 pub mod validation;
 
 pub use client_credentials::{ClientCredentialsError, ClientTokenOptions, generate_client_tokens};
+pub use drive_sync::{DriveSyncError, DriveSyncTokenService};
 pub use error::{IssuanceError, IssuanceResult};
 pub use extension::IdentityExtension;
 pub use identity::{IDENTITY_PLANE, IdentityPlane};

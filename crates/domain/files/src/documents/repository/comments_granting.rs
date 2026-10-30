@@ -16,7 +16,7 @@
 
 use sqlx::PgConnection;
 use systemprompt_identifiers::{
-    DocumentCommentId, DocumentId, DocumentNodeId, DocumentRevisionId, UserId,
+    AgentName, DocumentCommentId, DocumentId, DocumentNodeId, DocumentRevisionId, UserId,
 };
 
 use super::comments::{CommentRow, DocumentCommentRepository};
@@ -91,7 +91,7 @@ impl DocumentCommentRepository {
             request.body,
             &mentions,
             request.parent_id.as_ref().map(DocumentCommentId::as_str),
-            grants.via_agent,
+            grants.via_agent.as_ref().map(AgentName::as_str),
             grants.granted_by.as_str(),
             &grantees,
             grants.trace_id.as_str(),
@@ -155,7 +155,7 @@ impl DocumentCommentRepository {
             &mentions,
             &grantees,
             grants.trace_id.as_str(),
-            grants.via_agent,
+            grants.via_agent.as_ref().map(AgentName::as_str),
         )
         .fetch_one(&mut *conn)
         .await?;

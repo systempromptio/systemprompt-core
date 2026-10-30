@@ -103,15 +103,7 @@ r#"SELECT id::text AS "id!: DocumentFolderId",
         id: &DocumentFolderId,
         policy: AgentEditPolicy,
     ) -> RepoResult<bool> {
-        let result = sqlx::query!(
-            "UPDATE document_folders SET agent_edit_policy = $2, updated_at = now()
-             WHERE id = $1::text::uuid AND deleted_at IS NULL",
-            id.as_str(),
-            policy.as_str(),
-        )
-        .execute(&*self.pools.write)
-        .await?;
-        Ok(result.rows_affected() == 1)
+        set_agent_edit_policy_in(&*self.pools.write, id, policy).await
     }
 
     pub async fn effective_agent_edit_policy(
@@ -173,4 +165,23 @@ r#"SELECT id::text AS "id!: DocumentFolderId",
         .await?;
         path.ok_or_else(|| systemprompt_traits::RepositoryError::not_found("document folder", id))
     }
+}
+
+pub(super) async fn set_agent_edit_policy_in<'e, E>(
+    executor: E,
+    id: &DocumentFolderId,
+    policy: AgentEditPolicy,
+) -> RepoResult<bool>
+where
+    E: sqlx::PgExecutor<'e>,
+{
+    let result = sqlx::query!(
+        "UPDATE document_folders SET agent_edit_policy = $2, updated_at = now()
+             WHERE id = $1::text::uuid AND deleted_at IS NULL",
+        id.as_str(),
+        policy.as_str(),
+    )
+    .execute(executor)
+    .await?;
+    Ok(result.rows_affected() == 1)
 }

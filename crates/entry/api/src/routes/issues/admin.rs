@@ -25,13 +25,8 @@ fn triager<'a>(
     req_ctx: &'a RequestContext,
 ) -> Result<&'a AuthenticatedUser, ApiHttpError> {
     let user = caller(req_ctx)?;
-    if user.is_admin() || state.issues.is_triager(&user.roles) {
-        Ok(user)
-    } else {
-        Err(ApiHttpError::forbidden(
-            "issue triage needs a triage role or admin",
-        ))
-    }
+    state.issues.require_triager(user)?;
+    Ok(user)
 }
 
 pub(super) async fn list(

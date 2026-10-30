@@ -19,6 +19,8 @@ pub enum IssuesError {
     RateLimited { limit: u32 },
     #[error("issue report {0} not found")]
     NotFound(IssueReportId),
+    #[error("issue triage needs a triage role or admin")]
+    TriageForbidden,
     #[error("issue report {0} is resolved or closed and takes no attachments")]
     NotActive(IssueReportId),
     #[error("issue report {report} already carries its {limit} attachments")]

@@ -12,7 +12,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{
-    DocumentCommentId, DocumentId, DocumentNodeId, DocumentRevisionId, TraceId, UserId,
+    AgentName, DocumentCommentId, DocumentId, DocumentNodeId, DocumentRevisionId, TraceId, UserId,
 };
 
 /// Where a comment points: a node, and optionally the `nth` (0-based)
@@ -59,7 +59,7 @@ pub struct NewComment {
     pub body: String,
     pub mentions: Vec<UserId>,
     pub parent_id: Option<DocumentCommentId>,
-    pub via_agent: Option<String>,
+    pub via_agent: Option<AgentName>,
 }
 
 /// The users a comment shares the document with.
@@ -72,5 +72,5 @@ pub struct MentionGrants {
     pub users: Vec<UserId>,
     pub granted_by: UserId,
     pub trace_id: TraceId,
-    pub via_agent: Option<String>,
+    pub via_agent: Option<AgentName>,
 }

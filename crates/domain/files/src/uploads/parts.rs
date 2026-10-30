@@ -75,14 +75,16 @@ impl DocumentUploadRepository {
             number,
             size,
             part.sha256.as_str(),
-            part.storage_id,
+            part.storage_id.as_str(),
         )
         .fetch_one(&mut *tx)
         .await?;
         tx.commit().await?;
         Ok(PartSwap {
             written: row.written == 1,
-            previous: row.previous.filter(|previous| *previous != part.storage_id),
+            previous: row
+                .previous
+                .filter(|previous| *previous != part.storage_id.as_str()),
         })
     }
 

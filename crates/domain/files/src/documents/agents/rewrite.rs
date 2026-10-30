@@ -15,7 +15,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
-use systemprompt_identifiers::{DocumentId, DocumentNodeId};
+use systemprompt_identifiers::{AgentName, DocumentId, DocumentNodeId};
 
 use super::rate::MAX_TRACKED;
 
@@ -44,7 +44,7 @@ impl RewriteTracker {
     pub fn would_reach(
         &self,
         document: &DocumentId,
-        agent: &str,
+        agent: &AgentName,
         nodes: &HashSet<&DocumentNodeId>,
         now: Instant,
     ) -> usize {
@@ -52,7 +52,7 @@ impl RewriteTracker {
             .windows
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let key = (document.clone(), agent.to_owned());
+        let key = (document.clone(), agent.as_str().to_owned());
         let mut distinct: HashSet<&DocumentNodeId> = nodes.iter().copied().collect();
         if let Some(touches) = windows.get(&key) {
             distinct.extend(
@@ -72,7 +72,7 @@ impl RewriteTracker {
     pub fn touch(
         &self,
         document: &DocumentId,
-        agent: &str,
+        agent: &AgentName,
         nodes: &HashSet<&DocumentNodeId>,
         now: Instant,
     ) -> usize {
@@ -80,7 +80,7 @@ impl RewriteTracker {
             .windows
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let key = (document.clone(), agent.to_owned());
+        let key = (document.clone(), agent.as_str().to_owned());
         if !windows.contains_key(&key) && windows.len() >= MAX_TRACKED {
             evict(&mut windows, now);
         }

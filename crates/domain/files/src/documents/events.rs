@@ -45,6 +45,7 @@ use systemprompt_models::documents::{
 };
 
 use super::error::{DocumentsError, EventFailure};
+use super::live::ResumeToken;
 
 pub const AWARENESS_INTERVAL: Duration = Duration::from_millis(100);
 
@@ -161,9 +162,12 @@ impl DocumentEvents {
             event: name,
             source: EventFailure::Serialize(source),
         })?;
-        let resume_id = format!("{}:{}", event.edit_session_id, event.seq);
+        let resume = ResumeToken {
+            session: event.edit_session_id.clone(),
+            seq: event.seq,
+        };
         let published = self
-            .publish_topic(name, &event.author_id, value, Some(resume_id))
+            .publish_topic(name, &event.author_id, value, Some(resume))
             .await;
         if published.is_err() {
             let lost = relay_lost_event(&live_topic(&event.document_id));
@@ -248,7 +252,7 @@ impl DocumentEvents {
         name: &'static str,
         actor: &UserId,
         value: serde_json::Value,
-        resume_id: Option<String>,
+        resume: Option<ResumeToken>,
     ) -> Result<(), DocumentsError> {
         let Some(document) = value.get("document_id").and_then(serde_json::Value::as_str) else {
             return Ok(());
@@ -256,7 +260,7 @@ impl DocumentEvents {
         let event = TopicEvent {
             topic: format!("{LIVE_TOPIC_PREFIX}{document}"),
             name: name.to_owned(),
-            resume_id,
+            resume_id: resume.map(|token| token.to_string()),
             value,
         };
         match self.router.route_topic(actor, event).await.relay {
