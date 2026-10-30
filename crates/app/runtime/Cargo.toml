@@ -25,6 +25,7 @@ geolocation = ["dep:maxminddb", "systemprompt-analytics/geolocation"]
 collab = ["systemprompt-files/collab"]
 engine-loro = ["collab", "systemprompt-files/collab-loro"]
 notifications = ["dep:systemprompt-notifications"]
+brain = ["dep:systemprompt-brain"]
 
 [dependencies]
 tokio = { workspace = true }
@@ -56,6 +57,7 @@ systemprompt-governance = { workspace = true }
 systemprompt-marketplace = { workspace = true }
 systemprompt-mcp = { workspace = true }
 systemprompt-agent = { workspace = true }
+systemprompt-brain = { workspace = true, optional = true }
 systemprompt-oauth = { workspace = true }
 systemprompt-content = { workspace = true }
 serde = { workspace = true }

@@ -15,6 +15,8 @@ mod app_context_parts;
 #[cfg(test)]
 mod boot;
 #[cfg(test)]
+mod brain_mcp;
+#[cfg(test)]
 mod builder_build_live;
 #[cfg(test)]
 mod builder_extra;
