@@ -120,7 +120,10 @@ impl DocumentService {
             merged_from,
             applied,
         } = prepared;
-        let carried = carry(next, previous, hints).await?;
+        let mut carried = carry(next, previous, hints).await?;
+        if let Some(model) = super::live_ids::live_model() {
+            carried.pin(&super::live_ids::pinned_ids(&carried.next, &model));
+        }
         let detached = if placement.moves_head {
             let entries: Vec<NodeIdEntry> =
                 carried.entries.iter().map(|c| c.entry.clone()).collect();

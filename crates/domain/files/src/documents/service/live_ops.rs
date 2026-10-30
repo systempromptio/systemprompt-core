@@ -25,7 +25,7 @@ use super::node_ids::Projected;
 use super::support::blocking;
 use crate::documents::error::DocumentsError;
 use crate::documents::model::Media;
-use crate::documents::models::Document;
+use crate::documents::models::{Document, DocumentRevision};
 use crate::documents::nodes::{CarryHints, NodeIdMinter, carry_forward, with_ids, writer_tag};
 use crate::documents::revision::CommitBody;
 
@@ -91,7 +91,10 @@ impl DocumentService {
         Ok(document)
     }
 
-    pub async fn apply_ops_live(&self, request: LiveOps<'_>) -> Result<LiveApplied, DocumentsError> {
+    pub async fn apply_ops_live(
+        &self,
+        request: LiveOps<'_>,
+    ) -> Result<LiveApplied, DocumentsError> {
         let LiveOps {
             document,
             base,
@@ -111,11 +114,17 @@ impl DocumentService {
         let format = document.format;
         let head = before.clone();
         let applied = blocking(move || {
-            apply_on_head(codec.as_ref(), format, &live, &head, HeadEdit {
-                ops,
-                fragments: Vec::new(),
-                media,
-            })
+            apply_on_head(
+                codec.as_ref(),
+                format,
+                &live,
+                &head,
+                HeadEdit {
+                    ops,
+                    fragments: Vec::new(),
+                    media,
+                },
+            )
         })
         .await?;
         let after = self
@@ -152,5 +161,51 @@ impl DocumentService {
             ids: with_ids(paths.clone(), &entries),
             paths,
         })
+    }
+
+    /// The id-addressed projection of the document's live session, when
+    /// this replica holds one: its materialised bytes projected, each node
+    /// carried from the base revision's ids and then pinned to the live
+    /// block id it aligns with, so a read names blocks added live by the ids
+    /// the session gave them.
+    #[cfg(feature = "collab")]
+    pub(super) async fn live_projection(
+        &self,
+        document: &Document,
+    ) -> Result<Option<(DocumentRevision, Projection)>, DocumentsError> {
+        let Some(collab) = self.collab() else {
+            return Ok(None);
+        };
+        let view = collab
+            .live_view(document)
+            .await
+            .map_err(|error| DocumentsError::LiveSession(Box::new(error)))?;
+        let Some(view) = view else {
+            return Ok(None);
+        };
+        let base = self
+            .repos
+            .revisions
+            .find(&view.base)
+            .await?
+            .ok_or_else(|| DocumentsError::not_found("revision", &view.base))?;
+        let base_ids = self.projected(document, &base).await?.ids;
+        let paths = self.project_paths(document.format, view.bytes).await?;
+        let pins = super::live_ids::pinned_ids(&paths, &view.model);
+        let writer = writer_tag(&format!("{LIVE_WRITER}:{}", document.id));
+        let projected = paths.clone();
+        let entries = blocking(move || {
+            let mut minter = NodeIdMinter::new(writer, 0);
+            let mut entries =
+                carry_forward(&base_ids, &projected, &CarryHints::default(), &mut minter);
+            for entry in &mut entries {
+                if let Some(id) = pins.get(entry.path.as_str()) {
+                    entry.node_id = id.clone();
+                }
+            }
+            Ok(entries)
+        })
+        .await?;
+        Ok(Some((base, with_ids(paths, &entries))))
     }
 }

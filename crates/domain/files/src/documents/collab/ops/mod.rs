@@ -23,6 +23,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub(crate) mod deck;
+mod live_view;
 mod peers;
 mod rich;
 #[cfg(feature = "collab-loro")]
@@ -33,6 +34,8 @@ mod structured;
 use systemprompt_identifiers::TraceId;
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{DocumentFormat, EditOp};
+
+pub(crate) use live_view::LiveView;
 
 use super::{CollabError, CollabService};
 use crate::documents::error::DocumentsError;

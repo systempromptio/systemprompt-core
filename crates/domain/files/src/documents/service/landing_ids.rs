@@ -3,11 +3,13 @@
 //! minted, then renumbered inside the landing transaction onto the ids
 //! reserved on the author's node id counter. Whether an id is provisional
 //! is the flag set where it was minted, never a reading of the id itself.
+//! A live checkpoint pins the nodes its model aligns with to that model's
+//! block ids (see `live_ids`), so those are kept, never minted.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use systemprompt_identifiers::{DocumentId, DocumentNodeId};
 use systemprompt_models::documents::Projection;
@@ -30,6 +32,29 @@ pub(super) struct Carried {
     pub(super) next: Projection,
     pub(super) previous: Option<Projection>,
     pub(super) created: usize,
+}
+
+impl Carried {
+    /// Records each pinned path under its pinned id, kept as is rather than
+    /// minted; an unpinned node already holding one of those ids is minted
+    /// afresh, so no id names two nodes.
+    pub(super) fn pin(&mut self, pins: &HashMap<String, DocumentNodeId>) {
+        if pins.is_empty() {
+            return;
+        }
+        let taken: HashSet<&DocumentNodeId> = pins.values().collect();
+        for carried in &mut self.entries {
+            match pins.get(carried.entry.path.as_str()) {
+                Some(id) => {
+                    carried.entry.node_id = id.clone();
+                    carried.minted = false;
+                },
+                None if taken.contains(&carried.entry.node_id) => carried.minted = true,
+                None => {},
+            }
+        }
+        self.created = self.entries.iter().filter(|carried| carried.minted).count();
+    }
 }
 
 fn mark_minted(entries: Vec<NodeIdEntry>, previous: Option<&Projection>) -> Vec<CarriedEntry> {

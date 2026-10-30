@@ -1,7 +1,10 @@
 //! Reading documents: revisions, bytes, projections, previews and search.
 //!
 //! A projection is returned id-addressed: every node carries its stable id,
-//! with the codec path in its `path` attribute.
+//! with the codec path in its `path` attribute. A projection of the head
+//! (no revision named) of a document whose live session this replica holds
+//! is the live session's content, named by the ids its blocks carry there,
+//! and answered with the session's base revision.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -160,6 +163,12 @@ impl DocumentService {
         let document = self
             .authorized_document(who, document, DocumentAction::View, trace)
             .await?;
+        #[cfg(feature = "collab")]
+        if revision.is_none()
+            && let Some(live) = self.live_projection(&document).await?
+        {
+            return Ok(live);
+        }
         let revision = self.resolve_revision(&document, revision).await?;
         let projected = self.projected(&document, &revision).await?;
         Ok((revision, projected.ids))
