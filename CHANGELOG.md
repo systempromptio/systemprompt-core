@@ -26,8 +26,8 @@
 - **Identifiers:** `EditorId`, the client-chosen key of an editor holding a document lock.
 
 ### Fixed
-- **MCP:** the main server no longer warns that an extension toolset "is not registered by any linked crate" on every boot. It cannot see toolsets linked into an MCP binary; that binary refuses an unknown toolset id when it starts.
 
+- **MCP:** the main server no longer warns that an extension toolset "is not registered by any linked crate" on every boot. It cannot see toolsets linked into an MCP binary; that binary refuses an unknown toolset id when it starts.
 - **Files:** `POST /documents/{id}/edits` applies a folder's agent edit policy to an agent bearer.
 - **Files:** A live document stream closes when its periodic access recheck fails, not only when access is withdrawn.
 - **Files:** An agent listing withholds a document whose folder chain cannot be read instead of treating it as having no overrides.
