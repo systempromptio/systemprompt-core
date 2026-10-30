@@ -18,7 +18,7 @@ mod codec;
 
 use chrono::{DateTime, Utc};
 use serde::Serialize;
-use systemprompt_extension::NotificationSinkError;
+use systemprompt_extension::{BrainSinkError, NotificationSinkError};
 use systemprompt_files::documents::DocumentsError;
 use systemprompt_files::documents::agents::AgentRefusal;
 use systemprompt_files::documents::models::DocumentRevision;
@@ -242,9 +242,8 @@ const fn plain_code(error: &DocumentsError) -> Option<RefusalCode> {
         DocumentsError::AnchorsAffected { .. } => Some(RefusalCode::AnchorsAffected),
         DocumentsError::FindNone { .. } => Some(RefusalCode::FindNone),
         DocumentsError::UnsupportedOp { .. }
-        | DocumentsError::Notifications(NotificationSinkError::Unavailable) => {
-            Some(RefusalCode::UnsupportedOp)
-        },
+        | DocumentsError::Notifications(NotificationSinkError::Unavailable)
+        | DocumentsError::Brain(BrainSinkError::Unavailable) => Some(RefusalCode::UnsupportedOp),
         DocumentsError::ProposalConflict { .. } => Some(RefusalCode::ProposalConflict),
         DocumentsError::UnknownNode { .. }
         | DocumentsError::NotFound { .. }
@@ -282,6 +281,7 @@ const fn plain_code(error: &DocumentsError) -> Option<RefusalCode> {
         | DocumentsError::InvalidAwareness { .. } => Some(RefusalCode::InvalidParams),
         DocumentsError::Codec(_)
         | DocumentsError::Notifications(_)
+        | DocumentsError::Brain(_)
         | DocumentsError::Blob(_)
         | DocumentsError::Repository(_)
         | DocumentsError::Authz(_)
