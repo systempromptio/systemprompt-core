@@ -8357,6 +8357,7 @@ dependencies = [
  "systemprompt-agent-runs",
  "systemprompt-ai",
  "systemprompt-api",
+ "systemprompt-brain",
  "systemprompt-catalog-fixtures",
  "systemprompt-content",
  "systemprompt-database",

@@ -643,3 +643,23 @@ mod gateway_api_key_session_binding;
 #[cfg(test)]
 #[path = "process_leases.rs"]
 mod process_leases;
+
+#[cfg(test)]
+#[path = "brain_routes_facts.rs"]
+mod brain_routes_facts;
+
+#[cfg(test)]
+#[path = "brain_routes_govern.rs"]
+mod brain_routes_govern;
+
+#[cfg(test)]
+#[path = "documents_agent_cap_live.rs"]
+mod documents_agent_cap_live;
+
+#[cfg(test)]
+#[path = "routes_uploads.rs"]
+mod routes_uploads;
+
+#[cfg(test)]
+#[path = "routes_uploads_tokens.rs"]
+mod routes_uploads_tokens;
