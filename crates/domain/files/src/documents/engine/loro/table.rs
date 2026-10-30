@@ -114,7 +114,6 @@ pub(crate) fn write_table(
     truncate(&list, rows.len())
 }
 
-// The row and cell ids a legacy `rows` child holds, kept across its upgrade.
 fn legacy_ids(table: &LoroMap) -> Vec<(String, Vec<String>)> {
     let Some(rows) = list_of(table, "rows").filter(|_| is_legacy(table, "rows")) else {
         return Vec::new();

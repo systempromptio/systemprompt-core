@@ -50,7 +50,6 @@ pub(super) struct Slide {
     pub layout: Option<String>,
     pub shapes: Vec<Shape>,
     pub notes: Vec<String>,
-    /// Each image relationship id's picture part.
     pub images: Vec<(String, String)>,
 }
 

@@ -70,7 +70,6 @@ fn link(package: &mut Package<'_>, slide: &str, media: &str) -> Result<String, C
     Ok(id)
 }
 
-/// The `p:pic` for an added image shape, or `None` when it was skipped.
 pub(super) fn picture_xml(
     package: &mut Package<'_>,
     slide: &str,

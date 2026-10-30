@@ -176,8 +176,6 @@ fn controlled_child(child: &Element) -> bool {
     }
 }
 
-/// The base run properties with every mark-carrying attribute and child
-/// taken out, as (attributes, ranked children).
 fn base_parts(base: Option<&str>) -> (String, Vec<(u8, String)>) {
     let Some(raw) = base else {
         return (" lang=\"en-US\"".to_owned(), Vec::new());
@@ -259,8 +257,6 @@ fn rpr_xml(base: &(String, Vec<(u8, String)>), set: &BTreeSet<MarkKind>) -> Stri
     }
 }
 
-/// The runs of one paragraph, each carrying `base` (the paragraph's first
-/// run properties) with its own marks in place of the base's.
 pub(super) fn runs_xml(segments: &[Segment], base: Option<&str>) -> String {
     let base = base_parts(base);
     let mut out = String::new();

@@ -207,8 +207,6 @@ fn collab_tuning(config: &CollabConfig) -> CollabTuning {
     }
 }
 
-/// Explicit `SYSTEMPROMPT_COLLAB_ADVERTISE_URL` first, then this machine's Fly
-/// private address, then loopback for a single local replica.
 #[cfg(feature = "collab")]
 fn owner_address(config: &CollabConfig) -> String {
     let port = config.owner.advertise_port;

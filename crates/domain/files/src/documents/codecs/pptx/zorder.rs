@@ -15,8 +15,6 @@ pub(super) enum Placed<'e> {
     Added(String),
 }
 
-/// Whether the kept shapes stay in their document order with every added
-/// one after them, so the shapes can be edited in place.
 pub(super) fn in_order(placed: &[Placed<'_>]) -> bool {
     let mut last = 0;
     let mut added = false;
@@ -30,10 +28,6 @@ pub(super) fn in_order(placed: &[Placed<'_>]) -> bool {
     true
 }
 
-/// The slide with its shapes rewritten in the target's z-order: the span
-/// from the first shape to the last is replaced by every placed shape, each
-/// kept one carrying its own edits. Non-shape children inside that span are
-/// kept after the shapes.
 pub(super) fn reordered(
     xml: &str,
     elements: &[&Element],

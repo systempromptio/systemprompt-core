@@ -167,9 +167,6 @@ impl DocumentService {
         })
     }
 
-    /// The live projection of `document_id` with the bytes it was projected
-    /// from, or `None` when no session is open, so a caller pairing a
-    /// projection with bytes never pairs the live tree with the head's bytes.
     pub async fn live_read(
         &self,
         who: &AuthenticatedUser,

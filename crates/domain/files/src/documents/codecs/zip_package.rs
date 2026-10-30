@@ -232,11 +232,6 @@ impl<'a> Package<'a> {
     }
 }
 
-/// The bytes of the package part `reference`.
-///
-/// They are returned only when the part sits directly under the media folder
-/// `prefix` (`ppt/media/`, `Pictures/`) with no `..` or empty segment, so a
-/// viewer can read a deck's pictures and nothing else of the package.
 pub fn media_part(bytes: &[u8], prefix: &str, reference: &str, limit: u64) -> Option<Vec<u8>> {
     let rest = reference.strip_prefix(prefix)?;
     if rest.is_empty() || rest.split('/').any(|seg| seg.is_empty() || seg == "..") {
