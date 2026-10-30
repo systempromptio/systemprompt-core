@@ -16,7 +16,8 @@ use loro::{LoroDoc, LoroMap, LoroMovableList, LoroText};
 use super::super::rich::{WriteError, block_map, insert_block, string_of, sync_text, text_of};
 use super::super::write::{kind_json, sync_attrs};
 use super::model::{DeckModel, DeckShape, DeckSlide, Frame};
-use super::read::{list_of, map_of};
+use super::super::child::{child_list, child_map};
+use super::read::map_of;
 
 pub fn write_deck(doc: &LoroDoc, target: &DeckModel) -> Result<(), WriteError> {
     sync_list(
@@ -38,7 +39,7 @@ pub fn insert_slide(
     if let Some(layout) = &slide.layout {
         map.insert("layout", layout.as_str())?;
     }
-    let shapes = map.insert_container("shapes", LoroMovableList::new())?;
+    let shapes = child_list(&map, "shapes")?;
     for (at, shape) in slide.shapes.iter().enumerate() {
         insert_shape(&shapes, at, shape)?;
     }
@@ -58,9 +59,9 @@ fn insert_shape(list: &LoroMovableList, at: usize, shape: &DeckShape) -> Result<
     map.insert("id", shape.id.as_str())?;
     map.insert("kind", shape.kind.name())?;
     if let Some(frame) = shape.frame {
-        write_frame(&map.insert_container("frame", LoroMap::new())?, frame)?;
+        write_frame(&child_map(&map, "frame")?, frame)?;
     }
-    let paragraphs = map.insert_container("paragraphs", LoroMovableList::new())?;
+    let paragraphs = child_list(&map, "paragraphs")?;
     for (at, block) in shape.paragraphs.iter().enumerate() {
         insert_block(&paragraphs, at, block)?;
     }
@@ -90,10 +91,7 @@ fn write_frame(map: &LoroMap, frame: Frame) -> Result<(), WriteError> {
 
 fn sync_slide(map: &LoroMap, slide: &DeckSlide) -> Result<(), WriteError> {
     sync_string(map, "layout", slide.layout.as_deref())?;
-    let shapes = match list_of(map, "shapes") {
-        Some(list) => list,
-        None => map.insert_container("shapes", LoroMovableList::new())?,
-    };
+    let shapes = child_list(map, "shapes")?;
     sync_list(
         &shapes,
         &slide.shapes,
@@ -107,14 +105,11 @@ fn sync_shape(map: &LoroMap, shape: &DeckShape) -> Result<(), WriteError> {
     sync_string(map, "kind", Some(shape.kind.name()))?;
     match (shape.frame, map_of(map, "frame")) {
         (Some(frame), Some(held)) => write_frame(&held, frame)?,
-        (Some(frame), None) => write_frame(&map.insert_container("frame", LoroMap::new())?, frame)?,
+        (Some(frame), None) => write_frame(&child_map(map, "frame")?, frame)?,
         (None, Some(_)) => map.delete("frame")?,
         (None, None) => {},
     }
-    let paragraphs = match list_of(map, "paragraphs") {
-        Some(list) => list,
-        None => map.insert_container("paragraphs", LoroMovableList::new())?,
-    };
+    let paragraphs = child_list(map, "paragraphs")?;
     sync_list(
         &paragraphs,
         &shape.paragraphs,

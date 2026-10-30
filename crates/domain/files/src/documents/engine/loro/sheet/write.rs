@@ -3,9 +3,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use loro::{LoroDoc, LoroList, LoroMap, LoroMovableList};
+use loro::{LoroDoc, LoroMap};
 
 use super::SHEETS_CONTAINER;
+use crate::documents::engine::loro::child::{child_list, child_map};
 use super::model::{Sheet, SheetCell, SheetModel};
 use crate::documents::engine::loro::rich::WriteError;
 
@@ -22,20 +23,20 @@ pub fn write_sheets(doc: &LoroDoc, model: &SheetModel) -> Result<(), WriteError>
 fn write_sheet(map: &LoroMap, sheet: &Sheet) -> Result<(), WriteError> {
     map.insert("id", sheet.id.as_str())?;
     map.insert("name", sheet.name.as_str())?;
-    let rows = map.insert_container("rows", LoroMovableList::new())?;
+    let rows = child_list(map, "rows")?;
     for id in &sheet.rows {
         rows.push(id.as_str())?;
     }
-    let cols = map.insert_container("cols", LoroMovableList::new())?;
+    let cols = child_list(map, "cols")?;
     for id in &sheet.cols {
         cols.push(id.as_str())?;
     }
-    let cells = map.insert_container("cells", LoroMap::new())?;
+    let cells = child_map(map, "cells")?;
     for (key, cell) in &sheet.cells {
-        let target = cells.insert_container(key, LoroMap::new())?;
+        let target = child_map(&cells, key)?;
         write_cell(&target, cell)?;
     }
-    let merges = map.insert_container("merges", LoroList::new())?;
+    let merges = map.ensure_mergeable_list("merges")?;
     for merge in &sheet.merges {
         merges.push(merge.as_str())?;
     }
