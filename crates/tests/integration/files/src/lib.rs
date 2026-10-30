@@ -115,3 +115,11 @@ mod repository;
 mod services;
 #[cfg(test)]
 mod upload_service;
+#[cfg(test)]
+mod uploads_rig;
+#[cfg(test)]
+mod uploads_safety_image;
+#[cfg(test)]
+mod uploads_safety_office;
+#[cfg(test)]
+mod uploads_service_flow;

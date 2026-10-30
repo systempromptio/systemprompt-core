@@ -45,6 +45,8 @@ mod model_docx_roundtrip;
 mod model_markdown_gfm;
 mod model_office;
 mod model_ops;
+mod model_ops_layout;
+mod model_ops_layout_document;
 mod model_rich_text;
 mod model_style_merge;
 mod node_ids;
