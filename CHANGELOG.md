@@ -5,6 +5,12 @@
 ### Breaking
 
 - **Breaking:** **Files:** the browser UI is removed: the `sp-*` web components (`sp-document-browser`, `sp-document-preview`, `sp-presence-bar`, `sp-sheet-grid`, `sp-slide-text`, `sp-share-dialog`, `sp-subject-picker`, `sp-history`, `sp-comments`, `sp-proposal-list`), the `documents.js` entry, the `DocumentsElement` base class, the browser and share views and `assets/documents/css/*`. Core keeps the headless client (`documents-api.js`, `documents-events.js`, `documents-patch.js`, `documents-html.js`). Migrate by building the document UI in the host extension on that client; Astound Digital is the reference.
+- **Breaking:** **MCP:** `Deployment` gains `description`, `removable` (default `true`) and `toolsets`, and `ToolMetadata` gains `access` and `tool_policy`. Migrate struct literals by adding the fields (`description: None, removable: true, toolsets: Vec::new()`) or `..ToolMetadata::default()`.
+
+### Added
+
+- **MCP:** declarative toolsets. A deployment lists `toolsets: [{id, enabled, access}]` and per-tool `tools.<name>.access` (`scopes`, `roles`, `groups`, any of) and `tools.<name>.tool_policy`; access resolves tool, then toolset, then the server's `oauth.scopes`. The new `McpToolset` trait (`systemprompt::mcp::McpToolset`, `ToolsetCall`) is registered with `submit_toolset!(id, build)` from the runtime, and `systemprompt::mcp::host::serve(ctx, server_id)` serves a deployment's toolsets through the generic `ToolsetServer`: RBAC and the authz hook on every request, `tools/list` filtered per caller, a forbidden error and a recorded denial for a tool outside the caller's access. Access outcomes reach recorders registered with `register_mcp_access_recorder!`. Core registers the `issues` and `documents` toolsets. An unknown toolset id or a `tools:` entry no hosted toolset serves fails the host at start. See `documentation/guides/mcp-toolsets.md`.
+- **Marketplace:** the signed bridge manifest carries a per-tool `tool_policy` for every `tools:` entry that declares one, alongside the server default under `*`.
 
 ## [0.76.0] - 2026-10-29
 

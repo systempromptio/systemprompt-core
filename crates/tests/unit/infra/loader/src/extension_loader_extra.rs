@@ -136,6 +136,9 @@ fn get_production_mcp_binary_names_excludes_dev_only() {
             external_auth: None,
             headers: Default::default(),
             tool_policy: None,
+            description: None,
+            removable: true,
+            toolsets: Vec::new(),
         },
     );
 

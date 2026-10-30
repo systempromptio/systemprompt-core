@@ -10,6 +10,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub use super::connector::{ConnectorConfig, ConnectorGrant, ConnectorIdentity};
+pub use super::toolset::{ResolvedAccess, ToolAccess, ToolsetRef};
 use crate::ai::ToolModelConfig;
 use crate::auth::{JwtAudience, Permission};
 use crate::errors::ServicesValidationError;
@@ -70,6 +71,10 @@ pub struct ToolMetadata {
     pub ui: Option<ToolUiConfig>,
     #[serde(default, skip_serializing_if = "serde_json::Map::is_empty")]
     pub arguments: serde_json::Map<String, serde_json::Value>, // JSON: tool-owned MCP call args
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub access: Option<ToolAccess>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tool_policy: Option<crate::bridge::ids::ToolPolicy>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -120,6 +125,20 @@ pub struct Deployment {
     pub headers: HashMap<String, String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tool_policy: Option<crate::bridge::ids::ToolPolicy>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(default = "default_removable", skip_serializing_if = "is_removable")]
+    pub removable: bool,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub toolsets: Vec<ToolsetRef>,
+}
+
+const fn default_removable() -> bool {
+    true
+}
+
+const fn is_removable(removable: &bool) -> bool {
+    *removable
 }
 
 /// Per-user bearer resolution for an `external` MCP server.
@@ -169,7 +188,53 @@ impl Deployment {
         if let Some(ext) = self.external_auth.as_ref() {
             validate_external_auth(name, ext)?;
         }
+        self.validate_toolsets(name)
+    }
+
+    fn validate_toolsets(&self, name: &str) -> Result<(), ServicesValidationError> {
+        if self.toolsets.is_empty() {
+            return Ok(());
+        }
+        if !matches!(self.server_type, McpServerType::Internal) {
+            return Err(ServicesValidationError::invalid_field(format!(
+                "MCP server '{name}': toolsets are only valid on internal servers."
+            )));
+        }
+        let mut seen = std::collections::HashSet::new();
+        for toolset in &self.toolsets {
+            if toolset.id.trim().is_empty() {
+                return Err(ServicesValidationError::invalid_field(format!(
+                    "MCP server '{name}': a toolset entry has an empty id."
+                )));
+            }
+            if !seen.insert(toolset.id.as_str()) {
+                return Err(ServicesValidationError::invalid_field(format!(
+                    "MCP server '{name}': toolset '{}' is listed twice.",
+                    toolset.id
+                )));
+            }
+            if toolset.access.as_ref().is_some_and(ToolAccess::is_empty) {
+                return Err(ServicesValidationError::invalid_field(format!(
+                    "MCP server '{name}': toolset '{}' declares an empty access block; list \
+                     scopes, roles or groups, or remove it.",
+                    toolset.id
+                )));
+            }
+        }
+        for (tool, meta) in &self.tools {
+            if meta.access.as_ref().is_some_and(ToolAccess::is_empty) {
+                return Err(ServicesValidationError::invalid_field(format!(
+                    "MCP server '{name}': tool '{tool}' declares an empty access block; list \
+                     scopes, roles or groups, or remove it."
+                )));
+            }
+        }
         Ok(())
+    }
+
+    #[must_use]
+    pub fn enabled_toolsets(&self) -> impl Iterator<Item = &ToolsetRef> {
+        self.toolsets.iter().filter(|toolset| toolset.enabled)
     }
 
     fn validate_internal(&self, name: &str) -> Result<(), ServicesValidationError> {

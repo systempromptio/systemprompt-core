@@ -87,3 +87,5 @@ mod state;
 mod tool_executor;
 #[cfg(test)]
 mod tool_handler;
+#[cfg(test)]
+mod toolset_host;

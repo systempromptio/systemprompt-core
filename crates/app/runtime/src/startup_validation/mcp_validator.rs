@@ -5,7 +5,7 @@
 
 use std::path::Path;
 use systemprompt_loader::ExtensionBinaryIndex;
-use systemprompt_manifest::validators::validation_report::ValidationIssue;
+use systemprompt_manifest::validators::validation_report::{ValidationIssue, ValidationWarning};
 use systemprompt_manifest::validators::{StartupValidationReport, ValidationReport};
 use systemprompt_manifest::{Config, ServicesConfig};
 use systemprompt_models::mcp::McpServerType;
@@ -26,6 +26,61 @@ pub(super) fn validate_mcp_manifests(
     });
 
     merge_mcp_errors(report, mcp_errors);
+
+    // Why: an extension's toolset is linked into its own MCP binary, not
+    // necessarily into this one, so an id this binary does not know is a
+    // warning here; the host binary itself refuses it at start.
+    let known = crate::mcp_host::registered_toolset_ids();
+    let toolset_issues = collect_toolset_errors(services_config, &known);
+    if toolset_issues.is_empty() {
+        return;
+    }
+    if !report.domains.iter().any(|d| d.domain == "mcp") {
+        report.add_domain(ValidationReport::new("mcp"));
+    }
+    if let Some(mcp_report) = report.domains.iter_mut().find(|d| d.domain == "mcp") {
+        for issue in toolset_issues {
+            let mut warning = ValidationWarning::new(issue.field, issue.message);
+            if let Some(suggestion) = issue.suggestion {
+                warning = warning.with_suggestion(suggestion);
+            }
+            mcp_report.add_warning(warning);
+        }
+    }
+}
+
+pub fn collect_toolset_errors(
+    services_config: &ServicesConfig,
+    known: &[&str],
+) -> Vec<ValidationIssue> {
+    let mut issues = Vec::new();
+    let mut names: Vec<&String> = services_config.mcp_servers.keys().collect();
+    names.sort();
+    for name in names {
+        let deployment = &services_config.mcp_servers[name];
+        if !deployment.enabled {
+            continue;
+        }
+        for toolset in deployment.enabled_toolsets() {
+            if known.contains(&toolset.id.as_str()) {
+                continue;
+            }
+            issues.push(
+                ValidationIssue::new(
+                    format!("mcp_servers.{name}.toolsets"),
+                    format!(
+                        "Toolset '{}' is not registered by any linked crate",
+                        toolset.id
+                    ),
+                )
+                .with_suggestion(format!(
+                    "Registered toolsets: {}. Register it with submit_toolset! or fix the id",
+                    known.join(", ")
+                )),
+            );
+        }
+    }
+    issues
 }
 
 pub fn collect_manifest_errors<F, E>(

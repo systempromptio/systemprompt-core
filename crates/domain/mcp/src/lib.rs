@@ -37,6 +37,7 @@ pub(crate) mod capabilities;
 pub(crate) mod client_profile;
 pub(crate) mod error;
 pub(crate) mod extension;
+pub mod host;
 pub(crate) mod jobs;
 pub mod middleware;
 pub mod models;
@@ -47,6 +48,7 @@ pub(crate) mod response;
 pub(crate) mod schema;
 pub mod services;
 pub(crate) mod tool;
+pub mod toolset;
 
 #[doc(hidden)]
 pub use ::inventory as __inventory;
@@ -93,6 +95,7 @@ pub use tool::{
     INTENT_CLAIM_WINDOW_SECONDS, McpToolExecutor, McpToolHandler, build_tool_list_result,
     object_input_schema,
 };
+pub use toolset::{McpToolset, ToolsetCall};
 
 pub use systemprompt_models::mcp::{
     Deployment, DeploymentConfig, McpAuthState, McpServerConfig, OAuthRequirement, Settings,

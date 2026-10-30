@@ -34,6 +34,7 @@ The set follows four documentation modes — learning, tasks, reference, and exp
 - [concepts/authentication.md](concepts/authentication.md) — OAuth2/OIDC, JWT, scopes, authz hook.
 - [concepts/a2a-protocol.md](concepts/a2a-protocol.md) — agents, tasks, contexts, streaming.
 - [concepts/mcp.md](concepts/mcp.md) — MCP servers, registry, signed manifests.
+- [guides/mcp-toolsets.md](guides/mcp-toolsets.md) — one MCP server declared in YAML: toolsets, per-tool access, the generic host.
 - [concepts/gateway.md](concepts/gateway.md) — the provider-facing proxy and its controls.
 - [concepts/extensions.md](concepts/extensions.md) — the compile-time extension model.
 - [concepts/config-authority.md](concepts/config-authority.md) — declared configuration files projected into the database: authority, audit, the writer token, the export runbook.

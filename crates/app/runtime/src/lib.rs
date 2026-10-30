@@ -29,6 +29,7 @@ pub mod documents;
 mod error;
 pub mod issues;
 pub mod managed;
+pub mod mcp_host;
 #[cfg(feature = "notifications")]
 pub mod notifications;
 pub mod schema_currency;
@@ -46,10 +47,14 @@ pub use database_context::DatabaseContext;
 pub use error::{RuntimeError, RuntimeResult};
 pub use schema_currency::{SchemaState, assert_schema_current};
 pub use startup_validation::{
-    ExtensionConfigOutcome, StartupValidator, collect_manifest_errors, display_validation_report,
-    display_validation_warnings, merge_mcp_errors, validate_extension_configs,
+    ExtensionConfigOutcome, StartupValidator, collect_manifest_errors, collect_toolset_errors,
+    display_validation_report, display_validation_warnings, merge_mcp_errors,
+    validate_extension_configs,
 };
 pub use systemprompt_database::MigrationConfig;
+
+#[doc(hidden)]
+pub use systemprompt_mcp::__inventory as __toolset_inventory;
 pub use systemprompt_provider_contracts::{ConfigPlaneSet, EffectiveAuthority};
 pub use trace::{
     AiRequestClientEvidence, AiRequestDetail, AiRequestFilter, AiRequestInfo, AiRequestListItem,

@@ -475,6 +475,9 @@ fn enabled_deployment(endpoint: Option<&str>) -> systemprompt_models::mcp::Deplo
         external_auth: None,
         headers: Default::default(),
         tool_policy: Some(systemprompt_models::bridge::ids::ToolPolicy::Allow),
+        description: None,
+        removable: true,
+        toolsets: Vec::new(),
     }
 }
 

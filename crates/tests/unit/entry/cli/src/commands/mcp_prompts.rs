@@ -41,6 +41,9 @@ fn deployment(port: u16) -> Deployment {
         external_auth: None,
         headers: HashMap::default(),
         tool_policy: None,
+        description: None,
+        removable: true,
+        toolsets: Vec::new(),
     }
 }
 

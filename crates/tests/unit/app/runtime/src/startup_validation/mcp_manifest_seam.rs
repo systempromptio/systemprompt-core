@@ -42,6 +42,9 @@ fn deployment(
         external_auth: None,
         headers: HashMap::new(),
         tool_policy: Some(systemprompt_models::bridge::ids::ToolPolicy::Allow),
+        description: None,
+        removable: true,
+        toolsets: Vec::new(),
     }
 }
 

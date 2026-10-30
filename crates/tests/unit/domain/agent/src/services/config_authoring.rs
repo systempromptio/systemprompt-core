@@ -72,6 +72,9 @@ fn services_config_with_server(name: &str) -> ServicesConfig {
             external_auth: None,
             headers: Default::default(),
             tool_policy: None,
+            description: None,
+            removable: true,
+            toolsets: Vec::new(),
         },
     );
     config
