@@ -12,6 +12,7 @@
 use loro::{Container, LoroDoc, LoroMap, LoroMovableList, LoroValue, ValueOrContainer};
 
 use super::SHEETS_CONTAINER;
+use crate::documents::engine::loro::child::{child_list, child_map};
 use super::model::{cell_key, new_id};
 use super::read::string;
 use crate::documents::engine::loro::rich::WriteError;
@@ -30,7 +31,7 @@ pub fn sheet_map(doc: &LoroDoc, name: &str) -> Option<LoroMap> {
 }
 
 fn axis(sheet: &LoroMap, key: &str) -> Result<LoroMovableList, WriteError> {
-    Ok(sheet.get_or_create_container(key, LoroMovableList::new())?)
+    Ok(child_list(sheet, key)?)
 }
 
 fn id_at(list: &LoroMovableList, index: usize) -> Option<String> {
@@ -62,12 +63,12 @@ fn index_of(one_based: u32) -> Result<usize, WriteError> {
 }
 
 pub fn set_cell_input(sheet: &LoroMap, key: &str, v: &str) -> Result<(), WriteError> {
-    let cells = sheet.get_or_create_container("cells", LoroMap::new())?;
+    let cells = child_map(sheet, "cells")?;
     if v.is_empty() {
         cells.delete(key)?;
         return Ok(());
     }
-    let cell = cells.get_or_create_container(key, LoroMap::new())?;
+    let cell = child_map(&cells, key)?;
     cell.insert("v", v)?;
     Ok(())
 }

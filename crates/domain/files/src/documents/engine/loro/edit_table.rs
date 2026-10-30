@@ -8,6 +8,7 @@ use crate::documents::model::{Block, BlockKind};
 use loro::{LoroDoc, LoroMap, LoroMovableList};
 use serde_json::Value;
 
+use super::child::{child_list, child_map};
 use super::edit::{EditError, find_cell, find_row, located, rows_of};
 use super::rich::{list_of, string_of};
 use super::table::{fresh_id, is_table_map, new_entry, to_loro};
@@ -21,7 +22,7 @@ pub fn set_table_prop(
     value: Option<&Value>,
 ) -> Result<(), EditError> {
     let table = table(doc, table_id)?;
-    let props = table.get_or_create_container("props", LoroMap::new())?;
+    let props = child_map(&table, "props")?;
     set_prop(&props, key, value)
 }
 
@@ -35,7 +36,7 @@ pub fn set_cell_prop(
     let cell = find_cell(doc, cell_id).ok_or_else(|| EditError::NotFound {
         id: cell_id.to_owned(),
     })?;
-    let props = cell.get_or_create_container("props", LoroMap::new())?;
+    let props = child_map(&cell, "props")?;
     set_prop(&props, key, value)
 }
 
@@ -53,7 +54,7 @@ pub fn cell_blocks(doc: &LoroDoc, cell_id: &str) -> Result<LoroMovableList, Edit
     let cell = find_cell(doc, cell_id).ok_or_else(|| EditError::NotFound {
         id: cell_id.to_owned(),
     })?;
-    Ok(cell.get_or_create_container("blocks", LoroMovableList::new())?)
+    Ok(child_list(&cell, "blocks")?)
 }
 
 pub(crate) fn table(doc: &LoroDoc, table_id: &str) -> Result<LoroMap, EditError> {
@@ -74,9 +75,9 @@ pub fn insert_row(
     columns: usize,
 ) -> Result<(String, Vec<String>), EditError> {
     let table = table(doc, table_id)?;
-    let rows = table.get_or_create_container("rows", LoroMovableList::new())?;
+    let rows = child_list(&table, "rows")?;
     let row = new_entry(&rows, at.min(rows.len()))?;
-    let cells = row.insert_container("cells", LoroMovableList::new())?;
+    let cells = child_list(&row, "cells")?;
     let ids = (0..columns)
         .map(|c| new_cell(&cells, c))
         .collect::<Result<Vec<_>, _>>()?;
@@ -86,7 +87,7 @@ pub fn insert_row(
 pub fn insert_column(doc: &LoroDoc, table_id: &str, at: usize) -> Result<Vec<String>, EditError> {
     rows_of(&table(doc, table_id)?)
         .map(|row| {
-            let cells = row.get_or_create_container("cells", LoroMovableList::new())?;
+            let cells = child_list(&row, "cells")?;
             new_cell(&cells, at.min(cells.len()))
         })
         .collect()
@@ -112,8 +113,8 @@ pub fn delete_column(doc: &LoroDoc, table_id: &str, at: usize) -> Result<(), Edi
 
 fn new_cell(cells: &LoroMovableList, at: usize) -> Result<String, EditError> {
     let cell = new_entry(cells, at)?;
-    cell.insert_container("props", LoroMap::new())?;
-    let blocks = cell.insert_container("blocks", LoroMovableList::new())?;
+    child_map(&cell, "props")?;
+    let blocks = child_list(&cell, "blocks")?;
     let paragraph = Block::new(fresh_id(), BlockKind::Paragraph, "");
     insert_block(&blocks, 0, &paragraph)?;
     Ok(string_of(&cell, "id").unwrap_or_default())

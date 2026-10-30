@@ -25,6 +25,7 @@ use crate::documents::model::{BlockKind, RichText};
 use loro::{LoroMap, LoroMovableList, LoroValue, ValueOrContainer};
 use serde_json::{Map, Value};
 
+use super::child::{fresh_list, fresh_map, is_legacy};
 use super::rich::{ReadError, WriteError, block_map, list_of, map_of, read_blocks, string_of};
 use super::sync::write_blocks;
 
@@ -90,22 +91,58 @@ pub(crate) fn write_table(
     }
     let mut own = props.clone();
     own.cells = Vec::new();
-    let table_props = map.get_or_create_container("props", LoroMap::new())?;
+    let table_props = fresh_map(map, "props")?;
     sync_props(&table_props, &serde_json::to_value(&own)?)?;
-    let list = map.get_or_create_container("rows", LoroMovableList::new())?;
+    let ids = legacy_ids(map);
+    let list = fresh_list(map, "rows")?;
     for (r, row) in rows.iter().enumerate() {
-        let row_map = slot(&list, r)?;
-        let cells = row_map.get_or_create_container("cells", LoroMovableList::new())?;
+        let row_map = slot(&list, r, ids.get(r).map(|(id, _)| id.as_str()))?;
+        let cell_ids = match ids.get(r) {
+            Some((_, cells)) => cells.clone(),
+            None => legacy_cell_ids(&row_map),
+        };
+        let cells = fresh_list(&row_map, "cells")?;
         for (c, cell) in row.iter().enumerate() {
-            let cell_map = slot(&cells, c)?;
-            let style = cell_map.get_or_create_container("props", LoroMap::new())?;
+            let cell_map = slot(&cells, c, cell_ids.get(c).map(String::as_str))?;
+            let style = fresh_map(&cell_map, "props")?;
             sync_props(&style, &cell_json(&props.cell(r, c))?)?;
-            let blocks = cell_map.get_or_create_container("blocks", LoroMovableList::new())?;
+            let blocks = fresh_list(&cell_map, "blocks")?;
             write_blocks(&blocks, &cell.blocks)?;
         }
         truncate(&cells, row.len())?;
     }
     truncate(&list, rows.len())
+}
+
+// The row and cell ids a legacy `rows` child holds, kept across its upgrade.
+fn legacy_ids(table: &LoroMap) -> Vec<(String, Vec<String>)> {
+    let Some(rows) = list_of(table, "rows").filter(|_| is_legacy(table, "rows")) else {
+        return Vec::new();
+    };
+    (0..rows.len())
+        .filter_map(|r| block_map(&rows, r))
+        .map(|row| {
+            let id = string_of(&row, "id").unwrap_or_else(fresh_id);
+            let cells = list_of(&row, "cells")
+                .map(|cells| ids_of(&cells))
+                .unwrap_or_default();
+            (id, cells)
+        })
+        .collect()
+}
+
+fn legacy_cell_ids(row: &LoroMap) -> Vec<String> {
+    list_of(row, "cells")
+        .filter(|_| is_legacy(row, "cells"))
+        .map(|cells| ids_of(&cells))
+        .unwrap_or_default()
+}
+
+fn ids_of(list: &LoroMovableList) -> Vec<String> {
+    (0..list.len())
+        .filter_map(|at| block_map(list, at))
+        .map(|cell| string_of(&cell, "id").unwrap_or_else(fresh_id))
+        .collect()
 }
 
 pub(crate) fn drop_table(map: &LoroMap) -> Result<(), WriteError> {
@@ -140,14 +177,21 @@ fn cell_json(style: &CellProps) -> serde_json::Result<Value> {
     Ok(value)
 }
 
-fn slot(list: &LoroMovableList, at: usize) -> Result<LoroMap, WriteError> {
+fn slot(list: &LoroMovableList, at: usize, id: Option<&str>) -> Result<LoroMap, WriteError> {
     if let Some(map) = block_map(list, at) {
         return Ok(map);
     }
     if at < list.len() {
         list.delete(at, 1)?;
     }
-    new_entry(list, at)
+    match id {
+        Some(id) => {
+            let map = list.insert_container(at, LoroMap::new())?;
+            map.insert("id", id)?;
+            Ok(map)
+        },
+        None => new_entry(list, at),
+    }
 }
 
 fn truncate(list: &LoroMovableList, len: usize) -> Result<(), WriteError> {

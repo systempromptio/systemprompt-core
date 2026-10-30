@@ -15,9 +15,6 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod a1;
-// Why: see `edit_table` in the parent module; mergeable children change in both
-// replicas at once.
-#[allow(deprecated)]
 pub mod edit;
 pub mod model;
 mod read;

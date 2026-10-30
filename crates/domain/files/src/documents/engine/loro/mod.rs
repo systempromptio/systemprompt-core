@@ -28,13 +28,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod adopt;
+mod child;
 pub mod deck;
 pub mod edit;
-// Why: Loro deprecates get_or_create_container for lazily created map-key
-// children in favour of ensure_mergeable_*. The browser replica creates the
-// same children with setContainer, so both sides must move to mergeable
-// containers together or their container ids diverge.
-#[allow(deprecated)]
 mod edit_table;
 pub mod rich;
 pub mod scope;
@@ -44,7 +40,6 @@ mod shape_ops;
 pub mod sheet;
 pub(crate) mod structured;
 mod sync;
-#[allow(deprecated)]
 pub mod table;
 mod write;
 
@@ -207,7 +202,10 @@ impl EngineDoc for LoroEngineDoc {
         peer: u64,
     ) -> Result<Option<Vec<u8>>, EngineError> {
         let model = &canonical_view(model);
-        if !rich::has_legacy_tables(&self.0) && export(&self.0)? == *model {
+        if !rich::has_legacy_tables(&self.0)
+            && !child::has_legacy_children(&self.0)
+            && export(&self.0)? == *model
+        {
             return Ok(None);
         }
         let before = self.0.oplog_vv();
