@@ -9,7 +9,7 @@
 
 use loro::LoroDoc;
 
-use super::sheet::{Sheet, SheetChange, SheetModel, validate_sheet_changes};
+use super::sheet::{Sheet, SheetChange, SheetModel, cell_key, validate_sheet_changes};
 use super::{deck, sheet};
 use crate::documents::engine::{EngineError, ModelView};
 
@@ -79,4 +79,50 @@ fn position(sheet: &Sheet, key: &str) -> (u32, u32) {
 #[must_use]
 pub(super) fn is_structured(doc: &LoroDoc) -> bool {
     sheet::is_sheet_doc(doc) || !deck::slides(doc).is_empty()
+}
+
+/// Gives a re-imported workbook the live session's ids, so writing it back
+/// touches only what changed: each sheet matches the live sheet of its
+/// name (else at its position), and its rows and columns take the live ids
+/// at the same position; rows and columns past the live ones keep their
+/// fresh ids, and cell keys and merges are rewritten to match.
+pub(crate) fn carry_sheet_ids(live: &SheetModel, next: &mut SheetModel) {
+    for (at, sheet) in next.sheets.iter_mut().enumerate() {
+        let held = live
+            .sheets
+            .iter()
+            .find(|held| held.name == sheet.name)
+            .or_else(|| live.sheets.get(at));
+        if let Some(held) = held {
+            carry_one(held, sheet);
+        }
+    }
+}
+
+fn carry_one(held: &Sheet, sheet: &mut Sheet) {
+    let mut renamed = std::collections::HashMap::new();
+    for (ids, live) in [(&mut sheet.rows, &held.rows), (&mut sheet.cols, &held.cols)] {
+        for (id, live_id) in ids.iter_mut().zip(live) {
+            renamed.insert(std::mem::replace(id, live_id.clone()), live_id.clone());
+        }
+    }
+    let swap = |id: &str| renamed.get(id).cloned().unwrap_or_else(|| id.to_owned());
+    sheet.cells = std::mem::take(&mut sheet.cells)
+        .into_iter()
+        .map(|(key, cell)| match key.split_once(':') {
+            Some((row, col)) => (cell_key(&swap(row), &swap(col)), cell),
+            None => (key, cell),
+        })
+        .collect();
+    for merge in &mut sheet.merges {
+        *merge = merge
+            .split('|')
+            .map(|end| match end.split_once(':') {
+                Some((row, col)) => format!("{}:{}", swap(row), swap(col)),
+                None => end.to_owned(),
+            })
+            .collect::<Vec<_>>()
+            .join("|");
+    }
+    sheet.id.clone_from(&held.id);
 }

@@ -35,7 +35,7 @@ pub mod scope;
 mod shape;
 mod shape_ops;
 pub mod sheet;
-mod structured;
+pub(crate) mod structured;
 mod sync;
 pub mod table;
 mod write;

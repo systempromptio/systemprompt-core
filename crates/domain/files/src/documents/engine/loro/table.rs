@@ -2,13 +2,14 @@
 //! cells, rows or properties merge instead of replacing the table.
 //!
 //! The block map keeps `kind` = [`TABLE_KIND`] and adds `props`, a map of
-//! the table's own properties (`columns`, `header_rows`, `style`), and `rows`,
-//! a movable list of row maps `{id, cells}`. `cells` is a movable list of cell
-//! maps `{id, props, blocks}`: `props` holds the cell's `shade`, `align`,
-//! `valign`, `colspan` and `rowspan` (absent when default; a span of 1 is never
-//! written), and every props value is its JSON text, raw numbers and flags also
-//! read, and `blocks` is a movable list of block maps in the same shape as the
-//! root list. A browser editor mirrors this shape exactly.
+//! the table's own properties (`columns` as JSON text, `header_rows` as an
+//! i64, `style` as a string), and `rows`, a movable list of row maps `{id,
+//! cells}`. `cells` is a movable list of cell maps `{id, props, blocks}`:
+//! `props` holds the cell's `shade`, `align` and `valign` as strings and
+//! `colspan` and `rowspan` as i64 (absent when default; a span of 1 is never
+//! written), and `blocks` is a movable list of block maps in the same shape
+//! as the root list. A browser editor mirrors this shape exactly; reading
+//! also accepts the earlier all-JSON-text encoding.
 //!
 //! The model's `TableProps::cells` is sparse, so a table reads back in
 //! canonical form ([`canonical_table`]): cell styling beyond the table's
@@ -195,8 +196,9 @@ pub fn canonical(model: &mut RichText) {
     }
 }
 
-/// Writes a JSON object's fields as map entries, each value as its JSON
-/// text, as the browser writes them. Keys the object lacks are removed.
+/// Writes a JSON object's fields as map entries with native types, as the
+/// browser writes them: `columns` as JSON text, numbers as i64, everything
+/// else as its string. Keys the object lacks are removed.
 pub(crate) fn sync_props(map: &LoroMap, object: &Value) -> Result<(), WriteError> {
     let fields = object.as_object().cloned().unwrap_or_default();
     for key in map
@@ -209,7 +211,7 @@ pub(crate) fn sync_props(map: &LoroMap, object: &Value) -> Result<(), WriteError
         }
     }
     for (key, value) in &fields {
-        let wanted = to_loro(value)?;
+        let wanted = to_loro(key, value)?;
         let held = match map.get(key) {
             Some(ValueOrContainer::Value(held)) => Some(held),
             _ => None,
@@ -221,13 +223,29 @@ pub(crate) fn sync_props(map: &LoroMap, object: &Value) -> Result<(), WriteError
     Ok(())
 }
 
-pub(crate) fn to_loro(value: &Value) -> Result<LoroValue, WriteError> {
-    Ok(serde_json::to_string(value)?.into())
+pub(crate) fn to_loro(key: &str, value: &Value) -> Result<LoroValue, WriteError> {
+    Ok(match value {
+        _ if key == JSON_KEY => serde_json::to_string(value)?.into(),
+        Value::Bool(flag) => (*flag).into(),
+        Value::Number(number) => match number.as_i64() {
+            Some(int) => int.into(),
+            None => number.as_f64().unwrap_or_default().into(),
+        },
+        Value::String(text) => text.as_str().into(),
+        Value::Null => LoroValue::Null,
+        Value::Array(_) | Value::Object(_) => serde_json::to_string(value)?.into(),
+    })
 }
 
-/// Reads a props map: a string is JSON text (a bare string that is not JSON
-/// reads as itself), and raw numbers and flags are accepted as they are.
-/// Keys the model does not know, such as a cell's `header`, are ignored.
+const JSON_KEY: &str = "columns";
+
+const NUMBER_KEYS: [&str; 3] = ["header_rows", "colspan", "rowspan"];
+
+/// Reads a props map leniently: `columns`, a number key, or a string that
+/// opens with a quote is JSON text (an earlier encoding wrote every value
+/// so); any other string is itself; raw numbers and flags read as they
+/// are. Keys the model does not know, such as a cell's `header`, are
+/// ignored.
 fn from_props<T: serde::de::DeserializeOwned>(map: &LoroMap) -> serde_json::Result<T> {
     let mut fields = Map::new();
     for key in map
@@ -239,9 +257,14 @@ fn from_props<T: serde::de::DeserializeOwned>(map: &LoroMap) -> serde_json::Resu
             continue;
         };
         let value = match value {
-            LoroValue::String(text) => {
+            LoroValue::String(text)
+                if key == JSON_KEY
+                    || NUMBER_KEYS.contains(&key.as_str())
+                    || text.starts_with('"') =>
+            {
                 serde_json::from_str(&text).unwrap_or_else(|_| Value::String(text.to_string()))
             },
+            LoroValue::String(text) => Value::String(text.to_string()),
             LoroValue::I64(int) => Value::from(int),
             LoroValue::Double(float) => Value::from(float),
             LoroValue::Bool(flag) => Value::Bool(flag),

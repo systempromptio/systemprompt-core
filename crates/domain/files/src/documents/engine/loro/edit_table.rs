@@ -41,7 +41,7 @@ pub fn set_cell_prop(
 
 fn set_prop(map: &LoroMap, key: &str, value: Option<&Value>) -> Result<(), EditError> {
     match value {
-        Some(value) => map.insert(key, to_loro(value)?)?,
+        Some(value) => map.insert(key, to_loro(key, value)?)?,
         None if map.get(key).is_some() => map.delete(key)?,
         None => {},
     }
