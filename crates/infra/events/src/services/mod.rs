@@ -11,6 +11,7 @@ mod broadcaster;
 pub mod cache_invalidation;
 pub mod durable;
 mod origin;
+mod outbox_channel;
 mod repository;
 mod routing;
 mod topics;

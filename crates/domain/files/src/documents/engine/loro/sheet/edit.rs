@@ -4,7 +4,10 @@
 //! Every function touches only the containers its edit names: setting a
 //! cell writes that cell's map, inserting a row inserts one id. Growing a
 //! sheet to reach an address appends [`grown_id`]s at the end of `rows` or
-//! `cols`, the same ids any replica growing it at once appends.
+//! `cols`, the same ids any replica growing it at once appends: each is
+//! `<sheet>.r<n>` or `<sheet>.c<n>` for its position, suffixed `.<k>` when
+//! taken, as `sheet/replica.js` derives it, and an id repeated by two such
+//! appends is read once.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -41,9 +44,7 @@ fn id_at(list: &LoroMovableList, index: usize) -> Option<String> {
     }
 }
 
-// The axis as read: physical order, a repeated id kept once (two replicas
-// growing the axis at once append the same grown ids).
-fn logical(list: &LoroMovableList) -> Vec<String> {
+fn ids_once(list: &LoroMovableList) -> Vec<String> {
     let mut seen = std::collections::HashSet::new();
     (0..list.len())
         .filter_map(|at| id_at(list, at))
@@ -51,10 +52,6 @@ fn logical(list: &LoroMovableList) -> Vec<String> {
         .collect()
 }
 
-/// The id a replica gives the axis entry it grows at `ids.len()`: derived
-/// from the sheet, the axis and the position, so two replicas growing the
-/// same axis at once name the same rows and write the same cells. The
-/// browser replica derives it the same way (`sheet/replica.js`).
 #[must_use]
 pub fn grown_id(sheet_id: &str, key: &str, ids: &[String]) -> String {
     let axis = if key == "cols" { 'c' } else { 'r' };
@@ -73,7 +70,7 @@ pub fn grown_id(sheet_id: &str, key: &str, ids: &[String]) -> String {
 
 fn ensure_axis(sheet: &LoroMap, key: &str, index: usize) -> Result<String, WriteError> {
     let list = axis(sheet, key)?;
-    let mut ids = logical(&list);
+    let mut ids = ids_once(&list);
     let sheet_id = string(sheet, "id").unwrap_or_default();
     while ids.len() <= index {
         let id = grown_id(&sheet_id, key, &ids);
@@ -109,7 +106,7 @@ pub fn set_cell_input(sheet: &LoroMap, key: &str, v: &str) -> Result<(), WriteEr
 
 pub fn insert_row_after(sheet: &LoroMap, row: u32) -> Result<String, WriteError> {
     let rows = axis(sheet, "rows")?;
-    let ids = logical(&rows);
+    let ids = ids_once(&rows);
     let at = match ids.get(usize::try_from(row)?) {
         Some(next) => (0..rows.len())
             .find(|at| id_at(&rows, *at).as_deref() == Some(next.as_str()))
@@ -124,7 +121,7 @@ pub fn insert_row_after(sheet: &LoroMap, row: u32) -> Result<String, WriteError>
 #[must_use]
 pub fn row_number(sheet: &LoroMap, row_id: &str) -> Option<u32> {
     let rows = axis(sheet, "rows").ok()?;
-    logical(&rows)
+    ids_once(&rows)
         .iter()
         .position(|id| id == row_id)
         .and_then(|at| u32::try_from(at + 1).ok())

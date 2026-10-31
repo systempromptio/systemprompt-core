@@ -40,8 +40,7 @@ use crate::error::{RelayError, RelayOutcome, RouteOutcome};
 use systemprompt_identifiers::Actor;
 use systemprompt_models::{A2AEvent, AgUiEvent, AnalyticsEvent, ContextEvent, SystemEvent};
 
-pub const OUTBOX_CHANNEL: &str = "systemprompt_events";
-pub const NOTIFICATION_FACTS_CHANNEL: &str = "systemprompt_notification_facts";
+pub use super::outbox_channel::{NOTIFICATION_FACTS_CHANNEL, OUTBOX_CHANNEL, OutboxChannel};
 
 /// The fan-out points for every event kind, built once and shared by the
 /// router, the cross-replica bridge and the SSE endpoints of one process.
@@ -76,43 +75,6 @@ pub struct BroadcasterConnections {
     pub agui: usize,
     pub a2a: usize,
     pub analytics: usize,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum OutboxChannel {
-    AgUi,
-    A2A,
-    System,
-    Analytics,
-    Topic,
-    Fact,
-}
-
-impl OutboxChannel {
-    #[must_use]
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::AgUi => "agui",
-            Self::A2A => "a2a",
-            Self::System => "system",
-            Self::Analytics => "analytics",
-            Self::Topic => "topic",
-            Self::Fact => "fact",
-        }
-    }
-
-    #[must_use]
-    pub fn parse(value: &str) -> Option<Self> {
-        match value {
-            "agui" => Some(Self::AgUi),
-            "a2a" => Some(Self::A2A),
-            "system" => Some(Self::System),
-            "analytics" => Some(Self::Analytics),
-            "topic" => Some(Self::Topic),
-            "fact" => Some(Self::Fact),
-            _ => None,
-        }
-    }
 }
 
 /// Routes events to local subscribers and, when built with an outbox, to the
