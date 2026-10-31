@@ -15,11 +15,6 @@ use super::views::{IssuePage, ListParams, StatusBody, StatusJson};
 use super::{IssuesState, caller};
 use crate::error::ApiHttpError;
 
-#[expect(
-    clippy::result_large_err,
-    reason = "ApiHttpError is the handler error type; boxing it here would propagate to every \
-              caller for negligible gain"
-)]
 fn triager<'a>(
     state: &IssuesState,
     req_ctx: &'a RequestContext,

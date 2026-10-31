@@ -152,27 +152,17 @@ fn validate_server_types(config: &RegistryConfig) -> McpDomainResult<()> {
 fn validate_server_type_constraints(
     server: &systemprompt_models::mcp::McpServerConfig,
 ) -> Option<String> {
-    match server.server_type {
-        McpServerType::Internal => {
-            if server.binary.as_deref().is_none_or(str::is_empty) {
-                return Some(format!("{}: internal server has no binary", server.name));
-            }
-            None
+    let problem = match server.server_type {
+        McpServerType::Internal if server.binary.as_deref().is_none_or(str::is_empty) => {
+            "internal server has no binary"
         },
-        McpServerType::External => {
-            if server.remote_endpoint.is_empty() {
-                return Some(format!(
-                    "{}: external server has no remote endpoint",
-                    server.name
-                ));
-            }
-            if server.binary.is_some() || server.port.is_some() {
-                return Some(format!(
-                    "{}: external server must not declare a binary or a port",
-                    server.name
-                ));
-            }
-            None
+        McpServerType::External if server.remote_endpoint.is_empty() => {
+            "external server has no remote endpoint"
         },
-    }
+        McpServerType::External if server.binary.is_some() || server.port.is_some() => {
+            "external server must not declare a binary or a port"
+        },
+        McpServerType::Internal | McpServerType::External => return None,
+    };
+    Some(format!("{}: {problem}", server.name))
 }

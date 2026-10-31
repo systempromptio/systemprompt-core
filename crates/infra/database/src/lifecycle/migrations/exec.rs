@@ -144,7 +144,7 @@ async fn apply_in_transaction(
                 version: migration.version,
                 name: migration.name.clone(),
                 setting,
-                source,
+                source: Box::new(source),
             });
         }
     }
@@ -171,7 +171,7 @@ async fn apply_in_transaction(
                 n: idx + 1,
                 total,
                 statement: statement.clone(),
-                source,
+                source: Box::new(source),
             });
         }
         let elapsed = statement_started.elapsed();
@@ -198,7 +198,7 @@ async fn apply_in_transaction(
         return Err(MigrationStepError::Tracking {
             version: migration.version,
             name: migration.name.clone(),
-            source,
+            source: Box::new(source),
         });
     }
 

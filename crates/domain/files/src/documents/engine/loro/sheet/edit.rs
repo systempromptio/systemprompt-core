@@ -56,7 +56,7 @@ fn ids_once(list: &LoroMovableList) -> Vec<String> {
 pub fn grown_id(sheet_id: &str, key: &str, ids: &[String]) -> String {
     let axis = if key == "cols" { 'c' } else { 'r' };
     let base = format!("{sheet_id}.{axis}{}", ids.len());
-    (0..)
+    (0..=ids.len())
         .map(|n| {
             if n == 0 {
                 base.clone()
@@ -107,12 +107,11 @@ pub fn set_cell_input(sheet: &LoroMap, key: &str, v: &str) -> Result<(), WriteEr
 pub fn insert_row_after(sheet: &LoroMap, row: u32) -> Result<String, WriteError> {
     let rows = axis(sheet, "rows")?;
     let ids = ids_once(&rows);
-    let at = match ids.get(usize::try_from(row)?) {
-        Some(next) => (0..rows.len())
+    let at = ids.get(usize::try_from(row)?).map_or(rows.len(), |next| {
+        (0..rows.len())
             .find(|at| id_at(&rows, *at).as_deref() == Some(next.as_str()))
-            .unwrap_or(rows.len()),
-        None => rows.len(),
-    };
+            .unwrap_or(rows.len())
+    });
     let id = new_id();
     rows.insert(at, id.as_str())?;
     Ok(id)

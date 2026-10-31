@@ -42,7 +42,7 @@ pub(crate) fn problem(status: StatusCode, detail: impl Into<String>) -> Response
 pub async fn normalize(request: Request, next: Next) -> Response {
     let request = match bounds::validate(request).await {
         Ok(request) => request,
-        Err(response) => return response,
+        Err(response) => return *response,
     };
     let mut response = next.run(request).await;
     if (response.status().is_client_error() || response.status().is_server_error())

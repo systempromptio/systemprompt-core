@@ -150,8 +150,12 @@ CMD ["{bin}/systemprompt", "{cmd_infra}", "{cmd_services}", "{cmd_serve}", "--fo
         self.image
             .packages
             .iter()
-            .map(|package| format!("    {package} \\\n"))
-            .collect()
+            .fold(String::new(), |mut out, package| {
+                out.push_str("    ");
+                out.push_str(package);
+                out.push_str(" \\\n");
+                out
+            })
     }
 
     fn extension_storage_dirs() -> String {

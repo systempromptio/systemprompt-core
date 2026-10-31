@@ -137,8 +137,7 @@ impl AppContextBuilder {
             event_plane(self.event_router, &database, &config, &cache_epochs);
         let background_tasks = self.background_tasks.unwrap_or_default();
         #[cfg(feature = "notifications")]
-        let notification_sink =
-            notifications::notification_sink(&database, config.instance_id.clone());
+        let notification_sink = notifications::notification_sink(&database, &config.instance_id);
         #[cfg(not(feature = "notifications"))]
         let notification_sink: systemprompt_extension::DynNotificationSink =
             Arc::new(crate::documents::NotificationsUnavailableSink);

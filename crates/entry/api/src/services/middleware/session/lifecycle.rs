@@ -7,8 +7,10 @@ use std::sync::Arc;
 use systemprompt_identifiers::{ClientId, SessionId, SessionSource, UserId};
 
 use super::RequestMeta;
-use systemprompt_manifest::Config;
 use systemprompt_models::api::ApiError;
+
+use crate::error::ApiHttpError;
+use systemprompt_manifest::Config;
 use systemprompt_oauth::services::{
     CreateAnonymousSessionInput, SessionCreationError, SessionCreationService,
 };
@@ -16,7 +18,7 @@ use systemprompt_oauth::services::{
 pub(super) async fn create_new_session(
     session_creation_service: &Arc<SessionCreationService>,
     meta: &RequestMeta<'_>,
-) -> Result<(SessionId, UserId, String, bool, String), ApiError> {
+) -> Result<(SessionId, UserId, String, bool, String), ApiHttpError> {
     let client_id = ClientId::new("sp_web".to_owned());
 
     session_creation_service
@@ -37,7 +39,7 @@ pub(super) async fn create_new_session(
         })
         .map_err(|e| {
             tracing::error!(error = %e, "Failed to create anonymous session");
-            ApiError::internal("Service temporarily unavailable", e)
+            ApiHttpError::internal("Service temporarily unavailable", e)
         })
 }
 
@@ -46,18 +48,20 @@ pub(super) async fn refresh_session_for_user(
     config: &Config,
     user_id: &UserId,
     meta: &RequestMeta<'_>,
-) -> Result<(SessionId, UserId, String, bool, String), ApiError> {
+) -> Result<(SessionId, UserId, String, bool, String), ApiHttpError> {
     let session_id = session_creation_service
         .create_authenticated_session(user_id, meta.analytics, SessionSource::Web)
         .await
         .map_err(|e| match e {
             SessionCreationError::UserNotFound { ref user_id } => {
-                ApiError::not_found(format!("User not found: {}", user_id))
-                    .with_error_key("user_not_found")
+                ApiHttpError::from(
+                    ApiError::not_found(format!("User not found: {}", user_id))
+                        .with_error_key("user_not_found"),
+                )
             },
             SessionCreationError::Internal(source) => {
                 tracing::error!(error = %source, user_id = %user_id, "Failed to create session for user");
-                ApiError::internal("Failed to refresh session", source)
+                ApiHttpError::internal("Failed to refresh session", source)
             },
         })?;
 
@@ -70,7 +74,7 @@ pub(super) async fn refresh_session_for_user(
     )
     .map_err(|e| {
         tracing::error!(error = %e, "Failed to generate JWT during session refresh");
-        ApiError::internal("Failed to refresh session", e)
+        ApiHttpError::internal("Failed to refresh session", e)
     })?;
 
     Ok((

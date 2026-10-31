@@ -61,11 +61,6 @@ impl IssuesState {
     }
 }
 
-#[expect(
-    clippy::result_large_err,
-    reason = "ApiHttpError is the handler error type; boxing it here would propagate to every \
-              caller for negligible gain"
-)]
 fn caller(req_ctx: &RequestContext) -> Result<&AuthenticatedUser, ApiHttpError> {
     req_ctx
         .user

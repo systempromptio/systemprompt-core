@@ -93,9 +93,11 @@ pub struct UpdateImport {
     pub pending: bool,
 }
 
-/// An op batch translated into one engine update, with the block and cell
-/// ids it wrote and, for a workbook, the input each written cell now holds
-/// (so a cell past the projection's cell cap still has a line).
+/// An op batch translated into one engine update.
+///
+/// It carries the block and cell ids the batch wrote and, for a workbook,
+/// the input each written cell now holds, so a cell past the projection's
+/// cell cap still has a line.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OpsUpdate {
     pub update: Vec<u8>,

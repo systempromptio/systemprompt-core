@@ -63,9 +63,7 @@ impl AuthProvider for PatProvider {
 
 #[must_use]
 pub fn env_override_present() -> bool {
-    env::var(crate::brand::brand().env("PAT"))
-        .ok()
-        .is_some_and(|s| !s.is_empty())
+    env::var(crate::brand::brand().env("PAT")).is_ok_and(|s| !s.is_empty())
 }
 
 pub(crate) fn read_source(config: &Config) -> std::io::Result<Option<PatToken>> {

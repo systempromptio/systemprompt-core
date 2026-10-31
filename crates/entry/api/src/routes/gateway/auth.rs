@@ -252,11 +252,6 @@ pub async fn provision_oauth_client(
     Ok(Json(result))
 }
 
-#[expect(
-    clippy::result_large_err,
-    reason = "ApiError carries response context that is intentionally large; boxing here would \
-              propagate to every caller for negligible gain"
-)]
 fn build_token_endpoint(cfg: &Config, headers: &HeaderMap) -> Result<String, ApiHttpError> {
     let configured = url::Url::parse(&cfg.api_external_url)
         .map_err(|e| BridgeError::internal("Configured external URL is invalid", e))?;
@@ -271,11 +266,6 @@ fn extract_bearer(hdrs: &HeaderMap) -> Option<String> {
         .map(|s| s.trim().to_owned())
 }
 
-#[expect(
-    clippy::result_large_err,
-    reason = "ApiError carries response context that is intentionally large; boxing here would \
-              propagate to every caller for negligible gain"
-)]
 fn require_analytics(ctx: &AppContext) -> Result<Arc<dyn AnalyticsProvider>, ApiHttpError> {
     ctx.analytics_provider().ok_or_else(|| {
         ApiHttpError::internal(
@@ -285,11 +275,6 @@ fn require_analytics(ctx: &AppContext) -> Result<Arc<dyn AnalyticsProvider>, Api
     })
 }
 
-#[expect(
-    clippy::result_large_err,
-    reason = "ApiError carries response context that is intentionally large; boxing here would \
-              propagate to every caller for negligible gain"
-)]
 fn require_user_provider(ctx: &AppContext) -> Result<Arc<dyn UserProvider>, ApiHttpError> {
     ctx.user_provider().ok_or_else(|| {
         ApiHttpError::internal("User provider unavailable", "provider is not registered")

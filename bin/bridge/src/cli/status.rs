@@ -165,7 +165,7 @@ fn count_subdirs(dir: &std::path::Path) -> Option<usize> {
         if name.starts_with('.') {
             continue;
         }
-        if entry.file_type().ok().is_some_and(|t| t.is_dir()) {
+        if entry.file_type().is_ok_and(|t| t.is_dir()) {
             n += 1;
         }
     }
@@ -176,7 +176,7 @@ fn count_files_with_ext(dir: &std::path::Path, ext: &str) -> Option<usize> {
     let mut n = 0usize;
     for entry in std::fs::read_dir(dir).ok()?.flatten() {
         let path = entry.path();
-        if entry.file_type().ok().is_some_and(|t| t.is_file())
+        if entry.file_type().is_ok_and(|t| t.is_file())
             && path.extension().and_then(|e| e.to_str()) == Some(ext)
         {
             n += 1;

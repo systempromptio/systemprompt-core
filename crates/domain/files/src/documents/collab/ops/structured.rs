@@ -23,6 +23,7 @@
 
 use std::collections::HashMap;
 
+use systemprompt_identifiers::{DocumentEditSessionId, DocumentRevisionId};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_provider_contracts::documents::{Projection, content_hash};
 
@@ -64,10 +65,10 @@ impl CollabService {
         } else {
             None
         };
-        let ops = match &base_ids {
-            Some(ids) => to_paths(request.ops.clone(), ids),
-            None => request.ops.clone(),
-        };
+        let ops = base_ids.as_ref().map_or_else(
+            || request.ops.clone(),
+            |ids| to_paths(request.ops.clone(), ids),
+        );
         let applied = ops.len();
         let translated = tokio::task::spawn_blocking(move || fork.update_from_ops(&ops, peer))
             .await
@@ -77,21 +78,7 @@ impl CollabService {
             Err(_) if lenient => return Ok(None),
             other => other.map_err(CollabError::InvalidUpdate)?,
         };
-        let empty = || Projection {
-            format: document.format,
-            root: Vec::new(),
-            content_sha256: content_hash(&[]),
-        };
-        let mut edit = LiveEdit {
-            session_id: session.id.clone(),
-            seq: None,
-            base_revision: base,
-            before: empty(),
-            after: empty(),
-            applied,
-            touched: Vec::new(),
-            values: Vec::new(),
-        };
+        let mut edit = empty_edit(document, session.id.clone(), base, applied);
         let Some(OpsUpdate {
             update,
             touched,
@@ -122,6 +109,29 @@ impl CollabService {
         .await;
         edit.seq = Some(seq);
         Ok(Some(edit))
+    }
+}
+
+fn empty_edit(
+    document: &Document,
+    session_id: DocumentEditSessionId,
+    base_revision: DocumentRevisionId,
+    applied: usize,
+) -> LiveEdit {
+    let empty = || Projection {
+        format: document.format,
+        root: Vec::new(),
+        content_sha256: content_hash(&[]),
+    };
+    LiveEdit {
+        session_id,
+        seq: None,
+        base_revision,
+        before: empty(),
+        after: empty(),
+        applied,
+        touched: Vec::new(),
+        values: Vec::new(),
     }
 }
 

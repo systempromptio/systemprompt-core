@@ -15,13 +15,13 @@ pub enum GatewayClientError {
     Denied {
         reason: GatewayDenyReason,
         #[source]
-        source: DispatchError,
+        source: Box<DispatchError>,
     },
     #[error("gateway quota exhausted for the service principal")]
     Quota {
         retry_after_seconds: i32,
         #[source]
-        source: DispatchError,
+        source: Box<DispatchError>,
     },
     #[error("upstream answered {status}")]
     Upstream { status: StatusCode, body: String },
@@ -40,7 +40,13 @@ pub enum GatewayClientError {
     #[error("service principal could not be resolved")]
     Principal(#[source] PrincipalError),
     #[error(transparent)]
-    Dispatch(#[from] DispatchError),
+    Dispatch(Box<DispatchError>),
+}
+
+impl From<DispatchError> for GatewayClientError {
+    fn from(error: DispatchError) -> Self {
+        Self::Dispatch(Box::new(error))
+    }
 }
 
 /// Why a gateway response body could not become a completion.
@@ -77,7 +83,7 @@ impl GatewayClientError {
         match gateway {
             GatewayError::Quota(quota) => Self::Quota {
                 retry_after_seconds: quota.retry_after_seconds,
-                source: error,
+                source: Box::new(error),
             },
             GatewayError::Upstream(upstream) => Self::Upstream {
                 status: upstream_status(upstream),
@@ -86,9 +92,9 @@ impl GatewayClientError {
             other => match deny_reason(other) {
                 Some(reason) => Self::Denied {
                     reason,
-                    source: error,
+                    source: Box::new(error),
                 },
-                None => Self::Dispatch(error),
+                None => Self::Dispatch(Box::new(error)),
             },
         }
     }

@@ -76,8 +76,7 @@ pub(super) fn resolve_includes_recursively(
 
 fn declares_section(content: &str, section: &str) -> bool {
     serde_yaml::from_str::<serde_yaml::Value>(content)
-        .ok()
-        .is_some_and(|value| value.get(section).is_some())
+        .is_ok_and(|value| value.get(section).is_some())
 }
 
 fn reject_settings_at_include(content: &str, path: &Path) -> ConfigLoadResult<()> {

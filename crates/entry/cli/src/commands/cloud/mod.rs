@@ -218,7 +218,13 @@ fn execute_dockerfile(ctx: &CommandContext) -> Result<()> {
 
     let config = &ctx.cli;
     let project = ProjectRoot::discover().map_err(|e| anyhow::anyhow!("{}", e))?;
-    let profile = ctx.profile().ok();
+    let profile = match ctx.profile() {
+        Ok(profile) => Some(profile),
+        Err(error) => {
+            tracing::debug!(%error, "no active profile; rendering the default Dockerfile");
+            None
+        },
+    };
     let profile_name = profile
         .map(|p| ProfileName::try_new(p.name.as_str()))
         .transpose()?;

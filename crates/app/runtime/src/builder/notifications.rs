@@ -40,10 +40,10 @@ use crate::notifications::{
     DocumentVisibility, IssueVisibility, NotificationsHandle, UserRoleAudienceResolver,
 };
 
-pub fn notification_sink(database: &DbPool, instance_id: InstanceId) -> DynNotificationSink {
+pub fn notification_sink(database: &DbPool, instance_id: &InstanceId) -> DynNotificationSink {
     let outbox = DurableOutbox::new(
         database.write_pool().as_ref().clone(),
-        systemprompt_events::process_origin(&instance_id),
+        systemprompt_events::process_origin(instance_id),
     );
     Arc::new(OutboxNotificationSink::new(Arc::new(outbox)))
 }

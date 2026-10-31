@@ -117,10 +117,7 @@ fn cached_session_matches(out: &HelperOutput, session_id: &SessionId) -> bool {
 
 #[must_use]
 pub fn has_credential_source(cfg: &config::Config) -> bool {
-    if std::env::var(crate::brand::brand().env("PAT"))
-        .ok()
-        .is_some_and(|s| !s.is_empty())
-    {
+    if std::env::var(crate::brand::brand().env("PAT")).is_ok_and(|s| !s.is_empty()) {
         return true;
     }
     match cfg.pat.and_then(|pat| pat.store) {

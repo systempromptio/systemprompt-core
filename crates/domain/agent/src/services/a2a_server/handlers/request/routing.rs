@@ -20,7 +20,7 @@ use crate::services::a2a_server::errors::JsonRpcErrorBuilder;
 pub async fn parse_a2a_request(
     jsonrpc_request: &A2aJsonRpcRequest,
     request_id: &NumberOrString,
-) -> Result<A2aRequestParams, axum::response::Response> {
+) -> Result<A2aRequestParams, Box<axum::response::Response>> {
     jsonrpc_request.parse_request().map_err(|e| {
         let builder = match &e {
             A2aParseError::UnsupportedMethod { method } => JsonRpcErrorBuilder::method_not_found()
@@ -42,7 +42,7 @@ pub async fn parse_a2a_request(
                 builder.log_warn(format!("Invalid params for A2A method '{method}': {e}"))
             },
         };
-        (StatusCode::BAD_REQUEST, Json(builder.build(request_id))).into_response()
+        Box::new((StatusCode::BAD_REQUEST, Json(builder.build(request_id))).into_response())
     })
 }
 

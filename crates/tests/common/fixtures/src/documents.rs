@@ -19,7 +19,7 @@ use systemprompt_traits::{BackgroundTasks, FileStorage};
 use systemprompt_users::UserRepository;
 
 pub fn fixture_notification_sink(pool: &DbPool) -> DynNotificationSink {
-    notification_sink(pool, crate::unique_instance())
+    notification_sink(pool, &crate::unique_instance())
 }
 
 pub fn fixture_notifications(

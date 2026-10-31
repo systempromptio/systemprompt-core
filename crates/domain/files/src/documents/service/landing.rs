@@ -132,21 +132,11 @@ impl DocumentService {
             revision,
             next,
             previous,
-            mut hints,
+            hints,
             merged_from,
             applied,
         } = prepared;
-        if super::live_ids::live_ids_kept()
-            && let Some(previous) = &previous
-        {
-            hints
-                .rewritten
-                .extend(previous.nodes().map(|node| node.id.clone()));
-        }
-        let mut carried = carry(next, previous, hints).await?;
-        if let Some(model) = super::live_ids::live_model() {
-            carried.pin(&super::live_ids::pinned_ids(&carried.next, &model));
-        }
+        let carried = carry_live(next, previous, hints).await?;
         let detached = self.detached_by(document, &carried, &placement).await?;
         let mut tx = self.repos.documents.begin().await?;
         let writer = writer_tag(revision.author_user_id.as_str());
@@ -237,4 +227,23 @@ impl DocumentService {
         tx.commit().await.map_err(sql)?;
         Ok(true)
     }
+}
+
+async fn carry_live(
+    next: Projection,
+    previous: Option<Projection>,
+    mut hints: CarryHints,
+) -> Result<Carried, DocumentsError> {
+    if super::live_ids::live_ids_kept()
+        && let Some(previous) = &previous
+    {
+        hints
+            .rewritten
+            .extend(previous.nodes().map(|node| node.id.clone()));
+    }
+    let mut carried = carry(next, previous, hints).await?;
+    if let Some(model) = super::live_ids::live_model() {
+        carried.pin(&super::live_ids::pinned_ids(&carried.next, &model));
+    }
+    Ok(carried)
 }
