@@ -51,7 +51,12 @@ async fn touched_lines(
         .project(call.who, &call.document, None, call.ctx.trace_id())
         .await
         .map_err(tool_error)?;
-    Ok(views::touched_lines(&projection, touched, values))
+    Ok(views::touched_lines(
+        &projection,
+        touched,
+        values,
+        call.verbose,
+    ))
 }
 
 fn live_ack(call: &EditCall<'_>, live: LiveEdit, written: Vec<String>) -> EditOutput {

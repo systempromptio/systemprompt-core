@@ -2,10 +2,10 @@
 //! the live projection a read answers while a session is open.
 //!
 //! The session's live bytes are projected with the node ids of its base
-//! revision carried onto them. A text session pins each block to the id its
-//! live model gave it; a workbook or deck session has no model to pin from,
-//! so its nodes edited in place keep their base ids, the ids its
-//! checkpoint keeps too.
+//! revision carried onto them, every node edited in place keeping its base
+//! id (the id its checkpoint keeps too); a text session then pins each
+//! block to the id its live model gave it, so only nodes no model block
+//! names (a Markdown document's source lines) rely on the carry.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -101,11 +101,7 @@ impl DocumentService {
         let bytes = view.bytes;
         let paths = self.project_paths(document.format, bytes.clone()).await?;
         let hints = CarryHints {
-            rewritten: if view.model.is_none() {
-                base_ids.nodes().map(|node| node.id.clone()).collect()
-            } else {
-                HashSet::new()
-            },
+            rewritten: base_ids.nodes().map(|node| node.id.clone()).collect(),
             ..CarryHints::default()
         };
         let pins = view

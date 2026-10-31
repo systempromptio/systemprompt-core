@@ -120,7 +120,9 @@ impl CollabService {
         );
         let commit = act_as(body.state.actor.clone(), commit);
         let outcome = match &live.model {
-            ModelView::RichText(model) => Box::pin(with_live_model(model.clone(), commit)).await?,
+            ModelView::RichText(model) => {
+                Box::pin(with_live_model(model.clone(), with_live_ids_kept(commit))).await?
+            },
             _ => Box::pin(with_live_ids_kept(commit)).await?,
         };
         let revision = match outcome {

@@ -6,10 +6,11 @@
 //! with. [`with_live_model`] scopes a checkpoint commit to the live model,
 //! and the landing then records each aligned node under that model's id
 //! instead of carrying or minting one, so the new head names every block by
-//! the id the session and its agents already used. A workbook or deck
-//! checkpoint has no model to pin from, so [`with_live_ids_kept`] has the
-//! landing keep the previous revision's id for every node edited in place,
-//! the same ids the session's live reads report. [`pinned_ids`] aligns a
+//! the id the session and its agents already used. Every checkpoint also
+//! runs under [`with_live_ids_kept`], so the landing keeps the previous
+//! revision's id for each node edited in place that no model block pins (a
+//! workbook's or deck's nodes, a Markdown document's source lines), the
+//! same ids the session's live reads report. [`pinned_ids`] aligns a
 //! path projection with a model the same way session seeding does: the
 //! block-level nodes (descending through `Body`, `Html`, `Markdown` and
 //! `Text`) with the root blocks in order, and a table cell's nodes with that

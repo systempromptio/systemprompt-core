@@ -148,7 +148,10 @@ pub fn touched_lines(
     projection: &Projection,
     touched: &[String],
     values: &[(String, String)],
+    verbose: bool,
 ) -> Vec<String> {
+    let shown = shown_roots(projection, verbose);
+    let projection = shown.as_ref().unwrap_or(projection);
     let named = |node: &ProjectionNode| {
         touched
             .iter()
