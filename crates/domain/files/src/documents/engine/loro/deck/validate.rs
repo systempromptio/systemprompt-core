@@ -66,12 +66,14 @@ pub fn validate_deck_changes(doc: &LoroDoc) -> Result<DeckModel, DeckInvalid> {
     Ok(deck)
 }
 
-fn unique<'a>(ids: impl Iterator<Item = &'a str>) -> Result<(), DeckInvalid> {
+fn unique<T: AsRef<str>>(ids: impl Iterator<Item = T>) -> Result<(), DeckInvalid> {
     let mut seen = HashSet::new();
     for id in ids {
-        if !seen.insert(id) {
-            return Err(DeckInvalid::DuplicateId { id: id.to_owned() });
+        let id = id.as_ref().to_owned();
+        if seen.contains(&id) {
+            return Err(DeckInvalid::DuplicateId { id });
         }
+        seen.insert(id);
     }
     Ok(())
 }
