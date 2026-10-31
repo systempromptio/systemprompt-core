@@ -65,13 +65,13 @@ fn plain_containers_unwrap_and_attributed_ones_stay_raw() {
 #[test]
 fn loose_inline_text_becomes_a_paragraph_with_marks() {
     let model = import(
-        "<em>it</em><a href=\"https://e.com\">l</a><br><mark>h</mark>\
+        "<em>it</em> <a href=\"https://e.com\">l</a><br><mark>h</mark>\
          <mark style=\"background: blue\">b</mark><span style=\"color: red\">r</span>\
          <span data-comment=\"t1\">c</span><del>d</del><a>nohref</a>",
     );
     assert_eq!(model.blocks.len(), 1);
     let block = &model.blocks[0];
-    assert_eq!(block.text, "itl\nhbrcdnohref");
+    assert_eq!(block.text, "it l\nhbrcdnohref");
     let kinds: Vec<&MarkKind> = block.marks.iter().map(|m| &m.kind).collect();
     assert!(kinds.contains(&&MarkKind::Italic));
     assert!(kinds.contains(&&MarkKind::Link {
