@@ -167,10 +167,13 @@ fn tasks_code_breaks_dividers_and_a_contents_field_are_written() {
     assert!(kinds.contains(&&BlockKind::Divider));
     assert!(kinds.contains(&&BlockKind::Toc { levels: 2 }));
     assert!(kinds.contains(&&BlockKind::Quote));
-    let items = back
+    let tasks: Vec<(Option<bool>, &str)> = back
         .blocks
         .iter()
-        .filter(|block| matches!(block.kind, BlockKind::ListItem { .. }))
-        .count();
-    assert_eq!(items, 2);
+        .filter_map(|block| match block.kind {
+            BlockKind::ListItem { checked, .. } => Some((checked, block.text.as_str())),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(tasks, vec![(Some(true), "done"), (Some(false), "todo")]);
 }
