@@ -129,15 +129,17 @@ pub(super) fn model_from_xlsx<'a>(
     (locale, timezone, language): (&'a str, &'a str, &'a str),
 ) -> Result<Model<'a>, CodecError> {
     let workbook = load(bytes)?;
-    let mut model =
-        Model::new_empty("workbook", locale, timezone, language).map_err(parse_error("workbook"))?;
+    let mut model = Model::new_empty("workbook", locale, timezone, language)
+        .map_err(parse_error("workbook"))?;
     for (index, sheet) in (0u32..).zip(workbook.sheet_collection()) {
         if index == 0 {
             model
                 .rename_sheet_by_index(0, sheet.name())
                 .map_err(parse_error("sheet"))?;
         } else {
-            model.add_sheet(sheet.name()).map_err(parse_error("sheet"))?;
+            model
+                .add_sheet(sheet.name())
+                .map_err(parse_error("sheet"))?;
         }
         for cell in sheet.cells() {
             let coordinate = cell.coordinate();

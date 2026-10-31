@@ -60,7 +60,13 @@ pub fn grown_id(sheet_id: &str, key: &str, ids: &[String]) -> String {
     let axis = if key == "cols" { 'c' } else { 'r' };
     let base = format!("{sheet_id}.{axis}{}", ids.len());
     (0..)
-        .map(|n| if n == 0 { base.clone() } else { format!("{base}.{n}") })
+        .map(|n| {
+            if n == 0 {
+                base.clone()
+            } else {
+                format!("{base}.{n}")
+            }
+        })
         .find(|id| !ids.contains(id))
         .unwrap_or(base)
 }
