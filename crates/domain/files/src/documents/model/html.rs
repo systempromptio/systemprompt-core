@@ -36,6 +36,7 @@ struct Reader {
     ids: IdSeq,
     loose: InlineBuf,
     loose_any: bool,
+    pending_space: Option<String>,
 }
 
 impl Reader {
@@ -48,8 +49,12 @@ impl Reader {
                     }
                 },
                 Node::Text(text) if !text.trim().is_empty() => {
+                    self.resume_loose();
                     self.loose.push(text);
                     self.loose_any = true;
+                },
+                Node::Text(text) if self.loose_any => {
+                    self.pending_space = Some(text.to_string());
                 },
                 _ => {},
             }
@@ -81,6 +86,7 @@ impl Reader {
                 return self.children(element, list_depth);
             },
             _ if is_inline(name) => {
+                self.resume_loose();
                 inline(&mut self.loose, *element);
                 self.loose_any = true;
                 return;
@@ -158,7 +164,14 @@ impl Reader {
         self.blocks.push(block);
     }
 
+    fn resume_loose(&mut self) {
+        if let Some(space) = self.pending_space.take() {
+            self.loose.push(&space);
+        }
+    }
+
     fn flush_loose(&mut self) {
+        self.pending_space = None;
         if std::mem::take(&mut self.loose_any) {
             let (text, marks) = self.loose.take();
             let mut block = Block::new(self.ids.next_id(), BlockKind::Paragraph, text.trim());
