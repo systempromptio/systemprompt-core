@@ -48,9 +48,13 @@ mod documents_collab_timer;
 #[cfg(test)]
 mod documents_comments;
 #[cfg(test)]
+mod documents_comments_export;
+#[cfg(test)]
 mod documents_comments_v2;
 #[cfg(test)]
 mod documents_commit_race;
+#[cfg(test)]
+mod documents_create_content;
 #[cfg(test)]
 mod documents_drive_feed_order;
 #[cfg(test)]
@@ -68,9 +72,13 @@ mod documents_listing;
 #[cfg(test)]
 mod documents_listing_scale;
 #[cfg(test)]
+mod documents_media_read;
+#[cfg(test)]
 mod documents_node_ids_backfill;
 #[cfg(test)]
 mod documents_notification_facts;
+#[cfg(test)]
+mod documents_pdf_render;
 #[cfg(test)]
 mod documents_proposals;
 #[cfg(test)]
