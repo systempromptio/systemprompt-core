@@ -3,6 +3,7 @@
 mod config;
 mod core;
 mod personal_credential;
+mod personal_probe;
 mod providers;
 mod schema;
 mod storage;

@@ -322,6 +322,8 @@ mod wire_stream_abort;
 mod wire_stream_usage_order;
 
 #[cfg(test)]
+mod profile_cloud_deploy;
+#[cfg(test)]
 mod profile_config_planes;
 #[cfg(test)]
 mod profile_layering;

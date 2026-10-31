@@ -29,6 +29,8 @@ chrono = { workspace = true }
 metrics = { workspace = true }
 metrics-util = { workspace = true }
 serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+tempfile = { workspace = true }
 sqlx = { workspace = true }
 tokio = { workspace = true }
 tokio-util = { workspace = true }

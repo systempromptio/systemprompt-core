@@ -23,7 +23,11 @@ mod harness;
 #[cfg(test)]
 mod mentions;
 #[cfg(test)]
+mod own_rules;
+#[cfg(test)]
 mod ownership;
+#[cfg(test)]
+mod plane;
 #[cfg(test)]
 mod policy;
 #[cfg(test)]

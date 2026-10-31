@@ -42,6 +42,8 @@ mod logout;
 #[cfg(test)]
 mod oauth_flow;
 #[cfg(test)]
+mod operator;
+#[cfg(test)]
 mod paths;
 #[cfg(test)]
 mod profile_authoring;
@@ -61,6 +63,8 @@ mod stored_tenant_extra;
 #[cfg(test)]
 #[cfg(test)]
 mod tenant_api_tests;
+#[cfg(test)]
+mod tenant_health;
 #[cfg(test)]
 #[cfg(test)]
 mod tenant_token_retry;

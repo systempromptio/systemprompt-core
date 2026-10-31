@@ -19,6 +19,9 @@ mod setup_token_tests;
 mod client_tests;
 
 #[cfg(test)]
+mod declared_client_tests;
+
+#[cfg(test)]
 mod jti_revocation_tests;
 
 #[cfg(test)]
