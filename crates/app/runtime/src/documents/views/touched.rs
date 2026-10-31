@@ -5,7 +5,8 @@
 //! parsed blocks, shown beside its source lines); a write that named a node
 //! under one is shown by the visible line holding the same text instead. A
 //! workbook cell the projection does not hold (past its cell cap) is shown
-//! from the input the batch wrote.
+//! from the input the batch wrote. A batch written through the model is
+//! diffed with the same roots hidden.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -16,7 +17,7 @@ use systemprompt_files::documents::nodes::path_of;
 use systemprompt_models::documents::{Projection, ProjectionNode};
 use systemprompt_provider_contracts::documents::{READ_ONLY_ATTR, hash8};
 
-use super::lines::{MAX_WRITTEN, folded_cell, shows, structured};
+use super::lines::{MAX_WRITTEN, folded_cell, shows, structured, written_lines};
 use super::outline::shown_roots;
 
 #[must_use]
@@ -82,4 +83,14 @@ fn subtree(node: &ProjectionNode) -> Vec<&ProjectionNode> {
         out.extend(subtree(child));
     }
     out
+}
+
+#[must_use]
+pub fn shown_written_lines(base: &Projection, head: &Projection, verbose: bool) -> Vec<String> {
+    let base_shown = shown_roots(base, verbose);
+    let head_shown = shown_roots(head, verbose);
+    written_lines(
+        Some(base_shown.as_ref().unwrap_or(base)),
+        head_shown.as_ref().unwrap_or(head),
+    )
 }

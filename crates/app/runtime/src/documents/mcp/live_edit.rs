@@ -17,7 +17,7 @@ use systemprompt_models::documents::DocumentUri;
 
 use super::support::tool_error;
 use super::write::EditCall;
-use crate::documents::views::{self, EditOutput, written_lines};
+use crate::documents::views::{self, EditOutput};
 
 pub(super) async fn edit_live(
     call: &EditCall<'_>,
@@ -33,7 +33,7 @@ pub(super) async fn edit_live(
         return Ok(None);
     };
     let written = if live.touched.is_empty() {
-        written_lines(Some(&live.before), &live.after)
+        views::shown_written_lines(&live.before, &live.after, call.verbose)
     } else {
         touched_lines(call, &live.touched, &live.values).await?
     };

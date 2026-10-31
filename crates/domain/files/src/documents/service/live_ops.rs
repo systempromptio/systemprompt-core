@@ -155,12 +155,11 @@ impl DocumentService {
         let projected = paths.clone();
         let entries = blocking(move || {
             let mut minter = NodeIdMinter::new(writer, 0);
-            Ok(carry_forward(
-                &previous,
-                &projected,
-                &CarryHints::default(),
-                &mut minter,
-            ))
+            let hints = CarryHints {
+                rewritten: previous.nodes().map(|node| node.id.clone()).collect(),
+                ..CarryHints::default()
+            };
+            Ok(carry_forward(&previous, &projected, &hints, &mut minter))
         })
         .await?;
         Ok(Projected {

@@ -35,5 +35,5 @@ pub use lines::{
 pub use outline::{change_lines, node_lines, outline, proposal_lines, search_lines};
 pub use read::read_view;
 pub use records::{CommentAnchorItem, CommentItem, CommentOutput, CommentRangeItem, comments_view};
-pub use touched::touched_lines;
+pub use touched::{shown_written_lines, touched_lines};
 pub use types::{DocumentMeta, EditOutput, EditingNow, NodeRange, ReadInput, ReadOutput, ReadView};
