@@ -55,7 +55,7 @@ identifier, not a release number.
 
 | Component | Version |
 |-----------|---------|
-| Rust toolchain | `nightly-2026-06-03`, pinned in `rust-toolchain.toml` |
+| Rust toolchain | stable `1.99.1`, pinned in `rust-toolchain.toml` (formatting alone runs on a pinned nightly) |
 | Rust edition | 2024 |
 | Minimum supported Rust version (MSRV) | 1.96 — declared as `rust-version` and enforced by a dedicated CI job |
 | PostgreSQL | 18+ |

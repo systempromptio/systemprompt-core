@@ -49,8 +49,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
-      - run: rustup show
       - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
+      - run: rustup toolchain install "$(just --evaluate NIGHTLY)" --profile minimal --component rustfmt
       # `just format-check` covers all three workspaces (root, crates/tests,
       # bin/bridge); a bare root `cargo fmt` leaves the bridge unchecked.
       - run: just format-check

@@ -415,14 +415,15 @@ jobs:
     name: MSRV check (Rust 1.96)
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    # `rust-toolchain.toml` pins nightly and a toolchain FILE outrides rustup's
-    # default, so installing 1.96.0 and running a bare `cargo check` silently
-    # checked the nightly instead — this job passed for its whole life without
-    # ever testing the MSRV, and hid a real breach (vergen needs >= 1.95 while
-    # the manifests claimed 1.94). RUSTUP_TOOLCHAIN outranks the file; the
-    # assertion below is what stops that regressing quietly a second time.
+    # `rust-toolchain.toml` pins a newer stable and a toolchain FILE outranks
+    # rustup's default, so a bare `cargo check` would test that pin rather than
+    # the MSRV. RUSTUP_TOOLCHAIN outranks the file, and the assertion below
+    # fails the job if the compiler under test is not the declared MSRV.
     env:
       RUSTUP_TOOLCHAIN: "1.96.0"
+      # Compile proof only: lints are judged once, on rust-toolchain.toml's
+      # stable, so a lint that differs between compilers cannot fail here.
+      RUSTFLAGS: "--cap-lints=warn"
       SCCACHE_GHA_ENABLED: "true"
       RUSTC_WRAPPER: sccache
     steps:

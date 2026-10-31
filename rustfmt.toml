@@ -1,5 +1,5 @@
 # Rustfmt configuration for systemprompt.io code formatting standards
-# Requires nightly Rust (configured via rust-toolchain.toml)
+# Requires nightly rustfmt: `just fmt` runs the justfile's pinned NIGHTLY
 # See: tests/validator/coding-standards.md
 
 # ============================================================================

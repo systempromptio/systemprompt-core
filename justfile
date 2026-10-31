@@ -1,6 +1,10 @@
 # systemprompt.io OS - Lean Justfile
 # Use CLI directly with global flags: --json, --verbose, --debug, --no-color
 
+# The pinned nightly runs rustfmt only (rustfmt.toml uses unstable options);
+# every compile, lint, test and release runs on rust-toolchain.toml's stable.
+NIGHTLY := "nightly-2026-06-03"
+
 # Show all commands
 default:
     @just --list
@@ -238,19 +242,19 @@ check: check-gates
 check-offline:
     bash scripts/check-offline.sh
 
-# Format code (nightly: rustfmt.toml uses unstable options).
+# Format code on the pinned nightly (rustfmt.toml uses unstable options).
 # Covers the separate `crates/tests` and `bin/bridge` workspaces too — `--all`
 # stops at the manifest it is invoked from, so each must be named explicitly.
 fmt:
-    cargo fmt --all
-    cd crates/tests && cargo fmt --all
-    cargo fmt --manifest-path bin/bridge/Cargo.toml --all
+    cargo +{{NIGHTLY}} fmt --all
+    cd crates/tests && cargo +{{NIGHTLY}} fmt --all
+    cargo +{{NIGHTLY}} fmt --manifest-path bin/bridge/Cargo.toml --all
 
 # Check formatting without making changes (main + test + bridge workspaces).
 format-check:
-    cargo fmt --all -- --check
-    cd crates/tests && cargo fmt --all -- --check
-    cargo fmt --manifest-path bin/bridge/Cargo.toml --all -- --check
+    cargo +{{NIGHTLY}} fmt --all -- --check
+    cd crates/tests && cargo +{{NIGHTLY}} fmt --all -- --check
+    cargo +{{NIGHTLY}} fmt --manifest-path bin/bridge/Cargo.toml --all -- --check
 
 # Build rustdoc with warnings as errors (main + test workspace).
 # `--workspace` stops at the manifest it is invoked from, so the test
@@ -543,7 +547,7 @@ style-check:
     echo "🎨 Running style checks..."
     echo ""
     echo "1️⃣  Checking code formatting..."
-    cargo fmt --all -- --check
+    cargo +{{NIGHTLY}} fmt --all -- --check
     echo ""
     echo "2️⃣  Running clippy linter..."
     cargo clippy --workspace --all-targets --all-features --keep-going -- -D warnings
@@ -555,7 +559,7 @@ style-check:
     ./scripts/check-http-errors.sh
     echo ""
     echo "5️⃣  Checking the test workspace (fmt + clippy + compile)..."
-    (cd crates/tests && cargo fmt --all -- --check)
+    (cd crates/tests && cargo +{{NIGHTLY}} fmt --all -- --check)
     (cd crates/tests && cargo clippy --workspace --all-targets --all-features --keep-going -- -D warnings)
     (cd crates/tests && cargo test --workspace --no-run)
     echo ""

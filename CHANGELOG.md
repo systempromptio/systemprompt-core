@@ -55,6 +55,7 @@
 
 ### Changed
 
+- **Build:** the workspace compiles, lints, tests and releases on stable Rust 1.99.1, pinned in `rust-toolchain.toml`, in place of a nightly; only `rustfmt` (`just fmt`) and the fuzz suite run on the `justfile`'s pinned nightly. The MSRV job (Rust 1.96) proves compilation with lints capped, so lint policy is judged once, on the pinned stable.
 - **Gates:** `check-no-vendor.sh` refuses tracked browser markup or script under `crates/` outside `scripts/core-markup-allowlist.txt`.
 - **Files:** blob collection asks the blob holders registered with `register_blob_holder!` instead of naming the issue attachment table, and the issue report user purge is registered by the issues module.
 - **OAuth issuance:** the Drive sync credential exchange moves from the API handler into `DriveSyncTokenService::exchange` (`systemprompt_oauth_issuance::drive_sync`), with `DriveSyncError` for its refusals; the TTL and rules are unchanged, and the handler decodes the device token and maps the error.
