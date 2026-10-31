@@ -176,3 +176,23 @@ async fn export_of_an_empty_plane_is_none() {
     assert!(exported.is_none());
     db.drop_now().await;
 }
+
+#[tokio::test]
+async fn a_client_declared_in_a_file_before_its_owner_is_written_after_the_owner() {
+    let db = DisposableDb::with_schema("identityorder").await;
+    let pool = db.test_pool().await;
+    let root = tempfile::tempdir().expect("tempdir");
+    write(root.path(), "clients.yaml", CLIENT);
+    write(root.path(), "users.yaml", USERS);
+    let svc = service(&pool, root.path(), Dependencies::new().with(secrets()));
+
+    let first = svc.apply(&options()).await.expect("apply");
+    assert_eq!(first.applied(), 3, "{first:?}");
+    let source: Option<String> =
+        sqlx::query_scalar("SELECT declared_source FROM oauth_clients WHERE client_id = $1")
+            .bind("portal")
+            .fetch_one(&*pool.pool())
+            .await
+            .expect("portal");
+    assert_eq!(source.as_deref(), Some("code:identity/clients.yaml"));
+}

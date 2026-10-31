@@ -199,7 +199,7 @@ fn write_groups(
     declared: &DeclaredEntities,
     merges: &[EntityMerge],
 ) -> Vec<(ChangeSource, ResolvedEntities)> {
-    let mut groups: BTreeMap<String, (ChangeSource, ResolvedEntities)> = BTreeMap::new();
+    let mut groups: BTreeMap<(u8, String), (ChangeSource, ResolvedEntities)> = BTreeMap::new();
     for merge in merges.iter().filter(|m| m.verdict == Verdict::Apply) {
         let file = declared.get(&merge.entity);
         let source = file.map_or_else(
@@ -207,7 +207,7 @@ fn write_groups(
             |d| d.source.clone(),
         );
         groups
-            .entry(source.to_string())
+            .entry((plane.write_rank(&merge.entity), source.to_string()))
             .or_insert_with(|| (source.clone(), ResolvedEntities::new()))
             .1
             .insert(

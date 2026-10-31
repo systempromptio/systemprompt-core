@@ -172,6 +172,10 @@ impl ConfigPlane for IdentityPlane {
         true
     }
 
+    fn write_rank(&self, entity: &str) -> u8 {
+        u8::from(entity.starts_with(CLIENT_PREFIX))
+    }
+
     fn load_declared(&self, services_root: &Path) -> ConfigPlaneResult<Option<DeclaredState>> {
         Ok(declared_entities(services_root)?.map(|entities| {
             DeclaredState::from_entries(
