@@ -14,7 +14,7 @@
 pub(crate) mod durable;
 mod ownership;
 
-use sqlx::PgPool;
+use sqlx::{PgConnection, PgPool, Postgres, Transaction};
 use systemprompt_identifiers::{Actor, EventOutboxId, InstanceId, UserId};
 
 use super::routing::{OUTBOX_CHANNEL, OutboxChannel};
@@ -53,8 +53,13 @@ impl EventOutboxRepository {
     }
 
     // JSON: JSONB outbox `payload` — event body, serialised per channel.
+    pub(super) async fn begin(&self) -> Result<Transaction<'static, Postgres>, sqlx::Error> {
+        self.pool.begin().await
+    }
+
     pub(super) async fn insert(
         &self,
+        conn: &mut PgConnection,
         id: &EventOutboxId,
         channel: OutboxChannel,
         actor: &Actor,
@@ -72,14 +77,17 @@ impl EventOutboxRepository {
             actor_id,
             self.instance_id.as_str(),
         )
-        .execute(&self.pool)
+        .execute(&mut *conn)
         .await
         .map(|_| ())
     }
 
-    pub(super) async fn notify(&self, id: &EventOutboxId) -> Result<(), sqlx::Error> {
+    pub(super) async fn notify(
+        conn: &mut PgConnection,
+        id: &EventOutboxId,
+    ) -> Result<(), sqlx::Error> {
         sqlx::query!("SELECT pg_notify($1, $2)", OUTBOX_CHANNEL, id.as_str())
-            .execute(&self.pool)
+            .execute(&mut *conn)
             .await
             .map(|_| ())
     }

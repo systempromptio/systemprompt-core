@@ -66,7 +66,13 @@ pub(super) fn string(map: &LoroMap, key: &str) -> Option<String> {
 
 fn id_list(map: &LoroMap, key: &str) -> Vec<String> {
     match map.get(key) {
-        Some(ValueOrContainer::Container(Container::MovableList(list))) => strings(list.to_vec()),
+        Some(ValueOrContainer::Container(Container::MovableList(list))) => {
+            let mut seen = std::collections::HashSet::new();
+            strings(list.to_vec())
+                .into_iter()
+                .filter(|id| seen.insert(id.clone()))
+                .collect()
+        },
         _ => Vec::new(),
     }
 }

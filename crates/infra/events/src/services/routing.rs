@@ -183,13 +183,21 @@ impl EventRouter {
         })?;
         let id = EventOutboxId::generate();
         let actor = Actor::user(user_id.clone());
-        repo.insert(&id, channel, &actor, &payload)
+        let persist = |source| RelayError::Persist {
+            channel: channel.as_str(),
+            source,
+        };
+        // Why: Postgres delivers a NOTIFY only when its transaction commits,
+        // so the row and its announcement land together: a writer that dies
+        // after the insert leaves no row its siblings were never told about.
+        let mut tx = repo.begin().await.map_err(persist)?;
+        repo.insert(&mut tx, &id, channel, &actor, &payload)
             .await
-            .map_err(|source| RelayError::Persist {
-                channel: channel.as_str(),
-                source,
-            })?;
-        repo.notify(&id).await.map_err(RelayError::Notify)
+            .map_err(persist)?;
+        EventOutboxRepository::notify(&mut tx, &id)
+            .await
+            .map_err(RelayError::Notify)?;
+        tx.commit().await.map_err(persist)
     }
 
     pub async fn route_agui_local(&self, user_id: &UserId, event: AgUiEvent) -> (usize, usize) {
