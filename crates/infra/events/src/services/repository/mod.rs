@@ -37,6 +37,15 @@ pub(super) struct OutboxRow {
     pub payload: serde_json::Value,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub(super) struct OutboxInsert<'a> {
+    pub id: &'a EventOutboxId,
+    pub channel: OutboxChannel,
+    pub actor: &'a Actor,
+    // JSON: the event body, opaque here, stored as the outbox's JSONB `payload`.
+    pub payload: &'a serde_json::Value,
+}
+
 #[derive(Debug, Clone)]
 pub(super) struct EventOutboxRepository {
     pool: PgPool,
@@ -52,7 +61,6 @@ impl EventOutboxRepository {
         &self.instance_id
     }
 
-    // JSON: JSONB outbox `payload` — event body, serialised per channel.
     pub(super) async fn begin(&self) -> Result<Transaction<'static, Postgres>, sqlx::Error> {
         self.pool.begin().await
     }
@@ -60,11 +68,14 @@ impl EventOutboxRepository {
     pub(super) async fn insert(
         &self,
         conn: &mut PgConnection,
-        id: &EventOutboxId,
-        channel: OutboxChannel,
-        actor: &Actor,
-        payload: &serde_json::Value,
+        row: OutboxInsert<'_>,
     ) -> Result<(), sqlx::Error> {
+        let OutboxInsert {
+            id,
+            channel,
+            actor,
+            payload,
+        } = row;
         let (actor_kind, actor_id) = actor.audit_columns();
         sqlx::query!(
             "INSERT INTO event_outbox (id, channel, user_id, payload, actor_kind, actor_id, \

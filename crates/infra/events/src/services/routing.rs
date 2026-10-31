@@ -30,7 +30,7 @@ use std::sync::Arc;
 use systemprompt_identifiers::{EventOutboxId, InstanceId, UserId};
 use tracing::debug;
 
-use super::repository::EventOutboxRepository;
+use super::repository::{EventOutboxRepository, OutboxInsert};
 use super::{
     A2ABroadcaster, AgUiBroadcaster, AnalyticsBroadcaster, ContextBroadcaster, TopicBroadcaster,
     TopicEvent,
@@ -153,9 +153,13 @@ impl EventRouter {
         // so the row and its announcement land together: a writer that dies
         // after the insert leaves no row its siblings were never told about.
         let mut tx = repo.begin().await.map_err(persist)?;
-        repo.insert(&mut tx, &id, channel, &actor, &payload)
-            .await
-            .map_err(persist)?;
+        let row = OutboxInsert {
+            id: &id,
+            channel,
+            actor: &actor,
+            payload: &payload,
+        };
+        repo.insert(&mut tx, row).await.map_err(persist)?;
         EventOutboxRepository::notify(&mut tx, &id)
             .await
             .map_err(RelayError::Notify)?;
