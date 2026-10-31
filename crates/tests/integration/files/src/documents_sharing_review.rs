@@ -452,34 +452,16 @@ async fn an_expired_grant_retracts_the_document_it_delivered() {
     let grantee = person("expiry-grantee");
     let (document, name) = document_in(&h, &owner, None, "expiring").await;
     let start = manifest(&h, &grantee).await;
-    let mut tx = h.repos.documents.begin().await.expect("begin");
-    h.repos
-        .grants
-        .insert(
-            &mut tx,
-            NewGrant {
-                target: GrantTarget::Document(document.clone()),
-                subject_kind: "user".to_owned(),
-                subject_value: grantee.id.as_str().to_owned(),
-                subject_display: None,
-                access_level: AccessLevel::View,
-                granted_by: owner.id.clone(),
-                valid_until: Some(chrono::Utc::now() + chrono::Duration::seconds(2)),
-                trace_id: TraceId::generate(),
-                reason: None,
-                via_agent: None,
-            },
-        )
-        .await
-        .expect("grant");
-    tx.commit().await.expect("commit");
+    let hour = chrono::Duration::hours(1);
+    grant_until(&h, &owner, &grantee, &document, chrono::Utc::now() + hour).await;
     let delivered = feed_for(&h, &grantee, &start, &document, |seen| !seen.is_empty()).await;
     assert_eq!(
         changes_of(&delivered),
         vec![(DriveChangeKind::Created, name.clone())]
     );
 
-    tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+    let past = chrono::Duration::seconds(1);
+    grant_until(&h, &owner, &grantee, &document, chrono::Utc::now() - past).await;
     h.repos.grants.sweep_expired(10_000).await.expect("sweep");
 
     let feed = feed_for(&h, &grantee, &start, &document, |seen| seen.len() >= 2).await;
@@ -517,4 +499,34 @@ async fn a_grant_revoked_before_the_reader_catches_up_leaves_only_the_delete() {
 
     let feed = feed_for(&h, &grantee, &start, &document, |seen| !seen.is_empty()).await;
     assert_eq!(changes_of(&feed), vec![(DriveChangeKind::Deleted, name)]);
+}
+
+async fn grant_until(
+    h: &Harness,
+    owner: &AuthenticatedUser,
+    grantee: &AuthenticatedUser,
+    document: &DocumentId,
+    valid_until: chrono::DateTime<chrono::Utc>,
+) {
+    let mut tx = h.repos.documents.begin().await.expect("begin");
+    h.repos
+        .grants
+        .insert(
+            &mut tx,
+            NewGrant {
+                target: GrantTarget::Document(document.clone()),
+                subject_kind: "user".to_owned(),
+                subject_value: grantee.id.as_str().to_owned(),
+                subject_display: None,
+                access_level: AccessLevel::View,
+                granted_by: owner.id.clone(),
+                valid_until: Some(valid_until),
+                trace_id: TraceId::generate(),
+                reason: None,
+                via_agent: None,
+            },
+        )
+        .await
+        .expect("grant");
+    tx.commit().await.expect("commit");
 }
