@@ -11,11 +11,15 @@ mod audit_payload;
 #[cfg(test)]
 mod audit_phases;
 #[cfg(test)]
+mod canonical_inbound;
+#[cfg(test)]
 mod canonical_request;
 #[cfg(test)]
 mod canonical_response;
 #[cfg(test)]
 mod chain_plan;
+#[cfg(test)]
+mod credentials_resolve;
 #[cfg(test)]
 mod engines_injected;
 #[cfg(test)]

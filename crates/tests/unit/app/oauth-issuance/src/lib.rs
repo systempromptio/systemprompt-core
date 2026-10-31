@@ -22,6 +22,10 @@ mod sso_driver;
 #[cfg(test)]
 mod sso_oidc;
 #[cfg(test)]
+mod sso_oidc_config;
+#[cfg(test)]
+mod sso_oidc_flow;
+#[cfg(test)]
 mod sso_permissions;
 #[cfg(test)]
 mod sso_resolution;

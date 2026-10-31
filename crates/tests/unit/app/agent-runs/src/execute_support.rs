@@ -123,7 +123,7 @@ impl CollectSink {
     }
 }
 
-fn request(wall_clock: Duration) -> RunRequest {
+pub(crate) fn request(wall_clock: Duration) -> RunRequest {
     RunRequest {
         host: HostKind::ClaudeCode,
         prompt: "p".to_owned(),
@@ -151,7 +151,7 @@ fn request(wall_clock: Duration) -> RunRequest {
     }
 }
 
-fn credentials() -> RunCredentials {
+pub(crate) fn credentials() -> RunCredentials {
     RunCredentials {
         user_id: UserId::new("user-1"),
         api_key_id: ApiKeyId::new("key-1"),
@@ -223,7 +223,7 @@ pub(crate) async fn run_with(
 }
 
 
-pub(crate) async fn run_in(layout: &RunLayout, host: &ShHost) -> RunReport {
+pub(crate) async fn run_in(layout: &RunLayout, host: &dyn HeadlessHost) -> RunReport {
     layout.create().await.unwrap();
     let sink = CollectSink::default();
     let req = request(Duration::from_secs(30));

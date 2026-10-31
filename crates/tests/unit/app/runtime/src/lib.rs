@@ -17,7 +17,11 @@ mod boot;
 #[cfg(test)]
 mod brain_composition;
 #[cfg(test)]
+mod brain_consumer_start;
+#[cfg(test)]
 mod brain_mcp;
+#[cfg(test)]
+mod brain_mcp_dispatch;
 #[cfg(test)]
 mod builder_build_live;
 #[cfg(test)]
@@ -43,6 +47,8 @@ mod documents_actor;
 #[cfg(test)]
 mod documents_mcp_content;
 #[cfg(test)]
+mod documents_mcp_export;
+#[cfg(test)]
 mod documents_mcp_guide;
 #[cfg(test)]
 mod documents_mcp_handlers;
@@ -51,9 +57,21 @@ mod documents_mcp_lifecycle;
 #[cfg(test)]
 mod documents_mcp_lines;
 #[cfg(test)]
+mod documents_mcp_media;
+#[cfg(test)]
+mod documents_mcp_people;
+#[cfg(test)]
 mod documents_mcp_proposals;
 #[cfg(test)]
 mod documents_mcp_refusals;
+#[cfg(test)]
+mod documents_subject_directory;
+#[cfg(test)]
+mod documents_views_touched;
+#[cfg(test)]
+mod mcp_dispatch;
+#[cfg(test)]
+mod notifications_document_visibility;
 
 #[cfg(test)]
 mod brain_live;

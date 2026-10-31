@@ -20,7 +20,7 @@ fn file(bytes: &[u8], executable: bool) -> AssetFile {
     }
 }
 
-fn bundle() -> RevisionBundle {
+pub(crate) fn bundle() -> RevisionBundle {
     let root = ResourceRevisionId::new("rev-root");
     let mut files = RevisionFiles::default();
     files
@@ -50,7 +50,7 @@ fn bundle() -> RevisionBundle {
     }
 }
 
-fn harness_ref(bundle: &RevisionBundle) -> HarnessRef {
+pub(crate) fn harness_ref(bundle: &RevisionBundle) -> HarnessRef {
     HarnessRef {
         resource_id: ManagedResourceId::new("res-1"),
         revision_id: bundle.root.clone(),
