@@ -22,6 +22,8 @@ mod deploy_dockerfile;
 #[cfg(test)]
 mod deploy_dockerfile_extensions;
 #[cfg(test)]
+mod deploy_managed;
+#[cfg(test)]
 mod deploy_provider;
 #[cfg(test)]
 mod deploy_validation;
@@ -30,11 +32,17 @@ mod discovered_project;
 #[cfg(test)]
 mod docker_cli;
 #[cfg(test)]
+mod docker_digest;
+#[cfg(test)]
 mod environment;
 #[cfg(test)]
 mod error;
 #[cfg(test)]
 mod error_extra;
+#[cfg(test)]
+mod error_hints;
+#[cfg(test)]
+mod gitops_rollout;
 #[cfg(test)]
 mod jwt;
 #[cfg(test)]

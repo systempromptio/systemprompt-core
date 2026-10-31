@@ -162,6 +162,10 @@ mod routing;
 #[cfg(test)]
 mod artifact_provenance;
 #[cfg(test)]
+mod brain_recall;
+#[cfg(test)]
+mod brain_source_receipt;
+#[cfg(test)]
 mod bridge_opencode_lockdown;
 #[cfg(test)]
 mod marketplace;
