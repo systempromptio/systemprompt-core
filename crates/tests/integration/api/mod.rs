@@ -663,3 +663,23 @@ mod routes_uploads;
 #[cfg(test)]
 #[path = "routes_uploads_tokens.rs"]
 mod routes_uploads_tokens;
+
+#[cfg(test)]
+#[path = "gateway_provider_credentials.rs"]
+mod gateway_provider_credentials;
+
+#[cfg(test)]
+#[path = "routes_issues.rs"]
+mod routes_issues;
+
+#[cfg(test)]
+#[path = "gateway_bridge_notifications.rs"]
+mod gateway_bridge_notifications;
+
+#[cfg(test)]
+#[path = "proxy_owner_forward.rs"]
+mod proxy_owner_forward;
+
+#[cfg(test)]
+#[path = "documents_import_export.rs"]
+mod documents_import_export;
