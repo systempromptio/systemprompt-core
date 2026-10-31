@@ -354,6 +354,13 @@ systemprompt-gateway = { path = "crates/app/gateway", version = "0.76.0" }
 systemprompt-api = { path = "crates/entry/api", version = "0.76.0" }
 systemprompt-cli = { path = "crates/entry/cli", version = "0.76.0" }
 
+# Why: several agents build one checkout against a core that moves daily, and
+# cargo never prunes stale incremental sessions; target/debug/incremental grew
+# to 66G in astound. CI already builds with CARGO_INCREMENTAL=0.
+# `CARGO_INCREMENTAL=1` opts one shell back in.
+[profile.dev]
+incremental = false
+
 [profile.release]
 # Use thin LTO instead of full LTO to preserve inventory crate registrations.
 # Full LTO can strip the static initializers used by inventory::submit!, causing
