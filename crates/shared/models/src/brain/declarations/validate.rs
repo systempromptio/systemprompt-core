@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::borrow::Borrow;
 use std::collections::HashSet;
 
 use systemprompt_identifiers::{FactKindId, TopicId};
@@ -134,34 +135,34 @@ fn validate_kind(kind: &KindDecl, topics: &HashSet<&TopicId>) -> Result<(), Brai
     Ok(())
 }
 
-fn known_topics(
+fn known_topics<T: Borrow<TopicId>>(
     owner: &str,
-    named: impl IntoIterator<Item = &TopicId>,
+    named: impl IntoIterator<Item = T>,
     declared: &HashSet<&TopicId>,
 ) -> Result<(), BrainDeclError> {
     named
         .into_iter()
-        .find(|topic| !declared.contains(topic))
+        .find(|topic| !declared.contains(&topic.borrow()))
         .map_or(Ok(()), |topic| {
             Err(BrainDeclError::UnknownTopic {
                 owner: owner.to_owned(),
-                topic: topic.clone(),
+                topic: topic.borrow().clone(),
             })
         })
 }
 
-fn known_kinds(
+fn known_kinds<T: Borrow<FactKindId>>(
     owner: &str,
-    named: impl IntoIterator<Item = &FactKindId>,
+    named: impl IntoIterator<Item = T>,
     declared: &HashSet<&FactKindId>,
 ) -> Result<(), BrainDeclError> {
     named
         .into_iter()
-        .find(|kind| !declared.contains(kind))
+        .find(|kind| !declared.contains(&kind.borrow()))
         .map_or(Ok(()), |kind| {
             Err(BrainDeclError::UnknownKind {
                 owner: owner.to_owned(),
-                kind: kind.clone(),
+                kind: kind.borrow().clone(),
             })
         })
 }
