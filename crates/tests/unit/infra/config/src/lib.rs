@@ -91,3 +91,6 @@ mod secrets_registry;
 mod secrets_file_refresh;
 #[cfg(test)]
 mod secrets_reload;
+
+#[cfg(test)]
+mod secret_store_trait;

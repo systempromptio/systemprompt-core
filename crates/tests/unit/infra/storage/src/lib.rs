@@ -18,6 +18,8 @@ mod gcs_token_refresh;
 #[cfg(test)]
 mod local_storage;
 #[cfg(test)]
+mod local_storage_failures;
+#[cfg(test)]
 mod ranged_reads;
 #[cfg(test)]
 mod s3_multipart;

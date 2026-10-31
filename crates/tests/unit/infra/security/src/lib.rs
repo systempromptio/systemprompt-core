@@ -49,6 +49,8 @@ mod policy_approval;
 #[cfg(test)]
 mod policy_audit;
 #[cfg(test)]
+mod policy_audit_verdicts;
+#[cfg(test)]
 mod policy_builtin_config;
 #[cfg(test)]
 mod policy_builtins;
@@ -85,6 +87,8 @@ mod token_authority;
 
 #[cfg(test)]
 mod connector_grant;
+#[cfg(test)]
+mod connector_machine_token;
 #[cfg(test)]
 mod policy_recovery;
 

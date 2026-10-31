@@ -43,6 +43,8 @@ mod context_tests;
 
 #[cfg(test)]
 mod coverage_extra_tests;
+#[cfg(test)]
+mod id_validation_error_tests;
 
 #[cfg(test)]
 mod locale_tests;

@@ -6,6 +6,8 @@ mod actor;
 #[cfg(test)]
 mod declarations;
 #[cfg(test)]
+mod declarations_refusals;
+#[cfg(test)]
 mod profile;
 #[cfg(test)]
 mod render;

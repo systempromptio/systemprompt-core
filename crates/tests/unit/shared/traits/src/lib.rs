@@ -45,6 +45,8 @@ mod jwt;
 #[cfg(test)]
 #[cfg(test)]
 mod context_errors;
+#[cfg(test)]
+mod context_with_stats;
 
 #[cfg(test)]
 mod registry_errors;

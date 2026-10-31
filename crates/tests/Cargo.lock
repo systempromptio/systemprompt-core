@@ -10286,6 +10286,7 @@ name = "systemprompt-manifest-tests"
 version = "0.0.11"
 dependencies = [
  "chrono",
+ "schemars",
  "semver",
  "serde_json",
  "serde_yaml_ng",
