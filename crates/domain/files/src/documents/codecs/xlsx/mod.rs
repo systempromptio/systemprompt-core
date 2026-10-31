@@ -26,10 +26,10 @@ mod blank;
 mod calc;
 mod cells;
 mod insert;
-#[cfg(feature = "collab-loro")]
-mod ironcalc_input;
 mod projection;
 mod rebase;
+#[cfg(feature = "collab-loro")]
+mod umya_import;
 mod workbook;
 
 use std::sync::Arc;
