@@ -10,6 +10,8 @@ mod config_paths;
 #[cfg(test)]
 mod documents_access_requests;
 #[cfg(test)]
+mod documents_agent_access;
+#[cfg(test)]
 mod documents_agent_caps;
 #[cfg(test)]
 mod documents_agent_context;
@@ -17,6 +19,8 @@ mod documents_agent_context;
 mod documents_agent_fixture;
 #[cfg(test)]
 mod documents_agent_moves;
+#[cfg(test)]
+mod documents_agent_rewrites;
 #[cfg(test)]
 mod documents_agent_rules;
 #[cfg(test)]
@@ -50,6 +54,8 @@ mod documents_comments;
 #[cfg(test)]
 mod documents_comments_export;
 #[cfg(test)]
+mod documents_comments_refusals;
+#[cfg(test)]
 mod documents_comments_v2;
 #[cfg(test)]
 mod documents_commit_race;
@@ -66,11 +72,15 @@ mod documents_folders;
 #[cfg(test)]
 mod documents_foreign_lock;
 #[cfg(test)]
+mod documents_jobs_run;
+#[cfg(test)]
 mod documents_lifecycle;
 #[cfg(test)]
 mod documents_listing;
 #[cfg(test)]
 mod documents_listing_scale;
+#[cfg(test)]
+mod documents_media_admit;
 #[cfg(test)]
 mod documents_media_read;
 #[cfg(test)]
@@ -126,10 +136,18 @@ mod upload_service;
 #[cfg(test)]
 mod uploads_admission;
 #[cfg(test)]
+mod uploads_blob_reads;
+#[cfg(test)]
+mod uploads_lifecycle_repo;
+#[cfg(test)]
 mod uploads_rig;
+#[cfg(test)]
+mod uploads_safety_directory;
 #[cfg(test)]
 mod uploads_safety_image;
 #[cfg(test)]
 mod uploads_safety_office;
+#[cfg(test)]
+mod uploads_safety_svg;
 #[cfg(test)]
 mod uploads_service_flow;
