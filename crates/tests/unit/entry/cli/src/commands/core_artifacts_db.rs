@@ -199,3 +199,47 @@ async fn list_filters_by_context_and_user() {
     .await
     .unwrap();
 }
+
+#[tokio::test]
+async fn show_truncates_long_parts_and_renders_every_metadata_field() {
+    let pool = test_db_pool().await;
+    let (_user, context_id, task_id) = seed_task(&pool).await;
+    let artifact_id = ArtifactId::generate();
+    let long_text = "line of artifact text\n".repeat(60);
+    let big_data: Vec<String> = (0..200).map(|i| format!("value-{i}")).collect();
+    let artifact = Artifact {
+        id: artifact_id.clone(),
+        title: Some("rich artifact".to_owned()),
+        description: Some("every field set".to_owned()),
+        parts: vec![
+            Part::text(long_text),
+            Part::data(serde_json::json!({ "values": big_data })),
+            Part::url("https://files.invalid/a.pdf", "application/pdf").with_filename("a.pdf"),
+        ],
+        extensions: vec![],
+        metadata: ArtifactMetadata::new("document".to_owned(), context_id.clone(), task_id.clone())
+            .with_tool_name("rich-tool".to_owned())
+            .with_source("mcp".to_owned())
+            .with_fingerprint("fp-1".to_owned())
+            .with_skill_name("writer".to_owned()),
+    };
+    ArtifactRepository::new(&pool)
+        .create_artifact(&task_id, &context_id, &artifact)
+        .await
+        .unwrap();
+
+    let out = show::execute_with_pool(
+        show::ShowArgs {
+            artifact: artifact_id.as_str().to_owned(),
+            full: false,
+        },
+        &pool,
+        &CliConfig::new().with_interactive(false),
+    )
+    .await
+    .unwrap();
+    let body = serde_json::to_value(out.artifact()).unwrap().to_string();
+    assert!(body.contains("Artifact Details"), "{body}");
+    assert!(body.contains("rich-tool"), "{body}");
+    assert!(body.contains("document"), "{body}");
+}
