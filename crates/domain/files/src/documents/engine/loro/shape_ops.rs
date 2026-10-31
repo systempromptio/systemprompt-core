@@ -28,10 +28,12 @@ pub(super) fn update_from_ops(
 ) -> Result<Option<OpsUpdate>, EngineError> {
     if !doc.get_movable_list(SHEETS_CONTAINER).is_empty() {
         return on_fork(doc, peer, |draft| {
-            apply_sheet_ops(draft, ops).map_err(|error| match error {
+            let values = apply_sheet_ops(draft, ops).map_err(|error| match error {
                 SheetOpError::Unsupported { .. } => EngineError::Unsupported,
                 other => EngineError::Model(Box::new(other)),
-            })
+            })?;
+            let touched = values.iter().map(|(id, _)| id.clone()).collect();
+            Ok((touched, values))
         });
     }
     if !doc.get_movable_list(SLIDES_CONTAINER).is_empty() {
@@ -39,28 +41,36 @@ pub(super) fn update_from_ops(
             DeckOpError::Unsupported { .. } => EngineError::Unsupported,
             other => EngineError::Model(Box::new(other)),
         })?;
-        return Ok(update.map(|(update, touched)| OpsUpdate { update, touched }));
+        return Ok(update.map(|(update, touched)| OpsUpdate {
+            update,
+            touched,
+            values: Vec::new(),
+        }));
     }
     on_fork(doc, peer, |draft| {
-        apply_rich_ops_loro(draft, ops).map_err(|error| match error {
-            RichOpError::Unsupported { .. } | RichOpError::UnknownBlock { .. } => {
-                EngineError::Unsupported
-            },
-            other => EngineError::Model(Box::new(other)),
-        })
+        apply_rich_ops_loro(draft, ops)
+            .map(|touched| (touched, Vec::new()))
+            .map_err(|error| match error {
+                RichOpError::Unsupported { .. } | RichOpError::UnknownBlock { .. } => {
+                    EngineError::Unsupported
+                },
+                other => EngineError::Model(Box::new(other)),
+            })
     })
 }
+
+type Written = (Vec<String>, Vec<(String, String)>);
 
 fn on_fork(
     doc: &LoroDoc,
     peer: u64,
-    edit: impl FnOnce(&LoroDoc) -> Result<Vec<String>, EngineError>,
+    edit: impl FnOnce(&LoroDoc) -> Result<Written, EngineError>,
 ) -> Result<Option<OpsUpdate>, EngineError> {
     let before = doc.oplog_vv();
     let draft = doc.fork();
     rich::configure(&draft);
     draft.set_peer_id(peer).map_err(state)?;
-    let touched = edit(&draft)?;
+    let (touched, values) = edit(&draft)?;
     draft.set_next_commit_origin("agent");
     draft.commit();
     if draft.oplog_vv() == before {
@@ -68,6 +78,12 @@ fn on_fork(
     }
     draft
         .export(ExportMode::updates(&before))
-        .map(|update| Some(OpsUpdate { update, touched }))
+        .map(|update| {
+            Some(OpsUpdate {
+                update,
+                touched,
+                values,
+            })
+        })
         .map_err(encode)
 }

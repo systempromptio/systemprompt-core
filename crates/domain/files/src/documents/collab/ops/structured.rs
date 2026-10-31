@@ -11,7 +11,8 @@
 //! caller retries the batch through the model, which answers the precise
 //! refusal. A workbook or deck batch addresses the node ids of the
 //! session's base revision; they are lowered to the codec paths the
-//! translators take, and the paths written are named back by those ids.
+//! translators take, and the paths written are named back by those ids as
+//! well as by path, so a line is found even where the live read minted.
 //! No node-id projection is built on this path, so the ack's
 //! before and after trees are empty; it names the block and cell ids the
 //! translator wrote instead, and the caller reads those lines from the live
@@ -89,10 +90,17 @@ impl CollabService {
             after: empty(),
             applied,
             touched: Vec::new(),
+            values: Vec::new(),
         };
-        let Some(OpsUpdate { update, touched }) = update else {
+        let Some(OpsUpdate {
+            update,
+            touched,
+            values,
+        }) = update
+        else {
             return Ok(Some(edit));
         };
+        edit.values = values;
         edit.touched = match &base_ids {
             Some(ids) => node_ids_of(touched, ids),
             None => touched,
@@ -122,12 +130,12 @@ fn node_ids_of(paths: Vec<String>, ids: &Projection) -> Vec<String> {
         .nodes()
         .map(|node| (path_of(node), node.id.as_str()))
         .collect();
-    paths
-        .into_iter()
-        .map(|path| {
-            by_path
-                .get(path.as_str())
-                .map_or(path, |id| (*id).to_owned())
-        })
-        .collect()
+    let mut named = Vec::with_capacity(paths.len());
+    for path in paths {
+        if let Some(id) = by_path.get(path.as_str()).filter(|id| **id != path) {
+            named.push((*id).to_owned());
+        }
+        named.push(path);
+    }
+    named
 }

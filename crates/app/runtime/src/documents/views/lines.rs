@@ -9,17 +9,22 @@
 //! ids are stable across revisions; a cell's sheet and A1 address come from
 //! its codec path.
 //!
+//! The text views skip a read-only root (a Markdown document's parsed
+//! `outline`, which repeats its `body` lines as blocks) unless the read is
+//! `verbose`; the projection itself keeps both.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use systemprompt_files::documents::DocumentsError;
 use systemprompt_models::documents::{NodeKind, Projection, ProjectionNode};
+use systemprompt_provider_contracts::documents::hash8;
 
 use systemprompt_files::documents::nodes::path_of;
 
-use super::outline::{node_lines, outline, search_lines};
+use super::outline::{node_lines, outline, search_lines, shown_roots};
 use super::types::{NodeRange, ReadInput, ReadView};
 
 pub const MAX_LINES: usize = 2000;
@@ -34,7 +39,8 @@ pub struct RenderedLines {
 pub fn render(projection: &Projection, input: &ReadInput) -> Result<RenderedLines, DocumentsError> {
     let lines = match input.view {
         ReadView::Text | ReadView::Changes | ReadView::Meta | ReadView::Model => {
-            structured(projection, shows)
+            let shown = shown_roots(projection, input.verbose);
+            structured(shown.as_ref().unwrap_or(projection), shows)
         },
         ReadView::Outline => outline(projection),
         ReadView::Node => node_lines(projection, input.node_id.as_ref())?,
@@ -138,7 +144,11 @@ pub fn written_lines(base: Option<&Projection>, head: &Projection) -> Vec<String
 }
 
 #[must_use]
-pub fn touched_lines(projection: &Projection, touched: &[String]) -> Vec<String> {
+pub fn touched_lines(
+    projection: &Projection,
+    touched: &[String],
+    values: &[(String, String)],
+) -> Vec<String> {
     let named = |node: &ProjectionNode| {
         touched
             .iter()
@@ -147,6 +157,16 @@ pub fn touched_lines(projection: &Projection, touched: &[String]) -> Vec<String>
     let mut lines = structured(projection, |node| {
         shows(node) && (named(node) || (folded_cell(node) && node.children.iter().any(named)))
     });
+    let projected: HashSet<&str> = projection
+        .nodes()
+        .flat_map(|node| [node.id.as_str(), path_of(node)])
+        .collect();
+    lines.extend(
+        values
+            .iter()
+            .filter(|(id, _)| !projected.contains(id.as_str()))
+            .map(|(id, value)| format!("{id}:{}| | {value}", hash8(value))),
+    );
     lines.truncate(MAX_WRITTEN);
     lines
 }

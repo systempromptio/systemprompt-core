@@ -5,7 +5,10 @@
 //! deck model the same way, so a read sees its live cells and slides.
 //!
 //! Only a session this replica holds is read, so a read never opens or
-//! loads one; any other read answers from the head.
+//! loads one; any other read answers from the head, as does a read of a
+//! held session that is no longer the document's open one. A held session
+//! whose row checkpointed since (on the replica that owns it) takes the
+//! row first, so the read names the newest checkpoint as its base.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -34,6 +37,24 @@ impl CollabService {
         let Some(shared) = self.cached(&document.id) else {
             return Ok(None);
         };
+        let open = self
+            .documents
+            .repositories()
+            .edit_sessions
+            .find_open(&document.id)
+            .await?;
+        let Some(open) = open else {
+            return Ok(None);
+        };
+        {
+            let mut entry = shared.lock().await;
+            if entry.session.id != open.id {
+                return Ok(None);
+            }
+            if entry.session.checkpoint_revision_id != open.checkpoint_revision_id {
+                entry.session = open;
+            }
+        }
         let Some(body) = self.fork_body(&shared).await? else {
             return Ok(None);
         };

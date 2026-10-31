@@ -69,7 +69,7 @@ mod translate {
     pub(crate) fn apply_sheet_ops(
         doc: &LoroDoc,
         ops: &[EditOp],
-    ) -> Result<Vec<String>, SheetOpError> {
+    ) -> Result<Vec<(String, String)>, SheetOpError> {
         let writes = ops
             .iter()
             .map(plan)
@@ -97,16 +97,15 @@ mod translate {
                 },
             }
         }
-        let mut touched: Vec<String> = Vec::new();
+        let mut touched: Vec<(String, String)> = Vec::new();
         for change in &changes {
             let id = format!(
                 "sheet[{}]/{}",
                 change.sheet.replace(']', "\\]"),
                 a1(change.col, change.row)
             );
-            if !touched.contains(&id) {
-                touched.push(id);
-            }
+            touched.retain(|(held, _)| *held != id);
+            touched.push((id, change.v.clone()));
         }
         Ok(touched)
     }

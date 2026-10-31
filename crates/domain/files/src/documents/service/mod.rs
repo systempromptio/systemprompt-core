@@ -59,6 +59,7 @@ mod listing;
 mod live_edit;
 mod live_ids;
 mod live_ops;
+mod live_read;
 mod locks;
 mod media;
 mod media_read;

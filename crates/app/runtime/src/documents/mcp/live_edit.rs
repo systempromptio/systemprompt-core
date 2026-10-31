@@ -35,19 +35,23 @@ pub(super) async fn edit_live(
     let written = if live.touched.is_empty() {
         written_lines(Some(&live.before), &live.after)
     } else {
-        touched_lines(call, &live.touched).await?
+        touched_lines(call, &live.touched, &live.values).await?
     };
     Ok(Some(live_ack(call, live, written)))
 }
 
-async fn touched_lines(call: &EditCall<'_>, touched: &[String]) -> Result<Vec<String>, McpError> {
+async fn touched_lines(
+    call: &EditCall<'_>,
+    touched: &[String],
+    values: &[(String, String)],
+) -> Result<Vec<String>, McpError> {
     let (_, projection) = call
         .tools
         .service()
         .project(call.who, &call.document, None, call.ctx.trace_id())
         .await
         .map_err(tool_error)?;
-    Ok(views::touched_lines(&projection, touched))
+    Ok(views::touched_lines(&projection, touched, values))
 }
 
 fn live_ack(call: &EditCall<'_>, live: LiveEdit, written: Vec<String>) -> EditOutput {

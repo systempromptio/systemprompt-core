@@ -1,6 +1,6 @@
 //! The `collab-loro` translation of a deck op batch into a Loro update,
 //! with the `slide[N]/shape[S]/p[P]` (or `slide[N]` for an inserted slide)
-//! ids it wrote, positional as of the op that wrote each.
+//! ids it wrote, named at their positions in the deck the batch leaves.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -9,6 +9,7 @@ use loro::{ExportMode, LoroDoc, LoroMap, LoroMovableList, LoroText, PeerID};
 use systemprompt_identifiers::DocumentNodeId;
 use systemprompt_models::documents::EditOp;
 
+use super::positions::Written;
 use super::slide::{frame_for, new_block, text_shape};
 use crate::documents::engine::loro::deck::{
     DeckSlide, ShapeKind, insert_paragraph, insert_slide, slides,
@@ -41,7 +42,7 @@ fn unknown(id: &str) -> DeckOpError {
     }
 }
 
-enum Node {
+pub(super) enum Node {
     Slide(usize),
     Paragraph(usize, usize, usize),
 }
@@ -54,7 +55,7 @@ fn index(segment: &str, prefix: &str) -> Option<usize> {
         .ok()
 }
 
-fn node(id: &str) -> Result<Node, DeckOpError> {
+pub(super) fn node(id: &str) -> Result<Node, DeckOpError> {
     let parts: Vec<&str> = id.split('/').collect();
     let slide = parts
         .first()
@@ -72,7 +73,7 @@ fn node(id: &str) -> Result<Node, DeckOpError> {
     }
 }
 
-fn child_list(map: &LoroMap, key: &str) -> Option<LoroMovableList> {
+pub(super) fn child_list(map: &LoroMap, key: &str) -> Option<LoroMovableList> {
     match map.get(key)? {
         loro::ValueOrContainer::Container(loro::Container::MovableList(list)) => Some(list),
         _ => None,
@@ -258,14 +259,12 @@ pub(crate) fn deck_update(
     let draft = doc.fork();
     crate::documents::engine::loro::rich::configure(&draft);
     draft.set_peer_id(peer)?;
-    let mut touched: Vec<String> = Vec::new();
+    let mut written = Written::default();
     for op in ops {
-        for id in apply(&draft, op)? {
-            if !touched.contains(&id) {
-                touched.push(id);
-            }
-        }
+        let positional = apply(&draft, op)?;
+        written.note(&draft, &positional);
     }
+    let touched = written.finish(&draft);
     draft.set_next_commit_origin("agent");
     draft.commit();
     if draft.oplog_vv() == before {

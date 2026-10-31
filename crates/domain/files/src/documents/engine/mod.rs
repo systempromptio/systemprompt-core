@@ -94,11 +94,13 @@ pub struct UpdateImport {
 }
 
 /// An op batch translated into one engine update, with the block and cell
-/// ids it wrote (empty when the translator does not name them).
+/// ids it wrote and, for a workbook, the input each written cell now holds
+/// (so a cell past the projection's cell cap still has a line).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OpsUpdate {
     pub update: Vec<u8>,
     pub touched: Vec<String>,
+    pub values: Vec<(String, String)>,
 }
 
 /// What one imported update changed.
