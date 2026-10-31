@@ -12,7 +12,7 @@ use systemprompt_files::documents::engine::loro::{LoroEngine, rich, write_model}
 use systemprompt_files::documents::model::{RichText, html};
 use systemprompt_identifiers::{ConnectionId, DocumentId};
 use systemprompt_models::auth::AuthenticatedUser;
-use systemprompt_models::documents::RevisionOriginKind;
+use systemprompt_models::documents::{DocumentFormat, RevisionOriginKind};
 use tokio::sync::mpsc;
 
 use crate::documents_service_fixture::{
@@ -326,9 +326,9 @@ async fn ods_spreadsheets_cannot_be_joined() {
         .await;
     assert!(matches!(
         refused,
-        Err(CollabError::Documents(
-            DocumentsError::UnsupportedFormat { .. }
-        ))
+        Err(CollabError::Documents(DocumentsError::LiveUnsupported {
+            format: DocumentFormat::Ods
+        }))
     ));
 }
 

@@ -64,7 +64,15 @@ fn shapes_carry_their_ids_kinds_and_frames() {
             h: 400
         })
     );
-    assert_eq!(shape(&deck, FRAMED, "3").frame, None);
+    assert_eq!(
+        shape(&deck, FRAMED, "3").frame,
+        Some(Frame {
+            x: 838_200,
+            y: 1_825_625,
+            w: 10_515_600,
+            h: 4_351_338
+        })
+    );
     assert_eq!(shape(&deck, FRAMED, "shape-3").frame, None);
     let picture = shape(&deck, FRAMED, "6");
     assert_eq!(
