@@ -56,7 +56,7 @@ pub(crate) struct Harness {
     pub(crate) pipeline: Arc<BrainPipeline>,
     pub(crate) service: BrainService,
     pub(crate) profile: BrainProfile,
-    seams: PipelineSeams,
+    pub(crate) seams: PipelineSeams,
 }
 
 impl Harness {

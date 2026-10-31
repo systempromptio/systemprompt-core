@@ -34,6 +34,8 @@ mod pipeline_filter;
 #[cfg(test)]
 mod pipeline_fixtures;
 #[cfg(test)]
+mod pipeline_rules;
+#[cfg(test)]
 mod plane;
 #[cfg(test)]
 mod plane_db;

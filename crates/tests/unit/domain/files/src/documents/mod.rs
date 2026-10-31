@@ -38,6 +38,7 @@ mod docx_sections;
 mod docx_styles_theme;
 mod docx_write_blocks;
 mod docx_write_drawing;
+mod engine_defaults;
 mod engine_loro;
 mod engine_loro_deck;
 mod engine_loro_edit;

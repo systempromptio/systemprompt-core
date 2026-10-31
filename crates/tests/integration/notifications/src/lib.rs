@@ -17,6 +17,8 @@ mod digest;
 #[cfg(test)]
 mod escalation;
 #[cfg(test)]
+mod fact_decoding;
+#[cfg(test)]
 mod fact_retries;
 #[cfg(test)]
 mod harness;

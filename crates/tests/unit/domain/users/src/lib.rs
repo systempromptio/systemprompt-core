@@ -53,6 +53,8 @@ mod ai_session_provider;
 mod session_provider;
 #[cfg(test)]
 mod session_store_lifecycle;
+#[cfg(test)]
+mod session_store_trait_queries;
 
 #[cfg(test)]
 mod privacy_fixture;

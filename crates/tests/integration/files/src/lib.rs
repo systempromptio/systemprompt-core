@@ -34,7 +34,11 @@ mod documents_collab;
 #[cfg(test)]
 mod documents_collab_awareness;
 #[cfg(test)]
+mod documents_collab_follow_structured;
+#[cfg(test)]
 mod documents_collab_images;
+#[cfg(test)]
+mod documents_collab_lease_busy;
 #[cfg(test)]
 mod documents_collab_live_fixture;
 #[cfg(test)]
@@ -137,6 +141,10 @@ mod upload_service;
 mod uploads_admission;
 #[cfg(test)]
 mod uploads_blob_reads;
+#[cfg(test)]
+mod uploads_dedupe;
+#[cfg(test)]
+mod uploads_expiry_job;
 #[cfg(test)]
 mod uploads_lifecycle_repo;
 #[cfg(test)]
