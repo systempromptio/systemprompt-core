@@ -9785,6 +9785,7 @@ dependencies = [
  "inventory",
  "ironcalc",
  "loro",
+ "metrics",
  "pdf-writer",
  "pulldown-cmark",
  "quick-xml 0.42.0",
