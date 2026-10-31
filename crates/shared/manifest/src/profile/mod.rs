@@ -21,6 +21,7 @@ pub mod derived;
 mod error;
 mod external_secrets;
 mod governance;
+mod image;
 mod judge;
 pub mod layered;
 mod legacy;
@@ -64,6 +65,7 @@ pub use governance::{
     AuditConfig, AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig, QuotaConfig,
     UNRESTRICTED_ACKNOWLEDGEMENT, UnappliedPlaneMode,
 };
+pub use image::{DEFAULT_RUNTIME_BASE_IMAGE, RuntimeImageConfig};
 pub use judge::JudgeProfile;
 pub use layered::{BASE_PROFILE_FILE, OVERLAY_PROFILE_FILE, merge_yaml};
 pub use legacy::MIGRATE_COMMAND;

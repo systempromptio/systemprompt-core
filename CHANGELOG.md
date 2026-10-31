@@ -26,9 +26,11 @@
 - **Breaking:** **AI:** `AdmissionWrite` gains `memory_recall: Option<&str>`, written to the new `ai_requests.memory_recall` column. Migrate struct literals by adding `memory_recall: None`.
 - **Breaking:** **Manifest:** `Profile` gains `brain: BrainProfile`. The YAML block is optional and defaulted, and `enabled` defaults to `false`. Migrate struct literals by adding `brain: BrainProfile::default()`.
 - **Breaking:** **Manifest:** `RateLimitsConfig` gains `brain_per_second` (YAML optional, default `50`), and `per_second_budgets` returns fifteen entries. Migrate struct literals by adding the field or `..RateLimitsConfig::default()`.
+- **Breaking:** **Manifest:** `CloudConfig` gains `image: Option<RuntimeImageConfig>` (YAML optional). Migrate struct literals by adding `image: None` or `..CloudConfig::default()`.
 
 ### Added
 
+- **Cloud:** a profile's optional `cloud.image` sets the runtime image `cloud dockerfile` renders: `base` replaces `debian:trixie-slim` and `packages` are installed after core's own, so a re-render keeps a deployment's extra packages instead of dropping them.
 - **Release:** bridge releases attach signed CycloneDX SBOMs for the bridge and the core workspace, and a GitHub build-provenance attestation for every asset.
 - **CI:** Renovate opens monthly grouped dependency updates and immediate security updates as pull requests against `next`, merging each only when every gate passes.
 - **CI:** `gitleaks` secret scanning runs in the Supply Chain gate, CodeQL analyses Rust, JavaScript and workflow files, and the OpenSSF Scorecard publishes weekly.
@@ -67,6 +69,7 @@
 
 ### Fixed
 
+- **CLI:** `cloud dockerfile` renders for the active profile (`--profile` or the session), so the output carries `SYSTEMPROMPT_PROFILE` and that profile's `cloud.image`; it ignored the profile before. The runtime image no longer names `libssl3t64`: `libpq5` brings the distribution's OpenSSL, so a `bookworm` base works too.
 - **MCP:** the main server no longer warns that an extension toolset "is not registered by any linked crate" on every boot. It cannot see toolsets linked into an MCP binary; that binary refuses an unknown toolset id when it starts.
 - **Files:** `POST /documents/{id}/edits` applies a folder's agent edit policy to an agent bearer.
 - **Files:** A live document stream closes when its periodic access recheck fails, not only when access is withdrawn.

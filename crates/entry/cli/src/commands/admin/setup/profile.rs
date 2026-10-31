@@ -188,6 +188,7 @@ fn local_cloud() -> CloudConfig {
         validation: CloudValidationMode::Skip,
         deploy: None,
         operator: None,
+        image: None,
     }
 }
 

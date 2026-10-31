@@ -137,6 +137,7 @@ impl CloudProfileBuilder {
                 validation: CloudValidationMode::Strict,
                 deploy: None,
                 operator: None,
+                image: None,
             }),
             secrets: Some(SecretsConfig {
                 secrets_path: self.secrets_path,

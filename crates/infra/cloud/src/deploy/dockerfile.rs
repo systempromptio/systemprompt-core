@@ -10,6 +10,7 @@ use systemprompt_extension::ExtensionRegistry;
 use systemprompt_identifiers::ProfileName;
 use systemprompt_loader::{ConfigLoader, ExtensionLoader};
 use systemprompt_manifest::ServicesConfig;
+use systemprompt_manifest::profile::RuntimeImageConfig;
 use systemprompt_models::CliPaths;
 use systemprompt_models::defaults::DEFAULT_API_PORT;
 
@@ -21,6 +22,7 @@ pub struct DockerfileBuilder<'a> {
     project_root: &'a Path,
     profile_name: Option<&'a ProfileName>,
     services_config: Option<ServicesConfig>,
+    image: RuntimeImageConfig,
 }
 
 impl<'a> DockerfileBuilder<'a> {
@@ -39,6 +41,7 @@ impl<'a> DockerfileBuilder<'a> {
             project_root,
             profile_name: None,
             services_config,
+            image: RuntimeImageConfig::default(),
         }
     }
 
@@ -48,28 +51,36 @@ impl<'a> DockerfileBuilder<'a> {
         self
     }
 
+    /// The profile's `cloud.image`: base image and extra runtime packages.
+    #[must_use]
+    pub fn with_image(mut self, image: RuntimeImageConfig) -> Self {
+        self.image = image;
+        self
+    }
+
     #[must_use]
     pub fn build(&self) -> String {
         let mcp_section = self.mcp_copy_section();
         let env_section = self.env_section();
         let extension_dirs = Self::extension_storage_dirs();
         let extension_assets_section = self.extension_asset_copy_section();
+        let base_image = self.image.base_image();
+        let extra_packages = self.extra_packages();
 
         format!(
             r#"# systemprompt.io Application Dockerfile
 # Built by: systemprompt cloud profile create
 # Used by: systemprompt cloud deploy
 
-FROM debian:trixie-slim
+FROM {base_image}
 
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y \
     ca-certificates \
     curl \
-    libssl3t64 \
     libpq5 \
     lsof \
-    && rm -rf /var/lib/apt/lists/*
+{extra_packages}    && rm -rf /var/lib/apt/lists/*
 
 RUN useradd -m -u 1000 app
 WORKDIR {app}
@@ -123,6 +134,8 @@ CMD ["{bin}/systemprompt", "{cmd_infra}", "{cmd_services}", "{cmd_serve}", "--fo
             video = storage::VIDEO,
             documents = storage::DOCUMENTS,
             uploads = storage::UPLOADS,
+            base_image = base_image,
+            extra_packages = extra_packages,
             extension_dirs = extension_dirs,
             mcp_section = mcp_section,
             env_section = env_section,
@@ -132,6 +145,14 @@ CMD ["{bin}/systemprompt", "{cmd_infra}", "{cmd_services}", "{cmd_serve}", "--fo
             cmd_serve = CliPaths::SERVE,
             api_port = DEFAULT_API_PORT,
         )
+    }
+
+    fn extra_packages(&self) -> String {
+        self.image
+            .packages
+            .iter()
+            .map(|package| format!("    {package} \\\n"))
+            .collect()
     }
 
     fn extension_storage_dirs() -> String {

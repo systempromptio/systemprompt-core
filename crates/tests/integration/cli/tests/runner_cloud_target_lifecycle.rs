@@ -88,6 +88,7 @@ fn cloud_target_uses_only_the_profile_tenant_and_recovers_after_store_repair() {
         validation: CloudValidationMode::Strict,
         deploy: None,
         operator: None,
+        image: None,
     });
     fs::write(
         &fixture.profile_path,

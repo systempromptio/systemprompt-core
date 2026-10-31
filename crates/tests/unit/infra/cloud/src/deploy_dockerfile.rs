@@ -41,7 +41,6 @@ FROM debian:trixie-slim
 RUN apt-get update && apt-get install -y \
     ca-certificates \
     curl \
-    libssl3t64 \
     libpq5 \
     lsof \
     && rm -rf /var/lib/apt/lists/*
@@ -151,6 +150,22 @@ fn both_env_branches_mark_the_image_as_a_deployment_host() {
     assert!(
         with_profile.contains("SYSTEMPROMPT_DEPLOYMENT_HOST=prod"),
         "the marker should name the host as specifically as the image can"
+    );
+}
+
+#[test]
+fn the_profile_image_sets_the_base_and_keeps_its_extra_packages() {
+    let temp = TempDir::new().unwrap();
+    let image = systemprompt_manifest::profile::RuntimeImageConfig {
+        base: Some("debian:bookworm-slim".to_owned()),
+        packages: vec!["postgresql-client".to_owned(), "libreoffice-writer".to_owned()],
+    };
+    let content = DockerfileBuilder::new(temp.path()).with_image(image).build();
+
+    assert!(content.contains("FROM debian:bookworm-slim\n"), "got {content}");
+    assert!(
+        content.contains("    lsof \\\n    postgresql-client \\\n    libreoffice-writer \\\n    && rm -rf"),
+        "extra packages follow core's own, got {content}"
     );
 }
 

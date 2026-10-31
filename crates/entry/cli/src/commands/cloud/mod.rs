@@ -22,7 +22,6 @@ pub mod types;
 
 pub use systemprompt_cloud::{Environment, OAuthProvider};
 
-use crate::cli_settings::CliConfig;
 use crate::context::CommandContext;
 use crate::descriptor::{CommandDescriptor, DescribeCommand};
 use anyhow::Result;
@@ -207,17 +206,31 @@ pub async fn execute(cmd: CloudCommands, ctx: &CommandContext) -> Result<()> {
             Ok(())
         },
         CloudCommands::Fleet(cmd) => fleet::execute(cmd, ctx).await,
-        CloudCommands::Dockerfile => execute_dockerfile(&ctx.cli),
+        CloudCommands::Dockerfile => execute_dockerfile(ctx),
         CloudCommands::Sync(cmd) => sync::execute(cmd, ctx).await,
     }
 }
 
-fn execute_dockerfile(config: &CliConfig) -> Result<()> {
+fn execute_dockerfile(ctx: &CommandContext) -> Result<()> {
     use crate::shared::project::ProjectRoot;
+    use systemprompt_cloud::deploy::DockerfileBuilder;
     use types::DockerfileOutput;
 
+    let config = &ctx.cli;
     let project = ProjectRoot::discover().map_err(|e| anyhow::anyhow!("{}", e))?;
-    let content = systemprompt_cloud::deploy::generate_dockerfile_content(project.as_path());
+    let profile = ctx.profile().ok();
+    let profile_name = profile
+        .map(|p| ProfileName::try_new(p.name.as_str()))
+        .transpose()?;
+    let image = profile
+        .and_then(|p| p.cloud.as_ref())
+        .and_then(|cloud| cloud.image.clone())
+        .unwrap_or_default();
+    let mut builder = DockerfileBuilder::new(project.as_path()).with_image(image);
+    if let Some(name) = profile_name.as_ref() {
+        builder = builder.with_profile(name);
+    }
+    let content = builder.build();
 
     let output = DockerfileOutput {
         content: content.clone(),

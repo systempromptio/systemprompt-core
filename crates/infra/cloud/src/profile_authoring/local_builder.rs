@@ -101,6 +101,7 @@ impl LocalProfileBuilder {
                 validation: CloudValidationMode::Warn,
                 deploy: None,
                 operator: None,
+                image: None,
             }),
             secrets: Some(SecretsConfig {
                 secrets_path: Some(self.secrets_path),
