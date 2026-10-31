@@ -20,6 +20,7 @@ mod model;
 mod outline;
 mod read;
 mod records;
+mod touched;
 mod types;
 
 pub use access::{
@@ -29,9 +30,10 @@ pub use access::{
 pub use acks::edit_ack;
 pub use lines::{
     MAX_LINES, MAX_WRITTEN, RenderedLines, parse_cell, render, split_cell_id, structured_line,
-    touched_lines, written_lines,
+    written_lines,
 };
 pub use outline::{change_lines, node_lines, outline, proposal_lines, search_lines};
 pub use read::read_view;
 pub use records::{CommentAnchorItem, CommentItem, CommentOutput, CommentRangeItem, comments_view};
+pub use touched::touched_lines;
 pub use types::{DocumentMeta, EditOutput, EditingNow, NodeRange, ReadInput, ReadOutput, ReadView};

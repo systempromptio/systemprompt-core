@@ -16,11 +16,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use systemprompt_files::documents::DocumentsError;
 use systemprompt_models::documents::{NodeKind, Projection, ProjectionNode};
-use systemprompt_provider_contracts::documents::hash8;
+
 
 use systemprompt_files::documents::nodes::path_of;
 
@@ -86,7 +86,7 @@ pub(crate) fn structured(
     lines
 }
 
-fn folded_cell(node: &ProjectionNode) -> bool {
+pub(super) fn folded_cell(node: &ProjectionNode) -> bool {
     node.kind == NodeKind::Cell
         && node.children.len() == 1
         && node.children[0].kind == NodeKind::Paragraph
@@ -139,37 +139,6 @@ pub fn written_lines(base: Option<&Projection>, head: &Projection) -> Vec<String
             _ => true,
         }
     });
-    lines.truncate(MAX_WRITTEN);
-    lines
-}
-
-#[must_use]
-pub fn touched_lines(
-    projection: &Projection,
-    touched: &[String],
-    values: &[(String, String)],
-    verbose: bool,
-) -> Vec<String> {
-    let shown = shown_roots(projection, verbose);
-    let projection = shown.as_ref().unwrap_or(projection);
-    let named = |node: &ProjectionNode| {
-        touched
-            .iter()
-            .any(|id| id == node.id.as_str() || id == path_of(node))
-    };
-    let mut lines = structured(projection, |node| {
-        shows(node) && (named(node) || (folded_cell(node) && node.children.iter().any(named)))
-    });
-    let projected: HashSet<&str> = projection
-        .nodes()
-        .flat_map(|node| [node.id.as_str(), path_of(node)])
-        .collect();
-    lines.extend(
-        values
-            .iter()
-            .filter(|(id, _)| !projected.contains(id.as_str()))
-            .map(|(id, value)| format!("{id}:{}| | {value}", hash8(value))),
-    );
     lines.truncate(MAX_WRITTEN);
     lines
 }
