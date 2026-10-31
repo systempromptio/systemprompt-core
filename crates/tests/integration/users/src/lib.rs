@@ -20,3 +20,5 @@ mod user_repository;
 
 #[cfg(test)]
 mod user_service;
+#[cfg(test)]
+mod user_service_anonymous;

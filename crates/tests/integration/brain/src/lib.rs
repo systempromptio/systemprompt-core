@@ -11,6 +11,8 @@ mod consumer_drain;
 #[cfg(test)]
 mod dedupe_dispute;
 #[cfg(test)]
+mod dedupe_unchanged;
+#[cfg(test)]
 mod disabled;
 #[cfg(test)]
 mod disputes;
@@ -27,6 +29,8 @@ mod jobs_support;
 #[cfg(test)]
 mod lifecycle;
 #[cfg(test)]
+mod mcp_read_tools;
+#[cfg(test)]
 mod no_filter;
 #[cfg(test)]
 mod outbox_to_fact;
@@ -42,6 +46,8 @@ mod purge;
 mod read_visibility;
 #[cfg(test)]
 mod recall_seed;
+#[cfg(test)]
+mod recall_stale_marker;
 #[cfg(test)]
 mod recall_support;
 #[cfg(test)]

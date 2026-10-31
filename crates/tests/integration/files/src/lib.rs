@@ -66,6 +66,8 @@ mod documents_commit_race;
 #[cfg(test)]
 mod documents_create_content;
 #[cfg(test)]
+mod documents_create_content_settings;
+#[cfg(test)]
 mod documents_drive_feed_order;
 #[cfg(test)]
 mod documents_drive_paths;
@@ -104,6 +106,8 @@ mod documents_reads;
 #[cfg(test)]
 mod documents_repository;
 #[cfg(test)]
+mod documents_repository_any;
+#[cfg(test)]
 mod documents_revision_engine;
 #[cfg(test)]
 mod documents_service;
@@ -121,6 +125,8 @@ mod documents_sharing_guards;
 mod documents_sharing_hardening;
 #[cfg(test)]
 mod documents_sharing_review;
+#[cfg(test)]
+mod documents_sharing_revoke;
 #[cfg(test)]
 mod documents_upload_cleanup;
 #[cfg(test)]
@@ -155,6 +161,8 @@ mod uploads_safety_directory;
 mod uploads_safety_image;
 #[cfg(test)]
 mod uploads_safety_office;
+#[cfg(test)]
+mod uploads_safety_office_scan;
 #[cfg(test)]
 mod uploads_safety_svg;
 #[cfg(test)]
