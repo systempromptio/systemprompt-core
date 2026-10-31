@@ -256,7 +256,6 @@ fn split_extension(name: &str) -> (&str, &str) {
         .map_or((name, ""), |dot| name.split_at(dot))
 }
 
-/// A unique violation on insert is the folder's name already in use.
 pub(super) fn name_taken(error: RepositoryError, name: &str) -> DocumentsError {
     if is_name_taken(&error) {
         DocumentsError::NameTaken {

@@ -45,7 +45,6 @@ const BODY_FRAME: Frame = Frame {
     h: 4_351_338,
 };
 
-/// The frame a new shape of `kind` takes on a slide of `doc`.
 pub(super) fn frame_for(doc: &LoroDoc, kind: ShapeKind) -> Option<Frame> {
     let held = read(doc).ok().and_then(|deck| {
         deck.slides
