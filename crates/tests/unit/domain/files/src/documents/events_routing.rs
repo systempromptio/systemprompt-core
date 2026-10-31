@@ -8,7 +8,7 @@ use std::time::Duration;
 use systemprompt_events::{EventBroadcasters, EventRouter, RELAY_LOST_EVENT};
 use systemprompt_files::documents::DocumentsError;
 use systemprompt_files::documents::events::{DocumentEvents, live_topic};
-use systemprompt_identifiers::{DocumentEditSessionId, DocumentId, InstanceId, UserId};
+use systemprompt_identifiers::{DocumentEditSessionId, DocumentId, UserId};
 use systemprompt_models::documents::{
     DocumentCollabUpdateEvent, DocumentLockEvent, DocumentPresenceEvent, PresenceSource,
     PresenceState,
@@ -31,7 +31,7 @@ fn unreachable_events() -> (DocumentEvents, Arc<EventBroadcasters>) {
     let broadcasters = Arc::new(EventBroadcasters::new());
     let router = EventRouter::with_outbox(
         pool,
-        InstanceId::new("events-routing-test"),
+        systemprompt_test_fixtures::unique_instance(),
         Arc::clone(&broadcasters),
     );
     (DocumentEvents::new(Arc::new(router)), broadcasters)

@@ -51,7 +51,6 @@ impl<'a> DockerfileBuilder<'a> {
         self
     }
 
-    /// The profile's `cloud.image`: base image and extra runtime packages.
     #[must_use]
     pub fn with_image(mut self, image: RuntimeImageConfig) -> Self {
         self.image = image;

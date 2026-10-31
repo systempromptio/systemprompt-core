@@ -120,7 +120,7 @@ fn owner_urls_join_cleanly_and_the_cache_returns_what_was_put() {
     let name = ServiceName::new("cached");
     assert!(cache.get(&name).is_none());
     let owner = ProcessOwner {
-        instance_id: InstanceId::new("i1"),
+        instance_id: systemprompt_test_fixtures::unique_instance(),
         advertise_url: "http://a:1".to_owned(),
     };
     cache.put(&name, &owner);
