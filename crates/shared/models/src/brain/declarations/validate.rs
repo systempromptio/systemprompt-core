@@ -134,9 +134,9 @@ fn validate_kind(kind: &KindDecl, topics: &HashSet<&TopicId>) -> Result<(), Brai
     Ok(())
 }
 
-fn known_topics<'a>(
+fn known_topics(
     owner: &str,
-    named: impl IntoIterator<Item = &'a TopicId>,
+    named: impl IntoIterator<Item = &TopicId>,
     declared: &HashSet<&TopicId>,
 ) -> Result<(), BrainDeclError> {
     named
@@ -150,9 +150,9 @@ fn known_topics<'a>(
         })
 }
 
-fn known_kinds<'a>(
+fn known_kinds(
     owner: &str,
-    named: impl IntoIterator<Item = &'a FactKindId>,
+    named: impl IntoIterator<Item = &FactKindId>,
     declared: &HashSet<&FactKindId>,
 ) -> Result<(), BrainDeclError> {
     named
