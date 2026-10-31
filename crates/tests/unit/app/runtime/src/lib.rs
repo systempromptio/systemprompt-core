@@ -90,6 +90,8 @@ mod issues_mcp_tools;
 #[cfg(all(test, unix))]
 mod managed_inventory_lifecycle;
 #[cfg(test)]
+mod mcp_host_serve;
+#[cfg(test)]
 mod schema_behind_error;
 #[cfg(test)]
 mod schema_currency_boot;

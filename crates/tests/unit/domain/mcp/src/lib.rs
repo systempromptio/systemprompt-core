@@ -89,3 +89,9 @@ mod tool_executor;
 mod tool_handler;
 #[cfg(test)]
 mod toolset_host;
+#[cfg(test)]
+mod toolset_server_calls;
+#[cfg(test)]
+mod toolset_server_gate;
+#[cfg(test)]
+mod toolset_server_live;
