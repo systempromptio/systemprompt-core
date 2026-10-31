@@ -3,11 +3,15 @@
 //! the review and retention jobs. Each test owns a disposable database.
 
 #[cfg(test)]
+mod analysis_store;
+#[cfg(test)]
 mod consumer_drain;
 #[cfg(test)]
 mod dedupe_dispute;
 #[cfg(test)]
 mod disabled;
+#[cfg(test)]
+mod disputes;
 #[cfg(test)]
 mod events;
 #[cfg(test)]
@@ -47,6 +51,12 @@ mod review_after;
 #[cfg(test)]
 mod review_job;
 #[cfg(test)]
+mod search_filter;
+#[cfg(test)]
+mod service_reads;
+#[cfg(test)]
 mod stale;
+#[cfg(test)]
+mod subjects_aliases;
 #[cfg(test)]
 mod withheld;
