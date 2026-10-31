@@ -6,7 +6,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use clap::Args;
 use serde::Serialize;
 use systemprompt_identifiers::IssueReportId;
@@ -42,7 +42,8 @@ struct TriageOutput {
 pub(super) async fn execute(args: TriageArgs, ctx: &CommandContext) -> Result<CommandOutput> {
     let session_ctx = get_or_create_session(ctx).await?;
     let app = ctx.app_context().await?;
-    let id = IssueReportId::new(&args.id);
+    let id = IssueReportId::try_new(args.id.as_str())
+        .with_context(|| format!("invalid issue report id: {}", args.id))?;
     let from = app
         .documents()
         .issues()

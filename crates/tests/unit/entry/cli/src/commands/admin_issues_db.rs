@@ -168,3 +168,16 @@ async fn show_refuses_an_unknown_report_by_id() {
         format!("Issue report not found: {missing}")
     );
 }
+
+#[tokio::test]
+async fn show_refuses_a_malformed_report_id_before_querying() {
+    let app = app().await;
+    let err = issues::execute(
+        parse(&["show", "not-a-uuid"]).unwrap(),
+        &ctx(&app, OutputFormat::Json),
+    )
+    .await
+    .unwrap_err();
+    assert_eq!(err.to_string(), "invalid issue report id: not-a-uuid");
+    assert!(err.chain().count() > 1);
+}

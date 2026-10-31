@@ -6,7 +6,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::{Result, anyhow};
+use anyhow::{Context, Result, anyhow};
 use clap::Args;
 use serde::Serialize;
 use systemprompt_identifiers::IssueReportId;
@@ -30,7 +30,8 @@ struct IssueDetailOutput {
 
 pub(super) async fn execute(args: ShowArgs, ctx: &CommandContext) -> Result<CommandOutput> {
     let app = ctx.app_context().await?;
-    let id = IssueReportId::new(&args.id);
+    let id = IssueReportId::try_new(args.id.as_str())
+        .with_context(|| format!("invalid issue report id: {}", args.id))?;
     let report = app
         .documents()
         .issues()
