@@ -4826,6 +4826,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-brain"
+version = "0.76.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "futures",
+ "inventory",
+ "metrics",
+ "serde",
+ "serde_json",
+ "serde_yaml_ng",
+ "sqlx",
+ "systemprompt-database",
+ "systemprompt-events",
+ "systemprompt-extension",
+ "systemprompt-identifiers",
+ "systemprompt-manifest",
+ "systemprompt-models",
+ "systemprompt-provider-contracts",
+ "systemprompt-traits",
+ "thiserror 2.0.21",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "systemprompt-catalog-fixtures"
 version = "0.1.0"
 dependencies = [
@@ -4994,6 +5022,7 @@ version = "0.76.0"
 dependencies = [
  "async-trait",
  "axum",
+ "chrono",
  "inventory",
  "serde",
  "serde_json",
@@ -5023,9 +5052,11 @@ dependencies = [
  "futures-util",
  "hex",
  "inventory",
+ "metrics",
  "pdf-writer",
  "pulldown-cmark",
  "quick-xml",
+ "reqwest",
  "schemars",
  "scraper",
  "serde",
@@ -5371,6 +5402,7 @@ dependencies = [
  "async-trait",
  "base64 0.23.1",
  "chrono",
+ "http",
  "indicatif",
  "reqwest",
  "rmcp",
@@ -5382,6 +5414,7 @@ dependencies = [
  "systemprompt-agent",
  "systemprompt-ai",
  "systemprompt-analytics",
+ "systemprompt-brain",
  "systemprompt-config",
  "systemprompt-content",
  "systemprompt-database",

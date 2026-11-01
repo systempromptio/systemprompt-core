@@ -40,6 +40,7 @@ impl DocumentService {
         blocking(move || Ok(codec.project(&bytes)?)).await
     }
 
+    #[cfg(feature = "collab")]
     pub(crate) async fn projection_with_ids(
         &self,
         document: &Document,

@@ -118,7 +118,11 @@ async fn start_role_phases(
         None
     };
     if plan.runner_services {
-        start_runner_services(ctx).await?;
+        #[cfg(feature = "brain")]
+        let brain = super::brain::brain_consumer(ctx).await?;
+        #[cfg(not(feature = "brain"))]
+        let brain = None;
+        start_runner_services(ctx, brain);
     }
     Ok(scheduler_handle)
 }
@@ -162,11 +166,10 @@ async fn serve_until_shutdown(
     serve_result
 }
 
-async fn start_runner_services(ctx: &AppContext) -> Result<()> {
+fn start_runner_services(ctx: &AppContext, brain: Option<Arc<dyn RunnerService>>) {
     let shared = Arc::new(ctx.clone());
     let mut started = 0usize;
-    #[cfg(feature = "brain")]
-    if let Some(consumer) = super::brain::brain_consumer(ctx).await? {
+    if let Some(consumer) = brain {
         spawn_runner_service(ctx, &shared, consumer);
         tracing::info!(service = "brain", "runner service started");
         started += 1;
@@ -192,7 +195,6 @@ async fn start_runner_services(ctx: &AppContext) -> Result<()> {
         }
     }
     tracing::info!(started, "runner services started");
-    Ok(())
 }
 
 fn spawn_runner_service(

@@ -122,15 +122,15 @@ impl DocumentService {
 
     #[cfg(not(feature = "collab"))]
     #[expect(
-        clippy::unused_async,
+        clippy::unused_self,
         reason = "shares the signature of the collab build"
     )]
-    pub async fn edit_live(
+    pub fn edit_live(
         &self,
         _who: &AuthenticatedUser,
         _request: &CommitRequest,
         _trace: &TraceId,
-    ) -> Result<Option<LiveEdit>, DocumentsError> {
-        Ok(None)
+    ) -> impl Future<Output = Result<Option<LiveEdit>, DocumentsError>> {
+        std::future::ready(Ok(None))
     }
 }

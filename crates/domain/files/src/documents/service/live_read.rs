@@ -10,16 +10,21 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::{DocumentId, DocumentRevisionId, TraceId};
+#[cfg(feature = "collab")]
+use systemprompt_identifiers::DocumentRevisionId;
+use systemprompt_identifiers::{DocumentId, TraceId};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{DocumentAction, Projection};
 
 use super::DocumentService;
+#[cfg(feature = "collab")]
 use super::support::blocking;
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{Document, DocumentRevision};
+#[cfg(feature = "collab")]
 use crate::documents::nodes::{CarryHints, NodeIdMinter, carry_forward, with_ids, writer_tag};
 
+#[cfg(feature = "collab")]
 const LIVE_WRITER: &str = "live-ops";
 
 impl DocumentService {
@@ -63,14 +68,15 @@ impl DocumentService {
 
     #[cfg(not(feature = "collab"))]
     #[expect(
-        clippy::unused_async,
+        clippy::unused_self,
         reason = "shares the signature of the collab build"
     )]
-    async fn live_projected(
+    fn live_projected(
         &self,
         _document: &Document,
-    ) -> Result<Option<(DocumentRevision, Projection, Vec<u8>)>, DocumentsError> {
-        Ok(None)
+    ) -> impl Future<Output = Result<Option<(DocumentRevision, Projection, Vec<u8>)>, DocumentsError>>
+    {
+        std::future::ready(Ok(None))
     }
 
     #[cfg(feature = "collab")]

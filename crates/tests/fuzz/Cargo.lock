@@ -3678,6 +3678,7 @@ version = "0.76.0"
 dependencies = [
  "async-trait",
  "axum",
+ "chrono",
  "inventory",
  "serde",
  "serde_json",
@@ -3741,6 +3742,7 @@ dependencies = [
  "systemprompt-models",
  "systemprompt-security",
  "systemprompt-traits",
+ "systemprompt-users",
  "systemprompt-wire",
  "thiserror 2.0.21",
  "tokio",
@@ -4018,6 +4020,32 @@ dependencies = [
  "tracing",
  "xxhash-rust",
  "zeroize",
+]
+
+[[package]]
+name = "systemprompt-users"
+version = "0.76.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "hex",
+ "inventory",
+ "rand 0.10.3",
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
+ "sqlx",
+ "subtle",
+ "systemprompt-database",
+ "systemprompt-extension",
+ "systemprompt-governance",
+ "systemprompt-identifiers",
+ "systemprompt-models",
+ "systemprompt-provider-contracts",
+ "systemprompt-traits",
+ "thiserror 2.0.21",
+ "tracing",
+ "uuid",
 ]
 
 [[package]]
