@@ -25,7 +25,8 @@ notifications = ["systemprompt-runtime/notifications", "systemprompt-api/notific
 collab = ["systemprompt-files/collab", "systemprompt-runtime/collab", "systemprompt-api/collab"]
 engine-loro = ["collab", "systemprompt-runtime/engine-loro"]
 office = ["systemprompt-files/office"]
-full = ["notifications", "engine-loro", "office"]
+brain = ["notifications", "systemprompt-runtime/brain", "systemprompt-api/brain"]
+full = ["notifications", "brain", "engine-loro", "office"]
 
 [lints]
 workspace = true
