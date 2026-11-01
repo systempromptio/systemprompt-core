@@ -28,7 +28,7 @@ use crate::error::{CloudError, CloudResult};
 use crate::private_dir::write_private_json;
 use crate::{CloudApiClient, auth};
 
-pub use login::{OperatorLoginRequest, run_operator_login};
+pub use login::{LoginIo, OperatorLoginRequest, run_operator_login, run_operator_login_with};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OperatorCredentials {

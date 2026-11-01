@@ -52,6 +52,8 @@ mod oauth_flow;
 #[cfg(test)]
 mod operator;
 #[cfg(test)]
+mod operator_login_flow;
+#[cfg(test)]
 mod paths;
 #[cfg(test)]
 mod profile_authoring;
