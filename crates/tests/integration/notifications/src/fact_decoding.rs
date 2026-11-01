@@ -147,3 +147,52 @@ async fn undecodable_facts_are_recorded_as_decode_failures_and_acknowledged() {
     assert_eq!(h.rows_for(&reader).await.len(), 1);
     h.finish().await;
 }
+
+#[tokio::test]
+async fn a_subject_no_visibility_provider_names_is_withheld_and_recorded() {
+    let h = Harness::new("notif_no_provider").await;
+    let author = h.user("author", &[]).await;
+    let reader = h.user("reader", &[]).await;
+    let event = systemprompt_models::notifications::NotificationEvent::new(
+        NotificationKind::new(NotificationKind::MENTIONED).expect("kind"),
+        author.clone(),
+        Utc::now(),
+    )
+    .with_subjects([systemprompt_models::notifications::SubjectRef::new(
+        "widget", "w-1",
+    )])
+    .with_direct_recipient(reader.clone(), None)
+    .with_body("about a widget");
+    append(
+        &h,
+        &author,
+        NOTIFICATION_EVENT_VERSION,
+        &serde_json::to_value(&event).expect("event json"),
+    )
+    .await;
+
+    let settled = drain_until(&h, &author, async || unacknowledged(&h).await == 0).await;
+    assert!(settled, "the fact was never acknowledged");
+
+    let rows: Vec<(String, String, Option<String>)> = sqlx::query_as(
+        "SELECT stage, reason, recipient_user_id FROM notification_delivery_failures ORDER BY id",
+    )
+    .fetch_all(h.pool.write_pool().as_ref())
+    .await
+    .expect("failures");
+    let delivered = h
+        .count(
+            "SELECT COUNT(*) FROM notifications WHERE recipient_user_id = $1",
+            reader.as_str(),
+        )
+        .await;
+    assert_eq!(delivered, 0);
+    assert_eq!(
+        rows,
+        vec![(
+            "visibility".to_owned(),
+            "no_visibility_provider".to_owned(),
+            Some(reader.as_str().to_owned()),
+        )]
+    );
+}
