@@ -18,7 +18,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::body::Bytes;
-use axum::extract::{FromRequest, Path, Query, Request, State};
+use axum::extract::{FromRequest, OriginalUri, Path, Query, Request, State};
 use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use axum::{Extension, Json};
@@ -71,7 +71,7 @@ pub(super) async fn updates(
     let who = caller(&state, &req_ctx).await?;
     let document = document_id(&id)?;
     let headers = request.headers().clone();
-    let uri = request.uri().clone();
+    let path_and_query = forward_path_and_query(&request);
     let content_type = text(&headers, header::CONTENT_TYPE.as_str());
     let binary = content_type.is_some_and(|value| value.starts_with(BINARY));
     let body = Bytes::from_request(request, &state)
@@ -84,12 +84,12 @@ pub(super) async fn updates(
     {
         let forward = ForwardRequest {
             address: &address,
-            path_and_query: uri
-                .path_and_query()
-                .map_or_else(|| uri.path(), |pq| pq.as_str()),
+            path_and_query: &path_and_query,
             authorization: text(&headers, header::AUTHORIZATION.as_str()),
             cookie: text(&headers, header::COOKIE.as_str()),
             content_type,
+            origin: text(&headers, header::ORIGIN.as_str()),
+            sec_fetch_site: text(&headers, "sec-fetch-site"),
             body: body.to_vec(),
         };
         match state.collab.forward_update(forward).await {
@@ -128,6 +128,19 @@ pub(super) async fn updates(
         missing_b64: applied.missing.map(|bytes| STANDARD.encode(bytes)),
     })
     .into_response())
+}
+
+/// The path and query the client sent, prefix included: inside the nested
+/// documents router `Request::uri` has `/api/v1/documents` stripped, so the
+/// forward would reach the owner's site fallback instead of this route.
+#[must_use]
+pub fn forward_path_and_query(request: &Request) -> String {
+    let uri = request
+        .extensions()
+        .get::<OriginalUri>()
+        .map_or_else(|| request.uri(), |original| &original.0);
+    uri.path_and_query()
+        .map_or_else(|| uri.path().to_owned(), |pq| pq.as_str().to_owned())
 }
 
 fn text<'a>(headers: &'a HeaderMap, name: &str) -> Option<&'a str> {

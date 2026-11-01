@@ -147,6 +147,8 @@ fn request(address: &str) -> ForwardRequest<'_> {
         authorization: Some("Bearer token-1"),
         cookie: Some("sid=abc"),
         content_type: Some("application/octet-stream"),
+        origin: Some("https://docs.example.test"),
+        sec_fetch_site: Some("same-origin"),
         body: b"update-bytes".to_vec(),
     }
 }
@@ -215,4 +217,6 @@ async fn a_forward_carries_the_raw_request_and_returns_the_owner_answer() {
     assert!(seen.contains("authorization: bearer token-1"));
     assert!(seen.contains("cookie: sid=abc"));
     assert!(seen.contains("content-type: application/octet-stream"));
+    assert!(seen.contains("origin: https://docs.example.test"));
+    assert!(seen.contains("sec-fetch-site: same-origin"));
 }

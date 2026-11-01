@@ -15,6 +15,7 @@ mod brain_error_mapping;
 mod brain_routes;
 mod bridge_profile_models;
 mod documents_actor_scope;
+mod documents_collab_forward_path;
 mod gateway_access_log_polling;
 mod gateway_auth_provision_client;
 mod gateway_auth_provision_success;

@@ -14,7 +14,7 @@ workspace = true
 semver = { workspace = true }
 systemprompt-catalog-fixtures = { workspace = true }
 jsonschema = { workspace = true }
-systemprompt-api = { workspace = true, features = ["brain"] }
+systemprompt-api = { workspace = true, features = ["brain", "collab"] }
 systemprompt-brain = { workspace = true }
 systemprompt-gateway = { workspace = true }
 systemprompt-ai = { workspace = true }
