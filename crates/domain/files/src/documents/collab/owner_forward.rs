@@ -3,10 +3,10 @@
 //! The raw request travels unchanged — its body, content type, full path and
 //! query, the caller's `Authorization` and `Cookie` headers, and the `Origin`
 //! and `Sec-Fetch-Site` a browser session's same-origin check reads — to the
-//! same route on the owner, marked with [`FORWARDED_HEADER`] so the owner applies it rather than
-//! forwarding again. The owner authenticates and authorises the caller
-//! itself. Any transport failure is returned to the caller, which then
-//! applies the update locally. Every attempt counts in
+//! same route on the owner, marked with [`FORWARDED_HEADER`] so the owner
+//! applies it rather than forwarding again. The owner authenticates and
+//! authorises the caller itself. Any transport failure is returned to the
+//! caller, which then applies the update locally. Every attempt counts in
 //! `collab_owner_forwards_total{outcome}`: `ok` for a 2xx answer,
 //! `upstream_4xx` / `upstream_5xx` for an answer the owner refused or failed
 //! (relayed as is), `transport` when the owner was not reached.

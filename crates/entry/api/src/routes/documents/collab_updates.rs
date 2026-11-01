@@ -71,6 +71,7 @@ pub(super) async fn updates(
     let who = caller(&state, &req_ctx).await?;
     let document = document_id(&id)?;
     let headers = request.headers().clone();
+    let uri = request.uri().clone();
     let path_and_query = forward_path_and_query(&request);
     let content_type = text(&headers, header::CONTENT_TYPE.as_str());
     let binary = content_type.is_some_and(|value| value.starts_with(BINARY));
