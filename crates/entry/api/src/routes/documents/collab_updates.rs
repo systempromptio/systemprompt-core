@@ -131,9 +131,6 @@ pub(super) async fn updates(
     .into_response())
 }
 
-/// The path and query the client sent, prefix included: inside the nested
-/// documents router `Request::uri` has `/api/v1/documents` stripped, so the
-/// forward would reach the owner's site fallback instead of this route.
 #[must_use]
 pub fn forward_path_and_query(request: &Request) -> String {
     let uri = request
