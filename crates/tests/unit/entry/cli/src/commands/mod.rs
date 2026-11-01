@@ -29,6 +29,7 @@ mod admin_config_writes_fs;
 mod admin_identity_generate;
 mod admin_identity_plain_output_lifecycle;
 mod admin_issues_db;
+mod admin_issues_triage_db;
 mod admin_keys_generate_fs;
 mod admin_licence_status_db;
 mod admin_plugin_token_lifecycle;

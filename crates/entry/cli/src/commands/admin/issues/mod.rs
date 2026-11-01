@@ -12,6 +12,8 @@ mod list;
 mod show;
 mod triage;
 
+pub use triage::{TriageArgs, execute_as as triage_as};
+
 use anyhow::Result;
 use clap::Subcommand;
 
@@ -28,7 +30,7 @@ pub enum IssuesCommands {
     Show(show::ShowArgs),
 
     #[command(about = "Move an issue report to a triage status")]
-    Triage(triage::TriageArgs),
+    Triage(TriageArgs),
 }
 
 pub async fn execute(cmd: IssuesCommands, ctx: &CommandContext) -> Result<()> {
