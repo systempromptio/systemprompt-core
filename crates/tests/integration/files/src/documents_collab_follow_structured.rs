@@ -90,6 +90,22 @@ async fn checkpoint(c: &Collab, document: &DocumentId) -> Option<DocumentRevisio
         .checkpoint_revision_id
 }
 
+async fn followed(
+    c: &Collab,
+    service: &CollabService,
+    document: &DocumentId,
+    written: &DocumentRevisionId,
+) {
+    for _ in 0..200 {
+        service.tick().await;
+        if checkpoint(c, document).await.as_ref() == Some(written) {
+            return;
+        }
+        tokio::time::sleep(Duration::from_millis(25)).await;
+    }
+    panic!("the session never followed the outside write");
+}
+
 async fn head(c: &Collab, owner: &AuthenticatedUser, document: &DocumentId) -> DocumentRevisionId {
     c.documents
         .read_bytes(owner, document, None, &trace())
@@ -121,7 +137,7 @@ async fn an_idle_workbook_session_follows_an_outside_cell_write() {
     )
     .await;
 
-    service.tick().await;
+    followed(&c, &service, &document, &written).await;
 
     assert_eq!(checkpoint(&c, &document).await, Some(written.clone()));
     assert_eq!(head(&c, &owner, &document).await, written);
@@ -149,7 +165,7 @@ async fn an_idle_deck_session_follows_an_outside_slide() {
     )
     .await;
 
-    service.tick().await;
+    followed(&c, &service, &document, &written).await;
 
     assert_eq!(checkpoint(&c, &document).await, Some(written.clone()));
     assert_eq!(head(&c, &owner, &document).await, written);
