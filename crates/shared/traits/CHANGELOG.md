@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.77.0] - 2026-11-01
+
+### Changed
+
+- `StoredFileId` derives `sqlx::Type` (transparent) with the `sqlx` feature.
+
 ## [0.76.0] - 2026-10-29
 
 ### Added

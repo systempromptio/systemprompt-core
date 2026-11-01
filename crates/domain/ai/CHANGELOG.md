@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.77.0] - 2026-10-30
+## [0.77.0] - 2026-11-01
 
 ### Breaking
 
@@ -144,7 +144,6 @@
 ### Changed
 
 - A forwarded `anthropic-beta` header is narrowed to the provider's `accepted_betas`, and dropped on Vertex AI when none are declared, since Vertex rejects a beta it does not support.
-
 
 ## [0.60.0] - 2026-09-23
 

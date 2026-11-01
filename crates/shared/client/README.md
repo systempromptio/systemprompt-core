@@ -44,7 +44,7 @@ Provides typed HTTP clients for systemprompt API consumers.
 
 ```toml
 [dependencies]
-systemprompt-client = "0.76"
+systemprompt-client = "0.77"
 ```
 
 ```rust

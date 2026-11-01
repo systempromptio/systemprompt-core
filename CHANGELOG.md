@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.77.0] - 2026-10-30
+## [0.77.0] - 2026-11-01
 
 ### Breaking
 
@@ -8,7 +8,7 @@
 - **Breaking:** **Notifications:** `NotificationEvent::excerpt` and `with_excerpt` are replaced by `title`, `body`, `with_title` and `with_body`, and `via_agent` is an `AgentName`. Migrate producers by setting the title and body and passing an `AgentName` to `with_via_agent`.
 - **Breaking:** **Extension:** `NotificationActorDirectory` and `PipelineParts::actors` are removed. Migrate by dropping the registration and the field.
 - **Breaking:** **Files:** the document browser client is removed: the `sp-*` web components (`sp-document-browser`, `sp-document-preview`, `sp-presence-bar`, `sp-sheet-grid`, `sp-slide-text`, `sp-share-dialog`, `sp-subject-picker`, `sp-history`, `sp-comments`, `sp-proposal-list`), the `documents.js` entry, the `DocumentsElement` base class, the browser and share views, `assets/documents/css/*` and the headless client modules `documents-api.js`, `documents-events.js`, `documents-patch.js` and `documents-html.js`. Migrate by vendoring the document client and UI in the host extension.
-- **Breaking:** **Runtime:** `DocumentsMcpTools::list_resources` and `read_resource`, the `preview` helpers (`preview_resource_uri`, `preview_tool_meta` and the rest) and `ExportOutput::ui_resource` are removed. Migrate by dropping the calls; the server serves no resources.
+- **Breaking:** **Runtime:** `DocumentsMcpTools::list_resources` and `read_resource` and `ExportOutput::ui_resource` are removed. Migrate by dropping the calls; the server serves no resources.
 - **Breaking:** **Files:** `EditModeRequest` no longer has an `actor` field, and `DocumentService::edit_mode` reads the document actor from the request scope like every other document call. Migrate by deleting the field and wrapping the call in `act_as`.
 - **Breaking:** **Files:** `AgentAccessPolicy::cap` is a required method. Migrate by implementing it; `DefaultAgentAccessPolicy` keeps answering `edit`.
 - **Breaking:** **Files:** `DocumentAccessService::validate_subject` returns `Result<SubjectValidation, DocumentsError>`, where `Unenumerable` marks a dimension whose values cannot be listed. Migrate by matching the outcome and refusing `Invalid`.
@@ -27,6 +27,16 @@
 - **Breaking:** **Manifest:** `Profile` gains `brain: BrainProfile`. The YAML block is optional and defaulted, and `enabled` defaults to `false`. Migrate struct literals by adding `brain: BrainProfile::default()`.
 - **Breaking:** **Manifest:** `RateLimitsConfig` gains `brain_per_second` (YAML optional, default `50`), and `per_second_budgets` returns fifteen entries. Migrate struct literals by adding the field or `..RateLimitsConfig::default()`.
 - **Breaking:** **Manifest:** `CloudConfig` gains `image: Option<RuntimeImageConfig>` (YAML optional). Migrate struct literals by adding `image: None` or `..CloudConfig::default()`.
+- **Breaking:** **Files:** `DocumentsConfig` gains `collab: CollabConfig` (YAML optional and defaulted). Migrate struct literals by adding `collab: CollabConfig::default()`.
+- **Breaking:** **Files:** `DocumentsError` gains `NameTaken` and `LiveUnsupported`. Migrate exhaustive matches by adding the variants.
+- **Breaking:** **Files:** `DocumentLock`, `LockRequest` and `AcquireLockRequest` carry `holder: LockHolder` in place of `holder_id`/`holder_kind`, `CommitRequest` carries `lock_holder` in place of `lock_holder_id`, `DocumentsError::LockHeld` carries `holder` in place of `holder_id`/`holder_kind`, and `DocumentRevision`, `NewRevision`, `DocumentProposal` and `NewProposal` carry `origin: RevisionOrigin` in place of `origin_id`/`origin_kind`. `RevisionOrigin` moves from `documents::service` to `documents::models`. Migrate by building the typed values and importing from the new path.
+- **Breaking:** **Files:** `DocumentEvents::revision_created` takes only the event; revision events go to the document topic. Migrate by dropping the recipient slice.
+- **Breaking:** **Files:** `EngineDoc` gains the required `update_to_model_as`, which applies an agent edit under an assigned peer. Migrate implementations by adding it.
+- **Breaking:** **Files:** `IssuesError` gains `TriageForbidden`. Migrate exhaustive matches by adding the variant.
+- **Breaking:** **Notifications:** `NewRecipient::excerpt` is replaced by `title` and `body`, and `NewNotifications::actor_display` is removed. Migrate struct literals accordingly.
+- **Breaking:** **Runtime:** `Subsystems` gains `brain` with the `brain` feature, and `DocumentsRuntimeParts` gains `brain`. Migrate struct literals by adding `brain: None` and the runtime's brain sink.
+- **Breaking:** **Runtime:** `RefusalCode` gains `NameTaken`. Migrate exhaustive matches by adding the variant.
+- **Breaking:** **Runtime:** `documents::mcp::preview_resource`, `preview_resource_list`, `preview_resource_uri`, `preview_template`, `preview_tool_meta`, `read_preview_resource` and `PREVIEW_RESOURCE_NAME` are removed. Migrate by dropping the calls.
 
 ### Added
 
@@ -52,6 +62,12 @@
 - **Events:** `OutboxConsumer::replay_window`, which reads a consumer's facts in a time window, processed or not, keyset-paged and without locking.
 - **Identifiers:** `BrainFactId`, `BrainProposalId`, `BrainRecallId`, `FactKindId`, `TopicId`, `InterestId`, `WorkflowId`, `PipelineVersion` and the other brain identifiers, and the `MEMORY` and `MEMORY_IDS` header constants.
 - **Models:** `RequestActor`, `bearer_actor` and `agent_name`, the actor a bearer credential acts as.
+- **CLI:** `systemprompt-cli` cargo features `notifications`, `brain`, `collab`, `engine-loro`, `office` and `full` (all of them), mirroring the facade's optional domains; the bare binary is the core runtime alone. The schema ladder builds its rung with `--features full`.
+- **Files:** live collaborative sessions for spreadsheets and decks. An xlsx workbook is seeded into a Loro sheet model and checkpointed through IronCalc; a pptx deck is seeded into a Loro deck model (frames, text shapes, marks, kinds, z-order, pictures) and lowered back to pptx. Agent edit ops write into an open session as one engine update under an assigned peer, address node ids, keep op-id idempotency and the agent edit rate, and their acks name the cells, paragraphs or lines written. ods documents open no live session.
+- **Files:** a per-document collab owner lease (migration 037): a replica that does not own a session forwards its updates to the owner and answers `429` under back-pressure. Configured under `files.documents.collab` (`snapshotAfterSecs`, `snapshotAfterUpdates`, `owner.enabled`, `owner.advertisePort`); forwards are counted and debug-logged.
+- **Provider contracts:** `ConfigPlane::write_rank`, defaulted to `0`, orders an apply's writes across declaration files.
+- **Files:** `GET` media serves a deck picture from its package part (`ppt/media/` for pptx, `Pictures/` for odp).
+- **Cloud:** `LoginIo` and `run_operator_login_with`, which run the operator sign-in with a given callback port and browser opener.
 
 ### Changed
 
@@ -67,11 +83,16 @@
 - **Runtime:** `upload_links::required_grant` and `purpose_permits` own the table matching an upload route to the grant its token needs.
 - **Brain:** these settings are accepted and have no effect in 0.77: `capture.sources: session` (no session producer), `capture.auto_confirm.document: project_policy` (behaves as `never` until a project policy source exists), `extraction.provider` (the model alone selects the extraction route), the stored `filters.yaml` declaration, and the interest `audience`, `granularity` and `memory`/`digest` delivery fields.
 - **Extension:** the notification seam registrations share one `seam_registration!` definition with the brain seams; `__register_notification_seam!` forwards to `__register_seam!`.
+- **Files:** creating a document under a name its folder already holds is refused as `name_taken` with `409` on HTTP and MCP.
+- **Files:** joining a live session on a format without one answers that live editing is unavailable for that format.
+- **Events:** outbox rows are stamped with a per-process origin (`<instance>#<pid>`); leases and owner rows keep the instance id.
+- **Build:** dev builds are not incremental.
+- **CLI:** `admin issues triage` runs through the new `execute_as` (re-exported as `admin::issues::triage_as`) with the triager's user id; `execute` resolves it from the CLI session.
 
 ### Fixed
 
 - **Brain:** a replay dry run counts a fact its extraction finds unchanged under `unchanged` (and in `per_kind`); the report is built from the facts each event's stored candidates landed on, carried on `EventSummary::facts`, instead of the rows the replay transaction rewrote.
-- **CLI:** `cloud dockerfile` renders for the active profile (`--profile` or the session), so the output carries `SYSTEMPROMPT_PROFILE` and that profile's `cloud.image`; it ignored the profile before. The runtime image no longer names `libssl3t64`: `libpq5` brings the distribution's OpenSSL, so a `bookworm` base works too.
+- **CLI:** `cloud dockerfile` renders for the active profile (`--profile` or the session), so the output carries `SYSTEMPROMPT_PROFILE` and that profile's `cloud.image`. The runtime image no longer names `libssl3t64`: `libpq5` brings the distribution's OpenSSL, so a `bookworm` base works too.
 - **MCP:** the main server no longer warns that an extension toolset "is not registered by any linked crate" on every boot. It cannot see toolsets linked into an MCP binary; that binary refuses an unknown toolset id when it starts.
 - **Files:** `POST /documents/{id}/edits` applies a folder's agent edit policy to an agent bearer.
 - **Files:** A live document stream closes when its periodic access recheck fails, not only when access is withdrawn.
@@ -80,6 +101,19 @@
 - **Files:** `GET .../agent-cap` answers for an unattended agent unless `attended=true`, and validates `agent` as an `AgentName`.
 - **Files:** `GET /uploads/{id}/content` sends no `ETag` for an upload without a blob hash, so `If-None-Match` can no longer match an empty tag.
 - **Files:** A document image whose stored MIME type is not a valid header value is served as `application/octet-stream` instead of without a `Content-Type`.
+- **API:** a signed upload link is gated before routing, so a tokened request routes once and its handler reads its path parameters.
+- **API:** runner services receive the signing keys, config and OAuth repositories in their job context, as scheduled jobs do.
+- **Scheduler:** a config apply writes a plane's lower-rank entities first across declaration files, so an OAuth client is written after its owning user.
+- **Events:** an MCP server's outbox rows reach the relay's peers; the outbox row and its `NOTIFY` commit in one transaction.
+- **Files:** collab owner forwards keep the `/api/v1/documents` path, the request URI's binary query and the same-origin headers.
+- **Files:** two replicas growing a sheet axis mint the same ids, and a repeated id is read once.
+- **Files:** a sheet or deck read and checkpoint keep the base revision's node ids; inserted slides get distinct frames; lazily created Loro map-key children are mergeable.
+- **Files:** a live `str_replace` quote is searched through table cells; table and cell props are stored as JSON text.
+- **Files:** a live Markdown write acks its source lines, and a Markdown batch written through the model acks only its source lines.
+- **Files:** xlsx import never runs IronCalc's importer, and the blank workbook is written through IronCalc so the live sheet engine reads it.
+- **Files:** an explicit `buNone` makes a pptx paragraph plain at any level; a docx task item reads its checkbox glyph back as its checked state; HTML import keeps the space between inline elements of a loose run.
+- **CLI:** `admin issues show` and `admin issues triage` refuse a malformed report id before querying.
+- **Bridge:** `winit` is pinned exactly.
 
 ### Removed
 
@@ -1505,7 +1539,6 @@
 
 - **Analytics:** the `report_*` views are replaced in place instead of dropped and recreated on every boot.
 
-
 ## [0.60.0] - 2026-09-23
 
 ### Breaking
@@ -2529,7 +2562,6 @@ See `bin/bridge/CHANGELOG.md`. The Home pane is gone and the app opens on Accoun
 
 - A Gemini `tool_use` block replayed without its `thoughtSignature` is now counted under `gateway_signature_hydration_total` and logged. The signature is omitted from the outbound request when absent and the upstream rejects the turn, which previously surfaced as a bare provider error with nothing recording the cause. Hydration behaviour is unchanged — the request is still forwarded.
 - A response carrying signed `tool_use` blocks that cannot be cached, because the request had no gateway conversation id, is counted under `gateway_signature_capture_skipped_total` and logged. This is the point at which a later turn in the conversation is guaranteed to miss.
-
 
 ## [0.36.0] - 2026-08-23
 

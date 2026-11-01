@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.77.0] - 2026-10-30
+## [0.77.0] - 2026-11-01
 
 ### Breaking
 
@@ -9,6 +9,7 @@
 - **Breaking:** **Notifications:** `via_agent` is an `AgentName` on `NewNotifications` and `Notification`. Migrate by constructing it with `AgentName::try_new`.
 - **Breaking:** **Notifications:** `SubscriptionView::source` is a `ChangeSource`, and the failure ledger's `stage` is a `FailureStage` (`NewFailure::stage`, `DeliveryFailure::stage`) in place of the `DELIVER_STAGE` and `DELIVER_RETRY_STAGE` constants. Migrate by building the typed values; a stored `source` or `stage` that does not parse is a decode error.
 
+- **Breaking:** `NewNotifications::actor_display` is removed. Migrate struct literals by dropping the field.
 ## [0.76.0] - 2026-10-29
 
 ### Added

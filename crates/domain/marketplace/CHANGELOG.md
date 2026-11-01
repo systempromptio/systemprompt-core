@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.77.0] - 2026-11-01
+
+### Added
+
+- The signed bridge manifest carries a per-tool `tool_policy` for every `tools:` entry that declares one, alongside the server default under `*`.
+
 ## [0.74.0] - 2026-10-27
 
 ### Breaking

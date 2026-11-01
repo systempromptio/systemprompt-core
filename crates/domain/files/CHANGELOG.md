@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.77.0] - 2026-10-30
+## [0.77.0] - 2026-11-01
 
 ### Breaking
 
@@ -14,6 +14,27 @@
 - **Breaking:** `DocumentServiceParts` gains a `brain` sink. Migrate by passing a `DynBrainSink` (the runtime's unavailable sink when the brain feature is off).
 - **Breaking:** `DocumentsError` gains `Brain`, raised when the brain sink cannot record a `document.revision.landed` or `document.comment.resolved` fact; the landing or resolution rolls back. Migrate exhaustive matches by adding the variant.
 - **Breaking:** `DocumentCommentRepository::resolve` and `set_answering` are replaced by `resolve_in` and `set_answering_in`, which run on the caller's connection. Migrate by calling them inside a transaction.
+- **Breaking:** `DocumentLock`, `LockRequest` and `AcquireLockRequest` carry `holder: LockHolder`, `CommitRequest` carries `lock_holder`, `DocumentsError::LockHeld` carries `holder`, and `DocumentRevision`, `NewRevision`, `DocumentProposal` and `NewProposal` carry `origin: RevisionOrigin`, which moves to `documents::models`. Migrate by building the typed values.
+- **Breaking:** `DocumentEvents::revision_created` takes only the event. Migrate by dropping the recipient slice.
+- **Breaking:** `EngineDoc` gains the required `update_to_model_as`. Migrate implementations by adding it.
+- **Breaking:** `DocumentsError` gains `NameTaken` and `LiveUnsupported`, and `IssuesError` gains `TriageForbidden`. Migrate exhaustive matches by adding the variants.
+- **Breaking:** `DocumentsConfig` gains `collab: CollabConfig` (YAML optional and defaulted). Migrate struct literals by adding `collab: CollabConfig::default()`.
+
+### Added
+
+- Live collaborative sessions for xlsx workbooks and pptx decks: Loro sheet and deck models seeded from the file and checkpointed back, agent edit ops written into an open session under an assigned peer and addressed by node id, and acks naming what was written. ods opens no live session.
+- A per-document collab owner lease (migration 037) with update forwarding to the owner and `429` back-pressure, configured under `files.documents.collab`; forwards are counted and debug-logged.
+- Deck pictures are served from their package part (`ppt/media/` for pptx, `Pictures/` for odp).
+- Cargo features gate the collab-only items behind `collab`.
+
+### Changed
+
+- blob collection asks the blob holders registered with `register_blob_holder!` instead of naming the issue attachment table, and the issue report user purge is registered by the issues module.
+- `DocumentService::create_from_file`, `DocumentService::update_folder`, `DocumentService::open_pdf_stream`, `UploadService::retract`, `IssueService::ensure_attachable` and `IssueService::require_triager` carry rules previously inline in the API handlers; `IssuesError::TriageForbidden` is new.
+
+### Removed
+
+- **Removed:** **Engine (Loro):** the `systemprompt-engine-loro` crate; the Loro engine is `systemprompt-files` feature `collab-loro` at `documents::engine::loro`. Migrate by enabling `collab-loro` (or the facade's `files-collab-loro`) and importing from `systemprompt_files`.
 
 ### Fixed
 
@@ -24,15 +45,10 @@
 - `GET .../agent-cap` answers for an unattended agent unless `attended=true`, and validates `agent` as an `AgentName`.
 - `GET /uploads/{id}/content` sends no `ETag` for an upload without a blob hash, so `If-None-Match` can no longer match an empty tag.
 - A document image whose stored MIME type is not a valid header value is served as `application/octet-stream` instead of without a `Content-Type`.
-
-### Removed
-
-- **Removed:** **Engine (Loro):** the `systemprompt-engine-loro` crate; the Loro engine is `systemprompt-files` feature `collab-loro` at `documents::engine::loro`. Migrate by enabling `collab-loro` (or the facade's `files-collab-loro`) and importing from `systemprompt_files`.
-
-### Changed
-
-- blob collection asks the blob holders registered with `register_blob_holder!` instead of naming the issue attachment table, and the issue report user purge is registered by the issues module.
-- `DocumentService::create_from_file`, `DocumentService::update_folder`, `DocumentService::open_pdf_stream`, `UploadService::retract`, `IssueService::ensure_attachable` and `IssueService::require_triager` carry rules previously inline in the API handlers; `IssuesError::TriageForbidden` is new.
+- Creating a document under a taken name is refused as `NameTaken` instead of a database error.
+- Collab owner forwards keep the `/api/v1/documents` path, the binary query and the same-origin headers.
+- Live sheet and deck reads and checkpoints keep the base revision's node ids; two replicas growing a sheet axis mint the same ids; inserted slides get distinct frames.
+- Office codecs: an explicit `buNone` makes a pptx paragraph plain, a docx task item reads its checkbox state, HTML import keeps inter-element spaces, and xlsx import never runs IronCalc's importer.
 
 ## [0.76.0] - 2026-10-29
 

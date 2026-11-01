@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.77.0] - 2026-11-01
+
+### Added
+
+- `is_new_user_turn`, which reports whether a request's last message is a fresh user turn.
+
 ## [0.73.0] - 2026-10-25
 
 ### Breaking

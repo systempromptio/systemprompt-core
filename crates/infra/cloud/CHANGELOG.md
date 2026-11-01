@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.77.0] - 2026-11-01
+
+### Added
+
+- `LoginIo` and `run_operator_login_with` run the operator sign-in with a given callback port and browser opener; the redirect URI names the port the listener bound.
+- The rendered Dockerfile takes the profile's `cloud.image`: `base` replaces `debian:trixie-slim` and `packages` are installed after core's own.
+
+### Changed
+
+- The runtime image no longer names `libssl3t64`.
+
 ## [0.76.0] - 2026-10-29
 
 ### Changed
