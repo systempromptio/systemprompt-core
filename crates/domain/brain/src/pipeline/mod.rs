@@ -43,6 +43,7 @@ use systemprompt_models::brain::{BrainEvent, KindDecl};
 pub use candidate::CandidateResult;
 pub use context::BatchContext;
 pub use outcome::{EventSummary, ProcessOutcome, Tally};
+pub use persist::{Effect, Persisted};
 pub use seams::PipelineSeams;
 pub use sweep::SweepReport;
 
@@ -144,7 +145,7 @@ impl BrainPipeline {
             let result = self
                 .candidate(conn, ctx, &event, candidate, extracted.text.as_ref())
                 .await?;
-            summary.tally.record(&result);
+            summary.record(&result);
         }
         let result = summary.tally.outcome();
         outcome::finish(conn, ctx, &event, summary.with(result)).await

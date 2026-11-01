@@ -14,7 +14,7 @@ use super::context::BatchContext;
 use super::dedupe::{self, DedupeDecision};
 use super::normalise::Normalised;
 use super::notify::{Notice, notify};
-use super::persist::{Effect, PersistPlan, persist};
+use super::persist::{PersistPlan, Persisted, persist};
 use super::rules::{self, InterestProbe};
 use super::status::{self, Lifecycle};
 use super::validate::{Validated, validate};
@@ -25,7 +25,7 @@ use crate::error::BrainResult;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CandidateResult {
     Rejected { by: String, reason: String },
-    Stored(Effect),
+    Stored(Persisted),
 }
 
 struct Prepared<'a> {
@@ -93,7 +93,7 @@ impl BrainPipeline {
             interests: &interests,
         };
         notify(self.notifications.as_ref(), conn, &notice).await?;
-        Ok(CandidateResult::Stored(persisted.effect))
+        Ok(CandidateResult::Stored(persisted))
     }
 
     async fn prepare<'a>(

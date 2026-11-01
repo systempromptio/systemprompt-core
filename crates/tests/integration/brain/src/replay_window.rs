@@ -142,3 +142,31 @@ async fn a_window_before_any_event_replays_nothing() {
     assert_eq!(report.tokens, 0);
     h.finish().await;
 }
+
+#[tokio::test]
+async fn a_replay_that_extracts_the_stored_fact_again_counts_it_unchanged() {
+    let h = Harness::new("brain_replay_unchanged").await;
+    let author = h.user("author", &[]).await;
+    landed_prices(&h, &author, &["steady"]).await;
+    h.model
+        .push(serde_json::json!([price("steady", "emea", "1200")]));
+    let model: Arc<dyn BrainModelClient> = Arc::clone(&h.model) as _;
+
+    let report = service(&h)
+        .dry_run(window(), version(), model)
+        .await
+        .expect("dry run");
+
+    assert_eq!(report.events, 1, "{report:?}");
+    assert_eq!(report.unchanged, 1, "{report:?}");
+    assert_eq!(
+        report.would_create + report.would_revise + report.would_dispute,
+        0,
+        "{report:?}"
+    );
+    assert_eq!(
+        report.per_kind.values().map(|c| c.unchanged).sum::<u64>(),
+        1
+    );
+    h.finish().await;
+}

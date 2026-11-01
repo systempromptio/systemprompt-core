@@ -4,7 +4,8 @@ use systemprompt_brain::pipeline::persist::Effect;
 use systemprompt_brain::pipeline::rules::{
     InterestProbe, add_kind_topics, interest_matches, matching_interests,
 };
-use systemprompt_brain::pipeline::{CandidateResult, EventSummary, Tally};
+use systemprompt_brain::pipeline::{CandidateResult, EventSummary, Persisted, Tally};
+use systemprompt_identifiers::BrainFactId;
 use systemprompt_models::brain::{InterestDecl, Pathway};
 
 use crate::fixtures::{at, candidate, kind, topic};
@@ -128,7 +129,7 @@ fn a_tally_counts_each_effect_into_its_slot() {
         Effect::Disputed,
         Effect::Tombstoned,
     ] {
-        tally.record(&CandidateResult::Stored(effect));
+        tally.record(&CandidateResult::Stored(Persisted { fact: None, effect }));
     }
     tally.record(&CandidateResult::Rejected {
         by: "schema".to_owned(),
@@ -168,4 +169,29 @@ fn an_event_whose_every_candidate_was_rejected_is_rejected() {
         summary.with(EventOutcome::Rejected).outcome,
         EventOutcome::Rejected
     );
+}
+
+#[test]
+fn a_summary_records_each_landed_fact_once_and_no_rejection() {
+    let fact = BrainFactId::new("m_landed");
+    let mut summary = EventSummary::default();
+    for effect in [Effect::Created, Effect::Unchanged] {
+        summary.record(&CandidateResult::Stored(Persisted {
+            fact: Some(fact.clone()),
+            effect,
+        }));
+    }
+    summary.record(&CandidateResult::Stored(Persisted {
+        fact: None,
+        effect: Effect::Tombstoned,
+    }));
+    summary.record(&CandidateResult::Rejected {
+        by: "schema".to_owned(),
+        reason: "missing owner".to_owned(),
+    });
+
+    assert_eq!(summary.facts, vec![fact]);
+    assert_eq!(summary.tally.written, 1);
+    assert_eq!(summary.tally.unchanged, 1);
+    assert_eq!(summary.tally.rejected, 2);
 }

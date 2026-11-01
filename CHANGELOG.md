@@ -70,6 +70,7 @@
 
 ### Fixed
 
+- **Brain:** a replay dry run counts a fact its extraction finds unchanged under `unchanged` (and in `per_kind`); the report is built from the facts each event's stored candidates landed on, carried on `EventSummary::facts`, instead of the rows the replay transaction rewrote.
 - **CLI:** `cloud dockerfile` renders for the active profile (`--profile` or the session), so the output carries `SYSTEMPROMPT_PROFILE` and that profile's `cloud.image`; it ignored the profile before. The runtime image no longer names `libssl3t64`: `libpq5` brings the distribution's OpenSSL, so a `bookworm` base works too.
 - **MCP:** the main server no longer warns that an extension toolset "is not registered by any linked crate" on every boot. It cannot see toolsets linked into an MCP binary; that binary refuses an unknown toolset id when it starts.
 - **Files:** `POST /documents/{id}/edits` applies a folder's agent edit policy to an agent bearer.

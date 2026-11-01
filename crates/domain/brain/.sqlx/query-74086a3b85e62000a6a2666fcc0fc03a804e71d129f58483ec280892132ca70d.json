@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT kind AS \"kind: FactKindId\", identity_hash, statement_hash, status\n               FROM brain_facts WHERE updated_at = transaction_timestamp()\n               ORDER BY kind, identity_hash",
+  "query": "SELECT kind AS \"kind: FactKindId\", identity_hash, statement_hash, status\n               FROM brain_facts WHERE id = ANY($1::text[])\n               ORDER BY kind, identity_hash",
   "describe": {
     "columns": [
       {
@@ -49,7 +49,9 @@
       }
     ],
     "parameters": {
-      "Left": []
+      "Left": [
+        "TextArray"
+      ]
     },
     "nullable": [
       false,
@@ -58,5 +60,5 @@
       false
     ]
   },
-  "hash": "6d93411edd54f62a47265dc362011174094380d7118811f47b3be5bf8b622549"
+  "hash": "74086a3b85e62000a6a2666fcc0fc03a804e71d129f58483ec280892132ca70d"
 }

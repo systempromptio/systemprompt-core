@@ -5,13 +5,14 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use sqlx::PgConnection;
+use systemprompt_identifiers::BrainFactId;
 
 use super::candidate::CandidateResult;
 use super::context::BatchContext;
 use super::extract::Unreadable;
 use super::metrics;
 use super::normalise::Normalised;
-use super::persist::Effect;
+use super::persist::{Effect, Persisted};
 use crate::error::BrainResult;
 use crate::models::{EventOutcome, EventResult, NewFailure};
 use crate::repository::{EventResultRepository, FailureRepository};
@@ -34,12 +35,30 @@ impl Tally {
                 tracing::debug!(validator = %by, reason = %reason, "Brain candidate rejected");
                 (&mut self.rejected, "rejected")
             },
-            CandidateResult::Stored(Effect::Tombstoned) => (&mut self.rejected, "tombstoned"),
-            CandidateResult::Stored(Effect::Disputed) => (&mut self.disputed, "disputed"),
-            CandidateResult::Stored(Effect::Unchanged) => (&mut self.unchanged, "unchanged"),
-            CandidateResult::Stored(Effect::Created) => (&mut self.written, "created"),
-            CandidateResult::Stored(Effect::Revised) => (&mut self.written, "revised"),
-            CandidateResult::Stored(Effect::Merged) => (&mut self.written, "merged"),
+            CandidateResult::Stored(Persisted {
+                effect: Effect::Tombstoned,
+                ..
+            }) => (&mut self.rejected, "tombstoned"),
+            CandidateResult::Stored(Persisted {
+                effect: Effect::Disputed,
+                ..
+            }) => (&mut self.disputed, "disputed"),
+            CandidateResult::Stored(Persisted {
+                effect: Effect::Unchanged,
+                ..
+            }) => (&mut self.unchanged, "unchanged"),
+            CandidateResult::Stored(Persisted {
+                effect: Effect::Created,
+                ..
+            }) => (&mut self.written, "created"),
+            CandidateResult::Stored(Persisted {
+                effect: Effect::Revised,
+                ..
+            }) => (&mut self.written, "revised"),
+            CandidateResult::Stored(Persisted {
+                effect: Effect::Merged,
+                ..
+            }) => (&mut self.written, "merged"),
         };
         *slot = slot.saturating_add(1);
         metrics::candidate(label);
@@ -55,13 +74,15 @@ impl Tally {
     }
 }
 
-/// The finished record of one event.
+/// The finished record of one event, with the facts its stored candidates
+/// landed on.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EventSummary {
     pub outcome: EventOutcome,
     pub filter: Option<String>,
     pub staled: usize,
     pub tally: Tally,
+    pub facts: Vec<BrainFactId>,
 }
 
 impl Default for EventSummary {
@@ -71,6 +92,7 @@ impl Default for EventSummary {
             filter: None,
             staled: 0,
             tally: Tally::default(),
+            facts: Vec::new(),
         }
     }
 }
@@ -80,6 +102,17 @@ impl EventSummary {
     pub const fn with(mut self, outcome: EventOutcome) -> Self {
         self.outcome = outcome;
         self
+    }
+
+    pub fn record(&mut self, result: &CandidateResult) {
+        self.tally.record(result);
+        if let CandidateResult::Stored(Persisted {
+            fact: Some(fact), ..
+        }) = result
+            && !self.facts.contains(fact)
+        {
+            self.facts.push(fact.clone());
+        }
     }
 }
 

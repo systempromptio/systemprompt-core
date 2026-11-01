@@ -8,7 +8,7 @@
 use std::str::FromStr;
 
 use sqlx::{PgConnection, PgExecutor};
-use systemprompt_identifiers::{EventOutboxId, FactKindId, PipelineVersion};
+use systemprompt_identifiers::{BrainFactId, EventOutboxId, FactKindId, PipelineVersion};
 use systemprompt_models::brain::FactStatus;
 use systemprompt_traits::RepositoryError;
 
@@ -54,14 +54,17 @@ impl ReplayRepository {
         Ok(())
     }
 
-    pub async fn written_in_transaction(
+    pub async fn facts_in_transaction(
         conn: &mut PgConnection,
+        ids: &[BrainFactId],
     ) -> Result<Vec<FactState>, RepositoryError> {
+        let ids: Vec<String> = ids.iter().map(|id| id.as_str().to_owned()).collect();
         sqlx::query_as!(
             FactStateRow,
             r#"SELECT kind AS "kind: FactKindId", identity_hash, statement_hash, status
-               FROM brain_facts WHERE updated_at = transaction_timestamp()
+               FROM brain_facts WHERE id = ANY($1::text[])
                ORDER BY kind, identity_hash"#,
+            &ids,
         )
         .fetch_all(conn)
         .await?

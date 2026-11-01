@@ -1,19 +1,21 @@
 //! [`ReplayService::dry_run`]: replays the brain consumer's events of a
 //! window under a chosen pipeline version on one transaction that is
-//! always rolled back, then diffs the facts it wrote against the stored
-//! ones. Extraction model calls do happen, capped by `max_events` and a
-//! share of the daily token budget; nothing they record survives.
+//! always rolled back, then diffs every fact a stored candidate landed on,
+//! unchanged ones included, against the stored ones. Extraction model calls do
+//! happen, capped by `max_events` and a share of the daily token budget;
+//! nothing they record survives.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::collections::BTreeSet;
 use std::sync::Arc;
 
 use chrono::Utc;
 use sqlx::{Acquire, PgConnection};
 use systemprompt_events::services::durable::{OutboxConsumer, OutboxReplayWindow, ReplayItem};
 use systemprompt_extension::brain::{AnalysisWindow, BrainModelClient};
-use systemprompt_identifiers::PipelineVersion;
+use systemprompt_identifiers::{BrainFactId, PipelineVersion};
 use systemprompt_manifest::profile::BrainProfile;
 use systemprompt_models::brain::{BRAIN_CONSUMER, BRAIN_EVENT_VERSION, BrainEvent};
 
@@ -21,7 +23,7 @@ use super::budget::CountingModel;
 use super::diff::{self, ReplayReport};
 use super::store::ReplayRepository;
 use crate::error::BrainResult;
-use crate::pipeline::{BatchContext, BrainPipeline, PipelineSeams};
+use crate::pipeline::{BatchContext, BrainPipeline, PipelineSeams, ProcessOutcome};
 use crate::plane::load_declared_state;
 use crate::repository::BrainRepositories;
 
@@ -75,7 +77,10 @@ impl ReplayService {
             BrainPipeline::builder(Arc::clone(&self.repos), client, self.profile.clone())
                 .seams(self.seams.clone())
                 .build();
-        let mut report = ReplayReport::new(version.clone());
+        let mut progress = Progress {
+            report: ReplayReport::new(version.clone()),
+            landed: BTreeSet::new(),
+        };
         let mut tx = self.repos.write_pool().begin().await?;
         let docs = load_declared_state(&mut tx).await?.docs();
         let ctx = BatchContext::from_docs(docs, version, Utc::now());
@@ -84,9 +89,13 @@ impl ReplayService {
             ctx: &ctx,
             counting: &counting,
         };
-        let replayed = self.replay_pages(&run, &mut tx, window, &mut report).await;
+        let replayed = self
+            .replay_pages(&run, &mut tx, window, &mut progress)
+            .await;
+        let Progress { mut report, landed } = progress;
+        let landed: Vec<BrainFactId> = landed.into_iter().collect();
         let written = match replayed {
-            Ok(()) => ReplayRepository::written_in_transaction(&mut tx).await,
+            Ok(()) => ReplayRepository::facts_in_transaction(&mut tx, &landed).await,
             Err(error) => {
                 tx.rollback().await?;
                 return Err(error);
@@ -105,7 +114,7 @@ impl ReplayService {
         run: &Run<'_>,
         conn: &mut PgConnection,
         window: AnalysisWindow,
-        report: &mut ReplayReport,
+        progress: &mut Progress,
     ) -> BrainResult<()> {
         let mut page = OutboxReplayWindow {
             since: window.since,
@@ -120,14 +129,19 @@ impl ReplayService {
             };
             page.after = Some(last.id.clone());
             for item in &items {
-                if report.events >= self.max_events || run.counting.exhausted() {
-                    report.truncated = true;
+                if progress.report.events >= self.max_events || run.counting.exhausted() {
+                    progress.report.truncated = true;
                     return Ok(());
                 }
-                run.one(conn, item, report).await?;
+                run.one(conn, item, progress).await?;
             }
         }
     }
+}
+
+struct Progress {
+    report: ReplayReport,
+    landed: BTreeSet<BrainFactId>,
 }
 
 struct Run<'a> {
@@ -141,13 +155,13 @@ impl Run<'_> {
         &self,
         conn: &mut PgConnection,
         item: &ReplayItem,
-        report: &mut ReplayReport,
+        progress: &mut Progress,
     ) -> BrainResult<()> {
         let Some(event) = decode(item) else {
-            report.undecodable += 1;
+            progress.report.undecodable += 1;
             return Ok(());
         };
-        report.events += 1;
+        progress.report.events += 1;
         ReplayRepository::forget_result(&mut *conn, &item.id, self.ctx.version()).await?;
         let mut savepoint = conn.begin().await?;
         match self
@@ -155,9 +169,14 @@ impl Run<'_> {
             .process(&item.id, event, &mut savepoint, self.ctx)
             .await
         {
-            Ok(_) => savepoint.commit().await?,
+            Ok(outcome) => {
+                savepoint.commit().await?;
+                if let ProcessOutcome::Finished(summary) = outcome {
+                    progress.landed.extend(summary.facts);
+                }
+            },
             Err(error) => {
-                report.failed += 1;
+                progress.report.failed += 1;
                 tracing::debug!(outbox_id = %item.id, error = %error, "Brain replay event failed");
                 savepoint.rollback().await?;
             },
