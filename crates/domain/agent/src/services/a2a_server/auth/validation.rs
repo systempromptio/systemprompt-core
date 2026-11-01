@@ -53,31 +53,31 @@ pub async fn validate_oauth_for_request(
     request_id: &crate::models::a2a::jsonrpc::NumberOrString,
     required_scopes: &[Permission],
     jwt_provider: Option<&std::sync::Arc<dyn systemprompt_traits::JwtValidationProvider>>,
-) -> Result<Option<AuthenticatedCaller>, (StatusCode, JsonRpcErrorResponse)> {
+) -> Result<Option<AuthenticatedCaller>, Box<(StatusCode, JsonRpcErrorResponse)>> {
     let token = match extract_bearer_token(headers) {
         Some(t) if !t.is_empty() => t,
         _ => {
-            return Err(unauthorized_response(
+            return Err(Box::new(unauthorized_response(
                 "Bearer token required. Include 'Authorization: Bearer <token>' header.",
                 request_id,
-            ));
+            )));
         },
     };
 
     let Some(provider) = jwt_provider else {
-        return Err(unauthorized_response(
+        return Err(Box::new(unauthorized_response(
             "JWT provider not configured",
             request_id,
-        ));
+        )));
     };
 
     let claims = match provider.validate_token(&token) {
         Ok(claims) => claims,
         Err(e) => {
-            return Err(unauthorized_response(
+            return Err(Box::new(unauthorized_response(
                 format!("Invalid or expired token: {e}"),
                 request_id,
-            ));
+            )));
         },
     };
 
@@ -88,13 +88,13 @@ pub async fn validate_oauth_for_request(
     );
 
     if !claims.has_audience("a2a") {
-        return Err(forbidden_response(
+        return Err(Box::new(forbidden_response(
             format!(
                 "Token does not support A2A protocol. Audience: {:?}",
                 claims.audiences
             ),
             request_id,
-        ));
+        )));
     }
 
     if claims.is_admin {
@@ -106,7 +106,7 @@ pub async fn validate_oauth_for_request(
     }
 
     if let Some(reason) = missing_scopes_reason(&claims, required_scopes) {
-        return Err(forbidden_response(reason, request_id));
+        return Err(Box::new(forbidden_response(reason, request_id)));
     }
 
     Ok(Some(claims_payload(&claims)))

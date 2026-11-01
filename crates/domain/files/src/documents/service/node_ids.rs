@@ -40,6 +40,21 @@ impl DocumentService {
         blocking(move || Ok(codec.project(&bytes)?)).await
     }
 
+    #[cfg(feature = "collab")]
+    pub(crate) async fn projection_with_ids(
+        &self,
+        document: &Document,
+        revision: &systemprompt_identifiers::DocumentRevisionId,
+    ) -> Result<Projection, DocumentsError> {
+        let revision = self
+            .repos
+            .revisions
+            .find(revision)
+            .await?
+            .ok_or_else(|| DocumentsError::not_found("revision", revision))?;
+        Ok(self.projected(document, &revision).await?.ids)
+    }
+
     pub(super) async fn projected(
         &self,
         document: &Document,

@@ -5,7 +5,9 @@
 
 use chrono::{DateTime, Utc};
 use systemprompt_identifiers::{DocumentId, DocumentProposalId, DocumentRevisionId, UserId};
-use systemprompt_models::documents::{ActorKind, ProposalStatus, RevisionOriginKind};
+use systemprompt_models::documents::{ActorKind, ProposalStatus};
+
+use super::origin::RevisionOrigin;
 
 /// A reviewable revision: `proposed_revision_id` branches off
 /// `base_revision_id` and never becomes the head itself unless accepted
@@ -18,8 +20,7 @@ pub struct DocumentProposal {
     pub proposed_revision_id: DocumentRevisionId,
     pub proposer_user_id: UserId,
     pub actor_kind: ActorKind,
-    pub origin_kind: RevisionOriginKind,
-    pub origin_id: Option<String>,
+    pub origin: RevisionOrigin,
     pub status: ProposalStatus,
     pub message: Option<String>,
     pub reviewer_user_id: Option<UserId>,
@@ -37,8 +38,7 @@ pub struct NewProposal {
     pub proposed_revision_id: DocumentRevisionId,
     pub proposer_user_id: UserId,
     pub actor_kind: ActorKind,
-    pub origin_kind: RevisionOriginKind,
-    pub origin_id: Option<String>,
+    pub origin: RevisionOrigin,
     pub message: Option<String>,
 }
 

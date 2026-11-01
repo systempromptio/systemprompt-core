@@ -11,6 +11,7 @@ use systemprompt_extension::notifications::{
     ChannelError, DynNotificationSink, NotificationChannel, ResourceVisibility, Visibility,
     VisibilityError,
 };
+use systemprompt_extension::prelude::ChangeSource;
 use systemprompt_identifiers::{
     DocumentCommentId, DocumentId, EventOutboxId, NotificationId, NotificationRuleId,
     NotificationStreamId, UserId,
@@ -111,7 +112,9 @@ impl Drained {
     }
 }
 
-pub(crate) const CODE_SOURCE: &str = "code:notifications/subscriptions.yaml";
+pub(crate) fn code_source() -> ChangeSource {
+    ChangeSource::Code("notifications/subscriptions.yaml".to_owned())
+}
 
 pub(crate) fn profile() -> NotificationsProfile {
     NotificationsProfile {
@@ -150,7 +153,7 @@ impl Harness {
         let repos = Arc::new(NotificationRepositories::new(&pool));
         let users = Arc::new(UserRepository::new(&pool));
         let audience: Arc<dyn systemprompt_extension::notifications::NotificationAudienceResolver> =
-            Arc::new(UserRoleAudienceResolver::new(Arc::clone(&users)));
+            Arc::new(UserRoleAudienceResolver::new(users));
         let hidden = Arc::new(Hidden::default());
         let channel = Arc::new(Recorded::default());
         let resolver_timeout = Duration::from_millis(profile.consumer.resolver_timeout_ms);
@@ -159,7 +162,6 @@ impl Harness {
             audiences: vec![Arc::clone(&audience)],
             visibilities: vec![Arc::clone(&hidden) as Arc<dyn ResourceVisibility>],
             channels: vec![Arc::clone(&channel) as Arc<dyn NotificationChannel>],
-            actors: Arc::new(UserRoleAudienceResolver::new(users)),
             repos: Arc::clone(&repos),
             profile,
         };
@@ -305,7 +307,7 @@ impl Harness {
         NotificationSubscriptionRepository::upsert(
             self.repos.write_pool(),
             decl,
-            CODE_SOURCE,
+            &code_source(),
             None,
         )
         .await
@@ -395,7 +397,7 @@ pub(crate) fn mention(
         SubjectRef::new("comment", comment.as_str()),
     ])
     .with_direct_recipient(recipient.clone(), None)
-    .with_excerpt("please review the pricing table");
+    .with_body("please review the pricing table");
     (event, comment)
 }
 

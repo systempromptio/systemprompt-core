@@ -85,6 +85,8 @@ pub struct GatewayRequestContext {
     pub api_key_windows: Vec<crate::policies::QuotaWindow>,
     pub access_log: Option<GatewayAccessLog>,
     pub context_bound: bool,
+    pub actor: systemprompt_models::auth::RequestActor,
+    pub memory: systemprompt_models::origin::MemoryPreference,
 }
 
 #[expect(
@@ -115,6 +117,7 @@ pub struct GatewayAudit {
     tool_validity: Arc<tool_validity::ToolValidityCache>,
     tool_validators: std::sync::OnceLock<Arc<systemprompt_ai::services::tools::ToolArgsValidator>>,
     catalog: Arc<systemprompt_manifest::services::catalog::ResolvedCatalog>,
+    recall_observer: std::sync::OnceLock<Arc<dyn systemprompt_extension::brain::MemoryRecall>>,
 }
 
 #[derive(Debug, Default)]
@@ -149,6 +152,7 @@ impl GatewayAudit {
             tool_validity: Arc::clone(&repos.tool_validity),
             tool_validators: std::sync::OnceLock::new(),
             catalog: Arc::clone(&repos.catalog),
+            recall_observer: std::sync::OnceLock::new(),
         }
     }
 

@@ -119,6 +119,7 @@ scripts/*
 !scripts/check-gates.sh
 !scripts/check-gates.txt
 !scripts/check-no-vendor.sh
+!scripts/core-markup-allowlist.txt
 !scripts/publish-crates.sh
 !scripts/schema-ladder.sh
 !scripts/schema-ladder-boot.sh

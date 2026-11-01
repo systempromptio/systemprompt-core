@@ -32,12 +32,9 @@ We will keep you informed throughout triage. If a fix requires more time than th
 
 | Version | Security fixes |
 |---------|----------------|
-| 0.62.x (current minor) | Yes |
-| 0.61.x (previous minor) | Critical and High only |
-| < 0.61 | No |
-
-0.63.0 is the next release; when it ships, 0.62.x becomes the previous minor and 0.61.x
-leaves support.
+| Latest `0.x` minor (currently 0.76.x) | Yes |
+| Previous minor (currently 0.75.x) | Critical and High only |
+| Older | No |
 
 While the project is pre-1.0, security fixes land on the current minor release. The
 previous minor receives Critical and High fixes until the minor after it ships, at
@@ -78,11 +75,8 @@ If your research requires testing against a production deployment not owned by y
   a daily schedule — see `.github/workflows/supply-chain.yml`.
 - Advisories we have assessed and accepted are recorded, each with a written
   justification, in [`deny.toml`](deny.toml). We publish the register rather than
-  reporting a clean scan: as of 0.62.0 it holds fifteen entries. Three concern the
-  published crates' lockfile — one reachable at runtime (`rsa`, RUSTSEC-2023-0071), one
-  optional dependency that is never compiled (`rkyv`), and one build-time-only proc-macro
-  (`proc-macro-error2`) — and twelve are reachable only from the desktop bridge's Linux
-  windowing stack, which the bridge does not compile.
+  reporting a clean scan; `deny.toml` is the current list, and each entry carries its
+  reachability analysis and the condition under which it is removed.
 - `systemprompt-bridge` release binaries are built in GitHub-hosted CI runners from
   tagged commits and signed with Sigstore (`cosign` keyless, OIDC-bound to this
   repository and workflow) — see `.github/workflows/release-sign.yml`. Verify one with:
@@ -97,8 +91,15 @@ If your research requires testing against a production deployment not owned by y
 - The core platform ships as source and as `systemprompt-*` crates on crates.io; those
   artefacts are not signed by us. Organisations that repackage the platform for internal
   distribution sign the resulting artefact packs under their own key and provenance.
-- A CycloneDX SBOM can be generated on demand from the committed `Cargo.lock` with
-  `cargo cyclonedx`. It is not currently produced or attached by CI.
+- From 0.77.0, each bridge release (`bridge-vX.Y.Z`, cut with the matching core version) attaches
+  CycloneDX SBOMs for the bridge and for the core workspace, signed like the binaries,
+  and a GitHub build-provenance attestation (SLSA Build L2) for every asset. Verify with
+  `gh attestation verify <artifact> --repo systempromptio/systemprompt-core`.
+- Secret scanning (`gitleaks`) runs with the dependency scans on every push, pull request
+  and daily; CodeQL static analysis and the OpenSSF Scorecard run weekly and on push.
+- The [supplier evidence pack](documentation/security/README.md) collects the secure
+  development, supply-chain and vulnerability-management evidence for supplier
+  assessments.
 
 ## Telemetry
 
@@ -125,6 +126,7 @@ provides; the four channels above are what that policy has to allow.
 
 ## Further Reading
 
+- [Supplier Evidence Pack](documentation/security/README.md)
 - [Threat Model](documentation/security/threat-model.md)
 - [Compliance Control Matrix](documentation/security/compliance-control-matrix.md)
 - [RFI Readiness Audit](documentation/security/rfi-readiness-audit.md) — security-review posture, accepted risks, and known gaps

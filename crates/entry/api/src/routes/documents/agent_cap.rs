@@ -4,10 +4,11 @@
 //! own and takes `{"cap": "none" | "read" | "comment" | "suggest" | "edit"
 //! | null}`, where `null` clears the override. An override looser than the
 //! agent policy allows is refused. `GET ?agent=<name>&attended=<bool>`
-//! answers for that agent (default: an attended agent named `agent`) on
+//! answers for that agent (default: an unattended agent named `agent`) on
 //! `channel=direct|drive_sync|live_checkpoint` (default `direct`), and
 //! the answer always carries both the `attended` and `unattended` caps; a
-//! name outside 1 to 64 of letters, digits, `-`, `_`, `.`, `:` or `/` is
+//! name that is not a valid agent name (empty, over 64 bytes, outside
+//! letters, digits and `-_.:/`, or the sentinels `unknown`, `unset`) is
 //! refused.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -16,12 +17,11 @@
 use axum::extract::{Path, Query, State};
 use axum::{Extension, Json};
 use serde::{Deserialize, Serialize};
-use systemprompt_files::documents::DocumentsError;
 use systemprompt_files::documents::agents::{
-    AgentActor, AgentCap, AgentChannel, CapSource, EffectiveCap,
+    AgentActor, AgentCap, AgentChannel, CapSource, EffectiveCap, unnamed_agent,
 };
 use systemprompt_files::documents::service::{AgentCapTarget, AgentCapView};
-use systemprompt_identifiers::{DocumentFolderId, DocumentId};
+use systemprompt_identifiers::{AgentName, DocumentFolderId, DocumentId};
 use systemprompt_models::RequestContext;
 
 use super::DocumentsState;
@@ -42,22 +42,15 @@ pub(super) struct AgentQuery {
     channel: Option<AgentChannel>,
 }
 
-const MAX_AGENT_NAME: usize = 64;
-
 impl AgentQuery {
     fn actor(self) -> DocumentsResult<AgentActor> {
-        let name = self.agent.unwrap_or_else(|| "agent".to_owned());
-        let allowed =
-            |c: char| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.' | ':' | '/');
-        if name.is_empty() || name.len() > MAX_AGENT_NAME || !name.chars().all(allowed) {
-            return Err(DocumentsError::InvalidParams {
-                detail: "agent must be 1 to 64 letters, digits, '-', '_', '.', ':' or '/'",
-            }
-            .into());
-        }
+        let name = match self.agent {
+            Some(name) => AgentName::try_new(name)?,
+            None => unnamed_agent(),
+        };
         Ok(AgentActor {
             name,
-            attended: self.attended.unwrap_or(true),
+            attended: self.attended.unwrap_or(false),
             channel: self.channel.unwrap_or_default(),
         })
     }

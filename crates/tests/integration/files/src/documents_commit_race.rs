@@ -32,7 +32,7 @@ fn request(
         body: CommitBody::Ops(ops),
         author: api_author(),
         message: message.map(str::to_owned),
-        lock_holder_id: None,
+        lock_holder: None,
         comments: CommentPolicy::default(),
         op_id: op_id.cloned(),
         media: Media::new(),

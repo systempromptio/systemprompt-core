@@ -16,12 +16,10 @@
 
 use std::future::Future;
 
-use systemprompt_files::documents::agents::{DocumentActor, UNNAMED_AGENT, act_as};
-use systemprompt_identifiers::ClientId;
-use systemprompt_models::auth::TokenInteraction;
+use systemprompt_files::documents::agents::{DocumentActor, act_as};
+use systemprompt_identifiers::{AgentName, ClientId};
+use systemprompt_models::auth::{self, RequestActor, TokenInteraction};
 use systemprompt_models::execution::context::{RequestContext, UserInteractionMode};
-
-const MAX_AGENT_NAME: usize = 64;
 
 pub async fn act_as_request<F: Future>(ctx: &RequestContext, work: F) -> F::Output {
     act_as(request_actor(ctx), work).await
@@ -29,17 +27,25 @@ pub async fn act_as_request<F: Future>(ctx: &RequestContext, work: F) -> F::Outp
 
 #[must_use]
 pub fn request_actor(ctx: &RequestContext) -> DocumentActor {
+    document_actor(caller_actor(ctx))
+}
+
+#[must_use]
+pub fn caller_actor(ctx: &RequestContext) -> RequestActor {
     let interaction = ctx.settings.user_interaction_mode;
     let person = ctx.is_browser_session()
         && ctx.caller_purpose().is_none()
         && ctx.act_chain().is_empty()
         && interaction != Some(UserInteractionMode::NonInteractive);
     if person {
-        return DocumentActor::Human;
+        return RequestActor::Human;
     }
     let attended =
         interaction == Some(UserInteractionMode::Interactive) && ctx.caller_purpose().is_none();
-    DocumentActor::agent(signed_agent_name(ctx), attended)
+    RequestActor::Agent {
+        name: signed_agent_name(ctx),
+        attended,
+    }
 }
 
 #[must_use]
@@ -48,22 +54,17 @@ pub fn bearer_actor(
     client: Option<&ClientId>,
     interaction: Option<TokenInteraction>,
 ) -> DocumentActor {
-    let attended = interaction == Some(TokenInteraction::Interactive) && purpose.is_none();
-    DocumentActor::agent(name_from(purpose, client), attended)
+    document_actor(auth::bearer_actor(purpose, client, interaction))
 }
 
 #[must_use]
-pub fn signed_agent_name(ctx: &RequestContext) -> String {
-    name_from(ctx.caller_purpose(), ctx.client_id())
+pub fn signed_agent_name(ctx: &RequestContext) -> AgentName {
+    auth::agent_name(ctx.caller_purpose(), ctx.client_id())
 }
 
-fn name_from(purpose: Option<&str>, client: Option<&ClientId>) -> String {
-    let allowed = |c: char| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.' | ':' | '/');
-    let valid =
-        |name: &str| !name.is_empty() && name.len() <= MAX_AGENT_NAME && name.chars().all(allowed);
-    purpose
-        .or_else(|| client.map(ClientId::as_str))
-        .filter(|name| valid(name))
-        .unwrap_or(UNNAMED_AGENT)
-        .to_owned()
+fn document_actor(actor: RequestActor) -> DocumentActor {
+    match actor {
+        RequestActor::Human => DocumentActor::Human,
+        RequestActor::Agent { name, attended } => DocumentActor::agent(name, attended),
+    }
 }

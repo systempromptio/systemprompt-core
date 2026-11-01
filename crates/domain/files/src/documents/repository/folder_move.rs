@@ -12,6 +12,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use sqlx::{Postgres, Transaction};
 use systemprompt_identifiers::{DocumentFolderId, UserId};
 
 use super::folder_locks::begin_tree_locked;
@@ -38,60 +39,83 @@ pub enum FolderMoveOutcome {
     DestinationChanged,
 }
 
+pub(super) async fn rename_in(
+    tx: &mut Transaction<'static, Postgres>,
+    id: &DocumentFolderId,
+    name: &str,
+) -> RepoResult<bool> {
+    let before = subtree_paths(tx, id).await?;
+    let renamed = sqlx::query!(
+        "UPDATE document_folders SET name = $2, updated_at = now()
+             WHERE id = $1::text::uuid AND deleted_at IS NULL",
+        id.as_str(),
+        name,
+    )
+    .execute(&mut **tx)
+    .await?
+    .rows_affected()
+        == 1;
+    if renamed {
+        log_subtree_paths(tx, &before).await?;
+    }
+    Ok(renamed)
+}
+
 impl DocumentFolderRepository {
     pub async fn rename(&self, id: &DocumentFolderId, name: &str) -> RepoResult<bool> {
         let mut tx = begin_tree_locked(&self.pools.write, &[id.as_str()]).await?;
-        let before = subtree_paths(&mut tx, id).await?;
-        let renamed = sqlx::query!(
-            "UPDATE document_folders SET name = $2, updated_at = now()
-             WHERE id = $1::text::uuid AND deleted_at IS NULL",
-            id.as_str(),
-            name,
-        )
-        .execute(&mut *tx)
-        .await?
-        .rows_affected()
-            == 1;
-        if !renamed {
+        if !rename_in(&mut tx, id, name).await? {
             tx.rollback().await?;
             return Ok(false);
         }
-        log_subtree_paths(&mut tx, &before).await?;
         tx.commit().await?;
         Ok(true)
     }
 
     pub async fn move_to(&self, relocation: FolderRelocation<'_>) -> RepoResult<FolderMoveOutcome> {
-        let FolderRelocation {
-            folder,
-            parent,
-            parent_chain,
-            mover,
-        } = relocation;
-        let mut touched = vec![folder.as_str()];
-        touched.extend(parent.map(DocumentFolderId::as_str));
+        let mut touched = vec![relocation.folder.as_str()];
+        touched.extend(relocation.parent.map(DocumentFolderId::as_str));
         let mut tx = begin_tree_locked(&self.pools.write, &touched).await?;
-        if let Some(parent) = parent {
-            let chain: Option<Vec<String>> = sqlx::query_scalar!(
-                r#"SELECT ancestor_ids::text[] AS "chain!" FROM document_folders
-                   WHERE id = $1::text::uuid AND deleted_at IS NULL"#,
-                parent.as_str(),
-            )
-            .fetch_optional(&mut *tx)
-            .await?;
-            let expected: Vec<&str> = parent_chain.iter().map(DocumentFolderId::as_str).collect();
-            if chain.is_none_or(|chain| chain != expected) {
-                tx.rollback().await?;
-                return Ok(FolderMoveOutcome::DestinationChanged);
-            }
+        let outcome = relocate_in(&mut tx, relocation).await?;
+        if matches!(outcome, FolderMoveOutcome::Moved { .. }) {
+            tx.commit().await?;
+        } else {
+            tx.rollback().await?;
         }
-        let foreign = foreign_subtree_documents(&mut tx, folder, mover).await?;
-        let rehomed = rehome_subtree_documents(&mut tx, folder, mover, &foreign).await?;
-        let former_ancestors = ancestors_of(&mut tx, folder).await?;
-        retract_ancestor_grants(&mut tx, folder).await?;
-        let before = subtree_paths(&mut tx, folder).await?;
-        let moved = sqlx::query!(
-            r#"WITH target AS (
+        Ok(outcome)
+    }
+}
+
+pub(super) async fn relocate_in(
+    tx: &mut Transaction<'static, Postgres>,
+    relocation: FolderRelocation<'_>,
+) -> RepoResult<FolderMoveOutcome> {
+    let FolderRelocation {
+        folder,
+        parent,
+        parent_chain,
+        mover,
+    } = relocation;
+    if let Some(parent) = parent {
+        let chain: Option<Vec<String>> = sqlx::query_scalar!(
+            r#"SELECT ancestor_ids::text[] AS "chain!" FROM document_folders
+                   WHERE id = $1::text::uuid AND deleted_at IS NULL"#,
+            parent.as_str(),
+        )
+        .fetch_optional(&mut **tx)
+        .await?;
+        let expected: Vec<&str> = parent_chain.iter().map(DocumentFolderId::as_str).collect();
+        if chain.is_none_or(|chain| chain != expected) {
+            return Ok(FolderMoveOutcome::DestinationChanged);
+        }
+    }
+    let foreign = foreign_subtree_documents(tx, folder, mover).await?;
+    let rehomed = rehome_subtree_documents(tx, folder, mover, &foreign).await?;
+    let former_ancestors = ancestors_of(tx, folder).await?;
+    retract_ancestor_grants(tx, folder).await?;
+    let before = subtree_paths(tx, folder).await?;
+    let moved = sqlx::query!(
+        r#"WITH target AS (
                    SELECT id, ancestor_ids FROM document_folders
                    WHERE id = $1::text::uuid AND deleted_at IS NULL
                ),
@@ -111,22 +135,19 @@ impl DocumentFolderRepository {
                      SELECT 1 FROM document_folders p
                      WHERE p.id = $2::text::uuid AND p.deleted_at IS NULL
                        AND p.id <> t.id AND NOT (t.id = ANY(p.ancestor_ids))))"#,
-            folder.as_str(),
-            parent.map(DocumentFolderId::as_str),
-        )
-        .execute(&mut *tx)
-        .await?
-        .rows_affected();
-        if moved == 0 {
-            tx.rollback().await?;
-            return Ok(FolderMoveOutcome::Refused);
-        }
-        log_subtree_paths(&mut tx, &before).await?;
-        deliver_new_ancestor_grants(&mut tx, folder, &former_ancestors).await?;
-        tx.commit().await?;
-        Ok(FolderMoveOutcome::Moved {
-            folders: moved,
-            rehomed: u64::try_from(rehomed.max(0)).unwrap_or(0),
-        })
+        folder.as_str(),
+        parent.map(DocumentFolderId::as_str),
+    )
+    .execute(&mut **tx)
+    .await?
+    .rows_affected();
+    if moved == 0 {
+        return Ok(FolderMoveOutcome::Refused);
     }
+    log_subtree_paths(tx, &before).await?;
+    deliver_new_ancestor_grants(tx, folder, &former_ancestors).await?;
+    Ok(FolderMoveOutcome::Moved {
+        folders: moved,
+        rehomed: u64::try_from(rehomed.max(0)).unwrap_or(0),
+    })
 }

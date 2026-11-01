@@ -8,6 +8,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use systemprompt_identifiers::{McpServerId, McpToolName, ValidatedUrl};
 use systemprompt_manifest::services::ServicesConfig;
+use systemprompt_models::bridge::ids::ToolPolicy;
 use systemprompt_models::bridge::manifest::ManagedMcpServer;
 use systemprompt_models::mcp::Deployment;
 
@@ -61,13 +62,26 @@ pub fn load_managed_mcp_servers(
             transport: Some("http".to_owned()),
             headers: None,
             oauth: Some(deployment.oauth.required),
-            tool_policy: Some(BTreeMap::from([(
-                McpToolName::new(ManagedMcpServer::TOOL_POLICY_WILDCARD),
-                tool_policy,
-            )])),
+            tool_policy: Some(tool_policies(deployment, tool_policy)),
         });
     }
     Ok(out)
+}
+
+fn tool_policies(
+    deployment: &Deployment,
+    default: ToolPolicy,
+) -> BTreeMap<McpToolName, ToolPolicy> {
+    let mut policies = BTreeMap::from([(
+        McpToolName::new(ManagedMcpServer::TOOL_POLICY_WILDCARD),
+        default,
+    )]);
+    for (tool, meta) in &deployment.tools {
+        if let Some(policy) = meta.tool_policy {
+            policies.insert(McpToolName::new(tool.as_str()), policy);
+        }
+    }
+    policies
 }
 
 pub fn disabled_mcp_server_names(services: &ServicesConfig) -> BTreeSet<String> {

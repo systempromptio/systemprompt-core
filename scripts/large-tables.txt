@@ -21,3 +21,7 @@ message_parts
 document_revisions
 document_presence
 document_agent_reads
+notifications
+brain_recalls
+brain_event_results
+brain_outcomes

@@ -1,7 +1,8 @@
 //! An image a document's head holds, read for a viewer.
 //!
 //! Only what the head already holds is served: a `docx-media:` part or a
-//! saved upload inside a `docx`, or, for formats that link their images,
+//! saved upload inside a `docx`, a picture part under `ppt/media/` (`pptx`)
+//! or `Pictures/` (`odp`), or, for formats that link their images,
 //! an uploaded blob the head's model names. A reference is not a
 //! capability, so anything else is not found.
 //!
@@ -35,6 +36,14 @@ impl DocumentService {
         if document.format == DocumentFormat::Docx {
             return in_package(&bytes, reference, limit).ok_or_else(missing);
         }
+        if let Some(prefix) = media_folder(document.format) {
+            let content = media_part(&bytes, prefix, reference, limit).ok_or_else(missing)?;
+            let mime = sniff(&content).ok_or_else(missing)?;
+            return Ok(MediaBlob {
+                bytes: content,
+                mime: mime.to_owned(),
+            });
+        }
         let wanted = [reference.to_owned()];
         if !held_media_refs(document.format, &bytes, &wanted, limit).contains(&wanted[0]) {
             return Err(missing());
@@ -55,6 +64,29 @@ impl DocumentService {
 fn in_package(bytes: &[u8], reference: &str, limit: u64) -> Option<MediaBlob> {
     let (mime, bytes) = crate::documents::codecs::docx::held_image(bytes, reference, limit)?;
     Some(MediaBlob { bytes, mime })
+}
+
+const fn media_folder(format: DocumentFormat) -> Option<&'static str> {
+    match format {
+        DocumentFormat::Pptx => Some("ppt/media/"),
+        DocumentFormat::Odp => Some("Pictures/"),
+        _ => None,
+    }
+}
+
+#[cfg(feature = "office")]
+fn media_part(bytes: &[u8], prefix: &str, reference: &str, limit: u64) -> Option<Vec<u8>> {
+    crate::documents::codecs::media_part(bytes, prefix, reference, limit)
+}
+
+#[cfg(not(feature = "office"))]
+const fn media_part(
+    _bytes: &[u8],
+    _prefix: &str,
+    _reference: &str,
+    _limit: u64,
+) -> Option<Vec<u8>> {
+    None
 }
 
 #[cfg(not(feature = "office"))]

@@ -1,14 +1,17 @@
-//! Snapshots and checkpoints of a live edit session.
+//! Checkpoints of a live edit session; snapshots are the sibling
+//! `snapshot` module.
 //!
-//! A snapshot stores the session's engine state as a blob and prunes the
-//! logged updates it covers. The state is sealed while the replica's entry
-//! is held; the blob write and the snapshot mark run without it, and one
-//! snapshot at a time runs per entry. A checkpoint materialises the live model
-//! and commits it as a revision with origin `edit_session`, based on the
-//! session's previous checkpoint (or its base revision); when the revision
-//! engine merges it with outside writes, the merged document is re-imported
-//! with the live block ids carried over and written back into the live
-//! model, logged and broadcast like any other update.
+//! A checkpoint materialises the live model and commits it as a revision
+//! with origin `edit_session`, based on the session's previous checkpoint
+//! (or its base revision); when the revision engine merges it with outside
+//! writes, the merged document is re-imported with the live block ids
+//! carried over and written back into the live model, logged and broadcast
+//! like any other update.
+//!
+//! An apply validates only the blocks each update touched, so the whole
+//! live model is validated before it is checkpointed: a checkpoint of a
+//! model that fails the checks is refused, and a settle logs the failure
+//! and lands it anyway, so leaving a session never strands its edits.
 //!
 //! A checkpoint runs under the session's checkpoint lease: the lease claim
 //! re-reads the session row, so the checkpoint is based on the base the last
@@ -31,7 +34,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::{ContentHash, DocumentEditSessionId, TraceId};
+use systemprompt_identifiers::TraceId;
 use systemprompt_models::auth::AuthenticatedUser;
 
 use super::committer::{Committer, fold_logged};
@@ -39,83 +42,22 @@ use super::entry::SharedEntry;
 use super::lease::{ClaimWait, Fence, SessionKey, SettledBy};
 use super::persist_commit::Rebase;
 use super::{Checkpoint, CollabError, CollabService, Left};
-use crate::documents::model::EditLevel;
-use crate::documents::repository::{CheckpointLease, SnapshotMark};
+use crate::documents::engine::ModelView;
+use crate::documents::model::{EditLevel, Limits, ModelRejection, validate};
+use crate::documents::repository::CheckpointLease;
 
 const SETTLE_ATTEMPTS: u32 = 3;
 
-struct Sealed {
-    session: DocumentEditSessionId,
-    bytes: Vec<u8>,
-    version: Vec<u8>,
-    seq: i64,
-    covers: u32,
-}
-
 impl CollabService {
-    pub(super) async fn snapshot(&self, shared: &SharedEntry) -> Result<(), CollabError> {
-        let Some(sealed) = self.seal(shared).await? else {
-            return Ok(());
-        };
-        let stored = self.store(&sealed).await;
-        let mut entry = shared.lock().await;
-        entry.snapshotting = false;
-        let moved = stored?;
-        if let Some(hash) = moved {
-            entry.session.snapshot_sha256 = Some(hash);
-        }
-        entry.unsnapshotted = entry.unsnapshotted.saturating_sub(sealed.covers);
-        if entry.unsnapshotted == 0 {
-            entry.snapshot_due_from = None;
-        }
-        drop(entry);
-        Ok(())
-    }
-
-    async fn seal(&self, shared: &SharedEntry) -> Result<Option<Sealed>, CollabError> {
-        if shared.lock().await.snapshotting {
-            return Ok(None);
-        }
-        let mut entry = self.caught_up(shared).await?;
-        if entry.snapshotting {
-            return Ok(None);
-        }
-        let sealed = Sealed {
-            session: entry.session.id.clone(),
-            bytes: entry.images.seal(&entry.doc.snapshot()?),
-            version: entry.doc.version(),
-            seq: entry.last_seq,
-            covers: entry.unsnapshotted,
-        };
-        entry.snapshotting = true;
-        drop(entry);
-        Ok(Some(sealed))
-    }
-
-    async fn store(&self, sealed: &Sealed) -> Result<Option<ContentHash>, CollabError> {
-        let blob = self.documents.blobs().put(&sealed.bytes).await?;
-        let moved = self
-            .documents
-            .repositories()
-            .collab
-            .set_snapshot(
-                &sealed.session,
-                SnapshotMark {
-                    hash: &blob.hash,
-                    seq: sealed.seq,
-                    version: &sealed.version,
-                },
-            )
-            .await?;
-        Ok(moved.then_some(blob.hash))
-    }
-
     pub(super) async fn checkpoint(
         &self,
         shared: &SharedEntry,
         trace: &TraceId,
     ) -> Result<Option<Checkpoint>, CollabError> {
         let key = SessionKey::of(&*shared.lock().await);
+        check_live(shared)
+            .await?
+            .map_err(CollabError::UpdateRejected)?;
         let lease = CheckpointLease::generate();
         let fence = Fence {
             key: &key,
@@ -158,6 +100,13 @@ impl CollabService {
         by: SettledBy,
     ) -> Result<Left, CollabError> {
         let key = SessionKey::of(&*shared.lock().await);
+        if let Err(rejection) = check_live(shared).await? {
+            tracing::warn!(
+                session_id = %key.session,
+                rejection = %rejection,
+                "Live model fails validation; settling it anyway"
+            );
+        }
         let lease = CheckpointLease::generate();
         let fence = Fence {
             key: &key,
@@ -270,6 +219,16 @@ impl CollabService {
         let known: Vec<&AuthenticatedUser> = last_editor.iter().chain(known).collect();
         Ok(Some(Committer::from_log(&authors, &known)))
     }
+}
+
+async fn check_live(shared: &SharedEntry) -> Result<Result<(), ModelRejection>, CollabError> {
+    let model = shared.lock().await.doc.export_model()?;
+    Ok(match &model {
+        ModelView::RichText(model) => validate(model, model, EditLevel::Edit, &Limits::default()),
+        ModelView::Body(_) => Ok(()),
+        #[cfg(feature = "collab-loro")]
+        ModelView::Sheet(_) | ModelView::Deck(_) => Ok(()),
+    })
 }
 
 fn combine(settled: Checkpoint, next: Checkpoint) -> Checkpoint {

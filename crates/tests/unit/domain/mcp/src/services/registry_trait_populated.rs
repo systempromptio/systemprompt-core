@@ -95,3 +95,56 @@ async fn registry_provider_reports_an_unknown_server_as_not_found() {
             .expect("a missing server is not an error")
     );
 }
+
+#[tokio::test]
+async fn registry_accessors_and_partitions_name_the_external_server() {
+    let (registry, name, _mock) = populated_registry().await;
+
+    assert_eq!(registry.owner(), &fixture_user_id());
+    assert!(
+        registry
+            .services()
+            .config()
+            .mcp_servers
+            .contains_key(name.as_str())
+    );
+    assert!(
+        registry
+            .deployments()
+            .list_enabled_servers()
+            .contains(&name.as_str().to_owned())
+    );
+
+    let external = registry.get_external_servers().expect("external");
+    assert!(external.iter().any(|s| s.name == name.as_str()));
+    let managed = registry.get_managed_servers().expect("managed");
+    assert!(managed.iter().all(|s| s.name != name.as_str()));
+    registry.reload().expect("reload validates");
+
+    let found = registry.get_server(name.as_str()).expect("server");
+    assert_eq!(
+        found.description,
+        format!("{} MCP Server", found.display_name)
+    );
+}
+
+#[tokio::test]
+async fn registry_get_server_of_an_unknown_name_is_not_found() {
+    let (registry, _name, _mock) = populated_registry().await;
+
+    let err = registry
+        .get_server("rtp_no_such_server")
+        .expect_err("unknown");
+    assert!(
+        matches!(err, systemprompt_mcp::McpDomainError::ServerNotFound(_)),
+        "{err:?}"
+    );
+    let converted = systemprompt_models::errors::McpRegistryError::from(err);
+    assert!(
+        matches!(
+            converted,
+            systemprompt_models::errors::McpRegistryError::NotFound(_)
+        ),
+        "{converted:?}"
+    );
+}

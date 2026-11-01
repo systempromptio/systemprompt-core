@@ -1,0 +1,65 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT f.kind AS \"kind: FactKindId\", f.identity_hash, f.statement_hash, f.status\n               FROM brain_facts f\n               JOIN unnest($1::text[], $2::text[]) AS k(kind, identity_hash)\n                 ON f.kind = k.kind AND f.identity_hash = k.identity_hash",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "kind: FactKindId",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "brain_facts",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "identity_hash",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "brain_facts",
+            "name": "identity_hash"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "statement_hash",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "brain_facts",
+            "name": "statement_hash"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "status",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "brain_facts",
+            "name": "status"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "TextArray",
+        "TextArray"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "9d8255e6342c878eca81a6449d9ab3a8204a89722d1e61159557a18a1bd4e753"
+}

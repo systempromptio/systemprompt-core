@@ -12,7 +12,7 @@ use systemprompt_test_fixtures::{AuthedFixture, seed_bridge_credential};
 use tower::ServiceExt;
 use uuid::Uuid;
 
-use super::common::{request_context, setup_ctx};
+use super::common::{browser_page, request_context, setup_ctx};
 
 async fn call(
     app: Router,
@@ -37,13 +37,13 @@ async fn call(
 }
 
 fn docs(state: &DocumentsState, user: &AuthedFixture) -> Router {
-    router(state.clone()).layer(Extension(
+    browser_page(router(state.clone())).layer(Extension(
         request_context(user.user_id.as_str()).with_browser_session(),
     ))
 }
 
 fn folders(state: &DocumentsState, user: &AuthedFixture) -> Router {
-    folders_router(state.clone()).layer(Extension(
+    browser_page(folders_router(state.clone())).layer(Extension(
         request_context(user.user_id.as_str()).with_browser_session(),
     ))
 }

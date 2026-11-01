@@ -19,6 +19,8 @@ mod decision_schema;
 #[cfg(test)]
 mod decision_types;
 #[cfg(test)]
+mod document_access_context;
+#[cfg(test)]
 mod document_kinds;
 #[cfg(test)]
 mod entity_kinds;
@@ -37,6 +39,8 @@ mod hooks_and_composite;
 #[cfg(test)]
 mod kind_sql_roundtrip;
 #[cfg(test)]
+mod marketplace_access_entities;
+#[cfg(test)]
 mod marketplace_floor;
 #[cfg(test)]
 mod parent_chain;
@@ -53,11 +57,15 @@ mod resolver;
 #[cfg(test)]
 mod resolver_parents;
 #[cfg(test)]
+mod rule_based_folders;
+#[cfg(test)]
 mod rule_based_hook;
 #[cfg(test)]
 mod rules_file;
 #[cfg(test)]
 mod subject_attributes;
+#[cfg(test)]
+mod subject_provider_set;
 #[cfg(test)]
 mod webhook_hook;
 

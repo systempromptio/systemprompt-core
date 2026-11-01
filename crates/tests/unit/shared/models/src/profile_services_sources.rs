@@ -25,6 +25,7 @@ pub(crate) fn local_profile() -> Profile {
         config_planes: Default::default(),
         licence: Default::default(),
         notifications: Default::default(),
+        brain: Default::default(),
         name: "p".to_owned(),
         display_name: "Profile P".to_owned(),
         target: ProfileType::Local,

@@ -1,5 +1,5 @@
 use systemprompt_identifiers::McpServerId;
-use systemprompt_runtime::documents::mcp::{DocumentsMcpTools, TOOL_NAMES, preview_resource_uri};
+use systemprompt_runtime::documents::mcp::{DocumentsMcpTools, TOOL_NAMES};
 
 use crate::documents_mcp_support::{SERVER, harness};
 
@@ -56,23 +56,6 @@ async fn read_only_annotations_follow_the_plan() {
             tool.name
         );
     }
-}
-
-#[tokio::test]
-async fn export_points_at_the_document_preview_resource() {
-    let h = harness().await;
-    let tools = h.tools.list_tools();
-    let preview = tools
-        .iter()
-        .find(|t| t.name == "documents_export")
-        .expect("preview tool");
-    let meta = serde_json::to_string(&preview.meta).expect("meta json");
-    let uri = preview_resource_uri(&McpServerId::new(SERVER));
-    assert_eq!(uri, "ui://documents/document-preview");
-    assert!(meta.contains(&uri), "meta: {meta}");
-    let listed = h.tools.list_resources();
-    assert_eq!(listed.resources.len(), 1);
-    assert_eq!(listed.resources[0].uri, uri);
 }
 
 #[tokio::test]

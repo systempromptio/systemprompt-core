@@ -40,6 +40,7 @@ fn principal(record: UserApiKey) -> AuthedPrincipal {
                 limits: record.limits,
                 scopes: record.scopes,
             }),
+            actor: systemprompt_models::auth::RequestActor::Human,
         },
         trace_id: TraceId::generate(),
         session_id: SessionId::generate(),

@@ -15,7 +15,10 @@ pub use document_limits::DocumentLimits;
 pub(crate) use document_limits::{
     PACKAGE_INFLATED_BYTES_CEILING, PACKAGE_PART_BYTES_CEILING, PACKAGE_PARTS_CEILING,
 };
-pub use documents::{DocumentsConfig, MAX_DOCUMENT_UPLOAD_BYTES, MIN_DOCUMENT_UPLOAD_BYTES};
+pub use documents::{
+    CollabConfig, CollabOwnerConfig, DocumentsConfig, MAX_DOCUMENT_UPLOAD_BYTES,
+    MIN_DOCUMENT_UPLOAD_BYTES,
+};
 pub use issues::IssuesConfig;
 pub use types::{AllowedFileTypes, FilePersistenceMode, FileUploadConfig, FilesConfigYaml};
 pub use upload_limits::UploadLimits;

@@ -179,9 +179,7 @@ fn body_error(output: &Value) -> Option<String> {
 
 // JSON: MCP JSON-RPC `id` — string or number per JSON-RPC 2.0.
 pub fn frame_matches(data: &str, request_id: &Value) -> bool {
-    serde_json::from_str::<Value>(data)
-        .ok()
-        .is_some_and(|frame| frame.get("id") == Some(request_id))
+    serde_json::from_str::<Value>(data).is_ok_and(|frame| frame.get("id") == Some(request_id))
 }
 
 pub fn stamp_execution(data: &str, mcp_execution_id: &McpExecutionId) -> Option<String> {

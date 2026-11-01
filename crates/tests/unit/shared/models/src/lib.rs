@@ -160,11 +160,23 @@ mod mime;
 mod routing;
 
 #[cfg(test)]
+mod artifact_provenance;
+#[cfg(test)]
+mod brain_recall;
+#[cfg(test)]
+mod brain_source_receipt;
+#[cfg(test)]
 mod bridge_opencode_lockdown;
 #[cfg(test)]
 mod marketplace;
 #[cfg(test)]
+mod marketplace_external_plugin_validation;
+#[cfg(test)]
 mod marketplace_opencode_themes;
+#[cfg(test)]
+mod plugin_skill_selection;
+#[cfg(test)]
+mod services_plugin_bindings;
 
 
 #[cfg(test)]
@@ -321,6 +333,8 @@ mod wire_stream_abort;
 #[cfg(test)]
 mod wire_stream_usage_order;
 
+#[cfg(test)]
+mod profile_cloud_deploy;
 #[cfg(test)]
 mod profile_config_planes;
 #[cfg(test)]

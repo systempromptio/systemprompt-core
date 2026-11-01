@@ -15,7 +15,7 @@
 
 use sqlx::types::Json;
 use sqlx::{PgConnection, PgExecutor};
-use systemprompt_identifiers::{NotificationId, NotificationStreamId, UserId};
+use systemprompt_identifiers::{AgentName, NotificationId, NotificationStreamId, UserId};
 use systemprompt_models::notifications::{
     ActionPrompt, Attention, DeliveryState, Notification, SubjectRef,
 };
@@ -66,10 +66,10 @@ impl NotificationRepository {
             r#"SELECT n.id::text AS "id!: NotificationId",
                       n.recipient_user_id AS "recipient_user_id: UserId", n.kind,
                       n.stream_id AS "stream_id: NotificationStreamId",
-                      n.actor_user_id AS "actor_user_id: UserId", n.actor_display,
-                      n.actor_is_agent, n.via_agent,
+                      n.actor_user_id AS "actor_user_id: UserId",
+                      n.actor_is_agent, n.via_agent AS "via_agent: AgentName",
                       n.subjects AS "subjects: Json<Vec<SubjectRef>>", n.attention,
-                      n.attention_reason, n.action AS "action: Json<ActionPrompt>", n.excerpt,
+                      n.attention_reason, n.action AS "action: Json<ActionPrompt>", n.title, n.body,
                       n.coalesce_count, n.first_event_at, n.last_event_at, n.created_at,
                       n.read_at, n.escalated_from, n.escalation_note, n.held_until,
                       n.delivery_state, n.delivery_seq
@@ -96,10 +96,10 @@ impl NotificationRepository {
             r#"SELECT n.id::text AS "id!: NotificationId",
                       n.recipient_user_id AS "recipient_user_id: UserId", n.kind,
                       n.stream_id AS "stream_id: NotificationStreamId",
-                      n.actor_user_id AS "actor_user_id: UserId", n.actor_display,
-                      n.actor_is_agent, n.via_agent,
+                      n.actor_user_id AS "actor_user_id: UserId",
+                      n.actor_is_agent, n.via_agent AS "via_agent: AgentName",
                       n.subjects AS "subjects: Json<Vec<SubjectRef>>", n.attention,
-                      n.attention_reason, n.action AS "action: Json<ActionPrompt>", n.excerpt,
+                      n.attention_reason, n.action AS "action: Json<ActionPrompt>", n.title, n.body,
                       n.coalesce_count, n.first_event_at, n.last_event_at, n.created_at,
                       n.read_at, n.escalated_from, n.escalation_note, n.held_until,
                       n.delivery_state, n.delivery_seq
@@ -134,10 +134,10 @@ impl NotificationRepository {
             r#"SELECT n.id::text AS "id!: NotificationId",
                       n.recipient_user_id AS "recipient_user_id: UserId", n.kind,
                       n.stream_id AS "stream_id: NotificationStreamId",
-                      n.actor_user_id AS "actor_user_id: UserId", n.actor_display,
-                      n.actor_is_agent, n.via_agent,
+                      n.actor_user_id AS "actor_user_id: UserId",
+                      n.actor_is_agent, n.via_agent AS "via_agent: AgentName",
                       n.subjects AS "subjects: Json<Vec<SubjectRef>>", n.attention,
-                      n.attention_reason, n.action AS "action: Json<ActionPrompt>", n.excerpt,
+                      n.attention_reason, n.action AS "action: Json<ActionPrompt>", n.title, n.body,
                       n.coalesce_count, n.first_event_at, n.last_event_at, n.created_at,
                       n.read_at, n.escalated_from, n.escalation_note, n.held_until,
                       n.delivery_state, n.delivery_seq

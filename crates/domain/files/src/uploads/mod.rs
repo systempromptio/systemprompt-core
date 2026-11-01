@@ -30,6 +30,7 @@ pub mod models;
 pub mod objects;
 mod parts;
 pub mod repository;
+mod retract;
 mod safety;
 mod service;
 mod stream;

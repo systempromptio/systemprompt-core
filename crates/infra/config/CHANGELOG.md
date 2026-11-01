@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.77.0] - 2026-11-01
+
+### Changed
+
+- Builds clean under stable Rust 1.99.1 clippy; no API change.
+
 ## [0.76.0] - 2026-10-29
 
 ### Fixed

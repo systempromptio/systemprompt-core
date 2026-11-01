@@ -6,12 +6,14 @@ use std::time::Duration;
 
 use systemprompt_events::Broadcaster;
 use systemprompt_files::documents::DocumentsError;
-use systemprompt_files::documents::models::{GrantTarget, RevisionAttribution};
+use systemprompt_files::documents::agents::{DocumentActor, act_as};
+use systemprompt_files::documents::models::{GrantTarget, RevisionAttribution, RevisionOrigin};
 use systemprompt_files::documents::service::{
-    Author, EditModeRequest, NewFolderRequest, ProposeRequest, Proposed, RevisionOrigin,
-    ShareRequest,
+    Author, EditModeRequest, NewFolderRequest, ProposeRequest, Proposed, ShareRequest,
 };
-use systemprompt_identifiers::{ConnectionId, DocumentFolderId, DocumentId, DocumentRevisionId};
+use systemprompt_identifiers::{
+    AgentName, ConnectionId, DocumentFolderId, DocumentId, DocumentRevisionId,
+};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{
     AccessLevel, ActorKind, AgentEditPolicy, ContentAs, EditMode, EditOp, NodeTarget, Projection,
@@ -135,19 +137,24 @@ pub(crate) async fn mode(
     who: &AuthenticatedUser,
     document: &DocumentId,
     requested: Option<EditMode>,
-    actor: ActorKind,
+    actor: DocumentActor,
 ) -> Result<EditMode, DocumentsError> {
-    h.service
-        .edit_mode(
+    act_as(
+        actor,
+        h.service.edit_mode(
             who,
             EditModeRequest {
                 document,
                 requested,
-                actor,
             },
             &trace(),
-        )
-        .await
+        ),
+    )
+    .await
+}
+
+fn robot() -> DocumentActor {
+    DocumentActor::agent(AgentName::new("proposal-agent"), false)
 }
 
 pub(crate) async fn folder(
@@ -183,9 +190,9 @@ async fn an_agent_proposes_under_a_folder_that_inherits_propose() {
     assert_eq!(updated.agent_edit_policy, AgentEditPolicy::Propose);
     let (document, base) = memo(&h, &owner, Some(&child)).await;
 
-    let agent_mode = mode(&h, &owner, &document, None, ActorKind::Agent).await;
+    let agent_mode = mode(&h, &owner, &document, None, robot()).await;
     assert_eq!(agent_mode.expect("agent mode"), EditMode::Propose);
-    let user_mode = mode(&h, &owner, &document, None, ActorKind::User).await;
+    let user_mode = mode(&h, &owner, &document, None, DocumentActor::Human).await;
     assert_eq!(user_mode.expect("user mode"), EditMode::Land);
 
     let before = outline(&h, &owner, &document, None).await;
@@ -217,7 +224,7 @@ async fn an_agent_proposes_under_a_folder_that_inherits_propose() {
         .set_folder_agent_edit_policy(&owner, &parent, AgentEditPolicy::Direct, &trace())
         .await
         .expect("reset policy");
-    let direct = mode(&h, &owner, &document, None, ActorKind::Agent).await;
+    let direct = mode(&h, &owner, &document, None, robot()).await;
     assert_eq!(direct.expect("direct"), EditMode::Land);
 }
 
@@ -229,14 +236,14 @@ async fn a_comment_only_caller_proposes_and_cannot_land() {
     let (document, _) = memo(&h, &owner, None).await;
     grant(&h, &owner, &document, &commenter, AccessLevel::Comment).await;
 
-    let chosen = mode(&h, &commenter, &document, None, ActorKind::User).await;
+    let chosen = mode(&h, &commenter, &document, None, DocumentActor::Human).await;
     assert_eq!(chosen.expect("mode"), EditMode::Propose);
     let land = mode(
         &h,
         &commenter,
         &document,
         Some(EditMode::Land),
-        ActorKind::User,
+        DocumentActor::Human,
     )
     .await;
     assert!(
@@ -265,14 +272,14 @@ async fn a_viewer_cannot_propose_and_an_editor_may_ask_for_propose() {
     let (document, _) = memo(&h, &owner, None).await;
     grant(&h, &owner, &document, &viewer, AccessLevel::View).await;
 
-    let viewer_mode = mode(&h, &viewer, &document, None, ActorKind::User).await;
+    let viewer_mode = mode(&h, &viewer, &document, None, DocumentActor::Human).await;
     assert!(matches!(viewer_mode, Err(DocumentsError::Forbidden { .. })));
     let explicit = mode(
         &h,
         &owner,
         &document,
         Some(EditMode::Propose),
-        ActorKind::User,
+        DocumentActor::Human,
     )
     .await;
     assert_eq!(explicit.expect("explicit"), EditMode::Propose);
@@ -381,4 +388,21 @@ async fn only_share_access_sets_the_folder_policy() {
         matches!(refused, Err(DocumentsError::NotFound { .. })),
         "{refused:?}"
     );
+}
+
+#[tokio::test]
+async fn an_agent_actor_is_held_to_the_folder_propose_policy_and_a_human_is_not() {
+    let h = harness(allow(), GroupSource::new(&[])).await;
+    let owner = person("scoped-owner");
+    let parent = folder(&h, &owner, None).await;
+    h.service
+        .set_folder_agent_edit_policy(&owner, &parent, AgentEditPolicy::Propose, &trace())
+        .await
+        .expect("policy");
+    let (document, _) = memo(&h, &owner, Some(&parent)).await;
+
+    let scoped = mode(&h, &owner, &document, None, robot()).await;
+    assert_eq!(scoped.expect("agent mode"), EditMode::Propose);
+    let human = mode(&h, &owner, &document, None, DocumentActor::Human).await;
+    assert_eq!(human.expect("human mode"), EditMode::Land);
 }

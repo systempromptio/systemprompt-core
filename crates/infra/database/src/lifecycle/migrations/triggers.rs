@@ -136,7 +136,7 @@ pub(super) async fn suspend(
             .await
             .map_err(|source| MigrationStepError::ListTriggers {
                 table: table.clone(),
-                source,
+                source: Box::new(source),
             })?;
         for row in rows {
             let Some(name) = row.get("name").and_then(|v| v.as_str()) else {
@@ -154,7 +154,7 @@ pub(super) async fn suspend(
                     action: "suspend",
                     trigger: name.to_owned(),
                     table: table.clone(),
-                    source,
+                    source: Box::new(source),
                 })?;
             suspended.triggers.push((table.clone(), name.to_owned()));
         }
@@ -186,7 +186,7 @@ impl Suspended {
                     action: "check",
                     trigger: name.clone(),
                     table: table.clone(),
-                    source,
+                    source: Box::new(source),
                 })?;
             if present.is_none() {
                 continue;
@@ -203,7 +203,7 @@ impl Suspended {
                     action: "restore",
                     trigger: name.clone(),
                     table: table.clone(),
-                    source,
+                    source: Box::new(source),
                 })?;
         }
         Ok(())

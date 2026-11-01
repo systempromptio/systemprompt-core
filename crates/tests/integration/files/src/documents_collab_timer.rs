@@ -70,7 +70,7 @@ async fn a_tick_snapshots_checkpoints_and_evicts_due_sessions() {
             .await
             .expect("find")
             .expect("revision");
-    assert_eq!(revision.origin_kind, RevisionOriginKind::EditSession);
+    assert_eq!(revision.origin.kind(), RevisionOriginKind::EditSession);
     assert!(
         head_html(&c, &owner, &document)
             .await
@@ -124,7 +124,7 @@ async fn a_checkpoint_conflicting_with_an_outside_write_leaves_the_head_alone() 
                 body: CommitBody::Bytes(outside.into_bytes()),
                 author: api_author(),
                 message: None,
-                lock_holder_id: None,
+                lock_holder: None,
                 comments: CommentPolicy::default(),
                 op_id: None,
                 media: Media::new(),

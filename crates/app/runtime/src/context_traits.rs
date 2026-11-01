@@ -145,6 +145,13 @@ impl ExtensionContext for AppContext {
         if self.files_config().documents_config().is_enabled() {
             dependencies.insert(Arc::clone(self.documents().service()));
         }
+        #[cfg(feature = "brain")]
+        {
+            dependencies.insert(Arc::new(self.profile().brain.clone()));
+            dependencies.insert::<systemprompt_extension::DynNotificationSink>(Arc::clone(
+                &self.notifications().sink,
+            ));
+        }
         dependencies
     }
 

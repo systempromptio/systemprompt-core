@@ -7,7 +7,7 @@
 
 use std::collections::HashMap;
 
-use systemprompt_identifiers::{DocumentFolderId, DocumentId};
+use systemprompt_identifiers::{AgentName, DocumentFolderId, DocumentId};
 
 use super::DocumentRepository;
 use super::agent_caps::{AgentFacts, CapOverride};
@@ -41,7 +41,7 @@ impl DocumentRepository {
         for row in rows {
             let mut found = AgentFacts {
                 overrides: Vec::new(),
-                created_by_agent: row.created_by_agent,
+                created_by_agent: row.created_by_agent.map(AgentName::new),
             };
             if let Some(cap) = row.agent_cap {
                 let cap: AgentCap = parse("documents.agent_cap", &cap)?;

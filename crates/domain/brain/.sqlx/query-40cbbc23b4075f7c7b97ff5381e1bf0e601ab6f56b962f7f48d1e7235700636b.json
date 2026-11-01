@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id AS \"id: BrainFactId\" FROM brain_facts\n               WHERE source_comment_id = $1\n                 AND status NOT IN ('stale', 'superseded', 'retired')\n               ORDER BY id FOR UPDATE",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id: BrainFactId",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "brain_facts",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "40cbbc23b4075f7c7b97ff5381e1bf0e601ab6f56b962f7f48d1e7235700636b"
+}

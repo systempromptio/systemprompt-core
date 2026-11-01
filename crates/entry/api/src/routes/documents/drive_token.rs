@@ -18,12 +18,12 @@
 use axum::Json;
 use axum::extract::State;
 use axum::http::HeaderMap;
-use chrono::{Duration, TimeZone, Utc};
 use systemprompt_files::documents::agents::{AgentChannel, DocumentActor};
-use systemprompt_identifiers::{AccessTokenId, ClientId, JwtToken};
+use systemprompt_identifiers::JwtToken;
 use systemprompt_models::api::ApiError;
-use systemprompt_models::auth::{AuthenticatedUser, JwtAudience, Permission, UserJwtRequest};
-use systemprompt_models::documents::{BRIDGE_DEVICE_AUDIENCE, DRIVE_SYNC_AUDIENCE, DriveSyncToken};
+use systemprompt_models::auth::AuthenticatedUser;
+use systemprompt_models::documents::DriveSyncToken;
+use systemprompt_oauth_issuance::drive_sync::{device_audiences, drive_audiences};
 use systemprompt_runtime::documents::actor::bearer_actor;
 
 use super::caller::authenticated;
@@ -31,17 +31,6 @@ use super::drive::DriveState;
 use super::error::DocumentsResult;
 use crate::error::ApiHttpError;
 use crate::routes::gateway::messages::extract_credential;
-
-const MAX_TTL: Duration = Duration::hours(1);
-
-fn device_audiences() -> [JwtAudience; 1] {
-    [JwtAudience::Resource(BRIDGE_DEVICE_AUDIENCE.to_owned())]
-}
-
-#[must_use]
-pub(super) fn drive_audiences() -> [JwtAudience; 1] {
-    [JwtAudience::Resource(DRIVE_SYNC_AUDIENCE.to_owned())]
-}
 
 pub(super) async fn issue(
     State(state): State<DriveState>,
@@ -57,46 +46,11 @@ pub(super) async fn issue(
             ApiError::unauthorized("only the bridge device token trades for a Drive sync token")
                 .with_source(error)
         })?;
-    let bridge_client = claims.client_id.as_ref() == Some(&ClientId::bridge());
-    if !bridge_client || claims.purpose.is_some() || !claims.act_chain.is_empty() {
-        return Err(ApiHttpError::forbidden(
-            "only the bridge device's own token can start a Drive sync",
-        )
-        .into());
-    }
-    let bridge_expiry = Utc
-        .timestamp_opt(claims.exp, 0)
-        .single()
-        .unwrap_or_else(Utc::now);
-    let ttl = (bridge_expiry - Utc::now()).min(MAX_TTL);
-    if ttl <= Duration::zero() {
-        return Err(ApiHttpError::unauthorized("the bridge token has expired").into());
-    }
-    let who = authenticated(user);
-    if !who.has_permission(Permission::User) {
-        return Err(ApiHttpError::forbidden("a Drive sync needs a user account").into());
-    }
-    let request = UserJwtRequest {
-        permissions: vec![Permission::User],
-        user: who,
-        session_id: claims.session_id.clone(),
-        jti: AccessTokenId::generate(),
-        audience: drive_audiences().to_vec(),
-        ttl,
-        client_id: Some(ClientId::bridge()),
-        purpose: None,
-        plugin_id: None,
-        interaction: claims.interaction,
-        browser_session: false,
-    };
     let token = state
-        .tokens()
-        .mint_user_jwt(&request)
-        .map_err(|error| ApiHttpError::internal("drive sync token was not minted", error))?;
-    Ok(Json(DriveSyncToken {
-        token,
-        expires_at: Utc::now() + ttl,
-    }))
+        .drive_sync()
+        .exchange(&claims, user)
+        .map_err(ApiHttpError::from)?;
+    Ok(Json(token))
 }
 
 pub(super) async fn device_user(
@@ -116,10 +70,6 @@ pub(super) async fn device_user(
     if claims.purpose.is_some() || !claims.act_chain.is_empty() {
         return Err(ApiHttpError::forbidden("a purposed or delegated token cannot sync").into());
     }
-    let actor = bearer_actor(
-        claims.purpose.as_deref(),
-        claims.client_id.as_ref(),
-        claims.interaction,
-    );
+    let actor = bearer_actor(None, claims.client_id.as_ref(), claims.interaction);
     Ok((authenticated(user), actor.on(AgentChannel::DriveSync)))
 }

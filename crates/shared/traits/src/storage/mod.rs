@@ -50,6 +50,7 @@ pub enum FileStorageError {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "sqlx", derive(sqlx::Type), sqlx(transparent))]
 pub struct StoredFileId(pub String);
 
 impl StoredFileId {

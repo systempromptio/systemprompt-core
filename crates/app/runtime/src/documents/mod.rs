@@ -24,6 +24,7 @@ pub mod mcp;
 /// The refusal vocabulary shared by the MCP tools and the HTTP routes.
 pub mod refusal;
 mod subjects;
+mod unavailable_brain_sink;
 mod unavailable_sink;
 /// Signed URLs for the resumable upload API.
 pub mod upload_links;
@@ -34,5 +35,6 @@ mod wiring;
 pub use directory::UserSubjectDirectory;
 pub use extension_audiences::ExtensionAudiences;
 pub use subjects::{ROLE_SUBJECT_KIND, USER_SUBJECT_KIND, active_user_display, subject_display};
+pub use unavailable_brain_sink::BrainUnavailableSink;
 pub use unavailable_sink::NotificationsUnavailableSink;
 pub use wiring::{DocumentsRuntime, DocumentsRuntimeParts};

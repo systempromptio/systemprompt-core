@@ -174,7 +174,8 @@ pub(crate) fn status_of(error: &DocumentsError) -> fn(String) -> ApiError {
         | DocumentsError::ProposalConflict { .. }
         | DocumentsError::ProposalClosed { .. }
         | DocumentsError::AccessRequestOpen { .. }
-        | DocumentsError::AccessRequestClosed { .. } => conflict,
+        | DocumentsError::AccessRequestClosed { .. }
+        | DocumentsError::NameTaken { .. } => conflict,
         DocumentsError::Agent(AgentRefusal::RateLimited { .. }) => rate_limited,
         DocumentsError::Agent(
             AgentRefusal::OverrideLooser { .. } | AgentRefusal::MoveRefused { .. },

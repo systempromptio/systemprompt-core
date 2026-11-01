@@ -9,7 +9,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_extension::NotificationSinkError;
+use systemprompt_extension::{BrainSinkError, NotificationSinkError};
 use systemprompt_identifiers::{
     ContentHash, DocumentAccessRequestId, DocumentCommentId, DocumentFolderId, DocumentId,
     DocumentNodeId, DocumentOpId, DocumentProposalId, DocumentRevisionId, DocumentTemplateId,
@@ -25,15 +25,21 @@ use systemprompt_traits::RepositoryError;
 use self::labels::{
     base_label, closest_label, comment_list, conflict_label, held_label, kinds_label, policy_label,
 };
+use self::messages::{
+    access_request_not_needed, access_request_open, guard_missing, integrity_mismatch,
+    invalid_name, live_unsupported, name_taken, op_id_mismatch, ownership_changed,
+    share_below_existing, stale_anchor, subtree_changed, trashed, unknown_node, unknown_subject,
+};
 use super::access::SubjectDirectoryError;
 use super::agents::AgentRefusal;
 use super::blob_store::BlobStoreError;
-use super::models::{ListCursorError, LockHolderKind};
+use super::models::{ListCursorError, LockHolder};
 use super::templates::TemplateError;
 
 mod causes;
 mod conversions;
 mod labels;
+mod messages;
 
 pub use causes::{AuthzFailure, EventFailure};
 
@@ -49,21 +55,14 @@ pub enum DocumentsError {
         head: DocumentRevisionId,
         base: Option<DocumentRevisionId>,
     },
-    #[error(
-        "node {node} changed since it was read (expected hash {expected}, now {actual}); its \
-         current text is \"{current_text}\". The head edit wins: re-aim your change at this \
-         text with hash {actual}, and never resend your old text over it"
-    )]
+    #[error("{}", stale_anchor(.node, .expected, .actual, .current_text))]
     StaleAnchor {
         node: DocumentNodeId,
         expected: String,
         actual: String,
         current_text: String,
     },
-    #[error(
-        "node {node} does not exist at the head revision (deleted, or not an id of this \
-         document); read the outline again for current node ids"
-    )]
+    #[error("{}", unknown_node(.node))]
     UnknownNode { node: DocumentNodeId },
     #[error(
         "no block contains \"{find}\"{}. Quote text exactly as it appears in a read, or target \
@@ -86,10 +85,7 @@ pub enum DocumentsError {
         policy: Option<String>,
         owner: Option<UserId>,
     },
-    #[error(
-        "document {document_id} is in the trash; restore it with documents_untrash \
-         before reading, editing or sharing it"
-    )]
+    #[error("{}", trashed(.document_id))]
     Trashed { document_id: DocumentId },
     #[error(
         "this edit removes text that comments {} are anchored to; pass allow_detach: true to \
@@ -109,13 +105,14 @@ pub enum DocumentsError {
         comment_id: DocumentCommentId,
     },
     #[error(
-        "document {document_id} is locked by {holder_kind} holder {holder_id}; wait for the lock \
-         to be released or to expire"
+        "document {document_id} is locked by {} holder {}; wait for the lock to be released or to \
+         expire",
+        .holder.kind(),
+        .holder.id_str()
     )]
     LockHeld {
         document_id: DocumentId,
-        holder_kind: LockHolderKind,
-        holder_id: String,
+        holder: LockHolder,
     },
     #[error(
         "operation {op} is not supported for {format} documents{}",
@@ -128,6 +125,8 @@ pub enum DocumentsError {
     },
     #[error("no codec is registered for {format} documents")]
     UnsupportedFormat { format: DocumentFormat },
+    #[error("{}", live_unsupported(.format))]
+    LiveUnsupported { format: DocumentFormat },
     #[error("the content was refused ({code}): {detail}")]
     ContentRefused { code: &'static str, detail: String },
     #[error("cannot tell the document format of \"{name}\"; give the name a known extension")]
@@ -140,50 +139,34 @@ pub enum DocumentsError {
         size: u64,
         limit: u64,
     },
-    #[error(
-        "op id {op_id} was already used for a different request; send a new op id for a new \
-         write"
-    )]
+    #[error("{}", op_id_mismatch(.op_id))]
     OpIdMismatch { op_id: DocumentOpId },
-    #[error(
-        "{op} on node {node} needs expected_hash, the node's hash8 from your last read; a quote \
-         target resolves its own"
-    )]
+    #[error("{}", guard_missing(.op, .node))]
     GuardMissing {
         op: &'static str,
         node: DocumentNodeId,
     },
     #[error("proposal {proposal_id} was proposed by the reviewer; another editor must review it")]
     SelfReview { proposal_id: DocumentProposalId },
-    #[error(
-        "uploaded bytes hash to {actual} but the commit declared {declared}; the upload was \
-         corrupted, send it again"
-    )]
+    #[error("{}", integrity_mismatch(.declared, .actual))]
     IntegrityMismatch {
         declared: ContentHash,
         actual: ContentHash,
     },
-    #[error(
-        "\"{name}\" is not a valid name: use 1-255 characters without '/', '\\', control \
-         characters, \".\" or \"..\""
-    )]
+    #[error("{}", invalid_name(.name))]
     InvalidName { name: String },
+    #[error("{}", name_taken(.name))]
+    NameTaken { name: String },
     #[error("subject kind \"{kind}\" is not user, role or a registered subject dimension")]
     UnknownSubjectKind { kind: String },
-    #[error(
-        "no active {kind} \"{value}\" exists; name an existing, active subject (a user id for \
-         a user)"
-    )]
+    #[error("{}", unknown_subject(.kind, .value))]
     UnknownSubject { kind: String, value: String },
     #[error(
         "own is not a grant level: it belongs to the owner alone. Grant share to let someone \
          manage access, or transfer ownership"
     )]
     OwnNotGrantable,
-    #[error(
-        "forbidden: the subject already holds {existing} here, above your {held}; only a holder \
-         of {existing} or the owner can change that grant"
-    )]
+    #[error("{}", share_below_existing(.existing, .held))]
     ShareBelowExisting {
         existing: AccessLevel,
         held: AccessLevel,
@@ -191,15 +174,9 @@ pub enum DocumentsError {
     },
     #[error("folder {folder_id} is not empty; delete its contents first or delete recursively")]
     FolderNotEmpty { folder_id: DocumentFolderId },
-    #[error(
-        "folder {folder_id} changed while it was being deleted or moved (a document or subfolder \
-         was added, moved or given away, or the destination moved); nothing changed, try again"
-    )]
+    #[error("{}", subtree_changed(.folder_id))]
     SubtreeChanged { folder_id: DocumentFolderId },
-    #[error(
-        "document {document_id} changed owner while the transfer was in flight; nothing was \
-         transferred"
-    )]
+    #[error("{}", ownership_changed(.document_id))]
     OwnershipChanged { document_id: DocumentId },
     #[error("folder {folder_id} cannot move into itself or one of its own subfolders")]
     InvalidMove { folder_id: DocumentFolderId },
@@ -226,15 +203,9 @@ pub enum DocumentsError {
         node: Option<DocumentNodeId>,
         current_text: Option<String>,
     },
-    #[error(
-        "you already have an open access request on document {document_id}; wait for the \
-         owner to answer it"
-    )]
+    #[error("{}", access_request_open(.document_id))]
     AccessRequestOpen { document_id: DocumentId },
-    #[error(
-        "you already hold {held} access to document {document_id}; ask someone who holds share \
-         to raise it"
-    )]
+    #[error("{}", access_request_not_needed(.document_id, .held))]
     AccessRequestNotNeeded {
         document_id: DocumentId,
         held: AccessLevel,
@@ -283,6 +254,8 @@ pub enum DocumentsError {
     Notifications(#[from] NotificationSinkError),
     #[error("notification kind is invalid")]
     NotificationKind(#[from] NotificationKindError),
+    #[error("the brain fact could not be recorded; nothing was stored")]
+    Brain(#[from] BrainSinkError),
 }
 
 impl DocumentsError {

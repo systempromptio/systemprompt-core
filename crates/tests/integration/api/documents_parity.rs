@@ -14,7 +14,7 @@ use systemprompt_test_fixtures::{AuthedFixture, seed_bridge_credential};
 use tower::ServiceExt;
 use uuid::Uuid;
 
-use super::common::{request_context, setup_ctx};
+use super::common::{browser_page, request_context, setup_ctx};
 
 async fn send(app: Router, req: Request<Body>) -> Result<(StatusCode, Value)> {
     let resp = app.oneshot(req).await?;
@@ -24,7 +24,7 @@ async fn send(app: Router, req: Request<Body>) -> Result<(StatusCode, Value)> {
 }
 
 fn app(state: &DocumentsState, user: &AuthedFixture) -> Router {
-    router(state.clone()).layer(Extension(
+    browser_page(router(state.clone())).layer(Extension(
         request_context(user.user_id.as_str()).with_browser_session(),
     ))
 }

@@ -11,7 +11,7 @@ use systemprompt_files::documents::service::{
     CommentPolicy, CommentRequest, CommitRequest, ShareRequest,
 };
 use systemprompt_files::{DocumentLimits, DocumentsConfig};
-use systemprompt_identifiers::DocumentId;
+use systemprompt_identifiers::{AgentName, DocumentId};
 use systemprompt_models::documents::{AccessLevel, EditOp};
 use systemprompt_test_fixtures::test_db_pool;
 
@@ -27,7 +27,7 @@ fn share_with(id: &DocumentId, user: &str) -> ShareRequest {
         level: AccessLevel::View,
         valid_until: None,
         message: None,
-        via_agent: Some("claude-code".to_owned()),
+        via_agent: Some(AgentName::new("claude-code")),
     }
 }
 
@@ -204,7 +204,7 @@ async fn an_agents_set_text_is_a_whole_content_replace() {
         }]),
         author: api_author(),
         message: None,
-        lock_holder_id: None,
+        lock_holder: None,
         comments: CommentPolicy::default(),
         op_id: None,
         media: Media::new(),

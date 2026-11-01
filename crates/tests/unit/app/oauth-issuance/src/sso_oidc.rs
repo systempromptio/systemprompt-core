@@ -29,10 +29,10 @@ const CLIENT_ID: &str = "tenant-a-console";
 const NONCE: &str = "expected-nonce";
 
 #[derive(Debug, Default)]
-struct MapSecrets(BTreeMap<String, String>);
+pub(crate) struct MapSecrets(BTreeMap<String, String>);
 
 impl MapSecrets {
-    fn with_client_secret() -> Arc<dyn SecretStore> {
+    pub(crate) fn with_client_secret() -> Arc<dyn SecretStore> {
         let mut map = BTreeMap::new();
         map.insert(SECRET_KEY.to_owned(), "s3cret".to_owned());
         Arc::new(Self(map))
@@ -80,7 +80,7 @@ impl SecretStore for MapSecrets {
     }
 }
 
-fn config(issuer: &str) -> OidcConfig {
+pub(crate) fn config(issuer: &str) -> OidcConfig {
     OidcConfig::parse(&format!(
         r#"
 enabled: true
@@ -167,7 +167,7 @@ fn sign(claims: &Value, alg: Algorithm) -> String {
     .unwrap()
 }
 
-async fn keycloak() -> (MockServer, String) {
+pub(crate) async fn keycloak() -> (MockServer, String) {
     let server = MockServer::start().await;
     let issuer = format!("{}/realms/acme", server.uri());
     Mock::given(method("GET"))

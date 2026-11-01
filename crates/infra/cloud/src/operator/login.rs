@@ -33,6 +33,19 @@ pub struct OperatorLoginRequest {
     pub scopes: Vec<String>,
 }
 
+pub struct LoginIo<'a> {
+    pub callback_port: u16,
+    pub open_browser: &'a (dyn Fn(&str) -> std::io::Result<()> + Sync),
+}
+
+impl std::fmt::Debug for LoginIo<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("LoginIo")
+            .field("callback_port", &self.callback_port)
+            .finish_non_exhaustive()
+    }
+}
+
 #[derive(Deserialize)]
 struct CallbackParams {
     code: Option<String>,
@@ -109,6 +122,18 @@ pub async fn run_operator_login(
     request: &OperatorLoginRequest,
     templates: OAuthTemplates,
 ) -> CloudResult<OperatorCredentials> {
+    let io = LoginIo {
+        callback_port: CALLBACK_PORT,
+        open_browser: &|url| open::that(url),
+    };
+    run_operator_login_with(request, templates, io).await
+}
+
+pub async fn run_operator_login_with(
+    request: &OperatorLoginRequest,
+    templates: OAuthTemplates,
+    io: LoginIo<'_>,
+) -> CloudResult<OperatorCredentials> {
     let client = reqwest::Client::builder()
         .connect_timeout(HTTP_CONNECT_TIMEOUT)
         .timeout(HTTP_DEFAULT_TIMEOUT)
@@ -118,7 +143,11 @@ pub async fn run_operator_login(
     let verifier = random_token();
     let state = random_token();
     let nonce = random_token();
-    let redirect_uri = format!("http://127.0.0.1:{CALLBACK_PORT}/callback");
+    let listener = crate::callback_listener::bind_callback_listener(io.callback_port)?;
+    let redirect_uri = format!(
+        "http://127.0.0.1:{}/callback",
+        listener.local_addr()?.port()
+    );
 
     let (tx, rx) = oneshot::channel();
     let callback = Arc::new(CallbackState {
@@ -130,7 +159,6 @@ pub async fn run_operator_login(
     let app = Router::new()
         .route("/callback", get(callback_handler))
         .with_state(callback);
-    let listener = crate::callback_listener::bind_callback_listener(CALLBACK_PORT)?;
 
     let url = authorize_url(
         &discovery,
@@ -143,7 +171,7 @@ pub async fn run_operator_login(
         },
     );
     CliService::info(&format!("Opening browser to sign in at {}", request.issuer));
-    if let Err(e) = open::that(&url) {
+    if let Err(e) = (io.open_browser)(&url) {
         CliService::warning(&format!("Could not open browser automatically: {e}"));
         CliService::key_value("URL", &url);
     }

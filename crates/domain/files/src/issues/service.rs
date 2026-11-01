@@ -13,6 +13,7 @@
 use chrono::Utc;
 use systemprompt_extension::DynNotificationSink;
 use systemprompt_identifiers::{DocumentUploadId, IssueReportId, NotificationStreamId, UserId};
+use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::issues::{IssueReport, IssueStatus};
 use systemprompt_models::notifications::{
     Attention, NotificationEvent, NotificationKind, SubjectRef,
@@ -71,6 +72,14 @@ impl IssueService {
     #[must_use]
     pub fn is_triager(&self, roles: &[String]) -> bool {
         self.config.is_triager(roles)
+    }
+
+    pub fn require_triager(&self, user: &AuthenticatedUser) -> IssuesResult<()> {
+        if user.is_admin() || self.is_triager(user.roles()) {
+            Ok(())
+        } else {
+            Err(IssuesError::TriageForbidden)
+        }
     }
 
     const fn enabled(&self) -> IssuesResult<()> {
@@ -134,7 +143,7 @@ impl IssueService {
         )
         .with_stream(NotificationStreamId::new(ISSUES_STREAM))
         .with_subject(SubjectRef::new(ISSUE_SUBJECT, id.as_str()))
-        .with_excerpt(issue.title.clone())
+        .with_title(issue.title.clone())
         .with_payload(payload);
         if let Some(agent) = &issue.via_agent {
             event = event.with_via_agent(agent.clone());
@@ -181,6 +190,29 @@ impl IssueService {
         } else {
             Err(IssuesError::UploadNotReady(upload.clone()))
         }
+    }
+
+    pub async fn ensure_attachable(
+        &self,
+        id: &IssueReportId,
+        reporter: &UserId,
+    ) -> IssuesResult<()> {
+        self.enabled()?;
+        let report = match self.repo.find(id).await? {
+            Some(report) if &report.reporter_user_id == reporter => report,
+            _ => return Err(IssuesError::NotFound(id.clone())),
+        };
+        if !report.status.is_active() {
+            return Err(IssuesError::NotActive(id.clone()));
+        }
+        let limit = self.config.max_attachments;
+        if report.attachments.len() >= usize::try_from(limit).unwrap_or(usize::MAX) {
+            return Err(IssuesError::AttachmentsFull {
+                report: id.clone(),
+                limit,
+            });
+        }
+        Ok(())
     }
 
     pub async fn find_visible(
@@ -239,7 +271,7 @@ impl IssueService {
             )
             .with_subject(SubjectRef::new(ISSUE_SUBJECT, id.as_str()))
             .with_direct_recipient(change.reporter.clone(), Some(Attention::Agent))
-            .with_excerpt(change.title.clone())
+            .with_title(change.title.clone())
             .with_payload(payload);
             self.notifications.emit(&mut tx, &event).await?;
         }

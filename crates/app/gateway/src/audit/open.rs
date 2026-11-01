@@ -7,6 +7,9 @@
 use crate::error::{GatewayAuditError, GatewayAuditResult as Result, ensure};
 use bytes::Bytes;
 use systemprompt_ai::models::{AiRequestRecord, RequestKind};
+use systemprompt_identifiers::Actor;
+use systemprompt_models::auth::RequestActor;
+use systemprompt_models::origin::RequestOrigin;
 
 use super::GatewayAudit;
 use super::admission::PendingAdmission;
@@ -51,7 +54,19 @@ impl GatewayAudit {
         if let Some(mt) = self.ctx.max_tokens {
             record = record.max_tokens(mt);
         }
+        if let Some(actor) = self.job_actor() {
+            record = record.actor(actor);
+        }
         record.build()
+    }
+
+    fn job_actor(&self) -> Option<Actor> {
+        match &self.ctx.actor {
+            RequestActor::Agent { name, .. } if self.ctx.origin == RequestOrigin::INTERNAL => {
+                Some(Actor::job(self.ctx.user_id.clone(), name.clone()))
+            },
+            _ => None,
+        }
     }
 
     pub async fn open(&self, request: &CanonicalRequest, request_body: &Bytes) -> Result<()> {

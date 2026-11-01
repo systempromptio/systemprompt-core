@@ -5,7 +5,10 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::error::{GatewayAuditError, GatewayAuditResult as Result, ensure};
+use std::sync::Arc;
+
 use bytes::Bytes;
+use systemprompt_extension::brain::{MemoryRecall, RecallObservation};
 
 use super::GatewayAudit;
 use super::payload::{slice_payload, truncate_for_tool_input};
@@ -106,7 +109,42 @@ impl GatewayAudit {
             tool_calls = tool_calls.len(),
             "Gateway audit: request completed"
         );
+        self.observe_recall(response);
         Ok(cost)
+    }
+
+    pub fn observe_recall_with(&self, engine: Arc<dyn MemoryRecall>) {
+        if self.recall_observer.set(engine).is_err() {
+            tracing::debug!(
+                ai_request_id = %self.ctx.ai_request_id,
+                "memory recall observer already armed"
+            );
+        }
+    }
+
+    fn observe_recall(&self, response: &CanonicalResponse) {
+        let Some(engine) = self.recall_observer.get() else {
+            return;
+        };
+        let Some(assistant_text) = super::super::parse::extract_assistant_text(response) else {
+            return;
+        };
+        let engine = Arc::clone(engine);
+        let observation = RecallObservation {
+            ai_request_id: self.ctx.ai_request_id.clone(),
+            assistant_text,
+        };
+        self.background
+            .spawn("gateway_memory_recall_observe", async move {
+                if let Err(e) = engine.observe(&observation).await {
+                    tracing::warn!(
+                        ai_request_id = %observation.ai_request_id,
+                        engine = engine.name(),
+                        error = %e,
+                        "memory recall observation not recorded"
+                    );
+                }
+            });
     }
 
     pub fn pin_pricing(

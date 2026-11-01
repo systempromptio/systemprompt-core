@@ -48,6 +48,7 @@ use super::cache_invalidation::{
     CACHE_INVALIDATION_CHANNEL, invalidate_all_cache_domains, receive_cache_invalidation,
 };
 
+use super::origin::relays_row;
 use super::repository::{EventOutboxRepository, OutboxRow};
 use super::routing::{EventBroadcasters, EventRouter, OUTBOX_CHANNEL, OutboxChannel};
 use systemprompt_identifiers::{EventOutboxId, InstanceId};
@@ -259,7 +260,11 @@ impl PostgresEventBridge {
             debug!(row_id = %row.id, "event bridge: fact-only outbox row carries no live frame");
             return;
         }
-        if !row.deliver_to_origin && &row.origin_instance_id == self.outbox.instance_id() {
+        if !relays_row(
+            self.outbox.instance_id(),
+            &row.origin_instance_id,
+            row.deliver_to_origin,
+        ) {
             debug!(
                 row_id = %row.id,
                 "event bridge: own event already routed locally; skipping"

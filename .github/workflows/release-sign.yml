@@ -16,6 +16,7 @@ concurrency:
 permissions:
   contents: write
   id-token: write
+  attestations: write
   actions: read
   pull-requests: read
 
@@ -109,9 +110,49 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  sbom:
+    name: SBOM
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.inputs.bridge_tag || github.ref }}
+      - run: rustup show
+      - name: Install cargo-cyclonedx
+        run: cargo install --locked cargo-cyclonedx@0.5.9
+      - name: Generate CycloneDX SBOMs
+        run: |
+          cargo cyclonedx --manifest-path bin/bridge/Cargo.toml --format json --spec-version 1.5 --top-level --override-filename sbom
+          cargo cyclonedx --manifest-path Cargo.toml --format json --spec-version 1.5 --override-filename sbom
+          cp bin/bridge/sbom.json systemprompt-bridge-sbom.cdx.json
+          python3 - <<'PY'
+          import glob, json
+          components, seen = [], set()
+          for path in sorted(glob.glob("**/sbom.json", recursive=True)):
+              if path.startswith("bin/"):
+                  continue
+              for c in json.load(open(path)).get("components", []):
+                  ref = c.get("purl") or c.get("bom-ref")
+                  if ref not in seen:
+                      seen.add(ref)
+                      components.append(c)
+          json.dump({"bomFormat": "CycloneDX", "specVersion": "1.5", "version": 1,
+                     "metadata": {"component": {"type": "application", "name": "systemprompt-core"}},
+                     "components": components},
+                    open("systemprompt-bridge-core-sbom.cdx.json", "w"), indent=1)
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: sbom
+          path: systemprompt-bridge-*sbom.cdx.json
+          if-no-files-found: error
+          retention-days: 7
+
   release:
     name: Sign & publish
-    needs: build
+    needs: [build, sbom]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -128,6 +169,11 @@ jobs:
       - name: Generate checksums
         working-directory: dist
         run: sha256sum systemprompt-bridge-* > SHA256SUMS
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: dist/systemprompt-bridge-*
 
       - name: Install cosign
         uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac # v3.9.1
@@ -156,6 +202,14 @@ jobs:
           ## systemprompt bridge ${{ steps.tag.outputs.tag }}
 
           See the [bridge CHANGELOG](https://github.com/systempromptio/systemprompt-core/blob/main/bin/bridge/CHANGELOG.md) for the full list of changes.
+
+          `systemprompt-bridge-sbom.cdx.json` and `systemprompt-bridge-core-sbom.cdx.json` are the CycloneDX SBOMs for the bridge and the core workspace at this tag.
+
+          ### Verifying build provenance
+
+          ```bash
+          gh attestation verify systemprompt-bridge-x86_64-unknown-linux-gnu --repo systempromptio/systemprompt-core
+          ```
 
           ### Verifying a signature (cosign keyless)
 

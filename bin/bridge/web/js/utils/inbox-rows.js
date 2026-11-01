@@ -45,9 +45,9 @@ const toRow = (canStartSession, nowMs) => (item) => {
   return {
     key: item.id,
     attention,
-    actor: item.actor_display || item.actor,
+    title: item.title || "",
     viaAgent: item.via_agent ?? null,
-    excerpt: item.excerpt || item.action?.prompt || "",
+    text: item.body || item.title || item.action?.prompt || "",
     createdAt: item.created_at,
     age: ageLabel(item.created_at, nowMs),
     count: item.coalesce_count > 1 ? item.coalesce_count : null,

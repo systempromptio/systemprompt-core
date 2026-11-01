@@ -13,18 +13,39 @@ use systemprompt_models::documents::DocumentAction;
 
 use super::{AgentCapTarget, DocumentService};
 use crate::documents::access::{AccessTarget, MoveTarget};
+use crate::documents::agents::AgentCap;
 use crate::documents::error::DocumentsError;
 use crate::documents::models::DocumentFolder;
 use crate::documents::repository::{FolderMoveOutcome, FolderRelocation};
 
+pub(super) struct PreparedMove {
+    pub(super) parent_chain: Vec<DocumentFolderId>,
+    pub(super) pin: Option<AgentCap>,
+}
+
+pub(super) fn move_refusal(
+    outcome: FolderMoveOutcome,
+    folder: &DocumentFolderId,
+) -> Option<DocumentsError> {
+    match outcome {
+        FolderMoveOutcome::Moved { .. } => None,
+        FolderMoveOutcome::Refused => Some(DocumentsError::InvalidMove {
+            folder_id: folder.clone(),
+        }),
+        FolderMoveOutcome::DestinationChanged => Some(DocumentsError::SubtreeChanged {
+            folder_id: folder.clone(),
+        }),
+    }
+}
+
 impl DocumentService {
-    pub async fn move_folder(
+    pub(super) async fn prepare_folder_move(
         &self,
         who: &AuthenticatedUser,
         folder: &DocumentFolderId,
         parent: Option<&DocumentFolderId>,
         trace: &TraceId,
-    ) -> Result<DocumentFolder, DocumentsError> {
+    ) -> Result<PreparedMove, DocumentsError> {
         if parent == Some(folder) {
             return Err(DocumentsError::InvalidMove {
                 folder_id: folder.clone(),
@@ -55,26 +76,28 @@ impl DocumentService {
             .access
             .check_move(who, MoveTarget::Folder(&moving), parent)
             .await?;
+        Ok(PreparedMove { parent_chain, pin })
+    }
+
+    pub async fn move_folder(
+        &self,
+        who: &AuthenticatedUser,
+        folder: &DocumentFolderId,
+        parent: Option<&DocumentFolderId>,
+        trace: &TraceId,
+    ) -> Result<DocumentFolder, DocumentsError> {
+        let prepared = self.prepare_folder_move(who, folder, parent, trace).await?;
         let relocation = FolderRelocation {
             folder,
             parent,
-            parent_chain: &parent_chain,
+            parent_chain: &prepared.parent_chain,
             mover: &who.id,
         };
-        match self.repos.folders.move_to(relocation).await? {
-            FolderMoveOutcome::Moved { .. } => {},
-            FolderMoveOutcome::Refused => {
-                return Err(DocumentsError::InvalidMove {
-                    folder_id: folder.clone(),
-                });
-            },
-            FolderMoveOutcome::DestinationChanged => {
-                return Err(DocumentsError::SubtreeChanged {
-                    folder_id: folder.clone(),
-                });
-            },
+        let outcome = self.repos.folders.move_to(relocation).await?;
+        if let Some(refusal) = move_refusal(outcome, folder) {
+            return Err(refusal);
         }
-        if let Some(cap) = pin {
+        if let Some(cap) = prepared.pin {
             self.pin_agent_cap(&AgentCapTarget::Folder(folder.clone()), cap)
                 .await?;
         }

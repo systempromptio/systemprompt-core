@@ -72,6 +72,9 @@ fn make_deployment(_name: &str, enabled: bool, endpoint: Option<&str>) -> Deploy
         external_auth: None,
         headers: Default::default(),
         tool_policy: Some(ToolPolicy::Allow),
+        description: None,
+        removable: true,
+        toolsets: Vec::new(),
     }
 }
 

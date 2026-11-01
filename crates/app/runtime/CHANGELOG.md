@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.77.0] - 2026-11-01
+
+### Breaking
+
+- **Breaking:** `Subsystems` gains `brain: Option<Arc<BrainHandle>>` with the `brain` feature. Migrate struct literals by adding `brain: None` or the composed handle.
+- **Breaking:** `DocumentsRuntimeParts` gains `brain`. Migrate struct literals by passing `brain_sink`.
+- **Breaking:** `RefusalCode` gains `NameTaken`, answered with `409`. Migrate exhaustive matches by adding the variant.
+- **Breaking:** `DocumentsMcpTools::list_resources` and `read_resource`, `ExportOutput::ui_resource`, `documents::mcp::preview_resource`, `preview_resource_list`, `preview_resource_uri`, `preview_template`, `preview_tool_meta`, `read_preview_resource` and `PREVIEW_RESOURCE_NAME` are removed. Migrate by dropping the calls.
+
+### Added
+
+- The `brain` feature: `BrainCore` and `BrainHandle` (repositories, sink, service, recall and the capture consumer with proposal replay), `brain_sink`, `DocumentSourceAccess` and `DocumentSourceContent`, and the brain MCP tools (`BrainMcpTools`).
+
 ## [0.76.0] - 2026-10-29
 
 ### Breaking
@@ -65,7 +78,6 @@
 - `builder::core_layer::discover_vertex_models(&mut CatalogDocument)` replaces the `ProviderRegistry` argument; the runtime's `AiService` is built from `ServicesBootstrap::catalog()`.
 - `RateWindow`, `DeploymentService`, `McpClient`, `McpDeploymentProviderImpl`, `ProcessService`, `FilterSystemFields` and `JsonEventFormat` no longer implement `Copy`, and `OutboundCtx`, `ServiceAccountTokens`, `StreamEvent`, `ImageProviderParams`, `ProviderClientParams`, `UpstreamTarget`, `McpClient`, `ProcessService`, `JwtTokenValidator`, `JwtValidationProviderImpl` and `HookTokenValidator` are no longer `UnwindSafe` or `RefUnwindSafe`, because they hold the injected config, token authority, token cache or spawner handles. Migrate by cloning where a copy was implied, and by wrapping in `AssertUnwindSafe` where one crosses `catch_unwind`.
 - `SchedulerError::UnknownRetentionTable` is removed and `SchedulerError` gains `Logging(LoggingError)` and `Mcp(McpDomainError)`; `RuntimeError` gains `SubjectSource(AlreadyBound)` and `AtRest(AtRestCipherError)`; `AuthzError` gains `Rules(RulesProblems)` and `Canonical(serde_json::Error)`. Exhaustive matches need an arm. `RoleDirectory` gains the required `async fn roles_of(&self, user: &UserId) -> Result<Vec<String>, AuthzError>`. Migrate by adding the arms and implementing `roles_of` on every registered role directory.
-
 
 ## [0.71.0] - 2026-10-21
 
@@ -216,7 +228,6 @@
 - Boot no longer fails with `Context … not found for user` after the system admin changes: the legacy context (`ContextId::legacy()`) is re-homed onto the current admin through `ensure_system_context` instead of the user-scoped `ensure_context`.
 - Core initialisation resolves the secrets store once and fails when it is unavailable, instead of resolving every services-bundle source credential to `None`.
 - `reporting::rebuild` / `initialize` retry a transaction Postgres aborted as a deadlock or serialization failure (SQLSTATE 40P01 / 40001) up to four times with backoff; the rebuild holds `SHARE` locks on every source table and a concurrent writer could otherwise abort it.
-
 
 ## [0.52.0] - 2026-09-14
 

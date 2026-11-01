@@ -24,6 +24,8 @@ mod profile_layer;
 #[cfg(test)]
 mod profiles;
 #[cfg(test)]
+mod profiles_report;
+#[cfg(test)]
 mod roles;
 #[cfg(test)]
 mod routes;

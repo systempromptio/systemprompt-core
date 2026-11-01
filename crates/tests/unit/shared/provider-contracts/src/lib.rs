@@ -13,11 +13,15 @@
 #![allow(clippy::all)]
 
 #[cfg(test)]
+mod codec_defaults;
+#[cfg(test)]
 mod component;
 #[cfg(test)]
 mod config_plane;
 #[cfg(test)]
 mod config_plane_set;
+#[cfg(test)]
+mod config_plane_set_debug;
 #[cfg(test)]
 mod config_plane_sources;
 #[cfg(test)]

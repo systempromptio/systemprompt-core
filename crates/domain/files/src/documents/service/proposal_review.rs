@@ -209,7 +209,7 @@ impl DocumentService {
                     body: CommitBody::Ops(ops),
                     author,
                     message: proposal.message.clone(),
-                    lock_holder_id: None,
+                    lock_holder: None,
                     comments: CommentPolicy::default(),
                     op_id: None,
                     media: Media::new(),

@@ -14,6 +14,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod agent_runs;
+#[cfg(feature = "brain")]
+mod brain;
 mod documents;
 mod error;
 mod extension_mount;
@@ -112,13 +114,7 @@ fn build_routes(
         router = protocol::mount_mcp_and_stream(router, &mount, mcp_middleware)?;
     }
     if serves(RouteGroup::ContentAndMisc) {
-        router = protocol::mount_content_and_misc(router, &mount)?;
-        router = documents::mount_documents(router, &mount)?;
-        router = issues::mount_issues(router, &mount)?;
-        #[cfg(feature = "notifications")]
-        {
-            router = notifications::mount_notifications(router, &mount)?;
-        }
+        router = mount_content(router, &mount)?;
     }
     if serves(RouteGroup::Managed) {
         router = managed::mount(router, &mount)?;
@@ -266,4 +262,22 @@ fn authenticated_discovery_router(ctx: &AppContext) -> Router {
 
 fn wellknown_router(ctx: &AppContext) -> Result<Router, LoaderError> {
     Ok(crate::routes::oauth::wellknown_routes(ctx).merge(crate::routes::wellknown_router(ctx)?))
+}
+
+fn mount_content(
+    mut router: Router,
+    mount: &protocol::MountCtx<'_>,
+) -> Result<Router, RouteMountError> {
+    router = protocol::mount_content_and_misc(router, mount)?;
+    router = documents::mount_documents(router, mount)?;
+    router = issues::mount_issues(router, mount)?;
+    #[cfg(feature = "notifications")]
+    {
+        router = notifications::mount_notifications(router, mount)?;
+    }
+    #[cfg(feature = "brain")]
+    {
+        router = brain::mount_brain_routes(router, mount)?;
+    }
+    Ok(router)
 }

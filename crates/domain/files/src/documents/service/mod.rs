@@ -25,11 +25,13 @@ mod acks;
 mod agent_caps;
 mod agent_rules;
 mod apply;
+mod brain_notice;
 mod byte_diff;
 mod comment_anchors;
 mod comments;
 mod comments_edit;
 mod comments_export;
+mod comments_resolve;
 mod commit;
 mod commit_build;
 mod content;
@@ -38,8 +40,10 @@ mod drive;
 mod drive_blob;
 mod drive_commit;
 mod drive_feed;
+mod file_create;
 mod first_revision;
 mod folder_moves;
+mod folder_update;
 mod folders;
 mod fragments;
 mod grants;
@@ -52,6 +56,10 @@ mod lifecycle;
 mod lifecycle_live;
 mod limits;
 mod listing;
+mod live_edit;
+mod live_ids;
+mod live_ops;
+mod live_read;
 mod locks;
 mod media;
 mod media_read;
@@ -74,7 +82,7 @@ mod visibility;
 
 use std::sync::Arc;
 
-use systemprompt_extension::DynNotificationSink;
+use systemprompt_extension::{DynBrainSink, DynNotificationSink};
 
 pub use access_requests::{AccessDecision, AccessRequestInput, DecideRequest};
 pub use access_view::{
@@ -85,9 +93,13 @@ pub use comments::{CommentRequest, ResolveCommentRequest};
 pub use comments_edit::{DeleteCommentRequest, EditCommentRequest};
 pub use comments_export::ExportedDocument;
 pub use drive::parse_drive_cursor;
+pub use file_create::FileCreateRequest;
+pub use folder_update::FolderUpdateRequest;
 pub use grants::{MAX_SHARE_MESSAGE_BYTES, ShareRequest};
 pub use lifecycle::{CopyRequest, FolderMove, UpdateRequest};
-pub use media::{AdmittedMedia, held_media_refs};
+pub use live_ids::{with_live_ids_kept, with_live_model};
+pub use live_ops::{LiveApplied, LiveEdit, LiveEditRequest, LiveOps};
+pub use media::{AdmittedMedia, held_media_refs, refuse_unheld_media};
 pub use mentions::CommentOrigin;
 pub use notify::MentionOption;
 pub use ownership::TransferRequest;
@@ -100,7 +112,7 @@ pub use suggested_write::ExternalWrite;
 pub use types::{
     AcquireLockRequest, Author, CommentPolicy, CommitOutcome, CommitRequest, CommitWarning,
     CreateRequest, DocumentView, HistoryPage, ImportRequest, LandedCommit, ListFolderRequest,
-    Listing, NewFolderRequest, RevisionOrigin, SearchResult, StreamRequest,
+    Listing, NewFolderRequest, SearchResult, StreamRequest,
 };
 pub use visibility::MAX_VISIBILITY_BATCH;
 
@@ -124,6 +136,7 @@ pub struct DocumentService {
     access: Arc<DocumentAccessService>,
     events: Arc<DocumentEvents>,
     notifications: DynNotificationSink,
+    brain: DynBrainSink,
     config: DocumentsConfig,
     uploads: Arc<std::sync::OnceLock<Arc<crate::uploads::UploadService>>>,
     agent_edits: Arc<AgentRateLimiter>,
@@ -142,6 +155,7 @@ pub struct DocumentServiceParts {
     pub access: Arc<DocumentAccessService>,
     pub events: Arc<DocumentEvents>,
     pub notifications: DynNotificationSink,
+    pub brain: DynBrainSink,
     pub config: DocumentsConfig,
 }
 
@@ -172,6 +186,7 @@ impl DocumentService {
             access: parts.access,
             events: parts.events,
             notifications: parts.notifications,
+            brain: parts.brain,
             agent_edits: Arc::new(AgentRateLimiter::new(
                 parts.config.limits.agent_edits_per_hour,
                 parts.config.limits.agent_edits_per_hour_per_user,

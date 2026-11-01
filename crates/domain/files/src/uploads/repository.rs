@@ -16,7 +16,7 @@ use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContentHash, DocumentUploadId, TraceId, UserId};
-use systemprompt_traits::RepositoryError;
+use systemprompt_traits::{RepositoryError, StoredFileId};
 
 use super::models::{NewUpload, UploadPart, UploadSession, UploadStatus};
 
@@ -79,7 +79,7 @@ struct PartRow {
     part_number: i32,
     size_bytes: i64,
     sha256: ContentHash,
-    storage_id: String,
+    storage_id: StoredFileId,
 }
 
 impl From<PartRow> for UploadPart {
@@ -255,7 +255,8 @@ impl DocumentUploadRepository {
     pub async fn list_parts(&self, id: &DocumentUploadId) -> RepoResult<Vec<UploadPart>> {
         Ok(sqlx::query_as!(
             PartRow,
-            r#"SELECT part_number, size_bytes, sha256 AS "sha256: ContentHash", storage_id
+            r#"SELECT part_number, size_bytes, sha256 AS "sha256: ContentHash",
+                      storage_id AS "storage_id: StoredFileId"
                FROM document_upload_parts WHERE upload_id = $1::text::uuid
                ORDER BY part_number"#,
             id.as_str(),

@@ -17,8 +17,7 @@ fn site() -> Vec<String> {
 }
 
 #[test]
-fn a_same_origin_or_headerless_request_passes() {
-    assert!(same_origin(&HeaderMap::new(), &site()));
+fn a_same_origin_request_passes() {
     assert!(same_origin(
         &headers(&[("sec-fetch-site", "same-origin")]),
         &site()
@@ -29,6 +28,16 @@ fn a_same_origin_or_headerless_request_passes() {
     ));
     assert!(same_origin(
         &headers(&[("origin", "https://docs.example.test")]),
+        &site()
+    ));
+}
+
+#[test]
+fn a_request_with_neither_origin_nor_fetch_site_fails() {
+    assert!(!same_origin(&HeaderMap::new(), &site()));
+    assert!(!same_origin(&HeaderMap::new(), &[]));
+    assert!(!same_origin(
+        &headers(&[("host", "docs.example.test")]),
         &site()
     ));
 }

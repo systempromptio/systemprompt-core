@@ -49,29 +49,12 @@ pub enum JobsCommands {
 
 pub async fn execute(cmd: JobsCommands, ctx: &CommandContext) -> Result<()> {
     match cmd {
-        JobsCommands::List => {
-            render_result(&list::execute(ctx)?, &ctx.cli);
-            Ok(())
-        },
-        JobsCommands::Show(args) => {
-            render_result(&show::execute(args, ctx).await?, &ctx.cli);
-            Ok(())
-        },
-        JobsCommands::Run(args) => {
-            render_result(&run::execute(args, ctx).await?, &ctx.cli);
-            Ok(())
-        },
-        JobsCommands::History(args) => {
-            render_result(&history::execute(args, ctx).await?, &ctx.cli);
-            Ok(())
-        },
-        JobsCommands::Enable(args) => {
-            render_result(&enable::execute(args, ctx).await?, &ctx.cli);
-            Ok(())
-        },
-        JobsCommands::Disable(args) => {
-            render_result(&disable::execute(args, ctx).await?, &ctx.cli);
-            Ok(())
-        },
+        JobsCommands::List => render_result(&list::execute(ctx)?, &ctx.cli),
+        JobsCommands::Show(args) => render_result(&show::execute(args, ctx).await?, &ctx.cli),
+        JobsCommands::Run(args) => render_result(&run::execute(args, ctx).await?, &ctx.cli),
+        JobsCommands::History(args) => render_result(&history::execute(args, ctx).await?, &ctx.cli),
+        JobsCommands::Enable(args) => render_result(&enable::execute(args, ctx).await?, &ctx.cli),
+        JobsCommands::Disable(args) => render_result(&disable::execute(args, ctx).await?, &ctx.cli),
     }
+    Ok(())
 }

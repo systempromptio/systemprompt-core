@@ -1,6 +1,21 @@
 //! The `.ods` codec's `DocumentCodec` implementation and its batch of cell
 //! writes.
 //!
+//! An `.ods` workbook is read-only to live sessions: it is edited through
+//! this op batch, never through the Loro sheet model. The sheet model is
+//! moved in and out of bytes by `IronCalc`, which reads and writes only
+//! `OOXML`: it has no `OpenDocument` importer, so an `.ods` cannot seed a
+//! session, and a checkpoint would be `.xlsx` bytes. The cell projection
+//! does not close that gap either: formulas are `OpenFormula` (`of:=[.A1]`)
+//! where the model holds Excel syntax, number formats and styles are
+//! automatic-style names rather than format codes, and repeated rows and
+//! columns are runs here but ids there. A live `.ods` waits on an `OpenFormula`
+//! translation and an `.ods` writer over the sheet model. The writer here
+//! does not close it: a cell write stores a formula as given (`=A1+B1`
+//! lands as `of:=A1+B1`, not `of:=[.A1]+[.B1]`) and carries no style, so a
+//! checkpoint through it would lose both. A join refuses with
+//! `LiveUnsupported`.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

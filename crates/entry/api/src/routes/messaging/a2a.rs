@@ -37,12 +37,7 @@ use super::{MessagingError, MessagingInbound};
 const MAX_A2A_RESPONSE_BYTES: usize = 1024 * 1024;
 
 pub fn permissions_for(roles: &[String]) -> Vec<Permission> {
-    let held = if roles.iter().any(|role| role == BaseRoles::ADMIN) {
-        Permission::Admin
-    } else {
-        Permission::User
-    };
-    vec![Permission::A2a, held]
+    vec![Permission::A2a, BaseRoles::permission_for(roles)]
 }
 
 pub(super) fn authenticated_user(user: &User) -> AuthenticatedUser {

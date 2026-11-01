@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id AS \"id: BrainFactId\" FROM brain_facts\n               WHERE source_document_id = $1\n                 AND source_kind = 'document'\n                 AND source_revision_id IS DISTINCT FROM $2\n                 AND status NOT IN ('stale', 'superseded', 'retired')\n               ORDER BY id FOR UPDATE",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id: BrainFactId",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "brain_facts",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "c4f79202239ca18247e07b36992da57cb98a8936a0335f80587573a64cc76c5e"
+}

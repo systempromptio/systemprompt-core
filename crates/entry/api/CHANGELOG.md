@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.77.0] - 2026-11-01
+
+### Breaking
+
+- **Breaking:** the gateway `Principal` gains `actor: RequestActor`, derived from the bearer's purpose, client and interaction or, for an API key, the key's unattended agent. Migrate struct literals by adding the actor.
+
+### Added
+
+- The `brain` feature: `/api/v1/brain` and `/api/v1/admin/brain/simulate` behind the `brain_per_second` rate limit, the brain capture consumer on runner nodes, and gateway recall wiring. An enabled brain without the gateway or a user provider fails the start.
+
+### Fixed
+
+- A signed upload link is gated before routing, so a tokened request routes once.
+- Runner services receive the signing keys, config and OAuth repositories in their job context.
+- The collab update handler keeps its request URI for the binary query.
+
 ## [0.76.0] - 2026-10-29
 
 ### Breaking

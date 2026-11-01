@@ -109,7 +109,7 @@ impl SseAccumulator {
         if self.buf.is_empty() {
             return None;
         }
-        let frame: Vec<u8> = self.buf.drain(..).collect();
+        let frame = std::mem::take(&mut self.buf);
         Some(self.consume(frame))
     }
 

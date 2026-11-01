@@ -1,6 +1,6 @@
 use loro::{Container, ValueOrContainer};
-use systemprompt_engine_loro::rich::{self, ReadError};
-use systemprompt_engine_loro::{seed_rich, write_model};
+use systemprompt_files::documents::engine::loro::rich::{self, ReadError};
+use systemprompt_files::documents::engine::loro::{seed_rich, write_model};
 use systemprompt_files::documents::model::{Block, BlockKind, RichText};
 
 fn paragraphs(ids: impl IntoIterator<Item = usize>) -> RichText {

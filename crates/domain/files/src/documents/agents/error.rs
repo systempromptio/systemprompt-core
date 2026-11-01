@@ -3,6 +3,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_identifiers::AgentName;
+
 use super::cap::{AgentCap, AgentCapability};
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -12,7 +14,7 @@ pub enum AgentRefusal {
          agent cap if they own the document"
     )]
     CapExceeded {
-        agent: String,
+        agent: AgentName,
         cap: AgentCap,
         action: String,
         reason: String,
@@ -22,7 +24,7 @@ pub enum AgentRefusal {
          themselves"
     )]
     HardRule {
-        agent: String,
+        agent: AgentName,
         capability: AgentCapability,
     },
     #[error(
@@ -31,7 +33,7 @@ pub enum AgentRefusal {
          person to review, or ask the user to make the change"
     )]
     BroadRewrite {
-        agent: String,
+        agent: AgentName,
         rewritten: usize,
         blocks: usize,
     },
@@ -39,7 +41,7 @@ pub enum AgentRefusal {
         "agents may only suggest on this document: {reason}. Write the change with mode: \
          propose and a person will review it"
     )]
-    SuggestOnly { agent: String, reason: String },
+    SuggestOnly { agent: AgentName, reason: String },
     #[error(
         "agent edits for this user are limited to {limit} per hour; retry in {retry_after_secs}s"
     )]

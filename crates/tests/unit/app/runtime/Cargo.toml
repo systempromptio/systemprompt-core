@@ -12,7 +12,8 @@ workspace = true
 
 [dependencies]
 reqwest = { workspace = true }
-systemprompt-runtime = { workspace = true, features = ["geolocation", "notifications"] }
+http = { workspace = true }
+systemprompt-runtime = { workspace = true, features = ["geolocation", "notifications", "brain"] }
 systemprompt-models = { workspace = true }
 systemprompt-manifest = { workspace = true }
 systemprompt-storage = { workspace = true }
@@ -30,6 +31,7 @@ systemprompt-files = { workspace = true }
 systemprompt-provider-contracts = { workspace = true }
 systemprompt-analytics = { workspace = true }
 systemprompt-agent = { workspace = true }
+systemprompt-brain = { workspace = true }
 systemprompt-content = { workspace = true }
 systemprompt-oauth = { workspace = true }
 systemprompt-users = { workspace = true }
@@ -46,6 +48,7 @@ serde = { workspace = true }
 tokio = { workspace = true }
 tempfile = { workspace = true }
 serde_json = { workspace = true }
+base64 = { workspace = true }
 serde_jcs = { workspace = true }
 chrono = { workspace = true }
 uuid = { workspace = true }

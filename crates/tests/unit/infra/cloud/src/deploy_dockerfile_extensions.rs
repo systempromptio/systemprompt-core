@@ -53,6 +53,9 @@ fn deployment(binary: &str, dev_only: bool) -> Deployment {
         external_auth: None,
         headers: HashMap::new(),
         tool_policy: None,
+        description: None,
+        removable: true,
+        toolsets: Vec::new(),
     }
 }
 

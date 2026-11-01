@@ -14,6 +14,10 @@
 //! fork, under the fork's own engine peer, so it applies alongside whatever
 //! was edited while the revision landed instead of reverting it.
 //!
+//! A checkpoint commits under its live model (`with_live_model`), so the
+//! new head records each block under the id the session gave it, a block
+//! added live included, rather than an id carried or minted afresh.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -30,13 +34,14 @@ use super::live_media::{LiveState, materialise_or_strip};
 use super::reconcile::WriteBack;
 use super::{Checkpoint, CollabError, CollabService};
 use crate::documents::agents::act_as;
-use crate::documents::engine::EngineDoc;
+use crate::documents::engine::{EngineDoc, ModelView};
 use crate::documents::model::{EditLevel, Media};
-use crate::documents::models::RevisionAttribution;
+use crate::documents::models::{RevisionAttribution, RevisionOrigin};
 use crate::documents::repository::CheckpointLease;
 use crate::documents::revision::CommitBody;
 use crate::documents::service::{
-    Author, CommentPolicy, CommitOutcome, CommitRequest, ProposeBodyRequest, RevisionOrigin,
+    Author, CommentPolicy, CommitOutcome, CommitRequest, ProposeBodyRequest, with_live_ids_kept,
+    with_live_model,
 };
 
 const CHECKPOINT_MESSAGE: &str = "Live edit session checkpoint";
@@ -106,14 +111,20 @@ impl CollabService {
                 body: CommitBody::Bytes(next),
                 author: session_author(&body, who, fence),
                 message: Some(CHECKPOINT_MESSAGE.to_owned()),
-                lock_holder_id: None,
+                lock_holder: None,
                 comments: CommentPolicy::detach(),
                 op_id: None,
                 media: Media::new(),
             },
             trace,
         );
-        let outcome = Box::pin(act_as(body.state.actor.clone(), commit)).await?;
+        let commit = act_as(body.state.actor.clone(), commit);
+        let outcome = match &live.model {
+            ModelView::RichText(model) => {
+                Box::pin(with_live_model(model.clone(), with_live_ids_kept(commit))).await?
+            },
+            _ => Box::pin(with_live_ids_kept(commit)).await?,
+        };
         let revision = match outcome {
             CommitOutcome::Committed(landed) => landed.revision,
             CommitOutcome::Merged(landed) => {

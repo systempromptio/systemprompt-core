@@ -14,7 +14,6 @@ pub type ProgressCallback = Box<
         + Sync,
 >;
 
-#[must_use]
 pub fn create_progress_callback(token: ProgressToken, peer: Peer<RoleServer>) -> ProgressCallback {
     Box::new(
         move |progress: f64, total: Option<f64>, message: Option<String>| {

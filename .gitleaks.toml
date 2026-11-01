@@ -1,0 +1,12 @@
+# Test fixtures necessarily contain secret-shaped strings (fixture keys,
+# synthetic tokens) — the shapes the secret-scan tests exercise. Production
+# crates, scripts and workflows stay fully scanned.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "test fixtures"
+paths = [
+  '''^crates/tests/''',
+  '''^bin/bridge/web/dev/tests/''',
+]

@@ -722,7 +722,6 @@ toast-personal-key-removed = Key removed.
 
 # Inbox ------------------------------------------------------------------------
 tray-inbox = Inbox ({ $count })
-inbox-toast-title = { $actor } needs you
 inbox-toast-body = Open the inbox to see what is waiting.
 inbox-toast-more-title = More need you
 inbox-toast-more-body = { $count } more notifications need you. Open the inbox to see them.

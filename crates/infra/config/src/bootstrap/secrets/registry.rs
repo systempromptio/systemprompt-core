@@ -29,7 +29,6 @@ pub struct SecretsSourceRegistration {
 
 inventory::collect!(SecretsSourceRegistration);
 
-#[must_use]
 pub fn process_env_lookup() -> EnvLookup {
     Box::new(systemprompt_manifest::read_env_optional)
 }

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.77.0] - 2026-11-01
+
+### Fixed
+
+- A config apply writes a plane's lower-rank entities first across declaration files, so an entity may refer to one declared in a file that sorts after its own.
+
 ## [0.76.0] - 2026-10-29
 
 ### Added
@@ -131,7 +137,6 @@
 ### Changed
 
 - `delete_jobs_not_in` forgets a job absent from the inventory only once its row has gone seven days without an update, so a canary or rolled-back instance no longer deletes the rows of jobs only the other version has.
-
 
 ## [0.60.0] - 2026-09-23
 

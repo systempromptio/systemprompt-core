@@ -99,6 +99,10 @@ files-collab-loro = ["files-collab", "systemprompt-runtime?/engine-loro"]
 # Without it the server mounts no notification routes and comments record no notification.
 notifications = ["dep:systemprompt-notifications", "systemprompt-runtime?/notifications", "systemprompt-api?/notifications"]
 
+# The brain: revisioned organisational memory, its capture consumer and gateway recall. `full` implies it.
+# Without it the documents store records no brain event and the gateway injects no team memory.
+brain = ["dep:systemprompt-brain", "notifications", "systemprompt-runtime?/brain", "systemprompt-api?/brain"]
+
 # Full functionality including all domain modules and CLI
 full = [
     "api",
@@ -123,6 +127,7 @@ full = [
     "files-collab-loro",
     "agent-runs",
     "notifications",
+    "brain",
     # Infrastructure crates for extension authors
     "loader",
     "events",
@@ -178,6 +183,7 @@ systemprompt-scheduler = { workspace = true, optional = true }
 systemprompt-agent-runs = { workspace = true, optional = true }
 systemprompt-files = { workspace = true, optional = true }
 systemprompt-notifications = { workspace = true, optional = true }
+systemprompt-brain = { workspace = true, optional = true }
 
 # External dependencies for prelude re-exports
 axum = { workspace = true, optional = true }

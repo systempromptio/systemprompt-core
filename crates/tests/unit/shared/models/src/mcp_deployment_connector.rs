@@ -40,6 +40,9 @@ fn deployment(endpoint: Option<&str>) -> Deployment {
         external_auth: None,
         headers: HashMap::new(),
         tool_policy: None,
+        description: None,
+        removable: true,
+        toolsets: Vec::new(),
     }
 }
 

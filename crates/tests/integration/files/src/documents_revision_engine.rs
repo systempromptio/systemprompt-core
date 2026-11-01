@@ -6,12 +6,11 @@ use std::collections::HashSet;
 
 use systemprompt_files::documents::DocumentsError;
 use systemprompt_files::documents::model::Media;
-use systemprompt_files::documents::models::{NewRevision, RevisionAttribution};
+use systemprompt_files::documents::models::{NewRevision, RevisionAttribution, RevisionOrigin};
 use systemprompt_files::documents::repository::DocumentNodeIdRepository;
 use systemprompt_files::documents::revision::CommitBody;
 use systemprompt_files::documents::service::{
     Author, CommentPolicy, CommentRequest, CommitOutcome, CommitRequest, HistoryPage, LandedCommit,
-    RevisionOrigin,
 };
 use systemprompt_identifiers::{
     DocumentId, DocumentNodeId, DocumentOpId, DocumentRevisionId, SessionId,
@@ -34,7 +33,7 @@ fn request(document: &DocumentId, ops: Vec<EditOp>, author: Author) -> CommitReq
         body: CommitBody::Ops(ops),
         author,
         message: None,
-        lock_holder_id: None,
+        lock_holder: None,
         comments: CommentPolicy::default(),
         op_id: None,
         media: Media::new(),
@@ -156,8 +155,7 @@ async fn an_unlanded_revision_is_not_history_and_cannot_be_read_or_restored() {
             content_sha256: head.content_sha256.clone(),
             author_user_id: owner.id.clone(),
             actor_kind: ActorKind::User,
-            origin_kind: systemprompt_models::documents::RevisionOriginKind::Api,
-            origin_id: None,
+            origin: RevisionOrigin::Api,
             message: None,
             edit_ops: None,
             attribution: RevisionAttribution::default(),

@@ -126,6 +126,8 @@ impl ApiPaths {
     pub const NOTIFICATIONS: &'static str = "/api/v1/notifications";
     pub const NOTIFICATIONS_SEEN: &'static str = "/api/v1/notifications/seen";
     pub const ADMIN_NOTIFICATIONS: &'static str = "/api/v1/admin/notifications";
+    pub const BRAIN: &'static str = "/api/v1/brain";
+    pub const ADMIN_BRAIN: &'static str = "/api/v1/admin/brain";
     pub const BRIDGE_AUTH_PAT: &'static str = "/v1/auth/bridge/pat";
     pub const BRIDGE_AUTH_SESSION: &'static str = "/v1/auth/bridge/session";
     pub const BRIDGE_AUTH_SESSION_PAT: &'static str = "/v1/auth/bridge/session-pat";

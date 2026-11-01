@@ -23,3 +23,4 @@ crates/app/scheduler/src/services/scheduling/mod.rs
 # `documents` submodule, so its constructor sits under
 # src/documents/repository/ rather than src/repository/.
 crates/domain/files/src/documents/repository/mod.rs
+crates/app/runtime/src/mcp_host/serve.rs  # the standalone MCP host binary composes its own McpToolExecutor; it runs outside the API server and AppContext exposes no ToolUsageRepository accessor

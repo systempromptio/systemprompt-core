@@ -29,7 +29,7 @@ use super::membership::Members;
 use super::rules::{RuleContext, RuleEvaluator, in_quiet_hours};
 use super::{StepFailure, route};
 use crate::error::NotificationsResult;
-use crate::repository::NotificationRuleRepository;
+use crate::repository::{FailureStage, NotificationRuleRepository};
 
 pub(crate) struct Plan {
     pub(crate) routed: RoutePlan,
@@ -85,7 +85,7 @@ pub(crate) async fn plan(
                 }
             },
             Err(withheld) => {
-                failures.push(StepFailure::withheld("rules", None, &withheld));
+                failures.push(StepFailure::withheld(FailureStage::Rules, None, &withheld));
                 unresolved.push(subject);
             },
         }

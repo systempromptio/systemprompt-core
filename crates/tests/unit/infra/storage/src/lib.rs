@@ -10,13 +10,19 @@
 #![allow(clippy::all)]
 
 #[cfg(test)]
+mod gcs_resumable;
+#[cfg(test)]
 mod gcs_storage;
 #[cfg(test)]
 mod gcs_token_refresh;
 #[cfg(test)]
 mod local_storage;
 #[cfg(test)]
+mod local_storage_failures;
+#[cfg(test)]
 mod ranged_reads;
+#[cfg(test)]
+mod s3_multipart;
 #[cfg(test)]
 mod s3_storage;
 #[cfg(test)]

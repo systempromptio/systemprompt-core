@@ -2,17 +2,17 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use loro::{ExportMode, LoroDoc, VersionVector};
-use systemprompt_engine_loro::{LoroEngine, rich, write_model};
 use systemprompt_events::Broadcaster;
 use systemprompt_files::documents::DocumentsError;
 use systemprompt_files::documents::collab::{
     ApplyRequest, CollabError, CollabService, CollabTuning, JoinMode, Joined,
 };
 use systemprompt_files::documents::engine::DocumentEngine;
+use systemprompt_files::documents::engine::loro::{LoroEngine, rich, write_model};
 use systemprompt_files::documents::model::{RichText, html};
 use systemprompt_identifiers::{ConnectionId, DocumentId};
 use systemprompt_models::auth::AuthenticatedUser;
-use systemprompt_models::documents::RevisionOriginKind;
+use systemprompt_models::documents::{DocumentFormat, RevisionOriginKind};
 use tokio::sync::mpsc;
 
 use crate::documents_service_fixture::{
@@ -291,11 +291,8 @@ async fn the_last_editor_leaving_commits_an_edit_session_revision_and_closes() {
             .await
             .expect("find")
             .expect("revision");
-    assert_eq!(revision.origin_kind, RevisionOriginKind::EditSession);
-    assert_eq!(
-        revision.origin_id.as_deref(),
-        Some(joined.session_id.as_str())
-    );
+    assert_eq!(revision.origin.kind(), RevisionOriginKind::EditSession);
+    assert_eq!(revision.origin.id_str(), Some(joined.session_id.as_str()));
     let (_, bytes) = c
         .documents
         .read_bytes(&owner, &document, None, &trace())
@@ -315,23 +312,23 @@ async fn the_last_editor_leaving_commits_an_edit_session_revision_and_closes() {
 }
 
 #[tokio::test]
-async fn spreadsheets_cannot_be_joined() {
+async fn ods_spreadsheets_cannot_be_joined() {
     let c = collab().await;
-    let owner = person("collab-sheet");
+    let owner = person("collab-ods");
     let (document, _) = c
         .documents
-        .create_from_template(&owner, create("blank-xlsx", None), &trace())
+        .create_from_template(&owner, create("blank-ods", None), &trace())
         .await
-        .expect("create xlsx");
+        .expect("create ods");
     let refused = c
         .collab
         .join(&owner, &document.id, JoinMode::Edit, &trace())
         .await;
     assert!(matches!(
         refused,
-        Err(CollabError::Documents(
-            DocumentsError::UnsupportedFormat { .. }
-        ))
+        Err(CollabError::Documents(DocumentsError::LiveUnsupported {
+            format: DocumentFormat::Ods
+        }))
     ));
 }
 

@@ -80,14 +80,14 @@ pub async fn handle_agent_request(
     let requires_oauth = should_require_oauth(&state).await;
 
     if requires_oauth && let Err(response) = enforce_oauth(&state, &headers, &request_id).await {
-        return response;
+        return *response;
     }
 
     let is_streaming = jsonrpc_request.method == methods::SEND_STREAMING_MESSAGE;
 
     let a2a_request = match parse_a2a_request(&jsonrpc_request, &request_id).await {
         Ok(req) => req,
-        Err(response) => return response,
+        Err(response) => return *response,
     };
 
     let mut enriched_context = context;
@@ -165,7 +165,7 @@ async fn enforce_oauth(
     state: &AgentHandlerState,
     headers: &HeaderMap,
     request_id: &NumberOrString,
-) -> Result<(), axum::response::Response> {
+) -> Result<(), Box<axum::response::Response>> {
     tracing::info!("Request requires OAuth2 authentication");
 
     let required_scopes = {
@@ -181,5 +181,8 @@ async fn enforce_oauth(
     )
     .await
     .map(|_| ())
-    .map_err(|(status, error_response)| (status, Json(error_response)).into_response())
+    .map_err(|error| {
+        let (status, error_response) = *error;
+        Box::new((status, Json(error_response)).into_response())
+    })
 }

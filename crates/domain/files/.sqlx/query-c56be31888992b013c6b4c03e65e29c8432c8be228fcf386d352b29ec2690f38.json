@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM document_blobs b WHERE b.content_sha256 = $1\n               AND NOT EXISTS (SELECT 1 FROM document_revisions r\n                               WHERE r.content_sha256 = b.content_sha256)\n               AND NOT EXISTS (SELECT 1 FROM document_edit_sessions s\n                               WHERE s.snapshot_sha256 = b.content_sha256)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "c56be31888992b013c6b4c03e65e29c8432c8be228fcf386d352b29ec2690f38"
+}

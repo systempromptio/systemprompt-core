@@ -100,7 +100,7 @@ pub fn gateway_repositories(
         ctx.secrets().encryption_master_key()?,
     )?;
     let profile = ctx.profile();
-    Ok(systemprompt_gateway::GatewayRepositories::new(
+    let repos = systemprompt_gateway::GatewayRepositories::new(
         ctx.db_pool(),
         journal,
         ctx.context_materializer(),
@@ -119,7 +119,10 @@ pub fn gateway_repositories(
     .with_artifact_ingest(ctx.artifact_ingest_arc())
     .with_session_store(ctx.session_store())
     .with_payload_cap(profile.payload_cap_bytes())
-    .with_quota_sharding(profile.quota_config()))
+    .with_quota_sharding(profile.quota_config());
+    #[cfg(feature = "brain")]
+    let repos = repos.with_brain_recall(profile.brain.recall.clone());
+    Ok(repos)
 }
 
 fn drive_routes(ctx: &AppContext, jwt_extractor: &Arc<JwtContextExtractor>) -> Router {
@@ -175,11 +178,17 @@ pub fn gateway_engines(
     ctx: &AppContext,
 ) -> Result<GatewayEngines, systemprompt_gateway::GatewayEnginesError> {
     let extensions: Arc<dyn systemprompt_extension::ExtensionContext> = Arc::new(ctx.clone());
-    GatewayEngines::new(
+    let engines = GatewayEngines::new(
         Arc::clone(ctx.connector_tokens()),
         &extensions,
         Arc::clone(ctx.secrets()),
-    )
+    )?;
+    #[cfg(feature = "brain")]
+    let engines = match ctx.brain_recall() {
+        Some(recall) => engines.with_memory_recall(recall),
+        None => engines,
+    };
+    Ok(engines)
 }
 
 pub fn gateway_router(ctx: &AppContext) -> anyhow::Result<Router> {

@@ -5,7 +5,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use sha2::{Digest, Sha256};
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{AgentName, UserId};
 use systemprompt_models::issues::{IssueContext, IssueKind, IssueSeverity};
 
 use super::error::{IssuesError, IssuesResult};
@@ -21,7 +21,7 @@ const MAX_CLIENT_BYTES: usize = 8_192;
 #[derive(Debug, Clone)]
 pub struct IssueFiling {
     pub reporter: UserId,
-    pub via_agent: Option<String>,
+    pub via_agent: Option<AgentName>,
     pub kind: IssueKind,
     pub severity: IssueSeverity,
     pub title: String,
@@ -73,7 +73,7 @@ pub(super) fn validated(filing: IssueFiling) -> IssuesResult<NewIssue> {
     }
     let fingerprint = fingerprint(
         filing.kind,
-        filing.via_agent.as_deref(),
+        filing.via_agent.as_ref(),
         filing.fingerprint_key.as_deref().unwrap_or(&title),
     );
     Ok(NewIssue {
@@ -90,7 +90,7 @@ pub(super) fn validated(filing: IssueFiling) -> IssuesResult<NewIssue> {
 }
 
 #[must_use]
-pub fn fingerprint(kind: IssueKind, via_agent: Option<&str>, key: &str) -> String {
+pub fn fingerprint(kind: IssueKind, via_agent: Option<&AgentName>, key: &str) -> String {
     let normalised: String = key
         .split_whitespace()
         .collect::<Vec<_>>()
@@ -99,7 +99,7 @@ pub fn fingerprint(kind: IssueKind, via_agent: Option<&str>, key: &str) -> Strin
     let mut hasher = Sha256::new();
     hasher.update(kind.as_str().as_bytes());
     hasher.update([0]);
-    hasher.update(via_agent.unwrap_or("").as_bytes());
+    hasher.update(via_agent.map_or("", AgentName::as_str).as_bytes());
     hasher.update([0]);
     hasher.update(normalised.as_bytes());
     hex::encode(hasher.finalize())

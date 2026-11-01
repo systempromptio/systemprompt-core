@@ -56,7 +56,8 @@ the edit's revision on that comment.
 Conflict: a guard_mismatch or stale_base means someone else edited first. The head edit wins: \
 re-aim from the returned current text and never resend your old text over it.
 Terse output: verbose: true on read, edit, history or list adds URIs, content hashes, codec \
-paths and revision attribution.";
+paths and revision attribution; on a Markdown read it also shows the read-only block outline \
+beside the source lines.";
 
 pub(super) const SHEETS: &str = "\
 Cells read as `<sheet>!<cell>:<hash>| <value>` with view cells, sheet and an A1 range such as \
@@ -285,6 +286,10 @@ const fn agent_refusal_text(code: RefusalCode) -> &'static str {
         RefusalCode::CursorReset => {
             "cursor_reset: the Drive cursor sent is not a position of the current change \
              feed; drop it, read the manifest again and continue from its cursor."
+        },
+        RefusalCode::NameTaken => {
+            "name_taken: the folder already holds a document of that name; choose another name \
+             or edit the existing document."
         },
         _ => "",
     }

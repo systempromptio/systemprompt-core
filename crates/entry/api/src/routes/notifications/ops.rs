@@ -60,11 +60,6 @@ pub struct SubscriptionList {
     pub subscriptions: Vec<SubscriptionView>,
 }
 
-#[expect(
-    clippy::result_large_err,
-    reason = "ApiHttpError is the handler error type; boxing it here would propagate to every \
-              caller for negligible gain"
-)]
 fn feed_query(params: &FeedParams) -> Result<FeedQuery, ApiHttpError> {
     let since = params
         .since

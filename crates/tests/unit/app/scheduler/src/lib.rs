@@ -44,6 +44,8 @@ mod jobs_seeded_db;
 #[cfg(test)]
 mod licence_checkin;
 #[cfg(test)]
+mod licence_state_db;
+#[cfg(test)]
 mod manual_run_lock_db;
 #[cfg(test)]
 mod models;

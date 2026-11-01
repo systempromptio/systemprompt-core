@@ -46,6 +46,7 @@ mod attestation;
 mod classify;
 mod evidence;
 mod harness;
+mod memory;
 
 pub use attestation::{ClientAttestation, NativeMarker};
 pub use classify::{
@@ -53,6 +54,7 @@ pub use classify::{
     native_marker, ua_product,
 };
 pub use evidence::ClientEvidence;
+pub use memory::MemoryPreference;
 
 use serde::{Deserialize, Serialize};
 

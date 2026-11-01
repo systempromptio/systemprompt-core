@@ -10,6 +10,11 @@
 #     (`<script src="http…">`, `import … from "http…"`, `import("http…")`)
 # Core's own first-party scripts (the bridge web UI) stay allowed. Rust crates
 # keep following deny.toml.
+#
+# Core is also headless: a host extension owns its browser UI. Every tracked
+# `.js`, `.mjs`, `.ts`, `.css`, `.html` or `.hbs` file under `crates/` must
+# match a glob in scripts/core-markup-allowlist.txt, so new markup or script
+# in a core crate is a reviewed addition to that list.
 set -uo pipefail
 cd "$(dirname "$0")/.."
 
@@ -33,5 +38,31 @@ if [ -n "$external" ]; then
     fail=1
 fi
 
-[ "$fail" -eq 0 ] && echo "check-no-vendor: OK (no third-party frontend code)"
+allowlist=scripts/core-markup-allowlist.txt
+patterns=()
+while IFS= read -r line; do
+    line="${line%%#*}"
+    line="${line#"${line%%[![:space:]]*}"}"
+    line="${line%"${line##*[![:space:]]}"}"
+    [ -n "$line" ] && patterns+=("$line")
+done < "$allowlist"
+
+unlisted=()
+while IFS= read -r -d '' path; do
+    allowed=0
+    for pattern in "${patterns[@]}"; do
+        if [[ $path == $pattern ]]; then
+            allowed=1
+            break
+        fi
+    done
+    [ "$allowed" -eq 0 ] && unlisted+=("$path")
+done < <(git ls-files -z -- 'crates/*.js' 'crates/*.mjs' 'crates/*.ts' 'crates/*.css' 'crates/*.html' 'crates/*.hbs')
+if [ "${#unlisted[@]}" -gt 0 ]; then
+    echo "check-no-vendor: browser markup or script outside $allowlist:" >&2
+    printf '  %s\n' "${unlisted[@]}" >&2
+    fail=1
+fi
+
+[ "$fail" -eq 0 ] && echo "check-no-vendor: OK (no third-party frontend code; browser markup limited to $allowlist)"
 exit "$fail"

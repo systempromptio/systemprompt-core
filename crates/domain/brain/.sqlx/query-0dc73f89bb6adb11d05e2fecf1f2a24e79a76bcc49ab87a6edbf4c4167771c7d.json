@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT COALESCE(SUM(input_tokens + output_tokens), 0)::bigint AS \"tokens!\"\n               FROM brain_extractions WHERE created_at >= $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "tokens!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "0dc73f89bb6adb11d05e2fecf1f2a24e79a76bcc49ab87a6edbf4c4167771c7d"
+}

@@ -20,6 +20,7 @@ use systemprompt_models::notifications::{
 use systemprompt_notifications::repository::{
     NotificationStreamRepository, NotificationSubscriptionRepository,
 };
+use systemprompt_provider_contracts::ChangeSource;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, seed_user_row, test_app_context, test_db_pool,
@@ -337,7 +338,7 @@ async fn a_console_write_onto_a_declared_subscription_conflicts_declared_by_conf
     NotificationSubscriptionRepository::upsert(
         repos.write_pool(),
         &declared,
-        "code:notifications/subscriptions.yaml",
+        &ChangeSource::Code("notifications/subscriptions.yaml".to_owned()),
         None,
     )
     .await

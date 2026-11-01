@@ -14,10 +14,12 @@ pub mod connector;
 pub mod deployment;
 pub mod execution_source;
 pub mod execution_status;
+mod external_auth;
 pub mod registry;
 pub mod registry_trait;
 pub mod server;
 mod tool_result_metadata;
+pub mod toolset;
 
 pub use apps::{
     EXTENSION_ID, LATEST_PROTOCOL_VERSION, McpUiToolMeta, RESOURCE_MIME_TYPE, SizeChangedParams,
@@ -32,6 +34,7 @@ pub use capabilities::{
 pub use client_profile::ClientProfile;
 pub use deployment::{
     Deployment, DeploymentConfig, ExternalAuth, McpServerType, OAuthRequirement, Settings,
+    ToolMetadata,
 };
 pub use execution_source::{Correlation, ExecutionSource};
 pub use execution_status::{McpToolExecutionStatus, UnknownMcpToolExecutionStatus};
@@ -39,3 +42,4 @@ pub use registry::RegistryConfig;
 pub use registry_trait::{McpRegistry, McpServerState};
 pub use server::{McpAuthState, McpServerConfig};
 pub use tool_result_metadata::McpToolResultMetadata;
+pub use toolset::{ResolvedAccess, ToolAccess, ToolsetRef};

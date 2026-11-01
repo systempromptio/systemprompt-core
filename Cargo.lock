@@ -142,6 +142,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ac436601d6bdde674a0d7fb593e829ffe7b3387c351b356dd20e2d40f5bf3ee5"
 
 [[package]]
+name = "approx"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cab112f0a86d568ea0e627cc1d6be74a1e9cd55214684db5561995f6dad897c6"
+dependencies = [
+ "num-traits",
+]
+
+[[package]]
 name = "arbitrary"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -427,6 +436,30 @@ name = "bit-vec"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5e764a1d40d510daf35e07be9eb06e75770908c27d411ee6c92109c9840eaaf7"
+
+[[package]]
+name = "bitcode"
+version = "0.6.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0a6ed1b54d8dc333e7be604d00fa9262f4635485ffea923647b6521a5fff045d"
+dependencies = [
+ "arrayvec",
+ "bitcode_derive",
+ "bytemuck",
+ "glam",
+ "serde",
+]
+
+[[package]]
+name = "bitcode_derive"
+version = "0.6.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "238b90427dfad9da4a9abd60f3ec1cdee6b80454bde49ed37f1781dd8e9dc7f9"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+]
 
 [[package]]
 name = "bitflags"
@@ -966,6 +999,27 @@ checksum = "d045de693cb712d0b22c6a64be5b953f67b3ce00ab5ad3dd5d8b441886ab8e1a"
 dependencies = [
  "quote",
  "syn 3.0.9",
+]
+
+[[package]]
+name = "csv"
+version = "1.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "52cd9d68cf7efc6ddfaaee42e7288d3a99d613d4b50f76ce9827ae0c6e14f938"
+dependencies = [
+ "csv-core",
+ "itoa",
+ "ryu",
+ "serde_core",
+]
+
+[[package]]
+name = "csv-core"
+version = "0.1.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "704a3c26996a80471189265814dbc2c257598b96b8a7feae2d31ace646bb9782"
+dependencies = [
+ "memchr",
 ]
 
 [[package]]
@@ -1972,6 +2026,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "glam"
+version = "0.34.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fc148d4ddd3930c52f9e5ae79b89805c6f07e9ff417e7b083e0348cea60a5aba"
+
+[[package]]
 name = "glob"
 version = "0.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2586,6 +2646,43 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf370abdafd54d13e54a620e8c3e1145f28e46cc9d704bc6d94414559df41763"
 
 [[package]]
+name = "ironcalc"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aabf0987c9f8e941476a7bfd2564496ca9f97bbf25a7165f7d499895b35fff0c"
+dependencies = [
+ "bitcode",
+ "chrono",
+ "ironcalc_base",
+ "itertools 0.15.0",
+ "quick-xml 0.42.0",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+ "zip",
+]
+
+[[package]]
+name = "ironcalc_base"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ecf55ea346dcda5e0f0034d8300dc2d40ffbcb64e7c4db23bfa1d8a0cf11c738"
+dependencies = [
+ "bitcode",
+ "chrono",
+ "chrono-tz",
+ "csv",
+ "js-sys",
+ "rand 0.10.3",
+ "regex",
+ "regex-lite",
+ "ryu",
+ "serde",
+ "statrs",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "is-docker"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2642,6 +2739,15 @@ name = "itertools"
 version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2b192c782037fadd9cfa75548310488aabdbf3d2da73885b31bd0abd03351285"
+dependencies = [
+ "either",
+]
+
+[[package]]
+name = "itertools"
+version = "0.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8b4baf93f58d4425749ca49a51c50ebab072c5df6994d08fed93541c331481dc"
 dependencies = [
  "either",
 ]
@@ -4422,6 +4528,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "regex-lite"
+version = "0.1.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cab834c73d247e67f4fae452806d17d3c7501756d98c8808d7c9c7aa7d18f973"
+
+[[package]]
 name = "regex-syntax"
 version = "0.8.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5435,6 +5547,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "statrs"
+version = "0.19.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c1837f9a1bd13dabbdbb04489c39451482d3cdd35a6e1a0d0f3570dea2b8c8be"
+dependencies = [
+ "approx",
+ "num-traits",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "string_cache"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5589,7 +5712,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt"
-version = "0.76.0"
+version = "0.77.0"
 dependencies = [
  "axum",
  "inventory",
@@ -5600,6 +5723,7 @@ dependencies = [
  "systemprompt-ai",
  "systemprompt-analytics",
  "systemprompt-api",
+ "systemprompt-brain",
  "systemprompt-cli",
  "systemprompt-client",
  "systemprompt-cloud",
@@ -5640,7 +5764,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-agent"
-version = "0.76.0"
+version = "0.77.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -5679,7 +5803,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-agent-runs"
-version = "0.76.0"
+version = "0.77.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -5713,7 +5837,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-ai"
-version = "0.76.0"
+version = "0.77.0"
 dependencies = [
  "async-trait",
  "base64 0.23.1",
@@ -5746,7 +5870,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-analytics"
-version = "0.76.0"
+version = "0.77.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -5771,7 +5895,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-api"
-version = "0.76.0"
+version = "0.77.0"
 dependencies = [
  "anyhow",
  "async-stream",
@@ -5803,6 +5927,7 @@ dependencies = [
  "systemprompt-agent-runs",
  "systemprompt-ai",
  "systemprompt-analytics",
+ "systemprompt-brain",
  "systemprompt-client",
  "systemprompt-config",
  "systemprompt-content",
@@ -5847,8 +5972,36 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-brain"
+version = "0.77.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "futures",
+ "inventory",
+ "metrics",
+ "serde",
+ "serde_json",
+ "serde_yaml_ng",
+ "sqlx",
+ "systemprompt-database",
+ "systemprompt-events",
+ "systemprompt-extension",
+ "systemprompt-identifiers",
+ "systemprompt-manifest",
+ "systemprompt-models",
+ "systemprompt-provider-contracts",
+ "systemprompt-traits",
+ "thiserror 2.0.21",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "systemprompt-cli"
-version = "0.76.0"
+version = "0.77.0"
 dependencies = [
  "anyhow",
  "base64 0.23.1",
@@ -5920,7 +6073,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-client"
-version = "0.76.0"
+version = "0.77.0"
 dependencies = [
  "chrono",
  "futures",
@@ -5937,7 +6090,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-cloud"
-version = "0.76.0"
+version = "0.77.0"
 dependencies = [
  "axum",
  "base64 0.23.1",
@@ -5968,7 +6121,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-config"
-version = "0.76.0"
+version = "0.77.0"
 dependencies = [
  "async-trait",
  "base64 0.23.1",
@@ -5998,7 +6151,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-content"
-version = "0.76.0"
+version = "0.77.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -6028,7 +6181,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-database"
-version = "0.76.0"
+version = "0.77.0"
 dependencies = [
  "async-trait",
  "base64 0.23.1",
@@ -6052,20 +6205,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "systemprompt-engine-loro"
-version = "0.76.0"
-dependencies = [
- "loro",
- "serde_json",
- "systemprompt-files",
- "thiserror 2.0.21",
- "tracing",
- "uuid",
-]
-
-[[package]]
 name = "systemprompt-events"
-version = "0.76.0"
+version = "0.77.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -6087,10 +6228,11 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-extension"
-version = "0.76.0"
+version = "0.77.0"
 dependencies = [
  "async-trait",
  "axum",
+ "chrono",
  "inventory",
  "serde",
  "serde_json",
@@ -6108,7 +6250,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-files"
-version = "0.76.0"
+version = "0.77.0"
 dependencies = [
  "ammonia",
  "async-trait",
@@ -6121,9 +6263,13 @@ dependencies = [
  "futures-util",
  "hex",
  "inventory",
+ "ironcalc",
+ "loro",
+ "metrics",
  "pdf-writer",
  "pulldown-cmark",
  "quick-xml 0.42.0",
+ "reqwest",
  "schemars",
  "scraper",
  "serde",
@@ -6153,7 +6299,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-gateway"
-version = "0.76.0"
+version = "0.77.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -6186,6 +6332,7 @@ dependencies = [
  "systemprompt-models",
  "systemprompt-security",
  "systemprompt-traits",
+ "systemprompt-users",
  "systemprompt-wire",
  "thiserror 2.0.21",
  "tokio",
@@ -6196,7 +6343,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-generator"
-version = "0.76.0"
+version = "0.77.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -6229,7 +6376,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-governance"
-version = "0.76.0"
+version = "0.77.0"
 dependencies = [
  "async-trait",
  "base64 0.23.1",
@@ -6260,7 +6407,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-identifiers"
-version = "0.76.0"
+version = "0.77.0"
 dependencies = [
  "chrono",
  "schemars",
@@ -6273,7 +6420,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-loader"
-version = "0.76.0"
+version = "0.77.0"
 dependencies = [
  "async-trait",
  "base64 0.23.1",
@@ -6305,7 +6452,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-logging"
-version = "0.76.0"
+version = "0.77.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -6331,7 +6478,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-manifest"
-version = "0.76.0"
+version = "0.77.0"
 dependencies = [
  "base64 0.23.1",
  "chrono",
@@ -6358,7 +6505,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-marketplace"
-version = "0.76.0"
+version = "0.77.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -6389,7 +6536,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-mcp"
-version = "0.76.0"
+version = "0.77.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -6429,7 +6576,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-models"
-version = "0.76.0"
+version = "0.77.0"
 dependencies = [
  "async-trait",
  "base64 0.23.1",
@@ -6461,7 +6608,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-notifications"
-version = "0.76.0"
+version = "0.77.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -6488,7 +6635,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-oauth"
-version = "0.76.0"
+version = "0.77.0"
 dependencies = [
  "async-trait",
  "base64 0.23.1",
@@ -6529,7 +6676,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-oauth-issuance"
-version = "0.76.0"
+version = "0.77.0"
 dependencies = [
  "async-trait",
  "base64 0.23.1",
@@ -6561,7 +6708,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-provider-contracts"
-version = "0.76.0"
+version = "0.77.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -6578,11 +6725,12 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-runtime"
-version = "0.76.0"
+version = "0.77.0"
 dependencies = [
  "async-trait",
  "base64 0.23.1",
  "chrono",
+ "http",
  "indicatif",
  "maxminddb",
  "reqwest",
@@ -6595,10 +6743,10 @@ dependencies = [
  "systemprompt-agent",
  "systemprompt-ai",
  "systemprompt-analytics",
+ "systemprompt-brain",
  "systemprompt-config",
  "systemprompt-content",
  "systemprompt-database",
- "systemprompt-engine-loro",
  "systemprompt-events",
  "systemprompt-extension",
  "systemprompt-files",
@@ -6626,7 +6774,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-scheduler"
-version = "0.76.0"
+version = "0.77.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -6673,7 +6821,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-security"
-version = "0.76.0"
+version = "0.77.0"
 dependencies = [
  "axum",
  "base64 0.23.1",
@@ -6707,7 +6855,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-slack"
-version = "0.76.0"
+version = "0.77.0"
 dependencies = [
  "hex",
  "hmac 0.13.0",
@@ -6726,7 +6874,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-storage"
-version = "0.76.0"
+version = "0.77.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -6751,7 +6899,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-teams"
-version = "0.76.0"
+version = "0.77.0"
 dependencies = [
  "inventory",
  "jsonwebtoken",
@@ -6770,7 +6918,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-template-provider"
-version = "0.76.0"
+version = "0.77.0"
 dependencies = [
  "async-trait",
  "systemprompt-provider-contracts",
@@ -6780,7 +6928,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-templates"
-version = "0.76.0"
+version = "0.77.0"
 dependencies = [
  "handlebars",
  "serde",
@@ -6794,7 +6942,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-traits"
-version = "0.76.0"
+version = "0.77.0"
 dependencies = [
  "arc-swap",
  "async-trait",
@@ -6817,7 +6965,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-users"
-version = "0.76.0"
+version = "0.77.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -6843,7 +6991,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-wire"
-version = "0.76.0"
+version = "0.77.0"
 dependencies = [
  "bytes",
  "futures-util",

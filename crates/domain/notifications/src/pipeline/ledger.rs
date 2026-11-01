@@ -18,7 +18,7 @@ use systemprompt_extension::notifications::ChannelError;
 use systemprompt_identifiers::{NotificationId, UserId};
 
 use super::{DeliverOutcome, metrics};
-use crate::repository::{DELIVER_RETRY_STAGE, DELIVER_STAGE, DeliveryFailure};
+use crate::repository::{DeliveryFailure, FailureStage};
 
 pub const MAX_DELIVERY_ATTEMPTS: i64 = 5;
 pub const DELIVERY_ABANDONED: &str = "delivery_abandoned";
@@ -63,22 +63,37 @@ impl Ledger {
                 Attempt::Failed(error) if !error.is_retryable() => {
                     tracing::warn!(notification_id = %id, surface, error = %error, "Notification channel delivery failed permanently");
                     metrics::delivery(surface, "failed");
-                    (DELIVER_STAGE, error.to_string())
+                    (
+                        FailureStage::Deliver {
+                            surface: surface.to_owned(),
+                        },
+                        error.to_string(),
+                    )
                 },
                 Attempt::Failed(error) => {
                     tracing::warn!(notification_id = %id, surface, error = %error, "Notification channel delivery failed");
                     metrics::delivery(surface, "failed");
                     retry = true;
-                    (DELIVER_RETRY_STAGE, error.to_string())
+                    (
+                        FailureStage::DeliverRetry {
+                            surface: surface.to_owned(),
+                        },
+                        error.to_string(),
+                    )
                 },
                 Attempt::TimedOut => {
                     tracing::warn!(notification_id = %id, surface, "Notification channel delivery timed out");
                     metrics::delivery(surface, "timeout");
                     retry = true;
-                    (DELIVER_RETRY_STAGE, "channel_timeout".to_owned())
+                    (
+                        FailureStage::DeliverRetry {
+                            surface: surface.to_owned(),
+                        },
+                        "channel_timeout".to_owned(),
+                    )
                 },
             };
-            self.fail(id, row, format!("{stage}{surface}"), reason);
+            self.fail(id, row, stage, reason);
         }
         self.close(id, row, retry);
     }
@@ -88,13 +103,15 @@ impl Ledger {
         self.fail(
             id,
             row,
-            format!("{DELIVER_RETRY_STAGE}{TASK_SURFACE}"),
+            FailureStage::DeliverRetry {
+                surface: TASK_SURFACE.to_owned(),
+            },
             reason,
         );
         self.close(id, row, true);
     }
 
-    fn fail(&mut self, id: &NotificationId, row: &LockedRow, stage: String, reason: String) {
+    fn fail(&mut self, id: &NotificationId, row: &LockedRow, stage: FailureStage, reason: String) {
         self.outcome.failed += 1;
         self.failures.push(DeliveryFailure {
             notification: id.clone(),
@@ -114,7 +131,7 @@ impl Ledger {
             self.failures.push(DeliveryFailure {
                 notification: id.clone(),
                 recipient: row.recipient.clone(),
-                stage: "deliver".to_owned(),
+                stage: FailureStage::DeliverAbandoned,
                 reason: DELIVERY_ABANDONED.to_owned(),
             });
             self.finished.push((id.clone(), row.seq));

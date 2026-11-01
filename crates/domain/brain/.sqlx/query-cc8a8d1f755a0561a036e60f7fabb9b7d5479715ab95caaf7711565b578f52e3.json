@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO brain_tombstones (kind, identity_hash, erased_by) VALUES ($1, $2, $3)\n             ON CONFLICT (kind, identity_hash) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "cc8a8d1f755a0561a036e60f7fabb9b7d5479715ab95caaf7711565b578f52e3"
+}

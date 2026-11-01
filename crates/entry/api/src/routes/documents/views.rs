@@ -72,7 +72,7 @@ impl From<DocumentRevision> for RevisionJson {
             content_sha256: r.content_sha256,
             author_user_id: r.author_user_id,
             actor_kind: r.actor_kind,
-            origin_kind: r.origin_kind,
+            origin_kind: r.origin.kind(),
             message: r.message,
             created_at: r.created_at,
         }
@@ -245,8 +245,8 @@ impl From<DocumentLock> for LockJson {
         Self {
             document_id: l.document_id,
             holder_user_id: l.holder_user_id,
-            holder_kind: l.holder_kind.as_str(),
-            holder_id: l.holder_id,
+            holder_kind: l.holder.kind().as_str(),
+            holder_id: l.holder.id_str().to_owned(),
             acquired_at: l.acquired_at,
             expires_at: l.expires_at,
         }

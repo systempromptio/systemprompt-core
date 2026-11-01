@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE brain_proposals SET status = $2, decided_by = $3, decided_at = now()\n             WHERE id = $1 AND status = 'open'",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "93881bd77a1728e23a737dfba39a5ae18ce220b86d9f0de50e2ecff5866215d2"
+}

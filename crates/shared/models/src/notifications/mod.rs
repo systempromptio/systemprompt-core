@@ -22,7 +22,7 @@ pub mod realtime;
 pub mod receipt;
 pub mod route;
 pub mod simulate;
-mod string_form;
+pub(crate) mod string_form;
 pub mod subject;
 
 pub use action::ActionPrompt;

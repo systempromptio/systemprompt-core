@@ -109,7 +109,9 @@ impl UploadService {
         };
         self.admit(&request)?;
         let part_size = i64::try_from(self.limits.part_size_bytes).map_err(|_out_of_range| {
-            UploadError::Invalid("part size is out of range".to_owned())
+            UploadError::PartSizeOutOfRange {
+                configured: self.limits.part_size_bytes,
+            }
         })?;
         let ttl_hours = i32::try_from(self.limits.session_ttl_hours).unwrap_or(i32::MAX);
         let terms = SessionTerms {
@@ -153,20 +155,15 @@ impl UploadService {
 
     fn admit(&self, request: &NewUpload) -> UploadResult<()> {
         if request.name.trim().is_empty() || request.name.contains(['/', '\\', '\0']) {
-            return Err(UploadError::Invalid(
-                "name must be a non-empty file name without path separators".to_owned(),
-            ));
+            return Err(UploadError::InvalidName);
         }
         if request.size == 0 {
-            return Err(UploadError::Invalid(
-                "size must be at least one byte".to_owned(),
-            ));
+            return Err(UploadError::EmptyUpload);
         }
         if declared_kind(&request.mime).is_none() {
-            return Err(UploadError::Invalid(format!(
-                "{} is not a MIME type",
-                request.mime
-            )));
+            return Err(UploadError::InvalidContentType {
+                given: request.mime.clone(),
+            });
         }
         if request.size > self.max_upload_bytes {
             return Err(UploadError::TooLarge {

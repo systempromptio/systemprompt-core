@@ -99,3 +99,21 @@ mod render_partial_tests {
         result.unwrap_err();
     }
 }
+
+mod debug_format_tests {
+    use super::*;
+
+    #[test]
+    fn debug_reports_component_counts() {
+        let mut registry = TemplateRegistry::new();
+        registry.register_provider(provider(MockProvider::new("p1")));
+        registry.register_provider(provider(MockProvider::new("p2")));
+        registry.register_loader(loader(MockLoader::new()));
+        let rendered = format!("{registry:?}");
+        assert!(rendered.starts_with("TemplateRegistry"), "{rendered}");
+        assert!(rendered.contains("providers: 2"), "{rendered}");
+        assert!(rendered.contains("loaders: 1"), "{rendered}");
+        assert!(rendered.contains("templates: []"), "{rendered}");
+        assert!(rendered.contains("page_prerenderers: 0"), "{rendered}");
+    }
+}

@@ -9,7 +9,7 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::{Extension, Json};
 use serde::Deserialize;
-use systemprompt_files::documents::service::NewFolderRequest;
+use systemprompt_files::documents::service::{FolderUpdateRequest, NewFolderRequest};
 use systemprompt_identifiers::DocumentFolderId;
 use systemprompt_models::RequestContext;
 use systemprompt_models::api::ApiError;
@@ -75,45 +75,25 @@ pub(super) async fn update(
     Extension(req_ctx): Extension<RequestContext>,
     Path(id): Path<String>,
     Json(body): Json<UpdateBody>,
-) -> DocumentsResult<Json<Option<FolderJson>>> {
+) -> DocumentsResult<Json<FolderJson>> {
     let who = caller(&state, &req_ctx).await?;
     let id = folder(&id)?;
-    if body.name.is_none() && body.parent_id.is_keep() && body.agent_edit_policy.is_none() {
+    let request = FolderUpdateRequest {
+        name: body.name,
+        parent: body.parent_id.into_move(),
+        agent_edit_policy: body.agent_edit_policy,
+    };
+    if request.is_empty() {
         return Err(ApiError::bad_request(
             "give a new `name`, a `parent_id` or an `agent_edit_policy`",
         )
         .into());
     }
-    let moved = if body.parent_id.is_keep() {
-        None
-    } else {
-        Some(
-            state
-                .service
-                .move_folder(&who.user, &id, body.parent_id.folder(), &who.trace)
-                .await?,
-        )
-    };
-    let renamed = match body.name {
-        Some(name) => Some(
-            state
-                .service
-                .rename_folder(&who.user, &id, &name, &who.trace)
-                .await?,
-        ),
-        None => None,
-    };
-    let governed = match body.agent_edit_policy {
-        Some(policy) => Some(
-            state
-                .service
-                .set_folder_agent_edit_policy(&who.user, &id, policy, &who.trace)
-                .await?,
-        ),
-        None => None,
-    };
-    let updated = governed.or(renamed).or(moved);
-    Ok(Json(updated.map(FolderJson::from)))
+    let updated = state
+        .service
+        .update_folder(&who.user, &id, request, &who.trace)
+        .await?;
+    Ok(Json(FolderJson::from(updated)))
 }
 
 #[derive(Debug, Deserialize)]

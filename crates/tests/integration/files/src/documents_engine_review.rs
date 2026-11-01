@@ -4,16 +4,17 @@
 //! `insert_from_revision` copying a table natively.
 
 use systemprompt_files::documents::DocumentsError;
+use systemprompt_files::documents::agents::{DocumentActor, act_as};
 use systemprompt_files::documents::model::Media;
 use systemprompt_files::documents::revision::CommitBody;
 use systemprompt_files::documents::service::{
     CommentPolicy, CommitOutcome, CommitRequest, EditModeRequest, ReviewRequest,
 };
-use systemprompt_identifiers::{DocumentId, DocumentRevisionId};
+use systemprompt_identifiers::{AgentName, DocumentId, DocumentRevisionId};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{
-    AccessLevel, ActorKind, AgentEditPolicy, ContentAs, EditMode, EditOp, NodeKind, NodeTarget,
-    Projection, ProposalStatus,
+    AccessLevel, AgentEditPolicy, ContentAs, EditMode, EditOp, NodeKind, NodeTarget, Projection,
+    ProposalStatus,
 };
 use systemprompt_test_fixtures::test_db_pool;
 
@@ -33,7 +34,7 @@ fn ops(
         body: CommitBody::Ops(ops),
         author: api_author(),
         message: None,
-        lock_holder_id: None,
+        lock_holder: None,
         comments: CommentPolicy::detach(),
         op_id: None,
         media: Media::new(),
@@ -62,37 +63,39 @@ async fn an_agent_land_under_a_propose_folder_is_refused() {
         .await
         .expect("policy");
     let (document, _) = memo(&h, &owner, Some(&parent)).await;
-    let refused = h
-        .service
-        .edit_mode(
-            &owner,
-            EditModeRequest {
-                document: &document,
-                requested: Some(EditMode::Land),
-                actor: ActorKind::Agent,
-            },
-            &trace(),
-        )
-        .await;
+    let refusal_trace = trace();
+    let refused = h.service.edit_mode(
+        &owner,
+        EditModeRequest {
+            document: &document,
+            requested: Some(EditMode::Land),
+        },
+        &refusal_trace,
+    );
+    let refused = act_as(
+        DocumentActor::agent(AgentName::new("review-agent"), false),
+        refused,
+    )
+    .await;
     match refused {
         Err(DocumentsError::Forbidden { policy, .. }) => {
             assert_eq!(policy.as_deref(), Some("propose"));
         },
         other => panic!("expected forbidden, got {other:?}"),
     }
-    let user = h
-        .service
-        .edit_mode(
+    let user = act_as(
+        DocumentActor::Human,
+        h.service.edit_mode(
             &owner,
             EditModeRequest {
                 document: &document,
                 requested: Some(EditMode::Land),
-                actor: ActorKind::User,
             },
             &trace(),
-        )
-        .await
-        .expect("a user lands");
+        ),
+    )
+    .await
+    .expect("a user lands");
     assert_eq!(user, EditMode::Land);
 }
 

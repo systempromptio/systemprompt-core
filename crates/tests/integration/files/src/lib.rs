@@ -10,6 +10,8 @@ mod config_paths;
 #[cfg(test)]
 mod documents_access_requests;
 #[cfg(test)]
+mod documents_agent_access;
+#[cfg(test)]
 mod documents_agent_caps;
 #[cfg(test)]
 mod documents_agent_context;
@@ -18,15 +20,33 @@ mod documents_agent_fixture;
 #[cfg(test)]
 mod documents_agent_moves;
 #[cfg(test)]
+mod documents_agent_rewrites;
+#[cfg(test)]
 mod documents_agent_rules;
 #[cfg(test)]
 mod documents_agent_visibility;
 #[cfg(test)]
 mod documents_blob_store;
 #[cfg(test)]
+mod documents_brain_facts;
+#[cfg(test)]
 mod documents_collab;
 #[cfg(test)]
+mod documents_collab_awareness;
+#[cfg(test)]
+mod documents_collab_follow_structured;
+#[cfg(test)]
 mod documents_collab_images;
+#[cfg(test)]
+mod documents_collab_lease_busy;
+#[cfg(test)]
+mod documents_collab_live_fixture;
+#[cfg(test)]
+mod documents_collab_live_ops;
+#[cfg(test)]
+mod documents_collab_live_structured;
+#[cfg(test)]
+mod documents_collab_owner;
 #[cfg(test)]
 mod documents_collab_replicas;
 #[cfg(test)]
@@ -36,9 +56,17 @@ mod documents_collab_timer;
 #[cfg(test)]
 mod documents_comments;
 #[cfg(test)]
+mod documents_comments_export;
+#[cfg(test)]
+mod documents_comments_refusals;
+#[cfg(test)]
 mod documents_comments_v2;
 #[cfg(test)]
 mod documents_commit_race;
+#[cfg(test)]
+mod documents_create_content;
+#[cfg(test)]
+mod documents_create_content_settings;
 #[cfg(test)]
 mod documents_drive_feed_order;
 #[cfg(test)]
@@ -50,15 +78,23 @@ mod documents_folders;
 #[cfg(test)]
 mod documents_foreign_lock;
 #[cfg(test)]
+mod documents_jobs_run;
+#[cfg(test)]
 mod documents_lifecycle;
 #[cfg(test)]
 mod documents_listing;
 #[cfg(test)]
 mod documents_listing_scale;
 #[cfg(test)]
+mod documents_media_admit;
+#[cfg(test)]
+mod documents_media_read;
+#[cfg(test)]
 mod documents_node_ids_backfill;
 #[cfg(test)]
 mod documents_notification_facts;
+#[cfg(test)]
+mod documents_pdf_render;
 #[cfg(test)]
 mod documents_proposals;
 #[cfg(test)]
@@ -69,6 +105,8 @@ mod documents_read_pool_lag;
 mod documents_reads;
 #[cfg(test)]
 mod documents_repository;
+#[cfg(test)]
+mod documents_repository_any;
 #[cfg(test)]
 mod documents_revision_engine;
 #[cfg(test)]
@@ -88,6 +126,8 @@ mod documents_sharing_hardening;
 #[cfg(test)]
 mod documents_sharing_review;
 #[cfg(test)]
+mod documents_sharing_revoke;
+#[cfg(test)]
 mod documents_upload_cleanup;
 #[cfg(test)]
 mod documents_upload_contract;
@@ -103,3 +143,27 @@ mod repository;
 mod services;
 #[cfg(test)]
 mod upload_service;
+#[cfg(test)]
+mod uploads_admission;
+#[cfg(test)]
+mod uploads_blob_reads;
+#[cfg(test)]
+mod uploads_dedupe;
+#[cfg(test)]
+mod uploads_expiry_job;
+#[cfg(test)]
+mod uploads_lifecycle_repo;
+#[cfg(test)]
+mod uploads_rig;
+#[cfg(test)]
+mod uploads_safety_directory;
+#[cfg(test)]
+mod uploads_safety_image;
+#[cfg(test)]
+mod uploads_safety_office;
+#[cfg(test)]
+mod uploads_safety_office_scan;
+#[cfg(test)]
+mod uploads_safety_svg;
+#[cfg(test)]
+mod uploads_service_flow;

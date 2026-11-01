@@ -185,7 +185,7 @@ pub async fn send_with_retry(
         let response = match outcome {
             Ok(response) => return Ok((response, attempt - 1)),
             Err(SendFailure::Fatal(e)) => return Err(e),
-            Err(SendFailure::Upstream(response)) => response,
+            Err(SendFailure::Upstream(response)) => *response,
         };
         if attempt >= policy.max_attempts {
             return Err(UpstreamError::from_response(provider, response).await);
@@ -223,13 +223,13 @@ pub async fn send_with_retry(
 async fn into_error(provider: &str, failure: SendFailure) -> UpstreamError {
     match failure {
         SendFailure::Fatal(e) => e,
-        SendFailure::Upstream(response) => UpstreamError::from_response(provider, response).await,
+        SendFailure::Upstream(response) => UpstreamError::from_response(provider, *response).await,
     }
 }
 
 enum SendFailure {
     Fatal(UpstreamError),
-    Upstream(reqwest::Response),
+    Upstream(Box<reqwest::Response>),
 }
 
 async fn send_once(
@@ -247,7 +247,7 @@ async fn send_once(
         return Ok(response);
     }
     if is_retryable(status) {
-        return Err(SendFailure::Upstream(response));
+        return Err(SendFailure::Upstream(Box::new(response)));
     }
     Err(SendFailure::Fatal(
         UpstreamError::from_response(provider, response).await,

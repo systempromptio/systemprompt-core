@@ -22,7 +22,7 @@ use super::agent::{document_context, folder_context};
 use super::service::DocumentAccessService;
 use crate::documents::agents::{
     AgentActor, AgentCap, AgentCapability, AgentChannel, AgentRefusal, DocumentContext, MoveActor,
-    UNNAMED_AGENT,
+    unnamed_agent,
 };
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{Document, DocumentFolder};
@@ -43,7 +43,7 @@ fn parent_of(target: MoveTarget<'_>) -> Option<DocumentFolderId> {
 
 fn strictest_agent() -> AgentActor {
     AgentActor {
-        name: UNNAMED_AGENT.to_owned(),
+        name: unnamed_agent(),
         attended: false,
         channel: AgentChannel::Direct,
     }

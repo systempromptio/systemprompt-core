@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO brain_config_docs (id, body, source) VALUES ($1, $2, $3)\n             ON CONFLICT (id) DO UPDATE\n             SET body = EXCLUDED.body, source = EXCLUDED.source, updated_at = now()",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Jsonb",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "3de18b6d796034c00a82f437b77854e5977ce306bc54c5b7a2107d5ab9156778"
+}

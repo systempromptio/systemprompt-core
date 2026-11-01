@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.77.0] - 2026-11-01
+
+### Added
+
+- Declarative toolsets: `McpToolset`, `ToolsetCall`, `submit_toolset!`, the generic `ToolsetServer` and `host::serve`, with per-tool and per-toolset access, `tools/list` filtered per caller and denials reported to recorders registered with `register_mcp_access_recorder!`. An unknown toolset id fails the host at start.
+
+### Fixed
+
+- The main server does not warn about toolsets only an MCP binary links.
+
 ## [0.75.0] - 2026-10-28
 
 ### Breaking

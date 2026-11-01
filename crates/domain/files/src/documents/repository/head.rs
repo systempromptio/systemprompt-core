@@ -23,13 +23,14 @@ use systemprompt_identifiers::{DocumentId, DocumentRevisionId};
 
 use super::documents::DocumentRepository;
 use super::rows::RepoResult;
+use crate::documents::models::LockHolder;
 
 #[derive(Debug, Clone, Copy)]
 pub struct HeadMove<'a> {
     pub document: &'a DocumentId,
     pub expected: Option<&'a DocumentRevisionId>,
     pub new: &'a DocumentRevisionId,
-    pub lock_holder: Option<&'a str>,
+    pub lock_holder: Option<&'a LockHolder>,
 }
 
 impl DocumentRepository {
@@ -62,7 +63,7 @@ impl DocumentRepository {
             head.document.as_str(),
             head.expected.map(DocumentRevisionId::as_str),
             head.new.as_str(),
-            head.lock_holder,
+            head.lock_holder.map(LockHolder::id_str),
         )
         .execute(conn)
         .await?;

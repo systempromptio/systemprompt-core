@@ -188,3 +188,15 @@ fn interrupted_result(tool_use_id: &str) -> CanonicalContent {
         cache_control: None,
     }
 }
+
+#[must_use]
+pub fn is_new_user_turn(messages: &[CanonicalMessage]) -> bool {
+    messages.last().is_some_and(|last| {
+        last.role == Role::User
+            && !last.content.is_empty()
+            && !last
+                .content
+                .iter()
+                .any(|part| matches!(part, CanonicalContent::ToolResult { .. }))
+    })
+}

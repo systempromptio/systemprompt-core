@@ -10,11 +10,11 @@
 
 use axum::http::HeaderMap;
 use systemprompt_files::documents::agents::DocumentActor;
-use systemprompt_files::documents::models::RevisionAttribution;
-use systemprompt_files::documents::service::{Author, RevisionOrigin};
+use systemprompt_files::documents::models::{RevisionAttribution, RevisionOrigin};
+use systemprompt_files::documents::service::Author;
 use systemprompt_identifiers::{ContextId, TraceId, UserId};
 use systemprompt_models::RequestContext;
-use systemprompt_models::auth::{AuthenticatedUser, BaseRoles, Permission};
+use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::ActorKind;
 use systemprompt_runtime::documents::actor::request_actor;
 use systemprompt_traits::{AuthUser, UserProvider};
@@ -53,12 +53,7 @@ pub(super) async fn load(
 }
 
 pub(crate) fn authenticated(user: AuthUser) -> AuthenticatedUser {
-    let permission = if user.roles.iter().any(|role| role == BaseRoles::ADMIN) {
-        Permission::Admin
-    } else {
-        Permission::User
-    };
-    AuthenticatedUser::new_with_roles(user.id, user.name, user.email, vec![permission], user.roles)
+    AuthenticatedUser::from_provider_user(user)
 }
 
 const fn actor_kind(actor: &DocumentActor) -> ActorKind {

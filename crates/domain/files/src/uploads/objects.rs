@@ -30,7 +30,7 @@ pub struct OrphanedObject {
 
 struct OrphanRow {
     upload_id: DocumentUploadId,
-    storage_id: String,
+    storage_id: StoredFileId,
 }
 
 impl DocumentUploadRepository {
@@ -64,7 +64,8 @@ impl DocumentUploadRepository {
     pub async fn list_orphaned_objects(&self, limit: i64) -> RepoResult<Vec<OrphanedObject>> {
         let rows = sqlx::query_as!(
             OrphanRow,
-            r#"SELECT o.upload_id::text AS "upload_id!: DocumentUploadId", o.storage_id
+            r#"SELECT o.upload_id::text AS "upload_id!: DocumentUploadId",
+                      o.storage_id AS "storage_id: StoredFileId"
                FROM document_upload_objects o
                WHERE NOT EXISTS (
                        SELECT 1 FROM document_upload_parts p
@@ -84,7 +85,7 @@ impl DocumentUploadRepository {
             .into_iter()
             .map(|row| OrphanedObject {
                 upload_id: row.upload_id,
-                storage_id: StoredFileId::new(row.storage_id),
+                storage_id: row.storage_id,
             })
             .collect())
     }

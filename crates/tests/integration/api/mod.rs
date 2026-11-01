@@ -189,6 +189,8 @@ mod documents_access_requests;
 #[cfg(test)]
 mod documents_collab;
 #[cfg(test)]
+mod documents_comment_edit;
+#[cfg(test)]
 mod documents_drive_policy;
 #[cfg(test)]
 mod documents_parity;
@@ -200,6 +202,8 @@ mod documents_read_parity;
 mod documents_review;
 #[cfg(test)]
 mod documents_sharing;
+#[cfg(test)]
+mod documents_subject_levels;
 #[cfg(test)]
 #[path = "routes_oauth_token.rs"]
 mod routes_oauth_token;
@@ -315,6 +319,14 @@ mod gateway_journal_drain;
 #[cfg(test)]
 #[path = "gateway_pipeline.rs"]
 mod gateway_pipeline;
+
+#[cfg(test)]
+#[path = "gateway_recall.rs"]
+mod gateway_recall;
+
+#[cfg(test)]
+#[path = "gateway_recall_cases.rs"]
+mod gateway_recall_cases;
 
 #[cfg(test)]
 #[path = "gateway_failover.rs"]
@@ -446,6 +458,9 @@ mod routes_oauth_clients;
 #[cfg(test)]
 #[path = "routes_oauth_introspect_revoke.rs"]
 mod routes_oauth_introspect_revoke;
+
+#[cfg(test)]
+mod routes_oauth_revoke_refresh;
 
 #[cfg(test)]
 #[path = "routes_oauth_userinfo.rs"]
@@ -635,3 +650,43 @@ mod gateway_api_key_session_binding;
 #[cfg(test)]
 #[path = "process_leases.rs"]
 mod process_leases;
+
+#[cfg(test)]
+#[path = "brain_routes_facts.rs"]
+mod brain_routes_facts;
+
+#[cfg(test)]
+#[path = "brain_routes_govern.rs"]
+mod brain_routes_govern;
+
+#[cfg(test)]
+#[path = "documents_agent_cap_live.rs"]
+mod documents_agent_cap_live;
+
+#[cfg(test)]
+#[path = "routes_uploads.rs"]
+mod routes_uploads;
+
+#[cfg(test)]
+#[path = "routes_uploads_tokens.rs"]
+mod routes_uploads_tokens;
+
+#[cfg(test)]
+#[path = "gateway_provider_credentials.rs"]
+mod gateway_provider_credentials;
+
+#[cfg(test)]
+#[path = "routes_issues.rs"]
+mod routes_issues;
+
+#[cfg(test)]
+#[path = "gateway_bridge_notifications.rs"]
+mod gateway_bridge_notifications;
+
+#[cfg(test)]
+#[path = "proxy_owner_forward.rs"]
+mod proxy_owner_forward;
+
+#[cfg(test)]
+#[path = "documents_import_export.rs"]
+mod documents_import_export;

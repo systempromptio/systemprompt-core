@@ -25,6 +25,18 @@ impl AppContext {
         &self.subsystems.notifications
     }
 
+    #[cfg(feature = "brain")]
+    #[must_use]
+    pub fn brain(&self) -> Option<&crate::brain::BrainHandle> {
+        self.subsystems.brain.as_deref()
+    }
+
+    #[cfg(feature = "brain")]
+    #[must_use]
+    pub fn brain_recall(&self) -> Option<Arc<dyn systemprompt_extension::brain::MemoryRecall>> {
+        self.brain().map(crate::brain::BrainHandle::memory_recall)
+    }
+
     pub const fn boot(&self) -> &BootContext {
         &self.cfg.boot
     }

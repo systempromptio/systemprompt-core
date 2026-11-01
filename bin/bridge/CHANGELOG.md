@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.77.0] - 2026-11-01
+
+### Changed
+
+- The inbox and desktop toasts render a notification's `title` and `body`; the feed no longer carries `excerpt` or `actor_display`.
+
+### Fixed
+
+- `winit` is pinned exactly.
+
 ## [0.75.0] - 2026-10-28
 
 ### Breaking
@@ -168,7 +178,6 @@ No bridge changes; released with core 0.59.1.
 
 ### Changed
 - A `[1m]` default from the gateway resolves to its catalog id before the host config is written. OpenCode and Hermes match the declared model instead of failing the membership test and falling back to first-listed; Claude Code's managed settings raise a bare-form seed to the variant and leave any other existing `/model` choice alone.
-
 
 - OpenCode's managed provider config declares each model's `limit.context` and `limit.output` from the server's `model_limits`, instead of leaving OpenCode to size every gateway model with its own default. `ProfileGenInputs` carries the map.
 - The MDM default inference model list leads with `claude-opus-5-5`, and the sonnet-4-6 examples in the macOS apply summary follow the catalog.

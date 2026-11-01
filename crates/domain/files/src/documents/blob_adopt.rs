@@ -38,11 +38,7 @@ impl BlobStore {
         if let Err(error) = self.storage.delete(staged).await {
             tracing::warn!(storage_id = %staged, error = %error, "Failed to remove a staged blob");
         }
-        match self
-            .blobs
-            .upsert(hash, size_column, canonical.as_str())
-            .await
-        {
+        match self.blobs.upsert(hash, size_column, &canonical).await {
             Ok(inserted) => Ok(StoredBlob {
                 hash: hash.clone(),
                 size_bytes: size,
@@ -69,7 +65,7 @@ impl BlobStore {
             .await?
             .ok_or_else(|| BlobStoreError::NotFound { hash: hash.clone() })?;
         Ok((
-            StoredFileId::new(row.storage_id),
+            StoredFileId::new(row.storage_id.as_str()),
             row.size_bytes.unsigned_abs(),
         ))
     }
@@ -82,6 +78,6 @@ impl BlobStore {
             .blobs
             .find_on_primary(hash)
             .await?
-            .map(|row| StoredFileId::new(row.storage_id)))
+            .map(|row| StoredFileId::new(row.storage_id.as_str())))
     }
 }

@@ -5,7 +5,8 @@
 //! it: reserve the created nodes' ids and renumber them, insert the revision
 //! and its ids, claim the op id's acknowledgement, move the head by
 //! compare-and-swap (which also refuses a foreign lock), mark the revision
-//! landed, and settle the proposal being accepted. Any refusal rolls the whole
+//! landed, settle the proposal being accepted, and record the
+//! `document.revision.landed` brain fact. Any refusal rolls the whole
 //! transaction back, so a commit that loses the race leaves no revision behind.
 //! A proposal's revision is stored the same way without moving the head, and
 //! stays unlanded.
@@ -19,11 +20,12 @@ use systemprompt_identifiers::{
 use systemprompt_models::documents::Projection;
 use systemprompt_traits::RepositoryError;
 
-use super::landing_ids::{carry, reserve};
+use super::landing_ids::{Carried, carry, reserve};
 use super::{CommentPolicy, DocumentService};
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{
-    AckClaim, Document, DocumentRevision, NewRevision, NodeIdEntry, StoredWriteAck, WriteAck,
+    AckClaim, Document, DocumentRevision, LockHolder, NewRevision, NodeIdEntry, StoredWriteAck,
+    WriteAck,
 };
 use crate::documents::nodes::{CarryHints, created_nodes, with_ids, writer_tag, written_nodes};
 use crate::documents::repository::{
@@ -50,7 +52,7 @@ pub(super) struct OpClaim<'a> {
 #[derive(Clone, Copy)]
 pub(super) struct Placement<'a> {
     pub(super) moves_head: bool,
-    pub(super) lock_holder: Option<&'a str>,
+    pub(super) lock_holder: Option<&'a LockHolder>,
     pub(super) op: Option<OpClaim<'a>>,
     pub(super) settles: Option<&'a DocumentProposalId>,
     pub(super) comments: &'a CommentPolicy,
@@ -105,6 +107,21 @@ async fn claim_op(
 }
 
 impl DocumentService {
+    async fn detached_by(
+        &self,
+        document: &Document,
+        carried: &Carried,
+        placement: &Placement<'_>,
+    ) -> Result<Vec<DocumentCommentId>, DocumentsError> {
+        if !placement.moves_head {
+            return Ok(Vec::new());
+        }
+        let entries: Vec<NodeIdEntry> = carried.entries.iter().map(|c| c.entry.clone()).collect();
+        let provisional = with_ids(carried.next.clone(), &entries);
+        self.affected_anchors(&document.id, &provisional, placement.comments)
+            .await
+    }
+
     pub(super) async fn land(
         &self,
         document: &Document,
@@ -119,16 +136,8 @@ impl DocumentService {
             merged_from,
             applied,
         } = prepared;
-        let carried = carry(next, previous, hints).await?;
-        let detached = if placement.moves_head {
-            let entries: Vec<NodeIdEntry> =
-                carried.entries.iter().map(|c| c.entry.clone()).collect();
-            let provisional = with_ids(carried.next.clone(), &entries);
-            self.affected_anchors(&document.id, &provisional, placement.comments)
-                .await?
-        } else {
-            Vec::new()
-        };
+        let carried = carry_live(next, previous, hints).await?;
+        let detached = self.detached_by(document, &carried, &placement).await?;
         let mut tx = self.repos.documents.begin().await?;
         let writer = writer_tag(revision.author_user_id.as_str());
         let entries = reserve(
@@ -176,6 +185,8 @@ impl DocumentService {
                 drop(tx);
                 return Err(self.proposal_closed(proposal).await);
             }
+            self.record_revision_landed(&mut tx, document, &revision)
+                .await?;
         }
         tx.commit().await.map_err(sql)?;
         Ok(LandResult::Landed(Box::new(Stored {
@@ -211,7 +222,28 @@ impl DocumentService {
             drop(tx);
             return Err(self.proposal_closed(proposal).await);
         }
+        self.record_revision_landed(&mut tx, document, proposed)
+            .await?;
         tx.commit().await.map_err(sql)?;
         Ok(true)
     }
+}
+
+async fn carry_live(
+    next: Projection,
+    previous: Option<Projection>,
+    mut hints: CarryHints,
+) -> Result<Carried, DocumentsError> {
+    if super::live_ids::live_ids_kept()
+        && let Some(previous) = &previous
+    {
+        hints
+            .rewritten
+            .extend(previous.nodes().map(|node| node.id.clone()));
+    }
+    let mut carried = carry(next, previous, hints).await?;
+    if let Some(model) = super::live_ids::live_model() {
+        carried.pin(&super::live_ids::pinned_ids(&carried.next, &model));
+    }
+    Ok(carried)
 }

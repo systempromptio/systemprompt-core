@@ -15,23 +15,13 @@ use super::views::{IssuePage, ListParams, StatusBody, StatusJson};
 use super::{IssuesState, caller};
 use crate::error::ApiHttpError;
 
-#[expect(
-    clippy::result_large_err,
-    reason = "ApiHttpError is the handler error type; boxing it here would propagate to every \
-              caller for negligible gain"
-)]
 fn triager<'a>(
     state: &IssuesState,
     req_ctx: &'a RequestContext,
 ) -> Result<&'a AuthenticatedUser, ApiHttpError> {
     let user = caller(req_ctx)?;
-    if user.is_admin() || state.issues.is_triager(&user.roles) {
-        Ok(user)
-    } else {
-        Err(ApiHttpError::forbidden(
-            "issue triage needs a triage role or admin",
-        ))
-    }
+    state.issues.require_triager(user)?;
+    Ok(user)
 }
 
 pub(super) async fn list(

@@ -2,6 +2,7 @@
 
 mod coordination_db;
 mod log_retention;
+mod presence_db;
 mod release_stamp_db;
 mod service;
 mod service_reap_stale_db;

@@ -29,7 +29,11 @@ mod event_serde;
 #[cfg(test)]
 mod execute;
 #[cfg(test)]
+mod execute_paths;
+#[cfg(test)]
 mod execute_support;
+#[cfg(test)]
+mod execute_version;
 #[cfg(test)]
 mod governance;
 #[cfg(test)]
@@ -45,9 +49,13 @@ mod outputs;
 #[cfg(test)]
 mod repository;
 #[cfg(test)]
+mod retention;
+#[cfg(test)]
 mod runner;
 #[cfg(test)]
 mod runner_claim;
+#[cfg(test)]
+mod runner_handler;
 #[cfg(test)]
 mod task_link;
 #[cfg(test)]

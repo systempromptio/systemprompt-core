@@ -20,8 +20,8 @@ pub struct CommentBodyEdit<'a> {
 }
 
 impl DocumentCommentRepository {
-    pub async fn resolve(
-        &self,
+    pub async fn resolve_in(
+        conn: &mut PgConnection,
         document: &DocumentId,
         comment: &DocumentCommentId,
         by: &UserId,
@@ -35,13 +35,13 @@ impl DocumentCommentRepository {
             document.as_str(),
             by.as_str(),
         )
-        .execute(&*self.pools.write)
+        .execute(&mut *conn)
         .await?;
         Ok(result.rows_affected() == 1)
     }
 
-    pub async fn set_answering(
-        &self,
+    pub async fn set_answering_in(
+        conn: &mut PgConnection,
         document: &DocumentId,
         comment: &DocumentCommentId,
         revision: &DocumentRevisionId,
@@ -54,7 +54,7 @@ impl DocumentCommentRepository {
             document.as_str(),
             revision.as_str(),
         )
-        .execute(&*self.pools.write)
+        .execute(&mut *conn)
         .await?;
         Ok(result.rows_affected() == 1)
     }

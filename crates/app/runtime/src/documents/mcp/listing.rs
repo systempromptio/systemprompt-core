@@ -6,10 +6,8 @@
 //! and `documents_create` lists its ops as a plain array. An id property
 //! (`*_id`, `*_revision`) with no `type` is a string: every id is one, so
 //! the schema leaves that type implied; every other string keeps it.
-//! A tool advertises no output schema and no artifact-viewer `_meta`, since
-//! results arrive as summary text and untagged structured content and this
-//! server serves only the document-preview resource, which `documents_export`
-//! names.
+//! A tool advertises no output schema and no `_meta`, since results arrive as
+//! summary text and untagged structured content.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -27,7 +25,7 @@ use super::{
     AccessHandler, CommentHandler, CopyHandler, CreateHandler, DocumentsMcpTools, EditHandler,
     ExportHandler, GuideHandler, HistoryHandler, ListHandler, PeopleHandler, ProposalsHandler,
     ReadHandler, SearchHandler, ShareHandler, TrashHandler, UntrashHandler, UpdateHandler,
-    UploadHandler, preview_tool_meta,
+    UploadHandler,
 };
 
 const OP_NAMES: [&str; 8] = [
@@ -185,49 +183,39 @@ fn plain_ops(mut tool: Tool) -> Tool {
     tool
 }
 
-fn compact(mut tool: Tool, keep_meta: bool) -> Tool {
+fn compact(mut tool: Tool) -> Tool {
     tool.input_schema = Arc::new(compact_input(&tool.input_schema));
     tool.output_schema = None;
-    if !keep_meta {
-        tool.meta = None;
-    }
+    tool.meta = None;
     tool
 }
 
 pub(super) fn tool_list(tools: &DocumentsMcpTools) -> Vec<Tool> {
     let server = tools.server_name();
-    let mut export = ExportHandler { tools }.tool_definition(server);
-    export.meta = Some(preview_tool_meta(server));
     let tools_list = vec![
-        compact(ListHandler { tools }.tool_definition(server), false),
-        compact(SearchHandler { tools }.tool_definition(server), false),
-        plain_ops(compact(
-            CreateHandler { tools }.tool_definition(server),
-            false,
-        )),
-        compact(ReadHandler { tools }.tool_definition(server), false),
-        compact(EditHandler { tools }.tool_definition(server), false),
-        compact(CommentHandler { tools }.tool_definition(server), false),
-        compact(HistoryHandler { tools }.tool_definition(server), false),
-        compact(ProposalsHandler { tools }.tool_definition(server), false),
-        compact(ShareHandler { tools }.tool_definition(server), false),
-        compact(AccessHandler { tools }.tool_definition(server), false),
-        compact(CopyHandler { tools }.tool_definition(server), false),
-        compact(UpdateHandler { tools }.tool_definition(server), false),
-        compact(TrashHandler { tools }.tool_definition(server), false),
-        compact(UntrashHandler { tools }.tool_definition(server), false),
-        compact(export, true),
-        compact(UploadHandler { tools }.tool_definition(server), false),
-        compact(GuideHandler { tools }.tool_definition(server), false),
-        compact(PeopleHandler { tools }.tool_definition(server), false),
+        compact(ListHandler { tools }.tool_definition(server)),
+        compact(SearchHandler { tools }.tool_definition(server)),
+        plain_ops(compact(CreateHandler { tools }.tool_definition(server))),
+        compact(ReadHandler { tools }.tool_definition(server)),
+        compact(EditHandler { tools }.tool_definition(server)),
+        compact(CommentHandler { tools }.tool_definition(server)),
+        compact(HistoryHandler { tools }.tool_definition(server)),
+        compact(ProposalsHandler { tools }.tool_definition(server)),
+        compact(ShareHandler { tools }.tool_definition(server)),
+        compact(AccessHandler { tools }.tool_definition(server)),
+        compact(CopyHandler { tools }.tool_definition(server)),
+        compact(UpdateHandler { tools }.tool_definition(server)),
+        compact(TrashHandler { tools }.tool_definition(server)),
+        compact(UntrashHandler { tools }.tool_definition(server)),
+        compact(ExportHandler { tools }.tool_definition(server)),
+        compact(UploadHandler { tools }.tool_definition(server)),
+        compact(GuideHandler { tools }.tool_definition(server)),
+        compact(PeopleHandler { tools }.tool_definition(server)),
     ];
     #[cfg(feature = "notifications")]
     let tools_list = {
         let mut tools_list = tools_list;
-        tools_list.push(compact(
-            InboxHandler { tools }.tool_definition(server),
-            false,
-        ));
+        tools_list.push(compact(InboxHandler { tools }.tool_definition(server)));
         tools_list
     };
     tools_list

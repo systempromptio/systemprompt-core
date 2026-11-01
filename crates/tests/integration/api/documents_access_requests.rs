@@ -16,7 +16,7 @@ use systemprompt_test_fixtures::{
 use tower::ServiceExt;
 use uuid::Uuid;
 
-use super::common::request_context;
+use super::common::{browser_page, request_context};
 
 async fn requests_enabled() -> Result<(systemprompt_database::DbPool, DocumentsState)> {
     let b = ensure_test_bootstrap();
@@ -58,7 +58,7 @@ async fn call(
 }
 
 fn docs(state: &DocumentsState, user: &AuthedFixture) -> Router {
-    router(state.clone()).layer(Extension(
+    browser_page(router(state.clone())).layer(Extension(
         request_context(user.user_id.as_str()).with_browser_session(),
     ))
 }

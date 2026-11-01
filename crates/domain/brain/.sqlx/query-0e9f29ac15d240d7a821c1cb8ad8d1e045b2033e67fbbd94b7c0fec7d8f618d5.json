@@ -1,0 +1,46 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH live AS (\n                   SELECT kind, count(*) AS n FROM brain_facts\n                   WHERE status IN ('candidate', 'proposed', 'confirmed')\n                   GROUP BY kind\n               ), injected AS (\n                   SELECT f.kind, count(*) AS n\n                   FROM brain_recalls r\n                   CROSS JOIN LATERAL jsonb_array_elements(r.injected) AS e(item)\n                   JOIN brain_facts f ON f.id = e.item->>'id'\n                   WHERE r.created_at >= $1 AND r.created_at < $2\n                   GROUP BY f.kind\n               ), cited AS (\n                   SELECT f.kind, count(*) AS n\n                   FROM brain_outcomes o JOIN brain_facts f ON f.id = o.fact_id\n                   WHERE o.signal = $3 AND o.value > 0\n                     AND o.observed_at >= $1 AND o.observed_at < $2\n                   GROUP BY f.kind\n               ), kinds AS (\n                   SELECT kind FROM live UNION SELECT kind FROM injected\n                   UNION SELECT kind FROM cited\n               )\n               SELECT k.kind AS \"kind!: FactKindId\",\n                      COALESCE(live.n, 0) AS \"facts!\",\n                      COALESCE(injected.n, 0) AS \"injections!\",\n                      COALESCE(cited.n, 0) AS \"citations!\"\n               FROM kinds k\n               LEFT JOIN live ON live.kind = k.kind\n               LEFT JOIN injected ON injected.kind = k.kind\n               LEFT JOIN cited ON cited.kind = k.kind\n               ORDER BY k.kind",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "kind!: FactKindId",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "facts!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "injections!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "citations!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Timestamptz",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "0e9f29ac15d240d7a821c1cb8ad8d1e045b2033e67fbbd94b7c0fec7d8f618d5"
+}

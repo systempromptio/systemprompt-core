@@ -1,4 +1,5 @@
-//! The blank workbook new spreadsheets start from, and `{{key}}`
+//! The blank workbook new spreadsheets start from (written by `IronCalc`, so
+//! the live sheet engine can read it back), and `{{key}}`
 //! placeholder instantiation of workbook templates.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -6,10 +7,26 @@
 
 use systemprompt_provider_contracts::documents::{CodecError, TemplateParams};
 
+use std::io::Cursor;
+
+use ironcalc::base::Model;
+use ironcalc::export::save_xlsx_to_writer;
+
 use super::workbook::{load, save};
 
 pub fn blank_xlsx() -> Result<Vec<u8>, CodecError> {
-    save(&umya_spreadsheet::new_file())
+    let model =
+        Model::new_empty("workbook", "en", "UTC", "en").map_err(|detail| CodecError::Parse {
+            part: "workbook".to_owned(),
+            source: detail.into(),
+        })?;
+    let cursor = save_xlsx_to_writer(&model, Cursor::new(Vec::new())).map_err(|source| {
+        CodecError::Parse {
+            part: "workbook".to_owned(),
+            source: Box::new(source),
+        }
+    })?;
+    Ok(cursor.into_inner())
 }
 
 pub(super) fn instantiate(template: &[u8], params: &TemplateParams) -> Result<Vec<u8>, CodecError> {

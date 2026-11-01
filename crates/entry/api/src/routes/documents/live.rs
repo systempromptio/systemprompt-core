@@ -181,7 +181,10 @@ fn channel(
                         state.service.live_allowed(&who.user, &document, &who.trace),
                     )
                     .await;
-                    if matches!(allowed, Ok(false)) {
+                    if let Err(error) = &allowed {
+                        tracing::warn!(error = %error, document = %document, "live access recheck failed; closing stream");
+                    }
+                    if !matches!(allowed, Ok(true)) {
                         yield Ok(frame(DocumentLiveClosedEvent::NAME, None, &DocumentLiveClosedEvent {
                             document_id: document.clone(),
                         }));

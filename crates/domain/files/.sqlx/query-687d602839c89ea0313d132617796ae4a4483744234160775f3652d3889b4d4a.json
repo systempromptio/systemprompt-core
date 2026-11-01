@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT DISTINCT content_sha256 AS \"content_sha256!\"\n               FROM issue_report_attachments\n               WHERE content_sha256 = ANY($1::text[])",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "content_sha256!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "issue_report_attachments",
+            "name": "content_sha256"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "TextArray"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "687d602839c89ea0313d132617796ae4a4483744234160775f3652d3889b4d4a"
+}

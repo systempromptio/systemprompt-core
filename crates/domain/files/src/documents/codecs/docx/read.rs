@@ -74,8 +74,34 @@ pub(super) fn paragraph(xml: &str, p: &Element, ctx: &ReadCtx) -> Option<Block> 
         runs.marks.clear();
     }
     block.marks = runs.marks;
+    task_state(&mut block);
     let implied_style = if implied { style.as_deref() } else { None };
     Some(with_attrs(block, ppr, implied_style))
+}
+
+fn task_state(block: &mut Block) {
+    let BlockKind::ListItem { checked, .. } = &mut block.kind else {
+        return;
+    };
+    let ticked = match block.text.chars().next() {
+        Some('\u{2612}') => true,
+        Some('\u{2610}') => false,
+        _ => return,
+    };
+    let Some(rest) = block
+        .text
+        .get('\u{2612}'.len_utf8()..)
+        .and_then(|r| r.strip_prefix(' '))
+    else {
+        return;
+    };
+    block.text = rest.to_owned();
+    *checked = Some(ticked);
+    for mark in &mut block.marks {
+        mark.start = mark.start.saturating_sub(2);
+        mark.end = mark.end.saturating_sub(2);
+    }
+    block.marks.retain(|mark| mark.end > mark.start);
 }
 
 fn section_break(section: Section) -> Block {

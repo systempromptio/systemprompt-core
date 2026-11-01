@@ -48,8 +48,12 @@ pub(super) async fn image(
         blob.bytes.into_response()
     };
     let headers = response.headers_mut();
+    headers.insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_str(&blob.mime)
+            .unwrap_or_else(|_invalid| HeaderValue::from_static("application/octet-stream")),
+    );
     for (name, value) in [
-        (header::CONTENT_TYPE, blob.mime.as_str()),
         (header::ETAG, tag.as_str()),
         (header::CACHE_CONTROL, "private, no-cache"),
     ] {

@@ -28,6 +28,7 @@ use systemprompt_identifiers::{
     Actor, ApiKeyId, ClientId, ClientSessionId, JwtToken, SessionId, TraceId, UserId,
 };
 use systemprompt_models::attribution::ScopeBinding;
+use systemprompt_models::auth::{RequestActor, agent_name, bearer_actor};
 use systemprompt_models::execution::ContextExtractionError;
 use systemprompt_runtime::AppContext;
 use systemprompt_security::JwtUserContext;
@@ -56,6 +57,7 @@ pub struct Principal {
     pub act_chain: Vec<Actor>,
     pub client_id: Option<ClientId>,
     pub scopes: Option<KeyScopes>,
+    pub actor: RequestActor,
 }
 
 /// An authenticated gateway caller: the principal plus the session the
@@ -184,6 +186,10 @@ async fn authenticate_api_key(
         .await
         .map_err(rejection_for_token)?;
 
+    let actor = RequestActor::Agent {
+        name: agent_name(Some(&format!("api-key:{}", rec.id)), None),
+        attended: false,
+    };
     let binding = bind_api_key_session(
         ctx,
         SessionRequest {
@@ -208,6 +214,7 @@ async fn authenticate_api_key(
                 limits: rec.limits,
                 scopes: rec.scopes,
             }),
+            actor,
         },
         trace_id: TraceId::generate(),
         session_id: binding.session_id,
@@ -239,6 +246,11 @@ fn jwt_principal(
     roles: Vec<String>,
     client_session: Option<ClientSessionId>,
 ) -> AuthedPrincipal {
+    let actor = bearer_actor(
+        claims.purpose.as_deref(),
+        claims.client_id.as_ref(),
+        claims.interaction,
+    );
     AuthedPrincipal {
         principal: Principal {
             user_id: claims.user_id,
@@ -248,6 +260,7 @@ fn jwt_principal(
             act_chain: claims.act_chain,
             client_id: claims.client_id,
             scopes: None,
+            actor,
         },
         trace_id: TraceId::generate(),
         session_id: claims.session_id,

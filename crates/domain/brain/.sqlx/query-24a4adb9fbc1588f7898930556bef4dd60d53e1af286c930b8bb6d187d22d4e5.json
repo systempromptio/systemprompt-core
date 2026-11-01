@@ -1,0 +1,76 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id AS \"id: BrainRecallId\", as_of, tokens,\n                      injected AS \"injected: Json<Vec<FactRef>>\",\n                      withheld AS \"withheld: Json<BTreeMap<WithheldReason, u32>>\"\n               FROM brain_recalls\n               WHERE ai_request_id = $1 AND skipped IS NULL\n               ORDER BY created_at DESC LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id: BrainRecallId",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "brain_recalls",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "as_of",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "brain_recalls",
+            "name": "as_of"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "tokens",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "brain_recalls",
+            "name": "tokens"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "injected: Json<Vec<FactRef>>",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "brain_recalls",
+            "name": "injected"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "withheld: Json<BTreeMap<WithheldReason, u32>>",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "brain_recalls",
+            "name": "withheld"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "24a4adb9fbc1588f7898930556bef4dd60d53e1af286c930b8bb6d187d22d4e5"
+}

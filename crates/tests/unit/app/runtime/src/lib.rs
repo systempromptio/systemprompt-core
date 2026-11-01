@@ -15,6 +15,14 @@ mod app_context_parts;
 #[cfg(test)]
 mod boot;
 #[cfg(test)]
+mod brain_composition;
+#[cfg(test)]
+mod brain_consumer_start;
+#[cfg(test)]
+mod brain_mcp;
+#[cfg(test)]
+mod brain_mcp_dispatch;
+#[cfg(test)]
 mod builder_build_live;
 #[cfg(test)]
 mod builder_extra;
@@ -39,6 +47,8 @@ mod documents_actor;
 #[cfg(test)]
 mod documents_mcp_content;
 #[cfg(test)]
+mod documents_mcp_export;
+#[cfg(test)]
 mod documents_mcp_guide;
 #[cfg(test)]
 mod documents_mcp_handlers;
@@ -47,10 +57,32 @@ mod documents_mcp_lifecycle;
 #[cfg(test)]
 mod documents_mcp_lines;
 #[cfg(test)]
+mod documents_mcp_media;
+#[cfg(test)]
+mod documents_mcp_people;
+#[cfg(test)]
 mod documents_mcp_proposals;
 #[cfg(test)]
 mod documents_mcp_refusals;
+#[cfg(test)]
+mod documents_subject_directory;
+#[cfg(test)]
+mod documents_views_touched;
+#[cfg(test)]
+mod mcp_dispatch;
+#[cfg(test)]
+mod notifications_document_visibility;
 
+#[cfg(test)]
+mod brain_live;
+#[cfg(test)]
+mod documents_mcp_browse;
+#[cfg(test)]
+mod documents_mcp_comments;
+#[cfg(test)]
+mod documents_mcp_inbox;
+#[cfg(test)]
+mod documents_mcp_rig;
 #[cfg(test)]
 mod documents_mcp_schema;
 #[cfg(test)]
@@ -62,6 +94,8 @@ mod documents_mcp_sizes;
 #[cfg(test)]
 mod documents_mcp_support;
 #[cfg(test)]
+mod documents_mcp_upload;
+#[cfg(test)]
 mod documents_refusal_parity;
 #[cfg(test)]
 mod error_variants;
@@ -69,8 +103,12 @@ mod error_variants;
 mod ext_fixtures;
 #[cfg(test)]
 mod issues_mcp_refusals;
+#[cfg(test)]
+mod issues_mcp_tools;
 #[cfg(all(test, unix))]
 mod managed_inventory_lifecycle;
+#[cfg(test)]
+mod mcp_host_serve;
 #[cfg(test)]
 mod schema_behind_error;
 #[cfg(test)]
@@ -89,6 +127,8 @@ mod startup_validation;
 mod storage_backends;
 #[cfg(test)]
 mod trace;
+#[cfg(test)]
+mod upload_grants;
 #[cfg(test)]
 mod validate_database_path;
 #[cfg(test)]

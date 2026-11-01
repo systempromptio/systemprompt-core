@@ -3,15 +3,17 @@
 //!
 //! A first-party browser session is the person, any bearer token an agent
 //! (see [`systemprompt_runtime::documents::actor`]). A request that reaches
-//! the routes without a context runs unscoped, which the document service
-//! treats as an unnamed, unattended agent.
+//! the routes without a context is refused `401`, and a browser-session
+//! request on a router without the site configuration is a wiring fault
+//! answered `500`.
 //!
-//! Two refusals sit in front of that. A bearer-class token sent as the
+//! Two further refusals apply. A bearer-class token sent as the
 //! session cookie (one the web login did not mint) is refused `401`, so the
 //! cookie cannot carry anything but a browser session. And a browser-session
 //! request the browser marks cross-site (`Sec-Fetch-Site`), or whose
-//! `Origin` is not the site's configured public URL, is refused `403`: the
-//! person's cookie acts only from the person's own pages.
+//! `Origin` is not the site's configured public URL, is refused `403`, as is
+//! one carrying neither header: the person's cookie acts only from the
+//! person's own pages.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -31,7 +33,8 @@ use crate::error::ApiHttpError;
 
 pub async fn scope(request: Request, next: Next) -> Response {
     let Some(ctx) = request.extensions().get::<RequestContext>() else {
-        return next.run(request).await;
+        return ApiHttpError::unauthorized("the request carries no authenticated context")
+            .into_response();
     };
     if ctx.is_cookie_transport() && !ctx.is_browser_session() {
         return ApiHttpError::unauthorized(
@@ -39,18 +42,24 @@ pub async fn scope(request: Request, next: Next) -> Response {
         )
         .into_response();
     }
-    if ctx.is_browser_session() && !same_origin(request.headers(), &site_origins(&request)) {
-        return ApiHttpError::forbidden("a browser session acts only from this site's pages")
+    if ctx.is_browser_session() {
+        let Some(config) = request.extensions().get::<Arc<Config>>() else {
+            return ApiHttpError::internal(
+                "document routes are mounted without the site configuration",
+                "the Config extension is not installed",
+            )
             .into_response();
+        };
+        if !same_origin(request.headers(), &site_origins(config)) {
+            return ApiHttpError::forbidden("a browser session acts only from this site's pages")
+                .into_response();
+        }
     }
     let actor = request_actor(ctx);
     act_as(actor, next.run(request)).await
 }
 
-fn site_origins(request: &Request) -> Vec<String> {
-    let Some(config) = request.extensions().get::<Arc<Config>>() else {
-        return Vec::new();
-    };
+fn site_origins(config: &Config) -> Vec<String> {
     [
         Some(&config.api_external_url),
         config.advertise_url.as_ref(),
@@ -72,7 +81,7 @@ pub fn same_origin(headers: &HeaderMap, site_origins: &[String]) -> bool {
         return false;
     }
     let Some(origin) = headers.get(header::ORIGIN).and_then(|v| v.to_str().ok()) else {
-        return true;
+        return fetch_site.is_some();
     };
     let origin = origin.trim_end_matches('/');
     if !site_origins.is_empty() {

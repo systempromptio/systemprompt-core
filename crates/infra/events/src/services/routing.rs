@@ -30,7 +30,7 @@ use std::sync::Arc;
 use systemprompt_identifiers::{EventOutboxId, InstanceId, UserId};
 use tracing::debug;
 
-use super::repository::EventOutboxRepository;
+use super::repository::{EventOutboxRepository, OutboxInsert};
 use super::{
     A2ABroadcaster, AgUiBroadcaster, AnalyticsBroadcaster, ContextBroadcaster, TopicBroadcaster,
     TopicEvent,
@@ -40,8 +40,7 @@ use crate::error::{RelayError, RelayOutcome, RouteOutcome};
 use systemprompt_identifiers::Actor;
 use systemprompt_models::{A2AEvent, AgUiEvent, AnalyticsEvent, ContextEvent, SystemEvent};
 
-pub const OUTBOX_CHANNEL: &str = "systemprompt_events";
-pub const NOTIFICATION_FACTS_CHANNEL: &str = "systemprompt_notification_facts";
+pub use super::outbox_channel::{NOTIFICATION_FACTS_CHANNEL, OUTBOX_CHANNEL, OutboxChannel};
 
 /// The fan-out points for every event kind, built once and shared by the
 /// router, the cross-replica bridge and the SSE endpoints of one process.
@@ -76,43 +75,6 @@ pub struct BroadcasterConnections {
     pub agui: usize,
     pub a2a: usize,
     pub analytics: usize,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum OutboxChannel {
-    AgUi,
-    A2A,
-    System,
-    Analytics,
-    Topic,
-    Fact,
-}
-
-impl OutboxChannel {
-    #[must_use]
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::AgUi => "agui",
-            Self::A2A => "a2a",
-            Self::System => "system",
-            Self::Analytics => "analytics",
-            Self::Topic => "topic",
-            Self::Fact => "fact",
-        }
-    }
-
-    #[must_use]
-    pub fn parse(value: &str) -> Option<Self> {
-        match value {
-            "agui" => Some(Self::AgUi),
-            "a2a" => Some(Self::A2A),
-            "system" => Some(Self::System),
-            "analytics" => Some(Self::Analytics),
-            "topic" => Some(Self::Topic),
-            "fact" => Some(Self::Fact),
-            _ => None,
-        }
-    }
 }
 
 /// Routes events to local subscribers and, when built with an outbox, to the
@@ -183,13 +145,25 @@ impl EventRouter {
         })?;
         let id = EventOutboxId::generate();
         let actor = Actor::user(user_id.clone());
-        repo.insert(&id, channel, &actor, &payload)
+        let persist = |source| RelayError::Persist {
+            channel: channel.as_str(),
+            source,
+        };
+        // Why: Postgres delivers a NOTIFY only when its transaction commits,
+        // so the row and its announcement land together: a writer that dies
+        // after the insert leaves no row its siblings were never told about.
+        let mut tx = repo.begin().await.map_err(persist)?;
+        let row = OutboxInsert {
+            id: &id,
+            channel,
+            actor: &actor,
+            payload: &payload,
+        };
+        repo.insert(&mut tx, row).await.map_err(persist)?;
+        EventOutboxRepository::notify(&mut tx, &id)
             .await
-            .map_err(|source| RelayError::Persist {
-                channel: channel.as_str(),
-                source,
-            })?;
-        repo.notify(&id).await.map_err(RelayError::Notify)
+            .map_err(RelayError::Notify)?;
+        tx.commit().await.map_err(persist)
     }
 
     pub async fn route_agui_local(&self, user_id: &UserId, event: AgUiEvent) -> (usize, usize) {

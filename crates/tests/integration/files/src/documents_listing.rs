@@ -223,7 +223,7 @@ async fn recent_orders_by_the_callers_last_touch() {
                 }]),
                 author: api_author(),
                 message: None,
-                lock_holder_id: None,
+                lock_holder: None,
                 comments: CommentPolicy::default(),
                 op_id: None,
                 media: Media::new(),

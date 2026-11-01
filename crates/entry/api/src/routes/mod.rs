@@ -14,6 +14,8 @@ pub mod admin;
 pub mod agent;
 pub mod agent_runs;
 pub mod analytics;
+#[cfg(feature = "brain")]
+pub mod brain;
 pub mod content;
 pub mod documents;
 pub mod engagement;

@@ -137,14 +137,12 @@ impl UploadService {
             self.discard(id, attempt).await?;
             return Err(error.into());
         }
-        let sha256 = tally
-            .hash()
-            .ok_or_else(|| UploadError::Invalid("part hash could not be formed".to_owned()))?;
+        let sha256 = tally.hash().ok_or(UploadError::PartHashUnavailable)?;
         let stored_part = UploadPart {
             part_number: part,
             size_bytes: actual,
             sha256,
-            storage_id: attempt.as_str().to_owned(),
+            storage_id: attempt.clone(),
         };
         reservation.landing(attempt);
         let swap = self.uploads.swap_part(id, &stored_part).await?;

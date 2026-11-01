@@ -10,7 +10,7 @@ Install these before you start.
 
 | Requirement | Why | Notes |
 |-------------|-----|-------|
-| Rust toolchain | Builds the binary | The workspace is edition 2024, so it needs Rust 1.85 or newer. The repository pins a nightly toolchain in `rust-toolchain.toml`; `rustup` selects it automatically inside the checkout. |
+| Rust toolchain | Builds the binary | The minimum supported Rust version is 1.96 (edition 2024). The repository pins stable Rust 1.99.1 in `rust-toolchain.toml`; `rustup` selects it automatically inside the checkout. Contributors also need the nightly toolchain named in the `justfile` for `just fmt`, because `rustfmt.toml` uses unstable formatting options. |
 | PostgreSQL 18+ | The only durable state | A local server, a container, or a managed instance you can reach. The setup step can provision a local database for you, or use one you already run. |
 | `just` | Runs the build recipes | A command runner. Install from your package manager or from just.systems. |
 | `git` | Clone the repository | — |

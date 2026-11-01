@@ -42,15 +42,17 @@ use systemprompt_manifest::services::GatewayConfig;
 use systemprompt_manifest::services::catalog::ResolvedCatalog;
 
 use self::abandon::AbandonGuard;
-use self::admission::commit_admission;
+use self::admission::{admitted, decorate};
 use self::client_session::with_client_session;
 use self::failover::FailoverSend;
-use self::finalize::{FinalizeCtx, attach_request_id, finalize};
+use self::finalize::{FinalizeCtx, finalize};
 use self::guards::{enforce_quota, enforce_request_guards};
 use self::opening::{dispatch_policy, open_audit};
 use self::pricing::{dispatch_pricing, trace_dispatch};
 use self::resolve::{ResolvedUpstream, UpstreamQuery, resolve_upstream};
-use self::stages::{GovernedDispatch, PreparedDispatch, ScannedDispatch, UpstreamRelay};
+use self::stages::{
+    GovernedDispatch, PreparedDispatch, RecallStage, ScannedDispatch, UpstreamRelay,
+};
 use self::traced::send_traced;
 use super::audit::phases::GatewayPhase;
 use super::audit::{GatewayAudit, GatewayRequestContext};
@@ -241,6 +243,11 @@ async fn dispatch_opened(opened: OpenedDispatch<'_>) -> Result<Response<Body>, D
             raw_body: &raw_body,
             inbound: inbound.as_ref(),
             overrides: &engines.override_engine,
+            recall: RecallStage {
+                engine: engines.memory_recall.as_ref(),
+                ctx: &ctx,
+                profile: &repos.brain_recall,
+            },
         },
     )
     .await?;
@@ -251,8 +258,7 @@ async fn dispatch_opened(opened: OpenedDispatch<'_>) -> Result<Response<Body>, D
     };
     let mut scanned =
         ScannedDispatch::enforce(governed, repos, scan, &ai_request_id, &audit).await?;
-    commit_admission(&audit).await?;
-    audit.record_billing_source().await;
+    admitted(&audit, &engines, &scanned).await?;
     crate::audit::phases::record(GatewayPhase::Admission, admission_started.elapsed());
 
     let send = FailoverSend {
@@ -264,7 +270,7 @@ async fn dispatch_opened(opened: OpenedDispatch<'_>) -> Result<Response<Body>, D
     };
     let outcome = send_traced(&mut scanned, send, &ctx, trace_sampled).await?;
 
-    let mut response = finalize(
+    let response = finalize(
         outcome,
         FinalizeCtx {
             audit: Arc::clone(&audit),
@@ -280,6 +286,5 @@ async fn dispatch_opened(opened: OpenedDispatch<'_>) -> Result<Response<Body>, D
         },
     )
     .await;
-    stages::recovery::attach_recovery_count(&mut response, scanned.recovery_count());
-    Ok(attach_request_id(response, &ai_request_id))
+    Ok(decorate(response, &scanned, &ai_request_id))
 }

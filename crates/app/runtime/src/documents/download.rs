@@ -26,7 +26,9 @@
 
 use chrono::{DateTime, Duration, Utc};
 use systemprompt_files::documents::agents::UNNAMED_AGENT;
-use systemprompt_identifiers::{AccessTokenId, DocumentId, DocumentRevisionId, SessionId};
+use systemprompt_identifiers::{
+    AccessTokenId, AgentName, DocumentId, DocumentRevisionId, SessionId,
+};
 use systemprompt_models::auth::{
     AuthenticatedUser, JwtAudience, TokenAuthority, TokenError, UserJwtRequest,
 };
@@ -49,7 +51,7 @@ const AGENT_SUFFIX: &str = ";agent=";
 pub fn agent_download_purpose(
     document: &DocumentId,
     revision: &DocumentRevisionId,
-    agent: &str,
+    agent: &AgentName,
 ) -> String {
     format!(
         "{}{AGENT_SUFFIX}{agent}",
@@ -96,7 +98,7 @@ pub struct DownloadTarget<'a> {
     pub session_id: &'a SessionId,
     pub document: &'a DocumentId,
     pub revision: &'a DocumentRevisionId,
-    pub agent: &'a str,
+    pub agent: &'a AgentName,
 }
 
 pub fn signed_download_url(

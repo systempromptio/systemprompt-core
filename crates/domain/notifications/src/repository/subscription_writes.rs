@@ -8,6 +8,7 @@
 use sqlx::PgExecutor;
 use systemprompt_identifiers::{NotificationSubscriptionId, UserId};
 use systemprompt_models::notifications::{Attention, SubscriptionDecl, SubscriptionTarget};
+use systemprompt_provider_contracts::ChangeSource;
 use systemprompt_traits::RepositoryError;
 
 use super::NotificationSubscriptionRepository;
@@ -16,7 +17,7 @@ impl NotificationSubscriptionRepository {
     pub async fn upsert(
         executor: impl PgExecutor<'_>,
         decl: &SubscriptionDecl,
-        source: &str,
+        source: &ChangeSource,
         created_by: Option<&UserId>,
     ) -> Result<Option<NotificationSubscriptionId>, RepositoryError> {
         let subject = decl.subject.to_string();
@@ -28,6 +29,7 @@ impl NotificationSubscriptionRepository {
             .transpose()?;
         let digest = decl.digest.as_ref().map(serde_json::to_value).transpose()?;
         let created_by = created_by.map(UserId::as_str);
+        let source = source.to_string();
         let id = match &decl.target {
             SubscriptionTarget::Stream(stream) => {
                 sqlx::query_scalar!(
@@ -85,7 +87,7 @@ impl NotificationSubscriptionRepository {
     pub async fn upsert_pooled(
         &self,
         decl: &SubscriptionDecl,
-        source: &str,
+        source: &ChangeSource,
         created_by: &UserId,
     ) -> Result<Option<NotificationSubscriptionId>, RepositoryError> {
         Self::upsert(&*self.pools.write, decl, source, Some(created_by)).await

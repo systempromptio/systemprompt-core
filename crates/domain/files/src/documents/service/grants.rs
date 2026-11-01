@@ -20,7 +20,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use chrono::{DateTime, Utc};
-use systemprompt_identifiers::{TraceId, UserId};
+use systemprompt_identifiers::{AgentName, TraceId, UserId};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{AccessLevel, DocumentAction};
 use uuid::Uuid;
@@ -29,7 +29,7 @@ use systemprompt_traits::RepositoryError;
 
 use super::DocumentService;
 use super::ownership::USER_SUBJECT;
-use crate::documents::access::{AccessTarget, Granted};
+use crate::documents::access::{AccessTarget, Granted, SubjectValidation};
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{DocumentGrant, GrantActor, GrantTarget, NewGrant};
 
@@ -42,7 +42,7 @@ pub struct ShareRequest {
     pub level: AccessLevel,
     pub valid_until: Option<DateTime<Utc>>,
     pub message: Option<String>,
-    pub via_agent: Option<String>,
+    pub via_agent: Option<AgentName>,
 }
 
 pub const MAX_SHARE_MESSAGE_BYTES: usize = 1024;
@@ -52,7 +52,7 @@ pub(super) struct CheckedShare {
     pub(super) granted: Granted,
     pub(super) recipients: Vec<UserId>,
     pub(super) message: Option<String>,
-    pub(super) via_agent: Option<String>,
+    pub(super) via_agent: Option<AgentName>,
 }
 
 const AGENT_SHARE: &str = "shared by agent";
@@ -126,9 +126,16 @@ impl DocumentService {
         }
         check_message(request.message.as_deref())?;
         let granted = self.authorize_share(who, &request.target, trace).await?;
-        self.access
+        let validation = self
+            .access
             .validate_subject(&request.subject_kind, &request.subject_value)
             .await?;
+        if validation == SubjectValidation::Invalid {
+            return Err(DocumentsError::UnknownSubject {
+                kind: request.subject_kind,
+                value: request.subject_value,
+            });
+        }
         let existing = self
             .list_grants(&request.target)
             .await?

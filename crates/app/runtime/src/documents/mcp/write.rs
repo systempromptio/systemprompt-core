@@ -13,7 +13,8 @@
 //! anchors on the ack. An edit whose mode resolves to
 //! `propose` is written as a proposal instead (see `proposals`), and when
 //! the caller did not ask for one (an agent capped at `suggest`) the summary
-//! says it was converted.
+//! says it was converted. An edit on a document with an open live session
+//! is written into that session instead of onto the head (see `live_edit`).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -28,13 +29,14 @@ use systemprompt_files::documents::service::{
 use systemprompt_identifiers::{DocumentId, DocumentOpId, DocumentRevisionId, McpExecutionId};
 use systemprompt_mcp::McpToolHandler;
 use systemprompt_models::auth::AuthenticatedUser;
-use systemprompt_models::documents::{ActorKind, EditMode, EditOp};
+use systemprompt_models::documents::{EditMode, EditOp};
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_provider_contracts::documents::{CodecError, TemplateParams};
 
 use super::DocumentsMcpTools;
 use super::agent_presence::announce_agent;
 use super::inputs::{CreateInput, EditInput};
+use super::live_edit::edit_live;
 use super::media::{image_refs, resolve_media};
 use super::outputs::CreateOutput;
 use super::proposals::propose_ops;
@@ -108,7 +110,6 @@ async fn commit_ops(call: EditCall<'_>) -> Result<(EditOutput, String), McpError
             EditModeRequest {
                 document: &call.document,
                 requested: call.mode,
-                actor: ActorKind::Agent,
             },
             call.ctx.trace_id(),
         )
@@ -124,24 +125,26 @@ async fn commit_ops(call: EditCall<'_>) -> Result<(EditOutput, String), McpError
     }
     let refs = image_refs(None, &call.ops);
     let media = resolve_media(call.tools, call.ctx, refs, Some(&call.document)).await?;
+    let request = CommitRequest {
+        document_id: call.document.clone(),
+        base_revision: call.base.clone(),
+        body: CommitBody::Ops(call.ops.clone()),
+        author: agent_author(call.ctx, call.exec_id),
+        message: call.message.clone(),
+        lock_holder: None,
+        comments: call.comments.clone(),
+        op_id: call.op_id.clone(),
+        media,
+    };
+    if let Some(output) = edit_live(&call, &request).await? {
+        announce_agent(&call, &output).await;
+        let summary = format!("wrote {} live", output.written.len());
+        return Ok((output, summary));
+    }
     let outcome = call
         .tools
         .service()
-        .commit(
-            call.who,
-            CommitRequest {
-                document_id: call.document.clone(),
-                base_revision: call.base.clone(),
-                body: CommitBody::Ops(call.ops.clone()),
-                author: agent_author(call.ctx, call.exec_id),
-                message: call.message.clone(),
-                lock_holder_id: None,
-                comments: call.comments.clone(),
-                op_id: call.op_id.clone(),
-                media,
-            },
-            call.ctx.trace_id(),
-        )
+        .commit(call.who, request, call.ctx.trace_id())
         .await
         .map_err(tool_error)?;
     let landed = match outcome {

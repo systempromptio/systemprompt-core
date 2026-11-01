@@ -85,6 +85,15 @@ fn html_round_trips_blocks_and_keeps_unknown_markup_verbatim() {
 }
 
 #[test]
+fn loose_inline_runs_keep_the_space_between_elements_and_their_marks() {
+    let model = html::import("<em>it</em> <b>l</b>\n<p>next</p>");
+    assert_eq!(model.blocks.len(), 2);
+    assert_eq!(model.blocks[0].text, "it l");
+    assert_eq!(model.blocks[0].marks.len(), 2);
+    assert_eq!(model.blocks[1].text, "next");
+}
+
+#[test]
 fn a_valid_edit_passes_and_a_disallowed_link_is_rejected() {
     let before = RichText {
         blocks: vec![para("b1", "hello")],

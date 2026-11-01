@@ -23,7 +23,7 @@
 use chrono::{DateTime, Utc};
 use sqlx::PgConnection;
 use systemprompt_extension::NotificationSinkError;
-use systemprompt_identifiers::{DocumentCommentId, UserId};
+use systemprompt_identifiers::{AgentName, DocumentCommentId, UserId};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::AccessLevel;
 use systemprompt_models::notifications::{
@@ -66,7 +66,7 @@ pub(super) struct MentionContext<'a> {
     pub(super) who: &'a AuthenticatedUser,
     pub(super) document: &'a Document,
     pub(super) granted: &'a [UserId],
-    pub(super) via_agent: Option<&'a str>,
+    pub(super) via_agent: Option<&'a AgentName>,
     pub(super) options: &'a [MentionOption],
 }
 
@@ -88,14 +88,14 @@ pub(super) struct ShareNotice<'a> {
     pub(super) subject_kind: &'a str,
     pub(super) subject_value: &'a str,
     pub(super) message: Option<&'a str>,
-    pub(super) via_agent: Option<&'a str>,
+    pub(super) via_agent: Option<&'a AgentName>,
     pub(super) occurred_at: DateTime<Utc>,
 }
 
-fn attributed(event: NotificationEvent, via_agent: Option<&str>) -> NotificationEvent {
+fn attributed(event: NotificationEvent, via_agent: Option<&AgentName>) -> NotificationEvent {
     let event = event.with_actor_is_agent(via_agent.is_some());
     match via_agent {
-        Some(agent) => event.with_via_agent(agent),
+        Some(agent) => event.with_via_agent(agent.clone()),
         None => event,
     }
 }
@@ -150,7 +150,7 @@ impl DocumentService {
                 SubjectRef::new("comment", notice.comment.as_str()),
             ])
             .with_direct_recipients(recipients)
-            .with_excerpt(excerpt)
+            .with_body(excerpt)
             .with_payload(payload);
         self.notifications
             .emit(conn, &attributed(event, via_agent))

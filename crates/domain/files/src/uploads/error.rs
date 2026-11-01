@@ -62,8 +62,18 @@ pub enum SvgParseError {
 
 #[derive(Debug, thiserror::Error)]
 pub enum UploadError {
-    #[error("{0}")]
-    Invalid(String),
+    #[error("name must be a non-empty file name without path separators")]
+    InvalidName,
+    #[error("size must be at least one byte")]
+    EmptyUpload,
+    #[error("{given} is not a MIME type")]
+    InvalidContentType { given: String },
+    #[error("declared size {declared} but the body is {actual} bytes")]
+    SizeMismatch { declared: u64, actual: u64 },
+    #[error("part size {configured} is out of range")]
+    PartSizeOutOfRange { configured: u64 },
+    #[error("part hash could not be formed")]
+    PartHashUnavailable,
     #[error("upload not found")]
     NotFound,
     #[error("upload is {status}, not open")]
@@ -125,9 +135,14 @@ impl UploadError {
     #[must_use]
     pub const fn code(&self) -> &'static str {
         match self {
-            Self::Invalid(_) | Self::PartOutOfRange { .. } | Self::PartSize { .. } => {
-                "invalid_request"
-            },
+            Self::InvalidName
+            | Self::EmptyUpload
+            | Self::InvalidContentType { .. }
+            | Self::SizeMismatch { .. }
+            | Self::PartSizeOutOfRange { .. }
+            | Self::PartHashUnavailable
+            | Self::PartOutOfRange { .. }
+            | Self::PartSize { .. } => "invalid_request",
             Self::NotFound | Self::BlobNotOwned(_) => "not_found",
             Self::Closed { .. } => "upload_closed",
             Self::TooLarge { .. } => "too_large",

@@ -1,4 +1,5 @@
-//! Joining and leaving a live edit session, and cursor updates.
+//! Joining and leaving a live edit session; cursor updates and presence
+//! are the sibling `presence` module.
 //!
 //! The last editor leaving settles the session and closes it, unless another
 //! replica holds its checkpoint lease or updates keep arriving while it is
@@ -11,27 +12,17 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::time::Duration;
-
-use systemprompt_identifiers::{DocumentEditSessionId, DocumentId, TraceId, UserId};
+use systemprompt_identifiers::{DocumentEditSessionId, DocumentId, TraceId};
 use systemprompt_models::auth::AuthenticatedUser;
-use systemprompt_models::documents::{
-    AccessLevel, DocumentAction, DocumentPresenceEvent, PresenceSource, PresenceState,
-};
+use systemprompt_models::documents::{AccessLevel, DocumentAction, PresenceState};
 
 use super::model::is_collab_format;
-use super::{Checkpoint, CollabError, CollabService, CursorRequest, JoinMode, Joined, Left};
+use super::presence::Announcement;
+use super::{Checkpoint, CollabError, CollabService, JoinMode, Joined, Left};
 use crate::documents::engine::DocumentEngine;
 use crate::documents::error::DocumentsError;
 use crate::documents::model::RICH_TEXT_VERSION;
-use crate::documents::models::{Document, DocumentEditSession, EditSessionOpen, PresenceUpsert};
-
-struct Announcement<'a> {
-    state: PresenceState,
-    session: &'a DocumentEditSessionId,
-    // JSON: editor cursor position; the shape belongs to the client's editor.
-    cursor: Option<serde_json::Value>,
-}
+use crate::documents::models::{Document, DocumentEditSession, EditSessionOpen};
 
 impl CollabService {
     pub async fn join(
@@ -49,7 +40,7 @@ impl CollabService {
         let engine = self.engine()?;
         let (document, level) = self.granted(who, document, action, trace).await?;
         if !is_collab_format(document.format) {
-            return Err(DocumentsError::UnsupportedFormat {
+            return Err(DocumentsError::LiveUnsupported {
                 format: document.format,
             }
             .into());
@@ -90,6 +81,13 @@ impl CollabService {
         let peer = self.assign_peer(&session.id, &who.id).await?;
         let shared = self.entry(document, &session).await?;
         shared.lock().await.last_joiner = Some(who.clone());
+        if let Err(error) = self.upgrade_shape(&shared, document, who).await {
+            tracing::warn!(
+                session_id = %session.id,
+                error = %error,
+                "Live session not upgraded to the current container shape"
+            );
+        }
         let entry = self.caught_up(&shared).await?;
         Ok(Joined {
             peer,
@@ -167,49 +165,6 @@ impl CollabService {
         Ok(left)
     }
 
-    pub async fn cursor(
-        &self,
-        who: &AuthenticatedUser,
-        request: CursorRequest,
-        trace: &TraceId,
-    ) -> Result<(), CollabError> {
-        let CursorRequest {
-            document,
-            session,
-            cursor,
-        } = request;
-        let document = self
-            .authorized(who, &document, DocumentAction::View, trace)
-            .await?;
-        self.open_matching(&document.id, &session).await?;
-        let repos = self.documents.repositories();
-        if !repos
-            .collab
-            .set_cursor(&document.id, &who.id, &cursor)
-            .await?
-        {
-            return Err(CollabError::NotJoined {
-                document_id: document.id,
-            });
-        }
-        let state = if repos.collab.is_editing(&document.id, &who.id).await? {
-            PresenceState::Editing
-        } else {
-            PresenceState::Viewing
-        };
-        self.announce(
-            who,
-            &document,
-            Announcement {
-                state,
-                session: &session,
-                cursor: Some(cursor),
-            },
-        )
-        .await;
-        Ok(())
-    }
-
     async fn open_session(&self, document: &Document) -> Result<DocumentEditSession, CollabError> {
         let sessions = &self.documents.repositories().edit_sessions;
         if let Some(open) = sessions.find_open(&document.id).await? {
@@ -226,65 +181,6 @@ impl CollabService {
                 })
             },
         }
-    }
-
-    async fn mark_present(
-        &self,
-        who: &AuthenticatedUser,
-        document: &Document,
-        state: PresenceState,
-        // JSON: editor cursor position; the shape belongs to the client's editor.
-        cursor: Option<serde_json::Value>,
-    ) -> Result<(), CollabError> {
-        let ttl = Duration::from_secs(u64::from(self.documents.config().presence_ttl_secs));
-        self.documents
-            .repositories()
-            .presence
-            .upsert(
-                &PresenceUpsert {
-                    document_id: document.id.clone(),
-                    user_id: who.id.clone(),
-                    source: PresenceSource::Web,
-                    state,
-                    cursor,
-                },
-                ttl,
-            )
-            .await?;
-        Ok(())
-    }
-
-    async fn announce(
-        &self,
-        who: &AuthenticatedUser,
-        document: &Document,
-        Announcement {
-            state,
-            session,
-            cursor,
-        }: Announcement<'_>,
-    ) {
-        let others: Vec<UserId> = self
-            .recipients(document)
-            .await
-            .into_iter()
-            .filter(|user| *user != who.id)
-            .collect();
-        let event = DocumentPresenceEvent {
-            document_id: document.id.clone(),
-            user_id: who.id.clone(),
-            state,
-            source_kind: PresenceSource::Web,
-            source_ref: session.to_string(),
-            cursor,
-        };
-        if let Err(error) = self.documents.events().presence(&others, &event).await {
-            tracing::warn!(document_id = %document.id, error = %error, "Presence event not delivered");
-        }
-    }
-
-    pub(super) async fn recipients(&self, document: &Document) -> Vec<UserId> {
-        self.documents.recipients(document).await
     }
 }
 

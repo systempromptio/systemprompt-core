@@ -11,6 +11,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod blob_holder;
 mod rows;
 
 use std::sync::Arc;
@@ -18,8 +19,8 @@ use std::sync::Arc;
 use sqlx::{PgConnection, PgPool};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{
-    ContentHash, ContextId, DocumentUploadId, IssueReportId, McpExecutionId, SessionId, TaskId,
-    TraceId, UserId,
+    AgentName, ContentHash, ContextId, DocumentUploadId, IssueReportId, McpExecutionId, SessionId,
+    TaskId, TraceId, UserId,
 };
 use systemprompt_models::issues::{IssueAttachment, IssueReport, IssueStatus};
 
@@ -83,7 +84,7 @@ impl IssueReportRepository {
                RETURNING id::text AS "id!: IssueReportId", (xmax = 0) AS "inserted!",
                          occurrences"#,
             issue.reporter.as_str(),
-            issue.via_agent,
+            issue.via_agent.as_ref().map(AgentName::as_str),
             issue.kind.as_str(),
             issue.severity.as_str(),
             issue.title,

@@ -61,5 +61,7 @@ pub fn with_upload_tokens(router: Router, state: DocumentsState) -> Router {
         tokened: routes(&state).with_state(state.clone()),
         documents: state,
     };
-    router.layer(axum::middleware::from_fn_with_state(gate_state, gate::gate))
+    Router::new()
+        .fallback_service(router)
+        .layer(axum::middleware::from_fn_with_state(gate_state, gate::gate))
 }

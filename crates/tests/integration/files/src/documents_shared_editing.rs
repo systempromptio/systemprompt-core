@@ -5,10 +5,10 @@
 use systemprompt_files::documents::DocumentsError;
 use systemprompt_files::documents::codecs::docx::DocxCodec;
 use systemprompt_files::documents::model::Media;
-use systemprompt_files::documents::models::RevisionAttribution;
+use systemprompt_files::documents::models::{RevisionAttribution, RevisionOrigin};
 use systemprompt_files::documents::revision::CommitBody;
 use systemprompt_files::documents::service::{
-    Author, CommentPolicy, CommitOutcome, CommitRequest, HistoryPage, RevisionOrigin,
+    Author, CommentPolicy, CommitOutcome, CommitRequest, HistoryPage,
 };
 use systemprompt_identifiers::{
     ContextId, DocumentId, DocumentNodeId, DocumentRevisionId, SessionId, TaskId, TraceId,
@@ -86,7 +86,7 @@ fn ops_on(
         body: CommitBody::Ops(ops),
         author: api_author(),
         message: None,
-        lock_holder_id: None,
+        lock_holder: None,
         comments: CommentPolicy::default(),
         op_id: None,
         media: Media::new(),
@@ -277,7 +277,7 @@ fn upload(document: &DocumentId, base: &DocumentRevisionId, bytes: Vec<u8>) -> C
             attribution: RevisionAttribution::default(),
         },
         message: None,
-        lock_holder_id: None,
+        lock_holder: None,
         comments: CommentPolicy::default(),
         op_id: None,
         media: Media::new(),

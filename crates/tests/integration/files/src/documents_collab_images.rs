@@ -1,8 +1,8 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use systemprompt_engine_loro::rich;
 use systemprompt_files::documents::collab::{CollabService, CollabTuning, JoinMode};
+use systemprompt_files::documents::engine::loro::rich;
 use systemprompt_files::documents::model::BlockKind;
 
 use crate::documents_collab::{Collab, client, collab, edit, html_document, loro, request};

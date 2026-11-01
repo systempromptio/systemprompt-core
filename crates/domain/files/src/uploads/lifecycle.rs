@@ -131,7 +131,7 @@ impl UploadService {
     ) -> UploadResult<ObjectRemoval> {
         let mut removal = ObjectRemoval::default();
         for part in self.uploads.list_parts(&session.id).await? {
-            let object = StoredFileId::new(part.storage_id);
+            let object = StoredFileId::new(part.storage_id.as_str());
             let discarded = self.discard(&session.id, &object).await?;
             removal.count(object, discarded);
         }

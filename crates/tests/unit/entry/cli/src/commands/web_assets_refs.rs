@@ -21,6 +21,7 @@ fn profile_with_services(services: &Path) -> Profile {
         config_planes: Default::default(),
         licence: Default::default(),
         notifications: Default::default(),
+        brain: Default::default(),
         name: "test".to_string(),
         display_name: "Test".to_string(),
         target: ProfileType::Local,

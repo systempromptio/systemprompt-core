@@ -144,7 +144,10 @@ impl<'a> PlaneContext<'a> {
 /// [`ConfigPlaneError::Unsupported`], and a scoped apply reaches a plane only
 /// when [`ConfigPlane::supports_scoped_apply`] is true. Planes are held as
 /// `Arc<dyn ConfigPlane>`, and native `async fn` in traits is not
-/// `dyn`-compatible.
+/// `dyn`-compatible. [`ConfigPlane::write_rank`] orders an apply's writes
+/// across declaration files: every entity of a lower rank is written before
+/// any of a higher one, so an entity may refer to one declared in a file that
+/// sorts after its own.
 #[async_trait]
 pub trait ConfigPlane: Send + Sync {
     fn name(&self) -> &'static str;
@@ -161,6 +164,10 @@ pub trait ConfigPlane: Send + Sync {
 
     fn supports_scoped_apply(&self) -> bool {
         false
+    }
+
+    fn write_rank(&self, _entity: &str) -> u8 {
+        0
     }
 
     fn load_declared(&self, services_root: &Path) -> ConfigPlaneResult<Option<DeclaredState>>;

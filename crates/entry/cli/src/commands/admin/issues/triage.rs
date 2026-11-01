@@ -1,15 +1,15 @@
 //! `admin issues triage` command.
 //!
 //! The CLI session user is the triager the transition and its notification
-//! to the reporter record.
+//! to the reporter record; [`execute_as`] takes the triager explicitly.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use clap::Args;
 use serde::Serialize;
-use systemprompt_identifiers::IssueReportId;
+use systemprompt_identifiers::{IssueReportId, UserId};
 use systemprompt_models::issues::IssueStatus;
 
 use crate::context::CommandContext;
@@ -41,17 +41,21 @@ struct TriageOutput {
 
 pub(super) async fn execute(args: TriageArgs, ctx: &CommandContext) -> Result<CommandOutput> {
     let session_ctx = get_or_create_session(ctx).await?;
+    execute_as(args, &session_ctx.session.user_id, ctx).await
+}
+
+pub async fn execute_as(
+    args: TriageArgs,
+    triager: &UserId,
+    ctx: &CommandContext,
+) -> Result<CommandOutput> {
     let app = ctx.app_context().await?;
-    let id = IssueReportId::new(&args.id);
+    let id = IssueReportId::try_new(args.id.as_str())
+        .with_context(|| format!("invalid issue report id: {}", args.id))?;
     let from = app
         .documents()
         .issues()
-        .set_status(
-            &id,
-            args.status,
-            args.note.clone(),
-            &session_ctx.session.user_id,
-        )
+        .set_status(&id, args.status, args.note.clone(), triager)
         .await?;
     let output = TriageOutput {
         id,

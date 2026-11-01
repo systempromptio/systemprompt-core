@@ -22,6 +22,7 @@ members = [
     "integration/extension",
     "integration/facade-macros",
     "integration/files",
+    "integration/brain",
     "integration/notifications",
     "integration/gateway",
     "integration/generator",
@@ -35,6 +36,7 @@ members = [
     "unit/shared/extension",
     "unit/shared/traits",
     "unit/shared/models",
+    "unit/shared/models-brain",
     "unit/shared/models-notifications",
     "unit/shared/client",
     "unit/shared/identifiers",
@@ -57,6 +59,7 @@ members = [
     "unit/domain/content",
     "unit/domain/files",
     "unit/domain/notifications",
+    "unit/domain/brain",
     "unit/domain/mcp",
     "unit/domain/oauth",
     "unit/domain/users",
@@ -139,6 +142,7 @@ expect_used = "allow"
 unwrap_used = "allow"
 panic = "allow"
 needless_pass_by_value = "allow"
+result_large_err = "allow"
 missing_docs_in_private_items = "allow"
 missing_errors_doc = "allow"
 missing_panics_doc = "allow"
@@ -280,6 +284,7 @@ systemprompt-users = { path = "../domain/users" }
 systemprompt-oauth = { path = "../domain/oauth" }
 systemprompt-files = { path = "../domain/files" }
 systemprompt-notifications = { path = "../domain/notifications" }
+systemprompt-brain = { path = "../domain/brain" }
 systemprompt-analytics = { path = "../domain/analytics" }
 maxminddb = "0.32"
 systemprompt-content = { path = "../domain/content" }
@@ -296,7 +301,6 @@ systemprompt-agent-runs = { path = "../app/agent-runs" }
 systemprompt-generator = { path = "../app/generator" }
 systemprompt-oauth-issuance = { path = "../app/oauth-issuance" }
 systemprompt-gateway = { path = "../app/gateway" }
-systemprompt-engine-loro = { path = "../app/engine-loro" }
 systemprompt-api = { path = "../entry/api" }
 systemprompt-cli = { path = "../entry/cli" }
 systemprompt-bridge = { path = "../../bin/bridge" }
@@ -309,6 +313,13 @@ systemprompt-catalog-fixtures = { path = "common/catalog-fixtures" }
 
 # Optimise everything that is not a test crate.
 #
+# Why: several agents build one checkout against a core that moves daily, and
+# cargo never prunes stale incremental sessions; target/debug/incremental grew
+# to 66G in astound. CI already builds with CARGO_INCREMENTAL=0.
+# `CARGO_INCREMENTAL=1` opts one shell back in.
+[profile.dev]
+incremental = false
+
 # The suite is crypto-bound, not compile-bound: at `opt-level = 0` a bcrypt
 # cost-12 verify costs ~0.53s and an RSA-2048 operation is ~10x its optimised
 # cost, which dominated the integration shard's wall-clock. `"*"` covers the

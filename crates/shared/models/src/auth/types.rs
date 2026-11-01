@@ -69,6 +69,12 @@ impl AuthenticatedUser {
     }
 
     #[must_use]
+    pub fn from_provider_user(user: systemprompt_traits::AuthUser) -> Self {
+        let permission = super::roles::BaseRoles::permission_for(&user.roles);
+        Self::new_with_roles(user.id, user.name, user.email, vec![permission], user.roles)
+    }
+
+    #[must_use]
     // JSON: ABAC attribute values declared per deployment in authz policy YAML.
     pub const fn with_account_kind(mut self, account_kind: AccountKind) -> Self {
         self.account_kind = account_kind;

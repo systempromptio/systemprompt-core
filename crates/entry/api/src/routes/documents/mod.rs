@@ -21,7 +21,7 @@ mod caller;
 #[cfg(feature = "collab")]
 mod collab;
 #[cfg(feature = "collab")]
-mod collab_updates;
+pub mod collab_updates;
 mod comments;
 mod commits;
 mod content;

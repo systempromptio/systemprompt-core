@@ -1,5 +1,55 @@
 # Changelog
 
+## [0.77.0] - 2026-11-01
+
+### Breaking
+
+- **Breaking:** the document browser client is removed: the `sp-*` web components (`sp-document-browser`, `sp-document-preview`, `sp-presence-bar`, `sp-sheet-grid`, `sp-slide-text`, `sp-share-dialog`, `sp-subject-picker`, `sp-history`, `sp-comments`, `sp-proposal-list`), the `documents.js` entry, the `DocumentsElement` base class, the browser and share views, `assets/documents/css/*` and the headless client modules `documents-api.js`, `documents-events.js`, `documents-patch.js` and `documents-html.js`. Migrate by vendoring the document client and UI in the host extension.
+- **Breaking:** `EditModeRequest` no longer has an `actor` field, and `DocumentService::edit_mode` reads the document actor from the request scope like every other document call. Migrate by deleting the field and wrapping the call in `act_as`.
+- **Breaking:** `AgentAccessPolicy::cap` is a required method. Migrate by implementing it; `DefaultAgentAccessPolicy` keeps answering `edit`.
+- **Breaking:** `DocumentAccessService::validate_subject` returns `Result<SubjectValidation, DocumentsError>`, where `Unenumerable` marks a dimension whose values cannot be listed. Migrate by matching the outcome and refusing `Invalid`.
+- **Breaking:** `UploadError::Invalid(String)` is replaced by `InvalidName`, `EmptyUpload`, `InvalidContentType`, `SizeMismatch`, `PartSizeOutOfRange` and `PartHashUnavailable`, and the HTTP status and `invalid_request` key are unchanged. Migrate by matching the typed variants.
+- **Breaking:** `DocumentService::admit_media` takes `&UploadService` instead of `Option<&UploadService>`, and `refuse_unheld_media` answers the no-uploads case. Migrate by calling `refuse_unheld_media(refs, &held)` where no `UploadService` is configured.
+- **Breaking:** `AgentActor::name`, `via_agent` and `created_by_agent` are `AgentName`, and `DocumentActor::agent`, `AgentRateLimiter::reserve` and `RewriteTracker` take it; `holder_id`/`holder_kind` become `LockHolder`; `origin_id`/`origin_kind` become `RevisionOrigin` (now in `documents::models`); `storage_id` is `StoredFileId`. Migrate by constructing the typed values with `try_new`.
+- **Breaking:** `DocumentServiceParts` gains a `brain` sink. Migrate by passing a `DynBrainSink` (the runtime's unavailable sink when the brain feature is off).
+- **Breaking:** `DocumentsError` gains `Brain`, raised when the brain sink cannot record a `document.revision.landed` or `document.comment.resolved` fact; the landing or resolution rolls back. Migrate exhaustive matches by adding the variant.
+- **Breaking:** `DocumentCommentRepository::resolve` and `set_answering` are replaced by `resolve_in` and `set_answering_in`, which run on the caller's connection. Migrate by calling them inside a transaction.
+- **Breaking:** `DocumentLock`, `LockRequest` and `AcquireLockRequest` carry `holder: LockHolder`, `CommitRequest` carries `lock_holder`, `DocumentsError::LockHeld` carries `holder`, and `DocumentRevision`, `NewRevision`, `DocumentProposal` and `NewProposal` carry `origin: RevisionOrigin`, which moves to `documents::models`. Migrate by building the typed values.
+- **Breaking:** `DocumentEvents::revision_created` takes only the event. Migrate by dropping the recipient slice.
+- **Breaking:** `EngineDoc` gains the required `update_to_model_as`. Migrate implementations by adding it.
+- **Breaking:** `DocumentsError` gains `NameTaken` and `LiveUnsupported`, and `IssuesError` gains `TriageForbidden`. Migrate exhaustive matches by adding the variants.
+- **Breaking:** `DocumentsConfig` gains `collab: CollabConfig` (YAML optional and defaulted). Migrate struct literals by adding `collab: CollabConfig::default()`.
+
+### Added
+
+- Live collaborative sessions for xlsx workbooks and pptx decks: Loro sheet and deck models seeded from the file and checkpointed back, agent edit ops written into an open session under an assigned peer and addressed by node id, and acks naming what was written. ods opens no live session.
+- A per-document collab owner lease (migration 037) with update forwarding to the owner and `429` back-pressure, configured under `files.documents.collab`; forwards are counted and debug-logged.
+- Deck pictures are served from their package part (`ppt/media/` for pptx, `Pictures/` for odp).
+- Cargo features gate the collab-only items behind `collab`.
+
+### Changed
+
+- blob collection asks the blob holders registered with `register_blob_holder!` instead of naming the issue attachment table, and the issue report user purge is registered by the issues module.
+- `DocumentService::create_from_file`, `DocumentService::update_folder`, `DocumentService::open_pdf_stream`, `UploadService::retract`, `IssueService::ensure_attachable` and `IssueService::require_triager` carry rules previously inline in the API handlers; `IssuesError::TriageForbidden` is new.
+
+### Removed
+
+- **Removed:** **Engine (Loro):** the `systemprompt-engine-loro` crate; the Loro engine is `systemprompt-files` feature `collab-loro` at `documents::engine::loro`. Migrate by enabling `collab-loro` (or the facade's `files-collab-loro`) and importing from `systemprompt_files`.
+
+### Fixed
+
+- `POST /documents/{id}/edits` applies a folder's agent edit policy to an agent bearer.
+- A live document stream closes when its periodic access recheck fails, not only when access is withdrawn.
+- An agent listing withholds a document whose folder chain cannot be read instead of treating it as having no overrides.
+- The document routes refuse a request without an authenticated context with `401`, answer `500` when a browser-session request reaches them without the site configuration, and refuse a browser-session request carrying neither `Origin` nor `Sec-Fetch-Site`.
+- `GET .../agent-cap` answers for an unattended agent unless `attended=true`, and validates `agent` as an `AgentName`.
+- `GET /uploads/{id}/content` sends no `ETag` for an upload without a blob hash, so `If-None-Match` can no longer match an empty tag.
+- A document image whose stored MIME type is not a valid header value is served as `application/octet-stream` instead of without a `Content-Type`.
+- Creating a document under a taken name is refused as `NameTaken` instead of a database error.
+- Collab owner forwards keep the `/api/v1/documents` path, the binary query and the same-origin headers.
+- Live sheet and deck reads and checkpoints keep the base revision's node ids; two replicas growing a sheet axis mint the same ids; inserted slides get distinct frames.
+- Office codecs: an explicit `buNone` makes a pptx paragraph plain, a docx task item reads its checkbox state, HTML import keeps inter-element spaces, and xlsx import never runs IronCalc's importer.
+
 ## [0.76.0] - 2026-10-29
 
 ### Breaking

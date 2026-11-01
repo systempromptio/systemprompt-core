@@ -13,7 +13,7 @@ use super::commit_build::Conflicted;
 use super::landing::{LandResult, Stored};
 use super::{Author, CommentPolicy, CommitOutcome, CommitWarning, DocumentService, LandedCommit};
 use crate::documents::error::DocumentsError;
-use crate::documents::models::{Document, DocumentRevision};
+use crate::documents::models::{Document, DocumentRevision, LockHolder};
 
 pub(super) struct Pending<'a> {
     pub(super) op_id: Option<&'a DocumentOpId>,
@@ -114,16 +114,13 @@ impl DocumentService {
     pub(super) async fn refuse_lock(
         &self,
         document: &Document,
-        holder_id: Option<&str>,
+        holder: Option<&LockHolder>,
     ) -> Result<(), DocumentsError> {
         match self.repos.locks.current(&document.id).await? {
-            Some(lock) if Some(lock.holder_id.as_str()) != holder_id => {
-                Err(DocumentsError::LockHeld {
-                    document_id: document.id.clone(),
-                    holder_kind: lock.holder_kind,
-                    holder_id: lock.holder_id,
-                })
-            },
+            Some(lock) if Some(&lock.holder) != holder => Err(DocumentsError::LockHeld {
+                document_id: document.id.clone(),
+                holder: lock.holder,
+            }),
             _ => Ok(()),
         }
     }

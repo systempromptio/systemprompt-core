@@ -18,6 +18,7 @@
 use std::future::Future;
 
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::AgentName;
 
 tokio::task_local! {
     static ACTOR: DocumentActor;
@@ -31,7 +32,7 @@ tokio::task_local! {
 /// Drive sync's whole-file saves) and not to the client that drives it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct AgentActor {
-    pub name: String,
+    pub name: AgentName,
     pub attended: bool,
     pub channel: AgentChannel,
 }
@@ -64,9 +65,9 @@ pub enum DocumentActor {
 
 impl DocumentActor {
     #[must_use]
-    pub fn agent(name: impl Into<String>, attended: bool) -> Self {
+    pub const fn agent(name: AgentName, attended: bool) -> Self {
         Self::Agent(AgentActor {
-            name: name.into(),
+            name,
             attended,
             channel: AgentChannel::Direct,
         })
@@ -106,8 +107,13 @@ pub async fn act_as<F: Future>(actor: DocumentActor, work: F) -> F::Output {
 pub const UNNAMED_AGENT: &str = "agent";
 
 #[must_use]
+pub fn unnamed_agent() -> AgentName {
+    AgentName::new(UNNAMED_AGENT)
+}
+
+#[must_use]
 pub fn unscoped_actor() -> DocumentActor {
-    DocumentActor::agent(UNNAMED_AGENT, false)
+    DocumentActor::agent(unnamed_agent(), false)
 }
 
 #[must_use]

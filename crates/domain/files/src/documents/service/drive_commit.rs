@@ -16,11 +16,11 @@ use systemprompt_models::documents::{
 use super::support::validate_name;
 use super::{
     Author, CommentPolicy, CommitOutcome, CommitRequest, DocumentService, ExternalWrite,
-    ImportRequest, RevisionOrigin,
+    ImportRequest,
 };
 use crate::documents::error::DocumentsError;
 use crate::documents::model::Media;
-use crate::documents::models::RevisionAttribution;
+use crate::documents::models::{LockHolder, RevisionAttribution, RevisionOrigin};
 use crate::documents::revision::CommitBody;
 
 impl DocumentService {
@@ -75,7 +75,7 @@ impl DocumentService {
             body: CommitBody::Bytes(bytes),
             author,
             message: meta.message,
-            lock_holder_id: Some(meta.device_id.as_str().to_owned()),
+            lock_holder: Some(LockHolder::Bridge(meta.device_id.clone())),
             comments: CommentPolicy::detach(),
             op_id: None,
             media: Media::new(),

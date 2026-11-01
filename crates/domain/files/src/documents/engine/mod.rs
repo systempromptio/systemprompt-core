@@ -2,7 +2,7 @@
 //! engine implements so the files domain never depends on one.
 //!
 //! `systemprompt-files` names no engine crate. A composition root picks an
-//! engine (for example `systemprompt-engine-loro` behind the facade's
+//! engine (for example the `loro` module behind the facade's
 //! `files-collab-loro` feature) and hands it to the service that needs it;
 //! with none selected, live sessions answer `collab_engine_unavailable`,
 //! formulas keep their cached values and PDF export is refused.
@@ -16,6 +16,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod error;
+
+#[cfg(feature = "collab-loro")]
+pub mod loro;
 
 use std::fmt;
 
@@ -34,6 +37,10 @@ use super::model::RichText;
 pub enum ModelView {
     Body(String),
     RichText(RichText),
+    #[cfg(feature = "collab-loro")]
+    Sheet(loro::sheet::SheetModel),
+    #[cfg(feature = "collab-loro")]
+    Deck(loro::deck::DeckModel),
 }
 
 impl ModelView {
@@ -42,6 +49,10 @@ impl ModelView {
         match self {
             Self::Body(_) => "body",
             Self::RichText(_) => "rich_text",
+            #[cfg(feature = "collab-loro")]
+            Self::Sheet(_) => "sheet",
+            #[cfg(feature = "collab-loro")]
+            Self::Deck(_) => "deck",
         }
     }
 }
@@ -82,6 +93,36 @@ pub struct UpdateImport {
     pub pending: bool,
 }
 
+/// An op batch translated into one engine update.
+///
+/// It carries the block and cell ids the batch wrote and, for a workbook,
+/// the input each written cell now holds, so a cell past the projection's
+/// cell cap still has a line.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OpsUpdate {
+    pub update: Vec<u8>,
+    pub touched: Vec<String>,
+    pub values: Vec<(String, String)>,
+}
+
+/// What one imported update changed.
+///
+/// A caller validates in proportion to it. `Blocks` holds only the blocks the
+/// update touched (with the document settings when it changed them); `Full`
+/// holds the whole model before and after, when the engine cannot or was not
+/// asked to scope it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ImportScope {
+    Blocks(RichText),
+    Full { before: ModelView, after: ModelView },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ScopedImport {
+    pub import: UpdateImport,
+    pub scope: ImportScope,
+}
+
 /// One open document of a [`DocumentEngine`].
 ///
 /// Re-applying an update is a no-op. `version` is the encoded version vector
@@ -102,6 +143,41 @@ pub trait EngineDoc: Send + fmt::Debug {
     fn fork(&self) -> Box<dyn EngineDoc>;
 
     fn update_to_model(&self, model: &ModelView) -> Result<Option<Vec<u8>>, EngineError>;
+
+    fn update_to_model_as(
+        &self,
+        model: &ModelView,
+        peer: u64,
+    ) -> Result<Option<Vec<u8>>, EngineError>;
+
+    fn update_from_ops(
+        &self,
+        _ops: &[systemprompt_models::documents::EditOp],
+        _peer: u64,
+    ) -> Result<Option<OpsUpdate>, EngineError> {
+        Err(EngineError::Unsupported)
+    }
+
+    fn adopt_node_ids(
+        &mut self,
+        _nodes: &[systemprompt_provider_contracts::documents::ProjectionNode],
+    ) -> Result<bool, EngineError> {
+        Ok(false)
+    }
+
+    fn apply_update_scoped(
+        &mut self,
+        update: &[u8],
+        _scoped: bool,
+    ) -> Result<ScopedImport, EngineError> {
+        let before = self.export_model()?;
+        let import = self.apply_update(update)?;
+        let after = self.export_model()?;
+        Ok(ScopedImport {
+            import,
+            scope: ImportScope::Full { before, after },
+        })
+    }
 }
 
 /// Recalculates formulas. Without one, cells keep their cached values.

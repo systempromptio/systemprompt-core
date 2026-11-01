@@ -10,6 +10,9 @@ mod admin_service;
 mod banned_ip_repository;
 
 #[cfg(test)]
+mod declared_users;
+
+#[cfg(test)]
 mod role_membership;
 
 #[cfg(test)]
@@ -17,3 +20,5 @@ mod user_repository;
 
 #[cfg(test)]
 mod user_service;
+#[cfg(test)]
+mod user_service_anonymous;

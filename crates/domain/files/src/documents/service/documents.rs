@@ -14,6 +14,7 @@ use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{DocumentAction, DocumentFormat, EditOp};
 
 use super::content::{apply_content, apply_rich_on_new};
+use super::lifecycle::name_taken;
 use super::support::{apply_with, blocking, document_name, format_of_name, join_path};
 use super::{AgentCapTarget, Author, CreateRequest, DocumentService, DocumentView, ImportRequest};
 use crate::documents::access::{AccessTarget, MoveTarget};
@@ -179,7 +180,8 @@ impl DocumentService {
                 owner_user_id: who.id.clone(),
                 created_by: who.id.clone(),
             })
-            .await?;
+            .await
+            .map_err(|error| name_taken(error, &content.name))?;
         if let Some(agent) = self.access.actor().as_agent() {
             self.repos
                 .documents

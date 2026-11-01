@@ -27,6 +27,7 @@ fn each_refusal_carries_its_code() {
             "invalid_params",
         ),
         (IssuesError::RateLimited { limit: 3 }, "rate_limited"),
+        (IssuesError::TriageForbidden, "forbidden"),
         (IssuesError::NotFound(report.clone()), "not_found"),
         (IssuesError::NotActive(report.clone()), "not_active"),
         (

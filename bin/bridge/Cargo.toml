@@ -2,7 +2,7 @@
 
 [package]
 name = "systemprompt-bridge"
-version = "0.76.0"
+version = "0.77.0"
 edition = "2024"
 rust-version = "1.96"
 authors = ["Edward Burton"]
@@ -78,8 +78,8 @@ tempfile = "3"
 # Why: the Drive folder is watched so a saved edit syncs within seconds instead
 # of waiting for the next poll; the debouncer coalesces an editor's save burst.
 notify-debouncer-mini = "0.7"
-systemprompt-identifiers = { path = "../../crates/shared/identifiers", version = "0.76.0", default-features = false }
-systemprompt-models = { path = "../../crates/shared/models", version = "0.76.0", default-features = false }
+systemprompt-identifiers = { path = "../../crates/shared/identifiers", version = "0.77.0", default-features = false }
+systemprompt-models = { path = "../../crates/shared/models", version = "0.77.0", default-features = false }
 hostname = "0.4"
 ts-rs = { version = "12", optional = true }
 # Why: OAuth client_secret moves off disk into the OS keystore. We link
@@ -121,7 +121,7 @@ core-foundation = "0.10"
 core-foundation-sys = "0.8"
 tray-icon = "0.26"
 muda = "0.21"
-winit = "0.31.0-beta.3"
+winit = "=0.31.0-beta.3"
 wry = { version = "0.57", default-features = false, features = ["os-webview", "devtools"] }
 image = { version = "0.25", default-features = false, features = ["png"] }
 raw-window-handle = "0.6"
@@ -130,7 +130,7 @@ raw-window-handle = "0.6"
 windows-native-keyring-store = "1"
 tray-icon = "0.26"
 muda = "0.21"
-winit = "0.31.0-beta.3"
+winit = "=0.31.0-beta.3"
 wry = { version = "0.57", default-features = false, features = ["os-webview", "devtools"] }
 image = { version = "0.25", default-features = false, features = ["png", "ico"] }
 raw-window-handle = "0.6"

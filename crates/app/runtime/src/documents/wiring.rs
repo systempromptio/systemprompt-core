@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use systemprompt_database::DbPool;
 use systemprompt_events::EventRouter;
-use systemprompt_extension::DynNotificationSink;
+use systemprompt_extension::{DynBrainSink, DynNotificationSink};
 use systemprompt_files::DocumentsConfig;
 use systemprompt_files::documents::agents::{DocumentActor, registered_policy};
 use systemprompt_files::documents::blob_store::BlobStore;
@@ -25,7 +25,9 @@ use systemprompt_models::authz::SubjectAttributeSource;
 use systemprompt_traits::{BackgroundTasks, FileStorage};
 
 #[cfg(feature = "collab")]
-use systemprompt_files::documents::collab::{CollabService, CollabTuning};
+use systemprompt_files::CollabConfig;
+#[cfg(feature = "collab")]
+use systemprompt_files::documents::collab::{CollabService, CollabTuning, OwnerConfig};
 #[cfg(feature = "collab")]
 use systemprompt_files::documents::engine::DocumentEngine;
 
@@ -40,6 +42,7 @@ pub struct DocumentsRuntimeParts {
     pub directory: Arc<dyn SubjectDirectory>,
     pub event_router: EventRouter,
     pub notifications: DynNotificationSink,
+    pub brain: DynBrainSink,
     pub catalog: Vec<CatalogTemplate>,
     pub config: DocumentsConfig,
     pub issues: Arc<IssueService>,
@@ -77,6 +80,10 @@ pub struct DocumentsRuntime {
 
 impl DocumentsRuntime {
     #[must_use]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one composition root wiring every documents collaborator"
+    )]
     pub fn new(parts: DocumentsRuntimeParts) -> Self {
         let DocumentsRuntimeParts {
             database,
@@ -87,6 +94,7 @@ impl DocumentsRuntime {
             directory,
             event_router,
             notifications,
+            brain,
             catalog,
             config,
             issues,
@@ -104,6 +112,8 @@ impl DocumentsRuntime {
             Arc::clone(&file_storage),
             Arc::clone(&repositories.blobs),
         ));
+        #[cfg(feature = "collab")]
+        let collab_config = config.collab;
         let uploads = Arc::new(UploadService::new(UploadServiceParts {
             storage: file_storage,
             uploads: Arc::clone(&repositories.uploads),
@@ -120,20 +130,25 @@ impl DocumentsRuntime {
             access: Arc::clone(&access),
             events: Arc::new(DocumentEvents::new(Arc::new(event_router))),
             notifications,
+            brain,
             config,
         }));
         service.attach_uploads(&uploads);
         #[cfg(feature = "collab")]
         let collab = {
             #[cfg(feature = "engine-loro")]
-            let engine: Option<Arc<dyn DocumentEngine>> =
-                Some(Arc::new(systemprompt_engine_loro::LoroEngine));
+            let engine: Option<Arc<dyn DocumentEngine>> = Some(Arc::new(
+                systemprompt_files::documents::engine::loro::LoroEngine,
+            ));
             #[cfg(not(feature = "engine-loro"))]
             let engine: Option<Arc<dyn DocumentEngine>> = None;
-            let collab = Arc::new(
-                CollabService::new(Arc::clone(&service), CollabTuning::default(), engine)
-                    .with_uploads(Arc::clone(&uploads)),
-            );
+            let mut built =
+                CollabService::new(Arc::clone(&service), collab_tuning(&collab_config), engine)
+                    .with_uploads(Arc::clone(&uploads));
+            if collab_config.owner.enabled {
+                built = built.with_owner(OwnerConfig::at(owner_address(&collab_config)));
+            }
+            let collab = Arc::new(built);
             service.attach_collab(&collab);
             collab.start(&background_tasks);
             collab
@@ -184,6 +199,30 @@ impl DocumentsRuntime {
 
     pub async fn reconcile_folder_entities(&self) -> Result<u64, DocumentsError> {
         self.service.access().reconcile_folder_entities().await
+    }
+}
+
+#[cfg(feature = "collab")]
+fn collab_tuning(config: &CollabConfig) -> CollabTuning {
+    CollabTuning {
+        snapshot_after: std::time::Duration::from_secs(u64::from(config.snapshot_after_secs)),
+        snapshot_after_updates: config.snapshot_after_updates,
+        ..CollabTuning::default()
+    }
+}
+
+#[cfg(feature = "collab")]
+fn owner_address(config: &CollabConfig) -> String {
+    let port = config.owner.advertise_port;
+    if let Ok(url) = std::env::var("SYSTEMPROMPT_COLLAB_ADVERTISE_URL")
+        && !url.trim().is_empty()
+    {
+        return url;
+    }
+    match std::env::var("FLY_PRIVATE_IP") {
+        Ok(ip) if ip.contains(':') => format!("http://[{ip}]:{port}"),
+        Ok(ip) if !ip.is_empty() => format!("http://{ip}:{port}"),
+        _ => format!("http://127.0.0.1:{port}"),
     }
 }
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.77.0] - 2026-11-01
+
+### Changed
+
+- Builds clean under stable Rust 1.99.1 clippy; no API change.
+
 ## [0.76.0] - 2026-10-29
 
 ### Fixed
@@ -87,7 +93,6 @@
 ### Fixed
 
 - `take_projection_backlog` picks its batch once (a materialized `FOR UPDATE SKIP LOCKED` CTE) and deletes it by key. The `key IN (<locking subquery>)` form planned as a nested loop that re-ran the locking subquery per queued row whenever the queue's statistics were older than a bulk enqueue (a table last analyzed empty, then a migration queueing 64k keys): a single 2,000-key batch ran past ten minutes on CPU. The same batch now takes about 50 ms under those statistics.
-
 
 ### Changed
 

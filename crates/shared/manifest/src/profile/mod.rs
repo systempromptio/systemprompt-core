@@ -11,6 +11,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod brain;
+mod brain_defaults;
 mod cloud;
 mod config_planes;
 mod database;
@@ -19,6 +21,7 @@ pub mod derived;
 mod error;
 mod external_secrets;
 mod governance;
+mod image;
 mod judge;
 pub mod layered;
 mod legacy;
@@ -44,6 +47,11 @@ mod style;
 mod validation;
 mod vault;
 
+pub use brain::{
+    AutoConfirm, AutoConfirmPolicy, BrainCaptureProfile, BrainConsumerProfile,
+    BrainExtractionProfile, BrainLifecycleProfile, BrainProfile, BrainRecallProfile, CaptureSource,
+    StalePolicy,
+};
 pub use cloud::{CloudConfig, CloudValidationMode, HostingProvider, UnknownHostingProvider};
 pub use config_planes::{ConfigPlanesConfig, PlaneAuthority};
 pub use database::{DatabaseConfig, PoolConfig, RoleMaxConnections};
@@ -57,6 +65,7 @@ pub use governance::{
     AuditConfig, AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig, QuotaConfig,
     UNRESTRICTED_ACKNOWLEDGEMENT, UnappliedPlaneMode,
 };
+pub use image::{DEFAULT_RUNTIME_BASE_IMAGE, RuntimeImageConfig};
 pub use judge::JudgeProfile;
 pub use layered::{BASE_PROFILE_FILE, OVERLAY_PROFILE_FILE, merge_yaml};
 pub use legacy::MIGRATE_COMMAND;
@@ -199,6 +208,9 @@ pub struct Profile {
 
     #[serde(default)]
     pub notifications: NotificationsProfile,
+
+    #[serde(default)]
+    pub brain: BrainProfile,
 }
 
 impl Profile {

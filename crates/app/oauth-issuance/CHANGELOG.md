@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.77.0] - 2026-11-01
+
+### Changed
+
+- `DriveSyncTokenService::exchange` and `DriveSyncError` (`drive_sync`) carry the Drive sync credential exchange previously inline in the API handler; rules and TTL are unchanged.
+
 ## [0.76.0] - 2026-10-29
 
 ### Fixed
@@ -27,7 +33,6 @@
 - **Breaking:** `IdJagGrant` carries the `SigningKeys` it signs with (`IdJagGrant::keys`). Migrate by passing `ctx.signing_keys()`.
 - **Breaking:** SSO request, owner, user and client message ids decode as typed identifiers. Migrate by reading the values through `as_str()`.
 - `ClientCredentialsError::ConfigUnavailable`, `UserTokenError::Config` and `ConnectorGrantError::Secrets` are removed, because the config and secrets arrive as arguments; `UserTokenParams` gains `config: &Arc<Config>`. `credential::cache::token_for` is the method `TokenCache::token_for(&self, key, mint)`. Migrate by adding `config` to `UserTokenParams` literals, dropping the removed match arms, and calling `token_for` on the `TokenCache` the caller owns.
-
 
 ## [0.69.0] - 2026-10-15
 

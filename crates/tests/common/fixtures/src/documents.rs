@@ -19,7 +19,7 @@ use systemprompt_traits::{BackgroundTasks, FileStorage};
 use systemprompt_users::UserRepository;
 
 pub fn fixture_notification_sink(pool: &DbPool) -> DynNotificationSink {
-    notification_sink(pool, crate::unique_instance())
+    notification_sink(pool, &crate::unique_instance())
 }
 
 pub fn fixture_notifications(
@@ -101,6 +101,7 @@ pub fn fixture_documents_runtime_configured(
         )),
         event_router: EventRouter::local_only(Arc::new(EventBroadcasters::new())),
         notifications: fixture_notification_sink(pool),
+        brain: Arc::new(systemprompt_runtime::documents::BrainUnavailableSink),
         catalog: Vec::new(),
         config,
         issues: Arc::new(systemprompt_files::issues::IssueService::new(

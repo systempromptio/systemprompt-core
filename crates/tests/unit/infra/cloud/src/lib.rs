@@ -22,6 +22,8 @@ mod deploy_dockerfile;
 #[cfg(test)]
 mod deploy_dockerfile_extensions;
 #[cfg(test)]
+mod deploy_managed;
+#[cfg(test)]
 mod deploy_provider;
 #[cfg(test)]
 mod deploy_validation;
@@ -30,17 +32,27 @@ mod discovered_project;
 #[cfg(test)]
 mod docker_cli;
 #[cfg(test)]
+mod docker_digest;
+#[cfg(test)]
 mod environment;
 #[cfg(test)]
 mod error;
 #[cfg(test)]
 mod error_extra;
 #[cfg(test)]
+mod error_hints;
+#[cfg(test)]
+mod gitops_rollout;
+#[cfg(test)]
 mod jwt;
 #[cfg(test)]
 mod logout;
 #[cfg(test)]
 mod oauth_flow;
+#[cfg(test)]
+mod operator;
+#[cfg(test)]
+mod operator_login_flow;
 #[cfg(test)]
 mod paths;
 #[cfg(test)]
@@ -61,6 +73,8 @@ mod stored_tenant_extra;
 #[cfg(test)]
 #[cfg(test)]
 mod tenant_api_tests;
+#[cfg(test)]
+mod tenant_health;
 #[cfg(test)]
 #[cfg(test)]
 mod tenant_token_retry;

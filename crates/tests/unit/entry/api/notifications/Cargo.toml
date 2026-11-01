@@ -15,6 +15,7 @@ systemprompt-api = { workspace = true, features = ["notifications"] }
 systemprompt-models = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-notifications = { workspace = true }
+systemprompt-provider-contracts = { workspace = true }
 systemprompt-runtime = { workspace = true, features = ["notifications"] }
 systemprompt-test-fixtures = { workspace = true }
 

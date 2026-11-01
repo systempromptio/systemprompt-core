@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.77.0] - 2026-11-01
+
+### Added
+
+- `ConfigPlane::write_rank`, defaulted to `0`, orders an apply's writes across declaration files.
+
 ## [0.76.0] - 2026-10-29
 
 ### Breaking

@@ -12,7 +12,7 @@ use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::mcp::{Deployment, McpServerType, OAuthRequirement};
 use systemprompt_runtime::{collect_manifest_errors, merge_mcp_errors};
 
-fn deployment(
+pub(super) fn deployment(
     server_type: McpServerType,
     enabled: bool,
     dev_only: bool,
@@ -42,10 +42,13 @@ fn deployment(
         external_auth: None,
         headers: HashMap::new(),
         tool_policy: Some(systemprompt_models::bridge::ids::ToolPolicy::Allow),
+        description: None,
+        removable: true,
+        toolsets: Vec::new(),
     }
 }
 
-fn services_with(servers: Vec<(&str, Deployment)>) -> ServicesConfig {
+pub(super) fn services_with(servers: Vec<(&str, Deployment)>) -> ServicesConfig {
     let mut cfg = ServicesConfig::default();
     for (name, dep) in servers {
         cfg.mcp_servers.insert(name.to_owned(), dep);

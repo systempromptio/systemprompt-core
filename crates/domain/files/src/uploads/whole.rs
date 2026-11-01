@@ -45,10 +45,10 @@ impl UploadService {
     ) -> UploadResult<CompletedUpload> {
         let size = bytes.len() as u64;
         if size != request.size {
-            return Err(UploadError::Invalid(format!(
-                "declared size {} but the body is {size} bytes",
-                request.size
-            )));
+            return Err(UploadError::SizeMismatch {
+                declared: request.size,
+                actual: size,
+            });
         }
         let session = self.begin(owner, request, trace, allowance).await?;
         let stored = self.put_all(owner, &session, bytes).await;

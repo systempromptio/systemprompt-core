@@ -21,6 +21,7 @@ use systemprompt_models::errors::GlobalConfigError;
 use systemprompt_models::execution::ContextExtractionError;
 use systemprompt_oauth::services::SessionCreationError;
 use systemprompt_oauth::{OauthError, OauthErrorKind};
+use systemprompt_oauth_issuance::DriveSyncError;
 use systemprompt_traits::RepositoryError;
 use systemprompt_users::UserError;
 
@@ -28,19 +29,22 @@ use super::ApiHttpError;
 
 impl From<IdValidationError> for ApiHttpError {
     fn from(err: IdValidationError) -> Self {
-        Self(ApiError::from(err))
+        Self(Box::new(ApiError::from(err)))
     }
 }
 
 impl From<RepositoryError> for ApiHttpError {
     fn from(err: RepositoryError) -> Self {
-        Self(ApiError::from(err))
+        Self(Box::new(ApiError::from(err)))
     }
 }
 
 impl From<AuthzError> for ApiHttpError {
     fn from(err: AuthzError) -> Self {
-        Self(ApiError::internal("Authorization lookup failed", err))
+        Self(Box::new(ApiError::internal(
+            "Authorization lookup failed",
+            err,
+        )))
     }
 }
 
@@ -56,28 +60,28 @@ impl From<ScopeBindingError> for ApiHttpError {
 
 impl From<ConfigLoadError> for ApiHttpError {
     fn from(err: ConfigLoadError) -> Self {
-        Self(ApiError::internal(
+        Self(Box::new(ApiError::internal(
             "Services configuration unavailable",
             err,
-        ))
+        )))
     }
 }
 
 impl From<ProfileBootstrapError> for ApiHttpError {
     fn from(err: ProfileBootstrapError) -> Self {
-        Self(ApiError::internal("Profile not ready", err))
+        Self(Box::new(ApiError::internal("Profile not ready", err)))
     }
 }
 
 impl From<SecretsBootstrapError> for ApiHttpError {
     fn from(err: SecretsBootstrapError) -> Self {
-        Self(ApiError::internal("Secrets not ready", err))
+        Self(Box::new(ApiError::internal("Secrets not ready", err)))
     }
 }
 
 impl From<GlobalConfigError> for ApiHttpError {
     fn from(err: GlobalConfigError) -> Self {
-        Self(ApiError::internal("Configuration not ready", err))
+        Self(Box::new(ApiError::internal("Configuration not ready", err)))
     }
 }
 
@@ -88,7 +92,7 @@ impl From<AgentError> for ApiHttpError {
             AgentError::Repository(inner) => ApiError::from(inner),
             other => ApiError::internal("Agent operation failed", other),
         };
-        Self(api)
+        Self(Box::new(api))
     }
 }
 
@@ -104,7 +108,7 @@ impl From<ContentError> for ApiHttpError {
             },
             other => ApiError::internal("Content operation failed", other),
         };
-        Self(api)
+        Self(Box::new(api))
     }
 }
 
@@ -131,7 +135,7 @@ impl From<MarketplaceError> for ApiHttpError {
             | MarketplaceError::Signing(_)
             | MarketplaceError::Filter(_)) => ApiError::internal("Marketplace operation failed", e),
         };
-        Self(api)
+        Self(Box::new(api))
     }
 }
 
@@ -156,7 +160,7 @@ impl From<UserError> for ApiHttpError {
                 ApiError::internal("User operation failed", e)
             },
         };
-        Self(api)
+        Self(Box::new(api))
     }
 }
 
@@ -169,7 +173,7 @@ impl From<OauthError> for ApiHttpError {
                 | OauthError::ClientNotFound(_)
                 | OauthError::UserNotFound(_)
         ) {
-            return Self(ApiError::not_found(err.to_string()));
+            return Self(Box::new(ApiError::not_found(err.to_string())));
         }
         let api = match err.kind() {
             OauthErrorKind::InvalidRequest
@@ -189,16 +193,16 @@ impl From<OauthError> for ApiHttpError {
                 ApiError::internal("Authorization operation failed", err)
             },
         };
-        Self(api)
+        Self(Box::new(api))
     }
 }
 
 impl From<SessionCreationError> for ApiHttpError {
     fn from(err: SessionCreationError) -> Self {
-        Self(match err {
+        Self(Box::new(match err {
             e @ SessionCreationError::UserNotFound { .. } => ApiError::not_found(e.to_string()),
             other => ApiError::internal("Session creation failed", other),
-        })
+        }))
     }
 }
 
@@ -224,7 +228,7 @@ impl From<ContextExtractionError> for ApiHttpError {
                 ApiError::internal("Request context lookup failed", e)
             },
         };
-        Self(api)
+        Self(Box::new(api))
     }
 }
 
@@ -242,6 +246,20 @@ impl From<BundleError> for ApiHttpError {
                 ApiError::internal("Services bundle operation failed", e)
             },
         };
-        Self(api)
+        Self(Box::new(api))
+    }
+}
+
+impl From<DriveSyncError> for ApiHttpError {
+    fn from(error: DriveSyncError) -> Self {
+        match error {
+            DriveSyncError::NotDeviceToken | DriveSyncError::NoUserPermission => {
+                Self::forbidden(error.to_string())
+            },
+            DriveSyncError::Expired => Self::unauthorized(error.to_string()),
+            DriveSyncError::Mint(source) => {
+                Self::internal("drive sync token was not minted", source)
+            },
+        }
     }
 }

@@ -4,6 +4,7 @@ mod db_plane;
 mod e2e;
 mod fake_plane;
 mod guard;
+mod identity_plane_db;
 mod merge;
 mod reconcile_db;
 mod reconcile_ops_db;

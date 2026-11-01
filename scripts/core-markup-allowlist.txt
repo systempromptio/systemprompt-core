@@ -1,0 +1,16 @@
+# Tracked browser markup, script and style files permitted under crates/.
+# One glob pattern per line; `*` also matches `/`. Read by check-no-vendor.sh.
+# Core is headless: a host extension owns its UI, so a new entry here is a
+# deliberate, reviewed exception.
+
+# MCP Apps artifact renderer templates.
+crates/domain/mcp/src/services/ui_renderer/templates/assets/*
+
+# OAuth authorization and passkey pages served by the issuer.
+crates/domain/oauth/templates/*.html
+
+# Default homepage template.
+crates/domain/templates/defaults/templates/homepage.html
+
+# Test fixtures.
+crates/tests/*

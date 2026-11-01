@@ -41,16 +41,16 @@ impl DocumentService {
 
     #[cfg(not(feature = "collab"))]
     #[expect(
-        clippy::unused_async,
+        clippy::unused_self,
         reason = "shares the signature of the collab build"
     )]
-    pub(super) async fn close_collab_state(
+    pub(super) fn close_collab_state(
         &self,
         _who: &AuthenticatedUser,
         _document: &Document,
         _trace: &TraceId,
-    ) -> Result<(), DocumentsError> {
-        Ok(())
+    ) -> impl Future<Output = Result<(), DocumentsError>> {
+        std::future::ready(Ok(()))
     }
 
     pub(super) async fn release_live_state(

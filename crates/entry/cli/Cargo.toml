@@ -17,6 +17,17 @@ include = ["src/**/*", "Cargo.toml", "README.md", "CHANGELOG.md", ".sqlx/**/*"]
 [package.metadata.docs.rs]
 all-features = true
 
+[features]
+# The bare binary is the core runtime alone; each feature mirrors the facade's
+# optional domain of the same name so a `--features full` build matches what a
+# facade `full` consumer ships.
+notifications = ["systemprompt-runtime/notifications", "systemprompt-api/notifications"]
+collab = ["systemprompt-files/collab", "systemprompt-runtime/collab", "systemprompt-api/collab"]
+engine-loro = ["collab", "systemprompt-runtime/engine-loro"]
+office = ["systemprompt-files/office"]
+brain = ["notifications", "systemprompt-runtime/brain", "systemprompt-api/brain"]
+full = ["notifications", "brain", "engine-loro", "office"]
+
 [lints]
 workspace = true
 

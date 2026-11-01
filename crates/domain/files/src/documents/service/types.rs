@@ -6,62 +6,19 @@
 use std::time::Duration;
 
 use systemprompt_identifiers::{
-    DocumentCommentId, DocumentEditSessionId, DocumentFolderId, DocumentId, DocumentOpId,
-    DocumentRevisionId, DocumentTemplateId, DriveDeviceId, McpExecutionId, SessionId,
+    DocumentCommentId, DocumentFolderId, DocumentId, DocumentOpId, DocumentRevisionId,
+    DocumentTemplateId,
 };
-use systemprompt_models::documents::{
-    AccessLevel, ActorKind, DocumentFormat, EditOp, Projection, RevisionOriginKind,
-};
+use systemprompt_models::documents::{AccessLevel, ActorKind, DocumentFormat, EditOp, Projection};
 use systemprompt_provider_contracts::documents::TemplateParams;
 use systemprompt_traits::ByteRange;
 
 use crate::documents::model::{Media, RichText};
 use crate::documents::models::{
     Document, DocumentFolder, DocumentRevision, DocumentSearchHit, ListCursor, ListScope, ListSort,
-    ListedDocument, ListingCursor, LockHolderKind, RevisionAttribution, WriteAck,
+    ListedDocument, ListingCursor, LockHolder, RevisionAttribution, RevisionOrigin, WriteAck,
 };
 use crate::documents::revision::CommitBody;
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum RevisionOrigin {
-    McpExecution(McpExecutionId),
-    BridgeDevice(DriveDeviceId),
-    WebSession(SessionId),
-    EditSession(DocumentEditSessionId),
-    Api,
-}
-
-impl RevisionOrigin {
-    #[must_use]
-    pub const fn kind(&self) -> RevisionOriginKind {
-        match self {
-            Self::McpExecution(_) => RevisionOriginKind::McpExecution,
-            Self::BridgeDevice(_) => RevisionOriginKind::BridgeDevice,
-            Self::WebSession(_) => RevisionOriginKind::WebSession,
-            Self::EditSession(_) => RevisionOriginKind::EditSession,
-            Self::Api => RevisionOriginKind::Api,
-        }
-    }
-
-    #[must_use]
-    pub fn id(&self) -> Option<String> {
-        match self {
-            Self::McpExecution(id) => Some(id.as_str().to_owned()),
-            Self::BridgeDevice(id) => Some(id.as_str().to_owned()),
-            Self::WebSession(id) => Some(id.as_str().to_owned()),
-            Self::EditSession(id) => Some(id.as_str().to_owned()),
-            Self::Api => None,
-        }
-    }
-
-    #[must_use]
-    pub const fn device(&self) -> Option<&DriveDeviceId> {
-        match self {
-            Self::BridgeDevice(id) => Some(id),
-            _ => None,
-        }
-    }
-}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Author {
@@ -101,8 +58,7 @@ pub struct StreamRequest<'a> {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AcquireLockRequest {
-    pub holder_kind: LockHolderKind,
-    pub holder_id: String,
+    pub holder: LockHolder,
     pub ttl: Duration,
 }
 
@@ -157,7 +113,7 @@ pub struct CommitRequest {
     pub body: CommitBody,
     pub author: Author,
     pub message: Option<String>,
-    pub lock_holder_id: Option<String>,
+    pub lock_holder: Option<LockHolder>,
     pub comments: CommentPolicy,
     pub op_id: Option<DocumentOpId>,
     pub media: Media,

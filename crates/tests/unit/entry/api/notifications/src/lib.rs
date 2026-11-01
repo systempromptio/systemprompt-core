@@ -3,3 +3,7 @@
 
 #[cfg(test)]
 mod routes;
+#[cfg(test)]
+mod rules_routes;
+#[cfg(test)]
+mod subscription_routes;

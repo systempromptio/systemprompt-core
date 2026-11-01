@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT version AS \"version: PipelineVersion\" FROM brain_pipeline_versions\n               ORDER BY recorded_at DESC, version DESC LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "version: PipelineVersion",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "brain_pipeline_versions",
+            "name": "version"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "facbb03c0ad276f116c89f3d6af66259419471ded2ea4d4dbd95c98d719eb70c"
+}

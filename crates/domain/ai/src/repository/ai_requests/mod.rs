@@ -18,6 +18,7 @@
 mod admission;
 mod attributions;
 mod intent_claims;
+mod memory_recall;
 mod message_operations;
 mod mutations;
 mod orphans;

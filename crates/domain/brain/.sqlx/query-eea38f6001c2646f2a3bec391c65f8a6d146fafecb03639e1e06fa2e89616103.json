@@ -1,0 +1,56 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH injected AS (\n                   SELECT r.workflow, f.kind, count(*) AS n\n                   FROM brain_recalls r\n                   CROSS JOIN LATERAL jsonb_array_elements(r.injected) AS e(item)\n                   JOIN brain_facts f ON f.id = e.item->>'id'\n                   WHERE r.created_at >= $1 AND r.created_at < $2\n                   GROUP BY r.workflow, f.kind\n               ), cited AS (\n                   SELECT r.workflow, f.kind, count(*) AS n\n                   FROM brain_outcomes o\n                   JOIN brain_recalls r ON r.id = o.recall_id\n                   JOIN brain_facts f ON f.id = o.fact_id\n                   WHERE o.signal = $3 AND o.value > 0\n                     AND o.observed_at >= $1 AND o.observed_at < $2\n                   GROUP BY r.workflow, f.kind\n               )\n               SELECT i.workflow AS \"workflow: WorkflowId\",\n                      i.kind AS \"kind!: FactKindId\",\n                      i.n AS \"injections!\",\n                      COALESCE(c.n, 0) AS \"citations!\"\n               FROM injected i\n               LEFT JOIN cited c\n                 ON c.kind = i.kind AND c.workflow IS NOT DISTINCT FROM i.workflow\n               ORDER BY i.workflow NULLS FIRST, i.kind",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "workflow: WorkflowId",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "brain_recalls",
+            "name": "workflow"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "kind!: FactKindId",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "brain_facts",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "injections!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "citations!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Timestamptz",
+        "Text"
+      ]
+    },
+    "nullable": [
+      true,
+      false,
+      null,
+      null
+    ]
+  },
+  "hash": "eea38f6001c2646f2a3bec391c65f8a6d146fafecb03639e1e06fa2e89616103"
+}

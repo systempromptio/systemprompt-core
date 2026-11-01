@@ -55,11 +55,6 @@ impl ListParams {
         self.limit.unwrap_or(DEFAULT_LIMIT).clamp(1, MAX_LIMIT)
     }
 
-    #[expect(
-        clippy::result_large_err,
-        reason = "ApiHttpError is the handler error type; boxing it here would propagate to every \
-                  caller for negligible gain"
-    )]
     pub(super) fn before(&self) -> Result<Option<(DateTime<Utc>, IssueReportId)>, ApiHttpError> {
         match (self.before_at, self.before_id.as_deref()) {
             (None, None) => Ok(None),
@@ -68,11 +63,6 @@ impl ListParams {
         }
     }
 
-    #[expect(
-        clippy::result_large_err,
-        reason = "ApiHttpError is the handler error type; boxing it here would propagate to every \
-                  caller for negligible gain"
-    )]
     pub(super) fn reporter(&self) -> Result<Option<UserId>, ApiHttpError> {
         Ok(self.reporter.as_deref().map(UserId::try_new).transpose()?)
     }

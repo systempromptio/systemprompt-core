@@ -1,0 +1,34 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH matched AS (\n               SELECT subject_kind, subject_id, max(score) AS score FROM (\n                   SELECT a.subject_kind, a.subject_id,\n                          CASE WHEN strpos($7, a.alias_norm) > 0 THEN 1.0::float8\n                               ELSE word_similarity(a.alias_norm, $7)::float8 END AS score\n                   FROM brain_aliases a\n                   WHERE strpos($7, a.alias_norm) > 0 OR a.alias_norm <% $7\n                   UNION ALL\n                   SELECT s.subject_kind, s.subject_id, 1.0::float8\n                   FROM brain_subjects s\n                   WHERE length(s.subject_id) >= 3 AND strpos($7, lower(s.subject_id)) > 0\n               ) hits GROUP BY subject_kind, subject_id\n           )\n           SELECT f.id AS \"id: BrainFactId\" FROM brain_facts f\n           JOIN matched m ON m.subject_kind = f.subject_kind AND m.subject_id = f.subject_id\n           WHERE f.scope_level = ANY($1::text[])\n             AND (f.scope_level IN ('org', 'group')\n                  OR (f.scope_level = 'user' AND f.scope_key = $2)\n                  OR (f.scope_level = 'project' AND (f.scope_key = $3 OR cardinality(f.topics) > 0)))\n             AND (f.status = 'confirmed'\n                  OR (f.status = 'proposed' AND f.owner_user_id = $2)\n                  OR (f.status = 'stale' AND $4))\n             AND (f.review_after IS NULL OR f.review_after >= $5)\n             AND (f.valid_from IS NULL OR f.valid_from <= $5)\n             AND (f.valid_to IS NULL OR f.valid_to > $5)\n           ORDER BY m.score DESC, f.importance_base DESC, f.id LIMIT $6",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id: BrainFactId",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "brain_facts",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "TextArray",
+        "Text",
+        "Text",
+        "Bool",
+        "Timestamptz",
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "58590eb82e8c6c0fbb33f7bb2fb4cb898359101b73ef311a838bb71102abcd46"
+}

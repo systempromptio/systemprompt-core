@@ -19,6 +19,7 @@ use crate::policies::{
 use crate::service::failover::{DeploymentLoad, ProviderBreakers};
 use systemprompt_client::GuardedClientConfig;
 use systemprompt_config::SecretsService;
+use systemprompt_extension::brain::MemoryRecall;
 use systemprompt_extension::{ExtensionContext, GatewayGuards};
 use systemprompt_security::credential::TokenCache;
 use systemprompt_wire::WireProtocol;
@@ -164,7 +165,6 @@ impl SafetyScannerRegistry {
 /// Upstream adapters, safety scanners, the system-prompt override engine, the
 /// route selector, the per-provider circuit breakers, the per-deployment
 /// in-flight gauge and the upstream HTTP client.
-#[derive(Debug)]
 pub struct GatewayEngines {
     pub upstream_registry: Arc<GatewayUpstreamRegistry>,
     pub scanner_registry: Arc<SafetyScannerRegistry>,
@@ -176,6 +176,20 @@ pub struct GatewayEngines {
     pub provider_tokens: Arc<TokenCache>,
     pub guards: GatewayGuards,
     pub secrets: Arc<SecretsService>,
+    pub memory_recall: Option<Arc<dyn MemoryRecall>>,
+}
+
+impl std::fmt::Debug for GatewayEngines {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("GatewayEngines")
+            .field("upstream_registry", &self.upstream_registry)
+            .field("scanner_registry", &self.scanner_registry)
+            .field(
+                "memory_recall",
+                &self.memory_recall.as_ref().map(|recall| recall.name()),
+            )
+            .finish_non_exhaustive()
+    }
 }
 
 /// Failure to assemble a [`GatewayEngines`] set at boot.
@@ -207,6 +221,13 @@ impl GatewayEngines {
             provider_tokens,
             guards: GatewayGuards::discover(extensions.as_ref()),
             secrets,
+            memory_recall: None,
         })
+    }
+
+    #[must_use]
+    pub fn with_memory_recall(mut self, recall: Arc<dyn MemoryRecall>) -> Self {
+        self.memory_recall = Some(recall);
+        self
     }
 }

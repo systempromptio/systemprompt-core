@@ -569,6 +569,7 @@ fn fixture_app_context_assembled_on(
             connector_tokens: Arc::default(),
             documents,
             notifications,
+            brain: None,
         },
     );
 

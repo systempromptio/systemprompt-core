@@ -16,6 +16,7 @@ use systemprompt_models::notifications::{NotificationEvent, RoutePlan};
 
 use super::StepFailure;
 use crate::error::{NotificationsError, NotificationsResult};
+use crate::repository::FailureStage;
 
 pub(crate) async fn route(
     routers: &[Arc<dyn NotificationRouter>],
@@ -28,7 +29,7 @@ pub(crate) async fn route(
         match tokio::time::timeout(timeout, router.route(event)).await {
             Ok(Ok(contribution)) => plan.merge(contribution),
             Ok(Err(error)) => failures.push(StepFailure::new(
-                "route",
+                FailureStage::Route,
                 None,
                 format!("{}: {error}", router.name()),
             )),

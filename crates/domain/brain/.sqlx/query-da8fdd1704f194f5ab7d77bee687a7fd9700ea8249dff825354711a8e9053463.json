@@ -1,0 +1,25 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO brain_extractions\n                 (id, outbox_id, pipeline_version, extractor, kind, model, prompt_version,\n                  raw_output, input_tokens, output_tokens, candidates, ai_request_id)\n             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)\n             ON CONFLICT (outbox_id, pipeline_version, extractor, kind) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Jsonb",
+        "Int4",
+        "Int4",
+        "Int4",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "da8fdd1704f194f5ab7d77bee687a7fd9700ea8249dff825354711a8e9053463"
+}

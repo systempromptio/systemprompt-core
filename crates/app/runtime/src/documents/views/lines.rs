@@ -9,6 +9,10 @@
 //! ids are stable across revisions; a cell's sheet and A1 address come from
 //! its codec path.
 //!
+//! The text views skip a read-only root (a Markdown document's parsed
+//! `outline`, which repeats its `body` lines as blocks) unless the read is
+//! `verbose`; the projection itself keeps both.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -17,9 +21,10 @@ use std::collections::HashMap;
 use systemprompt_files::documents::DocumentsError;
 use systemprompt_models::documents::{NodeKind, Projection, ProjectionNode};
 
+
 use systemprompt_files::documents::nodes::path_of;
 
-use super::outline::{node_lines, outline, search_lines};
+use super::outline::{node_lines, outline, search_lines, shown_roots};
 use super::types::{NodeRange, ReadInput, ReadView};
 
 pub const MAX_LINES: usize = 2000;
@@ -34,7 +39,8 @@ pub struct RenderedLines {
 pub fn render(projection: &Projection, input: &ReadInput) -> Result<RenderedLines, DocumentsError> {
     let lines = match input.view {
         ReadView::Text | ReadView::Changes | ReadView::Meta | ReadView::Model => {
-            structured(projection, shows)
+            let shown = shown_roots(projection, input.verbose);
+            structured(shown.as_ref().unwrap_or(projection), shows)
         },
         ReadView::Outline => outline(projection),
         ReadView::Node => node_lines(projection, input.node_id.as_ref())?,
@@ -80,7 +86,7 @@ pub(crate) fn structured(
     lines
 }
 
-fn folded_cell(node: &ProjectionNode) -> bool {
+pub(super) fn folded_cell(node: &ProjectionNode) -> bool {
     node.kind == NodeKind::Cell
         && node.children.len() == 1
         && node.children[0].kind == NodeKind::Paragraph

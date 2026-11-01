@@ -47,15 +47,13 @@ pub(super) async fn content(
         ))) => return Ok(unsatisfiable(size)),
         other => other?,
     };
-    let tag = session
-        .blob_sha256
-        .as_ref()
-        .map(|hash| format!("\"{hash}\""))
-        .unwrap_or_default();
-    let matched = headers
-        .get(header::IF_NONE_MATCH)
-        .and_then(|value| value.to_str().ok())
-        .is_some_and(|value| value.split(',').any(|candidate| candidate.trim() == tag));
+    let tag = session.etag();
+    let matched = tag.as_deref().is_some_and(|tag| {
+        headers
+            .get(header::IF_NONE_MATCH)
+            .and_then(|value| value.to_str().ok())
+            .is_some_and(|value| value.split(',').any(|candidate| candidate.trim() == tag))
+    });
     if matched {
         return Ok(StatusCode::NOT_MODIFIED.into_response());
     }
@@ -87,7 +85,9 @@ pub(super) async fn content(
     };
     let mime = session.detected_mime.unwrap_or(session.declared_mime);
     set(header::CONTENT_TYPE, mime);
-    set(header::ETAG, tag);
+    if let Some(tag) = tag {
+        set(header::ETAG, tag);
+    }
     set(header::ACCEPT_RANGES, "bytes".to_owned());
     set(header::CACHE_CONTROL, "private, no-cache".to_owned());
     set(header::CONTENT_DISPOSITION, disposition(&session.file_name));

@@ -14,6 +14,7 @@
 use sqlx::{PgConnection, PgPool};
 use systemprompt_identifiers::{Actor, EventOutboxId, InstanceId};
 
+use crate::services::durable::ReportingFactRaw;
 use crate::services::routing::{NOTIFICATION_FACTS_CHANNEL, OUTBOX_CHANNEL, OutboxChannel};
 
 #[derive(Debug)]
@@ -21,6 +22,22 @@ pub(crate) struct FactRow {
     pub id: EventOutboxId,
     // JSON: versioned facts are decoded by the registered consumer.
     pub fact: serde_json::Value,
+}
+
+#[derive(Debug)]
+pub(crate) struct ReplayRow {
+    pub id: EventOutboxId,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub fact: sqlx::types::Json<ReportingFactRaw>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct ReplayQuery<'a> {
+    pub consumer: &'a str,
+    pub since: chrono::DateTime<chrono::Utc>,
+    pub until: chrono::DateTime<chrono::Utc>,
+    pub limit: i64,
+    pub after: Option<&'a EventOutboxId>,
 }
 
 #[derive(Debug)]
@@ -133,6 +150,29 @@ impl DurableOutboxRepository {
         .execute(&mut *conn)
         .await
         .map(|_| ())
+    }
+
+    pub(crate) async fn replay_window(
+        pool: &PgPool,
+        query: ReplayQuery<'_>,
+    ) -> Result<Vec<ReplayRow>, sqlx::Error> {
+        sqlx::query_as!(
+            ReplayRow,
+            r#"SELECT o.id AS "id: EventOutboxId", o.created_at, o.fact AS "fact!: sqlx::types::Json<ReportingFactRaw>"
+             FROM event_outbox o
+             WHERE o.consumer = $1 AND o.fact IS NOT NULL
+               AND o.created_at >= $2 AND o.created_at < $3
+               AND ($5::text IS NULL OR (o.created_at, o.id) > (
+                   SELECT a.created_at, a.id FROM event_outbox a WHERE a.id = $5))
+             ORDER BY o.created_at, o.id LIMIT $4"#,
+            query.consumer,
+            query.since,
+            query.until,
+            query.limit,
+            query.after.map(EventOutboxId::as_str),
+        )
+        .fetch_all(pool)
+        .await
     }
 
     pub(crate) async fn purge_processed_before(

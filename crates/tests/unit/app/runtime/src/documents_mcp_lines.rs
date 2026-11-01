@@ -233,3 +233,38 @@ fn written_lines_are_the_nodes_a_revision_added_or_changed() {
         2
     );
 }
+
+fn markdown() -> Projection {
+    use systemprompt_files::documents::codecs::MarkdownCodec;
+    use systemprompt_provider_contracts::documents::DocumentCodec;
+    MarkdownCodec
+        .project(b"# Plan\n\nShip it.\n")
+        .expect("project")
+}
+
+#[test]
+fn a_markdown_text_read_lists_each_block_once() {
+    let text = render(&markdown(), &input(ReadView::Text)).expect("text");
+    assert!(
+        text.lines.iter().all(|line| line.starts_with("line[")),
+        "{:?}",
+        text.lines
+    );
+    assert_eq!(
+        text.lines
+            .iter()
+            .filter(|line| line.ends_with("Ship it."))
+            .count(),
+        1,
+        "{:?}",
+        text.lines
+    );
+}
+
+#[test]
+fn a_verbose_markdown_read_shows_the_read_only_outline() {
+    let mut verbose = input(ReadView::Text);
+    verbose.verbose = true;
+    let text = render(&markdown(), &verbose).expect("text");
+    assert!(text.lines.iter().any(|line| line.starts_with("h[")));
+}

@@ -7,13 +7,16 @@ use chrono::{DateTime, Utc};
 use systemprompt_identifiers::{
     ContentHash, ContextId, DocumentId, DocumentRevisionId, SessionId, TaskId, TraceId, UserId,
 };
-use systemprompt_models::documents::{ActorKind, EditOp, RevisionOriginKind};
+use systemprompt_models::documents::{ActorKind, EditOp};
+use systemprompt_traits::StoredFileId;
+
+use super::origin::RevisionOrigin;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DocumentBlob {
     pub content_sha256: ContentHash,
     pub size_bytes: i64,
-    pub storage_id: String,
+    pub storage_id: StoredFileId,
     pub created_at: DateTime<Utc>,
 }
 
@@ -25,8 +28,7 @@ pub struct DocumentRevision {
     pub content_sha256: ContentHash,
     pub author_user_id: UserId,
     pub actor_kind: ActorKind,
-    pub origin_kind: RevisionOriginKind,
-    pub origin_id: Option<String>,
+    pub origin: RevisionOrigin,
     pub message: Option<String>,
     pub edit_ops: Option<Vec<EditOp>>,
     pub attribution: RevisionAttribution,
@@ -53,8 +55,7 @@ pub struct NewRevision {
     pub content_sha256: ContentHash,
     pub author_user_id: UserId,
     pub actor_kind: ActorKind,
-    pub origin_kind: RevisionOriginKind,
-    pub origin_id: Option<String>,
+    pub origin: RevisionOrigin,
     pub message: Option<String>,
     pub edit_ops: Option<Vec<EditOp>>,
     pub attribution: RevisionAttribution,

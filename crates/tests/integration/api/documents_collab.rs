@@ -23,7 +23,7 @@ use systemprompt_traits::{BackgroundTasks, FileStorage};
 use tower::ServiceExt;
 use uuid::Uuid;
 
-use super::common::{request_context, setup_ctx};
+use super::common::{browser_page, request_context, setup_ctx};
 
 async fn fixture() -> Result<(DbPool, Arc<AppContext>, DocumentsState)> {
     let (pool, ctx) = setup_ctx().await?;
@@ -37,7 +37,7 @@ async fn post(
     uri: &str,
     body: &Value,
 ) -> Result<(StatusCode, Value)> {
-    let app: Router = router(state.clone()).layer(Extension(
+    let app: Router = browser_page(router(state.clone())).layer(Extension(
         request_context(user.user_id.as_str()).with_browser_session(),
     ));
     let req = Request::builder()

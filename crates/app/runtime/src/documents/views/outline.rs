@@ -7,6 +7,7 @@
 //! block whose text contains the query, ignoring case. A changes read shows
 //! the blocks that are new or changed since a revision, `gap blocks=N` for
 //! each run of unchanged blocks, and `gone <id>` for each block deleted.
+//! The text views leave out read-only roots unless the read is verbose.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -17,6 +18,7 @@ use systemprompt_files::documents::DocumentsError;
 use systemprompt_files::documents::nodes::{ChangeItem, NodeChanges, changes};
 use systemprompt_identifiers::DocumentNodeId;
 use systemprompt_models::documents::{NodeKind, Projection, ProjectionNode};
+use systemprompt_provider_contracts::documents::READ_ONLY_ATTR;
 
 use super::lines::{is_outline, shows, structured, structured_line};
 
@@ -127,4 +129,21 @@ pub fn change_lines(head: &Projection, changes: &NodeChanges<'_>) -> Vec<String>
 #[must_use]
 pub fn proposal_lines(base: &Projection, proposed: &Projection) -> Vec<String> {
     change_lines(proposed, &changes(base, proposed, shows))
+}
+
+pub(super) fn shown_roots(projection: &Projection, verbose: bool) -> Option<Projection> {
+    let read_only = |node: &ProjectionNode| {
+        node.attrs
+            .get(READ_ONLY_ATTR)
+            .is_some_and(|flag| flag == "true")
+    };
+    (!verbose && projection.root.iter().any(read_only)).then(|| Projection {
+        root: projection
+            .root
+            .iter()
+            .filter(|node| !read_only(node))
+            .cloned()
+            .collect(),
+        ..projection.clone()
+    })
 }

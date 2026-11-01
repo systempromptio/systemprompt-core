@@ -17,7 +17,9 @@
 mod access_requests;
 mod agent_batch;
 mod agent_caps;
+mod blob_holders;
 mod blobs;
+mod collab_owners;
 mod collab_peers;
 mod collab_updates;
 mod collab_web_presence;
@@ -34,6 +36,7 @@ mod folder_move;
 mod folder_paths;
 mod folder_trash;
 mod folder_tree;
+mod folder_update;
 mod folders;
 mod grant_events;
 mod grant_gains;
@@ -69,7 +72,9 @@ use systemprompt_database::DbPool;
 pub use access_requests::DocumentAccessRequestRepository;
 pub use agent_batch::FolderChain;
 pub use agent_caps::{AgentFacts, AgentReadRecord, CapOverride};
+pub use blob_holders::{BlobHolder, HeldAmong};
 pub use blobs::DocumentBlobRepository;
+pub use collab_owners::OwnerClaim;
 pub use collab_peers::{CollabAppend, LoggedAuthor, UpdateAuthor};
 pub use collab_updates::{
     CollabBacklog, CollabUpdateRow, DocumentCollabRepository, SnapshotMark, StoredSnapshot,
@@ -81,6 +86,7 @@ pub use edit_sessions::{CheckpointClaim, CheckpointLease, DocumentEditSessionRep
 pub use folder_listing::ChildFolderPage;
 pub use folder_move::{FolderMoveOutcome, FolderRelocation};
 pub use folder_tree::{SubtreeTrash, SubtreeTrashPlan};
+pub use folder_update::{FolderUpdate, FolderUpdateOutcome};
 pub use folders::DocumentFolderRepository;
 pub use grant_events::DocumentGrantEventRepository;
 pub use grants::DocumentGrantRepository;

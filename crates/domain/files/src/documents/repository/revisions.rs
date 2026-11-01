@@ -16,7 +16,7 @@ use systemprompt_models::documents::EditOp;
 
 use super::Pools;
 use super::rows::{RepoResult, parse};
-use crate::documents::models::{DocumentRevision, ListCursor, RevisionAttribution};
+use crate::documents::models::{DocumentRevision, ListCursor, RevisionAttribution, RevisionOrigin};
 
 #[derive(Debug, Clone)]
 pub struct DocumentRevisionRepository {
@@ -54,13 +54,18 @@ impl TryFrom<RevisionRow> for DocumentRevision {
             .transpose()?;
         Ok(Self {
             actor_kind: parse("document_revisions.actor_kind", &row.actor_kind)?,
-            origin_kind: parse("document_revisions.origin_kind", &row.origin_kind)?,
+            origin: RevisionOrigin::from_columns(&row.origin_kind, row.origin_id.as_deref())
+                .map_err(|source| {
+                    systemprompt_traits::RepositoryError::decode(
+                        "document_revisions.origin_id",
+                        source,
+                    )
+                })?,
             id: row.id,
             document_id: row.document_id,
             parent_revision_id: row.parent_revision_id,
             content_sha256: row.content_sha256,
             author_user_id: row.author_user_id,
-            origin_id: row.origin_id,
             message: row.message,
             edit_ops,
             attribution: RevisionAttribution {

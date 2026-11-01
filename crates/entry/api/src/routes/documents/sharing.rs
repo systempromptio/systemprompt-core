@@ -12,8 +12,9 @@ use axum::response::{IntoResponse, Response};
 use axum::{Extension, Json};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use systemprompt_files::documents::models::{GrantTarget, LockHolderKind, LockOutcome};
+use systemprompt_files::documents::models::{GrantTarget, LockHolder, LockOutcome};
 use systemprompt_files::documents::service::{AcquireLockRequest, ShareRequest};
+use systemprompt_identifiers::EditorId;
 use systemprompt_models::RequestContext;
 use systemprompt_models::api::ApiError;
 
@@ -205,16 +206,13 @@ pub(super) async fn acquire_lock(
 ) -> DocumentsResult<Response> {
     let who = caller(&state, &req_ctx).await?;
     let id = document_id(&id)?;
-    if body.holder_id.trim().is_empty() {
-        return Err(ApiError::bad_request("holder_id must not be empty").into());
-    }
+    let holder = EditorId::try_new(body.holder_id).map(LockHolder::Editor)?;
     let ttl = body
         .ttl_secs
         .unwrap_or(DEFAULT_LOCK_SECS)
         .clamp(1, MAX_LOCK_SECS);
     let request = AcquireLockRequest {
-        holder_kind: LockHolderKind::Editor,
-        holder_id: body.holder_id,
+        holder,
         ttl: Duration::from_secs(ttl),
     };
     let outcome = state
@@ -227,7 +225,8 @@ pub(super) async fn acquire_lock(
             let error = ApiError::locked(format!(
                 "document {id} is locked by {} holder {}; wait for the lock to be released or to \
                  expire",
-                current.holder_kind, current.holder_id
+                current.holder.kind(),
+                current.holder.id_str()
             ))
             .with_error_key(RefusalCode::Locked.as_str());
             with_detail(
@@ -261,9 +260,10 @@ pub(super) async fn release_lock(
 ) -> DocumentsResult<StatusCode> {
     let who = caller(&state, &req_ctx).await?;
     let id = document_id(&id)?;
+    let holder = EditorId::try_new(query.holder_id).map(LockHolder::Editor)?;
     let released = state
         .service
-        .release_lock(&who.user, &id, &query.holder_id, &who.trace)
+        .release_lock(&who.user, &id, &holder, &who.trace)
         .await?;
     if released {
         Ok(StatusCode::NO_CONTENT)

@@ -43,6 +43,7 @@ pub fn profile(
         config_planes: Default::default(),
         licence: Default::default(),
         notifications: Default::default(),
+        brain: Default::default(),
         name: "p".to_owned(),
         display_name: "Profile P".to_owned(),
         target: ProfileType::Local,

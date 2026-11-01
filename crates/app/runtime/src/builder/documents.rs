@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use systemprompt_database::DbPool;
 use systemprompt_events::EventRouter;
-use systemprompt_extension::{DynNotificationSink, ExtensionRegistry};
+use systemprompt_extension::{DynBrainSink, DynNotificationSink, ExtensionRegistry};
 use systemprompt_files::FilesConfig;
 use systemprompt_files::documents::templates::load_catalog;
 use systemprompt_files::issues::{IssueReportRepository, IssueService};
@@ -34,6 +34,7 @@ pub(super) struct DocumentsInputs<'a> {
     pub(super) background_tasks: &'a BackgroundTasks,
     pub(super) extensions: &'a ExtensionRegistry,
     pub(super) notifications: &'a DynNotificationSink,
+    pub(super) brain: &'a DynBrainSink,
     pub(super) audiences: &'a ExtensionAudiences,
 }
 
@@ -56,6 +57,7 @@ pub(super) fn build_documents(
         )),
         event_router: inputs.event_router.clone(),
         notifications: Arc::clone(inputs.notifications),
+        brain: Arc::clone(inputs.brain),
         catalog,
         config: *inputs.files_config.documents_config(),
         issues: Arc::new(IssueService::new(

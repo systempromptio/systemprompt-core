@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.77.0] - 2026-11-01
+
+### Added
+
+- Cargo features `notifications`, `brain`, `collab`, `engine-loro`, `office` and `full` (all of them), mirroring the facade's optional domains; the bare binary is the core runtime alone.
+- `admin::issues::triage_as` (`triage::execute_as`): `admin issues triage` runs through it with the triager's user id; `execute` resolves it from the CLI session.
+- Rate-limit presets carry `brain_per_second`.
+
+### Fixed
+
+- `admin issues show` and `admin issues triage` refuse a malformed report id before querying.
+- `cloud dockerfile` renders for the active profile, carrying `SYSTEMPROMPT_PROFILE` and its `cloud.image`.
+
 ## [0.76.0] - 2026-10-29
 
 ### Added
@@ -60,7 +73,6 @@
 - `systemprompt::RuntimeBuilder`, `systemprompt_governance::authz::ReconcileReport` and `systemprompt_cli::admin::config::catalog::CatalogCommands` implement `Copy`, so a non-`move` closure captures them by reference. `#[must_use]` is added to `AgentRegistry::new`, `AgentRegistryProviderService::new`, `AgentReconciler::new`, `AgentMonitor::new`, `AgentDatabaseService::new`, `LogActor::platform`, `GatewayConfig::find_route`, `DeploymentService::{load_config, list_enabled_servers}`, `bridge_profile::{provider_health, is_model_servable}` and `route_needs_thought_signatures`. Migrate by using each result, or binding it to `_` where it is discarded on purpose.
 - command functions take the boot or command context instead of reading process state: `admin::agents::logs_db::execute_db_mode_with_pool` and `plugins::mcp::logs_db::execute_db_mode_with_pool` take `&ServicesConfig`; `ConfigSection::{file_path, all_files}` take the `&LoadedProfile` (`file_path` no longer returns a `Result`); `plane_validate::{append_full_validation, plane_declaration_results}` take the `&Config`; `secret_check::run`, `core::services::{inspect, publish}::execute` and `core::content::delete_source::execute` take the `&CommandContext`; `validate::unlisted_jobs_message`, `infrastructure::services::load_service_configs`, `web::paths::WebPaths::resolve`, `web::assets::execute` and `web::templates::execute` take the `&BootContext`; `web::sitemap::execute` and `web::content_types::execute` take the `&Profile`; `admin::session::login::login_for_profile(boot, args)` replaces the profile, path and secrets arguments; `cloud::tenant::resolve_tenant_id` takes an `Option<&Profile>`. Migrate by passing the `CommandContext` or its `boot()`.
 - `admin config server set` `SetArgs` replaces `url`, `api_server_url`, `api_external_url`, `api_internal_url` and `use_https` with `external_url`, and `ServerConfigOutput` gains `external_url`; `admin config security set` `SetArgs` drops `jwt_issuer` and `admin config governance set` `SetArgs` drops the webhook `url`, both derived from the profile. `RouteAddArgs` replaces `model_pattern`, `provider` and `upstream_model` with `id`, `label`, `models`, `deployments` and `alias`, and `RouteCommands::Remove` takes `id` in place of `model_pattern`. `ReconcileRow` is `{ bundle, registered, deleted }`, `ValidationSources.registry` is `catalog: &ResolvedCatalog`, `config_section::{PROVIDERS_INCLUDE_RELATIVE, GATEWAY_INCLUDE_RELATIVE}` and the `admin config provider` `ListArgs`/`SetArgs` are removed. `ConfigCommands` gains `Credential`, `Endpoint`, `Deployment`, `Migrate` and `Apply`, `GatewayCommands::DefaultProvider` is `DefaultModel`, `CloudCommands` gains `Sync`, and `CatalogCommands` keeps only `Discovery`; exhaustive matches need an arm. Migrate by building the new argument types and dispatching the new variants.
-
 
 ## [0.71.0] - 2026-10-21
 
@@ -274,7 +286,6 @@
 - `admin config catalog|gateway` leave `services/config/config.yaml` untouched and report the error when the file cannot be read (permissions, a directory, invalid UTF-8) instead of overwriting it with a bare `includes:` block.
 - `admin agents run` drains pending streaming audit writes after the A2A server stops.
 - `--json` / `--yaml` (and `SYSTEMPROMPT_OUTPUT_FORMAT`) emit the artifact for a command whose result was flagged terminal-skip — every empty-result path — instead of printing nothing; `skip_render` suppresses terminal rendering only. `admin config validate --schema`, `admin session login --token-only` and `admin keys issue --token-only` return their payload as the text artifact, so `--json` carries one document and the terminal output is unchanged.
-
 
 ## [0.52.0] - 2026-09-14
 

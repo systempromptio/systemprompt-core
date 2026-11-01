@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.77.0] - 2026-11-01
+
+### Breaking
+
+- **Breaking:** `AgentName::try_new` and its `Deserialize` refuse names over 64 bytes or outside ASCII letters, digits and `-_.:/`, so a stored name outside that set no longer parses; `AgentName::new` stays unchecked.
+
+### Added
+
+- `EditorId`, the client-chosen key of an editor holding a document lock.
+- The brain identifiers: `BrainFactId` (`m_<uuid>`), the declared keys `FactKindId`, `TopicId`, `InterestId` and `WorkflowId`, the UUID-backed extraction, proposal, recall, dispute and revision ids, and `PipelineVersion`.
+- The `MEMORY` (`x-systemprompt-memory`) and `MEMORY_IDS` (`x-systemprompt-memory-ids`) header constants.
+
 ## [0.76.0] - 2026-10-29
 
 ### Added

@@ -24,7 +24,7 @@ pub(super) enum MigrationStepError {
     ListTriggers {
         table: String,
         #[source]
-        source: RepositoryError,
+        source: Box<RepositoryError>,
     },
 
     #[error("Failed to {action} trigger {trigger} on {table}: {source}")]
@@ -33,7 +33,7 @@ pub(super) enum MigrationStepError {
         trigger: String,
         table: String,
         #[source]
-        source: RepositoryError,
+        source: Box<RepositoryError>,
     },
 
     #[error("Failed to bound migration {version} ({name}) with `{setting}`: {source}")]
@@ -42,7 +42,7 @@ pub(super) enum MigrationStepError {
         name: String,
         setting: String,
         #[source]
-        source: RepositoryError,
+        source: Box<RepositoryError>,
     },
 
     #[error(
@@ -55,7 +55,7 @@ pub(super) enum MigrationStepError {
         total: usize,
         statement: String,
         #[source]
-        source: RepositoryError,
+        source: Box<RepositoryError>,
     },
 
     #[error("Migration {version} ({name}) tracking write failed: {source}")]
@@ -63,6 +63,6 @@ pub(super) enum MigrationStepError {
         version: u32,
         name: String,
         #[source]
-        source: RepositoryError,
+        source: Box<RepositoryError>,
     },
 }

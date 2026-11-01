@@ -1,3 +1,4 @@
+use systemprompt_extension::prelude::ChangeSource;
 use systemprompt_identifiers::NotificationStreamId;
 use systemprompt_models::notifications::{
     Attention, AttentionReason, AudienceSubject, RuleAction, RuleMatch, StreamAttention,
@@ -42,9 +43,14 @@ async fn declare(h: &Harness, attention: StreamAttention) -> NotificationStreamI
         quiet_hours: None,
         digest: None,
     };
-    NotificationSubscriptionRepository::upsert(h.repos.write_pool(), &subscription, "test", None)
-        .await
-        .expect("subscribe role");
+    NotificationSubscriptionRepository::upsert(
+        h.repos.write_pool(),
+        &subscription,
+        &ChangeSource::Code("test.yaml".to_owned()),
+        None,
+    )
+    .await
+    .expect("subscribe role");
     id
 }
 
@@ -82,12 +88,7 @@ async fn only_a_declared_publisher_may_publish_and_role_subscribers_receive_sile
         assert_eq!(rows[0].attention, Attention::Silent);
         assert_eq!(rows[0].attention_reason, AttentionReason::Default);
         assert_eq!(rows[0].stream.as_ref(), Some(&stream));
-        assert!(
-            rows[0]
-                .excerpt
-                .as_deref()
-                .is_some_and(|e| e.starts_with("Quarter closed"))
-        );
+        assert!(rows[0].title.starts_with("Quarter closed"));
     }
     assert!(
         h.rows_for(&lead).await.is_empty(),
@@ -181,6 +182,34 @@ async fn a_rule_never_lifts_a_stream_item_above_the_stream_ceiling() {
     assert_eq!(
         rows[0].attention_reason,
         AttentionReason::StreamCeiling(stream)
+    );
+    h.finish().await;
+}
+
+#[tokio::test]
+async fn a_feed_row_carries_title_and_body_and_no_display_name() {
+    let h = Harness::new("notif_title_body").await;
+    let lead = h.user("lead", &["sales_lead"]).await;
+    let reader = h.user("reader", &["sales"]).await;
+    let stream = declare(&h, StreamAttention::default()).await;
+
+    h.service
+        .publish(&lead, &stream, announcement())
+        .await
+        .expect("publish");
+    h.drain().await;
+
+    let rows = h.rows_for(&reader).await;
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].title, "Quarter closed");
+    assert_eq!(rows[0].body, "Numbers are in the shared folder.");
+    assert_eq!(rows[0].actor, lead);
+    let wire = serde_json::to_value(&rows[0]).expect("encode row");
+    let object = wire.as_object().expect("row is an object");
+    assert!(object.contains_key("title") && object.contains_key("body"));
+    assert!(
+        !object.contains_key("actor_display") && !object.contains_key("excerpt"),
+        "{object:?}"
     );
     h.finish().await;
 }

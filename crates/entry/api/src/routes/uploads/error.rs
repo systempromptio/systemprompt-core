@@ -15,7 +15,12 @@ use crate::error::ApiHttpError;
 impl From<UploadError> for ApiHttpError {
     fn from(error: UploadError) -> Self {
         let code = match &error {
-            UploadError::Invalid(_)
+            UploadError::InvalidName
+            | UploadError::EmptyUpload
+            | UploadError::InvalidContentType { .. }
+            | UploadError::SizeMismatch { .. }
+            | UploadError::PartSizeOutOfRange { .. }
+            | UploadError::PartHashUnavailable
             | UploadError::PartOutOfRange { .. }
             | UploadError::PartSize { .. } => ErrorCode::BadRequest,
             UploadError::NotFound | UploadError::BlobNotOwned(_) => ErrorCode::NotFound,

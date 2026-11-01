@@ -7,7 +7,7 @@ use systemprompt_models::notifications::{
 use systemprompt_notifications::{NotificationsError, NotificationsPlane};
 use systemprompt_traits::Dependencies;
 
-use crate::harness::{CODE_SOURCE, Harness, stream_subscription};
+use crate::harness::{Harness, code_source, stream_subscription};
 
 type Tx = sqlx::Transaction<'static, sqlx::Postgres>;
 
@@ -48,7 +48,7 @@ async fn a_console_write_onto_a_code_declared_subscription_is_refused_declared_b
 
     let views = h.service.subscriptions(&member).await.expect("list");
     assert_eq!(views.len(), 1);
-    assert_eq!(views[0].source, CODE_SOURCE, "ownership never changes");
+    assert_eq!(views[0].source, code_source(), "ownership never changes");
     assert_eq!(views[0].decl.attention_ceiling, None, "nothing was written");
     h.finish().await;
 }
@@ -125,7 +125,7 @@ async fn the_config_plane_never_adopts_overwrites_or_deletes_a_console_subscript
 
     let views = h.service.subscriptions(&member).await.expect("list");
     assert_eq!(views.len(), 1);
-    assert_eq!(views[0].source, format!("console:{member}"));
+    assert_eq!(views[0].source, ChangeSource::Console(member.clone()));
     assert_eq!(views[0].decl.attention_ceiling, None);
     h.finish().await;
 }

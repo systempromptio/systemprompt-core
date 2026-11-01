@@ -5,6 +5,7 @@
 
 use systemprompt_provider_contracts::documents::CodecError;
 
+use super::inherit::{PlaceholderFrame, layout_frames};
 use super::layout::{layout_name, layout_part};
 use super::package::relationships;
 use super::slides::slide_refs;
@@ -50,6 +51,8 @@ pub(super) struct Slide {
     pub layout: Option<String>,
     pub shapes: Vec<Shape>,
     pub notes: Vec<String>,
+    pub images: Vec<(String, String)>,
+    pub frames: Vec<PlaceholderFrame>,
 }
 
 impl Slide {
@@ -108,9 +111,8 @@ pub(super) fn paragraph(
         .and_then(|el| el.attr("lvl"))
         .and_then(|lvl| lvl.parse::<u8>().ok())
         .unwrap_or(0);
-    let bullet = has_any(ppr, &["a:buChar", "a:buAutoNum"])
-        || level > 0
-        || (inherits_bullets && !has_any(ppr, &["a:buNone"]));
+    let bullet = !has_any(ppr, &["a:buNone"])
+        && (has_any(ppr, &["a:buChar", "a:buAutoNum"]) || level > 0 || inherits_bullets);
     Ok(Paragraph {
         text,
         bullet,
@@ -231,17 +233,27 @@ pub(super) fn load(package: &mut Package<'_>) -> Result<Vec<Slide>, CodecError> 
                     .collect::<Result<Vec<_>, CodecError>>()
             },
         )?;
-        let layout = match layout_part(package, &slide.part)? {
-            Some(layout) => layout_name(package, &layout)?,
-            None => None,
+        let (layout, frames) = match layout_part(package, &slide.part)? {
+            Some(layout) => (
+                layout_name(package, &layout)?,
+                layout_frames(package, &layout)?,
+            ),
+            None => (None, Vec::new()),
         };
         let notes = notes(package, &slide.part)?;
+        let images = relationships(package, &slide.part)?
+            .1
+            .into_iter()
+            .map(|rel| (rel.id, rel.target))
+            .collect();
         slides.push(Slide {
             part: slide.part,
             xml,
             layout,
             shapes,
             notes,
+            images,
+            frames,
         });
     }
     Ok(slides)

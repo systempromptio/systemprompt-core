@@ -21,7 +21,7 @@ pub(super) fn event_plane(
     // pooler.
     let bridge = PostgresEventBridge::new(
         database.write_pool().as_ref().clone(),
-        config.instance_id.clone(),
+        systemprompt_events::process_origin(&config.instance_id),
         cache_epochs.clone(),
         Arc::clone(event_router.broadcasters()),
     )
@@ -38,7 +38,7 @@ fn event_router_or_outbox(
     configured.unwrap_or_else(|| {
         EventRouter::with_outbox(
             database.write_pool().as_ref().clone(),
-            config.instance_id.clone(),
+            systemprompt_events::process_origin(&config.instance_id),
             Arc::new(systemprompt_events::EventBroadcasters::new()),
         )
     })

@@ -17,13 +17,19 @@ mod digest;
 #[cfg(test)]
 mod escalation;
 #[cfg(test)]
+mod fact_decoding;
+#[cfg(test)]
 mod fact_retries;
 #[cfg(test)]
 mod harness;
 #[cfg(test)]
 mod mentions;
 #[cfg(test)]
+mod own_rules;
+#[cfg(test)]
 mod ownership;
+#[cfg(test)]
+mod plane;
 #[cfg(test)]
 mod policy;
 #[cfg(test)]

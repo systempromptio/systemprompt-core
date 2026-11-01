@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.77.0] - 2026-11-01
+
+### Added
+
+- `OutboxConsumer::replay_window` reads a consumer's facts in a time window, processed or not, ordered by `(created_at, id)` and keyset-paged, without locking; `OutboxReplayWindow`, `ReplayItem` and `ReportingFactRaw` carry the window and the rows.
+
+### Changed
+
+- Outbox rows are stamped with a per-process origin (`<instance>#<pid>`); leases and owner rows keep the instance id.
+
+### Fixed
+
+- The outbox row and its `NOTIFY` commit in one transaction, and the outbox insert takes one row.
+
 ## [0.76.0] - 2026-10-29
 
 ### Breaking

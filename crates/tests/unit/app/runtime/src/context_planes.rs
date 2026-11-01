@@ -186,6 +186,7 @@ async fn plane_debug_impls_flag_optional_members() {
         connector_tokens: Arc::default(),
         documents,
         notifications,
+        brain: None,
     };
     let dbg = format!("{subsystems:?}");
     assert!(dbg.contains("Subsystems"), "got: {dbg}");

@@ -17,6 +17,8 @@ use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::DocumentAction;
 
 use super::apply::update_event;
+#[cfg(feature = "collab-loro")]
+use super::document::import;
 use super::document::import_rich_text;
 use super::entry::SharedEntry;
 use super::error::{model_error, utf8};
@@ -25,6 +27,8 @@ use super::persist_commit::Body;
 use super::{CollabError, CollabService};
 use crate::documents::agents::DocumentActor;
 use crate::documents::engine::ModelView;
+#[cfg(feature = "collab-loro")]
+use crate::documents::engine::loro::structured::{carry_deck_ids, carry_sheet_ids};
 use crate::documents::model::{EditLevel, carry_ids};
 use crate::documents::repository::UpdateAuthor;
 
@@ -56,6 +60,26 @@ impl CollabService {
             },
             ModelView::Body(_) => {
                 ModelView::Body(body_of(format, &utf8(document_id, merged.to_vec())?))
+            },
+            #[cfg(feature = "collab-loro")]
+            ModelView::Sheet(live) => {
+                match import(format, merged).map_err(model_error(document_id))? {
+                    ModelView::Sheet(mut next) => {
+                        carry_sheet_ids(live, &mut next);
+                        ModelView::Sheet(next)
+                    },
+                    other => other,
+                }
+            },
+            #[cfg(feature = "collab-loro")]
+            ModelView::Deck(live) => {
+                match import(format, merged).map_err(model_error(document_id))? {
+                    ModelView::Deck(mut next) => {
+                        carry_deck_ids(live, &mut next);
+                        ModelView::Deck(next)
+                    },
+                    other => other,
+                }
             },
         };
         let update = body

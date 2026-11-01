@@ -1,6 +1,6 @@
 use loro::{ExportMode, LoroDoc, VersionVector};
-use systemprompt_engine_loro::{BODY_CONTAINER, body_text, seed};
 use systemprompt_files::documents::collab::model::{body_of, is_collab_format, splice_body};
+use systemprompt_files::documents::engine::loro::{BODY_CONTAINER, body_text, seed};
 use systemprompt_provider_contracts::documents::DocumentFormat;
 
 const PAGE: &str = "<!doctype html>\n<html><head><title>Plan</title></head>\n<BODY class=\"x\"><p>One</p></BODY>\n</html>\n";
@@ -128,14 +128,16 @@ fn markup_and_office_text_formats_are_collab_formats() {
         DocumentFormat::Markdown,
         DocumentFormat::Docx,
         DocumentFormat::Odt,
+        DocumentFormat::Xlsx,
+        DocumentFormat::Pptx,
     ] {
         assert!(is_collab_format(format), "{format:?}");
     }
     for format in [
-        DocumentFormat::Xlsx,
-        DocumentFormat::Pptx,
+        DocumentFormat::Ods,
+        DocumentFormat::Odp,
         DocumentFormat::Text,
     ] {
-        assert!(!is_collab_format(format));
+        assert!(!is_collab_format(format), "{format:?}");
     }
 }

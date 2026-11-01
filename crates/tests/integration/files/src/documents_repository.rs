@@ -2,21 +2,22 @@ use std::time::Duration;
 
 use chrono::Utc;
 use systemprompt_files::documents::models::{
-    DocumentFolder, EditSessionOpen, GrantTarget, ListScope, ListSort, LockHolderKind, LockOutcome,
+    DocumentFolder, EditSessionOpen, GrantTarget, ListScope, ListSort, LockHolder, LockOutcome,
     LockRequest, NewDocument, NewFolder, NewGrant, NewRevision, PresenceUpsert,
-    RevisionAttribution, ScopedListing, SubjectPairs,
+    RevisionAttribution, RevisionOrigin, ScopedListing, SubjectPairs,
 };
 use systemprompt_files::documents::repository::{
     CheckpointClaim, CheckpointLease, DocumentRepositories, DocumentRepository, FolderMoveOutcome,
     FolderRelocation, HeadMove,
 };
 use systemprompt_identifiers::{
-    ContentHash, DocumentFolderId, DocumentId, DocumentRevisionId, UserId,
+    ContentHash, DocumentFolderId, DocumentId, DocumentRevisionId, DriveDeviceId, UserId,
 };
 use systemprompt_models::documents::{
-    AccessLevel, ActorKind, DocumentFormat, PresenceSource, PresenceState, RevisionOriginKind,
+    AccessLevel, ActorKind, DocumentFormat, PresenceSource, PresenceState,
 };
 use systemprompt_test_fixtures::test_db_pool;
+use systemprompt_traits::StoredFileId;
 use uuid::Uuid;
 
 async fn repos() -> DocumentRepositories {
@@ -91,7 +92,7 @@ async fn revision(
         .upsert(
             &content,
             10,
-            &format!("documents/blobs/{}", content.as_str()),
+            &StoredFileId::new(format!("documents/blobs/{}", content.as_str())),
         )
         .await
         .expect("upsert blob");
@@ -104,8 +105,7 @@ async fn revision(
             content_sha256: content,
             author_user_id: author.clone(),
             actor_kind: ActorKind::User,
-            origin_kind: RevisionOriginKind::Api,
-            origin_id: None,
+            origin: RevisionOrigin::Api,
             message: None,
             edit_ops: None,
             attribution: RevisionAttribution::default(),
@@ -443,8 +443,7 @@ async fn lock_acquire_contend_and_expire() {
     let request = |holder: &str, ttl: u64| LockRequest {
         document_id: doc.clone(),
         holder_user_id: owner.clone(),
-        holder_kind: LockHolderKind::Bridge,
-        holder_id: holder.to_owned(),
+        holder: LockHolder::Bridge(DriveDeviceId::new(holder)),
         ttl: Duration::from_secs(ttl),
     };
     let first = repos
@@ -470,7 +469,7 @@ async fn lock_acquire_contend_and_expire() {
         .await
         .expect("acquire");
     match contended {
-        LockOutcome::Held { current } => assert_eq!(current.holder_id, "device-b"),
+        LockOutcome::Held { current } => assert_eq!(current.holder.id_str(), "device-b"),
         LockOutcome::Acquired(_) => panic!("live lease must not be stolen"),
     }
     let renewed = repos
@@ -483,14 +482,14 @@ async fn lock_acquire_contend_and_expire() {
     assert!(
         !repos
             .locks
-            .release(&doc, "device-a")
+            .release(&doc, &LockHolder::Bridge(DriveDeviceId::new("device-a")))
             .await
             .expect("release")
     );
     assert!(
         repos
             .locks
-            .release(&doc, "device-b")
+            .release(&doc, &LockHolder::Bridge(DriveDeviceId::new("device-b")))
             .await
             .expect("release")
     );
@@ -557,7 +556,7 @@ async fn edit_session_allows_one_open_per_document() {
     let snapshot = hash();
     repos
         .blobs
-        .upsert(&snapshot, 1, "snap")
+        .upsert(&snapshot, 1, &StoredFileId::new("snap"))
         .await
         .expect("blob");
     assert!(
@@ -640,14 +639,14 @@ async fn unreferenced_blobs_exclude_referenced_ones() {
     assert!(
         repos
             .blobs
-            .upsert(&orphan, 3, "orphan")
+            .upsert(&orphan, 3, &StoredFileId::new("orphan"))
             .await
             .expect("blob")
     );
     assert!(
         !repos
             .blobs
-            .upsert(&orphan, 3, "orphan")
+            .upsert(&orphan, 3, &StoredFileId::new("orphan"))
             .await
             .expect("blob")
     );

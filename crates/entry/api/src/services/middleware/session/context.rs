@@ -12,7 +12,6 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use systemprompt_identifiers::{Actor, AgentName, ContextId, JwtToken, SessionId, UserId};
-use systemprompt_models::api::ApiError;
 use systemprompt_models::auth::UserType;
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_security::{
@@ -49,7 +48,7 @@ impl SessionMiddleware {
         match tokio::time::timeout(SESSION_ESTABLISH_TIMEOUT, establish).await {
             Ok(Ok(established)) => established,
             Ok(Err(e)) => {
-                self.warn_degraded(path, &e.message);
+                self.warn_degraded(path, &e.api().message);
                 (Self::degraded_context(trace_id), None)
             },
             Err(_) => {
@@ -92,12 +91,12 @@ impl SessionMiddleware {
         session_prefix: &str,
         trace_id: systemprompt_identifiers::TraceId,
         meta: &RequestMeta<'_>,
-    ) -> Result<RequestContext, ApiError> {
+    ) -> Result<RequestContext, ApiHttpError> {
         let (user_id, fingerprint) = self
             .session_creation_service
             .ensure_anonymous_user(meta.analytics)
             .await
-            .map_err(|e| ApiHttpError::from(e).into_inner())?;
+            .map_err(ApiHttpError::from)?;
 
         let session_id = SessionId::new(format!("{session_prefix}_{}", Uuid::new_v4()));
         let context_id = ContextId::derived_from_session(&session_id);
@@ -117,7 +116,7 @@ impl SessionMiddleware {
         &self,
         trace_id: systemprompt_identifiers::TraceId,
         meta: &RequestMeta<'_>,
-    ) -> Result<(RequestContext, Option<String>), ApiError> {
+    ) -> Result<(RequestContext, Option<String>), ApiHttpError> {
         tracing::debug!(
             path = %meta.uri.path(),
             skip_tracking = meta.analytics.skip_tracking,
@@ -164,7 +163,7 @@ impl SessionMiddleware {
         &self,
         token_result: Option<String>,
         meta: &RequestMeta<'_>,
-    ) -> Result<(SessionId, UserId, String, Option<String>, Option<String>), ApiError> {
+    ) -> Result<(SessionId, UserId, String, Option<String>, Option<String>), ApiHttpError> {
         let Some(token) = token_result else {
             let (sid, uid, token, is_new, fp) =
                 lifecycle::create_new_session(&self.session_creation_service, meta).await?;
@@ -220,7 +219,7 @@ impl SessionMiddleware {
             Ok((sid, uid, new_token, _, fp)) => {
                 Ok((sid, uid, new_token.clone(), Some(new_token), Some(fp)))
             },
-            Err(e) if e.error_key.as_deref() == Some("user_not_found") => {
+            Err(e) if e.api().error_key.as_deref() == Some("user_not_found") => {
                 tracing::warn!(
                     user_id = %jwt_context.user_id,
                     "JWT references non-existent user, creating new anonymous session"

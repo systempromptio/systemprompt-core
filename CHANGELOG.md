@@ -1,5 +1,125 @@
 # Changelog
 
+## [0.77.0] - 2026-11-01
+
+### Breaking
+
+- **Breaking:** **Notifications:** `actor_display` and `excerpt` are removed from notifications; a notification carries `actor_user_id`, `title` and `body` (migration 004). Migrate feed clients by resolving the actor's name from the users API and rendering `title`/`body`.
+- **Breaking:** **Notifications:** `NotificationEvent::excerpt` and `with_excerpt` are replaced by `title`, `body`, `with_title` and `with_body`, and `via_agent` is an `AgentName`. Migrate producers by setting the title and body and passing an `AgentName` to `with_via_agent`.
+- **Breaking:** **Extension:** `NotificationActorDirectory` and `PipelineParts::actors` are removed. Migrate by dropping the registration and the field.
+- **Breaking:** **Files:** the document browser client is removed: the `sp-*` web components (`sp-document-browser`, `sp-document-preview`, `sp-presence-bar`, `sp-sheet-grid`, `sp-slide-text`, `sp-share-dialog`, `sp-subject-picker`, `sp-history`, `sp-comments`, `sp-proposal-list`), the `documents.js` entry, the `DocumentsElement` base class, the browser and share views, `assets/documents/css/*` and the headless client modules `documents-api.js`, `documents-events.js`, `documents-patch.js` and `documents-html.js`. Migrate by vendoring the document client and UI in the host extension.
+- **Breaking:** **Runtime:** `DocumentsMcpTools::list_resources` and `read_resource` and `ExportOutput::ui_resource` are removed. Migrate by dropping the calls; the server serves no resources.
+- **Breaking:** **Files:** `EditModeRequest` no longer has an `actor` field, and `DocumentService::edit_mode` reads the document actor from the request scope like every other document call. Migrate by deleting the field and wrapping the call in `act_as`.
+- **Breaking:** **Files:** `AgentAccessPolicy::cap` is a required method. Migrate by implementing it; `DefaultAgentAccessPolicy` keeps answering `edit`.
+- **Breaking:** **Files:** `DocumentAccessService::validate_subject` returns `Result<SubjectValidation, DocumentsError>`, where `Unenumerable` marks a dimension whose values cannot be listed. Migrate by matching the outcome and refusing `Invalid`.
+- **Breaking:** **Files:** `UploadError::Invalid(String)` is replaced by `InvalidName`, `EmptyUpload`, `InvalidContentType`, `SizeMismatch`, `PartSizeOutOfRange` and `PartHashUnavailable`, and the HTTP status and `invalid_request` key are unchanged. Migrate by matching the typed variants.
+- **Breaking:** **Files:** `DocumentService::admit_media` takes `&UploadService` instead of `Option<&UploadService>`, and `refuse_unheld_media` answers the no-uploads case. Migrate by calling `refuse_unheld_media(refs, &held)` where no `UploadService` is configured.
+- **Breaking:** **MCP:** `Deployment` gains `description`, `removable` (default `true`) and `toolsets`, and `ToolMetadata` gains `access` and `tool_policy`. Migrate struct literals by adding the fields (`description: None, removable: true, toolsets: Vec::new()`) or `..ToolMetadata::default()`.
+- **Breaking:** **Files:** `AgentActor::name`, `via_agent` and `created_by_agent` are `AgentName`, and `DocumentActor::agent`, `AgentRateLimiter::reserve` and `RewriteTracker` take it; `holder_id`/`holder_kind` become `LockHolder`; `origin_id`/`origin_kind` become `RevisionOrigin` (now in `documents::models`); `storage_id` is `StoredFileId`. Migrate by constructing the typed values with `try_new`.
+- **Breaking:** **Identifiers:** `AgentName::try_new` and its `Deserialize` refuse names over 64 bytes or outside ASCII letters, digits and `-_.:/`, so a stored name outside that set no longer parses; `AgentName::new` stays unchecked.
+- **Breaking:** **Notifications:** `SubscriptionView::source` is a `ChangeSource`, and the failure ledger's `stage` is a `FailureStage` (`NewFailure::stage`, `DeliveryFailure::stage`) in place of the `DELIVER_STAGE` and `DELIVER_RETRY_STAGE` constants. Migrate by building the typed values; a stored `source` or `stage` that does not parse is a decode error.
+- **Breaking:** **Files:** `DocumentServiceParts` gains `brain: DynBrainSink`, and a landed revision or a resolved comment records a `document.revision.landed` or `document.comment.resolved` brain event in the same transaction. Migrate struct literals by passing the runtime's sink (`systemprompt_runtime::brain_sink`, the unavailable sink without the `brain` feature).
+- **Breaking:** **Files:** `DocumentsError` gains `Brain`, raised when the brain sink cannot record its event; the landing or resolution rolls back. Migrate exhaustive matches by adding the variant.
+- **Breaking:** **Files:** `DocumentCommentRepository::resolve` and `set_answering` are replaced by `resolve_in` and `set_answering_in`, which run on the caller's connection. Migrate by calling them inside a transaction.
+- **Breaking:** **Gateway:** `GatewayRequestContext` gains `actor: RequestActor` and `memory: MemoryPreference`, `GatewayEngines` gains `memory_recall` and `GatewayRepositories` gains `brain_recall: BrainRecallProfile`. Migrate struct literals by adding the actor the credential acts as, `MemoryPreference::Default`, `memory_recall: None` and `BrainRecallProfile::default()`.
+- **Breaking:** **API:** the gateway `Principal` gains `actor: RequestActor`, derived from the bearer's purpose, client and interaction or, for an API key, the key's unattended agent. Migrate struct literals by adding the actor.
+- **Breaking:** **AI:** `AdmissionWrite` gains `memory_recall: Option<&str>`, written to the new `ai_requests.memory_recall` column. Migrate struct literals by adding `memory_recall: None`.
+- **Breaking:** **Manifest:** `Profile` gains `brain: BrainProfile`. The YAML block is optional and defaulted, and `enabled` defaults to `false`. Migrate struct literals by adding `brain: BrainProfile::default()`.
+- **Breaking:** **Manifest:** `RateLimitsConfig` gains `brain_per_second` (YAML optional, default `50`), and `per_second_budgets` returns fifteen entries. Migrate struct literals by adding the field or `..RateLimitsConfig::default()`.
+- **Breaking:** **Manifest:** `CloudConfig` gains `image: Option<RuntimeImageConfig>` (YAML optional). Migrate struct literals by adding `image: None` or `..CloudConfig::default()`.
+- **Breaking:** **Files:** `DocumentsConfig` gains `collab: CollabConfig` (YAML optional and defaulted). Migrate struct literals by adding `collab: CollabConfig::default()`.
+- **Breaking:** **Files:** `DocumentsError` gains `NameTaken` and `LiveUnsupported`. Migrate exhaustive matches by adding the variants.
+- **Breaking:** **Files:** `DocumentLock`, `LockRequest` and `AcquireLockRequest` carry `holder: LockHolder` in place of `holder_id`/`holder_kind`, `CommitRequest` carries `lock_holder` in place of `lock_holder_id`, `DocumentsError::LockHeld` carries `holder` in place of `holder_id`/`holder_kind`, and `DocumentRevision`, `NewRevision`, `DocumentProposal` and `NewProposal` carry `origin: RevisionOrigin` in place of `origin_id`/`origin_kind`. `RevisionOrigin` moves from `documents::service` to `documents::models`. Migrate by building the typed values and importing from the new path.
+- **Breaking:** **Files:** `DocumentEvents::revision_created` takes only the event; revision events go to the document topic. Migrate by dropping the recipient slice.
+- **Breaking:** **Files:** `EngineDoc` gains the required `update_to_model_as`, which applies an agent edit under an assigned peer. Migrate implementations by adding it.
+- **Breaking:** **Files:** `IssuesError` gains `TriageForbidden`. Migrate exhaustive matches by adding the variant.
+- **Breaking:** **Notifications:** `NewRecipient::excerpt` is replaced by `title` and `body`, and `NewNotifications::actor_display` is removed. Migrate struct literals accordingly.
+- **Breaking:** **Runtime:** `Subsystems` gains `brain` with the `brain` feature, and `DocumentsRuntimeParts` gains `brain`. Migrate struct literals by adding `brain: None` and the runtime's brain sink.
+- **Breaking:** **Runtime:** `RefusalCode` gains `NameTaken`. Migrate exhaustive matches by adding the variant.
+- **Breaking:** **Runtime:** `documents::mcp::preview_resource`, `preview_resource_list`, `preview_resource_uri`, `preview_template`, `preview_tool_meta`, `read_preview_resource` and `PREVIEW_RESOURCE_NAME` are removed. Migrate by dropping the calls.
+
+### Added
+
+- **Cloud:** a profile's optional `cloud.image` sets the runtime image `cloud dockerfile` renders: `base` replaces `debian:trixie-slim` and `packages` are installed after core's own, so a re-render keeps a deployment's extra packages instead of dropping them.
+- **Release:** bridge releases attach signed CycloneDX SBOMs for the bridge and the core workspace, and a GitHub build-provenance attestation for every asset.
+- **CI:** Renovate opens monthly grouped dependency updates and immediate security updates as pull requests against `next`, merging each only when every gate passes.
+- **CI:** `gitleaks` secret scanning runs in the Supply Chain gate, CodeQL analyses Rust, JavaScript and workflow files, and the OpenSSF Scorecard publishes weekly.
+- **Documentation:** `documentation/security/` gains a supplier evidence pack covering secure development, supply chain, vulnerability management, incident response, data handling, shared responsibility, business continuity, a supplier control mapping and a CAIQ v4 response.
+- **MCP:** declarative toolsets. A deployment lists `toolsets: [{id, enabled, access}]` and per-tool `tools.<name>.access` (`scopes`, `roles`, `groups`, any of) and `tools.<name>.tool_policy`; access resolves tool, then toolset, then the server's `oauth.scopes`. The new `McpToolset` trait (`systemprompt::mcp::McpToolset`, `ToolsetCall`) is registered with `submit_toolset!(id, build)` from the runtime, and `systemprompt::mcp::host::serve(ctx, server_id)` serves a deployment's toolsets through the generic `ToolsetServer`: RBAC and the authz hook on every request, `tools/list` filtered per caller, a forbidden error and a recorded denial for a tool outside the caller's access. Access outcomes reach recorders registered with `register_mcp_access_recorder!`. Core registers the `issues` and `documents` toolsets. An unknown toolset id or a `tools:` entry no hosted toolset serves fails the host at start. See `documentation/guides/mcp-toolsets.md`.
+- **Marketplace:** the signed bridge manifest carries a per-tool `tool_policy` for every `tools:` entry that declares one, alongside the server default under `*`.
+- **Identifiers:** `EditorId`, the client-chosen key of an editor holding a document lock.
+- **Brain:** the `systemprompt-brain` crate and the `brain` facade feature (in `full`, implies `notifications`): revisioned organisational memory. Facts are captured from documents, comments and entered input through the durable outbox, extracted by a model, validated and confirmed by declared rules, and recalled into gateway requests as a `<team_memory>` block within a token budget and deadline. See `documentation/brain.md`.
+- **Brain:** the `services/brain/` declarations (kinds, topics, interests, workflow profiles, filters, importance and retrieval), projected into `brain_*` tables, with a pipeline version derived from the declarations, the code version and the prompt versions.
+- **Brain:** the `brain:` profile block (`enabled`, `recall`, `capture`, `extraction`, `lifecycle`, `consumer`).
+- **Brain:** `/api/v1/brain` routes for searching, reading, entering, confirming, disputing, retracting, erasing, pinning and editing facts, a fact's timeline and why-view, dispute resolution and the proposal queue with dry-run replay, and `/api/v1/admin/brain/simulate`, which previews a recall without recording it. Every read applies recall's per-fact visibility for the caller's actor and project, and entering a shared fact needs the authority that governs it.
+- **Brain:** the `brain_search`, `brain_propose`, `brain_dispute`, `brain_why`, `brain_recall_preview` and `brain_guide` MCP tools; an agent proposes and disputes and never confirms, retracts, pins or erases.
+- **Brain:** the `brain_review`, `brain_retention` and `brain_analysis` jobs. Analyses draft proposals for kinds that bloat recall, for importance weights per workflow and kind by citation rate, and for projects whose recalls come back empty; an admin may dry-run a proposal against past events.
+- **Brain:** the `v_brain_kind_health` and `v_brain_workflow_recall` report views, and outcome signals for facts cited in a response or corrected by the user.
+- **Brain:** the `register_brain_filter!`, `register_brain_extractor!`, `register_brain_validator!`, `register_brain_importance!`, `register_brain_source_content!`, `register_brain_retriever!`, `register_brain_injection_policy!`, `register_brain_outcome_signal!` and `register_brain_analysis!` extension seams. Core registers no event filter.
+- **Gateway:** an in-process `GatewayClient` that sends a request through the full gateway pipeline as a `ServicePrincipal`; the brain extracts through it as the `brain` service account (`brain@service.invalid`), so its model calls are metered, guarded and audited.
+- **Gateway:** the `x-systemprompt-memory` request header (`off` opts the request out of recall) and the `x-systemprompt-memory-ids` response header naming the injected facts.
+- **AI:** the `ai_requests.memory_recall` column, recording what recall did for a request.
+- **Events:** `OutboxConsumer::replay_window`, which reads a consumer's facts in a time window, processed or not, keyset-paged and without locking.
+- **Identifiers:** `BrainFactId`, `BrainProposalId`, `BrainRecallId`, `FactKindId`, `TopicId`, `InterestId`, `WorkflowId`, `PipelineVersion` and the other brain identifiers, and the `MEMORY` and `MEMORY_IDS` header constants.
+- **Models:** `RequestActor`, `bearer_actor` and `agent_name`, the actor a bearer credential acts as.
+- **CLI:** `systemprompt-cli` cargo features `notifications`, `brain`, `collab`, `engine-loro`, `office` and `full` (all of them), mirroring the facade's optional domains; the bare binary is the core runtime alone. The schema ladder builds its rung with `--features full`.
+- **Files:** live collaborative sessions for spreadsheets and decks. An xlsx workbook is seeded into a Loro sheet model and checkpointed through IronCalc; a pptx deck is seeded into a Loro deck model (frames, text shapes, marks, kinds, z-order, pictures) and lowered back to pptx. Agent edit ops write into an open session as one engine update under an assigned peer, address node ids, keep op-id idempotency and the agent edit rate, and their acks name the cells, paragraphs or lines written. ods documents open no live session.
+- **Files:** a per-document collab owner lease (migration 037): a replica that does not own a session forwards its updates to the owner and answers `429` under back-pressure. Configured under `files.documents.collab` (`snapshotAfterSecs`, `snapshotAfterUpdates`, `owner.enabled`, `owner.advertisePort`); forwards are counted and debug-logged.
+- **Provider contracts:** `ConfigPlane::write_rank`, defaulted to `0`, orders an apply's writes across declaration files.
+- **Files:** `GET` media serves a deck picture from its package part (`ppt/media/` for pptx, `Pictures/` for odp).
+- **Cloud:** `LoginIo` and `run_operator_login_with`, which run the operator sign-in with a given callback port and browser opener.
+
+### Changed
+
+- **Build:** the workspace compiles, lints, tests and releases on stable Rust 1.99.1, pinned in `rust-toolchain.toml`, in place of a nightly; only `rustfmt` (`just fmt`) and the fuzz suite run on the `justfile`'s pinned nightly. The MSRV job (Rust 1.96) proves compilation with lints capped, so lint policy is judged once, on the pinned stable.
+- **Gates:** `check-no-vendor.sh` refuses tracked browser markup or script under `crates/` outside `scripts/core-markup-allowlist.txt`.
+- **Files:** blob collection asks the blob holders registered with `register_blob_holder!` instead of naming the issue attachment table, and the issue report user purge is registered by the issues module.
+- **OAuth issuance:** the Drive sync credential exchange moves from the API handler into `DriveSyncTokenService::exchange` (`systemprompt_oauth_issuance::drive_sync`), with `DriveSyncError` for its refusals; the TTL and rules are unchanged, and the handler decodes the device token and maps the error.
+- **Models:** `BaseRoles::permission_for` and `AuthenticatedUser::from_provider_user` are the one derivation of `Permission` from role names; the document, A2A and SSO paths use it.
+- **Files:** `DocumentService::create_from_file` stores a multipart file as an upload and imports it, and retracts the upload through the new `UploadService::retract` when the import fails.
+- **Files:** `DocumentService::update_folder` applies a folder's move, rename and agent edit policy in one tree-locked transaction after authorizing all three.
+- **Files:** `DocumentService::open_pdf_stream` owns the PDF magic-byte check and stream reopen for inline preview.
+- **Files:** `IssueService::ensure_attachable` and `IssueService::require_triager` own the attachment and triage rules; `IssuesError::TriageForbidden` answers 403 on the API.
+- **Runtime:** `upload_links::required_grant` and `purpose_permits` own the table matching an upload route to the grant its token needs.
+- **Brain:** these settings are accepted and have no effect in 0.77: `capture.sources: session` (no session producer), `capture.auto_confirm.document: project_policy` (behaves as `never` until a project policy source exists), `extraction.provider` (the model alone selects the extraction route), the stored `filters.yaml` declaration, and the interest `audience`, `granularity` and `memory`/`digest` delivery fields.
+- **Extension:** the notification seam registrations share one `seam_registration!` definition with the brain seams; `__register_notification_seam!` forwards to `__register_seam!`.
+- **Files:** creating a document under a name its folder already holds is refused as `name_taken` with `409` on HTTP and MCP.
+- **Files:** joining a live session on a format without one answers that live editing is unavailable for that format.
+- **Events:** outbox rows are stamped with a per-process origin (`<instance>#<pid>`); leases and owner rows keep the instance id.
+- **Build:** dev builds are not incremental.
+- **CLI:** `admin issues triage` runs through the new `execute_as` (re-exported as `admin::issues::triage_as`) with the triager's user id; `execute` resolves it from the CLI session.
+
+### Fixed
+
+- **Brain:** a replay dry run counts a fact its extraction finds unchanged under `unchanged` (and in `per_kind`); the report is built from the facts each event's stored candidates landed on, carried on `EventSummary::facts`, instead of the rows the replay transaction rewrote.
+- **CLI:** `cloud dockerfile` renders for the active profile (`--profile` or the session), so the output carries `SYSTEMPROMPT_PROFILE` and that profile's `cloud.image`. The runtime image no longer names `libssl3t64`: `libpq5` brings the distribution's OpenSSL, so a `bookworm` base works too.
+- **MCP:** the main server no longer warns that an extension toolset "is not registered by any linked crate" on every boot. It cannot see toolsets linked into an MCP binary; that binary refuses an unknown toolset id when it starts.
+- **Files:** `POST /documents/{id}/edits` applies a folder's agent edit policy to an agent bearer.
+- **Files:** A live document stream closes when its periodic access recheck fails, not only when access is withdrawn.
+- **Files:** An agent listing withholds a document whose folder chain cannot be read instead of treating it as having no overrides.
+- **Files:** The document routes refuse a request without an authenticated context with `401`, answer `500` when a browser-session request reaches them without the site configuration, and refuse a browser-session request carrying neither `Origin` nor `Sec-Fetch-Site`.
+- **Files:** `GET .../agent-cap` answers for an unattended agent unless `attended=true`, and validates `agent` as an `AgentName`.
+- **Files:** `GET /uploads/{id}/content` sends no `ETag` for an upload without a blob hash, so `If-None-Match` can no longer match an empty tag.
+- **Files:** A document image whose stored MIME type is not a valid header value is served as `application/octet-stream` instead of without a `Content-Type`.
+- **API:** a signed upload link is gated before routing, so a tokened request routes once and its handler reads its path parameters.
+- **API:** runner services receive the signing keys, config and OAuth repositories in their job context, as scheduled jobs do.
+- **Scheduler:** a config apply writes a plane's lower-rank entities first across declaration files, so an OAuth client is written after its owning user.
+- **Events:** an MCP server's outbox rows reach the relay's peers; the outbox row and its `NOTIFY` commit in one transaction.
+- **Files:** collab owner forwards keep the `/api/v1/documents` path, the request URI's binary query and the same-origin headers.
+- **Files:** two replicas growing a sheet axis mint the same ids, and a repeated id is read once.
+- **Files:** a sheet or deck read and checkpoint keep the base revision's node ids; inserted slides get distinct frames; lazily created Loro map-key children are mergeable.
+- **Files:** a live `str_replace` quote is searched through table cells; table and cell props are stored as JSON text.
+- **Files:** a live Markdown write acks its source lines, and a Markdown batch written through the model acks only its source lines.
+- **Files:** xlsx import never runs IronCalc's importer, and the blank workbook is written through IronCalc so the live sheet engine reads it.
+- **Files:** an explicit `buNone` makes a pptx paragraph plain at any level; a docx task item reads its checkbox glyph back as its checked state; HTML import keeps the space between inline elements of a loose run.
+- **CLI:** `admin issues show` and `admin issues triage` refuse a malformed report id before querying.
+- **Bridge:** `winit` is pinned exactly.
+
+### Removed
+
+- **Removed:** **Engine (Loro):** the `systemprompt-engine-loro` crate; the Loro engine is `systemprompt-files` feature `collab-loro` at `documents::engine::loro`. Migrate by enabling `collab-loro` (or the facade's `files-collab-loro`) and importing from `systemprompt_files`.
+- **Runtime:** the `ui://<server>/document-preview` MCP App resource and the UI `_meta` on `documents_export` are removed, along with `DocumentsMcpTools::list_resources`, `read_resource` and `ExportOutput::ui_resource`; the tool keeps answering the rendered HTML in `structuredContent`.
+
 ## [0.76.0] - 2026-10-29
 
 ### Breaking
@@ -1419,7 +1539,6 @@
 
 - **Analytics:** the `report_*` views are replaced in place instead of dropped and recreated on every boot.
 
-
 ## [0.60.0] - 2026-09-23
 
 ### Breaking
@@ -2443,7 +2562,6 @@ See `bin/bridge/CHANGELOG.md`. The Home pane is gone and the app opens on Accoun
 
 - A Gemini `tool_use` block replayed without its `thoughtSignature` is now counted under `gateway_signature_hydration_total` and logged. The signature is omitted from the outbound request when absent and the upstream rejects the turn, which previously surfaced as a bare provider error with nothing recording the cause. Hydration behaviour is unchanged — the request is still forwarded.
 - A response carrying signed `tool_use` blocks that cannot be cached, because the request had no gateway conversation id, is counted under `gateway_signature_capture_skipped_total` and logged. This is the point at which a later turn in the conversation is guaranteed to miss.
-
 
 ## [0.36.0] - 2026-08-23
 

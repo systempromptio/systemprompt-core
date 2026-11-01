@@ -1,6 +1,7 @@
 //! What follows a new head revision: the search index and the
-//! `document.revision.created` event. Neither can undo the revision; each
-//! reports failure as `false` after logging it.
+//! `document.revision.created` event, published on the document's live
+//! topic only. Neither can undo the revision; each reports failure as
+//! `false` after logging it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -51,9 +52,8 @@ impl DocumentService {
             content_sha256: revision.content_sha256.clone(),
             author_id: revision.author_user_id.clone(),
             actor_kind: revision.actor_kind,
-            origin_kind: revision.origin_kind,
+            origin_kind: revision.origin.kind(),
         };
-        let to = self.recipients(document).await;
-        self.events.revision_created(&to, &event).await.is_ok()
+        self.events.revision_created(&event).await.is_ok()
     }
 }

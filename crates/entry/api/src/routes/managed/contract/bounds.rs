@@ -9,7 +9,7 @@ use axum::extract::Request;
 use axum::http::{StatusCode, header};
 use axum::response::Response;
 const BODY_LIMIT: usize = 1024 * 1024;
-pub(super) async fn validate(request: Request) -> Result<Request, Response> {
+pub(super) async fn validate(request: Request) -> Result<Request, Box<Response>> {
     if request.uri().path().split('/').any(|part| part.len() > 512)
         || request.uri().query().is_some_and(|query| {
             query.len() > 8192
@@ -17,10 +17,10 @@ pub(super) async fn validate(request: Request) -> Result<Request, Response> {
                     .any(|(key, value)| key.len() > 128 || value.len() > 512)
         })
     {
-        return Err(problem(
+        return Err(Box::new(problem(
             StatusCode::BAD_REQUEST,
             "Path identifiers and cursor parameters exceed their bounds",
-        ));
+        )));
     }
     if !request
         .headers()
@@ -37,13 +37,17 @@ pub(super) async fn validate(request: Request) -> Result<Request, Response> {
         return Ok(request);
     }
     let (parts, body) = request.into_parts();
-    let bytes = to_bytes(body, BODY_LIMIT)
-        .await
-        .map_err(|_error| problem(StatusCode::PAYLOAD_TOO_LARGE, "JSON request exceeds 1 MiB"))?;
+    let bytes = to_bytes(body, BODY_LIMIT).await.map_err(|_error| {
+        Box::new(problem(
+            StatusCode::PAYLOAD_TOO_LARGE,
+            "JSON request exceeds 1 MiB",
+        ))
+    })?;
     // JSON: inspect the bounded transport envelope before its typed extractor;
     // values remain immutable and are not used as application contracts.
     if let Ok(value) = serde_json::from_slice::<serde_json::Value>(&bytes) {
-        check(&value, None, 0).map_err(|message| problem(StatusCode::BAD_REQUEST, message))?;
+        check(&value, None, 0)
+            .map_err(|message| Box::new(problem(StatusCode::BAD_REQUEST, message)))?;
     }
     Ok(Request::from_parts(parts, Body::from(bytes)))
 }

@@ -12,8 +12,10 @@
 use rmcp::ErrorData as McpError;
 use rmcp::model::CallToolResult;
 use systemprompt_files::documents::DocumentsError;
-use systemprompt_files::documents::models::{DocumentRevision, RevisionAttribution};
-use systemprompt_files::documents::service::{Author, RevisionOrigin};
+use systemprompt_files::documents::models::{
+    DocumentRevision, RevisionAttribution, RevisionOrigin,
+};
+use systemprompt_files::documents::service::Author;
 use systemprompt_identifiers::{DocumentId, DocumentRevisionId, McpExecutionId};
 use systemprompt_mcp::McpToolHandler;
 use systemprompt_models::auth::AuthenticatedUser;

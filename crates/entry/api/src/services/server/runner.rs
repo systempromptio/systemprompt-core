@@ -118,7 +118,11 @@ async fn start_role_phases(
         None
     };
     if plan.runner_services {
-        start_runner_services(ctx);
+        #[cfg(feature = "brain")]
+        let brain = super::brain::brain_consumer(ctx).await?;
+        #[cfg(not(feature = "brain"))]
+        let brain = None;
+        start_runner_services(ctx, brain);
     }
     Ok(scheduler_handle)
 }
@@ -162,9 +166,14 @@ async fn serve_until_shutdown(
     serve_result
 }
 
-fn start_runner_services(ctx: &AppContext) {
+fn start_runner_services(ctx: &AppContext, brain: Option<Arc<dyn RunnerService>>) {
     let shared = Arc::new(ctx.clone());
     let mut started = 0usize;
+    if let Some(consumer) = brain {
+        spawn_runner_service(ctx, &shared, consumer);
+        tracing::info!(service = "brain", "runner service started");
+        started += 1;
+    }
     #[cfg(feature = "notifications")]
     {
         let consumer = Arc::clone(&ctx.notifications().consumer);
@@ -200,6 +209,9 @@ fn spawn_runner_service(
         let dependencies = Dependencies::new()
             .with(Arc::clone(shared.app_paths_arc()))
             .with(Arc::clone(shared.db_pool()))
+            .with(shared.signing_keys().clone())
+            .with(Arc::clone(shared.config_arc()))
+            .with(Arc::clone(shared.oauth_repositories()))
             .with::<Arc<dyn systemprompt_extension::ExtensionContext>>(Arc::<AppContext>::clone(
                 &shared,
             ))

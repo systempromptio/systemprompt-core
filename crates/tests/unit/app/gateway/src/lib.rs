@@ -11,11 +11,15 @@ mod audit_payload;
 #[cfg(test)]
 mod audit_phases;
 #[cfg(test)]
+mod canonical_inbound;
+#[cfg(test)]
 mod canonical_request;
 #[cfg(test)]
 mod canonical_response;
 #[cfg(test)]
 mod chain_plan;
+#[cfg(test)]
+mod credentials_resolve;
 #[cfg(test)]
 mod engines_injected;
 #[cfg(test)]
@@ -95,6 +99,10 @@ mod quota_estimate;
 #[cfg(test)]
 mod quota_subject_kind;
 #[cfg(test)]
+mod recall_encoding;
+#[cfg(test)]
+mod recall_principal;
+#[cfg(test)]
 mod registry;
 #[cfg(test)]
 mod route_match_descriptor;
@@ -116,6 +124,8 @@ mod stream_tap_accumulator;
 mod support;
 #[cfg(test)]
 mod tool_validity;
+#[cfg(test)]
+mod turns_new_turn;
 #[cfg(test)]
 mod upstream_error;
 

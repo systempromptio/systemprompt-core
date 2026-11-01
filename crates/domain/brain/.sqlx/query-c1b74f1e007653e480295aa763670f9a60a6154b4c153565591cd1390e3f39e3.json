@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id AS \"id: BrainDisputeId\" FROM brain_disputes\n               WHERE fact_id = $1 AND status = 'open' ORDER BY opened_at, id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id: BrainDisputeId",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "brain_disputes",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "c1b74f1e007653e480295aa763670f9a60a6154b4c153565591cd1390e3f39e3"
+}

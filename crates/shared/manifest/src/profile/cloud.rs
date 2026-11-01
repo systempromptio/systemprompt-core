@@ -8,6 +8,7 @@ use systemprompt_identifiers::TenantId;
 use systemprompt_models::subprocess::{DEPLOYMENT_HOST_ENV, FLY_APP_NAME_ENV};
 
 use super::deploy::{DeployConfig, OperatorAuthConfig};
+use super::image::RuntimeImageConfig;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -26,6 +27,9 @@ pub struct CloudConfig {
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub operator: Option<OperatorAuthConfig>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub image: Option<RuntimeImageConfig>,
 }
 
 impl CloudConfig {

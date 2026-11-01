@@ -8,6 +8,8 @@
 #[cfg(test)]
 mod client_credentials;
 #[cfg(test)]
+mod drive_sync;
+#[cfg(test)]
 mod error;
 #[cfg(test)]
 mod identity_plane;
@@ -19,6 +21,10 @@ mod sso_cookie;
 mod sso_driver;
 #[cfg(test)]
 mod sso_oidc;
+#[cfg(test)]
+mod sso_oidc_config;
+#[cfg(test)]
+mod sso_oidc_flow;
 #[cfg(test)]
 mod sso_permissions;
 #[cfg(test)]

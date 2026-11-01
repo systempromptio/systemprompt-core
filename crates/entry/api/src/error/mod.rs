@@ -31,41 +31,45 @@ use systemprompt_models::api::ApiError;
 use systemprompt_traits::BoxedSource;
 
 #[derive(Debug)]
-pub struct ApiHttpError(ApiError);
+pub struct ApiHttpError(Box<ApiError>);
 
 impl ApiHttpError {
     pub fn not_found(message: impl Into<String>) -> Self {
-        Self(ApiError::not_found(message))
+        Self(Box::new(ApiError::not_found(message)))
     }
 
     pub fn bad_request(message: impl Into<String>) -> Self {
-        Self(ApiError::bad_request(message))
+        Self(Box::new(ApiError::bad_request(message)))
     }
 
     pub fn unauthorized(message: impl Into<String>) -> Self {
-        Self(ApiError::unauthorized(message))
+        Self(Box::new(ApiError::unauthorized(message)))
     }
 
     pub fn forbidden(message: impl Into<String>) -> Self {
-        Self(ApiError::forbidden(message))
+        Self(Box::new(ApiError::forbidden(message)))
     }
 
     pub fn internal(context: &'static str, source: impl Into<BoxedSource>) -> Self {
-        Self(ApiError::internal(context, source))
+        Self(Box::new(ApiError::internal(context, source)))
     }
 
     pub fn conflict(message: impl Into<String>) -> Self {
-        Self(ApiError::conflict(message))
+        Self(Box::new(ApiError::conflict(message)))
+    }
+
+    pub fn api(&self) -> &ApiError {
+        &self.0
     }
 
     pub fn into_inner(self) -> ApiError {
-        self.0
+        *self.0
     }
 }
 
 impl From<ApiError> for ApiHttpError {
     fn from(error: ApiError) -> Self {
-        Self(error)
+        Self(Box::new(error))
     }
 }
 
@@ -83,7 +87,7 @@ fn cause_chain(source: Option<&(dyn Error + Send + Sync + 'static)>) -> Option<S
 
 impl IntoResponse for ApiHttpError {
     fn into_response(self) -> Response {
-        let error = self.0;
+        let error = *self.0;
         let status = error.code.status_code();
         let cause = cause_chain(error.source());
 

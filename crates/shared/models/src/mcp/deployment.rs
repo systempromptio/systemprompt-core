@@ -10,6 +10,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub use super::connector::{ConnectorConfig, ConnectorGrant, ConnectorIdentity};
+pub use super::external_auth::ExternalAuth;
+use super::external_auth::validate_external_auth;
+pub use super::toolset::{ResolvedAccess, ToolAccess, ToolsetRef};
 use crate::ai::ToolModelConfig;
 use crate::auth::{JwtAudience, Permission};
 use crate::errors::ServicesValidationError;
@@ -70,6 +73,10 @@ pub struct ToolMetadata {
     pub ui: Option<ToolUiConfig>,
     #[serde(default, skip_serializing_if = "serde_json::Map::is_empty")]
     pub arguments: serde_json::Map<String, serde_json::Value>, // JSON: tool-owned MCP call args
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub access: Option<ToolAccess>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tool_policy: Option<crate::bridge::ids::ToolPolicy>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -120,41 +127,20 @@ pub struct Deployment {
     pub headers: HashMap<String, String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tool_policy: Option<crate::bridge::ids::ToolPolicy>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(default = "default_removable", skip_serializing_if = "is_removable")]
+    pub removable: bool,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub toolsets: Vec<ToolsetRef>,
 }
 
-/// Per-user bearer resolution for an `external` MCP server.
-///
-/// The MCP gateway exposes no token vault of its own; instead an extension
-/// banks the calling user's third-party token and serves it from
-/// `token_endpoint`. At tool-call time core `GET`s that accessor with the
-/// user's systemprompt JWT and injects the returned bearer onto `header` (as
-/// `{scheme} {token}`), replacing the systemprompt credential so nothing
-/// internal reaches the third party.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ExternalAuth {
-    pub token_endpoint: String,
-    #[serde(default = "default_auth_header")]
-    pub header: String,
-    #[serde(default = "default_auth_scheme")]
-    pub scheme: String,
+const fn default_removable() -> bool {
+    true
 }
 
-fn default_auth_header() -> String {
-    "Authorization".to_owned()
-}
-
-fn default_auth_scheme() -> String {
-    "Bearer".to_owned()
-}
-
-impl ExternalAuth {
-    pub fn header_value(&self, bearer: &str) -> String {
-        if self.scheme.trim().is_empty() {
-            bearer.to_owned()
-        } else {
-            format!("{} {bearer}", self.scheme)
-        }
-    }
+const fn is_removable(removable: &bool) -> bool {
+    *removable
 }
 
 impl Deployment {
@@ -169,7 +155,7 @@ impl Deployment {
         if let Some(ext) = self.external_auth.as_ref() {
             validate_external_auth(name, ext)?;
         }
-        Ok(())
+        self.validate_toolsets(name)
     }
 
     fn validate_internal(&self, name: &str) -> Result<(), ServicesValidationError> {
@@ -239,28 +225,6 @@ impl Deployment {
         }
         connector.validate(name)
     }
-}
-
-fn validate_external_auth(name: &str, ext: &ExternalAuth) -> Result<(), ServicesValidationError> {
-    if ext.token_endpoint.starts_with("http://") || ext.token_endpoint.starts_with("https://") {
-        return Err(ServicesValidationError::invalid_field(format!(
-            "MCP server '{name}': external_auth.token_endpoint must be a relative \
-                 path (e.g. /api/public/<provider>/token); the host is derived from \
-                 server.api_external_url. Remove the scheme+host prefix."
-        )));
-    }
-    if !ext.token_endpoint.starts_with('/') {
-        return Err(ServicesValidationError::invalid_field(format!(
-            "MCP server '{name}': external_auth.token_endpoint must be an absolute \
-                 path beginning with '/'."
-        )));
-    }
-    if ext.header.trim().is_empty() {
-        return Err(ServicesValidationError::invalid_field(format!(
-            "MCP server '{name}': external_auth.header must not be empty."
-        )));
-    }
-    Ok(())
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

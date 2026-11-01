@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use systemprompt_files::documents::agents::{
-    AgentAccessPolicy, AgentActor, AgentCapability, AgentChannel, DocumentContext,
+    AgentAccessPolicy, AgentActor, AgentCap, AgentCapability, AgentChannel, DocumentContext,
 };
 
 struct DriveSyncSaves;
@@ -15,6 +15,10 @@ struct DriveSyncSaves;
 impl AgentAccessPolicy for DriveSyncSaves {
     fn name(&self) -> &'static str {
         "drive-sync-saves"
+    }
+
+    async fn cap(&self, _doc: &DocumentContext, _agent: &AgentActor) -> AgentCap {
+        AgentCap::Edit
     }
 
     async fn allows(

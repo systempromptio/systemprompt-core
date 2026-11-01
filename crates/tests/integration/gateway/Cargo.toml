@@ -14,6 +14,8 @@ workspace = true
 systemprompt-catalog-fixtures = { workspace = true }
 reqwest = { workspace = true }
 systemprompt-gateway = { workspace = true }
+systemprompt-extension = { workspace = true }
+systemprompt-users = { workspace = true }
 systemprompt-security = { workspace = true }
 systemprompt-agent = { workspace = true }
 systemprompt-ai = { workspace = true }
@@ -28,6 +30,9 @@ systemprompt-test-fixtures = { workspace = true }
 bytes = { workspace = true }
 
 [dev-dependencies]
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+wiremock = { workspace = true }
 tokio = { workspace = true }
 axum = { workspace = true }
 sqlx = { workspace = true }

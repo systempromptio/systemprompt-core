@@ -13,7 +13,7 @@ use systemprompt_files::documents::agents::{
 use systemprompt_files::documents::model::Media;
 use systemprompt_files::documents::revision::CommitBody;
 use systemprompt_files::documents::service::{CommentPolicy, CommitOutcome, CommitRequest};
-use systemprompt_identifiers::DocumentId;
+use systemprompt_identifiers::{AgentName, DocumentId};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::EditOp;
 use systemprompt_test_fixtures::test_db_pool;
@@ -64,7 +64,7 @@ pub(crate) async fn agent_harness(
 }
 
 pub(crate) fn agent() -> DocumentActor {
-    DocumentActor::agent("claude-code", true)
+    DocumentActor::agent(AgentName::new("claude-code"), true)
 }
 
 pub(crate) async fn document(h: &Harness, owner: &AuthenticatedUser) -> DocumentId {
@@ -99,7 +99,7 @@ pub(crate) async fn edit(
         }]),
         author: api_author(),
         message: None,
-        lock_holder_id: None,
+        lock_holder: None,
         comments: CommentPolicy::detach(),
         op_id: None,
         media: Media::new(),

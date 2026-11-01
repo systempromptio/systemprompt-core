@@ -53,6 +53,12 @@ impl ResumeToken {
     }
 }
 
+impl std::fmt::Display for ResumeToken {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}:{}", self.session, self.seq)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct LiveOpen {
     pub document: Document,

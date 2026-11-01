@@ -24,6 +24,7 @@ thiserror = { workspace = true }
 inventory = { workspace = true }
 sqlx = { workspace = true, optional = true }
 async-trait = { workspace = true }
+chrono = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tracing = { workspace = true }

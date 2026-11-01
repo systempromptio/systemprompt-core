@@ -358,10 +358,6 @@ async fn export_links_and_previews_the_revision() {
         .handle(input(ExportFormat::Html, ExportAs::Preview), &ctx, &exec())
         .await
         .expect("preview");
-    assert_eq!(
-        preview.ui_resource.as_deref(),
-        Some("ui://documents/document-preview")
-    );
     assert!(
         preview
             .html

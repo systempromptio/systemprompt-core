@@ -1,4 +1,6 @@
-use systemprompt_engine_loro::{LoroEngine, WIRE_VERSION};
+use systemprompt_files::documents::engine::loro::{
+    LoroEngine, MAX_UPDATE_BYTES, UpdateShapeError, WIRE_VERSION, check_update_shape,
+};
 use systemprompt_files::documents::engine::{DocumentEngine, EngineError, ModelView};
 use systemprompt_files::documents::model::{Block, BlockKind, Mark, MarkKind, RichText};
 
@@ -153,8 +155,8 @@ fn a_snapshot_posted_as_an_update_is_refused_from_its_header() {
         .expect("seed");
     let snapshot = doc.snapshot().expect("snapshot");
     assert!(matches!(
-        systemprompt_engine_loro::check_update_shape(&snapshot, None),
-        Err(systemprompt_engine_loro::UpdateShapeError::NotAnUpdate { .. })
+        check_update_shape(&snapshot, None),
+        Err(UpdateShapeError::NotAnUpdate { .. })
     ));
     assert!(matches!(
         LoroEngine.check_update(&snapshot, None),
@@ -168,16 +170,16 @@ fn an_update_of_an_unassigned_peer_is_refused_before_import() {
     assert!(LoroEngine.check_update(&update, Some(&[42])).is_ok());
     assert!(LoroEngine.check_update(&update, None).is_ok());
     assert!(matches!(
-        systemprompt_engine_loro::check_update_shape(&update, Some(&[7])),
-        Err(systemprompt_engine_loro::UpdateShapeError::PeerNotAssigned { peer: 42 })
+        check_update_shape(&update, Some(&[7])),
+        Err(UpdateShapeError::PeerNotAssigned { peer: 42 })
     ));
 }
 
 #[test]
 fn an_oversized_blob_is_refused_without_decoding() {
-    let blob = vec![0_u8; systemprompt_engine_loro::MAX_UPDATE_BYTES + 1];
+    let blob = vec![0_u8; MAX_UPDATE_BYTES + 1];
     assert!(matches!(
-        systemprompt_engine_loro::check_update_shape(&blob, None),
-        Err(systemprompt_engine_loro::UpdateShapeError::TooLarge { .. })
+        check_update_shape(&blob, None),
+        Err(UpdateShapeError::TooLarge { .. })
     ));
 }

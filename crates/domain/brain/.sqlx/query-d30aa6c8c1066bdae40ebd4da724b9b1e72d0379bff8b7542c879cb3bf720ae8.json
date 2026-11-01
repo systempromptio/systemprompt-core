@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO brain_subjects (subject_kind, subject_id, display_name)\n             VALUES ($1, $2, $3)\n             ON CONFLICT (subject_kind, subject_id) DO UPDATE\n             SET display_name = COALESCE(EXCLUDED.display_name, brain_subjects.display_name)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "d30aa6c8c1066bdae40ebd4da724b9b1e72d0379bff8b7542c879cb3bf720ae8"
+}

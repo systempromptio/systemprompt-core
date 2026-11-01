@@ -14,7 +14,7 @@ use systemprompt_models::documents::ProposalStatus;
 
 use super::Pools;
 use super::rows::{RepoResult, parse};
-use crate::documents::models::{DocumentProposal, NewProposal, ProposalReview};
+use crate::documents::models::{DocumentProposal, NewProposal, ProposalReview, RevisionOrigin};
 
 #[derive(Debug, Clone)]
 pub struct DocumentProposalRepository {
@@ -46,14 +46,19 @@ impl TryFrom<ProposalRow> for DocumentProposal {
     fn try_from(row: ProposalRow) -> RepoResult<Self> {
         Ok(Self {
             actor_kind: parse("document_proposals.actor_kind", &row.actor_kind)?,
-            origin_kind: parse("document_proposals.origin_kind", &row.origin_kind)?,
+            origin: RevisionOrigin::from_columns(&row.origin_kind, row.origin_id.as_deref())
+                .map_err(|source| {
+                    systemprompt_traits::RepositoryError::decode(
+                        "document_proposals.origin_id",
+                        source,
+                    )
+                })?,
             status: parse("document_proposals.status", &row.status)?,
             id: row.id,
             document_id: row.document_id,
             base_revision_id: row.base_revision_id,
             proposed_revision_id: row.proposed_revision_id,
             proposer_user_id: row.proposer_user_id,
-            origin_id: row.origin_id,
             message: row.message,
             reviewer_user_id: row.reviewer_user_id,
             reviewed_at: row.reviewed_at,
@@ -98,8 +103,8 @@ impl DocumentProposalRepository {
             request.proposed_revision_id.as_str(),
             request.proposer_user_id.as_str(),
             request.actor_kind.as_str(),
-            request.origin_kind.as_str(),
-            request.origin_id,
+            request.origin.kind().as_str(),
+            request.origin.id_str(),
             request.message,
         )
         .fetch_one(&*self.pools.write)

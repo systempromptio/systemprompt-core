@@ -8,10 +8,12 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use async_trait::async_trait;
 use systemprompt_files::documents::blob_store::{BlobStore, BlobStoreError, storage_id_for};
-use systemprompt_files::documents::models::{NewDocument, NewRevision, RevisionAttribution};
+use systemprompt_files::documents::models::{
+    NewDocument, NewRevision, RevisionAttribution, RevisionOrigin,
+};
 use systemprompt_files::documents::repository::DocumentRepositories;
 use systemprompt_identifiers::{ContentHash, DocumentRevisionId, UserId};
-use systemprompt_models::documents::{ActorKind, DocumentFormat, RevisionOriginKind};
+use systemprompt_models::documents::{ActorKind, DocumentFormat};
 use systemprompt_storage::{FileStorageBackend, build_file_storage};
 use systemprompt_test_fixtures::test_db_pool;
 use systemprompt_traits::{
@@ -84,8 +86,7 @@ impl Harness {
                 content_sha256: hash.clone(),
                 author_user_id: owner,
                 actor_kind: ActorKind::User,
-                origin_kind: RevisionOriginKind::Api,
-                origin_id: None,
+                origin: RevisionOrigin::Api,
                 message: None,
                 edit_ops: None,
                 attribution: RevisionAttribution::default(),

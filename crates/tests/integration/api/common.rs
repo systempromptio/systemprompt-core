@@ -41,6 +41,24 @@ pub fn with_config<S: Clone + Send + Sync + 'static>(
     router.layer(axum::Extension(Arc::clone(ctx.config_arc())))
 }
 
+pub fn browser_page<S: Clone + Send + Sync + 'static>(router: axum::Router<S>) -> axum::Router<S> {
+    let config = Arc::new(fixture_config(&ensure_test_bootstrap().database_url));
+    router
+        .layer(axum::middleware::from_fn(same_origin_fetch))
+        .layer(axum::Extension(config))
+}
+
+async fn same_origin_fetch(
+    mut request: Request<Body>,
+    next: axum::middleware::Next,
+) -> Response<Body> {
+    request
+        .headers_mut()
+        .entry("sec-fetch-site")
+        .or_insert_with(|| axum::http::HeaderValue::from_static("same-origin"));
+    next.run(request).await
+}
+
 pub fn request_context(user: &str) -> RequestContext {
     RequestContext::new(
         SessionId::generate(),

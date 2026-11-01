@@ -7,7 +7,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use chrono::{DateTime, Utc};
-use systemprompt_identifiers::{DocumentFolderId, DocumentId, TraceId, UserId};
+use systemprompt_identifiers::{AgentName, DocumentFolderId, DocumentId, TraceId, UserId};
 
 use super::DocumentRepository;
 use super::rows::{RepoResult, parse};
@@ -34,7 +34,7 @@ impl CapOverride {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct AgentFacts {
     pub overrides: Vec<CapOverride>,
-    pub created_by_agent: Option<String>,
+    pub created_by_agent: Option<AgentName>,
 }
 
 /// One agent read to audit.
@@ -42,7 +42,7 @@ pub struct AgentFacts {
 pub struct AgentReadRecord<'a> {
     pub document_id: &'a DocumentId,
     pub user_id: &'a UserId,
-    pub agent: &'a str,
+    pub agent: &'a AgentName,
     pub attended: bool,
     pub action: &'a str,
     pub cap: AgentCap,
@@ -64,7 +64,7 @@ impl DocumentRepository {
         .fetch_optional(self.pools.authz())
         .await?;
         if let Some(row) = row {
-            facts.created_by_agent = row.created_by_agent;
+            facts.created_by_agent = row.created_by_agent.map(AgentName::new);
             if let Some(cap) = row.agent_cap {
                 facts.overrides.push(CapOverride::Document(
                     document.clone(),
@@ -93,11 +93,15 @@ impl DocumentRepository {
         Ok(facts)
     }
 
-    pub async fn set_created_by_agent(&self, document: &DocumentId, agent: &str) -> RepoResult<()> {
+    pub async fn set_created_by_agent(
+        &self,
+        document: &DocumentId,
+        agent: &AgentName,
+    ) -> RepoResult<()> {
         sqlx::query!(
             r#"UPDATE documents SET created_by_agent = $2 WHERE id = $1::text::uuid"#,
             document.as_str(),
-            agent,
+            agent.as_str(),
         )
         .execute(&*self.pools.write)
         .await?;
@@ -150,7 +154,7 @@ impl DocumentRepository {
                              last_trace_id = EXCLUDED.trace_id"#,
             record.document_id.as_str(),
             record.user_id.as_str(),
-            record.agent,
+            record.agent.as_str(),
             record.attended,
             record.action,
             record.cap.as_str(),
