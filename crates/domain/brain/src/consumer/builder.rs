@@ -79,7 +79,6 @@ impl BrainConsumerBuilder {
     #[must_use]
     pub fn build(self) -> BrainConsumer {
         let settings = self.profile.consumer;
-        let pool = self.repos.write_pool().clone();
         let mut pipeline =
             BrainPipeline::builder(self.repos, self.model, self.profile).seams(self.seams);
         if let Some(sink) = self.notifications {
@@ -88,7 +87,6 @@ impl BrainConsumerBuilder {
         BrainConsumer {
             pipeline: Arc::new(pipeline.build()),
             outbox: self.outbox,
-            pool,
             listener_pool: self.listener_pool,
             settings,
             state: StateCell::default(),

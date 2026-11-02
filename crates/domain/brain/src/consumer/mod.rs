@@ -124,7 +124,6 @@ impl Counters {
 pub struct BrainConsumer {
     pipeline: Arc<BrainPipeline>,
     outbox: Arc<OutboxConsumer>,
-    pool: PgPool,
     listener_pool: PgPool,
     settings: BrainConsumerProfile,
     state: StateCell,

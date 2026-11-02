@@ -104,7 +104,6 @@ impl StateCell {
 pub struct NotificationsConsumer {
     pipeline: Arc<NotificationPipeline>,
     outbox: OutboxConsumer,
-    pool: PgPool,
     listener_pool: PgPool,
     settings: ConsumerProfile,
     state: StateCell,
@@ -130,8 +129,7 @@ impl NotificationsConsumer {
     ) -> Self {
         Self {
             pipeline,
-            outbox: OutboxConsumer::new(pool.clone()),
-            pool,
+            outbox: OutboxConsumer::new(pool),
             listener_pool,
             settings,
             state: StateCell::default(),
