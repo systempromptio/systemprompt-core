@@ -4,6 +4,7 @@
 
 ### Fixed
 
+- **Brain:** the scheduler's job context provides the `BrainProfile`, so `brain_review`, `brain_retention` and `brain_analysis` run. Every run failed with "provider context has no BrainProfile dependency" while `infra jobs run` still exited 0.
 - **Services:** `brain` and `notifications` join `BUNDLE_ALLOWED_DIRS`. A profile that pins bundle sources composes its services tree from the allowed directories only, so `services/brain/` and `services/notifications/` were silently dropped from the composed tree: `admin config apply` reported the brain and notifications planes as undeclared with zero drift and never wrote the declared kinds, topics, workflows, streams or rules.
 
 ## [0.77.0] - 2026-11-01

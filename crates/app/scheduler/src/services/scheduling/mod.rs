@@ -257,6 +257,7 @@ pub(crate) fn make_job_context(
         .with(Arc::clone(app_context.app_paths_arc()))
         .with(Arc::clone(app_context.files_config()))
         .with(Arc::new(app_context.profile().notifications))
+        .with(Arc::new(app_context.profile().brain.clone()))
         .with(Arc::clone(app_context.documents().service()))
         .with(app_context.signing_keys().clone())
         .with(app_context.services_state().view())
