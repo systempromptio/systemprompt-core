@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- **Services:** `brain` and `notifications` join `BUNDLE_ALLOWED_DIRS`. A profile that pins bundle sources composes its services tree from the allowed directories only, so `services/brain/` and `services/notifications/` were silently dropped from the composed tree: `admin config apply` reported the brain and notifications planes as undeclared with zero drift and never wrote the declared kinds, topics, workflows, streams or rules.
+
 ## [0.77.0] - 2026-11-01
 
 ### Breaking
