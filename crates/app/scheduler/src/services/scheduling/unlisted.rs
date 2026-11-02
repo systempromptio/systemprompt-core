@@ -99,10 +99,18 @@ impl SchedulerService {
                     .jobs
                     .push(JobConfig::new(JobName::new(job.name())).with_schedule(schedule));
             } else {
+                let name = job.name();
+                let hint = job.default_schedule().map_or_else(String::new, |schedule| {
+                    format!(
+                        ", or set `scheduler.unlisted_jobs: default` to run it on its declared \
+                         schedule `{schedule}`"
+                    )
+                });
                 warn!(
-                    job = job.name(),
-                    "job is available in this build but has no scheduler.jobs entry; it will \
-                     never run"
+                    job = name,
+                    "job `{name}` is available in this build but has no scheduler entry, so it \
+                     never runs; add `{{ name: {name}, schedule: \"<cron>\" }}` to `scheduler.jobs` \
+                     in services/scheduler/config.yaml{hint}"
                 );
             }
         }

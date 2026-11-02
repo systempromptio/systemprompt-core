@@ -22,6 +22,10 @@ pub(super) const fn default_deadline_ms() -> u64 {
     50
 }
 
+pub(super) const fn default_recall_source_timeout_ms() -> u64 {
+    40
+}
+
 pub(super) fn default_scopes() -> Vec<ScopeLevel> {
     ScopeLevel::ALL.to_vec()
 }
@@ -103,6 +107,7 @@ impl Default for BrainRecallProfile {
         Self {
             budget_tokens: default_budget_tokens(),
             deadline_ms: default_deadline_ms(),
+            source_timeout_ms: default_recall_source_timeout_ms(),
             scopes: default_scopes(),
             clients: default_clients(),
             stale: StalePolicy::default(),

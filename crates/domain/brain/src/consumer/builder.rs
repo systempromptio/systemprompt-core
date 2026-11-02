@@ -12,7 +12,7 @@ use systemprompt_extension::brain::BrainModelClient;
 use systemprompt_extension::notifications::DynNotificationSink;
 use systemprompt_manifest::profile::BrainProfile;
 
-use super::{BrainConsumer, Counters, StateCell};
+use super::{BrainConsumer, Counters, RoundState, StateCell};
 use crate::pipeline::{BrainPipeline, PipelineSeams};
 use crate::repository::BrainRepositories;
 
@@ -93,6 +93,7 @@ impl BrainConsumerBuilder {
             settings,
             state: StateCell::default(),
             counters: Arc::new(Counters::default()),
+            round_state: RoundState::default(),
         }
     }
 }

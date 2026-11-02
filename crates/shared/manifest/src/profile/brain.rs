@@ -19,6 +19,7 @@ use systemprompt_models::origin::ClientKind;
 use super::brain_defaults::{
     default_batch, default_budget_tokens, default_clients, default_correction_window_days,
     default_daily_token_budget, default_deadline_ms, default_document_confirm,
+    default_recall_source_timeout_ms,
     default_extraction_timeout_ms, default_max_output_tokens, default_others_confirm,
     default_poll_secs, default_recalls_retention_days, default_results_retention_days,
     default_retired_retention_days, default_review_after_days, default_scopes,
@@ -53,6 +54,12 @@ pub struct BrainRecallProfile {
     pub budget_tokens: u32,
     #[serde(default = "default_deadline_ms")]
     pub deadline_ms: u64,
+    /// How long recall waits on one source check before withholding the
+    /// fact as `source`; it sits inside `deadline_ms`, so it stays well
+    /// under it. Separate from `consumer.source_timeout_ms`, which bounds
+    /// the consumer's source reads.
+    #[serde(default = "default_recall_source_timeout_ms")]
+    pub source_timeout_ms: u64,
     #[serde(default = "default_scopes")]
     pub scopes: Vec<ScopeLevel>,
     #[serde(default = "default_clients")]

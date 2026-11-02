@@ -1,20 +1,22 @@
 //! [`NotificationsConsumer`]: the runner service draining notification facts
 //! from the durable outbox.
 //!
-//! Each round claims up to one profile batch of facts, one at a time, each
-//! on its own transaction: the fact is processed inside a savepoint and the
-//! outbox row is acknowledged in the same transaction, so one large fact
-//! never holds the others and a crash rolls back only the fact in hand.
+//! Each round claims up to one profile batch of facts on one transaction.
+//! Each fact is processed inside its own savepoint and acknowledged on the
+//! round's transaction, which commits once, so one bad fact rolls back only
+//! itself and a crash rolls back the round in hand.
 //!
 //! A fact that cannot succeed (it does not decode, or its version is one this
 //! build does not read) is recorded as a `decode` failure and acknowledged.
 //! A fact that fails for a reason that may pass (storage, a seam call, a
-//! router timeout) is rolled back unacknowledged, recorded as a `process`
-//! failure and retried from the next round after the poll interval; its
-//! [`MAX_FACT_ATTEMPTS`]th failure is recorded as `fact_abandoned` and
-//! acknowledged, so one bad fact never blocks the queue. Rows a committed
-//! fact left `pending` are delivered right after the commit. The round shares
-//! one [`BatchContext`](crate::pipeline::BatchContext).
+//! router timeout) is rolled back to its savepoint, recorded as a `process`
+//! failure, left unacknowledged and held back for the poll interval while
+//! the round goes on; its [`MAX_FACT_ATTEMPTS`]th failure is recorded as
+//! `fact_abandoned` and acknowledged, so one bad fact never blocks the
+//! queue. More than [`MAX_ROUND_TRANSIENTS`] transient failures end the
+//! round early. Rows the round's facts left `pending` are delivered right
+//! after the commit. The round shares one
+//! [`BatchContext`](crate::pipeline::BatchContext).
 //!
 //! When nothing is pending it listens on
 //! [`NOTIFICATION_FACTS_CHANNEL`](systemprompt_events::NOTIFICATION_FACTS_CHANNEL)
@@ -31,9 +33,12 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod drain;
+mod handle;
+mod hold;
 mod wake;
 
-pub use drain::MAX_FACT_ATTEMPTS;
+pub use drain::MAX_ROUND_TRANSIENTS;
+pub use handle::MAX_FACT_ATTEMPTS;
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU8, Ordering};
@@ -48,6 +53,7 @@ use systemprompt_manifest::profile::ConsumerProfile;
 use systemprompt_traits::{JobContext, RunnerService};
 use tokio_util::sync::CancellationToken;
 
+use self::hold::RetryHold;
 use self::wake::Wake;
 use crate::error::NotificationsResult;
 use crate::pipeline::{NotificationPipeline, metrics};
@@ -102,6 +108,7 @@ pub struct NotificationsConsumer {
     listener_pool: PgPool,
     settings: ConsumerProfile,
     state: StateCell,
+    hold: RetryHold,
 }
 
 impl std::fmt::Debug for NotificationsConsumer {
@@ -128,6 +135,7 @@ impl NotificationsConsumer {
             listener_pool,
             settings,
             state: StateCell::default(),
+            hold: RetryHold::default(),
         }
     }
 

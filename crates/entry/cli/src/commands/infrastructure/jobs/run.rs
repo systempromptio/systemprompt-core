@@ -10,6 +10,11 @@
 //! replica that holds it. A job skipped because another replica holds its
 //! lock makes the command fail.
 //!
+//! A job that fails, whether its execution errored or it reported failure,
+//! makes the command fail too: the per-job table is printed first, then the
+//! command exits non-zero naming each failed job and its error, so a script
+//! or operator never reads a failed run as a success.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -25,7 +30,7 @@ use systemprompt_scheduler::{
 
 use super::types::{BatchJobRunOutput, JobRunOutput, JobRunResult};
 use crate::context::CommandContext;
-use crate::shared::CommandOutput;
+use crate::shared::{CommandOutput, render_result};
 
 #[derive(Debug, Args)]
 pub struct RunArgs {
@@ -114,11 +119,32 @@ pub(super) async fn execute(args: RunArgs, ctx: &CommandContext) -> Result<Comma
         jobs_run,
     };
 
-    Ok(CommandOutput::table_of(
+    let table = CommandOutput::table_of(
         vec!["job_name", "status", "duration_ms", "result"],
         &output.jobs_run,
     )
-    .with_title("Job Execution Results"))
+    .with_title("Job Execution Results");
+    if output.failed == 0 {
+        return Ok(table);
+    }
+    render_result(&table, &ctx.cli);
+    bail!(
+        "{} of {} job(s) failed:\n{}",
+        output.failed,
+        output.total,
+        failures(&output.jobs_run)
+    );
+}
+
+fn failures(runs: &[JobRunOutput]) -> String {
+    runs.iter()
+        .filter(|run| !run.result.success)
+        .map(|run| {
+            let message = run.result.message.as_deref().unwrap_or("no error reported");
+            format!("  {}: {message}", run.job_name)
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 fn into_output(report: JobRunReport) -> JobRunOutput {

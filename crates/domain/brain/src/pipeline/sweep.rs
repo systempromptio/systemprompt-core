@@ -3,6 +3,10 @@
 //! time; today it reports the store's fact counts, open disputes and the
 //! day's extraction tokens as metrics, and the lifecycle jobs may extend it.
 //!
+//! [`BrainPipeline::refresh_store_gauges`] republishes the fact and open
+//! dispute gauges between sweeps, after a drain round that wrote; it takes
+//! no lock, since the counts are read-only.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -41,5 +45,14 @@ impl BrainPipeline {
         metrics::store(&report.facts, report.open_disputes, report.tokens_today);
         tx.commit().await?;
         Ok(Some(report))
+    }
+
+    /// Republishes `brain_facts{status}` and `brain_disputes_open` from the
+    /// store.
+    pub async fn refresh_store_gauges(&self) -> BrainResult<()> {
+        let facts = self.repos.facts.counts().await?;
+        let open_disputes = self.repos.disputes.count_open().await?;
+        metrics::store_counts(&facts, open_disputes);
+        Ok(())
     }
 }

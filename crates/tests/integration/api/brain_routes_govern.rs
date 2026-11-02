@@ -254,3 +254,34 @@ async fn the_admin_simulator_answers_a_descriptor_for_a_principal() -> Result<()
     assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
     Ok(())
 }
+
+#[tokio::test]
+async fn the_simulator_takes_a_conversation_and_resolves_a_missing_project() -> Result<()> {
+    let fx = brain_fixture().await?;
+    let me = owner(&fx.pool, "brain-simulate-reuse").await?;
+    seed_personal_fact(&fx.pool, &me.user_id, FactStatus::Confirmed).await?;
+
+    let body = json!({
+        "user_id": me.user_id.as_str(),
+        "client": "claude-code",
+        "prompt": "who owns the deploy gate",
+        "reuse": true,
+        "conversation_id": "ctx_00000000000000ff",
+    });
+    let (status, simulated) = simulate(&fx.routes, &me.user_id, body).await?;
+    assert_eq!(status, StatusCode::OK, "{simulated}");
+    assert_eq!(simulated["skipped"], json!("not_new_turn"), "{simulated}");
+
+    let body = json!({
+        "user_id": me.user_id.as_str(),
+        "client": "claude-code",
+        "prompt": "who owns the deploy gate",
+    });
+    let (status, simulated) = simulate(&fx.routes, &me.user_id, body).await?;
+    assert_eq!(
+        status,
+        StatusCode::OK,
+        "no project resolves through the providers: {simulated}"
+    );
+    Ok(())
+}

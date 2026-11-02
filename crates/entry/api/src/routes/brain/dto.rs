@@ -9,7 +9,9 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use systemprompt_brain::service::DisputeOutcome;
 use systemprompt_extension::brain::{InjectedFact, RecallBlock, RecallOutcome, WithheldReason};
-use systemprompt_identifiers::{BrainDisputeId, BrainFactId, EventOutboxId, UserId};
+use systemprompt_identifiers::{
+    BrainDisputeId, BrainFactId, EventOutboxId, GatewayConversationId, UserId,
+};
 use systemprompt_models::origin::ClientKind;
 
 #[derive(Debug, Deserialize)]
@@ -116,6 +118,8 @@ pub struct SimulateBody {
     pub prompt: String,
     #[serde(default)]
     pub reuse: bool,
+    #[serde(default)]
+    pub conversation_id: Option<GatewayConversationId>,
 }
 
 #[derive(Debug, Serialize)]

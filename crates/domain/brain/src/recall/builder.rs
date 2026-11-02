@@ -19,8 +19,6 @@ use super::declared::DeclaredSource;
 use super::service::BrainRecallService;
 use crate::outcomes::OutcomeService;
 
-const DEFAULT_SOURCE_TIMEOUT: Duration = Duration::from_millis(40);
-
 impl std::fmt::Debug for BrainRecallService {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("BrainRecallService")
@@ -47,6 +45,7 @@ impl BrainRecallService {
         declared: Arc<dyn DeclaredSource>,
         profile: Arc<BrainProfile>,
     ) -> BrainRecallServiceBuilder {
+        let source_timeout = Duration::from_millis(profile.recall.source_timeout_ms);
         BrainRecallServiceBuilder {
             service: Self {
                 store,
@@ -57,7 +56,7 @@ impl BrainRecallService {
                 injection: Vec::new(),
                 importance: Vec::new(),
                 audiences: Vec::new(),
-                source_timeout: DEFAULT_SOURCE_TIMEOUT,
+                source_timeout,
                 outcomes: None,
             },
         }

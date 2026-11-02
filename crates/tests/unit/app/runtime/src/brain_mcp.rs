@@ -164,6 +164,10 @@ fn brain_errors_map_to_refusal_codes() {
         Some(BrainRefusalCode::NotFound)
     );
     assert_eq!(
+        refusal_of(&BrainError::InvalidFields("bad".to_owned())),
+        Some(BrainRefusalCode::InvalidInput)
+    );
+    assert_eq!(
         refusal_of(&BrainError::Sink(BrainSinkError::Unavailable)),
         None
     );

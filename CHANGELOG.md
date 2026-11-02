@@ -4,8 +4,26 @@
 
 ### Fixed
 
+- **CLI:** `infra jobs run` exits non-zero when a job fails, whether its execution errored or it reported failure. It prints the per-job table, then names each failed job and its error. With `--all` it fails when any job failed.
 - **Brain:** the scheduler's job context provides the `BrainProfile`, so `brain_review`, `brain_retention` and `brain_analysis` run. Every run failed with "provider context has no BrainProfile dependency" while `infra jobs run` still exited 0.
 - **Services:** `brain` and `notifications` join `BUNDLE_ALLOWED_DIRS`. A profile that pins bundle sources composes its services tree from the allowed directories only, so `services/brain/` and `services/notifications/` were silently dropped from the composed tree: `admin config apply` reported the brain and notifications planes as undeclared with zero drift and never wrote the declared kinds, topics, workflows, streams or rules.
+- **Brain:** `POST /api/v1/brain/facts` and the `brain_propose` MCP tool refuse an erased identity at entry: `409` `fact_tombstoned` over HTTP and the `tombstoned` refusal over MCP, with nothing queued. The identity is computed by the same function the pipeline uses, after alias resolution. Before, the entry answered `202` and the consumer later recorded the event as `rejected`; that rejection stays as the backstop.
+- **Brain:** `PATCH /api/v1/brain/facts/{id}/fields` merges the body onto the stored fields: a key replaces its field, a key sent as `null` removes an optional field, and keys left out are kept. The merged fields are checked against the kind (`422` `invalid_fields`) before the statement is re-rendered and the identity compared. Before, the body replaced the whole map, so a partial edit changed the identity and was refused with `403`.
+- **Brain:** `POST /api/v1/admin/brain/simulate` without `project` resolves the user's default `project` through the subject attribute providers, as the gateway does, instead of recalling at org scope. It accepts an optional `conversation_id`, so `reuse: true` reads that conversation's stored block instead of always answering `not_new_turn`.
+- **Brain:** gateway recall bounds each source check by the new `brain.recall.source_timeout_ms` (default `40`). It was a hard-coded 40 ms, and `consumer.source_timeout_ms` (documented as also bounding recall) never reached it; that field now bounds only the consumer's source reads.
+
+### Added
+
+- **Brain:** `GET /health/detail` reports the capture consumer under `checks.brain`: `state`, `pending` outbox events, `oldest_seconds` and `last_round`. A backlog that cannot be read reports the entry and the overall status `degraded`.
+- **Brain:** `brain_round_events` histogram, the events claimed per drain round.
+
+### Changed
+
+- **Brain:** a drain round commits once. It claims up to `consumer.batch` events on one transaction, runs each in its own savepoint and acknowledges each finished event on that transaction. A transient failure no longer ends the round: the event is held back for `poll_secs` and the round goes on, ending early after more than three transient failures. A lost round is claimed again whole. Throughput was capped near 120 events/s by one commit per event at any batch size.
+- **Notifications:** the consumer's drain round commits once in the same way, and announces the `pending` rows of the whole round after its commit.
+- **Brain:** `brain_facts{status}` and `brain_disputes_open` refresh after a round that wrote, staled or disputed facts, at most every five seconds, as well as on the sweep.
+- **Scheduler:** the warning for a registered job with no scheduler entry names the job and the `scheduler.jobs` entry to add in `services/scheduler/config.yaml`.
+- **Brain:** an interest's `owner` in `services/brain/interests/*.yaml` may be a user id or an email. The plane apply resolves it to the user's id and refuses the apply with a validation error when no user matches; the stored declaration keeps the value as written, so a tree shared across instances hashes the same. The runtime reads the resolved id. Migration: none for existing trees; a user id still works. The apply now also refuses an owner id that names no user, which was a foreign-key failure before.
 
 ## [0.77.0] - 2026-11-01
 

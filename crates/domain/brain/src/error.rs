@@ -34,6 +34,8 @@ pub enum BrainError {
     Statement(#[from] StatementError),
     #[error("invalid fact subject")]
     Subject(#[from] SubjectKeyError),
+    #[error("fact fields are invalid: {0}")]
+    InvalidFields(String),
     #[error("fact kind {0} is not declared")]
     UnknownKind(FactKindId),
     #[error("the fact identity was erased and may not be recorded again")]

@@ -355,10 +355,11 @@ Receipts are deleted with their notification. Deleting a user removes their noti
 
 ## Consumer and health
 
-The consumer processes each outbox fact on its own transaction and acknowledges the fact in that transaction, so one large fact never holds the others.
+Each drain round claims up to `consumer.batch` outbox facts on one transaction and commits once. Each fact runs inside its own savepoint and is acknowledged on the round's transaction, so a bad fact rolls back only itself. After the commit the consumer announces the `pending` rows every fact of the round left. A failed acknowledgement or commit rolls back the whole round: nothing from it is announced and every fact in it is claimed again.
 
-- **A fact that can never succeed** does not decode, or carries a version the build does not read. It is recorded as a `decode` failure and acknowledged at once.
-- **A fact that fails for a reason that may pass** hit a storage error, a seam error or a router timeout. It is rolled back without acknowledgement and recorded as a `process` failure, and the consumer retries it after `poll_secs`. Its fifth failure is recorded as `fact_abandoned: <error>` and the fact is acknowledged, so it never blocks the queue.
+- **A fact that can never succeed** does not decode, or carries a version the build does not read. It is recorded as a `decode` failure and acknowledged.
+- **A fact that fails for a reason that may pass** hit a storage error, a seam error or a router timeout. Its savepoint is rolled back, it is recorded as a `process` failure, and it stays unacknowledged while the round goes on. The consumer holds it back from later claims for `poll_secs`, then retries it. Its fifth failure is recorded as `fact_abandoned: <error>` and the fact is acknowledged, so it never blocks the queue.
+- **More than three transient failures in one round** end the round early. The facts it did not reach are released at commit, and the consumer waits for `poll_secs` or a wake-up before the next round.
 
 Between rounds the consumer listens on the Postgres channel `systemprompt_notification_facts`, which carries only notification facts. The `poll_secs` interval is a backstop. A lost listener reconnects with exponential backoff from one to thirty seconds while the consumer keeps polling.
 

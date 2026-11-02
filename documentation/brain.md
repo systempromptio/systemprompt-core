@@ -59,7 +59,7 @@ A kind is a declared type of fact: the subject kind it is about, its fields and 
 
 ### Subjects
 
-A subject is the business entity a fact is about, written `<kind>:<id>`, for example `client:acme` or `service:billing`. Both halves must be non-empty. A subject key that does not parse is refused with `invalid_subject`.
+A subject is the business entity a fact is about: a subject kind and a key within it, for example `client:acme` or `service:billing`. Both halves must be non-empty. On the wire its form depends on the surface. `POST /api/v1/brain/facts` takes an object, `{"kind": "client", "id": "acme"}`; a `client:acme` string there is refused with `422`. Query parameters, `brain_search` and `brain_propose` take the `kind:id` string, and one that does not parse is refused with `invalid_subject`.
 
 ### Scopes
 
@@ -194,7 +194,7 @@ An interest:
 # services/brain/interests/renewals.yaml
 id: renewals
 name: Renewal risks
-owner: 0b7c2a1e-0000-4000-8000-000000000001
+owner: jane@example.com            # a user id or an email
 question: Which clients are at risk of not renewing?
 pathways: [document_revision, comment_resolved]   # or entered
 match:
@@ -205,6 +205,8 @@ match:
 delivery: [alert]                  # memory, digest or alert
 expires: 2027-06-30T00:00:00Z
 ```
+
+`owner` is the user the interest's alerts go to, given as a `users.id` or as that user's email. An email keeps a tree portable across instances, whose user ids differ. `config apply` resolves it to the user's id when it writes the interest and refuses the apply with a validation error when no user has that id or email. The stored declaration keeps the value as written, so a shared tree hashes the same everywhere.
 
 A workflow profile:
 
@@ -230,7 +232,7 @@ filters:
     debounce_secs: 60
 ```
 
-Importance and retrieval, shown with their defaults where one exists:
+Importance and retrieval. The importance values below are an example, not the defaults: without `importance.yaml` every weight is `0.0` except `recency.half_life_days`. With `subject_match` and `confirmed_by_owner` at `0.0`, a subject hit raises a fact in the fused retrieval order but not in the fill order, which follows in-context importance.
 
 ```yaml
 # services/brain/importance.yaml
@@ -266,6 +268,7 @@ brain:
   recall:
     budget_tokens: 800
     deadline_ms: 50
+    source_timeout_ms: 40
     scopes: [user, project, group, org]
     clients: {claude-code: true, claude-desktop: true}
     stale: withhold               # or marker
@@ -295,6 +298,7 @@ brain:
 | `enabled` | `false` | Master switch; see [Enabling](#enabling) |
 | `recall.budget_tokens` | `800` | Token budget of one `<team_memory>` block; a workflow's `budget_tokens` can lower it |
 | `recall.deadline_ms` | `50` | A recall past this is skipped as `deadline` |
+| `recall.source_timeout_ms` | `40` | Bound on each source check at recall; a check past it withholds the fact as `source`. Keep it under `recall.deadline_ms` |
 | `recall.scopes` | all four | Scope levels recall searches |
 | `recall.clients` | `claude-code: true`, `claude-desktop: true` | Clients recall runs for, keyed by `x-systemprompt-client` name; an unlisted client is off |
 | `recall.stale` | `withhold` | `withhold` drops stale facts; `marker` injects them with the stale marker |
@@ -314,7 +318,7 @@ brain:
 | `consumer.batch` | `32` | Events claimed per drain round |
 | `consumer.poll_secs` | `5` | Longest wait between rounds when no wake-up arrives |
 | `consumer.sweep_secs` | `300` | Interval of the store sweep |
-| `consumer.source_timeout_ms` | `5000` | Bound on each source read at extraction and each source check at recall |
+| `consumer.source_timeout_ms` | `5000` | Bound on each source read at extraction |
 
 The `brain_per_second` key of `rate_limits` (default `50`) bounds the brain routes.
 
@@ -326,11 +330,12 @@ All `/api/v1/brain` routes require a signed-in, active user; an inactive account
 - A `user`-scoped fact may be governed and entered by its owner only.
 - A `project`, `group` or `org` fact may be entered or governed (confirmed, retracted, erased, pinned, unpinned, edited, its disputes resolved) by an admin, or by a holder of the `confirm_role` of a workflow profile that lists the fact's kind. Without such a role the action is refused with `403`.
 - Only an admin may list, decide and replay proposals.
+- Governing needs visibility first. An admin, or a `confirm_role` holder, may govern or dispute only a fact it can see; a fact it cannot see answers `404` `fact_not_found`, as a read does.
 
 | Method and path | Body or query | Success |
 |---|---|---|
 | `GET /api/v1/brain/facts` | Query: `kind`, `subject` (`kind:id`), `status` (comma-separated), `limit` (1 to 500, default 100), `project` | `200` with an array of facts |
-| `POST /api/v1/brain/facts` | `{kind, subject, fields, scope, topics?, status?}`; `status` is `candidate` (default) or `proposed` | `202` with `{outbox_id}`; the consumer builds the fact |
+| `POST /api/v1/brain/facts` | `{kind, subject: {kind, id}, fields, scope, topics?, status?}`; `status` is `candidate` (default) or `proposed` | `202` with `{outbox_id}`; the consumer builds the fact. An erased identity answers `409` `fact_tombstoned` |
 | `GET /api/v1/brain/facts/{id}` | None | `200` with the fact |
 | `GET /api/v1/brain/facts/{id}/timeline` | None | `200` with the fact's revisions |
 | `GET /api/v1/brain/facts/{id}/why` | Query: `project`, `client` | `200` with `{fact, terms, withheld}` |
@@ -341,19 +346,23 @@ All `/api/v1/brain` routes require a signed-in, active user; an inactive account
 | `POST /api/v1/brain/facts/{id}/erase` | None | `204` |
 | `POST /api/v1/brain/facts/{id}/pin` | None | `200` with the revision |
 | `POST /api/v1/brain/facts/{id}/unpin` | None | `200` with the revision |
-| `PATCH /api/v1/brain/facts/{id}/fields` | `{fields}` | `200` with the revision; refused when the edit would change the fact's identity |
+| `PATCH /api/v1/brain/facts/{id}/fields` | `{fields}`, merged onto the stored fields | `200` with the revision; `422` `invalid_fields` when the result does not fit the kind, `403` when it would change the fact's identity |
 | `POST /api/v1/brain/disputes/{id}/resolve` | `{fact_id, outcome: upheld or dismissed, note?}` | `204` |
 | `GET /api/v1/brain/proposals` | Query: `limit` | `200` with the open proposals |
 | `POST /api/v1/brain/proposals/{id}/approve` | None | `204` |
 | `POST /api/v1/brain/proposals/{id}/reject` | None | `204` |
 | `POST /api/v1/brain/proposals/{id}/replay` | `{since, until}` (RFC 3339) | `200` with the dry-run report, also stored on the proposal |
-| `POST /api/v1/admin/brain/simulate` | `{user_id, client, project?, prompt?, reuse?}` | `200` with `{descriptor, skipped?, block?}` |
+| `POST /api/v1/admin/brain/simulate` | `{user_id, client, project?, prompt?, reuse?, conversation_id?}` | `200` with `{descriptor, skipped?, block?}` |
 
-`scope` is written `{level, key}`, for example `{"level": "project", "key": "sales"}` or `{"level": "org"}`. Unknown query parameters and body fields are refused. A field edit re-renders the statement from the kind's template. Deciding a proposal only records the decision; nothing a proposal describes applies itself.
+`scope` is written `{level, key}`, for example `{"level": "project", "key": "sales"}` or `{"level": "org"}`. Unknown query parameters and body fields are refused.
+
+An entered fact is checked against the tombstones before it is queued. Its identity is computed from the declared kind's identity fields, after the subject is resolved through its aliases, by the same function the pipeline uses. An erased identity is refused with `409` `fact_tombstoned` and nothing is queued. The consumer still rejects a tombstoned candidate, which covers a fact erased while its entry was queued.
+
+A field edit is a merge. Each key in `fields` replaces that stored field, a key sent as `null` removes an optional field, and every key left out is kept. The merged fields are checked against the kind (declared, required, material, type, length and enum), the statement is re-rendered from the kind's template, and the edit is refused with `403` when the merged identity fields differ from the stored ones. A partial map therefore edits only what it names. Deciding a proposal only records the decision; nothing a proposal describes applies itself.
 
 ### Simulation
 
-`POST /api/v1/admin/brain/simulate` runs a new-turn recall for a chosen user, client and project, using `prompt` as the subject hints, and records nothing. The `block`, when present, carries the scope, `as_of`, the facts with their revisions, the withheld counts by reason, the tokens and the exact `rendered` text.
+`POST /api/v1/admin/brain/simulate` runs a recall for a chosen user, client and project, using `prompt` as the subject hints, and records nothing. Without `project` it resolves the user's default `project` through the subject attribute providers, as the gateway attributes a request that names none, so the simulator and the gateway scope the same recall. With `reuse: true` it runs a same-turn recall and reads the stored block of `conversation_id`, a gateway conversation id; without a `conversation_id`, or when that conversation has no stored block, it answers `not_new_turn`. The `block`, when present, carries the scope, `as_of`, the facts with their revisions, the withheld counts by reason, the tokens and the exact `rendered` text.
 
 ### Errors
 
@@ -368,6 +377,7 @@ All `/api/v1/brain` routes require a signed-in, active user; an inactive account
 | `409` | `conflict` | A storage conflict |
 | `422` | `unknown_kind` | The kind is not declared |
 | `422` | `invalid_subject` | The subject is not `kind:id` |
+| `422` | `invalid_fields` | An edit's merged fields do not fit the kind |
 | `422` | `invalid_statement` | The fields do not render the kind's statement |
 | `422` | `invalid_status` | A `status` filter names no known status |
 | `422` | `invalid_id` | A malformed id |
@@ -383,7 +393,7 @@ An MCP server composes the brain tools as one set. Every call acts as the authen
 | Tool | Input | Returns |
 |---|---|---|
 | `brain_search` | `query`, `kind?`, `subject?`, `scope?`, `limit?` (1 to 50, default 20) | `{facts}`: id, revision, kind, subject, statement, status, source |
-| `brain_propose` | `kind`, `subject` (`kind:id`), `fields`, `topics?`, `scope?` (default: the caller's own), `status?` (only `proposed`) | `{outbox_id}` |
+| `brain_propose` | `kind`, `subject` (`kind:id` string), `fields`, `topics?`, `scope?` (default: the caller's own), `status?` (only `proposed`) | `{outbox_id}`; an erased identity is refused with `tombstoned` |
 | `brain_dispute` | `fact_id`, `reason` | `{dispute_id}` |
 | `brain_why` | `fact_id`, `project?` | The importance terms (`base`, `subject`, `workflow`, `recency`, `total`) and `withheld` |
 | `brain_recall_preview` | `prompt`, `project?` | `injected`, `block` or `skipped`, `withheld` by reason, `tokens`; records nothing |
@@ -434,11 +444,13 @@ The brain's own extraction calls run with memory off.
 
 A request that opens a new user turn runs a full recall. A request that continues a turn, such as a tool-result round trip, reuses the block the turn already sent. The stored block is accepted only when it names the same facts in the same order and renders to identical bytes, so the prompt cache stays warm, the ids header keeps its revisions and nothing changes mid-task.
 
+Only a recall that injected stores a block. A turn whose first recall was skipped, for example as `deadline`, has no stored block, so every follow-up request of that turn is `not_new_turn` and carries no memory.
+
 ### A new-turn recall
 
 1. **Context.** The principal's user, client, actor and `project` attribution. A workflow profile whose `id` equals the project is selected.
 2. **Retrieval.** Four tiers run concurrently, each scope-filtered in SQL for the principal: pinned facts, facts whose subject matches the last user message, the request project's facts by stored importance, and full-text matches over the last user message. The tiers are fused by weighted reciprocal rank (`retrieval.yaml`), then extension retrievers may boost.
-3. **Lifecycle.** Stale (unless `marker`), review-due and out-of-validity facts are withheld, as are `candidate`, `disputed`, `superseded` and `retired` facts. A `proposed` fact reaches only its owner.
+3. **Lifecycle.** The tier SQL excludes review-due, out-of-validity, `candidate`, `disputed`, `superseded` and `retired` facts before anything else runs, and stale facts unless `recall.stale` is `marker`. A `proposed` fact reaches only its owner. Facts excluded here are never counted as withheld.
 4. **Visibility.** Each remaining fact passes `(scope allows or topic audience contains) and granularity allows and source allows`, as described in [Concepts](#concepts).
 5. **Fill.** An extension injection policy may choose the facts. Otherwise facts are taken in descending in-context importance while their kind is under its quota (`quota`), the count is under `max_facts`, and the estimated tokens (a quarter of the characters, rounded up) fit the budget (`budget`).
 
@@ -450,11 +462,11 @@ The block is appended after the client's system prompt:
 </team_memory>
 ```
 
-The scope attribute is the project, or `org` when the request carries none. Withheld reasons are `scope`, `source`, `agent_capped`, `stale`, `review_due`, `quota`, `budget` and `unavailable`.
+The scope attribute is the project, or `org` when the request carries none. Only facts that reach the visibility and fill passes are counted as withheld, so the reasons reported are `scope`, `quota` and `budget`, plus `source`, `agent_capped` and `unavailable` when a source check refuses, caps or fails. `stale` and `review_due` are declared reasons but are not reported, because the tier SQL already excluded those facts.
 
 ### Audit
 
-`ai_requests.memory_recall` records one line per request: `injected=<n> withheld=<n> tokens=<n> as_of=<time>` or `skipped=<reason>`. It is `NULL` for requests that are not gateway requests. Each recorded recall writes a `brain_recalls` row with the request, conversation, session and context ids, the client, project and selected workflow, the injected `{id, revision}` list, the withheld counts, the tokens and the rendered block.
+`ai_requests.memory_recall` records one line per request: `injected=<n> withheld=<n> tokens=<n> as_of=<time>` or `skipped=<reason>`. It is `NULL` for requests that are not gateway requests. Every recall that reaches the brain writes a `brain_recalls` row: an injection, a same-turn reuse, and the skips `not_new_turn`, `no_facts`, `deadline` and `unavailable`, as the table in [When recall runs](#when-recall-runs) shows. A same-turn reuse writes its own row, and its `memory_recall` reads `injected=<n> withheld=0 tokens=0`. Each row carries the request, conversation, session and context ids, the client, project and selected workflow, the injected `{id, revision}` list, the withheld counts, the tokens and the rendered block.
 
 ### Outcome signals
 
@@ -465,16 +477,29 @@ The scope attribute is the project, or `org` when the request carries none. With
 
 Extensions add their own signals through the `OutcomeSignal` seam. Each outcome is unique per recall, fact and signal.
 
+The `brain_*` series on `/metrics` are registered on first use, so they appear only after the brain's first activity in the process.
+
 ## Consumer, jobs and health
 
 ### The consumer
 
-Each round claims up to `consumer.batch` events and processes each on its own transaction. The event runs inside a savepoint and its outbox row is acknowledged in the same transaction, so one bad event never holds the others and a crash rolls back only the event in hand.
+Each round claims up to `consumer.batch` events on one transaction and commits once. Each event runs inside its own savepoint and its outbox row is acknowledged on the round's transaction, so a bad event rolls back only itself. One commit per round instead of one per event is what lets a larger batch drain faster: the round pays one WAL flush.
 
-- An event that cannot succeed (it does not decode, its version is one the build does not read, or a stage refuses it for good) is recorded as a failure and acknowledged at once.
-- An event that fails for a reason that may pass (storage, a seam call, a timeout, a spent token budget) is rolled back without acknowledgement, recorded, and retried after `poll_secs`. Its fifth failure is recorded as abandoned and acknowledged.
+- An event that cannot succeed (it does not decode, its version is one the build does not read, or a stage refuses it for good) is recorded as a failure and acknowledged.
+- An event that fails for a reason that may pass (storage, a seam call, a timeout, a spent token budget) is rolled back to its savepoint and its attempt is recorded. It stays unacknowledged while the round goes on, and the consumer holds it back from later claims for `poll_secs` before retrying it. Its fifth failure is recorded as abandoned and acknowledged.
+- More than three transient failures in one round end the round early, since that many points at an outage. The events it did not reach are released at commit and the consumer waits before the next round.
 
-When nothing is pending the consumer listens on the durable facts channel, with `poll_secs` as a backstop. A lost listener reconnects with exponential backoff from one to thirty seconds. Every `sweep_secs` it sweeps the store under a transaction-scoped advisory lock, so one replica sweeps at a time, and publishes the store gauges.
+A failed acknowledgement or commit, or a crash, rolls back the whole round, and every event in it is claimed again. An event's result row is claimed on the same transaction as its facts, so a lost round leaves no result behind and each event is still processed at most once per pipeline version. Facts and their notifications commit or roll back together. A lost round does repeat its extraction calls, so their tokens are spent again.
+
+When nothing is pending the consumer listens on the durable facts channel, with `poll_secs` as a backstop. A lost listener reconnects with exponential backoff from one to thirty seconds. Every `sweep_secs` it sweeps the store under a transaction-scoped advisory lock, so one replica sweeps at a time, and publishes the store gauges. A round that wrote, staled or disputed facts also refreshes `brain_facts{status}` and `brain_disputes_open`, at most once every five seconds per replica, so the gauges follow captures without waiting for the sweep.
+
+`GET /health/detail` reports the consumer under `checks.brain` once it has started:
+
+```json
+{"status": "healthy", "state": "listening", "pending": 0, "oldest_seconds": null, "last_round": "2026-11-02T09:00:00Z"}
+```
+
+`state` is `idle`, `draining`, `listening` or `reconnecting`. `pending` is the number of outbox events waiting for the consumer, held-back retries included, and `oldest_seconds` the age of the oldest one. `last_round` is when the consumer last claimed. A backlog that cannot be read reports the entry, and the overall status, as `degraded`.
 
 For each event the pipeline normalises it, claims it once per pipeline version, stales the facts its source change replaces, runs the filters, extracts candidates, and for each candidate applies the rules, validates, deduplicates, routes, sets its status, persists and notifies. A new fact's notification commits or rolls back with the fact: `brain.fact.proposed`, `brain.fact.disputed` and `brain.interest.alert`, each with the fact's source as its subject, so recipients are gated by the source's visibility.
 
@@ -507,7 +532,8 @@ A proposal can carry a dry-run replay: the brain consumer's events of a window a
 | `brain_extractions_total` | Counter | `extractor` |
 | `brain_extracted_candidates_total` | Counter | `extractor` |
 | `brain_budget_exhausted_total` | Counter | None |
-| `brain_batch_seconds` | Histogram | None |
+| `brain_batch_seconds` | Histogram | None; one sample per drain round |
+| `brain_round_events` | Histogram | None; events claimed per drain round |
 | `brain_facts` | Gauge | `status` |
 | `brain_disputes_open` | Gauge | None |
 | `brain_extraction_tokens_today` | Gauge | None |
@@ -525,7 +551,6 @@ These settings and declarations are accepted and validated, and have no effect i
 - **`auto_confirm.document: project_policy`.** No project policy source exists yet, so it behaves as `never`: document facts wait for a person to confirm them.
 - **`extraction.provider`.** Only `extraction.model` selects the extraction model; the provider is resolved by the gateway from the model.
 - **`filters.yaml`.** The document is stored with the other declarations but the pipeline does not read it. Which events are gathered is decided only by registered `EventFilter` seams.
-- **Consumer backlog in health.** The consumer's pending-event count is not part of the health detail; watch `brain_events_total{outcome="retry"}` and the outbox instead.
 - **Interest fields.** `audience`, `granularity`, and the `memory` and `digest` delivery values are stored and have no effect; only `alert` delivery notifies.
 
 ## Retention

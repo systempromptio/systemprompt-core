@@ -27,6 +27,11 @@ fn invalid_subject_and_statement_are_422_with_their_keys() {
         StatementError::MissingField("owner".to_owned()),
     )));
     assert_eq!(key.as_deref(), Some("invalid_statement"));
+
+    let (key, _) = key_of(BrainHttpError::from(BrainError::InvalidFields(
+        "field price is not declared".to_owned(),
+    )));
+    assert_eq!(key.as_deref(), Some("invalid_fields"));
 }
 
 #[test]

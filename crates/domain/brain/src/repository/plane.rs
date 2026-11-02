@@ -167,6 +167,37 @@ impl InterestRepository {
         Ok(())
     }
 
+    /// The user a declared interest owner names: a `users.id`, or, for a
+    /// value holding `@`, the user with that email (case-insensitive). An
+    /// id match wins over an email match.
+    pub async fn resolve_owner(
+        conn: &mut PgConnection,
+        owner: &UserId,
+    ) -> Result<Option<UserId>, RepositoryError> {
+        Ok(sqlx::query_scalar!(
+            r#"SELECT id AS "id: UserId" FROM users
+               WHERE id = $1 OR (strpos($1, '@') > 0 AND email = lower(trim($1)))
+               ORDER BY (id = $1) DESC
+               LIMIT 1"#,
+            owner.as_str(),
+        )
+        .fetch_optional(conn)
+        .await?)
+    }
+
+    /// Each interest's resolved owner, as the plane apply stored it.
+    pub async fn owners(
+        executor: impl PgExecutor<'_>,
+    ) -> Result<Vec<(String, UserId)>, RepositoryError> {
+        let rows = sqlx::query!(
+            r#"SELECT id, owner_user_id AS "owner!: UserId" FROM brain_interests
+               WHERE owner_user_id IS NOT NULL"#
+        )
+        .fetch_all(executor)
+        .await?;
+        Ok(rows.into_iter().map(|row| (row.id, row.owner)).collect())
+    }
+
     pub async fn delete(conn: &mut PgConnection, id: &str) -> Result<bool, RepositoryError> {
         let result = sqlx::query!("DELETE FROM brain_interests WHERE id = $1", id)
             .execute(conn)

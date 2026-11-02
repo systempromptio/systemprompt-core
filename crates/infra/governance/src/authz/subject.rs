@@ -110,6 +110,22 @@ pub fn dimensions_of(providers: &[SharedSubjectAttributeProvider]) -> Vec<Subjec
     providers.iter().map(|p| p.dimension()).collect()
 }
 
+/// The value an unclaimed dimension is attributed: the provider's first
+/// held value (a tenant orders the primary first), or none when the
+/// provider is header-only (`default_attribution` is `false`). Gateway scope
+/// attribution and the brain recall simulator both resolve it here.
+#[must_use]
+pub fn default_attribution_value(
+    provider: &SharedSubjectAttributeProvider,
+    held: &[String],
+) -> Option<String> {
+    if provider.default_attribution() {
+        held.first().cloned()
+    } else {
+        None
+    }
+}
+
 pub async fn gather_subject_attributes(
     providers: &[SharedSubjectAttributeProvider],
     user_id: &UserId,
@@ -175,6 +191,23 @@ impl SubjectProviderSet {
 
     pub fn iter(&self) -> impl Iterator<Item = &SharedSubjectAttributeProvider> {
         self.providers.iter()
+    }
+
+    /// [`default_attribution_value`] for `user_id` on `dimension`; none
+    /// when no provider registers the dimension.
+    pub async fn default_value(
+        &self,
+        user_id: &UserId,
+        dimension: &str,
+    ) -> Result<Option<String>, super::AuthzError> {
+        let Some(provider) = self.find(dimension) else {
+            return Ok(None);
+        };
+        if !provider.default_attribution() {
+            return Ok(None);
+        }
+        let held = provider.values_for(user_id).await?;
+        Ok(default_attribution_value(provider, &held))
     }
 
     pub async fn gather(&self, user_id: &UserId) -> Result<SubjectAttributes, super::AuthzError> {

@@ -26,9 +26,10 @@ pub(super) fn mount_brain_routes(
                     message: "UserProvider is required for the brain routes".to_owned(),
                 })?;
             let (service, recall, profile) = brain.routes();
-            Some(crate::routes::brain::BrainRoutes::new(
-                service, recall, profile, users,
-            ))
+            Some(
+                crate::routes::brain::BrainRoutes::new(service, recall, profile, users)
+                    .with_subject_providers(ctx.subject_providers().clone()),
+            )
         },
         None => None,
     };

@@ -22,14 +22,19 @@ pub(crate) const MODEL_TOKENS_OUT: u32 = 10;
 
 #[derive(Default)]
 pub(crate) struct FakeModelClient {
-    script: Mutex<VecDeque<serde_json::Value>>,
+    script: Mutex<VecDeque<Option<serde_json::Value>>>,
     calls: AtomicUsize,
     ai_request_id: Mutex<Option<AiRequestId>>,
 }
 
 impl FakeModelClient {
     pub(crate) fn push(&self, facts: serde_json::Value) {
-        self.script.lock().expect("lock").push_back(facts);
+        self.script.lock().expect("lock").push_back(Some(facts));
+    }
+
+    /// Scripts the next call to fail as unavailable, a transient failure.
+    pub(crate) fn push_unavailable(&self) {
+        self.script.lock().expect("lock").push_back(None);
     }
 
     pub(crate) fn with_request_id(&self, id: AiRequestId) {
@@ -53,7 +58,8 @@ impl BrainModelClient for FakeModelClient {
             .lock()
             .expect("lock")
             .pop_front()
-            .unwrap_or_else(|| serde_json::json!([]));
+            .unwrap_or_else(|| Some(serde_json::json!([])))
+            .ok_or(BrainModelError::Unavailable)?;
         Ok(BrainModelResponse {
             model: "fake-model".to_owned(),
             text: String::new(),

@@ -27,10 +27,18 @@ pub(crate) fn batch_seconds(seconds: f64) {
     metrics::histogram!("brain_batch_seconds").record(seconds);
 }
 
-pub(crate) fn store(counts: &FactCounts, open_disputes: i64, tokens_today: i64) {
+pub(crate) fn round_events(events: usize) {
+    metrics::histogram!("brain_round_events").record(events as f64);
+}
+
+pub(crate) fn store_counts(counts: &FactCounts, open_disputes: i64) {
     for (status, count) in &counts.by_status {
         metrics::gauge!("brain_facts", "status" => status.as_str()).set(*count as f64);
     }
     metrics::gauge!("brain_disputes_open").set(open_disputes as f64);
+}
+
+pub(crate) fn store(counts: &FactCounts, open_disputes: i64, tokens_today: i64) {
+    store_counts(counts, open_disputes);
     metrics::gauge!("brain_extraction_tokens_today").set(tokens_today as f64);
 }

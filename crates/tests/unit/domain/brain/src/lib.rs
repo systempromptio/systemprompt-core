@@ -20,6 +20,8 @@ mod defaults_importance;
 #[cfg(test)]
 mod defaults_validator;
 #[cfg(test)]
+mod field_edit;
+#[cfg(test)]
 mod fixtures;
 #[cfg(test)]
 mod model_schema;

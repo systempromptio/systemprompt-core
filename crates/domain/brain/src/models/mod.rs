@@ -6,6 +6,7 @@
 
 mod change;
 mod fact;
+mod field_edit;
 mod ledger;
 mod plane;
 mod read;
@@ -13,6 +14,7 @@ mod row;
 
 pub use change::{FactChange, NewRevision};
 pub use fact::{Inserted, NewFact, NewFactBuilder};
+pub use field_edit::merge_fields;
 pub use ledger::{DisputeStatus, EventOutcome, EventResult, NewDispute, NewExtraction, NewFailure};
 pub use plane::{PlaneRow, PlaneSource};
 pub use read::{FactFilter, NewOutcome, NewProposal, NewRecall, NewRecallBuilder};

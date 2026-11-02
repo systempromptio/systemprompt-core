@@ -14,7 +14,7 @@
 use std::collections::BTreeMap;
 
 use sqlx::PgConnection;
-use systemprompt_identifiers::{FactKindId, PipelineVersion};
+use systemprompt_identifiers::{FactKindId, PipelineVersion, UserId};
 use systemprompt_traits::RepositoryError;
 
 use super::entities::DeclaredBrain;
@@ -52,9 +52,20 @@ pub fn declared_hash_from_rows(rows: &PlaneRows) -> Result<String, serde_json::E
     DeclaredBrain::from_rows(rows)?.declared_hash()
 }
 
+/// The declarations the runtime reads, with each interest's `owner`
+/// replaced by the user id the apply resolved it to (a declared email is
+/// not a recipient).
 pub async fn load_declared_state(conn: &mut PgConnection) -> BrainResult<DeclaredBrain> {
-    let rows = PlaneRows::read(conn).await?;
-    Ok(DeclaredBrain::from_rows(&rows)?)
+    let rows = PlaneRows::read(&mut *conn).await?;
+    let mut brain = DeclaredBrain::from_rows(&rows)?;
+    let owners: BTreeMap<String, UserId> =
+        InterestRepository::owners(&mut *conn).await?.into_iter().collect();
+    for interest in &mut brain.interests {
+        if let Some(owner) = owners.get(interest.id.as_str()) {
+            interest.owner = owner.clone();
+        }
+    }
+    Ok(brain)
 }
 
 pub async fn current_pipeline_version(

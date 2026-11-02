@@ -7,6 +7,8 @@ mod analysis_job;
 #[cfg(test)]
 mod analysis_store;
 #[cfg(test)]
+mod consumer_batch;
+#[cfg(test)]
 mod consumer_drain;
 #[cfg(test)]
 mod dedupe_dispute;
@@ -16,6 +18,8 @@ mod dedupe_unchanged;
 mod disabled;
 #[cfg(test)]
 mod disputes;
+#[cfg(test)]
+mod entry_and_edit;
 #[cfg(test)]
 mod events;
 #[cfg(test)]
@@ -36,6 +40,8 @@ mod no_filter;
 mod outbox_to_fact;
 #[cfg(test)]
 mod plane;
+#[cfg(test)]
+mod plane_interest_owner;
 #[cfg(test)]
 mod plane_round_trip;
 #[cfg(test)]

@@ -1,6 +1,11 @@
 //! Writing one resolved brain entity on the plane transaction: an upsert of
 //! its declaration or, when the resolution carries no value, a delete.
 //!
+//! An interest's `owner` is a user id or an email; the apply resolves it to
+//! the user's id for `owner_user_id` and refuses an owner no user matches.
+//! The stored body keeps the declared value, so the declared hash of a
+//! portable tree is the same on every instance.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -80,7 +85,11 @@ async fn upsert(
         (INTEREST, _) => {
             let decl: InterestDecl = typed(key, &body)?;
             same_id(key, id, decl.id.as_str())?;
-            InterestRepository::upsert(conn, &row, Some(&decl.owner), decl.expires).await
+            let owner = InterestRepository::resolve_owner(&mut *conn, &decl.owner)
+                .await
+                .map_err(backend)?
+                .ok_or_else(|| invalid(key, &format!("owner {} is not a user", decl.owner)))?;
+            InterestRepository::upsert(conn, &row, Some(&owner), decl.expires).await
         },
         (WORKFLOW, _) => {
             let decl: WorkflowProfileDecl = typed(key, &body)?;

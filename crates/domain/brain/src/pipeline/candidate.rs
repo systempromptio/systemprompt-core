@@ -7,7 +7,7 @@
 
 use sqlx::PgConnection;
 use systemprompt_models::brain::{
-    FactCandidate, FactStatus, KindDecl, SourceText, identity_hash, render_statement,
+    FactCandidate, FactStatus, KindDecl, SourceText, render_statement,
 };
 
 use super::context::BatchContext;
@@ -124,12 +124,7 @@ impl BrainPipeline {
                 Ok(statement) => statement,
                 Err(error) => return Ok(Err(rejected("core.statement", error.to_string()))),
             };
-        let identity_hash = identity_hash(
-            &kind.kind,
-            &candidate.subject,
-            &kind.identity,
-            &candidate.fields,
-        );
+        let identity_hash = rules::identity_of(kind, &candidate.subject, &candidate.fields);
         Ok(Ok(Prepared {
             candidate,
             kind,

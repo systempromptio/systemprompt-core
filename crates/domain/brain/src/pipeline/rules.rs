@@ -10,7 +10,9 @@
 
 use chrono::{DateTime, Utc};
 use sqlx::PgConnection;
-use systemprompt_models::brain::{FactCandidate, InterestDecl, KindDecl, Pathway, SubjectKey};
+use systemprompt_models::brain::{
+    FactCandidate, InterestDecl, KindDecl, Pathway, SubjectKey, identity_hash,
+};
 
 use crate::error::BrainResult;
 use crate::repository::AliasRepository;
@@ -33,6 +35,32 @@ pub fn add_kind_topics(candidate: &mut FactCandidate, kind: &KindDecl) {
             candidate.topics.push(topic.clone());
         }
     }
+}
+
+/// The identity hash a candidate of `kind` is stored under. The pipeline
+/// and person entry both call it, so an entry refused as tombstoned is
+/// exactly one the pipeline would reject.
+#[must_use]
+pub fn identity_of(
+    kind: &KindDecl,
+    subject: &SubjectKey,
+    // JSON: candidate fields as declared by the kind.
+    fields: &serde_json::Map<String, serde_json::Value>,
+) -> String {
+    identity_hash(&kind.kind, subject, &kind.identity, fields)
+}
+
+/// [`identity_of`] after the subject is resolved through its aliases, as
+/// the rules stage resolves it before the identity is computed.
+pub async fn resolved_identity(
+    conn: &mut PgConnection,
+    kind: &KindDecl,
+    subject: &SubjectKey,
+    // JSON: candidate fields as declared by the kind.
+    fields: &serde_json::Map<String, serde_json::Value>,
+) -> BrainResult<String> {
+    let subject = resolve_alias(conn, subject).await?;
+    Ok(identity_of(kind, &subject, fields))
 }
 
 pub async fn resolve_alias(

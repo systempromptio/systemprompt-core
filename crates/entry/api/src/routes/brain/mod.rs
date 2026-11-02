@@ -23,6 +23,7 @@ use axum::Router;
 use axum::routing::{get, patch, post};
 use systemprompt_brain::service::{BrainCaller, BrainService};
 use systemprompt_extension::LoaderError;
+use systemprompt_governance::authz::SubjectProviderSet;
 use systemprompt_extension::brain::MemoryRecall;
 use systemprompt_manifest::profile::BrainProfile;
 use systemprompt_models::RequestContext;
@@ -49,6 +50,7 @@ pub struct BrainRoutes {
     pub(crate) recall: Arc<dyn MemoryRecall>,
     pub(crate) profile: Arc<BrainProfile>,
     pub(crate) users: Arc<dyn UserProvider>,
+    pub(crate) subject_providers: SubjectProviderSet,
 }
 
 impl std::fmt::Debug for BrainRoutes {
@@ -70,7 +72,16 @@ impl BrainRoutes {
             recall,
             profile,
             users,
+            subject_providers: SubjectProviderSet::default(),
         }
+    }
+
+    /// The subject attribute providers the simulator resolves a principal's
+    /// default `project` from, as the gateway does.
+    #[must_use]
+    pub fn with_subject_providers(mut self, providers: SubjectProviderSet) -> Self {
+        self.subject_providers = providers;
+        self
     }
 
     async fn caller(&self, req_ctx: &RequestContext) -> Result<BrainCaller, BrainHttpError> {

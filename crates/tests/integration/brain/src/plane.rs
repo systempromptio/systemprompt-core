@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use systemprompt_brain::plane::{BrainPlane, DeclaredBrain};
 use systemprompt_extension::prelude::{
-    ChangeSource, ConfigPlane, PlaneContext, PlaneSnapshot, PlaneTx, ResolvedEntities,
+    ChangeSource, ConfigPlane, ConfigPlaneResult, PlaneContext, PlaneSnapshot, PlaneTx, ResolvedEntities,
     ResolvedEntity,
 };
 use systemprompt_identifiers::{FactKindId, TopicId, WorkflowId};
@@ -130,15 +130,22 @@ fn resolved(brain: &DeclaredBrain) -> ResolvedEntities {
 }
 
 pub(crate) async fn apply(pool: &sqlx::PgPool, brain: &DeclaredBrain) {
+    try_apply(pool, brain).await.expect("plane write");
+}
+
+pub(crate) async fn try_apply(
+    pool: &sqlx::PgPool,
+    brain: &DeclaredBrain,
+) -> ConfigPlaneResult<()> {
     let deps = Dependencies::new();
     let root = std::env::temp_dir();
     let ctx = PlaneContext::new(&root, &deps);
     let mut tx = pool.begin().await.expect("begin");
     BrainPlane
         .write(&ctx, &mut PlaneTx::new(&mut tx), &resolved(brain))
-        .await
-        .expect("plane write");
+        .await?;
     tx.commit().await.expect("commit");
+    Ok(())
 }
 
 pub(crate) async fn read_current(pool: &sqlx::PgPool) -> PlaneSnapshot {
