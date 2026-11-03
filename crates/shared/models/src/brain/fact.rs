@@ -31,6 +31,9 @@ pub struct BrainFact {
     pub confirmed_by: Option<UserId>,
     pub confirmed_at: Option<DateTime<Utc>>,
     pub importance_base: f64,
+    /// When the fact was observed to hold: the time of the source it was
+    /// captured from, or the entry time when the source gives none.
+    pub observed_at: DateTime<Utc>,
     pub valid_from: Option<DateTime<Utc>>,
     pub valid_to: Option<DateTime<Utc>>,
     pub review_after: Option<DateTime<Utc>>,
@@ -41,6 +44,13 @@ pub struct BrainFact {
     pub revision: i32,
     pub pinned: bool,
     pub owner_user_id: Option<UserId>,
+    /// Laplace-smoothed share of this fact's injections a response cited,
+    /// written by the `brain_usage` job; `0` until it first runs.
+    #[serde(default)]
+    pub usage_cited_rate: f64,
+    /// Laplace-smoothed share of this fact's injections no response cited.
+    #[serde(default)]
+    pub usage_ignored_rate: f64,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }

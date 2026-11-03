@@ -1,6 +1,7 @@
 //! Brain settings: the master switch, gateway recall, capture sources and
 //! auto-confirmation, the extraction model and its budget, fact lifecycle
-//! retention, and the outbox consumer's batch and cadence.
+//! retention, the outbox consumer's batch and cadence, and two opt-in
+//! scaffolds that are off by default: session capture and consolidation.
 //!
 //! `enabled: false` (the default) starts no consumer, wires no recall and
 //! serves no brain routes. Booleans are YAML `true`/`false`; `on`/`off`
@@ -19,11 +20,11 @@ use systemprompt_models::origin::ClientKind;
 use super::brain_defaults::{
     default_batch, default_budget_tokens, default_clients, default_correction_window_days,
     default_daily_token_budget, default_deadline_ms, default_document_confirm,
-    default_recall_source_timeout_ms,
     default_extraction_timeout_ms, default_max_output_tokens, default_others_confirm,
-    default_poll_secs, default_recalls_retention_days, default_results_retention_days,
-    default_retired_retention_days, default_review_after_days, default_scopes,
-    default_source_timeout_ms, default_sources, default_sweep_secs,
+    default_poll_secs, default_recall_source_timeout_ms, default_recalls_retention_days,
+    default_results_retention_days, default_retired_retention_days, default_review_after_days,
+    default_scopes, default_session_max_chars, default_source_timeout_ms, default_sources,
+    default_sweep_secs, default_working_set,
 };
 
 /// The `brain:` profile block; every field has a default.
@@ -42,11 +43,16 @@ pub struct BrainProfile {
     pub lifecycle: BrainLifecycleProfile,
     #[serde(default)]
     pub consumer: BrainConsumerProfile,
+    #[serde(default)]
+    pub consolidation: BrainConsolidationProfile,
 }
 
-/// Gateway recall: the token budget and deadline, the scopes searched, the
-/// clients recall is on for (keyed by `x-systemprompt-client` name; an
-/// unlisted client is off) and what happens to stale facts.
+/// Gateway recall settings.
+///
+/// The token budget and deadline, the scopes searched, the clients recall
+/// is on for (keyed by `x-systemprompt-client` name; an unlisted client is
+/// off), what happens to stale facts, and whether the tiers read the
+/// precomputed working set.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct BrainRecallProfile {
@@ -66,6 +72,11 @@ pub struct BrainRecallProfile {
     pub clients: BTreeMap<String, bool>,
     #[serde(default)]
     pub stale: StalePolicy,
+    /// Run every tier over `brain_working_set` (the facts indexed under
+    /// the scope keys the principal holds). `false` runs the previous
+    /// scope-predicate SQL, which is removed in the next release.
+    #[serde(default = "default_working_set")]
+    pub working_set: bool,
 }
 
 impl BrainRecallProfile {
@@ -123,6 +134,52 @@ pub struct BrainCaptureProfile {
     pub sources: Vec<CaptureSource>,
     #[serde(default)]
     pub auto_confirm: AutoConfirmPolicy,
+    #[serde(default)]
+    pub session: BrainSessionCaptureProfile,
+}
+
+impl BrainCaptureProfile {
+    /// Whether the gateway emits `session.turn.closed`: both the pathway
+    /// in `sources` and the session block's `enabled` must be on.
+    #[must_use]
+    pub fn session_capture_on(&self) -> bool {
+        self.session.enabled && self.sources.contains(&CaptureSource::Session)
+    }
+}
+
+/// The session pathway's producer, off by default: scaffolding until an
+/// extension registers a filter that gathers session events.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct BrainSessionCaptureProfile {
+    #[serde(default)]
+    pub enabled: bool,
+    /// Characters kept of each of the last user and assistant texts.
+    #[serde(default = "default_session_max_chars")]
+    pub max_chars: usize,
+}
+
+/// The daily `brain_consolidate` job, off by default: scaffolding until an
+/// extension registers a `FactConsolidator`.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema,
+)]
+#[serde(deny_unknown_fields)]
+pub struct BrainConsolidationProfile {
+    #[serde(default)]
+    pub enabled: bool,
+    /// Tokens the job may spend per UTC day; unset falls back to
+    /// `extraction.daily_token_budget`.
+    #[serde(default)]
+    pub daily_token_budget: Option<u64>,
+}
+
+impl BrainConsolidationProfile {
+    #[must_use]
+    pub fn budget_tokens(&self, extraction: &BrainExtractionProfile) -> u64 {
+        self.daily_token_budget
+            .unwrap_or(extraction.daily_token_budget)
+    }
 }
 
 /// The extraction model call: an optional pinned provider and model, its

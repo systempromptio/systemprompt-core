@@ -122,6 +122,17 @@ pub fn gateway_repositories(
     .with_quota_sharding(profile.quota_config());
     #[cfg(feature = "brain")]
     let repos = repos.with_brain_recall(profile.brain.recall.clone());
+    #[cfg(feature = "brain")]
+    let repos = match ctx.brain() {
+        Some(brain) => {
+            repos.with_brain_session(systemprompt_gateway::audit::session::SessionCapture::new(
+                Arc::clone(brain.sink()),
+                profile.brain.capture.clone(),
+                ctx.db_pool().clone(),
+            ))
+        },
+        None => repos,
+    };
     Ok(repos)
 }
 

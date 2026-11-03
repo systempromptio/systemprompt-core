@@ -2,7 +2,10 @@
 -- facts they injected and withheld by reason, the mean tokens an injecting
 -- recall spent, and the recalls skipped by deadline, unavailability or an
 -- empty result. `workflow_id` is the declared workflow profile the recall
--- selected, NULL when none applied.
+-- selected, NULL when none applied. A `deadline` row may carry the block
+-- the recall produced late (stored for same-turn reuse, never injected);
+-- the injected and withheld sums count injecting rows only, and
+-- `late_blocks` counts those rows.
 --
 -- Replaced in place: CREATE OR REPLACE can append a column but cannot drop,
 -- rename or reorder one; a change that does ships a migration that drops the
@@ -15,20 +18,23 @@ SELECT
     r.client,
     COUNT(*) AS recalls,
     COUNT(*) FILTER (WHERE r.skipped IS NULL) AS injecting_recalls,
-    COALESCE(SUM(jsonb_array_length(r.injected)), 0) AS facts_injected,
-    COALESCE(SUM((r.withheld->>'scope')::int), 0) AS withheld_scope,
-    COALESCE(SUM((r.withheld->>'source')::int), 0) AS withheld_source,
-    COALESCE(SUM((r.withheld->>'agent_capped')::int), 0) AS withheld_agent_capped,
-    COALESCE(SUM((r.withheld->>'stale')::int), 0) AS withheld_stale,
-    COALESCE(SUM((r.withheld->>'review_due')::int), 0) AS withheld_review_due,
-    COALESCE(SUM((r.withheld->>'quota')::int), 0) AS withheld_quota,
-    COALESCE(SUM((r.withheld->>'budget')::int), 0) AS withheld_budget,
-    COALESCE(SUM((r.withheld->>'unavailable')::int), 0) AS withheld_unavailable,
+    COALESCE(SUM(jsonb_array_length(r.injected)) FILTER (WHERE r.skipped IS NULL), 0) AS facts_injected,
+    COALESCE(SUM((r.withheld->>'scope')::int) FILTER (WHERE r.skipped IS NULL), 0) AS withheld_scope,
+    COALESCE(SUM((r.withheld->>'source')::int) FILTER (WHERE r.skipped IS NULL), 0) AS withheld_source,
+    COALESCE(SUM((r.withheld->>'agent_capped')::int) FILTER (WHERE r.skipped IS NULL), 0) AS withheld_agent_capped,
+    COALESCE(SUM((r.withheld->>'stale')::int) FILTER (WHERE r.skipped IS NULL), 0) AS withheld_stale,
+    COALESCE(SUM((r.withheld->>'review_due')::int) FILTER (WHERE r.skipped IS NULL), 0) AS withheld_review_due,
+    COALESCE(SUM((r.withheld->>'quota')::int) FILTER (WHERE r.skipped IS NULL), 0) AS withheld_quota,
+    COALESCE(SUM((r.withheld->>'budget')::int) FILTER (WHERE r.skipped IS NULL), 0) AS withheld_budget,
+    COALESCE(SUM((r.withheld->>'unavailable')::int) FILTER (WHERE r.skipped IS NULL), 0) AS withheld_unavailable,
     AVG(r.tokens) FILTER (WHERE r.skipped IS NULL)::float8 AS avg_tokens,
     COUNT(*) FILTER (WHERE r.skipped = 'deadline') AS deadline_hits,
     COUNT(*) FILTER (WHERE r.skipped = 'unavailable') AS unavailable,
     COUNT(*) FILTER (WHERE r.skipped = 'no_facts') AS no_facts,
     MIN(r.created_at) AS first_recall_at,
-    MAX(r.created_at) AS last_recall_at
+    MAX(r.created_at) AS last_recall_at,
+    COALESCE(SUM((r.withheld->>'max_facts')::int) FILTER (WHERE r.skipped IS NULL), 0) AS withheld_max_facts,
+    COALESCE(SUM((r.withheld->>'disputed')::int) FILTER (WHERE r.skipped IS NULL), 0) AS withheld_disputed,
+    COUNT(*) FILTER (WHERE r.skipped = 'deadline' AND r.rendered_block IS NOT NULL) AS late_blocks
 FROM brain_recalls r
 GROUP BY r.project, r.workflow, r.client;

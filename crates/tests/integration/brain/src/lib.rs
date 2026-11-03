@@ -25,6 +25,8 @@ mod events;
 #[cfg(test)]
 mod extraction;
 #[cfg(test)]
+mod fact_index;
+#[cfg(test)]
 mod fakes;
 #[cfg(test)]
 mod harness;
@@ -51,6 +53,8 @@ mod purge;
 #[cfg(test)]
 mod read_visibility;
 #[cfg(test)]
+mod recall_determinism;
+#[cfg(test)]
 mod recall_seed;
 #[cfg(test)]
 mod recall_stale_marker;
@@ -58,6 +62,10 @@ mod recall_stale_marker;
 mod recall_support;
 #[cfg(test)]
 mod recall_tiers;
+#[cfg(test)]
+mod recall_withheld_as_of;
+#[cfg(test)]
+mod recall_working_set;
 #[cfg(test)]
 mod replay_window;
 #[cfg(test)]
@@ -75,8 +83,14 @@ mod service_builder;
 #[cfg(test)]
 mod service_reads;
 #[cfg(test)]
+mod session_pathway;
+#[cfg(test)]
 mod stale;
 #[cfg(test)]
 mod subjects_aliases;
 #[cfg(test)]
+mod usage_job;
+#[cfg(test)]
 mod withheld;
+#[cfg(test)]
+mod working_set;

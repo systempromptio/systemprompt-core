@@ -29,6 +29,7 @@ mod open;
 pub mod payload;
 pub mod phases;
 mod quota_settlement;
+pub mod session;
 mod tool_results;
 pub mod tool_validity;
 
@@ -118,6 +119,8 @@ pub struct GatewayAudit {
     tool_validators: std::sync::OnceLock<Arc<systemprompt_ai::services::tools::ToolArgsValidator>>,
     catalog: Arc<systemprompt_manifest::services::catalog::ResolvedCatalog>,
     recall_observer: std::sync::OnceLock<Arc<dyn systemprompt_extension::brain::MemoryRecall>>,
+    session_capture: session::SharedSessionCapture,
+    user_turn: std::sync::OnceLock<String>,
 }
 
 #[derive(Debug, Default)]
@@ -153,6 +156,8 @@ impl GatewayAudit {
             tool_validators: std::sync::OnceLock::new(),
             catalog: Arc::clone(&repos.catalog),
             recall_observer: std::sync::OnceLock::new(),
+            session_capture: repos.brain_session.clone(),
+            user_turn: std::sync::OnceLock::new(),
         }
     }
 

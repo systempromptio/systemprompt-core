@@ -34,6 +34,8 @@ pub struct SearchParams {
     pub limit: Option<u32>,
     #[serde(default)]
     pub project: Option<String>,
+    #[serde(default)]
+    pub as_of: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -120,6 +122,8 @@ pub struct SimulateBody {
     pub reuse: bool,
     #[serde(default)]
     pub conversation_id: Option<GatewayConversationId>,
+    #[serde(default)]
+    pub as_of: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Serialize)]

@@ -1,7 +1,9 @@
 //! [`BrainPipeline::sweep`]: the periodic pass over the store. It holds
 //! the brain's transaction-scoped sweep lock so one replica sweeps at a
-//! time; today it reports the store's fact counts, open disputes and the
-//! day's extraction tokens as metrics, and the lifecycle jobs may extend it.
+//! time; it reports the store's fact counts, open disputes and the day's
+//! extraction tokens as metrics, and checks the working-set projection's
+//! row count against the count the facts and topics imply, rebuilding it
+//! (`brain_working_set_rebuilds_total`) when they disagree.
 //!
 //! [`BrainPipeline::refresh_store_gauges`] republishes the fact and open
 //! dispute gauges between sweeps, after a drain round that wrote; it takes
@@ -14,7 +16,7 @@ use chrono::{DateTime, Utc};
 
 use super::{BrainPipeline, metrics};
 use crate::error::BrainResult;
-use crate::repository::{BrainLocks, FactCounts};
+use crate::repository::{BrainLocks, FactCounts, WorkingSetCounts, WorkingSetRepository};
 
 /// What one sweep observed; `None` from [`BrainPipeline::sweep`] means
 /// another replica held the lock.
@@ -23,6 +25,8 @@ pub struct SweepReport {
     pub facts: FactCounts,
     pub open_disputes: i64,
     pub tokens_today: i64,
+    pub working_set: WorkingSetCounts,
+    pub working_set_rebuilt: bool,
 }
 
 impl BrainPipeline {
@@ -37,10 +41,18 @@ impl BrainPipeline {
             .date_naive()
             .and_hms_opt(0, 0, 0)
             .map_or(now, |midnight| midnight.and_utc());
+        let working_set = WorkingSetRepository::counts(&mut *tx).await?;
+        let working_set_rebuilt = !working_set.is_consistent();
+        if working_set_rebuilt {
+            WorkingSetRepository::rebuild_all(&mut tx).await?;
+            metrics::working_set_rebuilt();
+        }
         let report = SweepReport {
             facts: self.repos.facts.counts().await?,
             open_disputes: self.repos.disputes.count_open().await?,
             tokens_today: self.repos.extractions.tokens_used_since(day_start).await?,
+            working_set,
+            working_set_rebuilt,
         };
         metrics::store(&report.facts, report.open_disputes, report.tokens_today);
         tx.commit().await?;

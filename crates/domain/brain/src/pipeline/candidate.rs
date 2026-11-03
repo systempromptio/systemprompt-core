@@ -75,6 +75,7 @@ impl BrainPipeline {
             actor: event.actor(),
             version: ctx.version(),
             dispute_reason: prepared.dispute_reason.as_deref(),
+            observed_at: event.observed_at(),
         };
         let persisted = persist(conn, &plan, decision).await?;
         let probe = InterestProbe {

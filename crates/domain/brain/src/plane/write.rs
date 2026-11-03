@@ -13,12 +13,12 @@ use serde::de::DeserializeOwned;
 use sqlx::PgConnection;
 use systemprompt_extension::prelude::{ChangeSource, ConfigPlaneResult, ResolvedEntity};
 use systemprompt_models::brain::{
-    FiltersDoc, ImportanceConfig, InterestDecl, KindDecl, RetrievalDoc, TopicDecl,
+    FiltersDoc, ImportanceConfig, InterestDecl, KindDecl, RetrievalDoc, SynonymsDoc, TopicDecl,
     WorkflowProfileDecl,
 };
 
 use super::entities::{
-    DOC, FILTERS_DOC, IMPORTANCE_DOC, INTEREST, KIND, RETRIEVAL_DOC, TOPIC, WORKFLOW,
+    DOC, FILTERS_DOC, IMPORTANCE_DOC, INTEREST, KIND, RETRIEVAL_DOC, SYNONYMS_DOC, TOPIC, WORKFLOW,
 };
 use super::{backend, invalid};
 use crate::models::PlaneSource;
@@ -108,6 +108,12 @@ async fn upsert(
             typed::<RetrievalDoc>(key, &body)?;
             ConfigDocRepository::upsert(conn, &row).await
         },
+        (DOC, SYNONYMS_DOC) => {
+            typed::<SynonymsDoc>(key, &body)?
+                .validate()
+                .map_err(|e| invalid(key, &e))?;
+            ConfigDocRepository::upsert(conn, &row).await
+        },
         _ => return Err(invalid(key, &"unknown entity kind")),
     };
     written.map_err(backend)
@@ -119,7 +125,7 @@ async fn delete(conn: &mut PgConnection, key: &str, kind: &str, id: &str) -> Con
         (TOPIC, _) => TopicRepository::delete(conn, id).await,
         (INTEREST, _) => InterestRepository::delete(conn, id).await,
         (WORKFLOW, _) => WorkflowRepository::delete(conn, id).await,
-        (DOC, FILTERS_DOC | IMPORTANCE_DOC | RETRIEVAL_DOC) => {
+        (DOC, FILTERS_DOC | IMPORTANCE_DOC | RETRIEVAL_DOC | SYNONYMS_DOC) => {
             ConfigDocRepository::delete(conn, id).await
         },
         _ => return Err(invalid(key, &"unknown entity kind")),

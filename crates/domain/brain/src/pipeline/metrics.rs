@@ -19,6 +19,18 @@ pub(crate) fn extraction(extractor: &'static str, candidates: usize) {
         .increment(u64::try_from(candidates).unwrap_or(u64::MAX));
 }
 
+pub(crate) fn working_set_rebuilt() {
+    metrics::counter!("brain_working_set_rebuilds_total").increment(1);
+}
+
+pub(crate) fn usage_updated(rows: u64) {
+    metrics::counter!("brain_usage_updated_total").increment(rows);
+}
+
+pub(crate) fn consolidation(outcome: &'static str) {
+    metrics::counter!("brain_consolidations_total", "outcome" => outcome).increment(1);
+}
+
 pub(crate) fn budget_exhausted() {
     metrics::counter!("brain_budget_exhausted_total").increment(1);
 }

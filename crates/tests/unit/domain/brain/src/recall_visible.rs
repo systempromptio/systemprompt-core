@@ -15,7 +15,11 @@ use crate::recall_fixtures::{
     brain_fact, principal, scored, uid, with_scope, with_source, with_topic,
 };
 
-fn topic_decl(id: &str, audience: Vec<AudienceSubject>, granularity: Granularity) -> TopicDecl {
+pub(crate) fn topic_decl(
+    id: &str,
+    audience: Vec<AudienceSubject>,
+    granularity: Granularity,
+) -> TopicDecl {
     TopicDecl {
         id: topic(id),
         name: id.to_owned(),
@@ -45,7 +49,7 @@ fn visibility(access: Access) -> Visibility {
         ])
 }
 
-const READABLE: Access = Access::Verdict(SourceVerdict::Readable);
+pub(crate) const READABLE: Access = Access::Verdict(SourceVerdict::Readable);
 
 async fn verdict(
     access: Access,
@@ -247,5 +251,11 @@ fn lifecycle_withholds_stale_review_due_and_out_of_window_facts() {
     assert_eq!(
         lifecycle_withheld(&fact, now, false),
         Some(WithheldReason::Scope)
+    );
+    fact.valid_to = None;
+    fact.status = FactStatus::Disputed;
+    assert_eq!(
+        lifecycle_withheld(&fact, now, false),
+        Some(WithheldReason::Disputed)
     );
 }

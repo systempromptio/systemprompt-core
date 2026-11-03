@@ -12,7 +12,7 @@ use serde::de::DeserializeOwned;
 use systemprompt_extension::prelude::ConfigPlaneResult;
 use systemprompt_manifest::services::brain::{
     BRAIN_DIR, FILTERS_FILE, IMPORTANCE_FILE, INTERESTS_DIR, KINDS_DIR, PROFILES_DIR,
-    RETRIEVAL_FILE, TOPICS_FILE,
+    RETRIEVAL_FILE, SYNONYMS_FILE, TOPICS_FILE,
 };
 use systemprompt_models::brain::{TopicsDoc, validate};
 
@@ -29,16 +29,18 @@ enum Slot {
     Filters,
     Importance,
     Retrieval,
+    Synonyms,
     Kind,
     Interest,
     Workflow,
 }
 
-const SINGLE_FILES: [(&str, Slot); 4] = [
+const SINGLE_FILES: [(&str, Slot); 5] = [
     (TOPICS_FILE, Slot::Topics),
     (FILTERS_FILE, Slot::Filters),
     (IMPORTANCE_FILE, Slot::Importance),
     (RETRIEVAL_FILE, Slot::Retrieval),
+    (SYNONYMS_FILE, Slot::Synonyms),
 ];
 
 const DIRECTORIES: [(&str, Slot); 3] = [
@@ -57,6 +59,11 @@ pub(super) fn declared(services_root: &Path) -> ConfigPlaneResult<Option<Sourced
         merged.merge(piece.clone());
     }
     validate(&merged.docs()).map_err(|e| invalid(BRAIN_DIR, &e))?;
+    if let Some(synonyms) = &merged.synonyms {
+        synonyms
+            .validate()
+            .map_err(|e| invalid(&format!("{BRAIN_DIR}/{SYNONYMS_FILE}"), &e))?;
+    }
     let mut entities = Sourced::new();
     for (file, piece) in pieces {
         for (key, value) in piece.entity_list().map_err(|e| invalid(&file, &e))? {
@@ -130,6 +137,7 @@ fn read_piece(
         Slot::Filters => piece.filters = Some(parse(relative, &text)?),
         Slot::Importance => piece.importance = Some(parse(relative, &text)?),
         Slot::Retrieval => piece.retrieval = Some(parse(relative, &text)?),
+        Slot::Synonyms => piece.synonyms = Some(parse(relative, &text)?),
         Slot::Kind => piece.kinds.push(parse(relative, &text)?),
         Slot::Interest => piece.interests.push(parse(relative, &text)?),
         Slot::Workflow => piece.workflows.push(parse(relative, &text)?),
@@ -157,6 +165,9 @@ pub fn render_files(brain: &DeclaredBrain) -> ConfigPlaneResult<BTreeMap<String,
     }
     if let Some(doc) = &brain.retrieval {
         files.insert(RETRIEVAL_FILE.to_owned(), yaml(RETRIEVAL_FILE, doc)?);
+    }
+    if let Some(doc) = &brain.synonyms {
+        files.insert(SYNONYMS_FILE.to_owned(), yaml(SYNONYMS_FILE, doc)?);
     }
     for kind in &brain.kinds {
         insert_member(&mut files, KINDS_DIR, kind.kind.as_str(), kind)?;

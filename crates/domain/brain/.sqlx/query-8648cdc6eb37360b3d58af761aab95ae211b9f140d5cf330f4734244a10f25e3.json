@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO brain_fact_links (fact_id, subject_kind, subject_id, via_field)\n              SELECT f.id, f.subject_kind, f.subject_id, 'subject' FROM brain_facts f\n              UNION\n              SELECT f.id,\n                     CASE WHEN strpos(x.v, ':') > 0 THEN split_part(x.v, ':', 1)\n                          ELSE d.decl ->> 'ref' END,\n                     CASE WHEN strpos(x.v, ':') > 0 THEN substr(x.v, strpos(x.v, ':') + 1)\n                          ELSE x.v END,\n                     d.key\n              FROM brain_facts f\n              JOIN brain_fact_kinds k ON k.id = f.kind\n              CROSS JOIN LATERAL jsonb_each(COALESCE(k.body -> 'fields', '{}'::jsonb)) d(key, decl)\n              CROSS JOIN LATERAL (SELECT f.fields ->> d.key AS v) x\n              WHERE d.decl ->> 'type' = 'entity'\n                AND x.v IS NOT NULL AND x.v <> ''\n                AND (strpos(x.v, ':') > 0 OR d.decl ->> 'ref' IS NOT NULL)\n              ON CONFLICT DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "8648cdc6eb37360b3d58af761aab95ae211b9f140d5cf330f4734244a10f25e3"
+}

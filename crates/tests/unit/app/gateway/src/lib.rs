@@ -138,3 +138,5 @@ pub(crate) fn offline_rate_windows() -> systemprompt_governance::policy::RateWin
         .unwrap();
     systemprompt_governance::policy::RateWindowRepository::new(pool)
 }
+#[cfg(test)]
+mod session_capture;

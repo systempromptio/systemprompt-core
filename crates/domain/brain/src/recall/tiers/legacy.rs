@@ -1,36 +1,23 @@
-//! The retrieval tiers' SQL.
-//!
-//! Every tier applies the same filter: the scope levels the context
-//! searches; a user-scoped fact only for its owner; a project fact for the
-//! principal's project or when a topic may widen it (decided later by
-//! `visible()`); confirmed facts, proposed facts only for their owner, and
-//! stale facts only when the profile injects them with a marker; never a
-//! fact whose review is due or that is outside its validity window. Each
-//! tier returns fact ids in rank order.
+//! The scope-predicate tier SQL recall ran before the working set, kept
+//! for `brain.recall.working_set: false` and removed in the next release.
+//! Each tier filters `brain_facts` by scope level and key for the
+//! principal; a project fact with topics is admitted here and decided by
+//! `visible()`. The only change from the original is the `as_of` instant
+//! and the `observed_at` predicate.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use chrono::{DateTime, Utc};
 use sqlx::PgPool;
-use systemprompt_identifiers::{BrainFactId, UserId};
+use systemprompt_identifiers::BrainFactId;
 use systemprompt_traits::RepositoryError;
 
-const MAX_QUERY_WORDS: usize = 32;
-const MIN_WORD_CHARS: usize = 3;
+use super::TierFilter;
 
-/// The principal-side filter every tier applies.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TierFilter {
-    pub user: UserId,
-    pub project: Option<String>,
-    pub scopes: Vec<String>,
-    pub include_stale: bool,
-    pub now: DateTime<Utc>,
-    pub limit: i64,
-}
-
-pub async fn pinned(pool: &PgPool, f: &TierFilter) -> Result<Vec<BrainFactId>, RepositoryError> {
+pub(super) async fn pinned(
+    pool: &PgPool,
+    f: &TierFilter,
+) -> Result<Vec<BrainFactId>, RepositoryError> {
     Ok(sqlx::query_scalar!(
         r#"SELECT id AS "id: BrainFactId" FROM brain_facts
            WHERE pinned
@@ -44,26 +31,24 @@ pub async fn pinned(pool: &PgPool, f: &TierFilter) -> Result<Vec<BrainFactId>, R
              AND (review_after IS NULL OR review_after >= $5)
              AND (valid_from IS NULL OR valid_from <= $5)
              AND (valid_to IS NULL OR valid_to > $5)
+             AND observed_at <= $5
            ORDER BY importance_base DESC, id LIMIT $6"#,
         &f.scopes,
         f.user.as_str(),
         f.project.as_deref(),
         f.include_stale,
-        f.now,
+        f.as_of,
         f.limit,
     )
     .fetch_all(pool)
     .await?)
 }
 
-pub async fn by_subject(
+pub(super) async fn by_subject(
     pool: &PgPool,
     f: &TierFilter,
     hints: &str,
 ) -> Result<Vec<BrainFactId>, RepositoryError> {
-    if hints.is_empty() {
-        return Ok(Vec::new());
-    }
     Ok(sqlx::query_scalar!(
         r#"WITH matched AS (
                SELECT subject_kind, subject_id, max(score) AS score FROM (
@@ -90,12 +75,13 @@ pub async fn by_subject(
              AND (f.review_after IS NULL OR f.review_after >= $5)
              AND (f.valid_from IS NULL OR f.valid_from <= $5)
              AND (f.valid_to IS NULL OR f.valid_to > $5)
+             AND f.observed_at <= $5
            ORDER BY m.score DESC, f.importance_base DESC, f.id LIMIT $6"#,
         &f.scopes,
         f.user.as_str(),
         f.project.as_deref(),
         f.include_stale,
-        f.now,
+        f.as_of,
         f.limit,
         hints,
     )
@@ -103,7 +89,7 @@ pub async fn by_subject(
     .await?)
 }
 
-pub async fn by_context(
+pub(super) async fn by_context(
     pool: &PgPool,
     f: &TierFilter,
 ) -> Result<Vec<BrainFactId>, RepositoryError> {
@@ -120,27 +106,24 @@ pub async fn by_context(
              AND (review_after IS NULL OR review_after >= $5)
              AND (valid_from IS NULL OR valid_from <= $5)
              AND (valid_to IS NULL OR valid_to > $5)
-           ORDER BY importance_base DESC, updated_at DESC, id LIMIT $6"#,
+             AND observed_at <= $5
+           ORDER BY importance_base DESC, id LIMIT $6"#,
         &f.scopes,
         f.user.as_str(),
         project,
         f.include_stale,
-        f.now,
+        f.as_of,
         f.limit,
     )
     .fetch_all(pool)
     .await?)
 }
 
-pub async fn full_text(
+pub(super) async fn full_text(
     pool: &PgPool,
     f: &TierFilter,
-    hints: &str,
+    query: &str,
 ) -> Result<Vec<BrainFactId>, RepositoryError> {
-    let query = search_query(hints);
-    if query.is_empty() {
-        return Ok(Vec::new());
-    }
     Ok(sqlx::query_scalar!(
         r#"SELECT id AS "id: BrainFactId" FROM brain_facts
            WHERE search @@ websearch_to_tsquery('simple', $7)
@@ -154,40 +137,18 @@ pub async fn full_text(
              AND (review_after IS NULL OR review_after >= $5)
              AND (valid_from IS NULL OR valid_from <= $5)
              AND (valid_to IS NULL OR valid_to > $5)
-           ORDER BY ts_rank_cd(search, websearch_to_tsquery('simple', $7)) DESC, id
+             AND observed_at <= $5
+           ORDER BY ts_rank_cd(search, websearch_to_tsquery('simple', $7)) DESC,
+                    importance_base DESC, id
            LIMIT $6"#,
         &f.scopes,
         f.user.as_str(),
         f.project.as_deref(),
         f.include_stale,
-        f.now,
+        f.as_of,
         f.limit,
         query,
     )
     .fetch_all(pool)
     .await?)
-}
-
-#[must_use]
-pub fn search_query(hints: &str) -> String {
-    let mut words: Vec<String> = Vec::new();
-    for word in hints.split(|c: char| !c.is_alphanumeric()) {
-        let word = word.to_lowercase();
-        if word.chars().count() >= MIN_WORD_CHARS && !words.contains(&word) {
-            words.push(word);
-            if words.len() == MAX_QUERY_WORDS {
-                break;
-            }
-        }
-    }
-    words.join(" or ")
-}
-
-#[must_use]
-pub fn normalise_hints(hints: &str) -> String {
-    hints
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ")
-        .to_lowercase()
 }

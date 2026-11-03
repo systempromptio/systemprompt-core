@@ -29,6 +29,7 @@ fn entered(owner: &UserId, region: &str) -> EnteredFact {
         scope: FactScope::User(owner.clone()),
         topics: Vec::new(),
         status: EnteredStatus::Candidate,
+        observed_at: None,
     }
 }
 

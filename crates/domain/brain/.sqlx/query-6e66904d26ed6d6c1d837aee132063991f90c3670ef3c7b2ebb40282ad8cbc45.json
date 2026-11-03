@@ -1,0 +1,33 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id AS \"id: BrainFactId\" FROM brain_facts\n               WHERE ($1::text IS NULL OR kind = $1)\n                 AND ($2::text IS NULL OR subject_kind = $2)\n                 AND ($3::text IS NULL OR subject_id = $3)\n                 AND (cardinality($4::text[]) = 0 OR status = ANY($4))\n                 AND ($6::timestamptz IS NULL OR (\n                     observed_at <= $6\n                     AND (valid_from IS NULL OR valid_from <= $6)\n                     AND (valid_to IS NULL OR valid_to > $6)))\n               ORDER BY updated_at DESC, id LIMIT $5",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id: BrainFactId",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "brain_facts",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "TextArray",
+        "Int8",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "6e66904d26ed6d6c1d837aee132063991f90c3670ef3c7b2ebb40282ad8cbc45"
+}

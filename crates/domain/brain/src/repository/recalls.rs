@@ -20,6 +20,10 @@ use systemprompt_models::brain::{FactRef, RecallAudit, StoredBlock, WithheldReas
 
 use crate::models::NewRecall;
 
+/// The `skipped` value of a row whose block was produced after the
+/// gateway deadline and stored, unsent, for same-turn reuse.
+const LATE_SKIP: &str = "deadline";
+
 #[derive(Debug, Clone)]
 pub struct RecallRepository {
     pools: Pools,
@@ -71,7 +75,7 @@ impl RecallRepository {
         conversation: &GatewayConversationId,
     ) -> Result<Option<StoredBlock>, RepositoryError> {
         let row = sqlx::query!(
-            r#"SELECT rendered_block AS "rendered!", as_of,
+            r#"SELECT rendered_block AS "rendered!", as_of, skipped,
                       injected AS "injected: Json<Vec<FactRef>>"
                FROM brain_recalls
                WHERE gateway_conversation_id = $1 AND rendered_block IS NOT NULL
@@ -84,6 +88,7 @@ impl RecallRepository {
             rendered: row.rendered,
             as_of: row.as_of,
             facts: row.injected.0,
+            late: row.skipped.as_deref() == Some(LATE_SKIP),
         }))
     }
 

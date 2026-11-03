@@ -1,0 +1,41 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, statement FROM brain_facts WHERE id > $1 ORDER BY id LIMIT $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "brain_facts",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "statement",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "brain_facts",
+            "name": "statement"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "6e4f3d17918a2710eb5a26d2d545d6d956c32d558b746fac16b880a991cd99a5"
+}

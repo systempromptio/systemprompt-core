@@ -6,7 +6,10 @@
 //! config plane inside the host's apply transaction, takes the connection as
 //! an argument; reads that join no transaction run on the repository's own
 //! pools. [`FactRepository::apply`] is the only path that changes a stored
-//! fact, and it writes the revision row on the same connection.
+//! fact, and it writes the revision row on the same connection; the
+//! derived indexes (`crate::index`) are refreshed on that connection too.
+//! The one exception is [`UsageRepository::set_rates`], which sets the
+//! derived usage columns without a revision.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -18,6 +21,7 @@ mod fact_apply;
 mod fact_lifecycle;
 mod facts;
 mod failures;
+mod links;
 mod locks;
 mod outcomes;
 mod pipeline_versions;
@@ -26,8 +30,12 @@ mod proposals;
 mod recalls;
 mod retention;
 mod revisions;
+mod search_index;
 mod subjects;
+mod synonyms;
 mod tombstones;
+mod usage;
+mod working_set;
 
 use std::sync::Arc;
 
@@ -39,6 +47,7 @@ pub use event_results::EventResultRepository;
 pub use extractions::ExtractionRepository;
 pub use facts::{FactCounts, FactRepository};
 pub use failures::FailureRepository;
+pub use links::{FactLink, FactLinkRepository};
 pub use locks::BrainLocks;
 pub use outcomes::OutcomeRepository;
 pub use pipeline_versions::PipelineVersionRepository;
@@ -50,8 +59,12 @@ pub use proposals::ProposalRepository;
 pub use recalls::RecallRepository;
 pub use retention::RetentionRepository;
 pub use revisions::FactRevisionRepository;
+pub use search_index::SearchIndexRepository;
 pub use subjects::{AliasMatch, AliasRepository, SubjectRepository};
+pub use synonyms::{SYNONYMS_DOC_ID, SynonymsRepository};
 pub use tombstones::TombstoneRepository;
+pub use usage::{FactUsageRates, UsageCounts, UsageRepository};
+pub use working_set::{WorkingSetCounts, WorkingSetRepository};
 
 /// Every brain repository, constructed together from one pool.
 #[derive(Debug, Clone)]
@@ -75,6 +88,7 @@ pub struct BrainRepositories {
     pub outcomes: Arc<OutcomeRepository>,
     pub proposals: Arc<ProposalRepository>,
     pub retention: Arc<RetentionRepository>,
+    pub usage: Arc<UsageRepository>,
     pools: Pools,
 }
 
@@ -101,6 +115,7 @@ impl BrainRepositories {
             outcomes: Arc::new(OutcomeRepository::new(pools.clone())),
             proposals: Arc::new(ProposalRepository::new(pools.clone())),
             retention: Arc::new(RetentionRepository::new(pools.clone())),
+            usage: Arc::new(UsageRepository::new(pools.clone())),
             pools,
         }
     }

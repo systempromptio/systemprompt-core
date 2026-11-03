@@ -11,15 +11,23 @@ use systemprompt_models::origin::ClientKind;
 
 use super::brain::{
     AutoConfirm, AutoConfirmPolicy, BrainCaptureProfile, BrainConsumerProfile,
-    BrainExtractionProfile, BrainLifecycleProfile, BrainRecallProfile, CaptureSource, StalePolicy,
+    BrainExtractionProfile, BrainLifecycleProfile, BrainRecallProfile, BrainSessionCaptureProfile,
+    CaptureSource, StalePolicy,
 };
 
 pub(super) const fn default_budget_tokens() -> u32 {
     800
 }
 
+/// Measured in the 2026-11-02 proving run: the working-set tiers answer
+/// well under this on a seeded store, and the gateway keeps a recall that
+/// misses it running for the turn's next request.
 pub(super) const fn default_deadline_ms() -> u64 {
-    50
+    200
+}
+
+pub(super) const fn default_working_set() -> bool {
+    true
 }
 
 pub(super) const fn default_recall_source_timeout_ms() -> u64 {
@@ -41,9 +49,12 @@ pub(super) fn default_sources() -> Vec<CaptureSource> {
     vec![
         CaptureSource::Document,
         CaptureSource::Comment,
-        CaptureSource::Session,
         CaptureSource::Entered,
     ]
+}
+
+pub(super) const fn default_session_max_chars() -> usize {
+    4000
 }
 
 pub(super) const fn default_document_confirm() -> AutoConfirm {
@@ -111,6 +122,7 @@ impl Default for BrainRecallProfile {
             scopes: default_scopes(),
             clients: default_clients(),
             stale: StalePolicy::default(),
+            working_set: default_working_set(),
         }
     }
 }
@@ -129,6 +141,16 @@ impl Default for BrainCaptureProfile {
         Self {
             sources: default_sources(),
             auto_confirm: AutoConfirmPolicy::default(),
+            session: BrainSessionCaptureProfile::default(),
+        }
+    }
+}
+
+impl Default for BrainSessionCaptureProfile {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            max_chars: default_session_max_chars(),
         }
     }
 }

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id AS \"id: BrainFactId\", kind AS \"kind: FactKindId\", subject_kind,\n                      subject_id, scope_level, scope_key, statement,\n                      fields AS \"fields: Json<FieldMap>\", source AS \"source: Json<FactSource>\",\n                      topics, status, confirmed_by AS \"confirmed_by: UserId\", confirmed_at,\n                      importance_base, valid_from, valid_to, review_after, retention_until,\n                      legal_hold, identity_hash, statement_hash, revision, pinned,\n                      owner_user_id AS \"owner_user_id: UserId\", created_at, updated_at\n               FROM brain_facts WHERE id = ANY($1) ORDER BY id",
+  "query": "SELECT id AS \"id: BrainFactId\", kind AS \"kind: FactKindId\", subject_kind,\n                      subject_id, scope_level, scope_key, statement,\n                      fields AS \"fields: Json<FieldMap>\", source AS \"source: Json<FactSource>\",\n                      topics, status, confirmed_by AS \"confirmed_by: UserId\", confirmed_at,\n                      importance_base, observed_at, valid_from, valid_to, review_after,\n                      retention_until,\n                      legal_hold, identity_hash, statement_hash, revision, pinned,\n                      owner_user_id AS \"owner_user_id: UserId\", usage_cited_rate,\n                      usage_ignored_rate, created_at, updated_at\n               FROM brain_facts WHERE id = ANY($1) ORDER BY id",
   "describe": {
     "columns": [
       {
@@ -159,6 +159,17 @@
       },
       {
         "ordinal": 14,
+        "name": "observed_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "brain_facts",
+            "name": "observed_at"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
         "name": "valid_from",
         "type_info": "Timestamptz",
         "origin": {
@@ -169,7 +180,7 @@
         }
       },
       {
-        "ordinal": 15,
+        "ordinal": 16,
         "name": "valid_to",
         "type_info": "Timestamptz",
         "origin": {
@@ -180,7 +191,7 @@
         }
       },
       {
-        "ordinal": 16,
+        "ordinal": 17,
         "name": "review_after",
         "type_info": "Timestamptz",
         "origin": {
@@ -191,7 +202,7 @@
         }
       },
       {
-        "ordinal": 17,
+        "ordinal": 18,
         "name": "retention_until",
         "type_info": "Timestamptz",
         "origin": {
@@ -202,7 +213,7 @@
         }
       },
       {
-        "ordinal": 18,
+        "ordinal": 19,
         "name": "legal_hold",
         "type_info": "Bool",
         "origin": {
@@ -213,7 +224,7 @@
         }
       },
       {
-        "ordinal": 19,
+        "ordinal": 20,
         "name": "identity_hash",
         "type_info": "Text",
         "origin": {
@@ -224,7 +235,7 @@
         }
       },
       {
-        "ordinal": 20,
+        "ordinal": 21,
         "name": "statement_hash",
         "type_info": "Text",
         "origin": {
@@ -235,7 +246,7 @@
         }
       },
       {
-        "ordinal": 21,
+        "ordinal": 22,
         "name": "revision",
         "type_info": "Int4",
         "origin": {
@@ -246,7 +257,7 @@
         }
       },
       {
-        "ordinal": 22,
+        "ordinal": 23,
         "name": "pinned",
         "type_info": "Bool",
         "origin": {
@@ -257,7 +268,7 @@
         }
       },
       {
-        "ordinal": 23,
+        "ordinal": 24,
         "name": "owner_user_id: UserId",
         "type_info": "Text",
         "origin": {
@@ -268,7 +279,29 @@
         }
       },
       {
-        "ordinal": 24,
+        "ordinal": 25,
+        "name": "usage_cited_rate",
+        "type_info": "Float8",
+        "origin": {
+          "Table": {
+            "table": "brain_facts",
+            "name": "usage_cited_rate"
+          }
+        }
+      },
+      {
+        "ordinal": 26,
+        "name": "usage_ignored_rate",
+        "type_info": "Float8",
+        "origin": {
+          "Table": {
+            "table": "brain_facts",
+            "name": "usage_ignored_rate"
+          }
+        }
+      },
+      {
+        "ordinal": 27,
         "name": "created_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -279,7 +312,7 @@
         }
       },
       {
-        "ordinal": 25,
+        "ordinal": 28,
         "name": "updated_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -310,6 +343,7 @@
       true,
       true,
       false,
+      false,
       true,
       true,
       true,
@@ -320,9 +354,11 @@
       false,
       false,
       true,
+      false,
+      false,
       false,
       false
     ]
   },
-  "hash": "2c4a0ef2aa45005d95a39f2f4a0e3bc5c28f5074f99307208b1e5c8a5af8446b"
+  "hash": "c8e4e87c7dec866c48e0d17c54672d30d6d6a4d2d2e4b7015a017c758f95668b"
 }

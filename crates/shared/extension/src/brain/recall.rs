@@ -50,7 +50,8 @@ pub struct RecallConversation {
     pub context_id: Option<ContextId>,
 }
 
-/// One recall for one gateway request.
+/// One recall for one gateway request. `as_of`, when set, reads the
+/// facts as they stood at that instant: observed by then and valid then.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RecallRequest {
     pub principal: RecallPrincipal,
@@ -59,6 +60,7 @@ pub struct RecallRequest {
     pub budget_tokens: u32,
     pub deadline: Duration,
     pub reuse: ReuseHint,
+    pub as_of: Option<DateTime<Utc>>,
 }
 
 impl RecallRequest {
@@ -71,6 +73,7 @@ impl RecallRequest {
             budget_tokens: 0,
             deadline: Duration::ZERO,
             reuse: ReuseHint::NewTurn,
+            as_of: None,
         }
     }
 
@@ -95,6 +98,12 @@ impl RecallRequest {
     #[must_use]
     pub const fn with_reuse(mut self, reuse: ReuseHint) -> Self {
         self.reuse = reuse;
+        self
+    }
+
+    #[must_use]
+    pub const fn with_as_of(mut self, as_of: Option<DateTime<Utc>>) -> Self {
+        self.as_of = as_of;
         self
     }
 }
@@ -149,6 +158,11 @@ impl RecallOutcome {
 }
 
 /// The record of one recall, written after the request is admitted.
+///
+/// `late` is the block a recall that missed its deadline produced once the
+/// gateway let it finish: the outcome stays `skipped=deadline` and nothing
+/// was injected, but the block is stored so the turn's next request can
+/// reuse it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RecallReceipt {
     pub recall_id: BrainRecallId,
@@ -158,6 +172,7 @@ pub struct RecallReceipt {
     pub outcome: RecallOutcome,
     pub workflow: Option<WorkflowId>,
     pub recorded_at: DateTime<Utc>,
+    pub late: Option<RecallBlock>,
 }
 
 impl RecallReceipt {
@@ -175,7 +190,14 @@ impl RecallReceipt {
             outcome,
             workflow: None,
             recorded_at: Utc::now(),
+            late: None,
         }
+    }
+
+    #[must_use]
+    pub fn with_late(mut self, block: RecallBlock) -> Self {
+        self.late = Some(block);
+        self
     }
 }
 

@@ -3,9 +3,9 @@
 //! The visible facts in descending in-context importance (ties by fused
 //! score, then fact id) are taken while their kind is under its quota, the
 //! fact count is under `max_facts` and the estimated tokens fit the budget.
-//! A fact over its kind's quota is withheld as `Quota`; one that does not
-//! fit as `Budget`. Tokens are estimated as a quarter of the line's
-//! characters, rounded up.
+//! A fact over its kind's quota is withheld as `Quota`; one past the fact
+//! count as `MaxFacts`; one whose tokens do not fit as `Budget`. Tokens
+//! are estimated as a quarter of the line's characters, rounded up.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -80,7 +80,9 @@ pub fn fill(mut candidates: Vec<Candidate>, limits: &BudgetLimits) -> InjectionP
         } else {
             let tokens = estimate_tokens(&candidate.text);
             let full = u32::try_from(plan.facts.len()).unwrap_or(u32::MAX) >= limits.max_facts;
-            if full || plan.tokens.saturating_add(tokens) > limits.budget_tokens {
+            if full {
+                Some(WithheldReason::MaxFacts)
+            } else if plan.tokens.saturating_add(tokens) > limits.budget_tokens {
                 Some(WithheldReason::Budget)
             } else {
                 plan.tokens += tokens;

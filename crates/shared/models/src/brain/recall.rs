@@ -35,7 +35,9 @@ pub enum WithheldReason {
     AgentCapped,
     Stale,
     ReviewDue,
+    Disputed,
     Quota,
+    MaxFacts,
     Budget,
     Unavailable,
 }
@@ -49,7 +51,9 @@ impl WithheldReason {
             Self::AgentCapped => "agent_capped",
             Self::Stale => "stale",
             Self::ReviewDue => "review_due",
+            Self::Disputed => "disputed",
             Self::Quota => "quota",
+            Self::MaxFacts => "max_facts",
             Self::Budget => "budget",
             Self::Unavailable => "unavailable",
         }
@@ -57,6 +61,14 @@ impl WithheldReason {
 }
 
 /// Who is asking, from where, at what time.
+///
+/// `now` is computed once per recall and is the only clock the tiers,
+/// the lifecycle check and the importance score read. `as_of` is the
+/// instant the facts are read at: `now` unless the request asked for an
+/// earlier view, in which case every tier admits only facts observed by
+/// then and valid then. `held_keys` are the working-set scope keys the
+/// principal holds (`org`, `user:<id>`, `project:<key>` and every
+/// audience subject a resolver enumerated), built once per recall.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RecallCtx {
     pub user_id: UserId,
@@ -66,6 +78,9 @@ pub struct RecallCtx {
     pub workflow: Option<WorkflowId>,
     pub scopes: Vec<ScopeLevel>,
     pub now: DateTime<Utc>,
+    pub as_of: DateTime<Utc>,
+    #[serde(default)]
+    pub held_keys: Vec<String>,
 }
 
 impl RecallCtx {
@@ -79,7 +94,22 @@ impl RecallCtx {
             workflow: None,
             scopes: ScopeLevel::ALL.to_vec(),
             now,
+            as_of: now,
+            held_keys: Vec::new(),
         }
+    }
+
+    /// The instant facts are read at; never later than `now`.
+    #[must_use]
+    pub fn with_as_of(mut self, as_of: DateTime<Utc>) -> Self {
+        self.as_of = as_of.min(self.now);
+        self
+    }
+
+    #[must_use]
+    pub fn with_held_keys(mut self, keys: Vec<String>) -> Self {
+        self.held_keys = keys;
+        self
     }
 
     #[must_use]
@@ -107,12 +137,35 @@ impl RecallCtx {
     }
 }
 
-/// What to look for: subject hints from the last user turn and how many
-/// facts each tier may return.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+/// What a recall looks for and how wide each tier may reach.
+///
+/// Subject hints come from the last user turn; each tier has its own row
+/// limit; a one-hop link match earns `links_weight` relative to a direct
+/// subject match; the synonym groups expand each full-text query word.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RecallQuery {
     pub subject_hints: String,
     pub limit: u32,
+    #[serde(default = "RecallQuery::default_links_weight")]
+    pub links_weight: f64,
+    #[serde(default)]
+    pub synonyms: Vec<Vec<String>>,
+}
+
+impl RecallQuery {
+    #[must_use]
+    pub const fn new(subject_hints: String, limit: u32) -> Self {
+        Self {
+            subject_hints,
+            limit,
+            links_weight: Self::default_links_weight(),
+            synonyms: Vec::new(),
+        }
+    }
+
+    const fn default_links_weight() -> f64 {
+        0.6
+    }
 }
 
 /// A fact's rank in one tier.
@@ -152,13 +205,18 @@ pub struct FactRef {
     pub revision: i32,
 }
 
-/// The block a conversation's last injecting recall sent and the facts,
-/// at their revisions, it named; same-turn reuse resends it unchanged.
+/// The block a conversation's last block-producing recall stored.
+///
+/// It names the facts at their revisions; same-turn reuse resends it
+/// unchanged. `late` marks a block a recall produced after its gateway
+/// deadline: it was stored, never injected, for the turn's next request.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StoredBlock {
     pub rendered: String,
     pub as_of: DateTime<Utc>,
     pub facts: Vec<FactRef>,
+    #[serde(default)]
+    pub late: bool,
 }
 
 /// The audit of one recall: what was injected, what was withheld by

@@ -24,6 +24,10 @@ mod field_edit;
 #[cfg(test)]
 mod fixtures;
 #[cfg(test)]
+mod index_aliases;
+#[cfg(test)]
+mod jobs_consolidate;
+#[cfg(test)]
 mod model_schema;
 #[cfg(test)]
 mod outcomes_cited;
@@ -52,10 +56,18 @@ mod recall_fixtures;
 #[cfg(test)]
 mod recall_fusion;
 #[cfg(test)]
+mod recall_held;
+#[cfg(test)]
 mod recall_reuse;
 #[cfg(test)]
+mod recall_synonyms;
+#[cfg(test)]
 mod recall_visible;
+#[cfg(test)]
+mod recall_visible_held;
 #[cfg(test)]
 mod replay_db;
 #[cfg(test)]
 mod replay_diff;
+#[cfg(test)]
+mod usage_rates;

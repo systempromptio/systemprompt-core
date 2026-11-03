@@ -40,8 +40,8 @@ pub use candidate::{FactCandidate, FactCandidateBuilder};
 pub use declarations::{
     ActorFilter, BaseImportance, BrainDeclError, BrainDocs, FilterDecl, FiltersDoc, Granularity,
     ImportanceConfig, InContextImportance, InterestDecl, InterestDelivery, InterestMatch,
-    ModelHint, Recency, RetrievalDoc, TierWeights, TopicDecl, TopicsDoc, UsageWeights,
-    WorkflowProfileDecl, validate,
+    ModelHint, Recency, RetrievalDoc, SynonymsDoc, SynonymsError, TierWeights, TopicDecl,
+    TopicsDoc, UsageWeights, WorkflowProfileDecl, validate,
 };
 pub use enter::{EnteredFact, EnteredStatus};
 pub use envelope::{BrainEnvelope, Pathway, PathwayWeight};
@@ -49,13 +49,14 @@ pub use event::{
     BRAIN_CONSUMER, BRAIN_EVENT_VERSION, BrainEvent, BrainEventKind, BrainEventKindError,
 };
 pub use extraction::{
-    BRAIN_EXTRACT_PURPOSE, BrainModelRequest, BrainModelResponse, BrainPrompt, ExtractionInput,
-    ExtractionOutput, ExtractionRecord, SourceNode, SourceText, StrictJsonSchema,
+    BRAIN_CONSOLIDATE_PURPOSE, BRAIN_EXTRACT_PURPOSE, BrainModelRequest, BrainModelResponse,
+    BrainPrompt, ExtractionInput, ExtractionOutput, ExtractionRecord, SourceNode, SourceText,
+    StrictJsonSchema,
 };
 pub use fact::BrainFact;
 pub use kind_decl::{ExtractorDecl, FieldDecl, FieldType, KindDecl, Materiality, SUBJECT_FIELD};
 pub use outcome::{BrainOutcome, CITED_IN_RESPONSE, OutcomeObservation, USER_CORRECTED_FACT};
-pub use payload::{CommentAnchorRef, CommentResolved, RevisionLanded};
+pub use payload::{CommentAnchorRef, CommentResolved, RevisionLanded, SessionTurnClosed};
 pub use proposal::{BrainProposal, ProposalDraft, ProposalKind, ProposalStatus};
 pub use recall::{
     FactRef, InjectionPlan, RecallAudit, RecallCtx, RecallQuery, RetrievalTier, ScoredFact,

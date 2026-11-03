@@ -5,6 +5,12 @@
 //! Every outcome, injected or skipped, is written to the audit row's
 //! `memory_recall` descriptor; recall never fails the request.
 //!
+//! A recall that misses the deadline injects nothing and is recorded as
+//! `skipped=deadline`, but the engine keeps running it in the background
+//! with the same request; the block it produces is recorded on that same
+//! receipt as a late block, so the turn's next request reuses it through
+//! the same-turn path (`reused_after_deadline`).
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -17,13 +23,15 @@ use systemprompt_extension::brain::{
     MemoryRecall, RecallConversation, RecallOutcome, RecallPrincipal, RecallReceipt, RecallRequest,
     ReuseHint, SkipReason,
 };
+use systemprompt_identifiers::AiRequestId;
 use systemprompt_identifiers::headers::MEMORY_IDS;
 use systemprompt_manifest::profile::BrainRecallProfile;
 use systemprompt_models::origin::ClientKind;
 use systemprompt_wire::canonical::{
-    CanonicalContent, CanonicalMessage, CanonicalRequest, Role, SystemBlock, is_new_user_turn,
+    CanonicalMessage, CanonicalRequest, SystemBlock, is_new_user_turn,
 };
 
+use super::super::super::audit::session::last_user_text;
 use super::super::super::audit::{GatewayAudit, GatewayRequestContext};
 
 pub(in crate::service) struct RecallStage<'a> {
@@ -80,11 +88,14 @@ pub(super) async fn apply_team_memory(
                 engine = engine.name(),
                 reason = SkipReason::Deadline.as_str(),
                 deadline_ms = profile.deadline_ms,
-                "memory recall skipped"
+                "memory recall skipped; it keeps running for the turn's next request"
             );
-            RecallOutcome::Skipped {
+            let skipped = RecallOutcome::Skipped {
                 reason: SkipReason::Deadline,
-            }
+            };
+            audit.set_memory_recall(&skipped.descriptor()).await;
+            finish_late(audit, engine, recall, ctx.ai_request_id.clone());
+            return RecallApplied::default();
         },
     };
 
@@ -105,6 +116,45 @@ pub(super) async fn apply_team_memory(
             outcome,
         )),
     }
+}
+
+/// Lets a recall that missed its deadline finish, then records the
+/// `deadline` receipt with the block it produced, so the turn's next
+/// request can reuse it. The receipt is written here, not by
+/// `record_recall`, so a deadline miss lands exactly one row.
+fn finish_late(
+    audit: &GatewayAudit,
+    engine: &Arc<dyn MemoryRecall>,
+    request: RecallRequest,
+    ai_request_id: AiRequestId,
+) {
+    let engine = Arc::clone(engine);
+    audit
+        .background()
+        .spawn("gateway_memory_recall_late", async move {
+            let skipped = RecallOutcome::Skipped {
+                reason: SkipReason::Deadline,
+            };
+            let mut receipt = RecallReceipt::new(&request, ai_request_id.clone(), skipped);
+            match engine.recall(&request).await {
+                Ok(RecallOutcome::Injected(block)) => receipt = receipt.with_late(block),
+                Ok(RecallOutcome::Skipped { .. }) => {},
+                Err(e) => tracing::warn!(
+                    ai_request_id = %ai_request_id,
+                    engine = engine.name(),
+                    error = %e,
+                    "late memory recall failed"
+                ),
+            }
+            if let Err(e) = engine.record(&receipt).await {
+                tracing::warn!(
+                    ai_request_id = %ai_request_id,
+                    engine = engine.name(),
+                    error = %e,
+                    "late memory recall receipt not recorded"
+                );
+            }
+        });
 }
 
 async fn skipped(reason: SkipReason, audit: &GatewayAudit) -> RecallApplied {
@@ -145,25 +195,6 @@ fn recall_request(
         .with_budget_tokens(profile.budget_tokens)
         .with_deadline(Duration::from_millis(profile.deadline_ms))
         .with_reuse(reuse)
-}
-
-fn last_user_text(messages: &[CanonicalMessage]) -> String {
-    messages
-        .iter()
-        .rev()
-        .find(|message| message.role == Role::User)
-        .map(|message| {
-            message
-                .content
-                .iter()
-                .filter_map(|part| match part {
-                    CanonicalContent::Text { text, .. } => Some(text.as_str()),
-                    _ => None,
-                })
-                .collect::<Vec<_>>()
-                .join("\n")
-        })
-        .unwrap_or_default()
 }
 
 pub(in crate::service) fn record_recall(

@@ -1,6 +1,8 @@
 //! [`FactRepository::apply`]: the single mutator. It updates the fact's
 //! projection, bumps its revision and appends the revision row on the same
-//! connection, so a fact and its history never disagree.
+//! connection, so a fact and its history never disagree. A change that
+//! touches the statement, fields, topics or importance (`Revised`,
+//! `Merged`, `FieldsEdited`) also refreshes the derived indexes there.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -14,6 +16,7 @@ use systemprompt_traits::RepositoryError;
 
 use super::FactRepository;
 use super::revisions::FactRevisionRepository;
+use crate::index::reindex_fact;
 use crate::models::{FactChange, FieldMap, NewRevision, decode_status};
 
 pub(super) struct SourceColumns<'a> {
@@ -161,8 +164,8 @@ impl FactRepository {
         .fetch_optional(&mut *conn)
         .await?
         .ok_or_else(|| RepositoryError::not_found("brain_fact", id))?;
-        FactRevisionRepository::insert(
-            conn,
+        let revision = FactRevisionRepository::insert(
+            &mut *conn,
             &NewRevision {
                 fact_id: id.clone(),
                 revision: row.revision,
@@ -173,6 +176,17 @@ impl FactRepository {
                 fields: row.fields.0,
             },
         )
-        .await
+        .await?;
+        if reindexes(&change) {
+            reindex_fact(conn, id).await?;
+        }
+        Ok(revision)
     }
+}
+
+const fn reindexes(change: &FactChange) -> bool {
+    matches!(
+        change,
+        FactChange::Revised { .. } | FactChange::Merged { .. } | FactChange::FieldsEdited { .. }
+    )
 }

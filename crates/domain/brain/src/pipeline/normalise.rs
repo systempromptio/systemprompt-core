@@ -9,6 +9,7 @@ use chrono::{DateTime, Utc};
 use systemprompt_identifiers::{EventOutboxId, UserId};
 use systemprompt_models::brain::{
     BrainEnvelope, BrainEvent, CommentResolved, EnteredFact, FactSource, Pathway, RevisionLanded,
+    SessionTurnClosed,
 };
 
 use crate::error::{BrainError, BrainResult};
@@ -19,6 +20,7 @@ pub enum EventPayload {
     Revision(RevisionLanded),
     Comment(CommentResolved),
     Entered(EnteredFact),
+    Session(SessionTurnClosed),
 }
 
 /// An event ready for the pipeline: its envelope and typed payload.
@@ -39,6 +41,17 @@ impl Normalised {
         &self.envelope.event.actor
     }
 
+    /// When the event says the fact was observed: an entered fact may
+    /// carry its own `observed_at`; the other pathways leave it to the
+    /// store, which records the insert time.
+    #[must_use]
+    pub const fn observed_at(&self) -> Option<DateTime<Utc>> {
+        match &self.payload {
+            EventPayload::Entered(entered) => entered.observed_at,
+            EventPayload::Revision(_) | EventPayload::Comment(_) | EventPayload::Session(_) => None,
+        }
+    }
+
     #[must_use]
     pub fn source(&self) -> FactSource {
         match &self.payload {
@@ -53,6 +66,10 @@ impl Normalised {
             },
             EventPayload::Entered(_) => FactSource::EnteredBy {
                 user_id: self.envelope.event.actor.clone(),
+            },
+            EventPayload::Session(turn) => FactSource::Session {
+                session_id: turn.session_id.clone(),
+                owner: turn.user_id.clone(),
             },
         }
     }
@@ -71,6 +88,7 @@ pub fn normalise(
         Pathway::DocumentRevision => EventPayload::Revision(serde_json::from_value(payload)?),
         Pathway::CommentResolved => EventPayload::Comment(serde_json::from_value(payload)?),
         Pathway::Entered => EventPayload::Entered(serde_json::from_value(payload)?),
+        Pathway::Session => EventPayload::Session(serde_json::from_value(payload)?),
     };
     Ok(Normalised { envelope, payload })
 }

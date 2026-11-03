@@ -193,6 +193,7 @@ async fn an_entered_fact_of_an_undeclared_kind_is_refused_and_a_declared_one_lan
         scope: FactScope::Org,
         topics: Vec::new(),
         status: EnteredStatus::Candidate,
+        observed_at: None,
     };
     let error = h
         .service

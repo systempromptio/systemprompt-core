@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT scope_key FROM brain_working_set WHERE fact_id = $1 ORDER BY scope_key",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "scope_key",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "brain_working_set",
+            "name": "scope_key"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "811522e11e38848e3d2ab94ccea424faf65baecb35343818ec7eb44391cb3686"
+}

@@ -28,11 +28,15 @@ async fn an_email_owner_resolves_to_the_users_id() {
     let mut brain = declared();
     brain.interests = vec![interest(&email.to_uppercase())];
 
-    try_apply(&h.pg, &brain).await.expect("an email owner applies");
+    try_apply(&h.pg, &brain)
+        .await
+        .expect("an email owner applies");
 
     assert_eq!(h.count(OWNER_OF, owner.as_str()).await, 1);
     let mut conn = h.pg.acquire().await.expect("acquire");
-    let state = load_declared_state(&mut conn).await.expect("declared state");
+    let state = load_declared_state(&mut conn)
+        .await
+        .expect("declared state");
     assert_eq!(state.interests[0].owner, owner, "the runtime reads the id");
     h.finish().await;
 }

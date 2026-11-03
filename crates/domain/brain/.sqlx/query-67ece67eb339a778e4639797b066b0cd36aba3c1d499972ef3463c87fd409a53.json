@@ -1,0 +1,38 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, owner_user_id AS \"owner!: UserId\" FROM brain_interests\n               WHERE owner_user_id IS NOT NULL",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "brain_interests",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "owner!: UserId",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "brain_interests",
+            "name": "owner_user_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      true
+    ]
+  },
+  "hash": "67ece67eb339a778e4639797b066b0cd36aba3c1d499972ef3463c87fd409a53"
+}

@@ -120,7 +120,7 @@ prost = { workspace = true }
 opentelemetry-proto = { workspace = true }
 
 [features]
-brain = ["dep:systemprompt-brain", "notifications", "systemprompt-runtime/brain", "systemprompt-gateway/brain"]
+brain = ["dep:systemprompt-brain", "notifications", "systemprompt-runtime/brain", "systemprompt-gateway/brain", "systemprompt-scheduler/brain"]
 collab = ["systemprompt-files/collab", "systemprompt-runtime/collab"]
 notifications = [
     "dep:systemprompt-notifications",

@@ -1,5 +1,23 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- `UsageRepository` (`list_counts_since`, `set_rates`) and the `brain_usage` job: Laplace-smoothed `usage_cited_rate` / `usage_ignored_rate` on `brain_facts` (migration `003_usage`, `schema::BRAIN_USAGE_COLUMNS`), read by `recall::score` and `FormulaImportance::in_context`. `set_rates` is the one write outside `FactRepository::apply`; it records no revision.
+- `brain_consolidate` job (`BrainConsolidateJob::run_with`, `ConsolidationParts`, `ConsolidationInactive`): scaffolding over the `FactConsolidator` seam, inactive unless the profile enables it and a consolidator is registered.
+- The session pathway in `normalise` (`EventPayload::Session`), `filter` (`CaptureSource::Session`) and routing; the producer lives in the gateway.
+- Migration `002_recall.sql`: `brain_working_set` (one row per fact per reachable scope key, cascading on delete), `brain_fact_links` (the subjects a fact's own subject and `entity` fields name), `brain_facts.search_weighted` (A: subject and identity fields, B: other fields, C: statement plus synonym expansions) beside the generated `search` column, which stays for one release, and `brain_facts.observed_at`, backfilled from `created_at`. The migration backfills every index from the stored facts, kinds and topics.
+- `WorkingSetRepository` (`refresh`, `rebuild_all`, `counts`, `keys_for`, `count_for`), `FactLinkRepository` (`refresh`, `rebuild_all`, `list_for`), `SearchIndexRepository` (`refresh`, `refresh_with_stored_synonyms`, `rebuild_all`, `vector_text`) and `SynonymsRepository::load`; `index::reindex_fact` refreshes all four indexes and the subject's aliases on the write connection after an insert, revision, merge or field edit.
+- `services/brain/synonyms.yaml` (`SynonymsDoc`, config document `synonyms`), expanded at index time; applying it, a kind or a topic rebuilds the affected index in the apply transaction (`plane::Rebuilds`).
+- `alias: true` on a kind field writes the field's value as an alias of the fact's subject; the subject id and its spaced form are always written.
+- `observed_at` on entered facts, `BrainFact`, `NewFactBuilder::observed_at` and `FactFilter::with_as_of`; `as_of` on `GET /api/v1/brain/facts`, the simulator body and `brain_recall_preview`.
+- The sweep rebuilds a drifted working set and counts `brain_working_set_rebuilds_total`.
+
+### Changed
+
+- `BrainFact` carries `usage_cited_rate` and `usage_ignored_rate`; `recall::score::ImportanceTerms` adds `usage`.
+
 ## [0.77.0] - 2026-11-01
 
 ### Added

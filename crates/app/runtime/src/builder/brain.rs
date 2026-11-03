@@ -170,7 +170,8 @@ impl BrainCore {
         audiences.push(Arc::new(UserRoleAudienceResolver::new(Arc::clone(
             &self.users,
         ))));
-        let store = BrainRecallStore::new((*self.repos).clone(), self.profile.recall.stale);
+        let store = BrainRecallStore::new((*self.repos).clone(), self.profile.recall.stale)
+            .with_working_set(self.profile.recall.working_set);
         let source_access: Arc<dyn SourceAccess> = Arc::new(DocumentSourceAccess::new(
             Arc::clone(documents.access()),
             Arc::clone(documents.repositories()),

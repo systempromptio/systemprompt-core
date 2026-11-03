@@ -81,12 +81,7 @@ impl GatewayAudit {
         );
         receipt.completion = Some(completion);
         super::journal::record(&self.settlement, receipt).await?;
-        super::metrics::record_completion(
-            self.ctx.origin.wire.as_str(),
-            &self.served_provider(),
-            latency_ms,
-            upstream_latency_ms,
-        );
+        self.after_settlement(response, latency_ms, upstream_latency_ms);
 
         tracing::info!(
             ai_request_id = %self.ctx.ai_request_id,
@@ -109,8 +104,46 @@ impl GatewayAudit {
             tool_calls = tool_calls.len(),
             "Gateway audit: request completed"
         );
-        self.observe_recall(response);
         Ok(cost)
+    }
+
+    /// Metrics, the recall observation and the session capture once the
+    /// receipt is journalled; none of them can fail the completion.
+    fn after_settlement(
+        &self,
+        response: &CanonicalResponse,
+        latency_ms: i32,
+        upstream_latency_ms: Option<i32>,
+    ) {
+        super::metrics::record_completion(
+            self.ctx.origin.wire.as_str(),
+            &self.served_provider(),
+            latency_ms,
+            upstream_latency_ms,
+        );
+        self.observe_recall(response);
+        self.capture_session(response);
+    }
+
+    fn capture_session(&self, response: &CanonicalResponse) {
+        let Some(capture) = self.session_capture.as_ref() else {
+            return;
+        };
+        let texts = super::session::TurnTexts {
+            user: self.user_turn.get().cloned().unwrap_or_default(),
+            assistant: super::super::parse::extract_assistant_text(response).unwrap_or_default(),
+        };
+        let Some(event) = capture.event_for(&self.ctx, &texts) else {
+            return;
+        };
+        let capture = Arc::clone(capture);
+        let ai_request_id = self.ctx.ai_request_id.clone();
+        self.background
+            .spawn("gateway_brain_session_turn", async move {
+                if let Err(error) = capture.emit(&event).await {
+                    tracing::warn!(%ai_request_id, error, "session turn not recorded");
+                }
+            });
     }
 
     pub fn observe_recall_with(&self, engine: Arc<dyn MemoryRecall>) {

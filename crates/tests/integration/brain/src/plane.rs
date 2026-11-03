@@ -2,8 +2,8 @@ use std::collections::BTreeMap;
 
 use systemprompt_brain::plane::{BrainPlane, DeclaredBrain};
 use systemprompt_extension::prelude::{
-    ChangeSource, ConfigPlane, ConfigPlaneResult, PlaneContext, PlaneSnapshot, PlaneTx, ResolvedEntities,
-    ResolvedEntity,
+    ChangeSource, ConfigPlane, ConfigPlaneResult, PlaneContext, PlaneSnapshot, PlaneTx,
+    ResolvedEntities, ResolvedEntity,
 };
 use systemprompt_identifiers::{FactKindId, TopicId, WorkflowId};
 use systemprompt_models::brain::{
@@ -38,6 +38,7 @@ fn text_field(required: bool) -> FieldDecl {
         max_len: Some(200),
         entity_ref: None,
         values: Vec::new(),
+        alias: false,
     }
 }
 
@@ -109,6 +110,7 @@ pub(crate) fn declared() -> DeclaredBrain {
         filters: Some(FiltersDoc::default()),
         importance: Some(ImportanceConfig::default()),
         retrieval: Some(RetrievalDoc::default()),
+        synonyms: None,
     }
 }
 
@@ -133,10 +135,7 @@ pub(crate) async fn apply(pool: &sqlx::PgPool, brain: &DeclaredBrain) {
     try_apply(pool, brain).await.expect("plane write");
 }
 
-pub(crate) async fn try_apply(
-    pool: &sqlx::PgPool,
-    brain: &DeclaredBrain,
-) -> ConfigPlaneResult<()> {
+pub(crate) async fn try_apply(pool: &sqlx::PgPool, brain: &DeclaredBrain) -> ConfigPlaneResult<()> {
     let deps = Dependencies::new();
     let root = std::env::temp_dir();
     let ctx = PlaneContext::new(&root, &deps);

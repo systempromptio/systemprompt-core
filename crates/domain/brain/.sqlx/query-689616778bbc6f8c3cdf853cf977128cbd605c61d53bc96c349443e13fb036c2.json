@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT statement FROM brain_facts WHERE id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "statement",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "brain_facts",
+            "name": "statement"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "689616778bbc6f8c3cdf853cf977128cbd605c61d53bc96c349443e13fb036c2"
+}

@@ -9,7 +9,8 @@
 //! Producers emit through the injected [`BrainSink`] inside their own
 //! transaction. Extensions contribute filters, extractors, validators,
 //! importance models, source content, retrievers, injection policies,
-//! outcome signals and analyses with the `register_brain_*!` macros; each
+//! outcome signals, analyses and consolidators with the `register_brain_*!`
+//! macros; each
 //! registration carries a `priority` and a factory over the
 //! [`crate::ExtensionContext`], and the matching `discover_*` function
 //! returns them sorted by ascending priority. The async traits are held as
@@ -23,6 +24,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod consolidate;
 mod errors;
 mod recall;
 mod registry;
@@ -31,22 +33,23 @@ mod retrieval;
 mod source_access;
 mod traits;
 
+pub use consolidate::{ConsolidationInput, FactConsolidator};
 pub use errors::{
-    BrainAnalysisError, BrainExtractError, BrainModelError, BrainSinkError, BrainValidateError,
-    OutcomeSignalError, RecallError, SourceAccessError, SourceContentError,
+    BrainAnalysisError, BrainConsolidateError, BrainExtractError, BrainModelError, BrainSinkError,
+    BrainValidateError, OutcomeSignalError, RecallError, SourceAccessError, SourceContentError,
 };
 pub use recall::{
     MAX_SUBJECT_HINTS, MemoryRecall, RecallConversation, RecallObservation, RecallOutcome,
     RecallPrincipal, RecallReceipt, RecallRequest, ReuseHint, SkipReason,
 };
 pub use registry::{
-    BrainAnalysisRegistration, BrainExtractorRegistration, BrainFilterRegistration,
-    BrainImportanceRegistration, BrainInjectionPolicyRegistration, BrainOutcomeSignalRegistration,
-    BrainRetrieverRegistration, BrainSourceContentRegistration, BrainValidatorRegistration,
-    discover_brain_analyses, discover_brain_extractors, discover_brain_filters,
-    discover_brain_importance_models, discover_brain_injection_policies,
-    discover_brain_outcome_signals, discover_brain_retrievers, discover_brain_source_contents,
-    discover_brain_validators,
+    BrainAnalysisRegistration, BrainConsolidatorRegistration, BrainExtractorRegistration,
+    BrainFilterRegistration, BrainImportanceRegistration, BrainInjectionPolicyRegistration,
+    BrainOutcomeSignalRegistration, BrainRetrieverRegistration, BrainSourceContentRegistration,
+    BrainValidatorRegistration, discover_brain_analyses, discover_brain_consolidators,
+    discover_brain_extractors, discover_brain_filters, discover_brain_importance_models,
+    discover_brain_injection_policies, discover_brain_outcome_signals, discover_brain_retrievers,
+    discover_brain_source_contents, discover_brain_validators,
 };
 pub use render::{InjectedFact, RecallBlock, WithheldSummary};
 pub use retrieval::{

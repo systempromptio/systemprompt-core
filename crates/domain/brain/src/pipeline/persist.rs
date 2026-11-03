@@ -4,11 +4,13 @@
 //! fact is inserted with revision 1; a revision, merge or dispute is a
 //! [`FactChange`] applied to the existing fact, so every change has its
 //! revision row; a dispute also opens a dispute row and never overwrites
-//! the fact.
+//! the fact. The repository refreshes the derived indexes (working set,
+//! links, aliases, weighted search) on the same connection as each write.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use chrono::{DateTime, Utc};
 use sqlx::PgConnection;
 use systemprompt_identifiers::{BrainFactId, PipelineVersion, TopicId, UserId};
 use systemprompt_models::brain::FactCandidate;
@@ -31,6 +33,7 @@ pub struct PersistPlan<'a> {
     pub actor: &'a UserId,
     pub version: &'a PipelineVersion,
     pub dispute_reason: Option<&'a str>,
+    pub observed_at: Option<DateTime<Utc>>,
 }
 
 /// What the write did to the store.
@@ -111,6 +114,7 @@ async fn insert(conn: &mut PgConnection, plan: &PersistPlan<'_>) -> BrainResult<
     .status(plan.lifecycle.status)
     .importance_base(plan.lifecycle.importance_base)
     .review_after(plan.lifecycle.review_after)
+    .observed_at(plan.observed_at)
     .pipeline_version(plan.version.clone());
     if let Some(owner) = &plan.routed.owner {
         builder = builder.owner(owner.clone());

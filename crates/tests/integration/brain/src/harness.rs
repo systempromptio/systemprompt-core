@@ -8,6 +8,7 @@ use systemprompt_brain::{BrainRepositories, OutboxBrainSink};
 use systemprompt_database::DbPool;
 use systemprompt_events::services::durable::{DurableOutbox, OutboxConsumer};
 use systemprompt_extension::brain::{DynBrainSink, EventFilter, FactExtractor, SourceContent};
+use systemprompt_extension::notifications::NotificationAudienceResolver;
 use systemprompt_identifiers::{BrainFactId, EventOutboxId, UserId};
 use systemprompt_manifest::profile::{AutoConfirm, BrainProfile};
 use systemprompt_models::brain::{BRAIN_CONSUMER, BrainEvent, BrainFact};
@@ -242,13 +243,22 @@ impl Harness {
     }
 
     pub(crate) fn recall(&self) -> BrainRecallService {
-        let store = BrainRecallStore::new((*self.repos).clone(), self.profile.recall.stale);
+        self.recall_with(Vec::new())
+    }
+
+    pub(crate) fn recall_with(
+        &self,
+        audiences: Vec<Arc<dyn NotificationAudienceResolver>>,
+    ) -> BrainRecallService {
+        let store = BrainRecallStore::new((*self.repos).clone(), self.profile.recall.stale)
+            .with_working_set(self.profile.recall.working_set);
         BrainRecallService::builder(
             Arc::new(store),
             Arc::clone(&self.access) as _,
             Arc::new(PlaneDeclaredSource::new((*self.repos).clone())),
             Arc::new(self.profile.clone()),
         )
+        .audiences(audiences)
         .build()
     }
 }

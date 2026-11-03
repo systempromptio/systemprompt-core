@@ -43,6 +43,60 @@ pub(crate) struct FakeResolver {
     pub(crate) member: UserId,
 }
 
+/// A resolver that enumerates (or cannot) and counts per-fact queries.
+pub(crate) struct EnumeratingResolver {
+    pub(crate) name: &'static str,
+    pub(crate) held: Option<Vec<AudienceSubject>>,
+    pub(crate) queried: std::sync::atomic::AtomicUsize,
+}
+
+impl EnumeratingResolver {
+    pub(crate) fn new(name: &'static str, held: Option<Vec<AudienceSubject>>) -> Self {
+        Self {
+            name,
+            held,
+            queried: std::sync::atomic::AtomicUsize::new(0),
+        }
+    }
+
+    pub(crate) fn queries(&self) -> usize {
+        self.queried.load(std::sync::atomic::Ordering::SeqCst)
+    }
+}
+
+#[async_trait::async_trait]
+impl NotificationAudienceResolver for EnumeratingResolver {
+    fn name(&self) -> &'static str {
+        self.name
+    }
+
+    fn handles(&self, subject: &AudienceSubject) -> bool {
+        matches!(subject, AudienceSubject::Role(_))
+    }
+
+    async fn members(
+        &self,
+        _subject: &AudienceSubject,
+        _limit: usize,
+    ) -> Result<Vec<UserId>, NotificationAudienceError> {
+        Ok(Vec::new())
+    }
+
+    async fn is_member(
+        &self,
+        _subject: &AudienceSubject,
+        _user: &UserId,
+    ) -> Result<Membership, NotificationAudienceError> {
+        self.queried
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        Ok(Membership::Member)
+    }
+
+    async fn held(&self, _user: &UserId) -> Option<Vec<AudienceSubject>> {
+        self.held.clone()
+    }
+}
+
 #[async_trait::async_trait]
 impl NotificationAudienceResolver for FakeResolver {
     fn name(&self) -> &'static str {

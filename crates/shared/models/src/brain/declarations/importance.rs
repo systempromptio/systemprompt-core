@@ -60,12 +60,23 @@ impl Default for Recency {
     }
 }
 
-/// How past citation and neglect move a fact's score.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize)]
+/// How past citation and neglect move a fact's score. The rates are the
+/// `brain_usage` job's Laplace-smoothed shares, so the defaults add at most
+/// `cited_rate_weight` and subtract at most `ignored_penalty`.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields, default)]
 pub struct UsageWeights {
     pub cited_rate_weight: f64,
     pub ignored_penalty: f64,
+}
+
+impl Default for UsageWeights {
+    fn default() -> Self {
+        Self {
+            cited_rate_weight: 0.2,
+            ignored_penalty: 0.1,
+        }
+    }
 }
 
 /// `retrieval.yaml`.
@@ -76,6 +87,9 @@ pub struct RetrievalDoc {
     pub rrf_k: u32,
     pub max_facts: u32,
     pub quotas: BTreeMap<FactKindId, u32>,
+    /// The subject-tier score of a fact reached through one
+    /// `brain_fact_links` hop, relative to a direct subject match at `1.0`.
+    pub links_weight: f64,
 }
 
 impl Default for RetrievalDoc {
@@ -85,6 +99,7 @@ impl Default for RetrievalDoc {
             rrf_k: 60,
             max_facts: 12,
             quotas: BTreeMap::new(),
+            links_weight: 0.6,
         }
     }
 }

@@ -252,7 +252,7 @@ pub(crate) fn make_job_context(
     budget: Option<DbBudget>,
     inventory_memo: &Arc<InventoryRefreshMemo>,
 ) -> JobContext {
-    let dependencies = Dependencies::new()
+    let dependencies = brain_dependencies(&app_context, Dependencies::new())
         .with(Arc::clone(inventory_memo))
         .with(Arc::clone(app_context.app_paths_arc()))
         .with(Arc::clone(app_context.files_config()))
@@ -268,6 +268,22 @@ pub(crate) fn make_job_context(
         .with(extension_context(&app_context))
         .with(app_context);
     JobContext::new(actor, dependencies)
+}
+
+/// The brain jobs' consolidation model client and producer sink, present
+/// only with the `brain` feature and once the brain subsystem is up.
+#[cfg(feature = "brain")]
+fn brain_dependencies(app_context: &AppContext, dependencies: Dependencies) -> Dependencies {
+    let mut dependencies = dependencies.with(app_context.brain_consolidation_model());
+    if let Some(sink) = app_context.brain_sink() {
+        dependencies.insert(sink);
+    }
+    dependencies
+}
+
+#[cfg(not(feature = "brain"))]
+const fn brain_dependencies(_: &AppContext, dependencies: Dependencies) -> Dependencies {
+    dependencies
 }
 
 fn extension_context(app_context: &Arc<AppContext>) -> Arc<dyn ExtensionContext> {

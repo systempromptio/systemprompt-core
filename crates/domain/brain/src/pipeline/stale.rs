@@ -27,7 +27,7 @@ pub async fn mark_stale(
         EventPayload::Comment(resolved) => {
             FactRepository::mark_stale_for_comment(conn, &resolved.comment_id).await?
         },
-        EventPayload::Entered(_) => Vec::new(),
+        EventPayload::Entered(_) | EventPayload::Session(_) => Vec::new(),
     };
     if !staled.is_empty() {
         tracing::debug!(

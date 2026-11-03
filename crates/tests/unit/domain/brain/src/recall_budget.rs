@@ -86,13 +86,48 @@ fn the_token_cap_withholds_what_does_not_fit_and_keeps_smaller_facts() {
 }
 
 #[test]
-fn max_facts_caps_the_count() {
+fn max_facts_caps_the_count_and_is_reported_as_max_facts_not_budget() {
     let plan = fill(
-        vec![candidate(1, "a", 0.9, 4), candidate(2, "a", 0.8, 4)],
+        vec![
+            candidate(1, "a", 0.9, 4),
+            candidate(2, "a", 0.8, 4),
+            candidate(3, "a", 0.7, 4),
+        ],
         &limits(&[], 1, 100),
     );
     assert_eq!(plan.facts.len(), 1);
+    assert_eq!(
+        reasons(&plan),
+        vec![WithheldReason::MaxFacts, WithheldReason::MaxFacts]
+    );
+}
+
+#[test]
+fn the_count_cut_and_the_token_cut_are_told_apart() {
+    let plan = fill(
+        vec![
+            candidate(1, "a", 0.9, 4),
+            candidate(2, "a", 0.8, 400),
+            candidate(3, "a", 0.7, 4),
+        ],
+        &limits(&[], 2, 10),
+    );
+    let ids: Vec<_> = plan.facts.iter().map(|s| s.fact.id.clone()).collect();
+    assert_eq!(ids, vec![id(1), id(3)]);
     assert_eq!(reasons(&plan), vec![WithheldReason::Budget]);
+    let capped = fill(
+        vec![
+            candidate(1, "a", 0.9, 4),
+            candidate(2, "a", 0.8, 4),
+            candidate(3, "a", 0.7, 400),
+        ],
+        &limits(&[], 2, 10),
+    );
+    assert_eq!(
+        reasons(&capped),
+        vec![WithheldReason::MaxFacts],
+        "a fact past the count is max_facts even when it would not fit either"
+    );
 }
 
 #[test]

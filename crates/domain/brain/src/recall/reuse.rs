@@ -24,7 +24,8 @@ pub fn parse_stored(stored: &StoredBlock) -> Option<RecallBlock> {
     let mut lines = stored.rendered.lines();
     let header = lines.next()?.strip_prefix(OPEN)?.strip_suffix("\">")?;
     let (scope, _) = header.split_once(AS_OF)?;
-    let mut block = RecallBlock::new(unescape(scope), stored.as_of);
+    let mut block =
+        RecallBlock::new(unescape(scope), stored.as_of).with_reused_after_deadline(stored.late);
     let mut refs = stored.facts.iter();
     for line in lines {
         if line == CLOSE {

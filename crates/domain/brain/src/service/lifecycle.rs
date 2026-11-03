@@ -12,8 +12,8 @@ use systemprompt_identifiers::BrainFactId;
 use systemprompt_models::brain::{FactRevision, render_statement};
 
 use super::{BrainCaller, BrainService, authority};
-use crate::error::{BrainError, BrainResult};
 use crate::defaults::SchemaValidator;
+use crate::error::{BrainError, BrainResult};
 use crate::models::{FactChange, merge_fields};
 use crate::pipeline::rules;
 use crate::repository::FactRepository;

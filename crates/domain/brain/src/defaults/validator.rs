@@ -75,7 +75,8 @@ impl SchemaValidator {
                 candidate.subject.kind, kind.subject
             ));
         }
-        Self::fields_reason(&candidate.fields, kind).or_else(|| span_reason(&candidate.source, text))
+        Self::fields_reason(&candidate.fields, kind)
+            .or_else(|| span_reason(&candidate.source, text))
     }
 
     /// Why `fields` is not a valid field map for `kind`: an undeclared

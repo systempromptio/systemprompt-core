@@ -79,6 +79,14 @@ pub trait NotificationAudienceResolver: Send + Sync {
         subject: &AudienceSubject,
         user: &UserId,
     ) -> Result<Membership, NotificationAudienceError>;
+
+    /// Every subject this resolver can say the user belongs to, enumerated
+    /// once so a recall needs no per-fact membership query. `None` means
+    /// the resolver cannot enumerate (or could not read); the caller then
+    /// falls back to `is_member` per fact for the subjects it handles.
+    async fn held(&self, _user: &UserId) -> Option<Vec<AudienceSubject>> {
+        None
+    }
 }
 
 /// A publish policy's decision on one publisher and stream.

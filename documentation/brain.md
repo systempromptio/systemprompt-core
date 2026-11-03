@@ -135,6 +135,7 @@ The brain's declarations are YAML under `services/brain/`. `systemprompt config 
 | `filters.yaml` | Declared event filters |
 | `importance.yaml` | The importance formula's weights |
 | `retrieval.yaml` | Retrieval tier weights, fusion constant, fact cap and quotas |
+| `synonyms.yaml` | Groups of terms the search index treats as one |
 | `kinds/*.yaml` | One fact kind per file |
 | `interests/*.yaml` | One interest per file |
 | `profiles/*.yaml` | One workflow profile per file |
@@ -172,7 +173,7 @@ extractor:
   prompt_version: "1"
 ```
 
-Field types are `text`, `entity`, `date`, `number`, `bool` and `enum`. A template substitutes `{name}` with a field and `{subject}` with the subject id; a group `{name? text}` is included only when `name` has a value. An extractor is `{type: model, prompt, prompt_version}` or `{type: parser, name}`.
+Field types are `text`, `entity`, `date`, `number`, `bool` and `enum`. A field may also declare `alias: true`: its value is written as an alias of the fact's subject, so a later mention by that name resolves to the subject. A template substitutes `{name}` with a field and `{subject}` with the subject id; a group `{name? text}` is included only when `name` has a value. An extractor is `{type: model, prompt, prompt_version}` or `{type: parser, name}`.
 
 Topics:
 
@@ -258,6 +259,32 @@ quotas: {client_contact: 6}
 
 Source weight keys are `document`, `comment`, `session`, `entered_by`, `external`, `run` and `aggregate`.
 
+Synonyms:
+
+```yaml
+# services/brain/synonyms.yaml
+groups:
+  - [invoice, bill, statement of account]
+  - [client, customer]
+```
+
+Every group needs at least two non-blank members. The groups expand at index time, not at query time: when any member occurs in a fact's text (whole words, case-insensitive; a multi-word member as a phrase), every member of that group is appended to the text indexed at the lowest search weight. Applying a changed `synonyms.yaml` rewrites every fact's weighted vector in the same apply transaction. Without the file there are no groups.
+
+### What a write keeps current
+
+Every fact write (a capture insert, a revision, a merge, a field edit) refreshes four derived indexes on the same connection, in the same transaction, from the stored fact, its kind declaration and the topics table, so a console edit and a captured candidate index identically:
+
+| Index | Holds | Changes when |
+|---|---|---|
+| `brain_working_set` | One row per fact per scope key it is reachable through: its own scope (`org`, `user:<id>`, `project:<key>`, `group:<key>`) and each audience subject of its topics (`role:<r>`, `user:<id>`, `<dimension>:<value>`; `everyone` folds into `org`), with its `importance_base` | Insert; a revision of scope, topics or importance; a topic's audience (the apply rebuilds the table); delete (the foreign key cascades). Status, review, validity and pinning stay on `brain_facts` and are filtered at read |
+| `brain_fact_links` | The subjects a fact mentions: its own subject via `subject`, and each `entity` field's value via that field's name (`<kind>:<id>` as written, or the field's declared `ref` kind with a bare value) | Insert, revision, field edit; a kind's fields (the apply rebuilds) |
+| `brain_aliases` | For the fact's subject: the id, the id with `-` and `_` as spaces, the subject's display name, and every `alias: true` field value | Insert, revision, field edit; an alias moves to the latest subject written with it |
+| `brain_facts.search_weighted` | `A`: the subject id and identity field values; `B`: every other field value; `C`: the statement plus its synonym expansions | Insert, revision, field edit; a kind or the synonyms document (the apply rebuilds). The generated `search` column stays for one release beside it |
+
+The sweep (`consumer.sweep_secs`) compares the working set's row count with the count the facts and topics imply and rebuilds the table when they differ, counting `brain_working_set_rebuilds_total`.
+
+Every fact also carries `observed_at`, when it was observed to hold: the `observed_at` an entered fact names, else the insert time. The upgrade backfills it from `created_at`. An `as_of` read (`GET /api/v1/brain/facts?as_of=`, the simulator and `brain_recall_preview`) keeps only facts observed at or before that instant and valid then.
+
 ## Profile settings
 
 The `brain` block of the profile is optional and every field has a default. Booleans are YAML `true` and `false`; `on` and `off` are refused.
@@ -273,8 +300,9 @@ brain:
     clients: {claude-code: true, claude-desktop: true}
     stale: withhold               # or marker
   capture:
-    sources: [document, comment, session, entered]
+    sources: [document, comment, entered]
     auto_confirm: {document: project_policy, others: never}
+    session: {enabled: false, max_chars: 4000}   # scaffolding; see Scaffolding
   extraction:
     model: claude-sonnet-4-5      # optional; the gateway's default when unset
     max_output_tokens: 2048
@@ -291,18 +319,24 @@ brain:
     poll_secs: 5
     sweep_secs: 300
     source_timeout_ms: 5000
+  consolidation:
+    enabled: false                 # scaffolding; see Scaffolding
+    daily_token_budget: null       # falls back to extraction.daily_token_budget
 ```
 
 | Field | Default | Effect |
 |---|---|---|
 | `enabled` | `false` | Master switch; see [Enabling](#enabling) |
 | `recall.budget_tokens` | `800` | Token budget of one `<team_memory>` block; a workflow's `budget_tokens` can lower it |
-| `recall.deadline_ms` | `50` | A recall past this is skipped as `deadline` |
+| `recall.deadline_ms` | `200` | A recall past this is skipped as `deadline`; the engine keeps it running for the turn's next request (see [Deadline](#deadline)). Measured in the 2026-11-02 proving run |
 | `recall.source_timeout_ms` | `40` | Bound on each source check at recall; a check past it withholds the fact as `source`. Keep it under `recall.deadline_ms` |
 | `recall.scopes` | all four | Scope levels recall searches |
 | `recall.clients` | `claude-code: true`, `claude-desktop: true` | Clients recall runs for, keyed by `x-systemprompt-client` name; an unlisted client is off |
 | `recall.stale` | `withhold` | `withhold` drops stale facts; `marker` injects them with the stale marker |
-| `capture.sources` | all four | Pathways captured; an event on any other is ignored before the filters run |
+| `recall.working_set` | `true` | Every tier reads the precomputed `brain_working_set` candidates for the keys the principal holds. `false` runs the previous scope-predicate SQL; removed in the next release |
+| `capture.sources` | `document`, `comment`, `entered` | Pathways captured; an event on any other is ignored before the filters run. `session` is accepted and off by default |
+| `capture.session.enabled` | `false` | With `session` in `sources`, the gateway emits `session.turn.closed` per completed turn ([Scaffolding](#scaffolding-inactive-unless-an-extension-opts-in)) |
+| `capture.session.max_chars` | `4000` | Characters kept of each of the last user and assistant texts in a session event |
 | `capture.auto_confirm.document` | `project_policy` | Confirmation of document- and comment-sourced facts: `never`, `project_policy` or `always` |
 | `capture.auto_confirm.others` | `never` | Confirmation of every other source |
 | `extraction.provider` | None | Accepted by the schema |
@@ -319,6 +353,8 @@ brain:
 | `consumer.poll_secs` | `5` | Longest wait between rounds when no wake-up arrives |
 | `consumer.sweep_secs` | `300` | Interval of the store sweep |
 | `consumer.source_timeout_ms` | `5000` | Bound on each source read at extraction |
+| `consolidation.enabled` | `false` | Runs `brain_consolidate` when a `FactConsolidator` is registered ([Scaffolding](#scaffolding-inactive-unless-an-extension-opts-in)) |
+| `consolidation.daily_token_budget` | unset | Tokens the consolidation job may spend per UTC day; unset uses `extraction.daily_token_budget` |
 
 The `brain_per_second` key of `rate_limits` (default `50`) bounds the brain routes.
 
@@ -334,8 +370,8 @@ All `/api/v1/brain` routes require a signed-in, active user; an inactive account
 
 | Method and path | Body or query | Success |
 |---|---|---|
-| `GET /api/v1/brain/facts` | Query: `kind`, `subject` (`kind:id`), `status` (comma-separated), `limit` (1 to 500, default 100), `project` | `200` with an array of facts |
-| `POST /api/v1/brain/facts` | `{kind, subject: {kind, id}, fields, scope, topics?, status?}`; `status` is `candidate` (default) or `proposed` | `202` with `{outbox_id}`; the consumer builds the fact. An erased identity answers `409` `fact_tombstoned` |
+| `GET /api/v1/brain/facts` | Query: `kind`, `subject` (`kind:id`), `status` (comma-separated), `limit` (1 to 500, default 100), `project`, `as_of` (RFC 3339) | `200` with an array of facts |
+| `POST /api/v1/brain/facts` | `{kind, subject: {kind, id}, fields, scope, topics?, status?, observed_at?}`; `status` is `candidate` (default) or `proposed`; `observed_at` defaults to the insert time | `202` with `{outbox_id}`; the consumer builds the fact. An erased identity answers `409` `fact_tombstoned` |
 | `GET /api/v1/brain/facts/{id}` | None | `200` with the fact |
 | `GET /api/v1/brain/facts/{id}/timeline` | None | `200` with the fact's revisions |
 | `GET /api/v1/brain/facts/{id}/why` | Query: `project`, `client` | `200` with `{fact, terms, withheld}` |
@@ -352,7 +388,7 @@ All `/api/v1/brain` routes require a signed-in, active user; an inactive account
 | `POST /api/v1/brain/proposals/{id}/approve` | None | `204` |
 | `POST /api/v1/brain/proposals/{id}/reject` | None | `204` |
 | `POST /api/v1/brain/proposals/{id}/replay` | `{since, until}` (RFC 3339) | `200` with the dry-run report, also stored on the proposal |
-| `POST /api/v1/admin/brain/simulate` | `{user_id, client, project?, prompt?, reuse?, conversation_id?}` | `200` with `{descriptor, skipped?, block?}` |
+| `POST /api/v1/admin/brain/simulate` | `{user_id, client, project?, prompt?, reuse?, conversation_id?, as_of?}` | `200` with `{descriptor, skipped?, block?}` |
 
 `scope` is written `{level, key}`, for example `{"level": "project", "key": "sales"}` or `{"level": "org"}`. Unknown query parameters and body fields are refused.
 
@@ -396,7 +432,7 @@ An MCP server composes the brain tools as one set. Every call acts as the authen
 | `brain_propose` | `kind`, `subject` (`kind:id` string), `fields`, `topics?`, `scope?` (default: the caller's own), `status?` (only `proposed`) | `{outbox_id}`; an erased identity is refused with `tombstoned` |
 | `brain_dispute` | `fact_id`, `reason` | `{dispute_id}` |
 | `brain_why` | `fact_id`, `project?` | The importance terms (`base`, `subject`, `workflow`, `recency`, `total`) and `withheld` |
-| `brain_recall_preview` | `prompt`, `project?` | `injected`, `block` or `skipped`, `withheld` by reason, `tokens`; records nothing |
+| `brain_recall_preview` | `prompt`, `project?`, `as_of?` (RFC 3339) | `injected`, `block` or `skipped`, `withheld` by reason, `tokens`; records nothing |
 | `brain_guide` | `topics?`: `facts`, `scopes`, `recall`, `proposing`, `refusals` | The guide text |
 
 A call to `brain_confirm`, `brain_approve`, `brain_retract`, `brain_pin`, `brain_erase` or `brain_resolve` is refused with `agent_forbidden`.
@@ -444,15 +480,19 @@ The brain's own extraction calls run with memory off.
 
 A request that opens a new user turn runs a full recall. A request that continues a turn, such as a tool-result round trip, reuses the block the turn already sent. The stored block is accepted only when it names the same facts in the same order and renders to identical bytes, so the prompt cache stays warm, the ids header keeps its revisions and nothing changes mid-task.
 
-Only a recall that injected stores a block. A turn whose first recall was skipped, for example as `deadline`, has no stored block, so every follow-up request of that turn is `not_new_turn` and carries no memory.
+Only a recall that produced a block stores one: an injecting recall, or a recall that missed its deadline and finished afterwards (see [Deadline](#deadline)). A turn whose first recall was skipped for any other reason has no stored block, so every follow-up request of that turn is `not_new_turn` and carries no memory.
+
+### Deadline
+
+A recall that runs past `recall.deadline_ms` injects nothing into that request, which is audited `skipped=deadline`. The engine keeps the same recall running in the background, with no deadline, and records its `deadline` row only when it finishes: when it produced a block, the row carries that block (`rendered_block`, the `injected` refs, `withheld`, `tokens`), stored and never sent. The turn's next request, a tool-result round trip, reuses it through the same-turn path, and its descriptor reads `injected=<n> withheld=<n> tokens=<n> as_of=<time> reused_after_deadline`. The reuse writes an ordinary injecting row, so later requests of the turn reuse that one and carry no suffix. A deadline miss lands exactly one `brain_recalls` row. The simulator applies the same deadline but answers `deadline_exceeded` and runs nothing in the background.
 
 ### A new-turn recall
 
-1. **Context.** The principal's user, client, actor and `project` attribution. A workflow profile whose `id` equals the project is selected.
-2. **Retrieval.** Four tiers run concurrently, each scope-filtered in SQL for the principal: pinned facts, facts whose subject matches the last user message, the request project's facts by stored importance, and full-text matches over the last user message. The tiers are fused by weighted reciprocal rank (`retrieval.yaml`), then extension retrievers may boost.
-3. **Lifecycle.** The tier SQL excludes review-due, out-of-validity, `candidate`, `disputed`, `superseded` and `retired` facts before anything else runs, and stale facts unless `recall.stale` is `marker`. A `proposed` fact reaches only its owner. Facts excluded here are never counted as withheld.
-4. **Visibility.** Each remaining fact passes `(scope allows or topic audience contains) and granularity allows and source allows`, as described in [Concepts](#concepts).
-5. **Fill.** An extension injection policy may choose the facts. Otherwise facts are taken in descending in-context importance while their kind is under its quota (`quota`), the count is under `max_facts`, and the estimated tokens (a quarter of the characters, rounded up) fit the budget (`budget`).
+1. **Context.** The principal's user, client, actor and `project` attribution. A workflow profile whose `id` equals the project is selected. `now` is read once and is the only clock every tier, the lifecycle check and the importance score use; `as_of` is `now` unless the request asked for an earlier view. The **held keys** are built once: `org`, `user:<id>`, `project:<attribution>` when there is one, and every audience subject the injected audience resolvers can enumerate for the user (`role:<name>` from core's role resolver, `group:<key>` or any `<dimension>:<value>` from an extension's), rendered in the subject's display form; `everyone` is `org`. A resolver that cannot enumerate contributes nothing, and the subjects it handles stay on the per-fact membership check.
+2. **Retrieval.** Four tiers run concurrently over the **candidate set**: the facts `brain_working_set` indexes under a held key (a fact's own scope key and the audience of each of its topics; kept current on every write). Pinned candidates; candidates whose subject the last user message names, directly (an alias or the subject id, score `1.0`) or through one `brain_fact_links` hop (`retrieval.yaml` `links_weight`, default `0.6`); the request project's candidates by stored importance; and full-text matches of the synonym-expanded message over the weighted search vector (`ts_rank_cd`, length-normalised). Every tier orders by its rank, then stored importance, then fact id, so two identical recalls answer identically. The tiers are fused by weighted reciprocal rank (`retrieval.yaml`), then extension retrievers may boost.
+3. **Lifecycle.** The tier SQL admits a candidate only as of `as_of`: observed by then (`observed_at`), inside its validity window then, not yet due for review then; `confirmed`, `proposed` only for its owner, `stale` only when `recall.stale` is `marker`. The candidates it keeps out are counted in one grouped query and reported as withheld: `stale`, `review_due` and `disputed`. `candidate`, `superseded` and `retired` facts are not candidates and are not counted.
+4. **Visibility.** Each remaining fact passes `(scope allows or topic audience contains) and granularity allows and source allows`, as described in [Concepts](#concepts). A role or dimension audience is answered from the held keys; only a subject handled by a resolver that could not enumerate is asked per fact.
+5. **Fill.** An extension injection policy may choose the facts. Otherwise facts are taken in descending in-context importance while their kind is under its quota (`quota`), the count is under `max_facts` (`max_facts`), and the estimated tokens (a quarter of the characters, rounded up) fit the budget (`budget`).
 
 The block is appended after the client's system prompt:
 
@@ -462,7 +502,9 @@ The block is appended after the client's system prompt:
 </team_memory>
 ```
 
-The scope attribute is the project, or `org` when the request carries none. Only facts that reach the visibility and fill passes are counted as withheld, so the reasons reported are `scope`, `quota` and `budget`, plus `source`, `agent_capped` and `unavailable` when a source check refuses, caps or fails. `stale` and `review_due` are declared reasons but are not reported, because the tier SQL already excluded those facts.
+The scope attribute is the project, or `org` when the request carries none; `as_of` is the instant the facts were read at. The withheld reasons are `stale`, `review_due` and `disputed` from the lifecycle count, `scope`, `source` and `agent_capped` from visibility, and `quota`, `max_facts` and `budget` from the fill; `unavailable` is reserved for a source check that fails. The count cut and the token cut are told apart: a fact past `max_facts` is `max_facts` even when it would not have fit either.
+
+An `as_of` recall (`RecallRequest::as_of`, surfaced on the simulator and the preview) reads the facts as they stood then: every tier admits only facts observed by `as_of` and valid at it, the lifecycle count uses it, and the block's `as_of` is the requested instant. It is never later than `now`.
 
 ### Audit
 
@@ -513,7 +555,9 @@ Extraction calls models as the `brain` service account (`brain@service.invalid`)
 |---|---|---|
 | `brain_review` | Every 30 minutes | Marks facts past their review date as review-due, 500 at a time, one revision each, and sends `brain.fact.review_due` to whoever confirmed the fact, else its owner, else the `brain-review` stream |
 | `brain_retention` | Every 10 minutes | See [Retention](#retention) |
+| `brain_usage` | Daily at 02:45 | Sets every fact's `usage_cited_rate` and `usage_ignored_rate` from the recalls and citations of the last `results_retention_days`; see [Usage feeds importance](#usage-feeds-importance) |
 | `brain_analysis` | Daily at 03:15 | Runs the core analyses and then every extension analysis over the last day, storing each draft no open proposal already carries |
+| `brain_consolidate` | Daily at 03:45 | Scaffolding: offers each kind's facts to a registered `FactConsolidator` and enters its answers as `proposed` facts; inactive by default ([Scaffolding](#scaffolding-inactive-unless-an-extension-opts-in)) |
 
 The core analyses draft proposals; none applies itself:
 
@@ -532,26 +576,51 @@ A proposal can carry a dry-run replay: the brain consumer's events of a window a
 | `brain_extractions_total` | Counter | `extractor` |
 | `brain_extracted_candidates_total` | Counter | `extractor` |
 | `brain_budget_exhausted_total` | Counter | None |
+| `brain_working_set_rebuilds_total` | Counter | None; the sweep found the working set's row count drifted and rebuilt it |
 | `brain_batch_seconds` | Histogram | None; one sample per drain round |
 | `brain_round_events` | Histogram | None; events claimed per drain round |
 | `brain_facts` | Gauge | `status` |
 | `brain_disputes_open` | Gauge | None |
 | `brain_extraction_tokens_today` | Gauge | None |
+| `brain_usage_updated_total` | Counter | None; facts whose usage rates the `brain_usage` job wrote |
+| `brain_consolidations_total` | Counter | `outcome`: `inactive`, `budget_exhausted`, `entered`, `failed` |
 
 ### Report views
 
 - `v_brain_kind_health`: per kind, facts by status, facts past review, injections, citations, corrections, the cited and corrected rates (`NULL` for a kind never injected) and open disputes.
-- `v_brain_workflow_recall`: per project and client, with the selected `workflow_id`, recalls run and injecting, facts injected and withheld by reason, mean tokens per injecting recall, and recalls skipped by deadline, unavailability or an empty result.
+- `v_brain_workflow_recall`: per project and client, with the selected `workflow_id`, recalls run and injecting, facts injected and withheld by reason (including `withheld_max_facts` and `withheld_disputed`), mean tokens per injecting recall, recalls skipped by deadline, unavailability or an empty result, and `late_blocks`, the deadline rows that carry a block produced after the deadline. The injected and withheld sums count injecting rows only.
 
 ## Not yet active in 0.77
 
 These settings and declarations are accepted and validated, and have no effect in this release:
 
-- **The session pathway.** `capture.sources` accepts `session`, but no producer emits session events, so nothing is captured from it.
+- **The session pathway.** Off by default; see [Scaffolding](#scaffolding-inactive-unless-an-extension-opts-in). Even when switched on, nothing is extracted until an extension registers a filter that gathers session events.
 - **`auto_confirm.document: project_policy`.** No project policy source exists yet, so it behaves as `never`: document facts wait for a person to confirm them.
 - **`extraction.provider`.** Only `extraction.model` selects the extraction model; the provider is resolved by the gateway from the model.
 - **`filters.yaml`.** The document is stored with the other declarations but the pipeline does not read it. Which events are gathered is decided only by registered `EventFilter` seams.
 - **Interest fields.** `audience`, `granularity`, and the `memory` and `digest` delivery values are stored and have no effect; only `alert` delivery notifies.
+
+<!-- usage (R6) -->
+## Usage feeds importance
+
+The in-context score's usage term is `cited_rate × cited_rate_weight − ignored_rate × ignored_penalty`, with `importance.yaml` defaults of `0.2` and `0.1`. The rates are stored on the fact (`brain_facts.usage_cited_rate`, `usage_ignored_rate`, `usage_updated_at`) and written once a day by `brain_usage`, deterministically and with no model call:
+
+- `injected` is the number of `brain_recalls` rows in the last `lifecycle.results_retention_days` whose injected list names the fact, that were not skipped and that spent tokens, so a same-turn reuse is not a second injection;
+- `cited` is the number of `cited_in_response` outcomes on those recalls, and `ignored` is `injected − cited`;
+- each rate is Laplace-smoothed, `(x + 1) / (injected + 2)`, so a fact never injected sits at `0.5` on both and usage only separates facts that were actually shown.
+
+The write sets the three usage columns and nothing else: no revision is recorded and `updated_at` does not move, so recency is unaffected. It is the one exception to the rule that `FactRepository::apply` alone changes a stored fact. The why-view reports the term as `usage`.
+<!-- end usage (R6) -->
+
+<!-- scaffolding (R8) -->
+## Scaffolding: inactive unless an extension opts in
+
+Two pieces ship switched off. Core makes no model call through either; both stay inert until an extension registers the seam **and** the profile turns them on.
+
+**The session pathway.** With `session` in `capture.sources` and `capture.session.enabled: true`, the gateway writes a `session.turn.closed` brain event after each completed turn (buffered and streamed alike) that has a session: the user and session, conversation and context ids, the request id, the last user text and the assistant text bounded to `capture.session.max_chars`, the model and the client. Internal requests, the brain's own calls among them, are never captured. The event's source is `session`, its pathway weight `medium`. Core registers no filter for it, so with nothing registered every session event is recorded as `no_filter` and `brain_extractions` stays at zero; an extension gathers session events with `register_brain_filter!` and reads them with an extractor as it would any other pathway.
+
+**Consolidation.** A `FactConsolidator` (`register_brain_consolidator!`) is offered, once a day, each declared kind it `handles`: the kind's confirmed and proposed facts grouped by subject (groups of two or more), the brain model client and the tokens left in the day's budget (`consolidation.daily_token_budget`, else `extraction.daily_token_budget`, less the extraction tokens already spent that day). Whether it calls the model is its own decision; every call it makes goes through the gateway as the `brain` service account with `purpose=brain.consolidate`. Each candidate it answers takes the entered pathway as a `proposed` fact of the kind it names, entered by the job's actor with `via_agent` set to the consolidator's name, so the consumer validates, deduplicates and routes it like a person-entered fact and a person confirms it. A candidate without a scope inherits the scope of the facts it was built from. Core declares no kind for consolidated facts and registers no consolidator. The job runs only when `consolidation.enabled` is `true`, a consolidator is registered, and the job context carries the brain model client (attached when the API server starts the consumer) and the brain sink; otherwise it succeeds with zero items and logs `brain consolidation inactive: <reason>` once per process.
+<!-- end scaffolding (R8) -->
 
 ## Retention
 
@@ -579,5 +648,6 @@ Extensions add behaviour through compile-time registrations, each with a priorit
 | `InjectionPolicy` | `register_brain_injection_policy!` | Choosing which visible facts fill the budget | The first non-`None` plan wins; core's quota-and-budget fill is the fallback |
 | `OutcomeSignal` | `register_brain_outcome_signal!` | After a response to a request with injected facts | Every signal runs after core's citation scan |
 | `BrainAnalysis` | `register_brain_analysis!` | The daily `brain_analysis` job | Every analysis runs after the three core analyses |
+| `FactConsolidator` | `register_brain_consolidator!` | The daily `brain_consolidate` job, per kind it `handles` | The first that handles the kind wins. Core registers none; scaffolding, see above |
 
 Core registers no event filter, so with no extension filter registered no document or comment event is gathered and nothing is extracted. A person- or agent-entered fact bypasses the filters. Recall's source check uses core's document `SourceAccess`, which reads a document source as readable when the reader holds any level on the live document and hides every other subject kind.

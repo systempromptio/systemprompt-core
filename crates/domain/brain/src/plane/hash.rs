@@ -58,8 +58,10 @@ pub fn declared_hash_from_rows(rows: &PlaneRows) -> Result<String, serde_json::E
 pub async fn load_declared_state(conn: &mut PgConnection) -> BrainResult<DeclaredBrain> {
     let rows = PlaneRows::read(&mut *conn).await?;
     let mut brain = DeclaredBrain::from_rows(&rows)?;
-    let owners: BTreeMap<String, UserId> =
-        InterestRepository::owners(&mut *conn).await?.into_iter().collect();
+    let owners: BTreeMap<String, UserId> = InterestRepository::owners(&mut *conn)
+        .await?
+        .into_iter()
+        .collect();
     for interest in &mut brain.interests {
         if let Some(owner) = owners.get(interest.id.as_str()) {
             interest.owner = owner.clone();

@@ -59,6 +59,7 @@ impl McpToolHandler for ProposeHandler<'_> {
                 .unwrap_or_else(|| FactScope::User(caller.user_id.clone())),
             topics: input.topics.unwrap_or_default(),
             status: EnteredStatus::Proposed,
+            observed_at: None,
         };
         let outbox_id = self
             .tools

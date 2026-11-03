@@ -49,6 +49,21 @@ pub enum BrainExtractError {
     },
 }
 
+/// Why a consolidator could not propose facts.
+#[derive(Debug, thiserror::Error)]
+pub enum BrainConsolidateError {
+    #[error("consolidation model call failed")]
+    Model(#[from] BrainModelError),
+    #[error("consolidator output could not be decoded")]
+    Decode(#[from] serde_json::Error),
+    #[error("consolidator {consolidator} failed")]
+    Other {
+        consolidator: &'static str,
+        #[source]
+        source: BoxedSource,
+    },
+}
+
 /// Why a validator could not reach a verdict.
 #[derive(Debug, thiserror::Error)]
 pub enum BrainValidateError {

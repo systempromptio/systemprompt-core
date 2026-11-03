@@ -1,6 +1,8 @@
 //! [`FactRepository`]: inserting candidates, reading facts by id, identity,
 //! subject and review state, and erasing them. Every change to a stored
-//! fact goes through [`FactRepository::apply`].
+//! fact goes through [`FactRepository::apply`]. An insert refreshes the
+//! derived indexes on the same connection; an erase leaves them to the
+//! `ON DELETE CASCADE` of `brain_working_set` and `brain_fact_links`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -11,13 +13,16 @@ use sqlx::{PgConnection, PgExecutor};
 use systemprompt_identifiers::{
     BrainFactId, DocumentCommentId, DocumentId, DocumentRevisionId, FactKindId, UserId,
 };
-use systemprompt_models::brain::{BrainFact, FactSource, FactStatus, RevisionChange};
+use systemprompt_models::brain::{
+    BrainFact, FactCandidate, FactSource, FactStatus, RevisionChange,
+};
 use systemprompt_traits::RepositoryError;
 
 use super::Pools;
 use super::fact_apply::SourceColumns;
 use super::revisions::FactRevisionRepository;
 use super::tombstones::TombstoneRepository;
+use crate::index::reindex_fact;
 use crate::models::{FactFilter, FactRow, FieldMap, Inserted, NewFact, NewRevision, decode_status};
 
 /// How many facts the store holds in each status.
@@ -43,17 +48,27 @@ impl FactRepository {
         Self { pools }
     }
 
+    async fn existing_by_identity(
+        conn: &mut PgConnection,
+        kind: &FactKindId,
+        identity_hash: &str,
+    ) -> Result<Inserted, RepositoryError> {
+        let existing = Self::id_by_identity(&mut *conn, kind, identity_hash)
+            .await?
+            .ok_or_else(|| RepositoryError::not_found("brain_fact", identity_hash))?;
+        Ok(Inserted {
+            id: existing,
+            created: false,
+        })
+    }
+
     pub async fn insert_candidate(
         conn: &mut PgConnection,
         fact: &NewFact,
     ) -> Result<Inserted, RepositoryError> {
         let candidate = &fact.candidate;
         let columns = SourceColumns::of(&candidate.source);
-        let topics: Vec<String> = candidate
-            .topics
-            .iter()
-            .map(|t| t.as_str().to_owned())
-            .collect();
+        let topics = topic_names(candidate);
         let fields = serde_json::Value::Object(candidate.fields.clone());
         let source = serde_json::to_value(&candidate.source)?;
         let created = sqlx::query_scalar!(
@@ -62,9 +77,9 @@ impl FactRepository {
                    fields, source, source_kind, source_document_id, source_revision_id,
                    source_comment_id, topics, status, importance_base, valid_from, valid_to,
                    review_after, retention_until, identity_hash, statement_hash,
-                   owner_user_id, pipeline_version)
+                   owner_user_id, pipeline_version, observed_at)
                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
-                       $16, $17, $18, $19, $20, $21, $22, $23, $24)
+                       $16, $17, $18, $19, $20, $21, $22, $23, $24, COALESCE($25, now()))
                ON CONFLICT (kind, identity_hash) DO NOTHING
                RETURNING id AS "id: BrainFactId""#,
             fact.id.as_str(),
@@ -93,17 +108,12 @@ impl FactRepository {
             fact.pipeline_version
                 .as_ref()
                 .map(systemprompt_identifiers::PipelineVersion::as_str),
+            fact.observed_at,
         )
         .fetch_optional(&mut *conn)
         .await?;
         let Some(id) = created else {
-            let existing = Self::id_by_identity(&mut *conn, &candidate.kind, &fact.identity_hash)
-                .await?
-                .ok_or_else(|| RepositoryError::not_found("brain_fact", &fact.identity_hash))?;
-            return Ok(Inserted {
-                id: existing,
-                created: false,
-            });
+            return Self::existing_by_identity(conn, &candidate.kind, &fact.identity_hash).await;
         };
         FactRevisionRepository::insert(
             conn,
@@ -118,6 +128,7 @@ impl FactRepository {
             },
         )
         .await?;
+        reindex_fact(conn, &id).await?;
         Ok(Inserted { id, created: true })
     }
 
@@ -135,9 +146,11 @@ impl FactRepository {
                       subject_id, scope_level, scope_key, statement,
                       fields AS "fields: Json<FieldMap>", source AS "source: Json<FactSource>",
                       topics, status, confirmed_by AS "confirmed_by: UserId", confirmed_at,
-                      importance_base, valid_from, valid_to, review_after, retention_until,
+                      importance_base, observed_at, valid_from, valid_to, review_after,
+                      retention_until,
                       legal_hold, identity_hash, statement_hash, revision, pinned,
-                      owner_user_id AS "owner_user_id: UserId", created_at, updated_at
+                      owner_user_id AS "owner_user_id: UserId", usage_cited_rate,
+                      usage_ignored_rate, created_at, updated_at
                FROM brain_facts WHERE id = ANY($1) ORDER BY id"#,
             &ids,
         )
@@ -200,12 +213,17 @@ impl FactRepository {
                  AND ($2::text IS NULL OR subject_kind = $2)
                  AND ($3::text IS NULL OR subject_id = $3)
                  AND (cardinality($4::text[]) = 0 OR status = ANY($4))
+                 AND ($6::timestamptz IS NULL OR (
+                     observed_at <= $6
+                     AND (valid_from IS NULL OR valid_from <= $6)
+                     AND (valid_to IS NULL OR valid_to > $6)))
                ORDER BY updated_at DESC, id LIMIT $5"#,
             filter.kind.as_ref().map(FactKindId::as_str),
             filter.subject.as_ref().map(|s| s.kind.as_str()),
             filter.subject.as_ref().map(|s| s.id.as_str()),
             &statuses,
             filter.limit,
+            filter.as_of,
         )
         .fetch_all(&mut *conn)
         .await?;
@@ -262,4 +280,12 @@ impl FactRepository {
             .collect::<Result<_, RepositoryError>>()?;
         Ok(FactCounts { by_status })
     }
+}
+
+fn topic_names(candidate: &FactCandidate) -> Vec<String> {
+    candidate
+        .topics
+        .iter()
+        .map(|t| t.as_str().to_owned())
+        .collect()
 }

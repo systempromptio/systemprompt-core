@@ -86,3 +86,8 @@ thiserror = { workspace = true }
 wiremock = { workspace = true }
 tokio-test = { workspace = true }
 serde_json = { workspace = true }
+
+[features]
+default = []
+# The brain jobs receive the consolidation model client and the producer sink.
+brain = ["systemprompt-runtime/brain"]

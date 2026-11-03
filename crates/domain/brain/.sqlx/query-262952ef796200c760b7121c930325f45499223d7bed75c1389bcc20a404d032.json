@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT (SELECT count(*) FROM brain_working_set) AS \"stored!\",\n                      (SELECT count(*) FROM (\n                          SELECT DISTINCT s.key, f.id\n                          FROM brain_facts f\n                          CROSS JOIN LATERAL (\n                              SELECT CASE WHEN f.scope_level = 'org' THEN 'org'\n                                          ELSE f.scope_level || ':' || f.scope_key END AS key\n                              UNION\n                              SELECT CASE WHEN a = 'everyone' THEN 'org' ELSE a END\n                              FROM brain_topics t,\n                                   jsonb_array_elements_text(\n                                       COALESCE(t.body -> 'audience', '[]'::jsonb)) a\n                              WHERE t.id = ANY (f.topics)\n                          ) s) expected) AS \"expected!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "stored!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "expected!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "262952ef796200c760b7121c930325f45499223d7bed75c1389bcc20a404d032"
+}

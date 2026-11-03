@@ -102,7 +102,11 @@ async fn recall_past_its_deadline_is_skipped() {
     slow.deadline_ms = 50;
     let run = rig.dispatch(WireProtocol::Anthropic, slow, di).await;
     assert_eq!(run.status, http::StatusCode::OK);
-    assert_eq!(fake.calls(), 1);
+    assert!(
+        (1..=2).contains(&fake.calls()),
+        "once under the deadline, once more in the background: {}",
+        fake.calls()
+    );
     assert!(!text(&run.upstream).contains("<team_memory"));
     assert_eq!(run.ids_header, None);
     assert_eq!(run.memory_recall.as_deref(), Some("skipped=deadline"));
