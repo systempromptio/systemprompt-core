@@ -1,6 +1,8 @@
 //! A new-turn recall: context (held keys built once, `now` read once,
 //! `as_of` from the request), retrieval over the working-set candidates,
-//! fusion, the lifecycle counts, visibility, and the budget fill.
+//! fusion, the lifecycle counts, visibility, and the budget fill. A
+//! recall *names a subject* when the subject or linked tier returned a
+//! fact; the fill's linked reserve and context cap apply only then.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -24,6 +26,12 @@ use super::held::{self, HeldKeys};
 use super::score::{self, ScoreInput};
 use super::service::{BrainRecallService, fact_text};
 use super::visible::{Visibility, lifecycle_withheld};
+
+#[derive(Debug, Clone, Copy)]
+struct PlanShape {
+    budget_tokens: u32,
+    subject_named: bool,
+}
 
 const MIN_TIER_LIMIT: u32 = 8;
 const MAX_TIER_LIMIT: u32 = 50;
@@ -77,6 +85,10 @@ impl BrainRecallService {
             synonyms: declared.synonyms.groups.clone(),
             search_max_df: retrieval.search_max_df,
             search_quorum: retrieval.search_quorum,
+            search_retry_quorum: retrieval.search_retry_quorum,
+            search_quorum_over: retrieval.search_quorum_over,
+            alias_min_sim: retrieval.alias_min_sim,
+            max_subjects: retrieval.max_subjects,
         };
         let (pinned, subject, linked, context, text) = tokio::join!(
             self.store
@@ -113,10 +125,10 @@ impl BrainRecallService {
         visible: Vec<ScoredFact>,
         ctx: &RecallCtx,
         declared: &DeclaredRecall,
-        budget_tokens: u32,
+        shape: PlanShape,
     ) -> InjectionPlan {
         let workflow = ctx.workflow.as_ref().and_then(|id| declared.workflow(id));
-        let limits = BudgetLimits::resolve(&declared.retrieval, workflow, budget_tokens);
+        let limits = BudgetLimits::resolve(&declared.retrieval, workflow, shape.budget_tokens);
         if let Some(plan) = self
             .injection
             .iter()
@@ -132,7 +144,7 @@ impl BrainRecallService {
                 scored,
             })
             .collect();
-        budget::fill(candidates, &limits)
+        budget::fill(candidates, &limits, shape.subject_named)
     }
 
     fn importance(&self, scored: &ScoredFact, ctx: &RecallCtx, declared: &DeclaredRecall) -> f64 {
@@ -157,13 +169,18 @@ impl BrainRecallService {
         ctx: &RecallCtx,
         held: HeldKeys,
         declared: &DeclaredRecall,
-    ) -> Result<(Vec<ScoredFact>, WithheldSummary), RecallError> {
+    ) -> Result<(Vec<ScoredFact>, WithheldSummary, bool), RecallError> {
         let mut withheld = WithheldSummary::default();
         for (reason, count) in self.store.withheld_counts(ctx).await? {
             *withheld.by_reason.entry(reason).or_default() += count;
         }
         let mut ranked: Vec<ScoredFact> = Vec::new();
-        for scored in self.retrieve(request, ctx, declared).await? {
+        let fused = self.retrieve(request, ctx, declared).await?;
+        let subject_named = fused.iter().any(|scored| {
+            fusion::found_by(scored, RetrievalTier::Subject)
+                || fusion::found_by(scored, RetrievalTier::Linked)
+        });
+        for scored in fused {
             match lifecycle_withheld(&scored.fact, ctx.as_of, self.inject_stale()) {
                 Some(reason) => withheld.add(reason),
                 None => ranked.push(scored),
@@ -177,7 +194,7 @@ impl BrainRecallService {
         for (reason, count) in hidden.by_reason {
             *withheld.by_reason.entry(reason).or_default() += count;
         }
-        Ok((visible, withheld))
+        Ok((visible, withheld, subject_named))
     }
 
     pub(super) async fn new_turn(
@@ -189,12 +206,16 @@ impl BrainRecallService {
             source: Box::new(e),
         })?;
         let (ctx, held) = self.context(request, &declared).await;
-        let (visible, mut withheld) = self.visible(request, &ctx, held, &declared).await?;
+        let (visible, mut withheld, named) = self.visible(request, &ctx, held, &declared).await?;
         let budget = match request.budget_tokens {
             0 => self.profile.recall.budget_tokens,
             requested => requested,
         };
-        let plan = self.plan(visible, &ctx, &declared, budget);
+        let shape = PlanShape {
+            budget_tokens: budget,
+            subject_named: named,
+        };
+        let plan = self.plan(visible, &ctx, &declared, shape);
         for fact in &plan.withheld {
             withheld.add(fact.reason);
         }

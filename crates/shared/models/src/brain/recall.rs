@@ -10,6 +10,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{BrainFactId, BrainRecallId, UserId, WorkflowId};
 
+use super::declarations::QuorumUnit;
 use super::fact::BrainFact;
 use super::scope::ScopeLevel;
 use crate::auth::RequestActor;
@@ -40,6 +41,8 @@ pub enum WithheldReason {
     Quota,
     MaxFacts,
     Budget,
+    LowScore,
+    ContextCap,
     Unavailable,
 }
 
@@ -56,6 +59,8 @@ impl WithheldReason {
             Self::Quota => "quota",
             Self::MaxFacts => "max_facts",
             Self::Budget => "budget",
+            Self::LowScore => "low_score",
+            Self::ContextCap => "context_cap",
             Self::Unavailable => "unavailable",
         }
     }
@@ -154,6 +159,14 @@ pub struct RecallQuery {
     pub search_max_df: f64,
     #[serde(default = "RecallQuery::default_search_quorum")]
     pub search_quorum: f64,
+    #[serde(default)]
+    pub search_retry_quorum: f64,
+    #[serde(default)]
+    pub search_quorum_over: QuorumUnit,
+    #[serde(default = "RecallQuery::default_alias_min_sim")]
+    pub alias_min_sim: f64,
+    #[serde(default = "RecallQuery::default_max_subjects")]
+    pub max_subjects: u32,
 }
 
 impl RecallQuery {
@@ -166,7 +179,21 @@ impl RecallQuery {
             synonyms: Vec::new(),
             search_max_df: Self::default_search_max_df(),
             search_quorum: Self::default_search_quorum(),
+            search_retry_quorum: 0.0,
+            search_quorum_over: QuorumUnit::Groups,
+            alias_min_sim: Self::default_alias_min_sim(),
+            max_subjects: Self::default_max_subjects(),
         }
+    }
+
+    #[must_use]
+    pub const fn default_alias_min_sim() -> f64 {
+        0.6
+    }
+
+    #[must_use]
+    pub const fn default_max_subjects() -> u32 {
+        4
     }
 
     const fn default_links_weight() -> f64 {

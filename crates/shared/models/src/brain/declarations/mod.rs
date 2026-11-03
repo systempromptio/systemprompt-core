@@ -20,8 +20,8 @@ use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{FactKindId, InterestId, TopicId, UserId, WorkflowId};
 
 pub use importance::{
-    BaseImportance, ImportanceConfig, InContextImportance, ModelHint, Recency, RetrievalDoc,
-    TierWeights, UsageWeights,
+    BaseImportance, FillOrder, ImportanceConfig, InContextImportance, ModelHint, QuorumUnit,
+    Recency, RetrievalDoc, TierWeights, UsageWeights,
 };
 pub use synonyms::{SynonymsDoc, SynonymsError};
 pub use validate::{BrainDeclError, validate};

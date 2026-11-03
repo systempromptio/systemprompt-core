@@ -1,5 +1,20 @@
 //! `importance.yaml` and `retrieval.yaml`: the scoring formula's weights
-//! and the retrieval tiers' fusion weights and quotas.
+//! and the retrieval tiers' fusion weights, quotas and the fill policy.
+//!
+//! The fill knobs (recall plan P2): `fill_order` (`rank`: fused rank
+//! first, importance second; `importance`: the pre-P2 order);
+//! `linked_share` of `max_facts` reserved for one-hop link hits when a
+//! subject is named (0 reserves nothing); `min_fused_score` below which a
+//! fact is withheld as `low_score` (0 withholds nothing); `context_share`
+//! of `max_facts` that facts found only by the context tier may take when
+//! a subject is named (1 caps nothing, 0 admits them only when no subject
+//! is named). The planner knobs: `search_retry_quorum` runs the full-text
+//! tier again at that quorum when the first pass returns nothing (0 runs
+//! no second pass); `search_quorum_over` counts the quorum over synonym
+//! groups or over the query words they absorbed. The subject-tier knobs:
+//! `alias_min_sim` is the least alias similarity that names a subject
+//! (the trigram operator's own threshold, 0.6, is its floor) and
+//! `max_subjects` the most subjects one message may name.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -90,6 +105,14 @@ pub struct RetrievalDoc {
     pub links_weight: f64,
     pub search_max_df: f64,
     pub search_quorum: f64,
+    pub search_retry_quorum: f64,
+    pub search_quorum_over: QuorumUnit,
+    pub alias_min_sim: f64,
+    pub max_subjects: u32,
+    pub fill_order: FillOrder,
+    pub linked_share: f64,
+    pub min_fused_score: f64,
+    pub context_share: f64,
 }
 
 impl Default for RetrievalDoc {
@@ -102,8 +125,34 @@ impl Default for RetrievalDoc {
             links_weight: 0.6,
             search_max_df: 0.2,
             search_quorum: 0.5,
+            search_retry_quorum: 0.0,
+            search_quorum_over: QuorumUnit::default(),
+            alias_min_sim: 0.6,
+            max_subjects: 4,
+            fill_order: FillOrder::default(),
+            linked_share: 0.0,
+            min_fused_score: 0.0,
+            context_share: 1.0,
         }
     }
+}
+
+/// What the full-text planner counts its quorum over.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum QuorumUnit {
+    #[default]
+    Groups,
+    Words,
+}
+
+/// Which key orders the budget fill.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FillOrder {
+    #[default]
+    Rank,
+    Importance,
 }
 
 /// Reciprocal-rank-fusion weight of each retrieval tier.

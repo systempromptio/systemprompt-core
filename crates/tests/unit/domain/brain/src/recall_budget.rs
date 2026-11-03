@@ -16,11 +16,11 @@ fn candidate(n: u32, kind_id: &str, importance: f64, text_chars: usize) -> Candi
 }
 
 fn limits(quotas: &[(&str, u32)], max_facts: u32, budget_tokens: u32) -> BudgetLimits {
-    BudgetLimits {
-        quotas: quotas.iter().map(|(k, q)| (kind(k), *q)).collect(),
+    BudgetLimits::plain(
+        quotas.iter().map(|(k, q)| (kind(k), *q)).collect(),
         max_facts,
         budget_tokens,
-    }
+    )
 }
 
 fn reasons(plan: &systemprompt_models::brain::InjectionPlan) -> Vec<WithheldReason> {
@@ -36,7 +36,7 @@ fn tokens_are_a_quarter_of_the_characters_rounded_up() {
 }
 
 #[test]
-fn facts_fill_in_descending_importance() {
+fn equal_ranks_fill_in_descending_importance() {
     let plan = fill(
         vec![
             candidate(1, "a", 0.1, 4),
@@ -44,6 +44,7 @@ fn facts_fill_in_descending_importance() {
             candidate(3, "a", 0.5, 4),
         ],
         &limits(&[], 10, 100),
+        false,
     );
     let ids: Vec<_> = plan.facts.iter().map(|s| s.fact.id.clone()).collect();
     assert_eq!(ids, vec![id(2), id(3), id(1)]);
@@ -60,6 +61,7 @@ fn a_kind_over_its_quota_is_withheld_as_quota() {
             candidate(4, "a", 0.6, 4),
         ],
         &limits(&[("a", 1)], 10, 100),
+        false,
     );
     let ids: Vec<_> = plan.facts.iter().map(|s| s.fact.id.clone()).collect();
     assert_eq!(ids, vec![id(1), id(3)]);
@@ -78,6 +80,7 @@ fn the_token_cap_withholds_what_does_not_fit_and_keeps_smaller_facts() {
             candidate(3, "a", 0.7, 4),
         ],
         &limits(&[], 10, 12),
+        false,
     );
     let ids: Vec<_> = plan.facts.iter().map(|s| s.fact.id.clone()).collect();
     assert_eq!(ids, vec![id(1), id(3)]);
@@ -94,6 +97,7 @@ fn max_facts_caps_the_count_and_is_reported_as_max_facts_not_budget() {
             candidate(3, "a", 0.7, 4),
         ],
         &limits(&[], 1, 100),
+        false,
     );
     assert_eq!(plan.facts.len(), 1);
     assert_eq!(
@@ -111,6 +115,7 @@ fn the_count_cut_and_the_token_cut_are_told_apart() {
             candidate(3, "a", 0.7, 4),
         ],
         &limits(&[], 2, 10),
+        false,
     );
     let ids: Vec<_> = plan.facts.iter().map(|s| s.fact.id.clone()).collect();
     assert_eq!(ids, vec![id(1), id(3)]);
@@ -122,6 +127,7 @@ fn the_count_cut_and_the_token_cut_are_told_apart() {
             candidate(3, "a", 0.7, 400),
         ],
         &limits(&[], 2, 10),
+        false,
     );
     assert_eq!(
         reasons(&capped),

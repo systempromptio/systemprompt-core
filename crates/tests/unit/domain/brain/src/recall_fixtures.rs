@@ -70,6 +70,20 @@ pub(crate) fn scored(fact: BrainFact, score: f64) -> ScoredFact {
     }
 }
 
+pub(crate) fn ranked(fact: BrainFact, score: f64, tiers: &[RetrievalTier]) -> ScoredFact {
+    ScoredFact {
+        fact,
+        score,
+        ranks: tiers
+            .iter()
+            .map(|tier| TierRank {
+                tier: *tier,
+                rank: 1,
+            })
+            .collect(),
+    }
+}
+
 pub(crate) fn principal(user_id: &str, project: Option<&str>) -> RecallPrincipal {
     RecallPrincipal {
         user_id: user(user_id),

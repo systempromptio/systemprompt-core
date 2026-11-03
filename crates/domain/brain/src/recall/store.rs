@@ -93,6 +93,8 @@ impl BrainRecallStore {
             limit: i64::from(limit),
             working_set: self.working_set,
             links_weight,
+            alias_min_sim: RecallQuery::default_alias_min_sim(),
+            max_subjects: i64::from(RecallQuery::default_max_subjects()),
         }
     }
 
@@ -190,7 +192,9 @@ impl FactRecallSource for BrainRecallStore {
         ctx: &RecallCtx,
     ) -> Result<Vec<BrainFact>, RecallError> {
         let hints = tiers::normalise_hints(&query.subject_hints);
-        let filter = self.filter(ctx, query.limit, query.links_weight);
+        let filter = self
+            .filter(ctx, query.limit, query.links_weight)
+            .with_subjects(query);
         let ids = tiers::by_subject(self.repos.read_pool(), &filter, &hints).await?;
         self.load_ranked(ids).await
     }
@@ -201,7 +205,9 @@ impl FactRecallSource for BrainRecallStore {
         ctx: &RecallCtx,
     ) -> Result<Vec<BrainFact>, RecallError> {
         let hints = tiers::normalise_hints(&query.subject_hints);
-        let filter = self.filter(ctx, query.limit, query.links_weight);
+        let filter = self
+            .filter(ctx, query.limit, query.links_weight)
+            .with_subjects(query);
         let ids = tiers::by_linked(self.repos.read_pool(), &filter, &hints).await?;
         self.load_ranked(ids).await
     }
@@ -229,6 +235,8 @@ impl FactRecallSource for BrainRecallStore {
         let policy = SearchPolicy {
             max_df: query.search_max_df,
             quorum: query.search_quorum,
+            retry_quorum: query.search_retry_quorum,
+            quorum_over: query.search_quorum_over,
         };
         let input = tiers::FullTextInput {
             hints: &query.subject_hints,

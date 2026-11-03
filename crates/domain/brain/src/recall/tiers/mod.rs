@@ -8,7 +8,10 @@
 //! review then; confirmed, proposed only for its owner, stale only when
 //! the profile injects stale facts with a marker. Each tier returns fact
 //! ids ordered by its rank, then stored importance, then id, so two
-//! identical recalls answer identically.
+//! identical recalls answer identically. The subject and linked tiers
+//! name at most `max_subjects` subjects whose alias similarity reaches
+//! `alias_min_sim` (recall plan P2 step 6); the full-text tier runs a
+//! second plan at `retry_quorum` when the first returns nothing (step 5).
 //!
 //! `brain.recall.working_set: false` runs the previous scope-predicate SQL
 //! in the legacy module instead; that path is removed in the next release.
@@ -26,7 +29,7 @@ use std::collections::BTreeMap;
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use systemprompt_identifiers::{BrainFactId, UserId};
-use systemprompt_models::brain::{SynonymsDoc, WithheldReason};
+use systemprompt_models::brain::{RecallQuery, SynonymsDoc, WithheldReason};
 use systemprompt_traits::RepositoryError;
 
 use super::search_plan::{self, SearchPolicy};
@@ -44,6 +47,17 @@ pub struct TierFilter {
     pub limit: i64,
     pub working_set: bool,
     pub links_weight: f64,
+    pub alias_min_sim: f64,
+    pub max_subjects: i64,
+}
+
+impl TierFilter {
+    #[must_use]
+    pub fn with_subjects(mut self, query: &RecallQuery) -> Self {
+        self.alias_min_sim = query.alias_min_sim;
+        self.max_subjects = i64::from(query.max_subjects.max(1));
+        self
+    }
 }
 
 pub async fn pinned(pool: &PgPool, f: &TierFilter) -> Result<Vec<BrainFactId>, RepositoryError> {
@@ -113,9 +127,22 @@ pub async fn full_text(
         }
         return legacy::full_text(pool, f, &query).await;
     }
-    match search_plan::plan(input.hints, input.synonyms, input.terms, input.policy) {
-        Some(plan) => fulltext::full_text(pool, f, &plan).await,
-        None => Ok(Vec::new()),
+    let Some(plan) = search_plan::plan(input.hints, input.synonyms, input.terms, input.policy)
+    else {
+        return Ok(Vec::new());
+    };
+    let found = fulltext::full_text(pool, f, &plan).await?;
+    if !found.is_empty() {
+        return Ok(found);
+    }
+    let Some(retry) = input.policy.retry() else {
+        return Ok(found);
+    };
+    let second = search_plan::plan(input.hints, input.synonyms, input.terms, &retry)
+        .filter(|second| second.filter != plan.filter);
+    match second {
+        Some(second) => fulltext::full_text(pool, f, &second).await,
+        None => Ok(found),
     }
 }
 

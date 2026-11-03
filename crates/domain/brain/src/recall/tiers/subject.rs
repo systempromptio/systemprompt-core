@@ -9,6 +9,13 @@
 //! construction: no link is followed from a linked fact, and nothing is
 //! reached through a matched subject's other facts.
 //!
+//! Recall plan P2 step 6: a subject is named only when its best score
+//! reaches `alias_min_sim`, and the `max_subjects` best-scoring subjects
+//! (ties by kind, then id) are the ones both tiers read. The trigram
+//! operator keeps its own threshold (`pg_trgm.word_similarity_threshold`,
+//! 0.6), so a lower `alias_min_sim` admits nothing more; a higher one
+//! narrows the match.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -40,6 +47,9 @@ pub(super) async fn by_subject(
                    FROM brain_subjects s
                    WHERE length(s.subject_id) >= 3 AND strpos($7, lower(s.subject_id)) > 0
                ) hits GROUP BY subject_kind, subject_id
+               HAVING max(score) >= $8
+               ORDER BY max(score) DESC, subject_kind, subject_id
+               LIMIT $9
            ),
            hits AS (
                SELECT f.id, m.score
@@ -67,6 +77,8 @@ pub(super) async fn by_subject(
         f.limit,
         &f.scopes,
         hints,
+        f.alias_min_sim,
+        f.max_subjects,
     )
     .fetch_all(pool)
     .await?)
@@ -94,6 +106,9 @@ pub(super) async fn by_linked(
                    FROM brain_subjects s
                    WHERE length(s.subject_id) >= 3 AND strpos($7, lower(s.subject_id)) > 0
                ) hits GROUP BY subject_kind, subject_id
+               HAVING max(score) >= $9
+               ORDER BY max(score) DESC, subject_kind, subject_id
+               LIMIT $10
            ),
            hits AS (
                SELECT l.fact_id AS id, m.score * $8 AS score
@@ -124,6 +139,8 @@ pub(super) async fn by_linked(
         &f.scopes,
         hints,
         f.links_weight,
+        f.alias_min_sim,
+        f.max_subjects,
     )
     .fetch_all(pool)
     .await?)

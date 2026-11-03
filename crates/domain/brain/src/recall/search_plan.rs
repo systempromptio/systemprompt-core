@@ -11,10 +11,18 @@
 //! the rank is the disjunction of every group. Without statistics every
 //! group ranks and the filter is the disjunction of all of them.
 //!
+//! Recall plan P2 step 5: the share is counted over the informative
+//! groups (`QuorumUnit::Groups`) or over the query words those groups
+//! absorbed (`QuorumUnit::Words`, where a group that merged two words of
+//! the message counts twice); and [`SearchPolicy::retry`] is the policy
+//! of the second pass the full-text tier runs at `retry_quorum` when the
+//! first returns nothing, `None` when no second pass is declared or it
+//! would require no fewer groups.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_models::brain::SynonymsDoc;
+use systemprompt_models::brain::{QuorumUnit, SynonymsDoc};
 
 use super::synonyms::expand;
 use crate::repository::SearchTerms;
@@ -27,6 +35,33 @@ const MIN_WORD_CHARS: usize = 3;
 pub struct SearchPolicy {
     pub max_df: f64,
     pub quorum: f64,
+    pub retry_quorum: f64,
+    pub quorum_over: QuorumUnit,
+}
+
+impl SearchPolicy {
+    #[must_use]
+    pub const fn new(max_df: f64, quorum: f64) -> Self {
+        Self {
+            max_df,
+            quorum,
+            retry_quorum: 0.0,
+            quorum_over: QuorumUnit::Groups,
+        }
+    }
+
+    #[must_use]
+    pub fn retry(&self) -> Option<Self> {
+        if self.retry_quorum > 0.0 && self.retry_quorum < self.quorum {
+            Some(Self {
+                quorum: self.retry_quorum,
+                retry_quorum: 0.0,
+                ..*self
+            })
+        } else {
+            None
+        }
+    }
 }
 
 /// `to_tsquery('simple', …)` text for the filter and the rank.
@@ -40,6 +75,8 @@ pub struct SearchPlan {
 struct Group {
     tsquery: String,
     share: f64,
+    members: Vec<String>,
+    words: usize,
 }
 
 #[must_use]
@@ -65,7 +102,11 @@ pub fn plan(
         });
     }
     informative.sort_by(|a, b| a.share.total_cmp(&b.share));
-    let required = quorum_count(informative.len(), policy.quorum);
+    let units = match policy.quorum_over {
+        QuorumUnit::Groups => informative.len(),
+        QuorumUnit::Words => informative.iter().map(|g| g.words).sum(),
+    };
+    let required = quorum_count(units, policy.quorum).min(informative.len());
     let filter = informative
         .iter()
         .take(required)
@@ -75,18 +116,27 @@ pub fn plan(
     Some(SearchPlan { filter, rank })
 }
 
-fn quorum_count(informative: usize, quorum: f64) -> usize {
-    // Why: lint-ok: a count of groups, at most thirty-two; the ceil is exact.
-    let wanted = (informative as f64 * quorum.clamp(0.0, 1.0)).ceil() as usize;
-    wanted.clamp(1, informative)
+fn quorum_count(units: usize, quorum: f64) -> usize {
+    // Why: lint-ok: a count of groups or words, at most thirty-two; the ceil is
+    // exact.
+    let wanted = (units as f64 * quorum.clamp(0.0, 1.0)).ceil() as usize;
+    wanted.clamp(1, units.max(1))
 }
 
 fn groups_of(hints: &str, synonyms: &SynonymsDoc, terms: &SearchTerms) -> Vec<Group> {
     let mut seen: Vec<String> = Vec::new();
-    let mut groups = Vec::new();
+    let mut asked: Vec<String> = Vec::new();
+    let mut groups: Vec<Group> = Vec::new();
     for word in hints.split(|c: char| !c.is_alphanumeric()) {
         let word = word.to_lowercase();
-        if word.chars().count() < MIN_WORD_CHARS || seen.contains(&word) {
+        if word.chars().count() < MIN_WORD_CHARS || asked.contains(&word) {
+            continue;
+        }
+        asked.push(word.clone());
+        if seen.contains(&word) {
+            if let Some(group) = groups.iter_mut().find(|g| g.members.contains(&word)) {
+                group.words += 1;
+            }
             continue;
         }
         let members: Vec<String> = expand(synonyms, &word)
@@ -128,6 +178,8 @@ fn group_of(members: &[String], terms: &SearchTerms) -> Option<Group> {
             format!("({})", alternatives.join(" | "))
         },
         share,
+        members: members.to_vec(),
+        words: 1,
     })
 }
 

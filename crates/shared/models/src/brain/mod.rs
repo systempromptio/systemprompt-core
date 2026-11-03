@@ -38,10 +38,10 @@ pub mod version;
 
 pub use candidate::{FactCandidate, FactCandidateBuilder};
 pub use declarations::{
-    ActorFilter, BaseImportance, BrainDeclError, BrainDocs, FilterDecl, FiltersDoc, Granularity,
-    ImportanceConfig, InContextImportance, InterestDecl, InterestDelivery, InterestMatch,
-    ModelHint, Recency, RetrievalDoc, SynonymsDoc, SynonymsError, TierWeights, TopicDecl,
-    TopicsDoc, UsageWeights, WorkflowProfileDecl, validate,
+    ActorFilter, BaseImportance, BrainDeclError, BrainDocs, FillOrder, FilterDecl, FiltersDoc,
+    Granularity, ImportanceConfig, InContextImportance, InterestDecl, InterestDelivery,
+    InterestMatch, ModelHint, QuorumUnit, Recency, RetrievalDoc, SynonymsDoc, SynonymsError,
+    TierWeights, TopicDecl, TopicsDoc, UsageWeights, WorkflowProfileDecl, validate,
 };
 pub use enter::{EnteredFact, EnteredStatus};
 pub use envelope::{BrainEnvelope, Pathway, PathwayWeight};
