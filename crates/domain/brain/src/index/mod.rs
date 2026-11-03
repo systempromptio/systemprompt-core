@@ -9,6 +9,11 @@
 //! a captured candidate index identically. A fact that no longer exists is
 //! a no-op: its rows cascade with the delete.
 //!
+//! [`refresh_projection`] is the same work for a batch of queued keys: the
+//! `brain_fact_index` projection an upgrade migration queues every stored
+//! fact into and the consumer sweep drains. It also floors `observed_at` to
+//! `created_at`, the one stamp a row that predates the column needs.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -23,10 +28,13 @@ use systemprompt_traits::RepositoryError;
 
 pub use aliases::{AliasInput, derive_aliases};
 
+/// The projection every stored fact's derived indexes are queued under.
+pub const BRAIN_FACT_INDEX: &str = "brain_fact_index";
+
 use crate::models::FieldMap;
 use crate::repository::{
-    AliasRepository, FactLinkRepository, SearchIndexRepository, SynonymsRepository,
-    WorkingSetRepository,
+    AliasRepository, FactLinkRepository, SearchIndexRepository, SubjectRepository,
+    SynonymsRepository, WorkingSetRepository,
 };
 
 struct Indexed {
@@ -57,12 +65,32 @@ pub async fn reindex_fact(
         kind: kind.as_ref(),
         fields: &row.fields.0,
     });
+    SubjectRepository::ensure(&mut *conn, &row.subject, row.display_name.as_deref()).await?;
     for alias in &aliases {
         AliasRepository::upsert(&mut *conn, &row.subject, alias).await?;
     }
     let synonyms = SynonymsRepository::load(&mut *conn).await?;
     let expansion = synonyms.expansion_text(&row.statement);
     SearchIndexRepository::refresh(conn, id, &expansion).await
+}
+
+/// Reindexes each queued key on the drain transaction; answers how many
+/// facts were reindexed.
+pub async fn refresh_projection(
+    conn: &mut PgConnection,
+    keys: Vec<String>,
+) -> Result<u64, RepositoryError> {
+    sqlx::query!(
+        "UPDATE brain_facts SET observed_at = created_at
+         WHERE id = ANY($1) AND observed_at > created_at",
+        &keys
+    )
+    .execute(&mut *conn)
+    .await?;
+    for key in &keys {
+        reindex_fact(&mut *conn, &BrainFactId::new(key.clone())).await?;
+    }
+    Ok(u64::try_from(keys.len()).unwrap_or(u64::MAX))
 }
 
 async fn load(

@@ -31,6 +31,8 @@ mod fakes;
 #[cfg(test)]
 mod harness;
 #[cfg(test)]
+mod index_backlog;
+#[cfg(test)]
 mod jobs_support;
 #[cfg(test)]
 mod lifecycle;
