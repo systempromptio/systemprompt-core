@@ -106,6 +106,7 @@ pub enum ProviderCapability {
     GoogleSearch,
     ImageGeneration,
     BatchImageGeneration,
+    Embeddings,
 }
 
 impl std::fmt::Display for ProviderCapability {
@@ -116,6 +117,7 @@ impl std::fmt::Display for ProviderCapability {
             Self::GoogleSearch => "Google Search grounding",
             Self::ImageGeneration => "image generation",
             Self::BatchImageGeneration => "batch image generation",
+            Self::Embeddings => "text embeddings",
         })
     }
 }

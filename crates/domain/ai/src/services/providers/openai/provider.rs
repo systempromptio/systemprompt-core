@@ -4,9 +4,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::{generation, search};
+use super::{embeddings, generation, search};
 use crate::error::Result;
-use crate::models::ai::{AiResponse, SamplingParams, SearchGroundedResponse, StreamChunk};
+use crate::models::ai::{
+    AiResponse, EmbeddingRequest, EmbeddingResponse, SamplingParams, SearchGroundedResponse,
+    StreamChunk,
+};
 use crate::models::tools::ToolCall;
 use crate::services::providers::canonical_bridge::tools_to_canonical;
 use crate::services::providers::{
@@ -208,5 +211,13 @@ impl ProviderClient for OpenAiProvider {
             search_params
         };
         search::generate_with_web_search(self, search_params).await
+    }
+
+    fn supports_embeddings(&self) -> bool {
+        true
+    }
+
+    async fn embed(&self, request: &EmbeddingRequest) -> Result<EmbeddingResponse> {
+        embeddings::embed(self, request).await
     }
 }

@@ -4,10 +4,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::{generation, search, streaming, tools, transport};
+use super::{embeddings, generation, search, streaming, tools, transport};
 use crate::error::Result;
 use crate::models::ai::{
-    AiMessage, AiResponse, SamplingParams, SearchGroundedResponse, StreamChunk,
+    AiMessage, AiResponse, EmbeddingRequest, EmbeddingResponse, SamplingParams,
+    SearchGroundedResponse, StreamChunk,
 };
 use crate::models::tools::ToolCall;
 use crate::services::providers::served_model::{ServedModel, upstream_model_in};
@@ -184,5 +185,13 @@ impl ProviderClient for GeminiProvider {
             builder = builder.with_urls(urls);
         }
         search::generate_with_google_search(self, builder.build()).await
+    }
+
+    fn supports_embeddings(&self) -> bool {
+        true
+    }
+
+    async fn embed(&self, request: &EmbeddingRequest) -> Result<EmbeddingResponse> {
+        embeddings::embed(self, request).await
     }
 }

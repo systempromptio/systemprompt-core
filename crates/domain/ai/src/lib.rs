@@ -10,7 +10,8 @@
 //! It exposes:
 //!
 //! - [`AiService`] — top-level orchestration of generation, tool execution,
-//!   structured output, planning, and Google-Search-grounded responses.
+//!   structured output, planning, Google-Search-grounded responses and text
+//!   embeddings ([`AiService::embed`]).
 //! - [`ImageService`] — image generation and persistence.
 //! - [`ImageStorage`] / [`StorageConfig`] — local file-system blob storage for
 //!   generated images.
@@ -59,8 +60,8 @@ pub mod services;
 pub use extension::AiExtension;
 
 pub use services::core::{
-    AiService, AiServiceProviders, ImageService, ImageServiceParts, ProviderClients,
-    WithheldEndpoint,
+    AiService, AiServiceProviders, Embedded, ImageService, ImageServiceParts, ProviderClients,
+    WithheldEndpoint, embedding_usage,
 };
 
 pub use services::storage::{ImageStorage, StorageConfig, StorageConfigError};
@@ -68,9 +69,9 @@ pub use services::tools::NoopToolProvider;
 pub use systemprompt_models::ai::{GenerateResponseParams, GoogleSearchParams};
 
 pub use systemprompt_models::ai::{
-    AiMessage, AiRequest, AiRequestBuilder, AiResponse, MessageRole, ModelConfig, ModelHint,
-    ModelPreferences, ProviderConfig, ResponseFormat, SamplingParams, SearchGroundedResponse,
-    StructuredOutputOptions,
+    AiMessage, AiRequest, AiRequestBuilder, AiResponse, EmbeddingRequest, EmbeddingResponse,
+    EmbeddingUsage, MessageRole, ModelConfig, ModelHint, ModelPreferences, ProviderConfig,
+    ResponseFormat, SamplingParams, SearchGroundedResponse, StructuredOutputOptions,
 };
 
 pub use systemprompt_models::ai::tools::{CallToolResult, McpTool, ToolCall};

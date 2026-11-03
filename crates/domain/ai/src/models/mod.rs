@@ -19,9 +19,9 @@ pub use systemprompt_models::ai as ai_models;
 
 pub mod ai {
     pub use systemprompt_models::ai::{
-        AiContentPart, AiMessage, AiRequest, AiResponse, GenerateResponseParams,
-        GoogleSearchParams, MessageRole, ResponseFormat, SamplingParams, SearchGroundedResponse,
-        StreamChunk, WebSource,
+        AiContentPart, AiMessage, AiRequest, AiResponse, EmbeddingRequest, EmbeddingResponse,
+        EmbeddingUsage, GenerateResponseParams, GoogleSearchParams, MessageRole, ResponseFormat,
+        SamplingParams, SearchGroundedResponse, StreamChunk, WebSource,
     };
 }
 

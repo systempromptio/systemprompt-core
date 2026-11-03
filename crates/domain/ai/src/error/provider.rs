@@ -34,6 +34,13 @@ pub enum ProviderError {
     #[error("Provider {provider} returned a structured-output response with no tool_use block")]
     NoStructuredOutput { provider: ProviderId },
 
+    #[error("Provider {provider} returned {returned} embedding vectors for {requested} inputs")]
+    EmbeddingCountMismatch {
+        provider: ProviderId,
+        requested: usize,
+        returned: usize,
+    },
+
     #[error("Provider {provider} returned HTTP {status}: {body}")]
     HttpStatus {
         provider: ProviderId,

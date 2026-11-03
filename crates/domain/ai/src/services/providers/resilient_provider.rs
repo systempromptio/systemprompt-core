@@ -22,7 +22,10 @@ use systemprompt_database::resilience::{
 use systemprompt_manifest::services::ResilienceSettings;
 
 use crate::error::{AiError, ProviderError, Result};
-use crate::models::ai::{AiResponse, SamplingParams, SearchGroundedResponse, StreamChunk};
+use crate::models::ai::{
+    AiResponse, EmbeddingRequest, EmbeddingResponse, SamplingParams, SearchGroundedResponse,
+    StreamChunk,
+};
 use crate::models::tools::ToolCall;
 use crate::services::schema::ProviderCapabilities;
 use systemprompt_identifiers::ProviderId;
@@ -154,6 +157,17 @@ impl ProviderClient for ResilientProvider {
 
     fn supports_google_search(&self) -> bool {
         self.inner.supports_google_search()
+    }
+
+    fn supports_embeddings(&self) -> bool {
+        self.inner.supports_embeddings()
+    }
+
+    async fn embed(&self, request: &EmbeddingRequest) -> Result<EmbeddingResponse> {
+        self.guard
+            .execute(AiError::classify, || self.inner.embed(request))
+            .await
+            .map_err(|err| self.map_err(err))
     }
 
     async fn generate(&self, params: GenerationParams<'_>) -> Result<AiResponse> {

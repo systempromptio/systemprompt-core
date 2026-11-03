@@ -1,7 +1,8 @@
 //! Gemini provider driver.
 //!
 //! Chat completions, streaming, code-execution tool, Google Search grounding,
-//! and tool use. Vendor wire translation is delegated to the shared
+//! tool use and text embeddings (Vertex `:predict` or `:batchEmbedContents`).
+//! Vendor wire translation is delegated to the shared
 //! `systemprompt_wire::gemini` codec; this module keeps the transport,
 //! the schema transformer / tool-name mapper, and the canonical glue.
 //!
@@ -10,6 +11,7 @@
 
 mod code_execution;
 mod constants;
+pub mod embeddings;
 mod generation;
 mod params;
 mod provider;
