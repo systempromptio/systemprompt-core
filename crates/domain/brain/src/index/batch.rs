@@ -1,0 +1,141 @@
+//! [`reindex_facts`]: every derived index of a set of facts, set-based.
+//!
+//! One read for the set (facts, their kind bodies and their subjects'
+//! display names), then one statement per index over the whole set:
+//! working-set delete and insert, link delete and insert, subject
+//! ensure, alias upsert, weighted-vector update. Eight statements for a
+//! set of any size, against ten or more per fact on the per-fact path.
+//! Aliases and synonym expansions are derived in Rust from the loaded
+//! rows, in set order, so the alias a later fact contributes wins exactly
+//! as it would have through sequential upserts.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
+use std::collections::HashMap;
+
+use serde::Deserialize;
+use sqlx::PgConnection;
+use sqlx::types::Json;
+use systemprompt_identifiers::BrainFactId;
+use systemprompt_models::brain::{KindDecl, SubjectKey, SynonymsDoc};
+use systemprompt_traits::RepositoryError;
+
+use super::aliases::{AliasInput, derive_aliases};
+use super::rows::AliasRows;
+use crate::models::FieldMap;
+use crate::repository::{
+    AliasRepository, FactLinkRepository, SearchIndexRepository, SubjectRepository,
+    WorkingSetRepository,
+};
+
+pub const STATEMENTS_PER_SET: u64 = 8;
+
+/// What one set-based reindex did.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct ReindexReport {
+    pub facts: u64,
+    pub aliases: u64,
+    pub statements: u64,
+}
+
+struct Indexed {
+    id: String,
+    kind: String,
+    subject: SubjectKey,
+    statement: String,
+    fields: Json<FieldMap>,
+    display_name: Option<String>,
+    // JSON: the kind declaration as the plane stored it.
+    kind_body: Option<serde_json::Value>,
+}
+
+pub async fn reindex_facts(
+    conn: &mut PgConnection,
+    ids: &[BrainFactId],
+    synonyms: &SynonymsDoc,
+) -> Result<ReindexReport, RepositoryError> {
+    let keys: Vec<String> = ids.iter().map(|id| id.as_str().to_owned()).collect();
+    let rows = load_many(&mut *conn, &keys).await?;
+    if rows.is_empty() {
+        return Ok(ReindexReport::default());
+    }
+    let keys: Vec<String> = rows.iter().map(|row| row.id.clone()).collect();
+    WorkingSetRepository::refresh_many(&mut *conn, &keys).await?;
+    FactLinkRepository::refresh_many(&mut *conn, &keys).await?;
+    let subjects: Vec<&SubjectKey> = rows.iter().map(|row| &row.subject).collect();
+    SubjectRepository::ensure_many(&mut *conn, &subjects).await?;
+    let mut kinds: HashMap<String, Option<KindDecl>> = HashMap::new();
+    let aliases = AliasRows::collect(rows.iter().map(|row| {
+        let kind = kind_of(&mut kinds, row);
+        let derived = derive_aliases(AliasInput {
+            subject_id: &row.subject.id,
+            display_name: row.display_name.as_deref(),
+            kind: kind.as_ref(),
+            fields: &row.fields.0,
+        });
+        (&row.subject, derived)
+    }));
+    AliasRepository::upsert_many(&mut *conn, &aliases).await?;
+    let expansions: Vec<String> = rows
+        .iter()
+        .map(|row| synonyms.expansion_text(&row.statement))
+        .collect();
+    SearchIndexRepository::refresh_many(conn, &keys, &expansions).await?;
+    Ok(ReindexReport {
+        facts: u64::try_from(rows.len()).unwrap_or(u64::MAX),
+        aliases: u64::try_from(aliases.len()).unwrap_or(u64::MAX),
+        statements: STATEMENTS_PER_SET,
+    })
+}
+
+fn kind_of(cache: &mut HashMap<String, Option<KindDecl>>, row: &Indexed) -> Option<KindDecl> {
+    let body = row.kind_body.as_ref()?;
+    if let Some(found) = cache.get(&row.kind) {
+        return found.clone();
+    }
+    let decoded = match KindDecl::deserialize(body) {
+        Ok(kind) => Some(kind),
+        Err(error) => {
+            tracing::warn!(kind = %row.kind, error = %error, "Brain kind body could not be decoded for reindex");
+            None
+        },
+    };
+    cache.insert(row.kind.clone(), decoded.clone());
+    decoded
+}
+
+async fn load_many(
+    conn: &mut PgConnection,
+    keys: &[String],
+) -> Result<Vec<Indexed>, RepositoryError> {
+    if keys.is_empty() {
+        return Ok(Vec::new());
+    }
+    let rows = sqlx::query!(
+        r#"SELECT f.id AS "id!", f.kind AS "kind!", f.subject_kind AS "subject_kind!",
+                  f.subject_id AS "subject_id!", f.statement AS "statement!", f.fields AS "fields!: Json<FieldMap>",
+                  s.display_name, k.body AS "kind_body?"
+           FROM brain_facts f
+           LEFT JOIN brain_subjects s
+                  ON s.subject_kind = f.subject_kind AND s.subject_id = f.subject_id
+           LEFT JOIN brain_fact_kinds k ON k.id = f.kind
+           WHERE f.id = ANY($1::text[])
+           ORDER BY array_position($1::text[], f.id)"#,
+        keys
+    )
+    .fetch_all(conn)
+    .await?;
+    Ok(rows
+        .into_iter()
+        .map(|row| Indexed {
+            id: row.id,
+            kind: row.kind,
+            subject: SubjectKey::new(row.subject_kind, row.subject_id),
+            statement: row.statement,
+            fields: row.fields,
+            display_name: row.display_name,
+            kind_body: row.kind_body,
+        })
+        .collect())
+}

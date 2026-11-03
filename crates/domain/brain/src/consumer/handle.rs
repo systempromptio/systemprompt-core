@@ -1,5 +1,10 @@
-//! One event of a drain round, on the round's transaction: decode it, run
-//! the pipeline inside its own savepoint, and record what a failure leaves.
+//! One event of a drain round, on the round's transaction: decoded up
+//! front with the rest of the round, run through the pipeline inside its
+//! own savepoint with the derived indexes deferred and the round cache
+//! serving its reads, and recorded on failure. A finished event reports
+//! the facts it landed on and its result row for the round's set-based
+//! reindex and ledger finish, and its committed dedupe writes are applied
+//! to the round cache before the next event runs.
 //!
 //! A permanent failure is recorded and reported done, so the round
 //! acknowledges it. A transient failure has already rolled back its
@@ -11,41 +16,37 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use sqlx::{Acquire, PgConnection};
-use systemprompt_events::services::durable::ReportingFact;
-use systemprompt_identifiers::{EventOutboxId, PipelineVersion};
-use systemprompt_models::brain::{BRAIN_EVENT_VERSION, BrainEvent};
+use systemprompt_identifiers::{BrainFactId, EventOutboxId, PipelineVersion};
+use systemprompt_models::brain::BrainEvent;
 
+use super::decode::Decoded;
 use super::{BrainConsumer, Counters};
 use crate::error::{BrainError, BrainResult};
 use crate::models::{EventOutcome, EventResult, NewFailure};
-use crate::pipeline::{BatchContext, ProcessOutcome, metrics};
+use crate::pipeline::{ProcessOutcome, ProcessParams, metrics};
 use crate::repository::{EventResultRepository, FailureRepository};
 
 pub const MAX_EVENT_ATTEMPTS: i64 = 5;
 const DECODE_STAGE: &str = "decode";
 const ABANDONED_STAGE: &str = "abandoned";
 
-#[derive(Debug, thiserror::Error)]
-enum Undecodable {
-    #[error("brain event does not decode")]
-    Json(#[from] serde_json::Error),
-    #[error("unsupported event version {0}")]
-    Version(u32),
-}
-
-// JSON: the fact envelope is decoded first, and its data only after its
-// version is checked.
-fn decode(raw: &serde_json::Value) -> Result<BrainEvent, Undecodable> {
-    let fact: ReportingFact<serde_json::Value> = serde_json::from_value(raw.clone())?;
-    if fact.version != BRAIN_EVENT_VERSION {
-        return Err(Undecodable::Version(fact.version));
-    }
-    Ok(serde_json::from_value(fact.data)?)
-}
-
 pub(super) enum Handled {
-    Done { wrote: bool },
+    Done {
+        wrote: bool,
+        facts: Vec<BrainFactId>,
+        result: Option<EventResult>,
+    },
     Retry(BrainError),
+}
+
+impl Handled {
+    const fn failed() -> Self {
+        Self::Done {
+            wrote: false,
+            facts: Vec::new(),
+            result: None,
+        }
+    }
 }
 
 pub(super) struct Failed<'a> {
@@ -56,48 +57,62 @@ pub(super) struct Failed<'a> {
     pub(super) attempt: i64,
 }
 
+struct Attempt<'a> {
+    id: &'a EventOutboxId,
+    kind: &'a str,
+    version: &'a PipelineVersion,
+}
+
 impl BrainConsumer {
-    // JSON: the claimed row's fact is undecoded until here.
     pub(super) async fn handle(
         &self,
         conn: &mut PgConnection,
-        id: &EventOutboxId,
-        raw: &serde_json::Value,
-        ctx: &BatchContext,
+        decoded: Decoded,
+        params: &ProcessParams<'_>,
     ) -> Handled {
-        let event = match decode(raw) {
+        let id = &decoded.id;
+        let event = match decoded.event {
             Ok(event) => event,
             Err(error) => {
                 metrics::event("decode_failed");
                 let failed = Failed {
                     id,
-                    version: ctx.version(),
+                    version: params.ctx.version(),
                     stage: DECODE_STAGE,
                     reason: error.to_string(),
                     attempt: 1,
                 };
                 fail(conn, &failed).await;
                 Counters::bump(&self.counters.failed);
-                return Handled::Done { wrote: false };
+                return Handled::failed();
             },
         };
         let kind = event.kind.to_string();
-        match self.process_in_savepoint(conn, id, event, ctx).await {
+        match self.process_in_savepoint(conn, id, event, params).await {
             Ok(outcome) => {
                 Counters::bump(&self.counters.processed);
+                let wrote = wrote(&outcome);
+                let (facts, result) = landed(outcome);
                 Handled::Done {
-                    wrote: wrote(&outcome),
+                    wrote,
+                    facts,
+                    result,
                 }
             },
             Err(error) if error.is_transient() => {
-                self.retry_or_abandon(conn, id, &kind, ctx, error).await
+                let attempt = Attempt {
+                    id,
+                    kind: &kind,
+                    version: params.ctx.version(),
+                };
+                self.retry_or_abandon(conn, &attempt, error).await
             },
             Err(error) => {
                 metrics::event("failed");
                 tracing::warn!(outbox_id = %id, kind = %kind, error = %error, "Brain event failed");
                 let failed = Failed {
                     id,
-                    version: ctx.version(),
+                    version: params.ctx.version(),
                     stage: error.stage(),
                     reason: error.to_string(),
                     attempt: 1,
@@ -105,27 +120,21 @@ impl BrainConsumer {
                 fail(&mut *conn, &failed).await;
                 close_result(conn, &failed, &kind, EventOutcome::Failed).await;
                 Counters::bump(&self.counters.failed);
-                Handled::Done { wrote: false }
+                Handled::failed()
             },
         }
     }
 
-    #[expect(
-        clippy::too_many_arguments,
-        reason = "the round's connection, identity and batch context travel with the error"
-    )]
     async fn retry_or_abandon(
         &self,
         conn: &mut PgConnection,
-        id: &EventOutboxId,
-        kind: &str,
-        ctx: &BatchContext,
+        attempt: &Attempt<'_>,
         error: BrainError,
     ) -> Handled {
-        let earlier = match FailureRepository::count_for_outbox(&mut *conn, id).await {
+        let earlier = match FailureRepository::count_for_outbox(&mut *conn, attempt.id).await {
             Ok(count) => count,
             Err(count_error) => {
-                tracing::warn!(outbox_id = %id, error = %count_error, "Brain event attempts could not be read");
+                tracing::warn!(outbox_id = %attempt.id, error = %count_error, "Brain event attempts could not be read");
                 return Handled::Retry(error);
             },
         };
@@ -133,18 +142,18 @@ impl BrainConsumer {
             return Handled::Retry(error);
         }
         metrics::event("abandoned");
-        tracing::error!(outbox_id = %id, kind = %kind, attempts = earlier + 1, error = %error, "Brain event abandoned");
+        tracing::error!(outbox_id = %attempt.id, kind = %attempt.kind, attempts = earlier + 1, error = %error, "Brain event abandoned");
         let failed = Failed {
-            id,
-            version: ctx.version(),
+            id: attempt.id,
+            version: attempt.version,
             stage: ABANDONED_STAGE,
             reason: format!("event_abandoned: {error}"),
             attempt: earlier + 1,
         };
         fail(&mut *conn, &failed).await;
-        close_result(conn, &failed, kind, EventOutcome::Abandoned).await;
+        close_result(conn, &failed, attempt.kind, EventOutcome::Abandoned).await;
         Counters::bump(&self.counters.abandoned);
-        Handled::Done { wrote: false }
+        Handled::failed()
     }
 
     pub(super) async fn record_retry(
@@ -179,13 +188,20 @@ impl BrainConsumer {
         conn: &mut PgConnection,
         id: &EventOutboxId,
         event: BrainEvent,
-        ctx: &BatchContext,
+        params: &ProcessParams<'_>,
     ) -> BrainResult<ProcessOutcome> {
         let mut savepoint = conn.begin().await?;
-        match self.pipeline.process(id, event, &mut savepoint, ctx).await {
-            Ok(outcome) => {
+        match self
+            .pipeline
+            .process_with(id, event, &mut savepoint, params)
+            .await
+        {
+            Ok(mut outcome) => {
                 savepoint.commit().await?;
-                if let ProcessOutcome::Finished(summary) = &outcome {
+                if let ProcessOutcome::Finished(summary) = &mut outcome {
+                    if let Some(round) = params.round {
+                        round.apply(std::mem::take(&mut summary.writes), params.ctx.loaded_at());
+                    }
                     tracing::debug!(
                         outbox_id = %id,
                         outcome = summary.outcome.as_str(),
@@ -203,6 +219,13 @@ impl BrainConsumer {
                 Err(error)
             },
         }
+    }
+}
+
+fn landed(outcome: ProcessOutcome) -> (Vec<BrainFactId>, Option<EventResult>) {
+    match outcome {
+        ProcessOutcome::Skipped => (Vec::new(), None),
+        ProcessOutcome::Finished(summary) => (summary.facts, summary.result),
     }
 }
 

@@ -2,7 +2,9 @@
 //! projection, bumps its revision and appends the revision row on the same
 //! connection, so a fact and its history never disagree. A change that
 //! touches the statement, fields, topics or importance (`Revised`,
-//! `Merged`, `FieldsEdited`) also refreshes the derived indexes there.
+//! `Merged`, `FieldsEdited`) also refreshes the derived indexes there,
+//! unless the caller defers them to its set-based round
+//! ([`Reindex::Deferred`]), in which case it reindexes the id itself.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -16,7 +18,7 @@ use systemprompt_traits::RepositoryError;
 
 use super::FactRepository;
 use super::revisions::FactRevisionRepository;
-use crate::index::reindex_fact;
+use crate::index::{Reindex, reindex_fact};
 use crate::models::{FactChange, FieldMap, NewRevision, decode_status};
 
 pub(super) struct SourceColumns<'a> {
@@ -109,6 +111,15 @@ impl FactRepository {
         id: &BrainFactId,
         change: FactChange,
     ) -> Result<FactRevision, RepositoryError> {
+        Self::apply_with(conn, id, change, Reindex::Now).await
+    }
+
+    pub async fn apply_with(
+        conn: &mut PgConnection,
+        id: &BrainFactId,
+        change: FactChange,
+        reindex: Reindex,
+    ) -> Result<FactRevision, RepositoryError> {
         let patch = Patch::of(&change)?;
         let source: Option<FactSource> = match &change {
             FactChange::Revised { source, .. } => Some(source.clone()),
@@ -177,7 +188,7 @@ impl FactRepository {
             },
         )
         .await?;
-        if reindexes(&change) {
+        if reindex == Reindex::Now && reindexes(&change) {
             reindex_fact(conn, id).await?;
         }
         Ok(revision)

@@ -11,6 +11,8 @@ mod consumer_batch;
 #[cfg(test)]
 mod consumer_drain;
 #[cfg(test)]
+mod consumer_reindex;
+#[cfg(test)]
 mod dedupe_dispute;
 #[cfg(test)]
 mod dedupe_unchanged;

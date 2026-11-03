@@ -29,9 +29,10 @@ pub struct Rebuilds {
 
 impl Rebuilds {
     #[must_use]
-    pub fn for_keys<'a>(keys: impl IntoIterator<Item = &'a str>) -> Self {
+    pub fn for_keys<K: AsRef<str>>(keys: impl IntoIterator<Item = K>) -> Self {
         let mut rebuilds = Self::default();
         for key in keys {
+            let key = key.as_ref();
             let (kind, id) = key.split_once('/').unwrap_or((key, ""));
             match (kind, id) {
                 (TOPIC, _) => rebuilds.working_set = true,

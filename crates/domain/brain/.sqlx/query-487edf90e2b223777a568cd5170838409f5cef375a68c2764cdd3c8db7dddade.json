@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO brain_aliases (id, subject_kind, subject_id, alias, alias_norm)\n             SELECT gen_random_uuid()::text, a.kind, a.subject, a.alias, a.norm\n             FROM unnest($1::text[], $2::text[], $3::text[], $4::text[])\n                  AS a(kind, subject, alias, norm)\n             ON CONFLICT (subject_kind, alias_norm) DO UPDATE\n             SET subject_id = EXCLUDED.subject_id, alias = EXCLUDED.alias",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "TextArray",
+        "TextArray",
+        "TextArray",
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "487edf90e2b223777a568cd5170838409f5cef375a68c2764cdd3c8db7dddade"
+}

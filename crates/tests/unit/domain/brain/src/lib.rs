@@ -26,6 +26,8 @@ mod fixtures;
 #[cfg(test)]
 mod index_aliases;
 #[cfg(test)]
+mod index_batch;
+#[cfg(test)]
 mod jobs_consolidate;
 #[cfg(test)]
 mod model_schema;
@@ -39,6 +41,8 @@ mod pipeline_dedupe;
 mod pipeline_filter;
 #[cfg(test)]
 mod pipeline_fixtures;
+#[cfg(test)]
+mod pipeline_round;
 #[cfg(test)]
 mod pipeline_rules;
 #[cfg(test)]

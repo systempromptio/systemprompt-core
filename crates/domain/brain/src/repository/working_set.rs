@@ -9,7 +9,8 @@
 //! revised (scope, topics or importance), deleted (the foreign key
 //! cascades) or when a topic's audience changes (the plane apply rebuilds).
 //! The projection is derived entirely in SQL from `brain_facts` and
-//! `brain_topics`, so a per-fact refresh and a full rebuild cannot disagree.
+//! `brain_topics`, so a per-fact refresh, a set refresh and a full rebuild
+//! cannot disagree.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -40,9 +41,16 @@ impl WorkingSetRepository {
         conn: &mut PgConnection,
         id: &BrainFactId,
     ) -> Result<u64, RepositoryError> {
+        Self::refresh_many(conn, &[id.as_str().to_owned()]).await
+    }
+
+    pub async fn refresh_many(
+        conn: &mut PgConnection,
+        ids: &[String],
+    ) -> Result<u64, RepositoryError> {
         sqlx::query!(
-            "DELETE FROM brain_working_set WHERE fact_id = $1",
-            id.as_str()
+            "DELETE FROM brain_working_set WHERE fact_id = ANY($1::text[])",
+            ids
         )
         .execute(&mut *conn)
         .await?;
@@ -59,9 +67,9 @@ impl WorkingSetRepository {
                        jsonb_array_elements_text(COALESCE(t.body -> 'audience', '[]'::jsonb)) a
                   WHERE t.id = ANY (f.topics)
               ) s
-              WHERE f.id = $1
+              WHERE f.id = ANY($1::text[])
               ON CONFLICT DO NOTHING",
-            id.as_str()
+            ids
         )
         .execute(conn)
         .await?;

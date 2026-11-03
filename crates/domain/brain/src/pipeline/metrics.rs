@@ -43,6 +43,11 @@ pub(crate) fn round_events(events: usize) {
     metrics::histogram!("brain_round_events").record(events as f64);
 }
 
+pub(crate) fn round_reindexed(facts: u64, statements: u64) {
+    metrics::histogram!("brain_round_facts_reindexed").record(facts as f64);
+    metrics::counter!("brain_index_statements_total").increment(statements);
+}
+
 pub(crate) fn store_counts(counts: &FactCounts, open_disputes: i64) {
     for (status, count) in &counts.by_status {
         metrics::gauge!("brain_facts", "status" => status.as_str()).set(*count as f64);

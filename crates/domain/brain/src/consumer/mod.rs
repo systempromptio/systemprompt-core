@@ -5,7 +5,9 @@
 //! Each event is processed inside its own savepoint and acknowledged on the
 //! round's transaction, which commits once, so one bad event rolls back
 //! only itself and a crash rolls back the round in hand. The round shares
-//! one [`BatchContext`](crate::pipeline::BatchContext).
+//! one [`BatchContext`](crate::pipeline::BatchContext). The events' writes
+//! defer the derived indexes; the round reindexes every fact it landed on
+//! in one set-based pass before it commits (see `drain`).
 //!
 //! An event that cannot succeed (it does not decode, its version is one
 //! this build does not read, or a stage refuses it for good) is recorded
@@ -25,6 +27,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod builder;
+mod decode;
 mod drain;
 mod handle;
 mod round_state;
@@ -74,14 +77,16 @@ impl ConsumerState {
     }
 }
 
-/// The consumer's state, its event counts since start and when its last
-/// round ran, as health reports them.
+/// The consumer's state, its event counts since start, the facts its
+/// rounds have reindexed set-based, and when its last round ran, as health
+/// reports them.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub struct BacklogSnapshot {
     pub processed: u64,
     pub retried: u64,
     pub failed: u64,
     pub abandoned: u64,
+    pub reindexed: u64,
     pub state: ConsumerState,
     pub last_round: Option<DateTime<Utc>>,
 }
@@ -112,11 +117,16 @@ pub(crate) struct Counters {
     pub(crate) retried: AtomicU64,
     pub(crate) failed: AtomicU64,
     pub(crate) abandoned: AtomicU64,
+    pub(crate) reindexed: AtomicU64,
 }
 
 impl Counters {
     pub(crate) fn bump(counter: &AtomicU64) {
         counter.fetch_add(1, Ordering::Relaxed);
+    }
+
+    pub(crate) fn add(counter: &AtomicU64, by: u64) {
+        counter.fetch_add(by, Ordering::Relaxed);
     }
 }
 
@@ -154,6 +164,7 @@ impl BrainConsumer {
             retried: read(&self.counters.retried),
             failed: read(&self.counters.failed),
             abandoned: read(&self.counters.abandoned),
+            reindexed: read(&self.counters.reindexed),
             state: self.state.get(),
             last_round: self.round_state.last_round(),
         }

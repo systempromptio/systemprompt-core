@@ -18,7 +18,7 @@ use systemprompt_brain::plane::DeclaredBrain;
 
 use crate::plane::{self, FINANCE, kind, topic};
 
-const CONTACT: &str = "contact";
+pub(crate) const CONTACT: &str = "contact";
 
 /// The highest weight a lexeme carries in a tsvector's text form
 /// (`'lexeme':3A,7B`); `None` when the lexeme is absent or unweighted.
@@ -43,7 +43,7 @@ fn field(field_type: FieldType, entity_ref: Option<&str>, alias: bool) -> FieldD
     }
 }
 
-fn contact_kind() -> KindDecl {
+pub(crate) fn contact_kind() -> KindDecl {
     KindDecl {
         kind: kind(CONTACT),
         subject: "client".to_owned(),
@@ -66,7 +66,7 @@ fn contact_kind() -> KindDecl {
     }
 }
 
-fn declared_with_contact() -> DeclaredBrain {
+pub(crate) fn declared_with_contact() -> DeclaredBrain {
     let mut declared = plane::declared();
     declared.kinds.push(contact_kind());
     declared.synonyms = Some(SynonymsDoc {

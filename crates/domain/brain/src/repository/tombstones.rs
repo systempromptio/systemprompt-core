@@ -35,6 +35,27 @@ impl TombstoneRepository {
         .await?)
     }
 
+    pub async fn list_existing(
+        conn: &mut PgConnection,
+        identities: &[(FactKindId, String)],
+    ) -> Result<Vec<(FactKindId, String)>, RepositoryError> {
+        let kinds: Vec<String> = identities.iter().map(|(k, _)| k.to_string()).collect();
+        let hashes: Vec<String> = identities.iter().map(|(_, h)| h.clone()).collect();
+        let rows = sqlx::query!(
+            r#"SELECT kind AS "kind: FactKindId", identity_hash FROM brain_tombstones
+               WHERE (kind, identity_hash) IN (
+                   SELECT i.kind, i.hash FROM unnest($1::text[], $2::text[]) AS i(kind, hash))"#,
+            &kinds,
+            &hashes,
+        )
+        .fetch_all(conn)
+        .await?;
+        Ok(rows
+            .into_iter()
+            .map(|row| (row.kind, row.identity_hash))
+            .collect())
+    }
+
     pub async fn insert(
         conn: &mut PgConnection,
         kind: &FactKindId,

@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM brain_event_results\n             WHERE pipeline_version = $1 AND outbox_id = ANY($2::text[]) AND finished_at IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "aa82d26a9b2213d9e7a8f178d0264762e6006d4be9b57809ea64cda88c164893"
+}

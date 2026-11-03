@@ -1,6 +1,9 @@
 //! [`SubjectRepository`] and [`AliasRepository`]: the business subjects
 //! facts are about and the names they go by, matched exactly or by
-//! trigram similarity.
+//! trigram similarity. The `_many` writers take the rows of a whole set
+//! in one statement; [`AliasRows`] has already folded duplicate
+//! `(subject_kind, alias_norm)` pairs, which one `INSERT … ON CONFLICT DO
+//! UPDATE` cannot touch twice.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -10,6 +13,7 @@ use systemprompt_models::brain::SubjectKey;
 use systemprompt_traits::RepositoryError;
 
 use super::Pools;
+use crate::index::AliasRows;
 
 /// A subject whose alias resembles the text looked up, with the trigram
 /// similarity of the best alias.
@@ -43,6 +47,24 @@ impl SubjectRepository {
             subject.kind,
             subject.id,
             display_name,
+        )
+        .execute(conn)
+        .await?;
+        Ok(())
+    }
+
+    pub async fn ensure_many(
+        conn: &mut PgConnection,
+        subjects: &[&SubjectKey],
+    ) -> Result<(), RepositoryError> {
+        let kinds: Vec<String> = subjects.iter().map(|s| s.kind.clone()).collect();
+        let ids: Vec<String> = subjects.iter().map(|s| s.id.clone()).collect();
+        sqlx::query!(
+            "INSERT INTO brain_subjects (subject_kind, subject_id)
+             SELECT DISTINCT s.kind, s.id FROM unnest($1::text[], $2::text[]) AS s(kind, id)
+             ON CONFLICT (subject_kind, subject_id) DO NOTHING",
+            &kinds,
+            &ids,
         )
         .execute(conn)
         .await?;
@@ -102,6 +124,30 @@ impl AliasRepository {
         Ok(())
     }
 
+    pub async fn upsert_many(
+        conn: &mut PgConnection,
+        rows: &AliasRows,
+    ) -> Result<u64, RepositoryError> {
+        if rows.is_empty() {
+            return Ok(0);
+        }
+        let result = sqlx::query!(
+            "INSERT INTO brain_aliases (id, subject_kind, subject_id, alias, alias_norm)
+             SELECT gen_random_uuid()::text, a.kind, a.subject, a.alias, a.norm
+             FROM unnest($1::text[], $2::text[], $3::text[], $4::text[])
+                  AS a(kind, subject, alias, norm)
+             ON CONFLICT (subject_kind, alias_norm) DO UPDATE
+             SET subject_id = EXCLUDED.subject_id, alias = EXCLUDED.alias",
+            &rows.kinds,
+            &rows.subjects,
+            &rows.aliases,
+            &rows.norms,
+        )
+        .execute(conn)
+        .await?;
+        Ok(result.rows_affected())
+    }
+
     pub async fn similar(
         executor: impl PgExecutor<'_>,
         subject_kind: &str,
@@ -127,6 +173,35 @@ impl AliasRepository {
                 alias: row.alias,
                 similarity: row.similarity,
             })
+            .collect())
+    }
+
+    pub async fn resolve_many(
+        conn: &mut PgConnection,
+        subjects: &[SubjectKey],
+        threshold: f32,
+    ) -> Result<Vec<(SubjectKey, Option<String>)>, RepositoryError> {
+        let kinds: Vec<String> = subjects.iter().map(|s| s.kind.clone()).collect();
+        let ids: Vec<String> = subjects.iter().map(|s| s.id.clone()).collect();
+        let norms: Vec<String> = subjects.iter().map(|s| Self::normalise(&s.id)).collect();
+        let rows = sqlx::query!(
+            r#"SELECT p.kind AS "kind!", p.id AS "id!", a.subject_id AS "resolved?"
+               FROM unnest($1::text[], $2::text[], $3::text[]) AS p(kind, id, norm)
+               LEFT JOIN LATERAL (
+                   SELECT subject_id FROM brain_aliases
+                   WHERE subject_kind = p.kind AND similarity(alias_norm, p.norm) >= $4::float4
+                   ORDER BY similarity(alias_norm, p.norm) DESC, subject_id LIMIT 1
+               ) a ON true"#,
+            &kinds,
+            &ids,
+            &norms,
+            threshold,
+        )
+        .fetch_all(conn)
+        .await?;
+        Ok(rows
+            .into_iter()
+            .map(|row| (SubjectKey::new(row.kind, row.id), row.resolved))
             .collect())
     }
 

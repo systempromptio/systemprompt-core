@@ -14,10 +14,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod dedupe_set;
 mod disputes;
 mod event_results;
 mod extractions;
 mod fact_apply;
+mod fact_insert;
 mod fact_lifecycle;
 mod facts;
 mod failures;
@@ -44,6 +46,7 @@ use std::sync::Arc;
 use sqlx::PgPool;
 use systemprompt_database::DbPool;
 
+pub use dedupe_set::DedupeSetRepository;
 pub use disputes::DisputeRepository;
 pub use event_results::EventResultRepository;
 pub use extractions::ExtractionRepository;

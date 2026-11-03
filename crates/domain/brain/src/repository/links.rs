@@ -3,8 +3,8 @@
 //! 'subject'`, and every `entity` field that carries a value links the
 //! subject that value names: `<ref>:<id>` as written, or the field's
 //! declared `ref` kind with the bare value. The rows are derived in SQL
-//! from the fact and its kind declaration, so a refresh and the migration
-//! backfill agree.
+//! from the fact and its kind declaration, so a per-fact refresh, a set
+//! refresh and a full rebuild agree.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -29,16 +29,23 @@ impl FactLinkRepository {
         conn: &mut PgConnection,
         id: &BrainFactId,
     ) -> Result<u64, RepositoryError> {
+        Self::refresh_many(conn, &[id.as_str().to_owned()]).await
+    }
+
+    pub async fn refresh_many(
+        conn: &mut PgConnection,
+        ids: &[String],
+    ) -> Result<u64, RepositoryError> {
         sqlx::query!(
-            "DELETE FROM brain_fact_links WHERE fact_id = $1",
-            id.as_str()
+            "DELETE FROM brain_fact_links WHERE fact_id = ANY($1::text[])",
+            ids
         )
         .execute(&mut *conn)
         .await?;
         let result = sqlx::query!(
             r"INSERT INTO brain_fact_links (fact_id, subject_kind, subject_id, via_field)
               SELECT f.id, f.subject_kind, f.subject_id, 'subject' FROM brain_facts f
-              WHERE f.id = $1
+              WHERE f.id = ANY($1::text[])
               UNION
               SELECT f.id,
                      CASE WHEN strpos(x.v, ':') > 0 THEN split_part(x.v, ':', 1)
@@ -50,12 +57,12 @@ impl FactLinkRepository {
               JOIN brain_fact_kinds k ON k.id = f.kind
               CROSS JOIN LATERAL jsonb_each(COALESCE(k.body -> 'fields', '{}'::jsonb)) d(key, decl)
               CROSS JOIN LATERAL (SELECT f.fields ->> d.key AS v) x
-              WHERE f.id = $1
+              WHERE f.id = ANY($1::text[])
                 AND d.decl ->> 'type' = 'entity'
                 AND x.v IS NOT NULL AND x.v <> ''
                 AND (strpos(x.v, ':') > 0 OR d.decl ->> 'ref' IS NOT NULL)
               ON CONFLICT DO NOTHING",
-            id.as_str()
+            ids
         )
         .execute(conn)
         .await?;

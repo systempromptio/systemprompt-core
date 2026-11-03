@@ -4,8 +4,8 @@
 //! synonym expansions `C`. The field split comes from the kind declaration
 //! in `brain_fact_kinds`; a fact whose kind is no longer declared indexes
 //! its statement alone. The expansions are computed in Rust from the
-//! `synonyms` config document and passed in, so one function produces them
-//! for a single refresh and for a full rebuild.
+//! `synonyms` config document and passed in, one per fact, so one
+//! statement serves a single refresh, a set refresh and a full rebuild.
 //!
 //! The generated `search` column stays for one release beside this one.
 //!
@@ -30,6 +30,14 @@ impl SearchIndexRepository {
         id: &BrainFactId,
         expansion: &str,
     ) -> Result<(), RepositoryError> {
+        Self::refresh_many(conn, &[id.as_str().to_owned()], &[expansion.to_owned()]).await
+    }
+
+    pub async fn refresh_many(
+        conn: &mut PgConnection,
+        ids: &[String],
+        expansions: &[String],
+    ) -> Result<(), RepositoryError> {
         sqlx::query!(
             r"UPDATE brain_facts f SET search_weighted =
                   setweight(to_tsvector('simple',
@@ -41,12 +49,13 @@ impl SearchIndexRepository {
                           SELECT string_agg(e.value, ' ')
                           FROM jsonb_each_text(f.fields) e
                           WHERE NOT COALESCE(k.body -> 'identity', '[]'::jsonb) ? e.key), '')), 'B')
-                  || setweight(to_tsvector('simple', f.statement || ' ' || $2), 'C')
-              FROM brain_facts f2
+                  || setweight(to_tsvector('simple', f.statement || ' ' || x.expansion), 'C')
+              FROM unnest($1::text[], $2::text[]) AS x(id, expansion)
+              JOIN brain_facts f2 ON f2.id = x.id
               LEFT JOIN brain_fact_kinds k ON k.id = f2.kind
-              WHERE f2.id = f.id AND f.id = $1",
-            id.as_str(),
-            expansion,
+              WHERE f.id = x.id",
+            ids,
+            expansions,
         )
         .execute(conn)
         .await?;

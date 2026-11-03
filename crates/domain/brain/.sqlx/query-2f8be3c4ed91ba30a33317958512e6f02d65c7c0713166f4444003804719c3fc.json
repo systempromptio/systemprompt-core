@@ -1,0 +1,45 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT p.kind AS \"kind!\", p.id AS \"id!\", a.subject_id AS \"resolved?\"\n               FROM unnest($1::text[], $2::text[], $3::text[]) AS p(kind, id, norm)\n               LEFT JOIN LATERAL (\n                   SELECT subject_id FROM brain_aliases\n                   WHERE subject_kind = p.kind AND similarity(alias_norm, p.norm) >= $4::float4\n                   ORDER BY similarity(alias_norm, p.norm) DESC, subject_id LIMIT 1\n               ) a ON true",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "kind!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "id!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "resolved?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "brain_aliases",
+            "name": "subject_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "TextArray",
+        "TextArray",
+        "TextArray",
+        "Float4"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      true
+    ]
+  },
+  "hash": "2f8be3c4ed91ba30a33317958512e6f02d65c7c0713166f4444003804719c3fc"
+}
