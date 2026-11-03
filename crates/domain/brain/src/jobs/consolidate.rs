@@ -56,10 +56,8 @@ impl fmt::Display for ConsolidationInactive {
     }
 }
 
-/// An inactive run says why on its (daily) tick; there is no startup hook
-/// a job could say it from once.
 fn inactive(reason: ConsolidationInactive) -> JobResult {
-    tracing::info!(reason = %reason, "brain consolidation inactive: {reason}");
+    tracing::info!(reason = %reason, "brain consolidation inactive");
     metrics::consolidation("inactive");
     JobResult::success().with_stats(0, 0)
 }
@@ -103,8 +101,6 @@ impl ConsolidationParts {
         }
     }
 
-    /// The reason the parts cannot run, if any; checked in the order the
-    /// operator can act on them.
     #[must_use]
     pub fn inactive_reason(&self, profile: &BrainProfile) -> Option<ConsolidationInactive> {
         if !profile.consolidation.enabled {
@@ -124,7 +120,6 @@ impl ConsolidationParts {
 }
 
 impl BrainConsolidateJob {
-    /// Runs with explicit parts, so a test can supply or withhold each.
     pub async fn run_with(
         ctx: &JobContext,
         parts: ConsolidationParts,

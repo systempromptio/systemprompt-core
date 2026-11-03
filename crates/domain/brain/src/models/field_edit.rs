@@ -13,6 +13,7 @@ pub fn merge_fields(
     stored: &Map<String, Value>,
     // JSON: the edit; `null` removes a field.
     edit: Map<String, Value>,
+    // JSON: the merged fields, validated against the kind by the caller.
 ) -> Map<String, Value> {
     let mut merged = stored.clone();
     for (name, value) in edit {

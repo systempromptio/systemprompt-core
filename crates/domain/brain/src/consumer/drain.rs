@@ -27,7 +27,6 @@ use super::handle::Handled;
 use crate::error::BrainResult;
 use crate::pipeline::{BatchContext, metrics};
 
-/// Transient failures one round absorbs before it stops early.
 pub const MAX_ROUND_TRANSIENTS: usize = 3;
 
 #[derive(Default)]

@@ -66,9 +66,6 @@ impl BrainService {
             .await
     }
 
-    /// Merges `edit` onto the stored fields (`null` removes a field),
-    /// checks the result against the kind, re-renders the statement and
-    /// refuses an edit that would change the fact's identity.
     pub async fn edit_fields(
         &self,
         caller: &BrainCaller,

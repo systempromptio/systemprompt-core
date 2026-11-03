@@ -20,7 +20,6 @@ pub struct NewFact {
     pub statement_hash: String,
     pub status: FactStatus,
     pub importance_base: f64,
-    /// When the fact was observed to hold; `None` stores the insert time.
     pub observed_at: Option<DateTime<Utc>>,
     pub valid_from: Option<DateTime<Utc>>,
     pub valid_to: Option<DateTime<Utc>>,

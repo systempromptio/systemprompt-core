@@ -76,8 +76,6 @@ impl BrainRoutes {
         }
     }
 
-    /// The subject attribute providers the simulator resolves a principal's
-    /// default `project` from, as the gateway does.
     #[must_use]
     pub fn with_subject_providers(mut self, providers: SubjectProviderSet) -> Self {
         self.subject_providers = providers;

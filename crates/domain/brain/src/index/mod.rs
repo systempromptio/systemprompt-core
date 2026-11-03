@@ -28,7 +28,6 @@ use systemprompt_traits::RepositoryError;
 
 pub use aliases::{AliasInput, derive_aliases};
 
-/// The projection every stored fact's derived indexes are queued under.
 pub const BRAIN_FACT_INDEX: &str = "brain_fact_index";
 
 use crate::models::FieldMap;
@@ -74,8 +73,6 @@ pub async fn reindex_fact(
     SearchIndexRepository::refresh(conn, id, &expansion).await
 }
 
-/// Reindexes each queued key on the drain transaction; answers how many
-/// facts were reindexed.
 pub async fn refresh_projection(
     conn: &mut PgConnection,
     keys: Vec<String>,

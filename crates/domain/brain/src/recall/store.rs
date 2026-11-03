@@ -37,14 +37,11 @@ pub struct BrainRecallStore {
     repos: BrainRepositories,
     stale: StalePolicy,
     working_set: bool,
-    /// The search term statistics, read at most once per [`TERMS_TTL`].
     terms: TermsCache,
 }
 
-/// Term statistics with the instant they were read.
 type TermsCache = Arc<Mutex<Option<(Instant, Arc<SearchTerms>)>>>;
 
-/// How long loaded term statistics serve recall before they are read again.
 const TERMS_TTL: Duration = Duration::from_secs(60);
 
 impl BrainRecallStore {
@@ -79,7 +76,6 @@ impl BrainRecallStore {
         fresh
     }
 
-    /// `brain.recall.working_set`; `false` runs the legacy tier SQL.
     #[must_use]
     pub const fn with_working_set(mut self, working_set: bool) -> Self {
         self.working_set = working_set;

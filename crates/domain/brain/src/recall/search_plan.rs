@@ -36,7 +36,6 @@ pub struct SearchPlan {
     pub rank: String,
 }
 
-/// One synonym group of the message, as tsquery text and by rarity.
 #[derive(Debug, Clone, PartialEq)]
 struct Group {
     tsquery: String,

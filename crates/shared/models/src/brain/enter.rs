@@ -34,7 +34,6 @@ pub struct EnteredFact {
     pub topics: Vec<TopicId>,
     #[serde(default)]
     pub status: EnteredStatus,
-    /// When the fact was observed to hold; the entry time when absent.
     #[serde(default)]
     pub observed_at: Option<DateTime<Utc>>,
 }

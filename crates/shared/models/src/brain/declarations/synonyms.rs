@@ -42,8 +42,6 @@ impl SynonymsDoc {
         Ok(())
     }
 
-    /// Every member of every group with a member present in `text`, in
-    /// declaration order, each member once.
     #[must_use]
     pub fn expansions(&self, text: &str) -> Vec<String> {
         let words = words_of(text);
@@ -62,8 +60,6 @@ impl SynonymsDoc {
         out
     }
 
-    /// The expansions of `text` joined by single spaces, ready to append
-    /// to the indexed text.
     #[must_use]
     pub fn expansion_text(&self, text: &str) -> String {
         self.expansions(text).join(" ")

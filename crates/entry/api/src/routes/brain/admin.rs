@@ -21,11 +21,11 @@ use axum::extract::State;
 use systemprompt_extension::brain::{
     RecallConversation, RecallPrincipal, RecallRequest, ReuseHint,
 };
-use systemprompt_models::api::ApiError;
 use systemprompt_models::auth::RequestActor;
 
 use super::dto::{SimulateBody, SimulateResponse};
 use super::{BrainHttpError, BrainRoutes};
+use crate::error::ApiHttpError;
 
 const PROJECT_DIMENSION: &str = "project";
 const DEADLINE_EXCEEDED: &str = "deadline_exceeded";
@@ -40,7 +40,7 @@ pub(super) async fn simulate(
             .subject_providers
             .default_value(&body.user_id, PROJECT_DIMENSION)
             .await
-            .map_err(|error| ApiError::internal("subject attribute lookup failed", error))?,
+            .map_err(ApiHttpError::from)?,
     };
     let principal = RecallPrincipal {
         user_id: body.user_id,

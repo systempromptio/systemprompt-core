@@ -110,12 +110,6 @@ pub fn dimensions_of(providers: &[SharedSubjectAttributeProvider]) -> Vec<Subjec
     providers.iter().map(|p| p.dimension()).collect()
 }
 
-/// The value an unclaimed dimension is attributed.
-///
-/// The provider's first held value (a tenant orders the primary first), or
-/// none when the provider is header-only (`default_attribution` is `false`).
-/// Gateway scope attribution and the brain recall simulator both resolve it
-/// here.
 #[must_use]
 pub fn default_attribution_value(
     provider: &SharedSubjectAttributeProvider,
@@ -195,8 +189,6 @@ impl SubjectProviderSet {
         self.providers.iter()
     }
 
-    /// [`default_attribution_value`] for `user_id` on `dimension`; none
-    /// when no provider registers the dimension.
     pub async fn default_value(
         &self,
         user_id: &UserId,

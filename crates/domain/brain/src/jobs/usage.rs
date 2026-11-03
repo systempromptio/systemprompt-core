@@ -39,8 +39,6 @@ pub struct UsageRates {
     pub ignored_rate: f64,
 }
 
-/// `(cited + 1) / (injected + 2)` and `(ignored + 1) / (injected + 2)`,
-/// with `ignored = injected - cited` floored at zero.
 #[must_use]
 pub fn laplace_rates(injected: u64, cited: u64) -> UsageRates {
     let cited = cited.min(injected);

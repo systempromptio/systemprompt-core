@@ -20,8 +20,6 @@ use systemprompt_models::brain::{FactRef, RecallAudit, StoredBlock, WithheldReas
 
 use crate::models::NewRecall;
 
-/// The `skipped` value of a row whose block was produced after the
-/// gateway deadline and stored, unsent, for same-turn reuse.
 const LATE_SKIP: &str = "deadline";
 
 #[derive(Debug, Clone)]

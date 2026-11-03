@@ -79,9 +79,6 @@ impl SchemaValidator {
             .or_else(|| span_reason(&candidate.source, text))
     }
 
-    /// Why `fields` is not a valid field map for `kind`: an undeclared
-    /// field, a required or material field without a value, or a value of
-    /// the wrong type, length or enum. `None` when it is valid.
     #[must_use]
     pub fn fields_reason(
         // JSON: a fact's field map, checked against its declared kind.

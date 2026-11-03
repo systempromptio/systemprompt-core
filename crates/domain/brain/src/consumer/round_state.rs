@@ -27,7 +27,6 @@ pub(crate) struct RoundState {
 }
 
 impl RoundState {
-    /// The events still held back; expired holds are dropped.
     pub(crate) fn held(&self) -> Vec<EventOutboxId> {
         let now = Instant::now();
         let mut held = self.held.lock().unwrap_or_else(PoisonError::into_inner);
@@ -58,8 +57,6 @@ impl RoundState {
             .unwrap_or_else(PoisonError::into_inner)
     }
 
-    /// Whether the gauges are due a refresh; claims the refresh when they
-    /// are.
     pub(crate) fn gauges_due(&self) -> bool {
         let now = Instant::now();
         let mut at = self

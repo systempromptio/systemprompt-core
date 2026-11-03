@@ -41,9 +41,6 @@ impl Normalised {
         &self.envelope.event.actor
     }
 
-    /// When the event says the fact was observed: an entered fact may
-    /// carry its own `observed_at`; the other pathways leave it to the
-    /// store, which records the insert time.
     #[must_use]
     pub const fn observed_at(&self) -> Option<DateTime<Utc>> {
         match &self.payload {

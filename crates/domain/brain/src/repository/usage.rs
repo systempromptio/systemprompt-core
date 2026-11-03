@@ -49,7 +49,6 @@ impl UsageRepository {
         Self { pools }
     }
 
-    /// Every stored fact with its injections and citations since `since`.
     pub async fn list_counts_since(
         &self,
         since: DateTime<Utc>,
@@ -89,7 +88,6 @@ impl UsageRepository {
             .collect())
     }
 
-    /// Sets the rates of each named fact; no revision, no `updated_at`.
     pub async fn set_rates(
         executor: impl PgExecutor<'_>,
         rates: &[FactUsageRates],

@@ -41,10 +41,6 @@ pub(crate) fn make_job_context(
     JobContext::new(actor, dependencies)
 }
 
-/// What the brain jobs read from the context, present only with the
-/// `brain` feature: the notification sink `brain_review` asks for, the
-/// consolidation model client, and the producer sink once the brain
-/// subsystem is up.
 #[cfg(feature = "brain")]
 fn brain_dependencies(app_context: &AppContext, dependencies: Dependencies) -> Dependencies {
     let mut dependencies = dependencies

@@ -69,7 +69,6 @@ pub struct RecallPreviewInput {
     pub prompt: String,
     #[serde(default)]
     pub project: Option<String>,
-    /// Preview the store as it stood at this RFC 3339 instant.
     #[serde(default)]
     pub as_of: Option<DateTime<Utc>>,
 }

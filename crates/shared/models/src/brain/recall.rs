@@ -100,7 +100,6 @@ impl RecallCtx {
         }
     }
 
-    /// The instant facts are read at; never later than `now`.
     #[must_use]
     pub fn with_as_of(mut self, as_of: DateTime<Utc>) -> Self {
         self.as_of = as_of.min(self.now);

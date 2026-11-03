@@ -19,9 +19,6 @@ pub(super) const fn default_budget_tokens() -> u32 {
     800
 }
 
-/// Measured in the 2026-11-02 proving run: the working-set tiers answer
-/// well under this on a seeded store, and the gateway keeps a recall that
-/// misses it running for the turn's next request.
 pub(super) const fn default_deadline_ms() -> u64 {
     200
 }

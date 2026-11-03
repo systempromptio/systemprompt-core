@@ -36,8 +36,6 @@ impl WorkingSetCounts {
 pub struct WorkingSetRepository;
 
 impl WorkingSetRepository {
-    /// Replaces the fact's rows with the ones its current scope and topics
-    /// imply, on the caller's connection.
     pub async fn refresh(
         conn: &mut PgConnection,
         id: &BrainFactId,
@@ -70,8 +68,6 @@ impl WorkingSetRepository {
         Ok(result.rows_affected())
     }
 
-    /// Empties the projection and rebuilds it from every fact; answers the
-    /// number of rows written.
     pub async fn rebuild_all(conn: &mut PgConnection) -> Result<u64, RepositoryError> {
         sqlx::query!("DELETE FROM brain_working_set")
             .execute(&mut *conn)
@@ -96,8 +92,6 @@ impl WorkingSetRepository {
         Ok(result.rows_affected())
     }
 
-    /// The projection's row count against the count the facts and topics
-    /// imply; a mismatch is the sweep's cue to rebuild.
     pub async fn counts(
         executor: impl PgExecutor<'_>,
     ) -> Result<WorkingSetCounts, RepositoryError> {
@@ -125,7 +119,6 @@ impl WorkingSetRepository {
         })
     }
 
-    /// The scope keys one fact is reachable through, sorted.
     pub async fn keys_for(
         executor: impl PgExecutor<'_>,
         id: &BrainFactId,
@@ -138,7 +131,6 @@ impl WorkingSetRepository {
         .await?)
     }
 
-    /// How many rows the projection holds for one fact.
     pub async fn count_for(
         executor: impl PgExecutor<'_>,
         id: &BrainFactId,

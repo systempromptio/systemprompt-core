@@ -28,8 +28,6 @@ pub struct ConsolidationInput {
     pub subject: SubjectKey,
     pub facts: Vec<BrainFact>,
     pub model: Arc<dyn BrainModelClient>,
-    /// Tokens left in the job's daily budget when this input was built; a
-    /// consolidator stays under it.
     pub budget_tokens: u64,
 }
 

@@ -186,7 +186,6 @@ impl OutboxConsumer {
         Ok(Some(DeliveryBatch::new(tx, rows)))
     }
 
-    /// Rows waiting for `consumer`, and the age in seconds of the oldest.
     pub async fn pending(&self, consumer: &str) -> Result<(i64, Option<i64>), sqlx::Error> {
         DurableOutboxRepository::pending(&self.pool, consumer).await
     }

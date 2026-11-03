@@ -73,8 +73,6 @@ pub struct SessionTurnClosed {
 }
 
 impl SessionTurnClosed {
-    /// Keeps the first `max_chars` characters of `text`, on a character
-    /// boundary, so a bounded payload never splits a multi-byte character.
     #[must_use]
     pub fn bounded(text: &str, max_chars: usize) -> String {
         text.chars().take(max_chars).collect()

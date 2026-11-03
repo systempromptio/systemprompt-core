@@ -37,8 +37,6 @@ impl AppContext {
         self.brain().map(crate::brain::BrainHandle::memory_recall)
     }
 
-    /// The brain's model client for the `brain_consolidate` job, `None`
-    /// without the brain or before its consumer started.
     #[cfg(feature = "brain")]
     #[must_use]
     pub fn brain_consolidation_model(
@@ -48,7 +46,6 @@ impl AppContext {
             .and_then(crate::brain::BrainHandle::consolidation_model)
     }
 
-    /// The brain's producer sink, `None` without the brain.
     #[cfg(feature = "brain")]
     #[must_use]
     pub fn brain_sink(&self) -> Option<systemprompt_extension::brain::DynBrainSink> {

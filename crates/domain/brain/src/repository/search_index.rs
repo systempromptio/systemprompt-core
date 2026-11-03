@@ -25,8 +25,6 @@ const REBUILD_PAGE: i64 = 500;
 pub struct SearchIndexRepository;
 
 impl SearchIndexRepository {
-    /// Recomputes one fact's vector; `expansion` is the synonym text to
-    /// index with the statement.
     pub async fn refresh(
         conn: &mut PgConnection,
         id: &BrainFactId,
@@ -55,7 +53,6 @@ impl SearchIndexRepository {
         Ok(())
     }
 
-    /// Recomputes one fact's vector with the stored synonyms document.
     pub async fn refresh_with_stored_synonyms(
         conn: &mut PgConnection,
         id: &BrainFactId,
@@ -73,8 +70,6 @@ impl SearchIndexRepository {
         Self::refresh(conn, id, &synonyms.expansion_text(&statement)).await
     }
 
-    /// Recomputes every fact's vector with `synonyms`, in pages; answers
-    /// the number of facts rewritten.
     pub async fn rebuild_all(
         conn: &mut PgConnection,
         synonyms: &SynonymsDoc,
@@ -114,8 +109,6 @@ impl SearchIndexRepository {
             .collect())
     }
 
-    /// The lexemes of one fact's weighted vector, as Postgres prints them,
-    /// for tests and the console.
     pub async fn vector_text(
         executor: impl PgExecutor<'_>,
         id: &BrainFactId,

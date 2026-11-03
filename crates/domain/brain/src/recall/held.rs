@@ -21,10 +21,7 @@ use systemprompt_models::notifications::AudienceSubject;
 /// The keys a principal holds and the resolvers that enumerated them.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct HeldKeys {
-    /// Sorted, deduplicated working-set scope keys.
     pub keys: Vec<String>,
-    /// Names of the resolvers whose subjects are fully listed in `keys`;
-    /// a subject one of them handles but did not list is not held.
     pub enumerated: Vec<&'static str>,
 }
 
@@ -40,7 +37,6 @@ impl HeldKeys {
     }
 }
 
-/// The working-set key an audience subject is indexed under.
 #[must_use]
 pub fn key_for(subject: &AudienceSubject) -> String {
     match subject {

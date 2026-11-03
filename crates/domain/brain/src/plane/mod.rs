@@ -116,14 +116,14 @@ impl ConfigPlane for BrainPlane {
 
     async fn write(
         &self,
-        _ctx: &PlaneContext<'_>,
+        ctx: &PlaneContext<'_>,
         tx: &mut PlaneTx<'_>,
         entities: &ResolvedEntities,
     ) -> ConfigPlaneResult<ApplyOutcome> {
         let tx = tx.get::<PlaneTransaction>()?;
         let mut outcome = ApplyOutcome::default();
         for (key, resolved) in entities {
-            write::write_entity(tx, key, resolved).await?;
+            write::write_entity(ctx, tx, key, resolved).await?;
             if resolved.value.is_some() {
                 outcome.updated += 1;
             } else {

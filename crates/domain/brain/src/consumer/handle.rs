@@ -44,10 +44,7 @@ fn decode(raw: &serde_json::Value) -> Result<BrainEvent, Undecodable> {
 }
 
 pub(super) enum Handled {
-    /// Finished for good; `wrote` is whether it changed facts or disputes.
-    Done {
-        wrote: bool,
-    },
+    Done { wrote: bool },
     Retry(BrainError),
 }
 
@@ -150,9 +147,6 @@ impl BrainConsumer {
         Handled::Done { wrote: false }
     }
 
-    /// Records a transient attempt on the round's transaction; the event's
-    /// own work was already rolled back with its savepoint, and its row stays
-    /// unacknowledged.
     pub(super) async fn record_retry(
         &self,
         conn: &mut PgConnection,

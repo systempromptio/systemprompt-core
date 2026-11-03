@@ -13,14 +13,11 @@ use systemprompt_traits::RepositoryError;
 /// Lexeme document frequencies over the live facts.
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct SearchTerms {
-    /// Facts the statistics were taken over.
     pub total: u64,
     pub ndoc: HashMap<String, u64>,
 }
 
 impl SearchTerms {
-    /// The share of facts carrying `word`; `0.0` for a word no fact carries
-    /// and when nothing has been measured.
     #[must_use]
     pub fn share(&self, word: &str) -> f64 {
         if self.total == 0 {
@@ -41,8 +38,6 @@ impl SearchTerms {
 pub struct SearchTermsRepository;
 
 impl SearchTermsRepository {
-    /// Recounts every lexeme over the live facts (`confirmed`, `proposed`,
-    /// `stale`) and replaces the table; returns the lexemes written.
     pub async fn refresh(conn: &mut PgConnection) -> Result<u64, RepositoryError> {
         sqlx::query!("DELETE FROM brain_search_terms")
             .execute(&mut *conn)

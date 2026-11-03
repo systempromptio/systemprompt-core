@@ -133,9 +133,6 @@ impl BrainHandle {
         self.consumer.get()
     }
 
-    /// The model client the `brain_consolidate` job may hand a registered
-    /// consolidator: the gateway client the consumer was started with, so
-    /// it is `None` until the API server starts the consumer.
     #[must_use]
     pub fn consolidation_model(&self) -> Option<Arc<dyn BrainModelClient>> {
         self.consolidation_model.get().cloned()

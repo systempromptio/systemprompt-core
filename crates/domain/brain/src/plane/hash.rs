@@ -52,9 +52,6 @@ pub fn declared_hash_from_rows(rows: &PlaneRows) -> Result<String, serde_json::E
     DeclaredBrain::from_rows(rows)?.declared_hash()
 }
 
-/// The declarations the runtime reads, with each interest's `owner`
-/// replaced by the user id the apply resolved it to (a declared email is
-/// not a recipient).
 pub async fn load_declared_state(conn: &mut PgConnection) -> BrainResult<DeclaredBrain> {
     let rows = PlaneRows::read(&mut *conn).await?;
     let mut brain = DeclaredBrain::from_rows(&rows)?;

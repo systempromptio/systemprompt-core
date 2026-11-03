@@ -167,25 +167,6 @@ impl InterestRepository {
         Ok(())
     }
 
-    /// The user a declared interest owner names: a `users.id`, or, for a
-    /// value holding `@`, the user with that email (case-insensitive). An
-    /// id match wins over an email match.
-    pub async fn resolve_owner(
-        conn: &mut PgConnection,
-        owner: &UserId,
-    ) -> Result<Option<UserId>, RepositoryError> {
-        Ok(sqlx::query_scalar!(
-            r#"SELECT id AS "id: UserId" FROM users
-               WHERE id = $1 OR (strpos($1, '@') > 0 AND email = lower(trim($1)))
-               ORDER BY (id = $1) DESC
-               LIMIT 1"#,
-            owner.as_str(),
-        )
-        .fetch_optional(conn)
-        .await?)
-    }
-
-    /// Each interest's resolved owner, as the plane apply stored it.
     pub async fn owners(
         executor: impl PgExecutor<'_>,
     ) -> Result<Vec<(String, UserId)>, RepositoryError> {

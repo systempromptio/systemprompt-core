@@ -36,8 +36,6 @@ pub trait FactRecallSource: Send + Sync {
         ctx: &RecallCtx,
     ) -> Result<Vec<BrainFact>, RecallError>;
 
-    /// Facts one `brain_fact_links` hop from a subject the hints name,
-    /// ranked on the `linked` tier. A store without links answers nothing.
     async fn by_linked(
         &self,
         _query: &RecallQuery,
@@ -59,10 +57,6 @@ pub trait FactRecallSource: Send + Sync {
 
     async fn record_recall(&self, receipt: &RecallReceipt) -> Result<(), RecallError>;
 
-    /// How many of the principal's candidate facts the lifecycle keeps
-    /// out of every tier (`stale`, `review_due`, `disputed`), so a recall
-    /// can report them as withheld. A store that cannot count answers
-    /// nothing.
     async fn withheld_counts(
         &self,
         _ctx: &RecallCtx,

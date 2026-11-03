@@ -65,14 +65,10 @@ impl DeliveryBatch {
         &mut self.tx
     }
 
-    /// Marks one claimed row processed inside the batch transaction; it
-    /// takes effect only when the batch commits.
     pub async fn acknowledge(&mut self, id: &EventOutboxId) -> Result<(), sqlx::Error> {
         DurableOutboxRepository::mark_processed(&mut self.tx, id).await
     }
 
-    /// Commits the round: every acknowledged row becomes processed and every
-    /// other claimed row is released for a later claim.
     pub async fn commit(self) -> Result<(), sqlx::Error> {
         self.tx.commit().await
     }

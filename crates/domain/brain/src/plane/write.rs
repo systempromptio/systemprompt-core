@@ -11,11 +11,17 @@
 
 use serde::de::DeserializeOwned;
 use sqlx::PgConnection;
-use systemprompt_extension::prelude::{ChangeSource, ConfigPlaneResult, ResolvedEntity};
+use std::sync::Arc;
+
+use systemprompt_extension::prelude::{
+    ChangeSource, ConfigPlaneResult, PlaneContext, ResolvedEntity,
+};
+use systemprompt_identifiers::UserId;
 use systemprompt_models::brain::{
     FiltersDoc, ImportanceConfig, InterestDecl, KindDecl, RetrievalDoc, SynonymsDoc, TopicDecl,
     WorkflowProfileDecl,
 };
+use systemprompt_traits::auth::{AuthResult, UserProvider};
 
 use super::entities::{
     DOC, FILTERS_DOC, IMPORTANCE_DOC, INTEREST, KIND, RETRIEVAL_DOC, SYNONYMS_DOC, TOPIC, WORKFLOW,
@@ -28,6 +34,7 @@ use crate::repository::{
 };
 
 pub(super) async fn write_entity(
+    ctx: &PlaneContext<'_>,
     conn: &mut PgConnection,
     key: &str,
     resolved: &ResolvedEntity,
@@ -37,7 +44,7 @@ pub(super) async fn write_entity(
         .ok_or_else(|| invalid(key, &"unknown entity key"))?;
     let source = plane_source(&resolved.source);
     match resolved.value.as_deref() {
-        Some(value) => upsert(conn, Entity { key, kind, id }, value, source).await,
+        Some(value) => upsert(ctx, conn, Entity { key, kind, id }, value, source).await,
         None => delete(conn, key, kind, id).await,
     }
 }
@@ -59,6 +66,7 @@ const fn plane_source(source: &ChangeSource) -> PlaneSource {
 }
 
 async fn upsert(
+    ctx: &PlaneContext<'_>,
     conn: &mut PgConnection,
     entity: Entity<'_>,
     value: &str,
@@ -85,7 +93,8 @@ async fn upsert(
         (INTEREST, _) => {
             let decl: InterestDecl = typed(key, &body)?;
             same_id(key, id, decl.id.as_str())?;
-            let owner = InterestRepository::resolve_owner(&mut *conn, &decl.owner)
+            let users = ctx.get::<Arc<dyn UserProvider>>().map_err(backend)?;
+            let owner = resolve_owner(users.as_ref(), &decl.owner)
                 .await
                 .map_err(backend)?
                 .ok_or_else(|| invalid(key, &format!("owner {} is not a user", decl.owner)))?;
@@ -144,4 +153,18 @@ fn same_id(key: &str, id: &str, declared: &str) -> ConfigPlaneResult<()> {
     } else {
         Err(invalid(key, &format!("declares id {declared}")))
     }
+}
+
+async fn resolve_owner(users: &dyn UserProvider, owner: &UserId) -> AuthResult<Option<UserId>> {
+    if let Some(user) = users.find_by_id(owner).await? {
+        return Ok(Some(user.id));
+    }
+    let declared = owner.as_str().trim();
+    if !declared.contains('@') {
+        return Ok(None);
+    }
+    Ok(users
+        .find_by_email(&declared.to_lowercase())
+        .await?
+        .map(|user| user.id))
 }

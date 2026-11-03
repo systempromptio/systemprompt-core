@@ -119,8 +119,6 @@ pub async fn full_text(
     }
 }
 
-/// The candidate facts the lifecycle keeps out of every tier, by reason.
-/// The legacy path counts nothing, as it never did.
 pub async fn withheld_counts(
     pool: &PgPool,
     f: &TierFilter,

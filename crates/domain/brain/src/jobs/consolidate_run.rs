@@ -33,8 +33,6 @@ use systemprompt_models::brain::{
 const FACT_SCAN: i64 = 5000;
 const MIN_GROUP: usize = 2;
 
-/// Stamps every request a consolidator sends with the consolidation
-/// purpose, so the gateway attributes it apart from extraction.
 struct PurposedModel {
     inner: Arc<dyn BrainModelClient>,
 }
@@ -95,7 +93,6 @@ fn entered(candidate: FactCandidate, group: &[BrainFact]) -> Option<EnteredFact>
     })
 }
 
-/// One subject group's consolidator, kind and the model it may call.
 struct GroupTarget<'a> {
     consolidator: &'a dyn FactConsolidator,
     kind: &'a KindDecl,

@@ -25,8 +25,6 @@ pub struct FactLink {
 pub struct FactLinkRepository;
 
 impl FactLinkRepository {
-    /// Replaces the fact's links with the ones its subject and entity
-    /// fields imply; answers the number written.
     pub async fn refresh(
         conn: &mut PgConnection,
         id: &BrainFactId,
@@ -64,8 +62,6 @@ impl FactLinkRepository {
         Ok(result.rows_affected())
     }
 
-    /// Rebuilds every fact's links from the current kind declarations;
-    /// answers the number written.
     pub async fn rebuild_all(conn: &mut PgConnection) -> Result<u64, RepositoryError> {
         sqlx::query!("DELETE FROM brain_fact_links")
             .execute(&mut *conn)
@@ -94,7 +90,6 @@ impl FactLinkRepository {
         Ok(result.rows_affected())
     }
 
-    /// The subjects one fact links to, ordered by field then subject.
     pub async fn list_for(
         executor: impl PgExecutor<'_>,
         id: &BrainFactId,

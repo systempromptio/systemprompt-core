@@ -37,9 +37,6 @@ pub fn add_kind_topics(candidate: &mut FactCandidate, kind: &KindDecl) {
     }
 }
 
-/// The identity hash a candidate of `kind` is stored under. The pipeline
-/// and person entry both call it, so an entry refused as tombstoned is
-/// exactly one the pipeline would reject.
 #[must_use]
 pub fn identity_of(
     kind: &KindDecl,
@@ -50,8 +47,6 @@ pub fn identity_of(
     identity_hash(&kind.kind, subject, &kind.identity, fields)
 }
 
-/// [`identity_of`] after the subject is resolved through its aliases, as
-/// the rules stage resolves it before the identity is computed.
 pub async fn resolved_identity(
     conn: &mut PgConnection,
     kind: &KindDecl,

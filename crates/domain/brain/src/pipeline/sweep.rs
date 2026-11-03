@@ -39,8 +39,6 @@ pub struct SweepReport {
     pub index_backlog: DrainReport,
 }
 
-/// How long one sweep spends draining queued fact keys; the rest wait for
-/// the next sweep.
 const INDEX_DRAIN_BUDGET: Duration = Duration::from_secs(10);
 const INDEX_DRAIN_BATCH: i32 = 256;
 
@@ -84,8 +82,6 @@ impl BrainPipeline {
         Ok(Some(report))
     }
 
-    /// Republishes `brain_facts{status}` and `brain_disputes_open` from the
-    /// store.
     pub async fn refresh_store_gauges(&self) -> BrainResult<()> {
         let facts = self.repos.facts.counts().await?;
         let open_disputes = self.repos.disputes.count_open().await?;

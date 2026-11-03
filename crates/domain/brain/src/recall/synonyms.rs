@@ -15,7 +15,6 @@ use systemprompt_models::brain::SynonymsDoc;
 const MAX_QUERY_WORDS: usize = 32;
 const MIN_WORD_CHARS: usize = 3;
 
-/// The group a lower-cased word belongs to, or just the word.
 #[must_use]
 pub fn expand<'a>(synonyms: &'a SynonymsDoc, word: &'a str) -> Vec<&'a str> {
     synonyms
@@ -28,9 +27,6 @@ pub fn expand<'a>(synonyms: &'a SynonymsDoc, word: &'a str) -> Vec<&'a str> {
         )
 }
 
-/// The `websearch_to_tsquery('simple', …)` text for the hints: distinct
-/// lower-cased words of at least three characters, the first thirty-two,
-/// each expanded to its synonym group, `or`-joined.
 #[must_use]
 pub fn search_query(hints: &str, synonyms: &SynonymsDoc) -> String {
     let mut words: Vec<String> = Vec::new();

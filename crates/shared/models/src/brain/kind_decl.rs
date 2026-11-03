@@ -73,8 +73,6 @@ pub struct FieldDecl {
     pub entity_ref: Option<String>,
     #[serde(default)]
     pub values: Vec<String>,
-    /// The field's value is also written as an alias of the fact's
-    /// subject, so a later mention by that name resolves to it.
     #[serde(default)]
     pub alias: bool,
 }

@@ -1,6 +1,8 @@
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 use systemprompt_brain::plane::{BrainPlane, DeclaredBrain};
+use systemprompt_database::{Database, DbPool};
 use systemprompt_extension::prelude::{
     ChangeSource, ConfigPlane, ConfigPlaneResult, PlaneContext, PlaneSnapshot, PlaneTx,
     ResolvedEntities, ResolvedEntity,
@@ -12,6 +14,7 @@ use systemprompt_models::brain::{
 };
 use systemprompt_models::notifications::AudienceSubject;
 use systemprompt_traits::Dependencies;
+use systemprompt_users::{UserProvider, UserRepository, UserService};
 
 use crate::fakes::PARSER;
 
@@ -135,8 +138,13 @@ pub(crate) async fn apply(pool: &sqlx::PgPool, brain: &DeclaredBrain) {
     try_apply(pool, brain).await.expect("plane write");
 }
 
+fn user_provider(pool: &sqlx::PgPool) -> Arc<dyn UserProvider> {
+    let db: DbPool = Arc::new(Database::from_pools(Arc::new(pool.clone()), None));
+    Arc::new(UserService::new(Arc::new(UserRepository::new(&db))))
+}
+
 pub(crate) async fn try_apply(pool: &sqlx::PgPool, brain: &DeclaredBrain) -> ConfigPlaneResult<()> {
-    let deps = Dependencies::new();
+    let deps = Dependencies::new().with(user_provider(pool));
     let root = std::env::temp_dir();
     let ctx = PlaneContext::new(&root, &deps);
     let mut tx = pool.begin().await.expect("begin");
@@ -148,7 +156,7 @@ pub(crate) async fn try_apply(pool: &sqlx::PgPool, brain: &DeclaredBrain) -> Con
 }
 
 pub(crate) async fn read_current(pool: &sqlx::PgPool) -> PlaneSnapshot {
-    let deps = Dependencies::new();
+    let deps = Dependencies::new().with(user_provider(pool));
     let root = std::env::temp_dir();
     let ctx = PlaneContext::new(&root, &deps);
     let mut tx = pool.begin().await.expect("begin");
@@ -159,7 +167,7 @@ pub(crate) async fn read_current(pool: &sqlx::PgPool) -> PlaneSnapshot {
 }
 
 pub(crate) async fn export(pool: &sqlx::PgPool) -> Option<String> {
-    let deps = Dependencies::new();
+    let deps = Dependencies::new().with(user_provider(pool));
     let root = std::env::temp_dir();
     let ctx = PlaneContext::new(&root, &deps);
     let mut tx = pool.begin().await.expect("begin");

@@ -79,7 +79,6 @@ pub const BRAIN_SCHEMAS: &[SchemaEntry] = &[
         include_str!("../schema/brain_fact_revisions.sql"),
         &["id", "fact_id", "revision", "change", "status", "statement"],
     ),
-    // -- recall redesign (write side) --------------------------------------
     (
         "brain_working_set",
         include_str!("../schema/brain_working_set.sql"),
@@ -90,7 +89,6 @@ pub const BRAIN_SCHEMAS: &[SchemaEntry] = &[
         include_str!("../schema/brain_fact_links.sql"),
         &["fact_id", "subject_kind", "subject_id", "via_field"],
     ),
-    // -- end recall redesign (write side) ----------------------------------
     (
         "brain_extractions",
         include_str!("../schema/brain_extractions.sql"),
@@ -149,9 +147,5 @@ pub const BRAIN_VIEWS: &[&str] = &[
     include_str!("../schema/v_brain_workflow_recall.sql"),
 ];
 
-// -- usage (R6) -----------------------------------------------------------
-/// The `brain_facts` columns migration `003_usage` adds and the
-/// `brain_usage` job writes; recall reads the two rates.
 pub const BRAIN_USAGE_COLUMNS: &[&str] =
     &["usage_cited_rate", "usage_ignored_rate", "usage_updated_at"];
-// -- end usage (R6) -------------------------------------------------------

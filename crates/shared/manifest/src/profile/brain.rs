@@ -60,10 +60,6 @@ pub struct BrainRecallProfile {
     pub budget_tokens: u32,
     #[serde(default = "default_deadline_ms")]
     pub deadline_ms: u64,
-    /// How long recall waits on one source check before withholding the
-    /// fact as `source`; it sits inside `deadline_ms`, so it stays well
-    /// under it. Separate from `consumer.source_timeout_ms`, which bounds
-    /// the consumer's source reads.
     #[serde(default = "default_recall_source_timeout_ms")]
     pub source_timeout_ms: u64,
     #[serde(default = "default_scopes")]
@@ -72,9 +68,6 @@ pub struct BrainRecallProfile {
     pub clients: BTreeMap<String, bool>,
     #[serde(default)]
     pub stale: StalePolicy,
-    /// Run every tier over `brain_working_set` (the facts indexed under
-    /// the scope keys the principal holds). `false` runs the previous
-    /// scope-predicate SQL, which is removed in the next release.
     #[serde(default = "default_working_set")]
     pub working_set: bool,
 }
@@ -139,8 +132,6 @@ pub struct BrainCaptureProfile {
 }
 
 impl BrainCaptureProfile {
-    /// Whether the gateway emits `session.turn.closed`: both the pathway
-    /// in `sources` and the session block's `enabled` must be on.
     #[must_use]
     pub fn session_capture_on(&self) -> bool {
         self.session.enabled && self.sources.contains(&CaptureSource::Session)
@@ -154,7 +145,6 @@ impl BrainCaptureProfile {
 pub struct BrainSessionCaptureProfile {
     #[serde(default)]
     pub enabled: bool,
-    /// Characters kept of each of the last user and assistant texts.
     #[serde(default = "default_session_max_chars")]
     pub max_chars: usize,
 }
@@ -168,8 +158,6 @@ pub struct BrainSessionCaptureProfile {
 pub struct BrainConsolidationProfile {
     #[serde(default)]
     pub enabled: bool,
-    /// Tokens the job may spend per UTC day; unset falls back to
-    /// `extraction.daily_token_budget`.
     #[serde(default)]
     pub daily_token_budget: Option<u64>,
 }

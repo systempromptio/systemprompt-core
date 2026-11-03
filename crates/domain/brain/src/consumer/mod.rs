@@ -159,8 +159,6 @@ impl BrainConsumer {
         }
     }
 
-    /// The outbox rows waiting for this consumer, held-back retries
-    /// included.
     pub async fn pending(&self) -> BrainResult<PendingEvents> {
         let (pending, oldest_seconds) = self.outbox.pending(BRAIN_CONSUMER).await?;
         Ok(PendingEvents {
