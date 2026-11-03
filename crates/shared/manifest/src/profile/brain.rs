@@ -61,6 +61,9 @@ pub struct BrainRecallProfile {
     #[serde(default = "default_deadline_ms")]
     pub deadline_ms: u64,
     #[serde(default = "default_recall_source_timeout_ms")]
+    #[schemars(
+        description = "Milliseconds a recall waits on one source-access check (document readability) before withholding the fact as `source`."
+    )]
     pub source_timeout_ms: u64,
     #[serde(default = "default_scopes")]
     pub scopes: Vec<ScopeLevel>,
@@ -69,6 +72,9 @@ pub struct BrainRecallProfile {
     #[serde(default)]
     pub stale: StalePolicy,
     #[serde(default = "default_working_set")]
+    #[schemars(
+        description = "Run the tiers over the precomputed brain_working_set (true) or the previous scope-predicate SQL (false; removed in the next release)."
+    )]
     pub working_set: bool,
 }
 
@@ -146,6 +152,9 @@ pub struct BrainSessionCaptureProfile {
     #[serde(default)]
     pub enabled: bool,
     #[serde(default = "default_session_max_chars")]
+    #[schemars(
+        description = "Longest text, in characters, the session pathway records from one turn."
+    )]
     pub max_chars: usize,
 }
 
@@ -185,6 +194,9 @@ pub struct BrainExtractionProfile {
     #[serde(default = "default_extraction_timeout_ms")]
     pub timeout_ms: u64,
     #[serde(default = "default_daily_token_budget")]
+    #[schemars(
+        description = "Tokens the consolidation job may spend per day; falls back to extraction.daily_token_budget when absent."
+    )]
     pub daily_token_budget: u64,
 }
 
