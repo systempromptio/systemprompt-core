@@ -1,14 +1,18 @@
-//! Drains the `event_outbox_backlog` projection: the consumers an upgrade
-//! queued for a recount of their pending outbox rows. New rows keep the
-//! counter current through the outbox's statement triggers; this job only
-//! settles what was queued.
+//! Drains the `event_outbox_backlog` projection — the consumers an upgrade
+//! queued for a recount of their pending outbox rows — then compacts the
+//! delta rows the outbox's statement triggers append to one row per
+//! consumer, so a health read sums a handful of rows rather than a minute
+//! of appends.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::sync::Arc;
 use std::time::Duration;
 
 use async_trait::async_trait;
+use systemprompt_database::DbPool;
+use systemprompt_provider_contracts::ProviderError;
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 
 use super::projection_drain::{ProjectionDrain, drain_projection};
@@ -30,7 +34,7 @@ impl Job for OutboxBacklogRollupJob {
     }
 
     fn description(&self) -> &'static str {
-        "Drains queued outbox consumers into their stored pending-row counter"
+        "Recounts queued outbox consumers and compacts their pending-row deltas"
     }
 
     fn schedule(&self) -> &'static str {
@@ -42,7 +46,13 @@ impl Job for OutboxBacklogRollupJob {
     }
 
     async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
-        drain_projection(ctx, &DRAIN).await
+        let drained = drain_projection(ctx, &DRAIN).await?;
+        let db_pool = Arc::clone(ctx.get::<DbPool>()?);
+        sqlx::query_scalar!(r#"SELECT compact_event_outbox_backlog() AS "compacted!""#)
+            .fetch_one(db_pool.write_pool().as_ref())
+            .await
+            .map_err(|e| ProviderError::Internal(Box::new(e)))?;
+        Ok(drained)
     }
 }
 

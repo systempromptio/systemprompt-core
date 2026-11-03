@@ -130,12 +130,12 @@ impl DurableOutboxRepository {
         consumer: &str,
     ) -> Result<(i64, Option<i64>), sqlx::Error> {
         let pending = sqlx::query_scalar!(
-            "SELECT pending FROM event_outbox_backlog WHERE consumer = $1",
+            r#"SELECT COALESCE(SUM(delta), 0)::BIGINT AS "pending!"
+               FROM event_outbox_backlog WHERE consumer = $1"#,
             consumer
         )
-        .fetch_optional(pool)
-        .await?
-        .unwrap_or(0);
+        .fetch_one(pool)
+        .await?;
         let oldest = sqlx::query_scalar!(
             r#"SELECT EXTRACT(EPOCH FROM now() - created_at)::BIGINT AS "oldest!"
                FROM event_outbox

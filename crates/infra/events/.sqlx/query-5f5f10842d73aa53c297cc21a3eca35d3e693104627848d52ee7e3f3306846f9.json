@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT COALESCE(SUM(delta), 0)::BIGINT AS \"pending!\"\n               FROM event_outbox_backlog WHERE consumer = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "pending!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "5f5f10842d73aa53c297cc21a3eca35d3e693104627848d52ee7e3f3306846f9"
+}

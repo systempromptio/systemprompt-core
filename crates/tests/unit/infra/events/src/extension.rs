@@ -20,9 +20,10 @@ fn schema_declares_event_outbox_with_relay_columns() {
         .iter()
         .filter(|schema| schema.table.is_some())
         .collect();
-    assert_eq!(tables.len(), 1);
+    assert_eq!(tables.len(), 2);
     let outbox = tables[0];
     assert_eq!(outbox.table.as_deref(), Some("event_outbox"));
+    assert_eq!(tables[1].table.as_deref(), Some("event_outbox_backlog"));
     assert!(
         outbox.sql.contains("event_outbox"),
         "embedded DDL must create the declared table"
@@ -62,7 +63,8 @@ fn migrations_come_from_the_schema_migrations_directory() {
             "user_privacy_delivery",
             "drop_duplicate_actor_id_check",
             "restore_actor_id_nonempty",
-            "retire_reporting_capture"
+            "retire_reporting_capture",
+            "outbox_backlog"
         ],
         "every file in schema/migrations must be discovered by the build script, \
          in order, under its on-disk stem"

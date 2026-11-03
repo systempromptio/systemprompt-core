@@ -1,6 +1,7 @@
 //! Extension-framework registration for the events crate.
 //!
-//! [`EventsExtension`] declares the schema for the `event_outbox` table —
+//! [`EventsExtension`] declares the schema for the `event_outbox` table and
+//! its `event_outbox_backlog` counter —
 //! the durable relay channel that lets an event published on one replica
 //! reach SSE subscribers on every other replica via Postgres LISTEN/NOTIFY.
 //!
@@ -37,6 +38,11 @@ impl Extension for EventsExtension {
                     "processed_at".into(),
                     "deliver_to_origin".into(),
                 ]),
+            SchemaDefinition::new(
+                "event_outbox_backlog",
+                include_str!("../schema/event_outbox_backlog.sql"),
+            )
+            .with_required_columns(vec!["consumer".into(), "delta".into()]),
         ]
     }
 
