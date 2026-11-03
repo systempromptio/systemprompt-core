@@ -35,7 +35,12 @@ async fn each_tier_returns_its_fact_and_fusion_ranks_the_fact_two_tiers_found_fi
     let store = BrainRecallStore::new((*h.repos).clone(), h.profile.recall.stale);
     let ctx = RecallCtx::new(seeded.reader.clone(), RequestActor::Human, Utc::now())
         .with_project(PROJECT)
-        .with_scopes(ScopeLevel::ALL.to_vec());
+        .with_scopes(ScopeLevel::ALL.to_vec())
+        .with_held_keys(vec![
+            "org".to_owned(),
+            format!("project:{PROJECT}"),
+            format!("user:{}", seeded.reader),
+        ]);
     let query = RecallQuery::new(HINTS.to_owned(), 20);
 
     let pinned = store.pinned(&ctx, 20).await.expect("pinned");

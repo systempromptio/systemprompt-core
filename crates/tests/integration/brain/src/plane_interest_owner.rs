@@ -38,6 +38,7 @@ async fn an_email_owner_resolves_to_the_users_id() {
         .await
         .expect("declared state");
     assert_eq!(state.interests[0].owner, owner, "the runtime reads the id");
+    drop(conn);
     h.finish().await;
 }
 

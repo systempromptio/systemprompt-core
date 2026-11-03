@@ -140,5 +140,6 @@ async fn the_sweep_rebuilds_a_drifted_projection() {
         .await
         .expect("rebuild");
     assert_eq!(written, 4, "rebuild_all answers the rows it wrote");
+    drop(conn);
     h.finish().await;
 }

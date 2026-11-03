@@ -6,6 +6,7 @@
 use std::sync::Arc;
 
 use chrono::Utc;
+use systemprompt_brain::plane::DeclaredBrain;
 use systemprompt_brain::recall::BrainRecallStore;
 use systemprompt_extension::brain::{FactRecallSource, MemoryRecall, RecallOutcome, SkipReason};
 use systemprompt_extension::notifications::{
@@ -23,7 +24,7 @@ use systemprompt_users::UserRepository;
 
 use crate::events::{PRODUCT, entered};
 use crate::harness::{Harness, Setup};
-use crate::plane::{self, FINANCE_LEAD, OWNERSHIP, kind, topic};
+use crate::plane::{self, ENGINEERING, FINANCE_LEAD, OWNERSHIP, kind, topic};
 use crate::recall_seed::{PROJECT, refresh_working_set, seed};
 use crate::recall_support::{ids, principal, request};
 
@@ -65,6 +66,20 @@ impl NotificationAudienceResolver for GroupResolver {
     }
 }
 
+/// The declared plane with the ownership kind's topic narrowed to a role
+/// nobody holds: its default `everyone` audience widens every ownership
+/// fact to the org, which would make scope keys moot.
+fn scoped_plane() -> DeclaredBrain {
+    let mut declared = plane::declared();
+    let engineering = declared
+        .topics
+        .iter_mut()
+        .find(|t| t.id.as_str() == ENGINEERING)
+        .expect("engineering topic");
+    engineering.audience = vec![AudienceSubject::Role("engineering_lead".to_owned())];
+    declared
+}
+
 async fn owned(h: &Harness, who: &UserId, product: &str, scope: FactScope) {
     h.emit(&entered(
         who,
@@ -79,6 +94,7 @@ async fn owned(h: &Harness, who: &UserId, product: &str, scope: FactScope) {
 #[tokio::test]
 async fn candidates_are_the_facts_under_the_keys_the_principal_holds() {
     let h = Harness::with("brain_ws_candidates", Setup::confirming()).await;
+    plane::apply(&h.pg, &scoped_plane()).await;
     let reader = h.user("reader", &[]).await;
     let other = h.user("other", &[]).await;
     owned(&h, &reader, "nimbus", FactScope::Org).await;
@@ -138,7 +154,7 @@ async fn candidates_are_the_facts_under_the_keys_the_principal_holds() {
 #[tokio::test]
 async fn a_role_audience_is_answered_from_the_users_roles_once_per_recall() {
     let h = Harness::with("brain_ws_roles", Setup::confirming()).await;
-    let mut declared = plane::declared();
+    let mut declared = scoped_plane();
     declared.topics.push(TopicDecl {
         id: topic("leads"),
         name: "leads".to_owned(),
@@ -213,28 +229,37 @@ async fn a_subject_reached_through_one_link_hop_ranks_below_the_direct_hit() {
             format!("project:{PROJECT}"),
             format!("user:{}", seeded.reader),
         ]);
-    let hits = store
-        .by_subject(&RecallQuery::new("acme".to_owned(), 20), &ctx)
-        .await
-        .expect("subject tier");
-    let got: Vec<BrainFactId> = hits.iter().map(|f| f.id.clone()).collect();
-    assert_eq!(got[0], seeded.subject, "the direct hit scores 1.0: {got:?}");
-    assert!(got.contains(&seeded.full_text), "linked to acme: {got:?}");
-    assert!(
-        got.contains(&seeded.context),
-        "linked from acme's fact: {got:?}"
+    let query = RecallQuery::new("acme".to_owned(), 20);
+    let direct = store.by_subject(&query, &ctx).await.expect("subject tier");
+    let got: Vec<BrainFactId> = direct.iter().map(|f| f.id.clone()).collect();
+    assert_eq!(
+        got,
+        vec![seeded.subject.clone()],
+        "only the named subject's fact"
     );
-    assert_eq!(got.len(), 3);
 
-    let mut no_links = ctx.clone();
-    no_links.held_keys = vec!["org".to_owned()];
-    let mut query = RecallQuery::new("acme".to_owned(), 20);
-    query.links_weight = 0.0;
-    let still = store.by_subject(&query, &no_links).await.expect("subject");
+    let linked = store.by_linked(&query, &ctx).await.expect("linked tier");
+    let got: Vec<BrainFactId> = linked.iter().map(|f| f.id.clone()).collect();
+    assert_eq!(
+        got,
+        vec![seeded.full_text.clone()],
+        "the fact that links to acme"
+    );
+    assert!(
+        !got.contains(&seeded.context),
+        "nothing is reached through acme's own fact: {got:?}"
+    );
+
+    let mut project_only = ctx.clone();
+    project_only.held_keys = vec![format!("project:{PROJECT}")];
+    let still = store
+        .by_linked(&query, &project_only)
+        .await
+        .expect("linked");
     assert_eq!(
         still.len(),
-        2,
-        "org candidates only; the project fact is not one"
+        0,
+        "project candidates only; the linked org fact is not one"
     );
     h.finish().await;
 }
