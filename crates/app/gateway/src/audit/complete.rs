@@ -107,8 +107,6 @@ impl GatewayAudit {
         Ok(cost)
     }
 
-    /// Metrics, the recall observation and the session capture once the
-    /// receipt is journalled; none of them can fail the completion.
     fn after_settlement(
         &self,
         response: &CanonicalResponse,
@@ -141,7 +139,7 @@ impl GatewayAudit {
         self.background
             .spawn("gateway_brain_session_turn", async move {
                 if let Err(error) = capture.emit(&event).await {
-                    tracing::warn!(%ai_request_id, error, "session turn not recorded");
+                    tracing::warn!(%ai_request_id, error = %error, "session turn not recorded");
                 }
             });
     }

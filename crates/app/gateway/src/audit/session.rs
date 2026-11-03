@@ -15,7 +15,7 @@ use std::sync::Arc;
 
 use chrono::Utc;
 use systemprompt_database::DbPool;
-use systemprompt_extension::brain::DynBrainSink;
+use systemprompt_extension::brain::{BrainSinkError, DynBrainSink};
 use systemprompt_manifest::profile::BrainCaptureProfile;
 use systemprompt_models::brain::{BrainEvent, BrainEventKind, SessionTurnClosed};
 use systemprompt_models::origin::ClientKind;
@@ -52,14 +52,11 @@ impl SessionCapture {
         Self { sink, capture, db }
     }
 
-    /// Whether this capture writes anything at all.
     #[must_use]
     pub fn is_on(&self) -> bool {
         self.capture.session_capture_on() && self.sink.is_available()
     }
 
-    /// The event one turn produces, or `None` when the capture is off, the
-    /// request is internal or carries no session.
     #[must_use]
     pub fn event_for(&self, ctx: &GatewayRequestContext, texts: &TurnTexts) -> Option<BrainEvent> {
         if !self.is_on() || ctx.origin.client == ClientKind::Internal {
@@ -89,23 +86,23 @@ impl SessionCapture {
         )
     }
 
-    /// Writes the event on its own transaction.
-    pub async fn emit(&self, event: &BrainEvent) -> Result<(), String> {
-        let mut tx = self
-            .db
-            .write_pool()
-            .begin()
-            .await
-            .map_err(|e| e.to_string())?;
-        self.sink
-            .emit(&mut tx, event)
-            .await
-            .map_err(|e| e.to_string())?;
-        tx.commit().await.map_err(|e| e.to_string())
+    pub async fn emit(&self, event: &BrainEvent) -> Result<(), SessionCaptureError> {
+        let mut tx = self.db.write_pool().begin().await?;
+        self.sink.emit(&mut tx, event).await?;
+        tx.commit().await?;
+        Ok(())
     }
 }
 
-/// The text of the last user message, as recall's subject hints read it.
+/// Why a session turn was not written.
+#[derive(Debug, thiserror::Error)]
+pub enum SessionCaptureError {
+    #[error("session capture transaction")]
+    Database(#[from] sqlx::Error),
+    #[error("session capture sink")]
+    Sink(#[from] BrainSinkError),
+}
+
 #[must_use]
 pub fn last_user_text(messages: &[CanonicalMessage]) -> String {
     messages

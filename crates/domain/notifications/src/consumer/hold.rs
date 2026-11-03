@@ -16,7 +16,6 @@ use systemprompt_identifiers::EventOutboxId;
 pub(crate) struct RetryHold(Mutex<HashMap<EventOutboxId, Instant>>);
 
 impl RetryHold {
-    /// The facts still held back; expired holds are dropped.
     pub(crate) fn held(&self) -> Vec<EventOutboxId> {
         let now = Instant::now();
         let mut held = self.0.lock().unwrap_or_else(PoisonError::into_inner);

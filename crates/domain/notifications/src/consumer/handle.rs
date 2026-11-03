@@ -23,21 +23,36 @@ use crate::repository::{FailureStage, NewFailure, NotificationFailureRepository}
 pub const MAX_FACT_ATTEMPTS: i64 = 5;
 
 pub(super) enum Handled {
-    /// Finished for good, with the rows it left `pending` for delivery.
     Done(Vec<NotificationId>),
     Retry(NotificationsError),
 }
 
 // JSON: the fact envelope is decoded first, and its data only after its
 // version is checked.
-fn decode(raw: &serde_json::Value) -> Result<NotificationEvent, (&'static str, String)> {
-    let fact: ReportingFact<serde_json::Value> = serde_json::from_value(raw.clone())
-        .map_err(|error| ("decode_failed", error.to_string()))?;
+fn decode(raw: &serde_json::Value) -> Result<NotificationEvent, DecodeFailure> {
+    let fact: ReportingFact<serde_json::Value> =
+        serde_json::from_value(raw.clone()).map_err(DecodeFailure::Decode)?;
     if fact.version != NOTIFICATION_EVENT_VERSION {
-        let reason = format!("unsupported fact version {}", fact.version);
-        return Err(("unsupported_version", reason));
+        return Err(DecodeFailure::UnsupportedVersion(fact.version));
     }
-    serde_json::from_value(fact.data).map_err(|error| ("decode_failed", error.to_string()))
+    serde_json::from_value(fact.data).map_err(DecodeFailure::Decode)
+}
+
+#[derive(Debug, thiserror::Error)]
+enum DecodeFailure {
+    #[error("fact does not decode")]
+    Decode(#[source] serde_json::Error),
+    #[error("unsupported fact version {0}")]
+    UnsupportedVersion(u32),
+}
+
+impl DecodeFailure {
+    const fn outcome(&self) -> &'static str {
+        match self {
+            Self::Decode(_) => "decode_failed",
+            Self::UnsupportedVersion(_) => "unsupported_version",
+        }
+    }
 }
 
 impl NotificationsConsumer {
@@ -51,9 +66,9 @@ impl NotificationsConsumer {
     ) -> Handled {
         let event = match decode(raw) {
             Ok(event) => event,
-            Err((outcome, reason)) => {
-                metrics::fact(outcome);
-                fail(conn, id, &FailureStage::Decode, &reason).await;
+            Err(failure) => {
+                metrics::fact(failure.outcome());
+                fail(conn, id, &FailureStage::Decode, &failure.to_string()).await;
                 return Handled::Done(Vec::new());
             },
         };
@@ -104,9 +119,6 @@ impl NotificationsConsumer {
         Handled::Done(Vec::new())
     }
 
-    /// Records a transient attempt on the round's transaction; the fact's
-    /// own work was already rolled back with its savepoint, and its row stays
-    /// unacknowledged.
     pub(super) async fn record_retry(
         &self,
         conn: &mut PgConnection,

@@ -118,10 +118,6 @@ pub(super) async fn apply_team_memory(
     }
 }
 
-/// Lets a recall that missed its deadline finish, then records the
-/// `deadline` receipt with the block it produced, so the turn's next
-/// request can reuse it. The receipt is written here, not by
-/// `record_recall`, so a deadline miss lands exactly one row.
 fn finish_late(
     audit: &GatewayAudit,
     engine: &Arc<dyn MemoryRecall>,

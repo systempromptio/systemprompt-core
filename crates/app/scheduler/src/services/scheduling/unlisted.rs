@@ -108,9 +108,10 @@ impl SchedulerService {
                 });
                 warn!(
                     job = name,
-                    "job `{name}` is available in this build but has no scheduler entry, so it \
-                     never runs; add `{{ name: {name}, schedule: \"<cron>\" }}` to `scheduler.jobs` \
-                     in services/scheduler/config.yaml{hint}"
+                    hint = %hint,
+                    "job is available in this build but has no scheduler entry, so it never \
+                     runs; add it to `scheduler.jobs` in services/scheduler/config.yaml with a \
+                     cron schedule"
                 );
             }
         }
