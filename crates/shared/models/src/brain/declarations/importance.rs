@@ -14,7 +14,21 @@
 //! groups or over the query words they absorbed. The subject-tier knobs:
 //! `alias_min_sim` is the least alias similarity that names a subject
 //! (the trigram operator's own threshold, 0.6, is its floor) and
-//! `max_subjects` the most subjects one message may name.
+//! `max_subjects` the most subjects one message may name. The extension
+//! knob (step 7): `extension_max_candidates` is the most facts the
+//! extension retrievers may introduce beyond what the core tiers found.
+//!
+//! The usage knobs (recall plan P2B) close the citation loop on the fill:
+//! `usage_weight` adds `usage_weight × (cited_rate − ignored_rate)` to a
+//! fact's fused score before `min_fused_score` and the fill order (0 adds
+//! nothing). The rates are the `brain_usage` job's Laplace shares, which
+//! sum to one, so the term is centred: a fact never injected sits at
+//! 0.5/0.5 and a fact the job has not yet rated at 0/0, and both add
+//! exactly zero. `usage_min_recalls` is the fewest injections before the
+//! job rates a fact at all; under it the fact keeps the prior, so the
+//! term stays zero and a new fact is not punished (0 rates every fact).
+//! The in-context importance term is weighted separately by
+//! [`UsageWeights`] in `importance.yaml`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -113,6 +127,9 @@ pub struct RetrievalDoc {
     pub linked_share: f64,
     pub min_fused_score: f64,
     pub context_share: f64,
+    pub usage_weight: f64,
+    pub usage_min_recalls: u32,
+    pub extension_max_candidates: u32,
 }
 
 impl Default for RetrievalDoc {
@@ -133,6 +150,9 @@ impl Default for RetrievalDoc {
             linked_share: 0.0,
             min_fused_score: 0.0,
             context_share: 1.0,
+            usage_weight: 0.0,
+            usage_min_recalls: 0,
+            extension_max_candidates: 24,
         }
     }
 }

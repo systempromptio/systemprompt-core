@@ -1,6 +1,8 @@
 //! A new-turn recall: context (held keys built once, `now` read once,
 //! `as_of` from the request), retrieval over the working-set candidates,
-//! fusion, the lifecycle counts, visibility, and the budget fill. A
+//! fusion (the extension retrievers fan out beside the core tiers and
+//! the facts only they found are loaded, see [`super::introduce`]), the
+//! lifecycle counts, visibility, and the budget fill. A
 //! recall *names a subject* when the subject or linked tier returned a
 //! fact; the fill's linked reserve and context cap apply only then.
 //!
@@ -23,6 +25,7 @@ use super::budget::{self, BudgetLimits, Candidate};
 use super::declared::DeclaredRecall;
 use super::fusion::{self, TierHits};
 use super::held::{self, HeldKeys};
+use super::introduce;
 use super::score::{self, ScoreInput};
 use super::service::{BrainRecallService, fact_text};
 use super::visible::{Visibility, lifecycle_withheld};
@@ -90,34 +93,35 @@ impl BrainRecallService {
             alias_min_sim: retrieval.alias_min_sim,
             max_subjects: retrieval.max_subjects,
         };
-        let (pinned, subject, linked, context, text) = tokio::join!(
+        let fan_out = join_all(self.retrievers.iter().map(|r| r.retrieve(&query, ctx)));
+        let (pinned, subject, linked, context, text, extension) = tokio::join!(
             self.store
                 .pinned(ctx, retrieval.max_facts.min(MAX_TIER_LIMIT)),
             self.store.by_subject(&query, ctx),
             self.store.by_linked(&query, ctx),
             self.store.by_context(&query, ctx),
             self.store.full_text(&query, ctx),
+            fan_out,
         );
-        let tiers = vec![
+        let mut tiers = vec![
             TierHits::new(RetrievalTier::Pinned, pinned?),
             TierHits::new(RetrievalTier::Subject, subject?),
             TierHits::new(RetrievalTier::Linked, linked?),
             TierHits::new(RetrievalTier::Context, context?),
             TierHits::new(RetrievalTier::FullText, text?),
         ];
-        let mut fused = fusion::fuse(tiers, &retrieval.tiers, retrieval.rrf_k);
-        let extension = join_all(self.retrievers.iter().map(|r| r.retrieve(&query, ctx))).await;
-        for (retriever, result) in self.retrievers.iter().zip(extension) {
-            match result {
-                Ok(ids) => fusion::boost(&mut fused, &ids, &retrieval.tiers, retrieval.rrf_k),
-                Err(error) => tracing::warn!(
-                    retriever = retriever.name(),
-                    error = %error,
-                    "Brain retriever failed; its ranking is skipped"
-                ),
+        let ranked = introduce::ranked_of(&self.retrievers, extension);
+        if retrieval.tiers.extension > 0.0 && !ranked.is_empty() {
+            let mut known = introduce::known(&tiers);
+            let unseen = introduce::unseen(&known, &ranked, retrieval.extension_max_candidates);
+            if let Some(loader) = self.loader.as_ref().filter(|_| !unseen.is_empty()) {
+                for fact in loader.load(&unseen).await? {
+                    known.insert(fact.id.clone(), fact);
+                }
             }
+            tiers.extend(introduce::extension_hits(&ranked, &known));
         }
-        Ok(fused)
+        Ok(fusion::fuse(tiers, &retrieval.tiers, retrieval.rrf_k))
     }
 
     fn plan(

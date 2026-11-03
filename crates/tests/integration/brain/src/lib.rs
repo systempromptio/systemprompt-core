@@ -59,6 +59,8 @@ mod read_visibility;
 #[cfg(test)]
 mod recall_determinism;
 #[cfg(test)]
+mod recall_extension;
+#[cfg(test)]
 mod recall_seed;
 #[cfg(test)]
 mod recall_stale_marker;

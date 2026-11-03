@@ -56,6 +56,8 @@ mod recall_budget;
 #[cfg(test)]
 mod recall_budget_fill;
 #[cfg(test)]
+mod recall_budget_usage;
+#[cfg(test)]
 mod recall_fakes;
 #[cfg(test)]
 mod recall_fixtures;
@@ -63,6 +65,8 @@ mod recall_fixtures;
 mod recall_fusion;
 #[cfg(test)]
 mod recall_held;
+#[cfg(test)]
+mod recall_introduce;
 #[cfg(test)]
 mod recall_reuse;
 #[cfg(test)]

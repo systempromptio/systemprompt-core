@@ -1,9 +1,10 @@
 //! [`BrainRecallService`]: the brain's [`MemoryRecall`].
 //!
 //! A same-turn request reuses its turn's stored block or skips. A new turn
-//! builds the principal's held keys once, runs the four tiers concurrently
-//! over the working-set candidates, fuses them by reciprocal rank, lets
-//! extension retrievers re-rank, drops facts the lifecycle or `visible()`
+//! builds the principal's held keys once, runs the core tiers and the
+//! extension retrievers concurrently over the working-set candidates,
+//! loads the facts only an extension found, fuses every tier by
+//! reciprocal rank, drops facts the lifecycle or `visible()`
 //! withholds, counts what the lifecycle kept out of the tiers, and fills
 //! the token budget by in-context importance (an extension injection
 //! policy first); see [`super::new_turn`]. No visible fact is a `NoFacts`
@@ -26,6 +27,7 @@ use systemprompt_manifest::profile::{BrainProfile, StalePolicy};
 use systemprompt_models::brain::{BrainFact, FactStatus};
 
 use super::declared::{DeclaredSource, receipt_workflow};
+use super::introduce::FactLoader;
 use super::reuse::parse_stored;
 use crate::outcomes::OutcomeService;
 
@@ -39,6 +41,7 @@ pub struct BrainRecallService {
     pub(super) declared: Arc<dyn DeclaredSource>,
     pub(super) profile: Arc<BrainProfile>,
     pub(super) retrievers: Vec<Arc<dyn FactRetriever>>,
+    pub(super) loader: Option<Arc<dyn FactLoader>>,
     pub(super) injection: Vec<Arc<dyn InjectionPolicy>>,
     pub(super) importance: Vec<Arc<dyn ImportanceModel>>,
     pub(super) audiences: Vec<Arc<dyn NotificationAudienceResolver>>,

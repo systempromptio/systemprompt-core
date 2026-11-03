@@ -22,6 +22,15 @@
 //! context tier alone may take at most `context_share` of `max_facts`
 //! (rounded down); one past that is withheld as `ContextCap`.
 //!
+//! The citation loop (P2B): before any of that, `usage_weight ×
+//! (cited_rate − ignored_rate)` is added to each fact's fused score, so
+//! the `low_score` gate and the `rank` order both see it; the same term
+//! is the tie-break between importance and fact id, so a cited fact
+//! outranks an ignored sibling under `importance` order too. The rates
+//! sum to one, so a fact with no usage history (0.5/0.5 from the job's
+//! prior, or 0/0 before the job first rates it) adds exactly zero, and a
+//! weight of zero leaves every score untouched.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -29,7 +38,7 @@ use std::collections::BTreeMap;
 
 use systemprompt_identifiers::FactKindId;
 use systemprompt_models::brain::{
-    FillOrder, InjectionPlan, RetrievalDoc, RetrievalTier, ScoredFact, WithheldFact,
+    BrainFact, FillOrder, InjectionPlan, RetrievalDoc, RetrievalTier, ScoredFact, WithheldFact,
     WithheldReason, WorkflowProfileDecl,
 };
 
@@ -45,6 +54,7 @@ pub struct BudgetLimits {
     pub linked_share: f64,
     pub min_fused_score: f64,
     pub context_share: f64,
+    pub usage_weight: f64,
 }
 
 impl BudgetLimits {
@@ -70,6 +80,7 @@ impl BudgetLimits {
             linked_share: retrieval.linked_share,
             min_fused_score: retrieval.min_fused_score,
             context_share: retrieval.context_share,
+            usage_weight: retrieval.usage_weight,
         }
     }
 
@@ -128,8 +139,20 @@ fn context_only(scored: &ScoredFact) -> bool {
             .all(|rank| rank.tier == RetrievalTier::Context)
 }
 
-fn sort_candidates(candidates: &mut [Candidate], order: FillOrder) {
+#[must_use]
+pub fn usage_term(fact: &BrainFact, usage_weight: f64) -> f64 {
+    usage_weight * (fact.usage_cited_rate - fact.usage_ignored_rate) + 0.0
+}
+
+fn apply_usage(candidates: &mut [Candidate], usage_weight: f64) {
+    for candidate in candidates {
+        candidate.scored.score += usage_term(&candidate.scored.fact, usage_weight);
+    }
+}
+
+fn sort_candidates(candidates: &mut [Candidate], order: FillOrder, usage_weight: f64) {
     candidates.sort_by(|a, b| {
+        let usage = |c: &Candidate| usage_term(&c.scored.fact, usage_weight);
         let (primary, secondary) = match order {
             FillOrder::Rank => (
                 b.scored.score.total_cmp(&a.scored.score),
@@ -142,6 +165,7 @@ fn sort_candidates(candidates: &mut [Candidate], order: FillOrder) {
         };
         primary
             .then(secondary)
+            .then_with(|| usage(b).total_cmp(&usage(a)))
             .then_with(|| a.scored.fact.id.cmp(&b.scored.fact.id))
     });
 }
@@ -213,7 +237,8 @@ pub fn fill(
     limits: &BudgetLimits,
     subject_named: bool,
 ) -> InjectionPlan {
-    sort_candidates(&mut candidates, limits.order);
+    apply_usage(&mut candidates, limits.usage_weight);
+    sort_candidates(&mut candidates, limits.order, limits.usage_weight);
     let (reserved, context_cap) = if subject_named {
         (limits.linked_reserve(&candidates), limits.context_cap())
     } else {

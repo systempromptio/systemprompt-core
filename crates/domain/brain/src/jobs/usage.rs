@@ -8,7 +8,10 @@
 //! `cited_in_response` outcomes on those recalls, and `ignored` the
 //! difference. With the prior `(x + 1) / (n + 2)` a fact never injected
 //! sits at `0.5` on both rates, so usage orders only facts that were
-//! actually shown.
+//! actually shown. A fact injected fewer than `usage_min_recalls` times
+//! (`retrieval.yaml`, read from the plane) is written at that same prior,
+//! so recall's usage term is zero for it: a new fact is not punished for
+//! the few turns it has had.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -24,6 +27,7 @@ use systemprompt_provider_contracts::{JobScope, submit_job};
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderError, ProviderResult};
 
 use crate::pipeline::metrics;
+use crate::recall::declared::{DeclaredSource, PlaneDeclaredSource};
 use crate::repository::{BrainRepositories, FactUsageRates, UsageCounts};
 
 const WRITE_BATCH: usize = 1000;
@@ -37,6 +41,21 @@ pub struct BrainUsageJob;
 pub struct UsageRates {
     pub cited_rate: f64,
     pub ignored_rate: f64,
+}
+
+impl UsageRates {
+    #[must_use]
+    pub fn prior() -> Self {
+        laplace_rates(0, 0)
+    }
+
+    #[must_use]
+    pub fn gated(injected: u64, cited: u64, min_recalls: u32) -> Self {
+        if injected < u64::from(min_recalls) {
+            return Self::prior();
+        }
+        laplace_rates(injected, cited)
+    }
 }
 
 #[must_use]
@@ -54,8 +73,8 @@ fn count_to_f64(count: u64) -> f64 {
     u32::try_from(count).map_or_else(|_| f64::from(u32::MAX), f64::from)
 }
 
-fn rates_of(counts: &UsageCounts) -> FactUsageRates {
-    let rates = laplace_rates(counts.injected, counts.cited);
+fn rates_of(counts: &UsageCounts, min_recalls: u32) -> FactUsageRates {
+    let rates = UsageRates::gated(counts.injected, counts.cited, min_recalls);
     FactUsageRates {
         fact_id: counts.fact_id.clone(),
         cited_rate: rates.cited_rate,
@@ -89,6 +108,12 @@ impl Job for BrainUsageJob {
         }
         let repos = BrainRepositories::new(ctx.get::<DbPool>()?);
         let internal = |e| ProviderError::Internal(Box::new(e));
+        let min_recalls = PlaneDeclaredSource::new(repos.clone())
+            .load()
+            .await
+            .map_err(|e| ProviderError::Internal(Box::new(e)))?
+            .retrieval
+            .usage_min_recalls;
         let since =
             Utc::now() - Duration::days(i64::from(profile.lifecycle.results_retention_days));
         let counts = repos
@@ -96,7 +121,10 @@ impl Job for BrainUsageJob {
             .list_counts_since(since)
             .await
             .map_err(internal)?;
-        let rates: Vec<FactUsageRates> = counts.iter().map(rates_of).collect();
+        let rates: Vec<FactUsageRates> = counts
+            .iter()
+            .map(|counts| rates_of(counts, min_recalls))
+            .collect();
         let mut updated = 0u64;
         for batch in rates.chunks(WRITE_BATCH) {
             updated += repos
@@ -106,7 +134,12 @@ impl Job for BrainUsageJob {
                 .map_err(internal)?;
         }
         metrics::usage_updated(updated);
-        tracing::info!(updated, facts = counts.len(), "Brain usage rates written");
+        tracing::info!(
+            updated,
+            facts = counts.len(),
+            min_recalls,
+            "Brain usage rates written"
+        );
         Ok(JobResult::success()
             .with_stats(updated, 0)
             .with_duration(u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX)))

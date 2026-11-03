@@ -3,7 +3,8 @@
 //! the read pool and loads the facts in the tier's rank order; the recall
 //! receipt is written as the `brain_recalls` row of truth with the
 //! rendered block a same-turn request reuses. A receipt that carries a
-//! late block records `skipped=deadline` together with that block.
+//! late block records `skipped=deadline` together with that block. As the
+//! [`FactLoader`] it loads the facts an extension retriever introduced.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -22,6 +23,7 @@ use systemprompt_models::brain::{
     WithheldReason,
 };
 
+use super::introduce::FactLoader;
 use super::search_plan::SearchPolicy;
 use super::tiers::{self, TierFilter};
 use crate::models::NewRecall;
@@ -176,6 +178,13 @@ pub fn new_recall(receipt: &RecallReceipt) -> NewRecall {
         builder = builder.workflow(workflow.clone());
     }
     builder.build()
+}
+
+#[async_trait::async_trait]
+impl FactLoader for BrainRecallStore {
+    async fn load(&self, ids: &[BrainFactId]) -> Result<Vec<BrainFact>, RecallError> {
+        Ok(FactRepository::load(self.repos.read_pool(), ids).await?)
+    }
 }
 
 #[async_trait::async_trait]

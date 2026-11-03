@@ -1,4 +1,4 @@
-use systemprompt_brain::jobs::{BrainUsageJob, laplace_rates};
+use systemprompt_brain::jobs::{BrainUsageJob, UsageRates, laplace_rates};
 use systemprompt_traits::Job;
 
 fn close(left: f64, right: f64) -> bool {
@@ -27,6 +27,23 @@ fn citations_above_injections_are_capped() {
     let rates = laplace_rates(2, 5);
     assert!(close(rates.cited_rate, 0.75));
     assert!(close(rates.ignored_rate, 0.25));
+}
+
+#[test]
+fn the_prior_is_the_rate_of_a_fact_never_injected() {
+    assert_eq!(UsageRates::prior(), laplace_rates(0, 0));
+    assert!(close(
+        UsageRates::prior().cited_rate - UsageRates::prior().ignored_rate,
+        0.0
+    ));
+}
+
+#[test]
+fn under_the_minimum_recalls_a_fact_keeps_the_prior() {
+    assert_eq!(UsageRates::gated(2, 0, 3), UsageRates::prior());
+    assert_eq!(UsageRates::gated(3, 0, 3), laplace_rates(3, 0));
+    assert_eq!(UsageRates::gated(0, 0, 0), laplace_rates(0, 0));
+    assert_eq!(UsageRates::gated(8, 8, 0), laplace_rates(8, 8));
 }
 
 #[test]
