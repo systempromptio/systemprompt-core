@@ -17,4 +17,4 @@ mod streaming;
 mod tool_execution;
 
 pub use clients::{ProviderClients, WithheldEndpoint};
-pub use service::{AiService, AiServiceProviders, Embedded, embedding_usage};
+pub use service::{AiService, AiServiceProviders, Embedded};

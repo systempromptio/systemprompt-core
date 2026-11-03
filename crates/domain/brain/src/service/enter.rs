@@ -1,7 +1,9 @@
-//! Person-entered facts: the kind must be declared, the caller must hold
-//! the authority that governs the fact's scope, and an erased identity is
-//! refused as [`BrainError::Tombstoned`] before anything is emitted (the
-//! consumer rejects it again as the backstop). The fact itself is built by
+//! Person-entered facts: the kind must be declared, the subject must be
+//! one the store admits ([`BrainError::Subject`]; the console and MCP
+//! paths both pass through here), the caller must hold the authority that
+//! governs the fact's scope, and an erased identity is refused as
+//! [`BrainError::Tombstoned`] before anything is emitted (the consumer
+//! rejects it again as the backstop). The fact itself is built by
 //! the consumer from the `brain.fact.entered` event this emits on its own
 //! transaction.
 //!
@@ -29,6 +31,7 @@ impl BrainService {
         let kind = declared
             .kind(&fact.kind)
             .ok_or_else(|| BrainError::UnknownKind(fact.kind.clone()))?;
+        fact.subject.validate()?;
         authority::may_enter(caller, &fact.scope, &fact.kind, &declared.workflows)?;
         if !self.sink.is_available() {
             return Err(BrainError::Sink(BrainSinkError::Unavailable));

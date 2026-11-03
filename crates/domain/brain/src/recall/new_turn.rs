@@ -1,7 +1,8 @@
 //! A new-turn recall: context (held keys built once, `now` read once,
 //! `as_of` from the request), retrieval over the working-set candidates,
 //! fusion (the extension retrievers fan out beside the core tiers and
-//! the facts only they found are loaded, see [`super::introduce`]), the
+//! the facts only they found are loaded, see [`super::introduce`], and
+//! admitted by the tier SQL's own rule, see [`super::admit`]), the
 //! lifecycle counts, visibility, and the budget fill. A
 //! recall *names a subject* when the subject or linked tier returned a
 //! fact; the fill's linked reserve and context cap apply only then.
@@ -18,9 +19,10 @@ use systemprompt_extension::brain::{
     WithheldSummary,
 };
 use systemprompt_models::brain::{
-    InjectionPlan, RecallCtx, RecallQuery, RetrievalTier, ScopeLevel, ScoredFact,
+    InjectionPlan, RecallCtx, RecallQuery, RetrievalTier, ScopeLevel, ScoredFact, WithheldReason,
 };
 
+use super::admit::{self, Admission};
 use super::budget::{self, BudgetLimits, Candidate};
 use super::declared::DeclaredRecall;
 use super::fusion::{self, TierHits};
@@ -76,6 +78,7 @@ impl BrainRecallService {
         request: &RecallRequest,
         ctx: &RecallCtx,
         declared: &DeclaredRecall,
+        withheld: &mut WithheldSummary,
     ) -> Result<Vec<ScoredFact>, RecallError> {
         let retrieval = &declared.retrieval;
         let query = RecallQuery {
@@ -115,8 +118,22 @@ impl BrainRecallService {
             let mut known = introduce::known(&tiers);
             let unseen = introduce::unseen(&known, &ranked, retrieval.extension_max_candidates);
             if let Some(loader) = self.loader.as_ref().filter(|_| !unseen.is_empty()) {
-                for fact in loader.load(&unseen).await? {
-                    known.insert(fact.id.clone(), fact);
+                let admission = Admission::of(ctx, self.inject_stale());
+                for fact in introduce::loaded(loader.as_ref(), &unseen).await {
+                    match admit::admitted_by_sql(&fact, &admission) {
+                        // Why: withheld_counts already counts every reachable stale, disputed
+                        // and review-due fact in SQL; counting an introduced one again would
+                        // double it on the receipt.
+                        Some(
+                            WithheldReason::Stale
+                            | WithheldReason::Disputed
+                            | WithheldReason::ReviewDue,
+                        ) => {},
+                        Some(reason) => withheld.add(reason),
+                        None => {
+                            known.insert(fact.id.clone(), fact);
+                        },
+                    }
                 }
             }
             tiers.extend(introduce::extension_hits(&ranked, &known));
@@ -179,7 +196,7 @@ impl BrainRecallService {
             *withheld.by_reason.entry(reason).or_default() += count;
         }
         let mut ranked: Vec<ScoredFact> = Vec::new();
-        let fused = self.retrieve(request, ctx, declared).await?;
+        let fused = self.retrieve(request, ctx, declared, &mut withheld).await?;
         let subject_named = fused.iter().any(|scored| {
             fusion::found_by(scored, RetrievalTier::Subject)
                 || fusion::found_by(scored, RetrievalTier::Linked)

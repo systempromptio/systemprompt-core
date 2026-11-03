@@ -15,12 +15,11 @@ fn key_of(error: BrainHttpError) -> (Option<String>, String) {
 
 #[test]
 fn invalid_subject_and_statement_are_422_with_their_keys() {
-    let subject = BrainError::Subject(SubjectKeyError("bad subject".to_owned()));
+    let subject = BrainError::Subject(SubjectKeyError::Shape("bad subject".to_owned()));
     let status = BrainHttpError::from(subject).into_response().status();
     assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
-    let (key, _) = key_of(BrainHttpError::from(BrainError::Subject(SubjectKeyError(
-        "bad".to_owned(),
-    ))));
+    let oversized = BrainError::Subject(SubjectKeyError::IdLength { len: 300 });
+    let (key, _) = key_of(BrainHttpError::from(oversized));
     assert_eq!(key.as_deref(), Some("invalid_subject"));
 
     let (key, _) = key_of(BrainHttpError::from(BrainError::Statement(
@@ -101,7 +100,7 @@ fn recall_failure_is_503_recall_unavailable() {
 fn subject_status_and_id_parse_failures_are_422() {
     let cases = [
         (
-            BrainHttpError::from(SubjectKeyError("x".to_owned())),
+            BrainHttpError::from(SubjectKeyError::Shape("x".to_owned())),
             "invalid_subject",
         ),
         (

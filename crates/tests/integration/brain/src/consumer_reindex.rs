@@ -3,7 +3,9 @@
 //! rows, links, aliases and weighted vectors as N single-event drains, and
 //! the projection drain restores the same rows after an upgrade wipes them.
 //! The set is three contacts, two of which share the alias "Jane Doe" so
-//! the later one must win it, and one ownership fact of another kind.
+//! the later one must win it, and one ownership fact of another kind. A
+//! full reindex after an upgrade has no landing order, so there the shared
+//! alias may sit on either contact and is compared apart from the rest.
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -27,7 +29,7 @@ const PROCESSED: &str =
 
 /// Every derived row keyed by what both databases share: the subject id of
 /// the fact, never its generated id.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 struct Derived {
     working_set: Vec<(String, String)>,
     links: Vec<(String, String, String, String)>,
@@ -162,6 +164,21 @@ async fn run_consumer_until(h: &Harness, at_least: i64) -> BacklogSnapshot {
     consumer.backlog()
 }
 
+async fn run_consumer_for(h: &Harness, window: Duration) -> BacklogSnapshot {
+    let consumer: Arc<BrainConsumer> = Arc::new(h.consumer());
+    let shutdown = CancellationToken::new();
+    let runner = {
+        let consumer = Arc::clone(&consumer);
+        let shutdown = shutdown.clone();
+        let ctx = JobContext::new(Actor::user(UserId::generate()), Dependencies::new());
+        tokio::spawn(async move { consumer.run(ctx, shutdown).await })
+    };
+    tokio::time::sleep(window).await;
+    shutdown.cancel();
+    runner.await.expect("consumer stops");
+    consumer.backlog()
+}
+
 #[tokio::test]
 async fn a_consumer_round_indexes_exactly_what_single_event_drains_do() {
     let batched = Harness::with("brain_reindex_round", one_round()).await;
@@ -247,7 +264,26 @@ async fn the_projection_drain_restores_what_the_round_wrote() {
         u64::try_from(emitted).expect("count")
     );
     assert_eq!(report.index_backlog.requeued, 0);
-    assert_eq!(derived(&h).await, before);
+    let after = derived(&h).await;
+    let shared = |rows: &Derived| {
+        rows.aliases
+            .iter()
+            .filter(|row| row.3 == "jane doe")
+            .map(|row| row.1.clone())
+            .collect::<Vec<_>>()
+    };
+    let unshared = |rows: &Derived| Derived {
+        aliases: rows
+            .aliases
+            .iter()
+            .filter(|row| row.3 != "jane doe")
+            .cloned()
+            .collect(),
+        ..rows.clone()
+    };
+    assert_eq!(unshared(&after), unshared(&before));
+    assert_eq!(shared(&after).len(), 1);
+    assert!(["acme-rockets", "initech"].contains(&shared(&after)[0].as_str()));
     h.finish().await;
 }
 
@@ -307,5 +343,76 @@ async fn two_events_for_one_identity_in_one_round_resolve_to_one_revised_fact() 
         backlog.reindexed, 1,
         "the one fact the round landed on is reindexed once"
     );
+    h.finish().await;
+}
+
+const UNPROCESSED: &str =
+    "SELECT COUNT(*) FROM event_outbox WHERE processed_at IS NULL AND id <> $1";
+const INDEXED: &str =
+    "SELECT COUNT(*) FROM brain_facts WHERE search_weighted <> ''::tsvector AND id <> $1";
+
+#[tokio::test]
+async fn a_fact_no_index_admits_fails_alone_and_the_round_commits() {
+    let h = Harness::with("brain_reindex_poison", one_round()).await;
+    plane::apply(&h.pg, &declared_with_contact()).await;
+    let author = h.user("author", &[]).await;
+    let good = emit_all(&h, &author).await;
+    let oversized = contact(
+        &"x".repeat(300),
+        "Overlong Subject",
+        "nowhere-inc",
+        "its subject id is longer than brain_subjects admits",
+    )
+    .to_event(author.clone(), Utc::now())
+    .expect("entered event");
+    let poison = h.emit(&oversized).await;
+    let emitted = good + 1;
+
+    let backlog = run_consumer_until(&h, i64::try_from(emitted).expect("count")).await;
+    assert_eq!(backlog.processed, u64::try_from(emitted).expect("count"));
+    assert_eq!(backlog.failed, 1, "the poison event alone is failed");
+    assert_eq!(backlog.retried, 0, "nothing was retried");
+    assert_eq!(
+        backlog.reindexed,
+        u64::try_from(good).expect("count"),
+        "every other fact was reindexed by the fallback"
+    );
+    assert_eq!(
+        h.count(INDEXED, "none").await,
+        i64::try_from(good).expect("count")
+    );
+    assert_eq!(
+        h.total("brain_subjects").await,
+        i64::try_from(good).expect("count")
+    );
+    assert_eq!(
+        h.count(UNPROCESSED, "none").await,
+        0,
+        "the round committed and acknowledged every event"
+    );
+
+    let outcome: Option<String> =
+        sqlx::query_scalar("SELECT outcome FROM brain_event_results WHERE outbox_id = $1")
+            .bind(poison.as_str())
+            .fetch_one(&h.pg)
+            .await
+            .expect("result row");
+    assert_eq!(outcome.as_deref(), Some("failed"));
+    let attempts = sqlx::query_as::<_, (String, i32)>(
+        "SELECT stage, attempt FROM brain_failures WHERE outbox_id = $1 ORDER BY attempt",
+    )
+    .bind(poison.as_str())
+    .fetch_all(&h.pg)
+    .await
+    .expect("attempt rows");
+    assert_eq!(attempts, vec![("reindex".to_owned(), 1)]);
+
+    let again = run_consumer_for(&h, Duration::from_millis(500)).await;
+    assert_eq!(
+        again.processed, 0,
+        "the next round claims nothing: not wedged"
+    );
+    assert_eq!(again.failed, 0);
+    assert_eq!(h.count(UNPROCESSED, "none").await, 0);
     h.finish().await;
 }

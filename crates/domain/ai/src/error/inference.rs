@@ -46,11 +46,10 @@ fn from_provider(err: ProviderError) -> AiInferenceError {
         | ProviderError::ImageWithheld { ref provider }
         | ProviderError::NoImageData { ref provider }
         | ProviderError::NoStructuredOutput { ref provider }
-        | ProviderError::EmbeddingCountMismatch { ref provider, .. } => {
-            AiInferenceError::Provider {
-                provider: provider.to_string(),
-                message: err.to_string(),
-            }
+        | ProviderError::EmbeddingCountMismatch { ref provider, .. }
+        | ProviderError::EmbeddingIndexInvalid { ref provider, .. } => AiInferenceError::Provider {
+            provider: provider.to_string(),
+            message: err.to_string(),
         },
         ProviderError::HttpStatus { ref provider, .. }
         | ProviderError::Timeout { ref provider, .. }

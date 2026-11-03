@@ -11,7 +11,7 @@
 //! the rank is the disjunction of every group. Without statistics every
 //! group ranks and the filter is the disjunction of all of them.
 //!
-//! Recall plan P2 step 5: the share is counted over the informative
+//! The share is counted over the informative
 //! groups (`QuorumUnit::Groups`) or over the query words those groups
 //! absorbed (`QuorumUnit::Words`, where a group that merged two words of
 //! the message counts twice); and [`SearchPolicy::retry`] is the policy

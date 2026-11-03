@@ -9,7 +9,7 @@
 //! construction: no link is followed from a linked fact, and nothing is
 //! reached through a matched subject's other facts.
 //!
-//! Recall plan P2 step 6: a subject is named only when its best score
+//! A subject is named only when its best score
 //! reaches `alias_min_sim`, and the `max_subjects` best-scoring subjects
 //! (ties by kind, then id) are the ones both tiers read. The trigram
 //! operator keeps its own threshold (`pg_trgm.word_similarity_threshold`,

@@ -1,15 +1,17 @@
-//! Extension retrievers as a retrieval tier (recall plan P2 step 7).
+//! Extension retrievers as a retrieval tier.
 //!
 //! Each [`FactRetriever`] returns fact ids in its rank order. An id a
 //! core tier already returned is fused with the extension's rank; an id
-//! none returned is *introduced*: loaded through the [`FactLoader`] and
-//! fused as [`RetrievalTier::Extension`] like any other hit, so the
-//! lifecycle and visibility checks run over it exactly as over a core
-//! hit. Introduced ids are taken round-robin by rank across the
-//! retrievers, deduplicated, and capped at `extension_max_candidates`.
-//! A zero `tiers.extension` weight disables introduction and contributes
-//! nothing to the fusion, so the recall is the one the core tiers alone
-//! produce.
+//! none returned is *introduced*: loaded through the [`FactLoader`],
+//! admitted by the tier SQL's rule ([`super::admit`]) and fused as
+//! [`RetrievalTier::Extension`] like any other hit, so the lifecycle and
+//! visibility checks run over it exactly as over a core hit. Introduced
+//! ids are taken round-robin by rank across the retrievers, deduplicated,
+//! and capped at `extension_max_candidates`. A zero `tiers.extension`
+//! weight disables introduction and contributes nothing to the fusion,
+//! so the recall is the one the core tiers alone produce. A retriever or
+//! loader that fails is logged and contributes nothing; the recall goes
+//! on over what the core tiers found.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -77,6 +79,20 @@ pub fn extension_hits<S: BuildHasher>(
             TierHits::new(RetrievalTier::Extension, facts)
         })
         .collect()
+}
+
+pub async fn loaded(loader: &dyn FactLoader, ids: &[BrainFactId]) -> Vec<BrainFact> {
+    match loader.load(ids).await {
+        Ok(facts) => facts,
+        Err(error) => {
+            tracing::warn!(
+                requested = ids.len(),
+                error = %error,
+                "Brain fact loader failed; the introduced candidates are skipped"
+            );
+            Vec::new()
+        },
+    }
 }
 
 pub fn ranked_of(

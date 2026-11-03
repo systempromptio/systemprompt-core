@@ -1,9 +1,12 @@
 //! [`RoundCache`]: what one consumer round reads once for every event.
 //!
-//! The per-event stages then read nothing: the result-ledger claims
-//! the round made as a set, the alias resolution of every entered subject,
-//! and the dedupe rows (facts by identity, live neighbours by kind and
-//! subject, tombstones) of every entered candidate.
+//! The per-event stages then read nothing but the tombstone: the
+//! result-ledger claims the round made as a set, the alias resolution of
+//! every entered subject, and the dedupe rows (facts by identity, live
+//! neighbours by kind and subject, tombstones) of every entered candidate.
+//! The tombstones preloaded here only short-circuit; a candidate the cache
+//! does not hold as tombstoned is re-checked against the store at write
+//! time, since an erase can land while the round runs.
 //!
 //! Coverage is explicit. A lookup answers `None` when the round did not
 //! preload that pair or identity (a document event's extracted candidates,

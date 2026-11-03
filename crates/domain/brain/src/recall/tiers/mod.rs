@@ -10,8 +10,8 @@
 //! ids ordered by its rank, then stored importance, then id, so two
 //! identical recalls answer identically. The subject and linked tiers
 //! name at most `max_subjects` subjects whose alias similarity reaches
-//! `alias_min_sim` (recall plan P2 step 6); the full-text tier runs a
-//! second plan at `retry_quorum` when the first returns nothing (step 5).
+//! `alias_min_sim` ; the full-text tier runs a
+//! second plan at `retry_quorum` when the first returns nothing.
 //!
 //! `brain.recall.working_set: false` runs the previous scope-predicate SQL
 //! in the legacy module instead; that path is removed in the next release.

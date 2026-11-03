@@ -1,12 +1,14 @@
-//! Person entry refuses an erased identity before anything is queued, and
-//! a field edit merges onto the stored fields: omitted keys are kept, the
-//! merged map is checked against the kind, and an identity change is
-//! refused.
+//! Person entry refuses an erased identity and a subject the store does
+//! not admit before anything is queued, and a field edit merges onto the
+//! stored fields: omitted keys are kept, the merged map is checked against
+//! the kind, and an identity change is refused.
 
 use serde_json::{Map, Value, json};
 use systemprompt_brain::BrainError;
 use systemprompt_identifiers::UserId;
-use systemprompt_models::brain::{EnteredFact, EnteredStatus, FactScope, SubjectKey};
+use systemprompt_models::brain::{
+    EnteredFact, EnteredStatus, FactScope, SubjectKey, SubjectKeyError,
+};
 
 use crate::events::{Landed, price};
 use crate::harness::Harness;
@@ -31,6 +33,45 @@ fn entered(owner: &UserId, region: &str) -> EnteredFact {
         status: EnteredStatus::Candidate,
         observed_at: None,
     }
+}
+
+#[tokio::test]
+async fn entering_an_oversized_subject_is_refused_before_it_is_queued() {
+    let h = Harness::new("brain_enter_oversized").await;
+    let owner = h.user("owner", &[]).await;
+    let caller = Harness::caller(&owner, &[]);
+    let mut fact = entered(&owner, "emea");
+    fact.subject = SubjectKey::new("product", "x".repeat(300));
+
+    let refused = h
+        .service
+        .enter(&caller, &fact)
+        .await
+        .expect_err("a subject brain_subjects cannot hold is refused at entry");
+    assert!(
+        matches!(
+            refused,
+            BrainError::Subject(SubjectKeyError::IdLength { len: 300 })
+        ),
+        "{refused:?}"
+    );
+    assert_eq!(h.count(OUTBOX, owner.as_str()).await, 0, "nothing queued");
+
+    fact.subject = SubjectKey::new("k".repeat(65), "acme");
+    let refused = h
+        .service
+        .enter(&caller, &fact)
+        .await
+        .expect_err("an oversized subject kind is refused too");
+    assert!(
+        matches!(
+            refused,
+            BrainError::Subject(SubjectKeyError::KindLength { len: 65 })
+        ),
+        "{refused:?}"
+    );
+    assert_eq!(h.count(OUTBOX, owner.as_str()).await, 0);
+    h.finish().await;
 }
 
 #[tokio::test]

@@ -1,7 +1,9 @@
 //! The pure collectors behind the set-based reindex: [`ReindexBatch`],
 //! the fact ids a consumer round lands on, each once in landing order,
 //! and [`AliasRows`], the alias rows one `INSERT` writes for a set of
-//! facts, folded the way the sequential upserts would have left the table.
+//! facts, folded to one row per `(subject_kind, alias_norm)` with the
+//! last fact in landing order winning, exactly as the sequential upserts
+//! would have left the table (an alias moves to the latest fact's subject).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

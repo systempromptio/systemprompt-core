@@ -3,7 +3,8 @@
 //! recall request into the `<team_memory>` block.
 //!
 //! The pure stages are public so they can be exercised alone:
-//! [`held`] (the working-set keys a principal holds), [`synonyms`]
+//! [`held`] (the working-set keys a principal holds), [`admit`] (the tier
+//! SQL's admission rule over an introduced fact), [`synonyms`]
 //! (query-time expansion), [`fusion`] (reciprocal rank fusion),
 //! [`visible`] (the per-fact visibility decision), [`score`] (in-context
 //! importance), [`budget`] (quota and token fill) and [`reuse`] (same-turn
@@ -13,6 +14,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod admit;
 pub mod budget;
 mod builder;
 pub mod declared;

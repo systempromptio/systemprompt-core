@@ -238,7 +238,7 @@ const fn wrote(outcome: &ProcessOutcome) -> bool {
     }
 }
 
-async fn fail(executor: impl sqlx::PgExecutor<'_>, failed: &Failed<'_>) {
+pub(super) async fn fail(executor: impl sqlx::PgExecutor<'_>, failed: &Failed<'_>) {
     let failure = NewFailure {
         outbox_id: failed.id.clone(),
         pipeline_version: Some(failed.version.clone()),
@@ -251,7 +251,7 @@ async fn fail(executor: impl sqlx::PgExecutor<'_>, failed: &Failed<'_>) {
     }
 }
 
-async fn close_result(
+pub(super) async fn close_result(
     conn: &mut PgConnection,
     failed: &Failed<'_>,
     kind: &str,

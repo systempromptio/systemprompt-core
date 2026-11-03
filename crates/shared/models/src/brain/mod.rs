@@ -71,5 +71,5 @@ pub use statement::{
     StatementError, identity_hash, placeholders, render_statement, statement_hash,
 };
 pub use status::{FactStatus, UnknownFactStatus};
-pub use subject::{SubjectKey, SubjectKeyError};
+pub use subject::{MAX_SUBJECT_ID_LEN, MAX_SUBJECT_KIND_LEN, SubjectKey, SubjectKeyError};
 pub use version::{BRAIN_CODE_VERSION, PipelineVersionInputs};

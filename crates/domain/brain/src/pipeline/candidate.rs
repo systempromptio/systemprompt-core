@@ -4,6 +4,13 @@
 //! snapshot come from it when it covers the candidate, and the write the
 //! candidate lands is reported back as a [`DedupeWrite`] for the round.
 //!
+//! The one read a cached snapshot does not skip is the tombstone: the
+//! cache was preloaded before the round's first event, and a round that
+//! includes document events with model calls is long enough for a console
+//! erase to land in between, so a snapshot the cache serves as not
+//! tombstoned is checked against the store (one primary-key lookup)
+//! before the candidate is written, and a hit is the tombstoned outcome.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -22,6 +29,7 @@ use super::status::{self, Lifecycle};
 use super::validate::{Validated, validate};
 use super::{BrainPipeline, ProcessParams, route};
 use crate::error::BrainResult;
+use crate::repository::TombstoneRepository;
 
 /// What became of one candidate.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -184,13 +192,22 @@ async fn snapshot(
 ) -> BrainResult<DedupeSnapshot> {
     let kind = &prepared.kind.kind;
     let subject = &prepared.candidate.subject;
-    if let Some(cached) = params
+    let Some(cached) = params
         .round
         .and_then(|round| round.snapshot(kind, subject, &prepared.identity_hash))
-    {
+    else {
+        return dedupe::snapshot(conn, kind, subject, &prepared.identity_hash).await;
+    };
+    if cached.tombstoned {
         return Ok(cached);
     }
-    dedupe::snapshot(conn, kind, subject, &prepared.identity_hash).await
+    if TombstoneRepository::exists(&mut *conn, kind, &prepared.identity_hash).await? {
+        return Ok(DedupeSnapshot {
+            tombstoned: true,
+            ..DedupeSnapshot::default()
+        });
+    }
+    Ok(cached)
 }
 
 fn written(

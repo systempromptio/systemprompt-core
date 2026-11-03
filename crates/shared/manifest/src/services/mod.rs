@@ -84,7 +84,7 @@ pub use gateway::{
     GatewayProfileError, GatewayResult, GatewayRoute, GatewayState, ModelGlobs, OverrideRuleAction,
     QuotaFaultMode, ResponseFormatKind, RouteAlias, RouteDeployment, RouteMatch, RouteRequirements,
     SelectionStrategy, SystemPromptRule, WeightedDeployment, estimate_input_tokens,
-    slugify_pattern, synthesize_route_id,
+    estimate_text_tokens, slugify_pattern, synthesize_route_id,
 };
 pub use hooks::{
     DiskHookConfig, HOOK_CONFIG_FILENAME, HookAction, HookEventsConfig, HookMatcher, HookType,

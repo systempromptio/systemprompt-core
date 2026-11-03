@@ -61,7 +61,7 @@ pub use extension::AiExtension;
 
 pub use services::core::{
     AiService, AiServiceProviders, Embedded, ImageService, ImageServiceParts, ProviderClients,
-    WithheldEndpoint, embedding_usage,
+    WithheldEndpoint,
 };
 
 pub use services::storage::{ImageStorage, StorageConfig, StorageConfigError};

@@ -1,14 +1,18 @@
-//! Conservative text-size estimation for conditional gateway routing and the
-//! gateway's context-window pre-check.
+//! Conservative text-size estimation for conditional gateway routing, the
+//! gateway's context-window pre-check, and usage a provider did not report.
 //!
 //! Only text is counted (system, message, thinking and tool-result text, and
 //! Anthropic tool blocks); images and tool-use inputs are not, so the estimate
-//! errs low and a check against it never refuses a request that fits.
+//! errs low and a check against it never refuses a request that fits. The
+//! same characters-per-token rule prices an embedding call whose reply
+//! carries no usage block.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_wire::canonical::{CanonicalContent, CanonicalRequest};
+
+const CHARS_PER_TOKEN: usize = 4;
 
 #[must_use]
 pub fn estimate_input_tokens(request: &CanonicalRequest) -> u32 {
@@ -22,7 +26,16 @@ pub fn estimate_input_tokens(request: &CanonicalRequest) -> u32 {
             accumulate_text_len(part, &mut chars);
         }
     }
-    u32::try_from(chars / 4 + 1).unwrap_or(u32::MAX)
+    tokens_for_chars(chars)
+}
+
+#[must_use]
+pub fn estimate_text_tokens<'a>(texts: impl IntoIterator<Item = &'a str>) -> u32 {
+    tokens_for_chars(texts.into_iter().map(str::len).sum())
+}
+
+fn tokens_for_chars(chars: usize) -> u32 {
+    u32::try_from(chars / CHARS_PER_TOKEN + 1).unwrap_or(u32::MAX)
 }
 
 fn accumulate_text_len(part: &CanonicalContent, acc: &mut usize) {

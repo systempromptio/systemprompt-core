@@ -31,6 +31,7 @@ mod decode;
 mod drain;
 mod handle;
 mod round_state;
+mod settle;
 mod wake;
 
 pub use builder::BrainConsumerBuilder;

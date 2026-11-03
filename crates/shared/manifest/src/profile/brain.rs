@@ -168,6 +168,9 @@ pub struct BrainConsolidationProfile {
     #[serde(default)]
     pub enabled: bool,
     #[serde(default)]
+    #[schemars(
+        description = "Tokens the consolidation job may spend per day; falls back to extraction.daily_token_budget when absent."
+    )]
     pub daily_token_budget: Option<u64>,
 }
 
@@ -195,7 +198,7 @@ pub struct BrainExtractionProfile {
     pub timeout_ms: u64,
     #[serde(default = "default_daily_token_budget")]
     #[schemars(
-        description = "Tokens the consolidation job may spend per day; falls back to extraction.daily_token_budget when absent."
+        description = "Tokens the extraction model may spend per day for the brain's service principal; the consolidation job shares it unless consolidation.daily_token_budget is set."
     )]
     pub daily_token_budget: u64,
 }

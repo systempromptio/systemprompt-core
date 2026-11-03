@@ -41,6 +41,9 @@ pub enum ProviderError {
         returned: usize,
     },
 
+    #[error("Provider {provider} returned embedding index {index} out of range or twice")]
+    EmbeddingIndexInvalid { provider: ProviderId, index: usize },
+
     #[error("Provider {provider} returned HTTP {status}: {body}")]
     HttpStatus {
         provider: ProviderId,

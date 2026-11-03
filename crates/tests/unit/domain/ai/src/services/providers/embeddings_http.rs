@@ -89,13 +89,7 @@ async fn openai_posts_the_embeddings_body_and_maps_vectors_by_index() {
         response.vectors,
         vec![vec![0.1, 0.2, 0.3], vec![0.4, 0.5, 0.6]]
     );
-    assert_eq!(
-        response.usage,
-        EmbeddingUsage {
-            input_tokens: 4,
-            total_tokens: 4
-        }
-    );
+    assert_eq!(response.usage, EmbeddingUsage::reported(4, 4));
     assert_eq!(response.dimensions(), Some(3));
     assert!(provider.supports_embeddings());
 }
@@ -169,7 +163,7 @@ async fn gemini_public_api_uses_batch_embed_contents() {
         response.vectors,
         vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]]
     );
-    assert_eq!(response.usage, EmbeddingUsage::default());
+    assert_eq!(response.usage, EmbeddingUsage::from_estimate(3));
     assert!(provider.supports_embeddings());
 }
 
@@ -196,7 +190,7 @@ fn vertex_renders_predict_instances_and_reads_predictions() {
     });
     let response = gemini::parse_response(Hosting::Vertex, reply, &vertex_request).expect("parses");
     assert_eq!(response.vectors, vec![vec![0.1, 0.2], vec![0.3, 0.4]]);
-    assert_eq!(response.usage.input_tokens, 5);
+    assert_eq!(response.usage, EmbeddingUsage::reported(5, 5));
     assert_eq!(response.model, GOOGLE_MODEL);
 }
 

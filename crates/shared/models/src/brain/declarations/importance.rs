@@ -1,8 +1,8 @@
 //! `importance.yaml` and `retrieval.yaml`: the scoring formula's weights
 //! and the retrieval tiers' fusion weights, quotas and the fill policy.
 //!
-//! The fill knobs (recall plan P2): `fill_order` (`rank`: fused rank
-//! first, importance second; `importance`: the pre-P2 order);
+//! The fill knobs: `fill_order` (`rank`: fused rank
+//! first, importance second; `importance`: the previous order);
 //! `linked_share` of `max_facts` reserved for one-hop link hits when a
 //! subject is named (0 reserves nothing); `min_fused_score` below which a
 //! fact is withheld as `low_score` (0 withholds nothing); `context_share`
@@ -15,10 +15,10 @@
 //! `alias_min_sim` is the least alias similarity that names a subject
 //! (the trigram operator's own threshold, 0.6, is its floor) and
 //! `max_subjects` the most subjects one message may name. The extension
-//! knob (step 7): `extension_max_candidates` is the most facts the
+//! knob: `extension_max_candidates` is the most facts the
 //! extension retrievers may introduce beyond what the core tiers found.
 //!
-//! The usage knobs (recall plan P2B) close the citation loop on the fill:
+//! The usage knobs close the citation loop on the fill:
 //! `usage_weight` adds `usage_weight × (cited_rate − ignored_rate)` to a
 //! fact's fused score before `min_fused_score` and the fill order (0 adds
 //! nothing). The rates are the `brain_usage` job's Laplace shares, which

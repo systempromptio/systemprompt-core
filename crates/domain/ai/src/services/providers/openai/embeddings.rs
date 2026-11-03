@@ -3,7 +3,9 @@
 //! The body and reply are rendered and read here rather than through the
 //! canonical bridge because embeddings carry no messages; any OpenAI-shaped
 //! base URL (Azure, `OpenRouter`, a local server) is reached the same way the
-//! chat completions are, through the provider's upstream target.
+//! chat completions are, through the provider's upstream target. A request
+//! over the endpoint's input cap is sent as several calls and joined in
+//! input order.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -15,6 +17,9 @@ use systemprompt_wire::WireProtocol;
 
 use crate::error::{AiError, ProviderError, Result};
 use crate::models::ai::{EmbeddingRequest, EmbeddingResponse, EmbeddingUsage};
+use crate::services::providers::embedding_batches::{
+    OPENAI_MAX_INPUTS, embed_in_batches, estimated_usage,
+};
 
 use super::provider::OpenAiProvider;
 
@@ -46,7 +51,8 @@ pub fn build_request_body(request: &EmbeddingRequest, upstream_model: &str) -> R
 // Why: OpenAI Embeddings API response object —
 // https://platform.openai.com/docs/api-reference/embeddings/object. Vectors
 // arrive in `data[]` with an explicit `index`, and the array is not
-// guaranteed to be ordered, so the index is honoured when placing them.
+// guaranteed to be ordered, so the index is honoured when placing them and
+// every slot must be filled exactly once.
 #[derive(Debug, Deserialize)]
 struct EmbeddingsReply {
     #[serde(default)]
@@ -70,46 +76,69 @@ struct ReplyUsage {
     total_tokens: u32,
 }
 
+fn provider_id() -> ProviderId {
+    ProviderId::new("openai")
+}
+
+fn place_by_index(data: Vec<EmbeddingDatum>, requested: usize) -> Result<Vec<Vec<f32>>> {
+    let mut slots: Vec<Option<Vec<f32>>> = vec![None; requested];
+    for datum in data {
+        match slots.get_mut(datum.index) {
+            Some(slot) if slot.is_none() => *slot = Some(datum.embedding),
+            _ => {
+                return Err(AiError::Provider(ProviderError::EmbeddingIndexInvalid {
+                    provider: provider_id(),
+                    index: datum.index,
+                }));
+            },
+        }
+    }
+    let mut vectors = Vec::with_capacity(requested);
+    for slot in slots {
+        match slot {
+            Some(vector) => vectors.push(vector),
+            None => {
+                return Err(AiError::Provider(ProviderError::EmbeddingCountMismatch {
+                    provider: provider_id(),
+                    requested,
+                    returned: vectors.len(),
+                }));
+            },
+        }
+    }
+    Ok(vectors)
+}
+
 // JSON: OpenAI `/embeddings` response body — upstream wire format.
 pub fn parse_response(value: Value, request: &EmbeddingRequest) -> Result<EmbeddingResponse> {
     let reply: EmbeddingsReply = serde_json::from_value(value)?;
     let requested = request.inputs.len();
     if reply.data.len() != requested {
         return Err(AiError::Provider(ProviderError::EmbeddingCountMismatch {
-            provider: ProviderId::new("openai"),
+            provider: provider_id(),
             requested,
             returned: reply.data.len(),
         }));
     }
-    let mut vectors: Vec<Vec<f32>> = vec![Vec::new(); requested];
-    for datum in reply.data {
-        let Some(slot) = vectors.get_mut(datum.index) else {
-            return Err(AiError::Provider(ProviderError::EmbeddingCountMismatch {
-                provider: ProviderId::new("openai"),
-                requested,
-                returned: datum.index + 1,
-            }));
-        };
-        *slot = datum.embedding;
-    }
-    let usage = reply
-        .usage
-        .map_or_else(EmbeddingUsage::default, |u| EmbeddingUsage {
-            input_tokens: u.prompt_tokens,
-            total_tokens: u.total_tokens,
-        });
+    let vectors = place_by_index(reply.data, requested)?;
+    let usage = reply.usage.map_or_else(
+        || estimated_usage(&request.inputs),
+        |u| EmbeddingUsage::reported(u.prompt_tokens, u.total_tokens),
+    );
     Ok(EmbeddingResponse {
-        model: reply.model.unwrap_or_else(|| request.model.clone()),
+        model: reply
+            .model
+            .map_or_else(|| request.model.clone(), Into::into),
         vectors,
         usage,
     })
 }
 
-pub(super) async fn embed(
+async fn embed_once(
     provider: &OpenAiProvider,
     request: &EmbeddingRequest,
 ) -> Result<EmbeddingResponse> {
-    let upstream = provider.upstream_model(&request.model);
+    let upstream = provider.upstream_model(request.model.as_str());
     let body = build_request_body(request, upstream)?;
     let call = provider.target.call().await?;
     let url = format!("{}{EMBEDDINGS_PATH}", call.endpoint().trim_end_matches('/'));
@@ -127,7 +156,18 @@ pub(super) async fn embed(
         model = %request.model,
         inputs = request.inputs.len(),
         input_tokens = parsed.usage.input_tokens,
+        estimated = parsed.usage.estimated,
         "openai embeddings returned"
     );
     Ok(parsed)
+}
+
+pub(super) async fn embed(
+    provider: &OpenAiProvider,
+    request: &EmbeddingRequest,
+) -> Result<EmbeddingResponse> {
+    embed_in_batches(request, OPENAI_MAX_INPUTS, |chunk| async move {
+        embed_once(provider, &chunk).await
+    })
+    .await
 }

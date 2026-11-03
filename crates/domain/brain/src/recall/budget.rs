@@ -1,9 +1,9 @@
 //! Core injection fill.
 //!
-//! The visible facts are ordered by [`FillOrder`]: `rank` (recall plan
-//! P2 step 1) takes descending fused score, then in-context importance,
+//! The visible facts are ordered by [`FillOrder`]: `rank` takes descending
+//! fused score, then in-context importance,
 //! then fact id, so a fact every tier agreed on is never cut for a
-//! higher-importance sibling found by one; `importance` is the pre-P2
+//! higher-importance sibling found by one; `importance` is the previous
 //! order (importance, then score, then id). In that order a fact is taken
 //! while its kind is under its quota, the fact count is under `max_facts`
 //! and the estimated tokens fit the budget. A fact over its kind's quota
@@ -11,7 +11,7 @@
 //! whose tokens do not fit as `Budget`. Tokens are estimated as a quarter
 //! of the line's characters, rounded up.
 //!
-//! Three gates run before and inside that loop (P2 steps 2, 3, 4). A fact
+//! Three gates run before and inside that loop. A fact
 //! whose fused score is under `min_fused_score` is withheld as `LowScore`
 //! before the fill, so a message no tier scores injects nothing. When the
 //! recall named a subject, `linked_share` of `max_facts` (rounded to the
@@ -22,7 +22,7 @@
 //! context tier alone may take at most `context_share` of `max_facts`
 //! (rounded down); one past that is withheld as `ContextCap`.
 //!
-//! The citation loop (P2B): before any of that, `usage_weight ×
+//! The citation loop: before any of that, `usage_weight ×
 //! (cited_rate − ignored_rate)` is added to each fact's fused score, so
 //! the `low_score` gate and the `rank` order both see it; the same term
 //! is the tie-break between importance and fact id, so a cited fact
@@ -141,12 +141,13 @@ fn context_only(scored: &ScoredFact) -> bool {
 
 #[must_use]
 pub fn usage_term(fact: &BrainFact, usage_weight: f64) -> f64 {
-    usage_weight * (fact.usage_cited_rate - fact.usage_ignored_rate) + 0.0
+    usage_weight.mul_add(fact.usage_cited_rate - fact.usage_ignored_rate, 0.0)
 }
 
 fn apply_usage(candidates: &mut [Candidate], usage_weight: f64) {
     for candidate in candidates {
-        candidate.scored.score += usage_term(&candidate.scored.fact, usage_weight);
+        let adjusted = candidate.scored.score + usage_term(&candidate.scored.fact, usage_weight);
+        candidate.scored.score = adjusted.max(0.0);
     }
 }
 

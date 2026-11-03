@@ -52,6 +52,8 @@ mod plane_db;
 #[cfg(test)]
 mod plane_repository;
 #[cfg(test)]
+mod recall_admit;
+#[cfg(test)]
 mod recall_budget;
 #[cfg(test)]
 mod recall_budget_fill;

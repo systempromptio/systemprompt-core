@@ -11,8 +11,6 @@ pub mod image_service;
 mod request_logging;
 pub mod request_storage;
 
-pub use ai_service::{
-    AiService, AiServiceProviders, Embedded, ProviderClients, WithheldEndpoint, embedding_usage,
-};
+pub use ai_service::{AiService, AiServiceProviders, Embedded, ProviderClients, WithheldEndpoint};
 pub use image_service::{ImageService, ImageServiceParts};
 pub use request_storage::RequestStorage;

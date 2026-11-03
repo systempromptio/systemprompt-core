@@ -61,6 +61,8 @@ mod recall_determinism;
 #[cfg(test)]
 mod recall_extension;
 #[cfg(test)]
+mod recall_extension_admit;
+#[cfg(test)]
 mod recall_seed;
 #[cfg(test)]
 mod recall_stale_marker;
@@ -80,6 +82,8 @@ mod retention;
 mod review_after;
 #[cfg(test)]
 mod review_job;
+#[cfg(test)]
+mod round_tombstone;
 #[cfg(test)]
 mod seams_discovery;
 #[cfg(test)]

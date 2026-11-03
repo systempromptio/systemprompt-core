@@ -24,7 +24,7 @@ use systemprompt_security::credential::TokenCache;
 use systemprompt_traits::{DynAiSessionProvider, ToolProvider};
 use tokio_util::task::TaskTracker;
 
-pub use embedding::{Embedded, usage_of as embedding_usage};
+pub use embedding::Embedded;
 
 use super::clients::ProviderClients;
 use crate::services::core::request_storage::RequestStorage;

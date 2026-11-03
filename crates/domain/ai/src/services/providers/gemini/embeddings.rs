@@ -4,8 +4,9 @@
 //! by two different endpoints: Vertex AI exposes it as a publisher model on
 //! `:predict`, the public Gemini API as `:batchEmbedContents`. The provider's
 //! upstream target already knows which host it points at, so the hosting
-//! picks the path, the body and the reply shape here and nothing else in the
-//! provider changes.
+//! picks the path, the body, the reply shape and the per-call input cap here
+//! and nothing else in the provider changes. The public API reports no
+//! usage, so its input is estimated from the texts and marked as such.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -17,14 +18,28 @@ use systemprompt_wire::{Hosting, WireProtocol};
 
 use crate::error::{AiError, ProviderError, Result};
 use crate::models::ai::{EmbeddingRequest, EmbeddingResponse, EmbeddingUsage};
+use crate::services::providers::embedding_batches::{
+    GEMINI_MAX_BATCH, VERTEX_MAX_INSTANCES, embed_in_batches, estimated_usage,
+};
+use crate::services::upstream::UpstreamCall;
 
 use super::provider::GeminiProvider;
+
+type Parsed = (Vec<Vec<f32>>, EmbeddingUsage);
 
 #[must_use]
 pub fn embeddings_path(hosting: Hosting, upstream_model: &str) -> String {
     match hosting {
         Hosting::Vertex => format!("/models/{upstream_model}:predict"),
         Hosting::FirstParty => format!("/models/{upstream_model}:batchEmbedContents"),
+    }
+}
+
+#[must_use]
+pub const fn max_inputs(hosting: Hosting) -> usize {
+    match hosting {
+        Hosting::Vertex => VERTEX_MAX_INSTANCES,
+        Hosting::FirstParty => GEMINI_MAX_BATCH,
     }
 }
 
@@ -117,6 +132,34 @@ struct GeminiEmbedding {
     values: Vec<f32>,
 }
 
+// JSON: the upstream reply body as the transport decoded it; typed here.
+fn parse_vertex(value: Value, request: &EmbeddingRequest) -> Result<Parsed> {
+    let reply: VertexReply = serde_json::from_value(value)?;
+    let reported = reply
+        .predictions
+        .iter()
+        .filter_map(|p| p.embeddings.statistics.as_ref())
+        .map(|s| s.token_count)
+        .reduce(u32::saturating_add);
+    let usage = reported.map_or_else(
+        || estimated_usage(&request.inputs),
+        |tokens| EmbeddingUsage::reported(tokens, tokens),
+    );
+    let vectors = reply
+        .predictions
+        .into_iter()
+        .map(|p| p.embeddings.values)
+        .collect();
+    Ok((vectors, usage))
+}
+
+// JSON: the upstream reply body as the transport decoded it; typed here.
+fn parse_gemini(value: Value, request: &EmbeddingRequest) -> Result<Parsed> {
+    let reply: GeminiReply = serde_json::from_value(value)?;
+    let vectors = reply.embeddings.into_iter().map(|e| e.values).collect();
+    Ok((vectors, estimated_usage(&request.inputs)))
+}
+
 // JSON: Vertex `:predict` or Gemini `:batchEmbedContents` response body —
 // upstream wire format per hosting.
 pub fn parse_response(
@@ -124,31 +167,9 @@ pub fn parse_response(
     value: Value,
     request: &EmbeddingRequest,
 ) -> Result<EmbeddingResponse> {
-    let (vectors, input_tokens) = match hosting {
-        Hosting::Vertex => {
-            let reply: VertexReply = serde_json::from_value(value)?;
-            let tokens = reply
-                .predictions
-                .iter()
-                .filter_map(|p| p.embeddings.statistics.as_ref())
-                .map(|s| s.token_count)
-                .sum::<u32>();
-            let vectors = reply
-                .predictions
-                .into_iter()
-                .map(|p| p.embeddings.values)
-                .collect::<Vec<_>>();
-            (vectors, tokens)
-        },
-        Hosting::FirstParty => {
-            let reply: GeminiReply = serde_json::from_value(value)?;
-            let vectors = reply
-                .embeddings
-                .into_iter()
-                .map(|e| e.values)
-                .collect::<Vec<_>>();
-            (vectors, 0)
-        },
+    let (vectors, usage) = match hosting {
+        Hosting::Vertex => parse_vertex(value, request)?,
+        Hosting::FirstParty => parse_gemini(value, request)?,
     };
     if vectors.len() != request.inputs.len() {
         return Err(AiError::Provider(ProviderError::EmbeddingCountMismatch {
@@ -160,20 +181,17 @@ pub fn parse_response(
     Ok(EmbeddingResponse {
         model: request.model.clone(),
         vectors,
-        usage: EmbeddingUsage {
-            input_tokens,
-            total_tokens: input_tokens,
-        },
+        usage,
     })
 }
 
-pub(super) async fn embed(
+async fn embed_once(
     provider: &GeminiProvider,
+    call: &UpstreamCall,
     request: &EmbeddingRequest,
 ) -> Result<EmbeddingResponse> {
-    let call = provider.target.call().await?;
     let hosting = call.hosting();
-    let upstream = provider.upstream_model(&request.model);
+    let upstream = provider.upstream_model(request.model.as_str());
     let body = build_request_body(hosting, request, upstream);
     let url = format!(
         "{}{}",
@@ -195,7 +213,23 @@ pub(super) async fn embed(
         hosting = %hosting,
         inputs = request.inputs.len(),
         input_tokens = parsed.usage.input_tokens,
+        estimated = parsed.usage.estimated,
         "gemini embeddings returned"
     );
     Ok(parsed)
+}
+
+pub(super) async fn embed(
+    provider: &GeminiProvider,
+    request: &EmbeddingRequest,
+) -> Result<EmbeddingResponse> {
+    if request.inputs.is_empty() {
+        return Ok(EmbeddingResponse::empty(request.model.clone()));
+    }
+    let call = provider.target.call().await?;
+    let call = &call;
+    embed_in_batches(request, max_inputs(call.hosting()), |chunk| async move {
+        embed_once(provider, call, &chunk).await
+    })
+    .await
 }

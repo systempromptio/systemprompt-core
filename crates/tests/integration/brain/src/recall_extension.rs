@@ -3,7 +3,9 @@
 //! other: a stranger's user-scoped fact is withheld as scope, never
 //! injected (the leak test; the ownership topic is narrowed to a role
 //! nobody holds, as its default `everyone` audience would widen the fact
-//! to the org). At the default zero weight the tier is off.
+//! to the org). At the default zero weight the tier is off. The
+//! predicates the tier SQL applies and an introduced fact must equally
+//! pass are in `recall_extension_admit`.
 
 use std::sync::Arc;
 
@@ -19,8 +21,8 @@ use crate::plane::{self, ENGINEERING, OWNERSHIP, kind};
 use crate::recall_seed::{HINTS, PROJECT, seed};
 use crate::recall_support::{ids, injected, principal, request};
 
-struct FixedRetriever {
-    ids: Vec<BrainFactId>,
+pub(crate) struct FixedRetriever {
+    pub(crate) ids: Vec<BrainFactId>,
 }
 
 #[async_trait]
@@ -38,7 +40,7 @@ impl FactRetriever for FixedRetriever {
     }
 }
 
-async fn enable_extension(h: &Harness) {
+pub(crate) async fn enable_extension(h: &Harness) {
     let mut declared = plane::declared();
     let engineering = declared
         .topics
@@ -56,7 +58,7 @@ async fn enable_extension(h: &Harness) {
     plane::apply(&h.pg, &declared).await;
 }
 
-async fn unseen_fact(h: &Harness, scope: FactScope) -> BrainFactId {
+pub(crate) async fn unseen_fact(h: &Harness, scope: FactScope) -> BrainFactId {
     let author = h.user("author", &[]).await;
     h.emit(&entered(
         &author,
@@ -74,7 +76,7 @@ async fn unseen_fact(h: &Harness, scope: FactScope) -> BrainFactId {
         .expect("the unseen fact")
 }
 
-fn retriever(id: &BrainFactId) -> Vec<Arc<dyn FactRetriever>> {
+pub(crate) fn retriever(id: &BrainFactId) -> Vec<Arc<dyn FactRetriever>> {
     vec![Arc::new(FixedRetriever {
         ids: vec![id.clone()],
     })]

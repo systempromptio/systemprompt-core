@@ -14,55 +14,58 @@
 //! reached are released at commit and the consumer waits before the next
 //! round. The ledger claims of every event the round did not finish are
 //! deleted before commit, so a retried event is claimed again by the round
-//! that retries it. A failed set statement or commit rolls back the whole
-//! round and every event in it is claimed again. Each event's result row
-//! is claimed on the same transaction, so a lost round leaves no result
-//! behind and an event is still processed at most once per pipeline version.
+//! that retries it. A failed ledger statement or commit rolls back the
+//! whole round and every event in it is claimed again. Each event's result
+//! row is claimed on the same transaction, so a lost round leaves no
+//! result behind and an event is still processed at most once per
+//! pipeline version.
 //!
 //! The set statements after the loop ([`crate::index::reindex_facts`], the
 //! ledger finish, the acknowledgement) replace what each event used to run
-//! on its own. The cost is head-of-line coupling: if one of them fails,
-//! the round rolls back and every event in it is claimed again, their
-//! savepoints and attempt records with it, so a fact whose index rows
-//! cannot be written holds its round until the cause is fixed; the
-//! per-event attempt limit does not apply because no attempt is recorded.
-//! The one known constraint on those rows, the alias length check, is
-//! filtered before the statement so it cannot trip it. Within a round an
-//! alias a fact contributes is not yet resolvable by a later event of the
-//! same round; it is from the next round on. The acknowledgement is one
-//! statement when every event finished and one per finished event
-//! otherwise.
+//! on its own. The reindex is the one with head-of-line risk: a row one
+//! index constraint refuses would fail the statement for every fact in
+//! the round, and a round that rolled back for it would record no attempt
+//! and retry forever. The guard against that, for any constraint, is the
+//! fallback in [`super::settle`]: the set reindex runs under a savepoint,
+//! and when it fails the facts are reindexed event by event, the event
+//! that cannot be indexed is recorded as a permanent failure and the rest
+//! of the round commits. The alias length check is additionally filtered
+//! before the statement ([`crate::index::MAX_ALIAS_NORM_LEN`]), so an
+//! overlong alias never costs the fallback. Within a round an alias a fact
+//! contributes is not yet resolvable by a later event of the same round;
+//! it is from the next round on. The acknowledgement is one statement
+//! when every event finished and one per finished event otherwise.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::time::{Duration, Instant};
 
-use sqlx::PgConnection;
 use systemprompt_events::services::durable::DeliveryBatch;
 use systemprompt_identifiers::EventOutboxId;
 use systemprompt_models::brain::{BRAIN_CONSUMER, BrainEvent};
 
 use super::decode::decode_all;
 use super::handle::Handled;
+use super::settle::Landed;
 use super::{BrainConsumer, Counters};
 use crate::error::BrainResult;
-use crate::index::{Reindex, ReindexBatch, ReindexReport, reindex_facts};
+use crate::index::{Reindex, ReindexBatch, ReindexReport};
 use crate::models::EventResult;
 use crate::pipeline::{BatchContext, ProcessParams, RoundCache, metrics};
-use crate::repository::EventResultRepository;
 
 pub const MAX_ROUND_TRANSIENTS: usize = 3;
 
 #[derive(Default)]
-struct Round {
-    done: Vec<EventOutboxId>,
-    retried: Vec<EventOutboxId>,
-    results: Vec<EventResult>,
-    wrote: bool,
-    cut_short: bool,
-    reindex: ReindexBatch,
-    reindexed: ReindexReport,
+pub(super) struct Round {
+    pub(super) done: Vec<EventOutboxId>,
+    pub(super) retried: Vec<EventOutboxId>,
+    pub(super) results: Vec<EventResult>,
+    pub(super) wrote: bool,
+    pub(super) cut_short: bool,
+    pub(super) reindex: ReindexBatch,
+    pub(super) landed: Vec<Landed>,
+    pub(super) reindexed: ReindexReport,
 }
 
 impl BrainConsumer {
@@ -150,9 +153,10 @@ impl BrainConsumer {
                     facts,
                     result,
                 } => {
-                    round.done.push(id);
+                    round.done.push(id.clone());
                     round.wrote |= wrote;
-                    round.reindex.extend(facts);
+                    round.reindex.extend(facts.iter().cloned());
+                    round.landed.push(Landed { id, facts });
                     round.results.extend(result);
                 },
                 Handled::Retry(error) => {
@@ -162,36 +166,14 @@ impl BrainConsumer {
                 },
             }
         }
-        settle(batch.connection(), &ctx, &decodable, &mut round).await?;
+        self.settle(batch.connection(), &ctx, &decodable, &mut round)
+            .await?;
         Ok(round)
     }
 
     fn poll(&self) -> Duration {
         Duration::from_secs(u64::from(self.settings.poll_secs.max(1)))
     }
-}
-
-async fn settle(
-    conn: &mut PgConnection,
-    ctx: &BatchContext,
-    decodable: &[(EventOutboxId, BrainEvent)],
-    round: &mut Round,
-) -> BrainResult<()> {
-    if !round.results.is_empty() {
-        EventResultRepository::finish_many(&mut *conn, ctx.version(), &round.results).await?;
-    }
-    let unfinished: Vec<EventOutboxId> = decodable
-        .iter()
-        .map(|(id, _)| id.clone())
-        .filter(|id| !round.done.contains(id))
-        .collect();
-    if !unfinished.is_empty() {
-        EventResultRepository::unclaim_many(&mut *conn, ctx.version(), &unfinished).await?;
-    }
-    if !round.reindex.is_empty() {
-        round.reindexed = reindex_facts(conn, round.reindex.ids(), ctx.synonyms()).await?;
-    }
-    Ok(())
 }
 
 async fn release(batch: DeliveryBatch) {
