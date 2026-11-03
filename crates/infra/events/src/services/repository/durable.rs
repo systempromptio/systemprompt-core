@@ -129,15 +129,23 @@ impl DurableOutboxRepository {
         pool: &PgPool,
         consumer: &str,
     ) -> Result<(i64, Option<i64>), sqlx::Error> {
-        let row = sqlx::query!(
-            r#"SELECT COUNT(*) AS "pending!",
-                      EXTRACT(EPOCH FROM now() - MIN(created_at))::BIGINT AS oldest
-               FROM event_outbox WHERE consumer = $1 AND processed_at IS NULL"#,
+        let pending = sqlx::query_scalar!(
+            "SELECT pending FROM event_outbox_backlog WHERE consumer = $1",
             consumer
         )
-        .fetch_one(pool)
+        .fetch_optional(pool)
+        .await?
+        .unwrap_or(0);
+        let oldest = sqlx::query_scalar!(
+            r#"SELECT EXTRACT(EPOCH FROM now() - created_at)::BIGINT AS "oldest!"
+               FROM event_outbox
+               WHERE consumer = $1 AND processed_at IS NULL
+               ORDER BY created_at, id LIMIT 1"#,
+            consumer
+        )
+        .fetch_optional(pool)
         .await?;
-        Ok((row.pending, row.oldest))
+        Ok((pending, oldest))
     }
 
     pub(crate) async fn mark_processed(
