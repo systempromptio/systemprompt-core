@@ -21,6 +21,7 @@ pub mod held;
 mod new_turn;
 pub mod reuse;
 pub mod score;
+pub mod search_plan;
 mod service;
 mod store;
 pub mod synonyms;

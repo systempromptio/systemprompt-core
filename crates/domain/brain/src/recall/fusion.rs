@@ -33,6 +33,7 @@ pub const fn tier_weight(weights: &TierWeights, tier: RetrievalTier) -> f64 {
     match tier {
         RetrievalTier::Pinned => weights.pinned,
         RetrievalTier::Subject => weights.subject,
+        RetrievalTier::Linked => weights.linked,
         RetrievalTier::Context => weights.context,
         RetrievalTier::FullText => weights.full_text,
         RetrievalTier::Extension => weights.extension,

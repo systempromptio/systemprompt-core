@@ -137,6 +137,11 @@ pub const BRAIN_SCHEMAS: &[SchemaEntry] = &[
         include_str!("../schema/brain_proposals.sql"),
         &["id", "analysis", "kind", "status"],
     ),
+    (
+        "brain_search_terms",
+        include_str!("../schema/brain_search_terms.sql"),
+        &["word", "ndoc"],
+    ),
 ];
 
 pub const BRAIN_VIEWS: &[&str] = &[

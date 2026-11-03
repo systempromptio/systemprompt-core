@@ -90,6 +90,12 @@ pub struct RetrievalDoc {
     /// The subject-tier score of a fact reached through one
     /// `brain_fact_links` hop, relative to a direct subject match at `1.0`.
     pub links_weight: f64,
+    /// The largest share of facts a word may occur in and still be
+    /// required by the full-text tier; a more common word only ranks.
+    pub search_max_df: f64,
+    /// The share of a message's informative words, rarest first, the
+    /// full-text tier requires a fact to carry (at least one).
+    pub search_quorum: f64,
 }
 
 impl Default for RetrievalDoc {
@@ -100,6 +106,8 @@ impl Default for RetrievalDoc {
             max_facts: 12,
             quotas: BTreeMap::new(),
             links_weight: 0.6,
+            search_max_df: 0.2,
+            search_quorum: 0.5,
         }
     }
 }
@@ -110,6 +118,10 @@ impl Default for RetrievalDoc {
 pub struct TierWeights {
     pub pinned: f64,
     pub subject: f64,
+    /// Facts that reach a named subject through one `brain_fact_links` hop.
+    /// They rank on their own tier so a neighbour never earns the subject
+    /// match bonus a directly named fact earns.
+    pub linked: f64,
     pub context: f64,
     pub full_text: f64,
     pub extension: f64,
@@ -120,6 +132,7 @@ impl Default for TierWeights {
         Self {
             pinned: 1.0,
             subject: 1.0,
+            linked: 0.6,
             context: 0.8,
             full_text: 0.6,
             extension: 0.0,

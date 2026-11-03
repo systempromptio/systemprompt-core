@@ -132,7 +132,7 @@ async fn links_aliases_and_weighted_search_are_written_with_the_fact() {
 
     let aliases: Vec<String> = sqlx::query_scalar(
         "SELECT alias FROM brain_aliases WHERE subject_kind = 'client' AND subject_id = $1 \
-         ORDER BY alias",
+         ORDER BY alias COLLATE \"C\"",
     )
     .bind("acme-rockets")
     .fetch_all(&h.pg)

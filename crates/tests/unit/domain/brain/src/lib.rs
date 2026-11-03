@@ -60,6 +60,8 @@ mod recall_held;
 #[cfg(test)]
 mod recall_reuse;
 #[cfg(test)]
+mod recall_search_plan;
+#[cfg(test)]
 mod recall_synonyms;
 #[cfg(test)]
 mod recall_visible;

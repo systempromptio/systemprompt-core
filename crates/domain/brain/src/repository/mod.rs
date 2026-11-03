@@ -26,11 +26,13 @@ mod locks;
 mod outcomes;
 mod pipeline_versions;
 mod plane;
+mod plane_docs;
 mod proposals;
 mod recalls;
 mod retention;
 mod revisions;
 mod search_index;
+mod search_terms;
 mod subjects;
 mod synonyms;
 mod tombstones;
@@ -52,14 +54,15 @@ pub use locks::BrainLocks;
 pub use outcomes::OutcomeRepository;
 pub use pipeline_versions::PipelineVersionRepository;
 pub use plane::{
-    ConfigDocRepository, InterestRepository, KindRepository, PlaneWrite, TopicRepository,
-    WorkflowRepository,
+    InterestRepository, KindRepository, PlaneWrite, TopicRepository, WorkflowRepository,
 };
+pub use plane_docs::ConfigDocRepository;
 pub use proposals::ProposalRepository;
 pub use recalls::RecallRepository;
 pub use retention::RetentionRepository;
 pub use revisions::FactRevisionRepository;
 pub use search_index::SearchIndexRepository;
+pub use search_terms::{SearchTerms, SearchTermsRepository};
 pub use subjects::{AliasMatch, AliasRepository, SubjectRepository};
 pub use synonyms::{SYNONYMS_DOC_ID, SynonymsRepository};
 pub use tombstones::TombstoneRepository;

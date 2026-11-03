@@ -15,7 +15,6 @@
 
 use std::fmt;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Instant;
 
 use async_trait::async_trait;
@@ -57,12 +56,10 @@ impl fmt::Display for ConsolidationInactive {
     }
 }
 
-static INACTIVE_LOGGED: AtomicBool = AtomicBool::new(false);
-
+/// An inactive run says why on its (daily) tick; there is no startup hook
+/// a job could say it from once.
 fn inactive(reason: ConsolidationInactive) -> JobResult {
-    if !INACTIVE_LOGGED.swap(true, Ordering::Relaxed) {
-        tracing::info!(reason = %reason, "brain consolidation inactive: {reason}");
-    }
+    tracing::info!(reason = %reason, "brain consolidation inactive: {reason}");
     metrics::consolidation("inactive");
     JobResult::success().with_stats(0, 0)
 }

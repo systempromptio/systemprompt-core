@@ -21,6 +21,7 @@ use crate::origin::ClientKind;
 pub enum RetrievalTier {
     Pinned,
     Subject,
+    Linked,
     Context,
     FullText,
     Extension,
@@ -150,6 +151,10 @@ pub struct RecallQuery {
     pub links_weight: f64,
     #[serde(default)]
     pub synonyms: Vec<Vec<String>>,
+    #[serde(default = "RecallQuery::default_search_max_df")]
+    pub search_max_df: f64,
+    #[serde(default = "RecallQuery::default_search_quorum")]
+    pub search_quorum: f64,
 }
 
 impl RecallQuery {
@@ -160,11 +165,21 @@ impl RecallQuery {
             limit,
             links_weight: Self::default_links_weight(),
             synonyms: Vec::new(),
+            search_max_df: Self::default_search_max_df(),
+            search_quorum: Self::default_search_quorum(),
         }
     }
 
     const fn default_links_weight() -> f64 {
         0.6
+    }
+
+    const fn default_search_max_df() -> f64 {
+        0.2
+    }
+
+    const fn default_search_quorum() -> f64 {
+        0.5
     }
 }
 

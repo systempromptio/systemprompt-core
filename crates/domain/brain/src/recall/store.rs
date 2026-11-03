@@ -9,6 +9,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::{BTreeMap, HashMap};
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 
 use systemprompt_extension::brain::{
     FactRecallSource, RecallBlock, RecallError, RecallOutcome, RecallReceipt,
@@ -20,9 +22,12 @@ use systemprompt_models::brain::{
     WithheldReason,
 };
 
+use super::search_plan::SearchPolicy;
 use super::tiers::{self, TierFilter};
 use crate::models::NewRecall;
-use crate::repository::{BrainRepositories, FactRepository, RecallRepository};
+use crate::repository::{
+    BrainRepositories, FactRepository, RecallRepository, SearchTerms, SearchTermsRepository,
+};
 
 const NO_LINKS: f64 = 0.0;
 
@@ -32,16 +37,46 @@ pub struct BrainRecallStore {
     repos: BrainRepositories,
     stale: StalePolicy,
     working_set: bool,
+    /// The search term statistics, read at most once per [`TERMS_TTL`].
+    terms: TermsCache,
 }
+
+/// Term statistics with the instant they were read.
+type TermsCache = Arc<Mutex<Option<(Instant, Arc<SearchTerms>)>>>;
+
+/// How long loaded term statistics serve recall before they are read again.
+const TERMS_TTL: Duration = Duration::from_secs(60);
 
 impl BrainRecallStore {
     #[must_use]
-    pub const fn new(repos: BrainRepositories, stale: StalePolicy) -> Self {
+    pub fn new(repos: BrainRepositories, stale: StalePolicy) -> Self {
         Self {
             repos,
             stale,
             working_set: true,
+            terms: Arc::new(Mutex::new(None)),
         }
+    }
+
+    async fn search_terms(&self) -> Result<Arc<SearchTerms>, RecallError> {
+        if let Some(terms) = self.cached_terms() {
+            return Ok(terms);
+        }
+        let terms = Arc::new(SearchTermsRepository::load(self.repos.read_pool()).await?);
+        if let Ok(mut slot) = self.terms.lock() {
+            *slot = Some((Instant::now(), Arc::clone(&terms)));
+        }
+        Ok(terms)
+    }
+
+    fn cached_terms(&self) -> Option<Arc<SearchTerms>> {
+        let slot = self.terms.lock().ok()?;
+        let fresh = slot
+            .as_ref()
+            .filter(|(at, _)| at.elapsed() < TERMS_TTL)
+            .map(|(_, terms)| Arc::clone(terms));
+        drop(slot);
+        fresh
     }
 
     /// `brain.recall.working_set`; `false` runs the legacy tier SQL.
@@ -164,6 +199,17 @@ impl FactRecallSource for BrainRecallStore {
         self.load_ranked(ids).await
     }
 
+    async fn by_linked(
+        &self,
+        query: &RecallQuery,
+        ctx: &RecallCtx,
+    ) -> Result<Vec<BrainFact>, RecallError> {
+        let hints = tiers::normalise_hints(&query.subject_hints);
+        let filter = self.filter(ctx, query.limit, query.links_weight);
+        let ids = tiers::by_linked(self.repos.read_pool(), &filter, &hints).await?;
+        self.load_ranked(ids).await
+    }
+
     async fn by_context(
         &self,
         query: &RecallQuery,
@@ -183,13 +229,18 @@ impl FactRecallSource for BrainRecallStore {
         let synonyms = SynonymsDoc {
             groups: query.synonyms.clone(),
         };
-        let ids = tiers::full_text(
-            self.repos.read_pool(),
-            &filter,
-            &query.subject_hints,
-            &synonyms,
-        )
-        .await?;
+        let terms = self.search_terms().await?;
+        let policy = SearchPolicy {
+            max_df: query.search_max_df,
+            quorum: query.search_quorum,
+        };
+        let input = tiers::FullTextInput {
+            hints: &query.subject_hints,
+            synonyms: &synonyms,
+            terms: &terms,
+            policy: &policy,
+        };
+        let ids = tiers::full_text(self.repos.read_pool(), &filter, input).await?;
         self.load_ranked(ids).await
     }
 

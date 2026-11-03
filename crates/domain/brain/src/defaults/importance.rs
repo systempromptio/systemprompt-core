@@ -123,8 +123,10 @@ impl ImportanceModel for FormulaImportance {
 const MINUTES_PER_DAY: f64 = 1_440.0;
 
 #[must_use]
+/// Whole days, so two recalls on the same day score a fact identically
+/// and ordering never turns on the seconds between them.
 pub fn age_days(fact: &BrainFact, ctx: &RecallCtx) -> f64 {
     let minutes =
         u32::try_from((ctx.now - fact.updated_at).num_minutes().max(0)).unwrap_or(u32::MAX);
-    f64::from(minutes) / MINUTES_PER_DAY
+    (f64::from(minutes) / MINUTES_PER_DAY).floor()
 }

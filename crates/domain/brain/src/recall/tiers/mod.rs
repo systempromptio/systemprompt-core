@@ -11,7 +11,7 @@
 //! identical recalls answer identically.
 //!
 //! `brain.recall.working_set: false` runs the previous scope-predicate SQL
-//! in [`legacy`] instead; that path is removed in the next release.
+//! in the legacy module instead; that path is removed in the next release.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -28,6 +28,9 @@ use sqlx::PgPool;
 use systemprompt_identifiers::{BrainFactId, UserId};
 use systemprompt_models::brain::{SynonymsDoc, WithheldReason};
 use systemprompt_traits::RepositoryError;
+
+use super::search_plan::{self, SearchPolicy};
+use crate::repository::SearchTerms;
 
 /// The principal-side filter every tier applies.
 #[derive(Debug, Clone, PartialEq)]
@@ -66,6 +69,17 @@ pub async fn by_subject(
     }
 }
 
+pub async fn by_linked(
+    pool: &PgPool,
+    f: &TierFilter,
+    hints: &str,
+) -> Result<Vec<BrainFactId>, RepositoryError> {
+    if hints.is_empty() || !f.working_set {
+        return Ok(Vec::new());
+    }
+    subject::by_linked(pool, f, hints).await
+}
+
 pub async fn by_context(
     pool: &PgPool,
     f: &TierFilter,
@@ -77,20 +91,31 @@ pub async fn by_context(
     }
 }
 
+/// What the full-text tier searches with: the message, the declared
+/// synonyms, the term statistics and the planning policy.
+#[derive(Debug, Clone, Copy)]
+pub struct FullTextInput<'a> {
+    pub hints: &'a str,
+    pub synonyms: &'a SynonymsDoc,
+    pub terms: &'a SearchTerms,
+    pub policy: &'a SearchPolicy,
+}
+
 pub async fn full_text(
     pool: &PgPool,
     f: &TierFilter,
-    hints: &str,
-    synonyms: &SynonymsDoc,
+    input: FullTextInput<'_>,
 ) -> Result<Vec<BrainFactId>, RepositoryError> {
-    let query = super::synonyms::search_query(hints, synonyms);
-    if query.is_empty() {
-        return Ok(Vec::new());
+    if !f.working_set {
+        let query = super::synonyms::search_query(input.hints, input.synonyms);
+        if query.is_empty() {
+            return Ok(Vec::new());
+        }
+        return legacy::full_text(pool, f, &query).await;
     }
-    if f.working_set {
-        fulltext::full_text(pool, f, &query).await
-    } else {
-        legacy::full_text(pool, f, &query).await
+    match search_plan::plan(input.hints, input.synonyms, input.terms, input.policy) {
+        Some(plan) => fulltext::full_text(pool, f, &plan).await,
+        None => Ok(Vec::new()),
     }
 }
 

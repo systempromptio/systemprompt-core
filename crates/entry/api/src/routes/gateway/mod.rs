@@ -128,7 +128,7 @@ pub fn gateway_repositories(
             repos.with_brain_session(systemprompt_gateway::audit::session::SessionCapture::new(
                 Arc::clone(brain.sink()),
                 profile.brain.capture.clone(),
-                ctx.db_pool().clone(),
+                Arc::clone(ctx.db_pool()),
             ))
         },
         None => repos,

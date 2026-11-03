@@ -36,6 +36,16 @@ pub trait FactRecallSource: Send + Sync {
         ctx: &RecallCtx,
     ) -> Result<Vec<BrainFact>, RecallError>;
 
+    /// Facts one `brain_fact_links` hop from a subject the hints name,
+    /// ranked on the `linked` tier. A store without links answers nothing.
+    async fn by_linked(
+        &self,
+        _query: &RecallQuery,
+        _ctx: &RecallCtx,
+    ) -> Result<Vec<BrainFact>, RecallError> {
+        Ok(Vec::new())
+    }
+
     async fn full_text(
         &self,
         query: &RecallQuery,

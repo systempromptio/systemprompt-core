@@ -75,17 +75,21 @@ impl BrainRecallService {
                 .clamp(MIN_TIER_LIMIT, MAX_TIER_LIMIT),
             links_weight: retrieval.links_weight,
             synonyms: declared.synonyms.groups.clone(),
+            search_max_df: retrieval.search_max_df,
+            search_quorum: retrieval.search_quorum,
         };
-        let (pinned, subject, context, text) = tokio::join!(
+        let (pinned, subject, linked, context, text) = tokio::join!(
             self.store
                 .pinned(ctx, retrieval.max_facts.min(MAX_TIER_LIMIT)),
             self.store.by_subject(&query, ctx),
+            self.store.by_linked(&query, ctx),
             self.store.by_context(&query, ctx),
             self.store.full_text(&query, ctx),
         );
         let tiers = vec![
             TierHits::new(RetrievalTier::Pinned, pinned?),
             TierHits::new(RetrievalTier::Subject, subject?),
+            TierHits::new(RetrievalTier::Linked, linked?),
             TierHits::new(RetrievalTier::Context, context?),
             TierHits::new(RetrievalTier::FullText, text?),
         ];

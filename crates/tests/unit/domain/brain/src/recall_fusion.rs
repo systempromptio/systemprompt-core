@@ -9,6 +9,7 @@ fn equal_weights() -> TierWeights {
     TierWeights {
         pinned: 1.0,
         subject: 1.0,
+        linked: 1.0,
         context: 1.0,
         full_text: 1.0,
         extension: 1.0,
