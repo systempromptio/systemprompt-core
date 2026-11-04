@@ -23,6 +23,10 @@ pub(super) const fn default_deadline_ms() -> u64 {
     200
 }
 
+pub(super) const fn default_working_set() -> bool {
+    true
+}
+
 pub(super) const fn default_recall_source_timeout_ms() -> u64 {
     40
 }
@@ -115,6 +119,7 @@ impl Default for BrainRecallProfile {
             scopes: default_scopes(),
             clients: default_clients(),
             stale: StalePolicy::default(),
+            working_set: default_working_set(),
         }
     }
 }

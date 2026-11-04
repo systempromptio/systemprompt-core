@@ -7,5 +7,3 @@ CREATE TABLE IF NOT EXISTS brain_working_set (
 
 CREATE INDEX IF NOT EXISTS brain_working_set_scope_idx
     ON brain_working_set (scope_key, importance_base DESC, fact_id);
-CREATE INDEX IF NOT EXISTS brain_working_set_fact_idx
-    ON brain_working_set (fact_id, scope_key);

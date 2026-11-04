@@ -1,9 +1,9 @@
 use chrono::Utc;
 use systemprompt_brain::recall::BrainRecallStore;
-use systemprompt_brain::recall::fusion::fuse;
+use systemprompt_brain::recall::fusion::{TierHits, fuse};
 use systemprompt_extension::brain::{
     FactRecallSource, MemoryRecall, RecallConversation, RecallOutcome, RecallReceipt, ReuseHint,
-    SkipReason, TierIds,
+    SkipReason,
 };
 use systemprompt_identifiers::{AiRequestId, BrainFactId, GatewayConversationId};
 use systemprompt_models::auth::RequestActor;
@@ -63,25 +63,19 @@ async fn each_tier_returns_its_fact_and_fusion_ranks_the_fact_two_tiers_found_fi
     let retrieval = RetrievalDoc::default();
     let fused = fuse(
         vec![
-            TierIds::new(RetrievalTier::Pinned, idset(&pinned)),
-            TierIds::new(RetrievalTier::Subject, idset(&subject)),
-            TierIds::new(RetrievalTier::Context, idset(&context)),
-            TierIds::new(RetrievalTier::FullText, idset(&text)),
+            TierHits::new(RetrievalTier::Pinned, pinned),
+            TierHits::new(RetrievalTier::Subject, subject),
+            TierHits::new(RetrievalTier::Context, context),
+            TierHits::new(RetrievalTier::FullText, text),
         ],
         &retrieval.tiers,
         retrieval.rrf_k,
     );
     assert_eq!(
-        fused[0].id, seeded.subject,
+        fused[0].fact.id, seeded.subject,
         "subject + full text outranks one tier"
     );
     assert_eq!(fused[0].ranks.len(), 2);
-    let tiers = store.tier_ids(&query, &ctx, 20).await.expect("tier ids");
-    assert_eq!(tiers.len(), 5);
-    assert_eq!(tiers[0].ids, idset(&pinned));
-    assert_eq!(tiers[1].ids, idset(&subject));
-    assert_eq!(tiers[3].ids, idset(&context));
-    assert_eq!(tiers[4].ids, idset(&text));
     h.finish().await;
 }
 

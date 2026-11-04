@@ -84,8 +84,6 @@ mod recall_visible;
 #[cfg(test)]
 mod recall_visible_held;
 #[cfg(test)]
-mod recall_visible_memo;
-#[cfg(test)]
 mod replay_db;
 #[cfg(test)]
 mod replay_diff;

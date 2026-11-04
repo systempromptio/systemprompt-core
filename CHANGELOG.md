@@ -1,19 +1,5 @@
 # Changelog
 
-## [Unreleased]
-
-### Breaking
-
-- **Breaking:** **Brain:** the legacy scope-predicate recall path is gone: `BrainRecallStore::with_working_set`, `TierFilter.working_set` and the `brain.recall.working_set` profile key are removed (a profile that still names the key fails to load). `recall::fusion::TierHits` is replaced by `systemprompt_extension::brain::TierIds` (ids, not facts); `fuse` returns `RankedId`s and `fusion::attach` joins the loaded facts on; `recall::introduce::{known, extension_hits}` work on id sets. `BrainRecallService::builder` takes the `FactLoader` as its second argument instead of `.loader(..)`. `recall::tiers::{by_subject, by_linked}` take the `MatchedSubjects` of `tiers::matched::resolve`.
-
-### Changed
-
-- **Brain:** recall latency at scale (P3). No tier materialises the principal's candidate set any more: each drives from its own index (`idx_brain_facts_pinned`, `idx_brain_facts_subject`, `idx_brain_fact_links_subject`, the `search_weighted` GIN, `brain_working_set_scope_idx` for the context tier, which now walks the projection's stored importance and stops at the limit) and admits a fact through a probe of `brain_working_set` by fact id (new `brain_working_set_fact_idx`, migration `006_recall_probe`). The lifecycle count drives from `idx_brain_facts_status_review`, since only a stale, disputed or overdue fact can contribute to it, and runs concurrently with the tiers instead of before them. The subjects a message names are resolved once per recall and shared by the subject and linked tiers. The five tiers return ids (`FactRecallSource::tier_ids`), every fact a tier returned is loaded once after fusion instead of once per tier, and a visibility pass asks each distinct membership and source question once (a document ten facts cite is checked once) and decides every fact from the answers. The audience resolvers' `held` calls run concurrently. Same ids, same order, same withheld counts as before for the same inputs; the context tier's order follows `brain_working_set.importance_base`, which equals the fact's as of the last projection drain.
-
-### Removed
-
-- **Brain:** `recall/tiers/legacy.rs` (the pre-working-set tier SQL) and the `brain.recall.working_set` profile flag that selected it; the generated `brain_facts.search` column and its `idx_brain_facts_search` GIN index, which only that path read (dropped by migration `006_recall_probe`).
-
 ## [0.78.0] - 2026-11-04
 
 ### Breaking

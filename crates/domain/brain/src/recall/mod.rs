@@ -27,17 +27,13 @@ pub mod score;
 pub mod search_plan;
 mod service;
 mod store;
-mod store_receipt;
-mod store_tiers;
 pub mod synonyms;
 pub mod tiers;
 pub mod visible;
-mod visible_memo;
 
 pub use builder::BrainRecallServiceBuilder;
 pub use declared::{DeclaredRecall, DeclaredSource, PlaneDeclaredSource};
 pub use held::HeldKeys;
 pub use introduce::FactLoader;
 pub use service::{BrainRecallService, STALE_MARKER, fact_text};
-pub use store::BrainRecallStore;
-pub use store_receipt::new_recall;
+pub use store::{BrainRecallStore, new_recall};

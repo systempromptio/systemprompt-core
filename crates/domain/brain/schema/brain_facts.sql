@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS brain_facts (
     pipeline_version TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    search TSVECTOR GENERATED ALWAYS AS (to_tsvector('simple', statement)) STORED,
     search_weighted TSVECTOR NOT NULL DEFAULT ''::tsvector,
     -- usage (R6)
     usage_cited_rate DOUBLE PRECISION NOT NULL DEFAULT 0,
@@ -63,6 +64,8 @@ CREATE INDEX IF NOT EXISTS idx_brain_facts_owner
     ON brain_facts (owner_user_id) WHERE owner_user_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_brain_facts_statement_hash
     ON brain_facts (kind, subject_kind, subject_id, statement_hash);
+CREATE INDEX IF NOT EXISTS idx_brain_facts_search
+    ON brain_facts USING GIN (search);
 CREATE INDEX IF NOT EXISTS idx_brain_facts_search_weighted
     ON brain_facts USING GIN (search_weighted);
 CREATE INDEX IF NOT EXISTS idx_brain_facts_retention

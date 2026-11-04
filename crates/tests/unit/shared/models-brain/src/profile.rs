@@ -8,6 +8,7 @@ fn defaults_match_the_contract() {
     assert!(!profile.enabled);
     assert_eq!(profile.recall.budget_tokens, 800);
     assert_eq!(profile.recall.deadline_ms, 200);
+    assert!(profile.recall.working_set);
     assert_eq!(profile.recall.scopes, ScopeLevel::ALL.to_vec());
     assert_eq!(profile.recall.stale, StalePolicy::Withhold);
     assert!(profile.recall.client_enabled(ClientKind::ClaudeCode));

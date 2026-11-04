@@ -21,21 +21,15 @@ use crate::recall_extension::{enable_extension, retriever, unseen_fact};
 use crate::recall_seed::{HINTS, PROJECT, seed};
 use crate::recall_support::{ids, injected, principal, request};
 
-struct FailingLoader {
-    store: Arc<BrainRecallStore>,
-    poison: BrainFactId,
-}
+struct FailingLoader;
 
 #[async_trait]
 impl FactLoader for FailingLoader {
-    async fn load(&self, ids: &[BrainFactId]) -> Result<Vec<BrainFact>, RecallError> {
-        if ids.contains(&self.poison) {
-            return Err(RecallError::Other {
-                component: "test.loader",
-                source: "the introduced fact cannot be read".into(),
-            });
-        }
-        self.store.load(ids).await
+    async fn load(&self, _ids: &[BrainFactId]) -> Result<Vec<BrainFact>, RecallError> {
+        Err(RecallError::Other {
+            component: "test.loader",
+            source: "the fact store is unreachable".into(),
+        })
     }
 }
 
@@ -148,20 +142,17 @@ async fn a_failing_loader_introduces_nothing_and_the_recall_goes_on() {
     let req = request(principal(&seeded.reader, Some(PROJECT)), HINTS);
     let core = h.recall().recall(&req).await.expect("core recall");
 
-    let store = Arc::new(BrainRecallStore::new(
-        (*h.repos).clone(),
-        h.profile.recall.stale,
-    ));
+    let store = Arc::new(
+        BrainRecallStore::new((*h.repos).clone(), h.profile.recall.stale)
+            .with_working_set(h.profile.recall.working_set),
+    );
     let service = BrainRecallService::builder(
-        Arc::clone(&store) as _,
-        Arc::new(FailingLoader {
-            store,
-            poison: unseen.clone(),
-        }),
+        store as _,
         Arc::clone(&h.access) as _,
         Arc::new(PlaneDeclaredSource::new((*h.repos).clone())),
         Arc::new(h.profile.clone()),
     )
+    .loader(Arc::new(FailingLoader))
     .retrievers(retriever(&unseen))
     .build();
 

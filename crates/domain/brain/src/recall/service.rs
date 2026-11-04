@@ -1,11 +1,11 @@
 //! [`BrainRecallService`]: the brain's [`MemoryRecall`].
 //!
 //! A same-turn request reuses its turn's stored block or skips. A new turn
-//! builds the principal's held keys once, runs the core tiers, the
-//! lifecycle count and the extension retrievers concurrently over the
-//! working-set candidates, loads every fact a tier returned once, fuses
-//! every tier by reciprocal rank, drops facts the lifecycle or `visible()`
-//! withholds, and fills
+//! builds the principal's held keys once, runs the core tiers and the
+//! extension retrievers concurrently over the working-set candidates,
+//! loads the facts only an extension found, fuses every tier by
+//! reciprocal rank, drops facts the lifecycle or `visible()`
+//! withholds, counts what the lifecycle kept out of the tiers, and fills
 //! the token budget by in-context importance (an extension injection
 //! policy first); see [`super::new_turn`]. No visible fact is a `NoFacts`
 //! skip. The gateway enforces the deadline; every tier is bounded by the
@@ -41,7 +41,7 @@ pub struct BrainRecallService {
     pub(super) declared: Arc<dyn DeclaredSource>,
     pub(super) profile: Arc<BrainProfile>,
     pub(super) retrievers: Vec<Arc<dyn FactRetriever>>,
-    pub(super) loader: Arc<dyn FactLoader>,
+    pub(super) loader: Option<Arc<dyn FactLoader>>,
     pub(super) injection: Vec<Arc<dyn InjectionPolicy>>,
     pub(super) importance: Vec<Arc<dyn ImportanceModel>>,
     pub(super) audiences: Vec<Arc<dyn NotificationAudienceResolver>>,

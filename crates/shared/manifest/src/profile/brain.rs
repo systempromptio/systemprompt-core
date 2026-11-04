@@ -24,7 +24,7 @@ use super::brain_defaults::{
     default_poll_secs, default_recall_source_timeout_ms, default_recalls_retention_days,
     default_results_retention_days, default_retired_retention_days, default_review_after_days,
     default_scopes, default_session_max_chars, default_source_timeout_ms, default_sources,
-    default_sweep_secs,
+    default_sweep_secs, default_working_set,
 };
 
 /// The `brain:` profile block; every field has a default.
@@ -51,7 +51,8 @@ pub struct BrainProfile {
 ///
 /// The token budget and deadline, the scopes searched, the clients recall
 /// is on for (keyed by `x-systemprompt-client` name; an unlisted client is
-/// off), and what happens to stale facts.
+/// off), what happens to stale facts, and whether the tiers read the
+/// precomputed working set.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct BrainRecallProfile {
@@ -70,6 +71,11 @@ pub struct BrainRecallProfile {
     pub clients: BTreeMap<String, bool>,
     #[serde(default)]
     pub stale: StalePolicy,
+    #[serde(default = "default_working_set")]
+    #[schemars(
+        description = "Run the tiers over the precomputed brain_working_set (true) or the previous scope-predicate SQL (false; removed in the next release)."
+    )]
+    pub working_set: bool,
 }
 
 impl BrainRecallProfile {

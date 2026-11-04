@@ -59,8 +59,6 @@ mod purge;
 #[cfg(test)]
 mod read_visibility;
 #[cfg(test)]
-mod recall_bit_identity;
-#[cfg(test)]
 mod recall_determinism;
 #[cfg(test)]
 mod recall_extension;
@@ -76,8 +74,6 @@ mod recall_support;
 mod recall_tiers;
 #[cfg(test)]
 mod recall_withheld_as_of;
-#[cfg(test)]
-mod recall_withheld_equivalence;
 #[cfg(test)]
 mod recall_working_set;
 #[cfg(test)]

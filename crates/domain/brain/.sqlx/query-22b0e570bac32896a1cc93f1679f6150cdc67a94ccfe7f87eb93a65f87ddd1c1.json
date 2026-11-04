@@ -1,0 +1,33 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH cand AS (\n               SELECT DISTINCT w.fact_id FROM brain_working_set w\n               WHERE w.scope_key = ANY($1::text[])\n           )\n           SELECT f.id AS \"id: BrainFactId\"\n           FROM cand c JOIN brain_facts f ON f.id = c.fact_id\n           WHERE f.pinned\n             AND f.scope_level = ANY($6::text[])\n             AND (f.status = 'confirmed'\n                  OR (f.status = 'proposed' AND f.owner_user_id = $2)\n                  OR (f.status = 'stale' AND $3))\n             AND (f.review_after IS NULL OR f.review_after >= $4)\n             AND (f.valid_from IS NULL OR f.valid_from <= $4)\n             AND (f.valid_to IS NULL OR f.valid_to > $4)\n             AND f.observed_at <= $4\n           ORDER BY f.importance_base DESC, f.id\n           LIMIT $5",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id: BrainFactId",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "brain_facts",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "TextArray",
+        "Text",
+        "Bool",
+        "Timestamptz",
+        "Int8",
+        "TextArray"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "22b0e570bac32896a1cc93f1679f6150cdc67a94ccfe7f87eb93a65f87ddd1c1"
+}
