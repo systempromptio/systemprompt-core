@@ -54,7 +54,7 @@ async fn mixed_job_run_helper() {
     );
 
     println!("BEGIN_JOB_RUN");
-    jobs::execute(
+    let error = jobs::execute(
         parse(&[
             "run",
             SUCCESS_JOB,
@@ -65,8 +65,14 @@ async fn mixed_job_run_helper() {
         &ctx,
     )
     .await
-    .expect("mixed manual batch returns a structured report");
+    .expect_err("a batch with a failed job renders its table, then fails the command");
     println!("END_JOB_RUN");
+    let message = error.to_string();
+    assert!(message.starts_with("1 of 2 job(s) failed:"), "{message}");
+    assert!(
+        message.contains("owned_missing_job: Job 'owned_missing_job' not found"),
+        "{message}"
+    );
 
     let raw = pool.pool();
     let states: Vec<(String, Option<String>, Option<String>, i32)> = sqlx::query_as(

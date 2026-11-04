@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO brain_aliases\n                 (id, subject_kind, subject_id, alias, alias_norm, owner_fact_id, owner_updated_at)\n             SELECT gen_random_uuid()::text, a.kind, a.subject, a.alias, a.norm, a.owner, a.stamp\n             FROM unnest($1::text[], $2::text[], $3::text[], $4::text[], $5::text[],\n                         $6::timestamptz[])\n                  AS a(kind, subject, alias, norm, owner, stamp)\n             ON CONFLICT (subject_kind, alias_norm) DO UPDATE\n             SET subject_id = EXCLUDED.subject_id, alias = EXCLUDED.alias,\n                 owner_fact_id = EXCLUDED.owner_fact_id,\n                 owner_updated_at = EXCLUDED.owner_updated_at\n             WHERE (EXCLUDED.owner_updated_at, EXCLUDED.owner_fact_id)\n                   >= (COALESCE(brain_aliases.owner_updated_at, '-infinity'::timestamptz),\n                       COALESCE(brain_aliases.owner_fact_id, ''))",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "TextArray",
+        "TextArray",
+        "TextArray",
+        "TextArray",
+        "TextArray",
+        "TimestamptzArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "00fd5ca7c0f3eef545c949386591dd54d822283073cdbfefc9dd1acdd11fc983"
+}

@@ -41,6 +41,10 @@ pub enum BrainDeclError {
     WeightOutOfRange { name: String, value: f64 },
     #[error("recency half_life_days must be positive")]
     ZeroHalfLife,
+    #[error("retrieval {name} must be positive")]
+    ZeroLimit { name: &'static str },
+    #[error("retrieval {name} is {value}, not a finite number at or above zero")]
+    NegativeScore { name: &'static str, value: f64 },
 }
 
 pub fn validate(docs: &BrainDocs) -> Result<(), BrainDeclError> {
@@ -210,5 +214,30 @@ fn validate_retrieval(doc: &RetrievalDoc) -> Result<(), BrainDeclError> {
     weight("tiers.subject", tiers.subject)?;
     weight("tiers.context", tiers.context)?;
     weight("tiers.full_text", tiers.full_text)?;
-    weight("tiers.extension", tiers.extension)
+    weight("tiers.extension", tiers.extension)?;
+    weight("tiers.linked", tiers.linked)?;
+    weight("links_weight", doc.links_weight)?;
+    weight("search_max_df", doc.search_max_df)?;
+    weight("search_quorum", doc.search_quorum)?;
+    weight("search_retry_quorum", doc.search_retry_quorum)?;
+    weight("alias_min_sim", doc.alias_min_sim)?;
+    weight("linked_share", doc.linked_share)?;
+    weight("context_share", doc.context_share)?;
+    weight("usage_weight", doc.usage_weight)?;
+    if !doc.min_fused_score.is_finite() || doc.min_fused_score < 0.0 {
+        return Err(BrainDeclError::NegativeScore {
+            name: "min_fused_score",
+            value: doc.min_fused_score,
+        });
+    }
+    for (name, value) in [
+        ("max_facts", doc.max_facts),
+        ("max_subjects", doc.max_subjects),
+        ("extension_max_candidates", doc.extension_max_candidates),
+    ] {
+        if value == 0 {
+            return Err(BrainDeclError::ZeroLimit { name });
+        }
+    }
+    Ok(())
 }

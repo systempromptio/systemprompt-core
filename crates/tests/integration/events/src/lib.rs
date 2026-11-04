@@ -18,6 +18,9 @@ mod config_watch_notify;
 #[cfg(test)]
 mod fact_channel;
 
+#[cfg(test)]
+mod outbox_backlog;
+
 use sqlx::PgPool;
 use std::sync::Arc;
 

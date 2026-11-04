@@ -98,6 +98,25 @@ impl NotificationAudienceResolver for UserRoleAudienceResolver {
             AudienceSubject::Dimension { .. } => Ok(Membership::Unknown),
         }
     }
+
+    async fn held(&self, user: &UserId) -> Option<Vec<AudienceSubject>> {
+        let found = match self.users.find_by_id(user).await {
+            Ok(found) => found,
+            Err(error) => {
+                tracing::warn!(
+                    resolver = NAME,
+                    error = %error,
+                    "roles could not be read; recall falls back to the per-fact check"
+                );
+                return None;
+            },
+        };
+        let roles = found
+            .filter(User::is_active)
+            .map(|user| user.roles)
+            .unwrap_or_default();
+        Some(roles.into_iter().map(AudienceSubject::Role).collect())
+    }
 }
 
 const fn membership(held: bool) -> Membership {

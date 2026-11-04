@@ -13,6 +13,7 @@ use super::kind_decl::KindDecl;
 use super::source::{FactSource, SourceSpan};
 
 pub const BRAIN_EXTRACT_PURPOSE: &str = "brain.extract";
+pub const BRAIN_CONSOLIDATE_PURPOSE: &str = "brain.consolidate";
 
 /// One addressable node of a source's text.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

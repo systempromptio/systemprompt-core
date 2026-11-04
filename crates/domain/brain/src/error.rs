@@ -3,7 +3,8 @@
 //!
 //! [`BrainError::is_transient`] separates a failure worth retrying
 //! (storage, the outbox sink) from one that fails the same way every time
-//! (an unknown kind, a tombstoned identity, a refused action).
+//! (an unknown kind, a tombstoned identity, a refused action, a row the
+//! schema's constraints refuse).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -34,6 +35,8 @@ pub enum BrainError {
     Statement(#[from] StatementError),
     #[error("invalid fact subject")]
     Subject(#[from] SubjectKeyError),
+    #[error("fact fields are invalid: {0}")]
+    InvalidFields(String),
     #[error("fact kind {0} is not declared")]
     UnknownKind(FactKindId),
     #[error("the fact identity was erased and may not be recorded again")]
@@ -66,8 +69,8 @@ impl BrainError {
     #[must_use]
     pub const fn is_transient(&self) -> bool {
         match self {
+            Self::Repository(error) => !error.is_constraint(),
             Self::Database(_)
-            | Self::Repository(_)
             | Self::Sink(_)
             | Self::Validate(_)
             | Self::Source(_)

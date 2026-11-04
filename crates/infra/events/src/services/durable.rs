@@ -19,6 +19,7 @@ use sqlx::{PgConnection, PgPool, Postgres, Transaction};
 use systemprompt_identifiers::{Actor, EventOutboxId, InstanceId};
 use systemprompt_models::{A2AEvent, AgUiEvent, AnalyticsEvent, SystemEvent};
 
+pub use super::durable_batch::DeliveryBatch;
 use super::repository::durable::{
     DurableOutboxRepository, DurableRow, FactRow, ReplayQuery, ReplayRow,
 };
@@ -182,7 +183,11 @@ impl OutboxConsumer {
             tx.rollback().await?;
             return Ok(None);
         }
-        Ok(Some(DeliveryBatch { tx, rows }))
+        Ok(Some(DeliveryBatch::new(tx, rows)))
+    }
+
+    pub async fn pending(&self, consumer: &str) -> Result<(i64, Option<i64>), sqlx::Error> {
+        DurableOutboxRepository::pending(&self.pool, consumer).await
     }
 
     pub async fn replay_window(
@@ -238,53 +243,6 @@ impl Delivery {
 
     pub async fn acknowledge(mut self) -> Result<(), sqlx::Error> {
         DurableOutboxRepository::mark_processed(&mut self.tx, &self.row.id).await?;
-        self.tx.commit().await
-    }
-
-    pub async fn rollback(self) -> Result<(), sqlx::Error> {
-        self.tx.rollback().await
-    }
-}
-
-#[must_use]
-#[derive(Debug)]
-pub struct DeliveryBatch {
-    tx: Transaction<'static, Postgres>,
-    rows: Vec<FactRow>,
-}
-
-impl DeliveryBatch {
-    pub const fn len(&self) -> usize {
-        self.rows.len()
-    }
-
-    pub const fn is_empty(&self) -> bool {
-        self.rows.is_empty()
-    }
-
-    pub fn ids(&self) -> impl Iterator<Item = &EventOutboxId> {
-        self.rows.iter().map(|row| &row.id)
-    }
-
-    pub fn facts<T: DeserializeOwned>(
-        &self,
-    ) -> Result<Vec<(EventOutboxId, ReportingFact<T>)>, serde_json::Error> {
-        self.rows
-            .iter()
-            .map(|row| Ok((row.id.clone(), serde_json::from_value(row.fact.clone())?)))
-            .collect()
-    }
-
-    pub fn connection(&mut self) -> &mut PgConnection {
-        &mut self.tx
-    }
-
-    pub async fn acknowledge_all(mut self) -> Result<(), sqlx::Error> {
-        DurableOutboxRepository::mark_all_processed(
-            &mut self.tx,
-            self.rows.iter().map(|row| &row.id),
-        )
-        .await?;
         self.tx.commit().await
     }
 

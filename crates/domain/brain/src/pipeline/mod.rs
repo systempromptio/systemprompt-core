@@ -8,6 +8,16 @@
 //! persist it and notify, and finally record the event's result. Every
 //! stage lives in its own module; this one only dispatches.
 //!
+//! [`BrainPipeline::process_with`] takes [`ProcessParams`]: the [`Reindex`]
+//! mode (`Now` refreshes each landed fact's derived indexes inside the
+//! write, for console edits, replay and the one-event drain; `Deferred`
+//! leaves them to the caller, which collects [`EventSummary::facts`] and
+//! reindexes the set once) and, for a consumer round, the [`RoundCache`]:
+//! the round then owns the result ledger (set claim before, set finish
+//! after, the event's result in [`EventSummary::result`]) and the alias
+//! and dedupe reads come from the cache, with every committed write
+//! reported in [`EventSummary::writes`] for the round to apply.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -21,6 +31,9 @@ pub mod normalise;
 pub mod notify;
 mod outcome;
 pub mod persist;
+pub mod round;
+pub mod round_extractions;
+mod round_load;
 pub mod route;
 pub mod rules;
 mod seams;
@@ -44,14 +57,38 @@ pub use candidate::CandidateResult;
 pub use context::BatchContext;
 pub use outcome::{EventSummary, ProcessOutcome, Tally};
 pub use persist::{Effect, Persisted};
+pub use round::{CachedFact, DedupeWrite, RoundCache, RoundRows};
 pub use seams::PipelineSeams;
 pub use sweep::SweepReport;
 
+use self::candidate::EventScope;
 use self::filter::FilterDecision;
 use crate::defaults::ModelExtractor;
 use crate::error::BrainResult;
+use crate::index::Reindex;
 use crate::models::EventOutcome;
 use crate::repository::{BrainRepositories, EventResultRepository};
+
+/// How one event is processed: the round's declarations, when its facts'
+/// indexes are written, and the round cache when a consumer round owns the
+/// result ledger and the dedupe reads.
+#[derive(Debug, Clone, Copy)]
+pub struct ProcessParams<'a> {
+    pub ctx: &'a BatchContext,
+    pub reindex: Reindex,
+    pub round: Option<&'a RoundCache>,
+}
+
+impl<'a> ProcessParams<'a> {
+    #[must_use]
+    pub const fn new(ctx: &'a BatchContext) -> Self {
+        Self {
+            ctx,
+            reindex: Reindex::Now,
+            round: None,
+        }
+    }
+}
 
 /// The capture pipeline over the injected seams, model client, optional
 /// notification sink and the brain profile.
@@ -115,40 +152,65 @@ impl BrainPipeline {
         conn: &mut PgConnection,
         ctx: &BatchContext,
     ) -> BrainResult<ProcessOutcome> {
+        self.process_with(delivery_id, event, conn, &ProcessParams::new(ctx))
+            .await
+    }
+
+    pub async fn process_with(
+        &self,
+        delivery_id: &EventOutboxId,
+        event: BrainEvent,
+        conn: &mut PgConnection,
+        params: &ProcessParams<'_>,
+    ) -> BrainResult<ProcessOutcome> {
+        let ctx = params.ctx;
         let event = normalise::normalise(delivery_id.clone(), event, Utc::now())?;
         let kind = event.envelope.event.kind.as_str();
-        if !EventResultRepository::claim(&mut *conn, delivery_id, ctx.version(), kind).await? {
+        let claimed = match params.round {
+            Some(round) => round.claimed(delivery_id),
+            None => {
+                EventResultRepository::claim(&mut *conn, delivery_id, ctx.version(), kind).await?
+            },
+        };
+        if !claimed {
             return Ok(ProcessOutcome::Skipped);
         }
+        let staled = stale::mark_stale(conn, &event).await?;
         let mut summary = EventSummary {
-            staled: stale::mark_stale(conn, &event).await?.len(),
+            staled: staled.len(),
             ..EventSummary::default()
         };
+        if !staled.is_empty() {
+            summary.writes.push(DedupeWrite::Staled(staled));
+        }
         let decision = filter::decide(&self.seams.filters, &self.profile.capture, &event.envelope);
         summary.filter = decision.filter_name().map(str::to_owned);
         let kinds: Vec<&KindDecl> = match &decision {
             FilterDecision::NoFilter => {
-                return outcome::finish(conn, ctx, &event, summary.with(EventOutcome::NoFilter))
+                return outcome::finish(conn, params, &event, summary.with(EventOutcome::NoFilter))
                     .await;
             },
             FilterDecision::Ignored { .. } => {
-                return outcome::finish(conn, ctx, &event, summary.with(EventOutcome::Ignored))
+                return outcome::finish(conn, params, &event, summary.with(EventOutcome::Ignored))
                     .await;
             },
             FilterDecision::Gather { kinds, .. } => gathered(ctx, kinds),
         };
-        let extracted = self.extract(conn, ctx, &event, &kinds).await?;
+        let extracted = self.extract(conn, params, &event, &kinds).await?;
         if let Some(reason) = extracted.unreadable {
-            return outcome::unreadable(conn, ctx, &event, summary, reason).await;
+            return outcome::unreadable(conn, params, &event, summary, reason).await;
         }
+        let scope = EventScope {
+            event: &event,
+            text: extracted.text.as_ref(),
+        };
         for candidate in extracted.candidates {
-            let result = self
-                .candidate(conn, ctx, &event, candidate, extracted.text.as_ref())
-                .await?;
+            let (result, write) = self.candidate(conn, params, &scope, candidate).await?;
             summary.record(&result);
+            summary.writes.extend(write);
         }
         let result = summary.tally.outcome();
-        outcome::finish(conn, ctx, &event, summary.with(result)).await
+        outcome::finish(conn, params, &event, summary.with(result)).await
     }
 }
 

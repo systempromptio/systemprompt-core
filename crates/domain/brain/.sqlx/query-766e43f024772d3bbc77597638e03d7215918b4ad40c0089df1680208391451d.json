@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE brain_facts SET observed_at = created_at\n         WHERE id = ANY($1) AND observed_at > created_at",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "766e43f024772d3bbc77597638e03d7215918b4ad40c0089df1680208391451d"
+}

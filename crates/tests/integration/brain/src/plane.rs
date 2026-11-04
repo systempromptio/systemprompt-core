@@ -1,9 +1,11 @@
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 use systemprompt_brain::plane::{BrainPlane, DeclaredBrain};
+use systemprompt_database::{Database, DbPool};
 use systemprompt_extension::prelude::{
-    ChangeSource, ConfigPlane, PlaneContext, PlaneSnapshot, PlaneTx, ResolvedEntities,
-    ResolvedEntity,
+    ChangeSource, ConfigPlane, ConfigPlaneResult, PlaneContext, PlaneSnapshot, PlaneTx,
+    ResolvedEntities, ResolvedEntity,
 };
 use systemprompt_identifiers::{FactKindId, TopicId, WorkflowId};
 use systemprompt_models::brain::{
@@ -12,6 +14,7 @@ use systemprompt_models::brain::{
 };
 use systemprompt_models::notifications::AudienceSubject;
 use systemprompt_traits::Dependencies;
+use systemprompt_users::{UserProvider, UserRepository, UserService};
 
 use crate::fakes::PARSER;
 
@@ -38,6 +41,7 @@ fn text_field(required: bool) -> FieldDecl {
         max_len: Some(200),
         entity_ref: None,
         values: Vec::new(),
+        alias: false,
     }
 }
 
@@ -109,6 +113,7 @@ pub(crate) fn declared() -> DeclaredBrain {
         filters: Some(FiltersDoc::default()),
         importance: Some(ImportanceConfig::default()),
         retrieval: Some(RetrievalDoc::default()),
+        synonyms: None,
     }
 }
 
@@ -130,19 +135,28 @@ fn resolved(brain: &DeclaredBrain) -> ResolvedEntities {
 }
 
 pub(crate) async fn apply(pool: &sqlx::PgPool, brain: &DeclaredBrain) {
-    let deps = Dependencies::new();
+    try_apply(pool, brain).await.expect("plane write");
+}
+
+fn user_provider(pool: &sqlx::PgPool) -> Arc<dyn UserProvider> {
+    let db: DbPool = Arc::new(Database::from_pools(Arc::new(pool.clone()), None));
+    Arc::new(UserService::new(Arc::new(UserRepository::new(&db))))
+}
+
+pub(crate) async fn try_apply(pool: &sqlx::PgPool, brain: &DeclaredBrain) -> ConfigPlaneResult<()> {
+    let deps = Dependencies::new().with(user_provider(pool));
     let root = std::env::temp_dir();
     let ctx = PlaneContext::new(&root, &deps);
     let mut tx = pool.begin().await.expect("begin");
     BrainPlane
         .write(&ctx, &mut PlaneTx::new(&mut tx), &resolved(brain))
-        .await
-        .expect("plane write");
+        .await?;
     tx.commit().await.expect("commit");
+    Ok(())
 }
 
 pub(crate) async fn read_current(pool: &sqlx::PgPool) -> PlaneSnapshot {
-    let deps = Dependencies::new();
+    let deps = Dependencies::new().with(user_provider(pool));
     let root = std::env::temp_dir();
     let ctx = PlaneContext::new(&root, &deps);
     let mut tx = pool.begin().await.expect("begin");
@@ -153,7 +167,7 @@ pub(crate) async fn read_current(pool: &sqlx::PgPool) -> PlaneSnapshot {
 }
 
 pub(crate) async fn export(pool: &sqlx::PgPool) -> Option<String> {
-    let deps = Dependencies::new();
+    let deps = Dependencies::new().with(user_provider(pool));
     let root = std::env::temp_dir();
     let ctx = PlaneContext::new(&root, &deps);
     let mut tx = pool.begin().await.expect("begin");

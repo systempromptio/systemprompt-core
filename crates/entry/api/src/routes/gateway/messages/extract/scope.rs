@@ -27,6 +27,7 @@
 use axum::http::{HeaderMap, StatusCode};
 use systemprompt_governance::authz::{
     SharedSubjectAttributeProvider, SubjectAttributes, SubjectProviderSet,
+    default_attribution_value,
 };
 use systemprompt_identifiers::headers::SCOPE_PREFIX;
 use systemprompt_identifiers::{ApiKeyId, QuotaSubjectKind, ScopeDimension};
@@ -134,10 +135,10 @@ pub fn resolve_scope_attribution(
                 }
             },
             None => {
-                if let Some(value) = held.first() {
+                if let Some(value) = default_attribution_value(provider, held) {
                     partial.attribution.entries.push(AttributionEntry {
                         dimension,
-                        value: value.clone(),
+                        value,
                         source: AttributionSource::Default,
                     });
                 }

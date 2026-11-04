@@ -31,6 +31,7 @@ pub struct BrainHandle {
     listener_pool: PgPool,
     profile: Arc<BrainProfile>,
     consumer: OnceLock<Arc<BrainConsumer>>,
+    consolidation_model: OnceLock<Arc<dyn BrainModelClient>>,
 }
 
 /// What a [`BrainHandle`] is assembled from.
@@ -75,6 +76,7 @@ impl BrainHandle {
             listener_pool: parts.listener_pool,
             profile: parts.profile,
             consumer: OnceLock::new(),
+            consolidation_model: OnceLock::new(),
         }
     }
 
@@ -131,11 +133,19 @@ impl BrainHandle {
         self.consumer.get()
     }
 
+    #[must_use]
+    pub fn consolidation_model(&self) -> Option<Arc<dyn BrainModelClient>> {
+        self.consolidation_model.get().cloned()
+    }
+
     pub fn start_consumer(
         &self,
         extensions: &dyn ExtensionContext,
         model: Arc<dyn BrainModelClient>,
     ) -> Arc<BrainConsumer> {
+        if self.consolidation_model.set(Arc::clone(&model)).is_err() {
+            tracing::debug!("Brain consolidation model already attached");
+        }
         let consumer = self.consumer.get_or_init(|| {
             let mut seams = PipelineSeams::discover(extensions);
             seams.sources.push(Arc::clone(&self.source_content));

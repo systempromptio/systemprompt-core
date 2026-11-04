@@ -76,6 +76,10 @@ fn brain_errors_map_to_statuses() {
         ),
         (BrainError::Tombstoned, StatusCode::CONFLICT),
         (
+            BrainError::InvalidFields("field price has no value".to_owned()),
+            StatusCode::UNPROCESSABLE_ENTITY,
+        ),
+        (
             BrainError::Repository(RepositoryError::not_found("fact", FACT)),
             StatusCode::NOT_FOUND,
         ),

@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT EXTRACT(EPOCH FROM now() - created_at)::BIGINT AS \"oldest!\"\n               FROM event_outbox\n               WHERE consumer = $1 AND processed_at IS NULL\n               ORDER BY created_at, id LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "oldest!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "a212f454104be2cc3a840afe245cc8666f02344f99596c77a08b0910e3cb3396"
+}

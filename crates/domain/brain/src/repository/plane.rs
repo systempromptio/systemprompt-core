@@ -1,5 +1,5 @@
 //! The brain config plane's tables: kinds, topics, interests, workflow
-//! profiles and the filters, importance and retrieval documents. Each row
+//! profiles; the config documents are in `plane_docs`. Each row
 //! holds one declaration as JSONB under its id; the config plane writes
 //! them inside the host's apply transaction and the pipeline reads them
 //! once per drain round.
@@ -167,6 +167,18 @@ impl InterestRepository {
         Ok(())
     }
 
+    pub async fn owners(
+        executor: impl PgExecutor<'_>,
+    ) -> Result<Vec<(String, UserId)>, RepositoryError> {
+        let rows = sqlx::query!(
+            r#"SELECT id, owner_user_id AS "owner!: UserId" FROM brain_interests
+               WHERE owner_user_id IS NOT NULL"#
+        )
+        .fetch_all(executor)
+        .await?;
+        Ok(rows.into_iter().map(|row| (row.id, row.owner)).collect())
+    }
+
     pub async fn delete(conn: &mut PgConnection, id: &str) -> Result<bool, RepositoryError> {
         let result = sqlx::query!("DELETE FROM brain_interests WHERE id = $1", id)
             .execute(conn)
@@ -217,54 +229,6 @@ impl WorkflowRepository {
 
     pub async fn delete(conn: &mut PgConnection, id: &str) -> Result<bool, RepositoryError> {
         let result = sqlx::query!("DELETE FROM brain_workflows WHERE id = $1", id)
-            .execute(conn)
-            .await?;
-        Ok(result.rows_affected() > 0)
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct ConfigDocRepository {
-    pools: Pools,
-}
-
-impl ConfigDocRepository {
-    pub(crate) const fn new(pools: Pools) -> Self {
-        Self { pools }
-    }
-
-    pub async fn list(executor: impl PgExecutor<'_>) -> Result<Vec<PlaneRow>, RepositoryError> {
-        Ok(sqlx::query_as!(
-            PlaneRow,
-            "SELECT id, body, source, updated_at FROM brain_config_docs ORDER BY id"
-        )
-        .fetch_all(executor)
-        .await?)
-    }
-
-    pub async fn list_all(&self) -> Result<Vec<PlaneRow>, RepositoryError> {
-        Self::list(&*self.pools.read).await
-    }
-
-    pub async fn upsert(
-        conn: &mut PgConnection,
-        row: &PlaneWrite<'_>,
-    ) -> Result<(), RepositoryError> {
-        sqlx::query!(
-            "INSERT INTO brain_config_docs (id, body, source) VALUES ($1, $2, $3)
-             ON CONFLICT (id) DO UPDATE
-             SET body = EXCLUDED.body, source = EXCLUDED.source, updated_at = now()",
-            row.id,
-            row.body,
-            row.source.as_str(),
-        )
-        .execute(conn)
-        .await?;
-        Ok(())
-    }
-
-    pub async fn delete(conn: &mut PgConnection, id: &str) -> Result<bool, RepositoryError> {
-        let result = sqlx::query!("DELETE FROM brain_config_docs WHERE id = $1", id)
             .execute(conn)
             .await?;
         Ok(result.rows_affected() > 0)

@@ -25,8 +25,8 @@ use systemprompt_database::DbPool;
 use systemprompt_events::services::durable::{DurableOutbox, OutboxConsumer};
 use systemprompt_extension::ExtensionContext;
 use systemprompt_extension::brain::{
-    DynBrainSink, FactRetriever, ImportanceModel, InjectionPolicy, OutcomeSignal, SourceAccess,
-    discover_brain_importance_models, discover_brain_injection_policies,
+    DynBrainSink, FactRecallSource, FactRetriever, ImportanceModel, InjectionPolicy, OutcomeSignal,
+    SourceAccess, discover_brain_importance_models, discover_brain_injection_policies,
     discover_brain_outcome_signals, discover_brain_retrievers,
 };
 use systemprompt_extension::notifications::{
@@ -170,7 +170,8 @@ impl BrainCore {
         audiences.push(Arc::new(UserRoleAudienceResolver::new(Arc::clone(
             &self.users,
         ))));
-        let store = BrainRecallStore::new((*self.repos).clone(), self.profile.recall.stale);
+        let store = BrainRecallStore::new((*self.repos).clone(), self.profile.recall.stale)
+            .with_working_set(self.profile.recall.working_set);
         let source_access: Arc<dyn SourceAccess> = Arc::new(DocumentSourceAccess::new(
             Arc::clone(documents.access()),
             Arc::clone(documents.repositories()),
@@ -185,12 +186,15 @@ impl BrainCore {
         .source_access(Arc::clone(&source_access))
         .audiences(audiences.clone())
         .build();
+        let store = Arc::new(store);
+        let source: Arc<dyn FactRecallSource> = Arc::<BrainRecallStore>::clone(&store);
         let recall = BrainRecallService::builder(
-            Arc::new(store),
+            source,
             source_access,
             Arc::clone(&self.declared),
             Arc::clone(&self.profile),
         )
+        .loader(store)
         .retrievers(retrievers)
         .injection_policies(injection)
         .audiences(audiences)

@@ -79,6 +79,10 @@ pub trait NotificationAudienceResolver: Send + Sync {
         subject: &AudienceSubject,
         user: &UserId,
     ) -> Result<Membership, NotificationAudienceError>;
+
+    async fn held(&self, _user: &UserId) -> Option<Vec<AudienceSubject>> {
+        None
+    }
 }
 
 /// A publish policy's decision on one publisher and stream.

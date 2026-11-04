@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO brain_working_set (scope_key, fact_id, importance_base)\n              SELECT DISTINCT s.key, f.id, f.importance_base\n              FROM brain_facts f\n              CROSS JOIN LATERAL (\n                  SELECT CASE WHEN f.scope_level = 'org' THEN 'org'\n                              ELSE f.scope_level || ':' || f.scope_key END AS key\n                  UNION\n                  SELECT CASE WHEN a = 'everyone' THEN 'org' ELSE a END\n                  FROM brain_topics t,\n                       jsonb_array_elements_text(COALESCE(t.body -> 'audience', '[]'::jsonb)) a\n                  WHERE t.id = ANY (f.topics)\n              ) s\n              ON CONFLICT DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "fddfcb3cb6d3b04543a605812aa4389121e9e8dc026c82b7929d95f056097368"
+}

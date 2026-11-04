@@ -20,6 +20,7 @@
 
 pub mod access_log;
 mod admission;
+mod clock;
 mod complete;
 mod fail;
 pub mod journal;
@@ -29,6 +30,7 @@ mod open;
 pub mod payload;
 pub mod phases;
 mod quota_settlement;
+pub mod session;
 mod tool_results;
 pub mod tool_validity;
 
@@ -51,6 +53,7 @@ use systemprompt_models::attribution::RequestAttribution;
 use systemprompt_models::origin::{ClientEvidence, RequestOrigin};
 
 pub use access_log::GatewayAccessLog;
+use clock::UpstreamClock;
 
 impl GatewayRequestContext {
     pub fn open_on(&mut self, hop: &ResolvedHop) {
@@ -118,12 +121,8 @@ pub struct GatewayAudit {
     tool_validators: std::sync::OnceLock<Arc<systemprompt_ai::services::tools::ToolArgsValidator>>,
     catalog: Arc<systemprompt_manifest::services::catalog::ResolvedCatalog>,
     recall_observer: std::sync::OnceLock<Arc<dyn systemprompt_extension::brain::MemoryRecall>>,
-}
-
-#[derive(Debug, Default)]
-struct UpstreamClock {
-    started: Option<Instant>,
-    elapsed_ms: Option<i32>,
+    session_capture: session::SharedSessionCapture,
+    user_turn: std::sync::OnceLock<String>,
 }
 
 impl GatewayAudit {
@@ -153,6 +152,8 @@ impl GatewayAudit {
             tool_validators: std::sync::OnceLock::new(),
             catalog: Arc::clone(&repos.catalog),
             recall_observer: std::sync::OnceLock::new(),
+            session_capture: repos.brain_session.clone(),
+            user_turn: std::sync::OnceLock::new(),
         }
     }
 
@@ -253,48 +254,4 @@ impl GatewayAudit {
             tracing::warn!(error = %e, "update_route_match failed");
         }
     }
-
-    pub fn mark_upstream_start(&self) {
-        match self.upstream.lock() {
-            Ok(mut clock) => {
-                if clock.elapsed_ms.is_none() {
-                    clock.started = Some(Instant::now());
-                }
-            },
-            Err(e) => tracing::warn!(error = %e, "upstream clock mutex poisoned"),
-        }
-    }
-
-    pub fn mark_upstream_end(&self) {
-        match self.upstream.lock() {
-            Ok(mut clock) => {
-                if clock.elapsed_ms.is_some() {
-                    return;
-                }
-                let Some(started) = clock.started else {
-                    return;
-                };
-                clock.elapsed_ms = Some(millis_i32(started));
-            },
-            Err(e) => tracing::warn!(error = %e, "upstream clock mutex poisoned"),
-        }
-    }
-
-    pub(crate) fn upstream_elapsed_ms(&self) -> Option<i32> {
-        match self.upstream.lock() {
-            Ok(clock) => clock.elapsed_ms,
-            Err(e) => {
-                tracing::warn!(error = %e, "upstream clock mutex poisoned");
-                None
-            },
-        }
-    }
-
-    pub(crate) fn elapsed_ms(&self) -> i32 {
-        millis_i32(self.started_at)
-    }
-}
-
-fn millis_i32(since: Instant) -> i32 {
-    since.elapsed().as_millis().min(i32::MAX as u128) as i32
 }

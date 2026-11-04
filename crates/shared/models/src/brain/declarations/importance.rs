@@ -1,5 +1,34 @@
 //! `importance.yaml` and `retrieval.yaml`: the scoring formula's weights
-//! and the retrieval tiers' fusion weights and quotas.
+//! and the retrieval tiers' fusion weights, quotas and the fill policy.
+//!
+//! The fill knobs: `fill_order` (`rank`: fused rank
+//! first, importance second; `importance`: the previous order);
+//! `linked_share` of `max_facts` reserved for one-hop link hits when a
+//! subject is named (0 reserves nothing); `min_fused_score` below which a
+//! fact is withheld as `low_score` (0 withholds nothing); `context_share`
+//! of `max_facts` that facts found only by the context tier may take when
+//! a subject is named (1 caps nothing, 0 admits them only when no subject
+//! is named). The planner knobs: `search_retry_quorum` runs the full-text
+//! tier again at that quorum when the first pass returns nothing (0 runs
+//! no second pass); `search_quorum_over` counts the quorum over synonym
+//! groups or over the query words they absorbed. The subject-tier knobs:
+//! `alias_min_sim` is the least alias similarity that names a subject
+//! (the trigram operator's own threshold, 0.6, is its floor) and
+//! `max_subjects` the most subjects one message may name. The extension
+//! knob: `extension_max_candidates` is the most facts the
+//! extension retrievers may introduce beyond what the core tiers found.
+//!
+//! The usage knobs close the citation loop on the fill:
+//! `usage_weight` adds `usage_weight × (cited_rate − ignored_rate)` to a
+//! fact's fused score before `min_fused_score` and the fill order (0 adds
+//! nothing). The rates are the `brain_usage` job's Laplace shares, which
+//! sum to one, so the term is centred: a fact never injected sits at
+//! 0.5/0.5 and a fact the job has not yet rated at 0/0, and both add
+//! exactly zero. `usage_min_recalls` is the fewest injections before the
+//! job rates a fact at all; under it the fact keeps the prior, so the
+//! term stays zero and a new fact is not punished (0 rates every fact).
+//! The in-context importance term is weighted separately by
+//! [`UsageWeights`] in `importance.yaml`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -60,12 +89,23 @@ impl Default for Recency {
     }
 }
 
-/// How past citation and neglect move a fact's score.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize)]
+/// How past citation and neglect move a fact's score. The rates are the
+/// `brain_usage` job's Laplace-smoothed shares, so the defaults add at most
+/// `cited_rate_weight` and subtract at most `ignored_penalty`.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields, default)]
 pub struct UsageWeights {
     pub cited_rate_weight: f64,
     pub ignored_penalty: f64,
+}
+
+impl Default for UsageWeights {
+    fn default() -> Self {
+        Self {
+            cited_rate_weight: 0.2,
+            ignored_penalty: 0.1,
+        }
+    }
 }
 
 /// `retrieval.yaml`.
@@ -76,6 +116,20 @@ pub struct RetrievalDoc {
     pub rrf_k: u32,
     pub max_facts: u32,
     pub quotas: BTreeMap<FactKindId, u32>,
+    pub links_weight: f64,
+    pub search_max_df: f64,
+    pub search_quorum: f64,
+    pub search_retry_quorum: f64,
+    pub search_quorum_over: QuorumUnit,
+    pub alias_min_sim: f64,
+    pub max_subjects: u32,
+    pub fill_order: FillOrder,
+    pub linked_share: f64,
+    pub min_fused_score: f64,
+    pub context_share: f64,
+    pub usage_weight: f64,
+    pub usage_min_recalls: u32,
+    pub extension_max_candidates: u32,
 }
 
 impl Default for RetrievalDoc {
@@ -85,8 +139,40 @@ impl Default for RetrievalDoc {
             rrf_k: 60,
             max_facts: 12,
             quotas: BTreeMap::new(),
+            links_weight: 0.6,
+            search_max_df: 0.2,
+            search_quorum: 0.5,
+            search_retry_quorum: 0.0,
+            search_quorum_over: QuorumUnit::default(),
+            alias_min_sim: 0.6,
+            max_subjects: 4,
+            fill_order: FillOrder::default(),
+            linked_share: 0.0,
+            min_fused_score: 0.0,
+            context_share: 1.0,
+            usage_weight: 0.0,
+            usage_min_recalls: 0,
+            extension_max_candidates: 24,
         }
     }
+}
+
+/// What the full-text planner counts its quorum over.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum QuorumUnit {
+    #[default]
+    Groups,
+    Words,
+}
+
+/// Which key orders the budget fill.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FillOrder {
+    #[default]
+    Rank,
+    Importance,
 }
 
 /// Reciprocal-rank-fusion weight of each retrieval tier.
@@ -95,6 +181,7 @@ impl Default for RetrievalDoc {
 pub struct TierWeights {
     pub pinned: f64,
     pub subject: f64,
+    pub linked: f64,
     pub context: f64,
     pub full_text: f64,
     pub extension: f64,
@@ -105,6 +192,7 @@ impl Default for TierWeights {
         Self {
             pinned: 1.0,
             subject: 1.0,
+            linked: 0.6,
             context: 0.8,
             full_text: 0.6,
             extension: 0.0,

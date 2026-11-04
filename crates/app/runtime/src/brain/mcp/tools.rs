@@ -11,6 +11,7 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
+use chrono::{DateTime, Utc};
 use rmcp::model::Tool;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -68,6 +69,8 @@ pub struct RecallPreviewInput {
     pub prompt: String,
     #[serde(default)]
     pub project: Option<String>,
+    #[serde(default)]
+    pub as_of: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, JsonSchema)]

@@ -11,10 +11,14 @@
 //! interests, workflow profiles, config documents), subjects and trigram
 //! aliases, facts with their append-only revisions, the capture ledgers
 //! (extractions, per-event results, failures, disputes, tombstones), and
-//! the read side's recalls, outcomes and proposals. A stored fact changes
-//! only through [`repository::FactRepository::apply`], which writes the
-//! revision row on the same connection. [`version`] names the pipeline
-//! version a fact was built under.
+//! the read side's recalls, outcomes and proposals, and the derived
+//! indexes recall reads first: the working set, fact links, aliases and
+//! the weighted search vector ([`index`]). A stored fact changes only
+//! through [`repository::FactRepository::apply`], which writes the
+//! revision row and refreshes the indexes on the same connection; the one
+//! exception is [`repository::UsageRepository::set_rates`], which sets the
+//! derived `usage_*` columns from the daily `brain_usage` job with no
+//! revision. [`version`] names the pipeline version a fact was built under.
 //!
 //! The crate is built behind the facade's `brain` feature (in `full`, not
 //! in `core`). Its schema requires the `pg_trgm` Postgres extension, which
@@ -34,6 +38,7 @@ pub mod consumer;
 pub mod defaults;
 pub mod error;
 pub mod extension;
+pub mod index;
 pub mod jobs;
 pub mod model;
 pub mod models;

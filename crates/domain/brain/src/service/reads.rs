@@ -69,7 +69,7 @@ impl BrainService {
         };
         let terms = score::in_context(&fact, &input);
         let inject_stale = self.profile.recall.stale == StalePolicy::Marker;
-        let withheld = lifecycle_withheld(&fact, ctx.now, inject_stale);
+        let withheld = lifecycle_withheld(&fact, ctx.as_of, inject_stale);
         Ok(FactWhy {
             fact,
             terms,

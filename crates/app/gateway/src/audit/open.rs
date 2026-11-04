@@ -83,6 +83,12 @@ impl GatewayAudit {
             "Gateway identity requires an authenticated session and trace",
         )?;
         let record = self.build_record();
+        if self.session_capture.as_ref().is_some_and(|c| c.is_on()) {
+            let text = super::session::last_user_text(&request.messages);
+            if self.user_turn.set(text).is_err() {
+                tracing::debug!(request_id = %self.ctx.ai_request_id, "user turn already noted");
+            }
+        }
         if self
             .tool_validators
             .set(self.tool_validity.validators_for(&request.tooling.tools))

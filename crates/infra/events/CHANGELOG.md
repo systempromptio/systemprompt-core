@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.78.0] - 2026-11-04
+
+### Added
+
+- `event_outbox_backlog` (migration `010_outbox_backlog`): pending-row deltas per consumer, appended by statement triggers on `event_outbox`, so a backlog read sums deltas instead of counting the ledger. `refresh_event_outbox_backlog` recounts queued consumers and `compact_event_outbox_backlog` reduces the rows to one per consumer; the migration queues every consumer with rows for one recount.
+- `OutboxConsumer::pending`, a consumer's pending count and the age of its oldest row in seconds.
+- `DeliveryBatch::entries`, `acknowledge` and `commit`: a consumer walks the claimed rows, acknowledges each one it finished and commits the round once. A row left unacknowledged is released unprocessed at commit.
+
 ## [0.77.0] - 2026-11-01
 
 ### Added

@@ -1,6 +1,12 @@
 //! [`SubjectRepository`] and [`AliasRepository`]: the business subjects
 //! facts are about and the names they go by, matched exactly or by
-//! trigram similarity.
+//! trigram similarity. The `_many` writers take the rows of a whole set
+//! in one statement; [`AliasRows`] has already folded duplicate
+//! `(subject_kind, alias_norm)` pairs, which one `INSERT … ON CONFLICT DO
+//! UPDATE` cannot touch twice. [`AliasRepository::upsert_many`] moves an
+//! alias only to a fact at least as recent as its current owner
+//! (`owner_updated_at`, then `owner_fact_id`), so the sets and batches of
+//! a reindex converge on one owner in any order.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -10,6 +16,7 @@ use systemprompt_models::brain::SubjectKey;
 use systemprompt_traits::RepositoryError;
 
 use super::Pools;
+use crate::index::AliasRows;
 
 /// A subject whose alias resembles the text looked up, with the trigram
 /// similarity of the best alias.
@@ -49,6 +56,24 @@ impl SubjectRepository {
         Ok(())
     }
 
+    pub async fn ensure_many(
+        conn: &mut PgConnection,
+        subjects: &[&SubjectKey],
+    ) -> Result<(), RepositoryError> {
+        let kinds: Vec<String> = subjects.iter().map(|s| s.kind.clone()).collect();
+        let ids: Vec<String> = subjects.iter().map(|s| s.id.clone()).collect();
+        sqlx::query!(
+            "INSERT INTO brain_subjects (subject_kind, subject_id)
+             SELECT DISTINCT s.kind, s.id FROM unnest($1::text[], $2::text[]) AS s(kind, id)
+             ON CONFLICT (subject_kind, subject_id) DO NOTHING",
+            &kinds,
+            &ids,
+        )
+        .execute(conn)
+        .await?;
+        Ok(())
+    }
+
     pub async fn exists(&self, subject: &SubjectKey) -> Result<bool, RepositoryError> {
         Ok(sqlx::query_scalar!(
             r#"SELECT EXISTS (SELECT 1 FROM brain_subjects
@@ -80,26 +105,37 @@ impl AliasRepository {
             .to_lowercase()
     }
 
-    pub async fn upsert(
+    pub async fn upsert_many(
         conn: &mut PgConnection,
-        subject: &SubjectKey,
-        alias: &str,
-    ) -> Result<(), RepositoryError> {
-        let id = uuid_text();
-        sqlx::query!(
-            "INSERT INTO brain_aliases (id, subject_kind, subject_id, alias, alias_norm)
-             VALUES ($1, $2, $3, $4, $5)
+        rows: &AliasRows,
+    ) -> Result<u64, RepositoryError> {
+        if rows.is_empty() {
+            return Ok(0);
+        }
+        let result = sqlx::query!(
+            "INSERT INTO brain_aliases
+                 (id, subject_kind, subject_id, alias, alias_norm, owner_fact_id, owner_updated_at)
+             SELECT gen_random_uuid()::text, a.kind, a.subject, a.alias, a.norm, a.owner, a.stamp
+             FROM unnest($1::text[], $2::text[], $3::text[], $4::text[], $5::text[],
+                         $6::timestamptz[])
+                  AS a(kind, subject, alias, norm, owner, stamp)
              ON CONFLICT (subject_kind, alias_norm) DO UPDATE
-             SET subject_id = EXCLUDED.subject_id, alias = EXCLUDED.alias",
-            id,
-            subject.kind,
-            subject.id,
-            alias,
-            Self::normalise(alias),
+             SET subject_id = EXCLUDED.subject_id, alias = EXCLUDED.alias,
+                 owner_fact_id = EXCLUDED.owner_fact_id,
+                 owner_updated_at = EXCLUDED.owner_updated_at
+             WHERE (EXCLUDED.owner_updated_at, EXCLUDED.owner_fact_id)
+                   >= (COALESCE(brain_aliases.owner_updated_at, '-infinity'::timestamptz),
+                       COALESCE(brain_aliases.owner_fact_id, ''))",
+            &rows.kinds,
+            &rows.subjects,
+            &rows.aliases,
+            &rows.norms,
+            &rows.owners,
+            &rows.stamps,
         )
         .execute(conn)
         .await?;
-        Ok(())
+        Ok(result.rows_affected())
     }
 
     pub async fn similar(
@@ -130,6 +166,35 @@ impl AliasRepository {
             .collect())
     }
 
+    pub async fn resolve_many(
+        conn: &mut PgConnection,
+        subjects: &[SubjectKey],
+        threshold: f32,
+    ) -> Result<Vec<(SubjectKey, Option<String>)>, RepositoryError> {
+        let kinds: Vec<String> = subjects.iter().map(|s| s.kind.clone()).collect();
+        let ids: Vec<String> = subjects.iter().map(|s| s.id.clone()).collect();
+        let norms: Vec<String> = subjects.iter().map(|s| Self::normalise(&s.id)).collect();
+        let rows = sqlx::query!(
+            r#"SELECT p.kind AS "kind!", p.id AS "id!", a.subject_id AS "resolved?"
+               FROM unnest($1::text[], $2::text[], $3::text[]) AS p(kind, id, norm)
+               LEFT JOIN LATERAL (
+                   SELECT subject_id FROM brain_aliases
+                   WHERE subject_kind = p.kind AND similarity(alias_norm, p.norm) >= $4::float4
+                   ORDER BY similarity(alias_norm, p.norm) DESC, subject_id LIMIT 1
+               ) a ON true"#,
+            &kinds,
+            &ids,
+            &norms,
+            threshold,
+        )
+        .fetch_all(conn)
+        .await?;
+        Ok(rows
+            .into_iter()
+            .map(|row| (SubjectKey::new(row.kind, row.id), row.resolved))
+            .collect())
+    }
+
     pub async fn similar_to(
         &self,
         subject_kind: &str,
@@ -138,8 +203,4 @@ impl AliasRepository {
     ) -> Result<Vec<AliasMatch>, RepositoryError> {
         Self::similar(&*self.pools.read, subject_kind, text, threshold).await
     }
-}
-
-fn uuid_text() -> String {
-    uuid::Uuid::new_v4().to_string()
 }

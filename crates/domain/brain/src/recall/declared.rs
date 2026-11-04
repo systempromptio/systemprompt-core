@@ -1,10 +1,10 @@
 //! [`DeclaredRecall`].
 //!
 //! The plane declarations recall and the lifecycle services read (kinds,
-//! topics, workflow profiles, importance and retrieval documents), and
-//! [`PlaneDeclaredSource`], which reads them from the plane tables and
-//! keeps them for a short interval so a recall does not re-read every plane
-//! row.
+//! topics, workflow profiles, importance and retrieval documents, and the
+//! `synonyms` configuration document), and [`PlaneDeclaredSource`], which
+//! reads them from the plane tables and keeps them for a short interval so
+//! a recall does not re-read every plane row.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -19,8 +19,10 @@ use systemprompt_models::brain::{
 };
 use tokio::sync::RwLock;
 
+use systemprompt_models::brain::SynonymsDoc;
+
 use crate::error::BrainResult;
-use crate::repository::BrainRepositories;
+use crate::repository::{BrainRepositories, SynonymsRepository};
 
 const CACHE_TTL: Duration = Duration::from_secs(30);
 
@@ -33,6 +35,7 @@ pub struct DeclaredRecall {
     pub workflows: Vec<WorkflowProfileDecl>,
     pub importance: ImportanceConfig,
     pub retrieval: RetrievalDoc,
+    pub synonyms: SynonymsDoc,
 }
 
 impl DeclaredRecall {
@@ -87,12 +90,14 @@ impl PlaneDeclaredSource {
     async fn read(&self) -> BrainResult<DeclaredRecall> {
         let mut conn = self.repos.read_pool().acquire().await?;
         let brain = crate::plane::load_declared_state(&mut conn).await?;
+        let synonyms = SynonymsRepository::load(&mut *conn).await?;
         Ok(DeclaredRecall {
             kinds: brain.kinds,
             topics: brain.topics,
             workflows: brain.workflows,
             importance: brain.importance.unwrap_or_default(),
             retrieval: brain.retrieval.unwrap_or_default(),
+            synonyms,
         })
     }
 }

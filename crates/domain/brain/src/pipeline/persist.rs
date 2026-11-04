@@ -4,11 +4,16 @@
 //! fact is inserted with revision 1; a revision, merge or dispute is a
 //! [`FactChange`] applied to the existing fact, so every change has its
 //! revision row; a dispute also opens a dispute row and never overwrites
-//! the fact.
+//! the fact. The repository refreshes the derived indexes (working set,
+//! links, aliases, weighted search) on the same connection as each write,
+//! or leaves them, and the subject row the aliases hang off (no foreign
+//! key binds a fact to it), to the round's set-based reindex when the plan
+//! says [`Reindex::Deferred`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use chrono::{DateTime, Utc};
 use sqlx::PgConnection;
 use systemprompt_identifiers::{BrainFactId, PipelineVersion, TopicId, UserId};
 use systemprompt_models::brain::FactCandidate;
@@ -17,6 +22,7 @@ use super::dedupe::DedupeDecision;
 use super::route::Routed;
 use super::status::Lifecycle;
 use crate::error::BrainResult;
+use crate::index::Reindex;
 use crate::models::{FactChange, NewDispute, NewFact};
 use crate::repository::{DisputeRepository, FactRepository, SubjectRepository};
 
@@ -31,6 +37,8 @@ pub struct PersistPlan<'a> {
     pub actor: &'a UserId,
     pub version: &'a PipelineVersion,
     pub dispute_reason: Option<&'a str>,
+    pub observed_at: Option<DateTime<Utc>>,
+    pub reindex: Reindex,
 }
 
 /// What the write did to the store.
@@ -68,7 +76,7 @@ pub async fn persist(
         DedupeDecision::Unchanged(id) => Ok(landed(id, Effect::Unchanged)),
         DedupeDecision::Insert => insert(conn, plan).await,
         DedupeDecision::Revise(id) => {
-            FactRepository::apply(conn, &id, revised(plan)).await?;
+            FactRepository::apply_with(conn, &id, revised(plan), plan.reindex).await?;
             Ok(landed(id, Effect::Revised))
         },
         DedupeDecision::Merge(id) => {
@@ -77,7 +85,7 @@ pub async fn persist(
                 topics,
                 actor: Some(plan.actor.clone()),
             };
-            FactRepository::apply(conn, &id, change).await?;
+            FactRepository::apply_with(conn, &id, change, plan.reindex).await?;
             Ok(landed(id, Effect::Merged))
         },
         DedupeDecision::Dispute { fact, similarity } => {
@@ -101,7 +109,9 @@ pub async fn persist(
 }
 
 async fn insert(conn: &mut PgConnection, plan: &PersistPlan<'_>) -> BrainResult<Persisted> {
-    SubjectRepository::ensure(&mut *conn, &plan.candidate.subject, None).await?;
+    if plan.reindex == Reindex::Now {
+        SubjectRepository::ensure(&mut *conn, &plan.candidate.subject, None).await?;
+    }
     let mut builder = NewFact::builder(
         plan.candidate.clone(),
         plan.routed.scope.clone(),
@@ -111,11 +121,13 @@ async fn insert(conn: &mut PgConnection, plan: &PersistPlan<'_>) -> BrainResult<
     .status(plan.lifecycle.status)
     .importance_base(plan.lifecycle.importance_base)
     .review_after(plan.lifecycle.review_after)
+    .observed_at(plan.observed_at)
     .pipeline_version(plan.version.clone());
     if let Some(owner) = &plan.routed.owner {
         builder = builder.owner(owner.clone());
     }
-    let inserted = FactRepository::insert_candidate(conn, &builder.build()).await?;
+    let inserted =
+        FactRepository::insert_candidate_with(conn, &builder.build(), plan.reindex).await?;
     let effect = if inserted.created {
         Effect::Created
     } else {

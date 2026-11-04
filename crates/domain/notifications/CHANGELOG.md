@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.78.0] - 2026-11-04
+
+### Added
+
+- `consumer::MAX_ROUND_TRANSIENTS`.
+
+### Changed
+
+- A consumer drain round commits once. It claims up to one profile batch of facts on one transaction, processes each in its own savepoint and acknowledges it on that transaction. A transient failure holds the fact back for the poll interval and the round goes on, ending early past `MAX_ROUND_TRANSIENTS`. The `pending` rows of the whole round are announced after its commit.
+
 ## [0.77.0] - 2026-11-01
 
 ### Breaking

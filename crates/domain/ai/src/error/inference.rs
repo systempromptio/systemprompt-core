@@ -45,7 +45,9 @@ fn from_provider(err: ProviderError) -> AiInferenceError {
         ProviderError::EmptyResponse { ref provider }
         | ProviderError::ImageWithheld { ref provider }
         | ProviderError::NoImageData { ref provider }
-        | ProviderError::NoStructuredOutput { ref provider } => AiInferenceError::Provider {
+        | ProviderError::NoStructuredOutput { ref provider }
+        | ProviderError::EmbeddingCountMismatch { ref provider, .. }
+        | ProviderError::EmbeddingIndexInvalid { ref provider, .. } => AiInferenceError::Provider {
             provider: provider.to_string(),
             message: err.to_string(),
         },

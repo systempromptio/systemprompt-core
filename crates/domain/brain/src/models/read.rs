@@ -4,6 +4,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use chrono::{DateTime, Utc};
 use systemprompt_extension::brain::RecallConversation;
 use systemprompt_identifiers::{FactKindId, UserId, WorkflowId};
 use systemprompt_models::brain::{
@@ -99,12 +100,15 @@ impl NewRecallBuilder {
 }
 
 /// Which facts a listing returns; empty `statuses` means every status.
+/// `as_of` keeps only facts observed at or before that instant and valid
+/// then, as recall with the same `as_of` would see them.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FactFilter {
     pub kind: Option<FactKindId>,
     pub subject: Option<SubjectKey>,
     pub statuses: Vec<FactStatus>,
     pub limit: i64,
+    pub as_of: Option<DateTime<Utc>>,
 }
 
 impl FactFilter {
@@ -117,6 +121,7 @@ impl FactFilter {
             subject: None,
             statuses: Vec::new(),
             limit: Self::DEFAULT_LIMIT,
+            as_of: None,
         }
     }
 
@@ -141,6 +146,12 @@ impl FactFilter {
     #[must_use]
     pub const fn with_limit(mut self, limit: i64) -> Self {
         self.limit = limit;
+        self
+    }
+
+    #[must_use]
+    pub const fn with_as_of(mut self, as_of: DateTime<Utc>) -> Self {
+        self.as_of = Some(as_of);
         self
     }
 }

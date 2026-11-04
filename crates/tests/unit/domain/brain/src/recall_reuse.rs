@@ -38,7 +38,24 @@ fn stored(block: &RecallBlock) -> StoredBlock {
                 revision: fact.revision,
             })
             .collect(),
+        late: false,
     }
+}
+
+#[test]
+fn a_late_stored_block_reuses_the_same_bytes_and_says_so_in_the_descriptor() {
+    let block = block();
+    let mut late = stored(&block);
+    late.late = true;
+    let parsed = parse_stored(&late).expect("parses");
+    assert_eq!(parsed.render(), block.render(), "identical bytes");
+    assert!(parsed.reused_after_deadline);
+    assert!(
+        parsed.descriptor().ends_with(" reused_after_deadline"),
+        "{}",
+        parsed.descriptor()
+    );
+    assert!(!block.descriptor().contains("reused_after_deadline"));
 }
 
 #[test]

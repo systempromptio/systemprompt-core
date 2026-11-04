@@ -36,7 +36,9 @@ impl WithheldSummary {
     }
 }
 
-/// The facts injected into one request.
+/// The facts injected into one request. `reused_after_deadline` marks a
+/// block an earlier request of the turn produced after its deadline; the
+/// rendered bytes are the same, only the descriptor says so.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RecallBlock {
     pub scope: String,
@@ -44,6 +46,7 @@ pub struct RecallBlock {
     pub facts: Vec<InjectedFact>,
     pub withheld: WithheldSummary,
     pub tokens: u32,
+    pub reused_after_deadline: bool,
 }
 
 impl RecallBlock {
@@ -55,7 +58,14 @@ impl RecallBlock {
             facts: Vec::new(),
             withheld: WithheldSummary::default(),
             tokens: 0,
+            reused_after_deadline: false,
         }
+    }
+
+    #[must_use]
+    pub const fn with_reused_after_deadline(mut self, late: bool) -> Self {
+        self.reused_after_deadline = late;
+        self
     }
 
     #[must_use]
@@ -106,13 +116,17 @@ impl RecallBlock {
 
     #[must_use]
     pub fn descriptor(&self) -> String {
-        format!(
+        let mut descriptor = format!(
             "injected={} withheld={} tokens={} as_of={}",
             self.facts.len(),
             self.withheld.total(),
             self.tokens,
             self.as_of.to_rfc3339_opts(SecondsFormat::Secs, true)
-        )
+        );
+        if self.reused_after_deadline {
+            descriptor.push_str(" reused_after_deadline");
+        }
+        descriptor
     }
 }
 

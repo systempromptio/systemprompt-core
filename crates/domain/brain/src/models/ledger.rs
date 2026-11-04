@@ -62,6 +62,16 @@ pub struct NewFailure {
     pub attempt: u32,
 }
 
+impl NewFailure {
+    // Why: Postgres — a TEXT column refuses a NUL byte (22021), and a reason
+    // copied from an upstream error body may carry one; a failure record
+    // that itself fails would hide the attempt it exists to count.
+    #[must_use]
+    pub fn scrub_reason(reason: &str) -> String {
+        reason.replace('\0', "\u{FFFD}")
+    }
+}
+
 /// Whether a dispute still needs a decision.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum DisputeStatus {

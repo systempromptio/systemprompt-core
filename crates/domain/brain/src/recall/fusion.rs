@@ -2,9 +2,10 @@
 //!
 //! A fact scores `Σ weight_tier / (k + rank)` over every tier that returned
 //! it (rank counted from 1), and facts are ordered by score with ties
-//! broken by fact id. Extension retrievers only re-rank facts a core tier
-//! already returned, so an extension cannot surface a fact the
-//! scope-filtered SQL did not admit.
+//! broken by fact id. Extension retrievers are fused as the `Extension`
+//! tier, one `TierHits` per retriever (see [`super::introduce`]); a fact
+//! only they return reaches the same lifecycle and visibility checks as
+//! every other hit.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -33,6 +34,7 @@ pub const fn tier_weight(weights: &TierWeights, tier: RetrievalTier) -> f64 {
     match tier {
         RetrievalTier::Pinned => weights.pinned,
         RetrievalTier::Subject => weights.subject,
+        RetrievalTier::Linked => weights.linked,
         RetrievalTier::Context => weights.context,
         RetrievalTier::FullText => weights.full_text,
         RetrievalTier::Extension => weights.extension,
@@ -70,20 +72,6 @@ pub fn fuse(tiers: Vec<TierHits>, weights: &TierWeights, k: u32) -> Vec<ScoredFa
     }
     sort_ranked(&mut fused);
     fused
-}
-
-pub fn boost(fused: &mut [ScoredFact], ranked_ids: &[BrainFactId], weights: &TierWeights, k: u32) {
-    for (position, id) in ranked_ids.iter().enumerate() {
-        let rank = u32::try_from(position + 1).unwrap_or(u32::MAX);
-        if let Some(scored) = fused.iter_mut().find(|scored| &scored.fact.id == id) {
-            scored.score += contribution(weights, k, RetrievalTier::Extension, rank);
-            scored.ranks.push(TierRank {
-                tier: RetrievalTier::Extension,
-                rank,
-            });
-        }
-    }
-    sort_ranked(fused);
 }
 
 pub fn sort_ranked(fused: &mut [ScoredFact]) {

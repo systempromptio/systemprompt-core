@@ -1,284 +1,163 @@
-//! One drain round: claim, process and acknowledge events one transaction
-//! at a time. An event that failed transiently ends the round
-//! unacknowledged, so the next round retries it after the poll interval.
+//! One drain round: claim up to a batch of events on one transaction,
+//! decode them, preload the round cache (set claim of the result ledger,
+//! alias resolution and dedupe rows of every entered fact), run the
+//! events as one pass ([`super::pass`]) with their derived indexes
+//! deferred and their reads served from the cache, acknowledge, and
+//! commit once.
+//!
+//! A transient failure no longer ends the round: its savepoint is rolled
+//! back, its attempt is recorded, its row stays unacknowledged and the
+//! consumer holds it back for the poll interval. More than
+//! [`MAX_ROUND_TRANSIENTS`] transient failures cut the round short, since
+//! that many points at an outage rather than a bad event; the events not
+//! reached are released at commit and the consumer waits before the next
+//! round. The ledger claims of every event the round did not finish are
+//! deleted before commit, so a retried event is claimed again by the round
+//! that retries it. A failed ledger statement, a failed attempt record or
+//! a failed commit rolls back the whole round and every event in it is
+//! claimed again. Each event's result row is claimed on the same
+//! transaction, so a lost round leaves no result behind and an event is
+//! still processed at most once per pipeline version.
+//!
+//! The set statements after the loop ([`crate::index::reindex_facts`], the
+//! ledger finish, the acknowledgement) replace what each event used to run
+//! on its own. The reindex is the one with head-of-line risk: a row one
+//! index constraint refuses fails the statement for every fact in the
+//! round, and a round that rolled back for it would record no attempt and
+//! retry forever. The guard against that, for any constraint, is the
+//! second pass: the first pass is rolled back whole (so no fact of the
+//! refused event survives), the cache stops serving the rows that rollback
+//! removed, and the same events run again with every index written per
+//! event, where the refused one fails inside its own savepoint as a
+//! permanent failure ([`crate::error::BrainError::is_transient`] is false
+//! for a constraint violation) or, for a transient cause, is held and
+//! retried like any other. Model calls are not repeated: the round
+//! remembers each first-pass extraction and the second pass re-records its
+//! spend instead. The alias length check is additionally filtered before
+//! the set statement ([`crate::index::MAX_ALIAS_NORM_LEN`]), so an
+//! overlong alias never costs a second pass. Within a round an alias a
+//! fact contributes is not yet resolvable by a later event of the same
+//! round; it is from the next round on. The acknowledgement is one
+//! statement when every event finished and one per finished event
+//! otherwise.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
-use sqlx::{Acquire, PgConnection};
-use systemprompt_events::services::durable::Delivery;
-use systemprompt_identifiers::{EventOutboxId, PipelineVersion};
-use systemprompt_models::brain::{BRAIN_CONSUMER, BRAIN_EVENT_VERSION, BrainEvent};
+use systemprompt_events::services::durable::DeliveryBatch;
+use systemprompt_identifiers::EventOutboxId;
+use systemprompt_models::brain::{BRAIN_CONSUMER, BrainEvent};
 
+use super::decode::decode_all;
+use super::pass::{Pass, PassInput, Round};
 use super::{BrainConsumer, Counters};
 use crate::error::{BrainError, BrainResult};
-use crate::models::{EventOutcome, EventResult, NewFailure};
-use crate::pipeline::{BatchContext, ProcessOutcome, metrics};
-use crate::repository::{EventResultRepository, FailureRepository};
+use crate::index::Reindex;
+use crate::pipeline::{BatchContext, RoundCache, metrics};
 
-pub const MAX_EVENT_ATTEMPTS: i64 = 5;
-const DECODE_STAGE: &str = "decode";
-const ABANDONED_STAGE: &str = "abandoned";
-
-#[derive(Debug, thiserror::Error)]
-enum Undecodable {
-    #[error("brain event does not decode")]
-    Json(#[from] serde_json::Error),
-    #[error("unsupported event version {0}")]
-    Version(u32),
-}
-
-// JSON: the fact envelope is decoded first, and its data only after its
-// version is checked.
-fn decode(delivery: &Delivery) -> Result<BrainEvent, Undecodable> {
-    let fact = delivery.fact::<serde_json::Value>()?;
-    if fact.version != BRAIN_EVENT_VERSION {
-        return Err(Undecodable::Version(fact.version));
-    }
-    Ok(serde_json::from_value(fact.data)?)
-}
-
-enum Handled {
-    Done,
-    Retry(BrainError),
-}
-
-struct Failed<'a> {
-    id: &'a EventOutboxId,
-    version: &'a PipelineVersion,
-    stage: &'static str,
-    reason: String,
-    attempt: i64,
-}
+pub const MAX_ROUND_TRANSIENTS: usize = 3;
 
 impl BrainConsumer {
     pub(super) async fn drain_round(&self) -> BrainResult<bool> {
         let started = Instant::now();
-        let mut ctx: Option<BatchContext> = None;
-        let mut claimed = 0;
-        let mut retry_later = false;
-        while claimed < self.batch() {
-            let Some(mut delivery) = self.outbox.claim(BRAIN_CONSUMER).await? else {
-                break;
-            };
-            claimed += 1;
-            if ctx.is_none() {
-                ctx = Some(BatchContext::load(delivery.connection()).await?);
-            }
-            let Some(context) = ctx.as_ref() else {
-                break;
-            };
-            let id = delivery.id();
-            match self.handle(&mut delivery, &id, context).await {
-                Handled::Done => {
-                    if let Err(error) = delivery.acknowledge().await {
-                        tracing::error!(outbox_id = %id, error = %error, "Brain event acknowledgement failed");
-                        break;
-                    }
-                },
-                Handled::Retry(error) => {
-                    self.release_for_retry(delivery, &id, context.version(), &error)
-                        .await;
-                    retry_later = true;
-                    break;
-                },
-            }
-        }
-        if claimed > 0 {
-            metrics::batch_seconds(started.elapsed().as_secs_f64());
-        }
-        Ok(claimed > 0 && !retry_later)
-    }
-
-    async fn handle(
-        &self,
-        delivery: &mut Delivery,
-        id: &EventOutboxId,
-        ctx: &BatchContext,
-    ) -> Handled {
-        let decoded = decode(delivery);
-        let event = match decoded {
-            Ok(event) => event,
+        let held = self.round_state.held();
+        let limit = i64::try_from(self.batch()).unwrap_or(i64::MAX);
+        let claimed = self
+            .outbox
+            .claim_batch(BRAIN_CONSUMER, limit, &held)
+            .await?;
+        self.round_state.ran();
+        let Some(mut batch) = claimed else {
+            return Ok(false);
+        };
+        let events = batch.len();
+        let round = match self.process_batch(&mut batch).await {
+            Ok(round) => round,
             Err(error) => {
-                metrics::event("decode_failed");
-                let reason = error.to_string();
-                let failed = Failed {
-                    id,
-                    version: ctx.version(),
-                    stage: DECODE_STAGE,
-                    reason,
-                    attempt: 1,
-                };
-                fail(delivery.connection(), &failed).await;
-                Counters::bump(&self.counters.failed);
-                return Handled::Done;
+                release(batch).await;
+                return Err(error);
             },
         };
-        let kind = event.kind.to_string();
-        match self
-            .process_in_savepoint(delivery.connection(), id, event, ctx)
-            .await
+        if round.done.len() == events {
+            batch.acknowledge_all().await?;
+        } else {
+            for id in &round.done {
+                batch.acknowledge(id).await?;
+            }
+            batch.commit().await?;
+        }
+        self.round_state.hold(round.retried, self.poll());
+        Counters::add(&self.counters.processed, round.tally.processed);
+        Counters::add(&self.counters.retried, round.tally.retried);
+        Counters::add(&self.counters.failed, round.tally.failed);
+        Counters::add(&self.counters.abandoned, round.tally.abandoned);
+        Counters::add(&self.counters.reindexed, round.reindexed.facts);
+        metrics::batch_seconds(started.elapsed().as_secs_f64());
+        metrics::round_events(events);
+        metrics::round_reindexed(round.reindexed.facts, round.reindexed.statements);
+        tracing::debug!(
+            events,
+            acknowledged = round.done.len(),
+            facts_reindexed = round.reindexed.facts,
+            index_statements = round.reindexed.statements,
+            "Brain drain round committed"
+        );
+        if round.wrote
+            && self.round_state.gauges_due()
+            && let Err(error) = self.pipeline.refresh_store_gauges().await
         {
-            Ok(_) => {
-                Counters::bump(&self.counters.processed);
-                Handled::Done
-            },
-            Err(error) if error.is_transient() => {
-                self.retry_or_abandon(delivery.connection(), id, &kind, ctx, error)
-                    .await
-            },
-            Err(error) => {
-                metrics::event("failed");
-                tracing::warn!(outbox_id = %id, kind = %kind, error = %error, "Brain event failed");
-                let failed = Failed {
-                    id,
-                    version: ctx.version(),
-                    stage: error.stage(),
-                    reason: error.to_string(),
-                    attempt: 1,
-                };
-                fail(delivery.connection(), &failed).await;
-                close_result(delivery.connection(), &failed, &kind, EventOutcome::Failed).await;
-                Counters::bump(&self.counters.failed);
-                Handled::Done
-            },
+            tracing::warn!(error = %error, "Brain store gauges could not be refreshed");
+        }
+        Ok(!round.done.is_empty() && !round.cut_short)
+    }
+
+    async fn process_batch(&self, batch: &mut DeliveryBatch) -> BrainResult<Round> {
+        let ctx = BatchContext::load(batch.connection()).await?;
+        let entries = batch.entries();
+        let decodable: Vec<(EventOutboxId, BrainEvent)> = decode_all(entries.clone())
+            .into_iter()
+            .filter_map(|d| d.event.ok().map(|event| (d.id, event)))
+            .collect();
+        let cache = RoundCache::load(batch.connection(), &ctx, &decodable).await?;
+        let deferred = PassInput {
+            ctx: &ctx,
+            cache: &cache,
+            events: decode_all(entries.clone()),
+            reindex: Reindex::Deferred,
+        };
+        let error = match self.run_pass(batch.connection(), deferred).await? {
+            Pass::Settled(round) => return Ok(round),
+            Pass::Unindexable(error) => error,
+        };
+        tracing::warn!(
+            events = entries.len(),
+            error = %error,
+            cause = ?std::error::Error::source(&error),
+            "Brain round reindex failed as a set; running the round again per event"
+        );
+        metrics::round_second_pass();
+        cache.forget_reads();
+        let per_event = PassInput {
+            ctx: &ctx,
+            cache: &cache,
+            events: decode_all(entries),
+            reindex: Reindex::Now,
+        };
+        match self.run_pass(batch.connection(), per_event).await? {
+            Pass::Settled(round) => Ok(round),
+            Pass::Unindexable(error) => Err(BrainError::Repository(error)),
         }
     }
 
-    #[expect(
-        clippy::too_many_arguments,
-        reason = "the delivery's connection, identity and batch context travel with the error"
-    )]
-    async fn retry_or_abandon(
-        &self,
-        conn: &mut PgConnection,
-        id: &EventOutboxId,
-        kind: &str,
-        ctx: &BatchContext,
-        error: BrainError,
-    ) -> Handled {
-        let earlier = match FailureRepository::count_for_outbox(&mut *conn, id).await {
-            Ok(count) => count,
-            Err(count_error) => {
-                tracing::warn!(outbox_id = %id, error = %count_error, "Brain event attempts could not be read");
-                return Handled::Retry(error);
-            },
-        };
-        if earlier + 1 < MAX_EVENT_ATTEMPTS {
-            return Handled::Retry(error);
-        }
-        metrics::event("abandoned");
-        tracing::error!(outbox_id = %id, kind = %kind, attempts = earlier + 1, error = %error, "Brain event abandoned");
-        let failed = Failed {
-            id,
-            version: ctx.version(),
-            stage: ABANDONED_STAGE,
-            reason: format!("event_abandoned: {error}"),
-            attempt: earlier + 1,
-        };
-        fail(&mut *conn, &failed).await;
-        close_result(conn, &failed, kind, EventOutcome::Abandoned).await;
-        Counters::bump(&self.counters.abandoned);
-        Handled::Done
-    }
-
-    async fn release_for_retry(
-        &self,
-        delivery: Delivery,
-        id: &EventOutboxId,
-        version: &PipelineVersion,
-        error: &BrainError,
-    ) {
-        metrics::event("retry");
-        Counters::bump(&self.counters.retried);
-        tracing::warn!(outbox_id = %id, error = %error, "Brain event failed; retrying");
-        if let Err(rollback) = delivery.rollback().await {
-            tracing::error!(outbox_id = %id, error = %rollback, "Brain event rollback failed");
-        }
-        let earlier = match FailureRepository::count_for_outbox(&self.pool, id).await {
-            Ok(count) => count,
-            Err(count_error) => {
-                tracing::warn!(outbox_id = %id, error = %count_error, "Brain event attempts could not be read");
-                0
-            },
-        };
-        let attempt = earlier + 1;
-        let failed = Failed {
-            id,
-            version,
-            stage: error.stage(),
-            reason: error.to_string(),
-            attempt,
-        };
-        fail(&self.pool, &failed).await;
-    }
-
-    async fn process_in_savepoint(
-        &self,
-        conn: &mut PgConnection,
-        id: &EventOutboxId,
-        event: BrainEvent,
-        ctx: &BatchContext,
-    ) -> BrainResult<ProcessOutcome> {
-        let mut savepoint = conn.begin().await?;
-        match self.pipeline.process(id, event, &mut savepoint, ctx).await {
-            Ok(outcome) => {
-                savepoint.commit().await?;
-                if let ProcessOutcome::Finished(summary) = &outcome {
-                    tracing::debug!(
-                        outbox_id = %id,
-                        outcome = summary.outcome.as_str(),
-                        staled = summary.staled,
-                        written = summary.tally.written,
-                        disputed = summary.tally.disputed,
-                        rejected = summary.tally.rejected,
-                        "Brain event processed"
-                    );
-                }
-                Ok(outcome)
-            },
-            Err(error) => {
-                savepoint.rollback().await?;
-                Err(error)
-            },
-        }
+    fn poll(&self) -> Duration {
+        Duration::from_secs(u64::from(self.settings.poll_secs.max(1)))
     }
 }
 
-async fn fail(executor: impl sqlx::PgExecutor<'_>, failed: &Failed<'_>) {
-    let failure = NewFailure {
-        outbox_id: failed.id.clone(),
-        pipeline_version: Some(failed.version.clone()),
-        stage: failed.stage,
-        reason: failed.reason.clone(),
-        attempt: u32::try_from(failed.attempt).unwrap_or(u32::MAX),
-    };
-    if let Err(error) = FailureRepository::record(executor, &failure).await {
-        tracing::error!(outbox_id = %failed.id, stage = failed.stage, error = %error, "Brain failure could not be recorded");
-    }
-}
-
-async fn close_result(
-    conn: &mut PgConnection,
-    failed: &Failed<'_>,
-    kind: &str,
-    outcome: EventOutcome,
-) {
-    let result = EventResult {
-        outbox_id: failed.id.clone(),
-        pipeline_version: failed.version.clone(),
-        outcome,
-        filter: None,
-        facts_written: 0,
-    };
-    let closed =
-        match EventResultRepository::claim(&mut *conn, failed.id, failed.version, kind).await {
-            Ok(_) => EventResultRepository::finish(conn, &result).await,
-            Err(error) => Err(error),
-        };
-    if let Err(error) = closed {
-        tracing::error!(outbox_id = %failed.id, error = %error, "Brain event result could not be closed");
+async fn release(batch: DeliveryBatch) {
+    if let Err(error) = batch.rollback().await {
+        tracing::error!(error = %error, "Brain drain round rollback failed");
     }
 }

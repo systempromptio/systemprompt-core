@@ -1,7 +1,8 @@
 //! Batched outbox consumption: a batch claims the oldest unprocessed facts of
 //! one consumer, skips ids it is told to, rolls back to redeliver, and an
-//! acknowledged batch is never claimed again. Malformed contracts are refused
-//! before any row is written.
+//! acknowledged batch is never claimed again. A batch that acknowledges some
+//! rows and commits once releases the others, and reports what is pending.
+//! Malformed contracts are refused before any row is written.
 
 use systemprompt_events::services::durable::{
     DurableEventError, DurableOutbox, OutboxConsumer, ReportingFact, SseEvent,
@@ -100,6 +101,44 @@ async fn a_batch_claims_skips_redelivers_and_acknowledges() {
             .is_none()
     );
     assert!(reader.claim(&consumer).await.expect("claim").is_none());
+}
+
+#[tokio::test]
+async fn a_committed_batch_keeps_only_the_rows_it_acknowledged() {
+    let pool = crate::setup_test_pool().await;
+    let pool = pool.as_ref().clone();
+    let consumer = consumer_name();
+    let outbox = DurableOutbox::new(pool.clone(), unique_instance());
+    let reader = OutboxConsumer::new(pool.clone());
+    let ids = append_n(&pool, &outbox, &consumer, 3).await;
+    let (pending, oldest) = reader.pending(&consumer).await.expect("pending");
+    assert_eq!(pending, 3);
+    assert!(oldest.is_some_and(|seconds| seconds >= 0));
+
+    let mut batch = reader
+        .claim_batch(&consumer, 10, &[])
+        .await
+        .expect("claim")
+        .expect("three facts");
+    let entries = batch.entries();
+    assert_eq!(
+        entries.iter().map(|(id, _)| id).collect::<Vec<_>>(),
+        ids.iter().collect::<Vec<_>>()
+    );
+    assert_eq!(entries[1].1["data"], serde_json::json!(1));
+    batch.acknowledge(&ids[0]).await.expect("ack first");
+    batch.acknowledge(&ids[2]).await.expect("ack last");
+    batch.commit().await.expect("commit");
+
+    assert_eq!(reader.pending(&consumer).await.expect("pending").0, 1);
+    let left = reader
+        .claim_batch(&consumer, 10, &[])
+        .await
+        .expect("claim")
+        .expect("the unacknowledged fact is released");
+    assert_eq!(left.ids().collect::<Vec<_>>(), vec![&ids[1]]);
+    left.acknowledge_all().await.expect("ack");
+    assert_eq!(reader.pending(&consumer).await.expect("pending"), (0, None));
 }
 
 #[tokio::test]

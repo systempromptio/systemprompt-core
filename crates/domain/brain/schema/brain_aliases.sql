@@ -6,6 +6,8 @@ CREATE TABLE IF NOT EXISTS brain_aliases (
     subject_id TEXT NOT NULL,
     alias TEXT NOT NULL,
     alias_norm TEXT NOT NULL CHECK (length(alias_norm) BETWEEN 1 AND 255),
+    owner_fact_id TEXT,
+    owner_updated_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (subject_kind, alias_norm),
     FOREIGN KEY (subject_kind, subject_id)

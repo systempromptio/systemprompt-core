@@ -387,6 +387,9 @@ mod events_system;
 mod models_misc_edges;
 
 #[cfg(test)]
+mod ai_embedding;
+
+#[cfg(test)]
 mod ai_request_response;
 
 #[cfg(test)]

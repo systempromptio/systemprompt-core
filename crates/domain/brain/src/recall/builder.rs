@@ -1,7 +1,8 @@
 //! [`BrainRecallServiceBuilder`]: assembles a [`BrainRecallService`] from
 //! its store, source check, declarations and profile, with optional
-//! extension retrievers, injection policies, importance models and
-//! audience resolvers.
+//! extension retrievers (and the loader that introduces the facts only
+//! they find), injection policies, importance models and audience
+//! resolvers.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -16,10 +17,9 @@ use systemprompt_extension::notifications::NotificationAudienceResolver;
 use systemprompt_manifest::profile::BrainProfile;
 
 use super::declared::DeclaredSource;
+use super::introduce::FactLoader;
 use super::service::BrainRecallService;
 use crate::outcomes::OutcomeService;
-
-const DEFAULT_SOURCE_TIMEOUT: Duration = Duration::from_millis(40);
 
 impl std::fmt::Debug for BrainRecallService {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -47,6 +47,7 @@ impl BrainRecallService {
         declared: Arc<dyn DeclaredSource>,
         profile: Arc<BrainProfile>,
     ) -> BrainRecallServiceBuilder {
+        let source_timeout = Duration::from_millis(profile.recall.source_timeout_ms);
         BrainRecallServiceBuilder {
             service: Self {
                 store,
@@ -54,10 +55,11 @@ impl BrainRecallService {
                 declared,
                 profile,
                 retrievers: Vec::new(),
+                loader: None,
                 injection: Vec::new(),
                 importance: Vec::new(),
                 audiences: Vec::new(),
-                source_timeout: DEFAULT_SOURCE_TIMEOUT,
+                source_timeout,
                 outcomes: None,
             },
         }
@@ -68,6 +70,12 @@ impl BrainRecallServiceBuilder {
     #[must_use]
     pub fn retrievers(mut self, retrievers: Vec<Arc<dyn FactRetriever>>) -> Self {
         self.service.retrievers = retrievers;
+        self
+    }
+
+    #[must_use]
+    pub fn loader(mut self, loader: Arc<dyn FactLoader>) -> Self {
+        self.service.loader = Some(loader);
         self
     }
 

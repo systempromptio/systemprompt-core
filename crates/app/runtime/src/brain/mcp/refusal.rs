@@ -71,9 +71,10 @@ pub const fn refusal_of(error: &BrainError) -> Option<BrainRefusalCode> {
         BrainError::NotFound(_) | BrainError::ProposalNotFound(_) => {
             Some(BrainRefusalCode::NotFound)
         },
-        BrainError::Statement(_) | BrainError::Subject(_) | BrainError::Validate(_) => {
-            Some(BrainRefusalCode::InvalidInput)
-        },
+        BrainError::Statement(_)
+        | BrainError::Subject(_)
+        | BrainError::Validate(_)
+        | BrainError::InvalidFields(_) => Some(BrainRefusalCode::InvalidInput),
         BrainError::Database(_)
         | BrainError::Repository(_)
         | BrainError::Encode(_)

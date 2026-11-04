@@ -5,6 +5,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod embedding;
 pub mod execution_plan;
 pub mod media_types;
 pub mod models;
@@ -18,6 +19,7 @@ pub mod template_validation;
 pub mod tool_result_formatter;
 pub mod tools;
 
+pub use embedding::{EmbeddingRequest, EmbeddingResponse, EmbeddingUsage};
 pub use execution_plan::{
     ExecutionState, PlannedToolCall, PlannedToolResult, PlanningResult, TemplateRef,
 };

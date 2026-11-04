@@ -21,7 +21,7 @@ use crate::repository::{FactRepository, TombstoneRepository};
 
 pub const DISPUTE_SIMILARITY: f64 = 0.85;
 const NEIGHBOUR_LIMIT: i64 = 50;
-const LIVE_STATUSES: [FactStatus; 4] = [
+pub const LIVE_STATUSES: [FactStatus; 4] = [
     FactStatus::Candidate,
     FactStatus::Proposed,
     FactStatus::Confirmed,

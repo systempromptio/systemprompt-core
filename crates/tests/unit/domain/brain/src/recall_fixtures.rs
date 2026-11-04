@@ -26,6 +26,7 @@ pub(crate) fn brain_fact(n: u32, kind_id: &str) -> BrainFact {
         confirmed_by: None,
         confirmed_at: None,
         importance_base: 0.5,
+        observed_at: at(1_700_000_000),
         valid_from: None,
         valid_to: None,
         review_after: None,
@@ -36,6 +37,8 @@ pub(crate) fn brain_fact(n: u32, kind_id: &str) -> BrainFact {
         revision: 1,
         pinned: false,
         owner_user_id: None,
+        usage_cited_rate: 0.0,
+        usage_ignored_rate: 0.0,
         created_at: at(1_700_000_000),
         updated_at: at(1_700_000_000),
     }
@@ -64,6 +67,20 @@ pub(crate) fn scored(fact: BrainFact, score: f64) -> ScoredFact {
             tier: RetrievalTier::FullText,
             rank: 1,
         }],
+    }
+}
+
+pub(crate) fn ranked(fact: BrainFact, score: f64, tiers: &[RetrievalTier]) -> ScoredFact {
+    ScoredFact {
+        fact,
+        score,
+        ranks: tiers
+            .iter()
+            .map(|tier| TierRank {
+                tier: *tier,
+                rank: 1,
+            })
+            .collect(),
     }
 }
 

@@ -1,228 +1,115 @@
-//! One drain round: claim, process and acknowledge facts one transaction at
-//! a time, then deliver each committed fact's `pending` rows. A fact that
-//! failed transiently ends the round unacknowledged, so the next round
-//! retries it after the poll interval.
+//! One drain round: claim up to a batch of facts on one transaction,
+//! process each inside its own savepoint, acknowledge each finished fact in
+//! that transaction, commit once, then deliver the `pending` rows the
+//! committed facts left.
+//!
+//! A transient failure no longer ends the round: its savepoint is rolled
+//! back, its attempt is recorded, its row stays unacknowledged and the
+//! consumer holds it back for the poll interval. More than
+//! [`MAX_ROUND_TRANSIENTS`] transient failures cut the round short; the
+//! facts not reached are released at commit and the consumer waits before
+//! the next round. A failed acknowledgement or commit rolls back the whole
+//! round, nothing from it is delivered, and every fact in it is claimed
+//! again.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
-use sqlx::{Acquire, PgConnection};
-use systemprompt_events::services::durable::Delivery;
+use systemprompt_events::services::durable::DeliveryBatch;
 use systemprompt_identifiers::{EventOutboxId, NotificationId};
-use systemprompt_models::notifications::{
-    NOTIFICATION_EVENT_VERSION, NOTIFICATIONS_CONSUMER, NotificationEvent,
-};
+use systemprompt_models::notifications::NOTIFICATIONS_CONSUMER;
 
 use super::NotificationsConsumer;
-use crate::error::{NotificationsError, NotificationsResult};
+use super::handle::Handled;
+use crate::error::NotificationsResult;
 use crate::pipeline::{BatchContext, metrics};
-use crate::repository::{FailureStage, NewFailure, NotificationFailureRepository};
 
-pub const MAX_FACT_ATTEMPTS: i64 = 5;
+pub const MAX_ROUND_TRANSIENTS: usize = 3;
 
-enum Handled {
-    Done(Vec<NotificationId>),
-    Retry(NotificationsError),
+#[derive(Default)]
+struct Round {
+    acknowledged: usize,
+    retried: Vec<EventOutboxId>,
+    pending: Vec<NotificationId>,
+    cut_short: bool,
 }
 
 impl NotificationsConsumer {
     pub(super) async fn drain_round(&self) -> NotificationsResult<bool> {
         let started = Instant::now();
-        let mut ctx: Option<BatchContext> = None;
-        let mut claimed = 0;
-        let mut retry_later = false;
-        while claimed < self.batch() {
-            let Some(mut delivery) = self.outbox.claim(NOTIFICATIONS_CONSUMER).await? else {
+        let held = self.hold.held();
+        let limit = i64::try_from(self.batch()).unwrap_or(i64::MAX);
+        let Some(mut batch) = self
+            .outbox
+            .claim_batch(NOTIFICATIONS_CONSUMER, limit, &held)
+            .await?
+        else {
+            return Ok(false);
+        };
+        let mut ctx = match BatchContext::load(batch.connection()).await {
+            Ok(ctx) => ctx,
+            Err(error) => {
+                release(batch).await;
+                return Err(error);
+            },
+        };
+        let round = match self.process_batch(&mut batch, &mut ctx).await {
+            Ok(round) => round,
+            Err(error) => {
+                metrics::fact("ack_failed");
+                release(batch).await;
+                return Err(error);
+            },
+        };
+        batch.commit().await?;
+        self.hold.hold(round.retried, self.poll());
+        if !round.pending.is_empty() {
+            self.pipeline.deliver(&round.pending).await;
+        }
+        metrics::batch_seconds(started.elapsed().as_secs_f64());
+        self.report_backlog().await;
+        Ok(round.acknowledged > 0 && !round.cut_short)
+    }
+
+    async fn process_batch(
+        &self,
+        batch: &mut DeliveryBatch,
+        ctx: &mut BatchContext,
+    ) -> NotificationsResult<Round> {
+        let mut round = Round::default();
+        for (id, raw) in batch.entries() {
+            if round.retried.len() > MAX_ROUND_TRANSIENTS {
+                round.cut_short = true;
+                tracing::warn!(
+                    transients = round.retried.len(),
+                    "Notification drain round stopped early after repeated transient failures"
+                );
                 break;
-            };
-            claimed += 1;
-            if ctx.is_none() {
-                ctx = Some(BatchContext::load(delivery.connection()).await?);
             }
-            let Some(context) = ctx.as_mut() else {
-                break;
-            };
-            let id = delivery.id();
-            match self.handle(&mut delivery, &id, context).await {
+            match self.handle(batch.connection(), &id, &raw, ctx).await {
                 Handled::Done(pending) => {
-                    if let Err(error) = delivery.acknowledge().await {
-                        tracing::error!(outbox_id = %id, error = %error, "Notification fact acknowledgement failed");
-                        metrics::fact("ack_failed");
-                        break;
-                    }
-                    if !pending.is_empty() {
-                        self.pipeline.deliver(&pending).await;
-                    }
+                    batch.acknowledge(&id).await?;
+                    round.acknowledged += 1;
+                    round.pending.extend(pending);
                 },
                 Handled::Retry(error) => {
-                    self.release_for_retry(delivery, &id, &error).await;
-                    retry_later = true;
-                    break;
+                    self.record_retry(batch.connection(), &id, &error).await;
+                    round.retried.push(id);
                 },
             }
         }
-        if claimed > 0 {
-            metrics::batch_seconds(started.elapsed().as_secs_f64());
-            self.report_backlog().await;
-        }
-        Ok(claimed > 0 && !retry_later)
+        Ok(round)
     }
 
-    async fn handle(
-        &self,
-        delivery: &mut Delivery,
-        id: &EventOutboxId,
-        ctx: &mut BatchContext,
-    ) -> Handled {
-        let fact = match delivery.fact::<serde_json::Value>() {
-            Ok(fact) => fact,
-            Err(error) => {
-                metrics::fact("decode_failed");
-                fail(
-                    delivery.connection(),
-                    id,
-                    &FailureStage::Decode,
-                    &error.to_string(),
-                )
-                .await;
-                return Handled::Done(Vec::new());
-            },
-        };
-        if fact.version != NOTIFICATION_EVENT_VERSION {
-            metrics::fact("unsupported_version");
-            let reason = format!("unsupported fact version {}", fact.version);
-            fail(delivery.connection(), id, &FailureStage::Decode, &reason).await;
-            return Handled::Done(Vec::new());
-        }
-        let event: NotificationEvent = match serde_json::from_value(fact.data) {
-            Ok(event) => event,
-            Err(error) => {
-                metrics::fact("decode_failed");
-                fail(
-                    delivery.connection(),
-                    id,
-                    &FailureStage::Decode,
-                    &error.to_string(),
-                )
-                .await;
-                return Handled::Done(Vec::new());
-            },
-        };
-        match self
-            .process_in_savepoint(delivery.connection(), id, &event, ctx)
-            .await
-        {
-            Ok(pending) => {
-                metrics::fact("processed");
-                Handled::Done(pending)
-            },
-            Err(error) if error.is_transient() => {
-                self.retry_or_abandon(delivery.connection(), id, &event, error)
-                    .await
-            },
-            Err(error) => {
-                metrics::fact("failed");
-                tracing::warn!(outbox_id = %id, kind = %event.kind, error = %error, "Notification fact failed");
-                fail(
-                    delivery.connection(),
-                    id,
-                    &FailureStage::Process,
-                    &error.to_string(),
-                )
-                .await;
-                Handled::Done(Vec::new())
-            },
-        }
-    }
-
-    async fn retry_or_abandon(
-        &self,
-        conn: &mut PgConnection,
-        id: &EventOutboxId,
-        event: &NotificationEvent,
-        error: NotificationsError,
-    ) -> Handled {
-        let earlier = match NotificationFailureRepository::count_for_outbox(
-            &mut *conn,
-            id,
-            &FailureStage::Process,
-        )
-        .await
-        {
-            Ok(count) => count,
-            Err(count_error) => {
-                tracing::warn!(outbox_id = %id, error = %count_error, "Notification fact attempts could not be read");
-                return Handled::Retry(error);
-            },
-        };
-        if earlier + 1 < MAX_FACT_ATTEMPTS {
-            return Handled::Retry(error);
-        }
-        metrics::fact("abandoned");
-        tracing::error!(outbox_id = %id, kind = %event.kind, attempts = earlier + 1, error = %error, "Notification fact abandoned");
-        let reason = format!("fact_abandoned: {error}");
-        fail(conn, id, &FailureStage::Process, &reason).await;
-        Handled::Done(Vec::new())
-    }
-
-    async fn release_for_retry(
-        &self,
-        delivery: Delivery,
-        id: &EventOutboxId,
-        error: &NotificationsError,
-    ) {
-        metrics::fact("retry");
-        tracing::warn!(outbox_id = %id, error = %error, "Notification fact failed; retrying");
-        if let Err(rollback) = delivery.rollback().await {
-            tracing::error!(outbox_id = %id, error = %rollback, "Notification fact rollback failed");
-        }
-        fail(&self.pool, id, &FailureStage::Process, &error.to_string()).await;
-    }
-
-    async fn process_in_savepoint(
-        &self,
-        conn: &mut PgConnection,
-        id: &EventOutboxId,
-        event: &NotificationEvent,
-        ctx: &mut BatchContext,
-    ) -> NotificationsResult<Vec<NotificationId>> {
-        let mut savepoint = conn.begin().await?;
-        match self.pipeline.process(id, event, &mut savepoint, ctx).await {
-            Ok(outcome) => {
-                savepoint.commit().await?;
-                tracing::debug!(
-                    outbox_id = %id,
-                    persisted = outcome.persisted.len(),
-                    held = outcome.held,
-                    withheld = outcome.withheld,
-                    coalesced = outcome.coalesced,
-                    "Notification fact processed"
-                );
-                Ok(outcome.pending)
-            },
-            Err(error) => {
-                savepoint.rollback().await?;
-                Err(error)
-            },
-        }
+    fn poll(&self) -> Duration {
+        Duration::from_secs(u64::from(self.settings.poll_secs.max(1)))
     }
 }
 
-async fn fail(
-    executor: impl sqlx::PgExecutor<'_>,
-    id: &EventOutboxId,
-    stage: &FailureStage,
-    reason: &str,
-) {
-    let failure = NewFailure {
-        outbox_id: Some(id),
-        recipient: None,
-        stage,
-        reason,
-    };
-    if let Err(error) = NotificationFailureRepository::record(executor, failure).await {
-        tracing::error!(outbox_id = %id, %stage, error = %error, "Notification failure could not be recorded");
+async fn release(batch: DeliveryBatch) {
+    if let Err(error) = batch.rollback().await {
+        tracing::error!(error = %error, "Notification drain round rollback failed");
     }
 }

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.78.0] - 2026-11-04
+
+### Added
+
+- `projection::park` and `PARKED_ATTEMPTS`: a refresh that can tell which key of its batch is the bad one queues that key past the retry budget on its own transaction, counted as pending, and the rest of the batch commits.
+
 ## [0.77.0] - 2026-11-01
 
 ### Changed

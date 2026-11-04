@@ -1,15 +1,16 @@
 //! Declarative brain config: the YAML shapes under `services/brain/` and
 //! their cross-reference validation.
 //!
-//! `topics.yaml`, `filters.yaml`, `importance.yaml` and `retrieval.yaml` are
-//! single documents; `kinds/`, `interests/` and `profiles/` hold one
-//! declaration per file. [`BrainDocs`] is the whole set and [`validate`]
-//! checks it.
+//! `topics.yaml`, `filters.yaml`, `importance.yaml`, `retrieval.yaml` and
+//! `synonyms.yaml` are single documents; `kinds/`, `interests/` and `profiles/`
+//! hold one declaration per file. [`BrainDocs`] is the whole set and
+//! [`validate`] checks it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 mod importance;
+mod synonyms;
 mod validate;
 
 use std::collections::BTreeMap;
@@ -19,9 +20,10 @@ use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{FactKindId, InterestId, TopicId, UserId, WorkflowId};
 
 pub use importance::{
-    BaseImportance, ImportanceConfig, InContextImportance, ModelHint, Recency, RetrievalDoc,
-    TierWeights, UsageWeights,
+    BaseImportance, FillOrder, ImportanceConfig, InContextImportance, ModelHint, QuorumUnit,
+    Recency, RetrievalDoc, TierWeights, UsageWeights,
 };
+pub use synonyms::{SynonymsDoc, SynonymsError};
 pub use validate::{BrainDeclError, validate};
 
 use super::envelope::Pathway;

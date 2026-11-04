@@ -37,6 +37,21 @@ impl AppContext {
         self.brain().map(crate::brain::BrainHandle::memory_recall)
     }
 
+    #[cfg(feature = "brain")]
+    #[must_use]
+    pub fn brain_consolidation_model(
+        &self,
+    ) -> Option<Arc<dyn systemprompt_extension::brain::BrainModelClient>> {
+        self.brain()
+            .and_then(crate::brain::BrainHandle::consolidation_model)
+    }
+
+    #[cfg(feature = "brain")]
+    #[must_use]
+    pub fn brain_sink(&self) -> Option<systemprompt_extension::brain::DynBrainSink> {
+        self.brain().map(|brain| Arc::clone(brain.sink()))
+    }
+
     pub const fn boot(&self) -> &BootContext {
         &self.cfg.boot
     }

@@ -34,6 +34,8 @@ pub struct EnteredFact {
     pub topics: Vec<TopicId>,
     #[serde(default)]
     pub status: EnteredStatus,
+    #[serde(default)]
+    pub observed_at: Option<DateTime<Utc>>,
 }
 
 impl EnteredFact {

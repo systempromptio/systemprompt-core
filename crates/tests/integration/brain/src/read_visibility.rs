@@ -75,6 +75,7 @@ async fn a_stranger_may_not_enter_an_org_fact() {
         scope: FactScope::Org,
         topics: Vec::new(),
         status: EnteredStatus::Candidate,
+        observed_at: None,
     };
     let refused = h
         .service

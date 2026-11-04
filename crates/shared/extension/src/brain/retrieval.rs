@@ -4,11 +4,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::collections::BTreeMap;
+
 use chrono::{DateTime, Utc};
 use systemprompt_identifiers::{BrainFactId, GatewayConversationId};
 use systemprompt_models::brain::{
     BrainFact, BrainOutcome, InjectionPlan, OutcomeObservation, ProposalDraft, RecallCtx,
-    RecallQuery, ScoredFact, StoredBlock,
+    RecallQuery, ScoredFact, StoredBlock, WithheldReason,
 };
 
 use super::errors::{BrainAnalysisError, OutcomeSignalError, RecallError};
@@ -34,6 +36,14 @@ pub trait FactRecallSource: Send + Sync {
         ctx: &RecallCtx,
     ) -> Result<Vec<BrainFact>, RecallError>;
 
+    async fn by_linked(
+        &self,
+        _query: &RecallQuery,
+        _ctx: &RecallCtx,
+    ) -> Result<Vec<BrainFact>, RecallError> {
+        Ok(Vec::new())
+    }
+
     async fn full_text(
         &self,
         query: &RecallQuery,
@@ -46,6 +56,13 @@ pub trait FactRecallSource: Send + Sync {
     ) -> Result<Option<StoredBlock>, RecallError>;
 
     async fn record_recall(&self, receipt: &RecallReceipt) -> Result<(), RecallError>;
+
+    async fn withheld_counts(
+        &self,
+        _ctx: &RecallCtx,
+    ) -> Result<BTreeMap<WithheldReason, u32>, RecallError> {
+        Ok(BTreeMap::new())
+    }
 }
 
 /// An extension retrieval tier (vector search, an external index, a

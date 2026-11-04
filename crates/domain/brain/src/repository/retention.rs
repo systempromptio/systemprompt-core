@@ -11,6 +11,7 @@ use systemprompt_identifiers::BrainFactId;
 use systemprompt_traits::RepositoryError;
 
 use super::Pools;
+use crate::index::release_alias_owners;
 
 #[derive(Debug, Clone)]
 pub struct RetentionRepository {
@@ -27,16 +28,19 @@ impl RetentionRepository {
         cutoff: DateTime<Utc>,
         batch: i64,
     ) -> Result<u64, RepositoryError> {
-        let result = sqlx::query!(
-            "DELETE FROM brain_facts WHERE id IN (
-                 SELECT id FROM brain_facts
-                 WHERE status = 'retired' AND NOT legal_hold AND updated_at < $1 LIMIT $2)",
+        let mut conn = self.pools.write.acquire().await?;
+        let purged = sqlx::query_scalar!(
+            r#"DELETE FROM brain_facts WHERE id IN (
+                   SELECT id FROM brain_facts
+                   WHERE status = 'retired' AND NOT legal_hold AND updated_at < $1 LIMIT $2)
+               RETURNING id AS "id!: BrainFactId""#,
             cutoff,
             batch,
         )
-        .execute(&*self.pools.write)
+        .fetch_all(&mut *conn)
         .await?;
-        Ok(result.rows_affected())
+        release_alias_owners(&mut conn, &purged).await?;
+        Ok(u64::try_from(purged.len()).unwrap_or(u64::MAX))
     }
 
     pub async fn expired(

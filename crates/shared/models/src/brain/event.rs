@@ -32,6 +32,7 @@ impl BrainEventKind {
     pub const REVISION_LANDED: &'static str = "document.revision.landed";
     pub const COMMENT_RESOLVED: &'static str = "document.comment.resolved";
     pub const FACT_ENTERED: &'static str = "brain.fact.entered";
+    pub const SESSION_TURN_CLOSED: &'static str = "session.turn.closed";
 
     pub fn new(value: impl Into<String>) -> Result<Self, BrainEventKindError> {
         let value = value.into();
@@ -54,6 +55,11 @@ impl BrainEventKind {
     #[must_use]
     pub fn fact_entered() -> Self {
         Self(Self::FACT_ENTERED.to_owned())
+    }
+
+    #[must_use]
+    pub fn session_turn_closed() -> Self {
+        Self(Self::SESSION_TURN_CLOSED.to_owned())
     }
 
     #[must_use]
