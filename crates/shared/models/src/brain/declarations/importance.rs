@@ -39,7 +39,11 @@
 //! the shared tier limit, `max_facts × 2` clamped to 8..=50; at most 100).
 //!
 //! The depth knobs: `links_depth` (1 or 2, default 1) is how many
-//! subject hops the linked tier walks from a named subject. At 1 it
+//! subject hops the linked tier walks from a named subject;
+//! `links_require_readable_anchor` (default false) walks only from a
+//! matched subject with at least one fact the reader can read under the
+//! tier predicate (held keys, scope levels, status, time window), so a
+//! subject the reader cannot see bridges nothing. At 1 it
 //! reaches the facts one `brain_fact_links` hop away, as before. At 2 it
 //! also reaches, through the bridges a fact declares between its subject
 //! and the subjects its entity fields name (`brain_subject_links`), the
@@ -183,6 +187,7 @@ pub struct RetrievalDoc {
     pub unknown_name_withholds_full_text: bool,
     pub links_depth: u32,
     pub links_decay: f64,
+    pub links_require_readable_anchor: bool,
     pub reranker_timeout_ms: u32,
 }
 
@@ -216,6 +221,7 @@ impl Default for RetrievalDoc {
             unknown_name_withholds_full_text: false,
             links_depth: 1,
             links_decay: 0.5,
+            links_require_readable_anchor: false,
             reranker_timeout_ms: 150,
         }
     }

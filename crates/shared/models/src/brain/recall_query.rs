@@ -51,6 +51,8 @@ pub struct RecallQuery {
     pub links_depth: u32,
     #[serde(default = "RecallQuery::default_links_decay")]
     pub links_decay: f64,
+    #[serde(default)]
+    pub links_require_readable_anchor: bool,
 }
 
 impl RecallQuery {
@@ -74,6 +76,7 @@ impl RecallQuery {
             alias_longest_wins: false,
             links_depth: Self::default_links_depth(),
             links_decay: Self::default_links_decay(),
+            links_require_readable_anchor: false,
         }
     }
 

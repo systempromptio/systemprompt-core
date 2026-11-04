@@ -4,7 +4,8 @@
 //! engagement fact's client <-> project bridge, scored a decay below the
 //! facts that name the client directly and ordered after them. Depth 1
 //! answers exactly what the one-hop SQL answered over a corpus that has
-//! links.
+//! links. With `links_require_readable_anchor` a client whose every fact
+//! the reader cannot read (here: observed after `as_of`) bridges nothing.
 
 use chrono::Utc;
 use systemprompt_brain::recall::BrainRecallStore;
@@ -96,6 +97,7 @@ fn filter(reader: &UserId, depth: i32) -> TierFilter {
         alias_longest_wins: false,
         links_depth: depth,
         links_decay: retrieval.links_decay,
+        links_require_readable_anchor: false,
     }
 }
 
@@ -211,5 +213,51 @@ async fn at_depth_two_the_clients_question_reaches_the_projects_risk() {
 
     let got = ids(&recall(&h, &admin, "Acme's risks").await);
     assert!(got.contains(&risk), "{got:?}");
+    h.finish().await;
+}
+
+/// Re-observes the client note in the future, so the anchor has no fact
+/// readable at `as_of = now` while the project's facts stay readable.
+async fn hide_the_client(h: &Harness) {
+    let note = fact_of_kind(h, CLIENT, CLIENT_NOTE).await;
+    sqlx::query("UPDATE brain_facts SET observed_at = now() + interval '1 day' WHERE id = $1")
+        .bind(note.as_str())
+        .execute(&h.pg)
+        .await
+        .expect("future-date the client note");
+}
+
+#[tokio::test]
+async fn a_hidden_anchor_bridges_nothing_when_declared_so() {
+    let h = Harness::with("brain_recall_depth_hidden_anchor", Setup::confirming()).await;
+    apply_depth(&h, 2).await;
+    let admin = h.user("admin", &["admin"]).await;
+    seed_bridges(&h, &admin).await;
+    hide_the_client(&h).await;
+    let engagement = fact_of_kind(&h, PROJECT, ENGAGEMENT).await;
+    let risk = fact_of_kind(&h, PROJECT, RISK).await;
+
+    let store = BrainRecallStore::new((*h.repos).clone(), h.profile.recall.stale);
+    let ctx = RecallCtx::new(admin.clone(), RequestActor::Human, Utc::now())
+        .with_held_keys(vec!["org".to_owned(), format!("user:{admin}")]);
+    let walked = RecallQuery {
+        links_depth: 2,
+        ..RecallQuery::new("Acme's risks".to_owned(), 20)
+    };
+    let linked = store.by_linked(&walked, &ctx).await.expect("linked tier");
+    assert_eq!(
+        linked.iter().map(|f| f.id.clone()).collect::<Vec<_>>(),
+        vec![engagement, risk],
+        "without the rule the hidden client still bridges to its project"
+    );
+    let guarded = RecallQuery {
+        links_require_readable_anchor: true,
+        ..walked
+    };
+    let linked = store.by_linked(&guarded, &ctx).await.expect("linked tier");
+    assert!(
+        linked.is_empty(),
+        "a hidden anchor bridges nothing: {linked:?}"
+    );
     h.finish().await;
 }

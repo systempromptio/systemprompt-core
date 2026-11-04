@@ -15,7 +15,12 @@
 //! once keeps its best score, and depth 1 returns exactly the rows the
 //! one-hop query returned. No link is followed from a linked fact and no
 //! bridge from a bridged subject, so the reach is bounded by the
-//! declared depth, never by the graph.
+//! declared depth, never by the graph. With
+//! `links_require_readable_anchor` a matched subject is walked from only
+//! when at least one fact about it passes the tier predicate for this
+//! reader (the working-set probe on the held keys, the scope levels, the
+//! status rule and the time window): a subject the reader cannot see
+//! bridges nothing.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -27,6 +32,10 @@ use systemprompt_traits::RepositoryError;
 use super::TierFilter;
 use super::matched::MatchedSubjects;
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "one query_scalar! literal; the depth-2 branches and the anchor guard are one statement"
+)]
 pub(super) async fn by_linked(
     pool: &PgPool,
     f: &TierFilter,
@@ -39,6 +48,19 @@ pub(super) async fn by_linked(
         r#"WITH matched AS (
                SELECT * FROM unnest($7::text[], $8::text[], $9::float8[])
                AS m(subject_kind, subject_id, score)
+               WHERE NOT $13::bool OR EXISTS (
+                   SELECT 1 FROM brain_facts a
+                   WHERE a.subject_kind = m.subject_kind AND a.subject_id = m.subject_id
+                     AND EXISTS (SELECT 1 FROM brain_working_set w
+                                 WHERE w.fact_id = a.id AND w.scope_key = ANY($1::text[]))
+                     AND a.scope_level = ANY($6::text[])
+                     AND (a.status = 'confirmed'
+                          OR (a.status = 'proposed' AND a.owner_user_id = $2)
+                          OR (a.status = 'stale' AND $3))
+                     AND (a.review_after IS NULL OR a.review_after >= $4)
+                     AND (a.valid_from IS NULL OR a.valid_from <= $4)
+                     AND (a.valid_to IS NULL OR a.valid_to > $4)
+                     AND a.observed_at <= $4)
            ),
            reach AS (
                SELECT l.fact_id AS id, m.score * $10 AS score,
@@ -98,6 +120,7 @@ pub(super) async fn by_linked(
         f.links_weight,
         f.links_depth,
         f.links_decay,
+        f.links_require_readable_anchor,
     )
     .fetch_all(pool)
     .await?)

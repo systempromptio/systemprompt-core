@@ -80,6 +80,7 @@ impl BrainRecallStore {
             alias_longest_wins: false,
             links_depth: i32::try_from(RecallQuery::default_links_depth()).unwrap_or(1),
             links_decay: RecallQuery::default_links_decay(),
+            links_require_readable_anchor: false,
         }
     }
 

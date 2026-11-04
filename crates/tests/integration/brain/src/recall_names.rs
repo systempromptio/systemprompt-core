@@ -36,6 +36,7 @@ fn filter(longest_wins: bool) -> TierFilter {
         alias_longest_wins: longest_wins,
         links_depth: 1,
         links_decay: retrieval.links_decay,
+        links_require_readable_anchor: false,
     }
 }
 

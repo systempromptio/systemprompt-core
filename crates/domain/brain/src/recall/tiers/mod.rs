@@ -61,6 +61,7 @@ pub struct TierFilter {
     pub alias_longest_wins: bool,
     pub links_depth: i32,
     pub links_decay: f64,
+    pub links_require_readable_anchor: bool,
 }
 
 impl TierFilter {
@@ -75,6 +76,7 @@ impl TierFilter {
             .collect();
         self.alias_longest_wins = query.alias_longest_wins;
         self.links_depth = i32::try_from(query.links_depth).unwrap_or(i32::MAX);
+        self.links_require_readable_anchor = query.links_require_readable_anchor;
         self.links_decay = query.links_decay;
         self
     }

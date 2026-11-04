@@ -119,6 +119,7 @@ impl BrainRecallService {
             alias_longest_wins: retrieval.alias_longest_wins,
             links_depth: retrieval.links_depth,
             links_decay: retrieval.links_decay,
+            links_require_readable_anchor: retrieval.links_require_readable_anchor,
         };
         let fan_out = join_all(self.retrievers.iter().map(|r| r.retrieve(&query, ctx)));
         let (core, counts, extension) = tokio::join!(
