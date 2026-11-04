@@ -15,7 +15,10 @@
 //! recorded as `unknown_name`, and the rule reports that it fired so an
 //! asked kind cannot open the context cap for a name the brain does not
 //! know. The signal itself is read from the facts the reader can see:
-//! a subject whose every fact is hidden from the reader names nothing.
+//! a subject whose every fact is hidden from the reader names nothing,
+//! and only the subject tier names one: a fact the linked tier reached
+//! through a hidden subject's bridges is injected if visible, but the
+//! bridge does not stand in for the subject the reader cannot see.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -28,9 +31,9 @@ use systemprompt_models::brain::{
 
 use super::fusion::found_by;
 
-/// What the message gave the tiers to work with: whether the subject or
-/// linked tier found a fact, whether the full-text tier found any, and
-/// whether the message asks a declared kind.
+/// What the message gave the tiers to work with: whether the subject
+/// tier found a fact the reader can see, whether the full-text tier found
+/// one, and whether the message asks a declared kind.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct RecallSignal {
     pub subject_named: bool,
@@ -110,7 +113,7 @@ fn is_name(word: &str) -> bool {
 pub fn signal_of(fused: &[ScoredFact], kind_asked: bool) -> RecallSignal {
     let any = |tier: RetrievalTier| fused.iter().any(|scored| found_by(scored, tier));
     RecallSignal {
-        subject_named: any(RetrievalTier::Subject) || any(RetrievalTier::Linked),
+        subject_named: any(RetrievalTier::Subject),
         full_text_hit: any(RetrievalTier::FullText),
         kind_asked,
     }

@@ -7,7 +7,8 @@
 //! visibility, the reranker ([`super::rerank`], over the visible facts
 //! only, so the fill takes them in the order it gave) and the budget
 //! fill. A recall *names a subject* when the
-//! subject or linked tier returned a fact the reader can see, *has a
+//! subject tier returned a fact the reader can see (a fact the linked
+//! tier reached through a hidden subject's bridges names nothing), *has a
 //! full-text hit* when that tier returned one the reader can see, and
 //! *asks a kind* when the message carries one of a declared kind's ask
 //! words and names nothing unknown ([`RecallSignal`], read after the

@@ -1,9 +1,11 @@
-use systemprompt_brain::recall::signal::{asked_kinds, names, subject_matched, withhold_full_text};
+use systemprompt_brain::recall::signal::{
+    asked_kinds, names, signal_of, subject_matched, withhold_full_text,
+};
 use systemprompt_extension::brain::TierIds;
 use systemprompt_models::brain::{KindDecl, RetrievalTier};
 
 use crate::fixtures::kind;
-use crate::recall_fixtures::id;
+use crate::recall_fixtures::{brain_fact, id, ranked};
 
 fn decl(id: &str, asks: &[&str]) -> KindDecl {
     KindDecl {
@@ -88,4 +90,32 @@ fn withholding_the_full_text_tier_counts_only_the_ids_no_other_tier_found() {
     assert_eq!(tiers[0].ids, vec![id(1)]);
     let named = vec![TierIds::new(RetrievalTier::Linked, vec![id(4)])];
     assert!(subject_matched(&named));
+}
+
+#[test]
+fn only_the_subject_tier_names_a_subject() {
+    let linked_only = [ranked(
+        brain_fact(1, "ownership"),
+        0.8,
+        &[RetrievalTier::Linked],
+    )];
+    let signal = signal_of(&linked_only, false);
+    assert!(
+        !signal.subject_named,
+        "a bridge from a hidden subject names nothing, so the context cap stays closed"
+    );
+    assert!(!signal.any());
+    let subject = [ranked(
+        brain_fact(2, "ownership"),
+        1.0,
+        &[RetrievalTier::Subject],
+    )];
+    assert!(signal_of(&subject, false).subject_named);
+    let text = [ranked(
+        brain_fact(3, "ownership"),
+        0.6,
+        &[RetrievalTier::FullText],
+    )];
+    let signal = signal_of(&text, true);
+    assert!(signal.full_text_hit && signal.kind_asked && !signal.subject_named);
 }
