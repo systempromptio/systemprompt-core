@@ -9,11 +9,13 @@
 
 use chrono::{Duration, Utc};
 use systemprompt_identifiers::BrainFactId;
-use systemprompt_models::brain::{FactRevision, identity_hash, render_statement};
+use systemprompt_models::brain::{FactRevision, render_statement};
 
 use super::{BrainCaller, BrainService, authority};
+use crate::defaults::SchemaValidator;
 use crate::error::{BrainError, BrainResult};
-use crate::models::FactChange;
+use crate::models::{FactChange, merge_fields};
+use crate::pipeline::rules;
 use crate::repository::FactRepository;
 
 impl BrainService {
@@ -69,16 +71,18 @@ impl BrainService {
         caller: &BrainCaller,
         id: &BrainFactId,
         // JSON: edited fields are checked against the kind's template and identity.
-        fields: serde_json::Map<String, serde_json::Value>,
+        edit: serde_json::Map<String, serde_json::Value>,
     ) -> BrainResult<FactRevision> {
         let actor = caller.user_id.clone();
         self.govern(caller, id, |fact, declared| {
             let kind = declared
                 .kind(&fact.kind)
                 .ok_or_else(|| BrainError::UnknownKind(fact.kind.clone()))?;
-            if identity_hash(&fact.kind, &fact.subject, &kind.identity, &fields)
-                != fact.identity_hash
-            {
+            let fields = merge_fields(&fact.fields, edit);
+            if let Some(reason) = SchemaValidator::fields_reason(&fields, kind) {
+                return Err(BrainError::InvalidFields(reason));
+            }
+            if rules::identity_of(kind, &fact.subject, &fields) != fact.identity_hash {
                 return Err(BrainError::Forbidden {
                     reason: "an edit may not change the fact's identity fields".to_owned(),
                 });

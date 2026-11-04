@@ -1,6 +1,6 @@
 //! `AiService`: the type, its accessors and its
-//! [`systemprompt_models::ai::AiProvider`] bridge; construction, routing and
-//! audit writes live in the submodules.
+//! [`systemprompt_models::ai::AiProvider`] bridge; construction, routing,
+//! embeddings and audit writes live in the submodules.
 //!
 //! The in-process default is `gateway.default_model` served by its first
 //! deployment that has a client, so there is no separate default provider to
@@ -12,6 +12,7 @@
 
 mod audit;
 mod construct;
+mod embedding;
 mod provider;
 mod routing;
 
@@ -22,6 +23,8 @@ use systemprompt_manifest::services::catalog::ResolvedCatalog;
 use systemprompt_security::credential::TokenCache;
 use systemprompt_traits::{DynAiSessionProvider, ToolProvider};
 use tokio_util::task::TaskTracker;
+
+pub use embedding::Embedded;
 
 use super::clients::ProviderClients;
 use crate::services::core::request_storage::RequestStorage;

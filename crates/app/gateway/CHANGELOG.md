@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.78.0] - 2026-11-04
+
+### Breaking
+
+- **Breaking:** `GatewayRepositories` gains `brain_session`. Migrate struct literals by adding `brain_session: None`, or use the constructor and `with_brain_session`.
+
+### Added
+
+- The session pathway's producer, `audit::session::SessionCapture`: a `session.turn.closed` brain event written after each completed turn when `capture.sources` lists `session` and `brain.capture.session.enabled` is on, with each text bounded by `capture.session.max_chars`. Internal requests are never captured.
+- `GatewayClient` attributes a brain model call by its purpose: `brain.consolidate` for the consolidation job, `brain.extract` otherwise.
+
+### Changed
+
+- A recall that misses its deadline injects nothing and is audited `skipped=deadline`, but keeps running in the background and records the block it produces on that same row, so the turn's next request reuses it. A deadline miss lands exactly one recall row.
+
 ## [0.77.0] - 2026-11-01
 
 ### Breaking

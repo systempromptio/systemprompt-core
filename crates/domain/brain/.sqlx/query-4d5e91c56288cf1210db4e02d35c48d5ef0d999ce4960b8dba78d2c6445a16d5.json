@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE brain_facts f\n             SET usage_cited_rate = u.cited,\n                 usage_ignored_rate = u.ignored,\n                 usage_updated_at = now()\n             FROM unnest($1::text[], $2::float8[], $3::float8[]) AS u(id, cited, ignored)\n             WHERE f.id = u.id AND f.id = ANY($1)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "TextArray",
+        "Float8Array",
+        "Float8Array"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4d5e91c56288cf1210db4e02d35c48d5ef0d999ce4960b8dba78d2c6445a16d5"
+}

@@ -4,6 +4,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use super::consolidate::FactConsolidator;
 use super::retrieval::{BrainAnalysis, FactRetriever, InjectionPolicy, OutcomeSignal};
 use super::traits::{EventFilter, FactExtractor, FactValidator, ImportanceModel, SourceContent};
 use crate::seam::seam_registration;
@@ -48,6 +49,11 @@ seam_registration!(
     BrainAnalysisRegistration,
     BrainAnalysis,
     discover_brain_analyses
+);
+seam_registration!(
+    BrainConsolidatorRegistration,
+    FactConsolidator,
+    discover_brain_consolidators
 );
 
 #[macro_export]
@@ -110,5 +116,12 @@ macro_rules! register_brain_outcome_signal {
 macro_rules! register_brain_analysis {
     ($($args:tt)*) => {
         $crate::__register_seam!(brain, BrainAnalysisRegistration, BrainAnalysis, $($args)*);
+    };
+}
+
+#[macro_export]
+macro_rules! register_brain_consolidator {
+    ($($args:tt)*) => {
+        $crate::__register_seam!(brain, BrainConsolidatorRegistration, FactConsolidator, $($args)*);
     };
 }

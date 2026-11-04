@@ -48,7 +48,9 @@ pub fn status_for(
             EnteredStatus::Candidate => FactStatus::Candidate,
             EnteredStatus::Proposed => FactStatus::Proposed,
         },
-        EventPayload::Revision(_) | EventPayload::Comment(_) => FactStatus::Proposed,
+        EventPayload::Revision(_) | EventPayload::Comment(_) | EventPayload::Session(_) => {
+            FactStatus::Proposed
+        },
     }
 }
 

@@ -48,9 +48,9 @@ mod validation;
 mod vault;
 
 pub use brain::{
-    AutoConfirm, AutoConfirmPolicy, BrainCaptureProfile, BrainConsumerProfile,
-    BrainExtractionProfile, BrainLifecycleProfile, BrainProfile, BrainRecallProfile, CaptureSource,
-    StalePolicy,
+    AutoConfirm, AutoConfirmPolicy, BrainCaptureProfile, BrainConsolidationProfile,
+    BrainConsumerProfile, BrainExtractionProfile, BrainLifecycleProfile, BrainProfile,
+    BrainRecallProfile, BrainSessionCaptureProfile, CaptureSource, StalePolicy,
 };
 pub use cloud::{CloudConfig, CloudValidationMode, HostingProvider, UnknownHostingProvider};
 pub use config_planes::{ConfigPlanesConfig, PlaneAuthority};
@@ -111,7 +111,6 @@ pub use vault::{
 
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::ExtensionId;
-
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]

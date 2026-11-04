@@ -2,6 +2,8 @@
 mod anthropic;
 mod canonical_bridge;
 mod cost_estimation;
+mod embeddings_batching;
+mod embeddings_http;
 mod gemini;
 mod gemini_image_wire;
 mod gemini_images_http;

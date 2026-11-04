@@ -1,17 +1,17 @@
 //! The `brain` config plane.
 //!
 //! `services/brain/` holds `topics.yaml`, `filters.yaml`, `importance.yaml`,
-//! `retrieval.yaml` and one declaration per file under `kinds/`,
-//! `interests/` and `profiles/`. Together they parse into a
+//! `retrieval.yaml`, `synonyms.yaml` and one declaration per file under
+//! `kinds/`, `interests/` and `profiles/`. Together they parse into a
 //! [`DeclaredBrain`], are validated as one `BrainDocs`, and project into
 //! `brain_fact_kinds`, `brain_topics`, `brain_interests`, `brain_workflows`
 //! and `brain_config_docs`.
 //!
 //! Entities are keyed `kind/<id>`, `topic/<id>`, `interest/<id>`,
-//! `workflow/<id>` and `doc/{filters,importance,retrieval}`; each value is
-//! the declaration's canonical JSON and each declared entity's origin is the
-//! file that declares it. The database side decodes every row through the
-//! same typed declaration, so a file-applied and a console-applied
+//! `workflow/<id>` and `doc/{filters,importance,retrieval,synonyms}`; each
+//! value is the declaration's canonical JSON and each declared entity's origin
+//! is the file that declares it. The database side decodes every row through
+//! the same typed declaration, so a file-applied and a console-applied
 //! configuration canonicalise, and hash ([`declared_hash_from_rows`]),
 //! identically. No `services/brain/` directory leaves the database
 //! authoritative.
@@ -25,6 +25,7 @@
 mod entities;
 mod files;
 mod hash;
+mod reindex;
 mod write;
 
 use std::path::Path;
@@ -40,6 +41,7 @@ use systemprompt_manifest::services::brain::BRAIN_DIR;
 pub use entities::DeclaredBrain;
 pub use files::render_files;
 pub use hash::{PlaneRows, current_pipeline_version, declared_hash_from_rows, load_declared_state};
+pub use reindex::Rebuilds;
 
 pub const BRAIN_PLANE: &str = "brain";
 
@@ -114,20 +116,21 @@ impl ConfigPlane for BrainPlane {
 
     async fn write(
         &self,
-        _ctx: &PlaneContext<'_>,
+        ctx: &PlaneContext<'_>,
         tx: &mut PlaneTx<'_>,
         entities: &ResolvedEntities,
     ) -> ConfigPlaneResult<ApplyOutcome> {
         let tx = tx.get::<PlaneTransaction>()?;
         let mut outcome = ApplyOutcome::default();
         for (key, resolved) in entities {
-            write::write_entity(tx, key, resolved).await?;
+            write::write_entity(ctx, tx, key, resolved).await?;
             if resolved.value.is_some() {
                 outcome.updated += 1;
             } else {
                 outcome.deleted += 1;
             }
         }
+        reindex::after_write(tx, entities).await?;
         Ok(outcome)
     }
 

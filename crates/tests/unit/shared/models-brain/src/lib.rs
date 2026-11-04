@@ -18,4 +18,8 @@ mod source;
 #[cfg(test)]
 mod statement;
 #[cfg(test)]
+mod subject;
+#[cfg(test)]
+mod synonyms;
+#[cfg(test)]
 mod version;

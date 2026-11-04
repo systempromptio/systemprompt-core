@@ -109,6 +109,7 @@ pub(crate) fn entered(
         scope,
         topics: Vec::new(),
         status: EnteredStatus::Proposed,
+        observed_at: None,
     }
     .to_event(who.clone(), Utc::now())
     .expect("entered event")

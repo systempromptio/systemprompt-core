@@ -4,14 +4,17 @@
 //! brain consumer holds only `Arc<dyn BrainModelClient>` and never links a
 //! provider or the gateway. Each call is a single user turn with the prompt's
 //! system text, a strict JSON Schema response format and the request's output
-//! cap, attributed `purpose=brain.extract`.
+//! cap, attributed by the request's `purpose`: `brain.consolidate` for the
+//! consolidation job, `brain.extract` for everything else.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use http::StatusCode;
 use systemprompt_extension::brain::{BrainModelClient, BrainModelError};
-use systemprompt_models::brain::{BrainModelRequest, BrainModelResponse};
+use systemprompt_models::brain::{
+    BRAIN_CONSOLIDATE_PURPOSE, BrainModelRequest, BrainModelResponse,
+};
 
 use super::GatewayClient;
 use super::error::{DecodeError, GatewayClientError};
@@ -31,6 +34,7 @@ impl BrainModelClient for GatewayClient {
             .default_model()
             .cloned()
             .ok_or(BrainModelError::Unavailable)?;
+        let purpose = purpose_of(&request.purpose);
         let mut canonical = CanonicalRequest::new(
             model,
             vec![CanonicalMessage {
@@ -45,7 +49,7 @@ impl BrainModelClient for GatewayClient {
             schema: request.json_schema.schema,
             strict: true,
         });
-        let completion = Self::complete(self, canonical, BRAIN_EXTRACT_PURPOSE)
+        let completion = Self::complete(self, canonical, purpose)
             .await
             .map_err(brain_error)?;
         Ok(BrainModelResponse {
@@ -56,6 +60,14 @@ impl BrainModelClient for GatewayClient {
             output_tokens: completion.usage.output_tokens,
             ai_request_id: Some(completion.ai_request_id),
         })
+    }
+}
+
+fn purpose_of(purpose: &str) -> &'static str {
+    if purpose == BRAIN_CONSOLIDATE_PURPOSE {
+        BRAIN_CONSOLIDATE_PURPOSE
+    } else {
+        BRAIN_EXTRACT_PURPOSE
     }
 }
 

@@ -172,7 +172,8 @@ impl RecallPreviewHandler<'_> {
             .with_subject_hints(&input.prompt)
             .with_budget_tokens(recall.budget_tokens)
             .with_deadline(Duration::from_millis(recall.deadline_ms))
-            .with_reuse(ReuseHint::NewTurn))
+            .with_reuse(ReuseHint::NewTurn)
+            .with_as_of(input.as_of))
     }
 }
 

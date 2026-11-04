@@ -91,6 +91,56 @@ fn score_applies_workflow_recency_subject_and_usage() {
 }
 
 #[test]
+fn the_default_usage_weights_reward_citation_and_penalise_neglect() {
+    let config = ImportanceConfig::default();
+    assert!(close(config.in_context.usage.cited_rate_weight, 0.2));
+    assert!(close(config.in_context.usage.ignored_penalty, 0.1));
+    let commitment = kind("commitment");
+    let shown = InContextTerms {
+        base: 1.0,
+        kind: &commitment,
+        workflow: None,
+        age_days: 0.0,
+        subject_matched: false,
+        cited_rate: 0.75,
+        ignored_rate: 0.25,
+    };
+    let unshown = InContextTerms {
+        cited_rate: 0.5,
+        ignored_rate: 0.5,
+        ..shown.clone()
+    };
+    assert!(close(
+        FormulaImportance::score(&shown, &config),
+        1.0 + 0.15 - 0.025
+    ));
+    assert!(close(
+        FormulaImportance::score(&unshown, &config),
+        1.0 + 0.1 - 0.05
+    ));
+}
+
+#[test]
+fn in_context_reads_the_stored_usage_rates() {
+    use systemprompt_models::auth::RequestActor;
+    use systemprompt_models::brain::RecallCtx;
+
+    let mut fact = crate::recall_fixtures::brain_fact(1, "commitment");
+    fact.importance_base = 1.0;
+    fact.usage_cited_rate = 0.5;
+    fact.usage_ignored_rate = 0.5;
+    let ctx = RecallCtx::new(
+        crate::fixtures::user("u1"),
+        RequestActor::Human,
+        fact.updated_at,
+    );
+    let score = FormulaImportance
+        .in_context(&fact, &ctx, &config())
+        .expect("core formula always scores");
+    assert!(close(score, 1.0 + 0.5 * 0.4 - 0.5 * 0.2), "{score}");
+}
+
+#[test]
 fn an_unconfirmed_candidate_never_earns_the_owner_bonus() {
     let config = config();
     let candidate = valid_candidate();

@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM brain_aliases WHERE owner_fact_id = ANY($1::text[])\n             RETURNING subject_kind, alias_norm",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "subject_kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "brain_aliases",
+            "name": "subject_kind"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "alias_norm",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "brain_aliases",
+            "name": "alias_norm"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "TextArray"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "1ecfbde212eeffd1de66be68413488c7021a08d5cf3216bbe5281e9977456423"
+}

@@ -14,6 +14,11 @@
 //! as `AgentCapped`. Session and run facts stay private until confirmed.
 //! Membership a resolver cannot decide is not membership.
 //!
+//! With the recall's [`HeldKeys`] attached, a role or dimension subject is
+//! answered from the keys a resolver enumerated once per recall instead
+//! of a membership query per fact; a subject handled only by a resolver
+//! that could not enumerate still goes to that resolver.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -30,6 +35,8 @@ use systemprompt_models::brain::{
     WithheldReason,
 };
 use systemprompt_models::notifications::AudienceSubject;
+
+use super::held::HeldKeys;
 
 pub const GROUP_DIMENSION: &str = "group";
 pub const PERSON_SUBJECT_KIND: &str = "user";
@@ -48,6 +55,7 @@ pub struct Visibility {
     audiences: Vec<Arc<dyn NotificationAudienceResolver>>,
     topics: Vec<TopicDecl>,
     source_timeout: Duration,
+    held: Option<HeldKeys>,
 }
 
 impl std::fmt::Debug for Visibility {
@@ -56,6 +64,7 @@ impl std::fmt::Debug for Visibility {
             .field("audiences", &self.audiences.len())
             .field("topics", &self.topics.len())
             .field("source_timeout", &self.source_timeout)
+            .field("held", &self.held)
             .finish_non_exhaustive()
     }
 }
@@ -68,7 +77,14 @@ impl Visibility {
             audiences: Vec::new(),
             topics: Vec::new(),
             source_timeout,
+            held: None,
         }
+    }
+
+    #[must_use]
+    pub fn with_held(mut self, held: HeldKeys) -> Self {
+        self.held = Some(held);
+        self
     }
 
     #[must_use]
@@ -152,9 +168,19 @@ impl Visibility {
             AudienceSubject::User(user) => return user == &principal.user_id,
             AudienceSubject::Role(_) | AudienceSubject::Dimension { .. } => {},
         }
+        if self.held.as_ref().is_some_and(|held| held.holds(subject)) {
+            return true;
+        }
         let Some(resolver) = self.audiences.iter().find(|r| r.handles(subject)) else {
             return false;
         };
+        if self
+            .held
+            .as_ref()
+            .is_some_and(|held| held.enumerated_by(resolver.name()))
+        {
+            return false;
+        }
         matches!(
             resolver.is_member(subject, &principal.user_id).await,
             Ok(Membership::Member)
@@ -214,13 +240,13 @@ pub fn lifecycle_withheld(
     if fact.is_review_due(now) {
         return Some(WithheldReason::ReviewDue);
     }
+    if fact.status == FactStatus::Disputed {
+        return Some(WithheldReason::Disputed);
+    }
     if !fact.is_valid_at(now)
         || matches!(
             fact.status,
-            FactStatus::Candidate
-                | FactStatus::Retired
-                | FactStatus::Superseded
-                | FactStatus::Disputed
+            FactStatus::Candidate | FactStatus::Retired | FactStatus::Superseded
         )
     {
         return Some(WithheldReason::Scope);

@@ -20,6 +20,7 @@ pub struct NewFact {
     pub statement_hash: String,
     pub status: FactStatus,
     pub importance_base: f64,
+    pub observed_at: Option<DateTime<Utc>>,
     pub valid_from: Option<DateTime<Utc>>,
     pub valid_to: Option<DateTime<Utc>>,
     pub review_after: Option<DateTime<Utc>>,
@@ -47,6 +48,7 @@ impl NewFact {
                 identity_hash: identity_hash.into(),
                 status: FactStatus::Candidate,
                 importance_base: 0.0,
+                observed_at: None,
                 valid_from: None,
                 valid_to: None,
                 review_after: None,
@@ -74,6 +76,12 @@ impl NewFactBuilder {
     #[must_use]
     pub const fn importance_base(mut self, importance_base: f64) -> Self {
         self.fact.importance_base = importance_base;
+        self
+    }
+
+    #[must_use]
+    pub const fn observed_at(mut self, observed_at: Option<DateTime<Utc>>) -> Self {
+        self.fact.observed_at = observed_at;
         self
     }
 

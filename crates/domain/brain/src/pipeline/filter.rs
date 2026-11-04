@@ -95,5 +95,6 @@ const fn capture_source(pathway: Pathway) -> CaptureSource {
         Pathway::DocumentRevision => CaptureSource::Document,
         Pathway::CommentResolved => CaptureSource::Comment,
         Pathway::Entered => CaptureSource::Entered,
+        Pathway::Session => CaptureSource::Session,
     }
 }

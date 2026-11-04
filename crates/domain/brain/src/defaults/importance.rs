@@ -8,9 +8,10 @@
 //! usage`, with `recency = 0.5^(age_days / half_life_days)` and `usage =
 //! cited_rate × cited_rate_weight − ignored_rate × ignored_penalty`.
 //!
-//! The seam's `in_context` sees no tier ranks or usage history, so it
-//! scores with no subject match and zero usage; recall itself scores
-//! through `recall::score`, which knows whether the subject tier matched.
+//! The seam's `in_context` sees no tier ranks, so it scores with no
+//! subject match; the usage rates come from the fact's `usage_*` columns,
+//! written by the daily `brain_usage` job. Recall itself scores through
+//! `recall::score`, which knows whether the subject tier matched.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -112,8 +113,8 @@ impl ImportanceModel for FormulaImportance {
             workflow: ctx.workflow.as_ref(),
             age_days: age_days(fact, ctx),
             subject_matched: false,
-            cited_rate: 0.0,
-            ignored_rate: 0.0,
+            cited_rate: fact.usage_cited_rate,
+            ignored_rate: fact.usage_ignored_rate,
         };
         Some(Self::score(&terms, config))
     }
@@ -125,5 +126,5 @@ const MINUTES_PER_DAY: f64 = 1_440.0;
 pub fn age_days(fact: &BrainFact, ctx: &RecallCtx) -> f64 {
     let minutes =
         u32::try_from((ctx.now - fact.updated_at).num_minutes().max(0)).unwrap_or(u32::MAX);
-    f64::from(minutes) / MINUTES_PER_DAY
+    (f64::from(minutes) / MINUTES_PER_DAY).floor()
 }

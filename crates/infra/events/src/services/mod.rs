@@ -10,6 +10,7 @@ mod bridge_replay;
 mod broadcaster;
 pub mod cache_invalidation;
 pub mod durable;
+mod durable_batch;
 mod origin;
 mod outbox_channel;
 mod repository;

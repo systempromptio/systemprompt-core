@@ -68,7 +68,7 @@ impl AnalysisRepository {
                    FROM brain_recalls r
                    CROSS JOIN LATERAL jsonb_array_elements(r.injected) AS e(item)
                    JOIN brain_facts f ON f.id = e.item->>'id'
-                   WHERE r.created_at >= $1 AND r.created_at < $2
+                   WHERE r.created_at >= $1 AND r.created_at < $2 AND r.skipped IS NULL
                    GROUP BY f.kind
                ), cited AS (
                    SELECT f.kind, count(*) AS n
@@ -108,7 +108,7 @@ impl AnalysisRepository {
                    FROM brain_recalls r
                    CROSS JOIN LATERAL jsonb_array_elements(r.injected) AS e(item)
                    JOIN brain_facts f ON f.id = e.item->>'id'
-                   WHERE r.created_at >= $1 AND r.created_at < $2
+                   WHERE r.created_at >= $1 AND r.created_at < $2 AND r.skipped IS NULL
                    GROUP BY r.workflow, f.kind
                ), cited AS (
                    SELECT r.workflow, f.kind, count(*) AS n

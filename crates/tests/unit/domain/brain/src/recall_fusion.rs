@@ -1,4 +1,4 @@
-use systemprompt_brain::recall::fusion::{TierHits, boost, found_by, fuse};
+use systemprompt_brain::recall::fusion::{TierHits, found_by, fuse};
 use systemprompt_models::brain::{RetrievalTier, TierWeights};
 
 use crate::recall_fixtures::{brain_fact, id};
@@ -9,6 +9,7 @@ fn equal_weights() -> TierWeights {
     TierWeights {
         pinned: 1.0,
         subject: 1.0,
+        linked: 1.0,
         context: 1.0,
         full_text: 1.0,
         extension: 1.0,
@@ -82,18 +83,47 @@ fn a_zero_weight_tier_adds_nothing() {
 }
 
 #[test]
-fn extension_ranking_reorders_known_facts_and_ignores_unknown_ids() {
-    let mut fused = fuse(
-        vec![TierHits::new(
-            RetrievalTier::FullText,
-            vec![brain_fact(1, "a"), brain_fact(2, "a")],
-        )],
-        &equal_weights(),
+fn an_extension_tier_fuses_like_any_other_and_a_zero_weight_adds_nothing() {
+    let tiers = || {
+        vec![
+            TierHits::new(
+                RetrievalTier::FullText,
+                vec![brain_fact(1, "a"), brain_fact(2, "a")],
+            ),
+            TierHits::new(
+                RetrievalTier::Extension,
+                vec![brain_fact(7, "a"), brain_fact(2, "a")],
+            ),
+        ]
+    };
+    let fused = fuse(tiers(), &equal_weights(), K);
+    assert_eq!(fused.len(), 3);
+    assert_eq!(fused[0].fact.id, id(2));
+    assert!((fused[0].score - (1.0 / 62.0 + 1.0 / 62.0)).abs() < 1e-12);
+    assert_eq!(
+        fused[1].fact.id,
+        id(1),
+        "a core rank-1 hit before the extension-only one"
+    );
+    assert_eq!(fused[2].fact.id, id(7));
+    assert!((fused[2].score - 1.0 / 61.0).abs() < 1e-12);
+    assert!(found_by(&fused[2], RetrievalTier::Extension));
+    assert!(!found_by(&fused[1], RetrievalTier::Extension));
+
+    let zero = fuse(tiers(), &TierWeights::default(), K);
+    let core_only = fuse(
+        tiers().into_iter().take(1).collect(),
+        &TierWeights::default(),
         K,
     );
-    boost(&mut fused, &[id(7), id(2)], &equal_weights(), K);
-    assert_eq!(fused.len(), 2);
-    assert_eq!(fused[0].fact.id, id(2));
-    assert!(found_by(&fused[0], RetrievalTier::Extension));
-    assert!(!found_by(&fused[1], RetrievalTier::Extension));
+    assert_eq!(
+        zero.len(),
+        3,
+        "fusion keeps the fact; the recall skips the tier at weight zero"
+    );
+    assert!(zero[2].score.abs() < f64::EPSILON);
+    for (with, without) in zero.iter().zip(&core_only) {
+        assert_eq!(with.fact.id, without.fact.id);
+        assert!((with.score - without.score).abs() < f64::EPSILON);
+    }
 }

@@ -32,6 +32,7 @@ pub use override_rule::{OverrideRuleAction, SystemPromptRule};
 pub use route::{
     GatewayRoute, ModelGlobs, ResponseFormatKind, RouteAlias, RouteDeployment, RouteMatch,
     RouteRequirements, SelectionStrategy, WeightedDeployment, estimate_input_tokens,
+    estimate_text_tokens,
 };
 pub use route_id::{slugify_pattern, synthesize_route_id};
 pub use state::GatewayState;

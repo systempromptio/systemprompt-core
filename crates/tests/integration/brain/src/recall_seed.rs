@@ -1,3 +1,4 @@
+use systemprompt_brain::repository::WorkingSetRepository;
 use systemprompt_identifiers::{BrainFactId, UserId};
 use systemprompt_models::brain::FactScope;
 
@@ -34,6 +35,15 @@ async fn set(h: &Harness, sql: &'static str, id: &BrainFactId) {
         .execute(&h.pg)
         .await
         .expect("age the fact");
+}
+
+/// Rebuilds the working-set projection after raw SQL touched the facts;
+/// a test that updates scope, topics or status by hand calls this.
+pub(crate) async fn refresh_working_set(h: &Harness) {
+    let mut conn = h.pg.acquire().await.expect("connection");
+    WorkingSetRepository::rebuild_all(&mut conn)
+        .await
+        .expect("working set rebuild");
 }
 
 pub(crate) async fn seed(h: &Harness) -> Seeded {
@@ -97,6 +107,7 @@ pub(crate) async fn seed(h: &Harness) -> Seeded {
         &excluded[3],
     )
     .await;
+    refresh_working_set(h).await;
     Seeded {
         reader,
         pinned,

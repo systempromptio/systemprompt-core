@@ -73,6 +73,8 @@ pub struct FieldDecl {
     pub entity_ref: Option<String>,
     #[serde(default)]
     pub values: Vec<String>,
+    #[serde(default)]
+    pub alias: bool,
 }
 
 /// The fields a candidate must carry before it is worth keeping.

@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE brain_facts f SET search_weighted =\n                  setweight(to_tsvector('simple',\n                      f.subject_id || ' ' || COALESCE((\n                          SELECT string_agg(f.fields ->> i, ' ')\n                          FROM jsonb_array_elements_text(COALESCE(k.body -> 'identity', '[]'::jsonb)) i\n                          WHERE f.fields ? i), '')), 'A')\n                  || setweight(to_tsvector('simple', COALESCE((\n                          SELECT string_agg(e.value, ' ')\n                          FROM jsonb_each_text(f.fields) e\n                          WHERE NOT COALESCE(k.body -> 'identity', '[]'::jsonb) ? e.key), '')), 'B')\n                  || setweight(to_tsvector('simple', f.statement || ' ' || x.expansion), 'C')\n              FROM unnest($1::text[], $2::text[]) AS x(id, expansion)\n              JOIN brain_facts f2 ON f2.id = x.id\n              LEFT JOIN brain_fact_kinds k ON k.id = f2.kind\n              WHERE f.id = x.id",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "TextArray",
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "af88764e88099637a974c597764774af7ec84eccf35470ac5f563533b47551df"
+}

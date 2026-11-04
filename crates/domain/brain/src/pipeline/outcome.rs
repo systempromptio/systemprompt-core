@@ -8,11 +8,11 @@ use sqlx::PgConnection;
 use systemprompt_identifiers::BrainFactId;
 
 use super::candidate::CandidateResult;
-use super::context::BatchContext;
 use super::extract::Unreadable;
-use super::metrics;
 use super::normalise::Normalised;
 use super::persist::{Effect, Persisted};
+use super::round::DedupeWrite;
+use super::{ProcessParams, metrics};
 use crate::error::BrainResult;
 use crate::models::{EventOutcome, EventResult, NewFailure};
 use crate::repository::{EventResultRepository, FailureRepository};
@@ -75,7 +75,8 @@ impl Tally {
 }
 
 /// The finished record of one event, with the facts its stored candidates
-/// landed on.
+/// landed on, the dedupe writes it committed for the round cache, and its
+/// result row when the round writes the ledger as a set.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EventSummary {
     pub outcome: EventOutcome,
@@ -83,6 +84,8 @@ pub struct EventSummary {
     pub staled: usize,
     pub tally: Tally,
     pub facts: Vec<BrainFactId>,
+    pub writes: Vec<DedupeWrite>,
+    pub result: Option<EventResult>,
 }
 
 impl Default for EventSummary {
@@ -93,6 +96,8 @@ impl Default for EventSummary {
             staled: 0,
             tally: Tally::default(),
             facts: Vec::new(),
+            writes: Vec::new(),
+            result: None,
         }
     }
 }
@@ -125,25 +130,29 @@ pub enum ProcessOutcome {
 
 pub(super) async fn finish(
     conn: &mut PgConnection,
-    ctx: &BatchContext,
+    params: &ProcessParams<'_>,
     event: &Normalised,
-    summary: EventSummary,
+    mut summary: EventSummary,
 ) -> BrainResult<ProcessOutcome> {
     let result = EventResult {
         outbox_id: event.envelope.outbox_id.clone(),
-        pipeline_version: ctx.version().clone(),
+        pipeline_version: params.ctx.version().clone(),
         outcome: summary.outcome,
         filter: summary.filter.clone(),
         facts_written: summary.tally.written,
     };
-    EventResultRepository::finish(conn, &result).await?;
+    if params.round.is_some() {
+        summary.result = Some(result);
+    } else {
+        EventResultRepository::finish(conn, &result).await?;
+    }
     metrics::event(summary.outcome.as_str());
     Ok(ProcessOutcome::Finished(summary))
 }
 
 pub(super) async fn unreadable(
     conn: &mut PgConnection,
-    ctx: &BatchContext,
+    params: &ProcessParams<'_>,
     event: &Normalised,
     summary: EventSummary,
     reason: Unreadable,
@@ -151,11 +160,11 @@ pub(super) async fn unreadable(
     tracing::warn!(outbox_id = %event.envelope.outbox_id, reason = %reason, "Brain source unreadable");
     let failure = NewFailure {
         outbox_id: event.envelope.outbox_id.clone(),
-        pipeline_version: Some(ctx.version().clone()),
+        pipeline_version: Some(params.ctx.version().clone()),
         stage: SOURCE_STAGE,
         reason: reason.to_string(),
         attempt: 1,
     };
     FailureRepository::record(&mut *conn, &failure).await?;
-    finish(conn, ctx, event, summary.with(EventOutcome::Rejected)).await
+    finish(conn, params, event, summary.with(EventOutcome::Rejected)).await
 }

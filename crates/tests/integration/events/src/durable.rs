@@ -56,6 +56,12 @@ async fn transactional_delivery_preserves_sse_and_recovers_processing() {
     .await
     .unwrap();
     sqlx::raw_sql(include_str!(
+        "../../../../infra/events/schema/event_outbox_backlog.sql"
+    ))
+    .execute(&pool)
+    .await
+    .unwrap();
+    sqlx::raw_sql(include_str!(
         "../../../../infra/events/schema/migrations/004_durable_consumption.sql"
     ))
     .execute(&pool)

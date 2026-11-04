@@ -1,0 +1,21 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT compact_event_outbox_backlog() AS \"compacted!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "compacted!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "1c9d7ec5217a997ca8fc9bf0f884aadb899a5700c5d7e1938c815710ae06eb2a"
+}

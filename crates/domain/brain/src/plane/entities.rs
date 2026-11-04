@@ -9,8 +9,8 @@ use serde::Serialize;
 use serde::de::DeserializeOwned;
 use systemprompt_extension::prelude::{ConfigPlaneResult, DeclaredState, PlaneSnapshot};
 use systemprompt_models::brain::{
-    BrainDocs, FiltersDoc, ImportanceConfig, InterestDecl, KindDecl, RetrievalDoc, TopicDecl,
-    TopicsDoc, WorkflowProfileDecl,
+    BrainDocs, FiltersDoc, ImportanceConfig, InterestDecl, KindDecl, RetrievalDoc, SynonymsDoc,
+    TopicDecl, TopicsDoc, WorkflowProfileDecl,
 };
 
 use super::hash::PlaneRows;
@@ -25,9 +25,10 @@ pub(crate) const DOC: &str = "doc";
 pub(crate) const FILTERS_DOC: &str = "filters";
 pub(crate) const IMPORTANCE_DOC: &str = "importance";
 pub(crate) const RETRIEVAL_DOC: &str = "retrieval";
+pub(crate) const SYNONYMS_DOC: &str = "synonyms";
 
-/// Every brain declaration as typed values; a scoring document absent from
-/// the files or the database is `None`.
+/// Every brain declaration as typed values; a scoring or synonyms document
+/// absent from the files or the database is `None`.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct DeclaredBrain {
     pub kinds: Vec<KindDecl>,
@@ -37,6 +38,7 @@ pub struct DeclaredBrain {
     pub filters: Option<FiltersDoc>,
     pub importance: Option<ImportanceConfig>,
     pub retrieval: Option<RetrievalDoc>,
+    pub synonyms: Option<SynonymsDoc>,
 }
 
 impl DeclaredBrain {
@@ -63,6 +65,7 @@ impl DeclaredBrain {
         self.filters = other.filters.or_else(|| self.filters.take());
         self.importance = other.importance.or_else(|| self.importance.take());
         self.retrieval = other.retrieval.or_else(|| self.retrieval.take());
+        self.synonyms = other.synonyms.or_else(|| self.synonyms.take());
     }
 
     pub fn entity_list(&self) -> Result<Vec<(String, String)>, serde_json::Error> {
@@ -87,6 +90,9 @@ impl DeclaredBrain {
         }
         if let Some(doc) = &self.retrieval {
             out.push(entry(DOC, RETRIEVAL_DOC, doc)?);
+        }
+        if let Some(doc) = &self.synonyms {
+            out.push(entry(DOC, SYNONYMS_DOC, doc)?);
         }
         Ok(out)
     }
@@ -126,6 +132,9 @@ impl DeclaredBrain {
                 (DOC, RETRIEVAL_DOC) => {
                     brain.retrieval = Some(serde_json::from_str(value).map_err(fail)?);
                 },
+                (DOC, SYNONYMS_DOC) => {
+                    brain.synonyms = Some(serde_json::from_str(value).map_err(fail)?);
+                },
                 _ => return Err(invalid(key, &"unknown entity kind")),
             }
         }
@@ -145,6 +154,7 @@ impl DeclaredBrain {
                 FILTERS_DOC => brain.filters = Some(decode(row)?),
                 IMPORTANCE_DOC => brain.importance = Some(decode(row)?),
                 RETRIEVAL_DOC => brain.retrieval = Some(decode(row)?),
+                SYNONYMS_DOC => brain.synonyms = Some(decode(row)?),
                 _ => {},
             }
         }

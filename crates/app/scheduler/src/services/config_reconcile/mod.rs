@@ -29,6 +29,7 @@ use std::time::Duration;
 
 use systemprompt_provider_contracts::{ConfigPlane, Dependencies};
 use systemprompt_runtime::{AppContext, ConfigPlaneSet};
+use systemprompt_traits::AppContext as _;
 
 use crate::error::{SchedulerError, SchedulerResult};
 use crate::repository::{ConfigReconcileRepository, PlaneStateRow, PlaneStateUpdate};
@@ -65,11 +66,14 @@ impl ConfigReconcileService {
         ctx: &Arc<AppContext>,
         repository: ConfigReconcileRepository,
     ) -> SchedulerResult<Self> {
-        let dependencies = Dependencies::new()
+        let mut dependencies = Dependencies::new()
             .with(Arc::clone(ctx.db_pool()))
             .with(ctx.services_state().view())
             .with(ctx.secrets().get())
             .with(Arc::clone(ctx));
+        if let Some(users) = ctx.user_provider() {
+            dependencies.insert(users);
+        }
         Ok(Self::new(ctx.config_planes()?, repository, dependencies))
     }
 

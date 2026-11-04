@@ -1,6 +1,9 @@
-//! [`BatchContext`]: what every event of one drain round shares, loaded
-//! once per round: the declared kinds, topics, interests and importance
-//! config, and the pipeline version they resolve to.
+//! [`BatchContext`]: what every event of one drain round shares.
+//!
+//! Loaded once per round: the declared kinds, topics, interests, importance
+//! config and synonyms, and the pipeline version they resolve to. The
+//! synonyms are what the round's set-based reindex expands statements
+//! with, so no event and no round reads the document again.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -10,7 +13,9 @@ use std::collections::{BTreeMap, HashSet};
 use chrono::{DateTime, Utc};
 use sqlx::PgConnection;
 use systemprompt_identifiers::{FactKindId, PipelineVersion, TopicId};
-use systemprompt_models::brain::{BrainDocs, ImportanceConfig, InterestDecl, KindDecl};
+use systemprompt_models::brain::{
+    BrainDocs, ImportanceConfig, InterestDecl, KindDecl, SynonymsDoc,
+};
 
 use crate::error::BrainResult;
 use crate::plane::{current_pipeline_version, load_declared_state};
@@ -23,15 +28,24 @@ pub struct BatchContext {
     topics: HashSet<TopicId>,
     interests: Vec<InterestDecl>,
     importance: ImportanceConfig,
+    synonyms: SynonymsDoc,
     loaded_at: DateTime<Utc>,
 }
 
 impl BatchContext {
     pub async fn load(conn: &mut PgConnection) -> BrainResult<Self> {
-        let docs = load_declared_state(&mut *conn).await?.docs();
+        let mut declared = load_declared_state(&mut *conn).await?;
+        let synonyms = declared.synonyms.take().unwrap_or_default();
+        let docs = declared.docs();
         let prompts = prompt_versions(&docs.kinds);
         let version = current_pipeline_version(&mut *conn, prompts).await?;
-        Ok(Self::from_docs(docs, version, Utc::now()))
+        Ok(Self::from_docs(docs, version, Utc::now()).with_synonyms(synonyms))
+    }
+
+    #[must_use]
+    pub fn with_synonyms(mut self, synonyms: SynonymsDoc) -> Self {
+        self.synonyms = synonyms;
+        self
     }
 
     #[must_use]
@@ -46,6 +60,7 @@ impl BatchContext {
             topics: docs.topics.topics.into_iter().map(|t| t.id).collect(),
             interests: docs.interests,
             importance: docs.importance,
+            synonyms: SynonymsDoc::default(),
             loaded_at: now,
         }
     }
@@ -77,6 +92,11 @@ impl BatchContext {
     #[must_use]
     pub const fn importance(&self) -> &ImportanceConfig {
         &self.importance
+    }
+
+    #[must_use]
+    pub const fn synonyms(&self) -> &SynonymsDoc {
+        &self.synonyms
     }
 
     #[must_use]

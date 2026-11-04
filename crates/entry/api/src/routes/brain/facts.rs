@@ -41,6 +41,9 @@ fn filter(params: SearchParams) -> Result<FactFilter, BrainHttpError> {
             .collect::<Result<Vec<_>, _>>()?;
         filter = filter.with_statuses(statuses);
     }
+    if let Some(as_of) = params.as_of {
+        filter = filter.with_as_of(as_of);
+    }
     Ok(filter)
 }
 

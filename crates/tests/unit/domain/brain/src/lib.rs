@@ -20,7 +20,19 @@ mod defaults_importance;
 #[cfg(test)]
 mod defaults_validator;
 #[cfg(test)]
+mod error_transient;
+#[cfg(test)]
+mod failure_reason;
+#[cfg(test)]
+mod field_edit;
+#[cfg(test)]
 mod fixtures;
+#[cfg(test)]
+mod index_aliases;
+#[cfg(test)]
+mod index_batch;
+#[cfg(test)]
+mod jobs_consolidate;
 #[cfg(test)]
 mod model_schema;
 #[cfg(test)]
@@ -34,6 +46,8 @@ mod pipeline_filter;
 #[cfg(test)]
 mod pipeline_fixtures;
 #[cfg(test)]
+mod pipeline_round;
+#[cfg(test)]
 mod pipeline_rules;
 #[cfg(test)]
 mod plane;
@@ -42,7 +56,13 @@ mod plane_db;
 #[cfg(test)]
 mod plane_repository;
 #[cfg(test)]
+mod recall_admit;
+#[cfg(test)]
 mod recall_budget;
+#[cfg(test)]
+mod recall_budget_fill;
+#[cfg(test)]
+mod recall_budget_usage;
 #[cfg(test)]
 mod recall_fakes;
 #[cfg(test)]
@@ -50,10 +70,22 @@ mod recall_fixtures;
 #[cfg(test)]
 mod recall_fusion;
 #[cfg(test)]
+mod recall_held;
+#[cfg(test)]
+mod recall_introduce;
+#[cfg(test)]
 mod recall_reuse;
 #[cfg(test)]
+mod recall_search_plan;
+#[cfg(test)]
+mod recall_synonyms;
+#[cfg(test)]
 mod recall_visible;
+#[cfg(test)]
+mod recall_visible_held;
 #[cfg(test)]
 mod replay_db;
 #[cfg(test)]
 mod replay_diff;
+#[cfg(test)]
+mod usage_rates;

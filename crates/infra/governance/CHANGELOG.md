@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.78.0] - 2026-11-04
+
+### Added
+
+- `authz::default_attribution_value` and `SubjectProviderSet::default_value`, the default value a user's subject attribute provider contributes for a dimension.
+
 ## [0.76.0] - 2026-10-29
 
 ### Breaking

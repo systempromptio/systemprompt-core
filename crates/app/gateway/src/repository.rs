@@ -64,6 +64,7 @@ pub struct GatewayRepositories {
     pub tool_validity: Arc<ToolValidityCache>,
     pub catalog: Arc<ResolvedCatalog>,
     pub brain_recall: BrainRecallProfile,
+    pub brain_session: crate::audit::session::SharedSessionCapture,
 }
 
 impl std::fmt::Debug for GatewayRepositories {
@@ -120,6 +121,7 @@ impl GatewayRepositories {
             tool_validity: Arc::new(ToolValidityCache::default()),
             catalog: Arc::clone(&services.catalog),
             brain_recall: BrainRecallProfile::default(),
+            brain_session: None,
         }
     }
 
@@ -156,6 +158,12 @@ impl GatewayRepositories {
     #[must_use]
     pub fn with_brain_recall(mut self, profile: BrainRecallProfile) -> Self {
         self.brain_recall = profile;
+        self
+    }
+
+    #[must_use]
+    pub fn with_brain_session(mut self, capture: crate::audit::session::SessionCapture) -> Self {
+        self.brain_session = Some(Arc::new(capture));
         self
     }
 

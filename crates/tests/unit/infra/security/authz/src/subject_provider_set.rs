@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use systemprompt_governance::authz::AuthzError;
 use systemprompt_governance::authz::subject::{
     SharedSubjectAttributeProvider, SubjectAttributeProvider, SubjectAttributeSource,
     SubjectDimension, SubjectProviderSet, SubjectSourceError,
 };
 use systemprompt_governance::authz::types::RuleType;
+use systemprompt_governance::authz::{AuthzError, default_attribution_value};
 use systemprompt_identifiers::UserId;
 
 #[derive(Debug)]
@@ -181,4 +181,54 @@ async fn known_values_delegates_and_refuses_unknown() {
         set.known_values(&dim("region")).await,
         Err(SubjectSourceError::UnknownDimension(_))
     ));
+}
+
+#[derive(Debug)]
+struct HeaderOnly;
+
+#[async_trait]
+impl SubjectAttributeProvider for HeaderOnly {
+    fn dimension(&self) -> SubjectDimension {
+        dim("tenant")
+    }
+
+    async fn values_for(&self, _user_id: &UserId) -> Result<Vec<String>, AuthzError> {
+        Ok(vec!["acme".to_owned()])
+    }
+
+    fn default_attribution(&self) -> bool {
+        false
+    }
+}
+
+#[tokio::test]
+async fn default_value_is_the_first_held_value_unless_header_only() {
+    let header_only: SharedSubjectAttributeProvider = Arc::new(HeaderOnly);
+    let set = SubjectProviderSet::from_providers(vec![
+        ok("department", &["ops", "eng"]),
+        ok("site", &[]),
+        Arc::clone(&header_only),
+    ]);
+    let department = dim("department").rule_type;
+    let site = dim("site").rule_type;
+    let tenant = dim("tenant").rule_type;
+    let value = |dimension: String| {
+        let set = set.clone();
+        async move {
+            set.default_value(&user(), &dimension)
+                .await
+                .expect("lookup")
+        }
+    };
+    assert_eq!(
+        value(department.as_str().to_owned()).await.as_deref(),
+        Some("ops")
+    );
+    assert_eq!(value(site.as_str().to_owned()).await, None);
+    assert_eq!(value(tenant.as_str().to_owned()).await, None, "header-only");
+    assert_eq!(value("ext:absent".to_owned()).await, None, "unregistered");
+    assert_eq!(
+        default_attribution_value(&header_only, &["acme".to_owned()]),
+        None
+    );
 }

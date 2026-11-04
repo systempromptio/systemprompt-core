@@ -61,3 +61,25 @@ pub fn upstream_model_in<'a>(models: &'a [ServedModel], requested: &'a str) -> &
         .find(|model| model.matches(requested))
         .map_or(requested, |model| model.upstream_model.as_str())
 }
+
+#[must_use]
+pub fn catalog_supports_model(models: &[ServedModel], model: &str) -> bool {
+    models.iter().any(|m| m.matches(model))
+}
+
+#[must_use]
+// Why: a model the catalogue does not price cannot be billed; `None` is
+// withheld so the caller refuses the request instead of settling it at zero.
+pub fn catalog_pricing(models: &[ServedModel], model: &str) -> Option<ModelPricing> {
+    models.iter().find(|m| m.matches(model)).map(|m| m.pricing)
+}
+
+#[must_use]
+pub fn catalog_default_model<'a>(
+    models: &'a [ServedModel],
+    override_model: Option<&'a str>,
+) -> &'a str {
+    override_model
+        .or_else(|| models.first().map(|m| m.id.as_str()))
+        .unwrap_or_default()
+}

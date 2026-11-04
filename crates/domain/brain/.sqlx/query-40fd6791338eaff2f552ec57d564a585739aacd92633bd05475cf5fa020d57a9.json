@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO brain_event_results (outbox_id, pipeline_version, event_kind)\n               SELECT e.id, $1, e.kind FROM unnest($2::text[], $3::text[]) AS e(id, kind)\n               ON CONFLICT (outbox_id, pipeline_version) DO NOTHING\n               RETURNING outbox_id AS \"outbox_id: EventOutboxId\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "outbox_id: EventOutboxId",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "brain_event_results",
+            "name": "outbox_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "TextArray",
+        "TextArray"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "40fd6791338eaff2f552ec57d564a585739aacd92633bd05475cf5fa020d57a9"
+}

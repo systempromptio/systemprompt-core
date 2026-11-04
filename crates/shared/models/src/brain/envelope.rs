@@ -1,6 +1,10 @@
 //! A claimed outbox event as the brain pipeline sees it: the event, its
 //! pathway and that pathway's weight.
 //!
+//! The session pathway (`session.turn.closed`) is scaffolding: the gateway
+//! emits it only when the profile opts in, and with no filter gathering it
+//! nothing is extracted.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -20,6 +24,7 @@ pub enum Pathway {
     DocumentRevision,
     CommentResolved,
     Entered,
+    Session,
 }
 
 impl Pathway {
@@ -29,6 +34,7 @@ impl Pathway {
             Self::DocumentRevision => "document_revision",
             Self::CommentResolved => "comment_resolved",
             Self::Entered => "entered",
+            Self::Session => "session",
         }
     }
 
@@ -38,6 +44,7 @@ impl Pathway {
             BrainEventKind::REVISION_LANDED => Some(Self::DocumentRevision),
             BrainEventKind::COMMENT_RESOLVED => Some(Self::CommentResolved),
             BrainEventKind::FACT_ENTERED => Some(Self::Entered),
+            BrainEventKind::SESSION_TURN_CLOSED => Some(Self::Session),
             _ => None,
         }
     }
@@ -46,6 +53,7 @@ impl Pathway {
     pub const fn default_weight(self) -> PathwayWeight {
         match self {
             Self::DocumentRevision | Self::CommentResolved | Self::Entered => PathwayWeight::High,
+            Self::Session => PathwayWeight::Medium,
         }
     }
 }

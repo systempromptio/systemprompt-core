@@ -1,13 +1,13 @@
-//! The typed payloads the document store carries in a brain event, so the
-//! producer and the consumer agree on one decoded shape.
+//! The typed payloads the document store and the gateway carry in a brain
+//! event, so the producer and the consumer agree on one decoded shape.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{
-    ContentHash, ContextId, DocumentCommentId, DocumentFolderId, DocumentId, DocumentNodeId,
-    DocumentRevisionId, SessionId, TaskId, TraceId, UserId,
+    AiRequestId, ContentHash, ContextId, DocumentCommentId, DocumentFolderId, DocumentId,
+    DocumentNodeId, DocumentRevisionId, GatewayConversationId, SessionId, TaskId, TraceId, UserId,
 };
 
 use crate::documents::{ActorKind, RevisionOriginKind};
@@ -51,4 +51,30 @@ pub struct CommentResolved {
     pub head_revision_id: Option<DocumentRevisionId>,
     pub answering_revision_id: Option<DocumentRevisionId>,
     pub folder_id: Option<DocumentFolderId>,
+}
+
+/// A gateway turn that completed: the last user text and the assistant's
+/// answer, each bounded to the profile's `capture.session.max_chars`.
+///
+/// Scaffolding for the session pathway: the gateway emits it only when
+/// `brain.capture.session.enabled` is on and `capture.sources` lists
+/// `session`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SessionTurnClosed {
+    pub user_id: UserId,
+    pub session_id: SessionId,
+    pub ai_request_id: AiRequestId,
+    pub gateway_conversation_id: Option<GatewayConversationId>,
+    pub context_id: Option<ContextId>,
+    pub user_text: String,
+    pub assistant_text: String,
+    pub model: String,
+    pub client: String,
+}
+
+impl SessionTurnClosed {
+    #[must_use]
+    pub fn bounded(text: &str, max_chars: usize) -> String {
+        text.chars().take(max_chars).collect()
+    }
 }

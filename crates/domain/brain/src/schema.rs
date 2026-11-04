@@ -70,12 +70,24 @@ pub const BRAIN_SCHEMAS: &[SchemaEntry] = &[
             "revision",
             "owner_user_id",
             "search",
+            "search_weighted",
+            "observed_at",
         ],
     ),
     (
         "brain_fact_revisions",
         include_str!("../schema/brain_fact_revisions.sql"),
         &["id", "fact_id", "revision", "change", "status", "statement"],
+    ),
+    (
+        "brain_working_set",
+        include_str!("../schema/brain_working_set.sql"),
+        &["scope_key", "fact_id", "importance_base"],
+    ),
+    (
+        "brain_fact_links",
+        include_str!("../schema/brain_fact_links.sql"),
+        &["fact_id", "subject_kind", "subject_id", "via_field"],
     ),
     (
         "brain_extractions",
@@ -123,9 +135,17 @@ pub const BRAIN_SCHEMAS: &[SchemaEntry] = &[
         include_str!("../schema/brain_proposals.sql"),
         &["id", "analysis", "kind", "status"],
     ),
+    (
+        "brain_search_terms",
+        include_str!("../schema/brain_search_terms.sql"),
+        &["word", "ndoc"],
+    ),
 ];
 
 pub const BRAIN_VIEWS: &[&str] = &[
     include_str!("../schema/v_brain_kind_health.sql"),
     include_str!("../schema/v_brain_workflow_recall.sql"),
 ];
+
+pub const BRAIN_USAGE_COLUMNS: &[&str] =
+    &["usage_cited_rate", "usage_ignored_rate", "usage_updated_at"];

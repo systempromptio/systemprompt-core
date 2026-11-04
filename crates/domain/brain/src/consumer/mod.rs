@@ -1,20 +1,22 @@
 //! [`BrainConsumer`]: the runner service draining brain events from the
 //! durable outbox through the [`BrainPipeline`].
 //!
-//! Each round claims up to one profile batch of events, one at a time,
-//! each on its own transaction: the event is processed inside a savepoint
-//! and the outbox row is acknowledged in the same transaction, so one bad
-//! event never holds the others and a crash rolls back only the event in
-//! hand. The round shares one
-//! [`BatchContext`](crate::pipeline::BatchContext).
+//! Each round claims up to one profile batch of events on one transaction.
+//! Each event is processed inside its own savepoint and acknowledged on the
+//! round's transaction, which commits once, so one bad event rolls back
+//! only itself and a crash rolls back the round in hand. The round shares
+//! one [`BatchContext`](crate::pipeline::BatchContext). The events' writes
+//! defer the derived indexes; the round reindexes every fact it landed on
+//! in one set-based pass before it commits (see `drain`).
 //!
 //! An event that cannot succeed (it does not decode, its version is one
 //! this build does not read, or a stage refuses it for good) is recorded
 //! as a failure and acknowledged. An event that fails for a reason that may
 //! pass (storage, a seam call, a timeout, a spent token budget) is rolled
-//! back unacknowledged, recorded, and retried from the next round after the
-//! poll interval; its [`MAX_EVENT_ATTEMPTS`]th failure is recorded as
-//! abandoned and acknowledged.
+//! back to its savepoint, recorded, left unacknowledged and held back for
+//! the poll interval while the round goes on; its [`MAX_EVENT_ATTEMPTS`]th
+//! failure is recorded as abandoned and acknowledged. More than
+//! [`MAX_ROUND_TRANSIENTS`] transient failures end the round early.
 //!
 //! When nothing is pending it listens on the durable facts channel with the
 //! poll interval as a backstop, and every `sweep_secs` it runs
@@ -25,26 +27,34 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod builder;
+mod decode;
 mod drain;
+mod handle;
+mod pass;
+mod round_state;
 mod wake;
 
 pub use builder::BrainConsumerBuilder;
-pub use drain::MAX_EVENT_ATTEMPTS;
+pub use drain::MAX_ROUND_TRANSIENTS;
+pub use handle::MAX_EVENT_ATTEMPTS;
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU8, AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
 use async_trait::async_trait;
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use serde::Serialize;
 use sqlx::PgPool;
 use systemprompt_events::services::durable::OutboxConsumer;
 use systemprompt_manifest::profile::BrainConsumerProfile;
+use systemprompt_models::brain::BRAIN_CONSUMER;
 use systemprompt_traits::{JobContext, RunnerService};
 use tokio_util::sync::CancellationToken;
 
+use self::round_state::RoundState;
 use self::wake::Wake;
+use crate::error::BrainResult;
 use crate::pipeline::BrainPipeline;
 
 /// What the consumer is doing right now.
@@ -68,7 +78,8 @@ impl ConsumerState {
     }
 }
 
-/// The consumer's state and its event counts since start, as health
+/// The consumer's state, its event counts since start, the facts its
+/// rounds have reindexed set-based, and when its last round ran, as health
 /// reports them.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub struct BacklogSnapshot {
@@ -76,7 +87,16 @@ pub struct BacklogSnapshot {
     pub retried: u64,
     pub failed: u64,
     pub abandoned: u64,
+    pub reindexed: u64,
     pub state: ConsumerState,
+    pub last_round: Option<DateTime<Utc>>,
+}
+
+/// Events waiting in the outbox for the brain consumer.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub struct PendingEvents {
+    pub pending: i64,
+    pub oldest_seconds: Option<i64>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -98,11 +118,12 @@ pub(crate) struct Counters {
     pub(crate) retried: AtomicU64,
     pub(crate) failed: AtomicU64,
     pub(crate) abandoned: AtomicU64,
+    pub(crate) reindexed: AtomicU64,
 }
 
 impl Counters {
-    pub(crate) fn bump(counter: &AtomicU64) {
-        counter.fetch_add(1, Ordering::Relaxed);
+    pub(crate) fn add(counter: &AtomicU64, by: u64) {
+        counter.fetch_add(by, Ordering::Relaxed);
     }
 }
 
@@ -110,11 +131,11 @@ impl Counters {
 pub struct BrainConsumer {
     pipeline: Arc<BrainPipeline>,
     outbox: Arc<OutboxConsumer>,
-    pool: PgPool,
     listener_pool: PgPool,
     settings: BrainConsumerProfile,
     state: StateCell,
     counters: Arc<Counters>,
+    round_state: RoundState,
 }
 
 impl std::fmt::Debug for BrainConsumer {
@@ -140,8 +161,18 @@ impl BrainConsumer {
             retried: read(&self.counters.retried),
             failed: read(&self.counters.failed),
             abandoned: read(&self.counters.abandoned),
+            reindexed: read(&self.counters.reindexed),
             state: self.state.get(),
+            last_round: self.round_state.last_round(),
         }
+    }
+
+    pub async fn pending(&self) -> BrainResult<PendingEvents> {
+        let (pending, oldest_seconds) = self.outbox.pending(BRAIN_CONSUMER).await?;
+        Ok(PendingEvents {
+            pending,
+            oldest_seconds,
+        })
     }
 
     fn batch(&self) -> usize {

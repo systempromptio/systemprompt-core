@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.78.0] - 2026-11-04
+
+### Breaking
+
+- **Breaking:** the brain route DTOs gain fields: `SimulateBody.{conversation_id, as_of}` and `SearchParams.as_of`. Migrate struct literals by adding them as `None`.
+
+### Added
+
+- `as_of` on `GET /api/v1/brain/facts` and `POST /api/v1/admin/brain/simulate`.
+- `GET /health/detail` reports the capture consumer under `checks.brain`: `state`, `pending` outbox events, `oldest_seconds` and `last_round`. A backlog that cannot be read reports the entry and the overall status `degraded`.
+- The gateway routes attach the session capture to `GatewayRepositories` with the `brain` feature, which also enables the scheduler's.
+
+### Changed
+
+- `POST /api/v1/admin/brain/simulate` applies `recall.deadline_ms` and answers `deadline_exceeded`, with no background run.
+
+### Fixed
+
+- `POST /api/v1/admin/brain/simulate` without `project` resolves the user's default `project` through the subject attribute providers, as the gateway does. It accepts an optional `conversation_id`, so `reuse: true` reads that conversation's stored block.
+- `PATCH /api/v1/brain/facts/{id}/fields` answers `422` `invalid_fields` when the merged fields do not fit the kind.
+
 ## [0.77.0] - 2026-11-01
 
 ### Breaking

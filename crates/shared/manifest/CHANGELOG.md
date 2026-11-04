@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.78.0] - 2026-11-04
+
+### Breaking
+
+- **Breaking:** profile structs gain fields: `BrainRecallProfile.{source_timeout_ms, working_set}`, `BrainCaptureProfile.session` and `BrainProfile.consolidation`. All are optional in YAML. Migrate struct literals by adding them.
+
+### Added
+
+- `brain.recall.source_timeout_ms` (default `40`), bounding each source check during recall.
+- `brain.recall.working_set` (default `true`), running the recall tiers over the precomputed working set.
+- `BrainSessionCaptureProfile` (`brain.capture.session`: `enabled`, default `false`; `max_chars`, default `4000`) and `BrainCaptureProfile::session_capture_on`.
+- `BrainConsolidationProfile` (`brain.consolidation`: `enabled`, default `false`; `daily_token_budget`, falling back to `extraction.daily_token_budget`).
+- `services::brain::SYNONYMS_FILE` and `services::estimate_text_tokens`.
+
+### Changed
+
+- `brain.recall.deadline_ms` defaults to `200`.
+- `brain.capture.sources` defaults to `[document, comment, entered]`.
+
+### Fixed
+
+- `brain` and `notifications` join `BUNDLE_ALLOWED_DIRS`, so a profile that pins bundle sources composes `services/brain/` and `services/notifications/`.
+
 ## [0.77.0] - 2026-11-01
 
 ### Breaking

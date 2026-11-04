@@ -125,6 +125,29 @@ impl DurableOutboxRepository {
         .await
     }
 
+    pub(crate) async fn pending(
+        pool: &PgPool,
+        consumer: &str,
+    ) -> Result<(i64, Option<i64>), sqlx::Error> {
+        let pending = sqlx::query_scalar!(
+            r#"SELECT COALESCE(SUM(delta), 0)::BIGINT AS "pending!"
+               FROM event_outbox_backlog WHERE consumer = $1"#,
+            consumer
+        )
+        .fetch_one(pool)
+        .await?;
+        let oldest = sqlx::query_scalar!(
+            r#"SELECT EXTRACT(EPOCH FROM now() - created_at)::BIGINT AS "oldest!"
+               FROM event_outbox
+               WHERE consumer = $1 AND processed_at IS NULL
+               ORDER BY created_at, id LIMIT 1"#,
+            consumer
+        )
+        .fetch_optional(pool)
+        .await?;
+        Ok((pending, oldest))
+    }
+
     pub(crate) async fn mark_processed(
         conn: &mut PgConnection,
         id: &EventOutboxId,

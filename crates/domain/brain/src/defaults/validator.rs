@@ -75,27 +75,29 @@ impl SchemaValidator {
                 candidate.subject.kind, kind.subject
             ));
         }
-        if let Some(name) = candidate
-            .fields
-            .keys()
-            .find(|name| !kind.fields.contains_key(*name))
-        {
+        Self::fields_reason(&candidate.fields, kind)
+            .or_else(|| span_reason(&candidate.source, text))
+    }
+
+    #[must_use]
+    pub fn fields_reason(
+        // JSON: a fact's field map, checked against its declared kind.
+        fields: &serde_json::Map<String, Value>,
+        kind: &KindDecl,
+    ) -> Option<String> {
+        if let Some(name) = fields.keys().find(|name| !kind.fields.contains_key(*name)) {
             return Some(format!("field {name} is not declared"));
         }
         for (name, decl) in &kind.fields {
-            if let Some(reason) = field_reason(name, decl, candidate.fields.get(name)) {
+            if let Some(reason) = field_reason(name, decl, fields.get(name)) {
                 return Some(reason);
             }
         }
-        if let Some(name) = kind
-            .materiality
+        kind.materiality
             .require
             .iter()
-            .find(|name| !has_value(candidate.fields.get(*name)))
-        {
-            return Some(format!("material field {name} has no value"));
-        }
-        span_reason(&candidate.source, text)
+            .find(|name| !has_value(fields.get(*name)))
+            .map(|name| format!("material field {name} has no value"))
     }
 }
 

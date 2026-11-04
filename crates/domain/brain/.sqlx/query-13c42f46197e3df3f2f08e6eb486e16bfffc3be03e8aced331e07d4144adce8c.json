@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO brain_subjects (subject_kind, subject_id)\n             SELECT DISTINCT s.kind, s.id FROM unnest($1::text[], $2::text[]) AS s(kind, id)\n             ON CONFLICT (subject_kind, subject_id) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "TextArray",
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "13c42f46197e3df3f2f08e6eb486e16bfffc3be03e8aced331e07d4144adce8c"
+}

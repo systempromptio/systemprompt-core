@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.78.0] - 2026-11-04
+
+### Breaking
+
+- **Breaking:** brain structs gain fields: `RecallBlock.reused_after_deadline`, `RecallRequest.as_of` and `RecallReceipt.late`. Migrate struct literals by adding them, or use the constructors.
+
+### Added
+
+- The `FactConsolidator` seam: `ConsolidationInput`, `BrainConsolidateError`, `register_brain_consolidator!` and `discover_brain_consolidators`.
+- `RecallRequest::with_as_of`, `RecallReceipt::with_late` and `RecallBlock::with_reused_after_deadline`; a reused late block adds `reused_after_deadline` to its descriptor.
+- `FactRecallSource::by_linked` and `FactRecallSource::withheld_counts`, both defaulting to empty.
+- `NotificationAudienceResolver::held(&self, user) -> Option<Vec<AudienceSubject>>`, default `None`.
+
 ## [0.77.0] - 2026-11-01
 
 ### Added

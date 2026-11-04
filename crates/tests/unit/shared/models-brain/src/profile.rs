@@ -7,7 +7,8 @@ fn defaults_match_the_contract() {
     let profile = BrainProfile::default();
     assert!(!profile.enabled);
     assert_eq!(profile.recall.budget_tokens, 800);
-    assert_eq!(profile.recall.deadline_ms, 50);
+    assert_eq!(profile.recall.deadline_ms, 200);
+    assert!(profile.recall.working_set);
     assert_eq!(profile.recall.scopes, ScopeLevel::ALL.to_vec());
     assert_eq!(profile.recall.stale, StalePolicy::Withhold);
     assert!(profile.recall.client_enabled(ClientKind::ClaudeCode));
@@ -32,6 +33,42 @@ fn defaults_match_the_contract() {
     assert_eq!(profile.consumer.poll_secs, 5);
     assert_eq!(profile.consumer.sweep_secs, 300);
     assert_eq!(profile.consumer.source_timeout_ms, 5000);
+}
+
+#[test]
+fn session_capture_and_consolidation_are_off_by_default() {
+    let profile = BrainProfile::default();
+    assert!(!profile.capture.sources.contains(&CaptureSource::Session));
+    assert!(!profile.capture.session.enabled);
+    assert_eq!(profile.capture.session.max_chars, 4000);
+    assert!(!profile.capture.session_capture_on());
+    assert!(!profile.consolidation.enabled);
+    assert_eq!(profile.consolidation.daily_token_budget, None);
+}
+
+#[test]
+fn session_capture_needs_both_the_source_and_the_switch() {
+    let only_switch: BrainProfile =
+        serde_yaml::from_str("capture:\n  session: { enabled: true }\n").expect("switch");
+    assert!(!only_switch.capture.session_capture_on());
+    let only_source: BrainProfile =
+        serde_yaml::from_str("capture:\n  sources: [session]\n").expect("source");
+    assert!(!only_source.capture.session_capture_on());
+    let both: BrainProfile = serde_yaml::from_str(
+        "capture:\n  sources: [document, session]\n  session: { enabled: true, max_chars: 10 }\n",
+    )
+    .expect("both");
+    assert!(both.capture.session_capture_on());
+    assert_eq!(both.capture.session.max_chars, 10);
+    let consolidation: BrainProfile =
+        serde_yaml::from_str("consolidation: { enabled: true, daily_token_budget: 5 }\n")
+            .expect("consolidation");
+    assert_eq!(
+        consolidation
+            .consolidation
+            .budget_tokens(&consolidation.extraction),
+        5
+    );
 }
 
 #[test]

@@ -10,6 +10,7 @@
 
 pub mod anthropic;
 pub mod canonical_bridge;
+pub mod embedding_batches;
 pub mod gemini;
 mod gemini_image_mapping;
 pub mod gemini_images;

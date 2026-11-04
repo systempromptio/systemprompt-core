@@ -10,7 +10,9 @@
 
 use chrono::{DateTime, Utc};
 use sqlx::PgConnection;
-use systemprompt_models::brain::{FactCandidate, InterestDecl, KindDecl, Pathway, SubjectKey};
+use systemprompt_models::brain::{
+    FactCandidate, InterestDecl, KindDecl, Pathway, SubjectKey, identity_hash,
+};
 
 use crate::error::BrainResult;
 use crate::repository::AliasRepository;
@@ -33,6 +35,27 @@ pub fn add_kind_topics(candidate: &mut FactCandidate, kind: &KindDecl) {
             candidate.topics.push(topic.clone());
         }
     }
+}
+
+#[must_use]
+pub fn identity_of(
+    kind: &KindDecl,
+    subject: &SubjectKey,
+    // JSON: candidate fields as declared by the kind.
+    fields: &serde_json::Map<String, serde_json::Value>,
+) -> String {
+    identity_hash(&kind.kind, subject, &kind.identity, fields)
+}
+
+pub async fn resolved_identity(
+    conn: &mut PgConnection,
+    kind: &KindDecl,
+    subject: &SubjectKey,
+    // JSON: candidate fields as declared by the kind.
+    fields: &serde_json::Map<String, serde_json::Value>,
+) -> BrainResult<String> {
+    let subject = resolve_alias(conn, subject).await?;
+    Ok(identity_of(kind, &subject, fields))
 }
 
 pub async fn resolve_alias(

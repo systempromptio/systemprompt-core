@@ -1,0 +1,45 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT word, ndoc,\n                      (SELECT count(*) FROM brain_facts\n                       WHERE status IN ('confirmed', 'proposed', 'stale')) AS \"total!\"\n               FROM brain_search_terms",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "word",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "brain_search_terms",
+            "name": "word"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "ndoc",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "brain_search_terms",
+            "name": "ndoc"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "total!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "0291aecee243f85f58d0c7165ccba7ba999625a22c3bbf3861834c156e911997"
+}

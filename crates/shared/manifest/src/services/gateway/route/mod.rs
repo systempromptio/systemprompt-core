@@ -35,7 +35,7 @@ use crate::services::catalog::EndpointRef;
 
 pub use predicates::{ResponseFormatKind, RouteMatch, RouteRequirements};
 pub use selection::SelectionStrategy;
-pub use token_estimate::estimate_input_tokens;
+pub use token_estimate::{estimate_input_tokens, estimate_text_tokens};
 
 /// One glob or a list of globs over catalog model ids.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]

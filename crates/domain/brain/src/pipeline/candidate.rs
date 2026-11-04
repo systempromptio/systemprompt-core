@@ -1,31 +1,47 @@
 //! One candidate through the per-candidate stages: rules, validate,
 //! render, dedupe, route, status, persist and notify, all on the event's
-//! savepoint.
+//! savepoint. With a round cache the alias resolution and the dedupe
+//! snapshot come from it when it covers the candidate, and the write the
+//! candidate lands is reported back as a [`DedupeWrite`] for the round.
+//!
+//! The one read a cached snapshot does not skip is the tombstone: the
+//! cache was preloaded before the round's first event, and a round that
+//! includes document events with model calls is long enough for a console
+//! erase to land in between, so a snapshot the cache serves as not
+//! tombstoned is checked against the store (one primary-key lookup)
+//! before the candidate is written, and a hit is the tombstoned outcome.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use sqlx::PgConnection;
 use systemprompt_models::brain::{
-    FactCandidate, FactStatus, KindDecl, SourceText, identity_hash, render_statement,
+    FactCandidate, FactStatus, KindDecl, SourceText, render_statement,
 };
 
-use super::context::BatchContext;
-use super::dedupe::{self, DedupeDecision};
+use super::dedupe::{self, DedupeDecision, DedupeSnapshot};
 use super::normalise::Normalised;
 use super::notify::{Notice, notify};
-use super::persist::{PersistPlan, Persisted, persist};
+use super::persist::{Effect, PersistPlan, Persisted, persist};
+use super::round::{CachedFact, DedupeWrite, is_live};
 use super::rules::{self, InterestProbe};
 use super::status::{self, Lifecycle};
 use super::validate::{Validated, validate};
-use super::{BrainPipeline, route};
+use super::{BrainPipeline, ProcessParams, route};
 use crate::error::BrainResult;
+use crate::repository::TombstoneRepository;
 
 /// What became of one candidate.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CandidateResult {
     Rejected { by: String, reason: String },
     Stored(Persisted),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(super) struct EventScope<'a> {
+    pub(super) event: &'a Normalised,
+    pub(super) text: Option<&'a SourceText>,
 }
 
 struct Prepared<'a> {
@@ -37,32 +53,24 @@ struct Prepared<'a> {
 }
 
 impl BrainPipeline {
-    #[expect(
-        clippy::too_many_arguments,
-        reason = "the stage threads the event's savepoint connection and batch context with the candidate"
-    )]
     pub(super) async fn candidate(
         &self,
         conn: &mut PgConnection,
-        ctx: &BatchContext,
-        event: &Normalised,
+        params: &ProcessParams<'_>,
+        scope: &EventScope<'_>,
         candidate: FactCandidate,
-        text: Option<&SourceText>,
-    ) -> BrainResult<CandidateResult> {
-        let prepared = match self.prepare(conn, ctx, candidate, text).await? {
+    ) -> BrainResult<(CandidateResult, Option<DedupeWrite>)> {
+        let ctx = params.ctx;
+        let event = scope.event;
+        let prepared = match self.prepare(conn, params, candidate, scope.text).await? {
             Ok(prepared) => prepared,
-            Err(rejected) => return Ok(rejected),
+            Err(rejected) => return Ok((rejected, None)),
         };
-        let snapshot = dedupe::snapshot(
-            conn,
-            &prepared.kind.kind,
-            &prepared.candidate.subject,
-            &prepared.identity_hash,
-        )
-        .await?;
+        let snapshot = snapshot(conn, params, &prepared).await?;
+        let hash = statement_hash(&prepared);
         let decision = match prepared.dispute_reason {
             Some(_) => dedupe::forced_dispute(&snapshot).unwrap_or(DedupeDecision::Insert),
-            None => dedupe::decide(&prepared.statement, &statement_hash(&prepared), &snapshot),
+            None => dedupe::decide(&prepared.statement, &hash, &snapshot),
         };
         let routed = route::route(event, &prepared.candidate);
         let lifecycle = self.lifecycle(ctx, event, &prepared);
@@ -75,6 +83,8 @@ impl BrainPipeline {
             actor: event.actor(),
             version: ctx.version(),
             dispute_reason: prepared.dispute_reason.as_deref(),
+            observed_at: event.observed_at(),
+            reindex: params.reindex,
         };
         let persisted = persist(conn, &plan, decision).await?;
         let probe = InterestProbe {
@@ -93,24 +103,35 @@ impl BrainPipeline {
             interests: &interests,
         };
         notify(self.notifications.as_ref(), conn, &notice).await?;
-        Ok(CandidateResult::Stored(persisted))
+        let write = written(&prepared, &persisted, hash, lifecycle.status, params);
+        Ok((CandidateResult::Stored(persisted), write))
     }
 
     async fn prepare<'a>(
         &self,
         conn: &mut PgConnection,
-        ctx: &'a BatchContext,
+        params: &ProcessParams<'a>,
         mut candidate: FactCandidate,
         text: Option<&SourceText>,
     ) -> BrainResult<Result<Prepared<'a>, CandidateResult>> {
+        let ctx = params.ctx;
         let Some(kind) = ctx.kind(&candidate.kind) else {
             return Ok(Err(rejected(
                 "core.kinds",
                 format!("kind {} is not declared", candidate.kind),
             )));
         };
+        if let Err(error) = candidate.subject.validate() {
+            return Ok(Err(rejected("core.subject", error.to_string())));
+        }
         rules::add_kind_topics(&mut candidate, kind);
-        candidate.subject = rules::resolve_alias(conn, &candidate.subject).await?;
+        let cached = params
+            .round
+            .and_then(|round| round.resolved(&candidate.subject));
+        candidate.subject = match cached {
+            Some(subject) => subject,
+            None => rules::resolve_alias(conn, &candidate.subject).await?,
+        };
         let (candidate, dispute_reason) =
             match validate(&self.seams.validators, candidate, kind, text, ctx.topics()).await? {
                 Validated::Accept(candidate) => (candidate, None),
@@ -124,12 +145,7 @@ impl BrainPipeline {
                 Ok(statement) => statement,
                 Err(error) => return Ok(Err(rejected("core.statement", error.to_string()))),
             };
-        let identity_hash = identity_hash(
-            &kind.kind,
-            &candidate.subject,
-            &kind.identity,
-            &candidate.fields,
-        );
+        let identity_hash = rules::identity_of(kind, &candidate.subject, &candidate.fields);
         Ok(Ok(Prepared {
             candidate,
             kind,
@@ -141,7 +157,7 @@ impl BrainPipeline {
 
     fn lifecycle(
         &self,
-        ctx: &BatchContext,
+        ctx: &super::BatchContext,
         event: &Normalised,
         prepared: &Prepared<'_>,
     ) -> Lifecycle {
@@ -169,6 +185,60 @@ impl BrainPipeline {
                 ctx.loaded_at(),
             ),
         }
+    }
+}
+
+async fn snapshot(
+    conn: &mut PgConnection,
+    params: &ProcessParams<'_>,
+    prepared: &Prepared<'_>,
+) -> BrainResult<DedupeSnapshot> {
+    let kind = &prepared.kind.kind;
+    let subject = &prepared.candidate.subject;
+    let Some(cached) = params
+        .round
+        .and_then(|round| round.snapshot(kind, subject, &prepared.identity_hash))
+    else {
+        return dedupe::snapshot(conn, kind, subject, &prepared.identity_hash).await;
+    };
+    if cached.tombstoned {
+        return Ok(cached);
+    }
+    if TombstoneRepository::exists(&mut *conn, kind, &prepared.identity_hash).await? {
+        return Ok(DedupeSnapshot {
+            tombstoned: true,
+            ..DedupeSnapshot::default()
+        });
+    }
+    Ok(cached)
+}
+
+fn written(
+    prepared: &Prepared<'_>,
+    persisted: &Persisted,
+    statement_hash: String,
+    status: FactStatus,
+    params: &ProcessParams<'_>,
+) -> Option<DedupeWrite> {
+    let id = persisted.fact.clone()?;
+    match persisted.effect {
+        Effect::Created => Some(DedupeWrite::Created(CachedFact {
+            id,
+            kind: prepared.kind.kind.clone(),
+            subject: prepared.candidate.subject.clone(),
+            identity_hash: prepared.identity_hash.clone(),
+            statement: prepared.statement.clone(),
+            statement_hash,
+            live: is_live(status),
+            updated_at: params.ctx.loaded_at(),
+        })),
+        Effect::Revised => Some(DedupeWrite::Revised {
+            id,
+            statement: prepared.statement.clone(),
+            statement_hash,
+            status,
+        }),
+        Effect::Unchanged | Effect::Merged | Effect::Disputed | Effect::Tombstoned => None,
     }
 }
 

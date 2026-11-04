@@ -53,7 +53,8 @@ systemprompt-ai = { workspace = true }
 systemprompt-client = { workspace = true }
 systemprompt-config = { workspace = true }
 systemprompt-database = { workspace = true }
-systemprompt-extension = { workspace = true }
+sqlx = { workspace = true }
+systemprompt-extension = { workspace = true, features = ["sqlx"] }
 systemprompt-identifiers = { workspace = true }
 systemprompt-loader = { workspace = true }
 systemprompt-logging = { workspace = true }

@@ -58,6 +58,7 @@ async fn a_disabled_brain_composes_nothing_and_its_producers_append_nothing() {
         scope: FactScope::User(author.clone()),
         topics: Vec::new(),
         status: EnteredStatus::Candidate,
+        observed_at: None,
     };
     let refused = service
         .enter(&Harness::caller(&author, &[]), &entered)
