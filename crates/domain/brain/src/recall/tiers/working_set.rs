@@ -1,6 +1,15 @@
 //! The pinned and context tiers and the lifecycle count over the
 //! principal's candidate set.
 //!
+//! The pinned tier drives from `idx_brain_facts_pinned`; the context tier
+//! walks `brain_working_set_scope_idx` for the attributed project's key in
+//! stored-importance order and stops at the limit, so its order is the
+//! projection's importance as of the last drain. The lifecycle count
+//! drives from `idx_brain_facts_status_review`: only a stale, disputed or
+//! overdue fact can contribute to any of its three counts, so naming that
+//! as the base predicate changes no count and spares the scan of every
+//! candidate.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -19,13 +28,10 @@ pub(super) async fn pinned(
     f: &TierFilter,
 ) -> Result<Vec<BrainFactId>, RepositoryError> {
     Ok(sqlx::query_scalar!(
-        r#"WITH cand AS (
-               SELECT DISTINCT w.fact_id FROM brain_working_set w
-               WHERE w.scope_key = ANY($1::text[])
-           )
-           SELECT f.id AS "id: BrainFactId"
-           FROM cand c JOIN brain_facts f ON f.id = c.fact_id
+        r#"SELECT f.id AS "id: BrainFactId" FROM brain_facts f
            WHERE f.pinned
+             AND EXISTS (SELECT 1 FROM brain_working_set w
+                         WHERE w.fact_id = f.id AND w.scope_key = ANY($1::text[]))
              AND f.scope_level = ANY($6::text[])
              AND (f.status = 'confirmed'
                   OR (f.status = 'proposed' AND f.owner_user_id = $2)
@@ -56,13 +62,10 @@ pub(super) async fn by_context(
     };
     let key = project_key(project);
     Ok(sqlx::query_scalar!(
-        r#"WITH cand AS (
-               SELECT DISTINCT w.fact_id FROM brain_working_set w
-               WHERE w.scope_key = $7 AND w.scope_key = ANY($1::text[])
-           )
-           SELECT f.id AS "id: BrainFactId"
-           FROM cand c JOIN brain_facts f ON f.id = c.fact_id
-           WHERE f.scope_level = 'project'
+        r#"SELECT f.id AS "id: BrainFactId"
+           FROM brain_working_set w JOIN brain_facts f ON f.id = w.fact_id
+           WHERE w.scope_key = $7 AND w.scope_key = ANY($1::text[])
+             AND f.scope_level = 'project'
              AND 'project' = ANY($6::text[])
              AND (f.status = 'confirmed'
                   OR (f.status = 'proposed' AND f.owner_user_id = $2)
@@ -71,7 +74,7 @@ pub(super) async fn by_context(
              AND (f.valid_from IS NULL OR f.valid_from <= $4)
              AND (f.valid_to IS NULL OR f.valid_to > $4)
              AND f.observed_at <= $4
-           ORDER BY f.importance_base DESC, f.id
+           ORDER BY w.importance_base DESC, w.fact_id
            LIMIT $5"#,
         &f.keys,
         f.user.as_str(),
@@ -90,18 +93,18 @@ pub(super) async fn withheld_counts(
     f: &TierFilter,
 ) -> Result<BTreeMap<WithheldReason, u32>, RepositoryError> {
     let row = sqlx::query!(
-        r#"WITH cand AS (
-               SELECT DISTINCT w.fact_id FROM brain_working_set w
-               WHERE w.scope_key = ANY($1::text[])
-           )
-           SELECT count(*) FILTER (WHERE f.status = 'stale' AND NOT $3) AS "stale!",
+        r#"SELECT count(*) FILTER (WHERE f.status = 'stale' AND NOT $3) AS "stale!",
                   count(*) FILTER (WHERE f.status = 'disputed') AS "disputed!",
                   count(*) FILTER (
                       WHERE (f.status IN ('confirmed', 'proposed') OR (f.status = 'stale' AND $3))
                         AND f.review_after IS NOT NULL AND f.review_after < $4
                   ) AS "review_due!"
-           FROM cand c JOIN brain_facts f ON f.id = c.fact_id
-           WHERE f.scope_level = ANY($5::text[])
+           FROM brain_facts f
+           WHERE (f.status IN ('stale', 'disputed')
+                  OR (f.status IN ('confirmed', 'proposed', 'stale') AND f.review_after < $4))
+             AND EXISTS (SELECT 1 FROM brain_working_set w
+                         WHERE w.fact_id = f.id AND w.scope_key = ANY($1::text[]))
+             AND f.scope_level = ANY($5::text[])
              AND (f.status <> 'proposed' OR f.owner_user_id = $2)
              AND (f.valid_from IS NULL OR f.valid_from <= $4)
              AND (f.valid_to IS NULL OR f.valid_to > $4)

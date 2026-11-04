@@ -4,7 +4,7 @@ use systemprompt_brain::recall::held::{build, key_for, project_key, user_key};
 use systemprompt_extension::notifications::NotificationAudienceResolver;
 use systemprompt_models::notifications::AudienceSubject;
 
-use crate::recall_fakes::{EnumeratingResolver, FakeResolver};
+use crate::recall_fakes::{EnumeratingResolver, FakeResolver, SlowResolver};
 use crate::recall_fixtures::uid;
 
 #[test]
@@ -69,6 +69,31 @@ async fn held_keys_are_org_user_project_and_every_enumerated_subject_sorted_once
     assert!(
         !held.enumerated_by("fake"),
         "a resolver answering None is not enumerated"
+    );
+}
+
+#[tokio::test]
+async fn resolvers_are_asked_together_and_enumerated_in_resolver_order() {
+    let slow = Arc::new(SlowResolver {
+        inner: EnumeratingResolver::new("slow", Some(vec![AudienceSubject::Role("a".to_owned())])),
+        delay_ms: 30,
+    });
+    let fast = Arc::new(EnumeratingResolver::new(
+        "fast",
+        Some(vec![AudienceSubject::Role("b".to_owned())]),
+    ));
+    let started = std::time::Instant::now();
+    let held = build(
+        &uid("bob"),
+        None,
+        &[Arc::clone(&slow) as _, Arc::clone(&fast) as _],
+    )
+    .await;
+    assert_eq!(held.enumerated, vec!["slow", "fast"]);
+    assert_eq!(held.keys, vec!["org", "role:a", "role:b", "user:bob"]);
+    assert!(
+        started.elapsed() < std::time::Duration::from_millis(55),
+        "the two resolvers were not awaited one after the other"
     );
 }
 

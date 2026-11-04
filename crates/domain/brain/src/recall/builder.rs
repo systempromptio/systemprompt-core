@@ -1,8 +1,8 @@
 //! [`BrainRecallServiceBuilder`]: assembles a [`BrainRecallService`] from
-//! its store, source check, declarations and profile, with optional
-//! extension retrievers (and the loader that introduces the facts only
-//! they find), injection policies, importance models and audience
-//! resolvers.
+//! its store, the loader that reads the fused facts (and the facts only an
+//! extension retriever finds), source check, declarations and profile,
+//! with optional extension retrievers, injection policies, importance
+//! models and audience resolvers.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -43,6 +43,7 @@ impl BrainRecallService {
     #[must_use]
     pub fn builder(
         store: Arc<dyn FactRecallSource>,
+        loader: Arc<dyn FactLoader>,
         source_access: Arc<dyn SourceAccess>,
         declared: Arc<dyn DeclaredSource>,
         profile: Arc<BrainProfile>,
@@ -55,7 +56,7 @@ impl BrainRecallService {
                 declared,
                 profile,
                 retrievers: Vec::new(),
-                loader: None,
+                loader,
                 injection: Vec::new(),
                 importance: Vec::new(),
                 audiences: Vec::new(),
@@ -70,12 +71,6 @@ impl BrainRecallServiceBuilder {
     #[must_use]
     pub fn retrievers(mut self, retrievers: Vec<Arc<dyn FactRetriever>>) -> Self {
         self.service.retrievers = retrievers;
-        self
-    }
-
-    #[must_use]
-    pub fn loader(mut self, loader: Arc<dyn FactLoader>) -> Self {
-        self.service.loader = Some(loader);
         self
     }
 

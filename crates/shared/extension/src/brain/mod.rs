@@ -54,6 +54,7 @@ pub use registry::{
 pub use render::{InjectedFact, RecallBlock, WithheldSummary};
 pub use retrieval::{
     AnalysisWindow, BrainAnalysis, FactRecallSource, FactRetriever, InjectionPolicy, OutcomeSignal,
+    TierIds,
 };
 pub use source_access::{SourceAccess, SourceVerdict};
 pub use systemprompt_models::brain::WithheldReason;

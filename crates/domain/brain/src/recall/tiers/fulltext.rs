@@ -1,8 +1,8 @@
-//! The full-text tier over the candidate set: the weighted search vector
-//! (`A` identity fields, `B` other fields, `C` statement and synonym
-//! expansions) filtered by the plan's required words (served by the GIN
-//! index) and ranked by the cover density of every word, normalised by
-//! document length.
+//! The full-text tier: the weighted search vector (`A` identity fields,
+//! `B` other fields, `C` statement and synonym expansions) filtered by the
+//! plan's required words (served by the GIN index) and ranked by the
+//! cover density of every word, normalised by document length. A hit is
+//! admitted through the working-set probe and the common predicate.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -20,13 +20,10 @@ pub(super) async fn full_text(
     plan: &SearchPlan,
 ) -> Result<Vec<BrainFactId>, RepositoryError> {
     Ok(sqlx::query_scalar!(
-        r#"WITH cand AS (
-               SELECT DISTINCT w.fact_id FROM brain_working_set w
-               WHERE w.scope_key = ANY($1::text[])
-           )
-           SELECT f.id AS "id: BrainFactId"
-           FROM cand c JOIN brain_facts f ON f.id = c.fact_id
+        r#"SELECT f.id AS "id: BrainFactId" FROM brain_facts f
            WHERE f.search_weighted @@ to_tsquery('simple', $7)
+             AND EXISTS (SELECT 1 FROM brain_working_set w
+                         WHERE w.fact_id = f.id AND w.scope_key = ANY($1::text[]))
              AND f.scope_level = ANY($6::text[])
              AND (f.status = 'confirmed'
                   OR (f.status = 'proposed' AND f.owner_user_id = $2)

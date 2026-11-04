@@ -1,43 +1,46 @@
 //! A new-turn recall: context (held keys built once, `now` read once,
-//! `as_of` from the request), retrieval over the working-set candidates,
-//! fusion (the extension retrievers fan out beside the core tiers and
-//! the facts only they found are loaded, see [`super::introduce`], and
-//! admitted by the tier SQL's own rule, see [`super::admit`]), the
-//! lifecycle counts, visibility, and the budget fill. A
-//! recall *names a subject* when the subject or linked tier returned a
-//! fact; the fill's linked reserve and context cap apply only then.
+//! `as_of` from the request), retrieval over the working-set candidates
+//! as ids (the five core tiers, the lifecycle count and the extension
+//! retrievers run concurrently), one load of every id a tier returned,
+//! fusion (the facts only an extension found are loaded and admitted by
+//! the tier SQL's own rule, see [`super::introduce`] and [`super::admit`]),
+//! visibility, and the budget fill. A recall *names a subject* when the
+//! subject or linked tier returned a fact; the fill's linked reserve and
+//! context cap apply only then.
 //!
-//! An introduced fact (one an extension retriever found that no core tier
-//! did) is admitted by the same predicate as the tier SQL before fusion;
-//! one it rejects for a lifecycle reason is not counted again on the
-//! receipt, since `withheld_counts` already counted every reachable stale,
-//! disputed and review-due fact, and one rejected for scope is counted as
-//! `scope`.
+//! An id the load does not return (the fact was erased between the two
+//! statements) is dropped from every tier before fusion, so it takes no
+//! rank. An introduced fact the admission rule rejects for a lifecycle
+//! reason is not counted again on the receipt, since `withheld_counts`
+//! already counted every reachable stale, disputed and review-due fact,
+//! and one rejected for scope is counted as `scope`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use chrono::Utc;
 use futures::future::join_all;
 use systemprompt_extension::brain::{
-    InjectedFact, RecallBlock, RecallError, RecallOutcome, RecallRequest, SkipReason,
+    InjectedFact, RecallBlock, RecallError, RecallOutcome, RecallRequest, SkipReason, TierIds,
     WithheldSummary,
 };
+use systemprompt_identifiers::BrainFactId;
 use systemprompt_models::brain::{
-    InjectionPlan, RecallCtx, RecallQuery, RetrievalTier, ScopeLevel, ScoredFact, WithheldReason,
+    BrainFact, InjectionPlan, RecallCtx, RecallQuery, RetrievalTier, ScopeLevel, ScoredFact,
+    WithheldReason,
 };
 
 use super::admit::{self, Admission};
 use super::budget::{self, BudgetLimits, Candidate};
 use super::declared::DeclaredRecall;
-use super::fusion::{self, TierHits};
 use super::held::{self, HeldKeys};
-use super::introduce;
 use super::score::{self, ScoreInput};
 use super::service::{BrainRecallService, fact_text};
 use super::visible::{Visibility, lifecycle_withheld};
+use super::{fusion, introduce};
 
 #[derive(Debug, Clone, Copy)]
 struct PlanShape {
@@ -104,41 +107,62 @@ impl BrainRecallService {
             max_subjects: retrieval.max_subjects,
         };
         let fan_out = join_all(self.retrievers.iter().map(|r| r.retrieve(&query, ctx)));
-        let (pinned, subject, linked, context, text, extension) = tokio::join!(
+        let (core, counts, extension) = tokio::join!(
             self.store
-                .pinned(ctx, retrieval.max_facts.min(MAX_TIER_LIMIT)),
-            self.store.by_subject(&query, ctx),
-            self.store.by_linked(&query, ctx),
-            self.store.by_context(&query, ctx),
-            self.store.full_text(&query, ctx),
+                .tier_ids(&query, ctx, retrieval.max_facts.min(MAX_TIER_LIMIT)),
+            self.store.withheld_counts(ctx),
             fan_out,
         );
-        let mut tiers = vec![
-            TierHits::new(RetrievalTier::Pinned, pinned?),
-            TierHits::new(RetrievalTier::Subject, subject?),
-            TierHits::new(RetrievalTier::Linked, linked?),
-            TierHits::new(RetrievalTier::Context, context?),
-            TierHits::new(RetrievalTier::FullText, text?),
-        ];
+        for (reason, count) in counts? {
+            *withheld.by_reason.entry(reason).or_default() += count;
+        }
+        let mut tiers = core?;
+        let mut facts = self.load_tiers(&mut tiers).await?;
         let ranked = introduce::ranked_of(&self.retrievers, extension);
         if retrieval.tiers.extension > 0.0 && !ranked.is_empty() {
-            let mut known = introduce::known(&tiers);
+            let mut known: HashSet<BrainFactId> = facts.keys().cloned().collect();
             let unseen = introduce::unseen(&known, &ranked, retrieval.extension_max_candidates);
-            if let Some(loader) = self.loader.as_ref().filter(|_| !unseen.is_empty()) {
+            if !unseen.is_empty() {
                 let admission = Admission::of(ctx, self.inject_stale());
-                for fact in introduce::loaded(loader.as_ref(), &unseen).await {
+                for fact in introduce::loaded(self.loader.as_ref(), &unseen).await {
                     match admit::admitted_by_sql(&fact, &admission) {
                         Some(reason) if counted_by_withheld_sql(reason) => {},
                         Some(reason) => withheld.add(reason),
                         None => {
-                            known.insert(fact.id.clone(), fact);
+                            known.insert(fact.id.clone());
+                            facts.insert(fact.id.clone(), fact);
                         },
                     }
                 }
             }
             tiers.extend(introduce::extension_hits(&ranked, &known));
         }
-        Ok(fusion::fuse(tiers, &retrieval.tiers, retrieval.rrf_k))
+        let fused = fusion::fuse(tiers, &retrieval.tiers, retrieval.rrf_k);
+        Ok(fusion::attach(fused, facts))
+    }
+
+    async fn load_tiers(
+        &self,
+        tiers: &mut [TierIds],
+    ) -> Result<HashMap<BrainFactId, BrainFact>, RecallError> {
+        let ids: Vec<BrainFactId> = tiers
+            .iter()
+            .flat_map(|hits| hits.ids.iter())
+            .cloned()
+            .collect::<HashSet<_>>()
+            .into_iter()
+            .collect();
+        let facts: HashMap<BrainFactId, BrainFact> = self
+            .loader
+            .load(&ids)
+            .await?
+            .into_iter()
+            .map(|fact| (fact.id.clone(), fact))
+            .collect();
+        for hits in tiers.iter_mut() {
+            hits.ids.retain(|id| facts.contains_key(id));
+        }
+        Ok(facts)
     }
 
     fn plan(
@@ -192,9 +216,6 @@ impl BrainRecallService {
         declared: &DeclaredRecall,
     ) -> Result<(Vec<ScoredFact>, WithheldSummary, bool), RecallError> {
         let mut withheld = WithheldSummary::default();
-        for (reason, count) in self.store.withheld_counts(ctx).await? {
-            *withheld.by_reason.entry(reason).or_default() += count;
-        }
         let mut ranked: Vec<ScoredFact> = Vec::new();
         let fused = self.retrieve(request, ctx, declared, &mut withheld).await?;
         let subject_named = fused.iter().any(|scored| {

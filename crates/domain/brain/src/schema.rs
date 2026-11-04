@@ -69,7 +69,6 @@ pub const BRAIN_SCHEMAS: &[SchemaEntry] = &[
             "statement_hash",
             "revision",
             "owner_user_id",
-            "search",
             "search_weighted",
             "observed_at",
         ],
