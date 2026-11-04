@@ -10,7 +10,7 @@
 //! the ids it omitted follow in their fused order, an id it never
 //! received is ignored ([`returned_of`] is that filter), and an empty
 //! result leaves the order unchanged.
-//! [`BrainRecallService::rerank`] applies the first registered reranker
+//! `BrainRecallService::rerank` applies the first registered reranker
 //! under `reranker_timeout_ms`; an error or a timeout is logged with the
 //! reranker's name and leaves the fused order untouched. The receipt
 //! records which reranker ran and the rank it gave each injected fact
