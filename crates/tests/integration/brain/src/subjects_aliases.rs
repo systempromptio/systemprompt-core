@@ -1,4 +1,4 @@
-use chrono::{Duration, Utc};
+use chrono::{DateTime, Duration, Utc};
 use sqlx::PgConnection;
 use systemprompt_brain::index::{AliasOwner, AliasRows};
 use systemprompt_brain::repository::{AliasRepository, SubjectRepository};
@@ -6,6 +6,17 @@ use systemprompt_identifiers::BrainFactId;
 use systemprompt_models::brain::SubjectKey;
 
 use crate::harness::Harness;
+
+fn owned(subject: &SubjectKey, alias: &str, fact: &BrainFactId, at: DateTime<Utc>) -> AliasRows {
+    AliasRows::collect([(
+        AliasOwner {
+            subject,
+            fact,
+            updated_at: at,
+        },
+        vec![alias.to_owned()],
+    )])
+}
 
 async fn display_name(h: &Harness, subject: &SubjectKey) -> Option<String> {
     sqlx::query_scalar::<_, Option<String>>(
@@ -78,12 +89,21 @@ async fn aliases_match_by_similarity_within_their_kind_and_move_on_upsert() {
             .await
             .expect("subject");
     }
-    AliasRepository::upsert(&mut conn, &acme, "Acme Rockets")
+    let (first, second, third) = (
+        BrainFactId::generate(),
+        BrainFactId::generate(),
+        BrainFactId::generate(),
+    );
+    let at = Utc::now();
+    AliasRepository::upsert_many(&mut conn, &owned(&acme, "Acme Rockets", &first, at))
         .await
         .expect("alias");
-    AliasRepository::upsert(&mut conn, &globex, "Globex Corporation")
-        .await
-        .expect("alias");
+    AliasRepository::upsert_many(
+        &mut conn,
+        &owned(&globex, "Globex Corporation", &second, at),
+    )
+    .await
+    .expect("alias");
 
     let found = h
         .repos
@@ -122,7 +142,8 @@ async fn aliases_match_by_similarity_within_their_kind_and_move_on_upsert() {
             .is_empty()
     );
 
-    AliasRepository::upsert(&mut conn, &globex, "ACME rockets")
+    let later = at + Duration::seconds(1);
+    AliasRepository::upsert_many(&mut conn, &owned(&globex, "ACME rockets", &third, later))
         .await
         .expect("move alias");
     drop(conn);
@@ -223,14 +244,6 @@ async fn a_set_upsert_moves_an_alias_only_to_a_fact_at_least_as_recent_as_its_ow
         "a newer fact takes it whatever its id"
     );
 
-    AliasRepository::upsert(&mut conn, &acme, "jane doe")
-        .await
-        .expect("an unowned upsert");
-    assert_eq!(
-        alias_owner(&mut conn, "jane doe").await,
-        ("acme".to_owned(), Some(lower.to_string())),
-        "an upsert that owns nothing always wins and leaves the owner columns"
-    );
     drop(conn);
     h.finish().await;
 }

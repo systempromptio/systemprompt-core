@@ -6,10 +6,12 @@
 //! ensure, alias upsert, weighted-vector update. Eight statements for a
 //! set of any size, against ten or more per fact on the per-fact path.
 //! Aliases and synonym expansions are derived in Rust from the loaded
-//! rows. The alias rows are folded with the facts in `(updated_at, id)`
-//! order and the upsert only moves an alias to a fact at least as recent
-//! as its owner, so the owner of a shared alias is the same whichever set
-//! or batch wrote it last.
+//! rows. The alias rows are folded with the live facts in `(updated_at,
+//! id)` order and the upsert only moves an alias to a fact at least as
+//! recent as its owner, so the owner of a shared alias is the same
+//! whichever set or batch wrote it last. A fact in the set that is no
+//! longer live contributes nothing and releases what it owned
+//! ([`super::release_alias_owners`]), a ninth statement for such a set.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -21,12 +23,13 @@ use serde::Deserialize;
 use sqlx::PgConnection;
 use sqlx::types::Json;
 use systemprompt_identifiers::BrainFactId;
-use systemprompt_models::brain::{KindDecl, SubjectKey, SynonymsDoc};
+use systemprompt_models::brain::{FactStatus, KindDecl, SubjectKey, SynonymsDoc};
 use systemprompt_traits::RepositoryError;
 
 use super::aliases::{AliasInput, derive_aliases};
+use super::release::{holds_aliases, release_alias_owners};
 use super::rows::{AliasOwner, AliasRows};
-use crate::models::FieldMap;
+use crate::models::{FieldMap, decode_status};
 use crate::repository::{
     AliasRepository, FactLinkRepository, SearchIndexRepository, SubjectRepository,
     WorkingSetRepository,
@@ -45,6 +48,7 @@ pub struct ReindexReport {
 struct Indexed {
     id: BrainFactId,
     kind: String,
+    status: FactStatus,
     updated_at: DateTime<Utc>,
     subject: SubjectKey,
     statement: String,
@@ -70,7 +74,9 @@ pub async fn reindex_facts(
     let subjects: Vec<&SubjectKey> = rows.iter().map(|row| &row.subject).collect();
     SubjectRepository::ensure_many(&mut *conn, &subjects).await?;
     let mut kinds: HashMap<String, Option<KindDecl>> = HashMap::new();
-    let mut by_recency: Vec<&Indexed> = rows.iter().collect();
+    let (contributing, released): (Vec<&Indexed>, Vec<&Indexed>) =
+        rows.iter().partition(|row| holds_aliases(row.status));
+    let mut by_recency = contributing;
     by_recency.sort_by(|a, b| a.updated_at.cmp(&b.updated_at).then(a.id.cmp(&b.id)));
     let aliases = AliasRows::collect(by_recency.into_iter().map(|row| {
         let kind = kind_of(&mut kinds, row);
@@ -88,6 +94,8 @@ pub async fn reindex_facts(
         (owner, derived)
     }));
     AliasRepository::upsert_many(&mut *conn, &aliases).await?;
+    let released: Vec<BrainFactId> = released.into_iter().map(|row| row.id.clone()).collect();
+    Box::pin(release_alias_owners(&mut *conn, &released)).await?;
     let expansions: Vec<String> = rows
         .iter()
         .map(|row| synonyms.expansion_text(&row.statement))
@@ -124,7 +132,8 @@ async fn load_many(
         return Ok(Vec::new());
     }
     let rows = sqlx::query!(
-        r#"SELECT f.id AS "id!: BrainFactId", f.kind AS "kind!", f.updated_at AS "updated_at!",
+        r#"SELECT f.id AS "id!: BrainFactId", f.kind AS "kind!", f.status AS "status!",
+                  f.updated_at AS "updated_at!",
                   f.subject_kind AS "subject_kind!", f.subject_id AS "subject_id!",
                   f.statement AS "statement!", f.fields AS "fields!: Json<FieldMap>",
                   s.display_name, k.body AS "kind_body?"
@@ -138,17 +147,19 @@ async fn load_many(
     )
     .fetch_all(conn)
     .await?;
-    Ok(rows
-        .into_iter()
-        .map(|row| Indexed {
-            id: row.id,
-            kind: row.kind,
-            updated_at: row.updated_at,
-            subject: SubjectKey::new(row.subject_kind, row.subject_id),
-            statement: row.statement,
-            fields: row.fields,
-            display_name: row.display_name,
-            kind_body: row.kind_body,
+    rows.into_iter()
+        .map(|row| {
+            Ok(Indexed {
+                id: row.id,
+                kind: row.kind,
+                status: decode_status(&row.status)?,
+                updated_at: row.updated_at,
+                subject: SubjectKey::new(row.subject_kind, row.subject_id),
+                statement: row.statement,
+                fields: row.fields,
+                display_name: row.display_name,
+                kind_body: row.kind_body,
+            })
         })
-        .collect())
+        .collect()
 }

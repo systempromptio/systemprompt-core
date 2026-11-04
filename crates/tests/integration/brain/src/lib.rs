@@ -3,6 +3,8 @@
 //! the review and retention jobs. Each test owns a disposable database.
 
 #[cfg(test)]
+mod alias_release;
+#[cfg(test)]
 mod analysis_job;
 #[cfg(test)]
 mod analysis_store;

@@ -6,9 +6,7 @@
 //! UPDATE` cannot touch twice. [`AliasRepository::upsert_many`] moves an
 //! alias only to a fact at least as recent as its current owner
 //! (`owner_updated_at`, then `owner_fact_id`), so the sets and batches of
-//! a reindex converge on one owner in any order; [`AliasRepository::upsert`]
-//! owns nothing and always wins, for a caller that names the subject
-//! itself.
+//! a reindex converge on one owner in any order.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -105,28 +103,6 @@ impl AliasRepository {
             .collect::<Vec<_>>()
             .join(" ")
             .to_lowercase()
-    }
-
-    pub async fn upsert(
-        conn: &mut PgConnection,
-        subject: &SubjectKey,
-        alias: &str,
-    ) -> Result<(), RepositoryError> {
-        let id = uuid_text();
-        sqlx::query!(
-            "INSERT INTO brain_aliases (id, subject_kind, subject_id, alias, alias_norm)
-             VALUES ($1, $2, $3, $4, $5)
-             ON CONFLICT (subject_kind, alias_norm) DO UPDATE
-             SET subject_id = EXCLUDED.subject_id, alias = EXCLUDED.alias",
-            id,
-            subject.kind,
-            subject.id,
-            alias,
-            Self::normalise(alias),
-        )
-        .execute(conn)
-        .await?;
-        Ok(())
     }
 
     pub async fn upsert_many(
@@ -227,8 +203,4 @@ impl AliasRepository {
     ) -> Result<Vec<AliasMatch>, RepositoryError> {
         Self::similar(&*self.pools.read, subject_kind, text, threshold).await
     }
-}
-
-fn uuid_text() -> String {
-    uuid::Uuid::new_v4().to_string()
 }

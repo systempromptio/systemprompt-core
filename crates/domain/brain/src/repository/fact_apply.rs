@@ -4,7 +4,10 @@
 //! touches the statement, fields, topics or importance (`Revised`,
 //! `Merged`, `FieldsEdited`) also refreshes the derived indexes there,
 //! unless the caller defers them to its set-based round
-//! ([`Reindex::Deferred`]), in which case it reindexes the id itself.
+//! ([`Reindex::Deferred`]), in which case it reindexes the id itself. A
+//! change to a status that holds no alias (stale, superseded, retired)
+//! releases the fact's aliases to the newest live contributor on the
+//! same connection, deferred or not.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -18,7 +21,7 @@ use systemprompt_traits::RepositoryError;
 
 use super::FactRepository;
 use super::revisions::FactRevisionRepository;
-use crate::index::{Reindex, reindex_fact};
+use crate::index::{Reindex, holds_aliases, reindex_fact, release_alias_owners};
 use crate::models::{FactChange, FieldMap, NewRevision, decode_status};
 
 pub(super) struct SourceColumns<'a> {
@@ -188,10 +191,26 @@ impl FactRepository {
             },
         )
         .await?;
-        if reindex == Reindex::Now && reindexes(&change) {
-            reindex_fact(conn, id).await?;
-        }
+        Self::settle_indexes(conn, id, &change, reindex).await?;
         Ok(revision)
+    }
+
+    async fn settle_indexes(
+        conn: &mut PgConnection,
+        id: &BrainFactId,
+        change: &FactChange,
+        reindex: Reindex,
+    ) -> Result<(), RepositoryError> {
+        if reindex == Reindex::Now && reindexes(change) {
+            reindex_fact(&mut *conn, id).await?;
+        }
+        if change
+            .new_status()
+            .is_some_and(|status| !holds_aliases(status))
+        {
+            release_alias_owners(conn, std::slice::from_ref(id)).await?;
+        }
+        Ok(())
     }
 }
 

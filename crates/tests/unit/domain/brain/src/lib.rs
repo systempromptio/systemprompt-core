@@ -22,6 +22,8 @@ mod defaults_validator;
 #[cfg(test)]
 mod error_transient;
 #[cfg(test)]
+mod failure_reason;
+#[cfg(test)]
 mod field_edit;
 #[cfg(test)]
 mod fixtures;

@@ -18,21 +18,31 @@
 //! one [`reindex_facts`] call after the per-event loop indexes them all on
 //! the round's transaction.
 //!
+//! [`release_alias_owners`] is the path out: a fact that stops being live
+//! (retired, staled, superseded, erased, purged) gives its aliases up to
+//! the newest live fact that still contributes them, through the same
+//! statements, so the owner rule holds after every status change too.
+//!
 //! [`refresh_projection`] is the same path for a batch of queued keys: the
 //! `brain_fact_index` projection an upgrade migration queues every stored
 //! fact into and the consumer sweep drains. It also floors `observed_at`
 //! to `created_at`, the one stamp a row that predates the column needs.
 //! When the set statement fails for the batch, the batch is rolled back
-//! to a savepoint and reindexed key by key, each under its own; a key
-//! that fails alone is parked in the queue past its retry budget
-//! ([`systemprompt_database::projection::park`]) and the rest of the
-//! batch commits, so one refused row never strands the keys beside it.
+//! to a savepoint and reindexed key by key, each under its own; a key a
+//! constraint refuses on its own is parked in the queue past its retry
+//! budget ([`systemprompt_database::projection::park`]) and the rest of
+//! the batch commits, so one refused row never strands the keys beside
+//! it. Any other failure (a deadlock, a lock timeout) is returned, so the
+//! drain re-queues the whole batch one attempt dearer as before: nothing
+//! unparks a key, so only a row that fails the same way every time is
+//! parked.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 mod aliases;
 mod batch;
+mod release;
 mod rows;
 
 use sqlx::{Acquire, PgConnection};
@@ -43,6 +53,7 @@ use systemprompt_traits::RepositoryError;
 
 pub use aliases::{AliasInput, derive_aliases};
 pub use batch::{ReindexReport, STATEMENTS_PER_SET, reindex_facts};
+pub use release::{holds_aliases, release_alias_owners};
 pub use rows::{AliasOwner, AliasRows, MAX_ALIAS_NORM_LEN, ReindexBatch};
 
 use crate::repository::SynonymsRepository;
@@ -91,10 +102,11 @@ pub async fn refresh_projection(
     for id in &ids {
         match reindex_in_savepoint(&mut *conn, std::slice::from_ref(id), &synonyms).await {
             Ok(report) => refreshed += report.facts,
-            Err(error) => {
+            Err(error) if error.is_constraint() => {
                 tracing::error!(fact = %id, error = %error, "Brain fact cannot be indexed; parked");
                 projection::park(&mut *conn, BRAIN_FACT_INDEX, id.as_str()).await?;
             },
+            Err(error) => return Err(error),
         }
     }
     Ok(refreshed)

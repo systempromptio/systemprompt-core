@@ -6,8 +6,9 @@
 //! fails closed. Each extraction is recorded once per event and pipeline
 //! version, and the daily token budget is checked before every call. A
 //! round that runs an event a second time (its first pass rolled back)
-//! reuses what the round remembered of the first call and only re-records
-//! the spend; the model is never asked twice for one event.
+//! reuses what the round remembered of each kind's first call and only
+//! re-records its spend; the model is asked again only for a kind whose
+//! first call never returned.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -104,18 +105,8 @@ impl BrainPipeline {
         }
         let ctx = params.ctx;
         let outbox_id = &event.envelope.outbox_id;
-        let remembered = params
-            .round
-            .and_then(|round| round.extractions.recall(outbox_id));
-        if let Some(remembered) = remembered {
-            for record in &remembered.records {
-                ExtractionRepository::record(&mut *conn, record).await?;
-            }
-            return Ok(remembered.extracted);
-        }
         let source = event.source();
         let mut out = Extracted::default();
-        let mut records = Vec::new();
         for kind in kinds {
             let Some(extractor) = select_extractor(&self.seams.extractors, &self.model, kind)
             else {
@@ -130,6 +121,14 @@ impl BrainPipeline {
                         return Ok(out);
                     },
                 }
+            }
+            let remembered = params
+                .round
+                .and_then(|round| round.extractions.recall(outbox_id, &kind.kind));
+            if let Some(remembered) = remembered {
+                ExtractionRepository::record(&mut *conn, &remembered.record).await?;
+                out.candidates.extend(remembered.candidates);
+                continue;
             }
             self.check_budget(conn, ctx.loaded_at()).await?;
             let input = ExtractionInput {
@@ -148,23 +147,23 @@ impl BrainPipeline {
                 candidates: u32::try_from(candidates).unwrap_or(u32::MAX),
             };
             ExtractionRepository::record(&mut *conn, &extraction).await?;
-            records.push(extraction);
             metrics::extraction(extractor.name(), candidates);
-            out.candidates.extend(
-                output
-                    .candidates
-                    .into_iter()
-                    .filter(|c| c.kind == kind.kind),
-            );
-        }
-        if let Some(round) = params.round {
-            round.extractions.remember(
-                outbox_id,
-                Remembered {
-                    extracted: out.clone(),
-                    records,
-                },
-            );
+            let produced: Vec<FactCandidate> = output
+                .candidates
+                .into_iter()
+                .filter(|c| c.kind == kind.kind)
+                .collect();
+            if let Some(round) = params.round {
+                round.extractions.remember(
+                    outbox_id,
+                    &kind.kind,
+                    Remembered {
+                        candidates: produced.clone(),
+                        record: extraction,
+                    },
+                );
+            }
+            out.candidates.extend(produced);
         }
         Ok(out)
     }

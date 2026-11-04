@@ -16,6 +16,7 @@ use systemprompt_traits::RepositoryError;
 
 use super::Pools;
 use super::tombstones::TombstoneRepository;
+use crate::index::release_alias_owners;
 use crate::models::{FactFilter, FactRow, FieldMap, decode_status};
 
 /// How many facts the store holds in each status.
@@ -173,7 +174,8 @@ impl FactRepository {
         sqlx::query!("DELETE FROM brain_facts WHERE id = $1", id.as_str())
             .execute(&mut *conn)
             .await?;
-        TombstoneRepository::insert(conn, &fact.kind, &fact.identity_hash, erased_by).await?;
+        TombstoneRepository::insert(&mut *conn, &fact.kind, &fact.identity_hash, erased_by).await?;
+        release_alias_owners(conn, std::slice::from_ref(id)).await?;
         Ok(Some(fact))
     }
 

@@ -255,7 +255,7 @@ async fn fail(executor: impl sqlx::PgExecutor<'_>, failed: &Failed<'_>) -> Brain
         outbox_id: failed.id.clone(),
         pipeline_version: Some(failed.version.clone()),
         stage: failed.stage,
-        reason: failed.reason.clone(),
+        reason: NewFailure::scrub_reason(&failed.reason),
         attempt: u32::try_from(failed.attempt).unwrap_or(u32::MAX),
     };
     FailureRepository::record(executor, &failure).await?;

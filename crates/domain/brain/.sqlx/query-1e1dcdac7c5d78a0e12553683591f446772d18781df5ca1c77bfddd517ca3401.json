@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT DISTINCT f.id AS \"id!: BrainFactId\"\n               FROM unnest($1::text[], $2::text[]) AS r(kind, norm)\n               JOIN brain_facts f ON f.subject_kind = r.kind\n               LEFT JOIN brain_subjects s\n                      ON s.subject_kind = f.subject_kind AND s.subject_id = f.subject_id\n               WHERE f.status = ANY($3::text[])\n                 AND (lower(regexp_replace(btrim(f.subject_id), '\\s+', ' ', 'g')) = r.norm\n                   OR lower(regexp_replace(btrim(translate(f.subject_id, '-_', '  ')),\n                                           '\\s+', ' ', 'g')) = r.norm\n                   OR lower(regexp_replace(btrim(s.display_name), '\\s+', ' ', 'g')) = r.norm\n                   OR EXISTS (SELECT 1 FROM jsonb_each_text(f.fields) AS kv\n                              WHERE lower(regexp_replace(btrim(kv.value), '\\s+', ' ', 'g'))\n                                    = r.norm))\n               ORDER BY 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!: BrainFactId",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "brain_facts",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "TextArray",
+        "TextArray",
+        "TextArray"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "1e1dcdac7c5d78a0e12553683591f446772d18781df5ca1c77bfddd517ca3401"
+}

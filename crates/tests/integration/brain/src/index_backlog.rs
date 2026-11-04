@@ -3,7 +3,8 @@
 //! aliases and weighted vector and flooring `observed_at` to `created_at`,
 //! before it checks the working set for drift. A key a constraint refuses
 //! is parked past the retry budget on its own and the keys beside it are
-//! still refreshed.
+//! still refreshed; any other failure re-queues the batch one attempt
+//! dearer, since nothing unparks a key.
 
 use systemprompt_brain::index::BRAIN_FACT_INDEX;
 use systemprompt_database::projection::PARKED_ATTEMPTS;
@@ -173,6 +174,83 @@ async fn a_key_the_index_refuses_is_parked_and_the_batch_still_lands() {
         indexed,
         vec![acme.id.to_string()],
         "the key beside it landed"
+    );
+    h.finish().await;
+}
+
+#[tokio::test]
+async fn a_failure_that_is_not_a_constraint_requeues_the_batch_instead_of_parking() {
+    let h = Harness::with("brain_index_backlog_requeue", Setup::confirming()).await;
+    let author = h.user("author", &[]).await;
+    for product in ["acme", "globex"] {
+        h.emit(&entered(
+            &author,
+            kind(OWNERSHIP),
+            product,
+            serde_json::json!({ "team": "ops" }),
+            FactScope::Org,
+        ))
+        .await;
+    }
+    h.drain().await;
+    for sql in [
+        "DELETE FROM brain_subjects WHERE subject_id = 'globex'",
+        "CREATE FUNCTION brain_test_refuse() RETURNS trigger LANGUAGE plpgsql AS $$
+         BEGIN
+             IF NEW.subject_id = 'globex' THEN RAISE EXCEPTION 'not now'; END IF;
+             RETURN NEW;
+         END $$",
+        "CREATE TRIGGER brain_test_refuse BEFORE INSERT ON brain_subjects
+         FOR EACH ROW EXECUTE FUNCTION brain_test_refuse()",
+        "DELETE FROM brain_working_set",
+        "DELETE FROM brain_fact_links",
+        "DELETE FROM brain_aliases",
+        "UPDATE brain_facts SET search_weighted = ''::tsvector",
+    ] {
+        sqlx::query(sql)
+            .execute(&h.pg)
+            .await
+            .expect("an upgraded store whose subject insert fails for a reason of its own");
+    }
+    let ids: Vec<String> = sqlx::query_scalar("SELECT id FROM brain_facts ORDER BY id")
+        .fetch_all(&h.pg)
+        .await
+        .expect("fact ids");
+    let queued: i64 = sqlx::query_scalar("SELECT queue_projection_backlog($1, $2)")
+        .bind(BRAIN_FACT_INDEX)
+        .bind(&ids)
+        .fetch_one(&h.pg)
+        .await
+        .expect("queue");
+    assert_eq!(queued, 2);
+
+    let report = h
+        .pipeline
+        .sweep(chrono::Utc::now())
+        .await
+        .expect("sweep")
+        .expect("this replica swept");
+    assert_eq!(report.index_backlog.keys, 0, "{:?}", report.index_backlog);
+    assert_eq!(
+        report.index_backlog.requeued, 2,
+        "the whole batch is re-queued"
+    );
+    assert_eq!(report.index_backlog.remaining, 2);
+    let attempts: Vec<i32> =
+        sqlx::query_scalar("SELECT attempts FROM projection_backlog WHERE projection = $1")
+            .bind(BRAIN_FACT_INDEX)
+            .fetch_all(&h.pg)
+            .await
+            .expect("attempts");
+    assert_eq!(attempts, vec![1, 1], "one attempt dearer, nothing parked");
+    assert_eq!(
+        h.count(
+            "SELECT COUNT(*) FROM brain_facts WHERE search_weighted <> ''::tsvector AND id <> $1",
+            "none"
+        )
+        .await,
+        0,
+        "the batch rolled back whole"
     );
     h.finish().await;
 }

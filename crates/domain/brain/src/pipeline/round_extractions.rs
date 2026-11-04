@@ -1,9 +1,12 @@
-//! What one round remembers of its model calls.
+//! What one round remembers of its model calls, per event and kind.
 //!
 //! A round that rolls its per-event writes back and runs its events again
-//! never calls the model twice for one event: the candidates each extraction
-//! produced, the source text they cite, and the spend rows that were recorded,
-//! re-recorded on the second pass so the daily budget still counts the call.
+//! never calls the model twice for one `(event, kind)`: each extraction
+//! is remembered the moment it returns, with the candidates it produced
+//! and the spend row that was recorded, and the second pass re-records
+//! that row and reuses the candidates. A kind whose extraction failed was
+//! never remembered and is extracted (and paid for) on the second pass as
+//! it would be on any retry.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -11,21 +14,21 @@
 use std::collections::HashMap;
 use std::sync::{Mutex, PoisonError};
 
-use systemprompt_identifiers::EventOutboxId;
+use systemprompt_identifiers::{EventOutboxId, FactKindId};
+use systemprompt_models::brain::FactCandidate;
 
-use super::extract::Extracted;
 use crate::models::NewExtraction;
 
-/// One event's extraction as the first pass produced it.
-#[derive(Debug, Clone, Default)]
+/// One `(event, kind)` extraction as the first pass produced it.
+#[derive(Debug, Clone)]
 pub struct Remembered {
-    pub extracted: Extracted,
-    pub records: Vec<NewExtraction>,
+    pub candidates: Vec<FactCandidate>,
+    pub record: NewExtraction,
 }
 
 #[derive(Debug, Default)]
 pub(super) struct Extractions {
-    inner: Mutex<HashMap<EventOutboxId, Remembered>>,
+    inner: Mutex<HashMap<(EventOutboxId, FactKindId), Remembered>>,
 }
 
 impl Extractions {
@@ -35,18 +38,18 @@ impl Extractions {
         }
     }
 
-    pub(super) fn remember(&self, id: &EventOutboxId, remembered: Remembered) {
+    pub(super) fn remember(&self, id: &EventOutboxId, kind: &FactKindId, remembered: Remembered) {
         self.inner
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
-            .insert(id.clone(), remembered);
+            .insert((id.clone(), kind.clone()), remembered);
     }
 
-    pub(super) fn recall(&self, id: &EventOutboxId) -> Option<Remembered> {
+    pub(super) fn recall(&self, id: &EventOutboxId, kind: &FactKindId) -> Option<Remembered> {
         self.inner
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
-            .get(id)
+            .get(&(id.clone(), kind.clone()))
             .cloned()
     }
 }

@@ -23,7 +23,8 @@
 //! dropped, so a round that rolled its per-event writes back and runs its
 //! events again reads the store instead of rows that no longer exist.
 //! The ledger claims and the remembered extractions
-//! ([`super::round_extractions`]) stay, since both survive that rollback.
+//! ([`super::round_extractions`], one per event and kind) stay, since
+//! both survive that rollback.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
