@@ -149,3 +149,68 @@ async fn a_message_naming_a_ghost_withholds_the_full_text_hits_but_a_known_subje
     );
     h.finish().await;
 }
+
+#[tokio::test]
+async fn an_asked_kind_does_not_open_the_context_cap_for_a_name_the_brain_does_not_know() {
+    let h = Harness::with("brain_names_asked_unknown", Setup::confirming()).await;
+    let seeded = seed(&h).await;
+    let mut declared = plane::declared();
+    declared.retrieval = Some(RetrievalDoc {
+        unknown_name_withholds_full_text: true,
+        context_requires_signal: true,
+        ..RetrievalDoc::default()
+    });
+    plane::apply(&h.pg, &declared).await;
+    let mut conn = h.pg.acquire().await.expect("conn");
+    SearchTermsRepository::refresh(&mut conn)
+        .await
+        .expect("term statistics");
+    drop(conn);
+
+    let ghost = h
+        .recall()
+        .recall(&request(
+            principal(&seeded.reader, Some(PROJECT)),
+            "What is the pricing at Zorblax?",
+        ))
+        .await
+        .expect("recall");
+    let got = ids(&ghost);
+    assert!(
+        !got.contains(&seeded.context),
+        "the asked pricing kind opened the context cap for a name no fact carries: {got:?}"
+    );
+    assert!(
+        got.contains(&seeded.pinned),
+        "pinned facts still inject: {got:?}"
+    );
+    let block = injected(&ghost).expect("the pinned fact injects");
+    assert!(
+        block
+            .withheld
+            .by_reason
+            .contains_key(&WithheldReason::UnknownName)
+            || block
+                .withheld
+                .by_reason
+                .contains_key(&WithheldReason::ContextCap),
+        "{:?}",
+        block.withheld.by_reason
+    );
+
+    let known = h
+        .recall()
+        .recall(&request(
+            principal(&seeded.reader, Some(PROJECT)),
+            "What is the pricing at Acme?",
+        ))
+        .await
+        .expect("recall");
+    let got = ids(&known);
+    assert!(got.contains(&seeded.subject), "{got:?}");
+    assert!(
+        got.contains(&seeded.context),
+        "a known subject keeps the context: {got:?}"
+    );
+    h.finish().await;
+}

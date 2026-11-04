@@ -11,8 +11,11 @@
 //! ([`withhold_unknown_names`]) applies when the retrieval declares it,
 //! no subject matched, and the store knows none of the message's names:
 //! the full-text tier's ids are emptied ([`withhold_full_text`], which
-//! returns how many of them no other tier returned) and that count is
-//! recorded as `unknown_name`.
+//! returns how many of them no other tier returned), that count is
+//! recorded as `unknown_name`, and the rule reports that it fired so an
+//! asked kind cannot open the context cap for a name the brain does not
+//! know. The signal itself is read from the facts the reader can see:
+//! a subject whose every fact is hidden from the reader names nothing.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -111,13 +114,13 @@ pub async fn withhold_unknown_names(
     retrieval: &RetrievalDoc,
     tiers: &mut [TierIds],
     withheld: &mut WithheldSummary,
-) -> Result<(), RecallError> {
+) -> Result<bool, RecallError> {
     if !retrieval.unknown_name_withholds_full_text || subject_matched(tiers) {
-        return Ok(());
+        return Ok(false);
     }
     let names = names(hints, &retrieval.search_stop_words);
     if names.is_empty() || store.unknown_terms(&names).await?.is_empty() {
-        return Ok(());
+        return Ok(false);
     }
     let dropped = withhold_full_text(tiers);
     if dropped > 0 {
@@ -126,5 +129,5 @@ pub async fn withhold_unknown_names(
             .entry(WithheldReason::UnknownName)
             .or_default() += dropped;
     }
-    Ok(())
+    Ok(true)
 }

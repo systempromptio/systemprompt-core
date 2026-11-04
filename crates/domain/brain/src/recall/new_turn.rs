@@ -5,12 +5,13 @@
 //! fusion (the facts only an extension found are loaded and admitted by
 //! the tier SQL's own rule, see [`super::introduce`] and [`super::admit`]),
 //! visibility, and the budget fill. A recall *names a subject* when the
-//! subject or linked tier returned a fact, *has a full-text hit* when
-//! that tier returned one, and *asks a kind* when the message carries
-//! one of a declared kind's ask words ([`RecallSignal`]); the fill's
-//! linked reserve and context cap read the first, its no-signal gate all
-//! three. Before fusion the unknown-name rule ([`super::signal`]) may
-//! empty the full-text tier.
+//! subject or linked tier returned a fact the reader can see, *has a
+//! full-text hit* when that tier returned one the reader can see, and
+//! *asks a kind* when the message carries one of a declared kind's ask
+//! words and names nothing unknown ([`RecallSignal`], read after the
+//! visibility pass); the fill's linked reserve and context cap read the
+//! first, its no-signal gate all three. Before fusion the unknown-name
+//! rule ([`super::signal`]) may empty the full-text tier.
 //!
 //! An id the load does not return (the fact was erased between the two
 //! statements) is dropped from every tier before fusion
@@ -125,7 +126,7 @@ impl BrainRecallService {
             *withheld.by_reason.entry(reason).or_default() += count;
         }
         let mut tiers = core?;
-        signal::withhold_unknown_names(
+        let unknown_name = signal::withhold_unknown_names(
             self.store.as_ref(),
             &request.subject_hints,
             retrieval,
@@ -133,6 +134,7 @@ impl BrainRecallService {
             withheld,
         )
         .await?;
+        let kind_asked = kind_asked && !unknown_name;
         let mut facts = introduce::load_tiers(self.loader.as_ref(), &mut tiers).await?;
         let ranked = introduce::ranked_of(&self.retrievers, extension);
         if retrieval.tiers.extension > 0.0 && !ranked.is_empty() {
@@ -210,7 +212,6 @@ impl BrainRecallService {
         let mut withheld = WithheldSummary::default();
         let mut ranked: Vec<ScoredFact> = Vec::new();
         let (fused, kind_asked) = self.retrieve(request, ctx, declared, &mut withheld).await?;
-        let signal = signal::signal_of(&fused, kind_asked);
         for scored in fused {
             match lifecycle_withheld(&scored.fact, ctx.as_of, self.inject_stale()) {
                 Some(reason) => withheld.add(reason),
@@ -225,6 +226,7 @@ impl BrainRecallService {
         for (reason, count) in hidden.by_reason {
             *withheld.by_reason.entry(reason).or_default() += count;
         }
+        let signal = signal::signal_of(&visible, kind_asked);
         Ok((visible, withheld, signal))
     }
 
