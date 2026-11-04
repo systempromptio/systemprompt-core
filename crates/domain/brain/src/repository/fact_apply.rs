@@ -151,7 +151,7 @@ impl FactRepository {
                                              WHEN $15::text IS NOT NULL THEN NULL
                                              ELSE review_notified_at END,
                    revision = revision + 1,
-                   updated_at = now()
+                   updated_at = clock_timestamp()
                WHERE id = $1
                RETURNING revision, status, statement, fields AS "fields: Json<FieldMap>""#,
             id.as_str(),

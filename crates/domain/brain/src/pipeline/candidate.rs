@@ -121,6 +121,9 @@ impl BrainPipeline {
                 format!("kind {} is not declared", candidate.kind),
             )));
         };
+        if let Err(error) = candidate.subject.validate() {
+            return Ok(Err(rejected("core.subject", error.to_string())));
+        }
         rules::add_kind_topics(&mut candidate, kind);
         let cached = params
             .round

@@ -3,7 +3,12 @@
 //! trigram similarity. The `_many` writers take the rows of a whole set
 //! in one statement; [`AliasRows`] has already folded duplicate
 //! `(subject_kind, alias_norm)` pairs, which one `INSERT … ON CONFLICT DO
-//! UPDATE` cannot touch twice.
+//! UPDATE` cannot touch twice. [`AliasRepository::upsert_many`] moves an
+//! alias only to a fact at least as recent as its current owner
+//! (`owner_updated_at`, then `owner_fact_id`), so the sets and batches of
+//! a reindex converge on one owner in any order; [`AliasRepository::upsert`]
+//! owns nothing and always wins, for a caller that names the subject
+//! itself.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -132,16 +137,25 @@ impl AliasRepository {
             return Ok(0);
         }
         let result = sqlx::query!(
-            "INSERT INTO brain_aliases (id, subject_kind, subject_id, alias, alias_norm)
-             SELECT gen_random_uuid()::text, a.kind, a.subject, a.alias, a.norm
-             FROM unnest($1::text[], $2::text[], $3::text[], $4::text[])
-                  AS a(kind, subject, alias, norm)
+            "INSERT INTO brain_aliases
+                 (id, subject_kind, subject_id, alias, alias_norm, owner_fact_id, owner_updated_at)
+             SELECT gen_random_uuid()::text, a.kind, a.subject, a.alias, a.norm, a.owner, a.stamp
+             FROM unnest($1::text[], $2::text[], $3::text[], $4::text[], $5::text[],
+                         $6::timestamptz[])
+                  AS a(kind, subject, alias, norm, owner, stamp)
              ON CONFLICT (subject_kind, alias_norm) DO UPDATE
-             SET subject_id = EXCLUDED.subject_id, alias = EXCLUDED.alias",
+             SET subject_id = EXCLUDED.subject_id, alias = EXCLUDED.alias,
+                 owner_fact_id = EXCLUDED.owner_fact_id,
+                 owner_updated_at = EXCLUDED.owner_updated_at
+             WHERE (EXCLUDED.owner_updated_at, EXCLUDED.owner_fact_id)
+                   >= (COALESCE(brain_aliases.owner_updated_at, '-infinity'::timestamptz),
+                       COALESCE(brain_aliases.owner_fact_id, ''))",
             &rows.kinds,
             &rows.subjects,
             &rows.aliases,
             &rows.norms,
+            &rows.owners,
+            &rows.stamps,
         )
         .execute(conn)
         .await?;

@@ -3,9 +3,13 @@
 //! rows, links, aliases and weighted vectors as N single-event drains, and
 //! the projection drain restores the same rows after an upgrade wipes them.
 //! The set is three contacts, two of which share the alias "Jane Doe" so
-//! the later one must win it, and one ownership fact of another kind. A
-//! full reindex after an upgrade has no landing order, so there the shared
-//! alias may sit on either contact and is compared apart from the rest.
+//! the later one must win it, and one ownership fact of another kind. The
+//! owner of a shared alias is the fact with the greatest `(updated_at,
+//! id)`, so a full reindex after an upgrade lands it on the same contact.
+//!
+//! A round whose set reindex a constraint refuses runs again per event:
+//! the refused event is recorded failed and leaves no fact, the others
+//! keep their facts and indexes, and the model is not asked twice.
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -19,7 +23,7 @@ use systemprompt_models::brain::{BrainEvent, EnteredFact, EnteredStatus, FactSco
 use systemprompt_traits::{Dependencies, JobContext, RunnerService};
 use tokio_util::sync::CancellationToken;
 
-use crate::events::entered;
+use crate::events::{Landed, entered, price};
 use crate::fact_index::{CONTACT, declared_with_contact};
 use crate::harness::{Harness, Setup};
 use crate::plane::{self, OWNERSHIP, kind};
@@ -264,26 +268,7 @@ async fn the_projection_drain_restores_what_the_round_wrote() {
         u64::try_from(emitted).expect("count")
     );
     assert_eq!(report.index_backlog.requeued, 0);
-    let after = derived(&h).await;
-    let shared = |rows: &Derived| {
-        rows.aliases
-            .iter()
-            .filter(|row| row.3 == "jane doe")
-            .map(|row| row.1.clone())
-            .collect::<Vec<_>>()
-    };
-    let unshared = |rows: &Derived| Derived {
-        aliases: rows
-            .aliases
-            .iter()
-            .filter(|row| row.3 != "jane doe")
-            .cloned()
-            .collect(),
-        ..rows.clone()
-    };
-    assert_eq!(unshared(&after), unshared(&before));
-    assert_eq!(shared(&after).len(), 1);
-    assert!(["acme-rockets", "initech"].contains(&shared(&after)[0].as_str()));
+    assert_eq!(derived(&h).await, before);
     h.finish().await;
 }
 
@@ -350,45 +335,72 @@ const UNPROCESSED: &str =
     "SELECT COUNT(*) FROM event_outbox WHERE processed_at IS NULL AND id <> $1";
 const INDEXED: &str =
     "SELECT COUNT(*) FROM brain_facts WHERE search_weighted <> ''::tsvector AND id <> $1";
+const POISON: &str = "poison-inc";
 
 #[tokio::test]
-async fn a_fact_no_index_admits_fails_alone_and_the_round_commits() {
+async fn a_fact_a_constraint_refuses_fails_alone_and_leaves_nothing_behind() {
     let h = Harness::with("brain_reindex_poison", one_round()).await;
     plane::apply(&h.pg, &declared_with_contact()).await;
+    sqlx::query(
+        "ALTER TABLE brain_subjects ADD CONSTRAINT brain_subjects_test_poison
+         CHECK (subject_id <> 'poison-inc')",
+    )
+    .execute(&h.pg)
+    .await
+    .expect("a constraint entry validation does not know");
     let author = h.user("author", &[]).await;
     let good = emit_all(&h, &author).await;
-    let oversized = contact(
-        &"x".repeat(300),
-        "Overlong Subject",
-        "nowhere-inc",
-        "its subject id is longer than brain_subjects admits",
-    )
-    .to_event(author.clone(), Utc::now())
-    .expect("entered event");
-    let poison = h.emit(&oversized).await;
+    h.model
+        .push(serde_json::json!([price("acme", "emea", "1200")]));
+    let document = h.emit(&Landed::new().event(&author)).await;
+    let poison = h
+        .emit(
+            &contact(
+                POISON,
+                "Poison Inc",
+                "nowhere",
+                "its subject row is refused",
+            )
+            .to_event(author.clone(), Utc::now())
+            .expect("entered event"),
+        )
+        .await;
+    let good = i64::try_from(good + 1).expect("count");
     let emitted = good + 1;
 
-    let backlog = run_consumer_until(&h, i64::try_from(emitted).expect("count")).await;
-    assert_eq!(backlog.processed, u64::try_from(emitted).expect("count"));
-    assert_eq!(backlog.failed, 1, "the poison event alone is failed");
-    assert_eq!(backlog.retried, 0, "nothing was retried");
-    assert_eq!(
-        backlog.reindexed,
-        u64::try_from(good).expect("count"),
-        "every other fact was reindexed by the fallback"
-    );
+    let backlog = run_consumer_until(&h, emitted).await;
+    assert_eq!(backlog.processed, u64::try_from(good).expect("count"));
+    assert_eq!(backlog.failed, 1, "the refused event alone is failed");
+    assert_eq!(backlog.retried, 0);
+    assert_eq!(backlog.abandoned, 0);
     assert_eq!(
         h.count(INDEXED, "none").await,
-        i64::try_from(good).expect("count")
+        good,
+        "every other fact is indexed"
     );
-    assert_eq!(
-        h.total("brain_subjects").await,
-        i64::try_from(good).expect("count")
+    assert_eq!(h.total("brain_subjects").await, good);
+    assert!(
+        h.fact_ids(POISON).await.is_empty(),
+        "no fact survives a failed event"
     );
     assert_eq!(
         h.count(UNPROCESSED, "none").await,
         0,
-        "the round committed and acknowledged every event"
+        "the round committed every event"
+    );
+    assert_eq!(
+        h.model.calls(),
+        1,
+        "the model was asked once for the document"
+    );
+    assert_eq!(
+        h.count(
+            "SELECT COUNT(*) FROM brain_extractions WHERE outbox_id = $1",
+            document.as_str()
+        )
+        .await,
+        1,
+        "the extraction spend survived the second pass"
     );
 
     let outcome: Option<String> =
@@ -405,7 +417,12 @@ async fn a_fact_no_index_admits_fails_alone_and_the_round_commits() {
     .fetch_all(&h.pg)
     .await
     .expect("attempt rows");
-    assert_eq!(attempts, vec![("reindex".to_owned(), 1)]);
+    assert_eq!(attempts, vec![("process".to_owned(), 1)]);
+    assert_eq!(
+        h.total("brain_failures").await,
+        1,
+        "the rolled-back first pass left no attempt rows for the good events"
+    );
 
     let again = run_consumer_for(&h, Duration::from_millis(500)).await;
     assert_eq!(

@@ -51,9 +51,13 @@
 //! projection's refresh, which takes a batch with `FOR UPDATE SKIP LOCKED`,
 //! refreshes it and deletes the rows in one transaction. A failed batch is
 //! rolled back and re-queued one attempt dearer; a key past its retry budget
-//! stays queued for an operator and never blocks the rest. A statement that
-//! keeps a `refresh_*(keys TEXT[])` SQL function can use [`drain_with_sql`]
-//! and name it.
+//! stays queued for an operator and never blocks the rest. A refresh that
+//! can tell which key of its batch is the bad one may [`park`] that key
+//! on its own transaction instead of failing the batch: the key goes
+//! straight back to the queue past the budget, counted as pending, and
+//! the rest of the batch commits. A statement that keeps a
+//! `refresh_*(keys TEXT[])` SQL function can use [`drain_with_sql`] and
+//! name it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -95,6 +99,27 @@ where
         .fetch_one(executor)
         .await?;
     Ok(queued)
+}
+
+// Why: Postgres — take_projection_backlog's max_attempts defaults to 5; a
+// parked key sits one past it so the next take leaves it for an operator.
+pub const PARKED_ATTEMPTS: i32 = 6;
+
+pub async fn park<'e, E>(executor: E, projection: &str, key: &str) -> Result<(), RepositoryError>
+where
+    E: PgExecutor<'e>,
+{
+    sqlx::query(
+        "INSERT INTO projection_backlog (projection, key, attempts) VALUES ($1, $2, $3)
+         ON CONFLICT (projection, key) DO UPDATE
+         SET attempts = GREATEST(projection_backlog.attempts, EXCLUDED.attempts)",
+    )
+    .bind(projection)
+    .bind(key)
+    .bind(PARKED_ATTEMPTS)
+    .execute(executor)
+    .await?;
+    Ok(())
 }
 
 pub async fn depth<'e, E>(executor: E, projection: &str) -> Result<i64, RepositoryError>

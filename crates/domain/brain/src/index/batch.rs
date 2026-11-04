@@ -6,14 +6,17 @@
 //! ensure, alias upsert, weighted-vector update. Eight statements for a
 //! set of any size, against ten or more per fact on the per-fact path.
 //! Aliases and synonym expansions are derived in Rust from the loaded
-//! rows, in set order, so the alias a later fact contributes wins exactly
-//! as it would have through sequential upserts.
+//! rows. The alias rows are folded with the facts in `(updated_at, id)`
+//! order and the upsert only moves an alias to a fact at least as recent
+//! as its owner, so the owner of a shared alias is the same whichever set
+//! or batch wrote it last.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashMap;
 
+use chrono::{DateTime, Utc};
 use serde::Deserialize;
 use sqlx::PgConnection;
 use sqlx::types::Json;
@@ -22,7 +25,7 @@ use systemprompt_models::brain::{KindDecl, SubjectKey, SynonymsDoc};
 use systemprompt_traits::RepositoryError;
 
 use super::aliases::{AliasInput, derive_aliases};
-use super::rows::AliasRows;
+use super::rows::{AliasOwner, AliasRows};
 use crate::models::FieldMap;
 use crate::repository::{
     AliasRepository, FactLinkRepository, SearchIndexRepository, SubjectRepository,
@@ -40,8 +43,9 @@ pub struct ReindexReport {
 }
 
 struct Indexed {
-    id: String,
+    id: BrainFactId,
     kind: String,
+    updated_at: DateTime<Utc>,
     subject: SubjectKey,
     statement: String,
     fields: Json<FieldMap>,
@@ -60,13 +64,15 @@ pub async fn reindex_facts(
     if rows.is_empty() {
         return Ok(ReindexReport::default());
     }
-    let keys: Vec<String> = rows.iter().map(|row| row.id.clone()).collect();
+    let keys: Vec<String> = rows.iter().map(|row| row.id.to_string()).collect();
     WorkingSetRepository::refresh_many(&mut *conn, &keys).await?;
     FactLinkRepository::refresh_many(&mut *conn, &keys).await?;
     let subjects: Vec<&SubjectKey> = rows.iter().map(|row| &row.subject).collect();
     SubjectRepository::ensure_many(&mut *conn, &subjects).await?;
     let mut kinds: HashMap<String, Option<KindDecl>> = HashMap::new();
-    let aliases = AliasRows::collect(rows.iter().map(|row| {
+    let mut by_recency: Vec<&Indexed> = rows.iter().collect();
+    by_recency.sort_by(|a, b| a.updated_at.cmp(&b.updated_at).then(a.id.cmp(&b.id)));
+    let aliases = AliasRows::collect(by_recency.into_iter().map(|row| {
         let kind = kind_of(&mut kinds, row);
         let derived = derive_aliases(AliasInput {
             subject_id: &row.subject.id,
@@ -74,7 +80,12 @@ pub async fn reindex_facts(
             kind: kind.as_ref(),
             fields: &row.fields.0,
         });
-        (&row.subject, derived)
+        let owner = AliasOwner {
+            subject: &row.subject,
+            fact: &row.id,
+            updated_at: row.updated_at,
+        };
+        (owner, derived)
     }));
     AliasRepository::upsert_many(&mut *conn, &aliases).await?;
     let expansions: Vec<String> = rows
@@ -113,8 +124,9 @@ async fn load_many(
         return Ok(Vec::new());
     }
     let rows = sqlx::query!(
-        r#"SELECT f.id AS "id!", f.kind AS "kind!", f.subject_kind AS "subject_kind!",
-                  f.subject_id AS "subject_id!", f.statement AS "statement!", f.fields AS "fields!: Json<FieldMap>",
+        r#"SELECT f.id AS "id!: BrainFactId", f.kind AS "kind!", f.updated_at AS "updated_at!",
+                  f.subject_kind AS "subject_kind!", f.subject_id AS "subject_id!",
+                  f.statement AS "statement!", f.fields AS "fields!: Json<FieldMap>",
                   s.display_name, k.body AS "kind_body?"
            FROM brain_facts f
            LEFT JOIN brain_subjects s
@@ -131,6 +143,7 @@ async fn load_many(
         .map(|row| Indexed {
             id: row.id,
             kind: row.kind,
+            updated_at: row.updated_at,
             subject: SubjectKey::new(row.subject_kind, row.subject_id),
             statement: row.statement,
             fields: row.fields,

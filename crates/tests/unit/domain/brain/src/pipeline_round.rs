@@ -2,7 +2,9 @@
 //! answers nothing, a covered identity answers the snapshot the store
 //! would, and the writes an event commits change what the next event of
 //! the same round dedupes against, so two events for one identity in one
-//! round resolve to one fact revised rather than two facts.
+//! round resolve to one fact revised rather than two facts. Once the
+//! reads are forgotten every lookup answers nothing and applied writes
+//! are dropped, while the ledger claims stay.
 
 use std::collections::HashSet;
 
@@ -140,5 +142,39 @@ fn neighbours_follow_liveness_and_a_tombstone_refuses() {
     assert!(
         snapshot.neighbours.is_empty(),
         "a staled fact is no longer a neighbour"
+    );
+}
+
+#[test]
+fn forgotten_reads_answer_nothing_and_keep_the_claims() {
+    let acme = subject("product:acme");
+    let cache = covering(&acme, &[HASH]);
+    let claimed = EventOutboxId::generate();
+    let mut rows = RoundRows::default();
+    rows.claimed = HashSet::from([claimed.clone()]);
+    rows.pairs.insert((kind("pricing"), acme.clone()));
+    rows.identities.insert((kind("pricing"), HASH.to_owned()));
+    rows.resolved
+        .insert(SubjectKey::new("product", "ACME"), acme.clone());
+    let cache_with_claim = RoundCache::new(rows);
+    assert!(cache.reads());
+    assert!(cache.snapshot(&kind("pricing"), &acme, HASH).is_some());
+
+    cache.forget_reads();
+    cache_with_claim.forget_reads();
+    assert!(!cache.reads());
+    assert!(cache.snapshot(&kind("pricing"), &acme, HASH).is_none());
+    assert!(
+        cache_with_claim
+            .resolved(&SubjectKey::new("product", "ACME"))
+            .is_none()
+    );
+    assert!(cache_with_claim.claimed(&claimed), "claims survive");
+
+    let fact = created(&acme, HASH, "acme costs 1200 in emea");
+    cache.apply(vec![DedupeWrite::Created(fact)], Utc::now());
+    assert!(
+        cache.snapshot(&kind("pricing"), &acme, HASH).is_none(),
+        "a write applied after the reads were forgotten is dropped"
     );
 }

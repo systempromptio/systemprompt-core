@@ -32,6 +32,7 @@ pub mod notify;
 mod outcome;
 pub mod persist;
 pub mod round;
+pub mod round_extractions;
 mod round_load;
 pub mod route;
 pub mod rules;
@@ -195,7 +196,7 @@ impl BrainPipeline {
             },
             FilterDecision::Gather { kinds, .. } => gathered(ctx, kinds),
         };
-        let extracted = self.extract(conn, ctx, &event, &kinds).await?;
+        let extracted = self.extract(conn, params, &event, &kinds).await?;
         if let Some(reason) = extracted.unreadable {
             return outcome::unreadable(conn, params, &event, summary, reason).await;
         }

@@ -79,6 +79,10 @@ fn grouped(facts: Vec<BrainFact>) -> Vec<Vec<BrainFact>> {
 }
 
 fn entered(candidate: FactCandidate, group: &[BrainFact]) -> Option<EnteredFact> {
+    if let Err(error) = candidate.subject.validate() {
+        tracing::warn!(subject = %candidate.subject, error = %error, "Brain consolidation candidate refused");
+        return None;
+    }
     let scope = candidate
         .scope
         .or_else(|| group.first().map(|fact| fact.scope.clone()))?;

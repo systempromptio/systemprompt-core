@@ -52,15 +52,19 @@ impl FactRepository {
         let topics = topic_names(candidate);
         let fields = serde_json::Value::Object(candidate.fields.clone());
         let source = serde_json::to_value(&candidate.source)?;
+        // Why: Postgres — now() is the transaction's start time, so every
+        // fact one consumer round inserts would share one updated_at;
+        // clock_timestamp() orders them, which the alias owner rule reads.
         let created = sqlx::query_scalar!(
             r#"INSERT INTO brain_facts (
                    id, kind, subject_kind, subject_id, scope_level, scope_key, statement,
                    fields, source, source_kind, source_document_id, source_revision_id,
                    source_comment_id, topics, status, importance_base, valid_from, valid_to,
                    review_after, retention_until, identity_hash, statement_hash,
-                   owner_user_id, pipeline_version, observed_at)
+                   owner_user_id, pipeline_version, observed_at, created_at, updated_at)
                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
-                       $16, $17, $18, $19, $20, $21, $22, $23, $24, COALESCE($25, now()))
+                       $16, $17, $18, $19, $20, $21, $22, $23, $24, COALESCE($25, now()),
+                       clock_timestamp(), clock_timestamp())
                ON CONFLICT (kind, identity_hash) DO NOTHING
                RETURNING id AS "id: BrainFactId""#,
             fact.id.as_str(),

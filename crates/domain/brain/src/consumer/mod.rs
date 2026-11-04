@@ -30,8 +30,8 @@ mod builder;
 mod decode;
 mod drain;
 mod handle;
+mod pass;
 mod round_state;
-mod settle;
 mod wake;
 
 pub use builder::BrainConsumerBuilder;
@@ -122,10 +122,6 @@ pub(crate) struct Counters {
 }
 
 impl Counters {
-    pub(crate) fn bump(counter: &AtomicU64) {
-        counter.fetch_add(1, Ordering::Relaxed);
-    }
-
     pub(crate) fn add(counter: &AtomicU64, by: u64) {
         counter.fetch_add(by, Ordering::Relaxed);
     }

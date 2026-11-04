@@ -1,4 +1,8 @@
+use chrono::{Duration, Utc};
+use sqlx::PgConnection;
+use systemprompt_brain::index::{AliasOwner, AliasRows};
 use systemprompt_brain::repository::{AliasRepository, SubjectRepository};
+use systemprompt_identifiers::BrainFactId;
 use systemprompt_models::brain::SubjectKey;
 
 use crate::harness::Harness;
@@ -132,5 +136,101 @@ async fn aliases_match_by_similarity_within_their_kind_and_move_on_upsert() {
     assert_eq!(moved[0].subject, globex);
     assert_eq!(moved[0].alias, "ACME rockets");
     assert_eq!(h.total("brain_aliases").await, 2);
+    h.finish().await;
+}
+
+async fn alias_owner(conn: &mut PgConnection, norm: &str) -> (String, Option<String>) {
+    sqlx::query_as::<_, (String, Option<String>)>(
+        "SELECT subject_id, owner_fact_id FROM brain_aliases
+         WHERE subject_kind = 'product' AND alias_norm = $1",
+    )
+    .bind(norm)
+    .fetch_one(conn)
+    .await
+    .expect("alias row")
+}
+
+#[tokio::test]
+async fn a_set_upsert_moves_an_alias_only_to_a_fact_at_least_as_recent_as_its_owner() {
+    let h = Harness::new("brain_alias_owner_rule").await;
+    let acme = SubjectKey::new("product", "acme");
+    let globex = SubjectKey::new("product", "globex");
+    let mut conn = h.pg.acquire().await.expect("conn");
+    for subject in [&acme, &globex] {
+        SubjectRepository::ensure(&mut conn, subject, None)
+            .await
+            .expect("subject");
+    }
+    let mut ids = vec![BrainFactId::generate(), BrainFactId::generate()];
+    ids.sort();
+    let (lower, higher) = (ids[0].clone(), ids[1].clone());
+    let newest = Utc::now();
+    let older = newest - Duration::seconds(5);
+    let upsert = |owner: AliasOwner<'_>| AliasRows::collect([(owner, vec!["Jane Doe".to_owned()])]);
+
+    let first = upsert(AliasOwner {
+        subject: &acme,
+        fact: &higher,
+        updated_at: newest,
+    });
+    AliasRepository::upsert_many(&mut conn, &first)
+        .await
+        .expect("first owner");
+    assert_eq!(
+        alias_owner(&mut conn, "jane doe").await,
+        ("acme".to_owned(), Some(higher.to_string()))
+    );
+
+    let stale = upsert(AliasOwner {
+        subject: &globex,
+        fact: &lower,
+        updated_at: older,
+    });
+    AliasRepository::upsert_many(&mut conn, &stale)
+        .await
+        .expect("an older fact");
+    assert_eq!(
+        alias_owner(&mut conn, "jane doe").await,
+        ("acme".to_owned(), Some(higher.to_string())),
+        "an older fact cannot take the alias"
+    );
+
+    let tied_lower = upsert(AliasOwner {
+        subject: &globex,
+        fact: &lower,
+        updated_at: newest,
+    });
+    AliasRepository::upsert_many(&mut conn, &tied_lower)
+        .await
+        .expect("a tied stamp with the lower id");
+    assert_eq!(
+        alias_owner(&mut conn, "jane doe").await,
+        ("acme".to_owned(), Some(higher.to_string())),
+        "on a tied stamp the greater id keeps it"
+    );
+
+    let newer = upsert(AliasOwner {
+        subject: &globex,
+        fact: &lower,
+        updated_at: newest + Duration::seconds(1),
+    });
+    AliasRepository::upsert_many(&mut conn, &newer)
+        .await
+        .expect("a newer fact");
+    assert_eq!(
+        alias_owner(&mut conn, "jane doe").await,
+        ("globex".to_owned(), Some(lower.to_string())),
+        "a newer fact takes it whatever its id"
+    );
+
+    AliasRepository::upsert(&mut conn, &acme, "jane doe")
+        .await
+        .expect("an unowned upsert");
+    assert_eq!(
+        alias_owner(&mut conn, "jane doe").await,
+        ("acme".to_owned(), Some(lower.to_string())),
+        "an upsert that owns nothing always wins and leaves the owner columns"
+    );
+    drop(conn);
     h.finish().await;
 }

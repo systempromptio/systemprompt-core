@@ -7,6 +7,13 @@
 //! recall *names a subject* when the subject or linked tier returned a
 //! fact; the fill's linked reserve and context cap apply only then.
 //!
+//! An introduced fact (one an extension retriever found that no core tier
+//! did) is admitted by the same predicate as the tier SQL before fusion;
+//! one it rejects for a lifecycle reason is not counted again on the
+//! receipt, since `withheld_counts` already counted every reachable stale,
+//! disputed and review-due fact, and one rejected for scope is counted as
+//! `scope`.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -121,14 +128,7 @@ impl BrainRecallService {
                 let admission = Admission::of(ctx, self.inject_stale());
                 for fact in introduce::loaded(loader.as_ref(), &unseen).await {
                     match admit::admitted_by_sql(&fact, &admission) {
-                        // Why: withheld_counts already counts every reachable stale, disputed
-                        // and review-due fact in SQL; counting an introduced one again would
-                        // double it on the receipt.
-                        Some(
-                            WithheldReason::Stale
-                            | WithheldReason::Disputed
-                            | WithheldReason::ReviewDue,
-                        ) => {},
+                        Some(reason) if counted_by_withheld_sql(reason) => {},
                         Some(reason) => withheld.add(reason),
                         None => {
                             known.insert(fact.id.clone(), fact);
@@ -264,4 +264,11 @@ impl BrainRecallService {
             .with_tokens(plan.tokens);
         Ok(RecallOutcome::Injected(block))
     }
+}
+
+const fn counted_by_withheld_sql(reason: WithheldReason) -> bool {
+    matches!(
+        reason,
+        WithheldReason::Stale | WithheldReason::Disputed | WithheldReason::ReviewDue
+    )
 }

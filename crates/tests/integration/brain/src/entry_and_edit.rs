@@ -75,6 +75,35 @@ async fn entering_an_oversized_subject_is_refused_before_it_is_queued() {
 }
 
 #[tokio::test]
+async fn the_consumer_rejects_an_oversized_subject_that_bypassed_entry() {
+    let h = Harness::new("brain_enter_oversized_backstop").await;
+    let owner = h.user("owner", &[]).await;
+    let mut fact = entered(&owner, "emea");
+    fact.subject = SubjectKey::new("product", "x".repeat(300));
+    let event = fact
+        .to_event(owner.clone(), chrono::Utc::now())
+        .expect("entered event");
+    let id = h.emit(&event).await;
+
+    let drained = h.drain().await;
+    assert_eq!(drained.len(), 1);
+    let outcome: Option<String> =
+        sqlx::query_scalar("SELECT outcome FROM brain_event_results WHERE outbox_id = $1")
+            .bind(id.as_str())
+            .fetch_one(&h.pg)
+            .await
+            .expect("result row");
+    assert_eq!(
+        outcome.as_deref(),
+        Some("rejected"),
+        "the candidate stage refuses the subject"
+    );
+    assert_eq!(h.total("brain_facts").await, 0);
+    assert_eq!(h.total("brain_subjects").await, 0);
+    h.finish().await;
+}
+
+#[tokio::test]
 async fn entering_an_erased_identity_is_refused_before_it_is_queued() {
     let h = Harness::new("brain_enter_tombstone").await;
     let owner = h.user("owner", &[]).await;

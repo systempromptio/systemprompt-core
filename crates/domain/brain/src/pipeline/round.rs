@@ -18,10 +18,18 @@
 //! after the event's savepoint commits, so a rolled-back event leaves no
 //! trace here either.
 //!
+//! [`RoundCache::forget_reads`] turns the preloaded reads off for the rest
+//! of the round: every lookup answers `None` and applied writes are
+//! dropped, so a round that rolled its per-event writes back and runs its
+//! events again reads the store instead of rows that no longer exist.
+//! The ledger claims and the remembered extractions
+//! ([`super::round_extractions`]) stay, since both survive that rollback.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::{HashMap, HashSet};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, PoisonError};
 
 use chrono::{DateTime, Utc};
@@ -29,6 +37,7 @@ use systemprompt_identifiers::{BrainFactId, EventOutboxId, FactKindId};
 use systemprompt_models::brain::{FactStatus, SubjectKey};
 
 use super::dedupe::{DedupeSnapshot, Existing};
+use super::round_extractions::Extractions;
 
 const NEIGHBOUR_LIMIT: usize = 50;
 
@@ -70,17 +79,36 @@ pub struct RoundRows {
     pub facts: Vec<CachedFact>,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct RoundCache {
     inner: Mutex<RoundRows>,
+    reads: AtomicBool,
+    pub(super) extractions: Extractions,
+}
+
+impl Default for RoundCache {
+    fn default() -> Self {
+        Self::new(RoundRows::default())
+    }
 }
 
 impl RoundCache {
     #[must_use]
-    pub const fn new(rows: RoundRows) -> Self {
+    pub fn new(rows: RoundRows) -> Self {
         Self {
             inner: Mutex::new(rows),
+            reads: AtomicBool::new(true),
+            extractions: Extractions::new(),
         }
+    }
+
+    pub fn forget_reads(&self) {
+        self.reads.store(false, Ordering::SeqCst);
+    }
+
+    #[must_use]
+    pub fn reads(&self) -> bool {
+        self.reads.load(Ordering::SeqCst)
     }
 
     #[must_use]
@@ -94,6 +122,9 @@ impl RoundCache {
 
     #[must_use]
     pub fn resolved(&self, subject: &SubjectKey) -> Option<SubjectKey> {
+        if !self.reads() {
+            return None;
+        }
         self.inner
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
@@ -109,6 +140,9 @@ impl RoundCache {
         subject: &SubjectKey,
         identity_hash: &str,
     ) -> Option<DedupeSnapshot> {
+        if !self.reads() {
+            return None;
+        }
         let rows = self.inner.lock().unwrap_or_else(PoisonError::into_inner);
         let pair = (kind.clone(), subject.clone());
         let identity = (kind.clone(), identity_hash.to_owned());
@@ -149,6 +183,9 @@ impl RoundCache {
     }
 
     pub fn apply(&self, writes: Vec<DedupeWrite>, now: DateTime<Utc>) {
+        if !self.reads() {
+            return;
+        }
         let mut rows = self.inner.lock().unwrap_or_else(PoisonError::into_inner);
         for write in writes {
             match write {

@@ -43,6 +43,10 @@ pub(crate) fn round_events(events: usize) {
     metrics::histogram!("brain_round_events").record(events as f64);
 }
 
+pub(crate) fn round_second_pass() {
+    metrics::counter!("brain_round_second_passes_total").increment(1);
+}
+
 pub(crate) fn round_reindexed(facts: u64, statements: u64) {
     metrics::histogram!("brain_round_facts_reindexed").record(facts as f64);
     metrics::counter!("brain_index_statements_total").increment(statements);

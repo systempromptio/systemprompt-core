@@ -1,10 +1,9 @@
 //! One drain round: claim up to a batch of events on one transaction,
 //! decode them, preload the round cache (set claim of the result ledger,
-//! alias resolution and dedupe rows of every entered fact), process each
-//! event inside its own savepoint with its derived indexes deferred and
-//! its reads served from the cache, then finish the ledger, reindex every
-//! fact the round landed on and acknowledge, each as one set statement,
-//! and commit once.
+//! alias resolution and dedupe rows of every entered fact), run the
+//! events as one pass ([`super::pass`]) with their derived indexes
+//! deferred and their reads served from the cache, acknowledge, and
+//! commit once.
 //!
 //! A transient failure no longer ends the round: its savepoint is rolled
 //! back, its attempt is recorded, its row stays unacknowledged and the
@@ -14,27 +13,33 @@
 //! reached are released at commit and the consumer waits before the next
 //! round. The ledger claims of every event the round did not finish are
 //! deleted before commit, so a retried event is claimed again by the round
-//! that retries it. A failed ledger statement or commit rolls back the
-//! whole round and every event in it is claimed again. Each event's result
-//! row is claimed on the same transaction, so a lost round leaves no
-//! result behind and an event is still processed at most once per
-//! pipeline version.
+//! that retries it. A failed ledger statement, a failed attempt record or
+//! a failed commit rolls back the whole round and every event in it is
+//! claimed again. Each event's result row is claimed on the same
+//! transaction, so a lost round leaves no result behind and an event is
+//! still processed at most once per pipeline version.
 //!
 //! The set statements after the loop ([`crate::index::reindex_facts`], the
 //! ledger finish, the acknowledgement) replace what each event used to run
 //! on its own. The reindex is the one with head-of-line risk: a row one
-//! index constraint refuses would fail the statement for every fact in
-//! the round, and a round that rolled back for it would record no attempt
-//! and retry forever. The guard against that, for any constraint, is the
-//! fallback in [`super::settle`]: the set reindex runs under a savepoint,
-//! and when it fails the facts are reindexed event by event, the event
-//! that cannot be indexed is recorded as a permanent failure and the rest
-//! of the round commits. The alias length check is additionally filtered
-//! before the statement ([`crate::index::MAX_ALIAS_NORM_LEN`]), so an
-//! overlong alias never costs the fallback. Within a round an alias a fact
-//! contributes is not yet resolvable by a later event of the same round;
-//! it is from the next round on. The acknowledgement is one statement
-//! when every event finished and one per finished event otherwise.
+//! index constraint refuses fails the statement for every fact in the
+//! round, and a round that rolled back for it would record no attempt and
+//! retry forever. The guard against that, for any constraint, is the
+//! second pass: the first pass is rolled back whole (so no fact of the
+//! refused event survives), the cache stops serving the rows that rollback
+//! removed, and the same events run again with every index written per
+//! event, where the refused one fails inside its own savepoint as a
+//! permanent failure ([`crate::error::BrainError::is_transient`] is false
+//! for a constraint violation) or, for a transient cause, is held and
+//! retried like any other. Model calls are not repeated: the round
+//! remembers each first-pass extraction and the second pass re-records its
+//! spend instead. The alias length check is additionally filtered before
+//! the set statement ([`crate::index::MAX_ALIAS_NORM_LEN`]), so an
+//! overlong alias never costs a second pass. Within a round an alias a
+//! fact contributes is not yet resolvable by a later event of the same
+//! round; it is from the next round on. The acknowledgement is one
+//! statement when every event finished and one per finished event
+//! otherwise.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -46,27 +51,13 @@ use systemprompt_identifiers::EventOutboxId;
 use systemprompt_models::brain::{BRAIN_CONSUMER, BrainEvent};
 
 use super::decode::decode_all;
-use super::handle::Handled;
-use super::settle::Landed;
+use super::pass::{Pass, PassInput, Round};
 use super::{BrainConsumer, Counters};
-use crate::error::BrainResult;
-use crate::index::{Reindex, ReindexBatch, ReindexReport};
-use crate::models::EventResult;
-use crate::pipeline::{BatchContext, ProcessParams, RoundCache, metrics};
+use crate::error::{BrainError, BrainResult};
+use crate::index::Reindex;
+use crate::pipeline::{BatchContext, RoundCache, metrics};
 
 pub const MAX_ROUND_TRANSIENTS: usize = 3;
-
-#[derive(Default)]
-pub(super) struct Round {
-    pub(super) done: Vec<EventOutboxId>,
-    pub(super) retried: Vec<EventOutboxId>,
-    pub(super) results: Vec<EventResult>,
-    pub(super) wrote: bool,
-    pub(super) cut_short: bool,
-    pub(super) reindex: ReindexBatch,
-    pub(super) landed: Vec<Landed>,
-    pub(super) reindexed: ReindexReport,
-}
 
 impl BrainConsumer {
     pub(super) async fn drain_round(&self) -> BrainResult<bool> {
@@ -98,6 +89,10 @@ impl BrainConsumer {
             batch.commit().await?;
         }
         self.round_state.hold(round.retried, self.poll());
+        Counters::add(&self.counters.processed, round.tally.processed);
+        Counters::add(&self.counters.retried, round.tally.retried);
+        Counters::add(&self.counters.failed, round.tally.failed);
+        Counters::add(&self.counters.abandoned, round.tally.abandoned);
         Counters::add(&self.counters.reindexed, round.reindexed.facts);
         metrics::batch_seconds(started.elapsed().as_secs_f64());
         metrics::round_events(events);
@@ -120,55 +115,40 @@ impl BrainConsumer {
 
     async fn process_batch(&self, batch: &mut DeliveryBatch) -> BrainResult<Round> {
         let ctx = BatchContext::load(batch.connection()).await?;
-        let decoded = decode_all(batch.entries());
-        let decodable: Vec<(EventOutboxId, BrainEvent)> = decoded
-            .iter()
-            .filter_map(|d| {
-                d.event
-                    .as_ref()
-                    .ok()
-                    .map(|event| (d.id.clone(), event.clone()))
-            })
+        let entries = batch.entries();
+        let decodable: Vec<(EventOutboxId, BrainEvent)> = decode_all(entries.clone())
+            .into_iter()
+            .filter_map(|d| d.event.ok().map(|event| (d.id, event)))
             .collect();
         let cache = RoundCache::load(batch.connection(), &ctx, &decodable).await?;
-        let params = ProcessParams {
+        let deferred = PassInput {
             ctx: &ctx,
+            cache: &cache,
+            events: decode_all(entries.clone()),
             reindex: Reindex::Deferred,
-            round: Some(&cache),
         };
-        let mut round = Round::default();
-        for event in decoded {
-            if round.retried.len() > MAX_ROUND_TRANSIENTS {
-                round.cut_short = true;
-                tracing::warn!(
-                    transients = round.retried.len(),
-                    "Brain drain round stopped early after repeated transient failures"
-                );
-                break;
-            }
-            let id = event.id.clone();
-            match self.handle(batch.connection(), event, &params).await {
-                Handled::Done {
-                    wrote,
-                    facts,
-                    result,
-                } => {
-                    round.done.push(id.clone());
-                    round.wrote |= wrote;
-                    round.reindex.extend(facts.iter().cloned());
-                    round.landed.push(Landed { id, facts });
-                    round.results.extend(result);
-                },
-                Handled::Retry(error) => {
-                    self.record_retry(batch.connection(), &id, ctx.version(), &error)
-                        .await;
-                    round.retried.push(id);
-                },
-            }
+        let error = match self.run_pass(batch.connection(), deferred).await? {
+            Pass::Settled(round) => return Ok(round),
+            Pass::Unindexable(error) => error,
+        };
+        tracing::warn!(
+            events = entries.len(),
+            error = %error,
+            cause = ?std::error::Error::source(&error),
+            "Brain round reindex failed as a set; running the round again per event"
+        );
+        metrics::round_second_pass();
+        cache.forget_reads();
+        let per_event = PassInput {
+            ctx: &ctx,
+            cache: &cache,
+            events: decode_all(entries),
+            reindex: Reindex::Now,
+        };
+        match self.run_pass(batch.connection(), per_event).await? {
+            Pass::Settled(round) => Ok(round),
+            Pass::Unindexable(error) => Err(BrainError::Repository(error)),
         }
-        self.settle(batch.connection(), &ctx, &decodable, &mut round)
-            .await?;
-        Ok(round)
     }
 
     fn poll(&self) -> Duration {

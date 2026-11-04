@@ -22,6 +22,11 @@
 //! `brain_fact_index` projection an upgrade migration queues every stored
 //! fact into and the consumer sweep drains. It also floors `observed_at`
 //! to `created_at`, the one stamp a row that predates the column needs.
+//! When the set statement fails for the batch, the batch is rolled back
+//! to a savepoint and reindexed key by key, each under its own; a key
+//! that fails alone is parked in the queue past its retry budget
+//! ([`systemprompt_database::projection::park`]) and the rest of the
+//! batch commits, so one refused row never strands the keys beside it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -30,13 +35,15 @@ mod aliases;
 mod batch;
 mod rows;
 
-use sqlx::PgConnection;
+use sqlx::{Acquire, PgConnection};
+use systemprompt_database::projection;
 use systemprompt_identifiers::BrainFactId;
+use systemprompt_models::brain::SynonymsDoc;
 use systemprompt_traits::RepositoryError;
 
 pub use aliases::{AliasInput, derive_aliases};
 pub use batch::{ReindexReport, STATEMENTS_PER_SET, reindex_facts};
-pub use rows::{AliasRows, MAX_ALIAS_NORM_LEN, ReindexBatch};
+pub use rows::{AliasOwner, AliasRows, MAX_ALIAS_NORM_LEN, ReindexBatch};
 
 use crate::repository::SynonymsRepository;
 
@@ -72,6 +79,43 @@ pub async fn refresh_projection(
     .await?;
     let ids: Vec<BrainFactId> = keys.into_iter().map(BrainFactId::new).collect();
     let synonyms = SynonymsRepository::load(&mut *conn).await?;
-    let report = reindex_facts(conn, &ids, &synonyms).await?;
-    Ok(report.facts)
+    match reindex_in_savepoint(&mut *conn, &ids, &synonyms).await {
+        Ok(report) => return Ok(report.facts),
+        Err(error) => tracing::warn!(
+            keys = ids.len(),
+            error = %error,
+            "Brain projection batch failed as a set; reindexing key by key"
+        ),
+    }
+    let mut refreshed = 0;
+    for id in &ids {
+        match reindex_in_savepoint(&mut *conn, std::slice::from_ref(id), &synonyms).await {
+            Ok(report) => refreshed += report.facts,
+            Err(error) => {
+                tracing::error!(fact = %id, error = %error, "Brain fact cannot be indexed; parked");
+                projection::park(&mut *conn, BRAIN_FACT_INDEX, id.as_str()).await?;
+            },
+        }
+    }
+    Ok(refreshed)
+}
+
+async fn reindex_in_savepoint(
+    conn: &mut PgConnection,
+    ids: &[BrainFactId],
+    synonyms: &SynonymsDoc,
+) -> Result<ReindexReport, RepositoryError> {
+    // Why: Postgres — a failed statement aborts the transaction until a
+    // ROLLBACK TO SAVEPOINT; without one the batch could only fail whole.
+    let mut savepoint = conn.begin().await?;
+    match reindex_facts(&mut savepoint, ids, synonyms).await {
+        Ok(report) => {
+            savepoint.commit().await?;
+            Ok(report)
+        },
+        Err(error) => {
+            savepoint.rollback().await?;
+            Err(error)
+        },
+    }
 }
