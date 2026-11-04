@@ -37,6 +37,9 @@
 //! disjunction of its common words (empty keeps that disjunction).
 //! `subject_limit` is the row limit of the subject and linked tiers (0 keeps
 //! the shared tier limit, `max_facts × 2` clamped to 8..=50; at most 100).
+//! `search_rare_alone_share` (0..=1, default 0 = off): a full-text group
+//! whose document share is at or under it is required alone, so a word one
+//! fact carries finds that fact whatever the quorum would ask beside it.
 //!
 //! The depth knobs: `links_depth` (1 or 2, default 1) is how many
 //! subject hops the linked tier walks from a named subject;
@@ -182,6 +185,7 @@ pub struct RetrievalDoc {
     pub full_text_opens_context: bool,
     pub search_stop_words: Vec<String>,
     pub search_max_ndoc: u32,
+    pub search_rare_alone_share: f64,
     pub subject_limit: u32,
     pub alias_longest_wins: bool,
     pub unknown_name_withholds_full_text: bool,
@@ -216,6 +220,7 @@ impl Default for RetrievalDoc {
             full_text_opens_context: true,
             search_stop_words: Vec::new(),
             search_max_ndoc: 0,
+            search_rare_alone_share: 0.0,
             subject_limit: 0,
             alias_longest_wins: false,
             unknown_name_withholds_full_text: false,

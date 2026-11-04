@@ -30,6 +30,7 @@ fn policy_of(query: &RecallQuery) -> SearchPolicy {
         quorum_over: query.search_quorum_over,
         stop_words: query.search_stop_words.clone(),
         max_ndoc: u64::from(query.search_max_ndoc),
+        rare_alone_share: query.search_rare_alone_share,
     }
 }
 

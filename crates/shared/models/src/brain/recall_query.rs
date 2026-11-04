@@ -42,6 +42,8 @@ pub struct RecallQuery {
     #[serde(default)]
     pub search_max_ndoc: u32,
     #[serde(default)]
+    pub search_rare_alone_share: f64,
+    #[serde(default)]
     pub subject_limit: u32,
     #[serde(default)]
     pub asked_kinds: Vec<FactKindId>,
@@ -71,6 +73,7 @@ impl RecallQuery {
             max_subjects: Self::default_max_subjects(),
             search_stop_words: Vec::new(),
             search_max_ndoc: 0,
+            search_rare_alone_share: 0.0,
             subject_limit: 0,
             asked_kinds: Vec::new(),
             alias_longest_wins: false,

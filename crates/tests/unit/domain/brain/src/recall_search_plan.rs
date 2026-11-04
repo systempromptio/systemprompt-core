@@ -308,3 +308,35 @@ fn the_cap_survives_the_retry_policy() {
     .unwrap();
     assert_eq!(retry.max_ndoc, 5_000);
 }
+
+#[test]
+fn a_rare_enough_group_is_required_alone() {
+    let rare_terms = terms(&[("akeneo", 1), ("data", 150), ("product", 154)], 2772);
+    let hints = "What did we decide about Akeneo for product data";
+    let plain = plan(hints, &synonyms(), &rare_terms, &policy()).unwrap();
+    assert_eq!(plain.filter, "akeneo & data", "two of three, rarest first");
+    let rare = plan(
+        hints,
+        &synonyms(),
+        &rare_terms,
+        &policy().with_rare_alone_share(0.001),
+    )
+    .unwrap();
+    assert_eq!(
+        rare.filter, "akeneo",
+        "a word one fact carries is enough alone"
+    );
+    assert_eq!(rare.rank, plain.rank);
+    let common = terms(&[("larchmont", 20), ("renew", 150), ("owns", 154)], 2772);
+    let kept = plan(
+        "When does Larchmont renew and who owns it",
+        &synonyms(),
+        &common,
+        &policy().with_rare_alone_share(0.001),
+    )
+    .unwrap();
+    assert_eq!(
+        kept.filter, "larchmont & renew",
+        "a client name is above the share"
+    );
+}

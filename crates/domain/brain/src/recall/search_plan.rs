@@ -29,6 +29,15 @@
 //! many rows. Without statistics every count is zero and the bound never
 //! applies.
 //!
+//! `SearchPolicy::rare_alone_share` (0 = off): when the rarest
+//! informative group's share is at or under it, that group alone is
+//! required, whatever the quorum would have asked beside it. A proper
+//! noun one fact carries then finds that fact even when the message's
+//! other informative word is one the fact does not use ("Akeneo for
+//! product data" against "Akeneo PIM as the product master"); a client
+//! name carried by dozens of facts stays above the share and keeps its
+//! quorum, so a negative prompt gains nothing.
+//!
 //! The share is counted over the informative
 //! groups (`QuorumUnit::Groups`) or over the query words those groups
 //! absorbed (`QuorumUnit::Words`, where a group that merged two words of
@@ -57,6 +66,7 @@ pub struct SearchPolicy {
     pub quorum_over: QuorumUnit,
     pub stop_words: Vec<String>,
     pub max_ndoc: u64,
+    pub rare_alone_share: f64,
 }
 
 impl SearchPolicy {
@@ -69,6 +79,7 @@ impl SearchPolicy {
             quorum_over: QuorumUnit::Groups,
             stop_words: Vec::new(),
             max_ndoc: 0,
+            rare_alone_share: 0.0,
         }
     }
 
@@ -82,6 +93,16 @@ impl SearchPolicy {
     pub const fn with_max_ndoc(mut self, max_ndoc: u64) -> Self {
         self.max_ndoc = max_ndoc;
         self
+    }
+
+    #[must_use]
+    pub const fn with_rare_alone_share(mut self, share: f64) -> Self {
+        self.rare_alone_share = share;
+        self
+    }
+
+    fn rare_alone(&self, rarest: &Group) -> bool {
+        self.rare_alone_share > 0.0 && rarest.share <= self.rare_alone_share
     }
 
     const fn within_bound(&self, bound: u64) -> bool {
@@ -159,7 +180,11 @@ pub fn plan(
         QuorumUnit::Groups => informative.len(),
         QuorumUnit::Words => informative.iter().map(|g| g.words).sum(),
     };
-    let required = quorum_count(units, policy.quorum).min(informative.len());
+    let required = if informative.first().is_some_and(|g| policy.rare_alone(g)) {
+        1
+    } else {
+        quorum_count(units, policy.quorum).min(informative.len())
+    };
     let filter = informative
         .iter()
         .take(required)

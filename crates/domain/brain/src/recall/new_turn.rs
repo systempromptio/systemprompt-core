@@ -114,6 +114,7 @@ impl BrainRecallService {
             max_subjects: retrieval.max_subjects,
             search_stop_words: retrieval.search_stop_words.clone(),
             search_max_ndoc: retrieval.search_max_ndoc,
+            search_rare_alone_share: retrieval.search_rare_alone_share,
             subject_limit: limits.subject,
             asked_kinds: asked,
             alias_longest_wins: retrieval.alias_longest_wins,

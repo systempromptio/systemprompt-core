@@ -246,6 +246,7 @@ fn validate_retrieval(doc: &RetrievalDoc) -> Result<(), BrainDeclError> {
     weight("context_share", doc.context_share)?;
     weight("usage_weight", doc.usage_weight)?;
     weight("links_decay", doc.links_decay)?;
+    weight("search_rare_alone_share", doc.search_rare_alone_share)?;
     if !doc.min_fused_score.is_finite() || doc.min_fused_score < 0.0 {
         return Err(BrainDeclError::NegativeScore {
             name: "min_fused_score",
