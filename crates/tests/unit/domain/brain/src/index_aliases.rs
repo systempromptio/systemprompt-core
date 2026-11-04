@@ -17,6 +17,7 @@ fn field(alias: bool) -> FieldDecl {
         entity_ref: None,
         values: Vec::new(),
         alias,
+        display: None,
     }
 }
 

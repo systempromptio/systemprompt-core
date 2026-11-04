@@ -83,6 +83,12 @@ pub enum FieldType {
 }
 
 /// One declared field of a kind.
+///
+/// An entity field may name a `display` sibling: the text field that
+/// carries the entity's display name, so the index ensures the entity as
+/// a subject with that name and alias and a person a team fact names
+/// matches like a client (`user: {type: entity, ref: user, display:
+/// person}`).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct FieldDecl {
@@ -98,6 +104,8 @@ pub struct FieldDecl {
     pub values: Vec<String>,
     #[serde(default)]
     pub alias: bool,
+    #[serde(default)]
+    pub display: Option<String>,
 }
 
 /// The fields a candidate must carry before it is worth keeping.

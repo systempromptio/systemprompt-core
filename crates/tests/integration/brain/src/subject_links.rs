@@ -19,6 +19,8 @@ use crate::plane::{self, ENGINEERING, kind, topic};
 pub(crate) const ENGAGEMENT: &str = "engagement";
 pub(crate) const RISK: &str = "risk";
 pub(crate) const CLIENT_NOTE: &str = "client_note";
+pub(crate) const TEAM: &str = "team";
+pub(crate) const PERSON: &str = "priya-shah";
 pub(crate) const CLIENT: &str = "acme";
 pub(crate) const PROJECT: &str = "cpq-rollout";
 
@@ -30,6 +32,7 @@ fn field(field_type: FieldType, entity_ref: Option<&str>, required: bool) -> Fie
         entity_ref: entity_ref.map(str::to_owned),
         values: Vec::new(),
         alias: false,
+        display: None,
     }
 }
 
@@ -86,7 +89,31 @@ pub(crate) fn declared_with_bridges() -> DeclaredBrain {
         "{subject} prefers {note}",
         &["subject", "note"],
     ));
+    let mut user = field(FieldType::Entity, Some("user"), false);
+    user.display = Some("person".to_owned());
+    declared.kinds.push(decl(
+        TEAM,
+        "project",
+        BTreeMap::from([
+            ("person".to_owned(), field(FieldType::Text, None, true)),
+            ("user".to_owned(), user),
+        ]),
+        "{person} works on {subject}",
+        &["subject", "person"],
+    ));
     declared
+}
+
+/// A team fact on the project naming a person by display name and id.
+pub(crate) async fn seed_person(h: &Harness, who: &UserId) {
+    enter(
+        h,
+        who,
+        TEAM,
+        SubjectKey::new("project", PROJECT),
+        serde_json::json!({ "person": "Priya Shah", "user": format!("user:{PERSON}") }),
+    )
+    .await;
 }
 
 pub(crate) async fn enter(
@@ -204,5 +231,34 @@ async fn a_fact_naming_another_subject_bridges_both_ways_until_it_is_erased() {
     assert!(bridges_of(&h, "client", CLIENT).await.is_empty());
     assert!(bridges_of(&h, "project", PROJECT).await.is_empty());
     assert_eq!(h.total("brain_subject_links").await, 0);
+    h.finish().await;
+}
+
+#[tokio::test]
+async fn an_entity_a_fact_names_becomes_a_subject_with_its_display_name_and_alias() {
+    let h = Harness::with("brain_entity_subject", Setup::confirming()).await;
+    plane::apply(&h.pg, &declared_with_bridges()).await;
+    let admin = h.user("admin", &["admin"]).await;
+    seed_person(&h, &admin).await;
+
+    let display: Option<String> = sqlx::query_scalar(
+        "SELECT display_name FROM brain_subjects WHERE subject_kind = 'user' AND subject_id = $1",
+    )
+    .bind(PERSON)
+    .fetch_one(&h.pg)
+    .await
+    .expect("the person is a subject");
+    assert_eq!(display.as_deref(), Some("Priya Shah"));
+    let aliases: Vec<String> = sqlx::query_scalar(
+        "SELECT alias_norm FROM brain_aliases WHERE subject_kind = 'user' AND subject_id = $1 ORDER BY 1",
+    )
+    .bind(PERSON)
+    .fetch_all(&h.pg)
+    .await
+    .expect("aliases");
+    assert_eq!(
+        aliases,
+        vec!["priya shah".to_owned(), "priya-shah".to_owned()]
+    );
     h.finish().await;
 }

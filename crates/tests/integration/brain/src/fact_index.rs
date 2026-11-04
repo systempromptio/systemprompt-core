@@ -40,6 +40,7 @@ fn field(field_type: FieldType, entity_ref: Option<&str>, alias: bool) -> FieldD
         entity_ref: entity_ref.map(str::to_owned),
         values: Vec::new(),
         alias,
+        display: None,
     }
 }
 

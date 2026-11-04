@@ -56,6 +56,35 @@ impl SubjectRepository {
         Ok(())
     }
 
+    pub async fn ensure_many_named(
+        conn: &mut PgConnection,
+        subjects: &[(SubjectKey, Option<String>)],
+    ) -> Result<(), RepositoryError> {
+        if subjects.is_empty() {
+            return Ok(());
+        }
+        let kinds: Vec<String> = subjects.iter().map(|(s, _)| s.kind.clone()).collect();
+        let ids: Vec<String> = subjects.iter().map(|(s, _)| s.id.clone()).collect();
+        let names: Vec<String> = subjects
+            .iter()
+            .map(|(_, n)| n.clone().unwrap_or_default())
+            .collect();
+        sqlx::query!(
+            "INSERT INTO brain_subjects (subject_kind, subject_id, display_name)
+             SELECT DISTINCT ON (s.kind, s.id) s.kind, s.id, NULLIF(s.name, '')
+             FROM unnest($1::text[], $2::text[], $3::text[]) AS s(kind, id, name)
+             ORDER BY s.kind, s.id, (s.name = '')
+             ON CONFLICT (subject_kind, subject_id) DO UPDATE
+             SET display_name = COALESCE(EXCLUDED.display_name, brain_subjects.display_name)",
+            &kinds,
+            &ids,
+            &names,
+        )
+        .execute(conn)
+        .await?;
+        Ok(())
+    }
+
     pub async fn ensure_many(
         conn: &mut PgConnection,
         subjects: &[&SubjectKey],

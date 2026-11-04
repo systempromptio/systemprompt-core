@@ -42,6 +42,7 @@ fn text_field(required: bool) -> FieldDecl {
         entity_ref: None,
         values: Vec::new(),
         alias: false,
+        display: None,
     }
 }
 

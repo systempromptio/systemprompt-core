@@ -11,6 +11,7 @@ use std::collections::HashSet;
 use systemprompt_identifiers::{FactKindId, TopicId};
 
 use super::{BrainDocs, ImportanceConfig, RetrievalDoc};
+use crate::brain::FieldType;
 use crate::brain::kind_decl::{ExtractorDecl, KindDecl};
 use crate::brain::statement::{StatementError, placeholders};
 
@@ -37,6 +38,14 @@ pub enum BrainDeclError {
     UnknownIdentityField { kind: FactKindId, name: String },
     #[error("kind {kind} materiality names unknown field {name}")]
     UnknownMaterialityField { kind: FactKindId, name: String },
+    #[error(
+        "kind {kind} field {field} declares display {display}, which is not a text field of an entity field"
+    )]
+    DisplayNotTextField {
+        kind: FactKindId,
+        field: String,
+        display: String,
+    },
     #[error("kind {0} has a model extractor without a prompt_version")]
     MissingPromptVersion(FactKindId),
     #[error("weight {name} is {value}, outside 0.0..=1.0")]
@@ -145,6 +154,22 @@ fn validate_kind(kind: &KindDecl, topics: &HashSet<&TopicId>) -> Result<(), Brai
             kind: kind.kind.clone(),
             name: name.clone(),
         });
+    }
+    for (field, decl) in &kind.fields {
+        let Some(display) = &decl.display else {
+            continue;
+        };
+        let text_sibling = kind
+            .fields
+            .get(display)
+            .is_some_and(|d| d.field_type == FieldType::Text);
+        if decl.field_type != FieldType::Entity || !text_sibling {
+            return Err(BrainDeclError::DisplayNotTextField {
+                kind: kind.kind.clone(),
+                field: field.clone(),
+                display: display.clone(),
+            });
+        }
     }
     if let Some(ExtractorDecl::Model { prompt_version, .. }) = &kind.extractor
         && prompt_version.as_deref().is_none_or(str::is_empty)

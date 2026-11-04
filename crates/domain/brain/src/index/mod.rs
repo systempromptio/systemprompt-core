@@ -43,6 +43,7 @@
 
 mod aliases;
 mod batch;
+pub mod entities;
 mod release;
 mod rows;
 
