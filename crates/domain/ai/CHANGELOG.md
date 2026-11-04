@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.78.0] - 2026-11-04
+
+### Breaking
+
+- **Breaking:** `ProviderError` gains `EmbeddingCountMismatch` and `EmbeddingIndexInvalid`, and `ProviderCapability` gains `Embeddings`. Migrate exhaustive matches by adding the arms.
+
+### Added
+
+- Text embeddings on the provider surface. `ProviderClient::supports_embeddings` and `ProviderClient::embed` (default: `RoutingError::CapabilityUnsupported { capability: Embeddings }`) are implemented for OpenAI-shaped endpoints (`POST /embeddings`) and Gemini on both hostings (Vertex `:predict`, public `:batchEmbedContents`), and delegated through `ResilientProvider`.
+- `AiService::embed` routes by the catalog like chat, refuses an unpriced model (`UnknownModel`) and returns `Embedded { response, provider, cost_microdollars, latency_ms }`. It writes no `ai_requests` row.
+- Requests go upstream in provider-sized batches (OpenAI 2048 inputs, Vertex 250, Gemini 100; `services::providers::embedding_batches`) joined in input order; empty `inputs` answer without a call.
+- A reply with no usage block is priced from the gateway's text estimate and marked `EmbeddingUsage::estimated`. An OpenAI `data[]` index out of range or repeated is `ProviderError::EmbeddingIndexInvalid`.
+
 ## [0.77.0] - 2026-11-01
 
 ### Breaking

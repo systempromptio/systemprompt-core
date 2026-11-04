@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.78.0] - 2026-11-04
+
+### Breaking
+
+- **Breaking:** `brain::SubjectKeyError` is an enum (`Shape`, `KindLength { len }`, `IdLength { len }`) instead of a tuple struct; `SubjectKey::try_new` and `FromStr` bound the kind to 1..=64 and the id to 1..=255 characters.
+- **Breaking:** brain structs gain fields, so a struct literal or exhaustive destructure no longer compiles: `StoredBlock.late`; `RecallCtx.{as_of, held_keys}`; `BrainFact.{observed_at, usage_cited_rate, usage_ignored_rate}`; `FieldDecl.alias`; `EnteredFact.observed_at`; `TierWeights.linked`; `RecallQuery.{links_weight, synonyms, search_max_df, search_quorum, search_retry_quorum, search_quorum_over, alias_min_sim, max_subjects}` (build it with `RecallQuery::new`); `RetrievalDoc.{links_weight, search_max_df, search_quorum, search_retry_quorum, search_quorum_over, alias_min_sim, max_subjects, fill_order, linked_share, min_fused_score, context_share, usage_weight, usage_min_recalls, extension_max_candidates}`, every one defaulting to the 0.77 behaviour except `fill_order: rank`.
+- **Breaking:** exhaustive enums gain variants: `Pathway::Session`, `BrainDeclError::{ZeroLimit, NegativeScore}`, `RetrievalTier::Linked` and `WithheldReason::{Disputed, MaxFacts, LowScore, ContextCap}`. `RetrievalTier` and `WithheldReason` variants are inserted in the middle, so discriminants and `PartialOrd` order shift for `Context`, `FullText`, `Extension` and `Quota`, `Budget`, `Unavailable`.
+- **Breaking:** `RecallQuery` no longer derives `Eq`.
+
+### Added
+
+- `ai::EmbeddingRequest`, `EmbeddingResponse` and `EmbeddingUsage`, with typed `ModelId` and `ProviderId` identifiers; `EmbeddingUsage::estimated` marks usage estimated from the text.
+- `brain::SynonymsDoc` and `SynonymsError`, the `synonyms` config document; `FillOrder` and `QuorumUnit` for `RetrievalDoc`.
+- `SessionTurnClosed` and `BrainEventKind::session_turn_closed` (`session.turn.closed`), and `BRAIN_CONSOLIDATE_PURPOSE`.
+- `MAX_SUBJECT_KIND_LEN` and `MAX_SUBJECT_ID_LEN`.
+- `RecallCtx::with_as_of`, which caps the instant at `now`, `RecallCtx::with_held_keys` and `RecallQuery::new`.
+
+### Changed
+
+- `validate` checks the `retrieval.yaml` values: weights and shares must be finite and non-negative, a negative or non-finite `min_fused_score` is `NegativeScore`, and a zero `max_facts`, `max_subjects` or `extension_max_candidates` is `ZeroLimit`.
+
 ## [0.77.0] - 2026-11-01
 
 ### Breaking

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.78.0] - 2026-11-04
+
+### Fixed
+
+- `infra jobs run` exits non-zero when a job fails, whether its execution errored or it reported failure. It prints the per-job table, then names each failed job and its error. With `--all` it fails when any job failed.
+
 ## [0.77.0] - 2026-11-01
 
 ### Added

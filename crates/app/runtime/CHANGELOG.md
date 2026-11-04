@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.78.0] - 2026-11-04
+
+### Breaking
+
+- **Breaking:** `brain::mcp::RecallPreviewInput` gains `as_of`. Migrate struct literals by adding `as_of: None`.
+
+### Added
+
+- `AppContext::brain_consolidation_model` and `AppContext::brain_sink`, read by the scheduler's job context; `BrainHandle::consolidation_model`, attached when the consumer starts.
+- `brain_recall_preview` accepts `as_of`.
+- The role audience resolver implements `NotificationAudienceResolver::held`, answering the user's roles, or none for an inactive or unknown user. A failed read answers `None`, which keeps recall's per-fact check.
+
+### Changed
+
+- The brain builder passes `brain.recall.working_set` to `BrainRecallStore` and attaches the store as the recall's `FactLoader`.
+
+### Fixed
+
+- `BrainError::InvalidFields` maps to the `invalid_input` refusal over MCP.
+
 ## [0.77.0] - 2026-11-01
 
 ### Breaking

@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.78.0] - 2026-11-04
+
+### Added
+
+- The `outbox_backlog_rollup` job: drains the `event_outbox_backlog` projection, then compacts the outbox's pending-row deltas to one row per consumer.
+- Cargo feature `brain`. With it, every job context carries the notification sink, the brain model client and the brain sink.
+
+### Changed
+
+- The warning for a registered job with no scheduler entry names the job and the `scheduler.jobs` entry to add in `services/scheduler/config.yaml`.
+
+### Fixed
+
+- The job context provides the `BrainProfile` and, with the `brain` feature, the notification sink, so `brain_review`, `brain_retention` and `brain_analysis` run.
+- The config reconcile job passes the user provider to a plane apply, so a brain interest's `owner` email resolves.
+
 ## [0.77.0] - 2026-11-01
 
 ### Fixed
