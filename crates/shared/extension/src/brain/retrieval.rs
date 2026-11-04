@@ -39,7 +39,9 @@ fn ids_of(tier: RetrievalTier, facts: Vec<BrainFact>) -> TierIds {
 /// Every tier is scope-filtered in SQL for the context's principal. Held
 /// as `Arc<dyn FactRecallSource>`. Recall reads the five core tiers as ids
 /// through `tier_ids` and loads the fused facts once; the fact-returning
-/// methods remain for callers that read one tier.
+/// methods remain for callers that read one tier. `unknown_terms` answers
+/// which of the given lower-case words no fact carries (empty by default,
+/// and empty while the store has no term statistics).
 ///
 /// `#[async_trait]` keeps the trait dyn-compatible.
 #[async_trait::async_trait]
@@ -99,6 +101,10 @@ pub trait FactRecallSource: Send + Sync {
         _ctx: &RecallCtx,
     ) -> Result<BTreeMap<WithheldReason, u32>, RecallError> {
         Ok(BTreeMap::new())
+    }
+
+    async fn unknown_terms(&self, _words: &[String]) -> Result<Vec<String>, RecallError> {
+        Ok(Vec::new())
     }
 }
 

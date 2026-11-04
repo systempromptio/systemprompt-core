@@ -1,9 +1,10 @@
 //! The derived indexes a stored fact keeps current: its working-set rows,
-//! its subject links, its aliases and its weighted search vector.
+//! its subject links and the subject bridges they declare, its aliases
+//! and its weighted search vector.
 //!
 //! [`reindex_facts`] is the one code path: a set of fact ids in, every
 //! index written set-based, one statement per index over the whole set
-//! (eight statements for a set of any size). It reads the facts, their
+//! (ten statements for a set of any size). It reads the facts, their
 //! kind declarations and the subjects' display names in one query and the
 //! synonyms document is passed in, loaded once by the caller, so a console
 //! edit, a captured candidate and the projection drain index identically.

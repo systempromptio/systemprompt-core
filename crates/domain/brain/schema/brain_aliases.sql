@@ -18,3 +18,5 @@ CREATE INDEX IF NOT EXISTS idx_brain_aliases_subject
     ON brain_aliases (subject_kind, subject_id);
 CREATE INDEX IF NOT EXISTS idx_brain_aliases_trgm
     ON brain_aliases USING GIN (alias_norm gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_brain_aliases_norm
+    ON brain_aliases (alias_norm);

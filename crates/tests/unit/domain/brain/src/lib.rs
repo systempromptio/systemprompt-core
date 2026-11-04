@@ -78,9 +78,13 @@ mod recall_introduce;
 #[cfg(test)]
 mod recall_limits;
 #[cfg(test)]
+mod recall_matched_lookup;
+#[cfg(test)]
 mod recall_reuse;
 #[cfg(test)]
 mod recall_search_plan;
+#[cfg(test)]
+mod recall_signal;
 #[cfg(test)]
 mod recall_synonyms;
 #[cfg(test)]

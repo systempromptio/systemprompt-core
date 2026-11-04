@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 
 use systemprompt_brain::recall::budget::{BudgetLimits, Candidate, RecallSignal, fill};
+use systemprompt_brain::recall::signal::signal_of;
 use systemprompt_identifiers::BrainFactId;
 use systemprompt_models::brain::{InjectionPlan, RetrievalTier, WithheldReason};
 
@@ -63,6 +64,7 @@ fn a_full_text_hit_keeps_the_context_facts() {
     let signal = RecallSignal {
         subject_named: false,
         full_text_hit: true,
+        kind_asked: false,
     };
     let plan = fill(
         vec![
@@ -112,4 +114,69 @@ fn the_signal_gate_is_off_by_default() {
     assert_eq!(ids(&plan), vec![id(1), id(2)]);
     assert!(!limits(10).context_requires_signal);
     assert_eq!(fill(candidates, &limits(10), RecallSignal::default()), plan);
+}
+
+#[test]
+fn an_asked_kind_is_a_signal_that_keeps_the_context_facts() {
+    let signal = RecallSignal {
+        kind_asked: true,
+        ..RecallSignal::default()
+    };
+    let plan = fill(
+        vec![candidate(1, 0.013, 0.9, CONTEXT)],
+        &requiring_signal(),
+        signal,
+    );
+    assert_eq!(ids(&plan), vec![id(1)]);
+    assert!(signal.any() && !RecallSignal::default().any());
+}
+
+const CONTEXT_AND_EXTENSION: &[RetrievalTier] = &[RetrievalTier::Context, RetrievalTier::Extension];
+const EXTENSION: &[RetrievalTier] = &[RetrievalTier::Extension];
+
+#[test]
+fn the_extension_tier_is_never_a_signal() {
+    let fused = vec![
+        ranked(brain_fact(1, "a"), 0.02, EXTENSION),
+        ranked(brain_fact(2, "a"), 0.01, CONTEXT_AND_EXTENSION),
+    ];
+    assert_eq!(signal_of(&fused, false), RecallSignal::default());
+    assert!(signal_of(&[ranked(brain_fact(3, "a"), 0.01, TEXT)], false).full_text_hit);
+}
+
+#[test]
+fn an_extension_rank_does_not_make_a_context_fact_shared() {
+    let plan = fill(
+        vec![candidate(1, 0.02, 0.9, CONTEXT_AND_EXTENSION)],
+        &requiring_signal(),
+        UNNAMED,
+    );
+    assert_eq!(withheld(&plan, WithheldReason::ContextCap), vec![id(1)]);
+    let open = fill(
+        vec![candidate(1, 0.02, 0.9, CONTEXT_AND_EXTENSION)],
+        &limits(10),
+        UNNAMED,
+    );
+    assert_eq!(ids(&open), vec![id(1)], "gate off, as before");
+}
+
+#[test]
+fn with_no_signal_an_introduced_fact_is_withheld_as_no_signal() {
+    let candidates = vec![
+        candidate(1, 0.02, 0.9, EXTENSION),
+        candidate(2, 0.03, 0.9, CONTEXT_AND_TEXT),
+    ];
+    let plan = fill(candidates.clone(), &requiring_signal(), UNNAMED);
+    assert_eq!(withheld(&plan, WithheldReason::NoSignal), vec![id(1)]);
+    assert_eq!(ids(&plan), vec![id(2)], "a core rank keeps it");
+    let signalled = fill(
+        candidates.clone(),
+        &requiring_signal(),
+        RecallSignal {
+            full_text_hit: true,
+            ..RecallSignal::default()
+        },
+    );
+    assert_eq!(ids(&signalled), vec![id(2), id(1)]);
+    assert_eq!(fill(candidates, &limits(10), UNNAMED).facts.len(), 2);
 }

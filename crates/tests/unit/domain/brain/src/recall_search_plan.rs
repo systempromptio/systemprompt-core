@@ -228,3 +228,83 @@ fn without_statistics_stop_words_leave_the_disjunction() {
     .unwrap();
     assert_eq!(planned.filter, "(catalogue | catalog) | import");
 }
+
+#[test]
+fn a_filter_whose_rarest_required_word_is_too_common_plans_nothing() {
+    let terms = terms(&[("client", 30_000), ("renewal", 50)], 300_000);
+    let capped = policy().with_max_ndoc(5_000);
+    let narrowed = plan("client renewal", &synonyms(), &terms, &capped).unwrap();
+    assert_eq!(
+        narrowed.filter, "renewal",
+        "the rarest word is within the cap"
+    );
+    assert_eq!(
+        plan("client", &synonyms(), &terms, &capped),
+        None,
+        "thirty thousand rows are not worth ranking"
+    );
+    let open = plan("client", &synonyms(), &terms, &policy()).unwrap();
+    assert_eq!(open.filter, "client", "0 keeps the plan");
+    assert_eq!(
+        plan(
+            "client",
+            &synonyms(),
+            &terms,
+            &policy().with_max_ndoc(30_000)
+        )
+        .unwrap()
+        .filter,
+        "client",
+        "the cap is inclusive"
+    );
+}
+
+#[test]
+fn a_disjunction_is_bounded_by_the_sum_of_its_groups() {
+    let terms = terms(&[("client", 300), ("product", 250)], 1000);
+    let both = plan("client product", &synonyms(), &terms, &policy()).unwrap();
+    assert_eq!(both.filter, "client | product");
+    assert_eq!(
+        plan(
+            "client product",
+            &synonyms(),
+            &terms,
+            &policy().with_max_ndoc(550)
+        )
+        .unwrap()
+        .filter,
+        both.filter
+    );
+    assert_eq!(
+        plan(
+            "client product",
+            &synonyms(),
+            &terms,
+            &policy().with_max_ndoc(549)
+        ),
+        None
+    );
+}
+
+#[test]
+fn without_statistics_the_cap_never_applies() {
+    let planned = plan(
+        "catalogue import",
+        &synonyms(),
+        &SearchTerms::default(),
+        &policy().with_max_ndoc(1),
+    )
+    .unwrap();
+    assert_eq!(planned.filter, "(catalogue | catalog) | import");
+}
+
+#[test]
+fn the_cap_survives_the_retry_policy() {
+    let retry = SearchPolicy {
+        retry_quorum: 0.34,
+        ..policy().with_max_ndoc(5_000)
+    }
+    .retry()
+    .unwrap();
+    assert_eq!(retry.max_ndoc, 5_000);
+}

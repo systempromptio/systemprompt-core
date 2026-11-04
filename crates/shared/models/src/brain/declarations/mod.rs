@@ -24,7 +24,7 @@ pub use importance::{
     Recency, RetrievalDoc, TierWeights, UsageWeights,
 };
 pub use synonyms::{SynonymsDoc, SynonymsError};
-pub use validate::{BrainDeclError, MAX_SUBJECT_LIMIT, validate};
+pub use validate::{BrainDeclError, MAX_LINKS_DEPTH, MAX_SUBJECT_LIMIT, validate};
 
 use super::envelope::Pathway;
 use super::kind_decl::KindDecl;

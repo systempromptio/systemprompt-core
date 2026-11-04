@@ -76,6 +76,10 @@ impl BrainRecallStore {
             links_weight,
             alias_min_sim: RecallQuery::default_alias_min_sim(),
             max_subjects: i64::from(RecallQuery::default_max_subjects()),
+            asked_kinds: Vec::new(),
+            alias_longest_wins: false,
+            links_depth: i32::try_from(RecallQuery::default_links_depth()).unwrap_or(1),
+            links_decay: RecallQuery::default_links_decay(),
         }
     }
 

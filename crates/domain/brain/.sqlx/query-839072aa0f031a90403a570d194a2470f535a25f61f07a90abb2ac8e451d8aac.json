@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM brain_subject_links",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "839072aa0f031a90403a570d194a2470f535a25f61f07a90abb2ac8e451d8aac"
+}

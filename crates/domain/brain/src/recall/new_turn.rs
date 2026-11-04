@@ -5,33 +5,36 @@
 //! fusion (the facts only an extension found are loaded and admitted by
 //! the tier SQL's own rule, see [`super::introduce`] and [`super::admit`]),
 //! visibility, and the budget fill. A recall *names a subject* when the
-//! subject or linked tier returned a fact, and *has a full-text hit*
-//! when that tier returned one ([`RecallSignal`]); the fill's linked
-//! reserve and context cap read the first, its no-signal gate both.
+//! subject or linked tier returned a fact, *has a full-text hit* when
+//! that tier returned one, and *asks a kind* when the message carries
+//! one of a declared kind's ask words ([`RecallSignal`]); the fill's
+//! linked reserve and context cap read the first, its no-signal gate all
+//! three. Before fusion the unknown-name rule ([`super::signal`]) may
+//! empty the full-text tier.
 //!
 //! An id the load does not return (the fact was erased between the two
-//! statements) is dropped from every tier before fusion, so it takes no
-//! rank. An introduced fact the admission rule rejects for a lifecycle
-//! reason is not counted again on the receipt, since `withheld_counts`
+//! statements) is dropped from every tier before fusion
+//! (`introduce::load_tiers`), so it takes no rank. An introduced fact the
+//! admission rule rejects for a lifecycle reason is not counted again on
+//! the receipt, since `withheld_counts`
 //! already counted every reachable stale, disputed and review-due fact,
 //! and one rejected for scope is counted as `scope`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use chrono::Utc;
 use futures::future::join_all;
 use systemprompt_extension::brain::{
-    InjectedFact, RecallBlock, RecallError, RecallOutcome, RecallRequest, SkipReason, TierIds,
+    InjectedFact, RecallBlock, RecallError, RecallOutcome, RecallRequest, SkipReason,
     WithheldSummary,
 };
 use systemprompt_identifiers::BrainFactId;
 use systemprompt_models::brain::{
-    BrainFact, InjectionPlan, RecallCtx, RecallQuery, RetrievalTier, ScopeLevel, ScoredFact,
-    WithheldReason,
+    InjectionPlan, RecallCtx, RecallQuery, RetrievalTier, ScopeLevel, ScoredFact, WithheldReason,
 };
 
 use super::admit::{self, Admission};
@@ -42,7 +45,7 @@ use super::limits::tier_limits;
 use super::score::{self, ScoreInput};
 use super::service::{BrainRecallService, fact_text};
 use super::visible::{Visibility, lifecycle_withheld};
-use super::{fusion, introduce};
+use super::{fusion, introduce, signal};
 
 #[derive(Debug, Clone, Copy)]
 struct PlanShape {
@@ -88,9 +91,11 @@ impl BrainRecallService {
         ctx: &RecallCtx,
         declared: &DeclaredRecall,
         withheld: &mut WithheldSummary,
-    ) -> Result<Vec<ScoredFact>, RecallError> {
+    ) -> Result<(Vec<ScoredFact>, bool), RecallError> {
         let retrieval = &declared.retrieval;
         let limits = tier_limits(retrieval);
+        let asked = signal::asked_kinds(&request.subject_hints, &declared.kinds);
+        let kind_asked = !asked.is_empty();
         let query = RecallQuery {
             subject_hints: request.subject_hints.clone(),
             limit: limits.tier,
@@ -103,7 +108,12 @@ impl BrainRecallService {
             alias_min_sim: retrieval.alias_min_sim,
             max_subjects: retrieval.max_subjects,
             search_stop_words: retrieval.search_stop_words.clone(),
+            search_max_ndoc: retrieval.search_max_ndoc,
             subject_limit: limits.subject,
+            asked_kinds: asked,
+            alias_longest_wins: retrieval.alias_longest_wins,
+            links_depth: retrieval.links_depth,
+            links_decay: retrieval.links_decay,
         };
         let fan_out = join_all(self.retrievers.iter().map(|r| r.retrieve(&query, ctx)));
         let (core, counts, extension) = tokio::join!(
@@ -115,7 +125,15 @@ impl BrainRecallService {
             *withheld.by_reason.entry(reason).or_default() += count;
         }
         let mut tiers = core?;
-        let mut facts = self.load_tiers(&mut tiers).await?;
+        signal::withhold_unknown_names(
+            self.store.as_ref(),
+            &request.subject_hints,
+            retrieval,
+            &mut tiers,
+            withheld,
+        )
+        .await?;
+        let mut facts = introduce::load_tiers(self.loader.as_ref(), &mut tiers).await?;
         let ranked = introduce::ranked_of(&self.retrievers, extension);
         if retrieval.tiers.extension > 0.0 && !ranked.is_empty() {
             let mut known: HashSet<BrainFactId> = facts.keys().cloned().collect();
@@ -136,31 +154,7 @@ impl BrainRecallService {
             tiers.extend(introduce::extension_hits(&ranked, &known));
         }
         let fused = fusion::fuse(tiers, &retrieval.tiers, retrieval.rrf_k);
-        Ok(fusion::attach(fused, facts))
-    }
-
-    async fn load_tiers(
-        &self,
-        tiers: &mut [TierIds],
-    ) -> Result<HashMap<BrainFactId, BrainFact>, RecallError> {
-        let ids: Vec<BrainFactId> = tiers
-            .iter()
-            .flat_map(|hits| hits.ids.iter())
-            .cloned()
-            .collect::<HashSet<_>>()
-            .into_iter()
-            .collect();
-        let facts: HashMap<BrainFactId, BrainFact> = self
-            .loader
-            .load(&ids)
-            .await?
-            .into_iter()
-            .map(|fact| (fact.id.clone(), fact))
-            .collect();
-        for hits in tiers.iter_mut() {
-            hits.ids.retain(|id| facts.contains_key(id));
-        }
-        Ok(facts)
+        Ok((fusion::attach(fused, facts), kind_asked))
     }
 
     fn plan(
@@ -215,8 +209,8 @@ impl BrainRecallService {
     ) -> Result<(Vec<ScoredFact>, WithheldSummary, RecallSignal), RecallError> {
         let mut withheld = WithheldSummary::default();
         let mut ranked: Vec<ScoredFact> = Vec::new();
-        let fused = self.retrieve(request, ctx, declared, &mut withheld).await?;
-        let signal = signal_of(&fused);
+        let (fused, kind_asked) = self.retrieve(request, ctx, declared, &mut withheld).await?;
+        let signal = signal::signal_of(&fused, kind_asked);
         for scored in fused {
             match lifecycle_withheld(&scored.fact, ctx.as_of, self.inject_stale()) {
                 Some(reason) => withheld.add(reason),
@@ -279,14 +273,6 @@ impl BrainRecallService {
             .with_withheld(withheld)
             .with_tokens(plan.tokens);
         Ok(RecallOutcome::Injected(block))
-    }
-}
-
-fn signal_of(fused: &[ScoredFact]) -> RecallSignal {
-    let any = |tier: RetrievalTier| fused.iter().any(|scored| fusion::found_by(scored, tier));
-    RecallSignal {
-        subject_named: any(RetrievalTier::Subject) || any(RetrievalTier::Linked),
-        full_text_hit: any(RetrievalTier::FullText),
     }
 }
 

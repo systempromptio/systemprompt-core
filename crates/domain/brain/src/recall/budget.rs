@@ -21,10 +21,15 @@
 //! tokens releases its slot. When a subject is named, facts found by the
 //! context tier alone may take at most `context_share` of `max_facts`
 //! (rounded down); one past that is withheld as `ContextCap`. With
-//! `context_requires_signal` and no subject named and no full-text hit
-//! (the message carries no word of any fact, see [`RecallSignal`]) that
-//! cap is zero: every context-only fact is withheld as `ContextCap`,
-//! while a fact another tier also found is never touched.
+//! `context_requires_signal` and no subject named, no full-text hit and
+//! no asked kind (the message carries no word of any fact and names no
+//! kind, see [`RecallSignal`]) that cap is zero: every context-only fact
+//! is withheld as `ContextCap` and every fact only the extension tier
+//! found as `NoSignal`, while a fact a core tier also found is never
+//! touched. The extension tier is neither a signal nor another tier here:
+//! a fact ranked by the context tier and an extension retriever is still
+//! context-only, since a dense neighbour of a haiku is no evidence the
+//! message is about the project.
 //!
 //! The citation loop: before any of that, `usage_weight ×
 //! (cited_rate − ignored_rate)` is added to each fact's fused score, so
@@ -63,11 +68,13 @@ pub struct BudgetLimits {
 }
 
 /// What the message gave the tiers to work with: whether the subject or
-/// linked tier found a fact, and whether the full-text tier found any.
+/// linked tier found a fact, whether the full-text tier found any, and
+/// whether the message asks a declared kind.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct RecallSignal {
     pub subject_named: bool,
     pub full_text_hit: bool,
+    pub kind_asked: bool,
 }
 
 impl RecallSignal {
@@ -76,7 +83,13 @@ impl RecallSignal {
         Self {
             subject_named,
             full_text_hit: false,
+            kind_asked: false,
         }
+    }
+
+    #[must_use]
+    pub const fn any(self) -> bool {
+        self.subject_named || self.full_text_hit || self.kind_asked
     }
 }
 
@@ -123,13 +136,18 @@ impl BudgetLimits {
             .iter()
             .filter(|c| found_by(&c.scored, RetrievalTier::Linked))
             .count();
-        share_of(self.max_facts, self.linked_share, f64::round).min(count(linked))
+        share_of(self.max_facts, self.linked_share, f64::round)
+            .min(u32::try_from(linked).unwrap_or(u32::MAX))
+    }
+
+    const fn gate_closed(&self, signal: RecallSignal) -> bool {
+        self.context_requires_signal && !signal.any()
     }
 
     fn context_cap(&self, signal: RecallSignal) -> u32 {
         if signal.subject_named {
             share_of(self.max_facts, self.context_share, f64::floor)
-        } else if self.context_requires_signal && !signal.full_text_hit {
+        } else if self.gate_closed(signal) {
             0
         } else {
             self.max_facts
@@ -157,16 +175,20 @@ fn share_of(max_facts: u32, share: f64, round: fn(f64) -> f64) -> u32 {
     slots.min(max_facts)
 }
 
-fn count(n: usize) -> u32 {
-    u32::try_from(n).unwrap_or(u32::MAX)
+fn core_ranks(scored: &ScoredFact) -> impl Iterator<Item = RetrievalTier> + '_ {
+    scored
+        .ranks
+        .iter()
+        .map(|rank| rank.tier)
+        .filter(|tier| *tier != RetrievalTier::Extension)
 }
 
 fn context_only(scored: &ScoredFact) -> bool {
-    !scored.ranks.is_empty()
-        && scored
-            .ranks
-            .iter()
-            .all(|rank| rank.tier == RetrievalTier::Context)
+    core_ranks(scored).next().is_some() && core_ranks(scored).all(|t| t == RetrievalTier::Context)
+}
+
+fn extension_only(scored: &ScoredFact) -> bool {
+    !scored.ranks.is_empty() && core_ranks(scored).next().is_none()
 }
 
 #[must_use]
@@ -208,6 +230,7 @@ struct Fill<'a> {
     reserved: u32,
     context_cap: u32,
     context_taken: u32,
+    gate_closed: bool,
 }
 
 impl Fill<'_> {
@@ -232,6 +255,8 @@ impl Fill<'_> {
             Some(WithheldReason::Quota)
         } else if taken >= cap {
             Some(WithheldReason::MaxFacts)
+        } else if self.gate_closed && extension_only(&candidate.scored) {
+            Some(WithheldReason::NoSignal)
         } else if context_only(&candidate.scored) && self.context_taken >= self.context_cap {
             Some(WithheldReason::ContextCap)
         } else if self
@@ -282,6 +307,7 @@ pub fn fill(
         reserved,
         context_cap: limits.context_cap(signal),
         context_taken: 0,
+        gate_closed: limits.gate_closed(signal),
     };
     for candidate in candidates {
         match fill.admit(&candidate) {

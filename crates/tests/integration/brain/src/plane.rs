@@ -67,6 +67,7 @@ fn pricing_kind() -> KindDecl {
             prompt: "Extract every list price the document states.".to_owned(),
             prompt_version: Some("v1".to_owned()),
         }),
+        asks: Vec::new(),
     }
 }
 
@@ -84,6 +85,7 @@ fn ownership_kind() -> KindDecl {
         extractor: Some(ExtractorDecl::Parser {
             name: PARSER.to_owned(),
         }),
+        asks: Vec::new(),
     }
 }
 

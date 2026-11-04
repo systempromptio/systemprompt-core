@@ -8,8 +8,9 @@
 //! (query-time expansion), [`fusion`] (reciprocal rank fusion),
 //! [`visible`] (the per-fact visibility decision), [`score`] (in-context
 //! importance), [`budget`] (quota and token fill), [`limits`] (the tiers'
-//! row limits) and [`reuse`] (same-turn block reuse). [`declared`]
-//! supplies the plane declarations recall and the lifecycle services read.
+//! row limits), [`signal`] (the kinds a message asks and the names it
+//! carries) and [`reuse`] (same-turn block reuse). [`declared`] supplies
+//! the plane declarations recall and the lifecycle services read.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -27,6 +28,7 @@ pub mod reuse;
 pub mod score;
 pub mod search_plan;
 mod service;
+pub mod signal;
 mod store;
 mod store_receipt;
 mod store_tiers;

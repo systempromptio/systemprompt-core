@@ -31,6 +31,30 @@
 //! row limit of the subject and linked tiers (0 keeps the shared tier
 //! limit, `max_facts × 2` clamped to 8..=50; at most 100).
 //!
+//! The depth knobs: `links_depth` (1 or 2, default 1) is how many
+//! subject hops the linked tier walks from a named subject. At 1 it
+//! reaches the facts one `brain_fact_links` hop away, as before. At 2 it
+//! also reaches, through the bridges a fact declares between its subject
+//! and the subjects its entity fields name (`brain_subject_links`), the
+//! facts about a bridged subject and the facts linked to one, each scored
+//! `links_decay` (0..=1, default 0.5) lower per hop: a fact about a bridged
+//! subject scores `links_weight × links_decay`, a fact linked to one
+//! `links_weight × links_decay × links_weight`. Every hit stays in the
+//! linked tier.
+//!
+//! Two more name rules. `alias_longest_wins` drops a subject matched at
+//! `1.0` whose matched alias is a proper substring of another matched
+//! subject's exact alias (`larchmont` inside `larchmont platform`), so a
+//! client is not named by its project's id. `unknown_name_withholds_full_text`
+//! withholds the full-text tier's hits as `unknown_name` when no subject
+//! matched and the message carries a capitalised, non-sentence-initial
+//! word of three or more letters that no fact carries: the message is
+//! about an entity the brain does not know, and a shared-vocabulary hit
+//! is not an answer about it. A message that asks a declared kind
+//! (`KindDecl::asks`) counts as a signal for `context_requires_signal`,
+//! and facts of the asked kinds rank first in the context and subject
+//! tiers.
+//!
 //! The usage knobs close the citation loop on the fill:
 //! `usage_weight` adds `usage_weight × (cited_rate − ignored_rate)` to a
 //! fact's fused score before `min_fused_score` and the fill order (0 adds
@@ -145,7 +169,12 @@ pub struct RetrievalDoc {
     pub extension_max_candidates: u32,
     pub context_requires_signal: bool,
     pub search_stop_words: Vec<String>,
+    pub search_max_ndoc: u32,
     pub subject_limit: u32,
+    pub alias_longest_wins: bool,
+    pub unknown_name_withholds_full_text: bool,
+    pub links_depth: u32,
+    pub links_decay: f64,
 }
 
 impl Default for RetrievalDoc {
@@ -171,7 +200,12 @@ impl Default for RetrievalDoc {
             extension_max_candidates: 24,
             context_requires_signal: false,
             search_stop_words: Vec::new(),
+            search_max_ndoc: 0,
             subject_limit: 0,
+            alias_longest_wins: false,
+            unknown_name_withholds_full_text: false,
+            links_depth: 1,
+            links_decay: 0.5,
         }
     }
 }

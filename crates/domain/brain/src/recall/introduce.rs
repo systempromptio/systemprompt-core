@@ -13,12 +13,14 @@
 //! `tiers.extension` weight disables introduction and contributes nothing
 //! to the fusion, so the recall is the one the core tiers alone produce.
 //! A retriever or loader that fails is logged and contributes nothing;
-//! the recall goes on over what the core tiers found.
+//! the recall goes on over what the core tiers found. [`load_tiers`] is
+//! the one load of every id the core tiers returned, dropping from each
+//! tier an id the load did not return.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::hash::BuildHasher;
 
 use systemprompt_extension::brain::{FactRetriever, RecallError, TierIds};
@@ -83,6 +85,23 @@ pub fn extension_hits<S: BuildHasher>(
             TierIds::new(RetrievalTier::Extension, ids)
         })
         .collect()
+}
+
+pub async fn load_tiers(
+    loader: &dyn FactLoader,
+    tiers: &mut [TierIds],
+) -> Result<HashMap<BrainFactId, BrainFact>, RecallError> {
+    let ids: Vec<BrainFactId> = known(tiers).into_iter().collect();
+    let facts: HashMap<BrainFactId, BrainFact> = loader
+        .load(&ids)
+        .await?
+        .into_iter()
+        .map(|fact| (fact.id.clone(), fact))
+        .collect();
+    for hits in tiers.iter_mut() {
+        hits.ids.retain(|id| facts.contains_key(id));
+    }
+    Ok(facts)
 }
 
 pub async fn loaded(loader: &dyn FactLoader, ids: &[BrainFactId]) -> Vec<BrainFact> {

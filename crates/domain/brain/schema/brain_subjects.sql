@@ -5,3 +5,6 @@ CREATE TABLE IF NOT EXISTS brain_subjects (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     PRIMARY KEY (subject_kind, subject_id)
 );
+
+CREATE INDEX IF NOT EXISTS idx_brain_subjects_lower_id
+    ON brain_subjects (lower(subject_id));

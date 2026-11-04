@@ -63,6 +63,7 @@ pub(crate) fn contact_kind() -> KindDecl {
         materiality: Materiality::default(),
         review_after_days: None,
         extractor: None,
+        asks: Vec::new(),
     }
 }
 

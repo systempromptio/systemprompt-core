@@ -1,5 +1,6 @@
-//! Read-side values: the recall query and context, scored facts, the
-//! injection plan and the audit of what was injected or withheld.
+//! Read-side values: the recall context, scored facts, the injection
+//! plan and the audit of what was injected or withheld. The query a
+//! recall carries is [`RecallQuery`] (`recall_query`).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -10,11 +11,12 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{BrainFactId, BrainRecallId, UserId, WorkflowId};
 
-use super::declarations::QuorumUnit;
 use super::fact::BrainFact;
 use super::scope::ScopeLevel;
 use crate::auth::RequestActor;
 use crate::origin::ClientKind;
+
+pub use super::recall_query::RecallQuery;
 
 /// A retrieval tier, fused by reciprocal rank.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
@@ -43,6 +45,8 @@ pub enum WithheldReason {
     Budget,
     LowScore,
     ContextCap,
+    UnknownName,
+    NoSignal,
     Unavailable,
 }
 
@@ -61,6 +65,8 @@ impl WithheldReason {
             Self::Budget => "budget",
             Self::LowScore => "low_score",
             Self::ContextCap => "context_cap",
+            Self::UnknownName => "unknown_name",
+            Self::NoSignal => "no_signal",
             Self::Unavailable => "unavailable",
         }
     }
@@ -139,90 +145,6 @@ impl RecallCtx {
     pub fn with_scopes(mut self, scopes: Vec<ScopeLevel>) -> Self {
         self.scopes = scopes;
         self
-    }
-}
-
-/// What a recall looks for and how wide each tier may reach.
-///
-/// Subject hints come from the last user turn; each tier has its own row
-/// limit (`subject_limit` is the subject and linked tiers' own, 0 meaning
-/// `limit`); a one-hop link match earns `links_weight` relative to a
-/// direct subject match; the synonym groups expand each full-text query
-/// word and the stop words are dropped before it is planned.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct RecallQuery {
-    pub subject_hints: String,
-    pub limit: u32,
-    #[serde(default = "RecallQuery::default_links_weight")]
-    pub links_weight: f64,
-    #[serde(default)]
-    pub synonyms: Vec<Vec<String>>,
-    #[serde(default = "RecallQuery::default_search_max_df")]
-    pub search_max_df: f64,
-    #[serde(default = "RecallQuery::default_search_quorum")]
-    pub search_quorum: f64,
-    #[serde(default)]
-    pub search_retry_quorum: f64,
-    #[serde(default)]
-    pub search_quorum_over: QuorumUnit,
-    #[serde(default = "RecallQuery::default_alias_min_sim")]
-    pub alias_min_sim: f64,
-    #[serde(default = "RecallQuery::default_max_subjects")]
-    pub max_subjects: u32,
-    #[serde(default)]
-    pub search_stop_words: Vec<String>,
-    #[serde(default)]
-    pub subject_limit: u32,
-}
-
-impl RecallQuery {
-    #[must_use]
-    pub const fn new(subject_hints: String, limit: u32) -> Self {
-        Self {
-            subject_hints,
-            limit,
-            links_weight: Self::default_links_weight(),
-            synonyms: Vec::new(),
-            search_max_df: Self::default_search_max_df(),
-            search_quorum: Self::default_search_quorum(),
-            search_retry_quorum: 0.0,
-            search_quorum_over: QuorumUnit::Groups,
-            alias_min_sim: Self::default_alias_min_sim(),
-            max_subjects: Self::default_max_subjects(),
-            search_stop_words: Vec::new(),
-            subject_limit: 0,
-        }
-    }
-
-    #[must_use]
-    pub const fn subject_tier_limit(&self) -> u32 {
-        if self.subject_limit == 0 {
-            self.limit
-        } else {
-            self.subject_limit
-        }
-    }
-
-    #[must_use]
-    pub const fn default_alias_min_sim() -> f64 {
-        0.6
-    }
-
-    #[must_use]
-    pub const fn default_max_subjects() -> u32 {
-        4
-    }
-
-    const fn default_links_weight() -> f64 {
-        0.6
-    }
-
-    const fn default_search_max_df() -> f64 {
-        0.2
-    }
-
-    const fn default_search_quorum() -> f64 {
-        0.5
     }
 }
 

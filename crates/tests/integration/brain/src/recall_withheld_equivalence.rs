@@ -46,6 +46,10 @@ fn filter(seeded: &Seeded, include_stale: bool, as_of: chrono::DateTime<Utc>) ->
         links_weight: retrieval.links_weight,
         alias_min_sim: retrieval.alias_min_sim,
         max_subjects: i64::from(retrieval.max_subjects),
+        asked_kinds: Vec::new(),
+        alias_longest_wins: false,
+        links_depth: 1,
+        links_decay: retrieval.links_decay,
     }
 }
 

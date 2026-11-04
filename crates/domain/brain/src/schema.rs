@@ -89,6 +89,18 @@ pub const BRAIN_SCHEMAS: &[SchemaEntry] = &[
         &["fact_id", "subject_kind", "subject_id", "via_field"],
     ),
     (
+        "brain_subject_links",
+        include_str!("../schema/brain_subject_links.sql"),
+        &[
+            "subject_kind",
+            "subject_id",
+            "other_kind",
+            "other_id",
+            "via_kind",
+            "fact_id",
+        ],
+    ),
+    (
         "brain_extractions",
         include_str!("../schema/brain_extractions.sql"),
         &["id", "outbox_id", "pipeline_version", "extractor", "kind"],

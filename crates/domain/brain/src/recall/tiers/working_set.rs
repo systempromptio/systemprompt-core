@@ -3,8 +3,9 @@
 //!
 //! The pinned tier drives from `idx_brain_facts_pinned`; the context tier
 //! walks `brain_working_set_scope_idx` for the attributed project's key in
-//! stored-importance order and stops at the limit, so its order is the
-//! projection's importance as of the last drain. The lifecycle count
+//! stored-importance order, a fact of an asked kind first, and stops at
+//! the limit, so its order is the projection's importance as of the last
+//! drain (with no asked kind the order is exactly that). The lifecycle count
 //! drives from `idx_brain_facts_status_review`: only a stale, disputed or
 //! overdue fact can contribute to any of its three counts, so naming that
 //! as the base predicate changes no count and spares the scan of every
@@ -74,7 +75,7 @@ pub(super) async fn by_context(
              AND (f.valid_from IS NULL OR f.valid_from <= $4)
              AND (f.valid_to IS NULL OR f.valid_to > $4)
              AND f.observed_at <= $4
-           ORDER BY w.importance_base DESC, w.fact_id
+           ORDER BY (f.kind = ANY($8::text[])) DESC, w.importance_base DESC, w.fact_id
            LIMIT $5"#,
         &f.keys,
         f.user.as_str(),
@@ -83,6 +84,7 @@ pub(super) async fn by_context(
         f.limit,
         &f.scopes,
         key,
+        &f.asked_kinds,
     )
     .fetch_all(pool)
     .await?)

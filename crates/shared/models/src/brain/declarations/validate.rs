@@ -1,5 +1,6 @@
 //! Cross-reference validation of a [`BrainDocs`] set. `MAX_SUBJECT_LIMIT`
-//! is the most rows the subject and linked tiers may each return.
+//! is the most rows the subject and linked tiers may each return;
+//! `MAX_LINKS_DEPTH` the furthest the linked tier may walk.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -54,9 +55,12 @@ pub enum BrainDeclError {
     },
     #[error("retrieval search_stop_words entry {word:?} is not one lower-case alphanumeric token")]
     StopWordNotToken { word: String },
+    #[error("kind {kind} asks entry {word:?} is not one lower-case alphanumeric token")]
+    AskNotToken { kind: FactKindId, word: String },
 }
 
 pub const MAX_SUBJECT_LIMIT: u32 = 100;
+pub const MAX_LINKS_DEPTH: u32 = 2;
 
 pub fn validate(docs: &BrainDocs) -> Result<(), BrainDeclError> {
     let mut topics = HashSet::new();
@@ -147,6 +151,12 @@ fn validate_kind(kind: &KindDecl, topics: &HashSet<&TopicId>) -> Result<(), Brai
     {
         return Err(BrainDeclError::MissingPromptVersion(kind.kind.clone()));
     }
+    if let Some(word) = kind.asks.iter().find(|w| !is_token(w)) {
+        return Err(BrainDeclError::AskNotToken {
+            kind: kind.kind.clone(),
+            word: word.clone(),
+        });
+    }
     Ok(())
 }
 
@@ -235,6 +245,7 @@ fn validate_retrieval(doc: &RetrievalDoc) -> Result<(), BrainDeclError> {
     weight("linked_share", doc.linked_share)?;
     weight("context_share", doc.context_share)?;
     weight("usage_weight", doc.usage_weight)?;
+    weight("links_decay", doc.links_decay)?;
     if !doc.min_fused_score.is_finite() || doc.min_fused_score < 0.0 {
         return Err(BrainDeclError::NegativeScore {
             name: "min_fused_score",
@@ -245,6 +256,7 @@ fn validate_retrieval(doc: &RetrievalDoc) -> Result<(), BrainDeclError> {
         ("max_facts", doc.max_facts),
         ("max_subjects", doc.max_subjects),
         ("extension_max_candidates", doc.extension_max_candidates),
+        ("links_depth", doc.links_depth),
     ] {
         if value == 0 {
             return Err(BrainDeclError::ZeroLimit { name });
@@ -255,6 +267,13 @@ fn validate_retrieval(doc: &RetrievalDoc) -> Result<(), BrainDeclError> {
             name: "subject_limit",
             value: doc.subject_limit,
             max: MAX_SUBJECT_LIMIT,
+        });
+    }
+    if doc.links_depth > MAX_LINKS_DEPTH {
+        return Err(BrainDeclError::LimitOverMax {
+            name: "links_depth",
+            value: doc.links_depth,
+            max: MAX_LINKS_DEPTH,
         });
     }
     if let Some(word) = doc.search_stop_words.iter().find(|w| !is_token(w)) {

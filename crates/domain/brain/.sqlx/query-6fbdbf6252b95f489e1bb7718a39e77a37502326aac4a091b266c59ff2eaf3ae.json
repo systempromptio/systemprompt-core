@@ -1,0 +1,34 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH matched AS (\n               SELECT * FROM unnest($7::text[], $8::text[], $9::float8[])\n               AS m(subject_kind, subject_id, score)\n           ),\n           reach AS (\n               SELECT l.fact_id AS id, m.score * $10 AS score,\n                      m.subject_kind AS not_kind, m.subject_id AS not_id\n               FROM matched m\n               JOIN brain_fact_links l\n                 ON l.subject_kind = m.subject_kind AND l.subject_id = m.subject_id\n               UNION ALL\n               SELECT a.id, m.score * $10 * $12::float8,\n                      m.subject_kind, m.subject_id\n               FROM matched m\n               JOIN brain_subject_links b\n                 ON b.subject_kind = m.subject_kind AND b.subject_id = m.subject_id\n               JOIN brain_facts a\n                 ON a.subject_kind = b.other_kind AND a.subject_id = b.other_id\n               WHERE $11::int4 >= 2\n               UNION ALL\n               SELECT l.fact_id, m.score * $10 * $12::float8 * $10,\n                      b.other_kind, b.other_id\n               FROM matched m\n               JOIN brain_subject_links b\n                 ON b.subject_kind = m.subject_kind AND b.subject_id = m.subject_id\n               JOIN brain_fact_links l\n                 ON l.subject_kind = b.other_kind AND l.subject_id = b.other_id\n               WHERE $11::int4 >= 2\n           ),\n           hits AS (\n               SELECT r.id, max(r.score) AS score\n               FROM reach r\n               JOIN brain_facts f ON f.id = r.id\n               WHERE NOT (f.subject_kind = r.not_kind AND f.subject_id = r.not_id)\n                 AND EXISTS (SELECT 1 FROM brain_working_set w\n                             WHERE w.fact_id = f.id AND w.scope_key = ANY($1::text[]))\n                 AND f.scope_level = ANY($6::text[])\n                 AND (f.status = 'confirmed'\n                      OR (f.status = 'proposed' AND f.owner_user_id = $2)\n                      OR (f.status = 'stale' AND $3))\n                 AND (f.review_after IS NULL OR f.review_after >= $4)\n                 AND (f.valid_from IS NULL OR f.valid_from <= $4)\n                 AND (f.valid_to IS NULL OR f.valid_to > $4)\n                 AND f.observed_at <= $4\n               GROUP BY r.id\n           )\n           SELECT h.id AS \"id!: BrainFactId\"\n           FROM hits h JOIN brain_facts f ON f.id = h.id\n           ORDER BY h.score DESC, f.importance_base DESC, f.id\n           LIMIT $5",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!: BrainFactId",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "TextArray",
+        "Text",
+        "Bool",
+        "Timestamptz",
+        "Int8",
+        "TextArray",
+        "TextArray",
+        "TextArray",
+        "Float8Array",
+        "Float8",
+        "Int4",
+        "Float8"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "6fbdbf6252b95f489e1bb7718a39e77a37502326aac4a091b266c59ff2eaf3ae"
+}

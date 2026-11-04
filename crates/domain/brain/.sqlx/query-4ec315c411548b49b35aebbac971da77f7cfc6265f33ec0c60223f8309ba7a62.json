@@ -1,0 +1,48 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT subject_kind AS \"subject_kind!\", subject_id AS \"subject_id!\",\n                  max(score) AS \"score!\",\n                  coalesce(array_agg(DISTINCT alias) FILTER (WHERE score >= 1.0), '{}')\n                      AS \"exact!\"\n           FROM (\n               SELECT a.subject_kind, a.subject_id, a.alias_norm AS alias, 1.0::float8 AS score\n               FROM brain_aliases a\n               WHERE a.alias_norm = ANY($2::text[])\n               UNION ALL\n               SELECT c.subject_kind, c.subject_id, c.alias_norm,\n                      word_similarity(c.alias_norm, $1)::float8\n               FROM (SELECT DISTINCT a.subject_kind, a.subject_id, a.alias_norm\n                     FROM unnest($3::text[]) AS w(word)\n                     JOIN brain_aliases a ON a.alias_norm %> w.word\n                     OFFSET 0) c\n               WHERE c.alias_norm <% $1\n               UNION ALL\n               SELECT s.subject_kind, s.subject_id, lower(s.subject_id), 1.0::float8\n               FROM brain_subjects s\n               WHERE length(s.subject_id) >= 3 AND lower(s.subject_id) = ANY($2::text[])\n           ) matched_hits GROUP BY subject_kind, subject_id\n           HAVING max(score) >= $4\n           ORDER BY max(score) DESC, subject_kind, subject_id\n           LIMIT $5",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "subject_kind!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "subject_id!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "score!",
+        "type_info": "Float8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "exact!",
+        "type_info": "TextArray",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "TextArray",
+        "TextArray",
+        "Float8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "4ec315c411548b49b35aebbac971da77f7cfc6265f33ec0c60223f8309ba7a62"
+}

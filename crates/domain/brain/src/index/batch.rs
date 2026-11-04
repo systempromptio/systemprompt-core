@@ -2,16 +2,18 @@
 //!
 //! One read for the set (facts, their kind bodies and their subjects'
 //! display names), then one statement per index over the whole set:
-//! working-set delete and insert, link delete and insert, subject
-//! ensure, alias upsert, weighted-vector update. Eight statements for a
-//! set of any size, against ten or more per fact on the per-fact path.
+//! working-set delete and insert, link delete and insert, subject-link
+//! delete and insert (the bridges derived from the links just written),
+//! subject ensure, alias upsert, weighted-vector update. Ten statements
+//! for a set of any size, against a dozen or more per fact on the
+//! per-fact path.
 //! Aliases and synonym expansions are derived in Rust from the loaded
 //! rows. The alias rows are folded with the live facts in `(updated_at,
 //! id)` order and the upsert only moves an alias to a fact at least as
 //! recent as its owner, so the owner of a shared alias is the same
 //! whichever set or batch wrote it last. A fact in the set that is no
 //! longer live contributes nothing and releases what it owned
-//! ([`super::release_alias_owners`]), a ninth statement for such a set.
+//! ([`super::release_alias_owners`]), an eleventh statement for such a set.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -31,11 +33,11 @@ use super::release::{holds_aliases, release_alias_owners};
 use super::rows::{AliasOwner, AliasRows};
 use crate::models::{FieldMap, decode_status};
 use crate::repository::{
-    AliasRepository, FactLinkRepository, SearchIndexRepository, SubjectRepository,
-    WorkingSetRepository,
+    AliasRepository, FactLinkRepository, SearchIndexRepository, SubjectLinkRepository,
+    SubjectRepository, WorkingSetRepository,
 };
 
-pub const STATEMENTS_PER_SET: u64 = 8;
+pub const STATEMENTS_PER_SET: u64 = 10;
 
 /// What one set-based reindex did.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -71,6 +73,7 @@ pub async fn reindex_facts(
     let keys: Vec<String> = rows.iter().map(|row| row.id.to_string()).collect();
     WorkingSetRepository::refresh_many(&mut *conn, &keys).await?;
     FactLinkRepository::refresh_many(&mut *conn, &keys).await?;
+    SubjectLinkRepository::refresh_many(&mut *conn, &keys).await?;
     let subjects: Vec<&SubjectKey> = rows.iter().map(|row| &row.subject).collect();
     SubjectRepository::ensure_many(&mut *conn, &subjects).await?;
     let mut kinds: HashMap<String, Option<KindDecl>> = HashMap::new();

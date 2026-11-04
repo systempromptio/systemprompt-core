@@ -5,14 +5,17 @@ use systemprompt_extension::brain::{
     FactRecallSource, MemoryRecall, RecallConversation, RecallOutcome, RecallReceipt, ReuseHint,
     SkipReason, TierIds,
 };
-use systemprompt_identifiers::{AiRequestId, BrainFactId, GatewayConversationId};
+use systemprompt_identifiers::{AiRequestId, BrainFactId, FactKindId, GatewayConversationId};
 use systemprompt_models::auth::RequestActor;
 use systemprompt_models::brain::{
-    BrainFact, FactStatus, RecallCtx, RecallQuery, RetrievalDoc, RetrievalTier, ScopeLevel,
+    BrainFact, FactScope, FactStatus, RecallCtx, RecallQuery, RetrievalDoc, RetrievalTier,
+    ScopeLevel,
 };
 
+use crate::events::entered;
 use crate::harness::{Harness, Setup};
-use crate::recall_seed::{HINTS, PROJECT, Seeded, seed};
+use crate::plane::{PRICING, kind};
+use crate::recall_seed::{HINTS, PROJECT, Seeded, refresh_working_set, seed};
 use crate::recall_support::{ids, injected, principal, request};
 
 fn idset(facts: &[BrainFact]) -> Vec<BrainFactId> {
@@ -162,6 +165,54 @@ async fn a_same_turn_recall_returns_the_stored_block_byte_for_byte() {
             reason: SkipReason::NotNewTurn
         },
         "negative control: another conversation has no stored block"
+    );
+    h.finish().await;
+}
+
+#[tokio::test]
+async fn an_asked_kind_ranks_first_in_the_context_tier_and_nothing_asked_keeps_the_order() {
+    let h = Harness::with("brain_recall_asked", Setup::confirming()).await;
+    let seeded = seed(&h).await;
+    h.emit(&entered(
+        &seeded.reader,
+        kind(PRICING),
+        "omega-price",
+        serde_json::json!({ "price": "900", "region": "emea" }),
+        FactScope::Project(PROJECT.to_owned()),
+    ))
+    .await;
+    h.drain().await;
+    refresh_working_set(&h).await;
+    let store = BrainRecallStore::new((*h.repos).clone(), h.profile.recall.stale);
+    let ctx = RecallCtx::new(seeded.reader.clone(), RequestActor::Human, Utc::now())
+        .with_project(PROJECT)
+        .with_held_keys(vec!["org".to_owned(), format!("project:{PROJECT}")]);
+    let unasked = RecallQuery::new(String::new(), 20);
+    let order = idset(&store.by_context(&unasked, &ctx).await.expect("context"));
+    assert_eq!(order.len(), 2, "{order:?}");
+    let kinds = [h.fact(&order[0]).await.kind, h.fact(&order[1]).await.kind];
+    let asking = |kind: &FactKindId| RecallQuery {
+        asked_kinds: vec![kind.clone()],
+        ..RecallQuery::new(String::new(), 20)
+    };
+    let second_first = idset(
+        &store
+            .by_context(&asking(&kinds[1]), &ctx)
+            .await
+            .expect("asked"),
+    );
+    assert_eq!(second_first, vec![order[1].clone(), order[0].clone()]);
+    let first_first = idset(
+        &store
+            .by_context(&asking(&kinds[0]), &ctx)
+            .await
+            .expect("asked"),
+    );
+    assert_eq!(first_first, order);
+    assert_eq!(
+        idset(&store.by_context(&unasked, &ctx).await.expect("again")),
+        order,
+        "the importance order holds when nothing is asked"
     );
     h.finish().await;
 }

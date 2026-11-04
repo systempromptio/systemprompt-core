@@ -1,5 +1,12 @@
 //! A fact kind declared under `services/brain/kinds/*.yaml`: its subject,
-//! fields, statement template, identity and extractor.
+//! fields, statement template, identity, extractor and ask words.
+//!
+//! A message *asks* a kind when one of the kind's ask words is among its
+//! lower-cased tokens: the declared `asks` list (lower-case single tokens,
+//! so plurals and verb forms: `decisions`, `decided`, `renews`), or, for a
+//! kind that declares none, the words of its id split on `_`. A declared
+//! list replaces the id words, so a common id word such as `client` or
+//! `delivery` asks nothing unless the declaration says so.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -30,12 +37,28 @@ pub struct KindDecl {
     pub review_after_days: Option<u32>,
     #[serde(default)]
     pub extractor: Option<ExtractorDecl>,
+    #[serde(default)]
+    pub asks: Vec<String>,
 }
 
 impl KindDecl {
     #[must_use]
     pub fn knows(&self, name: &str) -> bool {
         name == SUBJECT_FIELD || self.fields.contains_key(name)
+    }
+
+    pub fn ask_words(&self) -> impl Iterator<Item = &str> {
+        let declared = !self.asks.is_empty();
+        self.kind
+            .as_str()
+            .split('_')
+            .filter(move |w| !declared && !w.is_empty())
+            .chain(self.asks.iter().map(String::as_str))
+    }
+
+    #[must_use]
+    pub fn asked_by(&self, tokens: &[&str]) -> bool {
+        self.ask_words().any(|word| tokens.contains(&word))
     }
 
     #[must_use]

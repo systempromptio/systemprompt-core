@@ -1,7 +1,8 @@
 //! P3 bit-identity: every tier's index-driven SQL returns the ids the
 //! previous candidate-join SQL returned, in the same order, over a seeded
 //! set that exercises every tier and every exclusion. The previous SQL is
-//! kept here verbatim as the reference.
+//! kept here verbatim as the reference; the linked tier's one-hop SQL is
+//! kept in `recall_depth`, which also proves it over a corpus with links.
 
 use chrono::Utc;
 use systemprompt_brain::recall::search_plan::{SearchPolicy, plan};
@@ -11,6 +12,7 @@ use systemprompt_identifiers::BrainFactId;
 use systemprompt_models::brain::{RetrievalDoc, ScopeLevel, SynonymsDoc};
 
 use crate::harness::{Harness, Setup};
+use crate::recall_depth::linked_previous;
 use crate::recall_seed::{HINTS, PROJECT, Seeded, seed};
 
 const CAND: &str = "WITH cand AS (
@@ -64,6 +66,10 @@ fn filter(seeded: &Seeded, include_stale: bool) -> TierFilter {
         links_weight: retrieval.links_weight,
         alias_min_sim: retrieval.alias_min_sim,
         max_subjects: i64::from(retrieval.max_subjects),
+        asked_kinds: Vec::new(),
+        alias_longest_wins: false,
+        links_depth: 1,
+        links_decay: retrieval.links_decay,
     }
 }
 
@@ -121,7 +127,10 @@ async fn every_tier_answers_exactly_what_the_candidate_join_sql_answered() {
         );
         assert_eq!(strings(&context), vec![seeded.context.as_str()]);
 
-        let matched = matched::resolve(&h.pg, &f, &hints).await.expect("matched");
+        let terms = SearchTermsRepository::load(&h.pg).await.expect("terms");
+        let matched = matched::resolve(&h.pg, &f, &hints, &terms)
+            .await
+            .expect("matched");
         assert!(!matched.is_empty(), "the hints name acme");
         let subject_sql = format!(
             "{CAND}, {MATCHED},
@@ -153,8 +162,14 @@ async fn every_tier_answers_exactly_what_the_candidate_join_sql_answered() {
         assert_eq!(strings(&subject), previous_subject);
         assert!(strings(&subject).contains(&seeded.subject.as_str().to_owned()));
 
+        let linked = tiers::by_linked(&h.pg, &f, &matched).await.expect("linked");
+        assert_eq!(
+            strings(&linked),
+            linked_previous(&h, &f, &matched).await,
+            "at depth 1 the depth-aware linked SQL answers what the one-hop SQL answered"
+        );
+
         let retrieval = RetrievalDoc::default();
-        let terms = SearchTermsRepository::load(&h.pg).await.expect("terms");
         let policy = SearchPolicy::new(retrieval.search_max_df, retrieval.search_quorum);
         let synonyms = SynonymsDoc::default();
         let Some(searched) = plan(HINTS, &synonyms, &terms, &policy) else {

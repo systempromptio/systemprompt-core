@@ -1,0 +1,65 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT other_kind, other_id, via_kind, fact_id FROM brain_subject_links\n             WHERE subject_kind = $1 AND subject_id = $2\n             ORDER BY other_kind, other_id, fact_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "other_kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "brain_subject_links",
+            "name": "other_kind"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "other_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "brain_subject_links",
+            "name": "other_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "via_kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "brain_subject_links",
+            "name": "via_kind"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "fact_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "brain_subject_links",
+            "name": "fact_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "50e610c9f3108c5880c9862d5d2c73d87caf4f9eef71a3ab78cf7140c1ef4fac"
+}

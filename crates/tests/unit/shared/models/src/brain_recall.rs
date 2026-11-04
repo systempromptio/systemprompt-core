@@ -18,6 +18,8 @@ fn withheld_reasons_serialize_as_their_wire_names() {
         (WithheldReason::ReviewDue, "review_due"),
         (WithheldReason::Quota, "quota"),
         (WithheldReason::Budget, "budget"),
+        (WithheldReason::UnknownName, "unknown_name"),
+        (WithheldReason::NoSignal, "no_signal"),
         (WithheldReason::Unavailable, "unavailable"),
     ];
     for (reason, name) in all {

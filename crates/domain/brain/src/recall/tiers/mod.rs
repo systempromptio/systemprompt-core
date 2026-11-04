@@ -11,10 +11,13 @@
 //! and not yet due for review then; confirmed, proposed only for its
 //! owner, stale only when the profile injects stale facts with a marker.
 //! Each tier returns fact ids ordered by its rank, then stored importance,
-//! then id, so two identical recalls answer identically. The subject and
+//! then id, so two identical recalls answer identically; in the context
+//! and subject tiers a fact of a kind the message asks
+//! (`TierFilter::asked_kinds`) ranks before the rest. The subject and
 //! linked tiers read the subjects [`matched`] resolved once per recall
 //! (at most `max_subjects`, each reaching `alias_min_sim`) and run at
-//! their own row limit; the full-text
+//! their own row limit; the linked tier walks `links_depth` hops (see
+//! `linked.rs`); the full-text
 //! tier runs a second plan at `retry_quorum` when the first returns
 //! nothing. [`ranked`] runs the five tiers concurrently and returns their
 //! ids for fusion.
@@ -23,6 +26,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod fulltext;
+mod linked;
 pub mod matched;
 mod subject;
 mod working_set;
@@ -53,6 +57,10 @@ pub struct TierFilter {
     pub links_weight: f64,
     pub alias_min_sim: f64,
     pub max_subjects: i64,
+    pub asked_kinds: Vec<String>,
+    pub alias_longest_wins: bool,
+    pub links_depth: i32,
+    pub links_decay: f64,
 }
 
 impl TierFilter {
@@ -60,6 +68,14 @@ impl TierFilter {
     pub fn with_subjects(mut self, query: &RecallQuery) -> Self {
         self.alias_min_sim = query.alias_min_sim;
         self.max_subjects = i64::from(query.max_subjects.max(1));
+        self.asked_kinds = query
+            .asked_kinds
+            .iter()
+            .map(|kind| kind.as_str().to_owned())
+            .collect();
+        self.alias_longest_wins = query.alias_longest_wins;
+        self.links_depth = i32::try_from(query.links_depth).unwrap_or(i32::MAX);
+        self.links_decay = query.links_decay;
         self
     }
 
@@ -87,7 +103,7 @@ pub async fn by_linked(
     f: &TierFilter,
     matched: &MatchedSubjects,
 ) -> Result<Vec<BrainFactId>, RepositoryError> {
-    subject::by_linked(pool, f, matched).await
+    linked::by_linked(pool, f, matched).await
 }
 
 pub async fn by_context(
@@ -155,7 +171,7 @@ pub async fn ranked(
     input: RankedInput<'_>,
 ) -> Result<Vec<TierIds>, RepositoryError> {
     let f = input.filter;
-    let matched = matched::resolve(pool, f, input.hints).await?;
+    let matched = matched::resolve(pool, f, input.hints, input.full_text.terms).await?;
     let pinned_filter = f.clone().with_limit(input.pinned_limit);
     let subject_filter = f.clone().with_limit(input.subject_limit);
     let (pinned_ids, subject_ids, linked_ids, context_ids, text_ids) = tokio::join!(

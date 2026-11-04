@@ -20,6 +20,15 @@
 //! the filter; without statistics the undeclared behaviour holds either
 //! way, since no group can be told common.
 //!
+//! `SearchPolicy::max_ndoc` (0 = off) bounds the rows the filter can
+//! match: a conjunction matches at most the rarest required group's
+//! document count, a disjunction at most the sum of its groups' counts
+//! (a group's count is its most common lexeme's, the count its share is
+//! taken from). A filter whose bound is above `max_ndoc` plans nothing:
+//! the message carries no word selective enough to be worth ranking that
+//! many rows. Without statistics every count is zero and the bound never
+//! applies.
+//!
 //! The share is counted over the informative
 //! groups (`QuorumUnit::Groups`) or over the query words those groups
 //! absorbed (`QuorumUnit::Words`, where a group that merged two words of
@@ -47,6 +56,7 @@ pub struct SearchPolicy {
     pub retry_quorum: f64,
     pub quorum_over: QuorumUnit,
     pub stop_words: Vec<String>,
+    pub max_ndoc: u64,
 }
 
 impl SearchPolicy {
@@ -58,6 +68,7 @@ impl SearchPolicy {
             retry_quorum: 0.0,
             quorum_over: QuorumUnit::Groups,
             stop_words: Vec::new(),
+            max_ndoc: 0,
         }
     }
 
@@ -65,6 +76,16 @@ impl SearchPolicy {
     pub fn with_stop_words(mut self, words: Vec<String>) -> Self {
         self.stop_words = words;
         self
+    }
+
+    #[must_use]
+    pub const fn with_max_ndoc(mut self, max_ndoc: u64) -> Self {
+        self.max_ndoc = max_ndoc;
+        self
+    }
+
+    const fn within_bound(&self, bound: u64) -> bool {
+        self.max_ndoc == 0 || bound <= self.max_ndoc
     }
 
     #[must_use]
@@ -96,6 +117,7 @@ pub struct SearchPlan {
 struct Group {
     tsquery: String,
     share: f64,
+    ndoc: u64,
     members: Vec<String>,
     words: usize,
 }
@@ -120,12 +142,19 @@ pub fn plan(
         if !policy.stop_words.is_empty() && terms.total > 0 {
             return None;
         }
-        return Some(SearchPlan {
+        let bound: u64 = groups.iter().map(|g| g.ndoc).sum();
+        return policy.within_bound(bound).then(|| SearchPlan {
             filter: rank.clone(),
             rank,
         });
     }
     informative.sort_by(|a, b| a.share.total_cmp(&b.share));
+    if informative
+        .first()
+        .is_some_and(|rarest| !policy.within_bound(rarest.ndoc))
+    {
+        return None;
+    }
     let units = match policy.quorum_over {
         QuorumUnit::Groups => informative.len(),
         QuorumUnit::Words => informative.iter().map(|g| g.words).sum(),
@@ -191,6 +220,7 @@ fn groups_of(
 
 fn group_of(members: &[String], terms: &SearchTerms) -> Option<Group> {
     let mut share: f64 = 0.0;
+    let mut ndoc: u64 = 0;
     let mut alternatives = Vec::new();
     for member in members {
         let lexemes: Vec<&str> = member
@@ -201,6 +231,10 @@ fn group_of(members: &[String], terms: &SearchTerms) -> Option<Group> {
             continue;
         }
         share = lexemes.iter().map(|w| terms.share(w)).fold(share, f64::max);
+        ndoc = lexemes
+            .iter()
+            .map(|w| terms.ndoc_of(w))
+            .fold(ndoc, u64::max);
         alternatives.push(lexemes.join(" <-> "));
     }
     (!alternatives.is_empty()).then(|| Group {
@@ -210,6 +244,7 @@ fn group_of(members: &[String], terms: &SearchTerms) -> Option<Group> {
             format!("({})", alternatives.join(" | "))
         },
         share,
+        ndoc,
         members: members.to_vec(),
         words: 1,
     })

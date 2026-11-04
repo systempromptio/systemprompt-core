@@ -1,7 +1,7 @@
 //! The [`FactRecallSource`] of [`BrainRecallStore`]: the five tiers as ids
 //! in one concurrent read (`tier_ids`), each tier as loaded facts for a
-//! caller that reads one, the lifecycle count, the stored block and the
-//! receipt.
+//! caller that reads one, the lifecycle count, the words no fact carries
+//! (from the cached term statistics), the stored block and the receipt.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -29,6 +29,7 @@ fn policy_of(query: &RecallQuery) -> SearchPolicy {
         retry_quorum: query.search_retry_quorum,
         quorum_over: query.search_quorum_over,
         stop_words: query.search_stop_words.clone(),
+        max_ndoc: u64::from(query.search_max_ndoc),
     }
 }
 
@@ -42,7 +43,8 @@ impl BrainRecallStore {
         let filter = self
             .filter(ctx, query.subject_tier_limit(), query.links_weight)
             .with_subjects(query);
-        let matched = matched::resolve(self.repos.read_pool(), &filter, &hints).await?;
+        let terms = self.search_terms().await?;
+        let matched = matched::resolve(self.repos.read_pool(), &filter, &hints, &terms).await?;
         Ok((filter, matched))
     }
 }
@@ -110,7 +112,9 @@ impl FactRecallSource for BrainRecallStore {
         query: &RecallQuery,
         ctx: &RecallCtx,
     ) -> Result<Vec<BrainFact>, RecallError> {
-        let filter = self.filter(ctx, query.limit, query.links_weight);
+        let filter = self
+            .filter(ctx, query.limit, query.links_weight)
+            .with_subjects(query);
         let ids = tiers::by_context(self.repos.read_pool(), &filter).await?;
         self.load_ranked(ids).await
     }
@@ -154,5 +158,17 @@ impl FactRecallSource for BrainRecallStore {
     ) -> Result<BTreeMap<WithheldReason, u32>, RecallError> {
         let filter = self.filter(ctx, 0, NO_LINKS);
         Ok(tiers::withheld_counts(self.repos.read_pool(), &filter).await?)
+    }
+
+    async fn unknown_terms(&self, words: &[String]) -> Result<Vec<String>, RecallError> {
+        let terms = self.search_terms().await?;
+        if terms.is_empty() {
+            return Ok(Vec::new());
+        }
+        Ok(words
+            .iter()
+            .filter(|word| !terms.ndoc.contains_key(word.as_str()))
+            .cloned()
+            .collect())
     }
 }
