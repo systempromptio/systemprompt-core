@@ -4,8 +4,10 @@
 //! fused score, then in-context importance,
 //! then fact id, so a fact every tier agreed on is never cut for a
 //! higher-importance sibling found by one; `importance` is the previous
-//! order (importance, then score, then id). In that order a fact is taken
-//! while its kind is under its quota, the fact count is under `max_facts`
+//! order (importance, then score, then id); [`fill_in_order`] takes the
+//! candidates as given (a reranker's order) and sorts nothing. In that
+//! order a fact is taken while its kind is under its quota, the fact
+//! count is under `max_facts`
 //! and the estimated tokens fit the budget. A fact over its kind's quota
 //! is withheld as `Quota`; one past the fact count as `MaxFacts`; one
 //! whose tokens do not fit as `Budget`. Tokens are estimated as a quarter
@@ -47,10 +49,12 @@ use std::collections::BTreeMap;
 
 use systemprompt_identifiers::FactKindId;
 use systemprompt_models::brain::{
-    BrainFact, FillOrder, InjectionPlan, RetrievalDoc, RetrievalTier, ScoredFact, WithheldFact,
-    WithheldReason, WorkflowProfileDecl,
+    FillOrder, InjectionPlan, RetrievalDoc, RetrievalTier, WithheldFact, WithheldReason,
+    WorkflowProfileDecl,
 };
 
+pub use super::candidate::{Candidate, estimate_tokens, usage_term};
+use super::candidate::{apply_usage, context_only, extension_only, share_of, sort_candidates};
 use super::fusion::found_by;
 
 /// The limits one recall fills against.
@@ -131,74 +135,6 @@ impl BudgetLimits {
     }
 }
 
-/// A visible fact, the text it would be injected as, and its in-context
-/// importance.
-#[derive(Debug, Clone, PartialEq)]
-pub struct Candidate {
-    pub scored: ScoredFact,
-    pub text: String,
-    pub importance: f64,
-}
-
-#[must_use]
-pub fn estimate_tokens(text: &str) -> u32 {
-    u32::try_from(text.chars().count().div_ceil(4)).unwrap_or(u32::MAX)
-}
-
-fn share_of(max_facts: u32, share: f64, round: fn(f64) -> f64) -> u32 {
-    // Why: lint-ok: a slot count at most max_facts; the rounding is exact.
-    let slots = round(f64::from(max_facts) * share.clamp(0.0, 1.0)) as u32;
-    slots.min(max_facts)
-}
-
-fn core_ranks(scored: &ScoredFact) -> impl Iterator<Item = RetrievalTier> + '_ {
-    scored
-        .ranks
-        .iter()
-        .map(|rank| rank.tier)
-        .filter(|tier| *tier != RetrievalTier::Extension)
-}
-
-fn context_only(scored: &ScoredFact) -> bool {
-    core_ranks(scored).next().is_some() && core_ranks(scored).all(|t| t == RetrievalTier::Context)
-}
-
-fn extension_only(scored: &ScoredFact) -> bool {
-    !scored.ranks.is_empty() && core_ranks(scored).next().is_none()
-}
-
-#[must_use]
-pub fn usage_term(fact: &BrainFact, usage_weight: f64) -> f64 {
-    usage_weight.mul_add(fact.usage_cited_rate - fact.usage_ignored_rate, 0.0)
-}
-
-fn apply_usage(candidates: &mut [Candidate], usage_weight: f64) {
-    for candidate in candidates {
-        let adjusted = candidate.scored.score + usage_term(&candidate.scored.fact, usage_weight);
-        candidate.scored.score = adjusted.max(0.0);
-    }
-}
-
-fn sort_candidates(candidates: &mut [Candidate], order: FillOrder, usage_weight: f64) {
-    candidates.sort_by(|a, b| {
-        let usage = |c: &Candidate| usage_term(&c.scored.fact, usage_weight);
-        let (primary, secondary) = match order {
-            FillOrder::Rank => (
-                b.scored.score.total_cmp(&a.scored.score),
-                b.importance.total_cmp(&a.importance),
-            ),
-            FillOrder::Importance => (
-                b.importance.total_cmp(&a.importance),
-                b.scored.score.total_cmp(&a.scored.score),
-            ),
-        };
-        primary
-            .then(secondary)
-            .then_with(|| usage(b).total_cmp(&usage(a)))
-            .then_with(|| a.scored.fact.id.cmp(&b.scored.fact.id))
-    });
-}
-
 struct Fill<'a> {
     limits: &'a BudgetLimits,
     plan: InjectionPlan,
@@ -271,6 +207,24 @@ pub fn fill(
 ) -> InjectionPlan {
     apply_usage(&mut candidates, limits.usage_weight);
     sort_candidates(&mut candidates, limits.order, limits.usage_weight);
+    fill_sorted(candidates, limits, signal)
+}
+
+#[must_use]
+pub fn fill_in_order(
+    mut candidates: Vec<Candidate>,
+    limits: &BudgetLimits,
+    signal: RecallSignal,
+) -> InjectionPlan {
+    apply_usage(&mut candidates, limits.usage_weight);
+    fill_sorted(candidates, limits, signal)
+}
+
+fn fill_sorted(
+    candidates: Vec<Candidate>,
+    limits: &BudgetLimits,
+    signal: RecallSignal,
+) -> InjectionPlan {
     let reserved = if signal.subject_named {
         limits.linked_reserve(&candidates)
     } else {

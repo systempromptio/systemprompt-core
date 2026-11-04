@@ -4,7 +4,9 @@
 //! retrievers run concurrently), one load of every id a tier returned,
 //! fusion (the facts only an extension found are loaded and admitted by
 //! the tier SQL's own rule, see [`super::introduce`] and [`super::admit`]),
-//! visibility, and the budget fill. A recall *names a subject* when the
+//! visibility, the reranker ([`super::rerank`], over the visible facts
+//! only, so the fill takes them in the order it gave) and the budget
+//! fill. A recall *names a subject* when the
 //! subject or linked tier returned a fact the reader can see, *has a
 //! full-text hit* when that tier returned one the reader can see, and
 //! *asks a kind* when the message carries one of a declared kind's ask
@@ -46,12 +48,13 @@ use super::limits::tier_limits;
 use super::score::{self, ScoreInput};
 use super::service::{BrainRecallService, fact_text};
 use super::visible::{Visibility, lifecycle_withheld};
-use super::{fusion, introduce, signal};
+use super::{fusion, introduce, rerank, signal};
 
 #[derive(Debug, Clone, Copy)]
 struct PlanShape {
     budget_tokens: u32,
     signal: RecallSignal,
+    reranked: bool,
 }
 
 impl BrainRecallService {
@@ -183,7 +186,11 @@ impl BrainRecallService {
                 scored,
             })
             .collect();
-        budget::fill(candidates, &limits, shape.signal)
+        if shape.reranked {
+            budget::fill_in_order(candidates, &limits, shape.signal)
+        } else {
+            budget::fill(candidates, &limits, shape.signal)
+        }
     }
 
     fn importance(&self, scored: &ScoredFact, ctx: &RecallCtx, declared: &DeclaredRecall) -> f64 {
@@ -240,6 +247,7 @@ impl BrainRecallService {
         })?;
         let (ctx, held) = self.context(request, &declared).await;
         let (visible, mut withheld, signal) = self.visible(request, &ctx, held, &declared).await?;
+        let (visible, reranked) = self.rerank(request, visible, &declared).await;
         let budget = match request.budget_tokens {
             0 => self.profile.recall.budget_tokens,
             requested => requested,
@@ -247,6 +255,7 @@ impl BrainRecallService {
         let shape = PlanShape {
             budget_tokens: budget,
             signal,
+            reranked: reranked.is_some(),
         };
         let plan = self.plan(visible, &ctx, &declared, shape);
         for fact in &plan.withheld {
@@ -273,7 +282,8 @@ impl BrainRecallService {
                 })
             })
             .with_withheld(withheld)
-            .with_tokens(plan.tokens);
+            .with_tokens(plan.tokens)
+            .with_reranked(reranked.as_ref().map(|r| rerank::record(r, &plan.facts)));
         Ok(RecallOutcome::Injected(block))
     }
 }

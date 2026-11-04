@@ -8,7 +8,7 @@ use chrono::{DateTime, Utc};
 use systemprompt_extension::brain::RecallConversation;
 use systemprompt_identifiers::{FactKindId, UserId, WorkflowId};
 use systemprompt_models::brain::{
-    BrainOutcome, FactStatus, ProposalDraft, RecallAudit, SubjectKey,
+    BrainOutcome, FactStatus, ProposalDraft, RecallAudit, RecallRerank, SubjectKey,
 };
 use systemprompt_models::origin::ClientKind;
 
@@ -16,7 +16,8 @@ pub type NewOutcome = BrainOutcome;
 pub type NewProposal = ProposalDraft;
 
 /// One recall to record: who asked, in which conversation, what was
-/// injected or why it was skipped, and the exact block that was sent.
+/// injected or why it was skipped, the exact block that was sent and the
+/// reranker that ordered it, if one ran.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NewRecall {
     pub principal: UserId,
@@ -27,6 +28,7 @@ pub struct NewRecall {
     pub audit: RecallAudit,
     pub skipped: Option<String>,
     pub rendered_block: Option<String>,
+    pub reranked: Option<RecallRerank>,
 }
 
 impl NewRecall {
@@ -51,6 +53,7 @@ impl NewRecall {
                 audit,
                 skipped: None,
                 rendered_block: None,
+                reranked: None,
             },
         }
     }
@@ -90,6 +93,12 @@ impl NewRecallBuilder {
     #[must_use]
     pub fn rendered_block(mut self, block: impl Into<String>) -> Self {
         self.recall.rendered_block = Some(block.into());
+        self
+    }
+
+    #[must_use]
+    pub fn reranked(mut self, reranked: RecallRerank) -> Self {
+        self.recall.reranked = Some(reranked);
         self
     }
 

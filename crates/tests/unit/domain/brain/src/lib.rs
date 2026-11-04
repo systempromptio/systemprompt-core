@@ -2,7 +2,8 @@
 //! each fact change to the revision it records, the row builders the
 //! repository tests share, the `brain` config plane (file side pure, apply
 //! round trip against the test database in `plane_db`), the recall stages
-//! (fusion, visibility, budget fill, same-turn reuse), outcome citation
+//! (fusion, visibility, the reranker merge rule, budget fill, same-turn
+//! reuse), outcome citation
 //! scanning (recorded against the test database in `outcomes_db`), lifecycle
 //! authority, the capture pipeline's pure stages (composite filter, dedupe
 //! decision, schema validator, importance formula, extraction schema and
@@ -79,6 +80,8 @@ mod recall_introduce;
 mod recall_limits;
 #[cfg(test)]
 mod recall_matched_lookup;
+#[cfg(test)]
+mod recall_rerank;
 #[cfg(test)]
 mod recall_reuse;
 #[cfg(test)]

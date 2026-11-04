@@ -8,7 +8,7 @@ use systemprompt_brain::{BrainRepositories, OutboxBrainSink};
 use systemprompt_database::DbPool;
 use systemprompt_events::services::durable::{DurableOutbox, OutboxConsumer};
 use systemprompt_extension::brain::{
-    DynBrainSink, EventFilter, FactExtractor, FactRetriever, SourceContent,
+    DynBrainSink, EventFilter, FactExtractor, FactRetriever, Reranker, SourceContent,
 };
 use systemprompt_extension::notifications::NotificationAudienceResolver;
 use systemprompt_identifiers::{BrainFactId, EventOutboxId, UserId};
@@ -260,6 +260,22 @@ impl Harness {
         audiences: Vec<Arc<dyn NotificationAudienceResolver>>,
         retrievers: Vec<Arc<dyn FactRetriever>>,
     ) -> BrainRecallService {
+        self.recall_with_seams(audiences, retrievers, Vec::new())
+    }
+
+    pub(crate) fn recall_with_rerankers(
+        &self,
+        rerankers: Vec<Arc<dyn Reranker>>,
+    ) -> BrainRecallService {
+        self.recall_with_seams(Vec::new(), Vec::new(), rerankers)
+    }
+
+    fn recall_with_seams(
+        &self,
+        audiences: Vec<Arc<dyn NotificationAudienceResolver>>,
+        retrievers: Vec<Arc<dyn FactRetriever>>,
+        rerankers: Vec<Arc<dyn Reranker>>,
+    ) -> BrainRecallService {
         let store = Arc::new(BrainRecallStore::new(
             (*self.repos).clone(),
             self.profile.recall.stale,
@@ -272,6 +288,7 @@ impl Harness {
             Arc::new(self.profile.clone()),
         )
         .retrievers(retrievers)
+        .rerankers(rerankers)
         .audiences(audiences)
         .build()
     }

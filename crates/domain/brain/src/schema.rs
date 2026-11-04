@@ -134,6 +134,7 @@ pub const BRAIN_SCHEMAS: &[SchemaEntry] = &[
             "gateway_conversation_id",
             "rendered_block",
             "as_of",
+            "reranked",
         ],
     ),
     (

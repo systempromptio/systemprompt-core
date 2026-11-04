@@ -61,8 +61,8 @@ pub use outcome::{BrainOutcome, CITED_IN_RESPONSE, OutcomeObservation, USER_CORR
 pub use payload::{CommentAnchorRef, CommentResolved, RevisionLanded, SessionTurnClosed};
 pub use proposal::{BrainProposal, ProposalDraft, ProposalKind, ProposalStatus};
 pub use recall::{
-    FactRef, InjectionPlan, RecallAudit, RecallCtx, RecallQuery, RetrievalTier, ScoredFact,
-    StoredBlock, TierRank, WithheldFact, WithheldReason,
+    FactRef, InjectionPlan, RecallAudit, RecallCtx, RecallQuery, RecallRerank, RerankedFact,
+    RetrievalTier, ScoredFact, StoredBlock, TierRank, WithheldFact, WithheldReason,
 };
 pub use revision::{FactRevision, RevisionChange};
 pub use scope::{FactScope, ScopeLevel, UnknownScopeLevel};

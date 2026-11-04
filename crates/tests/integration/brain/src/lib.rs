@@ -73,6 +73,8 @@ mod recall_matched_identity;
 #[cfg(test)]
 mod recall_names;
 #[cfg(test)]
+mod recall_rerank;
+#[cfg(test)]
 mod recall_seed;
 #[cfg(test)]
 mod recall_stale_marker;

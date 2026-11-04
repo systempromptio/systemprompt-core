@@ -6,7 +6,8 @@
 //! unavailable sink. Recall's extension seams take the built context, so,
 //! as for notifications, the builder assembles the handle twice from one
 //! core: with the core audience resolver alone, then with the discovered
-//! audience resolvers, retrievers and injection policies ahead of it.
+//! audience resolvers, retrievers, rerankers and injection policies ahead
+//! of it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -26,8 +27,8 @@ use systemprompt_events::services::durable::{DurableOutbox, OutboxConsumer};
 use systemprompt_extension::ExtensionContext;
 use systemprompt_extension::brain::{
     DynBrainSink, FactRecallSource, FactRetriever, ImportanceModel, InjectionPolicy, OutcomeSignal,
-    SourceAccess, discover_brain_importance_models, discover_brain_injection_policies,
-    discover_brain_outcome_signals, discover_brain_retrievers,
+    Reranker, SourceAccess, discover_brain_importance_models, discover_brain_injection_policies,
+    discover_brain_outcome_signals, discover_brain_rerankers, discover_brain_retrievers,
 };
 use systemprompt_extension::notifications::{
     DynNotificationSink, NotificationAudienceResolver, discover_notification_audiences,
@@ -63,6 +64,7 @@ impl fmt::Debug for BrainInputs<'_> {
 pub struct RecallSeams {
     pub audiences: Vec<Arc<dyn NotificationAudienceResolver>>,
     pub retrievers: Vec<Arc<dyn FactRetriever>>,
+    pub rerankers: Vec<Arc<dyn Reranker>>,
     pub injection: Vec<Arc<dyn InjectionPolicy>>,
     pub importance: Vec<Arc<dyn ImportanceModel>>,
     pub outcome_signals: Vec<Arc<dyn OutcomeSignal>>,
@@ -73,6 +75,7 @@ impl fmt::Debug for RecallSeams {
         f.debug_struct("RecallSeams")
             .field("audiences", &self.audiences.len())
             .field("retrievers", &self.retrievers.len())
+            .field("rerankers", &self.rerankers.len())
             .field("injection", &self.injection.len())
             .field("importance", &self.importance.len())
             .field("outcome_signals", &self.outcome_signals.len())
@@ -89,6 +92,10 @@ impl RecallSeams {
                 .map(|registration| (registration.factory)(ctx))
                 .collect(),
             retrievers: discover_brain_retrievers()
+                .iter()
+                .map(|registration| (registration.factory)(ctx))
+                .collect(),
+            rerankers: discover_brain_rerankers()
                 .iter()
                 .map(|registration| (registration.factory)(ctx))
                 .collect(),
@@ -163,6 +170,7 @@ impl BrainCore {
         let RecallSeams {
             mut audiences,
             retrievers,
+            rerankers,
             injection,
             importance,
             outcome_signals,
@@ -195,6 +203,7 @@ impl BrainCore {
             Arc::clone(&self.profile),
         )
         .retrievers(retrievers)
+        .rerankers(rerankers)
         .injection_policies(injection)
         .audiences(audiences)
         .importance(importance)

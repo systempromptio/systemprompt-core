@@ -2,7 +2,8 @@
 //!
 //! They are the outbox sink, the capture pipeline's filters, extractors,
 //! validators, importance models and source content, the model client, the
-//! read side's store contract, retrievers and injection policies, the
+//! read side's store contract, retrievers, reranker and injection
+//! policies, the
 //! gateway-facing [`MemoryRecall`] with its [`SourceAccess`] check, and the
 //! measure side's outcome signals and analyses.
 //!
@@ -29,6 +30,7 @@ mod errors;
 mod recall;
 mod registry;
 mod render;
+mod rerank;
 mod retrieval;
 mod source_access;
 mod traits;
@@ -36,7 +38,8 @@ mod traits;
 pub use consolidate::{ConsolidationInput, FactConsolidator};
 pub use errors::{
     BrainAnalysisError, BrainConsolidateError, BrainExtractError, BrainModelError, BrainSinkError,
-    BrainValidateError, OutcomeSignalError, RecallError, SourceAccessError, SourceContentError,
+    BrainValidateError, OutcomeSignalError, RecallError, RerankError, SourceAccessError,
+    SourceContentError,
 };
 pub use recall::{
     MAX_SUBJECT_HINTS, MemoryRecall, RecallConversation, RecallObservation, RecallOutcome,
@@ -45,13 +48,15 @@ pub use recall::{
 pub use registry::{
     BrainAnalysisRegistration, BrainConsolidatorRegistration, BrainExtractorRegistration,
     BrainFilterRegistration, BrainImportanceRegistration, BrainInjectionPolicyRegistration,
-    BrainOutcomeSignalRegistration, BrainRetrieverRegistration, BrainSourceContentRegistration,
-    BrainValidatorRegistration, discover_brain_analyses, discover_brain_consolidators,
-    discover_brain_extractors, discover_brain_filters, discover_brain_importance_models,
-    discover_brain_injection_policies, discover_brain_outcome_signals, discover_brain_retrievers,
+    BrainOutcomeSignalRegistration, BrainRerankerRegistration, BrainRetrieverRegistration,
+    BrainSourceContentRegistration, BrainValidatorRegistration, discover_brain_analyses,
+    discover_brain_consolidators, discover_brain_extractors, discover_brain_filters,
+    discover_brain_importance_models, discover_brain_injection_policies,
+    discover_brain_outcome_signals, discover_brain_rerankers, discover_brain_retrievers,
     discover_brain_source_contents, discover_brain_validators,
 };
 pub use render::{InjectedFact, RecallBlock, WithheldSummary};
+pub use rerank::{RerankCandidate, RerankQuery, Reranker};
 pub use retrieval::{
     AnalysisWindow, BrainAnalysis, FactRecallSource, FactRetriever, InjectionPolicy, OutcomeSignal,
     TierIds,

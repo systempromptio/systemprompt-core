@@ -1,7 +1,8 @@
 //! The `brain_recalls` row a recall receipt becomes: the audit (injected
 //! refs, withheld counts, tokens, `as_of`), the rendered block a same-turn
-//! request reuses, and the skip reason. A receipt that carries a late
-//! block records `skipped=deadline` together with that block.
+//! request reuses, the reranker record (`reranked`) and the skip reason.
+//! A receipt that carries a late block records `skipped=deadline`
+//! together with that block.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -38,15 +39,11 @@ fn audit_of(receipt: &RecallReceipt, block: &RecallBlock) -> RecallAudit {
 pub fn new_recall(receipt: &RecallReceipt) -> NewRecall {
     let mut conversation = receipt.conversation.clone();
     conversation.ai_request_id = Some(receipt.ai_request_id.clone());
-    let (audit, rendered, skipped) = match (&receipt.outcome, &receipt.late) {
-        (RecallOutcome::Injected(block), _) => {
-            (audit_of(receipt, block), Some(block.render()), None)
+    let (audit, block, skipped) = match (&receipt.outcome, &receipt.late) {
+        (RecallOutcome::Injected(block), _) => (audit_of(receipt, block), Some(block), None),
+        (RecallOutcome::Skipped { reason }, Some(late)) => {
+            (audit_of(receipt, late), Some(late), Some(reason.as_str()))
         },
-        (RecallOutcome::Skipped { reason }, Some(late)) => (
-            audit_of(receipt, late),
-            Some(late.render()),
-            Some(reason.as_str()),
-        ),
         (RecallOutcome::Skipped { reason }, None) => (
             RecallAudit {
                 recall_id: receipt.recall_id.clone(),
@@ -65,8 +62,11 @@ pub fn new_recall(receipt: &RecallReceipt) -> NewRecall {
         audit,
     )
     .conversation(conversation);
-    if let Some(rendered) = rendered {
-        builder = builder.rendered_block(rendered);
+    if let Some(block) = block {
+        builder = builder.rendered_block(block.render());
+        if let Some(reranked) = &block.reranked {
+            builder = builder.reranked(reranked.clone());
+        }
     }
     if let Some(reason) = skipped {
         builder = builder.skipped(reason);

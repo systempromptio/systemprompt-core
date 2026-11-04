@@ -15,8 +15,11 @@
 //! `alias_min_sim` is the least alias similarity that names a subject
 //! (the trigram operator's own threshold, 0.6, is its floor) and
 //! `max_subjects` the most subjects one message may name. The extension
-//! knob: `extension_max_candidates` is the most facts the
-//! extension retrievers may introduce beyond what the core tiers found.
+//! knobs: `extension_max_candidates` is the most facts the
+//! extension retrievers may introduce beyond what the core tiers found,
+//! and `reranker_timeout_ms` (default 150, never 0) is how long the
+//! registered reranker may take to reorder the visible facts before the
+//! fused order stands.
 //!
 //! Three knobs gate what a message with no lexical signal can pull in.
 //! `context_requires_signal` withholds every fact the context tier alone
@@ -175,6 +178,7 @@ pub struct RetrievalDoc {
     pub unknown_name_withholds_full_text: bool,
     pub links_depth: u32,
     pub links_decay: f64,
+    pub reranker_timeout_ms: u32,
 }
 
 impl Default for RetrievalDoc {
@@ -206,6 +210,7 @@ impl Default for RetrievalDoc {
             unknown_name_withholds_full_text: false,
             links_depth: 1,
             links_decay: 0.5,
+            reranker_timeout_ms: 150,
         }
     }
 }

@@ -1,6 +1,9 @@
-//! Read-side values: the recall context, scored facts, the injection
-//! plan and the audit of what was injected or withheld. The query a
-//! recall carries is [`RecallQuery`] (`recall_query`).
+//! Read-side values of one recall.
+//!
+//! The recall context, scored facts, the injection plan, the audit of
+//! what was injected or withheld and the reranker's record
+//! ([`RecallRerank`]). The query a recall carries is [`RecallQuery`]
+//! (`recall_query`).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -215,4 +218,20 @@ impl RecallAudit {
     pub fn withheld_total(&self) -> u32 {
         self.withheld.values().sum()
     }
+}
+
+/// The rank a reranker gave one injected fact, 1 being first.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RerankedFact {
+    pub id: BrainFactId,
+    pub rank: u32,
+}
+
+/// Which reranker ordered a recall's visible facts and the rank it gave
+/// each injected fact it returned; an injected fact the reranker omitted
+/// has no entry.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RecallRerank {
+    pub reranker: String,
+    pub ranks: Vec<RerankedFact>,
 }

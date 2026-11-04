@@ -257,6 +257,7 @@ fn validate_retrieval(doc: &RetrievalDoc) -> Result<(), BrainDeclError> {
         ("max_subjects", doc.max_subjects),
         ("extension_max_candidates", doc.extension_max_candidates),
         ("links_depth", doc.links_depth),
+        ("reranker_timeout_ms", doc.reranker_timeout_ms),
     ] {
         if value == 0 {
             return Err(BrainDeclError::ZeroLimit { name });

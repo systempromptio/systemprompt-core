@@ -7,10 +7,11 @@
 //! SQL's admission rule over an introduced fact), [`synonyms`]
 //! (query-time expansion), [`fusion`] (reciprocal rank fusion),
 //! [`visible`] (the per-fact visibility decision), [`score`] (in-context
-//! importance), [`budget`] (quota and token fill), [`limits`] (the tiers'
-//! row limits), [`signal`] (the kinds a message asks and the names it
-//! carries) and [`reuse`] (same-turn block reuse). [`declared`] supplies
-//! the plane declarations recall and the lifecycle services read.
+//! importance), [`rerank`] (the reranker's merge rule), [`budget`] (quota
+//! and token fill), [`limits`] (the tiers' row limits), [`signal`] (the kinds a
+//! message asks and the names it carries) and [`reuse`] (same-turn block
+//! reuse). [`declared`] supplies the plane declarations recall and the
+//! lifecycle services read.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -18,12 +19,14 @@
 pub mod admit;
 pub mod budget;
 mod builder;
+pub mod candidate;
 pub mod declared;
 pub mod fusion;
 pub mod held;
 pub mod introduce;
 pub mod limits;
 mod new_turn;
+pub mod rerank;
 pub mod reuse;
 pub mod score;
 pub mod search_plan;
