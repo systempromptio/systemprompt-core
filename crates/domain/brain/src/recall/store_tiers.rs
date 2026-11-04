@@ -22,12 +22,13 @@ use crate::repository::RecallRepository;
 
 const NO_LINKS: f64 = 0.0;
 
-const fn policy_of(query: &RecallQuery) -> SearchPolicy {
+fn policy_of(query: &RecallQuery) -> SearchPolicy {
     SearchPolicy {
         max_df: query.search_max_df,
         quorum: query.search_quorum,
         retry_quorum: query.search_retry_quorum,
         quorum_over: query.search_quorum_over,
+        stop_words: query.search_stop_words.clone(),
     }
 }
 
@@ -39,7 +40,7 @@ impl BrainRecallStore {
     ) -> Result<(tiers::TierFilter, matched::MatchedSubjects), RecallError> {
         let hints = tiers::normalise_hints(&query.subject_hints);
         let filter = self
-            .filter(ctx, query.limit, query.links_weight)
+            .filter(ctx, query.subject_tier_limit(), query.links_weight)
             .with_subjects(query);
         let matched = matched::resolve(self.repos.read_pool(), &filter, &hints).await?;
         Ok((filter, matched))
@@ -66,6 +67,7 @@ impl FactRecallSource for BrainRecallStore {
         let input = tiers::RankedInput {
             filter: &filter,
             pinned_limit: i64::from(pinned_limit),
+            subject_limit: i64::from(query.subject_tier_limit()),
             hints: &hints,
             full_text: tiers::FullTextInput {
                 hints: &query.subject_hints,

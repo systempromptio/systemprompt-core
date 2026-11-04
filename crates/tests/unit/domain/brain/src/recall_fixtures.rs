@@ -1,3 +1,4 @@
+use systemprompt_brain::recall::budget::RecallSignal;
 use systemprompt_extension::brain::RecallPrincipal;
 use systemprompt_identifiers::{BrainFactId, UserId};
 use systemprompt_models::auth::RequestActor;
@@ -7,6 +8,9 @@ use systemprompt_models::brain::{
 use systemprompt_models::origin::ClientKind;
 
 use crate::fixtures::{at, document_source, kind, subject, topic, user};
+
+pub(crate) const NAMED: RecallSignal = RecallSignal::named(true);
+pub(crate) const UNNAMED: RecallSignal = RecallSignal::named(false);
 
 pub(crate) fn id(n: u32) -> BrainFactId {
     BrainFactId::try_new(format!("m_{n:08}-0000-4000-8000-000000000000")).expect("fact id")

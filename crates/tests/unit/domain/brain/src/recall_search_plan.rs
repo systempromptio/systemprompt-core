@@ -164,3 +164,67 @@ fn a_word_quorum_counts_every_query_word_a_group_absorbed() {
         "three words, half rounded up is two groups"
     );
 }
+
+fn stop_words() -> Vec<String> {
+    ["call", "what", "the", "on"]
+        .into_iter()
+        .map(str::to_owned)
+        .collect()
+}
+
+#[test]
+fn a_stop_word_is_never_required_and_never_ranks() {
+    let terms = terms(
+        &[("call", 17), ("akeneo", 12), ("pim", 30), ("the", 800)],
+        1000,
+    );
+    let message = "What's the call on the Akeneo PIM";
+    let scaffolded = plan(message, &synonyms(), &terms, &policy()).unwrap();
+    assert_eq!(scaffolded.filter, "akeneo & call");
+    let planned = plan(
+        message,
+        &synonyms(),
+        &terms,
+        &policy().with_stop_words(stop_words()),
+    )
+    .unwrap();
+    assert_eq!(
+        planned.filter, "akeneo",
+        "two groups, half rounded up is one"
+    );
+    assert_eq!(planned.rank, "akeneo | pim");
+    let all = plan(
+        message,
+        &synonyms(),
+        &terms,
+        &SearchPolicy::new(0.2, 1.0).with_stop_words(stop_words()),
+    )
+    .unwrap();
+    assert_eq!(all.filter, "akeneo & pim");
+}
+
+#[test]
+fn a_message_of_stop_words_and_common_words_plans_nothing() {
+    let terms = terms(&[("the", 800), ("delivery", 300)], 1000);
+    let stopped = policy().with_stop_words(stop_words());
+    assert_eq!(plan("What's the call", &synonyms(), &terms, &stopped), None);
+    assert_eq!(
+        plan("the delivery", &synonyms(), &terms, &stopped),
+        None,
+        "a common word alone narrows nothing"
+    );
+    let undeclared = plan("the delivery", &synonyms(), &terms, &policy()).unwrap();
+    assert_eq!(undeclared.filter, "the | delivery");
+}
+
+#[test]
+fn without_statistics_stop_words_leave_the_disjunction() {
+    let planned = plan(
+        "the catalogue import",
+        &synonyms(),
+        &SearchTerms::default(),
+        &policy().with_stop_words(stop_words()),
+    )
+    .unwrap();
+    assert_eq!(planned.filter, "(catalogue | catalog) | import");
+}

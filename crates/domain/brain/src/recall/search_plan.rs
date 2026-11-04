@@ -11,6 +11,15 @@
 //! the rank is the disjunction of every group. Without statistics every
 //! group ranks and the filter is the disjunction of all of them.
 //!
+//! A declared stop word (`SearchPolicy::stop_words`, lower-case tokens
+//! as the tokeniser yields them: `what's` is seen as `what`) is dropped
+//! before expansion, so it is never a group, never required and never
+//! ranks. Once any stop word is declared, a message whose remaining
+//! groups are all too common to narrow the candidates plans nothing,
+//! where the undeclared policy keeps the disjunction of those groups as
+//! the filter; without statistics the undeclared behaviour holds either
+//! way, since no group can be told common.
+//!
 //! The share is counted over the informative
 //! groups (`QuorumUnit::Groups`) or over the query words those groups
 //! absorbed (`QuorumUnit::Words`, where a group that merged two words of
@@ -31,12 +40,13 @@ const MAX_QUERY_WORDS: usize = 32;
 const MIN_WORD_CHARS: usize = 3;
 
 /// How the planner decides what a fact must carry.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct SearchPolicy {
     pub max_df: f64,
     pub quorum: f64,
     pub retry_quorum: f64,
     pub quorum_over: QuorumUnit,
+    pub stop_words: Vec<String>,
 }
 
 impl SearchPolicy {
@@ -47,7 +57,14 @@ impl SearchPolicy {
             quorum,
             retry_quorum: 0.0,
             quorum_over: QuorumUnit::Groups,
+            stop_words: Vec::new(),
         }
+    }
+
+    #[must_use]
+    pub fn with_stop_words(mut self, words: Vec<String>) -> Self {
+        self.stop_words = words;
+        self
     }
 
     #[must_use]
@@ -56,11 +73,15 @@ impl SearchPolicy {
             Some(Self {
                 quorum: self.retry_quorum,
                 retry_quorum: 0.0,
-                ..*self
+                ..self.clone()
             })
         } else {
             None
         }
+    }
+
+    fn is_stop_word(&self, word: &str) -> bool {
+        self.stop_words.iter().any(|w| w == word)
     }
 }
 
@@ -86,7 +107,7 @@ pub fn plan(
     terms: &SearchTerms,
     policy: &SearchPolicy,
 ) -> Option<SearchPlan> {
-    let groups = groups_of(hints, synonyms, terms);
+    let groups = groups_of(hints, synonyms, terms, policy);
     if groups.is_empty() {
         return None;
     }
@@ -96,6 +117,9 @@ pub fn plan(
         .filter(|g| g.share > 0.0 && g.share <= policy.max_df)
         .collect();
     if informative.is_empty() {
+        if !policy.stop_words.is_empty() && terms.total > 0 {
+            return None;
+        }
         return Some(SearchPlan {
             filter: rank.clone(),
             rank,
@@ -123,13 +147,21 @@ fn quorum_count(units: usize, quorum: f64) -> usize {
     wanted.clamp(1, units.max(1))
 }
 
-fn groups_of(hints: &str, synonyms: &SynonymsDoc, terms: &SearchTerms) -> Vec<Group> {
+fn groups_of(
+    hints: &str,
+    synonyms: &SynonymsDoc,
+    terms: &SearchTerms,
+    policy: &SearchPolicy,
+) -> Vec<Group> {
     let mut seen: Vec<String> = Vec::new();
     let mut asked: Vec<String> = Vec::new();
     let mut groups: Vec<Group> = Vec::new();
     for word in hints.split(|c: char| !c.is_alphanumeric()) {
         let word = word.to_lowercase();
-        if word.chars().count() < MIN_WORD_CHARS || asked.contains(&word) {
+        if word.chars().count() < MIN_WORD_CHARS
+            || asked.contains(&word)
+            || policy.is_stop_word(&word)
+        {
             continue;
         }
         asked.push(word.clone());

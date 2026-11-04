@@ -7,7 +7,7 @@ use systemprompt_models::brain::{
     FillOrder, InjectionPlan, RetrievalDoc, RetrievalTier, WithheldReason,
 };
 
-use crate::recall_fixtures::{brain_fact, id, ranked};
+use crate::recall_fixtures::{UNNAMED, brain_fact, id, ranked};
 
 const TEXT: &[RetrievalTier] = &[RetrievalTier::FullText];
 const ZERO: u64 = 0.0f64.to_bits();
@@ -68,13 +68,13 @@ fn a_fact_with_no_history_adds_exactly_zero_at_any_weight() {
         assert_eq!(usage_term(&prior.scored.fact, weight).to_bits(), ZERO);
         assert_eq!(usage_term(&unrated.scored.fact, weight).to_bits(), ZERO);
     }
-    let plan = fill(vec![prior, unrated], &limits(1.0), false);
+    let plan = fill(vec![prior, unrated], &limits(1.0), UNNAMED);
     assert_eq!(scores(&plan), vec![0.016, 0.016]);
 }
 
 #[test]
 fn a_cited_fact_outranks_an_ignored_sibling_when_the_weight_is_on() {
-    let plan = fill(siblings(), &limits(0.01), false);
+    let plan = fill(siblings(), &limits(0.01), UNNAMED);
     assert_eq!(ids(&plan), vec![id(2), id(3), id(1)]);
     let &[cited, prior, ignored] = scores(&plan).as_slice() else {
         panic!("three facts");
@@ -93,10 +93,10 @@ fn a_zero_weight_leaves_the_p2_plan_and_its_scores_untouched() {
     let expected = fill(
         siblings(),
         &BudgetLimits::plain(BTreeMap::new(), 10, 1000),
-        false,
+        UNNAMED,
     );
     assert_eq!(ids(&expected), vec![id(1), id(2), id(3)]);
-    assert_eq!(fill(siblings(), &limits(0.0), false), expected);
+    assert_eq!(fill(siblings(), &limits(0.0), UNNAMED), expected);
     assert_eq!(scores(&expected), vec![0.016; 3]);
 }
 
@@ -104,7 +104,7 @@ fn a_zero_weight_leaves_the_p2_plan_and_its_scores_untouched() {
 fn the_usage_term_breaks_a_tie_under_importance_order_too() {
     let mut limits = limits(0.01);
     limits.order = FillOrder::Importance;
-    let plan = fill(siblings(), &limits, false);
+    let plan = fill(siblings(), &limits, UNNAMED);
     assert_eq!(ids(&plan), vec![id(2), id(3), id(1)]);
 }
 
@@ -112,7 +112,7 @@ fn the_usage_term_breaks_a_tie_under_importance_order_too() {
 fn the_usage_term_is_seen_by_the_low_score_gate() {
     let mut limits = limits(0.01);
     limits.min_fused_score = 0.016;
-    let plan = fill(siblings(), &limits, false);
+    let plan = fill(siblings(), &limits, UNNAMED);
     assert_eq!(ids(&plan), vec![id(2), id(3)]);
     let low: Vec<BrainFactId> = plan
         .withheld
@@ -128,7 +128,7 @@ fn the_fill_is_deterministic_over_input_order_with_usage_on() {
     let mut reversed = siblings();
     reversed.reverse();
     assert_eq!(
-        fill(siblings(), &limits(0.01), false),
-        fill(reversed, &limits(0.01), false)
+        fill(siblings(), &limits(0.01), UNNAMED),
+        fill(reversed, &limits(0.01), UNNAMED)
     );
 }

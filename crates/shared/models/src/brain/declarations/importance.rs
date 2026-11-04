@@ -18,6 +18,19 @@
 //! knob: `extension_max_candidates` is the most facts the
 //! extension retrievers may introduce beyond what the core tiers found.
 //!
+//! Three knobs gate what a message with no lexical signal can pull in.
+//! `context_requires_signal` withholds every fact the context tier alone
+//! found (as `context_cap`) when the recall names no subject and the
+//! full-text tier returned nothing, so a message that carries no word of
+//! any fact injects none of the attributed project's facts (false keeps
+//! them). `search_stop_words` are lower-case single tokens the planner
+//! drops before grouping and quorum, so a scaffold word is never the one
+//! a fact must carry; once any are declared a message with no informative
+//! group left plans no query at all instead of the disjunction of its
+//! common words (empty keeps that disjunction). `subject_limit` is the
+//! row limit of the subject and linked tiers (0 keeps the shared tier
+//! limit, `max_facts × 2` clamped to 8..=50; at most 100).
+//!
 //! The usage knobs close the citation loop on the fill:
 //! `usage_weight` adds `usage_weight × (cited_rate − ignored_rate)` to a
 //! fact's fused score before `min_fused_score` and the fill order (0 adds
@@ -130,6 +143,9 @@ pub struct RetrievalDoc {
     pub usage_weight: f64,
     pub usage_min_recalls: u32,
     pub extension_max_candidates: u32,
+    pub context_requires_signal: bool,
+    pub search_stop_words: Vec<String>,
+    pub subject_limit: u32,
 }
 
 impl Default for RetrievalDoc {
@@ -153,6 +169,9 @@ impl Default for RetrievalDoc {
             usage_weight: 0.0,
             usage_min_recalls: 0,
             extension_max_candidates: 24,
+            context_requires_signal: false,
+            search_stop_words: Vec::new(),
+            subject_limit: 0,
         }
     }
 }

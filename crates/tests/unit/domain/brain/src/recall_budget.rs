@@ -5,7 +5,7 @@ use systemprompt_identifiers::WorkflowId;
 use systemprompt_models::brain::{RetrievalDoc, WithheldReason, WorkflowProfileDecl};
 
 use crate::fixtures::kind;
-use crate::recall_fixtures::{brain_fact, id, scored};
+use crate::recall_fixtures::{UNNAMED, brain_fact, id, scored};
 
 fn candidate(n: u32, kind_id: &str, importance: f64, text_chars: usize) -> Candidate {
     Candidate {
@@ -44,7 +44,7 @@ fn equal_ranks_fill_in_descending_importance() {
             candidate(3, "a", 0.5, 4),
         ],
         &limits(&[], 10, 100),
-        false,
+        UNNAMED,
     );
     let ids: Vec<_> = plan.facts.iter().map(|s| s.fact.id.clone()).collect();
     assert_eq!(ids, vec![id(2), id(3), id(1)]);
@@ -61,7 +61,7 @@ fn a_kind_over_its_quota_is_withheld_as_quota() {
             candidate(4, "a", 0.6, 4),
         ],
         &limits(&[("a", 1)], 10, 100),
-        false,
+        UNNAMED,
     );
     let ids: Vec<_> = plan.facts.iter().map(|s| s.fact.id.clone()).collect();
     assert_eq!(ids, vec![id(1), id(3)]);
@@ -80,7 +80,7 @@ fn the_token_cap_withholds_what_does_not_fit_and_keeps_smaller_facts() {
             candidate(3, "a", 0.7, 4),
         ],
         &limits(&[], 10, 12),
-        false,
+        UNNAMED,
     );
     let ids: Vec<_> = plan.facts.iter().map(|s| s.fact.id.clone()).collect();
     assert_eq!(ids, vec![id(1), id(3)]);
@@ -97,7 +97,7 @@ fn max_facts_caps_the_count_and_is_reported_as_max_facts_not_budget() {
             candidate(3, "a", 0.7, 4),
         ],
         &limits(&[], 1, 100),
-        false,
+        UNNAMED,
     );
     assert_eq!(plan.facts.len(), 1);
     assert_eq!(
@@ -115,7 +115,7 @@ fn the_count_cut_and_the_token_cut_are_told_apart() {
             candidate(3, "a", 0.7, 4),
         ],
         &limits(&[], 2, 10),
-        false,
+        UNNAMED,
     );
     let ids: Vec<_> = plan.facts.iter().map(|s| s.fact.id.clone()).collect();
     assert_eq!(ids, vec![id(1), id(3)]);
@@ -127,7 +127,7 @@ fn the_count_cut_and_the_token_cut_are_told_apart() {
             candidate(3, "a", 0.7, 400),
         ],
         &limits(&[], 2, 10),
-        false,
+        UNNAMED,
     );
     assert_eq!(
         reasons(&capped),

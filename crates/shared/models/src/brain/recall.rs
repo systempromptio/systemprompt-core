@@ -145,8 +145,10 @@ impl RecallCtx {
 /// What a recall looks for and how wide each tier may reach.
 ///
 /// Subject hints come from the last user turn; each tier has its own row
-/// limit; a one-hop link match earns `links_weight` relative to a direct
-/// subject match; the synonym groups expand each full-text query word.
+/// limit (`subject_limit` is the subject and linked tiers' own, 0 meaning
+/// `limit`); a one-hop link match earns `links_weight` relative to a
+/// direct subject match; the synonym groups expand each full-text query
+/// word and the stop words are dropped before it is planned.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RecallQuery {
     pub subject_hints: String,
@@ -167,6 +169,10 @@ pub struct RecallQuery {
     pub alias_min_sim: f64,
     #[serde(default = "RecallQuery::default_max_subjects")]
     pub max_subjects: u32,
+    #[serde(default)]
+    pub search_stop_words: Vec<String>,
+    #[serde(default)]
+    pub subject_limit: u32,
 }
 
 impl RecallQuery {
@@ -183,6 +189,17 @@ impl RecallQuery {
             search_quorum_over: QuorumUnit::Groups,
             alias_min_sim: Self::default_alias_min_sim(),
             max_subjects: Self::default_max_subjects(),
+            search_stop_words: Vec::new(),
+            subject_limit: 0,
+        }
+    }
+
+    #[must_use]
+    pub const fn subject_tier_limit(&self) -> u32 {
+        if self.subject_limit == 0 {
+            self.limit
+        } else {
+            self.subject_limit
         }
     }
 

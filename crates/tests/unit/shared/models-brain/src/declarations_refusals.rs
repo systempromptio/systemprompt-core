@@ -2,7 +2,8 @@ use std::collections::BTreeMap;
 
 use systemprompt_identifiers::{FactKindId, WorkflowId};
 use systemprompt_models::brain::{
-    BrainDeclError, BrainDocs, InterestDecl, KindDecl, TopicDecl, WorkflowProfileDecl, validate,
+    BrainDeclError, BrainDocs, InterestDecl, KindDecl, MAX_SUBJECT_LIMIT, TopicDecl,
+    WorkflowProfileDecl, validate,
 };
 
 const KIND: &str = r#"
@@ -155,4 +156,37 @@ fn a_zero_recency_half_life_is_refused() {
     let mut docs = docs();
     docs.importance.in_context.recency.half_life_days = 0;
     assert_eq!(validate(&docs), Err(BrainDeclError::ZeroHalfLife));
+}
+
+#[test]
+fn a_subject_limit_over_the_maximum_is_refused() {
+    let mut docs = docs();
+    docs.retrieval.subject_limit = MAX_SUBJECT_LIMIT;
+    assert_eq!(validate(&docs), Ok(()));
+    docs.retrieval.subject_limit = MAX_SUBJECT_LIMIT + 1;
+    assert_eq!(
+        validate(&docs),
+        Err(BrainDeclError::LimitOverMax {
+            name: "subject_limit",
+            value: MAX_SUBJECT_LIMIT + 1,
+            max: MAX_SUBJECT_LIMIT,
+        })
+    );
+}
+
+#[test]
+fn a_stop_word_must_be_one_lower_case_token() {
+    let mut docs = docs();
+    docs.retrieval.search_stop_words = vec!["call".to_owned(), "the".to_owned()];
+    assert_eq!(validate(&docs), Ok(()));
+    for bad in ["", "What", "what's", "two words"] {
+        docs.retrieval.search_stop_words = vec![bad.to_owned()];
+        assert_eq!(
+            validate(&docs),
+            Err(BrainDeclError::StopWordNotToken {
+                word: bad.to_owned()
+            }),
+            "{bad:?}"
+        );
+    }
 }

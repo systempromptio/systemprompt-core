@@ -5,8 +5,9 @@
 //! fusion (the facts only an extension found are loaded and admitted by
 //! the tier SQL's own rule, see [`super::introduce`] and [`super::admit`]),
 //! visibility, and the budget fill. A recall *names a subject* when the
-//! subject or linked tier returned a fact; the fill's linked reserve and
-//! context cap apply only then.
+//! subject or linked tier returned a fact, and *has a full-text hit*
+//! when that tier returned one ([`RecallSignal`]); the fill's linked
+//! reserve and context cap read the first, its no-signal gate both.
 //!
 //! An id the load does not return (the fact was erased between the two
 //! statements) is dropped from every tier before fusion, so it takes no
@@ -34,9 +35,10 @@ use systemprompt_models::brain::{
 };
 
 use super::admit::{self, Admission};
-use super::budget::{self, BudgetLimits, Candidate};
+use super::budget::{self, BudgetLimits, Candidate, RecallSignal};
 use super::declared::DeclaredRecall;
 use super::held::{self, HeldKeys};
+use super::limits::tier_limits;
 use super::score::{self, ScoreInput};
 use super::service::{BrainRecallService, fact_text};
 use super::visible::{Visibility, lifecycle_withheld};
@@ -45,11 +47,8 @@ use super::{fusion, introduce};
 #[derive(Debug, Clone, Copy)]
 struct PlanShape {
     budget_tokens: u32,
-    subject_named: bool,
+    signal: RecallSignal,
 }
-
-const MIN_TIER_LIMIT: u32 = 8;
-const MAX_TIER_LIMIT: u32 = 50;
 
 impl BrainRecallService {
     async fn context(
@@ -91,12 +90,10 @@ impl BrainRecallService {
         withheld: &mut WithheldSummary,
     ) -> Result<Vec<ScoredFact>, RecallError> {
         let retrieval = &declared.retrieval;
+        let limits = tier_limits(retrieval);
         let query = RecallQuery {
             subject_hints: request.subject_hints.clone(),
-            limit: retrieval
-                .max_facts
-                .saturating_mul(2)
-                .clamp(MIN_TIER_LIMIT, MAX_TIER_LIMIT),
+            limit: limits.tier,
             links_weight: retrieval.links_weight,
             synonyms: declared.synonyms.groups.clone(),
             search_max_df: retrieval.search_max_df,
@@ -105,11 +102,12 @@ impl BrainRecallService {
             search_quorum_over: retrieval.search_quorum_over,
             alias_min_sim: retrieval.alias_min_sim,
             max_subjects: retrieval.max_subjects,
+            search_stop_words: retrieval.search_stop_words.clone(),
+            subject_limit: limits.subject,
         };
         let fan_out = join_all(self.retrievers.iter().map(|r| r.retrieve(&query, ctx)));
         let (core, counts, extension) = tokio::join!(
-            self.store
-                .tier_ids(&query, ctx, retrieval.max_facts.min(MAX_TIER_LIMIT)),
+            self.store.tier_ids(&query, ctx, limits.pinned),
             self.store.withheld_counts(ctx),
             fan_out,
         );
@@ -189,7 +187,7 @@ impl BrainRecallService {
                 scored,
             })
             .collect();
-        budget::fill(candidates, &limits, shape.subject_named)
+        budget::fill(candidates, &limits, shape.signal)
     }
 
     fn importance(&self, scored: &ScoredFact, ctx: &RecallCtx, declared: &DeclaredRecall) -> f64 {
@@ -214,14 +212,11 @@ impl BrainRecallService {
         ctx: &RecallCtx,
         held: HeldKeys,
         declared: &DeclaredRecall,
-    ) -> Result<(Vec<ScoredFact>, WithheldSummary, bool), RecallError> {
+    ) -> Result<(Vec<ScoredFact>, WithheldSummary, RecallSignal), RecallError> {
         let mut withheld = WithheldSummary::default();
         let mut ranked: Vec<ScoredFact> = Vec::new();
         let fused = self.retrieve(request, ctx, declared, &mut withheld).await?;
-        let subject_named = fused.iter().any(|scored| {
-            fusion::found_by(scored, RetrievalTier::Subject)
-                || fusion::found_by(scored, RetrievalTier::Linked)
-        });
+        let signal = signal_of(&fused);
         for scored in fused {
             match lifecycle_withheld(&scored.fact, ctx.as_of, self.inject_stale()) {
                 Some(reason) => withheld.add(reason),
@@ -236,7 +231,7 @@ impl BrainRecallService {
         for (reason, count) in hidden.by_reason {
             *withheld.by_reason.entry(reason).or_default() += count;
         }
-        Ok((visible, withheld, subject_named))
+        Ok((visible, withheld, signal))
     }
 
     pub(super) async fn new_turn(
@@ -248,14 +243,14 @@ impl BrainRecallService {
             source: Box::new(e),
         })?;
         let (ctx, held) = self.context(request, &declared).await;
-        let (visible, mut withheld, named) = self.visible(request, &ctx, held, &declared).await?;
+        let (visible, mut withheld, signal) = self.visible(request, &ctx, held, &declared).await?;
         let budget = match request.budget_tokens {
             0 => self.profile.recall.budget_tokens,
             requested => requested,
         };
         let shape = PlanShape {
             budget_tokens: budget,
-            subject_named: named,
+            signal,
         };
         let plan = self.plan(visible, &ctx, &declared, shape);
         for fact in &plan.withheld {
@@ -284,6 +279,14 @@ impl BrainRecallService {
             .with_withheld(withheld)
             .with_tokens(plan.tokens);
         Ok(RecallOutcome::Injected(block))
+    }
+}
+
+fn signal_of(fused: &[ScoredFact]) -> RecallSignal {
+    let any = |tier: RetrievalTier| fused.iter().any(|scored| fusion::found_by(scored, tier));
+    RecallSignal {
+        subject_named: any(RetrievalTier::Subject) || any(RetrievalTier::Linked),
+        full_text_hit: any(RetrievalTier::FullText),
     }
 }
 

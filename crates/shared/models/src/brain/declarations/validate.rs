@@ -1,4 +1,5 @@
-//! Cross-reference validation of a [`BrainDocs`] set.
+//! Cross-reference validation of a [`BrainDocs`] set. `MAX_SUBJECT_LIMIT`
+//! is the most rows the subject and linked tiers may each return.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -45,7 +46,17 @@ pub enum BrainDeclError {
     ZeroLimit { name: &'static str },
     #[error("retrieval {name} is {value}, not a finite number at or above zero")]
     NegativeScore { name: &'static str, value: f64 },
+    #[error("retrieval {name} is {value}, above {max}")]
+    LimitOverMax {
+        name: &'static str,
+        value: u32,
+        max: u32,
+    },
+    #[error("retrieval search_stop_words entry {word:?} is not one lower-case alphanumeric token")]
+    StopWordNotToken { word: String },
 }
+
+pub const MAX_SUBJECT_LIMIT: u32 = 100;
 
 pub fn validate(docs: &BrainDocs) -> Result<(), BrainDeclError> {
     let mut topics = HashSet::new();
@@ -239,5 +250,22 @@ fn validate_retrieval(doc: &RetrievalDoc) -> Result<(), BrainDeclError> {
             return Err(BrainDeclError::ZeroLimit { name });
         }
     }
+    if doc.subject_limit > MAX_SUBJECT_LIMIT {
+        return Err(BrainDeclError::LimitOverMax {
+            name: "subject_limit",
+            value: doc.subject_limit,
+            max: MAX_SUBJECT_LIMIT,
+        });
+    }
+    if let Some(word) = doc.search_stop_words.iter().find(|w| !is_token(w)) {
+        return Err(BrainDeclError::StopWordNotToken { word: word.clone() });
+    }
     Ok(())
+}
+
+fn is_token(word: &str) -> bool {
+    !word.is_empty()
+        && word
+            .chars()
+            .all(|c| c.is_alphanumeric() && !c.is_uppercase())
 }

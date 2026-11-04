@@ -40,8 +40,8 @@ pub use candidate::{FactCandidate, FactCandidateBuilder};
 pub use declarations::{
     ActorFilter, BaseImportance, BrainDeclError, BrainDocs, FillOrder, FilterDecl, FiltersDoc,
     Granularity, ImportanceConfig, InContextImportance, InterestDecl, InterestDelivery,
-    InterestMatch, ModelHint, QuorumUnit, Recency, RetrievalDoc, SynonymsDoc, SynonymsError,
-    TierWeights, TopicDecl, TopicsDoc, UsageWeights, WorkflowProfileDecl, validate,
+    InterestMatch, MAX_SUBJECT_LIMIT, ModelHint, QuorumUnit, Recency, RetrievalDoc, SynonymsDoc,
+    SynonymsError, TierWeights, TopicDecl, TopicsDoc, UsageWeights, WorkflowProfileDecl, validate,
 };
 pub use enter::{EnteredFact, EnteredStatus};
 pub use envelope::{BrainEnvelope, Pathway, PathwayWeight};

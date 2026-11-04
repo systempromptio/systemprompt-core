@@ -20,7 +20,11 @@
 //! only those slots remain, and a linked fact withheld for its quota or
 //! tokens releases its slot. When a subject is named, facts found by the
 //! context tier alone may take at most `context_share` of `max_facts`
-//! (rounded down); one past that is withheld as `ContextCap`.
+//! (rounded down); one past that is withheld as `ContextCap`. With
+//! `context_requires_signal` and no subject named and no full-text hit
+//! (the message carries no word of any fact, see [`RecallSignal`]) that
+//! cap is zero: every context-only fact is withheld as `ContextCap`,
+//! while a fact another tier also found is never touched.
 //!
 //! The citation loop: before any of that, `usage_weight ×
 //! (cited_rate − ignored_rate)` is added to each fact's fused score, so
@@ -55,6 +59,25 @@ pub struct BudgetLimits {
     pub min_fused_score: f64,
     pub context_share: f64,
     pub usage_weight: f64,
+    pub context_requires_signal: bool,
+}
+
+/// What the message gave the tiers to work with: whether the subject or
+/// linked tier found a fact, and whether the full-text tier found any.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct RecallSignal {
+    pub subject_named: bool,
+    pub full_text_hit: bool,
+}
+
+impl RecallSignal {
+    #[must_use]
+    pub const fn named(subject_named: bool) -> Self {
+        Self {
+            subject_named,
+            full_text_hit: false,
+        }
+    }
 }
 
 impl BudgetLimits {
@@ -81,6 +104,7 @@ impl BudgetLimits {
             min_fused_score: retrieval.min_fused_score,
             context_share: retrieval.context_share,
             usage_weight: retrieval.usage_weight,
+            context_requires_signal: retrieval.context_requires_signal,
         }
     }
 
@@ -102,8 +126,14 @@ impl BudgetLimits {
         share_of(self.max_facts, self.linked_share, f64::round).min(count(linked))
     }
 
-    fn context_cap(&self) -> u32 {
-        share_of(self.max_facts, self.context_share, f64::floor)
+    fn context_cap(&self, signal: RecallSignal) -> u32 {
+        if signal.subject_named {
+            share_of(self.max_facts, self.context_share, f64::floor)
+        } else if self.context_requires_signal && !signal.full_text_hit {
+            0
+        } else {
+            self.max_facts
+        }
     }
 }
 
@@ -236,21 +266,21 @@ impl Fill<'_> {
 pub fn fill(
     mut candidates: Vec<Candidate>,
     limits: &BudgetLimits,
-    subject_named: bool,
+    signal: RecallSignal,
 ) -> InjectionPlan {
     apply_usage(&mut candidates, limits.usage_weight);
     sort_candidates(&mut candidates, limits.order, limits.usage_weight);
-    let (reserved, context_cap) = if subject_named {
-        (limits.linked_reserve(&candidates), limits.context_cap())
+    let reserved = if signal.subject_named {
+        limits.linked_reserve(&candidates)
     } else {
-        (0, limits.max_facts)
+        0
     };
     let mut fill = Fill {
         limits,
         plan: InjectionPlan::default(),
         per_kind: BTreeMap::new(),
         reserved,
-        context_cap,
+        context_cap: limits.context_cap(signal),
         context_taken: 0,
     };
     for candidate in candidates {

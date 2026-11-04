@@ -13,7 +13,8 @@
 //! Each tier returns fact ids ordered by its rank, then stored importance,
 //! then id, so two identical recalls answer identically. The subject and
 //! linked tiers read the subjects [`matched`] resolved once per recall
-//! (at most `max_subjects`, each reaching `alias_min_sim`); the full-text
+//! (at most `max_subjects`, each reaching `alias_min_sim`) and run at
+//! their own row limit; the full-text
 //! tier runs a second plan at `retry_quorum` when the first returns
 //! nothing. [`ranked`] runs the five tiers concurrently and returns their
 //! ids for fusion.
@@ -138,11 +139,13 @@ pub async fn withheld_counts(
 }
 
 /// One recall's tier inputs: the filter at the tier limit, the pinned
-/// tier's own limit, the normalised hints and the full-text input.
+/// tier's own limit, the subject and linked tiers' own limit, the
+/// normalised hints and the full-text input.
 #[derive(Debug, Clone, Copy)]
 pub struct RankedInput<'a> {
     pub filter: &'a TierFilter,
     pub pinned_limit: i64,
+    pub subject_limit: i64,
     pub hints: &'a str,
     pub full_text: FullTextInput<'a>,
 }
@@ -154,10 +157,11 @@ pub async fn ranked(
     let f = input.filter;
     let matched = matched::resolve(pool, f, input.hints).await?;
     let pinned_filter = f.clone().with_limit(input.pinned_limit);
+    let subject_filter = f.clone().with_limit(input.subject_limit);
     let (pinned_ids, subject_ids, linked_ids, context_ids, text_ids) = tokio::join!(
         pinned(pool, &pinned_filter),
-        by_subject(pool, f, &matched),
-        by_linked(pool, f, &matched),
+        by_subject(pool, &subject_filter, &matched),
+        by_linked(pool, &subject_filter, &matched),
         by_context(pool, f),
         full_text(pool, f, input.full_text),
     );
