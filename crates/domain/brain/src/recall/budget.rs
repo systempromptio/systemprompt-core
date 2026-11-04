@@ -67,31 +67,7 @@ pub struct BudgetLimits {
     pub context_requires_signal: bool,
 }
 
-/// What the message gave the tiers to work with: whether the subject or
-/// linked tier found a fact, whether the full-text tier found any, and
-/// whether the message asks a declared kind.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub struct RecallSignal {
-    pub subject_named: bool,
-    pub full_text_hit: bool,
-    pub kind_asked: bool,
-}
-
-impl RecallSignal {
-    #[must_use]
-    pub const fn named(subject_named: bool) -> Self {
-        Self {
-            subject_named,
-            full_text_hit: false,
-            kind_asked: false,
-        }
-    }
-
-    #[must_use]
-    pub const fn any(self) -> bool {
-        self.subject_named || self.full_text_hit || self.kind_asked
-    }
-}
+pub use super::signal::RecallSignal;
 
 impl BudgetLimits {
     #[must_use]

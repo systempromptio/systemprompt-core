@@ -19,7 +19,7 @@
 //! of a membership query per fact; a subject handled only by a resolver
 //! that could not enumerate still goes to that resolver. Every membership
 //! and source question a pass needs is asked once per distinct subject
-//! (see [`super::visible_memo`]); the verdicts are the per-fact ones.
+//! (see `super::visible_memo`); the verdicts are the per-fact ones.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
