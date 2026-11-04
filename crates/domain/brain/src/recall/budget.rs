@@ -69,6 +69,7 @@ pub struct BudgetLimits {
     pub context_share: f64,
     pub usage_weight: f64,
     pub context_requires_signal: bool,
+    pub full_text_opens_context: bool,
 }
 
 pub use super::signal::RecallSignal;
@@ -98,6 +99,7 @@ impl BudgetLimits {
             context_share: retrieval.context_share,
             usage_weight: retrieval.usage_weight,
             context_requires_signal: retrieval.context_requires_signal,
+            full_text_opens_context: retrieval.full_text_opens_context,
         }
     }
 
@@ -121,7 +123,9 @@ impl BudgetLimits {
     }
 
     const fn gate_closed(&self, signal: RecallSignal) -> bool {
-        self.context_requires_signal && !signal.any()
+        let full_text_opens = self.full_text_opens_context && signal.full_text_hit;
+        let opens = signal.subject_named || signal.kind_asked || full_text_opens;
+        self.context_requires_signal && !opens
     }
 
     fn context_cap(&self, signal: RecallSignal) -> u32 {

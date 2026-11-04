@@ -69,6 +69,11 @@ fn a_name_is_capitalised_not_sentence_initial_and_three_letters_or_more() {
     );
     assert!(names("on The road", &stop).is_empty(), "a stop word");
     assert_eq!(names("on Acme and Acme", &stop), vec!["acme"], "once");
+    assert_eq!(
+        names("risks on Ashgrove's SFCC replatform", &stop),
+        vec!["ashgrove", "sfcc"],
+        "a possessive is the name it owns"
+    );
 }
 
 #[test]

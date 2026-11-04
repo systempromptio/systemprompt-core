@@ -78,6 +78,38 @@ fn a_full_text_hit_keeps_the_context_facts() {
 }
 
 #[test]
+fn a_full_text_hit_alone_does_not_open_the_context_cap_when_declared_so() {
+    let mut limits = requiring_signal();
+    limits.full_text_opens_context = false;
+    let hit_only = RecallSignal {
+        full_text_hit: true,
+        ..RecallSignal::default()
+    };
+    let plan = fill(
+        vec![
+            candidate(1, 0.02, 0.9, TEXT),
+            candidate(2, 0.013, 0.9, CONTEXT),
+            candidate(3, 0.012, 0.9, CONTEXT_AND_TEXT),
+        ],
+        &limits,
+        hit_only,
+    );
+    assert_eq!(
+        ids(&plan),
+        vec![id(1), id(3)],
+        "the hits inject, the context-only fact does not"
+    );
+    assert_eq!(withheld(&plan, WithheldReason::ContextCap), vec![id(2)]);
+    let asked = RecallSignal {
+        full_text_hit: true,
+        kind_asked: true,
+        ..RecallSignal::default()
+    };
+    let plan = fill(vec![candidate(2, 0.013, 0.9, CONTEXT)], &limits, asked);
+    assert_eq!(ids(&plan), vec![id(2)], "an asked kind still opens it");
+}
+
+#[test]
 fn a_named_subject_keeps_the_context_facts_under_the_share() {
     let plan = fill(
         vec![

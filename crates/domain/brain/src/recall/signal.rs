@@ -6,11 +6,11 @@
 //! words (`KindDecl::ask_words`) is among its lower-cased alphanumeric tokens.
 //! A *name* is a capitalised word of three or more letters that does not
 //! open a sentence (the first token, or one after a token ending in
-//! `.`, `?` or `!`) and is not a declared stop word; it is returned
-//! lower-cased, once. The unknown-name rule
-//! ([`withhold_unknown_names`]) applies when the retrieval declares it,
-//! no subject matched, and the store knows none of the message's names:
-//! the full-text tier's ids are emptied ([`withhold_full_text`], which
+//! `.`, `?` or `!`) and is not a declared stop word; a possessive
+//! (`Ashgrove's`) is the name it owns; it is returned lower-cased, once. The
+//! unknown-name rule ([`withhold_unknown_names`]) applies when the retrieval
+//! declares it, no subject matched, and the store knows none of the message's
+//! names: the full-text tier's ids are emptied ([`withhold_full_text`], which
 //! returns how many of them no other tier returned), that count is
 //! recorded as `unknown_name`, and the rule reports that it fired so an
 //! asked kind cannot open the context cap for a name the brain does not
@@ -81,6 +81,7 @@ pub fn names(hints: &str, stop_words: &[String]) -> Vec<String> {
     let mut initial = true;
     for raw in hints.split_whitespace() {
         let word = raw.trim_matches(|c: char| !c.is_alphanumeric());
+        let word = possessive_stem(word);
         if is_name(word) {
             let lower = word.to_lowercase();
             if !stop_words.contains(&lower) && !initial && !names.contains(&lower) {
@@ -90,6 +91,13 @@ pub fn names(hints: &str, stop_words: &[String]) -> Vec<String> {
         initial = raw.ends_with(['.', '?', '!']);
     }
     names
+}
+
+fn possessive_stem(word: &str) -> &str {
+    ["'s", "\u{2019}s"]
+        .iter()
+        .find_map(|suffix| word.strip_suffix(suffix))
+        .unwrap_or(word)
 }
 
 fn is_name(word: &str) -> bool {

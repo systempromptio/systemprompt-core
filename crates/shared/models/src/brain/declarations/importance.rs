@@ -26,13 +26,17 @@
 //! found (as `context_cap`) when the recall names no subject and the
 //! full-text tier returned nothing, so a message that carries no word of
 //! any fact injects none of the attributed project's facts (false keeps
-//! them). `search_stop_words` are lower-case single tokens the planner
-//! drops before grouping and quorum, so a scaffold word is never the one
-//! a fact must carry; once any are declared a message with no informative
-//! group left plans no query at all instead of the disjunction of its
-//! common words (empty keeps that disjunction). `subject_limit` is the
-//! row limit of the subject and linked tiers (0 keeps the shared tier
-//! limit, `max_facts × 2` clamped to 8..=50; at most 100).
+//! them). `full_text_opens_context` (default true) is whether a full-text
+//! hit alone counts as that signal: at false only a named subject or an
+//! asked kind opens the context cap, so a message whose only lexical hit
+//! is an org fact about some other subject injects that hit and nothing
+//! of the attributed project's context. `search_stop_words` are lower-case
+//! single tokens the planner drops before grouping and quorum, so a scaffold
+//! word is never the one a fact must carry; once any are declared a message
+//! with no informative group left plans no query at all instead of the
+//! disjunction of its common words (empty keeps that disjunction).
+//! `subject_limit` is the row limit of the subject and linked tiers (0 keeps
+//! the shared tier limit, `max_facts × 2` clamped to 8..=50; at most 100).
 //!
 //! The depth knobs: `links_depth` (1 or 2, default 1) is how many
 //! subject hops the linked tier walks from a named subject. At 1 it
@@ -171,6 +175,7 @@ pub struct RetrievalDoc {
     pub usage_min_recalls: u32,
     pub extension_max_candidates: u32,
     pub context_requires_signal: bool,
+    pub full_text_opens_context: bool,
     pub search_stop_words: Vec<String>,
     pub search_max_ndoc: u32,
     pub subject_limit: u32,
@@ -203,6 +208,7 @@ impl Default for RetrievalDoc {
             usage_min_recalls: 0,
             extension_max_candidates: 24,
             context_requires_signal: false,
+            full_text_opens_context: true,
             search_stop_words: Vec::new(),
             search_max_ndoc: 0,
             subject_limit: 0,
