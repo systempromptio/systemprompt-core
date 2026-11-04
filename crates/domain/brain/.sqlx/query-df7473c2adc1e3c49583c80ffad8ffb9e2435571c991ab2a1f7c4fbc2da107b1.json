@@ -1,0 +1,39 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT subject_kind AS \"subject_kind!\", subject_id AS \"subject_id!\", max(score) AS \"score!\" FROM (\n               SELECT a.subject_kind, a.subject_id,\n                      CASE WHEN strpos($1, a.alias_norm) > 0 THEN 1.0::float8\n                           ELSE word_similarity(a.alias_norm, $1)::float8 END AS score\n               FROM brain_aliases a\n               WHERE strpos($1, a.alias_norm) > 0 OR a.alias_norm <% $1\n               UNION ALL\n               SELECT s.subject_kind, s.subject_id, 1.0::float8\n               FROM brain_subjects s\n               WHERE length(s.subject_id) >= 3 AND strpos($1, lower(s.subject_id)) > 0\n           ) hits GROUP BY subject_kind, subject_id\n           HAVING max(score) >= $2\n           ORDER BY max(score) DESC, subject_kind, subject_id\n           LIMIT $3",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "subject_kind!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "subject_id!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "score!",
+        "type_info": "Float8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Float8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "df7473c2adc1e3c49583c80ffad8ffb9e2435571c991ab2a1f7c4fbc2da107b1"
+}

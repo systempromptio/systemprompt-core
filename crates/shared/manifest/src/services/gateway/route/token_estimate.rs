@@ -30,8 +30,8 @@ pub fn estimate_input_tokens(request: &CanonicalRequest) -> u32 {
 }
 
 #[must_use]
-pub fn estimate_text_tokens<'a>(texts: impl IntoIterator<Item = &'a str>) -> u32 {
-    tokens_for_chars(texts.into_iter().map(str::len).sum())
+pub fn estimate_text_tokens<T: AsRef<str>>(texts: impl IntoIterator<Item = T>) -> u32 {
+    tokens_for_chars(texts.into_iter().map(|text| text.as_ref().len()).sum())
 }
 
 fn tokens_for_chars(chars: usize) -> u32 {

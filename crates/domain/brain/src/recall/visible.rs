@@ -17,7 +17,9 @@
 //! With the recall's [`HeldKeys`] attached, a role or dimension subject is
 //! answered from the keys a resolver enumerated once per recall instead
 //! of a membership query per fact; a subject handled only by a resolver
-//! that could not enumerate still goes to that resolver.
+//! that could not enumerate still goes to that resolver. Every membership
+//! and source question a pass needs is asked once per distinct subject
+//! (see [`super::visible_memo`]); the verdicts are the per-fact ones.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -25,18 +27,16 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use futures::future::join_all;
-use systemprompt_extension::brain::{
-    RecallPrincipal, SourceAccess, SourceVerdict, WithheldSummary,
-};
-use systemprompt_extension::notifications::{Membership, NotificationAudienceResolver};
+use systemprompt_extension::brain::{RecallPrincipal, SourceAccess, WithheldSummary};
+use systemprompt_extension::notifications::NotificationAudienceResolver;
 use systemprompt_models::brain::{
     BrainFact, FactScope, FactSource, FactStatus, Granularity, ScoredFact, TopicDecl,
     WithheldReason,
 };
-use systemprompt_models::notifications::AudienceSubject;
+use systemprompt_models::notifications::{AudienceSubject, SubjectRef};
 
 use super::held::HeldKeys;
+use super::visible_memo::{Answers, Questions};
 
 pub const GROUP_DIMENSION: &str = "group";
 pub const PERSON_SUBJECT_KIND: &str = "user";
@@ -51,10 +51,10 @@ pub enum Verdict {
 /// The collaborators [`Visibility::check`] consults.
 #[derive(Clone)]
 pub struct Visibility {
-    source_access: Arc<dyn SourceAccess>,
+    pub(super) source_access: Arc<dyn SourceAccess>,
     audiences: Vec<Arc<dyn NotificationAudienceResolver>>,
     topics: Vec<TopicDecl>,
-    source_timeout: Duration,
+    pub(super) source_timeout: Duration,
     held: Option<HeldKeys>,
 }
 
@@ -100,15 +100,10 @@ impl Visibility {
     }
 
     pub async fn check(&self, fact: &BrainFact, principal: &RecallPrincipal) -> Verdict {
-        if !self.scope_allows(&fact.scope, principal).await
-            && !self.topic_allows(fact, principal).await
-        {
-            return Verdict::Withheld(WithheldReason::Scope);
-        }
-        if !self.granularity_allows(fact, principal) {
-            return Verdict::Withheld(WithheldReason::Scope);
-        }
-        self.source_allows(fact, principal).await
+        let answers = Questions::collect(self, std::iter::once(fact), principal)
+            .resolve(self, principal)
+            .await;
+        self.verdict(fact, principal, &answers)
     }
 
     pub async fn filter(
@@ -116,16 +111,13 @@ impl Visibility {
         ranked: Vec<ScoredFact>,
         principal: &RecallPrincipal,
     ) -> (Vec<ScoredFact>, WithheldSummary) {
-        let verdicts = join_all(
-            ranked
-                .iter()
-                .map(|scored| self.check(&scored.fact, principal)),
-        )
-        .await;
+        let answers = Questions::collect(self, ranked.iter().map(|s| &s.fact), principal)
+            .resolve(self, principal)
+            .await;
         let mut withheld = WithheldSummary::default();
         let mut visible = Vec::with_capacity(ranked.len());
-        for (scored, verdict) in ranked.into_iter().zip(verdicts) {
-            match verdict {
+        for scored in ranked {
+            match self.verdict(&scored.fact, principal, &answers) {
                 Verdict::Visible => visible.push(scored),
                 Verdict::Withheld(reason) => withheld.add(reason),
             }
@@ -133,36 +125,99 @@ impl Visibility {
         (visible, withheld)
     }
 
-    async fn scope_allows(&self, scope: &FactScope, principal: &RecallPrincipal) -> bool {
+    fn verdict(&self, fact: &BrainFact, principal: &RecallPrincipal, answers: &Answers) -> Verdict {
+        if !self.scope_allows(&fact.scope, principal, answers)
+            && !self.topic_allows(fact, principal, answers)
+        {
+            return Verdict::Withheld(WithheldReason::Scope);
+        }
+        if !self.granularity_allows(fact, principal) {
+            return Verdict::Withheld(WithheldReason::Scope);
+        }
+        Self::source_allows(fact, principal, answers)
+    }
+
+    pub(super) fn audience_subjects(&self, fact: &BrainFact) -> Vec<AudienceSubject> {
+        let mut subjects = Vec::new();
+        if let FactScope::Group(key) = &fact.scope {
+            subjects.push(group_subject(key));
+        }
+        for topic in &fact.topics {
+            if let Some(decl) = self.topics.iter().find(|decl| &decl.id == topic) {
+                subjects.extend(decl.audience.iter().cloned());
+            }
+        }
+        subjects
+    }
+
+    pub(super) fn resolver_to_ask(
+        &self,
+        subject: &AudienceSubject,
+    ) -> Option<&Arc<dyn NotificationAudienceResolver>> {
+        if matches!(
+            subject,
+            AudienceSubject::Everyone | AudienceSubject::User(_)
+        ) {
+            return None;
+        }
+        if self.held.as_ref().is_some_and(|held| held.holds(subject)) {
+            return None;
+        }
+        let resolver = self.audiences.iter().find(|r| r.handles(subject))?;
+        let enumerated = self
+            .held
+            .as_ref()
+            .is_some_and(|held| held.enumerated_by(resolver.name()));
+        (!enumerated).then_some(resolver)
+    }
+
+    pub(super) fn source_to_ask(
+        fact: &BrainFact,
+        principal: &RecallPrincipal,
+    ) -> Option<SubjectRef> {
+        if private_until_confirmed(fact, principal) {
+            return None;
+        }
+        fact.source.visibility_subject()
+    }
+
+    fn scope_allows(
+        &self,
+        scope: &FactScope,
+        principal: &RecallPrincipal,
+        answers: &Answers,
+    ) -> bool {
         match scope {
             FactScope::User(owner) => owner == &principal.user_id,
             FactScope::Project(key) => principal.project.as_deref() == Some(key.as_str()),
-            FactScope::Group(key) => {
-                let group = AudienceSubject::Dimension {
-                    kind: GROUP_DIMENSION.to_owned(),
-                    value: key.clone(),
-                };
-                self.is_member(&group, principal).await
-            },
+            FactScope::Group(key) => self.is_member(&group_subject(key), principal, answers),
             FactScope::Org => true,
         }
     }
 
-    async fn topic_allows(&self, fact: &BrainFact, principal: &RecallPrincipal) -> bool {
-        for topic in &fact.topics {
-            let Some(decl) = self.topics.iter().find(|decl| &decl.id == topic) else {
-                continue;
-            };
-            for subject in &decl.audience {
-                if self.is_member(subject, principal).await {
-                    return true;
-                }
-            }
-        }
-        false
+    fn topic_allows(
+        &self,
+        fact: &BrainFact,
+        principal: &RecallPrincipal,
+        answers: &Answers,
+    ) -> bool {
+        fact.topics.iter().any(|topic| {
+            self.topics.iter().any(|decl| {
+                &decl.id == topic
+                    && decl
+                        .audience
+                        .iter()
+                        .any(|subject| self.is_member(subject, principal, answers))
+            })
+        })
     }
 
-    async fn is_member(&self, subject: &AudienceSubject, principal: &RecallPrincipal) -> bool {
+    fn is_member(
+        &self,
+        subject: &AudienceSubject,
+        principal: &RecallPrincipal,
+        answers: &Answers,
+    ) -> bool {
         match subject {
             AudienceSubject::Everyone => return true,
             AudienceSubject::User(user) => return user == &principal.user_id,
@@ -171,20 +226,7 @@ impl Visibility {
         if self.held.as_ref().is_some_and(|held| held.holds(subject)) {
             return true;
         }
-        let Some(resolver) = self.audiences.iter().find(|r| r.handles(subject)) else {
-            return false;
-        };
-        if self
-            .held
-            .as_ref()
-            .is_some_and(|held| held.enumerated_by(resolver.name()))
-        {
-            return false;
-        }
-        matches!(
-            resolver.is_member(subject, &principal.user_id).await,
-            Ok(Membership::Member)
-        )
+        self.resolver_to_ask(subject).is_some() && answers.member(subject)
     }
 
     fn granularity_allows(&self, fact: &BrainFact, principal: &RecallPrincipal) -> bool {
@@ -201,30 +243,29 @@ impl Visibility {
         })
     }
 
-    async fn source_allows(&self, fact: &BrainFact, principal: &RecallPrincipal) -> Verdict {
-        let confirmed = fact.status == FactStatus::Confirmed;
-        match &fact.source {
-            FactSource::Session { owner, .. } if !confirmed && owner != &principal.user_id => {
-                return Verdict::Withheld(WithheldReason::Source);
-            },
-            FactSource::Run { .. } if !confirmed => {
-                return Verdict::Withheld(WithheldReason::Source);
-            },
-            _ => {},
+    fn source_allows(fact: &BrainFact, principal: &RecallPrincipal, answers: &Answers) -> Verdict {
+        if private_until_confirmed(fact, principal) {
+            return Verdict::Withheld(WithheldReason::Source);
         }
-        let Some(subject) = fact.source.visibility_subject() else {
-            return Verdict::Visible;
-        };
-        let check = self
-            .source_access
-            .readable(&subject, &principal.user_id, &principal.actor);
-        match tokio::time::timeout(self.source_timeout, check).await {
-            Ok(Ok(SourceVerdict::Readable)) => Verdict::Visible,
-            Ok(Ok(SourceVerdict::AgentCapped)) => Verdict::Withheld(WithheldReason::AgentCapped),
-            Ok(Ok(SourceVerdict::Hidden) | Err(_)) | Err(_) => {
-                Verdict::Withheld(WithheldReason::Source)
-            },
-        }
+        fact.source
+            .visibility_subject()
+            .map_or(Verdict::Visible, |subject| answers.source(&subject))
+    }
+}
+
+fn group_subject(key: &str) -> AudienceSubject {
+    AudienceSubject::Dimension {
+        kind: GROUP_DIMENSION.to_owned(),
+        value: key.to_owned(),
+    }
+}
+
+fn private_until_confirmed(fact: &BrainFact, principal: &RecallPrincipal) -> bool {
+    let confirmed = fact.status == FactStatus::Confirmed;
+    match &fact.source {
+        FactSource::Session { owner, .. } => !confirmed && owner != &principal.user_id,
+        FactSource::Run { .. } => !confirmed,
+        _ => false,
     }
 }
 

@@ -260,17 +260,17 @@ impl Harness {
         audiences: Vec<Arc<dyn NotificationAudienceResolver>>,
         retrievers: Vec<Arc<dyn FactRetriever>>,
     ) -> BrainRecallService {
-        let store = Arc::new(
-            BrainRecallStore::new((*self.repos).clone(), self.profile.recall.stale)
-                .with_working_set(self.profile.recall.working_set),
-        );
+        let store = Arc::new(BrainRecallStore::new(
+            (*self.repos).clone(),
+            self.profile.recall.stale,
+        ));
         BrainRecallService::builder(
             Arc::clone(&store) as _,
+            store,
             Arc::clone(&self.access) as _,
             Arc::new(PlaneDeclaredSource::new((*self.repos).clone())),
             Arc::new(self.profile.clone()),
         )
-        .loader(store)
         .retrievers(retrievers)
         .audiences(audiences)
         .build()

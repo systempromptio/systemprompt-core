@@ -39,6 +39,38 @@ impl SourceAccess for FakeAccess {
     }
 }
 
+/// A source check that records every subject it was asked about.
+pub(crate) struct CountingAccess {
+    pub(crate) verdict: SourceVerdict,
+    pub(crate) asked: std::sync::Mutex<Vec<String>>,
+}
+
+impl CountingAccess {
+    pub(crate) fn new(verdict: SourceVerdict) -> Self {
+        Self {
+            verdict,
+            asked: std::sync::Mutex::new(Vec::new()),
+        }
+    }
+
+    pub(crate) fn asked(&self) -> Vec<String> {
+        self.asked.lock().expect("asked").clone()
+    }
+}
+
+#[async_trait::async_trait]
+impl SourceAccess for CountingAccess {
+    async fn readable(
+        &self,
+        subject: &SubjectRef,
+        _reader: &UserId,
+        _actor: &RequestActor,
+    ) -> Result<SourceVerdict, SourceAccessError> {
+        self.asked.lock().expect("asked").push(subject.id.clone());
+        Ok(self.verdict)
+    }
+}
+
 pub(crate) struct FakeResolver {
     pub(crate) member: UserId,
 }
@@ -94,6 +126,44 @@ impl NotificationAudienceResolver for EnumeratingResolver {
 
     async fn held(&self, _user: &UserId) -> Option<Vec<AudienceSubject>> {
         self.held.clone()
+    }
+}
+
+/// An enumerating resolver that answers `held` after a delay.
+pub(crate) struct SlowResolver {
+    pub(crate) inner: EnumeratingResolver,
+    pub(crate) delay_ms: u64,
+}
+
+#[async_trait::async_trait]
+impl NotificationAudienceResolver for SlowResolver {
+    fn name(&self) -> &'static str {
+        self.inner.name()
+    }
+
+    fn handles(&self, subject: &AudienceSubject) -> bool {
+        self.inner.handles(subject)
+    }
+
+    async fn members(
+        &self,
+        subject: &AudienceSubject,
+        limit: usize,
+    ) -> Result<Vec<UserId>, NotificationAudienceError> {
+        self.inner.members(subject, limit).await
+    }
+
+    async fn is_member(
+        &self,
+        subject: &AudienceSubject,
+        user: &UserId,
+    ) -> Result<Membership, NotificationAudienceError> {
+        self.inner.is_member(subject, user).await
+    }
+
+    async fn held(&self, user: &UserId) -> Option<Vec<AudienceSubject>> {
+        tokio::time::sleep(Duration::from_millis(self.delay_ms)).await;
+        self.inner.held(user).await
     }
 }
 

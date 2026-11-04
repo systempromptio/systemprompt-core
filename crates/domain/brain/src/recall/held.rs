@@ -4,15 +4,17 @@
 //! project holds `project:<key>`; and every audience subject an injected
 //! resolver can enumerate for the user is rendered in its `Display` form
 //! (`role:<name>`, `user:<id>`, `<dimension>:<value>`), with `everyone`
-//! folded into `org`. A resolver that answers `None` contributes nothing,
-//! and its subjects stay on the per-fact membership check, which remains
-//! as defence in depth.
+//! folded into `org`. The resolvers are asked concurrently and their
+//! answers taken in resolver order. A resolver that answers `None` contributes
+//! nothing, and its subjects stay on the per-fact membership check, which
+//! remains as defence in depth.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 
+use futures::future::join_all;
 use systemprompt_extension::notifications::NotificationAudienceResolver;
 use systemprompt_identifiers::UserId;
 use systemprompt_models::brain::ScopeLevel;
@@ -65,8 +67,9 @@ pub async fn build(
         keys.push(project_key(project));
     }
     let mut enumerated = Vec::new();
-    for resolver in audiences {
-        if let Some(subjects) = resolver.held(user).await {
+    let answers = join_all(audiences.iter().map(|resolver| resolver.held(user))).await;
+    for (resolver, answer) in audiences.iter().zip(answers) {
+        if let Some(subjects) = answer {
             keys.extend(subjects.iter().map(key_for));
             enumerated.push(resolver.name());
         }
