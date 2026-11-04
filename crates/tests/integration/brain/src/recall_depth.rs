@@ -20,8 +20,8 @@ use crate::harness::{Harness, Setup};
 use crate::plane;
 use crate::recall_support::{ids, recall};
 use crate::subject_links::{
-    CLIENT, CLIENT_NOTE, ENGAGEMENT, PROJECT, RISK, declared_with_bridges, fact_of_kind,
-    seed_bridges,
+    CLIENT, CLIENT_NOTE, ENGAGEMENT, PROJECT, RISK, TEAM, declared_with_bridges, fact_of_kind,
+    seed_bridges, seed_person,
 };
 
 /// The one-hop linked SQL before `links_depth`, verbatim.
@@ -258,6 +258,35 @@ async fn a_hidden_anchor_bridges_nothing_when_declared_so() {
     assert!(
         linked.is_empty(),
         "a hidden anchor bridges nothing: {linked:?}"
+    );
+    h.finish().await;
+}
+
+#[tokio::test]
+async fn at_depth_two_a_fact_about_the_anchor_itself_is_never_a_linked_hit() {
+    let h = Harness::with("brain_recall_depth_anchor_own", Setup::confirming()).await;
+    apply_depth(&h, 2).await;
+    let admin = h.user("admin", &["admin"]).await;
+    seed_bridges(&h, &admin).await;
+    seed_person(&h, &admin).await;
+    let team = fact_of_kind(&h, PROJECT, TEAM).await;
+
+    let store = BrainRecallStore::new((*h.repos).clone(), h.profile.recall.stale);
+    let ctx = RecallCtx::new(admin.clone(), RequestActor::Human, Utc::now())
+        .with_held_keys(vec!["org".to_owned(), format!("user:{admin}")]);
+    let query = RecallQuery {
+        links_depth: 2,
+        ..RecallQuery::new("the cpq-rollout team".to_owned(), 20)
+    };
+    let subject = store.by_subject(&query, &ctx).await.expect("subject tier");
+    assert!(
+        subject.iter().any(|f| f.id == team),
+        "the project's team fact is a subject-tier row: {subject:?}"
+    );
+    let linked = store.by_linked(&query, &ctx).await.expect("linked tier");
+    assert!(
+        linked.iter().all(|f| f.id != team),
+        "project -> user -> the same team fact is not a linked hit: {linked:?}"
     );
     h.finish().await;
 }

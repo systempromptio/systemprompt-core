@@ -15,7 +15,10 @@
 //! once keeps its best score, and depth 1 returns exactly the rows the
 //! one-hop query returned. No link is followed from a linked fact and no
 //! bridge from a bridged subject, so the reach is bounded by the
-//! declared depth, never by the graph. With
+//! declared depth, never by the graph. A fact about the matched subject
+//! itself is never a linked hit, whichever bridge leads back to it: those
+//! are the subject tier's rows, and a second rank here would fuse them
+//! above the subject's other facts. With
 //! `links_require_readable_anchor` a matched subject is walked from only
 //! when at least one fact about it passes the tier predicate for this
 //! reader (the working-set probe on the held keys, the scope levels, the
@@ -64,12 +67,14 @@ pub(super) async fn by_linked(
            ),
            reach AS (
                SELECT l.fact_id AS id, m.score * $10 AS score,
+                      m.subject_kind AS anchor_kind, m.subject_id AS anchor_id,
                       m.subject_kind AS not_kind, m.subject_id AS not_id
                FROM matched m
                JOIN brain_fact_links l
                  ON l.subject_kind = m.subject_kind AND l.subject_id = m.subject_id
                UNION ALL
                SELECT a.id, m.score * $10 * $12::float8,
+                      m.subject_kind, m.subject_id,
                       m.subject_kind, m.subject_id
                FROM matched m
                JOIN brain_subject_links b
@@ -79,6 +84,7 @@ pub(super) async fn by_linked(
                WHERE $11::int4 >= 2
                UNION ALL
                SELECT l.fact_id, m.score * $10 * $12::float8 * $10,
+                      m.subject_kind, m.subject_id,
                       b.other_kind, b.other_id
                FROM matched m
                JOIN brain_subject_links b
@@ -92,6 +98,7 @@ pub(super) async fn by_linked(
                FROM reach r
                JOIN brain_facts f ON f.id = r.id
                WHERE NOT (f.subject_kind = r.not_kind AND f.subject_id = r.not_id)
+                 AND NOT (f.subject_kind = r.anchor_kind AND f.subject_id = r.anchor_id)
                  AND EXISTS (SELECT 1 FROM brain_working_set w
                              WHERE w.fact_id = f.id AND w.scope_key = ANY($1::text[]))
                  AND f.scope_level = ANY($6::text[])
