@@ -12,6 +12,7 @@
 mod importance;
 mod synonyms;
 mod validate;
+mod validate_retrieval;
 
 use std::collections::BTreeMap;
 
