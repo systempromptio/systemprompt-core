@@ -18,6 +18,7 @@ pub(crate) fn facts() -> ProfileFacts {
         profile: None,
         mcp_servers: None,
         overrides: BTreeMap::new(),
+        desktop_models_elsewhere: Vec::new(),
     }
 }
 

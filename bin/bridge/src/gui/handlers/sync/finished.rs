@@ -107,7 +107,23 @@ const fn stopped(reply: serde_json::Value, cancelled: bool) -> SyncOutcome {
     }
 }
 
+// Why: a host only an administrator can update keeps working on what it has,
+// and its agent row offers the update if it stops, so this is a log line
+// rather than a failed sync.
+fn report_elevation_only(app: &GuiApp, summary: &sync::SyncSummary) -> SyncOutcome {
+    for failure in &summary.host_failures {
+        tracing::warn!(host = %failure.host_id, error = %failure.error, "host needs an administrator to update");
+        app.append_log_warn(format!("[{}] {}", failure.host_id, failure.error));
+    }
+    report_success(app, summary.clone())
+}
+
 fn report_failure(app: &GuiApp, error: &GuiError) -> SyncOutcome {
+    if let GuiError::Sync(sync::SyncError::Partial(summary)) = error
+        && summary.host_failures.iter().all(|f| f.needs_elevation)
+    {
+        return report_elevation_only(app, summary);
+    }
     let raw = format!("{error:#}");
     tracing::error!(error = %raw, "sync failed");
     let sync_err = match error {

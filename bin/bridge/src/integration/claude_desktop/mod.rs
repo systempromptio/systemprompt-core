@@ -38,7 +38,11 @@ pub fn installed_secret_fingerprint() -> Option<String> {
     crate::proxy::secret::load(&path)
         .ok()
         .flatten()
-        .map(|s| crate::proxy::secret::fingerprint(s.as_str()))
+        .map(|s| {
+            crate::proxy::scoped_token::desktop_policy_fingerprint(
+                &crate::ids::LoopbackSecret::new(s.as_str()),
+            )
+        })
 }
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
@@ -96,6 +100,28 @@ pub(crate) fn policy_summary() -> Vec<String> {
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 use systemprompt_models::bridge::host::HostKind;
+
+/// How the installed managed policy reads against `inputs`, by the probe's
+/// own rule.
+#[cfg(target_os = "macos")]
+pub(crate) fn managed_profile_state(
+    inputs: &ProfileGenInputs,
+) -> Result<ProfileState, crate::install::mdm::MdmError> {
+    let desired: Result<DesiredProfile, crate::integration::host_app::DesiredError> =
+        Ok(reg_profile::desired(inputs)?);
+    let read = os::read_domain(
+        shared::DESKTOP_DOMAIN,
+        &shared::keys_to_read(desired.as_ref().ok()),
+    );
+    Ok(ProfileState::classify(
+        &ProfileProbe {
+            present: &read.keys,
+            observed: &read.observed,
+            read_error: read.probe_error.as_deref(),
+            desired: &desired,
+        },
+    ))
+}
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 use crate::drift::DesiredProfile;

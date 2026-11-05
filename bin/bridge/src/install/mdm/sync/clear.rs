@@ -11,7 +11,7 @@ pub(super) fn clear_bridge_policy(
     use super::super::clear_plan::{ClearPlan, ObservedPolicy, plan_clear};
     use crate::config::store::{PolicyHive, PolicyTarget};
 
-    let ours = mcp.loopback.secret_fingerprint();
+    let ours = mcp.loopback.desktop_policy_fingerprint();
     let store = mcp.policy_store.backend();
     let mut lines = Vec::new();
     for hive in [PolicyHive::User, PolicyHive::Machine] {
@@ -80,7 +80,7 @@ pub(super) fn clear_bridge_policy(
 ) -> Result<Vec<String>, crate::host_sync::ApplyError> {
     super::super::macos_remove::clear_bridge_preferences(
         mcp.elevation_gate,
-        mcp.loopback.secret_fingerprint().as_deref(),
+        mcp.loopback.desktop_policy_fingerprint().as_deref(),
     )
     .map_err(|e| step("remove the bridge's Claude Desktop managed preferences", e))
 }

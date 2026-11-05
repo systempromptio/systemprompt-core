@@ -53,8 +53,9 @@ pub(super) fn list_claude_processes()
                 .as_deref()
                 .map(str::to_ascii_lowercase)
                 .unwrap_or_default();
+            // Why: a bare `/claude` path is the Claude Code CLI, which outlives a
+            // Desktop restart and would leave the restart prompt owed forever.
             let matches = path_lower.contains("/claude.app/")
-                || path_lower.ends_with("/claude")
                 || name_lower.contains("claude helper")
                 || path_lower.contains("claude helper");
             let is_code = name_lower.contains("claude code") || path_lower.contains("claude code");

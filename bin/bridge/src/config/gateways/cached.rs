@@ -125,6 +125,9 @@ pub struct ServedModels {
     pub gateway: Option<ValidatedUrl>,
     #[serde(default)]
     pub models: Vec<String>,
+    /// The subset Claude Desktop may list; `models` carries every family.
+    #[serde(default)]
+    pub desktop_models: Vec<String>,
 }
 
 pub fn write_served_models(
@@ -152,6 +155,28 @@ pub fn served_models_by_profile() -> Result<Vec<(GatewayProfileId, Vec<String>)>
             out.push((profile.id, served.models));
         }
     }
+    Ok(out)
+}
+
+/// The models Claude Desktop may list from every gateway profile but the
+/// active one, whose list comes from its live bridge profile instead.
+pub fn desktop_models_elsewhere() -> Result<Vec<String>, ProfileError> {
+    let active = active()?;
+    if active.pinned {
+        return Ok(Vec::new());
+    }
+    let mut out = Vec::new();
+    for summary in list()? {
+        let profile = profile_for(summary.id)?;
+        if profile.id == active.id {
+            continue;
+        }
+        if let Some(served) = read_served_models(&profile)? {
+            out.extend(served.desktop_models);
+        }
+    }
+    out.sort();
+    out.dedup();
     Ok(out)
 }
 

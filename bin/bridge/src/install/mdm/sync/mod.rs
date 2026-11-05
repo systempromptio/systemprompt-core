@@ -12,8 +12,7 @@ use clear::clear_bridge_policy;
 fn refresh_managed_mcp_servers(
     mcp: &super::MdmPayloadInputs<'_>,
 ) -> Result<String, super::MdmError> {
-    let base_url = mcp.loopback.origin();
-    super::macos::apply(mcp, &base_url, None).map(|report| report.lines.join("; "))
+    super::macos::refresh_unattended(mcp)
 }
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
@@ -112,6 +111,13 @@ fn elevation_needed(e: &super::MdmError) -> Option<String> {
 // prompt must never appear without a gesture.
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 fn classify_refresh_error(e: super::MdmError) -> crate::host_sync::ApplyError {
+    #[cfg(target_os = "macos")]
+    if let super::MdmError::ElevationNeeded { detail } = &e {
+        return crate::host_sync::ApplyError::ElevationRequired {
+            what: "the Claude Desktop managed preferences",
+            detail: detail.clone(),
+        };
+    }
     #[cfg(target_os = "windows")]
     if let Some(detail) = elevation_needed(&e)
         && !crate::winproc::is_elevated()

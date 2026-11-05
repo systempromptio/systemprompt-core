@@ -217,7 +217,7 @@ pub async fn refresh_machine_profile(bridge: &BridgeContext) -> MachineProfileRe
 
 fn machine_policy_is_ours(bridge: &BridgeContext) -> Option<bool> {
     let installed = crate::integration::claude_desktop::policy_api_key_fingerprint()?;
-    let ours = bridge.proxy.loopback().secret_fingerprint()?;
+    let ours = bridge.proxy.loopback().desktop_policy_fingerprint()?;
     Some(installed == ours)
 }
 

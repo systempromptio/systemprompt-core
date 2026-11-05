@@ -151,6 +151,7 @@ fn host_profile_secret_doctor_reports_stale_opencode_credentials_then_a_repaired
                 profile: None,
                 mcp_servers: None,
                 overrides: ModelProtocolOverrides::new(),
+                desktop_models_elsewhere: Vec::new(),
             }),
             policy_writer_ready: false,
         };

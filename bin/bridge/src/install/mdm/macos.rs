@@ -158,6 +158,54 @@ pub(crate) fn apply(
     })
 }
 
+// Why: sync runs unattended, so it never raises the administrator prompt. A
+// profile installed through System Settings lives at a different path and in
+// different bytes from the plists `apply` writes, so currency is judged the
+// way the probe judges it rather than by comparing files.
+pub(crate) fn refresh_unattended(mcp: &MdmPayloadInputs<'_>) -> Result<String, MdmError> {
+    use crate::integration::profile_state::ProfileState;
+
+    mcp.loopback
+        .secret_or_mint()
+        .map_err(|source| MdmError::Io {
+            action: "read loopback secret",
+            path: crate::proxy::secret::secret_path().unwrap_or_default(),
+            source,
+        })?;
+    let facts = crate::install::profile_inputs::ProfileFacts::load(
+        mcp.loopback,
+        mcp.registry,
+        mcp.overrides.clone(),
+        None,
+    )?;
+    let inputs = facts.inputs_for(systemprompt_models::bridge::host::HostKind::ClaudeDesktop);
+    let state = crate::integration::claude_desktop::managed_profile_state(&inputs)?;
+    let current = match &state {
+        ProfileState::Installed => "Claude Desktop managed preferences are current",
+        ProfileState::Absent => "Claude Desktop managed preferences are not installed",
+        ProfileState::Stale { keys, .. } => {
+            return Err(MdmError::ElevationNeeded {
+                detail: format!("differs: {}", keys.join(", ")),
+            });
+        },
+        ProfileState::Partial { missing_required } => {
+            return Err(MdmError::ElevationNeeded {
+                detail: format!("missing: {}", missing_required.join(", ")),
+            });
+        },
+        ProfileState::Unverifiable { reason } => {
+            return Err(MdmError::ElevationNeeded {
+                detail: reason.clone(),
+            });
+        },
+    };
+    let standalone =
+        super::claude_code_settings::write_standalone_settings(&mcp.loopback.origin())?;
+    let mut lines = vec![current.to_owned()];
+    lines.extend(standalone.lines);
+    Ok(lines.join("; "))
+}
+
 fn managed_prefs_user() -> Result<String, MdmError> {
     let user = std::env::var("USER").map_err(MdmError::ManagedPrefsUserUnset)?;
     if user.is_empty() || user.contains('/') || user == "." || user == ".." {

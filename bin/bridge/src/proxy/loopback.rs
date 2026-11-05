@@ -86,6 +86,13 @@ impl LoopbackEndpoint {
     }
 
     #[must_use]
+    pub fn desktop_policy_fingerprint(&self) -> Option<String> {
+        self.secret()
+            .ok()
+            .map(|s| super::scoped_token::desktop_policy_fingerprint(&s))
+    }
+
+    #[must_use]
     pub fn secret_fingerprint(&self) -> Option<String> {
         self.secret().ok().map(|s| secret::fingerprint(s.as_str()))
     }

@@ -116,6 +116,11 @@ fn record_served_models(gateway: &str, profile: &BridgeProfile) -> std::io::Resu
                 .iter()
                 .map(|m| m.as_str().to_owned())
                 .collect(),
+            desktop_models: crate::gateway::model_view::host_model_view(
+                &profile.providers,
+                &[systemprompt_models::providers::ClientFamily::Claude],
+            )
+            .compatible_models,
         },
     )
     .map_err(std::io::Error::other)

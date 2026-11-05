@@ -57,6 +57,8 @@ pub enum ProfileFactsError {
     StoredManifest(#[source] std::io::Error),
     #[error("decode stored manifest: {0}")]
     ManifestDecode(#[from] crate::gateway::manifest::ManifestError),
+    #[error("read other gateway profiles: {0}")]
+    GatewayProfiles(#[source] Box<crate::config::gateways::ProfileError>),
 }
 
 /// The local facts a host profile is rendered from.
@@ -73,6 +75,7 @@ pub struct ProfileFacts {
     pub profile: Option<BridgeProfile>,
     pub mcp_servers: Option<Vec<McpServerEntry>>,
     pub overrides: ModelProtocolOverrides,
+    pub desktop_models_elsewhere: Vec<String>,
 }
 
 impl ProfileFacts {
@@ -97,6 +100,8 @@ impl ProfileFacts {
             profile: crate::auth::profile_cache::load()?,
             mcp_servers,
             overrides,
+            desktop_models_elsewhere: crate::config::gateways::desktop_models_elsewhere()
+                .map_err(|e| ProfileFactsError::GatewayProfiles(Box::new(e)))?,
         })
     }
 
@@ -127,7 +132,7 @@ impl ProfileFacts {
                 clients.tags().join(","),
             );
         }
-        let (models, model_limits, model_names, default_model, gateway_org) =
+        let (mut models, model_limits, model_names, default_model, gateway_org) =
             self.profile.as_ref().map_or_else(
                 || (Vec::new(), BTreeMap::new(), BTreeMap::new(), None, None),
                 |profile| {
@@ -145,6 +150,17 @@ impl ProfileFacts {
                     )
                 },
             );
+        // Why: Claude Desktop's policy is installed once for every gateway
+        // profile and replacing it needs an administrator, so a switch must
+        // not need a new one. It is added here, the one place inputs are
+        // built, so a writer and the probe cannot disagree about the list.
+        if host == HostKind::ClaudeDesktop {
+            for model in &self.desktop_models_elsewhere {
+                if !models.contains(model) {
+                    models.push(model.clone());
+                }
+            }
+        }
         ProfileGenInputs {
             gateway_base_url: self.gateway_base_url.clone(),
             host_token: crate::proxy::scoped_token::host_token(&self.secret, host),

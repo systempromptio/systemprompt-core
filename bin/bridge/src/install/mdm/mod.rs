@@ -89,26 +89,8 @@ pub(crate) fn desktop_policy_entries(
         mcp.overrides.clone(),
         None,
     )?;
-    let mut inputs = facts.inputs_for(systemprompt_models::bridge::host::HostKind::ClaudeDesktop);
-    inputs.models = machine_models(inputs.models)?;
+    let inputs = facts.inputs_for(systemprompt_models::bridge::host::HostKind::ClaudeDesktop);
     policy::desktop_policy(&inputs, mcp.egress_allowed_hosts)
-}
-
-// Why: the machine policy is installed once and serves every gateway
-// profile, and replacing it needs an administrator; listing every profile's
-// models keeps a switch from needing a new policy, and the loopback proxy
-// refuses a model the active gateway does not serve.
-#[cfg(any(target_os = "macos", target_os = "windows"))]
-fn machine_models(active: Vec<String>) -> Result<Vec<String>, MdmError> {
-    let by_profile = crate::config::gateways::served_models_by_profile()
-        .map_err(|e| MdmError::GatewayProfiles(Box::new(e)))?;
-    let mut models = active;
-    for model in crate::config::gateways::model_union(&by_profile) {
-        if !models.contains(&model) {
-            models.push(model);
-        }
-    }
-    Ok(models)
 }
 
 #[cfg(target_os = "macos")]

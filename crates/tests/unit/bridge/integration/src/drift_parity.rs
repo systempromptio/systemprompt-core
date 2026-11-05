@@ -227,3 +227,32 @@ fn every_key_the_hermes_writer_sets_is_compared_by_its_probe() {
     json_leaves("", &json, &mut leaves);
     assert_every_leaf_is_compared(&HERMES_HOST, &leaves, "_systemprompt_openai_api_key");
 }
+
+#[test]
+fn another_profiles_models_reach_claude_desktop_only() {
+    use systemprompt_models::bridge::host::HostKind;
+
+    let mut facts = crate::support::facts();
+    facts.desktop_models_elsewhere = vec!["claude-sonnet-5".to_owned()];
+    assert_eq!(
+        facts.inputs_for(HostKind::ClaudeDesktop).models,
+        ["claude-sonnet-5"]
+    );
+    assert!(facts.inputs_for(HostKind::ClaudeCode).models.is_empty());
+}
+
+#[test]
+fn the_ownership_fingerprint_is_the_key_a_desktop_policy_carries() {
+    use systemprompt_bridge::integration::claude_desktop::reg_profile::desired;
+    use systemprompt_bridge::proxy::scoped_token::desktop_policy_fingerprint;
+    use systemprompt_models::bridge::host::HostKind;
+
+    let facts = crate::support::facts();
+    let desired = desired(&facts.inputs_for(HostKind::ClaudeDesktop)).expect("policy renders");
+    let key = desired
+        .entries()
+        .iter()
+        .find(|e| e.key == systemprompt_bridge::cowork_compat::POLICY_API_KEY)
+        .expect("policy carries a key");
+    assert_eq!(key.value, desktop_policy_fingerprint(&facts.secret));
+}

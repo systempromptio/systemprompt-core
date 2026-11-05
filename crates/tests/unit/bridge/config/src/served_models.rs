@@ -50,3 +50,11 @@ fn the_proxy_refuses_another_gateways_model_with_a_switch_hint() {
         .expect("a model no profile lists is the gateway's to judge");
     refuse_foreign_model(&elsewhere, b"not json").expect("non-JSON bodies pass through");
 }
+
+#[test]
+fn a_served_models_file_from_an_older_bridge_offers_desktop_nothing() {
+    let served: systemprompt_bridge::config::gateways::ServedModels =
+        serde_json::from_str(r#"{"gateway":null,"models":["gemini-3","claude-sonnet-5"]}"#)
+            .expect("older file parses");
+    assert!(served.desktop_models.is_empty());
+}

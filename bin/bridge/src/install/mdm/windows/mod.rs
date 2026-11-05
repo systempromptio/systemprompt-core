@@ -134,7 +134,7 @@ pub(super) fn enforce_managed_policy(
 // overwrite is recorded by fingerprint where doctor and the activity log show
 // it rather than happening silently.
 fn foreign_secret_in_policy(inputs: &super::MdmPayloadInputs<'_>) -> Option<String> {
-    let ours = inputs.loopback.secret_fingerprint()?;
+    let ours = inputs.loopback.desktop_policy_fingerprint()?;
     let existing = inputs
         .policy_store
         .backend()
