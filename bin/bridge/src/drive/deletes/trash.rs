@@ -80,13 +80,14 @@ pub(super) async fn restore_all(
             continue;
         };
         let known = entry.document_id.as_ref();
-        if let Some(id) = known
+        let Some(id) = known
             .or_else(|| by_path.get(rel.as_str()).copied())
             .cloned()
-        {
-            if restore_from(cycle, state, &rel, &id, &manifest).await? {
-                report.restored += 1;
-            }
+        else {
+            continue;
+        };
+        if restore_from(cycle, state, &rel, &id, &manifest).await? {
+            report.restored += 1;
         }
     }
     Ok(())
