@@ -46,14 +46,17 @@ async fn alias(h: &Harness, subject: &SubjectKey, alias: &str) {
         .await
         .expect("subject");
     let fact = BrainFactId::generate();
-    let rows = AliasRows::collect([(
-        AliasOwner {
-            subject,
-            fact: &fact,
-            updated_at: Utc::now(),
-        },
-        vec![alias.to_owned()],
-    )]);
+    let rows = AliasRows::collect(
+        &mut [(
+            AliasOwner {
+                subject,
+                fact: &fact,
+                updated_at: Utc::now(),
+            },
+            vec![alias.to_owned()],
+        )]
+        .into_iter(),
+    );
     AliasRepository::upsert_many(&mut conn, &rows)
         .await
         .expect("alias");

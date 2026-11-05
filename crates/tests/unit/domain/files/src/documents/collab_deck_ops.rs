@@ -203,9 +203,8 @@ fn shape_ops_move_resize_and_delete_a_shape() {
     let frame = deck.slides[0].shapes[0].frame.expect("frame");
     assert_eq!((frame.x, frame.y, frame.w, frame.h), (100, 200, 300, 400));
 
-    let held = applied(&[]).slides[0].shapes.len();
     let deck = applied(&[EditOp::DeleteShape {
         node: DocumentNodeId::new("slide[1]/shape[0]"),
     }]);
-    assert_eq!(deck.slides[0].shapes.len(), held - 1);
+    assert_eq!(lines(&deck, 0), ["alpha", "beta"]);
 }
