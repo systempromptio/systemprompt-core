@@ -25,7 +25,7 @@
 use std::sync::Arc;
 
 use axum::body::Body;
-use axum::extract::{DefaultBodyLimit, Multipart, Path, Query, State};
+use axum::extract::{DefaultBodyLimit, Path, Query, State};
 use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post, put};
@@ -39,14 +39,14 @@ use systemprompt_models::ApiPaths;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::auth::TokenAuthority;
 use systemprompt_models::documents::{
-    DriveChanges, DriveCommitMeta, DriveCommitResponse, DriveManifest, DriveProposal,
-    DriveProposals, PresenceBeacon,
+    DriveChanges, DriveManifest, DriveProposal, DriveProposals, PresenceBeacon,
 };
 use systemprompt_oauth_issuance::DriveSyncTokenService;
 
+use super::drive_commit::commit;
 use super::drive_token::device_user;
 use super::error::DocumentsResult;
-use super::headers::{base_revision, hash_etag, none_match, range};
+use super::headers::{hash_etag, none_match, range};
 use crate::services::middleware::JwtContextExtractor;
 
 const DEFAULT_CHANGES: i64 = 500;
@@ -213,65 +213,6 @@ async fn blob(
         out.insert(header::CONTENT_RANGE, value);
     }
     Ok(response)
-}
-
-async fn commit(
-    State(state): State<DriveState>,
-    headers: HeaderMap,
-    form: Multipart,
-) -> DocumentsResult<Response> {
-    let (who, actor) = device_user(&state, &headers).await?;
-    let trace = TraceId::generate();
-    let (mut meta, bytes) = read_commit(form).await?;
-    if let Some(base) = base_revision(&headers)? {
-        if meta
-            .base_revision
-            .as_ref()
-            .is_some_and(|declared| declared != &base)
-        {
-            return Err(ApiError::bad_request(
-                "If-Match and meta.base_revision name different revisions",
-            )
-            .into());
-        }
-        meta.base_revision = Some(base);
-    }
-    let outcome = Box::pin(act_as(
-        actor,
-        state.service.drive_commit(&who, meta, bytes, &trace),
-    ))
-    .await?;
-    let status = match outcome {
-        DriveCommitResponse::Committed { .. } | DriveCommitResponse::Merged { .. } => {
-            StatusCode::OK
-        },
-        DriveCommitResponse::Conflict { .. } => StatusCode::CONFLICT,
-        DriveCommitResponse::Proposed { .. } => StatusCode::CREATED,
-    };
-    Ok((status, Json(outcome)).into_response())
-}
-
-async fn read_commit(mut form: Multipart) -> DocumentsResult<(DriveCommitMeta, Vec<u8>)> {
-    let mut meta = None;
-    let mut blob = None;
-    while let Some(field) = form.next_field().await? {
-        let part = field.name().unwrap_or_default().to_owned();
-        let bytes = field.bytes().await?;
-        match part.as_str() {
-            "meta" => {
-                meta = Some(serde_json::from_slice::<DriveCommitMeta>(&bytes).map_err(
-                    |source| {
-                        ApiError::bad_request("meta is not a drive commit").with_source(source)
-                    },
-                )?);
-            },
-            "blob" => blob = Some(bytes.to_vec()),
-            _ => {},
-        }
-    }
-    let meta = meta.ok_or_else(|| ApiError::bad_request("commit needs a `meta` part"))?;
-    let blob = blob.ok_or_else(|| ApiError::bad_request("commit needs a `blob` part"))?;
-    Ok((meta, blob))
 }
 
 async fn presence(

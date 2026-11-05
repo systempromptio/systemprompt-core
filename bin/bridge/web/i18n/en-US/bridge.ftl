@@ -640,6 +640,7 @@ overall-degraded = synced with failures
 overall-needs-approval = needs administrator approval
 overall-ready = ready
 overall-needs-sign-in = needs sign-in
+drive-deletes-held = { $count } local deletes are held. Run "drive deletes" to apply or restore them.
 drive-status-off = Drive is not set up on this device
 drive-status-synced = Drive is up to date
 drive-status-pending = Drive is syncing

@@ -17,7 +17,6 @@ use ttf_parser::GlyphId;
 use super::compress;
 use super::fonts::Font;
 
-/// A face's subset: the CID each character it draws is shown as.
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub(super) struct Subset {
     cids: BTreeMap<char, u16>,
@@ -74,8 +73,7 @@ pub(super) fn embed(
         .iter()
         .map(|c| (*c, remapper.remap(font.glyph(*c).0)))
         .collect();
-    let file = subset(font.data(), 0, &remapper)
-        .map_err(|error| std::io::Error::other(error.to_string()))?;
+    let file = subset(font.data(), 0, &remapper).map_err(std::io::Error::other)?;
 
     let name = format!("{}+{}", subset_tag(font, &cids), font.postscript_name());
     let base = Name(name.as_bytes());

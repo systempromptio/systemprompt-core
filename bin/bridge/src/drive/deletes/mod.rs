@@ -81,8 +81,6 @@ pub struct DeleteReport {
     pub held: Option<HeldDeletes>,
 }
 
-/// Records which synced files are absent. A file that came back, or an entry
-/// the feed already removed, stops being pending.
 pub fn observe(root: &DriveRoot, state: &mut DriveState, now: DateTime<Utc>) -> bool {
     let before = state.pending_deletes.clone();
     let absent: Vec<String> = state

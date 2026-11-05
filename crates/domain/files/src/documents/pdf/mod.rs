@@ -30,6 +30,7 @@ mod layout_model;
 mod markdown;
 mod rich;
 mod runs;
+mod sheet_rows;
 mod table;
 mod wrap;
 mod writer;
@@ -70,8 +71,6 @@ pub fn render(projection: &Projection, request: &RenderRequest<'_>) -> Result<Ve
     finish(&blocks::blocks_of(projection), &[], request)
 }
 
-/// Renders a rich text model. `media` holds the bytes of the images the
-/// revision itself holds, by reference; any other image shows its alt text.
 pub fn render_rich(
     model: &RichText,
     media: &BTreeMap<String, Vec<u8>>,

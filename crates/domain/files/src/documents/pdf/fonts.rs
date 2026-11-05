@@ -82,7 +82,6 @@ impl Font {
             .as_ref()
     }
 
-    /// The character this face draws for `c`: `c` itself, or U+FFFD.
     #[must_use]
     pub(super) fn drawn(self, c: char) -> char {
         let held = self.face().and_then(|face| face.glyph_index(c)).is_some();
@@ -96,7 +95,6 @@ impl Font {
             .unwrap_or(GlyphId(0))
     }
 
-    /// A glyph's advance in thousandths of the font size.
     #[must_use]
     pub(super) fn glyph_advance(self, glyph: GlyphId) -> f32 {
         self.face().map_or(0.0, |face| {

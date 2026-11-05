@@ -21,8 +21,6 @@ pub(super) fn shape_at(doc: &LoroDoc, id: &str) -> Result<(LoroMovableList, usiz
     Ok((shapes, shape))
 }
 
-// Written per property, as the browser does, so a person moving the shape and
-// an agent resizing it both land.
 pub(super) fn set_frame(
     doc: &LoroDoc,
     id: &str,

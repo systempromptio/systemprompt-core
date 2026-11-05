@@ -24,6 +24,7 @@ use systemprompt_models::api::ApiError;
 use systemprompt_provider_contracts::documents::CodecError;
 use systemprompt_runtime::documents::refusal::{Refused, refusal_of};
 use systemprompt_traits::AuthProviderError;
+use tokio::sync::oneshot::error::RecvError;
 
 use crate::error::ApiHttpError;
 
@@ -66,6 +67,12 @@ impl From<MultipartRejection> for DocumentsHttpError {
 impl From<JsonRejection> for DocumentsHttpError {
     fn from(error: JsonRejection) -> Self {
         Self::from(ApiError::bad_request("invalid request body").with_source(error))
+    }
+}
+
+impl From<RecvError> for DocumentsHttpError {
+    fn from(error: RecvError) -> Self {
+        Self::from(ApiError::internal("the session could not settle", error))
     }
 }
 

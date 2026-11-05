@@ -246,7 +246,6 @@ impl<'a> Package<'a> {
     }
 }
 
-/// A part directly under `prefix` whose name without its extension is `stem`.
 #[must_use]
 pub fn media_part_by_stem(bytes: &[u8], prefix: &str, stem: &str, limit: u64) -> Option<Vec<u8>> {
     let mut archive = open_archive(bytes).ok()?;

@@ -46,6 +46,10 @@ async fn live_image(
 }
 
 #[cfg(not(feature = "collab"))]
+#[expect(
+    clippy::unused_async,
+    reason = "the signature matches the collab build, which awaits"
+)]
 async fn live_image(
     _state: &DocumentsState,
     _who: &Caller,

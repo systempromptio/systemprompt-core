@@ -36,7 +36,6 @@ impl DocumentService {
             .ok_or_else(|| DocumentsError::not_found("image", reference))
     }
 
-    /// The image a revision's bytes hold under `reference`, if any.
     pub(super) async fn image_in_revision(
         &self,
         format: DocumentFormat,
@@ -81,8 +80,6 @@ fn in_package(bytes: &[u8], reference: &str, limit: u64) -> Option<MediaBlob> {
 }
 
 impl DocumentService {
-    /// The bytes of an image a revision's own model names, for drawing it
-    /// into an export of that revision. A reference nothing holds is `None`.
     pub(super) async fn revision_image(
         &self,
         format: DocumentFormat,

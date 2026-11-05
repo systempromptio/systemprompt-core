@@ -77,7 +77,6 @@ fn embed(model: &mut RichText, uris: &BTreeMap<String, String>) {
     }
 }
 
-/// `block <id>: <what>` lines folded to what a reader can act on, each once.
 fn summarise(warnings: Vec<String>) -> Vec<String> {
     let mut seen = Vec::new();
     for warning in warnings {

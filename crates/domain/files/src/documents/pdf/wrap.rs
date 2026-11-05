@@ -109,7 +109,6 @@ pub(super) fn wrap(runs: &[Run], measure: Measure) -> Vec<Line> {
     out.lines
 }
 
-/// Keeps every space and line break, for code and plain text.
 #[must_use]
 pub(super) fn wrap_preformatted(runs: &[Run], measure: Measure) -> Vec<Line> {
     let mut out = Builder {

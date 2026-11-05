@@ -106,8 +106,6 @@ impl DocumentService {
         })
     }
 
-    /// Trashes a document a device removed, unless its head moved past the
-    /// revision the device last synced.
     pub async fn drive_trash(
         &self,
         who: &AuthenticatedUser,
@@ -129,8 +127,6 @@ impl DocumentService {
         Ok(DriveTrashResponse::Trashed)
     }
 
-    /// Gives a document the path a device renamed its file to. Folders are
-    /// never created from a path; an unknown folder is refused.
     pub async fn drive_move(
         &self,
         who: &AuthenticatedUser,

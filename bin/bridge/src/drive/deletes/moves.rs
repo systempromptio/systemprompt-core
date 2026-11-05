@@ -15,8 +15,6 @@ use crate::drive::scan::{LocalChange, local_changes, metadata};
 use crate::drive::state::{DriveEntryState, DriveState};
 use crate::drive::write::move_file;
 
-/// The manifest, read at most once, for entries this device created and so
-/// holds no document id for.
 #[derive(Default)]
 pub(super) struct KnownIds(Option<BTreeMap<String, DocumentId>>);
 

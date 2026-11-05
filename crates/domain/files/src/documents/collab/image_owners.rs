@@ -140,8 +140,6 @@ pub(super) fn author_runs(rows: &[CollabUpdateRow]) -> usize {
         .count()
 }
 
-/// Every image a model places: a rich text's image blocks, a deck's image
-/// shapes. Other models hold none.
 pub(super) fn model_refs(model: &ModelView) -> Vec<String> {
     match model {
         ModelView::RichText(rich) => media_refs(rich),

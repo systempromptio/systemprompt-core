@@ -17,7 +17,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::{ContentHash, TraceId};
+#[cfg(feature = "collab-loro")]
+use systemprompt_identifiers::ContentHash;
+use systemprompt_identifiers::TraceId;
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{DocumentAction, DocumentCollabDegradedEvent, DocumentFormat};
 use systemprompt_provider_contracts::documents::CodecError;
