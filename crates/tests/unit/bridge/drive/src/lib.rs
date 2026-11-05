@@ -6,6 +6,8 @@ mod support;
 #[cfg(test)]
 mod cycle;
 #[cfg(test)]
+mod deletes;
+#[cfg(test)]
 mod enable;
 #[cfg(test)]
 mod notices;

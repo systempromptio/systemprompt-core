@@ -1,5 +1,5 @@
 //! The bridge Drive feed under `/v1/bridge/drive/`: manifest, change feed,
-//! blob download, commit, presence and open proposals.
+//! blob download, commit, trash, move, presence and open proposals.
 //!
 //! Every route but `token` takes only the Drive sync token (audience
 //! `bridge.drive_sync`, see `drive_token`) and answers 401 for anything else,
@@ -15,7 +15,9 @@
 //! and attended from the bridge token's signed claims, on the `drive_sync`
 //! channel, under the document's agent cap; a whole-file commit is a
 //! `replace_content` write the agent access policy must allow, and may allow
-//! for this channel alone.
+//! for this channel alone. A trash is the `trash` capability on the same terms;
+//! its `If-Match` names the revision the device last synced, and a newer head
+//! answers 409 so a delete never discards an edit the device has not seen.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -53,7 +55,7 @@ const DEFAULT_CHANGES: i64 = 500;
 /// the credential decoder and the authority that mints sync tokens.
 #[derive(Clone)]
 pub struct DriveState {
-    service: Arc<DocumentService>,
+    pub(super) service: Arc<DocumentService>,
     jwt: Arc<JwtContextExtractor>,
     drive_sync: DriveSyncTokenService,
 }
@@ -105,6 +107,14 @@ pub fn router(state: DriveState) -> Router {
         .route(
             ApiPaths::gateway_relative(ApiPaths::BRIDGE_DRIVE_COMMIT),
             post(commit),
+        )
+        .route(
+            ApiPaths::gateway_relative(ApiPaths::BRIDGE_DRIVE_TRASH),
+            post(super::drive_local::trash),
+        )
+        .route(
+            ApiPaths::gateway_relative(ApiPaths::BRIDGE_DRIVE_MOVE),
+            post(super::drive_local::move_document),
         )
         .route(
             ApiPaths::gateway_relative(ApiPaths::BRIDGE_DRIVE_PRESENCE),

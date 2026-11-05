@@ -18,6 +18,7 @@ use systemprompt_models::documents::{DocumentPresenceEvent, PresenceSource, Pres
 use tokio::sync::{Notify, watch};
 
 use super::conflict::prune_resolved;
+use super::deletes::{DeleteNotice, HeldDeletes};
 use super::error::DriveResult;
 use super::root::DriveRoot;
 use super::scan::local_changes;
@@ -57,6 +58,8 @@ pub struct DriveStatus {
     pub sent_for_review: Vec<SentForReview>,
     pub shares: Vec<ReceivedShare>,
     pub notices: Vec<QueuedNotice>,
+    pub held_deletes: Option<HeldDeletes>,
+    pub delete_notices: Vec<DeleteNotice>,
     pub last_error: Option<String>,
 }
 
@@ -76,6 +79,8 @@ impl DriveStatus {
             proposals: state.proposals,
             sent_for_review: state.sent_for_review,
             shares: state.shares,
+            held_deletes: state.held_deletes,
+            delete_notices: state.delete_notices,
             editors: Vec::new(),
             notices: Vec::new(),
             last_error: None,

@@ -18,6 +18,7 @@ use systemprompt_identifiers::{
     ContentHash, DocumentId, DocumentProposalId, DocumentRevisionId, UserId,
 };
 
+use super::deletes::{DeleteNotice, HeldChoice, HeldDeletes, PendingDelete};
 use super::error::{DriveError, DriveResult};
 use super::shares::ReceivedShare;
 
@@ -82,6 +83,14 @@ pub struct DriveState {
     pub sent_for_review: Vec<SentForReview>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub shares: Vec<ReceivedShare>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub pending_deletes: BTreeMap<String, PendingDelete>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub held_deletes: Option<HeldDeletes>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub held_choice: Option<HeldChoice>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub delete_notices: Vec<DeleteNotice>,
 }
 
 impl DriveState {

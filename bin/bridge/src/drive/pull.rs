@@ -9,6 +9,9 @@
 //! hashed again just before the downloaded head replaces it, so an edit made
 //! while the blob was downloading is kept beside too.
 //!
+//! A file the user removed is left removed while [`super::deletes`] decides
+//! its fate, so a newer head never brings it back behind the user's back.
+//!
 //! A cursor the gateway answers with `410 Gone` and error key `cursor_reset`
 //! is no longer a feed position: it is dropped, saved as dropped, and the
 //! folder is reconciled against the full manifest in the same pull.
@@ -147,6 +150,9 @@ async fn place_head(
     report: &mut PullReport,
 ) -> DriveResult<()> {
     let path = cycle.root.file(rel)?;
+    if state.pending_deletes.contains_key(rel) && !path.exists() {
+        return Ok(());
+    }
     let known = state.entries.get(rel).cloned();
     if known
         .as_ref()

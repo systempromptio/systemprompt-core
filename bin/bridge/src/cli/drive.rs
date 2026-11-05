@@ -7,7 +7,8 @@
 use std::process::ExitCode;
 
 use crate::context::BridgeContext;
-use crate::drive::{Cycle, DriveClient, DriveError, DriveRoot, DriveStatus};
+use crate::drive::deletes::HeldChoice;
+use crate::drive::{Cycle, DriveClient, DriveError, DriveRoot, DriveState, DriveStatus};
 use crate::stdio::{self, diag};
 
 pub fn cmd_drive(ctx: &BridgeContext, args: &[String]) -> ExitCode {
@@ -19,9 +20,10 @@ pub fn cmd_drive(ctx: &BridgeContext, args: &[String]) -> ExitCode {
         None | Some("status") => print_status(&root),
         Some("conflicts") => print_conflicts(&root),
         Some("sync") => sync(ctx, &root),
+        Some("deletes") => deletes(ctx, &root, args.get(3).map(String::as_str)),
         Some(other) => {
             diag(&format!(
-                "drive: unknown subcommand {other:?}; use status, sync or conflicts"
+                "drive: unknown subcommand {other:?}; use status, sync, conflicts or deletes"
             ));
             ExitCode::from(64)
         },
@@ -102,6 +104,52 @@ fn print_conflicts(root: &DriveRoot) -> ExitCode {
     ExitCode::SUCCESS
 }
 
+fn deletes(ctx: &BridgeContext, root: &DriveRoot, choice: Option<&str>) -> ExitCode {
+    let path = root.state_path();
+    let mut state = match DriveState::load(&path) {
+        Ok(state) => state,
+        Err(error) => {
+            diag(&format!("drive: {error}"));
+            return ExitCode::FAILURE;
+        },
+    };
+    let chosen = match choice {
+        None => {
+            match &state.held_deletes {
+                Some(held) => stdio::print_line(&format!(
+                    "{} local deletes are held ({:?}); run `drive deletes apply` to move them to \
+                     the trash, or `drive deletes restore` to bring the files back",
+                    held.count, held.reason
+                )),
+                None => stdio::print_line("no drive deletes are held"),
+            }
+            for notice in &state.delete_notices {
+                stdio::print_line(&format!(
+                    "{}  restored: {} ({})",
+                    notice.path, notice.reason, notice.at
+                ));
+            }
+            return ExitCode::SUCCESS;
+        },
+        Some("apply") => HeldChoice::Apply,
+        Some("restore") => HeldChoice::Restore,
+        Some(other) => {
+            diag(&format!("drive deletes: use apply or restore, not {other:?}"));
+            return ExitCode::from(64);
+        },
+    };
+    if state.held_deletes.is_none() {
+        stdio::print_line("no drive deletes are held");
+        return ExitCode::SUCCESS;
+    }
+    state.held_choice = Some(chosen);
+    if let Err(error) = state.save(&path) {
+        diag(&format!("drive: {error}"));
+        return ExitCode::FAILURE;
+    }
+    sync(ctx, root)
+}
+
 fn sync(ctx: &BridgeContext, root: &DriveRoot) -> ExitCode {
     match ctx.block_on(sync_once(ctx, root)) {
         Ok(report) => {
@@ -115,6 +163,16 @@ fn sync(ctx: &BridgeContext, root: &DriveRoot) -> ExitCode {
                 report.pull.conflicts.len() + report.upload.conflicts.len(),
                 report.pending_uploads,
             ));
+            stdio::print_line(&format!(
+                "  local deletes: {} trashed, {} moved, {} restored",
+                report.deletes.trashed, report.deletes.moved, report.deletes.restored,
+            ));
+            if let Some(held) = &report.deletes.held {
+                stdio::print_line(&format!(
+                    "  {} local deletes are held ({:?}); see `drive deletes`",
+                    held.count, held.reason
+                ));
+            }
             for sent in &report.upload.sent_for_review {
                 stdio::print_line(&format!(
                     "  {} was sent for review (proposal {}); your local copy is kept",

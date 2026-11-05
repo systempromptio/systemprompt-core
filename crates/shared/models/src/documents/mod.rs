@@ -35,7 +35,7 @@ pub use comment_events::{
 };
 pub use drive::{
     BRIDGE_DEVICE_AUDIENCE, DRIVE_SYNC_AUDIENCE, DriveChange, DriveChangeKind, DriveChanges,
-    DriveCommitMeta, DriveCommitResponse, DriveEntry, DriveManifest, DriveProposal, DriveProposals,
+    DriveCommitMeta, DriveCommitResponse, DriveMoveRequest, DriveTrashRequest, DriveTrashResponse, DriveEntry, DriveManifest, DriveProposal, DriveProposals,
     DriveSyncToken, PresenceBeacon, PresenceSource, PresenceState,
 };
 pub use events::{

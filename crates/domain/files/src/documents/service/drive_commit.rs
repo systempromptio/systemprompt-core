@@ -7,16 +7,17 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::{DocumentFolderId, TraceId};
+use systemprompt_identifiers::{DocumentFolderId, DocumentId, DocumentRevisionId, TraceId};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{
-    ActorKind, DriveCommitMeta, DriveCommitResponse, content_hash,
+    ActorKind, DocumentAction, DriveCommitMeta, DriveCommitResponse, DriveTrashResponse,
+    content_hash,
 };
 
 use super::support::validate_name;
 use super::{
     Author, CommentPolicy, CommitOutcome, CommitRequest, DocumentService, ExternalWrite,
-    ImportRequest,
+    FolderMove, ImportRequest, UpdateRequest,
 };
 use crate::documents::error::DocumentsError;
 use crate::documents::model::Media;
@@ -103,6 +104,54 @@ impl DocumentService {
                 base_revision_id: base,
             },
         })
+    }
+
+    /// Trashes a document a device removed, unless its head moved past the
+    /// revision the device last synced.
+    pub async fn drive_trash(
+        &self,
+        who: &AuthenticatedUser,
+        document_id: &DocumentId,
+        base: &DocumentRevisionId,
+        trace: &TraceId,
+    ) -> Result<DriveTrashResponse, DocumentsError> {
+        let document = self
+            .authorized_document(who, document_id, DocumentAction::Delete, trace)
+            .await?;
+        let head = self.resolve_revision(&document, None).await?;
+        if head.id != *base {
+            return Ok(DriveTrashResponse::Conflict {
+                head_revision_id: head.id,
+                head_content_sha256: head.content_sha256,
+            });
+        }
+        self.trash(who, document_id, trace).await?;
+        Ok(DriveTrashResponse::Trashed)
+    }
+
+    /// Gives a document the path a device renamed its file to. Folders are
+    /// never created from a path; an unknown folder is refused.
+    pub async fn drive_move(
+        &self,
+        who: &AuthenticatedUser,
+        document_id: &DocumentId,
+        path: &str,
+        trace: &TraceId,
+    ) -> Result<(), DocumentsError> {
+        let (folder, name) = self.resolve_drive_path(path).await?;
+        let document = self
+            .authorized_document(who, document_id, DocumentAction::View, trace)
+            .await?;
+        let request = UpdateRequest {
+            name: (document.name != name).then_some(name),
+            folder: if document.folder_id == folder {
+                FolderMove::Keep
+            } else {
+                FolderMove::from_present(folder)
+            },
+        };
+        self.update(who, document_id, request, trace).await?;
+        Ok(())
     }
 
     async fn resolve_drive_path(

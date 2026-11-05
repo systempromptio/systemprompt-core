@@ -59,6 +59,12 @@ export class SpDriveStatus extends SpElement {
     const error = drive.last_error
       ? `<p class="sp-drive-status__error" role="status">${escapeHtml(drive.last_error)}</p>`
       : "";
+    const held = drive.held_delete_count
+      ? `<p class="sp-drive-status__error" role="status">${escapeHtml(t("drive-deletes-held", { count: drive.held_delete_count }) || `${drive.held_delete_count} local deletes are held. Run "drive deletes" to apply or restore them.`)}</p>`
+      : "";
+    const restored = (drive.delete_notices || [])
+      .map((line) => `<li>${escapeHtml(line)}</li>`).join("");
+    const restoredList = restored ? `<ul class="sp-drive-status__conflicts">${restored}</ul>` : "";
     return `
       <div class="sp-drive-status__line" data-state="${escapeHtml(verdict.tone)}">
         <span class="sp-dot ${toneDot(verdict.tone)}" aria-hidden="true"></span>
@@ -68,7 +74,9 @@ export class SpDriveStatus extends SpElement {
       </div>
       ${root}
       ${error}
+      ${held}
       ${list}
+      ${restoredList}
     `;
   }
 }
