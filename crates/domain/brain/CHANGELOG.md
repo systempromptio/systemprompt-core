@@ -1,5 +1,32 @@
 # Changelog
 
+## [0.79.0] - 2026-11-05
+
+### Breaking
+
+- **Breaking:** `BrainRecallStore::with_working_set` and `TierFilter.working_set` are removed. `recall::fusion::TierHits` is replaced by `systemprompt_extension::brain::TierIds`; `fuse` returns `RankedId`s, `fusion::attach` joins the loaded facts and `recall::introduce::{known, extension_hits}` work on id sets. `recall::fusion::sort_ranked` is removed.
+- **Breaking:** `BrainRecallService::builder` takes the `FactLoader` as its second argument instead of `.loader(..)`. `recall::tiers::{by_subject, by_linked}` take `MatchedSubjects`. `recall::budget::fill` takes a `RecallSignal` in place of the `subject_named` bool.
+- **Breaking:** `BudgetLimits`, `SearchPolicy`, `TierFilter` and `NewRecall` gain fields, and `SearchPolicy` is no longer `Copy`.
+
+### Added
+
+- The reranker seam: `BrainRecallService::builder(..).rerankers(..)` and `recall::rerank`, applied after the visibility pass and before the budget fill.
+- Recall rules: context needs a signal, planner stop words, subject tier limit, asked kinds, longest alias, unknown names withholding full text, `search_max_ndoc`, `search_rare_alone_share`, `links_require_readable_anchor` and `full_text_opens_context`.
+- Declared subject bridges (`brain_subject_links`, migration `008_subject_links`, `SubjectLinkRepository`) and a two-hop linked tier. An entity a fact names becomes a subject when its field declares `display`.
+
+### Changed
+
+- Each recall tier drives from its own index and admits a fact through a probe of `brain_working_set` (migration `006_recall_probe`). Subject lookup is served by indexes (migration `007_subject_lookup`).
+- The recall signal is read from the facts the reader can see, and only the subject tier names a subject for it.
+
+### Fixed
+
+- The depth-2 linked walk never returns a fact about the anchor subject.
+
+### Removed
+
+- The legacy tier SQL, and the `brain_facts.search` column and `idx_brain_facts_search` index it read.
+
 ## [0.78.0] - 2026-11-04
 
 ### Breaking

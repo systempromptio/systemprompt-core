@@ -13,7 +13,7 @@ An extension is a Rust type that implements the `Extension` trait and is registe
 ```toml
 # Cargo.toml
 [dependencies]
-systemprompt = { version = "0.78", features = ["core"] }
+systemprompt = { version = "0.79", features = ["core"] }
 inventory = "0.3"
 ```
 
@@ -119,7 +119,7 @@ Schema changes after the initial `CREATE TABLE` are migrations. Migration SQL li
 
    ```toml
    [build-dependencies]
-   systemprompt-extension = "0.78"
+   systemprompt-extension = "0.79"
    ```
 
 2. Add migration files. For example `schema/migrations/001_add_demo_items_label_index.sql`:

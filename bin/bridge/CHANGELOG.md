@@ -1,6 +1,11 @@
 # Changelog
 
-## [Unreleased]
+## [0.79.0] - 2026-11-05
+
+### Added
+
+- **Drive:** local deletes and renames reach the server, which needs a 0.79 gateway. A new file with the same bytes as exactly one absent file is a rename, and the document moves with its history; a refused move puts the file back under its old name. Any other absent file goes to the Drive trash, where it stays restorable, once it has been absent for two cycles and 15 seconds, because editors save by deleting and re-creating. A trash names the synced revision, and a newer head or a refusal restores the file with a notice.
+- **Drive:** a missing or empty folder, or a bulk absence (more than 10 files, or more than 3 that are over half of what is synced), trashes nothing. The deletes are held until the user runs `drive deletes apply` or `drive deletes restore`; `drive deletes` shows what is held and recent restores. `drive status` and `DriveStatusPayload` gain `held_deletes` and `delete_notices`.
 
 ### Fixed
 

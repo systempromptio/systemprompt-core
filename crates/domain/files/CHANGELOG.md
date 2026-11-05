@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.79.0] - 2026-11-05
+
+### Added
+
+- `DocumentService::export_markdown` and `ExportedMarkdown`: the head revision as Markdown, with images embedded up to a limit and `left_out` naming what the file does not hold.
+- `documents::pdf::render_rich`: PDF output from the rich text model, keeping marks, colour, links, styled tables and held PNG and JPEG images, with subset embedded DejaVu fonts (bundled with their licence) and a ToUnicode map for Latin, Greek and Cyrillic. CJK and right-to-left text are out of scope. Adds the `subsetter`, `ttf-parser` and `png` dependencies.
+- Live decks place uploaded pictures, written once to `ppt/media`; a refused image is left out of the checkpoint's slide.
+- `move_shape`, `resize_shape` and `delete_shape`, in a live session and on a stored pptx.
+- `DocumentService::{drive_trash, drive_move}`. A trash answers a conflict when the head has moved past the synced revision.
+- `CollabService::live_image`: a picture placed in a live session, served under the check a checkpoint applies.
+
+### Changed
+
+- xlsx import resolves theme colours and tints to RGB.
+
 ## [0.77.0] - 2026-11-01
 
 ### Breaking

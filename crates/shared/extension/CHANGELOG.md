@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.79.0] - 2026-11-05
+
+### Breaking
+
+- **Breaking:** `brain::RecallBlock` gains `reranked`. Migrate struct literals by adding the field or building through `with_reranked`.
+
+### Added
+
+- `brain::{Reranker, RerankQuery, RerankCandidate, RerankError}`, `register_brain_reranker!` and `discover_brain_rerankers`.
+- `brain::TierIds`, and the defaulted `FactRecallSource::{tier_ids, unknown_terms}`.
+
 ## [0.78.0] - 2026-11-04
 
 ### Breaking
