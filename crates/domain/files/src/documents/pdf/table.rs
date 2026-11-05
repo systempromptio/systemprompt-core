@@ -113,7 +113,7 @@ fn place_row(
         layout.new_page()?;
         if !header {
             for repeated in grid.header {
-                draw_row(layout, repeated, &wrapped(repeated, grid, true), grid, true)?;
+                draw_row(layout, repeated, &wrapped(repeated, grid, true), grid, true);
             }
         }
     }
@@ -122,7 +122,8 @@ fn place_row(
         .into_iter()
         .map(|cell| cell.into_iter().take(tallest.min(fitting)).collect())
         .collect();
-    draw_row(layout, row, &cut, grid, header)
+    draw_row(layout, row, &cut, grid, header);
+    Ok(())
 }
 
 fn draw_row(
@@ -131,7 +132,7 @@ fn draw_row(
     lines: &[Vec<Line>],
     grid: Grid<'_>,
     header: bool,
-) -> Result<(), PageCapExceeded> {
+) {
     let (_, height) = height_of(lines);
     let top = layout.y();
     let bottom = top - height;
@@ -144,7 +145,7 @@ fn draw_row(
         let shade = row
             .get(grid.start + offset)
             .and_then(|cell| cell.shade)
-            .or(header.then_some(HEADER_TINT));
+            .or_else(|| header.then_some(HEADER_TINT));
         if let Some(color) = shade {
             layout.page_mut().fills.push(Fill {
                 rect: Rect {
@@ -167,5 +168,4 @@ fn draw_row(
         .rules
         .push(rule((right, top), (right, bottom)));
     layout.advance(height);
-    Ok(())
 }

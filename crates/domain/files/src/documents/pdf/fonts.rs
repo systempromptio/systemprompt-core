@@ -1,4 +1,4 @@
-//! The bundled DejaVu faces the renderer draws with, their metrics and the
+//! The bundled `DejaVu` faces the renderer draws with, their metrics and the
 //! character each one can show.
 //!
 //! The faces are cut down to Latin, Greek, Cyrillic, punctuation and common

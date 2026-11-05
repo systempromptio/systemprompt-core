@@ -11,7 +11,7 @@ use super::blocks::{BULLET, Block, Cell, Style};
 use super::images::{Picture, decode};
 use super::layout_model::Align;
 use super::runs::{Run, parse_hex, runs_of};
-use crate::documents::model::layout::Align as ModelAlign;
+use crate::documents::model::layout::{Align as ModelAlign, TableProps};
 use crate::documents::model::{Block as ModelBlock, BlockKind, RichText};
 
 #[derive(Debug, Default)]
@@ -31,7 +31,7 @@ const fn align_of(align: Option<ModelAlign>) -> Align {
 #[must_use]
 pub(super) fn lower(model: &RichText, media: &BTreeMap<String, Vec<u8>>) -> Lowered {
     let mut out = Lowered::default();
-    let mut counters = [0_u32; 16];
+    let mut counters = [0u32; 16];
     for block in &model.blocks {
         lower_block(block, model, media, &mut counters, &mut out);
     }
@@ -118,79 +118,100 @@ fn lower_block(
                 align: Align::Left,
             }
         },
-        BlockKind::Table { rows, props } => Block::Table {
-            rows: rows
-                .iter()
-                .enumerate()
-                .map(|(r, row)| {
-                    row.iter()
-                        .enumerate()
-                        .map(|(c, cell)| Cell {
-                            runs: cell_runs(cell),
-                            shade: props
-                                .cells
-                                .get(r)
-                                .and_then(|line| line.get(c))
-                                .and_then(|props| props.shade.as_deref())
-                                .and_then(parse_hex),
-                        })
-                        .collect()
-                })
-                .collect(),
-            header_rows: usize::try_from(props.header_rows).unwrap_or(0),
-        },
+        BlockKind::Table { rows, props } => table_block(rows, props),
         BlockKind::Image {
             blob,
             alt,
+            caption,
             width,
             height,
-            caption,
             ..
         } => {
-            let align = align_of(block.attrs.align);
-            match media.get(blob).and_then(|bytes| decode(bytes)) {
-                Some(picture) => {
-                    out.pictures.push(picture);
-                    out.blocks.push(Block::Image {
-                        picture: out.pictures.len() - 1,
-                        width: width.unwrap_or(0),
-                        height: height.unwrap_or(0),
-                        align,
-                    });
-                },
-                None => out.blocks.push(italic(
-                    if alt.is_empty() {
-                        "[Image]".to_owned()
-                    } else {
-                        format!("[Image: {alt}]")
-                    },
-                    align,
-                )),
-            }
-            if let Some(caption) = caption {
-                out.blocks.push(italic(caption.clone(), align));
-            }
+            let size = (width.unwrap_or(0), height.unwrap_or(0));
+            image_blocks(
+                align_of(block.attrs.align),
+                (blob, alt, caption.as_deref()),
+                size,
+                media,
+                out,
+            );
             return;
         },
         BlockKind::Divider => Block::Divider,
         BlockKind::PageBreak => Block::PageBreak,
         BlockKind::Toc { levels } => {
-            for entry in &model.blocks {
-                if let BlockKind::Heading { level } = entry.kind
-                    && level <= *levels
-                {
-                    out.blocks.push(Block::ListItem {
-                        depth: usize::from(level.saturating_sub(1)),
-                        marker: String::new(),
-                        runs: vec![Run::plain(entry.text.clone())],
-                    });
-                }
-            }
+            toc_blocks(model, *levels, out);
             return;
         },
         BlockKind::SectionBreak { .. } | BlockKind::Raw { .. } => return,
     };
     out.blocks.push(lowered);
+}
+
+fn table_block(rows: &[Vec<RichText>], props: &TableProps) -> Block {
+    Block::Table {
+        rows: rows
+            .iter()
+            .enumerate()
+            .map(|(r, row)| {
+                row.iter()
+                    .enumerate()
+                    .map(|(c, cell)| Cell {
+                        runs: cell_runs(cell),
+                        shade: props
+                            .cells
+                            .get(r)
+                            .and_then(|line| line.get(c))
+                            .and_then(|props| props.shade.as_deref())
+                            .and_then(parse_hex),
+                    })
+                    .collect()
+            })
+            .collect(),
+        header_rows: usize::try_from(props.header_rows).unwrap_or(0),
+    }
+}
+
+fn image_blocks(
+    align: Align,
+    (blob, alt, caption): (&str, &str, Option<&str>),
+    (width, height): (u32, u32),
+    media: &BTreeMap<String, Vec<u8>>,
+    out: &mut Lowered,
+) {
+    if let Some(picture) = media.get(blob).and_then(|bytes| decode(bytes)) {
+        out.pictures.push(picture);
+        out.blocks.push(Block::Image {
+            picture: out.pictures.len() - 1,
+            width,
+            height,
+            align,
+        });
+    } else {
+        let label = if alt.is_empty() {
+            "[Image]".to_owned()
+        } else {
+            format!("[Image: {alt}]")
+        };
+        out.blocks.push(italic(label, align));
+    }
+    if let Some(caption) = caption {
+        out.blocks.push(italic(caption.to_owned(), align));
+    }
+}
+
+fn toc_blocks(model: &RichText, levels: u8, out: &mut Lowered) {
+    for entry in &model.blocks {
+        if let BlockKind::Heading { level } = entry.kind
+            && level <= levels
+        {
+            out.blocks.push(Block::ListItem {
+                depth: usize::from(level.saturating_sub(1)),
+                marker: String::new(),
+                runs: vec![Run::plain(entry.text.clone())],
+            });
+        }
+    }
 }
 
 fn cell_runs(cell: &RichText) -> Vec<Run> {

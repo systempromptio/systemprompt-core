@@ -78,7 +78,7 @@ fn png_picture(bytes: &[u8]) -> Option<Picture> {
     })
 }
 
-fn is_frame_header(marker: u8) -> bool {
+const fn is_frame_header(marker: u8) -> bool {
     matches!(marker, 0xc0..=0xcf) && !matches!(marker, 0xc4 | 0xc8 | 0xcc)
 }
 

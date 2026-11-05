@@ -1,5 +1,5 @@
 //! Writes one used face as a subset Type 0 font: the glyphs its text needs,
-//! their widths and a ToUnicode map, so the text can be selected and copied.
+//! their widths and a `ToUnicode` map, so the text can be selected and copied.
 //! Glyph order and the subset tag follow from the text alone, so the same
 //! text writes the same bytes.
 //!
@@ -7,7 +7,6 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::fmt::Write as _;
 
 use pdf_writer::types::{CidFontType, FontFlags, SystemInfo, UnicodeCmap};
 use pdf_writer::{Filter, Finish, Name, Pdf, Rect, Ref, Str};
@@ -78,8 +77,7 @@ pub(super) fn embed(
     let file = subset(font.data(), 0, &remapper)
         .map_err(|error| std::io::Error::other(error.to_string()))?;
 
-    let mut name = subset_tag(font, &cids);
-    let _ = write!(name, "+{}", font.postscript_name());
+    let name = format!("{}+{}", subset_tag(font, &cids), font.postscript_name());
     let base = Name(name.as_bytes());
     let info = SystemInfo {
         registry: Str(b"Adobe"),
@@ -157,7 +155,7 @@ fn write_descriptor(pdf: &mut Pdf, font: Font, base: Name<'_>, refs: FontRefs) {
         .descent(scaled(font, face.descender()))
         .cap_height(scaled(
             font,
-            face.capital_height().unwrap_or(face.ascender()),
+            face.capital_height().unwrap_or_else(|| face.ascender()),
         ))
         .stem_v(stem)
         .font_file2(refs.file);

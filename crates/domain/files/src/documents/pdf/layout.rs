@@ -211,7 +211,7 @@ impl<'a> Layout<'a> {
         };
         let measure = Measure {
             size,
-            width: CONTENT_WIDTH - inset * 2.0,
+            width: inset.mul_add(-2.0, CONTENT_WIDTH),
             force_bold: false,
         };
         let lines = if matches!(style, Style::Code | Style::Lines) {
@@ -372,7 +372,7 @@ impl<'a> Layout<'a> {
                 page.fills.push(Fill {
                     rect: Rect {
                         x: at,
-                        y: baseline - size * 0.25,
+                        y: size.mul_add(-0.25, baseline),
                         w: width,
                         h: size * 1.2,
                     },
@@ -399,7 +399,7 @@ impl<'a> Layout<'a> {
                 page.links.push(LinkArea {
                     rect: Rect {
                         x: at,
-                        y: baseline - size * 0.25,
+                        y: size.mul_add(-0.25, baseline),
                         w: width,
                         h: size * 1.2,
                     },
@@ -422,7 +422,7 @@ impl<'a> Layout<'a> {
 fn fitted(px_w: u32, px_h: u32) -> (f32, f32) {
     let as_points = |px: u32| f32::from(u16::try_from(px).unwrap_or(u16::MAX)) * PX_TO_PT;
     let (w, h) = (as_points(px_w).max(1.0), as_points(px_h).max(1.0));
-    let room_h = PAGE_HEIGHT - 2.0 * MARGIN;
+    let room_h = 2.0f32.mul_add(-MARGIN, PAGE_HEIGHT);
     let scale = (CONTENT_WIDTH / w).min(room_h / h).min(1.0);
     (w * scale, h * scale)
 }

@@ -10,9 +10,10 @@
 //! the document name, the subject names the revision, and the creation date is
 //! the revision's, so the same revision renders to the same bytes.
 //!
-//! Text is drawn in subset embedded DejaVu faces with a ToUnicode map, covering
-//! Latin, Greek and Cyrillic. There is no shaping: right-to-left and CJK text
-//! is out of scope, and a character outside the faces is drawn as U+FFFD.
+//! Text is drawn in subset embedded `DejaVu` faces with a `ToUnicode` map,
+//! covering Latin, Greek and Cyrillic. There is no shaping: right-to-left and
+//! CJK text is out of scope, and a character outside the faces is drawn as
+//! U+FFFD.
 //!
 //! The page count is capped by [`RenderRequest::max_pages`]; layout stops
 //! at the cap and reports [`PdfError::PageCap`].

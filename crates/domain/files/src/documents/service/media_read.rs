@@ -95,7 +95,7 @@ impl DocumentService {
                 return Some(blob.bytes);
             }
         } else if let Some(prefix) =
-            media_folder(format).or((format == DocumentFormat::Odt).then_some("Pictures/"))
+            media_folder(format).or_else(|| (format == DocumentFormat::Odt).then_some("Pictures/"))
             && let Some(content) = media_part(bytes, prefix, reference, limit)
         {
             return Some(content);

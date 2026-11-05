@@ -55,7 +55,7 @@ pub(super) fn parse_hex(value: &str) -> Option<Rgb> {
 }
 
 fn highlight_of(value: &str) -> Rgb {
-    parse_hex(value).unwrap_or(match value.to_ascii_lowercase().as_str() {
+    parse_hex(value).unwrap_or_else(|| match value.to_ascii_lowercase().as_str() {
         "green" => [0xb7, 0xe8, 0xb0],
         "cyan" => [0xb0, 0xe8, 0xf0],
         "magenta" => [0xf0, 0xc0, 0xf0],

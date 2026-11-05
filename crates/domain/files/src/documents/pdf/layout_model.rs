@@ -76,7 +76,7 @@ pub(super) struct Page {
 
 impl Page {
     #[must_use]
-    pub(super) fn is_blank(&self) -> bool {
+    pub(super) const fn is_blank(&self) -> bool {
         self.texts.is_empty() && self.pictures.is_empty() && self.rules.is_empty()
     }
 }

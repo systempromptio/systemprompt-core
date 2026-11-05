@@ -33,7 +33,7 @@ pub(super) struct Metadata<'a> {
 struct Refs(i32);
 
 impl Refs {
-    fn next(&mut self) -> Ref {
+    const fn next(&mut self) -> Ref {
         self.0 += 1;
         Ref::new(self.0)
     }
@@ -49,12 +49,7 @@ fn used_chars(pages: &[Page]) -> BTreeMap<Font, BTreeSet<char>> {
     used
 }
 
-fn write_picture(
-    pdf: &mut Pdf,
-    picture: &Picture,
-    id: Ref,
-    mask: Option<Ref>,
-) -> Result<(), std::io::Error> {
+fn write_picture(pdf: &mut Pdf, picture: &Picture, id: Ref, mask: Option<Ref>) {
     let width = i32::try_from(picture.width).unwrap_or(i32::MAX);
     let height = i32::try_from(picture.height).unwrap_or(i32::MAX);
     if let (Some(alpha), Some(mask)) = (&picture.alpha, mask) {
@@ -81,7 +76,6 @@ fn write_picture(
         image.s_mask(mask);
     }
     image.finish();
-    Ok(())
 }
 
 fn picture_name(index: usize) -> String {
@@ -122,7 +116,7 @@ pub(super) fn write(
     for picture in pictures {
         let id = refs.next();
         let mask = picture.alpha.as_ref().map(|_| refs.next());
-        write_picture(&mut pdf, picture, id, mask)?;
+        write_picture(&mut pdf, picture, id, mask);
         picture_refs.push(id);
     }
 
