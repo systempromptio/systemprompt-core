@@ -59,6 +59,7 @@ mod error;
 mod follow;
 mod image_owners;
 mod lease;
+mod live_image;
 mod live_media;
 pub mod model;
 pub(crate) mod ops;

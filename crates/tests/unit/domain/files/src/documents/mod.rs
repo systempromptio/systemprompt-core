@@ -74,6 +74,7 @@ mod pptx_deck_lower;
 mod pptx_deck_model;
 mod pptx_deck_pairs;
 mod pptx_deck_shapes;
+mod pptx_stored_shape_ops;
 mod pptx_deck_structure;
 mod pptx_fixture;
 mod pptx_runs_marks;

@@ -31,34 +31,46 @@ impl DocumentService {
             .await?;
         let head = self.resolve_revision(&document, None).await?;
         let bytes = self.revision_bytes(&head).await?;
+        self.image_in_revision(document.format, &bytes, reference)
+            .await?
+            .ok_or_else(|| DocumentsError::not_found("image", reference))
+    }
+
+    /// The image a revision's bytes hold under `reference`, if any.
+    pub(super) async fn image_in_revision(
+        &self,
+        format: DocumentFormat,
+        bytes: &[u8],
+        reference: &str,
+    ) -> Result<Option<MediaBlob>, DocumentsError> {
         let limit = self.config.max_upload_bytes;
-        let missing = || DocumentsError::not_found("image", reference);
-        if document.format == DocumentFormat::Docx {
-            return in_package(&bytes, reference, limit).ok_or_else(missing);
+        if format == DocumentFormat::Docx {
+            return Ok(in_package(bytes, reference, limit));
         }
-        if let Some(prefix) = media_folder(document.format) {
-            let content = media_part(&bytes, prefix, reference, limit)
-                .or_else(|| media_part_by_stem(&bytes, prefix, reference, limit))
-                .ok_or_else(missing)?;
-            let mime = sniff(&content).ok_or_else(missing)?;
-            return Ok(MediaBlob {
-                bytes: content,
-                mime: mime.to_owned(),
+        if let Some(prefix) = media_folder(format) {
+            let part = media_part(bytes, prefix, reference, limit)
+                .or_else(|| media_part_by_stem(bytes, prefix, reference, limit));
+            let found = part.and_then(|content| {
+                let mime = sniff(&content)?.to_owned();
+                Some(MediaBlob {
+                    bytes: content,
+                    mime,
+                })
             });
+            return Ok(found);
         }
         let wanted = [reference.to_owned()];
-        if !held_media_refs(document.format, &bytes, &wanted, limit).contains(&wanted[0]) {
-            return Err(missing());
+        if !held_media_refs(format, bytes, &wanted, limit).contains(&wanted[0]) {
+            return Ok(None);
         }
         let Ok(hash) = ContentHash::try_new(reference) else {
-            return Err(missing());
+            return Ok(None);
         };
         let content = self.media_bytes(&hash).await?;
-        let mime = sniff(&content).ok_or_else(missing)?;
-        Ok(MediaBlob {
-            bytes: content,
+        Ok(sniff(&content).map(|mime| MediaBlob {
             mime: mime.to_owned(),
-        })
+            bytes: content,
+        }))
     }
 }
 
