@@ -1,6 +1,6 @@
 import { escapeHtml } from "/assets/js/utils/escape.js";
 import { t, brandArgs } from "/assets/js/i18n.js";
-import { statusOf, badgeSuffix, isSetUp, APP_NOT_INSTALLED, appInstallState } from "/assets/js/utils/verdict.js";
+import { statusOf, verdictOf, badgeSuffix, isSetUp, APP_NOT_INSTALLED, appInstallState } from "/assets/js/utils/verdict.js";
 import { hostLogoMarkup } from "/assets/js/components/sp-agent-row.js";
 import {
   agentDrawerRow, agentDrawerDetailText, agentDrawerSection, agentHostName, agentDrawerWorkingLabel,
@@ -77,6 +77,14 @@ function goneView() {
   };
 }
 
+// The underlying error behind a calm reason line stays one click away.
+function reasonDetail(host) {
+  const reason = verdictOf(host).reason;
+  const detail = reason && (reason.detail || reason.keys || reason.missing);
+  if (!detail) { return ""; }
+  return `<details class="sp-status__prefs"><summary>${escapeHtml(t("toast-error-details") || "Details")}</summary><div class="sp-status__detail sp-u-mono">${escapeHtml(String(detail))}</div></details>`;
+}
+
 export function renderAgentDrawerDetail(drawer) {
   const host = drawer._host();
   if (!host) { return goneView(); }
@@ -96,6 +104,7 @@ export function renderAgentDrawerDetail(drawer) {
     `,
     content: `
       <p class="sp-drawer__lede">${escapeHtml(status.reason)}</p>
+      ${reasonDetail(host)}
       ${actionButtons(drawer, host, status)}
       ${warnings(drawer, host, status)}
       ${hs || host.can_verify !== false ? renderAgentDrawerHealth(hs) : ""}

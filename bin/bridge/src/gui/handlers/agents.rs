@@ -4,36 +4,66 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::path::Path;
+use std::sync::Arc;
 
 use serde_json::json;
 use systemprompt_models::bridge::host::HostKind;
 
-use crate::gui::events::ReplyId;
+use crate::gui::error::GuiError;
+use crate::gui::events::{ReplyId, UiEvent};
+use crate::gui::hosts::events::HostUiEvent;
 use crate::gui::hosts::handlers::finish;
 use crate::gui::{GuiApp, emit, window};
 use crate::integration::host_app::ProfileRemoval;
 use crate::wire::ipc::{BridgeError, ErrorCode, ErrorScope};
 
+// Why: the removal waits on the administrator prompt, which must not hold the
+// event loop.
 fn remove_disabled_desktop_policy(app: &GuiApp, reply_to: ReplyId) {
+    let ctx = Arc::clone(&app.ctx);
+    let proxy = app.proxy.clone();
+    app.ctx.spawn(async move {
+        let result =
+            tokio::task::spawn_blocking(move || crate::install::remove_managed_profile(&ctx))
+                .await
+                .map(Arc::new)
+                .map_err(|e| Arc::new(GuiError::Io(std::io::Error::other(e))));
+        proxy.send_event(UiEvent::Host(HostUiEvent::PolicyRemovalFinished {
+            result,
+            reply_to,
+        }));
+    });
+}
+
+pub(crate) fn on_policy_removal_finished(
+    app: &GuiApp,
+    result: &Result<Arc<crate::install::ManagedProfileOutcome>, Arc<GuiError>>,
+    reply_to: ReplyId,
+) {
     use crate::install::ManagedProfileOutcome;
 
-    let result = match crate::install::remove_managed_profile(&app.ctx) {
-        ManagedProfileOutcome::RemoveFailed(e) => {
-            app.append_log_error(format!("[claude-desktop] policy removal failed: {e}"));
+    let failure = match result.as_ref().map(Arc::as_ref) {
+        Ok(ManagedProfileOutcome::RemoveFailed(e)) => Some(e.to_string()),
+        Ok(_) => None,
+        Err(e) => Some(e.to_string()),
+    };
+    let reply = failure.map_or_else(
+        || {
+            app.append_log("[claude-desktop] policy removed");
+            app.proxy
+                .send_event(UiEvent::SyncRequested { reply_to: None });
+            Ok(json!({ "removed": true }))
+        },
+        |cause| {
+            app.append_log_error(format!("[claude-desktop] policy removal failed: {cause}"));
             Err(BridgeError::new(
                 ErrorScope::Host,
                 ErrorCode::Internal,
                 "could not remove the Claude Desktop policy",
             ))
         },
-        _ => {
-            app.append_log("[claude-desktop] policy removed");
-            app.proxy
-                .send_event(crate::gui::events::UiEvent::SyncRequested { reply_to: None });
-            Ok(json!({ "removed": true }))
-        },
-    };
-    finish(app, result, reply_to);
+    );
+    finish(app, reply, reply_to);
 }
 
 pub(crate) fn on_uninstall(app: &GuiApp, host_id: HostKind, reply_to: ReplyId) {
@@ -90,13 +120,12 @@ pub(crate) fn on_uninstall(app: &GuiApp, host_id: HostKind, reply_to: ReplyId) {
         },
     };
     if result.is_ok() {
-        app.proxy.send_event(crate::gui::events::UiEvent::Host(
-            crate::gui::hosts::events::HostUiEvent::ProbeRequested {
+        app.proxy
+            .send_event(UiEvent::Host(HostUiEvent::ProbeRequested {
                 host_id,
                 cause: crate::gui::hosts::events::ProbeCause::Manual,
                 reply_to: None,
-            },
-        ));
+            }));
     }
     finish(app, result, reply_to);
 }

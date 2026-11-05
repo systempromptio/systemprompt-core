@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod app_lookup;
 pub mod reg_profile;
 mod shared;
 
@@ -18,6 +19,11 @@ use macos as os;
 #[cfg(target_os = "windows")]
 use windows as os;
 
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+use app_lookup::claude_app_candidates;
+pub use app_lookup::is_app_installed;
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+pub use app_lookup::proxy_url_from_keys;
 pub use shared::{PlistValueTexts, ProfileGenInputs, default_models, plist_value_texts};
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
@@ -35,14 +41,11 @@ pub(crate) const fn policy_api_key_fingerprint() -> Option<String> {
 #[must_use]
 pub fn installed_secret_fingerprint() -> Option<String> {
     let path = crate::proxy::secret::secret_path()?;
-    crate::proxy::secret::load(&path)
-        .ok()
-        .flatten()
-        .map(|s| {
-            crate::proxy::scoped_token::desktop_policy_fingerprint(
-                &crate::ids::LoopbackSecret::new(s.as_str()),
-            )
-        })
+    crate::proxy::secret::load(&path).ok().flatten().map(|s| {
+        crate::proxy::scoped_token::desktop_policy_fingerprint(&crate::ids::LoopbackSecret::new(
+            s.as_str(),
+        ))
+    })
 }
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
@@ -101,8 +104,6 @@ pub(crate) fn policy_summary() -> Vec<String> {
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 use systemprompt_models::bridge::host::HostKind;
 
-/// How the installed managed policy reads against `inputs`, by the probe's
-/// own rule.
 #[cfg(target_os = "macos")]
 pub(crate) fn managed_profile_state(
     inputs: &ProfileGenInputs,
@@ -113,14 +114,12 @@ pub(crate) fn managed_profile_state(
         shared::DESKTOP_DOMAIN,
         &shared::keys_to_read(desired.as_ref().ok()),
     );
-    Ok(ProfileState::classify(
-        &ProfileProbe {
-            present: &read.keys,
-            observed: &read.observed,
-            read_error: read.probe_error.as_deref(),
-            desired: &desired,
-        },
-    ))
+    Ok(ProfileState::classify(&ProfileProbe {
+        present: &read.keys,
+        observed: &read.observed,
+        read_error: read.probe_error.as_deref(),
+        desired: &desired,
+    }))
 }
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
@@ -287,40 +286,4 @@ const fn locator(
         msix_family: Some(MSIX_FAMILY),
         msix_app_id: MSIX_APP_ID,
     }
-}
-
-#[cfg(any(target_os = "macos", target_os = "windows"))]
-fn claude_app_candidates() -> Vec<std::path::PathBuf> {
-    let mut out = Vec::new();
-    if let Some(local) = std::env::var_os("LOCALAPPDATA") {
-        let local = std::path::PathBuf::from(local);
-        out.push(
-            local
-                .join("Microsoft")
-                .join("WindowsApps")
-                .join("Claude.exe"),
-        );
-        out.push(local.join("AnthropicClaude").join("Claude.exe"));
-    }
-    out
-}
-
-#[must_use]
-#[cfg(any(target_os = "macos", target_os = "windows"))]
-pub fn is_app_installed(start_menu: &crate::probe_cache::StartMenuCache) -> bool {
-    CLAUDE_DESKTOP_HOST.app_installed(start_menu).is_installed()
-}
-
-#[must_use]
-#[cfg(not(any(target_os = "macos", target_os = "windows")))]
-pub const fn is_app_installed(_start_menu: &crate::probe_cache::StartMenuCache) -> bool {
-    false
-}
-
-#[cfg(any(target_os = "macos", target_os = "windows"))]
-pub fn proxy_url_from_keys(snap: &HostAppSnapshot) -> Option<&str> {
-    snap.profile_keys
-        .get("inferenceGatewayBaseUrl")
-        .map(String::as_str)
-        .filter(|s| !s.is_empty())
 }

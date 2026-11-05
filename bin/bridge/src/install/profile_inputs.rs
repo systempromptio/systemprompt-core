@@ -163,7 +163,6 @@ impl ProfileFacts {
             for (model, limit) in &self.desktop_elsewhere.limits {
                 model_limits.entry(model.clone()).or_insert(*limit);
             }
-            // A sorted list reads the same from whichever profile is active.
             if !self.desktop_elsewhere.models.is_empty() {
                 models.sort();
             }

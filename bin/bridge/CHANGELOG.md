@@ -4,6 +4,8 @@
 
 ### Fixed
 
+- **Claude Desktop:** a switched-off host whose policy removal is waiting on an administrator is now listed on the Agents tab, so its Remove (administrator) action is reachable; the removal runs off the window thread while the prompt is open.
+- **GUI:** warnings and errors are quieter and written plainly. Conditions that retry on their own (an unreachable gateway, an MCP server awaiting sign-in, an automatic update check) are logged and shown on their pane instead of raising a desktop notification or a repeating toast; a failed background sync shows once as an Agents banner, the Agents list no longer repeats a row's problem in a banner, and raw error text moves behind Details. Sync outcomes and CLI output are unchanged.
 - **Claude Desktop:** the machine policy's `inferenceModels` carried every family from every cached gateway profile, while the probe expected the active gateway's Claude models, so the profile read as stale after any sync and a non-Claude id could reach Desktop. Both now use one list: the active gateway's models plus the Claude models of other profiles.
 - **macOS:** sync no longer raises the administrator prompt, whether refreshing or clearing the managed preferences. It judges them by the probe's rule and leaves an out-of-date profile to the Update action.
 - A disabled host whose policy only an administrator can remove, and a connector change waiting on Update on macOS, each show one line on the agent row with the action that resolves it.

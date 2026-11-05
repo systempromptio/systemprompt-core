@@ -14,6 +14,8 @@ use crate::gui::{GuiApp, emit};
 use crate::wire::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
 use crate::{i18n, sync};
 
+use super::warnings::{log_host_warnings, summary_warnings};
+
 struct SyncOutcome {
     // JSON: the IPC reply payload the GUI forwards verbatim to the waiting caller.
     reply: Result<serde_json::Value, BridgeError>,
@@ -65,9 +67,7 @@ fn report_success(app: &GuiApp, summary: sync::SyncSummary) -> SyncOutcome {
     let line = summary.one_line();
     tracing::info!(summary = %line, "sync completed");
     app.append_log(&line);
-    for warning in &summary.host_warnings {
-        app.append_log_warn(format!("[{}] {}", warning.host_id, warning.message));
-    }
+    log_host_warnings(app, summary_warnings(&summary));
     emit::emit_sync_progress(app, "completed", Some(&line));
     SyncOutcome {
         reply: Ok(json!({ "summary": line })),
@@ -113,7 +113,12 @@ const fn stopped(reply: serde_json::Value, cancelled: bool) -> SyncOutcome {
 fn report_elevation_only(app: &GuiApp, summary: &sync::SyncSummary) -> SyncOutcome {
     for failure in &summary.host_failures {
         tracing::warn!(host = %failure.host_id, error = %failure.error, "host needs an administrator to update");
-        app.append_log_warn(format!("[{}] {}", failure.host_id, failure.error));
+        if app.ctx.warn_once.changed(
+            &format!("sync.elevation.{}", failure.host_id),
+            &failure.error,
+        ) {
+            app.append_log_warn(format!("[{}] {}", failure.host_id, failure.error));
+        }
     }
     report_success(app, summary.clone())
 }
@@ -251,7 +256,7 @@ fn finish_value(app: &GuiApp, result: Result<serde_json::Value, BridgeError>, re
     emit::send_reply_payload(app, id, &payload);
 }
 
-// Why: every other host applied, so the toast names the agents that did not
+// Why: every other host applied, so the banner names the agents that did not
 // and offers the repair the failure calls for instead of the whole error
 // chain; an elevation-required failure is one gesture (UAC) away from fixed.
 fn partial_failure(
@@ -266,9 +271,7 @@ fn partial_failure(
     for failure in &failures {
         app.append_log_warn(format!("did not update — {failure}"));
     }
-    for warning in &summary.host_warnings {
-        app.append_log_warn(format!("[{}] {}", warning.host_id, warning.message));
-    }
+    log_host_warnings(app, summary_warnings(summary));
     let needs_elevation = summary.host_failures.iter().any(|f| f.needs_elevation);
     let hosts = summary
         .host_failures

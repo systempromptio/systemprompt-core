@@ -25,7 +25,7 @@ test("a host failure that needs elevation offers the administrator repair", () =
   }));
   const row = rows.find((r) => r.label === "claude-desktop");
   assert.ok(row, "the failing host is a row");
-  assert.equal(row.tone, "err");
+  assert.equal(row.tone, "warn");
   assert.equal(rows.indexOf(row), 0, "failures sort first");
   assert.ok(row.action, "a host failure carries its repair");
   assert.equal(row.action.kind, "repair");

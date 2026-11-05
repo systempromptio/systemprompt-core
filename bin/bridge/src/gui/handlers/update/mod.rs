@@ -87,16 +87,18 @@ pub(crate) fn on_update_check_finished(
             let message = format!("{e:#}");
             tracing::warn!(error = %message, automatic, "update check failed");
             app.append_log(format!("update check failed: {message}"));
-            app.state.set_update_state(UpdateUiState::Failed {
-                message: message.clone(),
-            });
+            // Why: the next scheduled check retries an automatic one unprompted.
+            if !automatic {
+                app.state
+                    .set_update_state(UpdateUiState::Failed { message });
+            }
             if manual {
                 crate::gui::window::notify_user(
                     &format!(
-                        "{} could not check for updates",
+                        "{} couldn't check for updates",
                         crate::brand::brand().app_name
                     ),
-                    &message,
+                    "Check your connection and try again from the tray menu.",
                 );
             }
         },

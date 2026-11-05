@@ -17,8 +17,8 @@ export class SpApprovalBanner extends SpElement {
         await bridge.elevationApprove();
         await repairHost(HOST_ID.claudeDesktop);
       },
-      success: t("toast-approval-applied") || "Claude Desktop's policy is up to date.",
-      context: t("approval-banner-title") || "Claude Desktop needs one administrator approval",
+      success: t("toast-approval-applied") || "Claude Desktop is up to date.",
+      context: t("approval-banner-title") || "Claude Desktop has an update waiting for administrator approval",
     }));
   }
 
@@ -31,11 +31,11 @@ export class SpApprovalBanner extends SpElement {
     if (snap.stale_bridge_policy) return renderStale();
     if (!snap.admin_approval_pending && !snap.admin_approval_declined) return "";
     const detail = snap.admin_approval_declined
-      ? (t("approval-banner-declined") || "The last approval was declined; nothing changed.")
-      : (t("approval-banner-pending") || "Pending changes to the machine policy are applied together.");
+      ? (t("approval-banner-declined") || "The last approval was declined, so nothing changed.")
+      : (t("approval-banner-pending") || "It keeps working on its current settings. One approval applies everything waiting.");
     return `
       <div class="sp-settings__banner" role="status">
-        <strong data-l10n-id="approval-banner-title">Claude Desktop needs one administrator approval</strong>
+        <strong data-l10n-id="approval-banner-title">Claude Desktop has an update waiting for administrator approval</strong>
         <span>${escapeHtml(detail)}</span>
         ${pendingChanges(snap)}
         <button class="sp-btn" type="button" data-action="approve-machine-policy"
@@ -49,8 +49,8 @@ export class SpApprovalBanner extends SpElement {
 function renderStale() {
   return `
       <div class="sp-settings__banner" role="status">
-        <strong data-l10n-id="approval-banner-stale-title">Claude Desktop runs on a previous bridge install's policy</strong>
-        <span data-l10n-id="approval-banner-stale-detail">Disable and gateway switches cannot release it until it is replaced. Replacing it needs one administrator approval.</span>
+        <strong data-l10n-id="approval-banner-stale-title">Claude Desktop is using settings from an earlier install</strong>
+        <span data-l10n-id="approval-banner-stale-detail">Turning it off or switching gateways will not take effect until these are replaced. Replacing them needs one administrator approval.</span>
         <button class="sp-btn" type="button" data-action="approve-machine-policy"
           data-l10n-id="approval-banner-stale-action">Replace</button>
       </div>`;
@@ -64,8 +64,8 @@ function pendingChanges(snap) {
   if (!hosts.length) return "";
   const rows = hosts.map((h) => `<li>${escapeHtml(h.name)}: <span class="sp-u-mono">${
     h.keys.map(escapeHtml).join(", ")}</span></li>`).join("");
-  return `<ul class="sp-settings__changes" aria-label="${escapeHtml(
-    t("approval-banner-changes") || "Changes to apply")}">${rows}</ul>`;
+  return `<details><summary>${escapeHtml(
+    t("approval-banner-changes") || "Changes to apply")}</summary><ul class="sp-settings__changes">${rows}</ul></details>`;
 }
 
 reactive(SpApprovalBanner.prototype, ["snapshot"]);

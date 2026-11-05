@@ -98,7 +98,7 @@ export function healthRows(snapshot) {
   const sync = (snapshot && snapshot.last_sync_report) || {};
   for (const f of sync.host_failures || []) {
     rows.push({
-      tone: "err",
+      tone: f.needs_elevation === true ? "warn" : "err",
       label: f.host_id,
       value: firstLine(f.error),
       action: repairAction(f.host_id, f.needs_elevation === true),

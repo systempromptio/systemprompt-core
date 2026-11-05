@@ -8,8 +8,6 @@ use super::super::MdmError;
 use super::super::macos::{MANAGED_PREFS_PATH, PAYLOAD_IDENTIFIER};
 use super::{unprivileged_inventory_is_clean, user_prefs_path};
 
-/// Whether clearing would need the administrator prompt: a plist the bridge
-/// wrote or its configuration profile is still in place.
 pub(crate) fn clear_needs_admin(ours: Option<&str>) -> Result<bool, MdmError> {
     use super::super::clear_plan::plan_clear;
 

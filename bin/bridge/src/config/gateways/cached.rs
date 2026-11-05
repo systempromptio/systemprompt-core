@@ -130,10 +130,8 @@ pub struct ServedModels {
     pub gateway: Option<ValidatedUrl>,
     #[serde(default)]
     pub models: Vec<String>,
-    /// The subset Claude Desktop may list; `models` carries every family.
     #[serde(default)]
     pub desktop_models: Vec<String>,
-    /// Those models' limits: Desktop's list is rendered from them.
     #[serde(default)]
     pub desktop_limits: BTreeMap<ModelId, AdvertisedLimits>,
 }
@@ -173,8 +171,6 @@ pub fn served_models_by_profile() -> Result<Vec<(GatewayProfileId, Vec<String>)>
     Ok(out)
 }
 
-/// The models Claude Desktop may list from every gateway profile but the
-/// active one, whose list comes from its live bridge profile instead.
 pub fn desktop_models_elsewhere() -> Result<DesktopModelsElsewhere, ProfileError> {
     let active = active()?;
     let mut out = DesktopModelsElsewhere::default();

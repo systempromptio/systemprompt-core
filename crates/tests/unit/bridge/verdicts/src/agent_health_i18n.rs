@@ -9,7 +9,7 @@
 
 use serde::Serialize;
 use systemprompt_bridge::integration::agent_health::{
-    AgentAction, AgentReason, AgentState, FleetHeadline,
+    AgentAction, AgentReason, AgentState, AgentVerdict, FleetHeadline,
 };
 use systemprompt_bridge::integration::host_app::StaleReason;
 use systemprompt_bridge::proxy_probe::ProxyProbeState;
@@ -139,7 +139,7 @@ fn every_fleet_headline_has_copy() {
 // The stale message names the drifted keys; a selector arm that drops
 // `$keys` would hide which settings are behind.
 #[test]
-fn every_stale_cause_names_its_keys() {
+fn every_stale_cause_keeps_key_names_out_of_the_row() {
     let block: Vec<&str> = FTL
         .lines()
         .skip_while(|l| !l.starts_with("agent-reason-stale ="))
@@ -156,12 +156,31 @@ fn every_stale_cause_names_its_keys() {
             .iter()
             .find(|l| l.contains(&tag))
             .unwrap_or_else(|| panic!("no `{tag}` arm in agent-reason-stale"));
-        assert!(arm.contains("{ $keys }"), "{tag} arm omits the keys");
+        assert!(!arm.contains("{ $keys }"), "{tag} arm shows raw keys");
     }
     assert!(
         block
             .iter()
-            .any(|l| l.contains("*[other]") && l.contains("{ $keys }")),
-        "the default arm (settings) omits the keys"
+            .any(|l| l.contains("*[other]") && !l.contains("{ $keys }")),
+        "the default arm (settings) shows raw keys"
     );
+}
+
+#[test]
+fn a_policy_removal_owed_is_listed_with_its_removal_action() {
+    let hidden = AgentVerdict {
+        state: AgentState::NotInstalled,
+        tone: AgentState::NotInstalled.tone(),
+        reason: AgentReason::AppMissing,
+        action: None,
+        secondary_action: None,
+        is_set_up: false,
+        is_listed: false,
+        is_installed: false,
+        is_running: false,
+    };
+    let owed = hidden.with_policy_removal_owed();
+    assert!(owed.is_listed);
+    assert!(matches!(owed.reason, AgentReason::PolicyRemovalOwed));
+    assert!(matches!(owed.action, Some(AgentAction::RemovePolicyAdmin)));
 }

@@ -19,6 +19,7 @@
 
 ### Changed
 
+- **Bridge:** the desktop GUI's warnings and errors are quieter and written plainly: self-retrying conditions are logged instead of notified, one condition raises one signal, and raw error text moves behind Details. Sync outcomes and CLI output are unchanged.
 - **Brain:** `retrieval.yaml` `full_text_opens_context` (`RetrievalDoc`, default `true` = the previous behaviour; `BudgetLimits.full_text_opens_context`): at `false` a full-text hit alone no longer opens the context cap under `context_requires_signal`, only a named subject or an asked kind does, so a message whose only lexical hit is an org fact about some other subject (`Catch me up on <a project the reader cannot see>` matching the client's org facts) injects that hit and nothing of the attributed project's context. The name rule now reads a possessive (`Ashgrove's`) as the name it owns.
 
 - **Brain:** an entity a fact names becomes a subject. A kind's entity field may declare `display: <text field>`; the set reindex ensures a `brain_subjects` row for every entity-ref value (`<ref>:<id>`) with that field's value as its display name (`SubjectRepository::ensure_many_named`, one statement per set, so a set now runs eleven) and aliases it by its id, its id with `-`/`_` as spaces, and the display name (`index::entities`), so a person a team fact names matches like a client and the project ↔ user bridge the fact declares has a subject to anchor on. `BrainDeclError::DisplayNotTextField` when `display` is declared on a non-entity field or names a field that is not text.

@@ -3,7 +3,6 @@ import { escapeHtml } from "/assets/js/utils/escape.js";
 import { bridge } from "/assets/js/bridge.js";
 import { t, brandArgs } from "/assets/js/i18n.js";
 import { isListed } from "/assets/js/utils/verdict.js";
-import { agentBanner, runBannerFix } from "/assets/js/components/agents-banners.js";
 import { sameHost } from "/assets/js/utils/host-diff.js";
 import "/assets/js/components/sp-agent-row.js";
 import "/assets/js/components/sp-agent-drawer.js";
@@ -18,19 +17,12 @@ export class SpHostsList extends SpElement {
     this.order = [];
     this.snapshot = null;
     this.gated = false;
-    this.bannerBusy = false;
 
     this.registerAction("reverify-all", async () => {
       // Only agents with something local to inspect: a sync-only agent has no
       // process or profile here, and probing it only logged "unknown host".
       const ids = this.order.filter((id) => this.hostsById.get(id)?.can_verify !== false);
       await Promise.allSettled([bridge.hostProxyProbe(), ...ids.map((id) => bridge.hostProbe(id))]);
-    });
-    this.registerAction("banner-fix", async (trigger) => {
-      if (this.bannerBusy) { return; }
-      this.bannerBusy = true;
-      try { await runBannerFix(this.hostsById.get(trigger.dataset.hostId), trigger.dataset.kind); }
-      finally { this.bannerBusy = false; }
     });
     this.registerAction("add-agent", (trigger) => {
       const drawer = this._drawer();
@@ -90,7 +82,7 @@ export class SpHostsList extends SpElement {
   render() {
     // Every installed agent is listed whatever its state, plus leftovers.
     const listed = this._hosts().filter(isListed);
-    return `${this._renderHeader()}<sp-agents-status></sp-agents-status><sp-sync-banner></sp-sync-banner>${agentBanner(listed, this.bannerBusy)}${this._renderBody(listed)}`;
+    return `${this._renderHeader()}<sp-agents-status></sp-agents-status><sp-sync-banner></sp-sync-banner>${this._renderBody(listed)}`;
   }
 
   _renderHeader() {
@@ -146,5 +138,5 @@ export class SpHostsList extends SpElement {
   }
 }
 
-reactive(SpHostsList.prototype, ["snapshot", "gated", "bannerBusy"]);
+reactive(SpHostsList.prototype, ["snapshot", "gated"]);
 customElements.define("sp-hosts-list", SpHostsList);

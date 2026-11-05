@@ -4,6 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod finished;
+mod warnings;
 
 pub(crate) use finished::on_sync_finished;
 

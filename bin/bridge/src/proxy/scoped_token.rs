@@ -63,8 +63,6 @@ pub fn host_token(secret: &LoopbackSecret, host: HostKind) -> HostToken {
     ))
 }
 
-/// What an install's Claude Desktop policy carries as its key, fingerprinted:
-/// the policy holds the host token, never the secret it derives from.
 #[must_use]
 pub fn desktop_policy_fingerprint(secret: &LoopbackSecret) -> String {
     super::secret::fingerprint(host_token(secret, HostKind::ClaudeDesktop).as_str())

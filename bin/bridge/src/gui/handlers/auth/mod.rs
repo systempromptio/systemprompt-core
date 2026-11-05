@@ -223,9 +223,9 @@ fn login_failure_line(e: &GuiError) -> (String, ErrorCode) {
             ),
             ErrorCode::ElevationRequired,
         ),
-        _ => (
-            i18n::t_args("login-failure", &[("error", &e.to_string())]),
-            ErrorCode::Unauthorized,
-        ),
+        _ => {
+            tracing::warn!(error = %e, "sign-in failed");
+            (i18n::t("login-failure"), ErrorCode::Unauthorized)
+        },
     }
 }

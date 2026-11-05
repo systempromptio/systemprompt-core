@@ -135,6 +135,7 @@ impl AgentVerdict {
             reason: AgentReason::PolicyRemovalOwed,
             action: Some(AgentAction::RemovePolicyAdmin),
             secondary_action: None,
+            is_listed: true,
             ..self
         }
     }
