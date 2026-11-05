@@ -8,7 +8,11 @@ use super::pptx_fixture::{framed_deck, project};
 use systemprompt_files::documents::codecs::pptx::PptxCodec;
 
 fn framed_shape(deck: &DeckModel) -> (usize, usize, Frame) {
-    let slide = deck.slides.iter().position(|s| s.id == FRAMED).expect("slide");
+    let slide = deck
+        .slides
+        .iter()
+        .position(|s| s.id == FRAMED)
+        .expect("slide");
     let (shape, frame) = deck.slides[slide]
         .shapes
         .iter()

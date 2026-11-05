@@ -814,8 +814,8 @@ async fn the_drive_trash_needs_the_head_and_the_drive_move_keeps_the_document() 
     let document = entry["document_id"].as_str().expect("id").to_owned();
     let head = entry["head_revision_id"].as_str().expect("head").to_owned();
     let post = |uri: &'static str, base: Option<String>, body: serde_json::Value| {
-        let mut req = bridge(&device, Method::POST, uri)
-            .header(header::CONTENT_TYPE, "application/json");
+        let mut req =
+            bridge(&device, Method::POST, uri).header(header::CONTENT_TYPE, "application/json");
         if let Some(base) = base {
             req = req.header(header::IF_MATCH, format!("\"{base}\""));
         }
@@ -827,7 +827,12 @@ async fn the_drive_trash_needs_the_head_and_the_drive_move_keeps_the_document() 
     let id = json!({ "document_id": document });
 
     let unguarded = post("/bridge/drive/trash", None, id.clone()).await?;
-    assert_eq!(unguarded.status, StatusCode::BAD_REQUEST, "{}", unguarded.json());
+    assert_eq!(
+        unguarded.status,
+        StatusCode::BAD_REQUEST,
+        "{}",
+        unguarded.json()
+    );
 
     let stale = Uuid::new_v4().to_string();
     let conflict = post("/bridge/drive/trash", Some(stale), id.clone()).await?;

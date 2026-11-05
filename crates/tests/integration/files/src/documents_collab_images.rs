@@ -1,9 +1,9 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use systemprompt_files::documents::collab::{CollabService, CollabTuning, JoinMode};
 use loro::ExportMode;
 use systemprompt_files::documents::codecs::pptx::deck_model;
+use systemprompt_files::documents::collab::{CollabService, CollabTuning, JoinMode};
 use systemprompt_files::documents::engine::loro::deck::{self, DeckShape, Frame, ShapeKind};
 use systemprompt_files::documents::engine::loro::rich;
 use systemprompt_files::documents::model::BlockKind;
@@ -150,7 +150,10 @@ async fn a_markdown_export_names_what_a_deck_leaves_out() {
         .await
         .expect("export");
     assert!(
-        exported.left_out.iter().any(|what| what.contains("pictures")),
+        exported
+            .left_out
+            .iter()
+            .any(|what| what.contains("pictures")),
         "{:?}",
         exported.left_out
     );
