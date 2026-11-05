@@ -237,7 +237,7 @@ fn shape_at(doc: &LoroDoc, id: &str) -> Result<(LoroMovableList, usize), DeckOpE
 fn set_frame(doc: &LoroDoc, id: &str, values: &[(&str, i64)]) -> Result<Vec<String>, DeckOpError> {
     let (shapes, at) = shape_at(doc, id)?;
     let shape = block_map(&shapes, at).ok_or_else(|| unknown(id))?;
-    let frame = shape.get_or_create_container("frame", LoroMap::new())?;
+    let frame = shape.ensure_mergeable_map("frame")?;
     for (key, value) in values {
         frame.insert(key, *value)?;
     }

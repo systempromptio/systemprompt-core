@@ -15,7 +15,7 @@ use super::entry::{CollabEntry, SharedEntry, is_unreadable};
 use super::image_owners::{ImageOwners, attribute_runs, author_runs, model_refs};
 use super::{CollabError, CollabService};
 use crate::documents::agents::DocumentActor;
-use crate::documents::engine::{EngineDoc, ModelView};
+use crate::documents::engine::EngineDoc;
 use crate::documents::repository::{CollabUpdateRow, StoredSnapshot};
 use systemprompt_identifiers::DocumentEditSessionId;
 use tokio::sync::MutexGuard;
