@@ -1,6 +1,7 @@
 //! `GET /{id}/export/docx`: a `docx` document's head revision with its open
-//! comment threads written as native Word comments. `GET /{id}/export/markdown`:
-//! the head revision as Markdown, with what Markdown cannot hold left out.
+//! comment threads written as native Word comments. `GET
+//! /{id}/export/markdown`: the head revision as Markdown, with what Markdown
+//! cannot hold left out.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
