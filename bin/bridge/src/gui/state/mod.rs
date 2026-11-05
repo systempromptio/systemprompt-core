@@ -160,7 +160,6 @@ impl AppState {
         true
     }
 
-
     pub fn apply_mcp_auth(&self, results: Vec<McpServerAuth>) {
         let mut guard = self.snap_mut();
         let merged = results
@@ -205,7 +204,6 @@ impl AppState {
         guard.mcp_auth_probe_in_flight = false;
     }
 
-
     pub fn set_update_state(&self, state: crate::update::UpdateUiState) {
         let mut guard = self.snap_mut();
         guard.update = state;
@@ -229,7 +227,6 @@ impl AppState {
     pub fn set_pending_device_action(&self, action: Option<crate::wire::DeviceAction>) {
         self.snap_mut().pending_device_action = action;
     }
-
 
     pub fn first_configured_proxy_url(&self) -> Option<String> {
         if self.ctx.proxy.is_serving() {

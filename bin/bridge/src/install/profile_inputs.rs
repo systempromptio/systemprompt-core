@@ -57,8 +57,6 @@ pub enum ProfileFactsError {
     StoredManifest(#[source] std::io::Error),
     #[error("decode stored manifest: {0}")]
     ManifestDecode(#[from] crate::gateway::manifest::ManifestError),
-    #[error("read other gateway profiles: {0}")]
-    GatewayProfiles(#[source] Box<crate::config::gateways::ProfileError>),
 }
 
 /// The local facts a host profile is rendered from.
@@ -100,8 +98,12 @@ impl ProfileFacts {
             profile: crate::auth::profile_cache::load()?,
             mcp_servers,
             overrides,
-            desktop_elsewhere: crate::config::gateways::desktop_models_elsewhere()
-                .map_err(|e| ProfileFactsError::GatewayProfiles(Box::new(e)))?,
+            desktop_elsewhere: crate::config::gateways::desktop_models_elsewhere().unwrap_or_else(
+                |error| {
+                    tracing::warn!(%error, "other gateway profiles' models not read");
+                    crate::config::gateways::DesktopModelsElsewhere::default()
+                },
+            ),
         })
     }
 
@@ -150,10 +152,6 @@ impl ProfileFacts {
                     )
                 },
             );
-        // Why: Claude Desktop's policy is installed once for every gateway
-        // profile and replacing it needs an administrator, so a switch must
-        // not need a new one. It is added here, the one place inputs are
-        // built, so a writer and the probe cannot disagree about the list.
         if host == HostKind::ClaudeDesktop {
             for model in &self.desktop_elsewhere.models {
                 if !models.contains(model) {

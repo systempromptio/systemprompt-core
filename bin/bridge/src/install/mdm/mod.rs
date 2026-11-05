@@ -25,6 +25,8 @@ pub(super) mod macos;
 mod macos_mobileconfig;
 #[cfg(target_os = "macos")]
 mod macos_payload;
+#[cfg(target_os = "macos")]
+mod macos_refresh;
 mod macos_remove;
 pub mod policy;
 pub mod policy_mcp;

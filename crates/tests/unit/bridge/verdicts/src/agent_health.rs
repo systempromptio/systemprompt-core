@@ -508,7 +508,7 @@ fn a_model_list_behind_the_gateway_offers_update_and_names_the_approval() {
 
     snap.update_needs_approval = true;
     assert_eq!(
-        verdict(&inputs(Some(&snap), &px)).action,
+        verdict(&inputs(Some(&snap), &px)).secondary_action,
         Some(AgentAction::UpdateAdmin)
     );
 }
@@ -534,17 +534,8 @@ fn a_desktop_policy_behind_on_settings_needs_an_administrator_update() {
     snap.update_needs_approval = true;
 
     let v = verdict(&inputs(Some(&snap), &px));
-    assert_eq!(v.state, AgentState::NeedsAdminApproval);
-    assert_eq!(v.action, Some(AgentAction::UpdateAdmin));
-    assert!(
-        matches!(
-            &v.reason,
-            AgentReason::Stale { cause: StaleReason::Settings, keys }
-                if keys == "otlpEndpoint, configRecheckIntervalMinutes, deploymentDisplayName"
-        ),
-        "{:?}",
-        v.reason
-    );
+    assert_eq!(v.state, AgentState::Working);
+    assert_eq!(v.secondary_action, Some(AgentAction::UpdateAdmin));
 }
 
 #[test]

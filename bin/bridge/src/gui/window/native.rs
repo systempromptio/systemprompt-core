@@ -130,7 +130,6 @@ impl SettingsWindow {
     }
 }
 
-
 fn initial_attributes(
     event_loop: &dyn ActiveEventLoop,
 ) -> (WindowAttributes, Option<WindowGeometry>) {
@@ -177,7 +176,6 @@ fn work_areas(event_loop: &dyn ActiveEventLoop) -> Vec<geometry::WorkArea> {
         })
         .collect()
 }
-
 
 fn decode_icon() -> Option<Icon> {
     let img = match image::load_from_memory(crate::brand::brand().assets.window_icon_png) {

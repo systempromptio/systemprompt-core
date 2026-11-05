@@ -138,7 +138,6 @@ pub struct UninstallSummary {
     pub host_warnings: Vec<String>,
 }
 
-
 #[derive(Debug)]
 pub enum ManagedProfileOutcome {
     NotApplicable,

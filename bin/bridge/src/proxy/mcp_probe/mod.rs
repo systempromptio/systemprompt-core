@@ -18,7 +18,6 @@ mod types;
 pub use handshake::probe_endpoint;
 pub use types::{McpAuthState, McpServerAuth, McpTool};
 
-
 const PROBE_TIMEOUT: Duration = Duration::from_secs(6);
 pub(super) const MCP_PROTOCOL_VERSION: &str = "2026-07-28";
 pub(super) const LEGACY_PROTOCOL_VERSION: &str = "2025-11-25";

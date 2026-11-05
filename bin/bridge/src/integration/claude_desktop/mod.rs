@@ -105,22 +105,7 @@ pub(crate) fn policy_summary() -> Vec<String> {
 use systemprompt_models::bridge::host::HostKind;
 
 #[cfg(target_os = "macos")]
-pub(crate) fn managed_profile_state(
-    inputs: &ProfileGenInputs,
-) -> Result<ProfileState, crate::install::mdm::MdmError> {
-    let desired: Result<DesiredProfile, crate::integration::host_app::DesiredError> =
-        Ok(reg_profile::desired(inputs)?);
-    let read = os::read_domain(
-        shared::DESKTOP_DOMAIN,
-        &shared::keys_to_read(desired.as_ref().ok()),
-    );
-    Ok(ProfileState::classify(&ProfileProbe {
-        present: &read.keys,
-        observed: &read.observed,
-        read_error: read.probe_error.as_deref(),
-        desired: &desired,
-    }))
-}
+pub(crate) use macos::managed_policy_state;
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 use crate::drift::DesiredProfile;

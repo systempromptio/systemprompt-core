@@ -148,7 +148,6 @@ fn every_stale_cause_keeps_key_names_out_of_the_row() {
     for cause in [
         StaleReason::LoopbackSecret,
         StaleReason::ProxyPort,
-        StaleReason::ManagedServers,
         StaleReason::ModelList,
     ] {
         let tag = format!("[{}]", code_of(&cause));

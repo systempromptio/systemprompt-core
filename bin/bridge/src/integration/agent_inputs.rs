@@ -156,3 +156,18 @@ impl<'a> From<&'a crate::gateway::model_view::HostModelView> for HostModelViewRe
         }
     }
 }
+
+// Why: an app on an older model list or setting keeps working, and only an
+// administrator can refresh it, so the row stays as it is and only offers the
+// update alongside.
+pub(super) const fn quiet_update_owed(snap: &crate::integration::HostAppSnapshot) -> bool {
+    snap.update_needs_approval
+        && matches!(
+            snap.profile_state,
+            crate::integration::ProfileState::Stale {
+                reason: crate::integration::profile_state::StaleReason::ModelList
+                    | crate::integration::profile_state::StaleReason::Settings,
+                ..
+            }
+        )
+}

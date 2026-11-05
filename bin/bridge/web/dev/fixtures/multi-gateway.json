@@ -116,7 +116,7 @@
     "in_progress": false
   },
   "sign_in_label": "Sign in with systemprompt",
-  "sign_in_hint": "Opens your browser \u2014 sign in there with your Odoo email and password.",
+  "sign_in_hint": "Opens your browser — sign in there with your Odoo email and password.",
   "host_apps": [
     {
       "id": "claude-desktop",

@@ -3,7 +3,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-
 use rand::Rng as _;
 
 pub(crate) fn mint_csrf_token() -> String {

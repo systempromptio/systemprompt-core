@@ -10,6 +10,8 @@ use crate::gui::hosts::state::ProbeSeq;
 use crate::integration::agent_health::PendingStep;
 use crate::integration::{HostAppSnapshot, ProxyHealth};
 
+const RESTART_PROMPT_LIFETIME: std::time::Duration = std::time::Duration::from_mins(10);
+
 impl AppState {
     pub fn apply_host_snapshot(
         &self,
@@ -23,6 +25,19 @@ impl AppState {
             return false;
         }
         entry.pending = entry.pending.after_probe(&snap);
+        // Why: a relaunch between two probes is never seen as closed, so a
+        // prompt that cannot tell it was obeyed does not stay for good.
+        if entry.pending == PendingStep::Restart {
+            let since = *entry
+                .restart_owed_since
+                .get_or_insert_with(std::time::Instant::now);
+            if since.elapsed() >= RESTART_PROMPT_LIFETIME {
+                entry.pending = PendingStep::None;
+                entry.restart_owed_since = None;
+            }
+        } else {
+            entry.restart_owed_since = None;
+        }
         entry.snapshot = Some(snap);
         entry.probe_in_flight = false;
         drop(guard);

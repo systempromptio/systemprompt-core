@@ -5,7 +5,6 @@
 
 use std::process::ExitCode;
 
-
 use crate::context::BridgeContext;
 use crate::integration::host_app::ProbeEnv;
 use crate::{config, stdio};

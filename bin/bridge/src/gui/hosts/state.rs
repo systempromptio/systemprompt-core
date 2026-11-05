@@ -29,6 +29,7 @@ pub struct HostState {
     pub probe_seq: ProbeSeq,
     pub last_generated_profile: Option<GeneratedProfile>,
     pub pending: PendingStep,
+    pub restart_owed_since: Option<std::time::Instant>,
 }
 
 impl HostState {

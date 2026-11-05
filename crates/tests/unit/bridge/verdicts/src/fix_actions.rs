@@ -132,8 +132,8 @@ fn a_stale_profile_offers_reapply_and_an_elevated_one_admin_approval() {
     );
     drift.update_needs_approval = true;
     let v = judge(&drift, PendingStep::None, &[]);
-    assert_eq!(v.state, AgentState::NeedsAdminApproval);
-    assert_eq!(v.action, Some(AgentAction::UpdateAdmin));
+    assert!(!v.state.needs_attention(), "{:?}", v.state);
+    assert_eq!(v.secondary_action, Some(AgentAction::UpdateAdmin));
 }
 
 #[test]

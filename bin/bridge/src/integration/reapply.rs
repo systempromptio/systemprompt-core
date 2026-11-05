@@ -17,7 +17,6 @@ use crate::integration::host_app::{
 };
 use crate::integration::profile_state::ProfileState;
 
-
 #[derive(Debug, Clone)]
 pub enum Outcome {
     Reapplied,

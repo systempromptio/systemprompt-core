@@ -11,20 +11,9 @@ use clear::clear_bridge_policy;
 #[cfg(target_os = "macos")]
 fn refresh_managed_mcp_servers(
     mcp: &super::MdmPayloadInputs<'_>,
+    judge: crate::host_sync::DesktopPolicyJudge,
 ) -> Result<String, super::MdmError> {
-    super::macos::refresh_unattended(mcp)
-}
-
-#[cfg(any(target_os = "macos", target_os = "windows"))]
-fn enforce_managed_policy(mcp: &super::MdmPayloadInputs<'_>) -> Result<String, super::MdmError> {
-    #[cfg(target_os = "windows")]
-    {
-        super::windows::enforce_managed_policy(mcp)
-    }
-    #[cfg(not(target_os = "windows"))]
-    {
-        refresh_managed_mcp_servers(mcp)
-    }
+    super::macos_refresh::refresh_unattended(mcp, judge)
 }
 
 // Why: Desktop's `toolPolicy` names tools one by one, so the policy write
@@ -208,7 +197,11 @@ impl crate::host_sync::HostSync for ClaudeDesktopMdmSync {
             }
             report
         };
-        match enforce_managed_policy(&inputs) {
+        #[cfg(target_os = "windows")]
+        let enforced = super::windows::enforce_managed_policy(&inputs);
+        #[cfg(target_os = "macos")]
+        let enforced = refresh_managed_mcp_servers(&inputs, ctx.desktop_policy_judge);
+        match enforced {
             Ok(line) => {
                 tracing::info!(
                     target: "bridge::mdm",

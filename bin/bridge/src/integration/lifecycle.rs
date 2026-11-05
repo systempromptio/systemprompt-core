@@ -195,7 +195,11 @@ pub async fn refresh_machine_profile(bridge: &BridgeContext) -> MachineProfileRe
             missing: unpinned_profiles(),
         };
     }
-    let overrides = crate::integration::reapply::ModelProtocolOverrides::new();
+    let overrides = crate::install::profile_inputs::ProfileFacts::persisted_overrides()
+        .unwrap_or_else(|error| {
+            tracing::warn!(%error, "stored model filters not read for the profile refresh");
+            crate::integration::reapply::ModelProtocolOverrides::new()
+        });
     let reports = crate::integration::reapply::reapply_stale_profiles(
         bridge,
         &overrides,

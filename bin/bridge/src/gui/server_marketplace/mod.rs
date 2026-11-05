@@ -26,7 +26,6 @@ pub use types::{
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
-
 use crate::config::paths;
 use crate::proxy::mcp_probe::McpServerAuth;
 use crate::sync::read_last_sync;

@@ -5,7 +5,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-
 use super::types::{AppStateSnapshot, GatewayStatus};
 use crate::integration::agent_health::AgentAction;
 use crate::verdict::{Tone, Verdict};

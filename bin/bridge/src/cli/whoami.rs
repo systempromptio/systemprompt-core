@@ -5,7 +5,6 @@
 
 use std::process::ExitCode;
 
-
 use crate::context::BridgeContext;
 use crate::stdio::diag;
 use crate::{auth, config, stdio};

@@ -20,7 +20,6 @@ use std::path::PathBuf;
 
 use systemprompt_identifiers::ValidatedUrl;
 
-
 pub use self::profile::{ClaudeConfig, gateway_url_or_default};
 pub use self::trust::{
     GatewayIdentity, PinSource, PinnedPubkeyState, SyncConfig, TrustError, TrustRecord,

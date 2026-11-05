@@ -148,6 +148,8 @@ async fn emit_to_hosts(
         mcp_registry: &registry,
         start_menu: &bridge.start_menu,
         elevation_gate: &bridge.elevation_gate,
+        #[cfg(target_os = "macos")]
+        desktop_policy_judge: crate::integration::claude_desktop::managed_policy_state,
     };
     let emitters: Vec<&'static dyn host_sync::HostSync> = host_sync::registry().to_vec();
     let hosts = hosts::emit_hosts(&emitters, &ctx, bridge).await;

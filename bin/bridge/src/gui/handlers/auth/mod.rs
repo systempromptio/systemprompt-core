@@ -5,7 +5,6 @@
 
 use std::sync::Arc;
 
-
 use crate::auth::secret::Secret;
 use crate::auth::setup;
 use crate::gui::error::GuiError;
