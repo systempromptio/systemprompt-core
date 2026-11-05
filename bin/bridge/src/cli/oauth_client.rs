@@ -6,7 +6,6 @@
 
 use std::process::ExitCode;
 
-
 use crate::auth::plugin_oauth;
 use crate::context::BridgeContext;
 use crate::stdio::diag;

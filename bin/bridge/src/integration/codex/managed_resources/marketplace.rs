@@ -45,7 +45,6 @@ struct MarketPolicy<'a> {
     authentication: &'a str,
 }
 
-
 pub(super) fn write_marketplace_json(root: &Path) -> Result<(), ApplyError> {
     let dir = root.join(".agents").join("plugins");
     fs::create_dir_all(&dir).map_err(|e| io_err("create marketplace dir", &dir, e))?;
@@ -91,7 +90,6 @@ struct PluginInterface<'a> {
     #[serde(rename = "displayName")]
     display_name: &'a str,
 }
-
 
 pub(super) fn write_plugin_json(plugin_dir: &Path, version: &str) -> Result<(), ApplyError> {
     let dir = plugin_dir.join(".codex-plugin");

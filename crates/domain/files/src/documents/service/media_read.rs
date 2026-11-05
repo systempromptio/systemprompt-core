@@ -31,32 +31,45 @@ impl DocumentService {
             .await?;
         let head = self.resolve_revision(&document, None).await?;
         let bytes = self.revision_bytes(&head).await?;
+        self.image_in_revision(document.format, &bytes, reference)
+            .await?
+            .ok_or_else(|| DocumentsError::not_found("image", reference))
+    }
+
+    pub(super) async fn image_in_revision(
+        &self,
+        format: DocumentFormat,
+        bytes: &[u8],
+        reference: &str,
+    ) -> Result<Option<MediaBlob>, DocumentsError> {
         let limit = self.config.max_upload_bytes;
-        let missing = || DocumentsError::not_found("image", reference);
-        if document.format == DocumentFormat::Docx {
-            return in_package(&bytes, reference, limit).ok_or_else(missing);
+        if format == DocumentFormat::Docx {
+            return Ok(in_package(bytes, reference, limit));
         }
-        if let Some(prefix) = media_folder(document.format) {
-            let content = media_part(&bytes, prefix, reference, limit).ok_or_else(missing)?;
-            let mime = sniff(&content).ok_or_else(missing)?;
-            return Ok(MediaBlob {
-                bytes: content,
-                mime: mime.to_owned(),
+        if let Some(prefix) = media_folder(format) {
+            let part = media_part(bytes, prefix, reference, limit)
+                .or_else(|| media_part_by_stem(bytes, prefix, reference, limit));
+            let found = part.and_then(|content| {
+                let mime = sniff(&content)?.to_owned();
+                Some(MediaBlob {
+                    bytes: content,
+                    mime,
+                })
             });
+            return Ok(found);
         }
         let wanted = [reference.to_owned()];
-        if !held_media_refs(document.format, &bytes, &wanted, limit).contains(&wanted[0]) {
-            return Err(missing());
+        if !held_media_refs(format, bytes, &wanted, limit).contains(&wanted[0]) {
+            return Ok(None);
         }
         let Ok(hash) = ContentHash::try_new(reference) else {
-            return Err(missing());
+            return Ok(None);
         };
         let content = self.media_bytes(&hash).await?;
-        let mime = sniff(&content).ok_or_else(missing)?;
-        Ok(MediaBlob {
-            bytes: content,
+        Ok(sniff(&content).map(|mime| MediaBlob {
             mime: mime.to_owned(),
-        })
+            bytes: content,
+        }))
     }
 }
 
@@ -64,6 +77,29 @@ impl DocumentService {
 fn in_package(bytes: &[u8], reference: &str, limit: u64) -> Option<MediaBlob> {
     let (mime, bytes) = crate::documents::codecs::docx::held_image(bytes, reference, limit)?;
     Some(MediaBlob { bytes, mime })
+}
+
+impl DocumentService {
+    pub(super) async fn revision_image(
+        &self,
+        format: DocumentFormat,
+        bytes: &[u8],
+        reference: &str,
+    ) -> Option<Vec<u8>> {
+        let limit = self.config.max_upload_bytes;
+        if format == DocumentFormat::Docx {
+            if let Some(blob) = in_package(bytes, reference, limit) {
+                return Some(blob.bytes);
+            }
+        } else if let Some(prefix) =
+            media_folder(format).or_else(|| (format == DocumentFormat::Odt).then_some("Pictures/"))
+            && let Some(content) = media_part(bytes, prefix, reference, limit)
+        {
+            return Some(content);
+        }
+        let hash = ContentHash::try_new(reference).ok()?;
+        self.media_bytes(&hash).await.ok()
+    }
 }
 
 const fn media_folder(format: DocumentFormat) -> Option<&'static str> {
@@ -84,6 +120,21 @@ const fn media_part(
     _bytes: &[u8],
     _prefix: &str,
     _reference: &str,
+    _limit: u64,
+) -> Option<Vec<u8>> {
+    None
+}
+
+#[cfg(feature = "office")]
+fn media_part_by_stem(bytes: &[u8], prefix: &str, stem: &str, limit: u64) -> Option<Vec<u8>> {
+    crate::documents::codecs::media_part_by_stem(bytes, prefix, stem, limit)
+}
+
+#[cfg(not(feature = "office"))]
+const fn media_part_by_stem(
+    _bytes: &[u8],
+    _prefix: &str,
+    _stem: &str,
     _limit: u64,
 ) -> Option<Vec<u8>> {
     None

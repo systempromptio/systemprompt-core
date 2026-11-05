@@ -260,6 +260,10 @@ fn apply_edit(package: &mut Package<'_>, op: &EditOp) -> Result<usize, CodecErro
             };
             slides::insert_slide(package, &new).map(|()| 0)
         },
+        #[cfg(feature = "collab-loro")]
+        EditOp::MoveShape { .. } | EditOp::ResizeShape { .. } | EditOp::DeleteShape { .. } => {
+            super::shape_ops::apply(package, op).map(|()| 0)
+        },
         _ => Err(CodecError::UnsupportedOp {
             op: op.name(),
             format: DocumentFormat::Pptx,

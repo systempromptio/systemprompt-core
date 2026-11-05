@@ -8,14 +8,17 @@ use systemprompt_models::brain::SubjectKey;
 use crate::harness::Harness;
 
 fn owned(subject: &SubjectKey, alias: &str, fact: &BrainFactId, at: DateTime<Utc>) -> AliasRows {
-    AliasRows::collect([(
-        AliasOwner {
-            subject,
-            fact,
-            updated_at: at,
-        },
-        vec![alias.to_owned()],
-    )])
+    AliasRows::collect(
+        &mut [(
+            AliasOwner {
+                subject,
+                fact,
+                updated_at: at,
+            },
+            vec![alias.to_owned()],
+        )]
+        .into_iter(),
+    )
 }
 
 async fn display_name(h: &Harness, subject: &SubjectKey) -> Option<String> {
@@ -187,7 +190,9 @@ async fn a_set_upsert_moves_an_alias_only_to_a_fact_at_least_as_recent_as_its_ow
     let (lower, higher) = (ids[0].clone(), ids[1].clone());
     let newest = Utc::now();
     let older = newest - Duration::seconds(5);
-    let upsert = |owner: AliasOwner<'_>| AliasRows::collect([(owner, vec!["Jane Doe".to_owned()])]);
+    let upsert = |owner: AliasOwner<'_>| {
+        AliasRows::collect(&mut [(owner, vec!["Jane Doe".to_owned()])].into_iter())
+    };
 
     let first = upsert(AliasOwner {
         subject: &acme,

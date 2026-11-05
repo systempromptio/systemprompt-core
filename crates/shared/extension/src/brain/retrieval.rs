@@ -10,18 +10,57 @@ use chrono::{DateTime, Utc};
 use systemprompt_identifiers::{BrainFactId, GatewayConversationId};
 use systemprompt_models::brain::{
     BrainFact, BrainOutcome, InjectionPlan, OutcomeObservation, ProposalDraft, RecallCtx,
-    RecallQuery, ScoredFact, StoredBlock, WithheldReason,
+    RecallQuery, RetrievalTier, ScoredFact, StoredBlock, WithheldReason,
 };
 
 use super::errors::{BrainAnalysisError, OutcomeSignalError, RecallError};
 use super::recall::RecallReceipt;
 
-/// The fact store as recall reads it; every tier is scope-filtered in SQL
-/// for the context's principal. Held as `Arc<dyn FactRecallSource>`.
+/// The fact ids one retrieval tier returned, in its rank order.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TierIds {
+    pub tier: RetrievalTier,
+    pub ids: Vec<BrainFactId>,
+}
+
+impl TierIds {
+    #[must_use]
+    pub const fn new(tier: RetrievalTier, ids: Vec<BrainFactId>) -> Self {
+        Self { tier, ids }
+    }
+}
+
+fn ids_of(tier: RetrievalTier, facts: Vec<BrainFact>) -> TierIds {
+    TierIds::new(tier, facts.into_iter().map(|fact| fact.id).collect())
+}
+
+/// The fact store as recall reads it.
+///
+/// Every tier is scope-filtered in SQL for the context's principal. Held
+/// as `Arc<dyn FactRecallSource>`. Recall reads the five core tiers as ids
+/// through `tier_ids` and loads the fused facts once; the fact-returning
+/// methods remain for callers that read one tier. `unknown_terms` answers
+/// which of the given lower-case words no fact carries (empty by default,
+/// and empty while the store has no term statistics).
 ///
 /// `#[async_trait]` keeps the trait dyn-compatible.
 #[async_trait::async_trait]
 pub trait FactRecallSource: Send + Sync {
+    async fn tier_ids(
+        &self,
+        query: &RecallQuery,
+        ctx: &RecallCtx,
+        pinned_limit: u32,
+    ) -> Result<Vec<TierIds>, RecallError> {
+        Ok(vec![
+            ids_of(RetrievalTier::Pinned, self.pinned(ctx, pinned_limit).await?),
+            ids_of(RetrievalTier::Subject, self.by_subject(query, ctx).await?),
+            ids_of(RetrievalTier::Linked, self.by_linked(query, ctx).await?),
+            ids_of(RetrievalTier::Context, self.by_context(query, ctx).await?),
+            ids_of(RetrievalTier::FullText, self.full_text(query, ctx).await?),
+        ])
+    }
+
     async fn pinned(&self, ctx: &RecallCtx, limit: u32) -> Result<Vec<BrainFact>, RecallError>;
 
     async fn by_subject(
@@ -62,6 +101,10 @@ pub trait FactRecallSource: Send + Sync {
         _ctx: &RecallCtx,
     ) -> Result<BTreeMap<WithheldReason, u32>, RecallError> {
         Ok(BTreeMap::new())
+    }
+
+    async fn unknown_terms(&self, _words: &[String]) -> Result<Vec<String>, RecallError> {
+        Ok(Vec::new())
     }
 }
 

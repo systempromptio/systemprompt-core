@@ -23,9 +23,13 @@ impl SearchTerms {
         if self.total == 0 {
             return 0.0;
         }
-        let n = self.ndoc.get(word).copied().unwrap_or(0);
         // Why: lint-ok: a ratio of counts; precision loss past 2^53 is irrelevant.
-        n as f64 / self.total as f64
+        self.ndoc_of(word) as f64 / self.total as f64
+    }
+
+    #[must_use]
+    pub fn ndoc_of(&self, word: &str) -> u64 {
+        self.ndoc.get(word).copied().unwrap_or(0)
     }
 
     #[must_use]

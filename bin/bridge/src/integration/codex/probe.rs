@@ -3,7 +3,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-
 use super::config::{self, KEYS_OF_INTEREST};
 use crate::sysproc;
 

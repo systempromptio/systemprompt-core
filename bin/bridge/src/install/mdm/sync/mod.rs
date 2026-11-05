@@ -11,21 +11,9 @@ use clear::clear_bridge_policy;
 #[cfg(target_os = "macos")]
 fn refresh_managed_mcp_servers(
     mcp: &super::MdmPayloadInputs<'_>,
+    judge: crate::host_sync::DesktopPolicyJudge,
 ) -> Result<String, super::MdmError> {
-    let base_url = mcp.loopback.origin();
-    super::macos::apply(mcp, &base_url, None).map(|report| report.lines.join("; "))
-}
-
-#[cfg(any(target_os = "macos", target_os = "windows"))]
-fn enforce_managed_policy(mcp: &super::MdmPayloadInputs<'_>) -> Result<String, super::MdmError> {
-    #[cfg(target_os = "windows")]
-    {
-        super::windows::enforce_managed_policy(mcp)
-    }
-    #[cfg(not(target_os = "windows"))]
-    {
-        refresh_managed_mcp_servers(mcp)
-    }
+    super::macos_refresh::refresh_unattended(mcp, judge)
 }
 
 // Why: Desktop's `toolPolicy` names tools one by one, so the policy write
@@ -72,8 +60,13 @@ async fn refresh_tool_catalog(
                 crate::host_sync::HostWarningKind::ToolCatalog,
                 systemprompt_models::bridge::host::HostKind::ClaudeDesktop,
                 format!(
-                    "tool catalog not refreshed ({e}); managed connectors with a wildcard tool \
-                     policy are withheld until the next successful sync"
+                    "tool catalog not refreshed; managed connectors with a wildcard tool policy \
+                     are withheld until {}",
+                    if cfg!(target_os = "macos") {
+                        "the next successful sync and an approved Update"
+                    } else {
+                        "the next successful sync"
+                    }
                 ),
             );
         },
@@ -112,6 +105,13 @@ fn elevation_needed(e: &super::MdmError) -> Option<String> {
 // prompt must never appear without a gesture.
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 fn classify_refresh_error(e: super::MdmError) -> crate::host_sync::ApplyError {
+    #[cfg(target_os = "macos")]
+    if let super::MdmError::ElevationNeeded { detail } = &e {
+        return crate::host_sync::ApplyError::ElevationRequired {
+            what: "the Claude Desktop managed preferences",
+            detail: detail.clone(),
+        };
+    }
     #[cfg(target_os = "windows")]
     if let Some(detail) = elevation_needed(&e)
         && !crate::winproc::is_elevated()
@@ -197,7 +197,11 @@ impl crate::host_sync::HostSync for ClaudeDesktopMdmSync {
             }
             report
         };
-        match enforce_managed_policy(&inputs) {
+        #[cfg(target_os = "windows")]
+        let enforced = super::windows::enforce_managed_policy(&inputs);
+        #[cfg(target_os = "macos")]
+        let enforced = refresh_managed_mcp_servers(&inputs, ctx.desktop_policy_judge);
+        match enforced {
             Ok(line) => {
                 tracing::info!(
                     target: "bridge::mdm",

@@ -101,6 +101,22 @@ impl HostSyncReport {
     }
 }
 
+#[cfg(target_os = "macos")]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DesktopPolicyState {
+    Current,
+    Absent,
+    Behind { detail: String },
+    Unreadable { reason: String },
+}
+
+#[cfg(target_os = "macos")]
+pub type DesktopPolicyJudge = fn(
+    &crate::proxy::LoopbackEndpoint,
+    &crate::mcp_registry::McpRegistry,
+    &std::collections::BTreeMap<HostKind, Vec<String>>,
+) -> DesktopPolicyState;
+
 #[derive(Debug)]
 pub struct HostSyncCtx<'a> {
     pub policy_store: &'a crate::config::store::PolicyStore,
@@ -113,6 +129,8 @@ pub struct HostSyncCtx<'a> {
     pub mcp_registry: &'a crate::mcp_registry::McpRegistry,
     pub start_menu: &'a crate::probe_cache::StartMenuCache,
     pub elevation_gate: &'a crate::elevation_gate::ElevationGate,
+    #[cfg(target_os = "macos")]
+    pub desktop_policy_judge: DesktopPolicyJudge,
 }
 
 /// One emitter per host configuration tree.
@@ -165,7 +183,6 @@ macro_rules! register_host_sync {
         $crate::register_host_sync!($e, priority = 0);
     };
 }
-
 
 static REGISTRY: LazyLock<Vec<&'static dyn HostSync>> = LazyLock::new(|| {
     let mut regs: Vec<&'static HostSyncRegistration> =

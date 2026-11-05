@@ -28,7 +28,7 @@ impl DriveCode {
             Self::Off
         } else if status.last_error.is_some() {
             Self::Error
-        } else if !status.conflicts.is_empty() {
+        } else if !status.conflicts.is_empty() || status.held_deletes.is_some() {
             Self::Conflicts
         } else if status.pending_uploads > 0 || status.synced_at.is_none() {
             Self::Pending
@@ -83,6 +83,8 @@ pub struct DriveStatusPayload {
     pub pending_uploads: u32,
     pub editing_count: u32,
     pub conflicts: Vec<DriveConflictPayload>,
+    pub held_delete_count: usize,
+    pub delete_notices: Vec<String>,
     pub editors: Vec<DriveEditorPayload>,
     pub last_error: Option<String>,
 }
@@ -96,6 +98,12 @@ impl From<&DriveStatus> for DriveStatusPayload {
             pending_uploads: u32::try_from(status.pending_uploads).unwrap_or(u32::MAX),
             editing_count: u32::try_from(status.editing_count()).unwrap_or(u32::MAX),
             conflicts: status.conflicts.iter().map(conflict).collect(),
+            held_delete_count: status.held_deletes.as_ref().map_or(0, |held| held.count),
+            delete_notices: status
+                .delete_notices
+                .iter()
+                .map(|notice| format!("{}: {}", notice.path, notice.reason))
+                .collect(),
             editors: status.editors.iter().map(editor).collect(),
             last_error: status.last_error.clone(),
         }

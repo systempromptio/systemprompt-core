@@ -8,7 +8,6 @@ use std::collections::BTreeMap;
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 use std::time::{SystemTime, UNIX_EPOCH};
 
-
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 pub(super) const DESKTOP_DOMAIN: &str = "com.anthropic.claudefordesktop";
 

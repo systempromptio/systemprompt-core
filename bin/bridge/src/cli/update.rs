@@ -10,7 +10,6 @@ use crate::ids::BearerToken;
 use std::io::{IsTerminal as _, Write as _};
 use std::process::ExitCode;
 
-
 use crate::context::BridgeContext;
 use crate::gateway::GatewayClient;
 use crate::stdio::diag;

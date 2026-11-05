@@ -155,6 +155,9 @@ pub(super) fn guard(ids: &Projection, ops: &[EditOp]) -> Result<(), DocumentsErr
             } => (node.id(), expected_hash.as_deref()),
             EditOp::InsertAfter { node, .. } => (node.id(), None),
             EditOp::InsertSlide { after, .. } => (after.as_ref(), None),
+            EditOp::MoveShape { node, .. }
+            | EditOp::ResizeShape { node, .. }
+            | EditOp::DeleteShape { node } => (Some(node), None),
             other => match other.rich_guard() {
                 Some((node, expected)) => (node.id(), expected.map(String::as_str)),
                 None => continue,

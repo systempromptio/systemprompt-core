@@ -77,6 +77,7 @@ pub fn state_payload<'a>(
             cached_token: snap.cached_token.as_ref().map(cached_token_payload),
             token: snap.token_verdict(),
             gateway_status: gateway_status_payload(&snap.gateway_status),
+            gateway_outage: snap.gateway_outage,
             verified_identity: snap
                 .verified_identity
                 .as_ref()

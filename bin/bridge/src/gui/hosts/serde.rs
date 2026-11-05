@@ -10,6 +10,7 @@ use crate::integration::agent_health::{
     AgentFleets, AgentSurface, AgentVerdict, ApplyFailure, HostCapabilities, HostHealthInputs,
     HostModelViewRef, PendingStep, SyncOnlyAgent, sync_only_agents,
 };
+use crate::integration::agent_verdict::AgentReason;
 use crate::integration::host_app::ConfigFormat;
 pub(crate) use crate::wire::hosts::{
     HostEntryPayload, HostHealthPayload, HostsPayload, ProxyPayload,
@@ -64,10 +65,28 @@ fn host_verdict(
         can_open: host.can_open(),
         pending,
     });
+    if policy_removal_owed(snap, host) {
+        return verdict.with_policy_removal_owed();
+    }
     if cowork_ambiguous && verdict.is_set_up {
         return verdict.with_cowork_session_ambiguous();
     }
     verdict
+}
+
+// Why: `probe_observes` covers a policy that should be current. On a disabled
+// host the probe still reads the old policy as installed, so it cannot show
+// that the removal is waiting on an administrator.
+fn policy_removal_owed(
+    snap: &AppStateSnapshot,
+    host: &'static dyn crate::integration::HostApp,
+) -> bool {
+    !snap.enabled_hosts.contains(&host.id())
+        && snap
+            .last_sync_report
+            .iter()
+            .flat_map(|report| report.host_failures.iter())
+            .any(|f| f.host_id == host.id() && host.probe_observes(&f.emitter, f.needs_elevation))
 }
 
 fn sync_only_verdict(snap: &AppStateSnapshot, agent: &SyncOnlyAgent) -> AgentVerdict {
@@ -134,7 +153,7 @@ pub fn host_verdicts(snap: &AppStateSnapshot) -> Vec<(HostKind, AgentVerdict)> {
     let mut out: Vec<(HostKind, AgentVerdict)> = crate::integration::host_apps()
         .iter()
         .copied()
-        .filter(|host| is_enabled(snap, host.id()))
+        .filter(|host| is_enabled(snap, host.id()) || policy_removal_owed(snap, *host))
         .map(|host| {
             (
                 host.id(),
@@ -247,7 +266,7 @@ pub(crate) fn payload(snap: &AppStateSnapshot) -> HostsPayload<'_> {
         .map(|host| build_entry(snap, host))
         .collect();
     entries.extend(sync_only_agents().map(|agent| build_sync_only_entry(snap, agent)));
-    entries.retain(|e| e.enabled);
+    entries.retain(|e| e.enabled || matches!(e.verdict.reason, AgentReason::PolicyRemovalOwed));
     let agent_fleet = AgentFleets::fold(
         &entries
             .iter()

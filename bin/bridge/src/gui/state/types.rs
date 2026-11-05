@@ -81,6 +81,7 @@ pub struct AppStateSnapshot {
     pub plugin_count: Option<usize>,
     pub malformed_plugin_count: Option<usize>,
     pub gateway_status: GatewayStatus,
+    pub gateway_outage: bool,
     pub verified_identity: Option<VerifiedIdentity>,
     pub last_probe_at_unix: Option<u64>,
     pub agents_onboarded: bool,

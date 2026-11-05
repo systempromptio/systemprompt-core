@@ -14,11 +14,11 @@
 use bytes::Bytes;
 use reqwest::StatusCode;
 use reqwest::multipart::{Form, Part};
-use systemprompt_identifiers::{ContentHash, ValidatedUrl};
+use systemprompt_identifiers::{ContentHash, DocumentId, DocumentRevisionId, ValidatedUrl};
 use systemprompt_models::ApiPaths;
 use systemprompt_models::documents::{
-    DriveChanges, DriveCommitMeta, DriveCommitResponse, DriveManifest, DriveProposals,
-    DriveSyncToken, PresenceBeacon,
+    DriveChanges, DriveCommitMeta, DriveCommitResponse, DriveManifest, DriveMoveRequest,
+    DriveProposals, DriveSyncToken, DriveTrashRequest, DriveTrashResponse, PresenceBeacon,
 };
 
 use super::error::{DriveError, DriveResult};
@@ -129,6 +129,52 @@ impl DriveClient {
             return decode(endpoint, response).await;
         }
         decode(endpoint, accept(endpoint, response).await?).await
+    }
+
+    pub async fn trash(
+        &self,
+        bearer: &BearerToken,
+        document_id: &DocumentId,
+        base_revision: &DocumentRevisionId,
+    ) -> DriveResult<DriveTrashResponse> {
+        let endpoint = ApiPaths::BRIDGE_DRIVE_TRASH;
+        let body = DriveTrashRequest {
+            document_id: document_id.clone(),
+        };
+        let request = self
+            .http
+            .post(self.url(endpoint))
+            .bearer_auth(bearer.expose())
+            .header(
+                reqwest::header::IF_MATCH,
+                format!("\"{}\"", base_revision.as_str()),
+            )
+            .json(&body);
+        let response = send(endpoint, request).await?;
+        if response.status() == StatusCode::CONFLICT {
+            return decode(endpoint, response).await;
+        }
+        decode(endpoint, accept(endpoint, response).await?).await
+    }
+
+    pub async fn move_document(
+        &self,
+        bearer: &BearerToken,
+        document_id: &DocumentId,
+        path: &str,
+    ) -> DriveResult<()> {
+        let endpoint = ApiPaths::BRIDGE_DRIVE_MOVE;
+        let body = DriveMoveRequest {
+            document_id: document_id.clone(),
+            path: path.to_owned(),
+        };
+        let request = self
+            .http
+            .post(self.url(endpoint))
+            .bearer_auth(bearer.expose())
+            .json(&body);
+        accept(endpoint, send(endpoint, request).await?).await?;
+        Ok(())
     }
 
     pub async fn sync_token(&self, device: &BearerToken) -> DriveResult<DriveSyncToken> {

@@ -1,24 +1,26 @@
-//! Serialises laid-out pages as a PDF 1.7 file: one Flate-compressed
-//! content stream per page, the four standard fonts shared by every page,
-//! and an info dictionary with a fixed creation date. Object numbers are
-//! assigned in a fixed order, so the same pages produce the same bytes.
+//! Serialises laid-out pages as a PDF 1.7 file: one Flate-compressed content
+//! stream per page, a subset of each face the text uses, the images, link
+//! annotations and an info dictionary with a fixed creation date. Object
+//! numbers are assigned in a fixed order, so the same pages produce the same
+//! bytes.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::io::Write;
+use std::collections::{BTreeMap, BTreeSet};
 
 use chrono::{DateTime, Datelike, Timelike, Utc};
-use flate2::Compression;
-use flate2::write::ZlibEncoder;
-use pdf_writer::{Content, Date, Filter, Finish, Pdf, Rect, Ref, Str, TextStr};
+use pdf_writer::types::{ActionType, AnnotationType};
+use pdf_writer::{Content, Date, Filter, Finish, Name, Pdf, Rect, Ref, Str, TextStr};
 
-use super::fonts::{Font, encode};
-use super::layout::{PAGE_HEIGHT, PAGE_WIDTH, Page};
+use super::compress;
+use super::font_embed::{FontRefs, Subset, embed};
+use super::fonts::Font;
+use super::images::{Encoding, Picture};
+use super::layout_model::{PAGE_HEIGHT, PAGE_WIDTH, Page};
+use super::runs::Rgb;
 
 const PRODUCER: &str = "systemprompt";
-const RULE_WIDTH: f32 = 0.5;
-const RULE_GRAY: f32 = 0.4;
 
 #[derive(Debug, Clone, Copy)]
 pub(super) struct Metadata<'a> {
@@ -27,25 +29,68 @@ pub(super) struct Metadata<'a> {
     pub(super) created_at: DateTime<Utc>,
 }
 
-pub(super) fn write(pages: &[Page], metadata: Metadata<'_>) -> Result<Vec<u8>, std::io::Error> {
-    let mut pdf = Pdf::new();
-    let catalog = Ref::new(1);
-    let tree = Ref::new(2);
-    let info = Ref::new(3);
-    let fonts: Vec<(Font, Ref)> = Font::ALL
-        .iter()
-        .enumerate()
-        .map(|(index, font)| (*font, Ref::new(4 + ref_index(index))))
-        .collect();
-    let first_page = 4 + ref_index(fonts.len());
-    let page_refs: Vec<Ref> = (0..pages.len())
-        .map(|index| Ref::new(first_page + 2 * ref_index(index)))
-        .collect();
+#[derive(Debug, Default)]
+struct Refs(i32);
 
-    pdf.catalog(catalog).pages(tree);
-    pdf.pages(tree)
-        .kids(page_refs.iter().copied())
-        .count(i32::try_from(pages.len()).unwrap_or(i32::MAX));
+impl Refs {
+    const fn next(&mut self) -> Ref {
+        self.0 += 1;
+        Ref::new(self.0)
+    }
+}
+
+fn used_chars(pages: &[Page]) -> BTreeMap<Font, BTreeSet<char>> {
+    let mut used: BTreeMap<Font, BTreeSet<char>> = BTreeMap::new();
+    for text in pages.iter().flat_map(|page| &page.texts) {
+        used.entry(text.font)
+            .or_default()
+            .extend(text.content.chars());
+    }
+    used
+}
+
+fn write_picture(pdf: &mut Pdf, picture: &Picture, id: Ref, mask: Option<Ref>) {
+    let width = i32::try_from(picture.width).unwrap_or(i32::MAX);
+    let height = i32::try_from(picture.height).unwrap_or(i32::MAX);
+    if let (Some(alpha), Some(mask)) = (&picture.alpha, mask) {
+        let mut image = pdf.image_xobject(mask, alpha);
+        image.filter(Filter::FlateDecode);
+        image.width(width).height(height);
+        image.color_space().device_gray();
+        image.bits_per_component(8);
+        image.finish();
+    }
+    let mut image = pdf.image_xobject(id, &picture.data);
+    image.filter(match picture.encoding {
+        Encoding::Jpeg => Filter::DctDecode,
+        Encoding::Flate => Filter::FlateDecode,
+    });
+    image.width(width).height(height);
+    if picture.gray {
+        image.color_space().device_gray();
+    } else {
+        image.color_space().device_rgb();
+    }
+    image.bits_per_component(8);
+    if let Some(mask) = mask {
+        image.s_mask(mask);
+    }
+    image.finish();
+}
+
+fn picture_name(index: usize) -> String {
+    format!("Im{index}")
+}
+
+pub(super) fn write(
+    pages: &[Page],
+    pictures: &[Picture],
+    metadata: Metadata<'_>,
+) -> Result<Vec<u8>, std::io::Error> {
+    let mut pdf = Pdf::new();
+    let mut refs = Refs::default();
+    let (catalog, tree, info) = (refs.next(), refs.next(), refs.next());
+
     pdf.document_info(info)
         .title(TextStr(metadata.title))
         .subject(TextStr(metadata.subject))
@@ -53,63 +98,142 @@ pub(super) fn write(pages: &[Page], metadata: Metadata<'_>) -> Result<Vec<u8>, s
         .creator(TextStr(PRODUCER))
         .creation_date(pdf_date(metadata.created_at))
         .modified_date(pdf_date(metadata.created_at));
-    for (font, id) in &fonts {
-        pdf.type1_font(*id)
-            .base_font(font.base_font())
-            .encoding_predefined(pdf_writer::Name(b"WinAnsiEncoding"));
+
+    let mut fonts: Vec<(Font, Ref, Subset)> = Vec::new();
+    for (font, used) in used_chars(pages) {
+        let font_refs = FontRefs {
+            type0: refs.next(),
+            cid: refs.next(),
+            descriptor: refs.next(),
+            file: refs.next(),
+            cmap: refs.next(),
+        };
+        let subset = embed(&mut pdf, font, &used, font_refs)?;
+        fonts.push((font, font_refs.type0, subset));
     }
-    for (page, id) in pages.iter().zip(&page_refs) {
-        let content_id = Ref::new(id.get() + 1);
-        let mut node = pdf.page(*id);
-        node.media_box(Rect::new(0.0, 0.0, PAGE_WIDTH, PAGE_HEIGHT));
-        node.parent(tree);
-        node.contents(content_id);
-        let mut resources = node.resources();
-        let mut font_dict = resources.fonts();
-        for (font, font_id) in &fonts {
-            font_dict.pair(font.resource(), *font_id);
-        }
-        font_dict.finish();
-        resources.finish();
-        node.finish();
-        let compressed = compress(&content_of(page))?;
-        pdf.stream(content_id, &compressed)
+
+    let mut picture_refs = Vec::with_capacity(pictures.len());
+    for picture in pictures {
+        let id = refs.next();
+        let mask = picture.alpha.as_ref().map(|_| refs.next());
+        write_picture(&mut pdf, picture, id, mask);
+        picture_refs.push(id);
+    }
+
+    let page_refs: Vec<(Ref, Ref)> = pages.iter().map(|_| (refs.next(), refs.next())).collect();
+    pdf.catalog(catalog).pages(tree);
+    pdf.pages(tree)
+        .kids(page_refs.iter().map(|(page, _)| *page))
+        .count(i32::try_from(pages.len()).unwrap_or(i32::MAX));
+
+    let subsets: BTreeMap<Font, &Subset> = fonts.iter().map(|(f, _, s)| (*f, s)).collect();
+    for (page, (id, content_id)) in pages.iter().zip(&page_refs) {
+        let links: Vec<Ref> = page.links.iter().map(|_| refs.next()).collect();
+        write_page(
+            &mut pdf,
+            page,
+            (*id, *content_id, tree),
+            (&fonts, &picture_refs),
+            &links,
+        );
+        let compressed = compress(&content_of(page, &subsets))?;
+        pdf.stream(*content_id, &compressed)
             .filter(Filter::FlateDecode);
     }
     Ok(pdf.finish())
 }
 
-fn ref_index(index: usize) -> i32 {
-    i32::try_from(index).unwrap_or(i32::MAX)
+fn write_page(
+    pdf: &mut Pdf,
+    page: &Page,
+    (id, content_id, tree): (Ref, Ref, Ref),
+    (fonts, pictures): (&[(Font, Ref, Subset)], &[Ref]),
+    links: &[Ref],
+) {
+    let mut node = pdf.page(id);
+    node.media_box(Rect::new(0.0, 0.0, PAGE_WIDTH, PAGE_HEIGHT));
+    node.parent(tree);
+    node.contents(content_id);
+    let mut resources = node.resources();
+    let mut font_dict = resources.fonts();
+    for (font, font_id, _) in fonts {
+        font_dict.pair(Name(font.resource().as_bytes()), *font_id);
+    }
+    font_dict.finish();
+    let mut objects = resources.x_objects();
+    for placed in &page.pictures {
+        if let Some(picture) = pictures.get(placed.picture) {
+            let name = picture_name(placed.picture);
+            objects.pair(Name(name.as_bytes()), *picture);
+        }
+    }
+    objects.finish();
+    resources.finish();
+    if !links.is_empty() {
+        node.annotations(links.iter().copied());
+    }
+    node.finish();
+    for (link, id) in page.links.iter().zip(links) {
+        let r = link.rect;
+        let mut annotation = pdf.annotation(*id);
+        annotation
+            .subtype(AnnotationType::Link)
+            .rect(Rect::new(r.x, r.y, r.x + r.w, r.y + r.h))
+            .border(0.0, 0.0, 0.0, None);
+        annotation
+            .action()
+            .action_type(ActionType::Uri)
+            .uri(Str(link.href.as_bytes()));
+    }
 }
 
-fn content_of(page: &Page) -> Vec<u8> {
+fn to_unit(color: Rgb) -> (f32, f32, f32) {
+    let unit = |value: u8| f32::from(value) / 255.0;
+    (unit(color[0]), unit(color[1]), unit(color[2]))
+}
+
+fn content_of(page: &Page, subsets: &BTreeMap<Font, &Subset>) -> Vec<u8> {
     let mut content = Content::new();
-    content
-        .set_line_width(RULE_WIDTH)
-        .set_stroke_gray(RULE_GRAY);
-    for rule in &page.rules {
+    for fill in &page.fills {
+        let (r, g, b) = to_unit(fill.color);
         content
+            .set_fill_rgb(r, g, b)
+            .rect(fill.rect.x, fill.rect.y, fill.rect.w, fill.rect.h)
+            .fill_nonzero();
+    }
+    for placed in &page.pictures {
+        let r = placed.rect;
+        let name = picture_name(placed.picture);
+        content
+            .save_state()
+            .transform([r.w, 0.0, 0.0, r.h, r.x, r.y])
+            .x_object(Name(name.as_bytes()))
+            .restore_state();
+    }
+    for rule in &page.rules {
+        let (r, g, b) = to_unit(rule.color);
+        content
+            .set_line_width(rule.width)
+            .set_stroke_rgb(r, g, b)
             .move_to(rule.x1, rule.y1)
             .line_to(rule.x2, rule.y2)
             .stroke();
     }
     for text in &page.texts {
-        let bytes = encode(&text.content);
+        let Some(subset) = subsets.get(&text.font) else {
+            continue;
+        };
+        let (r, g, b) = to_unit(text.color);
+        let bytes = subset.encode(text.font, &text.content);
         content
+            .set_fill_rgb(r, g, b)
             .begin_text()
-            .set_font(text.font.resource(), text.size)
+            .set_font(Name(text.font.resource().as_bytes()), text.size)
             .next_line(text.x, text.y)
             .show(Str(&bytes))
             .end_text();
     }
     content.finish().into_vec()
-}
-
-fn compress(bytes: &[u8]) -> Result<Vec<u8>, std::io::Error> {
-    let mut encoder = ZlibEncoder::new(Vec::new(), Compression::default());
-    encoder.write_all(bytes)?;
-    encoder.finish()
 }
 
 fn pdf_date(at: DateTime<Utc>) -> Date {

@@ -64,6 +64,11 @@ pub fn host_token(secret: &LoopbackSecret, host: HostKind) -> HostToken {
 }
 
 #[must_use]
+pub fn desktop_policy_fingerprint(secret: &LoopbackSecret) -> String {
+    super::secret::fingerprint(host_token(secret, HostKind::ClaudeDesktop).as_str())
+}
+
+#[must_use]
 pub fn verify(presented: &str, secret: &ProxySecret, scope: &TokenScope) -> bool {
     let expected = derive_raw(secret.as_str().as_bytes(), scope);
     super::secret::verify(presented, &ProxySecret::new(expected))

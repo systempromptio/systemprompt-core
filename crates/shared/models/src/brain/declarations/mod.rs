@@ -12,6 +12,7 @@
 mod importance;
 mod synonyms;
 mod validate;
+mod validate_retrieval;
 
 use std::collections::BTreeMap;
 
@@ -24,7 +25,7 @@ pub use importance::{
     Recency, RetrievalDoc, TierWeights, UsageWeights,
 };
 pub use synonyms::{SynonymsDoc, SynonymsError};
-pub use validate::{BrainDeclError, validate};
+pub use validate::{BrainDeclError, MAX_LINKS_DEPTH, MAX_SUBJECT_LIMIT, validate};
 
 use super::envelope::Pathway;
 use super::kind_decl::KindDecl;

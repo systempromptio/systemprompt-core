@@ -1,12 +1,12 @@
 //! The bridge Drive feed under `/v1/bridge/drive/`: manifest, change feed,
-//! blob download, commit, presence and open proposals.
+//! blob download, commit, trash, move, presence and open proposals.
 //!
 //! Every route but `token` takes only the Drive sync token (audience
 //! `bridge.drive_sync`, see `drive_token`) and answers 401 for anything else,
 //! a plain bridge token included; `token` trades the bridge token for it. Blobs
 //! are resolved through the document service, so a hash opens content only for
 //! a caller who can view a document holding it. A commit is
-//! `multipart/form-data` with a `meta` part ([`DriveCommitMeta`]) and a `blob`
+//! `multipart/form-data` with a `meta` part (`DriveCommitMeta`) and a `blob`
 //! part; an `If-Match` header names the base revision and must agree with
 //! `meta.base_revision` when both are sent. A stale base answers 409 with the
 //! head revision and its content hash.
@@ -15,7 +15,9 @@
 //! and attended from the bridge token's signed claims, on the `drive_sync`
 //! channel, under the document's agent cap; a whole-file commit is a
 //! `replace_content` write the agent access policy must allow, and may allow
-//! for this channel alone.
+//! for this channel alone. A trash is the `trash` capability on the same terms;
+//! its `If-Match` names the revision the device last synced, and a newer head
+//! answers 409 so a delete never discards an edit the device has not seen.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -23,7 +25,7 @@
 use std::sync::Arc;
 
 use axum::body::Body;
-use axum::extract::{DefaultBodyLimit, Multipart, Path, Query, State};
+use axum::extract::{DefaultBodyLimit, Path, Query, State};
 use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post, put};
@@ -37,14 +39,14 @@ use systemprompt_models::ApiPaths;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::auth::TokenAuthority;
 use systemprompt_models::documents::{
-    DriveChanges, DriveCommitMeta, DriveCommitResponse, DriveManifest, DriveProposal,
-    DriveProposals, PresenceBeacon,
+    DriveChanges, DriveManifest, DriveProposal, DriveProposals, PresenceBeacon,
 };
 use systemprompt_oauth_issuance::DriveSyncTokenService;
 
+use super::drive_commit::commit;
 use super::drive_token::device_user;
 use super::error::DocumentsResult;
-use super::headers::{base_revision, hash_etag, none_match, range};
+use super::headers::{hash_etag, none_match, range};
 use crate::services::middleware::JwtContextExtractor;
 
 const DEFAULT_CHANGES: i64 = 500;
@@ -53,7 +55,7 @@ const DEFAULT_CHANGES: i64 = 500;
 /// the credential decoder and the authority that mints sync tokens.
 #[derive(Clone)]
 pub struct DriveState {
-    service: Arc<DocumentService>,
+    pub(super) service: Arc<DocumentService>,
     jwt: Arc<JwtContextExtractor>,
     drive_sync: DriveSyncTokenService,
 }
@@ -105,6 +107,14 @@ pub fn router(state: DriveState) -> Router {
         .route(
             ApiPaths::gateway_relative(ApiPaths::BRIDGE_DRIVE_COMMIT),
             post(commit),
+        )
+        .route(
+            ApiPaths::gateway_relative(ApiPaths::BRIDGE_DRIVE_TRASH),
+            post(super::drive_local::trash),
+        )
+        .route(
+            ApiPaths::gateway_relative(ApiPaths::BRIDGE_DRIVE_MOVE),
+            post(super::drive_local::move_document),
         )
         .route(
             ApiPaths::gateway_relative(ApiPaths::BRIDGE_DRIVE_PRESENCE),
@@ -203,65 +213,6 @@ async fn blob(
         out.insert(header::CONTENT_RANGE, value);
     }
     Ok(response)
-}
-
-async fn commit(
-    State(state): State<DriveState>,
-    headers: HeaderMap,
-    form: Multipart,
-) -> DocumentsResult<Response> {
-    let (who, actor) = device_user(&state, &headers).await?;
-    let trace = TraceId::generate();
-    let (mut meta, bytes) = read_commit(form).await?;
-    if let Some(base) = base_revision(&headers)? {
-        if meta
-            .base_revision
-            .as_ref()
-            .is_some_and(|declared| declared != &base)
-        {
-            return Err(ApiError::bad_request(
-                "If-Match and meta.base_revision name different revisions",
-            )
-            .into());
-        }
-        meta.base_revision = Some(base);
-    }
-    let outcome = Box::pin(act_as(
-        actor,
-        state.service.drive_commit(&who, meta, bytes, &trace),
-    ))
-    .await?;
-    let status = match outcome {
-        DriveCommitResponse::Committed { .. } | DriveCommitResponse::Merged { .. } => {
-            StatusCode::OK
-        },
-        DriveCommitResponse::Conflict { .. } => StatusCode::CONFLICT,
-        DriveCommitResponse::Proposed { .. } => StatusCode::CREATED,
-    };
-    Ok((status, Json(outcome)).into_response())
-}
-
-async fn read_commit(mut form: Multipart) -> DocumentsResult<(DriveCommitMeta, Vec<u8>)> {
-    let mut meta = None;
-    let mut blob = None;
-    while let Some(field) = form.next_field().await? {
-        let part = field.name().unwrap_or_default().to_owned();
-        let bytes = field.bytes().await?;
-        match part.as_str() {
-            "meta" => {
-                meta = Some(serde_json::from_slice::<DriveCommitMeta>(&bytes).map_err(
-                    |source| {
-                        ApiError::bad_request("meta is not a drive commit").with_source(source)
-                    },
-                )?);
-            },
-            "blob" => blob = Some(bytes.to_vec()),
-            _ => {},
-        }
-    }
-    let meta = meta.ok_or_else(|| ApiError::bad_request("commit needs a `meta` part"))?;
-    let blob = blob.ok_or_else(|| ApiError::bad_request("commit needs a `blob` part"))?;
-    Ok((meta, blob))
 }
 
 async fn presence(

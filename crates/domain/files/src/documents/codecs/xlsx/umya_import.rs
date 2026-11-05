@@ -12,7 +12,8 @@
 //! A cell's style carries its number format, bold, italic, underline,
 //! strike, an RGB font colour, a font name and size other than the workbook
 //! default (Calibri 11), a solid RGB fill and the horizontal alignment.
-//! Theme colours are not carried.
+//! Theme colours and tints are resolved to RGB against the workbook's theme.
+//! A font in plain black, the theme's usual text colour, stays the default.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -20,6 +21,7 @@
 use ironcalc::base::Model;
 use ironcalc::base::types::{Alignment, Color, HorizontalAlignment, MergedCell, Style};
 use systemprompt_provider_contracts::documents::CodecError;
+use umya_spreadsheet::drawing::Theme;
 use umya_spreadsheet::{Cell, HorizontalAlignmentValues, PatternValues, Worksheet};
 
 use super::workbook::load;
@@ -35,9 +37,13 @@ fn parse_error(part: &str) -> impl FnOnce(String) -> CodecError + '_ {
     }
 }
 
-fn rgb(argb: &str) -> Option<Color> {
-    let rgb = argb.get(2..).filter(|_| argb.len() == 8)?;
-    (argb != "00000000").then(|| Color::Rgb(format!("#{rgb}")))
+fn rgb(value: &str) -> Option<Color> {
+    let rgb = match value.len() {
+        8 if value != "00000000" => value.get(2..)?,
+        6 => value,
+        _ => return None,
+    };
+    Some(Color::Rgb(format!("#{}", rgb.to_ascii_uppercase())))
 }
 
 const fn horizontal(value: &HorizontalAlignmentValues) -> HorizontalAlignment {
@@ -53,7 +59,7 @@ const fn horizontal(value: &HorizontalAlignmentValues) -> HorizontalAlignment {
     }
 }
 
-fn style_of(cell: &Cell) -> Option<Style> {
+fn style_of(cell: &Cell, theme: &Theme) -> Option<Style> {
     let source = cell.style();
     let mut style = Style::default();
     if let Some(format) = source.number_format() {
@@ -67,7 +73,9 @@ fn style_of(cell: &Cell) -> Option<Style> {
         style.font.i = font.italic();
         style.font.u = !matches!(font.underline(), "" | "none");
         style.font.strike = font.strikethrough();
-        if let Some(color) = rgb(&font.color().argb_str()) {
+        if let Some(color) = rgb(&font.color().argb_with_theme(theme))
+            .filter(|color| !matches!(color, Color::Rgb(hex) if hex == "#000000"))
+        {
             style.font.color = color;
         }
         if font.name() != DEFAULT_FONT || (font.size() - DEFAULT_SIZE).abs() > f64::EPSILON {
@@ -79,7 +87,7 @@ fn style_of(cell: &Cell) -> Option<Style> {
         && matches!(pattern.pattern_type(), PatternValues::Solid)
         && let Some(color) = pattern
             .foreground_color()
-            .and_then(|color| rgb(&color.argb_str()))
+            .and_then(|color| rgb(&color.argb_with_theme(theme)))
     {
         style.fill.color = color;
     }
@@ -155,7 +163,7 @@ pub(super) fn model_from_xlsx<'a>(
                     .set_user_input(index, row, column, input)
                     .map_err(parse_error("cell"))?;
             }
-            if let Some(style) = style_of(cell) {
+            if let Some(style) = style_of(cell, workbook.theme()) {
                 model
                     .set_cell_style(index, row, column, &style)
                     .map_err(parse_error("style"))?;

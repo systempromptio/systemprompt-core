@@ -28,6 +28,7 @@ pub mod outcome;
 pub mod payload;
 pub mod proposal;
 pub mod recall;
+pub mod recall_query;
 pub mod revision;
 pub mod scope;
 pub mod source;
@@ -40,8 +41,9 @@ pub use candidate::{FactCandidate, FactCandidateBuilder};
 pub use declarations::{
     ActorFilter, BaseImportance, BrainDeclError, BrainDocs, FillOrder, FilterDecl, FiltersDoc,
     Granularity, ImportanceConfig, InContextImportance, InterestDecl, InterestDelivery,
-    InterestMatch, ModelHint, QuorumUnit, Recency, RetrievalDoc, SynonymsDoc, SynonymsError,
-    TierWeights, TopicDecl, TopicsDoc, UsageWeights, WorkflowProfileDecl, validate,
+    InterestMatch, MAX_LINKS_DEPTH, MAX_SUBJECT_LIMIT, ModelHint, QuorumUnit, Recency,
+    RetrievalDoc, SynonymsDoc, SynonymsError, TierWeights, TopicDecl, TopicsDoc, UsageWeights,
+    WorkflowProfileDecl, validate,
 };
 pub use enter::{EnteredFact, EnteredStatus};
 pub use envelope::{BrainEnvelope, Pathway, PathwayWeight};
@@ -59,8 +61,8 @@ pub use outcome::{BrainOutcome, CITED_IN_RESPONSE, OutcomeObservation, USER_CORR
 pub use payload::{CommentAnchorRef, CommentResolved, RevisionLanded, SessionTurnClosed};
 pub use proposal::{BrainProposal, ProposalDraft, ProposalKind, ProposalStatus};
 pub use recall::{
-    FactRef, InjectionPlan, RecallAudit, RecallCtx, RecallQuery, RetrievalTier, ScoredFact,
-    StoredBlock, TierRank, WithheldFact, WithheldReason,
+    FactRef, InjectionPlan, RecallAudit, RecallCtx, RecallQuery, RecallRerank, RerankedFact,
+    RetrievalTier, ScoredFact, StoredBlock, TierRank, WithheldFact, WithheldReason,
 };
 pub use revision::{FactRevision, RevisionChange};
 pub use scope::{FactScope, ScopeLevel, UnknownScopeLevel};

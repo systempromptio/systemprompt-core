@@ -28,7 +28,10 @@ fn t_known_id_returns_catalog_value() {
 
 #[test]
 fn t_known_id_with_placeable_returns_raw_template() {
-    assert_eq!(t("sync-failure"), "Sync failed: { $error }");
+    assert_eq!(
+        t("sync-gateway-unauthorized"),
+        "{ $gateway } didn't accept your sign-in. Sign in again, or ask your administrator to check your access."
+    );
     assert_eq!(t("last-sync"), "Last sync: { $summary }");
 }
 
@@ -48,8 +51,8 @@ fn t_args_known_id_without_placeables_returns_plain_value() {
 #[test]
 fn t_args_substitutes_single_placeable() {
     assert_eq!(
-        t_args("sync-failure", &[("error", "connection reset")]),
-        "Sync failed: connection reset"
+        t_args("last-sync", &[("summary", "5 minutes ago")]),
+        "Last sync: 5 minutes ago"
     );
 }
 
@@ -63,17 +66,14 @@ fn t_args_substitutes_and_preserves_surrounding_text() {
 
 #[test]
 fn t_args_unmatched_placeable_is_dropped() {
-    // The template references `$error`; supplying a non-matching arg name
-    // leaves the placeable unfilled, and an unfilled placeable is removed.
     assert_eq!(
-        t_args("sync-failure", &[("wrong-name", "value")]),
-        "Sync failed: "
+        t_args("last-sync", &[("wrong-name", "value")]),
+        "Last sync: "
     );
 }
 
 #[test]
 fn t_args_no_args_drops_placeable() {
-    assert_eq!(t_args("sync-failure", &[]), "Sync failed: ");
     assert_eq!(t_args("last-sync", &[]), "Last sync: ");
 }
 
@@ -88,17 +88,15 @@ fn t_args_multiple_placeables_all_substituted() {
                 ("gateway", "https://gw.example"),
             ]
         ),
-        "Sync failed: https://gw.example rejected a freshly issued credential (HTTP 401 from https://gw.example/api). Your access may have been revoked — sign in again, or ask an administrator to check your account."
+        "https://gw.example didn't accept your sign-in. Sign in again, or ask your administrator to check your access."
     );
 }
 
 #[test]
 fn t_args_multiple_placeables_one_unmatched() {
-    // Only `status` is supplied; `gateway` and `endpoint` have no matching args
-    // and are dropped.
     assert_eq!(
-        t_args("sync-gateway-unauthorized", &[("status", "403")]),
-        "Sync failed:  rejected a freshly issued credential (HTTP 403 from ). Your access may have been revoked — sign in again, or ask an administrator to check your account."
+        t_args("sync-gateway-unauthorized", &[("wrong-name", "403")]),
+        " didn't accept your sign-in. Sign in again, or ask your administrator to check your access."
     );
 }
 
@@ -113,7 +111,7 @@ fn t_args_arg_order_independent() {
                 ("status", "401"),
             ]
         ),
-        "Sync failed: https://gw.example rejected a freshly issued credential (HTTP 401 from https://gw.example/api). Your access may have been revoked — sign in again, or ask an administrator to check your account."
+        "https://gw.example didn't accept your sign-in. Sign in again, or ask your administrator to check your access."
     );
 }
 

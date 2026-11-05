@@ -7,7 +7,6 @@
 
 use std::path::Path;
 
-
 use super::frontmatter::parse_skill_frontmatter;
 use super::{FrontmatterExtra, MarketplaceExtra, MarketplaceItem, McpServerEntry};
 

@@ -41,17 +41,20 @@ fn alias_rows_fold_duplicates_with_the_last_fact_winning() {
     let (a, g, p) = (fact_id(), fact_id(), fact_id());
     let first = Utc::now();
     let later = first + Duration::seconds(1);
-    let rows = AliasRows::collect([
-        (
-            owner(&acme, &a, first),
-            vec!["acme".to_owned(), "Jane  Doe".to_owned()],
-        ),
-        (
-            owner(&globex, &g, later),
-            vec!["globex".to_owned(), "jane doe".to_owned()],
-        ),
-        (owner(&person, &p, later), vec!["Jane Doe".to_owned()]),
-    ]);
+    let rows = AliasRows::collect(
+        &mut [
+            (
+                owner(&acme, &a, first),
+                vec!["acme".to_owned(), "Jane  Doe".to_owned()],
+            ),
+            (
+                owner(&globex, &g, later),
+                vec!["globex".to_owned(), "jane doe".to_owned()],
+            ),
+            (owner(&person, &p, later), vec!["Jane Doe".to_owned()]),
+        ]
+        .into_iter(),
+    );
     assert_eq!(rows.kinds, vec!["client", "client", "client", "person"]);
     assert_eq!(rows.subjects, vec!["acme", "globex", "globex", "jane"]);
     assert_eq!(
@@ -75,10 +78,13 @@ fn alias_rows_skip_what_the_length_check_would_refuse() {
     let a = fact_id();
     let long = "x".repeat(MAX_ALIAS_NORM_LEN + 1);
     let longest = "y".repeat(MAX_ALIAS_NORM_LEN);
-    let rows = AliasRows::collect([(
-        owner(&acme, &a, Utc::now()),
-        vec!["   ".to_owned(), long, longest.clone(), "acme".to_owned()],
-    )]);
+    let rows = AliasRows::collect(
+        &mut [(
+            owner(&acme, &a, Utc::now()),
+            vec!["   ".to_owned(), long, longest.clone(), "acme".to_owned()],
+        )]
+        .into_iter(),
+    );
     assert_eq!(rows.aliases, vec![longest, "acme".to_owned()]);
-    assert!(AliasRows::collect(std::iter::empty()).is_empty());
+    assert!(AliasRows::collect(&mut std::iter::empty()).is_empty());
 }

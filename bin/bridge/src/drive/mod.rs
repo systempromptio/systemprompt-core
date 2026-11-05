@@ -25,6 +25,7 @@
 pub mod client;
 pub mod conflict;
 pub mod cycle;
+pub mod deletes;
 pub mod error;
 pub mod hash;
 pub mod notice;

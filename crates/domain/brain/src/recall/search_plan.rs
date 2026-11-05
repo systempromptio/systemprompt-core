@@ -11,6 +11,33 @@
 //! the rank is the disjunction of every group. Without statistics every
 //! group ranks and the filter is the disjunction of all of them.
 //!
+//! A declared stop word (`SearchPolicy::stop_words`, lower-case tokens
+//! as the tokeniser yields them: `what's` is seen as `what`) is dropped
+//! before expansion, so it is never a group, never required and never
+//! ranks. Once any stop word is declared, a message whose remaining
+//! groups are all too common to narrow the candidates plans nothing,
+//! where the undeclared policy keeps the disjunction of those groups as
+//! the filter; without statistics the undeclared behaviour holds either
+//! way, since no group can be told common.
+//!
+//! `SearchPolicy::max_ndoc` (0 = off) bounds the rows the filter can
+//! match: a conjunction matches at most the rarest required group's
+//! document count, a disjunction at most the sum of its groups' counts
+//! (a group's count is its most common lexeme's, the count its share is
+//! taken from). A filter whose bound is above `max_ndoc` plans nothing:
+//! the message carries no word selective enough to be worth ranking that
+//! many rows. Without statistics every count is zero and the bound never
+//! applies.
+//!
+//! `SearchPolicy::rare_alone_share` (0 = off): when the rarest
+//! informative group's share is at or under it, that group alone is
+//! required, whatever the quorum would have asked beside it. A proper
+//! noun one fact carries then finds that fact even when the message's
+//! other informative word is one the fact does not use ("Akeneo for
+//! product data" against "Akeneo PIM as the product master"); a client
+//! name carried by dozens of facts stays above the share and keeps its
+//! quorum, so a negative prompt gains nothing.
+//!
 //! The share is counted over the informative
 //! groups (`QuorumUnit::Groups`) or over the query words those groups
 //! absorbed (`QuorumUnit::Words`, where a group that merged two words of
@@ -31,12 +58,15 @@ const MAX_QUERY_WORDS: usize = 32;
 const MIN_WORD_CHARS: usize = 3;
 
 /// How the planner decides what a fact must carry.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct SearchPolicy {
     pub max_df: f64,
     pub quorum: f64,
     pub retry_quorum: f64,
     pub quorum_over: QuorumUnit,
+    pub stop_words: Vec<String>,
+    pub max_ndoc: u64,
+    pub rare_alone_share: f64,
 }
 
 impl SearchPolicy {
@@ -47,7 +77,36 @@ impl SearchPolicy {
             quorum,
             retry_quorum: 0.0,
             quorum_over: QuorumUnit::Groups,
+            stop_words: Vec::new(),
+            max_ndoc: 0,
+            rare_alone_share: 0.0,
         }
+    }
+
+    #[must_use]
+    pub fn with_stop_words(mut self, words: Vec<String>) -> Self {
+        self.stop_words = words;
+        self
+    }
+
+    #[must_use]
+    pub const fn with_max_ndoc(mut self, max_ndoc: u64) -> Self {
+        self.max_ndoc = max_ndoc;
+        self
+    }
+
+    #[must_use]
+    pub const fn with_rare_alone_share(mut self, share: f64) -> Self {
+        self.rare_alone_share = share;
+        self
+    }
+
+    fn rare_alone(&self, rarest: &Group) -> bool {
+        self.rare_alone_share > 0.0 && rarest.share <= self.rare_alone_share
+    }
+
+    const fn within_bound(&self, bound: u64) -> bool {
+        self.max_ndoc == 0 || bound <= self.max_ndoc
     }
 
     #[must_use]
@@ -56,11 +115,15 @@ impl SearchPolicy {
             Some(Self {
                 quorum: self.retry_quorum,
                 retry_quorum: 0.0,
-                ..*self
+                ..self.clone()
             })
         } else {
             None
         }
+    }
+
+    fn is_stop_word(&self, word: &str) -> bool {
+        self.stop_words.iter().any(|w| w == word)
     }
 }
 
@@ -75,6 +138,7 @@ pub struct SearchPlan {
 struct Group {
     tsquery: String,
     share: f64,
+    ndoc: u64,
     members: Vec<String>,
     words: usize,
 }
@@ -86,7 +150,7 @@ pub fn plan(
     terms: &SearchTerms,
     policy: &SearchPolicy,
 ) -> Option<SearchPlan> {
-    let groups = groups_of(hints, synonyms, terms);
+    let groups = groups_of(hints, synonyms, terms, policy);
     if groups.is_empty() {
         return None;
     }
@@ -96,17 +160,31 @@ pub fn plan(
         .filter(|g| g.share > 0.0 && g.share <= policy.max_df)
         .collect();
     if informative.is_empty() {
-        return Some(SearchPlan {
+        if !policy.stop_words.is_empty() && terms.total > 0 {
+            return None;
+        }
+        let bound: u64 = groups.iter().map(|g| g.ndoc).sum();
+        return policy.within_bound(bound).then(|| SearchPlan {
             filter: rank.clone(),
             rank,
         });
     }
     informative.sort_by(|a, b| a.share.total_cmp(&b.share));
+    if informative
+        .first()
+        .is_some_and(|rarest| !policy.within_bound(rarest.ndoc))
+    {
+        return None;
+    }
     let units = match policy.quorum_over {
         QuorumUnit::Groups => informative.len(),
         QuorumUnit::Words => informative.iter().map(|g| g.words).sum(),
     };
-    let required = quorum_count(units, policy.quorum).min(informative.len());
+    let required = if informative.first().is_some_and(|g| policy.rare_alone(g)) {
+        1
+    } else {
+        quorum_count(units, policy.quorum).min(informative.len())
+    };
     let filter = informative
         .iter()
         .take(required)
@@ -123,13 +201,21 @@ fn quorum_count(units: usize, quorum: f64) -> usize {
     wanted.clamp(1, units.max(1))
 }
 
-fn groups_of(hints: &str, synonyms: &SynonymsDoc, terms: &SearchTerms) -> Vec<Group> {
+fn groups_of(
+    hints: &str,
+    synonyms: &SynonymsDoc,
+    terms: &SearchTerms,
+    policy: &SearchPolicy,
+) -> Vec<Group> {
     let mut seen: Vec<String> = Vec::new();
     let mut asked: Vec<String> = Vec::new();
     let mut groups: Vec<Group> = Vec::new();
     for word in hints.split(|c: char| !c.is_alphanumeric()) {
         let word = word.to_lowercase();
-        if word.chars().count() < MIN_WORD_CHARS || asked.contains(&word) {
+        if word.chars().count() < MIN_WORD_CHARS
+            || asked.contains(&word)
+            || policy.is_stop_word(&word)
+        {
             continue;
         }
         asked.push(word.clone());
@@ -159,6 +245,7 @@ fn groups_of(hints: &str, synonyms: &SynonymsDoc, terms: &SearchTerms) -> Vec<Gr
 
 fn group_of(members: &[String], terms: &SearchTerms) -> Option<Group> {
     let mut share: f64 = 0.0;
+    let mut ndoc: u64 = 0;
     let mut alternatives = Vec::new();
     for member in members {
         let lexemes: Vec<&str> = member
@@ -169,6 +256,10 @@ fn group_of(members: &[String], terms: &SearchTerms) -> Option<Group> {
             continue;
         }
         share = lexemes.iter().map(|w| terms.share(w)).fold(share, f64::max);
+        ndoc = lexemes
+            .iter()
+            .map(|w| terms.ndoc_of(w))
+            .fold(ndoc, u64::max);
         alternatives.push(lexemes.join(" <-> "));
     }
     (!alternatives.is_empty()).then(|| Group {
@@ -178,6 +269,7 @@ fn group_of(members: &[String], terms: &SearchTerms) -> Option<Group> {
             format!("({})", alternatives.join(" | "))
         },
         share,
+        ndoc,
         members: members.to_vec(),
         words: 1,
     })

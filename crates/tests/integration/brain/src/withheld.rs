@@ -104,3 +104,47 @@ async fn an_intern_without_finance_access_is_withheld_every_fact_whose_source_th
     );
     h.finish().await;
 }
+
+#[tokio::test]
+async fn a_subject_whose_every_fact_is_hidden_from_the_reader_names_nothing() {
+    let h = Harness::with("brain_withheld_hidden_subject", Setup::confirming()).await;
+    let docs = capture(&h).await;
+    let mut declared = crate::plane::declared();
+    declared.retrieval = Some(systemprompt_models::brain::RetrievalDoc {
+        context_requires_signal: true,
+        ..systemprompt_models::brain::RetrievalDoc::default()
+    });
+    crate::plane::apply(&h.pg, &declared).await;
+    let intern = h.user("intern", &[]).await;
+    h.access.set(
+        docs.hidden.document.as_str(),
+        &intern,
+        Access::Verdict(SourceVerdict::Hidden),
+    );
+    let service = h.recall();
+
+    let about_hidden = service
+        .recall(&request(
+            principal(&intern, Some(&docs.folder)),
+            "Any news on hidden?",
+        ))
+        .await
+        .expect("intern recall");
+    assert!(
+        ids(&about_hidden).is_empty(),
+        "a subject the reader cannot see opened the context cap: {:?}",
+        ids(&about_hidden)
+    );
+
+    let about_open = service
+        .recall(&request(
+            principal(&intern, Some(&docs.folder)),
+            "Any news on open?",
+        ))
+        .await
+        .expect("intern recall");
+    let got = ids(&about_open);
+    assert_eq!(got.len(), 3, "a visible subject opens the context: {got:?}");
+    assert!(got.contains(&h.fact_ids("open").await[0]), "{got:?}");
+    h.finish().await;
+}

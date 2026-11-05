@@ -4,7 +4,7 @@ use systemprompt_brain::recall::budget::{BudgetLimits, Candidate, fill};
 use systemprompt_identifiers::BrainFactId;
 use systemprompt_models::brain::{FillOrder, InjectionPlan, RetrievalTier, WithheldReason};
 
-use crate::recall_fixtures::{brain_fact, id, ranked};
+use crate::recall_fixtures::{NAMED, UNNAMED, brain_fact, id, ranked};
 
 const SUBJECT: &[RetrievalTier] = &[RetrievalTier::Subject];
 const LINKED: &[RetrievalTier] = &[RetrievalTier::Linked];
@@ -48,7 +48,7 @@ fn cross_entity() -> Vec<Candidate> {
 
 #[test]
 fn rank_order_keeps_the_facts_the_tiers_agreed_on_when_the_count_cuts() {
-    let plan = fill(cross_entity(), &limits(2), true);
+    let plan = fill(cross_entity(), &limits(2), NAMED);
     assert_eq!(ids(&plan), vec![id(1), id(2)]);
     assert_eq!(
         withheld(&plan, WithheldReason::MaxFacts),
@@ -60,7 +60,7 @@ fn rank_order_keeps_the_facts_the_tiers_agreed_on_when_the_count_cuts() {
 fn importance_order_is_the_pre_p2_fill_and_cuts_them() {
     let mut limits = limits(2);
     limits.order = FillOrder::Importance;
-    let plan = fill(cross_entity(), &limits, true);
+    let plan = fill(cross_entity(), &limits, NAMED);
     assert_eq!(ids(&plan), vec![id(3), id(4)]);
 }
 
@@ -73,7 +73,7 @@ fn a_rank_tie_falls_back_to_importance_then_id() {
             candidate(7, 0.016, 0.70, TEXT),
         ],
         &limits(10),
-        false,
+        UNNAMED,
     );
     assert_eq!(ids(&plan), vec![id(7), id(8), id(9)]);
 }
@@ -88,10 +88,10 @@ fn the_linked_share_holds_slots_for_link_hits_when_a_subject_is_named() {
         candidate(3, 0.027, 0.5, TEXT),
         candidate(4, 0.020, 0.5, LINKED),
     ];
-    let plan = fill(candidates.clone(), &limits, true);
+    let plan = fill(candidates.clone(), &limits, NAMED);
     assert_eq!(ids(&plan), vec![id(1), id(2), id(4)]);
     assert_eq!(withheld(&plan, WithheldReason::MaxFacts), vec![id(3)]);
-    let unnamed = fill(candidates, &limits, false);
+    let unnamed = fill(candidates, &limits, UNNAMED);
     assert_eq!(unnamed.facts.len(), 3);
     assert_eq!(ids(&unnamed), vec![id(1), id(2), id(3)]);
 }
@@ -107,7 +107,7 @@ fn the_reserve_never_exceeds_the_link_hits_present() {
             candidate(3, 0.020, 0.5, LINKED),
         ],
         &limits,
-        true,
+        NAMED,
     );
     assert_eq!(ids(&plan), vec![id(1), id(2), id(3)]);
 }
@@ -127,7 +127,7 @@ fn a_linked_fact_withheld_for_its_quota_releases_its_slot() {
             candidate(3, 0.020, 0.5, LINKED),
         ],
         &limits,
-        true,
+        NAMED,
     );
     assert_eq!(withheld(&plan, WithheldReason::Quota), vec![id(2), id(3)]);
     assert_eq!(ids(&plan), vec![id(1)]);
@@ -144,7 +144,7 @@ fn facts_under_the_minimum_fused_score_are_withheld_as_low_score() {
             candidate(3, 0.010, 0.9, CONTEXT),
         ],
         &limits,
-        true,
+        NAMED,
     );
     assert_eq!(ids(&plan), vec![id(1)]);
     assert_eq!(
@@ -163,7 +163,7 @@ fn a_message_no_tier_scores_injects_nothing() {
             candidate(2, 0.010, 0.9, CONTEXT),
         ],
         &limits,
-        false,
+        UNNAMED,
     );
     assert!(plan.facts.is_empty());
     assert_eq!(plan.tokens, 0);
@@ -172,7 +172,7 @@ fn a_message_no_tier_scores_injects_nothing() {
 
 #[test]
 fn a_zero_minimum_withholds_nothing() {
-    let plan = fill(vec![candidate(1, 0.0, 0.9, CONTEXT)], &limits(10), false);
+    let plan = fill(vec![candidate(1, 0.0, 0.9, CONTEXT)], &limits(10), UNNAMED);
     assert_eq!(ids(&plan), vec![id(1)]);
 }
 
@@ -192,10 +192,10 @@ fn context_only_facts_are_capped_when_a_subject_is_named() {
             &[RetrievalTier::Context, RetrievalTier::FullText],
         ),
     ];
-    let plan = fill(candidates.clone(), &limits, true);
+    let plan = fill(candidates.clone(), &limits, NAMED);
     assert_eq!(ids(&plan), vec![id(1), id(2), id(3), id(5)]);
     assert_eq!(withheld(&plan, WithheldReason::ContextCap), vec![id(4)]);
-    let unnamed = fill(candidates, &limits, false);
+    let unnamed = fill(candidates, &limits, UNNAMED);
     assert_eq!(unnamed.facts.len(), 5);
 }
 
@@ -209,7 +209,7 @@ fn a_zero_context_share_admits_context_facts_only_without_a_subject() {
             candidate(2, 0.013, 0.5, CONTEXT),
         ],
         &limits,
-        true,
+        NAMED,
     );
     assert_eq!(ids(&plan), vec![id(1)]);
     assert_eq!(withheld(&plan, WithheldReason::ContextCap), vec![id(2)]);
@@ -221,8 +221,8 @@ fn the_fill_is_deterministic_over_input_order() {
     limits.linked_share = 0.34;
     limits.context_share = 0.34;
     limits.min_fused_score = 0.005;
-    let forward = fill(cross_entity(), &limits, true);
+    let forward = fill(cross_entity(), &limits, NAMED);
     let mut reversed = cross_entity();
     reversed.reverse();
-    assert_eq!(fill(reversed, &limits, true), forward);
+    assert_eq!(fill(reversed, &limits, NAMED), forward);
 }

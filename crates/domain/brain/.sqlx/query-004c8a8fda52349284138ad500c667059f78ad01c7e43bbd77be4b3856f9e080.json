@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM brain_subject_links WHERE fact_id = ANY($1::text[])",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "004c8a8fda52349284138ad500c667059f78ad01c7e43bbd77be4b3856f9e080"
+}

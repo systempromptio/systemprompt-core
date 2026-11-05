@@ -2,6 +2,8 @@ import { SpElement, reactive } from "/assets/js/components/sp-element.js";
 import { escapeHtml } from "/assets/js/utils/escape.js";
 import { onBridgeEvent } from "/assets/js/events/bridge-events.js";
 import { actionFor } from "/assets/js/components/toast-actions.js";
+import { isReadable } from "/assets/js/utils/notify.js";
+import { t } from "/assets/js/i18n.js";
 
 // Every failing handler on the Rust side emits on the `error` channel *and*
 // rejects the request (`finish()` in src/gui/handlers/*). The front end now
@@ -20,7 +22,8 @@ export class SpToast extends SpElement {
     this._lastMessage = "";
     this._lastAt = 0;
     this.action = null;
-    this.gatewayError = false;
+    this.detail = "";
+    this._shownErrors = new Set();
     this.registerAction("dismiss", () => this.hide());
     this.registerAction("act", () => this._runAction());
   }
@@ -29,14 +32,20 @@ export class SpToast extends SpElement {
     this.classList.add("sp-toast");
     this.setAttribute("aria-atomic", "true");
     this.bridgeSubscribe("error", (err) => {
-      const msg = (err && err.message) || "error";
+      if (!err || !err.message) { return; }
+      // A failed sync's lasting surface is the Agents banner; only the sign-in
+      // it needs has an answer the toast can offer.
+      if (err.scope === "marketplace" && err.code !== "unauthorized") { return; }
+      // One condition, one toast: a background retry hitting the same failure
+      // stays quiet until the session recovers.
+      if (this._shownErrors.has(err.message)) { return; }
+      this._shownErrors.add(err.message);
       this.action = actionFor(err);
-      // Why: a gateway that came back answers this toast as completely as a
-      // fresh sign-in answers the credential one.
-      this.gatewayError = Boolean(err && err.scope === "gateway" && err.code === "unreachable");
-      // An error the user has to read must not time out (WCAG 2.2.1); every
-      // error is dismissed deliberately.
-      this.show(msg, "error", 0);
+      const readable = isReadable(err);
+      this.detail = readable ? "" : err.message;
+      const line = readable ? err.message : (t("toast-generic-failed") || "That didn't finish. Please try again.");
+      // An error the user has to read must not time out (WCAG 2.2.1).
+      this.show(line, "error", 0, err.message);
     });
     // A rejected credential has no timeout, so nothing but the user could
     // clear it — it outlived the purge and the fresh sign-in that answered it.
@@ -45,9 +54,10 @@ export class SpToast extends SpElement {
     this.useSnapshot((snap) => {
       const identity = (snap && snap.verified_identity) || null;
       const clears = Boolean(this.action && this.action.clearsOnSignIn);
-      if (this.visible && clears && identity && identity.user_id) { this.hide(); }
-      const gateway = (snap && snap.gateway_status) || null;
-      if (this.visible && this.gatewayError && gateway && gateway.tone === "ok") { this.hide(); }
+      if (identity && identity.user_id) {
+        this._shownErrors.clear();
+        if (this.visible && clears) { this.hide(); }
+      }
     });
     this._unsubs.push(onBridgeEvent("sp:toast", (e) => {
       const d = (e && e.detail) || {};
@@ -61,7 +71,7 @@ export class SpToast extends SpElement {
         return;
       }
       this.action = null;
-      this.gatewayError = false;
+      this.detail = d.detail || "";
     }));
   }
 
@@ -94,7 +104,6 @@ export class SpToast extends SpElement {
 
   hide() {
     this.visible = false;
-    this.gatewayError = false;
     if (this._timer) { clearTimeout(this._timer); this._timer = null; }
   }
 
@@ -118,12 +127,12 @@ export class SpToast extends SpElement {
       ? `<button class="sp-toast__action" type="button" data-action="act">${escapeHtml(this.action.label)}</button>`
       : "";
     return `
-      <span class="sp-toast__msg">${escapeHtml(this.message)}</span>
+      <span class="sp-toast__msg">${escapeHtml(this.message)}${this.detail ? `<details class="sp-toast__detail"><summary>${escapeHtml(t("toast-error-details") || "Details")}</summary>${escapeHtml(this.detail)}</details>` : ""}</span>
       ${action}
       <button class="sp-toast__close" type="button" data-l10n-aria="toast-dismiss" aria-label="Dismiss" data-action="dismiss">×</button>
     `;
   }
 }
 
-reactive(SpToast.prototype, ["message", "kind", "visible", "action"]);
+reactive(SpToast.prototype, ["message", "kind", "visible", "action", "detail"]);
 customElements.define("sp-toast", SpToast);

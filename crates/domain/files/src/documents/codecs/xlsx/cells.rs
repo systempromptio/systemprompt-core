@@ -34,7 +34,6 @@ pub(super) fn write_cell(sheet: &mut Worksheet, col: u32, row: u32, value: &Cell
     }
 }
 
-
 pub(super) fn auto_parse(text: &str) -> CellValue {
     let trimmed = text.trim();
     if trimmed.is_empty() {
@@ -54,13 +53,11 @@ pub(super) fn auto_parse(text: &str) -> CellValue {
     CellValue::Text(text.to_owned())
 }
 
-
 pub(super) fn write_row(sheet: &mut Worksheet, row: u32, text: &str) {
     for (col, value) in (1u32..).zip(text.split('\t')) {
         write_cell(sheet, col, row, &auto_parse(value));
     }
 }
-
 
 pub(super) fn clear_row(sheet: &mut Worksheet, row: u32) {
     let columns: Vec<u32> = sheet

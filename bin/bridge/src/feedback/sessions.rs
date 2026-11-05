@@ -13,7 +13,6 @@ use systemprompt_models::bridge::host::HostKind;
 use systemprompt_models::feedback::EvaluatorClient;
 use systemprompt_models::origin::{ClientKind, native_marker, ua_product};
 
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NativeSession {
     pub host: EvaluatorClient,

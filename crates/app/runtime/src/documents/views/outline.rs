@@ -14,6 +14,7 @@
 
 use std::collections::HashMap;
 
+use serde::Serialize;
 use systemprompt_files::documents::DocumentsError;
 use systemprompt_files::documents::nodes::{ChangeItem, NodeChanges, changes};
 use systemprompt_identifiers::DocumentNodeId;
@@ -129,6 +130,55 @@ pub fn change_lines(head: &Projection, changes: &NodeChanges<'_>) -> Vec<String>
 #[must_use]
 pub fn proposal_lines(base: &Projection, proposed: &Projection) -> Vec<String> {
     change_lines(proposed, &changes(base, proposed, shows))
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProposalChangeKind {
+    Added,
+    Changed,
+    Removed,
+}
+
+/// One block a proposal touches, in words a reviewer reads rather than the
+/// hashlines an agent edits against.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct ProposalChange {
+    pub node: DocumentNodeId,
+    pub kind: ProposalChangeKind,
+    pub before: Option<String>,
+    pub after: Option<String>,
+}
+
+#[must_use]
+pub fn proposal_changes(base: &Projection, proposed: &Projection) -> Vec<ProposalChange> {
+    let found = changes(base, proposed, shows);
+    let text_in = |projection: &Projection, id: &DocumentNodeId| {
+        projection.find(id).and_then(|node| node.text.clone())
+    };
+    let touched = found.items.iter().filter_map(|item| match item {
+        ChangeItem::Node(node) => {
+            let before = base.find(&node.id);
+            Some(ProposalChange {
+                node: node.id.clone(),
+                kind: if before.is_some() {
+                    ProposalChangeKind::Changed
+                } else {
+                    ProposalChangeKind::Added
+                },
+                before: before.and_then(|held| held.text.clone()),
+                after: node.text.clone(),
+            })
+        },
+        ChangeItem::Gap(_) => None,
+    });
+    let removed = found.gone.iter().map(|id| ProposalChange {
+        node: id.clone(),
+        kind: ProposalChangeKind::Removed,
+        before: text_in(base, id),
+        after: None,
+    });
+    touched.chain(removed).collect()
 }
 
 pub(super) fn shown_roots(projection: &Projection, verbose: bool) -> Option<Projection> {

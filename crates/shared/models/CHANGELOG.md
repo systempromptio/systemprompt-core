@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.79.0] - 2026-11-05
+
+### Breaking
+
+- **Breaking:** `RetrievalDoc`, `RecallQuery`, `KindDecl` and `FieldDecl` gain fields. Migrate struct literals by adding them, or build a `RecallQuery` with `RecallQuery::new`.
+- **Breaking:** `WithheldReason` gains `UnknownName` and `NoSignal`, and `WithheldReason::Unavailable` changes discriminant from 11 to 13. `BrainDeclError` gains `DisplayNotTextField`, `LimitOverMax`, `StopWordNotToken` and `AskNotToken`. Migrate exhaustive matches by adding the arms.
+
+### Added
+
+- `DriveTrashRequest`, `DriveTrashResponse` and `DriveMoveRequest`, and `ApiPaths::{BRIDGE_DRIVE_TRASH, BRIDGE_DRIVE_MOVE}`.
+- `brain::{RecallRerank, RerankedFact}`, `KindDecl::{ask_words, asked_by}`, `MAX_LINKS_DEPTH` and `MAX_SUBJECT_LIMIT`.
+
 ## [0.78.0] - 2026-11-04
 
 ### Breaking

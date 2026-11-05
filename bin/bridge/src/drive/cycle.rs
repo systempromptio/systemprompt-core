@@ -1,8 +1,10 @@
 //! One Drive sync cycle and the first-run check.
 //!
-//! A cycle pulls the server's changes, pushes local edits, refreshes the open
-//! proposals and folds the outcome into the shared status. The first-run
-//! check creates the Drive folder once the server has documents for it.
+//! A cycle notes the files gone from the folder, pulls the server's changes,
+//! carries the local deletes and renames over, pushes local edits, refreshes
+//! the open proposals and folds the outcome into the shared status. The
+//! first-run check creates the Drive folder once the server has documents for
+//! it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -10,6 +12,7 @@
 use chrono::Utc;
 
 use super::conflict::prune_resolved;
+use super::deletes::{self, DeleteReport};
 use super::error::{DriveError, DriveResult};
 use super::pull::{PullReport, pull};
 use super::scan::local_changes;
@@ -21,6 +24,7 @@ use super::{Cycle, shares};
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct CycleReport {
     pub pull: PullReport,
+    pub deletes: DeleteReport,
     pub upload: UploadReport,
     pub pending_uploads: usize,
 }
@@ -32,11 +36,15 @@ pub async fn sync_once(cycle: Cycle<'_>, handle: &DriveHandle) -> DriveResult<Cy
     if prune_resolved(cycle.root, &mut state) | shares::record(&mut state, handle.take_shares()) {
         state.save(&state_path)?;
     }
+    if deletes::observe(cycle.root, &mut state, Utc::now()) {
+        state.save(&state_path)?;
+    }
     let pull = pull(cycle, &mut state).await?;
     if shares::prune_synced(&mut state) {
         state.save(&state_path)?;
     }
     handle.mark_enabled(cycle.root);
+    let deletes = deletes::apply(cycle, &mut state).await?;
     let upload = upload(cycle, &mut state).await?;
     if super::proposals::refresh(cycle, &mut state).await {
         state.save(&state_path)?;
@@ -44,6 +52,7 @@ pub async fn sync_once(cycle: Cycle<'_>, handle: &DriveHandle) -> DriveResult<Cy
     let pending_uploads = local_changes(cycle.root, &state)?.len();
     let report = CycleReport {
         pull,
+        deletes,
         upload,
         pending_uploads,
     };
@@ -54,6 +63,8 @@ pub async fn sync_once(cycle: Cycle<'_>, handle: &DriveHandle) -> DriveResult<Cy
         status.proposals.clone_from(&state.proposals);
         status.sent_for_review.clone_from(&state.sent_for_review);
         status.shares.clone_from(&state.shares);
+        status.held_deletes.clone_from(&state.held_deletes);
+        status.delete_notices.clone_from(&state.delete_notices);
         status.last_error = None;
     });
     Ok(report)

@@ -28,7 +28,6 @@ use crate::config::IssuesConfig;
 pub const ISSUE_SUBJECT: &str = "issue_report";
 pub const ISSUES_STREAM: &str = "issues";
 
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FiledIssue {
     pub inserted: bool,

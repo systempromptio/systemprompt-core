@@ -89,6 +89,27 @@ pub struct DriveCommitMeta {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct DriveTrashRequest {
+    pub document_id: DocumentId,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum DriveTrashResponse {
+    Trashed,
+    Conflict {
+        head_revision_id: DocumentRevisionId,
+        head_content_sha256: ContentHash,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct DriveMoveRequest {
+    pub document_id: DocumentId,
+    pub path: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "status", rename_all = "snake_case")]
 pub enum DriveCommitResponse {
     Committed {

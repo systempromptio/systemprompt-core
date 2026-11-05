@@ -28,7 +28,7 @@ use super::{
     UploadHandler,
 };
 
-const OP_NAMES: [&str; 8] = [
+const OP_NAMES: [&str; 11] = [
     "replace_text",
     "insert_after",
     "delete",
@@ -37,6 +37,9 @@ const OP_NAMES: [&str; 8] = [
     "insert_slide",
     "set_text",
     "set_html",
+    "move_shape",
+    "resize_shape",
+    "delete_shape",
 ];
 
 // JSON: MCP tool `inputSchema` — the ops array is described in the guide.

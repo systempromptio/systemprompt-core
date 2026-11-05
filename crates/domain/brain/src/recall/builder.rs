@@ -1,8 +1,9 @@
 //! [`BrainRecallServiceBuilder`]: assembles a [`BrainRecallService`] from
-//! its store, source check, declarations and profile, with optional
-//! extension retrievers (and the loader that introduces the facts only
-//! they find), injection policies, importance models and audience
-//! resolvers.
+//! its store, the loader that reads the fused facts (and the facts only an
+//! extension retriever finds), source check, declarations and profile,
+//! with optional extension retrievers, rerankers (the first registered
+//! one is applied, the rest are held and never run), injection policies,
+//! importance models and audience resolvers.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -11,7 +12,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use systemprompt_extension::brain::{
-    FactRecallSource, FactRetriever, ImportanceModel, InjectionPolicy, SourceAccess,
+    FactRecallSource, FactRetriever, ImportanceModel, InjectionPolicy, Reranker, SourceAccess,
 };
 use systemprompt_extension::notifications::NotificationAudienceResolver;
 use systemprompt_manifest::profile::BrainProfile;
@@ -25,6 +26,7 @@ impl std::fmt::Debug for BrainRecallService {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("BrainRecallService")
             .field("retrievers", &self.retrievers.len())
+            .field("rerankers", &self.rerankers.len())
             .field("injection", &self.injection.len())
             .field("importance", &self.importance.len())
             .field("audiences", &self.audiences.len())
@@ -43,6 +45,7 @@ impl BrainRecallService {
     #[must_use]
     pub fn builder(
         store: Arc<dyn FactRecallSource>,
+        loader: Arc<dyn FactLoader>,
         source_access: Arc<dyn SourceAccess>,
         declared: Arc<dyn DeclaredSource>,
         profile: Arc<BrainProfile>,
@@ -55,7 +58,8 @@ impl BrainRecallService {
                 declared,
                 profile,
                 retrievers: Vec::new(),
-                loader: None,
+                rerankers: Vec::new(),
+                loader,
                 injection: Vec::new(),
                 importance: Vec::new(),
                 audiences: Vec::new(),
@@ -74,8 +78,8 @@ impl BrainRecallServiceBuilder {
     }
 
     #[must_use]
-    pub fn loader(mut self, loader: Arc<dyn FactLoader>) -> Self {
-        self.service.loader = Some(loader);
+    pub fn rerankers(mut self, rerankers: Vec<Arc<dyn Reranker>>) -> Self {
+        self.service.rerankers = rerankers;
         self
     }
 

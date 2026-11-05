@@ -15,7 +15,6 @@ use http_body_util::BodyExt;
 use hyper::body::Incoming;
 use systemprompt_identifiers::GatewayConversationId;
 
-
 use super::error::{ForwardError, ForwardResult};
 use crate::proxy::session::{self, SessionContext};
 use systemprompt_identifiers::headers::OPENCODE_SESSION as OPENCODE_SESSION_HEADER;

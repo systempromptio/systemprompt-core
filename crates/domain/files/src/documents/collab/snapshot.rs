@@ -22,7 +22,6 @@ struct Sealed {
     covers: u32,
 }
 
-
 impl CollabService {
     pub(super) async fn snapshot(&self, shared: &SharedEntry) -> Result<(), CollabError> {
         let Some(sealed) = self.seal(shared).await? else {

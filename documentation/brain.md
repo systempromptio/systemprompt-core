@@ -4,6 +4,8 @@ How systemprompt-core remembers what an organisation has decided and puts that k
 
 The brain lives in the `brain` domain (`crates/domain/brain`). Producers record events in the durable outbox in the same transaction as the change that caused them. A consumer reads each event and turns the event into candidate facts. A model, called through the in-process gateway client, extracts the candidates, and declared rules validate, deduplicate, route and confirm them. Every change to a fact is a revision. On each new user turn the gateway recalls the confirmed facts the caller may see and appends them to the request's system prompt as a `<team_memory>` block.
 
+This page is the reference: what to declare, what each knob does, what every surface returns. The recall path as an architecture, with its invariants and what is measured, is [concepts/brain-recall.md](concepts/brain-recall.md).
+
 ## Enabling
 
 The brain is opt-in twice: at build time and in the profile.
@@ -11,9 +13,9 @@ The brain is opt-in twice: at build time and in the profile.
 Enable the `brain` feature of the `systemprompt` crate. `full` includes it and `core` does not. The feature implies `notifications`.
 
 ```toml
-systemprompt = { version = "0.78", features = ["full"] }
+systemprompt = { version = "0.79", features = ["full"] }
 # or, on top of a narrower set:
-systemprompt = { version = "0.78", features = ["api", "brain"] }
+systemprompt = { version = "0.79", features = ["api", "brain"] }
 ```
 
 Then switch it on in the profile:
@@ -134,7 +136,7 @@ The brain's declarations are YAML under `services/brain/`. `systemprompt config 
 | `topics.yaml` | The topic list |
 | `filters.yaml` | Declared event filters |
 | `importance.yaml` | The importance formula's weights |
-| `retrieval.yaml` | Retrieval tier weights, fusion constant, fact cap and quotas |
+| `retrieval.yaml` | Retrieval tier weights, fusion constant, the recall rules and their knobs, fact cap and quotas |
 | `synonyms.yaml` | Groups of terms the search index treats as one |
 | `kinds/*.yaml` | One fact kind per file |
 | `interests/*.yaml` | One interest per file |
@@ -174,6 +176,25 @@ extractor:
 ```
 
 Field types are `text`, `entity`, `date`, `number`, `bool` and `enum`. A field may also declare `alias: true`: its value is written as an alias of the fact's subject, so a later mention by that name resolves to the subject. A template substitutes `{name}` with a field and `{subject}` with the subject id; a group `{name? text}` is included only when `name` has a value. An extractor is `{type: model, prompt, prompt_version}` or `{type: parser, name}`.
+
+Two further declarations make a kind askable and its entities subjects in their own right:
+
+```yaml
+# services/brain/kinds/team_assignment.yaml
+kind: team_assignment
+subject: project
+fields:
+  person: {type: text, required: true, max_len: 120}
+  user:   {type: entity, ref: user, display: person}   # the person as a subject, named by `person`
+  role:   {type: enum, required: true, values: [engagement lead, developer, project manager]}
+statement: "{person} is the {role} on {subject}"
+identity: [subject, person]
+materiality: {require: [person, role]}
+asks: [team, staffed, assigned, lead, manager, role]  # a message carrying one of these asks this kind
+```
+
+- **`asks`** lists the kind's *ask words*: lower-case single tokens (`BrainDeclError::AskNotToken` otherwise). A message asks a kind when one of its alphanumeric tokens is a word of the kind id or of this list; without the list, the id words alone. An asked kind is a recall signal and its facts rank first in the context and subject tiers (see [A new-turn recall](#a-new-turn-recall)).
+- **`display`** on an `entity` field names a `text` field of the same kind (`BrainDeclError::DisplayNotTextField` when it sits on another type or names a non-text field). Every value the entity field takes (`<ref>:<id>`) becomes a `brain_subjects` row of kind `<ref>` with that text as its display name, aliased by its id, its id with `-` and `_` as spaces, and the display name, so a person a team fact names matches like a client and the `project <-> user` bridge the fact declares has a subject to anchor on.
 
 Topics:
 
@@ -249,12 +270,52 @@ in_context:
   usage: {cited_rate_weight: 0.2, ignored_penalty: 0.1}
 ```
 
+Retrieval. Every knob below is optional and shown at its core default, so the file as written changes nothing; each line is the rule a knob declares, and [A new-turn recall](#a-new-turn-recall) is where the rule runs. The types and bounds are `RetrievalDoc` (`crates/shared/models/src/brain/declarations/importance.rs`); a weight outside `0.0..=1.0`, a zero limit or a stop word that is not one lower-case token is refused at apply.
+
 ```yaml
 # services/brain/retrieval.yaml
 tiers: {pinned: 1.0, subject: 1.0, linked: 0.6, context: 0.8, full_text: 0.6, extension: 0.0}
-rrf_k: 60
-max_facts: 12
-quotas: {client_contact: 6}
+rrf_k: 60                               # reciprocal-rank-fusion constant
+max_facts: 12                           # most facts one block carries
+quotas: {}                              # per-kind cap on injected facts, e.g. {client_contact: 6}
+
+# The subjects a message names
+alias_min_sim: 0.6                      # least alias similarity that names a subject; 0.6 is the trigram floor, lower admits nothing more
+alias_longest_wins: false               # drop an exact match whose every alias sits inside another matched subject's alias
+max_subjects: 4                         # most subjects one message names
+subject_limit: 0                        # subject and linked tiers' row limit; 0 = max_facts x 2 clamped to 8..=50; at most 100
+
+# The linked tier
+links_weight: 0.6                       # a fact linked to a named subject scores this share of the subject's score
+links_depth: 1                          # hops walked from a named subject, 1 or 2; 2 crosses the declared subject bridges
+links_decay: 0.5                        # the further share a depth-2 hit takes (0..=1)
+links_require_readable_anchor: false    # true: a matched subject with no fact the reader can read bridges nothing
+
+# The full-text planner
+search_max_df: 0.2                      # a word in more than this share of the facts only ranks, never filters
+search_quorum: 0.5                      # share of the informative words, rarest first, a fact must carry (at least one)
+search_retry_quorum: 0.0                # a second pass at this quorum when the first returns nothing; 0 = none
+search_quorum_over: groups              # count the quorum over synonym groups, or over the query words they absorbed
+search_stop_words: []                   # lower-case tokens dropped before expansion and quorum
+search_max_ndoc: 0                      # most rows the filter may match before the planner plans nothing; 0 = off
+search_rare_alone_share: 0.0            # a word at or under this share is required alone, whatever the quorum; 0 = off
+
+# Signal rules
+context_requires_signal: false          # true: with no named subject, no full-text hit and no asked kind, context-only facts are withheld
+full_text_opens_context: true           # false: a full-text hit alone does not count as the signal above
+unknown_name_withholds_full_text: false # true: a capitalised word no fact carries empties the full-text tier
+
+# Extensions
+extension_max_candidates: 24            # most facts extension retrievers may introduce per recall
+reranker_timeout_ms: 150                # bound on the first registered Reranker; past it the fused order stands
+
+# The fill
+fill_order: rank                        # rank = fused score, then importance; importance = the pre-0.78 order
+linked_share: 0.0                       # share of max_facts held for linked hits when a subject is named
+min_fused_score: 0.0                    # a fact fused below it is withheld as low_score
+context_share: 1.0                      # share of max_facts context-only facts may take when a subject is named
+usage_weight: 0.0                       # usage_weight x (cited_rate - ignored_rate) is added to each fused score
+usage_min_recalls: 0                    # injections before brain_usage rates a fact; under it the fact keeps the prior
 ```
 
 Source weight keys are `document`, `comment`, `session`, `entered_by`, `external`, `run` and `aggregate`.
@@ -272,14 +333,16 @@ Every group needs at least two non-blank members. The groups expand at index tim
 
 ### What a write keeps current
 
-Every fact write (a capture insert, a revision, a merge, a field edit) refreshes four derived indexes on the same connection, in the same transaction, from the stored fact, its kind declaration and the topics table, so a console edit and a captured candidate index identically:
+Every fact write (a capture insert, a revision, a merge, a field edit) refreshes the derived indexes below on the same connection, in the same transaction, from the stored fact, its kind declaration and the topics table, so a console edit and a captured candidate index identically. The reindex is set-based (`index::batch`): one read for the set, then one statement per index over the whole set, eleven for a set of any size.
 
 | Index | Holds | Changes when |
 |---|---|---|
 | `brain_working_set` | One row per fact per scope key it is reachable through: its own scope (`org`, `user:<id>`, `project:<key>`, `group:<key>`) and each audience subject of its topics (`role:<r>`, `user:<id>`, `<dimension>:<value>`; `everyone` folds into `org`), with its `importance_base` | Insert; a revision of scope, topics or importance; a topic's audience (the apply rebuilds the table); delete (the foreign key cascades). Status, review, validity and pinning stay on `brain_facts` and are filtered at read |
 | `brain_fact_links` | The subjects a fact mentions: its own subject via `subject`, and each `entity` field's value via that field's name (`<kind>:<id>` as written, or the field's declared `ref` kind with a bare value) | Insert, revision, field edit; a kind's fields (the apply rebuilds) |
-| `brain_aliases` | For the fact's subject: the id, the id with `-` and `_` as spaces, the subject's display name, and every `alias: true` field value | Insert, revision, field edit; an alias moves to the latest subject written with it |
-| `brain_facts.search_weighted` | `A`: the subject id and identity field values; `B`: every other field value; `C`: the statement plus its synonym expansions | Insert, revision, field edit; a kind or the synonyms document (the apply rebuilds). The generated `search` column stays for one release beside it |
+| `brain_subject_links` | The bridges a fact declares: for every fact whose subject and one of whose entity fields name two different subjects, one row each way (`subject -> other`, `other -> subject`, `via_kind` the fact's kind), derived from the links just written. The depth-2 linked tier walks them | With the links; a kind's fields (the apply rebuilds). Migration `008_subject_links` queues every fact with an entity link for the `brain_fact_index` projection, and the sweep writes its bridges as it drains |
+| `brain_subjects` (entity subjects) | A row of kind `<ref>` for every `entity` field value `<ref>:<id>` whose field declares `display`, named by that text field's value (`index::entities`) | Insert, revision, field edit |
+| `brain_aliases` | For the fact's subject: the id, the id with `-` and `_` as spaces, the subject's display name, and every `alias: true` field value. For each entity subject above: its id, its id with `-` and `_` as spaces, and its display name | Insert, revision, field edit; an alias moves to the latest subject written with it |
+| `brain_facts.search_weighted` | `A`: the subject id and identity field values; `B`: every other field value; `C`: the statement plus its synonym expansions | Insert, revision, field edit; a kind or the synonyms document (the apply rebuilds) |
 
 The sweep (`consumer.sweep_secs`) compares the working set's row count with the count the facts and topics imply and rebuilds the table when they differ, counting `brain_working_set_rebuilds_total`.
 
@@ -333,7 +396,6 @@ brain:
 | `recall.scopes` | all four | Scope levels recall searches |
 | `recall.clients` | `claude-code: true`, `claude-desktop: true` | Clients recall runs for, keyed by `x-systemprompt-client` name; an unlisted client is off |
 | `recall.stale` | `withhold` | `withhold` drops stale facts; `marker` injects them with the stale marker |
-| `recall.working_set` | `true` | Every tier reads the precomputed `brain_working_set` candidates for the keys the principal holds. `false` runs the previous scope-predicate SQL; removed in the next release |
 | `capture.sources` | `document`, `comment`, `entered` | Pathways captured; an event on any other is ignored before the filters run. `session` is accepted and off by default |
 | `capture.session.enabled` | `false` | With `session` in `sources`, the gateway emits `session.turn.closed` per completed turn ([Scaffolding](#scaffolding-inactive-unless-an-extension-opts-in)) |
 | `capture.session.max_chars` | `4000` | Characters kept of each of the last user and assistant texts in a session event |
@@ -489,10 +551,11 @@ A recall that runs past `recall.deadline_ms` injects nothing into that request, 
 ### A new-turn recall
 
 1. **Context.** The principal's user, client, actor and `project` attribution. A workflow profile whose `id` equals the project is selected. `now` is read once and is the only clock every tier, the lifecycle check and the importance score use; `as_of` is `now` unless the request asked for an earlier view. The **held keys** are built once: `org`, `user:<id>`, `project:<attribution>` when there is one, and every audience subject the injected audience resolvers can enumerate for the user (`role:<name>` from core's role resolver, `group:<key>` or any `<dimension>:<value>` from an extension's), rendered in the subject's display form; `everyone` is `org`. A resolver that cannot enumerate contributes nothing, and the subjects it handles stay on the per-fact membership check.
-2. **Retrieval.** Five tiers run concurrently over the **candidate set**: the facts `brain_working_set` indexes under a held key (a fact's own scope key and the audience of each of its topics; kept current on every write). Pinned candidates; the *subject* tier, candidates whose own subject the last user message names (an alias or the subject id, score `1.0`, or a trigram-similar alias); the *linked* tier, candidates one of whose `brain_fact_links` names a matched subject (ordered by `links_weight`, default `0.6`, and fused by the `linked` tier weight, so a neighbour never earns the subject-match importance bonus a directly named fact earns); the request project's candidates by stored importance; and full-text matches over the weighted search vector: every word of the message is expanded to its synonym group; a fact must carry a `search_quorum` share (default half, at least one) of the message's *informative* groups, rarest first, where a group is informative when some fact carries it and no more than `search_max_df` (default 0.2) of the facts do; the matches are ranked by the cover density of every group (`ts_rank_cd`, length-normalised). The document frequencies come from `brain_search_terms`, recounted by the consumer sweep; before the first sweep every group is optional. Every tier orders by its rank, then stored importance, then fact id, and a fact's age counts in whole days, so two recalls on the same day answer identically. The tiers are fused by weighted reciprocal rank (`retrieval.yaml`), then extension retrievers may boost.
-3. **Lifecycle.** The tier SQL admits a candidate only as of `as_of`: observed by then (`observed_at`), inside its validity window then, not yet due for review then; `confirmed`, `proposed` only for its owner, `stale` only when `recall.stale` is `marker`. The candidates it keeps out are counted in one grouped query and reported as withheld: `stale`, `review_due` and `disputed`. `candidate`, `superseded` and `retired` facts are not candidates and are not counted.
-4. **Visibility.** Each remaining fact passes `(scope allows or topic audience contains) and granularity allows and source allows`, as described in [Concepts](#concepts). A role or dimension audience is answered from the held keys; only a subject handled by a resolver that could not enumerate is asked per fact.
-5. **Fill.** An extension injection policy may choose the facts. Otherwise facts are taken in descending in-context importance while their kind is under its quota (`quota`), the count is under `max_facts` (`max_facts`), and the estimated tokens (a quarter of the characters, rounded up) fit the budget (`budget`).
+2. **Retrieval.** The subjects the last user message names are resolved once (`recall::tiers::matched`) and shared by the subject and linked tiers: an alias or subject id equal to a word n-gram of the message (one to four words, over the whitespace words with edge punctuation trimmed and over the alphanumeric tokens) scores `1.0`; an alias trigram-similar to the message is reached through the message's *probe words* (tokens of three or more characters no fact carries) and scores its similarity. A subject is named when its best score reaches `alias_min_sim`, the `max_subjects` best are kept, and with `alias_longest_wins` a subject whose every exact alias is a proper substring of another matched subject's exact alias is dropped (a project id no longer names the client inside it). Five core tiers then run concurrently, each from its own index, over the **candidate set** (the facts `brain_working_set` indexes under a held key; kept current on every write), and return ids: *pinned* candidates; the *subject* tier, the candidates about a matched subject (asked kinds first, `subject_limit` rows); the *linked* tier, the candidates one of whose `brain_fact_links` names a matched subject at `score × links_weight`, and at `links_depth: 2` also the candidates about each subject bridged to it through `brain_subject_links` at a further `× links_decay` and the candidates linked to a bridged subject at a further `× links_weight`. No link is followed from a linked fact and no bridge from a bridged subject, so the reach is bounded by the declared depth; a fact about the matched subject itself is never a linked hit, whichever bridge leads back to it (those are the subject tier's rows); and with `links_require_readable_anchor` a matched subject with no fact the reader can read under the tier predicate bridges nothing. The *context* tier returns the request project's candidates by stored importance, asked kinds first. The *full-text* tier runs the plan `recall::search_plan` declares over the weighted search vector: every word of three or more characters, less the `search_stop_words`, is expanded to its synonym group; a group no fact carries is dropped, a group in more than `search_max_df` of the facts only ranks, and of the informative groups, rarest first, a `search_quorum` share (at least one) is required, counted over `search_quorum_over`; a group at or under `search_rare_alone_share` is required alone; a filter that could match more than `search_max_ndoc` rows plans nothing; when the first pass returns nothing and `search_retry_quorum` is declared, a second pass runs at that quorum. Matches rank by cover density (`ts_rank_cd`, length-normalised); the frequencies come from `brain_search_terms`, recounted by the consumer sweep, and before the first sweep every group is optional. Every tier orders by its rank, then stored importance, then fact id, and a fact's age counts in whole days, so two recalls on the same day answer identically. The ids are fused by weighted reciprocal rank (`tiers`, `rrf_k`) and the fused facts are loaded once. Extension retrievers (`FactRetriever`) run beside the core tiers: an id a core tier returned is fused with the retriever's rank; an id none returned is *introduced*, round-robin across retrievers and capped at `extension_max_candidates`, admitted by the tier SQL's own rule and fused as the `extension` tier, so the lifecycle and visibility checks run over it as over any hit. A zero `tiers.extension` weight disables introduction. An extension rank is never a signal (step 4).
+3. **Lifecycle.** The tier SQL admits a candidate only as of `as_of`: observed by then (`observed_at`), inside its validity window then, not yet due for review then; `confirmed`, `proposed` only for its owner, `stale` only when `recall.stale` is `marker`. The candidates it keeps out are counted in one grouped query, concurrently with the tiers, and reported as withheld: `stale`, `review_due` and `disputed`. `candidate`, `superseded` and `retired` facts are not candidates and are not counted.
+4. **Visibility, then the signal.** Each remaining fact passes `(scope allows or topic audience contains) and granularity allows and source allows`, as described in [Concepts](#concepts). A role or dimension audience is answered from the held keys; only a subject handled by a resolver that could not enumerate is asked per fact, and each distinct membership and source question is asked once. The **recall signal** (`recall::signal`) is then read from the facts the reader can see: the recall *names a subject* when the subject tier returned a visible fact (a subject whose every fact is hidden names nothing, and a fact the linked tier reached through a hidden subject's bridges names nothing); it *has a full-text hit* when that tier returned a visible one; it *asks a kind* when the message carries one of a declared kind's ask words. Before fusion, with `unknown_name_withholds_full_text`, a message that matched no subject and carries a capitalised, non-sentence-initial word of three or more letters that no fact carries (a possessive is the name it owns; stop words excluded) has the full-text tier's ids emptied, the ones no other tier returned are counted as `unknown_name`, and an asked kind is then no signal, so nothing opens the context for a name the brain does not know.
+5. **Reranker.** The first registered `Reranker` (an extension seam; core registers none) receives every visible fact with its fused score, the tiers that found it, its kind and statement, with the message's hints and asked kinds, and returns an ordering of a subset of those ids, under `reranker_timeout_ms`. The ids it returns fill first in that order, the ids it omits follow in their fused order, an id it never received is ignored, and an empty result leaves the order unchanged. An error or a timeout is logged with the reranker's name and leaves the fused order untouched. The receipt records which reranker ran and the rank it gave each injected fact (`reranked`).
+6. **Fill.** An extension injection policy may choose the facts. Otherwise `usage_weight × (cited_rate − ignored_rate)` is added to each fact's fused score, a fact under `min_fused_score` is withheld as `low_score`, and the facts are taken in `fill_order` (descending fused score, then in-context importance, then fact id; `importance` puts importance first), or in the reranker's order when one ran, while their kind is under its quota (`quota`), the count is under `max_facts` (`max_facts`), and the estimated tokens (a quarter of the characters, rounded up) fit the budget (`budget`). When a subject is named, `linked_share` of `max_facts` is held for linked hits, and facts the context tier alone found may take at most `context_share` of `max_facts`; one past that is `context_cap`. With `context_requires_signal` and no signal (no named subject, no asked kind, and no full-text hit or `full_text_opens_context: false`) that cap is zero: every context-only fact is withheld as `context_cap` and every fact only an extension retriever found as `no_signal`, while a fact another core tier also found is never touched.
 
 The block is appended after the client's system prompt:
 
@@ -502,13 +565,13 @@ The block is appended after the client's system prompt:
 </team_memory>
 ```
 
-The scope attribute is the project, or `org` when the request carries none; `as_of` is the instant the facts were read at. The withheld reasons are `stale`, `review_due` and `disputed` from the lifecycle count, `scope`, `source` and `agent_capped` from visibility, and `quota`, `max_facts` and `budget` from the fill; `unavailable` is reserved for a source check that fails. The count cut and the token cut are told apart: a fact past `max_facts` is `max_facts` even when it would not have fit either.
+The scope attribute is the project, or `org` when the request carries none; `as_of` is the instant the facts were read at. The withheld reasons are `stale`, `review_due` and `disputed` from the lifecycle count; `scope`, `source` and `agent_capped` from visibility; `unknown_name` from the name rule; `low_score`, `context_cap`, `no_signal`, `quota`, `max_facts` and `budget` from the fill; `unavailable` is reserved for a source check that fails. The count cut and the token cut are told apart: a fact past `max_facts` is `max_facts` even when it would not have fit either.
 
 An `as_of` recall (`RecallRequest::as_of`, surfaced on the simulator and the preview) reads the facts as they stood then: every tier admits only facts observed by `as_of` and valid at it, the lifecycle count uses it, and the block's `as_of` is the requested instant. It is never later than `now`.
 
 ### Audit
 
-`ai_requests.memory_recall` records one line per request: `injected=<n> withheld=<n> tokens=<n> as_of=<time>` or `skipped=<reason>`. It is `NULL` for requests that are not gateway requests. Every recall that reaches the brain writes a `brain_recalls` row: an injection, a same-turn reuse, and the skips `not_new_turn`, `no_facts`, `deadline` and `unavailable`, as the table in [When recall runs](#when-recall-runs) shows. A same-turn reuse writes its own row, and its `memory_recall` reads `injected=<n> withheld=0 tokens=0`. Each row carries the request, conversation, session and context ids, the client, project and selected workflow, the injected `{id, revision}` list, the withheld counts, the tokens and the rendered block.
+`ai_requests.memory_recall` records one line per request: `injected=<n> withheld=<n> tokens=<n> as_of=<time>` or `skipped=<reason>`. It is `NULL` for requests that are not gateway requests. Every recall that reaches the brain writes a `brain_recalls` row: an injection, a same-turn reuse, and the skips `not_new_turn`, `no_facts`, `deadline` and `unavailable`, as the table in [When recall runs](#when-recall-runs) shows. A same-turn reuse writes its own row, and its `memory_recall` reads `injected=<n> withheld=0 tokens=0`. Each row carries the request, conversation, session and context ids, the client, project and selected workflow, the injected `{id, revision}` list, the withheld counts, the tokens and the rendered block, and `reranked` (migration `009_recall_reranker`): the reranker that ran and the rank it gave each injected fact, `NULL` when none ran.
 
 ### Outcome signals
 
@@ -590,7 +653,7 @@ A proposal can carry a dry-run replay: the brain consumer's events of a window a
 - `v_brain_kind_health`: per kind, facts by status, facts past review, injections, citations, corrections, the cited and corrected rates (`NULL` for a kind never injected) and open disputes.
 - `v_brain_workflow_recall`: per project and client, with the selected `workflow_id`, recalls run and injecting, facts injected and withheld by reason (including `withheld_max_facts` and `withheld_disputed`), mean tokens per injecting recall, recalls skipped by deadline, unavailability or an empty result, and `late_blocks`, the deadline rows that carry a block produced after the deadline. The injected and withheld sums count injecting rows only.
 
-## Not yet active in 0.77
+## Not yet active
 
 These settings and declarations are accepted and validated, and have no effect in this release:
 
@@ -644,7 +707,8 @@ Extensions add behaviour through compile-time registrations, each with a priorit
 | `FactValidator` | `register_brain_validator!` | Per candidate, after core's schema validator (`core.schema`) | The first `Reject` or `Dispute` wins |
 | `ImportanceModel` | `register_brain_importance!` | Stored base on write; in-context score per request | The first model that scores wins; core's formula (`core.formula`) is the fallback |
 | `SourceContent` | `register_brain_source_content!` | Reading a source's text for extraction | The first that `handles` the source; core appends a document and comment reader |
-| `FactRetriever` | `register_brain_retriever!` | Per new-turn recall, after the core tiers | Every retriever boosts the fused ranking; a failure skips its ranking. Core registers none |
+| `FactRetriever` | `register_brain_retriever!` | Per new-turn recall, beside the core tiers | Every retriever's ids are fused as the `extension` tier; the ids no core tier returned are introduced, capped at `extension_max_candidates`, and never a signal. A failure contributes nothing. Core registers none |
+| `Reranker` | `register_brain_reranker!` | Per new-turn recall, after the visibility pass and before the fill, over the visible facts only | The first registered runs under `reranker_timeout_ms`; the rest are held. An error, a timeout or an empty result leaves the fused order. Core registers none |
 | `InjectionPolicy` | `register_brain_injection_policy!` | Choosing which visible facts fill the budget | The first non-`None` plan wins; core's quota-and-budget fill is the fallback |
 | `OutcomeSignal` | `register_brain_outcome_signal!` | After a response to a request with injected facts | Every signal runs after core's citation scan |
 | `BrainAnalysis` | `register_brain_analysis!` | The daily `brain_analysis` job | Every analysis runs after the three core analyses |

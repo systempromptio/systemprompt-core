@@ -65,6 +65,11 @@ pub fn verdict(input: &HostHealthInputs<'_>) -> AgentVerdict {
         .or_else(|| model_finding(&input.models))
         .or_else(|| restart_finding(input, is_running))
         .unwrap_or_else(|| proxy_finding(input, snap));
+    let finding = if super::agent_inputs::quiet_update_owed(snap) {
+        finding.with_secondary(AgentAction::UpdateAdmin)
+    } else {
+        finding
+    };
     AgentVerdict {
         state: finding.state,
         tone: finding.state.tone(),
@@ -226,6 +231,9 @@ pub fn apply_failed(failures: &[ApplyFailure]) -> Option<(AgentReason, Option<Ag
 }
 
 fn profile_finding(snap: &crate::integration::HostAppSnapshot) -> Option<Finding> {
+    if super::agent_inputs::quiet_update_owed(snap) {
+        return None;
+    }
     match &snap.profile_state {
         ProfileState::Stale { reason, keys } => {
             let action = if reason.breaks_routing() {

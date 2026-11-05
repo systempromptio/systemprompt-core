@@ -84,14 +84,8 @@ pub(crate) fn on_mcp_auth_probe_finished(
     if broken.is_empty() {
         app.signal_cleared(Signal::McpAuthBroken);
     } else {
-        app.signal_raised(
-            Signal::McpAuthBroken,
-            &format!(
-                "{} cannot authenticate to MCP",
-                crate::brand::brand().app_name
-            ),
-            &format!("Affected servers: {}", broken.join(", ")),
-        );
+        let line = format!("MCP servers need sign-in: {}", broken.join(", "));
+        app.signal_logged(Signal::McpAuthBroken, &line);
     }
     app.refresh_ui();
     emit::emit_mcp_changed(app);

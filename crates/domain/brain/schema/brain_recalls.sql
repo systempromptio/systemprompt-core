@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS brain_recalls (
     as_of TIMESTAMPTZ NOT NULL,
     skipped TEXT,
     rendered_block TEXT,
+    reranked JSONB,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

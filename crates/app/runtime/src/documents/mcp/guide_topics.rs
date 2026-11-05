@@ -71,7 +71,10 @@ pub(super) const SLIDES: &str = "\
 Slides and their paragraphs are named by the node ids a read returns (verbose shows each \
 id's position, slide[N]/shape[H]/p[P]). insert_slide {after: <slide id>, layout, title, body: \
 [lines]} adds a slide; delete on a slide id removes it. insert_after on a paragraph takes kind \
-paragraph or list_item. Every id in one call names the deck as read.";
+paragraph or list_item. A shape is slide[N]/shape[H]: move_shape {node, x, y} and resize_shape \
+{node, w, h} take EMU (a 16:9 slide is 12192000 by 6858000), delete_shape {node} removes it, \
+and each of these names the deck as it stands when it runs. Every other id in one call names \
+the deck as read.";
 
 pub(super) const SHARING: &str = "\
 documents_share {document_id | folder_id, subject_kind, subject_value, level, valid_until}. \

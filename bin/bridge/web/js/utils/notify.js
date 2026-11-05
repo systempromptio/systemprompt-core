@@ -9,6 +9,8 @@
 // It dispatches a DOM event rather than reaching for the element, so nothing
 // has to know where the toast lives or whether it is mounted yet.
 
+import { t } from "/assets/js/i18n.js";
+
 /**
  * Bridge rejections are plain `BridgeError` objects, not `Error` instances, so
  * `e.message` is present but `String(e)` is useless on its own.
@@ -25,10 +27,19 @@ export function errorText(e) {
  * once as a rejected request, once on the Rust error channel — is recognised
  * despite the two lines being worded differently.
  */
-export function notify(message, kind = "info", durationMs, key) {
+export function notify(message, kind = "info", durationMs, key, detail) {
   document.dispatchEvent(new CustomEvent("sp:toast", {
-    detail: { message, kind, durationMs, key },
+    detail: { message, kind, durationMs, key, detail },
   }));
+}
+
+// Codes whose message the bridge writes for the reader. Anything else carries
+// an underlying error's own text, which belongs behind Details.
+const READABLE_CODES = new Set(["unauthorized", "invalid_args", "invalid_format", "conflict", "partial", "elevation_required"]);
+
+/** Whether an error's own text is fit to be the toast's primary line. */
+export function isReadable(e) {
+  return typeof e === "string" || READABLE_CODES.has(e && e.code);
 }
 
 export function notifyOk(message) {
@@ -42,7 +53,14 @@ export function notifyOk(message) {
  */
 export function notifyErr(e, context) {
   const text = errorText(e);
-  notify(context ? `${context}: ${text}` : text, "error", 8000, text);
+  if (isReadable(e)) {
+    notify(text, "error", 8000, text);
+    return;
+  }
+  const line = context
+    ? (t("toast-action-failed", { action: context }) || `${context} didn't finish. Please try again.`)
+    : (t("toast-generic-failed") || "That didn't finish. Please try again.");
+  notify(line, "error", 0, text, text);
 }
 
 /** Stays until dismissed: the user has to go and do something themselves. */

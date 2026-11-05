@@ -10,6 +10,7 @@ use systemprompt_identifiers::DocumentNodeId;
 use systemprompt_models::documents::EditOp;
 
 use super::positions::Written;
+use super::shape::{set_frame, shape_at};
 use super::slide::{frame_for, new_block, text_shape};
 use crate::documents::engine::loro::deck::{
     DeckSlide, ShapeKind, insert_paragraph, insert_slide, slides,
@@ -26,6 +27,8 @@ pub(crate) enum DeckOpError {
     Ambiguous { matches: usize },
     #[error("old_str matches nothing")]
     NoMatch,
+    #[error("a shape's width and height must be positive")]
+    BadFrame,
     #[error(transparent)]
     Write(WriteError),
 }
@@ -36,7 +39,7 @@ impl From<loro::LoroError> for DeckOpError {
     }
 }
 
-fn unknown(id: &str) -> DeckOpError {
+pub(super) fn unknown(id: &str) -> DeckOpError {
     DeckOpError::UnknownNode {
         node: id.to_owned(),
     }
@@ -44,6 +47,7 @@ fn unknown(id: &str) -> DeckOpError {
 
 pub(super) enum Node {
     Slide(usize),
+    Shape(usize, usize),
     Paragraph(usize, usize, usize),
 }
 
@@ -65,6 +69,9 @@ pub(super) fn node(id: &str) -> Result<Node, DeckOpError> {
         - 1;
     match parts.as_slice() {
         [_] => Ok(Node::Slide(slide)),
+        [_, shape] => index(shape, "shape[")
+            .map(|shape| Node::Shape(slide, shape))
+            .ok_or_else(|| unknown(id)),
         [_, shape, para] => match (index(shape, "shape["), index(para, "p[")) {
             (Some(shape), Some(para)) => Ok(Node::Paragraph(slide, shape, para)),
             _ => Err(unknown(id)),
@@ -189,7 +196,7 @@ fn apply(doc: &LoroDoc, op: &EditOp) -> Result<Vec<String>, DeckOpError> {
                 list.delete(at, 1)?;
                 Ok(Vec::new())
             },
-            Node::Slide(_) => Err(DeckOpError::UnknownNode {
+            Node::Slide(_) | Node::Shape(..) => Err(DeckOpError::UnknownNode {
                 node: resolved(node)?,
             }),
         },
@@ -199,6 +206,18 @@ fn apply(doc: &LoroDoc, op: &EditOp) -> Result<Vec<String>, DeckOpError> {
             title,
             body,
         } => new_slide(doc, after.as_ref(), layout.clone(), title.as_ref(), body),
+        EditOp::MoveShape { node, x, y } => set_frame(doc, node.as_str(), &[("x", *x), ("y", *y)]),
+        EditOp::ResizeShape { node, w, h } => {
+            if *w <= 0 || *h <= 0 {
+                return Err(DeckOpError::BadFrame);
+            }
+            set_frame(doc, node.as_str(), &[("w", *w), ("h", *h)])
+        },
+        EditOp::DeleteShape { node } => {
+            let (shapes, at) = shape_at(doc, node.as_str())?;
+            shapes.delete(at, 1)?;
+            Ok(Vec::new())
+        },
         other => Err(DeckOpError::Unsupported { op: other.name() }),
     }
 }

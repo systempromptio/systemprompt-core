@@ -229,7 +229,6 @@ async fn send_one(
     Ok(())
 }
 
-
 #[derive(Debug, serde::Deserialize)]
 struct HeartbeatResponse {
     min_bridge_version: String,

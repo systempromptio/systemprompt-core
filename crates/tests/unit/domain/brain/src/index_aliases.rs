@@ -17,6 +17,7 @@ fn field(alias: bool) -> FieldDecl {
         entity_ref: None,
         values: Vec::new(),
         alias,
+        display: None,
     }
 }
 
@@ -36,6 +37,7 @@ fn contact() -> KindDecl {
         materiality: Materiality::default(),
         review_after_days: None,
         extractor: None,
+        asks: Vec::new(),
     }
 }
 

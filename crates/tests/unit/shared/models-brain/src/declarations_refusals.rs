@@ -2,7 +2,8 @@ use std::collections::BTreeMap;
 
 use systemprompt_identifiers::{FactKindId, WorkflowId};
 use systemprompt_models::brain::{
-    BrainDeclError, BrainDocs, InterestDecl, KindDecl, TopicDecl, WorkflowProfileDecl, validate,
+    BrainDeclError, BrainDocs, InterestDecl, KindDecl, MAX_LINKS_DEPTH, MAX_SUBJECT_LIMIT,
+    TopicDecl, WorkflowProfileDecl, validate,
 };
 
 const KIND: &str = r#"
@@ -155,4 +156,104 @@ fn a_zero_recency_half_life_is_refused() {
     let mut docs = docs();
     docs.importance.in_context.recency.half_life_days = 0;
     assert_eq!(validate(&docs), Err(BrainDeclError::ZeroHalfLife));
+}
+
+#[test]
+fn a_subject_limit_over_the_maximum_is_refused() {
+    let mut docs = docs();
+    docs.retrieval.subject_limit = MAX_SUBJECT_LIMIT;
+    assert_eq!(validate(&docs), Ok(()));
+    docs.retrieval.subject_limit = MAX_SUBJECT_LIMIT + 1;
+    assert_eq!(
+        validate(&docs),
+        Err(BrainDeclError::LimitOverMax {
+            name: "subject_limit",
+            value: MAX_SUBJECT_LIMIT + 1,
+            max: MAX_SUBJECT_LIMIT,
+        })
+    );
+}
+
+#[test]
+fn a_links_depth_outside_one_to_two_is_refused() {
+    let mut docs = docs();
+    assert_eq!(
+        docs.retrieval.links_depth, 1,
+        "the default is the one-hop walk"
+    );
+    docs.retrieval.links_depth = MAX_LINKS_DEPTH;
+    assert_eq!(validate(&docs), Ok(()));
+    docs.retrieval.links_depth = 0;
+    assert_eq!(
+        validate(&docs),
+        Err(BrainDeclError::ZeroLimit {
+            name: "links_depth"
+        })
+    );
+    docs.retrieval.links_depth = MAX_LINKS_DEPTH + 1;
+    assert_eq!(
+        validate(&docs),
+        Err(BrainDeclError::LimitOverMax {
+            name: "links_depth",
+            value: MAX_LINKS_DEPTH + 1,
+            max: MAX_LINKS_DEPTH,
+        })
+    );
+}
+
+#[test]
+fn a_links_decay_outside_the_unit_interval_is_refused() {
+    let mut docs = docs();
+    assert!(
+        (docs.retrieval.links_decay - 0.5).abs() < f64::EPSILON,
+        "the default halves each hop"
+    );
+    for ok in [0.0, 0.5, 1.0] {
+        docs.retrieval.links_decay = ok;
+        assert_eq!(validate(&docs), Ok(()), "{ok}");
+    }
+    for bad in [-0.1, 1.1, f64::NAN] {
+        docs.retrieval.links_decay = bad;
+        assert!(
+            matches!(
+                validate(&docs),
+                Err(BrainDeclError::WeightOutOfRange { ref name, .. }) if name == "links_decay"
+            ),
+            "{bad}"
+        );
+    }
+}
+
+#[test]
+fn a_stop_word_must_be_one_lower_case_token() {
+    let mut docs = docs();
+    docs.retrieval.search_stop_words = vec!["call".to_owned(), "the".to_owned()];
+    assert_eq!(validate(&docs), Ok(()));
+    for bad in ["", "What", "what's", "two words"] {
+        docs.retrieval.search_stop_words = vec![bad.to_owned()];
+        assert_eq!(
+            validate(&docs),
+            Err(BrainDeclError::StopWordNotToken {
+                word: bad.to_owned()
+            }),
+            "{bad:?}"
+        );
+    }
+}
+
+#[test]
+fn a_kind_ask_word_must_be_one_lower_case_token() {
+    let mut docs = docs();
+    let kind = docs.kinds.first_mut().expect("a kind");
+    kind.asks = vec!["decisions".to_owned(), "decided".to_owned()];
+    assert_eq!(validate(&docs), Ok(()));
+    let id = docs.kinds[0].kind.clone();
+    docs.kinds[0].asks = vec!["Decisions".to_owned()];
+    assert_eq!(
+        validate(&docs),
+        Err(BrainDeclError::AskNotToken {
+            kind: id,
+            word: "Decisions".to_owned()
+        })
+    );
 }

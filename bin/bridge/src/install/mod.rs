@@ -138,7 +138,6 @@ pub struct UninstallSummary {
     pub host_warnings: Vec<String>,
 }
 
-
 #[derive(Debug)]
 pub enum ManagedProfileOutcome {
     NotApplicable,
@@ -227,6 +226,10 @@ pub fn uninstall(
         schedule,
         host_warnings: Vec::new(),
     })
+}
+
+pub fn remove_managed_profile(bridge: &crate::context::BridgeContext) -> ManagedProfileOutcome {
+    managed_profile::remove(&bridge.policy_store, &bridge.elevation_gate)
 }
 
 pub fn remove_synced_plugins() -> Result<Vec<String>, InstallError> {

@@ -5,6 +5,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::consolidate::FactConsolidator;
+use super::rerank::Reranker;
 use super::retrieval::{BrainAnalysis, FactRetriever, InjectionPolicy, OutcomeSignal};
 use super::traits::{EventFilter, FactExtractor, FactValidator, ImportanceModel, SourceContent};
 use crate::seam::seam_registration;
@@ -34,6 +35,11 @@ seam_registration!(
     BrainRetrieverRegistration,
     FactRetriever,
     discover_brain_retrievers
+);
+seam_registration!(
+    BrainRerankerRegistration,
+    Reranker,
+    discover_brain_rerankers
 );
 seam_registration!(
     BrainInjectionPolicyRegistration,
@@ -95,6 +101,13 @@ macro_rules! register_brain_source_content {
 macro_rules! register_brain_retriever {
     ($($args:tt)*) => {
         $crate::__register_seam!(brain, BrainRetrieverRegistration, FactRetriever, $($args)*);
+    };
+}
+
+#[macro_export]
+macro_rules! register_brain_reranker {
+    ($($args:tt)*) => {
+        $crate::__register_seam!(brain, BrainRerankerRegistration, Reranker, $($args)*);
     };
 }
 

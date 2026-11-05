@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO brain_subjects (subject_kind, subject_id, display_name)\n             SELECT DISTINCT ON (s.kind, s.id) s.kind, s.id, NULLIF(s.name, '')\n             FROM unnest($1::text[], $2::text[], $3::text[]) AS s(kind, id, name)\n             ORDER BY s.kind, s.id, (s.name = '')\n             ON CONFLICT (subject_kind, subject_id) DO UPDATE\n             SET display_name = COALESCE(EXCLUDED.display_name, brain_subjects.display_name)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "TextArray",
+        "TextArray",
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a2470e55c61b3247a1d45574b91a7553c7a6f14ca54d8f8c215e30cd59edf74b"
+}

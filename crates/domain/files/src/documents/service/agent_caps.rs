@@ -26,7 +26,6 @@ use crate::documents::agents::{
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{Document, DocumentRevision};
 
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AgentCapTarget {
     Document(DocumentId),

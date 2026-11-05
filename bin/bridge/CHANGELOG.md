@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.79.0] - 2026-11-05
+
+### Added
+
+- **Drive:** local deletes and renames reach the server, which needs a 0.79 gateway. A new file with the same bytes as exactly one absent file is a rename, and the document moves with its history; a refused move puts the file back under its old name. Any other absent file goes to the Drive trash, where it stays restorable, once it has been absent for two cycles and 15 seconds, because editors save by deleting and re-creating. A trash names the synced revision, and a newer head or a refusal restores the file with a notice.
+- **Drive:** a missing or empty folder, or a bulk absence (more than 10 files, or more than 3 that are over half of what is synced), trashes nothing. The deletes are held until the user runs `drive deletes apply` or `drive deletes restore`; `drive deletes` shows what is held and recent restores. `drive status` and `DriveStatusPayload` gain `held_deletes` and `delete_notices`.
+
+### Fixed
+
+- **Claude Desktop:** a switched-off host whose policy removal is waiting on an administrator is now listed on the Agents tab, so its Remove (administrator) action is reachable; the removal runs off the window thread while the prompt is open.
+- **GUI:** while the gateway is unreachable, the Agents page carries one line saying agent traffic may not be governed and the bridge is retrying; it clears on reconnect.
+- **GUI:** warnings and errors are quieter and written plainly. Conditions that retry on their own (an unreachable gateway, an MCP server awaiting sign-in, an automatic update check) are logged and shown on their pane instead of raising a desktop notification or a repeating toast; a failed background sync shows once as an Agents banner, the Agents list no longer repeats a row's problem in a banner, and raw error text moves behind Details. Sync outcomes and CLI output are unchanged.
+- **Claude Desktop:** the machine policy's `inferenceModels` carried every family from every cached gateway profile, while the probe expected the active gateway's Claude models, so the profile read as stale after any sync and a non-Claude id could reach Desktop. Both now use one list: the active gateway's models plus the Claude models of other profiles.
+- **macOS:** sync no longer raises the administrator prompt, whether refreshing or clearing the managed preferences. It judges them by the probe's rule and leaves an out-of-date profile to the Update action.
+- A disabled host whose policy only an administrator can remove, and a connector change waiting on Update on macOS, each show one line on the agent row with the action that resolves it.
+- An app on an older model list or setting that only an administrator can refresh stays Working, with the update offered beside it. A restart prompt stops showing after ten minutes, because a quick relaunch between checks cannot be seen. Drive rechecks a server with the document store off hourly instead of on every tick.
+- A host only an administrator can update no longer fails the sync with a banner and toast; it is logged, and its agent row offers the update.
+- **Claude Desktop:** every install read as running on "a previous bridge install's policy", and disable and gateway switches could not release its policy. Ownership compared the policy's host token with the raw install secret; it now compares like with like. A policy written before host tokens still reads as previous until replaced.
+- **macOS:** the Claude Code CLI no longer counts as Claude Desktop running, which kept the restart prompt showing after a restart.
+
 ## [0.77.0] - 2026-11-01
 
 ### Changed

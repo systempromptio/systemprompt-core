@@ -60,6 +60,10 @@ pub enum HostUiEvent {
         result: Result<(String, Vec<String>), Arc<GuiError>>,
         reply_to: ReplyId,
     },
+    PolicyRemovalFinished {
+        result: Result<Arc<crate::install::ManagedProfileOutcome>, Arc<GuiError>>,
+        reply_to: ReplyId,
+    },
     ProxyProbeRequested {
         reply_to: ReplyId,
     },

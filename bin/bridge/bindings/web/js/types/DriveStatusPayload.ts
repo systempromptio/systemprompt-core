@@ -4,4 +4,4 @@ import type { DriveConflictPayload } from "./DriveConflictPayload";
 import type { DriveEditorPayload } from "./DriveEditorPayload";
 import type { Verdict } from "./Verdict";
 
-export type DriveStatusPayload = { verdict: Verdict<DriveCode>, root: string | null, synced_at_unix: bigint | null, pending_uploads: number, editing_count: number, conflicts: Array<DriveConflictPayload>, editors: Array<DriveEditorPayload>, last_error: string | null, };
+export type DriveStatusPayload = { verdict: Verdict<DriveCode>, root: string | null, synced_at_unix: bigint | null, pending_uploads: number, editing_count: number, conflicts: Array<DriveConflictPayload>, held_delete_count: number, delete_notices: Array<string>, editors: Array<DriveEditorPayload>, last_error: string | null, };

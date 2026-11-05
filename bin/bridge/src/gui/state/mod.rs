@@ -121,6 +121,7 @@ impl AppState {
         let mut inner = self.inner.write();
         inner.pre_probe_status = None;
         let reachable = outcome.status.is_reachable();
+        inner.snapshot.gateway_outage = matches!(outcome.status, GatewayStatus::Unreachable { .. });
         inner.snapshot.gateway_status = outcome.status;
         inner.snapshot.last_probe_at_unix = Some(outcome.at_unix);
         if reachable {
@@ -158,7 +159,6 @@ impl AppState {
         guard.mcp_auth_probe_in_flight = true;
         true
     }
-
 
     pub fn apply_mcp_auth(&self, results: Vec<McpServerAuth>) {
         let mut guard = self.snap_mut();
@@ -204,7 +204,6 @@ impl AppState {
         guard.mcp_auth_probe_in_flight = false;
     }
 
-
     pub fn set_update_state(&self, state: crate::update::UpdateUiState) {
         let mut guard = self.snap_mut();
         guard.update = state;
@@ -228,7 +227,6 @@ impl AppState {
     pub fn set_pending_device_action(&self, action: Option<crate::wire::DeviceAction>) {
         self.snap_mut().pending_device_action = action;
     }
-
 
     pub fn first_configured_proxy_url(&self) -> Option<String> {
         if self.ctx.proxy.is_serving() {

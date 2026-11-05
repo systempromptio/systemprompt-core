@@ -779,3 +779,77 @@ async fn the_drive_records_presence_and_lists_open_proposals() -> Result<()> {
     assert_eq!(entry["message"], "suggested");
     Ok(())
 }
+
+#[tokio::test]
+async fn the_drive_trash_needs_the_head_and_the_drive_move_keeps_the_document() -> Result<()> {
+    let (pool, ctx) = super::common::setup_ctx().await?;
+    let gateway = gateway_router(&ctx)?;
+    let device = seed_drive_credential(&pool, "drive-deletes").await?;
+    let path = format!("drive-{}.md", Uuid::new_v4().simple());
+    let blob = b"# To be removed\n";
+    let committed = drive_commit(
+        &gateway,
+        &device,
+        &commit_meta(&path, blob, None),
+        blob,
+        None,
+    )
+    .await?;
+    assert_eq!(committed.status, StatusCode::OK, "{}", committed.json());
+    let manifest = send(
+        gateway.clone(),
+        bridge(&device, Method::GET, "/bridge/drive/manifest")
+            .body(Body::empty())
+            .expect("request"),
+    )
+    .await?;
+    let entries = manifest.json()["entries"].clone();
+    let entry = entries
+        .as_array()
+        .expect("entries")
+        .iter()
+        .find(|entry| entry["path"] == path.as_str())
+        .expect("committed entry")
+        .clone();
+    let document = entry["document_id"].as_str().expect("id").to_owned();
+    let head = entry["head_revision_id"].as_str().expect("head").to_owned();
+    let post = |uri: &'static str, base: Option<String>, body: serde_json::Value| {
+        let mut req =
+            bridge(&device, Method::POST, uri).header(header::CONTENT_TYPE, "application/json");
+        if let Some(base) = base {
+            req = req.header(header::IF_MATCH, format!("\"{base}\""));
+        }
+        send(
+            gateway.clone(),
+            req.body(Body::from(body.to_string())).expect("request"),
+        )
+    };
+    let id = json!({ "document_id": document });
+
+    let unguarded = post("/bridge/drive/trash", None, id.clone()).await?;
+    assert_eq!(
+        unguarded.status,
+        StatusCode::BAD_REQUEST,
+        "{}",
+        unguarded.json()
+    );
+
+    let stale = Uuid::new_v4().to_string();
+    let conflict = post("/bridge/drive/trash", Some(stale), id.clone()).await?;
+    assert_eq!(conflict.status, StatusCode::CONFLICT, "{}", conflict.json());
+    assert_eq!(conflict.json()["head_revision_id"], head.as_str());
+
+    let renamed = format!("drive-{}.md", Uuid::new_v4().simple());
+    let moved = post(
+        "/bridge/drive/move",
+        None,
+        json!({ "document_id": document, "path": renamed }),
+    )
+    .await?;
+    assert_eq!(moved.status, StatusCode::NO_CONTENT, "{}", moved.json());
+
+    let trashed = post("/bridge/drive/trash", Some(head), id).await?;
+    assert_eq!(trashed.status, StatusCode::OK, "{}", trashed.json());
+    assert_eq!(trashed.json()["status"], "trashed");
+    Ok(())
+}

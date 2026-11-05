@@ -25,6 +25,7 @@ export function hostActionSuccessLine(kind, name, result) {
     case "open-device-management": return t("toast-agent-approval-opened", { name })
       || `Approve the ${name} profile in Device Management. This list updates once you do.`;
     case "restart": return t("toast-agent-restarted", { name }) || `${name} is restarting.`;
+    case "remove-policy-admin":
     case "remove-leftover": return t("toast-agent-leftover-removed", { name })
       || `Removed the leftover ${name} settings.`;
     default: return "";

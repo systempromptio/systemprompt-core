@@ -187,7 +187,7 @@ fn text_renders_each_line_in_monospace() {
     let pdf = pdf_of(&TextCodec, b"fn main() {}\n    indented\n", "main.txt");
     let text = text_of(&pdf);
     assert_carries(&text, &["fn main() {}", "indented"]);
-    assert!(parse_pdf(&pdf).has_font("Courier"));
+    assert!(parse_pdf(&pdf).has_font_named("DejaVuSansMono"));
 }
 
 #[test]
@@ -211,10 +211,10 @@ fn the_same_revision_renders_to_the_same_bytes() {
 }
 
 #[test]
-fn a_character_outside_win_ansi_is_shown_as_a_question_mark() {
+fn a_character_outside_the_faces_is_drawn_as_the_replacement_character() {
     let pdf = pdf_of(&TextCodec, "caf\u{e9} \u{65e5}\u{672c}".as_bytes(), "x.txt");
     let text = text_of(&pdf);
-    assert_carries(&text, &["caf\u{e9} ??"]);
+    assert_carries(&text, &["caf\u{e9} \u{fffd}\u{fffd}"]);
 }
 
 #[test]
@@ -223,4 +223,50 @@ fn the_pdf_file_name_swaps_the_extension() {
     assert_eq!(pdf_file_name("notes"), "notes.pdf");
     assert_eq!(pdf_file_name(".hidden"), ".hidden.pdf");
     assert_eq!(pdf_file_name("v1.2 draft"), "v1.2 draft.pdf");
+}
+
+fn rich_pdf(markdown: &str, name: &str) -> Vec<u8> {
+    let model = systemprompt_files::documents::model::formats::import_rich_text(
+        systemprompt_provider_contracts::documents::DocumentFormat::Markdown,
+        markdown.as_bytes(),
+    )
+    .expect("model");
+    let revision = revision();
+    systemprompt_files::documents::pdf::render_rich(
+        &model,
+        &std::collections::BTreeMap::new(),
+        &RenderRequest {
+            name,
+            revision: &revision,
+            created_at: Utc
+                .with_ymd_and_hms(2026, 11, 5, 9, 0, 0)
+                .single()
+                .expect("date"),
+            max_pages: 50,
+        },
+    )
+    .expect("render")
+}
+
+#[test]
+fn rich_rendering_embeds_subset_fonts_and_keeps_unicode_text() {
+    let pdf = rich_pdf(
+        "# Résumé Ελληνικά Кириллица\n\n**bold** *italic* naïve €\n\n| A | B |\n|---|---|\n| ж | λ |\n",
+        "unicode.md",
+    );
+    let parsed = parse_pdf(&pdf);
+    assert!(parsed.has_font_named("DejaVuSans-Bold"));
+    assert!(parsed.has_font_named("DejaVuSans-Oblique"));
+    assert!(!parsed.has_font("Helvetica"));
+    assert!(
+        pdf.windows(b"/ToUnicode".len()).any(|w| w == b"/ToUnicode"),
+        "no ToUnicode map"
+    );
+    assert_eq!(
+        pdf,
+        rich_pdf(
+            "# Résumé Ελληνικά Кириллица\n\n**bold** *italic* naïve €\n\n| A | B |\n|---|---|\n| ж | λ |\n",
+            "unicode.md",
+        )
+    );
 }

@@ -40,6 +40,7 @@ fn field(field_type: FieldType, entity_ref: Option<&str>, alias: bool) -> FieldD
         entity_ref: entity_ref.map(str::to_owned),
         values: Vec::new(),
         alias,
+        display: None,
     }
 }
 
@@ -63,6 +64,7 @@ pub(crate) fn contact_kind() -> KindDecl {
         materiality: Materiality::default(),
         review_after_days: None,
         extractor: None,
+        asks: Vec::new(),
     }
 }
 

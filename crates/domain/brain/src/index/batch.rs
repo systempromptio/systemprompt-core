@@ -2,16 +2,18 @@
 //!
 //! One read for the set (facts, their kind bodies and their subjects'
 //! display names), then one statement per index over the whole set:
-//! working-set delete and insert, link delete and insert, subject
-//! ensure, alias upsert, weighted-vector update. Eight statements for a
-//! set of any size, against ten or more per fact on the per-fact path.
+//! working-set delete and insert, link delete and insert, subject-link
+//! delete and insert (the bridges derived from the links just written),
+//! subject ensure, alias upsert, weighted-vector update. Ten statements
+//! for a set of any size, against a dozen or more per fact on the
+//! per-fact path.
 //! Aliases and synonym expansions are derived in Rust from the loaded
 //! rows. The alias rows are folded with the live facts in `(updated_at,
 //! id)` order and the upsert only moves an alias to a fact at least as
 //! recent as its owner, so the owner of a shared alias is the same
 //! whichever set or batch wrote it last. A fact in the set that is no
 //! longer live contributes nothing and releases what it owned
-//! ([`super::release_alias_owners`]), a ninth statement for such a set.
+//! ([`super::release_alias_owners`]), an eleventh statement for such a set.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -27,15 +29,16 @@ use systemprompt_models::brain::{FactStatus, KindDecl, SubjectKey, SynonymsDoc};
 use systemprompt_traits::RepositoryError;
 
 use super::aliases::{AliasInput, derive_aliases};
+use super::entities::{NamedEntity, entity_subjects};
 use super::release::{holds_aliases, release_alias_owners};
 use super::rows::{AliasOwner, AliasRows};
 use crate::models::{FieldMap, decode_status};
 use crate::repository::{
-    AliasRepository, FactLinkRepository, SearchIndexRepository, SubjectRepository,
-    WorkingSetRepository,
+    AliasRepository, FactLinkRepository, SearchIndexRepository, SubjectLinkRepository,
+    SubjectRepository, WorkingSetRepository,
 };
 
-pub const STATEMENTS_PER_SET: u64 = 8;
+pub const STATEMENTS_PER_SET: u64 = 11;
 
 /// What one set-based reindex did.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -71,14 +74,35 @@ pub async fn reindex_facts(
     let keys: Vec<String> = rows.iter().map(|row| row.id.to_string()).collect();
     WorkingSetRepository::refresh_many(&mut *conn, &keys).await?;
     FactLinkRepository::refresh_many(&mut *conn, &keys).await?;
+    SubjectLinkRepository::refresh_many(&mut *conn, &keys).await?;
     let subjects: Vec<&SubjectKey> = rows.iter().map(|row| &row.subject).collect();
     SubjectRepository::ensure_many(&mut *conn, &subjects).await?;
     let mut kinds: HashMap<String, Option<KindDecl>> = HashMap::new();
+    let entities: Vec<(&Indexed, NamedEntity)> = rows
+        .iter()
+        .flat_map(|row| {
+            let kind = kind_of(&mut kinds, row);
+            entity_subjects(kind.as_ref(), &row.fields.0)
+                .into_iter()
+                .map(move |entity| (row, entity))
+                .collect::<Vec<_>>()
+        })
+        .collect();
+    let named: Vec<(SubjectKey, Option<String>)> = entities
+        .iter()
+        .map(|(_, entity)| (entity.subject.clone(), entity.display_name.clone()))
+        .collect();
+    SubjectRepository::ensure_many_named(&mut *conn, &named).await?;
     let (contributing, released): (Vec<&Indexed>, Vec<&Indexed>) =
         rows.iter().partition(|row| holds_aliases(row.status));
     let mut by_recency = contributing;
     by_recency.sort_by(|a, b| a.updated_at.cmp(&b.updated_at).then(a.id.cmp(&b.id)));
-    let aliases = AliasRows::collect(by_recency.into_iter().map(|row| {
+    let mut entity_aliases: Vec<(&Indexed, NamedEntity)> = entities
+        .into_iter()
+        .filter(|(row, _)| holds_aliases(row.status))
+        .collect();
+    entity_aliases.sort_by(|(a, _), (b, _)| a.updated_at.cmp(&b.updated_at).then(a.id.cmp(&b.id)));
+    let fact_aliases = by_recency.into_iter().map(|row| {
         let kind = kind_of(&mut kinds, row);
         let derived = derive_aliases(AliasInput {
             subject_id: &row.subject.id,
@@ -92,7 +116,16 @@ pub async fn reindex_facts(
             updated_at: row.updated_at,
         };
         (owner, derived)
-    }));
+    });
+    let named_aliases = entity_aliases.iter().map(|(row, entity)| {
+        let owner = AliasOwner {
+            subject: &entity.subject,
+            fact: &row.id,
+            updated_at: row.updated_at,
+        };
+        (owner, entity.aliases())
+    });
+    let aliases = AliasRows::collect(&mut fact_aliases.chain(named_aliases));
     AliasRepository::upsert_many(&mut *conn, &aliases).await?;
     let released: Vec<BrainFactId> = released.into_iter().map(|row| row.id.clone()).collect();
     Box::pin(release_alias_owners(&mut *conn, &released)).await?;

@@ -185,3 +185,26 @@ fn unknown_targets_and_ambiguous_quotes_are_refused() {
         assert_eq!(doc.version(), before);
     }
 }
+
+#[test]
+fn shape_ops_move_resize_and_delete_a_shape() {
+    let deck = applied(&[
+        EditOp::MoveShape {
+            node: DocumentNodeId::new("slide[1]/shape[0]"),
+            x: 100,
+            y: 200,
+        },
+        EditOp::ResizeShape {
+            node: DocumentNodeId::new("slide[1]/shape[0]"),
+            w: 300,
+            h: 400,
+        },
+    ]);
+    let frame = deck.slides[0].shapes[0].frame.expect("frame");
+    assert_eq!((frame.x, frame.y, frame.w, frame.h), (100, 200, 300, 400));
+
+    let deck = applied(&[EditOp::DeleteShape {
+        node: DocumentNodeId::new("slide[1]/shape[0]"),
+    }]);
+    assert_eq!(lines(&deck, 0), ["alpha", "beta"]);
+}

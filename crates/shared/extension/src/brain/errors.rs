@@ -112,6 +112,19 @@ pub enum RecallError {
     },
 }
 
+/// Why a reranker could not order the candidates.
+#[derive(Debug, thiserror::Error)]
+pub enum RerankError {
+    #[error("brain reranker {reranker} timed out")]
+    Timeout { reranker: &'static str },
+    #[error("brain reranker {reranker} failed")]
+    Other {
+        reranker: &'static str,
+        #[source]
+        source: BoxedSource,
+    },
+}
+
 /// Why a source's readability could not be decided.
 #[derive(Debug, thiserror::Error)]
 pub enum SourceAccessError {

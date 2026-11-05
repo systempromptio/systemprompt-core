@@ -201,7 +201,6 @@ fn loaded_policies(loaded: &Value) -> Vec<PolicyKey> {
         .unwrap_or_default()
 }
 
-
 fn json_body(text: &str) -> &str {
     text.find('{').map_or(text, |start| &text[start..])
 }

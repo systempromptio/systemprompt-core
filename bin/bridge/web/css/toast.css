@@ -68,3 +68,4 @@ button[aria-busy="true"] {
   opacity: 0.6;
   cursor: progress;
 }
+.sp-toast__detail { margin-top: var(--sp-space-1); font-size: 12px; overflow-wrap: anywhere; }

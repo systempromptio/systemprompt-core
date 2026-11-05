@@ -164,3 +164,179 @@ fn a_word_quorum_counts_every_query_word_a_group_absorbed() {
         "three words, half rounded up is two groups"
     );
 }
+
+fn stop_words() -> Vec<String> {
+    ["call", "what", "the", "on"]
+        .into_iter()
+        .map(str::to_owned)
+        .collect()
+}
+
+#[test]
+fn a_stop_word_is_never_required_and_never_ranks() {
+    let terms = terms(
+        &[("call", 17), ("akeneo", 12), ("pim", 30), ("the", 800)],
+        1000,
+    );
+    let message = "What's the call on the Akeneo PIM";
+    let scaffolded = plan(message, &synonyms(), &terms, &policy()).unwrap();
+    assert_eq!(scaffolded.filter, "akeneo & call");
+    let planned = plan(
+        message,
+        &synonyms(),
+        &terms,
+        &policy().with_stop_words(stop_words()),
+    )
+    .unwrap();
+    assert_eq!(
+        planned.filter, "akeneo",
+        "two groups, half rounded up is one"
+    );
+    assert_eq!(planned.rank, "akeneo | pim");
+    let all = plan(
+        message,
+        &synonyms(),
+        &terms,
+        &SearchPolicy::new(0.2, 1.0).with_stop_words(stop_words()),
+    )
+    .unwrap();
+    assert_eq!(all.filter, "akeneo & pim");
+}
+
+#[test]
+fn a_message_of_stop_words_and_common_words_plans_nothing() {
+    let terms = terms(&[("the", 800), ("delivery", 300)], 1000);
+    let stopped = policy().with_stop_words(stop_words());
+    assert_eq!(plan("What's the call", &synonyms(), &terms, &stopped), None);
+    assert_eq!(
+        plan("the delivery", &synonyms(), &terms, &stopped),
+        None,
+        "a common word alone narrows nothing"
+    );
+    let undeclared = plan("the delivery", &synonyms(), &terms, &policy()).unwrap();
+    assert_eq!(undeclared.filter, "the | delivery");
+}
+
+#[test]
+fn without_statistics_stop_words_leave_the_disjunction() {
+    let planned = plan(
+        "the catalogue import",
+        &synonyms(),
+        &SearchTerms::default(),
+        &policy().with_stop_words(stop_words()),
+    )
+    .unwrap();
+    assert_eq!(planned.filter, "(catalogue | catalog) | import");
+}
+
+#[test]
+fn a_filter_whose_rarest_required_word_is_too_common_plans_nothing() {
+    let terms = terms(&[("client", 30_000), ("renewal", 50)], 300_000);
+    let capped = policy().with_max_ndoc(5_000);
+    let narrowed = plan("client renewal", &synonyms(), &terms, &capped).unwrap();
+    assert_eq!(
+        narrowed.filter, "renewal",
+        "the rarest word is within the cap"
+    );
+    assert_eq!(
+        plan("client", &synonyms(), &terms, &capped),
+        None,
+        "thirty thousand rows are not worth ranking"
+    );
+    let open = plan("client", &synonyms(), &terms, &policy()).unwrap();
+    assert_eq!(open.filter, "client", "0 keeps the plan");
+    assert_eq!(
+        plan(
+            "client",
+            &synonyms(),
+            &terms,
+            &policy().with_max_ndoc(30_000)
+        )
+        .unwrap()
+        .filter,
+        "client",
+        "the cap is inclusive"
+    );
+}
+
+#[test]
+fn a_disjunction_is_bounded_by_the_sum_of_its_groups() {
+    let terms = terms(&[("client", 300), ("product", 250)], 1000);
+    let both = plan("client product", &synonyms(), &terms, &policy()).unwrap();
+    assert_eq!(both.filter, "client | product");
+    assert_eq!(
+        plan(
+            "client product",
+            &synonyms(),
+            &terms,
+            &policy().with_max_ndoc(550)
+        )
+        .unwrap()
+        .filter,
+        both.filter
+    );
+    assert_eq!(
+        plan(
+            "client product",
+            &synonyms(),
+            &terms,
+            &policy().with_max_ndoc(549)
+        ),
+        None
+    );
+}
+
+#[test]
+fn without_statistics_the_cap_never_applies() {
+    let planned = plan(
+        "catalogue import",
+        &synonyms(),
+        &SearchTerms::default(),
+        &policy().with_max_ndoc(1),
+    )
+    .unwrap();
+    assert_eq!(planned.filter, "(catalogue | catalog) | import");
+}
+
+#[test]
+fn the_cap_survives_the_retry_policy() {
+    let retry = SearchPolicy {
+        retry_quorum: 0.34,
+        ..policy().with_max_ndoc(5_000)
+    }
+    .retry()
+    .unwrap();
+    assert_eq!(retry.max_ndoc, 5_000);
+}
+
+#[test]
+fn a_rare_enough_group_is_required_alone() {
+    let rare_terms = terms(&[("akeneo", 1), ("data", 150), ("product", 154)], 2772);
+    let hints = "What did we decide about Akeneo for product data";
+    let plain = plan(hints, &synonyms(), &rare_terms, &policy()).unwrap();
+    assert_eq!(plain.filter, "akeneo & data", "two of three, rarest first");
+    let rare = plan(
+        hints,
+        &synonyms(),
+        &rare_terms,
+        &policy().with_rare_alone_share(0.001),
+    )
+    .unwrap();
+    assert_eq!(
+        rare.filter, "akeneo",
+        "a word one fact carries is enough alone"
+    );
+    assert_eq!(rare.rank, plain.rank);
+    let common = terms(&[("larchmont", 20), ("renew", 150), ("owns", 154)], 2772);
+    let kept = plan(
+        "When does Larchmont renew and who owns it",
+        &synonyms(),
+        &common,
+        &policy().with_rare_alone_share(0.001),
+    )
+    .unwrap();
+    assert_eq!(
+        kept.filter, "larchmont & renew",
+        "a client name is above the share"
+    );
+}

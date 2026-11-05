@@ -149,6 +149,9 @@ impl<'d> FlowBatch<'d> {
             | EditOp::UpdateTable(_)
             | EditOp::SetSection(_)
             | EditOp::SetStyle(_)
+            | EditOp::MoveShape { .. }
+            | EditOp::ResizeShape { .. }
+            | EditOp::DeleteShape { .. }
             | EditOp::ApplyTheme(_) => return Err(self.unsupported(op)),
         }
         Ok(())

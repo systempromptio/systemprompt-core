@@ -17,6 +17,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::sync::Arc;
+
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::{Extension, Json};
@@ -158,10 +160,22 @@ pub(super) async fn leave(
     Json(body): Json<LeaveBody>,
 ) -> DocumentsResult<Json<LeftJson>> {
     let who = caller(&state, &req_ctx).await?;
-    let left = state
-        .collab
-        .leave(&who.user, &document_id(&id)?, &body.session_id, &who.trace)
-        .await?;
+    let id = document_id(&id)?;
+    let collab = Arc::clone(&state.collab);
+    // Why: axum drops the handler when a closing browser drops the connection,
+    // and a settle cut off mid-checkpoint leaves the session unsaved.
+    let (settled, settling) = tokio::sync::oneshot::channel();
+    state
+        .background
+        .spawn("documents.collab.leave", async move {
+            let left = collab
+                .leave(&who.user, &id, &body.session_id, &who.trace)
+                .await;
+            if settled.send(left).is_err() {
+                tracing::debug!("the leaving client went away before the session settled");
+            }
+        });
+    let left = settling.await??;
     Ok(Json(LeftJson::from(left)))
 }
 

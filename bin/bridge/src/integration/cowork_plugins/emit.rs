@@ -8,7 +8,6 @@
 use std::path::PathBuf;
 use std::{fs, io};
 
-
 pub(super) const ORG_PROVISIONED_MARKETPLACE: &str = "org-provisioned";
 
 pub(super) const INSTALLED_PLUGINS_FILE: &str = "installed_plugins.json";

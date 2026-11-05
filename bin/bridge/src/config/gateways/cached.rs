@@ -4,6 +4,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::collections::BTreeMap;
+
+use systemprompt_identifiers::ModelId;
+use systemprompt_models::bridge::profile::AdvertisedLimits;
+
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
@@ -125,6 +130,17 @@ pub struct ServedModels {
     pub gateway: Option<ValidatedUrl>,
     #[serde(default)]
     pub models: Vec<String>,
+    #[serde(default)]
+    pub desktop_models: Vec<String>,
+    #[serde(default)]
+    pub desktop_limits: BTreeMap<ModelId, AdvertisedLimits>,
+}
+
+/// What other gateway profiles offer Claude Desktop.
+#[derive(Debug, Clone, Default)]
+pub struct DesktopModelsElsewhere {
+    pub models: Vec<String>,
+    pub limits: BTreeMap<ModelId, AdvertisedLimits>,
 }
 
 pub fn write_served_models(
@@ -155,17 +171,40 @@ pub fn served_models_by_profile() -> Result<Vec<(GatewayProfileId, Vec<String>)>
     Ok(out)
 }
 
+pub fn desktop_models_elsewhere() -> Result<DesktopModelsElsewhere, ProfileError> {
+    let active = active()?;
+    let mut out = DesktopModelsElsewhere::default();
+    if active.pinned {
+        return Ok(out);
+    }
+    for summary in list()? {
+        let profile = profile_for(summary.id)?;
+        if profile.id == active.id {
+            continue;
+        }
+        if let Some(served) = read_served_models(&profile)? {
+            out.models.extend(served.desktop_models);
+            for (model, limit) in served.desktop_limits {
+                out.limits.entry(model).or_insert(limit);
+            }
+        }
+    }
+    out.models.sort();
+    out.models.dedup();
+    Ok(out)
+}
+
 #[must_use]
 pub fn models_served_elsewhere(
     active: &GatewayProfileId,
     by_profile: &[(GatewayProfileId, Vec<String>)],
-) -> std::collections::BTreeMap<String, GatewayProfileId> {
+) -> BTreeMap<String, GatewayProfileId> {
     let active_models: std::collections::BTreeSet<&str> = by_profile
         .iter()
         .filter(|(id, _)| id == active)
         .flat_map(|(_, models)| models.iter().map(String::as_str))
         .collect();
-    let mut out = std::collections::BTreeMap::new();
+    let mut out = BTreeMap::new();
     for (id, models) in by_profile.iter().filter(|(id, _)| id != active) {
         for model in models {
             if !active_models.contains(model.as_str()) {

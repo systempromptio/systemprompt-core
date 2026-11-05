@@ -1,6 +1,7 @@
 //! The agent access policy an installation registers to let the Drive sync
 //! save whole files: `replace_content` on the `drive_sync` channel alone,
-//! every other capability left to core's default refusal.
+//! the trash on the same channel, every other capability left to core's
+//! default refusal.
 
 use std::sync::Arc;
 
@@ -27,7 +28,10 @@ impl AgentAccessPolicy for DriveSyncSaves {
         _doc: &DocumentContext,
         agent: &AgentActor,
     ) -> bool {
-        capability == AgentCapability::ReplaceContent && agent.channel == AgentChannel::DriveSync
+        matches!(
+            capability,
+            AgentCapability::ReplaceContent | AgentCapability::Trash
+        ) && agent.channel == AgentChannel::DriveSync
     }
 }
 

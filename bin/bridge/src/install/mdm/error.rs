@@ -58,6 +58,12 @@ pub enum MdmError {
     Resolve(&'static str),
     #[error("gateway profiles: {0}")]
     GatewayProfiles(#[source] Box<crate::config::gateways::ProfileError>),
+    #[cfg(target_os = "macos")]
+    #[error("the Claude Desktop managed preferences are out of date: {detail}")]
+    ElevationNeeded { detail: String },
+    #[cfg(target_os = "macos")]
+    #[error("the Claude Desktop managed preferences could not be read: {reason}")]
+    ManagedPrefsUnreadable { reason: String },
     #[error("{path} is not valid JSON: {source}")]
     Json {
         path: PathBuf,

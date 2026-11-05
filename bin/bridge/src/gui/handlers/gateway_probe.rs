@@ -93,9 +93,6 @@ pub(crate) fn on_gateway_probe_finished(
     emit::emit_state(app);
 
     let Some(id) = reply_to else {
-        if let Err(err) = bridge_result {
-            emit::emit_error(app, &err);
-        }
         return;
     };
     let payload = match bridge_result {
@@ -117,12 +114,8 @@ fn announce(app: &mut GuiApp) {
             app.signal_cleared(Signal::GatewayUnreachable);
         },
         GatewayStatus::Unreachable { reason } => {
-            let reason = reason.clone();
-            app.signal_raised(
-                Signal::GatewayUnreachable,
-                &format!("{app_name} cannot reach the gateway"),
-                &format!("Agent traffic is ungoverned until it comes back: {reason}"),
-            );
+            let line = format!("gateway unreachable; retrying: {reason}");
+            app.signal_logged(Signal::GatewayUnreachable, &line);
         },
         _ => app.signal_cleared(Signal::GatewayUnreachable),
     }
@@ -139,8 +132,8 @@ fn announce(app: &mut GuiApp) {
     if expiring {
         app.signal_raised(
             Signal::SessionExpiring,
-            &format!("{app_name} session expires soon"),
-            "Sign in again from the account menu to keep syncing without interruption.",
+            &format!("Your {app_name} sign-in ends soon"),
+            "Sign in again from the account menu to keep syncing.",
         );
     } else {
         app.signal_cleared(Signal::SessionExpiring);

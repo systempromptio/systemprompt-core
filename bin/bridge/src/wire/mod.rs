@@ -73,6 +73,7 @@ pub struct StatePayload<'a> {
     pub cached_token: Option<CachedTokenPayload>,
     pub token: Verdict<TokenCode>,
     pub gateway_status: GatewayStatusPayload<'a>,
+    pub gateway_outage: bool,
     pub verified_identity: Option<VerifiedIdentityPayload<'a>>,
     pub identity: Verdict<IdentityCode>,
     pub cloud_tone: Tone,

@@ -259,8 +259,8 @@ fn a_clean_sync_report_reads_as_synced() {
 #[test]
 fn needs_approval_is_exactly_a_row_whose_action_is_the_administrator_update() {
     let drifted = ProfileState::Stale {
-        reason: StaleReason::Settings,
-        keys: vec!["otlpEndpoint".to_owned()],
+        reason: StaleReason::ManagedServers,
+        keys: vec!["managedMcpServers".to_owned()],
     };
     let snap = with_hosts(
         signed_in_after_sync(),

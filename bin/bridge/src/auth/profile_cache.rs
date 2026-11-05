@@ -107,6 +107,11 @@ fn record_served_models(gateway: &str, profile: &BridgeProfile) -> std::io::Resu
     let gateway = Some(
         systemprompt_identifiers::ValidatedUrl::try_new(gateway).map_err(std::io::Error::other)?,
     );
+    let desktop_models = crate::gateway::model_view::host_model_view(
+        &profile.providers,
+        &[systemprompt_models::providers::ClientFamily::Claude],
+    )
+    .compatible_models;
     crate::config::gateways::write_served_models(
         &active,
         &crate::config::gateways::ServedModels {
@@ -116,6 +121,18 @@ fn record_served_models(gateway: &str, profile: &BridgeProfile) -> std::io::Resu
                 .iter()
                 .map(|m| m.as_str().to_owned())
                 .collect(),
+            desktop_limits: profile
+                .model_limits
+                .iter()
+                .filter(|(id, _)| {
+                    let id = systemprompt_models::providers::without_context_variant(id.as_str());
+                    desktop_models
+                        .iter()
+                        .any(|m| systemprompt_models::providers::without_context_variant(m) == id)
+                })
+                .map(|(id, limit)| (id.clone(), *limit))
+                .collect(),
+            desktop_models,
         },
     )
     .map_err(std::io::Error::other)

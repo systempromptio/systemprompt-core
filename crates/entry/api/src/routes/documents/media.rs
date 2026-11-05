@@ -13,10 +13,13 @@ use axum::http::request::Parts;
 use axum::http::{HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use serde::Deserialize;
+use systemprompt_files::documents::DocumentsError;
+use systemprompt_files::documents::model::MediaBlob;
+use systemprompt_identifiers::DocumentId;
 use systemprompt_models::documents::content_hash;
 
 use super::DocumentsState;
-use super::caller::caller;
+use super::caller::{Caller, caller};
 use super::content::request_context;
 use super::error::DocumentsResult;
 use super::headers::{hash_etag, none_match};
@@ -29,6 +32,33 @@ pub(super) struct MediaQuery {
     reference: String,
 }
 
+#[cfg(feature = "collab")]
+async fn live_image(
+    state: &DocumentsState,
+    who: &Caller,
+    id: &DocumentId,
+    reference: &str,
+) -> Option<MediaBlob> {
+    state
+        .collab
+        .live_image(&who.user, id, reference, &who.trace)
+        .await
+}
+
+#[cfg(not(feature = "collab"))]
+#[expect(
+    clippy::unused_async,
+    reason = "the signature matches the collab build, which awaits"
+)]
+async fn live_image(
+    _state: &DocumentsState,
+    _who: &Caller,
+    _id: &DocumentId,
+    _reference: &str,
+) -> Option<MediaBlob> {
+    None
+}
+
 pub(super) async fn image(
     State(state): State<DocumentsState>,
     Path(id): Path<String>,
@@ -37,10 +67,18 @@ pub(super) async fn image(
 ) -> DocumentsResult<Response> {
     let who = caller(&state, request_context(&parts)?).await?;
     let id = document_id(&id)?;
-    let blob = state
+    let held = state
         .service
         .held_image(&who.user, &id, &query.reference, &who.trace)
-        .await?;
+        .await;
+    let blob = match held {
+        Err(missing @ DocumentsError::NotFound { .. }) => {
+            live_image(&state, &who, &id, &query.reference)
+                .await
+                .ok_or(missing)?
+        },
+        other => other?,
+    };
     let tag = hash_etag(&content_hash(&blob.bytes));
     let mut response = if none_match(&parts.headers, &tag) {
         StatusCode::NOT_MODIFIED.into_response()

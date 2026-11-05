@@ -34,10 +34,10 @@ use serde::Serialize;
 use systemprompt_identifiers::ValidatedUrl;
 
 pub use cached::{
-    CachedDiscovery, DeliveredInstance, ServedModels, delivered_windows, forget_discovery,
-    model_union, models_served_elsewhere, profile_trust_pins, read_delivered, read_discovery,
-    read_served_models, served_models_by_profile, write_delivered, write_discovery,
-    write_served_models,
+    CachedDiscovery, DeliveredInstance, DesktopModelsElsewhere, ServedModels, delivered_windows,
+    desktop_models_elsewhere, forget_discovery, model_union, models_served_elsewhere,
+    profile_trust_pins, read_delivered, read_discovery, read_served_models,
+    served_models_by_profile, write_delivered, write_discovery, write_served_models,
 };
 pub use error::ProfileError;
 pub use id::{GatewayProfileId, ProfileIdError};

@@ -64,7 +64,6 @@ pub(super) fn slide_refs(package: &mut Package<'_>) -> Result<Vec<SlideRef>, Cod
         .collect()
 }
 
-
 fn next_slide_number(package: &Package<'_>) -> Result<u32, CodecError> {
     let highest = package
         .names()?

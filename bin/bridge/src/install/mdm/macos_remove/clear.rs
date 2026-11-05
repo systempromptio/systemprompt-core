@@ -8,6 +8,20 @@ use super::super::MdmError;
 use super::super::macos::{MANAGED_PREFS_PATH, PAYLOAD_IDENTIFIER};
 use super::{unprivileged_inventory_is_clean, user_prefs_path};
 
+pub(crate) fn clear_needs_admin(ours: Option<&str>) -> Result<bool, MdmError> {
+    use super::super::clear_plan::plan_clear;
+
+    for path in [
+        std::path::PathBuf::from(MANAGED_PREFS_PATH),
+        user_prefs_path()?,
+    ] {
+        if plan_clear(observe_plist(&path)?.as_ref(), ours).writes() {
+            return Ok(true);
+        }
+    }
+    Ok(!unprivileged_inventory_is_clean()?)
+}
+
 // Why: Claude Desktop reads both the per-user and the machine managed plist,
 // and only an administrator can change either; one privileged script edits
 // every file the bridge wrote and restarts cfprefsd once.

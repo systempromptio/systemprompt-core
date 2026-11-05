@@ -58,6 +58,7 @@ impl std::fmt::Debug for DriveDeps {
 }
 
 const SYNC_TOKEN_MARGIN_SECS: i64 = 60;
+const DISABLED_RECHECK: Duration = Duration::from_hours(1);
 
 pub async fn run_loop(deps: DriveDeps) {
     let DriveDeps {
@@ -81,6 +82,7 @@ pub async fn run_loop(deps: DriveDeps) {
         host_name: &host_name,
         throttle: PresenceThrottle::default(),
         sync_token: None,
+        disabled: None,
     };
     let mut watch = None;
     let mut interval = tokio::time::interval(TICK);
@@ -133,6 +135,7 @@ struct Runner<'a> {
     host_name: &'a str,
     throttle: PresenceThrottle,
     sync_token: Option<(BearerToken, DateTime<Utc>)>,
+    disabled: Option<(Instant, Arc<systemprompt_identifiers::ValidatedUrl>)>,
 }
 
 impl Runner<'_> {
@@ -171,10 +174,19 @@ impl Runner<'_> {
         if self.token_cache.sign_in_required() {
             return;
         }
+        let gateway = Arc::clone(&self.runtime_config.load_full().gateway_base);
+        if let Some((at, disabled_on)) = &self.disabled
+            && *disabled_on == gateway
+            && at.elapsed() < DISABLED_RECHECK
+        {
+            return;
+        }
+        self.disabled = None;
         match self.try_cycle().await {
             Ok(()) => {},
             Err(DriveError::ServerDisabled { endpoint }) => {
                 tracing::debug!(endpoint, "drive disabled on the server");
+                self.disabled = Some((Instant::now(), gateway));
                 self.handle.mark_disabled();
             },
             Err(error) => {

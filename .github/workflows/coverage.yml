@@ -286,6 +286,10 @@ jobs:
           ref: ${{ inputs.ref || github.ref }}
       - name: Prepare /mnt
         run: |
+          # Why: on the ubuntu-26.04 image /mnt is the root filesystem, with about
+          # 67G free, and the unpacked archive can fill it.
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc \
+            /usr/local/.ghcup "$AGENT_TOOLSDIRECTORY"
           sudo mkdir -p /mnt/dl /mnt/bins /mnt/coverage-target /mnt/profraw /mnt/discard /mnt/tmp /mnt/out
           sudo chown -R "$USER" /mnt/dl /mnt/bins /mnt/coverage-target /mnt/profraw /mnt/discard /mnt/tmp /mnt/out
       # Toolchain for llvm-profdata and the shard script's `cargo metadata`;
@@ -393,6 +397,10 @@ jobs:
           ref: ${{ inputs.ref || github.ref }}
       - name: Prepare /mnt
         run: |
+          # Why: on the ubuntu-26.04 image /mnt is the root filesystem, with about
+          # 67G free, and the unpacked archive can fill it.
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc \
+            /usr/local/.ghcup "$AGENT_TOOLSDIRECTORY"
           sudo mkdir -p /mnt/dl /mnt/bins /mnt/coverage-target /mnt/profiles
           sudo chown -R "$USER" /mnt/dl /mnt/bins /mnt/coverage-target /mnt/profiles
       - run: rustup show

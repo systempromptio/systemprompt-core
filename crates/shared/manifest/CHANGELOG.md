@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.79.0] - 2026-11-05
+
+### Breaking
+
+- **Breaking:** `BrainRecallProfile.working_set` and the `brain.recall.working_set` key are removed. A profile that still names the key fails to load; migrate by deleting it.
+
 ## [0.78.0] - 2026-11-04
 
 ### Breaking

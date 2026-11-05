@@ -8,7 +8,7 @@ use std::collections::BTreeMap;
 
 use chrono::{DateTime, SecondsFormat, Utc};
 use systemprompt_identifiers::BrainFactId;
-use systemprompt_models::brain::WithheldReason;
+use systemprompt_models::brain::{RecallRerank, WithheldReason};
 
 /// One injected fact at the revision that was read.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -36,9 +36,13 @@ impl WithheldSummary {
     }
 }
 
-/// The facts injected into one request. `reused_after_deadline` marks a
+/// The facts injected into one request.
+///
+/// `reused_after_deadline` marks a
 /// block an earlier request of the turn produced after its deadline; the
-/// rendered bytes are the same, only the descriptor says so.
+/// rendered bytes are the same, only the descriptor says so. `reranked`
+/// names the reranker that ordered the fill and the rank it gave each
+/// injected fact; it is recorded, never rendered.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RecallBlock {
     pub scope: String,
@@ -47,6 +51,7 @@ pub struct RecallBlock {
     pub withheld: WithheldSummary,
     pub tokens: u32,
     pub reused_after_deadline: bool,
+    pub reranked: Option<RecallRerank>,
 }
 
 impl RecallBlock {
@@ -59,6 +64,7 @@ impl RecallBlock {
             withheld: WithheldSummary::default(),
             tokens: 0,
             reused_after_deadline: false,
+            reranked: None,
         }
     }
 
@@ -83,6 +89,12 @@ impl RecallBlock {
     #[must_use]
     pub const fn with_tokens(mut self, tokens: u32) -> Self {
         self.tokens = tokens;
+        self
+    }
+
+    #[must_use]
+    pub fn with_reranked(mut self, reranked: Option<RecallRerank>) -> Self {
+        self.reranked = reranked;
         self
     }
 

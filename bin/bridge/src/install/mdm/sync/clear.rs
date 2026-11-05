@@ -11,7 +11,7 @@ pub(super) fn clear_bridge_policy(
     use super::super::clear_plan::{ClearPlan, ObservedPolicy, plan_clear};
     use crate::config::store::{PolicyHive, PolicyTarget};
 
-    let ours = mcp.loopback.secret_fingerprint();
+    let ours = mcp.loopback.desktop_policy_fingerprint();
     let store = mcp.policy_store.backend();
     let mut lines = Vec::new();
     for hive in [PolicyHive::User, PolicyHive::Machine] {
@@ -78,11 +78,17 @@ pub(super) fn clear_bridge_policy(
 pub(super) fn clear_bridge_policy(
     mcp: &super::super::MdmPayloadInputs<'_>,
 ) -> Result<Vec<String>, crate::host_sync::ApplyError> {
-    super::super::macos_remove::clear_bridge_preferences(
-        mcp.elevation_gate,
-        mcp.loopback.secret_fingerprint().as_deref(),
-    )
-    .map_err(|e| step("remove the bridge's Claude Desktop managed preferences", e))
+    let ours = mcp.loopback.desktop_policy_fingerprint();
+    let needs_admin = super::super::macos_remove::clear_needs_admin(ours.as_deref())
+        .map_err(|e| step("inspect the bridge's Claude Desktop managed preferences", e))?;
+    if needs_admin {
+        return Err(crate::host_sync::ApplyError::ElevationRequired {
+            what: "the Claude Desktop managed preferences",
+            detail: "removing them needs an administrator".to_owned(),
+        });
+    }
+    super::super::macos_remove::clear_bridge_preferences(mcp.elevation_gate, ours.as_deref())
+        .map_err(|e| step("remove the bridge's Claude Desktop managed preferences", e))
 }
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]

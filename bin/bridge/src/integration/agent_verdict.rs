@@ -83,6 +83,7 @@ pub enum AgentReason {
     AwaitingOsApproval,
     ApprovalExpired,
     RestartPending,
+    PolicyRemovalOwed,
     Stale { cause: StaleReason, keys: String },
     SyncFailed { detail: String },
     Partial { missing: String },
@@ -116,6 +117,7 @@ pub enum AgentAction {
     OpenDeviceManagement,
     Restart,
     RemoveLeftover,
+    RemovePolicyAdmin,
     OfferAgain,
     ShowProfileFile,
     AddPersonalKey,
@@ -123,6 +125,21 @@ pub enum AgentAction {
 }
 
 impl AgentVerdict {
+    // Why: Update would write back the policy a disabled host is meant to lose,
+    // so this state offers the removal instead.
+    #[must_use]
+    pub fn with_policy_removal_owed(self) -> Self {
+        Self {
+            state: AgentState::NeedsAdminApproval,
+            tone: AgentState::NeedsAdminApproval.tone(),
+            reason: AgentReason::PolicyRemovalOwed,
+            action: Some(AgentAction::RemovePolicyAdmin),
+            secondary_action: None,
+            is_listed: true,
+            ..self
+        }
+    }
+
     #[must_use]
     pub fn with_cowork_session_ambiguous(self) -> Self {
         Self {

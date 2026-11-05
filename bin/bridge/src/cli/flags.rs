@@ -47,7 +47,7 @@ pub fn command_flags(command: Option<&str>) -> Option<CommandFlags> {
             ],
             ..NONE
         },
-        "__install-claude-policy" | "gateway" => CommandFlags {
+        "__install-claude-policy" | "gateway" | "drive" => CommandFlags {
             positionals: 2,
             ..NONE
         },
@@ -66,7 +66,7 @@ pub fn command_flags(command: Option<&str>) -> Option<CommandFlags> {
             switches: &["--check", "--yes", "-y"],
             ..NONE
         },
-        "__apply-policy-task" | "oauth-client" | "drive" => CommandFlags {
+        "__apply-policy-task" | "oauth-client" => CommandFlags {
             positionals: 1,
             ..NONE
         },

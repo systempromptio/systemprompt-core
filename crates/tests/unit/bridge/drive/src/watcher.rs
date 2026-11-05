@@ -20,14 +20,20 @@ async fn a_saved_file_is_touched_and_wakes_the_loop_while_ignored_names_are_not(
     std::fs::write(drive.join("~$lock.docx"), b"x").expect("write ignored");
     std::fs::write(drive.join("notes.md"), b"hello").expect("write");
 
-    tokio::time::timeout(Duration::from_secs(15), handle.woken())
-        .await
-        .expect("the watcher wakes the loop");
-    let touched = handle.take_touched();
-    assert!(
-        touched.iter().any(|p| p.ends_with("notes.md")),
-        "{touched:?}"
-    );
+    // Why: macOS FSEvents can report the folder itself in an earlier batch than
+    // the file, so one wake does not always carry the saved name.
+    let mut touched = Vec::new();
+    tokio::time::timeout(Duration::from_secs(15), async {
+        while !touched
+            .iter()
+            .any(|p: &std::path::PathBuf| p.ends_with("notes.md"))
+        {
+            handle.woken().await;
+            touched.extend(handle.take_touched());
+        }
+    })
+    .await
+    .unwrap_or_else(|_| panic!("the watcher wakes the loop for the saved file: {touched:?}"));
     assert!(
         touched.iter().all(|p| !p.ends_with("~$lock.docx")),
         "{touched:?}"

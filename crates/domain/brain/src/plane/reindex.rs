@@ -2,7 +2,8 @@
 //! transaction: a changed topic (its audience widens or narrows every
 //! fact carrying it) rebuilds the working set; a changed kind (its
 //! identity or entity fields decide the search weights and the links)
-//! rebuilds the links and the weighted search vectors; a changed synonyms
+//! rebuilds the links, the subject bridges derived from them and the
+//! weighted search vectors; a changed synonyms
 //! document rebuilds the vectors. Rebuilds are whole-table and derived
 //! from the rows just written, so an apply that changes nothing relevant
 //! rebuilds nothing.
@@ -16,7 +17,8 @@ use systemprompt_extension::prelude::{ConfigPlaneResult, ResolvedEntities};
 use super::backend;
 use super::entities::{DOC, KIND, SYNONYMS_DOC, TOPIC};
 use crate::repository::{
-    FactLinkRepository, SearchIndexRepository, SynonymsRepository, WorkingSetRepository,
+    FactLinkRepository, SearchIndexRepository, SubjectLinkRepository, SynonymsRepository,
+    WorkingSetRepository,
 };
 
 /// Which derived indexes an apply's entity keys invalidate.
@@ -65,6 +67,9 @@ pub(super) async fn after_write(
     }
     if rebuilds.links {
         FactLinkRepository::rebuild_all(&mut *conn)
+            .await
+            .map_err(backend)?;
+        SubjectLinkRepository::rebuild_all(&mut *conn)
             .await
             .map_err(backend)?;
     }

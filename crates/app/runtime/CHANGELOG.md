@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.79.0] - 2026-11-05
+
+### Breaking
+
+- **Breaking:** `RecallSeams` gains `rerankers`. Migrate struct literals by adding the field.
+
+### Added
+
+- `documents::views::{proposal_changes, ProposalChange, ProposalChangeKind}`: a proposal's touched blocks with their text before and after.
+- The document MCP surface lists `move_shape`, `resize_shape` and `delete_shape`, and the agent guide describes them.
+- The runtime wires discovered brain rerankers into recall.
+
 ## [0.78.0] - 2026-11-04
 
 ### Breaking

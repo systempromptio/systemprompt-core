@@ -45,7 +45,6 @@ pub type ProxyBody = http_body_util::combinators::BoxBody<Bytes, std::io::Error>
 
 pub const REFRESH_THRESHOLD_SECS: u64 = 300;
 
-
 pub(crate) struct ForwardDeps<'a> {
     pub client: reqwest::Client,
     pub gateway_base: &'a ValidatedUrl,

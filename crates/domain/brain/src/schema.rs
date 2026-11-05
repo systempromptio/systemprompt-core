@@ -69,7 +69,6 @@ pub const BRAIN_SCHEMAS: &[SchemaEntry] = &[
             "statement_hash",
             "revision",
             "owner_user_id",
-            "search",
             "search_weighted",
             "observed_at",
         ],
@@ -88,6 +87,18 @@ pub const BRAIN_SCHEMAS: &[SchemaEntry] = &[
         "brain_fact_links",
         include_str!("../schema/brain_fact_links.sql"),
         &["fact_id", "subject_kind", "subject_id", "via_field"],
+    ),
+    (
+        "brain_subject_links",
+        include_str!("../schema/brain_subject_links.sql"),
+        &[
+            "subject_kind",
+            "subject_id",
+            "other_kind",
+            "other_id",
+            "via_kind",
+            "fact_id",
+        ],
     ),
     (
         "brain_extractions",
@@ -123,6 +134,7 @@ pub const BRAIN_SCHEMAS: &[SchemaEntry] = &[
             "gateway_conversation_id",
             "rendered_block",
             "as_of",
+            "reranked",
         ],
     ),
     (

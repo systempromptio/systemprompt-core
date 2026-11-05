@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.79.0] - 2026-11-05
+
+### Added
+
+- `GET /{id}/export/markdown`, reporting what the file leaves out in `x-export-left-out`.
+- `POST /v1/bridge/drive/trash`, which requires `If-Match` and answers 409 when the head has moved, and `POST /v1/bridge/drive/move`.
+- Proposal detail returns `changes` beside `lines`.
+- The media route serves a picture placed in a live session before a checkpoint holds it.
+
+### Fixed
+
+- A live session leave runs through `BackgroundTasks`, so it settles even if the client disconnects during the request.
+
 ## [0.78.0] - 2026-11-04
 
 ### Breaking

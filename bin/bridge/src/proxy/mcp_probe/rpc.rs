@@ -183,7 +183,6 @@ pub(super) fn discover_supports_current(content_type: &str, body: &str) -> bool 
         })
 }
 
-
 #[derive(Debug, serde::Serialize)]
 struct JsonRpcNotification {
     jsonrpc: &'static str,

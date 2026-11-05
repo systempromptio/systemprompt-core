@@ -27,6 +27,12 @@ impl GuiApp {
         window::notify_user(title, message);
     }
 
+    pub(crate) fn signal_logged(&mut self, signal: Signal, line: &str) {
+        if self.active_signals.insert(signal) {
+            self.append_log_warn(line);
+        }
+    }
+
     pub(crate) fn signal_cleared(&mut self, signal: Signal) {
         self.active_signals.remove(&signal);
     }

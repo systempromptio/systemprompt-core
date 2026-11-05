@@ -77,6 +77,7 @@ mod pptx_deck_shapes;
 mod pptx_deck_structure;
 mod pptx_fixture;
 mod pptx_runs_marks;
+mod pptx_stored_shape_ops;
 mod registry;
 mod targets;
 mod templates;

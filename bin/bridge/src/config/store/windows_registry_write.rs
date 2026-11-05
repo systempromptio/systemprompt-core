@@ -136,7 +136,6 @@ pub(super) fn delete_values_at(
     Ok(removed)
 }
 
-
 fn open_key_for_write(
     hive: HKEY,
     hive_label: &str,

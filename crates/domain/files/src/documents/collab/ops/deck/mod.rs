@@ -4,7 +4,8 @@
 //! [`engine::loro::deck`](crate::documents::engine::loro::deck)).
 //!
 //! [`deck_update`] applies `insert_slide`, `delete` (a slide or a
-//! paragraph), `replace_text`, `str_replace` and `insert_after` to a fork
+//! paragraph), `replace_text`, `str_replace`, `insert_after`, `move_shape`,
+//! `resize_shape` and `delete_shape` to a fork
 //! of the live document under the peer assigned to the caller, commits it
 //! with origin `agent` and returns the update. Node ids name the deck as it
 //! stands when each op runs, in the codec's `slide[N]/shape[S]/p[P]` form.
@@ -30,5 +31,7 @@ const fn is_list_item(kind: NodeKind) -> bool {
 mod live;
 #[cfg(feature = "collab-loro")]
 mod positions;
+#[cfg(feature = "collab-loro")]
+mod shape;
 #[cfg(feature = "collab-loro")]
 mod slide;

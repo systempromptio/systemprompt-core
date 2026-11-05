@@ -45,6 +45,20 @@ impl ParsedPdf {
         Some(String::from_utf8_lossy(bytes).into_owned())
     }
 
+    /// Whether a font named `name` is declared, ignoring a subset tag
+    /// (`ABCDEF+DejaVuSans`).
+    pub fn has_font_named(&self, name: &str) -> bool {
+        self.document.objects.values().any(|object| {
+            let Object::Dictionary(dict) = object else {
+                return false;
+            };
+            dict.get(b"BaseFont")
+                .ok()
+                .and_then(|font| font.as_name().ok())
+                .is_some_and(|font| String::from_utf8_lossy(font).rsplit('+').next() == Some(name))
+        })
+    }
+
     pub fn has_font(&self, base_font: &str) -> bool {
         self.document.objects.values().any(|object| {
             let Object::Dictionary(dict) = object else {

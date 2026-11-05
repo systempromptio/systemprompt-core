@@ -11,7 +11,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-
 use systemprompt_models::documents::{DocumentFormat, Projection};
 use systemprompt_traits::RepositoryError;
 

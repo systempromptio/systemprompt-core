@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.79.0] - 2026-11-05
+
+### Breaking
+
+- **Breaking:** `documents::EditOp` gains `MoveShape`, `ResizeShape` and `DeleteShape`. Migrate exhaustive matches by adding the arms.
+
 ## [0.77.0] - 2026-11-01
 
 ### Added

@@ -12,10 +12,10 @@
 use super::binding::fold_actor;
 use super::committer::is_write_back;
 use super::entry::{CollabEntry, SharedEntry, is_unreadable};
-use super::image_owners::{ImageOwners, adds_media, attribute_runs, author_runs};
+use super::image_owners::{ImageOwners, attribute_runs, author_runs, model_refs};
 use super::{CollabError, CollabService};
 use crate::documents::agents::DocumentActor;
-use crate::documents::engine::{EngineDoc, ModelView};
+use crate::documents::engine::EngineDoc;
 use crate::documents::repository::{CollabUpdateRow, StoredSnapshot};
 use systemprompt_identifiers::DocumentEditSessionId;
 use tokio::sync::MutexGuard;
@@ -151,14 +151,15 @@ impl CollabService {
             }
         }
         let after = entry.doc.export_model()?;
-        let (ModelView::RichText(prior), ModelView::RichText(next)) = (&before, &after) else {
-            return Ok(());
-        };
-        if !adds_media(prior, next) {
+        let prior = model_refs(&before);
+        let next = model_refs(&after);
+        if next.iter().all(|reference| prior.contains(reference)) {
             return Ok(());
         }
         match replay {
-            None => entry.images.record(prior, next, &rows[0].author_user_id),
+            None => entry
+                .images
+                .record_refs(&prior, next, &rows[0].author_user_id),
             Some(fork) => attribute_runs(&mut entry.images, fork, before, &rows)?,
         }
         Ok(())

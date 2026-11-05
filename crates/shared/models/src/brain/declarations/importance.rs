@@ -15,8 +15,59 @@
 //! `alias_min_sim` is the least alias similarity that names a subject
 //! (the trigram operator's own threshold, 0.6, is its floor) and
 //! `max_subjects` the most subjects one message may name. The extension
-//! knob: `extension_max_candidates` is the most facts the
-//! extension retrievers may introduce beyond what the core tiers found.
+//! knobs: `extension_max_candidates` is the most facts the
+//! extension retrievers may introduce beyond what the core tiers found,
+//! and `reranker_timeout_ms` (default 150, never 0) is how long the
+//! registered reranker may take to reorder the visible facts before the
+//! fused order stands.
+//!
+//! Three knobs gate what a message with no lexical signal can pull in.
+//! `context_requires_signal` withholds every fact the context tier alone
+//! found (as `context_cap`) when the recall names no subject and the
+//! full-text tier returned nothing, so a message that carries no word of
+//! any fact injects none of the attributed project's facts (false keeps
+//! them). `full_text_opens_context` (default true) is whether a full-text
+//! hit alone counts as that signal: at false only a named subject or an
+//! asked kind opens the context cap, so a message whose only lexical hit
+//! is an org fact about some other subject injects that hit and nothing
+//! of the attributed project's context. `search_stop_words` are lower-case
+//! single tokens the planner drops before grouping and quorum, so a scaffold
+//! word is never the one a fact must carry; once any are declared a message
+//! with no informative group left plans no query at all instead of the
+//! disjunction of its common words (empty keeps that disjunction).
+//! `subject_limit` is the row limit of the subject and linked tiers (0 keeps
+//! the shared tier limit, `max_facts × 2` clamped to 8..=50; at most 100).
+//! `search_rare_alone_share` (0..=1, default 0 = off): a full-text group
+//! whose document share is at or under it is required alone, so a word one
+//! fact carries finds that fact whatever the quorum would ask beside it.
+//!
+//! The depth knobs: `links_depth` (1 or 2, default 1) is how many
+//! subject hops the linked tier walks from a named subject;
+//! `links_require_readable_anchor` (default false) walks only from a
+//! matched subject with at least one fact the reader can read under the
+//! tier predicate (held keys, scope levels, status, time window), so a
+//! subject the reader cannot see bridges nothing. At 1 it
+//! reaches the facts one `brain_fact_links` hop away, as before. At 2 it
+//! also reaches, through the bridges a fact declares between its subject
+//! and the subjects its entity fields name (`brain_subject_links`), the
+//! facts about a bridged subject and the facts linked to one, each scored
+//! `links_decay` (0..=1, default 0.5) lower per hop: a fact about a bridged
+//! subject scores `links_weight × links_decay`, a fact linked to one
+//! `links_weight × links_decay × links_weight`. Every hit stays in the
+//! linked tier.
+//!
+//! Two more name rules. `alias_longest_wins` drops a subject matched at
+//! `1.0` whose matched alias is a proper substring of another matched
+//! subject's exact alias (`larchmont` inside `larchmont platform`), so a
+//! client is not named by its project's id. `unknown_name_withholds_full_text`
+//! withholds the full-text tier's hits as `unknown_name` when no subject
+//! matched and the message carries a capitalised, non-sentence-initial
+//! word of three or more letters that no fact carries: the message is
+//! about an entity the brain does not know, and a shared-vocabulary hit
+//! is not an answer about it. A message that asks a declared kind
+//! (`KindDecl::asks`) counts as a signal for `context_requires_signal`,
+//! and facts of the asked kinds rank first in the context and subject
+//! tiers.
 //!
 //! The usage knobs close the citation loop on the fill:
 //! `usage_weight` adds `usage_weight × (cited_rate − ignored_rate)` to a
@@ -130,6 +181,18 @@ pub struct RetrievalDoc {
     pub usage_weight: f64,
     pub usage_min_recalls: u32,
     pub extension_max_candidates: u32,
+    pub context_requires_signal: bool,
+    pub full_text_opens_context: bool,
+    pub search_stop_words: Vec<String>,
+    pub search_max_ndoc: u32,
+    pub search_rare_alone_share: f64,
+    pub subject_limit: u32,
+    pub alias_longest_wins: bool,
+    pub unknown_name_withholds_full_text: bool,
+    pub links_depth: u32,
+    pub links_decay: f64,
+    pub links_require_readable_anchor: bool,
+    pub reranker_timeout_ms: u32,
 }
 
 impl Default for RetrievalDoc {
@@ -153,6 +216,18 @@ impl Default for RetrievalDoc {
             usage_weight: 0.0,
             usage_min_recalls: 0,
             extension_max_candidates: 24,
+            context_requires_signal: false,
+            full_text_opens_context: true,
+            search_stop_words: Vec::new(),
+            search_max_ndoc: 0,
+            search_rare_alone_share: 0.0,
+            subject_limit: 0,
+            alias_longest_wins: false,
+            unknown_name_withholds_full_text: false,
+            links_depth: 1,
+            links_decay: 0.5,
+            links_require_readable_anchor: false,
+            reranker_timeout_ms: 150,
         }
     }
 }

@@ -56,6 +56,9 @@ pub(crate) fn handle(app: &mut GuiApp, event: HostUiEvent) {
             result,
             reply_to,
         } => handlers::on_profile_install_finished(app, host_id, result, reply_to),
+        HostUiEvent::PolicyRemovalFinished { result, reply_to } => {
+            crate::gui::handlers::agents::on_policy_removal_finished(app, &result, reply_to);
+        },
         HostUiEvent::ProxyProbeRequested { reply_to } => {
             handlers::on_proxy_probe_requested(app, reply_to);
         },

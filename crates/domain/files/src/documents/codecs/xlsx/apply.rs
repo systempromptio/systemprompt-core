@@ -86,24 +86,7 @@ fn apply_one(
             insert_markdown(workbook, Some(node.resolved()?), text, shifts)
         },
         EditOp::AppendMarkdown { markdown } => insert_markdown(workbook, None, markdown, shifts),
-        EditOp::InsertSlide { .. }
-        | EditOp::SetHtml { .. }
-        | EditOp::SetText { .. }
-        | EditOp::Restore { .. }
-        | EditOp::InsertFromRevision { .. }
-        | EditOp::SetMarks(_)
-        | EditOp::SetBlockType(_)
-        | EditOp::InsertTable(_)
-        | EditOp::TableInsertRow(_)
-        | EditOp::TableInsertCol(_)
-        | EditOp::TableDelete(_)
-        | EditOp::InsertImage(_)
-        | EditOp::SetParagraph(_)
-        | EditOp::InsertBlock(_)
-        | EditOp::UpdateTable(_)
-        | EditOp::SetSection(_)
-        | EditOp::SetStyle(_)
-        | EditOp::ApplyTheme(_) => Err(CodecError::UnsupportedOp {
+        _ => Err(CodecError::UnsupportedOp {
             op: op.name(),
             format: DocumentFormat::Xlsx,
         }),

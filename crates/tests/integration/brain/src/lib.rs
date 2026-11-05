@@ -59,11 +59,21 @@ mod purge;
 #[cfg(test)]
 mod read_visibility;
 #[cfg(test)]
+mod recall_bit_identity;
+#[cfg(test)]
+mod recall_depth;
+#[cfg(test)]
 mod recall_determinism;
 #[cfg(test)]
 mod recall_extension;
 #[cfg(test)]
 mod recall_extension_admit;
+#[cfg(test)]
+mod recall_matched_identity;
+#[cfg(test)]
+mod recall_names;
+#[cfg(test)]
+mod recall_rerank;
 #[cfg(test)]
 mod recall_seed;
 #[cfg(test)]
@@ -74,6 +84,8 @@ mod recall_support;
 mod recall_tiers;
 #[cfg(test)]
 mod recall_withheld_as_of;
+#[cfg(test)]
+mod recall_withheld_equivalence;
 #[cfg(test)]
 mod recall_working_set;
 #[cfg(test)]
@@ -98,6 +110,8 @@ mod service_reads;
 mod session_pathway;
 #[cfg(test)]
 mod stale;
+#[cfg(test)]
+mod subject_links;
 #[cfg(test)]
 mod subjects_aliases;
 #[cfg(test)]

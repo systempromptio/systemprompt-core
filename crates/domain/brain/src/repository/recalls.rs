@@ -42,8 +42,8 @@ impl RecallRepository {
             "INSERT INTO brain_recalls
                  (id, principal_user_id, ai_request_id, gateway_conversation_id, session_id,
                   context_id, client, project, workflow, injected, withheld, tokens, as_of,
-                  skipped, rendered_block)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)",
+                  skipped, rendered_block, reranked)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)",
             audit.recall_id.as_str(),
             recall.principal.as_str(),
             conversation.ai_request_id.as_ref().map(AiRequestId::as_str),
@@ -62,6 +62,11 @@ impl RecallRepository {
             audit.as_of,
             recall.skipped,
             recall.rendered_block,
+            recall
+                .reranked
+                .as_ref()
+                .map(serde_json::to_value)
+                .transpose()?,
         )
         .execute(executor)
         .await?;

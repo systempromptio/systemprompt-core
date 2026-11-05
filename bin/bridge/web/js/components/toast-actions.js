@@ -1,12 +1,6 @@
 import { bridge } from "/assets/js/bridge.js";
-import { repairHost, hostInstallMessage } from "/assets/js/utils/host-actions.js";
 import { notifyErr, notifyOk } from "/assets/js/utils/notify.js";
 import { t } from "/assets/js/i18n.js";
-import { activateRailTab } from "/assets/js/utils/rail-tabs.js";
-
-function gotoStatus() {
-  activateRailTab("status");
-}
 
 function repairLabel() {
   return t("toast-action-repair-admin") || "Repair as administrator";
@@ -23,10 +17,6 @@ function reauth() {
   };
 }
 
-function details() {
-  return { label: t("toast-action-details") || "Details", run: gotoStatus };
-}
-
 function repairConfigDir() {
   return {
     label: repairLabel(),
@@ -41,43 +31,11 @@ function repairConfigDir() {
   };
 }
 
-function repairHostAction(hostId) {
-  return {
-    label: t("toast-action-update-admin") || "Update as administrator",
-    run: async () => {
-      try {
-        await repairHost(hostId);
-        notifyOk(hostInstallMessage(hostId, t("toast-agent-repaired-short", { name: hostId }) || `${hostId} repaired.`));
-      } catch (e) {
-        notifyErr(e, repairLabel());
-      }
-    },
-  };
-}
-
-// The one action an error toast offers, decided from the error's code and
-// scope. `elevation_required` names a state only an administrator can change,
-// so the button runs the UAC-backed repair for that scope; `partial` means the
-// sync finished with agents left behind, so the button opens the health table
-// that lists them; `unauthorized` is answered by signing in again.
+// The one action an error toast offers. A rejected credential is answered by
+// signing in; a configuration folder another account owns by the UAC repair.
 export function actionFor(err) {
   if (!err) { return null; }
-  if (err.code === "unauthorized") {
-    return reauth();
-  }
-  if (err.code === "elevation_required") {
-    const failures = (err.detail && err.detail.host_failures) || [];
-    const host = failures.find((f) => f.needs_elevation);
-    if (err.scope === "identity") {
-      return repairConfigDir();
-    }
-    if (host) {
-      return repairHostAction(host.host_id);
-    }
-  }
-  if (err.code === "partial") {
-    return details();
-  }
+  if (err.code === "unauthorized") { return reauth(); }
+  if (err.code === "elevation_required" && err.scope === "identity") { return repairConfigDir(); }
   return null;
 }
-

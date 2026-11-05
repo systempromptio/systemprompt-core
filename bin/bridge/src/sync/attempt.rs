@@ -63,6 +63,12 @@ pub(super) async fn run_attempt(
         gateway: &run_gateway,
     };
     if record_outcome(&sentinel, &last_state)? == Recorded::Partially {
+        if let Err(error) = seed_default_model_from_profile(&fetch.client, &synced).await {
+            tracing::warn!(%error, "default model not seeded after a partial sync");
+        }
+        if let Err(error) = prepare_persistence(bridge) {
+            tracing::warn!(%error, "activity persistence not prepared after a partial sync");
+        }
         return Err(SyncError::Partial(Box::new(build_summary(&synced, report))));
     }
     seed_default_model_from_profile(&fetch.client, &synced).await?;

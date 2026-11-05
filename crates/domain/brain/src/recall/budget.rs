@@ -4,8 +4,10 @@
 //! fused score, then in-context importance,
 //! then fact id, so a fact every tier agreed on is never cut for a
 //! higher-importance sibling found by one; `importance` is the previous
-//! order (importance, then score, then id). In that order a fact is taken
-//! while its kind is under its quota, the fact count is under `max_facts`
+//! order (importance, then score, then id); [`fill_in_order`] takes the
+//! candidates as given (a reranker's order) and sorts nothing. In that
+//! order a fact is taken while its kind is under its quota, the fact
+//! count is under `max_facts`
 //! and the estimated tokens fit the budget. A fact over its kind's quota
 //! is withheld as `Quota`; one past the fact count as `MaxFacts`; one
 //! whose tokens do not fit as `Budget`. Tokens are estimated as a quarter
@@ -20,7 +22,16 @@
 //! only those slots remain, and a linked fact withheld for its quota or
 //! tokens releases its slot. When a subject is named, facts found by the
 //! context tier alone may take at most `context_share` of `max_facts`
-//! (rounded down); one past that is withheld as `ContextCap`.
+//! (rounded down); one past that is withheld as `ContextCap`. With
+//! `context_requires_signal` and no subject named, no full-text hit and
+//! no asked kind (the message carries no word of any fact and names no
+//! kind, see [`RecallSignal`]) that cap is zero: every context-only fact
+//! is withheld as `ContextCap` and every fact only the extension tier
+//! found as `NoSignal`, while a fact a core tier also found is never
+//! touched. The extension tier is neither a signal nor another tier here:
+//! a fact ranked by the context tier and an extension retriever is still
+//! context-only, since a dense neighbour of a haiku is no evidence the
+//! message is about the project.
 //!
 //! The citation loop: before any of that, `usage_weight ×
 //! (cited_rate − ignored_rate)` is added to each fact's fused score, so
@@ -38,10 +49,12 @@ use std::collections::BTreeMap;
 
 use systemprompt_identifiers::FactKindId;
 use systemprompt_models::brain::{
-    BrainFact, FillOrder, InjectionPlan, RetrievalDoc, RetrievalTier, ScoredFact, WithheldFact,
-    WithheldReason, WorkflowProfileDecl,
+    FillOrder, InjectionPlan, RetrievalDoc, RetrievalTier, WithheldFact, WithheldReason,
+    WorkflowProfileDecl,
 };
 
+pub use super::candidate::{Candidate, estimate_tokens, usage_term};
+use super::candidate::{apply_usage, context_only, extension_only, share_of, sort_candidates};
 use super::fusion::found_by;
 
 /// The limits one recall fills against.
@@ -55,7 +68,11 @@ pub struct BudgetLimits {
     pub min_fused_score: f64,
     pub context_share: f64,
     pub usage_weight: f64,
+    pub context_requires_signal: bool,
+    pub full_text_opens_context: bool,
 }
+
+pub use super::signal::RecallSignal;
 
 impl BudgetLimits {
     #[must_use]
@@ -81,6 +98,8 @@ impl BudgetLimits {
             min_fused_score: retrieval.min_fused_score,
             context_share: retrieval.context_share,
             usage_weight: retrieval.usage_weight,
+            context_requires_signal: retrieval.context_requires_signal,
+            full_text_opens_context: retrieval.full_text_opens_context,
         }
     }
 
@@ -99,76 +118,25 @@ impl BudgetLimits {
             .iter()
             .filter(|c| found_by(&c.scored, RetrievalTier::Linked))
             .count();
-        share_of(self.max_facts, self.linked_share, f64::round).min(count(linked))
+        share_of(self.max_facts, self.linked_share, f64::round)
+            .min(u32::try_from(linked).unwrap_or(u32::MAX))
     }
 
-    fn context_cap(&self) -> u32 {
-        share_of(self.max_facts, self.context_share, f64::floor)
+    const fn gate_closed(&self, signal: RecallSignal) -> bool {
+        let full_text_opens = self.full_text_opens_context && signal.full_text_hit;
+        let opens = signal.subject_named || signal.kind_asked || full_text_opens;
+        self.context_requires_signal && !opens
     }
-}
 
-/// A visible fact, the text it would be injected as, and its in-context
-/// importance.
-#[derive(Debug, Clone, PartialEq)]
-pub struct Candidate {
-    pub scored: ScoredFact,
-    pub text: String,
-    pub importance: f64,
-}
-
-#[must_use]
-pub fn estimate_tokens(text: &str) -> u32 {
-    u32::try_from(text.chars().count().div_ceil(4)).unwrap_or(u32::MAX)
-}
-
-fn share_of(max_facts: u32, share: f64, round: fn(f64) -> f64) -> u32 {
-    // Why: lint-ok: a slot count at most max_facts; the rounding is exact.
-    let slots = round(f64::from(max_facts) * share.clamp(0.0, 1.0)) as u32;
-    slots.min(max_facts)
-}
-
-fn count(n: usize) -> u32 {
-    u32::try_from(n).unwrap_or(u32::MAX)
-}
-
-fn context_only(scored: &ScoredFact) -> bool {
-    !scored.ranks.is_empty()
-        && scored
-            .ranks
-            .iter()
-            .all(|rank| rank.tier == RetrievalTier::Context)
-}
-
-#[must_use]
-pub fn usage_term(fact: &BrainFact, usage_weight: f64) -> f64 {
-    usage_weight.mul_add(fact.usage_cited_rate - fact.usage_ignored_rate, 0.0)
-}
-
-fn apply_usage(candidates: &mut [Candidate], usage_weight: f64) {
-    for candidate in candidates {
-        let adjusted = candidate.scored.score + usage_term(&candidate.scored.fact, usage_weight);
-        candidate.scored.score = adjusted.max(0.0);
+    fn context_cap(&self, signal: RecallSignal) -> u32 {
+        if signal.subject_named {
+            share_of(self.max_facts, self.context_share, f64::floor)
+        } else if self.gate_closed(signal) {
+            0
+        } else {
+            self.max_facts
+        }
     }
-}
-
-fn sort_candidates(candidates: &mut [Candidate], order: FillOrder, usage_weight: f64) {
-    candidates.sort_by(|a, b| {
-        let usage = |c: &Candidate| usage_term(&c.scored.fact, usage_weight);
-        let (primary, secondary) = match order {
-            FillOrder::Rank => (
-                b.scored.score.total_cmp(&a.scored.score),
-                b.importance.total_cmp(&a.importance),
-            ),
-            FillOrder::Importance => (
-                b.importance.total_cmp(&a.importance),
-                b.scored.score.total_cmp(&a.scored.score),
-            ),
-        };
-        primary
-            .then(secondary)
-            .then_with(|| usage(b).total_cmp(&usage(a)))
-            .then_with(|| a.scored.fact.id.cmp(&b.scored.fact.id))
-    });
 }
 
 struct Fill<'a> {
@@ -178,6 +146,7 @@ struct Fill<'a> {
     reserved: u32,
     context_cap: u32,
     context_taken: u32,
+    gate_closed: bool,
 }
 
 impl Fill<'_> {
@@ -202,6 +171,8 @@ impl Fill<'_> {
             Some(WithheldReason::Quota)
         } else if taken >= cap {
             Some(WithheldReason::MaxFacts)
+        } else if self.gate_closed && extension_only(&candidate.scored) {
+            Some(WithheldReason::NoSignal)
         } else if context_only(&candidate.scored) && self.context_taken >= self.context_cap {
             Some(WithheldReason::ContextCap)
         } else if self
@@ -236,22 +207,41 @@ impl Fill<'_> {
 pub fn fill(
     mut candidates: Vec<Candidate>,
     limits: &BudgetLimits,
-    subject_named: bool,
+    signal: RecallSignal,
 ) -> InjectionPlan {
     apply_usage(&mut candidates, limits.usage_weight);
     sort_candidates(&mut candidates, limits.order, limits.usage_weight);
-    let (reserved, context_cap) = if subject_named {
-        (limits.linked_reserve(&candidates), limits.context_cap())
+    fill_sorted(candidates, limits, signal)
+}
+
+#[must_use]
+pub fn fill_in_order(
+    mut candidates: Vec<Candidate>,
+    limits: &BudgetLimits,
+    signal: RecallSignal,
+) -> InjectionPlan {
+    apply_usage(&mut candidates, limits.usage_weight);
+    fill_sorted(candidates, limits, signal)
+}
+
+fn fill_sorted(
+    candidates: Vec<Candidate>,
+    limits: &BudgetLimits,
+    signal: RecallSignal,
+) -> InjectionPlan {
+    let reserved = if signal.subject_named {
+        limits.linked_reserve(&candidates)
     } else {
-        (0, limits.max_facts)
+        0
     };
     let mut fill = Fill {
         limits,
         plan: InjectionPlan::default(),
         per_kind: BTreeMap::new(),
         reserved,
-        context_cap,
+        context_cap: limits.context_cap(signal),
         context_taken: 0,
+        gate_closed: limits.gate_closed(signal),
     };
     for candidate in candidates {
         match fill.admit(&candidate) {

@@ -227,3 +227,45 @@ fn every_key_the_hermes_writer_sets_is_compared_by_its_probe() {
     json_leaves("", &json, &mut leaves);
     assert_every_leaf_is_compared(&HERMES_HOST, &leaves, "_systemprompt_openai_api_key");
 }
+
+#[test]
+fn another_profiles_models_reach_claude_desktops_rendered_policy_only() {
+    use systemprompt_bridge::integration::claude_desktop::reg_profile::desired;
+    use systemprompt_identifiers::ModelId;
+    use systemprompt_models::bridge::host::HostKind;
+    use systemprompt_models::bridge::profile::AdvertisedLimits;
+
+    let mut facts = crate::support::facts();
+    facts.desktop_elsewhere.models = vec!["claude-sonnet-5".to_owned()];
+    facts.desktop_elsewhere.limits.insert(
+        ModelId::new("claude-sonnet-5"),
+        AdvertisedLimits {
+            context_window: 1_000_000,
+            max_output_tokens: 64_000,
+        },
+    );
+    let policy = desired(&facts.inputs_for(HostKind::ClaudeDesktop)).expect("policy renders");
+    let models = policy
+        .entries()
+        .iter()
+        .find(|e| e.key == "inferenceModels")
+        .expect("policy lists models");
+    assert_eq!(models.value, r#"["claude-sonnet-5[1m]"]"#);
+    assert!(facts.inputs_for(HostKind::ClaudeCode).models.is_empty());
+}
+
+#[test]
+fn the_ownership_fingerprint_is_the_key_a_desktop_policy_carries() {
+    use systemprompt_bridge::integration::claude_desktop::reg_profile::desired;
+    use systemprompt_bridge::proxy::scoped_token::desktop_policy_fingerprint;
+    use systemprompt_models::bridge::host::HostKind;
+
+    let facts = crate::support::facts();
+    let desired = desired(&facts.inputs_for(HostKind::ClaudeDesktop)).expect("policy renders");
+    let key = desired
+        .entries()
+        .iter()
+        .find(|e| e.key == systemprompt_bridge::cowork_compat::POLICY_API_KEY)
+        .expect("policy carries a key");
+    assert_eq!(key.value, desktop_policy_fingerprint(&facts.secret));
+}

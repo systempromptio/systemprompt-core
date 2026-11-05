@@ -195,7 +195,11 @@ pub async fn refresh_machine_profile(bridge: &BridgeContext) -> MachineProfileRe
             missing: unpinned_profiles(),
         };
     }
-    let overrides = crate::integration::reapply::ModelProtocolOverrides::new();
+    let overrides = crate::install::profile_inputs::ProfileFacts::persisted_overrides()
+        .unwrap_or_else(|error| {
+            tracing::warn!(%error, "stored model filters not read for the profile refresh");
+            crate::integration::reapply::ModelProtocolOverrides::new()
+        });
     let reports = crate::integration::reapply::reapply_stale_profiles(
         bridge,
         &overrides,
@@ -217,7 +221,7 @@ pub async fn refresh_machine_profile(bridge: &BridgeContext) -> MachineProfileRe
 
 fn machine_policy_is_ours(bridge: &BridgeContext) -> Option<bool> {
     let installed = crate::integration::claude_desktop::policy_api_key_fingerprint()?;
-    let ours = bridge.proxy.loopback().secret_fingerprint()?;
+    let ours = bridge.proxy.loopback().desktop_policy_fingerprint()?;
     Some(installed == ours)
 }
 

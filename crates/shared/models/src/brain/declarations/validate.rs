@@ -1,4 +1,6 @@
-//! Cross-reference validation of a [`BrainDocs`] set.
+//! Cross-reference validation of a [`BrainDocs`] set. `MAX_SUBJECT_LIMIT`
+//! is the most rows the subject and linked tiers may each return;
+//! `MAX_LINKS_DEPTH` the furthest the linked tier may walk.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -8,7 +10,9 @@ use std::collections::HashSet;
 
 use systemprompt_identifiers::{FactKindId, TopicId};
 
-use super::{BrainDocs, ImportanceConfig, RetrievalDoc};
+use super::validate_retrieval::{is_token, validate_retrieval};
+use super::{BrainDocs, ImportanceConfig};
+use crate::brain::FieldType;
 use crate::brain::kind_decl::{ExtractorDecl, KindDecl};
 use crate::brain::statement::{StatementError, placeholders};
 
@@ -35,6 +39,14 @@ pub enum BrainDeclError {
     UnknownIdentityField { kind: FactKindId, name: String },
     #[error("kind {kind} materiality names unknown field {name}")]
     UnknownMaterialityField { kind: FactKindId, name: String },
+    #[error(
+        "kind {kind} field {field} declares display {display}, which is not a text field of an entity field"
+    )]
+    DisplayNotTextField {
+        kind: FactKindId,
+        field: String,
+        display: String,
+    },
     #[error("kind {0} has a model extractor without a prompt_version")]
     MissingPromptVersion(FactKindId),
     #[error("weight {name} is {value}, outside 0.0..=1.0")]
@@ -45,7 +57,20 @@ pub enum BrainDeclError {
     ZeroLimit { name: &'static str },
     #[error("retrieval {name} is {value}, not a finite number at or above zero")]
     NegativeScore { name: &'static str, value: f64 },
+    #[error("retrieval {name} is {value}, above {max}")]
+    LimitOverMax {
+        name: &'static str,
+        value: u32,
+        max: u32,
+    },
+    #[error("retrieval search_stop_words entry {word:?} is not one lower-case alphanumeric token")]
+    StopWordNotToken { word: String },
+    #[error("kind {kind} asks entry {word:?} is not one lower-case alphanumeric token")]
+    AskNotToken { kind: FactKindId, word: String },
 }
+
+pub const MAX_SUBJECT_LIMIT: u32 = 100;
+pub const MAX_LINKS_DEPTH: u32 = 2;
 
 pub fn validate(docs: &BrainDocs) -> Result<(), BrainDeclError> {
     let mut topics = HashSet::new();
@@ -131,10 +156,32 @@ fn validate_kind(kind: &KindDecl, topics: &HashSet<&TopicId>) -> Result<(), Brai
             name: name.clone(),
         });
     }
+    for (field, decl) in &kind.fields {
+        let Some(display) = &decl.display else {
+            continue;
+        };
+        let text_sibling = kind
+            .fields
+            .get(display)
+            .is_some_and(|d| d.field_type == FieldType::Text);
+        if decl.field_type != FieldType::Entity || !text_sibling {
+            return Err(BrainDeclError::DisplayNotTextField {
+                kind: kind.kind.clone(),
+                field: field.clone(),
+                display: display.clone(),
+            });
+        }
+    }
     if let Some(ExtractorDecl::Model { prompt_version, .. }) = &kind.extractor
         && prompt_version.as_deref().is_none_or(str::is_empty)
     {
         return Err(BrainDeclError::MissingPromptVersion(kind.kind.clone()));
+    }
+    if let Some(word) = kind.asks.iter().find(|w| !is_token(w)) {
+        return Err(BrainDeclError::AskNotToken {
+            kind: kind.kind.clone(),
+            word: word.clone(),
+        });
     }
     Ok(())
 }
@@ -171,7 +218,7 @@ fn known_kinds<T: Borrow<FactKindId>>(
         })
 }
 
-fn weight(name: impl Into<String>, value: f64) -> Result<(), BrainDeclError> {
+pub(super) fn weight(name: impl Into<String>, value: f64) -> Result<(), BrainDeclError> {
     if value.is_finite() && (0.0..=1.0).contains(&value) {
         return Ok(());
     }
@@ -204,40 +251,6 @@ fn validate_importance(config: &ImportanceConfig) -> Result<(), BrainDeclError> 
     weight("usage.ignored_penalty", ctx.usage.ignored_penalty)?;
     if ctx.recency.half_life_days == 0 {
         return Err(BrainDeclError::ZeroHalfLife);
-    }
-    Ok(())
-}
-
-fn validate_retrieval(doc: &RetrievalDoc) -> Result<(), BrainDeclError> {
-    let tiers = &doc.tiers;
-    weight("tiers.pinned", tiers.pinned)?;
-    weight("tiers.subject", tiers.subject)?;
-    weight("tiers.context", tiers.context)?;
-    weight("tiers.full_text", tiers.full_text)?;
-    weight("tiers.extension", tiers.extension)?;
-    weight("tiers.linked", tiers.linked)?;
-    weight("links_weight", doc.links_weight)?;
-    weight("search_max_df", doc.search_max_df)?;
-    weight("search_quorum", doc.search_quorum)?;
-    weight("search_retry_quorum", doc.search_retry_quorum)?;
-    weight("alias_min_sim", doc.alias_min_sim)?;
-    weight("linked_share", doc.linked_share)?;
-    weight("context_share", doc.context_share)?;
-    weight("usage_weight", doc.usage_weight)?;
-    if !doc.min_fused_score.is_finite() || doc.min_fused_score < 0.0 {
-        return Err(BrainDeclError::NegativeScore {
-            name: "min_fused_score",
-            value: doc.min_fused_score,
-        });
-    }
-    for (name, value) in [
-        ("max_facts", doc.max_facts),
-        ("max_subjects", doc.max_subjects),
-        ("extension_max_candidates", doc.extension_max_candidates),
-    ] {
-        if value == 0 {
-            return Err(BrainDeclError::ZeroLimit { name });
-        }
     }
     Ok(())
 }

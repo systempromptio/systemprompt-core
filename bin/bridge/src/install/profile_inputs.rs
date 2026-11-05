@@ -73,6 +73,7 @@ pub struct ProfileFacts {
     pub profile: Option<BridgeProfile>,
     pub mcp_servers: Option<Vec<McpServerEntry>>,
     pub overrides: ModelProtocolOverrides,
+    pub desktop_elsewhere: crate::config::gateways::DesktopModelsElsewhere,
 }
 
 impl ProfileFacts {
@@ -97,6 +98,12 @@ impl ProfileFacts {
             profile: crate::auth::profile_cache::load()?,
             mcp_servers,
             overrides,
+            desktop_elsewhere: crate::config::gateways::desktop_models_elsewhere().unwrap_or_else(
+                |error| {
+                    tracing::warn!(%error, "other gateway profiles' models not read");
+                    crate::config::gateways::DesktopModelsElsewhere::default()
+                },
+            ),
         })
     }
 
@@ -127,7 +134,7 @@ impl ProfileFacts {
                 clients.tags().join(","),
             );
         }
-        let (models, model_limits, model_names, default_model, gateway_org) =
+        let (mut models, mut model_limits, model_names, default_model, gateway_org) =
             self.profile.as_ref().map_or_else(
                 || (Vec::new(), BTreeMap::new(), BTreeMap::new(), None, None),
                 |profile| {
@@ -145,6 +152,19 @@ impl ProfileFacts {
                     )
                 },
             );
+        if host == HostKind::ClaudeDesktop {
+            for model in &self.desktop_elsewhere.models {
+                if !models.contains(model) {
+                    models.push(model.clone());
+                }
+            }
+            for (model, limit) in &self.desktop_elsewhere.limits {
+                model_limits.entry(model.clone()).or_insert(*limit);
+            }
+            if !self.desktop_elsewhere.models.is_empty() {
+                models.sort();
+            }
+        }
         ProfileGenInputs {
             gateway_base_url: self.gateway_base_url.clone(),
             host_token: crate::proxy::scoped_token::host_token(&self.secret, host),

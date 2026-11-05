@@ -109,15 +109,15 @@
       "cowork_session": null,
       "surface": "local-profile",
       "verdict": {
-        "state": "needs-admin-approval",
+        "state": "needs-reapply",
         "tone": "warn",
         "reason": {
           "code": "stale",
-          "cause": "settings",
-          "keys": "otlpEndpoint, configRecheckIntervalMinutes, deploymentDisplayName"
+          "cause": "loopback_secret",
+          "keys": ""
         },
         "action": {
-          "code": "update-admin"
+          "code": "repair"
         },
         "secondary_action": null,
         "is_set_up": true,

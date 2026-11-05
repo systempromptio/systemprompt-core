@@ -27,6 +27,8 @@ mod commits;
 mod content;
 mod download;
 pub mod drive;
+mod drive_commit;
+mod drive_local;
 mod drive_token;
 mod error;
 mod export;
@@ -59,6 +61,8 @@ use systemprompt_files::documents::collab::CollabService;
 use systemprompt_files::uploads::UploadService;
 use systemprompt_models::auth::TokenAuthority;
 use systemprompt_runtime::AppContext;
+#[cfg(feature = "collab")]
+use systemprompt_traits::BackgroundTasks;
 use systemprompt_traits::{AppContext as _, UserProvider};
 use systemprompt_users::UserRepository;
 
@@ -74,6 +78,8 @@ pub struct DocumentsState {
     pub(crate) tokens: Arc<dyn TokenAuthority>,
     #[cfg(feature = "collab")]
     pub(crate) collab: Arc<CollabService>,
+    #[cfg(feature = "collab")]
+    pub(crate) background: BackgroundTasks,
 }
 
 impl std::fmt::Debug for DocumentsState {
@@ -100,6 +106,8 @@ impl DocumentsState {
             tokens: ctx.token_authority(),
             #[cfg(feature = "collab")]
             collab: collab_service(ctx),
+            #[cfg(feature = "collab")]
+            background: ctx.background_tasks().clone(),
         })
     }
 
@@ -173,6 +181,7 @@ pub fn router(state: DocumentsState) -> Router {
             patch(comments::edit).delete(comments::delete),
         )
         .route("/{id}/export/docx", get(export::docx))
+        .route("/{id}/export/markdown", get(export::markdown))
         .route("/{id}/media", get(media::image))
         .route("/{id}/access", get(access::access))
         .route(

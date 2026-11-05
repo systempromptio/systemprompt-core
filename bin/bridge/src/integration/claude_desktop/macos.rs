@@ -26,7 +26,6 @@ pub(super) const fn update_needs_approval(
     true
 }
 
-
 pub(super) fn candidates(domain: &str) -> Vec<PathBuf> {
     let mut out = Vec::new();
     if let Ok(user) = std::env::var("USER")
@@ -53,8 +52,9 @@ pub(super) fn list_claude_processes()
                 .as_deref()
                 .map(str::to_ascii_lowercase)
                 .unwrap_or_default();
+            // Why: a bare `/claude` path is the Claude Code CLI, which outlives a
+            // Desktop restart and would leave the restart prompt owed forever.
             let matches = path_lower.contains("/claude.app/")
-                || path_lower.ends_with("/claude")
                 || name_lower.contains("claude helper")
                 || path_lower.contains("claude helper");
             let is_code = name_lower.contains("claude code") || path_lower.contains("claude code");
@@ -125,7 +125,6 @@ pub(super) fn install_profile_unattended(
     .into())
 }
 
-
 #[expect(
     clippy::literal_string_with_formatting_args,
     reason = "these braces are template placeholders substituted with str::replace, not format args"
@@ -161,4 +160,58 @@ pub(super) fn remove_profile() -> Result<crate::integration::host_app::ProfileRe
                     .to_owned(),
         },
     )
+}
+
+pub(crate) fn managed_policy_state(
+    loopback: &crate::proxy::LoopbackEndpoint,
+    registry: &crate::mcp_registry::McpRegistry,
+    overrides: &std::collections::BTreeMap<
+        systemprompt_models::bridge::host::HostKind,
+        Vec<String>,
+    >,
+) -> crate::host_sync::DesktopPolicyState {
+    use crate::drift::DesiredProfile;
+    use crate::host_sync::DesktopPolicyState;
+    use crate::install::profile_inputs::ProfileFacts;
+    use crate::integration::host_app::DesiredError;
+    use crate::integration::profile_state::{ProfileProbe, ProfileState};
+
+    let facts = match ProfileFacts::load(loopback, registry, overrides.clone(), None) {
+        Ok(facts) => facts,
+        Err(error) => {
+            return DesktopPolicyState::Unreadable {
+                reason: error.to_string(),
+            };
+        },
+    };
+    let inputs = facts.inputs_for(systemprompt_models::bridge::host::HostKind::ClaudeDesktop);
+    let desired: Result<DesiredProfile, DesiredError> = match super::reg_profile::desired(&inputs) {
+        Ok(desired) => Ok(desired),
+        Err(error) => {
+            return DesktopPolicyState::Unreadable {
+                reason: error.to_string(),
+            };
+        },
+    };
+    let read = read_domain(
+        super::shared::DESKTOP_DOMAIN,
+        &super::shared::keys_to_read(desired.as_ref().ok()),
+    );
+    let state = ProfileState::classify(&ProfileProbe {
+        present: &read.keys,
+        observed: &read.observed,
+        read_error: read.probe_error.as_deref(),
+        desired: &desired,
+    });
+    match state {
+        ProfileState::Installed => DesktopPolicyState::Current,
+        ProfileState::Absent => DesktopPolicyState::Absent,
+        ProfileState::Stale { keys, .. } => DesktopPolicyState::Behind {
+            detail: format!("differs: {}", keys.join(", ")),
+        },
+        ProfileState::Partial { missing_required } => DesktopPolicyState::Behind {
+            detail: format!("missing: {}", missing_required.join(", ")),
+        },
+        ProfileState::Unverifiable { reason } => DesktopPolicyState::Unreadable { reason },
+    }
 }

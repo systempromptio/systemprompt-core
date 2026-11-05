@@ -5,7 +5,7 @@ import { t } from "/assets/js/i18n.js";
 import { runAction } from "/assets/js/utils/action.js";
 
 /**
- * A failed sync, said in plain words with a Retry button, on the tab where its
+ * A sync that did not finish, said in plain words with a Retry button, on the tab where its
  * consequences show (agents without their skills). It used to reach only the
  * activity log, which nobody reads while wondering why an agent is empty.
  *
@@ -31,9 +31,9 @@ export class SpSyncBanner extends SpElement {
 
   render() {
     if (this.failure === null) { return ""; }
-    return `<div class="sp-agents-banner" role="alert" data-tone="err">
+    return `<div class="sp-agents-banner" role="status">
       <div class="sp-agents-banner__text">
-        <span class="sp-agents-banner__title">${escapeHtml(t("sync-failed-banner-title") || "Sync failed")}</span>
+        <span class="sp-agents-banner__title">${escapeHtml(t("sync-failed-banner-title") || "Not everything synced")}</span>
         <span class="sp-agents-banner__detail">${escapeHtml(this.failure)}</span>
       </div>
       <button class="sp-btn-primary" type="button" data-action="retry-sync">${escapeHtml(t("sync-retry") || "Retry sync")}</button>
