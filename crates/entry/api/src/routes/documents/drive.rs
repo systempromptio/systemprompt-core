@@ -6,7 +6,7 @@
 //! a plain bridge token included; `token` trades the bridge token for it. Blobs
 //! are resolved through the document service, so a hash opens content only for
 //! a caller who can view a document holding it. A commit is
-//! `multipart/form-data` with a `meta` part ([`DriveCommitMeta`]) and a `blob`
+//! `multipart/form-data` with a `meta` part (`DriveCommitMeta`) and a `blob`
 //! part; an `If-Match` header names the base revision and must agree with
 //! `meta.base_revision` when both are sent. A stale base answers 409 with the
 //! head revision and its content hash.
