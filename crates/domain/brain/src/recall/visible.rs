@@ -100,7 +100,7 @@ impl Visibility {
     }
 
     pub async fn check(&self, fact: &BrainFact, principal: &RecallPrincipal) -> Verdict {
-        let answers = Questions::collect(self, std::iter::once(fact), principal)
+        let answers = Questions::collect(self, &mut std::iter::once(fact), principal)
             .resolve(self, principal)
             .await;
         self.verdict(fact, principal, &answers)
@@ -111,7 +111,7 @@ impl Visibility {
         ranked: Vec<ScoredFact>,
         principal: &RecallPrincipal,
     ) -> (Vec<ScoredFact>, WithheldSummary) {
-        let answers = Questions::collect(self, ranked.iter().map(|s| &s.fact), principal)
+        let answers = Questions::collect(self, &mut ranked.iter().map(|s| &s.fact), principal)
             .resolve(self, principal)
             .await;
         let mut withheld = WithheldSummary::default();

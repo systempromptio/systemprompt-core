@@ -125,7 +125,7 @@ pub async fn reindex_facts(
         };
         (owner, entity.aliases())
     });
-    let aliases = AliasRows::collect(fact_aliases.chain(named_aliases));
+    let aliases = AliasRows::collect(&mut fact_aliases.chain(named_aliases));
     AliasRepository::upsert_many(&mut *conn, &aliases).await?;
     let released: Vec<BrainFactId> = released.into_iter().map(|row| row.id.clone()).collect();
     Box::pin(release_alias_owners(&mut *conn, &released)).await?;

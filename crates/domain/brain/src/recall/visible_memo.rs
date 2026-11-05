@@ -58,9 +58,9 @@ impl Answers {
 }
 
 impl<'a> Questions<'a> {
-    pub(super) fn collect<'f>(
+    pub(super) fn collect(
         visibility: &'a Visibility,
-        facts: impl Iterator<Item = &'f BrainFact>,
+        facts: &mut dyn Iterator<Item = &BrainFact>,
         principal: &RecallPrincipal,
     ) -> Self {
         let mut questions = Self::default();

@@ -82,7 +82,7 @@ pub struct AliasRows {
 
 impl AliasRows {
     #[must_use]
-    pub fn collect<'a>(facts: impl IntoIterator<Item = (AliasOwner<'a>, Vec<String>)>) -> Self {
+    pub fn collect(facts: &mut dyn Iterator<Item = (AliasOwner<'_>, Vec<String>)>) -> Self {
         let mut slots: HashMap<(String, String), usize> = HashMap::new();
         let mut rows = Self::default();
         for (owner, aliases) in facts {
