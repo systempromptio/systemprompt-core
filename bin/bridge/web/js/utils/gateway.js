@@ -133,3 +133,9 @@ export function renderGatewayForm(state) {
     ${errBlock}
   `;
 }
+
+/** The Agents page line while the gateway is down, or "" when it is not. */
+export function gatewayOutageLine(snap) {
+  if (!snap || !snap.gateway_outage) { return ""; }
+  return t("agents-gateway-outage") || "Can't reach the gateway. Agent traffic may not be governed until it reconnects. Retrying automatically.";
+}

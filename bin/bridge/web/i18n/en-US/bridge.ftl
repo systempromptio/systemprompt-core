@@ -244,6 +244,7 @@ agent-row-process = Process
 agent-row-config-location = Config location
 agent-models-count = { $count } models available
 agent-model-filter-hint = Saved to your { $vendor } account — you must be signed in.
+agents-gateway-outage = Can't reach the gateway. Agent traffic may not be governed until it reconnects. Retrying automatically.
 agents-empty-title = No agents set up yet
 agents-empty-body = Add a coding agent to route it through { $vendor }, so every request it makes is governed and logged.
 agents-add-heading = Add an agent

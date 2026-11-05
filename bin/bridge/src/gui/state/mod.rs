@@ -121,6 +121,7 @@ impl AppState {
         let mut inner = self.inner.write();
         inner.pre_probe_status = None;
         let reachable = outcome.status.is_reachable();
+        inner.snapshot.gateway_outage = matches!(outcome.status, GatewayStatus::Unreachable { .. });
         inner.snapshot.gateway_status = outcome.status;
         inner.snapshot.last_probe_at_unix = Some(outcome.at_unix);
         if reachable {

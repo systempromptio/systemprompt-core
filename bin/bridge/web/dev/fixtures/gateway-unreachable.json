@@ -12,6 +12,7 @@
   "plugin_count": 0,
   "sync_in_flight": false,
   "cached_token": null,
+  "gateway_outage": true,
   "gateway_status": {
     "tone": "err",
     "code": "unreachable",

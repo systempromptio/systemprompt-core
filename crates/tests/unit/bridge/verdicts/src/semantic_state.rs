@@ -46,6 +46,7 @@ fn payload<'a>(proxy: &'a ProxyHealth, update: &'a UpdateUiState) -> StatePayloa
             length: 123,
         }),
         token: Verdict::new(Tone::Ok, TokenCode::Valid),
+        gateway_outage: false,
         gateway_status: GatewayStatusPayload {
             verdict: Verdict::new(Tone::Ok, GatewayCode::Reachable),
             settled: true,

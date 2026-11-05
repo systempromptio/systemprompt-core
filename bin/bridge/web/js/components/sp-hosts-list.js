@@ -3,6 +3,7 @@ import { escapeHtml } from "/assets/js/utils/escape.js";
 import { bridge } from "/assets/js/bridge.js";
 import { t, brandArgs } from "/assets/js/i18n.js";
 import { isListed } from "/assets/js/utils/verdict.js";
+import { gatewayOutageLine } from "/assets/js/utils/gateway.js";
 import { sameHost } from "/assets/js/utils/host-diff.js";
 import "/assets/js/components/sp-agent-row.js";
 import "/assets/js/components/sp-agent-drawer.js";
@@ -82,7 +83,13 @@ export class SpHostsList extends SpElement {
   render() {
     // Every installed agent is listed whatever its state, plus leftovers.
     const listed = this._hosts().filter(isListed);
-    return `${this._renderHeader()}<sp-agents-status></sp-agents-status><sp-sync-banner></sp-sync-banner>${this._renderBody(listed)}`;
+    return `${this._renderHeader()}<sp-agents-status></sp-agents-status>${this._renderOutage()}<sp-sync-banner></sp-sync-banner>${this._renderBody(listed)}`;
+  }
+
+  _renderOutage() {
+    const line = gatewayOutageLine(this.snapshot);
+    if (!line) { return ""; }
+    return `<div class="sp-agents-banner" role="status"><div class="sp-agents-banner__text"><span class="sp-agents-banner__detail">${escapeHtml(line)}</span></div></div>`;
   }
 
   _renderHeader() {
