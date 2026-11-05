@@ -10,6 +10,7 @@ use systemprompt_identifiers::DocumentNodeId;
 use systemprompt_models::documents::EditOp;
 
 use super::positions::Written;
+use super::shape::{set_frame, shape_at};
 use super::slide::{frame_for, new_block, text_shape};
 use crate::documents::engine::loro::deck::{
     DeckSlide, ShapeKind, insert_paragraph, insert_slide, slides,
@@ -38,7 +39,7 @@ impl From<loro::LoroError> for DeckOpError {
     }
 }
 
-fn unknown(id: &str) -> DeckOpError {
+pub(super) fn unknown(id: &str) -> DeckOpError {
     DeckOpError::UnknownNode {
         node: id.to_owned(),
     }
@@ -219,29 +220,6 @@ fn apply(doc: &LoroDoc, op: &EditOp) -> Result<Vec<String>, DeckOpError> {
         },
         other => Err(DeckOpError::Unsupported { op: other.name() }),
     }
-}
-
-fn shape_at(doc: &LoroDoc, id: &str) -> Result<(LoroMovableList, usize), DeckOpError> {
-    let Node::Shape(slide, shape) = node(id)? else {
-        return Err(unknown(id));
-    };
-    let shapes = block_map(&slides(doc), slide)
-        .and_then(|map| child_list(&map, "shapes"))
-        .filter(|shapes| shape < shapes.len())
-        .ok_or_else(|| unknown(id))?;
-    Ok((shapes, shape))
-}
-
-// Written per property, as the browser does, so a person moving the shape and
-// an agent resizing it both land.
-fn set_frame(doc: &LoroDoc, id: &str, values: &[(&str, i64)]) -> Result<Vec<String>, DeckOpError> {
-    let (shapes, at) = shape_at(doc, id)?;
-    let shape = block_map(&shapes, at).ok_or_else(|| unknown(id))?;
-    let frame = shape.ensure_mergeable_map("frame")?;
-    for (key, value) in values {
-        frame.insert(key, *value)?;
-    }
-    Ok(Vec::new())
 }
 
 fn new_slide(

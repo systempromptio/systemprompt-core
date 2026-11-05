@@ -32,4 +32,6 @@ mod live;
 #[cfg(feature = "collab-loro")]
 mod positions;
 #[cfg(feature = "collab-loro")]
+mod shape;
+#[cfg(feature = "collab-loro")]
 mod slide;

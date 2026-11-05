@@ -3,8 +3,8 @@
 //! A live image shape names its upload by content hash. The bytes land once,
 //! as `ppt/media/<hash>.<ext>`, so a later checkpoint finds them there and
 //! needs no second read of the blob store. Only the picture types every
-//! PowerPoint opens are written: an image of any other type has no part, and
-//! the picture step logs and skips it.
+//! Office release opens are written: an image of any other type has no part,
+//! and the picture step logs and skips it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
