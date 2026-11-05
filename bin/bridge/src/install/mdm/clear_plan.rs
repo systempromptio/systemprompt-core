@@ -1,8 +1,9 @@
 //! What clearing the Claude Desktop policy may remove.
 //!
 //! A clear removes what the bridge wrote and nothing else. A policy is the
-//! bridge's when its `inferenceGatewayApiKey` is this install's loopback
-//! secret (compared by fingerprint): that value is minted per install and an
+//! bridge's when its `inferenceGatewayApiKey` is the host token this install's
+//! loopback secret derives (compared by fingerprint): the secret is minted per
+//! install and an
 //! administrator's or MDM's policy never carries it. Anything else is managed
 //! elsewhere and is reported, never deleted. Where the bridge's policy also
 //! holds keys it does not write, only the bridge's keys go.

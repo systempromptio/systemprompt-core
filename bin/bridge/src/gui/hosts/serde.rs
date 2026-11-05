@@ -64,10 +64,28 @@ fn host_verdict(
         can_open: host.can_open(),
         pending,
     });
+    if policy_removal_owed(snap, host) {
+        return verdict.with_policy_removal_owed();
+    }
     if cowork_ambiguous && verdict.is_set_up {
         return verdict.with_cowork_session_ambiguous();
     }
     verdict
+}
+
+// Why: `probe_observes` covers a policy that should be current. On a disabled
+// host the probe still reads the old policy as installed, so it cannot show
+// that the removal is waiting on an administrator.
+fn policy_removal_owed(
+    snap: &AppStateSnapshot,
+    host: &'static dyn crate::integration::HostApp,
+) -> bool {
+    !snap.enabled_hosts.contains(&host.id())
+        && snap
+            .last_sync_report
+            .iter()
+            .flat_map(|report| report.host_failures.iter())
+            .any(|f| f.host_id == host.id() && host.probe_observes(&f.emitter, f.needs_elevation))
 }
 
 fn sync_only_verdict(snap: &AppStateSnapshot, agent: &SyncOnlyAgent) -> AgentVerdict {

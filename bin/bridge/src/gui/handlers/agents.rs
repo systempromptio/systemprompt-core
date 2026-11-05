@@ -14,12 +14,38 @@ use crate::gui::{GuiApp, emit, window};
 use crate::integration::host_app::ProfileRemoval;
 use crate::wire::ipc::{BridgeError, ErrorCode, ErrorScope};
 
+fn remove_disabled_desktop_policy(app: &GuiApp, reply_to: ReplyId) {
+    use crate::install::ManagedProfileOutcome;
+
+    let result = match crate::install::remove_managed_profile(&app.ctx) {
+        ManagedProfileOutcome::RemoveFailed(e) => {
+            app.append_log_error(format!("[claude-desktop] policy removal failed: {e}"));
+            Err(BridgeError::new(
+                ErrorScope::Host,
+                ErrorCode::Internal,
+                "could not remove the Claude Desktop policy",
+            ))
+        },
+        _ => {
+            app.append_log("[claude-desktop] policy removed");
+            app.proxy
+                .send_event(crate::gui::events::UiEvent::SyncRequested { reply_to: None });
+            Ok(json!({ "removed": true }))
+        },
+    };
+    finish(app, result, reply_to);
+}
+
 pub(crate) fn on_uninstall(app: &GuiApp, host_id: HostKind, reply_to: ReplyId) {
     let Some(host) = crate::gui::hosts::resolve::resolve_or_reply(app, host_id, "remove", reply_to)
     else {
         return;
     };
     let enabled = app.state.snapshot().enabled_hosts;
+    if host_id == HostKind::ClaudeDesktop && !enabled.contains(&host_id) {
+        remove_disabled_desktop_policy(app, reply_to);
+        return;
+    }
     let removal = crate::integration::enrol::retained_for_sibling(host_id, &[host_id], &enabled)
         .map_or_else(
             || host.remove_profile(),

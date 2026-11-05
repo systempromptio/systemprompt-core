@@ -39,6 +39,8 @@
 
 ### Fixed
 
+- **Bridge:** Claude Desktop no longer reads as running on a previous install's policy on every install, and its model list no longer reads as stale after a sync. macOS sync never raises the administrator prompt. See `bin/bridge/CHANGELOG.md`.
+
 - **Brain:** the depth-2 walk never returns a fact about the matched subject itself. The linked tier excluded facts about the *bridged* subject but not facts about the *anchor*, so `project -> user -> fact link` led back to the project's own team facts, which took a second rank in the linked tier and fused above the project's other facts (30k eval run 47: temporal recall 0.87 -> 0.53 once people became subjects; the same double count existed through the client bridge for engagement facts). Every branch of the walk now carries the anchor and excludes facts about it; those rows are the subject tier's. Discriminating test: `at_depth_two_a_fact_about_the_anchor_itself_is_never_a_linked_hit`.
 
 ### Removed

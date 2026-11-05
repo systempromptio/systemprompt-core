@@ -11,7 +11,7 @@ use super::macos::{MANAGED_PREFS_PATH, PAYLOAD_IDENTIFIER, bridge_prefs_path};
 
 mod clear;
 
-pub(crate) use clear::{clear_bridge_preferences, foreign_profile_installed};
+pub(crate) use clear::{clear_bridge_preferences, clear_needs_admin, foreign_profile_installed};
 
 fn user_prefs_path() -> Result<std::path::PathBuf, MdmError> {
     let user = std::env::var("USER").map_err(MdmError::ManagedPrefsUserUnset)?;

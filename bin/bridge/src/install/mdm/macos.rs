@@ -194,8 +194,8 @@ pub(crate) fn refresh_unattended(mcp: &MdmPayloadInputs<'_>) -> Result<String, M
             });
         },
         ProfileState::Unverifiable { reason } => {
-            return Err(MdmError::ElevationNeeded {
-                detail: reason.clone(),
+            return Err(MdmError::ManagedPrefsUnreadable {
+                reason: reason.clone(),
             });
         },
     };

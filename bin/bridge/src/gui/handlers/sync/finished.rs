@@ -120,6 +120,8 @@ fn report_elevation_only(app: &GuiApp, summary: &sync::SyncSummary) -> SyncOutco
 
 fn report_failure(app: &GuiApp, error: &GuiError) -> SyncOutcome {
     if let GuiError::Sync(sync::SyncError::Partial(summary)) = error
+        && summary.malformed.is_empty()
+        && !summary.host_failures.is_empty()
         && summary.host_failures.iter().all(|f| f.needs_elevation)
     {
         return report_elevation_only(app, summary);
@@ -261,10 +263,6 @@ fn partial_failure(
         .iter()
         .map(|f| format!("{}: {}", f.host_id, f.error.lines().next().unwrap_or("")))
         .collect();
-    crate::gui::window::notify_user(
-        &format!("{} synced with failures", crate::brand::brand().app_name),
-        &format!("These agents did not update — {}", failures.join("; ")),
-    );
     for failure in &failures {
         app.append_log_warn(format!("did not update — {failure}"));
     }

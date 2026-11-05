@@ -72,7 +72,12 @@ async fn refresh_tool_catalog(
                 systemprompt_models::bridge::host::HostKind::ClaudeDesktop,
                 format!(
                     "tool catalog not refreshed ({e}); managed connectors with a wildcard tool \
-                     policy are withheld until the next successful sync"
+                     policy are withheld until {}",
+                    if cfg!(target_os = "macos") {
+                        "the next successful sync and an approved Update"
+                    } else {
+                        "the next successful sync"
+                    }
                 ),
             );
         },

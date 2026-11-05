@@ -229,6 +229,10 @@ pub fn uninstall(
     })
 }
 
+pub fn remove_managed_profile(bridge: &crate::context::BridgeContext) -> ManagedProfileOutcome {
+    managed_profile::remove(&bridge.policy_store, &bridge.elevation_gate)
+}
+
 pub fn remove_synced_plugins() -> Result<Vec<String>, InstallError> {
     let location = paths::org_plugins_effective().ok_or(InstallError::OrgPluginsUnresolvable)?;
     let metadata = paths::bridge_metadata_dir().ok_or(InstallError::MetadataUnresolvable)?;

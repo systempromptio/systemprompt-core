@@ -129,7 +129,8 @@ export async function runHostAction(kind, host) {
     case "show-profile-file": return bridge.agentRevealProfile(id);
     case "open-device-management": return openDeviceManagement(id);
     case "restart":  return bridge.agentRestart(id);
-    case "remove-leftover": return bridge.agentUninstall(id);
+    case "remove-leftover":
+    case "remove-policy-admin": return bridge.agentUninstall(id);
     case "verify":   return verifyHost(id);
     case "open":     return openHost(id);
     case "download": return downloadHost(host);

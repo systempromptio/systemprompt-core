@@ -175,10 +175,11 @@ agent-reason-restart-pending = The new settings are written. Restart the app so 
 agent-reason-stale = { $cause ->
     [loopback_secret] Its credential is out of date ({ $keys }) — repair, then restart the app
     [proxy_port] It points at the wrong proxy port ({ $keys }) — repair, then restart the app
-    [managed_servers] Its connector list is behind the gateway ({ $keys }) — update, then quit and relaunch the app
+    [managed_servers] A connector change is waiting ({ $keys }). Update as administrator, then relaunch the app
     [model_list] Its model list is behind the gateway ({ $keys }) — update, then quit and relaunch the app
    *[other] Its settings are behind this release ({ $keys }) — update, then quit and relaunch the app
   }
+agent-reason-policy-removal-owed = This app is switched off, and its settings stay until an administrator removes them
 agent-reason-sync-failed = The last sync could not apply everything ({ $detail })
 agent-reason-partial = Some of its settings are missing ({ $missing })
 agent-reason-unverifiable = Its settings could not be checked ({ $detail })
@@ -194,6 +195,7 @@ agent-reason-not-routed = Not routed through the gateway — Claude Code still u
 agent-action-repair = Repair
 agent-action-update = Update
 agent-action-update-admin = Update (administrator)
+agent-action-remove-policy-admin = Remove (administrator)
 sync-now = Sync now
 sync-done = Synced.
 agent-action-verify = Re-check

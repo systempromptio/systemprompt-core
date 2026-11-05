@@ -5,7 +5,8 @@
 ### Fixed
 
 - **Claude Desktop:** the machine policy's `inferenceModels` carried every family from every cached gateway profile, while the probe expected the active gateway's Claude models, so the profile read as stale after any sync and a non-Claude id could reach Desktop. Both now use one list: the active gateway's models plus the Claude models of other profiles.
-- **macOS:** sync no longer raises the administrator prompt. It judges the managed preferences by the probe's rule and reports an out-of-date profile for the Update action.
+- **macOS:** sync no longer raises the administrator prompt, whether refreshing or clearing the managed preferences. It judges them by the probe's rule and leaves an out-of-date profile to the Update action.
+- A disabled host whose policy only an administrator can remove, and a connector change waiting on Update on macOS, each show one line on the agent row with the action that resolves it.
 - A host only an administrator can update no longer fails the sync with a banner and toast; it is logged, and its agent row offers the update.
 - **Claude Desktop:** every install read as running on "a previous bridge install's policy", and disable and gateway switches could not release its policy. Ownership compared the policy's host token with the raw install secret; it now compares like with like. A policy written before host tokens still reads as previous until replaced.
 - **macOS:** the Claude Code CLI no longer counts as Claude Desktop running, which kept the restart prompt showing after a restart.

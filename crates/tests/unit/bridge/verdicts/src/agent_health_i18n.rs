@@ -73,6 +73,7 @@ fn every_agent_reason_has_copy() {
         AgentReason::AwaitingOsApproval,
         AgentReason::ApprovalExpired,
         AgentReason::RestartPending,
+        AgentReason::PolicyRemovalOwed,
         AgentReason::Stale {
             cause: StaleReason::LoopbackSecret,
             keys: String::new(),
@@ -113,6 +114,7 @@ fn every_agent_action_has_copy() {
         AgentAction::OpenDeviceManagement,
         AgentAction::Restart,
         AgentAction::RemoveLeftover,
+        AgentAction::RemovePolicyAdmin,
         AgentAction::OfferAgain,
         AgentAction::ShowProfileFile,
     ] {
