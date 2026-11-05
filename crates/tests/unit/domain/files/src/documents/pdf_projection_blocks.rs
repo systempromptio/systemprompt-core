@@ -200,7 +200,7 @@ fn sheets_grid_their_cells_by_column_letter_and_slides_break_pages() {
             "C",
             "far right",
             "third",
-            "loose row",
+            "loose\nrow",
             "Slide title",
             "slide body",
             "second slide",

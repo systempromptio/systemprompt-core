@@ -211,10 +211,10 @@ fn the_same_revision_renders_to_the_same_bytes() {
 }
 
 #[test]
-fn a_character_outside_win_ansi_is_shown_as_a_question_mark() {
+fn a_character_outside_the_faces_is_drawn_as_the_replacement_character() {
     let pdf = pdf_of(&TextCodec, "caf\u{e9} \u{65e5}\u{672c}".as_bytes(), "x.txt");
     let text = text_of(&pdf);
-    assert_carries(&text, &["caf\u{e9} ??"]);
+    assert_carries(&text, &["caf\u{e9} \u{fffd}\u{fffd}"]);
 }
 
 #[test]

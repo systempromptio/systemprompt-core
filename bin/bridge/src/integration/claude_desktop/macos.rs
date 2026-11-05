@@ -176,16 +176,22 @@ pub(crate) fn managed_policy_state(
     use crate::integration::host_app::DesiredError;
     use crate::integration::profile_state::{ProfileProbe, ProfileState};
 
-    let rendered = ProfileFacts::load(loopback, registry, overrides.clone(), None)
-        .map_err(|e| e.to_string())
-        .and_then(|facts| {
-            let inputs =
-                facts.inputs_for(systemprompt_models::bridge::host::HostKind::ClaudeDesktop);
-            super::reg_profile::desired(&inputs).map_err(|e| e.to_string())
-        });
-    let desired: Result<DesiredProfile, DesiredError> = match rendered {
+    let facts = match ProfileFacts::load(loopback, registry, overrides.clone(), None) {
+        Ok(facts) => facts,
+        Err(error) => {
+            return DesktopPolicyState::Unreadable {
+                reason: error.to_string(),
+            };
+        },
+    };
+    let inputs = facts.inputs_for(systemprompt_models::bridge::host::HostKind::ClaudeDesktop);
+    let desired: Result<DesiredProfile, DesiredError> = match super::reg_profile::desired(&inputs) {
         Ok(desired) => Ok(desired),
-        Err(reason) => return DesktopPolicyState::Unreadable { reason },
+        Err(error) => {
+            return DesktopPolicyState::Unreadable {
+                reason: error.to_string(),
+            };
+        },
     };
     let read = read_domain(
         super::shared::DESKTOP_DOMAIN,
