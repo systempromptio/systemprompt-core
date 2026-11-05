@@ -37,7 +37,9 @@ impl DocumentService {
             return in_package(&bytes, reference, limit).ok_or_else(missing);
         }
         if let Some(prefix) = media_folder(document.format) {
-            let content = media_part(&bytes, prefix, reference, limit).ok_or_else(missing)?;
+            let content = media_part(&bytes, prefix, reference, limit)
+                .or_else(|| media_part_by_stem(&bytes, prefix, reference, limit))
+                .ok_or_else(missing)?;
             let mime = sniff(&content).ok_or_else(missing)?;
             return Ok(MediaBlob {
                 bytes: content,
@@ -84,6 +86,21 @@ const fn media_part(
     _bytes: &[u8],
     _prefix: &str,
     _reference: &str,
+    _limit: u64,
+) -> Option<Vec<u8>> {
+    None
+}
+
+#[cfg(feature = "office")]
+fn media_part_by_stem(bytes: &[u8], prefix: &str, stem: &str, limit: u64) -> Option<Vec<u8>> {
+    crate::documents::codecs::media_part_by_stem(bytes, prefix, stem, limit)
+}
+
+#[cfg(not(feature = "office"))]
+const fn media_part_by_stem(
+    _bytes: &[u8],
+    _prefix: &str,
+    _stem: &str,
     _limit: u64,
 ) -> Option<Vec<u8>> {
     None

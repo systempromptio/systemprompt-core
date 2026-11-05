@@ -266,6 +266,9 @@ pub(super) fn apply_ops(
             | EditOp::UpdateTable(_)
             | EditOp::SetSection(_)
             | EditOp::SetStyle(_)
+            | EditOp::MoveShape { .. }
+            | EditOp::ResizeShape { .. }
+            | EditOp::DeleteShape { .. }
             | EditOp::ApplyTheme(_) => {
                 return Err(unsupported(op));
             },

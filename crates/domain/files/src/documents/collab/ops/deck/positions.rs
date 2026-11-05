@@ -59,7 +59,7 @@ impl Written {
                             .get(para)
                             .map(|p| Key::Paragraph(slide, shape, p.clone()))
                     }),
-                Err(_) => None,
+                Ok(Node::Shape(..)) | Err(_) => None,
             };
             if let Some(key) = key
                 && !self.0.contains(&key)

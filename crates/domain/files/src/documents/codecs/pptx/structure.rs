@@ -32,13 +32,23 @@ use crate::documents::model::{Block, BlockKind};
 
 pub(super) fn restructure(bytes: &[u8], target: &DeckModel) -> Result<Vec<u8>, CodecError> {
     let mut package = Package::open(bytes)?;
-    let slides = projection::load(&mut package)?;
+    if !restructure_package(&mut package, target)? {
+        return Ok(bytes.to_vec());
+    }
+    package.finish()
+}
+
+pub(super) fn restructure_package(
+    package: &mut Package<'_>,
+    target: &DeckModel,
+) -> Result<bool, CodecError> {
+    let slides = projection::load(package)?;
     let base = model_of(&slides)?;
     let pairs = slide_pairs(&base, target);
     let mut changed = false;
     for (t, paired) in pairs.iter().enumerate() {
         let Some(b) = *paired else { continue };
-        let edited = slide_edits(&mut package, &slides[b], &base.slides[b], &target.slides[t])?;
+        let edited = slide_edits(package, &slides[b], &base.slides[b], &target.slides[t])?;
         if let Some(xml) = edited {
             package.write(&slides[b].part, xml);
             changed = true;
@@ -46,13 +56,10 @@ pub(super) fn restructure(bytes: &[u8], target: &DeckModel) -> Result<Vec<u8>, C
     }
     let order: Vec<usize> = pairs.iter().filter_map(|paired| *paired).collect();
     if order.len() == base.slides.len() && order.iter().enumerate().any(|(at, b)| at != *b) {
-        reorder(&mut package, &order)?;
+        reorder(package, &order)?;
         changed = true;
     }
-    if !changed {
-        return Ok(bytes.to_vec());
-    }
-    package.finish()
+    Ok(changed)
 }
 
 fn slide_edits(

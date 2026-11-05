@@ -33,6 +33,7 @@ mod structured {
     use super::ModelError;
     use crate::documents::engine::loro::deck::DeckModel;
     use crate::documents::engine::loro::sheet::SheetModel;
+    use crate::documents::model::Media;
 
     #[cfg(feature = "office")]
     pub(super) fn sheet_bytes(sheets: &SheetModel) -> Result<Vec<u8>, ModelError> {
@@ -40,8 +41,14 @@ mod structured {
     }
 
     #[cfg(feature = "office")]
-    pub(super) fn deck_bytes(base: &[u8], deck: &DeckModel) -> Result<Vec<u8>, ModelError> {
-        Ok(crate::documents::codecs::pptx::lower_deck(base, deck)?)
+    pub(super) fn deck_bytes(
+        base: &[u8],
+        deck: &DeckModel,
+        media: &Media,
+    ) -> Result<Vec<u8>, ModelError> {
+        Ok(crate::documents::codecs::pptx::lower_deck_with_media(
+            base, deck, media,
+        )?)
     }
 
     #[cfg(not(feature = "office"))]
@@ -50,7 +57,11 @@ mod structured {
     }
 
     #[cfg(not(feature = "office"))]
-    pub(super) fn deck_bytes(_base: &[u8], _deck: &DeckModel) -> Result<Vec<u8>, ModelError> {
+    pub(super) fn deck_bytes(
+        _base: &[u8],
+        _deck: &DeckModel,
+        _media: &Media,
+    ) -> Result<Vec<u8>, ModelError> {
         Err(ModelError::Unsupported)
     }
 }
@@ -96,7 +107,7 @@ pub fn materialise(
         #[cfg(feature = "collab-loro")]
         ModelView::Sheet(sheets) => structured::sheet_bytes(sheets),
         #[cfg(feature = "collab-loro")]
-        ModelView::Deck(deck) => structured::deck_bytes(base, deck),
+        ModelView::Deck(deck) => structured::deck_bytes(base, deck, media),
     }
 }
 

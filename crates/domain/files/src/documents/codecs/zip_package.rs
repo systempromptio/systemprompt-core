@@ -140,6 +140,7 @@ pub(crate) struct Package<'a> {
     archive: ZipArchive<Cursor<&'a [u8]>>,
     overrides: BTreeMap<String, String>,
     added: Vec<(String, String)>,
+    added_binary: Vec<(String, Vec<u8>)>,
     inflated: u64,
 }
 
@@ -149,6 +150,7 @@ impl<'a> Package<'a> {
             archive: open_archive(bytes)?,
             overrides: BTreeMap::new(),
             added: Vec::new(),
+            added_binary: Vec::new(),
             inflated: 0,
         })
     }
@@ -161,6 +163,7 @@ impl<'a> Package<'a> {
             .collect::<Result<Vec<_>, _>>()
             .map_err(zip_error)?;
         names.extend(self.added.iter().map(|(name, _)| name.clone()));
+        names.extend(self.added_binary.iter().map(|(name, _)| name.clone()));
         Ok(names)
     }
 
@@ -200,6 +203,10 @@ impl<'a> Package<'a> {
         }
     }
 
+    pub(crate) fn write_binary(&mut self, name: &str, bytes: Vec<u8>) {
+        self.added_binary.push((name.to_owned(), bytes));
+    }
+
     pub(crate) fn finish(mut self) -> Result<Vec<u8>, CodecError> {
         let mut writer = ZipWriter::new(Cursor::new(Vec::new()));
         for index in 0..self.archive.len() {
@@ -228,8 +235,32 @@ impl<'a> Package<'a> {
                 .map_err(zip_error)?;
             writer.write_all(xml.as_bytes())?;
         }
+        let stored = SimpleFileOptions::default().compression_method(CompressionMethod::Stored);
+        for (name, bytes) in &self.added_binary {
+            writer
+                .start_file(name.as_str(), stored)
+                .map_err(zip_error)?;
+            writer.write_all(bytes)?;
+        }
         Ok(writer.finish().map_err(zip_error)?.into_inner())
     }
+}
+
+/// A part directly under `prefix` whose name without its extension is `stem`.
+#[must_use]
+pub fn media_part_by_stem(bytes: &[u8], prefix: &str, stem: &str, limit: u64) -> Option<Vec<u8>> {
+    let mut archive = open_archive(bytes).ok()?;
+    let name = archive
+        .file_names()
+        .filter_map(Result::ok)
+        .find(|name| {
+            name.strip_prefix(prefix)
+                .and_then(|rest| rest.rsplit_once('.'))
+                .is_some_and(|(found, _)| found == stem)
+        })?
+        .into_owned();
+    let file = archive.by_name(&name).ok()?;
+    read_bounded(file, limit).ok()
 }
 
 pub fn media_part(bytes: &[u8], prefix: &str, reference: &str, limit: u64) -> Option<Vec<u8>> {

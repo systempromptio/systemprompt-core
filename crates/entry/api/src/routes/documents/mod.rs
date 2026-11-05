@@ -173,6 +173,7 @@ pub fn router(state: DocumentsState) -> Router {
             patch(comments::edit).delete(comments::delete),
         )
         .route("/{id}/export/docx", get(export::docx))
+        .route("/{id}/export/markdown", get(export::markdown))
         .route("/{id}/media", get(media::image))
         .route("/{id}/access", get(access::access))
         .route(

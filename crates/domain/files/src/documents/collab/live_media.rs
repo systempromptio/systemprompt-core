@@ -1,6 +1,9 @@
 //! The images a live checkpoint may place, and a materialise that never
 //! wedges a session on one.
 //!
+//! A deck follows the same rule for an image shape whose `src` is an upload's
+//! hash, except that a refused one is left out of the checkpoint's slide.
+//!
 //! An uploaded image is placed when an editor the update log records as
 //! one of its inserters uploaded it ([`ImageOwners`]), or when the revision the
 //! checkpoint builds on already holds it (a docx part whose bytes hash to
@@ -14,7 +17,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::TraceId;
+use systemprompt_identifiers::{ContentHash, TraceId};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{DocumentAction, DocumentCollabDegradedEvent, DocumentFormat};
 use systemprompt_provider_contracts::documents::CodecError;
@@ -26,6 +29,8 @@ use super::image_owners::ImageOwners;
 use super::{CollabError, CollabService};
 use crate::documents::agents::{DocumentActor, act_as};
 use crate::documents::engine::ModelView;
+#[cfg(feature = "collab-loro")]
+use crate::documents::engine::loro::deck::{DeckModel, ShapeKind};
 use crate::documents::model::{BlockKind, Media, RichText, media_refs};
 use crate::documents::models::DocumentEditSession;
 use crate::documents::service::{held_media_refs, refuse_unheld_media};
@@ -68,6 +73,10 @@ impl CollabService {
     ) -> LiveModel {
         let mut rich = match model {
             ModelView::RichText(rich) => rich,
+            #[cfg(feature = "collab-loro")]
+            ModelView::Deck(deck) if format == DocumentFormat::Pptx => {
+                return self.admit_deck(owners, base_bytes, deck).await;
+            },
             other => {
                 return LiveModel {
                     model: other,
@@ -99,6 +108,43 @@ impl CollabService {
         placeholders(&mut rich, &admitted.refused);
         LiveModel {
             model: ModelView::RichText(rich),
+            media: admitted.media,
+            held,
+            refused: admitted.refused,
+        }
+    }
+
+    #[cfg(feature = "collab-loro")]
+    async fn admit_deck(
+        &self,
+        owners: &ImageOwners,
+        base_bytes: &[u8],
+        mut deck: DeckModel,
+    ) -> LiveModel {
+        let wanted: Vec<String> = deck_image_refs(&deck)
+            .filter(|reference| ContentHash::try_new(reference.as_str()).is_ok())
+            .collect();
+        let held = deck_held(base_bytes, &wanted);
+        let owners_of = |reference: &str| owners.inserters(reference);
+        let admitted = match self.uploads.as_deref() {
+            Some(uploads) => {
+                self.documents
+                    .admit_media(uploads, &owners_of, wanted, &held)
+                    .await
+            },
+            None => refuse_unheld_media(wanted, &held),
+        };
+        for slide in &mut deck.slides {
+            slide.shapes.retain(|shape| {
+                shape.kind != ShapeKind::Image
+                    || shape
+                        .src
+                        .as_ref()
+                        .is_none_or(|src| !admitted.refused.contains(src))
+            });
+        }
+        LiveModel {
+            model: ModelView::Deck(deck),
             media: admitted.media,
             held,
             refused: admitted.refused,
@@ -151,6 +197,25 @@ impl CollabService {
         self.documents.events().collab_degraded(&to, &event).await?;
         Ok(())
     }
+}
+
+#[cfg(feature = "collab-loro")]
+fn deck_image_refs(deck: &DeckModel) -> impl Iterator<Item = String> + '_ {
+    deck.slides
+        .iter()
+        .flat_map(|slide| &slide.shapes)
+        .filter(|shape| shape.kind == ShapeKind::Image)
+        .filter_map(|shape| shape.src.clone())
+}
+
+#[cfg(all(feature = "collab-loro", feature = "office"))]
+fn deck_held(base: &[u8], wanted: &[String]) -> Vec<String> {
+    crate::documents::codecs::pptx::held_images(base, wanted).unwrap_or_default()
+}
+
+#[cfg(all(feature = "collab-loro", not(feature = "office")))]
+const fn deck_held(_base: &[u8], _wanted: &[String]) -> Vec<String> {
+    Vec::new()
 }
 
 const PLACEHOLDER: &str = "[image not available]";

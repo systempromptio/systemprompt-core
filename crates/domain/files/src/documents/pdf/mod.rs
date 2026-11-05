@@ -23,6 +23,7 @@
 mod blocks;
 mod fonts;
 mod layout;
+mod markdown;
 mod table;
 mod wrap;
 mod writer;
@@ -32,6 +33,7 @@ use systemprompt_identifiers::DocumentRevisionId;
 use systemprompt_provider_contracts::documents::Projection;
 
 pub use layout::PageCapExceeded;
+pub use markdown::{MARKDOWN_MIME_TYPE, markdown_file_name, outline_markdown};
 
 pub const PDF_MIME_TYPE: &str = "application/pdf";
 

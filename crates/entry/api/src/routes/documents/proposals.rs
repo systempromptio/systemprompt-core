@@ -19,7 +19,7 @@ use systemprompt_files::documents::service::{Proposed, ReviewRequest};
 use systemprompt_identifiers::{DocumentId, DocumentProposalId, DocumentRevisionId, UserId};
 use systemprompt_models::RequestContext;
 use systemprompt_models::documents::{ActorKind, ProposalStatus};
-use systemprompt_runtime::documents::views::proposal_lines;
+use systemprompt_runtime::documents::views::{ProposalChange, proposal_changes, proposal_lines};
 
 use super::DocumentsState;
 use super::caller::{Caller, api_author, caller};
@@ -112,6 +112,7 @@ pub(super) async fn list(
 pub(super) struct DetailJson {
     proposal: ProposalJson,
     lines: Vec<String>,
+    changes: Vec<ProposalChange>,
 }
 
 fn ids(document: &str, proposal: &str) -> DocumentsResult<(DocumentId, DocumentProposalId)> {
@@ -145,6 +146,7 @@ pub(super) async fn get(
     belongs(&view.proposal, &id)?;
     Ok(Json(DetailJson {
         lines: proposal_lines(&view.base, &view.proposed),
+        changes: proposal_changes(&view.base, &view.proposed),
         proposal: view.proposal.into(),
     }))
 }

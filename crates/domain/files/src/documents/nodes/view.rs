@@ -95,6 +95,17 @@ pub fn to_paths(ops: Vec<EditOp>, ids: &Projection) -> Vec<EditOp> {
                 title,
                 body,
             },
+            EditOp::MoveShape { node, x, y } => EditOp::MoveShape {
+                node: path(node),
+                x,
+                y,
+            },
+            EditOp::ResizeShape { node, w, h } => EditOp::ResizeShape {
+                node: path(node),
+                w,
+                h,
+            },
+            EditOp::DeleteShape { node } => EditOp::DeleteShape { node: path(node) },
             other => other,
         })
         .collect()

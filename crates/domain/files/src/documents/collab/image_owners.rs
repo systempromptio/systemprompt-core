@@ -27,6 +27,8 @@ use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::UserId;
 
 use super::CollabError;
+#[cfg(feature = "collab-loro")]
+use crate::documents::engine::loro::deck::ShapeKind;
 use crate::documents::engine::{EngineDoc, ModelView};
 use crate::documents::model::{RichText, media_refs};
 use crate::documents::repository::CollabUpdateRow;
@@ -55,8 +57,11 @@ struct SingleOwners {
 
 impl ImageOwners {
     pub fn record(&mut self, before: &RichText, after: &RichText, editor: &UserId) {
-        let held = media_refs(before);
-        for reference in media_refs(after) {
+        self.record_refs(&media_refs(before), media_refs(after), editor);
+    }
+
+    pub(super) fn record_refs(&mut self, held: &[String], now: Vec<String>, editor: &UserId) {
+        for reference in now {
             if !held.contains(&reference) {
                 self.by_ref
                     .entry(reference)
@@ -135,11 +140,21 @@ pub(super) fn author_runs(rows: &[CollabUpdateRow]) -> usize {
         .count()
 }
 
-pub(super) fn adds_media(before: &RichText, after: &RichText) -> bool {
-    let held = media_refs(before);
-    media_refs(after)
-        .iter()
-        .any(|reference| !held.contains(reference))
+/// Every image a model places: a rich text's image blocks, a deck's image
+/// shapes. Other models hold none.
+pub(super) fn model_refs(model: &ModelView) -> Vec<String> {
+    match model {
+        ModelView::RichText(rich) => media_refs(rich),
+        #[cfg(feature = "collab-loro")]
+        ModelView::Deck(deck) => deck
+            .slides
+            .iter()
+            .flat_map(|slide| &slide.shapes)
+            .filter(|shape| shape.kind == ShapeKind::Image)
+            .filter_map(|shape| shape.src.clone())
+            .collect(),
+        _ => Vec::new(),
+    }
 }
 
 pub(super) fn attribute_runs(
@@ -153,9 +168,11 @@ pub(super) fn attribute_runs(
             fork.apply_update(&row.update)?;
         }
         let after = fork.export_model()?;
-        if let (ModelView::RichText(prior), ModelView::RichText(next)) = (&before, &after) {
-            images.record(prior, next, &run[0].author_user_id);
-        }
+        images.record_refs(
+            &model_refs(&before),
+            model_refs(&after),
+            &run[0].author_user_id,
+        );
         before = after;
     }
     Ok(())

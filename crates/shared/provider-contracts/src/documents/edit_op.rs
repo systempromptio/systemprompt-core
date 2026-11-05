@@ -206,6 +206,19 @@ pub enum EditOp {
     SetSection(SetSection),
     SetStyle(SetStyle),
     ApplyTheme(ApplyTheme),
+    MoveShape {
+        node: DocumentNodeId,
+        x: i64,
+        y: i64,
+    },
+    ResizeShape {
+        node: DocumentNodeId,
+        w: i64,
+        h: i64,
+    },
+    DeleteShape {
+        node: DocumentNodeId,
+    },
 }
 
 impl EditOp {
@@ -236,6 +249,9 @@ impl EditOp {
             Self::SetSection(_) => "set_section",
             Self::SetStyle(_) => "set_style",
             Self::ApplyTheme(_) => "apply_theme",
+            Self::MoveShape { .. } => "move_shape",
+            Self::ResizeShape { .. } => "resize_shape",
+            Self::DeleteShape { .. } => "delete_shape",
         }
     }
 
@@ -268,6 +284,9 @@ impl EditOp {
             | Self::SetSection(_)
             | Self::SetStyle(_)
             | Self::ApplyTheme(_)
+            | Self::MoveShape { .. }
+            | Self::ResizeShape { .. }
+            | Self::DeleteShape { .. }
             | Self::Restore { .. } => None,
         }
     }

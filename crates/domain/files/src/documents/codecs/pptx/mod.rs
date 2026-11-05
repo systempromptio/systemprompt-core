@@ -36,6 +36,8 @@ mod inherit;
 mod layout;
 #[cfg(feature = "collab-loro")]
 mod lower;
+#[cfg(feature = "collab-loro")]
+mod media;
 mod nodes;
 mod package;
 mod paragraph;
@@ -47,6 +49,8 @@ mod rebase;
 mod restyle;
 #[cfg(feature = "collab-loro")]
 mod runs;
+#[cfg(feature = "collab-loro")]
+mod shape_ops;
 mod slides;
 #[cfg(feature = "collab-loro")]
 mod structure;
@@ -69,6 +73,8 @@ pub use blank::blank_pptx;
 pub use deck::deck_model;
 #[cfg(feature = "collab-loro")]
 pub use lower::lower_deck;
+#[cfg(feature = "collab-loro")]
+pub use media::{held_images, lower_deck_with_media};
 
 use crate::documents::codecs::fragments::leaf_hashes;
 use crate::documents::codecs::zip_package::Package;

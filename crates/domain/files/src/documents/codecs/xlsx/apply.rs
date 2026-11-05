@@ -103,6 +103,9 @@ fn apply_one(
         | EditOp::UpdateTable(_)
         | EditOp::SetSection(_)
         | EditOp::SetStyle(_)
+        | EditOp::MoveShape { .. }
+        | EditOp::ResizeShape { .. }
+        | EditOp::DeleteShape { .. }
         | EditOp::ApplyTheme(_) => Err(CodecError::UnsupportedOp {
             op: op.name(),
             format: DocumentFormat::Xlsx,
