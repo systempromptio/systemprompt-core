@@ -1,6 +1,8 @@
 //! The flat block list a projection is rendered from: every node kind of
 //! every codec lowers to a heading, a paragraph, a list item, a table, a
-//! section title or a page break, so one layout serves every format.
+//! section title or a page break, so one layout serves every format. Formats
+//! with a rich text model reach the same blocks through `rich`, with their
+//! styling; these blocks are plain.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -9,20 +11,98 @@ use std::collections::BTreeMap;
 
 use systemprompt_provider_contracts::documents::{NodeKind, Projection, ProjectionNode};
 
+use super::layout_model::Align;
+use super::runs::{Rgb, Run};
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum Style {
     Body,
-    Italic,
-    Mono,
+    Quote,
+    Callout,
+    Code,
+    Lines,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(super) struct Cell {
+    pub(super) runs: Vec<Run>,
+    pub(super) shade: Option<Rgb>,
+}
+
+impl From<String> for Cell {
+    fn from(text: String) -> Self {
+        Self {
+            runs: vec![Run::plain(text)],
+            shade: None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) enum Block {
-    Heading { level: u8, text: String },
-    Paragraph { style: Style, text: String },
-    ListItem { depth: usize, text: String },
-    Table { rows: Vec<Vec<String>> },
+    Heading {
+        level: u8,
+        runs: Vec<Run>,
+        align: Align,
+    },
+    Paragraph {
+        style: Style,
+        runs: Vec<Run>,
+        align: Align,
+    },
+    ListItem {
+        depth: usize,
+        marker: String,
+        runs: Vec<Run>,
+    },
+    Table {
+        rows: Vec<Vec<Cell>>,
+        header_rows: usize,
+    },
+    Image {
+        picture: usize,
+        width: u32,
+        height: u32,
+        align: Align,
+    },
+    Divider,
     PageBreak,
+}
+
+pub(super) const BULLET: &str = "\u{2022}";
+
+fn heading(level: u8, text: String) -> Block {
+    Block::Heading {
+        level,
+        runs: vec![Run::plain(text)],
+        align: Align::Left,
+    }
+}
+
+fn paragraph(style: Style, run: Run) -> Block {
+    Block::Paragraph {
+        style,
+        runs: vec![run],
+        align: Align::Left,
+    }
+}
+
+fn item(depth: usize, text: String) -> Block {
+    Block::ListItem {
+        depth,
+        marker: BULLET.to_owned(),
+        runs: vec![Run::plain(text)],
+    }
+}
+
+fn table(rows: Vec<Vec<String>>, header_rows: usize) -> Block {
+    Block::Table {
+        rows: rows
+            .into_iter()
+            .map(|row| row.into_iter().map(Cell::from).collect())
+            .collect(),
+        header_rows,
+    }
 }
 
 #[must_use]
@@ -46,62 +126,49 @@ pub(super) fn blocks_of(projection: &Projection) -> Vec<Block> {
 
 fn walk(node: &ProjectionNode, list_depth: usize, out: &mut Vec<Block>) {
     match node.kind {
-        NodeKind::Heading { level } => out.push(Block::Heading {
-            level,
-            text: text_of(node),
-        }),
+        NodeKind::Heading { level } => out.push(heading(level, text_of(node))),
         NodeKind::Paragraph if node.attrs.get("bullet").is_some_and(|v| v == "true") => {
-            out.push(Block::ListItem {
-                depth: list_depth,
-                text: text_of(node),
-            });
+            out.push(item(list_depth, text_of(node)));
         },
-        NodeKind::Paragraph => out.push(Block::Paragraph {
-            style: Style::Body,
-            text: text_of(node),
-        }),
+        NodeKind::Paragraph => out.push(paragraph(Style::Body, Run::plain(text_of(node)))),
         NodeKind::Text if !node.children.is_empty() => {
             for child in &node.children {
                 walk(child, list_depth, out);
             }
         },
-        NodeKind::Text => out.push(Block::Paragraph {
-            style: Style::Mono,
-            text: node.text.clone().unwrap_or_default(),
-        }),
-        NodeKind::Pending => out.push(Block::Paragraph {
-            style: Style::Italic,
-            text: format!("[pending: {}]", node.text.as_deref().unwrap_or_default()),
-        }),
+        NodeKind::Text => out.push(paragraph(
+            Style::Lines,
+            Run {
+                mono: true,
+                ..Run::plain(node.text.clone().unwrap_or_default())
+            },
+        )),
+        NodeKind::Pending => out.push(paragraph(
+            Style::Body,
+            Run {
+                italic: true,
+                ..Run::plain(format!(
+                    "[pending: {}]",
+                    node.text.as_deref().unwrap_or_default()
+                ))
+            },
+        )),
         NodeKind::ListItem => {
-            out.push(Block::ListItem {
-                depth: list_depth,
-                text: own_text(node),
-            });
+            out.push(item(list_depth, own_text(node)));
             for child in &node.children {
                 walk(child, list_depth + 1, out);
             }
         },
-        NodeKind::Table => out.push(Block::Table {
-            rows: table_rows(node),
-        }),
+        NodeKind::Table => out.push(table(table_rows(node), 0)),
         NodeKind::Sheet => {
-            out.push(Block::Heading {
-                level: 2,
-                text: node.text.clone().unwrap_or_default(),
-            });
-            out.push(Block::Table {
-                rows: sheet_rows(node),
-            });
+            out.push(heading(2, node.text.clone().unwrap_or_default()));
+            out.push(table(sheet_rows(node), 1));
         },
         NodeKind::Slide => {
             out.push(Block::PageBreak);
             let title = node.text.clone().unwrap_or_default();
             if !title.is_empty() {
-                out.push(Block::Heading {
-                    level: 1,
-                    text: title,
-                });
+                out.push(heading(1, title));
             }
             for child in &node.children {
                 walk(child, list_depth, out);

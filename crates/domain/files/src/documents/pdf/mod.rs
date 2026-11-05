@@ -1,18 +1,18 @@
-//! A pure-Rust PDF rendering of a document revision, built from the codec
-//! projection rather than from the stored bytes or the HTML preview.
+//! A pure-Rust PDF rendering of a document revision.
 //!
-//! Every format lowers to the same blocks: headings by level, paragraphs,
-//! list items with markers and nesting, tables as ruled grids with wrapped
-//! cell text, one section per sheet with a grid of its used range, and one
-//! page per slide with its title and body text. Plain-text lines and
-//! `line[N]` nodes are set in Courier; everything else in Helvetica. Images
-//! are omitted, never fetched. Pages are A4 with a document name and page
-//! number footer, the PDF title is the document name, the subject names the
-//! revision, and the creation date is the revision's, so the same revision
-//! renders to the same bytes.
+//! Documents with a rich text model (docx, odt, Markdown, HTML) render from
+//! that model through [`render_rich`], so bold, italic, underline, strike,
+//! colour, highlight, links, quotes, code, styled tables and the images the
+//! revision holds survive. Sheets and decks render from the codec projection
+//! through [`render`]: one section per sheet with a grid of its used range, and
+//! one page per slide with its title and body text. Images are never fetched.
+//! Pages are A4 with a document name and page number footer, the PDF title is
+//! the document name, the subject names the revision, and the creation date is
+//! the revision's, so the same revision renders to the same bytes.
 //!
-//! Text is shown in `WinAnsiEncoding` with the standard fonts, so a
-//! character outside that repertoire is drawn as `?`.
+//! Text is drawn in subset embedded DejaVu faces with a ToUnicode map, covering
+//! Latin, Greek and Cyrillic. There is no shaping: right-to-left and CJK text
+//! is out of scope, and a character outside the faces is drawn as U+FFFD.
 //!
 //! The page count is capped by [`RenderRequest::max_pages`]; layout stops
 //! at the cap and reports [`PdfError::PageCap`].
@@ -21,18 +21,30 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod blocks;
+mod font_embed;
 mod fonts;
+mod images;
 mod layout;
+mod layout_model;
 mod markdown;
+mod rich;
+mod runs;
 mod table;
 mod wrap;
 mod writer;
 
+use std::collections::BTreeMap;
+use std::io::Write;
+
 use chrono::{DateTime, Utc};
+use flate2::Compression;
+use flate2::write::ZlibEncoder;
 use systemprompt_identifiers::DocumentRevisionId;
 use systemprompt_provider_contracts::documents::Projection;
 
-pub use layout::PageCapExceeded;
+use crate::documents::model::RichText;
+
+pub use layout_model::PageCapExceeded;
 pub use markdown::{MARKDOWN_MIME_TYPE, markdown_file_name, outline_markdown};
 
 pub const PDF_MIME_TYPE: &str = "application/pdf";
@@ -54,18 +66,43 @@ pub struct RenderRequest<'a> {
 }
 
 pub fn render(projection: &Projection, request: &RenderRequest<'_>) -> Result<Vec<u8>, PdfError> {
-    let blocks = blocks::blocks_of(projection);
-    let mut pages = layout::Layout::paginate(&blocks, request.max_pages)?;
+    finish(&blocks::blocks_of(projection), &[], request)
+}
+
+/// Renders a rich text model. `media` holds the bytes of the images the
+/// revision itself holds, by reference; any other image shows its alt text.
+pub fn render_rich(
+    model: &RichText,
+    media: &BTreeMap<String, Vec<u8>>,
+    request: &RenderRequest<'_>,
+) -> Result<Vec<u8>, PdfError> {
+    let lowered = rich::lower(model, media);
+    finish(&lowered.blocks, &lowered.pictures, request)
+}
+
+fn finish(
+    blocks: &[blocks::Block],
+    pictures: &[images::Picture],
+    request: &RenderRequest<'_>,
+) -> Result<Vec<u8>, PdfError> {
+    let mut pages = layout::Layout::paginate(blocks, pictures, request.max_pages)?;
     layout::footer(&mut pages, request.name);
     let subject = format!("revision {}", request.revision);
     Ok(writer::write(
         &pages,
+        pictures,
         writer::Metadata {
             title: request.name,
             subject: &subject,
             created_at: request.created_at,
         },
     )?)
+}
+
+fn compress(bytes: &[u8]) -> Result<Vec<u8>, std::io::Error> {
+    let mut encoder = ZlibEncoder::new(Vec::new(), Compression::default());
+    encoder.write_all(bytes)?;
+    encoder.finish()
 }
 
 #[must_use]

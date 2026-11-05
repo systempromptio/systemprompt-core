@@ -7,6 +7,7 @@
 use systemprompt_provider_contracts::documents::Projection;
 
 use super::blocks::{Block, Style, blocks_of};
+use super::runs::Run;
 
 pub const MARKDOWN_MIME_TYPE: &str = "text/markdown; charset=utf-8";
 
@@ -38,28 +39,42 @@ fn table(rows: &[Vec<String>]) -> Option<String> {
     Some(lines.join("\n"))
 }
 
+fn joined(runs: &[Run]) -> String {
+    runs.iter().map(|run| run.text.as_str()).collect()
+}
+
 fn render(block: &Block) -> Option<String> {
     match block {
-        Block::Heading { level, text } => (!text.is_empty()).then(|| {
-            let hashes = "#".repeat(usize::from((*level).clamp(1, 6)));
-            format!("{hashes} {text}")
-        }),
-        Block::Paragraph { text, .. } if text.trim().is_empty() => None,
-        Block::Paragraph {
-            style: Style::Mono,
-            text,
-        } => Some(format!("```\n{text}\n```")),
-        Block::Paragraph {
-            style: Style::Italic,
-            text,
-        } => Some(format!("*{text}*")),
-        Block::Paragraph {
-            style: Style::Body,
-            text,
-        } => Some(text.clone()),
-        Block::ListItem { depth, text } => Some(format!("{}- {text}", "  ".repeat(*depth))),
-        Block::Table { rows } => table(rows),
+        Block::Heading { level, runs, .. } => {
+            let text = joined(runs);
+            (!text.is_empty()).then(|| {
+                let hashes = "#".repeat(usize::from((*level).clamp(1, 6)));
+                format!("{hashes} {text}")
+            })
+        },
+        Block::Paragraph { style, runs, .. } => {
+            let text = joined(runs);
+            if text.trim().is_empty() {
+                return None;
+            }
+            Some(match style {
+                Style::Code | Style::Lines => format!("```\n{text}\n```"),
+                _ if runs.iter().all(|run| run.italic) => format!("*{text}*"),
+                _ => text,
+            })
+        },
+        Block::ListItem { depth, runs, .. } => {
+            Some(format!("{}- {}", "  ".repeat(*depth), joined(runs)))
+        },
+        Block::Table { rows, .. } => {
+            let rows: Vec<Vec<String>> = rows
+                .iter()
+                .map(|row| row.iter().map(|cell| joined(&cell.runs)).collect())
+                .collect();
+            table(&rows)
+        },
         Block::PageBreak => Some("---".to_owned()),
+        Block::Divider | Block::Image { .. } => None,
     }
 }
 

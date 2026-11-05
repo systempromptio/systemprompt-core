@@ -80,6 +80,31 @@ fn in_package(bytes: &[u8], reference: &str, limit: u64) -> Option<MediaBlob> {
     Some(MediaBlob { bytes, mime })
 }
 
+impl DocumentService {
+    /// The bytes of an image a revision's own model names, for drawing it
+    /// into an export of that revision. A reference nothing holds is `None`.
+    pub(super) async fn revision_image(
+        &self,
+        format: DocumentFormat,
+        bytes: &[u8],
+        reference: &str,
+    ) -> Option<Vec<u8>> {
+        let limit = self.config.max_upload_bytes;
+        if format == DocumentFormat::Docx {
+            if let Some(blob) = in_package(bytes, reference, limit) {
+                return Some(blob.bytes);
+            }
+        } else if let Some(prefix) =
+            media_folder(format).or((format == DocumentFormat::Odt).then_some("Pictures/"))
+            && let Some(content) = media_part(bytes, prefix, reference, limit)
+        {
+            return Some(content);
+        }
+        let hash = ContentHash::try_new(reference).ok()?;
+        self.media_bytes(&hash).await.ok()
+    }
+}
+
 const fn media_folder(format: DocumentFormat) -> Option<&'static str> {
     match format {
         DocumentFormat::Pptx => Some("ppt/media/"),

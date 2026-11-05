@@ -17,7 +17,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-
 #[cfg(feature = "collab-loro")]
 pub(crate) use translate::{SheetOpError, apply_sheet_ops};
 

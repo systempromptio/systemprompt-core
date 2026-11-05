@@ -31,7 +31,6 @@ const OPTIONS: Options = Options::ENABLE_TABLES
     .union(Options::ENABLE_GFM)
     .union(Options::ENABLE_YAML_STYLE_METADATA_BLOCKS);
 
-
 #[must_use]
 pub fn import(markdown: &str) -> RichText {
     let mut builder = Builder::default();

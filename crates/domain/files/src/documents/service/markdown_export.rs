@@ -104,7 +104,7 @@ fn outline_left_out(format: DocumentFormat) -> Vec<String> {
     vec![what.to_owned()]
 }
 
-const fn has_rich_model(format: DocumentFormat) -> bool {
+pub(super) const fn has_rich_model(format: DocumentFormat) -> bool {
     matches!(
         format,
         DocumentFormat::Docx

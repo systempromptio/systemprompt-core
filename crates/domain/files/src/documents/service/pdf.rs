@@ -1,5 +1,6 @@
-//! PDF export of a revision: the stored bytes are projected by the
-//! format's codec and rendered on the blocking pool, under the
+//! PDF export of a revision, rendered on the blocking pool: a format with a
+//! rich text model renders from it with the images the revision holds, and any
+//! other format from its codec's projection, under the
 //! `files.documents.limits.pdfPages` cap. A stored `file` revision whose
 //! bytes are a PDF opens as a stream for inline preview, decided by its magic
 //! bytes alone.
@@ -7,19 +8,24 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::collections::BTreeMap;
+
 use futures_util::StreamExt;
 use systemprompt_identifiers::{DocumentId, DocumentRevisionId, TraceId};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_provider_contracts::documents::CodecError;
 use systemprompt_traits::{ByteRange, FileStorageError, StoredFileRead};
 
+use super::markdown_export::has_rich_model;
 use super::support::blocking;
 use super::{DocumentService, StreamRequest};
 use crate::documents::blob_store::BlobStoreError;
 use crate::documents::codecs::file::is_pdf;
 use crate::documents::error::DocumentsError;
+use crate::documents::model::formats::import_rich_text;
+use crate::documents::model::media_refs;
 use crate::documents::models::DocumentRevision;
-use crate::documents::pdf::{PdfError, RenderRequest, pdf_file_name, render};
+use crate::documents::pdf::{PdfError, RenderRequest, pdf_file_name, render, render_rich};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct RenderedPdf {
@@ -47,15 +53,31 @@ impl DocumentService {
         let name = document.name.clone();
         let revision_id = revision.id.clone();
         let created_at = revision.created_at;
+        let format = document.format;
+        let model = if has_rich_model(format) {
+            let held = bytes.clone();
+            blocking(move || Ok(import_rich_text(format, &held).ok())).await?
+        } else {
+            None
+        };
+        let mut media = BTreeMap::new();
+        for reference in model.as_ref().map(media_refs).unwrap_or_default() {
+            if let Some(image) = self.revision_image(format, &bytes, &reference).await {
+                media.insert(reference, image);
+            }
+        }
         let rendered = blocking(move || {
-            let projection = codec.project(&bytes)?;
             let request = RenderRequest {
                 name: &name,
                 revision: &revision_id,
                 created_at,
                 max_pages,
             };
-            render(&projection, &request).map_err(|error| match error {
+            let outcome = match &model {
+                Some(model) => render_rich(model, &media, &request),
+                None => render(&codec.project(&bytes)?, &request),
+            };
+            outcome.map_err(|error| match error {
                 PdfError::PageCap(cap) => DocumentsError::TooLarge {
                     what: "rendered PDF (pages)",
                     size: u64::try_from(cap.max_pages).unwrap_or(u64::MAX) + 1,
