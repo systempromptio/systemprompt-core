@@ -829,7 +829,7 @@ async fn the_drive_trash_needs_the_head_and_the_drive_move_keeps_the_document() 
     let unguarded = post("/bridge/drive/trash", None, id.clone()).await?;
     assert_eq!(unguarded.status, StatusCode::BAD_REQUEST, "{}", unguarded.json());
 
-    let stale = Uuid::now_v7().to_string();
+    let stale = Uuid::new_v4().to_string();
     let conflict = post("/bridge/drive/trash", Some(stale), id.clone()).await?;
     assert_eq!(conflict.status, StatusCode::CONFLICT, "{}", conflict.json());
     assert_eq!(conflict.json()["head_revision_id"], head.as_str());
