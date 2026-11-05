@@ -56,21 +56,17 @@ fn embed(model: &mut RichText, uris: &BTreeMap<String, String>) {
     for block in &mut model.blocks {
         if let BlockKind::Image { blob, alt, .. } = &block.kind {
             if !is_portable(blob) {
-                match uris.get(blob) {
-                    Some(uri) => {
-                        let uri = uri.clone();
-                        if let BlockKind::Image { blob, .. } = &mut block.kind {
-                            *blob = uri;
-                        }
-                    },
-                    None => {
-                        block.text = if alt.is_empty() {
-                            "[image not included]".to_owned()
-                        } else {
-                            format!("[image not included: {alt}]")
-                        };
-                        block.kind = BlockKind::Paragraph;
-                    },
+                if let Some(uri) = uris.get(blob).cloned() {
+                    if let BlockKind::Image { blob, .. } = &mut block.kind {
+                        *blob = uri;
+                    }
+                } else {
+                    block.text = if alt.is_empty() {
+                        "[image not included]".to_owned()
+                    } else {
+                        format!("[image not included: {alt}]")
+                    };
+                    block.kind = BlockKind::Paragraph;
                 }
             }
             continue;
@@ -142,50 +138,57 @@ impl DocumentService {
             })
         })
         .await?;
-        let (markdown, left_out) = match rich {
-            Some((mut model, warnings)) => {
-                let mut left_out = summarise(warnings);
-                let mut refs = Vec::new();
-                image_refs(&model, &mut refs);
-                refs.retain(|blob| !is_portable(blob));
-                refs.sort();
-                refs.dedup();
-                let mut uris = BTreeMap::new();
-                let mut total = 0;
-                let mut missing = 0;
-                for reference in refs {
-                    let found = self.image_in_revision(format, &bytes, &reference).await;
-                    let uri = found.ok().flatten().map(|blob| {
-                        let body = base64::engine::general_purpose::STANDARD.encode(&blob.bytes);
-                        format!("data:{};base64,{body}", blob.mime)
-                    });
-                    match uri {
-                        Some(uri) if total + uri.len() <= EMBED_LIMIT => {
-                            total += uri.len();
-                            uris.insert(reference, uri);
-                        },
-                        _ => missing += 1,
-                    }
-                }
-                if missing > 0 {
-                    left_out.push(format!("{missing} image(s) too large or unreadable"));
-                }
-                embed(&mut model, &uris);
-                let text = blocking(move || Ok::<_, DocumentsError>(materialise(&model)?)).await?;
-                (text, left_out)
-            },
-            None => {
-                let text = blocking(move || {
-                    Ok::<_, DocumentsError>(outline_markdown(&codec.project(&bytes)?))
-                })
-                .await?;
-                (text, outline_left_out(format))
-            },
+        let (markdown, left_out) = if let Some((model, warnings)) = rich {
+            self.rich_markdown(format, &bytes, model, warnings).await?
+        } else {
+            let text = blocking(move || {
+                Ok::<_, DocumentsError>(outline_markdown(&codec.project(&bytes)?))
+            })
+            .await?;
+            (text, outline_left_out(format))
         };
         Ok(ExportedMarkdown {
             file_name: markdown_file_name(&document.name),
             markdown,
             left_out,
         })
+    }
+
+    async fn rich_markdown(
+        &self,
+        format: DocumentFormat,
+        bytes: &[u8],
+        mut model: RichText,
+        warnings: Vec<String>,
+    ) -> Result<(String, Vec<String>), DocumentsError> {
+        let mut left_out = summarise(warnings);
+        let mut refs = Vec::new();
+        image_refs(&model, &mut refs);
+        refs.retain(|blob| !is_portable(blob));
+        refs.sort();
+        refs.dedup();
+        let mut uris = BTreeMap::new();
+        let mut total = 0;
+        let mut missing = 0;
+        for reference in refs {
+            let found = self.image_in_revision(format, bytes, &reference).await;
+            let uri = found.ok().flatten().map(|blob| {
+                let body = base64::engine::general_purpose::STANDARD.encode(&blob.bytes);
+                format!("data:{};base64,{body}", blob.mime)
+            });
+            match uri {
+                Some(uri) if total + uri.len() <= EMBED_LIMIT => {
+                    total += uri.len();
+                    uris.insert(reference, uri);
+                },
+                _ => missing += 1,
+            }
+        }
+        if missing > 0 {
+            left_out.push(format!("{missing} image(s) too large or unreadable"));
+        }
+        embed(&mut model, &uris);
+        let text = blocking(move || Ok::<_, DocumentsError>(materialise(&model)?)).await?;
+        Ok((text, left_out))
     }
 }

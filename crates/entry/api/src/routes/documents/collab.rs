@@ -164,10 +164,11 @@ pub(super) async fn leave(
     let collab = Arc::clone(&state.collab);
     // Why: axum drops the handler when a closing browser drops the connection,
     // and a settle cut off mid-checkpoint leaves the session unsaved.
-    let settling =
-        tokio::spawn(
-            async move { collab.leave(&who.user, &id, &body.session_id, &who.trace).await },
-        );
+    let settling = tokio::spawn(async move {
+        collab
+            .leave(&who.user, &id, &body.session_id, &who.trace)
+            .await
+    });
     let left = settling
         .await
         .map_err(|error| ApiError::internal("the session could not settle", error))??;
