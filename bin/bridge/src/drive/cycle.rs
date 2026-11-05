@@ -1,9 +1,10 @@
 //! One Drive sync cycle and the first-run check.
 //!
 //! A cycle notes the files gone from the folder, pulls the server's changes,
-//! carries the local deletes and renames over, pushes local edits, refreshes the open
-//! proposals and folds the outcome into the shared status. The first-run
-//! check creates the Drive folder once the server has documents for it.
+//! carries the local deletes and renames over, pushes local edits, refreshes
+//! the open proposals and folds the outcome into the shared status. The
+//! first-run check creates the Drive folder once the server has documents for
+//! it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

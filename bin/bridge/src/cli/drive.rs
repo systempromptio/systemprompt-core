@@ -134,7 +134,9 @@ fn deletes(ctx: &BridgeContext, root: &DriveRoot, choice: Option<&str>) -> ExitC
         Some("apply") => HeldChoice::Apply,
         Some("restore") => HeldChoice::Restore,
         Some(other) => {
-            diag(&format!("drive deletes: use apply or restore, not {other:?}"));
+            diag(&format!(
+                "drive deletes: use apply or restore, not {other:?}"
+            ));
             return ExitCode::from(64);
         },
     };

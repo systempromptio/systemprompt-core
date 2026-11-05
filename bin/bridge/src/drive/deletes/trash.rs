@@ -80,8 +80,13 @@ pub(super) async fn restore_all(
             continue;
         };
         let known = entry.document_id.as_ref();
-        if let Some(id) = known.or_else(|| by_path.get(rel.as_str()).copied()).cloned() {
-            restore_from(cycle, state, &rel, &id, &manifest, report).await?;
+        if let Some(id) = known
+            .or_else(|| by_path.get(rel.as_str()).copied())
+            .cloned()
+        {
+            if restore_from(cycle, state, &rel, &id, &manifest).await? {
+                report.restored += 1;
+            }
         }
     }
     Ok(())
@@ -95,7 +100,10 @@ async fn restore_one(
     report: &mut DeleteReport,
 ) -> DriveResult<()> {
     let manifest = cycle.client.manifest(cycle.bearer).await?;
-    restore_from(cycle, state, rel, document_id, &manifest, report).await
+    if restore_from(cycle, state, rel, document_id, &manifest).await? {
+        report.restored += 1;
+    }
+    Ok(())
 }
 
 async fn restore_from(
@@ -104,8 +112,7 @@ async fn restore_from(
     rel: &str,
     document_id: &DocumentId,
     manifest: &DriveManifest,
-    report: &mut DeleteReport,
-) -> DriveResult<()> {
+) -> DriveResult<bool> {
     state.pending_deletes.remove(rel);
     let Some(head) = manifest
         .entries
@@ -114,7 +121,7 @@ async fn restore_from(
         .cloned()
     else {
         state.entries.remove(rel);
-        return Ok(());
+        return Ok(false);
     };
     let bytes = cycle
         .client
@@ -130,7 +137,5 @@ async fn restore_from(
     )?;
     state.entries.remove(rel);
     state.entries.insert(head.path, entry);
-    report.restored += 1;
-    Ok(())
+    Ok(true)
 }
-

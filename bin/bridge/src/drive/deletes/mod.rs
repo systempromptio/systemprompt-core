@@ -182,7 +182,7 @@ pub async fn apply(cycle: Cycle<'_>, state: &mut DriveState) -> DriveResult<Dele
     Ok(report)
 }
 
-fn rejected_status(error: &DriveError) -> Option<reqwest::StatusCode> {
+const fn rejected_status(error: &DriveError) -> Option<reqwest::StatusCode> {
     match error {
         DriveError::Rejected { status, .. } => Some(*status),
         _ => None,

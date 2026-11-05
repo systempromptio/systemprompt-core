@@ -115,4 +115,3 @@ pub(super) async fn apply_moves(
     }
     Ok(())
 }
-

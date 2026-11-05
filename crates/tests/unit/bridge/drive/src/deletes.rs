@@ -56,10 +56,12 @@ async fn serve_head(server: &MockServer, n: u32, bytes: &[u8]) {
     let id = doc(n);
     Mock::given(method("GET"))
         .and(path(ApiPaths::BRIDGE_DRIVE_MANIFEST))
-        .respond_with(
-            ResponseTemplate::new(200)
-                .set_body_json(manifest_json(&[(&id, rel.as_str(), &head, bytes)])),
-        )
+        .respond_with(ResponseTemplate::new(200).set_body_json(manifest_json(&[(
+            &id,
+            rel.as_str(),
+            &head,
+            bytes,
+        )])))
         .mount(server)
         .await;
     Mock::given(method("GET"))

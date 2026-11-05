@@ -56,4 +56,3 @@ pub(super) async fn move_document(
     .await?;
     Ok(StatusCode::NO_CONTENT)
 }
-

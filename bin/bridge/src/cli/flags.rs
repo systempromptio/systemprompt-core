@@ -47,7 +47,7 @@ pub fn command_flags(command: Option<&str>) -> Option<CommandFlags> {
             ],
             ..NONE
         },
-        "__install-claude-policy" | "gateway" => CommandFlags {
+        "__install-claude-policy" | "gateway" | "drive" => CommandFlags {
             positionals: 2,
             ..NONE
         },
@@ -68,10 +68,6 @@ pub fn command_flags(command: Option<&str>) -> Option<CommandFlags> {
         },
         "__apply-policy-task" | "oauth-client" => CommandFlags {
             positionals: 1,
-            ..NONE
-        },
-        "drive" => CommandFlags {
-            positionals: 2,
             ..NONE
         },
         "uninstall" => CommandFlags {
