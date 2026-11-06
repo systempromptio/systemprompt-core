@@ -584,3 +584,29 @@ fn a_sync_only_agent_with_a_failed_sync_needs_attention() {
         v.reason
     );
 }
+
+#[test]
+fn a_desktop_policy_listing_a_non_claude_model_asks_for_the_update() {
+    let px = proxy(ProxyProbeState::Listening);
+    let mut snap = snapshot(
+        stale(StaleReason::ModelList, &["inferenceModels"]),
+        AppInstallState::Installed,
+    );
+    snap.host_id = HostKind::ClaudeDesktop;
+    snap.update_needs_approval = true;
+    snap.profile_keys.insert(
+        "inferenceModels".to_owned(),
+        "claude-opus-5[1m], claude-sonnet-5[1m]".to_owned(),
+    );
+    let routine = verdict(&inputs(Some(&snap), &px));
+    assert_eq!(routine.state, AgentState::Working);
+    assert_eq!(routine.secondary_action, Some(AgentAction::UpdateAdmin));
+
+    snap.profile_keys.insert(
+        "inferenceModels".to_owned(),
+        "claude-opus-5[1m], vertex-gemini-3.8-flash[1m], zai.glm-5.2[1m]".to_owned(),
+    );
+    let v = verdict(&inputs(Some(&snap), &px));
+    assert_eq!(v.state, AgentState::NeedsAdminApproval);
+    assert_eq!(v.action, Some(AgentAction::UpdateAdmin));
+}

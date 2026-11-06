@@ -285,6 +285,37 @@ fn needs_approval_is_exactly_a_row_whose_action_is_the_administrator_update() {
     assert_ne!(plain.overall_verdict().code, OverallCode::NeedsApproval);
 }
 
+#[test]
+fn a_policy_listing_a_non_claude_model_needs_approval_and_a_routine_one_does_not() {
+    let drifted = ProfileState::Stale {
+        reason: StaleReason::ModelList,
+        keys: vec!["inferenceModels".to_owned()],
+    };
+    let listing = |models: &str| {
+        let mut state = host(HostKind::ClaudeDesktop, drifted.clone(), true);
+        if let Some(snapshot) = state.snapshot.as_mut() {
+            snapshot
+                .profile_keys
+                .insert("inferenceModels".to_owned(), models.to_owned());
+        }
+        with_hosts(
+            signed_in_after_sync(),
+            vec![(HostKind::ClaudeDesktop, state)],
+        )
+    };
+
+    let routine = listing("claude-opus-5[1m], claude-sonnet-5[1m]");
+    assert_eq!(
+        desktop_row(&routine)["secondary_action"]["code"],
+        "update-admin"
+    );
+    assert_ne!(routine.overall_verdict().code, OverallCode::NeedsApproval);
+
+    let foreign = listing("claude-opus-5[1m], vertex-gemini-3.8-flash[1m]");
+    assert_eq!(desktop_row(&foreign)["action"]["code"], "update-admin");
+    assert_eq!(foreign.overall_verdict().code, OverallCode::NeedsApproval);
+}
+
 // Why: a machine-policy write that needed an administrator is history once
 // the live probe reads the policy current — a later repair wrote it — so the
 // header follows the probe, not the old run.

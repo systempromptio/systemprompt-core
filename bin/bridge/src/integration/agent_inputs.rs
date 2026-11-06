@@ -160,8 +160,9 @@ impl<'a> From<&'a crate::gateway::model_view::HostModelView> for HostModelViewRe
 // Why: an app on an older model list or setting keeps working, and only an
 // administrator can refresh it, so the row stays as it is and only offers the
 // update alongside.
-pub(super) const fn quiet_update_owed(snap: &crate::integration::HostAppSnapshot) -> bool {
+pub(super) fn quiet_update_owed(snap: &crate::integration::HostAppSnapshot) -> bool {
     snap.update_needs_approval
+        && !lists_a_non_claude_model(snap)
         && matches!(
             snap.profile_state,
             crate::integration::ProfileState::Stale {
@@ -170,4 +171,26 @@ pub(super) const fn quiet_update_owed(snap: &crate::integration::HostAppSnapshot
                 ..
             }
         )
+}
+
+// Why: Claude Desktop rejects its whole enterprise configuration over one
+// non-Anthropic id, so a policy from before the Claude-only list is not
+// routine.
+fn lists_a_non_claude_model(snap: &crate::integration::HostAppSnapshot) -> bool {
+    snap.host_id == systemprompt_models::bridge::host::HostKind::ClaudeDesktop
+        && matches!(
+            snap.profile_state,
+            crate::integration::ProfileState::Stale {
+                reason: crate::integration::profile_state::StaleReason::ModelList,
+                ..
+            }
+        )
+        && snap
+            .profile_keys
+            .get("inferenceModels")
+            .is_some_and(|list| {
+                list.split(',')
+                    .map(|id| id.trim_matches(|c: char| c.is_whitespace() || "[]\"".contains(c)))
+                    .any(|id| !id.is_empty() && !id.contains("claude"))
+            })
 }
