@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.79.1] - 2026-11-06
+
+### Fixed
+
+- **Bridge:** a Claude Desktop policy that still lists a non-Claude model asks for an Update instead of reading as Working. See `bin/bridge/CHANGELOG.md`.
+
 ## [0.79.0] - 2026-11-05
 
 ### Breaking

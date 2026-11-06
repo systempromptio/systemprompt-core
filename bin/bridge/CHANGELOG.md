@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.79.1] - 2026-11-06
+
+### Fixed
+
+- A Claude Desktop policy that still lists a non-Claude model shows one row line with Update as its action, because Desktop can reject the whole configuration over it.
+
 ## [0.79.0] - 2026-11-05
 
 ### Added
