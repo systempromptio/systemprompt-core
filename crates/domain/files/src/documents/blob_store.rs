@@ -19,6 +19,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::collections::HashSet;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -200,9 +201,13 @@ impl BlobStore {
             .blobs
             .unreferenced_older_than(i64::from(older_than_hours), i64::from(limit))
             .await?;
+        let linked = self.linked_among(&candidates).await?;
         let mut report = GcReport::default();
         for blob in candidates {
             report.examined += 1;
+            if linked.contains(blob.content_sha256.as_str()) {
+                continue;
+            }
             match self.blobs.delete(&blob.content_sha256).await {
                 Ok(true) => {},
                 Ok(false) => continue,
@@ -231,5 +236,39 @@ impl BlobStore {
             }
         }
         Ok(report)
+    }
+
+    async fn linked_among(
+        &self,
+        candidates: &[DocumentBlob],
+    ) -> Result<HashSet<String>, BlobStoreError> {
+        let mut linked = HashSet::new();
+        if candidates.is_empty() {
+            return Ok(linked);
+        }
+        for revision in self.blobs.list_linking_revisions().await? {
+            let bytes = match self.read_all(&revision, u64::MAX).await {
+                Ok(bytes) => bytes,
+                Err(
+                    BlobStoreError::NotFound { .. }
+                    | BlobStoreError::Storage(FileStorageError::NotFound(_)),
+                ) => {
+                    tracing::warn!(
+                        content_sha256 = %revision,
+                        "A linking revision's blob is missing, so its links cannot be read"
+                    );
+                    continue;
+                },
+                Err(error) => return Err(error),
+            };
+            let text = String::from_utf8_lossy(&bytes);
+            for blob in candidates {
+                let hash = blob.content_sha256.as_str();
+                if text.contains(hash) {
+                    linked.insert(hash.to_owned());
+                }
+            }
+        }
+        Ok(linked)
     }
 }

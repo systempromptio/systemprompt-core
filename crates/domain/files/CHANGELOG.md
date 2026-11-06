@@ -1,5 +1,13 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- A PDF of a `docx` draws the pictures its package holds, not an `[Image]` placeholder.
+- A PDF of an `odt` carries the pictures, lists and tables its kept-as-is blocks hold, through `model::formats::render_rich_text`.
+- Blob collection keeps a picture that a Markdown or HTML revision links by hash.
+
 ## [0.79.0] - 2026-11-05
 
 ### Added

@@ -45,6 +45,17 @@ fn image_refs(model: &RichText, into: &mut Vec<String>) {
     }
 }
 
+/// Every image reference a model names that is not a link out: a part the
+/// document's package holds or an uploaded blob.
+pub(super) fn held_image_refs(model: &RichText) -> Vec<String> {
+    let mut refs = Vec::new();
+    image_refs(model, &mut refs);
+    refs.retain(|blob| !is_portable(blob));
+    refs.sort();
+    refs.dedup();
+    refs
+}
+
 fn is_portable(blob: &str) -> bool {
     let lower = blob.to_ascii_lowercase();
     ["http:", "https:", "data:"]

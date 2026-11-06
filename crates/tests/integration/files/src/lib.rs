@@ -94,6 +94,8 @@ mod documents_node_ids_backfill;
 #[cfg(test)]
 mod documents_notification_facts;
 #[cfg(test)]
+mod documents_pdf_images;
+#[cfg(test)]
 mod documents_pdf_render;
 #[cfg(test)]
 mod documents_proposals;

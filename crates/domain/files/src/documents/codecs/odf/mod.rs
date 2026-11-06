@@ -50,6 +50,7 @@ mod odt;
 mod package;
 mod projection;
 mod rich;
+mod rich_render;
 mod sheet;
 mod sheet_edit;
 mod sheet_view;
@@ -64,6 +65,7 @@ use systemprompt_provider_contracts::register_document_codec;
 
 pub use blank::{blank_odp, blank_ods, blank_odt};
 pub use rich::{import_rich as import_odt_rich, materialise_rich as materialise_odt_rich};
+pub use rich_render::import_rendered as import_odt_rendered;
 
 use crate::documents::codecs::xml_tree::parse_xml;
 use crate::documents::codecs::zip_package::Package;
