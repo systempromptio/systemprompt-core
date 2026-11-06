@@ -9,7 +9,9 @@
 //! only suggest on that document) is a success, not an error: the local file
 //! is kept and recorded as sent, so it is not uploaded again, and the user
 //! is told it went for review. A file that changed again while it was
-//! uploading is left for the next cycle rather than recorded as synced.
+//! uploading is left for the next cycle rather than recorded as synced. A file
+//! the server refuses (a folder it does not know, a type it will not take) is
+//! reported and tried again next cycle; it does not stop the other files.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -30,12 +32,37 @@ pub struct UploadReport {
     pub conflicts: Vec<ConflictNotice>,
     pub deferred: usize,
     pub sent_for_review: Vec<SentForReview>,
+    pub refused: Vec<RefusedUpload>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RefusedUpload {
+    pub path: String,
+    pub reason: String,
+}
+
+fn is_refusal(error: &DriveError) -> bool {
+    matches!(error, DriveError::Rejected { status, .. }
+        if status.is_client_error()
+            && *status != reqwest::StatusCode::TOO_MANY_REQUESTS
+            && *status != reqwest::StatusCode::REQUEST_TIMEOUT)
 }
 
 pub async fn upload(cycle: Cycle<'_>, state: &mut DriveState) -> DriveResult<UploadReport> {
     let mut report = UploadReport::default();
     for change in local_changes(cycle.root, state)? {
-        upload_one(cycle, state, change, &mut report).await?;
+        let path = change.file.rel.clone();
+        match upload_one(cycle, state, change, &mut report).await {
+            Ok(()) => {},
+            Err(error) if is_refusal(&error) => {
+                tracing::warn!(%path, %error, "drive upload refused; the other files carry on");
+                report.refused.push(RefusedUpload {
+                    path,
+                    reason: error.to_string(),
+                });
+            },
+            Err(error) => return Err(error),
+        }
     }
     Ok(report)
 }

@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- A file the server refuses, such as one in a folder created only on the desktop, is reported and no longer stops the rest of the Drive sync.
+
 ## [0.79.1] - 2026-11-06
 
 ### Fixed
