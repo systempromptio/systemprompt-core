@@ -3,7 +3,7 @@ use systemprompt_bridge::instance::window::CombinedWindow;
 use systemprompt_bridge::update::{UpdateError, UpdateStatus, decide};
 
 fn compare(local: &str, m: &ReleaseManifest) -> Result<UpdateStatus, UpdateError> {
-    decide(local, m, &CombinedWindow::Open)
+    decide(local, None, m, &CombinedWindow::Open)
 }
 
 fn manifest(version: &str) -> ReleaseManifest {
@@ -145,6 +145,7 @@ fn bounded(min: Option<&str>, max: Option<&str>) -> CombinedWindow {
 fn a_newer_release_outside_the_combined_window_is_not_offered() {
     let err = decide(
         "0.74.0",
+        None,
         &manifest("0.76.0"),
         &bounded(None, Some("0.75.0")),
     )
@@ -155,12 +156,13 @@ fn a_newer_release_outside_the_combined_window_is_not_offered() {
 #[test]
 fn an_older_release_is_offered_only_when_this_one_is_above_the_window() {
     assert!(matches!(
-        decide("0.76.0", &manifest("0.75.0"), &bounded(None, Some("0.75.0"))),
+        decide("0.76.0", None, &manifest("0.75.0"), &bounded(None, Some("0.75.0"))),
         Ok(UpdateStatus::Available { ref version, .. }) if version == "0.75.0"
     ));
     assert!(matches!(
         decide(
             "0.75.0",
+            None,
             &manifest("0.74.0"),
             &bounded(None, Some("0.76.0"))
         ),
@@ -173,6 +175,7 @@ fn a_release_inside_the_window_is_offered_as_usual() {
     assert!(matches!(
         decide(
             "0.74.0",
+            None,
             &manifest("0.75.1"),
             &bounded(Some("0.75.0"), Some("0.76.0"))
         ),

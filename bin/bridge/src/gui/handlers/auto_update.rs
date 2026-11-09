@@ -12,7 +12,7 @@ use crate::gui::error::GuiError;
 use crate::gui::events::{InstalledUpdate, UiEvent};
 use crate::gui::{GuiApp, UiEventProxy};
 use crate::update::UpdateUiState;
-use crate::update::automatic::{Permit, Trigger};
+use crate::update::automatic::{Checked, Permit, Trigger};
 
 // Why: called from the one-second event-loop pass; `UpdateGate::begin` owns the
 // due time, org policy and single flight, so this only raises the trigger.
@@ -42,8 +42,16 @@ async fn stage_automatically(permit: Permit, http: reqwest::Client, proxy: UiEve
     }
     .await;
     let (client, bearer, manifest) = match checked {
-        Ok((client, bearer, Some(manifest))) => (client, bearer, manifest),
-        Ok((_, _, None)) => {
+        Ok((client, bearer, Checked::Install(manifest))) => (client, bearer, manifest),
+        Ok((_, _, Checked::AlreadyStaged { version })) => {
+            proxy.send_event(UiEvent::UpdateCheckFinished {
+                result: Ok(UpdateUiState::Ready { version }),
+                reply_to: None,
+                automatic: true,
+            });
+            return;
+        },
+        Ok((_, _, Checked::Current)) => {
             proxy.send_event(UiEvent::UpdateCheckFinished {
                 result: Ok(UpdateUiState::Current),
                 reply_to: None,

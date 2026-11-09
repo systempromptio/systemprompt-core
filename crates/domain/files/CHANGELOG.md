@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.80.0] - 2026-11-09
+
+### Added
+
+- `model::formats::render_rich_text`: the rich text model of a stored `docx`, `odt`, Markdown or HTML document, as PDF export reads it. `codecs::odf::import_odt_rendered` reads an `odt` with its kept-as-is blocks rendered.
+
+### Fixed
+
+- A PDF of a `docx` draws the pictures its package holds, not an `[Image]` placeholder.
+- A PDF of an `odt` carries the pictures, lists and tables its kept-as-is blocks hold.
+- Blob collection keeps a picture that a Markdown or HTML revision links by hash.
+
 ## [0.79.0] - 2026-11-05
 
 ### Added

@@ -66,6 +66,17 @@ impl DocumentBlobRepository {
         .await?)
     }
 
+    pub async fn list_linking_revisions(&self) -> RepoResult<Vec<ContentHash>> {
+        Ok(sqlx::query_scalar!(
+            r#"SELECT DISTINCT r.content_sha256 AS "content_sha256!: ContentHash"
+               FROM document_revisions r
+               JOIN documents d ON d.id = r.document_id
+               WHERE d.format IN ('markdown', 'html')"#
+        )
+        .fetch_all(&*self.pools.read)
+        .await?)
+    }
+
     pub async fn unreferenced_older_than(
         &self,
         interval_hours: i64,

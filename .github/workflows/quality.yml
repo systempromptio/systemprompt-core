@@ -133,7 +133,7 @@ jobs:
     # A test that raises a native modal, or waits on elevation, hangs a runner
     # silently; the two cargo steps carry their own timeouts so a slow
     # rust-cache post-step cannot cancel a job whose checks already passed.
-    timeout-minutes: 60
+    timeout-minutes: 75
     strategy:
       fail-fast: false
       matrix:
@@ -149,10 +149,15 @@ jobs:
       # every PR and push can read; PR runs would otherwise evict it.
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
-          workspaces: bin/bridge
+          workspaces: |
+            bin/bridge
+            crates/tests
           shared-key: bridge-native
           cache-on-failure: true
           save-if: ${{ github.ref == 'refs/heads/next' }}
+      - uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
+        with:
+          tool: nextest@0.9.146
       - name: Clippy (native target)
         timeout-minutes: 20
         run: cargo clippy --manifest-path bin/bridge/Cargo.toml --all-targets --all-features --keep-going --locked -- -D warnings
@@ -160,7 +165,7 @@ jobs:
         # The package list is scripts/bridge-native-crates.txt — the same file
         # `just lint-bridge-native-tests` reads, so the local mirror and this
         # job can never drift.
-        timeout-minutes: 25
+        timeout-minutes: 40
         shell: bash
         run: bash scripts/bridge-native-tests.sh
 

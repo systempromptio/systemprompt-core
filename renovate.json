@@ -1,8 +1,14 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:recommended", ":semanticCommits", ":disableDependencyDashboard"],
+  "extends": [
+    "config:recommended",
+    ":semanticCommits",
+    ":disableDependencyDashboard"
+  ],
   "timezone": "Europe/London",
-  "schedule": ["* 0-5 1 * *"],
+  "schedule": [
+    "* 0-5 1 * *"
+  ],
   "prConcurrentLimit": 3,
   "prHourlyLimit": 2,
   "rangeStrategy": "update-lockfile",
@@ -12,27 +18,49 @@
   "rebaseWhen": "conflicted",
   "packageRules": [
     {
-      "matchManagers": ["cargo"],
-      "matchUpdateTypes": ["minor", "patch"],
+      "matchManagers": [
+        "cargo"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
       "groupName": "cargo dependencies"
     },
     {
-      "matchManagers": ["github-actions"],
+      "matchManagers": [
+        "cargo"
+      ],
+      "matchCurrentValue": "/^=/",
+      "rangeStrategy": "pin",
+      "groupName": "exact pins"
+    },
+    {
+      "matchManagers": [
+        "github-actions"
+      ],
       "groupName": "github actions",
       "pinDigests": true
     },
     {
-      "matchUpdateTypes": ["major"],
+      "matchUpdateTypes": [
+        "major"
+      ],
       "enabled": false
     }
   ],
   "lockFileMaintenance": {
     "enabled": true,
-    "schedule": ["* 0-5 1 * *"]
+    "schedule": [
+      "before 6am on monday"
+    ]
   },
   "vulnerabilityAlerts": {
     "enabled": true,
-    "schedule": ["at any time"],
+    "schedule": [
+      "at any time"
+    ],
     "automerge": true
-  }
+  },
+  "osvVulnerabilityAlerts": true
 }

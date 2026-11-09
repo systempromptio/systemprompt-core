@@ -57,12 +57,14 @@ pub mod probe_cache;
 pub mod progress;
 pub mod proxy;
 pub mod proxy_probe;
+pub mod release_version;
 pub mod schedule;
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 pub(crate) mod single_instance;
 pub mod stdio;
 pub mod sync;
 pub mod sysproc;
+pub mod takeover;
 pub mod update;
 pub mod user_alert;
 pub mod validate;
@@ -102,25 +104,27 @@ fn install_tls_crypto_provider() {
 pub fn run_with_brand(brand: &'static brand::Brand) -> ExitCode {
     brand::set_brand(brand);
     install_tls_crypto_provider();
-    let launch = cli::Launch::detect();
+    let mut launch = cli::Launch::detect();
     obs::install_panic_hook();
     if let Err(e) = obs::tracing_init::init() {
         stdio::eprint_str(&format!("bridge startup failed: {e}\n"));
         return ExitCode::FAILURE;
     }
     brand::warn_if_version_drifts();
-    await_predecessor_exit();
+    launch.successor = await_predecessor_exit();
     update::sweep_leftovers();
     cli::run(launch)
 }
 
 #[cfg(any(target_os = "windows", target_os = "macos"))]
-fn await_predecessor_exit() {
-    single_instance::await_predecessor_exit();
+fn await_predecessor_exit() -> bool {
+    single_instance::await_predecessor_exit()
 }
 
 #[cfg(not(any(target_os = "windows", target_os = "macos")))]
-const fn await_predecessor_exit() {}
+const fn await_predecessor_exit() -> bool {
+    false
+}
 
 pub(crate) mod tasks;
 

@@ -41,6 +41,9 @@ use systemprompt_models::documents::{DocumentPresenceEvent, DocumentRevisionCrea
 
 const AUTH_THRESHOLD_SECS: u64 = 300;
 const EVENT_NAME: &str = "comms.message";
+// Why: the latch also releases when the credential on disk changes, which
+// is noticed only when it is polled, not announced on the watch channel.
+const SIGN_IN_RECHECK: std::time::Duration = std::time::Duration::from_secs(5);
 
 #[derive(Debug, Deserialize)]
 struct AgUiEnvelope {
@@ -135,10 +138,32 @@ pub async fn run_loop(
 ) {
     let mut backoff = ReconnectBackoff::default();
     let mut last_error: Option<String> = None;
+    let mut waiting_for_sign_in = false;
     loop {
         let cfg = runtime_config.load_full();
         let mut generation = token_cache.generation();
         generation.mark_unchanged();
+        if token_cache.sign_in_required() {
+            if !waiting_for_sign_in {
+                tracing::warn!("comms stream paused until the user signs in");
+                waiting_for_sign_in = true;
+            }
+            let mut auth_state = token_cache.auth_state();
+            tokio::select! {
+                () = async {
+                    let _released = auth_state.wait_for(|state| !state.sign_in_required()).await;
+                } => {},
+                _ = generation.changed() => {},
+                () = tokio::time::sleep(SIGN_IN_RECHECK) => {},
+            }
+            continue;
+        }
+        if waiting_for_sign_in {
+            tracing::info!("comms stream resuming after sign-in");
+            waiting_for_sign_in = false;
+            last_error = None;
+            backoff.reset();
+        }
         let started = Instant::now();
         let outcome = tokio::select! {
             outcome = subscribe_once(cfg.gateway_base.as_ref(), token_cache.as_ref(), &client, &drive, &notifications) => outcome,
@@ -159,6 +184,7 @@ pub async fn run_loop(
                 }
                 tracing::info!(retry_in = ?delay, "comms stream closed by the gateway; reconnecting");
             },
+            Err(_) if token_cache.sign_in_required() => continue,
             Err(e) => {
                 let text = e.to_string();
                 if last_error.as_deref() == Some(text.as_str()) {

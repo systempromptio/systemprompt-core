@@ -134,10 +134,13 @@ fn dispatch_request(
             handlers::update::on_update_check_requested(app, reply_to);
         },
         UiEvent::UpdateInstallRequested { reply_to } => {
-            handlers::update::on_update_install_requested(app, reply_to);
+            handlers::update::on_update_install_requested(app, event_loop, reply_to);
         },
         UiEvent::UpdateRestartRequested => {
             handlers::update::on_update_restart_requested(app, event_loop);
+        },
+        UiEvent::HandoffRequested => {
+            handlers::update::on_handoff_requested(app, event_loop);
         },
         UiEvent::AutostartToggleRequested => {
             handlers::settings_write::on_autostart_toggled(app);

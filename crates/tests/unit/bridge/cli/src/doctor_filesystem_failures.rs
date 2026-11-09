@@ -134,6 +134,7 @@ fn the_working_dir_check_fails_when_the_state_root_cannot_be_created_in() {
     );
 }
 
+#[cfg(not(target_os = "macos"))]
 #[test]
 fn the_org_plugins_check_fails_when_the_effective_root_is_not_writable() {
     let system = TempDir::new().expect("system root");

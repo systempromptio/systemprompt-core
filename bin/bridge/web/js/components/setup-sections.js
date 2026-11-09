@@ -63,7 +63,8 @@ export function renderSetupAgentsStep(component) {
 // A build too old for its gateway is told so in the log and, for a sync, in a
 // toast — but a user who never gets past the wizard sees neither, and the
 // update affordance lives only in the signed-in rail. This is that affordance,
-// where they actually are.
+// where they actually are; an installed update can be finished, or the bridge
+// quit, without signing in.
 export function renderSetupUpdateNotice(component) {
   const update = updateStateOf(component.snapshot);
   // `can_install`/`can_restart` are the bridge's own read of the update state
@@ -75,13 +76,14 @@ export function renderSetupUpdateNotice(component) {
     ? (t("rail-profile-restart-cta") || "Restart to finish updating")
     : (t("rail-profile-update-cta") || "Click here to update");
   const line = restart
-    ? (t("setup-update-ready", { version: update.version || "" }) || `Version ${update.version || ""} is ready to finish installing.`)
+    ? (t("setup-update-ready", { version: update.version || "" }) || `Version ${update.version || ""} is installed. Restart to finish installing it.`)
     : (t("setup-update-available", { version: update.version || "" }) || `Version ${update.version || ""} is available for this build.`);
   return `
     <div class="sp-setup__note sp-setup__note--warn" role="status">
       <p>${escapeHtml(line)}</p>
       <div class="sp-setup__actions">
         <button class="sp-btn-ghost" type="button" data-action="${restart ? "restart-update" : "install-update"}">${escapeHtml(label)}</button>
+        ${restart ? `<button class="sp-btn-ghost" type="button" data-action="quit-bridge">${escapeHtml(t("setup-update-quit") || "Quit")}</button>` : ""}
       </div>
     </div>`;
 }

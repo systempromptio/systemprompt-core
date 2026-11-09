@@ -288,3 +288,79 @@ fn a_single_heartbeat_401_is_cured_by_one_re_mint_without_latching() {
         );
     });
 }
+
+#[test]
+fn a_parked_heartbeat_resumes_once_the_latch_is_released() {
+    with_credentials(async {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/v1/bridge/heartbeat"))
+            .respond_with(ResponseTemplate::new(200))
+            .mount(&server)
+            .await;
+
+        let refresh_calls = Arc::new(AtomicU32::new(0));
+        let seen = Arc::clone(&refresh_calls);
+        let cache = Arc::new(TokenCache::new(Arc::new(move |_threshold| {
+            let n = seen.fetch_add(1, Ordering::SeqCst);
+            Box::pin(async move {
+                if n == 0 {
+                    Err(systemprompt_bridge::proxy::forward::ForwardError::Auth(
+                        "no credential provider produced a token".into(),
+                    ))
+                } else {
+                    Ok(HelperOutput {
+                        token: BearerToken::new("heartbeat-bearer"),
+                        ttl: 3600,
+                        headers: std::collections::HashMap::new(),
+                        device_token: None,
+                    })
+                }
+            })
+        })));
+        let handle = tokio::spawn(run_loop(HeartbeatDeps {
+            runtime_config: runtime_config(&server.uri()),
+            token_cache: Arc::clone(&cache),
+            session: Arc::new(SessionContext::new()),
+            stats: Arc::new(ProxyStats::default()),
+            client: reqwest::Client::new(),
+            update_gate: UpdateGate::default(),
+        }));
+
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
+        while !cache.sign_in_required() && std::time::Instant::now() < deadline {
+            tokio::time::sleep(std::time::Duration::from_secs(31)).await;
+            tokio::task::yield_now().await;
+        }
+        assert!(
+            cache.sign_in_required(),
+            "an exhausted chain latches sign-in"
+        );
+        for _ in 0..3 {
+            tokio::time::sleep(std::time::Duration::from_secs(31)).await;
+            tokio::task::yield_now().await;
+        }
+        assert_eq!(
+            refresh_calls.load(Ordering::SeqCst),
+            1,
+            "a parked heartbeat does not retry the mint"
+        );
+        assert!(
+            server
+                .received_requests()
+                .await
+                .unwrap_or_default()
+                .is_empty(),
+            "a parked heartbeat sends nothing"
+        );
+
+        cache.reset().await;
+        wait_for_requests(&server, 1).await;
+        handle.abort();
+        assert_eq!(
+            refresh_calls.load(Ordering::SeqCst),
+            2,
+            "one mint after sign-in"
+        );
+    });
+}

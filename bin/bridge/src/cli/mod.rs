@@ -42,10 +42,13 @@ use crate::stdio::{self, diag};
 /// `gui_by_default` is true only for a launch with no console of its own — a
 /// double-click on Windows (no parent console to attach) or an app-bundle
 /// launch on macOS — so a scheduler or a pipe with no subcommand gets the
-/// credential helper, not a GUI.
+/// credential helper, not a GUI. `successor` is true for the process an
+/// update restart relaunched; it waited for its predecessor already and never
+/// asks a running instance to hand over.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Launch {
     pub gui_by_default: bool,
+    pub successor: bool,
 }
 
 impl Launch {
@@ -60,6 +63,7 @@ impl Launch {
     pub fn detect() -> Self {
         Self {
             gui_by_default: args::launched_without_console(),
+            successor: false,
         }
     }
 }
@@ -107,6 +111,11 @@ pub fn run_launch(args: &[String], launch: Launch) -> ExitCode {
     } else {
         ProxyMode::Attach
     };
+    let held = if !launch.successor && (default_gui || command == Some("gui")) {
+        gui::take_over_older_instance()
+    } else {
+        gui::HeldLock::default()
+    };
     let ctx = match BridgeContext::start(
         mode,
         Arc::new(crate::integration::claude_desktop::policy_api_key_fingerprint),
@@ -118,12 +127,17 @@ pub fn run_launch(args: &[String], launch: Launch) -> ExitCode {
         },
     };
     if default_gui {
-        return gui::cmd_gui(ctx);
+        return gui::cmd_gui(ctx, held);
     }
-    dispatch(command, args, ctx)
+    dispatch(command, args, ctx, held)
 }
 
-fn dispatch(command: Option<&str>, args: &[String], ctx: Arc<BridgeContext>) -> ExitCode {
+fn dispatch(
+    command: Option<&str>,
+    args: &[String],
+    ctx: Arc<BridgeContext>,
+    held: gui::HeldLock,
+) -> ExitCode {
     match command {
         None | Some("run") => run::cmd_run(&ctx),
         Some("proxy") => proxy::cmd_proxy(&ctx),
@@ -150,7 +164,7 @@ fn dispatch(command: Option<&str>, args: &[String], ctx: Arc<BridgeContext>) -> 
         Some("comms-drain") => comms_drain::cmd_comms_drain(),
         Some("diagnostics") => diagnostics::cmd_diagnostics(&ctx),
         Some("doctor") => doctor::cmd_doctor(&ctx),
-        Some("gui") => gui::cmd_gui(ctx),
+        Some("gui") => gui::cmd_gui(ctx, held),
         #[cfg(feature = "dev-preview")]
         Some("dev-web") => dev_web::cmd_dev_web(args),
         Some(other) => {

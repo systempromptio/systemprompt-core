@@ -65,8 +65,8 @@ pub(crate) fn on_update_check_finished(
     let manual = reply_to.is_none() && !automatic;
     match &result {
         Ok(UpdateUiState::Current) => {
-            app.state.set_update_state(UpdateUiState::Current);
-            if manual {
+            app.state.apply_update_check(UpdateUiState::Current);
+            if manual && !app.state.snapshot().update.can_restart() {
                 let version = crate::brand::brand().version;
                 app.append_log(format!("up to date (v{version})"));
                 crate::gui::window::notify_user(
@@ -76,21 +76,24 @@ pub(crate) fn on_update_check_finished(
             }
         },
         Ok(state) => {
-            if automatic && let Some(version) = state.version() {
+            if automatic
+                && state.can_install()
+                && let Some(version) = state.version()
+            {
                 app.append_log(format!(
                     "{version} is available; staging it for the next restart"
                 ));
             }
-            app.state.set_update_state(state.clone());
+            app.state.apply_update_check(state.clone());
         },
         Err(e) => {
-            let message = format!("{e:#}");
-            tracing::warn!(error = %message, automatic, "update check failed");
+            let message = user_message(e);
+            tracing::warn!(error = %e, automatic, "update check failed");
             app.append_log(format!("update check failed: {message}"));
             // Why: the next scheduled check retries an automatic one unprompted.
             if !automatic {
                 app.state
-                    .set_update_state(UpdateUiState::Failed { message });
+                    .apply_update_check(UpdateUiState::Failed { message });
             }
             if manual {
                 crate::gui::window::notify_user(
@@ -109,7 +112,24 @@ pub(crate) fn on_update_check_finished(
 }
 
 #[tracing::instrument(level = "info", skip(app))]
-pub(crate) fn on_update_install_requested(app: &mut GuiApp, reply_to: ReplyId) {
+pub(crate) fn on_update_install_requested(
+    app: &mut GuiApp,
+    event_loop: &dyn ActiveEventLoop,
+    reply_to: ReplyId,
+) {
+    if app.state.snapshot().update.can_restart() {
+        if let Some(id) = reply_to {
+            emit::send_reply_payload(app, id, &IpcReplyPayload::ok(serde_json::Value::Null));
+        }
+        on_update_restart_requested(app, event_loop);
+        return;
+    }
+    if app.state.snapshot().update.in_progress() {
+        if let Some(id) = reply_to {
+            emit::send_reply_payload(app, id, &IpcReplyPayload::ok(serde_json::Value::Null));
+        }
+        return;
+    }
     let Some(version) = app.state.snapshot().update.version().map(str::to_owned) else {
         if let Some(id) = reply_to {
             let payload = IpcReplyPayload::err(BridgeError::new(
@@ -131,12 +151,17 @@ pub(crate) fn on_update_install_requested(app: &mut GuiApp, reply_to: ReplyId) {
 
     let proxy = app.proxy.clone();
     let http = app.ctx.http.clone();
+    let finished = proxy.clone();
+    let completion =
+        update::completion::Completion::new(move |result: Result<InstalledUpdate, GuiError>| {
+            finished.send_event(UiEvent::UpdateInstallFinished {
+                result: result.map_err(Arc::new),
+                reply_to,
+            });
+        });
     app.ctx.spawn(async move {
-        let on_progress = progress_reporter(proxy.clone(), version.clone());
-        let result = install(&version, http, &on_progress)
-            .await
-            .map_err(Arc::new);
-        proxy.send_event(UiEvent::UpdateInstallFinished { result, reply_to });
+        let on_progress = progress_reporter(proxy, version.clone());
+        completion.finish(install(&version, http, &on_progress).await);
     });
 }
 
@@ -154,21 +179,29 @@ pub(crate) fn on_update_install_finished(
     match &result {
         Ok(installed) => {
             let version = installed.version.clone();
+            let app_name = crate::brand::brand().app_name;
             crate::gui::window::notify_user(
+                &format!("{app_name} {version} is installed"),
                 &format!(
-                    "{} {version} is ready to install",
-                    crate::brand::brand().app_name
+                    "Restart {app_name} from the tray or account menu to finish installing \
+                     {version}. Otherwise it finishes the next time {app_name} starts."
                 ),
-                "Restart from the account menu to finish the update.",
             );
             app.state.set_update_state(UpdateUiState::Ready { version });
         },
         Err(e) => {
-            let message = format!("{e}");
-            tracing::error!(error = %message, automatic = reply_to.is_none(), "update install failed");
+            let message = user_message(e);
+            tracing::error!(error = %e, automatic = reply_to.is_none(), "update install failed");
             app.append_log(format!("update failed: {message}"));
-            app.state
-                .set_update_state(UpdateUiState::Failed { message });
+            let state = match e.as_ref() {
+                GuiError::Update(update::UpdateError::InstalledUnrecorded { version, .. }) => {
+                    UpdateUiState::Ready {
+                        version: version.clone(),
+                    }
+                },
+                _ => UpdateUiState::Failed { message },
+            };
+            app.state.set_update_state(state);
         },
     }
     app.refresh_ui();
@@ -181,13 +214,33 @@ pub(crate) fn on_update_restart_requested(app: &mut GuiApp, event_loop: &dyn Act
         Ok(p) => p,
         Err(e) => {
             tracing::error!(error = %e, "update: cannot resolve the installed path to relaunch");
-            app.append_log(format!("restart failed: {e}"));
+            app.append_log(format!("restart failed: {}", e.user_message()));
             return;
         },
     };
-    // Why: the successor binds the default proxy port, so this instance stops
-    // serving before it is spawned; host profiles written for 48217 are
-    // rejected against any other port.
+    stop_serving(app);
+    if let Err(e) = update::spawn_successor(&installed) {
+        tracing::error!(error = %e, "update: relaunch failed; leaving this instance running");
+        app.append_log(format!(
+            "restart failed: {}; the update is installed — reopen manually",
+            e.user_message()
+        ));
+        return;
+    }
+    crate::gui::handlers::quit::on_quit(app, event_loop);
+}
+
+pub(crate) fn on_handoff_requested(app: &mut GuiApp, event_loop: &dyn ActiveEventLoop) {
+    tracing::info!("handoff: stopping so the newer build can start");
+    app.append_log("a newer build was opened; handing over to it");
+    stop_serving(app);
+    crate::gui::handlers::quit::on_quit(app, event_loop);
+}
+
+// Why: the successor binds the default proxy port, so this instance stops
+// serving before it exits; host profiles written for 48217 are rejected
+// against any other port.
+fn stop_serving(app: &GuiApp) {
     let drained = app
         .ctx
         .proxy
@@ -197,14 +250,6 @@ pub(crate) fn on_update_restart_requested(app: &mut GuiApp, event_loop: &dyn Act
         app.append_log("restart: proxy requests were still in flight at the drain deadline");
     }
     remember_pending_approval(&app.ctx.elevation_gate);
-    if let Err(e) = update::spawn_successor(&installed) {
-        tracing::error!(error = %e, "update: relaunch failed; leaving this instance running");
-        app.append_log(format!(
-            "restart failed: {e}; the update is installed — reopen manually"
-        ));
-        return;
-    }
-    crate::gui::handlers::quit::on_quit(app, event_loop);
 }
 
 fn reply<T: serde::Serialize>(
@@ -218,7 +263,18 @@ fn reply<T: serde::Serialize>(
     }
     let result = result.map_err(|err| {
         tracing::warn!(error = %err, operation = what, "update operation failed");
-        BridgeError::from_error(ErrorScope::Internal, ErrorCode::Internal, &*err)
+        BridgeError::new(
+            ErrorScope::Internal,
+            ErrorCode::Internal,
+            user_message(&err),
+        )
     });
     emit::finish(app, reply_to, result);
+}
+
+fn user_message(err: &GuiError) -> String {
+    match err {
+        GuiError::Update(update) => update.user_message(),
+        other => other.to_string(),
+    }
 }

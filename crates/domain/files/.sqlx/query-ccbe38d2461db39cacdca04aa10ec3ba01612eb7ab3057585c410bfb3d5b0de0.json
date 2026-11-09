@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT DISTINCT r.content_sha256 AS \"content_sha256!: ContentHash\"\n               FROM document_revisions r\n               JOIN documents d ON d.id = r.document_id\n               WHERE d.format IN ('markdown', 'html')",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "content_sha256!: ContentHash",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_revisions",
+            "name": "content_sha256"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "ccbe38d2461db39cacdca04aa10ec3ba01612eb7ab3057585c410bfb3d5b0de0"
+}

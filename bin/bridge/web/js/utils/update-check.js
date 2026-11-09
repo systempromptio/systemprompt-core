@@ -44,3 +44,7 @@ export function restartForUpdate() {
   notifyOk(t("toast-update-restarting") || "Restarting to finish the update…");
   bridge.updateRestart().catch((e) => notifyErr(e, t("rail-profile-restart-cta") || "Restart to finish updating"));
 }
+
+export function quitBridge() {
+  bridge.quit().catch((e) => notifyErr(e, t("setup-update-quit") || "Quit"));
+}

@@ -36,13 +36,6 @@ fn tone_maps_each_phase() {
         Tone::Probing
     );
     assert_eq!(
-        UpdateUiState::Installing {
-            version: "1.0.0".to_owned()
-        }
-        .tone(),
-        Tone::Probing
-    );
-    assert_eq!(
         UpdateUiState::Failed {
             message: "boom".to_owned()
         }
@@ -74,12 +67,6 @@ fn in_progress_is_only_downloading_and_installing() {
         UpdateUiState::Downloading {
             version: "2.0.0".to_owned(),
             percent: 0
-        }
-        .in_progress()
-    );
-    assert!(
-        UpdateUiState::Installing {
-            version: "2.0.0".to_owned()
         }
         .in_progress()
     );
@@ -116,13 +103,6 @@ fn version_is_carried_by_every_versioned_phase() {
         }
         .version(),
         Some("3.1.1")
-    );
-    assert_eq!(
-        UpdateUiState::Installing {
-            version: "3.1.2".to_owned()
-        }
-        .version(),
-        Some("3.1.2")
     );
     assert_eq!(
         UpdateUiState::Ready {

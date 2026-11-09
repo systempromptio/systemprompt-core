@@ -5,6 +5,7 @@
 
 pub mod dir_owner;
 pub mod gateways;
+pub mod keystore;
 pub mod paths;
 mod profile;
 pub mod redaction;

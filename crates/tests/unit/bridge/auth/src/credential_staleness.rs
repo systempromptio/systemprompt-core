@@ -18,7 +18,10 @@ fn sandbox<R>(f: impl FnOnce() -> R) -> (R, [TempDir; 3]) {
         ("XDG_STATE_HOME", Some(state.path().display().to_string())),
         ("XDG_CACHE_HOME", Some(home.path().display().to_string())),
     ];
-    let out = temp_env::with_vars(vars, f);
+    let out = temp_env::with_vars(vars, || {
+        keyring_core::set_default_store(keyring_core::mock::Store::new().expect("mock keyring"));
+        f()
+    });
     (out, [config, state, home])
 }
 

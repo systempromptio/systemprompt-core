@@ -175,6 +175,12 @@ fn sync(ctx: &BridgeContext, root: &DriveRoot) -> ExitCode {
                     held.count, held.reason
                 ));
             }
+            for refused in &report.upload.refused {
+                stdio::print_line(&format!(
+                    "  not uploaded: {}: {}",
+                    refused.path, refused.reason
+                ));
+            }
             for sent in &report.upload.sent_for_review {
                 stdio::print_line(&format!(
                     "  {} was sent for review (proposal {}); your local copy is kept",

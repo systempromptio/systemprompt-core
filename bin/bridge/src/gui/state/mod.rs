@@ -48,6 +48,9 @@ impl AppState {
     pub fn new_loaded(ctx: Arc<crate::context::BridgeContext>) -> Arc<Self> {
         let mut snap = AppStateSnapshot::default();
         snap.startup_faults.clone_from(&ctx.startup_faults);
+        snap.update = crate::update::UpdateUiState::seeded(
+            crate::update::staged::pending_for_running().as_ref(),
+        );
         reload::reload_into(&mut snap, &ctx);
         Arc::new(Self {
             inner: RwLock::new(Inner {
@@ -207,6 +210,11 @@ impl AppState {
     pub fn set_update_state(&self, state: crate::update::UpdateUiState) {
         let mut guard = self.snap_mut();
         guard.update = state;
+    }
+
+    pub fn apply_update_check(&self, checked: crate::update::UpdateUiState) {
+        let mut guard = self.snap_mut();
+        guard.update = guard.update.after_check(checked);
     }
 
     pub fn set_update_progress(&self, version: &str, percent: u8) {

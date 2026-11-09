@@ -186,7 +186,6 @@ fn a_clean_sandbox_starts_without_a_proxy_or_registry_fault() {
         );
     });
 }
-// Append to crates/tests/unit/bridge/proxy-module/src/startup_faults.rs.
 #[test]
 fn loopback_secret_io_failure_claims_no_port_and_repaired_retry_serves_health() {
     let config = tempfile::tempdir().expect("config tempdir");

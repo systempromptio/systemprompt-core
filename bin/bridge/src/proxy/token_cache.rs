@@ -20,7 +20,9 @@ use systemprompt_identifiers::SessionId;
 use crate::gateway::rejection::rejection_is_stale;
 use crate::gateway::types::HelperOutput;
 use crate::proxy::forward::{ForwardError, ForwardResult};
-use crate::proxy::sign_in_latch::{CredentialStamp, SignInLatch, capture_stamp};
+use crate::proxy::sign_in_latch::{
+    CredentialStamp, SignInLatch, capture_stamp, is_missing_identity, sign_in_required_error,
+};
 use crate::{auth, config};
 
 pub use crate::proxy::sign_in_latch::AuthState;
@@ -146,7 +148,14 @@ impl TokenCache {
             return Err(sign_in_required_error());
         }
 
-        let stamp = capture_stamp_blocking().await?;
+        let stamp = match capture_stamp_blocking().await {
+            Ok(stamp) => stamp,
+            Err(e) if is_missing_identity(&e) => {
+                self.latch.engage(&e.to_string());
+                return Err(sign_in_required_error());
+            },
+            Err(e) => return Err(e),
+        };
         let refresh = Arc::clone(&self.refresh);
         let token = tokio::time::timeout(REFRESH_TIMEOUT, refresh(refresh_threshold_secs))
             .await
@@ -262,6 +271,11 @@ impl TokenCache {
                 *guard = None;
                 Ok(None)
             },
+            Err(e) if is_missing_identity(&e) => {
+                tracing::info!("no credential identity configured; cached token discarded");
+                *guard = None;
+                Ok(None)
+            },
             Err(e) => {
                 tracing::warn!(error = %e, "credential identity unreadable; cached token discarded");
                 *guard = None;
@@ -277,11 +291,4 @@ async fn capture_stamp_blocking() -> ForwardResult<CredentialStamp> {
     tokio::task::spawn_blocking(capture_stamp)
         .await
         .map_err(ForwardError::CredentialTask)?
-}
-
-fn sign_in_required_error() -> ForwardError {
-    ForwardError::Auth(format!(
-        "no JWT available — sign in via {} GUI",
-        crate::brand::brand().app_name
-    ))
 }

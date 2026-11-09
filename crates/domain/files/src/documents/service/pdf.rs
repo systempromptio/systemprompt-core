@@ -16,14 +16,13 @@ use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_provider_contracts::documents::CodecError;
 use systemprompt_traits::{ByteRange, FileStorageError, StoredFileRead};
 
-use super::markdown_export::has_rich_model;
+use super::markdown_export::{has_rich_model, held_image_refs};
 use super::support::blocking;
 use super::{DocumentService, StreamRequest};
 use crate::documents::blob_store::BlobStoreError;
 use crate::documents::codecs::file::is_pdf;
 use crate::documents::error::DocumentsError;
-use crate::documents::model::formats::import_rich_text;
-use crate::documents::model::media_refs;
+use crate::documents::model::formats::render_rich_text;
 use crate::documents::models::DocumentRevision;
 use crate::documents::pdf::{PdfError, RenderRequest, pdf_file_name, render, render_rich};
 
@@ -56,12 +55,12 @@ impl DocumentService {
         let format = document.format;
         let model = if has_rich_model(format) {
             let held = bytes.clone();
-            blocking(move || Ok(import_rich_text(format, &held).ok())).await?
+            blocking(move || Ok(render_rich_text(format, &held).ok())).await?
         } else {
             None
         };
         let mut media = BTreeMap::new();
-        for reference in model.as_ref().map(media_refs).unwrap_or_default() {
+        for reference in model.as_ref().map(held_image_refs).unwrap_or_default() {
             if let Some(image) = self.revision_image(format, &bytes, &reference).await {
                 media.insert(reference, image);
             }

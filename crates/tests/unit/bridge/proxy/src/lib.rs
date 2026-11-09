@@ -3,6 +3,8 @@ mod comms;
 #[cfg(test)]
 mod comms_draining;
 #[cfg(test)]
+mod credential_cache;
+#[cfg(test)]
 mod credential_scope;
 #[cfg(test)]
 mod derive_gateway_conversation_id;

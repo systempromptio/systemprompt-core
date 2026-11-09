@@ -13,9 +13,9 @@ The brain is opt-in twice: at build time and in the profile.
 Enable the `brain` feature of the `systemprompt` crate. `full` includes it and `core` does not. The feature implies `notifications`.
 
 ```toml
-systemprompt = { version = "0.79", features = ["full"] }
+systemprompt = { version = "0.80", features = ["full"] }
 # or, on top of a narrower set:
-systemprompt = { version = "0.79", features = ["api", "brain"] }
+systemprompt = { version = "0.80", features = ["api", "brain"] }
 ```
 
 Then switch it on in the profile:

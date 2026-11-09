@@ -193,9 +193,7 @@ fn a_refresh_that_never_returns_times_out() {
 }
 
 #[test]
-fn a_missing_credential_identity_is_reported_before_the_refresh_runs() {
-    // Why: without a credential to bind the token to, a mint could never be
-    // invalidated by a later sign-in, so the cache refuses rather than guesses.
+fn a_missing_credential_identity_latches_sign_in_before_the_refresh_runs() {
     let temp = tempfile::tempdir().expect("config tempdir");
     temp_env::with_vars(
         [
@@ -210,19 +208,33 @@ fn a_missing_credential_identity_is_reported_before_the_refresh_runs() {
                 .block_on(async {
                     let counter = Arc::new(AtomicUsize::new(0));
                     let cache = TokenCache::new(counting_refresh(Arc::clone(&counter), 3600));
+                    let mut state = cache.auth_state();
                     let err = cache.current(300).await.expect_err("nothing to bind to");
-                    let ForwardError::CredentialIdentity(source) = &err else {
-                        panic!("{err:?}");
-                    };
-                    let detail = source.to_string();
                     assert!(
-                        detail.contains("no credential identity configured"),
-                        "{detail}"
+                        matches!(&err, ForwardError::Auth(detail) if detail.contains("sign in")),
+                        "a signed-out bridge answers sign-in required: {err:?}"
+                    );
+                    assert!(cache.sign_in_required(), "the latch is engaged");
+                    assert!(
+                        state.borrow_and_update().sign_in_required(),
+                        "the transition is published once for the GUI"
                     );
                     assert_eq!(
                         counter.load(Ordering::SeqCst),
                         0,
                         "the provider chain is not run for an unbindable token"
+                    );
+
+                    cache.current(300).await.expect_err("still signed out");
+                    assert!(
+                        !state.has_changed().expect("sender alive"),
+                        "a repeated call is answered locally without a second transition"
+                    );
+
+                    cache.reset().await;
+                    assert!(
+                        !cache.sign_in_required(),
+                        "a runtime-config swap re-arms the cache"
                     );
                 });
         },
@@ -535,6 +547,50 @@ store = \"file\"
 }
 
 #[test]
+fn a_signed_out_latch_releases_once_a_credential_appears_on_disk() {
+    let temp = tempfile::tempdir().expect("temp config dir");
+    temp_env::with_vars(
+        [
+            ("XDG_CONFIG_HOME", Some(temp.path().as_os_str().to_owned())),
+            (PAT_ENV, None),
+        ],
+        || {
+            tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .expect("runtime")
+                .block_on(async {
+                    let counter = Arc::new(AtomicUsize::new(0));
+                    let cache = TokenCache::new(counting_refresh(Arc::clone(&counter), 3600));
+                    cache.current(300).await.expect_err("signed out");
+                    assert!(cache.sign_in_required(), "no credential latches sign-in");
+
+                    let paths = systemprompt_bridge::auth::setup::resolve_paths().expect("paths");
+                    std::fs::create_dir_all(&paths.config_dir).expect("config dir");
+                    std::fs::write(&paths.pat_file, "sp-live-a.b").expect("write pat");
+                    std::fs::write(
+                        &paths.config_file,
+                        "[pat]
+store = \"file\"
+",
+                    )
+                    .expect("point the config at the pat");
+
+                    assert!(
+                        !cache.sign_in_required(),
+                        "a sign-in written by another process releases the latch"
+                    );
+                    cache
+                        .current(300)
+                        .await
+                        .expect("minting resumes with the new credential");
+                    assert_eq!(counter.load(Ordering::SeqCst), 1);
+                });
+        },
+    );
+}
+
+#[test]
 fn a_latched_cache_releases_when_the_credentials_change_on_disk() {
     let temp = tempfile::tempdir().expect("temp config dir");
     temp_env::with_vars(
@@ -698,6 +754,10 @@ fn a_credential_that_becomes_unreadable_is_never_served_from_the_cache() {
             counter.load(Ordering::SeqCst),
             1,
             "the cached token is discarded rather than replayed against the gateway"
+        );
+        assert!(
+            !cache.sign_in_required(),
+            "an unreadable credential file is an error, not a sign-out"
         );
     })
 }

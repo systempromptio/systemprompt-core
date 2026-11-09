@@ -1,4 +1,6 @@
-//! `gui` command: launches the desktop GUI.
+//! `gui` command: launches the desktop GUI. A newer build launched while an
+//! older one runs takes over before the context binds the proxy port, so it
+//! serves on the default port once the older instance has released it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -9,7 +11,7 @@ use std::sync::Arc;
 use crate::context::BridgeContext;
 
 #[cfg(any(target_os = "windows", target_os = "macos"))]
-pub(crate) fn cmd_gui(ctx: Arc<BridgeContext>) -> ExitCode {
+pub(crate) fn cmd_gui(ctx: Arc<BridgeContext>, held: HeldLock) -> ExitCode {
     #[cfg(target_os = "windows")]
     {
         crate::winproc::detach_console();
@@ -19,7 +21,11 @@ pub(crate) fn cmd_gui(ctx: Arc<BridgeContext>) -> ExitCode {
             return ExitCode::FAILURE;
         }
     }
-    let _guard = match crate::single_instance::try_acquire_gui() {
+    let acquired = held.guard.map_or_else(
+        crate::single_instance::try_acquire_gui,
+        crate::single_instance::SingletonResult::Acquired,
+    );
+    let _guard = match acquired {
         crate::single_instance::SingletonResult::Acquired(g) => g,
         crate::single_instance::SingletonResult::AlreadyRunning => {
             if crate::single_instance::ping_focus_running_instance() {
@@ -47,6 +53,7 @@ pub(crate) fn cmd_gui(ctx: Arc<BridgeContext>) -> ExitCode {
             return ExitCode::from(70);
         },
     };
+    crate::update::staged::reconcile_for_running();
     let exit = crate::gui::run(ctx);
     if let Err(e) = crate::single_instance::clear_running_port() {
         crate::stdio::diag(&format!("clear bridge sidecar: {e}"));
@@ -55,8 +62,26 @@ pub(crate) fn cmd_gui(ctx: Arc<BridgeContext>) -> ExitCode {
     exit
 }
 
+#[derive(Default)]
+pub(super) struct HeldLock {
+    #[cfg(any(target_os = "windows", target_os = "macos"))]
+    guard: Option<crate::single_instance::SingletonGuard>,
+}
+
+#[cfg(any(target_os = "windows", target_os = "macos"))]
+pub(super) fn take_over_older_instance() -> HeldLock {
+    HeldLock {
+        guard: crate::single_instance::take_over_older_instance(),
+    }
+}
+
 #[cfg(not(any(target_os = "windows", target_os = "macos")))]
-pub(super) fn cmd_gui(_ctx: Arc<BridgeContext>) -> ExitCode {
+pub(super) fn take_over_older_instance() -> HeldLock {
+    HeldLock::default()
+}
+
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
+pub(super) fn cmd_gui(_ctx: Arc<BridgeContext>, _held: HeldLock) -> ExitCode {
     crate::stdio::diag("gui not supported on this platform");
     ExitCode::from(64)
 }

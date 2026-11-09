@@ -9,6 +9,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::PluginOAuthError;
+use crate::config::keystore;
 use std::collections::HashMap;
 use std::sync::{Mutex, MutexGuard, OnceLock};
 use systemprompt_identifiers::ClientId;
@@ -46,8 +47,8 @@ impl SecretStore {
     }
 
     fn backend_ref(&self) -> &Backend {
-        self.backend.get_or_init(|| match install_store() {
-            Ok(()) => Backend::Keyring,
+        self.backend.get_or_init(|| match keystore::default_store() {
+            Ok(_) => Backend::Keyring,
             Err(e) => {
                 tracing::warn!(
                     target: "bridge::auth::keystore",
@@ -113,72 +114,6 @@ fn lock(
 ) -> Result<MutexGuard<'_, HashMap<ClientId, String>>, PluginOAuthError> {
     map.lock()
         .map_err(|_poisoned| PluginOAuthError::MemoryStorePoisoned)
-}
-
-// Why: `keyring_core`'s default store is process global and set-once, so a
-// store installed earlier in the process (by another `SecretStore`) is reused.
-fn install_store() -> Result<(), PluginOAuthError> {
-    if keyring_core::get_default_store().is_some() {
-        return Ok(());
-    }
-    #[cfg(target_os = "macos")]
-    let store =
-        apple_native_keyring_store::keychain::Store::new().map_err(PluginOAuthError::Keyring);
-    #[cfg(target_os = "windows")]
-    let store = windows_native_keyring_store::Store::new().map_err(PluginOAuthError::Keyring);
-    #[cfg(all(unix, not(target_os = "macos")))]
-    let store = linux_store();
-
-    let store = store?;
-    keyring_core::set_default_store(store);
-    Ok(())
-}
-
-// Why: Headless Linux may lack Secret Service; Docker seccomp can also deny
-// add_key.
-#[cfg(all(unix, not(target_os = "macos")))]
-fn linux_store() -> Result<std::sync::Arc<keyring_core::CredentialStore>, PluginOAuthError> {
-    let dbus_err = match dbus_secret_service_keyring_store::Store::new() {
-        Ok(store) => return Ok(store),
-        Err(e) => e,
-    };
-    let store: std::sync::Arc<keyring_core::CredentialStore> =
-        linux_keyutils_keyring_store::Store::new().map_err(|keyutils| {
-            PluginOAuthError::NoCredentialStore {
-                secret_service: dbus_err.to_string(),
-                keyutils,
-            }
-        })?;
-    probe_store(&store).map_err(|keyutils| PluginOAuthError::NoCredentialStore {
-        secret_service: dbus_err.to_string(),
-        keyutils,
-    })?;
-    tracing::warn!(
-        target: "bridge::auth::keystore",
-        secret_service_error = %dbus_err,
-        "no Secret Service provider on this host (headless Linux?); using the kernel keyutils \
-         keyring. The OAuth client secret will not survive a reboot and is re-provisioned \
-         automatically."
-    );
-    Ok(store)
-}
-
-#[cfg(all(unix, not(target_os = "macos")))]
-fn probe_store(
-    store: &std::sync::Arc<keyring_core::CredentialStore>,
-) -> Result<(), keyring_core::Error> {
-    let service = format!("{}-probe", crate::brand::brand().keyring_service);
-    let entry = store.build(&service, "probe", None)?;
-    entry.set_password("probe")?;
-    entry.get_password()?;
-    if let Err(e) = entry.delete_credential() {
-        tracing::debug!(
-            target: "bridge::auth::keystore",
-            error = %e,
-            "credential-store probe entry could not be removed; it is overwritten on each probe"
-        );
-    }
-    Ok(())
 }
 
 fn keyring_entry(client_id: &ClientId) -> Result<keyring_core::Entry, PluginOAuthError> {

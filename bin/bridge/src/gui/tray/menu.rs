@@ -148,11 +148,6 @@ pub fn update_menu(state: &UpdateUiState) -> (String, bool, UiEvent) {
             false,
             UiEvent::UpdateCheckRequested { reply_to: None },
         ),
-        UpdateUiState::Installing { version } => (
-            i18n::t_args("tray-update-installing", &[("version", version)]),
-            false,
-            UiEvent::UpdateCheckRequested { reply_to: None },
-        ),
         UpdateUiState::Ready { .. } => (
             i18n::t("tray-restart-update"),
             true,

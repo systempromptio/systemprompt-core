@@ -196,19 +196,18 @@ fn one_broken_marketplace_among_healthy_siblings_sets_the_worst_status_and_keeps
     );
 }
 
+#[cfg(unix)]
 #[test]
 fn missing_node_installer_is_diagnosed_and_repair_clears_the_warning() {
+    use std::os::unix::fs::PermissionsExt as _;
+
     let home = TempDir::new().expect("home");
     let bin = home.path().join("bin");
     std::fs::create_dir_all(&bin).expect("bin dir");
     let claude = bin.join("claude");
     std::fs::write(&claude, "#!/bin/sh\nexit 0\n").expect("claude stub");
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt as _;
-        std::fs::set_permissions(&claude, std::fs::Permissions::from_mode(0o755))
-            .expect("claude executable");
-    }
+    std::fs::set_permissions(&claude, std::fs::Permissions::from_mode(0o755))
+        .expect("claude executable");
 
     write_manifest(home.path(), r#"{"plugins": [{"name": "node-backed"}]}"#);
     let plugin = home
@@ -242,12 +241,7 @@ fn missing_node_installer_is_diagnosed_and_repair_clears_the_warning() {
 
     let npm = bin.join("npm");
     std::fs::write(&npm, "#!/bin/sh\nexit 0\n").expect("npm stub");
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt as _;
-        std::fs::set_permissions(&npm, std::fs::Permissions::from_mode(0o755))
-            .expect("npm executable");
-    }
+    std::fs::set_permissions(&npm, std::fs::Permissions::from_mode(0o755)).expect("npm executable");
     let repaired = temp_env::with_vars(
         [
             ("HOME", Some(home.path().display().to_string())),

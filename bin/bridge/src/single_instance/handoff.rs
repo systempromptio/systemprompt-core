@@ -7,7 +7,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::time::Duration;
 
-use super::{SingletonResult, lock_path, try_acquire_gui};
+use super::{SingletonGuard, SingletonResult, lock_path, try_acquire_gui};
 
 fn handoff_path() -> PathBuf {
     lock_path().with_extension("handoff")
@@ -32,10 +32,10 @@ pub(crate) fn record_handoff() {
     }
 }
 
-pub(crate) fn await_predecessor_exit() {
+pub(crate) fn await_predecessor_exit() -> bool {
     let path = handoff_path();
     let Ok(meta) = fs::metadata(&path) else {
-        return;
+        return false;
     };
     let stale = meta
         .modified()
@@ -46,16 +46,23 @@ pub(crate) fn await_predecessor_exit() {
         crate::stdio::diag(&format!("clear restart handoff {}: {e}", path.display()));
     }
     if stale {
-        return;
+        return false;
     }
+    if wait_for_lock().is_none() {
+        crate::stdio::diag(
+            "restart: the previous instance still holds the singleton lock; starting anyway",
+        );
+    }
+    true
+}
+
+pub(super) fn wait_for_lock() -> Option<SingletonGuard> {
     let started = std::time::Instant::now();
     while started.elapsed() < HANDOFF_WAIT {
-        if matches!(try_acquire_gui(), SingletonResult::Acquired(_)) {
-            return;
+        if let SingletonResult::Acquired(guard) = try_acquire_gui() {
+            return Some(guard);
         }
         std::thread::sleep(Duration::from_millis(100));
     }
-    crate::stdio::diag(
-        "restart: the previous instance still holds the singleton lock; starting anyway",
-    );
+    None
 }

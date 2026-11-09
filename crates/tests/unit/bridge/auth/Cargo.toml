@@ -14,8 +14,15 @@ workspace = true
 systemprompt-bridge = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 async-trait = { workspace = true }
+keyring-core = { workspace = true }
 reqwest = { workspace = true }
 tokio = { workspace = true }
 tempfile = { workspace = true }
 temp-env = { workspace = true }
 toml = "1.1"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+apple-native-keyring-store = { version = "1", features = ["keychain"] }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows-native-keyring-store = "1"

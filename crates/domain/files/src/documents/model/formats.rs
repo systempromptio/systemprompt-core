@@ -77,6 +77,25 @@ pub fn materialise_rich_text_with(
     }
 }
 
+pub fn render_rich_text(format: DocumentFormat, document: &[u8]) -> Result<RichText, ModelError> {
+    if format == DocumentFormat::Odt {
+        return office_rendered(document);
+    }
+    import_rich_text(format, document)
+}
+
+#[cfg(feature = "office")]
+fn office_rendered(document: &[u8]) -> Result<RichText, ModelError> {
+    Ok(crate::documents::codecs::odf::import_odt_rendered(
+        document,
+    )?)
+}
+
+#[cfg(not(feature = "office"))]
+const fn office_rendered(_document: &[u8]) -> Result<RichText, ModelError> {
+    Err(ModelError::Unsupported)
+}
+
 #[cfg(feature = "office")]
 fn office_import(format: DocumentFormat, document: &[u8]) -> Result<RichText, ModelError> {
     use crate::documents::codecs::{docx, odf};

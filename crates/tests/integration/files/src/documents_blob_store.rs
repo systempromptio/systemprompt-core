@@ -202,9 +202,24 @@ async fn gc_collects_only_aged_unreferenced_blobs_and_counts_failures() {
     h.age(&aged.hash, 48).await;
     h.age(&referenced.hash, 48).await;
     h.reference(&referenced.hash).await;
+    let linked = store.put(&unique_bytes("linked")).await.expect("linked");
+    let linking = format!("![chart]({})\n", linked.hash);
+    let linking = store.put(linking.as_bytes()).await.expect("linking");
+    h.reference(&linking.hash).await;
+    h.age(&linked.hash, 48).await;
 
     let report = store.delete_unreferenced(24, 500).await.expect("gc");
     assert!(report.deleted >= 1);
+    assert!(
+        h.repos
+            .blobs
+            .find(&linked.hash)
+            .await
+            .expect("find")
+            .is_some(),
+        "a picture a Markdown revision links by hash is kept"
+    );
+    assert!(h.storage.exists(&linked.storage_id).await.expect("exists"));
     assert!(
         h.repos
             .blobs

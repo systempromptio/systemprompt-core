@@ -34,6 +34,7 @@ pub(crate) const fn event_kind(event: &UiEvent) -> &'static str {
         UiEvent::UpdateCheckRequested { .. } => "UpdateCheckRequested",
         UiEvent::UpdateInstallRequested { .. } => "UpdateInstallRequested",
         UiEvent::UpdateRestartRequested => "UpdateRestartRequested",
+        UiEvent::HandoffRequested => "HandoffRequested",
         UiEvent::AutostartToggleRequested => "AutostartToggleRequested",
         UiEvent::SettingsReadRequested { .. } => "SettingsReadRequested",
         UiEvent::SyncStarted => "SyncStarted",

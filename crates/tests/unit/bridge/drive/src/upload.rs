@@ -2,7 +2,7 @@ use systemprompt_bridge::drive::upload::upload;
 use systemprompt_identifiers::{DocumentId, DocumentRevisionId};
 use systemprompt_models::ApiPaths;
 use systemprompt_models::documents::content_hash;
-use wiremock::matchers::{header, method, path};
+use wiremock::matchers::{body_string_contains, header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use crate::support::{Fixture, manifest_json};
@@ -203,4 +203,38 @@ async fn a_proposed_edit_is_sent_for_review_kept_locally_and_not_resent() {
     let mut again = fx.state();
     let second = upload(fx.cycle(), &mut again).await.expect("second cycle");
     assert!(second.sent_for_review.is_empty(), "the edit is not resent");
+}
+
+#[tokio::test]
+async fn a_refused_file_is_reported_and_the_others_still_upload() {
+    let server = MockServer::start().await;
+    let fx = Fixture::new(&server.uri());
+    let next = DocumentRevisionId::generate();
+    fx.write("a-new-folder/refused.md", b"refused");
+    fx.write("plan.md", b"accepted");
+
+    Mock::given(method("POST"))
+        .and(path(ApiPaths::BRIDGE_DRIVE_COMMIT))
+        .and(body_string_contains("a-new-folder"))
+        .respond_with(ResponseTemplate::new(404).set_body_json(serde_json::json!({
+            "code": "not_found", "message": "folder a-new-folder does not exist",
+        })))
+        .mount(&server)
+        .await;
+    Mock::given(method("POST"))
+        .and(path(ApiPaths::BRIDGE_DRIVE_COMMIT))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "status": "committed", "revision_id": next.as_str(),
+        })))
+        .mount(&server)
+        .await;
+
+    let mut state = fx.state();
+    let report = upload(fx.cycle(), &mut state).await.expect("upload");
+
+    assert_eq!(report.committed, 1);
+    assert_eq!(report.refused.len(), 1);
+    assert_eq!(report.refused[0].path, "a-new-folder/refused.md");
+    assert!(fx.state().entries.contains_key("plan.md"));
+    assert!(!fx.state().entries.contains_key("a-new-folder/refused.md"));
 }

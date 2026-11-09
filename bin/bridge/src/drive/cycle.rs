@@ -65,7 +65,11 @@ pub async fn sync_once(cycle: Cycle<'_>, handle: &DriveHandle) -> DriveResult<Cy
         status.shares.clone_from(&state.shares);
         status.held_deletes.clone_from(&state.held_deletes);
         status.delete_notices.clone_from(&state.delete_notices);
-        status.last_error = None;
+        status.last_error = report
+            .upload
+            .refused
+            .first()
+            .map(|refused| format!("{} was not uploaded: {}", refused.path, refused.reason));
     });
     Ok(report)
 }

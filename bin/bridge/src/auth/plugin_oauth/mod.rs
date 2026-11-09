@@ -35,12 +35,8 @@ pub enum PluginOAuthError {
     CredsDecode(#[from] serde_json::Error),
     #[error("keyring: {0}")]
     Keyring(#[source] keyring_core::Error),
-    #[error("no usable credential store: secret-service ({secret_service}), keyutils ({keyutils})")]
-    NoCredentialStore {
-        secret_service: String,
-        #[source]
-        keyutils: keyring_core::Error,
-    },
+    #[error(transparent)]
+    Keystore(#[from] crate::config::keystore::KeystoreError),
     #[error("in-memory secret store lock was poisoned")]
     MemoryStorePoisoned,
     #[error("remove OAuth client credentials: {0}")]
