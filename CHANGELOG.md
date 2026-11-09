@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.80.0] - 2026-11-09
+
+### Security
+
+- **MCP:** `rmcp` is pinned at `=3.9.0` (RUSTSEC-2026-0462). The streamable-HTTP server matches explicit media types and `Accept` quality values, so a media range with `q=0` no longer counts as accepted; it rejects `Mcp-Param` headers carrying invalid characters; and it refuses server-to-client requests on discovery sessions. A consumer that names `rmcp` directly must move to the same exact version.
+
+### Fixed
+
+- **Documents:** a PDF of a `docx` draws the pictures its package holds, and a PDF of an `odt` carries the pictures, lists and tables of its kept-as-is blocks (`model::formats::render_rich_text`).
+- **Documents:** blob collection keeps a picture that a Markdown or HTML revision links by hash.
+- **Bridge:** a staged update is reported as ready to restart and finishes on restart or relaunch instead of being downloaded again; on Windows an update installs while an earlier one waits for a restart. Restart and Quit are reachable from the sign-in screen, and a signed-out bridge pauses its heartbeat, Drive, notifications and comms loops until sign-in. A file the server refuses no longer stops the rest of the Drive sync. See `bin/bridge/CHANGELOG.md`.
+
 ## [0.79.1] - 2026-11-06
 
 ### Fixed
