@@ -66,9 +66,6 @@ impl DocumentBlobRepository {
         .await?)
     }
 
-    /// The content of every revision in a format that links an uploaded image
-    /// by its hash, not embedding it. The revision does not reference the
-    /// image's blob as a column, so collection has to read these to see it.
     pub async fn list_linking_revisions(&self) -> RepoResult<Vec<ContentHash>> {
         Ok(sqlx::query_scalar!(
             r#"SELECT DISTINCT r.content_sha256 AS "content_sha256!: ContentHash"

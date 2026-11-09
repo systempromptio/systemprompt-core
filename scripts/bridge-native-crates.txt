@@ -1,10 +1,30 @@
 # Test crates that run in the native (Windows/macOS) bridge matrix. They are
 # compiled and run with no database, so none of them may depend on
-# systemprompt-test-fixtures or any crate that uses sqlx::query*! — see
+# systemprompt-test-fixtures, linux-keyutils-keyring-store or any crate that uses
+# sqlx::query*!, and every eligible bridge test crate is listed — see
 # scripts/lint-native-test-deps.sh. One package name per line; `#` comments.
+systemprompt-bridge-activity-tests
+systemprompt-bridge-auth-session-tests
+systemprompt-bridge-auth-tests
+systemprompt-bridge-cli-tests
 systemprompt-bridge-config-tests
-systemprompt-bridge-install-tests
-systemprompt-bridge-fsutil-tests
-systemprompt-bridge-gui-tests
-systemprompt-bridge-verdicts-tests
+systemprompt-bridge-cowork-plugins-tests
 systemprompt-bridge-drive-tests
+systemprompt-bridge-fsutil-tests
+systemprompt-bridge-gateway-client-tests
+systemprompt-bridge-gui-tests
+systemprompt-bridge-ids-tests
+systemprompt-bridge-install-tests
+systemprompt-bridge-inventory-tests
+systemprompt-bridge-lib-entry-tests
+systemprompt-bridge-mcp-probe-tests
+systemprompt-bridge-mcp-registry-tests
+systemprompt-bridge-obs-tests
+systemprompt-bridge-paths-tests
+systemprompt-bridge-proxy-module-tests
+systemprompt-bridge-proxy-tests
+systemprompt-bridge-schedule-tests
+systemprompt-bridge-ts-export-tests
+systemprompt-bridge-validate-tests
+systemprompt-bridge-verdicts-tests
+systemprompt-bridge-window-state-tests

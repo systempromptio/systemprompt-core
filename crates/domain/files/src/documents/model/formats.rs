@@ -77,8 +77,6 @@ pub fn materialise_rich_text_with(
     }
 }
 
-/// The model a renderer reads: for most formats the editing model, and for
-/// `odt` that model with its kept-as-is blocks opened up.
 pub fn render_rich_text(format: DocumentFormat, document: &[u8]) -> Result<RichText, ModelError> {
     if format == DocumentFormat::Odt {
         return office_rendered(document);

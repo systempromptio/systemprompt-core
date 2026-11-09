@@ -91,8 +91,9 @@ Release work happens in a detached worktree, never in a shared checkout:
 target dirs, and `scripts/release.sh <patch|minor|major>` runs there (it refuses
 a tree that is not `origin/next`, does not contain `origin/main`, or whose push
 run is not green). `just install-hooks` installs an opt-in pre-push hook that
-*warns* — never blocks — when a push to `next` fails `format-check` or lands on
-a red tip. Local `just check-gates` runs every gate and lists all failures.
+*warns* — never blocks — when a push to `next` fails `format-check`,
+`lint-comments`, `lint-repo-hygiene` or `lint-native-test-deps`, or lands on a
+red tip. Local `just check-gates` runs every gate and lists all failures.
 
 The full release cycle — publishing to crates.io, the bridge, and landing all
 four downstream repos (`template`, `demo`, `internal`, `astound`) — is
