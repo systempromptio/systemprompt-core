@@ -1,4 +1,5 @@
-//! Loopback TCP server backing the GUI webview (focus wake-up, CSRF-gated).
+//! Loopback TCP server backing the GUI webview: CSRF-gated focus and handoff
+//! requests from a second launch.
 //!
 //! One owned thread accepts and answers connections in turn, each bounded by
 //! a read deadline and a request-size cap, so a stalled client cannot hold it
@@ -14,8 +15,9 @@ use std::time::{Duration, Instant};
 
 use crate::gui::UiEventProxy;
 use crate::gui::events::UiEvent;
-use crate::gui::server_util::{constant_time_eq, mint_csrf_token};
+use crate::gui::server_util::mint_csrf_token;
 use crate::stdio::diag;
+use crate::takeover::{ControlRequest, parse_control_request};
 use crate::tasks::{OwnedThread, OwnedThreadError, StopSignal};
 
 const REQUEST_DEADLINE: Duration = Duration::from_secs(2);
@@ -61,7 +63,7 @@ fn accept_loop(listener: &TcpListener, stop: &StopSignal, proxy: &UiEventProxy, 
         }
         match conn {
             Ok(stream) => {
-                if let Err(e) = handle_focus(stream, proxy, csrf) {
+                if let Err(e) = handle_control(stream, proxy, csrf) {
                     tracing::error!(error = %e, "focus request failed");
                 }
             },
@@ -98,28 +100,22 @@ fn read_request_head(stream: &mut TcpStream) -> std::io::Result<Option<String>> 
     Ok(Some(String::from_utf8_lossy(&head).into_owned()))
 }
 
-fn handle_focus(mut stream: TcpStream, proxy: &UiEventProxy, csrf: &str) -> std::io::Result<()> {
+fn handle_control(mut stream: TcpStream, proxy: &UiEventProxy, csrf: &str) -> std::io::Result<()> {
     stream.set_write_timeout(Some(REQUEST_DEADLINE))?;
     let Some(head) = read_request_head(&mut stream)? else {
         return Ok(());
     };
-    let request_line = head.lines().next().unwrap_or("");
-    let path_with_query = request_line.split_whitespace().nth(1).unwrap_or("");
-    let (path, query) = path_with_query
-        .split_once('?')
-        .unwrap_or((path_with_query, ""));
-    let supplied_token = query
-        .split('&')
-        .find_map(|kv| kv.strip_prefix("t="))
-        .unwrap_or("");
-    if !request_line.starts_with("POST ")
-        || path != "/api/focus_window"
-        || !constant_time_eq(supplied_token.as_bytes(), csrf.as_bytes())
-    {
+    let Some(request) = parse_control_request(&head, csrf) else {
         stream.write_all(b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n")?;
         return Ok(());
+    };
+    match request {
+        ControlRequest::Focus => proxy.send_event(UiEvent::FocusWindow),
+        ControlRequest::Handoff => {
+            tracing::info!("a newer bridge build asked this instance to hand over");
+            proxy.send_event(UiEvent::HandoffRequested);
+        },
     }
-    proxy.send_event(UiEvent::FocusWindow);
     stream.write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")?;
     Ok(())
 }

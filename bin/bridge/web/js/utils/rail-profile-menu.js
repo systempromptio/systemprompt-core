@@ -60,11 +60,11 @@ export function renderRailProfileMenu(update, open, logoutError, signedIn) {
 // action; the identity and Log out stay reachable through the menu, because
 // this is the only place either is offered. The CTA is its own button rather
 // than a re-labelled trigger so the menu (and Log out with it) keeps a target
-// of its own.
+// of its own. Installing needs a credential; restarting into an installed
+// update does not.
 export function renderRailProfileCta(update, signedIn) {
-  if (!signedIn) { return ""; }
   let cta = null;
-  if (update.can_install) {
+  if (update.can_install && signedIn) {
     cta = { action: "update-install", label: t("rail-profile-update-cta") || "Click here to update" };
   } else if (update.can_restart) {
     cta = { action: "update-restart", label: t("rail-profile-restart-cta") || "Restart to finish updating" };

@@ -13,13 +13,22 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod automatic;
+pub mod completion;
 mod download;
 mod error;
 mod install;
+mod policy;
+pub mod staged;
+pub mod swap;
+mod ui_state;
 
-pub use automatic::{AutoUpdateDecision, auto_update_policy, automatic_enabled};
 pub use download::{DownloadProgress, download_verified};
 pub use error::UpdateError;
+pub use policy::{AutoUpdateDecision, auto_update_policy, automatic_enabled};
+pub use staged::StagedUpdate;
+pub use ui_state::UpdateUiState;
+
+use crate::release_version::is_newer;
 
 use crate::gateway::GatewayClient;
 use crate::gateway::types::ReleaseManifest;
@@ -47,6 +56,9 @@ pub enum UpdateStatus {
         #[serde(skip_serializing_if = "Option::is_none")]
         notes_url: Option<String>,
     },
+    Staged {
+        version: String,
+    },
 }
 
 impl UpdateStatus {
@@ -56,96 +68,16 @@ impl UpdateStatus {
     }
 }
 
-/// What the GUI shows for the update affordance. Carried on the state snapshot
-/// so it rides the existing `state.changed` event.
-#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
-#[serde(tag = "phase", rename_all = "kebab-case")]
-#[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
-#[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
-pub enum UpdateUiState {
-    #[default]
-    Unknown,
-    Current,
-    Available {
-        version: String,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        notes_url: Option<String>,
-    },
-    Downloading {
-        version: String,
-        percent: u8,
-    },
-    Installing {
-        version: String,
-    },
-    Ready {
-        version: String,
-    },
-    Failed {
-        message: String,
-    },
-}
-
-impl UpdateUiState {
-    #[must_use]
-    pub const fn tone(&self) -> crate::verdict::Tone {
-        use crate::verdict::Tone;
-        match self {
-            Self::Unknown => Tone::Unknown,
-            Self::Current => Tone::Ok,
-            Self::Available { .. } | Self::Ready { .. } => Tone::Warn,
-            Self::Downloading { .. } | Self::Installing { .. } => Tone::Probing,
-            Self::Failed { .. } => Tone::Err,
-        }
-    }
-
-    #[must_use]
-    pub const fn can_install(&self) -> bool {
-        matches!(self, Self::Available { .. })
-    }
-
-    #[must_use]
-    pub const fn can_restart(&self) -> bool {
-        matches!(self, Self::Ready { .. })
-    }
-
-    #[must_use]
-    pub const fn in_progress(&self) -> bool {
-        matches!(self, Self::Downloading { .. } | Self::Installing { .. })
-    }
-
-    #[must_use]
-    pub fn version(&self) -> Option<&str> {
-        match self {
-            Self::Available { version, .. }
-            | Self::Downloading { version, .. }
-            | Self::Installing { version }
-            | Self::Ready { version } => Some(version),
-            Self::Unknown | Self::Current | Self::Failed { .. } => None,
-        }
-    }
-}
-
-impl From<&UpdateStatus> for UpdateUiState {
-    fn from(status: &UpdateStatus) -> Self {
-        match status {
-            UpdateStatus::Current { .. } => Self::Current,
-            UpdateStatus::Available { version, notes_url } => Self::Available {
-                version: version.clone(),
-                notes_url: notes_url.clone(),
-            },
-        }
-    }
-}
-
 pub async fn check(
     client: &GatewayClient,
     bearer: &BearerToken,
 ) -> Result<(UpdateStatus, ReleaseManifest), UpdateError> {
     let platform = platform_slug().ok_or(UpdateError::UnsupportedPlatform)?;
     let manifest = client.fetch_latest_release(bearer, platform).await?;
+    let staged = staged::pending_for_running();
     let status = decide(
         crate::brand::brand().version,
+        staged.as_ref().map(|s| s.version.as_str()),
         &manifest,
         &combined_window()?,
     )?;
@@ -158,8 +90,10 @@ pub async fn check_now(
 ) -> Result<(UpdateStatus, ReleaseManifest), UpdateError> {
     let platform = platform_slug().ok_or(UpdateError::UnsupportedPlatform)?;
     let manifest = client.fetch_latest_release_fresh(bearer, platform).await?;
+    let staged = staged::pending_for_running();
     let status = decide(
         crate::brand::brand().version,
+        staged.as_ref().map(|s| s.version.as_str()),
         &manifest,
         &combined_window()?,
     )?;
@@ -172,12 +106,27 @@ fn combined_window() -> Result<crate::instance::window::CombinedWindow, UpdateEr
 
 pub fn decide(
     local: &str,
+    staged: Option<&str>,
     manifest: &ReleaseManifest,
     combined: &crate::instance::window::CombinedWindow,
 ) -> Result<UpdateStatus, UpdateError> {
     let remote = parse_remote(manifest)?;
+    let staged = staged.filter(|staged| is_newer(staged, local));
+    if staged == Some(manifest.version.as_str()) {
+        crate::instance::window::admit_candidate(combined, &remote)?;
+        return Ok(UpdateStatus::Staged {
+            version: manifest.version.clone(),
+        });
+    }
     let local_version = parse_local(local)?;
     let ordering = remote.cmp_precedence(&local_version);
+    if ordering.is_eq() && staged.is_some() {
+        crate::instance::window::admit_candidate(combined, &remote)?;
+        return Ok(UpdateStatus::Available {
+            version: manifest.version.clone(),
+            notes_url: manifest.notes_url.clone(),
+        });
+    }
     if ordering.is_eq() {
         return Ok(UpdateStatus::Current {
             version: local.to_owned(),
@@ -217,12 +166,29 @@ pub async fn apply(
     on_progress: &(dyn Fn(DownloadProgress) + Send + Sync),
 ) -> Result<std::path::PathBuf, UpdateError> {
     let platform = platform_slug().ok_or(UpdateError::UnsupportedPlatform)?;
-    let target = install::preflight()?;
-    let staged = download_verified(client, bearer, platform, manifest, on_progress).await?;
-    let installed = install::apply(&staged, target)?;
-    if let Err(e) = std::fs::remove_file(&staged) {
-        tracing::debug!(error = %e, path = %staged.display(), "update: staging cleanup failed");
+    let marker = staged::marker_path().ok_or(UpdateError::NoUpdateDir)?;
+    if staged::pending(&marker, crate::brand::brand().version)
+        .is_some_and(|staged| staged.version == manifest.version)
+    {
+        tracing::info!(
+            version = %manifest.version,
+            "update: this release is already installed and waits for a restart"
+        );
+        return installed_path();
     }
+    let target = install::preflight()?;
+    let artifact = download_verified(client, bearer, platform, manifest, on_progress).await?;
+    let installed = install::apply(&artifact, target)?;
+    if let Err(e) = std::fs::remove_file(&artifact) {
+        tracing::debug!(error = %e, path = %artifact.display(), "update: staging cleanup failed");
+    }
+    install::program_file(&installed)
+        .and_then(|program| staged::record_installed(&marker, &manifest.version, &program))
+        .map_err(|source| UpdateError::InstalledUnrecorded {
+            version: manifest.version.clone(),
+            installed: installed.clone(),
+            source: Box::new(source),
+        })?;
     Ok(installed)
 }
 

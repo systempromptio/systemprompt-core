@@ -95,6 +95,13 @@ async fn run(ctx: &BridgeContext, args: &Args) -> ExitCode {
             stdio::print_line(&format!("{} {version} is up to date", brand.binary_name));
             ExitCode::SUCCESS
         },
+        UpdateStatus::Staged { version } => {
+            stdio::print_line(&format!(
+                "{} {version} is installed; restart {} to run it (running: {})",
+                brand.binary_name, brand.binary_name, brand.version
+            ));
+            ExitCode::SUCCESS
+        },
         UpdateStatus::Available { version, notes_url } => {
             stdio::print_line(&format!(
                 "{} {} is available (installed: {})",

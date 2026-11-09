@@ -100,7 +100,10 @@ pub async fn run_loop(deps: HeartbeatDeps) {
             }
             continue;
         }
-        waiting_for_sign_in = false;
+        if waiting_for_sign_in {
+            tracing::info!("bridge heartbeat resuming after sign-in");
+            waiting_for_sign_in = false;
+        }
         let tick = Tick {
             gateway_base: cfg.gateway_base.as_ref(),
             disabled: cfg.disabled,

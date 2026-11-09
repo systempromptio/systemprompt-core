@@ -99,7 +99,7 @@ fn a_writable_system_org_plugins_tree_is_listed_entry_by_entry() {
     );
 }
 
-#[cfg(unix)]
+#[cfg(all(unix, not(target_os = "macos")))]
 #[test]
 fn an_unwritable_system_org_plugins_tree_falls_back_to_the_user_tree_and_says_why() {
     use std::os::unix::fs::PermissionsExt;
@@ -129,6 +129,37 @@ fn an_unwritable_system_org_plugins_tree_falls_back_to_the_user_tree_and_says_wh
     assert!(
         out.contains(&format!("system path {} unwritable", system.display())),
         "the fallback must name the system path it could not use\n{out}"
+    );
+}
+
+#[cfg(target_os = "macos")]
+#[test]
+fn macos_keeps_the_system_org_plugins_tree_even_when_it_is_unwritable() {
+    use std::os::unix::fs::PermissionsExt;
+    use systemprompt_bridge::config::paths::{self, FallbackReason, Scope};
+
+    let home = TempDir::new().expect("home");
+    let system = home.path().join("readonly-system-tree");
+    std::fs::create_dir_all(&system).expect("system tree");
+    std::fs::set_permissions(&system, std::fs::Permissions::from_mode(0o555)).expect("lock");
+
+    let location = sandboxed(
+        home.path(),
+        vec![(
+            "SP_BRIDGE_ORG_PLUGINS_SYSTEM",
+            Some(system.display().to_string()),
+        )],
+        paths::org_plugins_effective,
+    );
+
+    std::fs::set_permissions(&system, std::fs::Permissions::from_mode(0o755)).expect("unlock");
+
+    let location = location.expect("macOS always resolves the system tree");
+    assert_eq!(location.scope, Scope::System, "{location:?}");
+    assert_eq!(location.path, system, "{location:?}");
+    assert!(
+        matches!(location.reason, FallbackReason::Preferred),
+        "the system tree is the preferred location, not a fallback: {location:?}"
     );
 }
 

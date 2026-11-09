@@ -114,6 +114,20 @@ pub(crate) fn installed_path() -> Result<PathBuf, UpdateError> {
     }
 }
 
+// Why: a macOS bundle runs `Contents/MacOS/<CFBundleExecutable>`, and the
+// name differs per brand; the running image is the one place it is known.
+pub(crate) fn program_file(installed: &Path) -> Result<PathBuf, UpdateError> {
+    if installed.extension().is_none_or(|e| e != "app") {
+        return Ok(installed.to_path_buf());
+    }
+    let exe = running_exe()?;
+    let name = exe.file_name().ok_or_else(|| UpdateError::LocateInstall {
+        what: "bundle executable",
+        detail: format!("{} has no file name", exe.display()),
+    })?;
+    Ok(installed.join("Contents").join("MacOS").join(name))
+}
+
 pub(crate) fn running_exe() -> Result<PathBuf, UpdateError> {
     let exe = std::env::current_exe().map_err(UpdateError::LocateExe)?;
     Ok(std::fs::canonicalize(&exe).unwrap_or(exe))

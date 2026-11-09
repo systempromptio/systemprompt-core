@@ -1,6 +1,7 @@
 use systemprompt_bridge::ids::ProxySecret;
 use systemprompt_bridge::proxy::secret;
 
+#[cfg(unix)]
 fn config_sandbox<R>(f: impl FnOnce(&std::path::Path) -> R) -> R {
     let dir = tempfile::tempdir().expect("config sandbox");
     let root = dir.path().display().to_string();

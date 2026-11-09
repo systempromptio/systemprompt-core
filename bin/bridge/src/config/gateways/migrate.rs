@@ -33,10 +33,12 @@ pub fn migrate_legacy_layout() -> Result<MigrationOutcome, ProfileError> {
 }
 
 pub fn migrate_legacy_layout_with(store: PatStore) -> Result<MigrationOutcome, ProfileError> {
-    run(|| store)
+    run(|| Ok(store))
 }
 
-fn run(choose: impl FnOnce() -> PatStore) -> Result<MigrationOutcome, ProfileError> {
+fn run(
+    choose: impl FnOnce() -> Result<PatStore, credential::CredentialError>,
+) -> Result<MigrationOutcome, ProfileError> {
     if super::pinned_config().is_some() {
         return Ok(MigrationOutcome::Pinned);
     }
@@ -57,7 +59,7 @@ fn migrate(
     index_path: &Path,
     mut doc: DocumentMut,
     default_pat: &Path,
-    choose: impl FnOnce() -> PatStore,
+    choose: impl FnOnce() -> Result<PatStore, credential::CredentialError>,
 ) -> Result<MigrationOutcome, ProfileError> {
     let id = GatewayProfileId::default_profile();
     let profile = profile_for(id.clone())?;
@@ -73,7 +75,7 @@ fn migrate(
     crate::config::write::remove(&mut doc, &["pat"])?;
     let store = match token.as_deref() {
         Some(token) => {
-            let store = choose();
+            let store = choose()?;
             credential::write(&profile, store, token)?;
             crate::config::write::set(&mut doc, &["pat", "store"], store.as_str())?;
             Some(store)

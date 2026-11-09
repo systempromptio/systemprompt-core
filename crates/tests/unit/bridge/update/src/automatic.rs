@@ -299,3 +299,32 @@ fn only_one_automatic_attempt_runs_at_a_time() {
         );
     });
 }
+
+#[test]
+fn an_offer_already_staged_on_disk_is_reported_without_a_download() {
+    let state = TempDir::new().expect("state");
+    let server = release_server("99.0.0");
+    let gateway = ValidatedUrl::try_new(&server.uri()).expect("gateway url");
+    seed_last_sync(&state, &gateway, "staged");
+
+    in_sandbox(&state, || {
+        let marker = systemprompt_bridge::update::staged::marker_path().expect("marker path");
+        let program = state.path().join("installed-program");
+        std::fs::write(&program, b"staged build").expect("seed installed program");
+        systemprompt_bridge::update::staged::record_installed(&marker, "99.0.0", &program)
+            .expect("record staged release");
+        let outcome = run_once(&gateway).expect("an already staged release is not an error");
+        assert!(
+            matches!(outcome, Outcome::Staged { ref version, .. } if version == "99.0.0"),
+            "the staged release is reported as staged: {outcome:?}"
+        );
+    });
+
+    let seen = requests(&server);
+    assert_eq!(seen.len(), 1, "only the manifest is read: {seen:?}");
+    assert!(
+        seen[0].url.path().ends_with("/v1/bridge/latest"),
+        "no artifact download follows: {}",
+        seen[0].url
+    );
+}

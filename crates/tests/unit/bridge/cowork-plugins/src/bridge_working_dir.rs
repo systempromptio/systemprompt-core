@@ -60,9 +60,7 @@ fn working_dir_is_under_localappdata_on_windows() {
 
 #[cfg(target_os = "windows")]
 #[test]
-fn working_dir_is_NOT_under_program_files() {
-    // The whole point of this refactor: bridge scratch must not live inside
-    // the admin-write-only published tree.
+fn working_dir_is_not_under_program_files() {
     let working = paths::bridge_working_dir().expect("working dir resolves");
     let program_files = std::env::var("ProgramFiles").unwrap_or_default();
     if !program_files.is_empty() {

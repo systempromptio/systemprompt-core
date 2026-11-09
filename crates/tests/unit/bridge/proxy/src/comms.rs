@@ -383,3 +383,94 @@ fn without_a_token_the_gateway_is_never_contacted() {
         "the stream is not opened unauthenticated; saw {requests} requests"
     );
 }
+
+async fn poll_until(what: &str, mut done: impl AsyncFnMut() -> bool) {
+    let deadline = std::time::Instant::now() + Duration::from_secs(10);
+    while std::time::Instant::now() < deadline {
+        if done().await {
+            return;
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    panic!("timed out waiting for {what}");
+}
+
+#[test]
+fn a_signed_out_stream_parks_and_resumes_when_the_latch_is_released() {
+    let sb = Sandbox::new();
+    let root = sb.temp.path().to_path_buf();
+    temp_env::with_vars(
+        [
+            ("XDG_CONFIG_HOME", Some(root.as_os_str().to_owned())),
+            ("SP_BRIDGE_PAT", Some("sp-live-a.b".into())),
+        ],
+        || {
+            tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .expect("test runtime")
+                .block_on(async {
+                    let server = MockServer::start().await;
+                    sse_ok(String::new())(&server).await;
+                    let dir = root.join("systemprompt").join("gateways").join("default");
+                    std::fs::create_dir_all(&dir).expect("config dir");
+                    std::fs::write(
+                        dir.join("systemprompt-bridge.toml"),
+                        format!("gateway_url = \"{}\"\n", server.uri()),
+                    )
+                    .expect("seed gateway url");
+
+                    let mints = Arc::new(AtomicUsize::new(0));
+                    let seen = Arc::clone(&mints);
+                    let refresh: RefreshFn = Arc::new(move |_| {
+                        let n = seen.fetch_add(1, Ordering::SeqCst);
+                        Box::pin(async move {
+                            if n == 0 {
+                                Err(ForwardError::Auth(
+                                    "no credential provider produced a token".into(),
+                                ))
+                            } else {
+                                Ok(HelperOutput {
+                                    token: BearerToken::new("test-jwt"),
+                                    ttl: 3600,
+                                    headers: Default::default(),
+                                    device_token: None,
+                                })
+                            }
+                        })
+                    });
+                    let cache = Arc::new(TokenCache::new(refresh));
+                    let cfg = systemprompt_bridge::config::shared_from_loaded()
+                        .expect("valid runtime config");
+                    let task = tokio::spawn(comms::run_loop(
+                        cfg,
+                        Arc::clone(&cache),
+                        reqwest::Client::new(),
+                        systemprompt_bridge::proxy::drive_signal::DriveSignals::channel().0,
+                        systemprompt_bridge::proxy::notifications::NotificationSignals::channel().0,
+                    ));
+
+                    poll_until("the latch to engage", async || cache.sign_in_required()).await;
+                    tokio::time::sleep(Duration::from_millis(300)).await;
+                    assert_eq!(
+                        mints.load(Ordering::SeqCst),
+                        1,
+                        "a parked stream does not retry the mint"
+                    );
+                    assert_eq!(
+                        server.received_requests().await.map_or(0, |r| r.len()),
+                        0,
+                        "a parked stream never contacts the gateway"
+                    );
+
+                    cache.reset().await;
+                    poll_until("the stream to reopen", async || {
+                        server.received_requests().await.map_or(0, |r| r.len()) > 0
+                    })
+                    .await;
+                    task.abort();
+                    assert_eq!(mints.load(Ordering::SeqCst), 2, "one mint after sign-in");
+                });
+        },
+    );
+}

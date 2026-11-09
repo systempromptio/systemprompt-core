@@ -86,15 +86,21 @@ fn host_sync_registry_contains_builtins() {
 }
 
 #[test]
-fn host_sync_registry_keeps_both_claude_desktop_facets() {
-    let cowork = host_sync::registry()
+fn host_sync_registry_keeps_every_claude_desktop_facet() {
+    let emitters: std::collections::BTreeSet<&str> = host_sync::registry()
         .iter()
         .filter(|s| s.host_id() == HostKind::ClaudeDesktop)
-        .count();
+        .map(|s| s.emitter_id())
+        .collect();
+    let mut expected = std::collections::BTreeSet::from(["cowork-artifacts", "cowork-plugins"]);
+    if desktop_offered() {
+        expected.insert(HostKind::ClaudeDesktop.as_str());
+    }
     assert_eq!(
-        cowork, 2,
-        "the Cowork plugins and artifacts emitters share host_id \"claude-desktop\" and \
-         must both survive dedup (dedup keys on concrete type, not host_id)"
+        emitters, expected,
+        "the Cowork plugins and artifacts emitters (and the MDM policy sync where Claude \
+         Desktop ships) share host_id \"claude-desktop\" and must all survive dedup (dedup \
+         keys on concrete type, not host_id)"
     );
 }
 

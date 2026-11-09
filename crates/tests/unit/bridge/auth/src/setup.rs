@@ -1,6 +1,6 @@
 use systemprompt_bridge::auth::plugin_oauth::SecretStore;
 use systemprompt_bridge::auth::setup::{self, SetupError, TokenRejection};
-use systemprompt_bridge::config::gateways::credential::{CredentialError, PatStore};
+use systemprompt_bridge::config::gateways::credential::{self, CredentialError, PatStore};
 use tempfile::TempDir;
 
 const GOOD: &str = "sp-live-testprefix.secretsecretsecretsecretsecret012345";
@@ -18,10 +18,11 @@ fn sandbox<R>(f: impl FnOnce() -> R) -> (R, [TempDir; 3]) {
         ("XDG_STATE_HOME", Some(state.path().display().to_string())),
         ("XDG_CACHE_HOME", Some(home.path().display().to_string())),
         ("SP_BRIDGE_CONFIG", None),
-        ("DBUS_SESSION_BUS_ADDRESS", None),
-        ("DISPLAY", None),
     ];
-    let out = temp_env::with_vars(vars, f);
+    let out = temp_env::with_vars(vars, || {
+        keyring_core::set_default_store(keyring_core::mock::Store::new().expect("mock keyring"));
+        f()
+    });
     (out, [config, state, home])
 }
 
@@ -323,4 +324,30 @@ fn clean_fails_with_the_remove_context_when_the_pat_path_is_a_directory() {
         },
         other => panic!("expected a file-store error, got {other:?}"),
     }
+}
+
+#[test]
+fn the_keyring_store_round_trips_a_pat_and_deleting_a_missing_entry_succeeds() {
+    let ((written, gone, second_delete), _dirs) = sandbox(|| {
+        setup::login(GOOD, None).expect("login");
+        let profile = systemprompt_bridge::config::gateways::active().expect("active profile");
+        credential::write(&profile, PatStore::Keyring, GOOD).expect("keyring write");
+        let written = credential::read(&profile, PatStore::Keyring)
+            .expect("keyring read")
+            .map(|pat| pat.as_str().to_owned());
+        credential::delete(&profile, PatStore::Keyring).expect("keyring delete");
+        let gone = credential::read(&profile, PatStore::Keyring).expect("read after delete");
+        let second_delete = credential::delete(&profile, PatStore::Keyring);
+        (written, gone.is_none(), second_delete)
+    });
+    assert_eq!(
+        written.as_deref(),
+        Some(GOOD),
+        "the keyring returns the PAT it was given"
+    );
+    assert!(gone, "a deleted keyring PAT reads back as missing");
+    assert!(
+        second_delete.is_ok(),
+        "deleting a missing keyring entry is not an error: {second_delete:?}"
+    );
 }

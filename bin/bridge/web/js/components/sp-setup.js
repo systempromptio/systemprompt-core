@@ -7,7 +7,7 @@ import { stepsFromSnapshot } from "/assets/js/utils/setup-steps.js";
 import { clearSettleTimer, trackSettle, retrySettle } from "/assets/js/utils/setup-settle.js";
 import { renderSetupHeading, renderSetupFinalizing, renderSetupAgentsStep, renderSetupSettleNotice, renderSetupUpdateNotice } from "/assets/js/components/setup-sections.js";
 import { renderSetupBrand, appNameOf } from "/assets/js/components/setup-brand.js";
-import { maybeCheckForUpdate, installUpdate, restartForUpdate } from "/assets/js/utils/update-check.js";
+import { maybeCheckForUpdate, installUpdate, restartForUpdate, quitBridge } from "/assets/js/utils/update-check.js";
 import "/assets/js/components/sp-setup-gateway.js";
 import "/assets/js/components/sp-setup-agents.js";
 
@@ -36,6 +36,7 @@ export class SpSetup extends SpElement {
     this.registerAction("open-bridge", () => this._leaveSetup());
     this.registerAction("install-update", () => installUpdate(this));
     this.registerAction("restart-update", () => restartForUpdate());
+    this.registerAction("quit-bridge", () => quitBridge());
   }
 
   onConnect() {

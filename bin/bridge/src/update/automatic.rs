@@ -12,8 +12,10 @@
 //!
 //! An attempt stages: it verifies the target is writable before any network
 //! call, downloads and verifies the artifact, and swaps it over the install.
-//! It never relaunches; the next natural launch runs the new version
-//! ([`AutoUpdatePolicy::Staged`]).
+//! It never relaunches: the update finishes when the bridge restarts, or when a
+//! newer build is launched and takes over from the running one
+//! ([`crate::gateway::manifest::AutoUpdatePolicy::Staged`]). A release
+//! already staged is reported as staged without another download.
 //!
 //! [`UpdateGate::begin`] tests the gate before the policy read, so the GUI's
 //! one-second tick does not touch the last-sync sentinel until an attempt is
@@ -31,9 +33,9 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::time::{Duration, Instant};
 
+use super::policy::{AutoUpdateDecision, auto_update_policy};
 use super::{DownloadProgress, UpdateError, UpdateStatus, apply, check, install};
 use crate::gateway::GatewayClient;
-use crate::gateway::manifest::AutoUpdatePolicy;
 use crate::gateway::types::ReleaseManifest;
 use crate::ids::BearerToken;
 
@@ -75,6 +77,15 @@ pub enum AutomaticError {
     Skipped(#[from] Skipped),
     #[error(transparent)]
     Update(#[from] UpdateError),
+}
+
+/// What [`Permit::check`] found: nothing to do, a release already staged, or
+/// a release to install.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Checked {
+    Current,
+    AlreadyStaged { version: String },
+    Install(ReleaseManifest),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -161,13 +172,14 @@ impl Permit {
         &self,
         client: &GatewayClient,
         bearer: &BearerToken,
-    ) -> Result<Option<ReleaseManifest>, UpdateError> {
+    ) -> Result<Checked, UpdateError> {
         install::preflight()?;
         let (status, manifest) = check(client, bearer).await?;
         match status {
+            UpdateStatus::Staged { version } => Ok(Checked::AlreadyStaged { version }),
             UpdateStatus::Available { ref version, .. } if is_downgrade(version) => {
                 if downgrade_enforced() {
-                    Ok(Some(manifest))
+                    Ok(Checked::Install(manifest))
                 } else {
                     tracing::warn!(
                         local = %crate::brand::brand().version,
@@ -175,10 +187,10 @@ impl Permit {
                         "this release is newer than the instance admits; install the offered \
                          release from the update panel"
                     );
-                    Ok(None)
+                    Ok(Checked::Current)
                 }
             },
-            UpdateStatus::Available { .. } => Ok(Some(manifest)),
+            UpdateStatus::Available { .. } => Ok(Checked::Install(manifest)),
             UpdateStatus::Current { .. } => {
                 if self.trigger == Trigger::Unsupported {
                     tracing::warn!(
@@ -186,7 +198,7 @@ impl Permit {
                         "the gateway reports this bridge as unsupported but offers no newer release",
                     );
                 }
-                Ok(None)
+                Ok(Checked::Current)
             },
         }
     }
@@ -203,7 +215,7 @@ impl Permit {
             version = %manifest.version,
             path = %path.display(),
             trigger = ?self.trigger,
-            "automatic update staged; the next launch runs it",
+            "automatic update staged; it finishes when the bridge restarts or a newer build is launched",
         );
         Ok(path)
     }
@@ -236,57 +248,19 @@ pub async fn run(
     bearer: &BearerToken,
 ) -> Result<Outcome, AutomaticError> {
     let permit = gate.begin(trigger)?;
-    let Some(manifest) = permit.check(client, bearer).await? else {
-        return Ok(Outcome::Current);
+    let manifest = match permit.check(client, bearer).await? {
+        Checked::Current => return Ok(Outcome::Current),
+        Checked::AlreadyStaged { version } => {
+            return Ok(Outcome::Staged {
+                version,
+                path: super::installed_path()?,
+            });
+        },
+        Checked::Install(manifest) => manifest,
     };
     let path = permit.stage(client, bearer, &manifest, &|_| {}).await?;
     Ok(Outcome::Staged {
         version: manifest.version,
         path,
     })
-}
-
-/// Whether this install may stage releases on its own.
-///
-/// Only a policy the configured gateway delivered enables it; a bridge that
-/// never synced, or whose sentinel cannot be read, is `Withheld` and stages
-/// nothing.
-#[derive(Debug)]
-pub enum AutoUpdateDecision {
-    Delivered(AutoUpdatePolicy),
-    NeverSynced,
-    Withheld(crate::last_sync::ReplayStateError),
-}
-
-impl AutoUpdateDecision {
-    #[must_use]
-    pub const fn stages(&self) -> bool {
-        matches!(self, Self::Delivered(policy) if policy.stages())
-    }
-
-    #[must_use]
-    pub fn describe(&self) -> String {
-        match self {
-            Self::Delivered(policy) => format!("{policy:?} (delivered by the gateway)"),
-            Self::NeverSynced => "withheld (no manifest synced yet)".to_owned(),
-            Self::Withheld(e) => format!("withheld (last-sync sentinel unreadable: {e})"),
-        }
-    }
-}
-
-// Why: org policy is the only source; there is no local preference to
-// contradict it, and an unreadable sentinel must not fall back to the
-// policy default that stages.
-#[must_use]
-pub fn auto_update_policy() -> AutoUpdateDecision {
-    match crate::last_sync::last_synced_auto_update_policy() {
-        Ok(Some(policy)) => AutoUpdateDecision::Delivered(policy),
-        Ok(None) => AutoUpdateDecision::NeverSynced,
-        Err(e) => AutoUpdateDecision::Withheld(e),
-    }
-}
-
-#[must_use]
-pub fn automatic_enabled() -> bool {
-    auto_update_policy().stages()
 }

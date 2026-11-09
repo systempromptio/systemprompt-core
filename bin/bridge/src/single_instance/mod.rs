@@ -1,17 +1,17 @@
 //! Per-user singleton for the bridge GUI / proxy.
 //!
 //! A second launch would race the proxy/loopback/GUI ports, so we hold a named
-//! OS lock; the loser pings the running instance to focus its window.
+//! OS lock. The loser reads the running instance's sidecar: a newer build asks
+//! it to hand over and waits for the lock, anything else asks it to focus its
+//! window (see [`crate::takeover`]).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::fs;
-use std::io::{Read as _, Write as _};
-use std::net::TcpStream;
 use std::path::PathBuf;
-use std::time::Duration;
 
+mod control;
 mod error;
 mod handoff;
 
@@ -19,6 +19,7 @@ pub(crate) use error::SingletonError;
 #[cfg(unix)]
 use error::lock_error;
 
+pub(crate) use control::{ping_focus_running_instance, take_over_older_instance};
 pub(crate) use handoff::{await_predecessor_exit, record_handoff};
 
 pub(crate) enum SingletonResult {
@@ -181,10 +182,12 @@ fn sidecar_path() -> PathBuf {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-struct RunningSidecar {
-    pid: u32,
-    port: u16,
-    token: String,
+pub(super) struct RunningSidecar {
+    pub(super) pid: u32,
+    pub(super) port: u16,
+    pub(super) token: String,
+    #[serde(default)]
+    pub(super) version: Option<String>,
 }
 
 pub(crate) fn write_running_port(port: u16, csrf_token: &str) -> std::io::Result<()> {
@@ -193,6 +196,7 @@ pub(crate) fn write_running_port(port: u16, csrf_token: &str) -> std::io::Result
         pid: std::process::id(),
         port,
         token: csrf_token.to_owned(),
+        version: Some(crate::brand::brand().version.to_owned()),
     };
     let bytes = serde_json::to_vec(&payload)?;
     crate::fsutil::atomic_write_0600(&path, &bytes)
@@ -214,7 +218,7 @@ pub(crate) fn clear_running_port() -> std::io::Result<()> {
     Ok(())
 }
 
-fn read_running_instance() -> Option<RunningSidecar> {
+pub(super) fn read_running_instance() -> Option<RunningSidecar> {
     let path = sidecar_path();
     let raw = match fs::read_to_string(&path) {
         Ok(raw) => raw,
@@ -231,54 +235,4 @@ fn read_running_instance() -> Option<RunningSidecar> {
             None
         },
     }
-}
-
-pub(crate) fn ping_focus_running_instance() -> bool {
-    let Some(instance) = read_running_instance() else {
-        return false;
-    };
-    if focus_handshake(&instance) {
-        return true;
-    }
-    if let Err(e) = clear_running_port() {
-        crate::stdio::diag(&format!("remove stale bridge sidecar: {e}"));
-    }
-    false
-}
-
-fn focus_handshake(instance: &RunningSidecar) -> bool {
-    let Ok(parsed) = format!("127.0.0.1:{}", instance.port).parse() else {
-        return false;
-    };
-    let Ok(mut stream) = TcpStream::connect_timeout(&parsed, Duration::from_millis(250)) else {
-        return false;
-    };
-    if stream
-        .set_write_timeout(Some(Duration::from_millis(250)))
-        .is_err()
-        || stream
-            .set_read_timeout(Some(Duration::from_secs(2)))
-            .is_err()
-    {
-        return false;
-    }
-    let request = format!(
-        "POST /api/focus_window?t={} HTTP/1.1\r\nHost: localhost\r\nContent-Length: \
-         0\r\nConnection: close\r\n\r\n",
-        instance.token,
-    );
-    if stream.write_all(request.as_bytes()).is_err() {
-        return false;
-    }
-    let mut buf = [0u8; 16];
-    let mut filled = 0;
-    while filled < buf.len() {
-        match stream.read(&mut buf[filled..]) {
-            Ok(0) => break,
-            Ok(n) => filled = filled.saturating_add(n),
-            Err(_) => return false,
-        }
-    }
-    buf.get(..filled)
-        .is_some_and(|got| got.starts_with(b"HTTP/1.1 204"))
 }

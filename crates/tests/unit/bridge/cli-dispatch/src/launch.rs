@@ -39,6 +39,7 @@ fn the_launch_context_defaults_to_no_gui_and_is_explicit_on_this_platform() {
             &argv(&["help"]),
             Launch {
                 gui_by_default: true,
+                successor: false,
             },
         )
     });

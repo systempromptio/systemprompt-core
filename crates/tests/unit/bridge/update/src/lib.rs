@@ -7,6 +7,8 @@ mod cli_args;
 #[cfg(test)]
 mod compare;
 #[cfg(test)]
+mod completion;
+#[cfg(test)]
 mod download;
 #[cfg(test)]
 mod download_verified;
@@ -17,8 +19,16 @@ mod install_paths;
 #[cfg(test)]
 mod policy;
 #[cfg(test)]
+mod ready_state;
+#[cfg(test)]
 mod sentinel_gating;
 #[cfg(test)]
+mod staged;
+#[cfg(test)]
 mod status;
+#[cfg(test)]
+mod swap;
+#[cfg(test)]
+mod takeover;
 #[cfg(test)]
 mod ui_state;

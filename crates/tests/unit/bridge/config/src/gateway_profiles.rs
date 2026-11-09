@@ -298,6 +298,6 @@ fn linux_without_a_session_bus_selects_the_file_store() {
             ("DISPLAY", None),
             ("XDG_RUNTIME_DIR", Some("/nonexistent-runtime-dir")),
         ],
-        || assert_eq!(credential::select_store(), PatStore::File),
+        || assert_eq!(credential::select_store().ok(), Some(PatStore::File)),
     );
 }

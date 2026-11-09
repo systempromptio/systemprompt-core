@@ -6,9 +6,9 @@
 use crate::config;
 use crate::gateway::types::HelperOutput;
 use serde::{Deserialize, Serialize};
+use std::io;
 use std::path::PathBuf;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use std::{fs, io};
 use systemprompt_identifiers::{UserId, ValidatedUrl};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -44,13 +44,22 @@ impl CredentialBinding {
             sources.push(("session", generation.to_string()));
         }
         if sources.is_empty() {
-            return Err(io::Error::other("no credential identity configured"));
+            return Err(io::Error::other(NoCredentialIdentity));
         }
         Ok(Self {
             gateway,
             digest: crate::hash::sha256_hex(&serde_json::to_vec(&sources)?),
         })
     }
+}
+
+#[derive(Debug, Clone, Copy, thiserror::Error)]
+#[error("no credential identity configured")]
+pub struct NoCredentialIdentity;
+
+#[must_use]
+pub fn is_no_credential_identity(error: &io::Error) -> bool {
+    matches!(error.get_ref(), Some(inner) if inner.is::<NoCredentialIdentity>())
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -139,7 +148,7 @@ pub fn cached_gateway() -> io::Result<Option<ValidatedUrl>> {
 
 fn read_entry() -> io::Result<Option<CacheEntry>> {
     let path = cache_path()?;
-    let bytes = match fs::read(&path) {
+    let bytes = match crate::fsutil::read_private(&path) {
         Ok(bytes) => bytes,
         Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(None),
         Err(source) => {

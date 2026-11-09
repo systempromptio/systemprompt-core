@@ -167,7 +167,7 @@ pub fn for_profile() -> std::io::Result<LoopbackSecret> {
 
 #[must_use]
 pub fn verify(presented: &str, expected: &ProxySecret) -> bool {
-    constant_time_eq(presented.as_bytes(), expected.as_str().as_bytes())
+    crate::hash::constant_time_eq(presented.as_bytes(), expected.as_str().as_bytes())
 }
 
 #[must_use]
@@ -189,17 +189,6 @@ pub fn reapply_hint() -> String {
          to re-apply — enrol it with `{bin} install --host <id>` (for example `--host \
          opencode`), then restart the client"
     )
-}
-
-pub(crate) fn constant_time_eq(presented: &[u8], expected: &[u8]) -> bool {
-    if presented.len() != expected.len() {
-        return false;
-    }
-    let mut diff = 0u8;
-    for (a, b) in presented.iter().zip(expected) {
-        diff |= a ^ b;
-    }
-    diff == 0
 }
 
 #[derive(Debug, thiserror::Error)]

@@ -1,4 +1,5 @@
-//! SHA-256 hex digests and id-segment safety checks for sync paths.
+//! SHA-256 hex digests, constant-time comparison and id-segment safety checks
+//! for sync paths.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -37,4 +38,15 @@ pub fn hex_encode(bytes: &[u8]) -> String {
         s.push(HEX[(b & 0x0f) as usize] as char);
     }
     s
+}
+
+pub(crate) fn constant_time_eq(presented: &[u8], expected: &[u8]) -> bool {
+    if presented.len() != expected.len() {
+        return false;
+    }
+    let mut diff = 0u8;
+    for (a, b) in presented.iter().zip(expected) {
+        diff |= a ^ b;
+    }
+    diff == 0
 }

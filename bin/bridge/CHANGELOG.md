@@ -2,9 +2,24 @@
 
 ## [Unreleased]
 
+### Changed
+
+- An installed update is remembered across restarts of the bridge window and shown as ready to restart until the new version runs. It is no longer shown once the installed program has been replaced or removed.
+- **macOS, Windows:** when the keychain or Credential Manager refuses to save the sign-in (it is locked, or the access prompt was dismissed), the error says to unlock it or allow access and sign in again.
+
 ### Fixed
 
 - A file the server refuses, such as one in a folder created only on the desktop, is reported and no longer stops the rest of the Drive sync.
+- An update that is installed and waiting for a restart is no longer downloaded and installed again by the next scheduled or manual check; it is reported as ready to restart while the gateway still offers that release. If the gateway offers a different release, or the installed program no longer matches, the offered release is installed instead.
+- An update that stops before it finishes no longer leaves the update button showing progress; it reports that the update stopped and can be retried.
+- **Windows:** installing an update no longer fails with "Access is denied" while an earlier update waits for a restart. Previous program files are removed at the next start, once nothing runs from them; other files next to the program are never removed.
+- Opening a newer build while an older bridge runs replaces the running bridge instead of only focusing its window. An older bridge that cannot hand over is focused as before.
+- Restart to finish updating, and Quit, are available on the sign-in screen, so signing out no longer hides a pending update.
+- Update failures are shown as plain instructions; file paths and system error text go to the log.
+- A bridge with no credential reports sign-in required once and pauses its heartbeat, Drive, notifications and comms loops until the user signs in, instead of retrying each loop indefinitely. A sign-in made from the CLI or another process also resumes them.
+- The comms stream waits for sign-in rather than reconnecting with backoff while signed out, and reopens as soon as a credential is restored.
+- The credential cache is read through the private-file reader, which repairs an unreadable Windows file ACL once before failing.
+- **Windows:** reading a private file whose path is a directory reports it as a directory instead of attempting an ACL repair and reporting an access-control fault.
 
 ## [0.79.1] - 2026-11-06
 

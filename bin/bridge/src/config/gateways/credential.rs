@@ -1,21 +1,26 @@
-//! Where a profile's PAT lives: the OS credential store, or a 0600 file in the
-//! profile directory on a Linux host with no Secret Service.
+//! Where a profile's PAT lives: the process default OS credential store, or a
+//! 0600 file in the profile directory.
 //!
-//! The store is chosen once, when the PAT is written, from what the platform
-//! offers, and recorded as `pat.store` in the profile config. Reads follow the
-//! recorded store and never fall back to the other one: a keyring entry that
-//! has gone missing is a missing credential, not a cue to look for a file.
-//! Linux's kernel keyutils store does not qualify — it forgets the PAT on
-//! reboot.
+//! The store is chosen once, when the PAT is written, and recorded as
+//! `pat.store` in the profile config. A default store that keeps credentials
+//! until they are deleted is used when a probe entry round-trips through it.
+//! When the probe is refused, Linux keeps the PAT in the file (a locked Secret
+//! Service collection is common in SSH and headless sessions), while macOS and
+//! Windows fail the sign-in, since the keychain and Credential Manager have no
+//! alternative. The file is also chosen when the default store forgets
+//! credentials (Linux kernel keyutils, a process-only store) or no store
+//! exists. Reads follow the recorded store and never fall back to the other
+//! one: a keyring entry that has gone missing is a missing credential, not a
+//! cue to look for a file.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::Arc;
-
+use keyring_core::CredentialPersistence;
 use serde::{Deserialize, Serialize};
 
 use super::ActiveProfile;
+use crate::config::keystore;
 use crate::ids::PatToken;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -39,6 +44,13 @@ impl PatStore {
 pub enum CredentialError {
     #[error("OS credential store: {0}")]
     Keyring(#[source] keyring_core::Error),
+    #[error("OS credential store: {0}")]
+    Keystore(#[source] keystore::KeystoreError),
+    #[error(
+        "the OS credential store refused to save the sign-in; unlock it or allow access when \
+         prompted, then sign in again ({0})"
+    )]
+    StoreRefused(#[source] keyring_core::Error),
     #[error("the OS credential store returned a different PAT than was written")]
     ReadBackMismatch,
     #[error("{action} {path}: {source}")]
@@ -56,28 +68,8 @@ fn account(profile: &ActiveProfile) -> String {
     format!("pat:{}", profile.id)
 }
 
-#[cfg(target_os = "macos")]
-fn os_store() -> Result<Arc<keyring_core::CredentialStore>, keyring_core::Error> {
-    let store: Arc<keyring_core::CredentialStore> =
-        apple_native_keyring_store::keychain::Store::new()?;
-    Ok(store)
-}
-
-#[cfg(target_os = "windows")]
-fn os_store() -> Result<Arc<keyring_core::CredentialStore>, keyring_core::Error> {
-    let store: Arc<keyring_core::CredentialStore> = windows_native_keyring_store::Store::new()?;
-    Ok(store)
-}
-
-#[cfg(all(unix, not(target_os = "macos")))]
-fn os_store() -> Result<Arc<keyring_core::CredentialStore>, keyring_core::Error> {
-    let store: Arc<keyring_core::CredentialStore> =
-        dbus_secret_service_keyring_store::Store::new()?;
-    Ok(store)
-}
-
 fn entry(profile: &ActiveProfile) -> Result<keyring_core::Entry, CredentialError> {
-    let store = os_store().map_err(CredentialError::Keyring)?;
+    let store = keystore::default_store().map_err(CredentialError::Keystore)?;
     store
         .build(
             crate::brand::brand().keyring_service,
@@ -87,37 +79,62 @@ fn entry(profile: &ActiveProfile) -> Result<keyring_core::Entry, CredentialError
         .map_err(CredentialError::Keyring)
 }
 
-#[must_use]
-pub fn select_store() -> PatStore {
-    if cfg!(any(target_os = "macos", target_os = "windows")) {
-        return PatStore::Keyring;
+pub fn select_store() -> Result<PatStore, CredentialError> {
+    let store = match keystore::default_store() {
+        Ok(store) => store,
+        Err(e @ keystore::KeystoreError::NoCredentialStore { .. }) => {
+            return Ok(file_store(&e.to_string()));
+        },
+        Err(e) => return Err(CredentialError::Keystore(e)),
+    };
+    if let Some(lifetime) = forgetful(&store.persistence()) {
+        return Ok(file_store(&format!(
+            "the OS credential store keeps credentials only {lifetime}"
+        )));
     }
-    match os_store().and_then(|store| probe(&store)) {
-        Ok(()) => PatStore::Keyring,
-        Err(e) => {
-            tracing::info!(
+    if let Err(e) = keystore::probe(&store, "pat-probe") {
+        if keystore::refusal_falls_back_to_file() {
+            tracing::warn!(
                 target: "bridge::auth::keystore",
                 error = %e,
-                "no Secret Service provider; the PAT is kept in a 0600 file in the gateway profile"
+                "the Secret Service refused a test entry; the PAT is kept in a 0600 file in the \
+                 gateway profile"
             );
-            PatStore::File
-        },
-    }
-}
-
-fn probe(store: &Arc<keyring_core::CredentialStore>) -> Result<(), keyring_core::Error> {
-    let service = format!("{}-probe", crate::brand::brand().keyring_service);
-    let entry = store.build(&service, "pat-probe", None)?;
-    entry.set_password("probe")?;
-    entry.get_password()?;
-    if let Err(e) = entry.delete_credential() {
-        tracing::debug!(
+            return Ok(PatStore::File);
+        }
+        tracing::warn!(
             target: "bridge::auth::keystore",
             error = %e,
-            "credential-store probe entry could not be removed; it is overwritten on each probe"
+            "the OS credential store refused a test entry; the PAT was not stored"
         );
+        return Err(CredentialError::StoreRefused(e));
     }
-    Ok(())
+    tracing::info!(
+        target: "bridge::auth::keystore",
+        store = %store.vendor(),
+        "the PAT is kept in the OS credential store"
+    );
+    Ok(PatStore::Keyring)
+}
+
+fn file_store(reason: &str) -> PatStore {
+    tracing::info!(
+        target: "bridge::auth::keystore",
+        reason,
+        "no persistent OS credential store; the PAT is kept in a 0600 file in the gateway profile"
+    );
+    PatStore::File
+}
+
+const fn forgetful(persistence: &CredentialPersistence) -> Option<&'static str> {
+    match persistence {
+        CredentialPersistence::UntilDelete => None,
+        CredentialPersistence::EntryOnly => Some("for the life of one entry"),
+        CredentialPersistence::ProcessOnly => Some("for the life of the process"),
+        CredentialPersistence::UntilLogout => Some("until logout"),
+        CredentialPersistence::UntilReboot => Some("until reboot"),
+        _ => Some("for an unspecified lifetime"),
+    }
 }
 
 pub fn write(profile: &ActiveProfile, store: PatStore, token: &str) -> Result<(), CredentialError> {

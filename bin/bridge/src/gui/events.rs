@@ -187,6 +187,7 @@ pub enum UiEvent {
         percent: u8,
     },
     UpdateRestartRequested,
+    HandoffRequested,
 
     AutostartToggleRequested,
     SettingsReadRequested {

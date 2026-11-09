@@ -38,6 +38,20 @@ pub fn capture_stamp() -> ForwardResult<CredentialStamp> {
     CredentialStamp::capture(&cfg).map_err(ForwardError::CredentialIdentity)
 }
 
+pub(crate) fn is_missing_identity(error: &ForwardError) -> bool {
+    matches!(
+        error,
+        ForwardError::CredentialIdentity(source) if auth::cache::is_no_credential_identity(source)
+    )
+}
+
+pub(crate) fn sign_in_required_error() -> ForwardError {
+    ForwardError::Auth(format!(
+        "no JWT available — sign in via {} GUI",
+        crate::brand::brand().app_name
+    ))
+}
+
 #[derive(Debug)]
 pub struct SignInLatch {
     auth_state: watch::Sender<AuthState>,
@@ -67,7 +81,7 @@ impl SignInLatch {
             return false;
         }
         let stamped = self.latched_stamp.lock().clone();
-        if stamped.is_some_and(|stamp| capture_stamp().is_ok_and(|current| stamp != current)) {
+        if capture_stamp().is_ok_and(|current| stamped.is_none_or(|stamp| stamp != current)) {
             tracing::info!("credentials changed on disk; sign-in latch released");
             self.release();
             return false;

@@ -12,3 +12,5 @@ mod credential_staleness;
 mod loopback;
 #[cfg(test)]
 mod setup;
+#[cfg(test)]
+mod store_selection;

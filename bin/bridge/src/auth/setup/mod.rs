@@ -73,7 +73,7 @@ pub fn login(token: &str, gateway_url: Option<&str>) -> Result<PathLayout, Setup
     let mut paths = resolve_paths()?;
     ensure_dir(&paths.config_dir)?;
     let previous = configured_gateway()?;
-    let store = credential::select_store();
+    let store = credential::select_store()?;
     credential::write(&paths.profile, store, token)?;
     if let Some(old) = paths.pat_store.filter(|old| *old != store) {
         credential::delete(&paths.profile, old)?;
