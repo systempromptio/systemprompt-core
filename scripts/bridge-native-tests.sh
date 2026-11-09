@@ -25,4 +25,6 @@ done
 
 # These crates run with no database, so the offline cache is the only sqlx
 # input allowed; a `query!` reachable from here is a defect, not a setup gap.
-SQLX_OFFLINE=true exec cargo test --manifest-path crates/tests/Cargo.toml --locked "${args[@]}" "$@"
+# nextest runs each test in its own process, as every other run of this
+# workspace does; the tests rely on that for process-wide state.
+SQLX_OFFLINE=true exec cargo nextest run --manifest-path crates/tests/Cargo.toml --locked --no-fail-fast "${args[@]}" "$@"

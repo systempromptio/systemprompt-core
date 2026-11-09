@@ -2,7 +2,7 @@
 //!
 //! Every keyring consumer in the bridge (the PAT and the plugin OAuth
 //! `client_secret`) resolves its entries through `keyring_core`'s process
-//! default store. [`default_store`] installs the platform store when none is
+//! default store. `default_store` installs the platform store when none is
 //! set yet and returns the one in place otherwise, so a store installed
 //! earlier in the process is the store every consumer sees.
 //!

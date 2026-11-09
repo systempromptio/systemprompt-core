@@ -149,10 +149,15 @@ jobs:
       # every PR and push can read; PR runs would otherwise evict it.
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
-          workspaces: bin/bridge
+          workspaces: |
+            bin/bridge
+            crates/tests
           shared-key: bridge-native
           cache-on-failure: true
           save-if: ${{ github.ref == 'refs/heads/next' }}
+      - uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
+        with:
+          tool: nextest@0.9.146
       - name: Clippy (native target)
         timeout-minutes: 20
         run: cargo clippy --manifest-path bin/bridge/Cargo.toml --all-targets --all-features --keep-going --locked -- -D warnings
