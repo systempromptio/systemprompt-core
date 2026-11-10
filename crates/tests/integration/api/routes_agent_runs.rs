@@ -130,7 +130,7 @@ async fn the_event_stream_replays_from_last_event_id_and_ends_on_a_terminal_run(
     let owner = seed_admin_credential(&pool, "agent-runs-stream").await?;
     let state = AgentRunsState::build(&ctx);
     let user = owner.user_id.as_str();
-    let body = json!({ "origin_kind": ORIGIN, "idempotency_key": format!("stream-{user}"), "request": request("s") });
+    let body = json!({ "origin_kind": STREAM_ORIGIN, "idempotency_key": format!("stream-{user}"), "request": request("s") });
     let (_, created) = send(app(state.clone(), user), json_post("/", body)).await?;
     let id = systemprompt_identifiers::AgentRunId::new(created["id"].as_str().expect("id"));
     let events: Vec<RunEvent> = (0..3)
@@ -145,7 +145,7 @@ async fn the_event_stream_replays_from_last_event_id_and_ends_on_a_terminal_run(
             created_at: chrono::Utc::now(),
         })
         .collect();
-    let lease = claim(&state, ORIGIN, &id).await?;
+    let lease = claim(&state, STREAM_ORIGIN, &id).await?;
     assert!(
         state
             .runs()
@@ -194,6 +194,10 @@ async fn the_event_stream_replays_from_last_event_id_and_ends_on_a_terminal_run(
     assert!(text.contains("event: end"));
     Ok(())
 }
+
+const STREAM_ORIGIN: &str = "sp_test_api_stream_origin";
+
+systemprompt_agent_runs::register_run_origin!(STREAM_ORIGIN);
 
 const OUTPUTS_ORIGIN: &str = "sp_test_api_outputs_origin";
 
