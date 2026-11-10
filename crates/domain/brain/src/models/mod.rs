@@ -5,6 +5,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod change;
+mod cursor;
 mod fact;
 mod field_edit;
 mod ledger;
@@ -13,9 +14,10 @@ mod read;
 mod row;
 
 pub use change::{FactChange, NewRevision};
+pub use cursor::{CursorError, FactCursor};
 pub use fact::{Inserted, NewFact, NewFactBuilder};
 pub use field_edit::merge_fields;
 pub use ledger::{DisputeStatus, EventOutcome, EventResult, NewDispute, NewExtraction, NewFailure};
 pub use plane::{PlaneRow, PlaneSource};
-pub use read::{FactFilter, NewOutcome, NewProposal, NewRecall, NewRecallBuilder};
+pub use read::{FactFilter, FactPage, NewOutcome, NewProposal, NewRecall, NewRecallBuilder};
 pub(crate) use row::{FactRow, FieldMap, RevisionRow, decode_status};

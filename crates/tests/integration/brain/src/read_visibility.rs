@@ -41,7 +41,8 @@ async fn a_fact_from_a_document_the_reader_cannot_open_is_neither_listed_nor_rea
         .service
         .search(&as_reader(&owner), &FactFilter::new())
         .await
-        .expect("owner search");
+        .expect("owner search")
+        .facts;
     assert_eq!(
         owner_sees.len(),
         2,
@@ -53,6 +54,7 @@ async fn a_fact_from_a_document_the_reader_cannot_open_is_neither_listed_nor_rea
         .search(&as_reader(&intern), &FactFilter::new())
         .await
         .expect("intern search")
+        .facts
         .into_iter()
         .map(|fact| fact.id)
         .collect();

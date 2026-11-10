@@ -7,15 +7,15 @@ use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::{Extension, Json};
 use chrono::Utc;
-use systemprompt_brain::FactFilter;
 use systemprompt_brain::service::FactWhy;
+use systemprompt_brain::{FactFilter, FactPage};
 use systemprompt_identifiers::{BrainFactId, FactKindId};
 use systemprompt_models::RequestContext;
 use systemprompt_models::brain::{
     BrainFact, EnteredFact, FactRevision, FactStatus, RecallCtx, SubjectKey,
 };
 
-use super::dto::{EnterAccepted, SearchParams, WhyParams};
+use super::dto::{EnterAccepted, PageParams, SearchParams, WhyParams};
 use super::{BrainHttpError, BrainRoutes};
 
 const MAX_LIMIT: u32 = 500;
@@ -44,6 +44,9 @@ fn filter(params: SearchParams) -> Result<FactFilter, BrainHttpError> {
     if let Some(as_of) = params.as_of {
         filter = filter.with_as_of(as_of);
     }
+    if let Some(after) = params.after {
+        filter = filter.with_after(after);
+    }
     Ok(filter)
 }
 
@@ -51,7 +54,7 @@ pub(super) async fn search(
     State(state): State<BrainRoutes>,
     Extension(req_ctx): Extension<RequestContext>,
     Query(params): Query<SearchParams>,
-) -> Result<Json<Vec<BrainFact>>, BrainHttpError> {
+) -> Result<Json<FactPage>, BrainHttpError> {
     let caller = state
         .caller(&req_ctx)
         .await?
@@ -64,9 +67,15 @@ pub(super) async fn subject(
     State(state): State<BrainRoutes>,
     Extension(req_ctx): Extension<RequestContext>,
     Path((kind, id)): Path<(String, String)>,
-) -> Result<Json<Vec<BrainFact>>, BrainHttpError> {
+    Query(page): Query<PageParams>,
+) -> Result<Json<FactPage>, BrainHttpError> {
     let caller = state.caller(&req_ctx).await?;
-    let filter = FactFilter::new().with_subject(SubjectKey::new(kind, id));
+    let mut filter = FactFilter::new()
+        .with_subject(SubjectKey::new(kind, id))
+        .with_limit(limit(page.limit));
+    if let Some(after) = page.after {
+        filter = filter.with_after(after);
+    }
     Ok(Json(state.service.search(&caller, &filter).await?))
 }
 

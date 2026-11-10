@@ -63,6 +63,8 @@ pub enum BrainError {
     NotifyKind(#[from] NotificationKindError),
     #[error("the daily extraction token budget is spent")]
     BudgetExhausted,
+    #[error("the listing cursor is invalid")]
+    Cursor(#[from] crate::models::CursorError),
 }
 
 impl BrainError {

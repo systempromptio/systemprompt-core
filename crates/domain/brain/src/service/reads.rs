@@ -1,7 +1,10 @@
 //! Reads for the REST and MCP surfaces: one fact, a filtered listing, a
 //! fact's revision timeline, and the why-view (the in-context importance
 //! terms and whether recall would withhold it). Each applies recall's
-//! per-fact visibility; a hidden fact reads as not found.
+//! per-fact visibility; a hidden fact reads as not found. A listing reads
+//! only facts reachable through the caller's working-set keys, in keyset
+//! pages, and keeps reading until the page is full of visible facts or
+//! the listing ends.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -13,9 +16,10 @@ use systemprompt_models::brain::{BrainFact, FactRevision, RecallCtx, WithheldRea
 
 use super::{BrainCaller, BrainService};
 use crate::error::{BrainError, BrainResult};
-use crate::models::FactFilter;
+use crate::models::{FactCursor, FactFilter, FactPage};
+use crate::recall::held;
+use crate::recall::lifecycle::lifecycle_withheld;
 use crate::recall::score::{self, ImportanceTerms, ScoreInput};
-use crate::recall::visible::lifecycle_withheld;
 
 /// Why a fact would rank where it does for a recall context.
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -36,13 +40,47 @@ impl BrainService {
         self.require_visible(caller, fact).await
     }
 
-    pub async fn search(
-        &self,
-        caller: &BrainCaller,
-        filter: &FactFilter,
-    ) -> BrainResult<Vec<BrainFact>> {
-        let facts = self.repos.facts.list(filter).await?;
-        self.only_visible(caller, facts).await
+    pub async fn search(&self, caller: &BrainCaller, filter: &FactFilter) -> BrainResult<FactPage> {
+        let want = usize::try_from(filter.limit).unwrap_or(0);
+        let mut facts = Vec::with_capacity(want);
+        if want == 0 {
+            return Ok(FactPage { facts, next: None });
+        }
+        let mut after = filter
+            .after
+            .as_deref()
+            .map(|token| FactCursor::decode(token, &caller.user_id))
+            .transpose()?;
+        let held = held::build(&caller.user_id, caller.project.as_deref(), &self.audiences).await;
+        loop {
+            let mut batch = self
+                .repos
+                .facts
+                .list_reachable(filter, &held.keys, after.as_ref())
+                .await?;
+            batch.sort_by(|a, b| (b.updated_at, b.id.as_str()).cmp(&(a.updated_at, a.id.as_str())));
+            let exhausted = batch.len() < want;
+            let Some(last) = batch.last().map(FactCursor::at) else {
+                return Ok(FactPage { facts, next: None });
+            };
+            let visible = self.retain_visible(caller, batch, held.clone()).await?;
+            for fact in visible {
+                facts.push(fact);
+                if facts.len() == want {
+                    let at = facts.last().map(FactCursor::at);
+                    let next = if exhausted && at.as_ref() == Some(&last) {
+                        None
+                    } else {
+                        at.map(|cursor| cursor.encode(&caller.user_id))
+                    };
+                    return Ok(FactPage { facts, next });
+                }
+            }
+            if exhausted {
+                return Ok(FactPage { facts, next: None });
+            }
+            after = Some(last);
+        }
     }
 
     pub async fn timeline(

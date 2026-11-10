@@ -1,7 +1,8 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use systemprompt_brain::recall::visible::{Verdict, Visibility, lifecycle_withheld};
+use systemprompt_brain::recall::lifecycle::lifecycle_withheld;
+use systemprompt_brain::recall::visible::{Verdict, Visibility};
 use systemprompt_extension::brain::SourceVerdict;
 use systemprompt_identifiers::SessionId;
 use systemprompt_models::brain::{

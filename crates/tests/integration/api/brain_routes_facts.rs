@@ -194,7 +194,7 @@ async fn a_stranger_reads_another_users_personal_fact_as_not_found() -> Result<(
     )
     .await?;
     assert_eq!(status, StatusCode::OK);
-    let ids: Vec<&str> = listed
+    let ids: Vec<&str> = listed["facts"]
         .as_array()
         .context("search array")?
         .iter()
@@ -223,12 +223,16 @@ async fn search_and_subject_filter_to_the_callers_visible_facts() -> Result<()> 
     );
     let (status, listed) = call(&fx.routes, &me.user_id, Method::GET, &uri, None).await?;
     assert_eq!(status, StatusCode::OK, "{listed}");
-    assert_eq!(listed.as_array().map(Vec::len), Some(1), "{listed}");
+    assert_eq!(
+        listed["facts"].as_array().map(Vec::len),
+        Some(1),
+        "{listed}"
+    );
 
     let uri = format!("/subjects/{subject_kind}/{subject_id}");
     let (status, subject) = call(&fx.routes, &me.user_id, Method::GET, &uri, None).await?;
     assert_eq!(status, StatusCode::OK, "{subject}");
-    assert_eq!(subject[0]["id"], json!(id.as_str()));
+    assert_eq!(subject["facts"][0]["id"], json!(id.as_str()));
 
     let (status, _) = call(
         &fx.routes,
@@ -248,6 +252,32 @@ async fn search_and_subject_filter_to_the_callers_visible_facts() -> Result<()> 
     )
     .await?;
     assert_eq!(status, StatusCode::BAD_REQUEST);
+    let (status, refused) = call(
+        &fx.routes,
+        &me.user_id,
+        Method::GET,
+        "/facts?after=not-a-cursor",
+        None,
+    )
+    .await?;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{refused}");
+    assert_eq!(refused["error_key"], json!("invalid_cursor"));
+    let (status, page) = call(&fx.routes, &me.user_id, Method::GET, "/facts?limit=1", None).await?;
+    assert_eq!(status, StatusCode::OK, "{page}");
+    let token = page["next"]
+        .as_str()
+        .context("a full page carries a cursor")?;
+    let other = owner(&fx.pool, "brain-search-other").await?;
+    let (status, foreign) = call(
+        &fx.routes,
+        &other.user_id,
+        Method::GET,
+        &format!("/facts?after={token}"),
+        None,
+    )
+    .await?;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{foreign}");
+    assert_eq!(foreign["error_key"], json!("invalid_cursor"));
     Ok(())
 }
 

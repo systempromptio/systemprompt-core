@@ -35,7 +35,8 @@ async fn search_narrows_by_subject_kind_status_and_limit() {
         .service
         .search(&caller, &FactFilter::new())
         .await
-        .expect("all");
+        .expect("all")
+        .facts;
     assert_eq!(
         sorted(all.iter().map(|f| f.id.clone()).collect()),
         sorted(ids.clone())
@@ -46,7 +47,8 @@ async fn search_narrows_by_subject_kind_status_and_limit() {
         .service
         .search(&caller, &FactFilter::new().with_subject(acme_subject))
         .await
-        .expect("by subject");
+        .expect("by subject")
+        .facts;
     assert_eq!(acme.len(), 1);
     assert!(acme.iter().all(|f| f.subject.id == "acme"), "{acme:?}");
 
@@ -54,13 +56,15 @@ async fn search_narrows_by_subject_kind_status_and_limit() {
         .service
         .search(&caller, &FactFilter::new().with_kind(kind(PRICING)))
         .await
-        .expect("by kind");
+        .expect("by kind")
+        .facts;
     assert_eq!(pricing.len(), 2);
     let ownership = h
         .service
         .search(&caller, &FactFilter::new().with_kind(kind(OWNERSHIP)))
         .await
-        .expect("other kind");
+        .expect("other kind")
+        .facts;
     assert!(ownership.is_empty(), "{ownership:?}");
 
     let fresh = h.fact(&ids[1]).await.status;
@@ -73,7 +77,8 @@ async fn search_narrows_by_subject_kind_status_and_limit() {
             &FactFilter::new().with_statuses(vec![FactStatus::Confirmed]),
         )
         .await
-        .expect("by status");
+        .expect("by status")
+        .facts;
     assert_eq!(
         confirmed.iter().map(|f| f.id.clone()).collect::<Vec<_>>(),
         vec![ids[0].clone()]
@@ -85,7 +90,8 @@ async fn search_narrows_by_subject_kind_status_and_limit() {
             &FactFilter::new().with_statuses(vec![fresh, FactStatus::Retired]),
         )
         .await
-        .expect("other statuses");
+        .expect("other statuses")
+        .facts;
     assert_eq!(others.len(), 1);
     assert!(others.iter().all(|f| f.id != ids[0]));
 
@@ -93,7 +99,8 @@ async fn search_narrows_by_subject_kind_status_and_limit() {
         .service
         .search(&caller, &FactFilter::new().with_limit(1))
         .await
-        .expect("limited");
+        .expect("limited")
+        .facts;
     assert_eq!(limited.len(), 1);
     h.finish().await;
 }

@@ -47,6 +47,8 @@ mod no_filter;
 #[cfg(test)]
 mod outbox_to_fact;
 #[cfg(test)]
+mod personal_scope;
+#[cfg(test)]
 mod plane;
 #[cfg(test)]
 mod plane_interest_owner;
@@ -102,6 +104,8 @@ mod round_tombstone;
 mod seams_discovery;
 #[cfg(test)]
 mod search_filter;
+#[cfg(test)]
+mod search_paging;
 #[cfg(test)]
 mod service_builder;
 #[cfg(test)]

@@ -1,8 +1,11 @@
 //! [`WorkingSetRepository`]: the `brain_working_set` projection recall
 //! reads first. One row per fact per scope key it is reachable through:
 //! the fact's own scope (`org`, `user:<id>`, `project:<key>`,
-//! `group:<key>`) and the audience subjects of its topics, in the
-//! `AudienceSubject` display form with `everyone` folded into `org`.
+//! `group:<key>`) and, for every scope but a user's, the audience subjects
+//! of its topics, in the `AudienceSubject` display form with `everyone`
+//! folded into `org`. A user-scoped fact is reachable only by its owner.
+//! The keys come from the `brain_fact_scope_keys` SQL function, the SQL
+//! half of `recall::visible::topic_widens`.
 //!
 //! Status, review, validity and pinning stay on `brain_facts` and are
 //! filtered at read, so the set changes only when a fact is inserted,
@@ -58,15 +61,7 @@ impl WorkingSetRepository {
             r"INSERT INTO brain_working_set (scope_key, fact_id, importance_base)
               SELECT DISTINCT s.key, f.id, f.importance_base
               FROM brain_facts f
-              CROSS JOIN LATERAL (
-                  SELECT CASE WHEN f.scope_level = 'org' THEN 'org'
-                              ELSE f.scope_level || ':' || f.scope_key END AS key
-                  UNION
-                  SELECT CASE WHEN a = 'everyone' THEN 'org' ELSE a END
-                  FROM brain_topics t,
-                       jsonb_array_elements_text(COALESCE(t.body -> 'audience', '[]'::jsonb)) a
-                  WHERE t.id = ANY (f.topics)
-              ) s
+              CROSS JOIN LATERAL brain_fact_scope_keys(f.scope_level, f.scope_key, f.topics) s(key)
               WHERE f.id = ANY($1::text[])
               ON CONFLICT DO NOTHING",
             ids
@@ -84,15 +79,7 @@ impl WorkingSetRepository {
             r"INSERT INTO brain_working_set (scope_key, fact_id, importance_base)
               SELECT DISTINCT s.key, f.id, f.importance_base
               FROM brain_facts f
-              CROSS JOIN LATERAL (
-                  SELECT CASE WHEN f.scope_level = 'org' THEN 'org'
-                              ELSE f.scope_level || ':' || f.scope_key END AS key
-                  UNION
-                  SELECT CASE WHEN a = 'everyone' THEN 'org' ELSE a END
-                  FROM brain_topics t,
-                       jsonb_array_elements_text(COALESCE(t.body -> 'audience', '[]'::jsonb)) a
-                  WHERE t.id = ANY (f.topics)
-              ) s
+              CROSS JOIN LATERAL brain_fact_scope_keys(f.scope_level, f.scope_key, f.topics) s(key)
               ON CONFLICT DO NOTHING"
         )
         .execute(conn)
@@ -108,16 +95,7 @@ impl WorkingSetRepository {
                       (SELECT count(*) FROM (
                           SELECT DISTINCT s.key, f.id
                           FROM brain_facts f
-                          CROSS JOIN LATERAL (
-                              SELECT CASE WHEN f.scope_level = 'org' THEN 'org'
-                                          ELSE f.scope_level || ':' || f.scope_key END AS key
-                              UNION
-                              SELECT CASE WHEN a = 'everyone' THEN 'org' ELSE a END
-                              FROM brain_topics t,
-                                   jsonb_array_elements_text(
-                                       COALESCE(t.body -> 'audience', '[]'::jsonb)) a
-                              WHERE t.id = ANY (f.topics)
-                          ) s) expected) AS "expected!""#
+                          CROSS JOIN LATERAL brain_fact_scope_keys(f.scope_level, f.scope_key, f.topics) s(key)) expected) AS "expected!""#
         )
         .fetch_one(executor)
         .await?;

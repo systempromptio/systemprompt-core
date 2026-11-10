@@ -20,6 +20,7 @@ use systemprompt_models::origin::ClientKind;
 
 use super::{BrainCaller, BrainService};
 use crate::error::{BrainError, BrainResult};
+use crate::recall::held::HeldKeys;
 use crate::recall::visible::{Verdict, Visibility};
 
 #[derive(Debug, Clone, Copy)]
@@ -56,6 +57,16 @@ impl BrainService {
             .with_topics(declared.topics.clone()))
     }
 
+    pub(super) async fn retain_visible(
+        &self,
+        caller: &BrainCaller,
+        facts: Vec<BrainFact>,
+        held: HeldKeys,
+    ) -> BrainResult<Vec<BrainFact>> {
+        let visibility = self.visibility().await?.with_held(held);
+        Ok(visibility.retain_visible(facts, &principal(caller)).await)
+    }
+
     pub(super) async fn require_visible(
         &self,
         caller: &BrainCaller,
@@ -66,21 +77,5 @@ impl BrainService {
             Verdict::Visible => Ok(fact),
             Verdict::Withheld(_) => Err(BrainError::NotFound(fact.id)),
         }
-    }
-
-    pub(super) async fn only_visible(
-        &self,
-        caller: &BrainCaller,
-        facts: Vec<BrainFact>,
-    ) -> BrainResult<Vec<BrainFact>> {
-        let visibility = self.visibility().await?;
-        let who = principal(caller);
-        let verdicts =
-            futures::future::join_all(facts.iter().map(|fact| visibility.check(fact, &who))).await;
-        Ok(facts
-            .into_iter()
-            .zip(verdicts)
-            .filter_map(|(fact, verdict)| (verdict == Verdict::Visible).then_some(fact))
-            .collect())
     }
 }

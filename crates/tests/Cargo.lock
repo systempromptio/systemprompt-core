@@ -8572,6 +8572,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "futures",
+ "hex",
  "inventory",
  "metrics",
  "serde",

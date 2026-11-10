@@ -31,6 +31,8 @@ pub struct SearchInput {
     pub scope: Option<ScopeLevel>,
     #[serde(default)]
     pub limit: Option<i64>,
+    #[serde(default)]
+    pub after: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, JsonSchema)]
@@ -122,6 +124,7 @@ impl From<BrainFact> for FactItem {
 #[derive(Debug, Clone, PartialEq, Serialize, JsonSchema)]
 pub struct SearchOutput {
     pub facts: Vec<FactItem>,
+    pub next: Option<String>,
 }
 brain_output!(SearchOutput, "brain_search");
 
