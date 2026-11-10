@@ -41,7 +41,11 @@ impl Profile {
                 errors.push(format!("{label} requires exactly one of https or oci"));
             }
             if let Some(https) = source.https.as_ref()
-                && let Err(e) = validate_outbound_url_with_trust(&https.url, &trusted)
+                && let Err(e) = validate_outbound_url_with_trust(
+                    &https.url,
+                    &trusted,
+                    systemprompt_models::net::LoopbackPolicy::Allow,
+                )
             {
                 errors.push(format!("{label}.https.url is not fetchable: {e}"));
             }
@@ -86,7 +90,11 @@ impl Profile {
         };
 
         let trusted = trusted_http_hosts_from_env();
-        if let Err(e) = validate_outbound_url_with_trust(&vault.address, &trusted) {
+        if let Err(e) = validate_outbound_url_with_trust(
+            &vault.address,
+            &trusted,
+            systemprompt_models::net::LoopbackPolicy::Allow,
+        ) {
             errors.push(format!("secrets.vault.address is not reachable: {e}"));
         }
         if vault.path.trim().is_empty() {

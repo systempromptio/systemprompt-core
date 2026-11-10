@@ -99,13 +99,17 @@ fn validate_provider(
                 endpoint: endpoint_id.clone(),
             });
         }
-        systemprompt_models::net::validate_outbound_url_with_trust(&endpoint.url, trusted)
-            .map_err(|source| CatalogError::BlockedEndpointUrl {
-                provider: id.clone(),
-                endpoint: endpoint_id.clone(),
-                url: endpoint.url.clone(),
-                source,
-            })?;
+        systemprompt_models::net::validate_outbound_url_with_trust(
+            &endpoint.url,
+            trusted,
+            systemprompt_models::net::LoopbackPolicy::Allow,
+        )
+        .map_err(|source| CatalogError::BlockedEndpointUrl {
+            provider: id.clone(),
+            endpoint: endpoint_id.clone(),
+            url: endpoint.url.clone(),
+            source,
+        })?;
         if names_a_project_literally(&endpoint.url) {
             return Err(CatalogError::LiteralProjectInUrl {
                 provider: id.clone(),

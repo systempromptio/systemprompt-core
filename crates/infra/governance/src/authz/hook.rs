@@ -132,7 +132,7 @@ pub struct WebhookHook {
 
 impl WebhookHook {
     pub fn new(url: String, timeout: Duration, sink: Arc<dyn AuthzAuditSink>) -> AuthzResult<Self> {
-        let client = guarded_client(&GuardedClientConfig::default().with_timeout(timeout))?;
+        let client = guarded_client(&GuardedClientConfig::for_configured().with_timeout(timeout))?;
         Ok(Self {
             url,
             timeout,

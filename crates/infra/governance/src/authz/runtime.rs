@@ -143,7 +143,8 @@ fn build_webhook_hook(
         .filter(|s| !s.is_empty())
         .ok_or(AuthzBootstrapError::MissingWebhookUrl)?
         .to_owned();
-    validate_outbound_url(&url).map_err(AuthzBootstrapError::InvalidWebhookUrl)?;
+    validate_outbound_url(&url, systemprompt_models::net::LoopbackPolicy::Allow)
+        .map_err(AuthzBootstrapError::InvalidWebhookUrl)?;
     let webhook = WebhookHook::new(
         url,
         Duration::from_millis(authz.hook.timeout_ms),

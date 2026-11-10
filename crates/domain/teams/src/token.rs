@@ -140,7 +140,10 @@ impl TokenProvider {
     }
 
     async fn fetch(&self, now_unix: i64) -> TeamsResult<CachedToken> {
-        validate_outbound_url(&self.token_url)?;
+        validate_outbound_url(
+            &self.token_url,
+            systemprompt_models::net::LoopbackPolicy::Allow,
+        )?;
         let resp = self
             .http
             .post(&self.token_url)

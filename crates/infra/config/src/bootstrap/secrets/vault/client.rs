@@ -33,8 +33,12 @@ pub(super) struct VaultHttp {
 impl VaultHttp {
     pub(super) fn new(cfg: &VaultSecretsConfig) -> Result<Self, VaultError> {
         let trusted = trusted_http_hosts_from_env();
-        let address = validate_outbound_url_with_trust(&cfg.address, &trusted)
-            .map_err(|e| VaultError::Address(Box::new(e)))?;
+        let address = validate_outbound_url_with_trust(
+            &cfg.address,
+            &trusted,
+            systemprompt_models::net::LoopbackPolicy::Allow,
+        )
+        .map_err(|e| VaultError::Address(Box::new(e)))?;
 
         let mut builder = reqwest::Client::builder()
             .tls_backend_rustls()

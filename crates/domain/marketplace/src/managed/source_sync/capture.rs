@@ -5,11 +5,12 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::{
-    GitCheckout, GitSyncRequest, GitSyncResult, ManagedError, ManagedRepository, ManagedSourceId,
-    Result, RevisionFiles, UserId, import_tree, resolve_ref,
+    GitCheckout, GitSyncRequest, GitSyncResult, GitTransport, ManagedError, ManagedRepository,
+    ManagedSourceId, Result, RevisionFiles, UserId, import_tree, resolve_ref,
 };
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use systemprompt_models::net::LoopbackPolicy;
 
 #[derive(Debug)]
 pub struct CapturedGitSource {
@@ -78,10 +79,16 @@ impl GitSynchronizationService {
 /// Captures over the network with the sandboxed `git` subprocess, checking
 /// out under a caller-supplied scratch root so a read-only root filesystem
 /// needs no writable `/tmp`.
+///
+/// The repository host is resolved here, every address is judged by the
+/// outbound block list, and `git` is pinned to the vetted address, so the
+/// subprocess cannot resolve the name to something else. Loopback hosts are
+/// refused unless the capture is built with [`LoopbackPolicy::Allow`].
 #[derive(Debug, Clone)]
 pub struct NativeGitSourceCapture {
     scratch_root: PathBuf,
     certificate_authority: Option<Vec<u8>>,
+    loopback: LoopbackPolicy,
 }
 
 impl NativeGitSourceCapture {
@@ -90,7 +97,14 @@ impl NativeGitSourceCapture {
         Self {
             scratch_root,
             certificate_authority: None,
+            loopback: LoopbackPolicy::Deny,
         }
+    }
+
+    #[must_use]
+    pub const fn with_loopback_policy(mut self, loopback: LoopbackPolicy) -> Self {
+        self.loopback = loopback;
+        self
     }
 
     #[must_use]
@@ -112,18 +126,19 @@ impl NativeGitSourceCapture {
             credential,
         } = *request;
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(120);
+        let pinned = super::pin::pin_repository(repository, self.loopback)?;
+        super::pin::require_pinning_git(deadline)?;
+        let resolve = pinned.curl_resolve_entry();
         let certificate_authority = self
             .certificate_authority
             .as_deref()
             .map(|pem| write_certificate_authority(temp, pem))
             .transpose()?;
-        let commit = resolve_ref(
-            repository,
-            reference,
-            credential,
-            certificate_authority.as_deref(),
-            deadline,
-        )?;
+        let transport = GitTransport {
+            certificate_authority: certificate_authority.as_deref(),
+            resolve: &resolve,
+        };
+        let commit = resolve_ref(repository, reference, credential, &transport, deadline)?;
         let files = import_tree(&GitCheckout {
             temp,
             repository,
@@ -131,7 +146,7 @@ impl NativeGitSourceCapture {
             subdirectory,
             root,
             credential,
-            certificate_authority: certificate_authority.as_deref(),
+            transport,
             deadline,
         })?;
         Ok(CapturedGitSource { commit, files })

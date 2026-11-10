@@ -155,7 +155,7 @@ pub async fn fetch_external_bearer(
     caller_purpose: Option<&str>,
 ) -> McpDomainResult<String> {
     let client = systemprompt_client::guarded_client(
-        &systemprompt_client::GuardedClientConfig::default().with_max_redirects(0),
+        &systemprompt_client::GuardedClientConfig::for_configured().with_max_redirects(0),
     )
     .map_err(|e| {
         McpDomainError::transport(format!("token accessor client failed for '{server}'"), e)

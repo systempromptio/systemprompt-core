@@ -64,8 +64,12 @@ impl RegistryClient {
             || trusted.iter().any(|t| t.eq_ignore_ascii_case(bare));
         let scheme = if plain { "http" } else { "https" };
         let raw = format!("{scheme}://{host}/v2/{}{path}", self.reference.repository);
-        validate_outbound_url_with_trust(&raw, &trusted)
-            .map_err(|e| BundleError::fetch_cause(&self.name, e))
+        validate_outbound_url_with_trust(
+            &raw,
+            &trusted,
+            systemprompt_models::net::LoopbackPolicy::Allow,
+        )
+        .map_err(|e| BundleError::fetch_cause(&self.name, e))
     }
 
     #[must_use]

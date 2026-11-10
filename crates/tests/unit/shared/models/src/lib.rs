@@ -198,6 +198,8 @@ mod secrets;
 
 #[cfg(test)]
 mod net;
+#[cfg(test)]
+mod net_policy;
 
 #[cfg(test)]
 #[cfg(test)]

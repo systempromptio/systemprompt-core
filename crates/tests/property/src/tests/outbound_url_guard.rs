@@ -6,7 +6,9 @@
 
 use proptest::prelude::*;
 use systemprompt_client::GuardedClientConfig;
-use systemprompt_models::net::{OutboundUrlError, is_blocked_ip, validate_outbound_url};
+use systemprompt_models::net::{
+    LoopbackPolicy, OutboundUrlError, is_blocked_ip, validate_outbound_url,
+};
 
 fn blocked_ipv4() -> impl Strategy<Value = (u8, u8, u8, u8)> {
     prop_oneof![
@@ -30,7 +32,7 @@ proptest! {
     #[test]
     fn any_blocked_ipv4_is_rejected((a, b, c, d) in blocked_ipv4()) {
         let url = format!("https://{a}.{b}.{c}.{d}/h");
-        let res = validate_outbound_url(&url);
+        let res = validate_outbound_url(&url, LoopbackPolicy::Allow);
         prop_assert!(
             matches!(res, Err(OutboundUrlError::BlockedHost(_))),
             "{url} must be blocked, got {res:?}",
@@ -40,7 +42,7 @@ proptest! {
     #[test]
     fn any_blocked_v4_mapped_ipv6_is_rejected((a, b, c, d) in blocked_ipv4()) {
         let url = format!("https://[::ffff:{a}.{b}.{c}.{d}]/h");
-        let res = validate_outbound_url(&url);
+        let res = validate_outbound_url(&url, LoopbackPolicy::Allow);
         prop_assert!(
             matches!(res, Err(OutboundUrlError::BlockedHost(_))),
             "{url} must be blocked, got {res:?}",
@@ -52,7 +54,7 @@ proptest! {
         scheme in "(ftp|gopher|ldap|dict|file|tftp|ssh)",
     ) {
         let url = format!("{scheme}://example.com/h");
-        let res = validate_outbound_url(&url);
+        let res = validate_outbound_url(&url, LoopbackPolicy::Allow);
         prop_assert!(
             matches!(res, Err(OutboundUrlError::Scheme(_)) | Err(OutboundUrlError::Parse(_))),
             "{url} must be rejected, got {res:?}",
@@ -74,11 +76,11 @@ proptest! {
     fn a_trusted_host_is_never_silently_dropped_from_the_resolver_exemptions(
         host in "[a-z][a-z0-9-]{0,20}\\.(internal|local|test)",
     ) {
-        let config = GuardedClientConfig::default().with_trusted_hosts(vec![host.clone()]);
-        prop_assert!(config.trusted_hosts.contains(&host));
+        let config = GuardedClientConfig::for_configured().with_trusted_hosts(vec![host.clone()]);
+        prop_assert!(config.trusted_hosts().contains(&host));
         let url = format!("http://{host}/h");
         prop_assert!(
-            validate_outbound_url(&url).is_err(),
+            validate_outbound_url(&url, LoopbackPolicy::Allow).is_err(),
             "{url} must stay blocked without the trust list",
         );
     }

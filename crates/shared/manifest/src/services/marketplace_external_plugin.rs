@@ -92,11 +92,13 @@ fn validate_repository(url: &str) -> Result<(), ExternalEntryError> {
     if is_github_repo(url) {
         return Ok(());
     }
-    let parsed = systemprompt_models::net::validate_outbound_url(url).map_err(|source| {
-        ExternalEntryError::UnusableUrl {
-            url: url.to_owned(),
-            source,
-        }
+    let parsed = systemprompt_models::net::validate_outbound_url(
+        url,
+        systemprompt_models::net::LoopbackPolicy::Allow,
+    )
+    .map_err(|source| ExternalEntryError::UnusableUrl {
+        url: url.to_owned(),
+        source,
     })?;
     if parsed.scheme() != "https" {
         return Err(ExternalEntryError::NotHttps(url.to_owned()));

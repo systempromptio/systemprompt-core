@@ -9,7 +9,7 @@ pub(super) fn resolve_ref(
     repository: &str,
     reference: &str,
     credential: Option<&str>,
-    certificate_authority: Option<&Path>,
+    transport: &GitTransport<'_>,
     deadline: std::time::Instant,
 ) -> Result<String> {
     if is_commit(reference) {
@@ -18,7 +18,7 @@ pub(super) fn resolve_ref(
     let peeled = format!("{reference}^{{}}");
     let mut list = Command::new("git");
     list.args(["-c", "core.hooksPath=/dev/null"]);
-    trust_certificate_authority(&mut list, certificate_authority)?;
+    transport.apply(&mut list)?;
     let output = git(
         list.args(["ls-remote", "--exit-code", repository, reference, &peeled]),
         credential.map(|token| (repository, token)),
@@ -58,7 +58,7 @@ pub(super) struct GitCheckout<'a> {
     pub subdirectory: Option<&'a str>,
     pub root: &'a str,
     pub credential: Option<&'a str>,
-    pub certificate_authority: Option<&'a Path>,
+    pub transport: GitTransport<'a>,
     pub deadline: std::time::Instant,
 }
 
@@ -135,7 +135,7 @@ fn fetch_commit(checkout: &GitCheckout<'_>) -> Result<()> {
         repository,
         commit,
         credential,
-        certificate_authority,
+        transport,
         deadline,
         ..
     } = *checkout;
@@ -155,7 +155,7 @@ fn fetch_commit(checkout: &GitCheckout<'_>) -> Result<()> {
     fetch
         .current_dir(temp)
         .args(["-c", "core.hooksPath=/dev/null"]);
-    trust_certificate_authority(&mut fetch, certificate_authority)?;
+    transport.apply(&mut fetch)?;
     fetch.args(["fetch", "--no-tags", "--depth=1", repository, commit]);
     git(
         &mut fetch,
@@ -179,12 +179,21 @@ fn fetch_commit(checkout: &GitCheckout<'_>) -> Result<()> {
     require_plain_tree(temp, commit, deadline)
 }
 
-fn trust_certificate_authority(command: &mut Command, path: Option<&Path>) -> Result<()> {
-    if let Some(path) = path {
-        let path = path.to_str().ok_or(ManagedError::Integrity)?;
-        command.args(["-c", &format!("http.sslCAInfo={path}")]);
+#[derive(Clone, Copy)]
+pub(super) struct GitTransport<'a> {
+    pub certificate_authority: Option<&'a Path>,
+    pub resolve: &'a str,
+}
+
+impl GitTransport<'_> {
+    fn apply(&self, command: &mut Command) -> Result<()> {
+        command.args(["-c", &format!("http.curloptResolve={}", self.resolve)]);
+        if let Some(path) = self.certificate_authority {
+            let path = path.to_str().ok_or(ManagedError::Integrity)?;
+            command.args(["-c", &format!("http.sslCAInfo={path}")]);
+        }
+        Ok(())
     }
-    Ok(())
 }
 
 fn require_plain_tree(temp: &Path, commit: &str, deadline: std::time::Instant) -> Result<()> {

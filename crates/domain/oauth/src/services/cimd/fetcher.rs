@@ -12,19 +12,18 @@ use systemprompt_models::net::HTTP_AUTH_VERIFY_TIMEOUT;
 
 #[derive(Debug)]
 pub struct CimdFetcher {
+    policy: GuardedClientConfig,
     client: Client,
 }
 
 impl CimdFetcher {
     pub fn new() -> Result<Self> {
-        let client = guarded_client(
-            &GuardedClientConfig::default()
-                .with_timeout(HTTP_AUTH_VERIFY_TIMEOUT)
-                .with_user_agent(concat!("systemprompt.io-OS/", env!("CARGO_PKG_VERSION"))),
-        )
-        .map_err(OauthError::CimdHttpClient)?;
+        let policy = GuardedClientConfig::for_untrusted()
+            .with_timeout(HTTP_AUTH_VERIFY_TIMEOUT)
+            .with_user_agent(concat!("systemprompt.io-OS/", env!("CARGO_PKG_VERSION")));
+        let client = guarded_client(&policy).map_err(OauthError::CimdHttpClient)?;
 
-        Ok(Self { client })
+        Ok(Self { policy, client })
     }
 
     pub async fn fetch_metadata(&self, client_id: &ClientId) -> Result<CimdMetadata> {
@@ -34,10 +33,17 @@ impl CimdFetcher {
                 "CIMD client_id must be HTTPS URL".to_owned(),
             ));
         }
+        let target =
+            self.policy
+                .check_url(client_id_str)
+                .map_err(|source| OauthError::CimdTarget {
+                    url: client_id_str.to_owned(),
+                    source,
+                })?;
 
         let response = self
             .client
-            .get(client_id_str)
+            .get(target)
             .header("Accept", "application/json")
             .send()
             .await

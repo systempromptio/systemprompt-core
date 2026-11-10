@@ -199,10 +199,15 @@ async fn post_checkin(
     checkin: &LicenceCheckin,
 ) -> Result<u16, LicenceCheckinError> {
     let secret = secret.ok_or(LicenceCheckinError::MissingSecret)?;
-    let url = validate_outbound_url(&config.endpoint).map_err(LicenceCheckinError::Endpoint)?;
+    let url = validate_outbound_url(
+        &config.endpoint,
+        systemprompt_models::net::LoopbackPolicy::Allow,
+    )
+    .map_err(LicenceCheckinError::Endpoint)?;
     let body = serde_json::to_vec(checkin).map_err(LicenceCheckinError::Encode)?;
     let signature = sign_checkin(&body, secret.as_bytes());
-    let client = guarded_client(&GuardedClientConfig::default().with_timeout(REQUEST_TIMEOUT))?;
+    let client =
+        guarded_client(&GuardedClientConfig::for_configured().with_timeout(REQUEST_TIMEOUT))?;
     let mut request = client
         .post(url)
         .header(reqwest::header::CONTENT_TYPE, "application/json")

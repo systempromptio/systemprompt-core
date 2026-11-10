@@ -38,7 +38,7 @@ pub struct TeamsClient {
 }
 
 fn reply_client() -> Option<reqwest::Client> {
-    guarded_client(&GuardedClientConfig::default())
+    guarded_client(&GuardedClientConfig::for_configured())
         .inspect_err(|e| tracing::error!(error = %e, "Guarded Teams reply client unavailable"))
         .ok()
 }
@@ -76,7 +76,7 @@ impl TeamsClient {
         now_unix: i64,
     ) -> TeamsResult<()> {
         let url = reply_url(service_url, conversation_id);
-        validate_outbound_url(&url)?;
+        validate_outbound_url(&url, systemprompt_models::net::LoopbackPolicy::Allow)?;
         let http = self
             .reply_http
             .as_ref()

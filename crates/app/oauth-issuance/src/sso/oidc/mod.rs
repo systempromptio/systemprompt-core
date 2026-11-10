@@ -84,7 +84,7 @@ impl OidcProvider {
     ) -> Result<Self, OidcConfigError> {
         cfg.validate(secrets.as_ref())?;
         let http = guarded_client(
-            &GuardedClientConfig::default()
+            &GuardedClientConfig::for_configured()
                 .with_timeout(HTTP_TIMEOUT)
                 .with_max_redirects(0),
         )

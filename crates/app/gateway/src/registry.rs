@@ -205,10 +205,9 @@ impl GatewayEngines {
         extensions: &Arc<dyn ExtensionContext>,
         secrets: Arc<SecretsService>,
     ) -> Result<Self, GatewayEnginesError> {
-        let http = systemprompt_client::guarded_client(&GuardedClientConfig {
-            timeout: None,
-            ..GuardedClientConfig::default()
-        })
+        let http = systemprompt_client::guarded_client(
+            &GuardedClientConfig::for_configured().without_timeout(),
+        )
         .map_err(GatewayEnginesError::HttpClient)?;
         Ok(Self {
             upstream_registry: Arc::default(),

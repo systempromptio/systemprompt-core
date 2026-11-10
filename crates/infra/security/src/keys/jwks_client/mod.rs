@@ -96,7 +96,7 @@ impl JwksClient {
     pub fn with_capacity(allowed_hosts: Vec<String>, capacity: usize) -> Self {
         let cap = NonZeroUsize::new(capacity.max(1)).unwrap_or(NonZeroUsize::MIN);
         Self {
-            http: guarded_client(&GuardedClientConfig::default())
+            http: guarded_client(&GuardedClientConfig::for_configured())
                 .inspect_err(|e| tracing::error!(error = %e, "Guarded JWKS client unavailable"))
                 .ok(),
             allowed_hosts,

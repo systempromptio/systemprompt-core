@@ -94,7 +94,10 @@ impl SlackClient {
 
     // JSON: Slack Block Kit `blocks` array — vendor layout JSON.
     pub async fn post_message(&self, channel: &str, blocks: Value) -> SlackResult<()> {
-        validate_outbound_url(&self.post_message_url)?;
+        validate_outbound_url(
+            &self.post_message_url,
+            systemprompt_models::net::LoopbackPolicy::Allow,
+        )?;
         let body = json!({ "channel": channel, "blocks": blocks });
         let resp = self
             .http
@@ -113,7 +116,10 @@ impl SlackClient {
         blocks: Value,
         ephemeral: bool,
     ) -> SlackResult<()> {
-        validate_outbound_url(response_url)?;
+        validate_outbound_url(
+            response_url,
+            systemprompt_models::net::LoopbackPolicy::Allow,
+        )?;
         let body = json!({
             "response_type": if ephemeral { "ephemeral" } else { "in_channel" },
             "blocks": blocks,
@@ -123,7 +129,10 @@ impl SlackClient {
     }
 
     pub async fn user_info(&self, user_id: &SlackUserId) -> SlackResult<SlackUserProfile> {
-        validate_outbound_url(&self.users_info_url)?;
+        validate_outbound_url(
+            &self.users_info_url,
+            systemprompt_models::net::LoopbackPolicy::Allow,
+        )?;
         let resp = self
             .http
             .get(&self.users_info_url)

@@ -14,6 +14,8 @@ mod error;
 #[cfg(test)]
 mod guarded;
 #[cfg(test)]
+mod guarded_policy;
+#[cfg(test)]
 mod http;
 #[cfg(test)]
 mod remote_cli;

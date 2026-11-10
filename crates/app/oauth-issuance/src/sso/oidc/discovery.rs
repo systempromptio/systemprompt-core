@@ -44,7 +44,7 @@ impl OidcDiscovery {
             ("token_endpoint", &self.token_endpoint),
             ("jwks_uri", &self.jwks_uri),
         ] {
-            validate_outbound_url(endpoint)
+            validate_outbound_url(endpoint, systemprompt_models::net::LoopbackPolicy::Allow)
                 .map_err(|source| OidcProviderError::Endpoint { field, source })?;
         }
         Ok(())
@@ -117,10 +117,11 @@ impl DiscoveryCache {
 
     async fn fetch(&self, http: &reqwest::Client) -> Result<OidcDiscovery, OidcProviderError> {
         let destination =
-            validate_outbound_url(&self.url).map_err(|source| OidcProviderError::Endpoint {
-                field: "discovery_url",
-                source,
-            })?;
+            validate_outbound_url(&self.url, systemprompt_models::net::LoopbackPolicy::Allow)
+                .map_err(|source| OidcProviderError::Endpoint {
+                    field: "discovery_url",
+                    source,
+                })?;
         let response = http
             .get(destination)
             .send()

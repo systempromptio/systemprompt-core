@@ -47,7 +47,7 @@ impl MessagingState {
     // operator-configured Teams endpoints use.
     pub fn guarded() -> Result<Self, reqwest::Error> {
         let reply_client = systemprompt_client::guarded_client(
-            &systemprompt_client::GuardedClientConfig::default(),
+            &systemprompt_client::GuardedClientConfig::for_configured(),
         )?;
         Ok(Self { reply_client })
     }
