@@ -6,6 +6,9 @@
 //! time still has it. The fingerprint is the SHA-256 of the key exactly as
 //! the gateway's pubkey endpoint serves it, so an operator can reproduce it
 //! from the same response.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_identifiers::ValidatedUrl;
 use thiserror::Error;

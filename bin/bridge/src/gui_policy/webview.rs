@@ -6,6 +6,9 @@
 //! `sp.app.example.com` is never treated as the app. These functions carry no
 //! platform dependency, so they are compiled and tested on every target even
 //! though the webview itself is desktop-only.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 const APP_ORIGINS: [(&str, &str); 2] = [("sp", "app"), ("https", "sp.app")];
 const IN_APP_BLANK: [&str; 2] = ["about:blank", "about:srcdoc"];
