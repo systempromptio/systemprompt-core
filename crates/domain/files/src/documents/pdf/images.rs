@@ -1,7 +1,9 @@
 //! Decodes an image the revision holds into what a PDF image object takes.
 //! A JPEG passes through untouched; a PNG is decoded and deflated, its alpha
-//! kept as a soft mask. Any other format is not drawn, and the caller shows
-//! the image's alt text instead.
+//! kept as a soft mask. A PNG whose decoded size (width × height × bytes per
+//! pixel, read from its header) exceeds the decode budget is not decoded.
+//! Any other format is not drawn, and the caller shows the image's alt text
+//! instead.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -11,6 +13,8 @@ use std::io::{Cursor, Write};
 use flate2::Compression;
 use flate2::write::ZlibEncoder;
 use png::{ColorType, Decoder, Transformations};
+
+const DECODED_PICTURE_BUDGET: usize = 128 * 1024 * 1024;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum Encoding {
@@ -49,7 +53,11 @@ fn png_picture(bytes: &[u8]) -> Option<Picture> {
     let mut decoder = Decoder::new(Cursor::new(bytes));
     decoder.set_transformations(Transformations::normalize_to_color8());
     let mut reader = decoder.read_info().ok()?;
-    let mut buffer = vec![0; reader.output_buffer_size()?];
+    let size = reader.output_buffer_size()?;
+    if size > DECODED_PICTURE_BUDGET {
+        return None;
+    }
+    let mut buffer = vec![0; size];
     let frame = reader.next_frame(&mut buffer).ok()?;
     let pixels = buffer.get(..frame.buffer_size())?;
     let (channels, gray, has_alpha) = match frame.color_type {

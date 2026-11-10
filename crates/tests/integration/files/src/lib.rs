@@ -76,6 +76,8 @@ mod documents_drive_paths;
 #[cfg(test)]
 mod documents_engine_review;
 #[cfg(test)]
+mod documents_feed_delivery;
+#[cfg(test)]
 mod documents_folders;
 #[cfg(test)]
 mod documents_foreign_lock;
@@ -102,6 +104,8 @@ mod documents_notification_facts;
 #[cfg(test)]
 mod documents_pdf_images;
 #[cfg(test)]
+mod documents_pdf_picture_budget;
+#[cfg(test)]
 mod documents_pdf_render;
 #[cfg(test)]
 mod documents_proposals;
@@ -117,6 +121,8 @@ mod documents_repository;
 mod documents_repository_any;
 #[cfg(test)]
 mod documents_revision_engine;
+#[cfg(test)]
+mod documents_search_visibility;
 #[cfg(test)]
 mod documents_service;
 #[cfg(test)]

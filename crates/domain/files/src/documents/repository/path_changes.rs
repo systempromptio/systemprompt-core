@@ -218,4 +218,39 @@ impl DocumentRepository {
             })
             .collect())
     }
+
+    pub async fn last_gained(
+        &self,
+        documents: &[DocumentId],
+        pairs: &SubjectPairs,
+    ) -> RepoResult<Vec<(DocumentId, DriveCursor)>> {
+        let ids: Vec<String> = documents.iter().map(|id| id.as_str().to_owned()).collect();
+        let rows = sqlx::query!(
+            r#"SELECT DISTINCT ON (document_id)
+                      document_id::text AS "document_id!: DocumentId",
+                      landing_xid AS "landing_xid!", landing_seq AS "landing_seq!"
+               FROM document_path_changes
+               WHERE document_id = ANY($1::text[]::uuid[])
+                 AND subject_access = 'gained'
+                 AND landing_xid IS NOT NULL
+                 AND (subject_kind, subject_value) IN (
+                     SELECT k, v FROM UNNEST($2::text[], $3::text[]) AS p(k, v))
+               ORDER BY document_id, landing_xid DESC, landing_seq DESC"#,
+            &ids,
+            &pairs.kinds,
+            &pairs.values,
+        )
+        .fetch_all(&*self.pools.write)
+        .await?;
+        Ok(rows
+            .into_iter()
+            .map(|row| {
+                let cursor = DriveCursor {
+                    xid: row.landing_xid,
+                    seq: row.landing_seq,
+                };
+                (row.document_id, cursor)
+            })
+            .collect())
+    }
 }

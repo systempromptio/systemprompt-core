@@ -15,6 +15,7 @@ use systemprompt_provider_contracts::documents::CodecError;
 
 use super::inline::ParaAcc;
 use super::parts::{DOCUMENT, malformed};
+use crate::documents::codecs::xml_tree::track_depth;
 
 #[derive(Debug)]
 pub(super) struct Doc<'a> {
@@ -127,26 +128,25 @@ pub(super) fn parse(src: &str) -> Result<Doc<'_>, CodecError> {
     }
 }
 
-pub(super) fn attr(e: &BytesStart<'_>, key: &str) -> Option<String> {
-    let attribute = e.try_get_attribute(key).ok().flatten()?;
-    attribute
-        .normalized_value(quick_xml::XmlVersion::Implicit1_0)
-        .ok()
-        .map(std::borrow::Cow::into_owned)
-}
+pub(super) use super::parts::attr;
 
 const BLOCK_CONTAINERS: [&str; 3] = ["w:sdt", "w:sdtContent", "w:customXml"];
 
 pub(super) struct Scanner<'a> {
     reader: Reader<&'a [u8]>,
     pub(super) src: &'a str,
+    depth: usize,
 }
 
 impl<'a> Scanner<'a> {
     fn new(src: &'a str) -> Self {
         let mut reader = Reader::from_str(src);
         reader.config_mut().trim_text(false);
-        Self { reader, src }
+        Self {
+            reader,
+            src,
+            depth: 0,
+        }
     }
 
     pub(super) fn pos(&self) -> Result<usize, CodecError> {
@@ -166,6 +166,7 @@ impl<'a> Scanner<'a> {
         if matches!(event, Event::Eof) {
             return Err(malformed("word/document.xml ended inside an open element"));
         }
+        track_depth(&mut self.depth, &event)?;
         Ok((event, start..self.pos()?))
     }
 

@@ -183,11 +183,13 @@ const fn in_package(_bytes: &[u8], _reference: &str, _limit: u64) -> Option<Medi
 }
 
 fn sniff(bytes: &[u8]) -> Option<&'static str> {
+    if bytes.starts_with(b"RIFF") && bytes.get(8..12) == Some(b"WEBP") {
+        return Some("image/webp");
+    }
     [
         (&b"\x89PNG"[..], "image/png"),
         (&b"GIF8"[..], "image/gif"),
         (&[0xFF, 0xD8][..], "image/jpeg"),
-        (&b"RIFF"[..], "image/webp"),
     ]
     .into_iter()
     .find_map(|(magic, mime)| bytes.starts_with(magic).then_some(mime))

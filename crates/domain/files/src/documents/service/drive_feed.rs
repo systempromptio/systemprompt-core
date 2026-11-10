@@ -16,10 +16,14 @@
 //! another grant, or a gained one is gone again) gets nothing for it, so a
 //! grant revoked before the reader caught up leaves only the `Deleted`.
 //!
+//! A `gained` row delivers the head, so a revision at or before the caller's
+//! latest `gained` position for it is not reported: a cursor behind both
+//! rows (a concurrent writer can hold the horizon back) gets one `Created`.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use systemprompt_identifiers::{DocumentFolderId, DocumentId, TraceId};
 use systemprompt_models::auth::AuthenticatedUser;
@@ -65,6 +69,7 @@ struct FeedScope<'a> {
     trace: &'a TraceId,
     pairs: SubjectPairs,
     seen: HashMap<DocumentId, Option<Seen>>,
+    gained: HashMap<DocumentId, DriveCursor>,
     paths: HashMap<Option<DocumentFolderId>, Option<String>>,
 }
 
@@ -81,11 +86,13 @@ impl DocumentService {
         let pairs = self.access.subject_pairs(who).await?;
         let rows = self.feed_page(since, &pairs, limit).await?;
         let next = rows.last().map_or(since, FeedRow::cursor);
+        let gained = self.gained_positions(&rows, &pairs).await?;
         let mut scope = FeedScope {
             who,
             trace,
             pairs,
             seen: HashMap::new(),
+            gained,
             paths: HashMap::new(),
         };
         let mut changes = Vec::new();
@@ -127,6 +134,26 @@ impl DocumentService {
         Ok(rows)
     }
 
+    async fn gained_positions(
+        &self,
+        rows: &[FeedRow],
+        pairs: &SubjectPairs,
+    ) -> Result<HashMap<DocumentId, DriveCursor>, DocumentsError> {
+        let revised: HashSet<DocumentId> = rows
+            .iter()
+            .filter_map(|row| match row {
+                FeedRow::Revision(revision, _) => Some(revision.document_id.clone()),
+                FeedRow::Path(_) => None,
+            })
+            .collect();
+        if revised.is_empty() {
+            return Ok(HashMap::new());
+        }
+        let revised: Vec<DocumentId> = revised.into_iter().collect();
+        let gained = self.repos.documents.last_gained(&revised, pairs).await?;
+        Ok(gained.into_iter().collect())
+    }
+
     async fn feed_change(
         &self,
         scope: &mut FeedScope<'_>,
@@ -159,6 +186,14 @@ impl DocumentService {
         };
         Ok(match row {
             FeedRow::Revision(_, _) if seen.trashed => None,
+            FeedRow::Revision(_, at)
+                if scope
+                    .gained
+                    .get(&document_id)
+                    .is_some_and(|gained| at <= *gained) =>
+            {
+                None
+            },
             FeedRow::Revision(revision, _) => {
                 let kind = if revision.parent_revision_id.is_none() {
                     DriveChangeKind::Created

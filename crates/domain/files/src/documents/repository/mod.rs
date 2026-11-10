@@ -102,7 +102,7 @@ pub use path_changes::{DocumentPathChange, PathMove, SubjectAccess};
 pub use presence::DocumentPresenceRepository;
 pub use proposals::DocumentProposalRepository;
 pub use revisions::DocumentRevisionRepository;
-pub use text_index::DocumentTextIndexRepository;
+pub use text_index::{DocumentTextIndexRepository, SearchPage};
 pub use write_acks::DocumentWriteAckRepository;
 
 #[derive(Debug, Clone)]
