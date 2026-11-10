@@ -35,6 +35,8 @@ mod execute_support;
 #[cfg(test)]
 mod execute_version;
 #[cfg(test)]
+mod fencing;
+#[cfg(test)]
 mod governance;
 #[cfg(test)]
 mod harness;
@@ -50,6 +52,8 @@ mod outputs;
 mod repository;
 #[cfg(test)]
 mod retention;
+#[cfg(test)]
+mod run_interrupts;
 #[cfg(test)]
 mod runner;
 #[cfg(test)]

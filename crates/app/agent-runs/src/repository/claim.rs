@@ -2,8 +2,12 @@
 //! and stale-lease reclaim.
 //!
 //! `claim_queued` takes the oldest due queued run of an origin kind into
-//! `preparing` under a lease. `renew_lease` returns `false` once the run is
-//! no longer ours (reclaimed by another claimer, or terminal).
+//! `preparing` and returns it with its [`Lease`]. `renew_lease` returns
+//! [`Fenced::LeaseLost`] once that claim no longer owns the run (reclaimed,
+//! released or terminal). `release` hands a run the claimer stops without
+//! finishing (a shutdown) back to `queued` with `resume_session_id` set from
+//! the host session; its attempt is unchanged, and the cleared claim makes
+//! every later write under the old lease a no-op.
 //! `reclaim_stale` re-queues an expired run below `max_attempts` with its
 //! attempt bumped and `resume_session_id` set from the host session, and
 //! fails the rest as `host_crashed`, moving a failed run's A2A task to
@@ -14,9 +18,10 @@
 
 use std::time::Duration;
 
+use chrono::{DateTime, Utc};
 use systemprompt_identifiers::{AgentRunId, TaskId};
 
-use super::{AgentRunRepository, AgentRunRow, task_link};
+use super::{AgentRunRepository, Claimed, Fenced, Lease, task_link};
 use crate::error::AgentRunsResult;
 use crate::outcome::RunStatus;
 
@@ -26,8 +31,8 @@ impl AgentRunRepository {
         origin_kind: &str,
         claimed_by: &str,
         lease: Duration,
-    ) -> AgentRunsResult<Option<AgentRunRow>> {
-        let claimed = sqlx::query_scalar!(
+    ) -> AgentRunsResult<Option<Claimed>> {
+        let claimed = sqlx::query!(
             r#"
             UPDATE agent_runs
             SET status = 'preparing', claimed_by = $2, claimed_at = NOW(),
@@ -40,7 +45,8 @@ impl AgentRunRepository {
                 LIMIT 1
                 FOR UPDATE SKIP LOCKED
             )
-            RETURNING id AS "id: AgentRunId"
+            RETURNING id AS "id: AgentRunId", attempt,
+                      claimed_at AS "claimed_at!: DateTime<Utc>"
             "#,
             origin_kind,
             claimed_by,
@@ -48,31 +54,60 @@ impl AgentRunRepository {
         )
         .fetch_optional(self.write_pool())
         .await?;
-        match claimed {
-            Some(id) => self.find_run(&id).await,
-            None => Ok(None),
-        }
+        let Some(claimed) = claimed else {
+            return Ok(None);
+        };
+        let lease = Lease::new(claimed_by.to_owned(), claimed.attempt, claimed.claimed_at);
+        Ok(self
+            .find_run(&claimed.id)
+            .await?
+            .map(|row| Claimed { row, lease }))
     }
 
     pub async fn renew_lease(
         &self,
         id: &AgentRunId,
-        claimed_by: &str,
-        lease: Duration,
-    ) -> AgentRunsResult<bool> {
+        lease: &Lease,
+        duration: Duration,
+    ) -> AgentRunsResult<Fenced> {
         let result = sqlx::query!(
             r#"
             UPDATE agent_runs
-            SET lease_until = NOW() + make_interval(secs => $3::double precision)
-            WHERE id = $1 AND claimed_by = $2 AND status IN ('preparing', 'running')
+            SET lease_until = NOW() + make_interval(secs => $4::double precision)
+            WHERE id = $1 AND claimed_by = $2 AND attempt = $3 AND claimed_at = $5
+              AND status IN ('preparing', 'running')
             "#,
             id.as_str(),
-            claimed_by,
-            lease.as_secs_f64(),
+            lease.claimed_by(),
+            lease.attempt(),
+            duration.as_secs_f64(),
+            lease.claimed_at(),
         )
         .execute(self.write_pool())
         .await?;
-        Ok(result.rows_affected() == 1)
+        Ok(Fenced::from_rows(result.rows_affected()))
+    }
+
+    pub async fn release(&self, id: &AgentRunId, lease: &Lease) -> AgentRunsResult<Fenced> {
+        let result = sqlx::query!(
+            r#"
+            UPDATE agent_runs
+            SET status = 'queued',
+                request = CASE WHEN host_session_id IS NULL THEN request
+                    ELSE jsonb_set(request, '{resume_session_id}', to_jsonb(host_session_id))
+                END,
+                claimed_by = NULL, claimed_at = NULL, lease_until = NULL, pid = NULL
+            WHERE id = $1 AND claimed_by = $2 AND attempt = $3 AND claimed_at = $4
+              AND status IN ('preparing', 'running')
+            "#,
+            id.as_str(),
+            lease.claimed_by(),
+            lease.attempt(),
+            lease.claimed_at(),
+        )
+        .execute(self.write_pool())
+        .await?;
+        Ok(Fenced::from_rows(result.rows_affected()))
     }
 
     pub async fn reclaim_stale(

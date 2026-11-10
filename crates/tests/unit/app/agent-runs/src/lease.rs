@@ -13,7 +13,8 @@ async fn renewer_keeps_a_held_lease_and_cancels_on_loss() {
     let f = fixture().await;
     let id = queue(&f).await;
     let lease = Duration::from_secs(90);
-    f.repo
+    let claimed = f
+        .repo
         .claim_queued(&f.origin_kind, "a", lease)
         .await
         .expect("claim")
@@ -22,9 +23,9 @@ async fn renewer_keeps_a_held_lease_and_cancels_on_loss() {
     let token = CancellationToken::new();
     let spec = LeaseSpec {
         run_id: id.clone(),
-        claimed_by: "a".into(),
+        lease: claimed.lease,
         every: Duration::from_millis(50),
-        lease,
+        duration: lease,
     };
     let renewer = LeaseRenewer::start(f.repo.clone(), spec, token.clone());
     tokio::time::sleep(Duration::from_millis(200)).await;

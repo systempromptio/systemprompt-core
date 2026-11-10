@@ -17,7 +17,7 @@ use crate::execute_support::ShHost;
 use crate::harness::{bundle, harness_ref};
 use crate::repository::{Fixture, fixture, request};
 
-enum Source {
+pub(crate) enum Source {
     Bundle(RevisionBundle),
     Fails,
 }
@@ -36,13 +36,13 @@ impl HarnessSource for Source {
     }
 }
 
-struct Rig {
-    f: Fixture,
+pub(crate) struct Rig {
+    pub(crate) f: Fixture,
     data: tempfile::TempDir,
-    workspace: tempfile::TempDir,
+    pub(crate) workspace: tempfile::TempDir,
 }
 
-async fn rig() -> Rig {
+pub(crate) async fn rig() -> Rig {
     Rig {
         f: fixture().await,
         data: tempfile::tempdir().unwrap(),
@@ -50,7 +50,7 @@ async fn rig() -> Rig {
     }
 }
 
-async fn handler(r: &Rig, script: &str, source: Option<Source>) -> A2aRunHandler {
+pub(crate) async fn handler(r: &Rig, script: &str, source: Option<Source>) -> A2aRunHandler {
     let pool = test_db_pool().await;
     let config = A2aRunnerConfig::new("http://127.0.0.1:9", "https://issuer.test", r.data.path());
     let handler = A2aRunHandler::new(
@@ -75,7 +75,7 @@ async fn handler(r: &Rig, script: &str, source: Option<Source>) -> A2aRunHandler
     }
 }
 
-async fn claim(r: &Rig, harness: Option<HarnessRef>) -> ClaimedRun {
+pub(crate) async fn claim(r: &Rig, harness: Option<HarnessRef>) -> ClaimedRun {
     let id = AgentRunId::generate();
     let request = RunRequest {
         workspace: r.workspace.path().to_path_buf(),
@@ -95,18 +95,14 @@ async fn claim(r: &Rig, harness: Option<HarnessRef>) -> ClaimedRun {
         })
         .await
         .expect("insert run");
-    let row =
+    let claimed =
         r.f.repo
             .claim_queued(&r.f.origin_kind, "handler-test", Duration::from_secs(90))
             .await
             .expect("claim")
             .expect("claimed row");
-    assert_eq!(row.id, id);
-    ClaimedRun {
-        row,
-        run_token: CancellationToken::new(),
-        repo: r.f.repo.clone(),
-    }
+    assert_eq!(claimed.row.id, id);
+    ClaimedRun::new(claimed, r.f.repo.clone(), &CancellationToken::new())
 }
 
 async fn finished(r: &Rig, id: &AgentRunId) -> AgentRunRow {

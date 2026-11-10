@@ -16,7 +16,7 @@ use systemprompt_traits::OwnedTask;
 use tokio::time::{Instant, MissedTickBehavior};
 use tokio_util::sync::CancellationToken;
 
-use crate::repository::AgentRunRepository;
+use crate::repository::{AgentRunRepository, Fenced, Lease};
 
 pub const DEFAULT_RENEW_EVERY: Duration = Duration::from_secs(30);
 pub const DEFAULT_LEASE: Duration = Duration::from_secs(90);
@@ -31,9 +31,9 @@ pub struct LeaseRenewer {
 #[derive(Debug, Clone)]
 pub struct LeaseSpec {
     pub run_id: AgentRunId,
-    pub claimed_by: String,
+    pub lease: Lease,
     pub every: Duration,
-    pub lease: Duration,
+    pub duration: Duration,
 }
 
 impl LeaseRenewer {
@@ -58,16 +58,16 @@ async fn renew_loop(repo: AgentRunRepository, spec: LeaseSpec, token: Cancellati
             _ = ticker.tick() => {},
         }
         match repo
-            .renew_lease(&spec.run_id, &spec.claimed_by, spec.lease)
+            .renew_lease(&spec.run_id, &spec.lease, spec.duration)
             .await
         {
-            Ok(true) => last_renewed = Instant::now(),
-            Ok(false) => {
+            Ok(Fenced::Applied) => last_renewed = Instant::now(),
+            Ok(Fenced::LeaseLost) => {
                 tracing::warn!(run_id = %spec.run_id, "agent run lease lost; cancelling run");
                 token.cancel();
                 return;
             },
-            Err(error) if last_renewed.elapsed() >= spec.lease => {
+            Err(error) if last_renewed.elapsed() >= spec.duration => {
                 tracing::error!(run_id = %spec.run_id, %error, "agent run lease lapsed; cancelling run");
                 token.cancel();
                 return;

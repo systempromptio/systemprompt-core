@@ -6,12 +6,12 @@
 use std::path::Path;
 use std::time::Duration;
 
-use systemprompt_agent_runs::repository::{NewAgentRun, RunStarted};
+use systemprompt_agent_runs::repository::{Fenced, NewAgentRun, RunStarted};
 use systemprompt_agent_runs::{ErrorClass, RepositoryRunLauncher, RunOutcome, RunStatus};
 use systemprompt_identifiers::{AgentRunId, ContextId, TaskId};
 use systemprompt_traits::{AgentRunLaunch, AgentRunLaunchError, AgentRunLauncher};
 
-use crate::repository::{Fixture, expire_lease, fixture, request};
+use crate::repository::{Fixture, claim, expire_lease, fixture, request};
 use systemprompt_identifiers::AgentRunOriginId;
 
 async fn insert_task(f: &Fixture) -> (TaskId, ContextId) {
@@ -88,24 +88,33 @@ async fn run_lifecycle_moves_its_task() {
         gateway_session_id: None,
         api_key_id: None,
     };
-    f.repo.update_started(&id, started).await.expect("started");
+    let lease = claim(&f, "a").await;
+    assert_eq!(
+        f.repo
+            .update_started(&id, &lease, started)
+            .await
+            .expect("started"),
+        Fenced::Applied
+    );
     assert_eq!(task_state(&f, &task_id).await, "TASK_STATE_WORKING");
 
-    assert!(
+    assert_eq!(
         f.repo
-            .finish(&id, &succeeded(), None)
+            .finish(&id, &lease, &succeeded(), None)
             .await
-            .expect("finish")
+            .expect("finish"),
+        Fenced::Applied
     );
     assert_eq!(task_state(&f, &task_id).await, "TASK_STATE_COMPLETED");
 
     let mut again = succeeded();
     again.status = RunStatus::Failed;
-    assert!(
-        !f.repo
-            .finish(&id, &again, None)
+    assert_eq!(
+        f.repo
+            .finish(&id, &lease, &again, None)
             .await
-            .expect("second finish")
+            .expect("second finish"),
+        Fenced::LeaseLost
     );
     assert_eq!(task_state(&f, &task_id).await, "TASK_STATE_COMPLETED");
 }
@@ -120,11 +129,13 @@ async fn finish_on_a_terminal_task_still_records_the_run() {
         .execute(f.repo.write_pool())
         .await
         .expect("cancel task");
-    assert!(
+    let lease = claim(&f, "a").await;
+    assert_eq!(
         f.repo
-            .finish(&id, &succeeded(), None)
+            .finish(&id, &lease, &succeeded(), None)
             .await
-            .expect("finish")
+            .expect("finish"),
+        Fenced::Applied
     );
     let row = f.repo.find_run(&id).await.expect("find").expect("row");
     assert_eq!(row.status, "succeeded");

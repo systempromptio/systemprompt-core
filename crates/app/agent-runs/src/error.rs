@@ -98,6 +98,11 @@ pub enum AgentRunsError {
         source: std::io::Error,
     },
 
+    #[error("agent run {run_id} is no longer held by this claim")]
+    LeaseLost {
+        run_id: systemprompt_identifiers::AgentRunId,
+    },
+
     #[error("repository error: {0}")]
     Repository(#[from] RepositoryError),
 }

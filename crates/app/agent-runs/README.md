@@ -95,11 +95,14 @@ Stored as `agent_runs.request` (JSONB). The `host` column is taken from `request
 | `lease_until` | the claim expires at this time unless renewed |
 | `not_before` | a queued run is not claimed before this time |
 | `attempt` | starts at 1, incremented on each reclaim |
+| `claimed_at` | when the current claim was taken |
 
-- `claim_queued(origin_kind, claimed_by, lease)` takes the oldest due `queued` row of one origin with `FOR UPDATE SKIP LOCKED` and moves it to `preparing`.
-- `LeaseRenewer` renews every `DEFAULT_RENEW_EVERY` (30 s) to `DEFAULT_LEASE` (90 s). A failed renewal cancels the run's token.
+- `claim_queued(origin_kind, claimed_by, lease)` takes the oldest due `queued` row of one origin with `FOR UPDATE SKIP LOCKED`, moves it to `preparing` and returns it with its `Lease` (claimer, attempt, claim time). Only a claim builds a `Lease`.
+- Every write to a claimed run (`update_started`, `update_host_session`, `record_harness_digest`, `insert_events_batch`, `renew_lease`, `release`, `finish`) takes the `Lease`, applies only while that claim still owns a `preparing` / `running` row, and returns `Fenced::Applied` or `Fenced::LeaseLost`. A caller that gets `LeaseLost` stops work on the run; `Fenced::applied` turns it into `AgentRunsError::LeaseLost`.
+- `insert_events_batch` numbers a batch in order after the run's last stored `seq` while holding the run row, so batches under one lease get gapless, unique numbers.
+- `LeaseRenewer` renews every `DEFAULT_RENEW_EVERY` (30 s) to `DEFAULT_LEASE` (90 s). A lost lease, or renewal failing until the lease would have lapsed, cancels the run's token.
+- On shutdown the claim loop stops its runs' hosts; a run stopped that way with no cancel requested is `release`d back to `queued` with `request.resume_session_id` set from `host_session_id` and its attempt unchanged, so the next claimer resumes it. A requested cancel still finishes `cancelled`.
 - `reclaim_stale(origin_kind, max_attempts)` finds `preparing` / `running` rows whose `lease_until` has passed. Below `max_attempts` the row goes back to `queued` with `attempt + 1`, and `request.resume_session_id` is set from `host_session_id` when one was observed. On the final attempt it becomes `failed` / `host_crashed`.
-- `finish` writes the outcome only while the row is not yet terminal, and returns whether it did.
 
 ## Consumer sketch
 
@@ -182,7 +185,7 @@ impl RunHandler for FarmHandler {
             _ => None,
         };
 
-        let sink = DbEventSink::new(claimed.repo.clone(), row.id.clone());
+        let sink = DbEventSink::new(&claimed);
         let report = execute(ExecuteParams {
             request: &request,
             layout: &layout,
@@ -198,9 +201,12 @@ impl RunHandler for FarmHandler {
         let report = report?;
 
         let diff = serde_json::to_value(&report.diff)?;
-        if claimed.repo.finish(&row.id, &report.outcome, Some(&diff)).await? {
-            // stamp the product's own row (agent_farm_runs) from report.outcome here
-        }
+        claimed
+            .repo
+            .finish(&row.id, &claimed.lease, &report.outcome, Some(&diff))
+            .await?
+            .applied(&row.id)?;
+        // stamp the product's own row (agent_farm_runs) from report.outcome here
         Ok(())
     }
 }
@@ -265,7 +271,7 @@ Every gateway call a host makes carries the run's credentials (`RunCredentials`:
 | `execute` | `execute`, `execute_with_host`, `ExecuteParams`, `RunReport`, `EventSink`, `DiffSummary` |
 | `credentials` | `RunCredentialService`, `IssueRunCredentials`, `RunCredentials`, `RunCredentialLimits` |
 | `governance` | `hooks_file`, `hooks_document`, `HookBases` |
-| `repository` | `AgentRunRepository`, `AgentRunRow`, `NewAgentRun`, `RunStarted` |
+| `repository` | `AgentRunRepository`, `AgentRunRow`, `NewAgentRun`, `RunStarted`, `Claimed`, `Lease`, `Fenced` |
 | `lease` | `LeaseRenewer`, `LeaseSpec`, `DEFAULT_RENEW_EVERY`, `DEFAULT_LEASE` |
 | `service` | `ClaimLoop`, `RunHandler`, `ClaimedRun`, `DbEventSink`, `claimer_id` |
 | `runner` | `A2aRunnerService` (the extension's runner service, claiming `origin_kind = "a2a"`), `A2aRunHandler`, `A2aRunnerConfig`, `credential_request`, `AGENT_RUN_ORIGIN_KIND` |

@@ -145,7 +145,14 @@ async fn the_event_stream_replays_from_last_event_id_and_ends_on_a_terminal_run(
             created_at: chrono::Utc::now(),
         })
         .collect();
-    state.runs().insert_events_batch(&id, &events).await?;
+    let lease = claim(&state, ORIGIN, &id).await?;
+    assert!(
+        state
+            .runs()
+            .insert_events_batch(&id, &lease, &events)
+            .await?
+            .is_applied()
+    );
     let outcome = RunOutcome {
         status: RunStatus::Succeeded,
         error_class: ErrorClass::Ok,
@@ -160,7 +167,13 @@ async fn the_event_stream_replays_from_last_event_id_and_ends_on_a_terminal_run(
         error: None,
         final_text: Some("t2".into()),
     };
-    state.runs().finish(&id, &outcome, None).await?;
+    assert!(
+        state
+            .runs()
+            .finish(&id, &lease, &outcome, None)
+            .await?
+            .is_applied()
+    );
 
     let req = http::Request::builder()
         .uri(format!("/{id}/events/stream"))
@@ -194,14 +207,14 @@ async fn claim(
     state: &AgentRunsState,
     origin: &str,
     id: &systemprompt_identifiers::AgentRunId,
-) -> Result<()> {
-    while let Some(row) = state
+) -> Result<systemprompt_agent_runs::repository::Lease> {
+    while let Some(claimed) = state
         .runs()
         .claim_queued(origin, "covapi-worker", std::time::Duration::from_secs(60))
         .await?
     {
-        if &row.id == id {
-            return Ok(());
+        if &claimed.row.id == id {
+            return Ok(claimed.lease);
         }
     }
     anyhow::bail!("run {id} was never claimed")
@@ -231,13 +244,14 @@ async fn outputs_are_listed_and_read_from_the_run_directory_only() -> Result<()>
     assert_eq!(empty["files"], json!([]));
 
     let run_id = systemprompt_identifiers::AgentRunId::new(&id);
-    claim(&state, OUTPUTS_ORIGIN, &run_id).await?;
+    let lease = claim(&state, OUTPUTS_ORIGIN, &run_id).await?;
     let dir = tempfile::tempdir()?;
     let root = dir.path().to_path_buf();
     state
         .runs()
         .update_started(
             &run_id,
+            &lease,
             systemprompt_agent_runs::repository::RunStarted {
                 run_dir: &root,
                 pid: None,
@@ -245,7 +259,8 @@ async fn outputs_are_listed_and_read_from_the_run_directory_only() -> Result<()>
                 api_key_id: None,
             },
         )
-        .await?;
+        .await?
+        .applied(&run_id)?;
     tokio::fs::create_dir_all(root.join("outputs")).await?;
     tokio::fs::write(root.join("outputs/report.txt"), b"report body").await?;
     let manifest = json!([{ "path": "report.txt", "size": 11, "sha256": "ab" }]);
