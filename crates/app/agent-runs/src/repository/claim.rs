@@ -141,7 +141,7 @@ impl AgentRunRepository {
             return Ok(Released::Requeued);
         }
         if let Some(task_id) = &released.task_id {
-            task_link::transition_task(&mut tx, task_id, RunStatus::Failed).await?;
+            task_link::transition_task(&mut tx, id, task_id, RunStatus::Failed).await?;
         }
         tx.commit().await?;
         Ok(Released::Exhausted)
