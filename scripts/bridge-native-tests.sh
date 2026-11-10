@@ -27,4 +27,9 @@ done
 # input allowed; a `query!` reachable from here is a defect, not a setup gap.
 # nextest runs each test in its own process, as every other run of this
 # workspace does; the tests rely on that for process-wide state.
-SQLX_OFFLINE=true exec cargo nextest run --manifest-path crates/tests/Cargo.toml --locked --no-fail-fast "${args[@]}" "$@"
+# Why: nextest rejects `--no-fail-fast` alongside `--no-run`.
+run_args=(--no-fail-fast)
+for arg in "$@"; do
+    if [ "$arg" = "--no-run" ]; then run_args=(); fi
+done
+SQLX_OFFLINE=true exec cargo nextest run --manifest-path crates/tests/Cargo.toml --locked "${run_args[@]}" "${args[@]}" "$@"
