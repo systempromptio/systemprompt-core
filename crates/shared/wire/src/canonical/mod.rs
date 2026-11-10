@@ -23,4 +23,5 @@ pub use response::{
     CanonicalEvent, CanonicalResponse, CanonicalStopReason, CodeExecutionOutput, ContentBlockKind,
     GroundedSource, Grounding,
 };
+pub(crate) use usage::wire_count;
 pub use usage::{CanonicalUsage, CanonicalUsageUpdate};

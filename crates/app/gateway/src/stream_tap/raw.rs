@@ -122,7 +122,10 @@ impl RawTappedStream {
         let events = self.decoder.push(bytes);
         if let Ok(mut s) = self.state.lock() {
             for event in &events {
-                accumulate_event(&mut s, event);
+                match event {
+                    Ok(event) => accumulate_event(&mut s, event),
+                    Err(e) => s.error = Some(e.to_string()),
+                }
             }
             s.final_bytes.extend_from_slice(bytes);
         }

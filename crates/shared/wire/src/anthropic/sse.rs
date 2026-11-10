@@ -26,6 +26,7 @@ use serde_json::Value;
 
 use crate::canonical::{
     CanonicalEvent, CanonicalStopReason, CanonicalUsage, CanonicalUsageUpdate, ContentBlockKind,
+    wire_count,
 };
 
 /// Per-stream state for the Anthropic SSE pass.
@@ -196,7 +197,7 @@ fn convert_content_block_delta(value: &Value) -> Option<CanonicalEvent> {
 
 // JSON: Anthropic Messages SSE frame; upstream JSON is the contract.
 fn usage_update_from_value(u: &Value) -> CanonicalUsageUpdate {
-    let field = |name: &str| u.get(name).and_then(Value::as_u64).map(|v| v as u32);
+    let field = |name: &str| u.get(name).and_then(Value::as_u64).map(wire_count);
     CanonicalUsageUpdate {
         input_tokens: field("input_tokens"),
         output_tokens: field("output_tokens"),
@@ -214,7 +215,7 @@ fn usage_from_value(v: Option<&Value>) -> CanonicalUsage {
     let Some(u) = v else {
         return CanonicalUsage::default();
     };
-    let field = |name: &str| u.get(name).and_then(Value::as_u64).unwrap_or(0) as u32;
+    let field = |name: &str| u.get(name).and_then(Value::as_u64).map_or(0, wire_count);
     let input = field("input_tokens");
     let output = field("output_tokens");
     let cache_read = field("cache_read_input_tokens");
@@ -225,7 +226,10 @@ fn usage_from_value(v: Option<&Value>) -> CanonicalUsage {
         cache_read_tokens: cache_read,
         cache_creation_tokens: cache_creation,
         reasoning_tokens: thinking_tokens(u).unwrap_or(0),
-        total_tokens: input + output + cache_read + cache_creation,
+        total_tokens: input
+            .saturating_add(output)
+            .saturating_add(cache_read)
+            .saturating_add(cache_creation),
     }
 }
 
@@ -235,7 +239,7 @@ fn thinking_tokens(usage: &Value) -> Option<u32> {
         .get("output_tokens_details")
         .and_then(|d| d.get("thinking_tokens"))
         .and_then(Value::as_u64)
-        .map(|v| v as u32)
+        .map(wire_count)
 }
 
 // JSON: Anthropic Messages SSE frame; upstream JSON is the contract.
@@ -249,5 +253,8 @@ fn str_field(value: &Value, field: &str, default: &str) -> String {
 
 // JSON: Anthropic Messages SSE frame; upstream JSON is the contract.
 fn u32_field(value: &Value, field: &str) -> u32 {
-    value.get(field).and_then(Value::as_u64).unwrap_or(0) as u32
+    value
+        .get(field)
+        .and_then(Value::as_u64)
+        .map_or(0, wire_count)
 }

@@ -330,6 +330,12 @@ mod wire_streaming;
 mod wire_sse;
 
 #[cfg(test)]
+mod wire_sse_codecs;
+
+#[cfg(test)]
+mod wire_sse_framer;
+
+#[cfg(test)]
 mod wire_stream_abort;
 
 #[cfg(test)]

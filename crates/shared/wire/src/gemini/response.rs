@@ -131,14 +131,16 @@ pub fn parse_response(
 fn usage(meta: Option<GeminiUsageMetadata>) -> CanonicalUsage {
     meta.map_or_else(CanonicalUsage::default, |u| CanonicalUsage {
         input_tokens: u.prompt.saturating_sub(u.cached),
-        output_tokens: u.candidates + u.thoughts,
+        output_tokens: u.candidates.saturating_add(u.thoughts),
         cache_read_tokens: u.cached,
         cache_creation_tokens: 0,
         reasoning_tokens: u.thoughts,
         total_tokens: if u.total > 0 {
             u.total
         } else {
-            u.prompt + u.candidates + u.thoughts
+            u.prompt
+                .saturating_add(u.candidates)
+                .saturating_add(u.thoughts)
         },
     })
 }

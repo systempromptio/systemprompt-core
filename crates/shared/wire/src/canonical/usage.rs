@@ -156,3 +156,7 @@ impl CanonicalUsageUpdate {
         };
     }
 }
+
+pub(crate) fn wire_count(value: u64) -> u32 {
+    u32::try_from(value).unwrap_or(u32::MAX)
+}

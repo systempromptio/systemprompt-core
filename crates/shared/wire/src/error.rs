@@ -44,10 +44,8 @@ pub enum WireParseError {
 pub enum WireStreamError {
     #[error("{0}")]
     Transport(#[source] Box<dyn std::error::Error + Send + Sync>),
-    #[error("malformed Gemini SSE frame: {0}")]
-    MalformedGeminiFrame(#[source] serde_json::Error),
-    #[error("malformed Responses SSE frame: {0}")]
-    MalformedResponsesFrame(#[source] serde_json::Error),
+    #[error(transparent)]
+    FrameTooLarge(#[from] crate::sse::SseFrameTooLarge),
 }
 
 impl WireStreamError {

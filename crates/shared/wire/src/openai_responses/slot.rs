@@ -10,7 +10,7 @@
 use crate::canonical::CanonicalStopReason;
 
 pub(super) struct ResponsesStreamState {
-    pub(super) buf: Vec<u8>,
+    pub(super) framer: crate::sse::SseFramer,
     pub(super) model: String,
     pub(super) response_id: String,
     pub(super) started: bool,

@@ -15,6 +15,9 @@ use delta::{DeltaShape, emit_delta, handle_completed, handle_error, handle_item_
 use super::slot::{ItemSlot, ResponsesStreamState, SlotKind, SlotKindMatch};
 use crate::canonical::{CanonicalEvent, CanonicalUsage, ContentBlockKind};
 use crate::error::WireStreamError;
+use crate::sse::{SseFramer, skip_frame, skip_undecodable_json};
+
+const WIRE: &str = "openai_responses";
 
 pub fn sse_to_canonical_events<S, E>(
     stream: S,
@@ -26,7 +29,7 @@ where
 {
     use futures_util::stream;
     let initial = ResponsesStreamState {
-        buf: Vec::new(),
+        framer: SseFramer::default(),
         model: fallback_model,
         response_id: String::new(),
         started: false,
@@ -49,24 +52,25 @@ fn drain_buffer(
     state: &mut ResponsesStreamState,
     bytes: &bytes::Bytes,
 ) -> Vec<Result<CanonicalEvent, WireStreamError>> {
-    state.buf.extend_from_slice(bytes);
     let mut events: Vec<Result<CanonicalEvent, WireStreamError>> = Vec::new();
-    while let Some(end) = crate::sse::frame_end(&state.buf) {
-        let frame: Vec<u8> = state.buf.drain(..end).collect();
-        let frame_str = String::from_utf8_lossy(&frame);
-        let mut data_parts: Vec<&str> = Vec::new();
-        for line in frame_str.lines() {
-            if let Some(d) = line.strip_prefix("data: ") {
-                data_parts.push(d);
-            }
-        }
-        let joined = data_parts.join("\n");
-        if joined.trim().is_empty() {
+    for frame in state.framer.push(bytes) {
+        let frame = match frame {
+            Ok(frame) => frame,
+            Err(e) => {
+                events.push(Err(e.into()));
+                continue;
+            },
+        };
+        let data = frame.data.trim();
+        if data.is_empty() || data == "[DONE]" {
             continue;
         }
-        match serde_json::from_str::<Value>(&joined) {
-            Ok(value) => handle_responses_event(state, &value, &mut events),
-            Err(e) => events.push(Err(WireStreamError::MalformedResponsesFrame(e))),
+        match serde_json::from_str::<Value>(data) {
+            Ok(value) if value.get("type").is_some_and(Value::is_string) => {
+                handle_responses_event(state, &value, &mut events);
+            },
+            Ok(_) => skip_frame(WIRE, "frame has no string `type`", data.len()),
+            Err(e) => skip_undecodable_json(WIRE, &e, data.len()),
         }
     }
     events
@@ -158,7 +162,7 @@ fn handle_item_added(
         .unwrap_or(-1);
     let item = value.get("item").unwrap_or(&Value::Null);
     let item_type = item.get("type").and_then(Value::as_str).unwrap_or("");
-    let canonical_index = state.items.len() as u32;
+    let canonical_index = u32::try_from(state.items.len()).unwrap_or(u32::MAX);
     let (kind, block) = match item_type {
         "message" => (SlotKind::Message, ContentBlockKind::Text),
         "function_call" => {

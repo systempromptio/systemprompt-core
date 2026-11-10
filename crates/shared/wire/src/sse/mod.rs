@@ -1,7 +1,36 @@
 //! Server-Sent Events framing shared by every provider SSE codec.
 //!
+//! [`SseFramer`] is the one incremental decoder every codec reads upstream
+//! bytes through; [`frame_end`] locates the first frame terminator in a buffer
+//! that is already complete.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
+
+mod framer;
+
+pub use framer::{MAX_SSE_FRAME_BYTES, SseFrame, SseFrameTooLarge, SseFramer};
+
+// Why: a serde message can quote the offending value, and payload text must
+// never reach the logs.
+pub(crate) fn skip_undecodable_json(wire: &'static str, error: &serde_json::Error, bytes: usize) {
+    let reason = format!(
+        "{:?} error at line {} column {}",
+        error.classify(),
+        error.line(),
+        error.column()
+    );
+    skip_frame(wire, &reason, bytes);
+}
+
+pub(crate) fn skip_frame(wire: &'static str, reason: &str, bytes: usize) {
+    tracing::warn!(
+        wire,
+        reason,
+        bytes,
+        "skipped undecodable upstream SSE frame"
+    );
+}
 
 pub fn frame_end(buf: &[u8]) -> Option<usize> {
     let mut i = 0;
