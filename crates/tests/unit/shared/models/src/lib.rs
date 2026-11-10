@@ -329,9 +329,6 @@ mod wire_usage_omission;
 mod wire_streaming;
 
 #[cfg(test)]
-mod wire_sse;
-
-#[cfg(test)]
 mod wire_sse_codecs;
 
 #[cfg(test)]

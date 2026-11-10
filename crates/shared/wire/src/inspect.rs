@@ -112,32 +112,21 @@ pub fn string_leaves(body: &[u8], budget: SurfaceBudget) -> ForwardedSurface {
 pub fn sse_string_leaves(frames: &[u8], budget: SurfaceBudget) -> ForwardedSurface {
     let mut surface = ForwardedSurface::default();
     let mut total: usize = 0;
-    let mut rest = frames;
-    while !rest.is_empty() {
-        let (frame, next) = rest.split_at(super::sse::frame_end(rest).unwrap_or(rest.len()));
-        if let Some(payload) = data_payload(frame)
-            && let Ok(root) = serde_json::from_slice::<Value>(&payload)
+    let mut reader = super::sse::SseFramer::default();
+    let mut decoded = reader.push(frames);
+    decoded.extend(reader.push(b"\n\n"));
+    for frame in decoded {
+        let Ok(frame) = frame else {
+            surface.truncated = true;
+            return surface;
+        };
+        if let Ok(root) = serde_json::from_str::<Value>(&frame.data)
             && !walk(&mut surface, &mut total, &root, budget)
         {
             return surface;
         }
-        rest = next;
     }
     surface
-}
-
-fn data_payload(frame: &[u8]) -> Option<Vec<u8>> {
-    let mut out: Vec<u8> = Vec::new();
-    let mut found = false;
-    for line in frame.split(|b| *b == b'\n') {
-        let line = line.strip_suffix(b"\r").unwrap_or(line);
-        let Some(value) = line.strip_prefix(b"data:") else {
-            continue;
-        };
-        found = true;
-        out.extend_from_slice(value.strip_prefix(b" ").unwrap_or(value));
-    }
-    found.then_some(out)
 }
 
 fn walk(
