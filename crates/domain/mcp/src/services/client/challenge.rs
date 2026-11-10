@@ -100,6 +100,15 @@ pub enum McpTransportError {
     #[error("{0}")]
     Http(#[from] reqwest::Error),
 
+    #[error("MCP server response exceeded the maximum size of {limit} bytes")]
+    ResponseTooLarge { limit: usize },
+
+    #[error("MCP server did not answer within {after:?}")]
+    TimedOut { after: std::time::Duration },
+
+    #[error("MCP server returned invalid JSON: {0}")]
+    InvalidJson(#[from] serde_json::Error),
+
     #[error(
         "authorization required{}: {reason}",
         if *enterprise_managed { " (enterprise-managed)" } else { "" }

@@ -4,6 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::HttpClientWithContext;
+use super::limits::read_capped_json;
 use super::metadata::stamp_request_metadata;
 use crate::services::client::bounded_sse::{DEFAULT_MAX_SSE_EVENT_SIZE, bounded_sse_stream};
 use crate::services::client::challenge::McpTransportError;
@@ -72,10 +73,13 @@ impl StreamableHttpClient for HttpClientWithContext {
             request_builder = request_builder.header(HEADER_LAST_EVENT_ID, last_event_id);
         }
 
-        let response = request_builder
-            .send()
+        let limits = self.limits();
+        let response = limits
+            .within(limits.deadline(), async {
+                Ok(request_builder.send().await?)
+            })
             .await
-            .map_err(|e| StreamableHttpError::Client(e.into()))?;
+            .map_err(StreamableHttpError::Client)?;
         if response.status() == reqwest::StatusCode::METHOD_NOT_ALLOWED {
             return Err(StreamableHttpError::ServerDoesNotSupportSse);
         }
@@ -97,6 +101,7 @@ impl StreamableHttpClient for HttpClientWithContext {
         Ok(bounded_sse_stream(
             response.bytes_stream(),
             max_sse_event_size,
+            limits.stream_idle_timeout(),
         ))
     }
 
@@ -115,11 +120,14 @@ impl StreamableHttpClient for HttpClientWithContext {
             request_builder = request_builder.header(key, value);
         }
 
-        let response = request_builder
-            .header(HEADER_SESSION_ID, session.as_ref())
-            .send()
+        let request_builder = request_builder.header(HEADER_SESSION_ID, session.as_ref());
+        let limits = self.limits();
+        let response = limits
+            .within(limits.deadline(), async {
+                Ok(request_builder.send().await?)
+            })
             .await
-            .map_err(|e| StreamableHttpError::Client(e.into()))?;
+            .map_err(StreamableHttpError::Client)?;
 
         if response.status() == reqwest::StatusCode::METHOD_NOT_ALLOWED {
             return Ok(());
@@ -174,11 +182,13 @@ impl StreamableHttpClient for HttpClientWithContext {
         if let Some(ref session_id) = session_id {
             request = request.header(HEADER_SESSION_ID, session_id.as_ref());
         }
-        let response = request
-            .json(&message)
-            .send()
+        let limits = self.limits();
+        let deadline = limits.deadline();
+        let request = request.json(&message);
+        let response = limits
+            .within(deadline, async { Ok(request.send().await?) })
             .await
-            .map_err(|e| StreamableHttpError::Client(e.into()))?;
+            .map_err(StreamableHttpError::Client)?;
         if response.status() == reqwest::StatusCode::UNAUTHORIZED
             && let Some(header) = response.headers().get(WWW_AUTHENTICATE)
         {
@@ -202,14 +212,18 @@ impl StreamableHttpClient for HttpClientWithContext {
         let session_id = session_id.and_then(|v| v.to_str().ok()).map(str::to_owned);
         match content_type {
             Some(ct) if ct.as_bytes().starts_with(EVENT_STREAM_MIME_TYPE.as_bytes()) => {
-                let event_stream = bounded_sse_stream(response.bytes_stream(), max_sse_event_size);
+                let event_stream = bounded_sse_stream(
+                    response.bytes_stream(),
+                    max_sse_event_size,
+                    limits.stream_idle_timeout(),
+                );
                 Ok(StreamableHttpPostResponse::Sse(event_stream, session_id))
             },
             Some(ct) if ct.as_bytes().starts_with(JSON_MIME_TYPE.as_bytes()) => {
-                let message: ServerJsonRpcMessage = response
-                    .json()
+                let message: ServerJsonRpcMessage = limits
+                    .within(deadline, read_capped_json(response, max_sse_event_size))
                     .await
-                    .map_err(|e| StreamableHttpError::Client(e.into()))?;
+                    .map_err(StreamableHttpError::Client)?;
                 Ok(StreamableHttpPostResponse::Json(message, session_id))
             },
             _ => Err(StreamableHttpError::UnexpectedContentType(

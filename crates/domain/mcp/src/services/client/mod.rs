@@ -46,7 +46,7 @@ pub use challenge::{AuthChallenge, McpTransportError};
 pub use elicitation::{ElicitationDelegate, SharedElicitationDelegate, handle_elicitation};
 pub use external_proxy::ExternalProxyTarget;
 pub use handler::McpClientHandler;
-pub use http_client_with_context::HttpClientWithContext;
+pub use http_client_with_context::{HttpClientWithContext, McpClientLimits};
 pub use invocation::execute_tool_call;
 pub use types::{McpConnectionResult, McpProtocolInfo, ValidationResult};
 pub use validation::{

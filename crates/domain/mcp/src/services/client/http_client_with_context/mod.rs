@@ -8,8 +8,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod limits;
 pub mod metadata;
 mod transport;
+
+pub use limits::McpClientLimits;
 
 use crate::services::client::challenge::{AuthChallenge, McpTransportError};
 use http::header::AUTHORIZATION;
@@ -32,6 +35,7 @@ pub struct HttpClientWithContext {
     forward_context: bool,
     outbound_headers: HashMap<HeaderName, HeaderValue>,
     client_capabilities: ClientCapabilities,
+    limits: McpClientLimits,
 }
 
 impl HttpClientWithContext {
@@ -41,6 +45,10 @@ impl HttpClientWithContext {
 
     pub(super) const fn client(&self) -> &reqwest::Client {
         &self.client
+    }
+
+    pub(super) const fn limits(&self) -> &McpClientLimits {
+        &self.limits
     }
 
     async fn authorization_error(&self, header: &str) -> McpTransportError {
@@ -105,13 +113,18 @@ impl HttpClientWithContext {
             return None;
         }
 
-        match response.json::<ProtectedResourceMetadata>().await {
+        match limits::read_capped_json::<ProtectedResourceMetadata>(
+            response,
+            limits::MAX_RESOURCE_METADATA_BYTES,
+        )
+        .await
+        {
             Ok(metadata) => Some(metadata),
             Err(e) => {
                 tracing::debug!(
                     metadata_url,
                     error = %e,
-                    "MCP resource metadata is not valid RFC 9728 JSON"
+                    "MCP resource metadata is oversized or not valid RFC 9728 JSON"
                 );
                 None
             },
@@ -138,6 +151,12 @@ impl HttpClientWithContext {
         self
     }
 
+    #[must_use]
+    pub const fn with_limits(mut self, limits: McpClientLimits) -> Self {
+        self.limits = limits;
+        self
+    }
+
     fn build(
         context: RequestContext,
         forward_context: bool,
@@ -161,6 +180,7 @@ impl HttpClientWithContext {
             forward_context,
             outbound_headers,
             client_capabilities: super::capabilities::client_capabilities(false),
+            limits: McpClientLimits::default(),
         })
     }
 
