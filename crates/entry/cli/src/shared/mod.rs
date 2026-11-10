@@ -10,6 +10,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod command_result;
+pub mod confirm;
 pub mod disk_logs;
 pub mod identity;
 pub mod parsers;
@@ -22,6 +23,7 @@ pub use command_result::{
     ChartType, CommandOutput, KeyValueItem, KeyValueOutput, SuccessOutput, TableOutput, TextOutput,
     render_result,
 };
+pub use confirm::ConfirmArgs;
 pub use identity::{IdentityBundle, generate_identity};
 pub use parsers::{
     parse_agent_name, parse_ai_request_id, parse_api_key_id, parse_campaign_id, parse_category_id,

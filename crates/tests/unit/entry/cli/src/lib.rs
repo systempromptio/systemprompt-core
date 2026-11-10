@@ -58,6 +58,8 @@ mod interactive;
 #[cfg(test)]
 mod interactive_terminal;
 #[cfg(test)]
+mod irreversible_confirmation;
+#[cfg(test)]
 mod mcp_probe_flows;
 #[cfg(test)]
 mod paths;
@@ -71,6 +73,8 @@ mod presentation_tables;
 mod profile_flag_parsing;
 #[cfg(test)]
 mod runner_args;
+#[cfg(test)]
+mod runner_interrupt;
 #[cfg(test)]
 mod runner_routing;
 #[cfg(test)]

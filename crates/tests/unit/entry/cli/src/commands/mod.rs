@@ -91,6 +91,7 @@ mod cloud_tenant_sanitize;
 mod compose_render;
 mod config_paths_table_output_fs;
 mod config_secret;
+mod config_validators_exit;
 mod core_artifacts_db;
 mod core_content_analytics_db;
 mod core_content_db;

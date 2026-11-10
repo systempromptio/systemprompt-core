@@ -7,9 +7,16 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-fn main() -> anyhow::Result<()> {
+use std::process::ExitCode;
+
+use systemprompt_cli::runner::interrupt::{INTERRUPTED_EXIT_CODE, Interrupted};
+
+fn main() -> anyhow::Result<ExitCode> {
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()?;
-    runtime.block_on(systemprompt_cli::run())
+    match runtime.block_on(systemprompt_cli::run()) {
+        Err(e) if e.is::<Interrupted>() => Ok(ExitCode::from(INTERRUPTED_EXIT_CODE)),
+        outcome => outcome.map(|()| ExitCode::SUCCESS),
+    }
 }

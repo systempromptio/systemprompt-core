@@ -18,6 +18,7 @@ use systemprompt_config::LoadedProfile;
 use systemprompt_identifiers::JobName;
 use systemprompt_loader::BootContext;
 
+use super::confirmation::{self, ConfirmationRequest};
 use super::routing_decision::{RoutingDecision, decide_routing};
 use super::{args, bootstrap};
 use systemprompt_loader::ServicesState;
@@ -77,11 +78,13 @@ pub(super) async fn bootstrap_profile(
     desc: &CommandDescriptor,
     cli_config: &CliConfig,
     env: &EnvOverrides,
+    confirm: &ConfirmationRequest,
 ) -> Result<Bootstrapped> {
     let has_export = args::has_local_export_flag(cli.command.as_ref());
     let ctx = bootstrap::resolve_and_display_profile(cli_config, env, has_export)?;
 
     require_explicit_cloud_profile(ctx.loaded.profile(), ctx.source, desc)?;
+    confirmation::gate(desc, &confirm.for_profile(&ctx.loaded.name), cli_config)?;
     if enforce_routing_policy(&ctx, cli, desc, cli_config).await?
         == BootstrapOutcome::RemoteExecuted
     {
@@ -231,7 +234,7 @@ async fn try_remote_routing(
     };
 
     confirm_remote_job_run(cli, cli_config, profile, &hostname)?;
-    let args = args::reconstruct_args();
+    let args = confirmation::forward_with_yes(desc, args::reconstruct_args());
     let exit_code = routing::execute_remote(&hostname, &token, &context, &args, 300).await?;
     if exit_code != 0 {
         bail!("Remote command exited with code {}", exit_code);

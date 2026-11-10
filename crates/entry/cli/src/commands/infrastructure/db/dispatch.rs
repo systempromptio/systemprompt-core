@@ -26,11 +26,11 @@ pub(super) async fn dispatch_profile_migration(
         } => admin::execute_migrate(ctx, allow_checksum_drift, repair_drift)
             .await
             .map(|()| None),
-        DbCommands::MigrateDown { extension, count } => {
-            admin::execute_migrate_down(ctx, &extension, count)
-                .await
-                .map(|()| None)
-        },
+        DbCommands::MigrateDown {
+            extension, count, ..
+        } => admin::execute_migrate_down(ctx, &extension, count)
+            .await
+            .map(|()| None),
         DbCommands::MigrateRepair {
             extension,
             apply,
@@ -51,6 +51,7 @@ pub(super) async fn dispatch_profile_migration(
             extension,
             version,
             json,
+            ..
         } => admin::execute_migrate_mark_applied(
             ctx,
             admin::MarkAppliedArgs {
@@ -77,11 +78,11 @@ pub(super) async fn dispatch_standalone_migration(
         } => admin::execute_migrate_standalone(db_ctx, config, allow_checksum_drift, repair_drift)
             .await
             .map(|()| None),
-        DbCommands::MigrateDown { extension, count } => {
-            admin::execute_migrate_down_standalone(db_ctx, config, &extension, count)
-                .await
-                .map(|()| None)
-        },
+        DbCommands::MigrateDown {
+            extension, count, ..
+        } => admin::execute_migrate_down_standalone(db_ctx, config, &extension, count)
+            .await
+            .map(|()| None),
         DbCommands::MigrateRepair {
             extension,
             apply,
@@ -103,6 +104,7 @@ pub(super) async fn dispatch_standalone_migration(
             extension,
             version,
             json,
+            ..
         } => admin::execute_migrate_mark_applied_standalone(
             db_ctx,
             config,

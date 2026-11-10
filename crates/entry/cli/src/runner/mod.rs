@@ -9,14 +9,16 @@
 
 pub mod args;
 mod bootstrap;
+pub mod confirmation;
 mod db_url;
+pub mod interrupt;
 pub mod profile_routing;
 pub mod routing;
 pub mod routing_decision;
 mod structured_output;
 
 use anyhow::{Context, Result, bail};
-use clap::Parser;
+use clap::{CommandFactory, FromArgMatches, Parser};
 use systemprompt_cloud::CloudCredentials;
 use systemprompt_loader::subprocess::{self, ApiServerStamp};
 use systemprompt_logging::OutputState;
@@ -31,7 +33,18 @@ use crate::env_overrides::EnvOverrides;
 pub async fn run() -> Result<()> {
     install_tls_crypto_provider();
     let output = OutputState::new();
-    let outcome = Box::pin(run_inner(&output)).await;
+    let matches = args::Cli::command().get_matches();
+    let cli = args::Cli::from_arg_matches(&matches).map_err(|e| e.exit())?;
+    let confirm = confirmation::ConfirmationRequest::from_matches(
+        &matches,
+        &args::reconstruct_args(),
+        cli.profile_opts.profile.clone(),
+    );
+    let outcome = if cli.command.as_ref().is_some_and(args::Commands::serves_api) {
+        Box::pin(run_inner(&output, cli, confirm)).await
+    } else {
+        interrupt::run_interruptible(Box::pin(run_inner(&output, cli, confirm))).await
+    };
     structured_output::finalize(&output, &outcome);
     outcome
 }
@@ -51,8 +64,11 @@ fn install_tls_crypto_provider() {
     }
 }
 
-async fn run_inner(output: &OutputState) -> Result<()> {
-    let cli = args::Cli::parse();
+async fn run_inner(
+    output: &OutputState,
+    cli: args::Cli,
+    confirm: confirmation::ConfirmationRequest,
+) -> Result<()> {
     stamp_api_server_identity(&cli)?;
 
     output.set_startup_mode(cli.command.is_none());
@@ -65,32 +81,28 @@ async fn run_inner(output: &OutputState) -> Result<()> {
         console::set_colors_enabled(false);
     }
 
-    let database_url_override = cli.database.database_url.clone();
-    if let Some(database_url) = cli.database.database_url.clone() {
-        match cli.command.as_ref().map(args::Commands::db_url_routing) {
-            Some(db_url::DbUrlRouting::Direct) => {
-                systemprompt_logging::init_deferred_console_logging(output.clone());
-                return Box::pin(run_with_database_url(
-                    cli.command,
-                    cli_config,
-                    env,
-                    &database_url,
-                    None,
-                ))
-                .await;
-            },
-            Some(db_url::DbUrlRouting::Unsupported) => bail!(
-                "This command cannot run with --database-url; it requires full profile \
-                 initialization. Remove --database-url."
-            ),
-            Some(db_url::DbUrlRouting::ProfileDriven) | None => {},
-        }
-    }
-
     let desc = cli
         .command
         .as_ref()
         .map_or(CommandDescriptor::FULL, DescribeCommand::descriptor);
+
+    let database_url_override = cli.database.database_url.clone();
+    if let Some(database_url) = direct_database_url(&cli)? {
+        let direct = confirmation::ConfirmationRequest {
+            target: Some("the --database-url database".to_owned()),
+            ..confirm.clone()
+        };
+        confirmation::gate(&desc, &direct, &cli_config)?;
+        systemprompt_logging::init_deferred_console_logging(output.clone());
+        return Box::pin(run_with_database_url(
+            cli.command,
+            cli_config,
+            env,
+            &database_url,
+            None,
+        ))
+        .await;
+    }
 
     if desc.database() {
         systemprompt_logging::init_deferred_console_logging(output.clone());
@@ -104,7 +116,8 @@ async fn run_inner(output: &OutputState) -> Result<()> {
     let mut profile = None;
     let mut boot = None;
     if desc.profile() {
-        let booted = profile_routing::bootstrap_profile(&cli, &desc, &cli_config, &env).await?;
+        let booted =
+            profile_routing::bootstrap_profile(&cli, &desc, &cli_config, &env, &confirm).await?;
         let loaded = booted.credentials;
         services = booted.services;
         profile = booted.profile;
@@ -125,6 +138,10 @@ async fn run_inner(output: &OutputState) -> Result<()> {
         }
     }
 
+    if !desc.profile() {
+        confirmation::gate(&desc, &confirm, &cli_config)?;
+    }
+
     let ctx = CommandContext::new(cli_config, env)
         .with_cloud_credentials(credentials)
         .with_database_url_override(database_url_override)
@@ -132,6 +149,20 @@ async fn run_inner(output: &OutputState) -> Result<()> {
         .with_profile(profile)
         .with_boot(boot);
     Box::pin(dispatch_command(cli.command, &ctx)).await
+}
+
+fn direct_database_url(cli: &args::Cli) -> Result<Option<String>> {
+    let Some(database_url) = cli.database.database_url.clone() else {
+        return Ok(None);
+    };
+    match cli.command.as_ref().map(args::Commands::db_url_routing) {
+        Some(db_url::DbUrlRouting::Direct) => Ok(Some(database_url)),
+        Some(db_url::DbUrlRouting::Unsupported) => bail!(
+            "This command cannot run with --database-url; it requires full profile \
+             initialization. Remove --database-url."
+        ),
+        Some(db_url::DbUrlRouting::ProfileDriven) | None => Ok(None),
+    }
 }
 
 fn resolve_log_level(cli_config: &CliConfig, env: &EnvOverrides) -> Option<String> {

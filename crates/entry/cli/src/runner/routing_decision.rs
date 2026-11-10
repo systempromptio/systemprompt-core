@@ -60,7 +60,7 @@ pub fn decide_routing(
         },
         Err(e) if is_cloud => {
             let reason = format!("routing failed: {}", e);
-            if impact == DataImpact::Destructive {
+            if impact != DataImpact::Preserving {
                 bail!(
                     "Cloud profile '{}' could not route this destructive command remotely ({}); \
                      it never falls back to direct database access.\n{}",

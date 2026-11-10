@@ -8,7 +8,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::Result;
+use anyhow::{Result, bail};
 use clap::Subcommand;
 use std::path::Path;
 use systemprompt_logging::CliService;
@@ -100,6 +100,9 @@ pub(super) fn execute_validate(ctx: &CommandContext) -> Result<()> {
         }
     }
 
+    if !valid {
+        bail!("Some required paths are missing");
+    }
     Ok(())
 }
 

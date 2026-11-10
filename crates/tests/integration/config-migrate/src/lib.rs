@@ -10,6 +10,8 @@
 #[cfg(test)]
 mod aborts;
 #[cfg(test)]
+mod atomic_apply;
+#[cfg(test)]
 mod data;
 #[cfg(test)]
 mod execute;

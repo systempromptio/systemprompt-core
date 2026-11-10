@@ -110,12 +110,13 @@ async fn file_validation_reports_supported_and_rejected_files_without_uploading_
     )
     .await
     .expect("an allowed text file produces a validation report");
-    core::execute(
+    let invalid = core::execute(
         parse(&["files", "validate", rejected.to_str().unwrap()]),
         &ctx,
     )
     .await
-    .expect("a rejected file is reported as invalid rather than uploaded or rejected as a command error");
+    .expect_err("a rejected file is reported and the command exits non-zero");
+    assert!(format!("{invalid:#}").contains("failed validation"));
 
     let missing = core::execute(
         parse(&[

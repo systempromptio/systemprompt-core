@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::Result;
+use anyhow::{Result, bail};
 use systemprompt_logging::CliService;
 use systemprompt_manifest::profile::RateLimitsConfig;
 
@@ -44,6 +44,9 @@ pub(super) fn execute_validate(ctx: &CommandContext) -> Result<()> {
         }
     }
 
+    if !valid {
+        bail!("Rate-limit configuration has errors");
+    }
     Ok(())
 }
 

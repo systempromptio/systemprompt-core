@@ -208,14 +208,14 @@ async fn render_output(cmd: UsersCommands, ctx: &CommandContext) -> Result<Comma
 impl UsersCommands {
     pub const fn data_impact(&self) -> DataImpact {
         match self {
-            Self::Delete(_)
-            | Self::Merge(_)
-            | Self::Bulk(bulk::BulkCommands::Delete(_) | bulk::BulkCommands::Update(_))
-            | Self::Role(
+            Self::Role(
                 role::RoleCommands::Assign(_)
                 | role::RoleCommands::Promote(_)
                 | role::RoleCommands::Demote(_),
-            )
+            ) => DataImpact::Irreversible,
+            Self::Delete(_)
+            | Self::Merge(_)
+            | Self::Bulk(bulk::BulkCommands::Delete(_) | bulk::BulkCommands::Update(_))
             | Self::Session(session::SessionCommands::Cleanup(_))
             | Self::Ban(ban::BanCommands::Cleanup(_)) => DataImpact::Destructive,
             Self::List(_)
