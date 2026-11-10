@@ -97,7 +97,7 @@ async fn seed_artifact(pool: &DbPool, context_id: &ContextId, task_id: &TaskId) 
 #[tokio::test]
 async fn show_renders_artifact_by_full_id() {
     let pool = test_db_pool().await;
-    let (_user, context_id, task_id) = seed_task(&pool).await;
+    let (user, context_id, task_id) = seed_task(&pool).await;
     let artifact_id = seed_artifact(&pool, &context_id, &task_id).await;
 
     let out = show::execute_with_pool(
@@ -105,6 +105,7 @@ async fn show_renders_artifact_by_full_id() {
             artifact: artifact_id.as_str().to_owned(),
             full: false,
         },
+        &user,
         &pool,
         &cfg(),
     )
@@ -117,7 +118,7 @@ async fn show_renders_artifact_by_full_id() {
 #[tokio::test]
 async fn show_renders_text_output_with_full_flag() {
     let pool = test_db_pool().await;
-    let (_user, context_id, task_id) = seed_task(&pool).await;
+    let (user, context_id, task_id) = seed_task(&pool).await;
     let artifact_id = seed_artifact(&pool, &context_id, &task_id).await;
 
     show::execute_with_pool(
@@ -125,6 +126,7 @@ async fn show_renders_text_output_with_full_flag() {
             artifact: artifact_id.as_str().to_owned(),
             full: true,
         },
+        &user,
         &pool,
         &CliConfig::new().with_interactive(false),
     )
@@ -135,7 +137,7 @@ async fn show_renders_text_output_with_full_flag() {
 #[tokio::test]
 async fn show_resolves_unique_prefix() {
     let pool = test_db_pool().await;
-    let (_user, context_id, task_id) = seed_task(&pool).await;
+    let (user, context_id, task_id) = seed_task(&pool).await;
     let artifact_id = seed_artifact(&pool, &context_id, &task_id).await;
 
     let prefix = &artifact_id.as_str()[..artifact_id.as_str().len() - 4];
@@ -144,6 +146,7 @@ async fn show_resolves_unique_prefix() {
             artifact: prefix.to_owned(),
             full: false,
         },
+        &user,
         &pool,
         &cfg(),
     )
@@ -154,11 +157,34 @@ async fn show_resolves_unique_prefix() {
 #[tokio::test]
 async fn show_errors_when_nothing_matches() {
     let pool = test_db_pool().await;
+    let (user, _context_id, _task_id) = seed_task(&pool).await;
     let err = show::execute_with_pool(
         show::ShowArgs {
             artifact: "no-such-artifact-prefix".to_owned(),
             full: false,
         },
+        &user,
+        &pool,
+        &cfg(),
+    )
+    .await
+    .unwrap_err();
+    assert!(err.to_string().contains("No artifact found matching"));
+}
+
+#[tokio::test]
+async fn show_refuses_an_artifact_owned_by_another_user() {
+    let pool = test_db_pool().await;
+    let (_owner, context_id, task_id) = seed_task(&pool).await;
+    let (intruder, _other_context, _other_task) = seed_task(&pool).await;
+    let artifact_id = seed_artifact(&pool, &context_id, &task_id).await;
+
+    let err = show::execute_with_pool(
+        show::ShowArgs {
+            artifact: artifact_id.as_str().to_owned(),
+            full: false,
+        },
+        &intruder,
         &pool,
         &cfg(),
     )
@@ -203,7 +229,7 @@ async fn list_filters_by_context_and_user() {
 #[tokio::test]
 async fn show_truncates_long_parts_and_renders_every_metadata_field() {
     let pool = test_db_pool().await;
-    let (_user, context_id, task_id) = seed_task(&pool).await;
+    let (user, context_id, task_id) = seed_task(&pool).await;
     let artifact_id = ArtifactId::generate();
     let long_text = "line of artifact text\n".repeat(60);
     let big_data: Vec<String> = (0..200).map(|i| format!("value-{i}")).collect();
@@ -233,6 +259,7 @@ async fn show_truncates_long_parts_and_renders_every_metadata_field() {
             artifact: artifact_id.as_str().to_owned(),
             full: false,
         },
+        &user,
         &pool,
         &CliConfig::new().with_interactive(false),
     )

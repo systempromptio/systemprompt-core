@@ -1,6 +1,7 @@
 use super::{repos, seed_context_and_task, seed_user_and_session};
 use systemprompt_agent::models::a2a::{Artifact, ArtifactMetadata, Part};
 use systemprompt_identifiers::{ArtifactId, ContextId, TaskId, UserId};
+use systemprompt_test_fixtures::agent_reads::ArtifactReadsExt;
 use systemprompt_test_fixtures::test_db_pool;
 
 fn make_artifact(
@@ -42,7 +43,7 @@ async fn create_and_get_artifact_by_id() {
         .expect("create");
 
     let fetched = artifacts
-        .find_artifact_by_id(&artifact_id)
+        .read_artifact(&artifact_id)
         .await
         .expect("get")
         .expect("present");
@@ -60,7 +61,7 @@ async fn get_artifact_by_id_unknown_returns_none() {
     let r = repos(&pool);
     let artifacts = r.artifacts.clone();
     let result = artifacts
-        .find_artifact_by_id(&ArtifactId::generate())
+        .read_artifact(&ArtifactId::generate())
         .await
         .expect("get");
     assert!(result.is_none());
@@ -93,7 +94,7 @@ async fn artifact_with_all_part_kinds_roundtrip() {
         .expect("create");
 
     let fetched = artifacts
-        .find_artifact_by_id(&artifact_id)
+        .read_artifact(&artifact_id)
         .await
         .expect("get")
         .expect("present");
@@ -128,7 +129,7 @@ async fn create_artifact_upserts_on_conflict() {
         .expect("upsert");
 
     let fetched = artifacts
-        .find_artifact_by_id(&artifact_id)
+        .read_artifact(&artifact_id)
         .await
         .expect("get")
         .expect("present");
@@ -156,7 +157,7 @@ async fn list_artifacts_by_task_context_and_user() {
         .expect("create");
 
     let by_task = artifacts
-        .get_artifacts_by_task(&task_id)
+        .read_task_artifacts(&r.tasks, &task_id)
         .await
         .expect("by task");
     assert!(by_task.iter().any(|a| a.id == artifact_id));
@@ -180,7 +181,7 @@ async fn list_artifacts_by_task_context_and_user() {
 }
 
 #[tokio::test]
-async fn validate_artifact_ownership() {
+async fn owned_artifact_requires_the_owning_user() {
     let pool = test_db_pool().await;
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
@@ -194,13 +195,16 @@ async fn validate_artifact_ownership() {
         .await
         .expect("create");
 
-    artifacts
-        .validate_artifact_ownership(&artifact_id, &user_id)
+    let owned = artifacts
+        .owned_artifact(&artifact_id, &user_id)
         .await
         .expect("owned");
+    assert_eq!(owned.artifact_id(), &artifact_id);
+    assert_eq!(owned.task_id(), &task_id);
+    assert_eq!(owned.context_id(), &context_id);
 
     let err = artifacts
-        .validate_artifact_ownership(&artifact_id, &UserId::new("intruder"))
+        .owned_artifact(&artifact_id, &UserId::new("intruder"))
         .await
         .unwrap_err();
     assert!(matches!(
@@ -230,10 +234,7 @@ async fn delete_artifact() {
         .delete_artifact(&artifact_id)
         .await
         .expect("delete");
-    let fetched = artifacts
-        .find_artifact_by_id(&artifact_id)
-        .await
-        .expect("get");
+    let fetched = artifacts.read_artifact(&artifact_id).await.expect("get");
     assert!(fetched.is_none());
 
     r.tasks.delete_task(&task_id).await.ok();

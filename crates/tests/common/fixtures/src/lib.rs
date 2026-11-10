@@ -9,6 +9,7 @@
 //! skip-on-missing form.
 
 pub mod agent;
+pub mod agent_reads;
 pub mod app_context;
 pub mod bootstrap;
 pub mod catalog;

@@ -6,7 +6,7 @@
 use super::TaskRepository;
 use crate::models::a2a::{Message, Part};
 use crate::repository::context::message::{
-    get_message_parts, get_messages_by_context, get_messages_by_task, message_exists,
+    get_message_parts, get_messages_by_context, message_exists,
 };
 use systemprompt_traits::RepositoryError;
 
@@ -16,13 +16,6 @@ impl TaskRepository {
         message_id: &systemprompt_identifiers::MessageId,
     ) -> Result<bool, RepositoryError> {
         message_exists(&self.pool, message_id).await
-    }
-
-    pub async fn get_messages_by_task(
-        &self,
-        task_id: &systemprompt_identifiers::TaskId,
-    ) -> Result<Vec<Message>, RepositoryError> {
-        get_messages_by_task(&self.pool, task_id).await
     }
 
     pub async fn get_message_parts(

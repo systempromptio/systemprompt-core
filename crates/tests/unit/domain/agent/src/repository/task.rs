@@ -3,6 +3,7 @@ use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TaskState};
 use systemprompt_agent::models::context::ContextKind;
 use systemprompt_agent::repository::task::{RepoCreateTaskParams, UpdateTaskAndSaveMessagesParams};
 use systemprompt_identifiers::{AgentName, ContextId, MessageId, TaskId, TraceId, UserId};
+use systemprompt_test_fixtures::agent_reads::TaskReadsExt;
 use systemprompt_test_fixtures::test_db_pool;
 
 #[test]
@@ -55,7 +56,7 @@ async fn create_and_get_task_roundtrip() {
 
     let task = r
         .tasks
-        .find_task(&task_id)
+        .read_task(&task_id)
         .await
         .expect("get")
         .expect("present");
@@ -70,7 +71,7 @@ async fn create_and_get_task_roundtrip() {
 async fn get_task_unknown_returns_none() {
     let pool = test_db_pool().await;
     let r = repos(&pool);
-    let result = r.tasks.find_task(&TaskId::generate()).await.expect("get");
+    let result = r.tasks.read_task(&TaskId::generate()).await.expect("get");
     assert!(result.is_none());
 }
 
@@ -132,20 +133,19 @@ async fn find_task_context_info() {
 }
 
 #[tokio::test]
-async fn validate_task_ownership() {
+async fn owned_task_requires_the_owning_user() {
     let pool = test_db_pool().await;
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (_context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
 
-    r.tasks
-        .validate_task_ownership(&task_id, &user_id)
-        .await
-        .expect("owned");
+    let owned = r.tasks.owned_task(&task_id, &user_id).await.expect("owned");
+    assert_eq!(owned.task_id(), &task_id);
+    assert_eq!(owned.user_id(), &user_id);
 
     let err = r
         .tasks
-        .validate_task_ownership(&task_id, &UserId::new("intruder"))
+        .owned_task(&task_id, &UserId::new("intruder"))
         .await
         .unwrap_err();
     assert!(matches!(
@@ -169,14 +169,14 @@ async fn update_task_state_valid_transition() {
         .update_task_state(&task_id, TaskState::Working, &now)
         .await
         .expect("to working");
-    let task = r.tasks.find_task(&task_id).await.expect("get").unwrap();
+    let task = r.tasks.read_task(&task_id).await.expect("get").unwrap();
     assert_eq!(task.status.state, TaskState::Working);
 
     r.tasks
         .update_task_state(&task_id, TaskState::Completed, &now)
         .await
         .expect("to completed");
-    let task = r.tasks.find_task(&task_id).await.expect("get").unwrap();
+    let task = r.tasks.read_task(&task_id).await.expect("get").unwrap();
     assert_eq!(task.status.state, TaskState::Completed);
 
     r.tasks.delete_task(&task_id).await.ok();
@@ -249,17 +249,18 @@ async fn apply_notification_status_parses_state() {
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (_context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
     let now = chrono::Utc::now();
+    let owned = r.tasks.owned_task(&task_id, &user_id).await.expect("owned");
 
     r.tasks
-        .apply_notification_status(&task_id, "TASK_STATE_WORKING", &now)
+        .apply_notification_status(&owned, "TASK_STATE_WORKING", &now)
         .await
         .expect("notify working");
-    let task = r.tasks.find_task(&task_id).await.expect("get").unwrap();
+    let task = r.tasks.read_task(&task_id).await.expect("get").unwrap();
     assert_eq!(task.status.state, TaskState::Working);
 
     let err = r
         .tasks
-        .apply_notification_status(&task_id, "not-a-state", &now)
+        .apply_notification_status(&owned, "not-a-state", &now)
         .await
         .unwrap_err();
     assert!(matches!(
@@ -282,7 +283,7 @@ async fn update_task_failed_with_error() {
         .update_task_failed_with_error(&task_id, "boom", &now)
         .await
         .expect("fail");
-    let task = r.tasks.find_task(&task_id).await.expect("get").unwrap();
+    let task = r.tasks.read_task(&task_id).await.expect("get").unwrap();
     assert_eq!(task.status.state, TaskState::Failed);
 
     // Failing again is idempotent.
@@ -359,7 +360,7 @@ async fn update_task_and_save_messages_persists_history() {
 
     let messages = r
         .tasks
-        .get_messages_by_task(&task_id)
+        .read_task_messages(&task_id)
         .await
         .expect("messages");
     assert_eq!(messages.len(), 2);
@@ -376,7 +377,7 @@ async fn update_task_and_save_messages_persists_history() {
     assert!(r.tasks.message_exists(&user_msg.message_id).await.unwrap());
     let stored = r
         .tasks
-        .get_messages_by_task(&task_id)
+        .read_task_messages(&task_id)
         .await
         .expect("messages by task");
     assert!(stored.len() >= 2);
@@ -411,7 +412,7 @@ async fn next_sequence_number_starts_at_zero() {
     let (_context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
     let stored = r
         .tasks
-        .get_messages_by_task(&task_id)
+        .read_task_messages(&task_id)
         .await
         .expect("messages by task");
     assert!(stored.is_empty());

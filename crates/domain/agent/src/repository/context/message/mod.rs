@@ -15,16 +15,15 @@ mod queries;
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{ContextId, TaskId};
+use systemprompt_identifiers::ContextId;
 use systemprompt_traits::RepositoryError;
 
 use crate::models::a2a::Message;
 
 pub use parts::{PersistPartSqlxParams, get_message_parts};
 pub use persistence::{PersistMessageSqlxParams, persist_message_sqlx};
-pub use queries::{
-    get_messages_by_context, get_messages_by_task, get_next_sequence_number_sqlx, message_exists,
-};
+pub(crate) use queries::get_messages_by_task;
+pub use queries::{get_messages_by_context, get_next_sequence_number_sqlx, message_exists};
 
 #[derive(Debug, Clone)]
 pub struct MessageRepository {
@@ -35,13 +34,6 @@ impl MessageRepository {
     pub fn new(db: &DbPool) -> Self {
         let pool = db.pool();
         Self { pool }
-    }
-
-    pub async fn get_messages_by_task(
-        &self,
-        task_id: &TaskId,
-    ) -> Result<Vec<Message>, RepositoryError> {
-        get_messages_by_task(&self.pool, task_id).await
     }
 
     pub async fn get_messages_by_context(

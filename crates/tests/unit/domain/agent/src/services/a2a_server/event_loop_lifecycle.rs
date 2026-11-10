@@ -15,6 +15,7 @@ use systemprompt_agent::services::a2a_server::streaming::{
 };
 use systemprompt_agent::services::shared::AgentServiceError;
 use systemprompt_identifiers::{JwtToken, TaskId};
+use systemprompt_test_fixtures::agent_reads::TaskReadsExt;
 use systemprompt_test_mocks::{
     RecordedBroadcast, RecordingWebhookBroadcaster, arc_recording_broadcaster,
 };
@@ -68,7 +69,7 @@ async fn emit_run_started_moves_task_to_working_and_emits_status_frame() {
     .await;
 
     let task = task_repo
-        .find_task(&task_id)
+        .read_task(&task_id)
         .await
         .expect("get task")
         .expect("task present");
@@ -114,7 +115,7 @@ async fn emit_run_started_still_updates_task_when_sse_channel_closed() {
     .await;
 
     let task = task_repo
-        .find_task(&task_id)
+        .read_task(&task_id)
         .await
         .expect("get task")
         .expect("task present");
@@ -144,7 +145,7 @@ async fn stream_creation_error_marks_task_failed_and_broadcasts_run_error() {
     .await;
 
     let task = task_repo
-        .find_task(&task_id)
+        .read_task(&task_id)
         .await
         .expect("get task")
         .expect("task present");

@@ -396,7 +396,10 @@ async fn broadcast_task_completed_with_messages_carries_history() -> anyhow::Res
         .bind(task_id.as_str())
         .fetch_one(handle.as_ref())
         .await?;
-    assert_eq!(status, "TASK_STATE_COMPLETED");
+    assert_eq!(
+        status, "TASK_STATE_WORKING",
+        "a broadcast reads the task and never transitions it"
+    );
     Ok(())
 }
 

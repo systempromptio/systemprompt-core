@@ -107,7 +107,7 @@ async fn execute_state_update(
 ) -> Result<u64, RepositoryError> {
     let status = state.as_str();
 
-    let result = if state == TaskState::Completed {
+    let result = if state.is_terminal() {
         sqlx::query!(
             r#"UPDATE agent_tasks
                SET status = $1,
@@ -161,7 +161,7 @@ async fn execute_state_update(
     Ok(result?.rows_affected())
 }
 
-pub async fn apply_notification_status(
+pub(crate) async fn apply_notification_status(
     pool: &Arc<PgPool>,
     task_id: &TaskId,
     state: &str,

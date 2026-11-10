@@ -4,6 +4,7 @@
 // and non-streaming then rejects, and the unsupported-request-type fallthrough.
 
 use std::sync::Arc;
+use systemprompt_test_fixtures::agent_reads::TaskReadsExt;
 
 use axum::body::Bytes;
 use axum::extract::{Extension, State};
@@ -161,7 +162,7 @@ async fn cancel_task_returns_a_canceled_task_bound_to_its_context() {
     let (status, body) = body_json(response).await;
     let stored = repos
         .tasks
-        .find_task(&task_id)
+        .read_task(&task_id)
         .await
         .expect("get task")
         .expect("task row");
@@ -203,7 +204,7 @@ async fn cancel_task_owned_by_another_user_reads_as_not_found() {
     let (status, body) = body_json(response).await;
     let stored = repos
         .tasks
-        .find_task(&task_id)
+        .read_task(&task_id)
         .await
         .expect("get task")
         .expect("task row");

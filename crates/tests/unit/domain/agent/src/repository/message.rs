@@ -3,6 +3,7 @@ use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TaskState};
 use systemprompt_agent::repository::task::UpdateTaskAndSaveMessagesParams;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContextId, MessageId, TaskId, TraceId, UserId};
+use systemprompt_test_fixtures::agent_reads::TaskReadsExt;
 use systemprompt_test_fixtures::test_db_pool;
 
 fn msg_with_parts(
@@ -228,7 +229,7 @@ async fn get_messages_by_task_empty() {
     let r = repos(&pool);
     let msgs = r
         .tasks
-        .get_messages_by_task(&TaskId::generate())
+        .read_task_messages(&TaskId::generate())
         .await
         .expect("empty");
     assert!(msgs.is_empty());

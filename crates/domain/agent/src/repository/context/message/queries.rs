@@ -13,7 +13,7 @@ use crate::models::a2a::{Message, MessageRole, Part};
 use crate::repository::parts::{metadata_object, part_from_row};
 use crate::repository::task::constructor::batch_queries;
 
-pub async fn get_messages_by_task(
+pub(crate) async fn get_messages_by_task(
     pool: &Arc<PgPool>,
     task_id: &TaskId,
 ) -> Result<Vec<Message>, RepositoryError> {

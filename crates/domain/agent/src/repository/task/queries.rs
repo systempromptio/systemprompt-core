@@ -12,7 +12,7 @@ use systemprompt_traits::RepositoryError;
 use super::constructor::TaskConstructor;
 use crate::models::a2a::Task;
 
-pub async fn find_task(
+pub(crate) async fn find_task(
     constructor: &TaskConstructor,
     task_id: &TaskId,
 ) -> Result<Option<Task>, RepositoryError> {

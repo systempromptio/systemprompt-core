@@ -114,3 +114,32 @@ async fn identity_transition_is_idempotent() -> Result<()> {
     fx.cleanup().await?;
     Ok(())
 }
+
+#[tokio::test]
+async fn every_terminal_state_stamps_completion() -> Result<()> {
+    let fx = Fixture::new().await?;
+    let now = chrono::Utc::now();
+
+    for terminal in [
+        TaskState::Completed,
+        TaskState::Failed,
+        TaskState::Canceled,
+        TaskState::Rejected,
+    ] {
+        let task_id = fx.insert_task(TaskState::Submitted).await?;
+        fx.repo.update_task_state(&task_id, terminal, &now).await?;
+
+        let (completed, timed): (bool, bool) = sqlx::query_as(
+            "SELECT completed_at IS NOT NULL, execution_time_ms IS NOT NULL FROM agent_tasks \
+             WHERE task_id = $1",
+        )
+        .bind(task_id.as_str())
+        .fetch_one(&fx.pool)
+        .await?;
+        assert!(completed, "{terminal:?} stamps completed_at");
+        assert!(timed, "{terminal:?} records execution_time_ms");
+    }
+
+    fx.cleanup().await?;
+    Ok(())
+}

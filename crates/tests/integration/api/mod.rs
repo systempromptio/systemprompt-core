@@ -490,6 +490,10 @@ mod routes_agent_context_events;
 mod routes_agent_webhook_broadcast;
 
 #[cfg(test)]
+#[path = "routes_agent_webhook_ownership.rs"]
+mod routes_agent_webhook_ownership;
+
+#[cfg(test)]
 #[path = "routes_agent_contexts_crud.rs"]
 mod routes_agent_contexts_crud;
 

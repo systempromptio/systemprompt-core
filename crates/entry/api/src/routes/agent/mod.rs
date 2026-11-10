@@ -20,6 +20,15 @@ use systemprompt_runtime::AppContext;
 
 use crate::error::ApiHttpError;
 
+const DEFAULT_PAGE_LIMIT: u16 = 100;
+const MAX_PAGE_LIMIT: u16 = 500;
+
+pub(crate) fn clamp_page_limit(requested: Option<u32>) -> u16 {
+    requested.map_or(DEFAULT_PAGE_LIMIT, |limit| {
+        u16::try_from(limit).map_or(MAX_PAGE_LIMIT, |l| l.clamp(1, MAX_PAGE_LIMIT))
+    })
+}
+
 pub(crate) fn parse_context_id(raw: &str) -> Result<ContextId, ApiHttpError> {
     ContextId::try_new(raw).map_err(|e| ApiHttpError::from(ApiError::from(e)))
 }

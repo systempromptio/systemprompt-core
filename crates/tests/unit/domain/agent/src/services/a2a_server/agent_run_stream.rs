@@ -5,6 +5,7 @@
 
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
+use systemprompt_test_fixtures::agent_reads::TaskReadsExt;
 
 use async_trait::async_trait;
 use axum::http::StatusCode;
@@ -278,7 +279,7 @@ async fn a_queue_failure_streams_an_error_and_fails_the_task() {
     let task_id = launcher.launches.lock().expect("lock")[0].task_id.clone();
     let task = repos_handle
         .tasks
-        .find_task(&task_id)
+        .read_task(&task_id)
         .await
         .expect("lookup")
         .expect("task persisted before the queue was tried");

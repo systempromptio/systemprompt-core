@@ -11,10 +11,12 @@ use serde::Deserialize;
 use systemprompt_identifiers::TaskId;
 
 use systemprompt_agent::models::a2a::TaskState;
+use systemprompt_agent::repository::task::ListTasksFilter;
 use systemprompt_models::RequestContext;
 use systemprompt_models::api::ApiError;
 use systemprompt_runtime::AppContext;
 
+use super::clamp_page_limit;
 use crate::error::ApiHttpError;
 
 #[derive(Debug, Deserialize)]
@@ -54,14 +56,10 @@ pub async fn get_task(
     let task_repo = app_context.a2a_repositories().tasks.clone();
 
     let task_id_typed = TaskId::try_new(&task_id).map_err(ApiError::from)?;
-    task_repo
-        .validate_task_ownership(&task_id_typed, req_ctx.user_id())
+    let owned = task_repo
+        .owned_task(&task_id_typed, req_ctx.user_id())
         .await?;
-
-    let task = task_repo
-        .find_task(&task_id_typed)
-        .await?
-        .ok_or_else(|| ApiHttpError::not_found(format!("Task '{task_id}' not found")))?;
+    let task = task_repo.find_owned_task(&owned).await?;
 
     tracing::debug!("Task retrieved successfully");
     Ok((StatusCode::OK, Json(task)))
@@ -87,12 +85,15 @@ pub async fn list_tasks_by_user(
         None => None,
     };
 
-    let limit = params.limit.map(|l| i32::try_from(l).unwrap_or(i32::MAX));
-    let mut tasks = task_repo.get_tasks_by_user_id(user_id, limit, None).await?;
-
-    if let Some(state) = task_state {
-        tasks.retain(|t| t.status.state == state);
-    }
+    let filter = ListTasksFilter {
+        user_id,
+        context_id: None,
+        status: task_state,
+        status_timestamp_after: None,
+    };
+    let tasks = task_repo
+        .list_tasks(filter, i64::from(clamp_page_limit(params.limit)), 0)
+        .await?;
 
     tracing::debug!(user_id = %user_id, count = %tasks.len(), "Tasks listed");
     Ok((StatusCode::OK, Json(tasks)))
@@ -108,11 +109,10 @@ pub async fn get_messages_by_task(
     let task_repo = app_context.a2a_repositories().tasks.clone();
 
     let task_id_typed = TaskId::try_new(&task_id).map_err(ApiError::from)?;
-    task_repo
-        .validate_task_ownership(&task_id_typed, req_ctx.user_id())
+    let owned = task_repo
+        .owned_task(&task_id_typed, req_ctx.user_id())
         .await?;
-
-    let messages = task_repo.get_messages_by_task(&task_id_typed).await?;
+    let messages = task_repo.owned_task_messages(&owned).await?;
 
     tracing::debug!(task_id = %task_id, count = %messages.len(), "Messages retrieved");
     Ok((StatusCode::OK, Json(messages)))
@@ -128,11 +128,10 @@ pub async fn delete_task(
     let task_repo = app_context.a2a_repositories().tasks.clone();
 
     let task_id_typed = TaskId::try_new(&task_id).map_err(ApiError::from)?;
-    task_repo
-        .validate_task_ownership(&task_id_typed, req_ctx.user_id())
+    let owned = task_repo
+        .owned_task(&task_id_typed, req_ctx.user_id())
         .await?;
-
-    task_repo.delete_task(&task_id_typed).await?;
+    task_repo.delete_task(owned.task_id()).await?;
 
     tracing::debug!(task_id = %task_id, "Task deleted");
     Ok(StatusCode::NO_CONTENT)

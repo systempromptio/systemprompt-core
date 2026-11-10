@@ -20,11 +20,13 @@ pub mod agent_service;
 pub mod content;
 pub mod context;
 pub mod execution;
+pub mod owned;
 pub mod ownership;
 pub(crate) mod parts;
 pub mod task;
 
 pub use context::ContextRepository;
+pub use owned::{OwnedArtifact, OwnedTask};
 pub use ownership::AgentOwnerReassignment;
 pub use systemprompt_traits::RepositoryError;
 

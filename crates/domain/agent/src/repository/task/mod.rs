@@ -13,6 +13,7 @@
 
 pub mod constructor;
 mod mutations;
+mod owned_reads;
 mod queries;
 mod state;
 mod task_messages;
@@ -20,14 +21,13 @@ mod task_updates;
 
 pub use constructor::TaskConstructor;
 pub use mutations::{CreateTaskParams, create_task, track_agent_in_context};
+pub(crate) use queries::find_task;
 pub use queries::{
-    ListTasksFilter, TaskContextInfo, find_task, find_task_context_info, get_tasks_by_user_id,
-    list_tasks, list_tasks_by_context,
+    ListTasksFilter, TaskContextInfo, find_task_context_info, get_tasks_by_user_id, list_tasks,
+    list_tasks_by_context,
 };
-pub use state::{
-    apply_notification_status, transition_task_in_tx, update_task_failed_with_error,
-    update_task_state,
-};
+pub(crate) use state::apply_notification_status;
+pub use state::{transition_task_in_tx, update_task_failed_with_error, update_task_state};
 pub use task_updates::{PersistMessagesTxParams, UpdateTaskAndSaveMessagesParams};
 
 use crate::models::a2a::{Task, TaskState};
@@ -96,7 +96,7 @@ impl TaskRepository {
         Ok(result)
     }
 
-    pub async fn find_task(
+    pub(crate) async fn find_task(
         &self,
         task_id: &systemprompt_identifiers::TaskId,
     ) -> Result<Option<Task>, RepositoryError> {
@@ -145,15 +145,6 @@ impl TaskRepository {
         transition_task_in_tx(tx, task_id, state, at).await
     }
 
-    pub async fn apply_notification_status(
-        &self,
-        task_id: &systemprompt_identifiers::TaskId,
-        state: &str,
-        timestamp: &chrono::DateTime<chrono::Utc>,
-    ) -> Result<(), RepositoryError> {
-        apply_notification_status(&self.write_pool, task_id, state, timestamp).await
-    }
-
     pub async fn update_task_failed_with_error(
         &self,
         task_id: &systemprompt_identifiers::TaskId,
@@ -168,29 +159,6 @@ impl TaskRepository {
         task_id: &systemprompt_identifiers::TaskId,
     ) -> Result<Option<TaskContextInfo>, RepositoryError> {
         find_task_context_info(&self.pool, task_id).await
-    }
-
-    pub async fn validate_task_ownership(
-        &self,
-        task_id: &systemprompt_identifiers::TaskId,
-        user_id: &UserId,
-    ) -> Result<(), RepositoryError> {
-        let result = sqlx::query_scalar!(
-            "SELECT t.task_id FROM agent_tasks t JOIN user_contexts c ON t.context_id = \
-             c.context_id WHERE t.task_id = $1 AND c.user_id = $2",
-            task_id.as_str(),
-            user_id.as_str()
-        )
-        .fetch_optional(self.pool.as_ref())
-        .await?;
-
-        match result {
-            Some(_) => Ok(()),
-            None => Err(RepositoryError::not_found(
-                "task",
-                format!("{task_id} for user {user_id}"),
-            )),
-        }
     }
 
     pub async fn list_tasks(

@@ -5,6 +5,7 @@
 
 use std::sync::Arc;
 use systemprompt_identifiers::McpToolName;
+use systemprompt_test_fixtures::agent_reads::{ArtifactReadsExt, TaskReadsExt};
 
 use systemprompt_agent::models::a2a::{Artifact, ArtifactMetadata, Part};
 use systemprompt_agent::repository::A2ARepositories;
@@ -98,7 +99,7 @@ async fn publish_from_a2a_persists_artifact() {
 
     let repo = r.artifacts.clone();
     let fetched = repo
-        .find_artifact_by_id(&id)
+        .read_artifact(&id)
         .await
         .expect("get")
         .expect("present");
@@ -124,7 +125,7 @@ async fn publish_from_a2a_nulls_unknown_execution_id() {
 
     let repo = r.artifacts.clone();
     let fetched = repo
-        .find_artifact_by_id(&id)
+        .read_artifact(&id)
         .await
         .expect("get")
         .expect("present");
@@ -161,7 +162,7 @@ async fn publish_from_a2a_keeps_a_known_execution_id() {
 
     let fetched = r
         .artifacts
-        .find_artifact_by_id(&id)
+        .read_artifact(&id)
         .await
         .expect("get")
         .expect("present");
@@ -193,7 +194,7 @@ async fn an_unreachable_execution_ledger_fails_the_publish_and_keeps_the_id() {
         .expect_err("an unreachable ledger is an error, not an unknown execution");
     assert!(err.to_string().contains("exec-while-down"), "{err}");
 
-    let fetched = r.artifacts.find_artifact_by_id(&id).await.expect("get");
+    let fetched = r.artifacts.read_artifact(&id).await.expect("get");
     assert!(
         fetched.is_none(),
         "nothing is persisted with a detached execution id"
@@ -227,7 +228,7 @@ async fn publish_from_mcp_agentic_skips_messages() {
     .expect("publish agentic");
 
     // Agentic path persists the artifact but does NOT create messages.
-    let messages = r.tasks.get_messages_by_task(&tid).await.expect("messages");
+    let messages = r.tasks.read_task_messages(&tid).await.expect("messages");
     assert!(messages.is_empty());
 
     r.tasks.delete_task(&tid).await.ok();
@@ -258,7 +259,7 @@ async fn publish_from_mcp_direct_creates_messages() {
     .expect("publish direct");
 
     // Direct path creates a synthetic user message + an agent response message.
-    let messages = r.tasks.get_messages_by_task(&tid).await.expect("messages");
+    let messages = r.tasks.read_task_messages(&tid).await.expect("messages");
     assert_eq!(messages.len(), 2);
 
     r.tasks.delete_task(&tid).await.ok();

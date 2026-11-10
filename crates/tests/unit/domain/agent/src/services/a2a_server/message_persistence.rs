@@ -9,6 +9,7 @@
 //! as a persistence error.
 
 use std::sync::Arc;
+use systemprompt_test_fixtures::agent_reads::{ArtifactReadsExt, TaskReadsExt};
 
 use systemprompt_agent::models::a2a::{
     Artifact, ArtifactMetadata, Message, MessageRole, Part, TaskState,
@@ -122,7 +123,7 @@ async fn a_completed_turn_persists_the_task_and_both_messages() {
 
     let stored = repositories
         .tasks
-        .find_task(&task_id)
+        .read_task(&task_id)
         .await
         .expect("task readable")
         .expect("task present");
@@ -162,7 +163,7 @@ async fn artifacts_already_published_are_not_published_a_second_time() {
 
     let stored = repositories
         .artifacts
-        .find_artifact_by_id(&artifact_id)
+        .read_artifact(&artifact_id)
         .await
         .expect("artifact lookup runs");
     assert!(
@@ -258,16 +259,12 @@ async fn persist_artifacts(broadcast_ok: bool) {
         );
     }
     for id in ids {
-        let stored = repositories
-            .artifacts
-            .find_artifact_by_id(&id)
-            .await
-            .unwrap();
+        let stored = repositories.artifacts.read_artifact(&id).await.unwrap();
         assert!(stored.is_some(), "artifact {id} must be persisted");
     }
     let stored = repositories
         .tasks
-        .find_task(&task_id)
+        .read_task(&task_id)
         .await
         .expect("task readable")
         .expect("task present");

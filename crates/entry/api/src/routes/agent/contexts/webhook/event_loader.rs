@@ -4,8 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use serde_json::json;
-use systemprompt_agent::models::a2a::TaskState;
-use systemprompt_identifiers::{MessageId, TaskId};
+use systemprompt_identifiers::{ArtifactId, ContextId, MessageId, TaskId};
 use systemprompt_models::ExecutionStep;
 use systemprompt_runtime::AppContext;
 
@@ -31,6 +30,20 @@ pub(super) async fn load_event_data(
     }
 }
 
+fn ensure_in_context(
+    context_id: &ContextId,
+    request: &WebhookRequest,
+    entity: &'static str,
+) -> Result<(), LoadEventError> {
+    if *context_id == request.context_id {
+        return Ok(());
+    }
+    Err(LoadEventError::NotFound {
+        entity,
+        id: request.entity_id.clone(),
+    })
+}
+
 async fn load_task_completed(
     repos: &A2ARepositories,
     request: &WebhookRequest,
@@ -39,23 +52,16 @@ async fn load_task_completed(
     let artifact_repo = &repos.artifacts;
     let step_repo = &repos.execution_steps;
 
-    let task_id = TaskId::new(&request.entity_id);
-    let timestamp = chrono::Utc::now();
-    task_repo
-        .update_task_state(&task_id, TaskState::Completed, &timestamp)
+    let owned = task_repo
+        .owned_task(&TaskId::new(&request.entity_id), &request.user_id)
         .await?;
+    ensure_in_context(owned.context_id(), request, "Task")?;
+    let task_id = owned.task_id().clone();
 
-    let mut task =
-        task_repo
-            .find_task(&task_id)
-            .await?
-            .ok_or_else(|| LoadEventError::NotFound {
-                entity: "Task",
-                id: request.entity_id.clone(),
-            })?;
+    let mut task = task_repo.find_owned_task(&owned).await?;
 
     let artifacts = artifact_repo
-        .get_artifacts_by_task(&task_id)
+        .artifacts_for_owned_task(&owned)
         .await
         .unwrap_or_else(|e| {
             tracing::warn!(error = %e, task_id = %task_id, "Failed to load artifacts for webhook event");
@@ -63,7 +69,7 @@ async fn load_task_completed(
         });
 
     let messages = task_repo
-        .get_messages_by_task(&task_id)
+        .owned_task_messages(&owned)
         .await
         .unwrap_or_else(|e| {
             tracing::warn!(error = %e, task_id = %task_id, "Failed to load messages for webhook event");
@@ -107,14 +113,11 @@ async fn load_artifact_created(
 ) -> Result<AgUiWebhookData, LoadEventError> {
     let artifact_repo = &repos.artifacts;
 
-    let artifact_id = systemprompt_identifiers::ArtifactId::new(&request.entity_id);
-    let artifact = artifact_repo
-        .find_artifact_by_id(&artifact_id)
-        .await?
-        .ok_or_else(|| LoadEventError::NotFound {
-            entity: "Artifact",
-            id: request.entity_id.clone(),
-        })?;
+    let owned = artifact_repo
+        .owned_artifact(&ArtifactId::new(&request.entity_id), &request.user_id)
+        .await?;
+    ensure_in_context(owned.context_id(), request, "Artifact")?;
+    let artifact = artifact_repo.find_owned_artifact(&owned).await?;
 
     Ok(AgUiWebhookData {
         event_name: "artifact".to_owned(),
