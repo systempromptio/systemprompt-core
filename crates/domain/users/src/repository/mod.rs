@@ -22,7 +22,7 @@ mod session_traffic;
 mod sso_login_events;
 mod user;
 
-pub use api_key::CreateApiKeyParams;
+pub use api_key::{CreateApiKeyParams, EnsuredApiKeyRecord};
 pub use banned_ip::{
     BanDuration, BanIpParams, BanIpWithMetadataParams, BannedIp, BannedIpRepository,
 };

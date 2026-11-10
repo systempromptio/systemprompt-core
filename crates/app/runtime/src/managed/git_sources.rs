@@ -1,5 +1,11 @@
 //! Application-owned credential resolution for Git source synchronization.
 //!
+//! A source's `credential_reference` is a label, not a secret name: it resolves
+//! only the custom secret `git_source/<host>/<label>`, where `<host>` is the
+//! source repository's authority. Secrets outside the `git_source/` namespace
+//! are unreachable, and a credential stored for one host is never sent to
+//! another.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -58,12 +64,15 @@ impl GitSourceOrchestrator {
     ) -> Result<Option<String>, OrchestrationError> {
         match self.managed.get_source(owner, source).await? {
             SourceSpec::Git {
+                repository,
                 credential_reference: Some(reference),
                 ..
             } => {
+                let key = git_credential_key(&repository, &reference)
+                    .ok_or(OrchestrationError::CredentialUnresolved)?;
                 let credential = self
                     .secrets
-                    .secret(&reference)
+                    .secret(&key)
                     .filter(|value| !value.expose().is_empty())
                     .ok_or(OrchestrationError::CredentialUnresolved)?;
                 Ok(Some(credential.expose().to_owned()))
@@ -76,3 +85,20 @@ impl GitSourceOrchestrator {
         }
     }
 }
+
+pub fn git_credential_key(repository: &str, reference: &str) -> Option<String> {
+    let authority = repository
+        .strip_prefix("https://")?
+        .split('/')
+        .next()
+        .filter(|host| !host.is_empty())?
+        .to_ascii_lowercase();
+    if reference.is_empty() {
+        return None;
+    }
+    Some(format!(
+        "{GIT_CREDENTIAL_NAMESPACE}/{authority}/{reference}"
+    ))
+}
+
+pub const GIT_CREDENTIAL_NAMESPACE: &str = "git_source";

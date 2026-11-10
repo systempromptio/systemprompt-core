@@ -236,6 +236,38 @@ async fn replaying_the_same_completion_does_not_duplicate_the_turn() {
 }
 
 #[tokio::test]
+async fn replaying_a_completion_without_a_body_hash_is_a_no_op() {
+    let pool = bootstrapped_pool().await;
+    let uid = user();
+    let id = seed_request(&pool, &uid).await;
+    let repo = AiRequestRepository::new(&pool);
+    let body = json!({"content": "hi"});
+    let tools = vec![SettledToolCall {
+        id: AiToolCallId::new("toolu_unhashed"),
+        name: "lookup".to_owned(),
+        input: "{}".to_owned(),
+        args: None,
+    }];
+    let unhashed = || match completion(&body, "unused", &tools) {
+        SettlementOutcome::Completed(mut c) => {
+            c.payload.sha256 = None;
+            SettlementOutcome::Completed(c)
+        },
+        other => other,
+    };
+
+    repo.settle(&id, &uid, unhashed())
+        .await
+        .expect("first settle");
+    repo.settle(&id, &uid, unhashed())
+        .await
+        .expect("replaying an unhashed completion succeeds");
+
+    assert_eq!(row(&pool, &id).await.0, "completed");
+    assert_eq!(turn_counts(&pool, &id).await, (1, 1));
+}
+
+#[tokio::test]
 async fn a_different_terminal_response_is_rejected() {
     let pool = bootstrapped_pool().await;
     let uid = user();

@@ -11,6 +11,7 @@
 
 mod admin_service;
 mod api_key_service;
+mod api_key_validation;
 mod device_cert_service;
 mod sso_events;
 mod user;

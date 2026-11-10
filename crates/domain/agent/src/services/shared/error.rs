@@ -44,6 +44,9 @@ pub enum AgentServiceError {
         source: BoxedSource,
     },
 
+    #[error("plan has {planned} tool calls; at most {max} are executed")]
+    PlanTooLarge { planned: usize, max: usize },
+
     #[error("Tool execution failed: {0}")]
     ToolExecution(String),
 

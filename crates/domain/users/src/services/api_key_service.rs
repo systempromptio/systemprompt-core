@@ -22,7 +22,8 @@ use systemprompt_models::attribution::ScopeBinding;
 
 use crate::error::{Result, UserError};
 use crate::models::{ApiKeyKind, ApiKeyLimits, NewApiKey, UserApiKey};
-use crate::repository::{CreateApiKeyParams, UserRepository};
+use crate::repository::{CreateApiKeyParams, EnsuredApiKeyRecord, UserRepository};
+use crate::services::api_key_validation::{validate_limits, validate_scopes};
 
 pub const API_KEY_PREFIX: &str = "sp-live-";
 const SECRET_BYTES: usize = 32;
@@ -109,37 +110,15 @@ impl ApiKeyService {
     }
 
     pub async fn issue(&self, params: IssueApiKeyParams<'_>) -> Result<NewApiKey> {
-        let trimmed = params.name.trim();
-        if trimmed.is_empty() {
-            return Err(UserError::Validation(
-                "api key name must not be empty".into(),
-            ));
-        }
-
-        validate_limits(params.limits)?;
-        validate_scopes(params.scopes)?;
-        let expires_at = self.lifetime.bound(params.expires_at, Utc::now())?;
-
-        let id = ApiKeyId::generate();
-        let (secret, key_prefix, key_hash) = generate_secret();
-
+        let prepared = self.prepare(&params)?;
         let record = self
             .repository
-            .create_api_key(CreateApiKeyParams {
-                id: &id,
-                user_id: params.user_id,
-                name: trimmed,
-                key_prefix: &key_prefix,
-                key_hash: &key_hash,
-                expires_at,
-                limits: params.limits,
-                scopes: params.scopes,
-                purpose: params.purpose,
-                kind: params.kind,
-            })
+            .create_api_key(prepared.create_params(&params))
             .await?;
-
-        Ok(NewApiKey { record, secret })
+        Ok(NewApiKey {
+            record,
+            secret: prepared.secret,
+        })
     }
 
     pub async fn ensure(
@@ -147,24 +126,46 @@ impl ApiKeyService {
         params: IssueApiKeyParams<'_>,
         renew_before: chrono::TimeDelta,
     ) -> Result<EnsuredApiKey> {
-        let name = params.name.trim();
+        let prepared = self.prepare(&params)?;
         let now = Utc::now();
         let renew_at = now + renew_before;
-        let existing = self
+        let lifetime = self.lifetime;
+        let outcome = self
             .repository
-            .list_api_keys_for_user(params.user_id)
-            .await?
-            .into_iter()
-            .find(|key| {
-                key.name == name
-                    && key.is_active(now)
-                    && self.lifetime.admits(key.created_at, renew_at)
+            .ensure_api_key(prepared.create_params(&params), |key| {
+                key.is_active(now)
+                    && lifetime.admits(key.created_at, renew_at)
                     && key.expires_at.is_none_or(|at| at > renew_at)
-            });
-        match existing {
-            Some(key) => Ok(EnsuredApiKey::Existing(key)),
-            None => self.issue(params).await.map(EnsuredApiKey::Issued),
+            })
+            .await?;
+        Ok(match outcome {
+            EnsuredApiKeyRecord::Existing(key) => EnsuredApiKey::Existing(key),
+            EnsuredApiKeyRecord::Created(record) => EnsuredApiKey::Issued(NewApiKey {
+                record,
+                secret: prepared.secret,
+            }),
+        })
+    }
+
+    fn prepare(&self, params: &IssueApiKeyParams<'_>) -> Result<PreparedKey> {
+        let name = params.name.trim().to_owned();
+        if name.is_empty() {
+            return Err(UserError::Validation(
+                "api key name must not be empty".into(),
+            ));
         }
+        validate_limits(params.limits)?;
+        validate_scopes(params.scopes)?;
+        let expires_at = self.lifetime.bound(params.expires_at, Utc::now())?;
+        let (secret, key_prefix, key_hash) = generate_secret();
+        Ok(PreparedKey {
+            id: ApiKeyId::generate(),
+            name,
+            secret,
+            key_prefix,
+            key_hash,
+            expires_at,
+        })
     }
 
     pub async fn verify(&self, presented_secret: &str) -> Result<Option<UserApiKey>> {
@@ -209,51 +210,30 @@ impl ApiKeyService {
     }
 }
 
-fn validate_limits(limits: &ApiKeyLimits) -> Result<()> {
-    if limits
-        .model_allowlist
-        .as_ref()
-        .is_some_and(|models| models.is_empty() || models.iter().any(|m| m.trim().is_empty()))
-    {
-        return Err(UserError::Validation(
-            "model_allowlist must name at least one model, or be omitted".into(),
-        ));
-    }
-    if limits.budget_microdollars.is_some_and(|b| b < 0)
-        || limits.max_requests.is_some_and(|m| m < 0)
-    {
-        return Err(UserError::Validation(
-            "budget_microdollars and max_requests must not be negative".into(),
-        ));
-    }
-    let ceiling = limits.budget_microdollars.is_some() || limits.max_requests.is_some();
-    if ceiling && limits.request_window_seconds.is_none_or(|w| w <= 0) {
-        return Err(UserError::Validation(
-            "budget_microdollars and max_requests need a positive request_window_seconds".into(),
-        ));
-    }
-    Ok(())
+struct PreparedKey {
+    id: ApiKeyId,
+    name: String,
+    secret: String,
+    key_prefix: String,
+    key_hash: String,
+    expires_at: Option<DateTime<Utc>>,
 }
 
-fn validate_scopes(scopes: &[ScopeBinding]) -> Result<()> {
-    for (index, scope) in scopes.iter().enumerate() {
-        if scope.value.trim().is_empty() {
-            return Err(UserError::Validation(format!(
-                "scope {} must bind a non-empty value",
-                scope.dimension
-            )));
-        }
-        if scopes[..index]
-            .iter()
-            .any(|s| s.dimension == scope.dimension)
-        {
-            return Err(UserError::Validation(format!(
-                "scope {} is bound more than once",
-                scope.dimension
-            )));
+impl PreparedKey {
+    fn create_params<'a>(&'a self, params: &IssueApiKeyParams<'a>) -> CreateApiKeyParams<'a> {
+        CreateApiKeyParams {
+            id: &self.id,
+            user_id: params.user_id,
+            name: &self.name,
+            key_prefix: &self.key_prefix,
+            key_hash: &self.key_hash,
+            expires_at: self.expires_at,
+            limits: params.limits,
+            scopes: params.scopes,
+            purpose: params.purpose,
+            kind: params.kind,
         }
     }
-    Ok(())
 }
 
 fn generate_secret() -> (String, String, String) {

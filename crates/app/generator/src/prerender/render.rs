@@ -7,7 +7,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 use systemprompt_identifiers::LocaleCode;
 use systemprompt_models::SitemapConfig;
@@ -190,7 +190,7 @@ async fn write_rendered_page(
     slug: &str,
     html: &str,
 ) -> GeneratorResult<()> {
-    let output_dir = determine_output_dir(dist_dir, locale_prefix, url_pattern, slug);
+    let output_dir = determine_output_dir(dist_dir, locale_prefix, url_pattern, slug)?;
     fs::create_dir_all(&output_dir).await?;
 
     let output_path = output_dir.join("index.html");
@@ -210,7 +210,7 @@ pub(super) async fn remove_rendered_page(
     url_pattern: &str,
     slug: &str,
 ) -> GeneratorResult<()> {
-    let output_dir = determine_output_dir(dist_dir, locale_prefix, url_pattern, slug);
+    let output_dir = determine_output_dir(dist_dir, locale_prefix, url_pattern, slug)?;
     match fs::remove_dir_all(&output_dir).await {
         Ok(()) => {
             tracing::debug!(path = %output_dir.display(), "Removed dist output for non-public slug");
@@ -226,7 +226,7 @@ fn determine_output_dir(
     locale_prefix: &str,
     url_pattern: &str,
     slug: &str,
-) -> PathBuf {
+) -> GeneratorResult<PathBuf> {
     let path = if slug.is_empty() {
         url_pattern
             .replace(&format!("/{SLUG_PLACEHOLDER}"), "")
@@ -236,8 +236,12 @@ fn determine_output_dir(
         url_pattern.replace(SLUG_PLACEHOLDER, slug)
     };
     let combined = format!("{locale_prefix}{path}");
-    match combined.trim_start_matches('/') {
-        "" => dist_dir.to_path_buf(),
-        p => dist_dir.join(p),
+    let relative = Path::new(combined.trim_start_matches('/'));
+    if !relative
+        .components()
+        .all(|c| matches!(c, Component::Normal(_)))
+    {
+        return Err(PublishError::UnsafeOutputPath { path: combined });
     }
+    Ok(dist_dir.join(relative))
 }

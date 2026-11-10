@@ -130,7 +130,7 @@ async fn settle_completion(
             "a different terminal response is already settled",
         ));
     }
-    if previous.is_none() {
+    if !turn_recorded(tx, request_id, completion).await? {
         insert_turn(tx, request_id, completion).await?;
     }
     upsert_response_payload(tx, request_id, completion).await?;
@@ -199,6 +199,29 @@ async fn upsert_response_payload(
     .execute(&mut **tx)
     .await?;
     Ok(())
+}
+
+async fn turn_recorded(
+    tx: &mut Transaction<'_, Postgres>,
+    request_id: &AiRequestId,
+    completion: &SettleCompletion<'_>,
+) -> Result<bool, RepositoryError> {
+    let recorded = sqlx::query_scalar!(
+        r#"
+        SELECT (
+            EXISTS (SELECT 1 FROM ai_request_tool_calls WHERE request_id = $1)
+            OR EXISTS (
+                SELECT 1 FROM ai_request_messages
+                WHERE request_id = $1 AND role = 'assistant' AND sequence_number = $2
+            )
+        ) AS "recorded!"
+        "#,
+        request_id.as_str(),
+        completion.next_message_sequence,
+    )
+    .fetch_one(&mut **tx)
+    .await?;
+    Ok(recorded)
 }
 
 async fn insert_turn(
