@@ -33,6 +33,7 @@ pub mod access;
 pub mod agents;
 mod blob_adopt;
 pub mod blob_store;
+mod blob_store_gc;
 pub mod codecs;
 #[cfg(feature = "collab")]
 pub mod collab;

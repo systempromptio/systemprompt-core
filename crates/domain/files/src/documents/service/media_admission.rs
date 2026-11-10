@@ -84,7 +84,7 @@ impl DocumentService {
                 ),
             });
         }
-        Ok(refs)
+        Ok(self.repos.media.stored_among(&refs).await?)
     }
 
     async fn uploaded_by(&self, who: &UserId, reference: &str) -> Result<bool, DocumentsError> {

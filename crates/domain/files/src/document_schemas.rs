@@ -42,6 +42,11 @@ pub(crate) const DOCUMENT_SCHEMAS: &[SchemaEntry] = &[
         ],
     ),
     (
+        "document_blob_collections",
+        include_str!("../schema/document_blob_collections.sql"),
+        &["content_sha256", "storage_id"],
+    ),
+    (
         "document_media",
         include_str!("../schema/document_media.sql"),
         &["document_id", "content_sha256", "admitted_by"],

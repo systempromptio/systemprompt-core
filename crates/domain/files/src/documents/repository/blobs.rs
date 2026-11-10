@@ -107,6 +107,24 @@ impl DocumentBlobRepository {
         }
     }
 
+    pub async fn pending_collections(
+        &self,
+        limit: i64,
+    ) -> RepoResult<Vec<(ContentHash, StoredFileId)>> {
+        let rows = sqlx::query!(
+            r#"SELECT content_sha256 AS "content_sha256: ContentHash",
+                      storage_id AS "storage_id: StoredFileId"
+               FROM document_blob_collections ORDER BY started_at LIMIT $1"#,
+            limit,
+        )
+        .fetch_all(&*self.pools.write)
+        .await?;
+        Ok(rows
+            .into_iter()
+            .map(|row| (row.content_sha256, row.storage_id))
+            .collect())
+    }
+
     pub async fn lock(&self, hash: &ContentHash) -> RepoResult<HashLock> {
         let mut tx = self.pools.write.begin().await?;
         sqlx::query!("SELECT pg_advisory_xact_lock($1)", lock_key(hash))
@@ -181,6 +199,46 @@ impl HashLock {
         .execute(&mut *self.tx)
         .await?;
         Ok(result.rows_affected() == 1)
+    }
+
+    pub async fn begin_collection(
+        &mut self,
+        hash: &ContentHash,
+        storage_id: &StoredFileId,
+    ) -> RepoResult<bool> {
+        if !self.delete_unreferenced(hash).await? {
+            return Ok(false);
+        }
+        sqlx::query!(
+            "INSERT INTO document_blob_collections (content_sha256, storage_id)
+             VALUES ($1, $2)
+             ON CONFLICT (content_sha256) DO UPDATE SET storage_id = EXCLUDED.storage_id",
+            hash.as_str(),
+            storage_id.as_str(),
+        )
+        .execute(&mut *self.tx)
+        .await?;
+        Ok(true)
+    }
+
+    pub async fn row_exists(&mut self, hash: &ContentHash) -> RepoResult<bool> {
+        Ok(sqlx::query_scalar!(
+            r#"SELECT EXISTS (SELECT 1 FROM document_blobs WHERE content_sha256 = $1)
+                   AS "present!""#,
+            hash.as_str(),
+        )
+        .fetch_one(&mut *self.tx)
+        .await?)
+    }
+
+    pub async fn end_collection(&mut self, hash: &ContentHash) -> RepoResult<()> {
+        sqlx::query!(
+            "DELETE FROM document_blob_collections WHERE content_sha256 = $1",
+            hash.as_str(),
+        )
+        .execute(&mut *self.tx)
+        .await?;
+        Ok(())
     }
 
     pub async fn commit(self) -> RepoResult<()> {

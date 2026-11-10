@@ -1,6 +1,7 @@
 //! [`DocumentMediaRepository`]: the uploaded images admitted to each
 //! document. Serving an image requires its row; admitting one happens inside
-//! the landing transaction of the revision that places it.
+//! the landing transaction of the revision that places it, which refuses
+//! the landing when an admitted image's blob has been collected meanwhile.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -64,19 +65,45 @@ impl DocumentMediaRepository {
         .await?)
     }
 
+    pub async fn stored_among(&self, hashes: &[String]) -> RepoResult<Vec<String>> {
+        if hashes.is_empty() {
+            return Ok(Vec::new());
+        }
+        Ok(sqlx::query_scalar!(
+            "SELECT content_sha256 FROM document_blobs WHERE content_sha256 = ANY($1)",
+            hashes,
+        )
+        .fetch_all(&*self.pools.write)
+        .await?)
+    }
+
     pub async fn admit_in(
         conn: &mut PgConnection,
         document: &DocumentId,
         hashes: &[String],
         admitted_by: &UserId,
-    ) -> RepoResult<u64> {
+    ) -> RepoResult<Vec<String>> {
         if hashes.is_empty() {
-            return Ok(0);
+            return Ok(Vec::new());
         }
-        let result = sqlx::query!(
+        let stored = sqlx::query_scalar!(
+            "SELECT content_sha256 FROM document_blobs WHERE content_sha256 = ANY($1)
+             FOR KEY SHARE",
+            hashes,
+        )
+        .fetch_all(&mut *conn)
+        .await?;
+        let missing: Vec<String> = hashes
+            .iter()
+            .filter(|hash| !stored.contains(hash))
+            .cloned()
+            .collect();
+        if !missing.is_empty() {
+            return Ok(missing);
+        }
+        sqlx::query!(
             "INSERT INTO document_media (document_id, content_sha256, admitted_by)
-             SELECT $1::text::uuid, b.content_sha256, $3
-             FROM document_blobs b WHERE b.content_sha256 = ANY($2)
+             SELECT $1::text::uuid, h, $3 FROM unnest($2::text[]) AS h
              ON CONFLICT (document_id, content_sha256) DO NOTHING",
             document.as_str(),
             hashes,
@@ -84,6 +111,6 @@ impl DocumentMediaRepository {
         )
         .execute(conn)
         .await?;
-        Ok(result.rows_affected())
+        Ok(Vec::new())
     }
 }

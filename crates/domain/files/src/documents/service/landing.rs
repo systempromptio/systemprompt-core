@@ -88,6 +88,25 @@ fn sql(error: sqlx::Error) -> DocumentsError {
     DocumentsError::Repository(RepositoryError::from(error))
 }
 
+async fn admit_media_in(
+    tx: &mut sqlx::PgConnection,
+    document: &DocumentId,
+    media: &[String],
+    author: &UserId,
+) -> Result<(), DocumentsError> {
+    let collected = DocumentMediaRepository::admit_in(tx, document, media, author).await?;
+    if collected.is_empty() {
+        return Ok(());
+    }
+    Err(DocumentsError::ContentRefused {
+        code: "media_collected",
+        detail: format!(
+            "image(s) {} were removed from storage before the revision landed; upload them again",
+            collected.join(", ")
+        ),
+    })
+}
+
 async fn claim_op(
     tx: &mut sqlx::PgConnection,
     document: &DocumentId,
@@ -155,8 +174,7 @@ impl DocumentService {
         let parent = revision.parent_revision_id.clone();
         let mut revision = DocumentRevisionRepository::insert_in(&mut tx, revision).await?;
         DocumentNodeIdRepository::insert(&mut tx, &document.id, &revision.id, &entries).await?;
-        DocumentMediaRepository::admit_in(&mut tx, &document.id, &media, &revision.author_user_id)
-            .await?;
+        admit_media_in(&mut tx, &document.id, &media, &revision.author_user_id).await?;
         let ack = WriteAck {
             revision_id: revision.id.clone(),
             parent_revision_id: parent.clone(),

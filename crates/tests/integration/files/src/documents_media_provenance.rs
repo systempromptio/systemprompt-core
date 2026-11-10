@@ -454,3 +454,23 @@ async fn a_copy_carries_admissions_and_a_revoked_share_ends_image_access() {
         "{revoked}"
     );
 }
+
+#[tokio::test]
+async fn landing_refuses_an_admitted_image_whose_blob_is_gone() {
+    let h = harness(allow(), GroupSource::new(&[])).await;
+    let alice = person("provenance-collected");
+    let document = markdown(&h, &alice).await;
+    let gone = content_hash(&distinct_picture()).as_str().to_owned();
+    let db = systemprompt_test_fixtures::test_db_pool().await;
+    let mut conn = db.write_pool().acquire().await.expect("acquire");
+    let missing = systemprompt_files::documents::repository::DocumentMediaRepository::admit_in(
+        &mut conn,
+        &document,
+        std::slice::from_ref(&gone),
+        &alice.id,
+    )
+    .await
+    .expect("admit");
+    assert_eq!(missing, vec![gone.clone()]);
+    assert!(!admitted(&h, &document, &gone).await);
+}
