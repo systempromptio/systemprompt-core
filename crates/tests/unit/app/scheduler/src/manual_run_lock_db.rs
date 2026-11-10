@@ -20,15 +20,14 @@ use crate::test_jobs::{NODE_JOB, WORKING_JOB};
 
 async fn hold_peer_lock(pool: &DbPool, job_name: &str) -> PoolConnection<Postgres> {
     let mut peer = pool.write_pool().acquire().await.expect("peer connection");
-    let key: i64 = sqlx::query_scalar!(r#"SELECT hashtext($1)::bigint AS "key!""#, job_name)
-        .fetch_one(peer.as_mut())
-        .await
-        .expect("hash job name");
-    let acquired: Option<bool> =
-        sqlx::query_scalar!(r#"SELECT pg_try_advisory_lock($1) AS "acquired""#, key)
-            .fetch_one(peer.as_mut())
-            .await
-            .expect("peer lock");
+    let acquired: Option<bool> = sqlx::query_scalar!(
+        r#"SELECT pg_try_advisory_lock($1, hashtext($2)) AS "acquired""#,
+        systemprompt_scheduler::JOB_LOCK_CLASS,
+        job_name
+    )
+    .fetch_one(peer.as_mut())
+    .await
+    .expect("peer lock");
     assert_eq!(
         acquired,
         Some(true),
@@ -124,5 +123,31 @@ async fn without_the_distributed_lock_a_cluster_job_runs_unclaimed() {
     drop(peer.detach());
 
     assert!(!report.lock_contended);
+    assert!(report.success, "{:?}", report.message);
+}
+
+#[tokio::test]
+async fn a_single_key_lock_on_the_job_name_hash_does_not_contend_with_the_job_lock() {
+    let (svc, pool) = service(locked_config()).await;
+    let mut other_user = pool.write_pool().acquire().await.expect("connection");
+    let acquired: Option<bool> = sqlx::query_scalar!(
+        r#"SELECT pg_try_advisory_lock(hashtext($1)::bigint) AS "acquired""#,
+        WORKING_JOB
+    )
+    .fetch_one(other_user.as_mut())
+    .await
+    .expect("single-key lock");
+    assert_eq!(acquired, Some(true));
+
+    let report = svc
+        .run_job(&JobName::new(WORKING_JOB), &HashMap::new())
+        .await;
+    drop(other_user.detach());
+
+    assert!(
+        !report.lock_contended,
+        "a single-key advisory lock must not block the job: {:?}",
+        report.message
+    );
     assert!(report.success, "{:?}", report.message);
 }

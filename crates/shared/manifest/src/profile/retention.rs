@@ -26,6 +26,9 @@ use serde::{Deserialize, Serialize};
 /// - `archived_users_days` is how long an archived user (status `deleted`,
 ///   `archived_at` set) stays restorable before `database_cleanup` purges the
 ///   account and its rows; an account under legal hold is never purged.
+/// - `fingerprint_reputation_days` deletes a fingerprint's reputation row (with
+///   its last IP address and user agent) once the fingerprint has not been seen
+///   for the window.
 /// - `agent_run_dirs_days` is how long a finished agent run keeps its run
 ///   directory (logs and `outputs/`) on disk; the `agent_run_dirs_cleanup` job
 ///   removes it and clears `agent_runs.run_dir`, the row stays.
@@ -50,6 +53,10 @@ pub struct RetentionConfig {
     pub ai_request_payload_raw_days: u32,
     #[serde(default = "default_governance_decisions_days")]
     pub governance_decisions_days: u32,
+    #[serde(default = "default_engagement_events_days")]
+    pub engagement_events_days: u32,
+    #[serde(default = "default_fingerprint_reputation_days")]
+    pub fingerprint_reputation_days: u32,
     #[serde(default = "default_archived_users_days")]
     pub archived_users_days: u32,
     #[serde(default = "default_agent_run_dirs_days")]
@@ -66,6 +73,8 @@ impl Default for RetentionConfig {
             outbox_processed_days: default_outbox_processed_days(),
             ai_request_payload_raw_days: default_ai_request_payload_raw_days(),
             governance_decisions_days: default_governance_decisions_days(),
+            engagement_events_days: default_engagement_events_days(),
+            fingerprint_reputation_days: default_fingerprint_reputation_days(),
             archived_users_days: default_archived_users_days(),
             agent_run_dirs_days: default_agent_run_dirs_days(),
         }
@@ -98,6 +107,14 @@ const fn default_ai_request_payload_raw_days() -> u32 {
 
 const fn default_governance_decisions_days() -> u32 {
     180
+}
+
+const fn default_engagement_events_days() -> u32 {
+    90
+}
+
+const fn default_fingerprint_reputation_days() -> u32 {
+    90
 }
 
 const fn default_archived_users_days() -> u32 {

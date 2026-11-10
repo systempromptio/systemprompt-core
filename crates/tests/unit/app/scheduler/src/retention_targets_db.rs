@@ -1,7 +1,9 @@
 //! Every retention target deletes through its owning repository: with one
 //! stale and one fresh row seeded per table, an enforced run removes exactly
 //! the stale row, and `ai_request_payloads` keeps its row with the bodies
-//! released.
+//! released. `engagement_events` and `fingerprint_reputation`, which carry
+//! personal data, are bounded the same way, except that an idle fingerprint
+//! flagged for abuse is kept with its IP address and user agent cleared.
 
 use std::sync::Arc;
 
@@ -122,6 +124,30 @@ async fn seed_all(pool: &sqlx::PgPool, seeded: &Seeded) {
             days,
         )
         .await;
+        exec(
+            pool,
+            "INSERT INTO engagement_events (id, session_id, user_id, page_url, created_at) \
+             VALUES ($1, 'sess-retention', 'system', '/retention', NOW() - make_interval(days => $2))",
+            &seeded.id("engagement_events", age),
+            days,
+        )
+        .await;
+        exec(
+            pool,
+            "INSERT INTO fingerprint_reputation (fingerprint_hash, last_seen_at, last_ip_address, last_user_agent) \
+             VALUES ($1, NOW() - make_interval(days => $2), '203.0.113.7', 'retention-agent')",
+            &seeded.id("fingerprint_reputation", age),
+            days,
+        )
+        .await;
+        exec(
+            pool,
+            "INSERT INTO fingerprint_reputation (fingerprint_hash, last_seen_at, last_ip_address, last_user_agent, is_flagged, flag_reason, flagged_at) \
+             VALUES ($1, NOW() - make_interval(days => $2), '203.0.113.9', 'flagged-agent', TRUE, 'abuse', NOW())",
+            &seeded.id("fingerprint_flagged", age),
+            days,
+        )
+        .await;
     }
 }
 
@@ -144,6 +170,8 @@ async fn cleanup(pool: &sqlx::PgPool, seeded: &Seeded) {
         ("mcp_tool_executions", "mcp_execution_id"),
         ("event_outbox", "id"),
         ("governance_decisions", "id"),
+        ("engagement_events", "id"),
+        ("fingerprint_reputation", "fingerprint_hash"),
     ] {
         let sql = format!("DELETE FROM {table} WHERE {key} LIKE $1");
         sqlx::query(sqlx::AssertSqlSafe(sql))
@@ -178,6 +206,8 @@ async fn every_target_removes_the_stale_row_and_keeps_the_fresh_one() {
         ("mcp_tool_executions", "mcp_execution_id"),
         ("event_outbox", "id"),
         ("governance_decisions", "id"),
+        ("engagement_events", "id"),
+        ("fingerprint_reputation", "fingerprint_hash"),
     ] {
         assert!(
             !exists(&pg, table, key, &seeded.id(table, "old")).await,
@@ -205,6 +235,34 @@ async fn every_target_removes_the_stale_row_and_keeps_the_fresh_one() {
     .await
     .expect("fresh payload row");
     assert_eq!(fresh_bodies, (false, false), "fresh payload bodies stay");
+
+    let pii = |age: &'static str| {
+        let id = seeded.id("fingerprint_flagged", age);
+        let pg = std::sync::Arc::clone(&pg);
+        async move {
+            sqlx::query_as::<_, (Option<String>, Option<String>, bool)>(
+                "SELECT last_ip_address, last_user_agent, is_flagged FROM fingerprint_reputation WHERE fingerprint_hash = $1",
+            )
+            .bind(id)
+            .fetch_optional(&*pg)
+            .await
+            .expect("probe flagged fingerprint")
+        }
+    };
+    assert_eq!(
+        pii("old").await,
+        Some((None, None, true)),
+        "an idle flagged fingerprint is kept with its IP address and user agent cleared"
+    );
+    assert_eq!(
+        pii("fresh").await,
+        Some((
+            Some("203.0.113.9".to_owned()),
+            Some("flagged-agent".to_owned()),
+            true
+        )),
+        "a recently seen flagged fingerprint keeps its personal data"
+    );
 
     cleanup(&pg, &seeded).await;
 }

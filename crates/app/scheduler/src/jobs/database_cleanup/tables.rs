@@ -16,6 +16,7 @@ use chrono::{DateTime, Utc};
 use systemprompt_ai::repository::{
     AiQuotaBucketRepository, AiRequestPayloadRepository, AiRequestRepository,
 };
+use systemprompt_analytics::AnalyticsRetention;
 use systemprompt_database::DbPool;
 use systemprompt_events::services::durable::DurableOutbox;
 use systemprompt_governance::GovernanceDecisionRetention;
@@ -40,6 +41,7 @@ pub(super) struct RetentionOwners {
     pub(super) tool_executions: ToolUsageRepository,
     pub(super) outbox: DurableOutbox,
     pub(super) decisions: GovernanceDecisionRetention,
+    pub(super) analytics_pii: AnalyticsRetention,
 }
 
 impl RetentionOwners {
@@ -53,6 +55,7 @@ impl RetentionOwners {
             tool_executions: ToolUsageRepository::new(db),
             outbox: DurableOutbox::new(db.write_pool().as_ref().clone(), instance_id),
             decisions: GovernanceDecisionRetention::new(db),
+            analytics_pii: AnalyticsRetention::new(db),
         }
     }
 }

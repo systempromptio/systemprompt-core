@@ -19,6 +19,7 @@ mod analytics;
 mod config_apply;
 mod config_reconcile;
 mod job_lock;
+mod job_lock_keys;
 mod jobs;
 mod licence;
 pub mod otlp;
@@ -26,12 +27,15 @@ mod security;
 
 pub use analytics::AnalyticsRepository;
 pub use config_apply::{BaseRecord, ConflictRecord, ConflictRow, LastApply};
+pub(crate) use config_reconcile::RECONCILE_LOCK;
 pub use config_reconcile::{
     ConfigChangeRecord, ConfigChangeRow, ConfigReconcileRepository, PlaneStateRow,
     PlaneStateUpdate, PlaneTransaction,
 };
+pub use job_lock::JOB_LOCK_CLASS;
 pub(crate) use job_lock::JobLockGuard;
 use job_lock::JobLockRepository;
+pub use job_lock_keys::{LockKeyCollision, find_lock_key_collision};
 pub use jobs::JobRepository;
 pub use licence::{LicenceCheckinRepository, LicenceCheckinState};
 pub use security::{IpSessionRecord, SecurityRepository};
@@ -39,7 +43,7 @@ pub use security::{IpSessionRecord, SecurityRepository};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::JobName;
 
-use crate::error::SchedulerResult;
+use crate::error::{SchedulerError, SchedulerResult};
 use crate::models::{JobRunRecord, ScheduledJob};
 
 #[derive(Debug, Clone)]
@@ -63,6 +67,18 @@ impl SchedulerRepository {
         job_name: &JobName,
     ) -> SchedulerResult<Option<JobLockGuard>> {
         self.locks.try_acquire(job_name).await
+    }
+
+    pub async fn verify_lock_keys(&self, names: &[JobName]) -> SchedulerResult<()> {
+        let keys = self.locks.lock_keys(names).await?;
+        match find_lock_key_collision(&keys) {
+            Some(collision) => Err(SchedulerError::LockKeyCollision {
+                first: collision.first,
+                second: collision.second,
+                key: collision.key,
+            }),
+            None => Ok(()),
+        }
     }
 
     pub(crate) async fn acquire_job_lock_within(

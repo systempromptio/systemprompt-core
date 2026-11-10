@@ -160,6 +160,7 @@ impl SchedulerService {
         let registered_jobs = Self::discover_jobs();
         self.validate_configured_jobs(&registered_jobs)?;
         self.adopt_unlisted_jobs(&registered_jobs)?;
+        self.verify_lock_keys(&registered_jobs).await?;
 
         let resolved = self.resolve_owners(true).await?;
 
@@ -215,6 +216,15 @@ impl SchedulerService {
             ),
             Err(error) => warn!(error = %error, "could not forget retired scheduled_jobs rows"),
         }
+    }
+
+    async fn verify_lock_keys(
+        &self,
+        registered_jobs: &HashMap<&'static str, &'static dyn JobTrait>,
+    ) -> SchedulerResult<()> {
+        let mut names: Vec<JobName> = registered_jobs.keys().map(|n| JobName::new(*n)).collect();
+        names.push(JobName::new(crate::repository::RECONCILE_LOCK));
+        self.repository.verify_lock_keys(&names).await
     }
 
     fn discover_jobs() -> HashMap<&'static str, &'static dyn JobTrait> {

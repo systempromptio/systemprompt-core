@@ -334,15 +334,14 @@ mod distributed_lock_arms {
 
         let pg = pool.write_pool();
         let mut peer = pg.acquire().await.expect("peer connection");
-        let key: i64 = sqlx::query_scalar!(r#"SELECT hashtext($1)::bigint AS "key!""#, job_name)
-            .fetch_one(peer.as_mut())
-            .await
-            .expect("hash job name");
-        let acquired: Option<bool> =
-            sqlx::query_scalar!(r#"SELECT pg_try_advisory_lock($1) AS "acquired""#, key)
-                .fetch_one(peer.as_mut())
-                .await
-                .expect("peer lock");
+        let acquired: Option<bool> = sqlx::query_scalar!(
+            r#"SELECT pg_try_advisory_lock($1, hashtext($2)) AS "acquired""#,
+            systemprompt_scheduler::JOB_LOCK_CLASS,
+            job_name
+        )
+        .fetch_one(peer.as_mut())
+        .await
+        .expect("peer lock");
         assert_eq!(
             acquired,
             Some(true),
@@ -366,10 +365,14 @@ mod distributed_lock_arms {
             "a dispatch skipped by a peer-held advisory lock must not increment run_count"
         );
 
-        sqlx::query_scalar!("SELECT pg_advisory_unlock($1)", key)
-            .fetch_one(peer.as_mut())
-            .await
-            .expect("peer unlock");
+        sqlx::query_scalar!(
+            "SELECT pg_advisory_unlock($1, hashtext($2))",
+            systemprompt_scheduler::JOB_LOCK_CLASS,
+            job_name
+        )
+        .fetch_one(peer.as_mut())
+        .await
+        .expect("peer unlock");
     }
 
     #[tokio::test]

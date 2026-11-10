@@ -5,8 +5,8 @@
 //! connection must stay pinned until release and must never come from a pool
 //! behind a transaction-mode pooler, which would hand the locked backend to
 //! another client between statements. Keys use the two-key form under
-//! [`EXTENSION_LOCK_CLASS`], disjoint from the scheduler's single-key job
-//! locks and from the instance claims.
+//! [`EXTENSION_LOCK_CLASS`], disjoint from the scheduler's job locks and
+//! from the instance claims.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

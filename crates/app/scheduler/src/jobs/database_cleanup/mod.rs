@@ -52,6 +52,8 @@ pub enum RetentionTarget {
     AiRequestPayloads,
     GovernanceDecisions,
     AiQuotaBuckets,
+    EngagementEvents,
+    FingerprintReputation,
 }
 
 impl RetentionTarget {
@@ -66,6 +68,8 @@ impl RetentionTarget {
             Self::AiRequestPayloads => "ai_request_payloads",
             Self::GovernanceDecisions => "governance_decisions",
             Self::AiQuotaBuckets => "ai_quota_buckets",
+            Self::EngagementEvents => "engagement_events",
+            Self::FingerprintReputation => "fingerprint_reputation",
         }
     }
 
@@ -109,6 +113,18 @@ impl RetentionTarget {
                     .purge_before(cutoff, BATCH_ROWS)
                     .await?
             },
+            Self::EngagementEvents => {
+                owners
+                    .analytics_pii
+                    .purge_engagement_events_before(cutoff, BATCH_ROWS)
+                    .await?
+            },
+            Self::FingerprintReputation => {
+                owners
+                    .analytics_pii
+                    .purge_fingerprints_before(cutoff, BATCH_ROWS)
+                    .await?
+            },
         };
         Ok(deleted)
     }
@@ -124,7 +140,7 @@ impl Job for DatabaseCleanupJob {
     }
 
     fn description(&self) -> &'static str {
-        "Deletes logs, analytics events, stored AI request messages, MCP tool executions and processed outbox rows past their profile.retention windows, in batches; deletion requires enforce"
+        "Deletes logs, analytics events, stored AI request messages, MCP tool executions, processed outbox rows, engagement events and idle fingerprint reputations past their profile.retention windows, in batches; deletion requires enforce"
     }
 
     fn schedule(&self) -> &'static str {
@@ -224,6 +240,14 @@ fn plan(
             retention.governance_decisions_days,
         ),
         (RetentionTarget::AiQuotaBuckets, QUOTA_BUCKET_DAYS),
+        (
+            RetentionTarget::EngagementEvents,
+            retention.engagement_events_days,
+        ),
+        (
+            RetentionTarget::FingerprintReputation,
+            retention.fingerprint_reputation_days,
+        ),
     ]
 }
 

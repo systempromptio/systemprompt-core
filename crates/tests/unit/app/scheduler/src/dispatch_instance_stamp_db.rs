@@ -152,15 +152,14 @@ async fn config_scope_node_overrides_a_cluster_default_job_under_a_peer_lock() {
 
     let pg = pool.write_pool();
     let mut peer = pg.acquire().await.expect("peer connection");
-    let key: i64 = sqlx::query_scalar!(r#"SELECT hashtext($1)::bigint AS "key!""#, STAMP_FAIL_JOB)
-        .fetch_one(peer.as_mut())
-        .await
-        .expect("hash job name");
-    let acquired: Option<bool> =
-        sqlx::query_scalar!(r#"SELECT pg_try_advisory_lock($1) AS "acquired""#, key)
-            .fetch_one(peer.as_mut())
-            .await
-            .expect("peer lock");
+    let acquired: Option<bool> = sqlx::query_scalar!(
+        r#"SELECT pg_try_advisory_lock($1, hashtext($2)) AS "acquired""#,
+        systemprompt_scheduler::JOB_LOCK_CLASS,
+        STAMP_FAIL_JOB
+    )
+    .fetch_one(peer.as_mut())
+    .await
+    .expect("peer lock");
     assert_eq!(
         acquired,
         Some(true),
@@ -171,10 +170,14 @@ async fn config_scope_node_overrides_a_cluster_default_job_under_a_peer_lock() {
     let jobs = vec![JobConfig::new(JobName::new(STAMP_FAIL_JOB)).with_scope(JobScope::Node)];
     dispatch(&pool, &url, "stamp-node-x", STAMP_FAIL_JOB, jobs, true).await;
 
-    sqlx::query_scalar!("SELECT pg_advisory_unlock($1)", key)
-        .fetch_one(peer.as_mut())
-        .await
-        .expect("peer unlock");
+    sqlx::query_scalar!(
+        "SELECT pg_advisory_unlock($1, hashtext($2))",
+        systemprompt_scheduler::JOB_LOCK_CLASS,
+        STAMP_FAIL_JOB
+    )
+    .fetch_one(peer.as_mut())
+    .await
+    .expect("peer unlock");
 
     assert_eq!(
         STAMP_FAIL_JOB_RUNS.load(Ordering::SeqCst) - before,

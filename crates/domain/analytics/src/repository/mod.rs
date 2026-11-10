@@ -19,6 +19,7 @@ mod fingerprint;
 mod overview;
 mod ownership;
 mod requests;
+mod retention;
 mod session_signals;
 mod tools;
 mod traffic;
@@ -37,6 +38,7 @@ pub use fingerprint::{
 pub use overview::OverviewAnalyticsRepository;
 pub use ownership::AnalyticsOwnerReassignment;
 pub use requests::RequestAnalyticsRepository;
+pub use retention::AnalyticsRetention;
 pub use session_signals::SessionSignalsRepository;
 pub use tools::ToolAnalyticsRepository;
 pub use tools::list_queries::ToolListParams;

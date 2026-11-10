@@ -93,13 +93,10 @@ async fn inventory_refresh_runs_twice_with_a_shared_memo() {
     let url = test_database_url();
     let pool = test_db_pool().await;
     let app_ctx = test_app_context(&pool, &url);
-    seed_user_row(
-        &pool,
-        app_ctx.system_admin().id(),
-        "inventory-admin@example.test",
-    )
-    .await
-    .expect("seed system admin");
+    let admin_email = format!("{}@example.test", app_ctx.system_admin().id().as_str());
+    seed_user_row(&pool, app_ctx.system_admin().id(), &admin_email)
+        .await
+        .expect("seed system admin");
     let context = ctx_for(&pool, app_ctx);
     let job = InventoryRefreshJob;
     let first = job.execute(&context).await.expect("first refresh");
