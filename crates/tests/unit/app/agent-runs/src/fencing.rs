@@ -7,7 +7,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use chrono::Utc;
-use systemprompt_agent_runs::repository::{Fenced, RunStarted};
+use systemprompt_agent_runs::repository::{Fenced, Released, RunStarted};
 use systemprompt_agent_runs::{
     ErrorClass, RunEvent, RunEventPayload, RunOutcome, RunRequest, RunStatus, RunnerLevel,
 };
@@ -125,9 +125,12 @@ async fn a_reclaimed_claim_cannot_write_to_the_run() {
             .renew_lease(&id, &a, std::time::Duration::from_secs(90))
             .await
             .expect("a renew"),
-        f.repo.release(&id, &a).await.expect("a release"),
     ];
-    assert_eq!(stale, [Fenced::LeaseLost; 7]);
+    assert_eq!(stale, [Fenced::LeaseLost; 6]);
+    assert_eq!(
+        f.repo.release(&id, &a, 3).await.expect("a release"),
+        Released::LeaseLost
+    );
 
     let row = f.repo.find_run(&id).await.expect("find").expect("row");
     assert_eq!(row.status, "running");
@@ -149,8 +152,8 @@ async fn a_released_claim_is_fenced_when_the_same_claimer_takes_the_run_again() 
     let id = queue(&f).await;
     let first = claim(&f, "same").await;
     assert_eq!(
-        f.repo.release(&id, &first).await.expect("release"),
-        Fenced::Applied
+        f.repo.release(&id, &first, 3).await.expect("release"),
+        Released::Requeued
     );
     let second = claim(&f, "same").await;
     assert_eq!(second.attempt(), first.attempt());
@@ -188,12 +191,15 @@ async fn release_requeues_with_the_resume_session_and_the_same_attempt() {
         Fenced::Applied
     );
     assert_eq!(
-        f.repo.release(&id, &lease).await.expect("release"),
-        Fenced::Applied
+        f.repo.release(&id, &lease, 3).await.expect("release"),
+        Released::Requeued
     );
     assert_eq!(
-        f.repo.release(&id, &lease).await.expect("second release"),
-        Fenced::LeaseLost
+        f.repo
+            .release(&id, &lease, 3)
+            .await
+            .expect("second release"),
+        Released::LeaseLost
     );
 
     let row = f.repo.find_run(&id).await.expect("find").expect("row");

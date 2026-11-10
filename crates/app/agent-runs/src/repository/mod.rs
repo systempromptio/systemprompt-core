@@ -35,7 +35,7 @@ use systemprompt_identifiers::{
 
 pub use bundle::{AgentRunRepositories, RunCredentialRepositories};
 pub use idempotent::{Enqueued, request_digest};
-pub use lease::{Claimed, Fenced, Lease};
+pub use lease::{Claimed, Fenced, Lease, Released};
 pub use rows::AgentRunRow;
 
 use crate::error::AgentRunsResult;

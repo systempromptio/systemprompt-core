@@ -5,7 +5,8 @@
 //! On shutdown the loop stops claiming, cancels in-flight runs' tokens so
 //! their hosts stop, and waits for their handlers, which release each
 //! interrupted run back to `queued` ([`ClaimedRun::interrupted`]) rather
-//! than finishing it.
+//! than finishing it, up to `max_releases` times per run; a run interrupted
+//! more often than that fails.
 //! `claimer_id` formats the conventional `<hostname>:<pid>` claimer.
 //! [`DbEventSink`] is the repository-backed [`EventSink`]; it writes under
 //! the run's [`Lease`] and cancels the run once the lease is lost.
@@ -38,12 +39,19 @@ pub struct ClaimedRun {
     pub run_token: CancellationToken,
     pub shutdown: CancellationToken,
     pub repo: AgentRunRepository,
+    pub max_releases: i32,
 }
 
 impl ClaimedRun {
     #[must_use]
-    pub fn new(claimed: Claimed, repo: AgentRunRepository, shutdown: &CancellationToken) -> Self {
+    pub fn new(
+        claimed: Claimed,
+        repo: AgentRunRepository,
+        shutdown: &CancellationToken,
+        max_releases: i32,
+    ) -> Self {
         Self {
+            max_releases,
             row: claimed.row,
             lease: claimed.lease,
             run_token: shutdown.child_token(),
@@ -79,6 +87,7 @@ pub struct ClaimLoop {
     pub lease: Duration,
     pub stale_every: Duration,
     pub max_attempts: i32,
+    pub max_releases: i32,
 }
 
 #[must_use]
@@ -99,6 +108,7 @@ impl ClaimLoop {
             lease: DEFAULT_LEASE,
             stale_every: Duration::from_secs(30),
             max_attempts: 2,
+            max_releases: 3,
         }
     }
 
@@ -157,7 +167,7 @@ impl ClaimLoop {
         shutdown: &CancellationToken,
         handler: &Arc<dyn RunHandler>,
     ) -> OwnedTask<()> {
-        let claimed = ClaimedRun::new(claimed, self.repo.clone(), shutdown);
+        let claimed = ClaimedRun::new(claimed, self.repo.clone(), shutdown, self.max_releases);
         let spec = LeaseSpec {
             run_id: claimed.row.id.clone(),
             lease: claimed.lease.clone(),

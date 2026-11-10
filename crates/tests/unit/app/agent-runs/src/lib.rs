@@ -49,6 +49,8 @@ mod opencode_outcome;
 #[cfg(test)]
 mod outputs;
 #[cfg(test)]
+mod release_bound;
+#[cfg(test)]
 mod repository;
 #[cfg(test)]
 mod retention;

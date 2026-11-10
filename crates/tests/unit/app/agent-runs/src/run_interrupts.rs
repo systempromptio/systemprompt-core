@@ -16,7 +16,7 @@ use tokio_util::sync::CancellationToken;
 use crate::repository::{expire_lease, request};
 use crate::runner_handler::{Rig, claim, handler, rig};
 
-async fn queue_in(r: &Rig) -> AgentRunId {
+pub(crate) async fn queue_in(r: &Rig) -> AgentRunId {
     let id = AgentRunId::generate();
     let request = RunRequest {
         workspace: r.workspace.path().to_path_buf(),
@@ -38,7 +38,11 @@ async fn queue_in(r: &Rig) -> AgentRunId {
     id
 }
 
-async fn wait_for(r: &Rig, id: &AgentRunId, done: impl Fn(&AgentRunRow) -> bool) -> AgentRunRow {
+pub(crate) async fn wait_for(
+    r: &Rig,
+    id: &AgentRunId,
+    done: impl Fn(&AgentRunRow) -> bool,
+) -> AgentRunRow {
     tokio::time::timeout(Duration::from_secs(20), async {
         loop {
             let row = r.f.repo.find_run(id).await.expect("find").expect("row");

@@ -40,7 +40,7 @@ use crate::governance::hooks_file;
 use crate::host::HeadlessHost;
 use crate::layout::RunLayout;
 use crate::outcome::{ErrorClass, RunOutcome, RunStatus};
-use crate::repository::RunStarted;
+use crate::repository::{Released, RunStarted};
 use crate::request::{HarnessRef, RunRequest};
 use crate::service::{ClaimedRun, DbEventSink, RunHandler};
 use systemprompt_models::managed::RevisionBundle;
@@ -210,8 +210,17 @@ async fn settle(claimed: &ClaimedRun, report: &RunReport) -> AgentRunsResult<()>
         && report.outcome.status == RunStatus::Cancelled
         && !claimed.repo.find_cancel_requested(id).await?
     {
-        tracing::info!(run_id = %id, "agent run interrupted by shutdown; released");
-        return claimed.repo.release(id, &claimed.lease).await?.applied(id);
+        let released = claimed
+            .repo
+            .release(id, &claimed.lease, claimed.max_releases)
+            .await?
+            .applied(id)?;
+        if released == Released::Exhausted {
+            tracing::warn!(run_id = %id, "agent run interrupted by shutdown too often; failed");
+        } else {
+            tracing::info!(run_id = %id, "agent run interrupted by shutdown; released");
+        }
+        return Ok(());
     }
     let diff = serde_json::to_value(&report.diff)?;
     claimed

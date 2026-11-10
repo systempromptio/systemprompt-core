@@ -31,6 +31,14 @@ fn status_and_error_class_round_trip() {
         ErrorClass::from_str("hook_denied").expect("parse"),
         ErrorClass::HookDenied
     );
+    assert_eq!(
+        ErrorClass::from_str("release_cap_exceeded").expect("parse"),
+        ErrorClass::ReleaseCapExceeded
+    );
+    assert_eq!(
+        ErrorClass::ReleaseCapExceeded.as_str(),
+        "release_cap_exceeded"
+    );
 }
 
 #[test]

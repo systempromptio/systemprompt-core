@@ -82,6 +82,27 @@ impl Fenced {
     }
 }
 
+/// What [`crate::repository::AgentRunRepository::release`] did with a run
+/// its claimer stopped without finishing.
+#[must_use]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Released {
+    Requeued,
+    Exhausted,
+    LeaseLost,
+}
+
+impl Released {
+    pub fn applied(self, run_id: &AgentRunId) -> AgentRunsResult<Self> {
+        match self {
+            Self::LeaseLost => Err(AgentRunsError::LeaseLost {
+                run_id: run_id.clone(),
+            }),
+            released => Ok(released),
+        }
+    }
+}
+
 /// A run taken by [`crate::repository::AgentRunRepository::claim_queued`] and
 /// the lease that owns it.
 #[derive(Debug, Clone)]

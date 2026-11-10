@@ -102,7 +102,7 @@ pub(crate) async fn claim(r: &Rig, harness: Option<HarnessRef>) -> ClaimedRun {
             .expect("claim")
             .expect("claimed row");
     assert_eq!(claimed.row.id, id);
-    ClaimedRun::new(claimed, r.f.repo.clone(), &CancellationToken::new())
+    ClaimedRun::new(claimed, r.f.repo.clone(), &CancellationToken::new(), 3)
 }
 
 async fn finished(r: &Rig, id: &AgentRunId) -> AgentRunRow {

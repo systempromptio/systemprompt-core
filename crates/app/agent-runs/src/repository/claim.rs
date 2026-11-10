@@ -6,8 +6,13 @@
 //! [`Fenced::LeaseLost`] once that claim no longer owns the run (reclaimed,
 //! released or terminal). `release` hands a run the claimer stops without
 //! finishing (a shutdown) back to `queued` with `resume_session_id` set from
-//! the host session; its attempt is unchanged, and the cleared claim makes
-//! every later write under the old lease a no-op.
+//! the host session and `request.releases` incremented; its attempt is
+//! unchanged, so one deploy costs no retry, and the cleared claim makes every
+//! later write under the old lease a no-op. A run already released
+//! `max_releases` times fails as `release_cap_exceeded` instead, with its A2A
+//! task moved to `Failed` in the same transaction. A released run resumes the
+//! host session when one was recorded and otherwise starts over, so a host's
+//! tool calls must tolerate being executed again.
 //! `reclaim_stale` re-queues an expired run below `max_attempts` with its
 //! attempt bumped and `resume_session_id` set from the host session, and
 //! fails the rest as `host_crashed`, moving a failed run's A2A task to
@@ -21,7 +26,7 @@ use std::time::Duration;
 use chrono::{DateTime, Utc};
 use systemprompt_identifiers::{AgentRunId, TaskId};
 
-use super::{AgentRunRepository, Claimed, Fenced, Lease, task_link};
+use super::{AgentRunRepository, Claimed, Fenced, Lease, Released, task_link};
 use crate::error::AgentRunsResult;
 use crate::outcome::RunStatus;
 
@@ -88,26 +93,58 @@ impl AgentRunRepository {
         Ok(Fenced::from_rows(result.rows_affected()))
     }
 
-    pub async fn release(&self, id: &AgentRunId, lease: &Lease) -> AgentRunsResult<Fenced> {
-        let result = sqlx::query!(
+    pub async fn release(
+        &self,
+        id: &AgentRunId,
+        lease: &Lease,
+        max_releases: i32,
+    ) -> AgentRunsResult<Released> {
+        let mut tx = self.write_pool().begin().await?;
+        let released = sqlx::query!(
             r#"
-            UPDATE agent_runs
-            SET status = 'queued',
-                request = CASE WHEN host_session_id IS NULL THEN request
-                    ELSE jsonb_set(request, '{resume_session_id}', to_jsonb(host_session_id))
-                END,
+            WITH run AS (
+                SELECT id, COALESCE((request->>'releases')::int, 0) AS releases
+                FROM agent_runs
+                WHERE id = $1 AND claimed_by = $2 AND attempt = $3 AND claimed_at = $4
+                  AND status IN ('preparing', 'running')
+                FOR UPDATE
+            )
+            UPDATE agent_runs r
+            SET status = CASE WHEN run.releases < $5 THEN 'queued' ELSE 'failed' END,
+                request = CASE WHEN run.releases < $5 THEN jsonb_set(
+                    CASE WHEN r.host_session_id IS NULL THEN r.request
+                         ELSE jsonb_set(r.request, '{resume_session_id}', to_jsonb(r.host_session_id))
+                    END,
+                    '{releases}', to_jsonb(run.releases + 1)) ELSE r.request END,
+                error_class = CASE WHEN run.releases < $5 THEN NULL ELSE 'release_cap_exceeded' END,
+                error = CASE WHEN run.releases < $5 THEN NULL
+                    ELSE 'interrupted by shutdown more often than max_releases allows' END,
+                finished_at = CASE WHEN run.releases < $5 THEN NULL ELSE NOW() END,
                 claimed_by = NULL, claimed_at = NULL, lease_until = NULL, pid = NULL
-            WHERE id = $1 AND claimed_by = $2 AND attempt = $3 AND claimed_at = $4
-              AND status IN ('preparing', 'running')
+            FROM run
+            WHERE r.id = run.id
+            RETURNING r.status, r.task_id AS "task_id?: TaskId"
             "#,
             id.as_str(),
             lease.claimed_by(),
             lease.attempt(),
             lease.claimed_at(),
+            max_releases,
         )
-        .execute(self.write_pool())
+        .fetch_optional(&mut *tx)
         .await?;
-        Ok(Fenced::from_rows(result.rows_affected()))
+        let Some(released) = released else {
+            return Ok(Released::LeaseLost);
+        };
+        if released.status == "queued" {
+            tx.commit().await?;
+            return Ok(Released::Requeued);
+        }
+        if let Some(task_id) = &released.task_id {
+            task_link::transition_task(&mut tx, task_id, RunStatus::Failed).await?;
+        }
+        tx.commit().await?;
+        Ok(Released::Exhausted)
     }
 
     pub async fn reclaim_stale(

@@ -14,7 +14,7 @@ use systemprompt_traits::{AgentRunLaunch, AgentRunLaunchError, AgentRunLauncher}
 use crate::repository::{Fixture, claim, expire_lease, fixture, request};
 use systemprompt_identifiers::AgentRunOriginId;
 
-async fn insert_task(f: &Fixture) -> (TaskId, ContextId) {
+pub(crate) async fn insert_task(f: &Fixture) -> (TaskId, ContextId) {
     let (task_id, context_id) = (TaskId::generate(), ContextId::generate());
     sqlx::query("INSERT INTO user_contexts (context_id, user_id, name) VALUES ($1, $2, 'runs')")
         .bind(context_id.as_str())
@@ -32,7 +32,7 @@ async fn insert_task(f: &Fixture) -> (TaskId, ContextId) {
     (task_id, context_id)
 }
 
-async fn task_state(f: &Fixture, task_id: &TaskId) -> String {
+pub(crate) async fn task_state(f: &Fixture, task_id: &TaskId) -> String {
     sqlx::query_scalar("SELECT status FROM agent_tasks WHERE task_id = $1")
         .bind(task_id.as_str())
         .fetch_one(f.repo.write_pool())
@@ -40,7 +40,7 @@ async fn task_state(f: &Fixture, task_id: &TaskId) -> String {
         .expect("task status")
 }
 
-async fn queue_for(f: &Fixture, task_id: &TaskId, context_id: &ContextId) -> AgentRunId {
+pub(crate) async fn queue_for(f: &Fixture, task_id: &TaskId, context_id: &ContextId) -> AgentRunId {
     let id = AgentRunId::generate();
     f.repo
         .insert_run(NewAgentRun {
