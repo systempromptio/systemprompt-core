@@ -18,12 +18,22 @@ A public-looking hostname passes this layer by design. It is a pre-filter.
 
 ### 1.2 Connect-time guard
 
-`guarded_client` in `crates/shared/models/src/net/client.rs` builds a `reqwest` client with two additions:
+`GuardedClient` in `crates/shared/client/src/guarded/` builds a `reqwest` client with two additions:
 
 - a DNS resolver that filters every address a name resolves to through the same block list, refusing the connection if any resolved address is blocked. It runs for the initial request and for every redirect hop, because each hop connects afresh;
 - a redirect policy that re-runs the parse-time guard on each hop, so a hop to a blocked literal or a downgrade to plain `http` is refused before a socket is opened, and that caps the number of hops.
 
 A refusal surfaces to the caller as a typed `GuardedConnectError` naming the host and the refused address, and logs `Refused outbound connection to blocked address` with the host and address as structured fields.
+
+### 1.3 Forward proxies
+
+The guarded client honours `HTTP(S)_PROXY`, `ALL_PROXY` and `NO_PROXY`, and an explicitly configured proxy. Through a proxy, the client dials only the proxy, whose host is exempt from the resolver check, and the proxy resolves the destination hostname. **Behind a forward proxy, destination filtering for hostnames is the proxy's job.** The client still refuses, before anything is sent and on every redirect hop:
+
+- a disallowed scheme;
+- a literal loopback, private, link-local, carrier-grade NAT or reserved address in any encoding (decimal, hex, octal, IPv4-mapped, 6to4, Teredo, NAT64);
+- `localhost` and `*.localhost` names on surfaces that deny loopback.
+
+The resolved-address check applies to connections the client dials itself: no proxy configured, or a destination matching `NO_PROXY`. A URL that names the proxy host itself is exempt from the resolver check like the proxy connection.
 
 ## 2. Exemptions
 
@@ -54,8 +64,9 @@ The guard prevents the platform from being used as a proxy into its own network.
 
 - **Egress allow-lists** — a firewall or service mesh that restricts which destinations the binary may reach is the primary control. The guard is defence in depth against a mis-scoped allow-list.
 - **Cloud metadata services** — on platforms with an instance metadata service, block it at the network layer as well. On Fly.io there is no IMDS on `169.254.169.254`; the platform's internal services live in `fdaa::/16`, which is inside the `fc00::/7` range the guard refuses.
+- **Forward-proxy policy** — where outbound traffic leaves through a forward proxy, configure that proxy to refuse internal and metadata destinations; the binary cannot see what it resolves a hostname to.
 - **Trusted-host hygiene** — every entry in `SYSTEMPROMPT_TRUSTED_HTTP_HOSTS` is a hole in the block list. Keep it to the hosts you operate.
 
 ## 5. Verification
 
-`crates/tests/unit/shared/models/src/net.rs` covers the block list, a hostname resolving into a blocked range, redirect chains ending in a blocked range, an `https` to `http` downgrade hop, and the hop cap. `crates/tests/unit/entry/api/src/services/gateway/image_fetch.rs` and `crates/tests/unit/domain/mcp/src/services/client/http_context.rs` drive the gateway and MCP surfaces end to end against a mock redirector and assert the blocked target receives no request. `just test-ssrf-live` runs the real-DNS cases against `169.254.169.254.nip.io` and `metadata.google.internal`.
+`crates/tests/unit/shared/models/src/net.rs` and `net_policy.rs` cover the block list and proxy-environment parsing; `crates/tests/unit/shared/client/src/guarded.rs` and `guarded_policy.rs` cover a hostname resolving into a blocked range, redirect chains ending in a blocked range, an `https` to `http` downgrade hop, and the hop cap. `crates/tests/unit/app/gateway/src/image_fetch.rs` and `crates/tests/unit/domain/mcp/src/services/client/http_context.rs` drive the gateway and MCP surfaces end to end against a mock redirector and assert the blocked target receives no request. `guarded_policy.rs` also drives a capturing proxy: a hostname reaches the proxy without local DNS, and a blocked literal or a proxied redirect to loopback is refused before it is sent. `just test-ssrf-live` runs the real-DNS cases against `169.254.169.254.nip.io` and `metadata.google.internal`.
