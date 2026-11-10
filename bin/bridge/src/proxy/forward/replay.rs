@@ -22,18 +22,15 @@ pub enum Replay {
 pub(crate) struct UpstreamRequest<'a> {
     pub client: &'a reqwest::Client,
     pub method: &'a reqwest::Method,
-    pub url: &'a str,
+    pub url: &'a url::Url,
     pub headers: &'a reqwest::header::HeaderMap,
     pub body: &'a Bytes,
     pub policy: Replay,
 }
 
 #[must_use]
-pub fn replay_policy(request_path: &str, body: &Bytes) -> Replay {
-    if !matches!(
-        crate::proxy::credential::classify_path(request_path),
-        crate::proxy::credential::RouteClass::Mcp
-    ) {
+pub fn replay_policy(route: &crate::proxy::credential::RouteClass, body: &Bytes) -> Replay {
+    if *route != crate::proxy::credential::RouteClass::Mcp {
         return Replay::Never;
     }
     match jsonrpc_method(body).as_deref() {
@@ -70,7 +67,7 @@ pub(crate) async fn send_with_replay(
     let attempt = || {
         request
             .client
-            .request(request.method.clone(), request.url)
+            .request(request.method.clone(), request.url.clone())
             .headers(request.headers.clone())
             .body(reqwest::Body::from(request.body.clone()))
             .send()
@@ -79,7 +76,7 @@ pub(crate) async fn send_with_replay(
         Ok(response) => Ok(response),
         Err(first) if should_replay(&first, request.policy) => {
             tracing::warn!(
-                url = request.url,
+                url = %loggable(request.url),
                 error = %describe(&first),
                 "upstream socket failed before a response; replaying once on a fresh connection"
             );
@@ -105,4 +102,9 @@ pub fn describe(err: &reqwest::Error) -> String {
         cause = inner.source();
     }
     text
+}
+
+#[must_use]
+pub fn loggable(url: &url::Url) -> String {
+    format!("{}{}", url.origin().ascii_serialization(), url.path())
 }

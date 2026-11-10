@@ -33,13 +33,9 @@ pub async fn refresh_registry_for(
 pub async fn refresh_registry(bridge: &BridgeContext) -> Result<usize, SyncError> {
     let _operation = bridge.sync_lock.lock().await;
     let _across_processes = super::process_lock::acquire().await?;
-    let allow_tofu = matches!(
-        config::pinned_pubkey_state(),
-        Ok(config::PinnedPubkeyState::Unpinned)
-    );
     manifest::ensure_enabled(&config::load()?)?;
     let fetch = manifest::fetch_authenticated_manifest(&bridge.http, Freshness::Fresh).await?;
-    let synced = manifest::verify_and_decode(&fetch, false, allow_tofu).await?;
+    let synced = manifest::verify_and_decode(&fetch, false, false).await?;
     super::acceptance::accept(
         &synced,
         fetch.client.base_url(),

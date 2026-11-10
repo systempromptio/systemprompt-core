@@ -7,6 +7,7 @@ use systemprompt_bridge::ids::{LoopbackSecret, PluginId, ProxySecret};
 use systemprompt_bridge::proxy::credential::{
     LoopbackCredential, Rejection, RouteClass, authenticate, classify_route,
 };
+use systemprompt_bridge::proxy::forward::path::ProxyPath;
 use systemprompt_bridge::proxy::scoped_token::{hook_token, host_token};
 use systemprompt_models::bridge::host::HostKind;
 
@@ -32,34 +33,41 @@ fn host(id: HostKind) -> String {
         .to_owned()
 }
 
-fn uri(s: &str) -> Uri {
-    s.parse().expect("uri")
+fn proxy_path(s: &str) -> ProxyPath {
+    let uri: Uri = s.parse().expect("uri");
+    ProxyPath::parse(&uri).expect("canonical path")
 }
 
 #[test]
 fn routes_are_classified_by_the_surface_their_credential_is_read_from() {
     assert_eq!(
-        classify_route(&uri("/api/public/hooks/govern?plugin_id=acme")),
+        classify_route(&proxy_path("/api/public/hooks/govern?plugin_id=acme")),
         RouteClass::Hook(Some(plugin("acme")))
     );
     assert_eq!(
-        classify_route(&uri("/api/public/hooks/track")),
+        classify_route(&proxy_path("/api/public/hooks/track")),
         RouteClass::Hook(None)
     );
-    assert_eq!(classify_route(&uri("/v1/messages")), RouteClass::Inference);
     assert_eq!(
-        classify_route(&uri("/v1/chat/completions")),
+        classify_route(&proxy_path("/v1/messages")),
         RouteClass::Inference
     );
-    assert_eq!(classify_route(&uri("/mcp/x")), RouteClass::Mcp);
-    assert_eq!(classify_route(&uri("/mcp")), RouteClass::Mcp);
-    assert_eq!(classify_route(&uri("/otel")), RouteClass::Otel);
-    assert_eq!(classify_route(&uri("/otel/v1/traces")), RouteClass::Otel);
     assert_eq!(
-        classify_route(&uri("/v1/bridge/manifest")),
+        classify_route(&proxy_path("/v1/chat/completions")),
+        RouteClass::Inference
+    );
+    assert_eq!(classify_route(&proxy_path("/mcp/x")), RouteClass::Mcp);
+    assert_eq!(classify_route(&proxy_path("/mcp")), RouteClass::Mcp);
+    assert_eq!(classify_route(&proxy_path("/otel")), RouteClass::Otel);
+    assert_eq!(
+        classify_route(&proxy_path("/otel/v1/traces")),
+        RouteClass::Otel
+    );
+    assert_eq!(
+        classify_route(&proxy_path("/v1/bridge/manifest")),
         RouteClass::Other
     );
-    assert_eq!(classify_route(&uri("/healthz")), RouteClass::Other);
+    assert_eq!(classify_route(&proxy_path("/healthz")), RouteClass::Other);
 }
 
 #[test]

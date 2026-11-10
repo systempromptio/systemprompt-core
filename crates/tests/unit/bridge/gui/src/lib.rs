@@ -7,6 +7,8 @@
 mod assets;
 #[cfg(all(test, any(target_os = "windows", target_os = "macos")))]
 mod cancel_scopes;
+#[cfg(test)]
+mod gateway_trust;
 #[cfg(all(test, any(target_os = "windows", target_os = "macos")))]
 mod host_probe_sequence;
 #[cfg(all(test, any(target_os = "windows", target_os = "macos")))]
@@ -31,3 +33,5 @@ mod server_json;
 mod state_verdicts;
 #[cfg(all(test, any(target_os = "windows", target_os = "macos")))]
 mod tray_update;
+#[cfg(test)]
+mod webview_policy;

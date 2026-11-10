@@ -11,6 +11,7 @@ use super::native_protocol::{BRIDGE_BOOTSTRAP, serve_custom_asset};
 use crate::gui::UiEventProxy;
 use crate::gui::error::{GuiError, GuiResult, WindowError};
 use crate::gui::events::UiEvent;
+use crate::gui_policy::webview::{self as webview_policy, Navigation};
 use crate::wire::external_url::ExternalUrl;
 
 const BG_RGBA: (u8, u8, u8, u8) = (15, 17, 21, 255);
@@ -54,8 +55,11 @@ pub(super) fn build_webview(window: &dyn Window, proxy: &UiEventProxy) -> GuiRes
         })
         .with_initialization_script(BRIDGE_BOOTSTRAP)
         .with_ipc_handler(move |req| {
-            let body = req.into_body();
-            ipc_proxy.send_event(UiEvent::IpcInbound(body));
+            if !webview_policy::ipc_origin_allowed(req.uri()) {
+                tracing::warn!(origin = %req.uri(), "ipc message from a foreign origin dropped");
+                return;
+            }
+            ipc_proxy.send_event(UiEvent::IpcInbound(req.into_body()));
         })
         .with_custom_protocol(SP_PROTOCOL.to_owned(), move |_id, request| {
             serve_custom_asset(&request)
@@ -82,15 +86,13 @@ pub(super) fn build_webview(window: &dyn Window, proxy: &UiEventProxy) -> GuiRes
 }
 
 fn allow_navigation(target: &str) -> bool {
-    if target.starts_with("sp://")
-        || target.starts_with("http://sp.app")
-        || target.starts_with("https://sp.app")
-        || target.starts_with("about:")
-    {
-        return true;
+    match webview_policy::navigation(target) {
+        Navigation::InApp => true,
+        Navigation::External => {
+            open_if_external(target);
+            false
+        },
     }
-    open_if_external(target);
-    false
 }
 
 fn open_if_external(target: &str) {

@@ -11,6 +11,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::ids::{PluginId, ProxySecret};
+use crate::proxy::forward::path::ProxyPath;
 use crate::proxy::scoped_token::{self, TokenScope};
 use crate::proxy::secret;
 use systemprompt_models::ApiPaths;
@@ -68,17 +69,16 @@ impl Rejection {
 }
 
 #[must_use]
-pub fn classify_route(uri: &http::Uri) -> RouteClass {
-    match classify_path(uri.path()) {
-        RouteClass::Hook(_) => RouteClass::Hook(hook_plugin_id(uri)),
+pub fn classify_route(path: &ProxyPath) -> RouteClass {
+    match classify_path(path.path()) {
+        RouteClass::Hook(_) => RouteClass::Hook(hook_plugin_id(path)),
         class => class,
     }
 }
 
 // Why: the bridge's own `/v1/bridge/*` calls to the gateway are not inference
 // a client can present a credential for; everything else under `/v1/` is.
-#[must_use]
-pub fn classify_path(path: &str) -> RouteClass {
+fn classify_path(path: &str) -> RouteClass {
     if ApiPaths::is_public_hook(path) {
         return RouteClass::Hook(None);
     }
@@ -96,11 +96,8 @@ pub fn classify_path(path: &str) -> RouteClass {
     RouteClass::Other
 }
 
-pub fn hook_plugin_id(uri: &http::Uri) -> Option<PluginId> {
-    uri.query()?.split('&').find_map(|kv| {
-        let (k, v) = kv.split_once('=')?;
-        (k == "plugin_id").then(|| PluginId::try_new(v).ok())?
-    })
+fn hook_plugin_id(path: &ProxyPath) -> Option<PluginId> {
+    PluginId::try_new(path.query_param("plugin_id")?).ok()
 }
 
 pub fn authenticate(

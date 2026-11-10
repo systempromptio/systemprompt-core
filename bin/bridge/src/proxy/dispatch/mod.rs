@@ -10,6 +10,7 @@ use hyper::body::Incoming;
 use hyper::{Method, Request, Response, StatusCode};
 
 use crate::proxy::forward::ProxyBody;
+use crate::proxy::forward::path::ProxyPath;
 use crate::proxy::server::ProxyContext;
 
 mod auth;
@@ -28,9 +29,8 @@ pub async fn handle_request(
 ) -> Result<Response<ProxyBody>, Infallible> {
     let method = req.method().clone();
     let path = req.uri().path().to_owned();
-    let query = req.uri().query().unwrap_or("").to_owned();
     let req_id = mint_req_id();
-    let host_hdr = header_str(&req, http::header::HOST);
+    let host_hdr = request_host(&req);
     let user_agent = header_str(&req, http::header::USER_AGENT);
     let content_length = req
         .headers()
@@ -44,7 +44,6 @@ pub async fn handle_request(
         req_id = %req_id,
         method = %method,
         path = %path,
-        query = %query,
         peer = %peer,
         host = %host_hdr,
         ua = %user_agent,
@@ -59,9 +58,13 @@ pub async fn handle_request(
         user_agent: &user_agent,
         peer,
     };
-    if !host_hdr.is_empty() && !crate::proxy_probe::host_is_loopback(&host_hdr) {
+    if host_hdr.is_empty() || !crate::proxy_probe::host_is_loopback(&host_hdr) {
         return Ok(auth::reject_non_loopback(&ctx, &log, &host_hdr));
     }
+    let proxy_path = match ProxyPath::parse(req.uri()) {
+        Ok(parsed) => parsed,
+        Err(rejection) => return Ok(auth::reject_path(&ctx, &log, rejection)),
+    };
 
     if is_unauthenticated_path(&method, &path) {
         tracing::debug!(
@@ -77,7 +80,7 @@ pub async fn handle_request(
         return Ok(whoami_response(&ctx));
     }
 
-    let credential = match auth::verify_loopback_credential(&req, &ctx, &log) {
+    let credential = match auth::verify_loopback_credential(&req, &proxy_path, &ctx, &log) {
         Ok(credential) => credential,
         Err(rejection) => return Ok(*rejection),
     };
@@ -88,11 +91,21 @@ pub async fn handle_request(
         RequestMeta {
             req_id,
             method,
-            path,
+            path: proxy_path,
             credential,
         },
     )
     .await
+}
+
+fn request_host(req: &Request<Incoming>) -> String {
+    let header = header_str(req, http::header::HOST);
+    if !header.is_empty() {
+        return header;
+    }
+    req.uri()
+        .authority()
+        .map_or_else(String::new, |authority| authority.as_str().to_owned())
 }
 
 fn header_str(req: &Request<Incoming>, name: http::header::HeaderName) -> String {

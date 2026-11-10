@@ -13,6 +13,7 @@ use hyper::body::Incoming;
 use hyper::{Method, Request, Response, StatusCode};
 
 use crate::proxy::credential::LoopbackCredential;
+use crate::proxy::forward::path::ProxyPath;
 use crate::proxy::forward::{self, ProxyBody};
 use crate::proxy::server::ProxyContext;
 
@@ -21,7 +22,7 @@ use super::responses::{owned_response, record_stats};
 pub(super) struct RequestMeta {
     pub req_id: String,
     pub method: Method,
-    pub path: String,
+    pub path: ProxyPath,
     pub credential: LoopbackCredential,
 }
 
@@ -41,7 +42,7 @@ pub(super) async fn forward_to_gateway(
     let log = RequestLog {
         req_id,
         method,
-        path,
+        path: path.path().to_owned(),
     };
     if cfg.disabled {
         return Ok(owned_response(
@@ -67,6 +68,7 @@ pub(super) async fn forward_to_gateway(
             drive_signals: &ctx.deps.drive_signals,
             foreign_models: cfg.foreign_models.as_ref(),
             credential,
+            path,
         },
     )
     .await

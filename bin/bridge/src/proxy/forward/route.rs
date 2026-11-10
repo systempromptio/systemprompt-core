@@ -10,41 +10,54 @@ use std::collections::BTreeMap;
 use systemprompt_identifiers::ValidatedUrl;
 use systemprompt_models::ApiPaths;
 
-use crate::mcp_registry::{self, McpRegistrySlot};
+use super::path::{ProxyPath, UpstreamUrlError};
+use crate::mcp_registry::{self, McpRegistrySlot, McpUpstream};
 use crate::proxy::credential::{RouteClass, classify_route};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Route {
-    pub url: String,
+    pub url: url::Url,
     pub extra_headers: BTreeMap<String, String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RouteResolution {
     Unavailable(String),
-    Gateway(String),
+    Gateway(url::Url),
     Mcp(Route),
     UnknownMcp(String),
     Hook {
-        url: String,
+        url: url::Url,
         plugin_id: systemprompt_identifiers::PluginId,
     },
 }
 
+impl From<UpstreamUrlError> for RouteResolution {
+    fn from(error: UpstreamUrlError) -> Self {
+        Self::Unavailable(error.to_string())
+    }
+}
+
 pub fn resolve_route(
-    uri: &http::Uri,
+    path: &ProxyPath,
     gateway_base: &ValidatedUrl,
     registry: &McpRegistrySlot,
 ) -> RouteResolution {
-    match classify_route(uri) {
-        RouteClass::Mcp => resolve_mcp(uri.path(), gateway_base, registry),
-        RouteClass::Hook(Some(plugin_id)) => RouteResolution::Hook {
-            url: build_gateway_url(gateway_base, uri),
-            plugin_id,
-        },
-        RouteClass::Hook(None) | RouteClass::Inference | RouteClass::Otel | RouteClass::Other => {
-            RouteResolution::Gateway(build_gateway_url(gateway_base, uri))
-        },
+    let class = classify_route(path);
+    if class == RouteClass::Mcp {
+        return resolve_mcp(path.path(), gateway_base, registry);
+    }
+    let url = match path.gateway_url(gateway_base) {
+        Ok(url) => url,
+        Err(error) => return error.into(),
+    };
+    match class {
+        RouteClass::Hook(Some(plugin_id)) => RouteResolution::Hook { url, plugin_id },
+        RouteClass::Mcp
+        | RouteClass::Hook(None)
+        | RouteClass::Inference
+        | RouteClass::Otel
+        | RouteClass::Other => RouteResolution::Gateway(url),
     }
 }
 
@@ -57,59 +70,26 @@ fn resolve_mcp(
         return RouteResolution::UnknownMcp(String::new());
     };
     if let Some(entry) = mcp_registry::snapshot(registry).get(name) {
-        return RouteResolution::Mcp(Route {
-            url: entry.url.as_str().to_owned(),
-            extra_headers: entry.headers.clone(),
-        });
+        return mcp_route(entry);
     }
     if let Err(e) = mcp_registry::rehydrate_from_disk(registry, gateway_base) {
         return RouteResolution::Unavailable(e.to_string());
     }
-    mcp_registry::snapshot(registry).get(name).map_or_else(
-        || RouteResolution::UnknownMcp(name.to_owned()),
-        |entry| {
-            RouteResolution::Mcp(Route {
-                url: entry.url.as_str().to_owned(),
-                extra_headers: entry.headers.clone(),
-            })
-        },
-    )
+    mcp_registry::snapshot(registry)
+        .get(name)
+        .map_or_else(|| RouteResolution::UnknownMcp(name.to_owned()), mcp_route)
 }
 
-pub(super) fn same_origin_as(upstream: &str, gateway_base: &ValidatedUrl) -> bool {
-    match (
-        url::Url::parse(upstream),
-        url::Url::parse(gateway_base.as_str()),
-    ) {
-        (Ok(a), Ok(b)) => a.origin() == b.origin(),
-        _ => false,
+fn mcp_route(entry: &McpUpstream) -> RouteResolution {
+    match url::Url::parse(entry.url.as_str()) {
+        Ok(url) => RouteResolution::Mcp(Route {
+            url,
+            extra_headers: entry.headers.clone(),
+        }),
+        Err(error) => RouteResolution::Unavailable(error.to_string()),
     }
 }
 
-fn build_gateway_url(gateway_base: &ValidatedUrl, uri: &http::Uri) -> String {
-    let path_and_query = uri.path_and_query().map_or("/", |p| p.as_str());
-    let separator = if path_and_query.starts_with('/') {
-        ""
-    } else {
-        "/"
-    };
-    let rewritten = rewrite_otel_to_v1(path_and_query);
-    let path_and_query = rewritten.as_deref().unwrap_or(path_and_query);
-    format!(
-        "{base}{separator}{path_and_query}",
-        base = gateway_base.as_str().trim_end_matches('/'),
-    )
-}
-
-// Why: the gateway serves OTLP under its `/v1` surface; clients configured
-// with the bridge's bare `/otel` endpoint are mapped onto it here.
-fn rewrite_otel_to_v1(path_and_query: &str) -> Option<String> {
-    let (path, suffix) = path_and_query
-        .split_once('?')
-        .map_or((path_and_query, None), |(p, q)| (p, Some(q)));
-    if !ApiPaths::is_otel(path) {
-        return None;
-    }
-    let base = ApiPaths::GATEWAY_BASE;
-    Some(suffix.map_or_else(|| format!("{base}{path}"), |q| format!("{base}{path}?{q}")))
+pub(super) fn same_origin_as(upstream: &url::Url, gateway_base: &ValidatedUrl) -> bool {
+    url::Url::parse(gateway_base.as_str()).is_ok_and(|base| upstream.origin() == base.origin())
 }

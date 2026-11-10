@@ -16,9 +16,10 @@ use super::{ForwardResult, REFRESH_THRESHOLD_SECS, headers};
 pub(super) struct UpstreamSend<'a> {
     pub client: &'a reqwest::Client,
     pub method: &'a reqwest::Method,
-    pub url: &'a str,
+    pub url: &'a url::Url,
     pub body: &'a Bytes,
     pub request_path: &'a str,
+    pub route_class: &'a crate::proxy::credential::RouteClass,
     pub gateway_signed: bool,
 }
 
@@ -30,7 +31,7 @@ impl UpstreamSend<'_> {
             url: self.url,
             headers,
             body: self.body,
-            policy: replay_policy(self.request_path, self.body),
+            policy: replay_policy(self.route_class, self.body),
         }
     }
 }

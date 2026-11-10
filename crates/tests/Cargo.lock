@@ -8896,6 +8896,7 @@ dependencies = [
 name = "systemprompt-bridge-gui-tests"
 version = "0.0.11"
 dependencies = [
+ "http",
  "reqwest",
  "serde_json",
  "systemprompt-bridge",
@@ -9100,6 +9101,7 @@ dependencies = [
  "temp-env",
  "tempfile",
  "tokio",
+ "url",
  "wiremock",
 ]
 

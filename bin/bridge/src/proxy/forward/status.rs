@@ -13,7 +13,7 @@ use crate::proxy::usage;
 pub(super) struct UpstreamStatus<'a> {
     pub(super) status: StatusCode,
     pub(super) request_path: &'a str,
-    pub(super) upstream: &'a str,
+    pub(super) upstream: &'a url::Url,
     pub(super) session_context: &'a SessionContext,
     pub(super) plugin_tokens: &'a crate::auth::plugin_oauth::PluginTokenCache,
     pub(super) gateway_base: &'a ValidatedUrl,
@@ -39,9 +39,9 @@ pub(super) fn note_upstream_status(seen: &UpstreamStatus<'_>) {
         tracing::debug!(upstream_status = status.as_u16(), "upstream forwarded");
     } else {
         if systemprompt_models::ApiPaths::is_otel(request_path) {
-            tracing::debug!(upstream_status = status.as_u16(), url = %upstream, "telemetry upstream non-2xx; dropped");
+            tracing::debug!(upstream_status = status.as_u16(), url = %super::replay::loggable(upstream), "telemetry upstream non-2xx; dropped");
         } else {
-            tracing::warn!(upstream_status = status.as_u16(), url = %upstream, "upstream non-2xx");
+            tracing::warn!(upstream_status = status.as_u16(), url = %super::replay::loggable(upstream), "upstream non-2xx");
         }
         if status == StatusCode::UNAUTHORIZED {
             note_unauthorized(
@@ -60,7 +60,7 @@ fn note_unauthorized(
     gateway_base: &ValidatedUrl,
     hook_plugin: Option<&crate::ids::PluginId>,
     gateway_signed: bool,
-    upstream: &str,
+    upstream: &url::Url,
 ) {
     if let Some(plugin_id) = hook_plugin {
         plugin_tokens.invalidate(gateway_base.as_str(), plugin_id);
@@ -70,7 +70,7 @@ fn note_unauthorized(
         // for a previous gateway) rejecting it is neither a sign-out
         // nor a reason to re-mint.
         tracing::warn!(
-            upstream = %upstream,
+            upstream = %super::replay::loggable(upstream),
             gateway = %gateway_base,
             "401 from a non-gateway upstream; the gateway token is kept"
         );

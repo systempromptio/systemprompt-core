@@ -27,6 +27,8 @@ mod notifications_inbox;
 #[cfg(test)]
 mod opencode_body;
 #[cfg(test)]
+mod path_canonical;
+#[cfg(test)]
 mod peer_probe_body_complete;
 #[cfg(test)]
 mod portfile;

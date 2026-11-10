@@ -121,6 +121,9 @@ fn dispatch_request(
         UiEvent::GatewayProbeRequested { reply_to } => {
             handlers::gateway_probe::on_gateway_probe_requested(app, reply_to);
         },
+        UiEvent::GatewayTrustRequested { op, reply_to } => {
+            handlers::gateway_trust::on_gateway_trust_requested(app, op, reply_to);
+        },
         UiEvent::McpAuthProbeRequested {
             server_id,
             reply_to,
@@ -189,6 +192,13 @@ fn dispatch_finished(app: &mut GuiApp, event: UiEvent) -> Result<(), Box<UiEvent
         },
         UiEvent::GatewayProbeFinished { outcome, reply_to } => {
             handlers::gateway_probe::on_gateway_probe_finished(app, outcome, reply_to);
+        },
+        UiEvent::GatewayTrustFinished {
+            result,
+            pinned,
+            reply_to,
+        } => {
+            handlers::gateway_trust::on_gateway_trust_finished(app, result, pinned, reply_to);
         },
         UiEvent::McpAuthProbeFinished { results, reply_to } => {
             handlers::mcp_auth_probe::on_mcp_auth_probe_finished(app, results, reply_to);

@@ -26,6 +26,7 @@ mod body;
 mod error;
 pub mod headers;
 mod hook;
+pub mod path;
 pub mod replay;
 mod retry;
 pub mod route;
@@ -56,6 +57,7 @@ pub(crate) struct ForwardDeps<'a> {
     pub gateway_http: reqwest::Client,
     pub plugin_tokens: Arc<crate::auth::plugin_oauth::PluginTokenCache>,
     pub credential: LoopbackCredential,
+    pub path: path::ProxyPath,
     pub drive_signals: &'a crate::proxy::drive_signal::DriveSignals,
     pub foreign_models: &'a BTreeMap<String, crate::config::gateways::GatewayProfileId>,
 }
@@ -108,17 +110,19 @@ pub(crate) async fn forward(
         gateway_http,
         plugin_tokens,
         credential,
+        path,
         drive_signals,
         foreign_models,
     } = deps;
     let token = token_cache.current(REFRESH_THRESHOLD_SECS).await?;
 
     let (parts, body) = req.into_parts();
-    let request_path = parts.uri.path().to_owned();
+    let request_path = path.path();
+    let route_class = crate::proxy::credential::classify_route(&path);
 
     let mut hook_plugin = None;
     let mut attest = None;
-    let (route, upstream_bearer) = match resolve_route(&parts.uri, gateway_base, &mcp_registry) {
+    let (route, upstream_bearer) = match resolve_route(&path, gateway_base, &mcp_registry) {
         RouteResolution::Unavailable(reason) => return Err(ForwardError::Routing(reason)),
         RouteResolution::Gateway(url) => {
             attest = Some(&credential);
@@ -165,7 +169,7 @@ pub(crate) async fn forward(
     })?;
 
     let (buffered_body, gateway_conversation_id) =
-        prepare_upstream_body(body, session_context, &parts.headers, &request_path).await?;
+        prepare_upstream_body(body, session_context, &parts.headers, request_path).await?;
     if attest.is_some() {
         refuse_foreign_model(foreign_models, &buffered_body)?;
     }
@@ -185,7 +189,7 @@ pub(crate) async fn forward(
         attest,
     })?;
 
-    headers::ensure_ingestion_delivery_id(&request_path, &mut upstream_headers)?;
+    headers::ensure_ingestion_delivery_id(request_path, &mut upstream_headers)?;
     if hook_plugin.is_some() && request_path == systemprompt_models::ApiPaths::PUBLIC_HOOKS_TRACK {
         authenticate_hook_track(
             gateway_base,
@@ -203,7 +207,8 @@ pub(crate) async fn forward(
             method: &method,
             url: &route.url,
             body: &buffered_body,
-            request_path: &request_path,
+            request_path,
+            route_class: &route_class,
             gateway_signed,
         },
         token_cache,
@@ -215,7 +220,7 @@ pub(crate) async fn forward(
         .unwrap_or(StatusCode::BAD_GATEWAY);
     note_upstream_status(&UpstreamStatus {
         status,
-        request_path: &request_path,
+        request_path,
         upstream: &route.url,
         session_context,
         plugin_tokens: &plugin_tokens,
@@ -235,7 +240,7 @@ pub(crate) async fn forward(
         .and_then(|v| v.to_str().ok())
         .map(str::to_ascii_lowercase)
         .unwrap_or_default();
-    let tap_enabled = status.is_success() && usage::is_messages_path(&request_path);
+    let tap_enabled = status.is_success() && usage::is_messages_path(request_path);
 
     let upstream_stream = upstream_response
         .bytes_stream()
