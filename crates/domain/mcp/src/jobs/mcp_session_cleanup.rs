@@ -1,5 +1,5 @@
 //! Scheduled job pruning MCP sessions older than the retention window and
-//! expired proxy session identities.
+//! expired external MCP session bindings.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -10,7 +10,7 @@ use systemprompt_database::DbPool;
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 use tracing::info;
 
-use crate::repository::{McpProxyIdentityRepository, McpSessionRepository};
+use crate::repository::{McpProxySessionRepository, McpSessionRepository};
 
 const DEFAULT_RETENTION_DAYS: i32 = 7;
 
@@ -24,7 +24,7 @@ impl Job for McpSessionCleanupJob {
     }
 
     fn description(&self) -> &'static str {
-        "Expires stale MCP sessions, deletes old closed/expired records (parameter retention_days, default 7) and drops expired proxy identities"
+        "Expires stale MCP sessions, deletes old closed/expired records (parameter retention_days, default 7) and drops expired external session bindings"
     }
 
     fn schedule(&self) -> &'static str {
@@ -51,25 +51,25 @@ impl Job for McpSessionCleanupJob {
             .await
             .map_err(|e| systemprompt_provider_contracts::ProviderError::Internal(Box::new(e)))?;
 
-        let identities = McpProxyIdentityRepository::new(&db_pool)
+        let external = McpProxySessionRepository::new(&db_pool)
             .cleanup_expired()
             .await
             .map_err(|e| systemprompt_provider_contracts::ProviderError::Internal(Box::new(e)))?;
 
         let duration_ms = start_time.elapsed().as_millis() as u64;
 
-        if expired > 0 || deleted > 0 || identities > 0 {
+        if expired > 0 || deleted > 0 || external > 0 {
             info!(
                 expired = expired,
                 deleted = deleted,
-                identities = identities,
+                external = external,
                 duration_ms = duration_ms,
                 "MCP session cleanup completed"
             );
         }
 
         Ok(JobResult::success()
-            .with_stats(expired + deleted + identities, 0)
+            .with_stats(expired + deleted + external, 0)
             .with_duration(duration_ms))
     }
 }

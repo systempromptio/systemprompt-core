@@ -439,12 +439,8 @@ mod routes_agent_cards;
 mod proxy_auth_access;
 
 #[cfg(test)]
-#[path = "proxy_support.rs"]
-mod proxy_support;
-
-#[cfg(test)]
-#[path = "proxy_mcp_session_cache.rs"]
-mod proxy_mcp_session_cache;
+#[path = "proxy_mcp_headers.rs"]
+mod proxy_mcp_headers;
 
 #[cfg(test)]
 #[path = "proxy_audit_tap.rs"]

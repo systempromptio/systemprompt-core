@@ -150,9 +150,9 @@ pub(super) async fn run_agent(
         path: "",
         kind: ProxyKind::Agent,
     };
-    let identities = crate::repository::proxy_identities(ctx.db_pool());
+    let sessions = crate::repository::proxy_sessions(ctx.db_pool());
     let response = ProxyService::new(
-        identities,
+        sessions,
         Arc::clone(ctx.connector_tokens()),
         &ctx.services_state().view(),
         Arc::clone(ctx.config_arc()),

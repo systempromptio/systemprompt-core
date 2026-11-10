@@ -63,9 +63,9 @@ pub(in crate::routes) async fn get_mcp_server_scopes_from_resource(
 
 pub fn router(ctx: &AppContext) -> Router {
     let repo = crate::repository::tool_usage(ctx.db_pool());
-    let identities = crate::repository::proxy_identities(ctx.db_pool());
+    let sessions = crate::repository::proxy_sessions(ctx.db_pool());
     let engine = ProxyService::new(
-        identities,
+        sessions,
         Arc::clone(ctx.connector_tokens()),
         &ctx.services_state().view(),
         Arc::clone(ctx.config_arc()),

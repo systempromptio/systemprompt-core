@@ -2,9 +2,8 @@
 //!
 //! [`AccessValidator`] resolves whether a service requires OAuth, validates the
 //! caller's bearer token and scopes, and either returns the authenticated user
-//! or converts the failure into an RFC 9728 challenge. For MCP it permits a
-//! session-only fallback when a prior authenticated initialize established the
-//! identity in the proxy cache.
+//! or converts the failure into an RFC 9728 challenge. Every request is judged
+//! on its own credential: an MCP session id never substitutes for one.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -81,14 +80,7 @@ impl AccessValidator {
             req_context,
         ) {
             Ok(user) => user,
-            Err(status_code) => {
-                if let Some(outcome) =
-                    mcp_session_fallback(requirement.module, service_name, headers, status_code)
-                {
-                    return outcome;
-                }
-                return Err(challenge(status_code));
-            },
+            Err(status_code) => return Err(challenge(status_code)),
         };
         if let Err(status_code) = enforce_required_audience(
             ctx.token_authority().as_ref(),
@@ -192,42 +184,6 @@ fn resource_path_for(module: ServiceModule, service_name: &ServiceName) -> Strin
             &systemprompt_identifiers::AgentName::new(service_name.as_str()),
         ),
     }
-}
-
-fn mcp_session_fallback(
-    module: ServiceModule,
-    service_name: &ServiceName,
-    headers: &HeaderMap,
-    status_code: StatusCode,
-) -> Option<Result<Option<AuthenticatedUser>, ProxyError>> {
-    if module != ServiceModule::Mcp || status_code != StatusCode::UNAUTHORIZED {
-        return None;
-    }
-    let has_session = headers
-        .get("mcp-session-id")
-        .and_then(|v| v.to_str().ok())
-        .is_some_and(|v| !v.is_empty());
-    if !has_session {
-        return None;
-    }
-    let has_bearer_token = headers
-        .get("authorization")
-        .and_then(|v| v.to_str().ok())
-        .is_some_and(|v| v.starts_with("Bearer "));
-    if has_bearer_token {
-        tracing::info!(
-            service = %service_name,
-            session_id = ?headers.get("mcp-session-id"),
-            "MCP request has expired/invalid Bearer token — returning 401 for client token refresh"
-        );
-        return None;
-    }
-    tracing::info!(
-        service = %service_name,
-        session_id = ?headers.get("mcp-session-id"),
-        "Allowing MCP request with session ID (session-based auth, identity from proxy cache)"
-    );
-    Some(Ok(None))
 }
 
 fn ensure_required_scopes(

@@ -22,15 +22,9 @@ use systemprompt_runtime::AppContext;
 
 use super::super::audit::{self, AuditSinks, McpAudit, parse_tool_call};
 use super::super::auth::{AccessValidator, mcp_oauth_requirement};
-use super::super::backend::{ProxyError, RequestBuilder, ResponseHandler};
+use super::super::backend::{MCP_REQUEST_BODY_LIMIT, ProxyError, RequestBuilder, ResponseHandler};
 use super::ProxyService;
-
-const MCP_PASSTHROUGH_HEADERS: [&str; 4] = [
-    "content-type",
-    "accept",
-    "mcp-session-id",
-    "mcp-protocol-version",
-];
+use super::outbound::MCP_PASSTHROUGH_HEADERS;
 
 // Why: takes the headers and the context rather than the request — a
 // `Body` is not `Sync`, so holding `&Request` across the await would make
@@ -80,7 +74,7 @@ impl ProxyService {
         let method_str = request.method().to_string();
         let incoming_headers = request.headers().clone();
         let sessions = super::external_sessions::SessionGuard::new(
-            &self.identities,
+            &self.sessions,
             service_name,
             &req_ctx,
             &target.headers,
@@ -94,9 +88,9 @@ impl ProxyService {
             )
                 .into_response());
         }
-        let mut body = RequestBuilder::extract_body(request.into_body())
-            .await
-            .map_err(|source| ProxyError::BodyExtractionFailed { source })?;
+        RequestBuilder::ensure_declared_length(&incoming_headers, MCP_REQUEST_BODY_LIMIT)?;
+        let mut body =
+            RequestBuilder::read_body(request.into_body(), MCP_REQUEST_BODY_LIMIT).await?;
         super::fixed_arguments::apply(&server_config.tools, &mut body);
 
         super::external_governance::enforce(&ctx, &req_ctx, service_name, &body).await?;
@@ -110,14 +104,20 @@ impl ProxyService {
 
         let method = RequestBuilder::parse_method(&method_str)?;
         let client = self.client_pool.get_default_client();
-        let response = RequestBuilder::build_request(&client, method, &target.url, &outbound, body)
-            .send()
-            .await
-            .map_err(|source| ProxyError::ConnectionFailed {
-                service: service_name.to_string(),
-                url: target.url.clone(),
-                source,
-            })?;
+        let response = RequestBuilder::build_request(
+            &client,
+            method,
+            &target.url,
+            &outbound,
+            (!body.is_empty()).then(|| reqwest::Body::from(body)),
+        )
+        .send()
+        .await
+        .map_err(|source| ProxyError::ConnectionFailed {
+            service: service_name.to_string(),
+            url: target.url.clone(),
+            source,
+        })?;
 
         if method_str == "DELETE" {
             if response.status().is_success() || response.status() == StatusCode::NOT_FOUND {

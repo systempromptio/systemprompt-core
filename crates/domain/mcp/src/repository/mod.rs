@@ -1,5 +1,5 @@
 //! Postgres persistence for MCP: tool-execution records and aggregate stats,
-//! session state, proxy session identities, and tool-output artifacts.
+//! session state, proxy session bindings, and tool-output artifacts.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -11,7 +11,7 @@ mod artifact_payload;
 mod external_session;
 mod ingest_mark;
 mod ownership;
-mod proxy_identity;
+mod proxy_session;
 mod session;
 mod tool_usage;
 
@@ -26,7 +26,7 @@ pub use artifact_payload::{ArtifactPayloadRecord, ArtifactPayloadRepository};
 pub use external_session::ExternalSessionBinding;
 pub use ingest_mark::{IngestMark, IngestMarkKey, ToolResultIngestMarkRepository};
 pub use ownership::McpOwnerReassignment;
-pub use proxy_identity::{McpProxyIdentityRepository, ProxyIdentityRow};
+pub use proxy_session::McpProxySessionRepository;
 pub use session::{McpSessionRecord, McpSessionRepository};
 pub use tool_usage::{IntentStamp, ProximityProbe, ToolUsageRepository};
 

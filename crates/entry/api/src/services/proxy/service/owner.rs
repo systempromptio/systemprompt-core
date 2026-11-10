@@ -29,7 +29,7 @@ use systemprompt_identifiers::ServiceName;
 use systemprompt_runtime::AppContext;
 
 use super::ProxyService;
-use crate::services::proxy::backend::{ProxyError, ResponseHandler};
+use crate::services::proxy::backend::{AGENT_REQUEST_BODY_LIMIT, ProxyError, ResponseHandler};
 
 pub fn owner_url(advertise_url: &str, path_and_query: &str) -> String {
     let base = advertise_url.trim_end_matches('/');
@@ -127,7 +127,15 @@ impl ProxyService {
         let mut headers = request.headers().clone();
         headers.insert(FORWARDED_TO_OWNER, HeaderValue::from_static("1"));
         let response = self
-            .send_to_backend(request, &url, &headers, service_name)
+            .send_to_backend(
+                request,
+                &super::Upstream {
+                    url: &url,
+                    headers: &headers,
+                    service_name,
+                    body_limit: AGENT_REQUEST_BODY_LIMIT,
+                },
+            )
             .await?;
         ResponseHandler::build_response(response).map_err(|source| ProxyError::InvalidResponse {
             service: service_name.to_string(),

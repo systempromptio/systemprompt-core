@@ -502,7 +502,7 @@ Secret values are never stored in `profile.yaml`. They live in a separate JSON d
 | `github` | `github` | string | no | GitHub token. |
 | `moonshot` | `moonshot` | string | no | Moonshot/Kimi key. |
 | `qwen` | `qwen` | string | no | Qwen/DashScope key. |
-| `encryption_master_key` | `encryption_master_key` | string | yes | 32 random bytes as 64 hex characters (`openssl rand -hex 32`); `admin setup` and `admin identity generate` mint it. Encrypts the gateway's per-request accounting receipts (and extensions' stored grants), and seals the bearer token the MCP proxy caches per session in `mcp_proxy_identities`. Validated at secrets bootstrap: a missing or malformed key is refused before migrations run, whether or not the gateway is enabled. Preserve it across restarts and replicas. |
+| `encryption_master_key` | `encryption_master_key` | string | yes | 32 random bytes as 64 hex characters (`openssl rand -hex 32`); `admin setup` and `admin identity generate` mint it. Encrypts the gateway's per-request accounting receipts (and extensions' stored grants). Validated at secrets bootstrap: a missing or malformed key is refused before migrations run, whether or not the gateway is enabled. Preserve it across restarts and replicas. |
 | (custom) | any other key | string | no | Extra keys flatten into a `custom` map and are addressable by name. |
 
 `null` values are stripped before deserialization (`secrets.rs:62`).

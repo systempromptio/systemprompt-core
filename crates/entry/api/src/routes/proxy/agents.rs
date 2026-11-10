@@ -12,9 +12,9 @@ use axum::routing::any;
 use systemprompt_runtime::AppContext;
 
 pub fn router(ctx: &AppContext) -> Router {
-    let identities = crate::repository::proxy_identities(ctx.db_pool());
+    let sessions = crate::repository::proxy_sessions(ctx.db_pool());
     let engine = ProxyService::new(
-        identities,
+        sessions,
         Arc::clone(ctx.connector_tokens()),
         &ctx.services_state().view(),
         Arc::clone(ctx.config_arc()),

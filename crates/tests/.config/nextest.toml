@@ -98,13 +98,11 @@ cloud-checkout-port = { max-threads = 1 }
 # profile against the proxy on the default port, so a sibling serving there
 # leaves the enrolment `Pending`.
 bridge-proxy-port = { max-threads = 1 }
-# Why: `McpProxyIdentityRepository::cleanup_expired` is an unscoped
-# `DELETE FROM mcp_proxy_identities WHERE expires_at <= NOW()`, so it reaps
-# every expired row in the shared database, not just its own. The delete and
-# count tests seed deliberately-expired rows and then assert on them, so a
-# concurrent cleanup wipes the fixture between the insert and the assertion —
-# `delete_removes_the_row_even_once_it_has_expired` failed in CI counting 0
-# rows immediately after inserting one.
+# Why: `McpProxySessionRepository::cleanup_expired` is an unscoped
+# `DELETE FROM mcp_external_sessions WHERE expires_at <= NOW()`, so it reaps
+# every expired binding in the shared database, not just its own. Tests that
+# seed deliberately-expired bindings and then assert on them would lose the
+# fixture to a concurrent cleanup between the insert and the assertion.
 mcp-proxy-identity-db = { max-threads = 1 }
 
 # Why: `ApprovalRepository::expire_due` is an unscoped UPDATE over every
@@ -150,11 +148,11 @@ filter = 'package(systemprompt-database-tests) and test(/lifecycle::/)'
 test-group = 'database-lifecycle-db'
 
 [[profile.default.overrides]]
-filter = 'package(systemprompt-mcp-tests) and test(/repository::proxy_identity(_db|_corrupt_db)?::/)'
+filter = 'package(systemprompt-mcp-tests) and test(/repository::(proxy_session_db|external_session_db)::/)'
 test-group = 'mcp-proxy-identity-db'
 
 [[profile.ci.overrides]]
-filter = 'package(systemprompt-mcp-tests) and test(/repository::proxy_identity(_db|_corrupt_db)?::/)'
+filter = 'package(systemprompt-mcp-tests) and test(/repository::(proxy_session_db|external_session_db)::/)'
 test-group = 'mcp-proxy-identity-db'
 
 [[profile.default.overrides]]

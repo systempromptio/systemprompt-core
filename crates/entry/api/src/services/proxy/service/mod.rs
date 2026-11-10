@@ -2,10 +2,11 @@
 //!
 //! [`ProxyService`] resolves a service by name, enforces access via the proxy
 //! auth boundary, forwards the request to the local backend port, and streams
-//! the response back (with SSE keep-alive). For MCP it also maintains the
-//! persisted session identity so a session-only follow-up request can be
-//! enriched, on any replica, with the identity established on the
-//! authenticated initialize call. A node that supervises no processes, or a
+//! the response back (with SSE keep-alive). Every request is authenticated on
+//! its own credential; the proxy builds the backend's identity headers itself
+//! (see [`outbound`]) and, for MCP, binds each session to the server and
+//! principal that opened it (see [`mcp_session`]), so a session id never
+//! stands in for a credential. A node that supervises no processes, or a
 //! worker that does not hold the process's lease, forwards to the owning
 //! replica instead (see [`owner`]).
 //!
@@ -18,30 +19,35 @@ mod external_sessions;
 pub mod fixed_arguments;
 mod handlers;
 pub mod mcp_session;
+pub mod outbound;
 pub mod owner;
 mod target;
+mod upstream;
 
 use axum::body::Body;
 use axum::extract::Request;
-use axum::http::HeaderMap;
+use axum::http::header::AUTHORIZATION;
 use axum::response::Response;
 use std::sync::Arc;
 use systemprompt_config::SecretsService;
 use systemprompt_database::{ServiceConfig, ServiceModule};
-use systemprompt_identifiers::{AgentName, ServiceName};
+use systemprompt_identifiers::ServiceName;
 use systemprompt_manifest::Config;
-use systemprompt_mcp::repository::McpProxyIdentityRepository;
+use systemprompt_mcp::repository::McpProxySessionRepository;
 use systemprompt_mcp::services::client::McpClient;
 use systemprompt_models::RequestContext;
 use systemprompt_runtime::AppContext;
-use systemprompt_security::at_rest::AtRestCipher;
 use systemprompt_security::credential::TokenCache;
 
 use super::auth::AccessValidator;
-use super::backend::{HeaderInjector, ProxyError, RequestBuilder, ResponseHandler, UrlResolver};
+use super::backend::{
+    AGENT_REQUEST_BODY_LIMIT, MCP_REQUEST_BODY_LIMIT, ProxyError, RequestBuilder, ResponseHandler,
+    UrlResolver,
+};
 use super::client::ClientPool;
 use super::resolver::ServiceResolver;
 use target::{external_server, unknown_service_error};
+use upstream::{Upstream, forward_context};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ProxyKind {
@@ -56,20 +62,28 @@ pub struct ProxyTarget<'a> {
     pub kind: ProxyKind,
 }
 
+#[derive(Debug)]
+struct ManagedRequest<'a> {
+    service: &'a ServiceConfig,
+    service_name: &'a ServiceName,
+    path: &'a str,
+    principal: Option<systemprompt_identifiers::UserId>,
+    req_ctx: Option<RequestContext>,
+}
+
 #[derive(Debug, Clone)]
 pub struct ProxyService {
     client_pool: ClientPool,
-    identities: Arc<McpProxyIdentityRepository>,
+    sessions: Arc<McpProxySessionRepository>,
     intent_claims: Option<systemprompt_mcp::IntentClaimService>,
     artifact_ingest: Option<Arc<systemprompt_mcp::ArtifactIngest>>,
     mcp_client: Arc<McpClient>,
-    secrets: Arc<SecretsService>,
     owners: Arc<owner::OwnerCache>,
 }
 
 impl ProxyService {
     pub fn new(
-        identities: Arc<McpProxyIdentityRepository>,
+        sessions: Arc<McpProxySessionRepository>,
         connector_tokens: Arc<TokenCache>,
         services: &systemprompt_manifest::services::ServicesView,
         config: Arc<Config>,
@@ -77,22 +91,17 @@ impl ProxyService {
     ) -> Self {
         Self {
             client_pool: ClientPool::new(),
-            identities,
+            sessions,
             intent_claims: None,
             artifact_ingest: None,
             mcp_client: Arc::new(McpClient::new(
                 connector_tokens,
                 systemprompt_mcp::services::DeploymentService::new(services.clone()),
                 config,
-                Arc::clone(&secrets),
+                secrets,
             )),
-            secrets,
             owners: Arc::new(owner::OwnerCache::default()),
         }
-    }
-
-    pub(super) fn at_rest(&self) -> Result<AtRestCipher, ProxyError> {
-        Ok(AtRestCipher::from_secrets(&self.secrets.get())?)
     }
 
     #[must_use]
@@ -156,37 +165,87 @@ impl ProxyService {
         )
         .await?;
 
-        let backend_url = UrlResolver::build_backend_url("http", "127.0.0.1", service.port, path);
+        self.proxy_managed(
+            ManagedRequest {
+                service: &service,
+                service_name,
+                path,
+                principal: authenticated_user.map(|user| user.id),
+                req_ctx,
+            },
+            request,
+        )
+        .await
+    }
 
+    async fn proxy_managed(
+        &self,
+        managed: ManagedRequest<'_>,
+        request: Request<Body>,
+    ) -> Result<Response<Body>, ProxyError> {
+        let ManagedRequest {
+            service,
+            service_name,
+            path,
+            principal,
+            req_ctx,
+        } = managed;
+        let is_mcp = service.module_name == ServiceModule::Mcp;
+        let body_limit = if is_mcp {
+            MCP_REQUEST_BODY_LIMIT
+        } else {
+            AGENT_REQUEST_BODY_LIMIT
+        };
+        RequestBuilder::ensure_declared_length(request.headers(), body_limit)?;
+        if is_mcp {
+            mcp_session::ensure_bound(
+                &self.sessions,
+                request.headers(),
+                service_name,
+                principal.as_ref(),
+            )
+            .await?;
+        }
+
+        let backend_url = UrlResolver::build_backend_url("http", "127.0.0.1", service.port, path);
+        let full_url = UrlResolver::append_query_params(backend_url, request.uri().query());
         let method_str = request.method().to_string();
         let request_headers = request.headers().clone();
-        let mut headers = request_headers.clone();
-        let query = request.uri().query();
-        let full_url = UrlResolver::append_query_params(backend_url, query);
 
-        let req_context = self
-            .build_forward_context(req_ctx, &service, service_name, &request_headers)
-            .await?;
-
-        inject_forward_headers(&mut headers, &req_context, service_name);
+        let req_context = forward_context(req_ctx, service, service_name)?;
+        let headers = if is_mcp {
+            outbound::managed_mcp_headers(&request_headers, &req_context)
+        } else {
+            outbound::agent_headers(&request_headers, &req_context)
+        };
+        tracing::debug!(
+            service = %service_name,
+            has_auth = headers.contains_key(AUTHORIZATION),
+            "Proxy forwarding request"
+        );
 
         let response = self
-            .send_to_backend(request, &full_url, &headers, service_name)
+            .send_to_backend(
+                request,
+                &Upstream {
+                    url: &full_url,
+                    headers: &headers,
+                    service_name,
+                    body_limit,
+                },
+            )
             .await?;
 
-        if service.module_name == ServiceModule::Mcp {
-            let at_rest = self.at_rest()?;
-            mcp_session::handle_mcp_response(mcp_session::McpResponseCtx {
-                identities: &self.identities,
-                at_rest: &at_rest,
+        if is_mcp {
+            mcp_session::bind_issued_session(mcp_session::IssuedSession {
+                sessions: &self.sessions,
                 response: &response,
                 request_headers: &request_headers,
-                req_context: &req_context,
-                authenticated_user: authenticated_user.as_ref(),
                 service_name,
+                principal: principal.as_ref(),
                 method_str: &method_str,
             })
-            .await;
+            .await?;
         }
 
         ResponseHandler::build_response(response).map_err(|source| ProxyError::InvalidResponse {
@@ -194,90 +253,4 @@ impl ProxyService {
             source,
         })
     }
-
-    async fn build_forward_context(
-        &self,
-        req_ctx: Option<RequestContext>,
-        service: &ServiceConfig,
-        service_name: &ServiceName,
-        request_headers: &HeaderMap,
-    ) -> Result<RequestContext, ProxyError> {
-        let mut req_context = req_ctx.ok_or_else(|| ProxyError::MissingContext {
-            message: "Request context required - proxy cannot operate without authentication"
-                .to_owned(),
-        })?;
-
-        if service.module_name == ServiceModule::Agent {
-            let agent_name = AgentName::try_new(service_name.as_str()).map_err(|source| {
-                ProxyError::InvalidServiceName {
-                    service: service_name.to_string(),
-                    source,
-                }
-            })?;
-            req_context = req_context.with_agent_name(agent_name);
-        }
-
-        if service.module_name == ServiceModule::Mcp && req_context.auth_token().is_none() {
-            req_context = mcp_session::enrich_with_cached_identity(
-                &self.identities,
-                &self.at_rest()?,
-                request_headers,
-                req_context,
-                service_name,
-            )
-            .await;
-        }
-
-        Ok(req_context)
-    }
-
-    async fn send_to_backend(
-        &self,
-        request: Request<Body>,
-        full_url: &str,
-        headers: &HeaderMap,
-        service_name: &ServiceName,
-    ) -> Result<reqwest::Response, ProxyError> {
-        let method_str = request.method().to_string();
-
-        let body = RequestBuilder::extract_body(request.into_body())
-            .await
-            .map_err(|e| ProxyError::BodyExtractionFailed { source: e })?;
-
-        let reqwest_method = RequestBuilder::parse_method(&method_str)?;
-
-        let client = self.client_pool.get_default_client();
-
-        let req_builder =
-            RequestBuilder::build_request(&client, reqwest_method, full_url, headers, body);
-
-        req_builder
-            .send()
-            .await
-            .map_err(|e| ProxyError::ConnectionFailed {
-                service: service_name.to_string(),
-                url: full_url.to_owned(),
-                source: e,
-            })
-    }
-}
-
-fn inject_forward_headers(
-    headers: &mut HeaderMap,
-    req_context: &RequestContext,
-    service_name: &ServiceName,
-) {
-    let has_auth_before = headers.get("authorization").is_some();
-    let ctx_has_token = req_context.auth_token().is_some();
-
-    HeaderInjector::inject_context(headers, req_context);
-
-    let has_auth_after = headers.get("authorization").is_some();
-    tracing::debug!(
-        service = %service_name,
-        has_auth_before = has_auth_before,
-        ctx_has_token = ctx_has_token,
-        has_auth_after = has_auth_after,
-        "Proxy forwarding request"
-    );
 }

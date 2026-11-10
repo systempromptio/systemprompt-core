@@ -9,13 +9,13 @@ use std::collections::HashMap;
 use axum::http::{HeaderMap, HeaderName, HeaderValue};
 use sha2::{Digest, Sha256};
 use systemprompt_identifiers::{ServiceName, SessionId, UserId};
-use systemprompt_mcp::repository::{ExternalSessionBinding, McpProxyIdentityRepository};
+use systemprompt_mcp::repository::{ExternalSessionBinding, McpProxySessionRepository};
 use systemprompt_models::RequestContext;
 
 use super::super::backend::ProxyError;
 
 pub(super) struct SessionGuard<'a> {
-    repository: &'a McpProxyIdentityRepository,
+    repository: &'a McpProxySessionRepository,
     server: &'a ServiceName,
     user_id: &'a UserId,
     credential_hash: [u8; 32],
@@ -23,7 +23,7 @@ pub(super) struct SessionGuard<'a> {
 
 impl<'a> SessionGuard<'a> {
     pub(super) fn new(
-        repository: &'a McpProxyIdentityRepository,
+        repository: &'a McpProxySessionRepository,
         server: &'a ServiceName,
         context: &'a RequestContext,
         headers: &HashMap<HeaderName, HeaderValue>,

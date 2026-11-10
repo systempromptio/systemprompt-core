@@ -40,7 +40,6 @@ user_purge_tables!(
         ("mcp_tool_executions", "user_id"),
         ("mcp_sessions", "user_id"),
         ("mcp_external_sessions", "user_id"),
-        ("mcp_proxy_identities", "user_id"),
         ("governance_decisions", "user_id"),
         ("agent_tasks", "user_id"),
         ("task_messages", "user_id"),

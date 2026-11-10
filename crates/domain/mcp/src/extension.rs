@@ -39,11 +39,6 @@ const TABLES: &[(&str, &str, &[&str])] = &[
         &["session_id", "status", "created_at"],
     ),
     (
-        "mcp_proxy_identities",
-        include_str!("../schema/mcp_proxy_identities.sql"),
-        &["session_id", "user_id", "auth_token", "expires_at"],
-    ),
-    (
         "artifact_payloads",
         include_str!("../schema/artifact_payloads.sql"),
         &["sha256", "byte_len", "body", "ref_count"],
