@@ -3,7 +3,10 @@
 //!
 //! The reference is the image block's `blob` (`docx-media:media/image1.png`,
 //! or an upload's hash), passed as a query value because it holds slashes.
-//! The body is served as user content, with its hash as the `ETag`.
+//! The body is served as user content. Its `ETag` is the document-bound
+//! validator (`media_validator`), never the blob's hash, and it is compared
+//! only after the caller's access to the document is checked, so a revoked
+//! viewer is refused rather than told the image is unchanged.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -15,8 +18,8 @@ use axum::response::{IntoResponse, Response};
 use serde::Deserialize;
 use systemprompt_files::documents::DocumentsError;
 use systemprompt_files::documents::model::MediaBlob;
+use systemprompt_files::documents::service::media_validator;
 use systemprompt_identifiers::DocumentId;
-use systemprompt_models::documents::content_hash;
 
 use super::DocumentsState;
 use super::caller::{Caller, caller};
@@ -79,7 +82,7 @@ pub(super) async fn image(
         },
         other => other?,
     };
-    let tag = hash_etag(&content_hash(&blob.bytes));
+    let tag = hash_etag(&media_validator(&id, &blob));
     let mut response = if none_match(&parts.headers, &tag) {
         StatusCode::NOT_MODIFIED.into_response()
     } else {

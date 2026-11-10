@@ -42,6 +42,8 @@ mod documents_collab_lease_busy;
 #[cfg(test)]
 mod documents_collab_live_fixture;
 #[cfg(test)]
+mod documents_collab_live_image_provenance;
+#[cfg(test)]
 mod documents_collab_live_ops;
 #[cfg(test)]
 mod documents_collab_live_structured;
@@ -87,6 +89,10 @@ mod documents_listing;
 mod documents_listing_scale;
 #[cfg(test)]
 mod documents_media_admit;
+#[cfg(test)]
+mod documents_media_export_caps;
+#[cfg(test)]
+mod documents_media_provenance;
 #[cfg(test)]
 mod documents_media_read;
 #[cfg(test)]

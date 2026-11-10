@@ -141,13 +141,6 @@ async fn a_markdown_head_serves_only_the_uploaded_blob_it_links() {
         .expect("linked blob");
     assert_eq!(served.mime, "image/png");
     assert_eq!(served.bytes, picture);
-    assert_eq!(
-        h.service
-            .media_bytes(&content_hash(&picture))
-            .await
-            .expect("media bytes"),
-        picture
-    );
 
     let other = png(99, 99);
     store(&h).put(&other).await.expect("put unlinked");

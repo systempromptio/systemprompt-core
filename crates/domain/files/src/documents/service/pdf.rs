@@ -1,9 +1,12 @@
 //! PDF export of a revision, rendered on the blocking pool: a format with a
 //! rich text model renders from it with the images the revision holds, and any
 //! other format from its codec's projection, under the
-//! `files.documents.limits.pdfPages` cap. A stored `file` revision whose
-//! bytes are a PDF opens as a stream for inline preview, decided by its magic
-//! bytes alone.
+//! `files.documents.limits.pdfPages` cap. It follows at most
+//! `EXPORT_IMAGE_LIMIT` image references and embeds at most
+//! `maxUploadBytes` of them in all: an image is read only while it fits what
+//! is left of that budget, and the rest render as missing. A stored
+//! `file` revision whose bytes are a PDF opens as a stream for inline preview,
+//! decided by its magic bytes alone.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -16,7 +19,7 @@ use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_provider_contracts::documents::CodecError;
 use systemprompt_traits::{ByteRange, FileStorageError, StoredFileRead};
 
-use super::markdown_export::{has_rich_model, held_image_refs};
+use super::markdown_export::{EXPORT_IMAGE_LIMIT, has_rich_model, held_image_refs};
 use super::support::blocking;
 use super::{DocumentService, StreamRequest};
 use crate::documents::blob_store::BlobStoreError;
@@ -60,8 +63,14 @@ impl DocumentService {
             None
         };
         let mut media = BTreeMap::new();
-        for reference in model.as_ref().map(held_image_refs).unwrap_or_default() {
-            if let Some(image) = self.revision_image(format, &bytes, &reference).await {
+        let mut budget = self.config.max_upload_bytes;
+        let refs = model.as_ref().map(held_image_refs).unwrap_or_default();
+        for reference in refs.into_iter().take(EXPORT_IMAGE_LIMIT) {
+            if let Some(image) = self
+                .revision_image(&document, &bytes, &reference, budget)
+                .await
+            {
+                budget = budget.saturating_sub(image.len() as u64);
                 media.insert(reference, image);
             }
         }

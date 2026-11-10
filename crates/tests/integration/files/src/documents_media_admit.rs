@@ -13,7 +13,7 @@ use systemprompt_traits::{BackgroundTasks, FileStorage};
 use crate::documents_service_fixture::{GroupSource, Harness, allow, harness};
 use crate::uploads_rig::{hash_of, owner, request, trace};
 
-async fn uploads_beside(h: &Harness) -> UploadService {
+pub(crate) async fn uploads_beside(h: &Harness) -> UploadService {
     let db = test_db_pool().await;
     let storage: Arc<dyn FileStorage> =
         Arc::new(LocalFileStorage::new(h.storage.path().to_path_buf()));
@@ -42,7 +42,7 @@ fn chunk(kind: &[u8; 4], data: &[u8]) -> Vec<u8> {
     out
 }
 
-fn png(width: u32, height: u32) -> Vec<u8> {
+pub(crate) fn valid_png(width: u32, height: u32) -> Vec<u8> {
     let mut ihdr = width.to_be_bytes().to_vec();
     ihdr.extend_from_slice(&height.to_be_bytes());
     ihdr.extend_from_slice(&[8, 2, 0, 0, 0]);
@@ -66,7 +66,7 @@ async fn an_image_is_admitted_only_from_an_upload_its_owner_completed() {
     let h = harness(allow(), GroupSource::new(&[])).await;
     let uploads = uploads_beside(&h).await;
     let uploader = owner();
-    let picture = png(4, 3);
+    let picture = valid_png(4, 3);
     let hash = hash_of(&picture);
     uploads
         .put_inline(

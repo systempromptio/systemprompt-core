@@ -12,7 +12,7 @@ use systemprompt_files::documents::models::{
     NewDocument, NewRevision, RevisionAttribution, RevisionOrigin,
 };
 use systemprompt_files::documents::repository::DocumentRepositories;
-use systemprompt_identifiers::{ContentHash, DocumentRevisionId, UserId};
+use systemprompt_identifiers::{ContentHash, DocumentId, DocumentRevisionId, UserId};
 use systemprompt_models::documents::{ActorKind, DocumentFormat};
 use systemprompt_storage::{FileStorageBackend, build_file_storage};
 use systemprompt_test_fixtures::test_db_pool;
@@ -61,7 +61,7 @@ impl Harness {
         .expect("age blob");
     }
 
-    async fn reference(&self, hash: &ContentHash) {
+    async fn reference(&self, hash: &ContentHash) -> DocumentId {
         let owner = UserId::new(format!("blob-owner-{}", Uuid::new_v4().simple()));
         let document = self
             .repos
@@ -81,7 +81,7 @@ impl Harness {
             .revisions
             .insert(NewRevision {
                 id: DocumentRevisionId::generate(),
-                document_id: document.id,
+                document_id: document.id.clone(),
                 parent_revision_id: None,
                 content_sha256: hash.clone(),
                 author_user_id: owner,
@@ -93,6 +93,19 @@ impl Harness {
             })
             .await
             .expect("insert revision");
+        document.id
+    }
+
+    async fn admit(&self, document: &DocumentId, hash: &ContentHash) {
+        sqlx::query(
+            "INSERT INTO document_media (document_id, content_sha256, admitted_by)
+             VALUES ($1::text::uuid, $2, 'blob-test')",
+        )
+        .bind(document.as_str())
+        .bind(hash.as_str())
+        .execute(&*self.pool.write_pool())
+        .await
+        .expect("admit image");
     }
 }
 
@@ -205,8 +218,14 @@ async fn gc_collects_only_aged_unreferenced_blobs_and_counts_failures() {
     let linked = store.put(&unique_bytes("linked")).await.expect("linked");
     let linking = format!("![chart]({})\n", linked.hash);
     let linking = store.put(linking.as_bytes()).await.expect("linking");
-    h.reference(&linking.hash).await;
+    let holder = h.reference(&linking.hash).await;
+    h.admit(&holder, &linked.hash).await;
     h.age(&linked.hash, 48).await;
+    let foreign = store.put(&unique_bytes("foreign")).await.expect("foreign");
+    let naming = format!("![stolen]({}) and {}\n", foreign.hash, foreign.hash);
+    let naming = store.put(naming.as_bytes()).await.expect("naming");
+    h.reference(&naming.hash).await;
+    h.age(&foreign.hash, 48).await;
 
     let report = store.delete_unreferenced(24, 500).await.expect("gc");
     assert!(report.deleted >= 1);
@@ -217,8 +236,18 @@ async fn gc_collects_only_aged_unreferenced_blobs_and_counts_failures() {
             .await
             .expect("find")
             .is_some(),
-        "a picture a Markdown revision links by hash is kept"
+        "a picture admitted to a document is kept"
     );
+    assert!(
+        h.repos
+            .blobs
+            .find(&foreign.hash)
+            .await
+            .expect("find")
+            .is_none(),
+        "naming a hash in a revision's text does not pin it"
+    );
+    assert!(!h.storage.exists(&foreign.storage_id).await.expect("exists"));
     assert!(h.storage.exists(&linked.storage_id).await.expect("exists"));
     assert!(
         h.repos
@@ -278,7 +307,97 @@ async fn gc_collects_only_aged_unreferenced_blobs_and_counts_failures() {
             .find(&stuck.hash)
             .await
             .expect("find")
-            .is_none()
+            .is_some(),
+        "a failed object delete keeps the row with its object"
     );
     assert!(h.storage.exists(&stuck.storage_id).await.expect("exists"));
+}
+
+async fn collect_now(h: &Harness, hash: &ContentHash, storage_id: &StoredFileId) -> bool {
+    let mut lock = h.repos.blobs.lock(hash).await.expect("lock");
+    let deleted = lock.delete_unreferenced(hash).await.expect("delete row");
+    if deleted {
+        h.storage.delete(storage_id).await.expect("delete object");
+    }
+    lock.commit().await.expect("commit");
+    deleted
+}
+
+async fn row_and_object(
+    h: &Harness,
+    hash: &ContentHash,
+    storage_id: &StoredFileId,
+) -> (bool, bool) {
+    let row = h
+        .repos
+        .blobs
+        .find_on_primary(hash)
+        .await
+        .expect("find")
+        .is_some();
+    let object = h.storage.exists(storage_id).await.expect("exists");
+    (row, object)
+}
+
+#[tokio::test]
+async fn an_upload_of_a_hash_being_collected_waits_and_restores_row_and_object() {
+    let h = harness().await;
+    let bytes = unique_bytes("race");
+    let stored = h.store().put(&bytes).await.expect("put");
+    h.age(&stored.hash, 48).await;
+
+    let mut collecting = h.repos.blobs.lock(&stored.hash).await.expect("lock");
+    assert!(
+        collecting
+            .delete_unreferenced(&stored.hash)
+            .await
+            .expect("delete row")
+    );
+    let racing = {
+        let store = h.store();
+        let bytes = bytes.clone();
+        tokio::spawn(async move { store.put(&bytes).await })
+    };
+    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    assert!(
+        !racing.is_finished(),
+        "an upload of the same bytes waits for the collection holding the hash"
+    );
+    h.storage
+        .delete(&stored.storage_id)
+        .await
+        .expect("delete object");
+    collecting.commit().await.expect("commit collection");
+
+    let restored = racing.await.expect("join").expect("put after collection");
+    assert!(restored.inserted);
+    assert_eq!(
+        row_and_object(&h, &stored.hash, &stored.storage_id).await,
+        (true, true)
+    );
+    assert_eq!(
+        h.store()
+            .read_all(&stored.hash, 1024)
+            .await
+            .expect("read back"),
+        bytes
+    );
+}
+
+#[tokio::test]
+async fn concurrent_uploads_and_collections_never_split_row_from_object() {
+    let h = harness().await;
+    let bytes = unique_bytes("interleave");
+    let first = h.store().put(&bytes).await.expect("put");
+    for _ in 0..20 {
+        h.age(&first.hash, 48).await;
+        let store = h.store();
+        let (put, _) = tokio::join!(
+            store.put(&bytes),
+            collect_now(&h, &first.hash, &first.storage_id)
+        );
+        put.expect("put");
+        let (row, object) = row_and_object(&h, &first.hash, &first.storage_id).await;
+        assert!(!row || object, "a row is never left without its object");
+    }
 }

@@ -1,11 +1,12 @@
 //! [`DocumentBlobRepository`]: content-addressed blob rows and their
-//! garbage-collection candidates.
+//! garbage-collection candidates, and the per-hash lock ([`HashLock`])
+//! under which a row and its object are stored or collected.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use chrono::{DateTime, Utc};
-use sqlx::PgPool;
+use sqlx::{PgPool, Postgres, Transaction};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::ContentHash;
 use systemprompt_traits::StoredFileId;
@@ -25,25 +26,6 @@ impl DocumentBlobRepository {
         Self {
             pools: Pools::new(db),
         }
-    }
-
-    pub async fn upsert(
-        &self,
-        hash: &ContentHash,
-        size_bytes: i64,
-        storage_id: &StoredFileId,
-    ) -> RepoResult<bool> {
-        let result = sqlx::query!(
-            "INSERT INTO document_blobs (content_sha256, size_bytes, storage_id)
-             VALUES ($1, $2, $3)
-             ON CONFLICT (content_sha256) DO NOTHING",
-            hash.as_str(),
-            size_bytes,
-            storage_id.as_str(),
-        )
-        .execute(&*self.pools.write)
-        .await?;
-        Ok(result.rows_affected() == 1)
     }
 
     pub async fn find(&self, hash: &ContentHash) -> RepoResult<Option<DocumentBlob>> {
@@ -66,17 +48,6 @@ impl DocumentBlobRepository {
         .await?)
     }
 
-    pub async fn list_linking_revisions(&self) -> RepoResult<Vec<ContentHash>> {
-        Ok(sqlx::query_scalar!(
-            r#"SELECT DISTINCT r.content_sha256 AS "content_sha256!: ContentHash"
-               FROM document_revisions r
-               JOIN documents d ON d.id = r.document_id
-               WHERE d.format IN ('markdown', 'html')"#
-        )
-        .fetch_all(&*self.pools.read)
-        .await?)
-    }
-
     pub async fn unreferenced_older_than(
         &self,
         interval_hours: i64,
@@ -84,7 +55,7 @@ impl DocumentBlobRepository {
     ) -> RepoResult<Vec<DocumentBlob>> {
         let wanted = usize::try_from(limit.max(1)).unwrap_or(usize::MAX);
         let hours = i32::try_from(interval_hours).unwrap_or(i32::MAX);
-        let mut conn = self.pools.read.acquire().await?;
+        let mut conn = self.pools.write.acquire().await?;
         let mut collected: Vec<DocumentBlob> = Vec::new();
         let mut cursor: Option<(DateTime<Utc>, String)> = None;
         loop {
@@ -104,6 +75,8 @@ impl DocumentBlobRepository {
                                      WHERE r.content_sha256 = b.content_sha256)
                      AND NOT EXISTS (SELECT 1 FROM document_edit_sessions s
                                      WHERE s.snapshot_sha256 = b.content_sha256)
+                     AND NOT EXISTS (SELECT 1 FROM document_media m
+                                     WHERE m.content_sha256 = b.content_sha256)
                    ORDER BY b.created_at, b.content_sha256
                    LIMIT $2"#,
                 hours,
@@ -134,9 +107,64 @@ impl DocumentBlobRepository {
         }
     }
 
+    pub async fn lock(&self, hash: &ContentHash) -> RepoResult<HashLock> {
+        let mut tx = self.pools.write.begin().await?;
+        sqlx::query!("SELECT pg_advisory_xact_lock($1)", lock_key(hash))
+            .execute(&mut *tx)
+            .await?;
+        Ok(HashLock { tx })
+    }
+
+    pub async fn upsert(
+        &self,
+        hash: &ContentHash,
+        size_bytes: i64,
+        storage_id: &StoredFileId,
+    ) -> RepoResult<bool> {
+        let mut lock = self.lock(hash).await?;
+        let inserted = lock.upsert(hash, size_bytes, storage_id).await?;
+        lock.commit().await?;
+        Ok(inserted)
+    }
+
     pub async fn delete(&self, hash: &ContentHash) -> RepoResult<bool> {
-        let mut conn = self.pools.write.acquire().await?;
-        let held = held_by_holders(&mut conn, &[hash.as_str().to_owned()]).await?;
+        let mut lock = self.lock(hash).await?;
+        let deleted = lock.delete_unreferenced(hash).await?;
+        lock.commit().await?;
+        Ok(deleted)
+    }
+}
+
+/// A transaction holding the advisory lock of one content hash: the blob's
+/// row and object change only under it, so storing and collecting the same
+/// bytes never interleave.
+#[derive(Debug)]
+pub struct HashLock {
+    tx: Transaction<'static, Postgres>,
+}
+
+impl HashLock {
+    pub async fn upsert(
+        &mut self,
+        hash: &ContentHash,
+        size_bytes: i64,
+        storage_id: &StoredFileId,
+    ) -> RepoResult<bool> {
+        Ok(sqlx::query_scalar!(
+            r#"INSERT INTO document_blobs (content_sha256, size_bytes, storage_id)
+               VALUES ($1, $2, $3)
+               ON CONFLICT (content_sha256) DO UPDATE SET created_at = now()
+               RETURNING (xmax = 0) AS "inserted!""#,
+            hash.as_str(),
+            size_bytes,
+            storage_id.as_str(),
+        )
+        .fetch_one(&mut *self.tx)
+        .await?)
+    }
+
+    pub async fn delete_unreferenced(&mut self, hash: &ContentHash) -> RepoResult<bool> {
+        let held = held_by_holders(&mut self.tx, &[hash.as_str().to_owned()]).await?;
         if !held.is_empty() {
             return Ok(false);
         }
@@ -145,11 +173,24 @@ impl DocumentBlobRepository {
                AND NOT EXISTS (SELECT 1 FROM document_revisions r
                                WHERE r.content_sha256 = b.content_sha256)
                AND NOT EXISTS (SELECT 1 FROM document_edit_sessions s
-                               WHERE s.snapshot_sha256 = b.content_sha256)",
+                               WHERE s.snapshot_sha256 = b.content_sha256)
+               AND NOT EXISTS (SELECT 1 FROM document_media m
+                               WHERE m.content_sha256 = b.content_sha256)",
             hash.as_str(),
         )
-        .execute(&mut *conn)
+        .execute(&mut *self.tx)
         .await?;
         Ok(result.rows_affected() == 1)
     }
+
+    pub async fn commit(self) -> RepoResult<()> {
+        Ok(self.tx.commit().await?)
+    }
+}
+
+fn lock_key(hash: &ContentHash) -> i64 {
+    let hex = hash.as_str();
+    let prefix = hex.get(..16).unwrap_or(hex);
+    let bits = u64::from_str_radix(prefix, 16).unwrap_or(0);
+    i64::from_be_bytes(bits.to_be_bytes())
 }

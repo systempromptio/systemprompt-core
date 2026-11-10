@@ -10,16 +10,18 @@
 //! written elsewhere (an assembled upload) under its verified hash, moving
 //! it to the same content-addressed path a `put` uses.
 //!
-//! Garbage collection deletes the row first, because the repository refuses
-//! to delete a row a revision, edit session or issue report attachment still
-//! references; only then is the object removed. A failed object delete
-//! leaves an orphaned object and no row. The orphan is never served, and a
-//! later `put` of the same bytes finds it and restores the row.
+//! Every change to a hash's row and object runs under that hash's advisory
+//! lock ([`HashLock`]), held across both: `put` and `adopt` write the object
+//! when it is absent and upsert the row, and collection rechecks under the
+//! lock that nothing references the row (no revision, edit session, admitted
+//! document image or registered holder), deletes it, deletes the object and
+//! only then commits. A failed object delete rolls the row delete back, so a
+//! collected hash never keeps a row without its object, and an upload never
+//! lands between the two steps of a collection.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::HashSet;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -32,6 +34,8 @@ use systemprompt_traits::{
 
 use super::models::DocumentBlob;
 use super::repository::DocumentBlobRepository;
+#[cfg(doc)]
+use super::repository::HashLock;
 
 #[derive(Debug, thiserror::Error)]
 pub enum BlobStoreError {
@@ -96,7 +100,7 @@ impl BlobStore {
         let size = bytes.len() as u64;
         let size_column = i64::try_from(size)
             .map_err(|source| BlobStoreError::SizeOutOfRange { size, source })?;
-
+        let mut lock = self.blobs.lock(&hash).await?;
         let freshly_stored = if self.storage.exists(&storage_id).await? {
             false
         } else {
@@ -105,24 +109,29 @@ impl BlobStore {
                 .await?;
             true
         };
-
-        match self.blobs.upsert(&hash, size_column, &storage_id).await {
-            Ok(inserted) => Ok(StoredBlob {
-                hash,
-                size_bytes: size,
-                storage_id,
-                inserted,
-            }),
+        let inserted = match lock.upsert(&hash, size_column, &storage_id).await {
+            Ok(inserted) => inserted,
             Err(error) => {
-                if freshly_stored && let Err(cleanup) = self.storage.delete(&storage_id).await {
-                    tracing::error!(
-                        storage_id = %storage_id,
-                        error = %cleanup,
-                        "Failed to remove a blob whose row could not be written"
-                    );
-                }
-                Err(error.into())
+                self.discard(freshly_stored, &storage_id).await;
+                return Err(error.into());
             },
+        };
+        lock.commit().await?;
+        Ok(StoredBlob {
+            hash,
+            size_bytes: size,
+            storage_id,
+            inserted,
+        })
+    }
+
+    pub(super) async fn discard(&self, freshly_stored: bool, storage_id: &StoredFileId) {
+        if freshly_stored && let Err(cleanup) = self.storage.delete(storage_id).await {
+            tracing::error!(
+                storage_id = %storage_id,
+                error = %cleanup,
+                "Failed to remove a blob whose row could not be written"
+            );
         }
     }
 
@@ -201,35 +210,17 @@ impl BlobStore {
             .blobs
             .unreferenced_older_than(i64::from(older_than_hours), i64::from(limit))
             .await?;
-        let linked = self.linked_among(&candidates).await?;
         let mut report = GcReport::default();
         for blob in candidates {
             report.examined += 1;
-            if linked.contains(blob.content_sha256.as_str()) {
-                continue;
-            }
-            match self.blobs.delete(&blob.content_sha256).await {
-                Ok(true) => {},
-                Ok(false) => continue,
+            match self.collect(&blob).await {
+                Ok(true) => report.deleted += 1,
+                Ok(false) => {},
                 Err(error) => {
                     tracing::warn!(
                         content_sha256 = %blob.content_sha256,
                         error = %error,
-                        "Failed to delete an unreferenced blob row"
-                    );
-                    report.failed += 1;
-                    continue;
-                },
-            }
-            let storage_id = StoredFileId::new(blob.storage_id.as_str());
-            match self.storage.delete(&storage_id).await {
-                Ok(()) | Err(FileStorageError::NotFound(_)) => report.deleted += 1,
-                Err(error) => {
-                    tracing::warn!(
-                        content_sha256 = %blob.content_sha256,
-                        storage_id = %storage_id,
-                        error = %error,
-                        "Deleted a blob row but failed to delete its object"
+                        "Failed to collect an unreferenced blob"
                     );
                     report.failed += 1;
                 },
@@ -238,37 +229,17 @@ impl BlobStore {
         Ok(report)
     }
 
-    async fn linked_among(
-        &self,
-        candidates: &[DocumentBlob],
-    ) -> Result<HashSet<String>, BlobStoreError> {
-        let mut linked = HashSet::new();
-        if candidates.is_empty() {
-            return Ok(linked);
+    async fn collect(&self, blob: &DocumentBlob) -> Result<bool, BlobStoreError> {
+        let mut lock = self.blobs.lock(&blob.content_sha256).await?;
+        if !lock.delete_unreferenced(&blob.content_sha256).await? {
+            return Ok(false);
         }
-        for revision in self.blobs.list_linking_revisions().await? {
-            let bytes = match self.read_all(&revision, u64::MAX).await {
-                Ok(bytes) => bytes,
-                Err(
-                    BlobStoreError::NotFound { .. }
-                    | BlobStoreError::Storage(FileStorageError::NotFound(_)),
-                ) => {
-                    tracing::warn!(
-                        content_sha256 = %revision,
-                        "A linking revision's blob is missing, so its links cannot be read"
-                    );
-                    continue;
-                },
-                Err(error) => return Err(error),
-            };
-            let text = String::from_utf8_lossy(&bytes);
-            for blob in candidates {
-                let hash = blob.content_sha256.as_str();
-                if text.contains(hash) {
-                    linked.insert(hash.to_owned());
-                }
-            }
+        let storage_id = StoredFileId::new(blob.storage_id.as_str());
+        match self.storage.delete(&storage_id).await {
+            Ok(()) | Err(FileStorageError::NotFound(_)) => {},
+            Err(error) => return Err(error.into()),
         }
-        Ok(linked)
+        lock.commit().await?;
+        Ok(true)
     }
 }

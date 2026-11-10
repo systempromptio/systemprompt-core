@@ -9,32 +9,21 @@
 
 use std::sync::Arc;
 
-use systemprompt_identifiers::{DocumentFolderId, DocumentId, DocumentTemplateId, TraceId};
+use systemprompt_identifiers::{DocumentFolderId, DocumentId, TraceId};
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{DocumentAction, DocumentFormat, EditOp};
 
 use super::content::{apply_content, apply_rich_on_new};
+use super::first_revision::NewContent;
 use super::lifecycle::name_taken;
 use super::support::{apply_with, blocking, document_name, format_of_name, join_path};
-use super::{AgentCapTarget, Author, CreateRequest, DocumentService, DocumentView, ImportRequest};
+use super::{AgentCapTarget, CreateRequest, DocumentService, DocumentView, ImportRequest};
 use crate::documents::access::{AccessTarget, MoveTarget};
 #[cfg(feature = "office")]
 use crate::documents::codecs::inspect_package;
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{Document, DocumentRevision, NewDocument};
 use crate::documents::repository::PathMove;
-
-pub(super) struct NewContent {
-    pub(super) folder: Option<DocumentFolderId>,
-    pub(super) name: String,
-    pub(super) format: DocumentFormat,
-    pub(super) template_id: Option<DocumentTemplateId>,
-    pub(super) bytes: Vec<u8>,
-    pub(super) author: Author,
-    pub(super) message: Option<String>,
-    pub(super) ops: Option<Vec<EditOp>>,
-    pub(super) mime_type: Option<String>,
-}
 
 impl DocumentService {
     pub async fn create_from_template(
@@ -53,6 +42,7 @@ impl DocumentService {
         let ops = request.ops;
         let recorded = (!ops.is_empty()).then(|| ops.clone());
         let (content, media) = (request.content, request.media);
+        let vouched = super::media_admission::vouched_by(&media);
         let instantiated = blocking(move || {
             let mut made = templates
                 .instantiate(&template_id, &params, &codecs)
@@ -91,6 +81,7 @@ impl DocumentService {
                 message: request.message,
                 ops: recorded,
                 mime_type: None,
+                vouched,
             },
         )
         .await
@@ -136,6 +127,7 @@ impl DocumentService {
                 message: None,
                 ops: None,
                 mime_type,
+                vouched: Vec::new(),
             },
         )
         .await

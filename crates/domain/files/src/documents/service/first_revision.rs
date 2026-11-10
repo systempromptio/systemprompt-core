@@ -1,18 +1,31 @@
 //! A new document's first revision: landed in one transaction with its
-//! node ids, as every later revision is.
+//! node ids and its admitted images, as every later revision is.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::DocumentRevisionId;
+use systemprompt_identifiers::{DocumentFolderId, DocumentRevisionId, DocumentTemplateId};
 use systemprompt_models::auth::AuthenticatedUser;
+use systemprompt_models::documents::{DocumentFormat, EditOp};
 
-use super::documents::NewContent;
 use super::landing::{LandResult, Placement, Prepared};
-use super::{CommentPolicy, DocumentService};
+use super::{Author, CommentPolicy, DocumentService};
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{Document, DocumentRevision, NewRevision};
 use crate::documents::nodes::CarryHints;
+
+pub(super) struct NewContent {
+    pub(super) folder: Option<DocumentFolderId>,
+    pub(super) name: String,
+    pub(super) format: DocumentFormat,
+    pub(super) template_id: Option<DocumentTemplateId>,
+    pub(super) bytes: Vec<u8>,
+    pub(super) author: Author,
+    pub(super) message: Option<String>,
+    pub(super) ops: Option<Vec<EditOp>>,
+    pub(super) mime_type: Option<String>,
+    pub(super) vouched: Vec<String>,
+}
 
 impl DocumentService {
     pub(super) async fn first_revision(
@@ -23,6 +36,9 @@ impl DocumentService {
         content: &NewContent,
     ) -> Result<DocumentRevision, DocumentsError> {
         let author = &content.author;
+        let media = self
+            .admissible_media(&who.id, document, &content.bytes, &content.vouched)
+            .await?;
         let next = self
             .project_paths(document.format, content.bytes.clone())
             .await?;
@@ -44,6 +60,7 @@ impl DocumentService {
             hints: CarryHints::default(),
             merged_from: None,
             applied: content.ops.as_ref().map_or(0, Vec::len),
+            media,
         };
         let comments = CommentPolicy::detach();
         let placement = Placement {

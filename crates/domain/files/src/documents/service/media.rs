@@ -46,12 +46,12 @@ pub fn held_media_refs(
 }
 
 #[cfg(feature = "office")]
-fn saved_uploads(bytes: &[u8], wanted: &[String], limit: u64) -> Vec<String> {
+pub(super) fn saved_uploads(bytes: &[u8], wanted: &[String], limit: u64) -> Vec<String> {
     crate::documents::codecs::docx::saved_upload_hashes(bytes, wanted, limit)
 }
 
 #[cfg(not(feature = "office"))]
-const fn saved_uploads(_bytes: &[u8], _wanted: &[String], _limit: u64) -> Vec<String> {
+pub(super) const fn saved_uploads(_bytes: &[u8], _wanted: &[String], _limit: u64) -> Vec<String> {
     Vec::new()
 }
 

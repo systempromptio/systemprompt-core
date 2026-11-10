@@ -35,7 +35,7 @@ use super::reconcile::WriteBack;
 use super::{Checkpoint, CollabError, CollabService};
 use crate::documents::agents::act_as;
 use crate::documents::engine::{EngineDoc, ModelView};
-use crate::documents::model::{EditLevel, Media};
+use crate::documents::model::EditLevel;
 use crate::documents::models::{RevisionAttribution, RevisionOrigin};
 use crate::documents::repository::CheckpointLease;
 use crate::documents::revision::CommitBody;
@@ -114,7 +114,7 @@ impl CollabService {
                 lock_holder: None,
                 comments: CommentPolicy::detach(),
                 op_id: None,
-                media: Media::new(),
+                media: live.media.clone(),
             },
             trace,
         );
@@ -240,6 +240,7 @@ impl CollabService {
                     bytes,
                     author: session_author(&body, author, fence),
                     message: Some(CONFLICT_MESSAGE.to_owned()),
+                    media: live.media.clone(),
                 },
                 trace,
             )
