@@ -41,8 +41,7 @@ use systemprompt_security::credential::TokenCache;
 
 use super::auth::AccessValidator;
 use super::backend::{
-    AGENT_REQUEST_BODY_LIMIT, MCP_REQUEST_BODY_LIMIT, ProxyError, RequestBuilder, ResponseHandler,
-    UrlResolver,
+    MCP_REQUEST_BODY_LIMIT, ProxyError, RequestBuilder, ResponseHandler, UrlResolver,
 };
 use super::client::ClientPool;
 use super::resolver::ServiceResolver;
@@ -194,7 +193,7 @@ impl ProxyService {
         let body_limit = if is_mcp {
             MCP_REQUEST_BODY_LIMIT
         } else {
-            AGENT_REQUEST_BODY_LIMIT
+            systemprompt_models::net::AGENT_REQUEST_BODY_LIMIT_BYTES
         };
         RequestBuilder::ensure_declared_length(request.headers(), body_limit)?;
         if is_mcp {

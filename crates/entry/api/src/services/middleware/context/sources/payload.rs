@@ -6,11 +6,37 @@
 use axum::body::Body;
 use axum::extract::Request;
 use bytes::Bytes;
+use serde::Deserialize;
 use serde_json::Value;
 use systemprompt_models::execution::{ContextExtractionError, ContextIdSource};
-use systemprompt_models::net::BUFFERED_BODY_LIMIT_BYTES;
 
 use crate::services::middleware::body::{BodyReadError, read_request_bounded};
+
+// JSON: the A2A JSON-RPC envelope is an external protocol boundary. Only the
+// routing fields are typed; every other field (message parts, file bytes) is
+// skipped by serde without being allocated, so parsing costs no second copy
+// of the body.
+#[derive(Debug, Deserialize)]
+struct Envelope {
+    #[serde(default)]
+    method: Option<Value>,
+    #[serde(default)]
+    params: Option<Params>,
+}
+
+#[derive(Debug, Deserialize)]
+struct Params {
+    #[serde(default)]
+    id: Option<Value>,
+    #[serde(default)]
+    message: Option<Message>,
+}
+
+#[derive(Debug, Deserialize)]
+struct Message {
+    #[serde(default, rename = "contextId")]
+    context_id: Option<Value>,
+}
 
 #[derive(Debug, Clone, Copy)]
 pub struct PayloadSource;
@@ -19,9 +45,7 @@ impl PayloadSource {
     pub fn extract_context_source(
         body_bytes: &[u8],
     ) -> Result<ContextIdSource, ContextExtractionError> {
-        // JSON: A2A JSON-RPC envelope is an external protocol boundary; the
-        // method name drives which typed field is read, so the shape is dynamic.
-        let payload: Value = serde_json::from_slice(body_bytes).map_err(|error| {
+        let envelope: Envelope = serde_json::from_slice(body_bytes).map_err(|error| {
             tracing::debug!(%error, "request payload is not valid JSON");
             ContextExtractionError::InvalidHeaderValue {
                 header: "payload".to_owned(),
@@ -29,13 +53,18 @@ impl PayloadSource {
             }
         })?;
 
-        let method = payload.get("method").and_then(|m| m.as_str()).unwrap_or("");
+        let method = envelope
+            .method
+            .as_ref()
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        let params = envelope.params;
 
         if method.starts_with("tasks/") {
-            let task_id = payload
-                .get("params")
-                .and_then(|p| p.get("id"))
-                .and_then(|id| id.as_str())
+            let task_id = params
+                .as_ref()
+                .and_then(|p| p.id.as_ref())
+                .and_then(Value::as_str)
                 .map(str::to_owned)
                 .ok_or_else(|| ContextExtractionError::InvalidHeaderValue {
                     header: "params.id".to_owned(),
@@ -47,32 +76,34 @@ impl PayloadSource {
             });
         }
 
-        payload
-            .get("params")
-            .and_then(|p| p.get("message"))
-            .and_then(|m| m.get("contextId"))
-            .and_then(|c| c.as_str())
+        params
+            .and_then(|p| p.message)
+            .and_then(|m| m.context_id)
+            .as_ref()
+            .and_then(Value::as_str)
             .map(|s| ContextIdSource::Direct(s.to_owned()))
             .ok_or(ContextExtractionError::MissingContextId)
     }
 
     pub async fn read_and_reconstruct(
         request: Request<Body>,
+        body_limit: usize,
     ) -> Result<(Bytes, Request<Body>), ContextExtractionError> {
-        let (parts, body_bytes) = read_request_bounded(request, BUFFERED_BODY_LIMIT_BYTES)
-            .await
-            .map_err(|error| match error {
-                BodyReadError::TooLarge { limit } => {
-                    ContextExtractionError::PayloadTooLarge { limit }
-                },
-                BodyReadError::Unreadable(source) => {
-                    tracing::debug!(error = %source, "request body could not be read");
-                    ContextExtractionError::InvalidHeaderValue {
-                        header: "body".to_owned(),
-                        reason: "request body could not be read".to_owned(),
-                    }
-                },
-            })?;
+        let (parts, body_bytes) =
+            read_request_bounded(request, body_limit)
+                .await
+                .map_err(|error| match error {
+                    BodyReadError::TooLarge { limit } => {
+                        ContextExtractionError::PayloadTooLarge { limit }
+                    },
+                    BodyReadError::Unreadable(source) => {
+                        tracing::debug!(error = %source, "request body could not be read");
+                        ContextExtractionError::InvalidHeaderValue {
+                            header: "body".to_owned(),
+                            reason: "request body could not be read".to_owned(),
+                        }
+                    },
+                })?;
 
         let new_request = Request::from_parts(parts, Body::from(body_bytes.clone()));
 

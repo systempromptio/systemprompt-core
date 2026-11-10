@@ -8,6 +8,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::Router;
+use axum::extract::DefaultBodyLimit;
 use std::sync::Arc;
 use systemprompt_extension::LoaderError;
 
@@ -90,6 +91,9 @@ pub(super) fn mount_agent(
     router = router.nest(
         ApiPaths::AGENTS_BASE,
         crate::routes::proxy::agents::router(ctx)
+            .layer(DefaultBodyLimit::max(
+                systemprompt_models::net::AGENT_REQUEST_BODY_LIMIT_BYTES,
+            ))
             .with_rate_limit(limits, rate_config.agents_per_second, "agents")?
             .with_auth(a2a_middleware, AuthzPolicy::authenticated()),
     );

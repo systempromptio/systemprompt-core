@@ -243,9 +243,12 @@ async fn user_only_rejects_when_extractor_fails() {
 #[tokio::test]
 async fn a2a_admits_when_extractor_succeeds_and_runs_extract_from_request() {
     let calls = Arc::new(AtomicUsize::new(0));
-    let mw = A2AContextMiddleware::new(OkExtractor {
-        calls: Arc::clone(&calls),
-    });
+    let mw = A2AContextMiddleware::new(
+        OkExtractor {
+            calls: Arc::clone(&calls),
+        },
+        1024,
+    );
     let app = pipeline_with_session(
         move |r| {
             r.layer(from_fn(move |req, next| {
@@ -368,7 +371,7 @@ async fn mcp_admits_when_extractor_succeeds() {
 
 #[tokio::test]
 async fn a2a_rejects_when_extractor_fails() {
-    let mw = A2AContextMiddleware::new(FailExtractor);
+    let mw = A2AContextMiddleware::new(FailExtractor, 1024);
     let app = pipeline_with_session(
         move |r| {
             r.layer(from_fn(move |req, next| {
@@ -397,7 +400,7 @@ fn flavour_debug_impls_hide_the_extractor() {
         "UserOnlyContextMiddleware"
     );
     assert_eq!(
-        format!("{:?}", A2AContextMiddleware::new(FailExtractor)),
+        format!("{:?}", A2AContextMiddleware::new(FailExtractor, 1024)),
         "A2AContextMiddleware"
     );
     assert_eq!(

@@ -91,7 +91,10 @@ fn build_routes(
 
     let public_middleware = PublicContextMiddleware::new();
     let user_middleware = UserOnlyContextMiddleware::new(jwt_extractor.clone());
-    let a2a_middleware = A2AContextMiddleware::new(jwt_extractor.clone());
+    let a2a_middleware = A2AContextMiddleware::new(
+        jwt_extractor.clone(),
+        systemprompt_models::net::AGENT_REQUEST_BODY_LIMIT_BYTES,
+    );
     let mcp_middleware = McpContextMiddleware::new(jwt_extractor);
 
     let refresh_lock = RefreshLock::default();

@@ -57,7 +57,6 @@ impl UrlResolver {
 }
 
 pub(super) const MCP_REQUEST_BODY_LIMIT: usize = 4 * 1024 * 1024;
-pub(super) const AGENT_REQUEST_BODY_LIMIT: usize = 100 * 1024 * 1024;
 
 #[derive(Debug, Clone, Copy)]
 pub(super) struct RequestBuilder;

@@ -29,7 +29,8 @@ use systemprompt_identifiers::ServiceName;
 use systemprompt_runtime::AppContext;
 
 use super::ProxyService;
-use crate::services::proxy::backend::{AGENT_REQUEST_BODY_LIMIT, ProxyError, ResponseHandler};
+use crate::services::proxy::backend::{ProxyError, ResponseHandler};
+use systemprompt_models::net::AGENT_REQUEST_BODY_LIMIT_BYTES;
 
 pub fn owner_url(advertise_url: &str, path_and_query: &str) -> String {
     let base = advertise_url.trim_end_matches('/');
@@ -133,7 +134,7 @@ impl ProxyService {
                     url: &url,
                     headers: &headers,
                     service_name,
-                    body_limit: AGENT_REQUEST_BODY_LIMIT,
+                    body_limit: AGENT_REQUEST_BODY_LIMIT_BYTES,
                 },
             )
             .await?;

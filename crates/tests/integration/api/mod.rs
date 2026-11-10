@@ -241,6 +241,9 @@ mod routes_health_discovery;
 mod routes_agent_webhook;
 
 #[cfg(test)]
+#[path = "routes_agent_body_limit.rs"]
+mod routes_agent_body_limit;
+#[cfg(test)]
 #[path = "routes_proxy_forward.rs"]
 mod routes_proxy_forward;
 

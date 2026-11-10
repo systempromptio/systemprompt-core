@@ -189,6 +189,7 @@ impl JwtContextExtractor {
     async fn extract_from_request_impl(
         &self,
         request: Request<Body>,
+        body_limit: usize,
     ) -> Result<(RequestContext, Request<Body>), ContextExtractionError> {
         use crate::services::middleware::context::sources::{ContextIdSource, PayloadSource};
 
@@ -208,7 +209,7 @@ impl JwtContextExtractor {
         let user = self.validate(&jwt_context, " (A2A route)").await?;
 
         let (body_bytes, reconstructed_request) =
-            PayloadSource::read_and_reconstruct(request).await?;
+            PayloadSource::read_and_reconstruct(request, body_limit).await?;
 
         let context_source = PayloadSource::extract_context_source(&body_bytes)?;
         let (context_id, task_id_from_payload) = match context_source {
@@ -263,7 +264,8 @@ impl ContextExtractor for JwtContextExtractor {
     async fn extract_from_request(
         &self,
         request: Request<Body>,
+        body_limit: usize,
     ) -> Result<(RequestContext, Request<Body>), ContextExtractionError> {
-        self.extract_from_request_impl(request).await
+        self.extract_from_request_impl(request, body_limit).await
     }
 }

@@ -145,6 +145,7 @@ impl UserOnlyContextMiddleware {
 #[derive(Clone)]
 pub struct A2AContextMiddleware {
     extractor: DynExtractor,
+    body_limit: usize,
 }
 
 impl std::fmt::Debug for A2AContextMiddleware {
@@ -154,12 +155,13 @@ impl std::fmt::Debug for A2AContextMiddleware {
 }
 
 impl A2AContextMiddleware {
-    pub fn new<E>(extractor: E) -> Self
+    pub fn new<E>(extractor: E, body_limit: usize) -> Self
     where
         E: ContextExtractor + Send + Sync + 'static,
     {
         Self {
             extractor: Arc::new(extractor),
+            body_limit,
         }
     }
 
@@ -168,7 +170,11 @@ impl A2AContextMiddleware {
         let path = request.uri().path().to_owned();
         let method = request.method().to_string();
 
-        match self.extractor.extract_from_request(request).await {
+        match self
+            .extractor
+            .extract_from_request(request, self.body_limit)
+            .await
+        {
             Ok((context, reconstructed_request)) => {
                 let span = create_request_span(&context);
                 let mut req = reconstructed_request;

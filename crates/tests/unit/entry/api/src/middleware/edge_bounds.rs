@@ -61,7 +61,7 @@ async fn an_a2a_body_past_the_limit_is_a_413_not_a_buffered_read() {
     let (parts, body) = endless_body_request().into_parts();
     let request = Request::from_parts(parts, body);
 
-    let error = PayloadSource::read_and_reconstruct(request)
+    let error = PayloadSource::read_and_reconstruct(request, BUFFERED_BODY_LIMIT_BYTES)
         .await
         .map(|_| ())
         .expect_err("an oversized A2A body is refused");
@@ -85,7 +85,7 @@ async fn an_a2a_body_past_the_limit_is_a_413_not_a_buffered_read() {
 async fn an_a2a_body_whose_declared_length_is_past_the_limit_is_refused_without_reading() {
     let error = tokio::time::timeout(
         std::time::Duration::from_secs(5),
-        PayloadSource::read_and_reconstruct(declared_oversize_request()),
+        PayloadSource::read_and_reconstruct(declared_oversize_request(), BUFFERED_BODY_LIMIT_BYTES),
     )
     .await
     .expect("the refusal must not wait on a body that never arrives")

@@ -93,7 +93,7 @@ async fn reading_the_body_hands_back_a_request_that_still_carries_it() {
         .body(Body::from(raw.to_vec()))
         .expect("request builds");
 
-    let (bytes, rebuilt) = PayloadSource::read_and_reconstruct(request)
+    let (bytes, rebuilt) = PayloadSource::read_and_reconstruct(request, 1024)
         .await
         .expect("a well-formed body reads");
 

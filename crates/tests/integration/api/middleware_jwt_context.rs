@@ -106,7 +106,12 @@ async fn context_id_header_without_auth_is_forbidden() -> Result<()> {
         .uri("/a2a")
         .header("x-context-id", "abc")
         .body(Body::empty())?;
-    let result = extractor.extract_from_request(request).await;
+    let result = extractor
+        .extract_from_request(
+            request,
+            systemprompt_models::net::AGENT_REQUEST_BODY_LIMIT_BYTES,
+        )
+        .await;
     assert!(result.is_err(), "x-context-id without auth is forbidden");
     Ok(())
 }
@@ -124,7 +129,12 @@ async fn a2a_request_reads_direct_context_id_from_body() -> Result<()> {
         .uri("/a2a")
         .header("authorization", format!("Bearer {}", fixture.jwt.as_str()))
         .body(Body::from(body))?;
-    let (ctx, _req) = extractor.extract_from_request(request).await?;
+    let (ctx, _req) = extractor
+        .extract_from_request(
+            request,
+            systemprompt_models::net::AGENT_REQUEST_BODY_LIMIT_BYTES,
+        )
+        .await?;
     assert_eq!(
         ctx.context_id().as_str(),
         "22222222-2222-2222-2222-222222222222"
@@ -145,7 +155,12 @@ async fn a2a_request_reads_task_id_from_task_method() -> Result<()> {
         .uri("/a2a")
         .header("authorization", format!("Bearer {}", fixture.jwt.as_str()))
         .body(Body::from(body))?;
-    let (ctx, _req) = extractor.extract_from_request(request).await?;
+    let (ctx, _req) = extractor
+        .extract_from_request(
+            request,
+            systemprompt_models::net::AGENT_REQUEST_BODY_LIMIT_BYTES,
+        )
+        .await?;
     assert_eq!(ctx.task_id().map(|t| t.as_str()), Some("task-abc-123"));
     Ok(())
 }
@@ -159,7 +174,12 @@ async fn a2a_request_missing_context_id_is_rejected() -> Result<()> {
         .uri("/a2a")
         .header("authorization", format!("Bearer {}", fixture.jwt.as_str()))
         .body(Body::from(body))?;
-    let result = extractor.extract_from_request(request).await;
+    let result = extractor
+        .extract_from_request(
+            request,
+            systemprompt_models::net::AGENT_REQUEST_BODY_LIMIT_BYTES,
+        )
+        .await;
     assert!(result.is_err(), "no contextId in body must fail");
     Ok(())
 }

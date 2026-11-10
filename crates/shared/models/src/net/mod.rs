@@ -31,6 +31,7 @@ use std::time::Duration;
 
 pub const BUFFERED_BODY_LIMIT_BYTES: usize = 8 * 1024 * 1024;
 pub const INFERENCE_BODY_LIMIT_BYTES: usize = 32 * 1024 * 1024;
+pub const AGENT_REQUEST_BODY_LIMIT_BYTES: usize = 100 * 1024 * 1024;
 
 #[must_use]
 pub fn gateway_request_body_limit(path: &str) -> usize {
