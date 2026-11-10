@@ -53,6 +53,11 @@ impl Db {
             .create(&format!("owner-{}", self.tag), &self.email(), None, None)
             .await
             .expect("create owner");
+        sqlx::query("UPDATE users SET email_verified = true WHERE id = $1")
+            .bind(user.id.as_str())
+            .execute(self.pool.pool().as_ref())
+            .await
+            .expect("verify email");
         let roles: Vec<String> = roles.iter().map(|r| (*r).to_owned()).collect();
         self.repo
             .assign_roles(&user.id, &roles)
@@ -223,4 +228,53 @@ async fn a_provisioned_account_takes_the_directory_roles_and_follows_them() {
         "a re-login of a provisioned account re-applies the directory's roles"
     );
     h.cleanup(&user_id).await;
+}
+
+#[tokio::test]
+async fn an_existing_link_to_a_suspended_account_is_refused_without_a_session() {
+    let h = db_harness().await;
+    success_return_to(&h.sign_in(OPEN, "").await);
+    let (user_id, _) = h.link_row(OPEN_ISSUER).await.expect("link row");
+    let user_id = UserId::new(user_id);
+    h.repo
+        .update_status(&user_id, UserStatus::Suspended)
+        .await
+        .expect("suspend");
+
+    let outcome = h.sign_in(OPEN, "").await;
+
+    assert_eq!(refusal_reason(&outcome), "account_unavailable");
+    h.cleanup(&user_id).await;
+}
+
+#[tokio::test]
+async fn an_existing_link_to_a_service_account_is_refused_without_a_session() {
+    let h = db_harness().await;
+    let creator = h.owner(&["user"]).await;
+    let service = h
+        .repo
+        .ensure_service_account(NewServiceAccount {
+            name: format!("svc-{}", h.tag),
+            email: format!("svc-{}@example.test", h.tag),
+            created_by: creator.id.clone(),
+        })
+        .await
+        .expect("service account")
+        .user;
+    sqlx::query(
+        "INSERT INTO federated_identities (issuer, external_sub, user_id) VALUES ($1, $2, $3)",
+    )
+    .bind(OPEN_ISSUER)
+    .bind(h.sub())
+    .bind(service.id.as_str())
+    .execute(h.pool.pool().as_ref())
+    .await
+    .expect("seed link");
+
+    assert_eq!(
+        refusal_reason(&h.sign_in(OPEN, "").await),
+        "account_unavailable"
+    );
+    h.cleanup(&service.id).await;
+    h.cleanup(&creator.id).await;
 }

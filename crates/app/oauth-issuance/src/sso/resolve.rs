@@ -1,18 +1,17 @@
 //! From an admitted identity to a local user: resolve it through the one
 //! federated resolution ([`UserProvider::resolve_federated`]) under the
-//! provider's link policy, refuse anyone who may not sign in interactively,
-//! and settle roles through the registered [`super::RoleResolver`] — only on
-//! an account the provider itself provisioned. A pre-existing account linked
-//! by email keeps the roles it already had.
+//! provider's link policy — which also refuses anyone who may not sign in
+//! interactively — and settle roles through the registered
+//! [`super::RoleResolver`] — only on an account the provider itself
+//! provisioned. A pre-existing account linked by email keeps the roles it
+//! already had.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_identifiers::UserId;
 use systemprompt_traits::auth::{AuthProviderError, UserProvider};
-use systemprompt_traits::sso::{
-    ExternalIdentity, GatedIdentity, SsoError, SsoProvider, SsoRefusal,
-};
+use systemprompt_traits::sso::{ExternalIdentity, GatedIdentity, SsoError, SsoProvider};
 use systemprompt_traits::{FederatedIdentityClaims, FederatedLink};
 
 use super::roles::RoleResolver;
@@ -55,10 +54,6 @@ pub(super) async fn resolve_user(
         .await
         .map_err(SsoError::internal)?
         .ok_or_else(|| SsoError::internal("federated link points at a missing user"))?;
-    if !user.is_active || user.ensure_interactive().is_err() {
-        return Err(SsoError::Refused(SsoRefusal::NotProvisioned));
-    }
-
     let held_roles = if resolution.link.issuer_owns_roles() {
         let resolved = roles.resolve(&resolution.user_id, &gated.roles).await?;
         users

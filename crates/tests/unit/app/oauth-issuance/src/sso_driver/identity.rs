@@ -10,7 +10,6 @@ use super::providers::{
     CLOSED, METADATA_BODY, OPEN, OPEN_ISSUER, RESOLVED_ROLE, Recorded, events_for_sub,
     refusals_with_reason,
 };
-use super::stores::auth_user;
 use super::{Harness, finish, harness, refusal_reason, start, success_return_to, unique};
 
 
@@ -131,21 +130,6 @@ async fn directory_groups_map_to_roles_and_the_resolver_has_the_last_word() {
         h.users.roles_of(&user_id),
         Some(vec!["admin".to_owned(), RESOLVED_ROLE.to_owned()])
     );
-}
-
-#[tokio::test]
-async fn a_federated_link_to_a_deactivated_user_is_not_provisioned() {
-    let h = harness().await;
-    let sub = unique("sub");
-    let mut user = auth_user(&unique("user"), "gone@example.test");
-    user.is_active = false;
-    h.users.seed(user.clone());
-    h.users.seed_link(OPEN_ISSUER, &sub, &user.id, false);
-
-    let outcome = sign_in(&h, &[("sub", &sub), ("email", "gone@example.test")]).await;
-
-    assert_eq!(refusal_reason(&outcome), "not_provisioned");
-    assert!(h.sessions.created.lock().expect("lock").is_empty());
 }
 
 #[tokio::test]

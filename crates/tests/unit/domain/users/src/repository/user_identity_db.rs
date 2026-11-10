@@ -313,6 +313,11 @@ async fn verified_federated_email_links_to_the_existing_local_account() {
         )
         .await
         .expect("create existing user");
+    sqlx::query("UPDATE users SET email_verified = true WHERE id = $1")
+        .bind(existing.id.as_str())
+        .execute(ctx.raw().as_ref())
+        .await
+        .expect("verify email");
 
     let issuer = format!("https://idp-{t}.invalid");
     let external_sub = format!("sub-{t}");

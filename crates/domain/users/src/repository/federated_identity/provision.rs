@@ -27,7 +27,7 @@ pub(super) async fn insert_federated_user(
             status, email_verified, roles, is_bot,
             created_at, updated_at
         )
-        VALUES ($1, $2, $3, $4, $5, $6, false, $7::TEXT[], false, $8, $8)
+        VALUES ($1, $2, $3, $4, $5, $6, $9, $7::TEXT[], false, $8, $8)
         RETURNING id, name, email, full_name, display_name, status, email_verified,
                   roles, avatar_url, is_bot, is_scanner, created_at, updated_at, account_kind
         "#,
@@ -39,6 +39,7 @@ pub(super) async fn insert_federated_user(
         fields.status.as_str(),
         &fields.roles,
         fields.now,
+        fields.email_verified,
     )
     .fetch_one(&mut **tx)
     .await
@@ -53,6 +54,7 @@ struct NewFederatedUser {
     id: UserId,
     name: String,
     email: String,
+    email_verified: bool,
     display_name: Option<String>,
     status: UserStatus,
     roles: Vec<String>,
@@ -92,6 +94,7 @@ impl NewFederatedUser {
             id: UserId::generate(),
             name,
             email,
+            email_verified: claims.email_verified && claims.email.is_some(),
             display_name: claims.name.clone(),
             status: UserStatus::Active,
             roles: normalised_roles(&claims.roles),

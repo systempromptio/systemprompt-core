@@ -71,6 +71,10 @@ impl Ctx {
         let user = repo
             .create(&format!("member-{}", self.tag), &self.email(), None, None)
             .await?;
+        sqlx::query("UPDATE users SET email_verified = true WHERE id = $1")
+            .bind(user.id.as_str())
+            .execute(self.pool.pool().as_ref())
+            .await?;
         let roles: Vec<String> = roles.iter().map(|r| (*r).to_owned()).collect();
         Ok(repo.assign_roles(&user.id, &roles).await?)
     }
@@ -170,5 +174,49 @@ async fn a_suspended_owner_is_never_claimed_by_a_workspace_sender() -> anyhow::R
     assert!(reason.contains("cannot be linked"), "{reason}");
     assert!(ctx.linked_user().await?.is_none());
     ctx.cleanup(&owner.id).await;
+    Ok(())
+}
+
+async fn first_contact(ctx: &Ctx) -> anyhow::Result<UserId> {
+    let outcome = dispatch_messaging(&ctx.app, ctx.message(LinkPolicy::default()))
+        .await
+        .map_err(|e| anyhow::anyhow!("dispatch failed: {e}"))?;
+    assert!(
+        matches!(outcome, DispatchOutcome::Replied(_)),
+        "{outcome:?}"
+    );
+    Ok(UserId::new(ctx.linked_user().await?.expect("link row")))
+}
+
+#[tokio::test]
+async fn an_existing_link_to_a_suspended_account_is_denied_before_any_token() -> anyhow::Result<()>
+{
+    let ctx = setup().await?;
+    let id = first_contact(&ctx).await?;
+    ctx.app
+        .user_repository()
+        .update_status(&id, UserStatus::Suspended)
+        .await?;
+
+    let reason = denied(&ctx, LinkPolicy::default()).await?;
+
+    assert!(reason.contains("not active"), "{reason}");
+    ctx.cleanup(&id).await;
+    Ok(())
+}
+
+#[tokio::test]
+async fn an_existing_link_to_a_bot_account_is_denied_before_any_token() -> anyhow::Result<()> {
+    let ctx = setup().await?;
+    let id = first_contact(&ctx).await?;
+    sqlx::query("UPDATE users SET is_bot = true WHERE id = $1")
+        .bind(id.as_str())
+        .execute(ctx.pool.pool().as_ref())
+        .await?;
+
+    let reason = denied(&ctx, LinkPolicy::default()).await?;
+
+    assert!(reason.contains("not active"), "{reason}");
+    ctx.cleanup(&id).await;
     Ok(())
 }

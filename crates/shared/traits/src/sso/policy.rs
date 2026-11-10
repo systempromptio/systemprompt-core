@@ -68,6 +68,7 @@ pub enum SsoRefusal {
     NotProvisioned,
     EmailInUse,
     LinkIneligible,
+    AccountUnavailable,
 }
 
 impl From<FederatedRefusal> for SsoRefusal {
@@ -76,6 +77,7 @@ impl From<FederatedRefusal> for SsoRefusal {
             FederatedRefusal::EmailInUse => Self::EmailInUse,
             FederatedRefusal::TargetIneligible => Self::LinkIneligible,
             FederatedRefusal::NotProvisioned => Self::NotProvisioned,
+            FederatedRefusal::AccountUnavailable => Self::AccountUnavailable,
         }
     }
 }

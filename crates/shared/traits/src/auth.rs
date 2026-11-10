@@ -52,6 +52,9 @@ pub enum AuthProviderError {
     #[error("Federated sign-in refused: {}", FederatedRefusal::NotProvisioned)]
     FederatedNotProvisioned,
 
+    #[error("Federated sign-in refused: {}", FederatedRefusal::AccountUnavailable)]
+    FederatedAccountUnavailable,
+
     #[error("Internal error: {0}")]
     Internal(#[source] BoxedSource),
 }
@@ -63,6 +66,7 @@ impl AuthProviderError {
             Self::FederatedEmailInUse => Some(FederatedRefusal::EmailInUse),
             Self::FederatedTargetIneligible => Some(FederatedRefusal::TargetIneligible),
             Self::FederatedNotProvisioned => Some(FederatedRefusal::NotProvisioned),
+            Self::FederatedAccountUnavailable => Some(FederatedRefusal::AccountUnavailable),
             _ => None,
         }
     }
@@ -74,6 +78,7 @@ impl From<FederatedRefusal> for AuthProviderError {
             FederatedRefusal::EmailInUse => Self::FederatedEmailInUse,
             FederatedRefusal::TargetIneligible => Self::FederatedTargetIneligible,
             FederatedRefusal::NotProvisioned => Self::FederatedNotProvisioned,
+            FederatedRefusal::AccountUnavailable => Self::FederatedAccountUnavailable,
         }
     }
 }
@@ -175,14 +180,17 @@ impl LinkPolicy {
 
 /// Why [`UserProvider::resolve_federated`] refused an identity.
 ///
-/// A link target is ineligible when it is not active, is a service account,
-/// or holds any role other than `user` — those accounts are never claimed by
-/// an external identity, whatever the policy says.
+/// A link target is ineligible when its email is unverified, it is not
+/// active, is a service or bot account, or holds any role other than `user` —
+/// those accounts are never claimed by an external identity, whatever the
+/// policy says. `AccountUnavailable` refuses a resolved account (an existing
+/// link included) that is not active or not an interactive human account.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FederatedRefusal {
     EmailInUse,
     TargetIneligible,
     NotProvisioned,
+    AccountUnavailable,
 }
 
 impl std::fmt::Display for FederatedRefusal {
@@ -191,6 +199,9 @@ impl std::fmt::Display for FederatedRefusal {
             Self::EmailInUse => "an existing account owns this email and linking is disabled",
             Self::TargetIneligible => "the account owning this email cannot be linked",
             Self::NotProvisioned => "no account exists and provisioning is disabled",
+            Self::AccountUnavailable => {
+                "the account is not active or not an interactive human account"
+            },
         })
     }
 }

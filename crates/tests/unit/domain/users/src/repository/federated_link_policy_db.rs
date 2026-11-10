@@ -8,24 +8,24 @@ use systemprompt_traits::{FederatedIdentityClaims, FederatedLink, FederatedRefus
 use systemprompt_users::{NewServiceAccount, User, UserError, UserRepository, UserStatus};
 use uuid::Uuid;
 
-const LINK_ON: LinkPolicy = LinkPolicy {
+pub(super) const LINK_ON: LinkPolicy = LinkPolicy {
     link_by_email: true,
     auto_provision: true,
 };
-const LINK_OFF: LinkPolicy = LinkPolicy {
+pub(super) const LINK_OFF: LinkPolicy = LinkPolicy {
     link_by_email: false,
     auto_provision: true,
 };
 
-struct Ctx {
-    repo: UserRepository,
-    pool: systemprompt_database::DbPool,
-    issuer: String,
-    sub: String,
-    tag: String,
+pub(super) struct Ctx {
+    pub(super) repo: UserRepository,
+    pub(super) pool: systemprompt_database::DbPool,
+    pub(super) issuer: String,
+    pub(super) sub: String,
+    pub(super) tag: String,
 }
 
-async fn setup() -> Ctx {
+pub(super) async fn setup() -> Ctx {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
     let tag = Uuid::new_v4().simple().to_string();
@@ -39,18 +39,28 @@ async fn setup() -> Ctx {
 }
 
 impl Ctx {
-    fn email(&self) -> String {
+    pub(super) fn email(&self) -> String {
         format!("owner-{}@link.invalid", self.tag)
     }
 
-    async fn ordinary(&self) -> User {
+    pub(super) async fn unverified(&self) -> User {
         self.repo
             .create(&format!("owner-{}", self.tag), &self.email(), None, None)
             .await
             .expect("create owner")
     }
 
-    async fn with_roles(&self, roles: &[&str]) -> User {
+    pub(super) async fn ordinary(&self) -> User {
+        let user = self.unverified().await;
+        sqlx::query("UPDATE users SET email_verified = true WHERE id = $1")
+            .bind(user.id.as_str())
+            .execute(self.pool.pool().as_ref())
+            .await
+            .expect("verify email");
+        user
+    }
+
+    pub(super) async fn with_roles(&self, roles: &[&str]) -> User {
         let user = self.ordinary().await;
         let roles: Vec<String> = roles.iter().map(|r| (*r).to_owned()).collect();
         self.repo
@@ -59,7 +69,7 @@ impl Ctx {
             .expect("assign roles")
     }
 
-    fn claims(&self, roles: &[&str]) -> FederatedIdentityClaims {
+    pub(super) fn claims(&self, roles: &[&str]) -> FederatedIdentityClaims {
         FederatedIdentityClaims {
             email: Some(self.email().to_uppercase()),
             email_verified: true,
@@ -69,7 +79,7 @@ impl Ctx {
         }
     }
 
-    async fn resolve(
+    pub(super) async fn resolve(
         &self,
         roles: &[&str],
         policy: &LinkPolicy,
@@ -79,7 +89,7 @@ impl Ctx {
             .await
     }
 
-    async fn link_row(&self) -> Option<(String, bool)> {
+    pub(super) async fn link_row(&self) -> Option<(String, bool)> {
         sqlx::query_as::<_, (String, bool)>(
             "SELECT user_id, provisioned FROM federated_identities WHERE issuer = $1 AND \
              external_sub = $2",
@@ -91,7 +101,7 @@ impl Ctx {
         .expect("link probe")
     }
 
-    async fn roles_of(&self, id: &UserId) -> Vec<String> {
+    pub(super) async fn roles_of(&self, id: &UserId) -> Vec<String> {
         self.repo
             .find_by_id(id)
             .await
@@ -100,12 +110,12 @@ impl Ctx {
             .roles
     }
 
-    async fn cleanup(&self, id: &UserId) {
+    pub(super) async fn cleanup(&self, id: &UserId) {
         let _ = self.repo.delete(id).await;
     }
 }
 
-fn refusal(result: Result<(User, FederatedLink), UserError>) -> FederatedRefusal {
+pub(super) fn refusal(result: Result<(User, FederatedLink), UserError>) -> FederatedRefusal {
     match result {
         Err(UserError::FederatedRefused(refusal)) => refusal,
         other => panic!("expected a federated refusal, got {other:?}"),

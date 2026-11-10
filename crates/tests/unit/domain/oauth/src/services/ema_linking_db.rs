@@ -71,6 +71,11 @@ impl Ctx {
             .create(&format!("employee-{}", self.tag), &self.email(), None, None)
             .await
             .expect("create owner");
+        sqlx::query("UPDATE users SET email_verified = true WHERE id = $1")
+            .bind(user.id.as_str())
+            .execute(self.pool.pool().as_ref())
+            .await
+            .expect("verify email");
         let roles: Vec<String> = roles.iter().map(|r| (*r).to_owned()).collect();
         self.repo
             .assign_roles(&user.id, &roles)
@@ -219,4 +224,54 @@ async fn a_new_enterprise_identity_is_provisioned_as_an_ordinary_user() {
     assert_eq!(ctx.link_count().await, 1);
     assert_eq!(ctx.roles_of(&linked.user_id).await, vec!["user".to_owned()]);
     ctx.cleanup(&linked.user_id).await;
+}
+
+#[tokio::test]
+async fn an_existing_link_to_a_suspended_account_mints_nothing() {
+    let ctx = setup().await;
+    let principal = ctx.principal(LinkPolicy::default());
+    let first = link_enterprise_principal(&ctx.state, &principal)
+        .await
+        .expect("provisioned");
+    ctx.repo
+        .update_status(&first.user_id, UserStatus::Suspended)
+        .await
+        .expect("suspend");
+
+    let result = link_enterprise_principal(&ctx.state, &principal).await;
+
+    assert_refused(result, "not active");
+    ctx.cleanup(&first.user_id).await;
+}
+
+#[tokio::test]
+async fn an_existing_link_to_a_service_account_mints_nothing() {
+    let ctx = setup().await;
+    let creator = ctx.owner(&["user"]).await;
+    let service = ctx
+        .repo
+        .ensure_service_account(NewServiceAccount {
+            name: format!("svc-{}", ctx.tag),
+            email: format!("svc-{}@ema.invalid", ctx.tag),
+            created_by: creator.id.clone(),
+        })
+        .await
+        .expect("service account")
+        .user;
+    let principal = ctx.principal(LinkPolicy::default());
+    sqlx::query(
+        "INSERT INTO federated_identities (issuer, external_sub, user_id) VALUES ($1, $2, $3)",
+    )
+    .bind(&principal.issuer)
+    .bind(&principal.sub)
+    .bind(service.id.as_str())
+    .execute(ctx.pool.pool().as_ref())
+    .await
+    .expect("seed link");
+
+    let result = link_enterprise_principal(&ctx.state, &principal).await;
+
+    assert_refused(result, "not active");
+    ctx.cleanup(&service.id).await;
+    ctx.cleanup(&creator.id).await;
 }

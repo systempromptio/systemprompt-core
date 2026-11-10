@@ -6,8 +6,13 @@
 //! call it. Under one transaction it returns an existing link, links an
 //! eligible account by verified email when the issuer's [`LinkPolicy`] allows
 //! it, refuses a verified email an existing account owns otherwise, or
-//! provisions a fresh account. A link records whether the issuer provisioned
-//! its account, which decides whether the issuer's roles may be written to it.
+//! provisions a fresh account. It is also the one owner of the sign-in status
+//! rule: whichever way it resolves, an account that is not active or not an
+//! interactive human account is refused. An email link needs the issuer's
+//! `email_verified` and a verified email on the target; an email held by a
+//! deleted or archived account refuses rather than colliding. A link records
+//! whether the issuer provisioned its account, which decides whether the
+//! issuer's roles may be written to it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -56,6 +61,7 @@ impl UserRepository {
         if let Some((user, provisioned)) =
             touch_existing_link(&mut tx, issuer, external_sub).await?
         {
+            refuse_unusable(&user)?;
             tx.commit().await?;
             return Ok((user, FederatedLink::Existing { provisioned }));
         }
@@ -82,6 +88,7 @@ impl UserRepository {
             ));
         }
         let user = provision::insert_federated_user(&mut tx, issuer, external_sub, claims).await?;
+        refuse_unusable(&user)?;
         tx.commit().await?;
         Ok((user, FederatedLink::Provisioned))
     }
@@ -95,8 +102,23 @@ fn verified_email(claims: &FederatedIdentityClaims) -> Option<String> {
         .map(normalise_email)
 }
 
+fn is_usable(user: &User) -> bool {
+    user.status == UserStatus::Active && !user.is_service_account() && !user.is_bot
+}
+
+fn refuse_unusable(user: &User) -> Result<()> {
+    if is_usable(user) {
+        Ok(())
+    } else {
+        Err(UserError::FederatedRefused(
+            FederatedRefusal::AccountUnavailable,
+        ))
+    }
+}
+
 fn is_linkable(user: &User) -> bool {
-    user.status == UserStatus::Active
+    user.email_verified
+        && user.status == UserStatus::Active
         && !user.is_service_account()
         && !user.is_bot
         && user
@@ -166,17 +188,15 @@ async fn touch_existing_link(
 }
 
 async fn find_email_owner(tx: &mut Tx<'_>, email: &str) -> Result<Option<User>> {
-    let deleted_status = UserStatus::Deleted.as_str();
     sqlx::query_as!(
         UserRow,
         r#"
         SELECT id, name, email, full_name, display_name, status,
                email_verified, roles, avatar_url, is_bot, is_scanner,
                created_at, updated_at, account_kind
-        FROM users WHERE email = $1 AND status != $2
+        FROM users WHERE email = $1
         "#,
-        email,
-        deleted_status
+        email
     )
     .fetch_optional(&mut **tx)
     .await?

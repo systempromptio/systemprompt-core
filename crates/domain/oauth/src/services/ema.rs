@@ -77,12 +77,6 @@ pub async fn link_enterprise_principal(
         })?
         .ok_or(OauthError::Internal("linked ID-JAG subject vanished"))?;
 
-    if !user.is_active {
-        return Err(OauthError::InvalidGrant(
-            "the enterprise identity is linked to an inactive account".to_owned(),
-        ));
-    }
-
     let permissions = user
         .roles
         .iter()

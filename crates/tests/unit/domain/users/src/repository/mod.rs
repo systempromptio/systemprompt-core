@@ -15,6 +15,7 @@ mod federated_call_paths;
 mod federated_identity;
 mod federated_identity_naming;
 mod federated_link_policy_db;
+mod federated_status_db;
 mod merge_excluded_tables_db;
 mod rate_limit_bucket_db;
 mod user;
