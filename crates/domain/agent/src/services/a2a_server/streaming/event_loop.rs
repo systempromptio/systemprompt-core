@@ -16,6 +16,7 @@ use tokio::sync::mpsc::Sender;
 use crate::models::ExecutionStep;
 use crate::models::a2a::jsonrpc::NumberOrString;
 use crate::models::a2a::{Artifact, Message, TaskState};
+use crate::repository::RuntimeTask;
 use crate::repository::task::TaskRepository;
 use crate::services::a2a_server::processing::message::{
     MessageHandler, MessageStream, StreamEvent,
@@ -32,8 +33,7 @@ pub struct ProcessEventsParams {
     pub tx: Sender<Event>,
     pub request_id: NumberOrString,
     pub stream: MessageStream,
-    pub task_id: TaskId,
-    pub context_id: ContextId,
+    pub task: RuntimeTask,
     pub message_id: MessageId,
     pub original_message: Message,
     pub agent_name: AgentName,
@@ -46,8 +46,7 @@ impl std::fmt::Debug for ProcessEventsParams {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ProcessEventsParams")
             .field("request_id", &self.request_id)
-            .field("task_id", &self.task_id)
-            .field("context_id", &self.context_id)
+            .field("task", &self.task)
             .field("message_id", &self.message_id)
             .field("agent_name", &self.agent_name)
             .finish_non_exhaustive()
@@ -59,8 +58,7 @@ pub async fn process_events(params: ProcessEventsParams) {
         tx,
         request_id,
         mut stream,
-        task_id,
-        context_id,
+        task,
         message_id,
         original_message,
         agent_name,
@@ -75,8 +73,7 @@ pub async fn process_events(params: ProcessEventsParams) {
         tx: &tx,
         request_id: &request_id,
         webhook_context: &webhook_context,
-        context_id: &context_id,
-        task_id: &task_id,
+        task: &task,
         task_repo: &task_repo,
     })
     .await;
@@ -89,8 +86,9 @@ pub async fn process_events(params: ProcessEventsParams) {
         tx: &tx,
         request_id: &request_id,
         webhook_context: &webhook_context,
-        task_id: &task_id,
-        context_id: &context_id,
+        task: &task,
+        task_id: task.task_id(),
+        context_id: task.context_id(),
         message_id: &message_id,
         original_message: &original_message,
         agent_name: &agent_name,
@@ -110,6 +108,7 @@ struct EventLoopCtx<'a> {
     tx: &'a Sender<Event>,
     request_id: &'a NumberOrString,
     webhook_context: &'a WebhookContext,
+    task: &'a RuntimeTask,
     task_id: &'a TaskId,
     context_id: &'a ContextId,
     message_id: &'a MessageId,
@@ -149,7 +148,7 @@ async fn drain_events(
             StreamEvent::Error(error) => {
                 text_state.finalize(ctx.message_id).await;
                 let error = error.to_string();
-                record_failure(ctx.task_repo, ctx.task_id, &error).await;
+                record_failure(ctx.task_repo, ctx.task, &error).await;
                 finish_failed(ctx, error, "STREAM_ERROR").await;
                 break;
             },
@@ -223,8 +222,7 @@ async fn finish_completed(ctx: &EventLoopCtx<'_>, full_text: String, artifacts: 
         webhook_context: ctx.webhook_context,
         full_text,
         artifacts,
-        task_id: ctx.task_id,
-        context_id: ctx.context_id,
+        runtime: ctx.task,
         id: ctx.message_id,
         original_message: ctx.original_message,
         agent_name: ctx.agent_name,
@@ -243,7 +241,7 @@ async fn finish_completed(ctx: &EventLoopCtx<'_>, full_text: String, artifacts: 
                 tracing::error!(task_id = %ctx.task_id, error = %failure.message, "Failed to complete task");
             },
         }
-        record_failure(ctx.task_repo, ctx.task_id, &failure.message).await;
+        record_failure(ctx.task_repo, ctx.task, &failure.message).await;
         finish_failed(ctx, failure.message, failure.code).await;
     }
 }
@@ -264,7 +262,7 @@ async fn finish_failed(ctx: &EventLoopCtx<'_>, error: String, code: &str) {
 async fn finish_cancelled(ctx: &EventLoopCtx<'_>) {
     if let Err(e) = ctx
         .task_repo
-        .update_task_state(ctx.task_id, TaskState::Canceled, &chrono::Utc::now())
+        .update_task_state(ctx.task, TaskState::Canceled, &chrono::Utc::now())
         .await
     {
         tracing::error!(task_id = %ctx.task_id, error = %e, "Failed to mark task cancelled");

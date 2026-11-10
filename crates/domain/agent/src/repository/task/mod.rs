@@ -22,15 +22,15 @@ mod task_updates;
 pub use constructor::TaskConstructor;
 pub use mutations::{CreateTaskParams, create_task, track_agent_in_context};
 pub(crate) use queries::find_task;
-pub use queries::{
-    ListTasksFilter, TaskContextInfo, find_task_context_info, get_tasks_by_user_id, list_tasks,
-    list_tasks_by_context,
-};
+use queries::list_tasks_by_context;
+pub use queries::{ListTasksFilter, get_tasks_by_user_id, list_tasks};
 pub(crate) use state::apply_notification_status;
-pub use state::{transition_task_in_tx, update_task_failed_with_error, update_task_state};
+pub use state::transition_task_in_tx;
+use state::{update_task_failed_with_error, update_task_state};
 pub use task_updates::{PersistMessagesTxParams, UpdateTaskAndSaveMessagesParams};
 
 use crate::models::a2a::{Task, TaskState};
+use crate::repository::{OwnedContext, RuntimeTask, TaskHandle};
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
@@ -78,8 +78,8 @@ impl TaskRepository {
     pub async fn create_task(
         &self,
         params: RepoCreateTaskParams<'_>,
-    ) -> Result<String, RepositoryError> {
-        let result = create_task(CreateTaskParams {
+    ) -> Result<RuntimeTask, RepositoryError> {
+        create_task(CreateTaskParams {
             pool: &self.write_pool,
             task: params.task,
             user_id: params.user_id,
@@ -93,7 +93,10 @@ impl TaskRepository {
             tracing::warn!(error = %e, session_id = %params.session_id, "Failed to increment session task count");
         }
 
-        Ok(result)
+        Ok(RuntimeTask::new(
+            params.task.id.clone(),
+            params.task.context_id.clone(),
+        ))
     }
 
     pub(crate) async fn find_task(
@@ -105,9 +108,9 @@ impl TaskRepository {
 
     pub async fn list_tasks_by_context(
         &self,
-        context_id: &systemprompt_identifiers::ContextId,
+        owned: &OwnedContext,
     ) -> Result<Vec<Task>, RepositoryError> {
-        list_tasks_by_context(&self.pool, &self.constructor, context_id).await
+        list_tasks_by_context(&self.pool, &self.constructor, owned.context_id()).await
     }
 
     pub async fn get_tasks_by_user_id(
@@ -129,36 +132,30 @@ impl TaskRepository {
 
     pub async fn update_task_state(
         &self,
-        task_id: &systemprompt_identifiers::TaskId,
+        task: &impl TaskHandle,
         state: TaskState,
         timestamp: &chrono::DateTime<chrono::Utc>,
     ) -> Result<(), RepositoryError> {
-        update_task_state(&self.write_pool, task_id, state, timestamp).await
+        update_task_state(&self.write_pool, task.task_id(), state, timestamp).await
     }
 
     pub async fn transition_task_in_tx(
         tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
-        task_id: &systemprompt_identifiers::TaskId,
+        task: &RuntimeTask,
         state: TaskState,
         at: &chrono::DateTime<chrono::Utc>,
     ) -> Result<(), RepositoryError> {
-        transition_task_in_tx(tx, task_id, state, at).await
+        transition_task_in_tx(tx, task, state, at).await
     }
 
     pub async fn update_task_failed_with_error(
         &self,
-        task_id: &systemprompt_identifiers::TaskId,
+        task: &impl TaskHandle,
         error_message: &str,
         timestamp: &chrono::DateTime<chrono::Utc>,
     ) -> Result<(), RepositoryError> {
-        update_task_failed_with_error(&self.write_pool, task_id, error_message, timestamp).await
-    }
-
-    pub async fn find_task_context_info(
-        &self,
-        task_id: &systemprompt_identifiers::TaskId,
-    ) -> Result<Option<TaskContextInfo>, RepositoryError> {
-        find_task_context_info(&self.pool, task_id).await
+        update_task_failed_with_error(&self.write_pool, task.task_id(), error_message, timestamp)
+            .await
     }
 
     pub async fn list_tasks(

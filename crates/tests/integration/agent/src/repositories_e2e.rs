@@ -8,7 +8,7 @@ use systemprompt_agent::repository::context::message::{
 };
 use systemprompt_agent::repository::context::{ContextNotificationRepository, ContextRepository};
 use systemprompt_agent::repository::task::{
-    RepoCreateTaskParams, TaskConstructor, TaskRepository, UpdateTaskAndSaveMessagesParams,
+    RepoCreateTaskParams, TaskRepository, UpdateTaskAndSaveMessagesParams,
 };
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{
@@ -16,7 +16,7 @@ use systemprompt_identifiers::{
 };
 use systemprompt_models::a2a::{Task, TaskState, TaskStatus};
 use systemprompt_models::{ExecutionStep, StepContent};
-use systemprompt_test_fixtures::agent_reads::{ArtifactReadsExt, TaskReadsExt};
+use systemprompt_test_fixtures::agent_reads::{ArtifactReadsExt, StepReadsExt, TaskReadsExt};
 use systemprompt_test_fixtures::test_db_pool;
 use tokio::sync::{Mutex, MutexGuard, OnceCell};
 use uuid::Uuid;
@@ -150,7 +150,15 @@ async fn task_repository_create_get_list_round_trip() -> Result<()> {
     let got = repos.tasks.read_task(&t1).await?;
     assert!(got.is_some(), "task should be retrievable");
 
-    let by_ctx = repos.tasks.list_tasks_by_context(&fx.context_id).await?;
+    let by_ctx = repos
+        .tasks
+        .list_tasks_by_context(
+            &repos
+                .contexts
+                .owned_context(&fx.context_id, &fx.user_id)
+                .await?,
+        )
+        .await?;
     assert!(by_ctx.len() >= 2);
 
     let by_user = repos
@@ -168,7 +176,7 @@ async fn task_repository_create_get_list_round_trip() -> Result<()> {
     let now = Utc::now();
     repos
         .tasks
-        .update_task_state(&t1, TaskState::Working, &now)
+        .set_task_state(&t1, TaskState::Working, &now)
         .await?;
     let after = repos.tasks.read_task(&t1).await?.unwrap();
     assert!(matches!(after.status.state, TaskState::Working));
@@ -178,12 +186,9 @@ async fn task_repository_create_get_list_round_trip() -> Result<()> {
         .tasks
         .apply_notification_status(&owned_t1, "completed", &now)
         .await?;
-    repos
-        .tasks
-        .update_task_failed_with_error(&t2, "boom", &now)
-        .await?;
-    let ctx_info = repos.tasks.find_task_context_info(&t1).await?;
-    assert!(ctx_info.is_some());
+    repos.tasks.fail_task(&t2, "boom", &now).await?;
+    let owned = repos.tasks.owned_task(&t1, &fx.user_id).await?;
+    assert_eq!(owned.task_id(), &t1);
 
     fx.cleanup().await?;
     Ok(())
@@ -238,7 +243,13 @@ async fn message_repository_persists_all_part_kinds_and_reads_back() -> Result<(
     assert_eq!(read_back_by_task.len(), 1);
     assert_eq!(read_back_by_task[0].parts.len(), 3);
 
-    let read_back_by_ctx = messages.get_messages_by_context(&fx.context_id).await?;
+    let read_back_by_ctx = messages
+        .get_messages_by_context(
+            &ContextRepository::new(&fx.db)
+                .owned_context(&fx.context_id, &fx.user_id)
+                .await?,
+        )
+        .await?;
     assert!(!read_back_by_ctx.is_empty());
 
     fx.cleanup().await?;
@@ -278,7 +289,13 @@ async fn artifact_repository_create_and_query_paths() -> Result<()> {
     assert_eq!(by_task.len(), 1);
     assert_eq!(by_task[0].id, artifact_id);
 
-    let by_ctx = artifacts.get_artifacts_by_context(&fx.context_id).await?;
+    let by_ctx = artifacts
+        .get_artifacts_by_context(
+            &ContextRepository::new(&fx.db)
+                .owned_context(&fx.context_id, &fx.user_id)
+                .await?,
+        )
+        .await?;
     assert!(!by_ctx.is_empty());
 
     let by_user = artifacts
@@ -288,9 +305,6 @@ async fn artifact_repository_create_and_query_paths() -> Result<()> {
 
     let by_id = artifacts.read_artifact(&artifact_id).await?;
     assert!(by_id.is_some());
-
-    let all = artifacts.get_all_artifacts(Some(10)).await?;
-    assert!(all.iter().any(|a| a.id == artifact_id));
 
     artifacts.delete_artifact(&artifact_id).await?;
     let after_delete = artifacts.read_artifact(&artifact_id).await?;
@@ -322,7 +336,10 @@ async fn execution_step_repository_lifecycle() -> Result<()> {
     repos.execution_steps.create(&plan_step).await?;
     repos.execution_steps.create(&tool_step).await?;
 
-    let by_task = repos.execution_steps.list_by_task(&task_id).await?;
+    let by_task = repos
+        .execution_steps
+        .steps_for_task(&repos.tasks, &task_id)
+        .await?;
     assert_eq!(by_task.len(), 2);
 
     let got = repos.execution_steps.get(&plan_step.step_id).await?;
@@ -365,8 +382,8 @@ async fn context_repository_crud_and_listing() -> Result<()> {
 
     let _ = ctx_repo.find_by_session_id(&fx.session_id).await?;
 
-    let user_for_ctx = ctx_repo.find_user_id_for_context(&new_ctx).await?;
-    assert_eq!(user_for_ctx.as_ref(), Some(&fx.user_id));
+    let owned_ctx = ctx_repo.owned_context(&new_ctx, &fx.user_id).await?;
+    assert_eq!(owned_ctx.user_id(), &fx.user_id);
 
     let fetched = ctx_repo.get_context(&new_ctx, &fx.user_id).await?;
     assert_eq!(fetched.context_id, new_ctx);
@@ -378,7 +395,7 @@ async fn context_repository_crud_and_listing() -> Result<()> {
     assert!(!with_stats.is_empty());
 
     let since = Utc::now() - chrono::Duration::hours(1);
-    let _events = ctx_repo.get_context_events_since(&new_ctx, since).await?;
+    let _events = ctx_repo.get_context_events_since(&owned_ctx, since).await?;
 
     ctx_repo.delete_context(&new_ctx, &fx.user_id).await?;
     assert!(ctx_repo.get_context(&new_ctx, &fx.user_id).await.is_err());
@@ -502,19 +519,26 @@ async fn task_constructor_assembles_task_with_messages_and_artifacts() -> Result
         .await?;
 
     // Now construct + verify
-    let ctor = TaskConstructor::new(&fx.db);
-    let single = ctor
-        .construct_task_from_task_id(&task_id)
+    let repos = systemprompt_test_fixtures::a2a_repositories(&fx.db);
+    let single = repos
+        .tasks
+        .read_task(&task_id)
         .await?
         .expect("task present");
     assert_eq!(single.id, task_id);
     assert!(single.history.is_some());
     assert!(single.artifacts.is_some());
 
-    let batch = ctor
-        .construct_tasks_batch(std::slice::from_ref(&task_id))
+    let batch = repos
+        .tasks
+        .list_tasks_by_context(
+            &repos
+                .contexts
+                .owned_context(&fx.context_id, &fx.user_id)
+                .await?,
+        )
         .await?;
-    assert_eq!(batch.len(), 1);
+    assert!(batch.iter().any(|t| t.id == task_id));
 
     fx.cleanup().await?;
     Ok(())
@@ -565,6 +589,7 @@ async fn task_repository_update_task_and_save_messages_and_delete() -> Result<()
     repos
         .tasks
         .update_task_and_save_messages(UpdateTaskAndSaveMessagesParams {
+            runtime: &repos.tasks.runtime_by_row(&task_id).await?,
             task: &task,
             user_message: &user_msg,
             agent_message: &agent_msg,
@@ -574,7 +599,7 @@ async fn task_repository_update_task_and_save_messages_and_delete() -> Result<()
         })
         .await?;
 
-    repos.tasks.delete_task(&task_id).await?;
+    repos.tasks.remove_task(&task_id).await?;
     assert!(repos.tasks.read_task(&task_id).await?.is_none());
 
     fx.cleanup().await?;
@@ -612,6 +637,7 @@ async fn task_and_message_writes_increment_session_counters() -> Result<()> {
     repos
         .tasks
         .update_task_and_save_messages(UpdateTaskAndSaveMessagesParams {
+            runtime: &repos.tasks.runtime_by_row(&task_id).await?,
             task: &task,
             user_message: &make_message(MessageRole::User, "hi"),
             agent_message: &make_message(MessageRole::Agent, "hello"),

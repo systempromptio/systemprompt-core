@@ -169,7 +169,13 @@ async fn task_insert_failure_streams_internal_error_without_dispatch_or_partial_
     let (ctx, _existing_task) = seed_context_and_task(&repos_handle, &user, &session).await;
     let before = repos_handle
         .tasks
-        .list_tasks_by_context(&ctx)
+        .list_tasks_by_context(
+            &repos_handle
+                .contexts
+                .owned_context(&ctx, &user)
+                .await
+                .expect("owned context"),
+        )
         .await
         .expect("tasks before rejected insert")
         .len();
@@ -220,7 +226,13 @@ async fn task_insert_failure_streams_internal_error_without_dispatch_or_partial_
     assert_eq!(
         repos_handle
             .tasks
-            .list_tasks_by_context(&ctx)
+            .list_tasks_by_context(
+                &repos_handle
+                    .contexts
+                    .owned_context(&ctx, &user)
+                    .await
+                    .expect("owned context"),
+            )
             .await
             .expect("tasks after rejected insert")
             .len(),

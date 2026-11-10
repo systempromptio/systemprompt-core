@@ -31,7 +31,7 @@ pub struct TaskConstructor {
 }
 
 impl TaskConstructor {
-    pub fn new(db: &DbPool) -> Self {
+    pub(crate) fn new(db: &DbPool) -> Self {
         let pool = db.pool();
         let artifact_repo = ArtifactRepository::new(db);
         let execution_step_repo = ExecutionStepRepository::new(db);
@@ -54,14 +54,14 @@ impl TaskConstructor {
         &self.execution_step_repo
     }
 
-    pub async fn construct_task_from_task_id(
+    pub(crate) async fn construct_task_from_task_id(
         &self,
         task_id: &TaskId,
     ) -> Result<Option<Task>, RepositoryError> {
         single::construct_task_from_task_id(self, task_id).await
     }
 
-    pub async fn construct_tasks_batch(
+    pub(crate) async fn construct_tasks_batch(
         &self,
         task_ids: &[TaskId],
     ) -> Result<Vec<Task>, RepositoryError> {

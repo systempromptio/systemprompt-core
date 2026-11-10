@@ -43,6 +43,15 @@ pub(crate) async fn seed_context_and_task(
     user_id: &UserId,
     session_id: &SessionId,
 ) -> (ContextId, TaskId) {
+    let (context_id, runtime) = seed_runtime_task(repos, user_id, session_id).await;
+    (context_id, runtime.task_id().clone())
+}
+
+pub(crate) async fn seed_runtime_task(
+    repos: &A2ARepositories,
+    user_id: &UserId,
+    session_id: &SessionId,
+) -> (ContextId, systemprompt_agent::repository::RuntimeTask) {
     let ctx_repo = repos.contexts.clone();
     let context_id = ctx_repo
         .create_context(user_id, Some(session_id), "seed-context", ContextKind::User)
@@ -52,7 +61,7 @@ pub(crate) async fn seed_context_and_task(
     let task_id = TaskId::generate();
     let trace_id = TraceId::generate();
     let task = make_task(&task_id, &context_id);
-    repos
+    let runtime = repos
         .tasks
         .create_task(systemprompt_agent::repository::task::RepoCreateTaskParams {
             task: &task,
@@ -64,7 +73,7 @@ pub(crate) async fn seed_context_and_task(
         .await
         .expect("create task");
 
-    (context_id, task_id)
+    (context_id, runtime)
 }
 
 pub(crate) fn make_task(

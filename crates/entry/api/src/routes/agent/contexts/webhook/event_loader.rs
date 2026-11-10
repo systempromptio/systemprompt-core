@@ -76,7 +76,7 @@ async fn load_task_completed(
             vec![]
         });
 
-    let execution_steps = step_repo.list_by_task(&task_id).await.unwrap_or_else(|e| {
+    let execution_steps = step_repo.list_by_task(&owned).await.unwrap_or_else(|e| {
         tracing::warn!(error = %e, task_id = %task_id, "Failed to load execution steps for webhook event");
         vec![]
     });
@@ -135,7 +135,11 @@ async fn load_message_received(
 ) -> Result<AgUiWebhookData, LoadEventError> {
     let task_repo = &repos.tasks;
     let exists = task_repo
-        .message_exists(&MessageId::new(request.entity_id.clone()))
+        .message_in_owned_context(
+            &MessageId::new(request.entity_id.clone()),
+            &request.context_id,
+            &request.user_id,
+        )
         .await?;
 
     if exists {

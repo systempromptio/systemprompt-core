@@ -11,11 +11,13 @@ use crate::models::a2a::{Message, Task};
 use crate::repository::context::message::{
     PersistMessageSqlxParams, get_next_sequence_number_sqlx, persist_message_sqlx,
 };
+use crate::repository::{OwnedTask, RuntimeTask};
 use systemprompt_identifiers::{ContextId, SessionId, TaskId, TraceId, UserId};
 use systemprompt_traits::RepositoryError;
 
 #[derive(Debug)]
 pub struct UpdateTaskAndSaveMessagesParams<'a> {
+    pub runtime: &'a RuntimeTask,
     pub task: &'a Task,
     pub user_message: &'a Message,
     pub agent_message: &'a Message,
@@ -40,6 +42,7 @@ impl TaskRepository {
         params: UpdateTaskAndSaveMessagesParams<'_>,
     ) -> Result<Task, RepositoryError> {
         let UpdateTaskAndSaveMessagesParams {
+            runtime,
             task,
             user_message,
             agent_message,
@@ -53,8 +56,8 @@ impl TaskRepository {
         persist_messages_in_tx(
             &mut tx,
             &PersistMessagesTxParams {
-                task_id: &task.id,
-                context_id: &task.context_id,
+                task_id: runtime.task_id(),
+                context_id: runtime.context_id(),
                 messages: &messages,
                 user_id,
                 session_id,
@@ -62,17 +65,17 @@ impl TaskRepository {
             },
         )
         .await?;
-        update_task_metadata(&mut tx, task).await?;
+        update_task_metadata(&mut tx, runtime.task_id(), task).await?;
         let timestamp = task.status.timestamp.unwrap_or_else(chrono::Utc::now);
-        transition_in_tx(&mut tx, &task.id, task.status.state, &timestamp).await?;
+        transition_in_tx(&mut tx, runtime.task_id(), task.status.state, &timestamp).await?;
 
         tx.commit().await?;
 
         self.count_messages(session_id, messages.len()).await;
 
-        self.find_task(&task.id)
+        self.find_task(runtime.task_id())
             .await?
-            .ok_or_else(|| RepositoryError::not_found("task", &task.id))
+            .ok_or_else(|| RepositoryError::not_found("task", runtime.task_id().as_str()))
     }
 
     pub async fn persist_messages(
@@ -96,8 +99,8 @@ impl TaskRepository {
         }
     }
 
-    pub async fn delete_task(&self, task_id: &TaskId) -> Result<(), RepositoryError> {
-        let task_id_str = task_id.as_str();
+    pub async fn delete_task(&self, owned: &OwnedTask) -> Result<(), RepositoryError> {
+        let task_id_str = owned.task_id().as_str();
         let mut tx = self.write_pool.begin().await?;
 
         sqlx::query!(
@@ -152,6 +155,7 @@ async fn persist_messages_in_tx(
 
 async fn update_task_metadata(
     tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    task_id: &TaskId,
     task: &Task,
 ) -> Result<(), RepositoryError> {
     let metadata_json = match &task.metadata {
@@ -162,13 +166,13 @@ async fn update_task_metadata(
     let result = sqlx::query!(
         r#"UPDATE agent_tasks SET metadata = $1, updated_at = CURRENT_TIMESTAMP WHERE task_id = $2"#,
         metadata_json,
-        task.id.as_str()
+        task_id.as_str()
     )
     .execute(&mut **tx)
     .await?;
 
     if result.rows_affected() == 0 {
-        return Err(RepositoryError::not_found("task", &task.id));
+        return Err(RepositoryError::not_found("task", task_id.as_str()));
     }
 
     Ok(())

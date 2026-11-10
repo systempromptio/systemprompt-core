@@ -12,8 +12,8 @@ use systemprompt_identifiers::ArtifactId;
 use systemprompt_models::RequestContext;
 
 use crate::models::a2a::{Message, Task};
-use crate::repository::A2ARepositories;
 use crate::repository::task::UpdateTaskAndSaveMessagesParams;
+use crate::repository::{A2ARepositories, RuntimeTask};
 use crate::services::ArtifactPublishingService;
 use crate::services::a2a_server::streaming::broadcast::{
     broadcast_artifact_created, broadcast_task_completed,
@@ -45,6 +45,7 @@ impl PersistOutcome {
 }
 
 pub struct PersistCompletedTaskParams<'a> {
+    pub runtime: &'a RuntimeTask,
     pub task: &'a Task,
     pub user_message: &'a Message,
     pub agent_message: &'a Message,
@@ -71,6 +72,7 @@ pub async fn persist_completed_task(
     params: PersistCompletedTaskParams<'_>,
 ) -> Result<PersistOutcome> {
     let PersistCompletedTaskParams {
+        runtime,
         task,
         user_message,
         agent_message,
@@ -83,6 +85,7 @@ pub async fn persist_completed_task(
     let updated_task = repositories
         .tasks
         .update_task_and_save_messages(UpdateTaskAndSaveMessagesParams {
+            runtime,
             task,
             user_message,
             agent_message,
@@ -95,11 +98,11 @@ pub async fn persist_completed_task(
 
     let mut undelivered_broadcasts = Vec::new();
     if !artifacts_already_published && let Some(artifacts) = &task.artifacts {
-        let context_id = &task.context_id;
+        let context_id = runtime.context_id();
         let webhooks = WebhookContext::for_request(webhooks, context);
         for artifact in artifacts {
             publishing
-                .publish_from_a2a(artifact, &task.id, context_id, context.user_id())
+                .publish_from_a2a(artifact, runtime.task_id(), context_id, context.user_id())
                 .await
                 .map_err(|e| {
                     AgentServiceError::operation(

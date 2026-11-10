@@ -105,7 +105,7 @@ async fn publish_from_a2a_persists_artifact() {
         .expect("present");
     assert_eq!(fetched.id, id);
 
-    r.tasks.delete_task(&tid).await.ok();
+    r.tasks.remove_task(&tid).await.ok();
 }
 
 #[tokio::test]
@@ -131,7 +131,7 @@ async fn publish_from_a2a_nulls_unknown_execution_id() {
         .expect("present");
     assert!(fetched.metadata.mcp_execution_id.is_none());
 
-    r.tasks.delete_task(&tid).await.ok();
+    r.tasks.remove_task(&tid).await.ok();
 }
 
 #[tokio::test]
@@ -175,7 +175,7 @@ async fn publish_from_a2a_keeps_a_known_execution_id() {
         Some(exec_id.as_str())
     );
 
-    r.tasks.delete_task(&tid).await.ok();
+    r.tasks.remove_task(&tid).await.ok();
 }
 
 #[tokio::test]
@@ -200,7 +200,7 @@ async fn an_unreachable_execution_ledger_fails_the_publish_and_keeps_the_id() {
         "nothing is persisted with a detached execution id"
     );
 
-    r.tasks.delete_task(&tid).await.ok();
+    r.tasks.remove_task(&tid).await.ok();
 }
 
 #[tokio::test]
@@ -231,7 +231,7 @@ async fn publish_from_mcp_agentic_skips_messages() {
     let messages = r.tasks.read_task_messages(&tid).await.expect("messages");
     assert!(messages.is_empty());
 
-    r.tasks.delete_task(&tid).await.ok();
+    r.tasks.remove_task(&tid).await.ok();
 }
 
 #[tokio::test]
@@ -262,5 +262,5 @@ async fn publish_from_mcp_direct_creates_messages() {
     let messages = r.tasks.read_task_messages(&tid).await.expect("messages");
     assert_eq!(messages.len(), 2);
 
-    r.tasks.delete_task(&tid).await.ok();
+    r.tasks.remove_task(&tid).await.ok();
 }

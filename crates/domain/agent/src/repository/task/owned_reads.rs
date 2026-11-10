@@ -5,8 +5,8 @@
 
 use super::{TaskRepository, apply_notification_status, find_task};
 use crate::models::a2a::{Message, Task};
-use crate::repository::OwnedTask;
 use crate::repository::context::message::get_messages_by_task;
+use crate::repository::{OwnedTask, RuntimeTask};
 use systemprompt_identifiers::{ContextId, TaskId, UserId};
 use systemprompt_traits::RepositoryError;
 
@@ -29,6 +29,26 @@ impl TaskRepository {
         .ok_or_else(|| RepositoryError::not_found("task", task_id.as_str()))?;
 
         Ok(OwnedTask::new(row.task_id, row.context_id, user_id.clone()))
+    }
+
+    pub async fn run_task_in_tx(
+        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+        task_id: &TaskId,
+        run_user_id: &UserId,
+    ) -> Result<RuntimeTask, RepositoryError> {
+        let row = sqlx::query!(
+            r#"SELECT t.task_id as "task_id!: TaskId", t.context_id as "context_id!: ContextId"
+            FROM agent_tasks t
+            JOIN user_contexts c ON t.context_id = c.context_id
+            WHERE t.task_id = $1 AND c.user_id = $2"#,
+            task_id.as_str(),
+            run_user_id.as_str()
+        )
+        .fetch_optional(&mut **tx)
+        .await?
+        .ok_or_else(|| RepositoryError::not_found("task", task_id.as_str()))?;
+
+        Ok(RuntimeTask::new(row.task_id, row.context_id))
     }
 
     pub async fn find_owned_task(&self, owned: &OwnedTask) -> Result<Task, RepositoryError> {

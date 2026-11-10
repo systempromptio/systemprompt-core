@@ -270,3 +270,66 @@ async fn show_truncates_long_parts_and_renders_every_metadata_field() {
     assert!(body.contains("rich-tool"), "{body}");
     assert!(body.contains("document"), "{body}");
 }
+
+#[tokio::test]
+async fn list_refuses_a_context_owned_by_another_user() {
+    let pool = test_db_pool().await;
+    let (_owner, context_id, task_id) = seed_task(&pool).await;
+    let (intruder, _other_context, _other_task) = seed_task(&pool).await;
+    seed_artifact(&pool, &context_id, &task_id).await;
+
+    let err = list::execute_with_pool(
+        list::ListArgs {
+            context: Some(context_id.as_str().to_owned()),
+            limit: 10,
+        },
+        &intruder,
+        &pool,
+        &cfg(),
+    )
+    .await
+    .unwrap_err();
+    assert!(
+        err.to_string().contains("Context not found"),
+        "listing another user's context is refused like show: {err}"
+    );
+}
+
+#[tokio::test]
+async fn list_without_a_context_shows_only_the_session_users_artifacts() {
+    let pool = test_db_pool().await;
+    let (owner, context_id, task_id) = seed_task(&pool).await;
+    let (intruder, _other_context, _other_task) = seed_task(&pool).await;
+    let artifact_id = seed_artifact(&pool, &context_id, &task_id).await;
+
+    let listed = list::execute_with_pool(
+        list::ListArgs {
+            context: None,
+            limit: 10,
+        },
+        &intruder,
+        &pool,
+        &cfg(),
+    )
+    .await
+    .unwrap();
+    let json = serde_json::to_value(listed.artifact()).unwrap();
+    assert!(
+        !json.to_string().contains(artifact_id.as_str()),
+        "another user's artifact is not listed: {json}"
+    );
+
+    let own = list::execute_with_pool(
+        list::ListArgs {
+            context: None,
+            limit: 10,
+        },
+        &owner,
+        &pool,
+        &cfg(),
+    )
+    .await
+    .unwrap();
+    let json = serde_json::to_value(own.artifact()).unwrap();
+    assert!(json.to_string().contains(artifact_id.as_str()), "{json}");
+}

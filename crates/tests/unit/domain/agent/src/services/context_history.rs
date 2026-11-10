@@ -27,8 +27,8 @@ async fn conversation_history_includes_durable_artifact_identity_and_bounded_des
         .await
         .expect("artifact persisted");
 
-    let messages = ContextService::new(repositories.tasks.clone())
-        .load_conversation_history(&context)
+    let messages = ContextService::new(repositories.tasks.clone(), repositories.contexts.clone())
+        .load_conversation_history(&context, &user)
         .await
         .expect("conversation history");
     let artifact_message = messages
@@ -71,12 +71,29 @@ async fn unnamed_artifact_without_description_still_contributes_stable_context_i
         .await
         .expect("artifact persisted");
 
-    let messages = ContextService::new(repositories.tasks.clone())
-        .load_conversation_history(&context)
+    let messages = ContextService::new(repositories.tasks.clone(), repositories.contexts.clone())
+        .load_conversation_history(&context, &user)
         .await
         .expect("conversation history");
     assert!(messages.iter().any(|message| {
         message.content == format!("[Artifact: unnamed (type: binary, id: {})]", artifact.id)
             && message.parts.is_empty()
     }));
+}
+
+#[tokio::test]
+async fn conversation_history_is_refused_for_a_context_the_caller_does_not_own() {
+    let pool = test_db_pool().await;
+    let repositories = repos(&pool);
+    let (owner, session) = seed_user_and_session(&pool).await;
+    let (context, _task) = seed_context_and_task(&repositories, &owner, &session).await;
+    let (stranger, _) = seed_user_and_session(&pool).await;
+
+    let result = ContextService::new(repositories.tasks.clone(), repositories.contexts.clone())
+        .load_conversation_history(&context, &stranger)
+        .await;
+    assert!(
+        result.is_err(),
+        "another user's context history must not load: {result:?}"
+    );
 }

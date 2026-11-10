@@ -41,14 +41,12 @@ pub async fn list_artifacts_by_context(
     let context_id_typed = super::parse_context_id(&context_id)?;
 
     let context_repo = app_context.a2a_repositories().contexts.clone();
-    context_repo
-        .validate_context_ownership(&context_id_typed, req_ctx.user_id())
+    let owned = context_repo
+        .owned_context(&context_id_typed, req_ctx.user_id())
         .await?;
 
     let artifact_repo = app_context.a2a_repositories().artifacts.clone();
-    let artifacts = artifact_repo
-        .get_artifacts_by_context(&context_id_typed)
-        .await?;
+    let artifacts = artifact_repo.get_artifacts_by_context(&owned).await?;
 
     tracing::debug!(
         context_id = %context_id,

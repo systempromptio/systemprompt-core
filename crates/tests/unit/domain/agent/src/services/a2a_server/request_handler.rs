@@ -3,6 +3,7 @@
 // full dispatch of tasks/get through the non-streaming path.
 
 use std::sync::Arc;
+use systemprompt_test_fixtures::agent_reads::TaskReadsExt;
 
 use axum::body::Bytes;
 use axum::extract::{Extension, State};
@@ -85,7 +86,7 @@ async fn invalid_json_body_returns_parse_error() {
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert_eq!(body["error"]["code"], json!(-32700));
 
-    r.tasks.delete_task(&task_id).await.ok();
+    r.tasks.remove_task(&task_id).await.ok();
 }
 
 #[tokio::test]
@@ -102,7 +103,7 @@ async fn non_jsonrpc_payload_returns_invalid_request() {
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert_eq!(body["error"]["code"], json!(-32600));
 
-    r.tasks.delete_task(&task_id).await.ok();
+    r.tasks.remove_task(&task_id).await.ok();
 }
 
 #[tokio::test]
@@ -131,7 +132,7 @@ async fn oauth_required_without_bearer_token_is_unauthorized() {
             .is_some_and(|m| m.contains("Bearer token required"))
     );
 
-    r.tasks.delete_task(&task_id).await.ok();
+    r.tasks.remove_task(&task_id).await.ok();
 }
 
 #[tokio::test]
@@ -156,7 +157,7 @@ async fn get_task_dispatch_returns_task_result() {
     assert_eq!(body["result"]["id"], json!(task_id.as_str()));
     assert_eq!(body["result"]["contextId"], json!(context_id.as_str()));
 
-    r.tasks.delete_task(&task_id).await.ok();
+    r.tasks.remove_task(&task_id).await.ok();
 }
 
 #[tokio::test]
@@ -180,7 +181,7 @@ async fn get_task_for_unknown_id_returns_jsonrpc_error() {
     assert_eq!(body["error"]["code"], json!(-32001));
     assert_eq!(body["error"]["message"], json!("Task not found"));
 
-    r.tasks.delete_task(&task_id).await.ok();
+    r.tasks.remove_task(&task_id).await.ok();
 }
 
 #[tokio::test]
@@ -210,7 +211,7 @@ async fn get_task_owned_by_another_user_reads_as_not_found() {
     );
     assert!(body.get("result").is_none());
 
-    r.tasks.delete_task(&task_id).await.ok();
+    r.tasks.remove_task(&task_id).await.ok();
 }
 
 #[tokio::test]
@@ -243,7 +244,7 @@ async fn a_request_without_a_version_is_refused_before_oauth_with_its_id() {
         json!("1.0")
     );
 
-    r.tasks.delete_task(&task_id).await.ok();
+    r.tasks.remove_task(&task_id).await.ok();
 }
 
 #[tokio::test]
@@ -271,7 +272,7 @@ async fn an_older_protocol_version_is_refused() {
         json!("0.3")
     );
 
-    r.tasks.delete_task(&task_id).await.ok();
+    r.tasks.remove_task(&task_id).await.ok();
 }
 
 #[tokio::test]
@@ -302,7 +303,7 @@ async fn an_unknown_method_is_method_not_found_with_error_info() {
         json!("CreateTaskPushNotificationConfig")
     );
 
-    r.tasks.delete_task(&task_id).await.ok();
+    r.tasks.remove_task(&task_id).await.ok();
 }
 
 #[tokio::test]

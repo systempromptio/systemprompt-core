@@ -178,7 +178,7 @@ impl AgentRunRepository {
             return Ok(Fenced::LeaseLost);
         };
         if let Some(task_id) = task_id {
-            task_link::transition_task(&mut tx, &task_id, RunStatus::Running).await?;
+            task_link::transition_task(&mut tx, id, &task_id, RunStatus::Running).await?;
         }
         tx.commit().await?;
         Ok(Fenced::Applied)
@@ -274,7 +274,7 @@ impl AgentRunRepository {
             return Ok(Fenced::LeaseLost);
         };
         if let Some(task_id) = task_id {
-            task_link::transition_task(&mut tx, &task_id, outcome.status).await?;
+            task_link::transition_task(&mut tx, id, &task_id, outcome.status).await?;
         }
         tx.commit().await?;
         Ok(Fenced::Applied)

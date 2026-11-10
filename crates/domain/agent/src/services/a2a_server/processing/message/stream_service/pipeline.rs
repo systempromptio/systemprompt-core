@@ -51,7 +51,7 @@ impl StreamService {
         let context_id = &a2a_message.context_id;
         let conversation_history = self
             .context_service
-            .load_conversation_history(context_id)
+            .load_conversation_history(context_id, context.user_id())
             .await?;
 
         tracing::info!(

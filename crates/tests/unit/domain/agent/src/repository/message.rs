@@ -41,6 +41,7 @@ async fn save_pair(
     let trace_id = TraceId::generate();
     r.tasks
         .update_task_and_save_messages(UpdateTaskAndSaveMessagesParams {
+            runtime: &r.tasks.runtime_by_row(task_id).await.expect("runtime"),
             task: &task,
             user_message: user_msg,
             agent_message: agent_msg,
@@ -84,14 +85,18 @@ async fn text_part_roundtrip() {
 
     let parts = r
         .tasks
-        .get_message_parts(&user_msg.message_id)
+        .read_task_messages(&task_id)
         .await
-        .expect("parts");
+        .expect("messages")
+        .into_iter()
+        .find(|m| m.message_id == user_msg.message_id)
+        .expect("user message stored")
+        .parts;
     assert_eq!(parts.len(), 1);
     let part = &parts[0];
     assert_eq!(part.as_text(), Some("question"), "{part:?}");
 
-    r.tasks.delete_task(&task_id).await.ok();
+    r.tasks.remove_task(&task_id).await.ok();
 }
 
 #[tokio::test]
@@ -122,16 +127,20 @@ async fn file_part_roundtrip() {
 
     let parts = r
         .tasks
-        .get_message_parts(&user_msg.message_id)
+        .read_task_messages(&task_id)
         .await
-        .expect("parts");
+        .expect("messages")
+        .into_iter()
+        .find(|m| m.message_id == user_msg.message_id)
+        .expect("user message stored")
+        .parts;
     assert_eq!(parts.len(), 1);
     let part = &parts[0];
     assert_eq!(part.filename.as_deref(), Some("report.txt"));
     assert_eq!(part.media_type.as_deref(), Some("text/plain"));
     assert_eq!(part.as_raw(), Some("aGVsbG8="));
 
-    r.tasks.delete_task(&task_id).await.ok();
+    r.tasks.remove_task(&task_id).await.ok();
 }
 
 #[tokio::test]
@@ -166,16 +175,20 @@ async fn data_part_roundtrip() {
 
     let parts = r
         .tasks
-        .get_message_parts(&agent_msg.message_id)
+        .read_task_messages(&task_id)
         .await
-        .expect("parts");
+        .expect("messages")
+        .into_iter()
+        .find(|m| m.message_id == agent_msg.message_id)
+        .expect("agent message stored")
+        .parts;
     assert_eq!(parts.len(), 1);
     let part = &parts[0];
     let data = part.as_data().expect("data part");
     assert_eq!(data.get("answer"), Some(&serde_json::json!(42)));
     assert_eq!(data.get("ok"), Some(&serde_json::json!(true)));
 
-    r.tasks.delete_task(&task_id).await.ok();
+    r.tasks.remove_task(&task_id).await.ok();
 }
 
 #[tokio::test]
@@ -212,15 +225,19 @@ async fn mixed_parts_preserve_order() {
 
     let read = r
         .tasks
-        .get_message_parts(&agent_msg.message_id)
+        .read_task_messages(&task_id)
         .await
-        .expect("parts");
+        .expect("messages")
+        .into_iter()
+        .find(|m| m.message_id == agent_msg.message_id)
+        .expect("agent message stored")
+        .parts;
     assert_eq!(read.len(), 3);
     assert!(read[0].as_text().is_some());
     assert!(read[1].is_file());
     assert!(read[2].as_data().is_some());
 
-    r.tasks.delete_task(&task_id).await.ok();
+    r.tasks.remove_task(&task_id).await.ok();
 }
 
 #[tokio::test]
@@ -233,28 +250,4 @@ async fn get_messages_by_task_empty() {
         .await
         .expect("empty");
     assert!(msgs.is_empty());
-}
-
-#[tokio::test]
-async fn get_messages_by_context_empty() {
-    let pool = test_db_pool().await;
-    let r = repos(&pool);
-    let msgs = r
-        .tasks
-        .get_messages_by_context(&ContextId::generate())
-        .await
-        .expect("empty");
-    assert!(msgs.is_empty());
-}
-
-#[tokio::test]
-async fn get_message_parts_unknown_message_empty() {
-    let pool = test_db_pool().await;
-    let r = repos(&pool);
-    let parts = r
-        .tasks
-        .get_message_parts(&MessageId::generate())
-        .await
-        .expect("empty");
-    assert!(parts.is_empty());
 }

@@ -14,6 +14,7 @@ use tokio::sync::mpsc::Sender;
 
 use crate::models::a2a::jsonrpc::NumberOrString;
 use crate::models::a2a::{Task, TaskState, TaskStatus};
+use crate::repository::RuntimeTask;
 use crate::repository::task::TaskRepository;
 use crate::services::a2a_server::handlers::AgentHandlerState;
 
@@ -64,7 +65,7 @@ pub(super) async fn validate_context(
 
 pub(super) async fn persist_initial_task(
     input: PersistTaskInput<'_>,
-) -> Result<TaskRepository, ()> {
+) -> Result<(TaskRepository, RuntimeTask), ()> {
     let PersistTaskInput {
         task_id,
         context_id,
@@ -93,7 +94,7 @@ pub(super) async fn persist_initial_task(
         last_modified: Some(chrono::Utc::now()),
     };
 
-    task_repo
+    let runtime = task_repo
         .create_task(crate::repository::task::RepoCreateTaskParams {
             task: &task,
             user_id: context.user_id(),
@@ -125,5 +126,5 @@ pub(super) async fn persist_initial_task(
         tracing::warn!(context_id = %context_id, error = %e, "Failed to track agent in context");
     }
 
-    Ok(task_repo)
+    Ok((task_repo, runtime))
 }

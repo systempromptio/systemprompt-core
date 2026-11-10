@@ -5,6 +5,7 @@
 // and a failing tool plus failing synthesis surfaces the tool errors.
 
 use std::sync::Arc;
+use systemprompt_test_fixtures::agent_reads::StepReadsExt;
 
 use rmcp::model::{CallToolResult, ContentBlock};
 use serde_json::json;
@@ -258,7 +259,10 @@ async fn multiple_successful_tools_persist_one_completed_batch_summary_and_strea
             .all(|result| result.is_error == Some(false))
     );
 
-    let persisted = steps.list_by_task(&task_id).await.expect("persisted steps");
+    let persisted = steps
+        .steps_for_task(&repos(&test_db_pool().await).tasks, &task_id)
+        .await
+        .expect("persisted steps");
     let tool_steps = persisted
         .iter()
         .filter(|step| matches!(step.content, StepContent::ToolExecution { .. }))
@@ -349,7 +353,10 @@ async fn successful_then_failed_tool_persists_failed_batch_with_exact_diagnosis(
     assert_eq!(result.tool_results[0].is_error, Some(false));
     assert_eq!(result.tool_results[1].is_error, Some(true));
 
-    let persisted = steps.list_by_task(&task_id).await.expect("persisted steps");
+    let persisted = steps
+        .steps_for_task(&repos(&test_db_pool().await).tasks, &task_id)
+        .await
+        .expect("persisted steps");
     let tool_steps = persisted
         .iter()
         .filter(|step| matches!(step.content, StepContent::ToolExecution { .. }))

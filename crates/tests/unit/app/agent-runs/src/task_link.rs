@@ -200,3 +200,38 @@ async fn final_attempt_reclaim_fails_its_task() {
     assert_eq!(row.error_class.as_deref(), Some("host_crashed"));
     assert_eq!(task_state(&f, &task_id).await, "TASK_STATE_FAILED");
 }
+
+#[tokio::test]
+async fn a_run_never_moves_a_task_outside_its_users_contexts() {
+    let f = fixture().await;
+    let other = fixture().await;
+    let (foreign_task, foreign_context) = insert_task(&other).await;
+    let id = queue_for(&f, &foreign_task, &foreign_context).await;
+
+    let lease = claim(&f, "a").await;
+    let started = RunStarted {
+        run_dir: Path::new("/tmp/run"),
+        pid: Some(1),
+        gateway_session_id: None,
+        api_key_id: None,
+    };
+    assert_eq!(
+        f.repo
+            .update_started(&id, &lease, started)
+            .await
+            .expect("started"),
+        Fenced::Applied
+    );
+    assert_eq!(
+        f.repo
+            .finish(&id, &lease, &succeeded(), None)
+            .await
+            .expect("finish"),
+        Fenced::Applied
+    );
+    assert_eq!(
+        task_state(&f, &foreign_task).await,
+        "TASK_STATE_SUBMITTED",
+        "the run's user does not own the task, so the task is left alone"
+    );
+}

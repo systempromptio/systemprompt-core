@@ -35,12 +35,12 @@ pub async fn list_tasks_by_context(
     let context_id_typed = super::parse_context_id(&context_id)?;
 
     let context_repo = app_context.a2a_repositories().contexts.clone();
-    context_repo
-        .validate_context_ownership(&context_id_typed, req_ctx.user_id())
+    let owned = context_repo
+        .owned_context(&context_id_typed, req_ctx.user_id())
         .await?;
 
     let task_repo = app_context.a2a_repositories().tasks.clone();
-    let tasks = task_repo.list_tasks_by_context(&context_id_typed).await?;
+    let tasks = task_repo.list_tasks_by_context(&owned).await?;
 
     tracing::debug!(context_id = %context_id, count = %tasks.len(), "Tasks listed");
     Ok((StatusCode::OK, Json(tasks)))
@@ -131,7 +131,7 @@ pub async fn delete_task(
     let owned = task_repo
         .owned_task(&task_id_typed, req_ctx.user_id())
         .await?;
-    task_repo.delete_task(owned.task_id()).await?;
+    task_repo.delete_task(&owned).await?;
 
     tracing::debug!(task_id = %task_id, "Task deleted");
     Ok(StatusCode::NO_CONTENT)

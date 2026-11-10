@@ -1,7 +1,9 @@
 use anyhow::Result;
 use systemprompt_agent::repository::execution::ExecutionStepRepository;
+use systemprompt_agent::repository::task::TaskRepository;
 use systemprompt_models::a2a::TaskState;
 use systemprompt_models::{ExecutionStep, PlannedTool, StepStatus};
+use systemprompt_test_fixtures::agent_reads::StepReadsExt;
 
 use crate::common::Fixture;
 
@@ -50,7 +52,12 @@ async fn list_by_task_returns_steps_in_started_order() -> Result<()> {
     let s3 = ExecutionStep::completion(task_id.clone());
     repo.create(&s3).await?;
 
-    let list = repo.list_by_task(&task_id).await?;
+    let list = repo
+        .steps_for_task(
+            &TaskRepository::new(&fx.db, crate::common::session_usage(&fx.db)?),
+            &task_id,
+        )
+        .await?;
     assert_eq!(list.len(), 3);
     assert!(list[0].started_at <= list[1].started_at);
     assert!(list[1].started_at <= list[2].started_at);
@@ -65,7 +72,12 @@ async fn list_by_task_empty_for_unknown() -> Result<()> {
     let repo = ExecutionStepRepository::new(&fx.db);
     use systemprompt_identifiers::TaskId;
     let tid = TaskId::new("__no_task_steps_qq");
-    let list = repo.list_by_task(&tid).await?;
+    let list = repo
+        .steps_for_task(
+            &TaskRepository::new(&fx.db, crate::common::session_usage(&fx.db)?),
+            &tid,
+        )
+        .await?;
     assert!(list.is_empty());
     fx.cleanup().await?;
     Ok(())

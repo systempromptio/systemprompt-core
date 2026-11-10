@@ -9,6 +9,7 @@ use systemprompt_agent::repository::content::artifact::{
     get_artifact_parts, persist_artifact_part,
 };
 use systemprompt_identifiers::ArtifactId;
+use systemprompt_test_fixtures::agent_reads::TaskReadsExt;
 
 use crate::repository::{repos, seed_context_and_task, seed_user_and_session};
 use systemprompt_test_fixtures::test_db_pool;
@@ -66,7 +67,7 @@ async fn persist_and_read_back_all_part_kinds_in_sequence_order() {
         "{part:?}"
     );
 
-    r.tasks.delete_task(&task_id).await.ok();
+    r.tasks.remove_task(&task_id).await.ok();
 }
 
 #[tokio::test]
@@ -109,7 +110,7 @@ async fn non_object_data_url_file_and_metadata_round_trip() {
     assert_eq!(parts[0].metadata, None);
     assert_eq!(parts[1], url_part);
 
-    r.tasks.delete_task(&task_id).await.ok();
+    r.tasks.remove_task(&task_id).await.ok();
 }
 
 #[tokio::test]
@@ -125,5 +126,5 @@ async fn get_parts_empty_for_unknown_artifact() {
         .expect("read parts");
     assert!(parts.is_empty());
 
-    r.tasks.delete_task(&task_id).await.ok();
+    r.tasks.remove_task(&task_id).await.ok();
 }

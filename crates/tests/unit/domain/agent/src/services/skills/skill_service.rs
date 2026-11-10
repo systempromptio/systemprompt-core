@@ -8,6 +8,7 @@ use systemprompt_identifiers::{
     Actor, AgentName, ContextId, SessionId, SkillId, TaskId, TraceId, UserId,
 };
 use systemprompt_models::execution::context::RequestContext;
+use systemprompt_test_fixtures::agent_reads::TaskReadsExt;
 use systemprompt_test_fixtures::{
     ScriptedSkills, ensure_test_bootstrap, not_managed_skills, scripted_skills, test_db_pool,
 };
@@ -289,7 +290,14 @@ async fn load_skill_records_an_execution_step_for_the_task() {
     assert!(instructions.contains("Tracked body."));
 
     let steps = step_repo
-        .list_by_task(&task_id)
+        .list_by_task(
+            &repos
+                .tasks
+                .owned_by_row(&task_id)
+                .await
+                .expect("owner lookup")
+                .expect("owned task"),
+        )
         .await
         .expect("steps should be readable");
     assert!(

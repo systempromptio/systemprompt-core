@@ -10,6 +10,7 @@ use chrono::{DateTime, Utc};
 
 use super::ContextRepository;
 use crate::models::context::{ContextKind, ContextStateEvent, UserContext, UserContextWithStats};
+use crate::repository::OwnedContext;
 use systemprompt_identifiers::{ContextId, SessionId, TaskId, UserId};
 use systemprompt_traits::RepositoryError;
 
@@ -46,19 +47,6 @@ impl ContextStatsRow {
 }
 
 impl ContextRepository {
-    pub async fn find_user_id_for_context(
-        &self,
-        context_id: &ContextId,
-    ) -> Result<Option<UserId>, RepositoryError> {
-        let row = sqlx::query_scalar!(
-            r#"SELECT user_id FROM user_contexts WHERE context_id = $1"#,
-            context_id.as_str(),
-        )
-        .fetch_optional(&*self.pool)
-        .await?;
-        Ok(row.map(UserId::new))
-    }
-
     pub async fn get_context(
         &self,
         context_id: &ContextId,
@@ -207,9 +195,10 @@ impl ContextRepository {
 
     pub async fn get_context_events_since(
         &self,
-        context_id: &ContextId,
+        owned: &OwnedContext,
         last_seen: DateTime<Utc>,
     ) -> Result<Vec<ContextStateEvent>, RepositoryError> {
+        let context_id = owned.context_id();
         let mut events = Vec::new();
 
         let task_ids: Vec<String> = sqlx::query_scalar!(

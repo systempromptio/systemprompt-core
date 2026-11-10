@@ -14,19 +14,21 @@ use tokio::sync::mpsc::Sender;
 use super::send_a2a_status_event;
 use crate::models::a2a::jsonrpc::NumberOrString;
 use crate::models::a2a::{TaskState, TaskStatus};
+use crate::repository::RuntimeTask;
 use crate::repository::task::TaskRepository;
 use crate::services::a2a_server::streaming::webhook_client::WebhookContext;
 
 pub(in crate::services::a2a_server::streaming) async fn record_failure(
     task_repo: &TaskRepository,
-    task_id: &TaskId,
+    task: &RuntimeTask,
     error: &str,
 ) {
+    let task_id = task.task_id();
     tracing::error!(task_id = %task_id, error = %error, "Stream error");
 
     let failed_timestamp = chrono::Utc::now();
     if let Err(e) = task_repo
-        .update_task_failed_with_error(task_id, error, &failed_timestamp)
+        .update_task_failed_with_error(task, error, &failed_timestamp)
         .await
     {
         tracing::error!(task_id = %task_id, error = %e, "Failed to update task to failed state");

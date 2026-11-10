@@ -13,6 +13,7 @@ use systemprompt_identifiers::{
 };
 use systemprompt_models::PlannedTool;
 use systemprompt_models::a2a::{Task, TaskState, TaskStatus};
+use systemprompt_test_fixtures::agent_reads::StepReadsExt;
 use systemprompt_test_fixtures::test_db_pool;
 use systemprompt_traits::ContextProvider;
 use tokio::sync::{Mutex, MutexGuard, OnceCell};
@@ -159,7 +160,12 @@ async fn execution_tracking_service_full_lifecycle() -> Result<()> {
 
     let _completion = svc.track_completion(task_id.clone()).await?;
 
-    let steps = svc.list_steps_by_task(&task_id).await?;
+    let steps = ExecutionStepRepository::new(&fx.db)
+        .steps_for_task(
+            &TaskRepository::new(&fx.db, crate::common::session_usage(&fx.db)?),
+            &task_id,
+        )
+        .await?;
     assert!(steps.len() >= 4);
 
     let got = svc.find_step(&tool_step.step_id).await?;
@@ -175,11 +181,13 @@ async fn execution_tracking_service_full_lifecycle() -> Result<()> {
 #[tokio::test]
 async fn context_service_load_history_for_empty_context_returns_empty() -> Result<()> {
     let fx = ServicesFixture::new().await?;
-    let svc = ContextService::new(TaskRepository::new(
-        &fx.db,
-        crate::common::session_usage(&fx.db)?,
-    ));
-    let history = svc.load_conversation_history(&fx.context_id).await?;
+    let svc = ContextService::new(
+        TaskRepository::new(&fx.db, crate::common::session_usage(&fx.db)?),
+        ContextRepository::new(&fx.db),
+    );
+    let history = svc
+        .load_conversation_history(&fx.context_id, &fx.user_id)
+        .await?;
     assert!(history.is_empty());
     fx.cleanup().await?;
     Ok(())
@@ -325,10 +333,10 @@ async fn context_service_loads_ordered_user_and_agent_history_across_tasks() -> 
         &fx.db,
         crate::common::session_usage(&fx.db)?,
     ));
-    let context_svc = ContextService::new(TaskRepository::new(
-        &fx.db,
-        crate::common::session_usage(&fx.db)?,
-    ));
+    let context_svc = ContextService::new(
+        TaskRepository::new(&fx.db, crate::common::session_usage(&fx.db)?),
+        ContextRepository::new(&fx.db),
+    );
 
     msg_svc
         .persist_messages(PersistMessagesParams {
@@ -383,7 +391,7 @@ async fn context_service_loads_ordered_user_and_agent_history_across_tasks() -> 
         .await?;
 
     let history = context_svc
-        .load_conversation_history(&fx.context_id)
+        .load_conversation_history(&fx.context_id, &fx.user_id)
         .await?;
     assert_eq!(history.len(), 3);
     assert_eq!(history[0].role, systemprompt_models::MessageRole::User);
@@ -419,11 +427,11 @@ async fn context_provider_service_get_context_returns_data() -> Result<()> {
 async fn execution_tracking_service_list_steps_for_unknown_task() -> Result<()> {
     use systemprompt_identifiers::TaskId;
     let fx = ServicesFixture::new().await?;
-    let exec_repo = Arc::new(ExecutionStepRepository::new(&fx.db));
-    let svc = ExecutionTrackingService::new(exec_repo);
-
-    let steps = svc
-        .list_steps_by_task(&TaskId::new("nonexistent-task-id"))
+    let steps = ExecutionStepRepository::new(&fx.db)
+        .steps_for_task(
+            &TaskRepository::new(&fx.db, crate::common::session_usage(&fx.db)?),
+            &TaskId::new("nonexistent-task-id"),
+        )
         .await?;
     assert!(steps.is_empty());
 

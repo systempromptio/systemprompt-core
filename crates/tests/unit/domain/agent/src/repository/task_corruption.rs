@@ -30,7 +30,7 @@ async fn unreadable_task_metadata_is_an_error() {
         .expect_err("corrupt metadata must not read as defaults");
     assert!(matches!(err, RepositoryError::Decode { .. }), "got {err}");
 
-    r.tasks.delete_task(&task_id).await.ok();
+    r.tasks.remove_task(&task_id).await.ok();
 }
 
 #[tokio::test]
@@ -57,7 +57,7 @@ async fn task_without_agent_name_is_an_error() {
         "got {err}"
     );
 
-    r.tasks.delete_task(&task_id).await.ok();
+    r.tasks.remove_task(&task_id).await.ok();
 }
 
 #[tokio::test]
@@ -76,5 +76,5 @@ async fn task_created_without_metadata_reads_back() {
     let metadata = task.metadata.expect("metadata projected from the row");
     assert_eq!(metadata.agent_name, "test-agent");
 
-    r.tasks.delete_task(&task_id).await.ok();
+    r.tasks.remove_task(&task_id).await.ok();
 }

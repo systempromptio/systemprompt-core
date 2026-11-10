@@ -21,8 +21,9 @@ use systemprompt_identifiers::TaskId;
 use systemprompt_traits::RepositoryError;
 
 use crate::models::a2a::TaskState;
+use crate::repository::RuntimeTask;
 
-pub async fn update_task_state(
+pub(crate) async fn update_task_state(
     pool: &Arc<PgPool>,
     task_id: &TaskId,
     state: TaskState,
@@ -36,11 +37,11 @@ pub async fn update_task_state(
 
 pub async fn transition_task_in_tx(
     tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
-    task_id: &TaskId,
+    task: &RuntimeTask,
     state: TaskState,
     timestamp: &chrono::DateTime<chrono::Utc>,
 ) -> Result<(), RepositoryError> {
-    transition_in_tx(tx, task_id, state, timestamp).await
+    transition_in_tx(tx, task.task_id(), state, timestamp).await
 }
 
 pub(super) async fn transition_in_tx(
@@ -175,7 +176,7 @@ pub(crate) async fn apply_notification_status(
     update_task_state(pool, task_id, parsed, timestamp).await
 }
 
-pub async fn update_task_failed_with_error(
+pub(crate) async fn update_task_failed_with_error(
     pool: &Arc<PgPool>,
     task_id: &TaskId,
     error_message: &str,

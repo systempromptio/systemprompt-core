@@ -1,7 +1,7 @@
 use super::{repos, seed_context_and_task, seed_user_and_session};
 use systemprompt_agent::models::a2a::{Artifact, ArtifactMetadata, Part};
 use systemprompt_identifiers::{ArtifactId, ContextId, TaskId, UserId};
-use systemprompt_test_fixtures::agent_reads::ArtifactReadsExt;
+use systemprompt_test_fixtures::agent_reads::{ArtifactReadsExt, ContextReadsExt, TaskReadsExt};
 use systemprompt_test_fixtures::test_db_pool;
 
 fn make_artifact(
@@ -52,7 +52,7 @@ async fn create_and_get_artifact_by_id() {
     assert_eq!(fetched.parts.len(), 1);
     assert_eq!(fetched.metadata.tool_name.as_deref(), Some("the-tool"));
 
-    r.tasks.delete_task(&task_id).await.ok();
+    r.tasks.remove_task(&task_id).await.ok();
 }
 
 #[tokio::test]
@@ -103,7 +103,7 @@ async fn artifact_with_all_part_kinds_roundtrip() {
     assert!(fetched.parts[1].is_file());
     assert!(fetched.parts[2].as_data().is_some());
 
-    r.tasks.delete_task(&task_id).await.ok();
+    r.tasks.remove_task(&task_id).await.ok();
 }
 
 #[tokio::test]
@@ -138,7 +138,7 @@ async fn create_artifact_upserts_on_conflict() {
     let part = &fetched.parts[0];
     assert_eq!(part.as_text(), Some("v2"), "{part:?}");
 
-    r.tasks.delete_task(&task_id).await.ok();
+    r.tasks.remove_task(&task_id).await.ok();
 }
 
 #[tokio::test]
@@ -163,7 +163,12 @@ async fn list_artifacts_by_task_context_and_user() {
     assert!(by_task.iter().any(|a| a.id == artifact_id));
 
     let by_ctx = artifacts
-        .get_artifacts_by_context(&context_id)
+        .get_artifacts_by_context(
+            &r.contexts
+                .owned_by_row(&context_id)
+                .await
+                .expect("owned context"),
+        )
         .await
         .expect("by ctx");
     assert!(by_ctx.iter().any(|a| a.id == artifact_id));
@@ -174,10 +179,7 @@ async fn list_artifacts_by_task_context_and_user() {
         .expect("by user");
     assert!(by_user.iter().any(|a| a.id == artifact_id));
 
-    let all = artifacts.get_all_artifacts(Some(500)).await.expect("all");
-    assert!(all.iter().any(|a| a.id == artifact_id));
-
-    r.tasks.delete_task(&task_id).await.ok();
+    r.tasks.remove_task(&task_id).await.ok();
 }
 
 #[tokio::test]
@@ -212,7 +214,7 @@ async fn owned_artifact_requires_the_owning_user() {
         systemprompt_traits::RepositoryError::NotFound { .. }
     ));
 
-    r.tasks.delete_task(&task_id).await.ok();
+    r.tasks.remove_task(&task_id).await.ok();
 }
 
 #[tokio::test]
@@ -237,5 +239,5 @@ async fn delete_artifact() {
     let fetched = artifacts.read_artifact(&artifact_id).await.expect("get");
     assert!(fetched.is_none());
 
-    r.tasks.delete_task(&task_id).await.ok();
+    r.tasks.remove_task(&task_id).await.ok();
 }

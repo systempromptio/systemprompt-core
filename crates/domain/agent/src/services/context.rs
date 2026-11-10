@@ -10,26 +10,37 @@ use systemprompt_models::text::truncate_with_ellipsis;
 use systemprompt_models::{AiMessage, MessageRole};
 
 use crate::models::a2a::Artifact;
+use crate::repository::ContextRepository;
 use crate::repository::task::TaskRepository;
 
 #[derive(Debug, Clone)]
 pub struct ContextService {
     task_repo: TaskRepository,
+    context_repo: ContextRepository,
 }
 
 impl ContextService {
     #[must_use]
-    pub const fn new(task_repo: TaskRepository) -> Self {
-        Self { task_repo }
+    pub const fn new(task_repo: TaskRepository, context_repo: ContextRepository) -> Self {
+        Self {
+            task_repo,
+            context_repo,
+        }
     }
 
     pub async fn load_conversation_history(
         &self,
         context_id: &systemprompt_identifiers::ContextId,
+        user_id: &systemprompt_identifiers::UserId,
     ) -> Result<Vec<AiMessage>> {
+        let owned = self
+            .context_repo
+            .owned_context(context_id, user_id)
+            .await
+            .map_err(|e| AgentServiceError::operation("Context not owned by the caller", e))?;
         let tasks = self
             .task_repo
-            .list_tasks_by_context(context_id)
+            .list_tasks_by_context(&owned)
             .await
             .map_err(|e| AgentServiceError::operation("Failed to load conversation history", e))?;
 

@@ -1,5 +1,6 @@
 use anyhow::Result;
 use systemprompt_models::a2a::TaskState;
+use systemprompt_test_fixtures::agent_reads::TaskReadsExt;
 use systemprompt_traits::RepositoryError;
 
 use crate::common::Fixture;
@@ -12,10 +13,10 @@ async fn notification_cannot_reopen_completed_task() -> Result<()> {
     let now = chrono::Utc::now();
 
     fx.repo
-        .update_task_state(&task_id, TaskState::Working, &now)
+        .set_task_state(&task_id, TaskState::Working, &now)
         .await?;
     fx.repo
-        .update_task_state(&task_id, TaskState::Completed, &now)
+        .set_task_state(&task_id, TaskState::Completed, &now)
         .await?;
 
     let err = fx

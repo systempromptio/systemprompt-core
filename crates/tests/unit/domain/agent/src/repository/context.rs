@@ -71,7 +71,7 @@ async fn get_context_wrong_user_is_not_found() {
 }
 
 #[tokio::test]
-async fn find_user_id_for_context() {
+async fn owned_context_requires_the_owning_user() {
     let pool = test_db_pool().await;
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let repo = ctx_repo(&pool).await;
@@ -80,17 +80,24 @@ async fn find_user_id_for_context() {
         .await
         .expect("create");
 
-    let found = repo
-        .find_user_id_for_context(&context_id)
+    let owned = repo
+        .owned_context(&context_id, &user_id)
         .await
-        .expect("find");
-    assert_eq!(found, Some(user_id));
+        .expect("owner mints the handle");
+    assert_eq!(owned.context_id(), &context_id);
+    assert_eq!(owned.user_id(), &user_id);
 
-    let missing = repo
-        .find_user_id_for_context(&ContextId::generate())
+    let err = repo
+        .owned_context(&context_id, &UserId::new("intruder"))
         .await
-        .expect("find missing");
-    assert_eq!(missing, None);
+        .unwrap_err();
+    assert!(err.is_not_found(), "{err}");
+
+    let err = repo
+        .owned_context(&ContextId::generate(), &user_id)
+        .await
+        .unwrap_err();
+    assert!(err.is_not_found(), "{err}");
 }
 
 #[tokio::test]
@@ -216,7 +223,13 @@ async fn get_context_events_since_empty() {
     // Far-future cutoff: no updates after it.
     let future = chrono::Utc::now() + chrono::Duration::hours(1);
     let events = repo
-        .get_context_events_since(&context_id, future)
+        .get_context_events_since(
+            &repo
+                .owned_context(&context_id, &user_id)
+                .await
+                .expect("owned context"),
+            future,
+        )
         .await
         .expect("events");
     assert!(events.is_empty());

@@ -1,6 +1,7 @@
 use anyhow::Result;
 use std::sync::Arc;
 use systemprompt_models::a2a::TaskState;
+use systemprompt_test_fixtures::agent_reads::TaskReadsExt;
 
 use crate::common::Fixture;
 
@@ -9,7 +10,7 @@ async fn concurrent_terminal_writes_have_a_single_winner() -> Result<()> {
     let fx = Arc::new(Fixture::new().await?);
     let task_id = fx.insert_task(TaskState::Submitted).await?;
     fx.repo
-        .update_task_state(&task_id, TaskState::Working, &chrono::Utc::now())
+        .set_task_state(&task_id, TaskState::Working, &chrono::Utc::now())
         .await?;
 
     let targets = [
@@ -30,7 +31,7 @@ async fn concurrent_terminal_writes_have_a_single_winner() -> Result<()> {
         handles.push(tokio::spawn(async move {
             let result = fx
                 .repo
-                .update_task_state(&task_id, target, &chrono::Utc::now())
+                .set_task_state(&task_id, target, &chrono::Utc::now())
                 .await;
             (target, result)
         }));
@@ -80,7 +81,7 @@ async fn concurrent_working_writes_converge_to_working() -> Result<()> {
         let task_id = task_id.clone();
         handles.push(tokio::spawn(async move {
             fx.repo
-                .update_task_state(&task_id, TaskState::Working, &chrono::Utc::now())
+                .set_task_state(&task_id, TaskState::Working, &chrono::Utc::now())
                 .await
         }));
     }

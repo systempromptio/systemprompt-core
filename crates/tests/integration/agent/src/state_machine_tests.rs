@@ -1,5 +1,6 @@
 use anyhow::Result;
 use systemprompt_models::a2a::TaskState;
+use systemprompt_test_fixtures::agent_reads::TaskReadsExt;
 use systemprompt_traits::RepositoryError;
 
 use crate::common::Fixture;
@@ -11,15 +12,15 @@ async fn completed_cannot_be_reopened_to_working() -> Result<()> {
     let now = chrono::Utc::now();
 
     fx.repo
-        .update_task_state(&task_id, TaskState::Working, &now)
+        .set_task_state(&task_id, TaskState::Working, &now)
         .await?;
     fx.repo
-        .update_task_state(&task_id, TaskState::Completed, &now)
+        .set_task_state(&task_id, TaskState::Completed, &now)
         .await?;
 
     let err = fx
         .repo
-        .update_task_state(&task_id, TaskState::Working, &now)
+        .set_task_state(&task_id, TaskState::Working, &now)
         .await
         .expect_err("completed -> working must be rejected");
     assert!(
@@ -41,15 +42,15 @@ async fn failed_cannot_be_reopened_to_working() -> Result<()> {
     let now = chrono::Utc::now();
 
     fx.repo
-        .update_task_state(&task_id, TaskState::Working, &now)
+        .set_task_state(&task_id, TaskState::Working, &now)
         .await?;
     fx.repo
-        .update_task_state(&task_id, TaskState::Failed, &now)
+        .set_task_state(&task_id, TaskState::Failed, &now)
         .await?;
 
     let err = fx
         .repo
-        .update_task_state(&task_id, TaskState::Working, &now)
+        .set_task_state(&task_id, TaskState::Working, &now)
         .await
         .expect_err("failed -> working must be rejected");
     assert!(matches!(err, RepositoryError::Conflict { .. }));
@@ -68,7 +69,7 @@ async fn canceled_cannot_transition_anywhere() -> Result<()> {
     let now = chrono::Utc::now();
 
     fx.repo
-        .update_task_state(&task_id, TaskState::Canceled, &now)
+        .set_task_state(&task_id, TaskState::Canceled, &now)
         .await?;
 
     for target in [
@@ -79,7 +80,7 @@ async fn canceled_cannot_transition_anywhere() -> Result<()> {
     ] {
         let err = fx
             .repo
-            .update_task_state(&task_id, target, &now)
+            .set_task_state(&task_id, target, &now)
             .await
             .expect_err(&format!("canceled -> {target:?} must be rejected"));
         assert!(matches!(err, RepositoryError::Conflict { .. }));
@@ -99,13 +100,13 @@ async fn identity_transition_is_idempotent() -> Result<()> {
     let now = chrono::Utc::now();
 
     fx.repo
-        .update_task_state(&task_id, TaskState::Working, &now)
+        .set_task_state(&task_id, TaskState::Working, &now)
         .await?;
     fx.repo
-        .update_task_state(&task_id, TaskState::Working, &now)
+        .set_task_state(&task_id, TaskState::Working, &now)
         .await?;
     fx.repo
-        .update_task_state(&task_id, TaskState::Working, &now)
+        .set_task_state(&task_id, TaskState::Working, &now)
         .await?;
 
     let status = fx.current_status(&task_id).await?;
@@ -127,7 +128,7 @@ async fn every_terminal_state_stamps_completion() -> Result<()> {
         TaskState::Rejected,
     ] {
         let task_id = fx.insert_task(TaskState::Submitted).await?;
-        fx.repo.update_task_state(&task_id, terminal, &now).await?;
+        fx.repo.set_task_state(&task_id, terminal, &now).await?;
 
         let (completed, timed): (bool, bool) = sqlx::query_as(
             "SELECT completed_at IS NOT NULL, execution_time_ms IS NOT NULL FROM agent_tasks \

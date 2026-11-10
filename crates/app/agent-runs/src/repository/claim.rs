@@ -187,7 +187,7 @@ impl AgentRunRepository {
             if row.status == "failed"
                 && let Some(task_id) = &row.task_id
             {
-                task_link::transition_task(&mut tx, task_id, RunStatus::Failed).await?;
+                task_link::transition_task(&mut tx, &row.id, task_id, RunStatus::Failed).await?;
             }
             ids.push(row.id);
         }

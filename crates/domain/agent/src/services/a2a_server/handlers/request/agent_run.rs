@@ -10,12 +10,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::{AgentName, AgentRunOriginId, TaskId};
+use systemprompt_identifiers::{AgentName, AgentRunOriginId};
 use systemprompt_models::RequestContext;
 use systemprompt_traits::AgentRunLaunch;
 
 use super::non_streaming::RequestFailure;
 use crate::models::a2a::{Message, Task};
+use crate::repository::OwnedTask;
 use crate::repository::task::RepoCreateTaskParams;
 use crate::services::a2a_server::handlers::state::AgentHandlerState;
 use crate::services::a2a_server::processing::message::extract_message_content;
@@ -47,18 +48,18 @@ pub(super) async fn launch_if_configured(
 
     let task_repo = &state.agent_state.repositories().tasks;
     let task_id = resolve_task_id(message);
-    let existing = task_repo
-        .find_task(&task_id)
-        .await
-        .map_err(|e| RequestFailure::internal("Task lookup failed", e))?;
-    if existing.is_some() {
-        return Err(RequestFailure::InvalidParams(format!(
-            "task {task_id} exists; an agent-run task cannot be continued"
-        )));
+    match task_repo.owned_task(&task_id, context.user_id()).await {
+        Ok(_) => {
+            return Err(RequestFailure::InvalidParams(format!(
+                "task {task_id} exists; an agent-run task cannot be continued"
+            )));
+        },
+        Err(e) if e.is_not_found() => {},
+        Err(e) => return Err(RequestFailure::internal("Task lookup failed", e)),
     }
 
     let task = new_submitted_task(&task_id, &message.context_id, agent_name);
-    task_repo
+    let runtime = task_repo
         .create_task(RepoCreateTaskParams {
             task: &task,
             user_id: context.user_id(),
@@ -84,7 +85,7 @@ pub(super) async fn launch_if_configured(
         },
         Err(e) => {
             let failed = task_repo
-                .update_task_failed_with_error(&task_id, &e.to_string(), &chrono::Utc::now())
+                .update_task_failed_with_error(&runtime, &e.to_string(), &chrono::Utc::now())
                 .await;
             if let Err(mark) = failed {
                 tracing::error!(task_id = %task_id, error = %mark, "Failed to mark task failed");
@@ -95,9 +96,10 @@ pub(super) async fn launch_if_configured(
 }
 
 pub(super) async fn cancel_run(
-    task_id: &TaskId,
+    owned: &OwnedTask,
     state: &AgentHandlerState,
 ) -> Result<bool, RequestFailure> {
+    let task_id = owned.task_id();
     let Some(launcher) = state.agent_state.agent_run_launcher() else {
         return Ok(false);
     };

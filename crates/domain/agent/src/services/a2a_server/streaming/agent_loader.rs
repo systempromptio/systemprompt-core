@@ -4,12 +4,13 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::response::sse::Event;
-use systemprompt_identifiers::{AgentName, TaskId};
+use systemprompt_identifiers::AgentName;
 use tokio::sync::mpsc::Sender;
 
 use crate::error::AgentResult;
 use crate::models::AgentRuntimeInfo;
 use crate::models::a2a::jsonrpc::NumberOrString;
+use crate::repository::RuntimeTask;
 use crate::repository::task::TaskRepository;
 use crate::services::registry::AgentRegistry;
 
@@ -19,7 +20,7 @@ use crate::services::a2a_server::errors::JsonRpcErrorBuilder;
 pub(super) struct LoadAgentRuntimeParams<'a> {
     pub registry: AgentResult<AgentRegistry>,
     pub agent_name: &'a AgentName,
-    pub task_id: &'a TaskId,
+    pub task: &'a RuntimeTask,
     pub task_repo: &'a TaskRepository,
     pub tx: &'a Sender<Event>,
     pub request_id: &'a NumberOrString,
@@ -31,7 +32,7 @@ pub(super) async fn load_agent_runtime(
     let LoadAgentRuntimeParams {
         registry,
         agent_name,
-        task_id,
+        task,
         task_repo,
         tx,
         request_id,
@@ -44,7 +45,7 @@ pub(super) async fn load_agent_runtime(
                 error = %e,
                 "Failed to load agent registry - check if config files exist"
             );
-            mark_task_failed_with_error(task_id, task_repo, &error_msg).await;
+            mark_task_failed_with_error(task, task_repo, &error_msg).await;
             if tx
                 .try_send(jsonrpc_error_event(
                     JsonRpcErrorBuilder::internal_error()
@@ -64,7 +65,7 @@ pub(super) async fn load_agent_runtime(
         Err(e) => {
             let error_msg = format!("Failed to load agent '{}': {}", agent_name, e);
             tracing::error!(agent_name = %agent_name, error = %e, "Failed to load agent");
-            mark_task_failed_with_error(task_id, task_repo, &error_msg).await;
+            mark_task_failed_with_error(task, task_repo, &error_msg).await;
             if tx
                 .try_send(jsonrpc_error_event(
                     JsonRpcErrorBuilder::internal_error()
@@ -81,15 +82,15 @@ pub(super) async fn load_agent_runtime(
 }
 
 pub(super) async fn mark_task_failed_with_error(
-    task_id: &TaskId,
+    task: &RuntimeTask,
     task_repo: &TaskRepository,
     error_message: &str,
 ) {
     let failed_timestamp = chrono::Utc::now();
     if let Err(update_err) = task_repo
-        .update_task_failed_with_error(task_id, error_message, &failed_timestamp)
+        .update_task_failed_with_error(task, error_message, &failed_timestamp)
         .await
     {
-        tracing::error!(task_id = %task_id, error = %update_err, "Failed to update task to failed state");
+        tracing::error!(task_id = %task.task_id(), error = %update_err, "Failed to update task to failed state");
     }
 }

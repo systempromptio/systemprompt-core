@@ -3,41 +3,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use sqlx::PgPool;
-use std::sync::Arc;
 use systemprompt_identifiers::{MessageId, TaskId};
 use systemprompt_traits::RepositoryError;
 
 use crate::models::a2a::Part;
-use crate::repository::parts::{parts_from_rows, row_values};
-
-pub async fn get_message_parts(
-    pool: &Arc<PgPool>,
-    message_id: &MessageId,
-) -> Result<Vec<Part>, RepositoryError> {
-    let part_rows: Vec<crate::models::MessagePart> = sqlx::query_as!(
-        crate::models::MessagePart,
-        r#"SELECT
-            id as "id!",
-            message_id as "message_id!: MessageId",
-            task_id as "task_id!: TaskId",
-            part_kind as "part_kind!",
-            sequence_number as "sequence_number!",
-            text_content,
-            file_name,
-            file_mime_type,
-            file_uri,
-            file_bytes,
-            data_content,
-            metadata
-        FROM message_parts WHERE message_id = $1 ORDER BY sequence_number ASC"#,
-        message_id.as_str()
-    )
-    .fetch_all(pool.as_ref())
-    .await?;
-
-    parts_from_rows(&part_rows)
-}
+use crate::repository::parts::row_values;
 
 #[derive(Debug)]
 pub struct PersistPartSqlxParams<'a> {

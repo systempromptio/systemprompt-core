@@ -450,3 +450,27 @@ async fn broadcast_unknown_event_type_returns_400() -> anyhow::Result<()> {
     assert_eq!(resp.status().as_u16(), 400, "{}", resp.status());
     Ok(())
 }
+
+#[tokio::test]
+async fn broadcast_message_received_for_another_users_message_returns_404() -> anyhow::Result<()> {
+    let (pool, ctx) = setup_ctx().await?;
+    let owner = seed_context(&pool).await?;
+    let task_id = seed_task(&pool, &owner).await?;
+    let message_id = seed_message(&pool, &owner, &task_id).await?;
+    let stranger = seed_context(&pool).await?;
+    let body = webhook_body(
+        "message_received",
+        message_id.as_str(),
+        &stranger,
+        serde_json::json!({}),
+    );
+    let resp = app(&ctx, &stranger.user_id)
+        .oneshot(json_post("/broadcast", body))
+        .await?;
+    assert_eq!(
+        resp.status().as_u16(),
+        404,
+        "a message outside the caller's context reads as absent"
+    );
+    Ok(())
+}

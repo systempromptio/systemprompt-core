@@ -6,6 +6,7 @@
 
 use std::sync::Arc;
 use systemprompt_identifiers::AgentName;
+use systemprompt_test_fixtures::agent_reads::TaskReadsExt;
 
 use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TaskState};
 use systemprompt_agent::services::a2a_server::processing::TaskBuilder;
@@ -132,6 +133,7 @@ async fn persist_completed_task_updates_existing_row() {
 
     let persisted = processor
         .persist_completed_task(PersistCompletedTaskOnProcessorParams {
+            runtime: &repos.tasks.runtime_by_row(&task_id).await.expect("runtime"),
             task: &task,
             user_message: &user_msg,
             agent_message: &agent_msg,

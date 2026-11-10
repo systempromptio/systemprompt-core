@@ -10,6 +10,7 @@ use systemprompt_models::RequestContext;
 
 use super::stream_collection::{BroadcastAguiLifecycleParams, broadcast_agui_lifecycle};
 use crate::models::a2a::{Message, Task, TaskState};
+use crate::repository::RuntimeTask;
 use crate::services::a2a_server::processing::message::MessageHandler;
 use crate::services::a2a_server::processing::message::persistence::{
     PersistOutcome, broadcast_completion, persist_completed_task,
@@ -21,6 +22,7 @@ use crate::services::a2a_server::streaming::webhook_client::WebhookContext;
 use crate::services::shared::{AgentServiceError, Result};
 
 pub(super) struct FinalizeParams<'a> {
+    pub runtime: &'a RuntimeTask,
     pub task: &'a Task,
     pub message: &'a Message,
     pub agent_message: &'a Message,
@@ -41,11 +43,11 @@ impl MessageHandler {
     pub(super) async fn finalize(&self, params: FinalizeParams<'_>) -> Result<()> {
         let FinalizeParams {
             task,
-            message,
             agent_message,
             response_text,
             context,
             webhooks,
+            ..
         } = params;
         if context.user_type() == systemprompt_models::auth::UserType::Anon {
             tracing::warn!(
@@ -55,7 +57,7 @@ impl MessageHandler {
             );
         }
 
-        self.persist_or_mark_failed(task, message, agent_message, context)
+        self.persist_or_mark_failed(&params)
             .await?
             .record_undelivered_broadcasts();
 
@@ -75,7 +77,7 @@ impl MessageHandler {
     pub(super) async fn persist_and_announce(
         &self,
         params: PersistAndAnnounceParams<'_>,
-    ) -> Result<()> {
+    ) -> Result<RuntimeTask> {
         let PersistAndAnnounceParams {
             task,
             message,
@@ -83,7 +85,7 @@ impl MessageHandler {
             context,
             webhooks,
         } = params;
-        if let Err(e) = self
+        let runtime = self
             .repositories
             .tasks
             .create_task(crate::repository::task::RepoCreateTaskParams {
@@ -94,12 +96,7 @@ impl MessageHandler {
                 agent_name,
             })
             .await
-        {
-            return Err(AgentServiceError::operation(
-                "Failed to persist task at start",
-                e,
-            ));
-        }
+            .map_err(|e| AgentServiceError::operation("Failed to persist task at start", e))?;
 
         tracing::info!(task_id = %task.id, "Task persisted to database");
 
@@ -116,7 +113,7 @@ impl MessageHandler {
         if let Err(e) = self
             .repositories
             .tasks
-            .update_task_state(&task.id, TaskState::Working, &working_timestamp)
+            .update_task_state(&runtime, TaskState::Working, &working_timestamp)
             .await
         {
             return Err(AgentServiceError::operation(
@@ -125,18 +122,21 @@ impl MessageHandler {
             ));
         }
 
-        Ok(())
+        Ok(runtime)
     }
 
-    async fn persist_or_mark_failed(
-        &self,
-        task: &Task,
-        user_message: &Message,
-        agent_message: &Message,
-        context: &RequestContext,
-    ) -> Result<PersistOutcome> {
+    async fn persist_or_mark_failed(&self, params: &FinalizeParams<'_>) -> Result<PersistOutcome> {
+        let FinalizeParams {
+            runtime,
+            task,
+            message: user_message,
+            agent_message,
+            context,
+            ..
+        } = *params;
         let outcome = persist_completed_task(
             crate::services::a2a_server::processing::message::persistence::PersistCompletedTaskParams {
+                runtime,
                 task,
                 user_message,
                 agent_message,
@@ -160,7 +160,7 @@ impl MessageHandler {
         if let Err(update_err) = self
             .repositories
             .tasks
-            .update_task_failed_with_error(&task.id, &error_msg, &failed_timestamp)
+            .update_task_failed_with_error(runtime, &error_msg, &failed_timestamp)
             .await
         {
             tracing::error!(task_id = %task.id, error = %update_err, "Failed to update task to failed state");

@@ -8,6 +8,7 @@ use super::converters::{artifact_from_row, rows_to_artifacts_batch};
 use super::parts::get_artifact_parts;
 use crate::models::ArtifactRow;
 use crate::models::a2a::Artifact;
+use crate::repository::OwnedContext;
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_identifiers::{ArtifactId, ContextId, McpExecutionId, SkillId, TaskId, UserId};
@@ -51,10 +52,10 @@ impl ArtifactRepository {
 
     pub async fn get_artifacts_by_context(
         &self,
-        context_id: &ContextId,
+        owned: &OwnedContext,
     ) -> Result<Vec<Artifact>, RepositoryError> {
         let pool = Arc::clone(&self.pool);
-        let context_id_str = context_id.as_str();
+        let context_id_str = owned.context_id().as_str();
 
         let rows = sqlx::query_as!(
             ArtifactRow,
@@ -162,41 +163,6 @@ impl ArtifactRepository {
             },
             None => Ok(None),
         }
-    }
-
-    pub async fn get_all_artifacts(
-        &self,
-        limit: Option<i32>,
-    ) -> Result<Vec<Artifact>, RepositoryError> {
-        let pool = Arc::clone(&self.pool);
-        let limit = i64::from(limit.unwrap_or(100));
-
-        let rows = sqlx::query_as!(
-            ArtifactRow,
-            r#"SELECT
-                artifact_id as "artifact_id!: ArtifactId",
-                task_id as "task_id!: TaskId",
-                context_id as "context_id!: ContextId",
-                name,
-                description,
-                artifact_type as "artifact_type!",
-                source,
-                tool_name,
-                mcp_execution_id as "mcp_execution_id?: McpExecutionId",
-                fingerprint,
-                skill_id as "skill_id?: SkillId",
-                skill_name,
-                metadata,
-                created_at as "created_at!"
-            FROM task_artifacts
-            ORDER BY created_at DESC
-            LIMIT $1"#,
-            limit
-        )
-        .fetch_all(pool.as_ref())
-        .await?;
-
-        rows_to_artifacts_batch(&pool, rows).await
     }
 }
 

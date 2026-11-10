@@ -13,6 +13,7 @@ use crate::error::AgentResult;
 use crate::models::AgentRuntimeInfo;
 use crate::models::a2a::Message;
 use crate::models::a2a::jsonrpc::NumberOrString;
+use crate::repository::RuntimeTask;
 use crate::repository::task::TaskRepository;
 use crate::services::a2a_server::handlers::AgentHandlerState;
 use crate::services::a2a_server::processing::message::MessageHandler;
@@ -30,8 +31,7 @@ pub struct StreamInput {
 
 #[derive(Debug)]
 pub struct StreamSetupResult {
-    pub task_id: TaskId,
-    pub context_id: ContextId,
+    pub task: RuntimeTask,
     pub message_id: MessageId,
     pub message: Message,
     pub agent_name: AgentName,
