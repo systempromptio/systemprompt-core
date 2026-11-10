@@ -271,10 +271,10 @@ async fn generate_profile_for(
     bridge: &crate::context::BridgeContext,
     overrides: &crate::integration::reapply::ModelProtocolOverrides,
 ) -> GuiResult<GeneratedProfile> {
-    if let crate::sync::RegistryRefresh::StoredEnvelope(error) =
+    if let crate::sync::RegistryRefresh::StoredEnvelope { kept, error } =
         crate::sync::refresh_registry_for(bridge, host).await?
     {
-        tracing::info!(%error, host = host.display_name(), "profile written from the last verified manifest");
+        tracing::info!(%error, ?kept, host = host.display_name(), "profile written from the last verified manifest");
     }
     let inputs = crate::integration::reapply::build_profile_inputs(bridge, host, overrides).await?;
     host.generate_profile(&inputs)

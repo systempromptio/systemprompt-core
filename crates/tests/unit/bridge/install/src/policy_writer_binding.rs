@@ -8,13 +8,14 @@ use std::collections::BTreeMap;
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::ids::HostToken;
 use systemprompt_bridge::install::policy_writer::binding::{
-    Admission, ApplyOutcome, BINDING_VERSION, ENVELOPE_SKEW_MINUTES, admit, authorize,
-    envelope_digest, require_bound_loopback,
+    Admission, ApplyOutcome, BINDING_VERSION, admit, authorize, envelope_digest,
+    require_bound_loopback,
 };
 use systemprompt_bridge::install::policy_writer::{
     AcceptedEnvelope, AccountSid, Loopback, MachineBinding, PolicyWriteRequest, PolicyWriterError,
     derive_policy,
 };
+use systemprompt_bridge::sync::SKEW_WINDOW_MINUTES;
 use systemprompt_models::bridge::host::HostKind;
 
 use crate::policy_writer::{
@@ -167,7 +168,7 @@ fn an_envelope_no_newer_than_the_last_accepted_is_refused() {
 #[test]
 fn an_envelope_dated_beyond_the_future_skew_bound_is_refused() {
     let signed = manifest(vec![]);
-    let beyond = chrono::Duration::minutes(ENVELOPE_SKEW_MINUTES + 1);
+    let beyond = chrono::Duration::minutes(SKEW_WINDOW_MINUTES + 1);
     assert!(
         matches!(
             admit(&signed, &digest_of(1), None, signed.not_before - beyond),
@@ -176,7 +177,7 @@ fn an_envelope_dated_beyond_the_future_skew_bound_is_refused() {
         "not_before {} is too far ahead of the clock",
         signed.not_before
     );
-    let within = chrono::Duration::minutes(ENVELOPE_SKEW_MINUTES - 1);
+    let within = chrono::Duration::minutes(SKEW_WINDOW_MINUTES - 1);
     admit(&signed, &digest_of(1), None, signed.not_before - within).expect("inside the bound");
 }
 
@@ -184,7 +185,7 @@ fn an_envelope_dated_beyond_the_future_skew_bound_is_refused() {
 fn an_older_envelope_is_admitted_when_its_version_is_newer() {
     let signed = manifest(vec![]);
     for age in [
-        chrono::Duration::minutes(ENVELOPE_SKEW_MINUTES + 1),
+        chrono::Duration::minutes(SKEW_WINDOW_MINUTES + 1),
         chrono::Duration::days(3),
     ] {
         assert_eq!(

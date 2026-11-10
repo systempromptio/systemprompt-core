@@ -12,6 +12,7 @@ mod manifest_cache;
 mod org_plugins_scope;
 mod process_lock;
 mod provision;
+mod refresh_fallback;
 mod registry_refresh;
 mod replay;
 mod seed_model;
@@ -28,11 +29,11 @@ pub use crate::last_sync::{
 pub use apply::{HostFailure, HostWarning, HostWarningKind, PLUGIN_INSTALLATION_PREFERENCE};
 pub use error::{CredentialRejection, SyncError};
 pub use provision::ProvisionError;
+pub use refresh_fallback::{KeptStored, RefreshFailure, classify as classify_refresh_failure};
 pub use registry_refresh::{
-    RegistryRefresh, gateway_unreachable, refresh_or_keep_stored, refresh_registry,
-    refresh_registry_for,
+    RegistryRefresh, refresh_or_keep_stored, refresh_registry, refresh_registry_for,
 };
-pub use replay::{SKEW_WINDOW_MINUTES, check_replay, check_skew};
+pub use replay::{SKEW_WINDOW_MINUTES, check_replay, check_skew, dated_beyond_skew};
 pub use stale_retry::run_once;
 pub use summary::SyncSummary;
 use summary::build_summary;

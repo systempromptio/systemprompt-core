@@ -678,9 +678,11 @@ fn refresh_rejects_skew_and_replay_without_overwriting_accepted_envelope() {
     for stale_clock in [false, true] {
         let key = signing_key();
         let mut incoming = manifest();
-        if !stale_clock {
-            incoming.not_before = chrono::Utc::now();
-        }
+        incoming.not_before = if stale_clock {
+            chrono::Utc::now() + chrono::Duration::hours(2)
+        } else {
+            chrono::Utc::now()
+        };
         let envelope = signed_envelope_of(&key, &incoming);
         let (server, dirs) = block_on(async {
             let server = MockServer::start().await;
@@ -732,7 +734,9 @@ fn refresh_rejects_skew_and_replay_without_overwriting_accepted_envelope() {
 #[test]
 fn full_sync_rejection_keeps_the_previously_accepted_envelope() {
     let key = signing_key();
-    let envelope = signed_envelope(&key);
+    let mut ahead = manifest();
+    ahead.not_before = chrono::Utc::now() + chrono::Duration::hours(2);
+    let envelope = signed_envelope_of(&key, &ahead);
     let (server, dirs) = block_on(async {
         let server = MockServer::start().await;
         crate::mount_profile(&server).await;

@@ -26,7 +26,6 @@ use crate::gateway::manifest_version::ManifestVersion;
 use crate::ids::{HostToken, Sha256Digest};
 
 pub const BINDING_VERSION: u32 = 1;
-pub const ENVELOPE_SKEW_MINUTES: i64 = 5;
 
 /// A Windows account security identifier in its `S-1-…` string form.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -206,8 +205,7 @@ pub fn admit(
     {
         return Ok(Admission::AlreadyAccepted);
     }
-    let window = chrono::Duration::minutes(ENVELOPE_SKEW_MINUTES);
-    if manifest.not_before.signed_duration_since(now) > window {
+    if crate::sync::dated_beyond_skew(manifest.not_before, now) {
         return Err(PolicyWriterError::Skewed {
             not_before: manifest.not_before.to_rfc3339(),
             now: now.to_rfc3339(),

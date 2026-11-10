@@ -7,9 +7,11 @@
 //! a conflict sibling and kept, and its entry is dropped so the next upload
 //! offers it as a new document.
 //!
-//! A path that cannot be placed ([`super::names::PathRefusal`]) is skipped
-//! with a notice instead of stopping the feed; a case collision is kept as a
-//! conflict naming the file that already holds the name.
+//! A path that cannot be placed ([`super::names::PathRefusal`]) does not stop
+//! the feed: it is kept as a conflict, naming the file that already holds
+//! the name for a case collision, or the path itself otherwise. That conflict
+//! stays until the name becomes placeable or a later change for the same
+//! document is applied.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -42,7 +44,7 @@ pub fn remote_delete(
     if path.exists() && hash_file(&path)?.0 != synced.sha256 {
         let sibling = free_conflict_sibling(cycle.root, &rel, cycle.host_name)?;
         move_file(&path, &cycle.root.file(&sibling)?)?;
-        let notice = record_conflict(state, &rel, sibling, synced.revision_id);
+        let notice = record_conflict(state, document_id, &rel, sibling, synced.revision_id);
         tracing::warn!(path = %rel, sibling = %notice.sibling, "drive kept a local edit to a document deleted on the server");
         report.conflicts.push(notice);
     } else if let Some(trashed) = super::trash::move_to_trash(cycle.root, &rel, Utc::now())? {
@@ -84,30 +86,50 @@ pub fn ensure_no_collision(root: &DriveRoot, state: &DriveState, rel: &str) -> D
     case_collision(rel, listed.iter().map(String::as_str)).map_err(refuse)
 }
 
-pub fn skip_unplaceable(
-    state: &mut DriveState,
-    rel: &str,
-    refusal: &PathRefusal,
-    revision_id: Option<&DocumentRevisionId>,
-    report: &mut PullReport,
-) {
+/// A change whose path could not be placed.
+#[derive(Debug, Clone, Copy)]
+pub struct Unplaced<'a> {
+    pub document_id: &'a DocumentId,
+    pub rel: &'a str,
+    pub refusal: &'a PathRefusal,
+    pub revision_id: Option<&'a DocumentRevisionId>,
+}
+
+pub fn skip_unplaceable(state: &mut DriveState, unplaced: Unplaced<'_>, report: &mut PullReport) {
+    let Unplaced {
+        document_id,
+        rel,
+        refusal,
+        revision_id,
+    } = unplaced;
     tracing::warn!(path = %rel, %refusal, "drive did not place a document");
-    match (refusal, revision_id) {
-        (PathRefusal::CaseCollision { existing }, Some(revision_id)) => {
-            let notice = record_conflict(state, rel, existing.clone(), revision_id.clone());
-            report.conflicts.push(notice);
-        },
-        _ => record_notice(state, rel, format!("not placed: {refusal}")),
-    }
+    let revision_id = revision_id.cloned().or_else(|| {
+        state
+            .path_of(document_id)
+            .and_then(|known| state.entries.get(known))
+            .map(|entry| entry.revision_id.clone())
+    });
+    let Some(revision_id) = revision_id else {
+        record_notice(state, rel, format!("not placed: {refusal}"));
+        return;
+    };
+    let sibling = match refusal {
+        PathRefusal::CaseCollision { existing } => existing.clone(),
+        _ => rel.to_owned(),
+    };
+    let notice = record_conflict(state, document_id, rel, sibling, revision_id);
+    report.conflicts.push(notice);
 }
 
 fn record_conflict(
     state: &mut DriveState,
+    document_id: &DocumentId,
     rel: &str,
     sibling: String,
     revision_id: DocumentRevisionId,
 ) -> ConflictNotice {
     let notice = ConflictNotice {
+        document_id: Some(document_id.clone()),
         path: rel.to_owned(),
         sibling,
         head_revision_id: revision_id,

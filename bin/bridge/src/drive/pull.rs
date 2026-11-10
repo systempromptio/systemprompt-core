@@ -26,11 +26,11 @@ use systemprompt_identifiers::{DocumentId, DocumentRevisionId};
 use systemprompt_models::documents::{DriveChange, DriveChangeKind, DriveManifest};
 
 use super::Cycle;
-use super::conflict::{HeadRef, keep_local_beside};
+use super::conflict::{HeadRef, clear_unplaced, keep_local_beside};
 use super::error::{DriveError, DriveResult};
 use super::hash::hash_file;
 use super::names::fold;
-use super::placement::{ensure_no_collision, remote_delete, skip_unplaceable};
+use super::placement::{Unplaced, ensure_no_collision, remote_delete, skip_unplaceable};
 use super::state::{ConflictNotice, DriveState};
 use super::write::{GuardedWrite, move_file, synced_entry, write_unless_changed};
 
@@ -61,7 +61,13 @@ pub async fn pull(cycle: Cycle<'_>, state: &mut DriveState) -> DriveResult<PullR
     let mut report = PullReport::default();
     for change in &feed.changes {
         let applied = apply(cycle, state, change, &mut report).await;
-        skip_if_unplaceable(state, applied, change.revision_id.as_ref(), &mut report)?;
+        skip_if_unplaceable(
+            state,
+            applied,
+            &change.document_id,
+            change.revision_id.as_ref(),
+            &mut report,
+        )?;
         state.cursor = Some(change.cursor.clone());
         state.save(&cycle.root.state_path())?;
     }
@@ -91,9 +97,9 @@ pub async fn reconcile(
             revision_id: entry.head_revision_id,
             sha256: entry.content_sha256,
         };
-        let revision_id = head.revision_id.clone();
+        let (document_id, revision_id) = (head.document_id.clone(), head.revision_id.clone());
         let placed = place_head(cycle, state, &entry.path, head, &mut report).await;
-        skip_if_unplaceable(state, placed, Some(&revision_id), &mut report)?;
+        skip_if_unplaceable(state, placed, &document_id, Some(&revision_id), &mut report)?;
     }
     state.cursor = Some(manifest.cursor);
     state.save(&cycle.root.state_path())?;
@@ -103,15 +109,26 @@ pub async fn reconcile(
 fn skip_if_unplaceable(
     state: &mut DriveState,
     result: DriveResult<()>,
+    document_id: &DocumentId,
     revision_id: Option<&DocumentRevisionId>,
     report: &mut PullReport,
 ) -> DriveResult<()> {
     match result {
-        Err(DriveError::Unplaceable { path, refusal }) => {
-            skip_unplaceable(state, &path, &refusal, revision_id, report);
+        Ok(()) => {
+            clear_unplaced(state, document_id);
             Ok(())
         },
-        other => other,
+        Err(DriveError::Unplaceable { path, refusal }) => {
+            let unplaced = Unplaced {
+                document_id,
+                rel: &path,
+                refusal: &refusal,
+                revision_id,
+            };
+            skip_unplaceable(state, unplaced, report);
+            Ok(())
+        },
+        Err(error) => Err(error),
     }
 }
 

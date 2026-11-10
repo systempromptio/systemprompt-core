@@ -68,7 +68,7 @@ fn names_that_fold_together_collide() {
 }
 
 #[tokio::test]
-async fn an_unportable_name_is_skipped_with_a_notice_and_the_feed_moves_on() {
+async fn an_unportable_name_is_kept_as_a_conflict_and_the_feed_moves_on() {
     let server = MockServer::start().await;
     let fx = Fixture::new(&server.uri());
     fx.synced_empty();
@@ -106,12 +106,11 @@ async fn an_unportable_name_is_skipped_with_a_notice_and_the_feed_moves_on() {
     assert_eq!(fx.read("ok.md"), body);
     let saved = fx.state();
     assert_eq!(saved.cursor.as_deref(), Some("c9"));
-    assert_eq!(saved.delete_notices.len(), 1);
-    assert_eq!(saved.delete_notices[0].path, "aux.md");
-    assert!(
-        saved.delete_notices[0]
-            .reason
-            .contains("reserved device name")
+    assert_eq!(saved.conflicts.len(), 1);
+    assert_eq!(saved.conflicts[0].path, "aux.md");
+    assert_eq!(
+        saved.conflicts[0].sibling, "aux.md",
+        "no local file holds the name"
     );
 }
 
@@ -162,5 +161,5 @@ async fn a_path_under_a_link_out_of_the_folder_is_never_written() {
     pull(fx.cycle(), &mut state).await.expect("pull");
 
     assert!(!outside.path().join("escape.md").exists());
-    assert_eq!(fx.state().delete_notices.len(), 1);
+    assert_eq!(fx.state().conflicts.len(), 1);
 }

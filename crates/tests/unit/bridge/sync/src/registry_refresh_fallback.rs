@@ -1,5 +1,5 @@
 use systemprompt_bridge::gateway::GatewayError;
-use systemprompt_bridge::sync::{SyncError, gateway_unreachable};
+use systemprompt_bridge::sync::{KeptStored, RefreshFailure, SyncError, classify_refresh_failure};
 
 async fn connect_error() -> reqwest::Error {
     let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");
@@ -14,10 +14,34 @@ async fn connect_error() -> reqwest::Error {
 
 #[tokio::test]
 async fn an_unreachable_gateway_keeps_the_stored_envelope() {
-    let manifest = SyncError::Gateway(GatewayError::ManifestFetch(Box::new(connect_error().await)));
-    assert!(gateway_unreachable(&manifest), "{manifest}");
-    let pubkey = SyncError::Gateway(GatewayError::PubkeyFetch(Box::new(connect_error().await)));
-    assert!(gateway_unreachable(&pubkey), "{pubkey}");
+    for error in [
+        SyncError::Gateway(GatewayError::ManifestFetch(Box::new(connect_error().await))),
+        SyncError::Gateway(GatewayError::PubkeyFetch(Box::new(connect_error().await))),
+    ] {
+        assert_eq!(
+            classify_refresh_failure(&error),
+            RefreshFailure::Kept(KeptStored::Unreachable),
+            "{error}"
+        );
+    }
+}
+
+#[test]
+fn a_device_without_a_credential_keeps_the_stored_envelope() {
+    let error = SyncError::NoCredential { bin: "bridge" };
+    assert_eq!(
+        classify_refresh_failure(&error),
+        RefreshFailure::Kept(KeptStored::NoCredential)
+    );
+}
+
+#[test]
+fn a_disabled_bridge_keeps_the_stored_envelope() {
+    let error = SyncError::Disabled { bin: "bridge" };
+    assert_eq!(
+        classify_refresh_failure(&error),
+        RefreshFailure::Kept(KeptStored::Disabled)
+    );
 }
 
 #[test]
@@ -35,6 +59,10 @@ fn a_manifest_that_fails_verification_stops_the_repair() {
         SyncError::Gateway(GatewayError::PubkeyMissing),
         SyncError::Gateway(GatewayError::ManifestNotModifiedWithoutCache),
     ] {
-        assert!(!gateway_unreachable(&error), "{error}");
+        assert_eq!(
+            classify_refresh_failure(&error),
+            RefreshFailure::Rejected,
+            "{error}"
+        );
     }
 }

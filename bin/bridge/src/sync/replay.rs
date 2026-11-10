@@ -21,13 +21,23 @@ pub fn check_replay(last: &LastSyncState, incoming: &ManifestVersion) -> Result<
     Ok(())
 }
 
+// Why: a gateway may serve a cached envelope whose `not_before` is hours
+// old; its age is governed by the monotonic manifest version, so only a date
+// too far ahead of this clock is refused. The policy writer applies the same
+// rule.
+#[must_use]
+pub fn dated_beyond_skew(
+    not_before: chrono::DateTime<chrono::Utc>,
+    now: chrono::DateTime<chrono::Utc>,
+) -> bool {
+    not_before.signed_duration_since(now) > chrono::Duration::minutes(SKEW_WINDOW_MINUTES)
+}
+
 pub fn check_skew(
     not_before: chrono::DateTime<chrono::Utc>,
     now: chrono::DateTime<chrono::Utc>,
 ) -> Result<(), SyncError> {
-    let window = chrono::Duration::minutes(SKEW_WINDOW_MINUTES);
-    let delta = not_before.signed_duration_since(now);
-    if delta > window || delta < -window {
+    if dated_beyond_skew(not_before, now) {
         return Err(SyncError::ManifestSkew {
             not_before: not_before.to_rfc3339(),
             now: now.to_rfc3339(),

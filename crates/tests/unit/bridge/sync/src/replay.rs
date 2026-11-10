@@ -97,11 +97,11 @@ fn manifest_version_rejects_bad_timestamp() {
 }
 
 #[test]
-fn not_before_ten_minutes_in_past_rejected() {
+fn an_old_not_before_is_left_to_the_version_check() {
     let now = chrono::Utc::now();
-    let nb = now - chrono::Duration::minutes(10);
-    let err = check_skew(nb, now).expect_err("10m past should reject");
-    assert!(matches!(err, SyncError::ManifestSkew { .. }));
+    for age in [chrono::Duration::minutes(10), chrono::Duration::days(3)] {
+        check_skew(now - age, now).expect("age is governed by the manifest version");
+    }
 }
 
 #[test]
@@ -132,7 +132,7 @@ fn force_replay_bypasses_replay_and_skew() {
     assert!(check_replay(&s, &version("2026-04-21T09:00:00Z-aaaaaaaa")).is_err());
 
     let now = chrono::Utc::now();
-    let nb = now - chrono::Duration::minutes(30);
+    let nb = now + chrono::Duration::minutes(30);
     assert!(check_skew(nb, now).is_err());
 }
 

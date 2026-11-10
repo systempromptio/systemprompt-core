@@ -9,14 +9,15 @@
 //! written next carries the gateway's current truth.
 //!
 //! The same refresh precedes a host repair, whose policy writer reads the
-//! envelope kept here. When the gateway cannot be reached the repair goes on
-//! with the envelope last kept, which the writer re-verifies; any other
-//! failure, a verification failure above all, stops the repair.
+//! envelope kept here. A fresh manifest that fails verification stops the
+//! repair; any other failure goes on with the envelope last kept
+//! ([`super::refresh_fallback`]), which the writer verifies again.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use super::error::SyncError;
+use super::refresh_fallback::{KeptStored, RefreshFailure, classify};
 use super::{apply, manifest};
 use crate::config;
 use crate::context::BridgeContext;
@@ -40,32 +41,19 @@ pub async fn refresh_registry_for(
 pub enum RegistryRefresh {
     NotCarried,
     Refreshed { servers: usize },
-    StoredEnvelope(SyncError),
+    StoredEnvelope { kept: KeptStored, error: SyncError },
 }
 
 pub async fn refresh_or_keep_stored(bridge: &BridgeContext) -> Result<RegistryRefresh, SyncError> {
     match refresh_registry(bridge).await {
         Ok(servers) => Ok(RegistryRefresh::Refreshed { servers }),
-        Err(error) if gateway_unreachable(&error) => {
-            tracing::warn!(target: "bridge::sync", %error, "gateway unreachable; the repair uses the envelope last verified");
-            Ok(RegistryRefresh::StoredEnvelope(error))
+        Err(error) => match classify(&error) {
+            RefreshFailure::Kept(kept) => {
+                tracing::warn!(target: "bridge::sync", %error, ?kept, "manifest not refreshed; the envelope last verified is kept");
+                Ok(RegistryRefresh::StoredEnvelope { kept, error })
+            },
+            RefreshFailure::Rejected => Err(error),
         },
-        Err(error) => Err(error),
-    }
-}
-
-#[must_use]
-pub fn gateway_unreachable(error: &SyncError) -> bool {
-    use crate::gateway::GatewayError;
-    let transport = |e: &reqwest::Error| {
-        e.status().is_none() && (e.is_connect() || e.is_timeout() || e.is_request())
-    };
-    match error {
-        SyncError::Gateway(GatewayError::ManifestFetch(e) | GatewayError::PubkeyFetch(e)) => {
-            transport(e)
-        },
-        SyncError::Authentication(chain) => !chain.is_terminal(),
-        _ => false,
     }
 }
 

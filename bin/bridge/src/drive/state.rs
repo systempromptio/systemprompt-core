@@ -37,8 +37,15 @@ pub struct DriveEntryState {
     pub size: u64,
 }
 
+/// A conflict kept for the user.
+///
+/// Either a local edit kept beside the head as `sibling`, or a document that
+/// could not be placed, whose `sibling` is the file already holding the name
+/// or, when no file does, the path itself.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ConflictNotice {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub document_id: Option<DocumentId>,
     pub path: String,
     pub sibling: String,
     pub head_revision_id: DocumentRevisionId,

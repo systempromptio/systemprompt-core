@@ -132,7 +132,9 @@ pub enum SyncError {
     ApplyFailed(Box<crate::host_sync::ApplyError>),
     #[error("manifest replay rejected: incoming {incoming} is not newer than last applied {last}")]
     ReplayedManifest { last: String, incoming: String },
-    #[error("manifest clock skew rejected: not_before {not_before} outside +/- 5m of now {now}")]
+    #[error(
+        "manifest clock skew rejected: not_before {not_before} is more than 5m ahead of now {now}"
+    )]
     ManifestSkew { not_before: String, now: String },
     #[error(
         "manifest signing pubkey is not pinned; provide it out of band via MDM (`install --apply \

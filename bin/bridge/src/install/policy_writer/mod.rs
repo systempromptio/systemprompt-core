@@ -177,7 +177,9 @@ pub enum PolicyWriterError {
     NoBinding,
     #[error("{0:?} is not a Windows account SID")]
     InvalidSid(String),
-    #[error("manifest not_before {not_before} is outside the clock-skew window of {now}")]
+    #[error(
+        "manifest not_before {not_before} is further ahead of {now} than the clock skew allows"
+    )]
     Skewed { not_before: String, now: String },
     #[error("envelope digest: {0}")]
     Digest(#[from] systemprompt_identifiers::error::IdValidationError),

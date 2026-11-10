@@ -22,6 +22,7 @@ fn state_round_trips_through_disk() {
         ),
     );
     state.conflicts.push(ConflictNotice {
+        document_id: None,
         path: "notes/plan.md".to_owned(),
         sibling: "notes/plan (conflict from laptop).md".to_owned(),
         head_revision_id: DocumentRevisionId::generate(),
