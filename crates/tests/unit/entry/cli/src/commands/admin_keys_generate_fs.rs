@@ -96,7 +96,7 @@ struct AdminHarness {
 }
 
 #[test]
-fn rotation_commands_are_classified_destructive_and_generate_preserving() {
+fn rotation_commands_are_classified_irreversible_and_generate_preserving() {
     let admin = |args: &[&str]| {
         AdminHarness::try_parse_from(std::iter::once("admin").chain(args.iter().copied()))
             .unwrap()
@@ -111,7 +111,7 @@ fn rotation_commands_are_classified_destructive_and_generate_preserving() {
     ] {
         assert_eq!(
             admin(&args),
-            systemprompt_cli::descriptor::DataImpact::Destructive,
+            systemprompt_cli::descriptor::DataImpact::Irreversible,
             "{args:?}"
         );
     }
