@@ -28,6 +28,6 @@ pub use secrets::{
     process_env_lookup, refresh_interval_for, registered_external_kinds, resolve_source,
 };
 pub use signing_key::{
-    PreviousSigningKey, SigningKeyRotation, decode_previous_signing_key,
-    persist_signing_key_rotation,
+    PreviousSigningKey, SIGNING_KEY_PREVIOUS_KEYS, SIGNING_KEY_STAGED_PEM, SigningKeyState,
+    decode_previous_signing_keys, persist_signing_key_state,
 };

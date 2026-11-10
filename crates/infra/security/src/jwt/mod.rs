@@ -21,11 +21,16 @@
 
 pub mod authority;
 pub mod decode;
+pub mod lifetime;
 pub mod mint;
 pub mod validate;
 
 pub use authority::{DeploymentTokenAuthority, encode_rs256, user_claims};
 pub use decode::{JwtUserContext, extract_user_context, extract_user_context_for};
+pub use lifetime::{
+    MAX_TOKEN_LIFETIME, RotationOverlapError, SignedTokenKind, SignedTokenLifetime, cut_off_by,
+    required_overlap, rotation_overlap, signed_token_lifetimes, within_max_lifetime,
+};
 pub use mint::{AdminTokenParams, JwtService};
 pub use validate::{
     JWT_LEEWAY_SECONDS, ValidationPolicy, decode_rs256_claims, decode_session_claims,

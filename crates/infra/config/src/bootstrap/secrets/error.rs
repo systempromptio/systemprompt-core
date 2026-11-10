@@ -91,16 +91,10 @@ pub enum SecretsBootstrapError {
     SigningKeyPemInvalid(#[source] KeyMaterialError),
 
     #[error(
-        "signing_key_previous_public_pem and signing_key_previous_expires_at must be set \
-         together: a retired verification key without an expiry would be trusted forever"
+        "signing_key_previous_keys is invalid: it must be a JSON array of {{kid, public_pem, \
+         expires_at}} entries: {0}"
     )]
-    SigningKeyPreviousIncomplete,
-
-    #[error("signing_key_previous_public_pem is invalid: {0}")]
-    SigningKeyPreviousInvalid(#[source] KeyMaterialError),
-
-    #[error("signing_key_previous_expires_at is not an RFC 3339 timestamp: {0}")]
-    SigningKeyPreviousExpiryInvalid(#[source] chrono::ParseError),
+    SigningKeyPreviousInvalid(#[source] serde_json::Error),
 
     #[error(
         "secrets.source is 'external' but the profile has no secrets.external block. Add one or \

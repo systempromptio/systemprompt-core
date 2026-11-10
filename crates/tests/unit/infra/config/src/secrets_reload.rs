@@ -74,8 +74,8 @@ fn the_pinned_set_covers_identity_and_storage_keys() {
         "database_write_url",
         "database_session_url",
         "signing_key_pem",
-        "signing_key_previous_public_pem",
-        "signing_key_previous_expires_at",
+        "signing_key_staged_pem",
+        "signing_key_previous_keys",
         "jwt_secret",
     ] {
         assert!(PINNED_SECRET_KEYS.contains(&key), "{key} is not pinned");

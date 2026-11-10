@@ -23,14 +23,14 @@ use sha2::{Digest, Sha256};
 
 pub mod jwks;
 pub mod jwks_client;
+pub mod rotation;
 pub mod signing_keys;
 pub mod verification;
 
 pub use jwks::{ES256, Jwk, Jwks, RS256, VerificationKey, VerificationKeySet};
 pub use jwks_client::{JwksClient, JwksClientError};
-pub use signing_keys::{
-    SigningKeys, SigningKeysError, SigningKeysResult, retired_jwk, rotation_from,
-};
+pub use rotation::{RotationMode, promote, stage};
+pub use signing_keys::{SigningKeys, SigningKeysError, SigningKeysResult, retired_jwk};
 pub use verification::{RetiredJwk, TokenVerificationKeys, VerificationKeyring};
 
 pub const DEFAULT_RSA_BITS: usize = 2048;

@@ -1,15 +1,16 @@
 //! `admin keys` command tree: RSA signing-key management for the JWT plane.
 //!
 //! [`KeysCommands`] generates fresh RS256 keypairs, rotates the deployment's
-//! token key with a verification overlap, and mints long-lived `aud=plugin`
-//! tokens used for hook and governance authentication.
+//! token key in two phases (stage, then promote) with a verification overlap,
+//! and mints long-lived `aud=plugin` tokens used for hook and governance
+//! authentication.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 mod generate;
 mod issue_plugin_token;
-mod rotate;
+mod rotation;
 
 use anyhow::Result;
 use clap::Subcommand;
@@ -23,9 +24,18 @@ pub enum KeysCommands {
     Generate(generate::GenerateArgs),
 
     #[command(
-        about = "Rotate the token signing key; the replaced key keeps verifying for an overlap"
+        about = "Stage a new token signing key: verified and published by every restarted \
+                 replica, not yet used for signing"
     )]
-    Rotate(rotate::RotateArgs),
+    Stage(rotation::StageArgs),
+
+    #[command(
+        about = "Promote the staged key to signer; the outgoing key keeps verifying for an overlap"
+    )]
+    Promote(rotation::PromoteArgs),
+
+    #[command(about = "Single-replica rotation: exactly `stage` then `promote`")]
+    Rotate(rotation::PromoteArgs),
 
     #[command(
         name = "issue-plugin-token",
@@ -37,8 +47,18 @@ pub enum KeysCommands {
 pub async fn execute(cmd: KeysCommands, ctx: &CommandContext) -> Result<()> {
     match cmd {
         KeysCommands::Generate(args) => generate::execute(&args),
+        KeysCommands::Stage(_) => {
+            let result = rotation::execute_stage(ctx)?;
+            render_result(&result, &ctx.cli);
+            Ok(())
+        },
+        KeysCommands::Promote(args) => {
+            let result = rotation::execute_promote(args, ctx)?;
+            render_result(&result, &ctx.cli);
+            Ok(())
+        },
         KeysCommands::Rotate(args) => {
-            let result = rotate::execute(args, ctx)?;
+            let result = rotation::execute_rotate(args, ctx)?;
             render_result(&result, &ctx.cli);
             Ok(())
         },

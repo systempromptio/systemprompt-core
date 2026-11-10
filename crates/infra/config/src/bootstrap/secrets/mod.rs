@@ -56,8 +56,7 @@ use super::manifest::{MANIFEST_SIGNING_SEED_BYTES, decode_seed, generate_seed, p
 use super::master_key::{ENCRYPTION_MASTER_KEY_BYTES, decode_master_key};
 use super::profile::LoadedProfile;
 use super::signing_key::{
-    PreviousSigningKey, SigningKeyRotation, decode_previous_signing_key,
-    persist_signing_key_rotation,
+    PreviousSigningKey, SigningKeyState, decode_previous_signing_keys, persist_signing_key_state,
 };
 use crate::error::{ConfigError, ConfigResult};
 
@@ -133,30 +132,23 @@ impl SecretsService {
     }
 
     pub fn signing_key_pem(&self) -> Result<Option<String>, SecretsBootstrapError> {
-        let secrets = self.get();
-        let Some(encoded) = secrets.signing_key_pem.as_deref() else {
-            return Ok(None);
-        };
-        let bytes = base64::engine::general_purpose::STANDARD
-            .decode(encoded)
-            .map_err(|e| SecretsBootstrapError::SigningKeyPemInvalid(e.into()))?;
-        let pem = String::from_utf8(bytes)
-            .map_err(|e| SecretsBootstrapError::SigningKeyPemInvalid(e.into()))?;
-        Ok(Some(pem))
+        decode_pem(self.get().signing_key_pem.as_deref())
     }
 
-    pub fn signing_key_previous(
-        &self,
-    ) -> Result<Option<PreviousSigningKey>, SecretsBootstrapError> {
-        decode_previous_signing_key(&self.get())
+    pub fn signing_key_staged_pem(&self) -> Result<Option<String>, SecretsBootstrapError> {
+        decode_pem(self.get().signing_key_staged_pem.as_deref())
     }
 
-    pub fn persist_signing_key_rotation(
+    pub fn signing_keys_previous(&self) -> Result<Vec<PreviousSigningKey>, SecretsBootstrapError> {
+        decode_previous_signing_keys(&self.get())
+    }
+
+    pub fn persist_signing_key_state(
         profile: &LoadedProfile,
-        rotation: &SigningKeyRotation,
+        state: &SigningKeyState,
     ) -> ConfigResult<()> {
         let path = Self::resolved_secrets_file_path(profile)?;
-        persist_signing_key_rotation(&path, rotation)
+        persist_signing_key_state(&path, state)
     }
 
     pub fn manifest_signing_secret_seed(
@@ -191,7 +183,8 @@ impl SecretsService {
             .ok_or(SecretsBootstrapError::EncryptionMasterKeyRequired)?;
         decode_master_key(master_key)?;
 
-        decode_previous_signing_key(secrets)?;
+        decode_previous_signing_keys(secrets)?;
+        decode_pem(secrets.signing_key_staged_pem.as_deref())?;
 
         if Self::signing_key_pem_required(profile) && secrets.signing_key_pem.is_none() {
             return Err(SecretsBootstrapError::SigningKeyPemRequired.into());
@@ -255,4 +248,16 @@ fn active_source_name(profile: &Profile) -> String {
         .as_ref()
         .map_or("env", |config| config.source_name())
         .to_owned()
+}
+
+fn decode_pem(encoded: Option<&str>) -> Result<Option<String>, SecretsBootstrapError> {
+    let Some(encoded) = encoded else {
+        return Ok(None);
+    };
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(encoded)
+        .map_err(|e| SecretsBootstrapError::SigningKeyPemInvalid(e.into()))?;
+    let pem = String::from_utf8(bytes)
+        .map_err(|e| SecretsBootstrapError::SigningKeyPemInvalid(e.into()))?;
+    Ok(Some(pem))
 }

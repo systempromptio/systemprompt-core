@@ -1,8 +1,9 @@
 //! The public half of the deployment's token keys, with rotation overlap.
 //!
 //! [`TokenVerificationKeys`] is the verify-only description of the RS256
-//! keys a token may be signed with: the active key, and at most one retired
-//! key that stays valid for verification until its `expires_at`. It holds no
+//! keys a token may be signed with: the active key, the staged key (rolled
+//! out to every verifier before it is promoted to signer), and every retired
+//! key, each valid for verification until its own `expires_at`. It holds no
 //! private material, serialises to JSON, and is what a process that only
 //! verifies tokens (an MCP subprocess, for one) receives in place of the
 //! signing PEM. [`VerificationKeyring`] is the same set with its decoding keys
@@ -26,27 +27,35 @@ pub struct RetiredJwk {
     pub expires_at: DateTime<Utc>,
 }
 
-/// The verify-only key set: the active RS256 key and an optional retired key.
+impl RetiredJwk {
+    #[must_use]
+    pub fn is_live_at(&self, now: DateTime<Utc>) -> bool {
+        now < self.expires_at
+    }
+}
+
+/// The verify-only key set: the active RS256 key and the retired keys.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct TokenVerificationKeys {
     pub active: Jwk,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub retired: Option<RetiredJwk>,
+    pub staged: Option<Jwk>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub retired: Vec<RetiredJwk>,
 }
 
 impl TokenVerificationKeys {
-    #[must_use]
-    pub fn retired_at(&self, now: DateTime<Utc>) -> Option<&Jwk> {
+    pub fn retired_at(&self, now: DateTime<Utc>) -> impl Iterator<Item = &RetiredJwk> {
         self.retired
-            .as_ref()
-            .filter(|retired| now < retired.expires_at)
-            .map(|retired| &retired.jwk)
+            .iter()
+            .filter(move |retired| retired.is_live_at(now))
     }
 
     #[must_use]
     pub fn jwks_at(&self, now: DateTime<Utc>) -> Jwks {
         let mut keys = vec![self.active.clone()];
-        keys.extend(self.retired_at(now).cloned());
+        keys.extend(self.staged.clone());
+        keys.extend(self.retired_at(now).map(|retired| retired.jwk.clone()));
         Jwks { keys }
     }
 }
@@ -56,7 +65,8 @@ impl TokenVerificationKeys {
 pub struct VerificationKeyring {
     keys: TokenVerificationKeys,
     active: DecodingKey,
-    retired: Option<DecodingKey>,
+    staged: Option<DecodingKey>,
+    retired: Vec<DecodingKey>,
 }
 
 impl std::fmt::Debug for VerificationKeyring {
@@ -70,14 +80,20 @@ impl std::fmt::Debug for VerificationKeyring {
 impl VerificationKeyring {
     pub fn new(keys: TokenVerificationKeys) -> Result<Self, jsonwebtoken::errors::Error> {
         let active = DecodingKey::from_rsa_components(&keys.active.n, &keys.active.e)?;
+        let staged = keys
+            .staged
+            .as_ref()
+            .map(|jwk| DecodingKey::from_rsa_components(&jwk.n, &jwk.e))
+            .transpose()?;
         let retired = keys
             .retired
-            .as_ref()
+            .iter()
             .map(|retired| DecodingKey::from_rsa_components(&retired.jwk.n, &retired.jwk.e))
-            .transpose()?;
+            .collect::<Result<Vec<_>, _>>()?;
         Ok(Self {
             keys,
             active,
+            staged,
             retired,
         })
     }
@@ -92,10 +108,17 @@ impl VerificationKeyring {
         if self.keys.active.kid == kid {
             return Some(&self.active);
         }
-        match (self.keys.retired_at(now), self.retired.as_ref()) {
-            (Some(jwk), Some(key)) if jwk.kid == kid => Some(key),
-            _ => None,
+        if let (Some(jwk), Some(key)) = (&self.keys.staged, &self.staged)
+            && jwk.kid == kid
+        {
+            return Some(key);
         }
+        self.keys
+            .retired
+            .iter()
+            .zip(&self.retired)
+            .find(|(retired, _)| retired.jwk.kid == kid && retired.is_live_at(now))
+            .map(|(_, key)| key)
     }
 
     #[must_use]

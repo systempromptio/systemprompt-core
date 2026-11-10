@@ -130,7 +130,11 @@ impl AdminCommands {
             Self::Issues(cmd) => cmd.data_impact(),
             Self::Bootstrap(_)
             | Self::Bridge(bridge::BridgeCommands::RotateSigningKey(_))
-            | Self::Keys(keys::KeysCommands::Rotate(_)) => DataImpact::Destructive,
+            | Self::Keys(
+                keys::KeysCommands::Stage(_)
+                | keys::KeysCommands::Promote(_)
+                | keys::KeysCommands::Rotate(_),
+            ) => DataImpact::Destructive,
             Self::Bridge(
                 bridge::BridgeCommands::EnrollCert(_)
                 | bridge::BridgeCommands::IssueCode(_)

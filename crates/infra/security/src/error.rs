@@ -99,6 +99,9 @@ impl AuthError {
 pub enum JwtError {
     #[error("jwt encoding failed: {0}")]
     Encoding(#[from] jsonwebtoken::errors::Error),
+
+    #[error("token lifetime of {seconds}s is outside (0, MAX_TOKEN_LIFETIME]")]
+    InvalidLifetime { seconds: i64 },
 }
 
 #[derive(Debug, Error)]

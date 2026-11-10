@@ -37,6 +37,11 @@ impl JwtService {
         keys: &SigningKeys,
         params: &AdminTokenParams<'_>,
     ) -> JwtResult<JwtToken> {
+        if !crate::jwt::within_max_lifetime(params.duration) {
+            return Err(JwtError::InvalidLifetime {
+                seconds: params.duration.num_seconds(),
+            });
+        }
         let now = Utc::now();
         let expiry = now + params.duration;
 

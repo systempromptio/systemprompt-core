@@ -1,11 +1,10 @@
-//! The retired signing key's secrets-document fields: decoding and the
+//! The previous signing keys' secrets-document field: decoding and the
 //! rotation write.
 
-use base64::Engine;
 use chrono::{TimeZone, Utc};
 use systemprompt_config::{
-    PreviousSigningKey, SecretsBootstrapError, SigningKeyRotation, decode_previous_signing_key,
-    persist_signing_key_rotation,
+    PreviousSigningKey, SIGNING_KEY_PREVIOUS_KEYS, SIGNING_KEY_STAGED_PEM, SecretsBootstrapError,
+    SigningKeyState, decode_previous_signing_keys, persist_signing_key_state,
 };
 use systemprompt_manifest::secrets::Secrets;
 
@@ -19,103 +18,114 @@ fn secrets(extra: &str) -> Secrets {
     .expect("fixture parses")
 }
 
-fn b64(value: &str) -> String {
-    base64::engine::general_purpose::STANDARD.encode(value)
+fn entry(kid: &str, year: i32) -> PreviousSigningKey {
+    PreviousSigningKey {
+        kid: kid.to_owned(),
+        public_pem: PUBLIC_PEM.to_owned(),
+        expires_at: Utc.with_ymd_and_hms(year, 1, 2, 3, 4, 5).unwrap(),
+    }
+}
+
+fn with_previous(list: &[PreviousSigningKey]) -> Secrets {
+    let encoded = serde_json::to_string(&serde_json::to_string(list).expect("list")).expect("str");
+    secrets(&format!(r#","{SIGNING_KEY_PREVIOUS_KEYS}":{encoded}"#))
 }
 
 #[test]
-fn no_previous_fields_decode_to_no_retired_key() {
+fn no_previous_field_decodes_to_an_empty_list() {
+    assert!(
+        decode_previous_signing_keys(&secrets(""))
+            .expect("decode")
+            .is_empty()
+    );
+}
+
+#[test]
+fn every_previous_entry_decodes_in_order() {
+    let list = vec![entry("k1", 2030), entry("k2", 2031), entry("k3", 2032)];
     assert_eq!(
-        decode_previous_signing_key(&secrets("")).expect("decode"),
-        None
+        decode_previous_signing_keys(&with_previous(&list)).expect("decode"),
+        list
     );
 }
 
 #[test]
-fn both_previous_fields_decode_to_the_retired_key() {
-    let doc = secrets(&format!(
-        r#","signing_key_previous_public_pem":"{}","signing_key_previous_expires_at":"2030-01-02T03:04:05Z""#,
-        b64(PUBLIC_PEM)
-    ));
-    let previous = decode_previous_signing_key(&doc)
-        .expect("decode")
-        .expect("present");
-    assert_eq!(previous.public_pem, PUBLIC_PEM);
-    assert_eq!(
-        previous.expires_at,
-        Utc.with_ymd_and_hms(2030, 1, 2, 3, 4, 5).unwrap()
-    );
+fn a_malformed_previous_list_is_rejected() {
+    for raw in [
+        r#""not json""#,
+        r#""[{\"kid\":\"k\"}]""#,
+        r#""[{\"kid\":\"k\",\"public_pem\":\"p\",\"expires_at\":\"tomorrow\"}]""#,
+    ] {
+        let doc = secrets(&format!(r#","{SIGNING_KEY_PREVIOUS_KEYS}":{raw}"#));
+        let err = decode_previous_signing_keys(&doc).expect_err("malformed list accepted");
+        assert!(
+            matches!(err, SecretsBootstrapError::SigningKeyPreviousInvalid(_)),
+            "{err}"
+        );
+    }
 }
 
 #[test]
-fn a_previous_key_without_an_expiry_is_rejected() {
-    let doc = secrets(&format!(
-        r#","signing_key_previous_public_pem":"{}""#,
-        b64(PUBLIC_PEM)
-    ));
-    let err = decode_previous_signing_key(&doc).expect_err("unbounded retired key accepted");
-    assert!(
-        matches!(err, SecretsBootstrapError::SigningKeyPreviousIncomplete),
-        "{err}"
-    );
-}
-
-#[test]
-fn an_expiry_without_a_previous_key_is_rejected() {
-    let doc = secrets(r#","signing_key_previous_expires_at":"2030-01-02T03:04:05Z""#);
-    let err = decode_previous_signing_key(&doc).expect_err("orphan expiry accepted");
-    assert!(
-        matches!(err, SecretsBootstrapError::SigningKeyPreviousIncomplete),
-        "{err}"
-    );
-}
-
-#[test]
-fn a_malformed_expiry_is_rejected() {
-    let doc = secrets(&format!(
-        r#","signing_key_previous_public_pem":"{}","signing_key_previous_expires_at":"tomorrow""#,
-        b64(PUBLIC_PEM)
-    ));
-    let err = decode_previous_signing_key(&doc).expect_err("malformed expiry accepted");
-    assert!(
-        matches!(
-            err,
-            SecretsBootstrapError::SigningKeyPreviousExpiryInvalid(_)
-        ),
-        "{err}"
-    );
-}
-
-#[test]
-fn the_rotation_write_replaces_the_active_key_and_keeps_other_fields() {
+fn the_rotation_write_replaces_the_active_key_and_the_list_and_keeps_other_fields() {
     let dir = tempfile::tempdir().expect("tempdir");
     let path = dir.path().join("secrets.json");
     std::fs::write(
         &path,
-        format!(
-            r#"{{"oauth_at_rest_pepper":"{PEPPER}","database_url":"postgres://a","signing_key_pem":"{}","custom_x":"kept"}}"#,
-            b64("old-private")
-        ),
+        format!(r#"{{"oauth_at_rest_pepper":"{PEPPER}","database_url":"postgres://a","custom_x":"kept"}}"#),
     )
     .expect("write");
-    let expires_at = Utc.with_ymd_and_hms(2031, 6, 7, 8, 9, 10).unwrap();
-    let rotation = SigningKeyRotation {
+    let rotation = SigningKeyState {
         active_private_pem: "new-private".to_owned(),
-        previous: PreviousSigningKey {
-            public_pem: PUBLIC_PEM.to_owned(),
-            expires_at,
-        },
+        staged_private_pem: None,
+        previous: vec![entry("k1", 2030), entry("k2", 2031)],
     };
-    persist_signing_key_rotation(&path, &rotation).expect("persist");
+    persist_signing_key_state(&path, &rotation).expect("persist");
 
     let doc = Secrets::parse(&std::fs::read_to_string(&path).expect("read")).expect("parse");
-    assert_eq!(
-        doc.signing_key_pem.as_deref(),
-        Some(b64("new-private").as_str())
-    );
+    assert!(doc.signing_key_pem.is_some());
     assert_eq!(doc.custom.get("custom_x").map(String::as_str), Some("kept"));
-    let previous = decode_previous_signing_key(&doc)
-        .expect("decode")
-        .expect("present");
-    assert_eq!(previous, rotation.previous);
+    assert_eq!(
+        decode_previous_signing_keys(&doc).expect("decode"),
+        rotation.previous
+    );
+}
+
+#[test]
+fn a_rotation_with_no_previous_keys_removes_the_field() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let path = dir.path().join("secrets.json");
+    let start = with_previous(&[entry("k1", 2030)]);
+    std::fs::write(&path, serde_json::to_string(&start).expect("encode")).expect("write");
+    let rotation = SigningKeyState {
+        active_private_pem: "new-private".to_owned(),
+        staged_private_pem: None,
+        previous: Vec::new(),
+    };
+    persist_signing_key_state(&path, &rotation).expect("persist");
+    let raw = std::fs::read_to_string(&path).expect("read");
+    assert!(!raw.contains(SIGNING_KEY_PREVIOUS_KEYS), "{raw}");
+}
+
+#[test]
+fn a_staged_key_is_written_and_cleared_by_the_state_write() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let path = dir.path().join("secrets.json");
+    std::fs::write(
+        &path,
+        format!(r#"{{"oauth_at_rest_pepper":"{PEPPER}","database_url":"postgres://a"}}"#),
+    )
+    .expect("write");
+    let mut state = SigningKeyState {
+        active_private_pem: "active".to_owned(),
+        staged_private_pem: Some("staged".to_owned()),
+        previous: Vec::new(),
+    };
+    persist_signing_key_state(&path, &state).expect("persist");
+    let doc = Secrets::parse(&std::fs::read_to_string(&path).expect("read")).expect("parse");
+    assert!(doc.signing_key_staged_pem.is_some());
+
+    state.staged_private_pem = None;
+    persist_signing_key_state(&path, &state).expect("persist");
+    let raw = std::fs::read_to_string(&path).expect("read");
+    assert!(!raw.contains(SIGNING_KEY_STAGED_PEM), "{raw}");
 }

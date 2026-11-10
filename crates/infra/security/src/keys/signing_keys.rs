@@ -13,10 +13,10 @@
 //! [`SigningKeys::active_kid`] to produce RS256 JWTs whose `kid` matches the
 //! JWKS this deployment publishes at `/.well-known/jwks.json`.
 //! Token-verifying paths use [`SigningKeys::decoding_key_for_kid`] to look up
-//! the public half by `kid`. Besides the active key the set may carry one
-//! retired, verify-only key with an expiry, so a rotation does not invalidate
-//! every outstanding token at once: tokens the retired key signed keep
-//! verifying, and the JWKS keeps publishing it, until that instant.
+//! the public half by `kid`. Besides the active key the set carries every
+//! retired, verify-only key with its own expiry, so a rotation does not
+//! invalidate outstanding tokens: tokens a retired key signed keep verifying,
+//! and the JWKS keeps publishing it, until that instant.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -29,6 +29,8 @@ use ed25519_dalek::{Signer, SigningKey as ManifestKey};
 use jsonwebtoken::{DecodingKey, EncodingKey};
 use rsa::pkcs1::EncodeRsaPrivateKey;
 use thiserror::Error;
+
+use systemprompt_config::PreviousSigningKey;
 
 use crate::keys::verification::{RetiredJwk, TokenVerificationKeys, VerificationKeyring};
 use crate::keys::{Jwk, Jwks, KeyError, RsaSigningKey, compute_kid, public_key_from_spki_pem};
@@ -46,6 +48,15 @@ pub enum SigningKeysError {
 
     #[error("previous signing key secret unavailable: {0}")]
     PreviousSecret(#[source] systemprompt_config::SecretsBootstrapError),
+
+    #[error("previous signing key '{stored}' does not match its public key (kid {computed})")]
+    PreviousKidMismatch { stored: String, computed: String },
+
+    #[error("no signing key is staged: run `admin keys stage` and restart every replica first")]
+    NothingStaged,
+
+    #[error("signing key {kid} is already staged: promote it before staging another")]
+    AlreadyStaged { kid: String },
 
     #[error("manifest signing seed unavailable: {0}")]
     ManifestSeed(#[source] systemprompt_config::SecretsBootstrapError),
@@ -79,14 +90,15 @@ impl std::fmt::Debug for SigningKeys {
         f.debug_struct("SigningKeys")
             .field("kid", &self.inner.rsa.kid())
             .field(
-                "retired_kid",
+                "retired_kids",
                 &self
                     .inner
                     .keyring
                     .keys()
                     .retired
-                    .as_ref()
-                    .map(|retired| retired.jwk.kid.as_str()),
+                    .iter()
+                    .map(|retired| retired.jwk.kid.as_str())
+                    .collect::<Vec<_>>(),
             )
             .finish_non_exhaustive()
     }
@@ -94,15 +106,7 @@ impl std::fmt::Debug for SigningKeys {
 
 impl SigningKeys {
     pub fn new(rsa: RsaSigningKey, manifest_seed: &[u8; 32]) -> SigningKeysResult<Self> {
-        Self::build(rsa, None, manifest_seed)
-    }
-
-    pub fn with_retired(
-        rsa: RsaSigningKey,
-        retired: RetiredJwk,
-        manifest_seed: &[u8; 32],
-    ) -> SigningKeysResult<Self> {
-        Self::build(rsa, Some(retired), manifest_seed)
+        Self::with_verification_keys(rsa, None, Vec::new(), manifest_seed)
     }
 
     pub fn resolve(
@@ -116,20 +120,27 @@ impl SigningKeys {
             Some(pem) => RsaSigningKey::from_pkcs8_pem(&pem)?,
             None => load_from_file(signing_key_path)?,
         };
-        let retired = secrets
-            .signing_key_previous()
-            .map_err(SigningKeysError::PreviousSecret)?
-            .map(|previous| retired_jwk(&previous.public_pem, previous.expires_at))
+        let staged = secrets
+            .signing_key_staged_pem()
+            .map_err(SigningKeysError::Secret)?
+            .map(|pem| RsaSigningKey::from_pkcs8_pem(&pem).map(|key| key.jwk()))
             .transpose()?;
+        let retired = secrets
+            .signing_keys_previous()
+            .map_err(SigningKeysError::PreviousSecret)?
+            .iter()
+            .map(retired_jwk)
+            .collect::<SigningKeysResult<Vec<_>>>()?;
         let seed = secrets
             .manifest_signing_secret_seed()
             .map_err(SigningKeysError::ManifestSeed)?;
-        Self::build(rsa, retired, &seed)
+        Self::with_verification_keys(rsa, staged, retired, &seed)
     }
 
-    fn build(
+    pub fn with_verification_keys(
         rsa: RsaSigningKey,
-        retired: Option<RetiredJwk>,
+        staged: Option<Jwk>,
+        retired: Vec<RetiredJwk>,
         manifest_seed: &[u8; 32],
     ) -> SigningKeysResult<Self> {
         let der = rsa
@@ -137,9 +148,14 @@ impl SigningKeys {
             .to_pkcs1_der()
             .map_err(SigningKeysError::Pkcs1Encode)?;
         let encoding_key = EncodingKey::from_rsa_der(der.as_bytes());
-        let retired = retired.filter(|retired| retired.jwk.kid != rsa.kid());
+        let retired = retired
+            .into_iter()
+            .filter(|retired| retired.jwk.kid != rsa.kid())
+            .collect();
+        let staged = staged.filter(|staged| staged.kid != rsa.kid());
         let keyring = VerificationKeyring::new(TokenVerificationKeys {
             active: rsa.jwk(),
+            staged,
             retired,
         })
         .map_err(SigningKeysError::VerificationKey)?;
@@ -201,31 +217,19 @@ impl SigningKeys {
     }
 }
 
-pub fn retired_jwk(
-    public_pem: &str,
-    expires_at: chrono::DateTime<chrono::Utc>,
-) -> SigningKeysResult<RetiredJwk> {
-    let public_key = public_key_from_spki_pem(public_pem)?;
+pub fn retired_jwk(previous: &PreviousSigningKey) -> SigningKeysResult<RetiredJwk> {
+    let public_key = public_key_from_spki_pem(&previous.public_pem)?;
     let kid = compute_kid(&public_key)?;
+    if kid != previous.kid {
+        return Err(SigningKeysError::PreviousKidMismatch {
+            stored: previous.kid.clone(),
+            computed: kid,
+        });
+    }
     Ok(RetiredJwk {
         jwk: Jwk::from_rsa_public_key(&public_key, kid),
-        expires_at,
+        expires_at: previous.expires_at,
     })
-}
-
-pub fn rotation_from(
-    current: &RsaSigningKey,
-    retired_until: chrono::DateTime<chrono::Utc>,
-) -> SigningKeysResult<(RsaSigningKey, systemprompt_config::SigningKeyRotation)> {
-    let next = RsaSigningKey::generate()?;
-    let rotation = systemprompt_config::SigningKeyRotation {
-        active_private_pem: next.to_pkcs8_pem()?,
-        previous: systemprompt_config::PreviousSigningKey {
-            public_pem: current.public_key_pem()?,
-            expires_at: retired_until,
-        },
-    };
-    Ok((next, rotation))
 }
 
 fn load_from_file(path: &Path) -> SigningKeysResult<RsaSigningKey> {

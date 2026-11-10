@@ -9,7 +9,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use chrono::{Duration, Utc};
+use chrono::Utc;
 use jsonwebtoken::errors::ErrorKind;
 use jsonwebtoken::{Algorithm, Header, encode};
 use serde::Serialize;
@@ -18,11 +18,11 @@ use systemprompt_models::auth::{
     TokenResult, TokenType, UserJwtRequest, UserType,
 };
 
+use super::lifetime::{MAX_TOKEN_LIFETIME, within_max_lifetime};
 use super::validate::{ValidationPolicy, decode_rs256_claims, decode_session_claims};
 use crate::error::AuthError;
 use crate::keys::SigningKeys;
 
-const MAX_TOKEN_LIFETIME: Duration = Duration::days(365);
 
 #[derive(Debug, Clone)]
 pub struct DeploymentTokenAuthority {
@@ -55,7 +55,7 @@ pub fn encode_rs256<C: Serialize>(
 }
 
 pub fn user_claims(issuer: &str, req: &UserJwtRequest) -> TokenResult<JwtClaims> {
-    if req.ttl <= Duration::zero() || req.ttl > MAX_TOKEN_LIFETIME {
+    if !within_max_lifetime(req.ttl) {
         return Err(TokenError::InvalidLifetime {
             seconds: req.ttl.num_seconds(),
         });
@@ -130,6 +130,11 @@ impl TokenAuthority for DeploymentTokenAuthority {
     // JSON: an extension-defined claim set has no fixed schema; the signer only
     // serialises it
     fn sign_claims(&self, claims: &serde_json::Value) -> TokenResult<String> {
+        let exp = claims.get("exp").and_then(serde_json::Value::as_i64);
+        let ttl = exp.map_or(i64::MAX, |exp| exp.saturating_sub(Utc::now().timestamp()));
+        if ttl <= 0 || ttl > MAX_TOKEN_LIFETIME.num_seconds() {
+            return Err(TokenError::InvalidLifetime { seconds: ttl });
+        }
         encode_rs256(&self.keys, claims).map_err(|e| TokenError::Signing(Box::new(e)))
     }
 

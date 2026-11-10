@@ -51,13 +51,13 @@ pub use bootstrap::{
     BOOT_REQUIRED_SECRET_KEYS, DynSecretsProvider, ENCRYPTION_MASTER_KEY_BYTES, EnvLookup,
     KeyMaterialError, LoadedProfile, MANIFEST_SIGNING_SEED_BYTES, PINNED_SECRET_KEYS,
     PreviousSigningKey, ProfileBootstrapError, ReloadOutcome, ResolvedSource, SIGNING_KEY_PEM,
-    SecretsBootstrapError, SecretsDocument, SecretsFetch, SecretsProvider, SecretsService,
-    SecretsSourceFactory, SecretsSourceRegistration, SecretsStatus, SharedSecretsProvider,
-    SigningKeyRotation, VaultAttemptFailure, VaultError, VaultKvProvider, build_external_provider,
-    build_loaded_secrets_message, decode_master_key, decode_previous_signing_key, decode_seed,
-    diff_secrets, generate_master_key, generate_seed, load_secrets_from_path, persist_seed,
-    persist_signing_key_rotation, process_env_lookup, refresh_interval_for,
-    registered_external_kinds, resolve_source,
+    SIGNING_KEY_PREVIOUS_KEYS, SIGNING_KEY_STAGED_PEM, SecretsBootstrapError, SecretsDocument,
+    SecretsFetch, SecretsProvider, SecretsService, SecretsSourceFactory, SecretsSourceRegistration,
+    SecretsStatus, SharedSecretsProvider, SigningKeyState, VaultAttemptFailure, VaultError,
+    VaultKvProvider, build_external_provider, build_loaded_secrets_message, decode_master_key,
+    decode_previous_signing_keys, decode_seed, diff_secrets, generate_master_key, generate_seed,
+    load_secrets_from_path, persist_seed, persist_signing_key_state, process_env_lookup,
+    refresh_interval_for, registered_external_kinds, resolve_source,
 };
 pub use systemprompt_manifest::profile::ExternalSecretsConfig;
 

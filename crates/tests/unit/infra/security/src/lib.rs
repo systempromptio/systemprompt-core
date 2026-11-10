@@ -79,11 +79,15 @@ mod services;
 #[cfg(test)]
 mod session_generator;
 #[cfg(test)]
+mod signed_token_lifetimes;
+#[cfg(test)]
 mod signing_key_independence;
 #[cfg(test)]
 mod signing_key_pem_roundtrip;
 #[cfg(test)]
 mod signing_key_rotation;
+#[cfg(test)]
+mod signing_key_staging;
 #[cfg(test)]
 mod token_authority;
 

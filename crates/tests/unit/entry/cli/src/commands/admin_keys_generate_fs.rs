@@ -96,17 +96,25 @@ struct AdminHarness {
 }
 
 #[test]
-fn rotate_is_classified_destructive_and_generate_preserving() {
+fn rotation_commands_are_classified_destructive_and_generate_preserving() {
     let admin = |args: &[&str]| {
         AdminHarness::try_parse_from(std::iter::once("admin").chain(args.iter().copied()))
             .unwrap()
             .cmd
             .data_impact()
     };
-    assert_eq!(
-        admin(&["keys", "rotate", "--overlap-secs", "60"]),
-        systemprompt_cli::descriptor::DataImpact::Destructive
-    );
+    for args in [
+        vec!["keys", "stage"],
+        vec!["keys", "promote"],
+        vec!["keys", "promote", "--revoke"],
+        vec!["keys", "rotate", "--overlap-secs", "60"],
+    ] {
+        assert_eq!(
+            admin(&args),
+            systemprompt_cli::descriptor::DataImpact::Destructive,
+            "{args:?}"
+        );
+    }
     assert_eq!(
         admin(&["keys", "generate"]),
         systemprompt_cli::descriptor::DataImpact::Preserving
@@ -118,8 +126,15 @@ async fn rotate_refuses_a_profile_without_a_secrets_file_to_write() {
     let err = execute(parse(&["rotate"]), &ctx()).await.unwrap_err();
     let text = format!("{err:#}");
     assert!(
-        text.contains("Failed to write the rotated signing key to the secrets file"),
+        text.contains("Failed to write the signing keys to the secrets file"),
         "{text}"
     );
     assert!(text.contains("No secrets configured"), "{text}");
+}
+
+#[tokio::test]
+async fn promote_with_nothing_staged_is_refused_and_writes_nothing() {
+    let err = execute(parse(&["promote"]), &ctx()).await.unwrap_err();
+    let text = format!("{err:#}");
+    assert!(text.contains("no signing key is staged"), "{text}");
 }
