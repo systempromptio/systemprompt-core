@@ -261,7 +261,8 @@ async fn a_permissive_provider_admits_a_state_without_a_binder() {
     let sub = unique("sub");
     let user = super::stores::auth_user(&unique("user"), "g@example.test");
     h.users.seed(user.clone());
-    h.users.seed_link("https://idp.test/closed", &sub, &user.id);
+    h.users
+        .seed_link("https://idp.test/closed", &sub, &user.id, false);
     let started = start(&h.driver, CLOSED, Some("/after")).await;
 
     let outcome = finish(

@@ -27,6 +27,7 @@ async fn issuer() -> (MockServer, Config) {
         typ_allowlist: vec!["JWT".into()],
         allowed_client_ids: vec![],
         can_issue_id_jag: true,
+        link: Default::default(),
     }];
     config.allowed_resource_audiences = vec!["https://resource.example".into()];
     (server, config)

@@ -4,8 +4,10 @@
 //! provisions the local user, mints the session and audits every outcome.
 
 mod boot;
+mod events;
 mod flow;
 mod identity;
+mod linking;
 mod providers;
 mod stores;
 
@@ -26,34 +28,48 @@ struct Harness {
     sessions: Arc<CountingSessions>,
 }
 
-fn harness_on(db: &DbPool, api_external_url: &str) -> Harness {
+fn driver_on(
+    db: &DbPool,
+    api_external_url: &str,
+    users: Arc<dyn systemprompt_traits::UserProvider>,
+    sessions: Arc<dyn systemprompt_traits::SessionProvider>,
+) -> SsoDriver {
     ensure_test_bootstrap();
-    let users = Arc::new(MemoryUsers::default());
-    let sessions = Arc::new(CountingSessions::default());
     let mut config = fixture_config("postgres://unused/unused");
     config.api_external_url = api_external_url.to_owned();
     let config = Arc::new(config);
     let service = SessionCreationService::new(
-        Arc::clone(&sessions) as Arc<dyn systemprompt_traits::SessionProvider>,
-        Arc::clone(&users) as Arc<dyn systemprompt_traits::UserProvider>,
+        sessions,
+        users,
         systemprompt_test_fixtures::test_token_authority(
             systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
         ),
         Arc::clone(&config),
     );
+    SsoDriver::discover(
+        &systemprompt_oauth_issuance::sso::SsoHookContext {
+            db: Arc::clone(db),
+            config,
+            services: systemprompt_test_fixtures::fixture_services_view(),
+            services_root: systemprompt_test_fixtures::test_boot_active_services_root(),
+            secrets: systemprompt_test_fixtures::fixture_secret_store(),
+        },
+        systemprompt_test_fixtures::oauth_fixture_repository(db),
+        Arc::new(service),
+    )
+    .expect("fake providers discover")
+}
+
+fn harness_on(db: &DbPool, api_external_url: &str) -> Harness {
+    let users = Arc::new(MemoryUsers::default());
+    let sessions = Arc::new(CountingSessions::default());
     Harness {
-        driver: SsoDriver::discover(
-            &systemprompt_oauth_issuance::sso::SsoHookContext {
-                db: Arc::clone(db),
-                config,
-                services: systemprompt_test_fixtures::fixture_services_view(),
-                services_root: systemprompt_test_fixtures::test_boot_active_services_root(),
-                secrets: systemprompt_test_fixtures::fixture_secret_store(),
-            },
-            systemprompt_test_fixtures::oauth_fixture_repository(db),
-            Arc::new(service),
-        )
-        .expect("fake providers discover"),
+        driver: driver_on(
+            db,
+            api_external_url,
+            Arc::clone(&users) as Arc<dyn systemprompt_traits::UserProvider>,
+            Arc::clone(&sessions) as Arc<dyn systemprompt_traits::SessionProvider>,
+        ),
         users,
         sessions,
     }

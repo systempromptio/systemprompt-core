@@ -28,7 +28,7 @@
 # slot so each test's job sees only its own seeded data.
 # The users-domain DB tests share the `users` table and its `email`/`name`
 # UNIQUE indexes. The federated-identity tests run concurrent
-# `find_or_create_federated` INSERTs whose synthetic local emails collide on
+# `resolve_federated` INSERTs whose synthetic local emails collide on
 # that index, and the user-service create/update tests churn rows another test
 # is counting. Serialise the DB-backed suite so each test owns its row mutations.
 #

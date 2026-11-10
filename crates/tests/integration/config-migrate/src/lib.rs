@@ -30,4 +30,6 @@ mod roles;
 #[cfg(test)]
 mod routes;
 #[cfg(test)]
+mod slack;
+#[cfg(test)]
 mod support;

@@ -16,10 +16,12 @@ cd "$(dirname "$0")/.."
 names='surface_for|canonicalize_org_uuid|ProviderEntry|YAML_SOURCE|DASHBOARD_SOURCE|legacy_id|find_served_model|by_scope|catalog_route_id|MOVED_SECTIONS|MovedToServices'
 
 # Spellings that are not identifiers: the pre-0.73 secrets sidecar and the
-# `evaluation` serde alias for `judge`.
+# `evaluation` serde alias for `judge`, and the Slack authz flag replaced by
+# `authz.link.link_by_email`.
 literals=(
     '.secrets.profile.yaml'
     'alias = "evaluation"'
+    'link_by_workspace_email'
 )
 
 allowed=(

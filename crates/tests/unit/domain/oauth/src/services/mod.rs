@@ -5,6 +5,7 @@ mod bridge;
 mod cimd;
 mod cimd_validator;
 mod ema_email_verified;
+mod ema_linking_db;
 mod generation;
 mod http;
 mod jwt;

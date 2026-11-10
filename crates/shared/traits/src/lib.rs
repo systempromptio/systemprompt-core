@@ -136,8 +136,8 @@ pub use analytics::{
 };
 
 pub use auth::{
-    AuthProviderError, AuthResult, AuthUser, FederatedIdentityClaims, RoleProvider, SenderIdentity,
-    UserProvider,
+    AuthProviderError, AuthResult, AuthUser, FederatedIdentityClaims, FederatedLink,
+    FederatedRefusal, FederatedResolution, LinkPolicy, RoleProvider, SenderIdentity, UserProvider,
 };
 
 pub use storage::{

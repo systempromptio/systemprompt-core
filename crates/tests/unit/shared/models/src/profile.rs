@@ -898,6 +898,7 @@ fn validate_rejects_trusted_issuer_non_https_jwks() {
         typ_allowlist: vec![],
         allowed_client_ids: vec![],
         can_issue_id_jag: false,
+        link: Default::default(),
     }];
     let err = profile
         .validate()
@@ -920,6 +921,7 @@ fn validate_rejects_trusted_issuer_malformed_issuer() {
         typ_allowlist: vec![],
         allowed_client_ids: vec![],
         can_issue_id_jag: false,
+        link: Default::default(),
     }];
     let err = profile
         .validate()

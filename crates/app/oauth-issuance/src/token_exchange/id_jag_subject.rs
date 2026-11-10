@@ -3,7 +3,11 @@
 //! Validates an ID-JAG presented as a token-exchange subject — `typ`,
 //! audience, client binding, and single-use `jti` replay. Signature is checked
 //! against the local authority for a self-issued ID-JAG, otherwise the trusted
-//! issuer's JWKS.
+//! issuer's JWKS. The principal is namespaced under, and resolved with the
+//! link policy of, the trusted issuer that vouched for it: the signing issuer
+//! for an external ID-JAG, the `upstream_iss` claim for a self-issued one. A
+//! self-issued ID-JAG whose `upstream_iss` is absent or no longer trusted is
+//! refused.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -22,6 +26,7 @@ use systemprompt_oauth::services::validation::id_jag::{
 };
 use systemprompt_security::jwt::reject_critical_header;
 use systemprompt_security::keys::SigningKeys;
+use systemprompt_traits::LinkPolicy;
 
 use super::subject::{JwksCache, REQUIRED_CLAIMS, SubjectIdentity, peek_issuer};
 use crate::{IssuanceError, IssuanceResult};
@@ -45,7 +50,8 @@ pub async fn validate_id_jag_subject(
         global,
         jwks,
     } = context;
-    let (claims, allowed_client_ids) = verify_id_jag_signature(keys, token, global, jwks).await?;
+    let (claims, allowed_client_ids, vouching) =
+        verify_id_jag_signature(keys, token, global, jwks).await?;
 
     let policy = ClaimPolicy {
         expected_audience: global.jwt_issuer.as_str(),
@@ -92,12 +98,38 @@ pub async fn validate_id_jag_subject(
         prior_act: None,
         interaction: None,
         principal: Some(EnterprisePrincipal {
-            issuer: claims.iss,
+            issuer: vouching.issuer,
             sub: claims.sub,
             email: claims.email,
             email_verified: claims.email_verified,
+            link: vouching.link,
         }),
         bound_resource: claims.resource,
+    })
+}
+
+struct Vouching {
+    issuer: String,
+    link: LinkPolicy,
+}
+
+fn upstream_vouching(claims: &IdJagClaims, global: &Config) -> IssuanceResult<Vouching> {
+    let upstream = claims
+        .upstream_iss
+        .as_deref()
+        .ok_or_else(|| IssuanceError::InvalidGrant {
+            reason: "self-issued ID-JAG does not name its upstream issuer".to_owned(),
+        })?;
+    let trusted = global
+        .trusted_issuers
+        .iter()
+        .find(|t| t.issuer == upstream && t.can_issue_id_jag)
+        .ok_or_else(|| IssuanceError::InvalidGrant {
+            reason: format!("ID-JAG upstream issuer '{upstream}' is not trusted"),
+        })?;
+    Ok(Vouching {
+        issuer: trusted.issuer.clone(),
+        link: trusted.link,
     })
 }
 
@@ -106,7 +138,7 @@ async fn verify_id_jag_signature(
     token: &str,
     global: &Config,
     jwks: &JwksCache,
-) -> IssuanceResult<(IdJagClaims, Vec<ClientId>)> {
+) -> IssuanceResult<(IdJagClaims, Vec<ClientId>, Vouching)> {
     let header = decode_header(token)
         .map_err(|e| IssuanceError::rejected_grant("ID-JAG header decode failed", e))?;
     reject_critical_header(&header)
@@ -139,7 +171,8 @@ async fn verify_id_jag_signature(
             })?;
         let data = decode::<IdJagClaims>(token, key, &validation(Algorithm::RS256))
             .map_err(|e| IssuanceError::rejected_grant("ID-JAG rejected", e))?;
-        return Ok((data.claims, Vec::new()));
+        let vouching = upstream_vouching(&data.claims, global)?;
+        return Ok((data.claims, Vec::new(), vouching));
     }
 
     let trusted = global
@@ -167,5 +200,9 @@ async fn verify_id_jag_signature(
         .map_err(|e| IssuanceError::rejected_grant("invalid key components in JWK", e))?;
     let data = decode::<IdJagClaims>(token, &key, &validation(jwk.algorithm()))
         .map_err(|e| IssuanceError::rejected_grant("ID-JAG rejected", e))?;
-    Ok((data.claims, trusted.allowed_client_ids.clone()))
+    let vouching = Vouching {
+        issuer: trusted.issuer.clone(),
+        link: trusted.link,
+    };
+    Ok((data.claims, trusted.allowed_client_ids.clone(), vouching))
 }

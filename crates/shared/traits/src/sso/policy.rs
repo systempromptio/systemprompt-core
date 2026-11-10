@@ -14,6 +14,7 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 
 use super::ExternalIdentity;
+use crate::auth::{FederatedRefusal, LinkPolicy};
 
 fn default_roles() -> Vec<String> {
     vec!["user".to_owned()]
@@ -22,8 +23,9 @@ fn default_roles() -> Vec<String> {
 /// Who may sign in through a provider, and with which roles.
 ///
 /// `link_by_email` (default `false`) lets an identity with no federated link
-/// claim the active, interactive account that already owns its verified
-/// email, linking the two instead of provisioning a duplicate.
+/// claim the ordinary account that already owns its verified email, linking
+/// the two. With it off, that email clash refuses the sign-in. Either way an
+/// admin, service, privileged or inactive account is never linked.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SsoIdentityPolicy {
@@ -64,6 +66,18 @@ pub enum SsoRefusal {
     GroupOverage,
     NoGroup,
     NotProvisioned,
+    EmailInUse,
+    LinkIneligible,
+}
+
+impl From<FederatedRefusal> for SsoRefusal {
+    fn from(refusal: FederatedRefusal) -> Self {
+        match refusal {
+            FederatedRefusal::EmailInUse => Self::EmailInUse,
+            FederatedRefusal::TargetIneligible => Self::LinkIneligible,
+            FederatedRefusal::NotProvisioned => Self::NotProvisioned,
+        }
+    }
 }
 
 /// An identity the policy admitted, with the roles it resolved to.
@@ -81,6 +95,14 @@ pub struct GatedIdentity {
 }
 
 impl SsoIdentityPolicy {
+    #[must_use]
+    pub const fn link_policy(&self) -> LinkPolicy {
+        LinkPolicy {
+            link_by_email: self.link_by_email,
+            auto_provision: self.auto_provision,
+        }
+    }
+
     #[must_use]
     pub fn email_allowed(&self, email: &str) -> bool {
         if self.allowed_email_domains.is_empty() {

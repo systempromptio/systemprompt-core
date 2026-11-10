@@ -24,7 +24,7 @@ pub(super) fn spawn_reply(
     app: &SlackAppConfig,
 ) {
     let bot_token = bot_token(&ctx.secrets().get(), app);
-    let link_by_email = app.authz.link_by_workspace_email;
+    let link_by_email = app.authz.link.link_by_email;
     let background = ctx.background_tasks().clone();
     background.spawn("slack_reply", async move {
         let mut inbound = inbound;

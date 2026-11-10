@@ -144,6 +144,7 @@ impl From<UserError> for ApiHttpError {
         let api = match err {
             UserError::Repository(inner) => ApiError::from(inner),
             e @ UserError::NotFound(_) => ApiError::not_found(e.to_string()),
+            e @ UserError::FederatedRefused(_) => ApiError::forbidden(e.to_string()),
             e @ (UserError::EmailAlreadyExists(_)
             | UserError::AccountKindMismatch(_)
             | UserError::LegalHold(_)

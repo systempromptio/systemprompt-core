@@ -133,6 +133,7 @@ async fn rejects_a_trusted_issuer_token_with_no_kid() {
         typ_allowlist: vec![],
         allowed_client_ids: vec![],
         can_issue_id_jag: false,
+        link: Default::default(),
     }];
     let token = unsigned_jwt(r#"{"alg":"RS256"}"#, r#"{"iss":"https://idp.test"}"#);
 
@@ -271,6 +272,7 @@ fn trusted(jwks_uri: &str) -> TrustedIssuer {
         typ_allowlist: vec![],
         allowed_client_ids: vec![],
         can_issue_id_jag: false,
+        link: Default::default(),
     }
 }
 

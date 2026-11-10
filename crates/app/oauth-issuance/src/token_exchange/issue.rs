@@ -63,6 +63,7 @@ pub async fn issue_id_jag(
         scope: request.scope,
         ttl_secs: global.id_jag_ttl_secs,
         issuer: &global.jwt_issuer,
+        upstream_issuer: &subject.issuer,
         keys,
     })
     .map_err(|e| IssuanceError::server("ID-JAG minting failed", e))?;

@@ -15,10 +15,10 @@
 //! looked up by workspace id, and the signing secret / bot token are read from
 //! the profile secret store. No `AppContext` wiring, no registry struct, no DB.
 //!
-//! When the app sets `authz.link_by_workspace_email`, the sender's profile is
-//! read with `users.info` inside the spawned task — after the ack, never on the
+//! When the app sets `authz.link.link_by_email`, the sender's profile is read
+//! with `users.info` inside the spawned task — after the ack, never on the
 //! 3-second path — so a confirmed workspace email can attach them to the
-//! systemprompt account that already owns it.
+//! ordinary systemprompt account that already owns it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -110,6 +110,7 @@ async fn handle_events(
                 entity: EntityRef::SlackWorkspace(team_id),
                 reply,
                 sender: SenderIdentity::Unlinked,
+                link: app.authz.link,
             };
             spawn_reply(ctx, messaging.reply_client, inbound, &app);
             StatusCode::OK.into_response()
@@ -155,6 +156,7 @@ async fn handle_commands(
         entity: EntityRef::SlackWorkspace(normalized.workspace_id),
         reply,
         sender: SenderIdentity::Unlinked,
+        link: app.authz.link,
     };
     spawn_reply(ctx, messaging.reply_client, inbound, &app);
     StatusCode::OK.into_response()
@@ -216,6 +218,7 @@ async fn handle_interactivity(
         entity: EntityRef::SlackWorkspace(payload.team.id),
         reply,
         sender: SenderIdentity::Unlinked,
+        link: app.authz.link,
     };
     spawn_reply(ctx, messaging.reply_client, inbound, &app);
     StatusCode::OK.into_response()

@@ -71,13 +71,17 @@ impl UserProvider for SeedingUserProvider {
     async fn assign_roles(&self, _user_id: &UserId, _roles: &[String]) -> AuthResult<()> {
         Ok(())
     }
-    async fn find_or_create_federated(
+    async fn resolve_federated(
         &self,
         _issuer: &str,
         _external_sub: &str,
         _claims: &systemprompt_traits::FederatedIdentityClaims,
-    ) -> AuthResult<UserId> {
-        Ok(UserId::new(Uuid::new_v4().to_string()))
+        _policy: &systemprompt_traits::LinkPolicy,
+    ) -> AuthResult<systemprompt_traits::FederatedResolution> {
+        Ok(systemprompt_traits::FederatedResolution {
+            user_id: UserId::new(Uuid::new_v4().to_string()),
+            link: systemprompt_traits::FederatedLink::Provisioned,
+        })
     }
 
     async fn promote_anonymous(&self, _source: &UserId, _target: &UserId) -> AuthResult<u64> {

@@ -14,6 +14,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
+use serde::{Deserialize, Serialize};
 use std::future::Future;
 use systemprompt_identifiers::UserId;
 
@@ -42,8 +43,39 @@ pub enum AuthProviderError {
     #[error("Service accounts cannot sign in interactively")]
     ServiceAccountInteractiveLogin,
 
+    #[error("Federated sign-in refused: {}", FederatedRefusal::EmailInUse)]
+    FederatedEmailInUse,
+
+    #[error("Federated sign-in refused: {}", FederatedRefusal::TargetIneligible)]
+    FederatedTargetIneligible,
+
+    #[error("Federated sign-in refused: {}", FederatedRefusal::NotProvisioned)]
+    FederatedNotProvisioned,
+
     #[error("Internal error: {0}")]
     Internal(#[source] BoxedSource),
+}
+
+impl AuthProviderError {
+    #[must_use]
+    pub const fn federated_refusal(&self) -> Option<FederatedRefusal> {
+        match self {
+            Self::FederatedEmailInUse => Some(FederatedRefusal::EmailInUse),
+            Self::FederatedTargetIneligible => Some(FederatedRefusal::TargetIneligible),
+            Self::FederatedNotProvisioned => Some(FederatedRefusal::NotProvisioned),
+            _ => None,
+        }
+    }
+}
+
+impl From<FederatedRefusal> for AuthProviderError {
+    fn from(refusal: FederatedRefusal) -> Self {
+        match refusal {
+            FederatedRefusal::EmailInUse => Self::FederatedEmailInUse,
+            FederatedRefusal::TargetIneligible => Self::FederatedTargetIneligible,
+            FederatedRefusal::NotProvisioned => Self::FederatedNotProvisioned,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -66,7 +98,7 @@ impl AuthUser {
 }
 
 /// Federated-identity claim payload passed to
-/// [`UserProvider::find_or_create_federated`].
+/// [`UserProvider::resolve_federated`].
 ///
 /// Carries only the OIDC fields needed to seed a freshly federated user — the
 /// trait stays free of any concrete JWT type so it can live in
@@ -105,6 +137,91 @@ impl SenderIdentity {
     }
 }
 
+/// How an issuer's external identities may reach local accounts.
+///
+/// `link_by_email` (default `false`) lets an identity with no federated link
+/// claim the ordinary account that already owns its verified email. With it
+/// off, a verified email that an existing account owns refuses the sign-in.
+/// `auto_provision` (default `true`) mints a fresh account for an identity
+/// that matches nothing; with it off such an identity is refused.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct LinkPolicy {
+    #[serde(default)]
+    pub link_by_email: bool,
+    #[serde(default = "default_auto_provision")]
+    pub auto_provision: bool,
+}
+
+const fn default_auto_provision() -> bool {
+    true
+}
+
+impl Default for LinkPolicy {
+    fn default() -> Self {
+        Self {
+            link_by_email: false,
+            auto_provision: true,
+        }
+    }
+}
+
+impl LinkPolicy {
+    #[must_use]
+    pub fn is_default(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// Why [`UserProvider::resolve_federated`] refused an identity.
+///
+/// A link target is ineligible when it is not active, is a service account,
+/// or holds any role other than `user` — those accounts are never claimed by
+/// an external identity, whatever the policy says.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FederatedRefusal {
+    EmailInUse,
+    TargetIneligible,
+    NotProvisioned,
+}
+
+impl std::fmt::Display for FederatedRefusal {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::EmailInUse => "an existing account owns this email and linking is disabled",
+            Self::TargetIneligible => "the account owning this email cannot be linked",
+            Self::NotProvisioned => "no account exists and provisioning is disabled",
+        })
+    }
+}
+
+/// How a federated identity reached its local account.
+///
+/// Only a `Provisioned` account, or an `Existing` link the issuer itself
+/// provisioned, may have the issuer's roles written onto it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FederatedLink {
+    Existing { provisioned: bool },
+    Linked,
+    Provisioned,
+}
+
+impl FederatedLink {
+    #[must_use]
+    pub const fn issuer_owns_roles(self) -> bool {
+        matches!(
+            self,
+            Self::Provisioned | Self::Existing { provisioned: true }
+        )
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FederatedResolution {
+    pub user_id: UserId,
+    pub link: FederatedLink,
+}
+
 #[async_trait]
 pub trait UserProvider: Send + Sync {
     async fn find_by_id(&self, id: &UserId) -> AuthResult<Option<AuthUser>>;
@@ -119,29 +236,13 @@ pub trait UserProvider: Send + Sync {
     async fn create_anonymous(&self, fingerprint: &str) -> AuthResult<AuthUser>;
     async fn assign_roles(&self, user_id: &UserId, roles: &[String]) -> AuthResult<()>;
 
-    async fn find_or_create_federated(
+    async fn resolve_federated(
         &self,
         issuer: &str,
         external_sub: &str,
         claims: &FederatedIdentityClaims,
-    ) -> AuthResult<UserId>;
-
-    async fn find_federated(
-        &self,
-        _issuer: &str,
-        _external_sub: &str,
-    ) -> AuthResult<Option<UserId>> {
-        Ok(None)
-    }
-
-    async fn link_federated(
-        &self,
-        _issuer: &str,
-        _external_sub: &str,
-        _user_id: &UserId,
-    ) -> AuthResult<()> {
-        Ok(())
-    }
+        policy: &LinkPolicy,
+    ) -> AuthResult<FederatedResolution>;
 
     async fn promote_anonymous(&self, source: &UserId, target: &UserId) -> AuthResult<u64>;
 }

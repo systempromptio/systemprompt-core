@@ -16,6 +16,7 @@ use crate::{IssuanceError, IssuanceResult};
 
 #[derive(Debug)]
 pub struct OidcSubject {
+    pub(super) issuer: String,
     pub(super) sub: String,
     pub(super) email: Option<String>,
     pub(super) email_verified: bool,
@@ -137,6 +138,7 @@ pub async fn validate_oidc_subject(
     check_authorized_party(&data.claims, &trusted.audience)?;
 
     Ok(OidcSubject {
+        issuer: trusted.issuer.clone(),
         sub: data.claims.sub,
         email: data.claims.email,
         email_verified: data.claims.email_verified,

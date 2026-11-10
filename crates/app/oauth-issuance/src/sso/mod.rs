@@ -30,7 +30,7 @@ pub use registry::{
     AuthEventSinkRegistration, SsoHookContext, SsoProviderError, SsoProviderFactory,
     SsoProviderRegistration,
 };
-pub use resolve::{ResolutionPlan, ResolvedUser, plan_resolution};
+pub use resolve::ResolvedUser;
 pub use roles::{DirectoryOnlyRoleResolver, RoleResolver, RoleResolverRegistration};
 pub use session::{
     BrowserSessionSubject, MintedSession, mint_browser_session, permissions_for_roles,

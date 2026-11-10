@@ -4,8 +4,8 @@
 use std::sync::Arc;
 use systemprompt_identifiers::UserId;
 use systemprompt_test_fixtures::{closed_db_pool, ensure_test_bootstrap};
-use systemprompt_traits::FederatedIdentityClaims;
 use systemprompt_traits::auth::AuthProviderError;
+use systemprompt_traits::{FederatedIdentityClaims, LinkPolicy};
 use systemprompt_users::{RoleProvider, UserProvider, UserRepository, UserService};
 use uuid::Uuid;
 
@@ -89,9 +89,16 @@ async fn user_provider_creates_anonymous_and_federated_identities() {
         preferred_username: Some("fedprov".to_owned()),
         roles: vec!["operator".to_owned()],
     };
-    let fed_id = UserProvider::find_or_create_federated(&service, &issuer, "sub-prov", &claims)
-        .await
-        .expect("federated");
+    let fed_id = UserProvider::resolve_federated(
+        &service,
+        &issuer,
+        "sub-prov",
+        &claims,
+        &LinkPolicy::default(),
+    )
+    .await
+    .expect("federated")
+    .user_id;
     let fed_user = service
         .find_by_id(&fed_id)
         .await

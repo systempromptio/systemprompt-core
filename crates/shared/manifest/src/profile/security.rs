@@ -9,6 +9,7 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::ClientId;
 use systemprompt_models::auth::JwtAudience;
+use systemprompt_traits::LinkPolicy;
 
 pub const GATEWAY_REQUIRED_RESOURCE_AUDIENCES: &[&str] = &["hook"];
 
@@ -99,7 +100,9 @@ impl ApiKeyPolicyConfig {
 /// EMA (Enterprise-Managed Authorization) paths.
 ///
 /// `audience` holds the value the `IdP` places in `id_token.aud`; for a
-/// Salesforce Connected App that is its `client_id`, **not** a URL.
+/// Salesforce Connected App that is its `client_id`, **not** a URL. `link`
+/// decides whether an identity it asserts may claim an existing account by
+/// verified email (off by default) and whether a new one is provisioned.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct TrustedIssuer {
@@ -115,4 +118,7 @@ pub struct TrustedIssuer {
 
     #[serde(default)]
     pub can_issue_id_jag: bool,
+
+    #[serde(default, skip_serializing_if = "LinkPolicy::is_default")]
+    pub link: LinkPolicy,
 }

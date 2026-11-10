@@ -35,6 +35,8 @@ pub struct IdJagClaims {
     pub email_verified: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub resource: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub upstream_iss: Option<String>,
 }
 
 // Why: `email_verified` read as a boolean or a `"true"` / `"false"` string.

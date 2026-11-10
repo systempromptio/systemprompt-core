@@ -3,7 +3,7 @@
 
 use systemprompt_identifiers::UserId;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
-use systemprompt_traits::FederatedIdentityClaims;
+use systemprompt_traits::{FederatedIdentityClaims, LinkPolicy};
 use systemprompt_users::UserRepository;
 use uuid::Uuid;
 
@@ -41,9 +41,15 @@ async fn preferred_username_wins_over_display_name() {
 
     let user = ctx
         .repo
-        .find_or_create_federated(&ctx.issuer, &ctx.external_sub, &claims)
+        .resolve_federated(
+            &ctx.issuer,
+            &ctx.external_sub,
+            &claims,
+            &LinkPolicy::default(),
+        )
         .await
-        .expect("create");
+        .expect("create")
+        .0;
     assert_eq!(user.name, "preferred.login");
     assert_eq!(user.display_name.as_deref(), Some("Display Name"));
 
@@ -63,9 +69,15 @@ async fn missing_username_and_name_derive_hashed_fallback() {
 
     let user = ctx
         .repo
-        .find_or_create_federated(&ctx.issuer, &ctx.external_sub, &claims)
+        .resolve_federated(
+            &ctx.issuer,
+            &ctx.external_sub,
+            &claims,
+            &LinkPolicy::default(),
+        )
         .await
-        .expect("create");
+        .expect("create")
+        .0;
     assert!(
         user.name.starts_with("fed_"),
         "fallback name must be hash-derived, got {}",
@@ -99,9 +111,15 @@ async fn upstream_roles_pass_through_when_present() {
 
     let user = ctx
         .repo
-        .find_or_create_federated(&ctx.issuer, &ctx.external_sub, &claims)
+        .resolve_federated(
+            &ctx.issuer,
+            &ctx.external_sub,
+            &claims,
+            &LinkPolicy::default(),
+        )
         .await
-        .expect("create");
+        .expect("create")
+        .0;
     assert_eq!(user.roles, vec!["operator".to_owned(), "viewer".to_owned()]);
 
     cleanup(&ctx, &user.id).await;

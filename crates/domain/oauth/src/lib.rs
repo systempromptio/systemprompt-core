@@ -17,8 +17,8 @@
 //!   the client owner's role set, and mints a delegated token whose the `act`
 //!   claim records the calling client. Pre-existing `act` chains on the subject
 //!   token are preserved and chained underneath.
-//! - **Federated identities** — `find_or_create_federated` provisions a user
-//!   from a trusted-issuer subject token on first appearance.
+//! - **Federated identities** — `resolve_federated` resolves a trusted-issuer
+//!   subject to a local user under the issuer's link policy.
 //! - **`WebAuthn`** — passkey registration and authentication backed by
 //!   `webauthn-rs`.
 //! - **JWT** — admin and anonymous-session token generation; tokens are signed

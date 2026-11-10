@@ -181,6 +181,8 @@ Audience validation requires a nonempty policy. The first-party session policy a
 | `issuer` | string | yes | Trusted issuer `iss` value. |
 | `jwks_uri` | string | yes | JWKS endpoint for that issuer. |
 | `audience` | string | yes | Audience expected from that issuer. |
+| `link.link_by_email` | bool | no | Default `false`. Lets an identity this issuer asserts with a verified email claim the ordinary account that already owns that email. With it off, such a clash refuses the exchange. Admin, service, suspended or any account holding a role other than `user` is never linked. |
+| `link.auto_provision` | bool | no | Default `true`. Provisions a fresh account for an identity that matches no link and no email; with it off such an identity is refused. |
 
 ## `rate_limits`
 

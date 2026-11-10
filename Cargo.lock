@@ -7073,6 +7073,7 @@ dependencies = [
  "chrono",
  "futures",
  "http",
+ "schemars",
  "serde",
  "serde_json",
  "sqlx",

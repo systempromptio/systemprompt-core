@@ -112,6 +112,7 @@ async fn handle_messages(
             id: normalized.conversation_id.as_str().to_owned(),
         },
         sender: systemprompt_traits::SenderIdentity::Unlinked,
+        link: systemprompt_traits::LinkPolicy::default(),
     };
     let reply = TeamsReply {
         service_url: normalized.service_url,

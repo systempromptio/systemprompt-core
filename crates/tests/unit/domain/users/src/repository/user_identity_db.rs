@@ -2,7 +2,7 @@
 //! transactional user merge, and federated sign-in account linking.
 
 use systemprompt_identifiers::UserId;
-use systemprompt_traits::FederatedIdentityClaims;
+use systemprompt_traits::{FederatedIdentityClaims, LinkPolicy};
 use systemprompt_users::{UserError, UserService};
 use uuid::Uuid;
 
@@ -284,6 +284,11 @@ async fn promote_anonymous_refuses_a_self_merge() {
     ctx.fixture.finish().await;
 }
 
+const POLICY: LinkPolicy = LinkPolicy {
+    link_by_email: true,
+    auto_provision: true,
+};
+
 fn claims(email: Option<&str>, email_verified: bool) -> FederatedIdentityClaims {
     FederatedIdentityClaims {
         email: email.map(ToOwned::to_owned),
@@ -313,13 +318,15 @@ async fn verified_federated_email_links_to_the_existing_local_account() {
     let external_sub = format!("sub-{t}");
     let linked = ctx
         .service
-        .find_or_create_federated(
+        .resolve_federated(
             &issuer,
             &external_sub,
             &claims(Some(&format!("Existing-{t}@User.Invalid")), true),
+            &POLICY,
         )
         .await
-        .expect("federated sign-in");
+        .expect("federated sign-in")
+        .0;
 
     assert_eq!(
         linked.id, existing.id,
@@ -363,13 +370,15 @@ async fn unverified_federated_email_creates_a_separate_synthetic_account() {
     let issuer = format!("https://hostile-{t}.invalid");
     let created = ctx
         .service
-        .find_or_create_federated(
+        .resolve_federated(
             &issuer,
             &format!("sub-{t}"),
             &claims(Some(&format!("Unverified-{t}@User.Invalid")), false),
+            &POLICY,
         )
         .await
-        .expect("federated sign-in");
+        .expect("federated sign-in")
+        .0;
 
     assert_ne!(
         created.id, existing.id,

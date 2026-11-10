@@ -19,14 +19,14 @@ use systemprompt_test_fixtures::{
     ensure_messaging_bootstrap, fixture_app_context_with_hook, seed_agent_backend,
     test_app_context, test_db_pool, test_messaging_agent,
 };
-use systemprompt_traits::SenderIdentity;
+use systemprompt_traits::{LinkPolicy, SenderIdentity};
 use uuid::Uuid;
 use wiremock::matchers::{header, method};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-const ISSUER: &str = "https://slack.com";
+pub(crate) const ISSUER: &str = "https://slack.com";
 
-fn inbound(external_user_id: &str, text: &str) -> MessagingInbound {
+pub(crate) fn inbound(external_user_id: &str, text: &str) -> MessagingInbound {
     MessagingInbound {
         issuer: ISSUER.to_owned(),
         conversation: MessagingConversation::Slack {
@@ -41,10 +41,11 @@ fn inbound(external_user_id: &str, text: &str) -> MessagingInbound {
             id: "C_TEST".to_owned(),
         },
         sender: SenderIdentity::Unlinked,
+        link: LinkPolicy::default(),
     }
 }
 
-async fn mount_reply(mock: &MockServer, text: &str) {
+pub(crate) async fn mount_reply(mock: &MockServer, text: &str) {
     Mock::given(method("POST"))
         .and(header("A2A-Version", "1.0"))
         .respond_with(ResponseTemplate::new(200).set_body_json(agent_reply_response_json(text)))

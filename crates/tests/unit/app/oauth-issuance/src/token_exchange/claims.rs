@@ -29,6 +29,7 @@ fn issuer(jwks_uri: &str) -> TrustedIssuer {
         typ_allowlist: vec![],
         allowed_client_ids: vec![],
         can_issue_id_jag: false,
+        link: Default::default(),
     }
 }
 

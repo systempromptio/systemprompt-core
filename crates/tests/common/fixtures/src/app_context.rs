@@ -56,6 +56,20 @@ pub fn fixture_fingerprint_repository(db: &DbPool) -> Result<FingerprintReposito
     ))
 }
 
+pub const FIXTURE_UPSTREAM_ISSUER: &str = "https://upstream.fixture.invalid";
+
+pub fn fixture_upstream_issuer() -> systemprompt_manifest::profile::TrustedIssuer {
+    systemprompt_manifest::profile::TrustedIssuer {
+        issuer: FIXTURE_UPSTREAM_ISSUER.to_owned(),
+        jwks_uri: "http://127.0.0.1:1/jwks".to_owned(),
+        audience: "fixture-upstream".to_owned(),
+        typ_allowlist: Vec::new(),
+        allowed_client_ids: Vec::new(),
+        can_issue_id_jag: true,
+        link: systemprompt_traits::LinkPolicy::default(),
+    }
+}
+
 pub fn fixture_config(database_url: &str) -> Config {
     Config {
         instance_id: crate::unique_instance(),
@@ -92,7 +106,7 @@ pub fn fixture_config(database_url: &str) -> Config {
         jwt_refresh_token_expiration: 86_400,
         jwt_audiences: systemprompt_models::auth::JwtAudience::standard(),
         allowed_resource_audiences: vec![],
-        trusted_issuers: vec![],
+        trusted_issuers: vec![fixture_upstream_issuer()],
         id_jag_ttl_secs: systemprompt_manifest::profile::DEFAULT_ID_JAG_TTL_SECS,
         signing_key_path: std::path::PathBuf::from("signing_key.pem"),
         use_https: false,

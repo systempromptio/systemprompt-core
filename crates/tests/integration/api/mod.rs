@@ -259,6 +259,9 @@ mod routes_agent_artifacts;
 #[cfg(test)]
 #[path = "messaging_dispatch.rs"]
 mod messaging_dispatch;
+#[cfg(test)]
+#[path = "messaging_linking.rs"]
+mod messaging_linking;
 
 #[cfg(test)]
 #[path = "routes_slack.rs"]

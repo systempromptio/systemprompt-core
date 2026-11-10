@@ -1,93 +1,52 @@
-//! Tests for the SSO user-resolution order and the default role resolver.
+//! Tests for the link policy an SSO provider hands the federated resolution,
+//! the refusal codes a resolution refusal surfaces as, and the default role
+//! resolver.
 
 use systemprompt_identifiers::UserId;
-use systemprompt_oauth_issuance::sso::{
-    DirectoryOnlyRoleResolver, ResolutionPlan, RoleResolver, plan_resolution,
-};
-use systemprompt_traits::AuthUser;
-use systemprompt_traits::sso::SsoIdentityPolicy;
+use systemprompt_oauth_issuance::sso::{DirectoryOnlyRoleResolver, RoleResolver};
+use systemprompt_traits::sso::{SsoError, SsoIdentityPolicy, SsoRefusal};
+use systemprompt_traits::{FederatedRefusal, LinkPolicy};
 
-fn policy(auto_provision: bool, link_by_email: bool) -> SsoIdentityPolicy {
-    SsoIdentityPolicy {
-        auto_provision,
-        link_by_email,
+#[test]
+fn the_default_provider_policy_neither_links_nor_provisions() {
+    assert_eq!(
+        SsoIdentityPolicy::default().link_policy(),
+        LinkPolicy {
+            link_by_email: false,
+            auto_provision: false,
+        }
+    );
+}
+
+#[test]
+fn the_provider_policy_carries_both_switches_into_the_link_policy() {
+    let policy = SsoIdentityPolicy {
+        auto_provision: true,
+        link_by_email: true,
         ..SsoIdentityPolicy::default()
-    }
-}
-
-fn owner(id: &str, is_active: bool, is_service_account: bool) -> AuthUser {
-    AuthUser {
-        id: UserId::new(id),
-        name: "operator".to_owned(),
-        email: "op@example.com".to_owned(),
-        roles: vec!["admin".to_owned()],
-        is_active,
-        is_service_account,
-    }
-}
-
-#[test]
-fn a_federated_link_wins_over_everything() {
-    let linked = UserId::new("linked");
-    let other = owner("other", true, false);
+    };
     assert_eq!(
-        plan_resolution(
-            Some(linked.clone()),
-            Some(&other),
-            true,
-            &policy(true, true)
-        ),
-        ResolutionPlan::Existing(linked)
+        policy.link_policy(),
+        LinkPolicy {
+            link_by_email: true,
+            auto_provision: true,
+        }
     );
 }
 
 #[test]
-fn link_by_email_claims_the_active_interactive_owner_before_provisioning() {
-    let op = owner("op", true, false);
+fn each_resolution_refusal_has_its_own_reason_code() {
+    let codes: Vec<&str> = [
+        FederatedRefusal::EmailInUse,
+        FederatedRefusal::TargetIneligible,
+        FederatedRefusal::NotProvisioned,
+    ]
+    .into_iter()
+    .map(|refusal| SsoError::Refused(SsoRefusal::from(refusal)).reason_code())
+    .collect();
     assert_eq!(
-        plan_resolution(None, Some(&op), true, &policy(true, true)),
-        ResolutionPlan::LinkExisting(UserId::new("op"))
-    );
-}
-
-#[test]
-fn link_by_email_is_off_by_default() {
-    let op = owner("op", true, false);
-    assert!(!SsoIdentityPolicy::default().link_by_email);
-    assert_eq!(
-        plan_resolution(None, Some(&op), true, &policy(true, false)),
-        ResolutionPlan::Provision
-    );
-}
-
-#[test]
-fn an_unverified_email_never_links() {
-    let op = owner("op", true, false);
-    assert_eq!(
-        plan_resolution(None, Some(&op), false, &policy(false, true)),
-        ResolutionPlan::Refuse
-    );
-}
-
-#[test]
-fn inactive_or_service_owners_fall_through() {
-    for candidate in [owner("off", false, false), owner("svc", true, true)] {
-        assert_eq!(
-            plan_resolution(None, Some(&candidate), true, &policy(true, true)),
-            ResolutionPlan::Provision
-        );
-        assert_eq!(
-            plan_resolution(None, Some(&candidate), true, &policy(false, true)),
-            ResolutionPlan::Refuse
-        );
-    }
-}
-
-#[test]
-fn no_owner_and_no_provisioning_refuses() {
-    assert_eq!(
-        plan_resolution(None, None, true, &policy(false, true)),
-        ResolutionPlan::Refuse
+        codes,
+        ["email_in_use", "link_ineligible", "not_provisioned"]
     );
 }
 

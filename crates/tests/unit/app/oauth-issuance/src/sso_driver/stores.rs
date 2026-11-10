@@ -5,15 +5,15 @@ use async_trait::async_trait;
 use systemprompt_identifiers::{SessionId, UserId};
 use systemprompt_traits::{
     ActiveSession, AnalyticsResult, AnalyticsSession, AuthResult, AuthUser, CreateSessionInput,
-    FederatedIdentityClaims, SessionProvider, UserProvider,
+    FederatedIdentityClaims, FederatedLink, FederatedRefusal, FederatedResolution, LinkPolicy,
+    SessionProvider, UserProvider,
 };
 
 #[derive(Debug, Default)]
 pub struct MemoryUsers {
     pub users: Mutex<HashMap<UserId, AuthUser>>,
-    pub federated: Mutex<HashMap<(String, String), UserId>>,
+    pub federated: Mutex<HashMap<(String, String), (UserId, bool)>>,
     pub assigned: Mutex<HashMap<UserId, Vec<String>>>,
-    pub links: Mutex<Vec<(String, UserId)>>,
 }
 
 pub fn auth_user(id: &str, email: &str) -> AuthUser {
@@ -35,11 +35,17 @@ impl MemoryUsers {
             .insert(user.id.clone(), user);
     }
 
-    pub fn seed_link(&self, issuer: &str, sub: &str, user_id: &UserId) {
-        self.federated
-            .lock()
-            .expect("federated lock")
-            .insert((issuer.to_owned(), sub.to_owned()), user_id.clone());
+    pub fn seed_link(&self, issuer: &str, sub: &str, user_id: &UserId, provisioned: bool) {
+        self.federated.lock().expect("federated lock").insert(
+            (issuer.to_owned(), sub.to_owned()),
+            (user_id.clone(), provisioned),
+        );
+    }
+
+    pub fn linked(&self, issuer: &str, sub: &str) -> UserId {
+        self.federated.lock().expect("federated lock")[&(issuer.to_owned(), sub.to_owned())]
+            .0
+            .clone()
     }
 
     pub fn roles_of(&self, user_id: &UserId) -> Option<Vec<String>> {
@@ -51,7 +57,7 @@ impl MemoryUsers {
     }
 
     pub fn link_count(&self) -> usize {
-        self.links.lock().expect("links lock").len()
+        self.federated.lock().expect("federated lock").len()
     }
 }
 
@@ -96,42 +102,38 @@ impl UserProvider for MemoryUsers {
         Ok(())
     }
 
-    async fn find_or_create_federated(
+    async fn resolve_federated(
         &self,
         issuer: &str,
         external_sub: &str,
         claims: &FederatedIdentityClaims,
-    ) -> AuthResult<UserId> {
+        policy: &LinkPolicy,
+    ) -> AuthResult<FederatedResolution> {
+        let existing = self
+            .federated
+            .lock()
+            .expect("federated lock")
+            .get(&(issuer.to_owned(), external_sub.to_owned()))
+            .cloned();
+        if let Some((user_id, provisioned)) = existing {
+            return Ok(FederatedResolution {
+                user_id,
+                link: FederatedLink::Existing { provisioned },
+            });
+        }
+        if !policy.auto_provision {
+            return Err(FederatedRefusal::NotProvisioned.into());
+        }
         let user_id = UserId::new(format!("user_{}", uuid::Uuid::new_v4()));
         self.seed(auth_user(
             user_id.as_str(),
             claims.email.as_deref().unwrap_or_default(),
         ));
-        self.seed_link(issuer, external_sub, &user_id);
-        Ok(user_id)
-    }
-
-    async fn find_federated(&self, issuer: &str, external_sub: &str) -> AuthResult<Option<UserId>> {
-        Ok(self
-            .federated
-            .lock()
-            .expect("federated lock")
-            .get(&(issuer.to_owned(), external_sub.to_owned()))
-            .cloned())
-    }
-
-    async fn link_federated(
-        &self,
-        issuer: &str,
-        external_sub: &str,
-        user_id: &UserId,
-    ) -> AuthResult<()> {
-        self.seed_link(issuer, external_sub, user_id);
-        self.links
-            .lock()
-            .expect("links lock")
-            .push((external_sub.to_owned(), user_id.clone()));
-        Ok(())
+        self.seed_link(issuer, external_sub, &user_id, true);
+        Ok(FederatedResolution {
+            user_id,
+            link: FederatedLink::Provisioned,
+        })
     }
 
     async fn promote_anonymous(&self, _source: &UserId, _target: &UserId) -> AuthResult<u64> {

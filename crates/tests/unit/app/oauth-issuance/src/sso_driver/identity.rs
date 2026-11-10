@@ -7,12 +7,12 @@ use systemprompt_traits::SessionAnalytics;
 use systemprompt_traits::sso::SsoError;
 
 use super::providers::{
-    CLOSED, METADATA_BODY, OPEN, RESOLVED_ROLE, Recorded, events_for_sub, refusals_with_reason,
+    CLOSED, METADATA_BODY, OPEN, OPEN_ISSUER, RESOLVED_ROLE, Recorded, events_for_sub,
+    refusals_with_reason,
 };
 use super::stores::auth_user;
 use super::{Harness, finish, harness, refusal_reason, start, success_return_to, unique};
 
-const OPEN_ISSUER: &str = "https://idp.test/open";
 
 async fn sign_in(h: &Harness, params: &[(&str, &str)]) -> FinishOutcome {
     let started = start(&h.driver, OPEN, None).await;
@@ -126,79 +126,11 @@ async fn directory_groups_map_to_roles_and_the_resolver_has_the_last_word() {
     .await;
 
     success_return_to(&outcome);
-    let user_id = h.users.federated.lock().expect("lock")[&(OPEN_ISSUER.to_owned(), sub)].clone();
+    let user_id = h.users.linked(OPEN_ISSUER, &sub);
     assert_eq!(
         h.users.roles_of(&user_id),
         Some(vec!["admin".to_owned(), RESOLVED_ROLE.to_owned()])
     );
-}
-
-#[tokio::test]
-async fn a_verified_email_links_the_existing_account_instead_of_provisioning() {
-    let h = harness().await;
-    let existing = auth_user(&unique("user"), "link@example.test");
-    h.users.seed(existing.clone());
-    let sub = unique("sub");
-
-    let outcome = sign_in(
-        &h,
-        &[
-            ("sub", &sub),
-            ("email", "link@example.test"),
-            ("verified", "1"),
-        ],
-    )
-    .await;
-
-    success_return_to(&outcome);
-    assert_eq!(h.users.link_count(), 1);
-    assert_eq!(
-        events_for_sub(&sub),
-        vec![Recorded::Success {
-            sub,
-            email: "link@example.test".to_owned(),
-            created: false,
-        }]
-    );
-    assert_eq!(h.users.users.lock().expect("lock").len(), 1);
-}
-
-#[tokio::test]
-async fn an_unverified_email_never_claims_an_existing_account() {
-    let h = harness().await;
-    h.users
-        .seed(auth_user(&unique("user"), "claim@example.test"));
-
-    let outcome = sign_in(
-        &h,
-        &[("sub", &unique("sub")), ("email", "claim@example.test")],
-    )
-    .await;
-
-    success_return_to(&outcome);
-    assert_eq!(h.users.link_count(), 0);
-    assert_eq!(h.users.users.lock().expect("lock").len(), 2);
-}
-
-#[tokio::test]
-async fn a_service_account_owning_the_email_is_not_linked() {
-    let h = harness().await;
-    let mut service = auth_user(&unique("svc"), "svc@example.test");
-    service.is_service_account = true;
-    h.users.seed(service);
-
-    let outcome = sign_in(
-        &h,
-        &[
-            ("sub", &unique("sub")),
-            ("email", "svc@example.test"),
-            ("verified", "1"),
-        ],
-    )
-    .await;
-
-    success_return_to(&outcome);
-    assert_eq!(h.users.link_count(), 0);
 }
 
 #[tokio::test]
@@ -208,7 +140,7 @@ async fn a_federated_link_to_a_deactivated_user_is_not_provisioned() {
     let mut user = auth_user(&unique("user"), "gone@example.test");
     user.is_active = false;
     h.users.seed(user.clone());
-    h.users.seed_link(OPEN_ISSUER, &sub, &user.id);
+    h.users.seed_link(OPEN_ISSUER, &sub, &user.id, false);
 
     let outcome = sign_in(&h, &[("sub", &sub), ("email", "gone@example.test")]).await;
 
@@ -221,7 +153,7 @@ async fn a_federated_link_to_a_missing_user_is_an_internal_error() {
     let h = harness().await;
     let sub = unique("sub");
     h.users
-        .seed_link(OPEN_ISSUER, &sub, &UserId::new(unique("ghost")));
+        .seed_link(OPEN_ISSUER, &sub, &UserId::new(unique("ghost")), true);
 
     let outcome = sign_in(&h, &[("sub", &sub), ("email", "ghost@example.test")]).await;
 
@@ -291,7 +223,7 @@ async fn provider_listing_skips_disabled_providers() {
 
     assert_eq!(ids.iter().filter(|id| *id == OPEN).count(), 1, "{ids:?}");
     assert!(ids.iter().any(|id| id == CLOSED));
-    assert_eq!(ids.len(), 3, "{ids:?}");
+    assert_eq!(ids.len(), 4, "{ids:?}");
     assert!(format!("{:?}", h.driver).contains(OPEN));
 }
 

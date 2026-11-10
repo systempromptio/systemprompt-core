@@ -290,6 +290,7 @@ fn mints_id_jag_with_correct_typ_and_claims() {
         scope: Some("user mcp"),
         ttl_secs: 300,
         issuer: "https://core.example",
+        upstream_issuer: systemprompt_test_fixtures::FIXTURE_UPSTREAM_ISSUER,
     })
     .expect("mint");
 
@@ -327,6 +328,7 @@ fn defaults_optional_claims_to_none() {
         scope: None,
         ttl_secs: 120,
         issuer: "https://core.example",
+        upstream_issuer: systemprompt_test_fixtures::FIXTURE_UPSTREAM_ISSUER,
     })
     .expect("mint");
     let claims = id_jag_claims(&token);

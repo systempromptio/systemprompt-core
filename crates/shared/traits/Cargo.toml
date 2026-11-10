@@ -36,6 +36,7 @@ chrono = { workspace = true }
 tracing = { workspace = true }
 
 serde = { workspace = true }
+schemars = { workspace = true }
 futures = { workspace = true }
 bytes = { workspace = true }
 http = { workspace = true }

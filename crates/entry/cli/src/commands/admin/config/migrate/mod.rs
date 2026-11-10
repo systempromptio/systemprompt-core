@@ -12,7 +12,9 @@
 //! `--data` then moves stored data through the legacy map ([`data`]),
 //! including access rules addressed to a legacy route id. The retired
 //! `access-control/roles.yaml` is folded into `rules.yaml` ([`roles`]), and
-//! the retired plugin `hooks.evaluation` key becomes `hooks.judge` ([`hooks`]).
+//! the retired plugin `hooks.evaluation` key becomes `hooks.judge` ([`hooks`]),
+//! and a Slack app's `authz.link_by_workspace_email` becomes
+//! `authz.link.link_by_email` ([`slack`]).
 //! `--profiles <dir>` instead rewrites the pre-0.73 profiles in that directory
 //! ([`profiles`]) without loading one.
 //!
@@ -34,6 +36,7 @@ pub mod profiles;
 pub mod replay;
 pub mod roles;
 pub mod routes;
+pub mod slack;
 pub mod write;
 
 use std::path::PathBuf;
@@ -156,6 +159,44 @@ pub async fn execute(args: &MigrateArgs, ctx: &CommandContext) -> Result<()> {
     }
 }
 
+fn refuse_pending_renames(services: &std::path::Path) -> Result<()> {
+    if hooks::pending(services) {
+        bail!(
+            "plugin descriptors still say `hooks.evaluation`; run `systemprompt admin config migrate` to rename it to `hooks.judge`"
+        );
+    }
+    if slack::pending(services) {
+        bail!(
+            "a Slack app still says `authz.link_by_workspace_email`; run `systemprompt admin config migrate` to rename it to `authz.link.link_by_email`"
+        );
+    }
+    Ok(())
+}
+
+fn apply_renames(config: &CliConfig, services: &std::path::Path) -> Result<()> {
+    for path in hooks::migrate(services)? {
+        render(
+            config,
+            "Plugin Hooks Migrated",
+            format!(
+                "renamed hooks.evaluation to hooks.judge in {}",
+                path.display()
+            ),
+        );
+    }
+    for path in slack::migrate(services)? {
+        render(
+            config,
+            "Slack Link Policy Migrated",
+            format!(
+                "renamed authz.link_by_workspace_email to authz.link.link_by_email in {}",
+                path.display()
+            ),
+        );
+    }
+    Ok(())
+}
+
 async fn execute_services(args: &MigrateArgs, ctx: &CommandContext) -> Result<()> {
     let config = &ctx.cli;
     let services = services_dir(args, ctx)?;
@@ -168,11 +209,7 @@ async fn execute_services(args: &MigrateArgs, ctx: &CommandContext) -> Result<()
                 systemprompt_governance::authz::rules_file::RULES_FILE
             );
         }
-        if hooks::pending(&services) {
-            bail!(
-                "plugin descriptors still say `hooks.evaluation`; run `systemprompt admin config migrate` to rename it to `hooks.judge`"
-            );
-        }
+        refuse_pending_renames(&services)?;
         let Some(plan) = pending else {
             render(
                 config,
@@ -196,16 +233,7 @@ async fn execute_services(args: &MigrateArgs, ctx: &CommandContext) -> Result<()
             "nothing to migrate: the services tree is already in the 0.73 shape".to_owned(),
         ),
     }
-    for path in hooks::migrate(&services)? {
-        render(
-            config,
-            "Plugin Hooks Migrated",
-            format!(
-                "renamed hooks.evaluation to hooks.judge in {}",
-                path.display()
-            ),
-        );
-    }
+    apply_renames(config, &services)?;
     if let Some(rules) = roles::migrate(&services)? {
         render(
             config,

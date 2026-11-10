@@ -8,10 +8,12 @@ use std::str::FromStr;
 use async_trait::async_trait;
 use systemprompt_identifiers::UserId;
 use systemprompt_traits::auth::{
-    AuthProviderError, AuthResult, AuthUser, FederatedIdentityClaims, RoleProvider, UserProvider,
+    AuthProviderError, AuthResult, AuthUser, FederatedIdentityClaims, FederatedResolution,
+    LinkPolicy, RoleProvider, UserProvider,
 };
 
 use super::UserService;
+use crate::error::UserError;
 use crate::models::{User, UserRole};
 
 impl From<User> for AuthUser {
@@ -78,35 +80,21 @@ impl UserProvider for UserService {
             .map_err(|e| AuthProviderError::Internal(e.into()))
     }
 
-    async fn find_or_create_federated(
+    async fn resolve_federated(
         &self,
         issuer: &str,
         external_sub: &str,
         claims: &FederatedIdentityClaims,
-    ) -> AuthResult<UserId> {
-        Self::find_or_create_federated(self, issuer, external_sub, claims)
-            .await
-            .map(|u| u.id)
-            .map_err(|e| AuthProviderError::Internal(e.into()))
-    }
-
-    async fn find_federated(&self, issuer: &str, external_sub: &str) -> AuthResult<Option<UserId>> {
-        self.repository
-            .find_federated(issuer, external_sub)
-            .await
-            .map_err(|e| AuthProviderError::Internal(e.into()))
-    }
-
-    async fn link_federated(
-        &self,
-        issuer: &str,
-        external_sub: &str,
-        user_id: &UserId,
-    ) -> AuthResult<()> {
-        self.repository
-            .link_federated(issuer, external_sub, user_id)
-            .await
-            .map_err(|e| AuthProviderError::Internal(e.into()))
+        policy: &LinkPolicy,
+    ) -> AuthResult<FederatedResolution> {
+        match Self::resolve_federated(self, issuer, external_sub, claims, policy).await {
+            Ok((user, link)) => Ok(FederatedResolution {
+                user_id: user.id,
+                link,
+            }),
+            Err(UserError::FederatedRefused(refusal)) => Err(AuthProviderError::from(refusal)),
+            Err(e) => Err(AuthProviderError::Internal(e.into())),
+        }
     }
 
     async fn promote_anonymous(&self, source: &UserId, target: &UserId) -> AuthResult<u64> {

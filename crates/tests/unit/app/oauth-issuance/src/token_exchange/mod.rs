@@ -9,6 +9,7 @@
 mod claims;
 mod federated;
 mod id_jag_subject;
+mod id_jag_upstream;
 mod issue;
 mod subject;
 

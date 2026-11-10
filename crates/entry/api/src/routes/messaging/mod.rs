@@ -26,7 +26,7 @@ use systemprompt_governance::authz::{AuthzContext, AuthzDecision, AuthzRequest, 
 use systemprompt_identifiers::{Actor, AgentName, SessionId, TraceId};
 use systemprompt_oauth::OauthError;
 use systemprompt_runtime::AppContext;
-use systemprompt_traits::SenderIdentity;
+use systemprompt_traits::{LinkPolicy, SenderIdentity};
 use systemprompt_users::UserError;
 
 use crate::services::proxy::ProxyError;
@@ -71,6 +71,7 @@ pub struct MessagingInbound {
     pub entity: EntityRef,
     pub reply: ReplyTarget,
     pub sender: SenderIdentity,
+    pub link: LinkPolicy,
 }
 
 #[derive(Debug, Clone)]
@@ -116,13 +117,22 @@ pub async fn dispatch_messaging(
     ctx: &AppContext,
     inbound: MessagingInbound,
 ) -> Result<DispatchOutcome, MessagingError> {
-    let user = resolve_or_link_user(
+    let user = match resolve_or_link_user(
         ctx,
         &inbound.issuer,
         inbound.conversation.sender_wire_id(),
         &inbound.sender.claims(),
+        &inbound.link,
     )
-    .await?;
+    .await
+    {
+        Ok(user) => user,
+        Err(MessagingError::Identity(UserError::FederatedRefused(refusal))) => {
+            tracing::warn!(issuer = %inbound.issuer, %refusal, "messaging sender refused");
+            return Ok(DispatchOutcome::Denied(refusal.to_string()));
+        },
+        Err(err) => return Err(err),
+    };
     let authed = authenticated_user(&user);
 
     let context_id = inbound.conversation.context_id();
