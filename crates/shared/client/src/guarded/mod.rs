@@ -19,8 +19,15 @@
 //! Literal-IP URLs bypass DNS entirely. A redirect hop to one is covered by the
 //! redirect policy; the initial URL is covered by [`GuardedClient`], whose
 //! only request path validates it. A client for untrusted destinations can
-//! only be a [`GuardedClient`] and never uses an environment proxy, which
-//! would otherwise resolve the target where the guard cannot see it.
+//! only be a [`GuardedClient`].
+//!
+//! Forward proxies (`HTTP(S)_PROXY` / `ALL_PROXY` / `NO_PROXY`, or an explicit
+//! [`GuardedClientConfig::with_proxy`]) are honoured. The parsed-URL check runs
+//! on the first URL and every redirect hop either way and never resolves the
+//! target; the resolver check applies to every connection the client dials
+//! itself. Through a proxy the client dials only the proxy, whose host is
+//! exempt from the resolver check, and destination filtering for hostnames is
+//! the proxy's job.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -73,6 +80,7 @@ pub fn guarded_client_builder(config: &GuardedClientConfig) -> reqwest::ClientBu
     } else {
         guarded_redirect_policy(
             config.trusted_hosts().to_vec(),
+            config.proxy_hosts(),
             config.loopback(),
             config.max_redirects(),
         )
@@ -87,6 +95,15 @@ pub fn guarded_client_builder(config: &GuardedClientConfig) -> reqwest::ClientBu
     }
     if let Some(user_agent) = config.user_agent() {
         builder = builder.user_agent(user_agent.to_owned());
+    }
+    if let Some(proxy) = config.proxy() {
+        match reqwest::Proxy::all(proxy.as_str()) {
+            Ok(proxy) => builder = builder.proxy(proxy),
+            Err(error) => {
+                tracing::error!(%error, proxy = %proxy, "Guarded client proxy is unusable");
+                builder = builder.no_proxy();
+            },
+        }
     }
     builder
 }
@@ -104,6 +121,7 @@ fn hop_policy(first: Option<&url::Url>, loopback: LoopbackPolicy) -> LoopbackPol
 
 fn guarded_redirect_policy(
     trusted: Vec<String>,
+    proxy_hosts: Vec<String>,
     loopback: LoopbackPolicy,
     max_redirects: usize,
 ) -> reqwest::redirect::Policy {
@@ -115,8 +133,10 @@ fn guarded_redirect_policy(
             return attempt.error(GuardedConnectError::TooManyRedirects(max_redirects));
         }
         let policy = hop_policy(attempt.previous().first(), loopback);
-        match validate_outbound_url_with_trust(attempt.url().as_str(), &trusted, policy) {
-            Ok(_) => attempt.follow(),
+        let verdict = validate_outbound_url_with_trust(attempt.url().as_str(), &trusted, policy)
+            .and_then(|_| config::refuse_proxy_target(attempt.url(), loopback, &proxy_hosts));
+        match verdict {
+            Ok(()) => attempt.follow(),
             Err(source) => {
                 let refused = GuardedConnectError::RedirectRefused {
                     url: attempt.url().to_string(),

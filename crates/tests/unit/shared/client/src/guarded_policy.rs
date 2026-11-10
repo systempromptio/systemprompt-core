@@ -250,4 +250,149 @@ mod guarded_policy_tests {
         );
         assert_eq!(landing.hits(), 0);
     }
+
+    struct CapturingProxy {
+        url: url::Url,
+        requests: std::sync::Arc<std::sync::Mutex<Vec<String>>>,
+    }
+
+    impl CapturingProxy {
+        fn request_lines(&self) -> Vec<String> {
+            self.requests.lock().expect("proxy log").clone()
+        }
+    }
+
+    async fn capturing_proxy(response: String) -> CapturingProxy {
+        let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+        let addr = listener.local_addr().expect("addr");
+        let requests = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        let log = std::sync::Arc::clone(&requests);
+        tokio::spawn(async move {
+            while let Ok((mut socket, _)) = listener.accept().await {
+                let mut buf = [0u8; 4096];
+                let read = socket.read(&mut buf).await.unwrap_or(0);
+                let head = String::from_utf8_lossy(&buf[..read]);
+                let line = head.lines().next().unwrap_or_default().to_owned();
+                log.lock().expect("proxy log").push(line);
+                let _written = socket.write_all(response.as_bytes()).await;
+            }
+        });
+        CapturingProxy {
+            url: url::Url::parse(&format!("http://{addr}")).expect("proxy url"),
+            requests,
+        }
+    }
+
+    fn proxied_untrusted(proxy: &CapturingProxy, trusted: &[&str]) -> GuardedClient {
+        GuardedClient::untrusted(
+            &GuardedClientConfig::for_untrusted()
+                .with_trusted_hosts(trusted.iter().map(|h| (*h).to_owned()).collect())
+                .with_proxy(proxy.url.clone()),
+        )
+        .expect("client")
+    }
+
+    #[tokio::test]
+    async fn an_untrusted_request_to_a_hostname_goes_to_the_proxy_without_local_dns() {
+        let proxy =
+            capturing_proxy("HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\n\r\n".to_owned()).await;
+        let client = proxied_untrusted(&proxy, &[]);
+
+        let _outcome = client
+            .get("https://unresolvable.example/resource")
+            .expect("a public-looking name passes the parse check")
+            .send()
+            .await;
+
+        assert_eq!(
+            proxy.request_lines(),
+            vec!["CONNECT unresolvable.example:443 HTTP/1.1".to_owned()],
+            "the proxy carries the request; the name is never resolved locally"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_literal_loopback_or_private_first_url_is_refused_before_the_proxy_sees_it() {
+        let proxy =
+            capturing_proxy("HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n".to_owned()).await;
+        let client = proxied_untrusted(&proxy, &[]);
+
+        for url in [
+            "https://127.0.0.1/",
+            "https://localhost/",
+            "https://[::ffff:127.0.0.1]/",
+            "https://[2002:a9fe:a9fe::]/",
+            "https://10.0.0.1/",
+            "https://2130706433/",
+        ] {
+            assert!(client.get(url).is_err(), "{url} must be refused");
+        }
+        assert!(
+            proxy.request_lines().is_empty(),
+            "nothing reached the proxy"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_proxied_redirect_to_loopback_is_refused_before_it_is_followed() {
+        let landing = landing().await;
+        let proxy = capturing_proxy(format!(
+            "HTTP/1.1 302 Found\r\nLocation: http://127.0.0.1:{}/\r\nContent-Length: 0\r\n\r\n",
+            landing.addr.port()
+        ))
+        .await;
+        let client = proxied_untrusted(&proxy, &[PUBLIC_NAME]);
+
+        let err = client
+            .get(&format!("http://{PUBLIC_NAME}/start"))
+            .expect("trusted first url")
+            .send()
+            .await
+            .expect_err("the loopback hop is refused");
+
+        assert!(redirect_refusal(&err).is_some(), "{err:?}");
+        assert_eq!(
+            proxy.request_lines(),
+            vec![format!("GET http://{PUBLIC_NAME}/start HTTP/1.1")],
+            "only the first request went through the proxy"
+        );
+        assert_eq!(landing.hits(), 0);
+    }
+
+    #[tokio::test]
+    async fn the_proxy_host_is_refused_as_a_first_url_and_as_a_redirect_hop() {
+        let landing = landing().await;
+        let proxy = capturing_proxy(format!(
+            "HTTP/1.1 302 Found\r\nLocation: https://127.0.0.1:{}/admin\r\nContent-Length: 0\r\n\r\n",
+            landing.addr.port()
+        ))
+        .await;
+        let client = proxied_untrusted(&proxy, &["127.0.0.1", PUBLIC_NAME]);
+
+        let first = client.get(&format!(
+            "http://127.0.0.1:{}/admin",
+            proxy.url.port().unwrap_or(0)
+        ));
+        assert!(
+            matches!(first, Err(OutboundUrlError::ProxyHost(ref host)) if host == "127.0.0.1"),
+            "{first:?}"
+        );
+
+        let err = client
+            .get(&format!("http://{PUBLIC_NAME}/start"))
+            .expect("trusted first url")
+            .send()
+            .await
+            .expect_err("a hop onto the proxy host is refused");
+        assert!(
+            matches!(redirect_refusal(&err), Some(OutboundUrlError::ProxyHost(_))),
+            "{err:?}"
+        );
+        assert_eq!(
+            proxy.request_lines().len(),
+            1,
+            "only the first request was sent"
+        );
+        assert_eq!(landing.hits(), 0);
+    }
 }

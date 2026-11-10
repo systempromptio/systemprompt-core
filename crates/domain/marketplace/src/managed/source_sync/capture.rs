@@ -80,10 +80,14 @@ impl GitSynchronizationService {
 /// out under a caller-supplied scratch root so a read-only root filesystem
 /// needs no writable `/tmp`.
 ///
-/// The repository host is resolved here, every address is judged by the
-/// outbound block list, and `git` is pinned to the vetted address, so the
-/// subprocess cannot resolve the name to something else. Loopback hosts are
-/// refused unless the capture is built with [`LoopbackPolicy::Allow`].
+/// The repository URL passes the outbound parse check (scheme, literal and
+/// embedded addresses, loopback names). When the operator's forward proxy
+/// (`HTTPS_PROXY`/`ALL_PROXY`, minus `NO_PROXY`) carries the request, `git`
+/// is routed through it and the name is not resolved locally; destination
+/// filtering for the hostname is then the proxy's job. Otherwise the host is
+/// resolved here, every address is judged by the block list, and `git` is
+/// pinned to the vetted address. Loopback hosts are refused unless the capture
+/// is built with [`LoopbackPolicy::Allow`].
 #[derive(Debug, Clone)]
 pub struct NativeGitSourceCapture {
     scratch_root: PathBuf,
@@ -126,9 +130,8 @@ impl NativeGitSourceCapture {
             credential,
         } = *request;
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(120);
-        let pinned = super::pin::pin_repository(repository, self.loopback)?;
+        let route = super::pin::route_repository(repository, self.loopback)?;
         super::pin::require_pinning_git(deadline)?;
-        let resolve = pinned.curl_resolve_entry();
         let certificate_authority = self
             .certificate_authority
             .as_deref()
@@ -136,7 +139,7 @@ impl NativeGitSourceCapture {
             .transpose()?;
         let transport = GitTransport {
             certificate_authority: certificate_authority.as_deref(),
-            resolve: &resolve,
+            route: &route,
         };
         let commit = resolve_ref(repository, reference, credential, &transport, deadline)?;
         let files = import_tree(&GitCheckout {

@@ -182,12 +182,12 @@ fn fetch_commit(checkout: &GitCheckout<'_>) -> Result<()> {
 #[derive(Clone, Copy)]
 pub(super) struct GitTransport<'a> {
     pub certificate_authority: Option<&'a Path>,
-    pub resolve: &'a str,
+    pub route: &'a str,
 }
 
 impl GitTransport<'_> {
     fn apply(&self, command: &mut Command) -> Result<()> {
-        command.args(["-c", &format!("http.curloptResolve={}", self.resolve)]);
+        command.args(["-c", self.route]);
         if let Some(path) = self.certificate_authority {
             let path = path.to_str().ok_or(ManagedError::Integrity)?;
             command.args(["-c", &format!("http.sslCAInfo={path}")]);

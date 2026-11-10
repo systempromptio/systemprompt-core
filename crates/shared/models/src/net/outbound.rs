@@ -35,6 +35,8 @@ pub enum OutboundUrlError {
     BlockedAddress { host: String, addr: IpAddr },
     #[error("host {0} resolved to no address")]
     Unresolved(String),
+    #[error("host {0} is the forward proxy and is not a permitted target")]
+    ProxyHost(String),
 }
 
 /// Whether a destination may be the local host.

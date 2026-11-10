@@ -21,6 +21,7 @@ crates/shared/manifest/src/profile/paths.rs  # HOME / USERPROFILE for `~` expans
 crates/shared/extension/src/build/mod.rs  # cargo build-script environment (OUT_DIR, CARGO_MANIFEST_DIR)
 crates/infra/cloud/src/credentials_bootstrap/mod.rs  # deployment-host detection for cloud credentials; SYSTEMPROMPT_ALLOW_UNVALIDATED_CREDS tenant-pod boot bypass (deployment host only, audited)
 crates/shared/manifest/src/env.rs  # read_env_optional: the one primitive behind `${VAR}` profile interpolation, the secrets `env` source and cloud credentials bootstrap
+crates/shared/models/src/net/proxy.rs  # HTTP(S)_PROXY / ALL_PROXY / NO_PROXY — the operator's forward-proxy settings, the single reader shared by the guarded HTTP client and sandboxed git, mirroring what reqwest and curl honour
 crates/shared/models/src/net/mod.rs  # SYSTEMPROMPT_TRUSTED_HTTP_HOSTS — documented operator SSRF opt-in (documentation/security/outbound-egress-controls.md), forwarded to subprocesses by inherited_parent_env
 crates/domain/agent/src/services/agent_orchestration/process/command.rs  # env lookup closure for inherited_parent_env (deployment-host vars, HOSTNAME, POD_NAME, PATH, HOME, SYSTEMPROMPT_TRUSTED_HTTP_HOSTS) after env_clear on the agent child
 crates/domain/mcp/src/services/process/spawner.rs  # env lookup closure passing the operator-named `env_vars` of an MCP service config into the child after env_clear

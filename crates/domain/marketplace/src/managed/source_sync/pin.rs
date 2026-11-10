@@ -8,7 +8,8 @@ use std::net::{IpAddr, ToSocketAddrs};
 use std::process::Command;
 
 use systemprompt_models::net::{
-    LoopbackPolicy, OutboundUrlError, PinnedAddress, pin_resolved, validate_outbound_url,
+    LoopbackPolicy, OutboundUrlError, PinnedAddress, ProxyEnvironment, pin_resolved,
+    validate_outbound_url,
 };
 
 use super::{ManagedError, Result};
@@ -22,8 +23,20 @@ fn refused(error: OutboundUrlError) -> ManagedError {
     )
 }
 
-pub(super) fn pin_repository(repository: &str, loopback: LoopbackPolicy) -> Result<PinnedAddress> {
+pub(super) fn route_repository(repository: &str, loopback: LoopbackPolicy) -> Result<String> {
     let url = validate_outbound_url(repository, loopback).map_err(refused)?;
+    let host = url.host_str().unwrap_or_default();
+    if let Some(proxy) = ProxyEnvironment::from_env().https_proxy_for(host) {
+        return Ok(format!("http.proxy={proxy}"));
+    }
+    let pinned = pin_url(&url, loopback)?;
+    Ok(format!(
+        "http.curloptResolve={}",
+        pinned.curl_resolve_entry()
+    ))
+}
+
+fn pin_url(url: &url::Url, loopback: LoopbackPolicy) -> Result<PinnedAddress> {
     let addrs = match url.host() {
         Some(url::Host::Ipv4(ip)) => vec![IpAddr::V4(ip)],
         Some(url::Host::Ipv6(ip)) => vec![IpAddr::V6(ip)],
@@ -38,7 +51,7 @@ pub(super) fn pin_repository(repository: &str, loopback: LoopbackPolicy) -> Resu
         None => return Err(refused(OutboundUrlError::MissingHost)),
     };
     let no_trust: [&str; 0] = [];
-    pin_resolved(&url, &addrs, &no_trust, loopback).map_err(refused)
+    pin_resolved(url, &addrs, &no_trust, loopback).map_err(refused)
 }
 
 fn parse_git_version(output: &str) -> Option<(u32, u32)> {

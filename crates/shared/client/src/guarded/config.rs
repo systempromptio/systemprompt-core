@@ -6,7 +6,7 @@
 use std::time::Duration;
 
 use systemprompt_models::net::{
-    HTTP_CONNECT_TIMEOUT, HTTP_DEFAULT_TIMEOUT, LoopbackPolicy, OutboundUrlError,
+    HTTP_CONNECT_TIMEOUT, HTTP_DEFAULT_TIMEOUT, LoopbackPolicy, OutboundUrlError, ProxyEnvironment,
     trusted_http_hosts_from_env, validate_outbound_url_with_trust,
 };
 
@@ -29,6 +29,8 @@ pub struct GuardedClientConfig {
     timeout: Option<Duration>,
     connect_timeout: Duration,
     user_agent: Option<String>,
+    proxy: Option<url::Url>,
+    env_proxy_hosts: Vec<String>,
 }
 
 impl GuardedClientConfig {
@@ -40,6 +42,8 @@ impl GuardedClientConfig {
             timeout: Some(HTTP_DEFAULT_TIMEOUT),
             connect_timeout: HTTP_CONNECT_TIMEOUT,
             user_agent: None,
+            proxy: None,
+            env_proxy_hosts: ProxyEnvironment::from_env().proxy_hosts().to_vec(),
         }
     }
 
@@ -90,6 +94,17 @@ impl GuardedClientConfig {
     }
 
     #[must_use]
+    pub fn with_proxy(mut self, proxy: url::Url) -> Self {
+        self.proxy = Some(proxy);
+        self
+    }
+
+    #[must_use]
+    pub const fn proxy(&self) -> Option<&url::Url> {
+        self.proxy.as_ref()
+    }
+
+    #[must_use]
     pub const fn loopback(&self) -> LoopbackPolicy {
         self.loopback
     }
@@ -120,7 +135,20 @@ impl GuardedClientConfig {
     }
 
     pub(super) fn check_url(&self, url: &str) -> Result<url::Url, OutboundUrlError> {
-        validate_outbound_url_with_trust(url, &self.trusted_hosts, self.loopback)
+        let parsed = validate_outbound_url_with_trust(url, &self.trusted_hosts, self.loopback)?;
+        refuse_proxy_target(&parsed, self.loopback, &self.proxy_hosts())?;
+        Ok(parsed)
+    }
+
+    pub(super) fn proxy_hosts(&self) -> Vec<String> {
+        let mut hosts = self.env_proxy_hosts.clone();
+        hosts.extend(
+            self.proxy
+                .as_ref()
+                .and_then(url::Url::host_str)
+                .map(str::to_ascii_lowercase),
+        );
+        hosts
     }
 
     pub(super) fn resolver_exemptions(&self) -> Vec<String> {
@@ -128,8 +156,21 @@ impl GuardedClientConfig {
         if self.loopback == LoopbackPolicy::Allow {
             allowed.push(LOOPBACK_HOST.to_owned());
         }
+        allowed.extend(self.proxy_hosts());
         allowed
     }
+}
+
+pub(super) fn refuse_proxy_target(
+    target: &url::Url,
+    loopback: LoopbackPolicy,
+    proxy_hosts: &[String],
+) -> Result<(), OutboundUrlError> {
+    let host = target.host_str().unwrap_or_default().to_ascii_lowercase();
+    if loopback == LoopbackPolicy::Deny && proxy_hosts.iter().any(|p| p == &host) {
+        return Err(OutboundUrlError::ProxyHost(host));
+    }
+    Ok(())
 }
 
 fn normalise(hosts: Vec<String>) -> Vec<String> {
@@ -141,7 +182,8 @@ fn normalise(hosts: Vec<String>) -> Vec<String> {
 }
 
 /// Bounds for a client whose destinations a user or third party chose:
-/// loopback denied, no trusted hosts unless named, no environment proxy.
+/// loopback denied, no trusted hosts unless named, and the forward proxy
+/// host never accepted as a target.
 ///
 /// It cannot be turned into a plain [`GuardedClientConfig`], so the only
 /// client it builds is a [`GuardedClient`](super::GuardedClient), whose every
@@ -168,6 +210,11 @@ impl UntrustedClientConfig {
     #[must_use]
     pub fn with_trusted_hosts(self, trusted_hosts: Vec<String>) -> Self {
         Self(self.0.with_trusted_hosts(trusted_hosts))
+    }
+
+    #[must_use]
+    pub fn with_proxy(self, proxy: url::Url) -> Self {
+        Self(self.0.with_proxy(proxy))
     }
 
     #[must_use]

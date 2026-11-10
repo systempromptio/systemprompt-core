@@ -18,12 +18,14 @@
 
 mod blocklist;
 mod outbound;
+mod proxy;
 
 pub use blocklist::is_blocked_ip;
 pub use outbound::{
     LoopbackPolicy, OutboundUrlError, PinnedAddress, is_loopback_host, pin_resolved,
     validate_outbound_url, validate_outbound_url_with_trust,
 };
+pub use proxy::{ProxyEnvironment, proxy_host};
 
 use std::time::Duration;
 

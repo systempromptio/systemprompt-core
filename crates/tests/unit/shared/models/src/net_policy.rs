@@ -259,3 +259,55 @@ mod embedded_v4_tests {
         }
     }
 }
+
+mod proxy_environment_tests {
+    use systemprompt_models::net::{ProxyEnvironment, proxy_host};
+
+    #[test]
+    fn proxy_host_reads_the_host_with_or_without_a_scheme() {
+        assert_eq!(
+            proxy_host("http://user:pw@Proxy.Corp:3128").as_deref(),
+            Some("proxy.corp")
+        );
+        assert_eq!(proxy_host("proxy.corp:8080").as_deref(), Some("proxy.corp"));
+        assert_eq!(proxy_host("  "), None);
+    }
+
+    #[test]
+    fn no_proxy_bypass_matches_exact_suffix_and_wildcard_entries() {
+        let env = ProxyEnvironment::new(&[], None, "localhost, .internal.corp,git.example.com");
+        assert!(env.bypasses("localhost"));
+        assert!(env.bypasses("repo.internal.corp"));
+        assert!(env.bypasses("internal.corp"));
+        assert!(env.bypasses("GIT.example.com."));
+        assert!(!env.bypasses("evilgit.example.com"));
+        assert!(!env.bypasses("github.com"));
+        assert!(ProxyEnvironment::new(&[], None, "*").bypasses("anything.example"));
+        assert!(!ProxyEnvironment::default().bypasses("anything.example"));
+    }
+
+    #[test]
+    fn a_proxied_host_routes_through_the_https_proxy() {
+        let env = ProxyEnvironment::new(
+            &["http://proxy.corp:3128"],
+            Some("proxy.corp:3128"),
+            ".internal.corp",
+        );
+        assert_eq!(
+            env.https_proxy_for("github.com").map(url::Url::as_str),
+            Some("http://proxy.corp:3128/")
+        );
+        assert_eq!(env.proxy_hosts(), ["proxy.corp".to_owned()]);
+    }
+
+    #[test]
+    fn a_no_proxy_host_or_an_unset_proxy_takes_the_direct_pinned_route() {
+        let env = ProxyEnvironment::new(&[], Some("http://proxy.corp:3128"), ".internal.corp");
+        assert!(env.https_proxy_for("git.internal.corp").is_none());
+        assert!(
+            ProxyEnvironment::default()
+                .https_proxy_for("github.com")
+                .is_none()
+        );
+    }
+}

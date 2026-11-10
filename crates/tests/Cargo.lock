@@ -9416,6 +9416,7 @@ dependencies = [
  "systemprompt-identifiers",
  "systemprompt-models",
  "tokio",
+ "url",
  "wiremock",
 ]
 

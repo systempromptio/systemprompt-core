@@ -29,7 +29,7 @@ impl GuardedClient {
     pub fn untrusted(config: &UntrustedClientConfig) -> reqwest::Result<Self> {
         let config = config.inner();
         Ok(Self {
-            http: guarded_client_builder(config).no_proxy().build()?,
+            http: guarded_client_builder(config).build()?,
             config: config.clone(),
         })
     }
