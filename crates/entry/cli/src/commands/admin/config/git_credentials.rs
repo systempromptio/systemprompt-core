@@ -23,11 +23,10 @@ use serde_json::{Map, Value};
 use systemprompt_config::write_private_atomic;
 use systemprompt_logging::CliService;
 use systemprompt_marketplace::managed::{GitCredentialSource, ManagedRepository};
+use systemprompt_runtime::managed::git_sources::git_credential_key;
 
 use crate::context::CommandContext;
 use crate::shared::CommandOutput;
-
-pub const GIT_CREDENTIAL_NAMESPACE: &str = "git_source";
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct MigrateGitCredentialsArgs {
@@ -59,20 +58,6 @@ pub struct MigrateGitCredentialsOutput {
     pub sources: Vec<SourceCredentialReport>,
     pub removed_bare_labels: Vec<String>,
     pub message: String,
-}
-
-#[must_use]
-pub fn git_credential_key(repository: &str, label: &str) -> Option<String> {
-    let host = repository
-        .strip_prefix("https://")?
-        .split('/')
-        .next()
-        .filter(|host| !host.is_empty())?
-        .to_ascii_lowercase();
-    if label.is_empty() {
-        return None;
-    }
-    Some(format!("{GIT_CREDENTIAL_NAMESPACE}/{host}/{label}"))
 }
 
 pub fn plan_renames(

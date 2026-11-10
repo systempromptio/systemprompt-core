@@ -5,9 +5,7 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use clap::Parser;
-use systemprompt_cli::admin::config::git_credentials::{
-    CredentialStatus, git_credential_key, migrate_file,
-};
+use systemprompt_cli::admin::config::git_credentials::{CredentialStatus, migrate_file};
 use systemprompt_cli::args::{Cli, Commands};
 use systemprompt_cli::descriptor::{CommandDescriptor, DataImpact, DescribeCommand};
 use systemprompt_identifiers::ManagedSourceId;
@@ -30,21 +28,6 @@ fn secrets_file(dir: &tempfile::TempDir, body: serde_json::Value) -> std::path::
 
 fn read(path: &std::path::Path) -> serde_json::Value {
     serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap()
-}
-
-#[test]
-fn the_key_is_namespaced_by_the_lowercased_repository_host() {
-    assert_eq!(
-        git_credential_key("https://GitHub.com/acme/skills", "deploy").as_deref(),
-        Some("git_source/github.com/deploy")
-    );
-    assert_eq!(
-        git_credential_key("https://git.example:8443/r", "t").as_deref(),
-        Some("git_source/git.example:8443/t")
-    );
-    assert_eq!(git_credential_key("http://github.com/a", "t"), None);
-    assert_eq!(git_credential_key("https:///a", "t"), None);
-    assert_eq!(git_credential_key("https://github.com/a", ""), None);
 }
 
 #[test]
