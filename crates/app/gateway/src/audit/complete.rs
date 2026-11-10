@@ -11,10 +11,11 @@ use bytes::Bytes;
 use systemprompt_extension::brain::{MemoryRecall, RecallObservation};
 
 use super::GatewayAudit;
-use super::payload::{slice_payload, truncate_for_tool_input};
+use super::payload::{slice_payload, slice_retained_payload, truncate_for_tool_input};
 use crate::captures::CapturedToolUse;
 use crate::pricing;
 use crate::protocol::canonical::{CanonicalResponse, CanonicalUsage};
+use systemprompt_ai::repository::ai_requests::UsageSource;
 
 impl GatewayAudit {
     pub(super) fn effective_model(&self) -> String {
@@ -31,10 +32,41 @@ impl GatewayAudit {
 
     pub async fn complete(
         &self,
-        mut usage: CanonicalUsage,
+        usage: CanonicalUsage,
         tool_calls: Vec<CapturedToolUse>,
         response: &CanonicalResponse,
         response_body: &Bytes,
+    ) -> Result<i64> {
+        let payload = slice_payload(response_body, self.payload_cap_bytes());
+        self.complete_with(usage, tool_calls, response, (payload, false))
+            .await
+    }
+
+    pub async fn complete_stream(
+        &self,
+        usage: CanonicalUsage,
+        tool_calls: Vec<CapturedToolUse>,
+        response: &CanonicalResponse,
+        body: super::payload::StreamedResponse<'_>,
+    ) -> Result<i64> {
+        let payload =
+            slice_retained_payload(body.bytes, body.streamed_bytes, self.payload_cap_bytes());
+        let settled_to_reservation = body.usage_source == UsageSource::Reservation;
+        self.complete_with(
+            usage,
+            tool_calls,
+            response,
+            (payload, settled_to_reservation),
+        )
+        .await
+    }
+
+    async fn complete_with(
+        &self,
+        mut usage: CanonicalUsage,
+        tool_calls: Vec<CapturedToolUse>,
+        response: &CanonicalResponse,
+        (payload, settled_to_reservation): (super::payload::PayloadCapture, bool),
     ) -> Result<i64> {
         let latency_ms = self.elapsed_ms();
         let upstream_latency_ms = self.upstream_elapsed_ms();
@@ -57,7 +89,7 @@ impl GatewayAudit {
             latency: latency_ms,
             upstream_latency: upstream_latency_ms,
             finish_reason: response.raw_finish_reason.clone(),
-            payload: slice_payload(response_body, self.payload_cap_bytes()),
+            payload,
             assistant: super::super::parse::extract_assistant_text(response)
                 .map(|text| truncate_for_tool_input(&text)),
             tools: tool_calls
@@ -73,6 +105,7 @@ impl GatewayAudit {
                 })
                 .collect(),
             next_message_sequence: self.admitted_messages.get().copied(),
+            settled_to_reservation,
         };
         let mut receipt = super::journal::Receipt::pending(
             self.ctx.ai_request_id.clone(),

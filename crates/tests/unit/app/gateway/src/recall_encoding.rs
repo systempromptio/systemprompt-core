@@ -51,7 +51,7 @@ fn encode(adapter: &dyn OutboundAdapter, wire: WireProtocol, request: &Canonical
     let ctx = OutboundCtx {
         target: &route,
         upstream: &support::api_key_call("http://unused.invalid", "k"),
-        http: &reqwest::Client::new(),
+        http: &support::upstream_http(),
         request,
         upstream_model: "m",
         model_limits: None,

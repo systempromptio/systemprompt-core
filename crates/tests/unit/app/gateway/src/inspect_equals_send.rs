@@ -72,8 +72,8 @@ fn raw_body_hiding_a_secret() -> bytes::Bytes {
 static UNUSED_UPSTREAM: std::sync::LazyLock<UpstreamCall> =
     std::sync::LazyLock::new(|| support::api_key_call("http://unused.invalid", "k"));
 
-static UNUSED_HTTP: std::sync::LazyLock<reqwest::Client> =
-    std::sync::LazyLock::new(reqwest::Client::new);
+static UNUSED_HTTP: std::sync::LazyLock<systemprompt_gateway::protocol::outbound::UpstreamHttp> =
+    std::sync::LazyLock::new(support::upstream_http);
 
 fn ctx<'a>(
     target: &'a systemprompt_manifest::services::catalog::ResolvedHop,

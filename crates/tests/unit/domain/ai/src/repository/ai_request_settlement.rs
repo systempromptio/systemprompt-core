@@ -41,6 +41,7 @@ fn completion<'a>(
         assistant_text: Some("the answer"),
         tool_calls: tools,
         next_message_sequence: Some(0),
+        usage_source: systemprompt_ai::repository::ai_requests::UsageSource::Reported,
     })
 }
 

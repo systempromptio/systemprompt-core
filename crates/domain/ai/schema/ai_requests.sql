@@ -40,6 +40,8 @@ CREATE TABLE IF NOT EXISTS ai_requests (
     error_message TEXT,
     accounting_failed_at TIMESTAMPTZ,
     accounting_error TEXT,
+    usage_source TEXT NOT NULL DEFAULT 'reported'
+        CONSTRAINT ai_requests_usage_source_check CHECK (usage_source IN ('reported', 'reservation')),
     actor_kind TEXT NOT NULL CHECK (actor_kind IN ('user', 'job', 'mcp')),
     actor_id TEXT NOT NULL CHECK (length(actor_id) > 0),
     traffic TEXT NOT NULL DEFAULT 'production'

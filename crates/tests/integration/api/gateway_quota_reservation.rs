@@ -248,8 +248,8 @@ async fn a_cost_ceiling_below_the_estimate_denies_before_dispatch_with_a_quota_b
     assert!((1..=60).contains(&retry_after));
     assert_eq!(
         fx.bucket("user").await,
-        (1, 0),
-        "the denial releases its cost"
+        (0, 0),
+        "a denied request counts in no window and keeps no cost"
     );
     upstream.verify().await;
     fx.finish().await;
@@ -372,7 +372,7 @@ async fn a_scope_window_is_keyed_by_the_attributed_value() -> anyhow::Result<()>
     )
     .fetch_one(fx.pool.pool().as_ref())
     .await?;
-    assert_eq!(apollo, 2);
+    assert_eq!(apollo, 1, "the denied request is revoked from the bucket");
     fx.finish().await;
     Ok(())
 }

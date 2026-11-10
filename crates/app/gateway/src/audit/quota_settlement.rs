@@ -65,6 +65,27 @@ impl GatewayAudit {
         }
     }
 
+    pub async fn settle_quota_unmetered(
+        &self,
+        usage: &CanonicalUsage,
+        cost: i64,
+    ) -> AccountingOutcome {
+        let observed = QuotaUsage {
+            input_tokens: i64::from(usage.input_tokens),
+            output_tokens: i64::from(usage.output_tokens),
+            cost_microdollars: cost,
+        };
+        let cost_floor = if self.billed_to_user_key() {
+            quota::CostFloor::Waived
+        } else {
+            quota::CostFloor::Reserved
+        };
+        let Some(reservation) = self.take_quota_reservation() else {
+            return AccountingOutcome::Counted;
+        };
+        quota::settle_unmetered(&self.quota_buckets, &reservation, observed, cost_floor).await
+    }
+
     pub(super) async fn settle_quota_usage(&self, mut usage: QuotaUsage) -> AccountingOutcome {
         if self.billed_to_user_key() {
             usage.cost_microdollars = 0;

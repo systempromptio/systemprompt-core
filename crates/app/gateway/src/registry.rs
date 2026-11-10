@@ -11,7 +11,9 @@ use super::protocol::outbound::anthropic::AnthropicOutbound;
 use super::protocol::outbound::gemini::GeminiOutbound;
 use super::protocol::outbound::openai_chat::OpenAiChatOutbound;
 use super::protocol::outbound::openai_responses::OpenAiResponsesOutbound;
-use super::protocol::outbound::{OutboundAdapter, OutboundAdapterRegistration};
+use super::protocol::outbound::{
+    OutboundAdapter, OutboundAdapterRegistration, UpstreamBounds, UpstreamHttp,
+};
 use crate::policies::{
     HeuristicScanner, NullScanner, OverridePolicy, RouteSelectorChain, SafetyConfig, SafetyScanner,
     SafetyScannerRegistration, ScannerFactory, ScannerSettings,
@@ -172,7 +174,7 @@ pub struct GatewayEngines {
     pub route_selector: Arc<RouteSelectorChain>,
     pub breakers: ProviderBreakers,
     pub load: DeploymentLoad,
-    pub http: reqwest::Client,
+    pub http: UpstreamHttp,
     pub provider_tokens: Arc<TokenCache>,
     pub guards: GatewayGuards,
     pub secrets: Arc<SecretsService>,
@@ -205,10 +207,11 @@ impl GatewayEngines {
         extensions: &Arc<dyn ExtensionContext>,
         secrets: Arc<SecretsService>,
     ) -> Result<Self, GatewayEnginesError> {
-        let http = systemprompt_client::guarded_client(
+        let client = systemprompt_client::guarded_client(
             &GuardedClientConfig::for_configured().without_timeout(),
         )
         .map_err(GatewayEnginesError::HttpClient)?;
+        let http = UpstreamHttp::new(client, UpstreamBounds::PRODUCTION);
         Ok(Self {
             upstream_registry: Arc::default(),
             scanner_registry: Arc::new(SafetyScannerRegistry::discover(extensions)),

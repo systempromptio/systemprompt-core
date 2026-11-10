@@ -25,6 +25,25 @@ pub struct SettlementUsage {
     pub tokens_used: u32,
 }
 
+/// Where a completed request's usage came from: the provider's usage frame,
+/// or the admission reservation when a stream completed without one.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum UsageSource {
+    #[default]
+    Reported,
+    Reservation,
+}
+
+impl UsageSource {
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Reported => "reported",
+            Self::Reservation => "reservation",
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct SettledToolCall {
     pub id: AiToolCallId,
@@ -44,6 +63,7 @@ pub struct SettleCompletion<'a> {
     pub assistant_text: Option<&'a str>,
     pub tool_calls: &'a [SettledToolCall],
     pub next_message_sequence: Option<i32>,
+    pub usage_source: UsageSource,
 }
 
 /// What a failed request still consumed.

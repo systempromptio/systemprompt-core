@@ -157,6 +157,7 @@ pub fn upstream_status(error: &UpstreamError) -> StatusCode {
             _ => StatusCode::BAD_GATEWAY,
         },
         UpstreamError::Transport { .. } => StatusCode::BAD_GATEWAY,
+        UpstreamError::Timeout { .. } => StatusCode::GATEWAY_TIMEOUT,
     }
 }
 

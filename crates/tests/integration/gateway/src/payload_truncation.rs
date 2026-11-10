@@ -130,3 +130,40 @@ fn truncate_for_tool_input_preserves_full_codepoints_in_head() {
     // for the input, and `truncate_for_tool_input` must preserve validity).
     assert!(out.is_char_boundary(out.len()));
 }
+
+#[test]
+fn a_retained_prefix_is_marked_truncated_with_the_full_streamed_length() {
+    let retained = Bytes::from(vec![b'a'; 64 * 1024]);
+    let capture = systemprompt_gateway::audit::payload::slice_retained_payload(
+        &retained,
+        10 * 1024 * 1024,
+        16 * 1024 * 1024,
+    );
+    assert!(capture.truncated);
+    assert!(capture.json.is_none());
+    assert_eq!(capture.byte_len, 10 * 1024 * 1024);
+    assert_eq!(
+        capture.sha256,
+        systemprompt_gateway::audit::payload::digest_hex(&retained)
+    );
+    let excerpt = capture.excerpt.expect("excerpt");
+    assert!(
+        excerpt.starts_with(
+            "<retained 65536 of 10485760 bytes; sha256 covers the retained prefix only>"
+        ),
+        "{excerpt}"
+    );
+}
+
+#[test]
+fn a_fully_retained_stream_is_captured_like_any_body() {
+    let retained = Bytes::from_static(br#"{"ok":true}"#);
+    let capture = systemprompt_gateway::audit::payload::slice_retained_payload(
+        &retained,
+        11,
+        16 * 1024 * 1024,
+    );
+    assert!(!capture.truncated);
+    assert_eq!(capture.byte_len, 11);
+    assert!(capture.json.is_some());
+}

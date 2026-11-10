@@ -34,4 +34,5 @@ pub use orphans::{ORPHAN_AGE, ORPHANED_REASON, OrphanedRequest};
 pub use repository::AiRequestRepository;
 pub use settlement_outcome::{
     SettleCompletion, SettledFailure, SettledToolCall, SettlementOutcome, SettlementUsage,
+    UsageSource,
 };

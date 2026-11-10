@@ -50,22 +50,17 @@ impl OutboundAdapter for GeminiOutbound {
         {
             req = req.header(name, value);
         }
-        let upstream_response = super::send_checked(ctx.target.provider.as_str(), req).await?;
+        let upstream_response =
+            super::send_checked(ctx.target.provider.as_str(), ctx.http, req).await?;
 
         if ctx.request.stream {
-            let stream = upstream_response.bytes_stream();
+            let stream = super::bounds::idle_bounded(upstream_response, ctx.http.bounds().idle);
             let event_stream =
                 gemini::sse_to_canonical_events(stream, ctx.request.model.to_string());
             return Ok(OutboundOutcome::Streaming(event_stream));
         }
 
-        let bytes = upstream_response
-            .bytes()
-            .await
-            .map_err(|source| OutboundError::ReadBody {
-                wire: "gemini",
-                source,
-            })?;
+        let bytes = super::read_body("gemini", ctx.http, upstream_response).await?;
         let value: Value =
             serde_json::from_slice(&bytes).map_err(|source| OutboundError::DecodeBody {
                 wire: "gemini",

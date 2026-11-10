@@ -13,20 +13,22 @@ use systemprompt_wire::error::WireStreamError;
 
 use super::super::super::canonical::CanonicalEvent;
 
-pub fn sse_to_canonical_events<S>(
+pub fn sse_to_canonical_events<S, E>(
     stream: S,
 ) -> futures_util::stream::BoxStream<'static, Result<CanonicalEvent, WireStreamError>>
 where
-    S: futures_util::Stream<Item = Result<bytes::Bytes, reqwest::Error>> + Send + 'static,
+    S: futures_util::Stream<Item = Result<bytes::Bytes, E>> + Send + 'static,
+    E: Into<Box<dyn std::error::Error + Send + Sync>> + 'static,
 {
     anthropic::sse_to_canonical_events(stream)
 }
 
-pub(crate) fn raw_sse_stream<S>(
+pub(crate) fn raw_sse_stream<S, E>(
     stream: S,
 ) -> futures_util::stream::BoxStream<'static, Result<bytes::Bytes, WireStreamError>>
 where
-    S: futures_util::Stream<Item = Result<bytes::Bytes, reqwest::Error>> + Send + 'static,
+    S: futures_util::Stream<Item = Result<bytes::Bytes, E>> + Send + 'static,
+    E: Into<Box<dyn std::error::Error + Send + Sync>> + 'static,
 {
     stream
         .map(|chunk| chunk.map_err(WireStreamError::transport))

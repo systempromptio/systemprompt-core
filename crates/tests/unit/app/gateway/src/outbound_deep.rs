@@ -161,7 +161,7 @@ async fn anthropic_outbound_with_rich_request_and_extra_headers() {
     let ctx = OutboundCtx {
         target: &r,
         upstream: &support::api_key_call(&server.uri(), "k"),
-        http: &reqwest::Client::new(),
+        http: &support::upstream_http(),
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
@@ -195,7 +195,7 @@ async fn openai_chat_outbound_with_rich_request() {
     let ctx = OutboundCtx {
         target: &r,
         upstream: &support::api_key_call(&server.uri(), "k"),
-        http: &reqwest::Client::new(),
+        http: &support::upstream_http(),
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
@@ -230,7 +230,7 @@ async fn openai_responses_outbound_with_rich_request_buffered() {
     let ctx = OutboundCtx {
         target: &r,
         upstream: &support::api_key_call(&server.uri(), "k"),
-        http: &reqwest::Client::new(),
+        http: &support::upstream_http(),
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
@@ -255,7 +255,7 @@ async fn openai_responses_outbound_propagates_upstream_error() {
     let ctx = OutboundCtx {
         target: &r,
         upstream: &support::api_key_call(&server.uri(), "k"),
-        http: &reqwest::Client::new(),
+        http: &support::upstream_http(),
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
@@ -280,7 +280,7 @@ async fn openai_responses_outbound_handles_invalid_json() {
     let ctx = OutboundCtx {
         target: &r,
         upstream: &support::api_key_call(&server.uri(), "k"),
-        http: &reqwest::Client::new(),
+        http: &support::upstream_http(),
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
@@ -340,7 +340,7 @@ async fn anthropic_outbound_no_system_no_tools() {
     let ctx = OutboundCtx {
         target: &r,
         upstream: &support::api_key_call(&server.uri(), "k"),
-        http: &reqwest::Client::new(),
+        http: &support::upstream_http(),
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
@@ -371,7 +371,7 @@ async fn openai_chat_outbound_streaming_with_extra_headers() {
     let ctx = OutboundCtx {
         target: &r,
         upstream: &support::api_key_call(&server.uri(), "k"),
-        http: &reqwest::Client::new(),
+        http: &support::upstream_http(),
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
@@ -406,7 +406,7 @@ async fn gemini_outbound_with_rich_request_buffered() {
     let ctx = OutboundCtx {
         target: &r,
         upstream: &support::api_key_call(&server.uri(), "k"),
-        http: &reqwest::Client::new(),
+        http: &support::upstream_http(),
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
@@ -439,7 +439,7 @@ async fn gemini_outbound_sends_the_api_key_as_a_header_not_a_query_parameter() {
     let ctx = OutboundCtx {
         target: &r,
         upstream: &support::api_key_call(&server.uri(), "secret-key"),
-        http: &reqwest::Client::new(),
+        http: &support::upstream_http(),
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
@@ -476,7 +476,7 @@ async fn gemini_outbound_streams_from_the_sse_endpoint() {
     let ctx = OutboundCtx {
         target: &r,
         upstream: &support::api_key_call(&server.uri(), "k"),
-        http: &reqwest::Client::new(),
+        http: &support::upstream_http(),
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
@@ -508,7 +508,7 @@ async fn a_gemini_upstream_rejection_is_reported_as_an_upstream_status_error() {
     let ctx = OutboundCtx {
         target: &r,
         upstream: &support::api_key_call(&server.uri(), "k"),
-        http: &reqwest::Client::new(),
+        http: &support::upstream_http(),
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
@@ -535,7 +535,7 @@ async fn an_unreachable_gemini_endpoint_is_a_transport_error() {
     let ctx = OutboundCtx {
         target: &r,
         upstream: &support::api_key_call("http://127.0.0.1:1", "k"),
-        http: &reqwest::Client::new(),
+        http: &support::upstream_http(),
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
@@ -565,7 +565,7 @@ async fn a_gemini_response_that_is_not_json_is_refused() {
     let ctx = OutboundCtx {
         target: &r,
         upstream: &support::api_key_call(&server.uri(), "k"),
-        http: &reqwest::Client::new(),
+        http: &support::upstream_http(),
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,

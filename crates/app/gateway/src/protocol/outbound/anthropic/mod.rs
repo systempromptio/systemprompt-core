@@ -75,7 +75,7 @@ impl OutboundAdapter for AnthropicOutbound {
             .map(ToOwned::to_owned);
 
         if ctx.request.stream {
-            let stream = upstream_response.bytes_stream();
+            let stream = super::bounds::idle_bounded(upstream_response, ctx.http.bounds().idle);
             if passthrough {
                 return Ok(OutboundOutcome::RawStreaming {
                     content_type,
@@ -87,13 +87,7 @@ impl OutboundAdapter for AnthropicOutbound {
             ));
         }
 
-        let bytes = upstream_response
-            .bytes()
-            .await
-            .map_err(|source| OutboundError::ReadBody {
-                wire: "anthropic",
-                source,
-            })?;
+        let bytes = super::read_body("anthropic", ctx.http, upstream_response).await?;
         let value: Value =
             serde_json::from_slice(&bytes).map_err(|source| OutboundError::DecodeBody {
                 wire: "anthropic",
@@ -180,7 +174,7 @@ async fn send_learning_refusals(
 }
 
 async fn send_once(
-    http: &reqwest::Client,
+    http: &super::UpstreamHttp,
     provider: &str,
     url: &str,
     headers: &[(String, String)],
@@ -190,7 +184,7 @@ async fn send_once(
     for (name, value) in headers {
         req = req.header(name, value);
     }
-    super::send_checked(provider, req).await
+    super::send_checked(provider, http, req).await
 }
 
 fn bad_request_message(error: &super::UpstreamError) -> Option<&str> {
@@ -200,7 +194,9 @@ fn bad_request_message(error: &super::UpstreamError) -> Option<&str> {
             message,
             ..
         } => Some(message),
-        super::UpstreamError::Status { .. } | super::UpstreamError::Transport { .. } => None,
+        super::UpstreamError::Status { .. }
+        | super::UpstreamError::Transport { .. }
+        | super::UpstreamError::Timeout { .. } => None,
     }
 }
 

@@ -72,7 +72,7 @@ async fn send_against<A: OutboundAdapter>(
     let ctx = OutboundCtx {
         target: &hop,
         upstream: &support::api_key_call(&server.uri(), "k"),
-        http: &reqwest::Client::new(),
+        http: &support::upstream_http(),
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,

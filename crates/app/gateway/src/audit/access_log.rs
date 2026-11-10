@@ -63,7 +63,6 @@ pub const fn level_for(status: u16) -> LogLevel {
     }
 }
 
-
 #[derive(Debug)]
 pub struct TerminalOutcome<'a> {
     pub access: &'a GatewayAccessLog,

@@ -10,12 +10,15 @@
 
 mod abort;
 pub mod accumulator;
+pub mod budget;
 mod drain;
 mod finalize;
+mod ordinal;
 mod raw;
+pub mod retained;
 
 use std::pin::Pin;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
 use crate::registry::SafetyScannerRegistry;
 use std::task::{Context, Poll};
@@ -67,6 +70,13 @@ pub struct TapRender {
     pub inbound: Arc<dyn InboundAdapter>,
     pub request_model: String,
     pub stream_usage: bool,
+}
+
+// Why: a panic while the tap held its state must not stop the stream from
+// being finalised, or the audit row stays pending and the reservation
+// unsettled.
+fn lock_state(state: &Mutex<TapState>) -> MutexGuard<'_, TapState> {
+    state.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
 pub fn tap(
@@ -140,9 +150,7 @@ impl Stream for TappedStream {
                     return self.finalize_on_eof();
                 },
                 Poll::Ready(Some(Err(e))) => {
-                    if let Ok(mut s) = self.state.lock() {
-                        s.error = Some(e.to_string());
-                    }
+                    lock_state(&self.state).error = Some(e.to_string());
                     let err = std::io::Error::new(std::io::ErrorKind::BrokenPipe, e);
                     return Poll::Ready(Some(Err(err)));
                 },
@@ -151,13 +159,21 @@ impl Stream for TappedStream {
                     let terminal = matches!(event, CanonicalEvent::ContentBlockStop { .. })
                         || (is_message_stop && !self.message_stop_rendered);
                     let ordinal_indexed = self.inbound.indexes_tool_calls_by_ordinal();
-                    let (snap, renumbered) = self.state.lock().map_or((None, None), |mut s| {
+                    let (snap, renumbered, over_cap) = {
+                        let mut s = lock_state(&self.state);
                         accumulate_event(&mut s, &event);
                         let renumbered = ordinal_indexed
                             .then(|| with_tool_ordinal(&s, &event))
                             .flatten();
-                        (terminal.then(|| snapshot(&s)), renumbered)
-                    });
+                        (
+                            terminal.then(|| snapshot(&s)),
+                            renumbered,
+                            s.budget.exceeded(),
+                        )
+                    };
+                    if over_cap {
+                        return self.end_over_cap();
+                    }
                     let event = renumbered.unwrap_or(event);
                     let terminal_suppressed = is_message_stop && self.message_stop_rendered;
                     if is_message_stop {
@@ -178,9 +194,7 @@ impl Stream for TappedStream {
                                 .flatten()
                         });
                     if let Some(bytes) = rendered {
-                        if let Ok(mut s) = self.state.lock() {
-                            s.final_bytes.extend_from_slice(&bytes);
-                        }
+                        lock_state(&self.state).final_bytes.push(&bytes);
                         return Poll::Ready(Some(Ok(bytes)));
                     }
                 },
@@ -192,13 +206,27 @@ impl Stream for TappedStream {
 impl TappedStream {
     fn take_summary(&mut self) -> Option<(Summary, TapFinalizeCtx)> {
         let ctx = self.finalize_ctx.take()?;
-        self.state.lock().ok().and_then(|mut s| {
-            if s.finalized {
-                return None;
-            }
-            s.finalized = true;
-            Some((extract_summary(&mut s), ctx))
-        })
+        let mut s = lock_state(&self.state);
+        if s.finalized {
+            return None;
+        }
+        s.finalized = true;
+        let summary = extract_summary(&mut s);
+        drop(s);
+        Some((summary, ctx))
+    }
+
+    fn end_over_cap(&mut self) -> Poll<Option<Result<Bytes, std::io::Error>>> {
+        self.ended = true;
+        if let Some((summary, ctx)) = self.take_summary() {
+            finalize(&self.audit, summary, ctx, ClientConnection::Connected);
+        }
+        let event = CanonicalEvent::Error(budget::ACCUMULATION_CAP_MESSAGE.to_owned());
+        Poll::Ready(
+            self.inbound
+                .render_event(&event, &self.request_model)
+                .map(Ok),
+        )
     }
 
     fn finalize_on_eof(&mut self) -> Poll<Option<Result<Bytes, std::io::Error>>> {

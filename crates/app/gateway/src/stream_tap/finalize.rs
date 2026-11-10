@@ -10,7 +10,9 @@ use systemprompt_identifiers::TraceId;
 use systemprompt_logging::LogActor;
 
 use crate::audit::access_log::{TerminalOutcome, log_gateway_terminal};
+use crate::audit::payload::StreamedResponse;
 use crate::audit::phases::{self, GatewayPhase};
+use systemprompt_ai::repository::ai_requests::UsageSource;
 
 use super::super::audit::GatewayAudit;
 use super::super::service::finalize::record_accounting_outcome;
@@ -126,7 +128,7 @@ pub(super) fn finalize(
             audit.set_served_model(model).await;
         }
 
-        let has_content = !summary.final_bytes.is_empty();
+        let has_content = summary.streamed_bytes > 0;
         let has_usage = summary.saw_usage_delta
             && (summary.usage.input_tokens > 0 || summary.usage.output_tokens > 0);
         match classify(
@@ -147,28 +149,35 @@ pub(super) fn finalize(
                 log_terminal(&audit, cause.status(), Some(msg));
             },
             FinalizeDecision::Complete { cost_capture_miss } => {
-                if cost_capture_miss {
-                    tracing::warn!(
-                        origin,
-                        "stream completed with content but zero usage: cost capture miss"
-                    );
-                }
-                let cost_microdollars = match audit
-                    .complete(
+                let completed = audit
+                    .complete_stream(
                         summary.usage,
                         summary.tool_calls,
                         &summary.response,
-                        &summary.final_bytes,
+                        StreamedResponse {
+                            bytes: &summary.final_bytes,
+                            streamed_bytes: summary.streamed_bytes,
+                            usage_source: usage_source(cost_capture_miss),
+                        },
                     )
                     .await
-                {
-                    Ok(cost) => cost,
-                    Err(e) => {
+                    .inspect_err(|e| {
                         tracing::warn!(origin, error = %e, "stream audit complete failed");
-                        0
+                    });
+                let accounting = match completed {
+                    Ok(cost) if !cost_capture_miss => {
+                        audit.settle_quota(&summary.usage, cost).await
                     },
+                    Ok(cost) => {
+                        tracing::warn!(
+                            origin,
+                            "stream completed with content but no usage; settling to the \
+                             reservation"
+                        );
+                        audit.settle_quota_unmetered(&summary.usage, cost).await
+                    },
+                    Err(_) => audit.settle_quota_unmetered(&summary.usage, 0).await,
                 };
-                let accounting = audit.settle_quota(&summary.usage, cost_microdollars).await;
                 record_accounting_outcome(&audit, ctx.quota_fault_mode, accounting).await;
                 run_response_safety_scan(
                     &ctx.scanners,
@@ -183,6 +192,14 @@ pub(super) fn finalize(
         }
         phases::record(GatewayPhase::Finalize, started.elapsed());
     });
+}
+
+const fn usage_source(cost_capture_miss: bool) -> UsageSource {
+    if cost_capture_miss {
+        UsageSource::Reservation
+    } else {
+        UsageSource::Reported
+    }
 }
 
 pub(crate) fn log_terminal(audit: &GatewayAudit, status: u16, error: Option<&str>) {

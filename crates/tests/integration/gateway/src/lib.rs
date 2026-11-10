@@ -22,11 +22,17 @@ mod payload_truncation;
 #[cfg(test)]
 mod quota_accounting;
 #[cfg(test)]
+mod quota_denial;
+#[cfg(test)]
 mod quota_reserve;
+#[cfg(test)]
+mod stream_tap_cap;
 #[cfg(test)]
 mod stream_tap_pipeline;
 #[cfg(test)]
 mod stream_tap_raw;
+#[cfg(test)]
+mod stream_tap_unmetered;
 #[cfg(test)]
 mod support;
 #[cfg(test)]

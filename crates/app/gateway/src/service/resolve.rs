@@ -40,7 +40,7 @@ pub(super) struct ResolvedUpstream<'a> {
     pub(super) route_id: Option<RouteId>,
     pub(super) call: UpstreamCall,
     pub(super) adapter: Arc<dyn OutboundAdapter>,
-    pub(super) http: reqwest::Client,
+    pub(super) http: crate::protocol::outbound::UpstreamHttp,
     pub(super) route_match_descriptor: Option<String>,
     pub(super) deployments: Vec<ResolvedHop>,
     pub(super) billing: BillingSource,

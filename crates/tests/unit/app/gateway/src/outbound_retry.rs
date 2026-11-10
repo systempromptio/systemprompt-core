@@ -91,7 +91,7 @@ async fn send_once(endpoint: &str) -> Result<OutboundOutcome, OutboundError> {
     let ctx = OutboundCtx {
         target: &route,
         upstream: &support::api_key_call(endpoint, "k"),
-        http: &reqwest::Client::new(),
+        http: &support::upstream_http(),
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
@@ -169,7 +169,9 @@ async fn assert_not_retried(status: u16) {
     let upstream = err.upstream().expect("upstream kind");
     match upstream {
         UpstreamError::Status { status: got, .. } => assert_eq!(*got, status),
-        UpstreamError::Transport { .. } => panic!("expected a status error"),
+        UpstreamError::Transport { .. } | UpstreamError::Timeout { .. } => {
+            panic!("expected a status error")
+        },
     }
     assert_eq!(retries, 0);
     assert_eq!(server.received_requests().await.expect("log").len(), 1);
@@ -220,7 +222,9 @@ async fn exhausted_budget_relays_the_final_429_verbatim() {
             assert_eq!(retry_after.as_deref(), Some("7"));
             assert_eq!(message, "capacity");
         },
-        UpstreamError::Transport { .. } => panic!("expected a status error"),
+        UpstreamError::Transport { .. } | UpstreamError::Timeout { .. } => {
+            panic!("expected a status error")
+        },
     }
     assert_eq!(retries, MAX_ATTEMPTS - 1);
     assert_eq!(

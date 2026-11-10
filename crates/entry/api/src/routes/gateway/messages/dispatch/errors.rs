@@ -212,6 +212,9 @@ pub fn map_upstream_error(e: &UpstreamError) -> RejectionError {
         UpstreamError::Transport { .. } => {
             RejectionError::server(mapped, "upstream provider unreachable")
         },
+        UpstreamError::Timeout { .. } => {
+            RejectionError::server(mapped, "upstream provider timed out")
+        },
     }
 }
 

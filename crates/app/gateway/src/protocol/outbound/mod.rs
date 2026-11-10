@@ -14,6 +14,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod anthropic;
+pub mod bounds;
 pub mod gemini;
 pub mod openai_chat;
 pub mod openai_responses;
@@ -32,6 +33,7 @@ use systemprompt_wire::error::WireStreamError;
 use thiserror::Error;
 
 use super::canonical::{CanonicalEvent, CanonicalRequest, CanonicalResponse};
+pub use bounds::{UpstreamBodyError, UpstreamBounds, UpstreamHttp};
 
 /// Upstream provider failure.
 ///
@@ -55,6 +57,11 @@ pub enum UpstreamError {
         #[source]
         source: reqwest::Error,
     },
+    #[error("{provider} sent no response within {}s", .after.as_secs())]
+    Timeout {
+        provider: String,
+        after: std::time::Duration,
+    },
 }
 
 /// Why an outbound adapter could not produce an [`OutboundOutcome`]: the
@@ -73,7 +80,7 @@ pub enum OutboundError {
     ReadBody {
         wire: &'static str,
         #[source]
-        source: reqwest::Error,
+        source: UpstreamBodyError,
     },
     #[error("{wire} response body is not valid JSON")]
     DecodeBody {
@@ -94,7 +101,11 @@ impl OutboundError {
 }
 
 impl UpstreamError {
-    pub async fn from_response(provider: &str, response: reqwest::Response) -> Self {
+    pub async fn from_response(
+        provider: &str,
+        response: reqwest::Response,
+        bounds: &UpstreamBounds,
+    ) -> Self {
         let status = response.status().as_u16();
         let header = |name: &str| {
             response
@@ -107,8 +118,7 @@ impl UpstreamError {
         let request_id = header("request-id")
             .or_else(|| header("x-request-id"))
             .and_then(|id| ProviderRequestId::try_new(id).ok());
-        let body = response
-            .bytes()
+        let body = bounds::read_capped(response, bounds.idle, bounds.max_error_body_bytes)
             .await
             .unwrap_or_else(|e| bytes::Bytes::from(format!("<unreadable body: {e}>")));
         Self::Status {
@@ -124,12 +134,25 @@ impl UpstreamError {
 
 pub(crate) async fn send_checked(
     provider: &str,
+    http: &UpstreamHttp,
     req: reqwest::RequestBuilder,
 ) -> Result<reqwest::Response, UpstreamError> {
     let policy = retry::current_policy();
     let req = trace_context::stamp(req);
-    let (response, _retries) = retry::send_with_retry(provider, req, &policy).await?;
+    let (response, _retries) =
+        retry::send_with_retry(provider, req, &policy, http.bounds()).await?;
     Ok(response)
+}
+
+pub(crate) async fn read_body(
+    wire: &'static str,
+    http: &UpstreamHttp,
+    response: reqwest::Response,
+) -> Result<bytes::Bytes, OutboundError> {
+    let bounds = http.bounds();
+    bounds::read_capped(response, bounds.idle, bounds.max_buffered_bytes)
+        .await
+        .map_err(|source| OutboundError::ReadBody { wire, source })
 }
 
 pub fn extract_upstream_message(body: &str) -> String {
@@ -143,7 +166,7 @@ pub fn extract_upstream_message(body: &str) -> String {
 pub struct OutboundCtx<'a> {
     pub target: &'a ResolvedHop,
     pub upstream: &'a UpstreamCall,
-    pub http: &'a reqwest::Client,
+    pub http: &'a UpstreamHttp,
     pub request: &'a CanonicalRequest,
     pub upstream_model: &'a str,
     pub model_limits: Option<ModelLimits>,

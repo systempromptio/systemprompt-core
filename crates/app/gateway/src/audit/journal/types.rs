@@ -38,6 +38,8 @@ pub(crate) struct Completion {
     pub tools: Vec<CapturedToolCall>,
     #[serde(default)]
     pub next_message_sequence: Option<i32>,
+    #[serde(default)]
+    pub settled_to_reservation: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

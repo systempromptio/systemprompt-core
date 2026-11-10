@@ -53,7 +53,7 @@ fn normalize_for(upstream_model: &str, body: &Value, limits: Option<ModelLimits>
     let ctx = OutboundCtx {
         target: &route,
         upstream: &support::api_key_call("https://upstream.invalid/v1/chat/completions", "sk-test"),
-        http: &reqwest::Client::new(),
+        http: &support::upstream_http(),
         request: &request,
         upstream_model,
         model_limits: limits,
@@ -219,7 +219,7 @@ fn a_body_that_is_not_a_json_object_declines_the_passthrough() {
     let ctx = OutboundCtx {
         target: &route,
         upstream: &support::api_key_call("https://upstream.invalid/v1/chat/completions", "sk-test"),
-        http: &reqwest::Client::new(),
+        http: &support::upstream_http(),
         request: &request,
         upstream_model: "upstream-1",
         model_limits: None,
