@@ -4148,6 +4148,7 @@ dependencies = [
  "chrono",
  "futures",
  "http",
+ "schemars",
  "serde",
  "serde_json",
  "systemprompt-identifiers",
