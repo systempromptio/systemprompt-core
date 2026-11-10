@@ -319,10 +319,7 @@ async fn item_02_a_public_redirector_into_link_local_never_reaches_the_target() 
 }
 
 #[tokio::test]
-async fn item_02_a_redirect_to_a_hostname_resolving_to_loopback_is_refused_at_connect_time() {
-    // Why: `localhost` passes the parse-time guard on the hop; only the
-    // resolver installed on the guarded client can see where it lands, and the
-    // image fetcher denies loopback because the URL is caller-chosen.
+async fn item_02_a_redirect_to_localhost_is_refused_by_the_redirect_policy() {
     let target = image_host(png_response()).await;
     let hop = format!("{}/pic.png", target.uri()).replace("127.0.0.1", "localhost");
     let redirector = redirector_to(&hop).await;
@@ -332,13 +329,11 @@ async fn item_02_a_redirect_to_a_hostname_resolving_to_loopback_is_refused_at_co
         &policy_trusting_mock(),
     )
     .await
-    .expect_err("a name resolving to loopback is refused");
+    .expect_err("a hop naming localhost is refused");
 
     assert!(failure.caller_fault(), "{failure:?}");
     assert!(
-        failure
-            .to_string()
-            .contains("localhost resolves to blocked address"),
+        failure.to_string().contains("redirect rejected"),
         "{failure:?}"
     );
     assert!(
