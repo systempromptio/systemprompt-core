@@ -15,7 +15,7 @@
 //! take the hash's advisory lock ([`HashLock`]) only to recheck that the
 //! object is still there and upsert the row; a collection that removed the
 //! object in between makes them store it again under the lock, bounded by
-//! [`LOCKED_IO_LIMIT`]. Collection (in `blob_store_gc`) is two short locked
+//! `LOCKED_IO_LIMIT`. Collection (in `blob_store_gc`) is two short locked
 //! steps: delete the row and record the collection, commit; then, if no row
 //! came back meanwhile, delete the object (bounded) and the record. A row
 //! never exists without its object, and an interrupted collection is
