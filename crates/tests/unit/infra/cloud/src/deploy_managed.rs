@@ -1,9 +1,10 @@
 use std::collections::HashMap;
+use std::time::Duration;
 
 use serde_json::json;
 use systemprompt_cloud::deploy::provider::{
-    BuiltImage, DeployProvider, DeployProviderKind, SecretBatch, SecretPurpose, SecretsOutcome,
-    SecretsTransport, SystempromptCloud,
+    BuiltImage, DeployProvider, DeployProviderKind, ReadinessWait, SecretBatch, SecretPurpose,
+    SecretsOutcome, SecretsTransport, SystempromptCloud,
 };
 use systemprompt_cloud::{CloudApiClient, CloudError};
 use systemprompt_identifiers::TenantId;
@@ -149,25 +150,99 @@ async fn rollout_reports_the_deploy_status() {
     assert!(report.commit.is_none());
 }
 
+const QUICK: ReadinessWait = ReadinessWait {
+    timeout: Duration::from_millis(200),
+    interval: Duration::from_millis(20),
+};
+
+async fn tenant_status(server: &MockServer, state: &str) {
+    Mock::given(method("GET"))
+        .and(path("/api/v1/tenants/t-managed/status"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({"data": {
+            "status": state,
+            "app_url": "https://t.example"
+        }})))
+        .mount(server)
+        .await;
+}
+
 #[tokio::test]
-async fn status_counts_running_states_as_ready() {
-    for (state, ready) in [
-        ("Running", true),
-        ("healthy", true),
-        ("provisioning", false),
-    ] {
+async fn wait_until_ready_returns_a_running_tenant() {
+    for state in ["Running", "healthy"] {
         let server = MockServer::start().await;
-        Mock::given(method("GET"))
-            .and(path("/api/v1/tenants/t-managed/status"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(json!({"data": {
-                "status": state,
-                "app_url": "https://t.example"
-            }})))
-            .mount(&server)
-            .await;
-        let health = managed(&server).await.status().await.unwrap();
-        assert_eq!(health.ready, ready, "{state}");
+        tenant_status(&server, state).await;
+        let health = managed(&server)
+            .await
+            .wait_until_ready(QUICK)
+            .await
+            .unwrap();
+        assert!(health.ready, "{state}");
         assert_eq!(health.status, state);
         assert_eq!(health.url, "https://t.example");
     }
+}
+
+#[tokio::test]
+async fn wait_until_ready_refuses_a_tenant_still_deploying_at_the_deadline() {
+    let server = MockServer::start().await;
+    tenant_status(&server, "deploying").await;
+    let err = managed(&server)
+        .await
+        .wait_until_ready(QUICK)
+        .await
+        .unwrap_err();
+    assert!(
+        matches!(&err, CloudError::TenantUnready { last, url, .. } if last == "deploying" && url == "https://t.example"),
+        "{err:?}"
+    );
+    let polls = server
+        .received_requests()
+        .await
+        .unwrap()
+        .iter()
+        .filter(|r| r.url.path() == "/api/v1/tenants/t-managed/status")
+        .count();
+    assert!(polls > 1, "polled {polls} times");
+}
+
+#[tokio::test]
+async fn wait_until_ready_fails_at_once_on_a_failed_tenant() {
+    let server = MockServer::start().await;
+    tenant_status(&server, "failed").await;
+    let wait = ReadinessWait {
+        timeout: Duration::from_secs(30),
+        interval: Duration::from_secs(10),
+    };
+    let started = std::time::Instant::now();
+    let err = managed(&server)
+        .await
+        .wait_until_ready(wait)
+        .await
+        .unwrap_err();
+    assert!(
+        matches!(&err, CloudError::TenantUnready { last, .. } if last == "failed"),
+        "{err:?}"
+    );
+    assert!(started.elapsed() < Duration::from_secs(5));
+}
+
+#[tokio::test]
+async fn wait_until_ready_polls_until_the_tenant_comes_up() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/api/v1/tenants/t-managed/status"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({"data": {
+            "status": "provisioning",
+            "app_url": "https://t.example"
+        }})))
+        .up_to_n_times(2)
+        .mount(&server)
+        .await;
+    tenant_status(&server, "running").await;
+    let health = managed(&server)
+        .await
+        .wait_until_ready(QUICK)
+        .await
+        .unwrap();
+    assert_eq!(health.status, "running");
 }

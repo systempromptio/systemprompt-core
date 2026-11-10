@@ -40,6 +40,8 @@ pub const MAX_MESSAGE_BYTES: usize = 8192;
 
 const SECRET_QUERY_KEYS: &[&str] = &["key", "sig", "signature", "code", "access_token"];
 
+const VALUELESS_FLAGS: &[&str] = &["db-password-stdin"];
+
 pub fn is_redacted(field_name: &str) -> bool {
     let lower = field_name.to_ascii_lowercase();
     REDACT_SUBSTRINGS.iter().any(|s| lower.contains(s))
@@ -190,7 +192,7 @@ pub fn redact_argv(args: &[String]) -> Vec<String> {
                     out.push(arg.clone());
                 }
             } else {
-                redact_next = is_redacted(flag);
+                redact_next = is_redacted(flag) && !VALUELESS_FLAGS.contains(&flag);
                 out.push(arg.clone());
             }
             continue;

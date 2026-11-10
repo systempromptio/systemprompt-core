@@ -25,6 +25,19 @@ pub struct TenantHealth {
     pub version: Option<String>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ReadinessWait {
+    pub timeout: Duration,
+    pub interval: Duration,
+}
+
+impl ReadinessWait {
+    #[must_use]
+    pub fn exhausted(&self, started: Instant) -> bool {
+        started.elapsed() + self.interval > self.timeout
+    }
+}
+
 #[derive(Deserialize)]
 struct ReadyzBody {
     status: String,
@@ -78,8 +91,7 @@ pub async fn probe_tenant(client: &reqwest::Client, base_url: &str) -> TenantHea
 pub async fn wait_until_ready(
     client: &reqwest::Client,
     base_url: &str,
-    timeout: Duration,
-    interval: Duration,
+    wait: ReadinessWait,
 ) -> CloudResult<TenantHealth> {
     let started = Instant::now();
     loop {
@@ -87,13 +99,13 @@ pub async fn wait_until_ready(
         if health.ready {
             return Ok(health);
         }
-        if started.elapsed() + interval > timeout {
+        if wait.exhausted(started) {
             return Err(CloudError::TenantUnready {
                 url: base_url.to_owned(),
                 waited_secs: started.elapsed().as_secs(),
                 last: health.status,
             });
         }
-        tokio::time::sleep(interval).await;
+        tokio::time::sleep(wait.interval).await;
     }
 }

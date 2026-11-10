@@ -26,12 +26,16 @@ use systemprompt_manifest::HostingProvider;
 use crate::error::{CloudError, CloudResult};
 
 pub use gitops::{GitOpsDeploy, GitOpsDeployParams};
-pub use health::{TenantHealth, probe_tenant, tenant_base_url, wait_until_ready};
+pub use health::{ReadinessWait, TenantHealth, probe_tenant, tenant_base_url, wait_until_ready};
 pub use systemprompt::SystempromptCloud;
 pub use values_file::{ValuesFileError, set_yaml_scalar};
 
-/// One tenant's deploy target. Every method acts on the tenant the provider
-/// was built for.
+/// One tenant's deploy target.
+///
+/// Every method acts on the tenant the provider was built for.
+/// `wait_until_ready` is the one readiness contract: it
+/// returns only a ready [`TenantHealth`], and an unready tenant at the end of
+/// the [`ReadinessWait`] is [`CloudError::TenantUnready`].
 pub trait DeployProvider: Send + Sync {
     fn provider(&self) -> HostingProvider;
 
@@ -49,7 +53,10 @@ pub trait DeployProvider: Send + Sync {
         image: &BuiltImage,
     ) -> impl Future<Output = CloudResult<RolloutReport>> + Send;
 
-    fn status(&self) -> impl Future<Output = CloudResult<TenantHealth>> + Send;
+    fn wait_until_ready(
+        &self,
+        wait: ReadinessWait,
+    ) -> impl Future<Output = CloudResult<TenantHealth>> + Send;
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

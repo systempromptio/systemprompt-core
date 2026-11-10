@@ -8,7 +8,7 @@ use systemprompt_cli::admin::setup::SetupArgs;
 use systemprompt_cli::admin::setup::docker_compose::create_compose_files_if_missing;
 use systemprompt_cli::admin::setup::postgres::{setup_interactive, setup_non_interactive};
 use systemprompt_cli::admin::setup::postgres_access::{
-    PostgresConfig, detect_postgresql, generate_password, test_connection,
+    PostgresConfig, detect_postgresql, enable_extensions, generate_password, test_connection,
 };
 use systemprompt_cli::interactive::ScriptedPrompter;
 
@@ -25,6 +25,7 @@ fn args() -> SetupArgs {
         port_offset: 0,
         db_user: None,
         db_password: None,
+        db_password_stdin: false,
         db_name: None,
         gemini_key: None,
         anthropic_key: None,
@@ -55,8 +56,9 @@ fn db_url() -> DbUrl {
         user: url.username().to_owned(),
         password: url
             .password()
-            .expect("DATABASE_URL carries a password")
-            .to_owned(),
+            .map(str::to_owned)
+            .or_else(|| std::env::var("PGPASSWORD").ok())
+            .expect("DATABASE_URL or PGPASSWORD carries a password"),
         host: url
             .host_str()
             .expect("DATABASE_URL carries a host")
@@ -114,7 +116,120 @@ fn database_url_formats_credentials() {
         password: "p".to_owned(),
         database: "d".to_owned(),
     };
-    assert_eq!(config.database_url(), "postgres://u:p@localhost:5433/d");
+    assert_eq!(
+        config.database_url().unwrap(),
+        "postgres://u:p@localhost:5433/d"
+    );
+}
+
+#[test]
+fn database_url_percent_encodes_credentials_with_url_delimiters() {
+    let config = PostgresConfig {
+        host: "db.internal".to_owned(),
+        port: 5433,
+        user: "ops@team".to_owned(),
+        password: "p@ss/w#rd:?".to_owned(),
+        database: "d".to_owned(),
+    };
+    let rendered = config.database_url().unwrap();
+    let parsed = url::Url::parse(&rendered).unwrap();
+    assert_eq!(parsed.host_str(), Some("db.internal"));
+    assert_eq!(parsed.port(), Some(5433));
+    assert_eq!(parsed.path(), "/d");
+    assert_eq!(parsed.username(), "ops%40team");
+    assert_eq!(parsed.password(), Some("p%40ss%2Fw%23rd%3A%3F"));
+}
+
+#[test]
+fn enable_extensions_fails_when_it_cannot_connect() {
+    let config = PostgresConfig {
+        host: "127.0.0.1".to_owned(),
+        port: 9,
+        user: "nobody".to_owned(),
+        password: "nothing".to_owned(),
+        database: "nowhere".to_owned(),
+    };
+    let error = runtime()
+        .block_on(enable_extensions(&config))
+        .expect_err("an unreachable database cannot have its extensions enabled");
+    assert!(error.to_string().contains("enable extensions"), "{error:#}");
+}
+
+fn scratch_name(prefix: &str) -> String {
+    format!("{prefix}_{}", uuid::Uuid::new_v4().simple())
+}
+
+async fn admin_pool(db: &DbUrl) -> sqlx::PgPool {
+    let options = sqlx::postgres::PgConnectOptions::new()
+        .host(&db.host)
+        .port(db.port)
+        .username(&db.user)
+        .password(&db.password)
+        .database("postgres");
+    sqlx::PgPool::connect_with(options).await.expect("connect")
+}
+
+async fn drop_scratch(db: &DbUrl, role: &str, database: &str) {
+    let pool = admin_pool(db).await;
+    let _ = sqlx::query(sqlx::AssertSqlSafe(format!(
+        "DROP DATABASE IF EXISTS \"{database}\" WITH (FORCE)"
+    )))
+    .execute(&pool)
+    .await;
+    let _ = sqlx::query(sqlx::AssertSqlSafe(format!(
+        "DROP ROLE IF EXISTS \"{role}\""
+    )))
+    .execute(&pool)
+    .await;
+    pool.close().await;
+}
+
+#[test]
+fn rerun_against_an_existing_role_sets_the_password_the_profile_carries() {
+    let db = db_url();
+    let role = scratch_name("c1_setup_role");
+    let database = scratch_name("c1_setup_db");
+    runtime().block_on(async {
+        let pool = admin_pool(&db).await;
+        sqlx::query(sqlx::AssertSqlSafe(format!(
+            "CREATE ROLE \"{role}\" LOGIN PASSWORD 'the_old_password'"
+        )))
+        .execute(&pool)
+        .await
+        .expect("create the pre-existing role");
+        pool.close().await;
+    });
+
+    let mut setup_args = args();
+    setup_args.db_password = Some("new p@ss/w#rd".to_owned());
+    let port = db.port.to_string();
+    let prompter = scripted(&[
+        "0",
+        db.host.as_str(),
+        &port,
+        &role,
+        &database,
+        "y",
+        db.user.as_str(),
+        db.password.as_str(),
+    ]);
+    let outcome = runtime().block_on(setup_interactive(
+        &setup_args,
+        &prompter,
+        "covtest",
+        &CliConfig::default(),
+    ));
+    let connects = outcome
+        .as_ref()
+        .is_ok_and(|config| runtime().block_on(test_connection(config)));
+    runtime().block_on(drop_scratch(&db, &role, &database));
+
+    let config = outcome.expect("setup against an existing role succeeds");
+    assert_eq!(config.password, "new p@ss/w#rd");
+    assert!(
+        connects,
+        "the profile's password must log in as the pre-existing role"
+    );
 }
 
 #[test]

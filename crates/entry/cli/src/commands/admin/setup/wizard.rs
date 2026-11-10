@@ -170,7 +170,7 @@ fn write_configuration(
     let admin_email = resolve_admin_email(args, prompter, config)?;
 
     let (mut secrets_data, primary_provider) = collect_secrets(args, prompter, config, env_name)?;
-    secrets_data.database_url = Some(pg_config.database_url());
+    secrets_data.database_url = Some(pg_config.database_url()?);
 
     let secrets_path = profile::profile_dir(&systemprompt_dir, env_name).join("secrets.json");
     if should_write(&secrets_path, args.force, config) {

@@ -17,6 +17,7 @@ fn args() -> SetupArgs {
         port_offset: 0,
         db_user: None,
         db_password: None,
+        db_password_stdin: false,
         db_name: None,
         gemini_key: None,
         anthropic_key: Some("sk-ant".to_owned()),

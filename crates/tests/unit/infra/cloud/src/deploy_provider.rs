@@ -273,7 +273,6 @@ fn gitops_params(repo: PathBuf, push: bool) -> GitOpsDeployParams {
             },
         },
         project_root: PathBuf::from("/nonexistent"),
-        rollout_timeout: Duration::from_secs(1),
     }
 }
 

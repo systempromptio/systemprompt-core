@@ -6,7 +6,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use systemprompt_cloud::deploy::provider::{
-    BuiltImage, DeployProvider, GitOpsDeploy, GitOpsDeployParams,
+    BuiltImage, DeployProvider, GitOpsDeploy, GitOpsDeployParams, ReadinessWait,
 };
 use systemprompt_cloud::{CloudError, CommandRunner, CommandSpec, DockerCli};
 use systemprompt_manifest::{DeployConfig, GitOpsConfig, HostingProvider};
@@ -84,9 +84,13 @@ fn params(root: &Path, repo: PathBuf, push: bool, hostname: String) -> GitOpsDep
             },
         },
         project_root: root.to_path_buf(),
-        rollout_timeout: Duration::from_secs(1),
     }
 }
+
+const ONE_POLL: ReadinessWait = ReadinessWait {
+    timeout: Duration::from_secs(1),
+    interval: Duration::from_secs(5),
+};
 
 fn provider(root: &Path, push: bool, fail: Fail, hostname: String) -> (GitOpsDeploy, Calls) {
     let calls: Calls = Arc::new(Mutex::new(Vec::new()));
@@ -219,7 +223,7 @@ async fn status_returns_the_ready_tenant_health() {
         .await;
     let dir = tempfile::tempdir().unwrap();
     let (deploy, _) = provider(dir.path(), false, Fail::None, server.uri());
-    let health = deploy.status().await.unwrap();
+    let health = deploy.wait_until_ready(ONE_POLL).await.unwrap();
     assert!(health.ready);
     assert_eq!(health.version.as_deref(), Some("1.0"));
 }
@@ -237,7 +241,7 @@ async fn status_reports_an_unready_tenant_once_the_timeout_cannot_fit_a_poll() {
         .await;
     let dir = tempfile::tempdir().unwrap();
     let (deploy, _) = provider(dir.path(), false, Fail::None, server.uri());
-    let err = deploy.status().await.unwrap_err();
+    let err = deploy.wait_until_ready(ONE_POLL).await.unwrap_err();
     assert!(
         matches!(&err, CloudError::TenantUnready { last, .. } if last == "starting"),
         "{err:?}"

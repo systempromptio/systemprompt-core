@@ -41,6 +41,13 @@ pub enum SecretCommands {
 
     #[command(about = "Report the active secrets source, key names, and gaps")]
     Check,
+
+    #[command(
+        name = "migrate-git-credentials",
+        about = "Rename Git source credentials stored under a bare label to \
+                 git_source/<host>/<label> (dry-run unless --apply)"
+    )]
+    MigrateGitCredentials(super::git_credentials::MigrateGitCredentialsArgs),
 }
 
 #[derive(Debug, Clone, Args)]
@@ -57,8 +64,30 @@ pub async fn execute(command: &SecretCommands, ctx: &CommandContext) -> Result<(
     let args = match command {
         SecretCommands::Set(args) => args,
         SecretCommands::Check => return super::secret_check::execute(ctx).await,
+        SecretCommands::MigrateGitCredentials(args) => {
+            let output = super::git_credentials::execute(*args, ctx).await?;
+            render_result(&output, config);
+            return Ok(());
+        },
     };
 
+    let secrets_file = file_secrets_path(ctx)?;
+    set_secret(&secrets_file, &args.name, &args.value)?;
+
+    render_result(
+        &CommandOutput::card_value(
+            "Secret Updated",
+            &ConfigMutationOutput {
+                field: "secrets".to_owned(),
+                message: format!("Secret '{}' set", args.name),
+            },
+        ),
+        config,
+    );
+    Ok(())
+}
+
+pub fn file_secrets_path(ctx: &CommandContext) -> Result<std::path::PathBuf> {
     let profile_path = profile_path(ctx)?;
     let profile = load_profile(profile_path)?;
     let secrets_config = profile
@@ -75,21 +104,7 @@ pub async fn execute(command: &SecretCommands, ctx: &CommandContext) -> Result<(
         );
     }
     let secrets_rel = secrets_config.secrets_path()?.to_owned();
-    let secrets_file = profile_dir(profile_path).join(&secrets_rel);
-
-    set_secret(&secrets_file, &args.name, &args.value)?;
-
-    render_result(
-        &CommandOutput::card_value(
-            "Secret Updated",
-            &ConfigMutationOutput {
-                field: "secrets".to_owned(),
-                message: format!("Secret '{}' set", args.name),
-            },
-        ),
-        config,
-    );
-    Ok(())
+    Ok(profile_dir(profile_path).join(&secrets_rel))
 }
 
 pub fn set_secret(secrets_file: &Path, name: &str, value: &str) -> Result<()> {

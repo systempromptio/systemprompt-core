@@ -18,6 +18,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod provision;
+mod rekey;
+
+pub use rekey::{IssuerRekeyOutcome, IssuerRekeyPlan};
 
 use sqlx::Acquire;
 use systemprompt_identifiers::UserId;

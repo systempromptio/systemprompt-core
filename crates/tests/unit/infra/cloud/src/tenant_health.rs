@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use systemprompt_cloud::CloudError;
-use systemprompt_cloud::deploy::provider::{probe_tenant, wait_until_ready};
+use systemprompt_cloud::deploy::provider::{ReadinessWait, probe_tenant, wait_until_ready};
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -90,8 +90,10 @@ async fn waiting_returns_once_the_instance_is_ready() {
     let health = wait_until_ready(
         &reqwest::Client::new(),
         &server.uri(),
-        Duration::from_secs(5),
-        Duration::from_millis(10),
+        ReadinessWait {
+            timeout: Duration::from_secs(5),
+            interval: Duration::from_millis(10),
+        },
     )
     .await
     .unwrap();
@@ -104,8 +106,10 @@ async fn waiting_past_the_timeout_reports_the_last_status() {
     let error = wait_until_ready(
         &reqwest::Client::new(),
         &server.uri(),
-        Duration::from_millis(30),
-        Duration::from_millis(20),
+        ReadinessWait {
+            timeout: Duration::from_millis(30),
+            interval: Duration::from_millis(20),
+        },
     )
     .await
     .unwrap_err();

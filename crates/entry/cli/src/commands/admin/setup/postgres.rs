@@ -2,22 +2,21 @@
 //!
 //! Resolves connection parameters from [`SetupArgs`], reaches an existing
 //! server or starts one via Docker, and—when given superuser
-//! credentials—creates the role, database, and grants. The bootstrap `CREATE
-//! USER`/`CREATE DATABASE`/ `GRANT` statements use dynamic SQL because they run
-//! before the target database exists and cannot bind parameters.
+//! credentials—creates the role, database, and grants through
+//! [`super::provision`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Context, Result, anyhow};
-use sqlx::postgres::PgPoolOptions;
-use std::time::Duration;
 use systemprompt_logging::CliService;
 
 use super::SetupArgs;
 use super::postgres_access::{
-    PostgresConfig, detect_postgresql, enable_extensions, generate_password, test_connection,
+    PostgresConfig, connect, detect_postgresql, enable_extensions, generate_password,
+    test_connection,
 };
+use super::provision::provision_role_and_db;
 use crate::CliConfig;
 use crate::interactive::Prompter;
 
@@ -155,16 +154,15 @@ fn prompt_host_port(args: &SetupArgs, prompter: &dyn Prompter) -> Result<(String
     Ok((host, port))
 }
 
-fn prompt_password(args: &SetupArgs, prompter: &dyn Prompter) -> Result<String> {
+pub(super) fn prompt_password(args: &SetupArgs, prompter: &dyn Prompter) -> Result<String> {
     let password = if let Some(ref pw) = args.db_password {
         pw.clone()
     } else {
         let use_generated = prompter.confirm("Generate a secure password automatically?", true)?;
 
         if use_generated {
-            let generated = generate_password();
-            CliService::success(&format!("Generated password: {}", generated));
-            generated
+            CliService::success("Generated a password; it is saved to the profile's secrets");
+            generate_password()
         } else {
             prompter.password("Database password")?
         }
@@ -213,58 +211,12 @@ async fn create_database_interactive(
         anyhow::bail!("Superuser password is required");
     }
 
-    let super_url = format!(
-        "postgres://{}:{}@{}:{}/postgres",
-        superuser, superpass, config.host, config.port
-    );
-
-    let pool = PgPoolOptions::new()
-        .max_connections(1)
-        .acquire_timeout(Duration::from_secs(5))
-        .connect(&super_url)
+    let pool = connect(config.superuser_options(&superuser, &superpass))
         .await
         .context("Failed to connect with superuser credentials")?;
-
-    let user_exists: bool = sqlx::query_scalar!(
-        "SELECT EXISTS(SELECT 1 FROM pg_roles WHERE rolname = $1)",
-        &config.user
-    )
-    .fetch_one(&pool)
-    .await?
-    .unwrap_or(false);
-
-    if !user_exists {
-        CliService::info(&format!("Creating user '{}'...", config.user));
-        let create_user_sql = super::ddl::build_create_user_sql(&config.user, &config.password);
-        sqlx::query(sqlx::AssertSqlSafe(create_user_sql))
-            .execute(&pool)
-            .await?;
-        CliService::success(&format!("Created user '{}'", config.user));
-    }
-
-    let db_exists: bool = sqlx::query_scalar!(
-        "SELECT EXISTS(SELECT 1 FROM pg_database WHERE datname = $1)",
-        &config.database
-    )
-    .fetch_one(&pool)
-    .await?
-    .unwrap_or(false);
-
-    if !db_exists {
-        CliService::info(&format!("Creating database '{}'...", config.database));
-        let create_db_sql = super::ddl::build_create_db_sql(&config.database, &config.user);
-        sqlx::query(sqlx::AssertSqlSafe(create_db_sql))
-            .execute(&pool)
-            .await?;
-        CliService::success(&format!("Created database '{}'", config.database));
-    }
-
-    let grant_sql = super::ddl::build_grant_sql(&config.database, &config.user);
-    sqlx::query(sqlx::AssertSqlSafe(grant_sql))
-        .execute(&pool)
-        .await?;
-
+    let outcome = provision_role_and_db(&pool, config).await;
     pool.close().await;
+    super::provision::report(config, outcome?);
 
     CliService::success("Database and user setup complete");
     Ok(())

@@ -134,11 +134,15 @@ impl AdminCommands {
                 | keys::KeysCommands::Promote(_)
                 | keys::KeysCommands::Rotate(_),
             ) => DataImpact::Irreversible,
-            Self::Bootstrap(_) => DataImpact::Destructive,
+            Self::Bootstrap(_)
+            | Self::Config(config::ConfigCommands::Secret(
+                config::secret::SecretCommands::MigrateGitCredentials(_),
+            )) => DataImpact::Destructive,
             Self::Bridge(
                 bridge::BridgeCommands::EnrollCert(_)
                 | bridge::BridgeCommands::IssueCode(_)
-                | bridge::BridgeCommands::List(_),
+                | bridge::BridgeCommands::List(_)
+                | bridge::BridgeCommands::SigningKeyFingerprint(_),
             )
             | Self::AccessControl(
                 access_control::AccessControlCommands::ExportYaml(_)

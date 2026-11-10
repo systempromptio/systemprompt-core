@@ -165,13 +165,15 @@ fn convert_content_maps_text_image_audio_and_resource_link() {
 }
 
 #[test]
-fn convert_content_wraps_embedded_resources_as_debug_text() {
+fn convert_content_renders_embedded_resources_as_json() {
     let resource = convert_content(&block(serde_json::json!({
         "type": "resource",
         "resource": {"uri": "file:///doc", "text": "body", "mimeType": "text/plain"}
     })));
     assert_eq!(resource.kind, "resource");
-    assert!(resource.text.unwrap().contains("file:///doc"));
+    let parsed: serde_json::Value = serde_json::from_str(&resource.text.unwrap()).unwrap();
+    assert_eq!(parsed["uri"], "file:///doc");
+    assert_eq!(parsed["text"], "body");
 }
 
 #[tokio::test]
@@ -500,4 +502,47 @@ async fn execute_tool_call_sends_arguments_and_surfaces_jsonrpc_rejection() {
         "{chain}"
     );
     assert!(chain.contains("owned rejection"), "{chain}");
+}
+
+#[tokio::test]
+async fn execute_tool_call_timeout_bounds_a_call_the_server_never_answers() {
+    use wiremock::matchers::{body_partial_json, method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    let server = MockServer::start().await;
+    mount_protocol(&server).await;
+    Mock::given(method("POST"))
+        .and(path("/mcp"))
+        .and(body_partial_json(
+            serde_json::json!({"method": "tools/call"}),
+        ))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("content-type", "application/json")
+                .set_delay(std::time::Duration::from_secs(60))
+                .set_body_json(serde_json::json!({"jsonrpc": "2.0", "id": 1, "result": {}})),
+        )
+        .mount(&server)
+        .await;
+    let ctx = session_ctx();
+    let started = std::time::Instant::now();
+    let error = tokio::time::timeout(
+        std::time::Duration::from_secs(20),
+        execute_tool_call(ToolCallParams {
+            server_name: &McpServerId::new("strict"),
+            url: &format!("{}/mcp", server.uri()),
+            tool_name: &McpToolName::new("hang"),
+            arguments: None,
+            session_ctx: &ctx,
+            timeout_secs: 1,
+        }),
+    )
+    .await
+    .expect("the call's own timeout must fire before the test's")
+    .expect_err("a call that never answers fails");
+    assert!(
+        error.to_string().contains("did not finish within 1s"),
+        "{error:#}"
+    );
+    assert!(started.elapsed() < std::time::Duration::from_secs(10));
 }

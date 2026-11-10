@@ -2,7 +2,7 @@
 //!
 //! Exposes [`BridgeCommands`] for enrolling device-certificate fingerprints,
 //! issuing one-shot session exchange codes, listing active bridge sessions,
-//! and rotating the ed25519 manifest signing seed.
+//! rotating the ed25519 manifest signing seed, and printing its fingerprint.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -11,6 +11,7 @@ mod enroll_cert;
 mod issue_code;
 mod list;
 mod rotate_signing_key;
+pub mod signing_key_fingerprint;
 mod types;
 
 use crate::context::CommandContext;
@@ -52,6 +53,12 @@ pub enum BridgeCommands {
         about = "Generate a fresh ed25519 manifest signing seed and persist it to the secrets file"
     )]
     RotateSigningKey(rotate_signing_key::RotateSigningKeyArgs),
+
+    #[command(
+        about = "Print the manifest signing key's pubkey and the fingerprint the bridge shows \
+                 before trusting it"
+    )]
+    SigningKeyFingerprint(signing_key_fingerprint::SigningKeyFingerprintArgs),
 }
 
 pub async fn execute(cmd: BridgeCommands, ctx: &CommandContext) -> Result<()> {
@@ -73,6 +80,11 @@ pub async fn execute(cmd: BridgeCommands, ctx: &CommandContext) -> Result<()> {
         },
         BridgeCommands::RotateSigningKey(args) => {
             let result = rotate_signing_key::execute(args, ctx)?;
+            render_result(&result, &ctx.cli);
+            Ok(())
+        },
+        BridgeCommands::SigningKeyFingerprint(args) => {
+            let result = signing_key_fingerprint::execute(args, ctx)?;
             render_result(&result, &ctx.cli);
             Ok(())
         },

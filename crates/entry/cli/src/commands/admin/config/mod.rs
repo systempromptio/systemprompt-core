@@ -20,6 +20,7 @@ pub mod credential;
 pub mod deployment;
 pub mod endpoint;
 pub mod gateway;
+pub mod git_credentials;
 pub mod governance;
 pub mod list;
 pub mod migrate;

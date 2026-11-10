@@ -15,7 +15,7 @@ use super::docker_compose::{
 };
 use super::docker_database::create_database_in_docker;
 use super::postgres_access::{
-    PostgresConfig, detect_postgresql, enable_extensions, generate_password, test_connection,
+    PostgresConfig, detect_postgresql, enable_extensions, test_connection,
 };
 use crate::interactive::Prompter;
 
@@ -94,8 +94,7 @@ pub(super) async fn setup_docker_postgres_interactive(
 
     let user = prompter.input_with_default("Database user", &args.effective_db_user(env_name))?;
 
-    let password = args.db_password.clone().unwrap_or_else(generate_password);
-    CliService::success(&format!("Generated password: {}", password));
+    let password = super::postgres::prompt_password(args, prompter)?;
 
     let database =
         prompter.input_with_default("Database name", &args.effective_db_name(env_name))?;

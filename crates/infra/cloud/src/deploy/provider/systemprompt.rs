@@ -2,17 +2,20 @@
 //!
 //! The control plane issues the registry credentials and tag, stores the
 //! tenant's secrets, and performs the rollout; readiness is the control
-//! plane's own tenant status.
+//! plane's own tenant status, polled until it reports a ready state, reports
+//! a failed one, or the wait runs out.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
+
+use std::time::Instant;
 
 use systemprompt_identifiers::TenantId;
 use systemprompt_manifest::HostingProvider;
 
 use super::{
-    BuiltImage, DeployProvider, RegistryLogin, RegistryTarget, RolloutReport, SecretBatch,
-    SecretsOutcome, SecretsTransport, TenantHealth,
+    BuiltImage, DeployProvider, ReadinessWait, RegistryLogin, RegistryTarget, RolloutReport,
+    SecretBatch, SecretsOutcome, SecretsTransport, TenantHealth,
 };
 use crate::CloudApiClient;
 use crate::error::{CloudError, CloudResult};
@@ -82,10 +85,32 @@ impl DeployProvider for SystempromptCloud {
         })
     }
 
-    async fn status(&self) -> CloudResult<TenantHealth> {
+    async fn wait_until_ready(&self, wait: ReadinessWait) -> CloudResult<TenantHealth> {
+        let started = Instant::now();
+        loop {
+            let health = self.tenant_health().await?;
+            if health.ready {
+                return Ok(health);
+            }
+            if is_failed_state(&health.status) || wait.exhausted(started) {
+                return Err(CloudError::TenantUnready {
+                    url: health.url,
+                    waited_secs: started.elapsed().as_secs(),
+                    last: health.status,
+                });
+            }
+            tokio::time::sleep(wait.interval).await;
+        }
+    }
+}
+
+impl SystempromptCloud {
+    async fn tenant_health(&self) -> CloudResult<TenantHealth> {
         let status = self.client.get_tenant_status(&self.tenant_id).await?;
         Ok(TenantHealth {
-            url: status.app_url.unwrap_or_default(),
+            url: status
+                .app_url
+                .unwrap_or_else(|| self.tenant_id.as_str().to_owned()),
             http_status: None,
             ready: matches!(
                 status.status.to_ascii_lowercase().as_str(),
@@ -95,4 +120,11 @@ impl DeployProvider for SystempromptCloud {
             version: None,
         })
     }
+}
+
+fn is_failed_state(status: &str) -> bool {
+    matches!(
+        status.to_ascii_lowercase().as_str(),
+        "failed" | "error" | "crashed" | "deploy_failed"
+    )
 }

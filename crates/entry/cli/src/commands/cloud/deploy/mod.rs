@@ -27,7 +27,7 @@ use std::time::Duration;
 
 use anyhow::{Context, Result, anyhow, bail};
 use systemprompt_cloud::deploy::provider::{
-    DeployProviderKind, GitOpsDeploy, GitOpsDeployParams, SystempromptCloud,
+    DeployProviderKind, GitOpsDeploy, GitOpsDeployParams, ReadinessWait, SystempromptCloud,
 };
 use systemprompt_cloud::{
     CloudApiClient, CloudError, CloudPath, DockerCli, ProfilePath, SystemCommandRunner,
@@ -44,7 +44,10 @@ use crate::cli_settings::CliConfig;
 use crate::interactive::Prompter;
 use crate::shared::project::ProjectRoot;
 
-const GITOPS_ROLLOUT_TIMEOUT: Duration = Duration::from_mins(15);
+const GITOPS_READINESS_WAIT: ReadinessWait = ReadinessWait {
+    timeout: Duration::from_mins(15),
+    interval: Duration::from_secs(5),
+};
 
 pub(super) struct DeployArgs {
     pub skip_push: bool,
@@ -137,6 +140,7 @@ pub(super) async fn execute(
             orchestrator.deploy(&provider, &request, &progress).await?;
         },
         DeployProviderKind::GitOps => {
+            let orchestrator = orchestrator.with_readiness(GITOPS_READINESS_WAIT);
             let (tenant_id, tenant_name, provider) = gitops_provider(&profile, project.as_path())?;
             let request = DeployRequest {
                 tenant_id,
@@ -190,7 +194,6 @@ fn gitops_provider(
             hostname,
             deploy,
             project_root: project_root.to_path_buf(),
-            rollout_timeout: GITOPS_ROLLOUT_TIMEOUT,
         },
         DockerCli::new(),
         Box::new(SystemCommandRunner),

@@ -18,6 +18,7 @@ mod count;
 mod create;
 pub(crate) mod delete;
 mod export;
+pub mod federated_rekey;
 mod list;
 mod merge;
 mod restore;
@@ -85,6 +86,14 @@ pub enum UsersCommands {
     #[command(about = "Merge source user into target user")]
     Merge(merge::MergeArgs),
 
+    #[command(
+        name = "federated-rekey",
+        about = "Move federated links recorded under this deployment's own issuer to the upstream \
+                 ID-JAG issuer, or remove them when it cannot be attributed (dry-run unless \
+                 --apply)"
+    )]
+    FederatedRekey(federated_rekey::FederatedRekeyArgs),
+
     #[command(subcommand, about = "Bulk operations on users")]
     Bulk(bulk::BulkCommands),
 
@@ -125,6 +134,7 @@ pub async fn execute(cmd: UsersCommands, ctx: &CommandContext) -> Result<()> {
                 | UsersCommands::Restore(_)
                 | UsersCommands::LegalHold(_)
                 | UsersCommands::Merge(_)
+                | UsersCommands::FederatedRekey(_)
                 | UsersCommands::Bulk(_)
                 | UsersCommands::Webauthn(_)
                 | UsersCommands::ApiKey(_)
@@ -192,6 +202,7 @@ async fn render_output(cmd: UsersCommands, ctx: &CommandContext) -> Result<Comma
         UsersCommands::Export(args) => Box::pin(export::execute(args, ctx)).await,
         UsersCommands::Stats => Box::pin(stats::execute(ctx)).await,
         UsersCommands::Merge(args) => Box::pin(merge::execute(args, ctx)).await,
+        UsersCommands::FederatedRekey(args) => Box::pin(federated_rekey::execute(args, ctx)).await,
         UsersCommands::ApiKey(cmd) => Box::pin(apikey::execute(cmd, ctx)).await,
         UsersCommands::ServiceAccount(cmd) => Box::pin(service_account::execute(cmd, ctx)).await,
         UsersCommands::Bulk(_)
@@ -208,6 +219,7 @@ async fn render_output(cmd: UsersCommands, ctx: &CommandContext) -> Result<Comma
 impl UsersCommands {
     pub const fn data_impact(&self) -> DataImpact {
         match self {
+            Self::FederatedRekey(args) if args.apply => DataImpact::Irreversible,
             Self::Role(
                 role::RoleCommands::Assign(_)
                 | role::RoleCommands::Promote(_)
@@ -215,6 +227,7 @@ impl UsersCommands {
             ) => DataImpact::Irreversible,
             Self::Delete(_)
             | Self::Merge(_)
+            | Self::FederatedRekey(_)
             | Self::Bulk(bulk::BulkCommands::Delete(_) | bulk::BulkCommands::Update(_))
             | Self::Session(session::SessionCommands::Cleanup(_))
             | Self::Ban(ban::BanCommands::Cleanup(_)) => DataImpact::Destructive,

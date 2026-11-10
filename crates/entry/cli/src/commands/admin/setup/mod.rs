@@ -17,6 +17,7 @@ pub mod postgres;
 pub mod postgres_access;
 mod profile;
 mod profile_sections;
+pub mod provision;
 pub mod secrets;
 pub mod services_files;
 mod types;
@@ -69,8 +70,19 @@ pub struct SetupArgs {
     #[arg(long, help = "PostgreSQL user (default: systemprompt_`<env>`)")]
     pub db_user: Option<String>,
 
-    #[arg(long, help = "PostgreSQL password (auto-generated if not provided)")]
+    #[arg(
+        long,
+        help = "PostgreSQL password (auto-generated if not provided); visible in the process \
+                list, prefer --db-password-stdin"
+    )]
     pub db_password: Option<String>,
+
+    #[arg(
+        long,
+        conflicts_with = "db_password",
+        help = "Read the PostgreSQL password from the first line of stdin"
+    )]
+    pub db_password_stdin: bool,
 
     #[arg(
         long,
@@ -181,5 +193,21 @@ pub async fn execute(
     args: SetupArgs,
     ctx: &crate::context::CommandContext,
 ) -> Result<CommandOutput> {
-    wizard::execute(args.normalized(), ctx.prompter(), &ctx.cli).await
+    let mut args = args.normalized();
+    if args.db_password_stdin {
+        args.db_password = Some(read_password_line(std::io::stdin().lock())?);
+    }
+    wizard::execute(args, ctx.prompter(), &ctx.cli).await
+}
+
+pub fn read_password_line(mut reader: impl std::io::BufRead) -> Result<String> {
+    let mut line = String::new();
+    reader
+        .read_line(&mut line)
+        .map_err(|e| anyhow::anyhow!("Failed to read the database password from stdin: {e}"))?;
+    let password = line.trim_end_matches(['\r', '\n']).to_owned();
+    if password.is_empty() {
+        anyhow::bail!("--db-password-stdin read an empty password");
+    }
+    Ok(password)
 }
