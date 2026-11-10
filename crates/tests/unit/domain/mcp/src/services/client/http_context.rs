@@ -153,7 +153,7 @@ async fn post_message_unauthorized_surfaces_a_typed_challenge() {
 }
 
 #[tokio::test]
-async fn post_message_unauthorized_reports_enterprise_managed_from_resource_metadata() {
+async fn loopback_resource_metadata_cannot_mark_a_challenge_enterprise_managed() {
     let server = MockServer::start().await;
     let metadata_path = "/.well-known/oauth-protected-resource";
     let metadata_url = format!("{}{metadata_path}", server.uri());
@@ -173,6 +173,7 @@ async fn post_message_unauthorized_reports_enterprise_managed_from_resource_meta
                 "io.modelcontextprotocol/enterprise-managed-authorization"
             ],
         })))
+        .expect(0)
         .mount(&server)
         .await;
 
@@ -185,21 +186,20 @@ async fn post_message_unauthorized_reports_enterprise_managed_from_resource_meta
     let StreamableHttpError::Client(McpTransportError::AuthorizationRequired {
         enterprise_managed,
         resource,
+        metadata_url: advertised_metadata_url,
         authorization_servers,
         ..
     }) = err
     else {
         panic!("expected a typed authorization challenge, got {err:?}");
     };
-    assert!(
-        enterprise_managed,
-        "the advertised extension must reach the caller as a flag, not a message"
-    );
+    assert!(!enterprise_managed);
+    assert!(resource.is_none());
+    assert!(authorization_servers.is_empty());
     assert_eq!(
-        resource.as_deref(),
-        Some("https://api.test/api/v1/mcp/demo/mcp")
+        advertised_metadata_url.as_deref(),
+        Some(metadata_url.as_str())
     );
-    assert_eq!(authorization_servers, vec!["https://api.test".to_owned()]);
 }
 
 #[tokio::test]
@@ -639,7 +639,7 @@ async fn item_02_get_stream_redirected_to_cloud_metadata_is_refused() {
 }
 
 #[tokio::test]
-async fn malformed_protected_resource_metadata_preserves_the_typed_challenge() {
+async fn loopback_resource_metadata_is_never_fetched_and_the_challenge_survives() {
     let server = MockServer::start().await;
     let metadata_path = "/.well-known/oauth-protected-resource";
     let metadata_url = format!("{}{metadata_path}", server.uri());
@@ -660,7 +660,7 @@ async fn malformed_protected_resource_metadata_preserves_the_typed_challenge() {
             ResponseTemplate::new(200)
                 .set_body_raw("{not protected-resource metadata}", "application/json"),
         )
-        .expect(1)
+        .expect(0)
         .mount(&server)
         .await;
 
