@@ -3,9 +3,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
-use chrono::Utc;
 use systemprompt_identifiers::{ContentHash, DocumentId, DocumentRevisionId};
 
 use super::error::{DriveError, DriveResult};
@@ -86,17 +85,6 @@ pub fn synced_entry(
         mtime_unix,
         size,
     })
-}
-
-pub fn move_to_trash(root: &DriveRoot, rel: &str) -> DriveResult<Option<PathBuf>> {
-    let source = root.file(rel)?;
-    if !source.exists() {
-        return Ok(None);
-    }
-    let stamp = Utc::now().format("%Y%m%dT%H%M%S%.3fZ").to_string();
-    let target = root.trash_dir().join(stamp).join(rel);
-    move_file(&source, &target)?;
-    Ok(Some(target))
 }
 
 pub fn move_file(from: &Path, to: &Path) -> DriveResult<()> {

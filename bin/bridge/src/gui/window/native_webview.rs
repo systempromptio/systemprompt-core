@@ -11,18 +11,12 @@ use super::native_protocol::{BRIDGE_BOOTSTRAP, serve_custom_asset};
 use crate::gui::UiEventProxy;
 use crate::gui::error::{GuiError, GuiResult, WindowError};
 use crate::gui::events::UiEvent;
-use crate::gui_policy::webview::{self as webview_policy, Navigation};
+use crate::gui_policy::webview::{AppOrigin, Navigation};
 use crate::wire::external_url::ExternalUrl;
 
 const BG_RGBA: (u8, u8, u8, u8) = (15, 17, 21, 255);
 const SP_PROTOCOL: &str = "sp";
 pub(super) const SP_HOST: &str = "app";
-// Why: Chromium preloads .app HSTS, upgrading HTTP subresources past wry's
-// interception filter.
-#[cfg(any(target_os = "windows", target_os = "android"))]
-const SP_INDEX_URL: &str = "https://sp.app/index.html";
-#[cfg(not(any(target_os = "windows", target_os = "android")))]
-const SP_INDEX_URL: &str = "sp://app/index.html";
 
 // Why: winit returns Box<dyn Window>, but wry requires a sized HasWindowHandle.
 struct WindowRef<'a>(&'a dyn Window);
@@ -38,6 +32,8 @@ impl raw_window_handle::HasWindowHandle for WindowRef<'_> {
 pub(super) fn build_webview(window: &dyn Window, proxy: &UiEventProxy) -> GuiResult<WebView> {
     let ipc_proxy = proxy.clone();
     let builder = WebViewBuilder::new();
+    // Why: Chromium preloads .app HSTS, upgrading HTTP subresources past wry's
+    // interception filter, so WebView2 serves the app as https://sp.app.
     #[cfg(target_os = "windows")]
     let builder = {
         use wry::WebViewBuilderExtWindows as _;
@@ -45,7 +41,7 @@ pub(super) fn build_webview(window: &dyn Window, proxy: &UiEventProxy) -> GuiRes
     };
     let initial_size = window.surface_size();
     let webview = builder
-        .with_url(SP_INDEX_URL)
+        .with_url(AppOrigin::current().index_url())
         .with_background_color(BG_RGBA)
         .with_accept_first_mouse(true)
         .with_devtools(cfg!(debug_assertions))
@@ -55,7 +51,7 @@ pub(super) fn build_webview(window: &dyn Window, proxy: &UiEventProxy) -> GuiRes
         })
         .with_initialization_script(BRIDGE_BOOTSTRAP)
         .with_ipc_handler(move |req| {
-            if !webview_policy::ipc_origin_allowed(req.uri()) {
+            if !AppOrigin::current().admits_ipc(req.uri()) {
                 tracing::warn!(origin = %req.uri(), "ipc message from a foreign origin dropped");
                 return;
             }
@@ -86,7 +82,7 @@ pub(super) fn build_webview(window: &dyn Window, proxy: &UiEventProxy) -> GuiRes
 }
 
 fn allow_navigation(target: &str) -> bool {
-    match webview_policy::navigation(target) {
+    match AppOrigin::current().navigation(target) {
         Navigation::InApp => true,
         Navigation::External => {
             open_if_external(target);

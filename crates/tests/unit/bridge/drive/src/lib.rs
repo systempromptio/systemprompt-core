@@ -18,6 +18,10 @@ mod proposals;
 #[cfg(test)]
 mod pull;
 #[cfg(test)]
+mod pull_guards;
+#[cfg(test)]
+mod pull_names;
+#[cfg(test)]
 mod pull_paths;
 #[cfg(test)]
 mod run_loop;
@@ -29,6 +33,8 @@ mod shares;
 mod state;
 #[cfg(test)]
 mod status;
+#[cfg(test)]
+mod trash;
 #[cfg(test)]
 mod upload;
 #[cfg(test)]

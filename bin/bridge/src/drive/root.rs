@@ -2,7 +2,9 @@
 //!
 //! A path the gateway names is untrusted: it is accepted only as a relative,
 //! `/`-separated path of plain segments, so a change feed entry can never
-//! address a file outside the folder.
+//! address a file outside the folder. A well-formed path is placed only when
+//! its segments are portable ([`super::names`]) and no existing component
+//! below the folder is a link, so a write can never follow one out of it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -10,6 +12,7 @@
 use std::path::{Component, Path, PathBuf};
 
 use super::error::{DriveError, DriveResult};
+use super::names::{PathRefusal, portable_segment};
 use crate::config::paths::{DRIVE_STATE_FILE, drive_dir};
 
 pub const TRASH_DIR: &str = ".trash";
@@ -46,8 +49,20 @@ impl DriveRoot {
     }
 
     pub fn file(&self, rel: &str) -> DriveResult<PathBuf> {
-        let rel = checked_relative(rel)?;
-        Ok(self.dir.join(rel))
+        let checked = checked_relative(rel)?;
+        let mut path = self.dir.clone();
+        for segment in checked.components() {
+            path.push(segment);
+            match std::fs::symlink_metadata(&path) {
+                Ok(meta) if meta.file_type().is_symlink() => {
+                    return Err(unplaceable(rel, PathRefusal::Symlink));
+                },
+                Ok(_) => {},
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => break,
+                Err(e) => return Err(DriveError::io("inspect drive path", &path, e)),
+            }
+        }
+        Ok(self.dir.join(checked))
     }
 
     #[must_use]
@@ -74,10 +89,18 @@ fn checked_relative(rel: &str) -> DriveResult<PathBuf> {
         if segment.is_empty() || segment == "." || segment == ".." || segment.contains(':') {
             return Err(unsafe_path());
         }
+        portable_segment(segment).map_err(|refusal| unplaceable(rel, refusal))?;
         out.push(segment);
     }
     if out.starts_with(TRASH_DIR) || out.as_os_str() == DRIVE_STATE_FILE {
         return Err(unsafe_path());
     }
     Ok(out)
+}
+
+fn unplaceable(rel: &str, refusal: PathRefusal) -> DriveError {
+    DriveError::Unplaceable {
+        path: rel.to_owned(),
+        refusal,
+    }
 }

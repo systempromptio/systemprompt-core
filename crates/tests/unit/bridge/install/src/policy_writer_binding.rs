@@ -165,21 +165,40 @@ fn an_envelope_no_newer_than_the_last_accepted_is_refused() {
 }
 
 #[test]
-fn an_envelope_outside_the_clock_skew_window_is_refused() {
+fn an_envelope_dated_beyond_the_future_skew_bound_is_refused() {
     let signed = manifest(vec![]);
     let beyond = chrono::Duration::minutes(ENVELOPE_SKEW_MINUTES + 1);
-    for now in [signed.not_before + beyond, signed.not_before - beyond] {
-        assert!(
-            matches!(
-                admit(&signed, &digest_of(1), None, now),
-                Err(PolicyWriterError::Skewed { .. })
-            ),
-            "not_before {} against now {now} is outside the window",
-            signed.not_before
+    assert!(
+        matches!(
+            admit(&signed, &digest_of(1), None, signed.not_before - beyond),
+            Err(PolicyWriterError::Skewed { .. })
+        ),
+        "not_before {} is too far ahead of the clock",
+        signed.not_before
+    );
+    let within = chrono::Duration::minutes(ENVELOPE_SKEW_MINUTES - 1);
+    admit(&signed, &digest_of(1), None, signed.not_before - within).expect("inside the bound");
+}
+
+#[test]
+fn an_older_envelope_is_admitted_when_its_version_is_newer() {
+    let signed = manifest(vec![]);
+    for age in [
+        chrono::Duration::minutes(ENVELOPE_SKEW_MINUTES + 1),
+        chrono::Duration::days(3),
+    ] {
+        assert_eq!(
+            admit(&signed, &digest_of(1), None, signed.not_before + age)
+                .expect("age is not bounded"),
+            Admission::Fresh
         );
     }
-    let within = chrono::Duration::minutes(ENVELOPE_SKEW_MINUTES - 1);
-    admit(&signed, &digest_of(1), None, signed.not_before + within).expect("inside the window");
+    let older = accepted("2026-09-18T08:00:00Z-cafecafe");
+    let late = signed.not_before + chrono::Duration::days(3);
+    assert_eq!(
+        admit(&signed, &digest_of(1), Some(&older), late).unwrap(),
+        Admission::Fresh
+    );
 }
 
 #[test]

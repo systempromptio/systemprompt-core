@@ -28,7 +28,10 @@ pub use crate::last_sync::{
 pub use apply::{HostFailure, HostWarning, HostWarningKind, PLUGIN_INSTALLATION_PREFERENCE};
 pub use error::{CredentialRejection, SyncError};
 pub use provision::ProvisionError;
-pub use registry_refresh::{refresh_registry, refresh_registry_for};
+pub use registry_refresh::{
+    RegistryRefresh, gateway_unreachable, refresh_or_keep_stored, refresh_registry,
+    refresh_registry_for,
+};
 pub use replay::{SKEW_WINDOW_MINUTES, check_replay, check_skew};
 pub use stale_retry::run_once;
 pub use summary::SyncSummary;

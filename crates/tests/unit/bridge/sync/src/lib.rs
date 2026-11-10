@@ -33,6 +33,8 @@ mod plugin_stamp;
 #[cfg(test)]
 mod progress_sink;
 #[cfg(test)]
+mod registry_refresh_fallback;
+#[cfg(test)]
 mod replay;
 #[cfg(test)]
 mod skill_bodies;

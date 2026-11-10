@@ -197,6 +197,17 @@ fn is_refusal(error: &DriveError) -> bool {
 
 fn notify(state: &mut DriveState, rel: &str, reason: String) {
     tracing::warn!(path = %rel, %reason, "drive restored a file");
+    record_notice(state, rel, reason);
+}
+
+pub(crate) fn record_notice(state: &mut DriveState, rel: &str, reason: String) {
+    if state
+        .delete_notices
+        .iter()
+        .any(|notice| notice.path == rel && notice.reason == reason)
+    {
+        return;
+    }
     state.delete_notices.push(DeleteNotice {
         path: rel.to_owned(),
         reason,

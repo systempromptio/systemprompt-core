@@ -27,6 +27,11 @@ pub enum DriveError {
     Encode(#[source] serde_json::Error),
     #[error("gateway path {0:?} does not name a file inside the Drive folder")]
     UnsafePath(String),
+    #[error("gateway path {path:?} cannot be placed in the Drive folder: {refusal}")]
+    Unplaceable {
+        path: String,
+        refusal: super::names::PathRefusal,
+    },
     #[error("blob {expected} arrived with digest {actual}; it was not written")]
     HashMismatch {
         expected: ContentHash,

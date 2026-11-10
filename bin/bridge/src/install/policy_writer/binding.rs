@@ -6,8 +6,10 @@
 //! SYSTEM and Administrators can write. A request is acted on only when the
 //! account that owns the request file is that SID; the port and token come
 //! from the binding, never from the request. The envelope a request carries
-//! is admitted only inside the clock-skew window and only when its version is
-//! newer than the last one the writer accepted ([`AcceptedEnvelope`]).
+//! is refused when its `not_before` lies further in the future than the clock
+//! skew allows, and admitted only when its version is newer than the last one
+//! the writer accepted ([`AcceptedEnvelope`]). Its age is not bounded: the
+//! monotonic version is what refuses an old envelope.
 //!
 //! Every decision here is a pure function so it runs on every platform; the
 //! Windows shims only read the owner, the binding and the accepted record.
@@ -190,8 +192,8 @@ pub fn require_bound_loopback(
 
 // Why: the envelope the writer last accepted, presented again byte for
 // byte, derives the same policy it already derived, so it is a re-apply and
-// not a replay; it passed the skew bound when it was accepted. Any other
-// envelope must be newer and inside the bound.
+// not a replay. Any other envelope must be newer than the accepted one and
+// must not be dated beyond the future skew bound.
 pub fn admit(
     manifest: &SignedManifest,
     digest: &Sha256Digest,
@@ -205,8 +207,7 @@ pub fn admit(
         return Ok(Admission::AlreadyAccepted);
     }
     let window = chrono::Duration::minutes(ENVELOPE_SKEW_MINUTES);
-    let delta = manifest.not_before.signed_duration_since(now);
-    if delta > window || delta < -window {
+    if manifest.not_before.signed_duration_since(now) > window {
         return Err(PolicyWriterError::Skewed {
             not_before: manifest.not_before.to_rfc3339(),
             now: now.to_rfc3339(),

@@ -8,6 +8,11 @@
 //! the servers to the registry and its on-disk fragment, so the profile
 //! written next carries the gateway's current truth.
 //!
+//! The same refresh precedes a host repair, whose policy writer reads the
+//! envelope kept here. When the gateway cannot be reached the repair goes on
+//! with the envelope last kept, which the writer re-verifies; any other
+//! failure, a verification failure above all, stops the repair.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -23,11 +28,45 @@ use crate::gateway::Freshness;
 pub async fn refresh_registry_for(
     bridge: &BridgeContext,
     host: &dyn crate::integration::HostApp,
-) -> Result<Option<usize>, SyncError> {
+) -> Result<RegistryRefresh, SyncError> {
     if !host.profile_carries_managed_servers() {
-        return Ok(None);
+        return Ok(RegistryRefresh::NotCarried);
     }
-    refresh_registry(bridge).await.map(Some)
+    refresh_or_keep_stored(bridge).await
+}
+
+/// What a refresh ahead of a profile write or repair produced.
+#[derive(Debug)]
+pub enum RegistryRefresh {
+    NotCarried,
+    Refreshed { servers: usize },
+    StoredEnvelope(SyncError),
+}
+
+pub async fn refresh_or_keep_stored(bridge: &BridgeContext) -> Result<RegistryRefresh, SyncError> {
+    match refresh_registry(bridge).await {
+        Ok(servers) => Ok(RegistryRefresh::Refreshed { servers }),
+        Err(error) if gateway_unreachable(&error) => {
+            tracing::warn!(target: "bridge::sync", %error, "gateway unreachable; the repair uses the envelope last verified");
+            Ok(RegistryRefresh::StoredEnvelope(error))
+        },
+        Err(error) => Err(error),
+    }
+}
+
+#[must_use]
+pub fn gateway_unreachable(error: &SyncError) -> bool {
+    use crate::gateway::GatewayError;
+    let transport = |e: &reqwest::Error| {
+        e.status().is_none() && (e.is_connect() || e.is_timeout() || e.is_request())
+    };
+    match error {
+        SyncError::Gateway(GatewayError::ManifestFetch(e) | GatewayError::PubkeyFetch(e)) => {
+            transport(e)
+        },
+        SyncError::Authentication(chain) => !chain.is_terminal(),
+        _ => false,
+    }
 }
 
 pub async fn refresh_registry(bridge: &BridgeContext) -> Result<usize, SyncError> {

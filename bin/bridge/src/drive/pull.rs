@@ -9,6 +9,9 @@
 //! hashed again just before the downloaded head replaces it, so an edit made
 //! while the blob was downloading is kept beside too.
 //!
+//! The local path of a known document is the one the state records; the
+//! feed's `from` and a deletion's path are never trusted to name it.
+//!
 //! A file the user removed is left removed while [`super::deletes`] decides
 //! its fate, so a newer head never brings it back behind the user's back.
 //!
@@ -19,15 +22,17 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::DocumentId;
+use systemprompt_identifiers::{DocumentId, DocumentRevisionId};
 use systemprompt_models::documents::{DriveChange, DriveChangeKind, DriveManifest};
 
 use super::Cycle;
 use super::conflict::{HeadRef, keep_local_beside};
 use super::error::{DriveError, DriveResult};
 use super::hash::hash_file;
+use super::names::fold;
+use super::placement::{ensure_no_collision, remote_delete, skip_unplaceable};
 use super::state::{ConflictNotice, DriveState};
-use super::write::{GuardedWrite, move_file, move_to_trash, synced_entry, write_unless_changed};
+use super::write::{GuardedWrite, move_file, synced_entry, write_unless_changed};
 
 const CURSOR_RESET: &str = "cursor_reset";
 
@@ -55,7 +60,8 @@ pub async fn pull(cycle: Cycle<'_>, state: &mut DriveState) -> DriveResult<PullR
     };
     let mut report = PullReport::default();
     for change in &feed.changes {
-        apply(cycle, state, change, &mut report).await?;
+        let applied = apply(cycle, state, change, &mut report).await;
+        skip_if_unplaceable(state, applied, change.revision_id.as_ref(), &mut report)?;
         state.cursor = Some(change.cursor.clone());
         state.save(&cycle.root.state_path())?;
     }
@@ -85,11 +91,28 @@ pub async fn reconcile(
             revision_id: entry.head_revision_id,
             sha256: entry.content_sha256,
         };
-        place_head(cycle, state, &entry.path, head, &mut report).await?;
+        let revision_id = head.revision_id.clone();
+        let placed = place_head(cycle, state, &entry.path, head, &mut report).await;
+        skip_if_unplaceable(state, placed, Some(&revision_id), &mut report)?;
     }
     state.cursor = Some(manifest.cursor);
     state.save(&cycle.root.state_path())?;
     Ok(report)
+}
+
+fn skip_if_unplaceable(
+    state: &mut DriveState,
+    result: DriveResult<()>,
+    revision_id: Option<&DocumentRevisionId>,
+    report: &mut PullReport,
+) -> DriveResult<()> {
+    match result {
+        Err(DriveError::Unplaceable { path, refusal }) => {
+            skip_unplaceable(state, &path, &refusal, revision_id, report);
+            Ok(())
+        },
+        other => other,
+    }
 }
 
 async fn apply(
@@ -98,35 +121,23 @@ async fn apply(
     change: &DriveChange,
     report: &mut PullReport,
 ) -> DriveResult<()> {
+    let known = state.path_of(&change.document_id).map(str::to_owned);
     match &change.kind {
-        DriveChangeKind::Created | DriveChangeKind::Updated => {
-            let head = head_of(change)?;
-            if let Some(known) = state.path_of(&change.document_id).map(str::to_owned)
+        DriveChangeKind::Created | DriveChangeKind::Updated | DriveChangeKind::Renamed { .. } => {
+            if let Some(known) = known
                 && known != change.path
             {
                 rename(cycle, state, &known, &change.path, &change.document_id)?;
             }
+            if matches!(change.kind, DriveChangeKind::Renamed { .. })
+                && change.revision_id.is_none()
+            {
+                return Ok(());
+            }
+            let head = head_of(change)?;
             place_head(cycle, state, &change.path, head, report).await
         },
-        DriveChangeKind::Renamed { from } => {
-            rename(cycle, state, from, &change.path, &change.document_id)?;
-            if change.revision_id.is_some() {
-                let head = head_of(change)?;
-                place_head(cycle, state, &change.path, head, report).await?;
-            }
-            Ok(())
-        },
-        DriveChangeKind::Deleted => {
-            let rel = state
-                .path_of(&change.document_id)
-                .map_or_else(|| change.path.clone(), str::to_owned);
-            if let Some(trashed) = move_to_trash(cycle.root, &rel)? {
-                tracing::info!(path = %rel, trashed = %trashed.display(), "drive moved a deleted document to the trash");
-            }
-            state.entries.remove(&rel);
-            report.applied += 1;
-            Ok(())
-        },
+        DriveChangeKind::Deleted => remote_delete(cycle, state, &change.document_id, report),
     }
 }
 
@@ -153,6 +164,7 @@ async fn place_head(
     if state.pending_deletes.contains_key(rel) && !path.exists() {
         return Ok(());
     }
+    ensure_no_collision(cycle.root, state, rel)?;
     let known = state.entries.get(rel).cloned();
     if known
         .as_ref()
@@ -216,7 +228,11 @@ fn rename(
 ) -> DriveResult<()> {
     let source = cycle.root.file(from)?;
     let target = cycle.root.file(to)?;
-    if source.exists() && !target.exists() {
+    let case_only = fold(from) == fold(to);
+    if !case_only {
+        ensure_no_collision(cycle.root, state, to)?;
+    }
+    if source.exists() && (case_only || !target.exists()) {
         move_file(&source, &target)?;
     }
     if let Some(mut entry) = state.entries.remove(from) {
