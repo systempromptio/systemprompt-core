@@ -9,6 +9,8 @@ fn full_secrets() -> Secrets {
         oauth_at_rest_pepper: "p".repeat(32),
         manifest_signing_secret_seed: Some("seed".to_owned()),
         signing_key_pem: None,
+        signing_key_previous_public_pem: Some("previous-pem".to_owned()),
+        signing_key_previous_expires_at: Some("2030-01-01T00:00:00Z".to_owned()),
         database_url: "postgres://primary".to_owned(),
         database_write_url: Some("postgres://write".to_owned()),
         database_session_url: None,
@@ -29,6 +31,8 @@ fn minimal_secrets() -> Secrets {
         oauth_at_rest_pepper: "p".repeat(32),
         manifest_signing_secret_seed: None,
         signing_key_pem: None,
+        signing_key_previous_public_pem: None,
+        signing_key_previous_expires_at: None,
         database_url: "postgres://primary".to_owned(),
         database_write_url: None,
         database_session_url: None,
@@ -56,6 +60,8 @@ fn to_subprocess_env_omits_absent_optionals() {
     let env: HashMap<String, String> = minimal_secrets().to_subprocess_env().into_iter().collect();
     for key in [
         "MANIFEST_SIGNING_SECRET_SEED",
+        "SIGNING_KEY_PREVIOUS_PUBLIC_PEM",
+        "SIGNING_KEY_PREVIOUS_EXPIRES_AT",
         "DATABASE_WRITE_URL",
         "EXTERNAL_DATABASE_URL",
         "INTERNAL_DATABASE_URL",
@@ -75,6 +81,14 @@ fn to_subprocess_env_omits_absent_optionals() {
 fn to_subprocess_env_emits_all_optionals_when_present() {
     let env: HashMap<String, String> = full_secrets().to_subprocess_env().into_iter().collect();
     assert_eq!(env.get("MANIFEST_SIGNING_SECRET_SEED").unwrap(), "seed");
+    assert_eq!(
+        env.get("SIGNING_KEY_PREVIOUS_PUBLIC_PEM").unwrap(),
+        "previous-pem"
+    );
+    assert_eq!(
+        env.get("SIGNING_KEY_PREVIOUS_EXPIRES_AT").unwrap(),
+        "2030-01-01T00:00:00Z"
+    );
     assert_eq!(env.get("DATABASE_WRITE_URL").unwrap(), "postgres://write");
     assert_eq!(
         env.get("EXTERNAL_DATABASE_URL").unwrap(),

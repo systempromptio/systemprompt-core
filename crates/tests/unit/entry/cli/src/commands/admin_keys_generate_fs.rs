@@ -88,3 +88,38 @@ async fn force_replaces_an_existing_key_with_a_fresh_one() {
     assert_ne!(first, second, "a forced regeneration mints a new key");
     assert!(second.contains("BEGIN PRIVATE KEY"));
 }
+
+#[derive(Debug, Parser)]
+struct AdminHarness {
+    #[command(subcommand)]
+    cmd: systemprompt_cli::admin::AdminCommands,
+}
+
+#[test]
+fn rotate_is_classified_destructive_and_generate_preserving() {
+    let admin = |args: &[&str]| {
+        AdminHarness::try_parse_from(std::iter::once("admin").chain(args.iter().copied()))
+            .unwrap()
+            .cmd
+            .data_impact()
+    };
+    assert_eq!(
+        admin(&["keys", "rotate", "--overlap-secs", "60"]),
+        systemprompt_cli::descriptor::DataImpact::Destructive
+    );
+    assert_eq!(
+        admin(&["keys", "generate"]),
+        systemprompt_cli::descriptor::DataImpact::Preserving
+    );
+}
+
+#[tokio::test]
+async fn rotate_refuses_a_profile_without_a_secrets_file_to_write() {
+    let err = execute(parse(&["rotate"]), &ctx()).await.unwrap_err();
+    let text = format!("{err:#}");
+    assert!(
+        text.contains("Failed to write the rotated signing key to the secrets file"),
+        "{text}"
+    );
+    assert!(text.contains("No secrets configured"), "{text}");
+}

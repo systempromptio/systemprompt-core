@@ -93,4 +93,7 @@ mod secrets_file_refresh;
 mod secrets_reload;
 
 #[cfg(test)]
+mod signing_key_rotation_state;
+
+#[cfg(test)]
 mod secret_store_trait;

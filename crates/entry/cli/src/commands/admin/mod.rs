@@ -128,9 +128,9 @@ impl AdminCommands {
             Self::Users(cmd) => cmd.data_impact(),
             Self::Agents(cmd) => cmd.data_impact(),
             Self::Issues(cmd) => cmd.data_impact(),
-            Self::Bootstrap(_) | Self::Bridge(bridge::BridgeCommands::RotateSigningKey(_)) => {
-                DataImpact::Destructive
-            },
+            Self::Bootstrap(_)
+            | Self::Bridge(bridge::BridgeCommands::RotateSigningKey(_))
+            | Self::Keys(keys::KeysCommands::Rotate(_)) => DataImpact::Destructive,
             Self::Bridge(
                 bridge::BridgeCommands::EnrollCert(_)
                 | bridge::BridgeCommands::IssueCode(_)

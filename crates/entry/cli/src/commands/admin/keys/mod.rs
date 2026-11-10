@@ -1,13 +1,15 @@
 //! `admin keys` command tree: RSA signing-key management for the JWT plane.
 //!
-//! [`KeysCommands`] generates fresh RS256 keypairs and mints long-lived
-//! `aud=plugin` tokens used for hook and governance authentication.
+//! [`KeysCommands`] generates fresh RS256 keypairs, rotates the deployment's
+//! token key with a verification overlap, and mints long-lived `aud=plugin`
+//! tokens used for hook and governance authentication.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 mod generate;
 mod issue_plugin_token;
+mod rotate;
 
 use anyhow::Result;
 use clap::Subcommand;
@@ -21,6 +23,11 @@ pub enum KeysCommands {
     Generate(generate::GenerateArgs),
 
     #[command(
+        about = "Rotate the token signing key; the replaced key keeps verifying for an overlap"
+    )]
+    Rotate(rotate::RotateArgs),
+
+    #[command(
         name = "issue-plugin-token",
         about = "Mint a long-lived RS256 JWT with `aud=plugin` for hook/governance authentication"
     )]
@@ -30,6 +37,11 @@ pub enum KeysCommands {
 pub async fn execute(cmd: KeysCommands, ctx: &CommandContext) -> Result<()> {
     match cmd {
         KeysCommands::Generate(args) => generate::execute(&args),
+        KeysCommands::Rotate(args) => {
+            let result = rotate::execute(args, ctx)?;
+            render_result(&result, &ctx.cli);
+            Ok(())
+        },
         KeysCommands::IssuePluginToken(args) => {
             let result = issue_plugin_token::execute(args, ctx).await?;
             render_result(&result, &ctx.cli);

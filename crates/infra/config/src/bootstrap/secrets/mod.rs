@@ -55,6 +55,10 @@ use systemprompt_manifest::secrets::Secrets;
 use super::manifest::{MANIFEST_SIGNING_SEED_BYTES, decode_seed, generate_seed, persist_seed};
 use super::master_key::{ENCRYPTION_MASTER_KEY_BYTES, decode_master_key};
 use super::profile::LoadedProfile;
+use super::signing_key::{
+    PreviousSigningKey, SigningKeyRotation, decode_previous_signing_key,
+    persist_signing_key_rotation,
+};
 use crate::error::{ConfigError, ConfigResult};
 
 pub use error::SecretsBootstrapError;
@@ -141,6 +145,20 @@ impl SecretsService {
         Ok(Some(pem))
     }
 
+    pub fn signing_key_previous(
+        &self,
+    ) -> Result<Option<PreviousSigningKey>, SecretsBootstrapError> {
+        decode_previous_signing_key(&self.get())
+    }
+
+    pub fn persist_signing_key_rotation(
+        profile: &LoadedProfile,
+        rotation: &SigningKeyRotation,
+    ) -> ConfigResult<()> {
+        let path = Self::resolved_secrets_file_path(profile)?;
+        persist_signing_key_rotation(&path, rotation)
+    }
+
     pub fn manifest_signing_secret_seed(
         &self,
     ) -> Result<[u8; MANIFEST_SIGNING_SEED_BYTES], SecretsBootstrapError> {
@@ -172,6 +190,8 @@ impl SecretsService {
             .get("encryption_master_key")
             .ok_or(SecretsBootstrapError::EncryptionMasterKeyRequired)?;
         decode_master_key(master_key)?;
+
+        decode_previous_signing_key(secrets)?;
 
         if Self::signing_key_pem_required(profile) && secrets.signing_key_pem.is_none() {
             return Err(SecretsBootstrapError::SigningKeyPemRequired.into());

@@ -9557,6 +9557,7 @@ name = "systemprompt-config-tests"
 version = "0.0.11"
 dependencies = [
  "base64 0.23.1",
+ "chrono",
  "reqwest",
  "schemars",
  "serde",

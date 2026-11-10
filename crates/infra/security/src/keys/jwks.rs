@@ -28,7 +28,7 @@ pub struct Jwks {
     pub keys: Vec<Jwk>,
 }
 
-#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Jwk {
     pub kty: String,
     pub alg: String,

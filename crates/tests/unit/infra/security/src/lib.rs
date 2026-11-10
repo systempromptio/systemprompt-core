@@ -83,6 +83,8 @@ mod signing_key_independence;
 #[cfg(test)]
 mod signing_key_pem_roundtrip;
 #[cfg(test)]
+mod signing_key_rotation;
+#[cfg(test)]
 mod token_authority;
 
 #[cfg(test)]

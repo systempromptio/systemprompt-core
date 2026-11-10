@@ -14,7 +14,9 @@ use std::path::Path;
 
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
-use rsa::pkcs8::{DecodePrivateKey, EncodePrivateKey, EncodePublicKey, LineEnding};
+use rsa::pkcs8::{
+    DecodePrivateKey, DecodePublicKey, EncodePrivateKey, EncodePublicKey, LineEnding,
+};
 use rsa::rand_core::OsRng;
 use rsa::{RsaPrivateKey, RsaPublicKey};
 use sha2::{Digest, Sha256};
@@ -22,10 +24,14 @@ use sha2::{Digest, Sha256};
 pub mod jwks;
 pub mod jwks_client;
 pub mod signing_keys;
+pub mod verification;
 
 pub use jwks::{ES256, Jwk, Jwks, RS256, VerificationKey, VerificationKeySet};
 pub use jwks_client::{JwksClient, JwksClientError};
-pub use signing_keys::{SigningKeys, SigningKeysError, SigningKeysResult};
+pub use signing_keys::{
+    SigningKeys, SigningKeysError, SigningKeysResult, retired_jwk, rotation_from,
+};
+pub use verification::{RetiredJwk, TokenVerificationKeys, VerificationKeyring};
 
 pub const DEFAULT_RSA_BITS: usize = 2048;
 
@@ -39,6 +45,8 @@ pub enum KeyError {
     EncodeSpki(#[source] rsa::pkcs8::spki::Error),
     #[error("PKCS#8 decoding failed: {0}")]
     Decode(#[source] rsa::pkcs8::Error),
+    #[error("SPKI decoding failed: {0}")]
+    DecodeSpki(#[source] rsa::pkcs8::spki::Error),
     #[error("I/O error for {path}: {source}")]
     Io {
         path: String,
@@ -103,6 +111,12 @@ impl RsaSigningKey {
         })
     }
 
+    pub fn public_key_pem(&self) -> Result<String, KeyError> {
+        self.public_key
+            .to_public_key_pem(LineEnding::LF)
+            .map_err(KeyError::EncodeSpki)
+    }
+
     pub const fn public_key(&self) -> &RsaPublicKey {
         &self.public_key
     }
@@ -134,6 +148,10 @@ impl RsaSigningKey {
             kid,
         })
     }
+}
+
+pub fn public_key_from_spki_pem(pem: &str) -> Result<RsaPublicKey, KeyError> {
+    RsaPublicKey::from_public_key_pem(pem).map_err(KeyError::DecodeSpki)
 }
 
 pub fn compute_kid(public_key: &RsaPublicKey) -> Result<String, KeyError> {

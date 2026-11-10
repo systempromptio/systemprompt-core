@@ -13,6 +13,7 @@ mod manifest;
 mod master_key;
 mod profile;
 mod secrets;
+mod signing_key;
 
 pub use key_material::KeyMaterialError;
 pub use manifest::{MANIFEST_SIGNING_SEED_BYTES, decode_seed, generate_seed, persist_seed};
@@ -25,4 +26,8 @@ pub use secrets::{
     SecretsStatus, SharedSecretsProvider, VaultAttemptFailure, VaultError, VaultKvProvider,
     build_external_provider, build_loaded_secrets_message, diff_secrets, load_secrets_from_path,
     process_env_lookup, refresh_interval_for, registered_external_kinds, resolve_source,
+};
+pub use signing_key::{
+    PreviousSigningKey, SigningKeyRotation, decode_previous_signing_key,
+    persist_signing_key_rotation,
 };

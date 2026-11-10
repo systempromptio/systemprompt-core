@@ -34,6 +34,12 @@ pub struct Secrets {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub signing_key_pem: Option<String>,
 
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub signing_key_previous_public_pem: Option<String>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub signing_key_previous_expires_at: Option<String>,
+
     pub database_url: String,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -84,6 +90,8 @@ impl Drop for Secrets {
         self.oauth_at_rest_pepper.zeroize();
         self.manifest_signing_secret_seed.zeroize();
         self.signing_key_pem.zeroize();
+        self.signing_key_previous_public_pem.zeroize();
+        self.signing_key_previous_expires_at.zeroize();
         self.database_url.zeroize();
         self.database_write_url.zeroize();
         self.database_session_url.zeroize();
@@ -149,6 +157,12 @@ impl Secrets {
         match key {
             "oauth_at_rest_pepper" | "OAUTH_AT_REST_PEPPER" => Some(&self.oauth_at_rest_pepper),
             "signing_key_pem" | "SIGNING_KEY_PEM" => self.signing_key_pem.as_ref(),
+            "signing_key_previous_public_pem" | "SIGNING_KEY_PREVIOUS_PUBLIC_PEM" => {
+                self.signing_key_previous_public_pem.as_ref()
+            },
+            "signing_key_previous_expires_at" | "SIGNING_KEY_PREVIOUS_EXPIRES_AT" => {
+                self.signing_key_previous_expires_at.as_ref()
+            },
             "database_url" | "DATABASE_URL" => Some(&self.database_url),
             "database_write_url" | "DATABASE_WRITE_URL" => self.database_write_url.as_ref(),
             "database_session_url" | "DATABASE_SESSION_URL" => self.database_session_url.as_ref(),
@@ -194,6 +208,14 @@ impl Secrets {
                 &self.manifest_signing_secret_seed,
             ),
             ("SIGNING_KEY_PEM", &self.signing_key_pem),
+            (
+                "SIGNING_KEY_PREVIOUS_PUBLIC_PEM",
+                &self.signing_key_previous_public_pem,
+            ),
+            (
+                "SIGNING_KEY_PREVIOUS_EXPIRES_AT",
+                &self.signing_key_previous_expires_at,
+            ),
             ("DATABASE_WRITE_URL", &self.database_write_url),
             ("DATABASE_SESSION_URL", &self.database_session_url),
             ("EXTERNAL_DATABASE_URL", &self.external_database_url),
