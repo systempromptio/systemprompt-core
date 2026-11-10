@@ -41,7 +41,6 @@ pub mod oidc;
 pub mod subject;
 
 pub use claims::{build_act_chain, intersect_scopes};
-pub use delegation::validate_resource;
 pub use subject::{JwksCache, peek_issuer};
 
 use claims::resolve_audience;

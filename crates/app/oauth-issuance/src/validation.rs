@@ -4,10 +4,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::{AuthorizationCode, ClientId};
+use systemprompt_identifiers::{AuthorizationCode, ClientId, RefreshTokenId};
+use systemprompt_manifest::Config;
 use systemprompt_oauth::OauthError;
-use systemprompt_oauth::repository::{AuthCodeValidationResult, OAuthRepository};
+use systemprompt_oauth::repository::{
+    AuthCodeRedemption, AuthCodeValidationResult, OAuthRepository,
+};
 
+use crate::resource::{ResourceBinding, resolve_grant_resource};
 use crate::{IssuanceError, IssuanceResult};
 
 pub fn extract_required_field<'a>(
@@ -28,6 +32,8 @@ pub struct AuthCodeValidationParams<'a> {
     pub redirect_uri: Option<&'a str>,
     pub code_verifier: Option<&'a str>,
     pub request_resource: Option<&'a str>,
+    pub refresh_token_id: &'a RefreshTokenId,
+    pub config: &'a Config,
 }
 
 pub async fn validate_authorization_code(
@@ -37,25 +43,26 @@ pub async fn validate_authorization_code(
     let code_verifier = extract_required_field(params.code_verifier, "code_verifier")?;
     let result = params
         .repo
-        .validate_authorization_code(params.code, params.client_id, redirect_uri, code_verifier)
+        .validate_authorization_code(AuthCodeRedemption {
+            code: params.code,
+            client_id: params.client_id,
+            redirect_uri,
+            code_verifier,
+            refresh_token_id: params.refresh_token_id,
+        })
         .await
         .map_err(authorization_code_error)?;
 
-    if let Some(req_resource) = params.request_resource
-        && let Some(ref stored_resource) = result.resource
-        && req_resource != stored_resource
-    {
-        return Err(IssuanceError::InvalidGrant {
-            reason: format!(
-                "Resource parameter mismatch: expected '{stored_resource}', got '{req_resource}'"
-            ),
-        });
-    }
+    resolve_grant_resource(
+        params.request_resource,
+        ResourceBinding::Bound(result.resource.as_deref()),
+        params.config,
+    )?;
 
     Ok(result)
 }
 
-fn authorization_code_error(error: OauthError) -> IssuanceError {
+pub(crate) fn authorization_code_error(error: OauthError) -> IssuanceError {
     match error {
         OauthError::Validation(reason) => IssuanceError::InvalidGrant { reason },
         other => IssuanceError::Oauth(other),

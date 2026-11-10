@@ -18,7 +18,7 @@ use systemprompt_models::auth::{
     AuthenticatedUser, Permission, parse_permissions, permissions_to_string,
 };
 use systemprompt_models::errors::ParseEnumError;
-use systemprompt_oauth::repository::{OAuthRepository, RefreshTokenParams};
+use systemprompt_oauth::repository::{OAuthRepository, RefreshTokenLineage, RefreshTokenParams};
 use systemprompt_oauth::services::{
     JwtConfig, JwtSigningParams, SessionCreationError, SessionCreationService, generate_jwt,
     generate_secure_token, load_interactive_user,
@@ -51,8 +51,29 @@ pub struct UserTokenParams<'a> {
     pub scope: Option<&'a str>,
     pub origin: RequestOrigin<'a>,
     pub resource: Option<&'a str>,
-    pub family_id: Option<&'a str>,
+    pub refresh_token: &'a MintedRefreshToken,
+    pub lineage: RefreshTokenLineage<'a>,
     pub config: &'a Arc<Config>,
+}
+
+/// A refresh token minted before the grant is redeemed, so the redemption can
+/// record it in the same statement that claims the grant.
+#[derive(Debug)]
+pub struct MintedRefreshToken {
+    value: String,
+    id: RefreshTokenId,
+}
+
+impl MintedRefreshToken {
+    pub fn mint() -> Self {
+        let value = generate_secure_token("rt");
+        let id = RefreshTokenId::new(&value);
+        Self { value, id }
+    }
+
+    pub const fn id(&self) -> &RefreshTokenId {
+        &self.id
+    }
 }
 
 #[derive(Debug)]
@@ -151,28 +172,25 @@ async fn create_jwt_and_refresh_token(
     };
     let access_token = generate_jwt(user, config, access_token_jti, session_id, &signing)?;
 
-    let refresh_token_value = generate_secure_token("rt");
-    let refresh_token_id = RefreshTokenId::new(&refresh_token_value);
     let refresh_expires_at =
         chrono::Utc::now().timestamp() + global_config.jwt_refresh_token_expiration;
 
-    let mut builder = RefreshTokenParams::builder(
-        &refresh_token_id,
-        params.client_id,
-        params.user_id,
-        &scope_string,
-        refresh_expires_at,
-    );
-    if let Some(family) = params.family_id {
-        builder = builder.with_family(family);
-    }
-    repo.store_refresh_token(builder.build()).await?;
+    repo.store_refresh_token(RefreshTokenParams {
+        token_id: params.refresh_token.id(),
+        client_id: params.client_id,
+        user_id: params.user_id,
+        scope: &scope_string,
+        expires_at: refresh_expires_at,
+        resource: params.resource,
+        lineage: params.lineage,
+    })
+    .await?;
 
     Ok(JwtAndRefreshToken {
         access_token,
-        refresh_token_value,
+        refresh_token_value: params.refresh_token.value.clone(),
         scope_string,
-        refresh_token_id,
+        refresh_token_id: params.refresh_token.id.clone(),
     })
 }
 

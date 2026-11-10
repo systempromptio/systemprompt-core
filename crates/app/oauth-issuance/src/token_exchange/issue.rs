@@ -51,7 +51,7 @@ pub async fn issue_id_jag(
         },
     };
 
-    let resource = super::validate_resource(request.resource, global)?;
+    let resource = crate::resource::validate_resource(request.resource, global)?;
 
     let id_jag = mint_id_jag(&IdJagGrant {
         sub: &subject.sub,

@@ -37,6 +37,7 @@ pub mod identity;
 pub mod orchestrator;
 mod repository;
 pub mod request;
+pub mod resource;
 mod session;
 pub mod sso;
 pub mod token_exchange;
@@ -55,6 +56,6 @@ pub use token_exchange::{
     intersect_scopes, peek_issuer,
 };
 pub use user_tokens::{
-    GeneratedTokens, UserTokenError, UserTokenParams, generate_tokens_by_user_id,
-    resolve_user_permissions,
+    GeneratedTokens, MintedRefreshToken, UserTokenError, UserTokenParams,
+    generate_tokens_by_user_id, resolve_user_permissions,
 };

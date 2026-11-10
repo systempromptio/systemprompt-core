@@ -6,7 +6,7 @@
 use chrono::Utc;
 use systemprompt_identifiers::{ClientId, RefreshTokenFamilyId, RefreshTokenId, UserId};
 
-use super::{ConsumedRefreshToken, RefreshTokenHolder, RefreshTokenParams};
+use super::{ConsumedRefreshToken, RefreshTokenHolder, RefreshTokenLineage, RefreshTokenParams};
 use crate::error::{OauthError, OauthResult};
 use crate::repository::oauth::OAuthRepository;
 
@@ -18,25 +18,69 @@ impl OAuthRepository {
         let token_id_hash = self.hash_at_rest(params.token_id.as_str())?;
         let client_id = params.client_id.as_str();
         let user_id = params.user_id.as_str();
-        let family_id_owned = token_id_hash.clone();
-        let family_id: &str = params.family_id.unwrap_or(&family_id_owned);
 
-        sqlx::query!(
-            "INSERT INTO oauth_refresh_tokens (token_id, client_id, user_id, scope, expires_at, \
-             created_at, family_id)
-             VALUES ($1, $2, $3, $4, $5, $6, $7)",
-            token_id_hash,
-            client_id,
-            user_id,
-            params.scope,
-            expires_at_dt,
-            now,
-            family_id
-        )
-        .execute(self.write_pool_ref())
-        .await?;
-
+        match params.lineage {
+            RefreshTokenLineage::Family(family_id) => {
+                sqlx::query!(
+                    "INSERT INTO oauth_refresh_tokens (token_id, client_id, user_id, scope, \
+                     expires_at, created_at, family_id, resource)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+                    token_id_hash,
+                    client_id,
+                    user_id,
+                    params.scope,
+                    expires_at_dt,
+                    now,
+                    family_id.as_str(),
+                    params.resource
+                )
+                .execute(self.write_pool_ref())
+                .await?;
+            },
+            RefreshTokenLineage::AuthorizationCode(code) => {
+                let code_hash = self.hash_at_rest(code.as_str())?;
+                let inserted = sqlx::query!(
+                    "INSERT INTO oauth_refresh_tokens (token_id, client_id, user_id, scope, \
+                     expires_at, created_at, family_id, resource)
+                     SELECT $1, $2, $3, $4, $5, $6, $1, $7
+                     FROM oauth_auth_codes
+                     WHERE code = $8 AND refresh_token_id = $1
+                     FOR UPDATE",
+                    token_id_hash,
+                    client_id,
+                    user_id,
+                    params.scope,
+                    expires_at_dt,
+                    now,
+                    params.resource,
+                    code_hash
+                )
+                .execute(self.write_pool_ref())
+                .await?;
+                if inserted.rows_affected() == 0 {
+                    return Err(OauthError::Validation(
+                        "Invalid authorization code".to_owned(),
+                    ));
+                }
+            },
+        }
         Ok(())
+    }
+
+    pub async fn refresh_token_resource(
+        &self,
+        token_id: &RefreshTokenId,
+        client_id: &ClientId,
+    ) -> OauthResult<Option<String>> {
+        let token_id_hash = self.hash_at_rest(token_id.as_str())?;
+        let resource = sqlx::query_scalar!(
+            "SELECT resource FROM oauth_refresh_tokens WHERE token_id = $1 AND client_id = $2",
+            token_id_hash,
+            client_id.as_str()
+        )
+        .fetch_optional(self.write_pool_ref())
+        .await?;
+        Ok(resource.flatten())
     }
 
     pub async fn consume_refresh_token(

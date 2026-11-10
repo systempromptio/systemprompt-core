@@ -2,9 +2,10 @@
 
 use crate::{cleanup_test_user, create_test_user, setup_test_db};
 use chrono::Utc;
-use systemprompt_identifiers::{AuthorizationCode, ClientId, RefreshTokenId};
+use systemprompt_identifiers::{AuthorizationCode, ClientId, RefreshTokenFamilyId, RefreshTokenId};
 use systemprompt_oauth::repository::{
-    AuthCodeParams, ClientRepository, CreateClientParams, RefreshTokenParams,
+    AuthCodeParams, AuthCodeRedemption, ClientRepository, CreateClientParams, RefreshTokenLineage,
+    RefreshTokenParams,
 };
 use uuid::Uuid;
 
@@ -98,7 +99,16 @@ async fn test_authorization_code_lifecycle() {
     assert_eq!(stored_client_id.as_str(), client_id.as_str());
 
     let validation = repo
-        .validate_authorization_code(&code, &client_id, redirect_uri, &verifier)
+        .validate_authorization_code(AuthCodeRedemption {
+            code: &code,
+            client_id: &client_id,
+            redirect_uri,
+            code_verifier: &verifier,
+            refresh_token_id: &systemprompt_identifiers::RefreshTokenId::new(format!(
+                "rt-{}",
+                uuid::Uuid::new_v4()
+            )),
+        })
         .await
         .expect("Failed to validate authorization code");
 
@@ -106,7 +116,16 @@ async fn test_authorization_code_lifecycle() {
     assert_eq!(validation.scope, scopes);
 
     let validation_again = repo
-        .validate_authorization_code(&code, &client_id, redirect_uri, &verifier)
+        .validate_authorization_code(AuthCodeRedemption {
+            code: &code,
+            client_id: &client_id,
+            redirect_uri,
+            code_verifier: &verifier,
+            refresh_token_id: &systemprompt_identifiers::RefreshTokenId::new(format!(
+                "rt-{}",
+                uuid::Uuid::new_v4()
+            )),
+        })
         .await;
 
     let err = validation_again.expect_err("Should not be able to use code twice");
@@ -148,7 +167,16 @@ async fn test_authorization_code_pkce() {
         .expect("Failed to store PKCE code");
 
     let validation = repo
-        .validate_authorization_code(&code, &client_id, redirect_uri, &verifier)
+        .validate_authorization_code(AuthCodeRedemption {
+            code: &code,
+            client_id: &client_id,
+            redirect_uri,
+            code_verifier: &verifier,
+            refresh_token_id: &systemprompt_identifiers::RefreshTokenId::new(format!(
+                "rt-{}",
+                uuid::Uuid::new_v4()
+            )),
+        })
         .await
         .expect("Failed to validate PKCE code");
 
@@ -186,7 +214,16 @@ async fn test_authorization_code_pkce_invalid_verifier() {
         .expect("Failed to store PKCE code");
 
     let invalid_verifier_result = repo
-        .validate_authorization_code(&code, &client_id, redirect_uri, "wrong_verifier")
+        .validate_authorization_code(AuthCodeRedemption {
+            code: &code,
+            client_id: &client_id,
+            redirect_uri,
+            code_verifier: "wrong_verifier",
+            refresh_token_id: &systemprompt_identifiers::RefreshTokenId::new(format!(
+                "rt-{}",
+                uuid::Uuid::new_v4()
+            )),
+        })
         .await;
 
     let err = invalid_verifier_result.expect_err("Invalid verifier should fail");
@@ -213,8 +250,18 @@ async fn test_refresh_token_lifecycle() {
     let scopes = "openid profile";
     let expires_at = Utc::now().timestamp() + 7 * 24 * 60 * 60;
 
-    let params =
-        RefreshTokenParams::builder(&token_id, &client_id, &user_id, scopes, expires_at).build();
+    let params = RefreshTokenParams {
+        token_id: &token_id,
+        client_id: &client_id,
+        user_id: &user_id,
+        scope: scopes,
+        expires_at,
+        resource: None,
+        lineage: RefreshTokenLineage::Family(&RefreshTokenFamilyId::new(format!(
+            "fam-{}",
+            uuid::Uuid::new_v4()
+        ))),
+    };
     repo.store_refresh_token(params)
         .await
         .expect("Failed to store refresh token");
@@ -253,8 +300,18 @@ async fn test_refresh_token_expiration() {
     let scopes = "openid";
     let expires_at = Utc::now().timestamp() - 1;
 
-    let params =
-        RefreshTokenParams::builder(&token_id, &client_id, &user_id, scopes, expires_at).build();
+    let params = RefreshTokenParams {
+        token_id: &token_id,
+        client_id: &client_id,
+        user_id: &user_id,
+        scope: scopes,
+        expires_at,
+        resource: None,
+        lineage: RefreshTokenLineage::Family(&RefreshTokenFamilyId::new(format!(
+            "fam-{}",
+            uuid::Uuid::new_v4()
+        ))),
+    };
     repo.store_refresh_token(params)
         .await
         .expect("Failed to store expired token");
@@ -285,8 +342,18 @@ async fn test_refresh_token_revocation() {
     let scopes = "openid";
     let expires_at = Utc::now().timestamp() + 7 * 24 * 60 * 60;
 
-    let params =
-        RefreshTokenParams::builder(&token_id, &client_id, &user_id, scopes, expires_at).build();
+    let params = RefreshTokenParams {
+        token_id: &token_id,
+        client_id: &client_id,
+        user_id: &user_id,
+        scope: scopes,
+        expires_at,
+        resource: None,
+        lineage: RefreshTokenLineage::Family(&RefreshTokenFamilyId::new(format!(
+            "fam-{}",
+            uuid::Uuid::new_v4()
+        ))),
+    };
     repo.store_refresh_token(params)
         .await
         .expect("Failed to store token");

@@ -38,7 +38,7 @@ async fn inject_context(mut req: Request<Body>, next: Next) -> Response<Body> {
     next.run(req).await
 }
 
-async fn token_app() -> anyhow::Result<Router> {
+pub(super) async fn token_app() -> anyhow::Result<Router> {
     let (_pool, ctx) = setup_ctx().await?;
     let state = OAuthState::new(
         ctx.oauth_repositories().oauth.clone(),
@@ -55,13 +55,13 @@ async fn token_app() -> anyhow::Result<Router> {
     .layer(axum::Extension(ctx.config_arc().clone())))
 }
 
-struct SeededGrant {
-    client: OAuthClientFixture,
-    code: AuthorizationCode,
-    verifier: String,
+pub(super) struct SeededGrant {
+    pub(super) client: OAuthClientFixture,
+    pub(super) code: AuthorizationCode,
+    pub(super) verifier: String,
 }
 
-async fn seed_grant(resource: Option<&str>) -> anyhow::Result<SeededGrant> {
+pub(super) async fn seed_grant(resource: Option<&str>) -> anyhow::Result<SeededGrant> {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
     let user = UserId::new(Uuid::new_v4().to_string());
@@ -96,7 +96,7 @@ async fn seed_grant(resource: Option<&str>) -> anyhow::Result<SeededGrant> {
     })
 }
 
-fn form_post(body: String) -> Request<Body> {
+pub(super) fn form_post(body: String) -> Request<Body> {
     Request::builder()
         .method(http::Method::POST)
         .uri("/token")
@@ -105,7 +105,7 @@ fn form_post(body: String) -> Request<Body> {
         .expect("build")
 }
 
-fn urlencode(pairs: &[(&str, &str)]) -> String {
+pub(super) fn urlencode(pairs: &[(&str, &str)]) -> String {
     pairs
         .iter()
         .map(|(k, v)| format!("{}={}", enc(k), enc(v)))
@@ -127,7 +127,7 @@ fn enc(s: &str) -> String {
     out
 }
 
-async fn redeem(
+pub(super) async fn redeem(
     app: Router,
     grant: &SeededGrant,
     extra: &[(&str, &str)],
@@ -255,7 +255,7 @@ async fn authorization_code_grant_with_mismatched_resource_fails() -> anyhow::Re
     let app = token_app().await?;
     let (status, v) = redeem(app, &grant, &[("resource", "other")]).await?;
     assert!(status.is_client_error(), "expected 4xx, got {status} {v}");
-    assert_eq!(v["error"].as_str(), Some("invalid_grant"), "{v}");
+    assert_eq!(v["error"].as_str(), Some("invalid_target"), "{v}");
     Ok(())
 }
 

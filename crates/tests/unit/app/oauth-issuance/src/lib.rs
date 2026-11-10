@@ -16,6 +16,8 @@ mod identity_plane;
 #[cfg(test)]
 mod request;
 #[cfg(test)]
+mod resource;
+#[cfg(test)]
 mod sso_cookie;
 #[cfg(test)]
 mod sso_driver;

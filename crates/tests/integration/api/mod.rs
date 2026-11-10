@@ -452,6 +452,10 @@ mod proxy_audit_tap;
 mod routes_oauth_token_grants_happy;
 
 #[cfg(test)]
+#[path = "routes_oauth_grant_resource.rs"]
+mod routes_oauth_grant_resource;
+
+#[cfg(test)]
 #[path = "routes_oauth_clients.rs"]
 mod routes_oauth_clients;
 

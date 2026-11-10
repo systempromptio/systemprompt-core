@@ -6,13 +6,17 @@
 
 use systemprompt_identifiers::{AuthorizationCode, ClientId, RefreshTokenId};
 use systemprompt_oauth::OauthError;
-use systemprompt_oauth::repository::OAuthRepository;
+use systemprompt_oauth::repository::{OAuthRepository, RefreshTokenLineage};
 use systemprompt_oauth::services::validation::validate_client_credentials;
 
 use super::TokenIssuanceOrchestrator;
-use crate::user_tokens::{UserTokenParams, generate_tokens_by_user_id};
+use crate::resource::{ResourceBinding, resolve_grant_resource};
+use crate::user_tokens::{
+    MintedRefreshToken, UserTokenError, UserTokenParams, generate_tokens_by_user_id,
+};
 use crate::validation::{
-    AuthCodeValidationParams, extract_required_field, validate_authorization_code,
+    AuthCodeValidationParams, authorization_code_error, extract_required_field,
+    validate_authorization_code,
 };
 use crate::{IssuanceError, IssuanceResult, RequestOrigin, TokenRequest, TokenResponse};
 
@@ -40,6 +44,7 @@ impl TokenIssuanceOrchestrator<'_> {
             validate_client_credentials(repo, &client_id, request.client_secret.as_deref()).await?;
         require_public_client_redirect(&client.token_endpoint_auth_method, &request)?;
 
+        let refresh_token = MintedRefreshToken::mint();
         let validation_result = validate_authorization_code(AuthCodeValidationParams {
             repo,
             code: &code,
@@ -47,6 +52,8 @@ impl TokenIssuanceOrchestrator<'_> {
             redirect_uri: request.redirect_uri.as_deref(),
             code_verifier: request.code_verifier.as_deref(),
             request_resource: request.resource.as_deref(),
+            refresh_token_id: refresh_token.id(),
+            config: self.config,
         })
         .await?;
 
@@ -58,20 +65,14 @@ impl TokenIssuanceOrchestrator<'_> {
                 scope: Some(&validation_result.scope),
                 origin,
                 resource: validation_result.resource.as_deref(),
-                family_id: None,
+                refresh_token: &refresh_token,
+                lineage: RefreshTokenLineage::AuthorizationCode(&code),
                 config: self.config,
             },
             self.state,
         )
         .await
-        .map_err(|e| IssuanceError::server("Token generation failed", e))?;
-
-        if let Err(e) = repo
-            .link_auth_code_to_refresh_token(&code, &generated.refresh_token_id)
-            .await
-        {
-            tracing::warn!(error = %e, "Failed to link auth code to refresh token");
-        }
+        .map_err(code_generation_error)?;
 
         let token_response = generated.response;
         tracing::info!(
@@ -110,25 +111,35 @@ impl TokenIssuanceOrchestrator<'_> {
 
         validate_client_credentials(repo, &client_id, request.client_secret.as_deref()).await?;
 
+        let stored_resource = repo
+            .refresh_token_resource(&refresh_token, &client_id)
+            .await?;
+        let resource = resolve_grant_resource(
+            request.resource.as_deref(),
+            ResourceBinding::Bound(stored_resource.as_deref()),
+            self.config,
+        )?;
+
         let consumed = repo
             .consume_refresh_token(&refresh_token, &client_id)
             .await
             .map_err(refresh_token_error)?;
-        let user_id = consumed.user_id;
-        let original_scope = consumed.scope;
-        let family_id = consumed.family_id;
+        let user_id = &consumed.user_id;
+        let original_scope = consumed.scope.as_str();
+        let family_id = &consumed.family_id;
 
-        let effective_scope = narrow_scope(request.scope.as_deref(), &original_scope)?;
+        let effective_scope = narrow_scope(request.scope.as_deref(), original_scope)?;
 
         let generated = generate_tokens_by_user_id(
             repo,
             UserTokenParams {
                 client_id: &client_id,
-                user_id: &user_id,
+                user_id,
                 scope: Some(effective_scope),
                 origin,
-                resource: request.resource.as_deref(),
-                family_id: Some(family_id.as_str()),
+                resource,
+                refresh_token: &MintedRefreshToken::mint(),
+                lineage: RefreshTokenLineage::Family(family_id),
                 config: self.config,
             },
             self.state,
@@ -142,6 +153,7 @@ impl TokenIssuanceOrchestrator<'_> {
             client_id = %client_id,
             user_id = %user_id,
             scope = %effective_scope,
+            resource = ?resource,
             token_type = %token_response.token_type,
             expires_in = token_response.expires_in,
             "Token issued"
@@ -178,6 +190,13 @@ fn narrow_scope<'a>(requested: Option<&'a str>, original: &'a str) -> IssuanceRe
         }
     }
     Ok(requested_scope)
+}
+
+fn code_generation_error(error: UserTokenError) -> IssuanceError {
+    match error {
+        UserTokenError::Oauth(oauth @ OauthError::Validation(_)) => authorization_code_error(oauth),
+        other => IssuanceError::server("Token generation failed", other),
+    }
 }
 
 fn refresh_token_error(error: OauthError) -> IssuanceError {

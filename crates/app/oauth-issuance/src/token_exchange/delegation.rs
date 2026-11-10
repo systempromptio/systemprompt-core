@@ -16,27 +16,9 @@ use systemprompt_oauth::services::{LinkedSubject, link_enterprise_principal};
 
 use super::claims::intersect_scopes;
 use super::subject::SubjectIdentity;
+use crate::resource::validate_resource;
 use crate::session::create_oauth_session;
 use crate::{IssuanceError, IssuanceResult, RequestOrigin};
-
-pub fn validate_resource<'a>(
-    resource: Option<&'a str>,
-    global: &Config,
-) -> IssuanceResult<Option<&'a str>> {
-    match resource {
-        Some(value)
-            if !global
-                .allowed_resource_audiences
-                .iter()
-                .any(|allowed| allowed == value) =>
-        {
-            Err(IssuanceError::InvalidTarget {
-                message: format!("'{value}' not in allowed_resource_audiences"),
-            })
-        },
-        other => Ok(other),
-    }
-}
 
 pub(super) fn resolve_resource(
     subject: &SubjectIdentity,

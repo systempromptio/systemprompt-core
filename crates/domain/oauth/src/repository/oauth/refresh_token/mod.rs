@@ -10,7 +10,9 @@
 
 mod ops;
 
-use systemprompt_identifiers::{ClientId, RefreshTokenFamilyId, RefreshTokenId, UserId};
+use systemprompt_identifiers::{
+    AuthorizationCode, ClientId, RefreshTokenFamilyId, RefreshTokenId, UserId,
+};
 
 #[derive(Debug)]
 pub struct RefreshTokenParams<'a> {
@@ -19,64 +21,19 @@ pub struct RefreshTokenParams<'a> {
     pub user_id: &'a UserId,
     pub scope: &'a str,
     pub expires_at: i64,
-    pub family_id: Option<&'a str>,
+    pub resource: Option<&'a str>,
+    pub lineage: RefreshTokenLineage<'a>,
 }
 
-#[derive(Debug)]
-pub struct RefreshTokenParamsBuilder<'a> {
-    token_id: &'a RefreshTokenId,
-    client_id: &'a ClientId,
-    user_id: &'a UserId,
-    scope: &'a str,
-    expires_at: i64,
-    family_id: Option<&'a str>,
-}
-
-impl<'a> RefreshTokenParamsBuilder<'a> {
-    pub const fn new(
-        token_id: &'a RefreshTokenId,
-        client_id: &'a ClientId,
-        user_id: &'a UserId,
-        scope: &'a str,
-        expires_at: i64,
-    ) -> Self {
-        Self {
-            token_id,
-            client_id,
-            user_id,
-            scope,
-            expires_at,
-            family_id: None,
-        }
-    }
-
-    pub const fn with_family(mut self, family_id: &'a str) -> Self {
-        self.family_id = Some(family_id);
-        self
-    }
-
-    pub const fn build(self) -> RefreshTokenParams<'a> {
-        RefreshTokenParams {
-            token_id: self.token_id,
-            client_id: self.client_id,
-            user_id: self.user_id,
-            scope: self.scope,
-            expires_at: self.expires_at,
-            family_id: self.family_id,
-        }
-    }
-}
-
-impl<'a> RefreshTokenParams<'a> {
-    pub const fn builder(
-        token_id: &'a RefreshTokenId,
-        client_id: &'a ClientId,
-        user_id: &'a UserId,
-        scope: &'a str,
-        expires_at: i64,
-    ) -> RefreshTokenParamsBuilder<'a> {
-        RefreshTokenParamsBuilder::new(token_id, client_id, user_id, scope, expires_at)
-    }
+/// Where a stored refresh token comes from.
+///
+/// A token minted by redeeming an authorization code starts its own family and
+/// is stored only while that code still names it; a rotated token joins the
+/// family it replaces.
+#[derive(Debug, Clone, Copy)]
+pub enum RefreshTokenLineage<'a> {
+    AuthorizationCode(&'a AuthorizationCode),
+    Family(&'a RefreshTokenFamilyId),
 }
 
 #[derive(Debug)]

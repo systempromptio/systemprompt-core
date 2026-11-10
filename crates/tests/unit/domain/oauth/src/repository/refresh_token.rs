@@ -2,8 +2,8 @@
 // reuse-detection and family revocation through the consume path).
 
 use chrono::{Duration, Utc};
-use systemprompt_identifiers::{ClientId, RefreshTokenId, UserId};
-use systemprompt_oauth::repository::{OAuthRepository, RefreshTokenParams};
+use systemprompt_identifiers::{ClientId, RefreshTokenFamilyId, RefreshTokenId, UserId};
+use systemprompt_oauth::repository::{OAuthRepository, RefreshTokenLineage, RefreshTokenParams};
 use systemprompt_test_fixtures::{
     OAuthClientFixture, ensure_test_bootstrap, seed_oauth_client, seed_user_row, test_db_pool,
     unique_user_id,
@@ -39,6 +39,9 @@ fn future_exp() -> i64 {
 }
 
 async fn store_in_family(ctx: &Ctx, token: &RefreshTokenId, exp: i64, family: Option<&str>) {
+    let family = RefreshTokenFamilyId::new(
+        family.map_or_else(|| format!("fam-{}", Uuid::new_v4()), ToOwned::to_owned),
+    );
     ctx.repo
         .store_refresh_token(RefreshTokenParams {
             token_id: token,
@@ -46,7 +49,8 @@ async fn store_in_family(ctx: &Ctx, token: &RefreshTokenId, exp: i64, family: Op
             user_id: &ctx.user_id,
             scope: "openid",
             expires_at: exp,
-            family_id: family,
+            resource: None,
+            lineage: RefreshTokenLineage::Family(&family),
         })
         .await
         .expect("store refresh token");
