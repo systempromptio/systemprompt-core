@@ -99,3 +99,62 @@ async fn missing_items_render_to_an_empty_component() {
 
     assert_eq!(rendered.html, "");
 }
+
+#[tokio::test]
+async fn hostile_front_matter_is_html_escaped_in_text_and_attributes() {
+    let html = render(&[json!({
+        "content_type": "blog-list",
+        "title": "<img src=x onerror=alert(1)>",
+        "slug": "a\"><script>x()</script>",
+        "description": "<script>alert(2)</script> & more",
+        "image": "/i.png\" onerror=\"alert(3)",
+    })])
+    .await;
+
+    assert!(!html.contains("<img src=x"), "got: {html}");
+    assert!(!html.contains("<script>"), "got: {html}");
+    assert!(!html.contains("\" onerror=\""), "got: {html}");
+    assert!(
+        html.contains("&lt;img src=x onerror=alert(1)&gt;"),
+        "got: {html}"
+    );
+    assert!(html.contains("&lt;script&gt;alert(2)&lt;/script&gt; &amp; more"));
+    assert!(
+        html.contains(r#"src="/i.png&quot; onerror=&quot;alert(3)""#),
+        "got: {html}"
+    );
+}
+
+#[tokio::test]
+async fn script_scheme_image_falls_back_to_the_placeholder() {
+    for image in [
+        "javascript:alert(1)",
+        " JavaScript:alert(1)",
+        "data:text/html,x",
+        "vbscript:x",
+    ] {
+        let html = render(&[json!({
+            "content_type": "blog-list", "title": "A", "slug": "a", "image": image,
+        })])
+        .await;
+        assert!(html.contains("card-image--placeholder"), "{image}: {html}");
+        assert!(
+            !html.to_ascii_lowercase().contains("script:"),
+            "{image}: {html}"
+        );
+        assert!(!html.contains("data:"), "{image}: {html}");
+    }
+}
+
+#[tokio::test]
+async fn slug_segments_are_percent_encoded_and_separators_kept() {
+    let html = render(&[json!({
+        "content_type": "blog-list", "title": "A", "slug": "docs/javascript:alert(1) x",
+    })])
+    .await;
+
+    assert!(
+        html.contains(r#"href="/blog/docs/javascript%3Aalert%281%29%20x""#),
+        "got: {html}"
+    );
+}

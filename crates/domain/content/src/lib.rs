@@ -43,6 +43,7 @@ pub(crate) mod config;
 pub mod error;
 pub(crate) mod extension;
 pub(crate) mod homepage_prerenderer;
+pub(crate) mod html;
 pub(crate) mod jobs;
 pub(crate) mod list_branding_provider;
 pub(crate) mod list_items_renderer;

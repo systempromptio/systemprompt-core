@@ -7,8 +7,9 @@
 //!   discovery, partial registration, and stat reporting. Registers a `json`
 //!   helper for emitting values inside JSON contexts (e.g. JSON-LD `<script>`
 //!   blocks): `{{{json field}}}` serialises via `serde_json::to_string`, which
-//!   correctly escapes backslashes, newlines, and control characters that
-//!   Handlebars' default HTML escaping leaves intact.
+//!   correctly escapes backslashes, newlines, and control characters, and then
+//!   writes `<`, `>`, `&`, U+2028 and U+2029 as `\uXXXX` escapes so the value
+//!   can neither close the `<script>` element nor open an HTML comment.
 //! - [`TemplateRegistryBuilder`] — fluent builder that wires together loaders,
 //!   providers, and partial sources.
 //! - [`CoreTemplateProvider`] — filesystem provider scanning a directory for

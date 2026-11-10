@@ -130,8 +130,24 @@ fn json_helper(
     let param = h
         .param(0)
         .ok_or_else(|| RenderError::from(RenderErrorReason::ParamNotFoundForIndex("json", 0)))?;
-    out.write(&param.value().to_string())?;
+    out.write(&script_safe_json(param.value()))?;
     Ok(())
+}
+
+fn script_safe_json(value: &serde_json::Value) -> String {
+    let raw = value.to_string();
+    let mut escaped = String::with_capacity(raw.len());
+    for ch in raw.chars() {
+        match ch {
+            '<' => escaped.push_str("\\u003c"),
+            '>' => escaped.push_str("\\u003e"),
+            '&' => escaped.push_str("\\u0026"),
+            '\u{2028}' => escaped.push_str("\\u2028"),
+            '\u{2029}' => escaped.push_str("\\u2029"),
+            _ => escaped.push(ch),
+        }
+    }
+    escaped
 }
 
 impl std::fmt::Debug for TemplateRegistry {

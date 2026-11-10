@@ -6,6 +6,7 @@
 
 use std::sync::Arc;
 
+use crate::html;
 use async_trait::async_trait;
 use serde::Deserialize;
 use serde_json::Value;
@@ -81,7 +82,10 @@ fn extract_url_prefix(ctx: &ComponentContext<'_>) -> String {
         .and_then(|item| ListItemKind::deserialize(item).ok())
         .map_or_else(String::new, |kind| {
             let ct = kind.content_type.as_str();
-            format!("/{}", ct.strip_suffix("-list").unwrap_or(ct))
+            format!(
+                "/{}",
+                html::encode_path(ct.strip_suffix("-list").unwrap_or(ct))
+            )
         })
 }
 
@@ -90,15 +94,15 @@ fn render_card_html(item: &Value, url_prefix: &str) -> Option<String> {
     let card = ListItemCard::deserialize(item)
         .inspect_err(|e| tracing::debug!(error = %e, "Skipping list item without card fields"))
         .ok()?;
-    let title = card.title.as_str();
-    let slug = card.slug.as_str();
-    let description = card.description.as_deref().unwrap_or("");
-    let date = format_published_date(card.published_at.as_deref());
+    let title = html::escape(&card.title);
+    let href = html::escape(&format!("{url_prefix}/{}", html::encode_path(&card.slug)));
+    let description = html::escape(card.description.as_deref().unwrap_or(""));
+    let date = html::escape(&format_published_date(card.published_at.as_deref()));
 
-    let image_html = render_image_html(card.image.as_deref(), title);
+    let image_html = render_image_html(card.image.as_deref(), &title);
 
     Some(format!(
-        r#"<a href="{url_prefix}/{slug}" class="content-card-link">
+        r#"<a href="{href}" class="content-card-link">
   <article class="content-card">
     {image_html}
     <div class="card-content">
@@ -123,17 +127,21 @@ fn format_published_date(published_at: Option<&str>) -> String {
         .map_or_else(String::new, |dt| dt.format("%B %d, %Y").to_string())
 }
 
-fn render_image_html(image: Option<&str>, alt: &str) -> String {
-    image.filter(|s| !s.is_empty()).map_or_else(
-        || PLACEHOLDER_IMAGE_SVG.to_owned(),
-        |img| {
-            format!(
-                r#"<div class="card-image">
-    <img src="{img}" alt="{alt}" loading="lazy" />
+fn render_image_html(image: Option<&str>, escaped_alt: &str) -> String {
+    image
+        .filter(|s| !s.is_empty())
+        .and_then(html::safe_url)
+        .map_or_else(
+            || PLACEHOLDER_IMAGE_SVG.to_owned(),
+            |img| {
+                let img = html::escape(img);
+                format!(
+                    r#"<div class="card-image">
+    <img src="{img}" alt="{escaped_alt}" loading="lazy" />
   </div>"#
-            )
-        },
-    )
+                )
+            },
+        )
 }
 
 pub fn default_list_items_renderer() -> Arc<dyn ComponentRenderer> {
