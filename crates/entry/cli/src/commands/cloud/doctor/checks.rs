@@ -68,11 +68,16 @@ pub fn check_signing_key<S: BuildHasher>(
     profile_dir: &Path,
     secrets: &HashMap<String, String, S>,
 ) -> CheckResult {
+    check_signing_key_at(&resolve_signing_key_path(profile, profile_dir), secrets)
+}
+
+pub(super) fn check_signing_key_at<S: BuildHasher>(
+    path: &Path,
+    secrets: &HashMap<String, String, S>,
+) -> CheckResult {
     if secrets.contains_key("signing_key_pem") {
         return CheckResult::pass("signing-key", "provided via secrets.json (signing_key_pem)");
     }
-
-    let path = resolve_signing_key_path(profile, profile_dir);
     if path.exists() {
         CheckResult::pass("signing-key", path.display().to_string())
     } else {
@@ -266,6 +271,14 @@ impl CheckResult {
             name,
             status: CheckStatus::Warn,
             detail: detail.into(),
+        }
+    }
+
+    pub(super) fn not_evaluated(name: &'static str, variables: &str) -> Self {
+        Self {
+            name,
+            status: CheckStatus::NotEvaluated,
+            detail: format!("not evaluated: needs {variables}"),
         }
     }
 

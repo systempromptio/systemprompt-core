@@ -17,6 +17,7 @@ use rand::{RngExt, rng};
 use systemprompt_cloud::{ProfilePath, ProjectContext};
 use systemprompt_loader::ProfileLoader;
 use systemprompt_manifest::Profile;
+use systemprompt_manifest::profile::ManagedProfile;
 
 #[derive(Debug, thiserror::Error)]
 pub enum ProfileResolutionError {
@@ -202,7 +203,7 @@ fn resolve_profile_by_name(name: &str) -> Result<Option<PathBuf>, ProfileResolut
 pub struct DiscoveredProfile {
     pub name: String,
     pub path: PathBuf,
-    pub profile: Profile,
+    pub profile: ManagedProfile,
 }
 
 pub fn discover_profiles() -> Result<Vec<DiscoveredProfile>> {
@@ -236,7 +237,7 @@ fn build_discovered_profile(entry: &std::fs::DirEntry) -> Option<DiscoveredProfi
     }
 
     let name = entry.file_name().to_string_lossy().to_string();
-    let profile = ProfileLoader::load_from_path(&profile_yaml)
+    let profile = ManagedProfile::load(&profile_yaml)
         .map_err(|e| tracing::warn!(profile = %name, error = %e, "Skipping unreadable profile during discovery"))
         .ok()?;
 

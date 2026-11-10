@@ -137,9 +137,12 @@ fn resolve_profile_path_by_name(paths: &ResolvedPaths, name: &ProfileName) -> Op
 }
 
 pub(super) fn try_load_log_level(profile_path: &Path) -> Option<LogLevel> {
-    Profile::load_from_path(profile_path)
+    systemprompt_manifest::profile::ManagedProfile::load(profile_path)
+        .and_then(|profile| profile.section::<LogLevel>("runtime.log_level"))
         .ok()
-        .map(|profile| profile.runtime.log_level)
+        .map(|level| {
+            level.unwrap_or_else(|| systemprompt_manifest::RuntimeConfig::default().log_level)
+        })
 }
 
 pub(super) async fn init_credentials_gracefully(

@@ -10,21 +10,21 @@ fn lookup_map<'a>(map: &'a HashMap<&'a str, &'a str>) -> impl Fn(&str) -> Option
 fn interpolate_replaces_known_variable() {
     let mut map = HashMap::new();
     map.insert("HOST", "localhost");
-    let result = interpolate("connect to ${HOST}", &lookup_map(&map));
+    let result = interpolate("connect to ${HOST}", &lookup_map(&map)).expect("resolves");
     assert_eq!(result, "connect to localhost");
 }
 
 #[test]
-fn interpolate_leaves_unknown_variable_untouched() {
+fn interpolate_rejects_unset_variable_without_default() {
     let map = HashMap::new();
-    let result = interpolate("${UNKNOWN}", &lookup_map(&map));
-    assert_eq!(result, "${UNKNOWN}");
+    let error = interpolate("${UNKNOWN}", &lookup_map(&map)).expect_err("unset must fail");
+    assert_eq!(error.variable, "UNKNOWN");
 }
 
 #[test]
 fn interpolate_uses_default_when_var_missing() {
     let map = HashMap::new();
-    let result = interpolate("${PORT:-8080}", &lookup_map(&map));
+    let result = interpolate("${PORT:-8080}", &lookup_map(&map)).expect("resolves");
     assert_eq!(result, "8080");
 }
 
@@ -32,7 +32,7 @@ fn interpolate_uses_default_when_var_missing() {
 fn interpolate_prefers_lookup_over_default() {
     let mut map = HashMap::new();
     map.insert("PORT", "9090");
-    let result = interpolate("${PORT:-8080}", &lookup_map(&map));
+    let result = interpolate("${PORT:-8080}", &lookup_map(&map)).expect("resolves");
     assert_eq!(result, "9090");
 }
 
@@ -41,7 +41,7 @@ fn interpolate_replaces_multiple_placeholders() {
     let mut map = HashMap::new();
     map.insert("A", "foo");
     map.insert("B", "bar");
-    let result = interpolate("${A}-${B}", &lookup_map(&map));
+    let result = interpolate("${A}-${B}", &lookup_map(&map)).expect("resolves");
     assert_eq!(result, "foo-bar");
 }
 
@@ -49,14 +49,14 @@ fn interpolate_replaces_multiple_placeholders() {
 fn interpolate_no_placeholders_returns_input_unchanged() {
     let map = HashMap::new();
     let input = "plain text no placeholders";
-    let result = interpolate(input, &lookup_map(&map));
+    let result = interpolate(input, &lookup_map(&map)).expect("resolves");
     assert_eq!(result, input);
 }
 
 #[test]
 fn interpolate_empty_default_value() {
     let map = HashMap::new();
-    let result = interpolate("value:${MISSING:-}", &lookup_map(&map));
+    let result = interpolate("value:${MISSING:-}", &lookup_map(&map)).expect("resolves");
     assert_eq!(result, "value:");
 }
 

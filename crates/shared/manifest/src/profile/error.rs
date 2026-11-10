@@ -24,6 +24,13 @@ pub enum ProfileError {
         source: serde_yaml::Error,
     },
 
+    #[error("Profile {path}: {source}")]
+    Interpolation {
+        path: PathBuf,
+        #[source]
+        source: crate::env::InterpolationError,
+    },
+
     #[error("Failed to serialize profile: {0}")]
     SerializeYaml(#[source] serde_yaml::Error),
 

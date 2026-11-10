@@ -84,6 +84,7 @@ mod cloud_profile_show_display;
 mod cloud_profile_show_exec_fs;
 mod cloud_profile_show_types;
 mod cloud_profile_steps;
+mod cloud_profile_target_only_vars;
 mod cloud_profile_templates;
 mod cloud_profile_templates_writes_fs;
 mod cloud_prompts;

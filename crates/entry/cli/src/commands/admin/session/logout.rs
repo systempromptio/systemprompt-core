@@ -7,7 +7,7 @@ use anyhow::{Context, Result};
 use clap::Args;
 use systemprompt_cloud::{ProfilePath, SessionKey, SessionStore};
 use systemprompt_identifiers::ProfileName;
-use systemprompt_loader::ProfileLoader;
+use systemprompt_manifest::profile::{CloudConfig, ManagedProfile};
 
 use super::types::LogoutOutput;
 use crate::CliConfig;
@@ -160,11 +160,14 @@ fn resolve_target_key(
             );
         }
 
-        let profile = ProfileLoader::load_from_path(&profile_config_path)
+        let profile = ManagedProfile::load(&profile_config_path)
             .with_context(|| format!("Failed to load profile '{}'", profile_name))?;
 
-        let tenant_id = profile.cloud.as_ref().and_then(|c| c.tenant_id.as_ref());
-        return Ok(SessionKey::from_tenant_id(tenant_id));
+        let tenant_id = profile
+            .section::<CloudConfig>("cloud")
+            .with_context(|| format!("Failed to read the cloud section of '{}'", profile_name))?
+            .and_then(|c| c.tenant_id);
+        return Ok(SessionKey::from_tenant_id(tenant_id.as_ref()));
     }
 
     store.active_session_key().ok_or_else(|| {

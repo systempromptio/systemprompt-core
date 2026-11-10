@@ -19,7 +19,7 @@ use super::profile_layer::{ProfileMigration, migrate_profile_layer};
 use anyhow::{Context, Result, bail};
 use serde_yaml::Value;
 use systemprompt_manifest::Profile;
-use systemprompt_manifest::env::{interpolate, read_env_optional};
+use systemprompt_manifest::profile::layered::parse_layer;
 use systemprompt_manifest::profile::{BASE_PROFILE_FILE, OVERLAY_PROFILE_FILE, merge_yaml};
 
 const LEGACY_SUFFIX: &str = ".secrets.profile.yaml";
@@ -119,13 +119,7 @@ fn layers(dir: &Path) -> Result<(Option<Layer>, Vec<Layer>)> {
 }
 
 fn parse(text: &str, path: &Path) -> Result<Value> {
-    let interpolated = interpolate(text, &|name| read_env_optional(name));
-    let value: Value = serde_yaml::from_str(&interpolated)
-        .with_context(|| format!("parsing the migrated {}", path.display()))?;
-    Ok(match value {
-        Value::Null => Value::Mapping(serde_yaml::Mapping::new()),
-        other => other,
-    })
+    parse_layer(text, path).with_context(|| format!("parsing the migrated {}", path.display()))
 }
 
 fn verify(base: Option<&Layer>, overlays: &[Layer]) -> Result<()> {

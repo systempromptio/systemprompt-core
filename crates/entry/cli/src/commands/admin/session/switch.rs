@@ -6,8 +6,7 @@
 use anyhow::{Context, Result};
 use systemprompt_cloud::{ProfilePath, SessionKey};
 use systemprompt_identifiers::ProfileName;
-use systemprompt_loader::ProfileLoader;
-use systemprompt_manifest::Profile;
+use systemprompt_manifest::profile::{CloudConfig, ManagedProfile};
 
 use super::types::SwitchOutput;
 use crate::paths::ResolvedPaths;
@@ -29,7 +28,9 @@ pub(super) fn execute(profile_name: &ProfileName) -> Result<CommandOutput> {
     }
 
     let new_profile = load_profile(&profile_config_path)?;
-    let new_tenant_id = new_profile.cloud.as_ref().and_then(|c| c.tenant_id.clone());
+    let new_tenant_id = new_profile
+        .section::<CloudConfig>("cloud")?
+        .and_then(|c| c.tenant_id);
     let session_key = SessionKey::from_tenant_id(new_tenant_id.as_ref());
 
     let sessions_dir = paths.sessions_dir();
@@ -40,9 +41,10 @@ pub(super) fn execute(profile_name: &ProfileName) -> Result<CommandOutput> {
     store.set_active_with_profile_path(&session_key, profile_name, profile_config_path);
     store.save(&sessions_dir)?;
 
-    let message = if store
-        .get_valid_session(&session_key, &new_profile.security.issuer)
-        .is_some()
+    let issuer = new_profile.profile().ok().map(|p| p.security.issuer);
+    let message = if issuer
+        .as_deref()
+        .is_some_and(|issuer| store.get_valid_session(&session_key, issuer).is_some())
     {
         format!("Switched to profile '{}'", profile_name)
     } else {
@@ -64,6 +66,6 @@ pub(super) fn execute(profile_name: &ProfileName) -> Result<CommandOutput> {
     Ok(CommandOutput::card_value("Switch Profile", &output))
 }
 
-fn load_profile(path: &std::path::Path) -> Result<Profile> {
-    ProfileLoader::load_from_path(path).context("Failed to load profile")
+fn load_profile(path: &std::path::Path) -> Result<ManagedProfile> {
+    ManagedProfile::load(path).context("Failed to load profile")
 }

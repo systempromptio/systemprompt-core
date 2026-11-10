@@ -25,8 +25,10 @@ const fn default_allow_registration() -> bool {
     false
 }
 
+pub const DEFAULT_SIGNING_KEY_PATH: &str = "signing_key.pem";
+
 fn default_signing_key_path() -> PathBuf {
-    PathBuf::from("signing_key.pem")
+    PathBuf::from(DEFAULT_SIGNING_KEY_PATH)
 }
 
 pub const DEFAULT_ID_JAG_TTL_SECS: i64 = 300;

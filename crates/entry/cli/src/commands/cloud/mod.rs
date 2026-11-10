@@ -23,7 +23,7 @@ pub mod types;
 pub use systemprompt_cloud::{Environment, OAuthProvider};
 
 use crate::context::CommandContext;
-use crate::descriptor::{CommandDescriptor, DescribeCommand};
+use crate::descriptor::{CommandDescriptor, DataImpact, DescribeCommand};
 use anyhow::Result;
 use clap::Subcommand;
 use systemprompt_identifiers::ProfileName;
@@ -135,7 +135,7 @@ pub enum CloudCommands {
 impl DescribeCommand for CloudCommands {
     fn descriptor(&self) -> CommandDescriptor {
         match self {
-            Self::Deploy { .. } => CommandDescriptor::PROFILE_AND_SECRETS,
+            Self::Deploy { .. } => CommandDescriptor::NONE.with_data_impact(DataImpact::Preserving),
             Self::Backup { .. } | Self::Status => CommandDescriptor::PROFILE_ONLY,
             Self::Sync(_) => CommandDescriptor::FULL.with_read_only(),
             _ => CommandDescriptor::NONE,

@@ -37,7 +37,10 @@ pub mod services;
 pub mod validators;
 
 pub use config::{Config, PathNotConfiguredError};
-pub use env::{contains_placeholder, interpolate, none_if_blank, read_env_optional};
+pub use env::{
+    InterpolationError, UNRESOLVED_TAG, UnsetVariable, contains_placeholder, interpolate,
+    interpolate_yaml, interpolate_yaml_available, none_if_blank, read_env_optional,
+};
 pub use paths::PathResolution;
 pub use profile::{
     CloudConfig, CloudValidationMode, ContentNegotiationConfig,

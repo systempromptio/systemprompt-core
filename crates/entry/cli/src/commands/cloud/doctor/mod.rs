@@ -19,20 +19,21 @@
 
 mod checks;
 pub mod distributed;
+mod partial;
 mod plane_checks;
 pub mod restore_checks;
 pub mod vault_checks;
 
-pub(in crate::commands::cloud) use checks::resolve_signing_key_path;
 pub use checks::{
     check_extension_configs, check_profile_valid, check_provider_secrets, check_proxy_topology,
     check_required_secrets, check_signing_key,
 };
+pub use partial::run_managed;
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use anyhow::{Result, anyhow, bail};
+use anyhow::{Result, bail};
 use systemprompt_cloud::{ProfilePath, ProjectContext};
 use systemprompt_identifiers::ProfileName;
 use systemprompt_loader::ConfigLoader;
@@ -50,6 +51,7 @@ pub enum CheckStatus {
     Pass,
     Warn,
     Fail,
+    NotEvaluated,
 }
 
 #[derive(Debug)]
@@ -59,13 +61,41 @@ pub struct CheckResult {
     pub detail: String,
 }
 
-pub(in crate::commands::cloud) struct DoctorReport {
+/// The outcome of the deploy preflight: one result per check.
+#[derive(Debug)]
+pub struct DoctorReport {
     checks: Vec<CheckResult>,
 }
 
 impl DoctorReport {
-    pub(in crate::commands::cloud) fn has_blocking(&self) -> bool {
+    #[must_use]
+    pub fn checks(&self) -> &[CheckResult] {
+        &self.checks
+    }
+
+    #[must_use]
+    pub fn has_blocking(&self) -> bool {
         self.checks.iter().any(|c| c.status == CheckStatus::Fail)
+    }
+
+    #[must_use]
+    pub fn not_evaluated(&self) -> usize {
+        self.checks
+            .iter()
+            .filter(|c| c.status == CheckStatus::NotEvaluated)
+            .count()
+    }
+
+    pub(in crate::commands::cloud) fn render_summary(&self, passed: &str) {
+        match self.not_evaluated() {
+            0 => CliService::success(passed),
+            skipped => CliService::warning(&format!(
+                "Preflight incomplete: {skipped} of {} checks were not evaluated because they \
+                 need variables that are not set on this host; they run when the profile boots \
+                 on its target",
+                self.checks.len()
+            )),
+        }
     }
 
     pub(in crate::commands::cloud) fn render(&self) {
@@ -76,6 +106,9 @@ impl DoctorReport {
                 CheckStatus::Pass => CliService::success(&line),
                 CheckStatus::Warn => CliService::warning(&line),
                 CheckStatus::Fail => CliService::error(&line),
+                CheckStatus::NotEvaluated => {
+                    CliService::warning(&format!("{line} (not evaluated)"));
+                },
             }
         }
     }
@@ -102,9 +135,15 @@ async fn resolve_secrets(
     profile_dir: &Path,
     checks: &mut Vec<CheckResult>,
 ) -> HashMap<String, String> {
-    let vault = profile
-        .secrets
-        .as_ref()
+    resolve_secrets_from(profile.secrets.as_ref(), profile_dir, checks).await
+}
+
+async fn resolve_secrets_from(
+    secrets: Option<&systemprompt_manifest::profile::SecretsConfig>,
+    profile_dir: &Path,
+    checks: &mut Vec<CheckResult>,
+) -> HashMap<String, String> {
+    let vault = secrets
         .filter(|config| matches!(config.source, SecretsSource::Vault))
         .and_then(|config| config.vault.as_ref());
 
@@ -185,17 +224,13 @@ pub(in crate::commands::cloud) async fn execute(
     prompter: &dyn Prompter,
     config: &CliConfig,
 ) -> Result<()> {
-    let (profile, profile_path) = resolve_profile(prompter, profile_name.as_ref(), config)?;
-    let profile_dir = profile_path
-        .parent()
-        .ok_or_else(|| anyhow!("Invalid profile path"))?;
-
-    let report = run(&profile, profile_dir, distributed).await;
+    let profile = resolve_profile(prompter, profile_name.as_ref(), config)?;
+    let report = run_managed(&profile.managed, profile.profile_dir(), distributed).await;
     report.render();
 
     if report.has_blocking() {
         bail!("Deploy preflight failed — fix the items above before deploying.");
     }
-    CliService::success("Deploy preflight passed");
+    report.render_summary("Deploy preflight passed");
     Ok(())
 }

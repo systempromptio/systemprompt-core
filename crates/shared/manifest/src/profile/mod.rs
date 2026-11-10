@@ -26,6 +26,7 @@ mod judge;
 pub mod layered;
 mod legacy;
 mod licence;
+mod managed;
 mod masking;
 mod node_role;
 mod notifications;
@@ -70,6 +71,7 @@ pub use judge::JudgeProfile;
 pub use layered::{BASE_PROFILE_FILE, OVERLAY_PROFILE_FILE, merge_yaml};
 pub use legacy::MIGRATE_COMMAND;
 pub use licence::{LICENCE_SIGNING_SECRET, LicenceConfig};
+pub use managed::ManagedProfile;
 pub use node_role::{NodeRole, NodeRoleParseError};
 pub use notifications::{ConsumerProfile, NotificationsProfile};
 pub use observability::{
@@ -87,8 +89,8 @@ pub use retention::RetentionConfig;
 pub use runtime::{Environment, LogLevel, OutputFormat, RuntimeConfig};
 pub use secrets::{SecretsConfig, SecretsSource, SecretsValidationMode};
 pub use security::{
-    ApiKeyPolicyConfig, DEFAULT_ID_JAG_TTL_SECS, GATEWAY_REQUIRED_RESOURCE_AUDIENCES,
-    SecurityConfig, TrustedIssuer, default_resource_audiences,
+    ApiKeyPolicyConfig, DEFAULT_ID_JAG_TTL_SECS, DEFAULT_SIGNING_KEY_PATH,
+    GATEWAY_REQUIRED_RESOURCE_AUDIENCES, SecurityConfig, TrustedIssuer, default_resource_audiences,
 };
 pub use server::{
     ContentNegotiationConfig, FrameOptions, ReferrerPolicy, SecurityHeadersConfig, ServerConfig,

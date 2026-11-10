@@ -22,6 +22,8 @@ mod legacy_refusal;
 #[cfg(test)]
 mod marketplace_rings;
 #[cfg(test)]
+mod profile_interpolation;
+#[cfg(test)]
 mod provider_settings;
 #[cfg(test)]
 mod resolved_catalog;
@@ -31,3 +33,5 @@ mod resolved_routes;
 mod route_predicates;
 #[cfg(test)]
 mod vertex_rate_card;
+#[cfg(test)]
+mod yaml_interpolation;

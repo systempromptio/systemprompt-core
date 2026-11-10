@@ -10,7 +10,7 @@
 
 use clap::Parser;
 use systemprompt_cli::cloud::CloudCommands;
-use systemprompt_cli::descriptor::DescribeCommand;
+use systemprompt_cli::descriptor::{DataImpact, DescribeCommand, RoutingClass};
 
 #[derive(Debug, Parser)]
 struct Harness {
@@ -25,12 +25,16 @@ fn parse(args: &[&str]) -> CloudCommands {
 }
 
 #[test]
-fn deploy_needs_a_profile_and_secrets() {
-    for args in [vec!["deploy"]] {
-        let desc = parse(&args).descriptor();
-        assert!(desc.profile(), "{args:?} should load a profile");
-        assert!(desc.secrets(), "{args:?} should resolve secrets");
-    }
+fn deploy_reads_its_target_profile_itself_without_the_runner_bootstrap() {
+    let desc = parse(&["deploy"]).descriptor();
+    assert!(
+        !desc.profile(),
+        "deploy loads the management view of its target profile"
+    );
+    assert!(
+        !desc.secrets(),
+        "deploy never resolves the target's secrets on this host"
+    );
 }
 
 #[test]

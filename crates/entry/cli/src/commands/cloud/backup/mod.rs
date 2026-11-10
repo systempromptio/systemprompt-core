@@ -43,12 +43,12 @@ pub(super) async fn execute(
 ) -> Result<()> {
     CliService::section("systemprompt.io Cloud Backup");
 
-    let (profile, _profile_path) = resolve_profile(prompter, args.profile_name.as_ref(), config)?;
+    let profile = resolve_profile(prompter, args.profile_name.as_ref(), config)?;
     if profile.target != systemprompt_manifest::ProfileType::Cloud {
         bail!("Cannot back up a local profile. Select a cloud profile with --profile <name>.");
     }
 
-    let target = resolve_deploy_target(&profile)?;
+    let target = resolve_deploy_target(profile.cloud.as_ref())?;
     let hostname = target.hostname.ok_or_else(|| {
         anyhow!(
             "Tenant {} has no hostname. Run 'systemprompt cloud auth login' to refresh tenants.",
