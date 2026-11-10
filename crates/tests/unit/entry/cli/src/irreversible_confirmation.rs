@@ -35,6 +35,7 @@ const IRREVERSIBLE: &[&[&str]] = &[
     &["admin", "keys", "promote", "--revoke"],
     &["admin", "keys", "rotate"],
     &["admin", "keys", "rotate", "--revoke"],
+    &["admin", "users", "federated-rekey", "--apply"],
 ];
 
 fn parsed(args: &[&str]) -> (CommandDescriptor, ConfirmationRequest) {
@@ -120,6 +121,14 @@ fn commands_that_are_not_irreversible_are_never_prompted() {
         vec!["infra", "db", "migrate"],
         vec!["infra", "db", "tables"],
         vec!["core", "services", "refresh"],
+        vec!["admin", "users", "federated-rekey"],
+        vec![
+            "admin",
+            "config",
+            "secret",
+            "migrate-git-credentials",
+            "--apply",
+        ],
     ] {
         let (desc, request) = parsed(&args);
         assert!(!desc.requires_confirmation(), "{args:?}");

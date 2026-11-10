@@ -20,12 +20,15 @@ use systemprompt_manifest::profile::TrustedIssuer;
 use systemprompt_users::{IssuerRekeyOutcome, UserRepository};
 
 use crate::context::CommandContext;
-use crate::shared::CommandOutput;
+use crate::shared::{CommandOutput, ConfirmArgs};
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct FederatedRekeyArgs {
     #[arg(long, help = "Apply the change (default: report only)")]
     pub apply: bool,
+
+    #[command(flatten)]
+    pub confirm: ConfirmArgs,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

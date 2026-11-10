@@ -86,20 +86,32 @@ fn several_or_no_id_jag_issuers_mean_removal() {
 
 #[test]
 fn rekey_is_destructive_and_refuses_an_implicit_cloud_profile() {
-    for args in [
-        vec!["admin", "users", "federated-rekey"],
-        vec!["admin", "users", "federated-rekey", "--apply"],
-        vec!["admin", "config", "secret", "migrate-git-credentials"],
-        vec![
-            "admin",
-            "config",
-            "secret",
-            "migrate-git-credentials",
-            "--apply",
-        ],
+    for (args, impact) in [
+        (
+            vec!["admin", "users", "federated-rekey"],
+            DataImpact::Destructive,
+        ),
+        (
+            vec!["admin", "users", "federated-rekey", "--apply"],
+            DataImpact::Irreversible,
+        ),
+        (
+            vec!["admin", "config", "secret", "migrate-git-credentials"],
+            DataImpact::Destructive,
+        ),
+        (
+            vec![
+                "admin",
+                "config",
+                "secret",
+                "migrate-git-credentials",
+                "--apply",
+            ],
+            DataImpact::Destructive,
+        ),
     ] {
         let desc = descriptor(&args);
-        assert_eq!(desc.data_impact(), DataImpact::Destructive, "{args:?}");
+        assert_eq!(desc.data_impact(), impact, "{args:?}");
         let profile = cloud_profile();
         for source in [ProfileSource::Session, ProfileSource::Discovery] {
             require_explicit_cloud_profile(&profile, source, &desc)
