@@ -17,17 +17,20 @@
 //! the chain was itself loopback and the policy allows it.
 //!
 //! Literal-IP URLs bypass DNS entirely. A redirect hop to one is covered by the
-//! redirect policy; the initial URL is covered by
-//! [`GuardedClientConfig::check_url`], which every caller runs before handing
-//! the URL to the client.
+//! redirect policy; the initial URL is covered by [`GuardedClient`], whose
+//! only request path validates it. A client for untrusted destinations can
+//! only be a [`GuardedClient`] and never uses an environment proxy, which
+//! would otherwise resolve the target where the guard cannot see it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod client;
 mod config;
 mod resolver;
 
-pub use config::{DEFAULT_MAX_REDIRECTS, GuardedClientConfig};
+pub use client::GuardedClient;
+pub use config::{DEFAULT_MAX_REDIRECTS, GuardedClientConfig, UntrustedClientConfig};
 pub use resolver::GuardedResolver;
 
 use thiserror::Error;

@@ -38,15 +38,19 @@ use systemprompt_teams::activities::Activity;
 use systemprompt_teams::client::TeamsClient;
 
 use crate::routes::messaging::{
-    DispatchOutcome, MessagingConversation, MessagingInbound, ReplyTarget, dispatch_messaging,
+    DispatchOutcome, MessagingConversation, MessagingInbound, MessagingState, ReplyTarget,
+    dispatch_messaging,
 };
 
 const ISSUER: &str = "https://api.botframework.com";
 
-pub fn teams_router(ctx: &AppContext) -> Result<Router, reqwest::Error> {
+pub fn teams_router(
+    ctx: &AppContext,
+    messaging: &MessagingState,
+) -> Result<Router, reqwest::Error> {
     Ok(Router::new()
         .route("/messages", post(handle_messages))
-        .with_state(TeamsState::new(ctx)?))
+        .with_state(TeamsState::new(ctx, messaging.payload_url_client.clone())?))
 }
 
 async fn handle_messages(
@@ -147,6 +151,7 @@ fn spawn_reply(state: TeamsState, inbound: MessagingInbound, reply: TeamsReply) 
         let attachments = systemprompt_teams::cards::render_card(&text);
         let client = TeamsClient::with_endpoints(
             state.http.clone(),
+            state.service_url_client.clone(),
             reply.app_id,
             reply.app_password,
             reply.token_url,

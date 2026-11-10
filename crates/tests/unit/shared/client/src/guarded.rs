@@ -6,8 +6,8 @@ mod guarded_client_tests {
 
     use reqwest::dns::Resolve;
     use systemprompt_client::{
-        DEFAULT_MAX_REDIRECTS, GuardedClientConfig, GuardedConnectError, GuardedResolver,
-        guarded_client,
+        DEFAULT_MAX_REDIRECTS, GuardedClient, GuardedClientConfig, GuardedConnectError,
+        GuardedResolver, guarded_client,
     };
     use systemprompt_models::net::LoopbackPolicy;
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -170,9 +170,17 @@ mod guarded_client_tests {
     async fn a_redirect_to_a_hostname_resolving_into_a_blocked_range_is_refused() {
         let landing = hop_server(1, None).await;
         let hop = redirect_once_to_owned(landing.url.replace("127.0.0.1", "localhost")).await;
-        let client = guarded_client(&GuardedClientConfig::for_untrusted()).expect("client");
+        let client = GuardedClient::untrusted(
+            &GuardedClientConfig::for_untrusted().with_trusted_hosts(vec!["127.0.0.1".to_owned()]),
+        )
+        .expect("client");
 
-        let err = client.get(&hop).send().await.expect_err("must be refused");
+        let err = client
+            .get(&hop)
+            .expect("trusted first url")
+            .send()
+            .await
+            .expect_err("must be refused");
 
         let reason = guard_error(&err).expect("the guard's verdict is in the source chain");
         assert!(reason.contains("redirect to http://localhost:"), "{reason}");
@@ -184,13 +192,14 @@ mod guarded_client_tests {
         let landing = hop_server(1, None).await;
         let second = redirect_once_to_owned(landing.url.replace("127.0.0.1", "localhost")).await;
         let first = redirect_once_to_owned(second).await;
-        let client = guarded_client(
+        let client = GuardedClient::untrusted(
             &GuardedClientConfig::for_untrusted().with_trusted_hosts(vec!["127.0.0.1".to_owned()]),
         )
         .expect("client");
 
         let err = client
             .get(&first)
+            .expect("trusted first url")
             .send()
             .await
             .expect_err("must be refused");

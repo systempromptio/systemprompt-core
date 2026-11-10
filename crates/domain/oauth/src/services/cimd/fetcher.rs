@@ -5,25 +5,23 @@
 
 use crate::error::{OauthError, OauthResult as Result};
 use crate::models::cimd::CimdMetadata;
-use reqwest::Client;
-use systemprompt_client::{GuardedClientConfig, guarded_client};
+use systemprompt_client::{GuardedClient, GuardedClientConfig};
 use systemprompt_identifiers::ClientId;
 use systemprompt_models::net::HTTP_AUTH_VERIFY_TIMEOUT;
 
 #[derive(Debug)]
 pub struct CimdFetcher {
-    policy: GuardedClientConfig,
-    client: Client,
+    client: GuardedClient,
 }
 
 impl CimdFetcher {
     pub fn new() -> Result<Self> {
-        let policy = GuardedClientConfig::for_untrusted()
+        let config = GuardedClientConfig::for_untrusted()
             .with_timeout(HTTP_AUTH_VERIFY_TIMEOUT)
             .with_user_agent(concat!("systemprompt.io-OS/", env!("CARGO_PKG_VERSION")));
-        let client = guarded_client(&policy).map_err(OauthError::CimdHttpClient)?;
+        let client = GuardedClient::untrusted(&config).map_err(OauthError::CimdHttpClient)?;
 
-        Ok(Self { policy, client })
+        Ok(Self { client })
     }
 
     pub async fn fetch_metadata(&self, client_id: &ClientId) -> Result<CimdMetadata> {
@@ -33,17 +31,13 @@ impl CimdFetcher {
                 "CIMD client_id must be HTTPS URL".to_owned(),
             ));
         }
-        let target =
-            self.policy
-                .check_url(client_id_str)
-                .map_err(|source| OauthError::CimdTarget {
-                    url: client_id_str.to_owned(),
-                    source,
-                })?;
-
         let response = self
             .client
-            .get(target)
+            .get(client_id_str)
+            .map_err(|source| OauthError::CimdTarget {
+                url: client_id_str.to_owned(),
+                source,
+            })?
             .header("Accept", "application/json")
             .send()
             .await

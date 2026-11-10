@@ -51,7 +51,13 @@ fn signed_post(path: &str, body: &str, secret: &str, content_type: &str) -> Requ
 
 fn router(ctx: &Arc<AppContext>) -> axum::Router {
     systemprompt_api::routes::slack::slack_router(
-        systemprompt_api::routes::messaging::MessagingState::guarded().expect("guarded client"),
+        systemprompt_api::routes::messaging::MessagingState::new(
+            reqwest::Client::new(),
+            systemprompt_client::GuardedClient::configured(
+                &systemprompt_client::GuardedClientConfig::for_configured(),
+            )
+            .expect("loopback-permitting reply client"),
+        ),
     )
     .with_state((**ctx).clone())
 }

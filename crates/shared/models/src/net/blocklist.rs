@@ -13,16 +13,20 @@ pub fn is_blocked_ip(ip: std::net::IpAddr) -> bool {
 }
 
 // Why: RFC 4291 §2.5.5.2 maps `::ffff:0:0/96` to IPv4 and §2.5.5.1 embeds an
-// IPv4 address in the low 32 bits of `::/96`; RFC 6052 `64:ff9b::/96` is the
-// NAT64 well-known prefix, through which `64:ff9b::a9fe:a9fe` reaches
-// 169.254.169.254. Each embedded IPv4 is judged by the IPv4 table.
+// IPv4 address in the low 32 bits of `::/96`; RFC 6052 `64:ff9b::/96` and RFC
+// 8215 `64:ff9b:1::/48` are NAT64 prefixes, through which
+// `64:ff9b::a9fe:a9fe` reaches 169.254.169.254. RFC 3056 6to4 `2002::/16`
+// carries an IPv4 in bits 16-47, and RFC 4380 Teredo `2001::/32` carries the
+// server IPv4 in bits 32-63 and the client IPv4, inverted, in the low 32 bits.
+// Each embedded IPv4 is judged by the IPv4 table.
 pub(super) fn is_blocked_v6(ip: std::net::Ipv6Addr) -> bool {
     if let Some(v4) = ip.to_ipv4_mapped() {
         return is_blocked_v4(v4);
     }
     let segments = ip.segments();
-    if let Some(v4) = embedded_v4(&segments) {
-        return is_blocked_v4(v4);
+    let embedded = embedded_v4(&segments);
+    if !embedded.is_empty() {
+        return embedded.into_iter().any(is_blocked_v4);
     }
     let is_unique_local = (segments[0] & 0xfe00) == 0xfc00;
     let is_link_local = (segments[0] & 0xffc0) == 0xfe80;
@@ -30,15 +34,29 @@ pub(super) fn is_blocked_v6(ip: std::net::Ipv6Addr) -> bool {
     ip.is_loopback() || ip.is_unspecified() || is_unique_local || is_link_local || is_multicast
 }
 
-fn embedded_v4(segments: &[u16; 8]) -> Option<std::net::Ipv4Addr> {
+const fn v4_from(high: u16, low: u16) -> std::net::Ipv4Addr {
+    let [a, b] = high.to_be_bytes();
+    let [c, d] = low.to_be_bytes();
+    std::net::Ipv4Addr::new(a, b, c, d)
+}
+
+fn embedded_v4(segments: &[u16; 8]) -> Vec<std::net::Ipv4Addr> {
     let is_nat64 = segments[..6] == [0x64, 0xff9b, 0, 0, 0, 0];
+    let is_local_nat64 = segments[..3] == [0x64, 0xff9b, 1];
     let is_ipv4_compatible = segments[..6] == [0, 0, 0, 0, 0, 0];
-    if !(is_nat64 || is_ipv4_compatible) {
-        return None;
+    if is_nat64 || is_local_nat64 || is_ipv4_compatible {
+        return vec![v4_from(segments[6], segments[7])];
     }
-    let [a, b] = segments[6].to_be_bytes();
-    let [c, d] = segments[7].to_be_bytes();
-    Some(std::net::Ipv4Addr::new(a, b, c, d))
+    if segments[0] == 0x2002 {
+        return vec![v4_from(segments[1], segments[2])];
+    }
+    if segments[0] == 0x2001 && segments[1] == 0 {
+        return vec![
+            v4_from(segments[2], segments[3]),
+            v4_from(!segments[6], !segments[7]),
+        ];
+    }
+    Vec::new()
 }
 
 // Why: RFC 6598 reserves `100.64.0.0/10` for shared carrier-grade NAT, not

@@ -39,7 +39,7 @@ mod remote_cli;
 pub use client::SystempromptClient;
 pub use error::{ClientError, ClientResult};
 pub use guarded::{
-    DEFAULT_MAX_REDIRECTS, GuardedClientConfig, GuardedConnectError, GuardedResolver,
-    guarded_client, guarded_client_builder,
+    DEFAULT_MAX_REDIRECTS, GuardedClient, GuardedClientConfig, GuardedConnectError,
+    GuardedResolver, UntrustedClientConfig, guarded_client, guarded_client_builder,
 };
 pub use remote_cli::{OutputSink, RemoteCliExecutor, RemoteCliRequest};

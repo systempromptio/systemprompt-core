@@ -113,10 +113,10 @@ pub async fn fetch(url: &str, policy: &ImageFetchPolicy) -> Result<InlineImage, 
 }
 
 async fn fetch_inner(url: &str, policy: &ImageFetchPolicy) -> Result<InlineImage, ImageFetchFault> {
-    let checked = guard::checked_url(url, &policy.trusted_hosts)?;
     let client = guard::client(policy)?;
     let response = client
-        .get(checked)
+        .get(url)
+        .map_err(ImageFetchFault::Url)?
         .send()
         .await
         .map_err(|e| classify_send_error(e, policy))?;

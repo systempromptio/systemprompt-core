@@ -11,6 +11,7 @@ publish = false
 workspace = true
 
 [dependencies]
+systemprompt-client = { workspace = true }
 systemprompt-teams = { workspace = true }
 systemprompt-manifest = { workspace = true }
 systemprompt-identifiers = { workspace = true }

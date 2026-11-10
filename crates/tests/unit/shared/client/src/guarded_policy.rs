@@ -5,7 +5,9 @@
 mod guarded_policy_tests {
     use std::net::SocketAddr;
 
-    use systemprompt_client::{GuardedClientConfig, GuardedConnectError, guarded_client_builder};
+    use systemprompt_client::{
+        GuardedClient, GuardedClientConfig, GuardedConnectError, guarded_client_builder,
+    };
     use systemprompt_models::net::OutboundUrlError;
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::net::TcpListener;
@@ -121,23 +123,41 @@ mod guarded_policy_tests {
         );
     }
 
-    #[tokio::test]
-    async fn a_public_first_url_redirecting_to_loopback_is_refused_when_untrusted() {
-        let (err, landing) = public_redirect_to(
-            GuardedClientConfig::for_untrusted(),
-            "http://127.0.0.1:{port}/",
+    async fn untrusted_redirect_to(target: &str) -> (reqwest::Error, Landing) {
+        let landing = landing().await;
+        let target = target.replace("{port}", &landing.addr.port().to_string());
+        let redirect = redirector(target).await;
+        let client = GuardedClient::untrusted(
+            &GuardedClientConfig::for_untrusted().with_trusted_hosts(vec!["127.0.0.1".to_owned()]),
         )
-        .await;
-        assert!(redirect_refusal(&err).is_some(), "{err:?}");
-        assert_eq!(landing.hits(), 0);
+        .expect("client");
+        let err = client
+            .get(&format!("http://127.0.0.1:{}/start", redirect.port()))
+            .expect("the trusted first url passes")
+            .send()
+            .await
+            .expect_err("the hop must be refused");
+        (err, landing)
+    }
+
+    #[tokio::test]
+    async fn an_untrusted_client_refuses_every_loopback_redirect_hop() {
+        for target in [
+            "http://localhost:{port}/",
+            "https://localhost:{port}/",
+            "https://[::1]:{port}/",
+            "https://[::ffff:127.0.0.1]:{port}/",
+        ] {
+            let (err, landing) = untrusted_redirect_to(target).await;
+            assert!(redirect_refusal(&err).is_some(), "{target}: {err:?}");
+            assert_eq!(landing.hits(), 0, "{target}");
+        }
     }
 
     #[tokio::test]
     async fn a_public_first_url_redirecting_to_https_loopback_is_refused_as_loopback() {
-        for config in [
-            GuardedClientConfig::for_configured(),
-            GuardedClientConfig::for_untrusted(),
-        ] {
+        {
+            let config = GuardedClientConfig::for_configured();
             let (err, landing) = public_redirect_to(config, "https://127.0.0.1:{port}/").await;
             assert!(
                 matches!(redirect_refusal(&err), Some(OutboundUrlError::Loopback(host)) if host == "127.0.0.1"),
@@ -183,7 +203,8 @@ mod guarded_policy_tests {
 
     #[test]
     fn the_untrusted_policy_refuses_loopback_and_private_first_urls() {
-        let config = GuardedClientConfig::for_untrusted();
+        let client =
+            GuardedClient::untrusted(&GuardedClientConfig::for_untrusted()).expect("client");
         for url in [
             "https://127.0.0.1/",
             "https://localhost/",
@@ -201,44 +222,32 @@ mod guarded_policy_tests {
             "https://0177.0.0.1/",
             "https://017700000001/",
         ] {
-            assert!(config.check_url(url).is_err(), "{url} must be refused");
+            assert!(client.get(url).is_err(), "{url} must be refused");
         }
-        assert!(config.check_url("https://example.com/").is_ok());
+        assert!(client.get("https://example.com/").is_ok());
     }
 
     #[test]
     fn the_configured_policy_accepts_a_loopback_first_url() {
-        let config = GuardedClientConfig::for_configured();
-        assert!(config.check_url("http://127.0.0.1:8080/").is_ok());
-        assert!(config.check_url("http://localhost:8080/").is_ok());
-        assert!(config.check_url("https://169.254.169.254/").is_err());
+        let client =
+            GuardedClient::configured(&GuardedClientConfig::for_configured()).expect("client");
+        assert!(client.get("http://127.0.0.1:8080/").is_ok());
+        assert!(client.get("http://localhost:8080/").is_ok());
+        assert!(client.get("https://169.254.169.254/").is_err());
     }
 
     #[tokio::test]
-    async fn the_untrusted_client_refuses_a_hostname_resolving_to_loopback() {
+    async fn the_untrusted_client_never_sends_to_a_loopback_name() {
         let landing = landing().await;
-        let client = guarded_client_builder(&GuardedClientConfig::for_untrusted())
-            .build()
-            .expect("client");
+        let client =
+            GuardedClient::untrusted(&GuardedClientConfig::for_untrusted()).expect("client");
 
-        let err = client
-            .get(format!("https://localhost:{}/", landing.addr.port()))
-            .send()
-            .await
-            .expect_err("loopback resolution is refused");
+        let refused = client.get(&format!("https://localhost:{}/", landing.addr.port()));
 
-        let mut source = std::error::Error::source(&err);
-        let mut blocked = false;
-        while let Some(inner) = source {
-            if matches!(
-                inner.downcast_ref::<GuardedConnectError>(),
-                Some(GuardedConnectError::BlockedAddress { .. })
-            ) {
-                blocked = true;
-            }
-            source = inner.source();
-        }
-        assert!(blocked, "{err:?}");
+        assert!(
+            matches!(refused, Err(OutboundUrlError::Loopback(ref host)) if host == "localhost"),
+            "{refused:?}"
+        );
         assert_eq!(landing.hits(), 0);
     }
 }

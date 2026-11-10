@@ -13,19 +13,24 @@ use systemprompt_traits::{FederatedIdentityClaims, SenderIdentity};
 
 use super::verify::bot_token;
 use crate::routes::messaging::{
-    DispatchOutcome, MessagingConversation, MessagingInbound, ReplyTarget, dispatch_messaging,
+    DispatchOutcome, MessagingConversation, MessagingInbound, MessagingState, ReplyTarget,
+    dispatch_messaging,
 };
 
 // Why: Slack requires acknowledgment within three seconds.
 pub(super) fn spawn_reply(
     ctx: AppContext,
-    http: reqwest::Client,
+    messaging: MessagingState,
     inbound: MessagingInbound,
     app: &SlackAppConfig,
 ) {
     let bot_token = bot_token(&ctx.secrets().get(), app);
     let link_by_email = app.authz.link.link_by_email;
     let background = ctx.background_tasks().clone();
+    let MessagingState {
+        reply_client: http,
+        payload_url_client,
+    } = messaging;
     background.spawn("slack_reply", async move {
         let mut inbound = inbound;
         if link_by_email
@@ -52,9 +57,7 @@ pub(super) fn spawn_reply(
                 SlackClient::new(http, token).post_message(id, blocks).await
             },
             ReplyTarget::Url { url } => {
-                SlackClient::new(http, String::new())
-                    .respond(url, blocks, ephemeral)
-                    .await
+                SlackClient::respond(&payload_url_client, url, blocks, ephemeral).await
             },
         };
         if let Err(err) = result {

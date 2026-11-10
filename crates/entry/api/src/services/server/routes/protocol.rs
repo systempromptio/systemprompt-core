@@ -108,14 +108,14 @@ pub(super) fn mount_messaging(
         .map_err(|source| RouteMountError::initialization("slack_reply_client", source))?;
     router = router.nest(
         ApiPaths::SLACK_BASE,
-        crate::routes::slack::slack_router(messaging)
+        crate::routes::slack::slack_router(messaging.clone())
             .with_state(ctx.clone())
             .with_rate_limit(limits, rate_config.agents_per_second, "agents")?,
     );
 
     router = router.nest(
         ApiPaths::TEAMS_BASE,
-        crate::routes::teams::teams_router(ctx)
+        crate::routes::teams::teams_router(ctx, &messaging)
             .map_err(|source| RouteMountError::initialization("teams", source))?
             .with_rate_limit(limits, rate_config.agents_per_second, "agents")?,
     );

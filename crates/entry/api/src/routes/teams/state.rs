@@ -1,5 +1,7 @@
 //! Router state for the Teams surface: one outbound HTTP client with connect
-//! and request timeouts, and one [`ActivityTokenVerifier`] per configured app
+//! and request timeouts for operator-configured endpoints, the injected
+//! guarded client replies to the payload-supplied `serviceUrl` travel on, and
+//! one [`ActivityTokenVerifier`] per configured app
 //! so each verifier's JWKS cache survives across activities.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -8,6 +10,7 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, PoisonError};
 
+use systemprompt_client::GuardedClient;
 use systemprompt_identifiers::TeamsAppId;
 use systemprompt_manifest::services::TeamsAppConfig;
 use systemprompt_models::net::{HTTP_CONNECT_TIMEOUT, HTTP_DEFAULT_TIMEOUT};
@@ -24,6 +27,7 @@ struct VerifierKey {
 pub struct TeamsState {
     pub ctx: AppContext,
     pub http: reqwest::Client,
+    pub service_url_client: GuardedClient,
     verifiers: Arc<Mutex<HashMap<VerifierKey, Arc<ActivityTokenVerifier>>>>,
 }
 
@@ -34,7 +38,10 @@ impl std::fmt::Debug for TeamsState {
 }
 
 impl TeamsState {
-    pub fn new(ctx: &AppContext) -> Result<Self, reqwest::Error> {
+    pub fn new(
+        ctx: &AppContext,
+        service_url_client: GuardedClient,
+    ) -> Result<Self, reqwest::Error> {
         let http = reqwest::Client::builder()
             .connect_timeout(HTTP_CONNECT_TIMEOUT)
             .timeout(HTTP_DEFAULT_TIMEOUT)
@@ -42,6 +49,7 @@ impl TeamsState {
         Ok(Self {
             ctx: ctx.clone(),
             http,
+            service_url_client,
             verifiers: Arc::new(Mutex::new(HashMap::new())),
         })
     }

@@ -64,8 +64,6 @@ domain_error! {
         #[error("invalid outbound URL: {0}")]
         OutboundUrl(#[from] OutboundUrlError),
 
-        #[error("guarded outbound http client is unavailable")]
-        ClientUnavailable,
     }
 }
 

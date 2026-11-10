@@ -16,7 +16,7 @@ use http::header::AUTHORIZATION;
 use http::{HeaderName, HeaderValue};
 use rmcp::model::ClientCapabilities;
 use std::collections::HashMap;
-use systemprompt_client::{GuardedClientConfig, guarded_client_builder};
+use systemprompt_client::{GuardedClient, GuardedClientConfig, guarded_client_builder};
 use systemprompt_models::RequestContext;
 use systemprompt_models::net::{
     HTTP_AUTH_VERIFY_TIMEOUT, HTTP_KEEPALIVE, HTTP_POOL_IDLE_TIMEOUT, HTTP_STREAM_CONNECT_TIMEOUT,
@@ -27,8 +27,7 @@ use systemprompt_traits::ContextPropagation;
 #[derive(Clone, Debug)]
 pub struct HttpClientWithContext {
     client: reqwest::Client,
-    metadata_policy: GuardedClientConfig,
-    metadata_client: reqwest::Client,
+    metadata_client: GuardedClient,
     context: RequestContext,
     forward_context: bool,
     outbound_headers: HashMap<HeaderName, HeaderValue>,
@@ -73,8 +72,8 @@ impl HttpClientWithContext {
         &self,
         metadata_url: &str,
     ) -> Option<ProtectedResourceMetadata> {
-        let url = match self.metadata_policy.check_url(metadata_url) {
-            Ok(url) => url,
+        let request = match self.metadata_client.get(metadata_url) {
+            Ok(request) => request,
             Err(e) => {
                 tracing::debug!(
                     metadata_url,
@@ -85,7 +84,7 @@ impl HttpClientWithContext {
             },
         };
 
-        let response = match self.metadata_client.get(url).send().await {
+        let response = match request.send().await {
             Ok(response) => response,
             Err(e) => {
                 tracing::debug!(
@@ -147,9 +146,9 @@ impl HttpClientWithContext {
         let config = GuardedClientConfig::for_configured()
             .without_timeout()
             .with_connect_timeout(HTTP_STREAM_CONNECT_TIMEOUT);
-        let metadata_policy =
-            GuardedClientConfig::for_untrusted().with_timeout(HTTP_AUTH_VERIFY_TIMEOUT);
-        let metadata_client = guarded_client_builder(&metadata_policy).build()?;
+        let metadata_client = GuardedClient::untrusted(
+            &GuardedClientConfig::for_untrusted().with_timeout(HTTP_AUTH_VERIFY_TIMEOUT),
+        )?;
         let client = guarded_client_builder(&config)
             .tcp_keepalive(Some(HTTP_KEEPALIVE))
             .pool_idle_timeout(HTTP_POOL_IDLE_TIMEOUT)
@@ -157,7 +156,6 @@ impl HttpClientWithContext {
 
         Ok(Self {
             client,
-            metadata_policy,
             metadata_client,
             context,
             forward_context,

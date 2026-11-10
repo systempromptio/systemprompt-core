@@ -16,11 +16,11 @@ pub const DEFAULT_MAX_REDIRECTS: usize = 3;
 
 /// Bounds applied to every request a guarded client makes.
 ///
-/// Built only through [`Self::for_configured`] (operator-configured
+/// Built through [`Self::for_configured`] for operator-configured
 /// destinations: loopback allowed, the `SYSTEMPROMPT_TRUSTED_HTTP_HOSTS`
-/// allowance honoured) or [`Self::for_untrusted`] (destinations a user or
-/// third party chose: no loopback, no trusted hosts unless the caller names
-/// them).
+/// allowance honoured. Destinations a user or third party chose use
+/// [`UntrustedClientConfig`] from [`Self::for_untrusted`] instead, which only
+/// [`GuardedClient::untrusted`](super::GuardedClient::untrusted) accepts.
 #[derive(Debug, Clone)]
 pub struct GuardedClientConfig {
     trusted_hosts: Vec<String>,
@@ -49,8 +49,8 @@ impl GuardedClientConfig {
     }
 
     #[must_use]
-    pub fn for_untrusted() -> Self {
-        Self::with_policy(Vec::new(), LoopbackPolicy::Deny)
+    pub fn for_untrusted() -> UntrustedClientConfig {
+        UntrustedClientConfig(Self::with_policy(Vec::new(), LoopbackPolicy::Deny))
     }
 
     #[must_use]
@@ -119,7 +119,7 @@ impl GuardedClientConfig {
         self.user_agent.as_deref()
     }
 
-    pub fn check_url(&self, url: &str) -> Result<url::Url, OutboundUrlError> {
+    pub(super) fn check_url(&self, url: &str) -> Result<url::Url, OutboundUrlError> {
         validate_outbound_url_with_trust(url, &self.trusted_hosts, self.loopback)
     }
 
@@ -138,4 +138,49 @@ fn normalise(hosts: Vec<String>) -> Vec<String> {
         .map(|h| h.trim().to_ascii_lowercase())
         .filter(|h| !h.is_empty())
         .collect()
+}
+
+/// Bounds for a client whose destinations a user or third party chose:
+/// loopback denied, no trusted hosts unless named, no environment proxy.
+///
+/// It cannot be turned into a plain [`GuardedClientConfig`], so the only
+/// client it builds is a [`GuardedClient`](super::GuardedClient), whose every
+/// request validates its URL first.
+#[derive(Debug, Clone)]
+pub struct UntrustedClientConfig(GuardedClientConfig);
+
+impl UntrustedClientConfig {
+    #[must_use]
+    pub fn with_timeout(self, timeout: Duration) -> Self {
+        Self(self.0.with_timeout(timeout))
+    }
+
+    #[must_use]
+    pub fn with_user_agent(self, user_agent: impl Into<String>) -> Self {
+        Self(self.0.with_user_agent(user_agent))
+    }
+
+    #[must_use]
+    pub fn with_max_redirects(self, max_redirects: usize) -> Self {
+        Self(self.0.with_max_redirects(max_redirects))
+    }
+
+    #[must_use]
+    pub fn with_trusted_hosts(self, trusted_hosts: Vec<String>) -> Self {
+        Self(self.0.with_trusted_hosts(trusted_hosts))
+    }
+
+    #[must_use]
+    pub fn trusted_hosts(&self) -> &[String] {
+        self.0.trusted_hosts()
+    }
+
+    #[must_use]
+    pub const fn loopback(&self) -> LoopbackPolicy {
+        self.0.loopback()
+    }
+
+    pub(super) const fn inner(&self) -> &GuardedClientConfig {
+        &self.0
+    }
 }

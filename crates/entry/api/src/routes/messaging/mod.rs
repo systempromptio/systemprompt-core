@@ -39,17 +39,29 @@ use identity::resolve_or_link_user;
 #[derive(Debug, Clone)]
 pub struct MessagingState {
     pub reply_client: reqwest::Client,
+    pub payload_url_client: systemprompt_client::GuardedClient,
 }
 
 impl MessagingState {
-    // Why: Slack replies target a caller-supplied `response_url`, so they must
-    // go through the connect-time SSRF guard rather than the plain client the
-    // operator-configured Teams endpoints use.
+    #[must_use]
+    pub const fn new(
+        reply_client: reqwest::Client,
+        payload_url_client: systemprompt_client::GuardedClient,
+    ) -> Self {
+        Self {
+            reply_client,
+            payload_url_client,
+        }
+    }
+
     pub fn guarded() -> Result<Self, reqwest::Error> {
         let reply_client = systemprompt_client::guarded_client(
             &systemprompt_client::GuardedClientConfig::for_configured(),
         )?;
-        Ok(Self { reply_client })
+        let payload_url_client = systemprompt_client::GuardedClient::untrusted(
+            &systemprompt_client::GuardedClientConfig::for_untrusted(),
+        )?;
+        Ok(Self::new(reply_client, payload_url_client))
     }
 }
 

@@ -191,3 +191,71 @@ mod pin_resolved_tests {
         ));
     }
 }
+
+mod embedded_v4_tests {
+    use super::*;
+    use systemprompt_models::net::is_blocked_ip;
+
+    fn v6(raw: &str) -> IpAddr {
+        IpAddr::V6(raw.parse::<Ipv6Addr>().expect("v6"))
+    }
+
+    #[test]
+    fn six_to_four_embedding_a_blocked_v4_is_blocked() {
+        for raw in [
+            "2002:7f00:1::",
+            "2002:a00:1::1",
+            "2002:a9fe:a9fe::",
+            "2002:c0a8:101::",
+            "2002:6440:1::",
+            "2002::",
+        ] {
+            assert!(is_blocked_ip(v6(raw)), "{raw} must be blocked");
+        }
+    }
+
+    #[test]
+    fn six_to_four_embedding_a_public_v4_is_allowed() {
+        assert!(!is_blocked_ip(v6("2002:808:808::1")));
+    }
+
+    #[test]
+    fn teredo_with_a_blocked_server_or_client_is_blocked() {
+        for raw in [
+            "2001:0:7f00:1::",
+            "2001:0:a9fe:a9fe::",
+            "2001:0:808:808::80ff:fffe",
+            "2001:0:808:808::f5ff:fffe",
+            "2001:0:808:808::5601:5601",
+        ] {
+            assert!(is_blocked_ip(v6(raw)), "{raw} must be blocked");
+        }
+    }
+
+    #[test]
+    fn teredo_with_public_server_and_client_is_allowed() {
+        assert!(!is_blocked_ip(v6("2001:0:808:808::f7f7:f7f7")));
+    }
+
+    #[test]
+    fn nat64_prefixes_embedding_a_blocked_v4_are_blocked() {
+        for raw in ["64:ff9b::7f00:1", "64:ff9b::a9fe:a9fe", "64:ff9b:1::a00:1"] {
+            assert!(is_blocked_ip(v6(raw)), "{raw} must be blocked");
+        }
+        assert!(!is_blocked_ip(v6("64:ff9b::808:808")));
+    }
+
+    #[test]
+    fn untrusted_urls_with_embedded_blocked_v4_are_refused() {
+        for url in [
+            "https://[2002:7f00:1::]/",
+            "https://[2001:0:a9fe:a9fe::]/",
+            "https://[64:ff9b:1::a00:1]/",
+        ] {
+            assert!(
+                validate_outbound_url(url, LoopbackPolicy::Deny).is_err(),
+                "{url}"
+            );
+        }
+    }
+}

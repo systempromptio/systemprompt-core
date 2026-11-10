@@ -112,7 +112,7 @@ async fn handle_events(
                 sender: SenderIdentity::Unlinked,
                 link: app.authz.link,
             };
-            spawn_reply(ctx, messaging.reply_client, inbound, &app);
+            spawn_reply(ctx, messaging, inbound, &app);
             StatusCode::OK.into_response()
         },
     }
@@ -158,7 +158,7 @@ async fn handle_commands(
         sender: SenderIdentity::Unlinked,
         link: app.authz.link,
     };
-    spawn_reply(ctx, messaging.reply_client, inbound, &app);
+    spawn_reply(ctx, messaging, inbound, &app);
     StatusCode::OK.into_response()
 }
 
@@ -220,7 +220,7 @@ async fn handle_interactivity(
         sender: SenderIdentity::Unlinked,
         link: app.authz.link,
     };
-    spawn_reply(ctx, messaging.reply_client, inbound, &app);
+    spawn_reply(ctx, messaging, inbound, &app);
     StatusCode::OK.into_response()
 }
 

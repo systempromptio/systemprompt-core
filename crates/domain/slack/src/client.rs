@@ -3,16 +3,19 @@
 //! Three outbound paths: `chat.postMessage` for Events-API replies (authorized
 //! with the app's bot token), an arbitrary `response_url` POST for slash
 //! command / interactivity replies, and `users.info` to read the sender's
-//! workspace profile when an app opts into email-based identity linking. Every
-//! outbound URL passes the shared SSRF guard [`validate_outbound_url`] before a
-//! request is made, so a malicious or mistyped `response_url` cannot be turned
-//! into an internal request.
+//! workspace profile when an app opts into email-based identity linking. The
+//! two Web API URLs are operator-configured and pass [`validate_outbound_url`].
+//! A `response_url` arrives in the request payload, so [`SlackClient::respond`]
+//! posts it on the injected [`GuardedClient`], whose request path validates it
+//! under that client's policy; production wiring passes the untrusted one, so
+//! a `response_url` cannot be turned into an internal request.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use serde::Deserialize;
 use serde_json::{Value, json};
+use systemprompt_client::GuardedClient;
 use systemprompt_identifiers::SlackUserId;
 use systemprompt_models::net::validate_outbound_url;
 
@@ -111,20 +114,17 @@ impl SlackClient {
 
     // JSON: Slack Block Kit `blocks` array — vendor layout JSON.
     pub async fn respond(
-        &self,
+        reply: &GuardedClient,
         response_url: &str,
         blocks: Value,
         ephemeral: bool,
     ) -> SlackResult<()> {
-        validate_outbound_url(
-            response_url,
-            systemprompt_models::net::LoopbackPolicy::Allow,
-        )?;
+        let request = reply.post(response_url)?;
         let body = json!({
             "response_type": if ephemeral { "ephemeral" } else { "in_channel" },
             "blocks": blocks,
         });
-        let resp = self.http.post(response_url).json(&body).send().await?;
+        let resp = request.json(&body).send().await?;
         Self::check_ok(resp).await
     }
 

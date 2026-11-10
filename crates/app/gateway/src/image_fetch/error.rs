@@ -34,10 +34,6 @@ impl ImageFetchFailed {
 pub enum ImageFetchFault {
     #[error("url rejected: {0}")]
     Url(#[source] OutboundUrlError),
-    #[error("missing host")]
-    MissingHost,
-    #[error("{host} resolves to blocked address {addr}")]
-    BlockedAddress { host: String, addr: IpAddr },
     #[error("cannot build guarded image client")]
     Client(#[source] reqwest::Error),
     #[error("fetch exceeded {0:?}")]
@@ -69,8 +65,6 @@ impl ImageFetchFault {
     pub fn caller_fault(&self) -> bool {
         match self {
             Self::Url(_)
-            | Self::MissingHost
-            | Self::BlockedAddress { .. }
             | Self::Guarded { .. }
             | Self::HostStatus(_)
             | Self::NoContentType
