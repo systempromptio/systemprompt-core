@@ -11,7 +11,7 @@
 mod helper;
 mod merge;
 
-pub use helper::{is_bridge_windows_helper, windows_helper_command};
+pub use helper::{is_bridge_helper, is_bridge_windows_helper, windows_helper_command};
 use helper::{key_helper_path, prepare_helper, shell_command_for};
 pub mod model_picker;
 pub mod permissions;
