@@ -4,7 +4,10 @@
 //! See <https://systemprompt.io> for licensing details.
 
 #![cfg(target_os = "windows")]
-#![expect(unsafe_code, reason = "the owner of an open handle is only reachable through the Win32 security API")]
+#![expect(
+    unsafe_code,
+    reason = "the owner of an open handle is only reachable through the Win32 security API"
+)]
 
 use std::fs::File;
 use std::io;

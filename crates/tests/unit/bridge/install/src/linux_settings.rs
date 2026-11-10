@@ -369,7 +369,10 @@ fn the_api_key_helper_path_reaches_the_shell_as_one_literal_word() {
     let expected = hostile.join("systemprompt").join("claude-key-helper.sh");
     let echoed = std::process::Command::new("/bin/sh")
         .arg("-c")
-        .arg(format!("cd {} && printf '%s' {command}", shell_quote(&base.path().display().to_string())))
+        .arg(format!(
+            "cd {} && printf '%s' {command}",
+            shell_quote(&base.path().display().to_string())
+        ))
         .output()
         .expect("run sh");
     assert!(echoed.status.success(), "{echoed:?}");
@@ -387,7 +390,11 @@ fn the_api_key_helper_path_reaches_the_shell_as_one_literal_word() {
 fn set_settings_helper(dirs: &Dirs, helper: &str) {
     let mut doc = dirs.settings_json();
     doc["apiKeyHelper"] = Value::String(helper.to_owned());
-    fs::write(dirs.settings(), serde_json::to_string(&doc).expect("render")).expect("rewrite");
+    fs::write(
+        dirs.settings(),
+        serde_json::to_string(&doc).expect("render"),
+    )
+    .expect("rewrite");
 }
 
 #[test]
@@ -418,10 +425,7 @@ fn uninstall_removes_a_bare_path_value_that_names_this_bridges_helper() {
         doc.get("apiKeyHelper").is_none(),
         "the bare value an older bridge wrote is ours: {doc}"
     );
-    assert!(
-        doc["env"].get("ANTHROPIC_BASE_URL").is_none(),
-        "{doc}"
-    );
+    assert!(doc["env"].get("ANTHROPIC_BASE_URL").is_none(), "{doc}");
     assert_eq!(doc["env"]["MY_OWN"].as_str(), Some("keep"));
 }
 

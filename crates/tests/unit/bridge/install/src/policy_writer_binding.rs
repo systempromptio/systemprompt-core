@@ -38,7 +38,10 @@ fn accepted(version: &str) -> AcceptedEnvelope {
     }
 }
 
-fn accepted_with(version: &str, digest: systemprompt_bridge::ids::Sha256Digest) -> AcceptedEnvelope {
+fn accepted_with(
+    version: &str,
+    digest: systemprompt_bridge::ids::Sha256Digest,
+) -> AcceptedEnvelope {
     AcceptedEnvelope {
         manifest_version: ManifestVersion::try_new(version).unwrap(),
         envelope_digest: digest,
@@ -86,12 +89,14 @@ fn a_request_cannot_carry_its_own_port_token_headers_models_or_organisation() {
 #[test]
 fn the_inference_facts_come_from_the_binding_and_the_signed_manifest() {
     let key = signing_key(1);
-    let mut signed = manifest(vec![server("atlassian", wildcard(
-        systemprompt_bridge::ids::ToolPolicy::Allow,
-    ))]);
-    signed
-        .host_model_protocols
-        .insert(HostKind::ClaudeDesktop, vec!["claude".to_owned(), "openai".to_owned()]);
+    let mut signed = manifest(vec![server(
+        "atlassian",
+        wildcard(systemprompt_bridge::ids::ToolPolicy::Allow),
+    )]);
+    signed.host_model_protocols.insert(
+        HostKind::ClaudeDesktop,
+        vec!["claude".to_owned(), "openai".to_owned()],
+    );
     let req = request(&key, &signed, &[("atlassian", &["getJiraIssue"])]);
     let values = derive_policy(
         &binding(),
@@ -112,7 +117,10 @@ fn the_inference_facts_come_from_the_binding_and_the_signed_manifest() {
         serde_json::from_str(value_of(&values, "inferenceCustomHeaders").unwrap()).unwrap();
     assert_eq!(
         headers,
-        BTreeMap::from([("x-inference-protocol".to_owned(), "claude,openai".to_owned())]),
+        BTreeMap::from([(
+            "x-inference-protocol".to_owned(),
+            "claude,openai".to_owned()
+        )]),
         "the headers are the signed per-host protocol filter, nothing else"
     );
     assert_eq!(
@@ -271,15 +279,27 @@ fn the_digest_names_one_exact_envelope() {
     );
     let mut edited = first.clone();
     edited.payload.push(' ');
-    assert_ne!(envelope_digest(&first).unwrap(), envelope_digest(&edited).unwrap());
+    assert_ne!(
+        envelope_digest(&first).unwrap(),
+        envelope_digest(&edited).unwrap()
+    );
     let resigned = envelope(&signing_key(2), &signed);
-    assert_ne!(envelope_digest(&first).unwrap(), envelope_digest(&resigned).unwrap());
+    assert_ne!(
+        envelope_digest(&first).unwrap(),
+        envelope_digest(&resigned).unwrap()
+    );
 }
 
 #[test]
 fn a_reapply_reports_whether_the_hive_had_drifted() {
-    assert_eq!(ApplyOutcome::of(Admission::Fresh, false), ApplyOutcome::Written);
-    assert_eq!(ApplyOutcome::of(Admission::Fresh, true), ApplyOutcome::Written);
+    assert_eq!(
+        ApplyOutcome::of(Admission::Fresh, false),
+        ApplyOutcome::Written
+    );
+    assert_eq!(
+        ApplyOutcome::of(Admission::Fresh, true),
+        ApplyOutcome::Written
+    );
     assert_eq!(
         ApplyOutcome::of(Admission::AlreadyAccepted, true),
         ApplyOutcome::Reapplied

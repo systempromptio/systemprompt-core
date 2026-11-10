@@ -46,7 +46,10 @@ pub(crate) fn anchor(key: &SigningKey, gateway: &str) -> TrustRecord {
     .unwrap()
 }
 
-pub(crate) fn server(name: &str, tool_policy: Option<BTreeMap<McpToolName, ToolPolicy>>) -> ManagedMcpServer {
+pub(crate) fn server(
+    name: &str,
+    tool_policy: Option<BTreeMap<McpToolName, ToolPolicy>>,
+) -> ManagedMcpServer {
     ManagedMcpServer {
         id: systemprompt_identifiers::McpServerId::try_new(name).unwrap(),
         name: McpServerId::try_new(name).unwrap(),
@@ -145,7 +148,10 @@ pub(crate) fn binding() -> MachineBinding {
     )
 }
 
-pub(crate) fn value_of<'a>(values: &'a [(&'static str, &'static str, String)], name: &str) -> Option<&'a str> {
+pub(crate) fn value_of<'a>(
+    values: &'a [(&'static str, &'static str, String)],
+    name: &str,
+) -> Option<&'a str> {
     values
         .iter()
         .find(|(key, _, _)| *key == name)

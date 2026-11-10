@@ -50,7 +50,9 @@ fn the_three_sign_in_paths_are_the_only_callers_outside_the_users_crate() {
     let root = repo_root();
     let mut callers: Vec<String> = production_sources(&root)
         .into_iter()
-        .filter(|(rel, body)| !rel.starts_with(OWNER) && rel != DECLARATION && body.contains("resolve_federated("))
+        .filter(|(rel, body)| {
+            !rel.starts_with(OWNER) && rel != DECLARATION && body.contains("resolve_federated(")
+        })
         .map(|(rel, _)| rel)
         .collect();
     callers.sort();

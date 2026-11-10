@@ -120,15 +120,16 @@ fn register_policy_writer(
             source: e,
         })
         .and_then(|exe| {
-            let loopback = crate::install::policy_writer::Loopback::of(inputs.loopback).map_err(
-                |source| crate::install::policy_writer::PolicyWriterError::Io {
-                    context: "read the loopback secret the machine policy is bound to".to_owned(),
-                    source,
-                },
-            )?;
+            let loopback =
+                crate::install::policy_writer::Loopback::of(inputs.loopback).map_err(|source| {
+                    crate::install::policy_writer::PolicyWriterError::Io {
+                        context: "read the loopback secret the machine policy is bound to"
+                            .to_owned(),
+                        source,
+                    }
+                })?;
             crate::install::policy_writer::install(&exe, loopback)
-        })
-    {
+        }) {
         Ok(lines) => summary.extend(lines),
         Err(crate::install::policy_writer::PolicyWriterError::NoAnchor) => {
             summary.push(

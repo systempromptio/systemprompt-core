@@ -249,7 +249,10 @@ fn await_result(result_path: &Path) -> Result<ElevatedResult, PolicyWriterError>
 // Why: the writer's own receipt is evidence of what it did; whether the hive
 // now holds what this bridge meant is read back independently, from the
 // same derivation the writer used, before the write is reported as done.
-fn verify_hive(bound: &MachineBinding, request: &PolicyWriteRequest) -> Result<(), PolicyWriterError> {
+fn verify_hive(
+    bound: &MachineBinding,
+    request: &PolicyWriteRequest,
+) -> Result<(), PolicyWriterError> {
     let manifest = crate::gateway::manifest::decode_payload(&request.envelope)?;
     let store = store::managed_policy_store();
     let existing_models = store.read_policy_document(

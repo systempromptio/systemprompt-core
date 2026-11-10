@@ -16,7 +16,7 @@ use std::process::ExitCode;
 
 use super::spool::read_anchor;
 use super::{
-    AccountSid, AcceptedEnvelope, Layout, PolicyWriteRequest, PolicyWriterError, binding,
+    AcceptedEnvelope, AccountSid, Layout, PolicyWriteRequest, PolicyWriterError, binding,
     derive_policy, machine_state, verify_against_anchor,
 };
 use crate::config::store::{self, PolicyHive, PolicyTarget};

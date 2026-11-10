@@ -29,7 +29,7 @@ use super::mdm::MdmError;
 use super::mdm::tool_catalog::ToolCatalog;
 use crate::ids::{ElevatedJobId, HostToken};
 
-pub use self::binding::{AccountSid, AcceptedEnvelope, MachineBinding};
+pub use self::binding::{AcceptedEnvelope, AccountSid, MachineBinding};
 pub use self::derive::{derive_policy, verify_against_anchor};
 
 #[cfg(target_os = "windows")]
@@ -159,13 +159,19 @@ pub enum PolicyWriterError {
         "the request file is owned by {owner}, but the machine policy is bound to {bound}; \
          only the installing account's requests reach the machine policy"
     )]
-    NotBoundInstaller { owner: AccountSid, bound: AccountSid },
+    NotBoundInstaller {
+        owner: AccountSid,
+        bound: AccountSid,
+    },
     #[error(
         "the machine policy is bound to loopback port {bound_port} but this bridge listens on \
          {current_port} or holds another secret; re-run install --apply as Administrator"
     )]
     BindingStale { bound_port: u16, current_port: u16 },
-    #[error("machine policy binding format {actual} is unsupported; expected {}", binding::BINDING_VERSION)]
+    #[error(
+        "machine policy binding format {actual} is unsupported; expected {}",
+        binding::BINDING_VERSION
+    )]
     BindingVersion { actual: u32 },
     #[error("no machine policy binding; re-run install --apply as Administrator")]
     NoBinding,

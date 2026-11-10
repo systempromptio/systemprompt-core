@@ -71,8 +71,7 @@ pub(super) fn read_accepted(
     layout: &Layout,
 ) -> Result<Option<AcceptedEnvelope>, PolicyWriterError> {
     let path = layout.accepted_path();
-    let Some(bytes) =
-        read_protected(&path).map_err(io_ctx(format!("read {}", path.display())))?
+    let Some(bytes) = read_protected(&path).map_err(io_ctx(format!("read {}", path.display())))?
     else {
         return Ok(None);
     };

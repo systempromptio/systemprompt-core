@@ -95,11 +95,10 @@ impl MachineBinding {
     }
 
     pub fn decode(bytes: &[u8]) -> Result<Self, PolicyWriterError> {
-        let binding: Self =
-            serde_json::from_slice(bytes).map_err(|e| PolicyWriterError::Io {
-                context: "decode the machine policy binding".to_owned(),
-                source: std::io::Error::new(std::io::ErrorKind::InvalidData, e),
-            })?;
+        let binding: Self = serde_json::from_slice(bytes).map_err(|e| PolicyWriterError::Io {
+            context: "decode the machine policy binding".to_owned(),
+            source: std::io::Error::new(std::io::ErrorKind::InvalidData, e),
+        })?;
         if binding.version != BINDING_VERSION {
             return Err(PolicyWriterError::BindingVersion {
                 actual: binding.version,
@@ -153,7 +152,9 @@ impl ApplyOutcome {
     }
 }
 
-pub fn envelope_digest(envelope: &SignedManifestEnvelope) -> Result<Sha256Digest, PolicyWriterError> {
+pub fn envelope_digest(
+    envelope: &SignedManifestEnvelope,
+) -> Result<Sha256Digest, PolicyWriterError> {
     use sha2::{Digest, Sha256};
     let mut hasher = Sha256::new();
     hasher.update(envelope.payload.as_bytes());
