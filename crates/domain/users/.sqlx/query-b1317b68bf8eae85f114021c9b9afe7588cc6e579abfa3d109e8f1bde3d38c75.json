@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        INSERT INTO users (\n            id, name, email, full_name, display_name,\n            status, email_verified, roles, is_bot,\n            created_at, updated_at\n        )\n        VALUES ($1, $2, $3, $4, $5, $6, false, $7::TEXT[], false, $8, $8)\n        RETURNING id, name, email, full_name, display_name, status, email_verified,\n                  roles, avatar_url, is_bot, is_scanner, created_at, updated_at, account_kind\n        ",
+  "query": "\n        INSERT INTO users (\n            id, name, email, full_name, display_name,\n            status, email_verified, roles, is_bot,\n            created_at, updated_at\n        )\n        VALUES ($1, $2, $3, $4, $5, $6, $9, $7::TEXT[], false, $8, $8)\n        RETURNING id, name, email, full_name, display_name, status, email_verified,\n                  roles, avatar_url, is_bot, is_scanner, created_at, updated_at, account_kind\n        ",
   "describe": {
     "columns": [
       {
@@ -167,7 +167,8 @@
         "Varchar",
         "Text",
         "TextArray",
-        "Timestamptz"
+        "Timestamptz",
+        "Bool"
       ]
     },
     "nullable": [
@@ -187,5 +188,5 @@
       false
     ]
   },
-  "hash": "43bb8e2db5c229945a3c5ded14f4b8891a535fbd2ac0d905474f18b70546ab13"
+  "hash": "b1317b68bf8eae85f114021c9b9afe7588cc6e579abfa3d109e8f1bde3d38c75"
 }

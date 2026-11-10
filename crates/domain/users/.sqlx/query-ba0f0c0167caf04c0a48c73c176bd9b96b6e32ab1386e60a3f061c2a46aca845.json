@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT id, name, email, full_name, display_name, status,\n               email_verified, roles, avatar_url, is_bot, is_scanner,\n               created_at, updated_at, account_kind\n        FROM users WHERE email = $1 AND status != $2\n        ",
+  "query": "\n        SELECT id, name, email, full_name, display_name, status,\n               email_verified, roles, avatar_url, is_bot, is_scanner,\n               created_at, updated_at, account_kind\n        FROM users WHERE email = $1\n        ",
   "describe": {
     "columns": [
       {
@@ -160,7 +160,6 @@
     ],
     "parameters": {
       "Left": [
-        "Text",
         "Text"
       ]
     },
@@ -181,5 +180,5 @@
       false
     ]
   },
-  "hash": "c413a39eed2b48f8051fb0ed4a0c557aeaa60f975dbce7defa858e4c0cd4068b"
+  "hash": "ba0f0c0167caf04c0a48c73c176bd9b96b6e32ab1386e60a3f061c2a46aca845"
 }

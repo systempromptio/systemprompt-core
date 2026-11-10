@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO document_blob_collections (content_sha256, storage_id)\n             VALUES ($1, $2)\n             ON CONFLICT (content_sha256) DO UPDATE SET storage_id = EXCLUDED.storage_id",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a84eccb2eb1ed66b3b65d92e651f992f71728b73db762ae88137f90605499abc"
+}
