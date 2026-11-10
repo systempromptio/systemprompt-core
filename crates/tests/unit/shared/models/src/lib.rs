@@ -244,6 +244,7 @@ mod mcp_capabilities;
 
 #[cfg(test)]
 mod auth_permission;
+#[cfg(test)]
 mod permission_grants_callers;
 
 #[cfg(test)]
