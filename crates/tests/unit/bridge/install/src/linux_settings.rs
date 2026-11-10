@@ -5,7 +5,9 @@ use std::path::PathBuf;
 
 use serde_json::Value;
 use systemprompt_bridge::context::{BridgeContext, ProxyMode};
+use systemprompt_bridge::install::elevation_script::shell_quote;
 use systemprompt_bridge::install::mdm::MdmError;
+use systemprompt_bridge::install::mdm::claude_code_settings::current_helper_command;
 use systemprompt_bridge::install::{
     InstallError, InstallOptions, ManagedProfileRemoveError, MdmDisplay, install, uninstall,
 };
@@ -126,7 +128,7 @@ fn apply_writes_the_gateway_env_block_and_api_key_helper() {
     );
     assert_eq!(
         doc["apiKeyHelper"].as_str(),
-        Some(dirs.helper().display().to_string().as_str()),
+        Some(shell_quote(&dirs.helper().display().to_string()).as_str()),
         "apiKeyHelper points at the script the apply just wrote"
     );
 
@@ -352,5 +354,32 @@ fn uninstall_refuses_a_settings_file_it_cannot_parse_and_leaves_it_in_place() {
         fs::read_to_string(dirs.settings()).expect("settings still present"),
         "{ not json at all",
         "unreadable settings are never rewritten or deleted"
+    );
+}
+
+#[test]
+fn the_api_key_helper_path_reaches_the_shell_as_one_literal_word() {
+    let base = TempDir::new().expect("base");
+    let hostile = base.path().join("cfg$(touch${IFS}pwned)`id`;a&b'q'");
+    fs::create_dir_all(&hostile).expect("hostile config dir");
+    let command = temp_env::with_vars(
+        [("XDG_CONFIG_HOME", Some(hostile.display().to_string()))],
+        || current_helper_command().expect("helper command resolves"),
+    );
+    let expected = hostile.join("systemprompt").join("claude-key-helper.sh");
+    let echoed = std::process::Command::new("/bin/sh")
+        .arg("-c")
+        .arg(format!("cd {} && printf '%s' {command}", shell_quote(&base.path().display().to_string())))
+        .output()
+        .expect("run sh");
+    assert!(echoed.status.success(), "{echoed:?}");
+    assert_eq!(
+        String::from_utf8(echoed.stdout).expect("utf8"),
+        expected.display().to_string(),
+        "the shell sees the whole path, unexpanded"
+    );
+    assert!(
+        !base.path().join("pwned").exists(),
+        "no substitution in the path ran"
     );
 }

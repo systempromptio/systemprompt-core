@@ -82,22 +82,17 @@ fn key_helper_body(executable: &Path) -> String {
     format!(
         "#!/bin/sh\n\
          # Written by `{bin} install --apply`. Rewritten on every apply — do not edit.\n\
-         exec '{exe}' credential-helper --host claude-code\n",
-        exe = executable.display().to_string().replace('\'', "'\\''"),
+         exec {exe} credential-helper --host claude-code\n",
+        exe = crate::install::elevation_script::shell_quote(&executable.display().to_string()),
     )
 }
 
-// Why: Claude Code hands `apiKeyHelper` to `/bin/sh` verbatim, so a path with
-// whitespace — every macOS `~/Library/Application Support/…` path — is split
-// into words. Quote only then, so the Linux value stays the bare path.
+// Why: Claude Code hands `apiKeyHelper` to `/bin/sh` verbatim, so the path
+// is always single-quoted: whitespace, `$`, backticks and separators in it
+// stay part of the one word.
 #[cfg(unix)]
 pub(super) fn shell_command_for(helper: &Path) -> String {
-    let raw = helper.display().to_string();
-    if raw.chars().any(char::is_whitespace) {
-        format!("'{}'", raw.replace('\'', "'\\''"))
-    } else {
-        raw
-    }
+    crate::install::elevation_script::shell_quote(&helper.display().to_string())
 }
 
 #[cfg(unix)]
