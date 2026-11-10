@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO agent_run_events\n                (run_id, seq, kind, tool_name, tool_use_id, payload, created_at)\n            SELECT $1, last.seq + u.ord, u.kind, NULLIF(u.tool_name, ''),\n                   NULLIF(u.tool_use_id, ''), u.payload, u.created_at\n            FROM UNNEST(\n                $2::text[], $3::text[], $4::text[], $5::jsonb[], $6::timestamptz[]\n            ) WITH ORDINALITY AS u(kind, tool_name, tool_use_id, payload, created_at, ord),\n            (SELECT COALESCE(MAX(seq), -1) AS seq FROM agent_run_events WHERE run_id = $1) AS last\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "TextArray",
+        "TextArray",
+        "TextArray",
+        "JsonbArray",
+        "TimestamptzArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "54ad52ec06d56c895173f128c2cb9481b870958bdbcbd583e3d989276f78c878"
+}

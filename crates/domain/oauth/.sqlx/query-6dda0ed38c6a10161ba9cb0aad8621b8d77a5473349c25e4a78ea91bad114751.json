@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "UPDATE oauth_auth_codes\n             SET used_at = $1\n             WHERE code = $2 AND used_at IS NULL\n             RETURNING client_id, user_id, scope, expires_at, redirect_uri, code_challenge,\n                       code_challenge_method, resource",
+  "query": "UPDATE oauth_auth_codes\n             SET used_at = $1, refresh_token_id = $3\n             WHERE code = $2 AND used_at IS NULL\n             RETURNING client_id, user_id, scope, expires_at, redirect_uri, code_challenge,\n                       code_challenge_method, resource",
   "describe": {
     "columns": [
       {
@@ -95,6 +95,7 @@
     "parameters": {
       "Left": [
         "Timestamptz",
+        "Text",
         "Text"
       ]
     },
@@ -109,5 +110,5 @@
       true
     ]
   },
-  "hash": "986bb68849ef4ed39305f6c8fc5eada0f3a966a096f342e4019e8eae8d3daed5"
+  "hash": "6dda0ed38c6a10161ba9cb0aad8621b8d77a5473349c25e4a78ea91bad114751"
 }

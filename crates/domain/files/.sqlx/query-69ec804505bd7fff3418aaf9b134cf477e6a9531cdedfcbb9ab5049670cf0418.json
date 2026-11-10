@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT b.content_sha256 AS \"content_sha256: ContentHash\",\n                          b.size_bytes, b.storage_id AS \"storage_id: StoredFileId\", b.created_at\n                   FROM document_blobs b\n                   WHERE b.created_at < now() - make_interval(hours => $1::int)\n                     AND ($3::timestamptz IS NULL\n                          OR (b.created_at, b.content_sha256) > ($3, $4::text))\n                     AND NOT EXISTS (SELECT 1 FROM document_revisions r\n                                     WHERE r.content_sha256 = b.content_sha256)\n                     AND NOT EXISTS (SELECT 1 FROM document_edit_sessions s\n                                     WHERE s.snapshot_sha256 = b.content_sha256)\n                   ORDER BY b.created_at, b.content_sha256\n                   LIMIT $2",
+  "query": "SELECT b.content_sha256 AS \"content_sha256: ContentHash\",\n                          b.size_bytes, b.storage_id AS \"storage_id: StoredFileId\", b.created_at\n                   FROM document_blobs b\n                   WHERE b.created_at < now() - make_interval(hours => $1::int)\n                     AND ($3::timestamptz IS NULL\n                          OR (b.created_at, b.content_sha256) > ($3, $4::text))\n                     AND NOT EXISTS (SELECT 1 FROM document_revisions r\n                                     WHERE r.content_sha256 = b.content_sha256)\n                     AND NOT EXISTS (SELECT 1 FROM document_edit_sessions s\n                                     WHERE s.snapshot_sha256 = b.content_sha256)\n                     AND NOT EXISTS (SELECT 1 FROM document_media m\n                                     WHERE m.content_sha256 = b.content_sha256)\n                   ORDER BY b.created_at, b.content_sha256\n                   LIMIT $2",
   "describe": {
     "columns": [
       {
@@ -63,5 +63,5 @@
       false
     ]
   },
-  "hash": "5299757d80ccf3d038f5199878d4e4c056b4f1c38d59b071068cac6e33935cb1"
+  "hash": "69ec804505bd7fff3418aaf9b134cf477e6a9531cdedfcbb9ab5049670cf0418"
 }

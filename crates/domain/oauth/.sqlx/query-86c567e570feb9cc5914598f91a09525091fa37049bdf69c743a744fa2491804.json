@@ -1,28 +1,29 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT family_id FROM oauth_refresh_tokens WHERE token_id = $1",
+  "query": "SELECT resource FROM oauth_refresh_tokens WHERE token_id = $1 AND client_id = $2",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
-        "name": "family_id",
+        "name": "resource",
         "type_info": "Text",
         "origin": {
           "Table": {
             "table": "oauth_refresh_tokens",
-            "name": "family_id"
+            "name": "resource"
           }
         }
       }
     ],
     "parameters": {
       "Left": [
+        "Text",
         "Text"
       ]
     },
     "nullable": [
-      false
+      true
     ]
   },
-  "hash": "a6067368c7c5251cc776d92df404a572776a985acbbe3885f76b77f6464a841d"
+  "hash": "86c567e570feb9cc5914598f91a09525091fa37049bdf69c743a744fa2491804"
 }

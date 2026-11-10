@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT EXISTS (SELECT 1 FROM document_media\n                              WHERE document_id = $1::text::uuid AND content_sha256 = $2)\n                   AS \"admitted!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "admitted!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "27bddbe9a86cb8b139289863fd8ec782d2759e2e966192274d4452890e5bb40b"
+}

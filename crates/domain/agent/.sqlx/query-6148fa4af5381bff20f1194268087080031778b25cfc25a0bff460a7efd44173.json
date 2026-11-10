@@ -1,0 +1,41 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT t.task_id as \"task_id!: TaskId\", t.context_id as \"context_id!: ContextId\"\n            FROM agent_tasks t\n            JOIN user_contexts c ON t.context_id = c.context_id\n            WHERE t.task_id = $1 AND c.user_id = $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "task_id!: TaskId",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "agent_tasks",
+            "name": "task_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "context_id!: ContextId",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "agent_tasks",
+            "name": "context_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "6148fa4af5381bff20f1194268087080031778b25cfc25a0bff460a7efd44173"
+}

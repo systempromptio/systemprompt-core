@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO document_media (document_id, content_sha256, admitted_by)\n             SELECT $1::text::uuid, b.content_sha256, $3\n             FROM document_blobs b WHERE b.content_sha256 = ANY($2)\n             ON CONFLICT (document_id, content_sha256) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "TextArray",
+        "Varchar"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "66e6614cd4bdda72db536a34d0dae64087fab90d27f73bdbf47dcdce865c1455"
+}

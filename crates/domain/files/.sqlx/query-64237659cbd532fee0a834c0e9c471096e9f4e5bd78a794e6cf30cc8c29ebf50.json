@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT content_sha256 FROM document_media WHERE document_id = $1::text::uuid\n             ORDER BY content_sha256",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "content_sha256",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_media",
+            "name": "content_sha256"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "64237659cbd532fee0a834c0e9c471096e9f4e5bd78a794e6cf30cc8c29ebf50"
+}
