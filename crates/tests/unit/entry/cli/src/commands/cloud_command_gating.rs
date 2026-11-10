@@ -35,6 +35,9 @@ fn deploy_reads_its_target_profile_itself_without_the_runner_bootstrap() {
         !desc.secrets(),
         "deploy never resolves the target's secrets on this host"
     );
+    assert_eq!(desc.data_impact(), DataImpact::Preserving);
+    assert!(!desc.requires_confirmation());
+    assert_eq!(desc.routing_class(), RoutingClass::LocalOnly);
 }
 
 #[test]
