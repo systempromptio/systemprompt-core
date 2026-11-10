@@ -225,6 +225,9 @@ impl From<ContextExtractionError> for ApiHttpError {
                 ApiError::forbidden(e.to_string())
             },
             e @ ContextExtractionError::UserNotFound(_) => ApiError::not_found(e.to_string()),
+            e @ ContextExtractionError::PayloadTooLarge { .. } => {
+                ApiError::payload_too_large(e.to_string())
+            },
             e @ ContextExtractionError::DatabaseError { .. } => {
                 ApiError::internal("Request context lookup failed", e)
             },

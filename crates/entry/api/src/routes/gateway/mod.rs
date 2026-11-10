@@ -175,7 +175,7 @@ fn gateway_parts(ctx: &AppContext, engines: &Arc<GatewayEngines>) -> anyhow::Res
         traffic: traffic
             .merge(drive_routes(ctx, &jwt_extractor))
             .merge(provider_credentials::routes(ctx, &jwt_extractor))
-            .merge(bridge_release::routes(ctx, &jwt_extractor))
+            .merge(bridge_release::routes(ctx, &jwt_extractor)?)
             .merge(otel_routes(ctx, &jwt_extractor))
             .route("/models", get(models::list).with_state(ctx.clone()))
             .route("/", get(models::root)),

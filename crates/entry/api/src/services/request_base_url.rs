@@ -54,20 +54,39 @@ fn is_loopback_host(host: &str) -> bool {
     bare == "localhost" || bare == "127.0.0.1" || bare == "[::1]" || bare == "::1"
 }
 
+fn split_host_port(candidate_host: &str) -> (String, Option<&str>) {
+    if let Some(rest) = candidate_host.strip_prefix('[') {
+        let (inner, after) = rest.split_once(']').unwrap_or((rest, ""));
+        let port = after.strip_prefix(':');
+        return (format!("[{}]", inner.to_ascii_lowercase()), port);
+    }
+    match candidate_host.rsplit_once(':') {
+        Some((host, port)) => (host.to_ascii_lowercase(), Some(port)),
+        None => (candidate_host.to_ascii_lowercase(), None),
+    }
+}
+
 fn host_in_allowlist(candidate_host: &str, configured: &url::Url) -> bool {
-    let candidate_bare = candidate_host
-        .rsplit_once(':')
-        .map_or(candidate_host, |(h, _)| h)
-        .to_ascii_lowercase();
+    let (candidate_bare, candidate_port) = split_host_port(candidate_host);
     let configured_host = configured.host_str().unwrap_or("").to_ascii_lowercase();
 
-    if candidate_bare == configured_host {
-        return true;
-    }
     if is_loopback_host(&configured_host) && is_loopback_host(&candidate_bare) {
         return true;
     }
-    false
+    if candidate_bare != configured_host {
+        return false;
+    }
+    let configured_port = configured.port_or_known_default();
+    let requested_port = match candidate_port {
+        Some(raw) => match raw.parse::<u16>() {
+            Ok(port) => Some(port),
+            Err(_) => return false,
+        },
+        None => url::Url::parse(&format!("{}://{candidate_bare}", configured.scheme()))
+            .ok()
+            .and_then(|url| url.port_or_known_default()),
+    };
+    requested_port == configured_port
 }
 
 fn fallback_from_url(configured: &url::Url) -> RequestBaseUrl {

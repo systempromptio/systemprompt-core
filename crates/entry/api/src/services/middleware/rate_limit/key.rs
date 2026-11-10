@@ -85,3 +85,33 @@ impl tower_governor::key_extractor::KeyExtractor for IdentityOrTrustedIpKey {
         .ok_or(tower_governor::GovernorError::UnableToExtractKey)
     }
 }
+
+/// Buckets every request by resolved client address alone.
+///
+/// It keys the pre-authentication limiter, which runs before any credential
+/// is decoded, so no identity is available and none is trusted: a forged
+/// bearer must not be able to choose its own bucket.
+#[derive(Clone, Debug)]
+pub struct TrustedIpKey {
+    trusted_proxies: Arc<Vec<IpNet>>,
+}
+
+impl TrustedIpKey {
+    pub(super) const fn new(trusted_proxies: Arc<Vec<IpNet>>) -> Self {
+        Self { trusted_proxies }
+    }
+}
+
+impl tower_governor::key_extractor::KeyExtractor for TrustedIpKey {
+    type Key = String;
+
+    fn extract<T>(&self, req: &Request<T>) -> Result<Self::Key, tower_governor::GovernorError> {
+        resolve_client_ip(
+            req.headers(),
+            req.extensions().get::<ConnectInfo<SocketAddr>>(),
+            &self.trusted_proxies,
+        )
+        .map(|ip| format!("ip:{ip}"))
+        .ok_or(tower_governor::GovernorError::UnableToExtractKey)
+    }
+}

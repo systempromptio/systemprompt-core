@@ -10,6 +10,7 @@
 
 pub mod analytics;
 pub mod authz;
+pub mod body;
 pub mod bot_detector;
 pub mod caller_purpose;
 pub mod client_addr;
@@ -29,6 +30,7 @@ pub mod trailing_slash;
 
 pub use analytics::{AnalyticsEventParams, AnalyticsMiddleware};
 pub use authz::{AuthzPolicy, authz_gate};
+pub use body::{BodyReadError, read_body_bounded, read_request_bounded};
 pub use bot_detector::{
     BotMarker, BotType, detect_bots_early, is_datacenter_ip, is_known_bot, is_outdated_browser,
     is_scanner_request,
@@ -45,7 +47,10 @@ pub use load_shed::LoadShed;
 pub use negotiation::{
     AcceptedFormat, AcceptedMediaType, content_negotiation_middleware, parse_accept_header,
 };
-pub use rate_limit::{ContextLayer, IdentityOrTrustedIpKey, RateLimitState, RouterExt};
+pub use rate_limit::{
+    ContextLayer, IdentityOrTrustedIpKey, RateLimitState, RouterExt, TrustedIpKey,
+    with_pre_auth_ip_limit,
+};
 pub use security_headers::inject_security_headers;
 pub use served_by::inject_served_by;
 pub use session::{

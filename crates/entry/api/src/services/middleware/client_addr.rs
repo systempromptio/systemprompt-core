@@ -7,15 +7,17 @@
 //! 1. If the immediate socket peer (`ConnectInfo<SocketAddr>`) is not contained
 //!    in `trusted_proxies`, return the peer address. Hop headers are ignored
 //!    entirely — they are untrusted in this case.
-//! 2. If the peer is trusted, walk `X-Forwarded-For` right-to-left and take the
-//!    first hop that is itself outside `trusted_proxies`. That hop is the
-//!    closest entity our proxy chain still sees, and the earliest one a client
-//!    could have spoofed.
+//! 2. If the peer is trusted, join every `X-Forwarded-For` field in arrival
+//!    order (a proxy may append a new field rather than extend the first), walk
+//!    the hops right-to-left and take the first hop that is itself outside
+//!    `trusted_proxies`. That hop is the closest entity our proxy chain still
+//!    sees, and the earliest one a client could have spoofed.
 //! 3. If the chain is empty or every hop is trusted, fall back to the peer
 //!    address.
 //!
 //! `X-Real-IP`, `Fly-Client-IP`, and `CF-Connecting-IP` are honoured only
-//! under rule 2's trust gate; otherwise they are ignored.
+//! under rule 2's trust gate and only when the request carries no
+//! `X-Forwarded-For` at all; a present chain is authoritative.
 //!
 //! The trusted-proxy CIDR set is parsed and validated when the profile
 //! loads (`ServerConfig::trusted_proxies` deserialises to `Vec<IpNet>`);
@@ -63,12 +65,15 @@ pub fn resolve_client_ip(
         return Some(peer_ip);
     }
 
-    if let Some(xff) = headers.get("x-forwarded-for").and_then(|v| v.to_str().ok()) {
-        let hops: Vec<&str> = xff
-            .split(',')
-            .map(str::trim)
-            .filter(|s| !s.is_empty())
-            .collect();
+    let hops: Vec<&str> = headers
+        .get_all("x-forwarded-for")
+        .iter()
+        .filter_map(|value| value.to_str().ok())
+        .flat_map(|line| line.split(','))
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .collect();
+    if !hops.is_empty() {
         for hop in hops.iter().rev() {
             if let Ok(addr) = hop.parse::<IpAddr>()
                 && !is_trusted(addr, trusted)
@@ -76,6 +81,7 @@ pub fn resolve_client_ip(
                 return Some(addr);
             }
         }
+        return Some(peer_ip);
     }
 
     for header in ["x-real-ip", "fly-client-ip", "cf-connecting-ip"] {

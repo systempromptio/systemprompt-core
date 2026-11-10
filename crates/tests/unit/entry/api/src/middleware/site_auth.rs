@@ -152,6 +152,7 @@ mod gate {
         // page forever, re-presenting the same unusable token.
         assert!(cookie.contains("access_token=;"), "{cookie}");
         assert!(cookie.contains("Max-Age=0"), "{cookie}");
+        assert!(cookie.contains("Secure"), "{cookie}");
     }
 
     #[tokio::test]

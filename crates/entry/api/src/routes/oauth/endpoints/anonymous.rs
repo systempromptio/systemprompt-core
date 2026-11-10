@@ -5,7 +5,7 @@
 
 use axum::Json;
 use axum::extract::{Extension, State};
-use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
+use axum::http::{HeaderMap, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -20,6 +20,7 @@ use systemprompt_oauth::services::cimd::ClientValidator;
 use systemprompt_oauth::services::{CreateAnonymousSessionInput, SessionCreationService};
 
 use crate::routes::oauth::{OAuthHttpError, internal};
+use crate::services::session_cookie::{SameSite, session_cookie};
 use systemprompt_traits::{ExtractSignals, SessionAnalytics};
 
 #[derive(Debug, Serialize)]
@@ -49,11 +50,8 @@ fn default_client_id() -> ClientId {
 }
 
 fn token_response(body: AnonymousTokenResponse, jwt_token: &str, expires_in: i64) -> Response {
-    let cookie = format!(
-        "access_token={jwt_token}; Path=/; HttpOnly; SameSite=Strict; Max-Age={expires_in}"
-    );
     let mut response = (StatusCode::OK, Json(body)).into_response();
-    if let Ok(cookie_value) = HeaderValue::from_str(&cookie) {
+    if let Ok(cookie_value) = session_cookie(jwt_token, expires_in, SameSite::Strict) {
         response
             .headers_mut()
             .insert(header::SET_COOKIE, cookie_value);

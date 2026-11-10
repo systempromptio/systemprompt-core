@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::extract::Request;
-use axum::http::{HeaderValue, header};
+use axum::http::header;
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Redirect, Response};
 use systemprompt_extension::SiteAuthConfig;
@@ -12,10 +12,7 @@ use systemprompt_models::auth::Permission;
 use systemprompt_security::keys::SigningKeys;
 use systemprompt_security::{TokenExtractor, extract_user_context};
 
-// Why: Secure cookie deletion requires HTTPS outside browsers' localhost
-// exceptions.
-const CLEAR_ACCESS_TOKEN_COOKIE: &str =
-    "access_token=; Path=/; Max-Age=0; HttpOnly; SameSite=Strict";
+use crate::services::session_cookie::cleared_session_cookie;
 
 const STATIC_ASSET_EXTENSIONS: &[&str] = &[
     ".css", ".js", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".woff", ".woff2", ".ttf",
@@ -68,10 +65,10 @@ pub async fn site_auth_gate(
         outcome => {
             let redirect = login_redirect(config.login_path, request.uri());
             let mut response = Redirect::to(&redirect).into_response();
-            if matches!(outcome, AuthOutcome::InvalidToken)
-                && let Ok(cookie) = HeaderValue::from_str(CLEAR_ACCESS_TOKEN_COOKIE)
-            {
-                response.headers_mut().insert(header::SET_COOKIE, cookie);
+            if matches!(outcome, AuthOutcome::InvalidToken) {
+                response
+                    .headers_mut()
+                    .insert(header::SET_COOKIE, cleared_session_cookie());
             }
             response
         },

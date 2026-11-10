@@ -22,8 +22,9 @@ use systemprompt_traits::{StartupEventExt, StartupEventSender};
 use super::readiness::ReadinessState;
 use super::routes::configure_routes;
 use crate::services::middleware::{
-    AnalyticsMiddleware, CorsMiddleware, LoadShed, PublicContextMiddleware, SessionMiddleware,
-    inject_security_headers, inject_served_by, inject_trace_header, remove_trailing_slash,
+    AnalyticsMiddleware, CorsMiddleware, LoadShed, PublicContextMiddleware, RateLimitState,
+    SessionMiddleware, inject_security_headers, inject_served_by, inject_trace_header,
+    remove_trailing_slash, with_pre_auth_ip_limit,
 };
 
 pub use super::discovery::{
@@ -111,6 +112,8 @@ fn apply_global_middleware(router: Router, ctx: &AppContext) -> Result<Router> {
             async move { middleware.handle(req, next).await }
         }
     }));
+
+    router = with_pre_auth_ip_limit(router, &RateLimitState::from_context(ctx))?;
 
     let cors = CorsMiddleware::build_layer(ctx.config())?;
     router = router.layer(cors);

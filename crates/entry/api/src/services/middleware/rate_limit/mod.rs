@@ -9,6 +9,13 @@
 //! replica, and a database-backed window keyed by verified identity only,
 //! which bounds a caller's budget across every replica of the deployment.
 //!
+//! [`with_pre_auth_ip_limit`] mounts a third, cheaper throttle on the whole
+//! server, outside every authenticating layer: an in-process governor keyed by
+//! resolved client address only. `with_auth` decodes the bearer and checks
+//! its revocation before the identity-keyed throttles see the request, so
+//! without it a flood of forged or expired credentials would cost a token
+//! decode and a database lookup each, unthrottled.
+//!
 //! On routers that carry `with_auth` the database-backed window reads the
 //! identity from the [`RequestContext`](systemprompt_models::RequestContext)
 //! in the request's extensions. A router that authenticates inside its
@@ -51,7 +58,7 @@ use self::bearer::{BearerWindow, bearer_user_rate_limit};
 use self::global::{GLOBAL_WINDOW_SECS, GlobalUserLimit, global_user_rate_limit};
 
 pub use self::bearer::bearer_jwt;
-pub use self::key::IdentityOrTrustedIpKey;
+pub use self::key::{IdentityOrTrustedIpKey, TrustedIpKey};
 
 #[derive(Clone, Debug)]
 pub struct RateLimitState {
@@ -79,6 +86,21 @@ impl RateLimitState {
     pub const fn unmetered(mut self) -> Self {
         self.config.disabled = true;
         self
+    }
+
+    fn governor_shape(&self, per_second: u64) -> (Duration, u32, u64) {
+        let burst_u32 = u32::try_from(self.burst(per_second))
+            .unwrap_or(u32::MAX)
+            .max(1);
+        let per_second_clamped = per_second.max(1);
+        // Why: `GovernorConfigBuilder::per_second(n)` replenishes one element
+        // every n seconds, the inverse of a rate; `period` takes 1/per_second
+        // directly.
+        let replenish = Duration::from_secs(1)
+            .checked_div(u32::try_from(per_second_clamped).unwrap_or(u32::MAX))
+            .filter(|d| !d.is_zero())
+            .unwrap_or(Duration::from_nanos(1));
+        (replenish, burst_u32, per_second_clamped)
     }
 
     const fn burst(&self, per_second: u64) -> u64 {
@@ -158,17 +180,7 @@ where
             return Ok(self);
         }
 
-        let burst = limits.burst(per_second);
-        let burst_u32 = u32::try_from(burst).unwrap_or(u32::MAX).max(1);
-        let per_second_clamped = per_second.max(1);
-
-        // Why: `GovernorConfigBuilder::per_second(n)` replenishes one element
-        // every n seconds, the inverse of a rate; `period` takes 1/per_second
-        // directly.
-        let replenish = Duration::from_secs(1)
-            .checked_div(u32::try_from(per_second_clamped).unwrap_or(u32::MAX))
-            .filter(|d| !d.is_zero())
-            .unwrap_or(Duration::from_nanos(1));
+        let (replenish, burst_u32, per_second_clamped) = limits.governor_shape(per_second);
         let rate_limit = tower_governor::governor::GovernorConfigBuilder::default()
             .period(replenish)
             .burst_size(burst_u32)
@@ -177,12 +189,7 @@ where
             )))
             .use_headers()
             .finish()
-            .ok_or_else(|| LoaderError::InitializationFailed {
-                extension: ExtensionId::new("rate_limit"),
-                message: format!(
-                    "rate limit rejected for {per_second_clamped}/s with burst {burst_u32}"
-                ),
-            })?;
+            .ok_or_else(|| rejected_shape(per_second_clamped, burst_u32))?;
 
         let global = limits.global_limit(per_second, scope);
 
@@ -223,4 +230,32 @@ where
             bearer_user_rate_limit,
         ))
     }
+}
+
+fn rejected_shape(per_second: u64, burst: u32) -> LoaderError {
+    LoaderError::InitializationFailed {
+        extension: ExtensionId::new("rate_limit"),
+        message: format!("rate limit rejected for {per_second}/s with burst {burst}"),
+    }
+}
+
+pub fn with_pre_auth_ip_limit<S>(
+    router: Router<S>,
+    limits: &RateLimitState,
+) -> Result<Router<S>, LoaderError>
+where
+    S: Clone + Send + Sync + 'static,
+{
+    if limits.config.disabled {
+        return Ok(router);
+    }
+    let (replenish, burst, per_second) =
+        limits.governor_shape(limits.config.pre_auth_ip_per_second);
+    let config = tower_governor::governor::GovernorConfigBuilder::default()
+        .period(replenish)
+        .burst_size(burst)
+        .key_extractor(TrustedIpKey::new(Arc::clone(&limits.trusted_proxies)))
+        .finish()
+        .ok_or_else(|| rejected_shape(per_second, burst))?;
+    Ok(router.layer(tower_governor::GovernorLayer::new(config)))
 }

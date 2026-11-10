@@ -82,7 +82,8 @@ async fn a_resolved_release_strips_the_tag_prefix_and_carries_the_published_dige
     .await;
     mount_sums(&server, &format!("{DIGEST}  {ASSET}\n")).await;
 
-    let resolved = ReleaseFeed::default()
+    let resolved = ReleaseFeed::new()
+        .expect("the feed builds")
         .resolve(&spec(&server), &secrets(), "linux-x64")
         .await
         .expect("the feed resolves a published release");
@@ -121,7 +122,7 @@ async fn a_second_resolution_within_the_ttl_does_not_call_github_again() {
         .mount(&server)
         .await;
 
-    let feed = ReleaseFeed::default();
+    let feed = ReleaseFeed::new().expect("the feed builds");
     let spec = spec(&server);
     let first = feed
         .resolve(&spec, &secrets(), "linux-x64")
@@ -154,7 +155,7 @@ async fn a_github_outage_after_a_good_answer_serves_the_last_known_release() {
         .await;
     mount_sums(&server, &format!("{DIGEST}  {ASSET}\n")).await;
 
-    let feed = ReleaseFeed::with_ttl(Duration::from_millis(0));
+    let feed = ReleaseFeed::with_ttl(Duration::from_millis(0)).expect("the feed builds");
     let spec = spec(&server);
     feed.resolve(&spec, &secrets(), "linux-x64")
         .await
@@ -195,7 +196,7 @@ async fn a_sums_fetch_failure_after_a_good_answer_serves_the_last_known_digest()
         .mount(&server)
         .await;
 
-    let feed = ReleaseFeed::with_ttl(Duration::from_millis(0));
+    let feed = ReleaseFeed::with_ttl(Duration::from_millis(0)).expect("the feed builds");
     let spec = spec(&server);
     feed.resolve(&spec, &secrets(), "linux-x64")
         .await
@@ -229,7 +230,8 @@ async fn a_release_without_sha256sums_is_refused_when_nothing_is_cached() {
     )
     .await;
 
-    let error = ReleaseFeed::default()
+    let error = ReleaseFeed::new()
+        .expect("the feed builds")
         .resolve(&spec(&server), &secrets(), "linux-x64")
         .await
         .expect_err("a release with no checksum file cannot be trusted");
@@ -245,7 +247,8 @@ async fn a_release_without_sha256sums_is_refused_when_nothing_is_cached() {
 async fn an_unpublished_platform_is_a_not_found_before_github_is_called() {
     let server = MockServer::start().await;
 
-    let error = ReleaseFeed::default()
+    let error = ReleaseFeed::new()
+        .expect("the feed builds")
         .resolve_asset(&spec(&server), &secrets(), "solaris-sparc")
         .await
         .expect_err("an unknown platform has no build");
@@ -271,7 +274,8 @@ async fn a_release_missing_the_platform_asset_names_the_asset_it_wanted() {
     )
     .await;
 
-    let error = ReleaseFeed::default()
+    let error = ReleaseFeed::new()
+        .expect("the feed builds")
         .resolve_asset(&spec(&server), &secrets(), "linux-x64")
         .await
         .expect_err("a release without the platform asset cannot be served");
@@ -308,7 +312,8 @@ async fn drafts_and_prereleases_are_skipped_in_favour_of_the_newest_published_re
     .await;
     mount_sums(&server, &format!("{DIGEST}  {ASSET}\n")).await;
 
-    let resolved = ReleaseFeed::default()
+    let resolved = ReleaseFeed::new()
+        .expect("the feed builds")
         .resolve(&spec(&server), &secrets(), "linux-x64")
         .await
         .expect("the newest published release resolves");
@@ -338,7 +343,8 @@ async fn a_pinned_version_is_fetched_by_tag_rather_than_from_the_release_list() 
     let mut spec = spec(&server);
     spec.pinned_version = Some("0.49.0".to_owned());
 
-    let resolved = ReleaseFeed::default()
+    let resolved = ReleaseFeed::new()
+        .expect("the feed builds")
         .resolve(&spec, &secrets(), "linux-x64")
         .await
         .expect("a pinned release resolves by tag");
@@ -356,7 +362,8 @@ async fn a_github_error_with_nothing_cached_is_reported_as_a_bad_gateway() {
         .mount(&server)
         .await;
 
-    let error = ReleaseFeed::default()
+    let error = ReleaseFeed::new()
+        .expect("the feed builds")
         .resolve_asset(&spec(&server), &secrets(), "linux-x64")
         .await
         .expect_err("no cached answer means the failure surfaces");
@@ -401,7 +408,8 @@ async fn a_token_secret_the_store_cannot_resolve_refuses_rather_than_calling_git
     .await;
     mount_sums(&server, &format!("{DIGEST}  {ASSET}\n")).await;
 
-    let error = ReleaseFeed::default()
+    let error = ReleaseFeed::new()
+        .expect("the feed builds")
         .resolve(
             &spec_with_token(&server, Some("github_release_token")),
             &secrets(),
@@ -436,6 +444,7 @@ async fn the_feed_serves_the_newest_release_within_the_server_minor() {
     mount_sums(&server, &format!("{DIGEST}  {ASSET}\n")).await;
 
     let resolved = ReleaseFeed::with_ceiling(semver::Version::new(0, 73, 0))
+        .expect("the feed builds")
         .resolve(&spec(&server), &secrets(), "linux-x64")
         .await
         .expect("a release within the server minor resolves");
@@ -459,6 +468,7 @@ async fn a_feed_with_only_releases_ahead_of_the_server_is_not_found() {
     .await;
 
     let error = ReleaseFeed::with_ceiling(semver::Version::new(0, 73, 0))
+        .expect("the feed builds")
         .resolve(&spec(&server), &secrets(), "linux-x64")
         .await
         .expect_err("no release is supported by a 0.73 server");
@@ -490,6 +500,7 @@ async fn a_pinned_version_ahead_of_the_server_is_still_served() {
     pinned.pinned_version = Some("0.74.0".to_owned());
 
     let resolved = ReleaseFeed::with_ceiling(semver::Version::new(0, 73, 0))
+        .expect("the feed builds")
         .resolve(&pinned, &secrets(), "linux-x64")
         .await
         .expect("an operator pin overrides the ceiling");
@@ -516,6 +527,7 @@ async fn the_newest_release_inside_the_window_is_served_over_newer_ones_above_it
     windowed.max_version = Some(semver::Version::new(0, 73, 3));
 
     let resolved = ReleaseFeed::with_ceiling(semver::Version::new(0, 73, 0))
+        .expect("the feed builds")
         .resolve(&windowed, &secrets(), "linux-x64")
         .await
         .expect("0.73.2 sits inside [0.73.0, 0.73.3]");
@@ -541,6 +553,7 @@ async fn a_window_no_published_release_falls_inside_is_not_found() {
     windowed.min_version = Some(semver::Version::new(0, 73, 0));
 
     let error = ReleaseFeed::with_ceiling(semver::Version::new(0, 73, 0))
+        .expect("the feed builds")
         .resolve(&windowed, &secrets(), "linux-x64")
         .await
         .expect_err("0.72.0 is below the window floor");
@@ -560,6 +573,7 @@ async fn a_pinned_version_outside_the_window_is_refused_without_a_lookup() {
     pinned.min_version = Some(semver::Version::new(0, 73, 0));
 
     let error = ReleaseFeed::with_ceiling(semver::Version::new(0, 73, 0))
+        .expect("the feed builds")
         .resolve(&pinned, &secrets(), "linux-x64")
         .await
         .expect_err("the pin lies below the window");

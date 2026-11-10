@@ -1156,6 +1156,10 @@ lint-shared-test-ids:
 lint-owned-tasks:
     ./scripts/lint-owned-tasks.sh
 
+# Raw body reads carry a bound: no `to_bytes(_, usize::MAX)`, no bare `collect()`.
+lint-unbounded-bodies:
+    ./scripts/lint-unbounded-bodies.sh
+
 # serde_json::Value in a signature is a protocol boundary with a `// JSON:` line.
 lint-json-value:
     ./scripts/lint-json-value.sh

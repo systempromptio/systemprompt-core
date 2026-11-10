@@ -456,19 +456,20 @@ async fn a_body_over_the_buffer_limit_is_rejected_rather_than_buffered() {
 #[tokio::test]
 async fn a_body_read_past_the_limit_maps_to_413() {
     let oversized = vec![b'x'; 64];
-    let error = axum::body::to_bytes(Body::from(oversized), 16)
-        .await
-        .expect_err("a body past the limit fails to read");
+    let error =
+        systemprompt_api::services::middleware::read_body_bounded(Body::from(oversized), 16)
+            .await
+            .expect_err("a body past the limit fails to read");
 
     assert_eq!(body_read_error(error).status, StatusCode::PAYLOAD_TOO_LARGE);
 }
 
 #[test]
 fn a_body_read_that_fails_for_any_other_reason_maps_to_400() {
-    let error = axum::Error::new(std::io::Error::new(
-        std::io::ErrorKind::ConnectionReset,
-        "client went away",
-    ));
+    let error =
+        systemprompt_api::services::middleware::BodyReadError::Unreadable(axum::Error::new(
+            std::io::Error::new(std::io::ErrorKind::ConnectionReset, "client went away"),
+        ));
 
     let RejectionError {
         status, message, ..

@@ -19,6 +19,7 @@ use systemprompt_wire::anthropic as wire_anthropic;
 
 use super::RejectionPartial;
 use crate::routes::gateway::messages::error::RejectionError;
+use crate::services::middleware::{BodyReadError, read_body_bounded};
 use systemprompt_gateway::protocol::canonical::CanonicalRequest;
 use systemprompt_gateway::protocol::inbound::InboundAdapter;
 
@@ -58,7 +59,7 @@ pub async fn read_gateway_body(
     request: Request<Body>,
     partial: &mut RejectionPartial,
 ) -> Result<(Bytes, CanonicalRequest), RejectionError> {
-    let body_bytes = axum::body::to_bytes(
+    let body_bytes = read_body_bounded(
         request.into_body(),
         systemprompt_models::net::INFERENCE_BODY_LIMIT_BYTES,
     )
@@ -75,10 +76,8 @@ pub async fn read_gateway_body(
     Ok((body_bytes, canonical))
 }
 
-pub fn body_read_error(error: axum::Error) -> RejectionError {
-    let oversized = std::error::Error::source(&error)
-        .is_some_and(<dyn std::error::Error>::is::<http_body_util::LengthLimitError>);
-    if oversized {
+pub fn body_read_error(error: BodyReadError) -> RejectionError {
+    if error.is_too_large() {
         RejectionError::client(
             StatusCode::PAYLOAD_TOO_LARGE,
             format!(

@@ -30,6 +30,7 @@ pub use attestation::{SessionAttestationError, attest_session};
 pub use skip::should_skip_session_tracking;
 
 use crate::error::ApiHttpError;
+use crate::services::session_cookie::{SameSite, session_cookie};
 use axum::extract::{ConnectInfo, Request};
 use axum::http::header;
 use axum::middleware::Next;
@@ -41,8 +42,8 @@ use systemprompt_analytics::{AnalyticsService, SessionAnalytics};
 use systemprompt_manifest::Config;
 use systemprompt_oauth::services::SessionCreationService;
 use systemprompt_runtime::AppContext;
+use systemprompt_security::HeaderExtractor;
 use systemprompt_security::keys::SigningKeys;
-use systemprompt_security::{CookieExtractor, HeaderExtractor};
 use systemprompt_traits::{ExtractSignals, SessionProvider};
 use systemprompt_users::UserService;
 
@@ -65,6 +66,7 @@ pub struct SessionMiddleware {
 
 const IGNORED_FORWARDED_WARN_INTERVAL_SECS: u64 = 3600;
 const DEGRADED_WARN_INTERVAL_SECS: u64 = 60;
+const SESSION_COOKIE_MAX_AGE_SECS: i64 = 604_800;
 
 impl SessionMiddleware {
     pub fn new(ctx: &AppContext) -> Self {
@@ -152,16 +154,13 @@ impl SessionMiddleware {
 
         let mut response = next.run(request).await;
 
-        if let Some(token) = jwt_cookie {
-            let cookie = format!(
-                "{}={token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=604800",
-                CookieExtractor::DEFAULT_COOKIE_NAME
-            );
-            if let Ok(cookie_value) = cookie.parse() {
-                response
-                    .headers_mut()
-                    .insert(header::SET_COOKIE, cookie_value);
-            }
+        if let Some(token) = jwt_cookie
+            && let Ok(cookie_value) =
+                session_cookie(&token, SESSION_COOKIE_MAX_AGE_SECS, SameSite::Strict)
+        {
+            response
+                .headers_mut()
+                .insert(header::SET_COOKIE, cookie_value);
         }
 
         Ok(response)

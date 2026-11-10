@@ -5,8 +5,12 @@
 
 use axum::body::Body;
 use axum::extract::Request;
+use bytes::Bytes;
 use serde_json::Value;
 use systemprompt_models::execution::{ContextExtractionError, ContextIdSource};
+use systemprompt_models::net::BUFFERED_BODY_LIMIT_BYTES;
+
+use crate::services::middleware::body::{BodyReadError, read_request_bounded};
 
 #[derive(Debug, Clone, Copy)]
 pub struct PayloadSource;
@@ -54,22 +58,23 @@ impl PayloadSource {
 
     pub async fn read_and_reconstruct(
         request: Request<Body>,
-    ) -> Result<(Vec<u8>, Request<Body>), ContextExtractionError> {
-        let (parts, body) = request.into_parts();
-
-        let body_bytes = axum::body::to_bytes(body, usize::MAX)
+    ) -> Result<(Bytes, Request<Body>), ContextExtractionError> {
+        let (parts, body_bytes) = read_request_bounded(request, BUFFERED_BODY_LIMIT_BYTES)
             .await
-            .map_err(|error| {
-                tracing::debug!(%error, "request body could not be read");
-                ContextExtractionError::InvalidHeaderValue {
-                    header: "body".to_owned(),
-                    reason: "request body could not be read".to_owned(),
-                }
-            })?
-            .to_vec();
+            .map_err(|error| match error {
+                BodyReadError::TooLarge { limit } => {
+                    ContextExtractionError::PayloadTooLarge { limit }
+                },
+                BodyReadError::Unreadable(source) => {
+                    tracing::debug!(error = %source, "request body could not be read");
+                    ContextExtractionError::InvalidHeaderValue {
+                        header: "body".to_owned(),
+                        reason: "request body could not be read".to_owned(),
+                    }
+                },
+            })?;
 
-        let new_body = Body::from(body_bytes.clone());
-        let new_request = Request::from_parts(parts, new_body);
+        let new_request = Request::from_parts(parts, Body::from(body_bytes.clone()));
 
         Ok((body_bytes, new_request))
     }

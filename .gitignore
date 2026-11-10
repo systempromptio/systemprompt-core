@@ -226,6 +226,7 @@ rustc-ice-*.txt
 !scripts/table-ownership-reads.txt
 !scripts/sql-vocabularies.txt
 !scripts/lint-swallowed-errors.sh
+!scripts/lint-unbounded-bodies.sh
 !scripts/lint-bridge-typed-warnings.sh
 !scripts/rust-contracts/
 scripts/rust-contracts/target/
