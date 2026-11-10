@@ -30,6 +30,11 @@ const IRREVERSIBLE: &[&[&str]] = &[
     &["admin", "users", "role", "promote", "u"],
     &["admin", "users", "role", "demote", "u"],
     &["admin", "bridge", "rotate-signing-key"],
+    &["admin", "keys", "stage"],
+    &["admin", "keys", "promote"],
+    &["admin", "keys", "promote", "--revoke"],
+    &["admin", "keys", "rotate"],
+    &["admin", "keys", "rotate", "--revoke"],
 ];
 
 fn parsed(args: &[&str]) -> (CommandDescriptor, ConfirmationRequest) {

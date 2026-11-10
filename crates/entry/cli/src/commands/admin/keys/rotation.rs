@@ -24,7 +24,7 @@ use systemprompt_security::jwt::{cut_off_by, rotation_overlap, signed_token_life
 use systemprompt_security::keys::{RotationMode, promote, stage};
 
 use crate::context::CommandContext;
-use crate::shared::CommandOutput;
+use crate::shared::{CommandOutput, ConfirmArgs};
 
 pub(super) const PROCEDURE: &str = "\
 Multi-replica procedure (no replica ever meets a token signed by a key it does not know):
@@ -49,11 +49,17 @@ plugin tokens and sign in again.";
 
 #[derive(Debug, Clone, Copy, Args)]
 #[command(after_long_help = PROCEDURE)]
-pub struct StageArgs;
+pub struct StageArgs {
+    #[command(flatten)]
+    pub confirm: ConfirmArgs,
+}
 
 #[derive(Debug, Clone, Copy, Args)]
 #[command(after_long_help = PROCEDURE)]
 pub struct PromoteArgs {
+    #[command(flatten)]
+    pub confirm: ConfirmArgs,
+
     #[arg(
         long,
         help = "Seconds the outgoing key keeps verifying tokens (default: the longest lifetime \
