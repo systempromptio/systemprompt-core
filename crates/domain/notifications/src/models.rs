@@ -142,7 +142,6 @@ pub(crate) struct NotificationRow {
     pub(crate) escalation_note: Option<String>,
     pub(crate) held_until: Option<DateTime<Utc>>,
     pub(crate) delivery_state: String,
-    pub(crate) delivery_seq: i64,
 }
 
 impl TryFrom<NotificationRow> for Notification {

@@ -11,6 +11,8 @@ mod consumer;
 #[cfg(test)]
 mod delivery;
 #[cfg(test)]
+mod delivery_lease;
+#[cfg(test)]
 mod delivery_retries;
 #[cfg(test)]
 mod digest;
