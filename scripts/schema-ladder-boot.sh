@@ -335,6 +335,14 @@ serve() {
     SERVER_PID=$!
 }
 
+# Why: a 0.73+ rung refuses the pre-0.73 ai/*.yaml shape written above; its
+# own migrator rewrites them into the catalog that release loads.
+if [ "$CATALOG_SHAPE" = true ]; then
+    step "rewrite the ladder services tree into the $RUNG catalog shape"
+    rung admin config migrate --services "$WORK/services" > "$WORK/migrate.log" 2>&1 \
+        || { cat "$WORK/migrate.log"; fail "$RUNG could not migrate the ladder services tree."; }
+fi
+
 if [ "${#BREAKING[@]}" -gt 0 ] && [ "$HAS_LEDGER" = true ]; then
     step "$RUNG must refuse a schema this tree contracted"
     status=0
@@ -352,14 +360,6 @@ cargo build --locked --manifest-path "$ROOT/crates/tests/mock-inference/Cargo.to
     --target-dir "${LADDER_MOCK_TARGET:-$WORK/mock-target}"
 "${LADDER_MOCK_TARGET:-$WORK/mock-target}/debug/mock-inference" --port "$MOCK_PORT" > "$WORK/mock.log" 2>&1 &
 MOCK_PID=$!
-
-# Why: a 0.73+ rung refuses the pre-0.73 ai/*.yaml shape written above; its
-# own migrator rewrites them into the catalog that release loads.
-if [ "$CATALOG_SHAPE" = true ]; then
-    step "rewrite the ladder services tree into the $RUNG catalog shape"
-    rung admin config migrate --services "$WORK/services" > "$WORK/migrate.log" 2>&1 \
-        || { cat "$WORK/migrate.log"; fail "$RUNG could not migrate the ladder services tree."; }
-fi
 
 step "seed the system admin and an API key with a request quota"
 rung admin bootstrap --email testadmin@example.com > "$WORK/bootstrap.log" 2>&1 \
