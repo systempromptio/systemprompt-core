@@ -242,6 +242,7 @@ impl From<BundleError> for ApiHttpError {
             e @ BundleError::Auth { .. } => ApiError::forbidden(e.to_string()),
             e @ (BundleError::Verify(_)
             | BundleError::Ownership { .. }
+            | BundleError::FileCollision { .. }
             | BundleError::Policy { .. }
             | BundleError::TooLarge { .. }) => ApiError::bad_request(e.to_string()),
             e @ BundleError::SourceMissing { .. } => ApiError::not_found(e.to_string()),
