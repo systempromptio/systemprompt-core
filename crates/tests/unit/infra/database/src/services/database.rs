@@ -33,3 +33,16 @@ async fn from_pools_reuses_distinct_write_pool() {
     assert!(Arc::ptr_eq(&read_back, &read));
     assert!(Arc::ptr_eq(&write_back, &write));
 }
+
+#[tokio::test]
+async fn the_provider_pool_of_a_split_database_is_the_write_pool() {
+    use systemprompt_database::DatabaseProvider;
+    let read = lazy_pool();
+    let write = lazy_pool();
+    let db = Database::from_pools(Arc::clone(&read), Some(Arc::clone(&write)));
+
+    let provider: &dyn DatabaseProvider = &db;
+    let pool = provider.get_postgres_pool();
+    assert!(Arc::ptr_eq(&pool, &write));
+    assert!(!Arc::ptr_eq(&pool, &read));
+}

@@ -526,20 +526,20 @@ mod extension_mode {
 
     #[tokio::test]
     async fn composite_all_allow_returns_allow() {
-        let composite = CompositeAuthzHook::new(vec![
+        let composite = CompositeAuthzHook::new(
             Arc::new(AlwaysAllow) as SharedAuthzHook,
-            Arc::new(AlwaysAllow),
-        ]);
+            vec![Arc::new(AlwaysAllow)],
+        );
         let decision = composite.evaluate(fixture()).await;
         assert_eq!(decision, AuthzDecision::Allow);
     }
 
     #[tokio::test]
     async fn composite_first_deny_wins() {
-        let composite = CompositeAuthzHook::new(vec![
+        let composite = CompositeAuthzHook::new(
             Arc::new(AlwaysDeny("policy.first")) as SharedAuthzHook,
-            Arc::new(AlwaysDeny("policy.second")),
-        ]);
+            vec![Arc::new(AlwaysDeny("policy.second"))],
+        );
         let decision = composite.evaluate(fixture()).await;
         match decision {
             AuthzDecision::Deny { policy, .. } => assert_eq!(policy, "policy.first"),
@@ -549,10 +549,10 @@ mod extension_mode {
 
     #[tokio::test]
     async fn composite_allow_then_deny_returns_deny() {
-        let composite = CompositeAuthzHook::new(vec![
+        let composite = CompositeAuthzHook::new(
             Arc::new(AlwaysAllow) as SharedAuthzHook,
-            Arc::new(AlwaysDeny("policy.second")),
-        ]);
+            vec![Arc::new(AlwaysDeny("policy.second"))],
+        );
         let decision = composite.evaluate(fixture()).await;
         match decision {
             AuthzDecision::Deny { policy, .. } => assert_eq!(policy, "policy.second"),
@@ -561,10 +561,15 @@ mod extension_mode {
     }
 
     #[tokio::test]
-    async fn composite_empty_returns_allow() {
-        let composite = CompositeAuthzHook::new(vec![]);
-        let decision = composite.evaluate(fixture()).await;
-        assert_eq!(decision, AuthzDecision::Allow);
+    async fn composite_of_one_deny_returns_that_deny() {
+        let composite = CompositeAuthzHook::new(
+            Arc::new(AlwaysDeny("policy.only")) as SharedAuthzHook,
+            vec![],
+        );
+        match composite.evaluate(fixture()).await {
+            AuthzDecision::Deny { policy, .. } => assert_eq!(policy, "policy.only"),
+            AuthzDecision::Allow => panic!("expected Deny"),
+        }
     }
 
     use std::sync::Mutex;
@@ -617,11 +622,13 @@ mod extension_mode {
     #[tokio::test]
     async fn composite_audits_only_evaluated_hooks() {
         let recorder: Recorder = Arc::new(Mutex::new(Vec::new()));
-        let composite = CompositeAuthzHook::new(vec![
+        let composite = CompositeAuthzHook::new(
             Arc::new(RecordingHook::allow("first", recorder.clone())) as SharedAuthzHook,
-            Arc::new(RecordingHook::deny("second", "policy.x", recorder.clone())),
-            Arc::new(RecordingHook::allow("third", recorder.clone())),
-        ]);
+            vec![
+                Arc::new(RecordingHook::deny("second", "policy.x", recorder.clone())),
+                Arc::new(RecordingHook::allow("third", recorder.clone())),
+            ],
+        );
         let decision = composite.evaluate(fixture()).await;
         assert!(matches!(decision, AuthzDecision::Deny { .. }));
         let entries = recorder.lock().unwrap().clone();
@@ -631,11 +638,13 @@ mod extension_mode {
     #[tokio::test]
     async fn composite_audits_in_order() {
         let recorder: Recorder = Arc::new(Mutex::new(Vec::new()));
-        let composite = CompositeAuthzHook::new(vec![
+        let composite = CompositeAuthzHook::new(
             Arc::new(RecordingHook::allow("a", recorder.clone())) as SharedAuthzHook,
-            Arc::new(RecordingHook::allow("b", recorder.clone())),
-            Arc::new(RecordingHook::allow("c", recorder.clone())),
-        ]);
+            vec![
+                Arc::new(RecordingHook::allow("b", recorder.clone())),
+                Arc::new(RecordingHook::allow("c", recorder.clone())),
+            ],
+        );
         let decision = composite.evaluate(fixture()).await;
         assert_eq!(decision, AuthzDecision::Allow);
         let entries = recorder.lock().unwrap().clone();
@@ -643,11 +652,14 @@ mod extension_mode {
     }
 
     #[tokio::test]
-    async fn composite_empty_records_nothing() {
+    async fn composite_of_one_consults_that_hook() {
         let recorder: Recorder = Arc::new(Mutex::new(Vec::new()));
-        let composite = CompositeAuthzHook::new(vec![]);
+        let composite = CompositeAuthzHook::new(
+            Arc::new(RecordingHook::allow("only", recorder.clone())) as SharedAuthzHook,
+            vec![],
+        );
         let decision = composite.evaluate(fixture()).await;
         assert_eq!(decision, AuthzDecision::Allow);
-        assert!(recorder.lock().unwrap().is_empty());
+        assert_eq!(recorder.lock().unwrap().clone(), vec!["only"]);
     }
 }

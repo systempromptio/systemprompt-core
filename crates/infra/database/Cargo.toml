@@ -48,6 +48,7 @@ futures-util = { workspace = true }
 
 # Extension registration
 inventory = { workspace = true }
+xxhash-rust = { workspace = true }
 
 # SQL parsing: schema linter, cross-extension ALTER detection, seed classification
 pg_query = { workspace = true }

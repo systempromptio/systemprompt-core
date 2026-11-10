@@ -30,4 +30,4 @@ pub use report::{ForeignKeyDrift, SchemaAhead, SchemaInstallReport};
 pub use routine_refs::check_trigger_routines;
 pub use undeclared::{OrphanMigrationLedger, SchemaResidue, UndeclaredTable, audit_schema_residue};
 
-pub use extension::lock::{BOOTSTRAP_ADVISORY_LOCK_KEY, BootstrapLockGuard};
+pub use extension::lock::{BOOTSTRAP_ADVISORY_LOCK_KEY, BootstrapLockGuard, BootstrapLockTimeout};

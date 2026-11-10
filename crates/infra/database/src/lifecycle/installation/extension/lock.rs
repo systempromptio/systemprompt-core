@@ -1,5 +1,9 @@
 //! Session-pinned Postgres advisory lock serialising concurrent bootstraps.
 //!
+//! Acquisition polls `pg_try_advisory_lock` with a deadline and logs progress,
+//! so a wedged holder surfaces as a typed [`BootstrapLockTimeout`] rather than
+//! an unbounded silent wait.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -7,11 +11,15 @@ use sqlx::Postgres;
 use sqlx::pool::PoolConnection;
 use systemprompt_extension::LoaderError;
 use systemprompt_identifiers::ExtensionId;
-use tracing::{debug, warn};
+use tokio::time::{Duration, Instant};
+use tracing::{debug, info, warn};
 
 use crate::services::DatabaseProvider;
 
 pub const BOOTSTRAP_ADVISORY_LOCK_KEY: i64 = 0x73_70_72_6F_6D_70_74_01;
+
+const POLL_INTERVAL: Duration = Duration::from_millis(250);
+const PROGRESS_INTERVAL: Duration = Duration::from_secs(30);
 
 /// Session-pinned advisory lock serialising concurrent bootstraps.
 ///
@@ -32,8 +40,24 @@ impl std::fmt::Debug for BootstrapLockGuard {
     }
 }
 
+/// The bootstrap lock was still held by another session when the wait ran out.
+#[derive(Debug, Clone, Copy, thiserror::Error)]
+#[error("bootstrap advisory lock still held by another session after {waited:?}")]
+pub struct BootstrapLockTimeout {
+    pub waited: Duration,
+}
+
 impl BootstrapLockGuard {
+    pub const DEFAULT_WAIT: Duration = Duration::from_mins(15);
+
     pub async fn acquire(db: &dyn DatabaseProvider) -> Result<Self, LoaderError> {
+        Self::acquire_within(db, Self::DEFAULT_WAIT).await
+    }
+
+    pub async fn acquire_within(
+        db: &dyn DatabaseProvider,
+        wait: Duration,
+    ) -> Result<Self, LoaderError> {
         let mut conn = db.get_postgres_pool().acquire().await.map_err(|e| {
             LoaderError::SchemaInstallationStepFailed {
                 extension: ExtensionId::new("database"),
@@ -42,14 +66,42 @@ impl BootstrapLockGuard {
             }
         })?;
 
-        sqlx::query!("SELECT pg_advisory_lock($1)", BOOTSTRAP_ADVISORY_LOCK_KEY)
-            .execute(conn.as_mut())
+        let started = Instant::now();
+        let deadline = started + wait;
+        let mut next_progress = started + PROGRESS_INTERVAL;
+        loop {
+            let acquired = sqlx::query_scalar!(
+                r#"SELECT pg_try_advisory_lock($1) AS "acquired!""#,
+                BOOTSTRAP_ADVISORY_LOCK_KEY
+            )
+            .fetch_one(conn.as_mut())
             .await
             .map_err(|e| LoaderError::SchemaInstallationStepFailed {
                 extension: ExtensionId::new("database"),
                 context: "Failed to acquire bootstrap advisory lock".to_owned(),
                 source: Box::new(e),
             })?;
+            if acquired {
+                break;
+            }
+            let now = Instant::now();
+            if now >= deadline {
+                return Err(LoaderError::SchemaInstallationStepFailed {
+                    extension: ExtensionId::new("database"),
+                    context: "Timed out waiting for the bootstrap advisory lock".to_owned(),
+                    source: Box::new(BootstrapLockTimeout { waited: wait }),
+                });
+            }
+            if now >= next_progress {
+                info!(
+                    key = BOOTSTRAP_ADVISORY_LOCK_KEY,
+                    waited_secs = now.duration_since(started).as_secs(),
+                    "Waiting for another session to release the bootstrap advisory lock"
+                );
+                next_progress = now + PROGRESS_INTERVAL;
+            }
+            tokio::time::sleep(POLL_INTERVAL.min(deadline - now)).await;
+        }
 
         debug!(
             key = BOOTSTRAP_ADVISORY_LOCK_KEY,

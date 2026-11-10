@@ -13,10 +13,13 @@
 //! atomically: a mid-SQL failure leaves the row tracked with the old
 //! checksum, which still reports as drift rather than crash-looping.
 //!
-//! Both entry points refuse outright when the recorded row for a slot names a
-//! different migration than the file now occupying it. That is a reused slot,
-//! not drift, and reconciling it would stamp one migration's checksum onto a
-//! row describing another — silencing that row's drift detector for good.
+//! Both entry points act only on the drift they read *under* the bootstrap
+//! lock, so two concurrent repairs never act on the same drift set; a read
+//! before the lock only refuses early or skips taking it when there is none.
+//! Both refuse outright when the recorded row for a slot names a different
+//! migration than the file now occupying it. That is a reused slot, not drift,
+//! and reconciling it would stamp one migration's checksum onto a row
+//! describing another — silencing that row's drift detector for good.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -43,57 +46,66 @@ impl MigrationService<'_> {
         &self,
         extension: &dyn Extension,
     ) -> Result<RepairResult, LoaderError> {
-        let status = self.status(extension).await?;
-        Self::refuse_slot_collisions(&status)?;
-
-        if status.drift.is_empty() {
+        if !self.has_repairable_drift(extension).await? {
             return Ok(RepairResult::default());
         }
-
-        let reapplied = status.drift.len();
         let guard = BootstrapLockGuard::acquire(self.db).await?;
-        let outcome = self.reapply_drifted(extension, &status.drift).await;
-        let pending = match outcome {
-            Ok(()) => self.run_pending_migrations(extension).await,
-            Err(e) => Err(e),
-        };
+        let outcome = self.repair_drift_locked(extension).await;
         guard.release().await;
-        let result = pending?;
-
-        Ok(RepairResult {
-            repaired: status.drift,
-            reapplied,
-            migrations_run: result.migrations_run,
-        })
+        outcome
     }
 
     pub async fn reconcile_drift(
         &self,
         extension: &dyn Extension,
     ) -> Result<RepairResult, LoaderError> {
+        if !self.has_repairable_drift(extension).await? {
+            return Ok(RepairResult::default());
+        }
+        let guard = BootstrapLockGuard::acquire(self.db).await?;
+        let outcome = self.reconcile_drift_locked(extension).await;
+        guard.release().await;
+        outcome
+    }
+
+    async fn repair_drift_locked(
+        &self,
+        extension: &dyn Extension,
+    ) -> Result<RepairResult, LoaderError> {
         let status = self.status(extension).await?;
         Self::refuse_slot_collisions(&status)?;
-
         if status.drift.is_empty() {
             return Ok(RepairResult::default());
         }
+        self.reapply_drifted(extension, &status.drift).await?;
+        let result = self.run_pending_migrations(extension).await?;
+        Ok(RepairResult {
+            reapplied: status.drift.len(),
+            repaired: status.drift,
+            migrations_run: result.migrations_run,
+        })
+    }
 
-        let guard = BootstrapLockGuard::acquire(self.db).await?;
-        let mut outcome = Ok(());
+    async fn reconcile_drift_locked(
+        &self,
+        extension: &dyn Extension,
+    ) -> Result<RepairResult, LoaderError> {
+        let status = self.status(extension).await?;
+        Self::refuse_slot_collisions(&status)?;
         for drift in &status.drift {
-            if let Err(e) = self.rewrite_checksum(drift).await {
-                outcome = Err(e);
-                break;
-            }
+            self.rewrite_checksum(drift).await?;
         }
-        guard.release().await;
-        outcome?;
-
         Ok(RepairResult {
             repaired: status.drift,
             reapplied: 0,
             migrations_run: 0,
         })
+    }
+
+    async fn has_repairable_drift(&self, extension: &dyn Extension) -> Result<bool, LoaderError> {
+        let status = self.status(extension).await?;
+        Self::refuse_slot_collisions(&status)?;
+        Ok(!status.drift.is_empty())
     }
 
     pub fn refuse_slot_collisions(status: &ExtensionMigrationStatus) -> Result<(), LoaderError> {

@@ -20,7 +20,9 @@ use crate::object_id::{id_for, mime_for, relative_path};
 /// Files stored as plain paths under one root directory.
 ///
 /// Ids are root-relative paths. The root itself may be a shared mount, in
-/// which case every replica resolves the same id to the same file.
+/// which case every replica resolves the same id to the same file. A path
+/// that passes through a symbolic link below the root is refused, so no id
+/// reaches a file outside it.
 #[derive(Debug, Clone)]
 pub struct LocalFileStorage {
     root: PathBuf,
@@ -40,6 +42,29 @@ impl LocalFileStorage {
     pub fn resolve(&self, id: &StoredFileId) -> Result<PathBuf, FileStorageError> {
         let relative = relative_path(Path::new(id.as_str()))?;
         Ok(self.root.join(relative))
+    }
+
+    async fn confined(&self, relative: &Path) -> FileStorageResult<PathBuf> {
+        let mut current = self.root.clone();
+        for component in relative.components() {
+            current.push(component);
+            match fs::symlink_metadata(&current).await {
+                Ok(meta) if meta.file_type().is_symlink() => {
+                    return Err(FileStorageError::Validation(format!(
+                        "storage path {} passes through a symbolic link",
+                        relative.display()
+                    )));
+                },
+                Ok(_) => {},
+                Err(err) if err.kind() == std::io::ErrorKind::NotFound => break,
+                Err(err) => return Err(err.into()),
+            }
+        }
+        Ok(self.root.join(relative))
+    }
+
+    async fn confined_id(&self, id: &StoredFileId) -> FileStorageResult<PathBuf> {
+        self.confined(relative_path(Path::new(id.as_str()))?).await
     }
 }
 
@@ -134,7 +159,7 @@ async fn publish(staging: &Path, full: &Path) -> FileStorageResult<()> {
 impl FileStorage for LocalFileStorage {
     async fn store(&self, path: &Path, content: &[u8]) -> FileStorageResult<StoredFileId> {
         let relative = relative_path(path)?;
-        let full = self.root.join(relative);
+        let full = self.confined(relative).await?;
         if let Some(parent) = full.parent() {
             fs::create_dir_all(parent).await?;
         }
@@ -157,7 +182,7 @@ impl FileStorage for LocalFileStorage {
     ) -> FileStorageResult<StoredFileId> {
         use futures::StreamExt;
         let relative = relative_path(path)?;
-        let full = self.root.join(relative);
+        let full = self.confined(relative).await?;
         if let Some(parent) = full.parent() {
             fs::create_dir_all(parent).await?;
         }
@@ -179,7 +204,7 @@ impl FileStorage for LocalFileStorage {
         id: &StoredFileId,
         range: Option<ByteRange>,
     ) -> FileStorageResult<StoredFileRead> {
-        let full = self.resolve(id)?;
+        let full = self.confined_id(id).await?;
         let mut file = fs::File::open(&full)
             .await
             .map_err(|err| not_found(id, err))?;
@@ -202,14 +227,14 @@ impl FileStorage for LocalFileStorage {
     }
 
     async fn delete(&self, id: &StoredFileId) -> FileStorageResult<()> {
-        let full = self.resolve(id)?;
+        let full = self.confined_id(id).await?;
         fs::remove_file(&full)
             .await
             .map_err(|err| not_found(id, err))
     }
 
     async fn metadata(&self, id: &StoredFileId) -> FileStorageResult<StoredFileMetadata> {
-        let full = self.resolve(id)?;
+        let full = self.confined_id(id).await?;
         let meta = fs::metadata(&full)
             .await
             .map_err(|err| not_found(id, err))?;
@@ -220,7 +245,7 @@ impl FileStorage for LocalFileStorage {
     }
 
     async fn exists(&self, id: &StoredFileId) -> FileStorageResult<bool> {
-        let full = self.resolve(id)?;
+        let full = self.confined_id(id).await?;
         Ok(fs::try_exists(&full).await?)
     }
 }

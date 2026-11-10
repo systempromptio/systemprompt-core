@@ -9,7 +9,7 @@ use tracing_subscriber::field::{MakeVisitor, VisitFmt, VisitOutput};
 use tracing_subscriber::fmt::format::Writer;
 
 use crate::layer::InstanceLabel;
-use crate::sanitize::{REDACTION_PLACEHOLDER, escape_control, is_redacted, is_system_sentinel};
+use crate::sanitize::{escape_control, is_system_sentinel, sanitize_field};
 
 #[derive(Debug, Clone, Default)]
 pub struct FilterSystemFields {
@@ -65,11 +65,7 @@ impl<'a> FilteringVisitor<'a> {
     }
 
     fn write_value(&mut self, name: &str, rendered: &str) {
-        let safe = if is_redacted(name) {
-            REDACTION_PLACEHOLDER.to_owned()
-        } else {
-            escape_control(rendered)
-        };
+        let safe = escape_control(&sanitize_field(name, rendered));
         self.result = self.write_field(name, &safe);
     }
 

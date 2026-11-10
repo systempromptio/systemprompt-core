@@ -2,7 +2,7 @@
 //!
 //! [`JsonEventFormat`] renders one JSON object per event — `timestamp`,
 //! `level`, `target`, `fields`, `spans` and `instance` — and routes every field
-//! through the same [`is_redacted`] rule as the text formatter, so switching
+//! through the same [`sanitize_field`] rule as the text formatter, so switching
 //! `observability.log_format` never widens what reaches stderr. Span fields are
 //! the text the span's own field formatter already redacted.
 //!
@@ -25,7 +25,7 @@ use tracing_subscriber::fmt::{FmtContext, FormatEvent, FormatFields, FormattedFi
 use tracing_subscriber::registry::LookupSpan;
 
 use crate::layer::InstanceLabel;
-use crate::sanitize::{REDACTION_PLACEHOLDER, is_redacted, is_system_sentinel};
+use crate::sanitize::{REDACTION_PLACEHOLDER, is_redacted, is_system_sentinel, sanitize_field};
 use crate::services::output::OutputState;
 
 /// One JSON object per event, with sensitive field values redacted.
@@ -144,10 +144,10 @@ struct JsonFieldVisitor {
 impl JsonFieldVisitor {
     // JSON: see `fields`.
     fn insert(&mut self, field: &Field, value: Value) {
-        let value = if is_redacted(field.name()) {
-            Value::String(REDACTION_PLACEHOLDER.to_owned())
-        } else {
-            value
+        let value = match value {
+            Value::String(text) => Value::String(sanitize_field(field.name(), &text)),
+            _ if is_redacted(field.name()) => Value::String(REDACTION_PLACEHOLDER.to_owned()),
+            other => other,
         };
         self.fields.insert(field.name().to_owned(), value);
     }
