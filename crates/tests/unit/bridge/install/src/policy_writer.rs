@@ -20,16 +20,16 @@ use systemprompt_bridge::ids::{
 };
 use systemprompt_bridge::install::mdm::desktop_tool_policy::unlisted_servers;
 use systemprompt_bridge::install::policy_writer::{
-    BIN_SDDL, INBOX_SDDL, Layout, Loopback, MAX_REQUEST_BYTES, OUTBOX_SDDL, PolicyWriteRequest,
-    PolicyWriterError, REQUEST_VERSION, RequestFacts, TASK_SDDL, build_request, derive_policy,
-    expected_steps, facts_from_entries, render_task_xml, task_name, verify_against_anchor,
+    AccountSid, BIN_SDDL, INBOX_SDDL, Layout, Loopback, MAX_REQUEST_BYTES, MachineBinding,
+    OUTBOX_SDDL, PolicyWriteRequest, PolicyWriterError, REQUEST_VERSION, TASK_SDDL, build_request,
+    derive_policy, expected_steps, render_task_xml, task_name, verify_against_anchor,
 };
 use systemprompt_bridge::mcp_registry::{EnvelopeFragment, from_servers};
 use systemprompt_identifiers::ValidatedUrl;
 
-const GATEWAY: &str = "https://gateway.example.test";
+pub(crate) const GATEWAY: &str = "https://gateway.example.test";
 
-fn signing_key(seed: u8) -> SigningKey {
+pub(crate) fn signing_key(seed: u8) -> SigningKey {
     SigningKey::from_bytes(&[seed; 32])
 }
 
@@ -37,7 +37,7 @@ fn pubkey_b64(key: &SigningKey) -> String {
     B64.encode(key.verifying_key().to_bytes())
 }
 
-fn anchor(key: &SigningKey, gateway: &str) -> TrustRecord {
+pub(crate) fn anchor(key: &SigningKey, gateway: &str) -> TrustRecord {
     TrustRecord::new(
         &ValidatedUrl::try_new(gateway).unwrap(),
         &pubkey_b64(key),
@@ -46,7 +46,7 @@ fn anchor(key: &SigningKey, gateway: &str) -> TrustRecord {
     .unwrap()
 }
 
-fn server(name: &str, tool_policy: Option<BTreeMap<McpToolName, ToolPolicy>>) -> ManagedMcpServer {
+pub(crate) fn server(name: &str, tool_policy: Option<BTreeMap<McpToolName, ToolPolicy>>) -> ManagedMcpServer {
     ManagedMcpServer {
         id: systemprompt_identifiers::McpServerId::try_new(name).unwrap(),
         name: McpServerId::try_new(name).unwrap(),
@@ -58,7 +58,7 @@ fn server(name: &str, tool_policy: Option<BTreeMap<McpToolName, ToolPolicy>>) ->
     }
 }
 
-fn wildcard(policy: ToolPolicy) -> Option<BTreeMap<McpToolName, ToolPolicy>> {
+pub(crate) fn wildcard(policy: ToolPolicy) -> Option<BTreeMap<McpToolName, ToolPolicy>> {
     let mut map = BTreeMap::new();
     map.insert(
         McpToolName::try_new(ManagedMcpServer::TOOL_POLICY_WILDCARD).unwrap(),
@@ -67,7 +67,7 @@ fn wildcard(policy: ToolPolicy) -> Option<BTreeMap<McpToolName, ToolPolicy>> {
     Some(map)
 }
 
-fn manifest(servers: Vec<ManagedMcpServer>) -> SignedManifest {
+pub(crate) fn manifest(servers: Vec<ManagedMcpServer>) -> SignedManifest {
     SignedManifest {
         min_schema_version: MANIFEST_SCHEMA_VERSION,
         min_bridge_version: None,
@@ -102,7 +102,7 @@ fn manifest(servers: Vec<ManagedMcpServer>) -> SignedManifest {
     }
 }
 
-fn envelope(key: &SigningKey, manifest: &SignedManifest) -> SignedManifestEnvelope {
+pub(crate) fn envelope(key: &SigningKey, manifest: &SignedManifest) -> SignedManifestEnvelope {
     let payload = serde_json::to_string(manifest).unwrap();
     let sig = key.sign(payload.as_bytes());
     SignedManifestEnvelope {
@@ -111,7 +111,7 @@ fn envelope(key: &SigningKey, manifest: &SignedManifest) -> SignedManifestEnvelo
     }
 }
 
-fn request(
+pub(crate) fn request(
     key: &SigningKey,
     manifest: &SignedManifest,
     catalog: &[(&str, &[&str])],
@@ -130,19 +130,22 @@ fn request(
             )
         })
         .collect();
-    build_request(
+    build_request(&fragment, tool_catalog)
+}
+
+pub(crate) const INSTALLER: &str = "S-1-5-21-1-2-3-1001";
+
+pub(crate) fn binding() -> MachineBinding {
+    MachineBinding::new(
+        AccountSid::try_new(INSTALLER).unwrap(),
         Loopback {
             port: 48217,
             host_token: HostToken::new("host-token-for-desktop"),
         },
-        &fragment,
-        tool_catalog,
-        RequestFacts::default(),
-        "S-1-5-21-1-2-3-1001".to_owned(),
     )
 }
 
-fn value_of<'a>(values: &'a [(&'static str, &'static str, String)], name: &str) -> Option<&'a str> {
+pub(crate) fn value_of<'a>(values: &'a [(&'static str, &'static str, String)], name: &str) -> Option<&'a str> {
     values
         .iter()
         .find(|(key, _, _)| *key == name)
@@ -226,7 +229,7 @@ fn the_server_list_comes_from_the_manifest_never_from_the_catalog() {
             ("smuggled", &["anything"]),
         ],
     );
-    let values = derive_policy(&req, &manifest, None).unwrap();
+    let values = derive_policy(&binding(), &req, &manifest, None).unwrap();
     let servers = value_of(&values, "managedMcpServers").expect("the list is written");
     let list: Vec<serde_json::Value> = serde_json::from_str(servers).unwrap();
     let names: Vec<&str> = list.iter().map(|s| s["name"].as_str().unwrap()).collect();
@@ -238,7 +241,7 @@ fn the_server_list_comes_from_the_manifest_never_from_the_catalog() {
     assert_eq!(
         list[0]["url"].as_str().unwrap(),
         "http://127.0.0.1:48217/mcp/atlassian",
-        "servers point at the requester's loopback proxy"
+        "servers point at the bound loopback proxy"
     );
     assert_eq!(list[0]["toolPolicy"]["getJiraIssue"], "allow");
     assert_eq!(
@@ -259,7 +262,7 @@ fn a_wildcard_the_catalog_cannot_expand_skips_only_that_server() {
         server("atlassian", wildcard(ToolPolicy::Allow)),
     ]);
     let req = request(&key, &manifest, &[("atlassian", &["x"])]);
-    let values = derive_policy(&req, &manifest, None).unwrap();
+    let values = derive_policy(&binding(), &req, &manifest, None).unwrap();
     let servers = value_of(&values, "managedMcpServers").expect("the rest is written");
     assert!(servers.contains("atlassian"));
     assert!(!servers.contains("agent-farm"));
@@ -270,7 +273,7 @@ fn every_server_skipped_for_an_unexpandable_wildcard_omits_the_list() {
     let key = signing_key(1);
     let manifest = manifest(vec![server("agent-farm", wildcard(ToolPolicy::Allow))]);
     let req = request(&key, &manifest, &[]);
-    let values = derive_policy(&req, &manifest, None).unwrap();
+    let values = derive_policy(&binding(), &req, &manifest, None).unwrap();
     assert_eq!(
         value_of(&values, "managedMcpServers"),
         None,
@@ -291,7 +294,7 @@ fn one_server_skipped_keeps_the_list_in_the_written_values() {
         server("atlassian", wildcard(ToolPolicy::Allow)),
     ]);
     let req = request(&key, &manifest, &[("atlassian", &["x"])]);
-    let values = derive_policy(&req, &manifest, None).unwrap();
+    let values = derive_policy(&binding(), &req, &manifest, None).unwrap();
     assert!(
         withheld_keys(&values).is_empty(),
         "a written list replaces the stale one and is not removed"
@@ -327,35 +330,28 @@ fn a_server_the_manifest_denies_outright_is_left_out() {
         &manifest,
         &[("atlassian", &["x"]), ("blocked", &["y"])],
     );
-    let values = derive_policy(&req, &manifest, None).unwrap();
+    let values = derive_policy(&binding(), &req, &manifest, None).unwrap();
     let servers = value_of(&values, "managedMcpServers").unwrap();
     assert!(servers.contains("atlassian"));
     assert!(!servers.contains("blocked"));
 }
 
 #[test]
-fn the_model_list_is_the_requests_when_given_and_the_hives_otherwise() {
+fn the_model_list_is_the_one_the_hive_already_holds() {
     let key = signing_key(1);
     let manifest = manifest(vec![]);
-    let mut req = request(&key, &manifest, &[]);
+    let req = request(&key, &manifest, &[]);
     let existing = Some(r#"["claude-opus-4-5"]"#.to_owned());
-    let kept = derive_policy(&req, &manifest, existing.clone()).unwrap();
+    let kept = derive_policy(&binding(), &req, &manifest, existing).unwrap();
     assert_eq!(
         value_of(&kept, "inferenceModels"),
         Some(r#"["claude-opus-4-5"]"#),
-        "a sync leaves the hive's model list alone"
-    );
-    req.models = Some(r#"["claude-sonnet-5","claude-opus-5"]"#.to_owned());
-    let replaced = derive_policy(&req, &manifest, existing).unwrap();
-    assert_eq!(
-        value_of(&replaced, "inferenceModels"),
-        Some(r#"["claude-sonnet-5","claude-opus-5"]"#),
-        "a generate from the GUI carries the list it fetched"
+        "the writer keeps the model list the elevated install wrote"
     );
 }
 
 #[test]
-fn a_staged_profile_yields_the_loopback_and_the_inference_facts() {
+fn a_staged_profile_yields_the_loopback_it_points_at() {
     let entries = vec![
         ("inferenceProvider".to_owned(), "gateway".to_owned()),
         (
@@ -363,46 +359,13 @@ fn a_staged_profile_yields_the_loopback_and_the_inference_facts() {
             "http://127.0.0.1:48217".to_owned(),
         ),
         ("inferenceGatewayApiKey".to_owned(), "tok".to_owned()),
-        (
-            "inferenceCustomHeaders".to_owned(),
-            r#"{"x-inference-protocol":"anthropic"}"#.to_owned(),
-        ),
-        (
-            "inferenceModels".to_owned(),
-            r#"["claude-opus-5"]"#.to_owned(),
-        ),
-        (
-            "deploymentOrganizationUuid".to_owned(),
-            "11111111-2222-4333-8444-555555555555".to_owned(),
-        ),
     ];
     let loopback = Loopback::from_entries(&entries).unwrap();
     assert_eq!(loopback.port, 48217);
     assert_eq!(loopback.host_token.as_str(), "tok");
-    let facts = facts_from_entries(&entries).unwrap();
-    assert_eq!(
-        facts
-            .headers
-            .get("x-inference-protocol")
-            .map(String::as_str),
-        Some("anthropic")
-    );
-    assert_eq!(facts.models.as_deref(), Some(r#"["claude-opus-5"]"#));
-    assert_eq!(
-        facts.org_uuid.as_deref(),
-        Some("11111111-2222-4333-8444-555555555555")
-    );
     assert!(
         Loopback::from_entries(&[("inferenceProvider".to_owned(), "gateway".to_owned())]).is_err(),
-        "a profile that names no proxy cannot become a request"
-    );
-    let malformed = [("inferenceCustomHeaders".to_owned(), "{ not json".to_owned())];
-    assert!(
-        matches!(
-            facts_from_entries(&malformed),
-            Err(PolicyWriterError::Io { .. })
-        ),
-        "malformed headers are an error, never an empty header map"
+        "a profile that names no proxy cannot be compared with the binding"
     );
 }
 

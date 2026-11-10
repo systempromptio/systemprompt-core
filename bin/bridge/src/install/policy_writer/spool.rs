@@ -14,8 +14,9 @@ use std::time::{Duration, Instant};
 use serde::{Deserialize, Serialize};
 
 use super::{
-    BIN_SDDL, Layout, PolicyWriteRequest, PolicyWriterError, REQUEST_VERSION, RESULT_TIMEOUT_SECS,
-    derive_policy, expected_steps, task,
+    AccountSid, BIN_SDDL, Layout, Loopback, MachineBinding, PolicyWriteRequest, PolicyWriterError,
+    REQUEST_VERSION, RESULT_TIMEOUT_SECS, binding, derive_policy, expected_steps, machine_state,
+    task,
 };
 use crate::config::store::{self, ConfigStore, PolicyHive, PolicyTarget};
 use crate::install::elevated_protocol::{CompletedStep, ElevatedResult};
@@ -49,7 +50,10 @@ pub(crate) fn layout() -> Result<Layout, PolicyWriterError> {
         .map_err(io_ctx("resolve machine ProgramData"))
 }
 
-pub(crate) fn install(exe: &Path) -> Result<Vec<String>, PolicyWriterError> {
+// Why: the account running the elevated install is the one the machine
+// policy is bound to; its loopback port and host token are recorded with it,
+// so the writer never takes either from a request.
+pub(crate) fn install(exe: &Path, loopback: Loopback) -> Result<Vec<String>, PolicyWriterError> {
     if !crate::winproc::is_elevated() {
         return Err(PolicyWriterError::Unavailable(
             "the writer is registered by an elevated install only".to_owned(),
@@ -75,9 +79,12 @@ pub(crate) fn install(exe: &Path) -> Result<Vec<String>, PolicyWriterError> {
         crate::windows_acl::apply_directory_sddl(path, BIN_SDDL)
             .map_err(io_ctx("protect machine file"))?;
     }
+    let installer = current_account()?;
+    machine_state::write_binding(&layout, &MachineBinding::new(installer.clone(), loopback))?;
     task::register(&layout.binary, &layout.root).map_err(io_ctx("register writer task"))?;
     Ok(vec![
         format!("policy writer: {}", layout.binary.display()),
+        format!("machine policy bound to {installer}"),
         format!(
             "scheduled task: {} (SYSTEM, on request; users may run it)",
             super::task_name()
@@ -125,6 +132,9 @@ pub(crate) fn status() -> WriterStatus {
         {
             return WriterStatus::Unavailable(format!("{}: {e}", path.display()));
         }
+    }
+    if let Err(e) = machine_state::read_binding(&layout) {
+        return WriterStatus::Unavailable(e.to_string());
     }
     match read_stamp(&layout) {
         Ok(stamp) if stamp.request_version == REQUEST_VERSION => WriterStatus::Ready,
@@ -175,8 +185,19 @@ pub(crate) fn read_anchor(
         .collect()
 }
 
+fn current_account() -> Result<AccountSid, PolicyWriterError> {
+    AccountSid::try_new(
+        crate::windows_acl::current_sid().map_err(io_ctx("resolve the current account"))?,
+    )
+}
+
+// Why: the writer refuses another account's request on its own; checking
+// here as well turns that refusal into a typed answer before anything is
+// staged, and refuses a bridge whose loopback no longer matches the one the
+// machine policy is bound to.
 pub(crate) fn write_policy(
     request: &PolicyWriteRequest,
+    loopback: &Loopback,
 ) -> Result<Vec<CompletedStep>, PolicyWriterError> {
     match status() {
         WriterStatus::Ready => {},
@@ -184,6 +205,9 @@ pub(crate) fn write_policy(
         WriterStatus::Unavailable(why) => return Err(PolicyWriterError::Unavailable(why)),
     }
     let layout = layout()?;
+    let bound = machine_state::read_binding(&layout)?;
+    binding::authorize(&current_account()?, &bound)?;
+    binding::require_bound_loopback(&bound, loopback)?;
     let request_path = layout.request_path(&request.job_id);
     let result_path = layout.result_path(&request.job_id);
     let body = serde_json::to_vec(request)
@@ -193,7 +217,7 @@ pub(crate) fn write_policy(
     task::run().map_err(io_ctx("start writer task"))?;
     let result = await_result(&result_path)?;
     let steps = result.verify(&request.job_id, 0, &expected_steps())?;
-    verify_hive(request)?;
+    verify_hive(&bound, request)?;
     crate::fsutil::remove_leftover_file(&result_path);
     Ok(steps)
 }
@@ -225,7 +249,7 @@ fn await_result(result_path: &Path) -> Result<ElevatedResult, PolicyWriterError>
 // Why: the writer's own receipt is evidence of what it did; whether the hive
 // now holds what this bridge meant is read back independently, from the
 // same derivation the writer used, before the write is reported as done.
-fn verify_hive(request: &PolicyWriteRequest) -> Result<(), PolicyWriterError> {
+fn verify_hive(bound: &MachineBinding, request: &PolicyWriteRequest) -> Result<(), PolicyWriterError> {
     let manifest = crate::gateway::manifest::decode_payload(&request.envelope)?;
     let store = store::managed_policy_store();
     let existing_models = store.read_policy_document(
@@ -237,7 +261,7 @@ fn verify_hive(request: &PolicyWriteRequest) -> Result<(), PolicyWriterError> {
         Some(store::PolicyDocumentValue::Str(models)) => Some(models.clone()),
         _ => None,
     };
-    let expected = derive_policy(request, &manifest, existing_models)?;
+    let expected = derive_policy(bound, request, &manifest, existing_models)?;
     let withheld = store::policy_apply::withheld_keys(&expected);
     let mut names: Vec<&str> = expected.iter().map(|(name, _, _)| *name).collect();
     names.extend(&withheld);

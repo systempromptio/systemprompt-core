@@ -30,23 +30,13 @@ pub(super) fn install_through_writer(
             context: "read the tool catalog".to_owned(),
             source,
         })?;
-    let requester = crate::windows_acl::current_sid().map_err(|source| PolicyWriterError::Io {
-        context: "resolve the requesting account".to_owned(),
-        source,
-    })?;
     let loopback =
         policy_writer::Loopback::from_entries(entries).map_err(|source| PolicyWriterError::Io {
             context: "read the proxy from the staged profile".to_owned(),
             source,
         })?;
-    let request = policy_writer::build_request(
-        loopback,
-        &fragment,
-        catalog,
-        policy_writer::facts_from_entries(entries)?,
-        requester,
-    );
-    policy_writer::write_policy(&request)?;
+    let request = policy_writer::build_request(&fragment, catalog);
+    policy_writer::write_policy(&request, &loopback)?;
     let outcome = require_org_plugins_provisioned(false)
         .map_err(|e| PolicyWriterError::OrgPluginsUnusable(e.into()))?;
     tracing::info!(

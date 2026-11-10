@@ -6,18 +6,24 @@
 use std::io::{self, Read};
 use std::path::Path;
 
-use super::{
-    MAX_REQUEST_BYTES, PolicyWriteRequest, PolicyWriterError, REQUEST_VERSION, RequestFacts,
-    entry_value,
-};
+use super::{MAX_REQUEST_BYTES, PolicyWriteRequest, PolicyWriterError, REQUEST_VERSION};
 
 pub fn read_request(path: &Path) -> Result<PolicyWriteRequest, PolicyWriterError> {
-    let bytes = read_bytes(path).map_err(|source| PolicyWriterError::Io {
+    let file = open_request(path).map_err(read_error(path))?;
+    let bytes = read_capped(&file).map_err(read_error(path))?;
+    decode_request(&bytes, path)
+}
+
+fn read_error(path: &Path) -> impl FnOnce(io::Error) -> PolicyWriterError + '_ {
+    move |source| PolicyWriterError::Io {
         context: format!("read request {}", path.display()),
         source,
-    })?;
+    }
+}
+
+pub fn decode_request(bytes: &[u8], path: &Path) -> Result<PolicyWriteRequest, PolicyWriterError> {
     let request: PolicyWriteRequest =
-        serde_json::from_slice(&bytes).map_err(|e| PolicyWriterError::Io {
+        serde_json::from_slice(bytes).map_err(|e| PolicyWriterError::Io {
             context: format!("decode request {}", path.display()),
             source: io::Error::other(e),
         })?;
@@ -29,7 +35,23 @@ pub fn read_request(path: &Path) -> Result<PolicyWriteRequest, PolicyWriterError
     Ok(request)
 }
 
-fn read_bytes(path: &Path) -> io::Result<Vec<u8>> {
+// Why: the SYSTEM side reads the owner from the same handle it reads the
+// bytes from, so the file it judged is the file it decodes.
+#[cfg(target_os = "windows")]
+pub(super) fn read_owned_request(
+    path: &Path,
+) -> Result<(PolicyWriteRequest, super::AccountSid), PolicyWriterError> {
+    let file = open_request(path).map_err(read_error(path))?;
+    let owner = super::owner::owner_of(&file).map_err(|source| PolicyWriterError::Io {
+        context: format!("read the owner of {}", path.display()),
+        source,
+    })?;
+    let owner = super::AccountSid::try_new(owner)?;
+    let bytes = read_capped(&file).map_err(read_error(path))?;
+    Ok((decode_request(&bytes, path)?, owner))
+}
+
+fn open_request(path: &Path) -> io::Result<std::fs::File> {
     let mut options = std::fs::OpenOptions::new();
     options.read(true);
     #[cfg(unix)]
@@ -63,26 +85,14 @@ fn read_bytes(path: &Path) -> io::Result<Vec<u8>> {
     if metadata.len() > MAX_REQUEST_BYTES {
         return Err(io::Error::other("request exceeds the size limit"));
     }
+    Ok(file)
+}
+
+fn read_capped(file: &std::fs::File) -> io::Result<Vec<u8>> {
     let mut bytes = Vec::new();
     file.take(MAX_REQUEST_BYTES + 1).read_to_end(&mut bytes)?;
     if bytes.len() as u64 > MAX_REQUEST_BYTES {
         return Err(io::Error::other("request exceeds the size limit"));
     }
     Ok(bytes)
-}
-
-pub fn facts_from_entries(entries: &[(String, String)]) -> Result<RequestFacts, PolicyWriterError> {
-    let headers = entry_value(entries, "inferenceCustomHeaders")
-        .map(|raw| serde_json::from_str(&raw))
-        .transpose()
-        .map_err(|e| PolicyWriterError::Io {
-            context: "parse inferenceCustomHeaders from the staged profile".to_owned(),
-            source: io::Error::new(io::ErrorKind::InvalidData, e),
-        })?
-        .unwrap_or_default();
-    Ok(RequestFacts {
-        headers,
-        models: entry_value(entries, "inferenceModels"),
-        org_uuid: entry_value(entries, "deploymentOrganizationUuid"),
-    })
 }

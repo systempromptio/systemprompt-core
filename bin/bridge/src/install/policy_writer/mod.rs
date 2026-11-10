@@ -3,9 +3,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod binding;
 #[cfg(target_os = "windows")]
 mod child;
 mod derive;
+#[cfg(target_os = "windows")]
+mod machine_state;
+#[cfg(target_os = "windows")]
+mod owner;
 #[cfg(target_os = "windows")]
 mod paths;
 pub mod request;
@@ -14,7 +19,6 @@ mod spool;
 #[cfg(target_os = "windows")]
 mod task;
 
-use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
@@ -25,44 +29,34 @@ use super::mdm::MdmError;
 use super::mdm::tool_catalog::ToolCatalog;
 use crate::ids::{ElevatedJobId, HostToken};
 
+pub use self::binding::{AccountSid, AcceptedEnvelope, MachineBinding};
 pub use self::derive::{derive_policy, verify_against_anchor};
-pub use self::request::facts_from_entries;
 
 #[cfg(target_os = "windows")]
 pub(crate) use self::child::perform_task;
 #[cfg(target_os = "windows")]
 pub(crate) use self::spool::{WriterStatus, install, remove, status, write_policy};
 
-pub const REQUEST_VERSION: u32 = 1;
+pub const REQUEST_VERSION: u32 = 2;
 pub const MAX_REQUEST_BYTES: u64 = 256 * 1024;
 pub const RESULT_TIMEOUT_SECS: u64 = 60;
 
 /// One request to rewrite the machine policy.
 ///
 /// The manifest is the envelope the gateway signed; the writer verifies it
-/// and takes the server list from it, so nothing here can add a server the
-/// gateway did not grant.
+/// and takes the server list and the inference headers from it. The account,
+/// the loopback port and the host token come from the [`MachineBinding`] the
+/// elevated install recorded, so nothing a request carries can point the
+/// machine policy anywhere. The tool catalog only names the tools behind a
+/// wildcard the signed tool policy already grants.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PolicyWriteRequest {
     pub version: u32,
     pub job_id: ElevatedJobId,
-    pub requester_sid: String,
     pub gateway: String,
     pub envelope: SignedManifestEnvelope,
-    pub loopback_port: u16,
-    pub host_token: HostToken,
-    pub headers: BTreeMap<String, String>,
-    pub models: Option<String>,
-    pub org_uuid: Option<String>,
     pub tool_catalog: ToolCatalog,
-}
-
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct RequestFacts {
-    pub headers: BTreeMap<String, String>,
-    pub models: Option<String>,
-    pub org_uuid: Option<String>,
 }
 
 /// Where the writer's pieces live under a machine-wide root
@@ -97,6 +91,16 @@ impl Layout {
     #[must_use]
     pub fn request_path(&self, job_id: &ElevatedJobId) -> PathBuf {
         self.inbox.join(format!("request-{job_id}.json"))
+    }
+
+    #[must_use]
+    pub fn binding_path(&self) -> PathBuf {
+        self.root.join("binding.json")
+    }
+
+    #[must_use]
+    pub fn accepted_path(&self) -> PathBuf {
+        self.root.join("accepted.json")
     }
 
     #[must_use]
@@ -151,6 +155,28 @@ pub fn expected_steps() -> Vec<CompletedStep> {
 
 #[derive(Debug, thiserror::Error)]
 pub enum PolicyWriterError {
+    #[error(
+        "the request file is owned by {owner}, but the machine policy is bound to {bound}; \
+         only the installing account's requests reach the machine policy"
+    )]
+    NotBoundInstaller { owner: AccountSid, bound: AccountSid },
+    #[error(
+        "the machine policy is bound to loopback port {bound_port} but this bridge listens on \
+         {current_port} or holds another secret; re-run install --apply as Administrator"
+    )]
+    BindingStale { bound_port: u16, current_port: u16 },
+    #[error("machine policy binding format {actual} is unsupported; expected {}", binding::BINDING_VERSION)]
+    BindingVersion { actual: u32 },
+    #[error("no machine policy binding; re-run install --apply as Administrator")]
+    NoBinding,
+    #[error("{0:?} is not a Windows account SID")]
+    InvalidSid(String),
+    #[error("manifest not_before {not_before} is outside the clock-skew window of {now}")]
+    Skewed { not_before: String, now: String },
+    #[error("envelope digest: {0}")]
+    Digest(#[from] systemprompt_identifiers::error::IdValidationError),
+    #[error("manifest version {incoming} is not newer than the last accepted {last}")]
+    Replayed { last: String, incoming: String },
     #[error("policy write request protocol {actual} is unsupported; expected {REQUEST_VERSION}")]
     Version { actual: u32 },
     #[error(
@@ -189,23 +215,14 @@ pub enum PolicyWriterError {
 
 #[must_use]
 pub fn build_request(
-    loopback: Loopback,
     fragment: &crate::mcp_registry::EnvelopeFragment,
     tool_catalog: ToolCatalog,
-    facts: RequestFacts,
-    requester_sid: String,
 ) -> PolicyWriteRequest {
     PolicyWriteRequest {
         version: REQUEST_VERSION,
         job_id: ElevatedJobId::generate(),
-        requester_sid,
         gateway: fragment.gateway.as_str().to_owned(),
         envelope: fragment.envelope.clone(),
-        loopback_port: loopback.port,
-        host_token: loopback.host_token,
-        headers: facts.headers,
-        models: facts.models,
-        org_uuid: facts.org_uuid,
         tool_catalog,
     }
 }
@@ -245,7 +262,7 @@ impl Loopback {
     }
 }
 
-pub(super) fn entry_value(entries: &[(String, String)], name: &str) -> Option<String> {
+fn entry_value(entries: &[(String, String)], name: &str) -> Option<String> {
     entries
         .iter()
         .find(|(key, _)| key == name)
