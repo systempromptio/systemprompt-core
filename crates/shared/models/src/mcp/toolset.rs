@@ -63,7 +63,7 @@ impl ToolAccess {
         let scope_match = self
             .scopes
             .iter()
-            .any(|required| user.permissions.iter().any(|held| held.implies(required)));
+            .any(|required| user.permissions.iter().any(|held| held.grants(required)));
         let role_match = self.roles.iter().any(|role| user.roles.contains(role));
         let group_match = self.groups.iter().any(|group| groups.contains(group));
         scope_match || role_match || group_match

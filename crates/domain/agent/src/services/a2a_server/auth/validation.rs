@@ -126,7 +126,7 @@ fn missing_scopes_reason(
 
     let has_required_scope = required_scopes.iter().any(|required_scope| {
         claims.permissions.iter().any(|user_perm| {
-            Permission::from_str(user_perm).is_ok_and(|p| p.implies(required_scope))
+            Permission::from_str(user_perm).is_ok_and(|p| p.grants(required_scope))
         })
     });
 

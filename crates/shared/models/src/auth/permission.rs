@@ -1,10 +1,12 @@
 //! The [`Permission`] scope set and its hierarchy.
 //!
-//! [`Permission`] is the PBAC grant carried in a token's `scope`. The
-//! privilege ordering ([`Permission::hierarchy_level`],
-//! [`Permission::implies`]) drives every route-level access check, and
-//! [`parse_permissions`] / [`permissions_to_string`] are the space-delimited
-//! wire codec.
+//! [`Permission`] is the PBAC grant carried in a token's `scope`.
+//! [`Permission::grants`] decides whether a held permission satisfies a
+//! required one: `admin` satisfies every scope, every scope satisfies
+//! `anonymous`, and `user` and each service or hook scope are satisfied only
+//! by themselves (or `admin`). [`Permission::hierarchy_level`] is a
+//! display/sort order only and never an access decision. [`parse_permissions`]
+//! / [`permissions_to_string`] are the space-delimited wire codec.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -123,8 +125,18 @@ impl Permission {
         }
     }
 
-    pub const fn implies(&self, other: &Self) -> bool {
-        self.hierarchy_level() >= other.hierarchy_level()
+    pub const fn grants(&self, required: &Self) -> bool {
+        matches!(
+            (self, required),
+            (Self::Admin, _)
+                | (_, Self::Anonymous)
+                | (Self::User, Self::User)
+                | (Self::Service, Self::Service)
+                | (Self::A2a, Self::A2a)
+                | (Self::Mcp, Self::Mcp)
+                | (Self::HookGovern, Self::HookGovern)
+                | (Self::HookTrack, Self::HookTrack)
+        )
     }
 
     pub fn user_permissions() -> Vec<Self> {

@@ -114,7 +114,7 @@ fn a_token_with_no_audience_at_all_is_refused() {
     .expect_err("an audience-less token must not reach a server that requires one");
 }
 
-// Why: permissions are hierarchical, so the check is `implies`, not equality.
+// Why: the check is `grants`, not equality.
 // Admin must satisfy a User requirement or every privileged caller is locked
 // out of ordinary tools.
 #[test]
@@ -177,4 +177,44 @@ fn a_caller_holding_no_permissions_is_refused() {
         &requirement(JwtAudience::Mcp, vec![Permission::User]),
     )
     .expect_err("a caller with no permissions must not pass a scope check");
+}
+
+#[test]
+fn a_user_token_does_not_satisfy_an_mcp_scope_requirement() {
+    validate_scopes_for_permissions(
+        &McpServerId::new("srv"),
+        &[Permission::User],
+        &requirement(JwtAudience::Mcp, vec![Permission::Mcp]),
+    )
+    .expect_err("user scope is not the mcp scope");
+}
+
+#[test]
+fn a_hook_token_does_not_satisfy_a_user_requirement() {
+    validate_scopes_for_permissions(
+        &McpServerId::new("srv"),
+        &[Permission::HookGovern, Permission::HookTrack],
+        &requirement(JwtAudience::Mcp, vec![Permission::User]),
+    )
+    .expect_err("hook scopes are not a user session");
+}
+
+#[test]
+fn the_messaging_token_satisfies_a_user_requirement() {
+    validate_scopes_for_permissions(
+        &McpServerId::new("srv"),
+        &[Permission::A2a, Permission::User],
+        &requirement(JwtAudience::Mcp, vec![Permission::User]),
+    )
+    .expect("messaging tokens carry the sender's user scope");
+}
+
+#[test]
+fn a_service_token_satisfies_an_anonymous_requirement() {
+    validate_scopes_for_permissions(
+        &McpServerId::new("srv"),
+        &[Permission::Service],
+        &requirement(JwtAudience::Mcp, vec![Permission::Anonymous]),
+    )
+    .expect("an anonymous requirement admits any token");
 }

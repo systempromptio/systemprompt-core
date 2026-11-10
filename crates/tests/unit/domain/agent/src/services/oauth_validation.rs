@@ -187,3 +187,59 @@ async fn validate_oauth_empty_required_scopes_refuses_a_non_admin() {
         .expect_err("an empty requirement list is unsatisfiable");
     assert_eq!(err.0, axum::http::StatusCode::FORBIDDEN);
 }
+
+#[tokio::test]
+async fn validate_oauth_user_token_refused_for_a2a_scope() {
+    let provider = StubJwtProvider::ok(claims_user(&["user"]));
+    let err = validate_oauth_for_request(
+        &bearer("token"),
+        &NumberOrString::Number(1),
+        &[Permission::A2a],
+        Some(&provider),
+    )
+    .await
+    .expect_err("user scope is not the a2a scope");
+    assert_eq!(err.0, axum::http::StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn validate_oauth_messaging_token_reaches_user_agent() {
+    let provider = StubJwtProvider::ok(claims_user(&["a2a", "user"]));
+    let value = validate_oauth_for_request(
+        &bearer("token"),
+        &NumberOrString::Number(1),
+        &[Permission::User],
+        Some(&provider),
+    )
+    .await
+    .expect("ok")
+    .expect("Some");
+    assert_eq!(value.username, "alice");
+}
+
+#[tokio::test]
+async fn validate_oauth_hook_token_refused_for_user_agent() {
+    let provider = StubJwtProvider::ok(claims_user(&["hook:govern", "hook:track"]));
+    let err = validate_oauth_for_request(
+        &bearer("token"),
+        &NumberOrString::Number(1),
+        &[Permission::User],
+        Some(&provider),
+    )
+    .await
+    .expect_err("hook scopes are not a user session");
+    assert_eq!(err.0, axum::http::StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn validate_oauth_service_token_reaches_anonymous_agent() {
+    let provider = StubJwtProvider::ok(claims_user(&["service"]));
+    validate_oauth_for_request(
+        &bearer("token"),
+        &NumberOrString::Number(1),
+        &[Permission::Anonymous],
+        Some(&provider),
+    )
+    .await
+    .expect("an anonymous requirement admits any token");
+}

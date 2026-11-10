@@ -888,6 +888,32 @@ fn validate_rejects_cors_origin_with_path() {
 }
 
 #[test]
+fn validate_rejects_cors_origin_the_runtime_cannot_match() {
+    for origin in [
+        "https://App.example.com",
+        "https://app.example.com/",
+        "https://app.example.com:443",
+    ] {
+        let mut profile = valid_profile("cors-serialisation");
+        profile.server.cors_allowed_origins = vec![origin.to_string()];
+        let err = profile
+            .validate()
+            .expect_err("a non-canonical CORS origin must fail validation");
+        assert!(
+            format!("{err}").contains("https://app.example.com"),
+            "{origin}: got {err}"
+        );
+    }
+}
+
+#[test]
+fn validate_accepts_canonical_cors_origin() {
+    let mut profile = valid_profile("cors-canonical");
+    profile.server.cors_allowed_origins = vec!["https://app.example.com:8443".to_string()];
+    profile.validate().expect("a canonical origin validates");
+}
+
+#[test]
 fn validate_rejects_trusted_issuer_non_https_jwks() {
     use systemprompt_manifest::profile::TrustedIssuer;
     let mut profile = valid_profile("bad-jwks");

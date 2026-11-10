@@ -226,4 +226,52 @@ mod gate {
             "declaring no protected prefixes must mean everything is protected"
         );
     }
+
+    async fn request_with(
+        config: SiteAuthConfig,
+        uri: &str,
+        token: &str,
+    ) -> axum::http::Response<Body> {
+        let req = Request::builder()
+            .uri(uri)
+            .header(header::COOKIE, format!("access_token={token}"))
+            .body(Body::empty())
+            .expect("request must build");
+        app(config)
+            .oneshot(req)
+            .await
+            .expect("request must complete")
+    }
+
+    fn user_token() -> String {
+        let config = fixture_config("postgres://unused/unused");
+        systemprompt_test_fixtures::mint_bridge_jwt(
+            &UserId::new("00000000-0000-4000-8000-00000000517f"),
+            "site-user@example.invalid",
+            &config.jwt_issuer,
+        )
+        .as_str()
+        .to_owned()
+    }
+
+    const USER_SITE: SiteAuthConfig = SiteAuthConfig {
+        login_path: "/app/login",
+        protected_prefixes: &["/app"],
+        public_prefixes: &[],
+        required_scope: "user",
+    };
+
+    #[tokio::test]
+    async fn a_user_scoped_site_admits_user_and_admin_tokens() {
+        for token in [user_token(), admin_token()] {
+            let resp = request_with(USER_SITE, "/app/home", &token).await;
+            assert_eq!(resp.status(), StatusCode::OK);
+        }
+    }
+
+    #[tokio::test]
+    async fn an_admin_scoped_site_refuses_a_user_token() {
+        let resp = request_with(CONFIG, "/admin/agents", &user_token()).await;
+        assert_ne!(resp.status(), StatusCode::OK);
+    }
 }

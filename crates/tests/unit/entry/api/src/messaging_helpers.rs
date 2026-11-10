@@ -130,7 +130,7 @@ fn every_other_role_set_stays_below_admin() {
             "roles {roles:?} must not reach admin"
         );
         assert!(
-            !permissions.iter().any(|p| p.implies(&Permission::Admin)),
+            !permissions.iter().any(|p| p.grants(&Permission::Admin)),
             "roles {roles:?} must not imply admin"
         );
     }

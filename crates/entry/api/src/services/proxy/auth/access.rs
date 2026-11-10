@@ -207,7 +207,7 @@ fn ensure_required_scopes(
             |required_permission| {
                 user.permissions
                     .iter()
-                    .any(|p| *p == required_permission || p.implies(&required_permission))
+                    .any(|p| p.grants(&required_permission))
             },
         )
     });

@@ -111,7 +111,7 @@ fn authorize(
     else {
         return AuthOutcome::InvalidToken;
     };
-    if user_ctx.role == required || user_ctx.role.implies(&required) {
+    if user_ctx.role.grants(&required) {
         AuthOutcome::Authorized
     } else {
         AuthOutcome::Unauthorized

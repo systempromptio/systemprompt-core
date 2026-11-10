@@ -63,7 +63,7 @@ pub fn validate_scopes_for_permissions(
     let has_required_scope = required_scopes.iter().any(|required| {
         user_permissions
             .iter()
-            .any(|user_perm| user_perm.implies(required))
+            .any(|user_perm| user_perm.grants(required))
     });
 
     if has_required_scope {

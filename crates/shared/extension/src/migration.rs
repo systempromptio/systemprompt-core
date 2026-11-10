@@ -90,7 +90,7 @@ impl Migration {
 
     #[must_use]
     pub fn breaks_older(&self) -> bool {
-        crate::compat::parse(self.sql).unwrap_or(false)
+        crate::compat::parse(self.sql).unwrap_or(true)
     }
 
     // Why: the digest is persisted in `extension_migrations.checksum` and
