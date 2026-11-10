@@ -4,7 +4,9 @@
 -- consistency count share. Every user-scoped fact is queued for the
 -- `brain_fact_index` projection, whose refresh rewrites the fact's
 -- working-set rows through that function and so drops the rows a topic
--- audience added; the owner's own row is kept.
+-- audience added; the owner's own row is kept. Until it does, reads go
+-- through `v_brain_working_set`, which admits a user-scoped fact only under
+-- its owner's key.
 -- @cost: rows=0 measured=0.0s triggers=live
 
 CREATE OR REPLACE FUNCTION brain_fact_scope_keys(
@@ -19,6 +21,12 @@ LANGUAGE sql STABLE AS $$
          jsonb_array_elements_text(COALESCE(t.body -> 'audience', '[]'::jsonb)) a
     WHERE p_scope_level <> 'user' AND t.id = ANY (p_topics)
 $$;
+
+CREATE OR REPLACE VIEW v_brain_working_set AS
+SELECT w.scope_key, w.fact_id, w.importance_base
+FROM brain_working_set w
+JOIN brain_facts f ON f.id = w.fact_id
+WHERE f.scope_level <> 'user' OR w.scope_key = 'user:' || f.scope_key;
 
 INSERT INTO projection_backlog (projection, key)
 SELECT 'brain_fact_index', id FROM brain_facts

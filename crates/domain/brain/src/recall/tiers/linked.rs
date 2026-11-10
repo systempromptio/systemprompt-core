@@ -54,7 +54,7 @@ pub(super) async fn by_linked(
                WHERE NOT $13::bool OR EXISTS (
                    SELECT 1 FROM brain_facts a
                    WHERE a.subject_kind = m.subject_kind AND a.subject_id = m.subject_id
-                     AND EXISTS (SELECT 1 FROM brain_working_set w
+                     AND EXISTS (SELECT 1 FROM v_brain_working_set w
                                  WHERE w.fact_id = a.id AND w.scope_key = ANY($1::text[]))
                      AND a.scope_level = ANY($6::text[])
                      AND (a.status = 'confirmed'
@@ -99,7 +99,7 @@ pub(super) async fn by_linked(
                JOIN brain_facts f ON f.id = r.id
                WHERE NOT (f.subject_kind = r.not_kind AND f.subject_id = r.not_id)
                  AND NOT (f.subject_kind = r.anchor_kind AND f.subject_id = r.anchor_id)
-                 AND EXISTS (SELECT 1 FROM brain_working_set w
+                 AND EXISTS (SELECT 1 FROM v_brain_working_set w
                              WHERE w.fact_id = f.id AND w.scope_key = ANY($1::text[]))
                  AND f.scope_level = ANY($6::text[])
                  AND (f.status = 'confirmed'

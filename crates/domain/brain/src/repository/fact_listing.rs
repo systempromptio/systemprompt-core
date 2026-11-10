@@ -29,7 +29,7 @@ impl FactRepository {
         let mut conn = self.pools.read.acquire().await?;
         let ids = sqlx::query_scalar!(
             r#"SELECT f.id AS "id: BrainFactId" FROM brain_facts f
-               WHERE EXISTS (SELECT 1 FROM brain_working_set w
+               WHERE EXISTS (SELECT 1 FROM v_brain_working_set w
                              WHERE w.fact_id = f.id AND w.scope_key = ANY($7::text[]))
                  AND ($1::text IS NULL OR f.kind = $1)
                  AND ($2::text IS NULL OR f.subject_kind = $2)

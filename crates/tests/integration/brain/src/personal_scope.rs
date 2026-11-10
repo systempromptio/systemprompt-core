@@ -32,7 +32,7 @@ fn ctx(user: &UserId) -> RequestContext {
     .with_user(person)
 }
 
-async fn mcp_search(h: &Harness, user: &UserId) -> usize {
+pub(crate) async fn mcp_search(h: &Harness, user: &UserId) -> usize {
     let tools = BrainMcpTools::from_parts(
         Arc::new(h.service.clone()),
         Arc::new(h.recall()),

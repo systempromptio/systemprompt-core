@@ -31,7 +31,7 @@ pub(super) async fn pinned(
     Ok(sqlx::query_scalar!(
         r#"SELECT f.id AS "id: BrainFactId" FROM brain_facts f
            WHERE f.pinned
-             AND EXISTS (SELECT 1 FROM brain_working_set w
+             AND EXISTS (SELECT 1 FROM v_brain_working_set w
                          WHERE w.fact_id = f.id AND w.scope_key = ANY($1::text[]))
              AND f.scope_level = ANY($6::text[])
              AND (f.status = 'confirmed'
@@ -64,7 +64,7 @@ pub(super) async fn by_context(
     let key = project_key(project);
     Ok(sqlx::query_scalar!(
         r#"SELECT f.id AS "id: BrainFactId"
-           FROM brain_working_set w JOIN brain_facts f ON f.id = w.fact_id
+           FROM v_brain_working_set w JOIN brain_facts f ON f.id = w.fact_id
            WHERE w.scope_key = $7 AND w.scope_key = ANY($1::text[])
              AND f.scope_level = 'project'
              AND 'project' = ANY($6::text[])
@@ -104,7 +104,7 @@ pub(super) async fn withheld_counts(
            FROM brain_facts f
            WHERE (f.status IN ('stale', 'disputed')
                   OR (f.status IN ('confirmed', 'proposed', 'stale') AND f.review_after < $4))
-             AND EXISTS (SELECT 1 FROM brain_working_set w
+             AND EXISTS (SELECT 1 FROM v_brain_working_set w
                          WHERE w.fact_id = f.id AND w.scope_key = ANY($1::text[]))
              AND f.scope_level = ANY($5::text[])
              AND (f.status <> 'proposed' OR f.owner_user_id = $2)

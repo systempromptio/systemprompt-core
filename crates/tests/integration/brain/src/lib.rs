@@ -115,6 +115,8 @@ mod session_pathway;
 #[cfg(test)]
 mod stale;
 #[cfg(test)]
+mod stale_working_set;
+#[cfg(test)]
 mod subject_links;
 #[cfg(test)]
 mod subjects_aliases;
