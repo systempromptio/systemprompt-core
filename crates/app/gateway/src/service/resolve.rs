@@ -26,7 +26,7 @@ use systemprompt_models::attribution::RequestAttribution;
 use super::super::protocol::canonical::CanonicalRequest;
 use super::super::protocol::outbound::OutboundAdapter;
 use super::super::registry::GatewayEngines;
-use super::chain_plan::{PlannedChain, fit_context_window, order_chain};
+use super::chain_plan::{PlannedChain, SentBody, fit_context_window, join_segments, order_chain};
 use super::credentials::KeyOwner;
 use super::route_match::{describe_route_match, enforce_route_requirements, refine_chain};
 use super::{DispatchError, GatewayError, PolicyDenied};
@@ -60,6 +60,7 @@ pub(super) struct UpstreamQuery<'r> {
     pub(super) attribution: &'r RequestAttribution,
     pub(super) ai_request_id: &'r AiRequestId,
     pub(super) owner: KeyOwner,
+    pub(super) sent: SentBody,
 }
 
 pub(super) async fn resolve_upstream<'a>(
@@ -72,6 +73,7 @@ pub(super) async fn resolve_upstream<'a>(
         attribution,
         ai_request_id,
         owner,
+        sent,
     } = query;
     let resolution = resolve_route(RouteSource::Catalog(catalog), request, attribution)
         .map_err(|error| refusal(&error, request, ai_request_id))?;
@@ -86,7 +88,7 @@ pub(super) async fn resolve_upstream<'a>(
         (!predicates.is_empty()).then(|| format!("when:{}", predicates.join(",")))
     });
     let selector = refine_chain(engines, catalog, &mut target, route.as_ref(), request).await;
-    let planned = plan_chain(catalog, engines, request, &target, ai_request_id)?;
+    let planned = plan_chain(catalog, engines, (request, sent), &target, ai_request_id)?;
     let route_match_descriptor = join_segments(
         Some(describe_route_match(
             target.route.as_ref(),
@@ -148,7 +150,7 @@ fn refusal(
 fn plan_chain(
     catalog: &ResolvedCatalog,
     engines: &GatewayEngines,
-    request: &CanonicalRequest,
+    (request, sent): (&CanonicalRequest, SentBody),
     target: &ResolvedTarget,
     ai_request_id: &AiRequestId,
 ) -> Result<PlannedChain, DispatchError> {
@@ -162,6 +164,7 @@ fn plan_chain(
     let fitted = fit_context_window(
         catalog,
         request,
+        sent,
         ordered.deployments,
         target.context_fallbacks.clone(),
     )
@@ -180,13 +183,6 @@ fn plan_chain(
         deployments: fitted.deployments,
         descriptor: join_segments(ordered.descriptor, fitted.descriptor),
     })
-}
-
-fn join_segments(first: Option<String>, second: Option<String>) -> Option<String> {
-    match (first, second) {
-        (Some(a), Some(b)) => Some(format!("{a};{b}")),
-        (a, b) => a.or(b),
-    }
 }
 
 pub(super) struct DeploymentHop<'h> {

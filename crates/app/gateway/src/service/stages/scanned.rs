@@ -3,17 +3,24 @@
 //! rewritten in the forwarded body, and the findings are persisted after
 //! redaction so a redacted category is stored as its marker.
 //!
+//! The scanners read the string leaves of the prepared body, the exact bytes
+//! the upstream receives, so content the inbound parser does not model
+//! (unknown block types, unmodelled fields) is judged on every wire. When that
+//! surface is cut short by its budget under an enforcing scanner set, the
+//! request is refused rather than forwarded partly unread.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_identifiers::AiRequestId;
+use systemprompt_wire::inspect;
 
 use super::super::super::audit::GatewayAudit;
 use super::super::finalize::{
     persist_request_findings, request_finding_blocks, request_finding_rows, run_request_safety_scan,
 };
 use super::super::{DispatchError, SafetyBlocked};
-use super::recovery::redact_findings;
+use super::recovery::{inspection_budget, redact_findings};
 use super::{GovernedDispatch, ScannedDispatch};
 use crate::policies::SafetyConfig;
 use crate::registry::SafetyScannerRegistry;
@@ -33,6 +40,18 @@ impl ScannedDispatch {
     ) -> Result<Self, DispatchError> {
         let SafetyScan { scanners, safety } = scan;
         let GovernedDispatch(mut prepared) = governed;
+        prepared.request.forwarded_surface =
+            inspect::string_leaves(&prepared.body.bytes, inspection_budget());
+        if enforcing(safety) && surface_incomplete(&prepared) {
+            return Err(refuse(
+                audit,
+                ai_request_id,
+                CATEGORY_INSPECTION_INCOMPLETE.to_owned(),
+                "inspection",
+                " because the forwarded body exceeds the inspection budget",
+            )
+            .await);
+        }
         let findings = run_request_safety_scan(scanners, &prepared.request, safety).await;
         let blocked = findings
             .iter()
@@ -69,19 +88,42 @@ impl ScannedDispatch {
         let Some((category, scanner, detail)) = refusal else {
             return Ok(Self(prepared));
         };
-        let msg = format!("request blocked by safety policy: category '{category}'{detail}");
-        tracing::warn!(
-            ai_request_id = %ai_request_id,
-            category = %category,
-            scanner = %scanner,
-            "Gateway blocked request by safety policy"
-        );
-        if let Err(e) = audit.fail(&msg).await {
-            tracing::warn!(error = %e, "safety-block audit fail failed");
-        }
-        Err(DispatchError::recorded(SafetyBlocked {
-            category,
-            message: msg,
-        }))
+        Err(refuse(audit, ai_request_id, category, scanner, detail).await)
     }
+}
+
+const CATEGORY_INSPECTION_INCOMPLETE: &str = "inspection_incomplete";
+
+const fn enforcing(safety: &SafetyConfig) -> bool {
+    !safety.mode.is_warn() && !safety.scanners.is_empty()
+}
+
+fn surface_incomplete(prepared: &super::PreparedDispatch) -> bool {
+    let surface = &prepared.request.forwarded_surface;
+    surface.truncated()
+        || (surface.is_empty()
+            && serde_json::from_slice::<serde_json::Value>(&prepared.body.bytes).is_err())
+}
+
+async fn refuse(
+    audit: &GatewayAudit,
+    ai_request_id: &AiRequestId,
+    category: String,
+    scanner: &str,
+    detail: &str,
+) -> DispatchError {
+    let msg = format!("request blocked by safety policy: category '{category}'{detail}");
+    tracing::warn!(
+        ai_request_id = %ai_request_id,
+        category = %category,
+        scanner = %scanner,
+        "Gateway blocked request by safety policy"
+    );
+    if let Err(e) = audit.fail(&msg).await {
+        tracing::warn!(error = %e, "safety-block audit fail failed");
+    }
+    DispatchError::recorded(SafetyBlocked {
+        category,
+        message: msg,
+    })
 }

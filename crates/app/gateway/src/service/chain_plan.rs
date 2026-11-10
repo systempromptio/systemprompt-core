@@ -15,9 +15,12 @@
 //! does not is sent down the chain's `context_fallbacks` that fit it (counted
 //! in `gateway_context_fallbacks_total{from,to}`, audited as
 //! `context_window:a->b`), or refused with [`ContextWindowExceeded`] before
-//! any upstream call. A model with no declared window is never refused. The
-//! requested `max_tokens` is not checked here: the outbound codecs clamp it
-//! to the served model's output ceiling.
+//! any upstream call. On a hop whose wire forwards the caller's bytes as-is
+//! ([`SentBody`]), the estimate is the larger of the text estimate and the
+//! byte estimate of the forwarded body less its base64 binary sources, so
+//! content the canonical model does not carry is still counted. A model with no
+//! declared window is never refused. The requested `max_tokens` is not checked
+//! here: the outbound codecs clamp it to the served model's output ceiling.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -31,6 +34,10 @@ use super::failover::{
     DeploymentLoad, DeploymentState, ProviderBreakers, breaker_key, plan_selection,
 };
 use crate::protocol::canonical::CanonicalRequest;
+// JSON: protocol boundary — the forwarded body is dynamic wire JSON.
+use crate::quota::input_tokens_for_bytes;
+use serde_json::Value;
+use systemprompt_wire::WireProtocol;
 
 const DEPLOYMENT_SELECTED_TOTAL: &str = "gateway_deployment_selected_total";
 const CONTEXT_FALLBACKS_TOTAL: &str = "gateway_context_fallbacks_total";
@@ -94,21 +101,104 @@ fn deployment_state(
     }
 }
 
+/// The size of a body forwarded unchanged on `passthrough_wire`.
+///
+/// `text_bytes` excludes every base64 binary source (images, PDFs, files):
+/// the pre-check counts those as zero and leaves them to the upstream.
+#[derive(Debug, Clone, Copy)]
+pub struct SentBody {
+    passthrough_wire: Option<WireProtocol>,
+    text_bytes: usize,
+}
+
+impl SentBody {
+    #[must_use]
+    pub fn measure(passthrough_wire: Option<WireProtocol>, raw: &[u8]) -> Self {
+        let text_bytes = passthrough_wire.map_or(0, |_| {
+            let binary =
+                serde_json::from_slice::<Value>(raw).map_or(0, |root| binary_source_bytes(&root));
+            raw.len().saturating_sub(binary)
+        });
+        Self {
+            passthrough_wire,
+            text_bytes,
+        }
+    }
+}
+
+// JSON: protocol boundary — the walk is over the caller's own wire body.
+fn binary_source_bytes(value: &Value) -> usize {
+    match value {
+        Value::Array(items) => items.iter().map(binary_source_bytes).sum(),
+        Value::Object(map) => {
+            let base64_source = map.get("type").and_then(Value::as_str) == Some("base64");
+            map.iter()
+                .map(|(key, child)| match child {
+                    Value::String(data)
+                        if (base64_source && key == "data") || key == "file_data" =>
+                    {
+                        data.len()
+                    },
+                    Value::String(data) => data_uri_len(data),
+                    other => binary_source_bytes(other),
+                })
+                .sum()
+        },
+        Value::String(data) => data_uri_len(data),
+        _ => 0,
+    }
+}
+
+fn data_uri_len(text: &str) -> usize {
+    let is_data_uri = text
+        .strip_prefix("data:")
+        .and_then(|rest| rest.split_once(','))
+        .is_some_and(|(header, _)| header.ends_with(";base64"));
+    if is_data_uri { text.len() } else { 0 }
+}
+
+struct InputEstimate {
+    canonical: u32,
+    passthrough: Option<(WireProtocol, u32)>,
+}
+
+impl InputEstimate {
+    fn new(request: &CanonicalRequest, sent: SentBody) -> Self {
+        Self {
+            canonical: estimate_input_tokens(request),
+            passthrough: sent
+                .passthrough_wire
+                .map(|wire| (wire, input_tokens_for_bytes(sent.text_bytes))),
+        }
+    }
+
+    fn for_hop(&self, hop: &ResolvedHop) -> u32 {
+        match self.passthrough {
+            Some((wire, bytes)) if wire == hop.wire => self.canonical.max(bytes),
+            _ => self.canonical,
+        }
+    }
+}
+
 pub fn fit_context_window(
     catalog: &ResolvedCatalog,
     request: &CanonicalRequest,
+    sent: SentBody,
     deployments: Vec<ResolvedHop>,
     context_fallbacks: Vec<ResolvedHop>,
 ) -> Result<PlannedChain, ContextWindowExceeded> {
-    let estimate = estimate_input_tokens(request);
+    let estimates = InputEstimate::new(request, sent);
     let model = request.model.as_str();
-    let fits =
-        |hop: &ResolvedHop| context_window(catalog, hop).is_none_or(|(limit, _)| estimate <= limit);
+    let fits = |hop: &ResolvedHop| {
+        context_window(catalog, hop).is_none_or(|(limit, _)| estimates.for_hop(hop) <= limit)
+    };
     let overflow = deployments
         .first()
-        .and_then(|primary| context_window(catalog, primary))
-        .filter(|(limit, _)| estimate > *limit);
-    let Some((limit, served)) = overflow else {
+        .and_then(|primary| {
+            context_window(catalog, primary).map(|window| (window, estimates.for_hop(primary)))
+        })
+        .filter(|((limit, _), estimate)| estimate > limit);
+    let Some(((limit, served), estimate)) = overflow else {
         let deployments = deployments
             .into_iter()
             .enumerate()
@@ -122,7 +212,9 @@ pub fn fit_context_window(
     };
     let fallbacks: Vec<ResolvedHop> = context_fallbacks
         .into_iter()
-        .filter(|hop| context_window(catalog, hop).is_some_and(|(window, _)| estimate <= window))
+        .filter(|hop| {
+            context_window(catalog, hop).is_some_and(|(window, _)| estimates.for_hop(hop) <= window)
+        })
         .collect();
     let (Some(from), Some(to)) = (deployments.first(), fallbacks.first()) else {
         return Err(ContextWindowExceeded {
@@ -147,6 +239,13 @@ pub fn fit_context_window(
         deployments: fallbacks,
         descriptor: Some(format!("context_window:{from}->{to}")),
     })
+}
+
+pub(super) fn join_segments(first: Option<String>, second: Option<String>) -> Option<String> {
+    match (first, second) {
+        (Some(a), Some(b)) => Some(format!("{a};{b}")),
+        (a, b) => a.or(b),
+    }
 }
 
 fn context_window(catalog: &ResolvedCatalog, hop: &ResolvedHop) -> Option<(u32, String)> {

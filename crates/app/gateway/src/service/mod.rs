@@ -115,6 +115,7 @@ impl GatewayService {
                 attribution: &ctx.attribution,
                 ai_request_id: &ai_request_id,
                 owner,
+                sent: chain_plan::SentBody::measure(inbound.passthrough_wire(), &raw_body),
             },
         )
         .await?;

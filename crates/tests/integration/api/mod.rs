@@ -355,6 +355,10 @@ mod gateway_safety_scanner_config;
 mod gateway_safety_redaction;
 
 #[cfg(test)]
+#[path = "gateway_scan_sent_bytes.rs"]
+mod gateway_scan_sent_bytes;
+
+#[cfg(test)]
 #[path = "gateway_matrix.rs"]
 mod gateway_matrix;
 

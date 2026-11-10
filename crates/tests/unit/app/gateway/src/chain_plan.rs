@@ -5,7 +5,7 @@ use systemprompt_catalog_fixtures::{CatalogFixture, model, platform, priced};
 use systemprompt_gateway::protocol::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, Role,
 };
-use systemprompt_gateway::service::chain_plan::{fit_context_window, order_chain};
+use systemprompt_gateway::service::chain_plan::{SentBody, fit_context_window, order_chain};
 use systemprompt_gateway::service::failover::{
     DeploymentLoad, DeploymentState, ProviderBreakers, plan_selection,
 };
@@ -197,6 +197,10 @@ fn a_bare_route_serializes_without_strategy_or_fallbacks() {
     assert!(!yaml.contains("strategy") && !yaml.contains("weight") && !yaml.contains("context"));
 }
 
+fn reencoded() -> SentBody {
+    SentBody::measure(None, b"")
+}
+
 fn request_of(chars: usize) -> CanonicalRequest {
     CanonicalRequest {
         messages: vec![CanonicalMessage {
@@ -213,6 +217,7 @@ fn a_request_that_fits_keeps_its_chain() {
     let planned = fit_context_window(
         &c,
         &request_of(40),
+        reencoded(),
         vec![hop(&c, "small-m", "small", None)],
         vec![hop(&c, "large-m", "large", None)],
     )
@@ -227,6 +232,7 @@ fn an_oversized_request_moves_to_the_context_fallback() {
     let planned = fit_context_window(
         &c,
         &request_of(4_000),
+        reencoded(),
         vec![hop(&c, "small-m", "small", None)],
         vec![hop(&c, "large-m", "large", None)],
     )
@@ -245,6 +251,7 @@ fn an_oversized_request_with_no_fitting_fallback_is_refused_with_the_numbers() {
     let exceeded = fit_context_window(
         &c,
         &request_of(4_000),
+        reencoded(),
         vec![hop(&c, "small-m", "small", None)],
         Vec::new(),
     )
@@ -260,6 +267,7 @@ fn failover_deployments_too_small_for_the_request_are_dropped() {
     let planned = fit_context_window(
         &c,
         &request_of(4_000),
+        reencoded(),
         vec![
             hop(&c, "large-m", "large", None),
             hop(&c, "small-m", "small", None),
@@ -351,6 +359,7 @@ fn a_deployment_with_no_known_window_is_never_refused() {
     let planned = fit_context_window(
         &c,
         &request_of(4_000),
+        reencoded(),
         vec![
             hop(&c, "open-m", "unregistered", None),
             hop(&c, "small-m", "small", None),
@@ -359,4 +368,136 @@ fn a_deployment_with_no_known_window_is_never_refused() {
     )
     .expect("an unknown window is not a refusal");
     assert_eq!(providers_of(&planned), vec!["unregistered"]);
+}
+
+fn anthropic_body(block: serde_json::Value) -> Vec<u8> {
+    serde_json::to_vec(&serde_json::json!({
+        "model": "m",
+        "max_tokens": 64,
+        "messages": [{"role": "user", "content": [block, {"type": "text", "text": "hi"}]}]
+    }))
+    .expect("serialize")
+}
+
+fn text_document(chars: usize) -> SentBody {
+    SentBody::measure(
+        Some(WireProtocol::Anthropic),
+        &anthropic_body(serde_json::json!({"type": "document", "source": {
+            "type": "text", "media_type": "text/plain", "data": "x".repeat(chars)
+        }})),
+    )
+}
+
+#[test]
+fn unmodelled_passthrough_text_counts_toward_the_context_window() {
+    let c = catalog();
+    let planned = fit_context_window(
+        &c,
+        &request_of(40),
+        text_document(4_000),
+        vec![hop(&c, "small-m", "small", None)],
+        vec![hop(&c, "large-m", "large", None)],
+    )
+    .expect("falls back to the larger window");
+    assert_eq!(providers_of(&planned), vec!["large"]);
+    assert_eq!(
+        planned.descriptor.as_deref(),
+        Some("context_window:small/api->large/api")
+    );
+}
+
+#[test]
+fn a_huge_text_document_with_no_fitting_fallback_is_refused() {
+    let c = catalog();
+    let exceeded = fit_context_window(
+        &c,
+        &request_of(40),
+        text_document(4_000),
+        vec![hop(&c, "small-m", "small", None)],
+        Vec::new(),
+    )
+    .expect_err("refused");
+    assert_eq!(exceeded.limit, 100);
+    assert!(exceeded.estimate > 1_000);
+}
+
+#[test]
+fn passthrough_bytes_are_not_counted_on_a_hop_that_re_encodes() {
+    let c = catalog();
+    let raw = anthropic_body(serde_json::json!({"type": "text", "text": "x".repeat(4_000)}));
+    let planned = fit_context_window(
+        &c,
+        &request_of(40),
+        SentBody::measure(Some(WireProtocol::OpenAiChat), &raw),
+        vec![hop(&c, "small-m", "small", None)],
+        vec![hop(&c, "large-m", "large", None)],
+    )
+    .expect("fits");
+    assert_eq!(providers_of(&planned), vec!["small"]);
+    assert_eq!(planned.descriptor, None);
+}
+
+fn plans_onto_small(raw: &[u8], wire: WireProtocol) {
+    assert_eq!(
+        wire,
+        WireProtocol::Anthropic,
+        "the fixture hops are Anthropic"
+    );
+    let c = catalog();
+    let planned = fit_context_window(
+        &c,
+        &request_of(40),
+        SentBody::measure(Some(wire), raw),
+        vec![hop(&c, "small-m", "small", None)],
+        Vec::new(),
+    )
+    .expect("base64 binary sources are not priced as text bytes");
+    assert_eq!(providers_of(&planned), vec!["small"]);
+}
+
+#[test]
+fn a_multi_megabyte_base64_pdf_still_plans_onto_the_deployment() {
+    let raw = anthropic_body(serde_json::json!({"type": "document", "source": {
+        "type": "base64", "media_type": "application/pdf", "data": "J".repeat(5 * 1024 * 1024)
+    }}));
+    plans_onto_small(&raw, WireProtocol::Anthropic);
+}
+
+#[test]
+fn a_base64_image_is_not_priced_as_text_bytes() {
+    let raw = anthropic_body(serde_json::json!({"type": "image", "source": {
+        "type": "base64", "media_type": "image/png", "data": "A".repeat(400_000)
+    }}));
+    plans_onto_small(&raw, WireProtocol::Anthropic);
+}
+
+#[test]
+fn openai_chat_file_and_data_uri_images_are_not_priced_as_text_bytes() {
+    let data = "B".repeat(400_000);
+    let raw = serde_json::to_vec(&serde_json::json!({
+        "model": "m",
+        "messages": [{"role": "user", "content": [
+            {"type": "file", "file": {"filename": "a.pdf",
+                "file_data": format!("data:application/pdf;base64,{data}")}},
+            {"type": "image_url", "image_url": {"url": format!("data:image/png;base64,{data}")}},
+            {"type": "text", "text": "hi"}
+        ]}]
+    }))
+    .expect("serialize");
+    plans_onto_small(&raw, WireProtocol::Anthropic);
+}
+
+#[test]
+fn responses_input_file_and_input_image_are_not_priced_as_text_bytes() {
+    let data = "C".repeat(400_000);
+    let raw = serde_json::to_vec(&serde_json::json!({
+        "model": "m",
+        "input": [{"role": "user", "content": [
+            {"type": "input_file", "filename": "a.pdf", "file_data": data},
+            {"type": "input_image", "image_url": format!("data:image/png;base64,{data}")},
+            {"type": "input_text", "text": "hi"}
+        ]}]
+    }))
+    .expect("serialize");
+    plans_onto_small(&raw, WireProtocol::Anthropic);
 }

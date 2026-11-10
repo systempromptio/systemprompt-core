@@ -55,7 +55,7 @@ pub struct PromptRecovery {
     pub recovery_locations: Vec<String>,
 }
 
-pub(super) fn inspection_budget() -> SurfaceBudget {
+pub(in crate::service) fn inspection_budget() -> SurfaceBudget {
     SurfaceBudget {
         leaf_bytes: 2 * 1024 * 1024,
         ..SurfaceBudget::default()
