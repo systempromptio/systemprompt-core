@@ -15,6 +15,11 @@ pub enum OrchestrationError {
     Managed(#[from] systemprompt_marketplace::managed::ManagedError),
     #[error("Git credential reference is unresolved")]
     CredentialUnresolved,
+    #[error(
+        "Git credential is stored under its bare label; the runtime resolves only {expected}. \
+         Run `admin config secret migrate-git-credentials --apply`"
+    )]
+    CredentialNotMigrated { expected: String },
     #[error("Operation requires a registered Git source")]
     NotGitSource,
 }

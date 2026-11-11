@@ -1,10 +1,20 @@
 //! Application-owned credential resolution for Git source synchronization.
 //!
 //! A source's `credential_reference` is a label, not a secret name: it resolves
-//! only the custom secret `git_source/<host>/<label>`, where `<host>` is the
-//! source repository's authority. Secrets outside the `git_source/` namespace
+//! only the custom secret `GIT_SOURCE__<HOST>__<LABEL>`, where `<HOST>` is the
+//! source repository's lowercased authority. Secrets outside that namespace
 //! are unreachable, and a credential stored for one host is never sent to
 //! another.
+//!
+//! The name uses only `[A-Z0-9_]`, so every secrets source (file, `env`,
+//! Vault, cloud secret push) can carry it. Host and label are encoded byte by
+//! byte: `a-z` becomes `A-Z`, `0-9` stays, and every other byte becomes `_`
+//! plus two upper-case hex digits. An encoded part therefore never contains
+//! `__`, the separator, and the encoding is injective over (host, label).
+//!
+//! A credential still stored under the bare label is not used; the sync fails
+//! with [`OrchestrationError::CredentialNotMigrated`], which names
+//! `admin config secret migrate-git-credentials`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -70,12 +80,18 @@ impl GitSourceOrchestrator {
             } => {
                 let key = git_credential_key(&repository, &reference)
                     .ok_or(OrchestrationError::CredentialUnresolved)?;
-                let credential = self
-                    .secrets
-                    .secret(&key)
-                    .filter(|value| !value.expose().is_empty())
-                    .ok_or(OrchestrationError::CredentialUnresolved)?;
-                Ok(Some(credential.expose().to_owned()))
+                let present = |name: &str| {
+                    self.secrets
+                        .secret(name)
+                        .filter(|value| !value.expose().is_empty())
+                };
+                match present(&key) {
+                    Some(credential) => Ok(Some(credential.expose().to_owned())),
+                    None if present(&reference).is_some() => {
+                        Err(OrchestrationError::CredentialNotMigrated { expected: key })
+                    },
+                    None => Err(OrchestrationError::CredentialUnresolved),
+                }
             },
             SourceSpec::Git {
                 credential_reference: None,
@@ -97,8 +113,24 @@ pub fn git_credential_key(repository: &str, reference: &str) -> Option<String> {
         return None;
     }
     Some(format!(
-        "{GIT_CREDENTIAL_NAMESPACE}/{authority}/{reference}"
+        "{GIT_CREDENTIAL_NAMESPACE}__{}__{}",
+        encode_part(&authority),
+        encode_part(reference)
     ))
 }
 
-pub const GIT_CREDENTIAL_NAMESPACE: &str = "git_source";
+fn encode_part(part: &str) -> String {
+    let mut out = String::with_capacity(part.len());
+    for byte in part.bytes() {
+        match byte {
+            b'a'..=b'z' => out.push(char::from(byte.to_ascii_uppercase())),
+            b'0'..=b'9' => out.push(char::from(byte)),
+            _ => out.push_str(&format!("_{byte:02X}")),
+        }
+    }
+    out
+}
+
+pub const GIT_CREDENTIAL_NAMESPACE: &str = "GIT_SOURCE";
+
+pub const MIGRATE_GIT_CREDENTIALS_COMMAND: &str = "admin config secret migrate-git-credentials";

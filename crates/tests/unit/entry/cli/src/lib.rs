@@ -44,6 +44,8 @@ mod deploy_vault_secrets;
 #[cfg(test)]
 mod descriptor;
 #[cfg(test)]
+mod doctor_git_credentials;
+#[cfg(test)]
 mod doctor_vault_checks;
 #[cfg(test)]
 mod env_overrides;

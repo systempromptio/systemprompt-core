@@ -10924,6 +10924,7 @@ dependencies = [
  "chrono",
  "http",
  "inventory",
+ "proptest",
  "reqwest",
  "rmcp",
  "serde",

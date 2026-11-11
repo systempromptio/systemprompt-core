@@ -2,12 +2,12 @@
 //! stored under a bare label to the name the runtime resolves.
 //!
 //! A Git source's `credential_reference` is a label, resolved only as the
-//! custom secret `git_source/<host>/<label>` for the host of the source's
-//! repository. For each registered Git source with a label, a secret stored
-//! under the bare label is copied to that name. An existing namespaced
-//! secret is never overwritten, and the bare secret is removed only when
-//! every source using that label now has its namespaced copy. Secret values
-//! are never printed. Without `--apply` the command only reports.
+//! custom secret `GIT_SOURCE__<HOST>__<LABEL>` (see `git_credential_key`) for
+//! the host of the source's repository. For each registered Git source with a
+//! label, a secret stored under the bare label is copied to that name. An
+//! existing namespaced secret is never overwritten, and the bare secret is
+//! removed only when every source using that label now has its namespaced copy.
+//! Secret values are never printed. Without `--apply` the command only reports.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

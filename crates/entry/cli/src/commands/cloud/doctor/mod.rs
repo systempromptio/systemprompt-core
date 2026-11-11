@@ -19,6 +19,7 @@
 
 mod checks;
 pub mod distributed;
+pub mod git_credential_checks;
 mod partial;
 mod plane_checks;
 pub mod restore_checks;
@@ -211,6 +212,7 @@ pub(in crate::commands::cloud) async fn run(
     checks.push(restore_checks::check_schema_not_ahead(&secrets).await);
     checks.push(plane_checks::check_config_planes(profile, &secrets).await);
     checks.push(plane_checks::check_services_source(profile));
+    checks.push(git_credential_checks::check_git_credentials(&secrets).await);
     if distributed {
         checks.extend(distributed::run(profile, &secrets).await);
     }

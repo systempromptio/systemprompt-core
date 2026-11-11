@@ -45,7 +45,7 @@ pub enum SecretCommands {
     #[command(
         name = "migrate-git-credentials",
         about = "Rename Git source credentials stored under a bare label to \
-                 git_source/<host>/<label> (dry-run unless --apply)"
+                 GIT_SOURCE__<HOST>__<LABEL> (dry-run unless --apply)"
     )]
     MigrateGitCredentials(super::git_credentials::MigrateGitCredentialsArgs),
 }

@@ -1,5 +1,5 @@
 //! `admin config secret migrate-git-credentials`: bare-label Git credentials
-//! move to `git_source/<host>/<label>` in the secrets file, never overwriting
+//! move to `GIT_SOURCE__<HOST>__<LABEL>` in the secrets file, never overwriting
 //! a namespaced secret and never reporting a value.
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
@@ -37,9 +37,9 @@ fn dry_run_reports_every_outcome_and_leaves_the_file_alone() {
         "gemini": "g",
         "bare": "tok-bare",
         "done": "tok-done",
-        "git_source/github.com/done": "tok-done",
+        "GIT_SOURCE__GITHUB_2ECOM__DONE": "tok-done",
         "clash": "tok-old",
-        "git_source/github.com/clash": "tok-new",
+        "GIT_SOURCE__GITHUB_2ECOM__CLASH": "tok-new",
     });
     let path = secrets_file(&dir, body.clone());
     let sources = [
@@ -74,7 +74,7 @@ fn apply_renames_without_overwriting_and_keeps_conflicting_labels() {
         serde_json::json!({
             "shared": "tok-shared",
             "clash": "tok-old",
-            "git_source/gitlab.com/clash": "tok-new",
+            "GIT_SOURCE__GITLAB_2ECOM__CLASH": "tok-new",
         }),
     );
     let sources = [
@@ -87,10 +87,10 @@ fn apply_renames_without_overwriting_and_keeps_conflicting_labels() {
     assert_eq!(
         read(&path),
         serde_json::json!({
-            "git_source/github.com/shared": "tok-shared",
-            "git_source/gitlab.com/shared": "tok-shared",
+            "GIT_SOURCE__GITHUB_2ECOM__SHARED": "tok-shared",
+            "GIT_SOURCE__GITLAB_2ECOM__SHARED": "tok-shared",
             "clash": "tok-old",
-            "git_source/gitlab.com/clash": "tok-new",
+            "GIT_SOURCE__GITLAB_2ECOM__CLASH": "tok-new",
         })
     );
     use std::os::unix::fs::PermissionsExt;
