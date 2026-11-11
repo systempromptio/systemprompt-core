@@ -95,7 +95,9 @@ fn service() -> AuthValidationService {
     AuthValidationService::new(
         ISSUER.to_string(),
         vec![JwtAudience::Api],
-        systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_signing_keys()
+            .keyring()
+            .clone(),
     )
 }
 
@@ -234,7 +236,9 @@ fn wrong_issuer_is_rejected() {
     let svc = AuthValidationService::new(
         "https://other.issuer".to_string(),
         vec![JwtAudience::Api],
-        systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_signing_keys()
+            .keyring()
+            .clone(),
     );
     let headers = bearer_headers(&sign(&base_claims()));
 
@@ -250,7 +254,9 @@ fn wrong_audience_is_rejected() {
     let svc = AuthValidationService::new(
         ISSUER.to_string(),
         vec![JwtAudience::Mcp],
-        systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_signing_keys()
+            .keyring()
+            .clone(),
     );
     let headers = bearer_headers(&sign(&base_claims()));
 

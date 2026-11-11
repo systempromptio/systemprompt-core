@@ -362,7 +362,9 @@ pub(crate) fn make_oauth_state(pool: &DbPool) -> Arc<AgentOAuthState> {
         AgentOAuthConfig::default(),
         "test-issuer".to_owned(),
         vec![],
-        systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_signing_keys()
+            .keyring()
+            .clone(),
     ))
 }
 

@@ -172,7 +172,7 @@ impl SessionMiddleware {
         };
 
         let Ok(jwt_context) =
-            extract_user_context(&self.signing_keys, &token, &self.config.jwt_issuer)
+            extract_user_context(self.signing_keys.keyring(), &token, &self.config.jwt_issuer)
         else {
             let (sid, uid, token, is_new, fp) =
                 lifecycle::create_new_session(&self.session_creation_service, meta).await?;

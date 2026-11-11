@@ -25,7 +25,6 @@ use super::validate::{ValidationPolicy, decode_rs256_claims, decode_session_clai
 use crate::error::AuthError;
 use crate::keys::SigningKeys;
 
-
 #[derive(Debug, Clone)]
 pub struct DeploymentTokenAuthority {
     keys: SigningKeys,
@@ -116,17 +115,17 @@ impl From<AuthError> for TokenError {
 impl TokenAuthority for DeploymentTokenAuthority {
     fn verify_session_cookie(&self, token: &str) -> TokenResult<JwtClaims> {
         let policy = ValidationPolicy::session_context(&self.issuer);
-        Ok(decode_session_claims(&self.keys, token, &policy)?)
+        Ok(decode_session_claims(self.keys.keyring(), token, &policy)?)
     }
 
     fn verify_bearer(&self, token: &str, audiences: &[JwtAudience]) -> TokenResult<JwtClaims> {
         let policy = ValidationPolicy::issuer_scoped(&self.issuer, audiences);
-        Ok(decode_rs256_claims(&self.keys, token, &policy)?)
+        Ok(decode_rs256_claims(self.keys.keyring(), token, &policy)?)
     }
 
     fn verify_hook_token(&self, token: &str) -> TokenResult<JwtClaims> {
         let policy = ValidationPolicy::issuer_scoped(&self.issuer, &[JwtAudience::Hook]);
-        Ok(decode_rs256_claims(&self.keys, token, &policy)?)
+        Ok(decode_rs256_claims(self.keys.keyring(), token, &policy)?)
     }
 
     // JSON: an extension-defined claim set has no fixed schema; the signer only

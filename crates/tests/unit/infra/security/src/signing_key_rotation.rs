@@ -70,7 +70,14 @@ pub(crate) fn mint(key: &RsaSigningKey) -> String {
 }
 
 pub(crate) fn verify(keys: &SigningKeys, token: &str) -> Result<JwtClaims, AuthError> {
-    decode_rs256_claims(keys, token, &ValidationPolicy::session_context(ISSUER))
+    verify_with(keys.keyring(), token)
+}
+
+pub(crate) fn verify_with(
+    keyring: &VerificationKeyring,
+    token: &str,
+) -> Result<JwtClaims, AuthError> {
+    decode_rs256_claims(keyring, token, &ValidationPolicy::session_context(ISSUER))
 }
 
 pub(crate) fn keys_after(next: RsaSigningKey, state: &SigningKeyState) -> SigningKeys {

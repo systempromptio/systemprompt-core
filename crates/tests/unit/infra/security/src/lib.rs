@@ -92,6 +92,8 @@ mod signing_key_rotation;
 mod signing_key_staging;
 #[cfg(test)]
 mod token_authority;
+#[cfg(test)]
+mod verification_only_decode;
 
 #[cfg(test)]
 mod connector_grant;

@@ -110,7 +110,7 @@ fn authorize(
     }) else {
         return AuthOutcome::Unauthorized;
     };
-    let Ok(user_ctx) = extract_user_context(keys, &token, issuer)
+    let Ok(user_ctx) = extract_user_context(keys.keyring(), &token, issuer)
         .map_err(|e| tracing::debug!(error = %e, %path, "jwt validation failed; clearing cookie"))
     else {
         return AuthOutcome::InvalidToken;

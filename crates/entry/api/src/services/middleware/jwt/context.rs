@@ -80,7 +80,7 @@ impl JwtContextExtractor {
             .token_extractor
             .extract(headers)
             .map_err(|_e| ContextExtractionError::MissingAuthHeader)?;
-        extract_user_context(&self.keys, &token, &self.issuer)
+        extract_user_context(self.keys.keyring(), &token, &self.issuer)
             .map_err(|e| ContextExtractionError::InvalidToken(e.into()))
     }
 
@@ -160,7 +160,7 @@ impl JwtContextExtractor {
     }
 
     pub fn verified_claims(&self, token: &str) -> Option<JwtUserContext> {
-        extract_user_context(&self.keys, token, &self.issuer).ok()
+        extract_user_context(self.keys.keyring(), token, &self.issuer).ok()
     }
 
     pub async fn decode_for_audiences(
@@ -169,8 +169,9 @@ impl JwtContextExtractor {
         audiences: &[JwtAudience],
     ) -> Result<(JwtUserContext, systemprompt_traits::AuthUser), ContextExtractionError> {
         let policy = ValidationPolicy::issuer_scoped(&self.issuer, audiences);
-        let jwt_context = extract_user_context_for(&self.keys, jwt_token.as_str(), &policy)
-            .map_err(|e| ContextExtractionError::InvalidToken(e.into()))?;
+        let jwt_context =
+            extract_user_context_for(self.keys.keyring(), jwt_token.as_str(), &policy)
+                .map_err(|e| ContextExtractionError::InvalidToken(e.into()))?;
         let user = self.validate(&jwt_context, "drive sync").await?;
         Ok((jwt_context, user))
     }
@@ -179,8 +180,9 @@ impl JwtContextExtractor {
         &self,
         jwt_token: &systemprompt_identifiers::JwtToken,
     ) -> Result<(JwtUserContext, systemprompt_traits::AuthUser), ContextExtractionError> {
-        let jwt_context = extract_user_context(&self.keys, jwt_token.as_str(), &self.issuer)
-            .map_err(|e| ContextExtractionError::InvalidToken(e.into()))?;
+        let jwt_context =
+            extract_user_context(self.keys.keyring(), jwt_token.as_str(), &self.issuer)
+                .map_err(|e| ContextExtractionError::InvalidToken(e.into()))?;
 
         let user = self.validate(&jwt_context, "gateway").await?;
         Ok((jwt_context, user))

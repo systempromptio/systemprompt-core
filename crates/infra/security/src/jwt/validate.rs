@@ -30,7 +30,7 @@ use jsonwebtoken::{Algorithm, Header, Validation, decode, decode_header};
 use systemprompt_models::auth::{JwtAudience, JwtClaims, MAX_ACT_CHAIN_DEPTH, UserType};
 
 use crate::error::{AuthError, AuthResult};
-use crate::keys::SigningKeys;
+use crate::keys::VerificationKeyring;
 
 pub const JWT_LEEWAY_SECONDS: u64 = 30;
 
@@ -68,7 +68,7 @@ pub fn reject_critical_header(header: &Header) -> Result<(), JwtError> {
 }
 
 pub fn decode_rs256_claims(
-    keys: &SigningKeys,
+    keys: &VerificationKeyring,
     token: &str,
     policy: &ValidationPolicy<'_>,
 ) -> AuthResult<JwtClaims> {
@@ -103,7 +103,7 @@ pub fn decode_rs256_claims(
 }
 
 pub fn decode_session_claims(
-    keys: &SigningKeys,
+    keys: &VerificationKeyring,
     token: &str,
     policy: &ValidationPolicy<'_>,
 ) -> AuthResult<JwtClaims> {

@@ -112,7 +112,9 @@ async fn build_state(permits: usize) -> anyhow::Result<Arc<AgentHandlerState>> {
             AgentOAuthConfig::default(),
             global_config.jwt_issuer.clone(),
             global_config.jwt_audiences.clone(),
-            systemprompt_test_fixtures::test_signing_keys(),
+            systemprompt_test_fixtures::test_signing_keys()
+                .keyring()
+                .clone(),
         )
         .with_jwt_provider(Arc::clone(&jwt_provider)),
     );

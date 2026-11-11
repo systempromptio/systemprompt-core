@@ -11,7 +11,7 @@ use systemprompt_database::Database;
 pub use systemprompt_manifest::AgentOAuthConfig;
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_security::AuthValidationService;
-use systemprompt_security::keys::SigningKeys;
+use systemprompt_security::keys::VerificationKeyring;
 use systemprompt_traits::DynJwtValidationProvider;
 
 #[derive(Clone)]
@@ -39,7 +39,7 @@ impl AgentOAuthState {
         config: AgentOAuthConfig,
         jwt_issuer: String,
         jwt_audiences: Vec<JwtAudience>,
-        keys: SigningKeys,
+        keys: VerificationKeyring,
     ) -> Self {
         Self {
             config,
