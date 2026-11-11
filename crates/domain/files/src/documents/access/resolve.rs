@@ -5,6 +5,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_identifiers::DocumentId;
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::{AccessLevel, DocumentAction};
 
@@ -45,16 +46,7 @@ impl DocumentAccessService {
                         .await?
                         .map(granted_ceiling)
                 };
-                match (document.trashed_at.is_some(), trashed) {
-                    (true, false) if level.is_some() => {
-                        return Err(DocumentsError::Trashed {
-                            document_id: id.clone(),
-                        });
-                    },
-                    (true, false) => return Err(DocumentsError::not_found("document", id)),
-                    (false, true) => return Err(DocumentsError::not_found("trashed document", id)),
-                    _ => {},
-                }
+                trash_state(document.trashed_at.is_some(), trashed, level.is_some(), id)?;
                 Ok(Resolved {
                     level,
                     nearest_folder: document.folder_id.clone(),
@@ -97,5 +89,23 @@ impl DocumentAccessService {
                 chain: Vec::new(),
             }),
         }
+    }
+}
+
+fn trash_state(
+    is_trashed: bool,
+    trashed_target: bool,
+    has_access: bool,
+    id: &DocumentId,
+) -> Result<(), DocumentsError> {
+    match (is_trashed, trashed_target, has_access) {
+        (true, false, true) => Err(DocumentsError::Trashed {
+            document_id: id.clone(),
+        }),
+        (false, true, true) => Err(DocumentsError::not_found("trashed document", id)),
+        (true, false, false) | (false, true, false) => {
+            Err(DocumentsError::not_found("document", id))
+        },
+        _ => Ok(()),
     }
 }
