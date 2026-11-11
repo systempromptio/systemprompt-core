@@ -134,6 +134,7 @@ fn json_helper(
     Ok(())
 }
 
+// JSON: Handlebars hands helper params over as untyped JSON values.
 fn script_safe_json(value: &serde_json::Value) -> String {
     let raw = value.to_string();
     let mut escaped = String::with_capacity(raw.len());

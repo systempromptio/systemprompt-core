@@ -26,7 +26,7 @@ pub(crate) mod parts;
 pub mod task;
 
 pub use context::ContextRepository;
-pub use owned::{OwnedArtifact, OwnedContext, OwnedTask, RunClaim, RuntimeTask, TaskHandle};
+pub use owned::{OwnedArtifact, OwnedContext, OwnedTask, RuntimeTask, TaskHandle};
 pub use ownership::AgentOwnerReassignment;
 pub use systemprompt_traits::RepositoryError;
 

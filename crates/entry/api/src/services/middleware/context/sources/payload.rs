@@ -18,6 +18,7 @@ use crate::services::middleware::body::{BodyReadError, read_request_bounded};
 // of the body.
 #[derive(Debug, Deserialize)]
 struct Envelope {
+    // JSON: JSON-RPC lets a client send any JSON type here; a non-string is refused downstream.
     #[serde(default)]
     method: Option<Value>,
     #[serde(default)]
@@ -26,6 +27,7 @@ struct Envelope {
 
 #[derive(Debug, Deserialize)]
 struct Params {
+    // JSON: a JSON-RPC id may be a string, number or null.
     #[serde(default)]
     id: Option<Value>,
     #[serde(default)]
@@ -34,6 +36,7 @@ struct Params {
 
 #[derive(Debug, Deserialize)]
 struct Message {
+    // JSON: a client-supplied contextId is validated after parsing, whatever its JSON type.
     #[serde(default, rename = "contextId")]
     context_id: Option<Value>,
 }

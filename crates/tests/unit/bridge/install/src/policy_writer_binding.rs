@@ -5,6 +5,7 @@
 
 use std::collections::BTreeMap;
 
+use systemprompt_bridge::gateway::envelope_skew::SKEW_WINDOW_MINUTES;
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::ids::HostToken;
 use systemprompt_bridge::install::policy_writer::binding::{
@@ -15,7 +16,6 @@ use systemprompt_bridge::install::policy_writer::{
     AcceptedEnvelope, AccountSid, Loopback, MachineBinding, PolicyWriteRequest, PolicyWriterError,
     derive_policy,
 };
-use systemprompt_bridge::sync::SKEW_WINDOW_MINUTES;
 use systemprompt_models::bridge::host::HostKind;
 
 use crate::policy_writer::{

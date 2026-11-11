@@ -26,10 +26,10 @@ use std::time::Duration;
 use chrono::{DateTime, Utc};
 use systemprompt_identifiers::{AgentRunId, TaskId};
 
+use super::task_link::RunClaim;
 use super::{AgentRunRepository, Claimed, Fenced, Lease, Released, task_link};
 use crate::error::AgentRunsResult;
 use crate::outcome::RunStatus;
-use systemprompt_agent::repository::RunClaim;
 
 impl AgentRunRepository {
     pub async fn claim_queued(

@@ -12,8 +12,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use super::task_link::RunClaim;
 use chrono::{DateTime, Utc};
-use systemprompt_agent::repository::RunClaim;
 use systemprompt_identifiers::AgentRunId;
 
 use super::AgentRunRow;

@@ -105,6 +105,8 @@ impl Default for SurfaceBudget {
     }
 }
 
+// JSON: provider request bodies are inspected as untyped JSON across every wire
+// protocol.
 #[must_use]
 pub fn is_binary_source(object: &Map<String, Value>, key: &str, data: &str) -> bool {
     let typed = object.get("type").and_then(Value::as_str);
@@ -124,6 +126,8 @@ pub fn is_base64_data_uri(text: &str) -> bool {
         .is_some_and(|(header, _)| header.ends_with(";base64"))
 }
 
+// JSON: provider request bodies are inspected as untyped JSON across every wire
+// protocol.
 #[must_use]
 pub fn text_bytes(root: &Value) -> usize {
     match root {

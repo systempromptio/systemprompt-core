@@ -6,6 +6,7 @@
 
 mod card;
 mod disk;
+mod json_shaped_schemes;
 mod summary;
 
 pub use card::{

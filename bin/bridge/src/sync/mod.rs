@@ -33,9 +33,7 @@ pub use refresh_fallback::{KeptStored, RefreshFailure, classify as classify_refr
 pub use registry_refresh::{
     RegistryRefresh, refresh_or_keep_stored, refresh_registry, refresh_registry_for,
 };
-pub use replay::{
-    PriorAcceptance, SKEW_WINDOW_MINUTES, check_replay, check_skew, dated_beyond_skew,
-};
+pub use replay::{check_replay, check_skew};
 pub use stale_retry::run_once;
 pub use summary::SyncSummary;
 use summary::build_summary;

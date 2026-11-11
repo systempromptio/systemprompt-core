@@ -1,9 +1,9 @@
 use std::fs;
 
+use systemprompt_bridge::gateway::envelope_skew::PriorAcceptance;
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::sync::{
-    LastSyncState, PriorAcceptance, ReplayStateError, SyncError, check_replay, check_skew,
-    read_last_sync,
+    LastSyncState, ReplayStateError, SyncError, check_replay, check_skew, read_last_sync,
 };
 use systemprompt_models::bridge::host::HostKind;
 

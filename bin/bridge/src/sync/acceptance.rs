@@ -6,10 +6,10 @@
 use systemprompt_identifiers::ValidatedUrl;
 
 use super::{
-    LastSyncState, PriorAcceptance, SyncError, check_replay, check_skew, ensure_not_superseded,
-    prior_checkpoint,
+    LastSyncState, SyncError, check_replay, check_skew, ensure_not_superseded, prior_checkpoint,
 };
 use crate::config::paths;
+use crate::gateway::envelope_skew::PriorAcceptance;
 use crate::gateway::manifest::{SignedManifest, decode_payload};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
