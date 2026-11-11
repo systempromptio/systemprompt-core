@@ -149,14 +149,14 @@ async fn reaper_skips_an_instance_that_holds_its_claim() {
     register(&claimed, &name, 444).await;
     age_heartbeat(&pg, claimed.instance_id(), 600).await;
 
-    reaper.delete_dead_instances(1).await.expect("reap");
+    reaper.delete_dead_instances(300).await.expect("reap");
     assert!(
         claimed.find_service_by_name(&name).await.unwrap().is_some(),
         "a claimed replica with a stalled heartbeat must not be reaped"
     );
 
     claim.release().await;
-    reaper.delete_dead_instances(1).await.expect("reap");
+    reaper.delete_dead_instances(300).await.expect("reap");
     assert!(
         claimed.find_service_by_name(&name).await.unwrap().is_none(),
         "an unclaimed replica with a stale heartbeat is reaped"
