@@ -222,16 +222,19 @@ async fn a_cancel_requested_mid_run_stops_the_host() {
     let repo = r.f.repo.clone();
     let cancel_id = id.clone();
     let canceller = tokio::spawn(async move {
-        loop {
-            let row = repo.find_run(&cancel_id).await.expect("find").expect("row");
-            if row.started_at.is_some() {
-                repo.update_cancel_requested(&cancel_id)
-                    .await
-                    .expect("cancel");
-                return;
-            }
+        while repo
+            .find_run(&cancel_id)
+            .await
+            .expect("find")
+            .expect("row")
+            .started_at
+            .is_none()
+        {
             tokio::time::sleep(Duration::from_millis(50)).await;
         }
+        repo.update_cancel_requested(&cancel_id)
+            .await
+            .expect("cancel");
     });
 
     tokio::time::timeout(
