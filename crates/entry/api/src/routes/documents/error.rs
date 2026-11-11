@@ -27,7 +27,7 @@ use systemprompt_runtime::documents::refusal::{Refused, refusal_of};
 use systemprompt_traits::{AuthProviderError, FileStorageError};
 use tokio::sync::oneshot::error::RecvError;
 
-use crate::error::ApiHttpError;
+use crate::error::{ApiHttpError, unreadable_body};
 
 #[derive(Debug)]
 pub(crate) enum DocumentsHttpError {
@@ -55,19 +55,31 @@ impl From<ApiError> for DocumentsHttpError {
 
 impl From<MultipartError> for DocumentsHttpError {
     fn from(error: MultipartError) -> Self {
-        Self::from(ApiError::bad_request("invalid multipart body").with_source(error))
+        Self::from(unreadable_body(
+            error.status(),
+            "invalid multipart body",
+            error,
+        ))
     }
 }
 
 impl From<MultipartRejection> for DocumentsHttpError {
     fn from(error: MultipartRejection) -> Self {
-        Self::from(ApiError::bad_request("invalid multipart body").with_source(error))
+        Self::from(unreadable_body(
+            error.status(),
+            "invalid multipart body",
+            error,
+        ))
     }
 }
 
 impl From<JsonRejection> for DocumentsHttpError {
     fn from(error: JsonRejection) -> Self {
-        Self::from(ApiError::bad_request("invalid request body").with_source(error))
+        Self::from(unreadable_body(
+            error.status(),
+            "invalid request body",
+            error,
+        ))
     }
 }
 
