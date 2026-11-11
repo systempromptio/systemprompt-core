@@ -110,7 +110,10 @@ UPDATE_TIMEOUT_S=45
 DOWNLOAD_TIMEOUT_APT_S=75
 INSTALL_TIMEOUT_S=75
 
+# Why: hosted runners can hang on the archive's IPv6 addresses while IPv4
+# answers; apt waits out its timeout instead of falling back.
 APT_OPTS=(
+    -o Acquire::ForceIPv4=true
     -o Acquire::Retries=3
     -o Acquire::http::Timeout=30
     -o Acquire::https::Timeout=30
