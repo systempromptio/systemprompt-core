@@ -61,7 +61,19 @@ install_ripgrep() {
     local url="https://github.com/BurntSushi/ripgrep/releases/download/$RIPGREP_VERSION/$name.tar.gz"
     local work attempt
     work=$(mktemp -d)
-    for attempt in $(seq 1 "$ATTEMPTS"); do
+    # Why: hosted runners resolve the Ubuntu archive through the Azure mirror; when
+# that mirror stalls, every attempt times out the same way. Later attempts
+# point apt at the primary archive instead.
+use_primary_archive() {
+    local files=(/etc/apt/apt-mirrors.txt /etc/apt/sources.list /etc/apt/sources.list.d/*.sources /etc/apt/sources.list.d/*.list)
+    local file
+    for file in "${files[@]}"; do
+        [ -f "$file" ] && sudo sed -i 's|azure\.archive\.ubuntu\.com|archive.ubuntu.com|g' "$file"
+    done
+    echo "apt sources now use archive.ubuntu.com"
+}
+
+for attempt in $(seq 1 "$ATTEMPTS"); do
         echo "::group::ripgrep $RIPGREP_VERSION download attempt $attempt/$ATTEMPTS"
         if curl -fsSL --connect-timeout 15 --max-time "$DOWNLOAD_TIMEOUT_S" \
             -o "$work/$name.tar.gz" "$url" &&
@@ -80,6 +92,7 @@ install_ripgrep() {
         rm -f "$work/$name.tar.gz"
         if [ "$attempt" -lt "$ATTEMPTS" ]; then
             sleep $((attempt * 10))
+        use_primary_archive
         fi
     done
     rm -rf "$work"
