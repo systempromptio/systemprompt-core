@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT initialize_params\n            FROM mcp_sessions\n            WHERE session_id = $1\n              AND expires_at > NOW()\n              AND initialize_params IS NOT NULL\n            ",
+  "query": "\n            SELECT initialize_params\n            FROM mcp_sessions\n            WHERE session_id = $1\n              AND mcp_server_id = $2\n              AND user_id IS NOT DISTINCT FROM $3\n              AND expires_at > NOW()\n              AND initialize_params IS NOT NULL\n            ",
   "describe": {
     "columns": [
       {
@@ -17,6 +17,8 @@
     ],
     "parameters": {
       "Left": [
+        "Text",
+        "Text",
         "Text"
       ]
     },
@@ -24,5 +26,5 @@
       true
     ]
   },
-  "hash": "5b85efa83b3ea71c788ec1924f9538dbd9eb0f80eec7bc85c50a0fd64a756f1f"
+  "hash": "2b52561ef77f46b7bde748fb7dc7b80788bdba7bec98f465acd5b6f06250629a"
 }
