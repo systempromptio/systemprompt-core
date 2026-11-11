@@ -32,6 +32,7 @@ fn create_test_config() -> McpServerConfig {
         tools: HashMap::new(),
         model_config: None,
         env_vars: vec![],
+        secrets: Vec::new(),
         version: "1.0.0".to_string(),
         host: "127.0.0.1".to_string(),
         module_name: "mcp".to_string(),

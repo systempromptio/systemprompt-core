@@ -417,6 +417,7 @@ pub(crate) fn agent_config(name: &str) -> systemprompt_manifest::AgentConfig {
         },
         metadata: AgentMetadataConfig::default(),
         oauth: systemprompt_manifest::AgentOAuthConfig::default(),
+        secrets: Vec::new(),
     }
 }
 

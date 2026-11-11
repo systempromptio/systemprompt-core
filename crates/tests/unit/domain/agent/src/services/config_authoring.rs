@@ -70,6 +70,7 @@ fn services_config_with_server(name: &str) -> ServicesConfig {
             tools: std::collections::HashMap::new(),
             model_config: None,
             env_vars: vec![],
+            secrets: Vec::new(),
             external_auth: None,
             headers: Default::default(),
             tool_policy: None,

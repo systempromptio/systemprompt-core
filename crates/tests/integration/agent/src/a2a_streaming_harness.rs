@@ -80,6 +80,7 @@ fn fixture_agent_config() -> AgentConfig {
         },
         metadata: AgentMetadataConfig::default(),
         oauth: AgentConfigOAuth::default(),
+        secrets: Vec::new(),
     }
 }
 

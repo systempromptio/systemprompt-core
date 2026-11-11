@@ -11,6 +11,7 @@ use super::card::{AgentCardConfig, AgentMetadataConfig, OAuthConfig, default_tru
 use super::{AgentConfig, DEFAULT_AGENT_SYSTEM_PROMPT_FILE};
 use systemprompt_models::errors::ServicesValidationError;
 use systemprompt_models::plugin::PluginComponentRef;
+use systemprompt_models::subprocess::SecretGrant;
 
 fn default_version() -> String {
     "1.0.0".to_owned()
@@ -53,6 +54,8 @@ pub struct DiskAgentConfig {
     pub card: AgentCardConfig,
     #[serde(default)]
     pub oauth: OAuthConfig,
+    #[serde(default)]
+    pub secrets: Vec<SecretGrant>,
     // JSON: an agent-runs `RunRequest` template; see `AgentMetadataConfig`.
     #[serde(default)]
     pub agent_run: Option<serde_json::Value>,
@@ -106,6 +109,7 @@ impl DiskAgentConfig {
                 ..Default::default()
             },
             oauth: self.oauth.clone(),
+            secrets: self.secrets.clone(),
         }
     }
 
@@ -135,6 +139,8 @@ impl DiskAgentConfig {
                 self.name
             )));
         }
+
+        super::validate_agent_grants(&self.name, &self.secrets)?;
 
         if self.port == 0 {
             return Err(ServicesValidationError::invalid_field(format!(

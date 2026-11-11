@@ -19,6 +19,7 @@ pub use summary::AgentSummary;
 use serde::{Deserialize, Serialize};
 use systemprompt_models::auth::{Permission, validate_required_scopes};
 use systemprompt_models::errors::ServicesValidationError;
+use systemprompt_models::subprocess::SecretGrant;
 
 pub const AGENT_CONFIG_FILENAME: &str = "config.yaml";
 pub const DEFAULT_AGENT_SYSTEM_PROMPT_FILE: &str = "system_prompt.md";
@@ -41,6 +42,8 @@ pub struct AgentConfig {
     pub metadata: AgentMetadataConfig,
     #[serde(default)]
     pub oauth: OAuthConfig,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub secrets: Vec<SecretGrant>,
 }
 
 impl AgentConfig {
@@ -76,6 +79,8 @@ impl AgentConfig {
                 self.name, self.port
             )));
         }
+
+        validate_agent_grants(&self.name, &self.secrets)?;
 
         let card_scopes = self.card_oauth_scopes();
         validate_required_scopes(
@@ -123,4 +128,19 @@ impl AgentConfig {
             self.name
         )
     }
+}
+
+pub fn validate_agent_grants(
+    name: &str,
+    secrets: &[SecretGrant],
+) -> Result<(), ServicesValidationError> {
+    secrets
+        .iter()
+        .find(|grant| matches!(grant, SecretGrant::Provider(_)))
+        .map_or(Ok(()), |grant| {
+            Err(ServicesValidationError::invalid_field(format!(
+                "Agent '{name}': secrets names the provider key '{grant}'; an agent receives the \
+                 keys of the providers its model configuration uses, so remove it"
+            )))
+        })
 }

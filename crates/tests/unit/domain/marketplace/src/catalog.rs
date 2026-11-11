@@ -44,6 +44,7 @@ fn make_agent_config(name: &str) -> AgentConfig {
         },
         metadata: AgentMetadataConfig::default(),
         oauth: OAuthConfig::default(),
+        secrets: Vec::new(),
     }
 }
 
@@ -70,6 +71,7 @@ fn make_deployment(_name: &str, enabled: bool, endpoint: Option<&str>) -> Deploy
         tools: HashMap::new(),
         model_config: None,
         env_vars: vec![],
+        secrets: Vec::new(),
         external_auth: None,
         headers: Default::default(),
         tool_policy: Some(ToolPolicy::Allow),

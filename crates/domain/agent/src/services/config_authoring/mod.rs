@@ -231,6 +231,7 @@ fn build_agent_config(
             ..Default::default()
         },
         oauth: OAuthConfig::default(),
+        secrets: Vec::new(),
     })
 }
 

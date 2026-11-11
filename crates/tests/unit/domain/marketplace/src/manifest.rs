@@ -473,6 +473,7 @@ fn enabled_deployment(endpoint: Option<&str>) -> systemprompt_models::mcp::Deplo
         tools: std::collections::HashMap::new(),
         model_config: None,
         env_vars: vec![],
+        secrets: Vec::new(),
         external_auth: None,
         headers: Default::default(),
         tool_policy: Some(systemprompt_models::bridge::ids::ToolPolicy::Allow),
@@ -1186,6 +1187,7 @@ fn marketplace_agent_include_is_exact_while_empty_include_admits_the_catalogue()
             },
             metadata: AgentMetadataConfig::default(),
             oauth: OAuthConfig::default(),
+            secrets: Vec::new(),
         }
     }
 

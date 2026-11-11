@@ -38,6 +38,8 @@ pub struct McpServerConfig {
     pub model_config: Option<ToolModelConfig>,
     #[serde(default)]
     pub env_vars: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub secrets: Vec<crate::subprocess::SecretGrant>,
     pub version: String,
     pub host: String,
     pub module_name: String,

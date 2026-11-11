@@ -37,6 +37,7 @@ fn test_agent(name: &str) -> AgentConfig {
         },
         metadata: AgentMetadataConfig::default(),
         oauth: OAuthConfig::default(),
+        secrets: Vec::new(),
     }
 }
 

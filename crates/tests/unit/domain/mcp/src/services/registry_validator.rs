@@ -39,6 +39,7 @@ fn internal_server(name: &str, port: u16) -> McpServerConfig {
         tools: Default::default(),
         model_config: None,
         env_vars: vec![],
+        secrets: Vec::new(),
         version: "0.0.1".to_owned(),
         host: "127.0.0.1".to_owned(),
         module_name: "mcp".to_owned(),

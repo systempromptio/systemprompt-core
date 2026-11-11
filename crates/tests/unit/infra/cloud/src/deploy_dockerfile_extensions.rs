@@ -51,6 +51,7 @@ fn deployment(binary: &str, dev_only: bool) -> Deployment {
         tools: HashMap::new(),
         model_config: None,
         env_vars: vec![],
+        secrets: Vec::new(),
         external_auth: None,
         headers: HashMap::new(),
         tool_policy: None,

@@ -28,6 +28,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod grants;
+
+pub use grants::{
+    ProviderSecret, SUBPROCESS_GRANTS_ENV, SecretGrant, SecretGrantError, VERIFICATION_KEYS_ENV,
+    is_api_held_env_name,
+};
 use systemprompt_identifiers::ServiceName;
 
 pub const SUBPROCESS_MARKER_ENV: &str = "SYSTEMPROMPT_SUBPROCESS";

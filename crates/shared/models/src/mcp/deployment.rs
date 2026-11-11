@@ -17,6 +17,7 @@ use crate::ai::ToolModelConfig;
 use crate::auth::{JwtAudience, Permission};
 use crate::errors::ServicesValidationError;
 use crate::mcp::capabilities::ToolVisibility;
+use crate::subprocess::{SecretGrant, is_api_held_env_name};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use systemprompt_identifiers::ClientId;
@@ -133,6 +134,8 @@ pub struct Deployment {
     pub removable: bool,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub toolsets: Vec<ToolsetRef>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub secrets: Vec<SecretGrant>,
 }
 
 const fn default_removable() -> bool {
@@ -160,6 +163,7 @@ impl Deployment {
             &self.oauth.scopes,
             self.oauth.service_only,
         )?;
+        validate_child_env(&format!("MCP server '{name}'"), &self.env_vars)?;
         self.validate_toolsets(name)
     }
 
@@ -198,6 +202,12 @@ impl Deployment {
                 "MCP server '{name}': external servers require an endpoint."
             )));
         }
+        if !self.secrets.is_empty() {
+            return Err(ServicesValidationError::invalid_field(format!(
+                "MCP server '{name}': secrets are only valid on internal servers; an external \
+                     server is never spawned. Remove them."
+            )));
+        }
         if self.binary.is_some() || self.package.is_some() || self.port.is_some() {
             return Err(ServicesValidationError::invalid_field(format!(
                 "MCP server '{name}': binary, package and port are only valid on internal \
@@ -230,6 +240,18 @@ impl Deployment {
         }
         connector.validate(name)
     }
+}
+
+pub fn validate_child_env(owner: &str, env_vars: &[String]) -> Result<(), ServicesValidationError> {
+    env_vars
+        .iter()
+        .find(|name| is_api_held_env_name(name))
+        .map_or(Ok(()), |name| {
+            Err(ServicesValidationError::invalid_field(format!(
+                "{owner}: env_vars names '{name}', which carries a secret; grant it under \
+                 `secrets:` instead, or drop it if it is held by the API only"
+            )))
+        })
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

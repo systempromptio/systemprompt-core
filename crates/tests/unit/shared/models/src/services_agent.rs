@@ -37,6 +37,7 @@ fn valid_agent(name: &str) -> AgentConfig {
         card: empty_card(),
         metadata: AgentMetadataConfig::default(),
         oauth: OAuthConfig::default(),
+        secrets: Vec::new(),
     }
 }
 

@@ -40,6 +40,7 @@ fn make_config(name: &str, env_vars: Vec<String>) -> McpServerConfig {
         tools: HashMap::default(),
         model_config: None,
         env_vars,
+        secrets: Vec::new(),
         version: "0.0.1".to_string(),
         host: "127.0.0.1".to_string(),
         module_name: "mcp".to_string(),

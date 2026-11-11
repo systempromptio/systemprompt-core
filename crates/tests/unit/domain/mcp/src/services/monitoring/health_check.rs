@@ -50,6 +50,7 @@ fn make_config(
         tools: Default::default(),
         model_config: None,
         env_vars: vec![],
+        secrets: Vec::new(),
         version: "0.1.0".to_owned(),
         host: "127.0.0.1".to_owned(),
         module_name: "mcp".to_owned(),

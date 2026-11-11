@@ -34,6 +34,7 @@ fn external_config(external_auth: bool) -> McpServerConfig {
         tools: HashMap::new(),
         model_config: None,
         env_vars: vec![],
+        secrets: Vec::new(),
         version: "1.0.0".to_string(),
         host: String::new(),
         module_name: "mcp".to_string(),

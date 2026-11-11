@@ -39,6 +39,7 @@ fn deployment(port: u16) -> Deployment {
         tools: HashMap::default(),
         model_config: None,
         env_vars: vec![],
+        secrets: Vec::new(),
         external_auth: None,
         headers: HashMap::default(),
         tool_policy: None,

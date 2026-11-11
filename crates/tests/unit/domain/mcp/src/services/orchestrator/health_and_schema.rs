@@ -167,6 +167,7 @@ fn test_mcp_config(name: &str) -> systemprompt_models::mcp::McpServerConfig {
         tools: std::collections::HashMap::new(),
         model_config: None,
         env_vars: vec![],
+        secrets: Vec::new(),
         version: "0.1.0".to_string(),
         host: "127.0.0.1".to_string(),
         module_name: "test".to_string(),
