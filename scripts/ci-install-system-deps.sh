@@ -61,19 +61,7 @@ install_ripgrep() {
     local url="https://github.com/BurntSushi/ripgrep/releases/download/$RIPGREP_VERSION/$name.tar.gz"
     local work attempt
     work=$(mktemp -d)
-    # Why: hosted runners resolve the Ubuntu archive through the Azure mirror; when
-# that mirror stalls, every attempt times out the same way. Later attempts
-# point apt at the primary archive instead.
-use_primary_archive() {
-    local files=(/etc/apt/apt-mirrors.txt /etc/apt/sources.list /etc/apt/sources.list.d/*.sources /etc/apt/sources.list.d/*.list)
-    local file
-    for file in "${files[@]}"; do
-        [ -f "$file" ] && sudo sed -i 's|azure\.archive\.ubuntu\.com|archive.ubuntu.com|g' "$file"
-    done
-    echo "apt sources now use archive.ubuntu.com"
-}
-
-for attempt in $(seq 1 "$ATTEMPTS"); do
+    for attempt in $(seq 1 "$ATTEMPTS"); do
         echo "::group::ripgrep $RIPGREP_VERSION download attempt $attempt/$ATTEMPTS"
         if curl -fsSL --connect-timeout 15 --max-time "$DOWNLOAD_TIMEOUT_S" \
             -o "$work/$name.tar.gz" "$url" &&
@@ -92,7 +80,6 @@ for attempt in $(seq 1 "$ATTEMPTS"); do
         rm -f "$work/$name.tar.gz"
         if [ "$attempt" -lt "$ATTEMPTS" ]; then
             sleep $((attempt * 10))
-        use_primary_archive
         fi
     done
     rm -rf "$work"
@@ -168,6 +155,20 @@ pin_to_installed() {
     fi
 }
 
+# Why: hosted runners resolve the Ubuntu archive through the Azure mirror; when
+# that mirror stalls, every attempt times out the same way. Later attempts
+# point apt at the primary archive instead.
+use_primary_archive() {
+    local file
+    for file in /etc/apt/apt-mirrors.txt /etc/apt/sources.list /etc/apt/sources.list.d/*.sources \
+        /etc/apt/sources.list.d/*.list; do
+        if [ -f "$file" ]; then
+            sudo sed -i 's|azure\.archive\.ubuntu\.com|archive.ubuntu.com|g' "$file"
+        fi
+    done
+    echo "apt sources now use archive.ubuntu.com"
+}
+
 for attempt in $(seq 1 "$ATTEMPTS"); do
     echo "::group::apt attempt $attempt/$ATTEMPTS: $*"
     # Why: the download runs on its own budget before dpkg starts, so a slow
@@ -188,6 +189,7 @@ for attempt in $(seq 1 "$ATTEMPTS"); do
     echo "::warning::system dependency install attempt $attempt/$ATTEMPTS failed (exit $status; 124 = timed out)"
     if [ "$attempt" -lt "$ATTEMPTS" ]; then
         sleep $((attempt * 10))
+        use_primary_archive
         # Why: a timed-out install leaves dpkg half-configured, and apt refuses
         # every later install until it is finished.
         sudo DEBIAN_FRONTEND=noninteractive timeout --kill-after=10 "$INSTALL_TIMEOUT_S" \
