@@ -103,4 +103,6 @@ mod replay_db;
 #[cfg(test)]
 mod replay_diff;
 #[cfg(test)]
+mod scope_rule_parity;
+#[cfg(test)]
 mod usage_rates;

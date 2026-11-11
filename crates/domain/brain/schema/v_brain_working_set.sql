@@ -1,5 +1,6 @@
--- The working-set rows a read may admit: a row of a user-scoped fact counts
--- only under its owner's key. A row a topic audience added under an earlier
+-- The working-set rows a read may admit: a row of a fact whose scope does
+-- not widen (`brain_scope_widens`, a user's) counts only under the fact's
+-- own key (`brain_own_scope_key`). A row a topic audience added under an earlier
 -- key rule stays unreachable until the `brain_fact_index` refresh rewrites
 -- it. Every recall tier and the visible listing read this view, never the
 -- table.
@@ -12,4 +13,5 @@ CREATE OR REPLACE VIEW v_brain_working_set AS
 SELECT w.scope_key, w.fact_id, w.importance_base
 FROM brain_working_set w
 JOIN brain_facts f ON f.id = w.fact_id
-WHERE f.scope_level <> 'user' OR w.scope_key = 'user:' || f.scope_key;
+WHERE brain_scope_widens(f.scope_level)
+   OR w.scope_key = brain_own_scope_key(f.scope_level, f.scope_key);
