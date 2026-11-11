@@ -98,6 +98,9 @@ impl ProxyService {
                 systemprompt_mcp::services::DeploymentService::new(services.clone()),
                 config,
                 secrets,
+                systemprompt_mcp::services::client::McpClientLimits::from(
+                    &services.config().ai.mcp.resilience,
+                ),
             )),
             owners: Arc::new(owner::OwnerCache::default()),
         }

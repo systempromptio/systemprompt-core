@@ -23,8 +23,8 @@ use tokio::time::timeout;
 
 const OAUTH_PORT_PROBE_TIMEOUT: Duration = Duration::from_secs(2);
 
-use super::HttpClientWithContext;
 use super::types::{McpConnectionResult, McpProtocolInfo, ValidationResult};
+use super::{HttpClientWithContext, McpClientLimits};
 
 pub async fn validate_connection(
     service_name: &ServiceName,
@@ -147,12 +147,13 @@ async fn connect_and_validate(
         Actor::anonymous(UserId::generate()),
     );
     let config = StreamableHttpClientTransportConfig::with_uri(url);
-    let http_client = HttpClientWithContext::new(context).map_err(|e| {
-        crate::error::McpDomainError::ConnectionFailed {
-            server: service_name.to_string(),
-            source: Box::new(e),
-        }
-    })?;
+    let http_client =
+        HttpClientWithContext::new(context, McpClientLimits::default()).map_err(|e| {
+            crate::error::McpDomainError::ConnectionFailed {
+                server: service_name.to_string(),
+                source: Box::new(e),
+            }
+        })?;
     let transport = StreamableHttpClientTransport::with_client(http_client, config);
 
     let client_info = ClientConfig::new(

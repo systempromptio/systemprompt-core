@@ -60,6 +60,7 @@ pub struct McpClient {
     deployments: DeploymentService,
     config: Arc<Config>,
     secrets: Arc<SecretsService>,
+    limits: McpClientLimits,
 }
 
 impl McpClient {
@@ -69,12 +70,14 @@ impl McpClient {
         deployments: DeploymentService,
         config: Arc<Config>,
         secrets: Arc<SecretsService>,
+        limits: McpClientLimits,
     ) -> Self {
         Self {
             connector_tokens,
             deployments,
             config,
             secrets,
+            limits,
         }
     }
 
@@ -173,7 +176,18 @@ impl McpClient {
         let transport = self
             .build_transport(server_config, context, elicitation.is_some())
             .await?;
-        execute_tool_call(transport, service_name, &name, arguments, elicitation).await
+        let request_timeout = self.limits.request_timeout();
+        tokio::time::timeout(
+            request_timeout,
+            execute_tool_call(transport, service_name, &name, arguments, elicitation),
+        )
+        .await
+        .unwrap_or_else(|_elapsed| {
+            Err(crate::McpDomainError::Timeout {
+                server: service_name.to_owned(),
+                after_ms: u64::try_from(request_timeout.as_millis()).unwrap_or(u64::MAX),
+            })
+        })
     }
 
     async fn build_transport(
@@ -219,7 +233,7 @@ async fn build_transport(
             &server_config.headers,
             &server_config.name,
         )?;
-        HttpClientWithContext::external(context.clone(), outbound)
+        HttpClientWithContext::external(context.clone(), outbound, client.limits)
             .map_err(|e| transport_unavailable(&server_config.name, e))?
             .with_client_capabilities(capabilities::client_capabilities(with_elicitation))
     } else {
@@ -235,7 +249,7 @@ async fn build_transport(
         }
         let outbound =
             external_auth::static_outbound_headers(&server_config.headers, &server_config.name)?;
-        HttpClientWithContext::forwarding(context.clone(), outbound)
+        HttpClientWithContext::forwarding(context.clone(), outbound, client.limits)
             .map_err(|e| transport_unavailable(&server_config.name, e))?
             .with_client_capabilities(capabilities::client_capabilities(with_elicitation))
     };

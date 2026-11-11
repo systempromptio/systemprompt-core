@@ -66,6 +66,7 @@ async fn resolve_external_proxy_target_errors_without_accessor() {
         systemprompt_mcp::services::DeploymentService::new(crate::harness::services_state().view()),
         crate::harness::config(),
         systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
+        systemprompt_mcp::services::client::McpClientLimits::default(),
     )
     .resolve_external_proxy_target(&config, &context())
     .await;
@@ -89,6 +90,7 @@ async fn resolve_external_proxy_target_refuses_without_a_broker_secret() {
         systemprompt_mcp::services::DeploymentService::new(crate::harness::services_state().view()),
         crate::harness::config(),
         systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
+        systemprompt_mcp::services::client::McpClientLimits::default(),
     )
     .resolve_external_proxy_target(&config, &ctx)
     .await

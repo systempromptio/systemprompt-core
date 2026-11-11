@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::commands::shared::mcp_tools::cli_limits;
 use anyhow::{Context, Result, anyhow};
 use rmcp::ServiceExt;
 use rmcp::model::{
@@ -52,10 +53,10 @@ async fn call_tool(params: ToolCallParams<'_>) -> Result<CallToolResult> {
         tool_name,
         arguments,
         session_ctx,
-        ..
+        timeout_secs,
     } = params;
 
-    let client = connect(server_name, url, session_ctx).await?;
+    let client = connect(server_name, url, session_ctx, timeout_secs).await?;
 
     let mut params = CallToolRequestParams::new(String::from(tool_name));
     params.arguments = arguments.and_then(|v| v.as_object().cloned());
@@ -80,22 +81,26 @@ pub async fn list_available_tools(
     timeout_secs: u64,
 ) -> Result<Vec<String>> {
     let limit = Duration::from_secs(timeout_secs);
-    timeout(limit, list_tools(server_name, url, session_ctx))
-        .await
-        .map_err(|elapsed| {
-            anyhow!(
-                "Listing tools on '{server_name}' did not finish within {}s ({elapsed})",
-                limit.as_secs()
-            )
-        })?
+    timeout(
+        limit,
+        list_tools(server_name, url, session_ctx, timeout_secs),
+    )
+    .await
+    .map_err(|elapsed| {
+        anyhow!(
+            "Listing tools on '{server_name}' did not finish within {}s ({elapsed})",
+            limit.as_secs()
+        )
+    })?
 }
 
 async fn list_tools(
     server_name: &McpServerId,
     url: &str,
     session_ctx: &CliSessionContext,
+    timeout_secs: u64,
 ) -> Result<Vec<String>> {
-    let client = connect(server_name, url, session_ctx).await?;
+    let client = connect(server_name, url, session_ctx, timeout_secs).await?;
 
     let tools_response = client
         // Why: rmcp serialises a `None` params as `"params": null`, which a
@@ -118,11 +123,12 @@ async fn connect(
     server_name: &McpServerId,
     url: &str,
     session_ctx: &CliSessionContext,
+    timeout_secs: u64,
 ) -> Result<RunningService<RoleClient, ClientConfig>> {
     let agent_name = AgentName::try_new(format!("cli-{server_name}"))
         .context("MCP server name does not form a valid agent name")?;
     let request_context = session_ctx.to_request_context(agent_name);
-    let http_client = HttpClientWithContext::new(request_context)?;
+    let http_client = HttpClientWithContext::new(request_context, cli_limits(timeout_secs))?;
     let config = StreamableHttpClientTransportConfig::with_uri(url)
         .auth_header(session_ctx.session_token().as_str().to_owned());
     let transport = StreamableHttpClientTransport::with_client(http_client, config);

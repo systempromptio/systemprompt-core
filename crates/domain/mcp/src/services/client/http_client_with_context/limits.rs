@@ -1,7 +1,9 @@
 //! Time and size budgets for the MCP streamable-HTTP client.
 //!
 //! [`McpClientLimits`] bounds how long a request may wait for its response
-//! and its JSON body, and how long a response stream may stay silent. JSON
+//! and its JSON body, how long connecting may take, and how long a response
+//! stream may stay silent. It is built from the `ai.mcp.resilience` profile
+//! settings. JSON
 //! bodies are read through [`read_capped`], which refuses a body past its byte
 //! ceiling before it is buffered in full.
 //!
@@ -13,53 +15,54 @@ use bytes::{Bytes, BytesMut};
 use serde::de::DeserializeOwned;
 use std::future::Future;
 use std::time::Duration;
+use systemprompt_manifest::services::{McpConfig, ResilienceSettings};
 use tokio::time::Instant;
 
-pub const DEFAULT_MCP_REQUEST_TIMEOUT: Duration = Duration::from_secs(300);
-pub const DEFAULT_MCP_STREAM_IDLE_TIMEOUT: Duration = Duration::from_secs(300);
 pub const MAX_RESOURCE_METADATA_BYTES: usize = 64 * 1024;
 
 /// Deadlines applied to every request made by `HttpClientWithContext`.
+///
+/// Built from the `ai.mcp.resilience` settings, the same policy the tool
+/// provider's resilience guard enforces around each call.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct McpClientLimits {
-    request_timeout: Duration,
-    stream_idle_timeout: Duration,
+    request: Duration,
+    connect: Duration,
+    stream_idle: Duration,
+}
+
+impl From<&ResilienceSettings> for McpClientLimits {
+    fn from(settings: &ResilienceSettings) -> Self {
+        Self {
+            request: Duration::from_millis(settings.request_timeout_ms),
+            connect: Duration::from_millis(settings.connect_timeout_ms),
+            stream_idle: Duration::from_millis(settings.stream_idle_timeout_ms),
+        }
+    }
 }
 
 impl Default for McpClientLimits {
     fn default() -> Self {
-        Self {
-            request_timeout: DEFAULT_MCP_REQUEST_TIMEOUT,
-            stream_idle_timeout: DEFAULT_MCP_STREAM_IDLE_TIMEOUT,
-        }
+        Self::from(&McpConfig::default().resilience)
     }
 }
 
 impl McpClientLimits {
     #[must_use]
-    pub const fn with_request_timeout(mut self, timeout: Duration) -> Self {
-        self.request_timeout = timeout;
-        self
-    }
-
-    #[must_use]
-    pub const fn with_stream_idle_timeout(mut self, timeout: Duration) -> Self {
-        self.stream_idle_timeout = timeout;
-        self
-    }
-
-    #[must_use]
     pub const fn request_timeout(&self) -> Duration {
-        self.request_timeout
+        self.request
     }
 
-    #[must_use]
-    pub const fn stream_idle_timeout(&self) -> Duration {
-        self.stream_idle_timeout
+    pub(super) const fn connect_timeout(&self) -> Duration {
+        self.connect
+    }
+
+    pub(super) const fn stream_idle_timeout(&self) -> Duration {
+        self.stream_idle
     }
 
     pub(super) fn deadline(&self) -> Instant {
-        Instant::now() + self.request_timeout
+        Instant::now() + self.request
     }
 
     pub(super) async fn within<T>(
@@ -70,7 +73,7 @@ impl McpClientLimits {
         tokio::time::timeout_at(deadline, future)
             .await
             .map_err(|_elapsed| McpTransportError::TimedOut {
-                after: self.request_timeout,
+                after: self.request,
             })?
     }
 }

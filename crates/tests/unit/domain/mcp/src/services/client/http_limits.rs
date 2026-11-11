@@ -7,10 +7,12 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
+use systemprompt_manifest::services::{McpConfig, ResilienceSettings};
 use systemprompt_mcp::services::client::{
-    HttpClientWithContext, McpClientLimits, McpTransportError,
+    HttpClientWithContext, McpClient, McpClientLimits, McpTransportError,
 };
 use systemprompt_models::RequestContext;
+use systemprompt_test_fixtures::ensure_test_bootstrap;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 use wiremock::matchers::method;
@@ -18,6 +20,14 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 
 const SHORT: Duration = Duration::from_millis(300);
 const TEST_BUDGET: Duration = Duration::from_secs(10);
+
+fn short_limits() -> McpClientLimits {
+    McpClientLimits::from(&ResilienceSettings {
+        request_timeout_ms: 300,
+        stream_idle_timeout_ms: 300,
+        ..McpConfig::default().resilience
+    })
+}
 
 fn client() -> HttpClientWithContext {
     let context = RequestContext::new(
@@ -27,13 +37,8 @@ fn client() -> HttpClientWithContext {
         AgentName::try_new("agent-limits").expect("valid AgentName"),
         Actor::user(UserId::new("user-limits")),
     );
-    HttpClientWithContext::forwarding(context, HashMap::new())
+    HttpClientWithContext::forwarding(context, HashMap::new(), short_limits())
         .expect("guarded client")
-        .with_limits(
-            McpClientLimits::default()
-                .with_request_timeout(SHORT)
-                .with_stream_idle_timeout(SHORT),
-        )
 }
 
 fn ping() -> ClientJsonRpcMessage {
@@ -199,4 +204,63 @@ async fn silent_sse_stream_fails_after_the_idle_timeout() {
         .await
         .expect("idle stream must end within its idle budget");
     assert!(matches!(next, Some(Err(_))), "got {next:?}");
+}
+
+#[test]
+fn default_limits_follow_the_mcp_resilience_profile_defaults() {
+    let resilience = McpConfig::default().resilience;
+    let limits = McpClientLimits::default();
+    assert_eq!(
+        limits.request_timeout(),
+        Duration::from_millis(resilience.request_timeout_ms)
+    );
+    assert_eq!(limits, McpClientLimits::from(&resilience));
+}
+
+#[tokio::test]
+async fn tool_call_through_mcp_client_honours_the_configured_request_timeout() {
+    let _ = ensure_test_bootstrap();
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_delay(Duration::from_secs(30))
+                .set_body_raw(
+                    r#"{"jsonrpc":"2.0","id":0,"result":{}}"#,
+                    "application/json",
+                ),
+        )
+        .mount(&server)
+        .await;
+    let config =
+        crate::harness::external_mcp_config("limits_stall", &format!("{}/mcp", server.uri()));
+
+    let started = std::time::Instant::now();
+    let result = tokio::time::timeout(
+        TEST_BUDGET,
+        McpClient::new(
+            Arc::default(),
+            systemprompt_mcp::services::DeploymentService::new(
+                crate::harness::services_state().view(),
+            ),
+            crate::harness::config(),
+            systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
+            short_limits(),
+        )
+        .call_tool(
+            &config,
+            "echo".to_owned(),
+            None,
+            &crate::harness::request_context("limits"),
+        ),
+    )
+    .await
+    .expect("tool call must finish within the configured deadline");
+
+    assert!(result.is_err(), "a stalled server cannot produce a result");
+    assert!(
+        started.elapsed() < Duration::from_secs(5),
+        "took {:?}",
+        started.elapsed()
+    );
 }

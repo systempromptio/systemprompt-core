@@ -148,6 +148,7 @@ async fn call_echo(
         systemprompt_mcp::services::DeploymentService::new(crate::harness::services_state().view()),
         crate::harness::config(),
         systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
+        systemprompt_mcp::services::client::McpClientLimits::default(),
     )
     .call_tool(&config, "echo".to_owned(), None, &request_context(tag))
     .await;
@@ -363,6 +364,7 @@ async fn a_direct_input_required_tool_response_is_reissued_once_with_the_origina
             ),
             crate::harness::config(),
             systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
+            systemprompt_mcp::services::client::McpClientLimits::default(),
         )
         .call_tool(
             &config,

@@ -21,9 +21,7 @@ use rmcp::model::ClientCapabilities;
 use std::collections::HashMap;
 use systemprompt_client::{GuardedClient, GuardedClientConfig, guarded_client_builder};
 use systemprompt_models::RequestContext;
-use systemprompt_models::net::{
-    HTTP_AUTH_VERIFY_TIMEOUT, HTTP_KEEPALIVE, HTTP_POOL_IDLE_TIMEOUT, HTTP_STREAM_CONNECT_TIMEOUT,
-};
+use systemprompt_models::net::{HTTP_AUTH_VERIFY_TIMEOUT, HTTP_KEEPALIVE, HTTP_POOL_IDLE_TIMEOUT};
 use systemprompt_models::oauth::ProtectedResourceMetadata;
 use systemprompt_traits::ContextPropagation;
 
@@ -39,8 +37,11 @@ pub struct HttpClientWithContext {
 }
 
 impl HttpClientWithContext {
-    pub fn new(context: RequestContext) -> Result<Self, McpTransportError> {
-        Self::build(context, true, HashMap::new())
+    pub fn new(
+        context: RequestContext,
+        limits: McpClientLimits,
+    ) -> Result<Self, McpTransportError> {
+        Self::build(context, true, HashMap::new(), limits)
     }
 
     pub(super) const fn client(&self) -> &reqwest::Client {
@@ -134,15 +135,17 @@ impl HttpClientWithContext {
     pub fn external(
         context: RequestContext,
         outbound_headers: HashMap<HeaderName, HeaderValue>,
+        limits: McpClientLimits,
     ) -> Result<Self, McpTransportError> {
-        Self::build(context, false, outbound_headers)
+        Self::build(context, false, outbound_headers, limits)
     }
 
     pub fn forwarding(
         context: RequestContext,
         outbound_headers: HashMap<HeaderName, HeaderValue>,
+        limits: McpClientLimits,
     ) -> Result<Self, McpTransportError> {
-        Self::build(context, true, outbound_headers)
+        Self::build(context, true, outbound_headers, limits)
     }
 
     #[must_use]
@@ -151,20 +154,15 @@ impl HttpClientWithContext {
         self
     }
 
-    #[must_use]
-    pub const fn with_limits(mut self, limits: McpClientLimits) -> Self {
-        self.limits = limits;
-        self
-    }
-
     fn build(
         context: RequestContext,
         forward_context: bool,
         outbound_headers: HashMap<HeaderName, HeaderValue>,
+        limits: McpClientLimits,
     ) -> Result<Self, McpTransportError> {
         let config = GuardedClientConfig::for_configured()
             .without_timeout()
-            .with_connect_timeout(HTTP_STREAM_CONNECT_TIMEOUT);
+            .with_connect_timeout(limits.connect_timeout());
         let metadata_client = GuardedClient::untrusted(
             &GuardedClientConfig::for_untrusted().with_timeout(HTTP_AUTH_VERIFY_TIMEOUT),
         )?;
@@ -180,7 +178,7 @@ impl HttpClientWithContext {
             forward_context,
             outbound_headers,
             client_capabilities: super::capabilities::client_capabilities(false),
-            limits: McpClientLimits::default(),
+            limits,
         })
     }
 

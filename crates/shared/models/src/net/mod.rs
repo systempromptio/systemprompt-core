@@ -69,7 +69,6 @@ pub const IMAGE_GEN_OPENAI_TIMEOUT: Duration = Duration::from_secs(120);
 
 pub const AI_PROVIDER_REQUEST_TIMEOUT: Duration = Duration::from_secs(60);
 
-pub const MCP_TOOL_EXECUTION_TIMEOUT: Duration = Duration::from_secs(30);
 
 pub const TRUSTED_HTTP_HOSTS_ENV: &str = "SYSTEMPROMPT_TRUSTED_HTTP_HOSTS";
 

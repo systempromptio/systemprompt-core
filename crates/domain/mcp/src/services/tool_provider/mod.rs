@@ -28,7 +28,7 @@ use systemprompt_traits::{
 };
 
 use crate::error::McpDomainError;
-use crate::services::client::McpClient;
+use crate::services::client::{McpClient, McpClientLimits};
 pub use crate::services::registry::RegistryService;
 
 use context::{create_request_context, load_agent_servers};
@@ -83,6 +83,7 @@ impl McpToolProvider {
             registry.deployments(),
             Arc::clone(registry.config()),
             secrets,
+            McpClientLimits::from(resilience),
         ));
         Self {
             db_pool,
