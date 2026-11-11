@@ -130,3 +130,36 @@ async fn a_signed_download_link_serves_the_pdf_rendition() -> Result<()> {
     assert!(text.contains("Plan"), "{text}");
     Ok(())
 }
+
+#[tokio::test]
+async fn a_document_whose_file_left_storage_says_so() -> Result<()> {
+    let (pool, _ctx, state) = fixture().await?;
+    let owner = seed_bridge_credential(&pool, "docs-missing-file").await?;
+    let created = create_markdown(&state, &owner).await?;
+    let (id, base) = (id_of(&created), head_of(&created));
+    let text: &'static str = Box::leak(format!("# Only here {id}\n").into_boxed_str());
+    let written = put_content(&state, &owner, &id, &base, text).await?;
+    assert_eq!(written.status, StatusCode::OK, "{}", written.json());
+    let hash = systemprompt_models::documents::content_hash(text.as_bytes());
+    sqlx::query(
+        "UPDATE document_blobs SET storage_id = 'documents/blobs/gone' WHERE content_sha256 = $1",
+    )
+    .bind(hash.as_str())
+    .execute(&*pool.write_pool())
+    .await?;
+
+    let reply = send(
+        app(&state, &owner),
+        request(Method::GET, &format!("/{id}/content"))
+            .body(Body::empty())
+            .expect("request"),
+    )
+    .await?;
+    assert_eq!(reply.status, StatusCode::GONE, "{}", reply.json());
+    let message = reply.json()["message"]
+        .as_str()
+        .unwrap_or_default()
+        .to_owned();
+    assert!(message.contains("missing from storage"), "{message}");
+    Ok(())
+}
