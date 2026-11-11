@@ -65,10 +65,10 @@ pub fn keep_local_beside(
     let sibling_path = cycle.root.file(&sibling)?;
     let moved = original.exists();
     if moved {
-        move_file(&original, &sibling_path)?;
+        move_file(cycle.root, &original, &sibling_path)?;
     }
-    if let Err(error) = write_verified(&original, bytes, &head.sha256) {
-        if moved && let Err(restore) = move_file(&sibling_path, &original) {
+    if let Err(error) = write_verified(cycle.root, &original, bytes, &head.sha256) {
+        if moved && let Err(restore) = move_file(cycle.root, &sibling_path, &original) {
             tracing::error!(%restore, path = %rel, "drive could not restore a local edit after a failed head write");
         }
         return Err(error);

@@ -45,7 +45,7 @@ pub fn remote_delete(
     let path = cycle.root.file(&rel)?;
     if path.exists() && hash_file(&path)?.0 != synced.sha256 {
         let sibling = free_conflict_sibling(cycle.root, &rel, cycle.host_name)?;
-        move_file(&path, &cycle.root.file(&sibling)?)?;
+        move_file(cycle.root, &path, &cycle.root.file(&sibling)?)?;
         let notice = ConflictNotice {
             document_id: Some(document_id.clone()),
             unplaced: false,

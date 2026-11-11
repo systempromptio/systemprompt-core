@@ -102,7 +102,7 @@ pub(super) async fn apply_moves(
                 report.moved += 1;
             },
             Err(error) if is_refusal(&error) => {
-                move_file(&change.file.abs, &cycle.root.file(&rel)?)?;
+                move_file(cycle.root, &change.file.abs, &cycle.root.file(&rel)?)?;
                 state.pending_deletes.remove(&rel);
                 notify(state, &rel, format!("the move was refused: {error}"));
                 report.restored += 1;

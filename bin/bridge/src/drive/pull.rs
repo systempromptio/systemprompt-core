@@ -234,7 +234,7 @@ async fn place_head(
         .as_ref()
         .is_some_and(|sha| known.as_ref().is_none_or(|e| &e.sha256 != sha));
     let written = !unsynced_edit
-        && write_unless_changed(&path, &bytes, &head.sha256, local.as_ref())?
+        && write_unless_changed(cycle.root, &path, &bytes, &head.sha256, local.as_ref())?
             == GuardedWrite::Written;
     if written {
         adopt(state, &path, rel, head)?;
@@ -282,7 +282,7 @@ fn rename(
         }
     }
     if source.exists() && (case_only || !target.exists()) {
-        move_file(&source, &target)?;
+        move_file(cycle.root, &source, &target)?;
     }
     if let Some(mut entry) = state.entries.remove(from) {
         entry.document_id = Some(document_id.clone());

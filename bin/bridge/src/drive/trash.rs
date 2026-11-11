@@ -32,7 +32,7 @@ pub fn move_to_trash(
         .trash_dir()
         .join(now.format(STAMP).to_string())
         .join(rel);
-    move_file(&source, &target)?;
+    move_file(root, &source, &target)?;
     Ok(Some(target))
 }
 

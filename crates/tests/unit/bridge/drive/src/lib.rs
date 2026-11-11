@@ -14,6 +14,8 @@ mod names_unicode;
 #[cfg(test)]
 mod notices;
 #[cfg(test)]
+mod placement_race;
+#[cfg(test)]
 mod presence;
 #[cfg(test)]
 mod proposals;
