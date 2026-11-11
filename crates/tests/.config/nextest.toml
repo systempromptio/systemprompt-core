@@ -138,6 +138,10 @@ database-lifecycle-db = { max-threads = 1 }
 # session through their own harness, contend for its checkpoint lease and
 # report it failed.
 collab-reaper-db = { max-threads = 1 }
+# Blob GC holds every blob while any document waits in the media backfill
+# queue, so a backfill test that queues a document stops a concurrent GC test
+# collecting its own aged blobs. Serialise the GC and backfill tests.
+document-blob-gc-db = { max-threads = 1 }
 
 [[profile.default.overrides]]
 filter = 'package(systemprompt-database-tests) and test(/lifecycle::/)'
@@ -577,3 +581,15 @@ threads-required = 4
 [[profile.coverage.overrides]]
 filter = 'package(systemprompt-cli-integration-tests) and binary(serve_lifecycle)'
 threads-required = 4
+
+[[profile.default.overrides]]
+filter = 'package(systemprompt-files-integration-tests) and test(/documents_blob_store::gc_|documents_media_backfill::/)'
+test-group = 'document-blob-gc-db'
+
+[[profile.ci.overrides]]
+filter = 'package(systemprompt-files-integration-tests) and test(/documents_blob_store::gc_|documents_media_backfill::/)'
+test-group = 'document-blob-gc-db'
+
+[[profile.coverage.overrides]]
+filter = 'package(systemprompt-files-integration-tests) and test(/documents_blob_store::gc_|documents_media_backfill::/)'
+test-group = 'document-blob-gc-db'

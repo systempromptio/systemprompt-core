@@ -15,7 +15,7 @@ use super::rows::RepoResult;
 
 #[derive(Debug, Clone)]
 pub struct DocumentMediaRepository {
-    pools: Pools,
+    pub(super) pools: Pools,
 }
 
 impl DocumentMediaRepository {

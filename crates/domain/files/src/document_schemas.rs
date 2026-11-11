@@ -52,6 +52,11 @@ pub(crate) const DOCUMENT_SCHEMAS: &[SchemaEntry] = &[
         &["document_id", "content_sha256", "admitted_by"],
     ),
     (
+        "document_media_backfill",
+        include_str!("../schema/document_media_backfill.sql"),
+        &["document_id", "queued_at"],
+    ),
+    (
         "document_grants",
         include_str!("../schema/document_grants.sql"),
         &[

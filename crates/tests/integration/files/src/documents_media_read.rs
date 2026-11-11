@@ -50,7 +50,7 @@ fn media_of(picture: &[u8]) -> Media {
     media
 }
 
-async fn with_image(
+pub(crate) async fn with_image(
     h: &Harness,
     owner: &AuthenticatedUser,
     template: &str,
@@ -71,7 +71,7 @@ async fn with_image(
         .id
 }
 
-fn store(h: &Harness) -> BlobStore {
+pub(crate) fn store(h: &Harness) -> BlobStore {
     let storage: Arc<dyn FileStorage> =
         Arc::new(LocalFileStorage::new(h.storage.path().to_path_buf()));
     BlobStore::new(storage, Arc::clone(&h.repos.blobs))

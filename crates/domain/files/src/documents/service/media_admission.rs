@@ -63,6 +63,7 @@ impl DocumentService {
         if refs.is_empty() {
             return Ok(refs);
         }
+        self.ensure_media_backfilled(&document.id).await?;
         let held = self.repos.media.admitted_among(&document.id, &refs).await?;
         let mut refused_refs = Vec::new();
         for reference in &refs {
@@ -102,7 +103,7 @@ impl DocumentService {
     }
 }
 
-fn store_refs(format: DocumentFormat, bytes: &[u8], limit: u64) -> Vec<String> {
+pub(super) fn store_refs(format: DocumentFormat, bytes: &[u8], limit: u64) -> Vec<String> {
     let mut refs: Vec<String> = import_rich_text(format, bytes)
         .map(|model| media_refs(&model))
         .unwrap_or_default()

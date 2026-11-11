@@ -64,6 +64,7 @@ mod locks;
 mod markdown_export;
 mod media;
 mod media_admission;
+mod media_backfill;
 mod media_read;
 mod mentions;
 mod node_ids;

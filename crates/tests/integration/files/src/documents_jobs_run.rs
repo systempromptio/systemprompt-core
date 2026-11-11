@@ -5,7 +5,8 @@ use systemprompt_database::DbPool;
 use systemprompt_files::documents::DocumentService;
 use systemprompt_files::documents::jobs::{
     DocumentAgentReadRetentionJob, DocumentBlobGcJob, DocumentCollabReaperJob,
-    DocumentCollabUpdateSweepJob, DocumentNodeIdsBackfillJob, DocumentPresenceSweepJob,
+    DocumentCollabUpdateSweepJob, DocumentMediaBackfillJob, DocumentNodeIdsBackfillJob,
+    DocumentPresenceSweepJob,
 };
 use systemprompt_files::uploads::DocumentUploadExpiryJob;
 use systemprompt_files::{DocumentsConfig, FilesConfig, FilesConfigYaml};
@@ -79,6 +80,7 @@ async fn every_document_job_is_a_cluster_noop_while_the_store_is_disabled() {
         Box::new(DocumentBlobGcJob),
         Box::new(DocumentCollabReaperJob),
         Box::new(DocumentCollabUpdateSweepJob),
+        Box::new(DocumentMediaBackfillJob),
         Box::new(DocumentNodeIdsBackfillJob),
         Box::new(DocumentPresenceSweepJob),
         Box::new(DocumentUploadExpiryJob),
@@ -100,7 +102,7 @@ async fn every_document_job_is_a_cluster_noop_while_the_store_is_disabled() {
     }
     names.sort_unstable();
     names.dedup();
-    assert_eq!(names.len(), 7);
+    assert_eq!(names.len(), 8);
 }
 
 #[tokio::test]

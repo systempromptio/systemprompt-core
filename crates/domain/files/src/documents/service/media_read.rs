@@ -102,7 +102,10 @@ impl DocumentService {
         limit: u64,
     ) -> Result<Option<Vec<u8>>, DocumentsError> {
         if !self.repos.media.is_admitted(document, hash).await? {
-            return Ok(None);
+            self.ensure_media_backfilled(document).await?;
+            if !self.repos.media.is_admitted(document, hash).await? {
+                return Ok(None);
+            }
         }
         Ok(Some(self.blobs.read_all_primary(hash, limit).await?))
     }

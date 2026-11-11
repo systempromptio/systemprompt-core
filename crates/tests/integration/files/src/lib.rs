@@ -92,6 +92,8 @@ mod documents_listing_scale;
 #[cfg(test)]
 mod documents_media_admit;
 #[cfg(test)]
+mod documents_media_backfill;
+#[cfg(test)]
 mod documents_media_export_caps;
 #[cfg(test)]
 mod documents_media_provenance;

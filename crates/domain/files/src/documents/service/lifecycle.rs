@@ -153,6 +153,7 @@ impl DocumentService {
             .revision_bytes(&self.resolve_revision(&source, None).await?)
             .await?;
         let carried = self.access.check_copy(who, &source).await?;
+        self.ensure_media_backfilled(&source.id).await?;
         let vouched = self.repos.media.of_document(&source.id).await?;
         let folder = request.folder.or_else(|| source.folder_id.clone());
         self.authorize_create(who, folder.as_ref(), trace).await?;

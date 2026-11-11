@@ -52,6 +52,7 @@ mod listing_scopes_root;
 mod listing_scopes_shared;
 mod locks;
 mod media;
+mod media_backfill;
 mod node_ids;
 mod path_changes;
 mod presence;
