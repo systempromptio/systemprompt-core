@@ -53,8 +53,13 @@ impl OutboundAdapter for OpenAiResponsesOutbound {
         {
             req = req.header(name, value);
         }
-        let upstream_response =
-            super::send_checked(ctx.target.provider.as_str(), ctx.http, req).await?;
+        let upstream_response = super::send_checked(
+            ctx.target.provider.as_str(),
+            ctx.http,
+            req,
+            super::ResponseMode::of(ctx.request.stream),
+        )
+        .await?;
 
         if ctx.request.stream {
             let stream = super::bounds::idle_bounded(upstream_response, ctx.http.bounds().idle);

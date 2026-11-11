@@ -124,7 +124,7 @@ async fn send_learning_refusals(
     body: &PreparedBody,
 ) -> Result<reqwest::Response, super::UpstreamError> {
     let headers = rejected_betas::without(request_headers(ctx), &rejected_betas::learned(provider));
-    let error = match send_once(ctx.http, provider, url, &headers, &body.bytes).await {
+    let error = match send_once(ctx, provider, url, &headers, &body.bytes).await {
         Ok(response) => return Ok(response),
         Err(e) => e,
     };
@@ -164,7 +164,7 @@ async fn send_learning_refusals(
         anthropic::BetaHeader::parse(&refused.iter().cloned().collect::<Vec<_>>().join(","));
     let bytes = request::without_refused(&body.bytes, provider, &dropped, &refused_fields);
     send_once(
-        ctx.http,
+        ctx,
         provider,
         url,
         &rejected_betas::without(headers, &refused),
@@ -174,17 +174,23 @@ async fn send_learning_refusals(
 }
 
 async fn send_once(
-    http: &super::UpstreamHttp,
+    ctx: &OutboundCtx<'_>,
     provider: &str,
     url: &str,
     headers: &[(String, String)],
     body: &bytes::Bytes,
 ) -> Result<reqwest::Response, super::UpstreamError> {
-    let mut req = http.post(url).body(body.clone());
+    let mut req = ctx.http.post(url).body(body.clone());
     for (name, value) in headers {
         req = req.header(name, value);
     }
-    super::send_checked(provider, http, req).await
+    super::send_checked(
+        provider,
+        ctx.http,
+        req,
+        super::ResponseMode::of(ctx.request.stream),
+    )
+    .await
 }
 
 fn bad_request_message(error: &super::UpstreamError) -> Option<&str> {

@@ -21,7 +21,7 @@ use std::time::Duration;
 
 use chrono::{DateTime, Utc};
 
-use super::{UpstreamBounds, UpstreamError};
+use super::{ResponseMode, UpstreamBounds, UpstreamError};
 
 const RETRIES_TOTAL: &str = "gateway_upstream_retries_total";
 
@@ -173,16 +173,17 @@ pub async fn send_with_retry(
     req: reqwest::RequestBuilder,
     policy: &RetryPolicy,
     bounds: &UpstreamBounds,
+    mode: ResponseMode,
 ) -> Result<(reqwest::Response, u32), UpstreamError> {
     let mut attempt = 1;
     loop {
         let Some(this_try) = req.try_clone() else {
-            return match send_once(provider, req, bounds).await {
+            return match send_once(provider, req, bounds, mode).await {
                 Ok(response) => Ok((response, attempt - 1)),
                 Err(failure) => Err(into_error(provider, failure, bounds).await),
             };
         };
-        let outcome = send_once(provider, this_try, bounds).await;
+        let outcome = send_once(provider, this_try, bounds, mode).await;
         let response = match outcome {
             Ok(response) => return Ok((response, attempt - 1)),
             Err(SendFailure::Fatal(e)) => return Err(e),
@@ -243,21 +244,25 @@ async fn send_once(
     provider: &str,
     req: reqwest::RequestBuilder,
     bounds: &UpstreamBounds,
+    mode: ResponseMode,
 ) -> Result<reqwest::Response, SendFailure> {
-    let response = tokio::time::timeout(bounds.first_byte, req.send())
-        .await
-        .map_err(|_elapsed: tokio::time::error::Elapsed| {
-            SendFailure::Fatal(UpstreamError::Timeout {
-                provider: provider.to_owned(),
-                after: bounds.first_byte,
-            })
-        })?
-        .map_err(|e| {
-            SendFailure::Fatal(UpstreamError::Transport {
-                provider: provider.to_owned(),
-                source: e,
-            })
-        })?;
+    let sent = match bounds.header_deadline(mode) {
+        None => req.send().await,
+        Some(after) => tokio::time::timeout(after, req.send()).await.map_err(
+            |_elapsed: tokio::time::error::Elapsed| {
+                SendFailure::Fatal(UpstreamError::Timeout {
+                    provider: provider.to_owned(),
+                    after,
+                })
+            },
+        )?,
+    };
+    let response = sent.map_err(|e| {
+        SendFailure::Fatal(UpstreamError::Transport {
+            provider: provider.to_owned(),
+            source: e,
+        })
+    })?;
     let status = response.status().as_u16();
     if response.status().is_success() {
         return Ok(response);

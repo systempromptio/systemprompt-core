@@ -1,9 +1,13 @@
 //! Time and size bounds on every upstream provider call.
 //!
 //! [`UpstreamHttp`] pairs the gateway's outbound client with its
-//! [`UpstreamBounds`]: a first-byte deadline on each attempt's response
-//! headers, a total deadline over the whole exchange (headers and body), an
-//! idle deadline between body chunks, and a byte cap on a buffered body. A
+//! [`UpstreamBounds`]: a total deadline over the whole exchange (headers and
+//! body), an idle deadline between body chunks, a byte cap on a buffered body,
+//! and, for a streaming call only, a first-byte deadline on each attempt's
+//! response headers. A non-streaming call sends no header until its generation
+//! is complete, so its only bound before the body is the total deadline: the
+//! [`ResponseMode`] a call is sent with decides which deadlines apply, and
+//! [`ResponseMode::Buffered`] has no first-byte deadline to carry. A
 //! stalled or oversized upstream therefore ends as a typed error instead of
 //! holding a connection, a quota reservation and a pending audit row.
 //!
@@ -17,10 +21,28 @@ use futures_util::StreamExt;
 use futures_util::stream::{self, BoxStream};
 use thiserror::Error;
 
-/// The deadlines and size cap applied to an upstream call.
+/// Whether an upstream call's response is streamed or returned whole.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ResponseMode {
+    Buffered,
+    Streaming,
+}
+
+impl ResponseMode {
+    #[must_use]
+    pub const fn of(stream: bool) -> Self {
+        if stream {
+            Self::Streaming
+        } else {
+            Self::Buffered
+        }
+    }
+}
+
+/// The deadlines and size caps applied to an upstream call.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct UpstreamBounds {
-    pub first_byte: Duration,
+    pub stream_first_byte: Duration,
     pub idle: Duration,
     pub total: Duration,
     pub max_buffered_bytes: usize,
@@ -29,12 +51,20 @@ pub struct UpstreamBounds {
 
 impl UpstreamBounds {
     pub const PRODUCTION: Self = Self {
-        first_byte: Duration::from_secs(600),
+        stream_first_byte: Duration::from_secs(600),
         idle: Duration::from_secs(300),
         total: Duration::from_secs(3600),
         max_buffered_bytes: 32 * 1024 * 1024,
         max_error_body_bytes: 64 * 1024,
     };
+
+    #[must_use]
+    pub const fn header_deadline(&self, mode: ResponseMode) -> Option<Duration> {
+        match mode {
+            ResponseMode::Buffered => None,
+            ResponseMode::Streaming => Some(self.stream_first_byte),
+        }
+    }
 }
 
 /// The gateway's outbound HTTP client and the bounds every call through it

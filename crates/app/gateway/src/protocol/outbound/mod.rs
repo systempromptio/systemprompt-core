@@ -33,7 +33,7 @@ use systemprompt_wire::error::WireStreamError;
 use thiserror::Error;
 
 use super::canonical::{CanonicalEvent, CanonicalRequest, CanonicalResponse};
-pub use bounds::{UpstreamBodyError, UpstreamBounds, UpstreamHttp};
+pub use bounds::{ResponseMode, UpstreamBodyError, UpstreamBounds, UpstreamHttp};
 
 /// Upstream provider failure.
 ///
@@ -136,11 +136,12 @@ pub(crate) async fn send_checked(
     provider: &str,
     http: &UpstreamHttp,
     req: reqwest::RequestBuilder,
+    mode: ResponseMode,
 ) -> Result<reqwest::Response, UpstreamError> {
     let policy = retry::current_policy();
     let req = trace_context::stamp(req);
     let (response, _retries) =
-        retry::send_with_retry(provider, req, &policy, http.bounds()).await?;
+        retry::send_with_retry(provider, req, &policy, http.bounds(), mode).await?;
     Ok(response)
 }
 

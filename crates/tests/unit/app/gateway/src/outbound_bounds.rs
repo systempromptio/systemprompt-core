@@ -8,7 +8,7 @@ use systemprompt_gateway::protocol::canonical::{
 use systemprompt_gateway::protocol::outbound::anthropic::AnthropicOutbound;
 use systemprompt_gateway::protocol::outbound::openai_chat::OpenAiChatOutbound;
 use systemprompt_gateway::protocol::outbound::{
-    OutboundAdapter, OutboundCtx, OutboundError, OutboundOutcome, UpstreamBodyError,
+    OutboundAdapter, OutboundCtx, OutboundError, OutboundOutcome, ResponseMode, UpstreamBodyError,
     UpstreamBounds, UpstreamError, UpstreamHttp,
 };
 use systemprompt_identifiers::ModelId;
@@ -23,7 +23,7 @@ const BUFFERED_BODY: &str = r#"{"id":"msg_1","type":"message","role":"assistant"
 
 fn bounds() -> UpstreamBounds {
     UpstreamBounds {
-        first_byte: Duration::from_millis(300),
+        stream_first_byte: Duration::from_millis(300),
         idle: Duration::from_millis(300),
         total: Duration::from_secs(5),
         max_buffered_bytes: 4096,
@@ -122,12 +122,13 @@ fn chunk(data: &str) -> String {
 }
 
 #[tokio::test]
-async fn an_upstream_that_never_answers_is_cut_at_the_first_byte_deadline() {
+async fn a_streaming_upstream_that_never_answers_is_cut_at_the_first_byte_deadline() {
     let server = MockServer::start().await;
     Mock::given(method("POST"))
         .respond_with(
             ResponseTemplate::new(200)
-                .set_body_string(BUFFERED_BODY)
+                .insert_header("content-type", "text/event-stream")
+                .set_body_string("")
                 .set_delay(Duration::from_secs(3)),
         )
         .mount(&server)
@@ -136,12 +137,12 @@ async fn an_upstream_that_never_answers_is_cut_at_the_first_byte_deadline() {
     let err = send(
         &AnthropicOutbound,
         &format!("{}/v1", server.uri()),
-        false,
+        true,
         bounds(),
     )
     .await
     .err()
-    .expect("a stalled upstream must not produce a response");
+    .expect("a stalled streaming upstream must not produce a response");
     assert!(
         started.elapsed() < Duration::from_secs(2),
         "{:?}",
@@ -154,6 +155,72 @@ async fn an_upstream_that_never_answers_is_cut_at_the_first_byte_deadline() {
         },
         other => panic!("expected an upstream timeout, got {other:?}: {err}"),
     }
+}
+
+#[tokio::test]
+async fn a_non_streaming_call_waits_past_the_first_byte_deadline_for_its_answer() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_body_string(BUFFERED_BODY)
+                .set_delay(Duration::from_millis(1200)),
+        )
+        .mount(&server)
+        .await;
+    let outcome = send(
+        &AnthropicOutbound,
+        &format!("{}/v1", server.uri()),
+        false,
+        bounds(),
+    )
+    .await
+    .expect("a non-streaming answer within the total deadline is returned");
+    assert!(matches!(outcome, OutboundOutcome::Buffered(_)));
+}
+
+#[tokio::test]
+async fn a_non_streaming_call_is_cut_at_the_total_deadline() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_body_string(BUFFERED_BODY)
+                .set_delay(Duration::from_secs(5)),
+        )
+        .mount(&server)
+        .await;
+    let mut tight = bounds();
+    tight.total = Duration::from_millis(1500);
+    let started = Instant::now();
+    let err = send(
+        &AnthropicOutbound,
+        &format!("{}/v1", server.uri()),
+        false,
+        tight,
+    )
+    .await
+    .err()
+    .expect("a non-streaming answer past the total deadline is refused");
+    assert!(
+        started.elapsed() < Duration::from_secs(4),
+        "{:?}",
+        started.elapsed()
+    );
+    assert!(
+        matches!(err.upstream(), Some(UpstreamError::Transport { source, .. }) if source.is_timeout()),
+        "{err:?}"
+    );
+}
+
+#[test]
+fn only_a_streaming_call_carries_a_first_byte_deadline() {
+    let bounds = UpstreamBounds::PRODUCTION;
+    assert_eq!(bounds.header_deadline(ResponseMode::Buffered), None);
+    assert_eq!(
+        bounds.header_deadline(ResponseMode::Streaming),
+        Some(Duration::from_secs(600))
+    );
 }
 
 #[tokio::test]
