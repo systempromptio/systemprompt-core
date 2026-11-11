@@ -28,6 +28,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod bridge_profile;
+pub mod child_env;
 pub mod config;
 pub mod env;
 pub mod paths;

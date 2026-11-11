@@ -3,10 +3,10 @@
 //! A child receives the database URLs and the public token verification keys
 //! and nothing else, unless its manifest entry names a [`SecretGrant`] under
 //! `secrets:`. A grant is one of the AI provider keys, the encryption master
-//! key, or a named custom secret. The OAuth at-rest pepper, the manifest
-//! signing seed, the token signing keys and the licence signing secret are
-//! held by the API process only and are refused as grants, whether named
-//! directly or as `custom:<name>`.
+//! key, the profile's storage credential, or a named custom secret. The OAuth
+//! at-rest pepper, the manifest signing seed, the token signing keys and the
+//! licence signing secret are held by the API process only and are refused as
+//! grants, whether named directly or as `custom:<name>`.
 //!
 //! [`is_api_held_env_name`] recognises the environment names that carry a
 //! secret, so a manifest cannot route one through `env_vars` around the
@@ -18,9 +18,6 @@
 use std::fmt;
 
 use serde::{Deserialize, Serialize};
-
-pub const SUBPROCESS_GRANTS_ENV: &str = "SYSTEMPROMPT_SUBPROCESS_GRANTS";
-pub const VERIFICATION_KEYS_ENV: &str = "SYSTEMPROMPT_VERIFICATION_KEYS";
 
 const CUSTOM_PREFIX: &str = "custom:";
 
@@ -104,6 +101,7 @@ impl ProviderSecret {
 pub enum SecretGrant {
     Provider(ProviderSecret),
     EncryptionMasterKey,
+    Storage,
     Custom(String),
 }
 
@@ -113,6 +111,7 @@ impl SecretGrant {
         match self {
             Self::Provider(provider) => provider.env_name().to_owned(),
             Self::EncryptionMasterKey => "ENCRYPTION_MASTER_KEY".to_owned(),
+            Self::Storage => "STORAGE".to_owned(),
             Self::Custom(name) => name.to_ascii_uppercase(),
         }
     }
@@ -122,8 +121,15 @@ impl SecretGrant {
         match self {
             Self::Provider(provider) => provider.as_str(),
             Self::EncryptionMasterKey => "encryption_master_key",
+            Self::Storage => "storage",
             Self::Custom(name) => name,
         }
+    }
+}
+
+impl SecretGrant {
+    pub fn from_secret_name(name: &str) -> Result<Self, SecretGrantError> {
+        format!("{CUSTOM_PREFIX}{name}").parse()
     }
 }
 
@@ -132,6 +138,7 @@ impl fmt::Display for SecretGrant {
         match self {
             Self::Provider(provider) => f.write_str(provider.as_str()),
             Self::EncryptionMasterKey => f.write_str("encryption_master_key"),
+            Self::Storage => f.write_str("storage"),
             Self::Custom(name) => write!(f, "{CUSTOM_PREFIX}{name}"),
         }
     }
@@ -152,7 +159,7 @@ pub enum SecretGrantError {
     ApiHeld(String),
     #[error(
         "secret '{0}' is not grantable: name a provider (anthropic, openai, gemini, moonshot, \
-         qwen, github), encryption_master_key, or custom:<name>"
+         qwen, github), encryption_master_key, storage, or custom:<name>"
     )]
     Unknown(String),
     #[error("custom secret name '{0}' must be non-empty lowercase ASCII letters, digits or '_'")]
@@ -204,6 +211,9 @@ impl std::str::FromStr for SecretGrant {
         if name == "encryption_master_key" {
             return Ok(Self::EncryptionMasterKey);
         }
+        if name == "storage" {
+            return Ok(Self::Storage);
+        }
         ProviderSecret::from_name(&name)
             .map(Self::Provider)
             .ok_or(SecretGrantError::Unknown(name))
@@ -220,8 +230,6 @@ pub fn is_api_held_env_name(name: &str) -> bool {
         || upper.starts_with("SIGNING_KEY_")
         || upper == "ENCRYPTION_MASTER_KEY"
         || upper == "SYSTEMPROMPT_CUSTOM_SECRETS"
-        || upper == SUBPROCESS_GRANTS_ENV
-        || upper == VERIFICATION_KEYS_ENV
         || API_HELD
             .iter()
             .any(|held| held.eq_ignore_ascii_case(upper.as_str()))

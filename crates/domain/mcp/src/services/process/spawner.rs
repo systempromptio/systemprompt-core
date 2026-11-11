@@ -1,8 +1,8 @@
 //! Detached spawning and binary management for MCP server processes.
 //!
 //! [`spawn_server`] launches an MCP server binary in its own process group with
-//! a sanitised environment (profile, secrets, per-server config, and the SSRF
-//! trust allowlist), redirecting output to a size-rotated log file and
+//! a sanitised environment (profile, granted secrets, per-server config, and
+//! the SSRF trust allowlist), redirecting output to a size-rotated log file and
 //! detaching the child so it outlives this call. Also covers binary
 //! verification and an on-demand debug build path.
 //!
@@ -18,7 +18,8 @@ use std::process::Command;
 use systemprompt_config::SecretsService;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_loader::subprocess::{self, ChildKind, Spawner};
-use systemprompt_manifest::{Config, Secrets};
+use systemprompt_manifest::Config;
+use systemprompt_models::subprocess::SecretGrant;
 
 const MAX_LOG_SIZE: u64 = 10 * 1024 * 1024;
 
@@ -81,11 +82,13 @@ pub fn build_environment(
     env
 }
 
-fn configure_environment(command: &mut Command, spec: &SpawnEnvSpec<'_>, secrets: &Secrets) {
+fn configure_environment(
+    command: &mut Command,
+    spec: &SpawnEnvSpec<'_>,
+    secrets_env: &[(String, String)],
+) {
     command.env_clear();
-    for (key, value) in build_environment(spec, &secrets.to_subprocess_env(), |name| {
-        std::env::var(name).ok()
-    }) {
+    for (key, value) in build_environment(spec, secrets_env, |name| std::env::var(name).ok()) {
         command.env(key, value);
     }
 }
@@ -164,7 +167,7 @@ pub fn spawn_server(
             "profile path is not valid UTF-8 - cannot spawn MCP server".to_owned(),
         )
     })?;
-    let secrets = secrets.get();
+    let secrets_env = child_secrets(secrets, config)?;
 
     let mut child_command = Command::new(&binary_path);
     configure_environment(
@@ -178,7 +181,7 @@ pub fn spawn_server(
             tools_config_json: &tools_config_json,
             server_model_config_json: &server_model_config_json,
         },
-        &secrets,
+        &secrets_env,
     );
     subprocess::mark_child(&mut child_command, ChildKind::Mcp, &config.service_name());
 
@@ -196,6 +199,34 @@ pub fn spawn_server(
     })?;
 
     Ok(pid)
+}
+
+fn child_secrets(
+    secrets: &SecretsService,
+    config: &McpServerConfig,
+) -> McpDomainResult<Vec<(String, String)>> {
+    let snapshot = secrets.get();
+    if let Some(name) = config
+        .env_vars
+        .iter()
+        .find(|name| snapshot.is_secret_env_name(name))
+    {
+        return Err(crate::error::McpDomainError::Configuration(format!(
+            "MCP server '{}': env_vars names '{name}', which carries a secret; grant it under \
+             `secrets:` instead",
+            config.name
+        )));
+    }
+    let env = secrets.child_env(&config.secrets, &[]).map_err(|e| {
+        crate::error::McpDomainError::operation(
+            format!("Failed to resolve the granted secrets for {}", config.name),
+            e,
+        )
+    })?;
+    if config.secrets.contains(&SecretGrant::EncryptionMasterKey) {
+        tracing::info!(server = %config.name, grant = "encryption_master_key", "MCP server granted the encryption master key");
+    }
+    Ok(env)
 }
 
 pub fn verify_binary(paths: &AppPaths, config: &McpServerConfig) -> McpDomainResult<()> {

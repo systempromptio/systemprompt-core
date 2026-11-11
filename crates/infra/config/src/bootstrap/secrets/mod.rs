@@ -33,6 +33,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod child;
 mod error;
 mod io;
 mod loader;
@@ -60,6 +61,7 @@ use super::signing_key::{
 };
 use crate::error::{ConfigError, ConfigResult};
 
+pub use child::ChildSecretsError;
 pub use error::SecretsBootstrapError;
 pub use io::load_secrets_from_path;
 pub use logging::build_loaded_secrets_message;

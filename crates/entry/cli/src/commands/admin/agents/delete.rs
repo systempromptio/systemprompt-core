@@ -190,6 +190,7 @@ pub(super) async fn build_orchestrator(ctx: &CommandContext) -> Result<AgentOrch
         Arc::new(SpawnEnvironment {
             config: Arc::clone(app.config_arc()),
             secrets: Arc::clone(app.secrets()),
+            services: app.services_state().clone(),
             profile_path: app.boot().profile_path().to_path_buf(),
         }),
         None,

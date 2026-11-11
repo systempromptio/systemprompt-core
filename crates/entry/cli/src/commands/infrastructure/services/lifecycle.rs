@@ -56,6 +56,7 @@ pub(crate) async fn agent_orchestrator(ctx: &Arc<AppContext>) -> Result<AgentOrc
         Arc::new(SpawnEnvironment {
             config: Arc::clone(ctx.config_arc()),
             secrets: Arc::clone(ctx.secrets()),
+            services: ctx.services_state().clone(),
             profile_path: ctx.boot().profile_path().to_path_buf(),
         }),
         None,

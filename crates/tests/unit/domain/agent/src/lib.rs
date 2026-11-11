@@ -38,6 +38,7 @@ pub(crate) fn spawn_environment()
         systemprompt_agent::services::agent_orchestration::process::SpawnEnvironment {
             config: std::sync::Arc::clone(bootstrap.boot_config()),
             secrets: std::sync::Arc::clone(bootstrap.boot.secrets()),
+            services: bootstrap.services.clone(),
             profile_path: bootstrap.profile_path.clone(),
         },
     )

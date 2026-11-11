@@ -20,12 +20,13 @@ pub use manifest::{MANIFEST_SIGNING_SEED_BYTES, decode_seed, generate_seed, pers
 pub use master_key::{ENCRYPTION_MASTER_KEY_BYTES, decode_master_key, generate_master_key};
 pub use profile::{LoadedProfile, ProfileBootstrapError};
 pub use secrets::{
-    BOOT_REQUIRED_SECRET_KEYS, DynSecretsProvider, EnvLookup, PINNED_SECRET_KEYS, ReloadOutcome,
-    ResolvedSource, SIGNING_KEY_PEM, SecretsBootstrapError, SecretsDocument, SecretsFetch,
-    SecretsProvider, SecretsService, SecretsSourceFactory, SecretsSourceRegistration,
-    SecretsStatus, SharedSecretsProvider, VaultAttemptFailure, VaultError, VaultKvProvider,
-    build_external_provider, build_loaded_secrets_message, diff_secrets, load_secrets_from_path,
-    process_env_lookup, refresh_interval_for, registered_external_kinds, resolve_source,
+    BOOT_REQUIRED_SECRET_KEYS, ChildSecretsError, DynSecretsProvider, EnvLookup,
+    PINNED_SECRET_KEYS, ReloadOutcome, ResolvedSource, SIGNING_KEY_PEM, SecretsBootstrapError,
+    SecretsDocument, SecretsFetch, SecretsProvider, SecretsService, SecretsSourceFactory,
+    SecretsSourceRegistration, SecretsStatus, SharedSecretsProvider, VaultAttemptFailure,
+    VaultError, VaultKvProvider, build_external_provider, build_loaded_secrets_message,
+    diff_secrets, load_secrets_from_path, process_env_lookup, refresh_interval_for,
+    registered_external_kinds, resolve_source,
 };
 pub use signing_key::{
     PreviousSigningKey, SIGNING_KEY_PREVIOUS_KEYS, SIGNING_KEY_STAGED_PEM, SigningKeyState,

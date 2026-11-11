@@ -99,3 +99,6 @@ mod signing_key_rotation_state;
 
 #[cfg(test)]
 mod secret_store_trait;
+
+#[cfg(test)]
+mod child_secrets;

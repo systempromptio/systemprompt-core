@@ -91,6 +91,7 @@ pub(super) async fn build_orchestrator(
         Arc::new(SpawnEnvironment {
             config: Arc::clone(ctx.config_arc()),
             secrets: Arc::clone(ctx.secrets()),
+            services: ctx.services_state().clone(),
             profile_path: ctx.boot().profile_path().to_path_buf(),
         }),
         events,

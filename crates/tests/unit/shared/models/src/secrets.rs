@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use systemprompt_manifest::child_env::{CHILD_BOOT_SECRETS, ChildEnvError, ChildGrants};
 use systemprompt_manifest::secrets::Secrets;
 
 fn full_secrets() -> Secrets {
@@ -48,68 +49,133 @@ fn minimal_secrets() -> Secrets {
     }
 }
 
-#[test]
-fn to_subprocess_env_includes_required_fields() {
-    let env: HashMap<String, String> = minimal_secrets().to_subprocess_env().into_iter().collect();
-    assert!(env.contains_key("OAUTH_AT_REST_PEPPER"));
-    assert!(env.contains_key("DATABASE_URL"));
+fn env_of(secrets: &Secrets, explicit: &[&str], derived: &[&str]) -> HashMap<String, String> {
+    let grants = ChildGrants {
+        explicit: explicit.iter().map(|g| g.parse().expect("grant")).collect(),
+        derived: derived.iter().map(|g| g.parse().expect("grant")).collect(),
+    };
+    secrets
+        .child_env(&grants)
+        .expect("child env")
+        .into_iter()
+        .collect()
+}
+
+fn with_master_key(mut secrets: Secrets) -> Secrets {
+    secrets
+        .custom
+        .insert("encryption_master_key".to_owned(), "mk".to_owned());
+    secrets
+        .custom
+        .insert("LICENCE_SIGNING_SECRET".to_owned(), "lic".to_owned());
+    secrets
 }
 
 #[test]
-fn to_subprocess_env_omits_absent_optionals() {
-    let env: HashMap<String, String> = minimal_secrets().to_subprocess_env().into_iter().collect();
+fn a_child_without_grants_gets_no_provider_key_and_no_custom_secret() {
+    let env = env_of(&with_master_key(full_secrets()), &[], &[]);
     for key in [
-        "MANIFEST_SIGNING_SECRET_SEED",
-        "SIGNING_KEY_STAGED_PEM",
-        "SIGNING_KEY_PREVIOUS_KEYS",
-        "DATABASE_WRITE_URL",
-        "EXTERNAL_DATABASE_URL",
-        "INTERNAL_DATABASE_URL",
         "GEMINI_API_KEY",
         "ANTHROPIC_API_KEY",
         "OPENAI_API_KEY",
         "GITHUB_TOKEN",
         "MOONSHOT_API_KEY",
         "QWEN_API_KEY",
-        "SYSTEMPROMPT_CUSTOM_SECRETS",
+        "STRIPE_KEY",
+        "INTERCOM",
+        "intercom",
     ] {
-        assert!(!env.contains_key(key), "expected {key} absent");
+        assert!(!env.contains_key(key), "{key} reached an ungranted child");
     }
+    assert_eq!(
+        env.get("SYSTEMPROMPT_CUSTOM_SECRETS").map(String::as_str),
+        Some("ENCRYPTION_MASTER_KEY")
+    );
 }
 
 #[test]
-fn to_subprocess_env_emits_all_optionals_when_present() {
-    let env: HashMap<String, String> = full_secrets().to_subprocess_env().into_iter().collect();
-    assert_eq!(env.get("MANIFEST_SIGNING_SECRET_SEED").unwrap(), "seed");
-    assert_eq!(env.get("SIGNING_KEY_PREVIOUS_KEYS").unwrap(), "[]");
-    assert_eq!(env.get("SIGNING_KEY_STAGED_PEM").unwrap(), "staged");
-    assert_eq!(env.get("DATABASE_WRITE_URL").unwrap(), "postgres://write");
+fn a_child_gets_exactly_the_granted_provider_and_custom_secrets() {
+    let env = env_of(&full_secrets(), &["anthropic", "custom:stripe_key"], &[]);
+    assert_eq!(env.get("ANTHROPIC_API_KEY").map(String::as_str), Some("a"));
+    assert_eq!(env.get("STRIPE_KEY").map(String::as_str), Some("sk_test"));
+    assert!(!env.contains_key("OPENAI_API_KEY"));
+    assert!(!env.contains_key("INTERCOM"));
     assert_eq!(
-        env.get("EXTERNAL_DATABASE_URL").unwrap(),
-        "postgres://external"
+        env.get("SYSTEMPROMPT_CUSTOM_SECRETS").map(String::as_str),
+        Some("STRIPE_KEY")
     );
-    assert_eq!(
-        env.get("INTERNAL_DATABASE_URL").unwrap(),
-        "postgres://internal"
-    );
-    assert_eq!(env.get("GEMINI_API_KEY").unwrap(), "g");
-    assert_eq!(env.get("ANTHROPIC_API_KEY").unwrap(), "a");
-    assert_eq!(env.get("OPENAI_API_KEY").unwrap(), "o");
-    assert_eq!(env.get("GITHUB_TOKEN").unwrap(), "gh");
-    assert_eq!(env.get("MOONSHOT_API_KEY").unwrap(), "m");
-    assert_eq!(env.get("QWEN_API_KEY").unwrap(), "q");
 }
 
 #[test]
-fn to_subprocess_env_emits_custom_index_and_upper_case_keys() {
-    let env: HashMap<String, String> = full_secrets().to_subprocess_env().into_iter().collect();
-    let index = env.get("SYSTEMPROMPT_CUSTOM_SECRETS").unwrap();
-    let names: std::collections::HashSet<&str> = index.split(',').collect();
-    assert!(names.contains("STRIPE_KEY"));
-    assert!(names.contains("INTERCOM"));
-    assert_eq!(env.get("STRIPE_KEY").unwrap(), "sk_test");
-    assert_eq!(env.get("INTERCOM").unwrap(), "ic_value");
-    assert_eq!(env.get("intercom").unwrap(), "ic_value");
+fn a_derived_grant_is_emitted_when_configured_and_skipped_when_not() {
+    let env = env_of(&minimal_secrets(), &[], &["gemini"]);
+    assert!(!env.contains_key("GEMINI_API_KEY"));
+    let env = env_of(&full_secrets(), &[], &["gemini"]);
+    assert_eq!(env.get("GEMINI_API_KEY").map(String::as_str), Some("g"));
+}
+
+#[test]
+fn an_explicit_grant_that_is_not_configured_is_an_error() {
+    let grants = ChildGrants {
+        explicit: vec!["custom:absent".parse().expect("grant")],
+        derived: Vec::new(),
+    };
+    assert_eq!(
+        minimal_secrets().child_env(&grants),
+        Err(ChildEnvError::NotConfigured {
+            grant: "custom:absent".to_owned()
+        })
+    );
+}
+
+#[test]
+fn the_api_held_secrets_reach_a_child_only_through_the_boot_set() {
+    let secrets = with_master_key(full_secrets());
+    let env = env_of(&secrets, &["anthropic", "custom:stripe_key"], &["openai"]);
+    for key in env.keys() {
+        let api_held = systemprompt_models::subprocess::is_api_held_env_name(key)
+            && !key.ends_with("_API_KEY")
+            && !key.starts_with("DATABASE")
+            && !key.ends_with("_DATABASE_URL")
+            && key != "SYSTEMPROMPT_CUSTOM_SECRETS";
+        if api_held {
+            assert!(
+                CHILD_BOOT_SECRETS.contains(&key.as_str()),
+                "{key} outside the boot set"
+            );
+        }
+    }
+    assert_eq!(env.get("OAUTH_AT_REST_PEPPER"), Some(&"p".repeat(32)));
+    assert_eq!(
+        env.get("ENCRYPTION_MASTER_KEY").map(String::as_str),
+        Some("mk")
+    );
+    assert_eq!(
+        env.get("LICENCE_SIGNING_SECRET").map(String::as_str),
+        Some("lic")
+    );
+}
+
+#[test]
+fn the_database_urls_reach_every_child() {
+    let env = env_of(&full_secrets(), &[], &[]);
+    assert_eq!(
+        env.get("DATABASE_URL").map(String::as_str),
+        Some("postgres://primary")
+    );
+    assert_eq!(
+        env.get("DATABASE_WRITE_URL").map(String::as_str),
+        Some("postgres://write")
+    );
+    assert!(!env.contains_key("DATABASE_SESSION_URL"));
+}
+
+#[test]
+fn a_configured_custom_secret_name_counts_as_a_secret_env_name() {
+    let secrets = full_secrets();
+    assert!(secrets.is_secret_env_name("stripe_key"));
+    assert!(secrets.is_secret_env_name("ANTHROPIC_API_KEY"));
+    assert!(!secrets.is_secret_env_name("RUST_LOG"));
 }
 
 #[test]

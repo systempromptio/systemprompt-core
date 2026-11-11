@@ -80,7 +80,9 @@ fn build_agent_command_forwards_the_trust_allowlist_when_the_parent_carries_one(
         agent_name: &AgentName::new("envagent"),
         port: 9401,
         profile_path: "/tmp/profile.yaml",
-        secrets: &creds,
+        secrets_env: &creds
+            .child_env(&systemprompt_manifest::child_env::ChildGrants::default())
+            .expect("child env"),
         config: &config,
         log_file: log_file_in(tmp.path()),
     });
@@ -129,7 +131,9 @@ fn build_agent_command_omits_the_optional_env_vars_when_the_parent_lacks_them() 
         agent_name: &AgentName::new("envagent"),
         port: 9401,
         profile_path: "/tmp/profile.yaml",
-        secrets: &creds,
+        secrets_env: &creds
+            .child_env(&systemprompt_manifest::child_env::ChildGrants::default())
+            .expect("child env"),
         config: &config,
         log_file: log_file_in(tmp.path()),
     });

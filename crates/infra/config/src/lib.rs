@@ -48,8 +48,8 @@ pub(crate) mod skill_validator;
 pub mod state_dir;
 
 pub use bootstrap::{
-    BOOT_REQUIRED_SECRET_KEYS, DynSecretsProvider, ENCRYPTION_MASTER_KEY_BYTES, EnvLookup,
-    KeyMaterialError, LoadedProfile, MANIFEST_SIGNING_SEED_BYTES, PINNED_SECRET_KEYS,
+    BOOT_REQUIRED_SECRET_KEYS, ChildSecretsError, DynSecretsProvider, ENCRYPTION_MASTER_KEY_BYTES,
+    EnvLookup, KeyMaterialError, LoadedProfile, MANIFEST_SIGNING_SEED_BYTES, PINNED_SECRET_KEYS,
     PreviousSigningKey, ProfileBootstrapError, ReloadOutcome, ResolvedSource, SIGNING_KEY_PEM,
     SIGNING_KEY_PREVIOUS_KEYS, SIGNING_KEY_STAGED_PEM, SecretsBootstrapError, SecretsDocument,
     SecretsFetch, SecretsProvider, SecretsService, SecretsSourceFactory, SecretsSourceRegistration,
