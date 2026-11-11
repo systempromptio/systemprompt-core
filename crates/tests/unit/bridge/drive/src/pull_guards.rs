@@ -160,7 +160,18 @@ async fn a_case_variant_of_a_synced_file_is_a_conflict_not_an_overwrite() {
     let report = pull(fx.cycle(), &mut state).await.expect("pull");
 
     assert_eq!(fx.read("Plan.md"), b"the first plan");
-    assert!(!fx.root.dir().join("plan.md").exists());
+    let names: Vec<String> = std::fs::read_dir(fx.root.dir())
+        .expect("list the drive root")
+        .map(|entry| {
+            entry
+                .expect("entry")
+                .file_name()
+                .to_string_lossy()
+                .into_owned()
+        })
+        .filter(|name| name.eq_ignore_ascii_case("plan.md"))
+        .collect();
+    assert_eq!(names, ["Plan.md"], "no second case variant is written");
     let saved = fx.state();
     assert!(!saved.entries.contains_key("plan.md"));
     assert_eq!(saved.conflicts.len(), 1);

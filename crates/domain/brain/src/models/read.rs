@@ -112,7 +112,8 @@ impl NewRecallBuilder {
 ///
 /// Empty `statuses` means every status. `as_of` keeps only facts observed at or
 /// before that instant and valid then, as recall with the same `as_of` would
-/// see them. `after` resumes a listing past a [`FactCursor`].
+/// see them. `after` resumes a listing past a
+/// [`FactCursor`](super::FactCursor).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FactFilter {
     pub kind: Option<FactKindId>,

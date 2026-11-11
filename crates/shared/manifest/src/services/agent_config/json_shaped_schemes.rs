@@ -1,6 +1,6 @@
 //! A2A security schemes read and written in their JSON object form.
 //!
-//! serde_yaml 0.9 reads an externally tagged enum only as a `!tag`, while the
+//! `serde_yaml` 0.9 reads an externally tagged enum only as a `!tag`, while the
 //! A2A 1.0 security scheme is a single-key object; routing through JSON keeps
 //! the spec's `apiKeySecurityScheme: {...}` form in agent YAML.
 //!

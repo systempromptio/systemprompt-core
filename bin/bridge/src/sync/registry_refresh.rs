@@ -40,8 +40,13 @@ pub async fn refresh_registry_for(
 #[derive(Debug)]
 pub enum RegistryRefresh {
     NotCarried,
-    Refreshed { servers: usize },
-    StoredEnvelope { kept: KeptStored, error: SyncError },
+    Refreshed {
+        servers: usize,
+    },
+    StoredEnvelope {
+        kept: KeptStored,
+        error: Box<SyncError>,
+    },
 }
 
 pub async fn refresh_or_keep_stored(bridge: &BridgeContext) -> Result<RegistryRefresh, SyncError> {
@@ -50,7 +55,10 @@ pub async fn refresh_or_keep_stored(bridge: &BridgeContext) -> Result<RegistryRe
         Err(error) => match classify(&error) {
             RefreshFailure::Kept(kept) => {
                 tracing::warn!(target: "bridge::sync", %error, ?kept, "manifest not refreshed; the envelope last verified is kept");
-                Ok(RegistryRefresh::StoredEnvelope { kept, error })
+                Ok(RegistryRefresh::StoredEnvelope {
+                    kept,
+                    error: Box::new(error),
+                })
             },
             RefreshFailure::Rejected => Err(error),
         },
