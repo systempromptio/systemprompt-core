@@ -51,6 +51,16 @@ pub enum TokenError {
     #[error("token lifetime of {seconds}s is outside the permitted range")]
     InvalidLifetime { seconds: i64 },
 
+    #[error(
+        "signed claims must carry a numeric `exp` claim at most {max_lifetime_secs}s (365 days) \
+         after now; got {}",
+        exp.map_or_else(|| "no `exp`".to_owned(), |exp| format!("exp={exp}"))
+    )]
+    ClaimsExpiry {
+        exp: Option<i64>,
+        max_lifetime_secs: i64,
+    },
+
     #[error("token signing failed: {0}")]
     Signing(#[source] BoxedSource),
 }

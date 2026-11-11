@@ -131,9 +131,16 @@ impl TokenAuthority for DeploymentTokenAuthority {
     // serialises it
     fn sign_claims(&self, claims: &serde_json::Value) -> TokenResult<String> {
         let exp = claims.get("exp").and_then(serde_json::Value::as_i64);
-        let ttl = exp.map_or(i64::MAX, |exp| exp.saturating_sub(Utc::now().timestamp()));
-        if ttl <= 0 || ttl > MAX_TOKEN_LIFETIME.num_seconds() {
-            return Err(TokenError::InvalidLifetime { seconds: ttl });
+        let max_lifetime_secs = MAX_TOKEN_LIFETIME.num_seconds();
+        let bounded = exp.is_some_and(|exp| {
+            let ttl = exp.saturating_sub(Utc::now().timestamp());
+            ttl > 0 && ttl <= max_lifetime_secs
+        });
+        if !bounded {
+            return Err(TokenError::ClaimsExpiry {
+                exp,
+                max_lifetime_secs,
+            });
         }
         encode_rs256(&self.keys, claims).map_err(|e| TokenError::Signing(Box::new(e)))
     }

@@ -168,7 +168,21 @@ fn extension_claims_without_a_bounded_expiry_are_refused() {
         let err = authority
             .sign_claims(&claims)
             .expect_err("unbounded claims signed");
-        assert!(matches!(err, TokenError::InvalidLifetime { .. }), "{err}");
+        assert!(
+            matches!(
+                err,
+                TokenError::ClaimsExpiry {
+                    max_lifetime_secs,
+                    ..
+                } if max_lifetime_secs == MAX_TOKEN_LIFETIME.num_seconds()
+            ),
+            "{err}"
+        );
+        let text = err.to_string();
+        assert!(
+            text.contains("`exp`") && text.contains("365 days"),
+            "{text}"
+        );
     }
     authority
         .sign_claims(&serde_json::json!({ "sub": "x", "exp": now + 600 }))
