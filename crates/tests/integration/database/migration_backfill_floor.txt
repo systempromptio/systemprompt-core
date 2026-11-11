@@ -14,7 +14,8 @@ content=005
 database=001
 events=009
 # files 012 numbers each open live-edit session from its stored updates once, after it adds next_seq; a fresh install has no sessions, so its default of 1 is the same state.
-files=012
+# files 039 queues every existing document whose revisions may name stored images, for the media-admission backfill job; a fresh install has no documents, so its queue is empty either way.
+files=039
 # governance 027 rewrites access_control_* source labels to the closed provenance vocabulary before constraining them.
 governance=027
 logging=009
@@ -24,8 +25,9 @@ notifications=004
 mcp=017
 oauth=021
 scheduler=003
-users=028
+users=034
 # users 028 recounts session_traffic_rollup_hourly from user_sessions once, after 027 creates the counter and its triggers.
+# users 034 marks links an issuer provisioned before the provisioned column existed; a fresh install has no such links.
 # agent-runs 001 rewrites headless `opencode` rows to `opencode-cli` before constraining `host` to the CLI ids.
 agent-runs=001
 # oauth 021 drops bridge host-preference rows naming an id outside the HostKind vocabulary before constraining host_id to it.
