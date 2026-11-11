@@ -78,7 +78,8 @@ pub async fn handle_revoke(
 
     let client_id = match &request.client_id {
         Some(raw) => {
-            let client_id = ClientId::new(raw.clone());
+            let client_id = ClientId::try_new(raw.as_str())
+                .map_err(|e| OAuthHttpError::invalid_client("Malformed client_id").with_source(e))?;
             validate_client_credentials(&repo, &client_id, request.client_secret.as_deref())
                 .await?;
             Some(client_id)

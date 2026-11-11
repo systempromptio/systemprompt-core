@@ -54,7 +54,10 @@ pub async fn handle(
     let Some(credential) = extract_credential(request.headers()) else {
         return ApiHttpError::from(BridgeError::MissingCredential).into_response();
     };
-    let header_session = optional_session_id(request.headers());
+    let header_session = match optional_session_id(request.headers()) {
+        Ok(session) => session,
+        Err(rejection) => return rejection.into_response(),
+    };
     let no_subject_dimensions = SubjectProviderSet::default();
     let principal = match authenticate(
         &credential,

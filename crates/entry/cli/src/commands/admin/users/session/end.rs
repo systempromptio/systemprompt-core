@@ -73,7 +73,7 @@ pub(super) async fn execute(args: EndArgs, ctx: &CommandContext) -> Result<Comma
         anyhow!("Session ID is required (or use --user --all to end all sessions for a user)")
     })?;
 
-    let session_id = SessionId::new(&session_id_str);
+    let session_id = SessionId::try_new(session_id_str.as_str())?;
     let ended = user_service.end_session(&session_id).await?;
 
     let output = SessionEndOutput {

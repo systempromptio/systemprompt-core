@@ -91,7 +91,7 @@ impl EngagementRepository {
             EngagementEvent,
             r#"
             SELECT
-                id as "id: EngagementEventId", session_id, user_id as "user_id: UserId", page_url,
+                id as "id: EngagementEventId", session_id as "session_id: SessionId", user_id as "user_id: UserId", page_url,
                 content_id as "content_id: ContentId",
                 event_type,
                 time_on_page_ms, time_to_first_interaction_ms, time_to_first_scroll_ms,
@@ -120,7 +120,7 @@ impl EngagementRepository {
             EngagementEvent,
             r#"
             SELECT
-                id as "id: EngagementEventId", session_id, user_id as "user_id: UserId", page_url,
+                id as "id: EngagementEventId", session_id as "session_id: SessionId", user_id as "user_id: UserId", page_url,
                 content_id as "content_id: ContentId",
                 event_type,
                 time_on_page_ms as "time_on_page_ms!", time_to_first_interaction_ms, time_to_first_scroll_ms,

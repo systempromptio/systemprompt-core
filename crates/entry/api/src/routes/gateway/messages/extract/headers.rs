@@ -23,13 +23,20 @@ use crate::services::middleware::{BodyReadError, read_body_bounded};
 use systemprompt_gateway::protocol::canonical::CanonicalRequest;
 use systemprompt_gateway::protocol::inbound::InboundAdapter;
 
-pub fn optional_session_id(headers: &HeaderMap) -> Option<SessionId> {
-    headers
-        .get(SESSION_ID)
-        .and_then(|raw| raw.to_str().ok())
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .map(|value| SessionId::new(value.to_owned()))
+pub fn optional_session_id(headers: &HeaderMap) -> Result<Option<SessionId>, RejectionError> {
+    let Some(raw) = headers.get(SESSION_ID) else {
+        return Ok(None);
+    };
+    let raw = raw
+        .to_str()
+        .map_err(|e| invalid_header(SESSION_ID).with_cause(e))?;
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return Ok(None);
+    }
+    SessionId::try_new(trimmed)
+        .map(Some)
+        .map_err(|e| invalid_header(SESSION_ID).with_cause(e))
 }
 
 pub fn optional_gateway_conversation_id(

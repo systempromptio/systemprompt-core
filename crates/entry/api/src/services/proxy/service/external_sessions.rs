@@ -62,26 +62,34 @@ impl<'a> SessionGuard<'a> {
     }
 
     pub(super) async fn accepts(&self, session: &HeaderValue) -> Result<bool, ProxyError> {
-        let Ok(session) = session.to_str() else {
+        let Some(session) = session
+            .to_str()
+            .ok()
+            .and_then(|value| SessionId::try_new(value).ok())
+        else {
             return Ok(false);
         };
         self.repository
-            .accepts_external(&self.binding(&SessionId::new(session)))
+            .accepts_external(&self.binding(&session))
             .await
             .map_err(|error| self.failed(&error))
     }
 
     pub(super) async fn remember(&self, headers: &HeaderMap) -> Result<(), ProxyError> {
         if let Some(session) = headers.get("mcp-session-id") {
-            let session = session.to_str().map_err(|error| {
-                tracing::warn!(%error, server = %self.server, "Invalid external MCP session header");
-                ProxyError::Forbidden {
-                    service: self.server.to_string(),
-                }
-            })?;
+            let session = session
+                .to_str()
+                .ok()
+                .and_then(|value| SessionId::try_new(value).ok())
+                .ok_or_else(|| {
+                    tracing::warn!(server = %self.server, "Invalid external MCP session header");
+                    ProxyError::Forbidden {
+                        service: self.server.to_string(),
+                    }
+                })?;
             let remembered = self
                 .repository
-                .remember_external(&self.binding(&SessionId::new(session)))
+                .remember_external(&self.binding(&session))
                 .await
                 .map_err(|error| self.failed(&error))?;
             if !remembered {
@@ -97,9 +105,10 @@ impl<'a> SessionGuard<'a> {
         if let Some(session) = headers
             .get("mcp-session-id")
             .and_then(|value| value.to_str().ok())
+            .and_then(|value| SessionId::try_new(value).ok())
         {
             self.repository
-                .forget_external(&self.binding(&SessionId::new(session)))
+                .forget_external(&self.binding(&session))
                 .await
                 .map_err(|error| self.failed(&error))?;
         }

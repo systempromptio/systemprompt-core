@@ -79,7 +79,7 @@ pub(super) async fn extract_request_context(
 
     let client_headers = classify_client_headers(request.headers());
 
-    let header_session = optional_session_id(request.headers());
+    let header_session = optional_session_id(request.headers())?;
     let header_gateway_conversation = optional_gateway_conversation_id(request.headers())?;
 
     let principal = authenticate_request(

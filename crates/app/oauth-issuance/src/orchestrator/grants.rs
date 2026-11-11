@@ -15,7 +15,7 @@ use crate::user_tokens::{
     MintedRefreshToken, UserTokenError, UserTokenParams, generate_tokens_by_user_id,
 };
 use crate::validation::{
-    AuthCodeValidationParams, authorization_code_error, extract_required_field,
+    AuthCodeValidationParams, authorization_code_error, parse_identifier, parse_required_identifier,
     validate_authorization_code,
 };
 use crate::{IssuanceError, IssuanceResult, RequestOrigin, TokenRequest, TokenResponse};
@@ -27,11 +27,11 @@ impl TokenIssuanceOrchestrator<'_> {
         origin: RequestOrigin<'_>,
     ) -> IssuanceResult<TokenResponse> {
         let repo = self.repo();
-        let code_str = extract_required_field(request.code.as_deref(), "code")?;
-        let code = AuthorizationCode::new(code_str);
+        let code =
+            parse_required_identifier(request.code.as_deref(), "code", AuthorizationCode::try_new)?;
 
         let client_id = if let Some(id) = request.client_id.as_deref() {
-            ClientId::new(id)
+            parse_identifier(id, "client_id", ClientId::try_new)?
         } else {
             repo.find_client_id_from_auth_code(&code)
                 .await?
@@ -95,12 +95,14 @@ impl TokenIssuanceOrchestrator<'_> {
         origin: RequestOrigin<'_>,
     ) -> IssuanceResult<TokenResponse> {
         let repo = self.repo();
-        let refresh_token_str =
-            extract_required_field(request.refresh_token.as_deref(), "refresh_token")?;
-        let refresh_token = RefreshTokenId::new(refresh_token_str);
+        let refresh_token = parse_required_identifier(
+            request.refresh_token.as_deref(),
+            "refresh_token",
+            RefreshTokenId::try_new,
+        )?;
 
         let client_id = if let Some(id) = request.client_id.as_deref() {
-            ClientId::new(id)
+            parse_identifier(id, "client_id", ClientId::try_new)?
         } else {
             repo.find_client_id_from_refresh_token(&refresh_token)
                 .await?

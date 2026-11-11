@@ -14,13 +14,13 @@ use crate::client_credentials::{
     ClientCredentialsError, ClientTokenOptions, generate_client_tokens,
 };
 use crate::token_exchange::{ExchangeContext, TokenExchangeRequest, handle_token_exchange};
-use crate::validation::extract_required_field;
+use crate::validation::{extract_required_field, parse_required_identifier};
 use crate::{IssuanceError, IssuanceResult, RequestOrigin, TokenRequest, TokenResponse};
 
 impl TokenIssuanceOrchestrator<'_> {
     async fn authenticated_client(&self, request: &TokenRequest) -> IssuanceResult<ClientId> {
-        let client_id_str = extract_required_field(request.client_id.as_deref(), "client_id")?;
-        let client_id = ClientId::new(client_id_str);
+        let client_id =
+            parse_required_identifier(request.client_id.as_deref(), "client_id", ClientId::try_new)?;
         validate_client_credentials(self.repo(), &client_id, request.client_secret.as_deref())
             .await?;
         Ok(client_id)

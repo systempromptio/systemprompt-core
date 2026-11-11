@@ -4,7 +4,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 crate::define_id!(PolicyVersion);
-crate::define_id!(PolicyId);
+crate::define_id!(PolicyId, checked, |value| {
+    crate::macros::validate_external_id("PolicyId", value)
+});
 crate::define_id!(SecretPatternId, non_empty);
 
 impl SecretPatternId {

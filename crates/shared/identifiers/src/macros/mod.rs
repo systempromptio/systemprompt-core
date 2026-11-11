@@ -27,6 +27,31 @@ pub fn validate_uuid(
     Ok(())
 }
 
+pub const MAX_EXTERNAL_ID_LEN: usize = 2048;
+
+#[doc(hidden)]
+pub fn validate_external_id(
+    id_type: &'static str,
+    value: &str,
+) -> Result<(), crate::error::IdValidationError> {
+    if value.is_empty() {
+        return Err(crate::error::IdValidationError::empty(id_type));
+    }
+    if value.len() > MAX_EXTERNAL_ID_LEN {
+        return Err(crate::error::IdValidationError::invalid(
+            id_type,
+            format!("exceeds {MAX_EXTERNAL_ID_LEN} bytes"),
+        ));
+    }
+    if value.chars().any(|c| c.is_whitespace() || c.is_control()) {
+        return Err(crate::error::IdValidationError::invalid(
+            id_type,
+            "contains whitespace or control characters",
+        ));
+    }
+    Ok(())
+}
+
 #[doc(hidden)]
 pub fn validate_non_empty(
     id_type: &'static str,

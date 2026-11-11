@@ -4,6 +4,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_identifiers::error::IdValidationError;
 use systemprompt_identifiers::{AuthorizationCode, ClientId, RefreshTokenId};
 use systemprompt_manifest::Config;
 use systemprompt_oauth::OauthError;
@@ -22,6 +23,25 @@ pub fn extract_required_field<'a>(
         field: field_name.to_owned(),
         message: "is required".to_owned(),
     })
+}
+pub fn parse_identifier<T>(
+    value: &str,
+    field_name: &'static str,
+    parse: fn(String) -> Result<T, IdValidationError>,
+) -> IssuanceResult<T> {
+    parse(value.to_owned()).map_err(|source| IssuanceError::MalformedField {
+        field: field_name,
+        reason: "is not a valid identifier",
+        source: source.into(),
+    })
+}
+
+pub fn parse_required_identifier<T>(
+    value: Option<&str>,
+    field_name: &'static str,
+    parse: fn(String) -> Result<T, IdValidationError>,
+) -> IssuanceResult<T> {
+    parse_identifier(extract_required_field(value, field_name)?, field_name, parse)
 }
 
 #[derive(Debug)]

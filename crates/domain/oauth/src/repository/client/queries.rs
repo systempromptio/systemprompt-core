@@ -13,7 +13,7 @@ impl ClientRepository {
         let client_id_str = client_id.as_str();
         let row = sqlx::query_as!(
             OAuthClientRow,
-            "SELECT client_id, client_secret_hash, client_name, name, token_endpoint_auth_method,
+            "SELECT client_id as \"client_id: ClientId\", client_secret_hash, client_name, name, token_endpoint_auth_method,
                     application_type, client_uri, logo_uri, is_active, created_at, updated_at, \
              last_used_at, owner_user_id as \"owner_user_id: UserId\"
              FROM oauth_clients WHERE client_id = $1 AND is_active = true",
@@ -35,7 +35,7 @@ impl ClientRepository {
         let client_id_str = client_id.as_str();
         let row = sqlx::query_as!(
             OAuthClientRow,
-            "SELECT client_id, client_secret_hash, client_name, name, token_endpoint_auth_method,
+            "SELECT client_id as \"client_id: ClientId\", client_secret_hash, client_name, name, token_endpoint_auth_method,
                     application_type, client_uri, logo_uri, is_active, created_at, updated_at, \
              last_used_at, owner_user_id as \"owner_user_id: UserId\"
              FROM oauth_clients WHERE client_id = $1",
@@ -56,7 +56,7 @@ impl ClientRepository {
     pub async fn list(&self) -> Result<Vec<OAuthClient>> {
         let rows = sqlx::query_as!(
             OAuthClientRow,
-            "SELECT client_id, client_secret_hash, client_name, name, token_endpoint_auth_method,
+            "SELECT client_id as \"client_id: ClientId\", client_secret_hash, client_name, name, token_endpoint_auth_method,
                     application_type, client_uri, logo_uri, is_active, created_at, updated_at, \
              last_used_at, owner_user_id as \"owner_user_id: UserId\"
              FROM oauth_clients WHERE is_active = true ORDER BY created_at DESC"
@@ -77,7 +77,7 @@ impl ClientRepository {
         let offset_i64 = i64::from(offset);
         let rows = sqlx::query_as!(
             OAuthClientRow,
-            "SELECT client_id, client_secret_hash, client_name, name, token_endpoint_auth_method,
+            "SELECT client_id as \"client_id: ClientId\", client_secret_hash, client_name, name, token_endpoint_auth_method,
                     application_type, client_uri, logo_uri, is_active, created_at, updated_at, \
              last_used_at, owner_user_id as \"owner_user_id: UserId\"
              FROM oauth_clients

@@ -48,10 +48,13 @@ impl SessionStore for PostgresSessionStore {
             );
             return Ok(None);
         };
+        let Ok(session_id) = SessionId::try_new(session_id) else {
+            return Ok(None);
+        };
         let Some(value) = self
             .repository
             .find_restorable_initialize_params(
-                &SessionId::new(session_id),
+                &session_id,
                 &principal.server_id,
                 principal.user_id.as_ref(),
             )
@@ -76,8 +79,11 @@ impl SessionStore for PostgresSessionStore {
     }
 
     async fn delete(&self, session_id: &str) -> Result<(), SessionStoreError> {
+        let Ok(session_id) = SessionId::try_new(session_id) else {
+            return Ok(());
+        };
         self.repository
-            .clear_initialize_params(&SessionId::new(session_id))
+            .clear_initialize_params(&session_id)
             .await
             .map_err(boxed)
     }
