@@ -111,6 +111,17 @@ pub const fn classify(
     }
 }
 
+fn warn_dropped_frames(origin: &str, ctx: &TapFinalizeCtx, summary: &Summary) {
+    if summary.dropped_frames > 0 {
+        tracing::warn!(
+            origin,
+            ai_request_id = %ctx.ai_request_id,
+            dropped_frames = summary.dropped_frames,
+            "stream withheld undecodable upstream frames"
+        );
+    }
+}
+
 pub(super) fn finalize(
     audit: &Arc<GatewayAudit>,
     summary: Summary,
@@ -128,14 +139,7 @@ pub(super) fn finalize(
             audit.set_served_model(model).await;
         }
 
-        if summary.dropped_frames > 0 {
-            tracing::warn!(
-                origin,
-                ai_request_id = %ctx.ai_request_id,
-                dropped_frames = summary.dropped_frames,
-                "stream withheld undecodable upstream frames"
-            );
-        }
+        warn_dropped_frames(origin, &ctx, &summary);
         let has_content = summary.streamed_bytes > 0;
         let has_usage = summary.saw_usage_delta
             && (summary.usage.input_tokens > 0 || summary.usage.output_tokens > 0);

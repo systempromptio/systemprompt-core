@@ -3,9 +3,8 @@
 //! [`McpClientLimits`] bounds how long a request may wait for its response
 //! and its JSON body, how long connecting may take, and how long a response
 //! stream may stay silent. It is built from the `ai.mcp.resilience` profile
-//! settings. JSON
-//! bodies are read through [`read_capped`], which refuses a body past its byte
-//! ceiling before it is buffered in full.
+//! settings. JSON bodies are read through a capped reader that refuses a body
+//! past its byte ceiling before it is buffered in full.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

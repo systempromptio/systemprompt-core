@@ -84,10 +84,10 @@ impl McpToolHandler for SearchHandler<'_> {
         let mut found: Vec<BrainFact> = Vec::with_capacity(limit);
         let mut next = None;
         'pages: loop {
-            let page_filter = match &after {
-                Some(token) => filter.clone().with_after(token.clone()),
-                None => filter.clone(),
-            };
+            let page_filter = after.as_ref().map_or_else(
+                || filter.clone(),
+                |token| filter.clone().with_after(token.clone()),
+            );
             let page = self
                 .tools
                 .service()
