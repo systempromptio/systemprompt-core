@@ -31,7 +31,7 @@ impl DocumentUploadExpiryJob {
     async fn run(ctx: &JobContext) -> ProviderResult<JobResult> {
         let started = std::time::Instant::now();
         let db_pool = ctx.get::<DbPool>()?;
-        let documents = *ctx.get::<Arc<FilesConfig>>()?.documents_config();
+        let documents = ctx.get::<Arc<FilesConfig>>()?.documents_config().clone();
         if !documents.is_enabled() {
             return Ok(JobResult::success().with_message("document store disabled"));
         }

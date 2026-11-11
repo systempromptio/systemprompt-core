@@ -113,7 +113,7 @@ impl DocumentsRuntime {
             Arc::clone(&repositories.blobs),
         ));
         #[cfg(feature = "collab")]
-        let collab_config = config.collab;
+        let collab_config = config.collab.clone();
         let uploads = Arc::new(UploadService::new(UploadServiceParts {
             storage: file_storage,
             uploads: Arc::clone(&repositories.uploads),
@@ -214,15 +214,19 @@ fn collab_tuning(config: &CollabConfig) -> CollabTuning {
 #[cfg(feature = "collab")]
 fn owner_address(config: &CollabConfig) -> String {
     let port = config.owner.advertise_port;
-    if let Ok(url) = std::env::var("SYSTEMPROMPT_COLLAB_ADVERTISE_URL")
-        && !url.trim().is_empty()
-    {
-        return url;
-    }
-    match std::env::var("FLY_PRIVATE_IP") {
-        Ok(ip) if ip.contains(':') => format!("http://[{ip}]:{port}"),
-        Ok(ip) if !ip.is_empty() => format!("http://{ip}:{port}"),
-        _ => format!("http://127.0.0.1:{port}"),
+    match config.owner.advertise_host.as_deref().map(str::trim) {
+        Some(host) if host.contains(':') => format!("http://[{host}]:{port}"),
+        Some(host) if !host.is_empty() => format!("http://{host}:{port}"),
+        _ => {
+            if config.owner.enabled {
+                tracing::warn!(
+                    port,
+                    "collab owner has no documents.collab.owner.advertiseHost; advertising \
+                     127.0.0.1, so other replicas cannot forward live sessions here"
+                );
+            }
+            format!("http://127.0.0.1:{port}")
+        },
     }
 }
 

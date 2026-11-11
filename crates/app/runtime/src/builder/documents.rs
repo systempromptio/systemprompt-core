@@ -59,7 +59,7 @@ pub(super) fn build_documents(
         notifications: Arc::clone(inputs.notifications),
         brain: Arc::clone(inputs.brain),
         catalog,
-        config: *inputs.files_config.documents_config(),
+        config: inputs.files_config.documents_config().clone(),
         issues: Arc::new(IssueService::new(
             IssueReportRepository::new(inputs.database),
             Arc::clone(inputs.notifications),

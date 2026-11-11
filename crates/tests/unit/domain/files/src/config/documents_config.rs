@@ -155,3 +155,20 @@ fn every_limit_is_rejected_just_outside_its_bounds_and_named_by_its_field() {
         assert!(error_fields(&yaml).is_empty(), "{field} at its ceiling");
     }
 }
+
+#[test]
+fn collab_owner_advertise_host_is_optional_and_parsed_from_yaml() {
+    assert_eq!(DocumentsConfig::default().collab.owner.advertise_host, None);
+    let config: DocumentsConfig =
+        serde_yaml::from_str("collab:\n  owner:\n    enabled: true\n    advertiseHost: fdaa::3\n")
+            .expect("parse");
+    assert!(config.collab.owner.enabled);
+    assert_eq!(
+        config.collab.owner.advertise_host.as_deref(),
+        Some("fdaa::3")
+    );
+    assert_eq!(
+        config.collab.owner.advertise_port,
+        DocumentsConfig::default().collab.owner.advertise_port
+    );
+}

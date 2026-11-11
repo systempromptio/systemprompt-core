@@ -72,7 +72,7 @@ impl DocumentNodeIdsBackfillJob {
 
 impl DocumentNodeIdsBackfillJob {
     async fn run(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
-        let documents = *ctx.get::<Arc<FilesConfig>>()?.documents_config();
+        let documents = ctx.get::<Arc<FilesConfig>>()?.documents_config().clone();
         if !documents.is_enabled() {
             return Ok(JobResult::success().with_message("document store disabled"));
         }

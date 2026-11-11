@@ -470,7 +470,7 @@ fn fixture_app_context_assembled_on(
         &authz_hook,
         Arc::new(SubjectProviderSet::default()),
         BackgroundTasks::new(),
-        documents_config,
+        documents_config.clone(),
     );
     let instance_id = config.instance_id.clone();
     let event_router = systemprompt_events::EventRouter::local_only(Arc::new(
