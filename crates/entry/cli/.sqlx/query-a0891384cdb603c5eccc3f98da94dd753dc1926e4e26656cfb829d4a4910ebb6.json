@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT rolsuper AS \"rolsuper!\" FROM pg_roles WHERE rolname = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "rolsuper!",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "pg_roles",
+            "name": "rolsuper"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Name"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "a0891384cdb603c5eccc3f98da94dd753dc1926e4e26656cfb829d4a4910ebb6"
+}

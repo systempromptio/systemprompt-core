@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE federated_identities f SET issuer = $2\n             WHERE f.issuer = ANY($1) AND NOT EXISTS (\n                 SELECT 1 FROM federated_identities g\n                 WHERE g.issuer = $2 AND g.external_sub = f.external_sub\n             )",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "TextArray",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "504191fcbb51240b9338490832e4c1e304727f9a47c76610d10661d1b8717277"
+}

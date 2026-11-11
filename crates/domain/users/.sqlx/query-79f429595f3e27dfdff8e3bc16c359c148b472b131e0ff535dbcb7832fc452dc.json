@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO user_api_key_scopes (key_id, dimension, value)\n            SELECT $1, t.dimension, t.value\n            FROM UNNEST($2::text[], $3::text[]) AS t(dimension, value)\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "TextArray",
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "79f429595f3e27dfdff8e3bc16c359c148b472b131e0ff535dbcb7832fc452dc"
+}

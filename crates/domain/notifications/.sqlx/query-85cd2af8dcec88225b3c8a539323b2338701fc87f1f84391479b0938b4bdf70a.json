@@ -1,0 +1,44 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE notifications n\n               SET delivery_lease_token = gen_random_uuid(),\n                   delivery_lease_until = now() + make_interval(secs => $3)\n               FROM (SELECT id FROM notifications\n                     WHERE id = ANY($1::text[]::uuid[]) AND delivery_state = $2\n                       AND (delivery_lease_until IS NULL OR delivery_lease_until <= now())\n                     FOR NO KEY UPDATE SKIP LOCKED) c\n               WHERE n.id = c.id\n               RETURNING n.id::text AS \"id!: NotificationId\",\n                         n.delivery_lease_token::text AS \"token!\", n.delivery_seq",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!: NotificationId",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "token!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "delivery_seq",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "notifications",
+            "name": "delivery_seq"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "TextArray",
+        "Text",
+        "Float8"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      false
+    ]
+  },
+  "hash": "85cd2af8dcec88225b3c8a539323b2338701fc87f1f84391479b0938b4bdf70a"
+}

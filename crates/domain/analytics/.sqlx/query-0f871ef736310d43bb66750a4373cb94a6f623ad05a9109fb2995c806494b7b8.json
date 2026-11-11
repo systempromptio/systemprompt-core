@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE fingerprint_reputation SET last_ip_address = NULL, last_user_agent = NULL WHERE fingerprint_hash = ANY(ARRAY(SELECT fingerprint_hash FROM fingerprint_reputation WHERE last_seen_at < $1 AND is_flagged AND (last_ip_address IS NOT NULL OR last_user_agent IS NOT NULL) LIMIT $2))",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "0f871ef736310d43bb66750a4373cb94a6f623ad05a9109fb2995c806494b7b8"
+}

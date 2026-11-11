@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM fingerprint_reputation WHERE fingerprint_hash = ANY(ARRAY(SELECT fingerprint_hash FROM fingerprint_reputation WHERE last_seen_at < $1 AND NOT is_flagged LIMIT $2))",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "2e28aa83330dd14c66b518738cff062c8d0ed6a39c2dfbf9d7e90b0f16b43461"
+}

@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO schema_install_fingerprint (singleton, fingerprint, recorded_at)\n         VALUES (true, $1, CURRENT_TIMESTAMP)\n         ON CONFLICT (singleton) DO UPDATE\n         SET fingerprint = EXCLUDED.fingerprint, recorded_at = EXCLUDED.recorded_at",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "d82c1053f38c69ace953b74d8e7b3f4bef86da2f58d0ca6666afcabf5f5ffdf1"
+}

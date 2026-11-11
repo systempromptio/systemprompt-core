@@ -1,0 +1,36 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT f.id AS \"id: BrainFactId\" FROM brain_facts f\n               WHERE EXISTS (SELECT 1 FROM v_brain_working_set w\n                             WHERE w.fact_id = f.id AND w.scope_key = ANY($7::text[]))\n                 AND ($1::text IS NULL OR f.kind = $1)\n                 AND ($2::text IS NULL OR f.subject_kind = $2)\n                 AND ($3::text IS NULL OR f.subject_id = $3)\n                 AND (cardinality($4::text[]) = 0 OR f.status = ANY($4))\n                 AND ($6::timestamptz IS NULL OR (\n                     f.observed_at <= $6\n                     AND (f.valid_from IS NULL OR f.valid_from <= $6)\n                     AND (f.valid_to IS NULL OR f.valid_to > $6)))\n                 AND ($8::timestamptz IS NULL OR (f.updated_at, f.id) < ($8, $9::text))\n               ORDER BY f.updated_at DESC, f.id DESC LIMIT $5",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id: BrainFactId",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "brain_facts",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "TextArray",
+        "Int8",
+        "Timestamptz",
+        "TextArray",
+        "Timestamptz",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "06e6c5f276438529c784a544b16d5629c5a6f02acfd9c786e7c8b9aaa3152ea7"
+}

@@ -1,0 +1,44 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            WITH run AS (\n                SELECT id, COALESCE((request->>'releases')::int, 0) AS releases\n                FROM agent_runs\n                WHERE id = $1 AND claimed_by = $2 AND attempt = $3 AND claimed_at = $4\n                  AND status IN ('preparing', 'running')\n                FOR UPDATE\n            )\n            UPDATE agent_runs r\n            SET status = CASE WHEN run.releases < $5 THEN 'queued' ELSE 'failed' END,\n                request = CASE WHEN run.releases < $5 THEN jsonb_set(\n                    CASE WHEN r.host_session_id IS NULL THEN r.request\n                         ELSE jsonb_set(r.request, '{resume_session_id}', to_jsonb(r.host_session_id))\n                    END,\n                    '{releases}', to_jsonb(run.releases + 1)) ELSE r.request END,\n                error_class = CASE WHEN run.releases < $5 THEN NULL ELSE 'release_cap_exceeded' END,\n                error = CASE WHEN run.releases < $5 THEN NULL\n                    ELSE 'interrupted by shutdown more often than max_releases allows' END,\n                finished_at = CASE WHEN run.releases < $5 THEN NULL ELSE NOW() END,\n                claimed_by = NULL, claimed_at = NULL, lease_until = NULL, pid = NULL\n            FROM run\n            WHERE r.id = run.id\n            RETURNING r.status, r.task_id AS \"task_id?: TaskId\"\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "status",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "agent_runs",
+            "name": "status"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "task_id?: TaskId",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "agent_runs",
+            "name": "task_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Int4",
+        "Timestamptz",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      true
+    ]
+  },
+  "hash": "23d0b27ff35f5cdd9ee46623e777dd761c24882414758401e1b3041c61884e2e"
+}

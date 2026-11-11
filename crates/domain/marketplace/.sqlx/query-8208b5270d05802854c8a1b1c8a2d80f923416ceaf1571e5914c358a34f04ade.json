@@ -1,0 +1,50 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, name, specification AS \"specification!: Json<SourceSpec>\"\n               FROM managed_sources WHERE kind = 'git' ORDER BY name, id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "managed_sources",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "managed_sources",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "specification!: Json<SourceSpec>",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "managed_sources",
+            "name": "specification"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "8208b5270d05802854c8a1b1c8a2d80f923416ceaf1571e5914c358a34f04ade"
+}

@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO agent_tasks (task_id, context_id, status, status_timestamp, user_id, session_id, trace_id, metadata, agent_name)\n        SELECT $1, c.context_id, $3, $4, $5, $6, $7, $8, $9\n        FROM user_contexts c\n        WHERE c.context_id = $2 AND c.user_id = $5",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Timestamptz",
+        "Text",
+        "Text",
+        "Text",
+        "Jsonb",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "1d1a16b13c55bf23c06156d5ed7c1e5f2cf275cae6dcff8711107ae33c169913"
+}

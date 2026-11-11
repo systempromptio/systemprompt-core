@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT (SELECT count(*) FROM brain_working_set) AS \"stored!\",\n                      (SELECT count(*) FROM (\n                          SELECT DISTINCT s.key, f.id\n                          FROM brain_facts f\n                          CROSS JOIN LATERAL brain_fact_scope_keys(f.scope_level, f.scope_key, f.topics) s(key)) expected) AS \"expected!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "stored!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "expected!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "bdd2f47b56197065465f91185c9f2554cbf64da6f7209041bfb5514eb109c053"
+}

@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM engagement_events WHERE ctid = ANY(ARRAY(SELECT ctid FROM engagement_events WHERE created_at < $1 LIMIT $2))",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "410dc1f3d14cd307474c67dd262f9ee3f71032c1b254cf76cd09744cb46e83a9"
+}

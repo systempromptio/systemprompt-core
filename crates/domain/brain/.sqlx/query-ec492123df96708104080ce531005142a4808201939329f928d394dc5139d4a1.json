@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO brain_working_set (scope_key, fact_id, importance_base)\n              SELECT DISTINCT s.key, f.id, f.importance_base\n              FROM brain_facts f\n              CROSS JOIN LATERAL brain_fact_scope_keys(f.scope_level, f.scope_key, f.topics) s(key)\n              WHERE f.id = ANY($1::text[])\n              ON CONFLICT DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "ec492123df96708104080ce531005142a4808201939329f928d394dc5139d4a1"
+}
