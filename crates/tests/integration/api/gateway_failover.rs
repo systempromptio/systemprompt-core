@@ -805,3 +805,66 @@ async fn anthropic_is_only_tried_when_listed() -> anyhow::Result<()> {
     assert_eq!(hits(&anthropic).await, 1);
     Ok(())
 }
+
+#[tokio::test]
+async fn a_failed_over_request_settles_its_one_reservation_to_the_serving_attempt()
+-> anyhow::Result<()> {
+    install_provider_api_key();
+    let _ = setup_ctx().await?;
+    let database = systemprompt_test_fixtures::DisposableDb::with_schema("quota_failover").await;
+    let pool = database.test_pool().await;
+    let credential = seed_admin_credential(&pool, "quota-failover@example.invalid").await?;
+    sqlx::query(
+        "INSERT INTO ai_gateway_policies (id, name, spec, enabled, priority) \
+         VALUES ('gwpol_quota_failover', 'gwpol_quota_failover', $1, TRUE, 100)",
+    )
+    .bind(serde_json::json!({"quota_windows": [{"window_seconds": 3600, "max_requests": 100}]}))
+    .execute(pool.pool().as_ref())
+    .await?;
+    let primary = mock_answering(500, "primary unavailable").await;
+    let fallback = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/messages"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(upstream_response("fallback")))
+        .mount(&fallback)
+        .await;
+    let registry = chain_catalog(&[(PROVIDER, &primary), ("anthropic-fallback", &fallback)]);
+    let repos = gw_repos(&pool);
+    let dispatch = inputs(&credential, canonical_request(MODEL, false), false);
+    let response = GatewayService::dispatch(
+        &gateway_config(PROVIDER),
+        &registry,
+        &pool,
+        &repos,
+        dispatch,
+    )
+    .await
+    .expect("the fallback serves");
+    to_bytes(response.into_body(), 1024 * 1024).await?;
+    assert_eq!(
+        repos
+            .background
+            .drain(std::time::Duration::from_secs(30))
+            .await,
+        systemprompt_traits::DrainOutcome::Drained
+    );
+    let bucket: (i64, i64, i64) = sqlx::query_as(
+        "SELECT COALESCE(SUM(requests),0)::BIGINT, COALESCE(SUM(input_tokens),0)::BIGINT, \
+         COALESCE(SUM(output_tokens),0)::BIGINT FROM ai_quota_buckets WHERE subject_kind = 'user'",
+    )
+    .fetch_one(pool.pool().as_ref())
+    .await?;
+    assert_eq!(
+        bucket,
+        (1, 3, 2),
+        "one request, settled once to the serving attempt's usage"
+    );
+    let status: String = sqlx::query_scalar("SELECT status FROM ai_requests")
+        .fetch_one(pool.pool().as_ref())
+        .await?;
+    assert_eq!(status, "completed");
+    drop(repos);
+    pool.pool().close().await;
+    drop(database);
+    Ok(())
+}

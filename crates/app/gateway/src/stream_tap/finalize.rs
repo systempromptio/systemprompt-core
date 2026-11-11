@@ -10,7 +10,7 @@ use systemprompt_identifiers::TraceId;
 use systemprompt_logging::LogActor;
 
 use crate::audit::access_log::{TerminalOutcome, log_gateway_terminal};
-use crate::audit::payload::StreamedResponse;
+use crate::audit::payload::ResponseCapture;
 use crate::audit::phases::{self, GatewayPhase};
 use systemprompt_ai::repository::ai_requests::UsageSource;
 
@@ -149,8 +149,9 @@ pub(super) fn finalize(
             FinalizeDecision::Fail(cause) => {
                 let msg = summary.error.as_deref().unwrap_or_else(|| cause.reason());
                 // Why: the provider bills what it streamed before the break,
-                // so a truncated stream settles with the usage the tap saw.
-                let partial = summary.saw_usage_delta.then_some(summary.usage);
+                // including the input its opening frame reported, so a
+                // truncated stream settles with every token the tap saw.
+                let partial = (summary.usage.billable_total() > 0).then_some(summary.usage);
                 if let Err(e) = audit.fail_with_usage(msg, partial).await {
                     tracing::warn!(origin, error = %e, "stream audit fail failed");
                 }
@@ -158,13 +159,13 @@ pub(super) fn finalize(
             },
             FinalizeDecision::Complete { cost_capture_miss } => {
                 let completed = audit
-                    .complete_stream(
+                    .complete_captured(
                         summary.usage,
                         summary.tool_calls,
                         &summary.response,
-                        StreamedResponse {
+                        ResponseCapture {
                             bytes: &summary.final_bytes,
-                            streamed_bytes: summary.streamed_bytes,
+                            sent_bytes: summary.streamed_bytes,
                             usage_source: usage_source(cost_capture_miss),
                         },
                     )
@@ -202,7 +203,7 @@ pub(super) fn finalize(
     });
 }
 
-const fn usage_source(cost_capture_miss: bool) -> UsageSource {
+pub(crate) const fn usage_source(cost_capture_miss: bool) -> UsageSource {
     if cost_capture_miss {
         UsageSource::Reservation
     } else {

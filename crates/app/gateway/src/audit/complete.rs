@@ -42,15 +42,14 @@ impl GatewayAudit {
             .await
     }
 
-    pub async fn complete_stream(
+    pub async fn complete_captured(
         &self,
         usage: CanonicalUsage,
         tool_calls: Vec<CapturedToolUse>,
         response: &CanonicalResponse,
-        body: super::payload::StreamedResponse<'_>,
+        body: super::payload::ResponseCapture<'_>,
     ) -> Result<i64> {
-        let payload =
-            slice_retained_payload(body.bytes, body.streamed_bytes, self.payload_cap_bytes());
+        let payload = slice_retained_payload(body.bytes, body.sent_bytes, self.payload_cap_bytes());
         let settled_to_reservation = body.usage_source == UsageSource::Reservation;
         self.complete_with(
             usage,

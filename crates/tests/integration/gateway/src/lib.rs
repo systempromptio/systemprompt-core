@@ -24,6 +24,8 @@ mod quota_accounting;
 #[cfg(test)]
 mod quota_denial;
 #[cfg(test)]
+mod quota_exit_paths;
+#[cfg(test)]
 mod quota_reserve;
 #[cfg(test)]
 mod stream_tap_cap;

@@ -43,6 +43,7 @@ use super::protocol::inbound::InboundAdapter;
 use crate::policies::GatewayPolicySpec;
 
 pub(super) use self::finalize::log_terminal;
+pub(crate) use self::finalize::usage_source;
 pub use self::finalize::{ClientConnection, FailCause, FinalizeDecision, classify};
 
 pub use self::abort::STREAM_ABORT_MESSAGE;

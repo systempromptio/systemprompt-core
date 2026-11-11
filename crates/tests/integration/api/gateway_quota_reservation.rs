@@ -376,3 +376,42 @@ async fn a_scope_window_is_keyed_by_the_attributed_value() -> anyhow::Result<()>
     fx.finish().await;
     Ok(())
 }
+
+#[tokio::test]
+async fn a_buffered_completion_without_usage_keeps_its_reservation() -> anyhow::Result<()> {
+    let fx = fixture(
+        "quota_res_unmetered",
+        serde_json::json!({"quota_windows": [{"window_seconds": 3600, "max_requests": 100}]}),
+    )
+    .await?;
+    let upstream = MockServer::start().await;
+    let mut unmetered = completion_json();
+    unmetered["usage"] = serde_json::json!({"input_tokens": 0, "output_tokens": 0});
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(unmetered))
+        .expect(1)
+        .mount(&upstream)
+        .await;
+    let registry = priced_registry(&upstream.uri());
+    let status = fx
+        .dispatch(&registry, "hello", RequestAttribution::none())
+        .await?;
+    assert_eq!(status, http::StatusCode::OK);
+    fx.drain().await;
+    let (status, source): (String, String) =
+        sqlx::query_as("SELECT status, usage_source FROM ai_requests WHERE user_id = $1")
+            .bind(fx.cred.user_id.as_str())
+            .fetch_one(fx.pool.pool().as_ref())
+            .await?;
+    assert_eq!(status, "completed");
+    assert_eq!(source, "reservation");
+    let (requests, cost) = fx.bucket("user").await;
+    assert_eq!(requests, 1);
+    assert!(
+        cost > 0,
+        "an unmetered completion keeps its reserved cost, not zero"
+    );
+    upstream.verify().await;
+    fx.finish().await;
+    Ok(())
+}

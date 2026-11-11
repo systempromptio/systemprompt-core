@@ -22,6 +22,8 @@ use crate::policies::{OverrideAction, OverrideContext, OverridePolicy};
 use axum::body::Body;
 use axum::response::Response;
 use http::HeaderValue;
+
+use crate::audit::payload::ResponseCapture;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AiRequestId, ModelId, ProviderId};
 use systemprompt_manifest::services::{GatewayConfig, QuotaFaultMode};
@@ -256,14 +258,26 @@ async fn buffered_completion(
         audit.set_served_model(&served_model).await;
     }
     let (usage, tool_calls) = parse::extract_from_canonical(&canonical);
-    let cost_microdollars = match audit.complete(usage, tool_calls, &canonical, &body).await {
-        Ok(cost) => cost,
-        Err(e) => {
-            tracing::warn!(error = %e, "buffered audit complete failed");
-            0
-        },
+    let unmetered =
+        !canonical.content.is_empty() && usage.input_tokens == 0 && usage.output_tokens == 0;
+    let completed = audit
+        .complete_captured(
+            usage,
+            tool_calls,
+            &canonical,
+            ResponseCapture {
+                bytes: &body,
+                sent_bytes: u64::try_from(body.len()).unwrap_or(u64::MAX),
+                usage_source: stream_tap::usage_source(unmetered),
+            },
+        )
+        .await
+        .inspect_err(|e| tracing::warn!(error = %e, "buffered audit complete failed"));
+    let accounting = match completed {
+        Ok(cost) if !unmetered => audit.settle_quota(&usage, cost).await,
+        Ok(cost) => audit.settle_quota_unmetered(&usage, cost).await,
+        Err(_) => audit.settle_quota_unmetered(&usage, 0).await,
     };
-    let accounting = audit.settle_quota(&usage, cost_microdollars).await;
     record_accounting_outcome(&audit, ctx.quota_fault_mode, accounting).await;
     if !response_scanned {
         run_response_safety_scan(

@@ -104,13 +104,15 @@ pub fn slice_payload(bytes: &Bytes, cap_bytes: usize) -> PayloadCapture {
     }
 }
 
-/// A streamed response as the tap ends it: the body it retained, the full
-/// length that was streamed, and whether its usage was reported or settled to
-/// the admission reservation.
+/// A completed response as the gateway captured it.
+///
+/// `sent_bytes` is the full length the upstream sent, larger than `bytes` when
+/// a stream outgrew the tap's retention; `usage_source` says whether its usage
+/// was reported or settled to the admission reservation.
 #[derive(Debug, Clone, Copy)]
-pub struct StreamedResponse<'a> {
+pub struct ResponseCapture<'a> {
     pub bytes: &'a Bytes,
-    pub streamed_bytes: u64,
+    pub sent_bytes: u64,
     pub usage_source: systemprompt_ai::repository::ai_requests::UsageSource,
 }
 
