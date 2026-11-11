@@ -4,6 +4,12 @@
 
 ### Breaking
 
+- **Breaking:** **MCP:** a managed MCP server accepts identity only from a short-lived proxy-signed hop token (`x-mcp-hop`) checked against the verification keyring: `create_router` takes a `HopVerifier`, `TokenAuthority` gains `mint_mcp_hop` and `verify_mcp_hop`, `ContextPropagation` no longer reads or writes `x-user-*`/`x-proxy-verified` headers, and `headers::{PROXY_VERIFIED, USER_PERMISSIONS, USER_ROLES}`, `try_proxy_verified_auth`, `JwtVerifier` and `services::auth` are removed. Migrate by building every MCP server through `create_router` with the runtime's verifier; a server that does not refuses authenticated requests.
+- **Breaking:** **MCP and agents:** managed MCP and agent subprocesses listen on `127.0.0.1` only (`systemprompt_mcp::bind_loopback`), and agent backends receive an allow-list of request headers (`AGENT_PASSTHROUGH_HEADERS`). Migrate by reaching subprocesses only through the API.
+- **Breaking:** **Subprocesses:** a child process receives the database URLs, the boot secrets it needs to start and only the secrets its manifest entry grants under `secrets:` (`anthropic`, `storage`, `encryption_master_key`, `custom:<name>`, …); `Secrets::to_subprocess_env` is replaced by `Secrets::child_env`, and the pepper, manifest seed, signing keys and licence secret cannot be granted. Migrate by adding `secrets:` to MCP servers that call a provider, read a custom secret or use credentialed storage, removing secret names from `env_vars`, and running `services validate`; agents receive their model's provider credentials automatically.
+- **Breaking:** **Security:** `decode_rs256_claims`, `decode_session_claims`, `extract_user_context`, `AuthValidationService::new` and `AgentOAuthState::new` take a `&VerificationKeyring` instead of `&SigningKeys`, and a token signed by the staged key verifies. Migrate by passing the keyring from `TokenVerificationKeys`.
+- **Breaking:** **OAuth:** `/oauth/clients` reads, changes and deletes a client only for its owner or an admin, and `ClientRepository::{list_paginated, count}` and `OAuthRepository::{list_clients_paginated, count_clients}` take a `ClientOwnerScope`. Migrate by passing the caller's scope.
+- **Breaking:** **CLI and cloud:** child processes started by the CLI are registered in `ForegroundChildren` and stopped on Ctrl-C when provably owned: `ChildKind` gains `Command`, `SystemCommandRunner::new` and `DockerCli::new` take a `ForegroundChildren`, `run_interruptible` takes it as an argument, and `DeployOrchestrator::new` takes a `DockerCli`. Migrate by passing the context's `foreground_children()`.
 - **Breaking:** **MCP:** migration `021_drop_mcp_proxy_identities` is `@compat: breaking`, so a 0.79 or 0.80 replica refuses to start against an upgraded database. Migrate by replacing every replica in one deploy rather than rolling old and new side by side.
 - **Breaking:** **OAuth:** a refresh token is bound to the resource it was granted for, and tokens issued before the upgrade carry no recorded resource, so MCP clients must sign in again. Migrate by telling MCP client users to re-authenticate once after the upgrade.
 - **Breaking:** **OAuth:** an `authorization_code` or `refresh_token` grant whose `resource` differs from the granted one, or names a resource the code never had, answers `invalid_target` instead of `invalid_grant` or being ignored. Migrate by sending the same `resource` on refresh that the authorization request named.
@@ -47,6 +53,8 @@
 
 ### Security
 
+- **OAuth:** a signed-in user can no longer read, change or delete another user's OAuth client; a non-admin's client listing shows only their own clients.
+- **Brain and documents:** acting on a personal fact the caller cannot see, or untrashing a document they cannot access, answers not found instead of disclosing that it exists.
 - **Dependencies:** `rustix` is 1.1.6 (RUSTSEC-2026-0486).
 - **MCP proxy:** an unauthenticated request or a session id from another principal or server no longer reaches a proxied MCP server.
 - **Outbound HTTP:** untrusted URLs are fetched only through a client that checks every redirect hop and pins the resolved address, honouring a configured forward proxy, and git fetches refuse loopback and private hosts.
@@ -62,6 +70,10 @@
 
 ### Changed
 
+- **Documents:** on upgrade every existing document whose revisions may name stored images is queued for the `document_media_backfill` job, and blob collection waits until the queue is empty, so images in documents written before image admissions keep serving.
+- **Users:** SSO links that an issuer provisioned before the `provisioned` column existed take IdP role updates again; links to accounts that existed beforehand do not.
+- **Files:** upload account admission locks under its own advisory class (`UPLOAD_ACCOUNT_LOCK_CLASS`) and, for this release, also the previous key.
+- **API:** the documents, bridge and provider-credential routes answer `413` for a body over the route's limit.
 - **Gateway:** upstream calls and retained stream bytes are bounded, only streaming calls take a first-byte deadline, every request exit settles its quota reservation exactly once, unmetered streams are settled, and a denied request counts in no window.
 - **Gateway:** a request whose inspection surface is incomplete is refused with `SafetyBlocked` category `inspection_incomplete`, and the context pre-check is sized from the body actually sent.
 - **Configuration:** `admin config migrate` swaps the file with rollback, and management commands keep unresolved `${VAR}` values typed instead of failing.
@@ -71,6 +83,7 @@
 
 ### Fixed
 
+- **Bridge:** Drive names that differ only in Unicode normalisation collide like case variants, `CONIN$`/`CONOUT$` and superscript device names are refused, and writes re-check the destination for links just before the rename.
 - **Documents:** a document whose blob left storage answers 410 Gone with a message naming the cause, and a newly shared document appears once in the drive feed.
 - **Documents:** blob transfers run outside the per-hash lock transaction, and blob collection locks per hash.
 - **Notifications:** delivery holds no transaction open while sending.
