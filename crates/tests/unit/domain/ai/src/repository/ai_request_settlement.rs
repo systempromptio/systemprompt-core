@@ -268,6 +268,49 @@ async fn replaying_a_completion_without_a_body_hash_is_a_no_op() {
     assert_eq!(turn_counts(&pool, &id).await, (1, 1));
 }
 
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn concurrent_settles_of_one_completion_record_the_turn_once() {
+    let pool = bootstrapped_pool().await;
+    let uid = user();
+    let id = seed_request(&pool, &uid).await;
+    let barrier = std::sync::Arc::new(tokio::sync::Barrier::new(4));
+    let handles: Vec<_> = (0..4)
+        .map(|_| {
+            let pool = pool.clone();
+            let uid = uid.clone();
+            let id = id.clone();
+            let barrier = std::sync::Arc::clone(&barrier);
+            tokio::spawn(async move {
+                let repo = AiRequestRepository::new(&pool);
+                let body = json!({"content": "hi"});
+                let tools = vec![SettledToolCall {
+                    id: AiToolCallId::new("toolu_concurrent"),
+                    name: "lookup".to_owned(),
+                    input: "{}".to_owned(),
+                    args: None,
+                }];
+                let outcome = match completion(&body, "unused", &tools) {
+                    SettlementOutcome::Completed(mut c) => {
+                        c.payload.sha256 = None;
+                        SettlementOutcome::Completed(c)
+                    },
+                    other => other,
+                };
+                barrier.wait().await;
+                repo.settle(&id, &uid, outcome).await
+            })
+        })
+        .collect();
+    for handle in handles {
+        handle
+            .await
+            .expect("join")
+            .expect("every concurrent settle succeeds");
+    }
+    assert_eq!(row(&pool, &id).await.0, "completed");
+    assert_eq!(turn_counts(&pool, &id).await, (1, 1));
+}
+
 #[tokio::test]
 async fn a_different_terminal_response_is_rejected() {
     let pool = bootstrapped_pool().await;
