@@ -14,10 +14,8 @@ fn test_item_status_debug() {
     assert_eq!(format!("{:?}", ItemStatus::Pending), "Pending");
 }
 
-
 #[test]
 fn test_item_status_equality() {
-    assert_eq!(ItemStatus::Valid, ItemStatus::Valid);
     assert_ne!(ItemStatus::Valid, ItemStatus::Failed);
     assert_ne!(ItemStatus::Missing, ItemStatus::Pending);
 }
@@ -32,7 +30,6 @@ fn test_module_type_debug() {
 
 #[test]
 fn test_module_type_equality() {
-    assert_eq!(ModuleType::Schema, ModuleType::Schema);
     assert_ne!(ModuleType::Schema, ModuleType::Seed);
     assert_ne!(ModuleType::Module, ModuleType::Configuration);
 }
@@ -47,7 +44,6 @@ fn test_message_level_debug() {
 
 #[test]
 fn test_message_level_equality() {
-    assert_eq!(MessageLevel::Success, MessageLevel::Success);
     assert_ne!(MessageLevel::Success, MessageLevel::Error);
     assert_ne!(MessageLevel::Warning, MessageLevel::Info);
 }

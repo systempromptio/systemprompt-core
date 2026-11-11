@@ -1,4 +1,7 @@
+use std::convert::Infallible;
 use std::sync::Arc;
+
+use axum::response::sse::Event;
 use systemprompt_events::{Broadcaster, EventBroadcasters, EventRouter};
 use systemprompt_identifiers::{ConnectionId, ContextId, TaskId, UserId};
 use systemprompt_models::a2a::TaskState;
@@ -9,6 +12,16 @@ use systemprompt_models::{
 use systemprompt_test_fixtures::{fixture_user_id, unique_user_id};
 
 const TEST_CONTEXT_ID_A: &str = "00000000-0000-4000-8000-000000000001";
+
+async fn next_frame(
+    receiver: &mut tokio::sync::mpsc::Receiver<Result<Event, Infallible>>,
+) -> String {
+    let frame = receiver
+        .recv()
+        .await
+        .expect("a routed frame must be delivered");
+    format!("{:?}", frame.expect("infallible frame"))
+}
 
 fn test_user_id() -> UserId {
     fixture_user_id()
@@ -69,10 +82,11 @@ async fn test_route_agui_with_registered_connection() {
         .into_local_logged();
 
     assert_eq!(agui_count, 1);
-    let _ = receiver
-        .recv()
-        .await
-        .expect("receiver.recv().await should be present");
+    let frame = next_frame(&mut receiver).await;
+    assert!(
+        frame.contains("test-task"),
+        "routed frame missing test-task: {frame}"
+    );
 
     broadcasters
         .agui
@@ -113,10 +127,11 @@ async fn test_route_a2a_with_registered_connection() {
         .into_local_logged();
 
     assert_eq!(a2a_count, 1);
-    let _ = receiver
-        .recv()
-        .await
-        .expect("receiver.recv().await should be present");
+    let frame = next_frame(&mut receiver).await;
+    assert!(
+        frame.contains("test-task"),
+        "routed frame missing test-task: {frame}"
+    );
 
     broadcasters
         .a2a
@@ -156,10 +171,11 @@ async fn test_route_system_with_registered_connection() {
         .into_local_logged();
 
     assert_eq!(count, 1);
-    let _ = receiver
-        .recv()
-        .await
-        .expect("receiver.recv().await should be present");
+    let frame = next_frame(&mut receiver).await;
+    assert!(
+        frame.contains("HEARTBEAT"),
+        "routed frame missing HEARTBEAT: {frame}"
+    );
 
     broadcasters
         .context
@@ -190,10 +206,11 @@ async fn test_route_agui_broadcasts_to_context() {
         .into_local_logged();
 
     assert_eq!(context_count, 1);
-    let _ = context_receiver
-        .recv()
-        .await
-        .expect("context_receiver.recv().await should be present");
+    let frame = next_frame(&mut context_receiver).await;
+    assert!(
+        frame.contains("test-task"),
+        "routed frame missing test-task: {frame}"
+    );
 
     broadcasters
         .context
@@ -224,10 +241,11 @@ async fn test_route_a2a_broadcasts_to_context() {
         .into_local_logged();
 
     assert_eq!(context_count, 1);
-    let _ = context_receiver
-        .recv()
-        .await
-        .expect("context_receiver.recv().await should be present");
+    let frame = next_frame(&mut context_receiver).await;
+    assert!(
+        frame.contains("test-task"),
+        "routed frame missing test-task: {frame}"
+    );
 
     broadcasters
         .context
@@ -302,10 +320,11 @@ async fn test_route_analytics_with_registered_connection() {
         .into_local_logged();
 
     assert_eq!(count, 1);
-    let _ = receiver
-        .recv()
-        .await
-        .expect("receiver.recv().await should be present");
+    let frame = next_frame(&mut receiver).await;
+    assert!(
+        frame.contains("/test-page"),
+        "routed frame missing /test-page: {frame}"
+    );
 
     broadcasters
         .analytics
@@ -336,14 +355,16 @@ async fn test_route_analytics_multiple_connections() {
         .into_local_logged();
 
     assert_eq!(count, 2);
-    let _ = rx1
-        .recv()
-        .await
-        .expect("rx1.recv().await should be present");
-    let _ = rx2
-        .recv()
-        .await
-        .expect("rx2.recv().await should be present");
+    let frame = next_frame(&mut rx1).await;
+    assert!(
+        frame.contains("/test-page"),
+        "routed frame missing /test-page: {frame}"
+    );
+    let frame = next_frame(&mut rx2).await;
+    assert!(
+        frame.contains("/test-page"),
+        "routed frame missing /test-page: {frame}"
+    );
 
     broadcasters
         .analytics
@@ -400,10 +421,11 @@ async fn test_route_analytics_heartbeat_event() {
         .await
         .into_local_logged();
     assert_eq!(count, 1);
-    let _ = receiver
-        .recv()
-        .await
-        .expect("receiver.recv().await should be present");
+    let frame = next_frame(&mut receiver).await;
+    assert!(
+        frame.contains("HEARTBEAT"),
+        "routed frame missing HEARTBEAT: {frame}"
+    );
 
     broadcasters
         .analytics
@@ -429,10 +451,11 @@ async fn test_route_analytics_session_ended_event() {
         .await
         .into_local_logged();
     assert_eq!(count, 1);
-    let _ = receiver
-        .recv()
-        .await
-        .expect("receiver.recv().await should be present");
+    let frame = next_frame(&mut receiver).await;
+    assert!(
+        frame.contains("SESSION_ENDED"),
+        "routed frame missing SESSION_ENDED: {frame}"
+    );
 
     broadcasters
         .analytics

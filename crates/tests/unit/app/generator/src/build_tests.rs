@@ -39,15 +39,10 @@ fn test_build_mode_as_str() {
 
 #[test]
 fn test_build_mode_equality() {
-    assert_eq!(BuildMode::Development, BuildMode::Development);
-    assert_eq!(BuildMode::Production, BuildMode::Production);
-    assert_eq!(BuildMode::Docker, BuildMode::Docker);
-
     assert_ne!(BuildMode::Development, BuildMode::Production);
     assert_ne!(BuildMode::Production, BuildMode::Docker);
     assert_ne!(BuildMode::Development, BuildMode::Docker);
 }
-
 
 #[test]
 fn test_build_orchestrator_with_different_modes() {
@@ -61,7 +56,6 @@ fn test_build_orchestrator_with_different_modes() {
     assert!(format!("{:?}", prod).contains("Production"));
     assert!(format!("{:?}", docker).contains("Docker"));
 }
-
 
 #[test]
 fn test_build_error_css_organization_failed() {

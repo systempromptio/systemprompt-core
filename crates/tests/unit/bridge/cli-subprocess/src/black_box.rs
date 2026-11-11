@@ -351,10 +351,11 @@ fn proxy_headless_starts_and_stops_on_sigint() {
     assert!(banner.contains("ANTHROPIC_BASE_URL"));
     std::thread::sleep(std::time::Duration::from_millis(750));
 
-    let _ = Command::new("kill")
+    let kill = Command::new("kill")
         .args(["-INT", &child.0.id().to_string()])
         .status()
         .unwrap();
+    assert!(kill.success(), "SIGINT must be delivered to the proxy");
 
     let start = std::time::Instant::now();
     loop {

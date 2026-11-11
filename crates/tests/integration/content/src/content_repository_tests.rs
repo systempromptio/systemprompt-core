@@ -224,10 +224,11 @@ async fn find_sources_by_slug_returns_distinct_sources() {
     let slug = unique_slug();
     let source_a = unique_source_id();
     let source_b = unique_source_id();
-    let _ = repo
+    let created_a = repo
         .create(&sample_params(source_a.clone(), slug.clone()))
         .await
         .expect("a");
+    assert_eq!(created_a.slug, slug);
     let row_b = sample_params(source_b.clone(), slug.clone());
     let b_locale = LocaleCode::try_new("fr").expect("valid LocaleCode");
     let mut row_b = row_b;
@@ -264,10 +265,11 @@ async fn list_slugs_with_locales_by_source_lists_inserted() {
     let repo = ContentRepository::new(&db);
     let source = unique_source_id();
     let slug = unique_slug();
-    let _ = repo
+    let created = repo
         .create(&sample_params(source.clone(), slug.clone()))
         .await
         .expect("create");
+    assert_eq!(created.slug, slug);
 
     let pairs = repo
         .list_slugs_with_locales_by_source(&source)

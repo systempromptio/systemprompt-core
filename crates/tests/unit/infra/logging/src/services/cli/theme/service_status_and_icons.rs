@@ -102,7 +102,6 @@ fn test_service_status_all_variants_have_unique_text() {
 
 #[test]
 fn test_service_status_equality() {
-    assert_eq!(StatusGlyph::Running, StatusGlyph::Running);
     assert_ne!(StatusGlyph::Running, StatusGlyph::Stopped);
 }
 

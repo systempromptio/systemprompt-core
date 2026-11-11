@@ -41,7 +41,6 @@ fn health_status_unhealthy_emoji() {
 
 #[test]
 fn health_status_equality() {
-    assert_eq!(HealthStatus::Healthy, HealthStatus::Healthy);
     assert_ne!(HealthStatus::Healthy, HealthStatus::Unhealthy);
     assert_ne!(HealthStatus::Degraded, HealthStatus::Unknown);
 }

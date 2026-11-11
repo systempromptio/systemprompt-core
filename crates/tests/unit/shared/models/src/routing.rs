@@ -42,11 +42,6 @@ mod event_metadata_tests {
     }
 
     #[test]
-    fn metadata_eq_same_variant() {
-        assert_eq!(EventMetadata::HTML_CONTENT, EventMetadata::HTML_CONTENT);
-    }
-
-    #[test]
     fn metadata_ne_different_variant() {
         assert_ne!(EventMetadata::HTML_CONTENT, EventMetadata::API_REQUEST);
     }

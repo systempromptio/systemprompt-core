@@ -99,8 +99,8 @@ async fn describe_and_count_resolve_a_real_table_and_reject_an_absent_one() {
     )
     .await;
     assert!(
-        missing.is_err() || missing.is_ok(),
-        "the describe path must reach a decision for an absent table"
+        missing.is_err(),
+        "describing an absent table must report it as not found"
     );
 }
 

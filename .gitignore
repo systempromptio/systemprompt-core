@@ -179,6 +179,7 @@ scripts/*
 !scripts/repo-construction-allowlist.txt
 !scripts/sqlx-allowlist.txt
 !scripts/test-gate-roots.py
+!scripts/test-check-test-value.py
 !scripts/env-var-allowlist.txt
 !scripts/lint-native-test-deps.sh
 !scripts/bridge-native-crates.txt

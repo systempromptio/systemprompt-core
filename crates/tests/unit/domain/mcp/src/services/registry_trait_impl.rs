@@ -28,11 +28,13 @@ async fn server_exists_is_reachable() {
         crate::harness::services_state().view(),
         crate::harness::config(),
     );
-    let _ = McpRegistry::server_exists(
+    let exists = McpRegistry::server_exists(
         &registry,
         &McpServerId::try_new("nonexistent-server").expect("valid"),
     )
-    .await;
+    .await
+    .expect("server_exists reads the loaded services config");
+    assert!(!exists, "an unconfigured server must not be reported");
 }
 
 #[tokio::test]
@@ -42,11 +44,15 @@ async fn find_server_is_reachable() {
         crate::harness::services_state().view(),
         crate::harness::config(),
     );
-    let _ = McpRegistry::find_server(
+    let found = McpRegistry::find_server(
         &registry,
         &McpServerId::try_new("nonexistent-server").expect("valid"),
     )
     .await;
+    assert!(
+        !matches!(found, Ok(Some(_))),
+        "an unconfigured server must never resolve to a state: {found:?}"
+    );
 }
 
 #[test]

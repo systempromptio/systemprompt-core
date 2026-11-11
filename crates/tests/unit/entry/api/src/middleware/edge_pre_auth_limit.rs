@@ -88,13 +88,20 @@ async fn another_address_keeps_its_own_pre_auth_budget() {
     let calls = Arc::new(AtomicUsize::new(0));
     let app = with_pre_auth_ip_limit(counting_auth_router(&calls), &limits(tight()).await);
 
+    let mut statuses = Vec::new();
     for _ in 0..3 {
-        let _ = app
+        let resp = app
             .clone()
             .oneshot(forged_bearer_from([198, 51, 100, 1]))
             .await
             .expect("infallible");
+        statuses.push(resp.status());
     }
+    assert_eq!(
+        statuses.last(),
+        Some(&StatusCode::TOO_MANY_REQUESTS),
+        "the first address exhausts its burst: {statuses:?}"
+    );
     let other = app
         .oneshot(forged_bearer_from([203, 0, 113, 9]))
         .await

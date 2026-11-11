@@ -210,7 +210,7 @@ async fn cli_session_repository_smoke() -> Result<()> {
     let stats = repo.get_stats(fx.window_start, fx.window_end).await?;
     assert!(stats.total_sessions >= 2);
     let active_since = repo.get_active_session_count(fx.window_start).await?;
-    assert!(active_since >= 0);
+    assert!(active_since >= 1, "the seeded live session is active");
     let live = repo.get_live_sessions(fx.window_start, 50).await?;
     assert!(
         live.iter()
@@ -218,7 +218,7 @@ async fn cli_session_repository_smoke() -> Result<()> {
         "seeded live session must surface within its window"
     );
     let active_count = repo.get_active_count(fx.window_start).await?;
-    assert!(active_count >= 0);
+    assert_eq!(active_count, active_since);
     let trends = repo
         .get_sessions_for_trends(fx.window_start, fx.window_end)
         .await?;

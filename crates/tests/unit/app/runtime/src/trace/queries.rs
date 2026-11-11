@@ -263,13 +263,19 @@ async fn trace_service_log_summaries_respect_future_since_bound() {
     assert_eq!(range.earliest, None);
     assert_eq!(range.latest, None);
 
-    assert!(svc.total_log_count().await.unwrap() >= 0);
+    let by_level = svc.count_logs_by_level(None).await.unwrap();
     assert!(
-        svc.count_logs_by_level(None)
-            .await
-            .unwrap()
-            .iter()
-            .all(|c| c.count >= 0)
+        by_level.iter().all(|c| c.count >= 1),
+        "a grouped level row counts at least one log: {by_level:?}"
+    );
+    let mut levels: Vec<String> = by_level.iter().map(|c| format!("{:?}", c.level)).collect();
+    levels.sort();
+    levels.dedup();
+    assert_eq!(levels.len(), by_level.len(), "each level is reported once");
+    let total = svc.total_log_count().await.unwrap();
+    assert!(
+        total >= i64::try_from(by_level.len()).unwrap(),
+        "every reported level has a row, read before the total"
     );
     assert!(svc.top_modules(None, 5).await.unwrap().len() <= 5);
     let unbounded_range = svc.log_time_range(None).await.unwrap();

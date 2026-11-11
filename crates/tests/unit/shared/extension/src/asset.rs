@@ -10,15 +10,6 @@ fn asset_type_variants_are_distinct() {
 }
 
 #[test]
-fn asset_type_equality() {
-    assert_eq!(AssetType::Css, AssetType::Css);
-    assert_eq!(AssetType::Html, AssetType::Html);
-    assert_eq!(AssetType::Image, AssetType::Image);
-    assert_eq!(AssetType::Font, AssetType::Font);
-    assert_eq!(AssetType::JavaScript, AssetType::JavaScript);
-}
-
-#[test]
 fn asset_definition_css_factory() {
     let asset = AssetDefinition::css(PathBuf::from("style.css"), "/css/style.css");
     assert_eq!(asset.asset_type(), AssetType::Css);
