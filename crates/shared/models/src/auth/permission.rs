@@ -16,7 +16,7 @@ use std::fmt;
 use std::str::FromStr;
 
 use super::enums::UserType;
-use crate::errors::ParseEnumError;
+use crate::errors::{ParseEnumError, ServicesValidationError};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -190,4 +190,30 @@ pub fn roles_to_string(roles: &[String]) -> String {
 
 pub fn parse_roles(s: &str) -> Vec<String> {
     s.split_whitespace().map(str::to_owned).collect()
+}
+
+pub fn validate_required_scopes(
+    owner: &str,
+    scopes: &[Permission],
+    service_only: bool,
+) -> Result<(), ServicesValidationError> {
+    if service_only {
+        return scopes
+            .iter()
+            .find(|s| s.is_user_role())
+            .map_or(Ok(()), |scope| {
+                Err(ServicesValidationError::ServiceOnlyNamesUserScope {
+                    owner: owner.to_owned(),
+                    scope: *scope,
+                    scopes: scopes.to_vec(),
+                })
+            });
+    }
+    if scopes.is_empty() || scopes.iter().any(Permission::is_user_role) {
+        return Ok(());
+    }
+    Err(ServicesValidationError::UnreachableByUsers {
+        owner: owner.to_owned(),
+        scopes: scopes.to_vec(),
+    })
 }

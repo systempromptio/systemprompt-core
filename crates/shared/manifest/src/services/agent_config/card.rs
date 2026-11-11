@@ -195,6 +195,8 @@ pub struct OAuthConfig {
     pub scopes: Vec<Permission>,
     #[serde(default = "default_audience")]
     pub audience: JwtAudience,
+    #[serde(default)]
+    pub service_only: bool,
 }
 
 impl Default for CapabilitiesConfig {
@@ -213,6 +215,7 @@ impl Default for OAuthConfig {
             required: false,
             scopes: Vec::new(),
             audience: JwtAudience::A2a,
+            service_only: false,
         }
     }
 }

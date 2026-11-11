@@ -31,6 +31,7 @@ fn oauth(scopes: Vec<Permission>) -> OAuthRequirement {
         audience: JwtAudience::Mcp,
         client_id: None,
         ema: false,
+        service_only: false,
     }
 }
 

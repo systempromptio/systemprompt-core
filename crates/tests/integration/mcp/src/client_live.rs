@@ -41,6 +41,7 @@ fn external_config(name: &str, remote_endpoint: &str) -> McpServerConfig {
             audience: JwtAudience::Mcp,
             client_id: None,
             ema: false,
+            service_only: false,
         },
         tools: HashMap::new(),
         model_config: None,

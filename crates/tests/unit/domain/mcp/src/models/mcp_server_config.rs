@@ -27,6 +27,7 @@ fn create_test_config() -> McpServerConfig {
             audience: JwtAudience::Mcp,
             client_id: None,
             ema: false,
+            service_only: false,
         },
         tools: HashMap::new(),
         model_config: None,

@@ -35,6 +35,7 @@ fn make_config(name: &str, env_vars: Vec<String>) -> McpServerConfig {
             audience: JwtAudience::Mcp,
             client_id: None,
             ema: false,
+            service_only: false,
         },
         tools: HashMap::default(),
         model_config: None,

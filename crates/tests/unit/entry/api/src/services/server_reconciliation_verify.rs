@@ -55,6 +55,7 @@ fn required(name: &str) -> McpServerConfig {
             audience: JwtAudience::Mcp,
             client_id: None,
             ema: false,
+            service_only: false,
         },
         tools: std::collections::HashMap::new(),
         model_config: None,

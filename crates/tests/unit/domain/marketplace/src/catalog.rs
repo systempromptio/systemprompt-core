@@ -65,6 +65,7 @@ fn make_deployment(_name: &str, enabled: bool, endpoint: Option<&str>) -> Deploy
             audience: JwtAudience::Mcp,
             client_id: None,
             ema: false,
+            service_only: false,
         },
         tools: HashMap::new(),
         model_config: None,

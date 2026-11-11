@@ -40,6 +40,7 @@ async fn test_get_all_service_status_unreachable() {
             audience: JwtAudience::Mcp,
             client_id: None,
             ema: false,
+            service_only: false,
         },
         tools: Default::default(),
         model_config: None,

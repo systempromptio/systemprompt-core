@@ -30,6 +30,7 @@ fn config(name: &str) -> McpServerConfig {
             audience: JwtAudience::Mcp,
             client_id: None,
             ema: false,
+            service_only: false,
         },
         tools: Default::default(),
         model_config: None,

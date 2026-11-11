@@ -65,6 +65,7 @@ fn services_config_with_server(name: &str) -> ServicesConfig {
                 audience: systemprompt_models::auth::JwtAudience::Mcp,
                 client_id: None,
                 ema: false,
+                service_only: false,
             },
             tools: std::collections::HashMap::new(),
             model_config: None,

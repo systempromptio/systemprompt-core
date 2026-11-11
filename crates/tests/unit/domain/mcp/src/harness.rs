@@ -281,6 +281,7 @@ pub fn internal_mcp_config(name: &str, port: u16) -> systemprompt_models::mcp::M
             audience: JwtAudience::Mcp,
             client_id: None,
             ema: false,
+            service_only: false,
         },
         tools: std::collections::HashMap::default(),
         model_config: None,

@@ -55,6 +55,7 @@ fn requirement(audience: JwtAudience, scopes: Vec<Permission>) -> OAuthRequireme
         audience,
         client_id: None,
         ema: false,
+        service_only: false,
     }
 }
 

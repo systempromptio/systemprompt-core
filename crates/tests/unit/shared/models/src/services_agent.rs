@@ -2,7 +2,8 @@ use systemprompt_manifest::services::{
     AgentCardConfig, AgentConfig, AgentMetadataConfig, AgentSummary, CapabilitiesConfig,
     OAuthConfig,
 };
-use systemprompt_models::auth::JwtAudience;
+use systemprompt_models::auth::{JwtAudience, Permission};
+use systemprompt_models::errors::ServicesValidationError;
 
 fn empty_card() -> AgentCardConfig {
     AgentCardConfig {
@@ -228,4 +229,47 @@ fn oauth_config_default_uses_a2a_audience() {
     assert!(!o.required);
     assert!(o.scopes.is_empty());
     assert_eq!(o.audience, JwtAudience::A2a);
+}
+
+#[test]
+fn agent_requiring_only_a2a_is_refused_unless_service_only() {
+    let mut a = valid_agent("svc_agent");
+    a.oauth.required = true;
+    a.oauth.scopes = vec![Permission::A2a];
+    let err = a
+        .validate("svc_agent")
+        .expect_err("users could never reach it");
+    let msg = err.to_string();
+    assert!(
+        matches!(err, ServicesValidationError::UnreachableByUsers { .. }),
+        "{msg}"
+    );
+    assert!(
+        msg.contains("Agent 'svc_agent'") && msg.contains("[a2a]"),
+        "{msg}"
+    );
+    assert!(msg.contains("service_only: true"), "{msg}");
+
+    a.oauth.service_only = true;
+    a.validate("svc_agent").expect("declared service-only");
+}
+
+#[test]
+fn agent_card_scopes_are_the_ones_validated() {
+    let mut a = valid_agent("card_agent");
+    a.oauth.scopes = vec![Permission::User];
+    a.card.security_requirements = Some(vec![std::collections::HashMap::from([(
+        "oauth2".to_owned(),
+        vec!["mcp".to_owned()],
+    )])]);
+    a.validate("card_agent")
+        .expect_err("the card's mcp-only requirement replaces oauth.scopes at runtime");
+}
+
+#[test]
+fn agent_with_user_scope_alongside_a_service_scope_validates() {
+    let mut a = valid_agent("mixed_agent");
+    a.oauth.scopes = vec![Permission::A2a, Permission::User];
+    a.validate("mixed_agent")
+        .expect("users reach it through `user`");
 }

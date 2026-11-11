@@ -163,6 +163,7 @@ fn test_mcp_config(name: &str) -> systemprompt_models::mcp::McpServerConfig {
             audience: systemprompt_models::auth::JwtAudience::Api,
             client_id: None,
             ema: false,
+            service_only: false,
         },
         tools: std::collections::HashMap::new(),
         model_config: None,

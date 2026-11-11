@@ -155,6 +155,11 @@ impl Deployment {
         if let Some(ext) = self.external_auth.as_ref() {
             validate_external_auth(name, ext)?;
         }
+        crate::auth::validate_required_scopes(
+            &format!("MCP server '{name}'"),
+            &self.oauth.scopes,
+            self.oauth.service_only,
+        )?;
         self.validate_toolsets(name)
     }
 
@@ -242,6 +247,8 @@ pub struct OAuthRequirement {
     pub client_id: Option<ClientId>,
     #[serde(default)]
     pub ema: bool,
+    #[serde(default)]
+    pub service_only: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

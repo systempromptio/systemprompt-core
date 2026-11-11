@@ -29,6 +29,7 @@ pub use enums::{
 };
 pub use permission::{
     Permission, parse_permissions, parse_roles, permissions_to_string, roles_to_string,
+    validate_required_scopes,
 };
 pub use roles::BaseRoles;
 pub use token_authority::{TokenAuthority, TokenError, TokenResult, UserJwtRequest};

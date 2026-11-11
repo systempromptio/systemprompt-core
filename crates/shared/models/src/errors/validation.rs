@@ -5,6 +5,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::error::Error;
+
+use crate::auth::{Permission, permissions_to_string};
 use std::sync::Arc;
 
 #[derive(Debug, Clone, thiserror::Error)]
@@ -33,6 +35,30 @@ pub enum ServicesValidationError {
 
     #[error("{0}")]
     BusinessRule(String),
+
+    #[error(
+        "{owner}: oauth.scopes [{}] holds no scope an interactively signed-in user can carry, \
+         so no non-admin user can reach it; require `user` (or `admin`, or `anonymous`) \
+         alongside it, or set `oauth.service_only: true` if only client-credentials or hook \
+         tokens should reach it",
+        permissions_to_string(scopes)
+    )]
+    UnreachableByUsers {
+        owner: String,
+        scopes: Vec<Permission>,
+    },
+
+    #[error(
+        "{owner}: oauth.service_only is set but oauth.scopes [{}] names the user-tier scope \
+         `{scope}`; list only service scopes (`service`, `a2a`, `mcp`, `hook:govern`, \
+         `hook:track`) or drop `service_only`",
+        permissions_to_string(scopes)
+    )]
+    ServiceOnlyNamesUserScope {
+        owner: String,
+        scope: Permission,
+        scopes: Vec<Permission>,
+    },
 }
 
 impl ServicesValidationError {

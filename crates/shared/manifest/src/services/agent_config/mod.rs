@@ -16,7 +16,7 @@ pub use disk::DiskAgentConfig;
 pub use summary::AgentSummary;
 
 use serde::{Deserialize, Serialize};
-use systemprompt_models::auth::Permission;
+use systemprompt_models::auth::{Permission, validate_required_scopes};
 use systemprompt_models::errors::ServicesValidationError;
 
 pub const AGENT_CONFIG_FILENAME: &str = "config.yaml";
@@ -76,34 +76,42 @@ impl AgentConfig {
             )));
         }
 
-        Ok(())
+        let card_scopes = self.card_oauth_scopes();
+        validate_required_scopes(
+            &format!("Agent '{}'", self.name),
+            card_scopes.as_deref().unwrap_or(&self.oauth.scopes),
+            self.oauth.service_only,
+        )
     }
 
     pub fn extract_oauth_scopes_from_card(&mut self) {
-        let Some(security_vec) = &self.card.security_requirements else {
-            return;
-        };
-        for security_obj in security_vec {
-            let Some(oauth2_scopes) = security_obj.get("oauth2") else {
-                continue;
-            };
-            let permissions: Vec<Permission> = oauth2_scopes
-                .iter()
-                .filter_map(|scope| match scope.as_str() {
-                    "admin" => Some(Permission::Admin),
-                    "user" => Some(Permission::User),
-                    "service" => Some(Permission::Service),
-                    "a2a" => Some(Permission::A2a),
-                    "mcp" => Some(Permission::Mcp),
-                    "anonymous" => Some(Permission::Anonymous),
-                    _ => None,
-                })
-                .collect();
-            if !permissions.is_empty() {
-                self.oauth.scopes = permissions;
-                self.oauth.required = true;
-            }
+        if let Some(permissions) = self.card_oauth_scopes() {
+            self.oauth.scopes = permissions;
+            self.oauth.required = true;
         }
+    }
+
+    fn card_oauth_scopes(&self) -> Option<Vec<Permission>> {
+        let security_vec = self.card.security_requirements.as_ref()?;
+        security_vec
+            .iter()
+            .rev()
+            .filter_map(|security_obj| security_obj.get("oauth2"))
+            .map(|oauth2_scopes| {
+                oauth2_scopes
+                    .iter()
+                    .filter_map(|scope| match scope.as_str() {
+                        "admin" => Some(Permission::Admin),
+                        "user" => Some(Permission::User),
+                        "service" => Some(Permission::Service),
+                        "a2a" => Some(Permission::A2a),
+                        "mcp" => Some(Permission::Mcp),
+                        "anonymous" => Some(Permission::Anonymous),
+                        _ => None,
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .find(|permissions| !permissions.is_empty())
     }
 
     #[must_use]

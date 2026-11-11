@@ -34,6 +34,7 @@ fn deployment(port: u16) -> Deployment {
             audience: JwtAudience::Mcp,
             client_id: None,
             ema: false,
+            service_only: false,
         },
         tools: HashMap::default(),
         model_config: None,

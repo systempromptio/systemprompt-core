@@ -468,6 +468,7 @@ fn enabled_deployment(endpoint: Option<&str>) -> systemprompt_models::mcp::Deplo
             audience: JwtAudience::Mcp,
             client_id: None,
             ema: false,
+            service_only: false,
         },
         tools: std::collections::HashMap::new(),
         model_config: None,
