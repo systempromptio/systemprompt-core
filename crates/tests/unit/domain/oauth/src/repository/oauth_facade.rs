@@ -2,7 +2,7 @@
 // ClientRepository plus the façade-level validation in update_client).
 
 use systemprompt_identifiers::{ClientId, UserId};
-use systemprompt_oauth::repository::{CreateClientParams, OAuthRepository};
+use systemprompt_oauth::repository::{ClientOwnerScope, CreateClientParams, OAuthRepository};
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, seed_user_row, test_db_pool, unique_user_id,
 };
@@ -62,7 +62,42 @@ async fn create_client_and_find_and_list_and_count() {
         .expect("present");
     assert_eq!(found.client_name, "facade");
 
-    assert!(ctx.repo.count_clients().await.expect("count") >= 1);
+    assert!(
+        ctx.repo
+            .count_clients(&ClientOwnerScope::Every)
+            .await
+            .expect("count")
+            >= 1
+    );
+    let owned = ClientOwnerScope::OwnedBy(ctx.owner.clone());
+    assert_eq!(
+        ctx.repo.count_clients(&owned).await.expect("owned count"),
+        1
+    );
+    let theirs = ctx
+        .repo
+        .list_clients_paginated(&owned, 100, 0)
+        .await
+        .expect("owned page");
+    assert_eq!(
+        theirs.iter().map(|c| &c.client_id).collect::<Vec<_>>(),
+        vec![&client_id]
+    );
+    let stranger = ClientOwnerScope::OwnedBy(unique_user_id("facade-stranger"));
+    assert_eq!(
+        ctx.repo
+            .count_clients(&stranger)
+            .await
+            .expect("stranger count"),
+        0
+    );
+    assert!(
+        ctx.repo
+            .list_clients_paginated(&stranger, 100, 0)
+            .await
+            .expect("stranger page")
+            .is_empty()
+    );
     assert!(
         ctx.repo
             .list_clients()
@@ -73,7 +108,7 @@ async fn create_client_and_find_and_list_and_count() {
     );
     assert!(
         ctx.repo
-            .list_clients_paginated(100, 0)
+            .list_clients_paginated(&ClientOwnerScope::Every, 100, 0)
             .await
             .expect("paginated")
             .iter()

@@ -1,7 +1,9 @@
 // DB-backed ClientRepository CRUD + relation tests.
 
 use systemprompt_identifiers::ClientId;
-use systemprompt_oauth::repository::{ClientRepository, CreateClientParams, UpdateClientParams};
+use systemprompt_oauth::repository::{
+    ClientOwnerScope, ClientRepository, CreateClientParams, UpdateClientParams,
+};
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, seed_user_row, test_db_pool, unique_user_id,
 };
@@ -272,11 +274,22 @@ async fn list_and_count_include_created_client() {
         .await
         .expect("create");
 
-    let count = ctx.repo.count().await.expect("count");
-    assert!(count >= 1);
+    let owned = ClientOwnerScope::OwnedBy(ctx.owner.clone());
+    assert_eq!(ctx.repo.count(&owned).await.expect("owned count"), 1);
+    assert!(
+        ctx.repo
+            .count(&ClientOwnerScope::Every)
+            .await
+            .expect("count")
+            >= 1
+    );
     let all = ctx.repo.list().await.expect("list");
     assert!(all.iter().any(|c| c.client_id == client_id));
-    let page = ctx.repo.list_paginated(100, 0).await.expect("page");
+    let page = ctx
+        .repo
+        .list_paginated(&ClientOwnerScope::Every, 100, 0)
+        .await
+        .expect("page");
     assert!(page.iter().any(|c| c.client_id == client_id));
 }
 

@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::ClientRepository;
+use super::{ClientOwnerScope, ClientRepository};
 use crate::error::OauthResult as Result;
 use crate::models::{OAuthClient, OAuthClientRow};
 use systemprompt_identifiers::{ClientId, UserId};
@@ -67,7 +67,12 @@ impl ClientRepository {
         self.load_clients_with_relations_batch(rows).await
     }
 
-    pub async fn list_paginated(&self, limit: i32, offset: i32) -> Result<Vec<OAuthClient>> {
+    pub async fn list_paginated(
+        &self,
+        scope: &ClientOwnerScope,
+        limit: i32,
+        offset: i32,
+    ) -> Result<Vec<OAuthClient>> {
         let limit_i64 = i64::from(limit);
         let offset_i64 = i64::from(offset);
         let rows = sqlx::query_as!(
@@ -75,10 +80,13 @@ impl ClientRepository {
             "SELECT client_id, client_secret_hash, client_name, name, token_endpoint_auth_method,
                     application_type, client_uri, logo_uri, is_active, created_at, updated_at, \
              last_used_at, owner_user_id as \"owner_user_id: UserId\"
-             FROM oauth_clients WHERE is_active = true ORDER BY created_at DESC
+             FROM oauth_clients
+             WHERE is_active = true AND ($3::text IS NULL OR owner_user_id = $3)
+             ORDER BY created_at DESC
              LIMIT $1 OFFSET $2",
             limit_i64,
-            offset_i64
+            offset_i64,
+            scope.owner()
         )
         .fetch_all(&*self.pool)
         .await?;
@@ -86,11 +94,14 @@ impl ClientRepository {
         self.load_clients_with_relations_batch(rows).await
     }
 
-    pub async fn count(&self) -> Result<i64> {
-        let result =
-            sqlx::query_scalar!("SELECT COUNT(*) FROM oauth_clients WHERE is_active = true")
-                .fetch_one(&*self.pool)
-                .await?;
+    pub async fn count(&self, scope: &ClientOwnerScope) -> Result<i64> {
+        let result = sqlx::query_scalar!(
+            "SELECT COUNT(*) FROM oauth_clients
+             WHERE is_active = true AND ($1::text IS NULL OR owner_user_id = $1)",
+            scope.owner()
+        )
+        .fetch_one(&*self.pool)
+        .await?;
         Ok(result.unwrap_or(0))
     }
 }

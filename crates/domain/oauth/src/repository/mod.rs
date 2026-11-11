@@ -18,7 +18,7 @@ pub use bridge_host_prefs::{BridgeHostPrefsRepository, EnabledHostPrefs, HostPre
 pub use bridge_session::{BridgeSessionRepository, BridgeSessionRow, UpsertBridgeSession};
 pub use cleanup::{OauthCleanupCounts, OauthCleanupRepository};
 pub use client::{
-    ClientRepository, CreateClientParams, DeclaredClientRow, DeclaredClientWrite,
+    ClientOwnerScope, ClientRepository, CreateClientParams, DeclaredClientRow, DeclaredClientWrite,
     UpdateClientParams,
 };
 pub use exchange_code::CreateExchangeCodeParams;

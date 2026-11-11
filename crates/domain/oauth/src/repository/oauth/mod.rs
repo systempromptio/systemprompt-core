@@ -22,7 +22,7 @@ pub use refresh_token::{RefreshTokenLineage, RefreshTokenParams};
 pub use sso_replay::PostgresReplayGuard;
 pub use sso_state::{SsoStateParams, SsoStateRow};
 
-use super::{ClientRepository, CreateClientParams, UpdateClientParams};
+use super::{ClientOwnerScope, ClientRepository, CreateClientParams, UpdateClientParams};
 use crate::error::{OauthError, OauthResult};
 use crate::models::OAuthClient;
 use crate::services::generate_client_secret;
@@ -105,16 +105,15 @@ impl OAuthRepository {
 
     pub async fn list_clients_paginated(
         &self,
+        scope: &ClientOwnerScope,
         limit: i32,
         offset: i32,
     ) -> OauthResult<Vec<OAuthClient>> {
-        let client_repo = &self.client_repo;
-        client_repo.list_paginated(limit, offset).await
+        self.client_repo.list_paginated(scope, limit, offset).await
     }
 
-    pub async fn count_clients(&self) -> OauthResult<i64> {
-        let client_repo = &self.client_repo;
-        client_repo.count().await
+    pub async fn count_clients(&self, scope: &ClientOwnerScope) -> OauthResult<i64> {
+        self.client_repo.count(scope).await
     }
 
     pub async fn find_client_by_id(
