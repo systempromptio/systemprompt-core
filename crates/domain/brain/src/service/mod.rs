@@ -176,7 +176,8 @@ impl BrainService {
         let declared = self.declared.load().await?;
         let mut tx = self.repos.write_pool().begin().await?;
         let fact = Self::fact_on(&mut tx, id).await?;
-        authority::may_govern(caller, &fact.scope, &fact.kind, &declared.workflows)?;
+        self.may_govern_visible(caller, &fact, &declared.workflows)
+            .await?;
         let change = change(&fact, &declared)?;
         let action = change.revision_change();
         let revision = FactRepository::apply(&mut tx, id, change).await?;

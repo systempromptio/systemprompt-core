@@ -94,3 +94,41 @@ async fn a_stranger_may_not_enter_an_org_fact() {
         .expect("negative control: an admin enters it");
     h.finish().await;
 }
+
+#[tokio::test]
+async fn a_governance_action_on_a_visible_org_fact_is_forbidden_not_hidden() {
+    let h = Harness::new("brain_govern_visible").await;
+    let stranger = h.user("stranger", &[]).await;
+    let admin = h.user("admin", &["admin"]).await;
+    let fact = EnteredFact {
+        kind: kind(OWNERSHIP),
+        subject: SubjectKey::new("product", "acme"),
+        fields: serde_json::Map::from_iter([("team".to_owned(), serde_json::json!("ops"))]),
+        scope: FactScope::Org,
+        topics: Vec::new(),
+        status: EnteredStatus::Candidate,
+        observed_at: None,
+    };
+    h.service
+        .enter(&Harness::caller(&admin, &["admin"]), &fact)
+        .await
+        .expect("an admin enters it");
+    h.drain().await;
+    let entered = h.only_fact("acme").await;
+    let seen = h
+        .service
+        .get(&Harness::caller(&stranger, &[]), &entered.id)
+        .await
+        .expect("an org fact is visible to every user");
+    assert_eq!(seen.id, entered.id);
+    let refused = h
+        .service
+        .pin(&Harness::caller(&stranger, &[]), &entered.id)
+        .await
+        .expect_err("a user without a governing role may not pin it");
+    assert!(
+        matches!(refused, BrainError::Forbidden { .. }),
+        "{refused:?}"
+    );
+    h.finish().await;
+}

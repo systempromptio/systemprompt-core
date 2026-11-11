@@ -175,11 +175,8 @@ async fn an_edit_that_changes_identity_or_comes_from_a_stranger_is_refused() {
         .await
         .expect_err("a stranger may not edit");
     assert!(
-        matches!(
-            error,
-            BrainError::Forbidden { .. } | BrainError::NotFound(_)
-        ),
-        "{error:?}"
+        matches!(error, BrainError::NotFound(ref id) if id == &fact.id),
+        "a personal fact is not found for a stranger: {error:?}"
     );
 
     let unchanged = h.fact(&fact.id).await;
