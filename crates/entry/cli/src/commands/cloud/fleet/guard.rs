@@ -7,7 +7,7 @@ use anyhow::{Context, Result, anyhow, bail};
 use clap::Parser;
 
 use crate::args::{Cli, Commands};
-use crate::descriptor::{DataImpact, DescribeCommand, RoutingClass};
+use crate::descriptor::{DescribeCommand, RoutingClass};
 
 pub fn ensure_read_only(command: &[String]) -> Result<()> {
     let argv = std::iter::once("systemprompt".to_owned()).chain(command.iter().cloned());
@@ -23,7 +23,7 @@ pub fn ensure_read_only(command: &[String]) -> Result<()> {
         );
     }
     let descriptor = parsed.descriptor();
-    if descriptor.data_impact() == DataImpact::Destructive
+    if descriptor.data_impact().destroys_data()
         || descriptor.routing_class() != RoutingClass::ReadOnly
     {
         bail!(

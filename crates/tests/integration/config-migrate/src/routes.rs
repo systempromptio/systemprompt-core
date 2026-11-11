@@ -1,6 +1,7 @@
 //! Gateway routes `config migrate` keeps, pins, scopes or refuses.
 
 use systemprompt_cli::commands::admin::config::migrate::{MigrationPlan, plan, write};
+use systemprompt_cli::runner::interrupt::InterruptShield;
 use systemprompt_manifest::services::{GatewayRoute, RouteDeployment, SelectionStrategy};
 
 use crate::support::{Tree, from_files};
@@ -37,7 +38,8 @@ fn tree(gw: &str) -> Tree {
 
 fn migrated(tree: &Tree) -> MigrationPlan {
     let plan = plan(&tree.services).expect("plans").expect("pending");
-    write::apply(&tree.services, &plan).expect("the migrated tree loads");
+    write::apply(&tree.services, &plan, &InterruptShield::default())
+        .expect("the migrated tree loads");
     plan
 }
 

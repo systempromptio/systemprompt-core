@@ -16,6 +16,7 @@
 
 use serde_json::{Value, json};
 use systemprompt_cli::commands::admin::config::migrate::{plan, write};
+use systemprompt_cli::runner::interrupt::InterruptShield;
 use systemprompt_identifiers::ScopeDimension;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_manifest::services::catalog::{
@@ -39,7 +40,7 @@ fn migrated(tree: &Tree) -> ResolvedCatalog {
     let plan = plan(&tree.services)
         .expect("migrate plans")
         .expect("legacy fixture needs a migration");
-    write::apply(&tree.services, &plan).expect("migrate writes");
+    write::apply(&tree.services, &plan, &InterruptShield::default()).expect("migrate writes");
     ConfigLoader::load_from_path(&tree.root(), None)
         .expect("migrated tree loads")
         .resolve_catalog(&CatalogContext::default())

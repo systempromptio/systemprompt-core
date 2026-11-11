@@ -1,17 +1,17 @@
 //! Irreversible commands are confirmed once, by the runner, from their
 //! compile-time `DataImpact` declaration: on a terminal the operator is
 //! asked, without one the command refuses unless `--yes` was passed, and a
-//! remote route carries the answer as `--yes`.
+//! routed command reaches the tenant exactly as typed and its CLI gateway
+//! counts as the confirmation already given.
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use clap::{CommandFactory, FromArgMatches};
-use systemprompt_cli::args::{Cli, Commands};
+use systemprompt_cli::args::{Cli, Commands, reconstruct_args_from};
+use systemprompt_cli::cloud::fleet::ensure_read_only;
 use systemprompt_cli::descriptor::{CommandDescriptor, DataImpact, DescribeCommand};
 use systemprompt_cli::interactive::ScriptedPrompter;
-use systemprompt_cli::runner::confirmation::{
-    ConfirmationRequest, confirm_irreversible, forward_with_yes,
-};
+use systemprompt_cli::runner::confirmation::{ConfirmationRequest, confirm_irreversible};
 use systemprompt_cli::{CliConfig, VerbosityLevel};
 
 const IRREVERSIBLE: &[&[&str]] = &[
@@ -138,29 +138,46 @@ fn commands_that_are_not_irreversible_are_never_prompted() {
 }
 
 #[test]
-fn a_remote_route_carries_the_confirmation_as_yes() {
-    let (desc, _) = parsed(IRREVERSIBLE[0]);
-    let forwarded = forward_with_yes(
-        &desc,
-        vec![
-            "infra".into(),
-            "db".into(),
-            "migrate-down".into(),
-            "users".into(),
-            "1".into(),
-        ],
-    );
-    assert_eq!(forwarded.last().map(String::as_str), Some("--yes"));
+fn a_routed_command_is_forwarded_as_typed_and_runs_on_the_tenant_unprompted() {
+    let prompter = ScriptedPrompter::default();
+    for args in IRREVERSIBLE {
+        let typed: Vec<String> = ["--profile", "prod"]
+            .iter()
+            .chain(args.iter())
+            .map(|a| (*a).to_owned())
+            .collect();
+        let forwarded = reconstruct_args_from(&typed);
+        assert_eq!(
+            forwarded,
+            args.iter().map(|a| (*a).to_owned()).collect::<Vec<_>>(),
+            "the tenant must receive the operator's argv, with no flag an older tenant rejects"
+        );
 
-    let terminated = forward_with_yes(&desc, vec!["infra".into(), "--".into(), "x".into()]);
-    assert_eq!(terminated, ["infra", "--yes", "--", "x"]);
+        let tenant_argv: Vec<&str> = forwarded.iter().map(String::as_str).collect();
+        let (desc, request) = parsed(&tenant_argv);
+        confirm_irreversible(
+            &desc,
+            &request.clone().routed_by_gateway(true),
+            &config(false),
+            &prompter,
+        )
+        .unwrap_or_else(|e| panic!("{args:?} was refused on the tenant: {e:#}"));
+        confirm_irreversible(&desc, &request, &config(false), &prompter)
+            .expect_err("outside the gateway the same argv still needs --yes");
+    }
+}
 
-    let already = forward_with_yes(&desc, vec!["infra".into(), "-y".into()]);
-    assert_eq!(already, ["infra", "-y"]);
-
-    let (preserving, _) = parsed(&["infra", "db", "tables"]);
-    assert_eq!(
-        forward_with_yes(&preserving, vec!["infra".into()]),
-        ["infra"]
-    );
+#[test]
+fn every_irreversible_command_counts_as_destructive_and_is_kept_out_of_fleet_run() {
+    assert!(!DataImpact::Preserving.destroys_data());
+    assert!(DataImpact::Destructive.destroys_data());
+    assert!(DataImpact::Irreversible.destroys_data());
+    for args in IRREVERSIBLE {
+        let argv: Vec<String> = args.iter().map(|a| (*a).to_owned()).collect();
+        let err = ensure_read_only(&argv).expect_err("fleet run forwards read-only commands only");
+        assert!(
+            format!("{err:#}").contains("not a read-only"),
+            "{args:?}: {err:#}"
+        );
+    }
 }

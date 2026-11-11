@@ -38,6 +38,7 @@ pub mod replay;
 pub mod roles;
 pub mod routes;
 pub mod slack;
+pub mod swap;
 pub mod write;
 
 use std::path::PathBuf;
@@ -225,7 +226,7 @@ async fn execute_services(args: &MigrateArgs, ctx: &CommandContext) -> Result<()
     }
     match pending {
         Some(plan) => {
-            let written = write::apply(&services, &plan)?;
+            let written = write::apply(&services, &plan, ctx.interrupt_shield())?;
             render(config, "Catalog Migrated", describe(&plan, &written));
         },
         None => render(

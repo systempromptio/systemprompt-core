@@ -4,8 +4,12 @@
 //! is confirmed here, before it runs, and nowhere else. On a terminal the
 //! operator is asked; without one the command refuses unless `--yes` was
 //! passed, so a script never hangs on a prompt and never assumes consent.
-//! A command routed to a remote tenant carries the operator's answer as
-//! `--yes`, because the remote side has no terminal to ask on.
+//! The confirmation belongs to the operator who typed the command. When it is
+//! routed to a tenant, the operator has already been asked on this side, and
+//! the argv is forwarded exactly as typed: no flag is added, so a tenant
+//! binary that predates `--yes` on that command accepts it. The tenant's CLI
+//! gateway spawns the command with `SYSTEMPROMPT_CLI_REMOTE` set, and a
+//! gateway-spawned execution counts as already confirmed.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -24,6 +28,7 @@ pub struct ConfirmationRequest {
     pub command: String,
     pub target: Option<String>,
     pub yes: bool,
+    pub routed: bool,
 }
 
 impl ConfirmationRequest {
@@ -33,7 +38,13 @@ impl ConfirmationRequest {
             command: argv.join(" "),
             target: profile.map(|p| format!("profile '{p}'")),
             yes: assume_yes(matches),
+            routed: false,
         }
+    }
+
+    #[must_use]
+    pub fn routed_by_gateway(self, routed: bool) -> Self {
+        Self { routed, ..self }
     }
 
     #[must_use]
@@ -68,7 +79,7 @@ pub fn confirm_irreversible(
     config: &CliConfig,
     prompter: &dyn Prompter,
 ) -> Result<()> {
-    if !desc.requires_confirmation() || request.yes {
+    if !desc.requires_confirmation() || request.yes || request.routed {
         return Ok(());
     }
     let target = request.target.as_deref().unwrap_or("the active profile");
@@ -88,14 +99,4 @@ pub fn confirm_irreversible(
     } else {
         bail!("Operation cancelled; nothing was changed")
     }
-}
-
-#[must_use]
-pub fn forward_with_yes(desc: &CommandDescriptor, mut args: Vec<String>) -> Vec<String> {
-    if !desc.requires_confirmation() || args.iter().any(|a| a == "--yes" || a == "-y") {
-        return args;
-    }
-    let at = args.iter().position(|a| a == "--").unwrap_or(args.len());
-    args.insert(at, "--yes".to_owned());
-    args
 }

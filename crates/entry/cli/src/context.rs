@@ -27,6 +27,7 @@ use tokio::sync::OnceCell;
 use crate::cli_settings::CliConfig;
 use crate::env_overrides::EnvOverrides;
 use crate::interactive::{DialoguerPrompter, Prompter};
+use crate::runner::interrupt::InterruptShield;
 
 pub struct CommandContext {
     pub cli: CliConfig,
@@ -40,6 +41,7 @@ pub struct CommandContext {
     services: Option<ServicesState>,
     profile: Option<Arc<LoadedProfile>>,
     boot: Option<BootContext>,
+    interrupt_shield: InterruptShield,
 }
 
 impl CommandContext {
@@ -57,6 +59,7 @@ impl CommandContext {
             services: None,
             profile: None,
             boot: None,
+            interrupt_shield: InterruptShield::default(),
         }
     }
 
@@ -87,6 +90,16 @@ impl CommandContext {
     pub fn with_profile(mut self, profile: Option<Arc<LoadedProfile>>) -> Self {
         self.profile = profile;
         self
+    }
+
+    #[must_use]
+    pub fn with_interrupt_shield(mut self, shield: InterruptShield) -> Self {
+        self.interrupt_shield = shield;
+        self
+    }
+
+    pub const fn interrupt_shield(&self) -> &InterruptShield {
+        &self.interrupt_shield
     }
 
     #[must_use]
@@ -146,6 +159,7 @@ impl CommandContext {
             services: None,
             profile: None,
             boot: None,
+            interrupt_shield: InterruptShield::default(),
         }
     }
 
@@ -163,6 +177,7 @@ impl CommandContext {
             services: None,
             profile: None,
             boot: None,
+            interrupt_shield: InterruptShield::default(),
         }
     }
 

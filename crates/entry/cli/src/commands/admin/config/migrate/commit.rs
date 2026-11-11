@@ -1,10 +1,10 @@
 //! All-or-nothing replacement of the live services tree by a staged one.
 //!
 //! [`commit`] copies every staged file to a temporary sibling of its target
-//! first; only once all of them exist are they renamed into place, and the
-//! files the plan drops are removed last. A failure while staging removes the
-//! temporaries and leaves the tree as it was. A rename or removal that fails
-//! part-way names the files already replaced and the ones still old.
+//! first; a failure there removes the temporaries and leaves the tree as it
+//! was. Only once all of them exist does [`swap`](super::swap) replace the live
+//! files, rolling every replacement back if one step fails. The whole commit
+//! holds the run's interrupt shield, so a forced exit waits for it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -14,6 +14,9 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, anyhow};
+
+use super::swap::{FileSwap, Step, swap};
+use crate::runner::interrupt::InterruptShield;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum ChangeKind {
@@ -32,7 +35,14 @@ struct Staged {
     target: PathBuf,
 }
 
-pub(super) fn commit(staging: &Path, services: &Path, changes: &[Change]) -> Result<Vec<PathBuf>> {
+pub(super) fn commit(
+    staging: &Path,
+    services: &Path,
+    changes: &[Change],
+    shield: &InterruptShield,
+    fs_ops: &dyn FileSwap,
+) -> Result<Vec<PathBuf>> {
+    let _critical = shield.hold();
     let mut staged: Vec<Staged> = Vec::new();
     for (index, change) in changes.iter().enumerate() {
         if change.kind == ChangeKind::Remove {
@@ -47,42 +57,41 @@ pub(super) fn commit(staging: &Path, services: &Path, changes: &[Change]) -> Res
             },
         }
     }
-    let removals: Vec<PathBuf> = changes
+    let steps: Vec<Step> = staged
         .iter()
-        .filter(|c| c.kind == ChangeKind::Remove)
-        .map(|c| services.join(&c.relative))
+        .map(|item| (item.target.clone(), Some(item.temp.clone())))
+        .chain(
+            changes
+                .iter()
+                .filter(|c| c.kind == ChangeKind::Remove)
+                .map(|c| (services.join(&c.relative), None)),
+        )
+        .enumerate()
+        .map(|(index, (target, staged))| Step {
+            backup: sibling(&target, index, "bak"),
+            target,
+            staged,
+        })
         .collect();
-    let order: Vec<PathBuf> = staged
-        .iter()
-        .map(|s| s.target.clone())
-        .chain(removals.iter().cloned())
-        .collect();
+    swap(fs_ops, &steps)
+}
 
-    for (position, item) in staged.iter().enumerate() {
-        if let Err(e) = fs::rename(&item.temp, &item.target) {
-            discard(&staged[position..]);
-            return Err(partial(&order, position, e));
-        }
-    }
-    for (offset, target) in removals.iter().enumerate() {
-        if let Err(e) = fs::remove_file(target) {
-            return Err(partial(&order, staged.len() + offset, e));
-        }
-    }
-    Ok(order)
+fn sibling(target: &Path, index: usize, suffix: &str) -> PathBuf {
+    let dir = target.parent().unwrap_or_else(|| Path::new("."));
+    let name = target
+        .file_name()
+        .map_or_else(|| "file".to_owned(), |n| n.to_string_lossy().into_owned());
+    dir.join(format!(
+        ".{name}.migrate-{}-{index}.{suffix}",
+        std::process::id()
+    ))
 }
 
 fn stage(source: &Path, target: &Path, index: usize) -> Result<PathBuf> {
     let body = fs::read(source).with_context(|| format!("Failed to read {}", source.display()))?;
     let dir = target.parent().unwrap_or_else(|| Path::new("."));
     fs::create_dir_all(dir).with_context(|| format!("Failed to create {}", dir.display()))?;
-    let name = target
-        .file_name()
-        .map_or_else(|| "file".to_owned(), |n| n.to_string_lossy().into_owned());
-    let temp = dir.join(format!(
-        ".{name}.migrate-{}-{index}.tmp",
-        std::process::id()
-    ));
+    let temp = sibling(target, index, "tmp");
     let mut file = fs::OpenOptions::new()
         .write(true)
         .create_new(true)
@@ -104,22 +113,4 @@ fn discard(staged: &[Staged]) {
             tracing::warn!(path = %item.temp.display(), error = %e, "staged file not removed");
         }
     }
-}
-
-fn partial(order: &[PathBuf], failed_at: usize, cause: std::io::Error) -> anyhow::Error {
-    let list = |paths: &[PathBuf]| {
-        paths
-            .iter()
-            .map(|p| p.display().to_string())
-            .collect::<Vec<_>>()
-            .join(", ")
-    };
-    anyhow!(cause).context(format!(
-        "the migration was applied only in part: {} failed. Replaced: [{}]. Still in the old \
-         layout: [{}]. Restore the services tree from version control, or fix the cause and \
-         re-run the migration",
-        order[failed_at].display(),
-        list(&order[..failed_at]),
-        list(&order[failed_at..]),
-    ))
 }

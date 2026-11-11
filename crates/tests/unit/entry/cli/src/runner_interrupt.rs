@@ -7,7 +7,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
-use systemprompt_cli::runner::interrupt::{Interrupted, run_interruptible};
+use systemprompt_cli::runner::interrupt::{InterruptShield, Interrupted, run_interruptible};
 
 struct DropFlag(Arc<AtomicBool>);
 
@@ -40,9 +40,12 @@ async fn ctrl_c_cancels_the_in_flight_command_and_reports_interrupted() {
         send_sigint_to_self();
     });
 
-    let outcome = tokio::time::timeout(Duration::from_secs(10), run_interruptible(command))
-        .await
-        .expect("the interrupt must end the command");
+    let outcome = tokio::time::timeout(
+        Duration::from_secs(10),
+        run_interruptible(InterruptShield::default(), command),
+    )
+    .await
+    .expect("the interrupt must end the command");
     signaller.await.expect("signaller");
 
     let err = outcome.expect_err("an interrupted command is not a success");
@@ -55,11 +58,31 @@ async fn ctrl_c_cancels_the_in_flight_command_and_reports_interrupted() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_command_that_finishes_is_returned_unchanged() {
-    run_interruptible(async { Ok(()) })
+    run_interruptible(InterruptShield::default(), async { Ok(()) })
         .await
         .expect("ok passes through");
-    let err = run_interruptible(async { Err(anyhow::anyhow!("boom")) })
-        .await
-        .expect_err("errors pass through");
+    let err = run_interruptible(InterruptShield::default(), async {
+        Err(anyhow::anyhow!("boom"))
+    })
+    .await
+    .expect_err("errors pass through");
     assert_eq!(format!("{err}"), "boom");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn the_forced_exit_waits_for_a_held_shield() {
+    let shield = InterruptShield::default();
+    let guard = shield.hold();
+    assert!(shield.is_held());
+
+    let waiting = tokio::time::timeout(Duration::from_millis(200), shield.close()).await;
+    assert!(
+        waiting.is_err(),
+        "close returned while a critical section was running"
+    );
+
+    drop(guard);
+    tokio::time::timeout(Duration::from_secs(2), shield.close())
+        .await
+        .expect("close returns once the section ends");
 }

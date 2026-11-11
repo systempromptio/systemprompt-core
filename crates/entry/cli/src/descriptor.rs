@@ -160,6 +160,15 @@ pub enum DataImpact {
     Irreversible,
 }
 
+impl DataImpact {
+    pub const fn destroys_data(self) -> bool {
+        match self {
+            Self::Preserving => false,
+            Self::Destructive | Self::Irreversible => true,
+        }
+    }
+}
+
 /// What a command is allowed to do when the active profile is a cloud profile.
 ///
 /// `LocalOnly` is never routed remotely and runs against whatever the profile

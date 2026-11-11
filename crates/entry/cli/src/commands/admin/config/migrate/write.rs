@@ -23,7 +23,9 @@ use systemprompt_manifest::services::ServicesConfig;
 use super::commit::{Change, ChangeKind, commit};
 use super::legacy_map::LEGACY_MAP_FILE;
 use super::plan::MigrationPlan;
+use super::swap::{FileSwap, StdFileSwap};
 use crate::commands::admin::config::services_io::write_gateway;
+use crate::runner::interrupt::InterruptShield;
 
 const SYNTHETIC_ROOT: &str = "includes:\n  - ../ai/config.yaml\n";
 const SYNTHETIC_ROOT_NO_AI: &str = "{}\n";
@@ -128,9 +130,22 @@ pub fn verify(services: &Path, plan: &MigrationPlan) -> Result<ServicesConfig> {
     })
 }
 
-pub fn apply(services: &Path, plan: &MigrationPlan) -> Result<Vec<PathBuf>> {
+pub fn apply(
+    services: &Path,
+    plan: &MigrationPlan,
+    shield: &InterruptShield,
+) -> Result<Vec<PathBuf>> {
+    apply_with(services, plan, shield, &StdFileSwap)
+}
+
+pub fn apply_with(
+    services: &Path,
+    plan: &MigrationPlan,
+    shield: &InterruptShield,
+    fs_ops: &dyn FileSwap,
+) -> Result<Vec<PathBuf>> {
     verify(services, plan)?;
     let staging = tempfile::tempdir().context("Failed to create a staging directory")?;
     let changes = materialize(staging.path(), services, plan)?;
-    commit(staging.path(), services, &changes)
+    commit(staging.path(), services, &changes, shield, fs_ops)
 }
