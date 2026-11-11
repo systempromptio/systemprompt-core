@@ -28,8 +28,9 @@ Tokens are supplied as `Authorization: Bearer <jwt>`.
 
 ### Request limits and middleware
 
-- Body limit: 2 MiB on every route (`DefaultBodyLimit::max(2 * 1024 * 1024)`, `crates/entry/api/src/services/server/builder.rs:93`).
-- Rate limiting: per-route `tower_governor` limiters, configured under `rate_limits` in the profile. Limiting can be disabled in development (`rate_limits.disabled`).
+- Body limit: 2 MiB by default (`crates/entry/api/src/services/server/builder.rs`). Routers that need another size set their own: the agent and A2A routes (one limit shared by the agent proxy, the agents router and the A2A context read), the document store and Drive (`maxUploadBytes`), uploads and the managed consumer. Raw body reads use one bounded reader; an oversized body is refused with `413` before it is read.
+- Pre-authentication limit: a per-IP limiter (`rate_limits.pre_auth_ip_per_second`) runs ahead of every authenticating layer, keyed by the client address resolved through `trusted_proxies`.
+- Rate limiting: per-route `tower_governor` limiters, configured under `rate_limits` in the profile. Limiting, including the pre-authentication limit, can be disabled in development (`rate_limits.disabled`).
 - A trailing-slash normaliser, CORS, security headers, IP-ban middleware, and JTI revocation middleware are applied globally (`builder.rs`, `routes.rs`).
 
 ### Error response shape

@@ -31,6 +31,7 @@ The top-level `Profile` struct and every nested config struct in this document c
 | `extensions` | object | no | `{ disabled: [] }` | Extension enable/disable. See [`extensions`](#extensions). |
 | `governance` | object | no | absent | Authorization hook. See [`governance`](#governance). |
 | `observability` | object | no | `{ otlp: null }` | Where this instance exports its own telemetry. See [`observability`](#observability). |
+| `retention` | object | no | all-defaults | Retention windows the `database_cleanup` job enforces. See [`retention`](#retention). |
 
 `target` accepts the lowercase values `local` and `cloud` (`profile/mod.rs:91`).
 
@@ -181,7 +182,7 @@ Audience validation requires a nonempty policy. The first-party session policy a
 | `issuer` | string | yes | Trusted issuer `iss` value. |
 | `jwks_uri` | string | yes | JWKS endpoint for that issuer. |
 | `audience` | string | yes | Audience expected from that issuer. |
-| `link.link_by_email` | bool | no | Default `false`. Lets an identity this issuer asserts with a verified email claim the ordinary account that already owns that email. With it off, such a clash refuses the exchange. Admin, service, suspended or any account holding a role other than `user` is never linked. |
+| `link.link_by_email` | bool | no | Default `false`. Lets an identity this issuer asserts with a verified email claim the ordinary account that already owns that email. With it off, such a clash refuses the exchange. Only an active account with a verified email that is not a service account or bot and holds no role other than `user` is linked; an admin or other privileged account is never linked. A linked account keeps its own roles. |
 | `link.auto_provision` | bool | no | Default `true`. Provisions a fresh account for an identity that matches no link and no email; with it off such an identity is refused. |
 
 ## `rate_limits`
@@ -203,6 +204,8 @@ Audience validation requires a nonempty policy. The first-party session policy a
 | `stream_per_second` | u64 | no | `100` | SSE stream routes. |
 | `content_per_second` | u64 | no | `50` | Content routes. |
 | `gateway_per_second` | u64 | no | `100` | Inference gateway routes (`/api/v1/gateway/*`, including OTLP ingest and bridge credential exchange). |
+| `bridge_auth_per_second` | u64 | no | `20` | Bridge sign-in (`/v1/auth/bridge/*`), kept separate from `gateway_per_second` so a saturated gateway cannot lock users out of authenticating. |
+| `pre_auth_ip_per_second` | u64 | no | `500` | Every request, keyed by client address only and charged before any authentication runs, so forged or expired credentials are throttled before a token decode. Sized for a whole network behind one address. |
 | `burst_multiplier` | u64 | no | `3` | Burst allowance multiplier. |
 
 Limits are enforced per caller: a request carrying a signature-verified identity is bucketed by
@@ -213,6 +216,24 @@ replica; address-keyed throttles are per process, so their effective ceiling sca
 replica count. The identity-keyed window fails closed: if the database counter cannot be
 updated, an authenticated request answers `503` with `Retry-After` instead of running unmetered.
 There is no fail-open option; `disabled: true` is the only way to run without the window.
+
+## `retention`
+
+`crates/shared/manifest/src/profile/retention.rs`. Retention windows in days, enforced by the scheduler's `database_cleanup` job. Every key defaults, so the block may be omitted.
+
+| Key | Type | Default | Meaning |
+|-----|------|---------|---------|
+| `logs_days` | u32 | `30` | `logs` rows. |
+| `analytics_events_days` | u32 | `90` | `analytics_events` rows. |
+| `engagement_events_days` | u32 | `90` | Engagement events (personal data). |
+| `fingerprint_reputation_days` | u32 | `90` | A fingerprint not seen for the window: an unflagged one is deleted with its last IP address and user agent; a flagged one is kept with its IP address and user agent cleared. |
+| `ai_request_messages_days` | u32 | follows `ai.history.retention_days` | Drops stored request messages; the request row stays. |
+| `ai_request_payload_raw_days` | u32 | `7` | Clears raw request and response bodies on `ai_request_payloads`; excerpts, hashes and sizes stay. |
+| `mcp_tool_executions_days` | u32 | `365` | MCP tool execution records. |
+| `outbox_processed_days` | u32 | `7` | Processed outbox rows. |
+| `governance_decisions_days` | u32 | `180` | Governance decision records. |
+| `archived_users_days` | u32 | `90` | How long an archived user stays restorable before it is purged; an account under legal hold is never purged. |
+| `agent_run_dirs_days` | u32 | `7` | A finished agent run's directory on disk; the row stays. |
 
 ## `system_admin`
 
@@ -253,7 +274,7 @@ There is no fail-open option; `disabled: true` is the only way to run without th
 | `secrets_path` | string | for `file` | — | Path to the secrets file, resolved relative to the profile directory (with `~/` home expansion). Required for `source: file`; unused for `source: vault`. |
 | `validation` | enum `strict` \| `warn` \| `skip` | no | `warn` | How a loaded document is checked. It does not govern whether a source may be abandoned: a Vault fetch failure aborts the boot under every mode. |
 | `vault` | object | for `vault` | absent | KV v2 access. Required when `source: vault`, and refused for the other two sources. See [`secrets.vault`](#secretsvault). |
-| `refresh_secs` | u64 | no | absent | `source: file` only. Re-read the secrets file on this interval (minimum `60`), so a rotated Kubernetes Secret mounted as a volume reaches the running process without a restart. Every replica and every role reloads its own store; there is no cluster lock. Pinned keys (`encryption_master_key`, `oauth_at_rest_pepper`, `manifest_signing_secret_seed`, `database_url`, `signing_key_pem`, `jwt_secret`) still require a restart: a reload that changes one is refused. An `external` source sets its interval on `secrets.external.refresh_secs` instead. |
+| `refresh_secs` | u64 | no | absent | `source: file` only. Re-read the secrets file on this interval (minimum `60`), so a rotated Kubernetes Secret mounted as a volume reaches the running process without a restart. Every replica and every role reloads its own store; there is no cluster lock. Pinned keys (`encryption_master_key`, `oauth_at_rest_pepper`, `manifest_signing_secret_seed`, `database_url`, `database_write_url`, `database_session_url`, `signing_key_pem`, `signing_key_staged_pem`, `signing_key_previous_keys`, `jwt_secret`) still require a restart: a reload that changes one is refused. An `external` source sets its interval on `secrets.external.refresh_secs` instead. |
 
 ### `secrets.vault`
 
@@ -306,7 +327,7 @@ Naming both `https` and `oci`, or neither, is a profile error. `auth_secret` nam
 
 `verify` takes `sha256` (a 64-hex archive digest) and `ed25519_public_keys` (base64 32-byte keys). At least one is required for every source; an empty `verify` is refused. Verification is fatal at every step and runs in order: archive digest, manifest signature, per-file checksums, content hash.
 
-Only the first source may be a base bundle. Every later source must own nothing but `marketplaces`, `plugins`, `skills`, `rules`, `hooks` and `artifacts`. Two sources claiming the same id, or the same base directory, is a boot error naming both.
+Ownership is derived from the files a bundle actually ships, not from its manifest's `owns` block: verification refuses a manifest whose files reach a directory or id it does not declare, or that lists an unsafe path, and composition copies only the verified files. The marketplace directories (`marketplaces`, `plugins`, `skills`, `rules`, `hooks`, `artifacts`) are shared: several sources may contribute, each entry under its own id, and ids are claimed exclusively. Every other directory (`access-control/`, `gateway/`, `config/`, `ai/`, `agents/`, `mcp/`, …) is base-only and may be shipped by the first source alone. Two sources claiming the same id, or writing the same path outside a shared directory, is a boot error naming both.
 
 ### Managed MCP servers (`services/mcp/*.yaml`)
 
@@ -498,6 +519,8 @@ Secret values are never stored in `profile.yaml`. They live in a separate JSON d
 | `database_url` | `database_url` | string | yes | Primary connection string. |
 | `manifest_signing_secret_seed` | `manifest_signing_secret_seed` | string | yes | Standard base64 of exactly 32 random bytes; the Ed25519 manifest signing seed. Never generated at boot: every replica must carry the same value. Mint it with `systemprompt admin identity generate --json`. |
 | `signing_key_pem` | `signing_key_pem` | string | yes on `cloud` and deployment hosts | Standard base64 of the full PKCS#8 PEM text (`-----BEGIN PRIVATE KEY-----` …) of the RSA JWT signing key. Local profiles may point `security.signing_key_path` at a file instead. Mint it with `systemprompt admin identity generate --json`. |
+| `signing_key_staged_pem` | `signing_key_staged_pem` | string | no | A staged RSA key in the same encoding, written by `admin keys stage`: accepted for verification and published in the JWKS, not yet used for signing. `admin keys promote` makes it the signer. |
+| `signing_key_previous_keys` | `signing_key_previous_keys` | string | no | Retired verification keys (public halves only, each with its own expiry), written by `admin keys promote` and `rotate`. A retired key verifies and is published until its expiry; `--revoke` empties the list. Managed by the CLI. |
 | `database_write_url` | `database_write_url` | string | no | Separate write endpoint. |
 | `database_session_url` | `database_session_url` | string | no | Direct (unpooled) primary connection for `LISTEN`, session advisory locks and migrations; set it when `database_url` goes through a transaction-mode pooler. See [guides/database-connections.md](../guides/database-connections.md). |
 | `external_database_url` | `external_database_url` | string | no | Used when `database.external_db_access` is `true`. |
@@ -523,6 +546,8 @@ When `secrets.source` is `env` (or a Fly.io container is detected via `FLY_APP_N
 | `database_url` | `DATABASE_URL` (required) |
 | `manifest_signing_secret_seed` | `MANIFEST_SIGNING_SECRET_SEED` (required) |
 | `signing_key_pem` | `SIGNING_KEY_PEM` (required on deployment hosts) |
+| `signing_key_staged_pem` | `SIGNING_KEY_STAGED_PEM` |
+| `signing_key_previous_keys` | `SIGNING_KEY_PREVIOUS_KEYS` |
 | `database_write_url` | `DATABASE_WRITE_URL` |
 | `database_session_url` | `DATABASE_SESSION_URL` |
 | `external_database_url` | `EXTERNAL_DATABASE_URL` |
