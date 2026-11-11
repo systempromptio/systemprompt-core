@@ -128,18 +128,16 @@ async fn the_deploy_preflight_does_not_block_on_a_target_only_variable() {
         report.not_evaluated() > 0,
         "the summary is never a clean pass"
     );
-    let profile_check = report
+    let required = report
         .checks()
         .iter()
-        .find(|c| c.name == "profile")
-        .expect("the whole-profile check is listed");
-    assert_eq!(profile_check.status, CheckStatus::NotEvaluated);
+        .find(|c| c.name == "required-fields")
+        .expect("the rule reading the unresolved value is listed");
+    assert_eq!(required.status, CheckStatus::NotEvaluated);
     assert!(
-        profile_check
-            .detail
-            .contains(&format!("${{{TARGET_ONLY}}}")),
+        required.detail.contains(&format!("${{{TARGET_ONLY}}}")),
         "{}",
-        profile_check.detail
+        required.detail
     );
     let secrets_check = report
         .checks()
@@ -185,8 +183,9 @@ async fn the_preflight_runs_every_check_whose_inputs_resolve() {
     assert_eq!(status("secrets"), CheckStatus::Pass);
     assert_eq!(status("signing-key"), CheckStatus::Pass);
     assert_ne!(status("database"), CheckStatus::NotEvaluated);
-    assert_eq!(status("profile"), CheckStatus::NotEvaluated);
-    assert_eq!(status("trusted-proxies"), CheckStatus::NotEvaluated);
+    assert_eq!(status("profile"), CheckStatus::Pass);
+    assert_ne!(status("trusted-proxies"), CheckStatus::NotEvaluated);
+    assert_eq!(status("required-fields"), CheckStatus::NotEvaluated);
     assert!(report.not_evaluated() > 0);
 }
 
@@ -270,4 +269,107 @@ fn booting_a_cloud_profile_with_a_target_only_variable_unset_fails_naming_it() {
         booted.profile().server.external_url,
         "https://target.example.test"
     );
+}
+
+#[derive(Debug, clap::Parser)]
+struct CloudHarness {
+    #[command(subcommand)]
+    cmd: systemprompt_cli::cloud::CloudCommands,
+}
+
+async fn deploy_check(fixture: &CloudProfile) -> anyhow::Result<()> {
+    use clap::Parser;
+    let root = fixture
+        .profiles_dir
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .to_path_buf();
+    let previous = std::env::current_dir().unwrap();
+    std::env::set_current_dir(&root).unwrap();
+    let cmd = CloudHarness::try_parse_from(["cloud", "deploy", "--profile", "prod", "--check"])
+        .unwrap()
+        .cmd;
+    let ctx = systemprompt_cli::CommandContext::new(
+        systemprompt_cli::CliConfig::new().with_interactive(false),
+        systemprompt_cli::EnvOverrides::default(),
+    );
+    let outcome = systemprompt_cli::cloud::execute(cmd, &ctx).await;
+    std::env::set_current_dir(previous).unwrap();
+    outcome
+}
+
+fn with_access_token_expiration(fixture: &CloudProfile, seconds: &str) {
+    let text = std::fs::read_to_string(&fixture.path).unwrap();
+    let text = text.replacen(
+        "jwt_access_token_expiration: 3600",
+        &format!("jwt_access_token_expiration: {seconds}"),
+        1,
+    );
+    assert!(text.contains(&format!("jwt_access_token_expiration: {seconds}")));
+    std::fs::write(&fixture.path, text).unwrap();
+}
+
+#[tokio::test]
+async fn an_invalid_resolved_field_blocks_the_preflight_despite_a_target_only_variable() {
+    unset_target_vars();
+    let fixture = cloud_profile();
+    with_access_token_expiration(&fixture, "-1");
+    let managed = ManagedProfile::load(&fixture.path).expect("management view loads");
+
+    let report = run_managed(&managed, fixture.path.parent().unwrap(), false).await;
+
+    assert!(report.has_blocking(), "{:?}", report.checks());
+    let profile = report
+        .checks()
+        .iter()
+        .find(|c| c.name == "profile")
+        .expect("the profile rules ran");
+    assert_eq!(profile.status, CheckStatus::Fail);
+    assert!(
+        profile
+            .detail
+            .contains("access_token_expiration must be positive"),
+        "{}",
+        profile.detail
+    );
+    let required = report
+        .checks()
+        .iter()
+        .find(|c| c.name == "required-fields")
+        .expect("a rule that reads the unresolved value is listed");
+    assert_eq!(required.status, CheckStatus::NotEvaluated);
+    assert!(required.detail.contains(TARGET_ONLY), "{}", required.detail);
+
+    let refused = deploy_check(&fixture)
+        .await
+        .expect_err("deploy refuses a profile whose resolved fields are invalid");
+    assert!(
+        format!("{refused:#}").contains("preflight failed"),
+        "{refused:#}"
+    );
+}
+
+#[tokio::test]
+async fn the_corrected_profile_deploys_with_the_not_evaluated_note() {
+    unset_target_vars();
+    let fixture = cloud_profile();
+    with_access_token_expiration(&fixture, "900");
+    let managed = ManagedProfile::load(&fixture.path).expect("management view loads");
+
+    let report = run_managed(&managed, fixture.path.parent().unwrap(), false).await;
+
+    assert!(!report.has_blocking(), "{:?}", report.checks());
+    assert!(report.not_evaluated() > 0);
+    let profile = report
+        .checks()
+        .iter()
+        .find(|c| c.name == "profile")
+        .expect("the profile rules ran");
+    assert_eq!(profile.status, CheckStatus::Pass);
+
+    deploy_check(&fixture)
+        .await
+        .expect("deploy --check passes the corrected profile");
 }

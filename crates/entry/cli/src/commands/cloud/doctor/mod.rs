@@ -185,6 +185,21 @@ pub fn profile_checks(profile: &Profile) -> Vec<CheckResult> {
     ]
 }
 
+fn providers_check(profile: &Profile, secrets: &HashMap<String, String>) -> CheckResult {
+    let services_root = resolve_services_config(profile);
+    match ConfigLoader::load_from_path(&services_root, Some(profile)) {
+        Ok(services) => check_provider_secrets(&services.credentials, secrets),
+        Err(err) => CheckResult::warn(
+            "providers",
+            format!(
+                "services config at {} could not be loaded, so provider credentials were not \
+                 checked: {err}",
+                services_root.display()
+            ),
+        ),
+    }
+}
+
 pub(in crate::commands::cloud) async fn run(
     profile: &Profile,
     profile_dir: &Path,
@@ -195,18 +210,7 @@ pub(in crate::commands::cloud) async fn run(
 
     checks.push(check_required_secrets(&secrets));
     checks.push(check_signing_key(profile, profile_dir, &secrets));
-    let services_root = resolve_services_config(profile);
-    match ConfigLoader::load_from_path(&services_root, Some(profile)) {
-        Ok(services) => checks.push(check_provider_secrets(&services.credentials, &secrets)),
-        Err(err) => checks.push(CheckResult::warn(
-            "providers",
-            format!(
-                "services config at {} could not be loaded, so provider credentials were not \
-                 checked: {err}",
-                services_root.display()
-            ),
-        )),
-    }
+    checks.push(providers_check(profile, &secrets));
     checks.push(check_extension_configs(profile));
     checks.push(checks::check_database_reachable(&secrets).await);
     checks.push(restore_checks::check_schema_not_ahead(&secrets).await);

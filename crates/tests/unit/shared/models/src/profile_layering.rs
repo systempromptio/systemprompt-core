@@ -363,3 +363,60 @@ fn apply_changes_clears_removed_keys_by_shape() {
     apply_changes(&mut untouched, &yaml("a: 1\n"), &yaml("a: 1\n"));
     assert_eq!(untouched, yaml("old: 1\n"));
 }
+
+const PROXY_VAR: &str = "SP_LAYERING_PROXY_SECRET_9d2c";
+
+#[test]
+fn editing_one_list_entry_keeps_the_placeholders_of_the_others() {
+    let tree = Tree::new(
+        Some(BASE),
+        "local",
+        Some(&format!(
+            "name: local\nserver:\n  trusted_proxies:\n    - ${{{PROXY_VAR}}}\n    - 10.0.0.0/8\n"
+        )),
+    );
+    let path = tree.overlay("local");
+    unsafe { std::env::set_var(PROXY_VAR, "192.168.7.0/24") };
+    let loaded = Profile::load_from_path(&path);
+    let mut profile = loaded.expect("profile loads with the variable set");
+    profile
+        .server
+        .trusted_proxies
+        .push("172.16.0.0/12".parse().unwrap());
+    let saved = profile.save_overlay(&path, None);
+    unsafe { std::env::remove_var(PROXY_VAR) };
+    saved.expect("save succeeds");
+
+    let text = std::fs::read_to_string(&path).unwrap();
+    assert!(!text.contains("192.168.7.0/24"), "{text}");
+    let overlay: Value = serde_yaml::from_str(&text).unwrap();
+    assert_eq!(
+        overlay["server"]["trusted_proxies"],
+        yaml(&format!("['${{{PROXY_VAR}}}', 10.0.0.0/8, 172.16.0.0/12]"))
+    );
+}
+
+#[test]
+fn a_new_overlay_keeps_the_base_placeholders_of_a_changed_list() {
+    let base = BASE.replace(
+        "  extra_cors_origins:\n    - http://localhost:5173\n",
+        &format!("  extra_cors_origins:\n    - ${{{PROXY_VAR}}}\n"),
+    );
+    let tree = Tree::new(Some(&base), "staging", Some("name: staging\n"));
+    unsafe { std::env::set_var(PROXY_VAR, "https://secret-origin.example") };
+    let loaded = Profile::load_from_path(&tree.overlay("staging"));
+    let mut profile = loaded.expect("profile loads with the variable set");
+    profile
+        .server
+        .extra_cors_origins
+        .push("https://added.example".to_owned());
+    let fresh = tree.overlay("fresh");
+    std::fs::create_dir_all(fresh.parent().unwrap()).unwrap();
+    let created = profile.create_overlay(&fresh, None);
+    unsafe { std::env::remove_var(PROXY_VAR) };
+    created.expect("create succeeds");
+
+    let text = std::fs::read_to_string(&fresh).unwrap();
+    assert!(!text.contains("secret-origin"), "{text}");
+    assert!(text.contains(&format!("${{{PROXY_VAR}}}")), "{text}");
+}

@@ -244,3 +244,22 @@ fn saving_an_edit_keeps_untouched_placeholders_and_writes_the_changed_leaf() {
     );
     assert_eq!(saved["server"]["port"], serde_yaml::Value::from(9090));
 }
+
+#[cfg(unix)]
+#[test]
+fn saving_into_a_read_only_directory_is_refused_and_leaves_the_file_whole() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let mut edited = open_edit();
+    let before = std::fs::read_to_string(&edited.path).unwrap();
+    edit_server_settings(&scripted(&["0.0.0.0", "", ""]), &mut edited.edit).unwrap();
+    let dir = edited.path.parent().unwrap().to_path_buf();
+
+    std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o555)).unwrap();
+    let result = edited.edit.save();
+    std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+    let error = result.expect_err("a read-only profile directory refuses the write");
+    assert!(format!("{error:#}").contains("read-only"), "{error:#}");
+    assert_eq!(std::fs::read_to_string(&edited.path).unwrap(), before);
+}

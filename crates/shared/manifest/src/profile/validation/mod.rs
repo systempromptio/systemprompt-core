@@ -12,40 +12,23 @@ mod config_planes;
 mod licence;
 mod network;
 mod observability;
+mod rules;
 mod security;
 mod server;
 mod services;
 mod storage;
 
 pub use committed::committed_source_errors;
+pub(crate) use rules::{DERIVE_INPUTS, RULES};
 
 use super::{Profile, ProfileError, ProfileResult};
 
 impl Profile {
     pub fn validate(&self) -> ProfileResult<()> {
         let mut errors: Vec<String> = Vec::new();
-        let is_cloud = self.target.is_cloud();
-
-        self.validate_required_fields(&mut errors);
-        self.validate_urls(&mut errors);
-        self.validate_paths(&mut errors, is_cloud);
-        self.validate_security_settings(&mut errors);
-        self.validate_database_pool(&mut errors);
-        self.validate_trusted_proxies(&mut errors, is_cloud);
-        self.validate_instance_identity(&mut errors, is_cloud);
-        self.validate_role(&mut errors);
-        self.validate_shutdown(&mut errors);
-        self.validate_cors_origins(&mut errors);
-        self.validate_rate_limits(&mut errors);
-        self.validate_governance(&mut errors, is_cloud);
-        self.validate_storage(&mut errors);
-        self.validate_external_url_is_reachable(&mut errors, is_cloud);
-        self.validate_services_sources(&mut errors, is_cloud);
-        self.validate_secrets(&mut errors);
-        self.validate_observability(&mut errors);
-        self.validate_config_planes(&mut errors);
-        self.validate_licence(&mut errors);
-        self.validate_cloud_deploy(&mut errors);
+        for rule in RULES {
+            (rule.check)(self, &mut errors);
+        }
 
         if errors.is_empty() {
             Ok(())

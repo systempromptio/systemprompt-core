@@ -18,6 +18,7 @@ use std::path::{Path, PathBuf};
 use serde::de::DeserializeOwned;
 use serde_yaml::Value;
 
+use super::field_kind::profile_field_kind;
 use super::layered::{raw_merged, read_layer};
 use super::{Profile, ProfileError, ProfileResult};
 use crate::env::{InterpolationError, interpolate_yaml_available, read_env_optional};
@@ -44,7 +45,11 @@ impl ManagedProfile {
     pub fn from_yaml(content: &str, overlay_path: &Path) -> ProfileResult<Self> {
         let raw = raw_merged(content, overlay_path)?;
         let mut tree = raw.clone();
-        let unresolved = interpolate_yaml_available(&mut tree, &|name| read_env_optional(name));
+        let unresolved = interpolate_yaml_available(
+            &mut tree,
+            &|name| read_env_optional(name),
+            &profile_field_kind,
+        );
         Ok(Self {
             path: overlay_path.to_path_buf(),
             raw,
@@ -56,6 +61,10 @@ impl ManagedProfile {
     #[must_use]
     pub fn path(&self) -> &Path {
         &self.path
+    }
+
+    pub(super) const fn tree(&self) -> &Value {
+        &self.tree
     }
 
     #[must_use]

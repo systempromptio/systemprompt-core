@@ -2,16 +2,18 @@
 //!
 //! Interpolation runs over a parsed YAML tree, never over document text: only
 //! string scalars are rewritten, so a substituted value can never add a key,
-//! end a scalar early or start a comment. A scalar that is exactly one
-//! placeholder may resolve to a number or a boolean (so `port: ${PORT}` still
-//! deserializes as an integer) and an empty resolution of such a scalar is
-//! null; every other result stays a string. A placeholder whose variable is
-//! unset (or empty) and has no `:-` default is an [`InterpolationError`]
-//! naming the variable and the key path ([`interpolate_yaml`], for a profile
-//! about to run), or is recorded and left in the tree as a typed
-//! `!unresolved` marker ([`interpolate_yaml_available`], for a profile that is
-//! only inspected, edited or shipped from a host that lacks the target's
-//! variables).
+//! end a scalar early or start a comment. How a scalar that is exactly one
+//! placeholder enters the tree is decided by the type of the field it lands
+//! in ([`FieldKind`]), never by the value's appearance: a field that accepts a
+//! string receives the value as a string, a numeric or boolean field receives
+//! it parsed, and an empty value is null where the field accepts null. A
+//! placeholder embedded in longer text always yields a string. A placeholder
+//! whose variable is unset (or empty) and has no `:-` default is an
+//! [`InterpolationError`] naming the variable and the key path
+//! ([`interpolate_yaml`], for a profile about to run), or is recorded and left
+//! in the tree as a typed `!unresolved` marker ([`interpolate_yaml_available`],
+//! for a profile that is only inspected, edited or shipped from a host that
+//! lacks the target's variables).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -85,11 +87,54 @@ pub fn interpolate(
     )
 }
 
+/// The scalar types a key path accepts, as a set.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct FieldKind(u8);
+
+impl FieldKind {
+    pub const NONE: Self = Self(0);
+    pub const STRING: Self = Self(1);
+    pub const NUMBER: Self = Self(2);
+    pub const BOOL: Self = Self(4);
+    pub const NULL: Self = Self(8);
+    pub const UNKNOWN: Self = Self(16);
+
+    #[must_use]
+    pub const fn union(self, other: Self) -> Self {
+        Self(self.0 | other.0)
+    }
+
+    #[must_use]
+    pub const fn accepts(self, other: Self) -> bool {
+        self.0 & other.0 != 0
+    }
+
+    #[must_use]
+    pub const fn accepts_string(self) -> bool {
+        self.accepts(Self::STRING) || self.accepts(Self::UNKNOWN)
+    }
+}
+
+/// One step of a key path: a mapping key or a sequence index.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PathSegment {
+    Key(String),
+    Index(usize),
+}
+
+pub type FieldKindLookup<'a> = &'a dyn Fn(&[PathSegment]) -> FieldKind;
+
+#[must_use]
+pub const fn untyped(_path: &[PathSegment]) -> FieldKind {
+    FieldKind::UNKNOWN
+}
+
 pub fn interpolate_yaml(
     value: &mut Value,
     lookup: &impl Fn(&str) -> Option<String>,
+    kinds: FieldKindLookup<'_>,
 ) -> Result<(), InterpolationError> {
-    walk(value, lookup, &mut String::new(), &mut |missing| {
+    walk(value, lookup, kinds, &mut Vec::new(), &mut |missing| {
         Err(missing)
     })
 }
@@ -98,9 +143,10 @@ pub fn interpolate_yaml(
 pub fn interpolate_yaml_available(
     value: &mut Value,
     lookup: &impl Fn(&str) -> Option<String>,
+    kinds: FieldKindLookup<'_>,
 ) -> Vec<InterpolationError> {
     let mut unresolved = Vec::new();
-    let outcome = walk(value, lookup, &mut String::new(), &mut |missing| {
+    let outcome = walk(value, lookup, kinds, &mut Vec::new(), &mut |missing| {
         let marker = unresolved_marker(&missing.variable);
         unresolved.push(missing);
         Ok(marker)
@@ -120,17 +166,39 @@ fn unresolved_marker(variable: &str) -> Value {
     }))
 }
 
+#[must_use]
+pub fn key_path_label(path: &[PathSegment]) -> String {
+    let mut label = String::new();
+    for segment in path {
+        match segment {
+            PathSegment::Key(key) => {
+                if !label.is_empty() {
+                    label.push('.');
+                }
+                label.push_str(key);
+            },
+            PathSegment::Index(index) => label.push_str(&format!("[{index}]")),
+        }
+    }
+    if label.is_empty() {
+        "<root>".to_owned()
+    } else {
+        label
+    }
+}
+
 type OnUnset<'a> = dyn FnMut(InterpolationError) -> Result<Value, InterpolationError> + 'a;
 
 fn walk(
     value: &mut Value,
     lookup: &impl Fn(&str) -> Option<String>,
-    path: &mut String,
+    kinds: FieldKindLookup<'_>,
+    path: &mut Vec<PathSegment>,
     on_unset: &mut OnUnset<'_>,
 ) -> Result<(), InterpolationError> {
     match value {
         Value::String(text) => {
-            match resolve_scalar(text, lookup, path) {
+            match resolve_scalar(text, lookup, kinds, path) {
                 Ok(Some(resolved)) => *value = resolved,
                 Ok(None) => {},
                 Err(missing) => *value = on_unset(missing)?,
@@ -139,26 +207,23 @@ fn walk(
         },
         Value::Sequence(items) => {
             for (index, item) in items.iter_mut().enumerate() {
-                let len = path.len();
-                path.push_str(&format!("[{index}]"));
-                walk(item, lookup, path, on_unset)?;
-                path.truncate(len);
+                path.push(PathSegment::Index(index));
+                let outcome = walk(item, lookup, kinds, path, on_unset);
+                path.pop();
+                outcome?;
             }
             Ok(())
         },
         Value::Mapping(map) => {
             for (key, item) in map.iter_mut() {
-                let len = path.len();
-                if !path.is_empty() {
-                    path.push('.');
-                }
-                path.push_str(&key_label(key));
-                walk(item, lookup, path, on_unset)?;
-                path.truncate(len);
+                path.push(PathSegment::Key(key_label(key)));
+                let outcome = walk(item, lookup, kinds, path, on_unset);
+                path.pop();
+                outcome?;
             }
             Ok(())
         },
-        Value::Tagged(tagged) => walk(&mut tagged.value, lookup, path, on_unset),
+        Value::Tagged(tagged) => walk(&mut tagged.value, lookup, kinds, path, on_unset),
         Value::Null | Value::Bool(_) | Value::Number(_) => Ok(()),
     }
 }
@@ -166,7 +231,8 @@ fn walk(
 fn resolve_scalar(
     text: &str,
     lookup: &impl Fn(&str) -> Option<String>,
-    path: &str,
+    kinds: FieldKindLookup<'_>,
+    path: &[PathSegment],
 ) -> Result<Option<Value>, InterpolationError> {
     if !contains_placeholder(text) {
         return Ok(None);
@@ -174,22 +240,40 @@ fn resolve_scalar(
     let resolved =
         interpolate(text, lookup).map_err(|UnsetVariable { variable }| InterpolationError {
             variable,
-            key_path: if path.is_empty() {
-                "<root>".to_owned()
-            } else {
-                path.to_owned()
-            },
+            key_path: key_path_label(path),
         })?;
     if !is_single_placeholder(text) {
         return Ok(Some(Value::String(resolved)));
     }
-    if resolved.is_empty() {
-        return Ok(Some(Value::Null));
+    Ok(Some(typed_scalar(resolved, kinds(path))))
+}
+
+fn typed_scalar(resolved: String, kind: FieldKind) -> Value {
+    if resolved.is_empty() && kind.accepts(FieldKind::NULL) {
+        return Value::Null;
     }
-    Ok(Some(match serde_yaml::from_str::<Value>(&resolved) {
-        Ok(typed @ (Value::Bool(_) | Value::Number(_))) => typed,
-        _ => Value::String(resolved),
-    }))
+    if kind.accepts_string() {
+        return Value::String(resolved);
+    }
+    if kind.accepts(FieldKind::BOOL) {
+        match resolved.as_str() {
+            "true" => return Value::Bool(true),
+            "false" => return Value::Bool(false),
+            _ => {},
+        }
+    }
+    if kind.accepts(FieldKind::NUMBER) {
+        if let Ok(n) = resolved.parse::<i64>() {
+            return Value::Number(n.into());
+        }
+        if let Ok(n) = resolved.parse::<u64>() {
+            return Value::Number(n.into());
+        }
+        if let Ok(n) = resolved.parse::<f64>() {
+            return Value::Number(n.into());
+        }
+    }
+    Value::String(resolved)
 }
 
 fn is_single_placeholder(text: &str) -> bool {

@@ -17,6 +17,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result};
 use serde_yaml::{Mapping, Value};
 use systemprompt_manifest::profile::ManagedProfile;
+use systemprompt_manifest::profile::overlay::write_overlay_document;
 
 use crate::commands::admin::config::config_section::read_yaml_file;
 
@@ -84,7 +85,7 @@ impl ProfileEdit {
                 .section::<Value>(key_path)
                 .with_context(|| format!("Edited field `{key_path}` is invalid"))?;
         }
-        std::fs::write(&self.path, content)
+        write_overlay_document(&self.overlay, &self.path)
             .with_context(|| format!("Failed to write {}", self.path.display()))
     }
 }

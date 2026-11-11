@@ -20,8 +20,10 @@ mod deploy;
 pub mod derived;
 mod error;
 mod external_secrets;
+mod field_kind;
 mod governance;
 mod image;
+mod inspection;
 mod judge;
 pub mod layered;
 mod legacy;
@@ -34,6 +36,7 @@ mod observability;
 mod oci_reference;
 pub mod overlay;
 mod paths;
+pub mod placeholders;
 mod rate_limits;
 mod retention;
 mod runtime;
@@ -62,11 +65,13 @@ pub use deploy::{
 };
 pub use error::{ProfileError, ProfileResult};
 pub use external_secrets::{ExternalSecretsConfig, MIN_EXTERNAL_REFRESH_SECS};
+pub use field_kind::profile_field_kind;
 pub use governance::{
     AuditConfig, AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig, QuotaConfig,
     UNRESTRICTED_ACKNOWLEDGEMENT, UnappliedPlaneMode,
 };
 pub use image::{DEFAULT_RUNTIME_BASE_IMAGE, RuntimeImageConfig};
+pub use inspection::{Evaluation, Inspection, NotEvaluated, ValidationReport, needed_variables};
 pub use judge::JudgeProfile;
 pub use layered::{BASE_PROFILE_FILE, OVERLAY_PROFILE_FILE, merge_yaml};
 pub use legacy::MIGRATE_COMMAND;

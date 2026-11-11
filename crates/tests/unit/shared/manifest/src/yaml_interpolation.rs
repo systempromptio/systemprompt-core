@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 
 use serde_yaml::Value;
-use systemprompt_manifest::env::{InterpolationError, interpolate_yaml};
+use systemprompt_manifest::env::{
+    FieldKind, InterpolationError, PathSegment, interpolate_yaml, untyped,
+};
+use systemprompt_manifest::profile::profile_field_kind;
 
 fn resolve(yaml: &str, vars: &[(&str, &str)]) -> Result<Value, InterpolationError> {
     let map: HashMap<String, String> = vars
@@ -9,7 +12,7 @@ fn resolve(yaml: &str, vars: &[(&str, &str)]) -> Result<Value, InterpolationErro
         .map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
         .collect();
     let mut value: Value = serde_yaml::from_str(yaml).expect("fixture parses");
-    interpolate_yaml(&mut value, &|name| map.get(name).cloned())?;
+    interpolate_yaml(&mut value, &|name| map.get(name).cloned(), &untyped)?;
     Ok(value)
 }
 
@@ -71,24 +74,91 @@ fn an_unset_variable_is_an_error_naming_variable_and_key_path() {
     assert!(error.to_string().contains("NOT_SET_HOST"));
 }
 
-#[test]
-fn a_whole_placeholder_keeps_number_and_boolean_types() {
-    let value = resolve(
-        "server:\n  port: ${PORT}\n  tls: ${TLS}\n",
-        &[("PORT", "8080"), ("TLS", "true")],
+fn resolve_profile_typed(yaml: &str, vars: &[(&str, &str)]) -> Value {
+    let map: HashMap<String, String> = vars
+        .iter()
+        .map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
+        .collect();
+    let mut value: Value = serde_yaml::from_str(yaml).expect("fixture parses");
+    interpolate_yaml(
+        &mut value,
+        &|name| map.get(name).cloned(),
+        &profile_field_kind,
     )
     .expect("resolves");
+    value
+}
+
+#[test]
+fn a_numeric_field_receives_a_number_and_a_string_field_keeps_text() {
+    let value = resolve_profile_typed(
+        "server:\n  port: ${PORT}\n  host: ${HOST}\nsite:\n  name: ${NAME}\n",
+        &[("PORT", "8080"), ("HOST", "0012"), ("NAME", "12345")],
+    );
     assert_eq!(
         get(&value, &["server", "port"]),
         &Value::Number(8080.into())
     );
-    assert_eq!(get(&value, &["server", "tls"]), &Value::Bool(true));
+    assert_eq!(
+        get(&value, &["server", "host"]),
+        &Value::String("0012".to_owned())
+    );
+    assert_eq!(
+        get(&value, &["site", "name"]),
+        &Value::String("12345".to_owned())
+    );
 }
 
 #[test]
-fn an_empty_default_on_a_whole_placeholder_is_null() {
-    let value = resolve("vault:\n  namespace: ${VAULT_NS:-}\n", &[]).expect("resolves");
-    assert_eq!(get(&value, &["vault", "namespace"]), &Value::Null);
+fn a_string_field_keeps_values_that_look_like_other_types() {
+    for raw in ["true", "null", "0x1F", "1e5", "007", "~"] {
+        let value = resolve_profile_typed("site:\n  name: ${NAME}\n", &[("NAME", raw)]);
+        assert_eq!(
+            get(&value, &["site", "name"]),
+            &Value::String(raw.to_owned()),
+            "{raw}"
+        );
+    }
+}
+
+#[test]
+fn a_boolean_field_receives_a_boolean() {
+    let value = resolve_profile_typed("rate_limits:\n  disabled: ${OFF}\n", &[("OFF", "true")]);
+    assert_eq!(
+        get(&value, &["rate_limits", "disabled"]),
+        &Value::Bool(true)
+    );
+}
+
+#[test]
+fn an_empty_default_is_null_only_where_the_field_accepts_null() {
+    let value = resolve_profile_typed(
+        "server:\n  metrics_port: ${METRICS:-}\nsite:\n  name: ${NAME:-}\n",
+        &[],
+    );
+    assert_eq!(get(&value, &["server", "metrics_port"]), &Value::Null);
+    assert_eq!(
+        get(&value, &["site", "name"]),
+        &Value::String(String::new())
+    );
+}
+
+#[test]
+fn an_untyped_path_keeps_the_value_as_text() {
+    let value = resolve("server:\n  port: ${PORT}\n", &[("PORT", "8080")]).expect("resolves");
+    assert_eq!(
+        get(&value, &["server", "port"]),
+        &Value::String("8080".to_owned())
+    );
+}
+
+#[test]
+fn the_profile_schema_types_known_paths() {
+    let key = |k: &str| PathSegment::Key(k.to_owned());
+    assert!(profile_field_kind(&[key("server"), key("port")]).accepts(FieldKind::NUMBER));
+    assert!(!profile_field_kind(&[key("server"), key("port")]).accepts_string());
+    assert!(profile_field_kind(&[key("site"), key("name")]).accepts_string());
+    assert!(profile_field_kind(&[key("server"), key("metrics_port")]).accepts(FieldKind::NULL));
 }
 
 #[test]
