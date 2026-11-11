@@ -133,7 +133,7 @@ pub enum SyncError {
     #[error("manifest replay rejected: incoming {incoming} is not newer than last applied {last}")]
     ReplayedManifest { last: String, incoming: String },
     #[error(
-        "manifest clock skew rejected: not_before {not_before} is more than 5m ahead of now {now}"
+        "manifest clock skew rejected: not_before {not_before} is outside the 5m skew bound of now {now}"
     )]
     ManifestSkew { not_before: String, now: String },
     #[error(

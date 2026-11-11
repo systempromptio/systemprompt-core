@@ -8,8 +8,9 @@
 //! from the binding, never from the request. The envelope a request carries
 //! is refused when its `not_before` lies further in the future than the clock
 //! skew allows, and admitted only when its version is newer than the last one
-//! the writer accepted ([`AcceptedEnvelope`]). Its age is not bounded: the
-//! monotonic version is what refuses an old envelope.
+//! the writer accepted ([`AcceptedEnvelope`]). Once one is accepted the
+//! monotonic version refuses an old envelope; the first must also be fresh
+//! (`crate::sync::dated_beyond_skew`).
 //!
 //! Every decision here is a pure function so it runs on every platform; the
 //! Windows shims only read the owner, the binding and the accepted record.
@@ -205,7 +206,11 @@ pub fn admit(
     {
         return Ok(Admission::AlreadyAccepted);
     }
-    if crate::sync::dated_beyond_skew(manifest.not_before, now) {
+    if crate::sync::dated_beyond_skew(
+        manifest.not_before,
+        now,
+        crate::sync::PriorAcceptance::of(last.is_some()),
+    ) {
         return Err(PolicyWriterError::Skewed {
             not_before: manifest.not_before.to_rfc3339(),
             now: now.to_rfc3339(),

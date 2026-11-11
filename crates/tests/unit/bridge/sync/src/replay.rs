@@ -2,7 +2,8 @@ use std::fs;
 
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::sync::{
-    LastSyncState, ReplayStateError, SyncError, check_replay, check_skew, read_last_sync,
+    LastSyncState, PriorAcceptance, ReplayStateError, SyncError, check_replay, check_skew,
+    read_last_sync,
 };
 use systemprompt_models::bridge::host::HostKind;
 
@@ -97,10 +98,21 @@ fn manifest_version_rejects_bad_timestamp() {
 }
 
 #[test]
-fn an_old_not_before_is_left_to_the_version_check() {
+fn an_old_not_before_is_left_to_the_version_check_once_a_version_was_accepted() {
     let now = chrono::Utc::now();
     for age in [chrono::Duration::minutes(10), chrono::Duration::days(3)] {
-        check_skew(now - age, now).expect("age is governed by the manifest version");
+        check_skew(now - age, now, PriorAcceptance::Accepted)
+            .expect("age is governed by the manifest version");
+    }
+}
+
+#[test]
+fn a_first_sync_refuses_an_old_not_before() {
+    let now = chrono::Utc::now();
+    for age in [chrono::Duration::minutes(10), chrono::Duration::days(90)] {
+        let err = check_skew(now - age, now, PriorAcceptance::None)
+            .expect_err("nothing accepted yet bounds the age");
+        assert!(matches!(err, SyncError::ManifestSkew { .. }));
     }
 }
 
@@ -108,7 +120,7 @@ fn an_old_not_before_is_left_to_the_version_check() {
 fn not_before_ten_minutes_in_future_rejected() {
     let now = chrono::Utc::now();
     let nb = now + chrono::Duration::minutes(10);
-    let err = check_skew(nb, now).expect_err("10m future should reject");
+    let err = check_skew(nb, now, PriorAcceptance::None).expect_err("10m future should reject");
     assert!(matches!(err, SyncError::ManifestSkew { .. }));
 }
 
@@ -116,14 +128,14 @@ fn not_before_ten_minutes_in_future_rejected() {
 fn not_before_thirty_seconds_past_accepted() {
     let now = chrono::Utc::now();
     let nb = now - chrono::Duration::seconds(30);
-    check_skew(nb, now).expect("30s past should pass");
+    check_skew(nb, now, PriorAcceptance::None).expect("30s past should pass");
 }
 
 #[test]
 fn not_before_thirty_seconds_future_accepted() {
     let now = chrono::Utc::now();
     let nb = now + chrono::Duration::seconds(30);
-    check_skew(nb, now).expect("30s future should pass");
+    check_skew(nb, now, PriorAcceptance::None).expect("30s future should pass");
 }
 
 #[test]
@@ -133,7 +145,7 @@ fn force_replay_bypasses_replay_and_skew() {
 
     let now = chrono::Utc::now();
     let nb = now + chrono::Duration::minutes(30);
-    assert!(check_skew(nb, now).is_err());
+    assert!(check_skew(nb, now, PriorAcceptance::None).is_err());
 }
 
 #[test]

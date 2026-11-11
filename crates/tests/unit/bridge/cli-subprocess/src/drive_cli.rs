@@ -84,6 +84,7 @@ fn seed(drive: &Path) -> (DocumentProposalId, ConflictNotice, DocumentId) {
     std::fs::write(drive.join("draft.md"), b"unsynced").expect("draft");
     let conflict = ConflictNotice {
         document_id: None,
+        unplaced: false,
         path: "plan.md".to_owned(),
         sibling: "plan (conflict).md".to_owned(),
         head_revision_id: DocumentRevisionId::generate(),

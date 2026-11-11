@@ -21,6 +21,7 @@ pub enum PathRefusal {
     TrailingDotOrSpace,
     RefusedCharacter,
     Symlink,
+    Occupied,
     CaseCollision { existing: String },
 }
 
@@ -31,6 +32,9 @@ impl std::fmt::Display for PathRefusal {
             Self::TrailingDotOrSpace => f.write_str("it ends in a dot or a space"),
             Self::RefusedCharacter => f.write_str("it holds a character Windows refuses"),
             Self::Symlink => f.write_str("it lies under a link that leaves the Drive folder"),
+            Self::Occupied => {
+                f.write_str("a file this device does not sync already holds the name")
+            },
             Self::CaseCollision { existing } => {
                 write!(f, "it differs only in case from {existing}")
             },

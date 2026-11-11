@@ -320,6 +320,11 @@ async fn an_unplaceable_document_stays_in_the_conflict_list_until_it_is_placed()
     );
 
     server.reset().await;
+    serve_manifest(
+        &server,
+        manifest_json(&[(&doc, "aux notes.md", &DocumentRevisionId::generate(), body)]),
+    )
+    .await;
     serve_blob(&server, body).await;
     serve_no_proposals(&server).await;
     serve_changes(

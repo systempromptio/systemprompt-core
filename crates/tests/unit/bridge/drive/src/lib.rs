@@ -24,6 +24,8 @@ mod pull_names;
 #[cfg(test)]
 mod pull_paths;
 #[cfg(test)]
+mod pull_unplaced;
+#[cfg(test)]
 mod run_loop;
 #[cfg(test)]
 mod scan;

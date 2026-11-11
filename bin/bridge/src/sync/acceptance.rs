@@ -6,7 +6,8 @@
 use systemprompt_identifiers::ValidatedUrl;
 
 use super::{
-    LastSyncState, SyncError, check_replay, check_skew, ensure_not_superseded, prior_checkpoint,
+    LastSyncState, PriorAcceptance, SyncError, check_replay, check_skew, ensure_not_superseded,
+    prior_checkpoint,
 };
 use crate::config::paths;
 use crate::gateway::manifest::{SignedManifest, decode_payload};
@@ -40,7 +41,11 @@ pub(super) fn accept(
     let meta = paths::bridge_metadata_dir().ok_or(SyncError::PathUnresolvable)?;
     let prior = prior_checkpoint(&meta.join(paths::LAST_SYNC_SENTINEL), gateway)?;
     if !force_replay {
-        check_skew(manifest.not_before, chrono::Utc::now())?;
+        check_skew(
+            manifest.not_before,
+            chrono::Utc::now(),
+            PriorAcceptance::of(prior.manifest_version.is_some()),
+        )?;
         let is_current = prior.manifest_version.as_ref() == Some(&manifest.manifest_version);
         if !(is_current && current != CurrentVersion::Replay) {
             check_replay(&prior, &manifest.manifest_version)?;

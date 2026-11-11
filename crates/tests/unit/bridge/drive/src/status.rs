@@ -133,6 +133,7 @@ async fn sync_now_wakes_a_waiter() {
 pub fn conflict(path: &str) -> ConflictNotice {
     ConflictNotice {
         document_id: None,
+        unplaced: false,
         path: path.to_owned(),
         sibling: format!("{path} (conflict)"),
         head_revision_id: DocumentRevisionId::generate(),

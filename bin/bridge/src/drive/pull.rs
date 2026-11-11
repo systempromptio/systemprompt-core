@@ -29,7 +29,7 @@ use super::Cycle;
 use super::conflict::{HeadRef, clear_unplaced, keep_local_beside};
 use super::error::{DriveError, DriveResult};
 use super::hash::hash_file;
-use super::names::fold;
+use super::names::{PathRefusal, fold};
 use super::placement::{Unplaced, ensure_no_collision, remote_delete, skip_unplaceable};
 use super::state::{ConflictNotice, DriveState};
 use super::write::{GuardedWrite, move_file, synced_entry, write_unless_changed};
@@ -59,6 +59,7 @@ pub async fn pull(cycle: Cycle<'_>, state: &mut DriveState) -> DriveResult<PullR
         Err(error) => return Err(error),
     };
     let mut report = PullReport::default();
+    super::unplaced::retry(cycle, state, &mut report).await?;
     for change in &feed.changes {
         let applied = apply(cycle, state, change, &mut report).await;
         skip_if_unplaceable(
@@ -98,7 +99,7 @@ pub async fn reconcile(
             sha256: entry.content_sha256,
         };
         let (document_id, revision_id) = (head.document_id.clone(), head.revision_id.clone());
-        let placed = place_head(cycle, state, &entry.path, head, &mut report).await;
+        let placed = move_and_place(cycle, state, &entry.path, head, &mut report).await;
         skip_if_unplaceable(state, placed, &document_id, Some(&revision_id), &mut report)?;
     }
     state.cursor = Some(manifest.cursor);
@@ -106,7 +107,7 @@ pub async fn reconcile(
     Ok(report)
 }
 
-fn skip_if_unplaceable(
+pub(super) fn skip_if_unplaceable(
     state: &mut DriveState,
     result: DriveResult<()>,
     document_id: &DocumentId,
@@ -114,10 +115,7 @@ fn skip_if_unplaceable(
     report: &mut PullReport,
 ) -> DriveResult<()> {
     match result {
-        Ok(()) => {
-            clear_unplaced(state, document_id);
-            Ok(())
-        },
+        Ok(()) => Ok(()),
         Err(DriveError::Unplaceable { path, refusal }) => {
             let unplaced = Unplaced {
                 document_id,
@@ -140,22 +138,50 @@ async fn apply(
 ) -> DriveResult<()> {
     let known = state.path_of(&change.document_id).map(str::to_owned);
     match &change.kind {
+        DriveChangeKind::Renamed { .. } if change.revision_id.is_none() => match known {
+            Some(known) if !has_unplaced(state, &change.document_id) => {
+                if known != change.path {
+                    rename(cycle, state, &known, &change.path, &change.document_id)?;
+                }
+                clear_unplaced(state, &change.document_id);
+                Ok(())
+            },
+            _ => {
+                super::unplaced::place_from_manifest(cycle, state, &change.document_id, report)
+                    .await
+            },
+        },
         DriveChangeKind::Created | DriveChangeKind::Updated | DriveChangeKind::Renamed { .. } => {
-            if let Some(known) = known
-                && known != change.path
-            {
-                rename(cycle, state, &known, &change.path, &change.document_id)?;
-            }
-            if matches!(change.kind, DriveChangeKind::Renamed { .. })
-                && change.revision_id.is_none()
-            {
-                return Ok(());
-            }
             let head = head_of(change)?;
-            place_head(cycle, state, &change.path, head, report).await
+            move_and_place(cycle, state, &change.path, head, report).await
         },
         DriveChangeKind::Deleted => remote_delete(cycle, state, &change.document_id, report),
     }
+}
+
+pub(super) fn has_unplaced(state: &DriveState, document_id: &DocumentId) -> bool {
+    state
+        .conflicts
+        .iter()
+        .any(|notice| notice.unplaced && notice.document_id.as_ref() == Some(document_id))
+}
+
+pub(super) async fn move_and_place(
+    cycle: Cycle<'_>,
+    state: &mut DriveState,
+    rel: &str,
+    head: HeadRef,
+    report: &mut PullReport,
+) -> DriveResult<()> {
+    let document_id = head.document_id.clone();
+    if let Some(known) = state.path_of(&document_id).map(str::to_owned)
+        && known != rel
+    {
+        rename(cycle, state, &known, rel, &document_id)?;
+    }
+    place_head(cycle, state, rel, head, report).await?;
+    clear_unplaced(state, &document_id);
+    Ok(())
 }
 
 fn head_of(change: &DriveChange) -> DriveResult<HeadRef> {
@@ -248,6 +274,12 @@ fn rename(
     let case_only = fold(from) == fold(to);
     if !case_only {
         ensure_no_collision(cycle.root, state, to)?;
+        if target.exists() && !state.entries.contains_key(to) {
+            return Err(DriveError::Unplaceable {
+                path: to.to_owned(),
+                refusal: PathRefusal::Occupied,
+            });
+        }
     }
     if source.exists() && (case_only || !target.exists()) {
         move_file(&source, &target)?;

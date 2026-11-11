@@ -44,6 +44,7 @@ pub mod shares;
 pub mod state;
 pub mod status;
 pub mod trash;
+pub mod unplaced;
 pub mod upload;
 pub mod watcher;
 pub mod write;

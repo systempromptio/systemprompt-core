@@ -73,8 +73,10 @@ pub fn keep_local_beside(
         }
         return Err(error);
     }
+    clear_unplaced(state, &head.document_id);
     let notice = ConflictNotice {
         document_id: Some(head.document_id.clone()),
+        unplaced: false,
         path: rel.to_owned(),
         sibling,
         head_revision_id: head.revision_id.clone(),
@@ -100,18 +102,14 @@ pub fn keep_local_beside(
 
 pub fn prune_resolved(root: &super::DriveRoot, state: &mut DriveState) -> bool {
     let before = state.conflicts.len();
-    state.conflicts.retain(|notice| {
-        if notice.sibling == notice.path {
-            matches!(root.file(&notice.path), Err(DriveError::Unplaceable { .. }))
-        } else {
-            root.file(&notice.sibling).is_ok_and(|p| p.exists())
-        }
-    });
+    state
+        .conflicts
+        .retain(|notice| notice.unplaced || root.file(&notice.sibling).is_ok_and(|p| p.exists()));
     before != state.conflicts.len()
 }
 
 pub fn clear_unplaced(state: &mut DriveState, document_id: &DocumentId) {
-    state.conflicts.retain(|notice| {
-        notice.sibling != notice.path || notice.document_id.as_ref() != Some(document_id)
-    });
+    state
+        .conflicts
+        .retain(|notice| !notice.unplaced || notice.document_id.as_ref() != Some(document_id));
 }

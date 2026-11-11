@@ -184,22 +184,32 @@ fn an_envelope_dated_beyond_the_future_skew_bound_is_refused() {
 #[test]
 fn an_older_envelope_is_admitted_when_its_version_is_newer() {
     let signed = manifest(vec![]);
+    let older = accepted("2026-09-18T08:00:00Z-cafecafe");
     for age in [
         chrono::Duration::minutes(SKEW_WINDOW_MINUTES + 1),
         chrono::Duration::days(3),
     ] {
         assert_eq!(
-            admit(&signed, &digest_of(1), None, signed.not_before + age)
-                .expect("age is not bounded"),
+            admit(
+                &signed,
+                &digest_of(1),
+                Some(&older),
+                signed.not_before + age
+            )
+            .expect("age is bounded by the version"),
             Admission::Fresh
         );
     }
-    let older = accepted("2026-09-18T08:00:00Z-cafecafe");
-    let late = signed.not_before + chrono::Duration::days(3);
-    assert_eq!(
-        admit(&signed, &digest_of(1), Some(&older), late).unwrap(),
-        Admission::Fresh
-    );
+}
+
+#[test]
+fn the_first_envelope_the_writer_accepts_must_be_fresh() {
+    let signed = manifest(vec![]);
+    let late = signed.not_before + chrono::Duration::minutes(SKEW_WINDOW_MINUTES + 1);
+    assert!(matches!(
+        admit(&signed, &digest_of(1), None, late),
+        Err(PolicyWriterError::Skewed { .. })
+    ));
 }
 
 #[test]
