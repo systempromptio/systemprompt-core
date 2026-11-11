@@ -1,0 +1,35 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT content_sha256 AS \"content_sha256: ContentHash\",\n                      (array_agg(author_user_id ORDER BY created_at, id))[1] AS \"author!\"\n               FROM document_revisions WHERE document_id = $1::text::uuid\n               GROUP BY content_sha256 ORDER BY MIN(created_at), content_sha256",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "content_sha256: ContentHash",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_revisions",
+            "name": "content_sha256"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "author!",
+        "type_info": "Varchar",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      null
+    ]
+  },
+  "hash": "45bf1855c6be3f397a8188ba0ba8944b18e3e21ef38fca4407d803800401a8ac"
+}
