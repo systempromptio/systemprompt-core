@@ -109,7 +109,7 @@ impl UserRepository {
         Ok(IssuerRekeyOutcome {
             moved,
             removed,
-            conflicts_kept: u64::try_from(conflicts_kept).unwrap_or_default(),
+            conflicts_kept: conflicts_kept.unsigned_abs(),
         })
     }
 

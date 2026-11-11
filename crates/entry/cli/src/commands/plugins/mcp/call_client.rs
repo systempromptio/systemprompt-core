@@ -145,8 +145,8 @@ async fn connect(
         .context("Failed to connect to MCP server")
 }
 
-pub fn convert_content(content: &ContentBlock) -> McpToolContent {
-    match content {
+pub fn convert_content(content: &ContentBlock) -> Result<McpToolContent, serde_json::Error> {
+    Ok(match content {
         ContentBlock::Text(text) => McpToolContent {
             kind: "text".to_owned(),
             text: Some(text.text.clone()),
@@ -161,7 +161,7 @@ pub fn convert_content(content: &ContentBlock) -> McpToolContent {
         },
         ContentBlock::Resource(resource) => McpToolContent {
             kind: "resource".to_owned(),
-            text: Some(serde_json::to_string(&resource.resource).unwrap_or_default()),
+            text: Some(serde_json::to_string(&resource.resource)?),
             mime_type: None,
             data: None,
         },
@@ -183,5 +183,5 @@ pub fn convert_content(content: &ContentBlock) -> McpToolContent {
             mime_type: None,
             data: None,
         },
-    }
+    })
 }

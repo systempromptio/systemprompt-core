@@ -60,6 +60,8 @@ pub struct MigrateGitCredentialsOutput {
     pub message: String,
 }
 
+// JSON: the on-disk secrets document is edited by key, keeping every entry
+// this migration does not own exactly as it was.
 pub fn plan_renames(
     secrets: &mut Map<String, Value>,
     sources: &[GitCredentialSource],
