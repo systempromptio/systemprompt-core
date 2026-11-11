@@ -2,15 +2,22 @@
 //!
 //! The same Drive folder is mirrored on Windows, macOS and Linux, so a name
 //! is placed only when all three can hold it under that exact name: no
-//! Windows device name (`CON`, `aux.txt`, `COM1`), no trailing dot or space,
-//! none of the characters NTFS refuses. NTFS and APFS compare names without
-//! case, so two paths that fold to the same key are one file there; the
-//! folded key is what collisions are detected on, on every OS alike.
+//! Windows device name (`CON`, `aux.txt`, `COM1`, `COM¹`, `CONIN$`), no
+//! trailing dot or space, none of the characters NTFS refuses. NTFS and APFS
+//! compare names without case, and APFS without Unicode normalisation form,
+//! so two paths that fold to the same key (NFC, then lowercase, then NFC
+//! again) are one file there; the folded key is what collisions are detected
+//! on, on every OS alike.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-const RESERVED: [&str; 4] = ["con", "prn", "aux", "nul"];
+use unicode_normalization::UnicodeNormalization as _;
+
+const RESERVED: [&str; 6] = ["con", "prn", "aux", "nul", "conin$", "conout$"];
+const NUMBER_SUFFIXES: [&str; 12] = [
+    "1", "2", "3", "4", "5", "6", "7", "8", "9", "\u{b9}", "\u{b2}", "\u{b3}",
+];
 const NUMBERED: [&str; 2] = ["com", "lpt"];
 const REFUSED_CHARS: [char; 7] = ['<', '>', '"', '|', '?', '*', ':'];
 
@@ -36,7 +43,7 @@ impl std::fmt::Display for PathRefusal {
                 f.write_str("a file this device does not sync already holds the name")
             },
             Self::CaseCollision { existing } => {
-                write!(f, "it differs only in case from {existing}")
+                write!(f, "it differs only in case or Unicode form from {existing}")
             },
         }
     }
@@ -60,7 +67,7 @@ pub fn portable_segment(segment: &str) -> Result<(), PathRefusal> {
         .to_ascii_lowercase();
     let numbered = NUMBERED.iter().any(|prefix| {
         stem.strip_prefix(prefix)
-            .is_some_and(|n| n.len() == 1 && n.as_bytes()[0].is_ascii_digit() && n != "0")
+            .is_some_and(|n| NUMBER_SUFFIXES.contains(&n))
     });
     if RESERVED.contains(&stem.as_str()) || numbered {
         return Err(PathRefusal::ReservedName);
@@ -70,7 +77,7 @@ pub fn portable_segment(segment: &str) -> Result<(), PathRefusal> {
 
 #[must_use]
 pub fn fold(rel: &str) -> String {
-    rel.to_lowercase()
+    rel.nfc().collect::<String>().to_lowercase().nfc().collect()
 }
 
 pub fn case_collision<'a>(

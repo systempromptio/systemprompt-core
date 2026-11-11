@@ -8621,6 +8621,7 @@ dependencies = [
  "tracing-subscriber",
  "tray-icon",
  "ts-rs",
+ "unicode-normalization",
  "url",
  "uuid",
  "vergen-gitcl",

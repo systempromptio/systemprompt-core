@@ -65,6 +65,7 @@ http = "1.5"
 reqwest = { version = "0.13", default-features = false, features = ["json", "stream", "rustls-no-provider", "form", "multipart"] }
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "logging", "tls12"] }
 url = "2.5"
+unicode-normalization = "0.1.26"
 futures-util = "0.3"
 bytes = "1"
 parking_lot = "0.13"

@@ -10,6 +10,8 @@ mod deletes;
 #[cfg(test)]
 mod enable;
 #[cfg(test)]
+mod names_unicode;
+#[cfg(test)]
 mod notices;
 #[cfg(test)]
 mod presence;
