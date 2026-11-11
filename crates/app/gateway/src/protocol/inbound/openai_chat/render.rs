@@ -137,6 +137,7 @@ pub fn render_event_frame(event: &CanonicalEvent, model: &str) -> Option<Bytes> 
         }),
         CanonicalEvent::Error(msg) => return Some(render_error_frame(msg)),
         CanonicalEvent::SignatureDelta { .. }
+        | CanonicalEvent::FrameDropped { .. }
         | CanonicalEvent::EncryptedContentDelta { .. }
         | CanonicalEvent::ContentBlockStop { .. }
         | CanonicalEvent::UsageDelta(_)

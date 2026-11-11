@@ -146,9 +146,66 @@ fn undecodable_and_mis_shaped_frames_are_skipped_by_every_codec() {
         for bad in ["{not json", wrong_shape] {
             let (head, tail) = sse.split_at(sse.find("\n\n").map_or(0, |i| i + 2));
             let noisy = format!("data: {bad}\n\n{head}data: {bad}\n\n{tail}");
-            assert_eq!(whole(codec, &noisy), clean, "{codec:?} with {bad}");
+            let events = whole(codec, &noisy);
+            let dropped = events
+                .iter()
+                .filter(|e| matches!(e, Ok(s) if s.starts_with("FrameDropped")))
+                .count();
+            assert_eq!(dropped, 2, "{codec:?} with {bad}: {events:?}");
+            let kept: Rendered = events
+                .into_iter()
+                .filter(|e| !matches!(e, Ok(s) if s.starts_with("FrameDropped")))
+                .collect();
+            assert_eq!(kept, clean, "{codec:?} with {bad}");
         }
     }
+}
+
+#[test]
+fn a_stream_with_no_decodable_frame_ends_as_a_protocol_error_on_every_wire() {
+    for (codec, _) in fixtures() {
+        let events = whole(codec, "data: {not json\n\ndata: [1]\n\n");
+        let last = events.last().cloned().expect("events");
+        assert!(
+            last.as_ref()
+                .is_err_and(|m| m.contains("no decodable frame (2 dropped)")),
+            "{codec:?}: {events:?}"
+        );
+    }
+}
+
+#[test]
+fn a_benign_only_stream_is_not_a_protocol_error() {
+    for (codec, _) in fixtures() {
+        let events = whole(codec, ": keepalive\n\ndata: [DONE]\n\n");
+        assert!(events.iter().all(Result::is_ok), "{codec:?}: {events:?}");
+    }
+}
+
+#[test]
+fn gemini_usage_beyond_u32_saturates_instead_of_dropping_the_chunk() {
+    let sse = concat!(
+        "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"kept\"}]},\"finishReason\":\"STOP\"}],",
+        "\"usageMetadata\":{\"promptTokenCount\":4294967301,\"candidatesTokenCount\":4294967296,\"totalTokenCount\":9}}\n\n",
+    );
+    let events = whole(Codec::Gemini, sse);
+    assert!(
+        events.iter().flatten().any(|e| e.contains("kept")),
+        "{events:?}"
+    );
+    assert!(
+        events
+            .iter()
+            .flatten()
+            .any(|e| e.starts_with("UsageDelta") && e.contains("4294967295")),
+        "{events:?}"
+    );
+    assert!(
+        !events
+            .iter()
+            .flatten()
+            .any(|e| e.starts_with("FrameDropped"))
+    );
 }
 
 fn chat_tool_turn(chunks: &[&str]) -> Vec<CanonicalEvent> {

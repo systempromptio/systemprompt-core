@@ -169,7 +169,12 @@ fn raw_split_at(bytes: &[u8], cut: usize) -> (Vec<Vec<u8>>, Vec<u8>) {
     let mut framer = SseFramer::default();
     let mut frames = Vec::new();
     for part in [&bytes[..cut], &bytes[cut..]] {
-        frames.extend(framer.push_raw(part).into_iter().map(|f| f.expect("frame")));
+        frames.extend(
+            framer
+                .push_raw(part)
+                .into_iter()
+                .map(|f| f.expect("frame").raw),
+        );
     }
     (frames, framer.remainder().to_vec())
 }
@@ -194,7 +199,11 @@ fn raw_frames_are_the_exact_input_bytes_at_every_cut() {
 #[test]
 fn raw_frames_are_capped_like_decoded_frames() {
     let mut framer = SseFramer::with_max_frame_bytes(16);
-    let out = framer.push_raw(b": ok\n\n: 0123456789abcdefgh");
+    let out: Vec<Result<Vec<u8>, SseFrameTooLarge>> = framer
+        .push_raw(b": ok\n\n: 0123456789abcdefgh")
+        .into_iter()
+        .map(|f| f.map(|f| f.raw))
+        .collect();
     assert_eq!(
         out,
         vec![
@@ -203,4 +212,15 @@ fn raw_frames_are_capped_like_decoded_frames() {
         ]
     );
     assert!(framer.push_raw(b"\n\n").is_empty());
+}
+
+#[test]
+fn raw_frames_carry_their_decoded_data() {
+    let mut framer = SseFramer::default();
+    let frames: Vec<_> = framer
+        .push_raw(b": c\n\ndata:a\r\ndata: b\n\n")
+        .into_iter()
+        .map(|f| f.expect("frame").data)
+        .collect();
+    assert_eq!(frames, vec![None, Some("a\nb".to_owned())]);
 }

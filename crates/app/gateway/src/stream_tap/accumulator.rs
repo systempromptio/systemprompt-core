@@ -29,6 +29,7 @@ pub struct TapState {
     pub(super) budget: ContentBudget,
     pub(super) final_bytes: RetainedBytes,
     pub(super) error: Option<String>,
+    pub(super) dropped_frames: u32,
     pub(super) finalized: bool,
 }
 
@@ -60,6 +61,20 @@ pub struct Summary {
     pub error: Option<String>,
     pub saw_stop: bool,
     pub saw_usage_delta: bool,
+    pub dropped_frames: u32,
+}
+
+impl TapState {
+    pub(super) const fn note_dropped_frame(&mut self) {
+        self.dropped_frames = self.dropped_frames.saturating_add(1);
+    }
+
+    pub(super) fn forwarding() -> Self {
+        Self {
+            budget: ContentBudget::forwarded_bytes(),
+            ..Self::default()
+        }
+    }
 }
 
 pub fn extract_summary(state: &mut TapState) -> Summary {
@@ -103,6 +118,7 @@ pub fn extract_summary(state: &mut TapState) -> Summary {
         error: state.error.clone(),
         saw_stop: state.final_stop_reason.is_some(),
         saw_usage_delta: state.saw_usage_delta,
+        dropped_frames: state.dropped_frames,
     }
 }
 
@@ -257,6 +273,7 @@ pub fn accumulate_event(state: &mut TapState, event: &CanonicalEvent) {
         CanonicalEvent::Error(msg) => {
             state.error = Some(msg.clone());
         },
+        CanonicalEvent::FrameDropped { .. } => state.note_dropped_frame(),
     }
 }
 

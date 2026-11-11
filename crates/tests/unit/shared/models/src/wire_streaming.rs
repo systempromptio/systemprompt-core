@@ -556,8 +556,12 @@ mod openai_chat_streaming {
 
     #[tokio::test]
     async fn malformed_json_frame_is_skipped() {
-        let sse = "data: not-json\n\ndata: [DONE]\n\n".to_owned();
+        let sse = "data: not-json\n\ndata: {\"id\":\"c\",\"choices\":[{\"delta\":{\"content\":\"hi\"}}]}\n\ndata: [DONE]\n\n".to_owned();
         let events = run(sse).await;
+        assert!(matches!(
+            events.first(),
+            Some(CanonicalEvent::FrameDropped { .. })
+        ));
         assert!(matches!(
             events.last(),
             Some(CanonicalEvent::MessageStop { .. })

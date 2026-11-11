@@ -183,6 +183,9 @@ pub enum CanonicalEvent {
         raw_finish_reason: Option<String>,
     },
     Error(String),
+    FrameDropped {
+        bytes: usize,
+    },
 }
 
 #[derive(Debug, Clone)]

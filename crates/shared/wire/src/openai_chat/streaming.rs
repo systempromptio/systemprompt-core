@@ -18,7 +18,7 @@ use crate::canonical::{
     CanonicalEvent, CanonicalStopReason, CanonicalUsage, CanonicalUsageUpdate, wire_count,
 };
 use crate::error::WireStreamError;
-use crate::sse::{SseFramer, skip_frame, skip_undecodable_json};
+use crate::sse::{FrameLedger, SseFramer};
 
 const WIRE: &str = "openai_chat";
 
@@ -37,6 +37,7 @@ where
 {
     let initial = OpenAiChatStreamState {
         framer: SseFramer::default(),
+        ledger: FrameLedger::default(),
         model: fallback_model,
         message_id: None,
         started: false,
@@ -90,9 +91,16 @@ fn drain_buffer(
             continue;
         }
         match serde_json::from_str::<Value>(data) {
-            Ok(value) if value.is_object() => handle_chunk(state, &value, &mut events),
-            Ok(_) => skip_frame(WIRE, "frame is not a JSON object", data.len()),
-            Err(e) => skip_undecodable_json(WIRE, &e, data.len()),
+            Ok(value) if value.is_object() => {
+                state.ledger.decoded();
+                handle_chunk(state, &value, &mut events);
+            },
+            Ok(_) => events.push(Ok(state.ledger.dropped(
+                WIRE,
+                "frame is not a JSON object",
+                data.len(),
+            ))),
+            Err(e) => events.push(Ok(state.ledger.dropped_json(WIRE, &e, data.len()))),
         }
     }
     events
@@ -101,6 +109,7 @@ fn drain_buffer(
 fn flush(state: &mut OpenAiChatStreamState) -> Vec<Result<CanonicalEvent, WireStreamError>> {
     let mut events: Vec<Result<CanonicalEvent, WireStreamError>> = Vec::new();
     flush_into(state, &mut events, None);
+    events.extend(state.ledger.finish().map(Err));
     events
 }
 

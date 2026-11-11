@@ -28,6 +28,8 @@ mod quota_reserve;
 #[cfg(test)]
 mod stream_tap_cap;
 #[cfg(test)]
+mod stream_tap_dropped;
+#[cfg(test)]
 mod stream_tap_frame_cap;
 #[cfg(test)]
 mod stream_tap_pipeline;

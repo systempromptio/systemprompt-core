@@ -46,6 +46,8 @@ pub enum WireStreamError {
     Transport(#[source] Box<dyn std::error::Error + Send + Sync>),
     #[error(transparent)]
     FrameTooLarge(#[from] crate::sse::SseFrameTooLarge),
+    #[error("upstream stream carried no decodable frame ({dropped} dropped)")]
+    NoDecodableFrame { dropped: u32 },
 }
 
 impl WireStreamError {

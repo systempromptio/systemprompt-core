@@ -37,9 +37,12 @@ pub struct SseFrame {
     pub data: String,
 }
 
-struct Dispatched {
-    data: Option<String>,
-    raw: Vec<u8>,
+/// One terminated frame exactly as the upstream sent it, with its decoded
+/// `data` (`None` for a comment-only or field-only frame).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RawSseFrame {
+    pub raw: Vec<u8>,
+    pub data: Option<String>,
 }
 
 /// Incremental framer over an upstream SSE byte stream.
@@ -80,20 +83,17 @@ impl SseFramer {
         self.feed(chunk, false)
             .into_iter()
             .filter_map(|out| match out {
-                Ok(Dispatched { data, .. }) => data.map(|data| Ok(SseFrame { data })),
+                Ok(RawSseFrame { data, .. }) => data.map(|data| Ok(SseFrame { data })),
                 Err(e) => Some(Err(e)),
             })
             .collect()
     }
 
-    pub fn push_raw(&mut self, chunk: &[u8]) -> Vec<Result<Vec<u8>, SseFrameTooLarge>> {
+    pub fn push_raw(&mut self, chunk: &[u8]) -> Vec<Result<RawSseFrame, SseFrameTooLarge>> {
         self.feed(chunk, true)
-            .into_iter()
-            .map(|out| out.map(|d| d.raw))
-            .collect()
     }
 
-    fn feed(&mut self, chunk: &[u8], keep_raw: bool) -> Vec<Result<Dispatched, SseFrameTooLarge>> {
+    fn feed(&mut self, chunk: &[u8], keep_raw: bool) -> Vec<Result<RawSseFrame, SseFrameTooLarge>> {
         let mut out = Vec::new();
         if self.failed {
             return out;
@@ -129,7 +129,7 @@ impl SseFramer {
                 } else {
                     Vec::new()
                 };
-                out.push(Ok(Dispatched {
+                out.push(Ok(RawSseFrame {
                     data: self.dispatch(),
                     raw,
                 }));

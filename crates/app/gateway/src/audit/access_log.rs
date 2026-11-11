@@ -69,6 +69,7 @@ pub struct TerminalOutcome<'a> {
     pub status: u16,
     pub actor: LogActor,
     pub error: Option<&'a str>,
+    pub dropped_frames: u32,
 }
 
 pub fn log_gateway_terminal(logging: &LoggingRuntime, outcome: TerminalOutcome<'_>) {
@@ -77,6 +78,7 @@ pub fn log_gateway_terminal(logging: &LoggingRuntime, outcome: TerminalOutcome<'
         status,
         actor,
         error,
+        dropped_frames,
     } = outcome;
     let elapsed_ms = access.started.elapsed().as_millis() as u64;
     let method = access.method.as_str();
@@ -101,6 +103,15 @@ pub fn log_gateway_terminal(logging: &LoggingRuntime, outcome: TerminalOutcome<'
             error,
             "gateway stream aborted"
         );
+    } else if dropped_frames > 0 {
+        tracing::warn!(
+            method,
+            path,
+            status,
+            elapsed_ms,
+            dropped_frames,
+            "gateway stream completed with undecodable upstream frames withheld"
+        );
     } else if persist {
         tracing::info!(method, path, status, elapsed_ms, "gateway stream completed");
     } else {
@@ -118,9 +129,15 @@ pub fn log_gateway_terminal(logging: &LoggingRuntime, outcome: TerminalOutcome<'
         "elapsed_ms": elapsed_ms,
         "phase": PHASE_TERMINAL,
         "error": error,
+        "dropped_frames": dropped_frames,
     });
+    let level = if dropped_frames > 0 && status < 400 {
+        LogLevel::Warn
+    } else {
+        level_for(status)
+    };
     let entry = LogEntry::new(
-        level_for(status),
+        level,
         LOG_TARGET,
         format!("{method} {path} -> {status} ({elapsed_ms}ms)"),
         actor,

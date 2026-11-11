@@ -128,6 +128,14 @@ pub(super) fn finalize(
             audit.set_served_model(model).await;
         }
 
+        if summary.dropped_frames > 0 {
+            tracing::warn!(
+                origin,
+                ai_request_id = %ctx.ai_request_id,
+                dropped_frames = summary.dropped_frames,
+                "stream withheld undecodable upstream frames"
+            );
+        }
         let has_content = summary.streamed_bytes > 0;
         let has_usage = summary.saw_usage_delta
             && (summary.usage.input_tokens > 0 || summary.usage.output_tokens > 0);
@@ -146,7 +154,7 @@ pub(super) fn finalize(
                 if let Err(e) = audit.fail_with_usage(msg, partial).await {
                     tracing::warn!(origin, error = %e, "stream audit fail failed");
                 }
-                log_terminal(&audit, cause.status(), Some(msg));
+                log_terminal(&audit, cause.status(), Some(msg), summary.dropped_frames);
             },
             FinalizeDecision::Complete { cost_capture_miss } => {
                 let completed = audit
@@ -187,7 +195,7 @@ pub(super) fn finalize(
                     &ctx.policy.safety,
                 )
                 .await;
-                log_terminal(&audit, 200, None);
+                log_terminal(&audit, 200, None, summary.dropped_frames);
             },
         }
         phases::record(GatewayPhase::Finalize, started.elapsed());
@@ -202,7 +210,12 @@ const fn usage_source(cost_capture_miss: bool) -> UsageSource {
     }
 }
 
-pub(crate) fn log_terminal(audit: &GatewayAudit, status: u16, error: Option<&str>) {
+pub(crate) fn log_terminal(
+    audit: &GatewayAudit,
+    status: u16,
+    error: Option<&str>,
+    dropped_frames: u32,
+) {
     let Some(access) = audit.ctx.access_log.as_ref() else {
         return;
     };
@@ -213,6 +226,7 @@ pub(crate) fn log_terminal(audit: &GatewayAudit, status: u16, error: Option<&str
             status,
             actor: terminal_actor(audit),
             error,
+            dropped_frames,
         },
     );
 }

@@ -10,6 +10,10 @@
 //! truncated snapshot as a complete one. The cap matches the buffered-body cap,
 //! so a response is held to one size whichever way it arrives.
 //!
+//! A pass-through tap charges the bytes it releases instead of the decoded
+//! deltas ([`ContentBudget::forwarded_bytes`]), so a frame the codec has no
+//! event for still counts.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -26,12 +30,25 @@ pub const ACCUMULATION_CAP_MESSAGE: &str =
 pub struct ContentBudget {
     accumulated: usize,
     exceeded: bool,
+    forwarded_bytes: bool,
 }
 
 impl ContentBudget {
+    #[must_use]
+    pub const fn forwarded_bytes() -> Self {
+        Self {
+            accumulated: 0,
+            exceeded: false,
+            forwarded_bytes: true,
+        }
+    }
+
     pub const fn admit(&mut self, event: &CanonicalEvent) -> bool {
         if self.exceeded {
             return false;
+        }
+        if self.forwarded_bytes {
+            return true;
         }
         let len = match event {
             CanonicalEvent::TextDelta { text, .. } | CanonicalEvent::ThinkingDelta { text, .. } => {
@@ -40,6 +57,17 @@ impl ContentBudget {
             CanonicalEvent::ToolUseDelta { partial_json, .. } => partial_json.len(),
             _ => 0,
         };
+        self.charge(len)
+    }
+
+    pub const fn admit_bytes(&mut self, len: usize) -> bool {
+        if self.exceeded {
+            return false;
+        }
+        self.charge(len)
+    }
+
+    const fn charge(&mut self, len: usize) -> bool {
         let next = self.accumulated.saturating_add(len);
         if next > MAX_ACCUMULATED_RESPONSE_BYTES {
             self.exceeded = true;

@@ -58,7 +58,9 @@ pub fn render_event_frame(event: &CanonicalEvent, model: &str) -> Option<Bytes> 
             "index": index,
             "delta": { "type": "thinking_delta", "thinking": text },
         }),
-        CanonicalEvent::EncryptedContentDelta { .. } => return None,
+        CanonicalEvent::EncryptedContentDelta { .. } | CanonicalEvent::FrameDropped { .. } => {
+            return None;
+        },
         CanonicalEvent::SignatureDelta { index, signature } => json!({
             "type": "content_block_delta",
             "index": index,

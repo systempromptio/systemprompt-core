@@ -15,7 +15,7 @@ use delta::{DeltaShape, emit_delta, handle_completed, handle_error, handle_item_
 use super::slot::{ItemSlot, ResponsesStreamState, SlotKind, SlotKindMatch};
 use crate::canonical::{CanonicalEvent, CanonicalUsage, ContentBlockKind};
 use crate::error::WireStreamError;
-use crate::sse::{SseFramer, skip_frame, skip_undecodable_json};
+use crate::sse::{FrameLedger, SseFramer};
 
 const WIRE: &str = "openai_responses";
 
@@ -30,19 +30,22 @@ where
     use futures_util::stream;
     let initial = ResponsesStreamState {
         framer: SseFramer::default(),
+        ledger: FrameLedger::default(),
         model: fallback_model,
         response_id: String::new(),
         started: false,
         items: Vec::new(),
     };
     let s = stream
-        .map(|chunk| chunk.map_err(WireStreamError::transport))
+        .map(|chunk| Some(chunk.map_err(WireStreamError::transport)))
+        .chain(stream::once(futures_util::future::ready(None)))
         .scan(initial, |state, item| {
             let res = match item {
-                Ok(bytes) => Some(drain_buffer(state, &bytes)),
-                Err(e) => Some(vec![Err(e)]),
+                Some(Ok(bytes)) => drain_buffer(state, &bytes),
+                Some(Err(e)) => vec![Err(e)],
+                None => state.ledger.finish().map(Err).into_iter().collect(),
             };
-            futures_util::future::ready(res)
+            futures_util::future::ready(Some(res))
         })
         .flat_map(stream::iter);
     s.boxed()
@@ -67,10 +70,15 @@ fn drain_buffer(
         }
         match serde_json::from_str::<Value>(data) {
             Ok(value) if value.get("type").is_some_and(Value::is_string) => {
+                state.ledger.decoded();
                 handle_responses_event(state, &value, &mut events);
             },
-            Ok(_) => skip_frame(WIRE, "frame has no string `type`", data.len()),
-            Err(e) => skip_undecodable_json(WIRE, &e, data.len()),
+            Ok(_) => events.push(Ok(state.ledger.dropped(
+                WIRE,
+                "frame has no string `type`",
+                data.len(),
+            ))),
+            Err(e) => events.push(Ok(state.ledger.dropped_json(WIRE, &e, data.len()))),
         }
     }
     events

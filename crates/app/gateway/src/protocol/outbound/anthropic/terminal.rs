@@ -16,7 +16,7 @@ use futures_util::stream::BoxStream;
 // JSON: protocol boundary — the shapes inspected here are the Anthropic wire's.
 use serde_json::Value;
 use systemprompt_wire::error::WireStreamError;
-use systemprompt_wire::sse::{SseFrameTooLarge, SseFramer};
+use systemprompt_wire::sse::{RawSseFrame, SseFrameTooLarge, SseFramer};
 
 const TOOL_USE: &str = "tool_use";
 
@@ -97,7 +97,7 @@ impl StreamState {
         let mut out = Vec::with_capacity(frames.len());
         for frame in frames {
             match frame {
-                Ok(raw) => out.push(Ok(self.correct_frame(raw))),
+                Ok(frame) => out.push(Ok(self.correct_frame(frame))),
                 Err(e) => {
                     self.failed = true;
                     out.push(Err(e));
@@ -112,8 +112,9 @@ impl StreamState {
         (!rest.is_empty()).then(|| Bytes::copy_from_slice(rest))
     }
 
-    fn correct_frame(&mut self, frame: Vec<u8>) -> Bytes {
-        let Some(value) = frame_json(&frame) else {
+    fn correct_frame(&mut self, raw: RawSseFrame) -> Bytes {
+        let RawSseFrame { raw: frame, data } = raw;
+        let Some(value) = data.as_deref().and_then(frame_json) else {
             return Bytes::from(frame);
         };
         if value["type"] == "content_block_start" && value["content_block"]["type"] == TOOL_USE {
@@ -133,12 +134,8 @@ impl StreamState {
 }
 
 // JSON: Anthropic Messages upstream SSE frame — inspected for terminal events.
-fn frame_json(frame: &[u8]) -> Option<Value> {
-    let text = String::from_utf8_lossy(frame);
-    text.lines()
-        .filter_map(|line| line.strip_prefix("data: "))
-        .find(|data| data.trim() != "[DONE]")
-        .and_then(|data| serde_json::from_str::<Value>(data).ok())
+fn frame_json(data: &str) -> Option<Value> {
+    serde_json::from_str::<Value>(data.trim()).ok()
 }
 
 // Why: Anthropic announces tool-use blocks before the terminal message_delta.

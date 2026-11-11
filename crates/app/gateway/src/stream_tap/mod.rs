@@ -149,11 +149,7 @@ impl Stream for TappedStream {
                     self.ended = true;
                     return self.finalize_on_eof();
                 },
-                Poll::Ready(Some(Err(e))) => {
-                    lock_state(&self.state).error = Some(e.to_string());
-                    let err = std::io::Error::new(std::io::ErrorKind::BrokenPipe, e);
-                    return Poll::Ready(Some(Err(err)));
-                },
+                Poll::Ready(Some(Err(e))) => return self.end_on_error(e),
                 Poll::Ready(Some(Ok(event))) => {
                     let is_message_stop = matches!(event, CanonicalEvent::MessageStop { .. });
                     let terminal = matches!(event, CanonicalEvent::ContentBlockStop { .. })
@@ -172,7 +168,7 @@ impl Stream for TappedStream {
                         )
                     };
                     if over_cap {
-                        return self.end_over_cap();
+                        return self.end_failed(budget::ACCUMULATION_CAP_MESSAGE.to_owned());
                     }
                     let event = renumbered.unwrap_or(event);
                     let terminal_suppressed = is_message_stop && self.message_stop_rendered;
@@ -216,12 +212,27 @@ impl TappedStream {
         Some((summary, ctx))
     }
 
-    fn end_over_cap(&mut self) -> Poll<Option<Result<Bytes, std::io::Error>>> {
+    fn end_on_error(&mut self, e: WireStreamError) -> Poll<Option<Result<Bytes, std::io::Error>>> {
+        let message = e.to_string();
+        lock_state(&self.state).error = Some(message.clone());
+        if matches!(
+            e,
+            WireStreamError::NoDecodableFrame { .. } | WireStreamError::FrameTooLarge(_)
+        ) {
+            return self.end_failed(message);
+        }
+        Poll::Ready(Some(Err(std::io::Error::new(
+            std::io::ErrorKind::BrokenPipe,
+            e,
+        ))))
+    }
+
+    fn end_failed(&mut self, message: String) -> Poll<Option<Result<Bytes, std::io::Error>>> {
         self.ended = true;
         if let Some((summary, ctx)) = self.take_summary() {
             finalize(&self.audit, summary, ctx, ClientConnection::Connected);
         }
-        let event = CanonicalEvent::Error(budget::ACCUMULATION_CAP_MESSAGE.to_owned());
+        let event = CanonicalEvent::Error(message);
         Poll::Ready(
             self.inbound
                 .render_event(&event, &self.request_model)

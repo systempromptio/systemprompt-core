@@ -8,21 +8,71 @@
 
 mod framer;
 
-pub use framer::{MAX_SSE_FRAME_BYTES, SseFrame, SseFrameTooLarge, SseFramer};
+use crate::canonical::CanonicalEvent;
+use crate::error::WireStreamError;
+
+pub use framer::{MAX_SSE_FRAME_BYTES, RawSseFrame, SseFrame, SseFrameTooLarge, SseFramer};
+
+/// Tally of the data frames one stream decoded and dropped.
+///
+/// A codec skips a data frame it cannot read as its wire's envelope and emits
+/// [`CanonicalEvent::FrameDropped`] so the consumer can mark the outcome; a
+/// stream that ends with drops and not one decoded frame is a protocol failure.
+#[derive(Debug, Default, Clone, Copy)]
+pub struct FrameLedger {
+    decoded: u32,
+    dropped: u32,
+}
+
+impl FrameLedger {
+    pub const fn decoded(&mut self) {
+        self.decoded = self.decoded.saturating_add(1);
+    }
+
+    pub fn dropped(&mut self, wire: &'static str, reason: &str, bytes: usize) -> CanonicalEvent {
+        self.dropped = self.dropped.saturating_add(1);
+        skip_frame(wire, reason, bytes);
+        CanonicalEvent::FrameDropped { bytes }
+    }
+
+    pub fn dropped_json(
+        &mut self,
+        wire: &'static str,
+        error: &serde_json::Error,
+        bytes: usize,
+    ) -> CanonicalEvent {
+        self.dropped(wire, &json_reason(error), bytes)
+    }
+
+    #[must_use]
+    pub const fn dropped_count(&self) -> u32 {
+        self.dropped
+    }
+
+    #[must_use]
+    pub const fn finish(&self) -> Option<WireStreamError> {
+        if self.decoded == 0 && self.dropped > 0 {
+            Some(WireStreamError::NoDecodableFrame {
+                dropped: self.dropped,
+            })
+        } else {
+            None
+        }
+    }
+}
 
 // Why: a serde message can quote the offending value, and payload text must
 // never reach the logs.
-pub(crate) fn skip_undecodable_json(wire: &'static str, error: &serde_json::Error, bytes: usize) {
-    let reason = format!(
+fn json_reason(error: &serde_json::Error) -> String {
+    format!(
         "{:?} error at line {} column {}",
         error.classify(),
         error.line(),
         error.column()
-    );
-    skip_frame(wire, &reason, bytes);
+    )
 }
 
-pub(crate) fn skip_frame(wire: &'static str, reason: &str, bytes: usize) {
+fn skip_frame(wire: &'static str, reason: &str, bytes: usize) {
     tracing::warn!(
         wire,
         reason,

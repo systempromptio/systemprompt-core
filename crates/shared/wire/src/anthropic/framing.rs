@@ -17,40 +17,69 @@ use serde_json::Value;
 use super::sse::AnthropicStreamState;
 use crate::canonical::CanonicalEvent;
 use crate::error::WireStreamError;
-use crate::sse::{SseFramer, skip_frame, skip_undecodable_json};
+use crate::sse::{FrameLedger, SseFramer};
 
 const WIRE: &str = "anthropic";
+
+/// How one Anthropic `data:` payload read against the wire envelope (a JSON
+/// object whose `type` is a string; an unknown `type` still decodes).
+#[derive(Debug)]
+pub enum DecodedFrame {
+    Benign,
+    Events(Vec<CanonicalEvent>),
+    Dropped,
+}
 
 #[derive(Debug, Default)]
 pub struct SseFrameDecoder {
     framer: SseFramer,
     codec: AnthropicStreamState,
+    ledger: FrameLedger,
 }
 
 impl SseFrameDecoder {
     pub fn push(&mut self, chunk: &[u8]) -> Vec<Result<CanonicalEvent, WireStreamError>> {
         let mut events = Vec::new();
         for frame in self.framer.push(chunk) {
-            let frame = match frame {
-                Ok(frame) => frame,
-                Err(e) => {
-                    events.push(Err(e.into()));
-                    continue;
+            match frame {
+                Ok(frame) => match self.decode_data(&frame.data) {
+                    DecodedFrame::Benign => {},
+                    DecodedFrame::Events(decoded) => events.extend(decoded.into_iter().map(Ok)),
+                    DecodedFrame::Dropped => events.push(Ok(CanonicalEvent::FrameDropped {
+                        bytes: frame.data.len(),
+                    })),
                 },
-            };
-            let data = frame.data.trim();
-            if data.is_empty() || data == "[DONE]" {
-                continue;
-            }
-            match serde_json::from_str::<Value>(data) {
-                Ok(value) if value.get("type").is_some_and(Value::is_string) => {
-                    events.extend(self.codec.events_from_sse(&value).into_iter().map(Ok));
-                },
-                Ok(_) => skip_frame(WIRE, "frame has no string `type`", data.len()),
-                Err(e) => skip_undecodable_json(WIRE, &e, data.len()),
+                Err(e) => events.push(Err(e.into())),
             }
         }
         events
+    }
+
+    pub fn decode_data(&mut self, data: &str) -> DecodedFrame {
+        let data = data.trim();
+        if data.is_empty() || data == "[DONE]" {
+            return DecodedFrame::Benign;
+        }
+        match serde_json::from_str::<Value>(data) {
+            Ok(value) if value.get("type").is_some_and(Value::is_string) => {
+                self.ledger.decoded();
+                DecodedFrame::Events(self.codec.events_from_sse(&value))
+            },
+            Ok(_) => {
+                self.ledger
+                    .dropped(WIRE, "frame has no string `type`", data.len());
+                DecodedFrame::Dropped
+            },
+            Err(e) => {
+                self.ledger.dropped_json(WIRE, &e, data.len());
+                DecodedFrame::Dropped
+            },
+        }
+    }
+
+    #[must_use]
+    pub const fn finish(&self) -> Option<WireStreamError> {
+        self.ledger.finish()
     }
 }
 
@@ -62,10 +91,13 @@ where
     E: Into<Box<dyn std::error::Error + Send + Sync>> + 'static,
 {
     stream
+        .map(|chunk| Some(chunk.map_err(WireStreamError::transport)))
+        .chain(stream::once(futures_util::future::ready(None)))
         .scan(SseFrameDecoder::default(), |decoder, item| {
             let out: Vec<Result<CanonicalEvent, WireStreamError>> = match item {
-                Ok(bytes) => decoder.push(&bytes),
-                Err(e) => vec![Err(WireStreamError::transport(e))],
+                Some(Ok(bytes)) => decoder.push(&bytes),
+                Some(Err(e)) => vec![Err(e)],
+                None => decoder.finish().map(Err).into_iter().collect(),
             };
             futures_util::future::ready(Some(out))
         })

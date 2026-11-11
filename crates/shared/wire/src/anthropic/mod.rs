@@ -24,7 +24,7 @@ pub use beta::{
 pub use blocks::{
     cache_control_from_anthropic, cache_control_to_anthropic, content_to_anthropic_block,
 };
-pub use framing::{SseFrameDecoder, sse_to_canonical_events};
+pub use framing::{DecodedFrame, SseFrameDecoder, sse_to_canonical_events};
 pub use headers::{
     ANTHROPIC_VERSION, REDACTED, is_credential_request_header, is_forwardable_request_header,
     is_identity_request_header, recordable_header_value, strip_user_id,

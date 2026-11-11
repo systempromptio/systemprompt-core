@@ -150,6 +150,7 @@ pub fn render_event_frame(event: &CanonicalEvent, model: &str) -> Option<Bytes> 
         | CanonicalEvent::MessageStop { .. }
         | CanonicalEvent::UsageDelta(_)
         | CanonicalEvent::SignatureDelta { .. }
+        | CanonicalEvent::FrameDropped { .. }
         | CanonicalEvent::EncryptedContentDelta { .. } => return None,
         CanonicalEvent::Error(msg) => return Some(render_error_frame(msg)),
     };

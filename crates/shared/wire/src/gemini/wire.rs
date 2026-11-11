@@ -12,6 +12,8 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+pub use super::usage::GeminiUsageMetadata;
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GeminiRequest {
@@ -279,21 +281,4 @@ pub struct GeminiWebSource {
     pub uri: String,
     #[serde(default)]
     pub title: Option<String>,
-}
-
-#[derive(Debug, Clone, Copy, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct GeminiUsageMetadata {
-    #[serde(default, rename = "promptTokenCount")]
-    pub prompt: u32,
-    #[serde(default, rename = "candidatesTokenCount")]
-    pub candidates: u32,
-    #[serde(default, rename = "totalTokenCount")]
-    pub total: u32,
-    #[serde(default, rename = "cachedContentTokenCount")]
-    pub cached: u32,
-    // Why: Gemini counts `thoughtsTokenCount` in `totalTokenCount`, outside
-    // `candidatesTokenCount`.
-    #[serde(default, rename = "thoughtsTokenCount")]
-    pub thoughts: u32,
 }

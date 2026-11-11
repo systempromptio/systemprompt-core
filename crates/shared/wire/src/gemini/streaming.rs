@@ -25,12 +25,13 @@ use super::streaming_parts::{close_text, close_thinking, emit_part};
 use super::wire::GeminiResponse;
 use crate::canonical::{CanonicalEvent, CanonicalStopReason, CanonicalUsage, CanonicalUsageUpdate};
 use crate::error::WireStreamError;
-use crate::sse::{SseFramer, skip_undecodable_json};
+use crate::sse::{FrameLedger, SseFramer};
 
 const WIRE: &str = "gemini";
 
 pub(super) struct StreamState {
     pub(super) framer: SseFramer,
+    pub(super) ledger: FrameLedger,
     pub(super) model: String,
     pub(super) message_id: String,
     pub(super) started: bool,
@@ -54,6 +55,7 @@ where
 {
     let initial = StreamState {
         framer: SseFramer::default(),
+        ledger: FrameLedger::default(),
         emitted_tool_use: false,
         emitted_part: false,
         stopped: false,
@@ -72,7 +74,11 @@ where
             let res = match item {
                 Some(Ok(bytes)) => drain_buffer(state, &bytes),
                 Some(Err(e)) => vec![Err(e)],
-                None => drain_tail(state),
+                None => {
+                    let mut events = drain_tail(state);
+                    events.extend(state.ledger.finish().map(Err));
+                    events
+                },
             };
             futures_util::future::ready(Some(res))
         })
@@ -119,12 +125,12 @@ fn drain_buffer(
             },
         };
         let data = frame.data.trim();
-        if data.is_empty() {
+        if data.is_empty() || data == "[DONE]" {
             continue;
         }
         match serde_json::from_str::<Value>(data) {
             Ok(value) => handle_chunk(state, &value, data.len(), &mut events),
-            Err(e) => skip_undecodable_json(WIRE, &e, data.len()),
+            Err(e) => events.push(Ok(state.ledger.dropped_json(WIRE, &e, data.len()))),
         }
     }
     events
@@ -138,16 +144,18 @@ fn handle_chunk(
     events: &mut Vec<Result<CanonicalEvent, WireStreamError>>,
 ) {
     if let Some(message) = crate::sse::upstream_error_message(value) {
+        state.ledger.decoded();
         events.push(Ok(CanonicalEvent::Error(message)));
         return;
     }
     let chunk = match serde_json::from_value::<GeminiResponse>(value.clone()) {
         Ok(chunk) => chunk,
         Err(e) => {
-            skip_undecodable_json(WIRE, &e, bytes);
+            events.push(Ok(state.ledger.dropped_json(WIRE, &e, bytes)));
             return;
         },
     };
+    state.ledger.decoded();
     // Why: Gemini can report a blocked prompt with only `promptFeedback`,
     // without candidates or a finish reason.
     if let Some(reason) = chunk

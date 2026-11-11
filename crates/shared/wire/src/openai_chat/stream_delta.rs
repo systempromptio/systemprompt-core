@@ -20,10 +20,11 @@ use systemprompt_identifiers::MessageId;
 
 use crate::canonical::{CanonicalEvent, ContentBlockKind};
 use crate::error::WireStreamError;
-use crate::sse::SseFramer;
+use crate::sse::{FrameLedger, SseFramer};
 
 pub(super) struct OpenAiChatStreamState {
     pub(super) framer: SseFramer,
+    pub(super) ledger: FrameLedger,
     pub(super) model: String,
     pub(super) message_id: Option<MessageId>,
     pub(super) started: bool,
