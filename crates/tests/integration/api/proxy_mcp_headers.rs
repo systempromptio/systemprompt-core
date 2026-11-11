@@ -4,6 +4,7 @@
 use axum::http::{HeaderMap, HeaderName, HeaderValue};
 use systemprompt_api::services::proxy::ProxyError;
 use systemprompt_api::services::proxy::service::external::{map_resolve_error, outbound_headers};
+use systemprompt_api::services::proxy::service::hop::{HopGrant, hop_identity};
 use systemprompt_api::services::proxy::service::outbound::{agent_headers, managed_mcp_headers};
 use systemprompt_identifiers::ServiceName;
 use systemprompt_mcp::McpDomainError;
@@ -151,4 +152,37 @@ fn resolve_error_mapping_covers_auth_and_availability() {
         "{other:?}"
     );
     assert!(!other.to_string().contains("boom"), "{other}");
+}
+
+#[test]
+fn a_public_server_hop_carries_the_principal_the_session_is_bound_to() {
+    let signed_in = systemprompt_models::auth::AuthenticatedUser::new(
+        systemprompt_identifiers::UserId::new("signed-in"),
+        "s".to_owned(),
+        "s@test.invalid".to_owned(),
+        vec![systemprompt_models::auth::Permission::User],
+    );
+    let rc = request_context("signed-in").with_user(signed_in.clone());
+    let headers = HeaderMap::new();
+    let service = ServiceName::new("public-srv");
+
+    let public = hop_identity(&HopGrant {
+        service_name: &service,
+        context: &rc,
+        user: None,
+        request_headers: &headers,
+    });
+    assert!(
+        public.user.is_none(),
+        "the edge binds a public session to no user"
+    );
+    assert_eq!(public.user_id.as_str(), "signed-in");
+
+    let oauth = hop_identity(&HopGrant {
+        service_name: &service,
+        context: &rc,
+        user: Some(&signed_in),
+        request_headers: &headers,
+    });
+    assert_eq!(oauth.user.map(|user| user.id), Some(signed_in.id));
 }

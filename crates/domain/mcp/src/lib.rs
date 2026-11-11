@@ -176,6 +176,14 @@ impl Default for McpHttpConfig {
 
 pub use state::McpState;
 
+pub async fn bind_loopback(port: u16) -> std::io::Result<tokio::net::TcpListener> {
+    tokio::net::TcpListener::bind(std::net::SocketAddr::from((
+        std::net::Ipv4Addr::LOCALHOST,
+        port,
+    )))
+    .await
+}
+
 async fn mcp_request_logger(req: Request, next: Next) -> Response {
     let method = req.method().clone();
     let uri = req.uri().clone();

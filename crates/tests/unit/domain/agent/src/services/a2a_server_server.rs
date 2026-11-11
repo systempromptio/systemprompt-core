@@ -194,3 +194,54 @@ async fn the_debug_impl_redacts_every_handle_it_holds() {
         "no connection detail may reach a debug dump: {rendered}"
     );
 }
+
+fn non_loopback_interface() -> std::net::IpAddr {
+    let probe = std::net::UdpSocket::bind("0.0.0.0:0").expect("udp bind");
+    probe
+        .connect("192.0.2.1:9")
+        .expect("route to a non-loopback address");
+    let ip = probe.local_addr().expect("local addr").ip();
+    assert!(
+        !ip.is_loopback(),
+        "the host has a non-loopback interface: {ip}"
+    );
+    ip
+}
+
+#[tokio::test]
+async fn the_a2a_server_listens_on_loopback_only() {
+    let port = std::net::TcpListener::bind("127.0.0.1:0")
+        .expect("free port")
+        .local_addr()
+        .expect("addr")
+        .port();
+    let server = Server::new(
+        state().await,
+        ai(),
+        &AgentName::new("a2a_fixture_agent"),
+        port,
+    )
+    .expect("a registered agent should produce a server");
+    let task = tokio::spawn(server.run(std::future::pending::<()>()));
+
+    let mut reachable = false;
+    for _ in 0..100 {
+        if tokio::net::TcpStream::connect(("127.0.0.1", port))
+            .await
+            .is_ok()
+        {
+            reachable = true;
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    }
+    assert!(reachable, "loopback reaches the A2A server");
+
+    let external = non_loopback_interface();
+    let refused = tokio::net::TcpStream::connect((external, port)).await;
+    task.abort();
+    assert!(
+        refused.is_err(),
+        "{external}:{port} must not reach the A2A server"
+    );
+}

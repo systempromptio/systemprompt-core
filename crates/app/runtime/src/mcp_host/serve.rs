@@ -12,7 +12,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::net::{Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 
 use systemprompt_identifiers::McpServerId;
@@ -121,18 +120,13 @@ pub fn build_server(
 
 pub async fn serve(ctx: Arc<AppContext>, server_id: McpServerId) -> Result<(), McpHostError> {
     let port = resolve_port(&ctx, &server_id)?;
-    let listener = bind_loopback(port).await?;
-    serve_on(ctx, server_id, listener).await
-}
-
-pub async fn bind_loopback(port: u16) -> Result<TcpListener, McpHostError> {
-    let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, port));
-    TcpListener::bind(addr)
+    let listener = systemprompt_mcp::bind_loopback(port)
         .await
         .map_err(|source| McpHostError::Bind {
-            addr: addr.to_string(),
+            addr: format!("127.0.0.1:{port}"),
             source,
-        })
+        })?;
+    serve_on(ctx, server_id, listener).await
 }
 
 pub async fn serve_on(
@@ -141,11 +135,18 @@ pub async fn serve_on(
     listener: TcpListener,
 ) -> Result<(), McpHostError> {
     let server = build_server(&ctx, &server_id)?;
+    let requires_oauth = ctx
+        .services_state()
+        .view()
+        .config()
+        .mcp_servers
+        .get(server_id.as_str())
+        .is_some_and(|deployment| deployment.oauth.required);
     let router = create_router(
         server,
         Arc::clone(ctx.mcp_session_repository()),
         McpHttpConfig::default(),
-        HopVerifier::new(ctx.token_authority(), server_id.clone()),
+        HopVerifier::new(ctx.token_authority(), server_id.clone()).requiring_hop(requires_oauth),
     );
     tracing::info!(server = %server_id, addr = ?listener.local_addr().ok(), "MCP toolset host listening");
     serve_router(listener, router)

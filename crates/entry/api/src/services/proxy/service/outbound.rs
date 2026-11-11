@@ -24,12 +24,16 @@ pub const MCP_PASSTHROUGH_HEADERS: [&str; 5] = [
     "last-event-id",
 ];
 
-pub const AGENT_PASSTHROUGH_HEADERS: [&str; 5] = [
+pub const TRACE_PASSTHROUGH_HEADERS: [&str; 2] = ["traceparent", "tracestate"];
+
+pub const AGENT_PASSTHROUGH_HEADERS: [&str; 7] = [
     "content-type",
     "accept",
     "last-event-id",
     "a2a-version",
     "a2a-extensions",
+    "user-agent",
+    "accept-language",
 ];
 
 pub fn managed_mcp_headers(
@@ -38,6 +42,7 @@ pub fn managed_mcp_headers(
     hop_token: &HeaderValue,
 ) -> HeaderMap {
     let mut outbound = allowed(incoming, &MCP_PASSTHROUGH_HEADERS);
+    outbound.extend(allowed(incoming, &TRACE_PASSTHROUGH_HEADERS));
     context.inject_headers(&mut outbound);
     outbound.insert(HeaderName::from_static(headers::MCP_HOP), hop_token.clone());
     outbound
@@ -45,6 +50,7 @@ pub fn managed_mcp_headers(
 
 pub fn agent_headers(incoming: &HeaderMap, context: &RequestContext) -> HeaderMap {
     let mut outbound = allowed(incoming, &AGENT_PASSTHROUGH_HEADERS);
+    outbound.extend(allowed(incoming, &TRACE_PASSTHROUGH_HEADERS));
     context.inject_headers(&mut outbound);
     outbound
 }

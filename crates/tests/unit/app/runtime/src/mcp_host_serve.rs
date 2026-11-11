@@ -3,8 +3,8 @@ use std::sync::{Arc, OnceLock};
 use systemprompt_identifiers::McpServerId;
 use systemprompt_runtime::AppContext;
 use systemprompt_runtime::mcp_host::{
-    DOCUMENTS_TOOLSET, ISSUES_TOOLSET, McpHostError, bind_loopback, build_server,
-    registered_toolset_ids, serve, serve_on,
+    DOCUMENTS_TOOLSET, ISSUES_TOOLSET, McpHostError, build_server, registered_toolset_ids, serve,
+    serve_on,
 };
 use systemprompt_test_fixtures::{TestBootstrap, init_services_bootstrap, test_app_context_on};
 
@@ -190,7 +190,7 @@ fn non_loopback_interface() -> std::net::IpAddr {
 
 #[tokio::test]
 async fn the_host_listener_is_not_reachable_on_a_non_loopback_address() {
-    let listener = bind_loopback(0).await.expect("bind");
+    let listener = systemprompt_mcp::bind_loopback(0).await.expect("bind");
     let addr = listener.local_addr().expect("addr");
     assert!(addr.ip().is_loopback(), "{addr}");
 

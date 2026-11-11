@@ -167,3 +167,55 @@ fn a_hop_token_is_not_an_owner_hop_marker() {
         "{err:?}"
     );
 }
+
+#[test]
+fn a_hop_token_with_a_non_rs256_algorithm_is_refused() {
+    let claims = mcp_hop_claims(ISSUER, &server(), &identity());
+    let mut header = jsonwebtoken::Header::new(jsonwebtoken::Algorithm::HS256);
+    header.kid = Some(test_signing_keys().active_kid().to_owned());
+    header.typ = Some("mcp-hop+jwt".to_owned());
+    let token = jsonwebtoken::encode(
+        &header,
+        &claims,
+        &jsonwebtoken::EncodingKey::from_secret(b"shared"),
+    )
+    .expect("encode");
+    let err = authority()
+        .verify_mcp_hop(&token, &server())
+        .expect_err("alg");
+    assert!(
+        matches!(err, TokenError::UnsupportedAlgorithm { .. }),
+        "{err:?}"
+    );
+}
+
+#[test]
+fn a_hop_token_without_a_kid_is_refused() {
+    let keys = test_signing_keys();
+    let claims = mcp_hop_claims(ISSUER, &server(), &identity());
+    let mut header = jsonwebtoken::Header::new(jsonwebtoken::Algorithm::RS256);
+    header.typ = Some("mcp-hop+jwt".to_owned());
+    let token = jsonwebtoken::encode(&header, &claims, keys.encoding_key()).expect("encode");
+    let err = authority()
+        .verify_mcp_hop(&token, &server())
+        .expect_err("kid");
+    assert!(matches!(err, TokenError::KidMismatch), "{err:?}");
+}
+
+#[test]
+fn a_hop_token_signed_by_the_staged_key_verifies() {
+    let staged = RsaSigningKey::generate().expect("staged");
+    let signer = SigningKeys::new(staged.clone(), &[5; 32]).expect("signer");
+    let verifier = SigningKeys::with_verification_keys(
+        RsaSigningKey::generate().expect("active"),
+        Some(staged.jwk()),
+        Vec::new(),
+        &[5; 32],
+    )
+    .expect("verifier");
+    let token =
+        encode_mcp_hop(&signer, &mcp_hop_claims(ISSUER, &server(), &identity())).expect("encode");
+    DeploymentTokenAuthority::new(verifier, ISSUER)
+        .verify_mcp_hop(&token, &server())
+        .expect("a staged key verifies before it is promoted");
+}

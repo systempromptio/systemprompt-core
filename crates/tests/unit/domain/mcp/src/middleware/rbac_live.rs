@@ -51,6 +51,7 @@ struct RbacProbe {
     server: String,
     headers: Vec<(String, String)>,
     hook: SharedAuthzHook,
+    admit: bool,
 }
 
 impl ServerHandler for RbacProbe {
@@ -72,7 +73,9 @@ impl ServerHandler for RbacProbe {
             let (mut parts, ()) = builder.body(()).expect("request").into_parts();
             let server_id = McpServerId::new(probe.server.as_str());
             let verifier = HopVerifier::new(test_token_authority(ISSUER), server_id.clone());
-            admit_request(&verifier, &parts.headers, &mut parts.extensions).expect("admitted");
+            if probe.admit {
+                admit_request(&verifier, &parts.headers, &mut parts.extensions).expect("admitted");
+            }
             context.extensions.insert(parts);
 
             let services = crate::harness::services_state().config();
@@ -181,6 +184,7 @@ async fn unknown_server_is_rejected() {
     let outcome = probe_outcome(RbacProbe {
         server: "rbl_absent".to_owned(),
         headers: vec![],
+        admit: true,
         hook: Arc::new(AllowAllHook::null()),
     })
     .await;
@@ -195,6 +199,7 @@ async fn oauth_not_required_yields_anonymous_context() {
     let outcome = probe_outcome(RbacProbe {
         server: name,
         headers: vec![],
+        admit: true,
         hook: Arc::new(AllowAllHook::null()),
     })
     .await;
@@ -209,6 +214,7 @@ async fn oauth_required_without_a_hop_token_is_rejected() {
     let outcome = probe_outcome(RbacProbe {
         server: name,
         headers: vec![],
+        admit: true,
         hook: Arc::new(AllowAllHook::null()),
     })
     .await;
@@ -226,6 +232,7 @@ async fn forged_proxy_identity_headers_are_not_an_identity() {
     let outcome = probe_outcome(RbacProbe {
         server: name,
         headers: forged_headers(),
+        admit: true,
         hook: Arc::new(AllowAllHook::null()),
     })
     .await;
@@ -248,6 +255,7 @@ async fn a_valid_hop_token_is_authenticated_with_the_relayed_bearer() {
             &[],
         ),
         server: name,
+        admit: true,
         hook: Arc::new(AllowAllHook::null()),
     })
     .await;
@@ -271,6 +279,7 @@ async fn insufficient_scope_is_rejected() {
             &[],
         ),
         server: name,
+        admit: true,
         hook: Arc::new(AllowAllHook::null()),
     })
     .await;
@@ -293,6 +302,7 @@ async fn oauth_required_with_no_declared_scopes_is_rejected() {
             &[],
         ),
         server: name,
+        admit: true,
         hook: Arc::new(AllowAllHook::null()),
     })
     .await;
@@ -312,6 +322,7 @@ async fn deny_hook_blocks_an_authenticated_request() {
             &[],
         ),
         server: name,
+        admit: true,
         hook: Arc::new(DenyAllHook::null()),
     })
     .await;
@@ -356,6 +367,7 @@ async fn hop_identity_roles_reach_the_authz_hook() {
             &["viewer", "analyst"],
         ),
         server: name.clone(),
+        admit: true,
         hook: Arc::new(RequireRoleHook("analyst")),
     })
     .await;
@@ -364,6 +376,7 @@ async fn hop_identity_roles_reach_the_authz_hook() {
     let other_role = probe_outcome(RbacProbe {
         headers: hop_headers(&name, "r@test.invalid", vec![Permission::User], &["viewer"]),
         server: name.clone(),
+        admit: true,
         hook: Arc::new(RequireRoleHook("analyst")),
     })
     .await;
@@ -372,6 +385,7 @@ async fn hop_identity_roles_reach_the_authz_hook() {
     let forged_role = probe_outcome(RbacProbe {
         headers: forged_headers(),
         server: name,
+        admit: true,
         hook: Arc::new(RequireRoleHook("analyst")),
     })
     .await;
@@ -379,4 +393,51 @@ async fn hop_identity_roles_reach_the_authz_hook() {
         forged_role.contains("Authentication required"),
         "got: {forged_role}"
     );
+}
+
+#[tokio::test]
+async fn a_verified_hop_without_a_relay_bearer_is_authenticated() {
+    let name = unique("rbl_norelay");
+    let _bootstrap = bootstrap_with_services(&server_yaml(&name, true, "admin"));
+
+    let headers = hop_headers(
+        &name,
+        "rbac-norelay@test.invalid",
+        vec![Permission::Admin],
+        &[],
+    )
+    .into_iter()
+    .filter(|(header, _)| header != "authorization")
+    .collect();
+    let outcome = probe_outcome(RbacProbe {
+        headers,
+        server: name,
+        admit: true,
+        hook: Arc::new(AllowAllHook::null()),
+    })
+    .await;
+    assert_eq!(
+        outcome, "authenticated:user=rbac-norelay@test.invalid:token-len=0",
+        "got: {outcome}"
+    );
+}
+
+#[tokio::test]
+async fn a_hop_token_on_a_router_without_the_verifier_fails_loud() {
+    let name = unique("rbl_unverified");
+    let _bootstrap = bootstrap_with_services(&server_yaml(&name, true, "admin"));
+
+    let outcome = probe_outcome(RbacProbe {
+        headers: hop_headers(
+            &name,
+            "rbac-unverified@test.invalid",
+            vec![Permission::Admin],
+            &[],
+        ),
+        server: name,
+        admit: false,
+        hook: Arc::new(AllowAllHook::null()),
+    })
+    .await;
+    assert!(outcome.contains("create_router"), "got: {outcome}");
 }

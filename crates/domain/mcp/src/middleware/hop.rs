@@ -53,8 +53,10 @@ pub async fn run_as<F: Future>(principal: RestorePrincipal, future: F) -> F::Out
 pub enum HopRejection {
     #[error("the hop token header is not valid UTF-8")]
     MalformedHeader(#[source] http::header::ToStrError),
-    #[error("the hop token was refused")]
+    #[error("the hop token was refused: {0}")]
     Token(#[source] TokenError),
+    #[error("this server requires authentication and the request carries no hop token")]
+    Missing,
     #[error("the hop token was minted for a different MCP session")]
     SessionMismatch,
 }
@@ -64,6 +66,7 @@ pub enum HopRejection {
 pub struct HopVerifier {
     tokens: Arc<dyn TokenAuthority>,
     server_id: McpServerId,
+    required: bool,
 }
 
 impl std::fmt::Debug for HopVerifier {
@@ -76,7 +79,17 @@ impl std::fmt::Debug for HopVerifier {
 
 impl HopVerifier {
     pub fn new(tokens: Arc<dyn TokenAuthority>, server_id: McpServerId) -> Self {
-        Self { tokens, server_id }
+        Self {
+            tokens,
+            server_id,
+            required: false,
+        }
+    }
+
+    #[must_use]
+    pub const fn requiring_hop(mut self, required: bool) -> Self {
+        self.required = required;
+        self
     }
 
     pub const fn server_id(&self) -> &McpServerId {
@@ -85,6 +98,9 @@ impl HopVerifier {
 
     pub fn verify(&self, headers: &HeaderMap) -> Result<Option<VerifiedHop>, HopRejection> {
         let Some(raw) = headers.get(headers::MCP_HOP) else {
+            if self.required {
+                return Err(HopRejection::Missing);
+            }
             return Ok(None);
         };
         let token = raw.to_str().map_err(HopRejection::MalformedHeader)?;
@@ -189,7 +205,11 @@ pub async fn verify_hop(
     match admitted {
         Ok(principal) => run_as(principal, next.run(request)).await,
         Err(HopAdmissionError::Rejected(error)) => {
-            tracing::warn!(server = %verifier.server_id, %error, "Refused an MCP request whose hop token did not verify");
+            if matches!(error, HopRejection::Token(TokenError::UnknownKid(_))) {
+                tracing::error!(server = %verifier.server_id, %error, "Refused an MCP request signed by a key this server does not know; restart it to load the deployment's current signing keys");
+            } else {
+                tracing::warn!(server = %verifier.server_id, %error, "Refused an MCP request whose hop token did not verify");
+            }
             (StatusCode::UNAUTHORIZED, error.to_string()).into_response()
         },
         Err(error @ HopAdmissionError::Context(_)) => {

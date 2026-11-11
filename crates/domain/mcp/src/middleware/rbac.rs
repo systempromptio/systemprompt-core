@@ -20,7 +20,7 @@ use systemprompt_governance::authz::{
     AuthzContext, AuthzDecision, AuthzRequest, EntityKind, EntityRef, SharedAuthzHook,
     member_attribute_floor,
 };
-use systemprompt_identifiers::{Actor, JwtToken, McpServerId};
+use systemprompt_identifiers::{Actor, JwtToken, McpServerId, headers};
 use systemprompt_manifest::services::ServicesConfig;
 use systemprompt_models::RequestContext;
 
@@ -110,8 +110,23 @@ pub async fn enforce_rbac_from_registry(
         return Ok(AuthResult::Anonymous(request_context));
     }
 
-    let hop = parts
-        .and_then(|parts| parts.extensions.get::<VerifiedHop>())
+    let hop_presented = parts.is_some_and(|parts| parts.headers.contains_key(headers::MCP_HOP));
+    let verified = parts.and_then(|parts| parts.extensions.get::<VerifiedHop>());
+    if hop_presented && verified.is_none() {
+        tracing::error!(
+            server = %server_id,
+            "MCP request carries a hop token but this server's router does not verify it; \
+             build the router with systemprompt_mcp::create_router"
+        );
+        return Err(McpError::internal_error(
+            format!(
+                "MCP server '{server_id}' does not verify the platform hop token; it must be \
+                 served through systemprompt_mcp::create_router."
+            ),
+            None,
+        ));
+    }
+    let hop = verified
         .ok_or_else(|| {
             tracing::warn!(server = %server_id, headers = ?header_dump, "Authentication required: no verified hop token");
             McpError::invalid_request(
@@ -136,17 +151,10 @@ pub async fn enforce_rbac_from_registry(
     let authz_request = build_hop_authz_request(server_id, &request_context, floor.as_ref());
     enforce_authz_for_server(server_id, authz_request, hook).await?;
 
-    let relay = request_context.auth_token().cloned().ok_or_else(|| {
-        McpError::invalid_request(
-            format!("Server '{server_id}' received no caller credential to relay."),
-            None,
-        )
-    })?;
     tracing::debug!(server = %server_id, user_id = %user.id, "Authorized via the proxy hop token");
-    Ok(AuthResult::Authenticated(AuthenticatedRequestContext::new(
-        request_context,
-        relay,
-    )))
+    Ok(AuthResult::Authenticated(AuthenticatedRequestContext {
+        context: request_context,
+    }))
 }
 
 // Why: the dump exists to diagnose failed auth; the bearer credential must

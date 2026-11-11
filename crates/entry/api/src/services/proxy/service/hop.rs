@@ -1,9 +1,11 @@
 //! The signed hop token the proxy attaches to every request it forwards to a
 //! managed MCP server.
 //!
-//! The identity it carries is the one the edge verified: the authenticated
-//! user when the server requires OAuth, otherwise the identity the API's own
-//! request-context middleware resolved. A follow-up request also carries the
+//! The identity it carries is the one the edge verified for this server: the
+//! authenticated user when the server requires OAuth, and no user (an
+//! anonymous actor with the request's user id) when it does not. That user is
+//! exactly the principal the edge binds the MCP session to, so the server's
+//! session restore matches the binding. A follow-up request also carries the
 //! MCP session id the edge confirmed is bound to that principal, so the
 //! server refuses a token presented with any other session.
 //!
@@ -22,16 +24,16 @@ use super::super::backend::ProxyError;
 use super::mcp_session::session_id_header;
 
 #[derive(Debug)]
-pub(super) struct HopGrant<'a> {
-    pub(super) service_name: &'a ServiceName,
-    pub(super) context: &'a RequestContext,
-    pub(super) user: Option<&'a AuthenticatedUser>,
-    pub(super) request_headers: &'a HeaderMap,
+pub struct HopGrant<'a> {
+    pub service_name: &'a ServiceName,
+    pub context: &'a RequestContext,
+    pub user: Option<&'a AuthenticatedUser>,
+    pub request_headers: &'a HeaderMap,
 }
 
-pub(super) fn hop_identity(grant: &HopGrant<'_>) -> McpHopIdentity {
+pub fn hop_identity(grant: &HopGrant<'_>) -> McpHopIdentity {
     let context = grant.context;
-    let user = grant.user.or(context.user.as_ref()).cloned();
+    let user = grant.user.cloned();
     McpHopIdentity {
         user_id: user
             .as_ref()

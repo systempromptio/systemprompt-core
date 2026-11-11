@@ -20,7 +20,7 @@ mod external_governance;
 mod external_sessions;
 pub mod fixed_arguments;
 mod handlers;
-mod hop;
+pub mod hop;
 pub mod mcp_session;
 pub mod outbound;
 pub mod owner;

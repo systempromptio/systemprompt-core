@@ -38,7 +38,7 @@ fn user() -> AuthenticatedUser {
     )
 }
 
-async fn router() -> axum::Router {
+async fn router_requiring(required: bool) -> axum::Router {
     let _ = ensure_test_bootstrap();
     let db = test_db_pool().await;
     create_router(
@@ -48,8 +48,26 @@ async fn router() -> axum::Router {
         HopVerifier::new(
             test_token_authority(FIXTURE_EXTERNAL_URL),
             McpServerId::new(SERVER),
-        ),
+        )
+        .requiring_hop(required),
     )
+}
+
+async fn router() -> axum::Router {
+    router_requiring(false).await
+}
+
+fn bare(method: &str, headers: &[(&str, &str)]) -> http::Request<Body> {
+    let mut builder = http::Request::builder()
+        .method(method)
+        .uri("/mcp")
+        .header("host", "127.0.0.1")
+        .header("accept", "text/event-stream")
+        .header("mcp-session-id", "sess-stream");
+    for (name, value) in headers {
+        builder = builder.header(*name, *value);
+    }
+    builder.body(Body::empty()).expect("request builds")
 }
 
 fn initialize(headers: &[(&str, &str)]) -> http::Request<Body> {
@@ -181,5 +199,50 @@ async fn a_forged_hop_value_is_refused() {
         ("x-user-id", "forged"),
     ])
     .await;
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn a_server_requiring_authentication_refuses_a_request_without_a_hop_token() {
+    let status = router_requiring(true)
+        .await
+        .oneshot(initialize(&[
+            ("x-proxy-verified", "true"),
+            ("x-user-id", "forged"),
+        ]))
+        .await
+        .expect("router responds")
+        .status();
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn a_public_server_admits_a_request_without_a_hop_token_anonymously() {
+    let status = status(&[]).await;
+    assert_eq!(status, StatusCode::OK);
+}
+
+#[tokio::test]
+async fn the_stream_and_delete_routes_refuse_a_hop_token_for_another_server() {
+    let token = token_for("another-server", Some("sess-stream"));
+    for method in ["GET", "DELETE"] {
+        let status = router()
+            .await
+            .oneshot(bare(method, &[("x-systemprompt-mcp-hop", &token)]))
+            .await
+            .expect("router responds")
+            .status();
+        assert_eq!(status, StatusCode::UNAUTHORIZED, "{method}");
+    }
+}
+
+#[tokio::test]
+async fn the_stream_route_refuses_a_missing_hop_token_when_one_is_required() {
+    let status = router_requiring(true)
+        .await
+        .oneshot(bare("GET", &[]))
+        .await
+        .expect("router responds")
+        .status();
     assert_eq!(status, StatusCode::UNAUTHORIZED);
 }
