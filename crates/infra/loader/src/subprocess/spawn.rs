@@ -41,7 +41,7 @@ pub fn mark_child(cmd: &mut Command, kind: ChildKind, service: &ServiceName) {
         ChildKind::Agent | ChildKind::Mcp => {
             cmd.env(systemprompt_models::subprocess::SUBPROCESS_MARKER_ENV, "1");
         },
-        ChildKind::Api => {},
+        ChildKind::Api | ChildKind::Command => {},
     }
     cmd.env(kind.marker_env(), service.as_str());
 }

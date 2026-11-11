@@ -150,7 +150,7 @@ fn profile_name(profile: Option<String>) -> Result<Option<ProfileName>> {
 pub async fn execute(cmd: CloudCommands, ctx: &CommandContext) -> Result<()> {
     match cmd {
         CloudCommands::Auth(cmd) => auth::execute(cmd, ctx).await,
-        CloudCommands::Init { force } => init::execute(force, &ctx.cli),
+        CloudCommands::Init { force } => init::execute(force, &ctx.cli, ctx.foreground_children()),
         CloudCommands::Tenant { command } => tenant::execute(command, ctx).await,
         CloudCommands::Profile { command } => profile::execute(command, ctx).await,
         CloudCommands::Deploy {
@@ -168,6 +168,7 @@ pub async fn execute(cmd: CloudCommands, ctx: &CommandContext) -> Result<()> {
                 },
                 ctx.prompter(),
                 &ctx.cli,
+                ctx.foreground_children(),
             )
             .await
         },

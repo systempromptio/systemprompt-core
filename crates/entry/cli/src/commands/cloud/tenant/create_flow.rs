@@ -8,13 +8,18 @@
 
 use anyhow::Result;
 use systemprompt_cloud::{CloudPath, StoredTenant, TenantStore, get_cloud_paths};
+use systemprompt_loader::subprocess::ForegroundChildren;
 use systemprompt_logging::CliService;
 
 use super::{create_external_tenant, create_local_tenant};
 use crate::cli_settings::CliConfig;
 use crate::interactive::Prompter;
 
-pub(super) async fn tenant_create(prompter: &dyn Prompter, config: &CliConfig) -> Result<()> {
+pub(super) async fn tenant_create(
+    prompter: &dyn Prompter,
+    config: &CliConfig,
+    children: &ForegroundChildren,
+) -> Result<()> {
     if !config.is_interactive() {
         return Err(anyhow::anyhow!(
             "Tenant creation requires interactive mode.\nUse specific tenant type commands in \
@@ -24,7 +29,7 @@ pub(super) async fn tenant_create(prompter: &dyn Prompter, config: &CliConfig) -
 
     CliService::section("Create Tenant");
 
-    let tenant = create_local_or_external_tenant(prompter).await?;
+    let tenant = create_local_or_external_tenant(prompter, children).await?;
 
     persist_tenant(&tenant)?;
     render_created_tenant(&tenant);
@@ -32,7 +37,10 @@ pub(super) async fn tenant_create(prompter: &dyn Prompter, config: &CliConfig) -
     Ok(())
 }
 
-async fn create_local_or_external_tenant(prompter: &dyn Prompter) -> Result<StoredTenant> {
+async fn create_local_or_external_tenant(
+    prompter: &dyn Prompter,
+    children: &ForegroundChildren,
+) -> Result<StoredTenant> {
     let db_options = vec![
         "Docker (creates PostgreSQL container automatically)".to_owned(),
         "External PostgreSQL (use your own database)".to_owned(),
@@ -41,8 +49,8 @@ async fn create_local_or_external_tenant(prompter: &dyn Prompter) -> Result<Stor
     let db_selection = prompter.select("Database source", &db_options)?;
 
     match db_selection {
-        0 => create_local_tenant(prompter).await,
-        _ => create_external_tenant(prompter).await,
+        0 => create_local_tenant(prompter, children).await,
+        _ => create_external_tenant(prompter, children).await,
     }
 }
 

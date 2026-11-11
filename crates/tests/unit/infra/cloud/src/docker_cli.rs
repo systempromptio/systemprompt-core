@@ -7,6 +7,7 @@ use std::process::{ExitStatus, Output};
 use std::sync::{Arc, Mutex};
 
 use systemprompt_cloud::{CommandRunner, CommandSpec, DockerCli, SystemCommandRunner};
+use systemprompt_loader::subprocess::ForegroundChildren;
 
 #[derive(Debug, Clone)]
 enum Call {
@@ -288,7 +289,7 @@ fn true_spec() -> CommandSpec {
 
 #[test]
 fn test_system_runner_status_runs_real_process() {
-    let runner = SystemCommandRunner;
+    let runner = SystemCommandRunner::new(ForegroundChildren::default());
     let status = runner
         .status(&true_spec())
         .expect("`true` spawns and exits");
@@ -297,7 +298,7 @@ fn test_system_runner_status_runs_real_process() {
 
 #[test]
 fn test_system_runner_output_captures_stdout() {
-    let runner = SystemCommandRunner;
+    let runner = SystemCommandRunner::new(ForegroundChildren::default());
     let spec = CommandSpec {
         program: "printf".to_owned(),
         args: vec!["cov-marker".to_owned()],
@@ -311,7 +312,7 @@ fn test_system_runner_output_captures_stdout() {
 #[test]
 fn test_system_runner_status_honours_current_dir() {
     let temp = tempfile::TempDir::new().unwrap();
-    let runner = SystemCommandRunner;
+    let runner = SystemCommandRunner::new(ForegroundChildren::default());
     let spec = CommandSpec {
         program: "true".to_owned(),
         args: Vec::new(),
@@ -323,7 +324,7 @@ fn test_system_runner_status_honours_current_dir() {
 
 #[test]
 fn test_system_runner_status_with_stdin_pipes_bytes() {
-    let runner = SystemCommandRunner;
+    let runner = SystemCommandRunner::new(ForegroundChildren::default());
     let spec = CommandSpec {
         program: "cat".to_owned(),
         args: Vec::new(),

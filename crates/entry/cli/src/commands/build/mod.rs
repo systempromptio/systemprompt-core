@@ -28,12 +28,14 @@ pub enum BuildCommands {
 pub fn execute(cmd: BuildCommands, ctx: &CommandContext) -> Result<()> {
     match cmd {
         BuildCommands::Core(args) => {
-            let result = core::execute(args, &ctx.cli).context("Failed to build core")?;
+            let result = core::execute(args, &ctx.cli, ctx.foreground_children())
+                .context("Failed to build core")?;
             render_result(&result, &ctx.cli);
             Ok(())
         },
         BuildCommands::Mcp(args) => {
-            let result = mcp::execute(args, &ctx.cli).context("Failed to build MCP extensions")?;
+            let result = mcp::execute(args, &ctx.cli, ctx.foreground_children())
+                .context("Failed to build MCP extensions")?;
             render_result(&result, &ctx.cli);
             Ok(())
         },

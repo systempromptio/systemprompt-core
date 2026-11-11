@@ -36,6 +36,7 @@ use systemprompt_cloud::{
     get_cloud_paths,
 };
 use systemprompt_identifiers::{ProfileName, TenantId};
+use systemprompt_loader::subprocess::ForegroundChildren;
 use systemprompt_logging::CliService;
 use systemprompt_manifest::profile::CloudConfig;
 
@@ -93,6 +94,7 @@ pub(super) async fn execute(
     args: DeployArgs,
     prompter: &dyn Prompter,
     config: &CliConfig,
+    children: &ForegroundChildren,
 ) -> Result<()> {
     let Some(profile) = preflight(&args, prompter, config).await? else {
         return Ok(());
@@ -109,7 +111,7 @@ pub(super) async fn execute(
     let signing_key_path = profile.signing_key_path.clone();
     let licence_secret_required = profile.licence_secret_required;
     let progress = CliDeployProgress::new();
-    let orchestrator = DeployOrchestrator::new();
+    let orchestrator = DeployOrchestrator::new(DockerCli::new(children.clone()));
 
     match kind {
         DeployProviderKind::SystempromptCloud => {
@@ -133,7 +135,7 @@ pub(super) async fn execute(
         DeployProviderKind::GitOps => {
             let orchestrator = orchestrator.with_readiness(GITOPS_READINESS_WAIT);
             let (tenant_id, tenant_name, provider) =
-                gitops_provider(profile.cloud.as_ref(), project.as_path())?;
+                gitops_provider(profile.cloud.as_ref(), project.as_path(), children)?;
             let request = DeployRequest {
                 tenant_id,
                 tenant_name,
@@ -155,6 +157,7 @@ pub(super) async fn execute(
 fn gitops_provider(
     cloud: Option<&CloudConfig>,
     project_root: &Path,
+    children: &ForegroundChildren,
 ) -> Result<(TenantId, String, GitOpsDeploy)> {
     let cloud_config = cloud.ok_or_else(|| anyhow!("No cloud configuration in profile"))?;
     let deploy = cloud_config
@@ -184,8 +187,8 @@ fn gitops_provider(
             deploy,
             project_root: project_root.to_path_buf(),
         },
-        DockerCli::new(),
-        Box::new(SystemCommandRunner),
+        DockerCli::new(children.clone()),
+        Box::new(SystemCommandRunner::new(children.clone())),
     )?;
     Ok((tenant_id, tenant.name.clone(), provider))
 }

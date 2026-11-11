@@ -38,9 +38,12 @@ async fn failed_local_database_start_removes_its_owned_compose_project() {
     }
 
     let prompter = ScriptedPrompter::new(["Coverage Tenant", "55432"]);
-    let error = create_local_tenant(&prompter)
-        .await
-        .expect_err("owned docker start failure must reach cleanup");
+    let error = create_local_tenant(
+        &prompter,
+        &systemprompt_loader::subprocess::ForegroundChildren::default(),
+    )
+    .await
+    .expect_err("owned docker start failure must reach cleanup");
 
     std::env::set_current_dir(old_cwd).unwrap();
     unsafe {

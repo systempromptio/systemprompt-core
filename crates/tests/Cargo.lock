@@ -9401,6 +9401,7 @@ dependencies = [
  "systemprompt-cloud",
  "systemprompt-config",
  "systemprompt-identifiers",
+ "systemprompt-loader",
  "systemprompt-manifest",
  "systemprompt-models",
  "systemprompt-test-fixtures",

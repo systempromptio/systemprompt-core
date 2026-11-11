@@ -89,7 +89,13 @@ pub(super) async fn execute(args: LogsArgs, ctx: &CommandContext) -> Result<Comm
         .map_or_else(|| get_default_logs_dir(ctx), PathBuf::from);
 
     if args.follow {
-        return execute_follow_mode(&args, prompter, config, &logs_path);
+        return execute_follow_mode(
+            &args,
+            prompter,
+            config,
+            &logs_path,
+            ctx.foreground_children(),
+        );
     }
 
     if args.disk {

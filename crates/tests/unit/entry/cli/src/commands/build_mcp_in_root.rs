@@ -9,6 +9,7 @@
 
 use std::fs;
 use std::path::Path;
+use systemprompt_loader::subprocess::ForegroundChildren;
 
 use systemprompt_cli::build::mcp::{McpArgs, execute_in_root};
 use systemprompt_cli::{CliConfig, OutputFormat};
@@ -33,7 +34,13 @@ fn artifact_text(output: &systemprompt_cli::shared::CommandOutput) -> String {
 fn a_root_without_extensions_produces_an_empty_build_table() {
     let tmp = tempfile::tempdir().unwrap();
 
-    let output = execute_in_root(McpArgs { release: false }, &config(), tmp.path()).unwrap();
+    let output = execute_in_root(
+        McpArgs { release: false },
+        &config(),
+        tmp.path(),
+        &ForegroundChildren::default(),
+    )
+    .unwrap();
     let text = artifact_text(&output);
 
     assert_eq!(output.title(), Some("Build MCP Extensions"));
@@ -49,7 +56,13 @@ fn a_non_mcp_extension_is_not_built() {
         "extension:\n  type: blog\n  name: blogger\n  binary: blogger\n",
     );
 
-    let output = execute_in_root(McpArgs { release: false }, &config(), tmp.path()).unwrap();
+    let output = execute_in_root(
+        McpArgs { release: false },
+        &config(),
+        tmp.path(),
+        &ForegroundChildren::default(),
+    )
+    .unwrap();
     assert!(artifact_text(&output).contains("\"items\":[]"));
 }
 
@@ -62,7 +75,13 @@ fn a_disabled_mcp_extension_is_not_built() {
         "extension:\n  type: mcp\n  name: sleeping\n  binary: sleeping\n  enabled: false\n",
     );
 
-    let output = execute_in_root(McpArgs { release: false }, &config(), tmp.path()).unwrap();
+    let output = execute_in_root(
+        McpArgs { release: false },
+        &config(),
+        tmp.path(),
+        &ForegroundChildren::default(),
+    )
+    .unwrap();
     assert!(artifact_text(&output).contains("\"items\":[]"));
 }
 
@@ -75,7 +94,13 @@ fn an_mcp_extension_without_a_binary_aborts_the_whole_build() {
         "extension:\n  type: mcp\n  name: nobinary\n",
     );
 
-    let err = execute_in_root(McpArgs { release: false }, &config(), tmp.path()).unwrap_err();
+    let err = execute_in_root(
+        McpArgs { release: false },
+        &config(),
+        tmp.path(),
+        &ForegroundChildren::default(),
+    )
+    .unwrap_err();
     assert!(err.to_string().contains("nobinary"));
     assert!(err.to_string().contains("no binary defined"));
 }
@@ -89,7 +114,13 @@ fn a_workspace_extension_reports_a_missing_root_manifest_as_a_failed_row() {
         "extension:\n  type: mcp\n  name: wsext\n  binary: wsext-bin\n  build_type: workspace\n",
     );
 
-    let output = execute_in_root(McpArgs { release: false }, &config(), tmp.path()).unwrap();
+    let output = execute_in_root(
+        McpArgs { release: false },
+        &config(),
+        tmp.path(),
+        &ForegroundChildren::default(),
+    )
+    .unwrap();
     let text = artifact_text(&output);
 
     assert!(text.contains("wsext"));
@@ -112,7 +143,13 @@ fn a_workspace_extension_reports_a_cargo_failure_as_a_failed_row() {
          workspace\n",
     );
 
-    let output = execute_in_root(McpArgs { release: true }, &config(), tmp.path()).unwrap();
+    let output = execute_in_root(
+        McpArgs { release: true },
+        &config(),
+        tmp.path(),
+        &ForegroundChildren::default(),
+    )
+    .unwrap();
     let text = artifact_text(&output);
 
     assert!(text.contains("failed: Failed to build absent_package"));
@@ -127,7 +164,13 @@ fn a_submodule_extension_reports_a_cargo_failure_as_a_failed_row() {
         "extension:\n  type: mcp\n  name: subext\n  binary: subext-bin\n  build_type: submodule\n",
     );
 
-    let output = execute_in_root(McpArgs { release: false }, &config(), tmp.path()).unwrap();
+    let output = execute_in_root(
+        McpArgs { release: false },
+        &config(),
+        tmp.path(),
+        &ForegroundChildren::default(),
+    )
+    .unwrap();
     let text = artifact_text(&output);
 
     assert!(text.contains("submodule"));
@@ -147,6 +190,7 @@ fn text_output_mode_renders_the_same_rows() {
         McpArgs { release: false },
         &CliConfig::new().with_interactive(false),
         tmp.path(),
+        &ForegroundChildren::default(),
     )
     .unwrap();
 

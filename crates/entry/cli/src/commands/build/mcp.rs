@@ -9,6 +9,7 @@ use std::path::Path;
 use std::process::Command;
 
 use systemprompt_loader::ExtensionLoader;
+use systemprompt_loader::subprocess::ForegroundChildren;
 use systemprompt_logging::CliService;
 use systemprompt_models::BuildType;
 
@@ -23,12 +24,21 @@ pub struct McpArgs {
     pub release: bool,
 }
 
-pub(super) fn execute(args: McpArgs, config: &CliConfig) -> Result<CommandOutput> {
+pub(super) fn execute(
+    args: McpArgs,
+    config: &CliConfig,
+    children: &ForegroundChildren,
+) -> Result<CommandOutput> {
     let project_root = ProjectRoot::discover().map_err(|e| anyhow!("{}", e))?;
-    execute_in_root(args, config, project_root.as_path())
+    execute_in_root(args, config, project_root.as_path(), children)
 }
 
-pub fn execute_in_root(args: McpArgs, config: &CliConfig, root: &Path) -> Result<CommandOutput> {
+pub fn execute_in_root(
+    args: McpArgs,
+    config: &CliConfig,
+    root: &Path,
+    children: &ForegroundChildren,
+) -> Result<CommandOutput> {
     let extensions = ExtensionLoader::get_enabled_mcp_extensions(root);
 
     if extensions.is_empty() {
@@ -67,8 +77,12 @@ pub fn execute_in_root(args: McpArgs, config: &CliConfig, root: &Path) -> Result
         };
 
         let build_result = match build_type {
-            BuildType::Workspace => build_workspace_crate(root, binary, args.release, config),
-            BuildType::Submodule => build_submodule_crate(&ext.path, root, args.release, config),
+            BuildType::Workspace => {
+                build_workspace_crate(root, binary, args.release, config, children)
+            },
+            BuildType::Submodule => {
+                build_submodule_crate(&ext.path, root, args.release, config, children)
+            },
         };
 
         let status = match build_result {
@@ -116,6 +130,7 @@ fn build_workspace_crate(
     package: &str,
     release: bool,
     config: &CliConfig,
+    children: &ForegroundChildren,
 ) -> Result<()> {
     if !config.is_json_output() {
         CliService::info(&format!("Building {} (workspace)", package));
@@ -128,14 +143,13 @@ fn build_workspace_crate(
 
     let cargo_manifest = find_cargo_manifest(project_root)?;
 
-    let status = Command::new("cargo")
-        .args(&args)
+    let mut cmd = Command::new("cargo");
+    cmd.args(&args)
         .arg("--manifest-path")
         .arg(&cargo_manifest)
         .arg("--target-dir")
-        .arg(project_root.join("target"))
-        .status()
-        .context("Failed to execute cargo")?;
+        .arg(project_root.join("target"));
+    let status = children.status(cmd).context("Failed to execute cargo")?;
 
     if !status.success() {
         bail!("Failed to build {}", package);
@@ -152,6 +166,7 @@ fn build_submodule_crate(
     project_root: &Path,
     release: bool,
     config: &CliConfig,
+    children: &ForegroundChildren,
 ) -> Result<()> {
     let name = extension_path
         .file_name()
@@ -169,13 +184,12 @@ fn build_submodule_crate(
 
     let target_dir = project_root.join("target");
 
-    let status = Command::new("cargo")
-        .args(&args)
+    let mut cmd = Command::new("cargo");
+    cmd.args(&args)
         .arg("--target-dir")
         .arg(&target_dir)
-        .current_dir(extension_path)
-        .status()
-        .context("Failed to execute cargo")?;
+        .current_dir(extension_path);
+    let status = children.status(cmd).context("Failed to execute cargo")?;
 
     if !status.success() {
         bail!("Failed to build {} at {}", name, extension_path.display());

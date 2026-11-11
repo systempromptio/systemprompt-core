@@ -31,25 +31,13 @@ pub struct DeployOrchestrator {
     readiness: ReadinessWait,
 }
 
-impl Default for DeployOrchestrator {
-    fn default() -> Self {
-        Self {
-            docker: DockerCli::default(),
-            readiness: DEFAULT_READINESS_WAIT,
-        }
-    }
-}
-
 impl DeployOrchestrator {
     #[must_use]
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    #[must_use]
-    pub fn with_docker(mut self, docker: DockerCli) -> Self {
-        self.docker = docker;
-        self
+    pub const fn new(docker: DockerCli) -> Self {
+        Self {
+            docker,
+            readiness: DEFAULT_READINESS_WAIT,
+        }
     }
 
     #[must_use]

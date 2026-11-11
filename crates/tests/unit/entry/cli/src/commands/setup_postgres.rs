@@ -11,6 +11,7 @@ use systemprompt_cli::admin::setup::postgres_access::{
     PostgresConfig, detect_postgresql, enable_extensions, generate_password, test_connection,
 };
 use systemprompt_cli::interactive::ScriptedPrompter;
+use systemprompt_loader::subprocess::ForegroundChildren;
 
 pub(super) fn scripted(answers: &[&str]) -> ScriptedPrompter {
     ScriptedPrompter::new(answers.iter().map(|s| (*s).to_owned()))
@@ -212,6 +213,7 @@ fn non_interactive_with_reachable_database() {
             &setup_args,
             "covtest",
             &CliConfig::default(),
+            &ForegroundChildren::default(),
         ))
         .expect("non-interactive setup succeeds");
     assert_eq!(config.user, db.user);
@@ -229,6 +231,7 @@ fn non_interactive_with_unreachable_database_is_an_error() {
             &setup_args,
             "covtest",
             &CliConfig::default(),
+            &ForegroundChildren::default(),
         ))
         .expect_err("credentials that do not log in are never returned for the profile");
     let message = format!("{error:#}");
@@ -255,6 +258,7 @@ fn interactive_existing_connection_succeeds() {
             &prompter,
             "covtest",
             &CliConfig::default(),
+            &ForegroundChildren::default(),
         ))
         .expect("interactive setup against live database succeeds");
     assert_eq!(config.host, db.host);
@@ -270,6 +274,7 @@ fn interactive_invalid_port_is_error() {
             &prompter,
             "covtest",
             &CliConfig::default(),
+            &ForegroundChildren::default(),
         ))
         .unwrap_err();
     assert!(err.to_string().contains("Invalid PostgreSQL port"));
@@ -284,6 +289,7 @@ fn interactive_unreachable_declined_bails() {
             &prompter,
             "covtest",
             &CliConfig::default(),
+            &ForegroundChildren::default(),
         ))
         .unwrap_err();
     assert!(err.to_string().contains("not reachable"));
@@ -297,6 +303,7 @@ fn interactive_invalid_selection_is_error() {
         &prompter,
         "covtest",
         &CliConfig::default(),
+        &ForegroundChildren::default(),
     ));
     assert!(result.is_err());
 }
@@ -319,6 +326,7 @@ fn interactive_declined_creation_is_an_error() {
             &prompter,
             "covtest",
             &CliConfig::default(),
+            &ForegroundChildren::default(),
         ))
         .expect_err("declining creation leaves nothing to write");
     assert!(format!("{error:#}").contains("declined"), "{error:#}");
@@ -341,6 +349,7 @@ fn interactive_empty_manual_password_is_error() {
             &prompter,
             "covtest",
             &CliConfig::default(),
+            &ForegroundChildren::default(),
         ))
         .unwrap_err();
     assert!(err.to_string().contains("Password is required"));
@@ -387,6 +396,7 @@ fn interactive_creates_database_and_user_via_superuser() {
             &prompter,
             "covtest",
             &CliConfig::default(),
+            &ForegroundChildren::default(),
         ))
         .expect("superuser-driven creation succeeds");
     assert_eq!(config.database, scratch_db);
@@ -431,6 +441,7 @@ fn interactive_superuser_empty_password_is_error() {
             &prompter,
             "covtest",
             &CliConfig::default(),
+            &ForegroundChildren::default(),
         ))
         .unwrap_err();
     assert!(err.to_string().contains("Superuser password is required"));
@@ -452,7 +463,10 @@ fn docker_non_interactive_reuses_reachable_database_without_compose() {
     let result = runtime()
         .block_on(
             systemprompt_cli::admin::setup::docker::setup_docker_postgres_non_interactive(
-                &config, "covtest", false,
+                &ForegroundChildren::default(),
+                &config,
+                "covtest",
+                false,
             ),
         )
         .expect("reachable database is reused as-is");
@@ -465,7 +479,9 @@ fn docker_non_interactive_refuses_occupied_port() {
     use systemprompt_cli::admin::setup::docker_compose::{
         is_compose_available, is_docker_available,
     };
-    if !is_docker_available() || !is_compose_available() {
+    if !is_docker_available(&ForegroundChildren::default())
+        || !is_compose_available(&ForegroundChildren::default())
+    {
         // skip-ok: Docker and docker compose are not installed on this host.
         return;
     }
@@ -484,6 +500,7 @@ fn docker_non_interactive_refuses_occupied_port() {
     let err = runtime()
         .block_on(
             systemprompt_cli::admin::setup::docker::setup_docker_postgres_non_interactive(
+                &ForegroundChildren::default(),
                 &config,
                 "covtestport",
                 false,
@@ -511,7 +528,10 @@ fn docker_probes_do_not_panic() {
     use systemprompt_cli::admin::setup::docker_compose::{
         is_compose_available, is_container_running, is_docker_available,
     };
-    let _ = is_docker_available();
-    let _ = is_compose_available();
-    assert!(!is_container_running("cov_no_such_container_zzz"));
+    let _ = is_docker_available(&ForegroundChildren::default());
+    let _ = is_compose_available(&ForegroundChildren::default());
+    assert!(!is_container_running(
+        &ForegroundChildren::default(),
+        "cov_no_such_container_zzz"
+    ));
 }

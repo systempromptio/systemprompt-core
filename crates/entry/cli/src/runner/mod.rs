@@ -20,7 +20,7 @@ mod structured_output;
 use anyhow::{Context, Result, bail};
 use clap::{CommandFactory, FromArgMatches, Parser};
 use systemprompt_cloud::CloudCredentials;
-use systemprompt_loader::subprocess::{self, ApiServerStamp};
+use systemprompt_loader::subprocess::{self, ApiServerStamp, ForegroundChildren};
 use systemprompt_logging::OutputState;
 use systemprompt_runtime::DatabaseContext;
 
@@ -43,11 +43,16 @@ pub async fn run() -> Result<()> {
     let env = EnvOverrides::from_process_env();
     let confirm = confirm.routed_by_gateway(env.is_remote_cli);
     let shield = interrupt::InterruptShield::default();
+    let children = ForegroundChildren::default();
+    let guards = RunGuards {
+        shield: shield.clone(),
+        children: children.clone(),
+    };
     let outcome = if cli.command.as_ref().is_some_and(args::Commands::serves_api) {
-        Box::pin(run_inner(&output, cli, confirm, shield, env)).await
+        Box::pin(run_inner(&output, cli, confirm, guards, env)).await
     } else {
-        let command = Box::pin(run_inner(&output, cli, confirm, shield.clone(), env));
-        interrupt::run_interruptible(shield, command).await
+        let command = Box::pin(run_inner(&output, cli, confirm, guards, env));
+        interrupt::run_interruptible(shield, children, command).await
     };
     structured_output::finalize(&output, &outcome);
     outcome
@@ -72,7 +77,7 @@ async fn run_inner(
     output: &OutputState,
     cli: args::Cli,
     confirm: confirmation::ConfirmationRequest,
-    shield: interrupt::InterruptShield,
+    guards: RunGuards,
     env: EnvOverrides,
 ) -> Result<()> {
     stamp_api_server_identity(&cli)?;
@@ -100,7 +105,7 @@ async fn run_inner(
                 url: &database_url,
                 credentials: None,
             },
-            shield,
+            guards,
         ))
         .await;
     }
@@ -134,7 +139,7 @@ async fn run_inner(
                         url: &external_db_url,
                         credentials: loaded,
                     },
-                    shield,
+                    guards,
                 ))
                 .await;
             },
@@ -147,7 +152,8 @@ async fn run_inner(
     }
 
     let ctx = CommandContext::new(cli_config, env)
-        .with_interrupt_shield(shield)
+        .with_interrupt_shield(guards.shield)
+        .with_foreground_children(guards.children)
         .with_cloud_credentials(credentials)
         .with_database_url_override(database_url_override)
         .with_services(services)
@@ -233,6 +239,11 @@ async fn dispatch_command(command: Option<args::Commands>, ctx: &CommandContext)
     Ok(())
 }
 
+struct RunGuards {
+    shield: interrupt::InterruptShield,
+    children: ForegroundChildren,
+}
+
 struct DirectDatabase<'a> {
     url: &'a str,
     credentials: Option<CloudCredentials>,
@@ -243,7 +254,7 @@ async fn run_with_database_url(
     cli_config: CliConfig,
     env: EnvOverrides,
     database: DirectDatabase<'_>,
-    shield: interrupt::InterruptShield,
+    guards: RunGuards,
 ) -> Result<()> {
     let DirectDatabase {
         url: database_url,
@@ -257,7 +268,8 @@ async fn run_with_database_url(
 
     let ctx = CommandContext::with_database(cli_config, env, db_ctx, database_url.to_owned())
         .with_cloud_credentials(credentials)
-        .with_interrupt_shield(shield);
+        .with_interrupt_shield(guards.shield)
+        .with_foreground_children(guards.children);
     Box::pin(dispatch_command(command, &ctx)).await
 }
 

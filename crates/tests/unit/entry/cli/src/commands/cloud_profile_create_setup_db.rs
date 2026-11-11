@@ -12,6 +12,7 @@
 
 use systemprompt_cli::ScriptedPrompter;
 use systemprompt_cli::cloud::profile::handle_local_tenant_setup;
+use systemprompt_loader::subprocess::ForegroundChildren;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_database_url};
 
 #[tokio::test]
@@ -26,6 +27,7 @@ async fn a_reachable_database_reaches_the_migrations_question() {
         &url,
         "tenant-with-a-live-database",
         &boot.profile_path,
+        &ForegroundChildren::default(),
     )
     .await
     .expect_err("with no answer scripted the migrations prompt must surface");

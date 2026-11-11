@@ -6,32 +6,35 @@
 use anyhow::{Context, Result};
 use std::path::Path;
 use std::process::Command;
+use systemprompt_loader::subprocess::ForegroundChildren;
 use systemprompt_logging::CliService;
 use systemprompt_models::defaults::DEFAULT_POSTGRES_PORT;
 
 use super::postgres_access::PostgresConfig;
 
-pub fn is_docker_available() -> bool {
-    Command::new("docker").arg("--version").output().is_ok()
+pub fn is_docker_available(children: &ForegroundChildren) -> bool {
+    let mut cmd = Command::new("docker");
+    cmd.arg("--version");
+    children.output(cmd).is_ok()
 }
 
-pub fn is_compose_available() -> bool {
-    Command::new("docker")
-        .args(["compose", "version"])
-        .output()
-        .is_ok_and(|o| o.status.success())
+pub fn is_compose_available(children: &ForegroundChildren) -> bool {
+    let mut cmd = Command::new("docker");
+    cmd.args(["compose", "version"]);
+    children.output(cmd).is_ok_and(|o| o.status.success())
 }
 
-pub fn is_container_running(container_name: &str) -> bool {
-    Command::new("docker")
-        .args([
-            "ps",
-            "--filter",
-            &format!("name=^{}$", container_name),
-            "--format",
-            "{{.Names}}",
-        ])
-        .output()
+pub fn is_container_running(children: &ForegroundChildren, container_name: &str) -> bool {
+    let mut cmd = Command::new("docker");
+    cmd.args([
+        "ps",
+        "--filter",
+        &format!("name=^{}$", container_name),
+        "--format",
+        "{{.Names}}",
+    ]);
+    children
+        .output(cmd)
         .is_ok_and(|o| !String::from_utf8_lossy(&o.stdout).trim().is_empty())
 }
 
@@ -155,20 +158,22 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 }
 
 pub fn start_compose(
+    children: &ForegroundChildren,
     config: &PostgresConfig,
     compose_dir: &Path,
     container_name: &str,
 ) -> Result<()> {
     CliService::info("Starting PostgreSQL...");
 
-    let result = Command::new("docker")
-        .args(["compose", "up", "-d"])
+    let mut cmd = Command::new("docker");
+    cmd.args(["compose", "up", "-d"])
         .current_dir(compose_dir)
         .env("POSTGRES_USER", &config.user)
         .env("POSTGRES_PASSWORD", &config.password)
         .env("POSTGRES_DB", &config.database)
-        .env("CONTAINER_NAME", container_name)
-        .output()
+        .env("CONTAINER_NAME", container_name);
+    let result = children
+        .output(cmd)
         .context("Failed to run docker compose")?;
 
     if !result.status.success() {
@@ -180,23 +185,27 @@ pub fn start_compose(
     Ok(())
 }
 
-pub fn wait_for_postgres_ready(config: &PostgresConfig, container_name: &str) {
+pub fn wait_for_postgres_ready(
+    children: &ForegroundChildren,
+    config: &PostgresConfig,
+    container_name: &str,
+) {
     CliService::info("Waiting for PostgreSQL to be ready...");
 
     for _ in 0..30 {
         std::thread::sleep(std::time::Duration::from_secs(1));
 
-        let health = Command::new("docker")
-            .args([
-                "exec",
-                container_name,
-                "pg_isready",
-                "-U",
-                &config.user,
-                "-d",
-                &config.database,
-            ])
-            .output();
+        let mut cmd = Command::new("docker");
+        cmd.args([
+            "exec",
+            container_name,
+            "pg_isready",
+            "-U",
+            &config.user,
+            "-d",
+            &config.database,
+        ]);
+        let health = children.output(cmd);
 
         if health.is_ok_and(|o| o.status.success()) {
             CliService::success("PostgreSQL is ready");

@@ -11,6 +11,7 @@
 use anyhow::{Context, Result, bail};
 use systemprompt_cloud::{DockerCli, ProjectContext, StoredTenant};
 use systemprompt_identifiers::ProfileName;
+use systemprompt_loader::subprocess::ForegroundChildren;
 use systemprompt_logging::CliService;
 use systemprompt_models::defaults::DEFAULT_POSTGRES_PORT;
 
@@ -28,7 +29,10 @@ use super::super::docker::{
 
 use super::sanitize_database_name;
 
-pub async fn create_local_tenant(prompter: &dyn Prompter) -> Result<StoredTenant> {
+pub async fn create_local_tenant(
+    prompter: &dyn Prompter,
+    children: &ForegroundChildren,
+) -> Result<StoredTenant> {
     CliService::section("Create Local PostgreSQL Tenant");
 
     let name = prompter.input_with_default("Tenant name", "local")?;
@@ -44,7 +48,7 @@ pub async fn create_local_tenant(prompter: &dyn Prompter) -> Result<StoredTenant
         .parse()
         .context("PostgreSQL port must be a number")?;
 
-    let docker = DockerCli::new();
+    let docker = DockerCli::new(children.clone());
 
     if is_project_running(&docker, &project) {
         bail!("A container for project '{project}' is already running");
@@ -71,12 +75,15 @@ pub async fn create_local_tenant(prompter: &dyn Prompter) -> Result<StoredTenant
     let id = new_local_tenant_id();
     let tenant = StoredTenant::new_local_docker(id, name.clone(), database_url.clone(), project);
 
-    setup_local_profile(&tenant, &name, &database_url, prompter).await?;
+    setup_local_profile(&tenant, &name, &database_url, prompter, children).await?;
 
     Ok(tenant)
 }
 
-pub async fn create_external_tenant(prompter: &dyn Prompter) -> Result<StoredTenant> {
+pub async fn create_external_tenant(
+    prompter: &dyn Prompter,
+    children: &ForegroundChildren,
+) -> Result<StoredTenant> {
     CliService::section("Create Local Tenant (External PostgreSQL)");
 
     let name = prompter.input_with_default("Tenant name", "local")?;
@@ -103,7 +110,7 @@ pub async fn create_external_tenant(prompter: &dyn Prompter) -> Result<StoredTen
     let id = new_local_tenant_id();
     let tenant = StoredTenant::new_local(id, name.clone(), database_url.clone());
 
-    setup_local_profile(&tenant, &name, &database_url, prompter).await?;
+    setup_local_profile(&tenant, &name, &database_url, prompter, children).await?;
 
     Ok(tenant)
 }
@@ -113,6 +120,7 @@ async fn setup_local_profile(
     name: &str,
     database_url: &str,
     prompter: &dyn Prompter,
+    children: &ForegroundChildren,
 ) -> Result<()> {
     CliService::section("Profile Setup");
     let profile_name = ProfileName::try_new(prompter.input_with_default("Profile name", name)?)
@@ -125,10 +133,10 @@ async fn setup_local_profile(
     CliService::success(&format!("Profile '{}' created", profile.name));
 
     let ctx = ProjectContext::discover();
-    ensure_project_scaffolding(ctx.root())?;
+    ensure_project_scaffolding(ctx.root(), children)?;
 
     let profile_path = ctx.profile_dir(profile.name.as_str()).join("profile.yaml");
-    handle_local_tenant_setup(prompter, database_url, name, &profile_path).await?;
+    handle_local_tenant_setup(prompter, database_url, name, &profile_path, children).await?;
 
     Ok(())
 }

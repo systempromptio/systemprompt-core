@@ -13,6 +13,7 @@ use anyhow::{Context, Result, bail};
 use std::path::Path;
 use systemprompt_cloud::ProjectContext;
 use systemprompt_identifiers::Email;
+use systemprompt_loader::subprocess::ForegroundChildren;
 use systemprompt_logging::CliService;
 use systemprompt_manifest::profile::{SecretsConfig, SecretsSource, SecretsValidationMode};
 use systemprompt_manifest::services::SystemAdminConfig;
@@ -134,17 +135,16 @@ pub(super) fn default_path(systemprompt_dir: &Path, env_name: &str) -> std::path
     profile_dir(systemprompt_dir, env_name).join("profile.yaml")
 }
 
-pub(super) fn run_migrations(profile_path: &Path) -> Result<()> {
+pub(super) fn run_migrations(profile_path: &Path, children: &ForegroundChildren) -> Result<()> {
     CliService::info("Running database migrations...");
 
     let current_exe = std::env::current_exe().context("Failed to get executable path")?;
     let profile_path_str = profile_path.to_string_lossy();
 
-    let output = std::process::Command::new(&current_exe)
-        .args(CliPaths::db_migrate_args())
-        .env("SYSTEMPROMPT_PROFILE", profile_path_str.as_ref())
-        .output()
-        .context("Failed to run migrations")?;
+    let mut cmd = std::process::Command::new(&current_exe);
+    cmd.args(CliPaths::db_migrate_args())
+        .env("SYSTEMPROMPT_PROFILE", profile_path_str.as_ref());
+    let output = children.output(cmd).context("Failed to run migrations")?;
 
     if output.status.success() {
         CliService::success("Migrations completed successfully");

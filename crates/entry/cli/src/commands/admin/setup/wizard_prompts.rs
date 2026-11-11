@@ -18,6 +18,7 @@ use anyhow::{Context, Result};
 use std::io::IsTerminal;
 use std::path::{Path, PathBuf};
 use systemprompt_identifiers::{Email, ProviderId};
+use systemprompt_loader::subprocess::ForegroundChildren;
 use systemprompt_logging::CliService;
 
 use super::postgres_access::PostgresConfig;
@@ -84,11 +85,12 @@ pub(super) async fn setup_postgres(
     prompter: &dyn Prompter,
     config: &CliConfig,
     env_name: &str,
+    children: &ForegroundChildren,
 ) -> Result<PostgresConfig> {
     if args.yes || !config.is_interactive() {
-        return postgres::setup_non_interactive(args, env_name, config).await;
+        return postgres::setup_non_interactive(args, env_name, config, children).await;
     }
-    postgres::setup_interactive(args, prompter, env_name, config).await
+    postgres::setup_interactive(args, prompter, env_name, config, children).await
 }
 
 pub(super) fn collect_secrets(

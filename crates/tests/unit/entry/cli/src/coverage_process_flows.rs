@@ -2,6 +2,7 @@ use clap::Parser;
 use std::ffi::OsString;
 use std::path::PathBuf;
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, ScriptedPrompter};
+use systemprompt_loader::subprocess::ForegroundChildren;
 
 struct Sandbox {
     root: tempfile::TempDir,
@@ -113,6 +114,7 @@ async fn local_setup(sandbox: &Sandbox, answers: &[&str]) -> anyhow::Result<()> 
         "postgres://unused:unused@127.0.0.1:1/unused",
         "fixture",
         &sandbox.root.path().join("profile.yaml"),
+        &ForegroundChildren::default(),
     )
     .await
 }

@@ -13,6 +13,7 @@ use anyhow::{Context, Result, bail};
 use systemprompt_cloud::{
     CloudPath, ProfilePath, ProjectContext, StoredTenant, TenantStore, get_cloud_paths,
 };
+use systemprompt_loader::subprocess::ForegroundChildren;
 use systemprompt_logging::CliService;
 use systemprompt_manifest::Profile;
 
@@ -40,6 +41,7 @@ pub(super) async fn execute(
     args: &CreateArgs,
     prompter: &dyn Prompter,
     config: &CliConfig,
+    children: &ForegroundChildren,
 ) -> Result<()> {
     let name = &args.name;
     CliService::section(&format!("Create Profile: {}", name));
@@ -86,7 +88,7 @@ pub(super) async fn execute(
         let db_url = tenant
             .get_local_database_url()
             .ok_or_else(|| anyhow::anyhow!("Tenant database URL is required"))?;
-        handle_local_tenant_setup(prompter, db_url, &tenant.name, &profile_path).await?;
+        handle_local_tenant_setup(prompter, db_url, &tenant.name, &profile_path, children).await?;
     }
 
     render_next_steps(&tenant, &profile_path);

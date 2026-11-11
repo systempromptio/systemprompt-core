@@ -14,6 +14,7 @@ use crate::CliConfig;
 use crate::interactive::{Prompter, resolve_required};
 use crate::shared::CommandOutput;
 use crate::shared::disk_logs::{display_names, find_log_file, list_log_files, read_log_lines};
+use systemprompt_loader::subprocess::ForegroundChildren;
 use systemprompt_models::artifacts::ListItem;
 
 pub(super) fn execute_disk_mode(
@@ -68,6 +69,7 @@ pub(super) fn execute_follow_mode(
     prompter: &dyn Prompter,
     config: &CliConfig,
     logs_path: &Path,
+    children: &ForegroundChildren,
 ) -> Result<CommandOutput> {
     if !logs_path.exists() {
         return Err(anyhow!(
@@ -82,11 +84,9 @@ pub(super) fn execute_follow_mode(
 
     let log_file = find_log_file(logs_path, "agent-", &agent)?;
 
-    let status = Command::new("tail")
-        .arg("-f")
-        .arg(&log_file)
-        .status()
-        .context("Failed to execute tail -f")?;
+    let mut cmd = Command::new("tail");
+    cmd.arg("-f").arg(&log_file);
+    let status = children.status(cmd).context("Failed to execute tail -f")?;
 
     if !status.success() {
         return Err(anyhow!("tail -f exited with non-zero status"));

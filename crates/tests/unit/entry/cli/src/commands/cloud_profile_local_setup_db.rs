@@ -10,6 +10,7 @@
 
 use systemprompt_cli::ScriptedPrompter;
 use systemprompt_cli::cloud::profile::handle_local_tenant_setup;
+use systemprompt_loader::subprocess::ForegroundChildren;
 use systemprompt_test_fixtures::test_database_url;
 
 #[tokio::test]
@@ -18,9 +19,15 @@ async fn a_reachable_database_offers_migrations_and_accepts_a_decline() {
     let prompter = ScriptedPrompter::new(["no"]);
     let profile_path = std::path::Path::new("/nonexistent/profile.yaml");
 
-    handle_local_tenant_setup(&prompter, &url, "local", profile_path)
-        .await
-        .unwrap();
+    handle_local_tenant_setup(
+        &prompter,
+        &url,
+        "local",
+        profile_path,
+        &ForegroundChildren::default(),
+    )
+    .await
+    .unwrap();
 }
 
 #[tokio::test]
@@ -33,6 +40,7 @@ async fn an_unreachable_database_without_a_compose_file_only_warns() {
         "postgres://nobody:nothing@127.0.0.1:1/absent",
         "tenant_without_compose_fixture",
         profile_path,
+        &ForegroundChildren::default(),
     )
     .await
     .unwrap();

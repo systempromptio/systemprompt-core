@@ -13,6 +13,7 @@ use std::path::{Path, PathBuf};
 use crate::interactive::Prompter;
 use crate::shared::CommandOutput;
 use anyhow::Result;
+use systemprompt_loader::subprocess::ForegroundChildren;
 use systemprompt_logging::CliService;
 
 use super::postgres_access::PostgresConfig;
@@ -42,6 +43,7 @@ pub(super) async fn execute(
     args: SetupArgs,
     prompter: &dyn Prompter,
     config: &CliConfig,
+    children: &ForegroundChildren,
 ) -> Result<CommandOutput> {
     if !config.is_json_output() {
         CliService::section("systemprompt.io Setup Wizard");
@@ -69,7 +71,7 @@ pub(super) async fn execute(
         CliService::section(&format!("Setting up '{}' environment", env_name));
     }
 
-    let pg_config = setup_postgres(&args, prompter, config, &env_name).await?;
+    let pg_config = setup_postgres(&args, prompter, config, &env_name, children).await?;
 
     let connection_status = "connected";
 
@@ -86,7 +88,7 @@ pub(super) async fn execute(
 
     let run_migrations = should_run_migrations(&args, prompter, config)?;
     if run_migrations {
-        profile::run_migrations(&profile_path)?;
+        profile::run_migrations(&profile_path, children)?;
     }
 
     let output = SetupOutput {

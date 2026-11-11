@@ -10,6 +10,7 @@ use systemprompt_cli::admin::setup::postgres::setup_interactive;
 use systemprompt_cli::admin::setup::postgres_access::test_connection;
 use systemprompt_cli::args::{Cli, Commands};
 use systemprompt_cli::descriptor::{CommandDescriptor, DataImpact, DescribeCommand};
+use systemprompt_loader::subprocess::ForegroundChildren;
 
 use super::setup_postgres::{
     DbUrl, admin_pool, args, db_url, drop_scratch, runtime, scratch_name, scripted,
@@ -63,6 +64,7 @@ impl Scratch {
             &prompter,
             "covtest",
             &CliConfig::default(),
+            &ForegroundChildren::default(),
         ))
     }
 

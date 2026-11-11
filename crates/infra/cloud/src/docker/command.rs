@@ -1,11 +1,15 @@
 //! The process-execution seam [`super::DockerCli`] runs every command through.
+//! The system runner spawns each one as a recorded foreground child, so an
+//! interrupted CLI command stops it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::io;
 use std::path::{Path, PathBuf};
-use std::process::{Command, ExitStatus, Output, Stdio};
+use std::process::{Command, ExitStatus, Output};
+
+use systemprompt_loader::subprocess::ForegroundChildren;
 
 #[derive(Debug, Clone)]
 pub struct CommandSpec {
@@ -51,10 +55,17 @@ pub trait CommandRunner: Send + Sync {
     fn status_with_stdin(&self, spec: &CommandSpec, stdin: &[u8]) -> io::Result<ExitStatus>;
 }
 
-#[derive(Debug, Clone, Copy, Default)]
-pub struct SystemCommandRunner;
+#[derive(Debug, Clone)]
+pub struct SystemCommandRunner {
+    children: ForegroundChildren,
+}
 
 impl SystemCommandRunner {
+    #[must_use]
+    pub const fn new(children: ForegroundChildren) -> Self {
+        Self { children }
+    }
+
     fn command(spec: &CommandSpec) -> Command {
         let mut command = Command::new(&spec.program);
         command.args(&spec.args);
@@ -67,20 +78,14 @@ impl SystemCommandRunner {
 
 impl CommandRunner for SystemCommandRunner {
     fn output(&self, spec: &CommandSpec) -> io::Result<Output> {
-        Self::command(spec).output()
+        self.children.output(Self::command(spec))
     }
 
     fn status(&self, spec: &CommandSpec) -> io::Result<ExitStatus> {
-        Self::command(spec).status()
+        self.children.status(Self::command(spec))
     }
 
     fn status_with_stdin(&self, spec: &CommandSpec, stdin: &[u8]) -> io::Result<ExitStatus> {
-        let mut command = Self::command(spec);
-        command.stdin(Stdio::piped());
-        let mut child = command.spawn()?;
-        if let Some(mut handle) = child.stdin.take() {
-            io::Write::write_all(&mut handle, stdin)?;
-        }
-        child.wait()
+        self.children.status_with_stdin(Self::command(spec), stdin)
     }
 }

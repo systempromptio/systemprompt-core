@@ -204,7 +204,7 @@ pub async fn execute(
     if args.db_password_stdin {
         args.db_password = Some(read_password_line(std::io::stdin().lock())?);
     }
-    wizard::execute(args, ctx.prompter(), &ctx.cli).await
+    wizard::execute(args, ctx.prompter(), &ctx.cli, ctx.foreground_children()).await
 }
 
 pub fn read_password_line(mut reader: impl std::io::BufRead) -> Result<String> {

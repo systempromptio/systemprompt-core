@@ -9,6 +9,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Context, Result, anyhow, bail};
+use systemprompt_loader::subprocess::ForegroundChildren;
 use systemprompt_logging::CliService;
 
 use super::SetupArgs;
@@ -24,6 +25,7 @@ pub async fn setup_non_interactive(
     args: &SetupArgs,
     env_name: &str,
     cli_config: &CliConfig,
+    children: &ForegroundChildren,
 ) -> Result<PostgresConfig> {
     if !cli_config.is_json_output() {
         CliService::section(&format!("PostgreSQL Setup ({})", env_name));
@@ -50,6 +52,7 @@ pub async fn setup_non_interactive(
             CliService::info("Setting up PostgreSQL with Docker...");
         }
         let config = super::docker::setup_docker_postgres_non_interactive(
+            children,
             &config,
             env_name,
             args.reset_role_password,
@@ -101,6 +104,7 @@ pub async fn setup_interactive(
     prompter: &dyn Prompter,
     env_name: &str,
     _cli_config: &CliConfig,
+    children: &ForegroundChildren,
 ) -> Result<PostgresConfig> {
     CliService::section(&format!("PostgreSQL Setup ({})", env_name));
     CliService::info("Configure PostgreSQL database for your local environment.");
@@ -114,7 +118,10 @@ pub async fn setup_interactive(
 
     let config = match selection {
         0 => setup_existing_postgres(args, prompter, env_name).await?,
-        1 => super::docker::setup_docker_postgres_interactive(args, prompter, env_name).await?,
+        1 => {
+            super::docker::setup_docker_postgres_interactive(args, prompter, env_name, children)
+                .await?
+        },
         _ => return Err(anyhow!("Invalid PostgreSQL setup option selected")),
     };
     require_verified(config).await
