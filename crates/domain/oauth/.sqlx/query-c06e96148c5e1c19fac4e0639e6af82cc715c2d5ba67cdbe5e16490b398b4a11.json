@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT client_id, client_secret_hash, client_name, name, token_endpoint_auth_method,\n                    application_type, client_uri, logo_uri, is_active, created_at, updated_at, last_used_at, owner_user_id as \"owner_user_id: UserId\"\n             FROM oauth_clients WHERE is_active = true ORDER BY created_at DESC\n             LIMIT $1 OFFSET $2",
+  "query": "SELECT client_id, client_secret_hash, client_name, name, token_endpoint_auth_method,\n                    application_type, client_uri, logo_uri, is_active, created_at, updated_at, last_used_at, owner_user_id as \"owner_user_id: UserId\"\n             FROM oauth_clients\n             WHERE is_active = true AND ($3::text IS NULL OR owner_user_id = $3)\n             ORDER BY created_at DESC\n             LIMIT $1 OFFSET $2",
   "describe": {
     "columns": [
       {
@@ -150,7 +150,8 @@
     "parameters": {
       "Left": [
         "Int8",
-        "Int8"
+        "Int8",
+        "Text"
       ]
     },
     "nullable": [
@@ -169,5 +170,5 @@
       false
     ]
   },
-  "hash": "1598fedb1de105866a33e41620259ada6d42c710371ea44397ea50a73bd57e79"
+  "hash": "c06e96148c5e1c19fac4e0639e6af82cc715c2d5ba67cdbe5e16490b398b4a11"
 }

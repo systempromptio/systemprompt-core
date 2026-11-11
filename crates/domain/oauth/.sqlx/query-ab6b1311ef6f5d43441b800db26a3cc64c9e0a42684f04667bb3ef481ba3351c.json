@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT COUNT(*) FROM oauth_clients WHERE is_active = true",
+  "query": "SELECT COUNT(*) FROM oauth_clients\n             WHERE is_active = true AND ($1::text IS NULL OR owner_user_id = $1)",
   "describe": {
     "columns": [
       {
@@ -11,11 +11,13 @@
       }
     ],
     "parameters": {
-      "Left": []
+      "Left": [
+        "Text"
+      ]
     },
     "nullable": [
       null
     ]
   },
-  "hash": "b96ed919a799d8badf0b7d570de744a3b5b50fb39a97fd768d4c532e5e4c094e"
+  "hash": "ab6b1311ef6f5d43441b800db26a3cc64c9e0a42684f04667bb3ef481ba3351c"
 }
