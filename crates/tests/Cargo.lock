@@ -8376,6 +8376,7 @@ dependencies = [
  "systemprompt-marketplace",
  "systemprompt-mcp",
  "systemprompt-models",
+ "systemprompt-notifications",
  "systemprompt-oauth",
  "systemprompt-oauth-issuance",
  "systemprompt-runtime",

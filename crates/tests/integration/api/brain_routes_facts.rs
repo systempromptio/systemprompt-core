@@ -84,7 +84,7 @@ pub(super) async fn seed_personal_fact(
     seed_fact_on(pool, owner, status, &subject).await
 }
 
-async fn seed_fact_on(
+pub(super) async fn seed_fact_on(
     pool: &DbPool,
     owner: &UserId,
     status: FactStatus,

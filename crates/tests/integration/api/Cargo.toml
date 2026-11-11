@@ -47,6 +47,7 @@ systemprompt-content = { workspace = true }
 systemprompt-marketplace = { workspace = true }
 systemprompt-mcp = { workspace = true }
 systemprompt-users = { workspace = true }
+systemprompt-notifications = { workspace = true }
 systemprompt-agent-runs = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["json"] }

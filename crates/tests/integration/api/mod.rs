@@ -704,3 +704,7 @@ mod proxy_owner_forward;
 #[cfg(test)]
 #[path = "documents_import_export.rs"]
 mod documents_import_export;
+
+#[cfg(test)]
+#[path = "ownership_sweep/mod.rs"]
+mod ownership_sweep;
