@@ -231,7 +231,7 @@ async fn an_unmodelled_top_level_field_is_scanned_on_the_anthropic_lane() -> any
 
 #[tokio::test]
 async fn a_truncated_inspection_surface_refuses_the_request() -> anyhow::Result<()> {
-    let filler: Vec<Value> = (0..60_000).map(|_| json!("a")).collect();
+    let filler: Vec<Value> = (0..600_000).map(|_| json!("a")).collect();
     let mut items = filler;
     items.push(json!(NEEDLE));
     let block = json!({"type": "future_block", "items": items});
@@ -251,7 +251,7 @@ async fn a_truncated_inspection_surface_refuses_the_request() -> anyhow::Result<
 }
 
 #[tokio::test]
-async fn a_file_part_is_scanned_on_the_openai_chat_lane() -> anyhow::Result<()> {
+async fn a_file_part_text_is_scanned_on_the_openai_chat_lane() -> anyhow::Result<()> {
     let case = Case {
         inbound: Arc::new(OpenAiChatInbound),
         upstream_wire: WireProtocol::OpenAiChat,
@@ -261,7 +261,7 @@ async fn a_file_part_is_scanned_on_the_openai_chat_lane() -> anyhow::Result<()> 
             "model": MODEL,
             "max_tokens": 64,
             "messages": [{"role": "user", "content": [
-                {"type": "file", "file": {"filename": "a.txt", "file_data": NEEDLE}},
+                {"type": "file", "file": {"filename": format!("{NEEDLE}.txt"), "file_data": "UEsDBA=="}},
                 {"type": "text", "text": "summarise"}
             ]}]
         }),
@@ -293,5 +293,81 @@ async fn an_input_file_part_on_the_responses_wire_never_reaches_the_upstream_uns
         Err(DispatchError::Recorded(GatewayError::Safety(_))) | Ok(()) => {},
         other => panic!("expected a block or a re-encoded send, got {other:?}"),
     }
+    Ok(())
+}
+
+fn assert_forwarded(outcome: &Outcome) {
+    assert!(
+        outcome.result.is_ok(),
+        "an inspectable request must be forwarded, got {:?}",
+        outcome.result
+    );
+    assert_eq!(outcome.upstream_bodies.len(), 1);
+}
+
+fn session(messages: Vec<Value>) -> Case {
+    let mut case = anthropic_case(json!({"type": "text", "text": "hi"}));
+    case.body["messages"] = Value::Array(messages);
+    case
+}
+
+fn screenshot(bytes: usize) -> Value {
+    json!({"type": "image", "source": {
+        "type": "base64", "media_type": "image/png", "data": "Q".repeat(bytes)
+    }})
+}
+
+#[tokio::test]
+async fn an_enforcing_policy_forwards_a_five_megabyte_screenshot() -> anyhow::Result<()> {
+    let outcome = dispatch(anthropic_case(screenshot(5 * 1024 * 1024)), "gw_sent_shot").await?;
+    assert_forwarded(&outcome);
+    Ok(())
+}
+
+#[tokio::test]
+async fn an_enforcing_policy_forwards_a_two_hundred_turn_text_session() -> anyhow::Result<()> {
+    let messages = (0..200)
+        .map(|turn| {
+            let role = if turn % 2 == 0 { "user" } else { "assistant" };
+            json!({"role": role, "content": [
+                {"type": "text", "text": format!("turn {turn} {}", "w".repeat(20_000))}
+            ]})
+        })
+        .chain(std::iter::once(
+            json!({"role": "user", "content": "continue"}),
+        ))
+        .collect();
+    assert_forwarded(&dispatch(session(messages), "gw_sent_turns").await?);
+    Ok(())
+}
+
+#[tokio::test]
+async fn an_enforcing_policy_forwards_a_long_tool_use_history() -> anyhow::Result<()> {
+    let mut messages = vec![json!({"role": "user", "content": "start"})];
+    for call in 0..3_000 {
+        let id = format!("toolu_{call:05}");
+        messages.push(json!({"role": "assistant", "content": [{
+            "type": "tool_use", "id": id, "name": "read_file",
+            "input": {"path": format!("src/f{call}.rs"), "start": 1, "mode": "full"}
+        }]}));
+        messages.push(json!({"role": "user", "content": [{
+            "type": "tool_result", "tool_use_id": id,
+            "content": [{"type": "text", "text": "fn main() {}"}]
+        }]}));
+    }
+    assert_forwarded(&dispatch(session(messages), "gw_sent_tools").await?);
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_blocking_scanner_sees_every_text_leaf_beside_large_images() -> anyhow::Result<()> {
+    let mut case = anthropic_case(screenshot(3 * 1024 * 1024));
+    case.body["messages"][0]["content"] = json!([
+        screenshot(3 * 1024 * 1024),
+        {"type": "text", "text": "w".repeat(3 * 1024 * 1024)},
+        screenshot(3 * 1024 * 1024),
+        {"type": "text", "text": format!("tail {NEEDLE}")}
+    ]);
+    assert_safety_blocked(&dispatch(case, "gw_sent_mixed").await?);
     Ok(())
 }

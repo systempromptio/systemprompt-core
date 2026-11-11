@@ -17,7 +17,7 @@
 //! `context_window:a->b`), or refused with [`ContextWindowExceeded`] before
 //! any upstream call. On a hop whose wire forwards the caller's bytes as-is
 //! ([`SentBody`]), the estimate is the larger of the text estimate and the
-//! byte estimate of the forwarded body less its base64 binary sources, so
+//! byte estimate of the forwarded body's text, binary media excluded, so
 //! content the canonical model does not carry is still counted. A model with no
 //! declared window is never refused. The requested `max_tokens` is not checked
 //! here: the outbound codecs clamp it to the served model's output ceiling.
@@ -37,7 +37,7 @@ use crate::protocol::canonical::CanonicalRequest;
 // JSON: protocol boundary — the forwarded body is dynamic wire JSON.
 use crate::quota::input_tokens_for_bytes;
 use serde_json::Value;
-use systemprompt_wire::WireProtocol;
+use systemprompt_wire::{WireProtocol, inspect};
 
 const DEPLOYMENT_SELECTED_TOTAL: &str = "gateway_deployment_selected_total";
 const CONTEXT_FALLBACKS_TOTAL: &str = "gateway_context_fallbacks_total";
@@ -103,8 +103,9 @@ fn deployment_state(
 
 /// The size of a body forwarded unchanged on `passthrough_wire`.
 ///
-/// `text_bytes` excludes every base64 binary source (images, PDFs, files):
-/// the pre-check counts those as zero and leaves them to the upstream.
+/// `text_bytes` is the decoded length of the body's text strings and keys;
+/// encoded binary media (`inspect::is_binary_source`) counts as zero and is
+/// left to the upstream to price.
 #[derive(Debug, Clone, Copy)]
 pub struct SentBody {
     passthrough_wire: Option<WireProtocol>,
@@ -115,46 +116,14 @@ impl SentBody {
     #[must_use]
     pub fn measure(passthrough_wire: Option<WireProtocol>, raw: &[u8]) -> Self {
         let text_bytes = passthrough_wire.map_or(0, |_| {
-            let binary =
-                serde_json::from_slice::<Value>(raw).map_or(0, |root| binary_source_bytes(&root));
-            raw.len().saturating_sub(binary)
+            serde_json::from_slice::<Value>(raw)
+                .map_or(raw.len(), |root| inspect::text_bytes(&root))
         });
         Self {
             passthrough_wire,
             text_bytes,
         }
     }
-}
-
-// JSON: protocol boundary — the walk is over the caller's own wire body.
-fn binary_source_bytes(value: &Value) -> usize {
-    match value {
-        Value::Array(items) => items.iter().map(binary_source_bytes).sum(),
-        Value::Object(map) => {
-            let base64_source = map.get("type").and_then(Value::as_str) == Some("base64");
-            map.iter()
-                .map(|(key, child)| match child {
-                    Value::String(data)
-                        if (base64_source && key == "data") || key == "file_data" =>
-                    {
-                        data.len()
-                    },
-                    Value::String(data) => data_uri_len(data),
-                    other => binary_source_bytes(other),
-                })
-                .sum()
-        },
-        Value::String(data) => data_uri_len(data),
-        _ => 0,
-    }
-}
-
-fn data_uri_len(text: &str) -> usize {
-    let is_data_uri = text
-        .strip_prefix("data:")
-        .and_then(|rest| rest.split_once(','))
-        .is_some_and(|(header, _)| header.ends_with(";base64"));
-    if is_data_uri { text.len() } else { 0 }
 }
 
 struct InputEstimate {

@@ -501,3 +501,51 @@ fn responses_input_file_and_input_image_are_not_priced_as_text_bytes() {
     .expect("serialize");
     plans_onto_small(&raw, WireProtocol::Anthropic);
 }
+
+#[test]
+fn gemini_inline_data_is_not_priced_as_text_bytes() {
+    let data = "D".repeat(400_000);
+    let raw = serde_json::to_vec(&serde_json::json!({
+        "contents": [{"role": "user", "parts": [
+            {"inlineData": {"mimeType": "image/png", "data": data}},
+            {"inline_data": {"mime_type": "image/png", "data": data}},
+            {"fileData": {"mimeType": "application/pdf", "fileUri": "gs://b/a.pdf"}},
+            {"text": "hi"}
+        ]}]
+    }))
+    .expect("serialize");
+    plans_onto_small(&raw, WireProtocol::Anthropic);
+}
+
+#[test]
+fn openai_input_audio_is_not_priced_as_text_bytes() {
+    let raw = serde_json::to_vec(&serde_json::json!({
+        "model": "m",
+        "messages": [{"role": "user", "content": [
+            {"type": "input_audio", "input_audio": {"data": "E".repeat(400_000), "format": "wav"}},
+            {"type": "text", "text": "hi"}
+        ]}]
+    }))
+    .expect("serialize");
+    plans_onto_small(&raw, WireProtocol::Anthropic);
+}
+
+#[test]
+fn escaped_text_is_measured_by_its_decoded_length() {
+    let text = "\u{4e2d}".repeat(90);
+    let escaped = format!(
+        r#"{{"model":"m","messages":[{{"role":"user","content":"{}"}}]}}"#,
+        "\\u4e2d".repeat(90)
+    );
+    assert!(escaped.len() > 4 * 100);
+    let c = catalog();
+    let planned = fit_context_window(
+        &c,
+        &request_of(text.len()),
+        SentBody::measure(Some(WireProtocol::Anthropic), escaped.as_bytes()),
+        vec![hop(&c, "small-m", "small", None)],
+        Vec::new(),
+    )
+    .expect("the decoded text fits the window");
+    assert_eq!(providers_of(&planned), vec!["small"]);
+}

@@ -55,10 +55,15 @@ pub struct PromptRecovery {
     pub recovery_locations: Vec<String>,
 }
 
-pub(in crate::service) fn inspection_budget() -> SurfaceBudget {
+const INSPECTED_BYTES: usize = 2 * systemprompt_models::net::INFERENCE_BODY_LIMIT_BYTES;
+const INSPECTED_LEAVES: usize = 500_000;
+
+pub(in crate::service) const fn inspection_budget() -> SurfaceBudget {
     SurfaceBudget {
-        leaf_bytes: 2 * 1024 * 1024,
-        ..SurfaceBudget::default()
+        depth: 64,
+        leaves: INSPECTED_LEAVES,
+        total_bytes: INSPECTED_BYTES,
+        leaf_bytes: INSPECTED_BYTES,
     }
 }
 

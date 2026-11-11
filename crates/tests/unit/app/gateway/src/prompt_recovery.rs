@@ -335,7 +335,7 @@ fn custom_prefix_removes_whole_value_and_respects_configured_policy_order() {
 #[test]
 fn inspection_budget_and_ambiguous_paths_fail_closed() {
     for value in [
-        json!({"system":"a".repeat(2 * 1024 * 1024 + 1)}),
+        json!({"system":vec!["a"; 500_001]}),
         json!({"a.b":KEY,"a":{"b":KEY}}),
     ] {
         let mut wire = body(value);
