@@ -22,6 +22,7 @@ use crate::interactive::Prompter;
 pub async fn setup_docker_postgres_non_interactive(
     config: &PostgresConfig,
     env_name: &str,
+    reset_role_password: bool,
 ) -> Result<PostgresConfig> {
     if test_connection(config).await {
         CliService::success(&format!(
@@ -44,7 +45,7 @@ pub async fn setup_docker_postgres_non_interactive(
 
     if is_container_running(&container) {
         create_compose_files_if_missing(&compose_dir, &container, config.port)?;
-        create_database_in_docker(config, &container).await?;
+        create_database_in_docker(config, &container, reset_role_password).await?;
         enable_extensions(config).await?;
         return Ok(config.clone());
     }
@@ -136,7 +137,7 @@ pub(super) async fn setup_docker_postgres_interactive(
         if reuse {
             if !test_connection(&config).await {
                 CliService::info("Creating database and user in existing container...");
-                create_database_in_docker(&config, &container).await?;
+                create_database_in_docker(&config, &container, args.reset_role_password).await?;
             }
             enable_extensions(&config).await?;
             return Ok(config);

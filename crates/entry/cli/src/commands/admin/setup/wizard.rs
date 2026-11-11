@@ -22,7 +22,7 @@ use super::wizard_prompts::{
     collect_secrets, detect_project_root, get_environment_name, print_summary, resolve_admin_email,
     setup_postgres, should_run_migrations,
 };
-use super::{SetupArgs, postgres_access, profile, secrets, services_files};
+use super::{SetupArgs, profile, secrets, services_files};
 use crate::CliConfig;
 
 pub fn should_write(path: &Path, force: bool, config: &CliConfig) -> bool {
@@ -71,11 +71,7 @@ pub(super) async fn execute(
 
     let pg_config = setup_postgres(&args, prompter, config, &env_name).await?;
 
-    let connection_status = if postgres_access::test_connection(&pg_config).await {
-        "connected"
-    } else {
-        "unreachable"
-    };
+    let connection_status = "connected";
 
     let (secrets_data, profile_path) = write_configuration(
         &args,

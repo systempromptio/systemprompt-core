@@ -13,6 +13,7 @@ use super::provision::provision_role_and_db;
 pub(super) async fn create_database_in_docker(
     config: &PostgresConfig,
     container_name: &str,
+    reset_role_password: bool,
 ) -> Result<()> {
     CliService::info("Creating database and user in Docker container...");
 
@@ -33,7 +34,7 @@ pub(super) async fn create_database_in_docker(
     let pool = connect(config.superuser_options("postgres", &container_password))
         .await
         .context("Failed to connect to Docker PostgreSQL")?;
-    let outcome = provision_role_and_db(&pool, config).await;
+    let outcome = provision_role_and_db(&pool, config, reset_role_password).await;
     pool.close().await;
     super::provision::report(config, outcome?);
     Ok(())

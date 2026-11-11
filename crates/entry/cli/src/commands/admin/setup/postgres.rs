@@ -8,7 +8,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Context, Result, anyhow, bail};
 use systemprompt_logging::CliService;
 
 use super::SetupArgs;
@@ -49,7 +49,13 @@ pub async fn setup_non_interactive(
         if !cli_config.is_json_output() {
             CliService::info("Setting up PostgreSQL with Docker...");
         }
-        return super::docker::setup_docker_postgres_non_interactive(&config, env_name).await;
+        let config = super::docker::setup_docker_postgres_non_interactive(
+            &config,
+            env_name,
+            args.reset_role_password,
+        )
+        .await?;
+        return require_verified(config).await;
     }
 
     if detect_postgresql(&config.host, config.port) {
@@ -67,16 +73,27 @@ pub async fn setup_non_interactive(
         CliService::info("Continuing with provided configuration...");
     }
 
-    if test_connection(&config).await {
-        if !cli_config.is_json_output() {
-            CliService::success("Database connection successful");
-        }
-        enable_extensions(&config).await?;
-    } else if !cli_config.is_json_output() {
-        CliService::warning("Cannot connect to database - it may need to be created manually");
+    let config = require_verified(config).await?;
+    if !cli_config.is_json_output() {
+        CliService::success("Database connection successful");
     }
-
+    enable_extensions(&config).await?;
     Ok(config)
+}
+
+pub async fn require_verified(config: PostgresConfig) -> Result<PostgresConfig> {
+    if test_connection(&config).await {
+        return Ok(config);
+    }
+    Err(anyhow!(
+        "Cannot log in to database '{}' at {}:{} as '{}' with the configured password. Create \
+         the role and database first, or run setup interactively with superuser credentials. \
+         Nothing was written.",
+        config.database,
+        config.host,
+        config.port,
+        config.user
+    ))
 }
 
 pub async fn setup_interactive(
@@ -95,11 +112,12 @@ pub async fn setup_interactive(
 
     let selection = prompter.select("How would you like to set up PostgreSQL?", &options)?;
 
-    match selection {
-        0 => setup_existing_postgres(args, prompter, env_name).await,
-        1 => super::docker::setup_docker_postgres_interactive(args, prompter, env_name).await,
-        _ => Err(anyhow!("Invalid PostgreSQL setup option selected")),
-    }
+    let config = match selection {
+        0 => setup_existing_postgres(args, prompter, env_name).await?,
+        1 => super::docker::setup_docker_postgres_interactive(args, prompter, env_name).await?,
+        _ => return Err(anyhow!("Invalid PostgreSQL setup option selected")),
+    };
+    require_verified(config).await
 }
 
 async fn setup_existing_postgres(
@@ -126,7 +144,7 @@ async fn setup_existing_postgres(
         database,
     };
 
-    verify_or_create_database(&config, prompter).await?;
+    verify_or_create_database(&config, prompter, args.reset_role_password).await?;
 
     Ok(config)
 }
@@ -175,7 +193,11 @@ pub(super) fn prompt_password(args: &SetupArgs, prompter: &dyn Prompter) -> Resu
     Ok(password)
 }
 
-async fn verify_or_create_database(config: &PostgresConfig, prompter: &dyn Prompter) -> Result<()> {
+async fn verify_or_create_database(
+    config: &PostgresConfig,
+    prompter: &dyn Prompter,
+    reset_role_password: bool,
+) -> Result<()> {
     if test_connection(config).await {
         CliService::success("Successfully connected to database!");
         enable_extensions(config).await?;
@@ -185,21 +207,22 @@ async fn verify_or_create_database(config: &PostgresConfig, prompter: &dyn Promp
     CliService::warning("Cannot connect with provided credentials.");
     CliService::info("The database or user may not exist yet.");
 
-    let create_db = prompter.confirm("Create database and user now? (requires superuser)", true)?;
+    let create_db = prompter.confirm(
+        "Create the database (and the user, if it does not exist) now? (requires superuser)",
+        true,
+    )?;
 
-    if create_db {
-        create_database_interactive(config, prompter).await?;
-        enable_extensions(config).await?;
-    } else {
-        CliService::warning("Skipping database creation. You may need to create it manually.");
+    if !create_db {
+        bail!("Cannot connect with the provided credentials and creation was declined");
     }
-
-    Ok(())
+    create_database_interactive(config, prompter, reset_role_password).await?;
+    enable_extensions(config).await
 }
 
 async fn create_database_interactive(
     config: &PostgresConfig,
     prompter: &dyn Prompter,
+    reset_role_password: bool,
 ) -> Result<()> {
     CliService::info("Enter PostgreSQL superuser credentials (typically 'postgres'):");
 
@@ -214,7 +237,7 @@ async fn create_database_interactive(
     let pool = connect(config.superuser_options(&superuser, &superpass))
         .await
         .context("Failed to connect with superuser credentials")?;
-    let outcome = provision_role_and_db(&pool, config).await;
+    let outcome = provision_role_and_db(&pool, config, reset_role_password).await;
     pool.close().await;
     super::provision::report(config, outcome?);
 

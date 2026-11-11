@@ -23,6 +23,7 @@ fn args() -> SetupArgs {
         db_user: None,
         db_password: None,
         db_password_stdin: false,
+        reset_role_password: false,
         db_name: None,
         gemini_key: None,
         anthropic_key: None,

@@ -128,6 +128,7 @@ impl AdminCommands {
             Self::Users(cmd) => cmd.data_impact(),
             Self::Agents(cmd) => cmd.data_impact(),
             Self::Issues(cmd) => cmd.data_impact(),
+            Self::Setup(args) if args.reset_role_password => DataImpact::Irreversible,
             Self::Bridge(bridge::BridgeCommands::RotateSigningKey(_))
             | Self::Keys(
                 keys::KeysCommands::Stage(_)

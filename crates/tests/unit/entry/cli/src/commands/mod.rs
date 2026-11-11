@@ -150,6 +150,7 @@ mod setup_catalog;
 mod setup_db_password_stdin;
 mod setup_ddl;
 mod setup_docker_compose;
+mod setup_existing_role;
 mod setup_postgres;
 mod setup_secrets_collect_fs;
 mod setup_secrets_prompts;

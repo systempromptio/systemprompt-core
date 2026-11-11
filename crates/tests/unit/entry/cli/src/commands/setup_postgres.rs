@@ -12,11 +12,11 @@ use systemprompt_cli::admin::setup::postgres_access::{
 };
 use systemprompt_cli::interactive::ScriptedPrompter;
 
-fn scripted(answers: &[&str]) -> ScriptedPrompter {
+pub(super) fn scripted(answers: &[&str]) -> ScriptedPrompter {
     ScriptedPrompter::new(answers.iter().map(|s| (*s).to_owned()))
 }
 
-fn args() -> SetupArgs {
+pub(super) fn args() -> SetupArgs {
     SetupArgs {
         environment: Some("covtest".to_owned()),
         docker: false,
@@ -26,6 +26,7 @@ fn args() -> SetupArgs {
         db_user: None,
         db_password: None,
         db_password_stdin: false,
+        reset_role_password: false,
         db_name: None,
         gemini_key: None,
         anthropic_key: None,
@@ -41,15 +42,15 @@ fn args() -> SetupArgs {
     }
 }
 
-struct DbUrl {
-    user: String,
-    password: String,
-    host: String,
-    port: u16,
-    database: String,
+pub(super) struct DbUrl {
+    pub(super) user: String,
+    pub(super) password: String,
+    pub(super) host: String,
+    pub(super) port: u16,
+    pub(super) database: String,
 }
 
-fn db_url() -> DbUrl {
+pub(super) fn db_url() -> DbUrl {
     let raw = systemprompt_test_fixtures::test_database_url();
     let url = url::Url::parse(&raw).expect("DATABASE_URL parses as a URL");
     DbUrl {
@@ -68,7 +69,7 @@ fn db_url() -> DbUrl {
     }
 }
 
-fn runtime() -> tokio::runtime::Runtime {
+pub(super) fn runtime() -> tokio::runtime::Runtime {
     tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
@@ -155,11 +156,11 @@ fn enable_extensions_fails_when_it_cannot_connect() {
     assert!(error.to_string().contains("enable extensions"), "{error:#}");
 }
 
-fn scratch_name(prefix: &str) -> String {
+pub(super) fn scratch_name(prefix: &str) -> String {
     format!("{prefix}_{}", uuid::Uuid::new_v4().simple())
 }
 
-async fn admin_pool(db: &DbUrl) -> sqlx::PgPool {
+pub(super) async fn admin_pool(db: &DbUrl) -> sqlx::PgPool {
     let options = sqlx::postgres::PgConnectOptions::new()
         .host(&db.host)
         .port(db.port)
@@ -169,7 +170,7 @@ async fn admin_pool(db: &DbUrl) -> sqlx::PgPool {
     sqlx::PgPool::connect_with(options).await.expect("connect")
 }
 
-async fn drop_scratch(db: &DbUrl, role: &str, database: &str) {
+pub(super) async fn drop_scratch(db: &DbUrl, role: &str, database: &str) {
     let pool = admin_pool(db).await;
     let _ = sqlx::query(sqlx::AssertSqlSafe(format!(
         "DROP DATABASE IF EXISTS \"{database}\" WITH (FORCE)"
@@ -182,54 +183,6 @@ async fn drop_scratch(db: &DbUrl, role: &str, database: &str) {
     .execute(&pool)
     .await;
     pool.close().await;
-}
-
-#[test]
-fn rerun_against_an_existing_role_sets_the_password_the_profile_carries() {
-    let db = db_url();
-    let role = scratch_name("c1_setup_role");
-    let database = scratch_name("c1_setup_db");
-    runtime().block_on(async {
-        let pool = admin_pool(&db).await;
-        sqlx::query(sqlx::AssertSqlSafe(format!(
-            "CREATE ROLE \"{role}\" LOGIN PASSWORD 'the_old_password'"
-        )))
-        .execute(&pool)
-        .await
-        .expect("create the pre-existing role");
-        pool.close().await;
-    });
-
-    let mut setup_args = args();
-    setup_args.db_password = Some("new p@ss/w#rd".to_owned());
-    let port = db.port.to_string();
-    let prompter = scripted(&[
-        "0",
-        db.host.as_str(),
-        &port,
-        &role,
-        &database,
-        "y",
-        db.user.as_str(),
-        db.password.as_str(),
-    ]);
-    let outcome = runtime().block_on(setup_interactive(
-        &setup_args,
-        &prompter,
-        "covtest",
-        &CliConfig::default(),
-    ));
-    let connects = outcome
-        .as_ref()
-        .is_ok_and(|config| runtime().block_on(test_connection(config)));
-    runtime().block_on(drop_scratch(&db, &role, &database));
-
-    let config = outcome.expect("setup against an existing role succeeds");
-    assert_eq!(config.password, "new p@ss/w#rd");
-    assert!(
-        connects,
-        "the profile's password must log in as the pre-existing role"
-    );
 }
 
 #[test]
@@ -266,21 +219,21 @@ fn non_interactive_with_reachable_database() {
 }
 
 #[test]
-fn non_interactive_with_unreachable_database_still_returns_config() {
+fn non_interactive_with_unreachable_database_is_an_error() {
     let mut setup_args = args();
     setup_args.db_host = "127.0.0.1".to_owned();
     setup_args.db_port = 9;
 
-    let config = runtime()
+    let error = runtime()
         .block_on(setup_non_interactive(
             &setup_args,
             "covtest",
             &CliConfig::default(),
         ))
-        .expect("unreachable database is a warning, not an error");
-    assert_eq!(config.user, "systemprompt_covtest");
-    assert_eq!(config.database, "systemprompt_covtest");
-    assert_eq!(config.password.len(), 16);
+        .expect_err("credentials that do not log in are never returned for the profile");
+    let message = format!("{error:#}");
+    assert!(message.contains("systemprompt_covtest"), "{message}");
+    assert!(message.contains("Nothing was written"), "{message}");
 }
 
 #[test]
@@ -349,7 +302,7 @@ fn interactive_invalid_selection_is_error() {
 }
 
 #[test]
-fn interactive_generated_password_and_skipped_creation() {
+fn interactive_declined_creation_is_an_error() {
     let db = db_url();
     let prompter = scripted(&[
         "0",
@@ -360,16 +313,15 @@ fn interactive_generated_password_and_skipped_creation() {
         "cov_missing_db",
         "n",
     ]);
-    let config = runtime()
+    let error = runtime()
         .block_on(setup_interactive(
             &args(),
             &prompter,
             "covtest",
             &CliConfig::default(),
         ))
-        .expect("declining creation still returns the config");
-    assert_eq!(config.user, "cov_missing_user");
-    assert_eq!(config.database, "cov_missing_db");
+        .expect_err("declining creation leaves nothing to write");
+    assert!(format!("{error:#}").contains("declined"), "{error:#}");
 }
 
 #[test]
@@ -500,7 +452,7 @@ fn docker_non_interactive_reuses_reachable_database_without_compose() {
     let result = runtime()
         .block_on(
             systemprompt_cli::admin::setup::docker::setup_docker_postgres_non_interactive(
-                &config, "covtest",
+                &config, "covtest", false,
             ),
         )
         .expect("reachable database is reused as-is");
@@ -534,6 +486,7 @@ fn docker_non_interactive_refuses_occupied_port() {
             systemprompt_cli::admin::setup::docker::setup_docker_postgres_non_interactive(
                 &config,
                 "covtestport",
+                false,
             ),
         )
         .unwrap_err();

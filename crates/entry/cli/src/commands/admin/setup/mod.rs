@@ -86,6 +86,13 @@ pub struct SetupArgs {
 
     #[arg(
         long,
+        help = "Change the password of an already existing role to the one this setup writes \
+                (anything else using the role loses access; asks for confirmation)"
+    )]
+    pub reset_role_password: bool,
+
+    #[arg(
+        long,
         help = "PostgreSQL database name (default: systemprompt_`<env>`)"
     )]
     pub db_name: Option<String>,
