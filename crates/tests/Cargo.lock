@@ -9479,6 +9479,7 @@ dependencies = [
  "serde_json",
  "serde_yaml_ng",
  "systemprompt-cloud",
+ "systemprompt-config",
  "systemprompt-identifiers",
  "systemprompt-manifest",
  "systemprompt-models",

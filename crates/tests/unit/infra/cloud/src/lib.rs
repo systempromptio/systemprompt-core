@@ -63,6 +63,8 @@ mod project_paths;
 #[cfg(test)]
 mod secrets_env;
 #[cfg(test)]
+mod secrets_env_key_clearing;
+#[cfg(test)]
 mod session_issuer;
 #[cfg(test)]
 mod session_key;

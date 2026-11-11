@@ -252,3 +252,20 @@ async fn env_source_on_deployment_host_requires_signing_key_pem() {
         ConfigError::Secrets(SecretsBootstrapError::SigningKeyPemRequired)
     ));
 }
+
+#[tokio::test]
+async fn an_empty_rotation_secret_in_the_environment_reads_as_absent() {
+    let fx = fixture::write_tree(fixture::ENV_SECRETS, None);
+    let loaded = LoadedProfile::from_path(&fx.profile_path).unwrap();
+    set_base_env();
+    fixture::set_env("SIGNING_KEY_PREVIOUS_KEYS", "");
+    fixture::set_env("SIGNING_KEY_STAGED_PEM", "");
+
+    let service = SecretsService::load(loaded).await.unwrap();
+    let secrets = service.get();
+
+    assert!(secrets.signing_key_previous_keys.is_none());
+    assert!(secrets.signing_key_staged_pem.is_none());
+    assert!(service.signing_keys_previous().unwrap().is_empty());
+    assert!(service.signing_key_staged_pem().unwrap().is_none());
+}
