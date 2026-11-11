@@ -17,6 +17,7 @@ mod seeds;
 mod undeclared;
 
 pub use backfill::{BackfillStatement, PROJECTION_BACKLOG, backfill_statements, projection_tables};
+pub use extension::catalog_digest::catalog_digest as schema_catalog_digest;
 pub use extension::current::{SchemaCurrency, schema_currency};
 pub use extension::install_extension_schemas_full;
 pub use fk_deferral::{

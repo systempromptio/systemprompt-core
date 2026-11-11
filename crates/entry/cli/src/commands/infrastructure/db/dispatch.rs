@@ -23,9 +23,17 @@ pub(super) async fn dispatch_profile_migration(
         DbCommands::Migrate {
             allow_checksum_drift,
             repair_drift,
-        } => admin::execute_migrate(ctx, allow_checksum_drift, repair_drift)
-            .await
-            .map(|()| None),
+            full,
+        } => admin::execute_migrate(
+            ctx,
+            admin::MigrateOptions {
+                allow_checksum_drift,
+                repair_drift,
+                full,
+            },
+        )
+        .await
+        .map(|()| None),
         DbCommands::MigrateDown {
             extension, count, ..
         } => admin::execute_migrate_down(ctx, &extension, count)
@@ -75,9 +83,18 @@ pub(super) async fn dispatch_standalone_migration(
         DbCommands::Migrate {
             allow_checksum_drift,
             repair_drift,
-        } => admin::execute_migrate_standalone(db_ctx, config, allow_checksum_drift, repair_drift)
-            .await
-            .map(|()| None),
+            full,
+        } => admin::execute_migrate_standalone(
+            db_ctx,
+            config,
+            admin::MigrateOptions {
+                allow_checksum_drift,
+                repair_drift,
+                full,
+            },
+        )
+        .await
+        .map(|()| None),
         DbCommands::MigrateDown {
             extension, count, ..
         } => admin::execute_migrate_down_standalone(db_ctx, config, &extension, count)

@@ -41,6 +41,7 @@ pub(crate) const RECORD_MIGRATION_SQL: &str = "INSERT INTO extension_migrations 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct MigrationConfig {
     pub allow_checksum_drift: bool,
+    pub force_full_install: bool,
 }
 
 pub struct MigrationService<'a> {

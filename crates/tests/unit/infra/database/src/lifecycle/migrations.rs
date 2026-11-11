@@ -681,6 +681,7 @@ fn migration_service_debug_shows_config_only() {
     let service =
         MigrationService::new(&provider).with_config(systemprompt_database::MigrationConfig {
             allow_checksum_drift: true,
+            force_full_install: false,
         });
     let debug = format!("{service:?}");
     assert!(debug.contains("MigrationService"));
@@ -804,6 +805,7 @@ mod checksum_drift_db {
 
         let tolerant = MigrationService::new(&provider).with_config(MigrationConfig {
             allow_checksum_drift: true,
+            force_full_install: false,
         });
         let tolerated = tolerant
             .run_pending_migrations(&edited)

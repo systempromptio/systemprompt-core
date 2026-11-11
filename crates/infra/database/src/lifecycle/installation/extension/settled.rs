@@ -8,9 +8,13 @@
 //! ordinary traffic. A complete install therefore records a fingerprint of
 //! everything it applied — each extension's declarative schema, migrations,
 //! retirements and cross-extension tables, the disabled set and this crate's
-//! version — and the next install under the bootstrap lock skips every DDL
-//! phase when that fingerprint is unchanged, the ledger is current and every
-//! owned table exists. Seeds still run; they are DML.
+//! version — together with a read-only digest of the live catalog
+//! ([`super::catalog_digest`]). The next install under the bootstrap lock
+//! skips every DDL phase only when both are unchanged, the ledger is current
+//! and every owned table exists, so an object an older binary, an operator or
+//! a restore changed is re-applied. `MigrationConfig::force_full_install`
+//! always takes the full path. On the settled path the read-only checks
+//! (required columns, trigger routines) and the seeds still run.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -25,6 +29,7 @@ use xxhash_rust::xxh64::Xxh64;
 use super::super::prepare::PreparedSchema;
 use super::super::report::SchemaInstallReport;
 use super::ExtensionSet;
+use super::catalog_digest::catalog_digest;
 use crate::lifecycle::migrations::MigrationConfig;
 use crate::services::DatabaseProvider;
 
@@ -43,7 +48,10 @@ pub(super) async fn install_unless_settled(
     migration_config: MigrationConfig,
 ) -> Result<SchemaInstallReport, LoaderError> {
     let fingerprint = fingerprint(active, disabled_extensions);
-    let candidate = held_back.is_empty() && currency.is_current() && !active.is_empty();
+    let candidate = held_back.is_empty()
+        && currency.is_current()
+        && !active.is_empty()
+        && !migration_config.force_full_install;
     if candidate {
         let prepared = active
             .iter()
@@ -51,20 +59,42 @@ pub(super) async fn install_unless_settled(
             .collect::<Result<Vec<_>, _>>()?;
         if is_settled(db, &prepared, &fingerprint).await? {
             info!("Schema is settled at this release; applying no DDL");
-            for ext in active {
-                super::apply_seeds(ext.as_ref(), db).await?;
-            }
-            return Ok(SchemaInstallReport {
-                residue: super::residue_including(db, &prepared, held_back).await?,
-                ..SchemaInstallReport::default()
-            });
+            return run_settled(db, active, held_back, &prepared).await;
         }
+    }
+    if migration_config.force_full_install {
+        info!("Full schema install forced");
     }
     let report = super::run_install(db, active, held_back, migration_config).await?;
     if held_back.is_empty() && report.foreign_key_drift.is_empty() {
         record(db, &fingerprint).await?;
     }
     Ok(report)
+}
+
+async fn run_settled(
+    db: &dyn DatabaseProvider,
+    active: &ExtensionSet,
+    held_back: &ExtensionSet,
+    prepared: &[PreparedSchema],
+) -> Result<SchemaInstallReport, LoaderError> {
+    for p in prepared {
+        for cols in &p.columns_to_validate {
+            super::validate_extension_columns(db, cols, &p.extension_id).await?;
+        }
+    }
+    super::check_trigger_routines(db).await?;
+    for ext in active {
+        super::apply_seeds(ext.as_ref(), db).await?;
+    }
+    Ok(SchemaInstallReport {
+        residue: super::residue_including(db, prepared, held_back).await?,
+        ..SchemaInstallReport::default()
+    })
+}
+
+fn stamp(fingerprint: &str, catalog: &str) -> String {
+    format!("{fingerprint}:{catalog}")
 }
 
 pub(super) fn fingerprint(
@@ -122,7 +152,10 @@ pub(super) async fn is_settled(
             .fetch_optional(pool.as_ref())
             .await
             .map_err(|e| step_failed("Failed to read the schema fingerprint", e))?;
-    if stored.as_deref() != Some(fingerprint) {
+    let Some(stored) = stored else {
+        return Ok(false);
+    };
+    if stored.split_once(':').map(|(binary, _)| binary) != Some(fingerprint) {
         return Ok(false);
     }
 
@@ -138,7 +171,10 @@ pub(super) async fn is_settled(
     .fetch_one(pool.as_ref())
     .await
     .map_err(|e| step_failed("Failed to check owned tables", e))?;
-    Ok(missing == 0)
+    if missing != 0 {
+        return Ok(false);
+    }
+    Ok(stored == stamp(fingerprint, &catalog_digest(db).await?))
 }
 
 pub(super) async fn record(
@@ -148,12 +184,13 @@ pub(super) async fn record(
     if !fingerprint_table_present(db).await? {
         return Ok(());
     }
+    let stamped = stamp(fingerprint, &catalog_digest(db).await?);
     sqlx::query!(
         "INSERT INTO schema_install_fingerprint (singleton, fingerprint, recorded_at)
          VALUES (true, $1, CURRENT_TIMESTAMP)
          ON CONFLICT (singleton) DO UPDATE
          SET fingerprint = EXCLUDED.fingerprint, recorded_at = EXCLUDED.recorded_at",
-        fingerprint
+        stamped
     )
     .execute(db.get_postgres_pool().as_ref())
     .await

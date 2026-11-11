@@ -20,11 +20,14 @@ use crate::shared::{CommandOutput, render_result};
 
 use super::types::DbMigrateOutput;
 
-pub(super) async fn execute_migrate(
-    ctx: &CommandContext,
-    allow_checksum_drift: bool,
-    repair_drift: bool,
-) -> Result<()> {
+#[derive(Debug, Clone, Copy)]
+pub(super) struct MigrateOptions {
+    pub(super) allow_checksum_drift: bool,
+    pub(super) repair_drift: bool,
+    pub(super) full: bool,
+}
+
+pub(super) async fn execute_migrate(ctx: &CommandContext, options: MigrateOptions) -> Result<()> {
     let config = &ctx.cli;
     let sys_config = ctx.config()?;
 
@@ -53,39 +56,27 @@ pub(super) async fn execute_migrate(
         .context("Failed to connect to the session database")?,
     );
 
-    run_install(
-        &ExtensionRegistry::discover()?,
-        &database,
-        config,
-        allow_checksum_drift,
-        repair_drift,
-    )
-    .await
+    run_install(&ExtensionRegistry::discover()?, &database, config, options).await
 }
 
 pub(super) async fn execute_migrate_standalone(
     db_ctx: &DatabaseContext,
     config: &CliConfig,
-    allow_checksum_drift: bool,
-    repair_drift: bool,
+    options: MigrateOptions,
 ) -> Result<()> {
     let database = db_ctx.db_pool();
-    run_install(
-        &ExtensionRegistry::discover()?,
-        database,
-        config,
-        allow_checksum_drift,
-        repair_drift,
-    )
-    .await
+    run_install(&ExtensionRegistry::discover()?, database, config, options).await
 }
 
 async fn run_install(
     registry: &ExtensionRegistry,
     database: &Database,
     config: &CliConfig,
-    allow_checksum_drift: bool,
-    repair_drift: bool,
+    MigrateOptions {
+        allow_checksum_drift,
+        repair_drift,
+        full,
+    }: MigrateOptions,
 ) -> Result<()> {
     let write_provider = database.session();
     let extension_count = registry.schema_extensions().len();
@@ -99,6 +90,7 @@ async fn run_install(
 
     let migration_config = MigrationConfig {
         allow_checksum_drift,
+        force_full_install: full,
     };
 
     let report =

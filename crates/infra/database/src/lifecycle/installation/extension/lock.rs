@@ -4,6 +4,13 @@
 //! so a wedged holder surfaces as a typed [`BootstrapLockTimeout`] rather than
 //! an unbounded silent wait.
 //!
+//! While a server boot waits here the early-bind listener is already serving:
+//! `/livez` answers `200` and `/readyz` answers `503 starting`, so a liveness
+//! probe keeps the replica alive and no traffic is admitted. When the wait
+//! runs out the boot fails with that typed error and the process exits for
+//! the orchestrator to restart; a startup probe with a budget shorter than
+//! [`BootstrapLockGuard::DEFAULT_WAIT`] restarts it sooner instead.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

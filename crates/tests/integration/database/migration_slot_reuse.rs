@@ -214,6 +214,7 @@ async fn checksum_drift_flag_tolerates_a_reused_slot_without_running_it() {
     MigrationService::new(f.db.write())
         .with_config(MigrationConfig {
             allow_checksum_drift: true,
+            force_full_install: false,
         })
         .run_pending_migrations(&refilled(&f))
         .await

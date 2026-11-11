@@ -181,3 +181,10 @@ fn every_irreversible_command_counts_as_destructive_and_is_kept_out_of_fleet_run
         );
     }
 }
+
+#[test]
+fn a_forced_full_migrate_is_classified_destructive() {
+    let (desc, _) = parsed(&["infra", "db", "migrate", "--full"]);
+    assert_eq!(desc.data_impact(), DataImpact::Destructive);
+    assert!(desc.is_destructive());
+}

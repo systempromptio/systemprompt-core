@@ -27,6 +27,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub(crate) mod catalog_digest;
 mod cost_warning;
 pub(super) mod current;
 mod foreign_keys;

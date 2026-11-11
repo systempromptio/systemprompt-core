@@ -59,6 +59,13 @@ pub enum DbCommands {
                     is reported as-is: repair cannot fix it"
         )]
         repair_drift: bool,
+        #[arg(
+            long,
+            help = "Run every install phase even when the schema is recorded as settled at this \
+                    release, re-applying all declarative DDL (takes exclusive locks on tables \
+                    with triggers)"
+        )]
+        full: bool,
     },
     #[command(about = "Revert the most recently applied migrations for an extension")]
     MigrateDown {

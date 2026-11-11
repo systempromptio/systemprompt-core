@@ -145,3 +145,39 @@ async fn a_pending_breaking_migration_is_planned_and_fails_the_rolling_safe_gate
 
     db.drop_now().await;
 }
+
+async fn recorded_at(url: &str) -> chrono::DateTime<chrono::Utc> {
+    let pool = sqlx::PgPool::connect(url).await.unwrap();
+    let at = sqlx::query_scalar("SELECT recorded_at FROM schema_install_fingerprint")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    pool.close().await;
+    at
+}
+
+#[tokio::test]
+async fn migrate_full_reruns_the_install_on_a_settled_database() {
+    ensure_test_bootstrap();
+    let (db, url) = installed("cli_migrate_full").await;
+    let first = recorded_at(&url).await;
+
+    db::execute(parse(&["migrate"]), &ctx(&url, false).await)
+        .await
+        .expect("settled migrate");
+    assert_eq!(
+        recorded_at(&url).await,
+        first,
+        "a settled migrate applies nothing"
+    );
+
+    db::execute(parse(&["migrate", "--full"]), &ctx(&url, false).await)
+        .await
+        .expect("forced migrate");
+    assert!(
+        recorded_at(&url).await > first,
+        "--full runs every install phase"
+    );
+
+    db.drop_now().await;
+}

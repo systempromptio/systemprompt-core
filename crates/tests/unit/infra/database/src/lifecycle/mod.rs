@@ -16,6 +16,7 @@ mod repair_concurrency;
 mod repair_db;
 mod retirements;
 mod schema_currency_db;
+mod settled_drift;
 mod settled_install;
 mod validation_db;
 mod validation_failure_boundaries;
