@@ -4,13 +4,13 @@
 //! call: it requires an `AuthzPolicy`, so a route group cannot be mounted
 //! authenticated-but-unauthorized — omitting the policy is a compile error.
 //!
-//! `RouterExt::with_rate_limit` mounts two throttles: the in-process governor
+//! `RouterExt::with_rate_limit` mounts two throttles: the in-process limiter
 //! keyed by verified identity or trusted client IP, which smooths bursts per
 //! replica, and a database-backed window keyed by verified identity only,
 //! which bounds a caller's budget across every replica of the deployment.
 //!
 //! [`with_pre_auth_ip_limit`] mounts a third, cheaper throttle on the whole
-//! server, outside every authenticating layer: an in-process governor keyed by
+//! server, outside every authenticating layer: an in-process limiter keyed by
 //! resolved client address only. `with_auth` decodes the bearer and checks
 //! its revocation before the identity-keyed throttles see the request, so
 //! without it a flood of forged or expired credentials would cost a token
@@ -21,7 +21,7 @@
 //! in the request's extensions. A router that authenticates inside its
 //! handlers never puts one there, so it adds `RouterExt::with_bearer_window`,
 //! which charges the same window by the signature-verified bearer token;
-//! without it the per-replica governor would be the only limit, and the
+//! without it the per-replica limiter would be the only limit, and the
 //! effective budget would multiply with the replica count. A `worker` mounts
 //! its MCP and agent routes with [`RateLimitState::unmetered`]: only `api`
 //! replicas that already charged the caller forward to it, and charging the
@@ -33,6 +33,8 @@
 mod bearer;
 mod global;
 mod key;
+pub mod keyed;
+mod throttle;
 
 use crate::services::middleware::authz::{AuthzPolicy, authz_gate};
 use crate::services::middleware::context::{
@@ -48,7 +50,6 @@ use std::future::Future;
 use std::sync::Arc;
 use std::time::Duration;
 use systemprompt_extension::LoaderError;
-use systemprompt_identifiers::ExtensionId;
 use systemprompt_manifest::Config;
 use systemprompt_manifest::profile::RateLimitsConfig;
 use systemprompt_runtime::AppContext;
@@ -58,7 +59,9 @@ use self::bearer::{BearerWindow, bearer_user_rate_limit};
 use self::global::{GLOBAL_WINDOW_SECS, GlobalUserLimit, global_user_rate_limit};
 
 pub use self::bearer::bearer_jwt;
-pub use self::key::{IdentityOrTrustedIpKey, TrustedIpKey};
+pub use self::key::{IdentityOrTrustedIpKey, TrustedIpKey, client_bucket};
+pub use self::keyed::KeyedLimiter;
+use self::throttle::{Keying, Throttle, throttle};
 
 #[derive(Clone, Debug)]
 pub struct RateLimitState {
@@ -88,19 +91,16 @@ impl RateLimitState {
         self
     }
 
-    fn governor_shape(&self, per_second: u64) -> (Duration, u32, u64) {
+    fn limiter_shape(&self, per_second: u64) -> (Duration, u32) {
         let burst_u32 = u32::try_from(self.burst(per_second))
             .unwrap_or(u32::MAX)
             .max(1);
         let per_second_clamped = per_second.max(1);
-        // Why: `GovernorConfigBuilder::per_second(n)` replenishes one element
-        // every n seconds, the inverse of a rate; `period` takes 1/per_second
-        // directly.
         let replenish = Duration::from_secs(1)
             .checked_div(u32::try_from(per_second_clamped).unwrap_or(u32::MAX))
             .filter(|d| !d.is_zero())
             .unwrap_or(Duration::from_nanos(1));
-        (replenish, burst_u32, per_second_clamped)
+        (replenish, burst_u32)
     }
 
     const fn burst(&self, per_second: u64) -> u64 {
@@ -180,16 +180,14 @@ where
             return Ok(self);
         }
 
-        let (replenish, burst_u32, per_second_clamped) = limits.governor_shape(per_second);
-        let rate_limit = tower_governor::governor::GovernorConfigBuilder::default()
-            .period(replenish)
-            .burst_size(burst_u32)
-            .key_extractor(IdentityOrTrustedIpKey::new(Arc::clone(
+        let (replenish, burst_u32) = limits.limiter_shape(per_second);
+        let local = Throttle::new(
+            replenish,
+            burst_u32,
+            Keying::IdentityOrIp(IdentityOrTrustedIpKey::new(Arc::clone(
                 &limits.trusted_proxies,
-            )))
-            .use_headers()
-            .finish()
-            .ok_or_else(|| rejected_shape(per_second_clamped, burst_u32))?;
+            ))),
+        );
 
         let global = limits.global_limit(per_second, scope);
 
@@ -198,7 +196,7 @@ where
                 global,
                 global_user_rate_limit,
             ))
-            .layer(tower_governor::GovernorLayer::new(rate_limit)))
+            .layer(axum::middleware::from_fn_with_state(local, throttle)))
     }
 
     fn with_auth<L: ContextLayer>(self, auth: L, policy: AuthzPolicy) -> Self {
@@ -232,30 +230,18 @@ where
     }
 }
 
-fn rejected_shape(per_second: u64, burst: u32) -> LoaderError {
-    LoaderError::InitializationFailed {
-        extension: ExtensionId::new("rate_limit"),
-        message: format!("rate limit rejected for {per_second}/s with burst {burst}"),
-    }
-}
-
-pub fn with_pre_auth_ip_limit<S>(
-    router: Router<S>,
-    limits: &RateLimitState,
-) -> Result<Router<S>, LoaderError>
+pub fn with_pre_auth_ip_limit<S>(router: Router<S>, limits: &RateLimitState) -> Router<S>
 where
     S: Clone + Send + Sync + 'static,
 {
     if limits.config.disabled {
-        return Ok(router);
+        return router;
     }
-    let (replenish, burst, per_second) =
-        limits.governor_shape(limits.config.pre_auth_ip_per_second);
-    let config = tower_governor::governor::GovernorConfigBuilder::default()
-        .period(replenish)
-        .burst_size(burst)
-        .key_extractor(TrustedIpKey::new(Arc::clone(&limits.trusted_proxies)))
-        .finish()
-        .ok_or_else(|| rejected_shape(per_second, burst))?;
-    Ok(router.layer(tower_governor::GovernorLayer::new(config)))
+    let (replenish, burst) = limits.limiter_shape(limits.config.pre_auth_ip_per_second);
+    let local = Throttle::new(
+        replenish,
+        burst,
+        Keying::Ip(TrustedIpKey::new(Arc::clone(&limits.trusted_proxies))),
+    );
+    router.layer(axum::middleware::from_fn_with_state(local, throttle))
 }

@@ -20,7 +20,7 @@ use systemprompt_oauth::services::cimd::ClientValidator;
 use systemprompt_oauth::services::{CreateAnonymousSessionInput, SessionCreationService};
 
 use crate::routes::oauth::{OAuthHttpError, internal};
-use crate::services::session_cookie::{SameSite, session_cookie};
+use crate::services::session_cookie::{SameSite, SessionCookie};
 use systemprompt_traits::{ExtractSignals, SessionAnalytics};
 
 #[derive(Debug, Serialize)]
@@ -49,9 +49,14 @@ fn default_client_id() -> ClientId {
     ClientId::new("sp_web")
 }
 
-fn token_response(body: AnonymousTokenResponse, jwt_token: &str, expires_in: i64) -> Response {
+fn token_response(
+    cookie: SessionCookie,
+    body: AnonymousTokenResponse,
+    jwt_token: &str,
+    expires_in: i64,
+) -> Response {
     let mut response = (StatusCode::OK, Json(body)).into_response();
-    if let Ok(cookie_value) = session_cookie(jwt_token, expires_in, SameSite::Strict) {
+    if let Ok(cookie_value) = cookie.issue(jwt_token, expires_in, SameSite::Strict) {
         response
             .headers_mut()
             .insert(header::SET_COOKIE, cookie_value);
@@ -60,6 +65,7 @@ fn token_response(body: AnonymousTokenResponse, jwt_token: &str, expires_in: i64
 }
 
 async fn issue_anonymous_session(
+    cookie: SessionCookie,
     session_service: &SessionCreationService,
     req: &AnonymousTokenRequest,
     analytics: &SessionAnalytics,
@@ -88,7 +94,7 @@ async fn issue_anonymous_session(
         client_id,
         client_type,
     };
-    Ok(token_response(body, jwt_token.as_str(), expires_in))
+    Ok(token_response(cookie, body, jwt_token.as_str(), expires_in))
 }
 
 fn build_session_service(state: &OAuthState, config: Arc<Config>) -> SessionCreationService {
@@ -121,6 +127,7 @@ pub async fn generate_anonymous_token(
         .map_err(|e| internal::reclassify(e, OAuthHttpError::invalid_client))?;
     let client_type = validation.client_type();
 
+    let cookie = SessionCookie::from_config(&config);
     let session_service = build_session_service(&state, config);
 
     let analytics = state.analytics_provider().extract_analytics(
@@ -131,5 +138,12 @@ pub async fn generate_anonymous_token(
         },
     );
 
-    issue_anonymous_session(&session_service, &req, &analytics, client_type.to_string()).await
+    issue_anonymous_session(
+        cookie,
+        &session_service,
+        &req,
+        &analytics,
+        client_type.to_string(),
+    )
+    .await
 }

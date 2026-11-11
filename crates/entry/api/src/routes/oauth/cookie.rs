@@ -4,11 +4,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::services::session_cookie::{SameSite, session_cookie};
+use crate::services::session_cookie::{SameSite, SessionCookie};
 use axum::http::header;
 use axum::response::{IntoResponse, Redirect, Response};
 
 pub fn session_cookie_redirect(
+    cookie: SessionCookie,
     access_token: &str,
     destination: &str,
     max_age_secs: i64,
@@ -17,7 +18,7 @@ pub fn session_cookie_redirect(
     // browsers withhold a `SameSite=Strict` cookie on the redirect that
     // follows, so the session would never arrive. `Lax` is the OIDC norm.
     let mut response = Redirect::to(destination).into_response();
-    if let Ok(cookie_value) = session_cookie(access_token, max_age_secs, SameSite::Lax) {
+    if let Ok(cookie_value) = cookie.issue(access_token, max_age_secs, SameSite::Lax) {
         response
             .headers_mut()
             .append(header::SET_COOKIE, cookie_value);

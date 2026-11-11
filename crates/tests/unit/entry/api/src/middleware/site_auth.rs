@@ -40,7 +40,8 @@ mod gate {
     use axum::http::{StatusCode, header};
     use axum::routing::get;
     use axum::{Router, middleware};
-    use systemprompt_api::services::middleware::site_auth_gate;
+    use systemprompt_api::services::middleware::{SiteAuthSession, site_auth_gate};
+    use systemprompt_api::services::session_cookie::SessionCookie;
     use systemprompt_extension::SiteAuthConfig;
     use systemprompt_identifiers::UserId;
     use systemprompt_test_fixtures::{FIXTURE_JWT_ISSUER, fixture_config, mint_admin_jwt};
@@ -60,7 +61,19 @@ mod gate {
             .layer(middleware::from_fn(move |req, next| {
                 let config = config.clone();
                 let keys = keys.clone();
-                async move { site_auth_gate(req, next, config, FIXTURE_JWT_ISSUER, &keys).await }
+                async move {
+                    site_auth_gate(
+                        req,
+                        next,
+                        config,
+                        SiteAuthSession {
+                            issuer: FIXTURE_JWT_ISSUER,
+                            keys: &keys,
+                            cookie: SessionCookie::for_external_url("https://app.example.com"),
+                        },
+                    )
+                    .await
+                }
             }))
     }
 

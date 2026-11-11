@@ -20,6 +20,8 @@ use std::sync::Arc;
 use axum::Router;
 use axum::routing::get;
 use systemprompt_oauth::OAuthState;
+
+use crate::services::session_cookie::SessionCookie;
 use systemprompt_oauth::services::SessionCreationService;
 use systemprompt_oauth_issuance::sso::SsoDriver;
 use systemprompt_runtime::AppContext;
@@ -33,6 +35,7 @@ pub const SSO_BASE: &str = "/api/v1/core/sso";
 pub struct SsoRouteState {
     pub driver: SsoDriver,
     pub analytics: Arc<dyn AnalyticsProvider>,
+    pub cookie: SessionCookie,
 }
 
 impl std::fmt::Debug for SsoRouteState {
@@ -70,6 +73,7 @@ impl SsoRouteState {
         Ok(Self {
             driver,
             analytics: Arc::clone(oauth.analytics_provider()),
+            cookie: SessionCookie::from_config(ctx.config()),
         })
     }
 }

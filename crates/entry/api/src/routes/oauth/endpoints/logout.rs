@@ -19,11 +19,14 @@ use tracing::instrument;
 
 use crate::routes::oauth::extractors::OAuthRepo;
 use crate::routes::oauth::{OAuthHttpError, internal};
-use crate::services::session_cookie::cleared_session_cookie;
+use crate::services::session_cookie::SessionCookie;
+use std::sync::Arc;
+use systemprompt_manifest::Config;
 
-#[instrument(skip(repo, req_ctx))]
+#[instrument(skip(repo, req_ctx, config))]
 pub async fn handle_logout(
     Extension(req_ctx): Extension<RequestContext>,
+    Extension(config): Extension<Arc<Config>>,
     OAuthRepo(repo): OAuthRepo,
 ) -> Result<Response, OAuthHttpError> {
     let jti = req_ctx
@@ -38,9 +41,10 @@ pub async fn handle_logout(
     revoke_jti(&repo, jti, req_ctx.user_id(), exp_dt).await?;
 
     let mut response = (StatusCode::NO_CONTENT).into_response();
-    response
-        .headers_mut()
-        .insert(header::SET_COOKIE, cleared_session_cookie());
+    response.headers_mut().insert(
+        header::SET_COOKIE,
+        SessionCookie::from_config(&config).cleared(),
+    );
     Ok(response)
 }
 

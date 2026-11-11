@@ -60,8 +60,7 @@ fn forged_bearer_from(ip: [u8; 4]) -> Request<Body> {
 #[tokio::test]
 async fn a_credential_flood_from_one_address_is_refused_before_authentication_runs() {
     let calls = Arc::new(AtomicUsize::new(0));
-    let app = with_pre_auth_ip_limit(counting_auth_router(&calls), &limits(tight()).await)
-        .expect("limiter builds");
+    let app = with_pre_auth_ip_limit(counting_auth_router(&calls), &limits(tight()).await);
 
     let mut statuses = Vec::new();
     for _ in 0..6 {
@@ -87,8 +86,7 @@ async fn a_credential_flood_from_one_address_is_refused_before_authentication_ru
 #[tokio::test]
 async fn another_address_keeps_its_own_pre_auth_budget() {
     let calls = Arc::new(AtomicUsize::new(0));
-    let app = with_pre_auth_ip_limit(counting_auth_router(&calls), &limits(tight()).await)
-        .expect("limiter builds");
+    let app = with_pre_auth_ip_limit(counting_auth_router(&calls), &limits(tight()).await);
 
     for _ in 0..3 {
         let _ = app
@@ -112,8 +110,7 @@ async fn a_disabled_rate_limit_config_mounts_no_pre_auth_limiter() {
         disabled: true,
         ..tight()
     };
-    let app = with_pre_auth_ip_limit(counting_auth_router(&calls), &limits(config).await)
-        .expect("limiter builds");
+    let app = with_pre_auth_ip_limit(counting_auth_router(&calls), &limits(config).await);
 
     for _ in 0..6 {
         let resp = app

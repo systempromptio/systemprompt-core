@@ -26,8 +26,11 @@ use super::error::log_error_response;
 use super::support::{DynExtractor, create_request_span, session_context_required_error};
 use systemprompt_identifiers::headers as sp_headers;
 
+#[path = "a2a_flavour.rs"]
+mod a2a_flavour;
 #[path = "mcp_flavour.rs"]
 mod mcp_flavour;
+pub use a2a_flavour::A2AContextMiddleware;
 pub use mcp_flavour::McpContextMiddleware;
 
 /// Public route flavour: admits `UserType::Anon`.
@@ -131,55 +134,6 @@ impl UserOnlyContextMiddleware {
                 let span = create_request_span(&context);
                 request.extensions_mut().insert(context);
                 next.run(request).instrument(span).await
-            },
-            Err(e) => log_error_response(&e, &trace_id, &path, &method),
-        }
-    }
-}
-
-/// A2A flavour: requires a real user.
-///
-/// Parses the JSON-RPC body to recover `contextId` (the A2A wire spec carries
-/// it in the body, not headers). The body is read and rebuilt so downstream
-/// handlers can deserialise it again.
-#[derive(Clone)]
-pub struct A2AContextMiddleware {
-    extractor: DynExtractor,
-    body_limit: usize,
-}
-
-impl std::fmt::Debug for A2AContextMiddleware {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("A2AContextMiddleware").finish()
-    }
-}
-
-impl A2AContextMiddleware {
-    pub fn new<E>(extractor: E, body_limit: usize) -> Self
-    where
-        E: ContextExtractor + Send + Sync + 'static,
-    {
-        Self {
-            extractor: Arc::new(extractor),
-            body_limit,
-        }
-    }
-
-    pub async fn handle(&self, request: Request, next: Next) -> Response {
-        let trace_id = HeaderExtractor::extract_trace_id(request.headers());
-        let path = request.uri().path().to_owned();
-        let method = request.method().to_string();
-
-        match self
-            .extractor
-            .extract_from_request(request, self.body_limit)
-            .await
-        {
-            Ok((context, reconstructed_request)) => {
-                let span = create_request_span(&context);
-                let mut req = reconstructed_request;
-                req.extensions_mut().insert(context);
-                next.run(req).instrument(span).await
             },
             Err(e) => log_error_response(&e, &trace_id, &path, &method),
         }

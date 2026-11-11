@@ -12,9 +12,7 @@ use systemprompt_api::services::middleware::client_addr::resolve_client_ip;
 use systemprompt_api::services::middleware::context::PayloadSource;
 use systemprompt_api::services::middleware::context::middleware::error::extraction_error_to_api_error;
 use systemprompt_api::services::middleware::{BodyReadError, read_body_bounded};
-use systemprompt_api::services::session_cookie::{
-    SameSite, cleared_session_cookie, session_cookie,
-};
+use systemprompt_api::services::session_cookie::{SameSite, SessionCookie};
 use systemprompt_models::execution::ContextExtractionError;
 use systemprompt_models::net::BUFFERED_BODY_LIMIT_BYTES;
 
@@ -142,25 +140,26 @@ fn a_secondary_client_header_is_ignored_when_a_forwarded_for_chain_is_present() 
     assert_eq!(resolved, Some("10.0.0.1".parse::<IpAddr>().expect("ip")));
 }
 
+fn https() -> SessionCookie {
+    SessionCookie::for_external_url("https://app.example.com")
+}
+
+fn plain_http() -> SessionCookie {
+    SessionCookie::for_external_url("http://192.168.1.20:8080")
+}
+
 #[test]
-fn the_session_cookie_is_always_secure_and_http_only() {
+fn an_https_deployment_always_issues_a_secure_http_only_cookie() {
     for same_site in [SameSite::Strict, SameSite::Lax] {
-        let cookie = session_cookie("tok", 60, same_site).expect("cookie builds");
+        let cookie = https().issue("tok", 60, same_site).expect("cookie builds");
         let text = cookie.to_str().expect("ascii");
         assert!(text.starts_with("access_token=tok;"), "{text}");
         for attr in ["Path=/", "HttpOnly", "Secure", "Max-Age=60"] {
             assert!(text.contains(attr), "{attr} missing from {text}");
         }
     }
-    let lax = session_cookie("tok", 60, SameSite::Lax).expect("cookie builds");
-    assert!(lax.to_str().expect("ascii").contains("SameSite=Lax"));
-}
-
-#[test]
-fn the_cleared_session_cookie_carries_the_same_attributes_as_the_set() {
-    let cleared = cleared_session_cookie();
+    let cleared = https().cleared();
     let text = cleared.to_str().expect("ascii");
-
     for attr in [
         "access_token=;",
         "Path=/",
@@ -170,4 +169,35 @@ fn the_cleared_session_cookie_carries_the_same_attributes_as_the_set() {
     ] {
         assert!(text.contains(attr), "{attr} missing from {text}");
     }
+}
+
+#[test]
+fn a_plain_http_deployment_issues_a_cookie_the_browser_will_store() {
+    let cookie = plain_http()
+        .issue("tok", 60, SameSite::Lax)
+        .expect("cookie builds");
+    let text = cookie.to_str().expect("ascii");
+    assert!(!text.contains("Secure"), "{text}");
+    assert!(text.contains("HttpOnly"), "{text}");
+    assert!(
+        !plain_http()
+            .cleared()
+            .to_str()
+            .expect("ascii")
+            .contains("Secure")
+    );
+}
+
+#[test]
+fn an_unparseable_external_url_issues_a_secure_cookie() {
+    assert!(SessionCookie::for_external_url("not a url").is_secure());
+}
+
+#[test]
+fn the_cookie_follows_the_configured_external_url_not_the_request() {
+    let mut config = systemprompt_test_fixtures::fixture_config("postgres://localhost/cookie");
+    config.api_external_url = "https://gateway.example.com".to_owned();
+    assert!(SessionCookie::from_config(&config).is_secure());
+    config.api_external_url = "http://gateway.internal:8080".to_owned();
+    assert!(!SessionCookie::from_config(&config).is_secure());
 }

@@ -12,19 +12,26 @@ use systemprompt_models::auth::Permission;
 use systemprompt_security::keys::SigningKeys;
 use systemprompt_security::{TokenExtractor, extract_user_context};
 
-use crate::services::session_cookie::cleared_session_cookie;
+use crate::services::session_cookie::SessionCookie;
 
 const STATIC_ASSET_EXTENSIONS: &[&str] = &[
     ".css", ".js", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".woff", ".woff2", ".ttf",
     ".map", ".webp", ".avif",
 ];
 
+/// How the site gate verifies a session token and clears a rejected one.
+#[derive(Debug, Clone, Copy)]
+pub struct SiteAuthSession<'a> {
+    pub issuer: &'a str,
+    pub keys: &'a SigningKeys,
+    pub cookie: SessionCookie,
+}
+
 pub async fn site_auth_gate(
     request: Request,
     next: Next,
     config: SiteAuthConfig,
-    issuer: &str,
-    keys: &SigningKeys,
+    session: SiteAuthSession<'_>,
 ) -> Response {
     let path = request.uri().path();
 
@@ -60,7 +67,7 @@ pub async fn site_auth_gate(
         return next.run(request).await;
     }
 
-    match authorize(&request, &config, issuer, keys) {
+    match authorize(&request, &config, session.issuer, session.keys) {
         AuthOutcome::Authorized => next.run(request).await,
         outcome => {
             let redirect = login_redirect(config.login_path, request.uri());
@@ -68,7 +75,7 @@ pub async fn site_auth_gate(
             if matches!(outcome, AuthOutcome::InvalidToken) {
                 response
                     .headers_mut()
-                    .insert(header::SET_COOKIE, cleared_session_cookie());
+                    .insert(header::SET_COOKIE, session.cookie.cleared());
             }
             response
         },

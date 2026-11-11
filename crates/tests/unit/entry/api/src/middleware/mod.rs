@@ -21,6 +21,7 @@ mod content_negotiation;
 mod context_flavours;
 mod cors_config;
 mod edge_bounds;
+mod edge_keyed_limiter;
 mod edge_pre_auth_limit;
 mod header_source;
 mod jwt_params;

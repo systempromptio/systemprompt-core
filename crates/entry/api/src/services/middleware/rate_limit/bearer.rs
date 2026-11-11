@@ -3,7 +3,7 @@
 //!
 //! Such a router carries no [`RequestContext`], so the identity window in
 //! [`super::global`] sees every request as anonymous and only the per-replica
-//! governor would limit it — a budget that multiplies with the replica count.
+//! limiter would limit it — a budget that multiplies with the replica count.
 //! This layer verifies the bearer token's signature and issuer (the handler
 //! still performs the full session, user and revocation checks) and charges
 //! the same per-user window, so a caller's budget holds across replicas. A

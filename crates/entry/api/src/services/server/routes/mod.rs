@@ -44,9 +44,9 @@ use systemprompt_traits::{AppContext as AppContextTrait, StartupEventSender};
 
 use crate::services::middleware::authz::AuthzPolicy;
 use crate::services::middleware::{
-    A2AContextMiddleware, JtiRevocationChecker, JwtContextExtractor, McpContextMiddleware,
-    PublicContextMiddleware, RateLimitState, RouterExt, UserOnlyContextMiddleware,
-    ip_ban_middleware,
+    A2AContextMiddleware, BodyBudget, JtiRevocationChecker, JwtContextExtractor,
+    McpContextMiddleware, PublicContextMiddleware, RateLimitState, RouterExt,
+    UserOnlyContextMiddleware, ip_ban_middleware,
 };
 
 pub(super) fn configure_routes(
@@ -94,6 +94,7 @@ fn build_routes(
     let a2a_middleware = A2AContextMiddleware::new(
         jwt_extractor.clone(),
         systemprompt_models::net::AGENT_REQUEST_BODY_LIMIT_BYTES,
+        BodyBudget::new(systemprompt_models::net::AGENT_BUFFERED_BYTES_BUDGET),
     );
     let mcp_middleware = McpContextMiddleware::new(jwt_extractor);
 

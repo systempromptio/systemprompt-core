@@ -30,7 +30,9 @@ pub mod trailing_slash;
 
 pub use analytics::{AnalyticsEventParams, AnalyticsMiddleware};
 pub use authz::{AuthzPolicy, authz_gate};
-pub use body::{BodyReadError, read_body_bounded, read_request_bounded};
+pub use body::{
+    BodyBudget, BodyReadError, BodyReservation, read_body_bounded, read_request_bounded,
+};
 pub use bot_detector::{
     BotMarker, BotType, detect_bots_early, is_datacenter_ip, is_known_bot, is_outdated_browser,
     is_scanner_request,
@@ -56,6 +58,6 @@ pub use served_by::inject_served_by;
 pub use session::{
     SessionAttestationError, SessionMiddleware, attest_session, should_skip_session_tracking,
 };
-pub use site_auth::{login_redirect, site_auth_gate};
+pub use site_auth::{SiteAuthSession, login_redirect, site_auth_gate};
 pub use trace::inject_trace_header;
 pub use trailing_slash::{remove_trailing_slash, should_redirect};

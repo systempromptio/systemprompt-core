@@ -83,5 +83,5 @@ async fn finish(
             },
         )
         .await;
-    into_response(outcome)
+    into_response(state.cookie, outcome)
 }

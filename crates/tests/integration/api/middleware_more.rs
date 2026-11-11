@@ -137,8 +137,14 @@ async fn drive_site_auth(uri: &str) -> StatusCode {
                 req,
                 next,
                 config,
-                systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
-                &systemprompt_test_fixtures::test_signing_keys(),
+                systemprompt_api::services::middleware::SiteAuthSession {
+                    issuer: systemprompt_test_fixtures::FIXTURE_JWT_ISSUER,
+                    keys: &systemprompt_test_fixtures::test_signing_keys(),
+                    cookie:
+                        systemprompt_api::services::session_cookie::SessionCookie::for_external_url(
+                            "https://app.example.com",
+                        ),
+                },
             )
             .await
         }));

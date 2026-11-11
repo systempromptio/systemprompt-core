@@ -440,7 +440,11 @@ async fn every_context_flavour_refuses_a_request_with_no_session_context() {
         AuthzPolicy::public(),
     );
     let a2a = ok_router().with_auth(
-        A2AContextMiddleware::new(extractor(None), 1024),
+        A2AContextMiddleware::new(
+            extractor(None),
+            1024,
+            systemprompt_api::services::middleware::BodyBudget::new(64 * 1024 * 1024),
+        ),
         AuthzPolicy::public(),
     );
     let mcp = ok_router().with_auth(

@@ -113,7 +113,7 @@ fn apply_global_middleware(router: Router, ctx: &AppContext) -> Result<Router> {
         }
     }));
 
-    router = with_pre_auth_ip_limit(router, &RateLimitState::from_context(ctx))?;
+    router = with_pre_auth_ip_limit(router, &RateLimitState::from_context(ctx));
 
     let cors = CorsMiddleware::build_layer(ctx.config())?;
     router = router.layer(cors);

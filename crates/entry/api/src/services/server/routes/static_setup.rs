@@ -10,7 +10,10 @@ use systemprompt_runtime::AppContext;
 use systemprompt_traits::{StartupEvent, StartupEventSender};
 
 use crate::services::middleware::authz::AuthzPolicy;
-use crate::services::middleware::{PublicContextMiddleware, RouterExt, site_auth_gate};
+use crate::services::middleware::{
+    PublicContextMiddleware, RouterExt, SiteAuthSession, site_auth_gate,
+};
+use crate::services::session_cookie::SessionCookie;
 use crate::services::static_content::{
     StaticContentMatcher, StaticContentState, serve_homepage, smart_fallback_handler,
 };
@@ -74,11 +77,24 @@ pub(super) fn build_static_router(
     if let Some(auth_config) = site_auth_config {
         let issuer: Arc<str> = Arc::from(ctx.config().jwt_issuer.as_str());
         let keys = ctx.signing_keys().clone();
+        let cookie = SessionCookie::from_config(ctx.config());
         static_router.layer(axum::middleware::from_fn(move |req, next| {
             let config = auth_config;
             let issuer = Arc::clone(&issuer);
             let keys = keys.clone();
-            async move { site_auth_gate(req, next, config, &issuer, &keys).await }
+            async move {
+                site_auth_gate(
+                    req,
+                    next,
+                    config,
+                    SiteAuthSession {
+                        issuer: &issuer,
+                        keys: &keys,
+                        cookie,
+                    },
+                )
+                .await
+            }
         }))
     } else {
         static_router

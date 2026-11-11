@@ -30,7 +30,7 @@ pub use attestation::{SessionAttestationError, attest_session};
 pub use skip::should_skip_session_tracking;
 
 use crate::error::ApiHttpError;
-use crate::services::session_cookie::{SameSite, session_cookie};
+use crate::services::session_cookie::{SameSite, SessionCookie};
 use axum::extract::{ConnectInfo, Request};
 use axum::http::header;
 use axum::middleware::Next;
@@ -155,8 +155,11 @@ impl SessionMiddleware {
         let mut response = next.run(request).await;
 
         if let Some(token) = jwt_cookie
-            && let Ok(cookie_value) =
-                session_cookie(&token, SESSION_COOKIE_MAX_AGE_SECS, SameSite::Strict)
+            && let Ok(cookie_value) = SessionCookie::from_config(&self.config).issue(
+                &token,
+                SESSION_COOKIE_MAX_AGE_SECS,
+                SameSite::Strict,
+            )
         {
             response
                 .headers_mut()
