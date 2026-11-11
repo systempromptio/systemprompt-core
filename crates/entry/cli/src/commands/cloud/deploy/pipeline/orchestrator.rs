@@ -107,6 +107,7 @@ impl DeployOrchestrator {
             let health = provider.wait_until_ready(self.readiness).await?;
             progress.event(&DeployEvent::TenantReady {
                 version: health.version.as_deref(),
+                release_confirmed: health.release_confirmed,
             });
         }
 

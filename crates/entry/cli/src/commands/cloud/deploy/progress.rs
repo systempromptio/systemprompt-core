@@ -123,8 +123,11 @@ fn render_event(event: &DeployEvent<'_>) {
             CliService::key_value("Image", image);
             CliService::key_value("Commit", commit);
         },
-        DeployEvent::TenantReady { version } => {
-            CliService::success("Tenant is ready");
+        DeployEvent::TenantReady {
+            version,
+            release_confirmed,
+        } => {
+            CliService::success(tenant_ready_text(*release_confirmed));
             if let Some(version) = version {
                 CliService::key_value("Version", version);
             }
@@ -137,5 +140,15 @@ fn render_event(event: &DeployEvent<'_>) {
             }
         },
         _ => {},
+    }
+}
+
+#[must_use]
+pub const fn tenant_ready_text(release_confirmed: bool) -> &'static str {
+    if release_confirmed {
+        "Tenant is ready"
+    } else {
+        "Tenant is ready (version not confirmed: the provider does not report which release is \
+         serving)"
     }
 }

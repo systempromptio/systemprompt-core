@@ -4,6 +4,10 @@
 //! carries the running core version on every status, so one probe reports
 //! both. A probe that cannot reach the instance is an unready result, not an
 //! error: the caller is usually polling a rollout that has not finished.
+//! `/readyz` does not name the release it runs, so during a rolling update an
+//! old instance can answer ready; [`TenantHealth::release_confirmed`] is false
+//! for every probe and callers report readiness as unconfirmed for the new
+//! release.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -23,6 +27,7 @@ pub struct TenantHealth {
     pub ready: bool,
     pub status: String,
     pub version: Option<String>,
+    pub release_confirmed: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -65,6 +70,7 @@ pub async fn probe_tenant(client: &reqwest::Client, base_url: &str) -> TenantHea
                 ready: false,
                 status: format!("unreachable: {error}"),
                 version: None,
+                release_confirmed: false,
             };
         },
     };
@@ -77,6 +83,7 @@ pub async fn probe_tenant(client: &reqwest::Client, base_url: &str) -> TenantHea
             ready: http_status.is_success() && body.status == "ready",
             status: body.status,
             version: body.version,
+            release_confirmed: false,
         },
         Err(error) => TenantHealth {
             url: base_url.to_owned(),
@@ -84,6 +91,7 @@ pub async fn probe_tenant(client: &reqwest::Client, base_url: &str) -> TenantHea
             ready: false,
             status: format!("unreadable /readyz body: {error}"),
             version: None,
+            release_confirmed: false,
         },
     }
 }

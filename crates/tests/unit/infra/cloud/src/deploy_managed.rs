@@ -246,3 +246,37 @@ async fn wait_until_ready_polls_until_the_tenant_comes_up() {
         .unwrap();
     assert_eq!(health.status, "running");
 }
+
+#[tokio::test]
+async fn a_ready_tenant_is_not_claimed_to_run_the_new_release() {
+    let server = MockServer::start().await;
+    tenant_status(&server, "running").await;
+    let health = managed(&server)
+        .await
+        .wait_until_ready(QUICK)
+        .await
+        .unwrap();
+    assert!(health.ready);
+    assert!(
+        !health.release_confirmed,
+        "the control-plane status names no release, so it cannot confirm one"
+    );
+}
+
+#[tokio::test]
+async fn a_transient_status_failure_is_retried_within_the_wait() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/api/v1/tenants/t-managed/status"))
+        .respond_with(ResponseTemplate::new(503))
+        .up_to_n_times(1)
+        .mount(&server)
+        .await;
+    tenant_status(&server, "running").await;
+    let health = managed(&server)
+        .await
+        .wait_until_ready(QUICK)
+        .await
+        .unwrap();
+    assert_eq!(health.status, "running");
+}

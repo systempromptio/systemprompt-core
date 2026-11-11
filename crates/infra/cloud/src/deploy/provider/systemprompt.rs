@@ -3,7 +3,9 @@
 //! The control plane issues the registry credentials and tag, stores the
 //! tenant's secrets, and performs the rollout; readiness is the control
 //! plane's own tenant status, polled until it reports a ready state, reports
-//! a failed one, or the wait runs out.
+//! a failed one, or the wait runs out; a status call that fails is retried
+//! within the wait. The status does not name the running image, so a ready
+//! tenant is reported with `release_confirmed: false`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -88,7 +90,15 @@ impl DeployProvider for SystempromptCloud {
     async fn wait_until_ready(&self, wait: ReadinessWait) -> CloudResult<TenantHealth> {
         let started = Instant::now();
         loop {
-            let health = self.tenant_health().await?;
+            let health = match self.tenant_health().await {
+                Ok(health) => health,
+                Err(error) if !wait.exhausted(started) => {
+                    tracing::warn!(error = %error, "Tenant status unavailable; retrying");
+                    tokio::time::sleep(wait.interval).await;
+                    continue;
+                },
+                Err(error) => return Err(error),
+            };
             if health.ready {
                 return Ok(health);
             }
@@ -118,6 +128,7 @@ impl SystempromptCloud {
             ),
             status: status.status,
             version: None,
+            release_confirmed: false,
         })
     }
 }
