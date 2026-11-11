@@ -238,8 +238,7 @@ async fn an_exclusive_reconcile_gives_up_when_another_replica_holds_the_lock() {
     let svc = service(plane_set(root.path(), &[Arc::clone(&plane)], &[])).await;
     let other_replica = systemprompt_test_fixtures::test_pg_pool().await;
     let mut held = other_replica.acquire().await.expect("connection");
-    sqlx::query("SELECT pg_advisory_lock($1, hashtext('config_reconcile.planes'))")
-        .bind(systemprompt_scheduler::JOB_LOCK_CLASS)
+    sqlx::query("SELECT pg_advisory_lock(hashtext('config_reconcile.planes')::bigint)")
         .execute(held.as_mut())
         .await
         .expect("hold the reconcile lock");
@@ -251,8 +250,7 @@ async fn an_exclusive_reconcile_gives_up_when_another_replica_holds_the_lock() {
         )
         .await;
 
-    sqlx::query("SELECT pg_advisory_unlock($1, hashtext('config_reconcile.planes'))")
-        .bind(systemprompt_scheduler::JOB_LOCK_CLASS)
+    sqlx::query("SELECT pg_advisory_unlock(hashtext('config_reconcile.planes')::bigint)")
         .execute(held.as_mut())
         .await
         .expect("release the reconcile lock");

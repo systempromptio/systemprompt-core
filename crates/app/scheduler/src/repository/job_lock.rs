@@ -15,9 +15,10 @@
 //! transaction-mode pooler in front of the main pool cannot hand the locked
 //! backend to another client.
 //!
-//! Keys use the two-key form `(JOB_LOCK_CLASS, hashtext(job_name))`: the
-//! class keeps job locks disjoint from every other advisory-lock user, and
-//! the session holding a key is identified by both halves in `pg_locks`.
+//! The key is the single int8 `hashtext(job_name)::bigint`; every replica of
+//! every release derives it the same way, so they all exclude each other.
+//! [`JobLockRepository::lock_keys`] derives the same keys for the start-time
+//! collision check.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -36,16 +37,13 @@ use tracing::warn;
 
 use crate::error::{SchedulerError, SchedulerResult};
 
-// Why: Postgres advisory locks share one key space per database; a class of
-// its own keeps job locks from colliding with instance or extension locks.
-pub const JOB_LOCK_CLASS: i32 = 0x5350_0003;
-
 const LOCK_POLL_INTERVAL: Duration = Duration::from_millis(250);
 
 // Why: SQLx pool return keeps the session open; Postgres session locks
 // survive until explicit unlock or session closure.
 pub(crate) struct JobLockGuard {
     conn: Option<PoolConnection<Postgres>>,
+    key: i64,
     job_name: JobName,
 }
 
@@ -68,13 +66,9 @@ impl Drop for JobLockGuard {
 impl JobLockGuard {
     pub(crate) async fn release(mut self) {
         if let Some(mut conn) = self.conn.take()
-            && let Err(e) = sqlx::query_scalar!(
-                "SELECT pg_advisory_unlock($1, hashtext($2))",
-                JOB_LOCK_CLASS,
-                self.job_name.as_str()
-            )
-            .fetch_one(conn.as_mut())
-            .await
+            && let Err(e) = sqlx::query_scalar!("SELECT pg_advisory_unlock($1)", self.key)
+                .fetch_one(conn.as_mut())
+                .await
         {
             warn!(
                 job_name = %self.job_name,
@@ -88,6 +82,7 @@ impl JobLockGuard {
 impl std::fmt::Debug for JobLockGuard {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("JobLockGuard")
+            .field("key", &self.key)
             .field("job_name", &self.job_name)
             .field("held", &self.conn.is_some())
             .finish()
@@ -112,18 +107,18 @@ impl JobLockRepository {
     ) -> SchedulerResult<Option<JobLockGuard>> {
         let mut conn = self.session_pool.acquire().await.map_err(lock_error)?;
 
-        let acquired = sqlx::query_scalar!(
-            r#"SELECT pg_try_advisory_lock($1, hashtext($2)) AS "acquired!""#,
-            JOB_LOCK_CLASS,
-            job_name.as_str()
-        )
-        .fetch_one(conn.as_mut())
-        .await
-        .map_err(lock_error)?;
+        let key = derive_key(conn.as_mut(), job_name).await?;
+
+        let acquired =
+            sqlx::query_scalar!(r#"SELECT pg_try_advisory_lock($1) AS "acquired!""#, key)
+                .fetch_one(conn.as_mut())
+                .await
+                .map_err(lock_error)?;
 
         if acquired {
             Ok(Some(JobLockGuard {
                 conn: Some(conn),
+                key,
                 job_name: job_name.clone(),
             }))
         } else {
@@ -134,10 +129,10 @@ impl JobLockRepository {
     pub(crate) async fn lock_keys(
         &self,
         names: &[JobName],
-    ) -> SchedulerResult<Vec<(JobName, i32)>> {
+    ) -> SchedulerResult<Vec<(JobName, i64)>> {
         let raw: Vec<String> = names.iter().map(|n| n.as_str().to_owned()).collect();
         let rows = sqlx::query!(
-            r#"SELECT name AS "name!", hashtext(name) AS "key!" FROM unnest($1::text[]) AS name"#,
+            r#"SELECT name AS "name!", hashtext(name)::bigint AS "key!" FROM unnest($1::text[]) AS name"#,
             &raw
         )
         .fetch_all(&*self.session_pool)
@@ -166,6 +161,16 @@ impl JobLockRepository {
             tokio::time::sleep(LOCK_POLL_INTERVAL.min(deadline - now)).await;
         }
     }
+}
+
+async fn derive_key(conn: &mut sqlx::PgConnection, job_name: &JobName) -> SchedulerResult<i64> {
+    sqlx::query_scalar!(
+        r#"SELECT hashtext($1)::bigint AS "key!""#,
+        job_name.as_str()
+    )
+    .fetch_one(conn)
+    .await
+    .map_err(lock_error)
 }
 
 fn lock_error(err: sqlx::Error) -> SchedulerError {

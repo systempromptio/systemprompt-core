@@ -22,9 +22,7 @@ use sqlx::Postgres;
 use sqlx::pool::PoolConnection;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::JobName;
-use systemprompt_scheduler::{
-    JOB_LOCK_CLASS, JobConfig, SchedulerConfig, SchedulerHandle, SchedulerService,
-};
+use systemprompt_scheduler::{JobConfig, SchedulerConfig, SchedulerHandle, SchedulerService};
 use systemprompt_test_fixtures::{test_app_context, test_database_url, test_db_pool};
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 
@@ -109,8 +107,7 @@ async fn read_run_count(pool: &DbPool, job: &str) -> Result<i32> {
 
 async fn hold_job_lock(pool: &DbPool, job: &str) -> Result<PoolConnection<Postgres>> {
     let mut peer = pool.write_pool().acquire().await?;
-    let acquired: bool = sqlx::query_scalar("SELECT pg_try_advisory_lock($1, hashtext($2))")
-        .bind(JOB_LOCK_CLASS)
+    let acquired: bool = sqlx::query_scalar("SELECT pg_try_advisory_lock(hashtext($1)::bigint)")
         .bind(job)
         .fetch_one(peer.as_mut())
         .await?;
@@ -119,8 +116,7 @@ async fn hold_job_lock(pool: &DbPool, job: &str) -> Result<PoolConnection<Postgr
 }
 
 async fn release_job_lock(mut peer: PoolConnection<Postgres>, job: &str) -> Result<()> {
-    let released: bool = sqlx::query_scalar("SELECT pg_advisory_unlock($1, hashtext($2))")
-        .bind(JOB_LOCK_CLASS)
+    let released: bool = sqlx::query_scalar("SELECT pg_advisory_unlock(hashtext($1)::bigint)")
         .bind(job)
         .fetch_one(peer.as_mut())
         .await?;

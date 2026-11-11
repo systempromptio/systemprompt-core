@@ -32,7 +32,6 @@ pub use config_reconcile::{
     ConfigChangeRecord, ConfigChangeRow, ConfigReconcileRepository, PlaneStateRow,
     PlaneStateUpdate, PlaneTransaction,
 };
-pub use job_lock::JOB_LOCK_CLASS;
 pub(crate) use job_lock::JobLockGuard;
 use job_lock::JobLockRepository;
 pub use job_lock_keys::{LockKeyCollision, find_lock_key_collision};

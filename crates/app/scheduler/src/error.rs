@@ -79,7 +79,7 @@ pub enum SchedulerError {
     LockKeyCollision {
         first: JobName,
         second: JobName,
-        key: i32,
+        key: i64,
     },
 
     #[error("Scheduler already running")]
