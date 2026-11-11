@@ -70,14 +70,17 @@ impl Ctx {
 }
 
 #[tokio::test]
-async fn moving_keeps_users_and_drops_rows_the_target_already_links() {
+async fn moving_keeps_users_drops_same_user_duplicates_and_keeps_conflicts() {
     let ctx = setup().await;
     let alice = ctx.user("alice").await;
     let bob = ctx.user("bob").await;
     let carol = ctx.user("carol").await;
+    let own_slash = format!("{}/", ctx.own);
     ctx.link(&ctx.own, "sub-a", &alice).await;
-    ctx.link(&ctx.own, "sub-b", &bob).await;
-    ctx.link(&ctx.upstream, "sub-b", &carol).await;
+    ctx.link(&own_slash, "sub-b", &bob).await;
+    ctx.link(&ctx.upstream, "sub-b", &bob).await;
+    ctx.link(&ctx.own, "sub-c", &alice).await;
+    ctx.link(&ctx.upstream, "sub-c", &carol).await;
     ctx.link(&ctx.other, "sub-a", &carol).await;
 
     let plan = ctx
@@ -88,8 +91,9 @@ async fn moving_keeps_users_and_drops_rows_the_target_already_links() {
     assert_eq!(
         plan,
         IssuerRekeyPlan {
-            rows: 2,
-            already_linked_at_target: 1
+            rows: 3,
+            already_linked_same_user: 1,
+            conflicting_users: 1,
         }
     );
     assert_eq!(
@@ -107,15 +111,22 @@ async fn moving_keeps_users_and_drops_rows_the_target_already_links() {
         outcome,
         IssuerRekeyOutcome {
             moved: 1,
-            removed: 1
+            removed: 1,
+            conflicts_kept: 1,
         }
     );
-    assert!(ctx.links(&ctx.own).await.is_empty());
+    assert_eq!(
+        ctx.links(&ctx.own).await,
+        vec![("sub-c".to_owned(), alice.as_str().to_owned())],
+        "a link the target holds for another user stays where it is"
+    );
+    assert!(ctx.links(&own_slash).await.is_empty());
     assert_eq!(
         ctx.links(&ctx.upstream).await,
         vec![
             ("sub-a".to_owned(), alice.as_str().to_owned()),
-            ("sub-b".to_owned(), carol.as_str().to_owned()),
+            ("sub-b".to_owned(), bob.as_str().to_owned()),
+            ("sub-c".to_owned(), carol.as_str().to_owned()),
         ]
     );
     assert_eq!(
@@ -125,10 +136,11 @@ async fn moving_keeps_users_and_drops_rows_the_target_already_links() {
 }
 
 #[tokio::test]
-async fn removing_clears_only_the_named_issuer() {
+async fn removing_clears_only_the_named_issuer_in_both_slash_forms() {
     let ctx = setup().await;
     let alice = ctx.user("alice").await;
     ctx.link(&ctx.own, "sub-a", &alice).await;
+    ctx.link(&format!("{}/", ctx.own), "sub-b", &alice).await;
     ctx.link(&ctx.upstream, "sub-a", &alice).await;
 
     let plan = ctx
@@ -136,21 +148,9 @@ async fn removing_clears_only_the_named_issuer() {
         .plan_federated_issuer_rekey(&ctx.own, None)
         .await
         .unwrap();
-    assert_eq!(
-        plan,
-        IssuerRekeyPlan {
-            rows: 1,
-            already_linked_at_target: 0
-        }
-    );
+    assert_eq!(plan.rows, 2);
     let outcome = ctx.repo.remove_federated_issuer(&ctx.own).await.unwrap();
-    assert_eq!(
-        outcome,
-        IssuerRekeyOutcome {
-            moved: 0,
-            removed: 1
-        }
-    );
+    assert_eq!(outcome.removed, 2);
     assert!(ctx.links(&ctx.own).await.is_empty());
     assert_eq!(ctx.links(&ctx.upstream).await.len(), 1);
 }

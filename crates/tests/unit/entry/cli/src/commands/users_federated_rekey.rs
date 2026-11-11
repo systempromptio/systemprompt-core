@@ -5,7 +5,9 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use clap::Parser;
-use systemprompt_cli::admin::users::federated_rekey::{RekeyTarget, rekey_target, run};
+use systemprompt_cli::admin::users::federated_rekey::{
+    RekeyChoice, id_jag_candidates, resolve_choice, run,
+};
 use systemprompt_cli::args::{Cli, Commands};
 use systemprompt_cli::descriptor::{CommandDescriptor, DataImpact, DescribeCommand};
 use systemprompt_cli::runner::profile_routing::require_explicit_cloud_profile;
@@ -48,8 +50,8 @@ fn cloud_profile() -> Profile {
 }
 
 #[test]
-fn one_id_jag_issuer_is_the_move_target() {
-    let target = rekey_target(
+fn candidates_are_trusted_id_jag_issuers_other_than_our_own() {
+    let candidates = id_jag_candidates(
         "https://self.example/",
         &[
             trusted("https://idp.example", true),
@@ -57,30 +59,48 @@ fn one_id_jag_issuer_is_the_move_target() {
             trusted("https://self.example", true),
         ],
     );
+    assert_eq!(candidates, vec!["https://idp.example".to_owned()]);
+}
+
+#[test]
+fn apply_never_infers_a_target_even_with_one_candidate() {
+    let candidates = vec!["https://idp.example".to_owned()];
+    let error = resolve_choice(&candidates, None, false, true).unwrap_err();
+    assert!(error.to_string().contains("--to-issuer"), "{error:#}");
     assert_eq!(
-        target,
-        RekeyTarget::MoveTo("https://idp.example".to_owned())
+        resolve_choice(&candidates, None, false, false).unwrap(),
+        None
     );
 }
 
 #[test]
-fn several_or_no_id_jag_issuers_mean_removal() {
+fn the_named_target_must_be_a_trusted_id_jag_issuer() {
+    let candidates = vec!["https://idp.example".to_owned()];
     assert_eq!(
-        rekey_target(
-            "https://self.example",
-            &[
-                trusted("https://a.example", true),
-                trusted("https://b.example", true)
-            ],
-        ),
-        RekeyTarget::Remove { id_jag_issuers: 2 }
+        resolve_choice(&candidates, Some("https://idp.example/"), false, true).unwrap(),
+        Some(RekeyChoice::MoveTo("https://idp.example".to_owned()))
+    );
+    let error =
+        resolve_choice(&candidates, Some("https://other.example"), false, true).unwrap_err();
+    assert!(
+        error.to_string().contains("not a trusted issuer"),
+        "{error:#}"
     );
     assert_eq!(
-        rekey_target(
-            "https://self.example",
-            &[trusted("https://a.example", false)]
-        ),
-        RekeyTarget::Remove { id_jag_issuers: 0 }
+        resolve_choice(&candidates, None, true, true).unwrap(),
+        Some(RekeyChoice::Delete)
+    );
+    assert!(
+        Cli::try_parse_from([
+            "systemprompt",
+            "admin",
+            "users",
+            "federated-rekey",
+            "--to-issuer",
+            "x",
+            "--delete",
+        ])
+        .is_err()
     );
 }
 
@@ -92,7 +112,7 @@ fn rekey_is_destructive_and_refuses_an_implicit_cloud_profile() {
             DataImpact::Destructive,
         ),
         (
-            vec!["admin", "users", "federated-rekey", "--apply"],
+            vec!["admin", "users", "federated-rekey", "--apply", "--delete"],
             DataImpact::Irreversible,
         ),
         (
@@ -165,16 +185,28 @@ async fn dry_run_reports_and_apply_moves_the_links() {
     .execute(pool.pool().as_ref())
     .await
     .expect("insert link");
-    let target = RekeyTarget::MoveTo(upstream.clone());
+    let candidates = vec![upstream.clone()];
 
-    let dry = run(&repo, &own, &target, false).await.expect("dry run");
+    let dry = run(&repo, &own, &candidates, None, None)
+        .await
+        .expect("dry run");
+    let shown: Vec<_> = dry
+        .options
+        .iter()
+        .map(|o| (o.action.as_str(), o.target_issuer.clone(), o.rows))
+        .collect();
     assert_eq!(
-        (dry.rows, dry.moved, dry.removed, dry.applied),
-        (1, 0, 0, false)
+        shown,
+        vec![("move", Some(upstream.clone()), 1), ("delete", None, 1)],
+        "the dry run lists every choice and picks none"
     );
+    assert_eq!((dry.applied, dry.moved, dry.removed), (None, 0, 0));
     assert_eq!(links_under(&pool, &own).await, vec!["sub-1"]);
 
-    let applied = run(&repo, &own, &target, true).await.expect("apply");
+    let choice = RekeyChoice::MoveTo(upstream.clone());
+    let applied = run(&repo, &own, &candidates, Some(&choice), Some(&choice))
+        .await
+        .expect("apply");
     assert_eq!((applied.moved, applied.removed), (1, 0));
     assert!(links_under(&pool, &own).await.is_empty());
     assert_eq!(links_under(&pool, &upstream).await, vec!["sub-1"]);
