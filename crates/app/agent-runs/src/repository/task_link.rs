@@ -11,8 +11,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use sqlx::{Postgres, Transaction};
+use systemprompt_agent::repository::RunClaim;
 use systemprompt_agent::repository::task::TaskRepository;
-use systemprompt_identifiers::{AgentRunId, TaskId, UserId};
+use systemprompt_identifiers::{AgentRunId, TaskId};
 use systemprompt_models::a2a::TaskState;
 
 use super::AgentRunRepository;
@@ -22,17 +23,11 @@ use crate::outcome::RunStatus;
 pub async fn transition_task(
     tx: &mut Transaction<'_, Postgres>,
     run_id: &AgentRunId,
-    task_id: &TaskId,
+    claim: RunClaim<'_>,
     status: RunStatus,
 ) -> AgentRunsResult<()> {
     let state = TaskState::from(status);
-    let run_user = sqlx::query_scalar!(
-        r#"SELECT user_id AS "user_id: UserId" FROM agent_runs WHERE id = $1"#,
-        run_id.as_str(),
-    )
-    .fetch_one(&mut **tx)
-    .await?;
-    let transitioned = match TaskRepository::run_task_in_tx(tx, task_id, &run_user).await {
+    let transitioned = match TaskRepository::run_task_in_tx(tx, run_id, claim).await {
         Ok(task) => {
             TaskRepository::transition_task_in_tx(tx, &task, state, &chrono::Utc::now()).await
         },
@@ -41,7 +36,7 @@ pub async fn transition_task(
     match transitioned {
         Ok(()) => Ok(()),
         Err(e) if e.is_conflict() || e.is_not_found() => {
-            tracing::warn!(task_id = %task_id, ?state, error = %e, "Run left its task unchanged");
+            tracing::warn!(run_id = %run_id, ?state, error = %e, "Run left its task unchanged");
             Ok(())
         },
         Err(e) => Err(e.into()),
@@ -66,8 +61,8 @@ impl AgentRunRepository {
         let Some(task_id) = cancelled else {
             return Ok(false);
         };
-        if let Some(task_id) = task_id {
-            transition_task(&mut tx, id, &task_id, RunStatus::Cancelled).await?;
+        if task_id.is_some() {
+            transition_task(&mut tx, id, RunClaim::Unclaimed, RunStatus::Cancelled).await?;
         }
         tx.commit().await?;
         Ok(true)

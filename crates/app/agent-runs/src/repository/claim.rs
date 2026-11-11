@@ -29,6 +29,7 @@ use systemprompt_identifiers::{AgentRunId, TaskId};
 use super::{AgentRunRepository, Claimed, Fenced, Lease, Released, task_link};
 use crate::error::AgentRunsResult;
 use crate::outcome::RunStatus;
+use systemprompt_agent::repository::RunClaim;
 
 impl AgentRunRepository {
     pub async fn claim_queued(
@@ -140,8 +141,8 @@ impl AgentRunRepository {
             tx.commit().await?;
             return Ok(Released::Requeued);
         }
-        if let Some(task_id) = &released.task_id {
-            task_link::transition_task(&mut tx, id, task_id, RunStatus::Failed).await?;
+        if released.task_id.is_some() {
+            task_link::transition_task(&mut tx, id, RunClaim::Unclaimed, RunStatus::Failed).await?;
         }
         tx.commit().await?;
         Ok(Released::Exhausted)
@@ -184,10 +185,14 @@ impl AgentRunRepository {
         .await?;
         let mut ids = Vec::with_capacity(rows.len());
         for row in rows {
-            if row.status == "failed"
-                && let Some(task_id) = &row.task_id
-            {
-                task_link::transition_task(&mut tx, &row.id, task_id, RunStatus::Failed).await?;
+            if row.status == "failed" && row.task_id.is_some() {
+                task_link::transition_task(
+                    &mut tx,
+                    &row.id,
+                    RunClaim::Unclaimed,
+                    RunStatus::Failed,
+                )
+                .await?;
             }
             ids.push(row.id);
         }

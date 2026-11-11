@@ -10,15 +10,18 @@
 //! id has no path to another user's task, messages or artifacts.
 //!
 //! A [`RuntimeTask`] names the task the agent runtime is executing. It is
-//! minted by `TaskRepository::create_task` when the runtime inserts the task,
-//! and by `TaskRepository::run_task_in_tx`, which requires the task to sit in
-//! a context owned by the user whose agent run names it. Task
+//! minted by `TaskRepository::create_task` when the runtime inserts the task
+//! into a context the acting user owns, and by
+//! `TaskRepository::run_task_in_tx`, which requires an agent run that names
+//! the task, a task context owned by that run's user, and a [`RunClaim`]
+//! matching the run row: the caller's lease, or no live lease at all. Task
 //! state writes take a [`TaskHandle`] (either handle), so no write is keyed
 //! on a bare id.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use chrono::{DateTime, Utc};
 use systemprompt_identifiers::{ArtifactId, ContextId, TaskId, UserId};
 
 /// A task proven to belong to a user's context.
@@ -97,6 +100,19 @@ impl RuntimeTask {
     pub const fn context_id(&self) -> &ContextId {
         &self.context
     }
+}
+
+/// The caller's claim on an agent run when minting its [`RuntimeTask`]: the
+/// lease it holds, or `Unclaimed` for a run no worker holds (queued, released
+/// or reclaimed in the same transaction).
+#[derive(Debug, Clone, Copy)]
+pub enum RunClaim<'a> {
+    Lease {
+        claimed_by: &'a str,
+        attempt: i32,
+        claimed_at: DateTime<Utc>,
+    },
+    Unclaimed,
 }
 
 mod sealed {

@@ -13,7 +13,7 @@ use systemprompt_agent::models::a2a::{Artifact, Message, Task, TaskState};
 use systemprompt_agent::repository::content::ArtifactRepository;
 use systemprompt_agent::repository::execution::ExecutionStepRepository;
 use systemprompt_agent::repository::task::TaskRepository;
-use systemprompt_agent::repository::{ContextRepository, OwnedContext, OwnedTask, RuntimeTask};
+use systemprompt_agent::repository::{ContextRepository, OwnedContext, OwnedTask};
 use systemprompt_identifiers::{ArtifactId, ContextId, TaskId, UserId};
 use systemprompt_models::ExecutionStep;
 use systemprompt_traits::RepositoryError;
@@ -91,11 +91,6 @@ pub trait TaskReadsExt {
         task_id: &TaskId,
     ) -> impl Future<Output = Result<(), RepositoryError>> + Send;
 
-    fn runtime_by_row(
-        &self,
-        task_id: &TaskId,
-    ) -> impl Future<Output = Result<RuntimeTask, RepositoryError>> + Send;
-
     fn set_task_state(
         &self,
         task_id: &TaskId,
@@ -137,18 +132,6 @@ impl TaskReadsExt for TaskRepository {
 
     async fn owned_by_row(&self, task_id: &TaskId) -> Result<Option<OwnedTask>, RepositoryError> {
         owned_for(self, task_id).await
-    }
-
-    async fn runtime_by_row(&self, task_id: &TaskId) -> Result<RuntimeTask, RepositoryError> {
-        use sqlx::Connection;
-        let user_id = task_owner(task_id)
-            .await?
-            .ok_or_else(|| RepositoryError::not_found("task", task_id.as_str()))?;
-        let mut conn = single_connection().await?;
-        let mut tx = conn.begin().await.map_err(RepositoryError::database)?;
-        let runtime = TaskRepository::run_task_in_tx(&mut tx, task_id, &user_id).await?;
-        tx.commit().await.map_err(RepositoryError::database)?;
-        Ok(runtime)
     }
 
     async fn remove_task(&self, task_id: &TaskId) -> Result<(), RepositoryError> {

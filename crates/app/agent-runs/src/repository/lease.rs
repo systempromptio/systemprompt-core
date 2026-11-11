@@ -13,6 +13,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use chrono::{DateTime, Utc};
+use systemprompt_agent::repository::RunClaim;
 use systemprompt_identifiers::AgentRunId;
 
 use super::AgentRunRow;
@@ -48,6 +49,15 @@ impl Lease {
     #[must_use]
     pub const fn claimed_at(&self) -> DateTime<Utc> {
         self.claimed_at
+    }
+
+    #[must_use]
+    pub fn run_claim(&self) -> RunClaim<'_> {
+        RunClaim::Lease {
+            claimed_by: &self.claimed_by,
+            attempt: self.attempt,
+            claimed_at: self.claimed_at,
+        }
     }
 }
 

@@ -102,7 +102,7 @@ pub async fn persist_completed_task(
         let webhooks = WebhookContext::for_request(webhooks, context);
         for artifact in artifacts {
             publishing
-                .publish_from_a2a(artifact, runtime.task_id(), context_id, context.user_id())
+                .publish_from_a2a(artifact, runtime, context.user_id())
                 .await
                 .map_err(|e| {
                     AgentServiceError::operation(
@@ -112,7 +112,7 @@ pub async fn persist_completed_task(
                 })?;
 
             if let Err(e) =
-                broadcast_artifact_created(&webhooks, artifact, &task.id, context_id).await
+                broadcast_artifact_created(&webhooks, artifact, runtime.task_id(), context_id).await
             {
                 undelivered_broadcasts.push((artifact.id.clone(), e));
             }

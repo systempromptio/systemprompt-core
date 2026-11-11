@@ -1,4 +1,4 @@
-use super::{repos, seed_context_and_task, seed_user_and_session};
+use super::{repos, seed_runtime_task, seed_user_and_session};
 use systemprompt_agent::models::a2a::{Artifact, ArtifactMetadata, Part};
 use systemprompt_identifiers::{ArtifactId, ContextId, TaskId, UserId};
 use systemprompt_test_fixtures::agent_reads::{ArtifactReadsExt, ContextReadsExt, TaskReadsExt};
@@ -27,7 +27,8 @@ async fn create_and_get_artifact_by_id() {
     let pool = test_db_pool().await;
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
-    let (context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
+    let (context_id, runtime) = seed_runtime_task(&r, &user_id, &session_id).await;
+    let task_id = runtime.task_id().clone();
     let artifacts = r.artifacts.clone();
 
     let artifact_id = ArtifactId::generate();
@@ -38,7 +39,7 @@ async fn create_and_get_artifact_by_id() {
         vec![Part::text("hello")],
     );
     artifacts
-        .create_artifact(&task_id, &context_id, &artifact)
+        .create_artifact(&runtime, &artifact)
         .await
         .expect("create");
 
@@ -72,7 +73,8 @@ async fn artifact_with_all_part_kinds_roundtrip() {
     let pool = test_db_pool().await;
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
-    let (context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
+    let (context_id, runtime) = seed_runtime_task(&r, &user_id, &session_id).await;
+    let task_id = runtime.task_id().clone();
     let artifacts = r.artifacts.clone();
 
     let mut map = serde_json::Map::new();
@@ -89,7 +91,7 @@ async fn artifact_with_all_part_kinds_roundtrip() {
         ],
     );
     artifacts
-        .create_artifact(&task_id, &context_id, &artifact)
+        .create_artifact(&runtime, &artifact)
         .await
         .expect("create");
 
@@ -111,20 +113,21 @@ async fn create_artifact_upserts_on_conflict() {
     let pool = test_db_pool().await;
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
-    let (context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
+    let (context_id, runtime) = seed_runtime_task(&r, &user_id, &session_id).await;
+    let task_id = runtime.task_id().clone();
     let artifacts = r.artifacts.clone();
 
     let artifact_id = ArtifactId::generate();
     let mut artifact = make_artifact(&artifact_id, &context_id, &task_id, vec![Part::text("v1")]);
     artifacts
-        .create_artifact(&task_id, &context_id, &artifact)
+        .create_artifact(&runtime, &artifact)
         .await
         .expect("create");
 
     artifact.title = Some("renamed".to_owned());
     artifact.parts = vec![Part::text("v2")];
     artifacts
-        .create_artifact(&task_id, &context_id, &artifact)
+        .create_artifact(&runtime, &artifact)
         .await
         .expect("upsert");
 
@@ -146,13 +149,14 @@ async fn list_artifacts_by_task_context_and_user() {
     let pool = test_db_pool().await;
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
-    let (context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
+    let (context_id, runtime) = seed_runtime_task(&r, &user_id, &session_id).await;
+    let task_id = runtime.task_id().clone();
     let artifacts = r.artifacts.clone();
 
     let artifact_id = ArtifactId::generate();
     let artifact = make_artifact(&artifact_id, &context_id, &task_id, vec![Part::text("x")]);
     artifacts
-        .create_artifact(&task_id, &context_id, &artifact)
+        .create_artifact(&runtime, &artifact)
         .await
         .expect("create");
 
@@ -187,13 +191,14 @@ async fn owned_artifact_requires_the_owning_user() {
     let pool = test_db_pool().await;
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
-    let (context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
+    let (context_id, runtime) = seed_runtime_task(&r, &user_id, &session_id).await;
+    let task_id = runtime.task_id().clone();
     let artifacts = r.artifacts.clone();
 
     let artifact_id = ArtifactId::generate();
     let artifact = make_artifact(&artifact_id, &context_id, &task_id, vec![Part::text("x")]);
     artifacts
-        .create_artifact(&task_id, &context_id, &artifact)
+        .create_artifact(&runtime, &artifact)
         .await
         .expect("create");
 
@@ -213,31 +218,6 @@ async fn owned_artifact_requires_the_owning_user() {
         err,
         systemprompt_traits::RepositoryError::NotFound { .. }
     ));
-
-    r.tasks.remove_task(&task_id).await.ok();
-}
-
-#[tokio::test]
-async fn delete_artifact() {
-    let pool = test_db_pool().await;
-    let r = repos(&pool);
-    let (user_id, session_id) = seed_user_and_session(&pool).await;
-    let (context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
-    let artifacts = r.artifacts.clone();
-
-    let artifact_id = ArtifactId::generate();
-    let artifact = make_artifact(&artifact_id, &context_id, &task_id, vec![Part::text("x")]);
-    artifacts
-        .create_artifact(&task_id, &context_id, &artifact)
-        .await
-        .expect("create");
-
-    artifacts
-        .delete_artifact(&artifact_id)
-        .await
-        .expect("delete");
-    let fetched = artifacts.read_artifact(&artifact_id).await.expect("get");
-    assert!(fetched.is_none());
 
     r.tasks.remove_task(&task_id).await.ok();
 }

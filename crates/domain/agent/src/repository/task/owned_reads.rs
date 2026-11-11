@@ -6,8 +6,8 @@
 use super::{TaskRepository, apply_notification_status, find_task};
 use crate::models::a2a::{Message, Task};
 use crate::repository::context::message::get_messages_by_task;
-use crate::repository::{OwnedTask, RuntimeTask};
-use systemprompt_identifiers::{ContextId, TaskId, UserId};
+use crate::repository::{OwnedTask, RunClaim, RuntimeTask};
+use systemprompt_identifiers::{AgentRunId, ContextId, TaskId, UserId};
 use systemprompt_traits::RepositoryError;
 
 impl TaskRepository {
@@ -33,20 +33,33 @@ impl TaskRepository {
 
     pub async fn run_task_in_tx(
         tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
-        task_id: &TaskId,
-        run_user_id: &UserId,
+        run_id: &AgentRunId,
+        claim: RunClaim<'_>,
     ) -> Result<RuntimeTask, RepositoryError> {
+        let (claimed_by, attempt, claimed_at) = match claim {
+            RunClaim::Lease {
+                claimed_by,
+                attempt,
+                claimed_at,
+            } => (Some(claimed_by), Some(attempt), Some(claimed_at)),
+            RunClaim::Unclaimed => (None, None, None),
+        };
         let row = sqlx::query!(
             r#"SELECT t.task_id as "task_id!: TaskId", t.context_id as "context_id!: ContextId"
-            FROM agent_tasks t
-            JOIN user_contexts c ON t.context_id = c.context_id
-            WHERE t.task_id = $1 AND c.user_id = $2"#,
-            task_id.as_str(),
-            run_user_id.as_str()
+            FROM agent_runs r
+            JOIN agent_tasks t ON t.task_id = r.task_id
+            JOIN user_contexts c ON c.context_id = t.context_id AND c.user_id = r.user_id
+            WHERE r.id = $1
+              AND (($2::text IS NULL AND r.claimed_by IS NULL)
+                OR (r.claimed_by = $2 AND r.attempt = $3 AND r.claimed_at = $4))"#,
+            run_id.as_str(),
+            claimed_by,
+            attempt,
+            claimed_at
         )
         .fetch_optional(&mut **tx)
         .await?
-        .ok_or_else(|| RepositoryError::not_found("task", task_id.as_str()))?;
+        .ok_or_else(|| RepositoryError::not_found("agent run task", run_id.as_str()))?;
 
         Ok(RuntimeTask::new(row.task_id, row.context_id))
     }

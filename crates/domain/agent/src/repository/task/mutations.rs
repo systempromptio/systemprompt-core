@@ -44,9 +44,11 @@ pub async fn create_task(params: CreateTaskParams<'_>) -> Result<String, Reposit
     let session_id_str = session_id.as_ref();
     let trace_id_str = trace_id.as_ref();
 
-    sqlx::query!(
+    let inserted = sqlx::query!(
         r#"INSERT INTO agent_tasks (task_id, context_id, status, status_timestamp, user_id, session_id, trace_id, metadata, agent_name)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)"#,
+        SELECT $1, c.context_id, $3, $4, $5, $6, $7, $8, $9
+        FROM user_contexts c
+        WHERE c.context_id = $2 AND c.user_id = $5"#,
         task_id_str,
         context_id_str,
         status,
@@ -59,6 +61,13 @@ pub async fn create_task(params: CreateTaskParams<'_>) -> Result<String, Reposit
     )
     .execute(pool.as_ref())
     .await?;
+
+    if inserted.rows_affected() == 0 {
+        return Err(RepositoryError::not_found(
+            "context",
+            format!("{} for user {}", task.context_id, user_id),
+        ));
+    }
 
     Ok(task.id.to_string())
 }

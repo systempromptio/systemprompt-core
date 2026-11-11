@@ -1,4 +1,4 @@
-use super::{make_task, repos, seed_context_and_task, seed_user_and_session};
+use super::{make_task, repos, seed_context_and_task, seed_runtime_task, seed_user_and_session};
 use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TaskState};
 use systemprompt_agent::models::context::ContextKind;
 use systemprompt_agent::repository::task::{RepoCreateTaskParams, UpdateTaskAndSaveMessagesParams};
@@ -314,7 +314,8 @@ async fn update_task_and_save_messages_persists_history() {
     let pool = test_db_pool().await;
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
-    let (context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
+    let (context_id, runtime) = seed_runtime_task(&r, &user_id, &session_id).await;
+    let task_id = runtime.task_id().clone();
     let trace_id = TraceId::generate();
 
     let mut task = make_task(&task_id, &context_id);
@@ -326,7 +327,7 @@ async fn update_task_and_save_messages_persists_history() {
     let updated = r
         .tasks
         .update_task_and_save_messages(UpdateTaskAndSaveMessagesParams {
-            runtime: &r.tasks.runtime_by_row(&task_id).await.expect("runtime"),
+            runtime: &runtime,
             task: &task,
             user_message: &user_msg,
             agent_message: &agent_msg,
@@ -450,4 +451,32 @@ async fn create_task_returns_runtime_handle_for_the_task() {
     assert_eq!(returned.task_id(), &task_id);
     assert_eq!(returned.context_id(), &context_id);
     r.tasks.remove_task(&task_id).await.ok();
+}
+
+#[tokio::test]
+async fn create_task_refuses_a_context_the_acting_user_does_not_own() {
+    let pool = test_db_pool().await;
+    let r = repos(&pool);
+    let (owner, owner_session) = seed_user_and_session(&pool).await;
+    let (owner_context, _) = seed_context_and_task(&r, &owner, &owner_session).await;
+    let (intruder, intruder_session) = seed_user_and_session(&pool).await;
+
+    let task_id = TaskId::generate();
+    let task = make_task(&task_id, &owner_context);
+    let err = r
+        .tasks
+        .create_task(RepoCreateTaskParams {
+            task: &task,
+            user_id: &intruder,
+            session_id: &intruder_session,
+            trace_id: &TraceId::generate(),
+            agent_name: &AgentName::new("a"),
+        })
+        .await
+        .expect_err("a task cannot be created in another user's context");
+    assert!(err.is_not_found(), "{err}");
+    assert!(
+        r.tasks.read_task(&task_id).await.expect("lookup").is_none(),
+        "no task row is written"
+    );
 }

@@ -2,6 +2,7 @@ use anyhow::Result;
 use chrono::Utc;
 use systemprompt_agent::models::a2a::{Artifact, ArtifactMetadata, Message, MessageRole, Part};
 use systemprompt_agent::models::context::ContextKind;
+use systemprompt_agent::repository::RuntimeTask;
 use systemprompt_agent::repository::content::artifact::ArtifactRepository;
 use systemprompt_agent::repository::context::message::{
     MessageRepository, PersistMessageSqlxParams,
@@ -81,6 +82,18 @@ impl E2EFixture {
     }
 
     async fn insert_task(&self, repo: &TaskRepository, state: TaskState) -> Result<TaskId> {
+        Ok(self
+            .insert_runtime_task(repo, state)
+            .await?
+            .task_id()
+            .clone())
+    }
+
+    async fn insert_runtime_task(
+        &self,
+        repo: &TaskRepository,
+        state: TaskState,
+    ) -> Result<RuntimeTask> {
         let task_id = TaskId::new(format!("e2e_task_{}_{}", self.tag, Uuid::new_v4().simple()));
         let task = Task {
             id: task_id.clone(),
@@ -96,15 +109,16 @@ impl E2EFixture {
             created_at: Some(Utc::now()),
             last_modified: Some(Utc::now()),
         };
-        repo.create_task(RepoCreateTaskParams {
-            task: &task,
-            user_id: &self.user_id,
-            session_id: &self.session_id,
-            trace_id: &self.trace_id,
-            agent_name: &AgentName::new("e2e-agent"),
-        })
-        .await?;
-        Ok(task_id)
+        let runtime = repo
+            .create_task(RepoCreateTaskParams {
+                task: &task,
+                user_id: &self.user_id,
+                session_id: &self.session_id,
+                trace_id: &self.trace_id,
+                agent_name: &AgentName::new("e2e-agent"),
+            })
+            .await?;
+        Ok(runtime)
     }
 
     async fn cleanup(&self) -> Result<()> {
@@ -262,7 +276,10 @@ async fn artifact_repository_create_and_query_paths() -> Result<()> {
     let repos = systemprompt_test_fixtures::a2a_repositories(&fx.db);
     let artifacts = ArtifactRepository::new(&fx.db);
 
-    let task_id = fx.insert_task(&repos.tasks, TaskState::Working).await?;
+    let runtime = fx
+        .insert_runtime_task(&repos.tasks, TaskState::Working)
+        .await?;
+    let task_id = runtime.task_id().clone();
 
     let artifact_id = ArtifactId::new(format!("art_{}", Uuid::new_v4().simple()));
     let metadata = ArtifactMetadata::new("text".to_owned(), fx.context_id.clone(), task_id.clone())
@@ -279,9 +296,7 @@ async fn artifact_repository_create_and_query_paths() -> Result<()> {
         metadata,
     };
 
-    artifacts
-        .create_artifact(&task_id, &fx.context_id, &artifact)
-        .await?;
+    artifacts.create_artifact(&runtime, &artifact).await?;
 
     let by_task = artifacts
         .read_task_artifacts(&repos.tasks, &task_id)
@@ -306,9 +321,12 @@ async fn artifact_repository_create_and_query_paths() -> Result<()> {
     let by_id = artifacts.read_artifact(&artifact_id).await?;
     assert!(by_id.is_some());
 
-    artifacts.delete_artifact(&artifact_id).await?;
+    repos.tasks.remove_task(&task_id).await?;
     let after_delete = artifacts.read_artifact(&artifact_id).await?;
-    assert!(after_delete.is_none());
+    assert!(
+        after_delete.is_none(),
+        "deleting the task removes its artifacts"
+    );
 
     fx.cleanup().await?;
     Ok(())
@@ -465,7 +483,10 @@ async fn task_constructor_assembles_task_with_messages_and_artifacts() -> Result
     let messages = MessageRepository::new(&fx.db);
     let artifacts = ArtifactRepository::new(&fx.db);
 
-    let task_id = fx.insert_task(&repos.tasks, TaskState::Working).await?;
+    let runtime = fx
+        .insert_runtime_task(&repos.tasks, TaskState::Working)
+        .await?;
+    let task_id = runtime.task_id().clone();
 
     // Insert message with text + data parts
     let message_id = MessageId::new(format!("ctor_msg_{}", Uuid::new_v4().simple()));
@@ -514,9 +535,7 @@ async fn task_constructor_assembles_task_with_messages_and_artifacts() -> Result
         extensions: vec![],
         metadata,
     };
-    artifacts
-        .create_artifact(&task_id, &fx.context_id, &artifact)
-        .await?;
+    artifacts.create_artifact(&runtime, &artifact).await?;
 
     // Now construct + verify
     let repos = systemprompt_test_fixtures::a2a_repositories(&fx.db);
@@ -548,7 +567,10 @@ async fn task_constructor_assembles_task_with_messages_and_artifacts() -> Result
 async fn task_repository_update_task_and_save_messages_and_delete() -> Result<()> {
     let fx = E2EFixture::new().await?;
     let repos = systemprompt_test_fixtures::a2a_repositories(&fx.db);
-    let task_id = fx.insert_task(&repos.tasks, TaskState::Submitted).await?;
+    let runtime = fx
+        .insert_runtime_task(&repos.tasks, TaskState::Submitted)
+        .await?;
+    let task_id = runtime.task_id().clone();
 
     let user_msg = Message {
         role: MessageRole::User,
@@ -589,7 +611,7 @@ async fn task_repository_update_task_and_save_messages_and_delete() -> Result<()
     repos
         .tasks
         .update_task_and_save_messages(UpdateTaskAndSaveMessagesParams {
-            runtime: &repos.tasks.runtime_by_row(&task_id).await?,
+            runtime: &runtime,
             task: &task,
             user_message: &user_msg,
             agent_message: &agent_msg,
@@ -617,7 +639,10 @@ async fn task_and_message_writes_increment_session_counters() -> Result<()> {
         .execute(&fx.pool)
         .await?;
 
-    let task_id = fx.insert_task(&repos.tasks, TaskState::Working).await?;
+    let runtime = fx
+        .insert_runtime_task(&repos.tasks, TaskState::Working)
+        .await?;
+    let task_id = runtime.task_id().clone();
 
     let make_message = |role: MessageRole, text: &str| Message {
         role,
@@ -637,7 +662,7 @@ async fn task_and_message_writes_increment_session_counters() -> Result<()> {
     repos
         .tasks
         .update_task_and_save_messages(UpdateTaskAndSaveMessagesParams {
-            runtime: &repos.tasks.runtime_by_row(&task_id).await?,
+            runtime: &runtime,
             task: &task,
             user_message: &make_message(MessageRole::User, "hi"),
             agent_message: &make_message(MessageRole::Agent, "hello"),

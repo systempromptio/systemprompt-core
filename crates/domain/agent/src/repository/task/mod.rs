@@ -27,7 +27,7 @@ pub use queries::{ListTasksFilter, get_tasks_by_user_id, list_tasks};
 pub(crate) use state::apply_notification_status;
 pub use state::transition_task_in_tx;
 use state::{update_task_failed_with_error, update_task_state};
-pub use task_updates::{PersistMessagesTxParams, UpdateTaskAndSaveMessagesParams};
+pub use task_updates::UpdateTaskAndSaveMessagesParams;
 
 use crate::models::a2a::{Task, TaskState};
 use crate::repository::{OwnedContext, RuntimeTask, TaskHandle};

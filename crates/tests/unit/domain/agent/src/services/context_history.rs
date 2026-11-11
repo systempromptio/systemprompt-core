@@ -2,7 +2,7 @@ use systemprompt_agent::models::a2a::{Artifact, ArtifactMetadata, Part};
 use systemprompt_agent::services::ContextService;
 use systemprompt_identifiers::ArtifactId;
 
-use crate::repository::{repos, seed_context_and_task, seed_user_and_session};
+use crate::repository::{repos, seed_context_and_task, seed_runtime_task, seed_user_and_session};
 use systemprompt_test_fixtures::test_db_pool;
 
 #[tokio::test]
@@ -10,7 +10,8 @@ async fn conversation_history_includes_durable_artifact_identity_and_bounded_des
     let pool = test_db_pool().await;
     let repositories = repos(&pool);
     let (user, session) = seed_user_and_session(&pool).await;
-    let (context, task) = seed_context_and_task(&repositories, &user, &session).await;
+    let (context, runtime) = seed_runtime_task(&repositories, &user, &session).await;
+    let task = runtime.task_id().clone();
     let artifact = Artifact {
         id: ArtifactId::generate(),
         title: Some("Quarterly report".to_owned()),
@@ -23,7 +24,7 @@ async fn conversation_history_includes_durable_artifact_identity_and_bounded_des
     };
     repositories
         .artifacts
-        .create_artifact(&task, &context, &artifact)
+        .create_artifact(&runtime, &artifact)
         .await
         .expect("artifact persisted");
 
@@ -56,7 +57,8 @@ async fn unnamed_artifact_without_description_still_contributes_stable_context_i
     let pool = test_db_pool().await;
     let repositories = repos(&pool);
     let (user, session) = seed_user_and_session(&pool).await;
-    let (context, task) = seed_context_and_task(&repositories, &user, &session).await;
+    let (context, runtime) = seed_runtime_task(&repositories, &user, &session).await;
+    let task = runtime.task_id().clone();
     let artifact = Artifact {
         id: ArtifactId::generate(),
         title: None,
@@ -67,7 +69,7 @@ async fn unnamed_artifact_without_description_still_contributes_stable_context_i
     };
     repositories
         .artifacts
-        .create_artifact(&task, &context, &artifact)
+        .create_artifact(&runtime, &artifact)
         .await
         .expect("artifact persisted");
 

@@ -235,3 +235,41 @@ async fn a_run_never_moves_a_task_outside_its_users_contexts() {
         "the run's user does not own the task, so the task is left alone"
     );
 }
+
+#[tokio::test]
+async fn the_runtime_handle_is_minted_only_under_the_runs_own_lease() {
+    use systemprompt_agent::repository::RunClaim;
+    use systemprompt_agent::repository::task::TaskRepository;
+
+    let f = fixture().await;
+    let (task_id, context_id) = insert_task(&f).await;
+    let id = queue_for(&f, &task_id, &context_id).await;
+    let lease = claim(&f, "a").await;
+
+    let mut tx = f.repo.write_pool().begin().await.expect("tx");
+    let forged = RunClaim::Lease {
+        claimed_by: "someone-else",
+        attempt: lease.attempt(),
+        claimed_at: lease.claimed_at(),
+    };
+    let err = TaskRepository::run_task_in_tx(&mut tx, &id, forged)
+        .await
+        .expect_err("a lease the caller does not hold proves nothing");
+    assert!(err.is_not_found(), "{err}");
+    let err = TaskRepository::run_task_in_tx(&mut tx, &id, RunClaim::Unclaimed)
+        .await
+        .expect_err("a claimed run cannot be minted as unclaimed");
+    assert!(err.is_not_found(), "{err}");
+    let other_run = AgentRunId::generate();
+    let err = TaskRepository::run_task_in_tx(&mut tx, &other_run, lease.run_claim())
+        .await
+        .expect_err("the lease belongs to its own run only");
+    assert!(err.is_not_found(), "{err}");
+
+    let task = TaskRepository::run_task_in_tx(&mut tx, &id, lease.run_claim())
+        .await
+        .expect("the lease holder mints the handle for the task its run names");
+    assert_eq!(task.task_id(), &task_id);
+    assert_eq!(task.context_id(), &context_id);
+    tx.rollback().await.expect("rollback");
+}

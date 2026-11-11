@@ -1,4 +1,5 @@
 use anyhow::Result;
+use systemprompt_agent::repository::RuntimeTask;
 use systemprompt_agent::repository::task::{RepoCreateTaskParams, TaskRepository};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AgentName, ContextId, SessionId, TaskId, TraceId, UserId};
@@ -82,6 +83,10 @@ impl Fixture {
     }
 
     pub async fn insert_task(&self, initial: TaskState) -> Result<TaskId> {
+        Ok(self.insert_runtime_task(initial).await?.task_id().clone())
+    }
+
+    pub async fn insert_runtime_task(&self, initial: TaskState) -> Result<RuntimeTask> {
         let task_id = TaskId::new(format!("task_{}_{}", self.tag, Uuid::new_v4().simple()));
         let task = Task {
             id: task_id.clone(),
@@ -97,7 +102,8 @@ impl Fixture {
             created_at: Some(chrono::Utc::now()),
             last_modified: Some(chrono::Utc::now()),
         };
-        self.repo
+        let runtime = self
+            .repo
             .create_task(RepoCreateTaskParams {
                 task: &task,
                 user_id: &self.user_id,
@@ -106,7 +112,7 @@ impl Fixture {
                 agent_name: &AgentName::new("test-agent"),
             })
             .await?;
-        Ok(task_id)
+        Ok(runtime)
     }
 
     pub async fn current_status(&self, task_id: &TaskId) -> Result<String> {

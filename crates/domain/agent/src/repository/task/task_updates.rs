@@ -27,7 +27,7 @@ pub struct UpdateTaskAndSaveMessagesParams<'a> {
 }
 
 #[derive(Debug)]
-pub struct PersistMessagesTxParams<'a> {
+pub(crate) struct PersistMessagesTxParams<'a> {
     pub task_id: &'a TaskId,
     pub context_id: &'a ContextId,
     pub messages: &'a [Message],
@@ -76,19 +76,6 @@ impl TaskRepository {
         self.find_task(runtime.task_id())
             .await?
             .ok_or_else(|| RepositoryError::not_found("task", runtime.task_id().as_str()))
-    }
-
-    pub async fn persist_messages(
-        &self,
-        params: PersistMessagesTxParams<'_>,
-    ) -> Result<Vec<i32>, RepositoryError> {
-        let mut tx = self.write_pool.begin().await?;
-        let sequence_numbers = persist_messages_in_tx(&mut tx, &params).await?;
-        tx.commit().await?;
-
-        self.count_messages(params.session_id, params.messages.len())
-            .await;
-        Ok(sequence_numbers)
     }
 
     async fn count_messages(&self, session_id: &SessionId, count: usize) {

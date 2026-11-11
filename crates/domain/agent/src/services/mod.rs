@@ -2,8 +2,7 @@
 //!
 //! Submodules group runtime services by responsibility: the embedded A2A HTTP
 //! server, orchestration of agent processes, on-disk agent config authoring,
-//! MCP tool bridging, registry, managed skills, and the message and context
-//! services.
+//! MCP tool bridging, registry, managed skills, and the context service.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -16,7 +15,6 @@ pub mod context;
 pub mod context_provider;
 pub mod execution_tracking;
 pub mod mcp;
-pub mod message;
 pub mod registry;
 pub mod registry_provider;
 pub mod shared;
@@ -38,8 +36,6 @@ pub use skills::{SkillMetadata, SkillService};
 
 pub use artifact_publishing::ArtifactPublishingService;
 
-pub use artifact_publishing::PublishFromMcpParams;
-pub use message::{CreateToolExecutionMessageParams, MessageService, PersistMessagesParams};
 
 pub use context::ContextService;
 
