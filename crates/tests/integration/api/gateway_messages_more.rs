@@ -148,21 +148,36 @@ fn user_message(text: &str) -> CanonicalMessage {
 #[test]
 fn optional_session_id_reads_present_header() {
     let h = header_map(&[(SESSION_ID, "sess-123")]);
-    let id = optional_session_id(&h).expect("session id parsed");
+    let id = optional_session_id(&h)
+        .expect("valid header")
+        .expect("session id parsed");
     assert_eq!(id.as_str(), "sess-123");
 }
 
 #[test]
 fn optional_session_id_trims_surrounding_whitespace() {
     let h = header_map(&[(SESSION_ID, "  sess-trim  ")]);
-    let id = optional_session_id(&h).expect("session id parsed");
+    let id = optional_session_id(&h)
+        .expect("valid header")
+        .expect("session id parsed");
     assert_eq!(id.as_str(), "sess-trim");
 }
 
 #[test]
 fn optional_session_id_missing_or_empty_header_is_none_not_an_error() {
-    assert!(optional_session_id(&HeaderMap::new()).is_none());
-    assert!(optional_session_id(&header_map(&[(SESSION_ID, "   ")])).is_none());
+    assert!(optional_session_id(&HeaderMap::new()).unwrap().is_none());
+    assert!(
+        optional_session_id(&header_map(&[(SESSION_ID, "   ")]))
+            .unwrap()
+            .is_none()
+    );
+}
+
+#[test]
+fn optional_session_id_oversized_header_is_rejected() {
+    let long = "s".repeat(systemprompt_identifiers::macros::MAX_EXTERNAL_ID_LEN + 1);
+    let h = header_map(&[(SESSION_ID, long.as_str())]);
+    assert!(optional_session_id(&h).is_err());
 }
 
 #[test]

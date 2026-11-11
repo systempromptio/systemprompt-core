@@ -109,17 +109,22 @@ fn user_message(text: &str) -> CanonicalMessage {
 
 #[test]
 fn a_missing_session_header_leaves_the_choice_to_the_credential() {
-    assert!(optional_session_id(&HeaderMap::new()).is_none());
+    assert!(optional_session_id(&HeaderMap::new()).unwrap().is_none());
 }
 
 #[test]
 fn a_blank_session_header_is_treated_as_absent() {
-    assert!(optional_session_id(&headers_with(SESSION_ID, "   ")).is_none());
+    assert!(
+        optional_session_id(&headers_with(SESSION_ID, "   "))
+            .unwrap()
+            .is_none()
+    );
 }
 
 #[test]
 fn a_session_header_is_trimmed_before_it_becomes_an_id() {
     let session = optional_session_id(&headers_with(SESSION_ID, "  sess_abc  "))
+        .expect("a valid header")
         .expect("a padded but non-empty header names a session");
 
     assert_eq!(session.as_str(), "sess_abc");
@@ -406,10 +411,10 @@ fn raw_header(name: &'static str, bytes: &[u8]) -> HeaderMap {
 }
 
 #[test]
-fn a_session_header_that_is_not_utf8_is_treated_as_absent_rather_than_a_panic() {
+fn a_session_header_that_is_not_utf8_is_rejected_rather_than_a_panic() {
     let headers = raw_header(SESSION_ID, &[0xC3, 0x28]);
 
-    assert!(optional_session_id(&headers).is_none());
+    assert!(optional_session_id(&headers).is_err());
 }
 
 #[test]

@@ -34,7 +34,7 @@ fn test_system_event() -> SystemEvent {
 
 fn test_analytics_event() -> AnalyticsEvent {
     AnalyticsEventBuilder::page_view(
-        "test-session".to_string().into(),
+        systemprompt_identifiers::SessionId::new("test-session"),
         None,
         "/test-page".to_string(),
         None,
@@ -265,8 +265,12 @@ fn test_analytics_event_heartbeat() {
 
 #[test]
 fn test_analytics_event_session_ended() {
-    let event =
-        AnalyticsEventBuilder::session_ended("test-session".to_string().into(), 60000, 5, 10);
+    let event = AnalyticsEventBuilder::session_ended(
+        systemprompt_identifiers::SessionId::new("test-session"),
+        60000,
+        5,
+        10,
+    );
     let sse_event = event.to_sse().expect("session_ended should serialize");
     let debug_str = format!("{:?}", sse_event);
     assert!(
@@ -282,7 +286,7 @@ fn test_analytics_event_session_ended() {
 #[test]
 fn test_analytics_event_engagement_update() {
     let event = AnalyticsEventBuilder::engagement_update(
-        "test-session".to_string().into(),
+        systemprompt_identifiers::SessionId::new("test-session"),
         "/test-page".to_string(),
         75,
         30000,

@@ -115,7 +115,7 @@ async fn migrate_session_user(state: &OAuthState, session_id: &SessionId, new_us
     let analytics_provider = state.session_provider();
 
     match analytics_provider
-        .find_active_session_by_id(&session_id)
+        .find_active_session_by_id(session_id)
         .await
     {
         Ok(Some(session)) => {

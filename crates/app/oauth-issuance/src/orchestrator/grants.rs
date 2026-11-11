@@ -15,8 +15,8 @@ use crate::user_tokens::{
     MintedRefreshToken, UserTokenError, UserTokenParams, generate_tokens_by_user_id,
 };
 use crate::validation::{
-    AuthCodeValidationParams, authorization_code_error, parse_identifier, parse_required_identifier,
-    validate_authorization_code,
+    AuthCodeValidationParams, authorization_code_error, parse_identifier,
+    parse_required_identifier, validate_authorization_code,
 };
 use crate::{IssuanceError, IssuanceResult, RequestOrigin, TokenRequest, TokenResponse};
 

@@ -19,8 +19,11 @@ use crate::{IssuanceError, IssuanceResult, RequestOrigin, TokenRequest, TokenRes
 
 impl TokenIssuanceOrchestrator<'_> {
     async fn authenticated_client(&self, request: &TokenRequest) -> IssuanceResult<ClientId> {
-        let client_id =
-            parse_required_identifier(request.client_id.as_deref(), "client_id", ClientId::try_new)?;
+        let client_id = parse_required_identifier(
+            request.client_id.as_deref(),
+            "client_id",
+            ClientId::try_new,
+        )?;
         validate_client_credentials(self.repo(), &client_id, request.client_secret.as_deref())
             .await?;
         Ok(client_id)

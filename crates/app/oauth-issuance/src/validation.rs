@@ -41,7 +41,11 @@ pub fn parse_required_identifier<T>(
     field_name: &'static str,
     parse: fn(String) -> Result<T, IdValidationError>,
 ) -> IssuanceResult<T> {
-    parse_identifier(extract_required_field(value, field_name)?, field_name, parse)
+    parse_identifier(
+        extract_required_field(value, field_name)?,
+        field_name,
+        parse,
+    )
 }
 
 #[derive(Debug)]

@@ -279,7 +279,7 @@ async fn test_system_event_type_preserved() {
 
 fn test_analytics_event() -> AnalyticsEvent {
     AnalyticsEventBuilder::page_view(
-        "test-session".to_string().into(),
+        systemprompt_identifiers::SessionId::new("test-session"),
         None,
         "/test-page".to_string(),
         None,
@@ -444,8 +444,12 @@ async fn test_route_analytics_session_ended_event() {
         .register(&user_id, &ConnectionId::new("session-end-conn"), sender)
         .await;
 
-    let session_end =
-        AnalyticsEventBuilder::session_ended("test-session".to_string().into(), 120000, 10, 20);
+    let session_end = AnalyticsEventBuilder::session_ended(
+        systemprompt_identifiers::SessionId::new("test-session"),
+        120000,
+        10,
+        20,
+    );
     let count = EventRouter::local_only(Arc::clone(&broadcasters))
         .route_analytics(&user_id, session_end)
         .await

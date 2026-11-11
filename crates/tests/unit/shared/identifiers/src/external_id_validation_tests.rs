@@ -46,24 +46,46 @@ macro_rules! external_id_cases {
     };
 }
 
-external_id_cases!(session, SessionId, [
-    "sess_3f2b8c4e-1d2a-4b5c-9e8f-0a1b2c3d4e5f",
-    "sess_3f2b8c4e1d2a4b5c9e8f0a1b2c3d4e5f",
-    "system",
-    "degraded_3f2b8c4e-1d2a-4b5c-9e8f-0a1b2c3d4e5f",
-    "cli-my-server",
-    "mcp-validate-my-server",
-]);
-external_id_cases!(client, ClientId, [
-    "sp_web",
-    "client_0123456789abcdef",
-    "sys_scheduler",
-    "bridge:user_123",
-    "https://app.example.com/oauth/client-metadata.json",
-]);
-external_id_cases!(challenge, ChallengeId, ["3f2b8c4e-1d2a-4b5c-9e8f-0a1b2c3d4e5f"]);
-external_id_cases!(refresh_family, RefreshTokenFamilyId, [
-    "3f2b8c4e-1d2a-4b5c-9e8f-0a1b2c3d4e5f",
-]);
-external_id_cases!(policy, PolicyId, ["default", "rate_user:abc", "gw-policy.v2"]);
-external_id_cases!(quota_subject, QuotaSubjectId, ["user:abc", "3f2b8c4e-1d2a-4b5c-9e8f-0a1b2c3d4e5f"]);
+external_id_cases!(
+    session,
+    SessionId,
+    [
+        "sess_3f2b8c4e-1d2a-4b5c-9e8f-0a1b2c3d4e5f",
+        "sess_3f2b8c4e1d2a4b5c9e8f0a1b2c3d4e5f",
+        "system",
+        "degraded_3f2b8c4e-1d2a-4b5c-9e8f-0a1b2c3d4e5f",
+        "cli-my-server",
+        "mcp-validate-my-server",
+    ]
+);
+external_id_cases!(
+    client,
+    ClientId,
+    [
+        "sp_web",
+        "client_0123456789abcdef",
+        "sys_scheduler",
+        "bridge:user_123",
+        "https://app.example.com/oauth/client-metadata.json",
+    ]
+);
+external_id_cases!(
+    challenge,
+    ChallengeId,
+    ["3f2b8c4e-1d2a-4b5c-9e8f-0a1b2c3d4e5f"]
+);
+external_id_cases!(
+    refresh_family,
+    RefreshTokenFamilyId,
+    ["3f2b8c4e-1d2a-4b5c-9e8f-0a1b2c3d4e5f",]
+);
+external_id_cases!(
+    policy,
+    PolicyId,
+    ["default", "rate_user:abc", "gw-policy.v2"]
+);
+external_id_cases!(
+    quota_subject,
+    QuotaSubjectId,
+    ["user:abc", "3f2b8c4e-1d2a-4b5c-9e8f-0a1b2c3d4e5f"]
+);

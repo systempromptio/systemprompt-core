@@ -129,9 +129,9 @@ fn client_id_serde_transparent_json() {
 }
 
 #[test]
-fn client_id_from_string_and_str_produce_equal() {
-    let from_str: ClientId = "test".into();
-    let from_string: ClientId = String::from("test").into();
+fn client_id_try_from_string_and_str_produce_equal() {
+    let from_str = ClientId::try_from("test").unwrap();
+    let from_string = ClientId::try_from(String::from("test")).unwrap();
     assert_eq!(from_str, from_string);
 }
 
