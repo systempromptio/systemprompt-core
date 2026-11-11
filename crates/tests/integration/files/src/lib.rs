@@ -160,6 +160,8 @@ mod services;
 #[cfg(test)]
 mod upload_service;
 #[cfg(test)]
+mod uploads_account_lock;
+#[cfg(test)]
 mod uploads_admission;
 #[cfg(test)]
 mod uploads_blob_reads;

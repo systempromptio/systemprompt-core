@@ -44,5 +44,5 @@ pub use models::{
     Allowance, BlobOrigin, CompletedUpload, NewUpload, UploadPart, UploadProgress, UploadSession,
     UploadStatus,
 };
-pub use repository::DocumentUploadRepository;
+pub use repository::{DocumentUploadRepository, UPLOAD_ACCOUNT_LOCK_CLASS};
 pub use service::{UploadService, UploadServiceParts};

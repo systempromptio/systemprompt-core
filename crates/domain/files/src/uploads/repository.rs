@@ -7,6 +7,10 @@
 //! assembly. A claim older than an hour is a crashed completion, and the
 //! expiry job closes it.
 //!
+//! Admission serialises per account under [`UPLOAD_ACCOUNT_LOCK_CLASS`], in
+//! account order, so two admissions for one account never both pass the
+//! open-session and daily-quota checks.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -21,6 +25,13 @@ use systemprompt_traits::{RepositoryError, StoredFileId};
 use super::models::{NewUpload, UploadPart, UploadSession, UploadStatus};
 
 type RepoResult<T> = Result<T, RepositoryError>;
+
+// Why: Postgres advisory locks share one key space per database; a class of
+// its own keeps upload account locks off the scheduler's single-key job locks.
+// Admission still takes the single `hashtext` key first, so a replica on the
+// release before this one, which takes only that key, excludes this one
+// during a rolling deploy.
+pub const UPLOAD_ACCOUNT_LOCK_CLASS: i32 = 0x5350_0003;
 
 #[derive(Debug, Clone)]
 pub struct DocumentUploadRepository {
@@ -211,6 +222,14 @@ impl DocumentUploadRepository {
         for account in accounts {
             sqlx::query_scalar!(
                 r#"SELECT 1 AS "locked!" FROM (SELECT pg_advisory_xact_lock(hashtext($1))) AS lock"#,
+                account,
+            )
+            .fetch_one(&mut **tx)
+            .await?;
+            sqlx::query_scalar!(
+                r#"SELECT 1 AS "locked!"
+                   FROM (SELECT pg_advisory_xact_lock($1, hashtext($2))) AS lock"#,
+                UPLOAD_ACCOUNT_LOCK_CLASS,
                 account,
             )
             .fetch_one(&mut **tx)
