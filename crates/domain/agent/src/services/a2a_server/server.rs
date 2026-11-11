@@ -164,7 +164,7 @@ impl Server {
         F: Future<Output = ()> + Send + 'static,
     {
         let app = self.create_router();
-        let addr = format!("0.0.0.0:{}", self.port);
+        let addr = format!("127.0.0.1:{}", self.port);
         let listener = tokio::net::TcpListener::bind(&addr).await?;
         tracing::info!(
             addr = %addr,

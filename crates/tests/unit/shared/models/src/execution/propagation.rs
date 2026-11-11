@@ -20,12 +20,11 @@ fn base_context() -> RequestContext {
 }
 
 #[test]
-fn round_trip_preserves_identity_and_execution_fields() {
+fn round_trip_preserves_correlation_and_execution_fields() {
     let ctx = base_context()
         .with_task_id(TaskId::new("task-9"))
         .with_ai_tool_call_id(AiToolCallId::new("call-3"))
         .with_call_source(CallSource::Agentic)
-        .with_client_id(ClientId::new("client-7"))
         .with_auth_token(JwtToken::new("tok123"));
 
     let restored = RequestContext::from_headers(&ctx.to_headers()).unwrap();
@@ -40,7 +39,6 @@ fn round_trip_preserves_identity_and_execution_fields() {
         Some("call-3")
     );
     assert_eq!(restored.call_source(), Some(CallSource::Agentic));
-    assert_eq!(restored.client_id().map(ClientId::as_str), Some("client-7"));
     assert_eq!(restored.auth_token().map(JwtToken::as_str), Some("tok123"));
 }
 
@@ -62,7 +60,6 @@ fn a_context_without_a_bearer_injects_no_authorization_header() {
     let mut hdrs = HeaderMap::new();
     ctx.inject_headers(&mut hdrs);
     assert!(!hdrs.contains_key(headers::AUTHORIZATION));
-    assert!(!hdrs.contains_key(headers::PROXY_VERIFIED));
 }
 
 #[test]
@@ -71,22 +68,6 @@ fn an_empty_bearer_is_not_restored_as_a_token() {
     hdrs.insert(headers::AUTHORIZATION, "Bearer ".parse().unwrap());
     let restored = RequestContext::from_headers(&hdrs).unwrap();
     assert!(restored.auth_token().is_none());
-}
-
-#[test]
-fn a_malformed_user_id_header_is_rejected() {
-    for raw in ["unset", "user 1", ""] {
-        let mut hdrs = base_context().to_headers();
-        hdrs.insert(headers::USER_ID, raw.parse().unwrap());
-        let err = RequestContext::from_headers(&hdrs).unwrap_err();
-        assert!(
-            matches!(
-                err,
-                ContextPropagationError::InvalidHeader { ref name, .. } if name == headers::USER_ID
-            ),
-            "{raw:?}: got {err:?}"
-        );
-    }
 }
 
 #[test]
@@ -115,99 +96,6 @@ fn blank_context_id_header_mints_a_fresh_context() {
     let restored = RequestContext::from_headers(&hdrs).unwrap();
     assert!(!restored.context_id().as_str().is_empty());
     assert_ne!(restored.context_id().as_str(), FIXED_CONTEXT);
-}
-
-#[test]
-fn proxy_verified_user_round_trips_permissions() {
-    let user = AuthenticatedUser::new_with_roles(
-        UserId::generate(),
-        "u".to_owned(),
-        "u@example.com".to_owned(),
-        vec![Permission::Admin, Permission::Mcp],
-        vec!["admin".to_owned(), "analyst".to_owned()],
-    );
-    let user_id = user.id.clone();
-    let ctx = base_context().with_user(user);
-
-    let hdrs = ctx.to_headers();
-    assert_eq!(
-        hdrs.get(headers::PROXY_VERIFIED).unwrap().to_str().unwrap(),
-        "true"
-    );
-    assert_eq!(
-        hdrs.get(headers::USER_PERMISSIONS)
-            .unwrap()
-            .to_str()
-            .unwrap(),
-        "admin mcp"
-    );
-    assert_eq!(
-        hdrs.get(headers::USER_ROLES).unwrap().to_str().unwrap(),
-        "admin analyst"
-    );
-
-    let restored = RequestContext::from_headers(&hdrs).unwrap();
-    assert!(restored.is_authenticated());
-    let restored_user = restored.user.expect("proxy-verified user reconstructed");
-    assert_eq!(restored_user.id, user_id);
-    assert_eq!(
-        restored_user.permissions,
-        vec![Permission::Admin, Permission::Mcp]
-    );
-    assert_eq!(restored_user.roles, vec!["admin", "analyst"]);
-}
-
-#[test]
-fn proxy_verified_without_a_roles_header_carries_no_roles() {
-    let user = AuthenticatedUser::new_with_roles(
-        UserId::generate(),
-        "u".to_owned(),
-        "u@example.com".to_owned(),
-        vec![Permission::Mcp],
-        vec!["admin".to_owned()],
-    );
-    let mut hdrs = base_context().with_user(user).to_headers();
-    hdrs.remove(headers::USER_ROLES);
-    let restored = RequestContext::from_headers(&hdrs).unwrap();
-    let restored_user = restored.user.expect("proxy-verified user reconstructed");
-    assert!(restored_user.roles.is_empty());
-}
-
-#[test]
-fn proxy_verified_with_malformed_user_id_is_an_error() {
-    let user = AuthenticatedUser::new(
-        UserId::generate(),
-        "u".to_owned(),
-        "u@example.com".to_owned(),
-        vec![Permission::User],
-    );
-    let mut hdrs = base_context().with_user(user).to_headers();
-    hdrs.insert(headers::USER_ID, "unset".parse().unwrap());
-    let err = RequestContext::from_headers(&hdrs).unwrap_err();
-    assert!(matches!(
-        err,
-        ContextPropagationError::InvalidHeader { name, .. } if name == headers::USER_ID
-    ));
-}
-
-#[test]
-fn proxy_verified_with_malformed_permissions_is_rejected_not_downgraded() {
-    let mut hdrs = base_context().to_headers();
-    hdrs.insert(headers::PROXY_VERIFIED, "true".parse().unwrap());
-    hdrs.insert(headers::USER_PERMISSIONS, "warp-drive".parse().unwrap());
-    let err = RequestContext::from_headers(&hdrs).unwrap_err();
-    assert!(matches!(
-        err,
-        ContextPropagationError::InvalidHeader { name, .. } if name == headers::USER_PERMISSIONS
-    ));
-}
-
-#[test]
-fn proxy_verified_without_a_permissions_header_is_anonymous() {
-    let mut hdrs = base_context().to_headers();
-    hdrs.insert(headers::PROXY_VERIFIED, "true".parse().unwrap());
-    let restored = RequestContext::from_headers(&hdrs).unwrap();
-    assert!(restored.user.is_none());
 }
 
 #[test]
@@ -244,20 +132,6 @@ fn unknown_call_source_header_is_rejected() {
 }
 
 #[test]
-fn proxy_verified_header_must_be_exactly_true() {
-    let user = AuthenticatedUser::new(
-        UserId::generate(),
-        "u".to_owned(),
-        "u@example.com".to_owned(),
-        vec![Permission::User],
-    );
-    let mut hdrs = base_context().with_user(user).to_headers();
-    hdrs.insert(headers::PROXY_VERIFIED, "TRUE".parse().unwrap());
-    let restored = RequestContext::from_headers(&hdrs).unwrap();
-    assert!(restored.user.is_none());
-}
-
-#[test]
 fn invalid_header_value_is_skipped_not_panicked() {
     let ctx = RequestContext::new(
         SessionId::new("sess\nbad"),
@@ -286,9 +160,48 @@ fn reserved_agent_name_header_is_an_invalid_header_error() {
 }
 
 #[test]
-fn a_non_uuid_user_id_header_is_accepted() {
+fn identity_never_travels_in_outbound_headers() {
+    let user = AuthenticatedUser::new_with_roles(
+        UserId::generate(),
+        "u".to_owned(),
+        "u@example.com".to_owned(),
+        vec![Permission::Admin],
+        vec!["admin".to_owned()],
+    );
+    let hdrs = base_context()
+        .with_user(user)
+        .with_client_id(ClientId::new("client-7"))
+        .to_headers();
+    for name in [
+        "x-proxy-verified",
+        "x-user-permissions",
+        "x-user-roles",
+        headers::USER_ID,
+        headers::USER_TYPE,
+        headers::CLIENT_ID,
+    ] {
+        assert!(!hdrs.contains_key(name), "{name} must not be emitted");
+    }
+}
+
+#[test]
+fn inbound_identity_headers_never_yield_an_identity() {
     let mut hdrs = base_context().to_headers();
-    hdrs.insert(headers::USER_ID, "seeded-admin".parse().unwrap());
+    hdrs.insert("x-proxy-verified", "true".parse().unwrap());
+    hdrs.insert(headers::USER_ID, "forged-admin".parse().unwrap());
+    hdrs.insert("x-user-permissions", "admin".parse().unwrap());
+    hdrs.insert("x-user-roles", "admin".parse().unwrap());
+    hdrs.insert(headers::USER_TYPE, "admin".parse().unwrap());
+    hdrs.insert(headers::CLIENT_ID, "forged-client".parse().unwrap());
+
     let restored = RequestContext::from_headers(&hdrs).unwrap();
-    assert_eq!(restored.user_id().as_str(), "seeded-admin");
+
+    assert!(restored.user.is_none());
+    assert!(!restored.is_authenticated());
+    assert_ne!(restored.user_id().as_str(), "forged-admin");
+    assert!(restored.client_id().is_none());
+    assert!(matches!(
+        restored.actor().kind,
+        systemprompt_identifiers::ActorKind::Anonymous
+    ));
 }

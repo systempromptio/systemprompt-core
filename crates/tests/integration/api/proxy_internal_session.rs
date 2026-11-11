@@ -118,6 +118,7 @@ fn request(
         .method("POST")
         .uri(format!("/{}/mcp", edge.name))
         .header("content-type", "application/json")
+        .header("x-systemprompt-mcp-hop", "forged")
         .header("x-proxy-verified", "true")
         .header("x-user-permissions", "admin")
         .header("x-user-roles", "admin")
@@ -204,17 +205,32 @@ async fn an_authenticated_session_flow_reaches_the_backend_with_proxy_owned_iden
 
     let received = edge.backend.received_requests().await.expect("recording");
     assert_eq!(received.len(), 2);
+    let server = McpServerId::new(edge.name.as_str());
+    let tokens = edge.ctx.token_authority();
+    let mut hop_sessions = Vec::new();
     for upstream in &received {
         let header = |name: &str| upstream.headers.get(name).and_then(|v| v.to_str().ok());
         assert_eq!(header("x-proxy-verified"), None);
         assert_eq!(header("x-user-permissions"), None);
         assert_eq!(header("x-user-roles"), None);
-        assert_eq!(header("x-user-id"), Some(alice.user.as_str()));
+        assert_eq!(header("x-user-id"), None);
         assert_eq!(
             header("authorization"),
             Some(format!("Bearer {}", alice.token).as_str())
         );
+        let hop =
+            header("x-systemprompt-mcp-hop").expect("every forwarded request carries a hop token");
+        let claims = tokens
+            .verify_mcp_hop(hop, &server)
+            .expect("the hop token verifies for this server");
+        assert_eq!(claims.identity.user_id, alice.user);
+        assert_eq!(
+            claims.identity.user.as_ref().map(|user| user.id.clone()),
+            Some(alice.user.clone())
+        );
+        hop_sessions.push(claims.identity.mcp_session);
     }
+    assert_eq!(hop_sessions, vec![None, Some(session.clone())]);
     assert_eq!(
         received[1]
             .headers

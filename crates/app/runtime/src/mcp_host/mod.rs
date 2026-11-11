@@ -20,4 +20,4 @@ pub use factory::{
     ToolsetBuildError, ToolsetBuildResult, ToolsetFactory, find_toolset_factory,
     registered_toolset_ids, toolset_factories,
 };
-pub use serve::{McpHostError, build_server, serve, serve_on};
+pub use serve::{McpHostError, bind_loopback, build_server, serve, serve_on};

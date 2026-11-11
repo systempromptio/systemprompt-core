@@ -77,7 +77,8 @@ pub use documents::{
 pub use governance::{apply_governance, apply_governance_plane, record_plane_applied};
 pub use instance::{unique_agent_name, unique_instance, unique_name, unique_service_name};
 pub use jwt::{
-    mint_admin_jwt, mint_bridge_jwt, test_oauth_signing, test_signing_keys, test_token_authority,
+    mint_admin_jwt, mint_bridge_jwt, mint_mcp_hop, test_oauth_signing, test_signing_keys,
+    test_token_authority,
 };
 pub use keys::{next_test_key, test_key, AUTHORITY_KEY_INDEX, ROTATING_KEY_COUNT};
 pub use keystore::install_headless_keystore;

@@ -10470,6 +10470,7 @@ dependencies = [
  "systemprompt-mcp",
  "systemprompt-models",
  "systemprompt-provider-contracts",
+ "systemprompt-security",
  "systemprompt-test-fixtures",
  "systemprompt-traits",
  "systemprompt-wire",

@@ -43,6 +43,8 @@ mod manifest_signing_jcs;
 #[cfg(test)]
 mod manifest_signing_keys;
 #[cfg(test)]
+mod mcp_hop_token;
+#[cfg(test)]
 mod oauth_wire;
 #[cfg(test)]
 mod policy_approval;

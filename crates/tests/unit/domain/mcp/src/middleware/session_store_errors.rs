@@ -4,7 +4,8 @@
 
 use rmcp::model::InitializeRequestParams;
 use rmcp::transport::streamable_http_server::session::store::{SessionState, SessionStore};
-use systemprompt_mcp::middleware::PostgresSessionStore;
+use systemprompt_identifiers::McpServerId;
+use systemprompt_mcp::middleware::{PostgresSessionStore, RestorePrincipal, run_as};
 use systemprompt_test_fixtures::closed_db_pool;
 
 fn sample_state() -> SessionState {
@@ -22,7 +23,13 @@ async fn load_surfaces_pool_error() {
     let store = PostgresSessionStore::new(std::sync::Arc::new(
         systemprompt_mcp::repository::McpSessionRepository::new(&closed_db_pool().await),
     ));
-    let err = store.load("sess-closed").await.expect_err("closed pool");
+    let principal = RestorePrincipal {
+        server_id: McpServerId::new("srv-closed"),
+        user_id: None,
+    };
+    let err = run_as(principal, store.load("sess-closed"))
+        .await
+        .expect_err("closed pool");
     assert!(err.to_string().to_lowercase().contains("pool"));
 }
 

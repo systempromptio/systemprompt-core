@@ -23,20 +23,23 @@ fn forged() -> HeaderMap {
     incoming.insert("x-systemprompt-scope-admin", HeaderValue::from_static("1"));
     incoming.insert("authorization", HeaderValue::from_static("Bearer forged"));
     incoming.insert("cookie", HeaderValue::from_static("secret=1"));
+    incoming.insert(
+        "x-systemprompt-mcp-hop",
+        HeaderValue::from_static("forged-hop"),
+    );
+    incoming.insert("a2a-version", HeaderValue::from_static("1.0"));
     incoming
 }
 
-fn assert_no_forged_identity(out: &HeaderMap, context_user: &str) {
+fn assert_no_forged_identity(out: &HeaderMap) {
     assert!(out.get("x-proxy-verified").is_none());
     assert!(out.get("x-user-permissions").is_none());
     assert!(out.get("x-user-roles").is_none());
+    assert!(out.get("x-user-id").is_none());
     assert!(out.get("x-systemprompt-owner-hop").is_none());
     assert!(out.get("x-systemprompt-scope-admin").is_none());
     assert!(out.get("authorization").is_none());
-    assert_eq!(
-        out.get("x-user-id").and_then(|v| v.to_str().ok()),
-        Some(context_user)
-    );
+    assert!(out.get("cookie").is_none());
     assert_ne!(
         out.get("x-context-id").and_then(|v| v.to_str().ok()),
         Some("forged-context")
@@ -44,11 +47,18 @@ fn assert_no_forged_identity(out: &HeaderMap, context_user: &str) {
 }
 
 #[test]
-fn managed_mcp_headers_carry_only_protocol_headers_and_proxy_identity() {
+fn managed_mcp_headers_carry_only_protocol_headers_and_the_proxy_hop_token() {
     let rc = request_context("headers-mcp");
-    let out = managed_mcp_headers(&forged(), &rc);
-    assert_no_forged_identity(&out, rc.user_id().as_str());
-    assert!(out.get("cookie").is_none());
+    let out = managed_mcp_headers(&forged(), &rc, &HeaderValue::from_static("proxy-hop"));
+    assert_no_forged_identity(&out);
+    assert_eq!(
+        out.get_all("x-systemprompt-mcp-hop")
+            .iter()
+            .map(|v| v.to_str().unwrap_or_default())
+            .collect::<Vec<_>>(),
+        vec!["proxy-hop"]
+    );
+    assert!(out.get("a2a-version").is_none());
     assert_eq!(
         out.get("mcp-session-id").and_then(|v| v.to_str().ok()),
         Some("sess")
@@ -60,13 +70,19 @@ fn managed_mcp_headers_carry_only_protocol_headers_and_proxy_identity() {
 }
 
 #[test]
-fn agent_headers_drop_every_client_supplied_identity_header() {
+fn agent_headers_carry_only_the_allow_list_and_proxy_context() {
     let rc = request_context("headers-agent");
     let out = agent_headers(&forged(), &rc);
-    assert_no_forged_identity(&out, rc.user_id().as_str());
+    assert_no_forged_identity(&out);
+    assert!(out.get("x-systemprompt-mcp-hop").is_none());
+    assert!(out.get("mcp-session-id").is_none());
     assert_eq!(
-        out.get("cookie").and_then(|v| v.to_str().ok()),
-        Some("secret=1")
+        out.get("a2a-version").and_then(|v| v.to_str().ok()),
+        Some("1.0")
+    );
+    assert_eq!(
+        out.get("content-type").and_then(|v| v.to_str().ok()),
+        Some("application/json")
     );
 }
 

@@ -13,11 +13,13 @@ use chrono::Utc;
 use jsonwebtoken::errors::ErrorKind;
 use jsonwebtoken::{Algorithm, Header, encode};
 use serde::Serialize;
+use systemprompt_identifiers::McpServerId;
 use systemprompt_models::auth::{
-    CustomClaims, JwtAudience, JwtClaims, RegisteredClaims, TokenAuthority, TokenError,
-    TokenResult, TokenType, UserJwtRequest, UserType,
+    CustomClaims, JwtAudience, JwtClaims, McpHopClaims, McpHopIdentity, RegisteredClaims,
+    TokenAuthority, TokenError, TokenResult, TokenType, UserJwtRequest, UserType,
 };
 
+use super::hop::{decode_mcp_hop, mint_mcp_hop};
 use super::lifetime::{MAX_TOKEN_LIFETIME, within_max_lifetime};
 use super::validate::{ValidationPolicy, decode_rs256_claims, decode_session_claims};
 use crate::error::AuthError;
@@ -148,5 +150,19 @@ impl TokenAuthority for DeploymentTokenAuthority {
     fn mint_user_jwt(&self, req: &UserJwtRequest) -> TokenResult<String> {
         let claims = user_claims(&self.issuer, req)?;
         encode_rs256(&self.keys, &claims).map_err(|e| TokenError::Signing(Box::new(e)))
+    }
+
+    fn mint_mcp_hop(&self, server: &McpServerId, identity: &McpHopIdentity) -> TokenResult<String> {
+        mint_mcp_hop(&self.keys, &self.issuer, server, identity)
+            .map_err(|e| TokenError::Signing(Box::new(e)))
+    }
+
+    fn verify_mcp_hop(&self, token: &str, server: &McpServerId) -> TokenResult<McpHopClaims> {
+        Ok(decode_mcp_hop(
+            self.keys.keyring(),
+            &self.issuer,
+            server,
+            token,
+        )?)
     }
 }

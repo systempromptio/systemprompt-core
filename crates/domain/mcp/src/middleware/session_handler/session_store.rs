@@ -8,6 +8,12 @@
 //! was lost to a server restart or eviction — instead of returning
 //! `404 Session not found` and provoking a client reconnect storm.
 //!
+//! A session is restored only for the server and verified user it is bound
+//! to: [`SessionStore::load`] reads the principal the hop layer verified for
+//! the current request ([`restore_principal`]) and matches it against the
+//! row's `mcp_server_id` and `user_id`. A load outside a verified request
+//! restores nothing.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -19,6 +25,7 @@ use rmcp::transport::streamable_http_server::session::store::{
 use std::sync::Arc;
 use systemprompt_identifiers::SessionId;
 
+use crate::middleware::hop::restore_principal;
 use crate::repository::McpSessionRepository;
 
 #[derive(Debug)]
@@ -35,9 +42,19 @@ impl PostgresSessionStore {
 #[async_trait]
 impl SessionStore for PostgresSessionStore {
     async fn load(&self, session_id: &str) -> Result<Option<SessionState>, SessionStoreError> {
+        let Some(principal) = restore_principal() else {
+            tracing::warn!(
+                "MCP session restore requested outside a verified request; not restored"
+            );
+            return Ok(None);
+        };
         let Some(value) = self
             .repository
-            .find_initialize_params(&SessionId::new(session_id))
+            .find_restorable_initialize_params(
+                &SessionId::new(session_id),
+                &principal.server_id,
+                principal.user_id.as_ref(),
+            )
             .await
             .map_err(boxed)?
         else {

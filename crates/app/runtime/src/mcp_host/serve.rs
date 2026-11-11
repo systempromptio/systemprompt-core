@@ -5,12 +5,14 @@
 //! factory inventory (an id no linked crate registers fails start), builds
 //! each toolset, discovers the registered access recorders and hands the lot
 //! to [`ToolsetServer`], which refuses a `tools:` entry no toolset serves.
-//! [`serve`] binds the deployment's `port:` and serves until the
-//! listener closes.
+//! [`serve`] binds the deployment's `port:` on the loopback interface only
+//! (the API proxy on the same host is its one caller, and every request must
+//! carry the proxy's hop token) and serves until the listener closes.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::net::{Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 
 use systemprompt_identifiers::McpServerId;
@@ -18,6 +20,7 @@ use systemprompt_mcp::host::{
     ToolsetAuthz, ToolsetHostError, ToolsetServer, ToolsetServerParts,
     discover_mcp_access_recorders, serve_router,
 };
+use systemprompt_mcp::middleware::HopVerifier;
 use systemprompt_mcp::repository::ToolUsageRepository;
 use systemprompt_mcp::{McpHttpConfig, McpToolExecutor, McpToolset, create_router};
 use tokio::net::TcpListener;
@@ -108,8 +111,6 @@ pub fn build_server(
         authz: ToolsetAuthz {
             hook: Arc::clone(ctx.authz_hook()),
             services,
-            tokens: ctx.token_authority(),
-            config: Arc::clone(ctx.config_arc()),
             subjects: ctx.subject_providers().clone(),
         },
         recorders: discover_mcp_access_recorders(ctx.db_pool()),
@@ -120,11 +121,18 @@ pub fn build_server(
 
 pub async fn serve(ctx: Arc<AppContext>, server_id: McpServerId) -> Result<(), McpHostError> {
     let port = resolve_port(&ctx, &server_id)?;
-    let addr = format!("0.0.0.0:{port}");
-    let listener = TcpListener::bind(&addr)
-        .await
-        .map_err(|source| McpHostError::Bind { addr, source })?;
+    let listener = bind_loopback(port).await?;
     serve_on(ctx, server_id, listener).await
+}
+
+pub async fn bind_loopback(port: u16) -> Result<TcpListener, McpHostError> {
+    let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, port));
+    TcpListener::bind(addr)
+        .await
+        .map_err(|source| McpHostError::Bind {
+            addr: addr.to_string(),
+            source,
+        })
 }
 
 pub async fn serve_on(
@@ -136,10 +144,8 @@ pub async fn serve_on(
     let router = create_router(
         server,
         Arc::clone(ctx.mcp_session_repository()),
-        McpHttpConfig {
-            server_id: Some(server_id.clone()),
-            ..McpHttpConfig::default()
-        },
+        McpHttpConfig::default(),
+        HopVerifier::new(ctx.token_authority(), server_id.clone()),
     );
     tracing::info!(server = %server_id, addr = ?listener.local_addr().ok(), "MCP toolset host listening");
     serve_router(listener, router)

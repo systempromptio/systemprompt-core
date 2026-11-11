@@ -79,7 +79,10 @@ async fn binding_completes_the_row_the_backend_opened_and_keeps_its_initialize_p
 
     assert!(repo.is_bound_to(&id, &srv, Some(&owner)).await.unwrap());
     assert_eq!(
-        backend.find_initialize_params(&id).await.unwrap(),
+        backend
+            .find_restorable_initialize_params(&id, &srv, Some(&owner))
+            .await
+            .unwrap(),
         Some(serde_json::json!({"protocolVersion": "2025-06-18"}))
     );
 }
@@ -118,4 +121,51 @@ async fn an_expired_session_is_bound_to_nobody() {
     .unwrap();
 
     assert!(!repo.is_bound_to(&id, &srv, Some(&owner)).await.unwrap());
+}
+
+#[tokio::test]
+async fn a_bound_session_is_restorable_only_for_its_server_and_user() {
+    let db = test_db_pool().await;
+    let repo = McpProxySessionRepository::new(&db);
+    let backend = McpSessionRepository::new(&db);
+    let id = session("restore");
+    let srv = server("srv");
+    let owner = user(&db).await;
+    let other = user(&db).await;
+    let params = serde_json::json!({"protocolVersion": "2025-06-18"});
+    backend.create(&id, None, Some(&srv)).await.unwrap();
+    backend.store_initialize_params(&id, &params).await.unwrap();
+    repo.bind(&id, &srv, Some(&owner)).await.unwrap();
+
+    assert_eq!(
+        backend
+            .find_restorable_initialize_params(&id, &srv, Some(&owner))
+            .await
+            .unwrap(),
+        Some(params)
+    );
+    assert!(
+        backend
+            .find_restorable_initialize_params(&id, &srv, Some(&other))
+            .await
+            .unwrap()
+            .is_none(),
+        "another user cannot restore the session"
+    );
+    assert!(
+        backend
+            .find_restorable_initialize_params(&id, &server("srv"), Some(&owner))
+            .await
+            .unwrap()
+            .is_none(),
+        "the session cannot be restored on another server"
+    );
+    assert!(
+        backend
+            .find_restorable_initialize_params(&id, &srv, None)
+            .await
+            .unwrap()
+            .is_none(),
+        "an anonymous request cannot restore a user's session"
+    );
 }

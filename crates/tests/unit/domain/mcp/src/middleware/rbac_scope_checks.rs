@@ -1,52 +1,11 @@
-//! Audience and scope checks on the MCP RBAC path.
-//!
-//! These are the two authorisation decisions made once a token has been
-//! verified. Audience confinement is what stops a token minted for one
-//! surface being replayed against an MCP server; the scope check is what
-//! stops an under-privileged but validly-scoped token from calling tools it
-//! was never granted.
+//! Scope checks on the MCP RBAC path: the decision that stops an
+//! under-privileged but verified caller from calling tools it was never
+//! granted.
 
-use chrono::{Duration, Utc};
-use systemprompt_identifiers::{ClientId, McpServerId, SessionId};
-use systemprompt_mcp::middleware::rbac::jwt::{validate_audience, validate_scopes_for_permissions};
-use systemprompt_models::auth::{
-    CustomClaims, JwtAudience, JwtClaims, Permission, RateLimitTier, RegisteredClaims, TokenType,
-    UserType,
-};
+use systemprompt_identifiers::McpServerId;
+use systemprompt_mcp::middleware::rbac::scopes::validate_scopes_for_permissions;
+use systemprompt_models::auth::{JwtAudience, Permission};
 use systemprompt_models::mcp::deployment::OAuthRequirement;
-
-fn claims_for(audiences: Vec<JwtAudience>) -> JwtClaims {
-    let now = Utc::now();
-    JwtClaims {
-        registered: RegisteredClaims {
-            sub: "user_42".to_owned(),
-            iat: now.timestamp(),
-            exp: (now + Duration::hours(1)).timestamp(),
-            nbf: Some(now.timestamp()),
-            iss: "issuer".to_owned(),
-            aud: audiences,
-            jti: "jti-1".to_owned(),
-        },
-        custom: CustomClaims {
-            scope: vec![Permission::User],
-            username: "u".to_owned(),
-            email: "u@example.com".to_owned(),
-            user_type: UserType::User,
-            roles: Vec::new(),
-            attributes: std::collections::BTreeMap::new(),
-            client_id: Some(ClientId::new("c")),
-            token_type: TokenType::Bearer,
-            auth_time: now.timestamp(),
-            session_id: Some(SessionId::new("s")),
-            rate_limit_tier: Some(RateLimitTier::User),
-            plugin_id: None,
-            act: None,
-            purpose: None,
-            interaction: None,
-            browser_session: false,
-        },
-    }
-}
 
 fn requirement(audience: JwtAudience, scopes: Vec<Permission>) -> OAuthRequirement {
     OAuthRequirement {
@@ -57,62 +16,6 @@ fn requirement(audience: JwtAudience, scopes: Vec<Permission>) -> OAuthRequireme
         ema: false,
         service_only: false,
     }
-}
-
-#[test]
-fn a_token_carrying_the_servers_audience_is_accepted() {
-    validate_audience(
-        &McpServerId::new("srv"),
-        &claims_for(vec![JwtAudience::Mcp]),
-        &requirement(JwtAudience::Mcp, vec![Permission::User]),
-    )
-    .expect("the audience matches and must be accepted");
-}
-
-// Why: this is the confinement boundary. A token minted for the A2A surface
-// replayed at an MCP server must be refused, or one audience's credential
-// silently authorises another's tools.
-#[test]
-fn a_token_minted_for_a_different_audience_is_refused() {
-    let err = validate_audience(
-        &McpServerId::new("srv"),
-        &claims_for(vec![JwtAudience::A2a]),
-        &requirement(JwtAudience::Mcp, vec![Permission::User]),
-    )
-    .expect_err("a foreign audience must not be accepted");
-
-    let message = format!("{err:?}");
-    assert!(
-        message.contains("Invalid audience"),
-        "unexpected message: {message}"
-    );
-    assert!(
-        message.contains("mcp"),
-        "the expected audience must be named: {message}"
-    );
-}
-
-// Why: a multi-audience token is legitimate. Requiring the server's audience
-// to be the *only* one would reject tokens the issuer deliberately scoped to
-// several surfaces.
-#[test]
-fn a_token_listing_several_audiences_is_accepted_when_one_of_them_matches() {
-    validate_audience(
-        &McpServerId::new("srv"),
-        &claims_for(vec![JwtAudience::A2a, JwtAudience::Mcp]),
-        &requirement(JwtAudience::Mcp, vec![Permission::User]),
-    )
-    .expect("one matching audience is enough");
-}
-
-#[test]
-fn a_token_with_no_audience_at_all_is_refused() {
-    validate_audience(
-        &McpServerId::new("srv"),
-        &claims_for(Vec::new()),
-        &requirement(JwtAudience::Mcp, vec![Permission::User]),
-    )
-    .expect_err("an audience-less token must not reach a server that requires one");
 }
 
 // Why: the check is `grants`, not equality.

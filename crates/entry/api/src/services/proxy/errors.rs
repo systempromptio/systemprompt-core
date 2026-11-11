@@ -130,6 +130,27 @@ pub enum ProxyError {
         #[source]
         source: McpDomainError,
     },
+
+    #[error("The hop token for '{service}' could not be signed")]
+    HopTokenUnavailable {
+        service: String,
+        #[source]
+        source: systemprompt_models::auth::TokenError,
+    },
+
+    #[error("The owner-hop marker for '{service}' could not be signed")]
+    OwnerHopUnavailable {
+        service: String,
+        #[source]
+        source: systemprompt_security::JwtError,
+    },
+
+    #[error("The hop token for '{service}' is not a valid header value")]
+    HopTokenHeader {
+        service: String,
+        #[source]
+        source: http::header::InvalidHeaderValue,
+    },
 }
 
 #[derive(Debug, Error)]
@@ -162,6 +183,9 @@ impl ProxyError {
             | Self::DatabaseError { .. }
             | Self::RegistryUnavailable { .. }
             | Self::SessionLookupFailed { .. }
+            | Self::HopTokenUnavailable { .. }
+            | Self::HopTokenHeader { .. }
+            | Self::OwnerHopUnavailable { .. }
             | Self::RegistryLookupFailed { .. } => StatusCode::INTERNAL_SERVER_ERROR,
             Self::BodyExtractionFailed { .. }
             | Self::InvalidMethod { .. }
@@ -199,6 +223,9 @@ impl ProxyError {
             Self::PayloadTooLarge { .. } => "payload_too_large",
             Self::SessionNotFound { .. } => "session_not_found",
             Self::SessionLookupFailed { .. } => "session_lookup_failed",
+            Self::HopTokenUnavailable { .. } => "hop_token_unavailable",
+            Self::HopTokenHeader { .. } => "hop_token_header",
+            Self::OwnerHopUnavailable { .. } => "owner_hop_unavailable",
             Self::RegistryLookupFailed { .. } => "registry_lookup_failed",
             Self::ProviderNotConnected { .. } => "provider_not_connected",
             Self::ExternalResolveFailed { .. } => "external_resolve_failed",

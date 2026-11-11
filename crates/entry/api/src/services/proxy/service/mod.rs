@@ -3,10 +3,12 @@
 //! [`ProxyService`] resolves a service by name, enforces access via the proxy
 //! auth boundary, forwards the request to the local backend port, and streams
 //! the response back (with SSE keep-alive). Every request is authenticated on
-//! its own credential; the proxy builds the backend's identity headers itself
-//! (see [`outbound`]) and, for MCP, binds each session to the server and
-//! principal that opened it (see [`mcp_session`]), so a session id never
-//! stands in for a credential. A node that supervises no processes, or a
+//! its own credential; the proxy builds the backend's headers itself from an
+//! allow-list (see [`outbound`]), signs a short-lived hop token carrying the
+//! verified identity for every request to a managed MCP server,
+//! and, for MCP, binds each session to the server and principal that opened
+//! it (see [`mcp_session`]), so a session id never stands in for a
+//! credential. A node that supervises no processes, or a
 //! worker that does not hold the process's lease, forwards to the owning
 //! replica instead (see [`owner`]).
 //!
@@ -18,6 +20,7 @@ mod external_governance;
 mod external_sessions;
 pub mod fixed_arguments;
 mod handlers;
+mod hop;
 pub mod mcp_session;
 pub mod outbound;
 pub mod owner;
@@ -36,6 +39,7 @@ use systemprompt_manifest::Config;
 use systemprompt_mcp::repository::McpProxySessionRepository;
 use systemprompt_mcp::services::client::McpClient;
 use systemprompt_models::RequestContext;
+use systemprompt_models::auth::{AuthenticatedUser, TokenAuthority};
 use systemprompt_runtime::AppContext;
 use systemprompt_security::credential::TokenCache;
 
@@ -66,8 +70,9 @@ struct ManagedRequest<'a> {
     service: &'a ServiceConfig,
     service_name: &'a ServiceName,
     path: &'a str,
-    principal: Option<systemprompt_identifiers::UserId>,
+    user: Option<AuthenticatedUser>,
     req_ctx: Option<RequestContext>,
+    tokens: &'a dyn TokenAuthority,
 }
 
 #[derive(Debug, Clone)]
@@ -147,10 +152,10 @@ impl ProxyService {
             return self.forward_to_owner(service_name, request, &ctx).await;
         }
         if ctx.config().role.shares_process_ownership()
-            && !request.headers().contains_key(owner::FORWARDED_TO_OWNER)
+            && !owner::forwarded_by_replica(request.headers(), service_name, &ctx)
             && let Some(owner) = self.process_owner(service_name, &ctx).await?
         {
-            return self.forward_to(&owner, service_name, request).await;
+            return self.forward_to(&owner, service_name, request, &ctx).await;
         }
 
         let service = ServiceResolver::resolve(service_name, &ctx)
@@ -167,13 +172,15 @@ impl ProxyService {
         )
         .await?;
 
+        let tokens = ctx.token_authority();
         self.proxy_managed(
             ManagedRequest {
                 service: &service,
                 service_name,
                 path,
-                principal: authenticated_user.map(|user| user.id),
+                user: authenticated_user,
                 req_ctx,
+                tokens: tokens.as_ref(),
             },
             request,
         )
@@ -189,9 +196,11 @@ impl ProxyService {
             service,
             service_name,
             path,
-            principal,
+            user,
             req_ctx,
+            tokens,
         } = managed;
+        let principal = user.as_ref().map(|user| user.id.clone());
         let is_mcp = service.module_name == ServiceModule::Mcp;
         let body_limit = if is_mcp {
             MCP_REQUEST_BODY_LIMIT
@@ -216,15 +225,19 @@ impl ProxyService {
 
         let req_context = forward_context(req_ctx, service, service_name)?;
         let headers = if is_mcp {
-            outbound::managed_mcp_headers(&request_headers, &req_context)
+            hop::managed_headers(
+                tokens,
+                &hop::HopGrant {
+                    service_name,
+                    context: &req_context,
+                    user: user.as_ref(),
+                    request_headers: &request_headers,
+                },
+            )?
         } else {
             outbound::agent_headers(&request_headers, &req_context)
         };
-        tracing::debug!(
-            service = %service_name,
-            has_auth = headers.contains_key(AUTHORIZATION),
-            "Proxy forwarding request"
-        );
+        tracing::debug!(service = %service_name, has_auth = headers.contains_key(AUTHORIZATION), "Proxy forwarding request");
 
         let response = self
             .send_to_backend(

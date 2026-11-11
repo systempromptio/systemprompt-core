@@ -22,7 +22,6 @@ use rmcp::{ErrorData as McpError, ServerHandler};
 use systemprompt_governance::authz::{SharedAuthzHook, SubjectProviderSet};
 use systemprompt_identifiers::McpServerId;
 use systemprompt_manifest::services::ServicesView;
-use systemprompt_models::auth::TokenAuthority;
 
 use super::catalog::{HostedCatalog, ToolsetHostError};
 use super::recorder::{McpAccessOutcome, SharedMcpAccessRecorder};
@@ -37,8 +36,6 @@ use crate::{
 pub struct ToolsetAuthz {
     pub hook: SharedAuthzHook,
     pub services: ServicesView,
-    pub tokens: Arc<dyn TokenAuthority>,
-    pub config: Arc<systemprompt_manifest::Config>,
     pub subjects: SubjectProviderSet,
 }
 

@@ -82,6 +82,15 @@ pub enum AuthError {
 
     #[error("token verification failed: {0}")]
     Verification(#[source] systemprompt_models::auth::TokenError),
+
+    #[error("token `typ` {got:?} is not the type this verifier accepts")]
+    UnexpectedTokenType { got: Option<String> },
+
+    #[error("MCP hop token lifetime of {seconds}s exceeds the permitted maximum")]
+    McpHopLifetime { seconds: i64 },
+
+    #[error("MCP hop token `sub` does not match its identity")]
+    McpHopSubjectMismatch,
 }
 
 impl AuthError {

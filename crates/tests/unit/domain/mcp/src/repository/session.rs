@@ -1,6 +1,6 @@
 //! DB-backed tests for [`McpSessionRepository`].
 
-use systemprompt_identifiers::SessionId;
+use systemprompt_identifiers::{McpServerId, SessionId};
 use systemprompt_mcp::repository::McpSessionRepository;
 use systemprompt_test_fixtures::test_db_pool;
 
@@ -70,12 +70,21 @@ async fn cleanup_expired_then_delete_stale_removes_a_seeded_session() {
     );
 }
 
+fn srv() -> McpServerId {
+    McpServerId::new(format!("srv-{}", uuid::Uuid::new_v4().simple()))
+}
+
 #[tokio::test]
-async fn find_initialize_params_random_returns_none() {
+async fn restorable_initialize_params_for_an_unknown_session_is_none() {
     let db = test_db_pool().await;
     let repo = McpSessionRepository::new(&db);
     let id = SessionId::new(format!("sess-{}", uuid::Uuid::new_v4().simple()));
-    assert!(repo.find_initialize_params(&id).await.unwrap().is_none());
+    assert!(
+        repo.find_restorable_initialize_params(&id, &srv(), None)
+            .await
+            .unwrap()
+            .is_none()
+    );
 }
 
 #[tokio::test]
@@ -83,37 +92,53 @@ async fn store_find_and_clear_initialize_params_round_trip() {
     let db = test_db_pool().await;
     let repo = McpSessionRepository::new(&db);
     let id = SessionId::new(format!("sess-{}", uuid::Uuid::new_v4().simple()));
+    let server = srv();
     let params = serde_json::json!({ "protocolVersion": "2025-06-18" });
 
+    repo.create(&id, None, Some(&server)).await.unwrap();
     repo.store_initialize_params(&id, &params).await.unwrap();
     assert_eq!(
-        repo.find_initialize_params(&id).await.unwrap(),
+        repo.find_restorable_initialize_params(&id, &server, None)
+            .await
+            .unwrap(),
         Some(params)
     );
 
     repo.clear_initialize_params(&id).await.unwrap();
-    assert!(repo.find_initialize_params(&id).await.unwrap().is_none());
+    assert!(
+        repo.find_restorable_initialize_params(&id, &server, None)
+            .await
+            .unwrap()
+            .is_none()
+    );
 }
 
 #[tokio::test]
-async fn find_initialize_params_recovers_closed_session() {
+async fn restorable_initialize_params_survive_a_closed_session() {
     let db = test_db_pool().await;
     let repo = McpSessionRepository::new(&db);
     let id = SessionId::new(format!("sess-{}", uuid::Uuid::new_v4().simple()));
+    let server = srv();
     let params = serde_json::json!({ "protocolVersion": "2025-06-18" });
 
+    repo.create(&id, None, Some(&server)).await.unwrap();
     repo.store_initialize_params(&id, &params).await.unwrap();
     repo.close(&id).await.unwrap();
 
     assert_eq!(
-        repo.find_initialize_params(&id).await.unwrap(),
+        repo.find_restorable_initialize_params(&id, &server, None)
+            .await
+            .unwrap(),
         Some(params),
         "a closed session whose init params survive must remain recoverable"
     );
 
     repo.clear_initialize_params(&id).await.unwrap();
     assert!(
-        repo.find_initialize_params(&id).await.unwrap().is_none(),
+        repo.find_restorable_initialize_params(&id, &server, None)
+            .await
+            .unwrap()
+            .is_none(),
         "an explicit DELETE clears the recoverable signal"
     );
 }

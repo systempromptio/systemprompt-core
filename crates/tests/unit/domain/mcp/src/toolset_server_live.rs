@@ -17,12 +17,13 @@ use systemprompt_mcp::host::{
 };
 use systemprompt_mcp::repository::ToolUsageRepository;
 use systemprompt_mcp::{ArtifactIngest, McpToolExecutor, McpToolset, ToolsetCall};
+use systemprompt_models::auth::{AuthenticatedUser, Permission};
 use systemprompt_models::authz::RuleType;
-use systemprompt_test_fixtures::{FIXTURE_EXTERNAL_URL, mint_admin_jwt, mint_bridge_jwt};
+use systemprompt_test_fixtures::{FIXTURE_EXTERNAL_URL, mint_bridge_jwt, mint_mcp_hop};
 
 use crate::harness::bootstrap_with_services;
 
-const SERVER: &str = "toolbox_live";
+pub(crate) const SERVER: &str = "toolbox_live";
 
 fn services_yaml() -> String {
     format!(
@@ -168,7 +169,6 @@ async fn parts(
         Arc::new(ArtifactIngest::from_db(&db, None)),
         server_id.clone(),
     );
-    let config = crate::harness::config();
     let subjects = groups.map_or_else(SubjectProviderSet::default, |values| {
         SubjectProviderSet::from_providers(vec![Arc::new(Groups(values))])
     });
@@ -179,8 +179,6 @@ async fn parts(
         authz: ToolsetAuthz {
             hook,
             services: crate::harness::services_state().view(),
-            tokens: systemprompt_test_fixtures::test_token_authority(&config.jwt_issuer),
-            config,
             subjects,
         },
         recorders: vec![Arc::clone(&recorded) as Arc<dyn McpAccessRecorder>],
@@ -209,22 +207,30 @@ pub(crate) fn deny() -> SharedAuthzHook {
     Arc::new(DenyAllHook::null())
 }
 
-pub(crate) fn admin_bearer() -> String {
-    let token = mint_admin_jwt(
-        &UserId::new(uuid::Uuid::new_v4().to_string()),
-        "host-admin@test.invalid",
-        FIXTURE_EXTERNAL_URL,
+fn caller(email: &str, permissions: Vec<Permission>) -> Vec<(String, String)> {
+    let user = AuthenticatedUser::new(
+        UserId::new(uuid::Uuid::new_v4().to_string()),
+        email.to_owned(),
+        email.to_owned(),
+        permissions,
     );
-    format!("Bearer {}", token.as_str())
+    let relay = mint_bridge_jwt(&user.id, email, FIXTURE_EXTERNAL_URL);
+    let hop = mint_mcp_hop(&McpServerId::new(SERVER), user, None, FIXTURE_EXTERNAL_URL);
+    vec![
+        ("x-systemprompt-mcp-hop".to_owned(), hop),
+        (
+            "authorization".to_owned(),
+            format!("Bearer {}", relay.as_str()),
+        ),
+    ]
 }
 
-pub(crate) fn user_bearer() -> String {
-    let token = mint_bridge_jwt(
-        &UserId::new(uuid::Uuid::new_v4().to_string()),
-        "host-user@test.invalid",
-        FIXTURE_EXTERNAL_URL,
-    );
-    format!("Bearer {}", token.as_str())
+pub(crate) fn admin_caller() -> Vec<(String, String)> {
+    caller("host-admin@test.invalid", vec![Permission::Admin])
+}
+
+pub(crate) fn user_caller() -> Vec<(String, String)> {
+    caller("host-user@test.invalid", vec![Permission::User])
 }
 
 #[tokio::test]

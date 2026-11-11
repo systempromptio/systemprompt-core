@@ -1,49 +1,11 @@
-//! JWT validation and audience/scope checks for MCP RBAC.
+//! Scope checks for MCP RBAC.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use rmcp::ErrorData as McpError;
 use systemprompt_identifiers::McpServerId;
-use systemprompt_models::auth::{JwtClaims, Permission, TokenAuthority};
-
-use crate::services::auth::validate_jwt_token;
-
-pub fn validate_and_extract_claims(
-    authority: &dyn TokenAuthority,
-    config: &systemprompt_manifest::Config,
-    server_id: &McpServerId,
-    token: &str,
-) -> Result<JwtClaims, McpError> {
-    validate_jwt_token(authority, token, &config.jwt_audiences).map_err(|e| {
-        tracing::error!(server = %server_id, error = %e, "JWT validation failed");
-        McpError::invalid_request(format!("Invalid JWT token: {e}"), None)
-    })
-}
-
-pub fn validate_audience(
-    server_id: &McpServerId,
-    claims: &JwtClaims,
-    oauth_config: &crate::OAuthRequirement,
-) -> Result<(), McpError> {
-    if claims.registered.aud.contains(&oauth_config.audience) {
-        return Ok(());
-    }
-
-    tracing::error!(
-        server = %server_id,
-        expected = %oauth_config.audience,
-        actual = ?claims.registered.aud,
-        "Invalid audience"
-    );
-    Err(McpError::invalid_request(
-        format!(
-            "Invalid audience. Expected '{}', got: {:?}",
-            oauth_config.audience, claims.registered.aud
-        ),
-        None,
-    ))
-}
+use systemprompt_models::auth::Permission;
 
 pub fn validate_scopes_for_permissions(
     server_id: &McpServerId,

@@ -1,6 +1,5 @@
 //! Unit tests for MCP services
 
-mod auth;
 mod chart_scale;
 mod client;
 mod database_service;

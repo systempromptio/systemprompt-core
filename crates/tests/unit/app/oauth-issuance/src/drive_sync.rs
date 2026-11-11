@@ -36,6 +36,22 @@ impl TokenAuthority for RecordingAuthority {
         self.minted.lock().expect("lock").push(req.clone());
         Ok("minted".to_owned())
     }
+
+    fn mint_mcp_hop(
+        &self,
+        _server: &systemprompt_identifiers::McpServerId,
+        _identity: &systemprompt_models::auth::McpHopIdentity,
+    ) -> TokenResult<String> {
+        unreachable!("the exchange never mints a hop token")
+    }
+
+    fn verify_mcp_hop(
+        &self,
+        _token: &str,
+        _server: &systemprompt_identifiers::McpServerId,
+    ) -> TokenResult<systemprompt_models::auth::McpHopClaims> {
+        unreachable!("the exchange never verifies")
+    }
 }
 
 fn service() -> (DriveSyncTokenService, Arc<RecordingAuthority>) {

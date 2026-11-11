@@ -5,7 +5,7 @@
 use std::sync::Arc;
 
 use systemprompt_database::{Database, DbPool};
-use systemprompt_identifiers::SessionId;
+use systemprompt_identifiers::{McpServerId, SessionId};
 use systemprompt_mcp::repository::McpSessionRepository;
 use systemprompt_test_fixtures::test_db_pool;
 
@@ -32,7 +32,7 @@ async fn session_lookups_read_the_primary() {
             .is_none()
     );
     assert!(
-        repo.find_initialize_params(&id)
+        repo.find_restorable_initialize_params(&id, &McpServerId::new("srv-authoritative"), None)
             .await
             .expect("initialize params on primary")
             .is_none()

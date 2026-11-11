@@ -4,7 +4,6 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod artifact_ingest;
-pub mod auth;
 pub mod client;
 pub mod database;
 pub mod deployment;

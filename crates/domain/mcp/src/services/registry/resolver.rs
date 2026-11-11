@@ -115,7 +115,7 @@ impl RegistryService {
                 model_config: deployment.model_config.clone(),
                 env_vars: deployment.env_vars.clone(),
                 version: env!("CARGO_PKG_VERSION").to_owned(),
-                host: "0.0.0.0".to_owned(),
+                host: "127.0.0.1".to_owned(),
                 module_name: "mcp".to_owned(),
                 protocol: "mcp".to_owned(),
                 remote_endpoint: deployment.endpoint.clone().unwrap_or_default(),

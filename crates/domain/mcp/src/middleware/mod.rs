@@ -1,9 +1,11 @@
-//! HTTP-facing middleware for the MCP server: RBAC enforcement, database-backed
-//! session management, and request-context/bearer-token extraction helpers.
+//! HTTP-facing middleware for the MCP server: hop-token verification, RBAC
+//! enforcement, database-backed session management, and request-context
+//! extraction helpers.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod hop;
 pub mod rbac;
 pub mod session_handler;
 
@@ -12,7 +14,11 @@ use rmcp::{ErrorData as McpError, RoleServer};
 use systemprompt_models::RequestContext as SysRequestContext;
 use systemprompt_traits::ContextPropagation;
 
-pub use rbac::{AuthResult, AuthenticatedRequestContext, JwtVerifier, enforce_rbac_from_registry};
+pub use hop::{
+    HopAdmissionError, HopRejection, HopVerifier, RestorePrincipal, VerifiedHop, admit_request,
+    restore_principal, run_as, verify_hop,
+};
+pub use rbac::{AuthResult, AuthenticatedRequestContext, enforce_rbac_from_registry};
 pub use session_handler::{DatabaseSessionHandler, PostgresSessionStore};
 
 pub fn extract_bearer_token(

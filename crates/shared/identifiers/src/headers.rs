@@ -1,14 +1,17 @@
 //! Canonical HTTP header name constants used throughout the platform for
 //! propagating trace, session, and authorization context across services.
 //!
-//! `CALLER_PURPOSE` is the caller purpose sent to the credential broker, set
-//! only from a credential the issuer bound it to; an inbound copy is stripped
-//! at the API edge. `MCP_SERVER` names the MCP server a credential-broker
-//! request is for. `API_KEY` is the Anthropic-style credential header a client
-//! or upstream presents, and `OPENCODE_SESSION` the per-session header an
-//! `OpenCode` client sends and a metered provider reads. `MEMORY` is the
-//! request header a client sends as `off` to opt out of team-memory recall,
-//! and `MEMORY_IDS` the response header naming the facts that were injected.
+//! `MCP_HOP` carries the signed token the API proxy mints for each request it
+//! forwards to a managed MCP server; it is the only identity that server
+//! accepts. `CALLER_PURPOSE` is the caller purpose sent to the credential
+//! broker, set only from a credential the issuer bound it to; an inbound copy
+//! is stripped at the API edge. `MCP_SERVER` names the MCP server a
+//! credential-broker request is for. `API_KEY` is the Anthropic-style
+//! credential header a client or upstream presents, and `OPENCODE_SESSION` the
+//! per-session header an `OpenCode` client sends and a metered provider reads.
+//! `MEMORY` is the request header a client sends as `off` to opt out of
+//! team-memory recall, and `MEMORY_IDS` the response header naming the facts
+//! that were injected.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -31,15 +34,13 @@ pub const INFERENCE_PROTOCOL: &str = "x-inference-protocol";
 pub const API_KEY: &str = "x-api-key";
 pub const OPENCODE_SESSION: &str = "x-opencode-session";
 pub const AUTHORIZATION: &str = "authorization";
-pub const PROXY_VERIFIED: &str = "x-proxy-verified";
-pub const USER_PERMISSIONS: &str = "x-user-permissions";
-pub const USER_ROLES: &str = "x-user-roles";
 pub const CLIENT_KIND: &str = "x-systemprompt-client";
 pub const OWNER_HOP: &str = "x-systemprompt-owner-hop";
 pub const CLIENT_ATTESTATION: &str = "x-systemprompt-client-attestation";
 pub const SCOPE_PREFIX: &str = "x-systemprompt-scope-";
 pub const CALLER_PURPOSE: &str = "x-systemprompt-caller";
 pub const MCP_SERVER: &str = "x-systemprompt-mcp-server";
+pub const MCP_HOP: &str = "x-systemprompt-mcp-hop";
 pub const MEMORY: &str = "x-systemprompt-memory";
 pub const MEMORY_IDS: &str = "x-systemprompt-memory-ids";
 pub const COLLAB_FORWARDED: &str = "x-systemprompt-collab-forwarded";

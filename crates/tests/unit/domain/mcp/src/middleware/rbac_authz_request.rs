@@ -1,133 +1,96 @@
-//! Regression coverage for JWT-claims → `AuthzRequest` forwarding on the MCP
-//! middleware path. Locks in that `claims.roles` and `claims.attributes` are
-//! passed verbatim into the hook input.
+//! The verified hop identity → `AuthzRequest` forwarding on the MCP
+//! middleware path: the identity's roles, attributes, act chain, client and
+//! session reach the hook input verbatim, joined to the request's own trace.
 
 use std::collections::BTreeMap;
 
-use chrono::{Duration, Utc};
 use systemprompt_governance::authz::{AuthzContext, EntityRef};
 use systemprompt_identifiers::{
     Actor, AgentName, ClientId, ContextId, McpServerId, SessionId, TaskId, TraceId, UserId,
 };
-use systemprompt_mcp::middleware::rbac::build_mcp_authz_request;
-use systemprompt_models::auth::{
-    CustomClaims, JwtAudience, JwtClaims, Permission, RateLimitTier, RegisteredClaims, TokenType,
-    UserType,
-};
-use systemprompt_models::execution::context::ExecutionContext;
+use systemprompt_mcp::middleware::rbac::build_hop_authz_request;
+use systemprompt_models::RequestContext;
+use systemprompt_models::auth::{AuthenticatedUser, Permission};
 
-fn claims_with(roles: Vec<String>, attributes: BTreeMap<String, serde_json::Value>) -> JwtClaims {
-    let now = Utc::now();
-    JwtClaims {
-        registered: RegisteredClaims {
-            sub: "user_42".to_string(),
-            iat: now.timestamp(),
-            exp: (now + Duration::hours(1)).timestamp(),
-            nbf: Some(now.timestamp()),
-            iss: "issuer".to_string(),
-            aud: vec![JwtAudience::Mcp],
-            jti: "jti-1".to_string(),
-        },
-        custom: CustomClaims {
-            scope: vec![Permission::User],
-            username: "u".to_string(),
-            email: "u@example.com".to_string(),
-            user_type: UserType::User,
-            roles,
-            attributes,
-            client_id: Some(ClientId::new("c")),
-            token_type: TokenType::Bearer,
-            auth_time: now.timestamp(),
-            session_id: Some(SessionId::new("s")),
-            rate_limit_tier: Some(RateLimitTier::User),
-            plugin_id: None,
-            act: None,
-            purpose: None,
-            interaction: None,
-            browser_session: false,
-        },
+const CONTEXT: &str = "22222222-2222-4222-8222-222222222222";
+
+fn context_with(
+    roles: Vec<String>,
+    attributes: BTreeMap<String, serde_json::Value>,
+    task: Option<&str>,
+) -> RequestContext {
+    let mut user = AuthenticatedUser::new_with_roles(
+        UserId::new("user_42"),
+        "u".to_owned(),
+        "u@example.com".to_owned(),
+        vec![Permission::User],
+        roles,
+    );
+    user.attributes = attributes;
+    let context = RequestContext::new(
+        SessionId::new("s"),
+        TraceId::generate(),
+        ContextId::try_new(CONTEXT).expect("valid ContextId"),
+        AgentName::system(),
+        Actor::user(UserId::new("user_42")),
+    )
+    .with_user(user)
+    .with_client_id(ClientId::new("c"))
+    .with_act_chain(vec![Actor::user(UserId::new("user_42"))]);
+    match task {
+        Some(task) => context.with_task_id(TaskId::new(task)),
+        None => context,
     }
 }
 
-fn execution_with(context: &str, task: Option<&str>) -> ExecutionContext {
-    ExecutionContext {
-        trace_id: TraceId::generate(),
-        context_id: ContextId::try_new(context).expect("valid ContextId"),
-        task_id: task.map(TaskId::new),
-        ai_tool_call_id: None,
-        mcp_execution_id: None,
-        call_source: None,
-        agent_name: AgentName::system(),
-        tool_model_config: None,
-        caller_purpose: None,
-    }
+fn server() -> McpServerId {
+    McpServerId::try_new("server-x").expect("valid")
 }
 
 #[test]
-fn forwards_roles_and_attributes_from_claims() {
+fn forwards_roles_attributes_and_act_chain_from_the_identity() {
     let mut attrs = BTreeMap::new();
     attrs.insert("acme.desk".to_owned(), serde_json::json!("fixed-income"));
-    let claims = claims_with(vec!["eng".to_owned(), "platform".to_owned()], attrs.clone());
-    let act_chain: Vec<Actor> = vec![Actor::user(UserId::new("user_42"))];
-
-    let req = build_mcp_authz_request(
-        &McpServerId::try_new("server-x").expect("valid"),
-        &claims,
-        act_chain.clone(),
-        &execution_with("22222222-2222-4222-8222-222222222222", Some("task-7")),
-        None,
+    let context = context_with(
+        vec!["eng".to_owned(), "platform".to_owned()],
+        attrs.clone(),
+        Some("task-7"),
     );
+
+    let req = build_hop_authz_request(&server(), &context, None);
 
     assert_eq!(req.user_id.as_str(), "user_42");
     assert_eq!(req.roles, vec!["eng".to_owned(), "platform".to_owned()]);
     assert_eq!(req.attributes, attrs);
-    assert_eq!(req.act_chain.len(), act_chain.len());
+    assert_eq!(req.act_chain.len(), 1);
     assert!(matches!(req.entity, EntityRef::McpServer(_)));
     assert_eq!(
         req.context_id,
-        Some(ContextId::try_new("22222222-2222-4222-8222-222222222222").expect("valid ContextId"))
+        Some(ContextId::try_new(CONTEXT).expect("valid ContextId"))
     );
     assert_eq!(req.task_id, Some(TaskId::new("task-7")));
 }
 
 #[test]
-fn tool_call_without_task_forwards_context_only() {
-    let claims = claims_with(vec![], BTreeMap::new());
-    let req = build_mcp_authz_request(
-        &McpServerId::try_new("server-x").expect("valid"),
-        &claims,
-        Vec::new(),
-        &execution_with("22222222-2222-4222-8222-222222222222", None),
-        None,
+fn an_anonymous_context_forwards_no_roles() {
+    let context = RequestContext::new(
+        SessionId::new("s"),
+        TraceId::generate(),
+        ContextId::try_new(CONTEXT).expect("valid ContextId"),
+        AgentName::system(),
+        Actor::anonymous(UserId::new("anon")),
     );
-    assert_eq!(
-        req.context_id,
-        Some(ContextId::try_new("22222222-2222-4222-8222-222222222222").expect("valid ContextId"))
-    );
+    let req = build_hop_authz_request(&server(), &context, None);
+    assert!(req.roles.is_empty());
+    assert!(req.attributes.is_empty());
     assert!(req.task_id.is_none());
 }
 
 #[test]
-fn empty_attributes_round_trip() {
-    let claims = claims_with(vec![], BTreeMap::new());
-    let req = build_mcp_authz_request(
-        &McpServerId::try_new("server-x").expect("valid"),
-        &claims,
-        Vec::new(),
-        &execution_with("22222222-2222-4222-8222-222222222222", None),
-        None,
-    );
-    assert!(req.attributes.is_empty());
-}
-
-#[test]
 fn no_floor_yields_plain_none_context() {
-    let claims = claims_with(vec![], BTreeMap::new());
-    let req = build_mcp_authz_request(
-        &McpServerId::try_new("server-x").expect("valid"),
-        &claims,
-        Vec::new(),
-        &execution_with("22222222-2222-4222-8222-222222222222", None),
+    let req = build_hop_authz_request(
+        &server(),
+        &context_with(vec![], BTreeMap::new(), None),
         None,
     );
     assert!(req.context.is_none());
@@ -136,36 +99,24 @@ fn no_floor_yields_plain_none_context() {
 
 #[test]
 fn carries_marketplace_floor_when_present() {
-    let claims = claims_with(vec![], BTreeMap::new());
     let mut floor = BTreeMap::new();
     floor.insert(
         "boeing.clearance".to_owned(),
         serde_json::json!(["Internal", "CUI"]),
     );
-
-    let req = build_mcp_authz_request(
-        &McpServerId::try_new("server-x").expect("valid"),
-        &claims,
-        Vec::new(),
-        &execution_with("22222222-2222-4222-8222-222222222222", None),
+    let req = build_hop_authz_request(
+        &server(),
+        &context_with(vec![], BTreeMap::new(), None),
         Some(&floor),
     );
-
     assert_eq!(req.context.kind, AuthzContext::NONE_KIND);
     assert_eq!(req.context.marketplace_floor(), Some(floor));
 }
 
 #[test]
 fn records_the_mcp_surface_and_joins_to_the_request() {
-    let claims = claims_with(vec![], BTreeMap::new());
-    let execution = execution_with("22222222-2222-4222-8222-222222222222", None);
-    let req = build_mcp_authz_request(
-        &McpServerId::try_new("server-x").expect("valid"),
-        &claims,
-        Vec::new(),
-        &execution,
-        None,
-    );
+    let context = context_with(vec![], BTreeMap::new(), None);
+    let req = build_hop_authz_request(&server(), &context, None);
 
     let actor = req.actor();
     assert_eq!(actor.user_id.as_str(), "user_42");
@@ -173,10 +124,7 @@ fn records_the_mcp_surface_and_joins_to_the_request() {
         matches!(actor.kind, systemprompt_identifiers::ActorKind::Mcp { ref server_name } if server_name == "server-x"),
         "the MCP server is the surface the user acted through"
     );
-    assert_eq!(
-        req.trace_id, execution.trace_id,
-        "the audit row must join to the request's own trace, not a fresh one"
-    );
+    assert_eq!(&req.trace_id, context.trace_id());
     assert_eq!(req.session_id, Some(SessionId::new("s")));
     assert_eq!(req.client_id, Some(ClientId::new("c")));
 }
