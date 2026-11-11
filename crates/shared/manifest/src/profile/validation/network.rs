@@ -62,8 +62,8 @@ impl Profile {
             let canonical = parsed.origin().ascii_serialization();
             if canonical != *origin {
                 errors.push(format!(
-                    "CORS origin must be written exactly as browsers send it ({canonical}); \
-                     origins are matched byte for byte: {origin}"
+                    "CORS origin '{origin}' is not in the form browsers send and would never \
+                     match (origins are compared byte for byte); write '{canonical}' instead"
                 ));
             }
         }

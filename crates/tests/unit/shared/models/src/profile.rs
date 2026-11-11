@@ -900,7 +900,7 @@ fn validate_rejects_cors_origin_the_runtime_cannot_match() {
             .validate()
             .expect_err("a non-canonical CORS origin must fail validation");
         assert!(
-            format!("{err}").contains("https://app.example.com"),
+            format!("{err}").contains("write 'https://app.example.com' instead"),
             "{origin}: got {err}"
         );
     }
