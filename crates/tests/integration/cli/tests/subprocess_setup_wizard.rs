@@ -12,6 +12,7 @@ struct DbParts {
     port: String,
     user: String,
     password: String,
+    name: String,
 }
 
 fn db_parts() -> DbParts {
@@ -28,6 +29,7 @@ fn db_parts() -> DbParts {
             .password()
             .expect("DATABASE_URL carries a password")
             .to_owned(),
+        name: url.path().trim_start_matches('/').to_owned(),
     }
 }
 
@@ -96,7 +98,7 @@ fn setup_full_non_interactive_writes_profile_and_secrets() {
         "--db-password",
         db.password.as_str(),
         "--db-name",
-        "sp_cov_setup_wizard",
+        db.name.as_str(),
         "--anthropic-key",
         "sk-ant-cov",
         "--openai-key",

@@ -567,7 +567,9 @@ async fn deploy_skip_push_builds_owned_image_syncs_secrets_and_requests_deploy()
         "DATABASE_URL": "postgres://owned:owned@127.0.0.1:1/owned",
         "CUSTOM_MARKER": "owned-deploy-secret",
         "SYSTEMPROMPT_CUSTOM_SECRETS": "CUSTOM_MARKER",
-        "SIGNING_KEY_PEM": encoded_signing_key
+        "SIGNING_KEY_PEM": encoded_signing_key,
+        "SIGNING_KEY_STAGED_PEM": "",
+        "SIGNING_KEY_PREVIOUS_KEYS": ""
     }});
     let expected_credentials = serde_json::json!({"secrets": {
         "SYSTEMPROMPT_API_TOKEN": super::FAR_FUTURE_JWT,
