@@ -1,11 +1,11 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT client_id, client_secret_hash, client_name, name, token_endpoint_auth_method,\n                    application_type, client_uri, logo_uri, is_active, created_at, updated_at, last_used_at, owner_user_id as \"owner_user_id: UserId\"\n             FROM oauth_clients WHERE client_id = $1",
+  "query": "SELECT client_id as \"client_id: ClientId\", client_secret_hash, client_name, name, token_endpoint_auth_method,\n                    application_type, client_uri, logo_uri, is_active, created_at, updated_at, last_used_at, owner_user_id as \"owner_user_id: UserId\"\n             FROM oauth_clients WHERE client_id = $1",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
-        "name": "client_id",
+        "name": "client_id: ClientId",
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -168,5 +168,5 @@
       false
     ]
   },
-  "hash": "9695726ae3bc31e0ca6ff2136b624f189a351f78c81c81451c8bc4cf41a3463f"
+  "hash": "823522f03ee9ad5464378fd508c956e3b069b5d0b7ec684df0f365cf9cb67915"
 }

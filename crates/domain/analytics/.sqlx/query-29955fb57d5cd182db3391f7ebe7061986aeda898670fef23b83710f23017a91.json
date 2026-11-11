@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT\n                id as \"id: EngagementEventId\", session_id, user_id as \"user_id: UserId\", page_url,\n                content_id as \"content_id: ContentId\",\n                event_type,\n                time_on_page_ms, time_to_first_interaction_ms, time_to_first_scroll_ms,\n                max_scroll_depth, scroll_velocity_avg, scroll_direction_changes,\n                click_count, mouse_move_distance_px, keyboard_events, copy_events,\n                focus_time_ms as \"focus_time_ms!\",\n                blur_count as \"blur_count!\",\n                tab_switches as \"tab_switches!\",\n                visible_time_ms as \"visible_time_ms!\",\n                hidden_time_ms as \"hidden_time_ms!\",\n                is_rage_click, is_dead_click, reading_pattern,\n                created_at, updated_at\n            FROM engagement_events\n            WHERE id = $1\n            ",
+  "query": "\n            SELECT\n                id as \"id: EngagementEventId\", session_id as \"session_id: SessionId\", user_id as \"user_id: UserId\", page_url,\n                content_id as \"content_id: ContentId\",\n                event_type,\n                time_on_page_ms, time_to_first_interaction_ms, time_to_first_scroll_ms,\n                max_scroll_depth, scroll_velocity_avg, scroll_direction_changes,\n                click_count, mouse_move_distance_px, keyboard_events, copy_events,\n                focus_time_ms as \"focus_time_ms!\",\n                blur_count as \"blur_count!\",\n                tab_switches as \"tab_switches!\",\n                visible_time_ms as \"visible_time_ms!\",\n                hidden_time_ms as \"hidden_time_ms!\",\n                is_rage_click, is_dead_click, reading_pattern,\n                created_at, updated_at\n            FROM engagement_events\n            WHERE id = $1\n            ",
   "describe": {
     "columns": [
       {
@@ -16,7 +16,7 @@
       },
       {
         "ordinal": 1,
-        "name": "session_id",
+        "name": "session_id: SessionId",
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -324,5 +324,5 @@
       false
     ]
   },
-  "hash": "78001fbc526a4feb21dd4de1bfe2200084b35d54ed04cfdf21adb508ed38226c"
+  "hash": "29955fb57d5cd182db3391f7ebe7061986aeda898670fef23b83710f23017a91"
 }

@@ -1,11 +1,11 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT\n                session_id as \"session_id!\",\n                COALESCE(user_type, 'unknown') as \"user_type\",\n                started_at as \"started_at!\",\n                duration_seconds,\n                request_count,\n                last_activity_at as \"last_activity_at!\"\n            FROM report_clean_traffic\n            WHERE ended_at IS NULL\n              AND last_activity_at >= $1            ORDER BY last_activity_at DESC\n            LIMIT $2\n            ",
+  "query": "\n            SELECT\n                session_id as \"session_id!: SessionId\",\n                COALESCE(user_type, 'unknown') as \"user_type\",\n                started_at as \"started_at!\",\n                duration_seconds,\n                request_count,\n                last_activity_at as \"last_activity_at!\"\n            FROM report_clean_traffic\n            WHERE ended_at IS NULL\n              AND last_activity_at >= $1            ORDER BY last_activity_at DESC\n            LIMIT $2\n            ",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
-        "name": "session_id!",
+        "name": "session_id!: SessionId",
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -80,5 +80,5 @@
       true
     ]
   },
-  "hash": "399b264efa46103c4a75008e11c9099b9fdfe2b8640c12ce13caa831fb6da81e"
+  "hash": "e72cd7708b79e2290173e5d3c6d927dd31bd3c9a9ecad4bf6844e3f436a1f813"
 }
