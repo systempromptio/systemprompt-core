@@ -17,7 +17,7 @@
 //!
 //! Every file the loader parses (root, includes, catalog, discovered skill,
 //! plugin and marketplace descriptors) passes through one `${VAR}`
-//! interpolation step ([`parse`]) before typed deserialization. The mode is
+//! interpolation step before typed deserialization. The mode is
 //! [`ServicesInterpolation::Resolve`] by default (an unset variable fails the
 //! load naming the file, key path and variable); [`ConfigLoader::inspecting`]
 //! leaves unset placeholders as text for validate/show/doctor flows, and
