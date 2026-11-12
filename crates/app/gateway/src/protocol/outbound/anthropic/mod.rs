@@ -39,7 +39,7 @@ impl OutboundAdapter for AnthropicOutbound {
         }
         let mut body =
             request::build_request_body(ctx.request, ctx.upstream_model, ctx.model_limits);
-        if !ctx.target.credential.is_caller() {
+        if ctx.policy.rewrites_request() {
             request::enable_automatic_prompt_caching(&mut body, ctx);
         }
         ctx.upstream
@@ -72,7 +72,9 @@ impl OutboundAdapter for AnthropicOutbound {
         // member's alone, and the client retries on the upstream's own wording,
         // so such a hop is sent once with its headers whole and outside this
         // platform's trace.
-        let upstream_response = if ctx.target.credential.is_caller() {
+        let upstream_response = if ctx.policy.learns_refusals() {
+            send_learning_refusals(&learning_key(&ctx), &url, &ctx, body).await?
+        } else {
             let provider = learning_key(&ctx);
             let headers = request_headers(&ctx);
             super::trace_context::with_trace(
@@ -81,8 +83,6 @@ impl OutboundAdapter for AnthropicOutbound {
                 send_once(&ctx, &provider, &url, &headers, &body.bytes),
             )
             .await?
-        } else {
-            send_learning_refusals(&learning_key(&ctx), &url, &ctx, body).await?
         };
 
         let content_type = upstream_response

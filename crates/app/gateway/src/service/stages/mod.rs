@@ -82,15 +82,8 @@ impl PreparedDispatch {
             recall: recall_stage,
         } = relay;
         let upstream_model = upstream.hop.upstream_model.clone();
-        // Why: a caller credential is the member's own account with the
-        // upstream, which answers for the request the client built — a rewritten
-        // system prompt, injected memory or sanitised content is no longer that
-        // request. The hop is therefore sent as it arrived; what would have been
-        // repaired is denied instead.
-        let as_sent = upstream.hop.credential.is_caller();
-        let override_descriptor = if as_sent {
-            None
-        } else {
+        let policy = upstream.policy;
+        let override_descriptor = if policy.rewrites_request() {
             apply_system_prompt_override(
                 overrides,
                 config,
@@ -99,14 +92,16 @@ impl PreparedDispatch {
                 &mut request,
             )
             .await
+        } else {
+            None
         };
         if let Some(descriptor) = &override_descriptor {
             audit.set_system_prompt_override(descriptor).await;
         }
-        let memory = if as_sent {
-            RecallApplied::default()
-        } else {
+        let memory = if policy.rewrites_request() {
             recall::apply_team_memory(recall_stage, &mut request, audit).await
+        } else {
+            RecallApplied::default()
         };
         let model_limits = Some(upstream.model_limits());
         let raw_body = passthrough_body(
@@ -115,7 +110,7 @@ impl PreparedDispatch {
             upstream,
             override_descriptor.is_some() || memory.injected,
         );
-        if !as_sent {
+        if policy.rewrites_request() {
             strip_caller_identity(&mut request);
         }
         resolve_url_images(upstream.hop.wire, &mut request, audit).await?;
@@ -134,7 +129,7 @@ impl PreparedDispatch {
                 raw_body,
             },
         );
-        let body = prepared_body(upstream, &ctx, as_sent)?;
+        let body = prepared_body(upstream, &ctx)?;
         audit.set_prepared_body_digest(&body.bytes).await;
 
         Ok(Self {
@@ -145,11 +140,7 @@ impl PreparedDispatch {
             body,
             recovery_count: 0,
             memory,
-            repair: if as_sent {
-                PromptRepair::Refuse
-            } else {
-                PromptRepair::Rewrite
-            },
+            repair: policy.repairs_prompt(),
         })
     }
 }

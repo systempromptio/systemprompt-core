@@ -29,7 +29,7 @@ use super::super::registry::GatewayEngines;
 use super::chain_plan::{PlannedChain, SentBody, fit_context_window, join_segments, order_chain};
 use super::credentials::KeyOwner;
 use super::route_match::{describe_route_match, enforce_route_requirements, refine_chain};
-use super::{DispatchError, GatewayError, PolicyDenied};
+use super::{DispatchError, GatewayError, HopPolicy, PolicyDenied};
 use crate::routing::{RouteSource, resolve_route};
 
 pub(super) struct ResolvedUpstream<'a> {
@@ -45,6 +45,7 @@ pub(super) struct ResolvedUpstream<'a> {
     pub(super) deployments: Vec<ResolvedHop>,
     pub(super) billing: BillingSource,
     pub(super) owner: KeyOwner,
+    pub(super) policy: HopPolicy,
 }
 
 impl ResolvedUpstream<'_> {
@@ -283,6 +284,7 @@ async fn bind_hop<'a>(
 
     Ok(ResolvedUpstream {
         catalog,
+        policy: HopPolicy::of(&hop),
         hop,
         model,
         route,

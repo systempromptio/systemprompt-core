@@ -124,6 +124,7 @@ async fn buffered_request_posts_raw_predict_with_bearer_and_body_version() {
     ];
     let ctx = OutboundCtx {
         target: &route,
+        policy: systemprompt_gateway::service::HopPolicy::of(&route),
         upstream: &call,
         http: &support::upstream_http(),
         request: &req,
@@ -189,6 +190,7 @@ async fn streaming_request_posts_stream_raw_predict() {
     let call = vertex_call(&server.uri());
     let ctx = OutboundCtx {
         target: &route,
+        policy: systemprompt_gateway::service::HopPolicy::of(&route),
         upstream: &call,
         http: &support::upstream_http(),
         request: &req,
@@ -232,6 +234,7 @@ fn passthrough_body_drops_model_and_carries_the_vertex_version() {
     );
     let ctx = OutboundCtx {
         target: &route,
+        policy: systemprompt_gateway::service::HopPolicy::of(&route),
         upstream: &call,
         http: &support::upstream_http(),
         request: &req,
@@ -265,6 +268,7 @@ async fn first_party_anthropic_keeps_messages_path_and_api_key() {
     let call = support::api_key_call(&server.uri(), "sk-fixture");
     let ctx = OutboundCtx {
         target: &route,
+        policy: systemprompt_gateway::service::HopPolicy::of(&route),
         upstream: &call,
         http: &support::upstream_http(),
         request: &req,
@@ -298,6 +302,7 @@ async fn an_undeclared_beta_is_not_forwarded_to_vertex() {
     let forwarded = [("anthropic-beta".to_owned(), "fixture-beta".to_owned())];
     let ctx = OutboundCtx {
         target: &route,
+        policy: systemprompt_gateway::service::HopPolicy::of(&route),
         upstream: &call,
         http: &support::upstream_http(),
         request: &req,
@@ -353,6 +358,7 @@ async fn send_context_management(
     )];
     let ctx = OutboundCtx {
         target: &route,
+        policy: systemprompt_gateway::service::HopPolicy::of(&route),
         upstream: &call,
         http: &support::upstream_http(),
         request: &req,

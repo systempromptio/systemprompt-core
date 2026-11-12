@@ -83,6 +83,7 @@ fn ctx<'a>(
 ) -> OutboundCtx<'a> {
     OutboundCtx {
         target,
+        policy: systemprompt_gateway::service::HopPolicy::of(target),
         upstream: &UNUSED_UPSTREAM,
         http: &UNUSED_HTTP,
         request,

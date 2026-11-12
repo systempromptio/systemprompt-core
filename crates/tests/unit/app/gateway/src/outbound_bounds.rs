@@ -83,6 +83,7 @@ async fn send<A: OutboundAdapter>(
     let http = UpstreamHttp::new(reqwest::Client::new(), bounds);
     let ctx = OutboundCtx {
         target: &hop,
+        policy: systemprompt_gateway::service::HopPolicy::of(&hop),
         upstream: &support::api_key_call(endpoint, "k"),
         http: &http,
         request: &req,

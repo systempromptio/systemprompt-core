@@ -33,6 +33,7 @@ use systemprompt_wire::error::WireStreamError;
 use thiserror::Error;
 
 use super::canonical::{CanonicalEvent, CanonicalRequest, CanonicalResponse};
+use crate::service::HopPolicy;
 pub use bounds::{ResponseMode, UpstreamBodyError, UpstreamBounds, UpstreamHttp};
 
 /// Upstream provider failure.
@@ -166,6 +167,7 @@ pub fn extract_upstream_message(body: &str) -> String {
 #[derive(Debug)]
 pub struct OutboundCtx<'a> {
     pub target: &'a ResolvedHop,
+    pub policy: HopPolicy,
     pub upstream: &'a UpstreamCall,
     pub http: &'a UpstreamHttp,
     pub request: &'a CanonicalRequest,

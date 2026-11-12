@@ -92,6 +92,7 @@ async fn send(
     let forward = [("x-added-by-the-gateway".to_owned(), "1".to_owned())];
     let ctx = OutboundCtx {
         target: &hop,
+        policy: systemprompt_gateway::service::HopPolicy::of(&hop),
         upstream: &caller_call(endpoint),
         http: &support::upstream_http(),
         request: &req,

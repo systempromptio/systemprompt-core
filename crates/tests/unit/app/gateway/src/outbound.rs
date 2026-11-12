@@ -114,6 +114,7 @@ async fn anthropic_outbound_buffered_parses_text() {
     let req = buffered_request();
     let ctx = OutboundCtx {
         target: &route,
+        policy: systemprompt_gateway::service::HopPolicy::of(&route),
         upstream: &support::api_key_call(&server.uri(), "k"),
         http: &support::upstream_http(),
         request: &req,
@@ -150,6 +151,7 @@ async fn anthropic_outbound_buffered_propagates_upstream_error() {
     let req = buffered_request();
     let ctx = OutboundCtx {
         target: &route,
+        policy: systemprompt_gateway::service::HopPolicy::of(&route),
         upstream: &support::api_key_call(&server.uri(), "k"),
         http: &support::upstream_http(),
         request: &req,
@@ -182,6 +184,7 @@ async fn anthropic_outbound_streaming_returns_stream() {
     let req = streaming_request();
     let ctx = OutboundCtx {
         target: &route,
+        policy: systemprompt_gateway::service::HopPolicy::of(&route),
         upstream: &support::api_key_call(&server.uri(), "k"),
         http: &support::upstream_http(),
         request: &req,
@@ -230,6 +233,7 @@ async fn openai_chat_outbound_buffered_parses_response() {
     let req = buffered_request();
     let ctx = OutboundCtx {
         target: &route,
+        policy: systemprompt_gateway::service::HopPolicy::of(&route),
         upstream: &support::api_key_call(&server.uri(), "k"),
         http: &support::upstream_http(),
         request: &req,
@@ -263,6 +267,7 @@ async fn openai_chat_outbound_streaming_returns_stream() {
     let req = streaming_request();
     let ctx = OutboundCtx {
         target: &route,
+        policy: systemprompt_gateway::service::HopPolicy::of(&route),
         upstream: &support::api_key_call(&server.uri(), "k"),
         http: &support::upstream_http(),
         request: &req,
@@ -299,6 +304,7 @@ async fn openai_chat_outbound_buffered_propagates_upstream_error() {
     let req = buffered_request();
     let ctx = OutboundCtx {
         target: &route,
+        policy: systemprompt_gateway::service::HopPolicy::of(&route),
         upstream: &support::api_key_call(&server.uri(), "k"),
         http: &support::upstream_http(),
         request: &req,
@@ -337,6 +343,7 @@ async fn openai_responses_outbound_buffered_parses_response() {
     let req = buffered_request();
     let ctx = OutboundCtx {
         target: &route,
+        policy: systemprompt_gateway::service::HopPolicy::of(&route),
         upstream: &support::api_key_call(&server.uri(), "k"),
         http: &support::upstream_http(),
         request: &req,
@@ -390,6 +397,7 @@ async fn anthropic_outbound_buffered_handles_rich_request() {
     req.tooling.tool_choice = Some(CanonicalToolChoice::Tool("do".into()));
     let ctx = OutboundCtx {
         target: &route_a,
+        policy: systemprompt_gateway::service::HopPolicy::of(&route_a),
         upstream: &support::api_key_call(&server.uri(), "k"),
         http: &support::upstream_http(),
         request: &req,
@@ -424,6 +432,7 @@ async fn anthropic_outbound_buffered_handles_invalid_json() {
     let req = buffered_request();
     let ctx = OutboundCtx {
         target: &route_a,
+        policy: systemprompt_gateway::service::HopPolicy::of(&route_a),
         upstream: &support::api_key_call(&server.uri(), "k"),
         http: &support::upstream_http(),
         request: &req,
@@ -466,6 +475,7 @@ async fn openai_chat_outbound_buffered_covers_tool_choice_variants() {
         req.tooling.tool_choice = Some(tc);
         let ctx = OutboundCtx {
             target: &route_a,
+            policy: systemprompt_gateway::service::HopPolicy::of(&route_a),
             upstream: &support::api_key_call(&server.uri(), "k"),
             http: &support::upstream_http(),
             request: &req,
@@ -508,6 +518,7 @@ async fn anthropic_outbound_buffered_covers_tool_choice_variants() {
         req.tooling.tool_choice = Some(tc);
         let ctx = OutboundCtx {
             target: &route_a,
+            policy: systemprompt_gateway::service::HopPolicy::of(&route_a),
             upstream: &support::api_key_call(&server.uri(), "k"),
             http: &support::upstream_http(),
             request: &req,
@@ -571,6 +582,7 @@ async fn openai_chat_outbound_buffered_covers_messages_with_tools_and_images() {
     });
     let ctx = OutboundCtx {
         target: &route_o,
+        policy: systemprompt_gateway::service::HopPolicy::of(&route_o),
         upstream: &support::api_key_call(&server.uri(), "k"),
         http: &support::upstream_http(),
         request: &req,
@@ -610,6 +622,7 @@ async fn anthropic_outbound_buffered_rejects_a_body_that_does_not_parse() {
     let req = buffered_request();
     let ctx = OutboundCtx {
         target: &route_a,
+        policy: systemprompt_gateway::service::HopPolicy::of(&route_a),
         upstream: &support::api_key_call(&server.uri(), "k"),
         http: &support::upstream_http(),
         request: &req,

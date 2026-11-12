@@ -31,6 +31,7 @@ pub(super) const fn outbound_ctx<'a>(
 ) -> OutboundCtx<'a> {
     OutboundCtx {
         target: &upstream.hop,
+        policy: upstream.policy,
         upstream: &upstream.call,
         http: &upstream.http,
         request,
@@ -181,11 +182,10 @@ pub(super) fn automatic_prompt_caching(enabled: bool, upstream: &ResolvedUpstrea
 pub(super) fn prepared_body(
     upstream: &ResolvedUpstream<'_>,
     ctx: &OutboundCtx<'_>,
-    as_sent: bool,
 ) -> Result<PreparedBody, DispatchError> {
     let sent_whole = ctx
         .raw_body
-        .filter(|_| as_sent)
+        .filter(|_| !ctx.policy.rewrites_request())
         .and_then(|raw| as_sent_body(raw, ctx.upstream_model));
     sent_whole.map_or_else(
         || {

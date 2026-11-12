@@ -131,6 +131,7 @@ fn automatic_caching_marks_an_unmarked_rebuilt_request() {
     let route = route();
     let ctx = OutboundCtx {
         target: &route,
+        policy: systemprompt_gateway::service::HopPolicy::of(&route),
         upstream: &support::api_key_call("http://unused.invalid", "k"),
         http: &support::upstream_http(),
         request: &req,
@@ -173,6 +174,7 @@ fn passthrough_prepared_body_digest_equals_request_body_digest() {
     let route = route();
     let ctx = OutboundCtx {
         target: &route,
+        policy: systemprompt_gateway::service::HopPolicy::of(&route),
         upstream: &support::api_key_call("http://unused.invalid", "k"),
         http: &support::upstream_http(),
         request: &req,

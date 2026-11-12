@@ -17,6 +17,7 @@ mod error;
 pub mod failover;
 pub mod finalize;
 mod guards;
+pub mod hop_policy;
 mod opening;
 mod pricing;
 mod rate;
@@ -31,6 +32,7 @@ pub use self::error::{
     upstream_status,
 };
 pub(super) use self::finalize::run_response_safety_scan;
+pub use self::hop_policy::HopPolicy;
 
 use std::sync::Arc;
 

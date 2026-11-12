@@ -103,6 +103,7 @@ async fn opencode_parallel_tool_results_reach_an_anthropic_wire_upstream_as_one_
     let request = OpenAiChatInbound.parse_request(&raw).expect("parse");
     let ctx = OutboundCtx {
         target: &hop,
+        policy: systemprompt_gateway::service::HopPolicy::of(&hop),
         upstream: &call,
         http: &systemprompt_gateway::protocol::outbound::UpstreamHttp::new(
             reqwest::Client::new(),

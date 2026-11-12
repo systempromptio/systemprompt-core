@@ -90,6 +90,7 @@ async fn send_once(endpoint: &str) -> Result<OutboundOutcome, OutboundError> {
     let req = request();
     let ctx = OutboundCtx {
         target: &route,
+        policy: systemprompt_gateway::service::HopPolicy::of(&route),
         upstream: &support::api_key_call(endpoint, "k"),
         http: &support::upstream_http(),
         request: &req,

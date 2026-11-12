@@ -50,6 +50,7 @@ fn encode(adapter: &dyn OutboundAdapter, wire: WireProtocol, request: &Canonical
     );
     let ctx = OutboundCtx {
         target: &route,
+        policy: systemprompt_gateway::service::HopPolicy::of(&route),
         upstream: &support::api_key_call("http://unused.invalid", "k"),
         http: &support::upstream_http(),
         request,

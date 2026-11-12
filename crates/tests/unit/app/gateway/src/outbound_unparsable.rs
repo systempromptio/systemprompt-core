@@ -71,6 +71,7 @@ async fn send_against<A: OutboundAdapter>(
     let req = request();
     let ctx = OutboundCtx {
         target: &hop,
+        policy: systemprompt_gateway::service::HopPolicy::of(&hop),
         upstream: &support::api_key_call(&server.uri(), "k"),
         http: &support::upstream_http(),
         request: &req,
