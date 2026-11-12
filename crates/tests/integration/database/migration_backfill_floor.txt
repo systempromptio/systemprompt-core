@@ -15,7 +15,8 @@ database=001
 events=009
 # files 012 numbers each open live-edit session from its stored updates once, after it adds next_seq; a fresh install has no sessions, so its default of 1 is the same state.
 # files 039 queues every existing document whose revisions may name stored images, for the media-admission backfill job; a fresh install has no documents, so its queue is empty either way.
-files=039
+# files 040 rewrites the recorded public_url of existing uploads to the address they are served at; a fresh install has no uploads.
+files=040
 # governance 027 rewrites access_control_* source labels to the closed provenance vocabulary before constraining them.
 governance=027
 logging=009

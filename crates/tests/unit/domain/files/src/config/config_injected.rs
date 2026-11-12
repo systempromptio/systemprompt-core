@@ -15,7 +15,7 @@ fn new_derives_paths_and_urls_from_its_parts() {
     assert_eq!(cfg.url_prefix(), "/cdn");
     assert_eq!(cfg.cache_control(), Some("public, max-age=60"));
     assert_eq!(cfg.files(), tmp.path().join("files"));
-    assert_eq!(cfg.file_url("/a/b.txt"), "/cdn/files/a/b.txt");
+    assert_eq!(cfg.file_url("/a/b.txt"), "/cdn/a/b.txt");
     assert_eq!(
         cfg.generated_image_url("x.png"),
         "/cdn/images/generated/x.png"

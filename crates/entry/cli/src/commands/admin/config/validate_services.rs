@@ -2,7 +2,7 @@
 //!
 //! The command's bootstrap resolves the profile and secrets only. [`prepare`]
 //! resolves the services root, the paths and the global config without loading
-//! the services tree, and [`load`] then loads and cross-checks that tree,
+//! the services tree, and `load` then loads and cross-checks that tree,
 //! turning a failure into a `services` result entry rather than a bootstrap
 //! abort.
 //!
