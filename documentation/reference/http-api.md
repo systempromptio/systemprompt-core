@@ -287,7 +287,7 @@ A gateway request names its systemprompt credential (a personal access token or 
 
 There is no fallback from a present `x-systemprompt-authorization`: an empty or invalid value answers `401` even when `Authorization` holds a valid credential. A leading `Bearer ` is accepted and optional in all three.
 
-When a request carries `x-systemprompt-authorization`, its `Authorization: Bearer` value is the client's own upstream credential. It is used only on a hop whose catalog credential is `kind: caller` (see [configure-providers.md](../guides/configure-providers.md)), is sent to that upstream and nowhere else, and is never stored or logged. A `kind: caller` hop reached without it answers `401` with `authentication_error`.
+When a request carries `x-systemprompt-authorization`, its `Authorization: Bearer` value is the client's own upstream credential. It is used only on a hop whose catalog credential is `kind: caller` (see [configure-providers.md](../guides/configure-providers.md)), is sent to that upstream and nowhere else, and is never stored or logged. A `kind: caller` hop reached without it answers `401` with `authentication_error`. Such a model is served only to a request in the format of its endpoint's wire; another format answers `400` with `invalid_request_error` before the upstream is called. The request is sent once and unmodified, and the upstream's status, headers and body are returned as received, so a `429` carries the vendor's own `retry-after` and rate-limit headers. Content that a policy would sanitise or redact is denied with `400`.
 
 ### Scope attribution
 
