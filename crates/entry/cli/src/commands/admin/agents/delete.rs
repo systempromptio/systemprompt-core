@@ -166,7 +166,7 @@ pub(super) async fn build_orchestrator(ctx: &CommandContext) -> Result<AgentOrch
     let app = ctx.app_context().await?;
     let jwt_provider = Arc::new(JwtValidationProviderImpl::from_config(
         app.config(),
-        app.token_authority(),
+        app.signing_keys().keyring().clone(),
     ));
     let broadcaster = HttpWebhookBroadcaster::from_config(app.config())
         .context("Failed to initialize webhook broadcaster")?;
@@ -176,7 +176,7 @@ pub(super) async fn build_orchestrator(ctx: &CommandContext) -> Result<AgentOrch
         Arc::new(app.config().clone()),
         AgentAuth {
             jwt_provider,
-            signing_keys: app.signing_keys().clone(),
+            verification_keys: app.signing_keys().keyring().clone(),
         },
         Arc::clone(app.a2a_repositories()),
         Arc::new(broadcaster),
@@ -190,6 +190,7 @@ pub(super) async fn build_orchestrator(ctx: &CommandContext) -> Result<AgentOrch
         Arc::new(SpawnEnvironment {
             config: Arc::clone(app.config_arc()),
             secrets: Arc::clone(app.secrets()),
+            verification_keys: app.signing_keys().verification_keys().clone(),
             services: app.services_state().clone(),
             profile_path: app.boot().profile_path().to_path_buf(),
         }),

@@ -39,6 +39,7 @@ use systemprompt_identifiers::McpServerId;
 use systemprompt_loader::ServicesState;
 use systemprompt_manifest::services::root::ActiveServicesRoot;
 use systemprompt_manifest::{Config, Profile};
+use systemprompt_marketplace::managed::PublicationPolicy;
 use systemprompt_mcp::ArtifactIngest;
 use systemprompt_mcp::repository::McpSessionRepository;
 #[cfg(feature = "notifications")]
@@ -65,6 +66,7 @@ pub struct HostContext {
     secrets: Arc<GrantedSecrets>,
     verification: VerificationKeyring,
     authz_hook: SharedAuthzHook,
+    publication: PublicationPolicy,
     subject_providers: SubjectProviderSet,
     artifact_ingest: Arc<ArtifactIngest>,
     tool_call_intents: DynToolCallIntentClaims,
@@ -142,6 +144,11 @@ impl HostContext {
     #[must_use]
     pub const fn authz_hook(&self) -> &SharedAuthzHook {
         &self.authz_hook
+    }
+
+    #[must_use]
+    pub const fn publication_policy(&self) -> &PublicationPolicy {
+        &self.publication
     }
 
     #[must_use]

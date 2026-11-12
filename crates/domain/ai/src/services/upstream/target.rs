@@ -7,7 +7,6 @@ use std::collections::BTreeSet;
 use std::sync::Arc;
 
 use systemprompt_identifiers::{CredentialId, ProviderId, UserId};
-use systemprompt_manifest::secrets::Secrets;
 use systemprompt_manifest::services::catalog::{
     EndpointRef, ResolvedCatalog, ResolvedHop, ResolvedProvider,
 };
@@ -15,6 +14,7 @@ use systemprompt_security::credential::{
     CredentialKind, CredentialScope, ProviderCredential, TokenCache, TokenCacheKey, fill_endpoint,
 };
 use systemprompt_security::google::MetadataIdentity;
+use systemprompt_traits::SecretLookup;
 use systemprompt_wire::anthropic::AnthropicBeta;
 use systemprompt_wire::upstream::UpstreamDialect;
 use systemprompt_wire::{Hosting, WireProtocol};
@@ -145,7 +145,7 @@ impl UpstreamTarget {
 
     pub fn from_secrets(
         tokens: &Arc<TokenCache>,
-        secrets: &Secrets,
+        secrets: &dyn SecretLookup,
         binding: EndpointBinding<'_>,
     ) -> Result<Self, UpstreamTargetError> {
         let credential = binding.credential;
@@ -169,13 +169,13 @@ impl UpstreamTarget {
                 }
             });
         };
-        let secret = secrets.get(secret_name.as_str()).ok_or_else(|| {
+        let secret = secrets.lookup(secret_name.as_str()).ok_or_else(|| {
             UpstreamTargetError::MissingSecret {
                 credential: credential.id.as_str().to_owned(),
                 secret: secret_name.as_str().to_owned(),
             }
         })?;
-        Self::bind(tokens, binding, secret, key)
+        Self::bind(tokens, binding, secret.expose(), key)
     }
 
     pub async fn call(&self) -> Result<UpstreamCall, UpstreamTargetError> {

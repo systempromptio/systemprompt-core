@@ -14,8 +14,8 @@
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
+use systemprompt_traits::SecretLookup;
 
-use systemprompt_manifest::secrets::Secrets;
 use systemprompt_manifest::services::catalog::{EndpointRef, ResolvedCatalog, ResolvedHop};
 use systemprompt_security::credential::TokenCache;
 
@@ -46,7 +46,7 @@ pub struct WithheldEndpoint {
 impl ProviderClients {
     pub fn build(
         tokens: &Arc<TokenCache>,
-        secrets: &Secrets,
+        secrets: &dyn SecretLookup,
         catalog: &ResolvedCatalog,
     ) -> Result<(Self, Vec<WithheldEndpoint>)> {
         let mut clients = Self::default();

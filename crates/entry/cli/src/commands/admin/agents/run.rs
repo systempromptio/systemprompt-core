@@ -1,5 +1,8 @@
 //! `admin agents run` command hosting one agent process.
 //!
+//! A spawned agent boots an [`AgentHost`] from the environment the API spawned
+//! it with: it never loads the profile's secrets source.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -7,18 +10,15 @@ use anyhow::{Context, Result};
 use clap::Args;
 use std::sync::Arc;
 
-use crate::context::CommandContext;
+use systemprompt_agent::AgentState;
 use systemprompt_agent::services::a2a_server::run_standalone;
 use systemprompt_agent::services::a2a_server::streaming::webhook_client::HttpWebhookBroadcaster;
-use systemprompt_agent::{AgentAuth, AgentState};
 #[cfg(feature = "agent-runs")]
 use systemprompt_agent_runs::AgentRunsExtension;
-use systemprompt_ai::{AiService, AiServiceProviders};
+use systemprompt_ai::AiService;
 use systemprompt_identifiers::AgentName;
-use systemprompt_mcp::McpToolProvider;
 use systemprompt_models::ai::DynAiProvider;
-use systemprompt_oauth::JwtValidationProviderImpl;
-use systemprompt_users::UsersAiSessionProvider;
+use systemprompt_runtime::AgentHost;
 
 #[derive(Debug, Clone, Args)]
 pub struct RunArgs {
@@ -29,71 +29,26 @@ pub struct RunArgs {
     pub port: u16,
 }
 
-pub(super) async fn execute(args: RunArgs, cmd: &CommandContext) -> Result<()> {
-    let ctx = cmd
-        .app_context()
+pub(super) async fn execute(args: RunArgs) -> Result<()> {
+    let agent = AgentHost::from_process_env()
         .await
-        .context("Failed to bootstrap AppContext for agent subprocess")?;
-
-    let services_config = ctx
-        .boot()
-        .load_services_config()
-        .context("Failed to load services configuration")?;
-    let db_pool = Arc::clone(ctx.db_pool());
-
-    let jwt_provider = Arc::new(JwtValidationProviderImpl::from_config(
-        ctx.config(),
-        ctx.token_authority(),
-    ));
+        .context("Failed to boot the agent host")?;
+    let host = agent.host();
+    let db_pool = Arc::clone(host.db_pool());
 
     let agent_state = AgentState::new(
         Arc::clone(&db_pool),
-        Arc::new(ctx.config().clone()),
-        AgentAuth {
-            jwt_provider,
-            signing_keys: ctx.signing_keys().clone(),
-        },
-        Arc::clone(ctx.a2a_repositories()),
-        Arc::new(HttpWebhookBroadcaster::from_config(ctx.config())?),
-        ctx.services_state().view(),
+        Arc::new(host.config().clone()),
+        agent.agent_auth(),
+        Arc::clone(agent.a2a_repositories()),
+        Arc::new(HttpWebhookBroadcaster::from_config(host.config())?),
+        host.services_state().view(),
     );
     #[cfg(feature = "agent-runs")]
     let agent_state = agent_state.with_agent_run_launcher(AgentRunsExtension::launcher(&db_pool));
     let agent_state = Arc::new(agent_state);
 
-    let tool_provider = Arc::new(McpToolProvider::new(
-        Arc::clone(&db_pool),
-        ctx.mcp_registry().clone(),
-        &services_config.ai.mcp.resilience,
-        Arc::clone(ctx.connector_tokens()),
-        Arc::clone(ctx.secrets()),
-    ));
-    let session_provider = Arc::new(UsersAiSessionProvider::from_repository(
-        systemprompt_users::SessionRepository::new(&db_pool),
-    ));
-    let ai_service = Arc::new(
-        AiService::new(
-            Arc::new(
-                services_config
-                    .resolve_catalog(&systemprompt_loader::services_state::catalog_context(
-                        ctx.profile(),
-                    ))
-                    .context("The services catalog does not resolve")?,
-            ),
-            &services_config.ai,
-            AiServiceProviders {
-                tools: tool_provider,
-                sessions: session_provider,
-                provider_tokens: Arc::clone(ctx.connector_tokens()),
-                secrets: Arc::clone(ctx.secrets()),
-                session_ttl_seconds: ctx.mcp_registry().config().jwt_access_token_expiration,
-            },
-            ctx.ai_repositories(),
-        )
-        .context("Failed to create AI service")?
-        .with_context_materializer(ctx.context_materializer()),
-    );
-
+    let ai_service = Arc::clone(agent.ai_service());
     let provider: DynAiProvider = Arc::<AiService>::clone(&ai_service);
     let served = run_standalone(agent_state, provider, &args.agent_name, args.port)
         .await

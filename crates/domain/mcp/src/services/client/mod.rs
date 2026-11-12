@@ -23,11 +23,11 @@ use rmcp::model::{ClientConfig, Implementation, ProtocolVersion};
 use rmcp::transport::streamable_http_client::{
     StreamableHttpClientTransport, StreamableHttpClientTransportConfig,
 };
-use systemprompt_config::SecretsService;
 use systemprompt_identifiers::McpServerId;
 use systemprompt_manifest::Config;
 use systemprompt_models::ai::tools::McpTool;
 use systemprompt_security::credential::TokenCache;
+use systemprompt_traits::SecretLookup;
 
 mod bounded_sse;
 mod capabilities;
@@ -59,7 +59,7 @@ pub struct McpClient {
     connector_tokens: Arc<TokenCache>,
     deployments: DeploymentService,
     config: Arc<Config>,
-    secrets: Arc<SecretsService>,
+    secrets: Arc<dyn SecretLookup>,
     limits: McpClientLimits,
 }
 
@@ -69,7 +69,7 @@ impl McpClient {
         connector_tokens: Arc<TokenCache>,
         deployments: DeploymentService,
         config: Arc<Config>,
-        secrets: Arc<SecretsService>,
+        secrets: Arc<dyn SecretLookup>,
         limits: McpClientLimits,
     ) -> Self {
         Self {

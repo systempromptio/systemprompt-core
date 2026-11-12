@@ -78,7 +78,8 @@ pub mod secret;
 pub use process_liveness::ProcessLiveness;
 pub use runner_service::RunnerService;
 pub use secret::{
-    ExtensionSecret, ReloadOutcome, SECRET_SEED_BYTES, SecretStore, SecretStoreError, SecretsStatus,
+    ExtensionSecret, ReloadOutcome, SECRET_SEED_BYTES, SecretLookup, SecretStore, SecretStoreError,
+    SecretsStatus,
 };
 pub mod storage;
 pub mod stream_drain;
@@ -161,8 +162,7 @@ pub use registry::{
 pub use extension_error::{ExtensionError, McpErrorData};
 
 pub use jwt::{
-    AgentJwtClaims, DynJwtValidationProvider, GenerateTokenParams, JwtProviderError, JwtResult,
-    JwtValidationProvider,
+    AgentJwtClaims, DynJwtValidationProvider, JwtProviderError, JwtResult, JwtValidationProvider,
 };
 
 mod startup_events;

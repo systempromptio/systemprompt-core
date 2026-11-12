@@ -36,14 +36,14 @@ impl OrchestratorHandles {
 pub(crate) async fn agent_orchestrator(ctx: &Arc<AppContext>) -> Result<AgentOrchestrator> {
     let jwt_provider = Arc::new(JwtValidationProviderImpl::from_config(
         ctx.config(),
-        ctx.token_authority(),
+        ctx.signing_keys().keyring().clone(),
     ));
     let agent_state = Arc::new(AgentState::new(
         Arc::clone(ctx.db_pool()),
         Arc::new(ctx.config().clone()),
         AgentAuth {
             jwt_provider,
-            signing_keys: ctx.signing_keys().clone(),
+            verification_keys: ctx.signing_keys().keyring().clone(),
         },
         Arc::clone(ctx.a2a_repositories()),
         Arc::new(HttpWebhookBroadcaster::from_config(ctx.config())?),
@@ -56,6 +56,7 @@ pub(crate) async fn agent_orchestrator(ctx: &Arc<AppContext>) -> Result<AgentOrc
         Arc::new(SpawnEnvironment {
             config: Arc::clone(ctx.config_arc()),
             secrets: Arc::clone(ctx.secrets()),
+            verification_keys: ctx.signing_keys().verification_keys().clone(),
             services: ctx.services_state().clone(),
             profile_path: ctx.boot().profile_path().to_path_buf(),
         }),

@@ -70,19 +70,44 @@ impl RepositoryBundles {
         &mut self,
         owner: &systemprompt_identifiers::UserId,
     ) {
-        let resolver = Arc::new(
-            systemprompt_marketplace::managed::OrganizationSkillResolver::new(
-                self.managed.as_ref().clone(),
-                owner.clone(),
-            ),
-        );
-        self.a2a = Arc::new(
-            self.a2a
-                .as_ref()
-                .clone()
-                .with_managed_skill_resolver(resolver),
-        );
+        self.a2a = Arc::new(organization_skills(&self.a2a, &self.managed, owner));
     }
+}
+
+pub(crate) fn a2a_repositories(
+    database: &DbPool,
+    instance_id: systemprompt_identifiers::InstanceId,
+    managed: &systemprompt_marketplace::managed::ManagedRepository,
+    session_usage: systemprompt_traits::DynSessionUsageCounters,
+) -> systemprompt_agent::repository::A2ARepositories {
+    let tool_executions: systemprompt_traits::DynToolExecutionLookup = Arc::new(
+        systemprompt_mcp::repository::ToolUsageRepository::new(database),
+    );
+    let managed_skills: systemprompt_traits::DynManagedSkillResolver =
+        Arc::new(systemprompt_marketplace::managed::ManagedResourceResolver::new(managed.clone()));
+    systemprompt_agent::repository::A2ARepositories::new(
+        database,
+        systemprompt_agent::repository::A2aDependencies {
+            session_usage,
+            instance_id,
+            managed_skills,
+            tool_executions,
+        },
+    )
+}
+
+pub(crate) fn organization_skills(
+    a2a: &systemprompt_agent::repository::A2ARepositories,
+    managed: &systemprompt_marketplace::managed::ManagedRepository,
+    owner: &systemprompt_identifiers::UserId,
+) -> systemprompt_agent::repository::A2ARepositories {
+    let resolver = Arc::new(
+        systemprompt_marketplace::managed::OrganizationSkillResolver::new(
+            managed.clone(),
+            owner.clone(),
+        ),
+    );
+    a2a.clone().with_managed_skill_resolver(resolver)
 }
 
 pub(super) fn build_repositories(
@@ -103,21 +128,12 @@ pub(super) fn build_repositories(
     let ai = Arc::new(systemprompt_ai::repository::AiRepositories::new(
         database, cipher,
     ));
-    let tool_executions: systemprompt_traits::DynToolExecutionLookup = Arc::new(
-        systemprompt_mcp::repository::ToolUsageRepository::new(database),
-    );
-    let managed_resolver: systemprompt_traits::DynManagedSkillResolver = Arc::new(
-        systemprompt_marketplace::managed::ManagedResourceResolver::new(managed.as_ref().clone()),
-    );
     Ok(RepositoryBundles {
-        a2a: Arc::new(systemprompt_agent::repository::A2ARepositories::new(
+        a2a: Arc::new(a2a_repositories(
             database,
-            systemprompt_agent::repository::A2aDependencies {
-                session_usage,
-                instance_id: instance_id.clone(),
-                managed_skills: managed_resolver,
-                tool_executions,
-            },
+            instance_id.clone(),
+            managed.as_ref(),
+            session_usage,
         )),
         content: Arc::new(systemprompt_content::repository::ContentRepositories::new(
             database,

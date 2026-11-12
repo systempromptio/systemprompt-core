@@ -83,7 +83,7 @@ fn a_personal_credential_has_no_deployment_secret() {
         .expect("endpoint in catalog");
     match UpstreamTarget::from_secrets(
         &Default::default(),
-        &ensure_test_secrets_bootstrap().get(),
+        ensure_test_secrets_bootstrap().as_ref(),
         binding,
     ) {
         Err(UpstreamTargetError::PersonalCredential { credential }) => {

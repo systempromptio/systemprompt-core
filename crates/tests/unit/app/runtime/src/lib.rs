@@ -11,6 +11,8 @@
 #![allow(clippy::all)]
 
 #[cfg(test)]
+mod agent_host;
+#[cfg(test)]
 mod app_context_parts;
 #[cfg(test)]
 mod boot;

@@ -1,5 +1,6 @@
 //! [`SecretStore`] over the live [`SecretsService`]: the handle extension code
-//! keeps past router build, reading the current generation on every call.
+//! keeps past router build, reading the current generation on every call;
+//! [`SecretLookup`] over the whole document for the API's platform services.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -7,10 +8,19 @@
 use std::time::Duration;
 
 use systemprompt_traits::{
-    ExtensionSecret, ReloadOutcome, SECRET_SEED_BYTES, SecretStore, SecretStoreError, SecretsStatus,
+    ExtensionSecret, ReloadOutcome, SECRET_SEED_BYTES, SecretLookup, SecretStore, SecretStoreError,
+    SecretsStatus,
 };
 
 use super::SecretsService;
+
+impl SecretLookup for SecretsService {
+    fn lookup(&self, name: &str) -> Option<ExtensionSecret> {
+        self.get()
+            .get(name)
+            .map(|value| ExtensionSecret::new(value.clone()))
+    }
+}
 
 #[async_trait::async_trait]
 impl SecretStore for SecretsService {

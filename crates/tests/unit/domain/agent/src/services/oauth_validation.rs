@@ -4,9 +4,7 @@ use systemprompt_agent::models::a2a::jsonrpc::NumberOrString;
 use systemprompt_agent::services::a2a_server::auth::validate_oauth_for_request;
 use systemprompt_identifiers::UserId;
 use systemprompt_models::auth::Permission;
-use systemprompt_traits::{
-    AgentJwtClaims, GenerateTokenParams, JwtProviderError, JwtResult, JwtValidationProvider,
-};
+use systemprompt_traits::{AgentJwtClaims, JwtProviderError, JwtResult, JwtValidationProvider};
 
 struct StubJwtProvider {
     claims: Option<AgentJwtClaims>,
@@ -31,9 +29,6 @@ impl JwtValidationProvider for StubJwtProvider {
         } else {
             Err(JwtProviderError::InvalidToken)
         }
-    }
-    fn generate_token(&self, _params: GenerateTokenParams) -> JwtResult<String> {
-        Ok("token".to_string())
     }
     fn generate_secure_token(&self, prefix: &str) -> String {
         format!("{prefix}-fake")

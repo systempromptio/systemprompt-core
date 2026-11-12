@@ -25,7 +25,7 @@ fn catalog_and_clients() -> (ResolvedCatalog, ProviderClients) {
     let secrets = ensure_test_secrets_bootstrap();
     let catalog = mock_http::default_catalog();
     let (clients, _withheld) =
-        ProviderClients::build(&Default::default(), &secrets.get(), &catalog)
+        ProviderClients::build(&Default::default(), secrets.as_ref(), &catalog)
             .expect("clients build");
     (catalog, clients)
 }

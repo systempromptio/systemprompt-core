@@ -121,7 +121,7 @@ impl HostContext {
         .await?;
         let cache_epochs = CacheEpochs::new();
         let store: Arc<dyn SecretStore> = Arc::<GrantedSecrets>::clone(&secrets);
-        let (_policy, authz_hook, market) =
+        let (publication, authz_hook, market) =
             authz_stage(profile, store, &database, &services, None, &cache_epochs)?;
         let (extensions, _schema, governance) = init_governed_extensions(
             profile,
@@ -221,6 +221,7 @@ impl HostContext {
             secrets,
             verification,
             authz_hook,
+            publication,
             documents,
             #[cfg(feature = "notifications")]
             notifications: Arc::clone(

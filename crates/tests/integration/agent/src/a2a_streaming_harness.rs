@@ -31,8 +31,7 @@ use systemprompt_models::execution::context::RequestContext;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 use systemprompt_test_mocks::MockAiProvider;
 use systemprompt_traits::{
-    AgentJwtClaims, DynJwtValidationProvider, GenerateTokenParams, JwtProviderError, JwtResult,
-    JwtValidationProvider,
+    AgentJwtClaims, DynJwtValidationProvider, JwtProviderError, JwtResult, JwtValidationProvider,
 };
 use tokio::sync::{RwLock, Semaphore};
 
@@ -41,10 +40,6 @@ struct StubJwtProvider;
 impl JwtValidationProvider for StubJwtProvider {
     fn validate_token(&self, _token: &str) -> JwtResult<AgentJwtClaims> {
         Err(JwtProviderError::InvalidToken)
-    }
-
-    fn generate_token(&self, _params: GenerateTokenParams) -> JwtResult<String> {
-        Ok("stub-token".to_owned())
     }
 
     fn generate_secure_token(&self, prefix: &str) -> String {
@@ -100,7 +95,9 @@ async fn build_state(permits: usize) -> anyhow::Result<Arc<AgentHandlerState>> {
         Arc::clone(&global_config),
         systemprompt_agent::AgentAuth {
             jwt_provider: Arc::clone(&jwt_provider),
-            signing_keys: systemprompt_test_fixtures::test_signing_keys(),
+            verification_keys: systemprompt_test_fixtures::test_signing_keys()
+                .keyring()
+                .clone(),
         },
         Arc::new(repositories),
         systemprompt_test_mocks::recording_webhooks(),

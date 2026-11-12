@@ -21,6 +21,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod agent_host;
 #[cfg(feature = "brain")]
 pub mod brain;
 mod builder;
@@ -42,6 +43,7 @@ pub mod storage;
 pub mod trace;
 mod validation;
 
+pub use agent_host::{AgentHost, AgentHostError};
 #[cfg(feature = "brain")]
 pub use builder::brain::{BrainCore, BrainInputs, RecallSeams, brain_sink};
 #[cfg(feature = "notifications")]

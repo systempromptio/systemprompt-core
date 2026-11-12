@@ -27,10 +27,11 @@
 use std::collections::HashMap;
 
 use http::{HeaderName, HeaderValue};
-use systemprompt_manifest::{Config, Secrets};
+use systemprompt_manifest::Config;
 use systemprompt_models::RequestContext;
 use systemprompt_models::mcp::ExternalAuth;
 use systemprompt_security::credential::TokenCache;
+use systemprompt_traits::SecretLookup;
 
 use super::McpClient;
 use super::validation::rewrite_url_for_internal_use;
@@ -60,11 +61,10 @@ pub(super) async fn resolve_external_bearer(
     server: &str,
 ) -> McpDomainResult<String> {
     let config = &*client.config;
-    let snapshot = client.secrets.get();
     if let Some(token) = machine_grant_bearer(
         &client.connector_tokens,
         &client.deployments,
-        &snapshot,
+        client.secrets.as_ref(),
         ext,
         server,
     )
@@ -82,9 +82,10 @@ pub(super) async fn resolve_external_bearer(
     // Why: the accessor authenticates this process by the broker secret; a
     // call without it would be refused (or, worse, served to an unbrokered
     // caller), so a missing secret is a configuration error here.
-    let broker_secret = snapshot
-        .get(BROKER_SECRET_KEY)
-        .filter(|secret| !secret.is_empty())
+    let broker_secret = client
+        .secrets
+        .lookup(BROKER_SECRET_KEY)
+        .filter(|secret| !secret.expose().is_empty())
         .ok_or_else(|| {
             McpDomainError::Configuration(format!(
                 "secret `{BROKER_SECRET_KEY}` is not configured; external MCP server '{server}' \
@@ -94,7 +95,7 @@ pub(super) async fn resolve_external_bearer(
     fetch_external_bearer(
         &accessor,
         jwt.as_str(),
-        broker_secret,
+        broker_secret.expose(),
         server,
         context.caller_purpose(),
     )
@@ -104,7 +105,7 @@ pub(super) async fn resolve_external_bearer(
 async fn machine_grant_bearer(
     connector_tokens: &TokenCache,
     deployments: &DeploymentService,
-    secrets: &Secrets,
+    secrets: &dyn SecretLookup,
     ext: &ExternalAuth,
     server: &str,
 ) -> McpDomainResult<Option<String>> {
@@ -116,7 +117,11 @@ async fn machine_grant_bearer(
     };
     let token = systemprompt_security::connector_grant::machine_token(
         connector_tokens,
-        secrets,
+        |name| {
+            secrets
+                .lookup(name)
+                .map(|secret| secret.expose().to_owned())
+        },
         server,
         &connector,
     )

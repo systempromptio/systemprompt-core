@@ -65,7 +65,7 @@ pub async fn resolve(
     let credential = &hop.credential.id;
     match hop.credential.kind {
         CredentialKind::Platform => {
-            let target = UpstreamTarget::from_secrets(tokens, &engines.secrets.get(), binding)
+            let target = UpstreamTarget::from_secrets(tokens, engines.secrets.as_ref(), binding)
                 .map_err(pre_audit)?;
             let call = target.call().await.map_err(pre_audit)?;
             return Ok((call, billing));

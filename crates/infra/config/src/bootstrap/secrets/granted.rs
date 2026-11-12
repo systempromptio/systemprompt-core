@@ -1,4 +1,5 @@
-//! The secrets a spawned MCP server holds: its grants and nothing else.
+//! The secrets a spawned MCP server or agent holds: its grants and nothing
+//! else.
 //!
 //! [`GrantedSecrets::from_lookup`] reads exactly what
 //! [`Secrets::child_env`](systemprompt_manifest::secrets::Secrets) emits for
@@ -19,7 +20,8 @@ use chrono::Utc;
 use systemprompt_manifest::paths::constants::env_vars::CUSTOM_SECRETS;
 use systemprompt_models::subprocess::ProviderSecret;
 use systemprompt_traits::{
-    ExtensionSecret, ReloadOutcome, SECRET_SEED_BYTES, SecretStore, SecretStoreError, SecretsStatus,
+    ExtensionSecret, ReloadOutcome, SECRET_SEED_BYTES, SecretLookup, SecretStore, SecretStoreError,
+    SecretsStatus,
 };
 use zeroize::Zeroizing;
 
@@ -115,6 +117,21 @@ impl GrantedSecrets {
         decode_master_key(encoded).map_err(|e: SecretsBootstrapError| {
             SecretStoreError::new("decoding the encryption master key", e)
         })
+    }
+}
+
+impl SecretLookup for GrantedSecrets {
+    fn lookup(&self, name: &str) -> Option<ExtensionSecret> {
+        let provider = || match name {
+            "kimi" | "KIMI_API_KEY" => Some(ProviderSecret::Moonshot),
+            "dashscope" | "DASHSCOPE_API_KEY" => Some(ProviderSecret::Qwen),
+            other => ProviderSecret::ALL
+                .into_iter()
+                .find(|provider| provider.env_name() == other),
+        };
+        self.get(name)
+            .or_else(|| provider().and_then(|provider| self.get(provider.as_str())))
+            .map(|value| ExtensionSecret::new(value.to_owned()))
     }
 }
 

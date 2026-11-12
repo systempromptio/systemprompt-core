@@ -22,6 +22,8 @@ use systemprompt_loader::ServicesState;
 use systemprompt_loader::subprocess::Spawner;
 use systemprompt_manifest::Config;
 use systemprompt_manifest::child_env::ChildBoot;
+use systemprompt_models::subprocess::VERIFICATION_KEYS_ENV;
+use systemprompt_security::keys::TokenVerificationKeys;
 
 use crate::services::agent_orchestration::{OrchestrationError, OrchestrationResult};
 
@@ -29,6 +31,7 @@ use crate::services::agent_orchestration::{OrchestrationError, OrchestrationResu
 pub struct SpawnEnvironment {
     pub config: Arc<Config>,
     pub secrets: Arc<SecretsService>,
+    pub verification_keys: TokenVerificationKeys,
     pub services: ServicesState,
     pub profile_path: PathBuf,
 }
@@ -89,9 +92,9 @@ fn agent_secrets(
         ))
     })?;
     let derived = grants::model_credential_secrets(agent, environment.services.catalog());
-    let env = environment
+    let mut env = environment
         .secrets
-        .child_env(ChildBoot::Agent, &agent.secrets, &derived)
+        .child_env(ChildBoot::Host, &agent.secrets, &derived)
         .map_err(|e| {
             OrchestrationError::spawn(
                 format!("Failed to resolve the granted secrets for agent {agent_name}"),
@@ -104,6 +107,13 @@ fn agent_secrets(
     {
         tracing::info!(agent = %agent_name, grant = "encryption_master_key", "agent granted the encryption master key");
     }
+    let keys = serde_json::to_string(&environment.verification_keys).map_err(|e| {
+        OrchestrationError::spawn(
+            format!("Failed to serialise the verification keys for agent {agent_name}"),
+            e,
+        )
+    })?;
+    env.push((VERIFICATION_KEYS_ENV.to_owned(), keys));
     Ok(env)
 }
 

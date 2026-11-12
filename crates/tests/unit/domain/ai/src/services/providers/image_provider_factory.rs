@@ -88,7 +88,7 @@ mod from_catalog_tests {
         let catalog = mock_http::default_catalog();
         let secrets = ensure_test_secrets_bootstrap();
         assert!(
-            ImageProviderFactory::from_catalog(&Default::default(), &secrets.get(), &catalog)
+            ImageProviderFactory::from_catalog(&Default::default(), secrets.as_ref(), &catalog)
                 .expect("no error")
                 .is_none()
         );
@@ -101,7 +101,7 @@ mod from_catalog_tests {
             .default_image_model("gpt-image-1")
             .build();
         let default =
-            ImageProviderFactory::from_catalog(&Default::default(), &secrets.get(), &catalog)
+            ImageProviderFactory::from_catalog(&Default::default(), secrets.as_ref(), &catalog)
                 .expect("builds")
                 .expect("a default image model yields a provider");
         assert_eq!(default.provider, "openai");
@@ -115,8 +115,9 @@ mod from_catalog_tests {
             .with_provider("openai", |p| p.enabled = false)
             .default_image_model("gpt-image-1")
             .build();
-        let err = ImageProviderFactory::from_catalog(&Default::default(), &secrets.get(), &catalog)
-            .unwrap_err();
+        let err =
+            ImageProviderFactory::from_catalog(&Default::default(), secrets.as_ref(), &catalog)
+                .unwrap_err();
         assert!(err.to_string().contains("gpt-image-1"), "{err}");
     }
 }
