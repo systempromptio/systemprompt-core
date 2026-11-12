@@ -282,7 +282,7 @@ systemprompt-cloud = { path = "../infra/cloud" }
 systemprompt-loader = { path = "../infra/loader" }
 systemprompt-users = { path = "../domain/users" }
 systemprompt-oauth = { path = "../domain/oauth" }
-systemprompt-files = { path = "../domain/files" }
+systemprompt-files = { path = "../domain/files", features = ["office", "collab", "collab-loro"] }
 systemprompt-notifications = { path = "../domain/notifications" }
 systemprompt-brain = { path = "../domain/brain" }
 systemprompt-analytics = { path = "../domain/analytics" }
@@ -295,13 +295,13 @@ systemprompt-templates = { path = "../domain/templates" }
 systemprompt-marketplace = { path = "../domain/marketplace" }
 systemprompt-slack = { path = "../domain/slack" }
 systemprompt-teams = { path = "../domain/teams" }
-systemprompt-runtime = { path = "../app/runtime" }
+systemprompt-runtime = { path = "../app/runtime", features = ["geolocation", "notifications", "brain", "engine-loro"] }
 systemprompt-scheduler = { path = "../app/scheduler" }
 systemprompt-agent-runs = { path = "../app/agent-runs" }
 systemprompt-generator = { path = "../app/generator" }
 systemprompt-oauth-issuance = { path = "../app/oauth-issuance" }
 systemprompt-gateway = { path = "../app/gateway" }
-systemprompt-api = { path = "../entry/api" }
+systemprompt-api = { path = "../entry/api", features = ["brain", "collab", "notifications"] }
 systemprompt-cli = { path = "../entry/cli" }
 systemprompt-bridge = { path = "../../bin/bridge" }
 

@@ -43,7 +43,32 @@ group_prefixes() {
 }
 SHARD_GROUPS="shared infra domain app-runtime app-scheduler app-agent-runs app-generator app-oauth-issuance entry-api entry-cli bridge integration-api integration-cli integration-rest-1 integration-rest-2 edge"
 
+
+# archive set → the shard groups compiled into one nextest archive. CI builds
+# the sets in parallel and a shard downloads only the set that holds it.
+archive_set_groups() {
+  case "$1" in
+    unit)        echo "shared infra domain" ;;
+    app)         echo "app-runtime app-scheduler app-agent-runs app-generator app-oauth-issuance entry-api entry-cli bridge" ;;
+    integration) echo "integration-api integration-cli integration-rest-1 integration-rest-2 edge" ;;
+    *) echo "unknown archive set: $1" >&2; exit 2 ;;
+  esac
+}
+ARCHIVE_SETS="unit app integration"
+archive_set_of() {
+  local found="" set g
+  for set in $ARCHIVE_SETS; do
+    for g in $(archive_set_groups "$set"); do
+      [ "$g" = "$1" ] && found="$found $set"
+    done
+  done
+  [ "$(echo $found | wc -w)" -eq 1 ] || { echo "shard group $1 is in ${found:-no} archive set; it must be in exactly one" >&2; exit 2; }
+  echo $found
+}
+
 [ "${1:-}" = "--list" ] && { echo $SHARD_GROUPS; exit 0; }
+[ "${1:-}" = "--list-archive-sets" ] && { echo $ARCHIVE_SETS; exit 0; }
+[ "${1:-}" = "--archive-set-of" ] && { archive_set_of "${2:?usage: test-shard.sh --archive-set-of <group>}"; exit 0; }
 
 PACKAGE_JSON=$(cargo metadata --no-deps --format-version 1 --manifest-path crates/tests/Cargo.toml)
 # Packages whose manifest sits under any of the given prefixes, one per line.
@@ -56,13 +81,22 @@ packages_under() {
 }
 
 # `--archive FILE` builds every shard's test binaries once into a nextest
-# archive; a shard then runs from it with NEXTEST_ARCHIVE_FILE=FILE, selecting
-# its packages with the same filter it would otherwise compile.
+# archive; `--archive FILE --set NAME` builds one archive set's. A shard then
+# runs from it with NEXTEST_ARCHIVE_FILE=FILE, selecting its packages with the
+# same filter it would otherwise compile. Either form refuses a test crate
+# that no shard group runs and a shard group that no single set holds.
 if [ "${1:-}" = "--archive" ]; then
-  archive="${2:?usage: test-shard.sh --archive <file> [extra nextest args]}"; shift 2
+  archive="${2:?usage: test-shard.sh --archive <file> [--set <name>] [extra nextest args]}"; shift 2
+  archive_groups="$SHARD_GROUPS"
+  if [ "${1:-}" = "--set" ]; then
+    archive_groups="$(archive_set_groups "${2:?--set needs an archive set name}")"; shift 2
+  fi
+  for g in $SHARD_GROUPS; do archive_set_of "$g" >/dev/null; done
   all_prefixes=""
   for g in $SHARD_GROUPS; do all_prefixes="$all_prefixes $(group_prefixes "$g")"; done
-  ALL_PKGS=$(packages_under "$all_prefixes" | sort -u | sed 's/^/-p /' | tr '\n' ' ')
+  archive_prefixes=""
+  for g in $archive_groups; do archive_prefixes="$archive_prefixes $(group_prefixes "$g")"; done
+  ALL_PKGS=$(packages_under "$archive_prefixes" | sort -u | sed 's/^/-p /' | tr '\n' ' ')
   test -n "$ALL_PKGS" || { echo "no packages matched any shard group" >&2; exit 1; }
   UNSHARDED=$(comm -23 \
     <(printf '%s' "$PACKAGE_JSON" | jq -r '.packages[] | select(.manifest_path | contains("/tests/common/") | not) | .name' | sort -u) \
