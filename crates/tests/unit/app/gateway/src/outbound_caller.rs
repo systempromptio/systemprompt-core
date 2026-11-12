@@ -205,3 +205,106 @@ async fn an_upstream_refusal_is_returned_once_and_not_learned() {
     let key = caller_hop(provider).endpoint_ref().to_string();
     assert!(learned(&key).is_empty(), "one member's refusal is not kept");
 }
+
+async fn send_chat(endpoint: &str, kind: CredentialKind) -> Result<OutboundOutcome, OutboundError> {
+    use systemprompt_gateway::protocol::outbound::openai_chat::OpenAiChatOutbound;
+    let mut hop = systemprompt_catalog_fixtures::hop(
+        "chat-upstream",
+        systemprompt_wire::WireProtocol::OpenAiChat,
+        "https://upstream.invalid/v1",
+        "m",
+        "upstream-1",
+    );
+    hop.credential.kind = kind;
+    let req = request();
+    let raw = bytes::Bytes::from_static(
+        br#"{"model":"upstream-1","messages":[{"role":"user","content":"hi"}]}"#,
+    );
+    let ctx = OutboundCtx {
+        target: &hop,
+        policy: systemprompt_gateway::service::HopPolicy::of(&hop),
+        upstream: &caller_call(endpoint),
+        http: &support::upstream_http(),
+        request: &req,
+        upstream_model: "upstream-1",
+        model_limits: None,
+        automatic_prompt_caching: false,
+        forward_headers: &[],
+        raw_body: Some(&raw),
+    };
+    let body = PreparedBody {
+        bytes: raw.clone(),
+        raw_lane: true,
+    };
+    let traced = systemprompt_gateway::protocol::outbound::trace_context::with_trace(
+        Some(systemprompt_identifiers::TraceId::generate()),
+        Some(true),
+        OpenAiChatOutbound.send(ctx, &body),
+    );
+    with_policy(RetryPolicy::immediate(), traced).await
+}
+
+async fn overloaded(status: u16, route: &str) -> MockServer {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path(route))
+        .respond_with(
+            ResponseTemplate::new(status)
+                .insert_header("retry-after", "0")
+                .set_body_json(json!({ "error": { "message": "slow down" } })),
+        )
+        .mount(&server)
+        .await;
+    server
+}
+
+#[tokio::test]
+async fn a_rate_limited_caller_hop_is_sent_once_on_the_anthropic_wire() {
+    let server = overloaded(429, "/messages").await;
+
+    let refused = send(
+        &server.uri(),
+        "caller-upstream-limited",
+        &raw_body("upstream-1"),
+    )
+    .await;
+
+    match refused {
+        Err(OutboundError::Upstream(error)) => {
+            assert!(error.to_string().contains("429"), "{error}");
+        },
+        _ => panic!("the upstream's own 429 is the answer"),
+    }
+    assert_eq!(server.received_requests().await.expect("log").len(), 1);
+}
+
+#[tokio::test]
+async fn a_caller_hop_is_sent_once_and_untraced_on_the_openai_chat_wire() {
+    let server = overloaded(503, "/chat/completions").await;
+
+    let refused = send_chat(&server.uri(), CredentialKind::Caller).await;
+
+    assert!(matches!(refused, Err(OutboundError::Upstream(_))));
+    let received = server.received_requests().await.expect("log");
+    assert_eq!(received.len(), 1, "no gateway retry on the member's limit");
+    assert!(
+        received[0].headers.get("traceparent").is_none(),
+        "the request is not part of this platform's trace"
+    );
+}
+
+#[tokio::test]
+async fn a_governed_hop_on_the_same_wire_is_retried_and_traced() {
+    let server = overloaded(503, "/chat/completions").await;
+
+    let refused = send_chat(&server.uri(), CredentialKind::Platform).await;
+
+    assert!(matches!(refused, Err(OutboundError::Upstream(_))));
+    let received = server.received_requests().await.expect("log");
+    assert_eq!(
+        received.len(),
+        usize::try_from(RetryPolicy::immediate().max_attempts).expect("fits"),
+        "the control: the same send under a platform credential spends the retry budget"
+    );
+    assert!(received[0].headers.get("traceparent").is_some());
+}

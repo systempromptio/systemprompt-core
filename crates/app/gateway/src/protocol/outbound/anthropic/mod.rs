@@ -68,21 +68,13 @@ impl OutboundAdapter for AnthropicOutbound {
         );
 
         // Why: what an upstream refuses is learned per endpoint and dropped for
-        // every later request to it. A caller credential's refusals are that
-        // member's alone, and the client retries on the upstream's own wording,
-        // so such a hop is sent once with its headers whole and outside this
-        // platform's trace.
+        // every later request to it. A hop that learns nothing keeps its
+        // headers whole and returns the upstream's own refusal.
+        let provider = learning_key(&ctx);
         let upstream_response = if ctx.policy.learns_refusals() {
-            send_learning_refusals(&learning_key(&ctx), &url, &ctx, body).await?
+            send_learning_refusals(&provider, &url, &ctx, body).await?
         } else {
-            let provider = learning_key(&ctx);
-            let headers = request_headers(&ctx);
-            super::trace_context::with_trace(
-                None,
-                None,
-                send_once(&ctx, &provider, &url, &headers, &body.bytes),
-            )
-            .await?
+            send_once(&ctx, &provider, &url, &request_headers(&ctx), &body.bytes).await?
         };
 
         let content_type = upstream_response
@@ -201,13 +193,7 @@ async fn send_once(
     for (name, value) in headers {
         req = req.header(name, value);
     }
-    super::send_checked(
-        provider,
-        ctx.http,
-        req,
-        super::ResponseMode::of(ctx.request.stream),
-    )
-    .await
+    super::send_checked(provider, ctx, req).await
 }
 
 fn bad_request_message(error: &super::UpstreamError) -> Option<&str> {

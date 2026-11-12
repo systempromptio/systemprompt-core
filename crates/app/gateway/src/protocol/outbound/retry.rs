@@ -35,7 +35,8 @@ const JITTER_RATIO: f64 = 0.25;
 /// How hard, and how patiently, a transient upstream failure is retried.
 ///
 /// [`RetryPolicy::immediate`] keeps the attempt budget but removes every wait,
-/// so tests exercise the loop in milliseconds.
+/// so tests exercise the loop in milliseconds. [`RetryPolicy::none`] sends
+/// once: the first answer, whatever its status, is the one returned.
 #[derive(Debug, Clone, Copy)]
 pub struct RetryPolicy {
     pub max_attempts: u32,

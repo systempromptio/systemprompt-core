@@ -133,16 +133,24 @@ impl UpstreamError {
     }
 }
 
+// Why: a hop served as presented is the member's own account: a retry spends
+// their limit and delays the upstream's own answer, and the request is not
+// part of this platform's trace. Both follow from the hop's policy, so no
+// adapter decides either.
 pub(crate) async fn send_checked(
     provider: &str,
-    http: &UpstreamHttp,
+    ctx: &OutboundCtx<'_>,
     req: reqwest::RequestBuilder,
-    mode: ResponseMode,
 ) -> Result<reqwest::Response, UpstreamError> {
-    let policy = retry::current_policy();
-    let req = trace_context::stamp(req);
+    let policy = ctx.policy.retry_policy(retry::current_policy());
+    let req = if ctx.policy.stamps_trace() {
+        trace_context::stamp(req)
+    } else {
+        req
+    };
+    let mode = ResponseMode::of(ctx.request.stream);
     let (response, _retries) =
-        retry::send_with_retry(provider, req, &policy, http.bounds(), mode).await?;
+        retry::send_with_retry(provider, req, &policy, ctx.http.bounds(), mode).await?;
     Ok(response)
 }
 
