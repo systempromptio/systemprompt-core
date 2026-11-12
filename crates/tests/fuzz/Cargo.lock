@@ -841,7 +841,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -866,9 +866,9 @@ dependencies = [
 
 [[package]]
 name = "fancy-regex"
-version = "0.19.2"
+version = "0.20.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d301f5bf187b3c295fce6468d3875037a0bccc5f6b151c63cac2f85babf21912"
+checksum = "0a2e16b9a584b602f1e0e5e22c30ca0906786088c27500653e432d086def8b53"
 dependencies = [
  "bit-set",
  "regex-automata",
@@ -1630,9 +1630,9 @@ dependencies = [
 
 [[package]]
 name = "jsonschema"
-version = "0.60.0"
+version = "0.61.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7e7305938cac5ee144352ceb71583ffc6cfeac7d20fcb20ef865a4d5c314e499"
+checksum = "0e37f27df77c7887edbc5f5a59ecd8e5ec4a669319266ec1b61068667a603183"
 dependencies = [
  "ahash",
  "bytecount",
@@ -1658,23 +1658,24 @@ dependencies = [
 
 [[package]]
 name = "jsonschema-regex"
-version = "0.60.0"
+version = "0.61.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "99991ee391af622bda42f01a8727e12fcddbc5ace6f116eef766f060242a36a0"
+checksum = "7e41151614b6c927e21982be8bef5a26741ae5a0ae6a781eedee2aa930a980e6"
 dependencies = [
  "regex-syntax",
 ]
 
 [[package]]
 name = "jsonschema-value"
-version = "0.60.0"
+version = "0.61.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "31581ee58bb3f9a56c0413dd8560d4bdda6b05be0751fa6a533d5b609beb1aae"
+checksum = "1515b9a91134ef67d7bac95c2d76fbc7e383c4c55ee544204ceec8088f881fef"
 dependencies = [
  "ahash",
  "bytecount",
  "fraction",
  "getrandom 0.3.4",
+ "memchr",
  "num-cmp",
  "num-traits",
  "serde_json",
@@ -1934,7 +1935,7 @@ version = "0.50.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7957b9740744892f114936ab4a57b3f487491bbeafaf8083688b16841a4240e5"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -2390,7 +2391,7 @@ dependencies = [
  "once_cell",
  "socket2",
  "tracing",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -2539,9 +2540,9 @@ dependencies = [
 
 [[package]]
 name = "referencing"
-version = "0.60.0"
+version = "0.61.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fd75db0e860de35f9b7fb4b05fe13ba057f2548db080178009067f9ea9751d32"
+checksum = "a028057ef852c58a42d75e09da87b5e733f4030f4c7411728955e4f87203a577"
 dependencies = [
  "ahash",
  "fluent-uri",
@@ -2780,7 +2781,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.12.1",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -2838,7 +2839,7 @@ dependencies = [
  "security-framework",
  "security-framework-sys",
  "webpki-root-certs",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -3532,7 +3533,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-agent"
-version = "0.80.0"
+version = "0.81.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -3569,7 +3570,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-ai"
-version = "0.80.0"
+version = "0.81.0"
 dependencies = [
  "async-trait",
  "base64 0.23.1",
@@ -3602,7 +3603,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-client"
-version = "0.80.0"
+version = "0.81.0"
 dependencies = [
  "chrono",
  "futures",
@@ -3620,7 +3621,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-config"
-version = "0.80.0"
+version = "0.81.0"
 dependencies = [
  "async-trait",
  "base64 0.23.1",
@@ -3650,7 +3651,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-database"
-version = "0.80.0"
+version = "0.81.0"
 dependencies = [
  "async-trait",
  "base64 0.23.1",
@@ -3676,7 +3677,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-extension"
-version = "0.80.0"
+version = "0.81.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -3712,7 +3713,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-gateway"
-version = "0.80.0"
+version = "0.81.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -3756,7 +3757,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-governance"
-version = "0.80.0"
+version = "0.81.0"
 dependencies = [
  "async-trait",
  "base64 0.23.1",
@@ -3787,7 +3788,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-identifiers"
-version = "0.80.0"
+version = "0.81.0"
 dependencies = [
  "chrono",
  "schemars",
@@ -3800,7 +3801,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-loader"
-version = "0.80.0"
+version = "0.81.0"
 dependencies = [
  "async-trait",
  "base64 0.23.1",
@@ -3831,7 +3832,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-logging"
-version = "0.80.0"
+version = "0.81.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -3855,7 +3856,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-manifest"
-version = "0.80.0"
+version = "0.81.0"
 dependencies = [
  "base64 0.23.1",
  "chrono",
@@ -3882,7 +3883,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-mcp"
-version = "0.80.0"
+version = "0.81.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -3922,7 +3923,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-models"
-version = "0.80.0"
+version = "0.81.0"
 dependencies = [
  "async-trait",
  "base64 0.23.1",
@@ -3953,7 +3954,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-provider-contracts"
-version = "0.80.0"
+version = "0.81.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -3970,7 +3971,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-security"
-version = "0.80.0"
+version = "0.81.0"
 dependencies = [
  "axum",
  "base64 0.23.1",
@@ -4004,7 +4005,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-traits"
-version = "0.80.0"
+version = "0.81.0"
 dependencies = [
  "arc-swap",
  "async-trait",
@@ -4028,7 +4029,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-users"
-version = "0.80.0"
+version = "0.81.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -4054,7 +4055,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-wire"
-version = "0.80.0"
+version = "0.81.0"
 dependencies = [
  "bytes",
  "futures-util",
@@ -4089,7 +4090,7 @@ dependencies = [
  "getrandom 0.4.3",
  "once_cell",
  "rustix 1.1.6",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -4507,9 +4508,9 @@ checksum = "b6c140620e7ffbb22c2dee59cafe6084a59b5ffc27a8859a5f0d494b5d52b6be"
 
 [[package]]
 name = "uuid"
-version = "1.28.0"
+version = "1.29.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7cc1186384beb7dd8eedea376413fd654937285ea6c9cfbb928dc3043ea4b606"
+checksum = "bed99139f7dac9b5cfe5f17be4d66dc7079a34dee1d74bcc77217119240e267c"
 dependencies = [
  "getrandom 0.4.3",
  "js-sys",
@@ -4718,7 +4719,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

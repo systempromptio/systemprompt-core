@@ -38,7 +38,7 @@ This crate:
 
 ```toml
 [dependencies]
-systemprompt-runtime = "0.80"
+systemprompt-runtime = "0.81"
 ```
 
 ## Dependencies

@@ -2,7 +2,7 @@
 
 Upstream API, protocol, and runtime versions supported by each systemprompt.io release.
 
-## Current — 0.80.x
+## Current — 0.81.x
 
 ### AI Provider APIs
 
@@ -66,7 +66,7 @@ identifier, not a release number.
 | rmcp | 3.9.0 (exact pin) |
 | jsonwebtoken | 10 (`rust_crypto` backend) |
 | reqwest | 0.13 (rustls, platform certificate verifier, `ring` crypto provider) |
-| webauthn-rs | 0.5 |
+| webauthn-rs | 0.6 |
 
 > **Note on the PostgreSQL floor.** 18+ is the documented and supported requirement, and is
 > what the production deployment guide assumes. The CI test matrix provisions PostgreSQL 18
@@ -87,8 +87,9 @@ rather than as pre-built binaries. Other targets are buildable from source.
 
 | systemprompt version | Status |
 |----------------------|--------|
-| 0.80.x | Current supported line. |
-| 0.79.x | Prior line; Critical and High fixes only. | <!-- version-ok: historical support line -->
+| 0.81.x | Current supported line. |
+| 0.80.x | Prior line; Critical and High fixes only. | <!-- version-ok: historical support line -->
+| 0.79.x | No longer supported. | <!-- version-ok: historical support line -->
 | 0.78.x | No longer supported. | <!-- version-ok: historical support line -->
 | 0.77.x | No longer supported. | <!-- version-ok: historical support line -->
 | 0.76.x | No longer supported. | <!-- version-ok: historical support line -->
@@ -112,3 +113,4 @@ Per-release detail is in `CHANGELOG.md`.
 | 2026-08-28 | Full fidelity pass against `next` @ 0.41.0 after ~29 minors of drift. Corrected Tokio 1.49 → 1.53, SQLx 0.8 → 0.9, glibc 2.28 → 2.35, and the current line 0.39.x → 0.41.x. Replaced the incorrect "MCP 1.6 (via rmcp 1.6)" with the real tracked revision `2026-07-28` carried by `rmcp` 3.1.3, and corrected A2A 0.2.x → 0.3.0. Added the MSRV (1.96), the toolchain pin date, and `jsonwebtoken` — the crate the one accepted RSA advisory depends on. Added the inbound protocol-compatibility table, which had no entry despite the OpenAI-compatible surface shipping in 0.40.0. Replaced the hardcoded model lists with the configuration-driven reality. Corrected the release-target list to the three targets actually built, and clarified that they are bridge binaries. Flagged the documented-vs-tested PostgreSQL floor. | <!-- version-ok: revision log -->
 | 2026-10-12 | 0.66.0: A2A 0.3.0 → 1.0.1 (JSON-RPC binding, mandatory `A2A-Version` header), rmcp 3.1.3 → 3.5.1 (served MCP revision unchanged at `2026-07-28`), reqwest 0.12 → 0.13. | <!-- version-ok: revision log -->
 | 2026-11-09 | 0.80.0: rmcp 3.5.1 → 3.9.0 (served MCP revision unchanged at `2026-07-28`). | <!-- version-ok: revision log -->
+| 2026-11-12 | 0.81.0: webauthn-rs 0.5 → 0.6. | <!-- version-ok: revision log -->
