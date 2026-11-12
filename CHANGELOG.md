@@ -63,6 +63,7 @@
 - **Breaking:** **Configuration:** a `${VAR}` in a services YAML string value is resolved at load, so a literal that was passed through before now needs its variable set or a `:-default`.
 - **Breaking:** **Agent runs:** a non-empty `allowed_tools` is the run's tool set: Claude Code receives the built-in names as `--tools`, a run that bypasses permissions must declare each MCP server whole, and Codex refuses a request that declares `allowed_tools` or `disallowed_tools` (`AgentRunsError::ToolPolicyUnenforceable`); `claude_args` returns a `Result`. Migrate by declaring every tool a step uses and removing tool lists from Codex steps.
 - **Breaking:** **Loader:** `ConfigLoadError` gains `Interpolation`, and `ConfigLoader` selects `inspecting()` or `verbatim()` reads for configuration that is displayed or written back. Migrate by adding the match arm.
+- **Breaking:** **CLI:** `core::files::delete::execute_with_pool` takes the `Arc<dyn FileStorage>` the file's object is removed from. Migrate by passing the context's `file_storage()`.
 
 ### Security
 
@@ -116,6 +117,8 @@
 - **Agent runs:** a retried or re-queued attempt whose host session store is not present on the claiming node starts a fresh session with the original prompt instead of resuming a session the host cannot find.
 - **CLI:** `admin config validate` reports a services configuration or plugin binding failure as a `services` result with a non-zero exit instead of stopping before the command runs.
 - **API:** a panic in a request handler answers a fixed 500 and is logged in builds that unwind; see `documentation/reference/feature-flags.md` for the behaviour under `panic = "abort"`.
+- **Files:** an upload's `public_url` is the address it is served at (`<url_prefix>/uploads/...`), migration `040_upload_public_url` rewrites the recorded URLs of existing uploads, and `FilesConfig::{file_url, audio_url, video_url, document_url, upload_url}` no longer repeat the `files` segment.
+- **CLI:** `core files delete` removes the stored object together with the row through `FileDeleteService`, so a deleted file is no longer served; a record of a file ingested from disk loses only its row.
 
 ## [0.80.0] - 2026-11-09
 

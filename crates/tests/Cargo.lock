@@ -9202,6 +9202,7 @@ dependencies = [
  "systemprompt-runtime",
  "systemprompt-scheduler",
  "systemprompt-security",
+ "systemprompt-storage",
  "systemprompt-test-fixtures",
  "systemprompt-test-hack",
  "systemprompt-traits",

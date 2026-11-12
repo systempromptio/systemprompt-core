@@ -29,9 +29,9 @@ fn path_and_url_accessors_derive_from_storage_and_prefix() {
         cfg.content_image_url("blog", "/c.png"),
         "/files/images/blog/c.png"
     );
-    assert_eq!(cfg.file_url("/f.bin"), "/files/files/f.bin");
-    assert_eq!(cfg.audio_url("/a.mp3"), "/files/files/audio/a.mp3");
-    assert_eq!(cfg.video_url("/v.mp4"), "/files/files/video/v.mp4");
-    assert_eq!(cfg.document_url("/d.pdf"), "/files/files/documents/d.pdf");
-    assert_eq!(cfg.upload_url("/u.png"), "/files/files/uploads/u.png");
+    assert_eq!(cfg.file_url("/f.bin"), "/files/f.bin");
+    assert_eq!(cfg.audio_url("/a.mp3"), "/files/audio/a.mp3");
+    assert_eq!(cfg.video_url("/v.mp4"), "/files/video/v.mp4");
+    assert_eq!(cfg.document_url("/d.pdf"), "/files/documents/d.pdf");
+    assert_eq!(cfg.upload_url("/u.png"), "/files/uploads/u.png");
 }

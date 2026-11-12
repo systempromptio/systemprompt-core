@@ -221,27 +221,26 @@ impl FilesConfig {
     }
 
     pub fn file_url(&self, relative_to_files: &str) -> String {
-        let path = relative_to_files.trim_start_matches('/');
-        format!("{}/files/{}", self.url_prefix, path)
+        self.public_url(relative_to_files)
     }
 
     pub fn audio_url(&self, filename: &str) -> String {
         let name = filename.trim_start_matches('/');
-        format!("{}/files/audio/{}", self.url_prefix, name)
+        format!("{}/audio/{}", self.url_prefix, name)
     }
 
     pub fn video_url(&self, filename: &str) -> String {
         let name = filename.trim_start_matches('/');
-        format!("{}/files/video/{}", self.url_prefix, name)
+        format!("{}/video/{}", self.url_prefix, name)
     }
 
     pub fn document_url(&self, filename: &str) -> String {
         let name = filename.trim_start_matches('/');
-        format!("{}/files/documents/{}", self.url_prefix, name)
+        format!("{}/documents/{}", self.url_prefix, name)
     }
 
     pub fn upload_url(&self, filename: &str) -> String {
         let name = filename.trim_start_matches('/');
-        format!("{}/files/uploads/{}", self.url_prefix, name)
+        format!("{}/uploads/{}", self.url_prefix, name)
     }
 }

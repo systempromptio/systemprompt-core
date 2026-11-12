@@ -62,6 +62,7 @@ pub use models::{
 };
 pub use repository::{FileRepository, FileStats, FilesOwnerReassignment, InsertFileRequest};
 pub use services::{
-    FileCategory, FileUploadError, FileUploadRequest, FileUploadRequestBuilder, FileUploadService,
-    FileValidationError, FileValidator, FilesAiPersistenceProvider, UploadedFile,
+    FileCategory, FileDeleteError, FileDeleteService, FileUploadError, FileUploadRequest,
+    FileUploadRequestBuilder, FileUploadService, FileValidationError, FileValidator,
+    FilesAiPersistenceProvider, StoredObjectOutcome, UploadedFile,
 };

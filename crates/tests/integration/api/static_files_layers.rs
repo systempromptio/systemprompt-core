@@ -5,11 +5,16 @@ use axum::body::to_bytes;
 use axum::extract::State;
 use axum::http::{HeaderMap, Method, StatusCode, Uri, header};
 use axum::response::IntoResponse;
+use base64::Engine;
+use base64::engine::general_purpose::STANDARD;
 use systemprompt_api::services::static_content::config::StaticContentMatcher;
 use systemprompt_api::services::static_content::static_files::{
     StaticContentState, serve_static_content,
 };
-use systemprompt_identifiers::FileId;
+use systemprompt_files::{
+    FileDeleteService, FileUploadRequest, FileUploadService, StoredObjectOutcome,
+};
+use systemprompt_identifiers::{ContextId, FileId};
 use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_marketplace::AllowAllFilter;
 use systemprompt_models::RouteClassifier;
@@ -140,6 +145,46 @@ async fn a_file_stored_through_the_backend_is_served() -> anyhow::Result<()> {
     assert_eq!(headers[header::CONTENT_TYPE], "image/png");
     assert!(headers.contains_key(header::ETAG));
     assert_eq!(body, b"png-bytes");
+    Ok(())
+}
+
+#[tokio::test]
+async fn an_upload_is_served_at_its_public_url_until_it_is_deleted() -> anyhow::Result<()> {
+    let l = layers().await?;
+    let ctx = &l.state.ctx;
+    let repository = (**ctx.file_repository()).clone();
+    let uploads = FileUploadService::new(
+        repository.clone(),
+        (**ctx.files_config()).clone(),
+        Arc::clone(ctx.file_storage()),
+    );
+    let uploaded = uploads
+        .upload_file(
+            FileUploadRequest::builder(
+                "image/png",
+                STANDARD.encode(b"png-bytes"),
+                ContextId::generate(),
+            )
+            .build(),
+        )
+        .await?;
+
+    let (status, _, body) = get(&l.state, &uploaded.public_url).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body, b"png-bytes");
+
+    let file = repository
+        .find_by_id(&uploaded.file_id)
+        .await?
+        .expect("uploaded row");
+    let outcome = FileDeleteService::new(repository.clone(), Arc::clone(ctx.file_storage()))
+        .delete_file(&file)
+        .await?;
+    assert_eq!(outcome, StoredObjectOutcome::Removed);
+
+    let (status, _, _) = get(&l.state, &uploaded.public_url).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert!(repository.find_by_id(&uploaded.file_id).await?.is_none());
     Ok(())
 }
 

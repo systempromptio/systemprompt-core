@@ -58,23 +58,23 @@ fn files_config_url_formatters_strip_leading_slash() {
     );
     assert_eq!(
         cfg.file_url("docs/spec.pdf"),
-        format!("{prefix}/files/docs/spec.pdf"),
+        format!("{prefix}/docs/spec.pdf"),
     );
     assert_eq!(
         cfg.audio_url("track.mp3"),
-        format!("{prefix}/files/audio/track.mp3"),
+        format!("{prefix}/audio/track.mp3"),
     );
     assert_eq!(
         cfg.video_url("clip.mp4"),
-        format!("{prefix}/files/video/clip.mp4"),
+        format!("{prefix}/video/clip.mp4"),
     );
     assert_eq!(
         cfg.document_url("notes.txt"),
-        format!("{prefix}/files/documents/notes.txt"),
+        format!("{prefix}/documents/notes.txt"),
     );
     assert_eq!(
         cfg.upload_url("avatar.png"),
-        format!("{prefix}/files/uploads/avatar.png"),
+        format!("{prefix}/uploads/avatar.png"),
     );
 }
 
