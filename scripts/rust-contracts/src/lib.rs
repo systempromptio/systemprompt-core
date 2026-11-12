@@ -36,16 +36,27 @@ pub struct Finding {
 }
 
 pub fn inspect(source: &str, mode: &str) -> Result<Vec<Finding>, syn::Error> {
+    let mut findings = inspect_modes(source, &[mode])?;
+    Ok(findings.pop().unwrap_or_default())
+}
+
+pub fn inspect_modes(source: &str, modes: &[&str]) -> Result<Vec<Vec<Finding>>, syn::Error> {
     let syntax = syn::parse_file(source)?;
-    let mut scanner = Scanner {
-        annotations: annotation_lines(source),
-        mode,
-        guard: false,
-        inventory_params: Vec::new(),
-        findings: Vec::new(),
-    };
-    scanner.visit_file(&syntax);
-    Ok(scanner.findings)
+    let annotations = annotation_lines(source);
+    Ok(modes
+        .iter()
+        .map(|mode| {
+            let mut scanner = Scanner {
+                annotations: annotations.clone(),
+                mode,
+                guard: false,
+                inventory_params: Vec::new(),
+                findings: Vec::new(),
+            };
+            scanner.visit_file(&syntax);
+            scanner.findings
+        })
+        .collect())
 }
 
 struct Scanner<'a> {
@@ -476,12 +487,12 @@ impl<'ast> Visit<'ast> for Scanner<'_> {
     }
 
     fn visit_macro(&mut self, node: &'ast syn::Macro) {
-        if self.mode == "tracing-messages" && tracing_macro(&node.path) {
-            if let Some(literal) = message_literal(node.tokens.clone()) {
-                if interpolates(&literal.to_string()) {
-                    self.report(literal.span(), "tracing-message-interpolation");
-                }
-            }
+        if self.mode == "tracing-messages"
+            && tracing_macro(&node.path)
+            && let Some(literal) = message_literal(node.tokens.clone())
+            && interpolates(&literal.to_string())
+        {
+            self.report(literal.span(), "tracing-message-interpolation");
         }
         visit::visit_macro(self, node);
     }

@@ -39,16 +39,21 @@ git rev-parse --is-inside-work-tree >/dev/null
 # `systemprompt` facade, tracked or not (`git ls-files -co`) — an untracked new
 # file must not pass vacuously.
 
-MATCHES=""
-scanned=0
+files=()
 while IFS= read -r file; do
     case "$file" in
         crates/tests/*) continue ;;
         */build.rs) continue ;;
     esac
     [ -e "$file" ] || continue
-    scanned=$((scanned + 1))
-    FOUND=$(awk -v MAX_WHY_LINES="${MAX_WHY_LINES:-6}" '
+    files+=("$file")
+done < <(git ls-files -co --exclude-standard 'crates/*.rs' 'crates/**/*.rs' 'bin/bridge/src/*.rs' 'bin/bridge/src/**/*.rs' 'systemprompt/src/*.rs' 'systemprompt/src/**/*.rs' | sort -u)
+scanned=${#files[@]}
+
+if [ "$scanned" -eq 0 ]; then echo "lint-inline-comments: no production sources scanned" >&2; exit 1; fi
+
+MATCHES=$(printf '%s\0' "${files[@]}" | xargs -0 awk -v MAX_WHY_LINES="${MAX_WHY_LINES:-6}" '
+        FNR == 1 { prev_allowed = 0; in_doc = 0; doc_line = 0; why_lines = 0; in_attr = 0; attr_depth = 0 }
         /^[[:space:]]*\/\/\// { prev_allowed = 0; if (!in_doc) doc_line = FNR; in_doc = 1; next }
         /^[[:space:]]*\/\/! `[a-z_]+`: / {
             print FILENAME ":" FNR ": per-item paraphrase in a module head (" $0 ") — a `name`: line is the field/fn doc the placement rule bans, moved up one line; keep only the WHY paragraph"
@@ -99,11 +104,8 @@ while IFS= read -r file; do
             in_doc = 0
             prev_allowed = 0
         }
-    ' "$file")
-    if [ -n "$FOUND" ]; then MATCHES+="${FOUND}"$'\n'; fi
-done < <(git ls-files -co --exclude-standard 'crates/*.rs' 'crates/**/*.rs' 'bin/bridge/src/*.rs' 'bin/bridge/src/**/*.rs' 'systemprompt/src/*.rs' 'systemprompt/src/**/*.rs' | sort -u)
-
-if [ "$scanned" -eq 0 ]; then echo "lint-inline-comments: no production sources scanned" >&2; exit 1; fi
+    ')
+if [ -n "$MATCHES" ]; then MATCHES+=$'\n'; fi
 
 if [ -z "$MATCHES" ]; then
     echo "lint-inline-comments: OK (no unlisted inline comments)"

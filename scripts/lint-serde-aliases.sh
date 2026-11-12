@@ -54,8 +54,7 @@ list_sources() {
 }
 
 rel_of() {
-    local file="$1"
-    case "$file" in "$root"/*) printf '%s' "${file#"$root"/}" ;; *) printf '%s' "$file" ;; esac
+    case "$1" in "$root"/*) rel="${1#"$root"/}" ;; *) rel="$1" ;; esac
 }
 
 fail=0
@@ -65,25 +64,23 @@ sources="$(list_sources)"
 # Rule 1: serde aliases. A `#[serde(...)]` attribute may span lines; the
 # field or variant it decorates is the first item line after it closes.
 alias_hits() {
-    local file
-    while IFS= read -r file; do
-        awk -v f="$file" '
+    tr '\n' '\0' | xargs -0 -r awk '
             function item(line) {
                 sub(/^[[:space:]]*(pub(\([a-z]+\))?[[:space:]]+)?/, "", line)
                 sub(/[[:space:]]*[:,({].*$/, "", line)
                 return line
             }
+            FNR == 1 { in_serde = 0; hit = 0; pending = 0 }
             /^[[:space:]]*\/\// { next }
             {
                 if (!in_serde && $0 ~ /#\[serde\(/) { in_serde = 1; hit = 0 }
-                if (in_serde && $0 ~ /(^|[^A-Za-z0-9_])alias[[:space:]]*=/) { hit = NR }
+                if (in_serde && $0 ~ /(^|[^A-Za-z0-9_])alias[[:space:]]*=/) { hit = FNR }
                 if (in_serde && $0 ~ /\)\]/) { in_serde = 0; if (hit) pending = hit; next }
                 if (pending && !in_serde && $0 !~ /^[[:space:]]*#\[/ && $0 ~ /^[[:space:]]*(pub(\([a-z]+\))?[[:space:]]+)?[A-Za-z_][A-Za-z0-9_]*[[:space:]]*([:,({]|$)/) {
-                    print f ":" pending ":" item($0); pending = 0
+                    print FILENAME ":" pending ":" item($0); pending = 0
                 }
             }
-        ' "$file" 2>/dev/null || true
-    done
+        ' 2>/dev/null || true
 }
 
 while IFS= read -r hit; do
@@ -92,7 +89,7 @@ while IFS= read -r hit; do
     rest="${hit#*:}"
     line="${rest%%:*}"
     field="${rest#*:}"
-    rel="$(rel_of "$file")"
+    rel_of "$file"
     key="$rel:$field"
     if [ -n "${allowed[$key]:-}" ]; then
         seen["$key"]=1
@@ -111,16 +108,17 @@ done
 
 # Rule 2: magic ports. A `8080`/`5432` token in code (not in a comment) outside
 # the defaults module fails.
+port_pattern='(^|[^0-9A-Za-z_.])(8080|5432)([^0-9A-Za-z_]|$)'
 while IFS= read -r hit; do
     [ -n "$hit" ] || continue
     file="${hit%%:*}"
     rest="${hit#*:}"
     line="${rest%%:*}"
     text="${rest#*:}"
-    rel="$(rel_of "$file")"
+    rel_of "$file"
     case "$rel" in crates/shared/models/src/defaults.rs) continue ;; esac
-    stripped="$(printf '%s' "$text" | sed -E 's://.*$::')"
-    printf '%s' "$stripped" | grep -qE '(^|[^0-9A-Za-z_.])(8080|5432)([^0-9A-Za-z_]|$)' || continue
+    stripped="${text%%//*}"
+    [[ "$stripped" =~ $port_pattern ]] || continue
     echo "lint-serde-aliases: $rel:$line -- port literal; use systemprompt_models::defaults::{DEFAULT_API_PORT, DEFAULT_API_URL, DEFAULT_POSTGRES_PORT}" >&2
     fail=1
 done < <(printf '%s\n' "$sources" | xargs -r grep -nHE '(^|[^0-9A-Za-z_.])(8080|5432)([^0-9A-Za-z_]|$)' 2>/dev/null || true)

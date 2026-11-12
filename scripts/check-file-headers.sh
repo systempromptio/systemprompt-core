@@ -14,26 +14,23 @@ ROOTS=(
 )
 
 fail=0
-while IFS= read -r file; do
-  first=$(head -1 "$file")
-  case "$first" in
-    '//! '* | '#!['*) ;;
-    *)
-      echo "MISSING DOC HEAD: $file"
-      fail=1
-      continue
-      ;;
-  esac
-  if [[ "$first" == "$LICENSE_1" ]]; then
-    echo "LICENSE BEFORE PURPOSE LINE: $file"
-    fail=1
-    continue
-  fi
-  if ! grep -qFx "$LICENSE_1" "$file" || ! grep -qFx "$LICENSE_2" "$file"; then
-    echo "MISSING LICENSE REFERENCE: $file"
-    fail=1
-  fi
-done < <(find "${ROOTS[@]}" -name '*.rs' -not -path '*/tests/*' ! -name build.rs)
+find "${ROOTS[@]}" -name '*.rs' -not -path '*/tests/*' ! -name build.rs \
+  | awk -v L1="$LICENSE_1" -v L2="$LICENSE_2" '
+      {
+        file = $0
+        first = ""; has1 = 0; has2 = 0; n = 0
+        while ((getline line < file) > 0) {
+          if (++n == 1) first = line
+          if (line == L1) has1 = 1
+          if (line == L2) has2 = 1
+        }
+        close(file)
+        if (first !~ /^\/\/! / && first !~ /^#!\[/) { print "MISSING DOC HEAD: " file; bad = 1; next }
+        if (first == L1) { print "LICENSE BEFORE PURPOSE LINE: " file; bad = 1; next }
+        if (!has1 || !has2) { print "MISSING LICENSE REFERENCE: " file; bad = 1 }
+      }
+      END { exit bad }
+    ' || fail=1
 
 if [[ "$fail" -ne 0 ]]; then
   echo "check-file-headers: FAILED"

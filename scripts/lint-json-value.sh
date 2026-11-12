@@ -34,8 +34,7 @@ cd "$(dirname "$0")/.."
 COUNT=0
 [ "${1:-}" = "--count" ] && COUNT=1
 
-hits=""
-scanned=0
+candidates=()
 while IFS= read -r file; do
     case "$file" in
         crates/tests/*|*/build.rs) continue ;;
@@ -44,9 +43,23 @@ while IFS= read -r file; do
         crates/infra/database/src/services/postgres/*) continue ;;
     esac
     [ -e "$file" ] || continue
-    grep -qE 'serde_json::(Value|Map)|use serde_json::\{[^}]*\bValue\b|JsonValue' "$file" || continue
-    scanned=$((scanned + 1))
-    found=$(awk '
+    candidates+=("$file")
+done < <(git ls-files -co --exclude-standard 'crates/*.rs' 'crates/**/*.rs' 'systemprompt/src/*.rs' 'systemprompt/src/**/*.rs' 'bin/bridge/src/*.rs' 'bin/bridge/src/**/*.rs' | sort -u)
+
+files=()
+if [ "${#candidates[@]}" -gt 0 ]; then
+    users=$(printf '%s\0' "${candidates[@]}" | xargs -0 sh -c '
+        grep -lE "serde_json::(Value|Map)|use serde_json::\{[^}]*\bValue\b|JsonValue" "$@"
+        [ "$?" -le 1 ]
+    ' grep-users) || { echo "lint-json-value: serde_json scan failed" >&2; exit 1; }
+    [ -z "$users" ] || mapfile -t files <<< "$users"
+fi
+scanned=${#files[@]}
+
+hits=""
+if [ "$scanned" -gt 0 ]; then
+    hits=$(printf '%s\0' "${files[@]}" | xargs -0 awk '
+        FNR == 1 { attr_depth = 0; pending = 0; in_sig = 0 }
         function type_position(text, s,    i, c, depth) {
             depth = 0
             for (i = s - 1; i >= 1; i--) {
@@ -106,9 +119,9 @@ while IFS= read -r file; do
             else if ((pending || marked) && text ~ /(^|[^A-Za-z0-9_])fn[[:space:]]/ && !ends_sig) in_sig = 1
             pending = marked
         }
-    ' "$file")
-    [ -n "$found" ] && hits+="$found"$'\n'
-done < <(git ls-files -co --exclude-standard 'crates/*.rs' 'crates/**/*.rs' 'systemprompt/src/*.rs' 'systemprompt/src/**/*.rs' 'bin/bridge/src/*.rs' 'bin/bridge/src/**/*.rs' | sort -u)
+    ') || { echo "lint-json-value: scan failed" >&2; exit 1; }
+    [ -n "$hits" ] && hits+=$'\n'
+fi
 
 [ "$scanned" -gt 0 ] || { echo "lint-json-value: no serde_json users scanned — scope broken?" >&2; exit 1; }
 if [ "$COUNT" -eq 1 ]; then printf '%s' "$hits" | grep -c .; exit 0; fi
