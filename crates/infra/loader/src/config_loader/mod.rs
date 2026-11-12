@@ -15,6 +15,16 @@
 //! credential is health state the gateway reports, never a rewrite of the
 //! catalog.
 //!
+//! Every file the loader parses (root, includes, catalog, discovered skill,
+//! plugin and marketplace descriptors) passes through one `${VAR}`
+//! interpolation step ([`parse`]) before typed deserialization. The mode is
+//! [`ServicesInterpolation::Resolve`] by default (an unset variable fails the
+//! load naming the file, key path and variable); [`ConfigLoader::inspecting`]
+//! leaves unset placeholders as text for validate/show/doctor flows, and
+//! [`ConfigLoader::verbatim`] reads the tree as written for a result that is
+//! saved back to disk: no interpolation, no profile port offset and no
+//! validation, which the writer's follow-up resolved load performs.
+//!
 //! Every entry point is a fresh read; the process holds the parsed result in
 //! [`crate::ServicesState`].
 //!
@@ -26,6 +36,7 @@ mod discovery;
 pub mod gateway;
 mod includes;
 mod merge;
+mod parse;
 mod types;
 
 use std::collections::HashSet;
@@ -33,13 +44,16 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use systemprompt_manifest::profile::Profile;
+use systemprompt_manifest::read_env_optional;
 use systemprompt_manifest::services::ServicesConfig;
+use systemprompt_manifest::services::interpolation::ServicesInterpolation;
 
 use crate::error::{ConfigLoadError, ConfigLoadResult};
 
 use discovery::{discover_marketplaces, discover_plugins, discover_skills};
 use includes::resolve_includes_recursively;
 use merge::{resolve_skill_instruction_includes, resolve_system_prompt_includes};
+use parse::{EnvLookup, Interpolator};
 use types::IncludeResolveCtx;
 
 #[derive(Debug)]
@@ -47,6 +61,8 @@ pub struct ConfigLoader {
     base_path: PathBuf,
     config_path: PathBuf,
     port_offset: Option<u16>,
+    interpolation: ServicesInterpolation,
+    env_lookup: EnvLookup,
 }
 
 impl ConfigLoader {
@@ -60,6 +76,8 @@ impl ConfigLoader {
             base_path,
             config_path,
             port_offset: None,
+            interpolation: ServicesInterpolation::Resolve,
+            env_lookup: read_env_optional,
         }
     }
 
@@ -74,6 +92,35 @@ impl ConfigLoader {
             .filter(|profile| !profile.services.is_identity())
             .map(|profile| profile.services.port_offset);
         self
+    }
+
+    #[must_use]
+    pub const fn with_interpolation(mut self, interpolation: ServicesInterpolation) -> Self {
+        self.interpolation = interpolation;
+        self
+    }
+
+    #[must_use]
+    pub const fn inspecting(self) -> Self {
+        self.with_interpolation(ServicesInterpolation::Inspect)
+    }
+
+    #[must_use]
+    pub const fn verbatim(self) -> Self {
+        self.with_interpolation(ServicesInterpolation::Verbatim)
+    }
+
+    #[must_use]
+    pub const fn with_env_lookup(mut self, lookup: fn(&str) -> Option<String>) -> Self {
+        self.env_lookup = lookup;
+        self
+    }
+
+    const fn interpolator(&self) -> Interpolator {
+        Interpolator {
+            mode: self.interpolation,
+            lookup: self.env_lookup,
+        }
     }
 
     pub fn load(self) -> ConfigLoadResult<ServicesConfig> {
@@ -111,11 +158,8 @@ impl ConfigLoader {
 
     fn run_from_content(&self, content: &str) -> ConfigLoadResult<ServicesConfig> {
         catalog::refuse_legacy(&self.config_path, content)?;
-        let mut merged: ServicesConfig =
-            serde_yaml::from_str(content).map_err(|e| ConfigLoadError::Yaml {
-                path: self.config_path.clone(),
-                source: e,
-            })?;
+        let interpolator = self.interpolator();
+        let mut merged: ServicesConfig = interpolator.parse(&self.config_path, content)?;
         catalog::refuse_catalog_sections(&self.config_path, &merged)?;
 
         let includes = std::mem::take(&mut merged.includes);
@@ -129,6 +173,7 @@ impl ConfigLoader {
                 visited: &mut visited,
                 merged: &mut merged,
                 chain: vec![self.config_path.clone()],
+                interpolator,
             };
             for include_path in &includes {
                 resolve_includes_recursively(
@@ -140,16 +185,17 @@ impl ConfigLoader {
             }
         }
 
-        let document = catalog::read_catalog_dir(&catalog::catalog_dir(&self.base_path))?;
+        let document =
+            catalog::read_catalog_dir(&catalog::catalog_dir(&self.base_path), interpolator)?;
         catalog::install_catalog(&mut merged, document);
 
         resolve_system_prompt_includes(&self.base_path, &mut merged)?;
         resolve_skill_instruction_includes(&self.base_path, &mut merged)?;
         gateway::project_gateway(&mut merged);
 
-        discover_skills(&self.base_path, &mut merged)?;
-        discover_plugins(&self.base_path, &mut merged)?;
-        discover_marketplaces(&self.base_path, &mut merged)?;
+        discover_skills(&self.base_path, &mut merged, interpolator)?;
+        discover_plugins(&self.base_path, &mut merged, interpolator)?;
+        discover_marketplaces(&self.base_path, &mut merged, interpolator)?;
 
         if let Ok(val) = std::env::var("SYSTEMPROMPT_SERVICES_PATH") {
             merged.settings.services_path = Some(val);
@@ -159,6 +205,10 @@ impl ConfigLoader {
         }
         if let Ok(val) = std::env::var("SYSTEMPROMPT_CONFIG_PATH") {
             merged.settings.config_path = Some(val);
+        }
+
+        if self.interpolation == ServicesInterpolation::Verbatim {
+            return Ok(merged);
         }
 
         if let Some(port_offset) = self.port_offset {

@@ -74,10 +74,15 @@ fn migrate_data_loads_the_migrated_tree() {
 
 #[test]
 fn other_config_commands_still_load_the_tree_that_refuses_a_legacy_shape() {
-    for args in [
-        vec!["admin", "config", "list"],
-        vec!["admin", "config", "validate"],
-    ] {
-        assert!(descriptor(&args).paths(), "{args:?} must load services/");
-    }
+    let args = ["admin", "config", "list"];
+    assert!(descriptor(&args).paths(), "{args:?} must load services/");
+}
+
+#[test]
+fn config_validate_loads_the_tree_itself_so_a_failure_is_a_reported_result() {
+    let args = ["admin", "config", "validate"];
+    assert!(
+        !descriptor(&args).paths(),
+        "{args:?} must not load services/ in bootstrap"
+    );
 }

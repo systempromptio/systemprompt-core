@@ -54,14 +54,8 @@ mod ai_config_serde {
                 enable_smart_routing: true,
                 fallback_enabled: false,
             },
-            mcp: McpConfig {
-                auto_discover: true,
-                ..McpConfig::default()
-            },
-            history: HistoryConfig {
-                retention_days: 90,
-                log_tool_executions: true,
-            },
+            mcp: McpConfig::default(),
+            history: HistoryConfig { retention_days: 90 },
         };
 
         let json = serde_json::to_string(&config).expect("serialize");
@@ -76,9 +70,8 @@ mod ai_config_serde {
         );
         assert!(deserialized.sampling.enable_smart_routing);
         assert!(!deserialized.sampling.fallback_enabled);
-        assert!(deserialized.mcp.auto_discover);
+        assert_eq!(deserialized.mcp.resilience.connect_timeout_ms, 5000);
         assert_eq!(deserialized.history.retention_days, 90);
-        assert!(deserialized.history.log_tool_executions);
     }
 }
 
@@ -114,18 +107,15 @@ mod mcp_config_tests {
         assert_eq!(config.resilience.connect_timeout_ms, 5000);
         assert_eq!(config.resilience.request_timeout_ms, 30000);
         assert_eq!(config.resilience.retry_attempts, 3);
-        assert!(!config.auto_discover);
     }
 
     #[test]
     fn serde_roundtrip() {
-        let config = McpConfig {
-            auto_discover: true,
-            ..McpConfig::default()
-        };
+        let mut config = McpConfig::default();
+        config.resilience.retry_attempts = 7;
         let json = serde_json::to_string(&config).expect("serialize");
         let deserialized: McpConfig = serde_json::from_str(&json).expect("deserialize");
-        assert!(deserialized.auto_discover);
+        assert_eq!(deserialized.resilience.retry_attempts, 7);
         assert_eq!(deserialized.resilience.request_timeout_ms, 30000);
     }
 
@@ -145,19 +135,16 @@ mod history_config_tests {
     fn default_has_thirty_day_retention() {
         let config = HistoryConfig::default();
         assert_eq!(config.retention_days, 30);
-        assert!(!config.log_tool_executions);
     }
 
     #[test]
     fn serde_roundtrip() {
         let config = HistoryConfig {
             retention_days: 365,
-            log_tool_executions: true,
         };
         let json = serde_json::to_string(&config).expect("serialize");
         let deserialized: HistoryConfig = serde_json::from_str(&json).expect("deserialize");
         assert_eq!(deserialized.retention_days, 365);
-        assert!(deserialized.log_tool_executions);
     }
 }
 

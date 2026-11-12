@@ -509,6 +509,24 @@ server:
   external_url: ${PUBLIC_BASE_URL}
 ```
 
+### Services YAML
+
+Every file of the services tree (`services/config/config.yaml`, its `includes:` fragments, the `services/ai/` catalog files, and the discovered `skills/*/config.yaml`, `plugins/*/config.yaml` and `marketplaces/*/config.yaml` descriptors) goes through the same substitution before it is deserialized (`crates/shared/manifest/src/services/interpolation.rs`). This lets one services tree vary per environment, for example a provider endpoint, an MCP server URL or `env` map, or an agent URL.
+
+- Any string value may carry a placeholder, except values under the keys `system_prompt`, `system_prompts`, `system_prompt_overrides`, `prompt`, `instructions`, `description`, `body`, `content`, `example`, `examples`, `template`, `status_message` and `hooks`. Those hold authored text or runtime-expanded commands, so a literal `${…}` in a prompt, skill instructions or a hook command reaches its consumer unchanged.
+- The services types carry no schema, so a substituted value is always a string: a numeric or boolean field (a port, a flag) does not accept a placeholder.
+- A variable that is unset or empty and has no `:-` default fails the load with an error naming the file, the variable and the key path (for example `providers.anthropic.endpoints.api.url`).
+- A load for inspection resolves what this host sets and leaves an unresolved placeholder as its original text instead of failing. The resolved text still has to pass validation, so a value that must be a well-formed URL fails validation while its variable is unset.
+- Writers that save services YAML back to disk read the files as written, so a placeholder is preserved, never replaced by its value.
+
+```yaml
+providers:
+  anthropic:
+    credential: anthropic
+    endpoints:
+      api: { wire: anthropic, url: "${ANTHROPIC_BASE_URL:-https://api.anthropic.com/v1}" }
+```
+
 ## Secrets envelope
 
 Secret values are never stored in `profile.yaml`. They live in a separate JSON document referenced by the [`secrets`](#secrets) section, loaded by `SecretsBootstrap`. The envelope is customer-owned; the binary never holds a master key. Schema in `crates/shared/manifest/src/secrets.rs`.

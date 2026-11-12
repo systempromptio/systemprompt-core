@@ -13,7 +13,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-names='surface_for|canonicalize_org_uuid|ProviderEntry|YAML_SOURCE|DASHBOARD_SOURCE|legacy_id|find_served_model|by_scope|catalog_route_id|MOVED_SECTIONS|MovedToServices'
+names='auto_discover|log_tool_executions|surface_for|canonicalize_org_uuid|ProviderEntry|YAML_SOURCE|DASHBOARD_SOURCE|legacy_id|find_served_model|by_scope|catalog_route_id|MOVED_SECTIONS|MovedToServices'
 
 # Spellings that are not identifiers: the pre-0.73 secrets sidecar and the
 # `evaluation` serde alias for `judge`, and the Slack authz flag replaced by
@@ -34,6 +34,8 @@ allowed=(
     'crates/tests/integration/config-migrate/'
     'crates/tests/unit/app/gateway-golden/'
     'crates/tests/common/fixtures/catalog/'
+    # The manifest suite that proves the retired ai/skills keys are refused.
+    'crates/tests/unit/shared/manifest/src/strict_config.rs'
     # History.
     'CHANGELOG.md'
     '/CHANGELOG.md'

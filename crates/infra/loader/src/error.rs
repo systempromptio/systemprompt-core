@@ -108,6 +108,13 @@ pub enum ConfigLoadError {
          the values to the root or remove them from the include."
     )]
     IncludeMustNotSetGlobalSettings { path: PathBuf },
+
+    #[error("{path}: {source}")]
+    Interpolation {
+        path: PathBuf,
+        #[source]
+        source: systemprompt_manifest::InterpolationError,
+    },
 }
 
 impl From<systemprompt_manifest::services::catalog::CatalogDocumentError> for ConfigLoadError {

@@ -18,6 +18,7 @@ use systemprompt_wire::ModelLimits;
               state"
 )]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct ModelCapabilities {
     #[serde(default)]
     pub vision: bool,
@@ -80,6 +81,7 @@ impl Default for ModelCapabilities {
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct ModelPricing {
     #[serde(default)]
     pub input_per_million: f64,
@@ -140,6 +142,7 @@ impl ModelPricing {
 }
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ModelDefinition {
     #[serde(default)]
     pub capabilities: ModelCapabilities,

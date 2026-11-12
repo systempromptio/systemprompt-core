@@ -73,6 +73,7 @@ pub(super) async fn execute(
     let services_config = loaded.as_ref().and_then(|loaded| {
         let profile = loaded.profile();
         ConfigLoader::for_profile(profile, Path::new(&profile.paths.services))
+            .inspecting()
             .load()
             .inspect_err(|e| CliService::warning(&format!("Services config unavailable: {e}")))
             .ok()

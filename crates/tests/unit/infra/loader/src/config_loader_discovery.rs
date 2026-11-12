@@ -159,7 +159,6 @@ settings:
   mcp_port_range: [5000, 5999]
 skills:
   enabled: true
-  auto_discover: false
   skills:
     my_skill:
       id: my_skill

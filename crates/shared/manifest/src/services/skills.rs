@@ -1,6 +1,6 @@
 //! Skill configuration and disk-descriptor model.
 //!
-//! [`SkillsConfig`] is the top-level block (discovery, path, per-skill map);
+//! [`SkillsConfig`] is the top-level block (enablement, path, per-skill map);
 //! [`SkillConfig`] is the in-profile definition and [`DiskSkillConfig`] the
 //! per-skill on-disk descriptor. [`SkillSummary`] and [`SkillDetail`] are the
 //! list- and detail-view projections.
@@ -30,12 +30,10 @@ pub const SKILL_CONFIG_FILENAME: &str = "config.yaml";
 pub const DEFAULT_SKILL_CONTENT_FILE: &str = "index.md";
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct SkillsConfig {
     #[serde(default = "default_true")]
     pub enabled: bool,
-
-    #[serde(default)]
-    pub auto_discover: bool,
 
     #[serde(default)]
     pub skills_path: Option<String>,
@@ -45,6 +43,7 @@ pub struct SkillsConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct SkillConfig {
     pub id: SkillId,
     pub name: String,

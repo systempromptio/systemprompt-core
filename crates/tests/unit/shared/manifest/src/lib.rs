@@ -34,6 +34,10 @@ mod resolved_routes;
 #[cfg(test)]
 mod route_predicates;
 #[cfg(test)]
+mod services_interpolation;
+#[cfg(test)]
+mod strict_config;
+#[cfg(test)]
 mod vertex_rate_card;
 #[cfg(test)]
 mod yaml_interpolation;

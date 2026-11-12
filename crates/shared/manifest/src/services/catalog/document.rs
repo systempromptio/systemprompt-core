@@ -85,6 +85,14 @@ impl CatalogDocument {
             source,
         };
         let value: Value = serde_yaml::from_str(text).map_err(parse)?;
+        Self::from_yaml_value(origin, value)
+    }
+
+    pub fn from_yaml_value(origin: &str, value: Value) -> Result<Self, CatalogDocumentError> {
+        let parse = |source| CatalogDocumentError::Parse {
+            origin: origin.to_owned(),
+            source,
+        };
         if let Some(what) = detect_legacy_shape(&value) {
             return Err(CatalogDocumentError::LegacyShape {
                 origin: origin.to_owned(),

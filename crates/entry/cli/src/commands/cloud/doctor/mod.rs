@@ -187,7 +187,11 @@ pub fn profile_checks(profile: &Profile) -> Vec<CheckResult> {
 
 fn providers_check(profile: &Profile, secrets: &HashMap<String, String>) -> CheckResult {
     let services_root = resolve_services_config(profile);
-    match ConfigLoader::load_from_path(&services_root, Some(profile)) {
+    let loaded = ConfigLoader::new(services_root.clone())
+        .with_profile(Some(profile))
+        .inspecting()
+        .load();
+    match loaded {
         Ok(services) => check_provider_secrets(&services.credentials, secrets),
         Err(err) => CheckResult::warn(
             "providers",

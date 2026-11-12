@@ -17,10 +17,7 @@ fn create_valid_config() -> AiConfig {
             fallback_enabled: true,
         },
         mcp: McpConfig::default(),
-        history: HistoryConfig {
-            retention_days: 30,
-            log_tool_executions: true,
-        },
+        history: HistoryConfig { retention_days: 30 },
     }
 }
 

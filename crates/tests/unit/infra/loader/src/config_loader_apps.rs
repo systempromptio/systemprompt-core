@@ -223,7 +223,6 @@ agents:
         pushNotifications: false
       defaultInputModes: [text/plain]
       defaultOutputModes: [text/plain]
-      skills: []
     metadata:
       systemPrompt: "!include prompt.md"
     oauth: {required: false, scopes: [], audience: a2a}

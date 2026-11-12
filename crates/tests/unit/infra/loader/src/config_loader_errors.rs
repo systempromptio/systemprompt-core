@@ -58,7 +58,6 @@ agents:
         pushNotifications: false
       defaultInputModes: [text/plain]
       defaultOutputModes: [text/plain]
-      skills: []
     metadata: {}
     oauth: {required: false, scopes: [], audience: a2a}
 mcp_servers: {}
@@ -86,7 +85,6 @@ agents:
         pushNotifications: false
       defaultInputModes: [text/plain]
       defaultOutputModes: [text/plain]
-      skills: []
     metadata: {{}}
     oauth: {{required: false, scopes: [], audience: a2a}}
 mcp_servers: {{}}
@@ -211,7 +209,6 @@ agents:
         pushNotifications: false
       defaultInputModes: [text/plain]
       defaultOutputModes: [text/plain]
-      skills: []
     metadata:
       systemPrompt: "!include prompt.txt"
     oauth: {required: false, scopes: [], audience: a2a}
@@ -256,7 +253,6 @@ agents:
         pushNotifications: false
       defaultInputModes: [text/plain]
       defaultOutputModes: [text/plain]
-      skills: []
     metadata:
       systemPrompt: "!include nonexistent_prompt.txt"
     oauth: {required: false, scopes: [], audience: a2a}
@@ -291,7 +287,6 @@ settings:
   mcp_port_range: [5000, 5999]
 skills:
   enabled: true
-  auto_discover: false
   skills:
     my_skill:
       id: my_skill
@@ -331,7 +326,6 @@ settings:
   mcp_port_range: [5000, 5999]
 skills:
   enabled: true
-  auto_discover: false
   skills:
     broken_skill:
       id: broken_skill

@@ -18,6 +18,7 @@ fn default_version() -> String {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct DiskAgentConfig {
     #[serde(default)]
     pub id: Option<AgentId>,

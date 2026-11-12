@@ -45,6 +45,8 @@ mod config_loader_errors;
 #[cfg(test)]
 mod config_loader_gateway;
 #[cfg(test)]
+mod config_loader_interpolation;
+#[cfg(test)]
 mod config_loader_merge;
 #[cfg(test)]
 mod config_writer;

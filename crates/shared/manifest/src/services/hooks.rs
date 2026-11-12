@@ -39,6 +39,7 @@ where
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct DiskHookConfig {
     #[serde(default, deserialize_with = "blank_hook_id_as_none")]
     pub id: Option<HookId>,

@@ -51,11 +51,7 @@ pub(super) fn resolve_includes_recursively(
     reject_settings_at_include(&content, &canonical)?;
     super::catalog::refuse_legacy(&canonical, &content)?;
 
-    let mut included: ServicesConfig =
-        serde_yaml::from_str(&content).map_err(|e| ConfigLoadError::Yaml {
-            path: canonical.clone(),
-            source: e,
-        })?;
+    let mut included: ServicesConfig = ctx.interpolator.parse(&canonical, &content)?;
 
     super::catalog::refuse_catalog_sections(&canonical, &included)?;
     let nested_includes = std::mem::take(&mut included.includes);

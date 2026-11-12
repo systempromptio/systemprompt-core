@@ -182,9 +182,12 @@ impl Commands {
             ))) => CommandDescriptor::FULL,
             Self::Admin(admin::AdminCommands::Config(admin::config::ConfigCommands::Secret(_)))
             | Self::Build(_) => CommandDescriptor::PROFILE_ONLY,
-            Self::Admin(admin::AdminCommands::Bridge(
-                admin::bridge::BridgeCommands::SigningKeyFingerprint(_),
-            )) => CommandDescriptor::PROFILE_AND_SECRETS,
+            Self::Admin(
+                admin::AdminCommands::Bridge(admin::bridge::BridgeCommands::SigningKeyFingerprint(
+                    _,
+                ))
+                | admin::AdminCommands::Config(admin::config::ConfigCommands::Validate(_)),
+            ) => CommandDescriptor::PROFILE_AND_SECRETS,
             Self::Admin(admin::AdminCommands::Config(admin::config::ConfigCommands::Migrate(
                 args,
             ))) if args.profiles.is_some() => CommandDescriptor::NONE,

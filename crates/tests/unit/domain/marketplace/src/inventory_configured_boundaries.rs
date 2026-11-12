@@ -30,7 +30,6 @@ agents:
       capabilities: {streaming: true, pushNotifications: false}
       defaultInputModes: [text/plain]
       defaultOutputModes: [text/plain]
-      skills: []
     metadata: {}
   stopped:
     name: stopped
@@ -46,7 +45,6 @@ agents:
       capabilities: {streaming: true, pushNotifications: false}
       defaultInputModes: [text/plain]
       defaultOutputModes: [text/plain]
-      skills: []
     metadata: {}
 mcp_servers:
   active:

@@ -493,11 +493,6 @@ agents:
         pushNotifications: false
       defaultInputModes: [text/plain]
       defaultOutputModes: [text/plain]
-      skills:
-        - id: general_assistance
-          name: General Assistance
-          description: General help
-          tags: [help]
     metadata:
       mcpServers: { include: [fixture_mcp] }
       skills: { include: [general_assistance] }
@@ -541,14 +536,12 @@ ai:
     enable_smart_routing: false
     fallback_enabled: true
   mcp:
-    auto_discover: true
     resilience:
       connect_timeout_ms: 5000
       request_timeout_ms: 30000
       retry_attempts: 3
   history:
     retention_days: 30
-    log_tool_executions: true
 plugins:
   fixture-plugin:
     id: fixture-plugin
@@ -577,7 +570,6 @@ plugins:
     scripts: []
 skills:
   enabled: true
-  auto_discover: false
   skills:
     general_assistance:
       id: general_assistance
@@ -710,7 +702,6 @@ settings:
   mcp_port_range: [5000, 5999]
 skills:
   enabled: true
-  auto_discover: false
   skills:
     sample_skill:
       id: sample_skill

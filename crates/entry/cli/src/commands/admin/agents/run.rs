@@ -11,6 +11,7 @@ use crate::context::CommandContext;
 use systemprompt_agent::services::a2a_server::run_standalone;
 use systemprompt_agent::services::a2a_server::streaming::webhook_client::HttpWebhookBroadcaster;
 use systemprompt_agent::{AgentAuth, AgentState};
+#[cfg(feature = "agent-runs")]
 use systemprompt_agent_runs::AgentRunsExtension;
 use systemprompt_ai::{AiService, AiServiceProviders};
 use systemprompt_identifiers::AgentName;
@@ -45,20 +46,20 @@ pub(super) async fn execute(args: RunArgs, cmd: &CommandContext) -> Result<()> {
         ctx.token_authority(),
     ));
 
-    let agent_state = Arc::new(
-        AgentState::new(
-            Arc::clone(&db_pool),
-            Arc::new(ctx.config().clone()),
-            AgentAuth {
-                jwt_provider,
-                signing_keys: ctx.signing_keys().clone(),
-            },
-            Arc::clone(ctx.a2a_repositories()),
-            Arc::new(HttpWebhookBroadcaster::from_config(ctx.config())?),
-            ctx.services_state().view(),
-        )
-        .with_agent_run_launcher(AgentRunsExtension::launcher(&db_pool)),
+    let agent_state = AgentState::new(
+        Arc::clone(&db_pool),
+        Arc::new(ctx.config().clone()),
+        AgentAuth {
+            jwt_provider,
+            signing_keys: ctx.signing_keys().clone(),
+        },
+        Arc::clone(ctx.a2a_repositories()),
+        Arc::new(HttpWebhookBroadcaster::from_config(ctx.config())?),
+        ctx.services_state().view(),
     );
+    #[cfg(feature = "agent-runs")]
+    let agent_state = agent_state.with_agent_run_launcher(AgentRunsExtension::launcher(&db_pool));
+    let agent_state = Arc::new(agent_state);
 
     let tool_provider = Arc::new(McpToolProvider::new(
         Arc::clone(&db_pool),

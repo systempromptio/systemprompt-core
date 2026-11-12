@@ -60,7 +60,9 @@ impl DeployOrchestrator {
         });
 
         let services_config_path = find_services_config(&request.project_root)?;
-        let services_config = ConfigLoader::load_from_path(&services_config_path, None)?;
+        let services_config = ConfigLoader::new(services_config_path)
+            .inspecting()
+            .load()?;
         validate_profile_dockerfile(
             &artifacts.dockerfile,
             &request.project_root,

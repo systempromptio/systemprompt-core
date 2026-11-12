@@ -54,7 +54,7 @@ pub struct RetiredCardKeyError {
 }
 
 #[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct AgentCardConfigWire {
     protocol_version: String,
     #[serde(default)]
@@ -122,6 +122,7 @@ impl TryFrom<AgentCardConfigWire> for AgentCardConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct AgentProviderInfo {
     pub organization: String,
     pub url: String,
@@ -136,7 +137,7 @@ pub struct CapabilitiesConfig {
 }
 
 #[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct CapabilitiesConfigWire {
     #[serde(default = "default_true")]
     streaming: bool,
@@ -167,7 +168,7 @@ impl TryFrom<CapabilitiesConfigWire> for CapabilitiesConfig {
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AgentMetadataConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub system_prompt: Option<String>,
@@ -191,6 +192,7 @@ pub struct AgentMetadataConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct OAuthConfig {
     #[serde(default)]
     pub required: bool,

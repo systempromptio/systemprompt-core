@@ -25,6 +25,7 @@ pub const AGENT_CONFIG_FILENAME: &str = "config.yaml";
 pub const DEFAULT_AGENT_SYSTEM_PROMPT_FILE: &str = "system_prompt.md";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct AgentConfig {
     pub name: String,
     pub port: u16,

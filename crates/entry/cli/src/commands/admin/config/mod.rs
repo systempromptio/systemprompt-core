@@ -43,6 +43,7 @@ pub mod services_io;
 pub mod show;
 pub mod types;
 pub mod validate;
+pub mod validate_services;
 
 use anyhow::{Result, bail};
 use clap::Subcommand;
@@ -147,6 +148,7 @@ pub async fn execute(command: ConfigCommands, ctx: &CommandContext) -> Result<()
             Ok(())
         },
         ConfigCommands::Validate(args) => {
+            validate_services::prepare(&args, ctx).await?;
             let (result, valid) = validate::execute(&args, ctx)?;
             render_result(&result, &ctx.cli);
             if !valid {

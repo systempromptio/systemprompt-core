@@ -30,6 +30,7 @@ fn is_extension_slug(slug: &str) -> bool {
 /// extension authz/ABAC hooks, exactly
 /// as [`JwtClaims::attributes`](systemprompt_models::auth::JwtClaims) is.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct MarketplaceAccess {
     #[serde(default)]
     pub default_included: bool,

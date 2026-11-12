@@ -200,7 +200,7 @@ fn agents_section_headline_counts_zero() {
 #[test]
 fn skills_section_reports_enabled_flag_and_each_skill() {
     let skills: SkillsConfig = serde_yaml::from_str(
-        "enabled: true\nauto_discover: false\nskills:\n  writer:\n    id: skill-writer\n    name: Writer\n    description: Writes things\n    enabled: true\n",
+        "enabled: true\nskills:\n  writer:\n    id: skill-writer\n    name: Writer\n    description: Writes things\n    enabled: true\n",
     )
     .unwrap();
 

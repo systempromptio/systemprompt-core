@@ -23,11 +23,13 @@ const fn default_true() -> bool {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct PluginConfigFile {
     pub plugin: PluginConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct PluginVariableDef {
     pub name: String,
     #[serde(default)]
@@ -41,6 +43,7 @@ pub struct PluginVariableDef {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct PluginConfig {
     pub id: PluginId,
     pub name: String,
@@ -73,12 +76,14 @@ pub struct PluginConfig {
 
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct PluginScript {
     pub name: String,
     pub source: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct PluginAuthor {
     pub name: String,
     pub email: String,

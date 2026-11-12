@@ -24,6 +24,8 @@ use systemprompt_models::plugin::PluginComponentRef;
 
 use crate::error::{ConfigLoadError, ConfigLoadResult};
 
+use super::parse::Interpolator;
+
 fn catalog_dir(base_path: &Path, name: &str) -> Option<PathBuf> {
     let dir = base_path.parent()?.join(name);
     dir.exists().then_some(dir)
@@ -61,6 +63,7 @@ fn next_entry(dir: &Path, entry: std::io::Result<fs::DirEntry>) -> ConfigLoadRes
 pub(super) fn discover_skills(
     base_path: &Path,
     merged: &mut ServicesConfig,
+    interpolator: Interpolator,
 ) -> ConfigLoadResult<()> {
     let Some(skills_dir) = catalog_dir(base_path, "skills") else {
         return Ok(());
@@ -74,11 +77,7 @@ pub(super) fn discover_skills(
             continue;
         };
 
-        let disk: DiskSkillConfig =
-            serde_yaml::from_str(&content).map_err(|e| ConfigLoadError::Yaml {
-                path: config_path.clone(),
-                source: e,
-            })?;
+        let disk: DiskSkillConfig = interpolator.parse(&config_path, &content)?;
         let id = disk
             .resolved_id(&entry.file_name().to_string_lossy())
             .map_err(|e| ConfigLoadError::InvalidId {
@@ -120,6 +119,7 @@ fn skill_from_disk(id: SkillId, disk: DiskSkillConfig) -> SkillConfig {
 pub(super) fn discover_plugins(
     base_path: &Path,
     merged: &mut ServicesConfig,
+    interpolator: Interpolator,
 ) -> ConfigLoadResult<()> {
     let Some(plugins_dir) = catalog_dir(base_path, "plugins") else {
         return Ok(());
@@ -132,11 +132,7 @@ pub(super) fn discover_plugins(
             continue;
         };
 
-        let file: PluginConfigFile =
-            serde_yaml::from_str(&content).map_err(|e| ConfigLoadError::Yaml {
-                path: config_path,
-                source: e,
-            })?;
+        let file: PluginConfigFile = interpolator.parse(&config_path, &content)?;
 
         let id = file.plugin.id.as_str().to_owned();
         if !discovered.insert(id.clone()) {
@@ -158,6 +154,7 @@ pub(super) fn discover_plugins(
 pub(super) fn discover_marketplaces(
     base_path: &Path,
     merged: &mut ServicesConfig,
+    interpolator: Interpolator,
 ) -> ConfigLoadResult<()> {
     let Some(marketplaces_dir) = catalog_dir(base_path, "marketplaces") else {
         return Ok(());
@@ -169,11 +166,7 @@ pub(super) fn discover_marketplaces(
             continue;
         };
 
-        let file: MarketplaceConfigFile =
-            serde_yaml::from_str(&content).map_err(|e| ConfigLoadError::Yaml {
-                path: config_path,
-                source: e,
-            })?;
+        let file: MarketplaceConfigFile = interpolator.parse(&config_path, &content)?;
 
         let id = file.marketplace.id.clone();
         if merged.marketplaces.contains_key(&id) {

@@ -103,7 +103,7 @@ pub use tool::{
 };
 pub use web_config::{
     AnimationConfig, BrandingConfig, CardConfig, ColorsConfig, FontsConfig, LayoutConfig,
-    LogoConfig, MobileConfig, NavConfig, PathsConfig, RadiusConfig, ScriptConfig, ShadowsConfig,
-    SiteI18nConfig, SocialActionBarConfig, SocialPlatform, SpacingConfig, TouchTargetsConfig,
-    TypographyConfig, WebConfig, WebConfigError, ZIndexConfig,
+    LogoConfig, MobileConfig, PathsConfig, RadiusConfig, ScriptConfig, ShadowsConfig,
+    SiteI18nConfig, SpacingConfig, TouchTargetsConfig, TypographyConfig, WebConfig, WebConfigError,
+    ZIndexConfig,
 };

@@ -9,6 +9,11 @@
 //! A full validation (no target) also parses every registered config plane's
 //! declaration offline ([`super::plane_validate`]).
 //!
+//! A full or section validation also loads the merged services tree and runs
+//! its cross-checks ([`super::validate_services`]). The command's bootstrap
+//! stops short of loading that tree, so a services failure is reported as a
+//! `services` entry instead of aborting before the command runs.
+//!
 //! Whenever the scheduler section is in scope, the merged services config is
 //! additionally cross-checked against the registered job catalog, so a job name
 //! no `submit_job!` registers is caught here instead of aborting scheduler
@@ -29,6 +34,7 @@ use crate::shared::CommandOutput;
 use systemprompt_config::LoadedProfile;
 use systemprompt_loader::BootContext;
 use systemprompt_manifest::profile::Profile;
+use systemprompt_manifest::services::ServicesConfig;
 use systemprompt_scheduler::SchedulerConfig;
 
 #[derive(Debug, Clone, Args)]
@@ -52,17 +58,14 @@ pub fn execute(args: &ValidateArgs, ctx: &CommandContext) -> Result<(CommandOutp
         return print_profile_schema();
     }
 
-    if let Some(target) = &args.target {
-        let path = std::path::PathBuf::from(target);
-        if path.exists() && is_yaml_file(&path) && target.parse::<ConfigSection>().is_err() {
-            return validate_profile_file(&path);
-        }
+    if let Some(path) = profile_document_target(args) {
+        return validate_profile_file(&path);
     }
 
-    let (mut results, mut all_valid) = validate_files(
-        files_for_target(ctx.loaded_profile()?, args.target.as_deref())?,
-        args.strict,
-    );
+    let (mut results, mut all_valid) = validate_files(files_for_target(
+        ctx.loaded_profile()?,
+        args.target.as_deref(),
+    )?);
 
     all_valid &= super::plane_validate::append_full_validation(
         ctx.config()?,
@@ -70,7 +73,18 @@ pub fn execute(args: &ValidateArgs, ctx: &CommandContext) -> Result<(CommandOutp
         &mut results,
     );
 
-    if let Some(error) = scheduler_catalog_error(ctx.boot()?, &results, args.strict) {
+    let services = if covers_services(args) {
+        let (entry, services) = super::validate_services::load(ctx.boot()?);
+        all_valid &= entry.valid;
+        results.push(entry);
+        services
+    } else {
+        None
+    };
+
+    if let Some(error) =
+        scheduler_catalog_error(ctx.boot()?, services.as_ref(), &results, args.strict)
+    {
         all_valid = false;
         for file in &mut results {
             if file.section == "scheduler" && file.error.is_none() {
@@ -84,6 +98,19 @@ pub fn execute(args: &ValidateArgs, ctx: &CommandContext) -> Result<(CommandOutp
         files: results,
         all_valid,
     }))
+}
+
+pub(super) fn profile_document_target(args: &ValidateArgs) -> Option<std::path::PathBuf> {
+    let target = args.target.as_ref()?;
+    let path = std::path::PathBuf::from(target);
+    (path.exists() && is_yaml_file(&path) && target.parse::<ConfigSection>().is_err())
+        .then_some(path)
+}
+
+fn covers_services(args: &ValidateArgs) -> bool {
+    args.target
+        .as_deref()
+        .is_none_or(|target| target.parse::<ConfigSection>().is_ok())
 }
 
 fn files_for_target(
@@ -103,16 +130,14 @@ fn files_for_target(
     }
 }
 
-fn validate_files(files: Vec<std::path::PathBuf>, strict: bool) -> (Vec<ConfigFileInfo>, bool) {
+fn validate_files(files: Vec<std::path::PathBuf>) -> (Vec<ConfigFileInfo>, bool) {
     let mut results = Vec::new();
     let mut all_valid = true;
     for file_path in files {
         let section = detect_section(&file_path);
         let exists = file_path.exists();
         let error = if exists {
-            validate_file(&file_path, strict)
-                .err()
-                .map(|e| e.to_string())
+            read_yaml_file(&file_path).err().map(|e| format!("{e:#}"))
         } else {
             Some("File not found".to_owned())
         };
@@ -191,6 +216,7 @@ fn validate_profile_file(path: &std::path::Path) -> Result<(CommandOutput, bool)
 
 fn scheduler_catalog_error(
     boot: &BootContext,
+    services: Option<&ServicesConfig>,
     files: &[ConfigFileInfo],
     strict: bool,
 ) -> Option<String> {
@@ -200,20 +226,15 @@ fn scheduler_catalog_error(
     {
         return None;
     }
-
-    match boot.load_services_config() {
-        Ok(services) => {
-            let scheduler = services
-                .scheduler
-                .unwrap_or_else(SchedulerConfig::with_system_admin);
-            unknown_jobs_message(&scheduler).or_else(|| {
-                strict
-                    .then(|| unlisted_jobs_message(&scheduler, boot))
-                    .flatten()
-            })
-        },
-        Err(e) => Some(format!("failed to load merged services config: {e}")),
-    }
+    let scheduler = services?
+        .scheduler
+        .clone()
+        .unwrap_or_else(SchedulerConfig::with_system_admin);
+    unknown_jobs_message(&scheduler).or_else(|| {
+        strict
+            .then(|| unlisted_jobs_message(&scheduler, boot))
+            .flatten()
+    })
 }
 
 pub fn unlisted_jobs_message(config: &SchedulerConfig, boot: &BootContext) -> Option<String> {
@@ -249,11 +270,6 @@ fn is_yaml_file(path: &std::path::Path) -> bool {
         path.extension().and_then(|e| e.to_str()),
         Some("yaml" | "yml")
     )
-}
-
-fn validate_file(path: &std::path::Path, _strict: bool) -> Result<()> {
-    let _content = read_yaml_file(path)?;
-    Ok(())
 }
 
 fn detect_section(path: &std::path::Path) -> String {
