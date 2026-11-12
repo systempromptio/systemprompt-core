@@ -97,6 +97,7 @@
 - **Loader:** `ServicesSourceBootstrap::read_composed` returns the services composition another process resolved, fetching nothing.
 - **Gateway:** a `kind: platform` credential can declare `workload_identity: { project: <id> }` instead of a `secret`, authenticating Vertex AI calls and Vertex discovery as the runtime's ambient Google service account (GKE Workload Identity, Cloud Run, Compute Engine); its token is cached once per identity and shared with Cloud Storage.
 - **CLI:** `admin setup --vertex-project <ID>` (workload identity, no key stored) and `--vertex-key-file <PATH>` (stored as the `vertex` secret) seed a `vertex` provider with a Claude endpoint on `global` and a Gemini endpoint on `us-central1`; the interactive wizard offers both.
+- **Extension:** retention holds. An extension registers a `RetentionHold` with `register_retention_hold!`; `database_cleanup` clamps each `RetentionTarget` cutoff to the earliest watermark any hold reports, and a hold that returns an error withholds that target for the run, counted as failed in the job's stats. `RetentionTarget` is defined in `systemprompt_extension` and re-exported by the scheduler.
 
 ### Changed
 

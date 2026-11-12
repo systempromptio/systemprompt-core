@@ -235,6 +235,18 @@ There is no fail-open option; `disabled: true` is the only way to run without th
 | `archived_users_days` | u32 | `90` | How long an archived user stays restorable before it is purged; an account under legal hold is never purged. |
 | `agent_run_dirs_days` | u32 | `7` | A finished agent run's directory on disk; the row stays. |
 
+### Retention holds
+
+An extension that copies these rows elsewhere (a warehouse sync, an audit export) registers a retention hold so rows it has not copied yet are not deleted. A hold implements `RetentionHold` (`crates/shared/extension/src/retention.rs`) and is registered with `register_retention_hold!(MyHold, priority = 100)`, or with `factory = |ctx| ...` when it needs the extension context. For each `RetentionTarget` (`logs`, `analytics_events`, `ai_request_messages`, `mcp_tool_executions`, `event_outbox`, `ai_request_payloads`, `governance_decisions`, `ai_quota_buckets`, `engagement_events`, `fingerprint_reputation`) the hold returns a watermark: every row before it is released, rows at or after it are not. `None` means no hold on that target.
+
+Each target is pruned by one timestamp column compared against the cutoff (`created_at`; `timestamp` for `logs` and `analytics_events`; `window_start` for `ai_quota_buckets`; `last_seen_at` for `fingerprint_reputation`), and no target deletes child rows by a parent's age, so the hold is exact. The `database_cleanup` job clamps each target's cutoff to the earliest watermark any hold reports; a watermark later than the age cutoff changes nothing. For `ai_request_payloads` the hold keeps the raw bodies, and for `fingerprint_reputation` it also keeps a flagged fingerprint's IP address and user agent.
+
+What operators see:
+
+- A clamped target logs `Retention hold clamped the cutoff` with the age cutoff, the effective cutoff and the hold's name, and the job message shows `<table>=<deleted>@held:<hold>`.
+- A watermark that trails the age cutoff by more than the target's window again (at least one day) logs a warning that the holder may be stalled. Rows keep accumulating until it advances.
+- A hold that returns an error withholds its target for the run: nothing in that table is pruned, a warning names the hold and the error, the job message shows `<table>=withheld:<hold>`, and the run's failed count includes the target. Other targets are pruned as usual.
+
 ## `system_admin`
 
 `crates/shared/manifest/src/services/system_admin.rs:19`

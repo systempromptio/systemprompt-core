@@ -19,14 +19,18 @@ use systemprompt_ai::repository::{
 use systemprompt_analytics::AnalyticsRetention;
 use systemprompt_database::DbPool;
 use systemprompt_events::services::durable::DurableOutbox;
+use systemprompt_extension::RetentionHolds;
 use systemprompt_governance::GovernanceDecisionRetention;
 use systemprompt_identifiers::InstanceId;
 use systemprompt_logging::{AnalyticsRepository, LoggingRepository};
 use systemprompt_mcp::repository::ToolUsageRepository;
 use systemprompt_provider_contracts::{BatchPlan, run_batched};
 use systemprompt_traits::ProviderResult;
+use tracing::info;
 
 use super::RetentionTarget;
+use super::holds::{HoldOutcome, report};
+use crate::error::SchedulerResult;
 
 pub(super) const BATCH_ROWS: i64 = 5000;
 const RUN_BUDGET: Duration = Duration::from_mins(15);
@@ -63,27 +67,129 @@ impl RetentionOwners {
 #[derive(Debug, Clone)]
 pub(super) struct RetentionPass {
     pub(super) table: &'static str,
-    pub(super) days: u32,
     pub(super) deleted: u64,
     pub(super) complete: bool,
+    pub(super) hold: HoldOutcome,
 }
 
-pub(super) async fn delete_in_batches(
-    owners: &RetentionOwners,
+pub(super) struct PassRunner<'a> {
+    pub(super) owners: &'a RetentionOwners,
+    pub(super) holds: &'a RetentionHolds,
+    pub(super) enforce: bool,
+    pub(super) started: Instant,
+}
+
+impl PassRunner<'_> {
+    pub(super) async fn run(
+        &self,
+        target: RetentionTarget,
+        days: u32,
+    ) -> ProviderResult<RetentionPass> {
+        let age_cutoff = Utc::now() - chrono::Duration::days(i64::from(days));
+        let effective = self.holds.resolve(target, age_cutoff).await;
+        let hold = report(target, days, age_cutoff, &effective);
+        let (deleted, complete) = match effective.cutoff() {
+            None => (0, false),
+            Some(cutoff) if self.enforce => self.delete_in_batches(target, cutoff).await?,
+            Some(_) => {
+                info!(
+                    table = target.table(),
+                    retention_days = days,
+                    "enforce disabled: rows past the window were not deleted"
+                );
+                (0, true)
+            },
+        };
+        info!(
+            table = target.table(),
+            deleted,
+            retention_days = days,
+            complete,
+            effective_cutoff = ?effective.cutoff(),
+            hold = ?hold,
+            "Retention pass"
+        );
+        Ok(RetentionPass {
+            table: target.table(),
+            deleted,
+            complete,
+            hold,
+        })
+    }
+
+    async fn delete_in_batches(
+        &self,
+        target: RetentionTarget,
+        cutoff: DateTime<Utc>,
+    ) -> ProviderResult<(u64, bool)> {
+        let plan = BatchPlan {
+            deadline: self.started + RUN_BUDGET,
+            full_batch: u64::try_from(BATCH_ROWS).unwrap_or(u64::MAX),
+        };
+        let owners = self.owners;
+        let run = run_batched(plan, move || purge(target, owners, cutoff)).await?;
+        Ok((run.processed, run.complete))
+    }
+}
+
+async fn purge(
     target: RetentionTarget,
-    days: u32,
+    owners: &RetentionOwners,
     cutoff: DateTime<Utc>,
-    started: Instant,
-) -> ProviderResult<RetentionPass> {
-    let plan = BatchPlan {
-        deadline: started + RUN_BUDGET,
-        full_batch: u64::try_from(BATCH_ROWS).unwrap_or(u64::MAX),
+) -> SchedulerResult<u64> {
+    let deleted = match target {
+        RetentionTarget::Logs => owners.logs.purge_before(cutoff, BATCH_ROWS).await?,
+        RetentionTarget::AnalyticsEvents => {
+            owners
+                .analytics_events
+                .purge_before(cutoff, BATCH_ROWS)
+                .await?
+        },
+        RetentionTarget::AiRequestMessages => {
+            owners
+                .requests
+                .purge_messages_before(cutoff, BATCH_ROWS)
+                .await?
+        },
+        RetentionTarget::McpToolExecutions => {
+            owners
+                .tool_executions
+                .purge_before(cutoff, BATCH_ROWS)
+                .await?
+        },
+        RetentionTarget::EventOutbox => {
+            owners
+                .outbox
+                .purge_processed_before(cutoff, BATCH_ROWS)
+                .await?
+        },
+        RetentionTarget::AiRequestPayloads => {
+            owners
+                .payloads
+                .release_bodies_before(cutoff, BATCH_ROWS)
+                .await?
+        },
+        RetentionTarget::GovernanceDecisions => {
+            owners.decisions.purge_before(cutoff, BATCH_ROWS).await?
+        },
+        RetentionTarget::AiQuotaBuckets => {
+            owners
+                .quota_buckets
+                .purge_before(cutoff, BATCH_ROWS)
+                .await?
+        },
+        RetentionTarget::EngagementEvents => {
+            owners
+                .analytics_pii
+                .purge_engagement_events_before(cutoff, BATCH_ROWS)
+                .await?
+        },
+        RetentionTarget::FingerprintReputation => {
+            owners
+                .analytics_pii
+                .purge_fingerprints_before(cutoff, BATCH_ROWS)
+                .await?
+        },
     };
-    let run = run_batched(plan, move || target.purge(owners, cutoff)).await?;
-    Ok(RetentionPass {
-        table: target.table(),
-        days,
-        deleted: run.processed,
-        complete: run.complete,
-    })
+    Ok(deleted)
 }

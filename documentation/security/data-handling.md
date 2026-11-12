@@ -48,7 +48,7 @@ analytics, `engagement_events_days` (default 90) bounds engagement events, and
 with its last IP address and user agent, once it has not been seen for the window; a flagged
 fingerprint is kept as enforcement memory with its IP address and user agent cleared. Raw
 gateway request and response bodies are cleared after `ai_request_payload_raw_days` (default 7).
-See the [configuration reference](../reference/configuration.md#retention). Per-user purge removes a user's rows across the
+See the [configuration reference](../reference/configuration.md#retention). An extension that exports these rows can register a retention hold that keeps rows it has not yet exported; a held table is reported in the job's output, and a hold that cannot answer stops that table from being pruned for the run rather than being ignored ([retention holds](../reference/configuration.md#retention-holds)). Per-user purge removes a user's rows across the
 schema inventory (`crates/domain/users/src/repository/user/purge.rs`). Privacy-restricted reporting
 views limit what reporting roles can see.
 

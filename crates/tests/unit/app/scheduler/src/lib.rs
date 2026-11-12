@@ -73,6 +73,10 @@ mod repository_db;
 #[cfg(test)]
 mod retention_enforce_db;
 #[cfg(test)]
+mod retention_holds;
+#[cfg(test)]
+mod retention_holds_db;
+#[cfg(test)]
 mod retention_targets_db;
 #[cfg(test)]
 mod service_config_manifest;
