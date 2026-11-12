@@ -25,6 +25,8 @@ mod error_display;
 #[cfg(test)]
 mod extraction;
 #[cfg(test)]
+mod google_metadata;
+#[cfg(test)]
 mod governance_plane;
 #[cfg(test)]
 mod governance_plane_unapplied;

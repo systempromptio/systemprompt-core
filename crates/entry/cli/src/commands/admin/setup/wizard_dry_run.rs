@@ -50,6 +50,7 @@ pub(super) fn execute_dry_run(
             anthropic: args.anthropic_key.is_some(),
             openai: args.openai_key.is_some(),
             gemini: args.gemini_key.is_some(),
+            vertex: args.vertex_project.is_some() || args.vertex_key_file.is_some(),
             github: args.github_token.is_some(),
         },
         migrations_run: false,

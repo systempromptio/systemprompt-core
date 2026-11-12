@@ -33,7 +33,10 @@ mod spoken_wire;
 pub mod vertex;
 
 pub use billing_error::BillingRuleError;
-pub use credentials::{CredentialEntry, CredentialKind, CredentialRegistry, PlatformSecretKind};
+pub use credentials::{
+    CredentialEntry, CredentialKind, CredentialRegistry, PlatformSecretKind,
+    WorkloadIdentityCredential,
+};
 pub use default::DefaultCatalog;
 pub use deployments::{DeploymentDetail, DeploymentRegistry, DeploymentTarget, PricingOverride};
 pub use document::{CATALOG_FILES, CatalogDocument, detect_legacy_shape};

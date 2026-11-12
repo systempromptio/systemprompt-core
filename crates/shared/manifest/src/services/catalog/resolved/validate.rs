@@ -22,34 +22,14 @@ use systemprompt_wire::hosting::names_a_project_literally;
 
 use super::ResolvedCatalog;
 use super::build::CatalogInput;
-use crate::services::catalog::credentials::CredentialKind;
+use crate::services::catalog::credentials::{CredentialEntry, CredentialKind};
 use crate::services::catalog::error::{CatalogError, CatalogResult};
 use crate::services::catalog::headers;
 use crate::services::catalog::providers::ProviderConfig;
 
 pub(super) fn validate_registries(input: &CatalogInput<'_>) -> CatalogResult<()> {
     for (id, credential) in input.credentials.iter() {
-        match (credential.kind, credential.secret.as_ref()) {
-            (CredentialKind::Platform, None) => {
-                return Err(CatalogError::PlatformCredentialWithoutSecret {
-                    credential: id.clone(),
-                });
-            },
-            (CredentialKind::Personal, Some(secret)) => {
-                return Err(CatalogError::PersonalCredentialWithSecret {
-                    credential: id.clone(),
-                    secret: secret.as_str().to_owned(),
-                });
-            },
-            (CredentialKind::Caller, Some(secret)) => {
-                return Err(CatalogError::CallerCredentialWithSecret {
-                    credential: id.clone(),
-                    secret: secret.as_str().to_owned(),
-                });
-            },
-            (CredentialKind::Platform, Some(_))
-            | (CredentialKind::Personal | CredentialKind::Caller, None) => {},
-        }
+        validate_credential(id, credential)?;
     }
     let trusted = systemprompt_models::net::trusted_http_hosts_from_env();
     let mut member_owner: BTreeMap<&CredentialId, &ProviderId> = BTreeMap::new();
@@ -259,4 +239,48 @@ pub(super) fn validate_routes(catalog: &ResolvedCatalog) -> CatalogResult<()> {
         }
     }
     Ok(())
+}
+
+fn validate_credential(id: &CredentialId, credential: &CredentialEntry) -> CatalogResult<()> {
+    let invalid_workload = |problem| CatalogError::InvalidWorkloadIdentity {
+        credential: id.clone(),
+        problem,
+    };
+    match (
+        credential.kind,
+        credential.secret.as_ref(),
+        credential.workload_identity.as_ref(),
+    ) {
+        (CredentialKind::Platform, None, None) => {
+            Err(CatalogError::PlatformCredentialWithoutSecret {
+                credential: id.clone(),
+            })
+        },
+        (CredentialKind::Platform, Some(_), Some(_)) => {
+            Err(CatalogError::PlatformCredentialWithTwoSources {
+                credential: id.clone(),
+            })
+        },
+        (CredentialKind::Platform, None, Some(workload)) if workload.project.trim().is_empty() => {
+            Err(invalid_workload("with an empty `project`"))
+        },
+        (CredentialKind::Personal | CredentialKind::Caller, _, Some(_)) => Err(invalid_workload(
+            "but is not `kind: platform`; only the deployment's own credential runs as its \
+             workload",
+        )),
+        (CredentialKind::Personal, Some(secret), None) => {
+            Err(CatalogError::PersonalCredentialWithSecret {
+                credential: id.clone(),
+                secret: secret.as_str().to_owned(),
+            })
+        },
+        (CredentialKind::Caller, Some(secret), None) => {
+            Err(CatalogError::CallerCredentialWithSecret {
+                credential: id.clone(),
+                secret: secret.as_str().to_owned(),
+            })
+        },
+        (CredentialKind::Platform, _, _)
+        | (CredentialKind::Personal | CredentialKind::Caller, None, None) => Ok(()),
+    }
 }

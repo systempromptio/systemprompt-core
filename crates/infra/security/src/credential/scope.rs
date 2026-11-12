@@ -2,11 +2,11 @@
 //!
 //! A credential is not only a secret: it also carries the coordinates the
 //! endpoint needs. A Google service-account key names the one Cloud project
-//! any token minted from it can address; a future workload identity will name
-//! a region or an account. [`CredentialScope`] is that set of coordinates,
-//! and [`fill_endpoint`] is the only place a catalog endpoint template is
-//! resolved against them — so an endpoint asking for a coordinate the
-//! credential does not carry is refused rather than guessed at.
+//! any token minted from it can address, and a workload identity carries the
+//! project its catalog entry declares. [`CredentialScope`] is that set of
+//! coordinates, and [`fill_endpoint`] is the only place a catalog endpoint
+//! template is resolved against them — so an endpoint asking for a coordinate
+//! the credential does not carry is refused rather than guessed at.
 //!
 //! [`fill_endpoint`] generalises a `{project}` substitution: the catalog never
 //! carries a tenant identifier, so a secret swapped for another customer's

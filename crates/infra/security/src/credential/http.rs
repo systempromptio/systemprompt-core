@@ -44,6 +44,21 @@ pub(crate) async fn post_form(
     send_with_retry(client, uri, |client| client.post(uri).form(form)).await
 }
 
+pub(crate) async fn get(
+    client: &reqwest::Client,
+    uri: &str,
+    headers: &[(&str, &str)],
+) -> Result<String, CredentialError> {
+    send_with_retry(client, uri, |client| {
+        headers
+            .iter()
+            .fold(client.get(uri), |request, (name, value)| {
+                request.header(*name, *value)
+            })
+    })
+    .await
+}
+
 pub(crate) async fn post_bearer(
     client: &reqwest::Client,
     uri: &str,

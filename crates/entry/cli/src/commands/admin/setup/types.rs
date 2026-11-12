@@ -31,6 +31,8 @@ pub struct SecretsConfiguredInfo {
     pub anthropic: bool,
     pub openai: bool,
     pub gemini: bool,
+    #[serde(default)]
+    pub vertex: bool,
     pub github: bool,
 }
 
@@ -45,6 +47,9 @@ impl SecretsConfiguredInfo {
         }
         if self.gemini {
             keys.push("Gemini");
+        }
+        if self.vertex {
+            keys.push("Vertex AI");
         }
         if self.github {
             keys.push("GitHub");

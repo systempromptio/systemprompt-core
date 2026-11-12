@@ -16,9 +16,17 @@
 //! gets the right behaviour without having to know a flag exists.
 //! [`ProviderCredential::parse`] is the only place that decision is made.
 //!
+//! A workload identity has no secret at all: the catalog declares it, with
+//! the project it addresses, and
+//! [`ProviderCredential::google_workload_identity`] builds it. Its token comes
+//! from the metadata server of the runtime it runs on.
+//!
 //! A minted token is cached under a [`TokenCacheKey`] derived from the
 //! catalog credential id, so every endpoint one credential authenticates
-//! shares one minted token and two credentials never share one.
+//! shares one minted token and two credentials never share one. A workload
+//! identity is the exception: its token belongs to the runtime's one ambient
+//! principal, so it is cached under that identity and shared by every
+//! credential and every consumer (Cloud Storage included) that uses it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -38,7 +46,9 @@ pub use scope::{
     AuthHeader, AuthScheme, CredentialScope, PROJECT_PLACEHOLDER, REGION_PLACEHOLDER, fill_endpoint,
 };
 
-use crate::google::{SERVICE_ACCOUNT_TYPE, ServiceAccountKey, access_token};
+use crate::google::{
+    MetadataIdentity, SERVICE_ACCOUNT_TYPE, ServiceAccountKey, access_token, metadata_access_token,
+};
 
 #[derive(Debug, serde::Deserialize)]
 struct SelfDescription {
@@ -72,6 +82,7 @@ impl fmt::Debug for ApiKeySecret {
 pub enum CredentialKind {
     ApiKey,
     GoogleServiceAccount,
+    GoogleWorkloadIdentity,
 }
 
 impl CredentialKind {
@@ -80,23 +91,46 @@ impl CredentialKind {
         match self {
             Self::ApiKey => "api_key",
             Self::GoogleServiceAccount => "google_service_account",
+            Self::GoogleWorkloadIdentity => "google_workload_identity",
         }
     }
+
+    #[must_use]
+    pub const fn is_google_identity(self) -> bool {
+        matches!(
+            self,
+            Self::GoogleServiceAccount | Self::GoogleWorkloadIdentity
+        )
+    }
+}
+
+/// The runtime's ambient Google identity, confined to one Cloud project.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GoogleWorkloadIdentity {
+    pub project: String,
+    pub identity: MetadataIdentity,
 }
 
 /// A credential an upstream provider will accept, parsed from its secret.
 ///
 /// An API key is the credential and is sent verbatim; a Google service-account
-/// key is exchanged for a short-lived OAuth bearer token. `scope` is the
+/// key is exchanged for a short-lived OAuth bearer token, and a workload
+/// identity asks the runtime's metadata server for one. `scope` is the
 /// coordinates the credential supplies to the endpoint it authenticates, and
 /// `fill_endpoint` resolves a catalog endpoint template against them.
 #[derive(Debug, Clone)]
 pub enum ProviderCredential {
     ApiKey(ApiKeySecret),
     GoogleServiceAccount(Box<ServiceAccountKey>),
+    GoogleWorkloadIdentity(GoogleWorkloadIdentity),
 }
 
 impl ProviderCredential {
+    #[must_use]
+    pub const fn google_workload_identity(project: String, identity: MetadataIdentity) -> Self {
+        Self::GoogleWorkloadIdentity(GoogleWorkloadIdentity { project, identity })
+    }
+
     pub fn parse(secret: &str) -> Result<Self, CredentialError> {
         let self_described = serde_json::from_str::<SelfDescription>(secret)
             .is_ok_and(|probe| probe.kind.as_deref() == Some(SERVICE_ACCOUNT_TYPE));
@@ -113,6 +147,7 @@ impl ProviderCredential {
         match self {
             Self::ApiKey(_) => CredentialKind::ApiKey,
             Self::GoogleServiceAccount(_) => CredentialKind::GoogleServiceAccount,
+            Self::GoogleWorkloadIdentity(_) => CredentialKind::GoogleWorkloadIdentity,
         }
     }
 
@@ -124,6 +159,11 @@ impl ProviderCredential {
                 project: Some(key.project_id.clone()),
                 region: None,
                 principal: Some(key.client_email.clone()),
+            },
+            Self::GoogleWorkloadIdentity(workload) => CredentialScope {
+                project: Some(workload.project.clone()),
+                region: None,
+                principal: None,
             },
         }
     }
@@ -145,6 +185,10 @@ impl ProviderCredential {
                     value: access_token(tokens, &key_id, key).await?,
                 })
             },
+            Self::GoogleWorkloadIdentity(workload) => Ok(AuthHeader {
+                scheme: AuthScheme::Bearer,
+                value: metadata_access_token(tokens, &workload.identity).await?,
+            }),
         }
     }
 

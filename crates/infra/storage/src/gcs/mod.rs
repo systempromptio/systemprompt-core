@@ -27,7 +27,7 @@ use systemprompt_traits::{
 use url::Url;
 
 pub use error::GcsError;
-pub use token::{DEFAULT_METADATA_TOKEN_URL, GcsTokenSource, MetadataServerTokens};
+pub use token::GcsTokenSource;
 
 use crate::chunks::Lookahead;
 use crate::object_id::{id_for, mime_for, relative_path};

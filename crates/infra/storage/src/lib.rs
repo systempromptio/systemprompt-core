@@ -37,10 +37,7 @@ use std::sync::Arc;
 
 use systemprompt_traits::FileStorage;
 
-pub use gcs::{
-    DEFAULT_GCS_ENDPOINT, DEFAULT_METADATA_TOKEN_URL, GcsError, GcsFileStorage, GcsParams,
-    GcsTokenSource, MetadataServerTokens,
-};
+pub use gcs::{DEFAULT_GCS_ENDPOINT, GcsError, GcsFileStorage, GcsParams, GcsTokenSource};
 pub use local::LocalFileStorage;
 pub use probe::{SharedMountReport, probe_shared_mount};
 pub use s3::{DEFAULT_S3_REGION, S3Credentials, S3Error, S3FileStorage, S3Params};

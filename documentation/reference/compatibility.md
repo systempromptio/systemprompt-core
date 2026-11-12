@@ -18,9 +18,9 @@ supports, so a Vertex deployment tracks Google's catalogue without an operator e
 
 | Provider | API surface | Notes |
 |----------|-------------|-------|
-| Anthropic | Messages API (`/v1/messages`); Claude on Vertex AI (`:rawPredict` / `:streamRawPredict`) with a service-account key | Streaming, tool use, extended thinking, prompt caching. A route can fail over between the two hosts of the same model |
+| Anthropic | Messages API (`/v1/messages`); Claude on Vertex AI (`:rawPredict` / `:streamRawPredict`) with a service-account key or the runtime's workload identity | Streaming, tool use, extended thinking, prompt caching. A route can fail over between the two hosts of the same model |
 | OpenAI | Chat Completions and Responses API | Streaming, tool calling, JSON mode. Uses `max_completion_tokens` |
-| Google | Gemini `generateContent`; Vertex AI (`aiplatform.googleapis.com`) with a service-account key | Streaming, tool calling; Vertex models discovered at boot from Model Garden and priced by the embedded rate card |
+| Google | Gemini `generateContent`; Vertex AI (`aiplatform.googleapis.com`) with a service-account key or the runtime's workload identity | Streaming, tool calling; Vertex models discovered at boot from Model Garden and priced by the embedded rate card |
 | Self-hosted | Any OpenAI-compatible endpoint | vLLM, TGI, Ollama, llama.cpp — configurable `base_url` |
 
 Provider adapters are tracking surface per [stability-contract.md §2.1](../security/stability-contract.md).

@@ -4,6 +4,10 @@
 //! A `platform` credential is the deployment's: it names the secret that
 //! holds an API key or a Google service-account document, and which of the
 //! two it is is read from the secret itself ([`PlatformSecretKind::detect`]).
+//! A platform credential may instead declare a `workload_identity`: it names
+//! no secret and authenticates as the runtime's ambient Google service
+//! account (GKE Workload Identity, Cloud Run, Compute Engine), addressing the
+//! Cloud `project` it declares.
 //! A `personal` credential is each member's own subscription: it names no
 //! secret, every member stores their own key under the credential id, and
 //! one member's key is never spent on another's request. A `caller`
@@ -68,7 +72,19 @@ pub struct CredentialEntry {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub secret: Option<SecretName>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workload_identity: Option<WorkloadIdentityCredential>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub label: Option<String>,
+}
+
+/// A platform credential backed by the runtime's ambient Google identity.
+///
+/// `project` is the Cloud project a `{project}` endpoint segment is filled
+/// from; the region is part of each endpoint's own URL.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct WorkloadIdentityCredential {
+    pub project: String,
 }
 
 impl CredentialEntry {
@@ -77,6 +93,17 @@ impl CredentialEntry {
         Self {
             kind: CredentialKind::Platform,
             secret: Some(secret),
+            workload_identity: None,
+            label: None,
+        }
+    }
+
+    #[must_use]
+    pub const fn workload_identity(project: String) -> Self {
+        Self {
+            kind: CredentialKind::Platform,
+            secret: None,
+            workload_identity: Some(WorkloadIdentityCredential { project }),
             label: None,
         }
     }
@@ -86,6 +113,7 @@ impl CredentialEntry {
         Self {
             kind: CredentialKind::Personal,
             secret: None,
+            workload_identity: None,
             label,
         }
     }
@@ -95,6 +123,7 @@ impl CredentialEntry {
         Self {
             kind: CredentialKind::Caller,
             secret: None,
+            workload_identity: None,
             label,
         }
     }

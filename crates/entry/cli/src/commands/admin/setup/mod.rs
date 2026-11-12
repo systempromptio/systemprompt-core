@@ -123,6 +123,23 @@ pub struct SetupArgs {
 
     #[arg(
         long,
+        env = "SYSTEMPROMPT_VERTEX_PROJECT",
+        conflicts_with = "vertex_key_file",
+        help = "Google Cloud project for Vertex AI, authenticated by the runtime's workload \
+                identity (GKE, Cloud Run, Compute Engine); no key is stored"
+    )]
+    pub vertex_project: Option<String>,
+
+    #[arg(
+        long,
+        env = "SYSTEMPROMPT_VERTEX_KEY_FILE",
+        help = "Path to a Google service-account key file for Vertex AI; its contents are stored \
+                as the `vertex` secret"
+    )]
+    pub vertex_key_file: Option<std::path::PathBuf>,
+
+    #[arg(
+        long,
         env = "GITHUB_TOKEN",
         hide_env_values = true,
         help = "GitHub token (optional)"
@@ -131,7 +148,8 @@ pub struct SetupArgs {
 
     #[arg(
         long,
-        help = "Provider to make the default (gemini | anthropic | openai); must have a key. \
+        help = "Provider to make the default (gemini | anthropic | openai | vertex); must be \
+                configured. \
                 In interactive mode the selected provider is used instead."
     )]
     pub default_provider: Option<String>,
@@ -181,7 +199,11 @@ impl SetupArgs {
     }
 
     pub const fn has_ai_provider(&self) -> bool {
-        self.gemini_key.is_some() || self.anthropic_key.is_some() || self.openai_key.is_some()
+        self.gemini_key.is_some()
+            || self.anthropic_key.is_some()
+            || self.openai_key.is_some()
+            || self.vertex_project.is_some()
+            || self.vertex_key_file.is_some()
     }
 
     #[must_use]
@@ -189,6 +211,10 @@ impl SetupArgs {
         self.gemini_key = none_if_blank(self.gemini_key);
         self.anthropic_key = none_if_blank(self.anthropic_key);
         self.openai_key = none_if_blank(self.openai_key);
+        self.vertex_project = none_if_blank(self.vertex_project);
+        self.vertex_key_file = self
+            .vertex_key_file
+            .filter(|path| !path.as_os_str().is_empty());
         self.github_token = none_if_blank(self.github_token);
         self.default_provider = none_if_blank(self.default_provider);
         self.admin_email = none_if_blank(self.admin_email);

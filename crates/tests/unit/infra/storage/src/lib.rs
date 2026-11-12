@@ -14,8 +14,6 @@ mod gcs_resumable;
 #[cfg(test)]
 mod gcs_storage;
 #[cfg(test)]
-mod gcs_token_refresh;
-#[cfg(test)]
 mod local_storage;
 #[cfg(test)]
 mod local_storage_failures;

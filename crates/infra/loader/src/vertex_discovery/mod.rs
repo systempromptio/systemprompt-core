@@ -6,12 +6,12 @@
 //! a model we are entitled to and have priced is simply not on offer.
 //!
 //! So at boot, every endpoint of an enabled provider whose platform
-//! credential's secret parses into a credential some [`CatalogSource`]
-//! accepts is asked what it serves; the entries the rate card prices (keyed
-//! by the endpoint's wire) and Google's documentation still supports are
-//! kept, and the ones the catalog did not already declare are appended as a
-//! model plus one deployment on that endpoint. The listing call is
-//! the only network traffic: nothing here ever calls a model to probe it.
+//! credential — a secret, or the runtime's workload identity — is one some
+//! [`CatalogSource`] accepts is asked what it serves; the entries the rate card
+//! prices (keyed by the endpoint's wire) and Google's documentation still
+//! supports are kept, and the ones the catalog did not already declare are
+//! appended as a model plus one deployment on that endpoint. The listing call
+//! is the only network traffic: nothing here ever calls a model to probe it.
 //! Discovery cannot fail a boot: a listing that 403s, a model that
 //! is priced but unlisted, a model listed but unpriced — each becomes a line
 //! in [`DiscoveryReport`] and a `warn!`, because none of them is a reason for
@@ -48,6 +48,7 @@ use systemprompt_identifiers::CredentialId;
 use systemprompt_manifest::services::catalog::CatalogDocument;
 use systemprompt_manifest::services::{DiscoveryReport, VertexRateCard};
 use systemprompt_security::credential::{ProviderCredential, TokenCache, TokenCacheKey};
+use systemprompt_security::google::MetadataIdentity;
 
 use classify::Classification;
 use source::{CatalogListing, CatalogSource, DiscoveryEndpoint};
@@ -193,25 +194,31 @@ fn plan<'a>(
         if endpoints.is_empty() {
             continue;
         }
-        let Some(secret_name) = document
+        let Some(entry) = document
             .credentials
             .get(provider.credential.as_str())
             .filter(|c| c.kind.is_platform())
-            .and_then(|c| c.secret.clone())
         else {
             continue;
         };
-        let Some(value) = secret(secret_name.as_str()) else {
-            continue;
-        };
-        let credential = match ProviderCredential::parse(&value) {
-            Ok(credential) => credential,
-            Err(e) => {
-                report
-                    .failed_publishers
-                    .push(format!("{}: {e}", provider_id.as_str()));
+        let credential = if let Some(workload) = &entry.workload_identity {
+            ProviderCredential::google_workload_identity(
+                workload.project.clone(),
+                MetadataIdentity::ambient(),
+            )
+        } else {
+            let Some(value) = entry.secret.as_ref().and_then(|name| secret(name.as_str())) else {
                 continue;
-            },
+            };
+            match ProviderCredential::parse(&value) {
+                Ok(credential) => credential,
+                Err(e) => {
+                    report
+                        .failed_publishers
+                        .push(format!("{}: {e}", provider_id.as_str()));
+                    continue;
+                },
+            }
         };
         for endpoint in endpoints {
             if let Some(source) = sources.iter().find(|s| s.applies(&endpoint, &credential)) {

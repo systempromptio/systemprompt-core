@@ -9,16 +9,17 @@ use std::sync::Arc;
 use systemprompt_identifiers::{CredentialId, ProviderId, UserId};
 use systemprompt_manifest::secrets::Secrets;
 use systemprompt_manifest::services::catalog::{
-    EndpointRef, ResolvedCatalog, ResolvedCredential, ResolvedEndpoint, ResolvedHop,
-    ResolvedProvider,
+    EndpointRef, ResolvedCatalog, ResolvedHop, ResolvedProvider,
 };
 use systemprompt_security::credential::{
     CredentialKind, CredentialScope, ProviderCredential, TokenCache, TokenCacheKey, fill_endpoint,
 };
+use systemprompt_security::google::MetadataIdentity;
 use systemprompt_wire::anthropic::AnthropicBeta;
 use systemprompt_wire::upstream::UpstreamDialect;
 use systemprompt_wire::{Hosting, WireProtocol};
 
+use super::binding::EndpointBinding;
 use super::call::{PresentedCredential, UpstreamCall};
 use super::error::UpstreamTargetError;
 
@@ -43,44 +44,6 @@ pub struct UpstreamTarget {
     accepted_betas: Option<BTreeSet<AnthropicBeta>>,
     user_agent: Option<String>,
     forward_headers: Vec<String>,
-}
-
-/// The three catalog objects one upstream is built from.
-#[derive(Debug, Clone, Copy)]
-pub struct EndpointBinding<'a> {
-    pub provider: &'a ResolvedProvider,
-    pub endpoint: &'a ResolvedEndpoint,
-    pub credential: &'a ResolvedCredential,
-}
-
-impl<'a> EndpointBinding<'a> {
-    pub fn of_hop(
-        catalog: &'a ResolvedCatalog,
-        hop: &'a ResolvedHop,
-    ) -> Result<Self, UpstreamTargetError> {
-        Self::of_endpoint(catalog, &hop.endpoint_ref())
-    }
-
-    pub fn of_endpoint(
-        catalog: &'a ResolvedCatalog,
-        endpoint: &EndpointRef,
-    ) -> Result<Self, UpstreamTargetError> {
-        let unknown = || UpstreamTargetError::UnknownEndpoint {
-            endpoint: endpoint.to_string(),
-        };
-        let resolved = catalog.endpoint(endpoint).ok_or_else(unknown)?;
-        let provider = catalog
-            .provider(endpoint.provider.as_str())
-            .ok_or_else(unknown)?;
-        let credential = catalog
-            .credential(provider.credential.as_str())
-            .ok_or_else(unknown)?;
-        Ok(Self {
-            provider,
-            endpoint: resolved,
-            credential,
-        })
-    }
 }
 
 impl UpstreamTarget {
@@ -111,18 +74,27 @@ impl UpstreamTarget {
         secret: &str,
         cache_key: TokenCacheKey,
     ) -> Result<Self, UpstreamTargetError> {
+        let credential = ProviderCredential::parse(secret).map_err(|source| {
+            UpstreamTargetError::MalformedCredential {
+                credential: binding.credential.id.as_str().to_owned(),
+                source,
+            }
+        })?;
+        Self::bind_credential(tokens, binding, credential, cache_key)
+    }
+
+    pub fn bind_credential(
+        tokens: &Arc<TokenCache>,
+        binding: EndpointBinding<'_>,
+        credential: ProviderCredential,
+        cache_key: TokenCacheKey,
+    ) -> Result<Self, UpstreamTargetError> {
         let EndpointBinding {
             provider,
             endpoint,
             credential: catalog_credential,
         } = binding;
         let endpoint_ref = endpoint.endpoint_ref();
-        let credential = ProviderCredential::parse(secret).map_err(|source| {
-            UpstreamTargetError::MalformedCredential {
-                credential: catalog_credential.id.as_str().to_owned(),
-                source,
-            }
-        })?;
         if endpoint.hosting == Hosting::Vertex
             && endpoint.wire != WireProtocol::Gemini
             && credential.kind() == CredentialKind::ApiKey
@@ -177,6 +149,14 @@ impl UpstreamTarget {
         binding: EndpointBinding<'_>,
     ) -> Result<Self, UpstreamTargetError> {
         let credential = binding.credential;
+        let key = TokenCacheKey::platform(&credential.id);
+        if let Some(workload) = credential.platform_workload_identity() {
+            let ambient = ProviderCredential::google_workload_identity(
+                workload.project.clone(),
+                MetadataIdentity::ambient(),
+            );
+            return Self::bind_credential(tokens, binding, ambient, key);
+        }
         let Some(secret_name) = credential.platform_secret() else {
             let credential_id = credential.id.as_str().to_owned();
             return Err(if credential.is_caller() {
@@ -195,7 +175,6 @@ impl UpstreamTarget {
                 secret: secret_name.as_str().to_owned(),
             }
         })?;
-        let key = TokenCacheKey::platform(&credential.id);
         Self::bind(tokens, binding, secret, key)
     }
 

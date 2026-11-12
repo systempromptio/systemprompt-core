@@ -2,9 +2,10 @@
 //! [`FileStorage`] backend, with the credential sources the object-store
 //! backends need.
 //!
-//! The storage crate stays free of the security crate, so the key-file token
-//! source ([`ServiceAccountTokens`]) lives here and wraps
-//! `systemprompt_security::google::access_token`.
+//! The storage crate stays free of the security crate, so both Cloud Storage
+//! token sources live here and wrap the security crate's one Google token
+//! implementation: [`ServiceAccountTokens`] a key held in secrets, and
+//! [`WorkloadIdentityTokens`] the runtime's ambient identity.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -17,10 +18,11 @@ use systemprompt_config::paths::AppPaths;
 use systemprompt_identifiers::{InstanceId, SecretName};
 use systemprompt_manifest::profile::{GcsCredentials, StorageBackend, StorageConfig};
 use systemprompt_security::credential::TokenCache;
-use systemprompt_security::google::{ServiceAccountKey, access_token};
+use systemprompt_security::google::{
+    MetadataIdentity, ServiceAccountKey, access_token, metadata_access_token,
+};
 use systemprompt_storage::{
-    DEFAULT_METADATA_TOKEN_URL, FileStorageBackend, GcsError, GcsParams, GcsTokenSource,
-    MetadataServerTokens, S3Credentials, S3Params,
+    FileStorageBackend, GcsError, GcsParams, GcsTokenSource, S3Credentials, S3Params,
 };
 use systemprompt_traits::FileStorage;
 
@@ -52,6 +54,32 @@ impl ServiceAccountTokens {
 impl GcsTokenSource for ServiceAccountTokens {
     async fn bearer(&self) -> Result<String, GcsError> {
         access_token(&self.tokens, &self.cache_key, &self.key)
+            .await
+            .map_err(|e| GcsError::Token(Box::new(e)))
+    }
+}
+
+/// Cloud Storage tokens minted from the runtime's workload identity.
+#[derive(Debug)]
+pub struct WorkloadIdentityTokens {
+    identity: MetadataIdentity,
+    tokens: TokenCache,
+}
+
+impl WorkloadIdentityTokens {
+    #[must_use]
+    pub fn new(identity: MetadataIdentity) -> Self {
+        Self {
+            identity,
+            tokens: TokenCache::new(),
+        }
+    }
+}
+
+#[async_trait]
+impl GcsTokenSource for WorkloadIdentityTokens {
+    async fn bearer(&self) -> Result<String, GcsError> {
+        metadata_access_token(&self.tokens, &self.identity)
             .await
             .map_err(|e| GcsError::Token(Box::new(e)))
     }
@@ -115,9 +143,7 @@ fn init_gcs(
     let http = object_store_http()?;
     let tokens: Arc<dyn GcsTokenSource> = match storage.credentials.clone().unwrap_or_default() {
         GcsCredentials::WorkloadIdentity => {
-            let endpoint = url::Url::parse(DEFAULT_METADATA_TOKEN_URL)
-                .map_err(RuntimeError::StorageEndpoint)?;
-            Arc::new(MetadataServerTokens::new(endpoint, http.clone()))
+            Arc::new(WorkloadIdentityTokens::new(MetadataIdentity::ambient()))
         },
         GcsCredentials::Secret(name) => {
             let raw = secret(name.as_str())

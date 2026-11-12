@@ -18,7 +18,7 @@ use systemprompt_wire::anthropic::AnthropicBeta;
 use systemprompt_wire::{Hosting, ModelLimits, WireProtocol};
 
 use crate::services::ai::{ModelCapabilities, ModelGovernance, ModelPricing, ResilienceSettings};
-use crate::services::catalog::credentials::CredentialKind;
+use crate::services::catalog::credentials::{CredentialKind, WorkloadIdentityCredential};
 use crate::services::catalog::endpoint::EndpointRef;
 use crate::services::gateway::SelectionStrategy;
 
@@ -27,6 +27,7 @@ pub struct ResolvedCredential {
     pub id: CredentialId,
     pub kind: CredentialKind,
     pub secret: Option<SecretName>,
+    pub workload_identity: Option<WorkloadIdentityCredential>,
     pub label: Option<String>,
 }
 
@@ -49,6 +50,14 @@ impl ResolvedCredential {
     #[must_use]
     pub const fn is_member_paid(&self) -> bool {
         self.kind.is_member_paid()
+    }
+
+    #[must_use]
+    pub const fn platform_workload_identity(&self) -> Option<&WorkloadIdentityCredential> {
+        match self.kind {
+            CredentialKind::Platform => self.workload_identity.as_ref(),
+            CredentialKind::Personal | CredentialKind::Caller => None,
+        }
     }
 
     #[must_use]

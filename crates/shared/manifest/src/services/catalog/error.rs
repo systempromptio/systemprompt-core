@@ -22,8 +22,19 @@ pub enum CatalogError {
     #[error(transparent)]
     Billing(Box<BillingRuleError>),
 
-    #[error("credential '{credential}' is `kind: platform` but names no `secret`")]
+    #[error(
+        "credential '{credential}' is `kind: platform` but names no `secret` or `workload_identity`"
+    )]
     PlatformCredentialWithoutSecret { credential: CredentialId },
+
+    #[error("credential '{credential}' names both a `secret` and a `workload_identity`")]
+    PlatformCredentialWithTwoSources { credential: CredentialId },
+
+    #[error("credential '{credential}' declares a `workload_identity` {problem}")]
+    InvalidWorkloadIdentity {
+        credential: CredentialId,
+        problem: &'static str,
+    },
 
     #[error(
         "credential '{credential}' is `kind: personal` but names secret '{secret}'; each member \

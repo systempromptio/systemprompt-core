@@ -126,6 +126,18 @@ Each route's `api_key_secret` names a key in the secrets document, not a literal
 
 A request whose route names a secret that is absent fails with a gateway error and the secret name in the message. Manage these keys through your secrets store as described in [configure.md](configure.md) §5; do not commit them.
 
+## Workload identity: Vertex AI without a key
+
+On GKE (Workload Identity), Cloud Run or Compute Engine a `kind: platform` credential can authenticate as the service account the workload runs as instead of naming a secret. The token comes from the metadata server and is cached once for the runtime's identity, shared with Cloud Storage when `storage.credentials` is `workload_identity`.
+
+```yaml
+# services/ai/credentials.yaml
+credentials:
+  vertex: { kind: platform, workload_identity: { project: acme-prod } }
+```
+
+`project` fills the `{project}` segment of the provider's endpoint URLs; the region is part of each endpoint's URL. Grant the workload's service account `roles/aiplatform.user` on that project. The catalog refuses a credential that names both a `secret` and a `workload_identity`, a `workload_identity` with an empty `project`, and a `workload_identity` on a `personal` or `caller` credential. Boot-time Vertex discovery lists models through the same identity. `systemprompt admin setup --vertex-project <ID>` seeds this credential with a `vertex` provider (a Claude endpoint on `global` and a Gemini endpoint on `us-central1`); `--vertex-key-file <PATH>` seeds the same provider with the key file stored as the `vertex` secret.
+
 ## Caller credentials: a member's own vendor account
 
 A `kind: caller` credential serves an endpoint with the credential the client presents on each request, instead of a deployment secret or a stored member key. It is how a member's own subscription with a vendor is used through the gateway, for example the claude.ai login Claude Code holds: the request is authenticated, authorised, scanned, audited and counted here, and billed to the member by the vendor. Nothing changes for a deployment that does not declare one.

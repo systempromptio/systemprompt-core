@@ -4,7 +4,8 @@
 //! keys straight from flags. [`select_provider_keys`] returns the explicit
 //! default when the user picks a single provider, and `None` when they enter
 //! several keys (the default is then resolved by
-//! [`resolve_interactive_primary`]).
+//! [`resolve_interactive_primary`]). Vertex AI is chosen with a project id
+//! (workload identity, no key) or a service-account key file path.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -13,7 +14,8 @@ use anyhow::{Result, anyhow};
 use systemprompt_identifiers::ProviderId;
 use systemprompt_logging::CliService;
 
-use super::SecretsData;
+use super::{SecretsData, vertex};
+use crate::commands::admin::setup::catalog::VERTEX;
 use crate::interactive::Prompter;
 
 pub fn select_provider_keys(
@@ -25,6 +27,8 @@ pub fn select_provider_keys(
         "Anthropic (Claude) - https://console.anthropic.com/api-keys".to_owned(),
         "OpenAI (GPT) - https://platform.openai.com/api-keys".to_owned(),
         "Enter multiple keys".to_owned(),
+        "Vertex AI - workload identity (GKE, Cloud Run, Compute Engine; no key)".to_owned(),
+        "Vertex AI - service-account key file".to_owned(),
     ];
 
     let selection = prompter.select("Select your AI provider", &providers)?;
@@ -57,6 +61,16 @@ pub fn select_provider_keys(
                 secrets.github = Some(key);
             }
             Ok(None)
+        },
+        4 => {
+            let project = prompter.input("Google Cloud project id")?;
+            vertex::apply(secrets, Some(project.trim()), None)?;
+            Ok(Some(ProviderId::new(VERTEX)))
+        },
+        5 => {
+            let path = prompter.input("Path to the service-account key file (JSON)")?;
+            vertex::apply(secrets, None, Some(std::path::Path::new(path.trim())))?;
+            Ok(Some(ProviderId::new(VERTEX)))
         },
         _ => Err(anyhow!("Invalid AI provider option selected")),
     }

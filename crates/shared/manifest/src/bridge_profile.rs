@@ -64,9 +64,12 @@ impl CredentialFacts<'_> {
         match credential.kind {
             CredentialKind::Personal => self.personal_keys.contains(credential.id.as_str()),
             CredentialKind::Caller => self.presents_own_credential,
-            CredentialKind::Platform => credential
-                .platform_secret()
-                .is_some_and(|secret| (self.secret_present)(secret.as_str())),
+            CredentialKind::Platform => {
+                credential.platform_workload_identity().is_some()
+                    || credential
+                        .platform_secret()
+                        .is_some_and(|secret| (self.secret_present)(secret.as_str()))
+            },
         }
     }
 }

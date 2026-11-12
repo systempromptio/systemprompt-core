@@ -19,11 +19,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod binding;
 mod call;
 mod error;
 mod target;
 
+pub use binding::EndpointBinding;
 pub use call::{PresentedCredential, UpstreamCall};
 pub use error::UpstreamTargetError;
 pub use systemprompt_wire::upstream::UpstreamDialect;
-pub use target::{EndpointBinding, UpstreamTarget};
+pub use target::UpstreamTarget;

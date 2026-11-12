@@ -20,8 +20,8 @@ use super::postgres_access::PostgresConfig;
 use super::types::{DatabaseSetupInfo, SecretsConfiguredInfo, SetupOutput};
 use super::wizard_dry_run::execute_dry_run;
 use super::wizard_prompts::{
-    collect_secrets, detect_project_root, get_environment_name, print_summary, resolve_admin_email,
-    setup_postgres, should_run_migrations,
+    collect_secrets, detect_project_root, get_environment_name, print_summary, print_vertex_note,
+    resolve_admin_email, setup_postgres, should_run_migrations,
 };
 use super::{SetupArgs, profile, secrets, services_files};
 use crate::CliConfig;
@@ -102,6 +102,9 @@ pub(super) async fn execute(
 
     if !config.is_json_output() {
         print_summary(&env_name, &profile_path);
+        if let Some(vertex) = secrets_data.vertex_seed() {
+            print_vertex_note(vertex);
+        }
     }
 
     let result = CommandOutput::card_value("Setup Complete", &output);
@@ -218,6 +221,7 @@ const fn secrets_info(secrets_data: &secrets::SecretsData) -> SecretsConfiguredI
         anthropic: secrets_data.anthropic.is_some(),
         openai: secrets_data.openai.is_some(),
         gemini: secrets_data.gemini.is_some(),
+        vertex: secrets_data.vertex_seed().is_some(),
         github: secrets_data.github.is_some(),
     }
 }
@@ -238,6 +242,7 @@ pub fn build_cancelled(args: &SetupArgs, env_name: &str, config: &CliConfig) -> 
             anthropic: args.anthropic_key.is_some(),
             openai: args.openai_key.is_some(),
             gemini: args.gemini_key.is_some(),
+            vertex: args.vertex_project.is_some() || args.vertex_key_file.is_some(),
             github: args.github_token.is_some(),
         },
         migrations_run: false,
