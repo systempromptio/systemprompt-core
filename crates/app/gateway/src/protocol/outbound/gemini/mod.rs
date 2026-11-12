@@ -17,6 +17,12 @@ use systemprompt_wire::{WireProtocol, gemini};
 use super::super::canonical::CanonicalResponse;
 use super::{OutboundAdapter, OutboundCtx, OutboundError, OutboundOutcome, PreparedBody};
 
+const CODEC: super::WireCodec = super::WireCodec {
+    wire: "gemini",
+    parse: gemini::parse_response,
+    events: |bytes, model| gemini::sse_to_canonical_events(bytes, model),
+};
+
 #[derive(Debug, Clone, Copy, Default)]
 pub struct GeminiOutbound;
 
@@ -52,6 +58,9 @@ impl OutboundAdapter for GeminiOutbound {
         }
         let upstream_response =
             super::send_checked(ctx.target.provider.as_str(), &ctx, req).await?;
+        if ctx.policy.returns_response_whole() {
+            return super::relay::relay(&ctx, upstream_response, CODEC).await;
+        }
 
         if ctx.request.stream {
             let stream = super::bounds::idle_bounded(upstream_response, ctx.http.bounds().idle);

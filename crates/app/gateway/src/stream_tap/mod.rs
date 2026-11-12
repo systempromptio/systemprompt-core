@@ -15,6 +15,7 @@ mod drain;
 mod finalize;
 mod ordinal;
 mod raw;
+mod relayed;
 pub mod retained;
 
 use std::pin::Pin;
@@ -49,6 +50,7 @@ pub use self::finalize::{ClientConnection, FailCause, FinalizeDecision, classify
 pub use self::abort::STREAM_ABORT_MESSAGE;
 pub use self::drain::{STREAM_DRAIN_MESSAGE, STREAMS_ABORTED_ON_SHUTDOWN_TOTAL};
 pub use self::raw::tap_raw;
+pub use self::relayed::tap_relayed;
 
 /// Shared by the streaming and buffered completion tasks so both debit quota
 /// and run the response-phase safety scan identically.

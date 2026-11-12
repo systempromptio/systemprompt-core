@@ -261,3 +261,27 @@ pub fn is_presented_request_header(name: &str) -> bool {
             .iter()
             .any(|prefix| lower.starts_with(prefix))
 }
+
+const WITHHELD_RETURNED_NAMES: &[&str] = &[
+    "content-length",
+    "connection",
+    "keep-alive",
+    "proxy-connection",
+    "proxy-authenticate",
+    "te",
+    "trailer",
+    "transfer-encoding",
+    "upgrade",
+    "set-cookie",
+];
+
+// Why: an upstream answer returned to the client whole keeps the upstream's
+// own headers. What is withheld is the framing of the hop it arrived on, a
+// cookie the client could never send back there, and any name in this
+// platform's namespace, which only this platform may set.
+#[must_use]
+pub fn is_returned_response_header(name: &str) -> bool {
+    let lower = name.to_ascii_lowercase();
+    !WITHHELD_RETURNED_NAMES.contains(&lower.as_str())
+        && !lower.starts_with(systemprompt_identifiers::headers::PLATFORM_PREFIX)
+}

@@ -170,7 +170,10 @@ async fn assert_not_retried(status: u16) {
     let upstream = err.upstream().expect("upstream kind");
     match upstream {
         UpstreamError::Status { status: got, .. } => assert_eq!(*got, status),
-        UpstreamError::Transport { .. } | UpstreamError::Timeout { .. } => {
+        UpstreamError::Transport { .. }
+        | UpstreamError::Timeout { .. }
+        | UpstreamError::Relayed { .. }
+        | UpstreamError::UnreadableBody { .. } => {
             panic!("expected a status error")
         },
     }
@@ -223,7 +226,10 @@ async fn exhausted_budget_relays_the_final_429_verbatim() {
             assert_eq!(retry_after.as_deref(), Some("7"));
             assert_eq!(message, "capacity");
         },
-        UpstreamError::Transport { .. } | UpstreamError::Timeout { .. } => {
+        UpstreamError::Transport { .. }
+        | UpstreamError::Timeout { .. }
+        | UpstreamError::Relayed { .. }
+        | UpstreamError::UnreadableBody { .. } => {
             panic!("expected a status error")
         },
     }

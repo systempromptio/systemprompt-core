@@ -11,7 +11,9 @@ use super::super::super::audit::GatewayAudit;
 use super::super::super::image_fetch::{ImageFetchPolicy, inline_url_images};
 use super::super::super::protocol::canonical::CanonicalRequest;
 use super::super::super::protocol::inbound::InboundAdapter;
-use super::super::super::protocol::outbound::{OutboundCtx, OutboundOutcome, PreparedBody};
+use super::super::super::protocol::outbound::{
+    OutboundCtx, OutboundOutcome, PreparedBody, Relayed, RelayedBody,
+};
 use super::super::resolve::ResolvedUpstream;
 use super::super::{DispatchError, GatewayError};
 
@@ -132,7 +134,12 @@ pub(super) async fn send_attempt(
     let outcome = upstream.adapter.send(ctx, body).await?;
     if matches!(
         outcome,
-        OutboundOutcome::Buffered(_) | OutboundOutcome::RawBuffered { .. }
+        OutboundOutcome::Buffered(_)
+            | OutboundOutcome::RawBuffered { .. }
+            | OutboundOutcome::Relayed(Relayed {
+                body: RelayedBody::Buffered { .. },
+                ..
+            })
     ) {
         audit.mark_upstream_end();
     }

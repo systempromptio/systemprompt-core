@@ -186,6 +186,18 @@ fn with_retry_after(mut response: Response<Body>, seconds: i32) -> Response<Body
 }
 
 fn build_upstream_passthrough(e: &UpstreamError) -> Option<Response<Body>> {
+    if let UpstreamError::Relayed {
+        status,
+        headers,
+        body,
+        ..
+    } = e
+    {
+        let mut response = Response::new(Body::from(bytes::Bytes::clone(body)));
+        *response.status_mut() = StatusCode::from_u16(*status).ok()?;
+        *response.headers_mut() = http::HeaderMap::clone(headers);
+        return Some(response);
+    }
     let UpstreamError::Status {
         status,
         body,
@@ -221,7 +233,17 @@ pub fn map_upstream_error(e: &UpstreamError) -> RejectionError {
             mapped,
             format!("{provider} rejected the request: {message}"),
         ),
-        UpstreamError::Status { .. } => RejectionError::server(mapped, "upstream provider error"),
+        UpstreamError::Relayed {
+            provider, status, ..
+        } if !mapped.is_server_error() => {
+            RejectionError::client(mapped, format!("{provider} answered {status}"))
+        },
+        UpstreamError::Status { .. } | UpstreamError::Relayed { .. } => {
+            RejectionError::server(mapped, "upstream provider error")
+        },
+        UpstreamError::UnreadableBody { .. } => {
+            RejectionError::server(mapped, "upstream provider answer could not be read")
+        },
         UpstreamError::Transport { .. } => {
             RejectionError::server(mapped, "upstream provider unreachable")
         },

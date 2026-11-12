@@ -308,3 +308,286 @@ async fn a_governed_hop_on_the_same_wire_is_retried_and_traced() {
     );
     assert!(received[0].headers.get("traceparent").is_some());
 }
+
+mod relayed {
+    use futures_util::StreamExt;
+    use systemprompt_gateway::protocol::outbound::openai_chat::OpenAiChatOutbound;
+    use systemprompt_gateway::protocol::outbound::{RelayedBody, UpstreamError};
+    use systemprompt_wire::WireProtocol;
+    use systemprompt_wire::upstream::is_returned_response_header;
+
+    use super::*;
+
+    const ANTHROPIC_BODY: &str = "{ \"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\
+        \"model\":\"upstream-1\",\n  \"content\":[{\"type\":\"tool_use\",\"id\":\"tu_1\",\
+        \"name\":\"do\",\"input\":{}}],\"stop_reason\":\"end_turn\",\"vendor_extra\":{\"k\":1},\
+        \"usage\":{\"input_tokens\":7,\"output_tokens\":3} }";
+    const CHAT_BODY: &str = "{\"id\":\"chatcmpl-1\",\"object\":\"chat.completion\",\
+        \"system_fingerprint\":\"fp_abc\",\"model\":\"upstream-1\",\"choices\":[{\"index\":0,\
+        \"logprobs\":null,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\
+        \"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":5,\"completion_tokens\":2,\
+        \"total_tokens\":7}}";
+    const CHAT_STREAM: &str = ": keep-alive\n\ndata: {\"id\":\"c1\",\"model\":\"upstream-1\",\
+        \"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"ok\"}}]}\n\n\
+        data: {\"vendor_only\":true}\n\ndata: {\"id\":\"c1\",\"model\":\"upstream-1\",\
+        \"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}],\
+        \"usage\":{\"prompt_tokens\":5,\"completion_tokens\":2,\"total_tokens\":7}}\n\n\
+        data: [DONE]\n\n";
+
+    fn hop_on(wire: WireProtocol, kind: CredentialKind) -> ResolvedHop {
+        let mut hop = systemprompt_catalog_fixtures::hop(
+            "relay-upstream",
+            wire,
+            "https://upstream.invalid/v1",
+            "m",
+            "upstream-1",
+        );
+        hop.credential.kind = kind;
+        hop
+    }
+
+    async fn exchange(
+        adapter: &dyn OutboundAdapter,
+        hop: &ResolvedHop,
+        endpoint: &str,
+        stream: bool,
+    ) -> Result<OutboundOutcome, OutboundError> {
+        let req = CanonicalRequest {
+            stream,
+            ..request()
+        };
+        let raw = bytes::Bytes::from_static(
+            br#"{"model":"upstream-1","max_tokens":64,"messages":[{"role":"user","content":"hi"}]}"#,
+        );
+        let ctx = OutboundCtx {
+            target: hop,
+            policy: systemprompt_gateway::service::HopPolicy::of(hop),
+            upstream: &caller_call(endpoint),
+            http: &support::upstream_http(),
+            request: &req,
+            upstream_model: "upstream-1",
+            model_limits: None,
+            automatic_prompt_caching: false,
+            forward_headers: &[],
+            raw_body: Some(&raw),
+        };
+        let body = PreparedBody {
+            bytes: raw.clone(),
+            raw_lane: true,
+        };
+        with_policy(RetryPolicy::immediate(), adapter.send(ctx, &body)).await
+    }
+
+    async fn upstream(route: &str, template: ResponseTemplate) -> MockServer {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path(route))
+            .respond_with(
+                template
+                    .insert_header("anthropic-ratelimit-requests-remaining", "41")
+                    .insert_header("request-id", "req_upstream_1")
+                    .insert_header("set-cookie", "__cf_bm=1; Path=/")
+                    .insert_header("x-systemprompt-request-id", "spoofed"),
+            )
+            .mount(&server)
+            .await;
+        server
+    }
+
+    fn relayed(outcome: OutboundOutcome) -> systemprompt_gateway::protocol::outbound::Relayed {
+        match outcome {
+            OutboundOutcome::Relayed(answer) => answer,
+            _ => panic!("a hop served as presented returns the upstream answer whole"),
+        }
+    }
+
+    fn assert_upstream_headers(headers: &http::HeaderMap) {
+        assert_eq!(
+            headers
+                .get("anthropic-ratelimit-requests-remaining")
+                .and_then(|v| v.to_str().ok()),
+            Some("41")
+        );
+        assert_eq!(
+            headers.get("request-id").and_then(|v| v.to_str().ok()),
+            Some("req_upstream_1")
+        );
+        assert!(headers.get("content-type").is_some());
+        assert!(headers.get("set-cookie").is_none());
+        assert!(headers.get("content-length").is_none());
+        assert!(headers.get("x-systemprompt-request-id").is_none());
+    }
+
+    #[tokio::test]
+    async fn an_anthropic_answer_keeps_its_bytes_headers_and_stop_reason() {
+        let server = upstream(
+            "/messages",
+            ResponseTemplate::new(200).set_body_raw(ANTHROPIC_BODY, "application/json"),
+        )
+        .await;
+        let hop = hop_on(WireProtocol::Anthropic, CredentialKind::Caller);
+
+        let answer = relayed(
+            exchange(&AnthropicOutbound, &hop, &server.uri(), false)
+                .await
+                .expect("served"),
+        );
+
+        assert_upstream_headers(&answer.headers);
+        match answer.body {
+            RelayedBody::Buffered { bytes, canonical } => {
+                assert_eq!(bytes.as_ref(), ANTHROPIC_BODY.as_bytes());
+                assert_eq!(canonical.usage.input_tokens, 7);
+                assert_eq!(canonical.usage.output_tokens, 3);
+            },
+            RelayedBody::Streaming { .. } => panic!("buffered"),
+        }
+    }
+
+    #[tokio::test]
+    async fn the_same_answer_on_a_platform_hop_is_not_relayed() {
+        let server = upstream(
+            "/messages",
+            ResponseTemplate::new(200).set_body_raw(ANTHROPIC_BODY, "application/json"),
+        )
+        .await;
+        let hop = hop_on(WireProtocol::Anthropic, CredentialKind::Platform);
+
+        let outcome = exchange(&AnthropicOutbound, &hop, &server.uri(), false)
+            .await
+            .expect("served");
+
+        match outcome {
+            OutboundOutcome::RawBuffered { body, .. } => assert_ne!(
+                body.as_ref(),
+                ANTHROPIC_BODY.as_bytes(),
+                "the control: a governed hop corrects the contradictory stop_reason"
+            ),
+            _ => panic!("a governed raw-lane answer"),
+        }
+    }
+
+    #[tokio::test]
+    async fn an_openai_chat_answer_keeps_fields_the_canonical_model_does_not_carry() {
+        let server = upstream(
+            "/chat/completions",
+            ResponseTemplate::new(200).set_body_raw(CHAT_BODY, "application/json"),
+        )
+        .await;
+        let hop = hop_on(WireProtocol::OpenAiChat, CredentialKind::Caller);
+
+        let answer = relayed(
+            exchange(&OpenAiChatOutbound, &hop, &server.uri(), false)
+                .await
+                .expect("served"),
+        );
+
+        assert_upstream_headers(&answer.headers);
+        match answer.body {
+            RelayedBody::Buffered { bytes, canonical } => {
+                assert_eq!(bytes.as_ref(), CHAT_BODY.as_bytes());
+                assert_eq!(canonical.usage.input_tokens, 5);
+            },
+            RelayedBody::Streaming { .. } => panic!("buffered"),
+        }
+    }
+
+    #[tokio::test]
+    async fn a_stream_reaches_the_client_byte_for_byte_and_is_decoded_beside_it() {
+        let server = upstream(
+            "/chat/completions",
+            ResponseTemplate::new(200).set_body_raw(CHAT_STREAM, "text/event-stream"),
+        )
+        .await;
+        let hop = hop_on(WireProtocol::OpenAiChat, CredentialKind::Caller);
+
+        let answer = relayed(
+            exchange(&OpenAiChatOutbound, &hop, &server.uri(), true)
+                .await
+                .expect("served"),
+        );
+
+        assert_upstream_headers(&answer.headers);
+        let RelayedBody::Streaming { mut bytes, events } = answer.body else {
+            panic!("streaming");
+        };
+        let mut received = Vec::new();
+        while let Some(chunk) = bytes.next().await {
+            received.extend_from_slice(&chunk.expect("chunk"));
+        }
+        drop(bytes);
+        assert_eq!(
+            String::from_utf8(received).expect("utf8"),
+            CHAT_STREAM,
+            "the comment frame and the frame the decoder cannot read are both delivered"
+        );
+        let decoded: Vec<_> = events.collect().await;
+        assert!(
+            decoded.iter().any(|event| matches!(
+                event,
+                Ok(systemprompt_gateway::protocol::canonical::CanonicalEvent::MessageStop { .. })
+            )),
+            "the copy is decoded to its terminal event for the audit row"
+        );
+    }
+
+    #[tokio::test]
+    async fn an_upstream_error_is_handed_back_whole_with_its_headers() {
+        let long = format!(
+            "{{\"error\":{{\"message\":\"{}\"}}}}",
+            "x".repeat(100 * 1024)
+        );
+        let server = upstream(
+            "/messages",
+            ResponseTemplate::new(429)
+                .insert_header("retry-after", "17")
+                .set_body_raw(long.clone(), "application/json"),
+        )
+        .await;
+        let hop = hop_on(WireProtocol::Anthropic, CredentialKind::Caller);
+
+        let refused = exchange(&AnthropicOutbound, &hop, &server.uri(), false).await;
+
+        match refused {
+            Err(OutboundError::Upstream(UpstreamError::Relayed {
+                status,
+                headers,
+                body,
+                ..
+            })) => {
+                assert_eq!(status, 429);
+                assert_eq!(body.len(), long.len(), "past the 64 KiB summary cap, uncut");
+                assert_eq!(
+                    headers.get("retry-after").and_then(|v| v.to_str().ok()),
+                    Some("17")
+                );
+                assert_upstream_headers(&headers);
+            },
+            _ => panic!("the upstream's own answer"),
+        }
+        assert_eq!(server.received_requests().await.expect("log").len(), 1);
+    }
+
+    #[test]
+    fn returned_headers_withhold_framing_cookies_and_the_platform_namespace() {
+        for kept in [
+            "content-type",
+            "retry-after",
+            "request-id",
+            "x-ratelimit-limit",
+            "date",
+        ] {
+            assert!(is_returned_response_header(kept), "{kept}");
+        }
+        for withheld in [
+            "Content-Length",
+            "transfer-encoding",
+            "connection",
+            "set-cookie",
+            "x-systemprompt-request-id",
+            "X-Systemprompt-Memory-Ids",
+        ] {
+            assert!(!is_returned_response_header(withheld), "{withheld}");
+        }
+    }
+}

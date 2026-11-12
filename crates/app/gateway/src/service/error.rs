@@ -173,7 +173,12 @@ pub fn upstream_status(error: &UpstreamError) -> StatusCode {
             408 | 504 => StatusCode::GATEWAY_TIMEOUT,
             _ => StatusCode::BAD_GATEWAY,
         },
-        UpstreamError::Transport { .. } => StatusCode::BAD_GATEWAY,
+        UpstreamError::Relayed { status, .. } => {
+            StatusCode::from_u16(*status).unwrap_or(StatusCode::BAD_GATEWAY)
+        },
+        UpstreamError::Transport { .. } | UpstreamError::UnreadableBody { .. } => {
+            StatusCode::BAD_GATEWAY
+        },
         UpstreamError::Timeout { .. } => StatusCode::GATEWAY_TIMEOUT,
     }
 }

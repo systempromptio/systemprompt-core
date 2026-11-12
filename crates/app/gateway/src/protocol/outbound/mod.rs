@@ -15,9 +15,11 @@
 
 pub mod anthropic;
 pub mod bounds;
+mod defect;
 pub mod gemini;
 pub mod openai_chat;
 pub mod openai_responses;
+pub mod relay;
 pub mod retry;
 pub mod trace_context;
 
@@ -35,12 +37,15 @@ use thiserror::Error;
 use super::canonical::{CanonicalEvent, CanonicalRequest, CanonicalResponse};
 use crate::service::HopPolicy;
 pub use bounds::{ResponseMode, UpstreamBodyError, UpstreamBounds, UpstreamHttp};
+pub(crate) use defect::{reject_defective_body, reject_unparsable_body};
+pub use relay::{Relayed, RelayedBody, WireCodec};
 
 /// Upstream provider failure.
 ///
 /// Carries the real HTTP status a provider answered, or the transport failure
 /// that kept it from answering, so the route layer can relay the status instead
-/// of flattening every failure to 502.
+/// of flattening every failure to 502. `Relayed` is an answer returned to the
+/// client whole, headers included, on a hop whose policy says so.
 #[derive(Debug, Error)]
 pub enum UpstreamError {
     #[error("{provider} returned {status}: {message}")]
@@ -62,6 +67,20 @@ pub enum UpstreamError {
     Timeout {
         provider: String,
         after: std::time::Duration,
+    },
+    #[error("{provider} returned {status}")]
+    Relayed {
+        provider: String,
+        status: u16,
+        headers: Box<http::HeaderMap>,
+        body: Box<bytes::Bytes>,
+    },
+    #[error("{provider} returned {status} with a body that could not be read whole")]
+    UnreadableBody {
+        provider: String,
+        status: u16,
+        #[source]
+        source: UpstreamBodyError,
     },
 }
 
@@ -142,12 +161,15 @@ pub(crate) async fn send_checked(
     ctx: &OutboundCtx<'_>,
     req: reqwest::RequestBuilder,
 ) -> Result<reqwest::Response, UpstreamError> {
-    let policy = ctx.policy.retry_policy(retry::current_policy());
     let req = if ctx.policy.stamps_trace() {
         trace_context::stamp(req)
     } else {
         req
     };
+    if ctx.policy.returns_response_whole() {
+        return relay::send_once(provider, ctx, req).await;
+    }
+    let policy = ctx.policy.retry_policy(retry::current_policy());
     let mode = ResponseMode::of(ctx.request.stream);
     let (response, _retries) =
         retry::send_with_retry(provider, req, &policy, ctx.http.bounds(), mode).await?;
@@ -202,6 +224,7 @@ pub enum OutboundOutcome {
         content_type: Option<String>,
         stream: BoxStream<'static, Result<bytes::Bytes, WireStreamError>>,
     },
+    Relayed(Relayed),
 }
 
 /// The exact bytes an adapter will put on the wire.
@@ -234,53 +257,3 @@ pub struct OutboundAdapterRegistration {
 }
 
 inventory::collect!(OutboundAdapterRegistration);
-
-const DEFECTIVE_BODY_STATUS: u16 = 502;
-
-pub(crate) fn reject_defective_body(
-    provider: &str,
-    wire: &str,
-    defect: &systemprompt_wire::defect::BodyDefect,
-    body: &bytes::Bytes,
-) -> OutboundError {
-    let excerpt: String = String::from_utf8_lossy(body).chars().take(512).collect();
-    tracing::warn!(
-        provider = %provider,
-        wire = %wire,
-        defect = %defect,
-        body = %excerpt,
-        "upstream returned a success status with a body carrying no turn"
-    );
-    OutboundError::Upstream(UpstreamError::Status {
-        provider: provider.to_owned(),
-        status: DEFECTIVE_BODY_STATUS,
-        message: format!("{defect}: {excerpt}"),
-        body: Box::new(body.clone()),
-        retry_after: None,
-        request_id: None,
-    })
-}
-
-pub(crate) fn reject_unparsable_body(
-    provider: &str,
-    wire: &str,
-    error: &systemprompt_wire::error::WireParseError,
-    body: &bytes::Bytes,
-) -> OutboundError {
-    let excerpt: String = String::from_utf8_lossy(body).chars().take(512).collect();
-    tracing::error!(
-        provider = %provider,
-        wire = %wire,
-        error = %error,
-        body = %excerpt,
-        "upstream returned a success status with a body that does not parse"
-    );
-    OutboundError::Upstream(UpstreamError::Status {
-        provider: provider.to_owned(),
-        status: DEFECTIVE_BODY_STATUS,
-        message: format!("{error}: {excerpt}"),
-        body: Box::new(body.clone()),
-        retry_after: None,
-        request_id: None,
-    })
-}

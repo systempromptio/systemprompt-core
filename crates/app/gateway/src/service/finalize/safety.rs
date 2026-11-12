@@ -6,6 +6,9 @@
 
 use std::future::Future;
 
+use axum::body::Body;
+use axum::response::Response;
+
 use crate::policies::{
     Finding, PHASE_REQUEST, PHASE_REQUEST_HISTORY, PHASE_RESPONSE, SafetyConfig, SafetyHistoryMode,
     ScanError, ScannerFailMode, ScannerSettings,
@@ -246,4 +249,17 @@ async fn persist_findings(
     if let Err(e) = repo.insert_many(&rows).await {
         tracing::warn!(error = %e, count = rows.len(), "safety findings insert failed");
     }
+}
+
+pub(super) fn safety_block_response(category: &str) -> Response<Body> {
+    let message = format!("response blocked by safety policy: category '{category}'");
+    let escaped = message.replace('\\', "\\\\").replace('"', "\\\"");
+    let body = format!(
+        "{{\"type\":\"error\",\"error\":{{\"type\":\"api_error\",\"message\":\"{escaped}\"}}}}"
+    );
+    Response::builder()
+        .status(http::StatusCode::FORBIDDEN)
+        .header(http::header::CONTENT_TYPE, "application/json")
+        .body(Body::from(body))
+        .unwrap_or_else(|_| Response::new(Body::empty()))
 }

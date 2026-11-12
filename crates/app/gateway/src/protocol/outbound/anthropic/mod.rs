@@ -23,6 +23,12 @@ pub mod response;
 pub mod streaming;
 mod terminal;
 
+const CODEC: super::WireCodec = super::WireCodec {
+    wire: "anthropic",
+    parse: anthropic::parse_response,
+    events: |bytes, _model| anthropic::sse_to_canonical_events(bytes),
+};
+
 #[derive(Debug, Clone, Copy, Default)]
 pub struct AnthropicOutbound;
 
@@ -76,6 +82,10 @@ impl OutboundAdapter for AnthropicOutbound {
         } else {
             send_once(&ctx, &provider, &url, &request_headers(&ctx), &body.bytes).await?
         };
+
+        if ctx.policy.returns_response_whole() {
+            return super::relay::relay(&ctx, upstream_response, CODEC).await;
+        }
 
         let content_type = upstream_response
             .headers()
@@ -205,7 +215,9 @@ fn bad_request_message(error: &super::UpstreamError) -> Option<&str> {
         } => Some(message),
         super::UpstreamError::Status { .. }
         | super::UpstreamError::Transport { .. }
-        | super::UpstreamError::Timeout { .. } => None,
+        | super::UpstreamError::Timeout { .. }
+        | super::UpstreamError::Relayed { .. }
+        | super::UpstreamError::UnreadableBody { .. } => None,
     }
 }
 
