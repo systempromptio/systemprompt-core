@@ -103,7 +103,7 @@ audit.json
 /plan/*
 
 # Internal documentation (local-only: dev guides, audits, evaluations, legal)
-internal/
+/internal/
 
 # Local-only tech-debt / findings register
 /issue.md
