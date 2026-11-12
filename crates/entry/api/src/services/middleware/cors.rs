@@ -62,7 +62,7 @@ impl CorsMiddleware {
                 http::header::ORIGIN,
                 http::header::ACCESS_CONTROL_REQUEST_METHOD,
                 http::header::ACCESS_CONTROL_REQUEST_HEADERS,
-                http::HeaderName::from_static("mcp-protocol-version"),
+                http::HeaderName::from_static(headers::MCP_PROTOCOL_VERSION),
                 http::HeaderName::from_static(headers::CONTEXT_ID),
                 http::HeaderName::from_static(headers::GATEWAY_CONVERSATION_ID),
                 http::HeaderName::from_static(headers::PROVIDER_REQUEST_ID),

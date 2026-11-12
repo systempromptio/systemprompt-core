@@ -22,7 +22,6 @@ cd "$(dirname "$0")/.."
 definers=(
     crates/shared/identifiers/src/headers.rs
     bin/bridge/src/headers.rs
-    crates/shared/models/src/bridge/manifest/mod.rs
 )
 
 allowlist=$(cat <<'LIST'

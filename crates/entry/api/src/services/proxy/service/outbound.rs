@@ -19,8 +19,8 @@ use systemprompt_traits::InjectContextHeaders;
 pub const MCP_PASSTHROUGH_HEADERS: [&str; 5] = [
     "content-type",
     "accept",
-    "mcp-session-id",
-    "mcp-protocol-version",
+    headers::MCP_SESSION_ID,
+    headers::MCP_PROTOCOL_VERSION,
     "last-event-id",
 ];
 
@@ -30,7 +30,7 @@ pub const AGENT_PASSTHROUGH_HEADERS: [&str; 7] = [
     "content-type",
     "accept",
     "last-event-id",
-    "a2a-version",
+    headers::A2A_VERSION,
     "a2a-extensions",
     "user-agent",
     "accept-language",

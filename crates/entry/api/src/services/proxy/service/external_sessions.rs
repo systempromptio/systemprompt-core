@@ -76,7 +76,7 @@ impl<'a> SessionGuard<'a> {
     }
 
     pub(super) async fn remember(&self, headers: &HeaderMap) -> Result<(), ProxyError> {
-        if let Some(session) = headers.get("mcp-session-id") {
+        if let Some(session) = headers.get(systemprompt_identifiers::headers::MCP_SESSION_ID) {
             let session = session
                 .to_str()
                 .ok()

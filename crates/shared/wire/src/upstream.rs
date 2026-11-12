@@ -218,27 +218,9 @@ const WITHHELD_PRESENTED_NAMES: &[&str] = &[
     "x-request-start",
     "tracestate",
     "baggage",
-    systemprompt_identifiers::headers::AUTHORIZATION,
-    systemprompt_identifiers::headers::API_KEY,
-    systemprompt_identifiers::headers::TRACEPARENT,
-    systemprompt_identifiers::headers::TRACE_ID,
-    systemprompt_identifiers::headers::CONTEXT_ID,
-    systemprompt_identifiers::headers::GATEWAY_CONVERSATION_ID,
-    systemprompt_identifiers::headers::PROVIDER_REQUEST_ID,
-    systemprompt_identifiers::headers::SESSION_ID,
-    systemprompt_identifiers::headers::USER_ID,
-    systemprompt_identifiers::headers::USER_TYPE,
-    systemprompt_identifiers::headers::TASK_ID,
-    systemprompt_identifiers::headers::AGENT_NAME,
-    systemprompt_identifiers::headers::AI_TOOL_CALL_ID,
-    systemprompt_identifiers::headers::CALL_SOURCE,
-    systemprompt_identifiers::headers::CLIENT_ID,
-    systemprompt_identifiers::headers::POLICY_VERSION,
-    systemprompt_identifiers::headers::INFERENCE_PROTOCOL,
 ];
 
 const WITHHELD_PRESENTED_PREFIXES: &[&str] = &[
-    systemprompt_identifiers::headers::PLATFORM_PREFIX,
     "x-forwarded-",
     "x-mcp-",
     "x-envoy-",
@@ -251,15 +233,31 @@ const WITHHELD_PRESENTED_PREFIXES: &[&str] = &[
 
 // Why: a request served with the credential its client presented reaches the
 // upstream with that client's own headers. What is withheld is what was never
-// the client's to send there: this hop's framing, the credentials and
-// identifiers this platform reads, and the network path the request took.
+// the client's to send there: this hop's framing, the network path the request
+// took, every header and namespace this platform names for itself, and the
+// header any vendor reads an API key from, since the credential is presented
+// once, by the upstream call.
 #[must_use]
 pub fn is_presented_request_header(name: &str) -> bool {
+    use systemprompt_identifiers::headers;
     let lower = name.to_ascii_lowercase();
-    !WITHHELD_PRESENTED_NAMES.contains(&lower.as_str())
+    let name = lower.as_str();
+    if headers::CLIENT_TO_VENDOR.contains(&name) {
+        return true;
+    }
+    !WITHHELD_PRESENTED_NAMES.contains(&name)
+        && !headers::ALL.contains(&name)
+        && !is_api_key_header(name)
         && !WITHHELD_PRESENTED_PREFIXES
             .iter()
-            .any(|prefix| lower.starts_with(prefix))
+            .chain(headers::PREFIXES)
+            .any(|prefix| name.starts_with(prefix))
+}
+
+fn is_api_key_header(name: &str) -> bool {
+    WireProtocol::ALL
+        .iter()
+        .any(|wire| UpstreamDialect::new(*wire, Hosting::FirstParty).api_key_header() == Some(name))
 }
 
 const WITHHELD_RETURNED_NAMES: &[&str] = &[

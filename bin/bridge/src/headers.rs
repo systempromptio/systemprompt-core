@@ -13,4 +13,4 @@
 pub const HOST: &str = "x-systemprompt-host";
 pub const DEVICE_CREDENTIAL: &str = "x-systemprompt-device-credential";
 pub const REJECTION_REASON: &str = "x-systemprompt-bridge-reason";
-pub const INGESTION_EVENT_ID: &str = "x-ingestion-event-id";
+pub use systemprompt_identifiers::headers::INGESTION_EVENT_ID;

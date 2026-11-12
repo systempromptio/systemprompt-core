@@ -79,7 +79,8 @@ impl ProxyService {
             &req_ctx,
             &target.headers,
         );
-        if let Some(session) = incoming_headers.get("mcp-session-id")
+        if let Some(session) =
+            incoming_headers.get(systemprompt_identifiers::headers::MCP_SESSION_ID)
             && !sessions.accepts(session).await?
         {
             return Ok((

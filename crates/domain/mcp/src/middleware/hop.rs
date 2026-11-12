@@ -27,7 +27,7 @@ use systemprompt_models::auth::{McpHopClaims, TokenAuthority, TokenError, TokenI
 use systemprompt_models::execution::context::UserInteractionMode;
 use systemprompt_traits::{ContextPropagation, ContextPropagationError};
 
-const SESSION_HEADER: &str = "mcp-session-id";
+const SESSION_HEADER: &str = headers::MCP_SESSION_ID;
 
 tokio::task_local! {
     static RESTORE_PRINCIPAL: RestorePrincipal;

@@ -189,12 +189,12 @@ async fn mcp_request_logger(req: Request, next: Next) -> Response {
     let uri = req.uri().clone();
     let session_id = req
         .headers()
-        .get("mcp-session-id")
+        .get(systemprompt_identifiers::headers::MCP_SESSION_ID)
         .and_then(|v| v.to_str().ok())
         .map(String::from);
     let mcp_method = req
         .headers()
-        .get("mcp-method")
+        .get(systemprompt_identifiers::headers::MCP_METHOD)
         .and_then(|v| v.to_str().ok())
         .map(String::from);
     let mcp_name = req

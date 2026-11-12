@@ -43,4 +43,5 @@ pub fn stamp_request_metadata<S: BuildHasher>(
 
 // Why: `HeaderName::from_static` panics on uppercase bytes; rmcp's constant
 // uses mixed case.
-const HEADER_MCP_PROTOCOL_VERSION_LOWER: &str = "mcp-protocol-version";
+const HEADER_MCP_PROTOCOL_VERSION_LOWER: &str =
+    systemprompt_identifiers::headers::MCP_PROTOCOL_VERSION;

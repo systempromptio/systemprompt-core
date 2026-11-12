@@ -33,7 +33,7 @@ use super::download::DownloadLinkError;
 
 pub const UPLOAD_AUDIENCE: &str = "documents.upload";
 pub const UPLOAD_LINK_TTL: Duration = Duration::minutes(15);
-pub const UPLOAD_TOKEN_HEADER: &str = "x-upload-token";
+pub const UPLOAD_TOKEN_HEADER: &str = systemprompt_identifiers::headers::UPLOAD_TOKEN;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UploadGrant {

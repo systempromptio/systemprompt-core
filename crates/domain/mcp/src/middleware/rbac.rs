@@ -165,7 +165,7 @@ fn diagnostic_headers(parts: &http::request::Parts) -> Vec<String> {
         .iter()
         .filter(|(k, _)| {
             let name = k.as_str();
-            name.starts_with("x-") || name == "authorization" || name == "mcp-session-id"
+            name.starts_with("x-") || name == "authorization" || name == headers::MCP_SESSION_ID
         })
         .map(|(k, v)| {
             if k == http::header::AUTHORIZATION {
