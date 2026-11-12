@@ -5,11 +5,13 @@ use systemprompt_catalog_fixtures::{CatalogFixture, model, platform, priced};
 use systemprompt_gateway::protocol::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, Role,
 };
-use systemprompt_gateway::service::chain_plan::{SentBody, fit_context_window, order_chain};
+use systemprompt_gateway::service::chain_plan::{
+    ChainHealth, SentBody, fit_context_window, order_chain,
+};
 use systemprompt_gateway::service::failover::{
     DeploymentLoad, DeploymentState, ProviderBreakers, plan_selection,
 };
-use systemprompt_identifiers::{ModelId, RouteId};
+use systemprompt_identifiers::{ModelId, RouteId, UserId};
 use systemprompt_manifest::services::catalog::{
     EndpointConfig, ProviderConfig, ResolvedCatalog, ResolvedHop,
 };
@@ -183,8 +185,11 @@ fn ordered_chain_is_unchanged_and_not_described() {
         ],
         SelectionStrategy::Ordered,
         Some(&route_id()),
-        &ProviderBreakers::new(),
-        &DeploymentLoad::default(),
+        ChainHealth {
+            breakers: &ProviderBreakers::new(),
+            load: &DeploymentLoad::default(),
+            owner: &UserId::new("member-a"),
+        },
     );
     assert_eq!(providers_of(&planned), vec!["small", "large"]);
     assert_eq!(planned.descriptor, None);
@@ -337,8 +342,11 @@ fn an_empty_chain_plans_to_nothing() {
         Vec::new(),
         SelectionStrategy::Ordered,
         Some(&route_id()),
-        &ProviderBreakers::new(),
-        &DeploymentLoad::default(),
+        ChainHealth {
+            breakers: &ProviderBreakers::new(),
+            load: &DeploymentLoad::default(),
+            owner: &UserId::new("member-a"),
+        },
     );
     assert!(planned.deployments.is_empty());
     assert_eq!(planned.descriptor, None);
@@ -355,8 +363,11 @@ fn an_idle_least_busy_chain_keeps_chain_order_and_is_described() {
         ],
         SelectionStrategy::LeastBusy,
         Some(&route_id()),
-        &ProviderBreakers::new(),
-        &DeploymentLoad::default(),
+        ChainHealth {
+            breakers: &ProviderBreakers::new(),
+            load: &DeploymentLoad::default(),
+            owner: &UserId::new("member-a"),
+        },
     );
     assert_eq!(
         providers_of(&planned),
@@ -375,8 +386,11 @@ fn a_weighted_chain_is_a_permutation_of_its_deployments() {
         ],
         SelectionStrategy::Weighted,
         Some(&route_id()),
-        &ProviderBreakers::new(),
-        &DeploymentLoad::default(),
+        ChainHealth {
+            breakers: &ProviderBreakers::new(),
+            load: &DeploymentLoad::default(),
+            owner: &UserId::new("member-a"),
+        },
     );
     let mut providers = providers_of(&planned);
     providers.sort_unstable();
@@ -391,8 +405,11 @@ fn a_single_weighted_deployment_is_not_reordered_but_is_described() {
         vec![hop(&c, "plan-m", "w-plan-solo", None)],
         SelectionStrategy::Weighted,
         Some(&route_id()),
-        &ProviderBreakers::new(),
-        &DeploymentLoad::default(),
+        ChainHealth {
+            breakers: &ProviderBreakers::new(),
+            load: &DeploymentLoad::default(),
+            owner: &UserId::new("member-a"),
+        },
     );
     assert_eq!(providers_of(&planned), vec!["w-plan-solo"]);
     assert_eq!(planned.descriptor.as_deref(), Some("strategy:weighted"));

@@ -22,14 +22,16 @@ pub(super) async fn run(
     scanned: &mut ScannedDispatch,
     send: FailoverSend<'_, '_>,
 ) -> Result<OutboundOutcome, DispatchError> {
-    let names: Vec<String> = send.primary.deployments.iter().map(breaker_key).collect();
-    let breakers = &send.engines.breakers;
-    let handles: Vec<_> = send
-        .primary
-        .deployments
+    let deployments = &send.primary.deployments;
+    let owner = &send.primary.owner.user_id;
+    let names: Vec<String> = deployments
         .iter()
-        .zip(&names)
-        .map(|(hop, name)| breakers.for_endpoint(name, &hop.resilience))
+        .map(|hop| hop.endpoint_ref().to_string())
+        .collect();
+    let breakers = &send.engines.breakers;
+    let handles: Vec<_> = deployments
+        .iter()
+        .map(|hop| breakers.for_endpoint(&breaker_key(hop, owner), &hop.resilience))
         .collect();
     let mut probes: Vec<Option<Probe<'_>>> = handles.iter().map(|b| acquire(b)).collect();
     let tripped: Vec<bool> = probes.iter().map(Option::is_none).collect();

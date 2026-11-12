@@ -5,7 +5,8 @@
 //! `strategy` selects leads; failover then walks the reordered chain. Every
 //! selection is counted in `gateway_deployment_selected_total{route,provider,
 //! strategy}`, and a non-`ordered` strategy adds `strategy:<name>` to
-//! `route_match`. Breaker and load state are keyed per endpoint.
+//! `route_match`. Breaker and load state are keyed per endpoint, and per
+//! member on a hop billed to one.
 //!
 //! [`fit_context_window`] estimates the request's input tokens with the
 //! provider-neutral text estimate and compares it with the leading
@@ -25,14 +26,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::RouteId;
-use systemprompt_manifest::services::catalog::{ResolvedCatalog, ResolvedHop};
+use systemprompt_identifiers::{AiRequestId, RouteId, UserId};
+use systemprompt_manifest::services::catalog::{ResolvedCatalog, ResolvedHop, ResolvedTarget};
 use systemprompt_manifest::services::{SelectionStrategy, estimate_input_tokens};
 
-use super::ContextWindowExceeded;
 use super::failover::{
     DeploymentLoad, DeploymentState, ProviderBreakers, breaker_key, plan_selection,
 };
+use super::{ContextWindowExceeded, DispatchError};
 use crate::protocol::canonical::CanonicalRequest;
 // JSON: protocol boundary — the forwarded body is dynamic wire JSON.
 use crate::quota::input_tokens_for_bytes;
@@ -54,13 +55,12 @@ pub fn order_chain(
     deployments: Vec<ResolvedHop>,
     strategy: SelectionStrategy,
     route: Option<&RouteId>,
-    breakers: &ProviderBreakers,
-    load: &DeploymentLoad,
+    health: ChainHealth<'_>,
 ) -> PlannedChain {
     let deployments = if deployments.len() > 1 && !strategy.is_ordered() {
         let states: Vec<DeploymentState> = deployments
             .iter()
-            .map(|hop| deployment_state(hop, breakers, load))
+            .map(|hop| deployment_state(hop, health))
             .collect();
         let order = plan_selection(strategy, &states, rand::random());
         let mut slots: Vec<Option<ResolvedHop>> = deployments.into_iter().map(Some).collect();
@@ -87,17 +87,25 @@ pub fn order_chain(
     }
 }
 
-fn deployment_state(
-    hop: &ResolvedHop,
-    breakers: &ProviderBreakers,
-    load: &DeploymentLoad,
-) -> DeploymentState {
-    let key = breaker_key(hop);
-    let tripped = breakers.for_endpoint(&key, &hop.resilience).is_open();
+/// The breaker and load state a chain is ordered by, as the member the
+/// request is served for sees it.
+#[derive(Debug, Clone, Copy)]
+pub struct ChainHealth<'a> {
+    pub breakers: &'a ProviderBreakers,
+    pub load: &'a DeploymentLoad,
+    pub owner: &'a UserId,
+}
+
+fn deployment_state(hop: &ResolvedHop, health: ChainHealth<'_>) -> DeploymentState {
+    let key = breaker_key(hop, health.owner);
+    let tripped = health
+        .breakers
+        .for_endpoint(&key, &hop.resilience)
+        .is_open();
     DeploymentState {
         tripped,
         weight: hop.effective_weight(),
-        in_flight: load.in_flight(&key),
+        in_flight: health.load.in_flight(&key),
     }
 }
 
@@ -225,4 +233,41 @@ pub(super) fn join_segments(first: Option<String>, second: Option<String>) -> Op
 fn context_window(catalog: &ResolvedCatalog, hop: &ResolvedHop) -> Option<(u32, String)> {
     let limit = catalog.model(hop.model.as_str())?.limits.context_window;
     (limit > 0).then(|| (limit, hop.upstream_model.clone()))
+}
+
+pub(super) fn plan_chain(
+    catalog: &ResolvedCatalog,
+    health: ChainHealth<'_>,
+    (request, sent): (&CanonicalRequest, SentBody),
+    target: &ResolvedTarget,
+    ai_request_id: &AiRequestId,
+) -> Result<PlannedChain, DispatchError> {
+    let ordered = order_chain(
+        target.chain.clone(),
+        target.strategy,
+        target.route.as_ref(),
+        health,
+    );
+    let fitted = fit_context_window(
+        catalog,
+        request,
+        sent,
+        ordered.deployments,
+        target.context_fallbacks.clone(),
+    )
+    .map_err(|exceeded| {
+        tracing::warn!(
+            ai_request_id = %ai_request_id,
+            route = ?target.route,
+            model = %exceeded.model,
+            estimate = exceeded.estimate,
+            limit = exceeded.limit,
+            "Gateway denied: request exceeds the model's context window"
+        );
+        DispatchError::pre_audit(exceeded)
+    })?;
+    Ok(PlannedChain {
+        deployments: fitted.deployments,
+        descriptor: join_segments(ordered.descriptor, fitted.descriptor),
+    })
 }

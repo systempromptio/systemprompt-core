@@ -19,7 +19,7 @@ use systemprompt_ai::models::BillingSource;
 use systemprompt_identifiers::{AiRequestId, RouteId};
 use systemprompt_manifest::services::GatewayRoute;
 use systemprompt_manifest::services::catalog::{
-    ResolveError, ResolvedCatalog, ResolvedHop, ResolvedModel, ResolvedTarget,
+    ResolveError, ResolvedCatalog, ResolvedHop, ResolvedModel,
 };
 use systemprompt_models::attribution::RequestAttribution;
 use systemprompt_wire::WireProtocol;
@@ -27,7 +27,7 @@ use systemprompt_wire::WireProtocol;
 use super::super::protocol::canonical::CanonicalRequest;
 use super::super::protocol::outbound::OutboundAdapter;
 use super::super::registry::GatewayEngines;
-use super::chain_plan::{PlannedChain, SentBody, fit_context_window, join_segments, order_chain};
+use super::chain_plan::{ChainHealth, SentBody, join_segments, plan_chain};
 use super::credentials::KeyOwner;
 use super::hop_policy::servable_hops;
 use super::route_match::{describe_route_match, enforce_route_requirements, refine_chain};
@@ -95,7 +95,12 @@ pub(super) async fn resolve_upstream<'a>(
         (!predicates.is_empty()).then(|| format!("when:{}", predicates.join(",")))
     });
     let selector = refine_chain(engines, catalog, &mut target, route.as_ref(), request).await;
-    let planned = plan_chain(catalog, engines, (request, sent), &target, ai_request_id)?;
+    let health = ChainHealth {
+        breakers: &engines.breakers,
+        load: &engines.load,
+        owner: &owner.user_id,
+    };
+    let planned = plan_chain(catalog, health, (request, sent), &target, ai_request_id)?;
     let route_match_descriptor = join_segments(
         Some(describe_route_match(
             target.route.as_ref(),
@@ -158,44 +163,6 @@ fn refusal(
             })
         },
     }
-}
-
-fn plan_chain(
-    catalog: &ResolvedCatalog,
-    engines: &GatewayEngines,
-    (request, sent): (&CanonicalRequest, SentBody),
-    target: &ResolvedTarget,
-    ai_request_id: &AiRequestId,
-) -> Result<PlannedChain, DispatchError> {
-    let ordered = order_chain(
-        target.chain.clone(),
-        target.strategy,
-        target.route.as_ref(),
-        &engines.breakers,
-        &engines.load,
-    );
-    let fitted = fit_context_window(
-        catalog,
-        request,
-        sent,
-        ordered.deployments,
-        target.context_fallbacks.clone(),
-    )
-    .map_err(|exceeded| {
-        tracing::warn!(
-            ai_request_id = %ai_request_id,
-            route = ?target.route,
-            model = %exceeded.model,
-            estimate = exceeded.estimate,
-            limit = exceeded.limit,
-            "Gateway denied: request exceeds the model's context window"
-        );
-        DispatchError::pre_audit(exceeded)
-    })?;
-    Ok(PlannedChain {
-        deployments: fitted.deployments,
-        descriptor: join_segments(ordered.descriptor, fitted.descriptor),
-    })
 }
 
 pub(super) struct DeploymentHop<'h> {

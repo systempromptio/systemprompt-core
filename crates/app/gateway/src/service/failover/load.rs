@@ -1,6 +1,10 @@
 //! The in-process in-flight gauge `least_busy` selection reads.
 //!
-//! One counter per endpoint, keyed by `provider/endpoint` like the breakers. A
+//! One counter per breaker key: `provider/endpoint`, and for a hop billed to a
+//! member that member too, so one member's concurrency never steers another's
+//! selection. An idle counter reads zero, the same as one that was never
+//! created, so idle counters are dropped once the registry passes the
+//! breakers' cap. A
 //! send holds an [`InFlight`] guard from the moment it leaves until the
 //! upstream answers (headers for a stream), so the gauge measures concurrent
 //! upstream calls in this process, not cluster-wide load.
@@ -11,6 +15,8 @@
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, PoisonError};
+
+use super::breakers::REGISTRY_CAP;
 
 /// In-flight counters owned by one gateway, one per deployment.
 #[derive(Debug, Default)]
@@ -31,6 +37,11 @@ impl Drop for InFlight {
 impl DeploymentLoad {
     fn counter(&self, key: &str) -> Arc<AtomicU64> {
         let mut map = self.inner.lock().unwrap_or_else(PoisonError::into_inner);
+        if map.len() >= REGISTRY_CAP && !map.contains_key(key) {
+            map.retain(|_, counter| {
+                Arc::strong_count(counter) > 1 || counter.load(Ordering::Relaxed) > 0
+            });
+        }
         Arc::clone(map.entry(key.to_owned()).or_default())
     }
 
