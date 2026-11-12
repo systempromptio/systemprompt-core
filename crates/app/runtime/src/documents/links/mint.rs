@@ -54,15 +54,31 @@ impl std::fmt::Debug for LinkMinter {
     }
 }
 
+pub fn verify_link_hop(
+    minter: &LinkMinter,
+    hop: &str,
+    request: &LinkRequest,
+) -> Result<McpHopClaims, LinkMintError> {
+    minter
+        .tokens
+        .verify_mcp_hop(hop, &request.server)
+        .map_err(LinkMintError::Hop)
+}
+
 pub async fn mint_link(
     minter: &LinkMinter,
     hop: &str,
     request: &LinkRequest,
 ) -> Result<IssuedLink, LinkMintError> {
-    let claims = minter
-        .tokens
-        .verify_mcp_hop(hop, &request.server)
-        .map_err(LinkMintError::Hop)?;
+    let claims = verify_link_hop(minter, hop, request)?;
+    mint_verified(minter, &claims, request).await
+}
+
+pub async fn mint_verified(
+    minter: &LinkMinter,
+    claims: &McpHopClaims,
+    request: &LinkRequest,
+) -> Result<IssuedLink, LinkMintError> {
     ensure_hosted(&minter.services, request)?;
     match &request.target {
         LinkTarget::Upload { upload_id } => {
@@ -114,7 +130,7 @@ pub async fn mint_link(
             )
             .await
             .map_err(LinkMintError::Document)?;
-            let agent = agent_of(&claims);
+            let agent = agent_of(claims);
             let (url, expires_at) = signed_download_url(
                 minter.tokens.as_ref(),
                 DownloadTarget {

@@ -472,3 +472,17 @@ fn an_env_var_naming_the_profile_path_is_refused_at_spawn() {
         "{refused}"
     );
 }
+
+#[test]
+fn an_env_var_naming_the_vault_token_is_refused_at_spawn() {
+    let bootstrap = systemprompt_test_fixtures::ensure_test_bootstrap();
+    let secrets = systemprompt_test_fixtures::ensure_test_secrets_bootstrap();
+    let global = systemprompt_test_fixtures::fixture_config(&bootstrap.database_url);
+    let mut config = internal_mcp_config("env-vault", 9013);
+    config.env_vars = vec!["RUST_LOG".to_owned(), "VAULT_TOKEN".to_owned()];
+    let refused = spawn_environment(&spec_for(&config), &global, &secrets, |name| {
+        Some(format!("parent-{name}"))
+    })
+    .expect_err("a Vault token reads the whole secrets document");
+    assert!(refused.to_string().contains("VAULT_TOKEN"), "{refused}");
+}

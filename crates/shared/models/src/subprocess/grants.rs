@@ -10,8 +10,10 @@
 //!
 //! [`is_api_held_env_name`] recognises the environment names that carry a
 //! secret or lead to one (the profile path, which names the secrets source
-//! and the signing key files), so a manifest cannot route one through
-//! `env_vars` around the grant list.
+//! and the signing key files, and the default Vault bootstrap credentials),
+//! so a manifest cannot route one through `env_vars` around the grant list.
+//! It is the profile-independent floor: a renamed Vault credential is
+//! refused by the profile-aware check in `systemprompt_manifest::child_env`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -232,6 +234,7 @@ pub fn is_api_held_env_name(name: &str) -> bool {
         || upper == "ENCRYPTION_MASTER_KEY"
         || upper == "SYSTEMPROMPT_CUSTOM_SECRETS"
         || upper == "SYSTEMPROMPT_PROFILE"
+        || upper.starts_with("VAULT_")
         || API_HELD
             .iter()
             .any(|held| held.eq_ignore_ascii_case(upper.as_str()))

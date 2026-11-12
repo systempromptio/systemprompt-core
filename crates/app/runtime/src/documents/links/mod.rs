@@ -22,7 +22,7 @@ use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{DocumentId, DocumentRevisionId, DocumentUploadId, McpServerId};
 
 pub use issuer::{ApiLinkIssuer, LinkIssueError, LinkIssuer, LinkRefusal};
-pub use mint::{LinkMintError, LinkMinter, mint_link};
+pub use mint::{LinkMintError, LinkMinter, mint_link, mint_verified, verify_link_hop};
 
 use super::download::Rendition;
 use super::upload_links::SignedUploadLinks;

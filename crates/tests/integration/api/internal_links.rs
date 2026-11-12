@@ -2,8 +2,10 @@
 //! link client: the owner's hop token gets the links; another user's, a token
 //! for another server, a token from a foreign key and a missing token are
 //! refused, and a server hosting no documents or issues toolset is refused
-//! every link. On the real router the route answers under its rate limit and
-//! is absent when the document store is disabled.
+//! every link. On the real router the route answers under a rate limit keyed
+//! by the verified hop subject, so two users calling from one address keep
+//! separate budgets, and the route is absent when the document store is
+//! disabled.
 
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -80,7 +82,7 @@ async fn serve(ctx: &Arc<AppContext>) -> Result<String> {
         services: services_hosting(SERVER, &["documents"]),
         api_external_url: "https://links.example.test".to_owned(),
     };
-    let app = Router::new().nest(ApiPaths::INTERNAL_LINKS, links_router(minter));
+    let app = Router::new().nest(ApiPaths::INTERNAL_LINKS, links_router(minter, None));
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
     let addr = listener.local_addr()?;
     tokio::spawn(async move { axum::serve(listener, app).await });
@@ -256,6 +258,46 @@ async fn the_mounted_links_route_signs_a_verified_hop_under_its_rate_limit() -> 
     assert!(
         limited,
         "the links route answers under the documents rate limit"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn two_subjects_on_one_address_do_not_share_a_links_bucket() -> Result<()> {
+    let (pool, ctx, app) = mounted(true).await?;
+    let first = person(&pool, "links-first").await?;
+    let second = person(&pool, "links-second").await?;
+    let first_target = upload(&ctx, &first.id).await?;
+    let second_target = upload(&ctx, &second.id).await?;
+    let first_hop = hop(&ctx, &first, SERVER);
+
+    let mut limited = false;
+    for _ in 0..8 {
+        let status = app
+            .clone()
+            .oneshot(link_post(Some(&first_hop), &first_target)?)
+            .await?
+            .status();
+        if status == StatusCode::TOO_MANY_REQUESTS {
+            limited = true;
+            break;
+        }
+        assert_eq!(status, StatusCode::OK);
+    }
+    assert!(limited, "the first subject exhausts its own bucket");
+
+    let second_status = app
+        .clone()
+        .oneshot(link_post(
+            Some(&hop(&ctx, &second, SERVER)),
+            &second_target,
+        )?)
+        .await?
+        .status();
+    assert_eq!(
+        second_status,
+        StatusCode::OK,
+        "a second subject from the same address keeps its own budget"
     );
     Ok(())
 }

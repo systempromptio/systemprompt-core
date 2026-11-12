@@ -11,15 +11,18 @@
 //!
 //! The API server is not a spawned child: `infra services serve` re-executes
 //! itself once with [`API_SERVER_ENV`] so a later `stop api` can prove a port
-//! holder is the API server before signalling it. It deliberately does not
-//! carry [`SUBPROCESS_MARKER_ENV`], which selects the subprocess secrets
-//! source.
+//! holder is the API server before signalling it. It does not carry
+//! [`SUBPROCESS_MARKER_ENV`], so no reconciliation pass mistakes it for a
+//! supervised child.
 //!
 //! A foreground child of a CLI command (a `docker build`, a `cargo build`)
 //! carries [`CLI_CHILD_ENV`] set to a token unique to that spawn, so an
 //! interrupted command can prove a recorded pid is still that child before
-//! stopping it. It too omits [`SUBPROCESS_MARKER_ENV`]: the child may be this
-//! binary, which must keep its normal secrets source.
+//! stopping it. It too omits [`SUBPROCESS_MARKER_ENV`], so the supervisor
+//! never adopts it.
+//!
+//! The markers carry identity only. What secrets a child receives is decided
+//! by the grants in `grants`, never by a marker.
 //!
 //! Spawning and the platform-specific process probes live in
 //! `systemprompt_loader::subprocess`; this module holds only data and pure

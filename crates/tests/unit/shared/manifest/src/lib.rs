@@ -10,6 +10,8 @@ mod bridge_profile;
 #[cfg(test)]
 mod catalog_validation;
 #[cfg(test)]
+mod child_env_vars;
+#[cfg(test)]
 mod credentials;
 #[cfg(test)]
 mod credentials_billing;

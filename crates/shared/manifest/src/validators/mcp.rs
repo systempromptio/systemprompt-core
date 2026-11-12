@@ -6,6 +6,8 @@
 use super::validation_report::{ValidationIssue, ValidationReport};
 use super::{DomainConfig, DomainConfigError, ValidationConfigProvider};
 use crate::ServicesConfig;
+use crate::child_env::refused_env_var;
+use crate::profile::SecretsConfig;
 use std::collections::HashMap;
 use systemprompt_models::mcp::deployment::McpServerType;
 use systemprompt_traits::ConfigProvider;
@@ -13,6 +15,7 @@ use systemprompt_traits::ConfigProvider;
 #[derive(Debug, Default)]
 pub struct McpConfigValidator {
     services_config: Option<ServicesConfig>,
+    secrets_config: Option<SecretsConfig>,
 }
 
 impl McpConfigValidator {
@@ -43,6 +46,7 @@ impl DomainConfig for McpConfigValidator {
             })?;
 
         self.services_config = Some(provider.services_config().clone());
+        self.secrets_config = provider.secrets_config().cloned();
         Ok(())
     }
 
@@ -56,6 +60,17 @@ impl DomainConfig for McpConfigValidator {
         let mut used_ports: HashMap<u16, String> = HashMap::new();
 
         for (name, deployment) in &config.mcp_servers {
+            if let Err(refusal) =
+                refused_env_var(self.secrets_config.as_ref(), &deployment.env_vars)
+            {
+                report.add_error(
+                    ValidationIssue::new(
+                        format!("mcp_servers.{name}.env_vars"),
+                        refusal.to_string(),
+                    )
+                    .with_suggestion("Grant the value under `secrets:` instead"),
+                );
+            }
             if deployment.server_type == McpServerType::External {
                 continue;
             }

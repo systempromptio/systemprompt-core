@@ -1,4 +1,6 @@
-//! The middleware that charges a [`KeyedLimiter`] per request.
+//! The middleware that charges a [`KeyedLimiter`] per request, and
+//! [`SubjectThrottle`], the same limiter for a handler that can name its
+//! caller only after verifying a credential the request carries.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -49,6 +51,48 @@ impl Throttle {
     }
 }
 
+/// A per-replica limiter charged by a key the handler derives from a verified
+/// credential.
+#[derive(Debug)]
+pub struct SubjectThrottle {
+    limiter: Arc<KeyedLimiter>,
+    _sweeper: OwnedTask<()>,
+}
+
+impl SubjectThrottle {
+    pub(super) fn new(emission: Duration, burst: u32) -> Arc<Self> {
+        let limiter = Arc::new(KeyedLimiter::new(emission, burst, MAX_TRACKED_KEYS));
+        let sweeper = limiter.spawn_sweeper(SWEEP_INTERVAL);
+        Arc::new(Self {
+            limiter,
+            _sweeper: sweeper,
+        })
+    }
+
+    pub fn charge(&self, key: &str) -> Result<(), Throttled> {
+        self.limiter.check(key, Instant::now()).map_err(Throttled)
+    }
+}
+
+/// A refused [`SubjectThrottle::charge`]: answers 429 with `Retry-After`.
+#[derive(Debug, Clone, Copy)]
+pub struct Throttled(Duration);
+
+impl IntoResponse for Throttled {
+    fn into_response(self) -> Response {
+        too_many_requests(self.0)
+    }
+}
+
+fn too_many_requests(wait: Duration) -> Response {
+    let secs = wait.as_secs() + u64::from(wait.subsec_nanos() > 0);
+    let mut resp = StatusCode::TOO_MANY_REQUESTS.into_response();
+    if let Ok(value) = HeaderValue::from_str(&secs.max(1).to_string()) {
+        resp.headers_mut().insert(header::RETRY_AFTER, value);
+    }
+    resp
+}
+
 pub(super) async fn throttle(
     State(throttle): State<Arc<Throttle>>,
     req: Request,
@@ -60,13 +104,6 @@ pub(super) async fn throttle(
     };
     match throttle.limiter.check(&key, Instant::now()) {
         Ok(()) => next.run(req).await,
-        Err(wait) => {
-            let secs = wait.as_secs() + u64::from(wait.subsec_nanos() > 0);
-            let mut resp = StatusCode::TOO_MANY_REQUESTS.into_response();
-            if let Ok(value) = HeaderValue::from_str(&secs.max(1).to_string()) {
-                resp.headers_mut().insert(header::RETRY_AFTER, value);
-            }
-            resp
-        },
+        Err(wait) => too_many_requests(wait),
     }
 }

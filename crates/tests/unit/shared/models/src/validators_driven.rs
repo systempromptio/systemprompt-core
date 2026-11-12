@@ -274,6 +274,32 @@ mod mcp_validator {
     }
 
     #[test]
+    fn an_env_var_naming_the_profiles_renamed_vault_token_is_reported() {
+        let yaml = format!(
+            "mcp_servers:\n{}    env_vars: [OPS_BOOT_CREDENTIAL]\n",
+            internal("alpha", 5046)
+        );
+        let secrets: systemprompt_manifest::profile::SecretsConfig = serde_yaml::from_str(
+            "source: vault\nvault:\n  address: https://vault.example.com\n  path: sp\n  \
+             auth:\n    method: token\n    token_env: OPS_BOOT_CREDENTIAL\n",
+        )
+        .expect("secrets config parses");
+        let prov = provider(base_config(), services(&yaml)).with_secrets_config(Some(secrets));
+        let mut v = McpConfigValidator::new();
+        v.load(&prov).expect("load");
+        let report = v.validate().expect("validate");
+        assert!(
+            report.has_errors(),
+            "the renamed Vault token passed validation"
+        );
+
+        let prov = provider(base_config(), services(&yaml));
+        let mut v = McpConfigValidator::new();
+        v.load(&prov).expect("load");
+        assert!(!v.validate().expect("validate").has_errors());
+    }
+
+    #[test]
     fn external_servers_never_collide_on_ports() {
         let yaml = format!(
             "mcp_servers:\n{}{}",

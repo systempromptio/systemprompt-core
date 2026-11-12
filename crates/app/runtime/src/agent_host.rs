@@ -27,27 +27,17 @@ use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_oauth::JwtValidationProviderImpl;
 use systemprompt_security::credential::TokenCache;
 use systemprompt_traits::{DynSessionUsageCounters, SecretLookup};
-use systemprompt_users::{SessionRepository, UserService, UsersAiSessionProvider};
+use systemprompt_users::{SessionRepository, UsersAiSessionProvider};
 
-use crate::builder::assembly::load_system_admin;
 use crate::builder::composition::{a2a_repositories, organization_skills};
-use crate::error::RuntimeError;
 use crate::host::{HostBootError, HostContext};
 
 #[derive(Debug, thiserror::Error)]
 pub enum AgentHostError {
     #[error(transparent)]
     Boot(#[from] HostBootError),
-    #[error(transparent)]
-    Runtime(Box<RuntimeError>),
     #[error("the agent's AI service could not be built")]
     Ai(#[source] AiError),
-}
-
-impl From<RuntimeError> for AgentHostError {
-    fn from(error: RuntimeError) -> Self {
-        Self::Runtime(Box::new(error))
-    }
 }
 
 /// The least-privilege composition a spawned agent serves from.
@@ -75,8 +65,7 @@ impl AgentHost {
     pub async fn compose(host: HostContext) -> Result<Self, AgentHostError> {
         let database = host.db_pool();
         let config = Arc::new(host.config().clone());
-        let users = Arc::new(UserService::new(Arc::clone(host.user_repository())));
-        let system_admin = load_system_admin(&config, &users).await?;
+        let system_admin = host.system_owner().clone();
 
         let managed = ManagedRepository::new(database)
             .with_publication_policy(host.publication_policy().clone());
@@ -87,10 +76,10 @@ impl AgentHost {
             &managed,
             session_usage,
         );
-        let a2a = Arc::new(organization_skills(&a2a, &managed, system_admin.id()));
+        let a2a = Arc::new(organization_skills(&a2a, &managed, &system_admin));
 
         let registry = RegistryService::new(
-            system_admin.id().clone(),
+            system_admin,
             host.services_state().view(),
             Arc::clone(&config),
         );

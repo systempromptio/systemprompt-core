@@ -16,6 +16,12 @@
 //! without it a flood of forged or expired credentials would cost a token
 //! decode and a database lookup each, unthrottled.
 //!
+//! A route that verifies its caller inside the handler from a credential in
+//! the request (the internal links route and its MCP hop token) takes a
+//! [`SubjectThrottle`] from [`RateLimitState::subject_throttle`] and charges
+//! it with the verified subject, so callers sharing one address (every
+//! managed MCP server calls from loopback) never share one budget.
+//!
 //! On routers that carry `with_auth` the database-backed window reads the
 //! identity from the [`RequestContext`](systemprompt_models::RequestContext)
 //! in the request's extensions. A router that authenticates inside its
@@ -62,6 +68,7 @@ pub use self::bearer::bearer_jwt;
 pub use self::key::{IdentityOrTrustedIpKey, TrustedIpKey, client_bucket};
 pub use self::keyed::KeyedLimiter;
 use self::throttle::{Keying, Throttle, throttle};
+pub use self::throttle::{SubjectThrottle, Throttled};
 
 #[derive(Clone, Debug)]
 pub struct RateLimitState {
@@ -89,6 +96,15 @@ impl RateLimitState {
     pub const fn unmetered(mut self) -> Self {
         self.config.disabled = true;
         self
+    }
+
+    #[must_use]
+    pub fn subject_throttle(&self, per_second: u64) -> Option<Arc<SubjectThrottle>> {
+        if self.config.disabled {
+            return None;
+        }
+        let (replenish, burst) = self.limiter_shape(per_second);
+        Some(SubjectThrottle::new(replenish, burst))
     }
 
     fn limiter_shape(&self, per_second: u64) -> (Duration, u32) {

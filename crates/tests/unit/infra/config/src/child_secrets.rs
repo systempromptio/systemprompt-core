@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use systemprompt_config::{GrantedSecrets, LoadedProfile, SecretsService};
 use systemprompt_models::subprocess::SecretGrant;
-use systemprompt_traits::SecretStore;
+use systemprompt_traits::{SecretLookup, SecretStore};
 
 use crate::fixture;
 
@@ -149,4 +149,32 @@ async fn granted_secrets_hold_only_the_grants_and_refuse_the_seed_and_an_ungrant
 #[test]
 fn granted_secrets_need_a_database_url() {
     assert!(GrantedSecrets::from_lookup(|_| None).is_err());
+}
+
+#[test]
+fn granted_secrets_resolve_provider_aliases_only_for_granted_providers() {
+    let granted: HashMap<&str, &str> = [
+        ("DATABASE_URL", fixture::DB_URL),
+        ("MOONSHOT_API_KEY", "moonshot-key"),
+    ]
+    .into_iter()
+    .collect();
+    let store = GrantedSecrets::from_lookup(|name| granted.get(name).map(|v| (*v).to_owned()))
+        .expect("granted");
+    let resolved = |name: &str| store.lookup(name).map(|s| s.expose().to_owned());
+
+    for alias in ["kimi", "KIMI_API_KEY", "MOONSHOT_API_KEY", "moonshot"] {
+        assert_eq!(resolved(alias), Some("moonshot-key".to_owned()), "{alias}");
+    }
+    for ungranted in [
+        "dashscope",
+        "DASHSCOPE_API_KEY",
+        "QWEN_API_KEY",
+        "ANTHROPIC_API_KEY",
+    ] {
+        assert!(
+            resolved(ungranted).is_none(),
+            "{ungranted} resolved without a grant"
+        );
+    }
 }

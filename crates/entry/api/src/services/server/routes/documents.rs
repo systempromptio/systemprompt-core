@@ -43,7 +43,7 @@ pub(super) fn mount_documents(
     Ok(router
         .nest(
             ApiPaths::INTERNAL_LINKS,
-            links_router(minter).with_rate_limit(mount.limits, per_second, "documents")?,
+            links_router(minter, mount.limits.subject_throttle(per_second)),
         )
         .nest(
             ApiPaths::DOCUMENTS,

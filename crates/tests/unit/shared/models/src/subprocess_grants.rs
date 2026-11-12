@@ -106,6 +106,9 @@ fn a_secret_routed_through_env_vars_is_refused() {
         "MANIFEST_SIGNING_SECRET_SEED",
         "ENCRYPTION_MASTER_KEY",
         "GITHUB_TOKEN",
+        "VAULT_TOKEN",
+        "VAULT_ROLE_ID",
+        "VAULT_SECRET_ID",
     ] {
         let deployment = internal(&format!("env_vars: [{name}]\n")).expect("parses");
         let err = deployment.validate("srv").expect_err(name);

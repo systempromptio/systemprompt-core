@@ -7,6 +7,13 @@
 //! No other provider key or custom secret reaches the child, and no child
 //! receives the OAuth pepper, manifest seed, signing keys or licence secret.
 //!
+//! [`refused_env_var`] guards the `env_vars` pass-through: it refuses every
+//! API-held name, every environment name the profile's secrets source reads
+//! to authenticate (a renamed Vault `token_env`, the AppRole id pair), and,
+//! for an `external` source whose provider reads names core cannot know,
+//! every entry. [`Secrets::refused_env_var`] adds the custom secret names the
+//! loaded document carries.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -15,6 +22,7 @@ use std::collections::BTreeSet;
 use systemprompt_models::subprocess::SecretGrant;
 
 use crate::paths::constants::env_vars::CUSTOM_SECRETS;
+use crate::profile::{SecretsConfig, SecretsSource, VaultAuth};
 use crate::secrets::Secrets;
 
 pub const CHILD_DATABASE_SECRETS: &[&str] = &[
@@ -24,6 +32,66 @@ pub const CHILD_DATABASE_SECRETS: &[&str] = &[
     "EXTERNAL_DATABASE_URL",
     "INTERNAL_DATABASE_URL",
 ];
+
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum EnvVarRefusal {
+    #[error(
+        "env_vars names '{name}', which carries a secret or a secrets-source credential; grant \
+         it under `secrets:` instead, or drop it if it is held by the API only"
+    )]
+    CarriesSecret { name: String },
+    #[error(
+        "env_vars names '{name}', but the profile's `external` secrets source reads environment \
+         names core cannot enumerate, so no env_vars pass-through is allowed; grant the value \
+         under `secrets:` instead"
+    )]
+    ExternalSource { name: String },
+}
+
+#[must_use]
+pub fn source_credential_env_names(config: Option<&SecretsConfig>) -> Option<Vec<&str>> {
+    let Some(config) = config else {
+        return Some(Vec::new());
+    };
+    match config.source {
+        SecretsSource::File | SecretsSource::Env => Some(Vec::new()),
+        SecretsSource::External => None,
+        SecretsSource::Vault => Some(match config.vault.as_ref().map(|vault| &vault.auth) {
+            Some(VaultAuth::Token { token_env, .. }) => vec![token_env.as_str()],
+            Some(VaultAuth::AppRole {
+                role_id_env,
+                secret_id_env,
+                ..
+            }) => vec![role_id_env.as_str(), secret_id_env.as_str()],
+            Some(VaultAuth::Kubernetes { .. }) | None => Vec::new(),
+        }),
+    }
+}
+
+pub fn refused_env_var(
+    config: Option<&SecretsConfig>,
+    env_vars: &[String],
+) -> Result<(), EnvVarRefusal> {
+    let Some(first) = env_vars.first() else {
+        return Ok(());
+    };
+    let Some(credentials) = source_credential_env_names(config) else {
+        return Err(EnvVarRefusal::ExternalSource {
+            name: first.clone(),
+        });
+    };
+    env_vars
+        .iter()
+        .find(|name| {
+            systemprompt_models::subprocess::is_api_held_env_name(name)
+                || credentials
+                    .iter()
+                    .any(|credential| credential.eq_ignore_ascii_case(name.trim()))
+        })
+        .map_or(Ok(()), |name| {
+            Err(EnvVarRefusal::CarriesSecret { name: name.clone() })
+        })
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum ChildEnvError {
@@ -91,9 +159,21 @@ impl Secrets {
         Ok(env)
     }
 
-    #[must_use]
-    pub fn is_secret_env_name(&self, name: &str) -> bool {
-        systemprompt_models::subprocess::is_api_held_env_name(name)
-            || self.custom.keys().any(|key| key.eq_ignore_ascii_case(name))
+    pub fn refused_env_var(
+        &self,
+        config: Option<&SecretsConfig>,
+        env_vars: &[String],
+    ) -> Result<(), EnvVarRefusal> {
+        refused_env_var(config, env_vars)?;
+        env_vars
+            .iter()
+            .find(|name| {
+                self.custom
+                    .keys()
+                    .any(|key| key.eq_ignore_ascii_case(name.trim()))
+            })
+            .map_or(Ok(()), |name| {
+                Err(EnvVarRefusal::CarriesSecret { name: name.clone() })
+            })
     }
 }

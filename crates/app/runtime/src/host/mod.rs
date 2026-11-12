@@ -35,7 +35,7 @@ use systemprompt_config::{GrantedSecrets, LoadedProfile};
 use systemprompt_database::DbPool;
 use systemprompt_files::FilesConfig;
 use systemprompt_governance::authz::{SharedAuthzHook, SubjectProviderSet};
-use systemprompt_identifiers::McpServerId;
+use systemprompt_identifiers::{McpServerId, UserId};
 use systemprompt_loader::ServicesState;
 use systemprompt_manifest::services::root::ActiveServicesRoot;
 use systemprompt_manifest::{Config, Profile};
@@ -103,6 +103,11 @@ impl HostContext {
     #[must_use]
     pub fn config(&self) -> &Config {
         &self.config
+    }
+
+    #[must_use]
+    pub const fn system_owner(&self) -> &UserId {
+        &self.extension.system_owner
     }
 
     #[must_use]

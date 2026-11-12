@@ -138,7 +138,8 @@ impl StartupValidator {
             },
         };
 
-        let mut provider = ValidationConfigProvider::new(config.clone(), services_config);
+        let mut provider = ValidationConfigProvider::new(config.clone(), services_config)
+            .with_secrets_config(self.boot.profile().secrets.clone());
 
         provider = load_content_config(config, provider, verbose);
         provider = load_web_config(config, provider, verbose);

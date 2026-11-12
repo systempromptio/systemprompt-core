@@ -42,18 +42,15 @@ pub(super) fn child_secrets(
     secrets: &SecretsService,
     config: &McpServerConfig,
 ) -> McpDomainResult<Vec<(String, String)>> {
-    let snapshot = secrets.get();
-    if let Some(name) = config
-        .env_vars
-        .iter()
-        .find(|name| snapshot.is_secret_env_name(name))
-    {
-        return Err(crate::error::McpDomainError::Configuration(format!(
-            "MCP server '{}': env_vars names '{name}', which carries a secret; grant it under \
-             `secrets:` instead",
-            config.name
-        )));
-    }
+    secrets
+        .get()
+        .refused_env_var(secrets.profile().secrets.as_ref(), &config.env_vars)
+        .map_err(|e| {
+            crate::error::McpDomainError::invalid_configuration(
+                format!("MCP server '{}'", config.name),
+                e,
+            )
+        })?;
     let mut env = secrets.child_env(&config.secrets, &[]).map_err(|e| {
         crate::error::McpDomainError::operation(
             format!("Failed to resolve the granted secrets for {}", config.name),

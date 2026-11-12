@@ -52,8 +52,8 @@ pub use negotiation::{
 };
 pub use panic_fence::panic_fence;
 pub use rate_limit::{
-    ContextLayer, IdentityOrTrustedIpKey, RateLimitState, RouterExt, TrustedIpKey,
-    with_pre_auth_ip_limit,
+    ContextLayer, IdentityOrTrustedIpKey, RateLimitState, RouterExt, SubjectThrottle, Throttled,
+    TrustedIpKey, with_pre_auth_ip_limit,
 };
 pub use security_headers::inject_security_headers;
 pub use served_by::inject_served_by;
