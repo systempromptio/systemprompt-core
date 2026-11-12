@@ -126,7 +126,7 @@ fn operator_issuer_client_and_scopes_are_checked() {
         "provider": "kubernetes",
         "operator": {
             "issuer": "http://idp.example.com",
-            "client_id": " ",
+            "client_id": "cli",
             "scopes": ["email"],
         },
     }));
@@ -134,8 +134,17 @@ fn operator_issuer_client_and_scopes_are_checked() {
         errors,
         vec![
             "cloud.operator.issuer must be an https URL, got: 'http://idp.example.com'".to_owned(),
-            "cloud.operator.client_id must not be empty".to_owned(),
             "cloud.operator.scopes must include 'openid'".to_owned(),
         ]
     );
+}
+
+#[test]
+fn a_blank_operator_client_id_is_refused_when_the_profile_is_read() {
+    let error = serde_json::from_value::<CloudConfig>(json!({
+        "provider": "kubernetes",
+        "operator": { "issuer": "https://idp.example.com", "client_id": " " },
+    }))
+    .expect_err("a blank client id does not parse");
+    assert!(error.to_string().contains("ClientId"), "{error}");
 }
