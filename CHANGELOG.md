@@ -52,6 +52,8 @@
 - **Breaking:** **Database:** `MigrationConfig` gains `force_full_install`, and a settled schema install compares the live catalog against a stored fingerprint instead of re-running DDL. Migrate by setting the field in struct literals.
 - **Breaking:** **CLI:** irreversible commands (`admin keys stage|promote|rotate`, `admin bridge rotate-signing-key`, `admin users role`, `admin users federated-rekey --apply`, `admin setup --reset-role-password`, `infra db migrate-down|migrate-mark-applied|assign-admin`) exit non-zero in non-interactive use without `--yes`, Ctrl-C exits 130, and `DataImpact` gains `Irreversible`. Migrate by passing `--yes` in scripts that run them.
 
+- **Breaking:** **Gateway:** a `kind: caller` catalog credential serves an endpoint the vendor hosts itself with the `Authorization` the client sent on the request. `CredentialKind` gains `Caller`, `BillingSource` gains `UserSubscription`, `CatalogError` gains `CallerCredentialWithSecret`, `CallerCredentialNotFirstParty`, `CallerCredentialFiltersBetas` and `CallerProviderSetsHeaders`, `UpstreamTargetError` gains `CallerCredential`, `GatewayError` gains `CallerCredentialRequired`, `DispatchInputs` and `KeyOwner` gain `caller_auth` (a `PresentedCredential`), `govern_prompt` takes a `PromptRepair`, and `GatewayAudit::{bill_to_user_key, billed_to_user_key}` are replaced by `bill_to` and `billing_source`. Migrate by adding the new match arms, passing `caller_auth: None` where no client credential is carried, and calling `bill_to(BillingSource::UserKey)`.
+
 ### Security
 
 - **OAuth:** a signed-in user can no longer read, change or delete another user's OAuth client; a non-admin's client listing shows only their own clients.
@@ -65,6 +67,10 @@
 
 ### Added
 
+- **Gateway:** a client can name its systemprompt credential in `x-systemprompt-authorization` (a PAT or JWT, with or without `Bearer`). When that header is present it is the request's identity on every gateway route and `Authorization` is never read as one; its value is recorded as `[redacted]`. Requests that send the credential in `Authorization` or `x-api-key` are unchanged.
+- **Gateway:** a request served by a `kind: caller` credential is sent upstream as the client sent it, with the client's own request headers and none of the platform's (its credentials, identifiers, trace context, network-path and framing headers are withheld): system-prompt overrides, team-memory injection, body normalisation and learned beta or field refusals do not apply, a prompt the secret scan would sanitise is denied, and the hop never fails over to a credential that bills a different account. Such a request records `billing_source = 'user_subscription'`, counts its tokens against quota windows and settles zero cost.
+- **Analytics:** `ai_usage_rollup_hourly` and `report_ai_usage_hourly` carry `user_subscription_request_count`, `user_subscription_tokens` and `user_subscription_cost_microdollars`, the billing-source cost breakdown returns a `user_subscription` row, and `infra logs request list --billing-source` accepts `user_subscription`.
+- **CLI:** `admin config credential add --kind caller`.
 - **CLI:** `admin keys stage`, `promote` and `rotate`; `admin config secret migrate-git-credentials`; `admin users federated-rekey`; `admin bridge signing-key-fingerprint`; `infra db migrate --full`; and `core services keygen --force`.
 - **Analytics:** personal analytics data (engagement events and fingerprint reputation) is deleted after a retention window.
 - **Security:** the JWKS publishes a staged and every unexpired previous key, so tokens signed before a rotation keep verifying.
@@ -84,6 +90,7 @@
 
 ### Fixed
 
+- **Gateway:** a request on a member-paid credential whose input exceeds its model's context window is refused instead of moving to a `context_fallbacks` deployment billed to a different credential.
 - **Bridge:** Drive names that differ only in Unicode normalisation collide like case variants, `CONIN$`/`CONOUT$` and superscript device names are refused, and writes re-check the destination for links just before the rename.
 - **Documents:** a document whose blob left storage answers 410 Gone with a message naming the cause, and a newly shared document appears once in the drive feed.
 - **Documents:** blob transfers run outside the per-hash lock transaction, and blob collection locks per hash.
