@@ -591,3 +591,102 @@ mod relayed {
         }
     }
 }
+
+mod as_sent {
+    use proptest::prelude::*;
+    use serde_json::{Map, Value};
+    use systemprompt_gateway::service::stages::as_sent_body;
+
+    fn json() -> impl Strategy<Value = Value> {
+        let leaf = prop_oneof![
+            Just(Value::Null),
+            any::<bool>().prop_map(Value::from),
+            any::<i64>().prop_map(Value::from),
+            "[ -~]{0,24}".prop_map(Value::from),
+            "\\PC{0,8}".prop_map(Value::from),
+        ];
+        leaf.prop_recursive(4, 48, 6, |inner| {
+            prop_oneof![
+                prop::collection::vec(inner.clone(), 0..6).prop_map(Value::from),
+                prop::collection::btree_map("[a-z_]{1,10}", inner, 0..6)
+                    .prop_map(|fields| Value::Object(fields.into_iter().collect())),
+            ]
+        })
+    }
+
+    fn body(model: &str) -> impl Strategy<Value = (bytes::Bytes, Map<String, Value>)> {
+        let model = model.to_owned();
+        (
+            prop::collection::btree_map("[a-z_]{1,12}", json(), 0..8),
+            any::<bool>(),
+        )
+            .prop_map(move |(fields, pretty)| {
+                let mut object: Map<String, Value> = fields.into_iter().collect();
+                object.insert("model".to_owned(), Value::from(model.clone()));
+                let value = Value::Object(object.clone());
+                let encoded = if pretty {
+                    serde_json::to_vec_pretty(&value)
+                } else {
+                    serde_json::to_vec(&value)
+                }
+                .expect("json encodes");
+                (bytes::Bytes::from(encoded), object)
+            })
+    }
+
+    proptest! {
+        #[test]
+        fn a_body_naming_the_upstream_model_is_sent_byte_for_byte((raw, _) in body("upstream-1")) {
+            prop_assert_eq!(as_sent_body(&raw, "upstream-1"), Some(raw));
+        }
+
+        #[test]
+        fn a_body_naming_another_model_changes_in_that_field_alone((raw, object) in body("alias")) {
+            let sent = as_sent_body(&raw, "upstream-1").expect("an object body is sendable");
+            prop_assert_ne!(&sent, &raw);
+            let mut expected = object;
+            expected.insert("model".to_owned(), Value::from("upstream-1"));
+            let decoded: Value = serde_json::from_slice(&sent).expect("json");
+            prop_assert_eq!(decoded, Value::Object(expected));
+        }
+    }
+}
+
+mod spoken {
+    use systemprompt_gateway::protocol::inbound::InboundAdapter;
+    use systemprompt_gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
+    use systemprompt_gateway::protocol::inbound::openai_chat::OpenAiChatInbound;
+    use systemprompt_gateway::protocol::inbound::openai_responses::OpenAiResponsesInbound;
+    use systemprompt_gateway::service::HopPolicy;
+    use systemprompt_manifest::services::catalog::is_spoken_by_a_client;
+    use systemprompt_wire::WireProtocol;
+
+    #[test]
+    fn each_client_format_speaks_one_wire_and_serves_as_presented_only_there() {
+        let formats: [(&dyn InboundAdapter, WireProtocol); 3] = [
+            (&AnthropicMessagesInbound, WireProtocol::Anthropic),
+            (&OpenAiChatInbound, WireProtocol::OpenAiChat),
+            (&OpenAiResponsesInbound, WireProtocol::OpenAiResponses),
+        ];
+        for (format, wire) in formats {
+            assert_eq!(format.spoken_wire(), Some(wire), "{}", format.wire_name());
+            for hop in WireProtocol::ALL {
+                assert_eq!(
+                    HopPolicy::AsPresented.serves(format.spoken_wire(), hop),
+                    hop == wire,
+                    "{} on {hop}",
+                    format.wire_name()
+                );
+                assert!(HopPolicy::Governed.serves(format.spoken_wire(), hop));
+            }
+        }
+        for wire in WireProtocol::ALL {
+            assert_eq!(
+                is_spoken_by_a_client(wire),
+                formats.iter().any(|(_, spoken)| *spoken == wire),
+                "{wire}"
+            );
+        }
+        assert!(!is_spoken_by_a_client(WireProtocol::Gemini));
+    }
+}

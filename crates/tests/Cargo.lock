@@ -10015,6 +10015,7 @@ dependencies = [
  "jsonwebtoken",
  "metrics",
  "metrics-util",
+ "proptest",
  "reqwest",
  "serde_json",
  "serde_yaml_ng",
