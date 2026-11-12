@@ -49,12 +49,13 @@ SHARD_GROUPS="shared infra domain app-runtime app-scheduler app-agent-runs app-g
 archive_set_groups() {
   case "$1" in
     unit)        echo "shared infra domain" ;;
-    app)         echo "app-runtime app-scheduler app-agent-runs app-generator app-oauth-issuance entry-api entry-cli bridge" ;;
+    app)         echo "app-runtime app-scheduler app-agent-runs app-generator app-oauth-issuance entry-api entry-cli" ;;
+    bridge)      echo "bridge" ;;
     integration) echo "integration-api integration-cli integration-rest-1 integration-rest-2 edge" ;;
     *) echo "unknown archive set: $1" >&2; exit 2 ;;
   esac
 }
-ARCHIVE_SETS="unit app integration"
+ARCHIVE_SETS="unit app bridge integration"
 archive_set_of() {
   local found="" set g
   for set in $ARCHIVE_SETS; do
