@@ -13,13 +13,13 @@ use systemprompt_manifest::services::catalog::{
     ResolvedProvider,
 };
 use systemprompt_security::credential::{
-    CredentialKind, ProviderCredential, TokenCache, TokenCacheKey, fill_endpoint,
+    CredentialKind, CredentialScope, ProviderCredential, TokenCache, TokenCacheKey, fill_endpoint,
 };
 use systemprompt_wire::anthropic::AnthropicBeta;
 use systemprompt_wire::upstream::UpstreamDialect;
 use systemprompt_wire::{Hosting, WireProtocol};
 
-use super::call::UpstreamCall;
+use super::call::{PresentedCredential, UpstreamCall};
 use super::error::UpstreamTargetError;
 
 /// An endpoint resolved once and reused for every request to it.
@@ -138,12 +138,6 @@ impl UpstreamTarget {
                 source,
             }
         })?;
-        let mut extra_headers: Vec<(String, String)> = provider
-            .extra_headers
-            .iter()
-            .map(|(name, value)| (name.clone(), value.clone()))
-            .collect();
-        extra_headers.sort();
         Ok(Self {
             endpoint_ref,
             credential_id: catalog_credential.id.clone(),
@@ -153,15 +147,28 @@ impl UpstreamTarget {
             credential,
             cache_key,
             tokens: Arc::clone(tokens),
-            extra_headers,
+            extra_headers: sorted_extra_headers(provider),
             accepted_betas: endpoint.betas.clone(),
             user_agent: provider.user_agent.clone(),
-            forward_headers: provider
-                .forward_headers
-                .iter()
-                .map(|name| name.to_ascii_lowercase())
-                .collect(),
+            forward_headers: lowercased_forward_headers(provider),
         })
+    }
+
+    pub fn caller_call(
+        binding: EndpointBinding<'_>,
+        presented: PresentedCredential,
+    ) -> Result<UpstreamCall, UpstreamTargetError> {
+        let EndpointBinding { endpoint, .. } = binding;
+        let url = fill_endpoint(&endpoint.url, &CredentialScope::empty()).map_err(|source| {
+            UpstreamTargetError::Endpoint {
+                endpoint: endpoint.endpoint_ref().to_string(),
+                source,
+            }
+        })?;
+        Ok(
+            UpstreamCall::new(endpoint.hosting, url, presented.auth, Vec::new())
+                .with_presented_headers(presented.headers),
+        )
     }
 
     pub fn from_secrets(
@@ -171,8 +178,15 @@ impl UpstreamTarget {
     ) -> Result<Self, UpstreamTargetError> {
         let credential = binding.credential;
         let Some(secret_name) = credential.platform_secret() else {
-            return Err(UpstreamTargetError::PersonalCredential {
-                credential: credential.id.as_str().to_owned(),
+            let credential_id = credential.id.as_str().to_owned();
+            return Err(if credential.is_caller() {
+                UpstreamTargetError::CallerCredential {
+                    credential: credential_id,
+                }
+            } else {
+                UpstreamTargetError::PersonalCredential {
+                    credential: credential_id,
+                }
             });
         };
         let secret = secrets.get(secret_name.as_str()).ok_or_else(|| {
@@ -254,4 +268,22 @@ impl UpstreamTarget {
     pub const fn credential(&self) -> &ProviderCredential {
         &self.credential
     }
+}
+
+fn sorted_extra_headers(provider: &ResolvedProvider) -> Vec<(String, String)> {
+    let mut extra_headers: Vec<(String, String)> = provider
+        .extra_headers
+        .iter()
+        .map(|(name, value)| (name.clone(), value.clone()))
+        .collect();
+    extra_headers.sort();
+    extra_headers
+}
+
+fn lowercased_forward_headers(provider: &ResolvedProvider) -> Vec<String> {
+    provider
+        .forward_headers
+        .iter()
+        .map(|name| name.to_ascii_lowercase())
+        .collect()
 }

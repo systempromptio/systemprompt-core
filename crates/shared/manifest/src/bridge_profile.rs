@@ -31,11 +31,16 @@ use systemprompt_models::bridge::profile::{
 use systemprompt_models::providers::{ClientFamily, LONG_CONTEXT_WINDOW, with_context_variant};
 
 use crate::services::catalog::{
-    ModelRequest, ResolvedCatalog, ResolvedCredential, ResolvedModel, ResolvedProvider,
+    CredentialKind, ModelRequest, ResolvedCatalog, ResolvedCredential, ResolvedModel,
+    ResolvedProvider,
 };
 
-/// The caller's credential facts: which platform secrets the deployment
-/// holds, and which personal credentials this user stored a key for.
+/// The caller's credential facts.
+///
+/// Which platform secrets the deployment holds, and which member-paid
+/// credentials this user can present: a personal credential they stored a key
+/// for, or a caller credential their client carries. The bridge carries none
+/// of the latter, so its profile never lists a caller credential here.
 #[derive(Clone, Copy)]
 pub struct CredentialFacts<'a> {
     pub secret_present: &'a dyn Fn(&str) -> bool,
@@ -53,12 +58,14 @@ impl std::fmt::Debug for CredentialFacts<'_> {
 impl CredentialFacts<'_> {
     #[must_use]
     pub fn configured(&self, credential: &ResolvedCredential) -> bool {
-        if credential.is_personal() {
-            return self.personal_keys.contains(credential.id.as_str());
+        match credential.kind {
+            CredentialKind::Personal | CredentialKind::Caller => {
+                self.personal_keys.contains(credential.id.as_str())
+            },
+            CredentialKind::Platform => credential
+                .platform_secret()
+                .is_some_and(|secret| (self.secret_present)(secret.as_str())),
         }
-        credential
-            .platform_secret()
-            .is_some_and(|secret| (self.secret_present)(secret.as_str()))
     }
 }
 
@@ -104,11 +111,18 @@ pub fn provider_health(
             }
             let credential = catalog.credential(provider.credential.as_str())?;
             let configured = facts.configured(credential);
-            let config_issue = (!configured).then(|| {
-                credential.platform_secret().map_or_else(
-                    || "personal key not added — add your own key in Settings".to_owned(),
+            let config_issue = (!configured).then(|| match credential.kind {
+                CredentialKind::Personal => {
+                    "personal key not added — add your own key in Settings".to_owned()
+                },
+                CredentialKind::Caller => {
+                    "served with the credential the client presents, which the bridge does not carry"
+                        .to_owned()
+                },
+                CredentialKind::Platform => credential.platform_secret().map_or_else(
+                    || "API key secret is not configured".to_owned(),
                     |secret| format!("API key secret '{}' is not configured", secret.as_str()),
-                )
+                ),
             });
             let clients: BTreeSet<ClientFamily> = models
                 .iter()

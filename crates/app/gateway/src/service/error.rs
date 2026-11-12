@@ -78,6 +78,12 @@ pub enum GatewayError {
          your profile"
     )]
     PersonalKeyRequired { credential: String },
+    #[error(
+        "credential {credential} is served with the upstream credential your client presents: \
+         send it in `Authorization` and your systemprompt credential in \
+         `x-systemprompt-authorization`"
+    )]
+    CallerCredentialRequired { credential: String },
     #[error("gateway dispatch has no authenticated session")]
     MissingSession,
     #[error("gateway {context}")]
@@ -109,6 +115,7 @@ impl GatewayError {
             },
             Self::Quota(_) => StatusCode::TOO_MANY_REQUESTS,
             Self::GuardForbidden(_) | Self::PersonalKeyRequired { .. } => StatusCode::FORBIDDEN,
+            Self::CallerCredentialRequired { .. } => StatusCode::UNAUTHORIZED,
             Self::ImageFetch(image) if image.caller_fault() => StatusCode::BAD_REQUEST,
             Self::Upstream(upstream) => upstream_status(upstream),
             Self::MissingPricing(_) | Self::NoRoute { .. } | Self::NoAdapter { .. } => {

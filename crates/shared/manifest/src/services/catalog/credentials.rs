@@ -6,7 +6,10 @@
 //! two it is is read from the secret itself ([`PlatformSecretKind::detect`]).
 //! A `personal` credential is each member's own subscription: it names no
 //! secret, every member stores their own key under the credential id, and
-//! one member's key is never spent on another's request.
+//! one member's key is never spent on another's request. A `caller`
+//! credential is whatever the client presents on the request itself: it names
+//! no secret and stores nothing, the request's own `Authorization` is sent
+//! upstream, and it is confined to endpoints the vendor hosts itself.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -21,6 +24,7 @@ use systemprompt_identifiers::{CredentialId, SecretName};
 pub enum CredentialKind {
     Platform,
     Personal,
+    Caller,
 }
 
 impl CredentialKind {
@@ -30,10 +34,29 @@ impl CredentialKind {
     }
 
     #[must_use]
+    pub const fn is_caller(self) -> bool {
+        matches!(self, Self::Caller)
+    }
+
+    #[must_use]
+    pub const fn is_platform(self) -> bool {
+        matches!(self, Self::Platform)
+    }
+
+    #[must_use]
+    pub const fn is_member_paid(self) -> bool {
+        match self {
+            Self::Platform => false,
+            Self::Personal | Self::Caller => true,
+        }
+    }
+
+    #[must_use]
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::Platform => "platform",
             Self::Personal => "personal",
+            Self::Caller => "caller",
         }
     }
 }
@@ -62,6 +85,15 @@ impl CredentialEntry {
     pub const fn personal(label: Option<String>) -> Self {
         Self {
             kind: CredentialKind::Personal,
+            secret: None,
+            label,
+        }
+    }
+
+    #[must_use]
+    pub const fn caller(label: Option<String>) -> Self {
+        Self {
+            kind: CredentialKind::Caller,
             secret: None,
             label,
         }

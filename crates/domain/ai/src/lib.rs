@@ -98,5 +98,6 @@ pub use services::personal_keys::{
     personal_credential, personal_credentials, store_personal_key, verify_personal_key,
 };
 pub use services::upstream::{
-    EndpointBinding, UpstreamCall, UpstreamDialect, UpstreamTarget, UpstreamTargetError,
+    EndpointBinding, PresentedCredential, UpstreamCall, UpstreamDialect, UpstreamTarget,
+    UpstreamTargetError,
 };

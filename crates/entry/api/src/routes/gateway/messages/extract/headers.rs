@@ -4,6 +4,12 @@
 //! which session a request is bound to, so an absent or unreadable header
 //! leaves the choice to it.
 //!
+//! The systemprompt credential is read from `x-systemprompt-authorization`
+//! when that header is present, and otherwise from `Authorization` or
+//! `x-api-key`. A request that names it in the dedicated header keeps
+//! `Authorization` for the upstream: it is never read as identity, and it is
+//! the only credential a caller-credential hop presents.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -12,9 +18,14 @@ use axum::extract::Request;
 use axum::http::{HeaderMap, StatusCode};
 use bytes::Bytes;
 use std::sync::Arc;
-use systemprompt_identifiers::headers::{GATEWAY_CONVERSATION_ID, MEMORY, SESSION_ID, TRACEPARENT};
+use systemprompt_ai::PresentedCredential;
+use systemprompt_identifiers::headers::{
+    API_KEY, AUTHORIZATION, GATEWAY_CONVERSATION_ID, MEMORY, SESSION_ID,
+    SYSTEMPROMPT_AUTHORIZATION, TRACEPARENT,
+};
 use systemprompt_identifiers::{GatewayConversationId, SessionId};
 use systemprompt_models::origin::MemoryPreference;
+use systemprompt_security::credential::{AuthHeader, AuthScheme};
 use systemprompt_wire::anthropic as wire_anthropic;
 
 use super::RejectionPartial;
@@ -56,6 +67,8 @@ pub fn optional_gateway_conversation_id(
         .map(Some)
         .map_err(|e| invalid_header(GATEWAY_CONVERSATION_ID).with_cause(e))
 }
+
+const BEARER_PREFIX: &str = "Bearer ";
 
 fn invalid_header(name: &str) -> RejectionError {
     RejectionError::client(StatusCode::BAD_REQUEST, format!("invalid {name} header"))
@@ -105,6 +118,7 @@ pub(crate) struct ClientHeaders {
     pub identity: Vec<(String, String)>,
     pub traceparent: Option<String>,
     pub memory: MemoryPreference,
+    pub caller_auth: Option<PresentedCredential>,
 }
 
 pub fn memory_preference(headers: &HeaderMap) -> MemoryPreference {
@@ -114,6 +128,7 @@ pub fn memory_preference(headers: &HeaderMap) -> MemoryPreference {
 pub(super) fn classify_client_headers(headers: &HeaderMap) -> ClientHeaders {
     let mut classified = ClientHeaders {
         memory: memory_preference(headers),
+        caller_auth: presented_credential(headers),
         ..ClientHeaders::default()
     };
     for (name, value) in headers {
@@ -137,12 +152,15 @@ pub(super) fn classify_client_headers(headers: &HeaderMap) -> ClientHeaders {
 }
 
 pub fn extract_credential(headers: &HeaderMap) -> Option<String> {
-    let raw = headers
-        .get("authorization")
-        .or_else(|| headers.get("x-api-key"))
-        .and_then(|v| v.to_str().ok())?;
+    let raw = match headers.get(SYSTEMPROMPT_AUTHORIZATION) {
+        Some(dedicated) => dedicated.to_str().ok()?,
+        None => headers
+            .get(AUTHORIZATION)
+            .or_else(|| headers.get(API_KEY))
+            .and_then(|v| v.to_str().ok())?,
+    };
 
-    let trimmed = raw.strip_prefix("Bearer ").unwrap_or(raw).trim();
+    let trimmed = raw.strip_prefix(BEARER_PREFIX).unwrap_or(raw).trim();
     if trimmed.is_empty() {
         None
     } else {
@@ -150,11 +168,40 @@ pub fn extract_credential(headers: &HeaderMap) -> Option<String> {
     }
 }
 
+pub fn caller_auth(headers: &HeaderMap) -> Option<AuthHeader> {
+    headers.get(SYSTEMPROMPT_AUTHORIZATION)?;
+    let token = headers
+        .get(AUTHORIZATION)?
+        .to_str()
+        .ok()?
+        .strip_prefix(BEARER_PREFIX)?
+        .trim();
+    (!token.is_empty()).then(|| AuthHeader {
+        scheme: AuthScheme::Bearer,
+        value: token.to_owned(),
+    })
+}
+
+pub fn presented_credential(headers: &HeaderMap) -> Option<PresentedCredential> {
+    let auth = caller_auth(headers)?;
+    let presented = headers
+        .iter()
+        .filter(|(name, _)| systemprompt_wire::upstream::is_presented_request_header(name.as_str()))
+        .filter_map(|(name, value)| {
+            Some((name.as_str().to_owned(), value.to_str().ok()?.to_owned()))
+        })
+        .collect();
+    Some(PresentedCredential {
+        auth,
+        headers: presented,
+    })
+}
+
 pub(super) fn require_credential(headers: &HeaderMap) -> Result<String, RejectionError> {
     extract_credential(headers).ok_or_else(|| {
         RejectionError::client(
             StatusCode::UNAUTHORIZED,
-            "Missing Authorization or x-api-key credential",
+            "Missing Authorization, x-api-key or x-systemprompt-authorization credential",
         )
     })
 }

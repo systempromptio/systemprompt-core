@@ -229,16 +229,19 @@ pub(super) async fn resolve_deployment_upstream<'a>(
     .map(Some)
 }
 
-// Why: a personal subscription and a deployment secret, or two members'
-// personal subscriptions, bill different accounts; a failover hop between them
-// would move a request onto a bill nobody chose. Two platform credentials are
-// both the deployment's own bill, so failing over between them is allowed.
+// Why: a member's subscription and a deployment secret, or two different
+// member-paid credentials, bill different accounts; a failover hop between
+// them would move a request onto a bill nobody chose. Two platform credentials
+// are both the deployment's own bill, so failing over between them is allowed.
 #[must_use]
 pub fn may_fail_over(from: &ResolvedHop, to: &ResolvedHop) -> bool {
-    match (from.credential.is_personal(), to.credential.is_personal()) {
+    match (
+        from.credential.is_member_paid(),
+        to.credential.is_member_paid(),
+    ) {
         (false, false) => true,
         (true, true) => from.bills_same_credential(to),
-        _ => false,
+        (true, false) | (false, true) => false,
     }
 }
 

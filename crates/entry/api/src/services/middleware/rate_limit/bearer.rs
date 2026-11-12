@@ -18,6 +18,7 @@ use axum::http::{HeaderMap, header};
 use axum::middleware::Next;
 use axum::response::Response;
 use std::sync::Arc;
+use systemprompt_identifiers::headers::SYSTEMPROMPT_AUTHORIZATION;
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::UserType;
 use systemprompt_users::API_KEY_PREFIX;
@@ -33,7 +34,8 @@ pub(super) struct BearerWindow {
 
 pub fn bearer_jwt(headers: &HeaderMap) -> Option<&str> {
     let raw = headers
-        .get(header::AUTHORIZATION)
+        .get(SYSTEMPROMPT_AUTHORIZATION)
+        .or_else(|| headers.get(header::AUTHORIZATION))
         .and_then(|value| value.to_str().ok())?;
     let token = raw.strip_prefix("Bearer ")?.trim();
     (!token.is_empty() && !token.starts_with(API_KEY_PREFIX)).then_some(token)

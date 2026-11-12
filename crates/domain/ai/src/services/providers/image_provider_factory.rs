@@ -80,7 +80,7 @@ impl ImageProviderFactory {
         let hop = catalog
             .enabled_hops(model.as_str())
             .filter(|hop| Self::supports_image_generation(hop.wire))
-            .find(|hop| !hop.credential.is_personal())
+            .find(|hop| hop.credential.is_platform())
             .ok_or_else(|| {
                 AiError::Routing(RoutingError::NoProviderForModel {
                     model: model.clone(),

@@ -43,7 +43,7 @@ pub use attribution::AttributionHeaders;
 use attribution::classify_client;
 pub use authz::{GatewayAuthzRequestInput, build_gateway_authz_request};
 pub(super) use headers::ClientHeaders;
-pub use headers::{extract_credential, memory_preference};
+pub use headers::{caller_auth, extract_credential, memory_preference, presented_credential};
 pub use partial::RejectionPartial;
 use scope::{ScopeHeaders, attribute_scopes};
 

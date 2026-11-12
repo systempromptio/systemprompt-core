@@ -73,8 +73,8 @@ impl ProviderClients {
                     continue;
                 },
             };
-            if binding.credential.is_personal() {
-                tracing::debug!(endpoint = %endpoint_ref, "personal-credential endpoint left to the gateway");
+            if binding.credential.is_member_paid() {
+                tracing::debug!(endpoint = %endpoint_ref, "member-paid endpoint left to the gateway");
                 continue;
             }
             let target = match UpstreamTarget::from_secrets(tokens, secrets, binding) {

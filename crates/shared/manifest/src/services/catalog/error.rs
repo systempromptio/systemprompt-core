@@ -31,6 +31,47 @@ pub enum CatalogError {
     },
 
     #[error(
+        "credential '{credential}' is `kind: caller` but names secret '{secret}'; a caller \
+         credential is the one the client presents on the request, so it has no deployment secret"
+    )]
+    CallerCredentialWithSecret {
+        credential: CredentialId,
+        secret: String,
+    },
+
+    #[error(
+        "caller credential '{credential}' is used by endpoint '{provider}/{endpoint}', which is \
+         not hosted by the vendor itself; a credential the client presents is sent only to the \
+         vendor's own API"
+    )]
+    CallerCredentialNotFirstParty {
+        credential: CredentialId,
+        provider: ProviderId,
+        endpoint: EndpointId,
+    },
+
+    #[error(
+        "caller credential '{credential}' is used by endpoint '{provider}/{endpoint}', which \
+         declares `accepted_betas`; the client's beta flags are sent whole with its own \
+         credential, so the endpoint lists none"
+    )]
+    CallerCredentialFiltersBetas {
+        credential: CredentialId,
+        provider: ProviderId,
+        endpoint: EndpointId,
+    },
+
+    #[error(
+        "provider '{provider}' uses caller credential '{credential}' and sets `user_agent`, \
+         `extra_headers` or `forward_headers`; such a request carries the client's own headers \
+         and none of the deployment's"
+    )]
+    CallerProviderSetsHeaders {
+        credential: CredentialId,
+        provider: ProviderId,
+    },
+
+    #[error(
         "provider '{provider}' names credential '{credential}', which credentials.yaml does not declare"
     )]
     UnknownCredential {
@@ -39,8 +80,8 @@ pub enum CatalogError {
     },
 
     #[error(
-        "personal credential '{credential}' is used by providers '{first}' and '{second}'; one \
-         personal subscription is one vendor account, so declare its endpoints under one provider"
+        "member-paid credential '{credential}' is used by providers '{first}' and '{second}'; \
+         one member subscription is one vendor account, so declare its endpoints under one provider"
     )]
     PersonalCredentialShared {
         credential: CredentialId,

@@ -47,9 +47,7 @@ pub(super) async fn dispatch_to_provider(
         client_session_id,
     } = prepared;
 
-    let max_tokens = gateway_request.max_tokens;
     let api_key_windows = super::extract::scope::api_key_windows(&principal);
-    let is_streaming = gateway_request.stream;
     let trace_sampled = client_headers
         .traceparent
         .as_deref()
@@ -69,8 +67,8 @@ pub(super) async fn dispatch_to_provider(
         hop: None,
         requested_model: Some(gateway_request.model.to_string()),
         model: upstream_model,
-        max_tokens: Some(max_tokens),
-        is_streaming,
+        max_tokens: Some(gateway_request.max_tokens),
+        is_streaming: gateway_request.stream,
         origin,
         evidence,
         attribution,
@@ -98,6 +96,7 @@ pub(super) async fn dispatch_to_provider(
             inbound,
             forward_headers: client_headers.forward,
             identity_headers: client_headers.identity,
+            caller_auth: client_headers.caller_auth,
             trace_sampled,
             governance: rc.ctx.governance(),
             engines: Arc::clone(rc.engines),

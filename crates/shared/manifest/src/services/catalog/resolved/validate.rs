@@ -2,7 +2,8 @@
 //!
 //! [`validate_registries`] checks the four registries on their own and
 //! against each other: credentials are well-formed, every reference resolves,
-//! endpoints are SSRF-guarded, a personal credential belongs to one provider,
+//! endpoints are SSRF-guarded, a member-paid credential belongs to one provider
+//! and a caller credential reaches only endpoints the vendor hosts itself,
 //! every model is deployed and every deployment is of a declared model.
 //! [`validate_routes`] runs on the projection: the default model, route
 //! aliases, route narrowing, governance and, with the gateway enabled, that
@@ -38,11 +39,18 @@ pub(super) fn validate_registries(input: &CatalogInput<'_>) -> CatalogResult<()>
                     secret: secret.as_str().to_owned(),
                 });
             },
-            _ => {},
+            (CredentialKind::Caller, Some(secret)) => {
+                return Err(CatalogError::CallerCredentialWithSecret {
+                    credential: id.clone(),
+                    secret: secret.as_str().to_owned(),
+                });
+            },
+            (CredentialKind::Platform, Some(_))
+            | (CredentialKind::Personal | CredentialKind::Caller, None) => {},
         }
     }
     let trusted = systemprompt_models::net::trusted_http_hosts_from_env();
-    let mut personal_owner: BTreeMap<&CredentialId, &ProviderId> = BTreeMap::new();
+    let mut member_owner: BTreeMap<&CredentialId, &ProviderId> = BTreeMap::new();
     for (id, provider) in input.providers.iter() {
         let Some(credential) = input.credentials.get(provider.credential.as_str()) else {
             return Err(CatalogError::UnknownCredential {
@@ -50,8 +58,8 @@ pub(super) fn validate_registries(input: &CatalogInput<'_>) -> CatalogResult<()>
                 credential: provider.credential.clone(),
             });
         };
-        if credential.kind.is_personal()
-            && let Some(first) = personal_owner.insert(&provider.credential, id)
+        if credential.kind.is_member_paid()
+            && let Some(first) = member_owner.insert(&provider.credential, id)
         {
             return Err(CatalogError::PersonalCredentialShared {
                 credential: provider.credential.clone(),
@@ -59,9 +67,41 @@ pub(super) fn validate_registries(input: &CatalogInput<'_>) -> CatalogResult<()>
                 second: id.clone(),
             });
         }
+        if credential.kind.is_caller() {
+            validate_caller_provider(id, provider)?;
+        }
         validate_provider(id, provider, &trusted)?;
     }
     validate_models_and_deployments(input)
+}
+
+fn validate_caller_provider(id: &ProviderId, provider: &ProviderConfig) -> CatalogResult<()> {
+    if provider.user_agent.is_some()
+        || !provider.extra_headers.is_empty()
+        || !provider.forward_headers.is_empty()
+    {
+        return Err(CatalogError::CallerProviderSetsHeaders {
+            credential: provider.credential.clone(),
+            provider: id.clone(),
+        });
+    }
+    for (endpoint_id, endpoint) in &provider.endpoints {
+        if endpoint.effective_hosting() != systemprompt_wire::Hosting::FirstParty {
+            return Err(CatalogError::CallerCredentialNotFirstParty {
+                credential: provider.credential.clone(),
+                provider: id.clone(),
+                endpoint: endpoint_id.clone(),
+            });
+        }
+        if endpoint.accepted_betas.is_some() {
+            return Err(CatalogError::CallerCredentialFiltersBetas {
+                credential: provider.credential.clone(),
+                provider: id.clone(),
+                endpoint: endpoint_id.clone(),
+            });
+        }
+    }
+    Ok(())
 }
 
 fn validate_provider(

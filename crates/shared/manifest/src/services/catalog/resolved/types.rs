@@ -37,10 +37,25 @@ impl ResolvedCredential {
     }
 
     #[must_use]
+    pub const fn is_caller(&self) -> bool {
+        self.kind.is_caller()
+    }
+
+    #[must_use]
+    pub const fn is_platform(&self) -> bool {
+        self.kind.is_platform()
+    }
+
+    #[must_use]
+    pub const fn is_member_paid(&self) -> bool {
+        self.kind.is_member_paid()
+    }
+
+    #[must_use]
     pub const fn platform_secret(&self) -> Option<&SecretName> {
         match self.kind {
             CredentialKind::Platform => self.secret.as_ref(),
-            CredentialKind::Personal => None,
+            CredentialKind::Personal | CredentialKind::Caller => None,
         }
     }
 }

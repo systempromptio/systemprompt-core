@@ -10,6 +10,7 @@ use systemprompt_wire::{ModelLimits, WireProtocol};
 use super::super::super::audit::GatewayAudit;
 use super::super::super::image_fetch::{ImageFetchPolicy, inline_url_images};
 use super::super::super::protocol::canonical::CanonicalRequest;
+use super::super::super::protocol::inbound::InboundAdapter;
 use super::super::super::protocol::outbound::{OutboundCtx, OutboundOutcome, PreparedBody};
 use super::super::resolve::ResolvedUpstream;
 use super::super::{DispatchError, GatewayError};
@@ -39,6 +40,24 @@ pub(super) const fn outbound_ctx<'a>(
         forward_headers: parts.forward_headers,
         raw_body: parts.raw_body,
     }
+}
+
+// JSON: provider request body — the client's own bytes, sent as they arrived
+// unless the route serves the model under another upstream id.
+pub fn as_sent_body(raw: &Bytes, upstream_model: &str) -> Option<Bytes> {
+    let Ok(serde_json::Value::Object(mut obj)) = serde_json::from_slice(raw) else {
+        return None;
+    };
+    if obj.get("model").and_then(serde_json::Value::as_str) == Some(upstream_model) {
+        return Some(raw.clone());
+    }
+    obj.insert(
+        "model".to_owned(),
+        serde_json::Value::String(upstream_model.to_owned()),
+    );
+    serde_json::to_vec(&serde_json::Value::Object(obj))
+        .ok()
+        .map(Bytes::from)
 }
 
 pub(super) fn strip_caller_identity(request: &mut CanonicalRequest) {
@@ -134,4 +153,52 @@ pub(super) async fn send_bracketed(
             Err(DispatchError::Recorded(e))
         },
     }
+}
+
+pub(super) fn passthrough_body<'a>(
+    raw_body: &'a Bytes,
+    inbound: &dyn InboundAdapter,
+    upstream: &ResolvedUpstream<'_>,
+    mutated: bool,
+) -> Option<&'a Bytes> {
+    // Why: the passthrough forwards the client's bytes untouched, so any
+    // mutation of the canonical request must force re-encoding.
+    if mutated {
+        return None;
+    }
+    (inbound.passthrough_wire() == Some(upstream.hop.wire)).then_some(raw_body)
+}
+
+pub(super) fn automatic_prompt_caching(enabled: bool, upstream: &ResolvedUpstream<'_>) -> bool {
+    enabled
+        && upstream.hop.wire == WireProtocol::Anthropic
+        && upstream
+            .catalog
+            .model(upstream.hop.model.as_str())
+            .is_some_and(|model| model.capabilities.prompt_caching)
+}
+
+pub(super) fn prepared_body(
+    upstream: &ResolvedUpstream<'_>,
+    ctx: &OutboundCtx<'_>,
+    as_sent: bool,
+) -> Result<PreparedBody, DispatchError> {
+    let sent_whole = ctx
+        .raw_body
+        .filter(|_| as_sent)
+        .and_then(|raw| as_sent_body(raw, ctx.upstream_model));
+    sent_whole.map_or_else(
+        || {
+            upstream
+                .adapter
+                .build_body(ctx)
+                .map_err(DispatchError::recorded)
+        },
+        |bytes| {
+            Ok(PreparedBody {
+                bytes,
+                raw_lane: true,
+            })
+        },
+    )
 }

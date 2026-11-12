@@ -40,6 +40,7 @@ pub fn is_identity_request_header(name: &str) -> bool {
 const CREDENTIAL_NAMES: &[&str] = &[
     "authorization",
     "proxy-authorization",
+    systemprompt_identifiers::headers::SYSTEMPROMPT_AUTHORIZATION,
     systemprompt_identifiers::headers::API_KEY,
     "cookie",
     "set-cookie",

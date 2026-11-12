@@ -97,7 +97,13 @@ fn credential_spec(args: &CredentialAddArgs) -> Result<CredentialSpec> {
         ("personal", Some(_)) => {
             bail!("a personal credential names no secret: each member stores their own key")
         },
-        (other, _) => bail!("invalid --kind '{other}'; expected platform or personal"),
+        ("caller", None) => CredentialEntry::caller(args.label.clone()),
+        ("caller", Some(_)) => {
+            bail!(
+                "a caller credential names no secret: the client presents its own on each request"
+            )
+        },
+        (other, _) => bail!("invalid --kind '{other}'; expected platform, personal or caller"),
     };
     Ok(CredentialSpec {
         id: CredentialId::new(&args.id),

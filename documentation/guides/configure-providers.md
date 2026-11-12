@@ -126,6 +126,60 @@ Each route's `api_key_secret` names a key in the secrets document, not a literal
 
 A request whose route names a secret that is absent fails with a gateway error and the secret name in the message. Manage these keys through your secrets store as described in [configure.md](configure.md) §5; do not commit them.
 
+## Caller credentials: a member's own vendor account
+
+A `kind: caller` credential serves an endpoint with the credential the client presents on each request, instead of a deployment secret or a stored member key. It is how a member's own subscription with a vendor is used through the gateway, for example the claude.ai login Claude Code holds: the request is authenticated, authorised, scanned, audited and counted here, and billed to the member by the vendor. Nothing changes for a deployment that does not declare one.
+
+```yaml
+# services/ai/credentials.yaml
+credentials:
+  claude-subscription: { kind: caller, label: Claude subscription }
+```
+
+```yaml
+# services/ai/providers.yaml
+providers:
+  claude-subscription:
+    credential: claude-subscription
+    endpoints:
+      api: { wire: anthropic, url: "https://api.anthropic.com/v1" }
+```
+
+```yaml
+# services/ai/deployments.yaml
+deployments:
+  claude-opus-5-5: [claude-subscription/api]
+```
+
+A model's deployment chain bills one account: a chain that lists a caller endpoint beside a platform endpoint never fails over between them, so deploy a model on one or the other. To offer the same upstream model both ways, declare a second model id with `upstream_model` set to the vendor's id and deploy it on the caller provider.
+
+The catalog refuses a caller credential that names a `secret`, that is used by more than one provider, whose provider sets `user_agent`, `extra_headers` or `forward_headers`, or whose provider has an endpoint that is not the vendor's own API (for example a model hosted on Vertex AI) or that declares `accepted_betas`.
+
+**Client.** The client keeps its vendor credential in `Authorization` and names its systemprompt credential in `x-systemprompt-authorization`. For Claude Code:
+
+```bash
+export ANTHROPIC_BASE_URL=https://<instance>/v1
+export ANTHROPIC_CUSTOM_HEADERS="x-systemprompt-authorization: Bearer <PAT or JWT>"
+```
+
+Do not set `ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_API_KEY` or an `apiKeyHelper`: each replaces the claude.ai login as the credential Claude Code sends. The desktop bridge configures an `apiKeyHelper`, so a bridge-routed Claude Code does not carry a subscription and the bridge profile lists caller-credential models as not servable.
+
+**Who may use it.** Deploy the subscription models on the caller provider under their own model ids or route, and grant that `gateway_route` or `model` entity to the users, departments or roles that may use their subscription in `access-control/rules.yaml`. Access is default-deny like every other route.
+
+**What the gateway does on a caller hop.**
+
+| Applied | Not applied |
+|---------|-------------|
+| Authentication, route and model authorisation, API-key model allowlists | System-prompt override rules |
+| Quota and rate windows (tokens count; cost settles at zero) | Team-memory injection |
+| Safety scanners and governance policies, which can deny | Secret sanitising: a prompt that would be sanitised is denied instead |
+| Audit journal and usage records (`billing_source = user_subscription`) | Body normalisation, automatic prompt caching, learned beta and field refusals |
+| Upstream error bodies returned as received | Failover to any credential that bills a different account |
+
+The request body is sent as the client sent it; the only edit is the `model` field when the route serves the model under a different upstream id. The request carries the client's own headers and none of the platform's: `Authorization`, `user-agent` and the client's other headers are forwarded whole, while the systemprompt credential, every `x-systemprompt-*` header, session, context and trace identifiers, cookies, client-address headers and this hop's framing headers are withheld. A request that reaches a caller hop without `x-systemprompt-authorization` and an `Authorization: Bearer` value answers `401`.
+
+**Anthropic's terms.** Whether a deployment may route subscription credentials through a gateway is governed by Anthropic's terms, not by this configuration. Anthropic's Claude Code documentation describes gateways that forward a claude.ai login ([LLM gateway](https://code.claude.com/docs/en/llm-gateway.md#subscriptions-and-gateways)), and its [legal and compliance](https://code.claude.com/docs/en/legal-and-compliance.md) page restricts third-party developers from offering claude.ai login in their own applications and from collecting, storing or intermediating claude.ai credentials; the [Agent SDK](https://code.claude.com/docs/en/agent-sdk/overview.md) documentation requires prior approval for third-party products that offer claude.ai login or rate limits. The gateway does not store the credential and does not modify the request. An operator who declares a caller credential is responsible for confirming that their use is permitted.
+
 ## 5. Serve and verify
 
 With the gateway enabled, two client-facing endpoints are live under `/v1`:

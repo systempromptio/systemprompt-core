@@ -39,7 +39,9 @@ impl OutboundAdapter for AnthropicOutbound {
         }
         let mut body =
             request::build_request_body(ctx.request, ctx.upstream_model, ctx.model_limits);
-        request::enable_automatic_prompt_caching(&mut body, ctx);
+        if !ctx.target.credential.is_caller() {
+            request::enable_automatic_prompt_caching(&mut body, ctx);
+        }
         ctx.upstream
             .finish_value(WireProtocol::Anthropic, &mut body);
         Ok(PreparedBody {
@@ -65,8 +67,23 @@ impl OutboundAdapter for AnthropicOutbound {
             ctx.request.stream,
         );
 
-        let upstream_response =
-            send_learning_refusals(&learning_key(&ctx), &url, &ctx, body).await?;
+        // Why: what an upstream refuses is learned per endpoint and dropped for
+        // every later request to it. A caller credential's refusals are that
+        // member's alone, and the client retries on the upstream's own wording,
+        // so such a hop is sent once with its headers whole and outside this
+        // platform's trace.
+        let upstream_response = if ctx.target.credential.is_caller() {
+            let provider = learning_key(&ctx);
+            let headers = request_headers(&ctx);
+            super::trace_context::with_trace(
+                None,
+                None,
+                send_once(&ctx, &provider, &url, &headers, &body.bytes),
+            )
+            .await?
+        } else {
+            send_learning_refusals(&learning_key(&ctx), &url, &ctx, body).await?
+        };
 
         let content_type = upstream_response
             .headers()

@@ -206,7 +206,9 @@ SELECT
     src.output_tokens, src.reasoning_tokens, src.cache_read_tokens,
     src.cache_creation_tokens, src.cost_microdollars, src.latency_sum_ms,
     src.latency_n, src.cache_hits, src.user_key_request_count,
-    src.user_key_tokens, src.user_key_cost_microdollars
+    src.user_key_tokens, src.user_key_cost_microdollars,
+    src.user_subscription_request_count, src.user_subscription_tokens,
+    src.user_subscription_cost_microdollars
 FROM ai_usage_rollup_hourly src
 WHERE NOT EXISTS (
     SELECT 1 FROM users d WHERE d.id = src.user_id AND d.status = 'deleted'

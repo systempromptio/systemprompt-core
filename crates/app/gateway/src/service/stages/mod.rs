@@ -19,14 +19,17 @@ use systemprompt_wire::ModelLimits;
 
 pub(in crate::service) use self::governance::record_quota_warning;
 use self::governance::{PromptEvaluation, evaluate_prompt, record_governance_decision};
+pub use self::outbound::as_sent_body;
 pub(in crate::service) use self::outbound::audit_upstream_failure;
 use self::outbound::{
-    CtxParts, outbound_ctx, resolve_url_images, send_bracketed, strip_caller_identity,
+    CtxParts, automatic_prompt_caching, outbound_ctx, passthrough_body, prepared_body,
+    resolve_url_images, send_bracketed, strip_caller_identity,
 };
 pub use self::recall::recall_principal;
 pub(in crate::service) use self::recall::{
     RecallApplied, RecallStage, attach_memory_ids, record_recall,
 };
+pub use self::recovery::PromptRepair;
 pub(in crate::service) use self::scanned::SafetyScan;
 use super::super::audit::{GatewayAudit, GatewayRequestContext};
 use super::super::protocol::canonical::CanonicalRequest;
@@ -57,6 +60,7 @@ pub(super) struct PreparedDispatch {
     body: PreparedBody,
     recovery_count: usize,
     memory: RecallApplied,
+    repair: PromptRepair,
 }
 
 pub(super) struct GovernedDispatch(PreparedDispatch);
@@ -78,18 +82,32 @@ impl PreparedDispatch {
             recall: recall_stage,
         } = relay;
         let upstream_model = upstream.hop.upstream_model.clone();
-        let override_descriptor = apply_system_prompt_override(
-            overrides,
-            config,
-            &upstream.hop.provider,
-            &upstream_model,
-            &mut request,
-        )
-        .await;
+        // Why: a caller credential is the member's own account with the
+        // upstream, which answers for the request the client built — a rewritten
+        // system prompt, injected memory or sanitised content is no longer that
+        // request. The hop is therefore sent as it arrived; what would have been
+        // repaired is denied instead.
+        let as_sent = upstream.hop.credential.is_caller();
+        let override_descriptor = if as_sent {
+            None
+        } else {
+            apply_system_prompt_override(
+                overrides,
+                config,
+                &upstream.hop.provider,
+                &upstream_model,
+                &mut request,
+            )
+            .await
+        };
         if let Some(descriptor) = &override_descriptor {
             audit.set_system_prompt_override(descriptor).await;
         }
-        let memory = recall::apply_team_memory(recall_stage, &mut request, audit).await;
+        let memory = if as_sent {
+            RecallApplied::default()
+        } else {
+            recall::apply_team_memory(recall_stage, &mut request, audit).await
+        };
         let model_limits = Some(upstream.model_limits());
         let raw_body = passthrough_body(
             raw_body,
@@ -97,7 +115,9 @@ impl PreparedDispatch {
             upstream,
             override_descriptor.is_some() || memory.injected,
         );
-        strip_caller_identity(&mut request);
+        if !as_sent {
+            strip_caller_identity(&mut request);
+        }
         resolve_url_images(upstream.hop.wire, &mut request, audit).await?;
 
         let ctx = outbound_ctx(
@@ -114,10 +134,7 @@ impl PreparedDispatch {
                 raw_body,
             },
         );
-        let body = upstream
-            .adapter
-            .build_body(&ctx)
-            .map_err(DispatchError::recorded)?;
+        let body = prepared_body(upstream, &ctx, as_sent)?;
         audit.set_prepared_body_digest(&body.bytes).await;
 
         Ok(Self {
@@ -128,31 +145,13 @@ impl PreparedDispatch {
             body,
             recovery_count: 0,
             memory,
+            repair: if as_sent {
+                PromptRepair::Refuse
+            } else {
+                PromptRepair::Rewrite
+            },
         })
     }
-}
-
-fn passthrough_body<'a>(
-    raw_body: &'a Bytes,
-    inbound: &dyn InboundAdapter,
-    upstream: &ResolvedUpstream<'_>,
-    mutated: bool,
-) -> Option<&'a Bytes> {
-    // Why: the passthrough forwards the client's bytes untouched, so any
-    // mutation of the canonical request must force re-encoding.
-    if mutated {
-        return None;
-    }
-    (inbound.passthrough_wire() == Some(upstream.hop.wire)).then_some(raw_body)
-}
-
-fn automatic_prompt_caching(enabled: bool, upstream: &ResolvedUpstream<'_>) -> bool {
-    enabled
-        && upstream.hop.wire == systemprompt_wire::WireProtocol::Anthropic
-        && upstream
-            .catalog
-            .model(upstream.hop.model.as_str())
-            .is_some_and(|model| model.capabilities.prompt_caching)
 }
 
 impl GovernedDispatch {
@@ -169,7 +168,14 @@ impl GovernedDispatch {
             session_id,
             recovery_count,
             recovery_locations,
-        } = evaluate_prompt(governance, ctx, &mut prepared.request, &mut prepared.body).await;
+        } = evaluate_prompt(
+            governance,
+            ctx,
+            &mut prepared.request,
+            &mut prepared.body,
+            prepared.repair,
+        )
+        .await;
 
         prepared.recovery_count = recovery_count;
         if recovery_count > 0 {

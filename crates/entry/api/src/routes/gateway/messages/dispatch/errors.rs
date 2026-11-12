@@ -23,6 +23,7 @@ use systemprompt_gateway::service::{
 use super::RejectionError;
 
 const ERROR_TYPE_PERMISSION: &str = "permission_error";
+const ERROR_TYPE_AUTHENTICATION: &str = "authentication_error";
 const ERROR_TYPE_INVALID_REQUEST: &str = "invalid_request_error";
 
 const POLICY_DENIAL_PREFIX: &str = "blocked by systemprompt governance";
@@ -76,6 +77,11 @@ fn render_error(error: &GatewayError) -> Option<Response<Body>> {
         GatewayError::PersonalKeyRequired { .. } => Some(build_error_response(
             error.status(),
             ERROR_TYPE_PERMISSION,
+            &error.to_string(),
+        )),
+        GatewayError::CallerCredentialRequired { .. } => Some(build_error_response(
+            error.status(),
+            ERROR_TYPE_AUTHENTICATION,
             &error.to_string(),
         )),
         GatewayError::PromptRepair(repair) => {
@@ -133,7 +139,8 @@ fn classify_dispatch_error_ref(error: &GatewayError) -> RejectionError {
         GatewayError::GuardForbidden(forbidden) => {
             RejectionError::client(status, forbidden.message.clone())
         },
-        GatewayError::PersonalKeyRequired { .. } => {
+        GatewayError::PersonalKeyRequired { .. }
+        | GatewayError::CallerCredentialRequired { .. } => {
             RejectionError::client(status, error.to_string())
         },
         GatewayError::GuardUnavailable(_) => {

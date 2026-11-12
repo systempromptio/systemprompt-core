@@ -275,6 +275,20 @@ Base `/v1` (`crates/entry/api/src/routes/gateway/mod.rs`). The gateway mounts on
 curl http://127.0.0.1:8080/v1/models
 ```
 
+### Gateway credential headers
+
+A gateway request names its systemprompt credential (a personal access token or a JWT) in one of three headers:
+
+| Header | Read when |
+|--------|-----------|
+| `x-systemprompt-authorization` | Always, when present. It is the request's identity and `Authorization` is not read as one. |
+| `Authorization: Bearer <credential>` | `x-systemprompt-authorization` is absent. |
+| `x-api-key` | Neither of the above is present. |
+
+There is no fallback from a present `x-systemprompt-authorization`: an empty or invalid value answers `401` even when `Authorization` holds a valid credential. A leading `Bearer ` is accepted and optional in all three.
+
+When a request carries `x-systemprompt-authorization`, its `Authorization: Bearer` value is the client's own upstream credential. It is used only on a hop whose catalog credential is `kind: caller` (see [configure-providers.md](../guides/configure-providers.md)), is sent to that upstream and nowhere else, and is never stored or logged. A `kind: caller` hop reached without it answers `401` with `authentication_error`.
+
 ### Scope attribution
 
 Every `/v1/messages` and `/v1/responses` request is attributed to one value in each subject dimension the deployment registers (a `SubjectAttributeProvider`, for example `project` or `cost_centre`; core registers none). For each registered dimension the gateway takes, in order:

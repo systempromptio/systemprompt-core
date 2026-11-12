@@ -182,6 +182,11 @@ pub fn fit_context_window(
     let fallbacks: Vec<ResolvedHop> = context_fallbacks
         .into_iter()
         .filter(|hop| {
+            deployments
+                .first()
+                .is_some_and(|primary| super::resolve::may_fail_over(primary, hop))
+        })
+        .filter(|hop| {
             context_window(catalog, hop).is_some_and(|(window, _)| estimates.for_hop(hop) <= window)
         })
         .collect();

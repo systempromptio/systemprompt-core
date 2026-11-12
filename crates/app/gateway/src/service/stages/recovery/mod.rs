@@ -44,6 +44,9 @@ use crate::service::RECOVERY_COUNT_HEADER;
 const INCOMPLETE_INSPECTION_MESSAGE: &str = "Prompt could not be completely inspected; shorten \
                                              the conversation or remove large attachments \
                                              before retrying";
+const UNREPAIRABLE_MESSAGE: &str = "Prompt carries secret content and this request is sent \
+                                    upstream as received; remove the affected content before \
+                                    retrying";
 const UNSAFE_REPAIR_DETAIL: &str =
     "Secret content could not be safely sanitized; repair provider_payload before retrying";
 const FALLBACK_LOCATION: &str = "provider_payload";
@@ -76,11 +79,21 @@ pub(super) fn governed_input(surface: &ForwardedSurface) -> GovernedInput {
     )
 }
 
+/// Whether secret-bearing prompt content is sanitised in place or the request
+/// is refused: a body that must reach the upstream as the client sent it
+/// cannot be repaired.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PromptRepair {
+    Rewrite,
+    Refuse,
+}
+
 pub fn govern_prompt(
     engine: &GovernanceEngine,
     ctx: &PolicyContext<'_>,
     request: &mut CanonicalRequest,
     body: &mut PreparedBody,
+    repair: PromptRepair,
 ) -> PromptRecovery {
     request.forwarded_surface = inspect::string_leaves(&body.bytes, inspection_budget());
     let input = governed_input(&request.forwarded_surface);
@@ -88,6 +101,7 @@ pub fn govern_prompt(
     let mut recovery_count = 0;
     let mut recovery_locations = Vec::new();
     let mut repaired = None;
+    let mut repair_refused = false;
     let mut evaluation = if engine.enforces_prompt_secrets()
         && inspection_incomplete(&request.forwarded_surface, &body.bytes)
     {
@@ -95,6 +109,10 @@ pub fn govern_prompt(
     } else {
         engine.evaluate_with_prompt_recovery(&ctx, |findings| {
             recovery_locations = safe_locations(ctx.input, findings);
+            if repair == PromptRepair::Refuse {
+                repair_refused = true;
+                return None;
+            }
             let (mut candidate_request, mut candidate_body) = repaired
                 .take()
                 .unwrap_or_else(|| (request.clone(), body.clone()));
@@ -104,6 +122,12 @@ pub fn govern_prompt(
             Some(input)
         })
     };
+    // Why: a secret scan in warn mode permits the request once the content is
+    // sanitised. A body that cannot be sanitised would carry the secret
+    // upstream under that same warning, so it is denied instead.
+    if repair_refused && evaluation.decision.permits() {
+        evaluation = unrepairable_denial();
+    }
     sanitize_denial(&mut evaluation, &recovery_locations);
     if evaluation.decision.permits()
         && let Some((candidate_request, candidate_body)) = repaired
@@ -122,6 +146,23 @@ pub fn govern_prompt(
 
 fn inspection_incomplete(surface: &ForwardedSurface, bytes: &[u8]) -> bool {
     surface.truncated() || (surface.is_empty() && serde_json::from_slice::<Value>(bytes).is_err())
+}
+
+fn unrepairable_denial() -> Evaluation {
+    Evaluation {
+        decision: Decision::Deny {
+            reason: DenyReason::PolicyViolation {
+                policy: SECRET_SCAN_ID.to_owned(),
+                detail: Cow::Borrowed(UNREPAIRABLE_MESSAGE),
+            },
+        },
+        chain: vec![ChainEntryOutcome {
+            policy_id: PolicyId::new(SECRET_SCAN_ID),
+            result: ChainEntryResult::Fail,
+            detail: "Secret-bearing prompt on a body sent as received".to_owned(),
+            duration_ms: 0.0,
+        }],
+    }
 }
 
 fn incomplete_inspection_denial() -> Evaluation {

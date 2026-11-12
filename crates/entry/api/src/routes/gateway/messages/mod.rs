@@ -17,7 +17,10 @@ pub mod rejection;
 pub mod session_binding;
 
 pub use dispatch::map_upstream_error;
-pub use extract::{GatewayAuthzRequestInput, build_gateway_authz_request, extract_credential};
+pub use extract::{
+    GatewayAuthzRequestInput, build_gateway_authz_request, caller_auth, extract_credential,
+    presented_credential,
+};
 
 use axum::body::Body;
 use axum::extract::Request;

@@ -196,7 +196,7 @@ fn plan<'a>(
         let Some(secret_name) = document
             .credentials
             .get(provider.credential.as_str())
-            .filter(|c| !c.kind.is_personal())
+            .filter(|c| c.kind.is_platform())
             .and_then(|c| c.secret.clone())
         else {
             continue;

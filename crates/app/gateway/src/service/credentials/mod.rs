@@ -2,9 +2,10 @@
 //!
 //! This module is a thin view over [`UpstreamTarget`], the seam the gateway
 //! shares with the in-process AI service. A hop's credential decides whose key
-//! is presented and who is billed: a platform credential's secret, or the
-//! member's own key stored under a personal credential id. The target looks
-//! the secret up,
+//! is presented and who is billed: a platform credential's secret, the
+//! member's own key stored under a personal credential id, or — for a caller
+//! credential — the `Authorization` the client sent on this request, which is
+//! presented as it arrived and never stored. The target looks the secret up,
 //! parses it into a credential, fills the endpoint from the credential's
 //! scope and mints the auth header. It decides nothing about credential types
 //! or hosting itself, which is the point — a new credential kind is a new
@@ -25,19 +26,23 @@ pub mod google;
 
 use systemprompt_ai::models::BillingSource;
 use systemprompt_ai::repository::UserProviderCredentialRepository;
-use systemprompt_ai::{EndpointBinding, UpstreamCall, UpstreamTarget, UpstreamTargetError};
+use systemprompt_ai::{
+    EndpointBinding, PresentedCredential, UpstreamCall, UpstreamTarget, UpstreamTargetError,
+};
 use systemprompt_identifiers::UserId;
-use systemprompt_manifest::services::catalog::{ResolvedCatalog, ResolvedHop};
+use systemprompt_manifest::services::catalog::{CredentialKind, ResolvedCatalog, ResolvedHop};
 use systemprompt_security::credential::{CredentialError, CredentialScope, fill_endpoint};
 
 use super::{DispatchError, GatewayEngines, GatewayError};
 
-/// The caller a personal credential is served for: their stored key is the
-/// only key such a hop may present.
+/// The caller a member-paid credential is served for: their stored key is the
+/// only key a personal hop may present, and the credential they sent on this
+/// request is the only one a caller hop may present.
 #[derive(Debug, Clone)]
 pub struct KeyOwner {
     pub credentials: UserProviderCredentialRepository,
     pub user_id: UserId,
+    pub caller_auth: Option<PresentedCredential>,
 }
 
 pub fn fill_project(endpoint: &str, project: Option<&str>) -> Result<String, CredentialError> {
@@ -57,13 +62,25 @@ pub async fn resolve(
     let tokens = &engines.provider_tokens;
     let binding = EndpointBinding::of_hop(catalog, hop).map_err(pre_audit)?;
     let billing = BillingSource::of(&hop.credential);
-    if !hop.credential.is_personal() {
-        let target = UpstreamTarget::from_secrets(tokens, &engines.secrets.get(), binding)
-            .map_err(pre_audit)?;
-        let call = target.call().await.map_err(pre_audit)?;
-        return Ok((call, billing));
-    }
     let credential = &hop.credential.id;
+    match hop.credential.kind {
+        CredentialKind::Platform => {
+            let target = UpstreamTarget::from_secrets(tokens, &engines.secrets.get(), binding)
+                .map_err(pre_audit)?;
+            let call = target.call().await.map_err(pre_audit)?;
+            return Ok((call, billing));
+        },
+        CredentialKind::Caller => {
+            let presented = owner.caller_auth.clone().ok_or_else(|| {
+                DispatchError::pre_audit(GatewayError::CallerCredentialRequired {
+                    credential: credential.as_str().to_owned(),
+                })
+            })?;
+            let call = UpstreamTarget::caller_call(binding, presented).map_err(pre_audit)?;
+            return Ok((call, billing));
+        },
+        CredentialKind::Personal => {},
+    }
     let key = owner
         .credentials
         .find_key(&owner.user_id, credential)

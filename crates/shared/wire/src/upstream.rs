@@ -191,3 +191,73 @@ fn server_tool_type(tool: &Value) -> Option<&str> {
         .and_then(Value::as_str)
         .filter(|kind| *kind != "custom")
 }
+
+const WITHHELD_PRESENTED_NAMES: &[&str] = &[
+    "host",
+    "content-length",
+    "content-type",
+    "connection",
+    "keep-alive",
+    "proxy-connection",
+    "proxy-authenticate",
+    "proxy-authorization",
+    "te",
+    "trailer",
+    "transfer-encoding",
+    "upgrade",
+    "expect",
+    "accept-encoding",
+    "cookie",
+    "set-cookie",
+    "forwarded",
+    "via",
+    "x-real-ip",
+    "x-client-ip",
+    "true-client-ip",
+    "x-request-id",
+    "x-request-start",
+    "tracestate",
+    "baggage",
+    systemprompt_identifiers::headers::AUTHORIZATION,
+    systemprompt_identifiers::headers::API_KEY,
+    systemprompt_identifiers::headers::TRACEPARENT,
+    systemprompt_identifiers::headers::TRACE_ID,
+    systemprompt_identifiers::headers::CONTEXT_ID,
+    systemprompt_identifiers::headers::GATEWAY_CONVERSATION_ID,
+    systemprompt_identifiers::headers::PROVIDER_REQUEST_ID,
+    systemprompt_identifiers::headers::SESSION_ID,
+    systemprompt_identifiers::headers::USER_ID,
+    systemprompt_identifiers::headers::USER_TYPE,
+    systemprompt_identifiers::headers::TASK_ID,
+    systemprompt_identifiers::headers::AGENT_NAME,
+    systemprompt_identifiers::headers::AI_TOOL_CALL_ID,
+    systemprompt_identifiers::headers::CALL_SOURCE,
+    systemprompt_identifiers::headers::CLIENT_ID,
+    systemprompt_identifiers::headers::POLICY_VERSION,
+    systemprompt_identifiers::headers::INFERENCE_PROTOCOL,
+];
+
+const WITHHELD_PRESENTED_PREFIXES: &[&str] = &[
+    "x-systemprompt-",
+    "x-forwarded-",
+    "x-mcp-",
+    "x-envoy-",
+    "x-amzn-",
+    "x-vercel-",
+    "fly-",
+    "cf-",
+    "sec-",
+];
+
+// Why: a request served with the credential its client presented reaches the
+// upstream with that client's own headers. What is withheld is what was never
+// the client's to send there: this hop's framing, the credentials and
+// identifiers this platform reads, and the network path the request took.
+#[must_use]
+pub fn is_presented_request_header(name: &str) -> bool {
+    let lower = name.to_ascii_lowercase();
+    !WITHHELD_PRESENTED_NAMES.contains(&lower.as_str())
+        && !WITHHELD_PRESENTED_PREFIXES
+            .iter()
+            .any(|prefix| lower.starts_with(prefix))
+}

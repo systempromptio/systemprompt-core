@@ -76,6 +76,7 @@ pub struct DispatchInputs {
     pub inbound: Arc<dyn InboundAdapter>,
     pub forward_headers: Vec<(String, String)>,
     pub identity_headers: Vec<(String, String)>,
+    pub caller_auth: Option<systemprompt_ai::PresentedCredential>,
     pub trace_sampled: Option<bool>,
     pub governance: Arc<GovernanceEngine>,
     pub engines: Arc<GatewayEngines>,
@@ -96,6 +97,7 @@ impl GatewayService {
             inbound,
             forward_headers,
             identity_headers,
+            caller_auth,
             trace_sampled,
             governance,
             engines,
@@ -106,6 +108,7 @@ impl GatewayService {
         let owner = credentials::KeyOwner {
             credentials: repos.user_provider_credentials.clone(),
             user_id: ctx.user_id.clone(),
+            caller_auth,
         };
         let upstream = resolve_upstream(
             catalog,
@@ -187,9 +190,7 @@ struct OpenedDispatch<'a> {
 
 async fn admit(opened: &OpenedDispatch<'_>) -> Result<(), DispatchError> {
     let audit = &opened.audit;
-    if opened.upstream.billing == systemprompt_ai::models::BillingSource::UserKey {
-        audit.bill_to_user_key();
-    }
+    audit.bill_to(opened.upstream.billing);
     audit
         .pin_pricing(opened.pricing)
         .map_err(|e| DispatchError::PreAudit(GatewayError::internal("pricing pin failed", e)))?;

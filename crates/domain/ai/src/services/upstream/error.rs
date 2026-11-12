@@ -21,6 +21,12 @@ pub enum UpstreamTargetError {
     PersonalCredential { credential: String },
 
     #[error(
+        "credential '{credential}' is the client's own: it is presented on the request, so no \
+         deployment secret serves it"
+    )]
+    CallerCredential { credential: String },
+
+    #[error(
         "credential '{credential}' declares a Google service account but is malformed: {source}"
     )]
     MalformedCredential {

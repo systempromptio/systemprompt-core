@@ -23,7 +23,7 @@ mod call;
 mod error;
 mod target;
 
-pub use call::UpstreamCall;
+pub use call::{PresentedCredential, UpstreamCall};
 pub use error::UpstreamTargetError;
 pub use systemprompt_wire::upstream::UpstreamDialect;
 pub use target::{EndpointBinding, UpstreamTarget};

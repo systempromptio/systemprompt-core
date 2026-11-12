@@ -55,8 +55,9 @@ pub struct ListArgs {
 
     #[arg(
         long,
-        value_parser = ["platform", "user_key"],
-        help = "Filter by who the upstream bills: 'platform' or 'user_key' (a member's own key)"
+        value_parser = ["platform", "user_key", "user_subscription"],
+        help = "Filter by who the upstream bills: 'platform', 'user_key' (a member's stored key) or \
+                'user_subscription' (the login the client presented)"
     )]
     pub billing_source: Option<String>,
 }
