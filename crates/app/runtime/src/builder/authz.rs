@@ -11,16 +11,16 @@ use systemprompt_database::Database;
 use systemprompt_governance::authz::{
     AuthzHookContext, NullAuditSink, SharedAuthzHook, SubjectProviderSet,
 };
-use systemprompt_loader::{BootContext, ServicesState};
+use systemprompt_loader::ServicesState;
 use systemprompt_models::authz::SubjectSourceHandle;
 use systemprompt_traits::{CacheEpochs, SecretStore};
 
 use super::core_layer::chain_sources;
 use crate::error::RuntimeResult;
 
-pub(super) struct PluginInputs {
-    pub(super) factory: systemprompt_marketplace::MarketplaceFactoryContext,
-    pub(super) subject_providers: SubjectProviderSet,
+pub(crate) struct PluginInputs {
+    pub(crate) factory: systemprompt_marketplace::MarketplaceFactoryContext,
+    pub(crate) subject_providers: SubjectProviderSet,
 }
 
 fn authz_wiring(
@@ -39,8 +39,13 @@ fn authz_wiring(
     }
 }
 
-pub(super) fn authz_stage(
-    boot: &BootContext,
+#[expect(
+    clippy::too_many_arguments,
+    reason = "the API and MCP host boots share this stage; each argument is a distinct boot input"
+)]
+pub(crate) fn authz_stage(
+    profile: &systemprompt_manifest::Profile,
+    secrets: Arc<dyn SecretStore>,
     database: &Arc<Database>,
     services: &ServicesState,
     hook_override: Option<SharedAuthzHook>,
@@ -50,8 +55,6 @@ pub(super) fn authz_stage(
     SharedAuthzHook,
     PluginInputs,
 )> {
-    let secrets: Arc<dyn SecretStore> =
-        Arc::<systemprompt_config::SecretsService>::clone(boot.secrets());
     let factory = systemprompt_marketplace::MarketplaceFactoryContext {
         db: Arc::clone(database),
         services: services.view(),
@@ -72,7 +75,7 @@ pub(super) fn authz_stage(
         providers.clone(),
     )?;
     let authz_hook = systemprompt_governance::authz::build_authz_hook(
-        boot.profile().governance.as_ref(),
+        profile.governance.as_ref(),
         database.write_pool(),
         hook_override,
         authz_wiring(&factory, services, epochs.clone(), &providers),

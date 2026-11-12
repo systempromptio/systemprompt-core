@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use systemprompt_manifest::child_env::{CHILD_BOOT_SECRETS, ChildEnvError, ChildGrants};
+use systemprompt_manifest::child_env::{CHILD_BOOT_SECRETS, ChildBoot, ChildEnvError, ChildGrants};
 use systemprompt_manifest::secrets::Secrets;
 
 fn full_secrets() -> Secrets {
@@ -50,7 +50,17 @@ fn minimal_secrets() -> Secrets {
 }
 
 fn env_of(secrets: &Secrets, explicit: &[&str], derived: &[&str]) -> HashMap<String, String> {
+    env_for(ChildBoot::Host, secrets, explicit, derived)
+}
+
+fn env_for(
+    boot: ChildBoot,
+    secrets: &Secrets,
+    explicit: &[&str],
+    derived: &[&str],
+) -> HashMap<String, String> {
     let grants = ChildGrants {
+        boot,
         explicit: explicit.iter().map(|g| g.parse().expect("grant")).collect(),
         derived: derived.iter().map(|g| g.parse().expect("grant")).collect(),
     };
@@ -87,10 +97,51 @@ fn a_child_without_grants_gets_no_provider_key_and_no_custom_secret() {
     ] {
         assert!(!env.contains_key(key), "{key} reached an ungranted child");
     }
+    assert!(!env.contains_key("SYSTEMPROMPT_CUSTOM_SECRETS"));
+    assert!(!env.contains_key("ENCRYPTION_MASTER_KEY"));
+}
+
+#[test]
+fn a_host_child_gets_none_of_the_api_held_secrets() {
+    let mut secrets = with_master_key(full_secrets());
+    secrets.signing_key_pem = Some("pem".to_owned());
+    secrets.signing_key_staged_pem = Some("staged".to_owned());
+    secrets.signing_key_previous_keys = Some("[]".to_owned());
+    let env = env_of(&secrets, &["anthropic", "custom:stripe_key"], &["openai"]);
+    for key in CHILD_BOOT_SECRETS {
+        assert!(!env.contains_key(*key), "{key} reached a host child");
+    }
+    let held = [
+        "p".repeat(32),
+        "seed".to_owned(),
+        "pem".to_owned(),
+        "staged".to_owned(),
+        "mk".to_owned(),
+        "lic".to_owned(),
+    ];
+    assert!(
+        env.values().all(|value| !held.contains(value)),
+        "an API-held value reached a host child under another name"
+    );
+}
+
+#[test]
+fn a_host_child_gets_the_master_key_only_through_its_grant() {
+    let env = env_of(
+        &with_master_key(full_secrets()),
+        &["encryption_master_key"],
+        &[],
+    );
+    assert_eq!(
+        env.get("ENCRYPTION_MASTER_KEY").map(String::as_str),
+        Some("mk")
+    );
     assert_eq!(
         env.get("SYSTEMPROMPT_CUSTOM_SECRETS").map(String::as_str),
         Some("ENCRYPTION_MASTER_KEY")
     );
+    assert!(!env.contains_key("OAUTH_AT_REST_PEPPER"));
+    assert!(!env.contains_key("LICENCE_SIGNING_SECRET"));
 }
 
 #[test]
@@ -117,6 +168,7 @@ fn a_derived_grant_is_emitted_when_configured_and_skipped_when_not() {
 #[test]
 fn an_explicit_grant_that_is_not_configured_is_an_error() {
     let grants = ChildGrants {
+        boot: ChildBoot::Host,
         explicit: vec!["custom:absent".parse().expect("grant")],
         derived: Vec::new(),
     };
@@ -129,9 +181,14 @@ fn an_explicit_grant_that_is_not_configured_is_an_error() {
 }
 
 #[test]
-fn the_api_held_secrets_reach_a_child_only_through_the_boot_set() {
+fn the_api_held_secrets_reach_an_agent_child_only_through_the_boot_set() {
     let secrets = with_master_key(full_secrets());
-    let env = env_of(&secrets, &["anthropic", "custom:stripe_key"], &["openai"]);
+    let env = env_for(
+        ChildBoot::Agent,
+        &secrets,
+        &["anthropic", "custom:stripe_key"],
+        &["openai"],
+    );
     for key in env.keys() {
         let api_held = systemprompt_models::subprocess::is_api_held_env_name(key)
             && !key.ends_with("_API_KEY")

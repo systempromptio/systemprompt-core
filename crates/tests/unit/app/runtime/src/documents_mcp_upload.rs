@@ -19,7 +19,16 @@ async fn call(
     value: serde_json::Value,
 ) -> Result<(UploadOutput, String), rmcp::ErrorData> {
     let input: UploadInput = serde_json::from_value(value).expect("upload input");
-    UploadHandler { tools }.handle(input, ctx, &exec()).await
+    let hop = ctx
+        .user
+        .as_ref()
+        .map(|user| crate::link_rig::hop_for(user, ctx, crate::documents_mcp_support::SERVER));
+    UploadHandler {
+        tools,
+        hop: hop.as_ref(),
+    }
+    .handle(input, ctx, &exec())
+    .await
 }
 
 fn encoded(bytes: &[u8]) -> String {

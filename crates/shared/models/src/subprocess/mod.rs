@@ -36,6 +36,7 @@ use systemprompt_identifiers::ServiceName;
 pub const SUBPROCESS_MARKER_ENV: &str = "SYSTEMPROMPT_SUBPROCESS";
 pub const AGENT_NAME_ENV: &str = "AGENT_NAME";
 pub const MCP_SERVICE_ID_ENV: &str = "MCP_SERVICE_ID";
+pub const VERIFICATION_KEYS_ENV: &str = "VERIFICATION_KEYS";
 pub const API_SERVER_ENV: &str = "SYSTEMPROMPT_API_SERVER";
 pub const API_SERVER_SERVICE: &str = "api";
 pub const CLI_CHILD_ENV: &str = "SYSTEMPROMPT_CLI_CHILD";

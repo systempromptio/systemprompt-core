@@ -14,7 +14,7 @@ use systemprompt_traits::ConfigWatch;
 use super::core_layer::{SchemaPolicy, init_extensions};
 use crate::error::RuntimeResult;
 
-pub(super) async fn init_governed_extensions(
+pub(crate) async fn init_governed_extensions(
     profile: &Profile,
     registry: Option<ExtensionRegistry>,
     schema: SchemaPolicy,

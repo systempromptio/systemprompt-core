@@ -2,7 +2,9 @@
 //! server receives.
 //!
 //! The API proxy is the only caller that can produce a token this layer
-//! accepts: RS256 with the deployment key, `typ` `mcp-hop+jwt`, audience
+//! accepts: RS256 with a key of the deployment's verification key set (the
+//! server holds only the public half, staged key included, so promoting the
+//! staged key needs no restart), `typ` `mcp-hop+jwt`, audience
 //! `mcp:<this server>`, a one-minute expiry. A request that presents one has
 //! its identity taken from the token's claims and from nothing else it
 //! carries; a request that presents none is anonymous, and a request that
@@ -21,10 +23,12 @@ use axum::extract::{Request, State};
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 use http::{HeaderMap, StatusCode};
-use systemprompt_identifiers::{Actor, McpServerId, UserId, headers};
+use systemprompt_identifiers::{Actor, JwtToken, McpServerId, UserId, headers};
 use systemprompt_models::RequestContext as SysRequestContext;
-use systemprompt_models::auth::{McpHopClaims, TokenAuthority, TokenError, TokenInteraction};
+use systemprompt_models::auth::{McpHopClaims, TokenError, TokenInteraction};
 use systemprompt_models::execution::context::UserInteractionMode;
+use systemprompt_security::jwt::decode_mcp_hop;
+use systemprompt_security::keys::VerificationKeyring;
 use systemprompt_traits::{ContextPropagation, ContextPropagationError};
 
 const SESSION_HEADER: &str = headers::MCP_SESSION_ID;
@@ -64,7 +68,8 @@ pub enum HopRejection {
 /// Verifies hop tokens for one MCP server.
 #[derive(Clone)]
 pub struct HopVerifier {
-    tokens: Arc<dyn TokenAuthority>,
+    keyring: Arc<VerificationKeyring>,
+    issuer: Arc<str>,
     server_id: McpServerId,
     required: bool,
 }
@@ -78,9 +83,10 @@ impl std::fmt::Debug for HopVerifier {
 }
 
 impl HopVerifier {
-    pub fn new(tokens: Arc<dyn TokenAuthority>, server_id: McpServerId) -> Self {
+    pub fn new(keyring: VerificationKeyring, issuer: &str, server_id: McpServerId) -> Self {
         Self {
-            tokens,
+            keyring: Arc::new(keyring),
+            issuer: Arc::from(issuer),
             server_id,
             required: false,
         }
@@ -104,10 +110,8 @@ impl HopVerifier {
             return Ok(None);
         };
         let token = raw.to_str().map_err(HopRejection::MalformedHeader)?;
-        let claims = self
-            .tokens
-            .verify_mcp_hop(token, &self.server_id)
-            .map_err(HopRejection::Token)?;
+        let claims = decode_mcp_hop(&self.keyring, &self.issuer, &self.server_id, token)
+            .map_err(|error| HopRejection::Token(TokenError::from(error)))?;
         let presented = headers
             .get(SESSION_HEADER)
             .and_then(|value| value.to_str().ok())
@@ -115,28 +119,40 @@ impl HopVerifier {
         if presented != claims.identity.mcp_session.as_deref() {
             return Err(HopRejection::SessionMismatch);
         }
-        Ok(Some(VerifiedHop(claims)))
+        Ok(Some(VerifiedHop {
+            claims,
+            token: JwtToken::new(token),
+        }))
     }
 }
 
-/// The claims of a hop token this server verified.
+/// The claims of a hop token this server verified, with the token itself:
+/// the server presents it back to the API when it asks for work only the API
+/// may do (signing links).
 #[derive(Debug, Clone)]
-pub struct VerifiedHop(McpHopClaims);
+pub struct VerifiedHop {
+    claims: McpHopClaims,
+    token: JwtToken,
+}
 
 impl VerifiedHop {
     pub const fn claims(&self) -> &McpHopClaims {
-        &self.0
+        &self.claims
+    }
+
+    pub const fn token(&self) -> &JwtToken {
+        &self.token
     }
 
     pub fn principal(&self) -> Option<&UserId> {
-        self.0.identity.user.as_ref().map(|user| &user.id)
+        self.claims.identity.user.as_ref().map(|user| &user.id)
     }
 
     pub fn request_context(
         &self,
         headers: &HeaderMap,
     ) -> Result<SysRequestContext, ContextPropagationError> {
-        let identity = &self.0.identity;
+        let identity = &self.claims.identity;
         let mut context = SysRequestContext::from_headers(headers)?;
         context.request.session_id = identity.session_id.clone();
         context.request.client_id.clone_from(&identity.client_id);

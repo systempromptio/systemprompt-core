@@ -7,7 +7,7 @@ use rmcp::{ErrorData as McpError, RoleServer, ServerHandler, ServiceExt};
 use systemprompt_identifiers::McpServerId;
 use systemprompt_mcp::host::ToolsetServer;
 use systemprompt_mcp::middleware::{HopVerifier, admit_request};
-use systemprompt_test_fixtures::{FIXTURE_EXTERNAL_URL, test_token_authority};
+use systemprompt_test_fixtures::FIXTURE_EXTERNAL_URL;
 
 #[derive(Clone)]
 struct Gate {
@@ -28,7 +28,10 @@ impl Gate {
         }
         let (mut parts, ()) = builder.body(()).expect("request").into_parts();
         let verifier = HopVerifier::new(
-            test_token_authority(FIXTURE_EXTERNAL_URL),
+            systemprompt_test_fixtures::test_signing_keys()
+                .keyring()
+                .clone(),
+            FIXTURE_EXTERNAL_URL,
             self.server_id.clone(),
         );
         admit_request(&verifier, &parts.headers, &mut parts.extensions).expect("admitted");

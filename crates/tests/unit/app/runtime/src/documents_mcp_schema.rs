@@ -59,26 +59,30 @@ async fn read_only_annotations_follow_the_plan() {
 }
 
 #[tokio::test]
-async fn from_context_refuses_a_disabled_store_and_names_the_switch() {
+async fn from_host_refuses_a_disabled_store_and_names_the_switch() {
+    use systemprompt_runtime::HostContext;
     use systemprompt_runtime::documents::mcp::DocumentsMcpError;
-    use systemprompt_test_fixtures::{
-        ensure_test_bootstrap, fixture_app_context_documents_disabled,
-        fixture_app_context_with_config, fixture_config, test_db_pool,
-    };
+    use systemprompt_test_fixtures::{host_child_env, init_services_bootstrap};
 
-    let bootstrap = ensure_test_bootstrap();
-    let pool = test_db_pool().await;
-    let disabled =
-        fixture_app_context_documents_disabled(&pool, fixture_config(&bootstrap.database_url))
-            .expect("disabled context");
-    let err = DocumentsMcpTools::from_context(&disabled, McpServerId::new(SERVER))
+    let bootstrap = init_services_bootstrap("mcp_servers: {}\n");
+    let env = host_child_env(&bootstrap);
+    let disabled = HostContext::boot(|name| env.get(name).cloned())
+        .await
+        .expect("host context");
+    let err = DocumentsMcpTools::from_host(&disabled, McpServerId::new(SERVER))
         .expect_err("a disabled store builds no tools");
     assert!(matches!(err, DocumentsMcpError::Disabled { .. }), "{err:?}");
     assert!(err.to_string().contains("files.documents.enabled"), "{err}");
 
-    let enabled = fixture_app_context_with_config(&pool, fixture_config(&bootstrap.database_url))
-        .expect("enabled context");
-    let tools = DocumentsMcpTools::from_context(&enabled, McpServerId::new(SERVER))
+    std::fs::write(
+        bootstrap.services_path.join("config/files.yaml"),
+        "files:\n  documents:\n    enabled: true\n",
+    )
+    .expect("write files.yaml");
+    let enabled = HostContext::boot(|name| env.get(name).cloned())
+        .await
+        .expect("host context");
+    let tools = DocumentsMcpTools::from_host(&enabled, McpServerId::new(SERVER))
         .expect("an enabled store builds the tools");
     assert_eq!(tools.server_name().as_str(), SERVER);
 }

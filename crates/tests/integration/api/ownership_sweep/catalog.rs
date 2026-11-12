@@ -14,6 +14,7 @@ const WEBHOOK: &str =
     "inbound platform webhook authenticated by the platform's signature, not by a user";
 const CONTENT: &str =
     "published content and link redirects/analytics, readable by design and not owned by a user";
+const MCP_HOP: &str = "session-less MCP-server call authenticated by the proxy hop token; the subject comes from the token and its ownership of the target is re-checked before signing (internal_links tests)";
 const CATALOG: &str = "org-wide catalog (marketplace, registry, schema, subject directory) identical for every caller";
 const PROXY: &str = "service proxy authorised per service by the proxy access check; owned resources behind it are probed on their own routes";
 const INGEST: &str =
@@ -94,6 +95,7 @@ pub(super) const NOT_USER_OWNED: &[Row] = &[
     free("routes/gateway/routers.rs::otel_routes", "POST", "ApiPaths::OTEL", INGEST),
     free("routes/gateway/routers.rs::otel_routes", "POST", "ApiPaths::OTEL_REST_ROUTE", INGEST),
     free("routes/gateway/sessions.rs::public_router", "POST", r#""/sessions""#, BRIDGE_SELF),
+    free("routes/internal/mod.rs::links_router", "POST", r#""/""#, MCP_HOP),
     free("routes/issues/mod.rs::router", "GET", r#""/admin""#, ADMIN),
     free("routes/issues/mod.rs::router", "PATCH", r#""/admin/{id}""#, ADMIN),
     free("routes/managed/consumer/mod.rs::router", "GET", "ApiPaths::api_v1_relative(ApiPaths::CONSUMER_BUNDLE_ROUTE)", CONSUMER),

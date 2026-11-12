@@ -21,6 +21,7 @@ use systemprompt_identifiers::AgentName;
 use systemprompt_loader::ServicesState;
 use systemprompt_loader::subprocess::Spawner;
 use systemprompt_manifest::Config;
+use systemprompt_manifest::child_env::ChildBoot;
 
 use crate::services::agent_orchestration::{OrchestrationError, OrchestrationResult};
 
@@ -90,7 +91,7 @@ fn agent_secrets(
     let derived = grants::model_credential_secrets(agent, environment.services.catalog());
     let env = environment
         .secrets
-        .child_env(&agent.secrets, &derived)
+        .child_env(ChildBoot::Agent, &agent.secrets, &derived)
         .map_err(|e| {
             OrchestrationError::spawn(
                 format!("Failed to resolve the granted secrets for agent {agent_name}"),

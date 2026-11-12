@@ -20,9 +20,7 @@ use systemprompt_mcp::middleware::{
     AuthResult, HopVerifier, admit_request, enforce_rbac_from_registry,
 };
 use systemprompt_models::auth::{AuthenticatedUser, Permission};
-use systemprompt_test_fixtures::{
-    FIXTURE_EXTERNAL_URL, mint_admin_jwt, mint_mcp_hop, test_token_authority,
-};
+use systemprompt_test_fixtures::{FIXTURE_EXTERNAL_URL, mint_admin_jwt, mint_mcp_hop};
 
 use crate::harness::bootstrap_with_services;
 use systemprompt_test_fixtures::unique_name;
@@ -73,7 +71,13 @@ impl ServerHandler for RbacProbe {
             }
             let (mut parts, ()) = builder.body(()).expect("request").into_parts();
             let server_id = McpServerId::new(probe.server.as_str());
-            let verifier = HopVerifier::new(test_token_authority(ISSUER), server_id.clone());
+            let verifier = HopVerifier::new(
+                systemprompt_test_fixtures::test_signing_keys()
+                    .keyring()
+                    .clone(),
+                ISSUER,
+                server_id.clone(),
+            );
             if probe.admit {
                 admit_request(&verifier, &parts.headers, &mut parts.extensions).expect("admitted");
             }

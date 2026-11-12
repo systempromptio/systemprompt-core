@@ -29,6 +29,7 @@ mod context_traits;
 mod database_context;
 pub mod documents;
 mod error;
+pub mod host;
 pub mod issues;
 pub mod managed;
 pub mod mcp_host;
@@ -49,6 +50,7 @@ pub use builder::{AppContextBuilder, discover_vertex_models, owner_reassignments
 pub use context::{AppContext, ConfigPlane, DataPlane, Plugins, ShutdownRequest, Subsystems};
 pub use database_context::DatabaseContext;
 pub use error::{RuntimeError, RuntimeResult};
+pub use host::{HostBootError, HostContext};
 pub use schema_currency::{SchemaState, assert_schema_current};
 pub use startup_validation::{
     ExtensionConfigOutcome, StartupValidator, collect_manifest_errors, collect_toolset_errors,

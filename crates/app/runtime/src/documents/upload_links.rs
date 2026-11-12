@@ -85,7 +85,7 @@ pub struct UploadLinkTarget<'a> {
 /// One signed token and the token-free URLs it opens, sent with the token
 /// in [`UPLOAD_TOKEN_HEADER`]. `parts_url` holds a literal `{n}` the client
 /// replaces with the 1-based part number.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SignedUploadLinks {
     pub token: String,
     pub status_url: String,

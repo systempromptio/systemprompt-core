@@ -1,7 +1,8 @@
 //! The secret half of a spawned MCP server's or agent's environment.
 //!
-//! [`Secrets::child_env`] emits the database URLs, the [`CHILD_BOOT_SECRETS`]
-//! a child cannot start without, and exactly the secrets its manifest grants:
+//! [`Secrets::child_env`] emits the database URLs, for an agent child the
+//! [`CHILD_BOOT_SECRETS`] it cannot start without, and exactly the secrets its
+//! manifest grants:
 //! explicit grants (a granted secret that is not configured is an error) and
 //! derived grants (the agent's model credentials, emitted when configured).
 //! No other provider key or custom secret reaches the child.
@@ -24,11 +25,10 @@ pub const CHILD_DATABASE_SECRETS: &[&str] = &[
     "INTERNAL_DATABASE_URL",
 ];
 
-// Why: a child still boots a full AppContext. SecretsService::load needs the
-// pepper and validates the seed, master key and (when licensing is on) the
-// licence secret; SigningKeys::resolve needs the signing PEMs and the seed.
-// These leave the child environment only when children boot a context
-// without signing keys or the pepper.
+// Why: an agent child still boots a full AppContext. SecretsService::load
+// needs the pepper and validates the seed, master key and (when licensing is
+// on) the licence secret; SigningKeys::resolve needs the signing PEMs and the
+// seed. An MCP child boots a HostContext and receives none of these.
 pub const CHILD_BOOT_SECRETS: &[&str] = &[
     "OAUTH_AT_REST_PEPPER",
     "MANIFEST_SIGNING_SECRET_SEED",
@@ -45,9 +45,22 @@ pub enum ChildEnvError {
     NotConfigured { grant: String },
 }
 
+/// Which boot path a child runs.
+///
+/// An MCP server (`Host`) boots a host context from its grants and the
+/// verification keys alone; an agent (`Agent`) boots a full application
+/// context and needs the boot secrets.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ChildBoot {
+    #[default]
+    Host,
+    Agent,
+}
+
 /// The grants one child receives.
 #[derive(Debug, Clone, Default)]
 pub struct ChildGrants {
+    pub boot: ChildBoot,
     pub explicit: Vec<SecretGrant>,
     pub derived: Vec<SecretGrant>,
 }
@@ -57,7 +70,11 @@ impl Secrets {
         let mut env: Vec<(String, String)> = Vec::new();
         let mut custom_names: BTreeSet<String> = BTreeSet::new();
 
-        for name in CHILD_DATABASE_SECRETS.iter().chain(CHILD_BOOT_SECRETS) {
+        let boot_secrets: &[&str] = match grants.boot {
+            ChildBoot::Host => &[],
+            ChildBoot::Agent => CHILD_BOOT_SECRETS,
+        };
+        for name in CHILD_DATABASE_SECRETS.iter().chain(boot_secrets) {
             if let Some(value) = self.boot_value(name).filter(|v| !v.is_empty()) {
                 env.push(((*name).to_owned(), value.clone()));
                 if *name == "ENCRYPTION_MASTER_KEY" {
@@ -69,14 +86,12 @@ impl Secrets {
         let required = grants.explicit.iter().map(|grant| (grant, true));
         let optional = grants.derived.iter().map(|grant| (grant, false));
         for (grant, is_required) in required.chain(optional) {
-            if matches!(
-                grant,
-                SecretGrant::EncryptionMasterKey | SecretGrant::Storage
-            ) {
+            if matches!(grant, SecretGrant::Storage) {
                 continue;
             }
             let value = match grant {
                 SecretGrant::Custom(name) => self.custom_secret(name),
+                SecretGrant::EncryptionMasterKey => self.boot_value("ENCRYPTION_MASTER_KEY"),
                 other => self.get(other.secret_key()),
             }
             .filter(|v| !v.is_empty());
@@ -92,7 +107,10 @@ impl Secrets {
             if env.iter().any(|(name, _)| *name == env_name) {
                 continue;
             }
-            if matches!(grant, SecretGrant::Custom(_)) {
+            if matches!(
+                grant,
+                SecretGrant::Custom(_) | SecretGrant::EncryptionMasterKey
+            ) {
                 custom_names.insert(env_name.clone());
             }
             env.push((env_name, value.clone()));

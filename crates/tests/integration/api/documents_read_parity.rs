@@ -46,9 +46,14 @@ fn tools(ctx: &Arc<AppContext>) -> DocumentsMcpTools {
         notifications: Arc::clone(&ctx.notifications().service),
         uploads: Some(Arc::clone(ctx.documents().uploads())),
         users: Arc::clone(ctx.user_repository()),
-        tokens: ctx.token_authority(),
+        links: Arc::new(
+            systemprompt_runtime::documents::links::ApiLinkIssuer::new(
+                "http://127.0.0.1:1",
+                McpServerId::new("documents"),
+            )
+            .expect("link client"),
+        ),
         server_name: McpServerId::new("documents"),
-        api_external_url: "http://localhost".to_owned(),
     })
 }
 

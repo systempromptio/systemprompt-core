@@ -18,7 +18,6 @@ use systemprompt_security::jwt::{encode_mcp_hop, mcp_hop_claims};
 use systemprompt_security::keys::{RsaSigningKey, SigningKeys};
 use systemprompt_test_fixtures::{
     FIXTURE_EXTERNAL_URL, ensure_test_bootstrap, mint_mcp_hop, test_db_pool, test_signing_keys,
-    test_token_authority,
 };
 use tower::ServiceExt;
 
@@ -46,7 +45,10 @@ async fn router_requiring(required: bool) -> axum::Router {
         Arc::new(McpSessionRepository::new(&db)),
         McpHttpConfig::default(),
         HopVerifier::new(
-            test_token_authority(FIXTURE_EXTERNAL_URL),
+            systemprompt_test_fixtures::test_signing_keys()
+                .keyring()
+                .clone(),
+            FIXTURE_EXTERNAL_URL,
             McpServerId::new(SERVER),
         )
         .requiring_hop(required),
@@ -245,4 +247,63 @@ async fn the_stream_route_refuses_a_missing_hop_token_when_one_is_required() {
         .expect("router responds")
         .status();
     assert_eq!(status, StatusCode::UNAUTHORIZED);
+}
+
+fn staged_identity() -> systemprompt_models::auth::McpHopIdentity {
+    systemprompt_models::auth::McpHopIdentity {
+        user_id: UserId::new("promoted-user"),
+        user: None,
+        session_id: systemprompt_identifiers::SessionId::new("s"),
+        user_type: systemprompt_models::auth::UserType::Anon,
+        client_id: None,
+        act_chain: Vec::new(),
+        purpose: None,
+        interaction: None,
+        mcp_session: None,
+    }
+}
+
+#[tokio::test]
+async fn promoting_the_staged_key_needs_no_restart_of_the_server() {
+    let _ = ensure_test_bootstrap();
+    let db = test_db_pool().await;
+    let staged = systemprompt_test_fixtures::next_test_key();
+    let keyring = SigningKeys::with_verification_keys(
+        systemprompt_test_fixtures::test_key(systemprompt_test_fixtures::AUTHORITY_KEY_INDEX),
+        Some(staged.jwk()),
+        Vec::new(),
+        &[3; 32],
+    )
+    .expect("keys")
+    .keyring()
+    .clone();
+    let server = create_router(
+        NullHandler,
+        Arc::new(McpSessionRepository::new(&db)),
+        McpHttpConfig::default(),
+        HopVerifier::new(keyring, FIXTURE_EXTERNAL_URL, McpServerId::new(SERVER))
+            .requiring_hop(true),
+    );
+    let promoted = SigningKeys::new(staged, &[3; 32]).expect("promoted keys");
+    let claims = mcp_hop_claims(
+        FIXTURE_EXTERNAL_URL,
+        &McpServerId::new(SERVER),
+        &staged_identity(),
+    );
+    let token = encode_mcp_hop(&promoted, &claims).expect("encode");
+    let status = server
+        .clone()
+        .oneshot(initialize(&[("x-systemprompt-mcp-hop", &token)]))
+        .await
+        .expect("router responds")
+        .status();
+    assert_eq!(status, StatusCode::OK, "a token from the promoted key");
+
+    let current = encode_mcp_hop(&test_signing_keys(), &claims).expect("encode");
+    let status = server
+        .oneshot(initialize(&[("x-systemprompt-mcp-hop", &current)]))
+        .await
+        .expect("router responds")
+        .status();
+    assert_eq!(status, StatusCode::OK, "a token from the still-active key");
 }

@@ -21,6 +21,7 @@ pub mod content;
 pub mod documents;
 pub mod engagement;
 pub mod gateway;
+pub mod internal;
 pub mod issues;
 #[cfg(feature = "bridge")]
 pub mod managed;

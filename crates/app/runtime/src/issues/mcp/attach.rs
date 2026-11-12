@@ -15,15 +15,16 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_files::uploads::models::NewUpload;
 use systemprompt_files::uploads::{UploadError, UploadService};
-use systemprompt_identifiers::{ContentHash, DocumentUploadId, IssueReportId, McpExecutionId};
+use systemprompt_identifiers::{
+    ContentHash, DocumentUploadId, IssueReportId, JwtToken, McpExecutionId,
+};
 use systemprompt_mcp::{McpOutputSchema, McpToolHandler};
 use systemprompt_models::execution::context::RequestContext;
 
 use super::IssuesMcpTools;
 use super::refusal::{IssueRefusalCode, caller, refusal, tool_error};
-use crate::documents::upload_links::{
-    UPLOAD_TOKEN_HEADER, UploadGrant, UploadLinkTarget, signed_upload_links,
-};
+use crate::documents::links::issue_upload_links;
+use crate::documents::upload_links::UPLOAD_TOKEN_HEADER;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -81,6 +82,7 @@ impl McpOutputSchema for AttachmentOutput {
 #[derive(Debug, Clone, Copy)]
 pub struct AttachmentHandler<'a> {
     pub tools: &'a IssuesMcpTools,
+    pub hop: Option<&'a JwtToken>,
 }
 
 fn missing(field: &str) -> McpError {
@@ -142,20 +144,12 @@ impl AttachmentHandler<'_> {
             .create(&user.id, request, ctx.trace_id())
             .await
             .map_err(|error| upload_error(&error))?;
-        let links = signed_upload_links(
-            self.tools.token_authority(),
-            UploadLinkTarget {
-                grant: UploadGrant::Write,
-                base_url: self.tools.api_external_url(),
-                user,
-                session_id: ctx.session_id(),
-                upload: &session.id,
-            },
-        )
-        .map_err(|error| {
-            tracing::error!(error = %error, cause = ?std::error::Error::source(&error), "upload token was not minted");
-            McpError::internal_error("the upload links could not be signed", None)
-        })?;
+        let links = issue_upload_links(self.tools.link_issuer(), self.hop, &session.id)
+            .await
+            .map_err(|error| {
+                tracing::error!(error = %error, cause = ?std::error::Error::source(&error), "upload links were not issued by the API");
+                McpError::internal_error("the upload links could not be signed", None)
+            })?;
         Ok(AttachmentOutput {
             report_id: input.report_id,
             upload_id: session.id,

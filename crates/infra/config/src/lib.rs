@@ -49,12 +49,13 @@ pub mod state_dir;
 
 pub use bootstrap::{
     BOOT_REQUIRED_SECRET_KEYS, ChildSecretsError, DynSecretsProvider, ENCRYPTION_MASTER_KEY_BYTES,
-    EnvLookup, KeyMaterialError, LoadedProfile, MANIFEST_SIGNING_SEED_BYTES, PINNED_SECRET_KEYS,
-    PreviousSigningKey, ProfileBootstrapError, ReloadOutcome, ResolvedSource, SIGNING_KEY_PEM,
-    SIGNING_KEY_PREVIOUS_KEYS, SIGNING_KEY_STAGED_PEM, SecretsBootstrapError, SecretsDocument,
-    SecretsFetch, SecretsProvider, SecretsService, SecretsSourceFactory, SecretsSourceRegistration,
-    SecretsStatus, SharedSecretsProvider, SigningKeyState, VaultAttemptFailure, VaultError,
-    VaultKvProvider, build_external_provider, build_loaded_secrets_message, decode_master_key,
+    EnvLookup, GrantedSecrets, GrantedSecretsError, KeyMaterialError, LoadedProfile,
+    MANIFEST_SIGNING_SEED_BYTES, PINNED_SECRET_KEYS, PreviousSigningKey, ProfileBootstrapError,
+    ReloadOutcome, ResolvedSource, SIGNING_KEY_PEM, SIGNING_KEY_PREVIOUS_KEYS,
+    SIGNING_KEY_STAGED_PEM, SecretsBootstrapError, SecretsDocument, SecretsFetch, SecretsProvider,
+    SecretsService, SecretsSourceFactory, SecretsSourceRegistration, SecretsStatus,
+    SharedSecretsProvider, SigningKeyState, VaultAttemptFailure, VaultError, VaultKvProvider,
+    build_external_provider, build_loaded_secrets_message, decode_master_key,
     decode_previous_signing_keys, decode_seed, diff_secrets, generate_master_key, generate_seed,
     load_secrets_from_path, persist_seed, persist_signing_key_state, process_env_lookup,
     refresh_interval_for, registered_external_kinds, resolve_source,
@@ -63,7 +64,9 @@ pub use systemprompt_manifest::profile::ExternalSecretsConfig;
 
 #[doc(hidden)]
 pub use ::inventory as __inventory;
-pub use config_loader::{build_from_profile, resolve_instance_id, validate_database_config};
+pub use config_loader::{
+    ConfigCredentials, build_from_profile, resolve_instance_id, validate_database_config,
+};
 pub use error::{ConfigError, ConfigResult};
 pub use fingerprint::{ConfigFingerprint, FINGERPRINT_HEX_LEN};
 pub use paths::{

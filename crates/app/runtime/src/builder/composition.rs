@@ -184,7 +184,7 @@ pub(super) fn new_plugins(
     }
 }
 
-pub(super) fn build_artifact_ingest(
+pub(crate) fn build_artifact_ingest(
     database: &DbPool,
     governance: &systemprompt_governance::policy::GovernanceEngine,
 ) -> Arc<systemprompt_mcp::ArtifactIngest> {

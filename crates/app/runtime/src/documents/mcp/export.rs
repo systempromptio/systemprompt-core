@@ -7,7 +7,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use rmcp::ErrorData as McpError;
-use systemprompt_identifiers::{DocumentRevisionId, McpExecutionId};
+use systemprompt_identifiers::{DocumentRevisionId, JwtToken, McpExecutionId};
 use systemprompt_mcp::McpToolHandler;
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::DocumentFormat;
@@ -18,8 +18,8 @@ use super::inputs::{ExportAs, ExportFormat, ExportInput};
 use super::outputs::ExportOutput;
 use super::refusal::refusal;
 use super::support::{caller, tool_error};
-use crate::documents::actor::signed_agent_name;
-use crate::documents::download::{DownloadTarget, Rendition, signed_download_url};
+use crate::documents::download::Rendition;
+use crate::documents::links::{LinkTarget, issue_download_link};
 use crate::documents::refusal::RefusalCode;
 
 enum Plan {
@@ -92,6 +92,7 @@ async fn revision(
 #[derive(Debug, Clone, Copy)]
 pub struct ExportHandler<'a> {
     pub tools: &'a DocumentsMcpTools,
+    pub hop: Option<&'a JwtToken>,
 }
 
 impl McpToolHandler for ExportHandler<'_> {
@@ -120,20 +121,18 @@ impl McpToolHandler for ExportHandler<'_> {
         let (format, revision) = revision(self.tools, who, &input, ctx).await?;
         match plan(&input, format)? {
             Plan::Link(rendition) => {
-                let (url, expires_at) = signed_download_url(
-                    self.tools.token_authority(),
-                    DownloadTarget {
+                let (url, expires_at) = issue_download_link(
+                    self.tools.link_issuer(),
+                    self.hop,
+                    LinkTarget::Download {
+                        document_id: input.document_id.clone(),
+                        revision_id: revision.clone(),
                         rendition,
-                        base_url: self.tools.api_external_url(),
-                        user: who,
-                        session_id: ctx.session_id(),
-                        document: &input.document_id,
-                        revision: &revision,
-                        agent: &signed_agent_name(ctx),
                     },
                 )
+                .await
                 .map_err(|error| {
-                    tracing::error!(error = %error, cause = ?std::error::Error::source(&error), "document download token was not minted");
+                    tracing::error!(error = %error, cause = ?std::error::Error::source(&error), "document download link was not issued by the API");
                     McpError::internal_error("the download link could not be signed", None)
                 })?;
                 let summary = format!("download link valid until {}", expires_at.to_rfc3339());

@@ -2,7 +2,8 @@ use std::path::PathBuf;
 
 use std::sync::Arc;
 use systemprompt_config::{
-    ConfigError, LoadedProfile, SecretsService, build_from_profile, validate_database_config,
+    ConfigCredentials, ConfigError, LoadedProfile, SecretsService, build_from_profile,
+    validate_database_config,
 };
 use systemprompt_manifest::Config;
 
@@ -15,7 +16,11 @@ struct Booted {
 
 impl Booted {
     fn build(&self) -> Result<Config, ConfigError> {
-        build_from_profile(&self.profile, &self.secrets.get(), None)
+        build_from_profile(
+            &self.profile,
+            &ConfigCredentials::from_secrets(&self.secrets.get()),
+            None,
+        )
     }
 }
 

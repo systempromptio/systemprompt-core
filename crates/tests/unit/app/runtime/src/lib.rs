@@ -73,6 +73,12 @@ mod documents_subject_directory;
 #[cfg(test)]
 mod documents_views_touched;
 #[cfg(test)]
+mod host_context;
+#[cfg(test)]
+mod link_rig;
+#[cfg(test)]
+mod links_mint;
+#[cfg(test)]
 mod mcp_dispatch;
 #[cfg(test)]
 mod notifications_document_visibility;

@@ -10,16 +10,16 @@
 
 mod ai_service;
 mod assembly;
-mod authz;
+pub(crate) mod authz;
 #[cfg(feature = "brain")]
 pub(crate) mod brain;
-mod composition;
-mod core_layer;
-mod database;
+pub(crate) mod composition;
+pub(crate) mod core_layer;
+pub(crate) mod database;
 mod debug_impl;
-mod documents;
-mod events;
-mod governance;
+pub(crate) mod documents;
+pub(crate) mod events;
+pub(crate) mod governance;
 #[cfg(feature = "notifications")]
 pub(crate) mod notifications;
 mod options;
@@ -158,7 +158,7 @@ impl AppContextBuilder {
             Arc::new(crate::documents::BrainUnavailableSink);
         let audiences = ExtensionAudiences::default();
         let documents = documents::build_documents(&documents::DocumentsInputs {
-            boot: &self.boot,
+            services_root: &self.boot.require_services_root().path,
             database: &database,
             file_storage: &file_storage,
             authz_hook: &authz_hook,

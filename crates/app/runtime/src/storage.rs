@@ -15,7 +15,6 @@ use std::time::Duration;
 use async_trait::async_trait;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_identifiers::{InstanceId, SecretName};
-use systemprompt_manifest::Secrets;
 use systemprompt_manifest::profile::{GcsCredentials, StorageBackend, StorageConfig};
 use systemprompt_security::credential::TokenCache;
 use systemprompt_security::google::{ServiceAccountKey, access_token};
@@ -62,12 +61,12 @@ pub(crate) async fn init_file_storage(
     storage: &StorageConfig,
     app_paths: &AppPaths,
     instance_id: &InstanceId,
-    secrets: &Secrets,
+    secret: &(dyn Fn(&str) -> Option<String> + Sync),
 ) -> RuntimeResult<Arc<dyn FileStorage>> {
     match storage.backend {
         StorageBackend::Local => init_local(storage, app_paths, instance_id).await,
-        StorageBackend::Gcs => init_gcs(storage, secrets),
-        StorageBackend::S3 => init_s3(storage, secrets),
+        StorageBackend::Gcs => init_gcs(storage, secret),
+        StorageBackend::S3 => init_s3(storage, secret),
     }
 }
 
@@ -109,7 +108,10 @@ async fn init_local(
     ))
 }
 
-fn init_gcs(storage: &StorageConfig, secrets: &Secrets) -> RuntimeResult<Arc<dyn FileStorage>> {
+fn init_gcs(
+    storage: &StorageConfig,
+    secret: &(dyn Fn(&str) -> Option<String> + Sync),
+) -> RuntimeResult<Arc<dyn FileStorage>> {
     let http = object_store_http()?;
     let tokens: Arc<dyn GcsTokenSource> = match storage.credentials.clone().unwrap_or_default() {
         GcsCredentials::WorkloadIdentity => {
@@ -118,10 +120,9 @@ fn init_gcs(storage: &StorageConfig, secrets: &Secrets) -> RuntimeResult<Arc<dyn
             Arc::new(MetadataServerTokens::new(endpoint, http.clone()))
         },
         GcsCredentials::Secret(name) => {
-            let raw = secrets
-                .get(name.as_str())
+            let raw = secret(name.as_str())
                 .ok_or_else(|| RuntimeError::StorageCredentialMissing { name: name.clone() })?;
-            let key = serde_json::from_str::<ServiceAccountKey>(raw).map_err(|source| {
+            let key = serde_json::from_str::<ServiceAccountKey>(&raw).map_err(|source| {
                 RuntimeError::StorageCredential {
                     name: name.clone(),
                     source,
@@ -167,15 +168,17 @@ fn required_bucket(storage: &StorageConfig) -> RuntimeResult<String> {
         .ok_or(RuntimeError::StorageBucketMissing)
 }
 
-fn init_s3(storage: &StorageConfig, secrets: &Secrets) -> RuntimeResult<Arc<dyn FileStorage>> {
+fn init_s3(
+    storage: &StorageConfig,
+    secret: &(dyn Fn(&str) -> Option<String> + Sync),
+) -> RuntimeResult<Arc<dyn FileStorage>> {
     let http = object_store_http()?;
     let Some(GcsCredentials::Secret(name)) = storage.credentials.clone() else {
         return Err(RuntimeError::StorageS3CredentialsRequired);
     };
-    let raw = secrets
-        .get(name.as_str())
+    let raw = secret(name.as_str())
         .ok_or_else(|| RuntimeError::StorageCredentialMissing { name: name.clone() })?;
-    let credentials = serde_json::from_str::<S3Credentials>(raw)
+    let credentials = serde_json::from_str::<S3Credentials>(&raw)
         .map_err(|source| RuntimeError::StorageCredential { name, source })?;
     let params = S3Params::new(
         required_bucket(storage)?,

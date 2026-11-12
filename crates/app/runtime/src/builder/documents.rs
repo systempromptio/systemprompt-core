@@ -12,7 +12,6 @@ use systemprompt_files::FilesConfig;
 use systemprompt_files::documents::templates::load_catalog;
 use systemprompt_files::issues::{IssueReportRepository, IssueService};
 use systemprompt_governance::authz::{AccessControlRepository, SharedAuthzHook};
-use systemprompt_loader::BootContext;
 use systemprompt_models::authz::{SubjectAttributeSource, SubjectSourceHandle};
 use systemprompt_traits::{BackgroundTasks, FileStorage};
 
@@ -23,26 +22,25 @@ use crate::documents::{
 };
 use crate::error::RuntimeResult;
 
-pub(super) struct DocumentsInputs<'a> {
-    pub(super) boot: &'a BootContext,
-    pub(super) database: &'a DbPool,
-    pub(super) file_storage: &'a Arc<dyn FileStorage>,
-    pub(super) authz_hook: &'a SharedAuthzHook,
-    pub(super) subjects: &'a SubjectSourceHandle,
-    pub(super) event_router: &'a EventRouter,
-    pub(super) files_config: &'a FilesConfig,
-    pub(super) background_tasks: &'a BackgroundTasks,
-    pub(super) extensions: &'a ExtensionRegistry,
-    pub(super) notifications: &'a DynNotificationSink,
-    pub(super) brain: &'a DynBrainSink,
-    pub(super) audiences: &'a ExtensionAudiences,
+pub(crate) struct DocumentsInputs<'a> {
+    pub(crate) services_root: &'a std::path::Path,
+    pub(crate) database: &'a DbPool,
+    pub(crate) file_storage: &'a Arc<dyn FileStorage>,
+    pub(crate) authz_hook: &'a SharedAuthzHook,
+    pub(crate) subjects: &'a SubjectSourceHandle,
+    pub(crate) event_router: &'a EventRouter,
+    pub(crate) files_config: &'a FilesConfig,
+    pub(crate) background_tasks: &'a BackgroundTasks,
+    pub(crate) extensions: &'a ExtensionRegistry,
+    pub(crate) notifications: &'a DynNotificationSink,
+    pub(crate) brain: &'a DynBrainSink,
+    pub(crate) audiences: &'a ExtensionAudiences,
 }
 
-pub(super) fn build_documents(
+pub(crate) fn build_documents(
     inputs: &DocumentsInputs<'_>,
 ) -> RuntimeResult<Arc<DocumentsRuntime>> {
-    let services_root = inputs.boot.require_services_root();
-    let catalog = load_catalog(&services_root.path)?;
+    let catalog = load_catalog(inputs.services_root)?;
     let subjects: Arc<dyn SubjectAttributeSource> = Arc::new(inputs.subjects.clone());
     Ok(Arc::new(DocumentsRuntime::new(DocumentsRuntimeParts {
         database: Arc::clone(inputs.database),

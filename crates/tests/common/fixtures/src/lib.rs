@@ -18,6 +18,7 @@ pub mod db;
 pub mod disposable_db;
 pub mod documents;
 pub mod governance;
+pub mod host;
 pub mod instance;
 pub mod jwt;
 pub mod keys;
@@ -76,6 +77,7 @@ pub use documents::{
     fixture_documents_runtime_with, fixture_notification_sink, fixture_notifications,
 };
 pub use governance::{apply_governance, apply_governance_plane, record_plane_applied};
+pub use host::host_child_env;
 pub use instance::{unique_agent_name, unique_instance, unique_name, unique_service_name};
 pub use jwt::{
     mint_admin_jwt, mint_bridge_jwt, mint_mcp_hop, test_oauth_signing, test_signing_keys,

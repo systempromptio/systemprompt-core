@@ -6,14 +6,15 @@ use axum::body::Body;
 use systemprompt_identifiers::McpServerId;
 use systemprompt_mcp::middleware::HopVerifier;
 use systemprompt_mcp::{MAX_REQUEST_BODY_BYTES, McpHttpConfig, SessionTimeouts, create_router};
-use systemprompt_test_fixtures::{
-    FIXTURE_EXTERNAL_URL, ensure_test_bootstrap, test_db_pool, test_token_authority,
-};
+use systemprompt_test_fixtures::{FIXTURE_EXTERNAL_URL, ensure_test_bootstrap, test_db_pool};
 use tower::ServiceExt;
 
 fn hop(server: &str) -> HopVerifier {
     HopVerifier::new(
-        test_token_authority(FIXTURE_EXTERNAL_URL),
+        systemprompt_test_fixtures::test_signing_keys()
+            .keyring()
+            .clone(),
+        FIXTURE_EXTERNAL_URL,
         McpServerId::new(server),
     )
 }

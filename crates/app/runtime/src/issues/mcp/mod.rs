@@ -24,16 +24,16 @@ use rmcp::ErrorData as McpError;
 use rmcp::model::{CallToolRequestParams, CallToolResult, Tool};
 use systemprompt_files::issues::IssueService;
 use systemprompt_files::uploads::UploadService;
-use systemprompt_identifiers::McpServerId;
+use systemprompt_identifiers::{JwtToken, McpServerId};
 use systemprompt_mcp::{ClientProfile, McpToolExecutor, McpToolHandler};
-use systemprompt_models::auth::TokenAuthority;
 use systemprompt_models::execution::context::RequestContext;
 
 use self::attach::AttachmentHandler;
 use self::read::{ListHandler, StatusHandler};
 use self::refusal::refusal_result;
 use self::report::ReportHandler;
-use crate::AppContext;
+use crate::documents::links::{LinkIssueError, LinkIssuer};
+use crate::host::HostContext;
 
 pub use self::refusal::IssueRefusalCode;
 
@@ -52,7 +52,7 @@ const TOOL_NAMES: [&str; 4] = [
     "issue_status",
 ];
 
-/// Why [`IssuesMcpTools::from_context`] refused to build the tools.
+/// Why [`IssuesMcpTools::from_host`] refused to build the tools.
 #[derive(Debug, thiserror::Error)]
 pub enum IssuesMcpError {
     #[error(
@@ -60,6 +60,12 @@ pub enum IssuesMcpError {
          files.issues.enabled: true in services/config/files.yaml"
     )]
     Disabled { server_name: McpServerId },
+    #[error("MCP server {server_name}: the API link client could not be built")]
+    Links {
+        server_name: McpServerId,
+        #[source]
+        source: LinkIssueError,
+    },
 }
 
 /// One tool call, already authenticated by the composing server.
@@ -69,6 +75,7 @@ pub struct IssuesToolCall<'a> {
     pub request: &'a CallToolRequestParams,
     pub context: &'a RequestContext,
     pub client: &'a ClientProfile,
+    pub hop: Option<&'a JwtToken>,
 }
 
 /// The four issue report tools of one MCP server.
@@ -76,16 +83,14 @@ pub struct IssuesToolCall<'a> {
 pub struct IssuesMcpTools {
     issues: Arc<IssueService>,
     uploads: Option<Arc<UploadService>>,
-    tokens: Arc<dyn TokenAuthority>,
+    links: Arc<dyn LinkIssuer>,
     server_name: McpServerId,
-    api_external_url: String,
 }
 
 impl std::fmt::Debug for IssuesMcpTools {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("IssuesMcpTools")
             .field("server_name", &self.server_name)
-            .field("api_external_url", &self.api_external_url)
             .finish_non_exhaustive()
     }
 }
@@ -95,37 +100,37 @@ impl IssuesMcpTools {
     pub fn new(
         issues: Arc<IssueService>,
         uploads: Option<Arc<UploadService>>,
-        tokens: Arc<dyn TokenAuthority>,
+        links: Arc<dyn LinkIssuer>,
         server_name: McpServerId,
-        api_external_url: String,
     ) -> Self {
         Self {
             issues,
             uploads,
-            tokens,
+            links,
             server_name,
-            api_external_url,
         }
     }
 
-    pub fn from_context(
-        ctx: &AppContext,
-        server_name: McpServerId,
-    ) -> Result<Self, IssuesMcpError> {
-        if !ctx.files_config().issues_config().is_enabled() {
+    pub fn from_host(host: &HostContext, server_name: McpServerId) -> Result<Self, IssuesMcpError> {
+        if !host.files_config().issues_config().is_enabled() {
             return Err(IssuesMcpError::Disabled { server_name });
         }
-        let uploads = ctx
+        let uploads = host
             .files_config()
             .documents_config()
             .is_enabled()
-            .then(|| Arc::clone(ctx.documents().uploads()));
+            .then(|| Arc::clone(host.documents().uploads()));
+        let links = host
+            .link_issuer(&server_name)
+            .map_err(|source| IssuesMcpError::Links {
+                server_name: server_name.clone(),
+                source,
+            })?;
         Ok(Self::new(
-            Arc::clone(ctx.documents().issues()),
+            Arc::clone(host.documents().issues()),
             uploads,
-            ctx.token_authority(),
+            links,
             server_name,
-            ctx.config().api_external_url.clone(),
         ))
     }
 
@@ -137,12 +142,8 @@ impl IssuesMcpTools {
         self.uploads.as_deref()
     }
 
-    pub(super) fn token_authority(&self) -> &dyn TokenAuthority {
-        self.tokens.as_ref()
-    }
-
-    pub(super) fn api_external_url(&self) -> &str {
-        &self.api_external_url
+    pub(super) fn link_issuer(&self) -> &dyn LinkIssuer {
+        self.links.as_ref()
     }
 
     #[must_use]
@@ -159,7 +160,11 @@ impl IssuesMcpTools {
     pub fn list_tools(&self) -> Vec<Tool> {
         vec![
             ReportHandler { tools: self }.tool_definition(&self.server_name),
-            AttachmentHandler { tools: self }.tool_definition(&self.server_name),
+            AttachmentHandler {
+                tools: self,
+                hop: None,
+            }
+            .tool_definition(&self.server_name),
             ListHandler { tools: self }.tool_definition(&self.server_name),
             StatusHandler { tools: self }.tool_definition(&self.server_name),
         ]
@@ -168,7 +173,16 @@ impl IssuesMcpTools {
     pub async fn call(&self, call: IssuesToolCall<'_>) -> Result<CallToolResult, McpError> {
         match call.request.name.as_ref() {
             "report_issue" => run(call, &ReportHandler { tools: self }).await,
-            "issue_attachment" => run(call, &AttachmentHandler { tools: self }).await,
+            "issue_attachment" => {
+                run(
+                    call,
+                    &AttachmentHandler {
+                        tools: self,
+                        hop: call.hop,
+                    },
+                )
+                .await
+            },
             "issues_list" => run(call, &ListHandler { tools: self }).await,
             "issue_status" => run(call, &StatusHandler { tools: self }).await,
             other => Err(McpError::invalid_params(

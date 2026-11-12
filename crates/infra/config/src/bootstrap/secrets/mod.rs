@@ -35,6 +35,7 @@
 
 mod child;
 mod error;
+mod granted;
 mod io;
 mod loader;
 mod logging;
@@ -63,6 +64,7 @@ use crate::error::{ConfigError, ConfigResult};
 
 pub use child::ChildSecretsError;
 pub use error::SecretsBootstrapError;
+pub use granted::{GrantedSecrets, GrantedSecretsError};
 pub use io::load_secrets_from_path;
 pub use logging::build_loaded_secrets_message;
 pub use provider::{DynSecretsProvider, SecretsDocument, SecretsFetch, SecretsProvider};

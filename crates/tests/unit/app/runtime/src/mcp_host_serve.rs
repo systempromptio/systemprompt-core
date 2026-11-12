@@ -1,12 +1,12 @@
 use std::sync::{Arc, OnceLock};
 
 use systemprompt_identifiers::McpServerId;
-use systemprompt_runtime::AppContext;
+use systemprompt_runtime::HostContext;
 use systemprompt_runtime::mcp_host::{
     DOCUMENTS_TOOLSET, ISSUES_TOOLSET, McpHostError, build_server, registered_toolset_ids, serve,
     serve_on,
 };
-use systemprompt_test_fixtures::{TestBootstrap, init_services_bootstrap, test_app_context_on};
+use systemprompt_test_fixtures::{TestBootstrap, host_child_env, init_services_bootstrap};
 
 const SERVICES: &str = "mcp_servers:
   host_full:
@@ -65,10 +65,22 @@ const SERVICES: &str = "mcp_servers:
 
 static BOOT: OnceLock<TestBootstrap> = OnceLock::new();
 
-async fn ctx() -> Arc<AppContext> {
-    let bootstrap = BOOT.get_or_init(|| init_services_bootstrap(SERVICES));
-    let pool = systemprompt_test_fixtures::test_db_pool().await;
-    test_app_context_on(bootstrap, &pool)
+async fn ctx() -> Arc<HostContext> {
+    let bootstrap = BOOT.get_or_init(|| {
+        let bootstrap = init_services_bootstrap(SERVICES);
+        std::fs::write(
+            bootstrap.services_path.join("config/files.yaml"),
+            "files:\n  documents:\n    enabled: true\n",
+        )
+        .expect("write files.yaml");
+        bootstrap
+    });
+    let env = host_child_env(bootstrap);
+    Arc::new(
+        HostContext::boot(move |name| env.get(name).cloned())
+            .await
+            .expect("host context from the child environment"),
+    )
 }
 
 #[test]

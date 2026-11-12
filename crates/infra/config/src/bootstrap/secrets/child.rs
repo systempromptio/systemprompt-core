@@ -8,7 +8,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_manifest::child_env::{ChildEnvError, ChildGrants};
+use systemprompt_manifest::child_env::{ChildBoot, ChildEnvError, ChildGrants};
 use systemprompt_manifest::profile::GcsCredentials;
 use systemprompt_models::subprocess::{SecretGrant, SecretGrantError};
 
@@ -27,10 +27,12 @@ pub enum ChildSecretsError {
 impl SecretsService {
     pub fn child_env(
         &self,
+        boot: ChildBoot,
         explicit: &[SecretGrant],
         derived: &[String],
     ) -> Result<Vec<(String, String)>, ChildSecretsError> {
         let mut grants = ChildGrants {
+            boot,
             explicit: explicit.to_vec(),
             derived: derived
                 .iter()
