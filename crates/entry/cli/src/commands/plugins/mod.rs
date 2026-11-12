@@ -2,7 +2,8 @@
 //!
 //! Covers listing and showing extensions, running CLI extension commands,
 //! validating dependencies and configuration, dumping config, summarising
-//! [`PluginsCommands::Capabilities`], and the [`mcp`] server-management
+//! [`PluginsCommands::Capabilities`], listing link-time registration
+//! [`seams`], and the [`mcp`] server-management
 //! subtree. [`types`] holds the shared serialisable output shapes.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -14,6 +15,7 @@ pub mod capabilities;
 pub mod config;
 pub mod list;
 mod run;
+pub mod seams;
 pub mod show;
 pub mod validate;
 
@@ -53,6 +55,9 @@ pub enum PluginsCommands {
 
     #[command(about = "List capabilities across all extensions")]
     Capabilities(capabilities::CapabilitiesArgs),
+
+    #[command(about = "List every link-time registration seam and check the profile against it")]
+    Seams(seams::SeamsArgs),
 
     #[command(subcommand, about = "MCP server management")]
     Mcp(mcp::McpCommands),
@@ -98,6 +103,14 @@ pub async fn execute(cmd: PluginsCommands, ctx: &CommandContext) -> Result<()> {
             capabilities::execute(args, &ctx.cli);
             Ok(())
         },
+        PluginsCommands::Seams(args) => {
+            let (output, all_linked) = seams::execute(&args, ctx.profile().ok());
+            render_result(&output, &ctx.cli);
+            if !all_linked {
+                bail!("The profile names registrations this binary does not link");
+            }
+            Ok(())
+        },
         PluginsCommands::Mcp(cmd) => Box::pin(mcp::execute(cmd, ctx)).await,
     }
 }
@@ -111,6 +124,7 @@ impl PluginsCommands {
             | Self::Validate(_)
             | Self::Config(_)
             | Self::Capabilities(_)
+            | Self::Seams(_)
             | Self::Mcp(
                 mcp::McpCommands::List(_)
                 | mcp::McpCommands::Status(_)

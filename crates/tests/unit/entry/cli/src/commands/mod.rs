@@ -139,6 +139,7 @@ mod plugins_dispatcher;
 mod plugins_list_filters;
 mod plugins_mcp_configured_db;
 mod plugins_registry;
+mod plugins_seams;
 mod plugins_show_detail;
 mod rate_limits_diff;
 mod rate_limits_dispatcher_fs;
