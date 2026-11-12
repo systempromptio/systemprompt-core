@@ -1,3 +1,4 @@
+-- @cost: rows=300000 measured=60ms triggers=live
 -- `ai_requests.billing_source` gains 'user_subscription': a request sent with
 -- the credential the client presented, billed to that member's own vendor
 -- subscription (schema/ai_requests.sql). The wider check is added NOT VALID
