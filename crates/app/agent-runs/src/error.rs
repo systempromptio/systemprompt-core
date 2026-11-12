@@ -31,6 +31,13 @@ pub enum AgentRunsError {
         reason: &'static str,
     },
 
+    #[error("host {host} cannot enforce declared tool '{entry}': {reason}")]
+    ToolPolicyUnenforceable {
+        host: crate::request::HostKind,
+        entry: String,
+        reason: &'static str,
+    },
+
     #[error("run directory {path}: {source}", path = path.display())]
     Layout {
         path: PathBuf,

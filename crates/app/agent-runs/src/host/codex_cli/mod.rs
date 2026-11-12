@@ -5,7 +5,9 @@
 //! `AGENTS.md` and the output schema file, then builds the `codex exec`
 //! command. Each stdout JSONL line is decoded by [`events`] and the finished
 //! process classified by [`outcome`]. Codex has no hook surface, so a run is
-//! governed only at the gateway.
+//! governed only at the gateway. Codex has no tool allow or deny list either,
+//! so a request declaring `allowed_tools` or `disallowed_tools` is refused
+//! before anything is written or spawned.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -61,6 +63,7 @@ impl HeadlessHost for CodexCli {
     }
 
     fn prepare(&self, ctx: &PrepareContext<'_>) -> AgentRunsResult<HostInvocation> {
+        refuse_tool_lists(ctx.request)?;
         let paths = args::CodexPaths::new(ctx.layout);
         write_file(
             &paths.config_toml,
@@ -94,6 +97,21 @@ impl HeadlessHost for CodexCli {
     ) -> RunOutcome {
         outcome::classify(exit, events, request)
     }
+}
+
+fn refuse_tool_lists(request: &RunRequest) -> AgentRunsResult<()> {
+    let declared = request
+        .allowed_tools
+        .iter()
+        .chain(&request.disallowed_tools)
+        .next();
+    declared.map_or(Ok(()), |entry| {
+        Err(AgentRunsError::ToolPolicyUnenforceable {
+            host: HostKind::CodexCli,
+            entry: entry.clone(),
+            reason: "codex exec has no tool allow or deny list",
+        })
+    })
 }
 
 fn write_file(path: &Path, contents: &str) -> AgentRunsResult<()> {

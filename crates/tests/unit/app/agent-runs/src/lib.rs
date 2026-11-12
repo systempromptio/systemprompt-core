@@ -33,6 +33,8 @@ mod execute_paths;
 #[cfg(test)]
 mod execute_preflight;
 #[cfg(test)]
+mod execute_resume;
+#[cfg(test)]
 mod execute_support;
 #[cfg(test)]
 mod execute_version;
@@ -68,3 +70,5 @@ mod runner_handler;
 mod task_link;
 #[cfg(test)]
 mod text_enums;
+#[cfg(test)]
+mod tool_policy;

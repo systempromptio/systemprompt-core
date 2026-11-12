@@ -119,15 +119,17 @@ async fn finish(
 }
 
 async fn run(host: &dyn HeadlessHost, params: &ExecuteParams<'_>) -> AgentRunsResult<RunReport> {
+    let store = home_keep::restore(params.layout, host.persistent_home_paths()).await?;
+    let request = home_keep::spawn_request(params.request, params.layout, store);
     let ctx = PrepareContext {
-        request: params.request,
+        request: &request,
         layout: params.layout,
         credentials: params.credentials,
         gateway_base_url: params.gateway_base_url,
         hooks_file: params.hooks_file.clone(),
     };
     if let Some((harness_ref, bundle)) = params.harness {
-        let root = harness::target_root(host.harness_targets(), params.layout, params.request);
+        let root = harness::target_root(host.harness_targets(), params.layout, &request);
         if let Err(error) = harness::install(harness_ref.clone(), bundle.clone(), root).await {
             let message = error_chain(&error);
             return Ok(refused(params, ErrorClass::HarnessUnavailable, message).await);
@@ -140,7 +142,6 @@ async fn run(host: &dyn HeadlessHost, params: &ExecuteParams<'_>) -> AgentRunsRe
         let message = error_chain(&error);
         return Ok(refused(params, ErrorClass::ConnectorUnavailable, message).await);
     }
-    home_keep::restore(params.layout, host.persistent_home_paths()).await?;
     let before = diff::snapshot_async(invocation.cwd.clone()).await;
 
     let mut sink = pump::BufferedSink::new(params.sink, params.seq_after);
@@ -165,7 +166,7 @@ async fn run(host: &dyn HeadlessHost, params: &ExecuteParams<'_>) -> AgentRunsRe
     sink.flush().await;
     let payloads = sink.finish()?;
 
-    let mut outcome = host.outcome(exit, &payloads, params.request);
+    let mut outcome = host.outcome(exit, &payloads, &request);
     if outcome.status != RunStatus::Succeeded && outcome.error.is_none() && !stderr_tail.is_empty()
     {
         outcome.error = Some(stderr_tail.join("\n"));

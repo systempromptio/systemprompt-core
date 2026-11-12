@@ -32,7 +32,7 @@ Stored as `agent_runs.request` (JSONB). The `host` column is taken from `request
 | `system_prompt_append` | `Option<String>` | appended to the host's system prompt |
 | `persona` | `Option<String>` | persona text (Codex writes it as the workspace `AGENTS.md`) |
 | `model` | `Option<String>` | model override |
-| `allowed_tools` / `disallowed_tools` | `Vec<String>` | tool allow / deny lists |
+| `allowed_tools` / `disallowed_tools` | `Vec<String>` | permission-rule patterns; a non-empty `allowed_tools` is the run's tool set (see Tool lists) |
 | `permission_mode` | `PermissionMode` | the host's permission mode |
 | `permission_prompts_none` | `bool` | never prompt for permission |
 | `workspace` | `PathBuf` | the working tree the host edits |
@@ -248,9 +248,15 @@ A `ClaimLoop` claims only its own `origin_kind`, so products sharing a database 
 | `root/logs/` | process logs |
 | `root/host/` | adapter files: MCP config, governance plugin, Codex config, `home-keep/` |
 
-`home/` is always removed, whatever the outcome. Each path an adapter names in `persistent_home_paths` (Claude Code `.claude/projects`, Codex `.codex/sessions`) is moved to `host/home-keep/` after the exit and restored before the next spawn, so a resume can find its transcript.
+`home/` is always removed, whatever the outcome. Each path an adapter names in `persistent_home_paths` (Claude Code `.claude/projects`, Codex `.codex/sessions`, OpenCode `.local/share/opencode`) is moved to `host/home-keep/` after the exit and restored before the next spawn, so a resume can find its transcript.
 
-Resume after a crash therefore needs the reclaiming node to see the original `run_dir`. That holds when runs are node-affine or `run_dir` is on shared storage. The crate does not provide either.
+A resumed attempt resumes only when that kept store is restored. When the claimer cannot see the original `run_dir` (another node without shared storage), the store is absent: the executor clears `resume_session_id`, logs a warning naming the dropped session, and the attempt starts a fresh session with the original prompt. Continuing the host session across nodes needs node-affine runs or `run_dir` on shared storage; the crate provides neither.
+
+## Tool lists
+
+- **Claude Code**: the built-in base names of a non-empty `allowed_tools` (`Bash(git:*)` gives `Bash`) go to `--tools`, so no other built-in is available; the patterns themselves go to `--allowedTools`. Outside `bypassPermissions` an MCP tool is usable only when `--allowedTools` pre-approves it. Under `bypassPermissions` that gate is gone, so each configured MCP server must be declared whole (`mcp__server`) and a per-tool MCP entry is refused. An entry naming an unconfigured MCP server, or one that is not a pattern, is refused in every mode. A refusal is `AgentRunsError::ToolPolicyUnenforceable`, raised before spawn.
+- **Codex CLI** has no tool allow or deny list, so a request with a non-empty `allowed_tools` or `disallowed_tools` is refused with `ToolPolicyUnenforceable` before anything is written.
+- **OpenCode** writes both lists into its permission policy.
 
 ## Governance
 
