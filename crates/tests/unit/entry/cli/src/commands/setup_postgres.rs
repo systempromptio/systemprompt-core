@@ -30,6 +30,8 @@ pub(super) fn args() -> SetupArgs {
         reset_role_password: false,
         db_name: None,
         gemini_key: None,
+        vertex_project: None,
+        vertex_key_file: None,
         anthropic_key: None,
         openai_key: None,
         github_token: None,

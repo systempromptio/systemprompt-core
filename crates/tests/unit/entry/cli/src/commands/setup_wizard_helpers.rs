@@ -21,6 +21,8 @@ fn args() -> SetupArgs {
         reset_role_password: false,
         db_name: None,
         gemini_key: None,
+        vertex_project: None,
+        vertex_key_file: None,
         anthropic_key: Some("sk-ant".to_owned()),
         openai_key: None,
         github_token: None,
@@ -92,6 +94,7 @@ fn configured(anthropic: bool, openai: bool, gemini: bool, github: bool) -> Stri
         openai,
         gemini,
         github,
+        vertex: false,
     }
     .summary()
 }

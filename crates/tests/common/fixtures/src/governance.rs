@@ -12,7 +12,7 @@ use systemprompt_database::{DbPool, PgConfigVersion, PlaneTransaction};
 use systemprompt_extension::prelude::{
     ChangeSource, ConfigPlane, PlaneContext, PlaneTx, ResolvedEntities, ResolvedEntity,
 };
-use systemprompt_governance::policy::{GOVERNANCE_FILE, GovernancePlane};
+use systemprompt_governance::policy::{GovernancePlane, GOVERNANCE_FILE};
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{CacheDomain, Dependencies, WatchSignals};
 

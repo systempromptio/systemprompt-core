@@ -7,8 +7,8 @@ use std::env;
 use std::path::PathBuf;
 use std::sync::OnceLock;
 
-use systemprompt_config::LoadedProfile;
 use systemprompt_config::paths::AppPaths;
+use systemprompt_config::LoadedProfile;
 use systemprompt_files::FilesConfig;
 use systemprompt_loader::{BootContext, ServicesState};
 use systemprompt_manifest::profile::UNRESTRICTED_ACKNOWLEDGEMENT;

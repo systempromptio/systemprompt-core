@@ -11,7 +11,7 @@ use systemprompt_runtime::{AgentHost, HostContext};
 use systemprompt_security::jwt::{AdminTokenParams, JwtService};
 use systemprompt_security::keys::SigningKeys;
 use systemprompt_test_fixtures::{
-    FIXTURE_JWT_ISSUER, TestBootstrap, host_child_env, init_services_bootstrap, mint_admin_jwt,
+    TestBootstrap, host_child_env, init_services_bootstrap, mint_admin_jwt,
     seed_fixture_system_admin, test_db_pool,
 };
 use systemprompt_traits::JwtProviderError;
@@ -52,6 +52,9 @@ models:
 deployments:
   claude-fixture-1:
   - anthropic/api
+gateway:
+  enabled: false
+  default_model: claude-fixture-1
 "#;
 
 static BOOT: OnceLock<TestBootstrap> = OnceLock::new();
@@ -131,9 +134,10 @@ async fn an_agent_composes_without_the_profile_secrets_source_and_ignores_boot_s
 async fn the_agent_verifies_bearers_against_the_key_set_it_was_handed() {
     let agent = compose(agent_child_env(bootstrap())).await;
     let auth = agent.agent_auth();
+    let issuer = agent.host().config().jwt_issuer.clone();
     let user = UserId::new(uuid::Uuid::new_v4().to_string());
 
-    let token = mint_admin_jwt(&user, "agent-host@test.invalid", FIXTURE_JWT_ISSUER);
+    let token = mint_admin_jwt(&user, "agent-host@test.invalid", &issuer);
     let claims = auth
         .jwt_provider
         .validate_token(token.as_str())
@@ -148,7 +152,7 @@ async fn the_agent_verifies_bearers_against_the_key_set_it_was_handed() {
             user_id: &user,
             session_id: &SessionId::generate(),
             email: "agent-host@test.invalid",
-            issuer: FIXTURE_JWT_ISSUER,
+            issuer: &issuer,
             duration: chrono::Duration::hours(1),
             client_id: None,
         },

@@ -3,8 +3,8 @@ use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_events::{EventBroadcasters, EventRouter};
 use systemprompt_extension::DynNotificationSink;
-use systemprompt_files::DocumentsConfig;
 use systemprompt_files::documents::agents::DocumentActor;
+use systemprompt_files::DocumentsConfig;
 use systemprompt_governance::authz::{
     AccessControlRepository, SharedAuthzHook, SubjectProviderSet,
 };
@@ -14,7 +14,7 @@ use systemprompt_runtime::documents::{
     DocumentsRuntime, DocumentsRuntimeParts, ExtensionAudiences, UserSubjectDirectory,
 };
 use systemprompt_runtime::notifications::NotificationsHandle;
-use systemprompt_runtime::{NotificationsInputs, core_notifications, notification_sink};
+use systemprompt_runtime::{core_notifications, notification_sink, NotificationsInputs};
 use systemprompt_traits::{BackgroundTasks, FileStorage};
 use systemprompt_users::UserRepository;
 

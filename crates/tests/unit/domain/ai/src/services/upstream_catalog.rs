@@ -116,7 +116,7 @@ fn a_workload_identity_credential_binds_without_a_secret() {
             .expect("endpoint in catalog");
     let target = UpstreamTarget::from_secrets(
         &Default::default(),
-        &ensure_test_secrets_bootstrap().get(),
+        ensure_test_secrets_bootstrap().as_ref(),
         binding,
     )
     .expect("a workload identity needs no secret");
