@@ -11,6 +11,16 @@ pub mod authenticate;
 pub mod link;
 pub mod register;
 
+use axum::Json;
+use axum::extract::rejection::JsonRejection;
+
+use crate::routes::oauth::OAuthHttpError;
+
+pub(crate) fn json_body<T>(body: Result<Json<T>, JsonRejection>) -> Result<T, OAuthHttpError> {
+    body.map(|Json(value)| value)
+        .map_err(|rejection| OAuthHttpError::invalid_request(rejection.body_text()))
+}
+
 pub use authenticate::{finish_auth, start_auth};
 pub use link::{finish_link, start_link};
 pub use register::{finish_register, start_register};

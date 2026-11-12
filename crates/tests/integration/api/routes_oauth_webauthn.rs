@@ -332,7 +332,7 @@ async fn register_finish_blank_challenge_id_is_rejected() -> anyhow::Result<()> 
     let (status, description) =
         finish_description(finish_body("   ", "validname", "a@b.com")).await?;
     assert_eq!(status, StatusCode::BAD_REQUEST);
-    assert!(description.contains("Challenge ID"), "{description}");
+    assert!(description.contains("challenge_id"), "{description}");
     Ok(())
 }
 

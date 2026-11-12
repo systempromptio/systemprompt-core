@@ -77,11 +77,16 @@ pub struct FinishAuthResponse {
     pub auth_token: Option<String>,
 }
 
-#[instrument(skip(state, request), fields(challenge_id = %request.challenge_id))]
+#[instrument(skip(state, body), fields(challenge_id = tracing::field::Empty))]
 pub async fn finish_auth(
     State(state): State<OAuthState>,
-    Json(request): Json<FinishAuthRequest>,
+    body: Result<Json<FinishAuthRequest>, axum::extract::rejection::JsonRejection>,
 ) -> Result<Response, OAuthHttpError> {
+    let request = crate::routes::oauth::webauthn::json_body(body)?;
+    tracing::Span::current().record(
+        "challenge_id",
+        tracing::field::display(&request.challenge_id),
+    );
     let webauthn_service = state.webauthn()?;
 
     let (user_id, oauth_state) = webauthn_service

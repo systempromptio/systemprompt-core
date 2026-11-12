@@ -64,13 +64,19 @@ pub(super) struct FinishRegisterResponse {
     pub auth_token: Option<String>,
 }
 
-#[instrument(skip(state, config, request), fields(challenge_id = %request.challenge_id, username = %request.username))]
+#[instrument(skip(state, config, body), fields(challenge_id = tracing::field::Empty, username = tracing::field::Empty))]
 pub async fn finish_register(
     State(state): State<OAuthState>,
     Extension(config): Extension<Arc<Config>>,
-    Json(request): Json<FinishRegisterRequest>,
+    body: Result<Json<FinishRegisterRequest>, axum::extract::rejection::JsonRejection>,
 ) -> Result<Response, OAuthHttpError> {
     super::ensure_registration_enabled(&config)?;
+    let request = crate::routes::oauth::webauthn::json_body(body)?;
+    tracing::Span::current().record(
+        "challenge_id",
+        tracing::field::display(&request.challenge_id),
+    );
+    tracing::Span::current().record("username", tracing::field::display(&request.username));
     request
         .validate()
         .map_err(OAuthHttpError::invalid_request)?;
