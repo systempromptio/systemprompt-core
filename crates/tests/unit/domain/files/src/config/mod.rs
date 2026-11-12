@@ -8,3 +8,4 @@ mod upload_and_yaml;
 mod url_accessors;
 mod validator_report;
 mod validator_tests;
+mod yaml_interpolation;

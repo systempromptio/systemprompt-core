@@ -27,7 +27,9 @@ pub use validator::FilesConfigValidator;
 use std::path::{Path, PathBuf};
 use systemprompt_cloud::constants::storage;
 use systemprompt_config::paths::AppPaths;
+use systemprompt_manifest::env::untyped;
 use systemprompt_manifest::profile::Profile;
+use systemprompt_manifest::{interpolate_yaml, read_env_optional};
 
 use crate::error::{FilesError, FilesResult};
 use types::FilesConfigWrapper;
@@ -81,12 +83,30 @@ impl FilesConfig {
                 source,
             })?;
 
-        let wrapper: FilesConfigWrapper =
-            serde_yaml::from_str(&content).map_err(|source| FilesError::ConfigParse {
-                path: config_path,
+        Self::parse_yaml(&content, &config_path, &|name| read_env_optional(name))
+    }
+
+    pub fn parse_yaml(
+        content: &str,
+        path: &Path,
+        lookup: &impl Fn(&str) -> Option<String>,
+    ) -> FilesResult<FilesConfigYaml> {
+        let mut value: serde_yaml::Value =
+            serde_yaml::from_str(content).map_err(|source| FilesError::ConfigParse {
+                path: path.to_path_buf(),
                 source,
             })?;
-
+        interpolate_yaml(&mut value, lookup, &untyped).map_err(|source| {
+            FilesError::ConfigInterpolation {
+                path: path.to_path_buf(),
+                source,
+            }
+        })?;
+        let wrapper: FilesConfigWrapper =
+            serde_yaml::from_value(value).map_err(|source| FilesError::ConfigParse {
+                path: path.to_path_buf(),
+                source,
+            })?;
         Ok(wrapper.files)
     }
 
