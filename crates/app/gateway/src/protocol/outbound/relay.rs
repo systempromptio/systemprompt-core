@@ -9,7 +9,7 @@
 //! wire is relayed by this one path; an adapter names its codec and nothing
 //! else.
 //!
-//! The request is sent once ([`send_once`]): any answer, success or not, is
+//! The request is sent once: any answer, success or not, is
 //! the upstream's and is handed back with its headers
 //! ([`UpstreamError::Relayed`]). A body that cannot be read whole is refused
 //! rather than cut short.
