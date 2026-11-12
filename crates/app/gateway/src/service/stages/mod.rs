@@ -37,7 +37,7 @@ use super::super::protocol::inbound::InboundAdapter;
 use super::super::protocol::outbound::{OutboundOutcome, PreparedBody};
 use super::finalize::apply_system_prompt_override;
 use super::resolve::ResolvedUpstream;
-use super::{DispatchError, GatewayError, GovernanceDenied, PromptRepairRequired};
+use super::{DispatchError, GatewayError, GovernanceDenied, HopPolicy, PromptRepairRequired};
 use crate::policies::OverridePolicy;
 
 const UNSANITIZABLE_SECRET_MESSAGE: &str = "Secret content could not be safely sanitized; remove \
@@ -60,7 +60,8 @@ pub(super) struct PreparedDispatch {
     body: PreparedBody,
     recovery_count: usize,
     memory: RecallApplied,
-    repair: PromptRepair,
+    policy: HopPolicy,
+    presented: Option<Bytes>,
 }
 
 pub(super) struct GovernedDispatch(PreparedDispatch);
@@ -104,12 +105,16 @@ impl PreparedDispatch {
             RecallApplied::default()
         };
         let model_limits = Some(upstream.model_limits());
-        let raw_body = passthrough_body(
-            raw_body,
-            inbound,
-            upstream,
-            override_descriptor.is_some() || memory.injected,
-        );
+        let raw_body = if policy.rewrites_request() {
+            passthrough_body(
+                raw_body,
+                inbound,
+                upstream,
+                override_descriptor.is_some() || memory.injected,
+            )
+        } else {
+            Some(raw_body)
+        };
         if policy.rewrites_request() {
             strip_caller_identity(&mut request);
         }
@@ -129,7 +134,8 @@ impl PreparedDispatch {
                 raw_body,
             },
         );
-        let body = prepared_body(upstream, &ctx)?;
+        let body = prepared_body(upstream, &ctx).map_err(DispatchError::recorded)?;
+        let presented = raw_body.filter(|_| !policy.rewrites_request()).cloned();
         audit.set_prepared_body_digest(&body.bytes).await;
 
         Ok(Self {
@@ -140,7 +146,8 @@ impl PreparedDispatch {
             body,
             recovery_count: 0,
             memory,
-            repair: policy.repairs_prompt(),
+            policy,
+            presented,
         })
     }
 }
@@ -164,7 +171,7 @@ impl GovernedDispatch {
             ctx,
             &mut prepared.request,
             &mut prepared.body,
-            prepared.repair,
+            prepared.policy.repairs_prompt(),
         )
         .await;
 

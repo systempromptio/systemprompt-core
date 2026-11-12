@@ -184,7 +184,7 @@ pub fn fit_context_window(
         .filter(|hop| {
             deployments
                 .first()
-                .is_some_and(|primary| super::resolve::may_fail_over(primary, hop))
+                .is_some_and(|primary| primary.may_fail_over_to(hop))
         })
         .filter(|hop| {
             context_window(catalog, hop).is_some_and(|(window, _)| estimates.for_hop(hop) <= window)

@@ -7,7 +7,7 @@
 
 use systemprompt_wire::WireProtocol;
 
-use super::outbound::{CtxParts, outbound_ctx, send_attempt};
+use super::outbound::{CtxParts, outbound_ctx, prepared_body, send_attempt};
 use super::{ScannedDispatch, automatic_prompt_caching};
 use crate::audit::GatewayAudit;
 use crate::image_fetch::{ImageFetchPolicy, inline_url_images};
@@ -41,7 +41,9 @@ impl ScannedDispatch {
     // can be built from, so a failover to a different provider rebuilds the
     // body from it (never the raw passthrough lane, which is bound to the wire
     // the client spoke) without re-running governance or the scanners — the
-    // request content they judged is unchanged.
+    // request content they judged is unchanged. A hop served as presented is
+    // on the wire the client spoke and bills the same credential, so it is
+    // sent the client's own bytes again.
     pub(in crate::service) async fn rebind(
         &mut self,
         upstream: &ResolvedUpstream<'_>,
@@ -64,10 +66,13 @@ impl ScannedDispatch {
                     upstream,
                 ),
                 forward_headers: &[],
-                raw_body: None,
+                raw_body: prepared
+                    .presented
+                    .as_ref()
+                    .filter(|_| !upstream.policy.rewrites_request()),
             },
         );
-        let body = upstream.adapter.build_body(&ctx)?;
+        let body = prepared_body(upstream, &ctx)?;
         audit.set_prepared_body_digest(&body.bytes).await;
         prepared.upstream_model = upstream_model;
         prepared.model_limits = model_limits;

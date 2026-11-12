@@ -3,11 +3,13 @@
 //! [`validate_registries`] checks the four registries on their own and
 //! against each other: credentials are well-formed, every reference resolves,
 //! endpoints are SSRF-guarded, a member-paid credential belongs to one provider
-//! and a caller credential reaches only endpoints the vendor hosts itself,
+//! and a caller credential reaches only endpoints the vendor hosts itself on a
+//! wire some client request format speaks,
 //! every model is deployed and every deployment is of a declared model.
 //! [`validate_routes`] runs on the projection: the default model, route
-//! aliases, route narrowing, governance and, with the gateway enabled, that
-//! every hop is priced.
+//! aliases, route narrowing, governance, that a model with a member-paid
+//! deployment bills one credential on every hop it can reach and, with the
+//! gateway enabled, that every hop is priced.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -68,40 +70,11 @@ pub(super) fn validate_registries(input: &CatalogInput<'_>) -> CatalogResult<()>
             });
         }
         if credential.kind.is_caller() {
-            validate_caller_provider(id, provider)?;
+            super::validate_billing::check_caller_provider(id, provider)?;
         }
         validate_provider(id, provider, &trusted)?;
     }
     validate_models_and_deployments(input)
-}
-
-fn validate_caller_provider(id: &ProviderId, provider: &ProviderConfig) -> CatalogResult<()> {
-    if provider.user_agent.is_some()
-        || !provider.extra_headers.is_empty()
-        || !provider.forward_headers.is_empty()
-    {
-        return Err(CatalogError::CallerProviderSetsHeaders {
-            credential: provider.credential.clone(),
-            provider: id.clone(),
-        });
-    }
-    for (endpoint_id, endpoint) in &provider.endpoints {
-        if endpoint.effective_hosting() != systemprompt_wire::Hosting::FirstParty {
-            return Err(CatalogError::CallerCredentialNotFirstParty {
-                credential: provider.credential.clone(),
-                provider: id.clone(),
-                endpoint: endpoint_id.clone(),
-            });
-        }
-        if endpoint.accepted_betas.is_some() {
-            return Err(CatalogError::CallerCredentialFiltersBetas {
-                credential: provider.credential.clone(),
-                provider: id.clone(),
-                endpoint: endpoint_id.clone(),
-            });
-        }
-    }
-    Ok(())
 }
 
 fn validate_provider(
@@ -231,6 +204,7 @@ pub(super) fn validate_routes(catalog: &ResolvedCatalog) -> CatalogResult<()> {
         }
     }
     super::validate_hops::check_default_image_model(catalog)?;
+    super::validate_billing::check_model_chains(catalog)?;
     let mut aliases: HashSet<&ModelId> = HashSet::new();
     for route in &catalog.routes {
         let mut matched: Vec<&ModelId> = Vec::new();
@@ -273,6 +247,7 @@ pub(super) fn validate_routes(catalog: &ResolvedCatalog) -> CatalogResult<()> {
                 model: fallback.clone(),
             });
         }
+        super::validate_billing::check_context_fallbacks(catalog, route, &matched)?;
         for model in matched {
             let chain = catalog.route_chain(route, model)?;
             super::validate_hops::check_route_governance(route, &chain)?;

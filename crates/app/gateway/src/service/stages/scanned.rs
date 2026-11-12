@@ -1,7 +1,8 @@
 //! The scan stage: request safety scanners judge the governed request, a
 //! blocking finding refuses it, findings in `safety.redact_categories` are
 //! rewritten in the forwarded body, and the findings are persisted after
-//! redaction so a redacted category is stored as its marker.
+//! redaction so a redacted category is stored as its marker. A hop whose
+//! policy does not redact refuses the request such a finding lands on.
 //!
 //! The scanners read the string leaves of the prepared body, the exact bytes
 //! the upstream receives, so content the inbound parser does not model
@@ -20,7 +21,7 @@ use super::super::finalize::{
     persist_request_findings, request_finding_blocks, request_finding_rows, run_request_safety_scan,
 };
 use super::super::{DispatchError, SafetyBlocked};
-use super::recovery::{inspection_budget, redact_findings};
+use super::recovery::{inspection_budget, redact_findings, redactable};
 use super::{GovernedDispatch, ScannedDispatch};
 use crate::policies::SafetyConfig;
 use crate::registry::SafetyScannerRegistry;
@@ -59,6 +60,15 @@ impl ScannedDispatch {
             .map(|f| (f.category.clone(), f.scanner));
         let refusal = match blocked {
             Some((category, scanner)) => Some((category, scanner, "")),
+            None if !prepared.policy.redacts() => redactable(&findings, &safety.redact_categories)
+                .next()
+                .map(|finding| {
+                    (
+                        finding.category.clone(),
+                        "redaction",
+                        " is not redacted on a request sent as its client built it",
+                    )
+                }),
             None => match redact_findings(
                 &mut prepared.request,
                 &mut prepared.body,

@@ -84,6 +84,11 @@ fn render_error(error: &GatewayError) -> Option<Response<Body>> {
             ERROR_TYPE_AUTHENTICATION,
             &error.to_string(),
         )),
+        GatewayError::CallerFormatMismatch { .. } => Some(build_error_response(
+            error.status(),
+            error.error_type(),
+            &error.to_string(),
+        )),
         GatewayError::PromptRepair(repair) => {
             Some(build_prompt_repair(&repair.message, &repair.locations))
         },
@@ -140,7 +145,8 @@ fn classify_dispatch_error_ref(error: &GatewayError) -> RejectionError {
             RejectionError::client(status, forbidden.message.clone())
         },
         GatewayError::PersonalKeyRequired { .. }
-        | GatewayError::CallerCredentialRequired { .. } => {
+        | GatewayError::CallerCredentialRequired { .. }
+        | GatewayError::CallerFormatMismatch { .. } => {
             RejectionError::client(status, error.to_string())
         },
         GatewayError::GuardUnavailable(_) => {

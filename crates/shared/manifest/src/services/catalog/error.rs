@@ -9,6 +9,7 @@ use systemprompt_identifiers::{CredentialId, EndpointId, ModelId, ProviderId, Ro
 use systemprompt_models::net::OutboundUrlError;
 use thiserror::Error;
 
+use super::billing_error::BillingRuleError;
 use crate::services::gateway::GatewayProfileError;
 
 pub const MIGRATE_HINT: &str = "run `systemprompt admin config migrate` to rewrite it";
@@ -17,6 +18,9 @@ pub const MIGRATE_HINT: &str = "run `systemprompt admin config migrate` to rewri
 pub enum CatalogError {
     #[error(transparent)]
     Gateway(#[from] GatewayProfileError),
+
+    #[error(transparent)]
+    Billing(Box<BillingRuleError>),
 
     #[error("credential '{credential}' is `kind: platform` but names no `secret`")]
     PlatformCredentialWithoutSecret { credential: CredentialId },
@@ -264,6 +268,12 @@ pub enum CatalogDocumentError {
 
     #[error("more than one catalog file declares `gateway:`")]
     DuplicateGateway,
+}
+
+impl From<BillingRuleError> for CatalogError {
+    fn from(rule: BillingRuleError) -> Self {
+        Self::Billing(Box::new(rule))
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Error)]

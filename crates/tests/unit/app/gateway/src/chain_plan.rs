@@ -273,7 +273,6 @@ fn a_member_paid_request_never_moves_to_a_platform_context_fallback() {
 
 #[test]
 fn failover_stays_on_the_bill_the_request_started_on() {
-    use systemprompt_gateway::service::resolve::may_fail_over;
     use systemprompt_manifest::services::catalog::CredentialKind;
     let c = catalog();
     let platform_a = hop(&c, "small-m", "small", None);
@@ -281,14 +280,14 @@ fn failover_stays_on_the_bill_the_request_started_on() {
     let caller_a = billed_as(platform_a.clone(), CredentialKind::Caller);
     let caller_b = billed_as(platform_b.clone(), CredentialKind::Caller);
 
-    assert!(may_fail_over(&platform_a, &platform_b));
-    assert!(!may_fail_over(&caller_a, &platform_b));
-    assert!(!may_fail_over(&platform_a, &caller_b));
+    assert!(platform_a.may_fail_over_to(&platform_b));
+    assert!(!caller_a.may_fail_over_to(&platform_b));
+    assert!(!platform_a.may_fail_over_to(&caller_b));
     assert!(
-        !may_fail_over(&caller_a, &caller_b),
+        !caller_a.may_fail_over_to(&caller_b),
         "two different credentials"
     );
-    assert!(may_fail_over(&caller_a, &caller_a.clone()));
+    assert!(caller_a.may_fail_over_to(&caller_a.clone()));
 }
 
 #[test]

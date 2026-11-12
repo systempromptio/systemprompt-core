@@ -179,26 +179,26 @@ pub(super) fn automatic_prompt_caching(enabled: bool, upstream: &ResolvedUpstrea
             .is_some_and(|model| model.capabilities.prompt_caching)
 }
 
+// Why: a hop served as presented sends the client's bytes or nothing. The
+// adapter's own body builder normalises and re-encodes, so it is never the
+// fallback for such a hop.
 pub(super) fn prepared_body(
     upstream: &ResolvedUpstream<'_>,
     ctx: &OutboundCtx<'_>,
-) -> Result<PreparedBody, DispatchError> {
-    let sent_whole = ctx
-        .raw_body
-        .filter(|_| !ctx.policy.rewrites_request())
-        .and_then(|raw| as_sent_body(raw, ctx.upstream_model));
-    sent_whole.map_or_else(
-        || {
-            upstream
-                .adapter
-                .build_body(ctx)
-                .map_err(DispatchError::recorded)
-        },
-        |bytes| {
-            Ok(PreparedBody {
-                bytes,
-                raw_lane: true,
-            })
-        },
-    )
+) -> Result<PreparedBody, GatewayError> {
+    if ctx.policy.rewrites_request() {
+        return Ok(upstream.adapter.build_body(ctx)?);
+    }
+    ctx.raw_body
+        .and_then(|raw| as_sent_body(raw, ctx.upstream_model))
+        .map(|bytes| PreparedBody {
+            bytes,
+            raw_lane: true,
+        })
+        .ok_or_else(|| {
+            GatewayError::internal(
+                "request served as presented",
+                "the client's body is not available to send unchanged",
+            )
+        })
 }

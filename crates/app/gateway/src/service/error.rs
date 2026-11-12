@@ -84,6 +84,15 @@ pub enum GatewayError {
          `x-systemprompt-authorization`"
     )]
     CallerCredentialRequired { credential: String },
+    #[error(
+        "model '{model}' is served with the credential your client presents and reaches the \
+         upstream as the request it built: call it on the {wire} API, not as {inbound}"
+    )]
+    CallerFormatMismatch {
+        model: String,
+        inbound: &'static str,
+        wire: String,
+    },
     #[error("gateway dispatch has no authenticated session")]
     MissingSession,
     #[error("gateway {context}")]
@@ -109,7 +118,8 @@ impl GatewayError {
             | Self::Governance(_)
             | Self::PromptRepair(_)
             | Self::Safety(_)
-            | Self::ContextWindow(_) => StatusCode::BAD_REQUEST,
+            | Self::ContextWindow(_)
+            | Self::CallerFormatMismatch { .. } => StatusCode::BAD_REQUEST,
             Self::PolicyUnavailable(_) | Self::GuardUnavailable(_) => {
                 StatusCode::SERVICE_UNAVAILABLE
             },

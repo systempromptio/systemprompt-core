@@ -121,6 +121,8 @@ impl GatewayService {
                 ai_request_id: &ai_request_id,
                 owner,
                 sent: chain_plan::SentBody::measure(inbound.passthrough_wire(), &raw_body),
+                format: inbound.wire_name(),
+                spoken: inbound.spoken_wire(),
             },
         )
         .await?;

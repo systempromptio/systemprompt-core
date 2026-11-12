@@ -4,7 +4,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::sync::Arc;
 
 use super::protocol::outbound::anthropic::AnthropicOutbound;
@@ -18,16 +18,19 @@ use crate::policies::{
     HeuristicScanner, NullScanner, OverridePolicy, RouteSelectorChain, SafetyConfig, SafetyScanner,
     SafetyScannerRegistration, ScannerFactory, ScannerSettings,
 };
+use crate::service::HopPolicy;
 use crate::service::failover::{DeploymentLoad, ProviderBreakers};
 use systemprompt_client::GuardedClientConfig;
 use systemprompt_config::SecretsService;
 use systemprompt_extension::brain::MemoryRecall;
 use systemprompt_extension::{ExtensionContext, GatewayGuards};
+use systemprompt_manifest::services::catalog::ResolvedCatalog;
 use systemprompt_security::credential::TokenCache;
 use systemprompt_wire::WireProtocol;
 
 pub struct GatewayUpstreamRegistry {
     entries: HashMap<String, Arc<dyn OutboundAdapter>>,
+    extension_tags: BTreeSet<String>,
 }
 
 impl Default for GatewayUpstreamRegistry {
@@ -54,6 +57,25 @@ impl GatewayUpstreamRegistry {
         self.entries.get(tag)
     }
 
+    // Why: an extension adapter is code this crate cannot hold to the
+    // as-presented contract, so a hop served that way gets a built-in adapter
+    // or none.
+    pub fn adapter_for(
+        &self,
+        wire: WireProtocol,
+        policy: HopPolicy,
+    ) -> Option<&Arc<dyn OutboundAdapter>> {
+        if policy.returns_response_whole() && self.is_extension(wire.as_tag()) {
+            return None;
+        }
+        self.entries.get(wire.as_tag())
+    }
+
+    #[must_use]
+    pub fn is_extension(&self, tag: &str) -> bool {
+        self.extension_tags.contains(tag)
+    }
+
     pub fn tags(&self) -> Vec<&str> {
         self.entries.keys().map(String::as_str).collect()
     }
@@ -78,8 +100,10 @@ impl GatewayUpstreamRegistry {
             Arc::new(GeminiOutbound),
         );
 
+        let mut extension_tags = BTreeSet::new();
         for registration in inventory::iter::<OutboundAdapterRegistration> {
             let tag = registration.tag.to_owned();
+            extension_tags.insert(tag.clone());
             if entries.contains_key(&tag) {
                 tracing::warn!(
                     tag = %registration.tag,
@@ -89,7 +113,10 @@ impl GatewayUpstreamRegistry {
             entries.insert(tag, (registration.factory)());
         }
 
-        Self { entries }
+        Self {
+            entries,
+            extension_tags,
+        }
     }
 }
 
@@ -199,6 +226,12 @@ impl std::fmt::Debug for GatewayEngines {
 pub enum GatewayEnginesError {
     #[error("gateway upstream HTTP client could not be built")]
     HttpClient(#[source] reqwest::Error),
+    #[error(
+        "an extension registers the outbound adapter for wire '{wire}', which caller credential \
+         '{credential}' is served on; a request sent with the credential its client presents \
+         goes through the built-in adapter only"
+    )]
+    CallerWireShadowed { wire: String, credential: String },
 }
 
 impl GatewayEngines {
@@ -225,6 +258,23 @@ impl GatewayEngines {
             secrets,
             memory_recall: None,
         })
+    }
+
+    pub fn refuse_shadowed_caller_wires(
+        &self,
+        catalog: &ResolvedCatalog,
+    ) -> Result<(), GatewayEnginesError> {
+        for credential in catalog.credentials().filter(|c| c.is_caller()) {
+            for endpoint in catalog.endpoints_for_credential(credential.id.as_str()) {
+                if self.upstream_registry.is_extension(endpoint.wire.as_tag()) {
+                    return Err(GatewayEnginesError::CallerWireShadowed {
+                        wire: endpoint.wire.as_tag().to_owned(),
+                        credential: credential.id.as_str().to_owned(),
+                    });
+                }
+            }
+        }
+        Ok(())
     }
 
     #[must_use]

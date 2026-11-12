@@ -18,6 +18,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod billing_error;
 mod credentials;
 mod default;
 mod deployments;
@@ -28,8 +29,10 @@ mod headers;
 mod models;
 mod providers;
 mod resolved;
+mod spoken_wire;
 pub mod vertex;
 
+pub use billing_error::BillingRuleError;
 pub use credentials::{CredentialEntry, CredentialKind, CredentialRegistry, PlatformSecretKind};
 pub use default::DefaultCatalog;
 pub use deployments::{DeploymentDetail, DeploymentRegistry, DeploymentTarget, PricingOverride};
@@ -44,3 +47,4 @@ pub use resolved::{
     CatalogInput, ModelRequest, ResolvedCatalog, ResolvedCredential, ResolvedEndpoint, ResolvedHop,
     ResolvedModel, ResolvedProvider, ResolvedTarget,
 };
+pub use spoken_wire::{is_spoken_by_a_client, spoken_wire};

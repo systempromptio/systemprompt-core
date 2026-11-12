@@ -196,12 +196,13 @@ pub fn model_entries(
 ) -> Vec<ModelEntry> {
     let personal: BTreeSet<String> = catalog
         .credentials()
-        .filter(|credential| credential.is_member_paid())
+        .filter(|credential| credential.is_personal())
         .map(|credential| credential.id.as_str().to_owned())
         .collect();
     let facts = CredentialFacts {
         secret_present: &secret_present,
         personal_keys: &personal,
+        presents_own_credential: true,
     };
     let mut by_id: BTreeMap<String, ModelEntry> = BTreeMap::new();
     for model in catalog

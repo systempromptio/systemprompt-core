@@ -172,6 +172,22 @@ impl ResolvedHop {
     pub fn bills_same_credential(&self, other: &Self) -> bool {
         self.credential.id == other.credential.id
     }
+
+    // Why: a member's subscription and a deployment secret, or two different
+    // member-paid credentials, bill different accounts; a hop between them
+    // would move a request onto a bill nobody chose. Two platform credentials
+    // are both the deployment's own bill.
+    #[must_use]
+    pub fn may_fail_over_to(&self, to: &Self) -> bool {
+        match (
+            self.credential.is_member_paid(),
+            to.credential.is_member_paid(),
+        ) {
+            (false, false) => true,
+            (true, true) => self.bills_same_credential(to),
+            (true, false) | (false, true) => false,
+        }
+    }
 }
 
 /// What one request resolved to.

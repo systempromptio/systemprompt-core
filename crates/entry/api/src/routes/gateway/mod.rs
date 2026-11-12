@@ -194,6 +194,7 @@ pub fn gateway_engines(
         &extensions,
         Arc::clone(ctx.secrets()),
     )?;
+    engines.refuse_shadowed_caller_wires(&ctx.services_state().view().catalog)?;
     #[cfg(feature = "brain")]
     let engines = match ctx.brain_recall() {
         Some(recall) => engines.with_memory_recall(recall),

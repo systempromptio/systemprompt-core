@@ -10,10 +10,16 @@
 //! annotates a request asks one of these methods, so a stage that asks none
 //! has no decision to get wrong.
 //!
+//! [`servable_hops`] keeps the hops of a planned chain that can serve a
+//! request sent on a given wire: a governed hop re-encodes for any wire, a
+//! hop served as presented only on the wire the client spoke. Its `Err`
+//! carries the wire the leading hop wanted when no hop is left.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_manifest::services::catalog::ResolvedHop;
+use systemprompt_wire::WireProtocol;
 
 use super::stages::PromptRepair;
 use crate::protocol::outbound::retry::RetryPolicy;
@@ -33,6 +39,11 @@ impl HopPolicy {
         } else {
             Self::Governed
         }
+    }
+
+    #[must_use]
+    pub fn serves(self, sent_on: Option<WireProtocol>, hop: WireProtocol) -> bool {
+        self.rewrites_request() || sent_on == Some(hop)
     }
 
     const fn governed(self) -> bool {
@@ -84,5 +95,20 @@ impl HopPolicy {
     #[must_use]
     pub const fn returns_response_whole(self) -> bool {
         !self.governed()
+    }
+}
+
+pub fn servable_hops(
+    deployments: Vec<ResolvedHop>,
+    sent_on: Option<WireProtocol>,
+) -> Result<Vec<ResolvedHop>, WireProtocol> {
+    let wanted = deployments.first().map(|hop| hop.wire);
+    let servable: Vec<ResolvedHop> = deployments
+        .into_iter()
+        .filter(|hop| HopPolicy::of(hop).serves(sent_on, hop.wire))
+        .collect();
+    match (servable.is_empty(), wanted) {
+        (true, Some(wire)) => Err(wire),
+        _ => Ok(servable),
     }
 }

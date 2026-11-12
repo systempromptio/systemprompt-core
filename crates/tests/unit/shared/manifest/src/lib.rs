@@ -12,6 +12,8 @@ mod catalog_validation;
 #[cfg(test)]
 mod credentials;
 #[cfg(test)]
+mod credentials_billing;
+#[cfg(test)]
 mod default_catalog;
 #[cfg(test)]
 mod deployments_serde;

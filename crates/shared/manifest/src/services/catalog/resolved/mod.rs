@@ -14,6 +14,7 @@ mod build;
 mod resolve;
 mod types;
 mod validate;
+mod validate_billing;
 mod validate_hops;
 
 use std::collections::BTreeMap;

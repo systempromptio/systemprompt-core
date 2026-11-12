@@ -39,12 +39,15 @@ use crate::services::catalog::{
 ///
 /// Which platform secrets the deployment holds, and which member-paid
 /// credentials this user can present: a personal credential they stored a key
-/// for, or a caller credential their client carries. The bridge carries none
-/// of the latter, so its profile never lists a caller credential here.
+/// for, or a caller credential their client carries. `presents_own_credential`
+/// says whether the client the answer is for sends its own upstream
+/// credential; the bridge does not, so its profile never counts a caller
+/// credential as configured.
 #[derive(Clone, Copy)]
 pub struct CredentialFacts<'a> {
     pub secret_present: &'a dyn Fn(&str) -> bool,
     pub personal_keys: &'a BTreeSet<String>,
+    pub presents_own_credential: bool,
 }
 
 impl std::fmt::Debug for CredentialFacts<'_> {
@@ -59,9 +62,8 @@ impl CredentialFacts<'_> {
     #[must_use]
     pub fn configured(&self, credential: &ResolvedCredential) -> bool {
         match credential.kind {
-            CredentialKind::Personal | CredentialKind::Caller => {
-                self.personal_keys.contains(credential.id.as_str())
-            },
+            CredentialKind::Personal => self.personal_keys.contains(credential.id.as_str()),
+            CredentialKind::Caller => self.presents_own_credential,
             CredentialKind::Platform => credential
                 .platform_secret()
                 .is_some_and(|secret| (self.secret_present)(secret.as_str())),

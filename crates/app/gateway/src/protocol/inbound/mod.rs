@@ -52,6 +52,10 @@ pub trait InboundAdapter: Send + Sync + std::fmt::Debug {
         None
     }
 
+    fn spoken_wire(&self) -> Option<WireProtocol> {
+        systemprompt_manifest::services::catalog::spoken_wire(self.wire())
+    }
+
     fn parse_request(&self, raw: &Bytes) -> Result<CanonicalRequest, InboundParseError>;
     fn render_response(&self, response: &CanonicalResponse) -> Bytes;
     fn render_event(&self, event: &CanonicalEvent, model: &str) -> Option<Bytes>;

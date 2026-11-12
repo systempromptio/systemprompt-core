@@ -22,12 +22,14 @@ use systemprompt_manifest::services::catalog::{
     ResolveError, ResolvedCatalog, ResolvedHop, ResolvedModel, ResolvedTarget,
 };
 use systemprompt_models::attribution::RequestAttribution;
+use systemprompt_wire::WireProtocol;
 
 use super::super::protocol::canonical::CanonicalRequest;
 use super::super::protocol::outbound::OutboundAdapter;
 use super::super::registry::GatewayEngines;
 use super::chain_plan::{PlannedChain, SentBody, fit_context_window, join_segments, order_chain};
 use super::credentials::KeyOwner;
+use super::hop_policy::servable_hops;
 use super::route_match::{describe_route_match, enforce_route_requirements, refine_chain};
 use super::{DispatchError, GatewayError, HopPolicy, PolicyDenied};
 use crate::routing::{RouteSource, resolve_route};
@@ -62,6 +64,8 @@ pub(super) struct UpstreamQuery<'r> {
     pub(super) ai_request_id: &'r AiRequestId,
     pub(super) owner: KeyOwner,
     pub(super) sent: SentBody,
+    pub(super) format: &'static str,
+    pub(super) spoken: Option<WireProtocol>,
 }
 
 pub(super) async fn resolve_upstream<'a>(
@@ -75,6 +79,8 @@ pub(super) async fn resolve_upstream<'a>(
         ai_request_id,
         owner,
         sent,
+        format,
+        spoken,
     } = query;
     let resolution = resolve_route(RouteSource::Catalog(catalog), request, attribution)
         .map_err(|error| refusal(&error, request, ai_request_id))?;
@@ -99,7 +105,13 @@ pub(super) async fn resolve_upstream<'a>(
         )),
         planned.descriptor,
     );
-    let deployments = planned.deployments;
+    let deployments = servable_hops(planned.deployments, spoken).map_err(|wire| {
+        DispatchError::pre_audit(GatewayError::CallerFormatMismatch {
+            model: request.model.to_string(),
+            inbound: format,
+            wire: wire.as_tag().to_owned(),
+        })
+    })?;
     let Some(primary) = deployments.first().cloned() else {
         return Err(DispatchError::pre_audit(GatewayError::NoRoute {
             model: request.model.to_string(),
@@ -200,7 +212,7 @@ pub(super) async fn resolve_deployment_upstream<'a>(
     let Some(next) = primary.deployments.get(hop.index).cloned() else {
         return Ok(None);
     };
-    if !may_fail_over(&primary.hop, &next) {
+    if !primary.hop.may_fail_over_to(&next) {
         return Err(DispatchError::pre_audit(PolicyDenied(format!(
             "deployment '{}' bills credential '{}', not '{}'",
             next.endpoint_ref(),
@@ -230,22 +242,6 @@ pub(super) async fn resolve_deployment_upstream<'a>(
     .map(Some)
 }
 
-// Why: a member's subscription and a deployment secret, or two different
-// member-paid credentials, bill different accounts; a failover hop between
-// them would move a request onto a bill nobody chose. Two platform credentials
-// are both the deployment's own bill, so failing over between them is allowed.
-#[must_use]
-pub fn may_fail_over(from: &ResolvedHop, to: &ResolvedHop) -> bool {
-    match (
-        from.credential.is_member_paid(),
-        to.credential.is_member_paid(),
-    ) {
-        (false, false) => true,
-        (true, true) => from.bills_same_credential(to),
-        (true, false) | (false, true) => false,
-    }
-}
-
 struct BindTarget<'r> {
     model: ResolvedModel,
     route: Option<GatewayRoute>,
@@ -272,9 +268,10 @@ async fn bind_hop<'a>(
 
     let (call, billing) = super::credentials::resolve(catalog, &hop, &owner, engines).await?;
 
+    let policy = HopPolicy::of(&hop);
     let adapter = engines
         .upstream_registry
-        .get(hop.wire.as_tag())
+        .adapter_for(hop.wire, policy)
         .map(Arc::clone)
         .ok_or_else(|| {
             DispatchError::pre_audit(GatewayError::NoAdapter {
@@ -284,7 +281,7 @@ async fn bind_hop<'a>(
 
     Ok(ResolvedUpstream {
         catalog,
-        policy: HopPolicy::of(&hop),
+        policy,
         hop,
         model,
         route,
