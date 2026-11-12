@@ -119,7 +119,13 @@ pub fn cli_command() -> Command {
     c
 }
 
+pub fn announce(flags: &[&str], args: &[&str]) {
+    let line: Vec<&str> = flags.iter().chain(args).copied().collect();
+    eprintln!("$ systemprompt {}", line.join(" "));
+}
+
 pub fn run(args: &[&str]) {
+    announce(&[], args);
     let mut cmd = cli_command();
     cmd.args(args);
     let _ = cmd.assert();
@@ -128,6 +134,7 @@ pub fn run(args: &[&str]) {
 pub fn run_with_formats(args: &[&str]) {
     run(args);
     for format in ["--json", "--yaml"] {
+        announce(&[format], args);
         let mut cmd = cli_command();
         cmd.arg(format);
         cmd.args(args);
