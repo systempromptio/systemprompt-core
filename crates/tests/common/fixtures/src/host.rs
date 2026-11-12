@@ -22,3 +22,30 @@ pub fn host_child_env(bootstrap: &TestBootstrap) -> BTreeMap<String, String> {
         ),
     ])
 }
+
+// The fixture services config with one managed server, `server`, hosting the
+// given toolset ids.
+pub fn services_hosting(server: &str, toolsets: &[&str]) -> systemprompt_loader::ServicesState {
+    let boot = &crate::bootstrap::ensure_test_bootstrap().boot;
+    let mut config = (*crate::app_context::fixture_services_state().config()).clone();
+    let listed: String = toolsets
+        .iter()
+        .map(|id| format!("  - id: {id}\n"))
+        .collect();
+    let yaml = format!(
+        "binary: systemprompt-mcp-fixture\nport: 5199\nenabled: true\ndisplay_in_web: \
+         false\noauth:\n  required: true\n  scopes: [user]\n  audience: mcp\n  client_id: \
+         null\ntoolsets:\n{listed}"
+    );
+    let yaml = if toolsets.is_empty() {
+        yaml.replace("toolsets:\n", "")
+    } else {
+        yaml
+    };
+    config.mcp_servers.insert(
+        server.to_owned(),
+        serde_yaml::from_str(&yaml).expect("fixture deployment yaml"),
+    );
+    systemprompt_loader::ServicesState::from_config(boot.profile(), config)
+        .expect("fixture services config resolves")
+}

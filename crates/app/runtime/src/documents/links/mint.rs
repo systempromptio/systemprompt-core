@@ -8,18 +8,22 @@ use std::sync::Arc;
 use systemprompt_files::documents::agents::act_as;
 use systemprompt_files::documents::{DocumentService, DocumentsError};
 use systemprompt_files::uploads::{UploadError, UploadService, UploadStatus};
-use systemprompt_identifiers::TraceId;
+use systemprompt_identifiers::{McpServerId, TraceId};
+use systemprompt_loader::ServicesState;
 use systemprompt_models::auth::{self, McpHopClaims, TokenAuthority, TokenError};
 
 use super::{IssuedLink, LinkRequest, LinkTarget};
 use crate::documents::actor::bearer_actor;
 use crate::documents::download::{DownloadLinkError, DownloadTarget, signed_download_url};
 use crate::documents::upload_links::{UploadGrant, UploadLinkTarget, signed_upload_links};
+use crate::mcp_host::{DOCUMENTS_TOOLSET, ISSUES_TOOLSET};
 
 #[derive(Debug, thiserror::Error)]
 pub enum LinkMintError {
     #[error("the hop token was refused")]
     Hop(#[source] TokenError),
+    #[error("the MCP server '{server}' hosts no toolset that may request this link")]
+    NotHosted { server: McpServerId },
     #[error("the hop token names no authenticated user")]
     Anonymous,
     #[error("the upload is not the caller's")]
@@ -38,6 +42,7 @@ pub struct LinkMinter {
     pub tokens: Arc<dyn TokenAuthority>,
     pub documents: Arc<DocumentService>,
     pub uploads: Arc<UploadService>,
+    pub services: ServicesState,
     pub api_external_url: String,
 }
 
@@ -58,6 +63,7 @@ pub async fn mint_link(
         .tokens
         .verify_mcp_hop(hop, &request.server)
         .map_err(LinkMintError::Hop)?;
+    ensure_hosted(&minter.services, request)?;
     match &request.target {
         LinkTarget::Upload { upload_id } => {
             let user = claims
@@ -124,6 +130,29 @@ pub async fn mint_link(
             .map_err(LinkMintError::Signing)?;
             Ok(IssuedLink::Download { url, expires_at })
         },
+    }
+}
+
+fn ensure_hosted(services: &ServicesState, request: &LinkRequest) -> Result<(), LinkMintError> {
+    let permitted: &[&str] = match request.target {
+        LinkTarget::Upload { .. } => &[DOCUMENTS_TOOLSET, ISSUES_TOOLSET],
+        LinkTarget::Download { .. } => &[DOCUMENTS_TOOLSET],
+    };
+    let hosted = services
+        .config()
+        .mcp_servers
+        .get(request.server.as_str())
+        .is_some_and(|deployment| {
+            deployment
+                .enabled_toolsets()
+                .any(|toolset| permitted.contains(&toolset.id.as_str()))
+        });
+    if hosted {
+        Ok(())
+    } else {
+        Err(LinkMintError::NotHosted {
+            server: request.server.clone(),
+        })
     }
 }
 

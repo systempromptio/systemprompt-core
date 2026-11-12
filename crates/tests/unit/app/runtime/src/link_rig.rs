@@ -7,7 +7,8 @@ use systemprompt_identifiers::{JwtToken, McpServerId};
 use systemprompt_models::auth::{AuthenticatedUser, McpHopIdentity, TokenAuthority, UserType};
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_runtime::documents::links::{
-    IssuedLink, LinkIssueError, LinkIssuer, LinkMinter, LinkRequest, LinkTarget, mint_link,
+    IssuedLink, LinkIssueError, LinkIssuer, LinkMinter, LinkRefusal, LinkRequest, LinkTarget,
+    mint_link,
 };
 
 pub(crate) const LINKS_ISSUER: &str = "documents-test";
@@ -40,9 +41,9 @@ impl LinkIssuer for InProcessLinks {
             },
         )
         .await
-        .map_err(|error| LinkIssueError::Refused {
+        .map_err(|_| LinkIssueError::Refused {
             status: 403,
-            body: error.to_string(),
+            refusal: LinkRefusal::Forbidden,
         })
     }
 }
@@ -57,6 +58,10 @@ pub(crate) fn in_process_links(
             tokens: link_authority(),
             documents,
             uploads,
+            services: systemprompt_test_fixtures::services_hosting(
+                server,
+                &["documents", "issues"],
+            ),
             api_external_url: LINKS_BASE.to_owned(),
         },
         server: McpServerId::new(server),

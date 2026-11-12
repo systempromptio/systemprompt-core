@@ -37,6 +37,7 @@ pub(super) fn mount_documents(
         tokens: mount.ctx.token_authority(),
         documents: Arc::clone(&state.service),
         uploads: Arc::clone(&state.uploads),
+        services: mount.ctx.services_state().clone(),
         api_external_url: mount.ctx.config().api_external_url.clone(),
     };
     Ok(router

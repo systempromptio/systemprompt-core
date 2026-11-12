@@ -5,8 +5,9 @@
 //! caller presents the proxy's hop token for that call in `x-mcp-hop`, and
 //! [`mint_link`] verifies it for the server the body names, takes the subject
 //! from its claims and re-checks the subject's access to the target before
-//! signing. A missing, expired or foreign hop token answers 401; a subject
-//! who may not open the target answers 403.
+//! signing. A missing, expired or foreign hop token answers 401; a server
+//! that hosts no `documents` toolset (an upload link also admits `issues`),
+//! or a subject who may not open the target, answers 403.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -57,9 +58,10 @@ async fn issue_link(
 fn refusal(error: LinkMintError) -> ApiError {
     let code = match &error {
         LinkMintError::Hop(_) => ErrorCode::Unauthorized,
-        LinkMintError::Anonymous | LinkMintError::Upload(_) | LinkMintError::Document(_) => {
-            ErrorCode::Forbidden
-        },
+        LinkMintError::NotHosted { .. }
+        | LinkMintError::Anonymous
+        | LinkMintError::Upload(_)
+        | LinkMintError::Document(_) => ErrorCode::Forbidden,
         LinkMintError::UploadClosed { .. } => ErrorCode::ConflictError,
         LinkMintError::Signing(_) => {
             return ApiError::internal("the link could not be signed", error);

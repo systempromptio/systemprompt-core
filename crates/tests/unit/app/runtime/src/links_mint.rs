@@ -13,6 +13,7 @@ use systemprompt_runtime::documents::links::{
 };
 use systemprompt_security::jwt::{encode_mcp_hop, mcp_hop_claims};
 use systemprompt_security::keys::{RsaSigningKey, SigningKeys};
+use systemprompt_test_fixtures::services_hosting;
 
 use crate::documents_mcp_rig::{Rig, rig};
 use crate::documents_mcp_support::{create_text, ctx_for, registered};
@@ -21,10 +22,15 @@ use crate::link_rig::{LINKS_BASE, LINKS_ISSUER, hop_for, link_authority};
 const SERVER: &str = "documents";
 
 fn minter(r: &Rig) -> LinkMinter {
+    minter_hosting(r, SERVER, &["documents"])
+}
+
+fn minter_hosting(r: &Rig, server: &str, toolsets: &[&str]) -> LinkMinter {
     LinkMinter {
         tokens: link_authority(),
         documents: Arc::clone(r.runtime.service()),
         uploads: Arc::clone(r.runtime.uploads()),
+        services: services_hosting(server, toolsets),
         api_external_url: LINKS_BASE.to_owned(),
     }
 }
@@ -195,4 +201,112 @@ async fn an_anonymous_hop_is_refused() {
         .await
         .expect_err("anonymous");
     assert!(matches!(refused, LinkMintError::Anonymous), "{refused:?}");
+}
+
+fn request_for(server: &str, target: LinkTarget) -> LinkRequest {
+    LinkRequest {
+        server: McpServerId::new(server),
+        target,
+    }
+}
+
+#[tokio::test]
+async fn a_server_hosting_neither_documents_nor_issues_is_refused_every_link() {
+    let r = rig(true).await;
+    let owner = registered("mint-not-hosted").await;
+    let upload = open_upload(&r, &owner.id).await;
+    let (document, revision) = create_text(&r.tools, &ctx_for(Some(&owner)), "plain").await;
+    let download = LinkTarget::Download {
+        document_id: document,
+        revision_id: revision,
+        rendition: Rendition::Native,
+    };
+    for toolsets in [&[][..], &["admin"][..]] {
+        let minter = minter_hosting(&r, "plain-srv", toolsets);
+        for target in [upload.clone(), download.clone()] {
+            let refused = mint_link(
+                &minter,
+                hop(&owner, "plain-srv").as_str(),
+                &request_for("plain-srv", target),
+            )
+            .await
+            .expect_err("the server hosts no link toolset");
+            assert!(
+                matches!(refused, LinkMintError::NotHosted { .. }),
+                "{refused:?}"
+            );
+        }
+    }
+}
+
+#[tokio::test]
+async fn an_issues_server_gets_upload_links_but_never_download_links() {
+    let r = rig(true).await;
+    let owner = registered("mint-issues-only").await;
+    let upload = open_upload(&r, &owner.id).await;
+    let (document, revision) = create_text(&r.tools, &ctx_for(Some(&owner)), "notes").await;
+    let minter = minter_hosting(&r, "issues-srv", &["issues"]);
+    let hop = hop(&owner, "issues-srv");
+    let link = mint_link(&minter, hop.as_str(), &request_for("issues-srv", upload))
+        .await
+        .expect("an issues server may sign an upload");
+    assert!(matches!(link, IssuedLink::Upload(_)), "{link:?}");
+    let refused = mint_link(
+        &minter,
+        hop.as_str(),
+        &request_for(
+            "issues-srv",
+            LinkTarget::Download {
+                document_id: document,
+                revision_id: revision,
+                rendition: Rendition::Native,
+            },
+        ),
+    )
+    .await
+    .expect_err("an issues server signs no download");
+    assert!(
+        matches!(refused, LinkMintError::NotHosted { .. }),
+        "{refused:?}"
+    );
+}
+
+#[tokio::test]
+async fn an_issues_server_is_refused_links_to_an_upload_already_completed() {
+    let r = rig(true).await;
+    let owner = registered("mint-issues-closed").await;
+    let bytes = vec![3u8; 48];
+    let done = r
+        .runtime
+        .uploads()
+        .put_inline(
+            &owner.id,
+            NewUpload {
+                name: "done.bin".to_owned(),
+                mime: "application/octet-stream".to_owned(),
+                size: 48,
+                sha256: content_hash(&bytes),
+            },
+            bytes,
+            &TraceId::generate(),
+        )
+        .await
+        .expect("inline upload");
+    let minter = minter_hosting(&r, "issues-srv", &["issues"]);
+    let refused = mint_link(
+        &minter,
+        hop(&owner, "issues-srv").as_str(),
+        &request_for(
+            "issues-srv",
+            LinkTarget::Upload {
+                upload_id: done.session.id,
+            },
+        ),
+    )
+    .await
+    .expect_err("a completed upload takes no more writes");
+    assert!(
+        matches!(refused, LinkMintError::UploadClosed { .. }),
+        "{refused:?}"
+    );
 }

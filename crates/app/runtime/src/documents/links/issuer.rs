@@ -22,12 +22,44 @@ pub enum LinkIssueError {
     Client(#[source] reqwest::Error),
     #[error("the API could not be reached for a signed link")]
     Transport(#[source] reqwest::Error),
-    #[error("the API refused the link request with status {status}: {body}")]
-    Refused { status: u16, body: String },
+    #[error("the API refused the link request: {}", refusal.code())]
+    Refused { status: u16, refusal: LinkRefusal },
     #[error("the API's link response could not be read")]
     Decode(#[source] reqwest::Error),
     #[error("the API answered a different kind of link than was requested")]
     Mismatched,
+}
+
+/// Why the API refused a link request, read from its status alone; the
+/// API's body never reaches the tool result.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LinkRefusal {
+    HopRefused,
+    Forbidden,
+    NotOpen,
+    Failed,
+}
+
+impl LinkRefusal {
+    #[must_use]
+    pub const fn from_status(status: u16) -> Self {
+        match status {
+            401 => Self::HopRefused,
+            403 => Self::Forbidden,
+            409 => Self::NotOpen,
+            _ => Self::Failed,
+        }
+    }
+
+    #[must_use]
+    pub const fn code(self) -> &'static str {
+        match self {
+            Self::HopRefused => "hop_refused",
+            Self::Forbidden => "forbidden",
+            Self::NotOpen => "not_open",
+            Self::Failed => "link_failed",
+        }
+    }
 }
 
 /// Obtains signed document links on behalf of the call being served.
@@ -94,13 +126,9 @@ impl LinkIssuer for ApiLinkIssuer {
             .map_err(LinkIssueError::Transport)?;
         let status = response.status();
         if !status.is_success() {
-            let body = response
-                .text()
-                .await
-                .unwrap_or_else(|error| format!("<unreadable body: {error}>"));
             return Err(LinkIssueError::Refused {
                 status: status.as_u16(),
-                body,
+                refusal: LinkRefusal::from_status(status.as_u16()),
             });
         }
         response.json().await.map_err(LinkIssueError::Decode)

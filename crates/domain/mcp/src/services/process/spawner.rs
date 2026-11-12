@@ -83,15 +83,14 @@ pub fn build_environment(
     env
 }
 
-fn configure_environment(
-    command: &mut Command,
+pub fn spawn_environment(
     spec: &SpawnEnvSpec<'_>,
-    secrets_env: &[(String, String)],
-) {
-    command.env_clear();
-    for (key, value) in build_environment(spec, secrets_env, |name| std::env::var(name).ok()) {
-        command.env(key, value);
-    }
+    global: &Config,
+    secrets: &SecretsService,
+    lookup: impl Fn(&str) -> Option<String>,
+) -> McpDomainResult<Vec<(String, String)>> {
+    let secrets_env = super::child_env::child_secrets(global, secrets, spec.config)?;
+    Ok(build_environment(spec, &secrets_env, lookup))
 }
 
 pub fn rotate_log_if_needed(log_path: &Path) {
@@ -168,11 +167,7 @@ pub fn spawn_server(
             "profile path is not valid UTF-8 - cannot spawn MCP server".to_owned(),
         )
     })?;
-    let secrets_env = super::child_env::child_secrets(global, secrets, config)?;
-
-    let mut child_command = Command::new(&binary_path);
-    configure_environment(
-        &mut child_command,
+    let env = spawn_environment(
         &SpawnEnvSpec {
             config,
             port,
@@ -182,8 +177,14 @@ pub fn spawn_server(
             tools_config_json: &tools_config_json,
             server_model_config_json: &server_model_config_json,
         },
-        &secrets_env,
-    );
+        global,
+        secrets,
+        |name| std::env::var(name).ok(),
+    )?;
+
+    let mut child_command = Command::new(&binary_path);
+    child_command.env_clear();
+    child_command.envs(env);
     subprocess::mark_child(&mut child_command, ChildKind::Mcp, &config.service_name());
 
     child_command

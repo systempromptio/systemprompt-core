@@ -49,12 +49,13 @@ pub use app_context::{
     fixture_app_context_documents_configured, fixture_app_context_documents_disabled,
     fixture_app_context_on_bootstrap, fixture_app_context_on_bootstrap_with_paths,
     fixture_app_context_with, fixture_app_context_with_config, fixture_app_context_with_extensions,
-    fixture_app_context_with_hook, fixture_app_context_with_user_repository,
-    fixture_artifact_ingest, fixture_config, fixture_event_bridge, fixture_extension_context,
-    fixture_fingerprint_repository, fixture_secret_store, fixture_services_state,
-    fixture_services_view, fixture_subject_providers, fixture_upstream_issuer,
-    offline_extension_context, offline_rate_windows, test_app_context, test_app_context_on,
-    test_config, test_config_with, FIXTURE_JWT_ISSUER, FIXTURE_UPSTREAM_ISSUER,
+    fixture_app_context_with_hook, fixture_app_context_with_services,
+    fixture_app_context_with_user_repository, fixture_artifact_ingest, fixture_config,
+    fixture_event_bridge, fixture_extension_context, fixture_fingerprint_repository,
+    fixture_secret_store, fixture_services_state, fixture_services_view, fixture_subject_providers,
+    fixture_upstream_issuer, offline_extension_context, offline_rate_windows, test_app_context,
+    test_app_context_on, test_config, test_config_with, FIXTURE_JWT_ISSUER,
+    FIXTURE_UPSTREAM_ISSUER,
 };
 pub use bootstrap::{
     ensure_messaging_bootstrap, ensure_test_bootstrap, init_isolated_bootstrap,
@@ -77,7 +78,7 @@ pub use documents::{
     fixture_documents_runtime_with, fixture_notification_sink, fixture_notifications,
 };
 pub use governance::{apply_governance, apply_governance_plane, record_plane_applied};
-pub use host::host_child_env;
+pub use host::{host_child_env, services_hosting};
 pub use instance::{unique_agent_name, unique_instance, unique_name, unique_service_name};
 pub use jwt::{
     mint_admin_jwt, mint_bridge_jwt, mint_mcp_hop, test_oauth_signing, test_signing_keys,

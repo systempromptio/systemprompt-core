@@ -252,6 +252,35 @@ pub fn fixture_app_context_documents_configured(
     )
 }
 
+// Build a fixture context over the given services config, with the document
+// store enabled or left disabled.
+pub fn fixture_app_context_with_services(
+    pool: &DbPool,
+    config: Config,
+    services: systemprompt_loader::ServicesState,
+    documents_enabled: bool,
+) -> Result<Arc<AppContext>> {
+    let hook = Arc::new(AllowAllHook::new(Arc::new(NullAuditSink)));
+    let user_repository = Arc::new(systemprompt_users::UserRepository::new(pool));
+    fixture_app_context_assembled(
+        pool,
+        config,
+        tmp_paths(),
+        FixtureSeams {
+            marketplace_filter: Arc::new(AllowAllFilter),
+            authz_hook: hook,
+            user_repository,
+            extension_registry: Arc::new(ExtensionRegistry::new()),
+            services: Some(services),
+            documents: if documents_enabled {
+                enabled_documents()
+            } else {
+                DocumentsConfig::default()
+            },
+        },
+    )
+}
+
 fn enabled_documents() -> DocumentsConfig {
     DocumentsConfig {
         enabled: true,

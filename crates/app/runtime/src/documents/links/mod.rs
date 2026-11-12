@@ -21,7 +21,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{DocumentId, DocumentRevisionId, DocumentUploadId, McpServerId};
 
-pub use issuer::{ApiLinkIssuer, LinkIssueError, LinkIssuer};
+pub use issuer::{ApiLinkIssuer, LinkIssueError, LinkIssuer, LinkRefusal};
 pub use mint::{LinkMintError, LinkMinter, mint_link};
 
 use super::download::Rendition;
