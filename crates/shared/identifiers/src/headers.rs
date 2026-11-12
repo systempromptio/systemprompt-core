@@ -11,7 +11,9 @@
 //! per-session header an `OpenCode` client sends and a metered provider reads.
 //! `MEMORY` is the request header a client sends as `off` to opt out of
 //! team-memory recall, and `MEMORY_IDS` the response header naming the facts
-//! that were injected.
+//! that were injected. `PLATFORM_PREFIX` is the namespace every
+//! platform-owned `x-systemprompt-*` header lives in, for code that withholds
+//! the whole class rather than one name.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -38,6 +40,7 @@ pub const SYSTEMPROMPT_AUTHORIZATION: &str = "x-systemprompt-authorization";
 pub const CLIENT_KIND: &str = "x-systemprompt-client";
 pub const OWNER_HOP: &str = "x-systemprompt-owner-hop";
 pub const CLIENT_ATTESTATION: &str = "x-systemprompt-client-attestation";
+pub const PLATFORM_PREFIX: &str = "x-systemprompt-";
 pub const SCOPE_PREFIX: &str = "x-systemprompt-scope-";
 pub const CALLER_PURPOSE: &str = "x-systemprompt-caller";
 pub const MCP_SERVER: &str = "x-systemprompt-mcp-server";

@@ -238,7 +238,7 @@ const WITHHELD_PRESENTED_NAMES: &[&str] = &[
 ];
 
 const WITHHELD_PRESENTED_PREFIXES: &[&str] = &[
-    "x-systemprompt-",
+    systemprompt_identifiers::headers::PLATFORM_PREFIX,
     "x-forwarded-",
     "x-mcp-",
     "x-envoy-",
