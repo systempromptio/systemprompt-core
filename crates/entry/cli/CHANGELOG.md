@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.81.0] - 2026-11-12
+
+### Breaking
+
+- Irreversible commands exit non-zero in non-interactive use without `--yes`, and Ctrl-C exits 130. Migrate by passing `--yes` in scripts.
+- `SystemCommandRunner::new`, `DockerCli::new` and `DeployOrchestrator::new` take the foreground child registry, `SetupArgs` and the command enums gain fields and variants, and the setup and tenant helpers change arity. Migrate by passing `foreground_children()` and adding the match arms.
+- `core::files::delete::execute_with_pool` takes the `FileStorage`. Migrate by passing `file_storage()`.
+
+### Added
+
+- `admin keys stage|promote|rotate`, `admin config secret migrate-git-credentials`, `admin users federated-rekey`, `admin bridge signing-key-fingerprint`, `admin config credential add --kind caller`, `admin setup --vertex-project` and `--vertex-key-file`, `infra db migrate --full`, and `plugins seams`.
+
+### Fixed
+
+- `admin config validate` reports a services failure as a result with a non-zero exit, and `mcp call` fails on an embedded resource it cannot render.
+
 ## [0.78.0] - 2026-11-04
 
 ### Fixed

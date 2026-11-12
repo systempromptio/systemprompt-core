@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.81.0] - 2026-11-12
+
+### Breaking
+
+- A managed MCP server accepts identity only from a proxy-signed hop token: `create_router` takes a `HopVerifier`, `ContextPropagation` no longer reads `x-user-*` headers, and `JwtVerifier`, `services::auth`, `middleware::rbac::jwt`, `rbac::build_mcp_authz_request`, `McpHttpConfig.server_id` and `McpSessionRepository::find_initialize_params` are removed. Migrate by building every server through `create_router`.
+- `HttpClientWithContext::{new, external, forwarding}` and `McpClient::new` take `McpClientLimits`, `McpClient::new` and `McpToolProvider::new` take a `SecretLookup`, and `McpTransportError` gains variants. Migrate by passing `McpClientLimits::from(&resilience)`.
+- A spawned server receives only the database URLs, `VERIFICATION_KEYS` and the secrets granted under `secrets:`, and listens on loopback. Migrate by declaring `secrets:` on servers that need them.
+
 ## [0.77.0] - 2026-11-01
 
 ### Added

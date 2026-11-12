@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.81.0] - 2026-11-12
+
+### Breaking
+
+- `UserTokenParams.family_id` is replaced by `refresh_token: &MintedRefreshToken` and `lineage`, `AuthCodeValidationParams` gains `refresh_token_id` and `config`, `token_exchange::validate_resource` moves to `resource::validate_resource`, and `sso::{plan_resolution, ResolutionPlan}` are removed. Migrate by calling `resource::validate_resource` and `UserProvider::resolve_federated`.
+- A grant whose `resource` differs from the granted one answers `invalid_target`. Migrate by sending the same `resource` on refresh.
+
 ## [0.77.0] - 2026-11-01
 
 ### Changed

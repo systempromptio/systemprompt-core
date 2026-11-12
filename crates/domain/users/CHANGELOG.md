@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.81.0] - 2026-11-12
+
+### Breaking
+
+- Every federated sign-in resolves through `resolve_federated` under one link policy, and `UserError` gains `FederatedRefused`. Migrate by adding the match arm.
+- A verified-email clash is refused unless the issuer's `link.link_by_email` is `true`, and linked accounts no longer receive IdP roles. Migrate by setting `link: { link_by_email: true }` where silent email linking was relied on.
+
 ## [0.76.0] - 2026-10-29
 
 ### Added

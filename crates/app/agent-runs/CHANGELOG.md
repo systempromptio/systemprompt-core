@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.81.0] - 2026-11-12
+
+### Breaking
+
+- Every claimed-run write is fenced by its lease: `AgentRunRepository::{update_started, update_host_session, record_harness_digest, finish, insert_events_batch}` take a `&Lease` and return `Fenced`, `claim_queued` returns `Claimed`, `release` takes `max_releases` and returns `Released`, `task_link::transition_task` changes arity, `LeaseSpec` holds a `Lease`, and `AgentRunsError` gains `LeaseLost` and `ToolPolicyUnenforceable`. Migrate by threading the claim's `Lease` through each write.
+- A run stopped by shutdown is re-queued at most `max_releases` times (default 3), then fails as `host_crashed`; `ErrorClass` gains `ReleaseCapExceeded`. Migrate by handling the new error class.
+- A non-empty `allowed_tools` is the run's tool set, Codex refuses a request that declares tool lists, and `claude_args` returns a `Result`. Migrate by declaring every tool a step uses.
+
+### Fixed
+
+- A retried or re-queued attempt whose host session store is not on the claiming node starts a fresh session with the original prompt.
+
 ## [0.76.0] - 2026-10-29
 
 ### Fixed

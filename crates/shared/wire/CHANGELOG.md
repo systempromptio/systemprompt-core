@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.81.0] - 2026-11-12
+
+### Breaking
+
+- One bounded SSE framer serves every codec: `SseFrameDecoder::push` returns `Result` items, `WireStreamError` gains `FrameTooLarge` and `NoDecodableFrame` and loses the per-codec malformed-frame variants, `CanonicalEvent` gains `FrameDropped`, and `sse::frame_end` is removed. Migrate by adding the new arms and using `sse::SseFramer`.
+
 ## [0.77.0] - 2026-11-01
 
 ### Added

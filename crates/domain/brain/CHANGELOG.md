@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.81.0] - 2026-11-12
+
+### Breaking
+
+- `GET /facts` and the subject view return `{facts, next}` with a keyset cursor, `BrainService::search` returns `FactPage`, `FactFilter` gains `after`, `BrainError` gains `Cursor`, and `recall::visible::lifecycle_withheld` moves to `recall::lifecycle`. Migrate by reading `facts` and following `next`.
+- A user-scoped fact is visible only to its owner. Migrate by re-scoping facts meant to be shared.
+
+### Security
+
+- Acting on a personal fact the caller cannot see answers not found.
+
 ## [0.79.0] - 2026-11-05
 
 ### Breaking

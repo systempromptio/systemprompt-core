@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.81.0] - 2026-11-12
+
+### Breaking
+
+- `decode_rs256_claims`, `decode_session_claims`, `extract_user_context`, `AuthValidationService::new` and `AgentOAuthState::new` take a `&VerificationKeyring`, and `SigningKeys::decoding_key` is removed. Migrate by passing the keyring from `TokenVerificationKeys`.
+- `ProviderCredential` and `CredentialKind` gain `GoogleWorkloadIdentity`. Migrate by adding the match arms.
+- `sign_claims` refuses a missing or over-long `exp` (`TokenError::ClaimsExpiry`), and `AuthError`, `JwtError`, `KeyError` and `SigningKeysError` gain variants. Migrate by setting an `exp` within `MAX_TOKEN_LIFETIME` and adding the match arms.
+
+### Added
+
+- Signing keys stage and promote with a verification overlap; `TokenAuthority::{mint_mcp_hop, verify_mcp_hop}`, `VerifyingTokenAuthority`, and `google::{MetadataIdentity, DEFAULT_METADATA_TOKEN_URL}`.
+
 ## [0.76.0] - 2026-10-29
 
 ### Fixed

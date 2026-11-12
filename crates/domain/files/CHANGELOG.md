@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.81.0] - 2026-11-12
+
+### Breaking
+
+- `documents::pdf` is compiled only under the `pdf` feature, the Markdown helpers move to `documents::outline`, `PDF_MIME_TYPE` moves to `documents::codecs::file`, and `FilesError` gains `ConfigInterpolation`. Migrate by importing from the new paths and enabling `pdf` for PDF export.
+- A commit naming an image hash that was never admitted is refused; `DocumentRepositories` and `ProposeBodyRequest` gain `media`, `DocumentTextIndexRepository::search` takes a `SearchPage`, `BlobStoreError` gains `TimedOut`, and `DocumentBlobRepository::list_linking_revisions` is removed. Migrate by uploading images before committing revisions that name them.
+- The collaboration owner's advertised host is `files.documents.collab.owner.advertiseHost`, and `DocumentsConfig`, `CollabConfig` and `CollabOwnerConfig` are no longer `Copy`. Migrate by setting `advertiseHost: ${FLY_PRIVATE_IP:-}`.
+
+### Security
+
+- Document images are served only from admitted blob provenance, and XML depth and PNG decode size are capped.
+
+### Fixed
+
+- An upload's `public_url` is its served address (migration `040_upload_public_url`), and `FileDeleteService` removes the stored object with the row.
+- Blob transfers run outside the per-hash lock transaction; a newly shared document appears once in the drive feed.
+
 ## [0.80.0] - 2026-11-09
 
 ### Added

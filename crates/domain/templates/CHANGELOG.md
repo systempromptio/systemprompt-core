@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.81.0] - 2026-11-12
+
+### Security
+
+- The `json` helper is safe inside a script element.
+
 ## [0.63.0] - 2026-10-07
 
 ### Breaking

@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.81.0] - 2026-11-12
+
+### Breaking
+
+- `SchedulerService::start` fails when two jobs share an advisory lock key (`SchedulerError::LockKeyCollision`), and `RetentionTarget` gains `EngagementEvents` and `FingerprintReputation`. Migrate by giving extension jobs unique names.
+
+### Added
+
+- `database_cleanup` clamps each retention cutoff to the earliest watermark a registered `RetentionHold` reports; `RetentionTarget` is defined in `systemprompt_extension` and re-exported here.
+
 ## [0.78.0] - 2026-11-04
 
 ### Added

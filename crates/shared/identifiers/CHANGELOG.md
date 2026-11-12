@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.81.0] - 2026-11-12
+
+### Breaking
+
+- `SessionId`, `ClientId`, `ChallengeId`, `RefreshTokenFamilyId`, `PolicyId` and `QuotaSubjectId` are validated through `try_new` and `Deserialize`, and their `From<String>`/`From<&str>` impls are removed. Migrate by constructing external values with `try_new`.
+
+### Added
+
+- `headers` gains `ALL`, `PREFIXES`, `CLIENT_TO_VENDOR`, `PLATFORM_PREFIX`, `UPLOAD_TOKEN`, `BRIDGE_MANIFEST_SCHEMA`, `MCP_SESSION_ID`, `MCP_PROTOCOL_VERSION`, `MCP_METHOD`, `A2A_VERSION` and `INGESTION_EVENT_ID`.
+
 ## [0.77.0] - 2026-11-01
 
 ### Breaking

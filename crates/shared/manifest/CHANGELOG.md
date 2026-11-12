@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.81.0] - 2026-11-12
+
+### Breaking
+
+- Services config structs refuse unknown keys, `ai.mcp.auto_discover`, `skills.auto_discover`, `ai.history.log_tool_executions` and the flat MCP timeouts are removed, and a `${VAR}` in a services string is resolved at load. Migrate by deleting the keys and setting MCP limits under `ai.mcp.resilience`.
+- A profile `${VAR}` without a default fails when unset, and `env::interpolate` returns `Result<String, UnsetVariable>`. Migrate by writing `${VAR:-}` for optional variables.
+- `CredentialKind` gains `Caller` and `GoogleWorkloadIdentity`, `CredentialEntry` and `ResolvedCredential` gain `workload_identity`, `CredentialFacts` gains `presents_own_credential`, and `CatalogError` gains variants. Migrate by adding the match arms and fields.
+- `RateLimitsConfig` gains `pre_auth_ip_per_second`. Migrate by setting the field in struct literals.
+- `Secrets` gains `signing_key_staged_pem` and `signing_key_previous_keys`, and `Secrets::to_subprocess_env` is replaced by `child_env`. Migrate by passing the explicit grants.
+
 ## [0.79.0] - 2026-11-05
 
 ### Breaking

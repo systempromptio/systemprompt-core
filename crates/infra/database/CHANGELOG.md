@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.81.0] - 2026-11-12
+
+### Breaking
+
+- `MigrationConfig` gains `force_full_install`, and a settled install compares the live catalog against a stored fingerprint. Migrate by setting the field in struct literals.
+
 ## [0.78.0] - 2026-11-04
 
 ### Added

@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.81.0] - 2026-11-12
+
+### Breaking
+
+- Secondary bundles must declare every shipped file (`VerifyFailure` gains `UnsafePath` and `UndeclaredOwnership`, `BundleError` gains `FileCollision`), `ConfigLoadError` gains `Interpolation`, and `config_loader::catalog::read_catalog_dir` is removed, and `ChildKind` gains `Command`. Migrate by declaring bundled files and adding the match arms.
+
+### Added
+
+- `ServicesSourceBootstrap::read_composed`; `ConfigLoader::inspecting()` and `verbatim()` reads.
+
 ## [0.77.0] - 2026-11-01
 
 ### Changed

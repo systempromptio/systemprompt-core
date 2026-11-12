@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.81.0] - 2026-11-12
+
+### Added
+
+- `RetentionHold`, `register_retention_hold!` and `RetentionTarget`.
+
 ## [0.79.0] - 2026-11-05
 
 ### Breaking

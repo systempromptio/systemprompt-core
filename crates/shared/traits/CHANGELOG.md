@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.81.0] - 2026-11-12
+
+### Breaking
+
+- `JwtValidationProvider::generate_token` and `GenerateTokenParams` are removed. Migrate by minting through the API's `TokenAuthority`.
+- `UserProvider::{find_federated, find_or_create_federated, link_federated}` are replaced by `resolve_federated(issuer, sub, claims, &LinkPolicy)`, and `SsoRefusal` gains `EmailInUse`, `LinkIneligible` and `AccountUnavailable`. Migrate by implementing `resolve_federated` and adding the match arms.
+
 ## [0.77.0] - 2026-11-01
 
 ### Changed

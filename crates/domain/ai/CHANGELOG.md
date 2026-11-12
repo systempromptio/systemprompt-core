@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.81.0] - 2026-11-12
+
+### Breaking
+
+- `AiServiceProviders.secrets`, `ProviderClients::build`, `ImageProviderFactory::from_catalog` and `UpstreamTarget::from_secrets` take a `SecretLookup`, and `AiService::new` takes `&AiRequestRepositories`. Migrate by passing the `SecretsService` and `AiRepositories::request_audit()`.
+- `UpstreamTargetError` gains `CallerCredential`, and `SettleCompletion` gains `usage_source`. Migrate by adding the match arms and fields.
+
+### Added
+
+- `PresentedCredential` and caller-credential upstream targets; Vertex AI calls can authenticate as the runtime's workload identity.
+
+### Fixed
+
+- Concurrent settles of one completion record the turn once.
+
 ## [0.78.0] - 2026-11-04
 
 ### Breaking

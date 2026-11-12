@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.81.0] - 2026-11-12
+
+### Added
+
+- `ai_usage_rollup_hourly` and `report_ai_usage_hourly` carry the `user_subscription` billing-source share.
+- Engagement events and fingerprint reputation are deleted after a retention window.
+
 ## [0.74.0] - 2026-10-27
 
 ### Added
