@@ -64,6 +64,10 @@
 - **Breaking:** **Agent runs:** a non-empty `allowed_tools` is the run's tool set: Claude Code receives the built-in names as `--tools`, a run that bypasses permissions must declare each MCP server whole, and Codex refuses a request that declares `allowed_tools` or `disallowed_tools` (`AgentRunsError::ToolPolicyUnenforceable`); `claude_args` returns a `Result`. Migrate by declaring every tool a step uses and removing tool lists from Codex steps.
 - **Breaking:** **Loader:** `ConfigLoadError` gains `Interpolation`, and `ConfigLoader` selects `inspecting()` or `verbatim()` reads for configuration that is displayed or written back. Migrate by adding the match arm.
 - **Breaking:** **CLI:** `core::files::delete::execute_with_pool` takes the `Arc<dyn FileStorage>` the file's object is removed from. Migrate by passing the context's `file_storage()`.
+- **Breaking:** **MCP host:** a managed MCP server boots a least-privilege `HostContext` from its spawn environment instead of an `AppContext`: `ToolsetFactory.build` is `fn(&HostContext, &McpServerId)`, `mcp_host::{serve, serve_on, build_server}` take a `HostContext`, `DocumentsMcpTools::from_context` and `IssuesMcpTools::from_context` are replaced by `from_host`, `IssuesMcpTools::new` takes the link issuer, `DocumentsMcpConfig.{tokens, api_external_url}` are replaced by `links`, `ToolsetCall`, `DocumentsToolCall`, `IssuesToolCall` and the export, upload and attachment handlers gain `hop`, `HopVerifier::new` takes a `VerificationKeyring`, and `VerifiedHop` is a struct with `claims()` and `token()`. Migrate by replacing `ProfileBootstrap`, `SecretsBootstrap` and `AppContext::new` in each MCP binary with `HostContext::from_process_env().await?` and `mcp_host::serve(Arc::new(host), id)`, changing every `submit_toolset!` factory to take `&HostContext`, and rebuilding every MCP binary against this core; a binary built on an earlier core does not start, because it no longer receives the pepper, manifest seed or signing keys, and the API does not check a binary's core version before spawning it.
+- **Breaking:** **Subprocesses:** an MCP server receives the database URLs, the public verification key set (`VERIFICATION_KEYS`) and only the secrets its manifest grants, never a boot secret: `SecretsService::child_env` takes a `ChildBoot`, `ChildGrants` gains `boot`, `build_from_profile` takes `&ConfigCredentials`, `storage::init_file_storage` takes a secret lookup, and `env_vars` naming `SYSTEMPROMPT_PROFILE` fails validation. Migrate by declaring `secrets: [encryption_master_key]` on a server that needs the master key and `secrets: [storage]` on one that uses credentialed storage.
+- **Breaking:** **Documents:** an MCP server obtains signed download and upload links from the API on `POST /api/v1/internal/links` at `api_internal_url`, presenting the call's hop token; the route is mounted only when the document store is enabled, and refuses with `403` a server that hosts no `documents` toolset (an upload link also admits `issues`). `LinkMinter` gains `services`, `LinkMintError` gains `NotHosted`, and `LinkIssueError::Refused` carries a fixed `LinkRefusal` instead of the API's body. Migrate by keeping `api_internal_url` reachable from MCP servers and serving links only from a server that declares the `documents` or `issues` toolset.
+- **Breaking:** **Notifications:** `NotificationsServiceParts` and `NotificationsInputs` gain `escalation: EscalationDelivery`; with `Consumer` an escalated notification is left `pending` for the notifications consumer's sweep instead of being delivered in-process. Migrate by setting `EscalationDelivery::InProcess` in a process that runs the consumer with every extension seam.
 
 ### Security
 
@@ -75,6 +79,7 @@
 - **Bridge:** the Windows machine policy writer is bound to the installing account, the webview checks its IPC origin, the proxy path is parsed once, and a gateway key is confirmed before it is trusted. See `bin/bridge/CHANGELOG.md`.
 - **Content:** card front matter is escaped and the template `json` helper is safe inside a script element.
 - **Documents:** document images are served only from admitted blob provenance, XML depth and PNG decode size are capped, and a RIFF file that is not WebP is not served as an image.
+- **MCP:** a managed MCP server holds no token signing key, OAuth pepper, manifest seed or licence secret, and never reads the profile's secrets source; it verifies hop tokens against the public key set and asks the API to sign document links. The server still runs as the API's operating-system user; see the threat model for the residual boundary and for restarting servers after a key is staged or promoted.
 
 ### Added
 
@@ -87,6 +92,8 @@
 - **Security:** the JWKS publishes a staged and every unexpired previous key, so tokens signed before a rotation keep verifying.
 - **Configuration:** services YAML accepts `${VAR}` and `${VAR:-default}` in string values such as provider endpoints, MCP server URLs and `env` maps; prompt, instruction, description and hook text is never rewritten, and an unset variable with no default fails the load naming the variable and file.
 - **Features:** `otel` (OTLP ingest routes and the `otlp_export` job), `bridge` (the device-credential routes) and `files-pdf` (PDF export and its embedded fonts) are cargo features on the facade, `systemprompt-api` and `systemprompt-cli`, all in `full`.
+- **Security:** `VerifyingTokenAuthority`, a `TokenAuthority` that verifies against a `VerificationKeyring` and refuses to sign.
+- **Loader:** `ServicesSourceBootstrap::read_composed` returns the services composition another process resolved, fetching nothing.
 
 ### Changed
 
@@ -101,6 +108,7 @@
 - **Logging:** stored log fields and messages are scrubbed and size-capped.
 - **Storage:** `LocalFileStorage` refuses paths through symbolic links.
 - **Dependencies:** `jsonschema` is 0.61, `comrak` is 0.59, `uuid` is 1.29 and `zip` is 9.5 in every workspace, and the three lockfiles carry the current compatible releases.
+- **MCP:** a managed MCP server reads the services composition the API resolved instead of fetching the services sources itself, so it needs no source credential.
 
 ### Fixed
 

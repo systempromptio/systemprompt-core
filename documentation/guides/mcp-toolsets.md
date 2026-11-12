@@ -74,7 +74,7 @@ use async_trait::async_trait;
 use systemprompt::identifiers::McpServerId;
 use systemprompt::mcp::host::{ToolsetBuildResult, submit_toolset};
 use systemprompt::mcp::{CallToolResult, McpError, McpToolset, ToolsetCall};
-use systemprompt::system::AppContext;
+use systemprompt::system::HostContext;
 
 #[derive(Debug)]
 struct AdminToolset { /* services the tools need */ }
@@ -95,14 +95,14 @@ impl McpToolset for AdminToolset {
     }
 }
 
-fn build(ctx: &AppContext, server: &McpServerId) -> ToolsetBuildResult {
-    Ok(Some(Box::new(AdminToolset { /* from ctx */ })))
+fn build(host: &HostContext, server: &McpServerId) -> ToolsetBuildResult {
+    Ok(Some(Box::new(AdminToolset { /* from host */ })))
 }
 
 submit_toolset!("admin", build);
 ```
 
-`ToolsetCall` carries the executor, the request, the authenticated `RequestContext` and the client profile. When `call` runs, the caller is already authenticated and admitted. A factory returns `Ok(None)` when the toolset is unavailable in this installation; it is skipped with a warning. An `Err` fails start.
+`ToolsetCall` carries the executor, the request, the authenticated `RequestContext`, the client profile and the verified hop token of the call. When `call` runs, the caller is already authenticated and admitted. A factory returns `Ok(None)` when the toolset is unavailable in this installation; it is skipped with a warning. An `Err` fails start.
 
 A toolset that serves resources overrides `serves_resources`, `list_resources` and `read_resource`. `read_resource` answers `None` for a URI the toolset does not own, so the host asks the next toolset.
 
@@ -113,14 +113,16 @@ Core registers two toolsets: `issues` (wrapping `IssuesMcpTools`) and `documents
 ```rust
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let ctx = /* build Arc<AppContext> from the profile, as today */;
+    let host = HostContext::from_process_env().await?;
     let server_id = McpServerId::try_new(std::env::var("MCP_SERVICE_ID")?)?;
-    systemprompt::mcp::host::serve(ctx, server_id).await?;
+    systemprompt::mcp::host::serve(std::sync::Arc::new(host), server_id).await?;
     Ok(())
 }
 ```
 
-`serve(ctx, server_id)` binds `0.0.0.0:<port:>` from the deployment. `serve_on(ctx, server_id, listener)` takes a listener the binary bound before a slow bring-up. `build_server(&ctx, &server_id)` returns the `ToolsetServer` for composing the router yourself.
+`HostContext::from_process_env` boots from the environment the API spawned the server with: the profile path, the database URLs, the public verification key set and the secrets the deployment grants under `secrets:`. It holds no signing key, so a toolset that needs a signed document link asks the API for it through `host.link_issuer(&server_id)?`, passing the call's hop token; the API signs only for a server that declares the `documents` toolset (an upload link also admits `issues`). Rebuild every MCP binary against the core the API runs.
+
+`serve(host, server_id)` binds `127.0.0.1:<port:>` from the deployment. `serve_on(host, server_id, listener)` takes a listener the binary bound before a slow bring-up. `build_server(&host, &server_id)` returns the `ToolsetServer` for composing the router yourself.
 
 The crates that register toolsets, recorders, the authz hook and subject providers must be linked into the binary. Inventory only discovers what is linked.
 
