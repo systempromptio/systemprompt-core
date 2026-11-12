@@ -300,7 +300,7 @@ zeroize = { version = "1", features = ["zeroize_derive"] }
 # in-flight challenge state to be ser/de-able across nodes. Compensating control
 # is the bounded, TTL-evicted in-memory state map in
 # `crates/domain/oauth/src/services/webauthn/service/mod.rs`.
-webauthn-rs = { version = "0.5", features = ["danger-allow-state-serialisation"] }
+webauthn-rs = { version = "0.6.2", features = ["danger-allow-state-serialisation"] }
 rsa = { version = "0.9", features = ["pem", "sha2"] }
 # Why: `pkcs8` is consumed only through `rsa::pkcs8` so the two can never diverge;
 # `rsa` 0.10 (still a release candidate) retires the RUSTSEC-2023-0071 ignore in deny.toml.

@@ -126,17 +126,12 @@ async fn setup() -> Ctx {
     }
 }
 
-fn authenticator() -> WebauthnAuthenticator<SoftToken> {
+fn authenticator() -> SoftToken {
     let (token, _ca) = SoftToken::new(true).expect("softtoken");
-    WebauthnAuthenticator::new(token)
+    token
 }
 
-async fn register_user(
-    ctx: &Ctx,
-    auth: &mut WebauthnAuthenticator<SoftToken>,
-    username: &str,
-    email: &str,
-) -> UserId {
+async fn register_user(ctx: &Ctx, auth: &mut SoftToken, username: &str, email: &str) -> UserId {
     let (ccr, challenge_id) = ctx
         .service
         .start_registration(username, email, Some("Full Name"))
@@ -323,7 +318,7 @@ fn stored_counter(passkey_blob: &[u8]) -> u64 {
 
 async fn authenticate(
     ctx: &Ctx,
-    auth: &mut WebauthnAuthenticator<SoftToken>,
+    auth: &mut SoftToken,
     email: &str,
 ) -> Result<(UserId, Option<String>), OauthError> {
     let (rcr, challenge) = ctx

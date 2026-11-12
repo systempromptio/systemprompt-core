@@ -85,7 +85,7 @@ impl WebAuthnService {
                 tracing::info!(
                     user_id = %user_id,
                     challenge_id = %challenge_id,
-                    credential_id = %general_purpose::STANDARD.encode(auth_result.cred_id().as_ref()),
+                    credential_id = %general_purpose::STANDARD.encode(auth_result.cred_id()),
                     counter = auth_result.counter(),
                     oauth_state_present = oauth_state.is_some(),
                     "WebAuthn authentication successful"

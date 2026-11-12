@@ -630,8 +630,7 @@ async fn completed_registration_migrates_anonymous_session_to_the_new_account() 
         .to_str()?
         .to_owned();
     let challenge: CreationChallengeResponse = serde_json::from_value(read_json(start).await?)?;
-    let (token, _ca) = SoftToken::new(true).expect("softtoken");
-    let mut authenticator = WebauthnAuthenticator::new(token);
+    let (mut authenticator, _ca) = SoftToken::new(true).expect("softtoken");
     let credential = authenticator
         .do_registration(url::Url::parse("http://localhost")?, challenge)
         .expect("softtoken registration");
@@ -706,8 +705,7 @@ async fn registration_cannot_take_over_an_existing_registered_users_session() ->
         .to_str()?
         .to_owned();
     let challenge: CreationChallengeResponse = serde_json::from_value(read_json(start).await?)?;
-    let (token, _ca) = SoftToken::new(true).expect("softtoken");
-    let mut authenticator = WebauthnAuthenticator::new(token);
+    let (mut authenticator, _ca) = SoftToken::new(true).expect("softtoken");
     let credential = authenticator
         .do_registration(url::Url::parse("http://localhost")?, challenge)
         .expect("softtoken registration");

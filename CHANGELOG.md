@@ -109,6 +109,7 @@
 - **Storage:** `LocalFileStorage` refuses paths through symbolic links.
 - **Dependencies:** `jsonschema` is 0.61, `comrak` is 0.59, `uuid` is 1.29 and `zip` is 9.5 in every workspace, and the three lockfiles carry the current compatible releases.
 - **MCP:** a managed MCP server reads the services composition the API resolved instead of fetching the services sources itself, so it needs no source credential.
+- **Dependencies:** `webauthn-rs` and `webauthn-authenticator-rs` are 0.6.2.
 
 ### Fixed
 

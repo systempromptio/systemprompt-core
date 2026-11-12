@@ -349,8 +349,7 @@ async fn link_started_on_replica_a_finishes_on_replica_b() {
         .expect("start link on replica A");
     assert_eq!(info.id, user_id);
 
-    let (token, _ca) = SoftToken::new(true).expect("softtoken");
-    let mut authenticator = WebauthnAuthenticator::new(token);
+    let (mut authenticator, _ca) = SoftToken::new(true).expect("softtoken");
     let origin = Url::parse("http://localhost:8080").expect("origin");
     let cred = authenticator
         .do_registration(origin, ccr)
