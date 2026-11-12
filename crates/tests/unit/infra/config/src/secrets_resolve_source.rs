@@ -33,36 +33,23 @@ fn config(source: SecretsSource, path: Option<&str>, vault: bool) -> SecretsConf
 }
 
 #[test]
-fn subprocess_with_pepper_wins_over_every_profile_source() {
-    for source in [
-        SecretsSource::File,
-        SecretsSource::Env,
-        SecretsSource::Vault,
-    ] {
-        let cfg = config(source, Some("secrets.json"), true);
-        let resolved = resolve_source(Some(&cfg), true, false, true).unwrap();
-        assert_eq!(resolved, ResolvedSource::SubprocessEnv);
-    }
-}
-
-#[test]
-fn subprocess_without_pepper_falls_through_to_the_profile() {
+fn a_pepper_in_a_local_environment_never_overrides_the_profile_source() {
     let cfg = config(SecretsSource::File, Some("secrets.json"), false);
-    let resolved = resolve_source(Some(&cfg), true, false, false).unwrap();
+    let resolved = resolve_source(Some(&cfg), false, true).unwrap();
     assert_eq!(resolved, ResolvedSource::File("secrets.json"));
 }
 
 #[test]
 fn vault_wins_on_a_deployment_host_even_with_a_pepper_present() {
     let cfg = config(SecretsSource::Vault, None, true);
-    let resolved = resolve_source(Some(&cfg), false, true, true).unwrap();
+    let resolved = resolve_source(Some(&cfg), true, true).unwrap();
     assert!(matches!(resolved, ResolvedSource::Vault(_)));
 }
 
 #[test]
 fn vault_source_without_a_vault_block_is_an_error() {
     let cfg = config(SecretsSource::Vault, None, false);
-    let err = resolve_source(Some(&cfg), false, false, false).unwrap_err();
+    let err = resolve_source(Some(&cfg), false, false).unwrap_err();
     assert!(matches!(err, SecretsBootstrapError::VaultBlockMissing));
 }
 
@@ -70,11 +57,11 @@ fn vault_source_without_a_vault_block_is_an_error() {
 fn deployment_host_uses_env_for_env_source_with_or_without_a_pepper() {
     let cfg = config(SecretsSource::Env, Some("secrets.json"), false);
     assert_eq!(
-        resolve_source(Some(&cfg), false, true, true).unwrap(),
+        resolve_source(Some(&cfg), true, true).unwrap(),
         ResolvedSource::DeploymentHostEnv
     );
     assert_eq!(
-        resolve_source(Some(&cfg), false, true, false).unwrap(),
+        resolve_source(Some(&cfg), true, false).unwrap(),
         ResolvedSource::DeploymentHostEnv
     );
 }
@@ -87,7 +74,7 @@ fn an_explicit_file_source_reads_the_file_on_a_deployment_host_with_a_pepper() {
         false,
     );
     assert_eq!(
-        resolve_source(Some(&cfg), false, true, true).unwrap(),
+        resolve_source(Some(&cfg), true, true).unwrap(),
         ResolvedSource::File("/etc/systemprompt/secrets.json")
     );
 }
@@ -96,7 +83,7 @@ fn an_explicit_file_source_reads_the_file_on_a_deployment_host_with_a_pepper() {
 fn deployment_host_without_a_pepper_still_reads_a_file_source() {
     let cfg = config(SecretsSource::File, Some("secrets.json"), false);
     assert_eq!(
-        resolve_source(Some(&cfg), false, true, false).unwrap(),
+        resolve_source(Some(&cfg), true, false).unwrap(),
         ResolvedSource::File("secrets.json")
     );
 }
@@ -105,7 +92,7 @@ fn deployment_host_without_a_pepper_still_reads_a_file_source() {
 fn local_env_source_prefers_the_file_then_the_environment() {
     let cfg = config(SecretsSource::Env, Some("secrets.json"), false);
     assert_eq!(
-        resolve_source(Some(&cfg), false, false, false).unwrap(),
+        resolve_source(Some(&cfg), false, false).unwrap(),
         ResolvedSource::LocalEnvWithFileFallback("secrets.json")
     );
 }
@@ -113,7 +100,7 @@ fn local_env_source_prefers_the_file_then_the_environment() {
 #[test]
 fn a_missing_secrets_path_is_reported_rather_than_substituted() {
     let cfg = config(SecretsSource::File, None, false);
-    let err = resolve_source(Some(&cfg), false, false, false).unwrap_err();
+    let err = resolve_source(Some(&cfg), false, false).unwrap_err();
     assert!(matches!(
         err,
         SecretsBootstrapError::SecretsConfigInvalid(_)
@@ -122,16 +109,12 @@ fn a_missing_secrets_path_is_reported_rather_than_substituted() {
 
 #[test]
 fn no_secrets_section_errors_unless_an_env_boot_can_serve_it() {
-    let err = resolve_source(None, false, false, true).unwrap_err();
+    let err = resolve_source(None, false, true).unwrap_err();
     assert!(matches!(err, SecretsBootstrapError::NoSecretsConfigured));
 
     assert_eq!(
-        resolve_source(None, false, true, true).unwrap(),
+        resolve_source(None, true, true).unwrap(),
         ResolvedSource::DeploymentHostEnv
-    );
-    assert_eq!(
-        resolve_source(None, true, false, true).unwrap(),
-        ResolvedSource::SubprocessEnv
     );
 }
 
@@ -149,7 +132,7 @@ fn external_config() -> SecretsConfig {
 fn external_source_wins_on_deployment_hosts_too() {
     let cfg = external_config();
     for (is_deployment_host, has_pepper) in [(false, false), (true, false), (true, true)] {
-        let resolved = resolve_source(Some(&cfg), false, is_deployment_host, has_pepper).unwrap();
+        let resolved = resolve_source(Some(&cfg), is_deployment_host, has_pepper).unwrap();
         assert!(
             matches!(resolved, ResolvedSource::External(external) if external.kind == "stub"),
             "deployment_host={is_deployment_host} pepper={has_pepper}: {resolved:?}"
@@ -160,15 +143,6 @@ fn external_source_wins_on_deployment_hosts_too() {
 #[test]
 fn external_source_without_its_block_fails_closed() {
     let cfg = config(SecretsSource::External, None, false);
-    let err = resolve_source(Some(&cfg), false, true, true).unwrap_err();
+    let err = resolve_source(Some(&cfg), true, true).unwrap_err();
     assert!(matches!(err, SecretsBootstrapError::ExternalBlockMissing));
-}
-
-#[test]
-fn subprocess_with_pepper_still_wins_over_an_external_source() {
-    let cfg = external_config();
-    assert_eq!(
-        resolve_source(Some(&cfg), true, false, true).unwrap(),
-        ResolvedSource::SubprocessEnv
-    );
 }

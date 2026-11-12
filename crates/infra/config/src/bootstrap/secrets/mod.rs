@@ -8,11 +8,13 @@
 //!
 //! | # | Condition | Source |
 //! |---|-----------|--------|
-//! | 1 | `SYSTEMPROMPT_SUBPROCESS` set and a valid pepper is in the environment | environment |
-//! | 2 | `secrets.source: vault` or `external` | Vault KV v2 or a registered provider, on deployment hosts too |
-//! | 3 | deployment host, with a valid pepper or `secrets.source: env` | environment |
-//! | 4 | `secrets.source: env` running locally | file, then environment |
-//! | 5 | `secrets.source: file` | file |
+//! | 1 | `secrets.source: vault` or `external` | Vault KV v2 or a registered provider, on deployment hosts too |
+//! | 2 | deployment host, with a valid pepper or `secrets.source: env` | environment |
+//! | 3 | `secrets.source: env` running locally | file, then environment |
+//! | 4 | `secrets.source: file` | file |
+//!
+//! A spawned MCP server or agent never runs this bootstrap: it boots a
+//! `HostContext` from its granted secrets alone.
 //!
 //! Every source is fail-closed: a secrets file or Vault fetch that fails is
 //! logged once and aborts the boot instead of falling back to the environment,

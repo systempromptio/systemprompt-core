@@ -4,7 +4,7 @@
 //! not care about migration tuning or disabled extensions call these instead.
 
 use systemprompt_database::{
-    install_extension_schemas_full, DatabaseProvider, MigrationConfig, SchemaInstallReport,
+    DatabaseProvider, MigrationConfig, SchemaInstallReport, install_extension_schemas_full,
 };
 use systemprompt_extension::{ExtensionRegistry, LoaderError};
 use systemprompt_identifiers::ExtensionId;

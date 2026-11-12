@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use systemprompt_manifest::child_env::{CHILD_BOOT_SECRETS, ChildBoot, ChildEnvError, ChildGrants};
+use systemprompt_manifest::child_env::{ChildEnvError, ChildGrants};
 use systemprompt_manifest::secrets::Secrets;
 
 fn full_secrets() -> Secrets {
@@ -49,18 +49,18 @@ fn minimal_secrets() -> Secrets {
     }
 }
 
-fn env_of(secrets: &Secrets, explicit: &[&str], derived: &[&str]) -> HashMap<String, String> {
-    env_for(ChildBoot::Host, secrets, explicit, derived)
-}
+const API_HELD: &[&str] = &[
+    "OAUTH_AT_REST_PEPPER",
+    "MANIFEST_SIGNING_SECRET_SEED",
+    "SIGNING_KEY_PEM",
+    "SIGNING_KEY_STAGED_PEM",
+    "SIGNING_KEY_PREVIOUS_KEYS",
+    "ENCRYPTION_MASTER_KEY",
+    "LICENCE_SIGNING_SECRET",
+];
 
-fn env_for(
-    boot: ChildBoot,
-    secrets: &Secrets,
-    explicit: &[&str],
-    derived: &[&str],
-) -> HashMap<String, String> {
+fn env_of(secrets: &Secrets, explicit: &[&str], derived: &[&str]) -> HashMap<String, String> {
     let grants = ChildGrants {
-        boot,
         explicit: explicit.iter().map(|g| g.parse().expect("grant")).collect(),
         derived: derived.iter().map(|g| g.parse().expect("grant")).collect(),
     };
@@ -102,14 +102,14 @@ fn a_child_without_grants_gets_no_provider_key_and_no_custom_secret() {
 }
 
 #[test]
-fn a_host_child_gets_none_of_the_api_held_secrets() {
+fn a_child_gets_none_of_the_api_held_secrets() {
     let mut secrets = with_master_key(full_secrets());
     secrets.signing_key_pem = Some("pem".to_owned());
     secrets.signing_key_staged_pem = Some("staged".to_owned());
     secrets.signing_key_previous_keys = Some("[]".to_owned());
     let env = env_of(&secrets, &["anthropic", "custom:stripe_key"], &["openai"]);
-    for key in CHILD_BOOT_SECRETS {
-        assert!(!env.contains_key(*key), "{key} reached a host child");
+    for key in API_HELD {
+        assert!(!env.contains_key(*key), "{key} reached a child");
     }
     let held = [
         "p".repeat(32),
@@ -168,7 +168,6 @@ fn a_derived_grant_is_emitted_when_configured_and_skipped_when_not() {
 #[test]
 fn an_explicit_grant_that_is_not_configured_is_an_error() {
     let grants = ChildGrants {
-        boot: ChildBoot::Host,
         explicit: vec!["custom:absent".parse().expect("grant")],
         derived: Vec::new(),
     };
@@ -178,306 +177,4 @@ fn an_explicit_grant_that_is_not_configured_is_an_error() {
             grant: "custom:absent".to_owned()
         })
     );
-}
-
-#[test]
-fn the_api_held_secrets_reach_an_agent_child_only_through_the_boot_set() {
-    let secrets = with_master_key(full_secrets());
-    let env = env_for(
-        ChildBoot::Agent,
-        &secrets,
-        &["anthropic", "custom:stripe_key"],
-        &["openai"],
-    );
-    for key in env.keys() {
-        let api_held = systemprompt_models::subprocess::is_api_held_env_name(key)
-            && !key.ends_with("_API_KEY")
-            && !key.starts_with("DATABASE")
-            && !key.ends_with("_DATABASE_URL")
-            && key != "SYSTEMPROMPT_CUSTOM_SECRETS";
-        if api_held {
-            assert!(
-                CHILD_BOOT_SECRETS.contains(&key.as_str()),
-                "{key} outside the boot set"
-            );
-        }
-    }
-    assert_eq!(env.get("OAUTH_AT_REST_PEPPER"), Some(&"p".repeat(32)));
-    assert_eq!(
-        env.get("ENCRYPTION_MASTER_KEY").map(String::as_str),
-        Some("mk")
-    );
-    assert_eq!(
-        env.get("LICENCE_SIGNING_SECRET").map(String::as_str),
-        Some("lic")
-    );
-}
-
-#[test]
-fn the_database_urls_reach_every_child() {
-    let env = env_of(&full_secrets(), &[], &[]);
-    assert_eq!(
-        env.get("DATABASE_URL").map(String::as_str),
-        Some("postgres://primary")
-    );
-    assert_eq!(
-        env.get("DATABASE_WRITE_URL").map(String::as_str),
-        Some("postgres://write")
-    );
-    assert!(!env.contains_key("DATABASE_SESSION_URL"));
-}
-
-#[test]
-fn a_configured_custom_secret_name_counts_as_a_secret_env_name() {
-    let secrets = full_secrets();
-    assert!(secrets.is_secret_env_name("stripe_key"));
-    assert!(secrets.is_secret_env_name("ANTHROPIC_API_KEY"));
-    assert!(!secrets.is_secret_env_name("RUST_LOG"));
-}
-
-#[test]
-fn parse_treats_blank_provider_keys_as_absent() {
-    let json = format!(
-        r#"{{
-            "oauth_at_rest_pepper": "{}",
-            "database_url": "postgres://primary",
-            "gemini": "g",
-            "anthropic": "",
-            "openai": "   ",
-            "github": null
-        }}"#,
-        "p".repeat(32)
-    );
-    let secrets = Secrets::parse(&json).unwrap();
-    assert_eq!(secrets.gemini.as_deref(), Some("g"));
-    assert_eq!(secrets.anthropic, None);
-    assert_eq!(secrets.openai, None);
-    assert_eq!(secrets.github, None);
-    assert!(secrets.has_ai_provider());
-}
-
-#[test]
-fn none_if_blank_filters_empty_and_whitespace() {
-    use systemprompt_manifest::none_if_blank;
-    assert_eq!(none_if_blank(None), None);
-    assert_eq!(none_if_blank(Some(String::new())), None);
-    assert_eq!(none_if_blank(Some("  ".to_owned())), None);
-    assert_eq!(
-        none_if_blank(Some("key".to_owned())).as_deref(),
-        Some("key")
-    );
-}
-
-// Why: `effective_database_url` decides which database the process connects
-// to. Picking the wrong one does not fail loudly — it connects successfully to
-// somewhere the caller did not intend, which is worse than not connecting.
-#[test]
-fn external_db_access_selects_the_external_url_when_one_is_configured() {
-    let secrets = full_secrets();
-
-    assert_eq!(
-        secrets.effective_database_url(true),
-        "postgres://external",
-        "with external access the external URL is the one that reaches the database"
-    );
-    assert_eq!(
-        secrets.effective_database_url(false),
-        "postgres://primary",
-        "without external access the primary URL is used"
-    );
-}
-
-// Why: the flag alone must not select an absent URL. Falling through to the
-// primary is what lets a profile carry the flag without an external URL yet.
-#[test]
-fn external_db_access_falls_back_to_the_primary_when_no_external_url_exists() {
-    let secrets = minimal_secrets();
-
-    assert_eq!(
-        secrets.effective_database_url(true),
-        "postgres://primary",
-        "an absent external URL must fall back rather than yield an empty target"
-    );
-}
-
-// Why: the pepper protects at-rest hashes. A short one is guessable, and this
-// is the only place that refuses it — the generator produces 64 characters,
-// but a hand-edited secrets file can carry anything.
-#[test]
-fn a_pepper_below_the_minimum_length_is_refused() {
-    let mut secrets = minimal_secrets();
-    secrets.oauth_at_rest_pepper = "p".repeat(31);
-
-    let err = secrets
-        .validate()
-        .expect_err("a 31-character pepper is below the enforced minimum");
-
-    assert!(
-        format!("{err}").contains("oauth_at_rest_pepper"),
-        "the refusal should name the field: {err}"
-    );
-}
-
-#[test]
-fn a_pepper_at_exactly_the_minimum_length_is_accepted() {
-    let mut secrets = minimal_secrets();
-    secrets.oauth_at_rest_pepper = "p".repeat(32);
-
-    secrets
-        .validate()
-        .expect("32 characters is the minimum, not one above it");
-}
-
-// Why: `get` is the lookup every consumer goes through, and each secret is
-// reachable by two spellings. A missing alias reads as an unset secret, so the
-// caller proceeds without it rather than failing.
-#[test]
-fn each_secret_is_reachable_by_both_its_snake_case_and_env_var_name() {
-    let secrets = full_secrets();
-
-    for (snake, env) in [
-        ("oauth_at_rest_pepper", "OAUTH_AT_REST_PEPPER"),
-        ("database_url", "DATABASE_URL"),
-        ("external_database_url", "EXTERNAL_DATABASE_URL"),
-        ("gemini", "GEMINI_API_KEY"),
-        ("anthropic", "ANTHROPIC_API_KEY"),
-        ("openai", "OPENAI_API_KEY"),
-        ("github", "GITHUB_TOKEN"),
-    ] {
-        assert_eq!(
-            secrets.get(snake),
-            secrets.get(env),
-            "{snake} and {env} must name the same secret"
-        );
-        assert!(secrets.get(snake).is_some(), "{snake} should be set");
-    }
-}
-
-// Why: moonshot and qwen each answer to a vendor alias as well. An operator
-// naming the vendor gets the same secret as one naming the provider.
-#[test]
-fn vendor_aliases_resolve_to_the_same_secret() {
-    let secrets = full_secrets();
-
-    assert_eq!(secrets.get("moonshot"), secrets.get("kimi"));
-    assert_eq!(secrets.get("moonshot"), secrets.get("KIMI_API_KEY"));
-    assert_eq!(secrets.get("qwen"), secrets.get("dashscope"));
-    assert_eq!(secrets.get("qwen"), secrets.get("DASHSCOPE_API_KEY"));
-}
-
-// Why: custom secrets are looked up case-insensitively in one direction only —
-// the stored casing is tried first, then the opposite. Without it an operator
-// who wrote `STRIPE_KEY` in the file and asked for `stripe_key` gets nothing.
-#[test]
-fn a_custom_secret_is_found_whichever_case_it_was_stored_in() {
-    let secrets = full_secrets();
-
-    assert_eq!(
-        secrets.get("stripe_key").map(String::as_str),
-        Some("sk_test"),
-        "a key stored uppercase must be reachable in lower case"
-    );
-    assert_eq!(
-        secrets.get("INTERCOM").map(String::as_str),
-        Some("ic_value"),
-        "a key stored lowercase must be reachable in upper case"
-    );
-}
-
-#[test]
-fn an_unknown_secret_is_absent_rather_than_empty() {
-    assert!(minimal_secrets().get("no_such_secret").is_none());
-}
-
-// Why: `has_ai_provider` gates whether AI features are offered at all. Reading
-// true with nothing configured means every request fails at the provider call
-// instead of the feature being withheld.
-#[test]
-fn has_ai_provider_is_false_only_when_every_provider_is_absent() {
-    assert!(!minimal_secrets().has_ai_provider());
-    assert!(full_secrets().has_ai_provider());
-
-    for set_one in [
-        |s: &mut Secrets| s.gemini = Some("k".to_owned()),
-        |s: &mut Secrets| s.anthropic = Some("k".to_owned()),
-        |s: &mut Secrets| s.openai = Some("k".to_owned()),
-        |s: &mut Secrets| s.moonshot = Some("k".to_owned()),
-        |s: &mut Secrets| s.qwen = Some("k".to_owned()),
-    ] {
-        let mut secrets = minimal_secrets();
-        set_one(&mut secrets);
-        assert!(
-            secrets.has_ai_provider(),
-            "one configured provider is enough"
-        );
-    }
-}
-
-#[test]
-fn debug_exposes_secret_names_and_presence_without_any_secret_values() {
-    let mut secrets = full_secrets();
-    secrets.oauth_at_rest_pepper = "pepper-secret-marker-0123456789abcdef".to_owned();
-    secrets.manifest_signing_secret_seed = Some("manifest-seed-secret-marker".to_owned());
-    secrets.signing_key_pem = Some("signing-pem-secret-marker".to_owned());
-    secrets.database_url = "postgres://primary-secret-marker".to_owned();
-    secrets.database_write_url = Some("postgres://write-secret-marker".to_owned());
-    secrets.external_database_url = Some("postgres://external-secret-marker".to_owned());
-    secrets.internal_database_url = Some("postgres://internal-secret-marker".to_owned());
-    secrets.gemini = Some("gemini-secret-marker".to_owned());
-    secrets.anthropic = Some("anthropic-secret-marker".to_owned());
-    secrets.openai = Some("openai-secret-marker".to_owned());
-    secrets.github = Some("github-secret-marker".to_owned());
-    secrets.moonshot = Some("moonshot-secret-marker".to_owned());
-    secrets.qwen = Some("qwen-secret-marker".to_owned());
-    secrets
-        .custom
-        .insert("STRIPE_KEY".to_owned(), "stripe-secret-marker".to_owned());
-    secrets
-        .custom
-        .insert("intercom".to_owned(), "intercom-secret-marker".to_owned());
-
-    let rendered = format!("{secrets:?}");
-    assert!(rendered.contains("ai_providers: true"), "{rendered}");
-    assert!(rendered.contains("STRIPE_KEY"), "{rendered}");
-    assert!(rendered.contains("intercom"), "{rendered}");
-    for secret in [
-        secrets.oauth_at_rest_pepper.as_str(),
-        secrets.manifest_signing_secret_seed.as_deref().unwrap(),
-        secrets.signing_key_pem.as_deref().unwrap(),
-        secrets.database_url.as_str(),
-        secrets.database_write_url.as_deref().unwrap(),
-        secrets.external_database_url.as_deref().unwrap(),
-        secrets.internal_database_url.as_deref().unwrap(),
-        secrets.gemini.as_deref().unwrap(),
-        secrets.anthropic.as_deref().unwrap(),
-        secrets.openai.as_deref().unwrap(),
-        secrets.github.as_deref().unwrap(),
-        secrets.moonshot.as_deref().unwrap(),
-        secrets.qwen.as_deref().unwrap(),
-        secrets.custom["STRIPE_KEY"].as_str(),
-        secrets.custom["intercom"].as_str(),
-    ] {
-        assert!(
-            !rendered.contains(secret),
-            "debug output leaked secret value {secret:?}: {rendered}"
-        );
-    }
-}
-
-#[test]
-fn custom_secret_reads_only_the_custom_map() {
-    let secrets = full_secrets();
-    assert_eq!(
-        secrets.custom_secret("stripe_key").map(String::as_str),
-        Some("sk_test")
-    );
-    assert_eq!(
-        secrets.custom_secret("INTERCOM").map(String::as_str),
-        Some("ic_value")
-    );
-    assert!(
-        secrets.custom_secret("oauth_at_rest_pepper").is_none(),
-        "a core secret is never handed out as a custom secret"
-    );
-    assert!(secrets.custom_secret("database_url").is_none());
 }

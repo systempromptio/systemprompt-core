@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
 use systemprompt_config::{GrantedSecrets, LoadedProfile, SecretsService};
-use systemprompt_manifest::child_env::ChildBoot;
 use systemprompt_models::subprocess::SecretGrant;
 use systemprompt_traits::SecretStore;
 
@@ -32,7 +31,7 @@ const GCS_WITH_SECRET: &str =
 
 fn env(service: &SecretsService, explicit: &[SecretGrant]) -> HashMap<String, String> {
     service
-        .child_env(ChildBoot::Host, explicit, &[])
+        .child_env(explicit, &[])
         .expect("child env")
         .into_iter()
         .collect()
@@ -60,7 +59,7 @@ async fn a_derived_model_credential_naming_an_api_held_secret_is_refused() {
     let (_fx, service) = service("").await;
     assert!(
         service
-            .child_env(ChildBoot::Host, &[], &["oauth_at_rest_pepper".to_owned()])
+            .child_env(&[], &["oauth_at_rest_pepper".to_owned()])
             .is_err()
     );
 }
@@ -110,14 +109,25 @@ async fn the_master_key_reaches_a_host_child_only_when_granted() {
 }
 
 #[tokio::test]
-async fn an_agent_child_env_still_carries_the_boot_secrets() {
+async fn an_agent_child_env_with_model_credentials_carries_no_api_held_secret() {
     let (_fx, service) = service("").await;
     let agent: HashMap<String, String> = service
-        .child_env(ChildBoot::Agent, &[], &[])
+        .child_env(
+            &[SecretGrant::from_secret_name("stripe_key").expect("grant")],
+            &["anthropic_api_key".to_owned()],
+        )
         .expect("agent env")
         .into_iter()
         .collect();
-    assert!(agent.contains_key("OAUTH_AT_REST_PEPPER"));
+    for name in API_HELD_ENV {
+        assert!(!agent.contains_key(name), "{name} reached an agent child");
+    }
+    assert!(
+        agent
+            .values()
+            .all(|value| value != fixture::PEPPER && value != fixture::MASTER_KEY),
+        "an API-held value rode under another name"
+    );
 }
 
 #[tokio::test]

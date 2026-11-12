@@ -83,7 +83,9 @@ async fn compose(env: BTreeMap<String, String>) -> AgentHost {
 #[tokio::test]
 async fn an_agent_composes_without_the_profile_secrets_source_and_ignores_boot_secrets_in_env() {
     let bootstrap = bootstrap();
-    let profile = std::fs::read_to_string(&bootstrap.profile_path).expect("profile");
+    let profile = std::fs::read_to_string(&bootstrap.profile_path)
+        .expect("profile")
+        .replace(systemprompt_test_fixtures::FIXTURE_SECRETS_BLOCK, "");
     let absent = bootstrap
         .profile_path
         .with_file_name("agent-absent-secrets.json");

@@ -6,7 +6,6 @@
 
 use systemprompt_config::SecretsService;
 use systemprompt_manifest::Config;
-use systemprompt_manifest::child_env::ChildBoot;
 use systemprompt_models::subprocess::{SecretGrant, VERIFICATION_KEYS_ENV};
 use systemprompt_security::keys::SigningKeys;
 
@@ -55,14 +54,12 @@ pub(super) fn child_secrets(
             config.name
         )));
     }
-    let mut env = secrets
-        .child_env(ChildBoot::Host, &config.secrets, &[])
-        .map_err(|e| {
-            crate::error::McpDomainError::operation(
-                format!("Failed to resolve the granted secrets for {}", config.name),
-                e,
-            )
-        })?;
+    let mut env = secrets.child_env(&config.secrets, &[]).map_err(|e| {
+        crate::error::McpDomainError::operation(
+            format!("Failed to resolve the granted secrets for {}", config.name),
+            e,
+        )
+    })?;
     env.push((
         VERIFICATION_KEYS_ENV.to_owned(),
         verification_keys_json(global, secrets, config)?,

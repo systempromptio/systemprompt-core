@@ -10,7 +10,6 @@ static INIT_SECRETS: Once = Once::new();
 fn ensure_bootstrap() {
     INIT_SECRETS.call_once(|| {
         unsafe {
-            std::env::set_var("SYSTEMPROMPT_SUBPROCESS", "1");
             std::env::set_var(
                 "JWT_SECRET",
                 "signing-key-independence-jwt-secret-A-32-bytes-or-longer",

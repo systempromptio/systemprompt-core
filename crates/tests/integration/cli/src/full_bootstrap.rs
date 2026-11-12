@@ -95,7 +95,6 @@ pub fn cli_command_bare() -> Command {
     c.env("MANIFEST_SIGNING_SECRET_SEED", TEST_MANIFEST_SIGNING_SEED);
     c.env("SYSTEMPROMPT_CUSTOM_SECRETS", "encryption_master_key");
     c.env("encryption_master_key", TEST_ENCRYPTION_MASTER_KEY);
-    c.env("SYSTEMPROMPT_SUBPROCESS", "1");
     c.arg("--non-interactive");
     c.arg("--no-color");
     c.timeout(std::time::Duration::from_secs(120));
@@ -111,7 +110,6 @@ pub fn cli_command() -> Command {
     c.env("MANIFEST_SIGNING_SECRET_SEED", TEST_MANIFEST_SIGNING_SEED);
     c.env("SYSTEMPROMPT_CUSTOM_SECRETS", "encryption_master_key");
     c.env("encryption_master_key", TEST_ENCRYPTION_MASTER_KEY);
-    c.env("SYSTEMPROMPT_SUBPROCESS", "1");
     c.arg("--non-interactive");
     c.arg("--no-color");
     c.arg("--profile").arg(&fixture.profile_path);
@@ -249,7 +247,6 @@ fn bootstrap_system_admin(fixture: &FullBootstrap) {
     c.env("MANIFEST_SIGNING_SECRET_SEED", TEST_MANIFEST_SIGNING_SEED);
     c.env("SYSTEMPROMPT_CUSTOM_SECRETS", "encryption_master_key");
     c.env("encryption_master_key", TEST_ENCRYPTION_MASTER_KEY);
-    c.env("SYSTEMPROMPT_SUBPROCESS", "1");
     c.arg("--non-interactive");
     c.arg("--no-color");
     c.arg("--profile").arg(&fixture.profile_path);

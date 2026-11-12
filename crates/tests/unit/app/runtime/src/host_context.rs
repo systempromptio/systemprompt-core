@@ -62,7 +62,9 @@ async fn boot_with(
 #[tokio::test]
 async fn the_host_boots_without_ever_reading_the_profile_secrets_source() {
     let bootstrap = bootstrap();
-    let profile = std::fs::read_to_string(&bootstrap.profile_path).expect("profile");
+    let profile = std::fs::read_to_string(&bootstrap.profile_path)
+        .expect("profile")
+        .replace(systemprompt_test_fixtures::FIXTURE_SECRETS_BLOCK, "");
     let absent = bootstrap.profile_path.with_file_name("absent-secrets.json");
     assert!(!absent.exists());
     let file_secrets = bootstrap.profile_path.with_file_name("file-secrets.yaml");

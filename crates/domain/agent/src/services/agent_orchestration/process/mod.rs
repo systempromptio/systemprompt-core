@@ -21,7 +21,6 @@ use systemprompt_identifiers::AgentName;
 use systemprompt_loader::ServicesState;
 use systemprompt_loader::subprocess::Spawner;
 use systemprompt_manifest::Config;
-use systemprompt_manifest::child_env::ChildBoot;
 use systemprompt_models::subprocess::VERIFICATION_KEYS_ENV;
 use systemprompt_security::keys::TokenVerificationKeys;
 
@@ -46,7 +45,7 @@ pub async fn spawn_detached(
     let binary_path = BuildPaths::resolve_self()
         .map_err(|e| OrchestrationError::spawn("Failed to resolve running binary", e))?;
 
-    let secrets_env = agent_secrets(environment, agent_name)?;
+    let secrets_env = agent_child_secrets(environment, agent_name)?;
     let profile_path = environment.profile_path.to_str().ok_or_else(|| {
         OrchestrationError::ProcessSpawnFailed(format!(
             "profile path {} is not valid UTF-8",
@@ -81,7 +80,7 @@ pub async fn spawn_detached(
     Ok(pid)
 }
 
-fn agent_secrets(
+pub fn agent_child_secrets(
     environment: &SpawnEnvironment,
     agent_name: &AgentName,
 ) -> OrchestrationResult<Vec<(String, String)>> {
@@ -94,7 +93,7 @@ fn agent_secrets(
     let derived = grants::model_credential_secrets(agent, environment.services.catalog());
     let mut env = environment
         .secrets
-        .child_env(ChildBoot::Host, &agent.secrets, &derived)
+        .child_env(&agent.secrets, &derived)
         .map_err(|e| {
             OrchestrationError::spawn(
                 format!("Failed to resolve the granted secrets for agent {agent_name}"),

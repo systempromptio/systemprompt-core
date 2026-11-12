@@ -18,20 +18,14 @@ use crate::error::{ConfigError, ConfigResult};
 
 pub(super) async fn load_from_profile_config(profile: &LoadedProfile) -> ConfigResult<Secrets> {
     let is_deployment_host = profile.is_deployment_host(|name| std::env::var(name).ok());
-    let is_subprocess = std::env::var("SYSTEMPROMPT_SUBPROCESS").is_ok();
     let has_valid_pepper_in_env = std::env::var("OAUTH_AT_REST_PEPPER")
         .is_ok_and(|pepper| pepper.len() >= OAUTH_AT_REST_PEPPER_MIN_LENGTH);
 
     let secrets_config = profile.secrets.as_ref();
-    let resolved = resolve_source(
-        secrets_config,
-        is_subprocess,
-        is_deployment_host,
-        has_valid_pepper_in_env,
-    )?;
+    let resolved = resolve_source(secrets_config, is_deployment_host, has_valid_pepper_in_env)?;
 
     match resolved {
-        ResolvedSource::SubprocessEnv | ResolvedSource::DeploymentHostEnv => {
+        ResolvedSource::DeploymentHostEnv => {
             tracing::debug!("Loading secrets from environment");
             env::load_from_env()
         },

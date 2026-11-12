@@ -21,10 +21,10 @@ use systemprompt_governance::authz::{
     AllowAllHook, NullAuditSink, SharedAuthzHook, SubjectProviderSet,
 };
 use systemprompt_loader::BootContext;
+use systemprompt_manifest::Config;
 use systemprompt_manifest::profile::{
     ContentNegotiationConfig, PathsConfig, RateLimitsConfig, SecurityHeadersConfig,
 };
-use systemprompt_manifest::Config;
 use systemprompt_marketplace::{AllowAllFilter, MarketplaceCache, MarketplaceFilter};
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::RouteClassifier;
@@ -663,8 +663,8 @@ pub fn default_governance_engine() -> Arc<systemprompt_governance::policy::Gover
     )
 }
 
-pub fn default_governance_watch(
-) -> systemprompt_traits::ConfigWatch<systemprompt_governance::policy::GovernanceEngine> {
+pub fn default_governance_watch()
+-> systemprompt_traits::ConfigWatch<systemprompt_governance::policy::GovernanceEngine> {
     systemprompt_traits::ConfigWatch::new(
         systemprompt_governance::policy::GovernanceEngine::from_config(
             &systemprompt_governance::policy::GovernanceConfig::defaults(),

@@ -12,6 +12,7 @@ mod port_service;
 mod port_service_cleanup;
 mod port_service_functions;
 mod port_service_occupied;
+mod process_child_env;
 mod process_command;
 mod process_command_edge;
 mod process_grants;

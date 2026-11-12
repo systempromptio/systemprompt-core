@@ -7,8 +7,8 @@ use std::env;
 use std::path::PathBuf;
 use std::sync::OnceLock;
 
-use systemprompt_config::paths::AppPaths;
 use systemprompt_config::LoadedProfile;
+use systemprompt_config::paths::AppPaths;
 use systemprompt_files::FilesConfig;
 use systemprompt_loader::{BootContext, ServicesState};
 use systemprompt_manifest::profile::UNRESTRICTED_ACKNOWLEDGEMENT;
@@ -204,7 +204,7 @@ fn init_bootstrap_inner_expecting(
             "postgres://systemprompt_admin:password@localhost:5432/systemprompt_test".to_owned()
         });
 
-    install_subprocess_env(&database_url);
+    install_secrets_env(&database_url);
 
     // Why: the CLI derives the session's profile name from the directory
     // holding `profile.yaml` (`extract_profile_name`), and `ProfileName`
@@ -328,9 +328,8 @@ fn init_bootstrap_inner_expecting(
     }
 }
 
-fn install_subprocess_env(database_url: &str) {
+fn install_secrets_env(database_url: &str) {
     unsafe {
-        env::set_var("SYSTEMPROMPT_SUBPROCESS", "1");
         if env::var("DATABASE_URL").is_err() {
             env::set_var("DATABASE_URL", database_url);
         }
@@ -341,9 +340,6 @@ fn install_subprocess_env(database_url: &str) {
             env::set_var("MANIFEST_SIGNING_SECRET_SEED", TEST_MANIFEST_SIGNING_SEED);
         }
         crate::secrets::install_test_provider_keys();
-        // Named secrets the messaging apps reference. The fixture runs in
-        // subprocess mode, so the secrets singleton loads from the environment;
-        // `SYSTEMPROMPT_CUSTOM_SECRETS` lists the extra keys to pull through.
         if env::var("SYSTEMPROMPT_CUSTOM_SECRETS").is_err() {
             env::set_var(
                 "SYSTEMPROMPT_CUSTOM_SECRETS",
@@ -538,7 +534,7 @@ governance:
       mode: unrestricted
       timeout_ms: 500
       acknowledgement: "{ack}"
-"#,
+{secrets_block}"#,
         system = system.display(),
         services = services.display(),
         bin = bin.display(),
@@ -546,8 +542,12 @@ governance:
         web = web.display(),
         ack = UNRESTRICTED_ACKNOWLEDGEMENT,
         api_base_url = api_base_url,
+        secrets_block = FIXTURE_SECRETS_BLOCK,
     )
 }
+
+pub const FIXTURE_SECRETS_BLOCK: &str =
+    "secrets:\n  source: env\n  secrets_path: fixture-absent-secrets.json\n";
 
 pub fn test_boot_profile() -> std::sync::Arc<systemprompt_manifest::Profile> {
     std::sync::Arc::new(ensure_test_bootstrap().boot.profile().clone())
