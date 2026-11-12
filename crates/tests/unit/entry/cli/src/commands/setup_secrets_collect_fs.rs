@@ -100,8 +100,8 @@ fn skipping_every_key_at_the_multi_key_prompt_is_refused() {
         .expect_err("a setup with no AI provider must not be accepted");
 
     assert!(
-        format!("{err:#}").contains("At least one AI provider API key is required"),
-        "the refusal must say which key is missing, got: {err:#}"
+        format!("{err:#}").contains("At least one AI provider is required"),
+        "the refusal must say a provider is missing, got: {err:#}"
     );
 }
 
@@ -110,8 +110,8 @@ fn the_non_interactive_collector_refuses_the_same_way_and_accepts_a_flag() {
     let err = collect_non_interactive(&args(), &config())
         .expect_err("an unattended setup with no key cannot proceed");
     assert!(
-        format!("{err:#}").contains("At least one AI provider API key is required"),
-        "the unattended refusal must name the missing key, got: {err:#}"
+        format!("{err:#}").contains("At least one AI provider is required"),
+        "the unattended refusal must say a provider is missing, got: {err:#}"
     );
 
     let mut args = args();

@@ -11,7 +11,7 @@
 //! licence secret, nor the encryption master key unless that was granted. It
 //! constructs no OAuth repository. What only a signer may do (signing a
 //! document download or upload link) it asks the API for through its
-//! [`LinkIssuer`](crate::documents::links::LinkIssuer), presenting the hop
+//! [`LinkIssuer`], presenting the hop
 //! token of the call it is serving.
 //!
 //! It runs the API's extension seam discovery over its own

@@ -35,9 +35,15 @@ use crate::host::{HostBootError, HostContext};
 #[derive(Debug, thiserror::Error)]
 pub enum AgentHostError {
     #[error(transparent)]
-    Boot(#[from] HostBootError),
+    Boot(Box<HostBootError>),
     #[error("the agent's AI service could not be built")]
-    Ai(#[source] AiError),
+    Ai(#[source] Box<AiError>),
+}
+
+impl From<HostBootError> for AgentHostError {
+    fn from(source: HostBootError) -> Self {
+        Self::Boot(Box::new(source))
+    }
 }
 
 /// The least-privilege composition a spawned agent serves from.
@@ -59,10 +65,10 @@ impl std::fmt::Debug for AgentHost {
 
 impl AgentHost {
     pub async fn from_process_env() -> Result<Self, AgentHostError> {
-        Self::compose(HostContext::from_process_env().await?).await
+        Self::compose(HostContext::from_process_env().await?)
     }
 
-    pub async fn compose(host: HostContext) -> Result<Self, AgentHostError> {
+    pub fn compose(host: HostContext) -> Result<Self, AgentHostError> {
         let database = host.db_pool();
         let config = Arc::new(host.config().clone());
         let system_admin = host.system_owner().clone();
@@ -107,7 +113,7 @@ impl AgentHost {
             },
             &AiRequestRepositories::new(database),
         )
-        .map_err(AgentHostError::Ai)?
+        .map_err(|source| AgentHostError::Ai(Box::new(source)))?
         .with_context_materializer(Arc::new(ContextProviderService::new(a2a.contexts.clone())));
 
         let auth = AgentAuth {

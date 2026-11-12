@@ -80,7 +80,7 @@ async fn compose(env: BTreeMap<String, String>) -> AgentHost {
     let host = HostContext::boot(move |name| env.get(name).cloned())
         .await
         .expect("host boots");
-    AgentHost::compose(host).await.expect("agent composes")
+    AgentHost::compose(host).expect("agent composes")
 }
 
 #[tokio::test]

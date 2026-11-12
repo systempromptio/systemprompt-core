@@ -180,8 +180,10 @@ impl Commands {
             Self::Admin(admin::AdminCommands::Config(admin::config::ConfigCommands::Secret(
                 admin::config::secret::SecretCommands::MigrateGitCredentials(_),
             ))) => CommandDescriptor::FULL,
-            Self::Admin(admin::AdminCommands::Config(admin::config::ConfigCommands::Secret(_)))
-            | Self::Admin(admin::AdminCommands::Agents(admin::agents::AgentsCommands::Run(_)))
+            Self::Admin(
+                admin::AdminCommands::Config(admin::config::ConfigCommands::Secret(_))
+                | admin::AdminCommands::Agents(admin::agents::AgentsCommands::Run(_)),
+            )
             | Self::Build(_) => CommandDescriptor::PROFILE_ONLY,
             Self::Admin(
                 admin::AdminCommands::Bridge(admin::bridge::BridgeCommands::SigningKeyFingerprint(

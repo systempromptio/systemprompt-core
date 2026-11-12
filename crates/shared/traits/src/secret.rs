@@ -111,10 +111,11 @@ pub trait SecretStore: Send + Sync + fmt::Debug {
     async fn reload(&self) -> Result<ReloadOutcome, SecretStoreError>;
 }
 
-/// Name-to-value resolution over the secrets a platform service was handed:
-/// the whole secrets document in the API, only the granted set in a spawned
-/// child. Provider keys resolve by their provider name (`anthropic`), custom
-/// secrets by their lowercase name.
+/// Name-to-value resolution over the secrets a platform service was handed.
+///
+/// The API holds the whole secrets document; a spawned child holds only the
+/// granted set. Provider keys resolve by their provider name (`anthropic`),
+/// custom secrets by their lowercase name.
 pub trait SecretLookup: Send + Sync + fmt::Debug {
     fn lookup(&self, name: &str) -> Option<ExtensionSecret>;
 }

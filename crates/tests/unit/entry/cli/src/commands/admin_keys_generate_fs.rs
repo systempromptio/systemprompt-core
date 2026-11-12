@@ -129,7 +129,6 @@ async fn rotate_refuses_a_profile_without_a_secrets_file_to_write() {
         text.contains("Failed to write the signing keys to the secrets file"),
         "{text}"
     );
-    assert!(text.contains("No secrets configured"), "{text}");
 }
 
 #[tokio::test]

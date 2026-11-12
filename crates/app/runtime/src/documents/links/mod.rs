@@ -2,13 +2,13 @@
 //!
 //! A managed MCP server holds no signing key, so the documents and issues
 //! tools ask the API for a signed download or upload link through a
-//! [`LinkIssuer`]. [`ApiLinkIssuer`] posts the request to
+//! `LinkIssuer`. `ApiLinkIssuer` posts the request to
 //! `POST /api/v1/internal/links`, presenting the hop token the proxy minted
 //! for the call being served; the API verifies that token for the named
 //! server, takes the subject, the session and the acting agent from its claims
 //! alone, re-checks that the subject may open the target (the upload session
 //! is theirs and still open; the document revision is visible to them, acting
-//! as that agent), and only then signs the link ([`mint_link`]). A request
+//! as that agent), and only then signs the link (`mint_link`). A request
 //! without a hop token never leaves the server.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.

@@ -557,6 +557,9 @@ rate_limits:
   burst_multiplier: 3
 system_admin:
   username: testadmin
+secrets:
+  source: env
+  secrets_path: fixture-absent-secrets.json
 runtime:
   environment: development
   log_level: quiet

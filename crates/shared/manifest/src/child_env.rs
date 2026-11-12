@@ -9,7 +9,7 @@
 //!
 //! [`refused_env_var`] guards the `env_vars` pass-through: it refuses every
 //! API-held name, every environment name the profile's secrets source reads
-//! to authenticate (a renamed Vault `token_env`, the AppRole id pair), and,
+//! to authenticate (a renamed Vault `token_env`, the `AppRole` id pair), and,
 //! for an `external` source whose provider reads names core cannot know,
 //! every entry. [`Secrets::refused_env_var`] adds the custom secret names the
 //! loaded document carries.
