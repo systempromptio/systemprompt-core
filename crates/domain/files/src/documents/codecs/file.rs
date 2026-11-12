@@ -50,6 +50,8 @@ pub fn image_mime(bytes: &[u8]) -> Option<&'static str> {
     }
 }
 
+pub const PDF_MIME_TYPE: &str = "application/pdf";
+
 #[must_use]
 pub fn is_pdf(bytes: &[u8]) -> bool {
     bytes.starts_with(b"%PDF-")

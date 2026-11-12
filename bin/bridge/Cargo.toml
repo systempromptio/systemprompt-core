@@ -26,8 +26,8 @@ name = "systemprompt-bridge"
 path = "src/main.rs"
 
 [dependencies]
-serde = { version = "1", features = ["derive"] }
-serde_json = { version = "1", features = ["preserve_order", "raw_value"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1.0", features = ["preserve_order", "raw_value"] }
 toml = "1.1"
 # Comment- and layout-preserving TOML mutation. The config file is operator-
 # editable, so a settings write must not reformat it or drop unknown keys.
@@ -44,17 +44,17 @@ hmac = "0.13"
 semver = "1"
 ed25519-dalek = { version = "3", default-features = false, features = ["pkcs8"] }
 base64 = "0.23"
-thiserror = "2"
+thiserror = "2.0"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "env-filter", "json"] }
 tracing-appender = "0.2"
 backtrace = "0.3"
 opener = { version = "0.9", features = ["reveal"] }
-zip = { version = "9", default-features = false, features = ["deflate"] }
+zip = { version = "9.5", default-features = false, features = ["deflate"] }
 # Plugin archives from the gateway are tar.gz, unpacked and verified per file.
 tar = "0.4"
 flate2 = "1.1"
-uuid = { version = "1", features = ["v4", "v5"] }
+uuid = { version = "1.29", features = ["v4", "v5"] }
 zeroize = { version = "1", features = ["zeroize_derive"] }
 tokio = { version = "1.54", features = ["rt-multi-thread", "net", "io-util", "time", "sync", "macros"] }
 tokio-util = "0.7"
@@ -67,15 +67,15 @@ rustls = { version = "0.23", default-features = false, features = ["ring", "std"
 url = "2.5"
 unicode-normalization = "0.1.26"
 futures-util = "0.3"
-bytes = "1"
+bytes = "1.12"
 parking_lot = "0.13"
-arc-swap = "1"
+arc-swap = "1.9"
 async-trait = "0.1"
 inventory = "0.3"
 ctrlc = "3"
 is-terminal = "0.4"
 rand = "0.10"
-tempfile = "3"
+tempfile = "3.27"
 # Why: the Drive folder is watched so a saved edit syncs within seconds instead
 # of waiting for the next poll; the debouncer coalesces an editor's save burst.
 notify-debouncer-mini = "0.7"

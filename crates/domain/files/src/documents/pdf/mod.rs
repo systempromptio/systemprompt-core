@@ -21,16 +21,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod blocks;
 mod font_embed;
 mod fonts;
 mod images;
 mod layout;
 mod layout_model;
-mod markdown;
 mod rich;
-mod runs;
-mod sheet_rows;
 mod table;
 mod wrap;
 mod writer;
@@ -45,11 +41,9 @@ use systemprompt_identifiers::DocumentRevisionId;
 use systemprompt_provider_contracts::documents::Projection;
 
 use crate::documents::model::RichText;
+use crate::documents::outline::{blocks, runs};
 
 pub use layout_model::PageCapExceeded;
-pub use markdown::{MARKDOWN_MIME_TYPE, markdown_file_name, outline_markdown};
-
-pub const PDF_MIME_TYPE: &str = "application/pdf";
 
 #[derive(Debug, thiserror::Error)]
 pub enum PdfError {

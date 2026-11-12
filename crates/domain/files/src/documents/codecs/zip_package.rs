@@ -203,6 +203,10 @@ impl<'a> Package<'a> {
         }
     }
 
+    #[cfg_attr(
+        not(feature = "collab-loro"),
+        expect(dead_code, reason = "binary parts are written only by the deck engine")
+    )]
     pub(crate) fn write_binary(&mut self, name: &str, bytes: Vec<u8>) {
         self.added_binary.push((name.to_owned(), bytes));
     }

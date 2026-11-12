@@ -21,6 +21,8 @@
 //! the server-side validation of live updates. With the `collab` feature,
 //! `collab` co-edits HTML and Markdown documents live over whichever
 //! [`engine::DocumentEngine`] the composition root selects.
+//! [`outline`] writes any projection as Markdown; with the `pdf` feature,
+//! `pdf` renders a revision as PDF.
 //!
 //! [`TemplateRegistry`]: templates::TemplateRegistry
 //! [`DocumentCodec`]: systemprompt_provider_contracts::documents::DocumentCodec
@@ -47,6 +49,8 @@ pub mod live;
 pub mod model;
 pub mod models;
 pub mod nodes;
+pub mod outline;
+#[cfg(feature = "pdf")]
 pub mod pdf;
 pub mod repository;
 pub mod revision;

@@ -20,6 +20,7 @@ pub mod ip_ban;
 pub mod jwt;
 pub mod load_shed;
 pub mod negotiation;
+pub mod panic_fence;
 pub mod rate_limit;
 pub mod security_headers;
 pub mod served_by;
@@ -49,6 +50,7 @@ pub use load_shed::LoadShed;
 pub use negotiation::{
     AcceptedFormat, AcceptedMediaType, content_negotiation_middleware, parse_accept_header,
 };
+pub use panic_fence::panic_fence;
 pub use rate_limit::{
     ContextLayer, IdentityOrTrustedIpKey, RateLimitState, RouterExt, TrustedIpKey,
     with_pre_auth_ip_limit,

@@ -5,27 +5,27 @@
 
 use crate::documents::model::{Mark, MarkKind, segments};
 
-pub(super) type Rgb = [u8; 3];
+pub(crate) type Rgb = [u8; 3];
 
-pub(super) const LINK_BLUE: Rgb = [0x1a, 0x56, 0xb0];
+pub(crate) const LINK_BLUE: Rgb = [0x1a, 0x56, 0xb0];
 const DEFAULT_HIGHLIGHT: Rgb = [0xff, 0xf2, 0x9e];
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub(super) struct Run {
-    pub(super) text: String,
-    pub(super) bold: bool,
-    pub(super) italic: bool,
-    pub(super) mono: bool,
-    pub(super) underline: bool,
-    pub(super) strike: bool,
-    pub(super) color: Option<Rgb>,
-    pub(super) highlight: Option<Rgb>,
-    pub(super) link: Option<String>,
+pub(crate) struct Run {
+    pub(crate) text: String,
+    pub(crate) bold: bool,
+    pub(crate) italic: bool,
+    pub(crate) mono: bool,
+    pub(crate) underline: bool,
+    pub(crate) strike: bool,
+    pub(crate) color: Option<Rgb>,
+    pub(crate) highlight: Option<Rgb>,
+    pub(crate) link: Option<String>,
 }
 
 impl Run {
     #[must_use]
-    pub(super) fn plain(text: impl Into<String>) -> Self {
+    pub(crate) fn plain(text: impl Into<String>) -> Self {
         Self {
             text: text.into(),
             ..Self::default()
@@ -33,7 +33,7 @@ impl Run {
     }
 
     #[must_use]
-    pub(super) fn same_style(&self, other: &Self) -> bool {
+    pub(crate) fn same_style(&self, other: &Self) -> bool {
         Self {
             text: String::new(),
             ..self.clone()
@@ -45,7 +45,7 @@ impl Run {
 }
 
 #[must_use]
-pub(super) fn parse_hex(value: &str) -> Option<Rgb> {
+pub(crate) fn parse_hex(value: &str) -> Option<Rgb> {
     let hex = value.trim().trim_start_matches('#');
     if hex.len() != 6 || !hex.is_ascii() {
         return None;
@@ -98,7 +98,7 @@ fn apply(run: &mut Run, kind: &MarkKind) {
 }
 
 #[must_use]
-pub(super) fn runs_of(text: &str, marks: &[Mark]) -> Vec<Run> {
+pub(crate) fn runs_of(text: &str, marks: &[Mark]) -> Vec<Run> {
     segments(text, marks)
         .into_iter()
         .map(|(piece, active)| {

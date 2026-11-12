@@ -1,21 +1,26 @@
-//! The flat block list a projection is rendered from: every node kind of
-//! every codec lowers to a heading, a paragraph, a list item, a table, a
-//! section title or a page break, so one layout serves every format. Formats
-//! with a rich text model reach the same blocks through `rich`, with their
-//! styling; these blocks are plain.
+//! The flat block list a projection lowers to: every node kind of every codec
+//! becomes a heading, a paragraph, a list item, a table, a section title or a
+//! page break, so one outline serves every format. The PDF renderer lowers a
+//! rich text model to the same blocks with their styling; these are plain.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-
 use systemprompt_provider_contracts::documents::{NodeKind, Projection, ProjectionNode};
 
-use super::layout_model::Align;
 use super::runs::{Rgb, Run};
 use super::sheet_rows::sheet_rows;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub(crate) enum Align {
+    #[default]
+    Left,
+    Center,
+    Right,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum Style {
+pub(crate) enum Style {
     Body,
     Quote,
     Callout,
@@ -24,9 +29,9 @@ pub(super) enum Style {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub(super) struct Cell {
-    pub(super) runs: Vec<Run>,
-    pub(super) shade: Option<Rgb>,
+pub(crate) struct Cell {
+    pub(crate) runs: Vec<Run>,
+    pub(crate) shade: Option<Rgb>,
 }
 
 impl From<String> for Cell {
@@ -39,7 +44,7 @@ impl From<String> for Cell {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) enum Block {
+pub(crate) enum Block {
     Heading {
         level: u8,
         runs: Vec<Run>,
@@ -69,7 +74,7 @@ pub(super) enum Block {
     PageBreak,
 }
 
-pub(super) const BULLET: &str = "\u{2022}";
+pub(crate) const BULLET: &str = "\u{2022}";
 
 fn heading(level: u8, text: String) -> Block {
     Block::Heading {
@@ -106,7 +111,7 @@ fn table(rows: Vec<Vec<String>>, header_rows: usize) -> Block {
 }
 
 #[must_use]
-pub(super) fn blocks_of(projection: &Projection) -> Vec<Block> {
+pub(crate) fn blocks_of(projection: &Projection) -> Vec<Block> {
     let mut out = Vec::new();
     let outline: Vec<&ProjectionNode> = projection
         .root
@@ -205,7 +210,7 @@ fn own_text(node: &ProjectionNode) -> String {
         })
 }
 
-pub(super) fn text_of(node: &ProjectionNode) -> String {
+pub(crate) fn text_of(node: &ProjectionNode) -> String {
     if let Some(text) = node
         .text
         .as_deref()
@@ -226,7 +231,7 @@ fn normalise(text: &str) -> String {
     text.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
-pub(super) fn rows_in(node: &ProjectionNode, rows: &mut Vec<ProjectionNode>) {
+pub(crate) fn rows_in(node: &ProjectionNode, rows: &mut Vec<ProjectionNode>) {
     for child in &node.children {
         if child.kind == NodeKind::Row {
             rows.push(child.clone());

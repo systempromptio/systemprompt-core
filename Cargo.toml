@@ -192,19 +192,19 @@ serde = { version = "1.0", features = ["derive"] }
 serde_yaml = { package = "serde_yaml_ng", version = "0.10" }
 serde_json = { version = "1.0", features = ["preserve_order"] }
 chrono = { version = "0.4", features = ["serde"] }
-uuid = { version = "1.28", features = ["v4", "v5", "serde"] }
+uuid = { version = "1.29", features = ["v4", "v5", "serde"] }
 validator = { version = "0.21", features = ["derive"] }
 regex = "1.13"
 globset = { version = "0.4", default-features = false }
 indexmap = { version = "2.14", features = ["serde"] }
-jsonschema = { version = "0.60", default-features = false }
+jsonschema = { version = "0.61", default-features = false }
 
 # HTTP/API (for API crate)
 axum = "0.8"
 reqwest = { version = "0.13", default-features = false, features = ["json", "stream", "rustls-no-provider", "query", "form"] }
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "logging", "tls12"] }
 http = "1.5"
-tower-http = { version = "0.7", features = ["cors", "trace", "fs"] }
+tower-http = { version = "0.7", features = ["catch-panic", "cors", "trace", "fs"] }
 tower = { version = "0.5", features = ["util"] }
 
 # Metrics / observability
@@ -266,12 +266,12 @@ async-stream = "0.3"
 wiremock = "0.6"
 
 # Markdown and templating
-comrak = { version = "0.57", default-features = false }
+comrak = { version = "0.59", default-features = false }
 handlebars = "6"
 # Static-site generation (app/generator)
 quick-xml = { version = "0.42", features = ["serialize"] }
 # Office documents (domain/files `office` feature)
-zip = { version = "9.0.5", default-features = false, features = ["deflate-flate2-zlib-rs"] }
+zip = { version = "9.5", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 
 # MCP additional dependencies
 # Why: held at 0.2 because rmcp 3.9.0 requires sse-stream ^0.2.4; 0.3 would duplicate.

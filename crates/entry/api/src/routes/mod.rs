@@ -12,6 +12,7 @@
 
 pub mod admin;
 pub mod agent;
+#[cfg(feature = "agent-runs")]
 pub mod agent_runs;
 pub mod analytics;
 #[cfg(feature = "brain")]
@@ -21,18 +22,22 @@ pub mod documents;
 pub mod engagement;
 pub mod gateway;
 pub mod issues;
+#[cfg(feature = "bridge")]
 pub mod managed;
 pub mod marketplace;
 pub mod mcp;
+#[cfg(any(feature = "slack", feature = "teams"))]
 pub mod messaging;
 #[cfg(feature = "notifications")]
 pub mod notifications;
 pub mod oauth;
 pub mod proxy;
+#[cfg(feature = "slack")]
 pub mod slack;
 pub mod sso;
 pub mod stream;
 pub mod sync;
+#[cfg(feature = "teams")]
 pub mod teams;
 pub mod uploads;
 pub(crate) mod user_content;

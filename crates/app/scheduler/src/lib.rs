@@ -33,9 +33,13 @@
 //!
 //! # Feature flags
 //!
-//! This crate has no Cargo feature gates of its own — all functionality is
-//! always compiled. It has no platform-specific code: process and port
-//! supervision is [`systemprompt_loader::subprocess`].
+//! - `brain` — the brain jobs receive the consolidation model client and the
+//!   producer sink.
+//! - `otel` — the `otlp_export` job, which ships the audit trail to an OTLP
+//!   collector. Without it the job is not registered.
+//!
+//! The crate has no platform-specific code: process and port supervision is
+//! [`systemprompt_loader::subprocess`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -51,14 +55,16 @@ pub mod services;
 pub use error::{SchedulerError, SchedulerResult};
 pub use extension::SchedulerExtension;
 
+#[cfg(feature = "otel")]
+pub use jobs::OtlpExportJob;
+#[cfg(feature = "otel")]
 pub use jobs::otlp_export::{
     ExportReport as OtlpExportReport, SignalReport as OtlpSignalReport,
     export_now as otlp_export_now,
 };
 pub use jobs::{
     BehavioralAnalysisJob, CleanupEmptyContextsJob, CleanupInactiveSessionsJob, DatabaseCleanupJob,
-    GhostSessionCleanupJob, MaliciousIpBlacklistJob, NoJsCleanupJob, OtlpExportJob,
-    UsageAnomalyScanJob,
+    GhostSessionCleanupJob, MaliciousIpBlacklistJob, NoJsCleanupJob, UsageAnomalyScanJob,
 };
 pub use models::{JobConfig, JobRunRecord, JobStatus, ScheduledJob, SchedulerConfig, SkippedJob};
 pub use repository::otlp::{OtlpExportState, OtlpExportStateRepository};

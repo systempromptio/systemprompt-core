@@ -56,6 +56,13 @@
 - **Breaking:** **Gateway:** `OutboundCtx` and `ResolvedUpstream` carry a `HopPolicy`, `OutboundOutcome` gains `Relayed`, `UpstreamError` gains `Relayed` and `UnreadableBody`, `GatewayError` gains `CallerFormatMismatch`, `GatewayEnginesError` gains `CallerWireShadowed`, `breaker_key` takes the member the request is served for, `order_chain` takes a `ChainHealth`, and `service::resolve::may_fail_over` is replaced by `ResolvedHop::may_fail_over_to`. Migrate by setting `policy: HopPolicy::of(hop)` in `OutboundCtx` literals, adding the new match arms, and passing the member's `UserId` and a `ChainHealth`.
 - **Breaking:** **Catalog:** a model whose enabled deployments mix a member-paid credential with any other credential, a route whose `context_fallbacks` name a model billed to another credential, and a caller credential on a wire no client request format speaks are refused at load (`CatalogError::Billing`, `BillingRuleError`). `CredentialFacts` gains `presents_own_credential`, and `InboundAdapter` gains `spoken_wire`. Migrate a mixed chain by deploying the member-paid endpoint under its own model id, and set `presents_own_credential` in `CredentialFacts` literals.
 - **Breaking:** **Identifiers:** `headers` gains `ALL`, `PREFIXES`, `CLIENT_TO_VENDOR`, `PLATFORM_PREFIX`, `INGESTION_EVENT_ID`, `BRIDGE_MANIFEST_SCHEMA`, `UPLOAD_TOKEN`, `MCP_SESSION_ID`, `MCP_PROTOCOL_VERSION`, `MCP_METHOD` and `A2A_VERSION`; a constant added to the module is listed in `ALL` or `PREFIXES`.
+- **Breaking:** **CLI:** irreversible commands (`admin keys stage|promote|rotate`, `admin bridge rotate-signing-key`, `admin users role`, `admin users federated-rekey --apply`, `infra db migrate-down|migrate-mark-applied|assign-admin`) exit non-zero in non-interactive use without `--yes`, Ctrl-C exits 130, and `DataImpact` gains `Irreversible`. Migrate by passing `--yes` in scripts that run them.
+- **Breaking:** **Features:** `systemprompt-api` and `systemprompt-cli` link Slack, Teams, agent runs, OTLP, the bridge routes and PDF export only under the features `slack`, `teams`, `agent-runs`, `otel`, `bridge` and `pdf` (facade: the same names and `files-pdf`); `full` carries all but `slack` and `teams`. Migrate by enabling `full` or the named features, and `slack` or `teams` explicitly where those routes are served.
+- **Breaking:** **Configuration:** services config structs refuse unknown keys (`ai.sampling`, `ai.mcp`, `ai.mcp.resilience`, `ai.history`, model definitions, agents and agent cards, skills config, plugins, disk hooks and rules, marketplace and scheduler config), and `ai.mcp.auto_discover`, `skills.auto_discover`, `ai.history.log_tool_executions` and the flat `ai.mcp.connect_timeout_ms`, `execution_timeout_ms` and `retry_attempts` are removed. Migrate by deleting the keys and setting MCP limits under `ai.mcp.resilience`.
+- **Breaking:** **Web config:** `WebConfig.nav` and `WebConfig.social_action_bar` are removed with `NavConfig`, `SocialActionBarConfig` and `SocialPlatform`, and a web config that sets them fails to load. Migrate by deleting both blocks.
+- **Breaking:** **Configuration:** a `${VAR}` in a services YAML string value is resolved at load, so a literal that was passed through before now needs its variable set or a `:-default`.
+- **Breaking:** **Agent runs:** a non-empty `allowed_tools` is the run's tool set: Claude Code receives the built-in names as `--tools`, a run that bypasses permissions must declare each MCP server whole, and Codex refuses a request that declares `allowed_tools` or `disallowed_tools` (`AgentRunsError::ToolPolicyUnenforceable`); `claude_args` returns a `Result`. Migrate by declaring every tool a step uses and removing tool lists from Codex steps.
+- **Breaking:** **Loader:** `ConfigLoadError` gains `Interpolation`, and `ConfigLoader` selects `inspecting()` or `verbatim()` reads for configuration that is displayed or written back. Migrate by adding the match arm.
 
 ### Security
 
@@ -77,6 +84,8 @@
 - **CLI:** `admin keys stage`, `promote` and `rotate`; `admin config secret migrate-git-credentials`; `admin users federated-rekey`; `admin bridge signing-key-fingerprint`; `infra db migrate --full`; and `core services keygen --force`.
 - **Analytics:** personal analytics data (engagement events and fingerprint reputation) is deleted after a retention window.
 - **Security:** the JWKS publishes a staged and every unexpired previous key, so tokens signed before a rotation keep verifying.
+- **Configuration:** services YAML accepts `${VAR}` and `${VAR:-default}` in string values such as provider endpoints, MCP server URLs and `env` maps; prompt, instruction, description and hook text is never rewritten, and an unset variable with no default fails the load naming the variable and file.
+- **Features:** `otel` (OTLP ingest routes and the `otlp_export` job), `bridge` (the device-credential routes) and `files-pdf` (PDF export and its embedded fonts) are cargo features on the facade, `systemprompt-api` and `systemprompt-cli`, all in `full`.
 
 ### Changed
 
@@ -90,6 +99,7 @@
 - **CLI:** setup never changes an existing database role and writes only credentials it has verified, and `cloud deploy` clears rotation-managed signing keys the local secrets dropped and reports when the running release is unconfirmed.
 - **Logging:** stored log fields and messages are scrubbed and size-capped.
 - **Storage:** `LocalFileStorage` refuses paths through symbolic links.
+- **Dependencies:** `jsonschema` is 0.61, `comrak` is 0.59, `uuid` is 1.29 and `zip` is 9.5 in every workspace, and the three lockfiles carry the current compatible releases.
 
 ### Fixed
 
@@ -103,6 +113,9 @@
 - **AI:** concurrent settles of one completion record the turn once.
 - **CLI:** `mcp call` fails on an embedded resource it cannot render instead of dropping it, and a bundle file collision is a bad request.
 - **Bridge:** Drive keeps local edits on a remote delete, places only portable paths, treats unplaceable documents as conflicts, and `bridge install` exits non-zero on a rejected manifest. See `bin/bridge/CHANGELOG.md`.
+- **Agent runs:** a retried or re-queued attempt whose host session store is not present on the claiming node starts a fresh session with the original prompt instead of resuming a session the host cannot find.
+- **CLI:** `admin config validate` reports a services configuration or plugin binding failure as a `services` result with a non-zero exit instead of stopping before the command runs.
+- **API:** a panic in a request handler answers a fixed 500 and is logged in builds that unwind; see `documentation/reference/feature-flags.md` for the behaviour under `panic = "abort"`.
 
 ## [0.80.0] - 2026-11-09
 

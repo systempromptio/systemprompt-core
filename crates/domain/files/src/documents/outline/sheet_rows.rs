@@ -41,7 +41,7 @@ fn column_label(index: usize) -> String {
     label
 }
 
-pub(super) fn sheet_rows(sheet: &ProjectionNode) -> Vec<Vec<String>> {
+pub(crate) fn sheet_rows(sheet: &ProjectionNode) -> Vec<Vec<String>> {
     let mut rows = Vec::new();
     rows_in(sheet, &mut rows);
     let placed: Vec<(String, BTreeMap<usize, String>, String)> = rows

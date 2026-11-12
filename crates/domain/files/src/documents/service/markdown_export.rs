@@ -25,7 +25,7 @@ use crate::documents::model::formats::import_rich_text;
 use crate::documents::model::markdown::{degrade, materialise};
 use crate::documents::model::{BlockKind, RichText};
 use crate::documents::models::Document;
-use crate::documents::pdf::{markdown_file_name, outline_markdown};
+use crate::documents::outline::{markdown_file_name, outline_markdown};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExportedMarkdown {
@@ -174,11 +174,7 @@ impl DocumentService {
         warnings: Vec<String>,
     ) -> Result<(String, Vec<String>), DocumentsError> {
         let mut left_out = summarise(warnings);
-        let mut refs = Vec::new();
-        image_refs(&model, &mut refs);
-        refs.retain(|blob| !is_portable(blob));
-        refs.sort();
-        refs.dedup();
+        let mut refs = held_image_refs(&model);
         let mut uris = BTreeMap::new();
         let mut total = 0;
         let mut missing = refs.len().saturating_sub(EXPORT_IMAGE_LIMIT);

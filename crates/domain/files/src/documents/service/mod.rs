@@ -71,6 +71,8 @@ mod node_ids;
 mod notify;
 mod ownership;
 mod pdf;
+#[cfg(feature = "pdf")]
+mod pdf_render;
 mod prepare;
 mod proposal_body;
 mod proposal_reads;

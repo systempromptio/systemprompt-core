@@ -20,9 +20,10 @@ use systemprompt_models::ApiPaths;
 
 use super::{
     auth, bridge, bridge_device, bridge_heartbeat, bridge_manifest, bridge_plugin_file,
-    bridge_profile_usage, bridge_stream, bridge_whoami, count_tokens, messages, otel,
+    bridge_profile_usage, bridge_stream, bridge_whoami, count_tokens, messages,
 };
 
+#[cfg(feature = "otel")]
 pub(super) fn otel_routes(ctx: &AppContext, jwt_extractor: &Arc<JwtContextExtractor>) -> Router {
     let ctx_root = ctx.clone();
     let ctx_rest = ctx.clone();
@@ -35,7 +36,7 @@ pub(super) fn otel_routes(ctx: &AppContext, jwt_extractor: &Arc<JwtContextExtrac
             post(move |request| {
                 let extractor = Arc::clone(&jwt_root);
                 let context = ctx_root.clone();
-                async move { otel::handle(extractor, context, request).await }
+                async move { super::otel::handle(extractor, context, request).await }
             }),
         )
         .route(
@@ -43,7 +44,7 @@ pub(super) fn otel_routes(ctx: &AppContext, jwt_extractor: &Arc<JwtContextExtrac
             post(move |request| {
                 let extractor = Arc::clone(&jwt_rest);
                 let context = ctx_rest.clone();
-                async move { otel::handle(extractor, context, request).await }
+                async move { super::otel::handle(extractor, context, request).await }
             }),
         )
 }

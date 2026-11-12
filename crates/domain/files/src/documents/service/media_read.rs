@@ -110,6 +110,7 @@ impl DocumentService {
         Ok(Some(self.blobs.read_all_primary(hash, limit).await?))
     }
 
+    #[cfg(feature = "pdf")]
     pub(super) async fn revision_image(
         &self,
         document: &Document,

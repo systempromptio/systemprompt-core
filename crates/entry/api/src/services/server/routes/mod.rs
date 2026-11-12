@@ -13,14 +13,17 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+#[cfg(feature = "agent-runs")]
 mod agent_runs;
 #[cfg(feature = "brain")]
 mod brain;
 mod documents;
 mod error;
 mod extension_mount;
+mod feature_mount;
 mod gateway;
 mod issues;
+#[cfg(feature = "bridge")]
 mod managed;
 #[cfg(feature = "notifications")]
 mod notifications;
@@ -112,7 +115,6 @@ fn build_routes(
     }
     if serves(RouteGroup::Agent) {
         router = protocol::mount_agent(router, &mount, a2a_middleware)?;
-        router = agent_runs::mount_agent_runs(router, &mount)?;
     }
     if serves(RouteGroup::McpAndStream) {
         router = protocol::mount_mcp_and_stream(router, &mount, mcp_middleware)?;
@@ -120,15 +122,10 @@ fn build_routes(
     if serves(RouteGroup::ContentAndMisc) {
         router = mount_content(router, &mount)?;
     }
-    if serves(RouteGroup::Managed) {
-        router = managed::mount(router, &mount)?;
-    }
     if serves(RouteGroup::Gateway) {
         router = gateway::mount_gateway(router, &mount)?;
     }
-    if serves(RouteGroup::Messaging) {
-        router = protocol::mount_messaging(router, &mount)?;
-    }
+    router = feature_mount::mount_feature_routes(router, &mount, &serves)?;
     if serves(RouteGroup::Extensions) {
         router = extension_mount::mount_extension_routes(
             router,

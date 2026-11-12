@@ -44,6 +44,13 @@ impl Shape {
     }
 }
 
+#[cfg_attr(
+    not(feature = "collab-loro"),
+    expect(
+        dead_code,
+        reason = "images and frames are read only by the deck engine"
+    )
+)]
 #[derive(Debug, Clone)]
 pub(super) struct Slide {
     pub part: String,

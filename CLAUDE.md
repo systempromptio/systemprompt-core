@@ -15,7 +15,7 @@ entry (api, cli) → app (runtime, scheduler, generator, oauth-issuance, gateway
 - **domain** — users, oauth, files, analytics, content, ai, mcp, agent, templates, marketplace, slack, teams, notifications. Domain crates are **peers**: no domain→domain deps (see Rust Standards). `notifications` is its own crate because it owns its tables, config plane, retention job and outbox consumer; no other domain is a fitting owner.
 - **app** — runtime (`AppContext`), scheduler, generator, oauth-issuance (`/oauth/token` grant workflow; the API keeps the thin handler), gateway (the AI gateway: protocol translation, gateway policies, quotas, safety, audit journal; the API keeps the thin handlers)
 - **entry** — api (HTTP server), cli
-- `systemprompt/` — facade crate re-exporting everything behind feature flags: `core` (default; carries `models`, `wire` and `manifest`), `full`, and granular `database`, `config`, `mcp`, `api`, `cloud`, `cli`, `runtime`, `analytics`, `logging`, `loader`, `events`, `storage`, `client`, `security`, `notifications`; `slack` and `teams` are opt-in and outside `full` (`systemprompt/Cargo.toml` is the list)
+- `systemprompt/` — facade crate re-exporting everything behind feature flags: `core` (default; carries `models`, `wire` and `manifest`), `full`, and granular `database`, `config`, `mcp`, `api`, `cloud`, `cli`, `runtime`, `analytics`, `logging`, `loader`, `events`, `storage`, `client`, `security`, `notifications`, `agent-runs`, `otel`, `bridge`, `files-pdf`; `slack` and `teams` are opt-in and outside `full` (`systemprompt/Cargo.toml` is the list)
 - `crates/tests/` — separate test workspace, excluded from the main workspace
 
 ## Documentation Layout

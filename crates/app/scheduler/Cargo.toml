@@ -67,8 +67,8 @@ systemprompt-users = { workspace = true }
 inventory = { workspace = true }
 
 # OTLP export (otlp_export job)
-opentelemetry-proto = { workspace = true }
-prost = { workspace = true }
+opentelemetry-proto = { workspace = true, optional = true }
+prost = { workspace = true, optional = true }
 reqwest = { workspace = true }
 metrics = { workspace = true }
 sha2 = { workspace = true }
@@ -91,3 +91,5 @@ serde_json = { workspace = true }
 default = []
 # The brain jobs receive the consolidation model client and the producer sink.
 brain = ["systemprompt-runtime/brain"]
+# The otlp_export job, which ships the audit trail to an OTLP collector.
+otel = ["dep:opentelemetry-proto", "dep:prost"]

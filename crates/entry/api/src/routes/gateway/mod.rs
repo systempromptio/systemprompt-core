@@ -5,7 +5,7 @@
 //! [`InboundAdapter`](systemprompt_gateway::protocol::InboundAdapter)), the
 //! `/auth/bridge/*` credential-exchange routes ([`auth`]), the `/bridge/*`
 //! manifest and heartbeat routes, the credential-gated `/otel` ingest
-//! ([`otel`]), and `/models`. The router requires the session and user
+//! (`otel` feature), and `/models`. The router requires the session and user
 //! providers; if either is missing, building it fails and so does startup.
 //! `log_gateway_request` is the middleware that records every request to the
 //! logging repository.
@@ -48,6 +48,7 @@ pub mod bridge_whoami;
 pub mod count_tokens;
 pub mod messages;
 pub mod models;
+#[cfg(feature = "otel")]
 pub mod otel;
 pub mod provider_credentials;
 pub mod sessions;
@@ -63,8 +64,10 @@ use systemprompt_runtime::AppContext;
 use systemprompt_traits::AppContext as _;
 
 use self::access_log::log_gateway_request;
+#[cfg(feature = "otel")]
+use self::routers::otel_routes;
 use self::routers::{
-    bridge_auth_routes, bridge_profile_routes, bridge_session_routes, inference_routes, otel_routes,
+    bridge_auth_routes, bridge_profile_routes, bridge_session_routes, inference_routes,
 };
 use crate::services::middleware::{
     JtiRevocationChecker, JwtContextExtractor, RateLimitState, RouterExt,
@@ -171,12 +174,13 @@ fn gateway_parts(ctx: &AppContext, engines: &Arc<GatewayEngines>) -> anyhow::Res
     let notifications = bridge_notifications::routes(ctx, &jwt_extractor);
     #[cfg(not(feature = "notifications"))]
     let notifications = Router::new();
+    #[cfg(feature = "otel")]
+    let traffic = traffic.merge(otel_routes(ctx, &jwt_extractor));
     Ok(GatewayParts {
         traffic: traffic
             .merge(drive_routes(ctx, &jwt_extractor))
             .merge(provider_credentials::routes(ctx, &jwt_extractor))
             .merge(bridge_release::routes(ctx, &jwt_extractor)?)
-            .merge(otel_routes(ctx, &jwt_extractor))
             .route("/models", get(models::list).with_state(ctx.clone()))
             .route("/", get(models::root)),
         bridge_auth: bridge_auth_routes(ctx, &jwt_extractor),

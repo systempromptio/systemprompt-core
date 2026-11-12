@@ -92,12 +92,12 @@ subtle = { version = "2", features = ["const-generics"] }
 sync_wrapper = { version = "1", default-features = false, features = ["futures"] }
 systemprompt-analytics = { path = "../../../domain/analytics", features = ["geolocation"] }
 systemprompt-extension = { path = "../../../shared/extension", default-features = false, features = ["sqlx"] }
-systemprompt-files = { path = "../../../domain/files", default-features = false, features = ["collab-loro", "office"] }
+systemprompt-files = { path = "../../../domain/files", default-features = false, features = ["collab-loro", "office", "pdf"] }
 systemprompt-identifiers = { path = "../../../shared/identifiers", features = ["sqlx"] }
 systemprompt-logging = { path = "../../../infra/logging", features = ["cli"] }
 systemprompt-models = { path = "../../../shared/models", features = ["sqlx"] }
 systemprompt-runtime = { path = "../../../app/runtime", features = ["brain", "engine-loro", "geolocation"] }
-systemprompt-scheduler = { path = "../../../app/scheduler", features = ["brain"] }
+systemprompt-scheduler = { path = "../../../app/scheduler", features = ["brain", "otel"] }
 systemprompt-traits = { path = "../../../shared/traits", features = ["sqlx"] }
 thiserror = { version = "2" }
 time = { version = "0.3", features = ["formatting", "local-offset", "macros", "parsing"] }
@@ -107,7 +107,7 @@ tokio-util = { version = "0.7", features = ["codec", "io", "rt"] }
 toml_datetime = { version = "1", features = ["serde"] }
 toml_parser = { version = "1" }
 toml_writer = { version = "1" }
-tower-http = { version = "0.7", features = ["cors", "fs", "normalize-path", "trace"] }
+tower-http = { version = "0.7", features = ["catch-panic", "cors", "fs", "normalize-path", "trace"] }
 tracing = { version = "0.1", features = ["log"] }
 tracing-core = { version = "0.1" }
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
@@ -208,7 +208,6 @@ hmac = { version = "0.12", default-features = false, features = ["reset"] }
 hyper-rustls = { version = "0.27", default-features = false, features = ["aws-lc-rs", "http1", "tls12"] }
 hyper-util = { version = "0.1", default-features = false, features = ["client-legacy", "client-proxy"] }
 linux-raw-sys = { version = "0.12", default-features = false, features = ["auxvec", "elf", "errno", "general", "if_ether", "ioctl", "net", "netlink", "no_std", "prctl", "xdp"] }
-miniz_oxide = { version = "0.8", features = ["simd"] }
 mio = { version = "1", features = ["net", "os-ext"] }
 nix = { version = "0.31", features = ["fs", "signal", "user"] }
 rustix = { version = "1", features = ["event", "fs", "net", "pipe", "process", "time"] }
@@ -223,6 +222,7 @@ zvariant = { version = "5", features = ["enumflags2", "url"] }
 
 [target.x86_64-unknown-linux-gnu.build-dependencies]
 cc = { version = "1", default-features = false, features = ["parallel"] }
+getrandom-468e82937335b1c9 = { package = "getrandom", version = "0.3", default-features = false, features = ["std"] }
 getrandom-9fbad63c4bcf4a8f = { package = "getrandom", version = "0.4", default-features = false, features = ["std", "sys_rng"] }
 hyper-util = { version = "0.1", default-features = false, features = ["client-legacy", "client-proxy"] }
 linux-raw-sys = { version = "0.12", default-features = false, features = ["auxvec", "elf", "errno", "general", "if_ether", "ioctl", "net", "netlink", "no_std", "prctl", "xdp"] }
