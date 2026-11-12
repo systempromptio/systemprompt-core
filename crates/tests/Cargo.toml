@@ -117,6 +117,7 @@ members = [
     "unit/bridge/lib-entry",
     "unit/bridge/cli-subprocess",
     # Common test utilities
+    "common/hack",
     "common/mocks",
     "common/migrate",
     "common/fixtures",
@@ -128,6 +129,9 @@ members = [
     "concurrency",
 ]
 resolver = "2"
+
+[workspace.metadata.cargo-machete]
+ignored = ["systemprompt-test-hack"]
 
 [workspace.package]
 edition = "2024"

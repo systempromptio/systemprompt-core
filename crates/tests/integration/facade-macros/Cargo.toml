@@ -13,3 +13,4 @@ workspace = true
 [dependencies]
 systemprompt = { workspace = true }
 async-trait = { workspace = true }
+systemprompt-test-hack = { version = "0.1", path = "../../common/hack" }

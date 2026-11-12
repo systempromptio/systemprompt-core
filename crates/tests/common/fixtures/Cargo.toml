@@ -49,6 +49,7 @@ serde_yaml = { workspace = true }
 serde_json = { workspace = true }
 wiremock = { workspace = true }
 keyring-core = { workspace = true }
+systemprompt-test-hack = { version = "0.1", path = "../hack" }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 linux-keyutils-keyring-store = { workspace = true }

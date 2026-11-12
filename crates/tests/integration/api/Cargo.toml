@@ -80,3 +80,4 @@ webauthn-rs = { workspace = true }
 webauthn-authenticator-rs = { workspace = true }
 flate2 = { workspace = true }
 tar = { workspace = true }
+systemprompt-test-hack = { version = "0.1", path = "../../common/hack" }

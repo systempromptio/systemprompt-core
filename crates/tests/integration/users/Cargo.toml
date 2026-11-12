@@ -15,6 +15,7 @@ reqwest = { workspace = true }
 systemprompt-users = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }
+systemprompt-test-hack = { version = "0.1", path = "../../common/hack" }
 
 [dev-dependencies]
 tokio = { workspace = true }

@@ -383,7 +383,7 @@ jobs:
       - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
       - uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
         with:
-          tool: cargo-machete@0.9.2
+          tool: cargo-machete@0.9.2,cargo-hakari@0.9.39
       - run: python3 scripts/test-release-proof.py
         if: ${{ !cancelled() }}
       - run: python3 scripts/test-test-shard.py
@@ -404,6 +404,8 @@ jobs:
         if: ${{ !cancelled() }}
       - run: just machete
         if: ${{ !cancelled() }}
+      - run: just lint-test-hack
+        if: ${{ !cancelled() }}
       # Why: scripts/check-gates.txt is the local gate list (`just check-gates`);
       # the source-gates-* jobs are the CI one. Per-step `!cancelled()` guards give each gate its
       # own red/green line, so the two lists are asserted equal instead. A gate
@@ -415,7 +417,7 @@ jobs:
           want=$(grep -v '^$' scripts/check-gates.txt | sort -u)
           have=$(awk '/^  source-gates-[a-z]+:$/ { on = 1; next } /^  [a-z-]+:$/ { on = 0 } on' .github/workflows/quality.yml \
                  | grep -oE '^ *- run: just [a-z0-9-]+$' | awk '{ print $NF }' | sort -u)
-          release_only="bridge-bindings-check check-crate-changelogs check-release-tag machete"
+          release_only="bridge-bindings-check check-crate-changelogs check-release-tag lint-test-hack machete"
           have=$(comm -23 <(echo "$have") <(echo "$release_only" | tr ' ' '\n' | sort))
           if ! diff <(echo "$want") <(echo "$have"); then
               echo "::error::scripts/check-gates.txt and the quality.yml source-gates-* jobs list different gates (< file only, > CI only)"

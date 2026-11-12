@@ -39,6 +39,7 @@ sqlx = { workspace = true }
 opentelemetry-proto = { workspace = true }
 reqwest = { workspace = true }
 hex = { workspace = true }
+systemprompt-test-hack = { version = "0.1", path = "../../../common/hack" }
 
 [dev-dependencies]
 temp-env = { workspace = true }

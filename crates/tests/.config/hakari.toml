@@ -1,0 +1,57 @@
+# cargo-hakari settings for the test workspace.
+#
+# Cargo resolves features over the packages one invocation selects, so the
+# schema migrator, each archive set and a single-crate run would each build
+# their own copy of tokio, sqlx and every systemprompt crate above them.
+# `systemprompt-test-hack` pins the union, so every selection builds — and
+# sccache stores — one copy. Regenerate with `just test-hack`.
+
+hakari-package = "systemprompt-test-hack"
+dep-format-version = "4"
+resolver = "2"
+
+# The test workspace is built on Linux only; the native bridge matrix selects
+# crates that do not carry the hack (below).
+platforms = [
+    "x86_64-unknown-linux-gnu",
+]
+
+[final-excludes]
+# The native (Windows/macOS) bridge matrix builds these with no database and
+# no server stack; they stay free of the hack. Mirrors
+# scripts/bridge-native-crates.txt (checked by scripts/lint-native-test-deps.sh).
+workspace-members = [
+    "systemprompt-bridge-activity-tests",
+    "systemprompt-bridge-auth-session-tests",
+    "systemprompt-bridge-auth-tests",
+    "systemprompt-bridge-cli-tests",
+    "systemprompt-bridge-config-tests",
+    "systemprompt-bridge-cowork-plugins-tests",
+    "systemprompt-bridge-drive-tests",
+    "systemprompt-bridge-fsutil-tests",
+    "systemprompt-bridge-gateway-client-tests",
+    "systemprompt-bridge-gui-tests",
+    "systemprompt-bridge-ids-tests",
+    "systemprompt-bridge-install-tests",
+    "systemprompt-bridge-inventory-tests",
+    "systemprompt-bridge-lib-entry-tests",
+    "systemprompt-bridge-mcp-probe-tests",
+    "systemprompt-bridge-mcp-registry-tests",
+    "systemprompt-bridge-obs-tests",
+    "systemprompt-bridge-paths-tests",
+    "systemprompt-bridge-proxy-module-tests",
+    "systemprompt-bridge-proxy-tests",
+    "systemprompt-bridge-schedule-tests",
+    "systemprompt-bridge-ts-export-tests",
+    "systemprompt-bridge-validate-tests",
+    "systemprompt-bridge-verdicts-tests",
+    "systemprompt-bridge-window-state-tests",
+]
+# Top-of-stack crates only their own test crates link: pinning them would make
+# every test crate wait on the API server, the gateway and the bridge.
+third-party = [
+    { name = "systemprompt-api", path = "../entry/api" },
+    { name = "systemprompt-gateway", path = "../app/gateway" },
+    { name = "systemprompt-bridge", path = "../../bin/bridge" },
+    { name = "systemprompt-cli", path = "../entry/cli" },
+]

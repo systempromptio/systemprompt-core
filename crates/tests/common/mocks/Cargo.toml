@@ -21,6 +21,7 @@ systemprompt-models = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-events = { workspace = true }
 systemprompt-agent = { workspace = true }
+systemprompt-test-hack = { version = "0.1", path = "../hack" }
 
 [package.metadata.cargo-machete]
 ignored = ["reqwest"]

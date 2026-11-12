@@ -28,6 +28,7 @@ http-body-util = "0.1"
 bytes = { workspace = true }
 futures-util = { workspace = true }
 arc-swap = "1"
+systemprompt-test-hack = { version = "0.1", path = "../../../common/hack" }
 
 # The kernel keyring backs the headless credential store on Linux CI; other
 # targets use `keyring_core::mock` and must not build this Linux-only crate.

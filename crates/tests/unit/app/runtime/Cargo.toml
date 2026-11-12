@@ -41,6 +41,7 @@ systemprompt-catalog-fixtures = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-events = { workspace = true }
 inventory = { workspace = true }
+systemprompt-test-hack = { version = "0.1", path = "../../../common/hack" }
 
 [dev-dependencies]
 rmcp = { workspace = true }

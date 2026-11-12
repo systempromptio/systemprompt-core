@@ -21,6 +21,7 @@ systemprompt-provider-contracts = { workspace = true }
 systemprompt-runtime = { workspace = true }
 async-trait = { workspace = true }
 chrono = { workspace = true }
+systemprompt-test-hack = { version = "0.1", path = "../../common/hack" }
 
 [dev-dependencies]
 tokio = { workspace = true }

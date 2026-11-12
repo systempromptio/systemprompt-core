@@ -37,6 +37,7 @@ systemprompt-oauth = { workspace = true }
 systemprompt-scheduler = { workspace = true }
 systemprompt-security = { workspace = true }
 systemprompt-users = { workspace = true }
+systemprompt-test-hack = { version = "0.1", path = "../hack" }
 
 [package.metadata.cargo-machete]
 ignored = ["reqwest"]

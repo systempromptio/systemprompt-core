@@ -142,7 +142,10 @@ jobs:
   # (scripts/test-shard.sh --archive FILE --set NAME; the sets partition the
   # shard groups and are built in parallel), each with the schema migrator
   # beside it. The test workspace has no committed .sqlx cache, so its query
-  # macros check against this job's own freshly migrated database. The
+  # macros check against this job's own freshly migrated database. Every test
+  # crate carries `systemprompt-test-hack` (crates/tests/.config/hakari.toml),
+  # so the migrator and the archive resolve one feature set per dependency and
+  # the archive reuses everything the migrator build compiled. The
   # `systemprompt` and bridge binaries the subprocess fixtures spawn come from
   # the `build` job's `test-bins` artifact.
   test-tools:

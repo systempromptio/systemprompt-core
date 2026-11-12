@@ -45,4 +45,5 @@ tempfile = { workspace = true }
 wiremock = { workspace = true }
 futures = { workspace = true }
 http = { workspace = true }
+systemprompt-test-hack = { version = "0.1", path = "../../../common/hack" }
 

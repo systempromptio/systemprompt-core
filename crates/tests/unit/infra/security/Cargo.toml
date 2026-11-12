@@ -35,6 +35,7 @@ ed25519-dalek = { version = "3", default-features = false }
 base64 = { workspace = true }
 uuid = { workspace = true }
 url = { workspace = true }
+systemprompt-test-hack = { version = "0.1", path = "../../../common/hack" }
 
 [dev-dependencies]
 async-trait = { workspace = true }

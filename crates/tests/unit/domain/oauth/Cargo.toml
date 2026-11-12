@@ -20,6 +20,7 @@ systemprompt-traits = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-config = { workspace = true }
 systemprompt-users = { workspace = true }
+systemprompt-test-hack = { version = "0.1", path = "../../../common/hack" }
 
 [dev-dependencies]
 systemprompt-database = { workspace = true }

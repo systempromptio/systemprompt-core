@@ -27,6 +27,7 @@ temp-env = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 wiremock = { workspace = true }
 keyring-core = { workspace = true }
+systemprompt-test-hack = { version = "0.1", path = "../../../common/hack" }
 
 # The kernel keyring backs the headless credential store on Linux CI; other
 # targets use `keyring_core::mock` and must not build this Linux-only crate.

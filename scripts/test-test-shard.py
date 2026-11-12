@@ -153,6 +153,13 @@ class TestShardInvocation(unittest.TestCase):
         for group in shard("--list"):
             self.assertIn(shard("--archive-set-of", group)[0], sets)
 
+    def test_ci_builds_every_archive_set(self):
+        sets = subprocess.run(
+            ["bash", str(SHARD), "--list-archive-sets"], cwd=ROOT, check=True, text=True, capture_output=True
+        ).stdout.split()
+        workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        self.assertIn(f"        set: [{', '.join(sets)}]\n", workflow)
+
     def test_unknown_group_has_no_archive_set(self):
         result = subprocess.run(
             ["bash", str(SHARD), "--archive-set-of", "nonesuch"], cwd=ROOT, text=True, capture_output=True

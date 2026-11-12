@@ -38,6 +38,7 @@ sqlx = { workspace = true }
 url = { workspace = true }
 chrono = { workspace = true }
 inventory = { workspace = true }
+systemprompt-test-hack = { version = "0.1", path = "../../../common/hack" }
 
 [dev-dependencies]
 systemprompt-agent = { workspace = true }

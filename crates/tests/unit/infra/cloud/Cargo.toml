@@ -25,6 +25,7 @@ systemprompt-config = { workspace = true }
 base64 = { workspace = true }
 tempfile = { workspace = true }
 ipnet = "2.12"
+systemprompt-test-hack = { version = "0.1", path = "../../../common/hack" }
 
 [dev-dependencies]
 tokio = { workspace = true }

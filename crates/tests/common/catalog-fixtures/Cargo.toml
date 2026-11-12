@@ -11,3 +11,4 @@ systemprompt-identifiers = { workspace = true }
 systemprompt-manifest = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-wire = { workspace = true }
+systemprompt-test-hack = { version = "0.1", path = "../hack" }
