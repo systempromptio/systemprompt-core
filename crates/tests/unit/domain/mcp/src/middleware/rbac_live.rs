@@ -25,6 +25,7 @@ use systemprompt_test_fixtures::{
 };
 
 use crate::harness::bootstrap_with_services;
+use systemprompt_test_fixtures::unique_name;
 
 const ISSUER: &str = FIXTURE_EXTERNAL_URL;
 
@@ -132,10 +133,6 @@ async fn probe_outcome(probe: RbacProbe) -> String {
     outcome
 }
 
-fn unique(prefix: &str) -> String {
-    format!("{prefix}_{}", uuid::Uuid::new_v4().simple())
-}
-
 fn relay() -> String {
     let token = mint_admin_jwt(
         &UserId::new(uuid::Uuid::new_v4().to_string()),
@@ -179,7 +176,7 @@ fn forged_headers() -> Vec<(String, String)> {
 
 #[tokio::test]
 async fn unknown_server_is_rejected() {
-    let _bootstrap = bootstrap_with_services(&server_yaml(&unique("rbl"), false, ""));
+    let _bootstrap = bootstrap_with_services(&server_yaml(&unique_name("rbl"), false, ""));
 
     let outcome = probe_outcome(RbacProbe {
         server: "rbl_absent".to_owned(),
@@ -193,7 +190,7 @@ async fn unknown_server_is_rejected() {
 
 #[tokio::test]
 async fn oauth_not_required_yields_anonymous_context() {
-    let name = unique("rbl_anon");
+    let name = unique_name("rbl_anon");
     let _bootstrap = bootstrap_with_services(&server_yaml(&name, false, ""));
 
     let outcome = probe_outcome(RbacProbe {
@@ -208,7 +205,7 @@ async fn oauth_not_required_yields_anonymous_context() {
 
 #[tokio::test]
 async fn oauth_required_without_a_hop_token_is_rejected() {
-    let name = unique("rbl_nohop");
+    let name = unique_name("rbl_nohop");
     let _bootstrap = bootstrap_with_services(&server_yaml(&name, true, "admin"));
 
     let outcome = probe_outcome(RbacProbe {
@@ -226,7 +223,7 @@ async fn oauth_required_without_a_hop_token_is_rejected() {
 
 #[tokio::test]
 async fn forged_proxy_identity_headers_are_not_an_identity() {
-    let name = unique("rbl_forged");
+    let name = unique_name("rbl_forged");
     let _bootstrap = bootstrap_with_services(&server_yaml(&name, true, "admin"));
 
     let outcome = probe_outcome(RbacProbe {
@@ -244,7 +241,7 @@ async fn forged_proxy_identity_headers_are_not_an_identity() {
 
 #[tokio::test]
 async fn a_valid_hop_token_is_authenticated_with_the_relayed_bearer() {
-    let name = unique("rbl_auth");
+    let name = unique_name("rbl_auth");
     let _bootstrap = bootstrap_with_services(&server_yaml(&name, true, "admin"));
 
     let outcome = probe_outcome(RbacProbe {
@@ -268,7 +265,7 @@ async fn a_valid_hop_token_is_authenticated_with_the_relayed_bearer() {
 
 #[tokio::test]
 async fn insufficient_scope_is_rejected() {
-    let name = unique("rbl_scope");
+    let name = unique_name("rbl_scope");
     let _bootstrap = bootstrap_with_services(&server_yaml(&name, true, "admin"));
 
     let outcome = probe_outcome(RbacProbe {
@@ -291,7 +288,7 @@ async fn insufficient_scope_is_rejected() {
 
 #[tokio::test]
 async fn oauth_required_with_no_declared_scopes_is_rejected() {
-    let name = unique("rbl_noscope");
+    let name = unique_name("rbl_noscope");
     let _bootstrap = bootstrap_with_services(&server_yaml(&name, true, ""));
 
     let outcome = probe_outcome(RbacProbe {
@@ -311,7 +308,7 @@ async fn oauth_required_with_no_declared_scopes_is_rejected() {
 
 #[tokio::test]
 async fn deny_hook_blocks_an_authenticated_request() {
-    let name = unique("rbl_deny");
+    let name = unique_name("rbl_deny");
     let _bootstrap = bootstrap_with_services(&server_yaml(&name, true, "admin"));
 
     let outcome = probe_outcome(RbacProbe {
@@ -356,7 +353,7 @@ impl AuthzDecisionHook for RequireRoleHook {
 
 #[tokio::test]
 async fn hop_identity_roles_reach_the_authz_hook() {
-    let name = unique("rbl_roles");
+    let name = unique_name("rbl_roles");
     let _bootstrap = bootstrap_with_services(&server_yaml(&name, true, "user"));
 
     let allowed = probe_outcome(RbacProbe {
@@ -397,7 +394,7 @@ async fn hop_identity_roles_reach_the_authz_hook() {
 
 #[tokio::test]
 async fn a_verified_hop_without_a_relay_bearer_is_authenticated() {
-    let name = unique("rbl_norelay");
+    let name = unique_name("rbl_norelay");
     let _bootstrap = bootstrap_with_services(&server_yaml(&name, true, "admin"));
 
     let headers = hop_headers(
@@ -424,7 +421,7 @@ async fn a_verified_hop_without_a_relay_bearer_is_authenticated() {
 
 #[tokio::test]
 async fn a_hop_token_on_a_router_without_the_verifier_fails_loud() {
-    let name = unique("rbl_unverified");
+    let name = unique_name("rbl_unverified");
     let _bootstrap = bootstrap_with_services(&server_yaml(&name, true, "admin"));
 
     let outcome = probe_outcome(RbacProbe {

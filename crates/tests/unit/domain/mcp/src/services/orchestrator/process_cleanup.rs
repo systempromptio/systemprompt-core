@@ -29,7 +29,7 @@ use systemprompt_test_fixtures::{
 };
 
 use crate::harness::internal_mcp_config;
-use systemprompt_test_fixtures::unique_instance;
+use systemprompt_test_fixtures::{unique_instance, unique_name};
 
 const FIXTURE_PORT: u16 = 65500;
 
@@ -79,10 +79,6 @@ async fn fixture() -> Fixture {
         repo,
         database,
     }
-}
-
-fn unique(prefix: &str) -> String {
-    format!("{prefix}_{}", uuid::Uuid::new_v4().simple())
 }
 
 fn write_binary(bootstrap: &TestBootstrap, name: &str) -> i64 {
@@ -154,7 +150,7 @@ fn marker_helper() {
 #[tokio::test]
 async fn rebuilt_binary_kills_the_running_process_and_drops_the_row() {
     let fx = fixture().await;
-    let name = unique("stalebin");
+    let name = unique_name("stalebin");
     let id = ServiceName::new(name.as_str());
     let current = write_binary(fx.bootstrap, &name);
 
@@ -184,7 +180,7 @@ async fn rebuilt_binary_kills_the_running_process_and_drops_the_row() {
 #[tokio::test]
 async fn unchanged_binary_leaves_the_service_registered() {
     let fx = fixture().await;
-    let name = unique("freshbin");
+    let name = unique_name("freshbin");
     let id = ServiceName::new(name.as_str());
     let current = write_binary(fx.bootstrap, &name);
     seed_row(
@@ -205,7 +201,7 @@ async fn unchanged_binary_leaves_the_service_registered() {
 #[tokio::test]
 async fn service_without_a_recorded_mtime_is_never_stale() {
     let fx = fixture().await;
-    let name = unique("nomtime");
+    let name = unique_name("nomtime");
     let id = ServiceName::new(name.as_str());
     write_binary(fx.bootstrap, &name);
     seed_row(&fx.repo, &running_row(&id, None, std::process::id())).await;
@@ -222,7 +218,7 @@ async fn service_without_a_recorded_mtime_is_never_stale() {
 #[tokio::test]
 async fn unresolvable_binary_is_never_stale() {
     let fx = fixture().await;
-    let name = unique("gonebin");
+    let name = unique_name("gonebin");
     let id = ServiceName::new(name.as_str());
     seed_row(&fx.repo, &running_row(&id, Some(1), std::process::id())).await;
 
@@ -241,7 +237,7 @@ async fn unresolvable_binary_is_never_stale() {
 #[tokio::test]
 async fn stopped_service_is_never_stale() {
     let fx = fixture().await;
-    let name = unique("stopped");
+    let name = unique_name("stopped");
     let id = ServiceName::new(name.as_str());
     let current = write_binary(fx.bootstrap, &name);
     seed_row(
@@ -278,7 +274,7 @@ async fn empty_registry_and_unbound_ports_hold_no_orphans() {
         let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
         listener.local_addr().expect("addr").port()
     };
-    let config = internal_mcp_config(&unique("noorphan"), free_port);
+    let config = internal_mcp_config(&unique_name("noorphan"), free_port);
     let swept = detect_and_handle_orphaned_processes(std::slice::from_ref(&config), &fx.database)
         .await
         .expect("free-port sweep");
@@ -291,7 +287,7 @@ async fn an_unmarked_port_holder_is_never_an_orphan_and_is_never_signalled() {
     let fx = fixture().await;
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
     let port = listener.local_addr().expect("addr").port();
-    let config = internal_mcp_config(&unique("unmarked"), port);
+    let config = internal_mcp_config(&unique_name("unmarked"), port);
 
     let swept = detect_and_handle_orphaned_processes(std::slice::from_ref(&config), &fx.database)
         .await
@@ -355,7 +351,7 @@ fn released_port() -> u16 {
 async fn a_marked_holder_with_no_service_row_is_stopped_as_an_orphan() {
     let fx = fixture().await;
     let port = released_port();
-    let name = unique("orphan");
+    let name = unique_name("orphan");
     let child = spawn_marked_listener(port, &name);
     let pid = child.id();
     let config = internal_mcp_config(&name, port);
@@ -376,7 +372,7 @@ async fn a_marked_holder_with_no_service_row_is_stopped_as_an_orphan() {
 async fn a_marked_holder_that_owns_a_service_row_is_not_an_orphan() {
     let fx = fixture().await;
     let port = released_port();
-    let name = unique("registered");
+    let name = unique_name("registered");
     let id = ServiceName::new(name.as_str());
     let child = spawn_marked_listener(port, &name);
     let pid = child.id();

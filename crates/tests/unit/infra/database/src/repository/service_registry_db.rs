@@ -9,16 +9,13 @@ use systemprompt_identifiers::{InstanceId, ServiceName};
 use systemprompt_test_fixtures::LivePids;
 
 use crate::services::db_helper::test_pool;
-
-fn unique(prefix: &str) -> String {
-    format!("{prefix}_{}", uuid::Uuid::new_v4().simple())
-}
+use systemprompt_test_fixtures::unique_name;
 
 async fn two_repos() -> (ServiceRepository, ServiceRepository, sqlx::PgPool) {
     let db = test_pool().await;
     let pg = (*db.write_pool()).clone();
-    let a = ServiceRepository::new(&db, InstanceId::new(unique("node_a")));
-    let b = ServiceRepository::new(&db, InstanceId::new(unique("node_b")));
+    let a = ServiceRepository::new(&db, InstanceId::new(unique_name("node_a")));
+    let b = ServiceRepository::new(&db, InstanceId::new(unique_name("node_b")));
     (a, b, pg)
 }
 
@@ -50,7 +47,7 @@ async fn age_heartbeat(pg: &sqlx::PgPool, instance_id: &InstanceId, secs: i64) {
 #[tokio::test]
 async fn same_name_on_two_instances_is_two_rows() {
     let (a, b, _pg) = two_repos().await;
-    let name = ServiceName::new(unique("svc"));
+    let name = ServiceName::new(unique_name("svc"));
     register(&a, &name, 111).await;
     register(&b, &name, 222).await;
 
@@ -73,7 +70,7 @@ async fn same_name_on_two_instances_is_two_rows() {
 #[tokio::test]
 async fn delete_and_stale_cleanup_never_touch_other_instances() {
     let (a, b, _pg) = two_repos().await;
-    let name = ServiceName::new(unique("svc"));
+    let name = ServiceName::new(unique_name("svc"));
     register(&a, &name, 111).await;
     register(&b, &name, 222).await;
 
@@ -95,7 +92,7 @@ async fn delete_and_stale_cleanup_never_touch_other_instances() {
 #[tokio::test]
 async fn status_and_count_are_per_instance() {
     let (a, b, _pg) = two_repos().await;
-    let name = ServiceName::new(unique("svc"));
+    let name = ServiceName::new(unique_name("svc"));
     register(&a, &name, 111).await;
     register(&b, &name, 222).await;
 
@@ -117,7 +114,7 @@ async fn status_and_count_are_per_instance() {
 #[tokio::test]
 async fn heartbeat_touches_own_rows_and_reaper_crosses_instances() {
     let (a, b, pg) = two_repos().await;
-    let name = ServiceName::new(unique("svc"));
+    let name = ServiceName::new(unique_name("svc"));
     register(&a, &name, 111).await;
     register(&b, &name, 222).await;
 
@@ -141,9 +138,9 @@ async fn heartbeat_touches_own_rows_and_reaper_crosses_instances() {
 async fn reaper_skips_an_instance_that_holds_its_claim() {
     let db = test_pool().await;
     let pg = (*db.write_pool()).clone();
-    let claimed = ServiceRepository::new(&db, InstanceId::new(unique("alive")));
-    let reaper = ServiceRepository::new(&db, InstanceId::new(unique("reaper")));
-    let name = ServiceName::new(unique("svc"));
+    let claimed = ServiceRepository::new(&db, InstanceId::new(unique_name("alive")));
+    let reaper = ServiceRepository::new(&db, InstanceId::new(unique_name("reaper")));
+    let name = ServiceName::new(unique_name("svc"));
 
     let claim = claimed.claim_instance().await.expect("claim");
     register(&claimed, &name, 444).await;

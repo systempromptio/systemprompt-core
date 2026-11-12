@@ -20,10 +20,7 @@ use super::gateway_pipeline::{
     MODEL, PROVIDER, canonical_request, gateway_config, gw_repos, inputs, install_provider_api_key,
     provider_registry,
 };
-
-fn unique(prefix: &str) -> String {
-    format!("{prefix}_{}", Uuid::new_v4().simple())
-}
+use systemprompt_test_fixtures::unique_name;
 
 #[tokio::test]
 async fn replayed_tool_results_are_deduplicated_and_correlated_as_artifacts() -> anyhow::Result<()>
@@ -66,11 +63,11 @@ async fn replayed_tool_results_are_deduplicated_and_correlated_as_artifacts() ->
     assert_eq!(prior_response.status(), StatusCode::OK);
     to_bytes(prior_response.into_body(), 1024 * 1024).await?;
 
-    let known_id = unique("call_known");
-    let unknown_id = unique("call_unknown");
-    let known_tool = unique("lookup_inventory");
+    let known_id = unique_name("call_known");
+    let unknown_id = unique_name("call_unknown");
+    let known_tool = unique_name("lookup_inventory");
     let known_tool_name = McpToolName::new(known_tool.clone());
-    let known_input = serde_json::json!({"sku": unique("sku"), "limit": 2});
+    let known_input = serde_json::json!({"sku": unique_name("sku"), "limit": 2});
     let known_call_id = AiToolCallId::new(known_id.clone());
     let known_input_json = known_input.to_string();
     repos
@@ -252,7 +249,7 @@ async fn tool_result_artifact_uses_the_live_gateway_safety_policy() -> anyhow::R
     )));
     let mut repositories = gw_repos(&pool);
     repositories.artifact_ingest = Some(ingest);
-    let call_id = unique("artifact_scan_call");
+    let call_id = unique_name("artifact_scan_call");
     let mut request = canonical_request(MODEL, false);
     request.messages.push(CanonicalMessage {
         role: Role::Tool,

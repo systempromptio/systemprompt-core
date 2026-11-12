@@ -10,11 +10,7 @@ use systemprompt_database::{
     ServiceStatus,
 };
 use systemprompt_identifiers::{InstanceId, ServiceName};
-use systemprompt_test_fixtures::{LivePids, test_database_url};
-
-fn unique(prefix: &str) -> String {
-    format!("{prefix}_{}", uuid::Uuid::new_v4().simple())
-}
+use systemprompt_test_fixtures::{LivePids, test_database_url, unique_name};
 
 async fn db_pool() -> DbPool {
     let url = test_database_url();
@@ -32,7 +28,7 @@ async fn db_pool() -> DbPool {
 
 async fn repo() -> (ServiceRepository, DbPool) {
     let db = db_pool().await;
-    let repo = ServiceRepository::new(&db, InstanceId::new(unique("node")));
+    let repo = ServiceRepository::new(&db, InstanceId::new(unique_name("node")));
     (repo, db)
 }
 
@@ -58,7 +54,7 @@ async fn register(
 #[tokio::test]
 async fn re_registering_the_same_name_updates_the_row_in_place() {
     let (repo, _db) = repo().await;
-    let name = ServiceName::new(unique("svc"));
+    let name = ServiceName::new(unique_name("svc"));
     register(&repo, &name, ServiceModule::Mcp, 5555, 111).await;
 
     repo.create_service(CreateServiceInput {
@@ -95,8 +91,8 @@ async fn re_registering_the_same_name_updates_the_row_in_place() {
 #[tokio::test]
 async fn crashing_clears_the_pid_and_the_stale_sweep_reaps_the_row() {
     let (repo, _db) = repo().await;
-    let crashed = ServiceName::new(unique("svc_crashed"));
-    let healthy = ServiceName::new(unique("svc_healthy"));
+    let crashed = ServiceName::new(unique_name("svc_crashed"));
+    let healthy = ServiceName::new(unique_name("svc_healthy"));
     register(&repo, &crashed, ServiceModule::Mcp, 5555, 111).await;
     register(&repo, &healthy, ServiceModule::Mcp, 5556, 222).await;
 
@@ -141,9 +137,9 @@ async fn crashing_clears_the_pid_and_the_stale_sweep_reaps_the_row() {
 async fn running_listings_are_status_filtered_and_name_ordered() {
     let (repo, _db) = repo().await;
     let mut names = vec![
-        ServiceName::new(unique("svc_b")),
-        ServiceName::new(unique("svc_a")),
-        ServiceName::new(unique("svc_c")),
+        ServiceName::new(unique_name("svc_b")),
+        ServiceName::new(unique_name("svc_a")),
+        ServiceName::new(unique_name("svc_c")),
     ];
     for (index, name) in names.iter().enumerate() {
         register(
@@ -190,7 +186,7 @@ async fn running_listings_are_status_filtered_and_name_ordered() {
 #[tokio::test]
 async fn dead_instance_reaper_honours_the_retention_boundary() {
     let (repo, db) = repo().await;
-    let name = ServiceName::new(unique("svc"));
+    let name = ServiceName::new(unique_name("svc"));
     register(&repo, &name, ServiceModule::Mcp, 5557, 111).await;
 
     // Why: the sweep is table-wide, so every retention this test passes sits
