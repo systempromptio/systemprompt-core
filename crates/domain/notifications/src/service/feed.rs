@@ -15,7 +15,7 @@ use systemprompt_models::notifications::{
 
 use systemprompt_traits::RepositoryError;
 
-use super::NotificationsService;
+use super::{EscalationDelivery, NotificationsService};
 use crate::error::{NotificationsError, NotificationsResult};
 use crate::models::FeedFilter;
 
@@ -178,9 +178,11 @@ impl NotificationsService {
             },
         )
         .await?;
-        self.pipeline
-            .deliver(std::slice::from_ref(&escalated.id))
-            .await;
+        if self.escalation == EscalationDelivery::InProcess {
+            self.pipeline
+                .deliver(std::slice::from_ref(&escalated.id))
+                .await;
+        }
         Ok(escalated)
     }
 }

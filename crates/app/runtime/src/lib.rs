@@ -58,6 +58,8 @@ pub use startup_validation::{
     validate_extension_configs,
 };
 pub use systemprompt_database::MigrationConfig;
+#[cfg(feature = "notifications")]
+pub use systemprompt_notifications::service::EscalationDelivery;
 
 #[doc(hidden)]
 pub use systemprompt_mcp::__inventory as __toolset_inventory;

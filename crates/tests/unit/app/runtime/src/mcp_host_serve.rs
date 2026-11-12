@@ -76,6 +76,11 @@ async fn ctx() -> Arc<HostContext> {
         bootstrap
     });
     let env = host_child_env(bootstrap);
+    systemprompt_test_fixtures::seed_fixture_system_admin(
+        &systemprompt_test_fixtures::test_db_pool().await,
+    )
+    .await
+    .expect("seed the system admin");
     Arc::new(
         HostContext::boot(move |name| env.get(name).cloned())
             .await

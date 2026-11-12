@@ -12,11 +12,14 @@ use systemprompt_database::MigrationConfig;
 use systemprompt_loader::{ConfigLoader, ServicesSourceBootstrap, ServicesState};
 use systemprompt_mcp::repository::McpSessionRepository;
 use systemprompt_models::subprocess::VERIFICATION_KEYS_ENV;
+use systemprompt_security::jwt::VerifyingTokenAuthority;
 use systemprompt_security::keys::{TokenVerificationKeys, VerificationKeyring};
 use systemprompt_traits::{BackgroundTasks, CacheEpochs, SecretStore};
 use systemprompt_users::UserRepository;
 
 use super::HostContext;
+use super::extension_context::ExtensionHandles;
+use crate::builder::assembly::load_system_admin;
 use crate::builder::authz::authz_stage;
 use crate::builder::composition::build_artifact_ingest;
 use crate::builder::core_layer::{SchemaPolicy, init_files_config};
@@ -24,6 +27,8 @@ use crate::builder::database::connect_database;
 use crate::builder::documents::{DocumentsInputs, build_documents};
 use crate::builder::events::event_plane;
 use crate::builder::governance::init_governed_extensions;
+#[cfg(feature = "notifications")]
+use crate::builder::notifications::{ExtensionSeams, NotificationsCore};
 use crate::documents::ExtensionAudiences;
 use crate::error::RuntimeError;
 
@@ -43,7 +48,7 @@ pub enum HostBootError {
     VerificationKeysInvalid(#[source] serde_json::Error),
     #[error("{VERIFICATION_KEYS_ENV} holds a key that cannot verify")]
     VerificationKey(#[source] jsonwebtoken::errors::Error),
-    #[error("the services root could not be resolved")]
+    #[error("the services composition the API resolved could not be read")]
     ServicesRoot(#[source] systemprompt_loader::BundleError),
     #[error("the services configuration could not be loaded")]
     Services(#[source] systemprompt_loader::ConfigLoadError),
@@ -79,13 +84,8 @@ impl HostContext {
             Arc::new(GrantedSecrets::from_lookup(&lookup).map_err(HostBootError::Secrets)?);
         let verification = verification_keyring(&lookup)?;
 
-        let services_root = ServicesSourceBootstrap::resolve(
-            profile,
-            |name| secrets.get(name).map(str::to_owned),
-            env!("CARGO_PKG_VERSION"),
-        )
-        .await
-        .map_err(HostBootError::ServicesRoot)?;
+        let services_root =
+            ServicesSourceBootstrap::read_composed(profile).map_err(HostBootError::ServicesRoot)?;
         let app_paths = Arc::new(
             AppPaths::from_profile(
                 &profile.paths,
@@ -156,6 +156,7 @@ impl HostContext {
         let brain_sink: systemprompt_extension::DynBrainSink =
             Arc::new(crate::documents::BrainUnavailableSink);
 
+        let audiences = ExtensionAudiences::default();
         let documents = build_documents(&DocumentsInputs {
             services_root: &services_root.path,
             database: &database,
@@ -168,28 +169,47 @@ impl HostContext {
             extensions: &extensions,
             notifications: &notification_sink,
             brain: &brain_sink,
-            audiences: &ExtensionAudiences::default(),
+            audiences: &audiences,
         })?;
         #[cfg(feature = "notifications")]
-        let notifications = Arc::clone(
-            &crate::core_notifications(&crate::NotificationsInputs {
-                database: &database,
-                event_router: &event_router,
-                sink: &notification_sink,
-                listener_pool: &listener_pool,
-                documents: &documents,
-                profile: &profile.notifications,
-            })
-            .service,
-        );
+        let notifications_core = NotificationsCore::new(&crate::NotificationsInputs {
+            database: &database,
+            event_router: &event_router,
+            sink: &notification_sink,
+            listener_pool: &listener_pool,
+            documents: &documents,
+            profile: &profile.notifications,
+            escalation: systemprompt_notifications::service::EscalationDelivery::Consumer,
+        });
+        let user_repository = Arc::new(UserRepository::new(&database));
+        let system_owner = load_system_admin(
+            &config,
+            &Arc::new(systemprompt_users::UserService::new(Arc::clone(
+                &user_repository,
+            ))),
+        )
+        .await?
+        .id()
+        .clone();
+        let extension = ExtensionHandles {
+            tokens: Arc::new(VerifyingTokenAuthority::new(
+                verification.clone(),
+                config.jwt_issuer.clone(),
+            )),
+            file_storage,
+            extensions,
+            subjects: market.factory.subjects.clone(),
+            provider_tokens: Arc::default(),
+            system_owner,
+        };
 
-        Ok(Self {
+        let host = Self {
             artifact_ingest: build_artifact_ingest(&database, &governance.get()),
             tool_call_intents: Arc::new(systemprompt_ai::repository::AiRequestRepository::new(
                 &database,
             )),
             mcp_sessions: Arc::new(McpSessionRepository::new(&database)),
-            user_repository: Arc::new(UserRepository::new(&database)),
+            user_repository,
             subject_providers: market.subject_providers,
             profile: Arc::clone(&loaded),
             services_root,
@@ -203,10 +223,24 @@ impl HostContext {
             authz_hook,
             documents,
             #[cfg(feature = "notifications")]
-            notifications,
+            notifications: Arc::clone(
+                &notifications_core
+                    .assemble(ExtensionSeams::default())
+                    .service,
+            ),
             background_tasks,
             log_sink,
-        })
+            extension,
+        };
+        #[cfg(feature = "notifications")]
+        let host = {
+            let mut host = host;
+            let seams = ExtensionSeams::discover(&host);
+            audiences.bind(seams.audiences.clone());
+            host.notifications = Arc::clone(&notifications_core.assemble(seams).service);
+            host
+        };
+        Ok(host)
     }
 }
 

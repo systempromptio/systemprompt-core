@@ -1,7 +1,9 @@
 //! A spawned MCP server boots its `HostContext` from the child environment
 //! alone: it never reads the profile's secrets source, holds no secret it was
 //! not granted, refuses to start without the verification keys, and serves a
-//! hop-authenticated tool call on what it was given.
+//! hop-authenticated tool call on what it was given. It runs extension seam
+//! discovery as the API does, over a context whose token authority verifies
+//! and never signs.
 
 use std::sync::{Arc, OnceLock};
 
@@ -12,6 +14,7 @@ use systemprompt_runtime::mcp_host::serve_on;
 use systemprompt_runtime::{HostBootError, HostContext};
 use systemprompt_test_fixtures::{
     TestBootstrap, host_child_env, init_services_bootstrap, mint_mcp_hop,
+    seed_fixture_system_admin, test_db_pool,
 };
 
 use crate::documents_mcp_support::registered;
@@ -50,6 +53,9 @@ fn bootstrap() -> &'static TestBootstrap {
 async fn boot_with(
     env: std::collections::BTreeMap<String, String>,
 ) -> Result<HostContext, HostBootError> {
+    seed_fixture_system_admin(&test_db_pool().await)
+        .await
+        .expect("seed the system admin");
     HostContext::boot(move |name| env.get(name).cloned()).await
 }
 
@@ -230,4 +236,111 @@ async fn the_host_serves_a_hop_authenticated_tool_call_on_its_grants_alone() {
     .expect("refused call");
     assert_eq!(refused.status(), reqwest::StatusCode::UNAUTHORIZED);
     task.abort();
+}
+
+const HOST_DIMENSION: &str = "t3b-host-team";
+
+#[derive(Default)]
+struct HostTeam;
+
+#[async_trait::async_trait]
+impl systemprompt_extension::notifications::NotificationAudienceResolver for HostTeam {
+    fn name(&self) -> &'static str {
+        "t3b-host-team"
+    }
+
+    fn handles(&self, subject: &systemprompt_models::notifications::AudienceSubject) -> bool {
+        matches!(
+            subject,
+            systemprompt_models::notifications::AudienceSubject::Dimension { kind, .. }
+                if kind == HOST_DIMENSION
+        )
+    }
+
+    async fn members(
+        &self,
+        subject: &systemprompt_models::notifications::AudienceSubject,
+        _limit: usize,
+    ) -> Result<
+        Vec<systemprompt_identifiers::UserId>,
+        systemprompt_extension::notifications::NotificationAudienceError,
+    > {
+        let systemprompt_models::notifications::AudienceSubject::Dimension { value, .. } = subject
+        else {
+            return Ok(Vec::new());
+        };
+        Ok(vec![systemprompt_identifiers::UserId::new(format!(
+            "member-of-{value}"
+        ))])
+    }
+
+    async fn is_member(
+        &self,
+        _subject: &systemprompt_models::notifications::AudienceSubject,
+        _user: &systemprompt_identifiers::UserId,
+    ) -> Result<
+        systemprompt_extension::notifications::Membership,
+        systemprompt_extension::notifications::NotificationAudienceError,
+    > {
+        Ok(systemprompt_extension::notifications::Membership::Unknown)
+    }
+}
+
+systemprompt_extension::register_notification_audience!(HostTeam, priority = 50);
+
+#[tokio::test]
+async fn the_host_binds_extension_audiences_so_a_dimension_subject_has_its_members() {
+    let host = boot_with(host_child_env(bootstrap())).await.expect("host");
+    let members = host
+        .documents()
+        .access()
+        .subject_members(HOST_DIMENSION, "blue")
+        .await
+        .expect("dimension members");
+    assert_eq!(
+        members,
+        vec![systemprompt_identifiers::UserId::new("member-of-blue")],
+        "the host resolves an extension dimension as the API does"
+    );
+}
+
+#[tokio::test]
+async fn the_extension_context_the_host_hands_out_verifies_and_never_signs() {
+    use systemprompt_extension::ExtensionContext;
+    use systemprompt_models::auth::{McpHopIdentity, TokenError, UserType};
+
+    let host = boot_with(host_child_env(bootstrap())).await.expect("host");
+    let tokens = ExtensionContext::token_authority(&host);
+    let server = McpServerId::new("host_docs");
+    let user = registered("host-ext-ctx").await;
+    let identity = McpHopIdentity {
+        user_id: user.id.clone(),
+        user: Some(user.clone()),
+        session_id: systemprompt_identifiers::SessionId::new("s-ext"),
+        user_type: UserType::User,
+        client_id: None,
+        act_chain: Vec::new(),
+        purpose: None,
+        interaction: None,
+        mcp_session: None,
+    };
+    let refused = tokens
+        .mint_mcp_hop(&server, &identity)
+        .expect_err("the host holds no signing key");
+    assert!(matches!(refused, TokenError::Signing(_)), "{refused:?}");
+    assert!(matches!(
+        tokens.sign_claims(&json!({"exp": 1})),
+        Err(TokenError::Signing(_))
+    ));
+
+    let hop = mint_mcp_hop(&server, user.clone(), None, &host.config().jwt_issuer);
+    let claims = tokens
+        .verify_mcp_hop(&hop, &server)
+        .expect("a hop the API signed verifies against the public keys");
+    assert_eq!(claims.identity.user_id, user.id);
+    assert!(
+        ExtensionContext::dependencies(&host)
+            .get::<std::sync::Arc<systemprompt_oauth::repository::OAuthRepositories>>()
+            .is_err()
+    );
 }

@@ -66,6 +66,11 @@ async fn from_host_refuses_a_disabled_store_and_names_the_switch() {
 
     let bootstrap = init_services_bootstrap("mcp_servers: {}\n");
     let env = host_child_env(&bootstrap);
+    systemprompt_test_fixtures::seed_fixture_system_admin(
+        &systemprompt_test_fixtures::test_db_pool().await,
+    )
+    .await
+    .expect("seed the system admin");
     let disabled = HostContext::boot(|name| env.get(name).cloned())
         .await
         .expect("host context");

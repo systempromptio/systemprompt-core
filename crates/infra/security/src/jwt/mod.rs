@@ -26,6 +26,7 @@ pub mod lifetime;
 pub mod mint;
 pub mod owner_hop;
 pub mod validate;
+pub mod verifying;
 
 pub use authority::{DeploymentTokenAuthority, encode_rs256, user_claims};
 pub use decode::{JwtUserContext, extract_user_context, extract_user_context_for};
@@ -45,3 +46,4 @@ pub use validate::{
     JWT_LEEWAY_SECONDS, ValidationPolicy, decode_rs256_claims, decode_session_claims,
     reject_critical_header,
 };
+pub use verifying::{SigningUnavailable, VerifyingTokenAuthority};

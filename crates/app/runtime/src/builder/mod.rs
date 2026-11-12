@@ -9,7 +9,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod ai_service;
-mod assembly;
+pub(crate) mod assembly;
 pub(crate) mod authz;
 #[cfg(feature = "brain")]
 pub(crate) mod brain;
@@ -180,6 +180,7 @@ impl AppContextBuilder {
                 listener_pool: &listener_pool,
                 documents: &documents,
                 profile: &self.boot.profile().notifications,
+                escalation: systemprompt_notifications::service::EscalationDelivery::InProcess,
             });
         #[cfg(feature = "brain")]
         let brain_handle = brain_core

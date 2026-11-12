@@ -35,6 +35,19 @@ use crate::error::NotificationsResult;
 use crate::pipeline::NotificationPipeline;
 use crate::repository::NotificationRepositories;
 
+/// Where an escalated notification is delivered.
+///
+/// `InProcess` delivers it through this service's pipeline at once.
+/// `Consumer` leaves the row `pending` for the process that runs the
+/// notifications consumer with the full extension seams; its sweep delivers
+/// it. A process that holds only the core channels uses `Consumer`, so no
+/// extension channel is skipped.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EscalationDelivery {
+    InProcess,
+    Consumer,
+}
+
 /// Everything [`NotificationsService`] is built from.
 #[derive(Clone)]
 pub struct NotificationsServiceParts {
@@ -44,6 +57,7 @@ pub struct NotificationsServiceParts {
     pub pipeline: Arc<NotificationPipeline>,
     pub publish_policies: Vec<Arc<dyn PublishPolicy>>,
     pub db: DbPool,
+    pub escalation: EscalationDelivery,
 }
 
 impl std::fmt::Debug for NotificationsServiceParts {
@@ -63,6 +77,7 @@ pub struct NotificationsService {
     pipeline: Arc<NotificationPipeline>,
     publish_policies: Vec<Arc<dyn PublishPolicy>>,
     db: DbPool,
+    escalation: EscalationDelivery,
 }
 
 impl std::fmt::Debug for NotificationsService {
@@ -83,6 +98,7 @@ impl NotificationsService {
             pipeline: parts.pipeline,
             publish_policies: parts.publish_policies,
             db: parts.db,
+            escalation: parts.escalation,
         }
     }
 

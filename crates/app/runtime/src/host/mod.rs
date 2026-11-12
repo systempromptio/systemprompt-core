@@ -14,10 +14,19 @@
 //! [`LinkIssuer`](crate::documents::links::LinkIssuer), presenting the hop
 //! token of the call it is serving.
 //!
+//! It runs the API's extension seam discovery over its own
+//! [`ExtensionContext`](systemprompt_extension::ExtensionContext), whose
+//! token authority only verifies, so documents granted to an extension
+//! audience resolve as they do on the API. An escalated notification is left
+//! for the API's notifications consumer to deliver
+//! ([`EscalationDelivery::Consumer`](systemprompt_notifications::service::EscalationDelivery)),
+//! because the host delivers through no extension channel.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 mod boot;
+mod extension_context;
 
 use std::sync::Arc;
 
@@ -66,6 +75,7 @@ pub struct HostContext {
     notifications: Arc<NotificationsService>,
     background_tasks: BackgroundTasks,
     log_sink: systemprompt_logging::LogSink,
+    extension: extension_context::ExtensionHandles,
 }
 
 impl std::fmt::Debug for HostContext {

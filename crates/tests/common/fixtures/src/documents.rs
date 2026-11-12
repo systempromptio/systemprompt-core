@@ -34,6 +34,7 @@ pub fn fixture_notifications(
         documents,
         profile: &NotificationsProfile::default(),
         listener_pool: pool.write_pool().as_ref(),
+        escalation: systemprompt_runtime::EscalationDelivery::InProcess,
     })
 }
 
