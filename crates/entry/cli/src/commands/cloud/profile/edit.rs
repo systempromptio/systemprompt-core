@@ -7,11 +7,12 @@ use anyhow::{Context, Result};
 use std::path::Path;
 use systemprompt_cloud::ProfilePath;
 use systemprompt_config::write_private_atomic;
-use systemprompt_loader::ProfileLoader;
 use systemprompt_logging::CliService;
 
 use super::EditArgs;
-use super::edit_document::ProfileDocument;
+use serde_yaml::Value;
+
+use super::edit_document::ProfileEdit;
 use super::edit_secrets::edit_api_keys;
 use super::edit_settings::{edit_runtime_settings, edit_security_settings, edit_server_settings};
 use crate::context::CommandContext;
@@ -40,9 +41,7 @@ pub(super) fn execute(args: &EditArgs, ctx: &CommandContext) -> Result<()> {
 
     CliService::section(&format!("Edit Profile: {}", profile_path.display()));
 
-    let mut document = ProfileDocument::open(&profile_path)?;
-    let original = ProfileLoader::load_from_path(&profile_path)?;
-    let mut profile = original.clone();
+    let mut edit = ProfileEdit::open(&profile_path)?;
     let prompter = ctx.prompter();
 
     let edit_options: Vec<String> = [
@@ -60,17 +59,16 @@ pub(super) fn execute(args: &EditArgs, ctx: &CommandContext) -> Result<()> {
         let selection = prompter.select("What would you like to edit?", &edit_options)?;
 
         match selection {
-            0 => edit_server_settings(prompter, &mut profile)?,
-            1 => edit_security_settings(prompter, &mut profile)?,
-            2 => edit_runtime_settings(prompter, &mut profile)?,
+            0 => edit_server_settings(prompter, &mut edit)?,
+            1 => edit_security_settings(prompter, &mut edit)?,
+            2 => edit_runtime_settings(prompter, &mut edit)?,
             3 => edit_api_keys(prompter, &profile_dir)?,
             4 => break,
             other => return Err(anyhow::anyhow!("unexpected menu selection: {other}")),
         }
     }
 
-    document.apply_changes(&original, &profile)?;
-    document.save()?;
+    edit.save()?;
     CliService::success(&format!("Profile saved: {}", profile_path.display()));
 
     Ok(())
@@ -79,9 +77,7 @@ pub(super) fn execute(args: &EditArgs, ctx: &CommandContext) -> Result<()> {
 fn apply_updates(args: &EditArgs, profile_path: &Path, profile_dir: &Path) -> Result<()> {
     CliService::section(&format!("Updating Profile: {}", profile_path.display()));
 
-    let original = ProfileLoader::load_from_path(profile_path)?;
-    let mut profile = original.clone();
-    let mut profile_changed = false;
+    let mut edit = ProfileEdit::open(profile_path)?;
     let mut secrets_changed = false;
 
     let secrets_path = ProfilePath::Secrets.resolve(profile_dir);
@@ -123,20 +119,21 @@ fn apply_updates(args: &EditArgs, profile_path: &Path, profile_dir: &Path) -> Re
     }
 
     if let Some(url) = &args.set_external_url {
-        url.clone_into(&mut profile.server.external_url);
-        profile_changed = true;
+        edit.set("server.external_url", url, Value::String(url.clone()))?;
         CliService::success(&format!("Updated: external_url = {}", url));
     }
 
     if let Some(host) = &args.set_host {
-        host.clone_into(&mut profile.server.host);
-        profile_changed = true;
+        edit.set("server.host", host, Value::String(host.clone()))?;
         CliService::success(&format!("Updated: host = {}", host));
     }
 
     if let Some(port) = &args.set_port {
-        profile.server.port = *port;
-        profile_changed = true;
+        edit.set(
+            "server.port",
+            &port.to_string(),
+            Value::Number((*port).into()),
+        )?;
         CliService::success(&format!("Updated: port = {}", port));
     }
 
@@ -146,11 +143,7 @@ fn apply_updates(args: &EditArgs, profile_path: &Path, profile_dir: &Path) -> Re
             .with_context(|| format!("Failed to write {}", secrets_path.display()))?;
     }
 
-    if profile_changed {
-        let mut document = ProfileDocument::open(profile_path)?;
-        document.apply_changes(&original, &profile)?;
-        document.save()?;
-    }
+    edit.save()?;
 
     CliService::success(&format!("Profile saved: {}", profile_path.display()));
     Ok(())

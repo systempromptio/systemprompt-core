@@ -31,7 +31,7 @@ use super::messages::auth::{AuthInputs, authenticate};
 use super::messages::error::RejectionError;
 use super::messages::extract::headers::body_read_error;
 use super::messages::{GatewayHandles, extract_credential};
-use crate::services::middleware::JwtContextExtractor;
+use crate::services::middleware::{JwtContextExtractor, read_body_bounded};
 
 const CHARS_PER_TOKEN: usize = 4;
 
@@ -93,7 +93,7 @@ async fn count(
         },
     )
     .await?;
-    let body = axum::body::to_bytes(
+    let body = read_body_bounded(
         request.into_body(),
         systemprompt_models::net::INFERENCE_BODY_LIMIT_BYTES,
     )

@@ -5,8 +5,7 @@
 
 use systemprompt_cloud::{ProfilePath, ProjectContext, SessionKey, SessionStore};
 use systemprompt_identifiers::ProfileName;
-use systemprompt_loader::ProfileLoader;
-use systemprompt_manifest::Profile;
+use systemprompt_manifest::profile::{CloudConfig, ManagedProfile};
 
 use super::types::{ProfileInfo, ProfileListOutput};
 use crate::CliConfig;
@@ -60,12 +59,14 @@ pub(super) fn execute(_config: &CliConfig) -> CommandOutput {
     .with_title("Available Profiles")
 }
 
-struct DiscoveredProfile {
-    name: String,
-    tenant: Option<systemprompt_identifiers::TenantId>,
+/// A profile directory found under the profiles root, with its tenant.
+#[derive(Debug)]
+pub struct DiscoveredProfile {
+    pub name: String,
+    pub tenant: Option<systemprompt_identifiers::TenantId>,
 }
 
-fn discover_profiles(dir: &std::path::Path) -> Vec<DiscoveredProfile> {
+pub fn discover_profiles(dir: &std::path::Path) -> Vec<DiscoveredProfile> {
     let entries = match std::fs::read_dir(dir) {
         Ok(e) => e,
         Err(e) => {
@@ -90,17 +91,20 @@ fn discover_profiles(dir: &std::path::Path) -> Vec<DiscoveredProfile> {
 
             Some(DiscoveredProfile {
                 name,
-                tenant: profile
-                    .as_ref()
-                    .and_then(|p| p.cloud.as_ref())
-                    .and_then(|c| c.tenant_id.clone()),
+                tenant: profile.and_then(|c| c.tenant_id),
             })
         })
         .collect()
 }
 
-fn load_profile_config(config_path: &std::path::Path) -> Option<Profile> {
-    ProfileLoader::load_from_path(config_path).ok()
+fn load_profile_config(config_path: &std::path::Path) -> Option<CloudConfig> {
+    ManagedProfile::load(config_path)
+        .and_then(|profile| profile.section::<CloudConfig>("cloud"))
+        .map_err(|e| {
+            tracing::warn!(path = %config_path.display(), error = %e, "Profile cloud section unreadable");
+        })
+        .ok()
+        .flatten()
 }
 
 fn build_profile_info(info: &DiscoveredProfile, store: Option<&SessionStore>) -> ProfileInfo {

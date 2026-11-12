@@ -23,6 +23,12 @@ pub mod response;
 pub mod streaming;
 mod terminal;
 
+const CODEC: super::WireCodec = super::WireCodec {
+    wire: "anthropic",
+    parse: anthropic::parse_response,
+    events: |bytes, _model| anthropic::sse_to_canonical_events(bytes),
+};
+
 #[derive(Debug, Clone, Copy, Default)]
 pub struct AnthropicOutbound;
 
@@ -39,7 +45,9 @@ impl OutboundAdapter for AnthropicOutbound {
         }
         let mut body =
             request::build_request_body(ctx.request, ctx.upstream_model, ctx.model_limits);
-        request::enable_automatic_prompt_caching(&mut body, ctx);
+        if ctx.policy.rewrites_request() {
+            request::enable_automatic_prompt_caching(&mut body, ctx);
+        }
         ctx.upstream
             .finish_value(WireProtocol::Anthropic, &mut body);
         Ok(PreparedBody {
@@ -65,8 +73,19 @@ impl OutboundAdapter for AnthropicOutbound {
             ctx.request.stream,
         );
 
-        let upstream_response =
-            send_learning_refusals(&learning_key(&ctx), &url, &ctx, body).await?;
+        // Why: what an upstream refuses is learned per endpoint and dropped for
+        // every later request to it. A hop that learns nothing keeps its
+        // headers whole and returns the upstream's own refusal.
+        let provider = learning_key(&ctx);
+        let upstream_response = if ctx.policy.learns_refusals() {
+            send_learning_refusals(&provider, &url, &ctx, body).await?
+        } else {
+            send_once(&ctx, &provider, &url, &request_headers(&ctx), &body.bytes).await?
+        };
+
+        if ctx.policy.returns_response_whole() {
+            return super::relay::relay(&ctx, upstream_response, CODEC).await;
+        }
 
         let content_type = upstream_response
             .headers()
@@ -75,7 +94,7 @@ impl OutboundAdapter for AnthropicOutbound {
             .map(ToOwned::to_owned);
 
         if ctx.request.stream {
-            let stream = upstream_response.bytes_stream();
+            let stream = super::bounds::idle_bounded(upstream_response, ctx.http.bounds().idle);
             if passthrough {
                 return Ok(OutboundOutcome::RawStreaming {
                     content_type,
@@ -87,13 +106,7 @@ impl OutboundAdapter for AnthropicOutbound {
             ));
         }
 
-        let bytes = upstream_response
-            .bytes()
-            .await
-            .map_err(|source| OutboundError::ReadBody {
-                wire: "anthropic",
-                source,
-            })?;
+        let bytes = super::read_body("anthropic", ctx.http, upstream_response).await?;
         let value: Value =
             serde_json::from_slice(&bytes).map_err(|source| OutboundError::DecodeBody {
                 wire: "anthropic",
@@ -130,7 +143,7 @@ async fn send_learning_refusals(
     body: &PreparedBody,
 ) -> Result<reqwest::Response, super::UpstreamError> {
     let headers = rejected_betas::without(request_headers(ctx), &rejected_betas::learned(provider));
-    let error = match send_once(ctx.http, provider, url, &headers, &body.bytes).await {
+    let error = match send_once(ctx, provider, url, &headers, &body.bytes).await {
         Ok(response) => return Ok(response),
         Err(e) => e,
     };
@@ -170,7 +183,7 @@ async fn send_learning_refusals(
         anthropic::BetaHeader::parse(&refused.iter().cloned().collect::<Vec<_>>().join(","));
     let bytes = request::without_refused(&body.bytes, provider, &dropped, &refused_fields);
     send_once(
-        ctx.http,
+        ctx,
         provider,
         url,
         &rejected_betas::without(headers, &refused),
@@ -180,17 +193,17 @@ async fn send_learning_refusals(
 }
 
 async fn send_once(
-    http: &reqwest::Client,
+    ctx: &OutboundCtx<'_>,
     provider: &str,
     url: &str,
     headers: &[(String, String)],
     body: &bytes::Bytes,
 ) -> Result<reqwest::Response, super::UpstreamError> {
-    let mut req = http.post(url).body(body.clone());
+    let mut req = ctx.http.post(url).body(body.clone());
     for (name, value) in headers {
         req = req.header(name, value);
     }
-    super::send_checked(provider, req).await
+    super::send_checked(provider, ctx, req).await
 }
 
 fn bad_request_message(error: &super::UpstreamError) -> Option<&str> {
@@ -200,7 +213,11 @@ fn bad_request_message(error: &super::UpstreamError) -> Option<&str> {
             message,
             ..
         } => Some(message),
-        super::UpstreamError::Status { .. } | super::UpstreamError::Transport { .. } => None,
+        super::UpstreamError::Status { .. }
+        | super::UpstreamError::Transport { .. }
+        | super::UpstreamError::Timeout { .. }
+        | super::UpstreamError::Relayed { .. }
+        | super::UpstreamError::UnreadableBody { .. } => None,
     }
 }
 

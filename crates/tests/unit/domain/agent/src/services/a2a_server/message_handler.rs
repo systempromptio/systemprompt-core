@@ -6,6 +6,7 @@
 
 use std::sync::Arc;
 use systemprompt_identifiers::AgentName;
+use systemprompt_test_fixtures::agent_reads::TaskReadsExt;
 
 use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TaskState};
 use systemprompt_agent::services::a2a_server::ActiveTasks;
@@ -75,7 +76,7 @@ async fn handle_message_with_runtime_completes_task_end_to_end() {
 
     let stored = repos
         .tasks
-        .find_task(&task.id)
+        .read_task(&task.id)
         .await
         .expect("get task")
         .expect("task row");
@@ -165,7 +166,7 @@ async fn handle_message_with_runtime_surfaces_model_stream_failure() {
 
     let stored = repos
         .tasks
-        .find_task(&client_task_id)
+        .read_task(&client_task_id)
         .await
         .expect("get task")
         .expect("initial task must have been persisted before the failure");
@@ -239,7 +240,7 @@ async fn cancellation_marks_nonstream_task_canceled_without_agent_response() {
             .await
     );
 
-    let stored = repos.tasks.find_task(&task_id).await.unwrap().unwrap();
+    let stored = repos.tasks.read_task(&task_id).await.unwrap().unwrap();
     assert_eq!(stored.status.state, TaskState::Canceled);
     assert!(stored.history.as_ref().is_none_or(Vec::is_empty));
 }

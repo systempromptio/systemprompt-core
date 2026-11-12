@@ -137,14 +137,17 @@ impl crate::repository::OAuthRepository {
         }
     }
 
-    pub async fn consume_setup_token(&self, token_id: &TokenId) -> Result<bool> {
+    pub async fn consume_setup_token(&self, token_id: &TokenId, token_hash: &str) -> Result<bool> {
         let rows_affected = sqlx::query!(
             r#"
             UPDATE webauthn_setup_tokens
             SET used_at = CURRENT_TIMESTAMP
-            WHERE id = $1 AND used_at IS NULL
+            WHERE id = $1 AND token_hash = $2
+              AND used_at IS NULL
+              AND expires_at >= CURRENT_TIMESTAMP
             "#,
-            token_id.as_str()
+            token_id.as_str(),
+            token_hash
         )
         .execute(self.write_pool_ref())
         .await?

@@ -2,11 +2,14 @@
 //!
 //! [`validate_registries`] checks the four registries on their own and
 //! against each other: credentials are well-formed, every reference resolves,
-//! endpoints are SSRF-guarded, a personal credential belongs to one provider,
+//! endpoints are SSRF-guarded, a member-paid credential belongs to one provider
+//! and a caller credential reaches only endpoints the vendor hosts itself on a
+//! wire some client request format speaks,
 //! every model is deployed and every deployment is of a declared model.
 //! [`validate_routes`] runs on the projection: the default model, route
-//! aliases, route narrowing, governance and, with the gateway enabled, that
-//! every hop is priced.
+//! aliases, route narrowing, governance, that a model with a member-paid
+//! deployment bills one credential on every hop it can reach and, with the
+//! gateway enabled, that every hop is priced.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -19,30 +22,17 @@ use systemprompt_wire::hosting::names_a_project_literally;
 
 use super::ResolvedCatalog;
 use super::build::CatalogInput;
-use crate::services::catalog::credentials::CredentialKind;
+use crate::services::catalog::credentials::{CredentialEntry, CredentialKind};
 use crate::services::catalog::error::{CatalogError, CatalogResult};
 use crate::services::catalog::headers;
 use crate::services::catalog::providers::ProviderConfig;
 
 pub(super) fn validate_registries(input: &CatalogInput<'_>) -> CatalogResult<()> {
     for (id, credential) in input.credentials.iter() {
-        match (credential.kind, credential.secret.as_ref()) {
-            (CredentialKind::Platform, None) => {
-                return Err(CatalogError::PlatformCredentialWithoutSecret {
-                    credential: id.clone(),
-                });
-            },
-            (CredentialKind::Personal, Some(secret)) => {
-                return Err(CatalogError::PersonalCredentialWithSecret {
-                    credential: id.clone(),
-                    secret: secret.as_str().to_owned(),
-                });
-            },
-            _ => {},
-        }
+        validate_credential(id, credential)?;
     }
     let trusted = systemprompt_models::net::trusted_http_hosts_from_env();
-    let mut personal_owner: BTreeMap<&CredentialId, &ProviderId> = BTreeMap::new();
+    let mut member_owner: BTreeMap<&CredentialId, &ProviderId> = BTreeMap::new();
     for (id, provider) in input.providers.iter() {
         let Some(credential) = input.credentials.get(provider.credential.as_str()) else {
             return Err(CatalogError::UnknownCredential {
@@ -50,14 +40,17 @@ pub(super) fn validate_registries(input: &CatalogInput<'_>) -> CatalogResult<()>
                 credential: provider.credential.clone(),
             });
         };
-        if credential.kind.is_personal()
-            && let Some(first) = personal_owner.insert(&provider.credential, id)
+        if credential.kind.is_member_paid()
+            && let Some(first) = member_owner.insert(&provider.credential, id)
         {
             return Err(CatalogError::PersonalCredentialShared {
                 credential: provider.credential.clone(),
                 first: first.clone(),
                 second: id.clone(),
             });
+        }
+        if credential.kind.is_caller() {
+            super::validate_billing::check_caller_provider(id, provider)?;
         }
         validate_provider(id, provider, &trusted)?;
     }
@@ -99,13 +92,17 @@ fn validate_provider(
                 endpoint: endpoint_id.clone(),
             });
         }
-        systemprompt_models::net::validate_outbound_url_with_trust(&endpoint.url, trusted)
-            .map_err(|source| CatalogError::BlockedEndpointUrl {
-                provider: id.clone(),
-                endpoint: endpoint_id.clone(),
-                url: endpoint.url.clone(),
-                source,
-            })?;
+        systemprompt_models::net::validate_outbound_url_with_trust(
+            &endpoint.url,
+            trusted,
+            systemprompt_models::net::LoopbackPolicy::Allow,
+        )
+        .map_err(|source| CatalogError::BlockedEndpointUrl {
+            provider: id.clone(),
+            endpoint: endpoint_id.clone(),
+            url: endpoint.url.clone(),
+            source,
+        })?;
         if names_a_project_literally(&endpoint.url) {
             return Err(CatalogError::LiteralProjectInUrl {
                 provider: id.clone(),
@@ -187,6 +184,7 @@ pub(super) fn validate_routes(catalog: &ResolvedCatalog) -> CatalogResult<()> {
         }
     }
     super::validate_hops::check_default_image_model(catalog)?;
+    super::validate_billing::check_model_chains(catalog)?;
     let mut aliases: HashSet<&ModelId> = HashSet::new();
     for route in &catalog.routes {
         let mut matched: Vec<&ModelId> = Vec::new();
@@ -229,6 +227,7 @@ pub(super) fn validate_routes(catalog: &ResolvedCatalog) -> CatalogResult<()> {
                 model: fallback.clone(),
             });
         }
+        super::validate_billing::check_context_fallbacks(catalog, route, &matched)?;
         for model in matched {
             let chain = catalog.route_chain(route, model)?;
             super::validate_hops::check_route_governance(route, &chain)?;
@@ -240,4 +239,48 @@ pub(super) fn validate_routes(catalog: &ResolvedCatalog) -> CatalogResult<()> {
         }
     }
     Ok(())
+}
+
+fn validate_credential(id: &CredentialId, credential: &CredentialEntry) -> CatalogResult<()> {
+    let invalid_workload = |problem| CatalogError::InvalidWorkloadIdentity {
+        credential: id.clone(),
+        problem,
+    };
+    match (
+        credential.kind,
+        credential.secret.as_ref(),
+        credential.workload_identity.as_ref(),
+    ) {
+        (CredentialKind::Platform, None, None) => {
+            Err(CatalogError::PlatformCredentialWithoutSecret {
+                credential: id.clone(),
+            })
+        },
+        (CredentialKind::Platform, Some(_), Some(_)) => {
+            Err(CatalogError::PlatformCredentialWithTwoSources {
+                credential: id.clone(),
+            })
+        },
+        (CredentialKind::Platform, None, Some(workload)) if workload.project.trim().is_empty() => {
+            Err(invalid_workload("with an empty `project`"))
+        },
+        (CredentialKind::Personal | CredentialKind::Caller, _, Some(_)) => Err(invalid_workload(
+            "but is not `kind: platform`; only the deployment's own credential runs as its \
+             workload",
+        )),
+        (CredentialKind::Personal, Some(secret), None) => {
+            Err(CatalogError::PersonalCredentialWithSecret {
+                credential: id.clone(),
+                secret: secret.as_str().to_owned(),
+            })
+        },
+        (CredentialKind::Caller, Some(secret), None) => {
+            Err(CatalogError::CallerCredentialWithSecret {
+                credential: id.clone(),
+                secret: secret.as_str().to_owned(),
+            })
+        },
+        (CredentialKind::Platform, _, _)
+        | (CredentialKind::Personal | CredentialKind::Caller, None, None) => Ok(()),
+    }
 }

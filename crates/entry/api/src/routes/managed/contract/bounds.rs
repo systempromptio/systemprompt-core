@@ -4,7 +4,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 use super::problem;
-use axum::body::{Body, to_bytes};
+use crate::services::middleware::read_body_bounded;
+use axum::body::Body;
 use axum::extract::Request;
 use axum::http::{StatusCode, header};
 use axum::response::Response;
@@ -37,12 +38,14 @@ pub(super) async fn validate(request: Request) -> Result<Request, Box<Response>>
         return Ok(request);
     }
     let (parts, body) = request.into_parts();
-    let bytes = to_bytes(body, BODY_LIMIT).await.map_err(|_error| {
-        Box::new(problem(
-            StatusCode::PAYLOAD_TOO_LARGE,
-            "JSON request exceeds 1 MiB",
-        ))
-    })?;
+    let bytes = read_body_bounded(body, BODY_LIMIT)
+        .await
+        .map_err(|_error| {
+            Box::new(problem(
+                StatusCode::PAYLOAD_TOO_LARGE,
+                "JSON request exceeds 1 MiB",
+            ))
+        })?;
     // JSON: inspect the bounded transport envelope before its typed extractor;
     // values remain immutable and are not used as application contracts.
     if let Ok(value) = serde_json::from_slice::<serde_json::Value>(&bytes) {

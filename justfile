@@ -201,9 +201,9 @@ lint-field-copy-from:
 # every failure). quality.yml's `source-gates-*` jobs run each listed recipe as
 # its own step, and source-gates-release asserts their union equals that file — a gate added
 # there without a CI step fails the job, and a CI step for a gate not listed
-# there fails it too. `check-release-tag`, `check-crate-changelogs`, `machete` and
-# `bridge-bindings-check` are release-shaped (full history, cargo-machete, a
-# bridge build) and stay CI-only by design.
+# there fails it too. `check-release-tag`, `check-crate-changelogs`, `machete`,
+# `lint-test-hack` and `bridge-bindings-check` are release-shaped (full history,
+# cargo-machete, cargo-hakari, a bridge build) and stay CI-only by design.
 check-gates:
     bash scripts/check-gates.sh
 
@@ -326,6 +326,16 @@ lint-bridge-native-tests:
 # transitively within crates/tests.
 lint-native-test-deps:
     ./scripts/lint-native-test-deps.sh
+
+# Regenerate crates/tests/common/hack (the test workspace's feature-unification
+# crate) and the dependency line each test crate carries on it. Run after a
+# dependency or feature change in crates/tests or in a crate it tests.
+test-hack:
+    cd crates/tests && cargo hakari generate && cargo hakari manage-deps --yes
+
+# The committed hack crate matches what `just test-hack` would write.
+lint-test-hack:
+    cd crates/tests && cargo hakari generate --diff && cargo hakari manage-deps --dry-run
 
 # The bridge mirrors the root [workspace.lints] tables by hand (standalone
 # workspace, no inheritance). Fail when the copies drift.
@@ -548,6 +558,7 @@ style-check:
     echo ""
     echo "1️⃣  Checking code formatting..."
     cargo +{{NIGHTLY}} fmt --all -- --check
+    cargo +{{NIGHTLY}} fmt --manifest-path bin/bridge/Cargo.toml --all -- --check
     echo ""
     echo "2️⃣  Running clippy linter..."
     cargo clippy --workspace --all-targets --all-features --keep-going -- -D warnings
@@ -1155,6 +1166,10 @@ lint-shared-test-ids:
 # Every task and thread has an owner (BackgroundTasks / OwnedTask); no detached spawns.
 lint-owned-tasks:
     ./scripts/lint-owned-tasks.sh
+
+# Raw body reads carry a bound: no `to_bytes(_, usize::MAX)`, no bare `collect()`.
+lint-unbounded-bodies:
+    ./scripts/lint-unbounded-bodies.sh
 
 # serde_json::Value in a signature is a protocol boundary with a `// JSON:` line.
 lint-json-value:

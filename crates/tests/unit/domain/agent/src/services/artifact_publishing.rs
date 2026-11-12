@@ -4,27 +4,21 @@
 // the direct-vs-agentic message-creation branch.
 
 use std::sync::Arc;
-use systemprompt_identifiers::McpToolName;
+use systemprompt_test_fixtures::agent_reads::{ArtifactReadsExt, TaskReadsExt};
 
 use systemprompt_agent::models::a2a::{Artifact, ArtifactMetadata, Part};
 use systemprompt_agent::repository::A2ARepositories;
 use systemprompt_agent::repository::execution::ExecutionStepRepository;
 use systemprompt_agent::services::SkillService;
-use systemprompt_agent::services::artifact_publishing::{
-    ArtifactPublishingService, PublishFromMcpParams,
-};
-use systemprompt_identifiers::{
-    Actor, AgentName, ArtifactId, ContextId, McpExecutionId, SessionId, TaskId, TraceId, UserId,
-};
-use systemprompt_models::execution::CallSource;
-use systemprompt_models::execution::context::RequestContext;
+use systemprompt_agent::services::artifact_publishing::ArtifactPublishingService;
+use systemprompt_identifiers::{ArtifactId, ContextId, McpExecutionId, TaskId};
 use systemprompt_test_fixtures::{
     ToolExecutionLedger, a2a_dependencies, ensure_test_bootstrap, not_managed_skills,
     tool_execution_ledger,
 };
 use systemprompt_test_mocks::recording_webhooks;
 
-use crate::repository::{repos, seed_context_and_task, seed_user_and_session};
+use crate::repository::{repos, seed_runtime_task, seed_user_and_session};
 use systemprompt_test_fixtures::test_db_pool;
 
 async fn publishing_service(pool: &systemprompt_database::DbPool) -> ArtifactPublishingService {
@@ -70,41 +64,30 @@ fn artifact(
     }
 }
 
-fn request_context(ctx: &ContextId, session: &SessionId, user: &UserId) -> RequestContext {
-    let mut rc = RequestContext::new(
-        session.clone(),
-        TraceId::generate(),
-        ctx.clone(),
-        AgentName::try_new("pub-agent").expect("valid AgentName"),
-        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
-    );
-    rc.auth.actor = Actor::user(user.clone());
-    rc
-}
-
 #[tokio::test]
 async fn publish_from_a2a_persists_artifact() {
     let pool = test_db_pool().await;
     let svc = publishing_service(&pool).await;
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let r = repos(&pool);
-    let (ctx, tid) = seed_context_and_task(&r, &user_id, &session_id).await;
+    let (ctx, runtime) = seed_runtime_task(&r, &user_id, &session_id).await;
+    let tid = runtime.task_id().clone();
 
     let id = ArtifactId::generate();
     let art = artifact(&id, &ctx, &tid, None);
-    svc.publish_from_a2a(&art, &tid, &ctx, &user_id)
+    svc.publish_from_a2a(&art, &runtime, &user_id)
         .await
         .expect("publish a2a");
 
     let repo = r.artifacts.clone();
     let fetched = repo
-        .find_artifact_by_id(&id)
+        .read_artifact(&id)
         .await
         .expect("get")
         .expect("present");
     assert_eq!(fetched.id, id);
 
-    r.tasks.delete_task(&tid).await.ok();
+    r.tasks.remove_task(&tid).await.ok();
 }
 
 #[tokio::test]
@@ -113,24 +96,25 @@ async fn publish_from_a2a_nulls_unknown_execution_id() {
     let svc = publishing_service(&pool).await;
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let r = repos(&pool);
-    let (ctx, tid) = seed_context_and_task(&r, &user_id, &session_id).await;
+    let (ctx, runtime) = seed_runtime_task(&r, &user_id, &session_id).await;
+    let tid = runtime.task_id().clone();
 
     let id = ArtifactId::generate();
     // The ledger answers "absent" for this execution id, so it is nulled.
     let art = artifact(&id, &ctx, &tid, Some("nonexistent-exec-id"));
-    svc.publish_from_a2a(&art, &tid, &ctx, &user_id)
+    svc.publish_from_a2a(&art, &runtime, &user_id)
         .await
         .expect("publish");
 
     let repo = r.artifacts.clone();
     let fetched = repo
-        .find_artifact_by_id(&id)
+        .read_artifact(&id)
         .await
         .expect("get")
         .expect("present");
     assert!(fetched.metadata.mcp_execution_id.is_none());
 
-    r.tasks.delete_task(&tid).await.ok();
+    r.tasks.remove_task(&tid).await.ok();
 }
 
 #[tokio::test]
@@ -139,7 +123,8 @@ async fn publish_from_a2a_keeps_a_known_execution_id() {
     let svc = service_with_ledger(&pool, ToolExecutionLedger::Exists).await;
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let r = repos(&pool);
-    let (ctx, tid) = seed_context_and_task(&r, &user_id, &session_id).await;
+    let (ctx, runtime) = seed_runtime_task(&r, &user_id, &session_id).await;
+    let tid = runtime.task_id().clone();
 
     let exec_id = format!("exec-{}", uuid::Uuid::new_v4().simple());
     let sqlx_pool = pool.pool();
@@ -155,13 +140,13 @@ async fn publish_from_a2a_keeps_a_known_execution_id() {
 
     let id = ArtifactId::generate();
     let art = artifact(&id, &ctx, &tid, Some(&exec_id));
-    svc.publish_from_a2a(&art, &tid, &ctx, &user_id)
+    svc.publish_from_a2a(&art, &runtime, &user_id)
         .await
         .expect("publish");
 
     let fetched = r
         .artifacts
-        .find_artifact_by_id(&id)
+        .read_artifact(&id)
         .await
         .expect("get")
         .expect("present");
@@ -174,7 +159,7 @@ async fn publish_from_a2a_keeps_a_known_execution_id() {
         Some(exec_id.as_str())
     );
 
-    r.tasks.delete_task(&tid).await.ok();
+    r.tasks.remove_task(&tid).await.ok();
 }
 
 #[tokio::test]
@@ -183,83 +168,22 @@ async fn an_unreachable_execution_ledger_fails_the_publish_and_keeps_the_id() {
     let svc = service_with_ledger(&pool, ToolExecutionLedger::Unavailable).await;
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let r = repos(&pool);
-    let (ctx, tid) = seed_context_and_task(&r, &user_id, &session_id).await;
+    let (ctx, runtime) = seed_runtime_task(&r, &user_id, &session_id).await;
+    let tid = runtime.task_id().clone();
 
     let id = ArtifactId::generate();
     let art = artifact(&id, &ctx, &tid, Some("exec-while-down"));
     let err = svc
-        .publish_from_a2a(&art, &tid, &ctx, &user_id)
+        .publish_from_a2a(&art, &runtime, &user_id)
         .await
         .expect_err("an unreachable ledger is an error, not an unknown execution");
     assert!(err.to_string().contains("exec-while-down"), "{err}");
 
-    let fetched = r.artifacts.find_artifact_by_id(&id).await.expect("get");
+    let fetched = r.artifacts.read_artifact(&id).await.expect("get");
     assert!(
         fetched.is_none(),
         "nothing is persisted with a detached execution id"
     );
 
-    r.tasks.delete_task(&tid).await.ok();
-}
-
-#[tokio::test]
-async fn publish_from_mcp_agentic_skips_messages() {
-    let pool = test_db_pool().await;
-    let svc = publishing_service(&pool).await;
-    let (user_id, session_id) = seed_user_and_session(&pool).await;
-    let r = repos(&pool);
-    let (ctx, tid) = seed_context_and_task(&r, &user_id, &session_id).await;
-    let rc = request_context(&ctx, &session_id, &user_id);
-    let args = serde_json::json!({"a": 1});
-
-    let id = ArtifactId::generate();
-    let art = artifact(&id, &ctx, &tid, None);
-    svc.publish_from_mcp(PublishFromMcpParams {
-        artifact: &art,
-        task_id: &tid,
-        context_id: &ctx,
-        tool_name: &McpToolName::new("tool-x"),
-        tool_args: &args,
-        request_context: &rc,
-        call_source: CallSource::Agentic,
-    })
-    .await
-    .expect("publish agentic");
-
-    // Agentic path persists the artifact but does NOT create messages.
-    let messages = r.tasks.get_messages_by_task(&tid).await.expect("messages");
-    assert!(messages.is_empty());
-
-    r.tasks.delete_task(&tid).await.ok();
-}
-
-#[tokio::test]
-async fn publish_from_mcp_direct_creates_messages() {
-    let pool = test_db_pool().await;
-    let svc = publishing_service(&pool).await;
-    let (user_id, session_id) = seed_user_and_session(&pool).await;
-    let r = repos(&pool);
-    let (ctx, tid) = seed_context_and_task(&r, &user_id, &session_id).await;
-    let rc = request_context(&ctx, &session_id, &user_id);
-    let args = serde_json::json!({"q": "x"});
-
-    let id = ArtifactId::generate();
-    let art = artifact(&id, &ctx, &tid, None);
-    svc.publish_from_mcp(PublishFromMcpParams {
-        artifact: &art,
-        task_id: &tid,
-        context_id: &ctx,
-        tool_name: &McpToolName::new("tool-direct"),
-        tool_args: &args,
-        request_context: &rc,
-        call_source: CallSource::Direct,
-    })
-    .await
-    .expect("publish direct");
-
-    // Direct path creates a synthetic user message + an agent response message.
-    let messages = r.tasks.get_messages_by_task(&tid).await.expect("messages");
-    assert_eq!(messages.len(), 2);
-
-    r.tasks.delete_task(&tid).await.ok();
+    r.tasks.remove_task(&tid).await.ok();
 }

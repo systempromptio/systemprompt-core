@@ -5,7 +5,9 @@
 //! extension and a classification predicate from another) without either
 //! extension needing to know about the other. The composite iterates its
 //! hooks in order, short-circuits on the first `Deny`, and otherwise returns
-//! `Allow`. Composition is pure data: callers build the `Vec` themselves at
+//! `Allow`. It is built from a first hook plus the rest, so an empty
+//! composite — which would allow everything — cannot be constructed.
+//! Composition is pure data: callers build the hooks themselves at
 //! their binary entry point and pass the result to
 //! `AppContextBuilder::with_authz_hook`. Core never auto-composes.
 //!
@@ -42,7 +44,10 @@ pub struct CompositeAuthzHook {
 
 impl CompositeAuthzHook {
     #[must_use]
-    pub fn new(hooks: Vec<SharedAuthzHook>) -> Self {
+    pub fn new(first: SharedAuthzHook, rest: Vec<SharedAuthzHook>) -> Self {
+        let mut hooks = Vec::with_capacity(rest.len() + 1);
+        hooks.push(first);
+        hooks.extend(rest);
         Self { hooks }
     }
 }

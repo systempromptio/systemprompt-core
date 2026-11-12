@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.81.0] - 2026-11-12
+
+### Changed
+
+- Stored log fields and messages are scrubbed and size-capped.
+
 ## [0.73.0] - 2026-10-25
 
 ### Breaking

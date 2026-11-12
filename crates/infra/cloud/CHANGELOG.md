@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.81.0] - 2026-11-12
+
+### Breaking
+
+- `DeployProvider::status` is replaced by `wait_until_ready(ReadinessWait)`, `GitOpsDeployParams.rollout_timeout` is removed, and `TenantHealth` gains `release_confirmed`. Migrate by implementing `wait_until_ready`.
+
+### Changed
+
+- A deploy clears rotation-managed signing keys the local secrets dropped.
+
 ## [0.77.0] - 2026-11-01
 
 ### Added

@@ -1,9 +1,10 @@
 //! Tracing field visitors for the database log layer.
 //!
-//! [`FieldVisitor`] collects event fields into a JSON metadata blob, redacting
-//! a fixed set of sensitive field names so secrets never reach the log store.
-//! Redaction is name-based and therefore applies only to the string and debug
-//! arms: an `i64`/`u64`/`bool` cannot carry a secret, and blanking one both
+//! [`FieldVisitor`] collects event fields into a JSON metadata blob through
+//! [`crate::sanitize`]: a secret-named field is blanked, every other string
+//! value is scrubbed of embedded credentials and capped, and so is the
+//! message. Sanitising applies only to the string and debug arms: an
+//! `i64`/`u64`/`bool` cannot carry a secret, and blanking one both
 //! destroys operational data (row counts named `oauth_tokens`, say) and changes
 //! the recorded JSON type from a number to a string.
 //! [`SpanVisitor`]/[`SpanContext`]/[`SpanFields`] capture the identifier fields
@@ -17,7 +18,7 @@ use tracing::Subscriber;
 use tracing::field::{Field, Visit};
 use tracing_subscriber::registry::LookupSpan;
 
-use crate::sanitize::is_redacted;
+use crate::sanitize::{sanitize_field, sanitize_message};
 
 mod field_names {
     pub(super) const MESSAGE: &str = "message";
@@ -59,15 +60,12 @@ fn strip_ansi(input: &str) -> String {
 impl Visit for FieldVisitor {
     fn record_debug(&mut self, field: &Field, value: &dyn std::fmt::Debug) {
         if field.name() == field_names::MESSAGE {
-            self.message = strip_ansi(&format!("{value:?}"));
+            self.message = sanitize_message(&strip_ansi(&format!("{value:?}")));
         } else {
             let fields = self.fields.get_or_insert_with(|| serde_json::json!({}));
             if let Some(obj) = fields.as_object_mut() {
-                let rendered = if is_redacted(field.name()) {
-                    serde_json::json!("[REDACTED]")
-                } else {
-                    serde_json::json!(format!("{value:?}"))
-                };
+                let rendered =
+                    serde_json::json!(sanitize_field(field.name(), &format!("{value:?}")));
                 obj.insert(field.name().to_owned(), rendered);
             }
         }
@@ -75,15 +73,11 @@ impl Visit for FieldVisitor {
 
     fn record_str(&mut self, field: &Field, value: &str) {
         if field.name() == field_names::MESSAGE {
-            self.message = strip_ansi(value);
+            self.message = sanitize_message(&strip_ansi(value));
         } else {
             let fields = self.fields.get_or_insert_with(|| serde_json::json!({}));
             if let Some(obj) = fields.as_object_mut() {
-                let rendered = if is_redacted(field.name()) {
-                    serde_json::json!("[REDACTED]")
-                } else {
-                    serde_json::json!(value)
-                };
+                let rendered = serde_json::json!(sanitize_field(field.name(), value));
                 obj.insert(field.name().to_owned(), rendered);
             }
         }

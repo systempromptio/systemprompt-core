@@ -16,19 +16,18 @@ use std::sync::{Arc, Mutex, PoisonError};
 use async_trait::async_trait;
 use tracing::{info, warn};
 
-use systemprompt_config::SecretsService;
 use systemprompt_database::DbPool;
 use systemprompt_database::resilience::{ResilienceConfig, ResilienceError, ResilienceGuard};
 use systemprompt_identifiers::{AgentName, McpServerId};
 use systemprompt_manifest::services::ResilienceSettings;
 use systemprompt_security::credential::TokenCache;
 use systemprompt_traits::{
-    BoxedSource, ServerListingFailure, ToolCallRequest, ToolCallResult, ToolContext, ToolInventory,
-    ToolProvider, ToolProviderError, ToolProviderResult,
+    BoxedSource, SecretLookup, ServerListingFailure, ToolCallRequest, ToolCallResult, ToolContext,
+    ToolInventory, ToolProvider, ToolProviderError, ToolProviderResult,
 };
 
 use crate::error::McpDomainError;
-use crate::services::client::McpClient;
+use crate::services::client::{McpClient, McpClientLimits};
 pub use crate::services::registry::RegistryService;
 
 use context::{create_request_context, load_agent_servers};
@@ -76,13 +75,14 @@ impl McpToolProvider {
         registry: RegistryService,
         resilience: &ResilienceSettings,
         connector_tokens: Arc<TokenCache>,
-        secrets: Arc<SecretsService>,
+        secrets: Arc<dyn SecretLookup>,
     ) -> Self {
         let client = Arc::new(McpClient::new(
             connector_tokens,
             registry.deployments(),
             Arc::clone(registry.config()),
             secrets,
+            McpClientLimits::from(resilience),
         ));
         Self {
             db_pool,

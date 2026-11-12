@@ -5,9 +5,11 @@
 
 use anyhow::{Result, anyhow};
 use clap::Args;
+use std::sync::Arc;
 use systemprompt_database::DbPool;
-use systemprompt_files::FileRepository;
+use systemprompt_files::{FileDeleteService, FileRepository, StoredObjectOutcome};
 use systemprompt_identifiers::FileId;
+use systemprompt_traits::FileStorage;
 
 use super::types::FileDeleteOutput;
 use crate::CliConfig;
@@ -37,20 +39,28 @@ pub(super) async fn execute(
     ctx: &CommandContext,
 ) -> Result<CommandOutput> {
     let app = ctx.app_context().await?;
-    execute_with_pool(args, prompter, app.db_pool(), &ctx.cli).await
+    execute_with_pool(
+        args,
+        prompter,
+        app.db_pool(),
+        Arc::clone(app.file_storage()),
+        &ctx.cli,
+    )
+    .await
 }
 
 pub async fn execute_with_pool(
     args: DeleteArgs,
     prompter: &dyn Prompter,
     pool: &DbPool,
+    storage: Arc<dyn FileStorage>,
     config: &CliConfig,
 ) -> Result<CommandOutput> {
     let file_id = parse_file_id(&args.file)?;
 
-    let service = FileRepository::new(pool);
+    let repository = FileRepository::new(pool);
 
-    let file = service
+    let file = repository
         .find_by_id(&file_id)
         .await?
         .ok_or_else(|| anyhow!("File not found: {}", args.file))?;
@@ -86,12 +96,26 @@ pub async fn execute_with_pool(
         }
     }
 
-    service.delete(&file_id).await?;
+    let outcome = FileDeleteService::new(repository, storage)
+        .delete_file(&file)
+        .await?;
 
-    let output = FileDeleteOutput {
-        file_id,
-        message: format!("File '{}' deleted successfully", file.path),
+    let message = match outcome {
+        StoredObjectOutcome::Removed => {
+            format!("File '{}' and its stored object deleted", file.path)
+        },
+        StoredObjectOutcome::AlreadyAbsent => format!(
+            "File '{}' deleted; its stored object was already absent",
+            file.path
+        ),
+        StoredObjectOutcome::NotInStorage => format!(
+            "File record '{}' deleted; the file on disk is outside file storage and was left in \
+             place",
+            file.path
+        ),
     };
+
+    let output = FileDeleteOutput { file_id, message };
 
     Ok(CommandOutput::card_value("File Deleted", &output))
 }

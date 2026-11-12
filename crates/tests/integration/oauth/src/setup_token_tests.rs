@@ -32,10 +32,14 @@ async fn setup_token_full_lifecycle() {
         TokenValidationResult::Valid(record) => {
             assert_eq!(record.user_id.as_str(), user_id.as_str());
             assert_eq!(record.purpose, SetupTokenPurpose::CredentialLink);
-            assert!(repo.consume_setup_token(&record.id).await.expect("consume"));
+            assert!(
+                repo.consume_setup_token(&record.id, &hash)
+                    .await
+                    .expect("consume")
+            );
             assert!(
                 !repo
-                    .consume_setup_token(&record.id)
+                    .consume_setup_token(&record.id, &hash)
                     .await
                     .expect("re-consume"),
                 "second consume returns false"

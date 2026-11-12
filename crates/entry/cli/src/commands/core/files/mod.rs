@@ -115,8 +115,12 @@ pub async fn execute(cmd: FilesCommands, ctx: &CommandContext) -> Result<()> {
             Ok(())
         },
         FilesCommands::Validate(args) => {
-            let result = validate::execute(&args, ctx).context("Failed to validate file")?;
+            let (result, valid) =
+                validate::execute(&args, ctx).context("Failed to validate file")?;
             render_result(&result, &ctx.cli);
+            if !valid {
+                bail!("File failed validation");
+            }
             Ok(())
         },
         FilesCommands::Config(args) => {

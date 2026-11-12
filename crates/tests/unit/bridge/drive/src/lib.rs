@@ -10,7 +10,11 @@ mod deletes;
 #[cfg(test)]
 mod enable;
 #[cfg(test)]
+mod names_unicode;
+#[cfg(test)]
 mod notices;
+#[cfg(test)]
+mod placement_race;
 #[cfg(test)]
 mod presence;
 #[cfg(test)]
@@ -18,7 +22,13 @@ mod proposals;
 #[cfg(test)]
 mod pull;
 #[cfg(test)]
+mod pull_guards;
+#[cfg(test)]
+mod pull_names;
+#[cfg(test)]
 mod pull_paths;
+#[cfg(test)]
+mod pull_unplaced;
 #[cfg(test)]
 mod run_loop;
 #[cfg(test)]
@@ -29,6 +39,8 @@ mod shares;
 mod state;
 #[cfg(test)]
 mod status;
+#[cfg(test)]
+mod trash;
 #[cfg(test)]
 mod upload;
 #[cfg(test)]

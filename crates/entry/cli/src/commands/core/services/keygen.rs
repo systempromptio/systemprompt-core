@@ -5,7 +5,7 @@
 
 use std::path::PathBuf;
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use clap::Args;
 use serde::Serialize;
 use systemprompt_config::write_private_atomic;
@@ -20,6 +20,13 @@ pub struct KeygenArgs {
         help = "Write the base64 seed to this file instead of printing it"
     )]
     pub out: Option<PathBuf>,
+
+    #[arg(
+        long,
+        requires = "out",
+        help = "Replace an existing seed file at --out (the old key cannot be recovered)"
+    )]
+    pub force: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -32,6 +39,18 @@ pub struct KeygenOutcome {
 
 pub fn execute(args: &KeygenArgs) -> Result<CommandOutput> {
     let key = BundleSigningKey::generate();
+    if let Some(path) = args.out.as_deref()
+        && !args.force
+        && path
+            .try_exists()
+            .with_context(|| format!("Failed to inspect {}", path.display()))?
+    {
+        bail!(
+            "{} already exists; it may hold the seed published bundles are signed with. Pass \
+             --force to replace it",
+            path.display()
+        );
+    }
     let outcome = write_key(&key, args.out.as_deref())?;
     Ok(CommandOutput::card_value("Bundle Signing Key", &outcome))
 }

@@ -25,3 +25,4 @@ sha2 = { workspace = true }
 hex = { workspace = true }
 futures = { workspace = true }
 bytes = { workspace = true }
+systemprompt-test-hack = { version = "0.1", path = "../../../common/hack" }

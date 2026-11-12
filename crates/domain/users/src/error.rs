@@ -52,6 +52,9 @@ domain_error! {
             max_days: u32,
         },
 
+        #[error("federated sign-in refused: {0}")]
+        FederatedRefused(systemprompt_traits::FederatedRefusal),
+
         #[error("account merge is unavailable: no owner reassignments are configured")]
         MergeUnavailable,
 

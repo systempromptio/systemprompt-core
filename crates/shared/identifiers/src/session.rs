@@ -3,7 +3,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-crate::define_id!(SessionId, schema);
+crate::define_id!(SessionId, checked, |value| {
+    crate::macros::validate_external_id("SessionId", value)
+});
 
 impl SessionId {
     pub fn generate() -> Self {

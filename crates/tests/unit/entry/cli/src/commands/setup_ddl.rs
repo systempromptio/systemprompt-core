@@ -4,7 +4,8 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use systemprompt_cli::admin::setup::ddl::{
-    build_create_db_sql, build_create_user_sql, build_grant_sql, quote_ident, quote_literal,
+    build_alter_user_password_sql, build_create_db_sql, build_create_user_sql, build_grant_sql,
+    quote_ident, quote_literal,
 };
 
 #[test]
@@ -101,5 +102,13 @@ fn empty_password_still_quoted() {
     assert_eq!(
         build_create_user_sql("app", ""),
         "CREATE USER \"app\" WITH PASSWORD ''"
+    );
+}
+
+#[test]
+fn alter_user_password_sql_quotes_role_and_password() {
+    assert_eq!(
+        build_alter_user_password_sql("app\"role", "it's"),
+        "ALTER ROLE \"app\"\"role\" WITH PASSWORD 'it''s'"
     );
 }

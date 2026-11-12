@@ -43,6 +43,7 @@ fn create_test_agent(name: &str) -> AgentConfig {
         },
         metadata: AgentMetadataConfig::default(),
         oauth: OAuthConfig::default(),
+        secrets: Vec::new(),
     }
 }
 
@@ -67,7 +68,6 @@ fn create_agent_yaml_content(name: &str) -> String {
         - text/plain
       defaultOutputModes:
         - text/plain
-      skills: []
     metadata: {{}}
 "#,
         name, name, name, name, name
@@ -201,7 +201,6 @@ fn test_find_agent_file_in_different_filename() {
         - text/plain
       defaultOutputModes:
         - text/plain
-      skills: []
     metadata: {}
 "#;
     let agent_file = agents_dir.join("other-file.yaml");

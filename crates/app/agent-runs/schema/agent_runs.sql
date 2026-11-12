@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS agent_runs (
     duration_ms BIGINT,
     error_class TEXT
         CONSTRAINT agent_runs_error_class_check
-        CHECK (error_class IN ('ok', 'budget_exceeded', 'timeout', 'output_invalid', 'hook_denied', 'host_crashed', 'connector_unavailable', 'harness_unavailable')),
+        CHECK (error_class IN ('ok', 'budget_exceeded', 'timeout', 'output_invalid', 'hook_denied', 'host_crashed', 'connector_unavailable', 'harness_unavailable', 'release_cap_exceeded')),
     harness_digest TEXT,
     idempotency_key TEXT,
     request_digest TEXT,

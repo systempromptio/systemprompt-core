@@ -3,9 +3,9 @@
 //! [`load_secrets_json`] reads the profile's secrets file,
 //! [`map_secrets_to_env_vars`] translates the well-known keys to their
 //! provider environment-variable names (dropping system-managed keys and
-//! advertising custom ones via `CUSTOM_SECRETS`), and
-//! [`read_signing_key_pem`] base64-encodes the JWT signing key for transport
-//! as the `SIGNING_KEY_PEM` secret.
+//! advertising custom ones via `CUSTOM_SECRETS`), [`deploy_secret_env`] is the
+//! set a deploy pushes, and [`read_signing_key_pem`] base64-encodes the JWT
+//! signing key for transport as the `SIGNING_KEY_PEM` secret.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -17,6 +17,28 @@ use base64::Engine;
 
 use crate::constants::env_vars;
 use crate::error::{CloudError, CloudResult};
+
+// Why: provider secret pushes are set-only, so a key removed from the local
+// file would otherwise survive in the target's store; an empty value is the
+// explicit absent state every secrets loader reads as unset.
+#[must_use]
+pub fn cleared_when_absent() -> [String; 2] {
+    [
+        systemprompt_config::SIGNING_KEY_STAGED_PEM.to_uppercase(),
+        systemprompt_config::SIGNING_KEY_PREVIOUS_KEYS.to_uppercase(),
+    ]
+}
+
+#[must_use]
+pub fn deploy_secret_env<S: std::hash::BuildHasher>(
+    secrets: HashMap<String, String, S>,
+) -> HashMap<String, String> {
+    let mut env = map_secrets_to_env_vars(secrets);
+    for name in cleared_when_absent() {
+        env.entry(name).or_default();
+    }
+    env
+}
 
 pub fn load_secrets_json(path: &Path) -> CloudResult<HashMap<String, String>> {
     let content = std::fs::read_to_string(path)

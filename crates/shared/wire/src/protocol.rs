@@ -27,6 +27,13 @@ pub enum WireProtocol {
 }
 
 impl WireProtocol {
+    pub const ALL: [Self; 4] = [
+        Self::Anthropic,
+        Self::OpenAiChat,
+        Self::OpenAiResponses,
+        Self::Gemini,
+    ];
+
     #[must_use]
     pub const fn as_tag(self) -> &'static str {
         match self {

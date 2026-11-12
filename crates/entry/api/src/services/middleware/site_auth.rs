@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::extract::Request;
-use axum::http::{HeaderValue, header};
+use axum::http::header;
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Redirect, Response};
 use systemprompt_extension::SiteAuthConfig;
@@ -12,22 +12,26 @@ use systemprompt_models::auth::Permission;
 use systemprompt_security::keys::SigningKeys;
 use systemprompt_security::{TokenExtractor, extract_user_context};
 
-// Why: Secure cookie deletion requires HTTPS outside browsers' localhost
-// exceptions.
-const CLEAR_ACCESS_TOKEN_COOKIE: &str =
-    "access_token=; Path=/; Max-Age=0; HttpOnly; SameSite=Strict";
+use crate::services::session_cookie::SessionCookie;
 
 const STATIC_ASSET_EXTENSIONS: &[&str] = &[
     ".css", ".js", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".woff", ".woff2", ".ttf",
     ".map", ".webp", ".avif",
 ];
 
+/// How the site gate verifies a session token and clears a rejected one.
+#[derive(Debug, Clone, Copy)]
+pub struct SiteAuthSession<'a> {
+    pub issuer: &'a str,
+    pub keys: &'a SigningKeys,
+    pub cookie: SessionCookie,
+}
+
 pub async fn site_auth_gate(
     request: Request,
     next: Next,
     config: SiteAuthConfig,
-    issuer: &str,
-    keys: &SigningKeys,
+    session: SiteAuthSession<'_>,
 ) -> Response {
     let path = request.uri().path();
 
@@ -63,15 +67,15 @@ pub async fn site_auth_gate(
         return next.run(request).await;
     }
 
-    match authorize(&request, &config, issuer, keys) {
+    match authorize(&request, &config, session.issuer, session.keys) {
         AuthOutcome::Authorized => next.run(request).await,
         outcome => {
             let redirect = login_redirect(config.login_path, request.uri());
             let mut response = Redirect::to(&redirect).into_response();
-            if matches!(outcome, AuthOutcome::InvalidToken)
-                && let Ok(cookie) = HeaderValue::from_str(CLEAR_ACCESS_TOKEN_COOKIE)
-            {
-                response.headers_mut().insert(header::SET_COOKIE, cookie);
+            if matches!(outcome, AuthOutcome::InvalidToken) {
+                response
+                    .headers_mut()
+                    .insert(header::SET_COOKIE, session.cookie.cleared());
             }
             response
         },
@@ -106,12 +110,12 @@ fn authorize(
     }) else {
         return AuthOutcome::Unauthorized;
     };
-    let Ok(user_ctx) = extract_user_context(keys, &token, issuer)
+    let Ok(user_ctx) = extract_user_context(keys.keyring(), &token, issuer)
         .map_err(|e| tracing::debug!(error = %e, %path, "jwt validation failed; clearing cookie"))
     else {
         return AuthOutcome::InvalidToken;
     };
-    if user_ctx.role == required || user_ctx.role.implies(&required) {
+    if user_ctx.role.grants(&required) {
         AuthOutcome::Authorized
     } else {
         AuthOutcome::Unauthorized

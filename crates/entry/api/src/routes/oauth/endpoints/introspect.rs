@@ -59,9 +59,10 @@ pub async fn handle_introspect(
 ) -> Result<Response, OAuthHttpError> {
     let client_id_str = request
         .client_id
-        .clone()
+        .as_deref()
         .ok_or_else(|| OAuthHttpError::invalid_client("Client authentication required"))?;
-    let client_id = ClientId::new(client_id_str);
+    let client_id = ClientId::try_new(client_id_str)
+        .map_err(|e| OAuthHttpError::invalid_client("Malformed client_id").with_source(e))?;
 
     validate_client_credentials(&repo, &client_id, request.client_secret.as_deref()).await?;
 

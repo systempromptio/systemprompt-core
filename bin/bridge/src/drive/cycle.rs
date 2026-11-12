@@ -1,10 +1,10 @@
 //! One Drive sync cycle and the first-run check.
 //!
-//! A cycle notes the files gone from the folder, pulls the server's changes,
-//! carries the local deletes and renames over, pushes local edits, refreshes
-//! the open proposals and folds the outcome into the shared status. The
-//! first-run check creates the Drive folder once the server has documents for
-//! it.
+//! A cycle removes expired trash, notes the files gone from the folder, pulls
+//! the server's changes, carries the local deletes and renames over, pushes
+//! local edits, refreshes the open proposals and folds the outcome into the
+//! shared status. The first-run check creates the Drive folder once the server
+//! has documents for it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -33,6 +33,10 @@ pub async fn sync_once(cycle: Cycle<'_>, handle: &DriveHandle) -> DriveResult<Cy
     let _serialised = handle.cycle.lock().await;
     let state_path = cycle.root.state_path();
     let mut state = DriveState::load(&state_path)?;
+    let pruned = super::trash::prune(cycle.root, Utc::now())?;
+    if pruned > 0 {
+        tracing::info!(stamps = pruned, "drive removed expired trash folders");
+    }
     if prune_resolved(cycle.root, &mut state) | shares::record(&mut state, handle.take_shares()) {
         state.save(&state_path)?;
     }

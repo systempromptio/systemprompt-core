@@ -8,7 +8,7 @@ use systemprompt_files::documents::models::{
 };
 use systemprompt_files::documents::repository::{
     CheckpointClaim, CheckpointLease, DocumentRepositories, DocumentRepository, FolderMoveOutcome,
-    FolderRelocation, HeadMove,
+    FolderRelocation, HeadMove, SearchPage,
 };
 use systemprompt_identifiers::{
     ContentHash, DocumentFolderId, DocumentId, DocumentRevisionId, DriveDeviceId, UserId,
@@ -684,16 +684,33 @@ async fn text_search_respects_visibility() {
 
     let hits = repos
         .text_index
-        .search(&word, &SubjectPairs::default(), &owner, 10)
+        .search(
+            &word,
+            &SubjectPairs::default(),
+            &owner,
+            SearchPage {
+                limit: 10,
+                offset: 0,
+            },
+        )
         .await
         .expect("search");
     assert_eq!(hits.len(), 1);
-    assert_eq!(hits[0].document_id, doc);
-    assert!(hits[0].snippet.contains(&word));
+    assert_eq!(hits[0].1.document_id, doc);
+    assert_eq!(hits[0].0.id, doc);
+    assert!(hits[0].1.snippet.contains(&word));
 
     let hidden = repos
         .text_index
-        .search(&word, &SubjectPairs::default(), &stranger, 10)
+        .search(
+            &word,
+            &SubjectPairs::default(),
+            &stranger,
+            SearchPage {
+                limit: 10,
+                offset: 0,
+            },
+        )
         .await
         .expect("search");
     assert!(hidden.is_empty());

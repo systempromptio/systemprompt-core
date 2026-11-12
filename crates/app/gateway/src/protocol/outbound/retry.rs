@@ -21,7 +21,7 @@ use std::time::Duration;
 
 use chrono::{DateTime, Utc};
 
-use super::UpstreamError;
+use super::{ResponseMode, UpstreamBounds, UpstreamError};
 
 const RETRIES_TOTAL: &str = "gateway_upstream_retries_total";
 
@@ -35,7 +35,8 @@ const JITTER_RATIO: f64 = 0.25;
 /// How hard, and how patiently, a transient upstream failure is retried.
 ///
 /// [`RetryPolicy::immediate`] keeps the attempt budget but removes every wait,
-/// so tests exercise the loop in milliseconds.
+/// so tests exercise the loop in milliseconds. [`RetryPolicy::none`] sends
+/// once: the first answer, whatever its status, is the one returned.
 #[derive(Debug, Clone, Copy)]
 pub struct RetryPolicy {
     pub max_attempts: u32,
@@ -172,23 +173,25 @@ pub async fn send_with_retry(
     provider: &str,
     req: reqwest::RequestBuilder,
     policy: &RetryPolicy,
+    bounds: &UpstreamBounds,
+    mode: ResponseMode,
 ) -> Result<(reqwest::Response, u32), UpstreamError> {
     let mut attempt = 1;
     loop {
         let Some(this_try) = req.try_clone() else {
-            return match send_once(provider, req).await {
+            return match send_once(provider, req, bounds, mode).await {
                 Ok(response) => Ok((response, attempt - 1)),
-                Err(failure) => Err(into_error(provider, failure).await),
+                Err(failure) => Err(into_error(provider, failure, bounds).await),
             };
         };
-        let outcome = send_once(provider, this_try).await;
+        let outcome = send_once(provider, this_try, bounds, mode).await;
         let response = match outcome {
             Ok(response) => return Ok((response, attempt - 1)),
             Err(SendFailure::Fatal(e)) => return Err(e),
             Err(SendFailure::Upstream(response)) => *response,
         };
         if attempt >= policy.max_attempts {
-            return Err(UpstreamError::from_response(provider, response).await);
+            return Err(UpstreamError::from_response(provider, response, bounds).await);
         }
         let retry_after = response
             .headers()
@@ -220,10 +223,16 @@ pub async fn send_with_retry(
     }
 }
 
-async fn into_error(provider: &str, failure: SendFailure) -> UpstreamError {
+async fn into_error(
+    provider: &str,
+    failure: SendFailure,
+    bounds: &UpstreamBounds,
+) -> UpstreamError {
     match failure {
         SendFailure::Fatal(e) => e,
-        SendFailure::Upstream(response) => UpstreamError::from_response(provider, *response).await,
+        SendFailure::Upstream(response) => {
+            UpstreamError::from_response(provider, *response, bounds).await
+        },
     }
 }
 
@@ -235,8 +244,21 @@ enum SendFailure {
 async fn send_once(
     provider: &str,
     req: reqwest::RequestBuilder,
+    bounds: &UpstreamBounds,
+    mode: ResponseMode,
 ) -> Result<reqwest::Response, SendFailure> {
-    let response = req.send().await.map_err(|e| {
+    let sent = match bounds.header_deadline(mode) {
+        None => req.send().await,
+        Some(after) => tokio::time::timeout(after, req.send()).await.map_err(
+            |_elapsed: tokio::time::error::Elapsed| {
+                SendFailure::Fatal(UpstreamError::Timeout {
+                    provider: provider.to_owned(),
+                    after,
+                })
+            },
+        )?,
+    };
+    let response = sent.map_err(|e| {
         SendFailure::Fatal(UpstreamError::Transport {
             provider: provider.to_owned(),
             source: e,
@@ -250,6 +272,6 @@ async fn send_once(
         return Err(SendFailure::Upstream(Box::new(response)));
     }
     Err(SendFailure::Fatal(
-        UpstreamError::from_response(provider, response).await,
+        UpstreamError::from_response(provider, response, bounds).await,
     ))
 }

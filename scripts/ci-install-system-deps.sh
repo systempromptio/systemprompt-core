@@ -110,7 +110,10 @@ UPDATE_TIMEOUT_S=45
 DOWNLOAD_TIMEOUT_APT_S=75
 INSTALL_TIMEOUT_S=75
 
+# Why: hosted runners can hang on the archive's IPv6 addresses while IPv4
+# answers; apt waits out its timeout instead of falling back.
 APT_OPTS=(
+    -o Acquire::ForceIPv4=true
     -o Acquire::Retries=3
     -o Acquire::http::Timeout=30
     -o Acquire::https::Timeout=30
@@ -155,6 +158,20 @@ pin_to_installed() {
     fi
 }
 
+# Why: hosted runners resolve the Ubuntu archive through the Azure mirror; when
+# that mirror stalls, every attempt times out the same way. Later attempts
+# point apt at the primary archive instead.
+use_primary_archive() {
+    local file
+    for file in /etc/apt/apt-mirrors.txt /etc/apt/sources.list /etc/apt/sources.list.d/*.sources \
+        /etc/apt/sources.list.d/*.list; do
+        if [ -f "$file" ]; then
+            sudo sed -i 's|azure\.archive\.ubuntu\.com|archive.ubuntu.com|g' "$file"
+        fi
+    done
+    echo "apt sources now use archive.ubuntu.com"
+}
+
 for attempt in $(seq 1 "$ATTEMPTS"); do
     echo "::group::apt attempt $attempt/$ATTEMPTS: $*"
     # Why: the download runs on its own budget before dpkg starts, so a slow
@@ -175,6 +192,7 @@ for attempt in $(seq 1 "$ATTEMPTS"); do
     echo "::warning::system dependency install attempt $attempt/$ATTEMPTS failed (exit $status; 124 = timed out)"
     if [ "$attempt" -lt "$ATTEMPTS" ]; then
         sleep $((attempt * 10))
+        use_primary_archive
         # Why: a timed-out install leaves dpkg half-configured, and apt refuses
         # every later install until it is finished.
         sudo DEBIAN_FRONTEND=noninteractive timeout --kill-after=10 "$INSTALL_TIMEOUT_S" \

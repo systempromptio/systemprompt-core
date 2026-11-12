@@ -18,33 +18,39 @@
 pub mod pipeline;
 pub mod progress;
 pub mod select;
+pub mod target_profile;
 
 pub(in crate::commands::cloud) use progress::CliDeployProgress;
 pub(in crate::commands::cloud) use select::resolve_profile;
+pub use target_profile::DeployProfile;
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::time::Duration;
 
 use anyhow::{Context, Result, anyhow, bail};
 use systemprompt_cloud::deploy::provider::{
-    DeployProviderKind, GitOpsDeploy, GitOpsDeployParams, SystempromptCloud,
+    DeployProviderKind, GitOpsDeploy, GitOpsDeployParams, ReadinessWait, SystempromptCloud,
 };
 use systemprompt_cloud::{
-    CloudApiClient, CloudError, CloudPath, DockerCli, ProfilePath, SystemCommandRunner,
-    TenantStore, get_cloud_paths,
+    CloudApiClient, CloudError, CloudPath, DockerCli, SystemCommandRunner, TenantStore,
+    get_cloud_paths,
 };
 use systemprompt_identifiers::{ProfileName, TenantId};
+use systemprompt_loader::subprocess::ForegroundChildren;
 use systemprompt_logging::CliService;
-use systemprompt_manifest::Profile;
+use systemprompt_manifest::profile::CloudConfig;
 
-use pipeline::{DeployOptions, DeployOrchestrator, DeployRequest, DeploySecretsSource};
+use pipeline::{DeployOptions, DeployOrchestrator, DeployRequest};
 
 use super::tenant::get_credentials;
 use crate::cli_settings::CliConfig;
 use crate::interactive::Prompter;
 use crate::shared::project::ProjectRoot;
 
-const GITOPS_ROLLOUT_TIMEOUT: Duration = Duration::from_mins(15);
+const GITOPS_READINESS_WAIT: ReadinessWait = ReadinessWait {
+    timeout: Duration::from_mins(15),
+    interval: Duration::from_secs(5),
+};
 
 pub(super) struct DeployArgs {
     pub skip_push: bool,
@@ -57,10 +63,10 @@ async fn preflight(
     args: &DeployArgs,
     prompter: &dyn Prompter,
     config: &CliConfig,
-) -> Result<Option<(Profile, PathBuf)>> {
+) -> Result<Option<DeployProfile>> {
     CliService::section("systemprompt.io Cloud Deploy");
 
-    let (profile, profile_path) = resolve_profile(prompter, args.profile_name.as_ref(), config)?;
+    let profile = resolve_profile(prompter, args.profile_name.as_ref(), config)?;
 
     if profile.target != systemprompt_manifest::ProfileType::Cloud {
         bail!(
@@ -69,57 +75,47 @@ async fn preflight(
         );
     }
 
-    let profile_dir = profile_path
-        .parent()
-        .ok_or_else(|| anyhow!("Invalid profile path"))?;
-    let report = super::doctor::run(&profile, profile_dir, false).await;
+    let report = super::doctor::run_managed(&profile.managed, profile.profile_dir(), false).await;
     report.render();
     if report.has_blocking() {
         bail!("Deploy preflight failed — fix the items above before deploying.");
     }
+    if !args.check && report.not_evaluated() > 0 {
+        report.render_summary("Deploy preflight passed");
+    }
     if args.check {
-        CliService::success("Deploy preflight passed (--check; nothing deployed)");
+        report.render_summary("Deploy preflight passed (--check; nothing deployed)");
         return Ok(None);
     }
-    Ok(Some((profile, profile_path)))
+    Ok(Some(profile))
 }
 
 pub(super) async fn execute(
     args: DeployArgs,
     prompter: &dyn Prompter,
     config: &CliConfig,
+    children: &ForegroundChildren,
 ) -> Result<()> {
-    let Some((profile, profile_path)) = preflight(&args, prompter, config).await? else {
+    let Some(profile) = preflight(&args, prompter, config).await? else {
         return Ok(());
     };
-    let profile_dir = profile_path
-        .parent()
-        .ok_or_else(|| anyhow!("Invalid profile path"))?;
 
     let kind = DeployProviderKind::for_provider(profile.hosting_provider())?;
-    let profile_name = ProfileName::try_new(profile.name.as_str()).with_context(|| {
-        format!(
-            "Profile name '{}' is not a valid profile name",
-            profile.name
-        )
-    })?;
+    let profile_name = profile.name.clone();
     let project = ProjectRoot::discover().map_err(|e| anyhow!("{}", e))?;
     let options = DeployOptions {
         skip_push: args.skip_push,
         wait_ready: args.wait,
     };
-    let secrets = DeploySecretsSource::from_profile(
-        profile.secrets.as_ref(),
-        ProfilePath::Secrets.resolve(profile_dir),
-    );
-    let signing_key_path = super::doctor::resolve_signing_key_path(&profile, profile_dir);
-    let licence_secret_required = profile.licence.enabled();
+    let secrets = profile.secrets.clone();
+    let signing_key_path = profile.signing_key_path.clone();
+    let licence_secret_required = profile.licence_secret_required;
     let progress = CliDeployProgress::new();
-    let orchestrator = DeployOrchestrator::new();
+    let orchestrator = DeployOrchestrator::new(DockerCli::new(children.clone()));
 
     match kind {
         DeployProviderKind::SystempromptCloud => {
-            let target = resolve_deploy_target(&profile)?;
+            let target = resolve_deploy_target(profile.cloud.as_ref())?;
             let client =
                 CloudApiClient::new(&target.creds.api_url, target.creds.api_token.as_str())?;
             let provider = SystempromptCloud::new(client, target.tenant_id.clone());
@@ -137,7 +133,9 @@ pub(super) async fn execute(
             orchestrator.deploy(&provider, &request, &progress).await?;
         },
         DeployProviderKind::GitOps => {
-            let (tenant_id, tenant_name, provider) = gitops_provider(&profile, project.as_path())?;
+            let orchestrator = orchestrator.with_readiness(GITOPS_READINESS_WAIT);
+            let (tenant_id, tenant_name, provider) =
+                gitops_provider(profile.cloud.as_ref(), project.as_path(), children)?;
             let request = DeployRequest {
                 tenant_id,
                 tenant_name,
@@ -157,13 +155,11 @@ pub(super) async fn execute(
 }
 
 fn gitops_provider(
-    profile: &Profile,
+    cloud: Option<&CloudConfig>,
     project_root: &Path,
+    children: &ForegroundChildren,
 ) -> Result<(TenantId, String, GitOpsDeploy)> {
-    let cloud_config = profile
-        .cloud
-        .as_ref()
-        .ok_or_else(|| anyhow!("No cloud configuration in profile"))?;
+    let cloud_config = cloud.ok_or_else(|| anyhow!("No cloud configuration in profile"))?;
     let deploy = cloud_config
         .deploy
         .clone()
@@ -190,10 +186,9 @@ fn gitops_provider(
             hostname,
             deploy,
             project_root: project_root.to_path_buf(),
-            rollout_timeout: GITOPS_ROLLOUT_TIMEOUT,
         },
-        DockerCli::new(),
-        Box::new(SystemCommandRunner),
+        DockerCli::new(children.clone()),
+        Box::new(SystemCommandRunner::new(children.clone())),
     )?;
     Ok((tenant_id, tenant.name.clone(), provider))
 }
@@ -206,11 +201,8 @@ pub struct DeployTarget {
     pub creds: systemprompt_cloud::CloudCredentials,
 }
 
-pub fn resolve_deploy_target(profile: &Profile) -> Result<DeployTarget> {
-    let cloud_config = profile
-        .cloud
-        .as_ref()
-        .ok_or_else(|| anyhow!("No cloud configuration in profile"))?;
+pub fn resolve_deploy_target(cloud: Option<&CloudConfig>) -> Result<DeployTarget> {
+    let cloud_config = cloud.ok_or_else(|| anyhow!("No cloud configuration in profile"))?;
 
     let tenant_id = cloud_config
         .tenant_id

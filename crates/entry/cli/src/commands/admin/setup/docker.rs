@@ -4,9 +4,10 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Context, Result};
+use std::process::Command;
 use systemprompt_cloud::constants::docker::{COMPOSE_PATH, container_name};
+use systemprompt_loader::subprocess::ForegroundChildren;
 use systemprompt_logging::CliService;
-use tokio::process::Command;
 
 use super::SetupArgs;
 use super::docker_compose::{
@@ -15,13 +16,15 @@ use super::docker_compose::{
 };
 use super::docker_database::create_database_in_docker;
 use super::postgres_access::{
-    PostgresConfig, detect_postgresql, enable_extensions, generate_password, test_connection,
+    PostgresConfig, detect_postgresql, enable_extensions, test_connection,
 };
 use crate::interactive::Prompter;
 
 pub async fn setup_docker_postgres_non_interactive(
+    children: &ForegroundChildren,
     config: &PostgresConfig,
     env_name: &str,
+    reset_role_password: bool,
 ) -> Result<PostgresConfig> {
     if test_connection(config).await {
         CliService::success(&format!(
@@ -32,39 +35,39 @@ pub async fn setup_docker_postgres_non_interactive(
         return Ok(config.clone());
     }
 
-    if !is_docker_available() {
+    if !is_docker_available(children) {
         anyhow::bail!("Docker is not installed or not in PATH.");
     }
-    if !is_compose_available() {
+    if !is_compose_available(children) {
         anyhow::bail!("Docker Compose is not available.");
     }
 
     let compose_dir = std::env::current_dir()?.join(COMPOSE_PATH);
     let container = container_name(env_name);
 
-    if is_container_running(&container) {
+    if is_container_running(children, &container) {
         create_compose_files_if_missing(&compose_dir, &container, config.port)?;
-        create_database_in_docker(config, &container).await?;
+        create_database_in_docker(children, config, &container, reset_role_password).await?;
         enable_extensions(config).await?;
         return Ok(config.clone());
     }
 
     ensure_port_free(config)?;
     create_compose_files_if_missing(&compose_dir, &container, config.port)?;
-    start_compose(config, &compose_dir, &container)?;
-    wait_for_postgres_ready(config, &container);
+    start_compose(children, config, &compose_dir, &container)?;
+    wait_for_postgres_ready(children, config, &container);
     enable_extensions(config).await?;
 
     Ok(config.clone())
 }
 
-async fn remove_container(container: &str) {
+async fn remove_container(children: &ForegroundChildren, container: &str) {
     for action in ["stop", "rm"] {
-        if let Err(e) = Command::new("docker")
-            .args([action, container])
-            .output()
-            .await
-        {
+        let mut cmd = Command::new("docker");
+        cmd.args([action, container]);
+        let children = children.clone();
+        let outcome = tokio::task::spawn_blocking(move || children.output(cmd)).await;
+        if let Err(e) = outcome.map_err(std::io::Error::other).and_then(|r| r) {
             tracing::warn!(container = %container, action, error = %e, "docker container removal step failed");
         }
     }
@@ -74,16 +77,17 @@ pub(super) async fn setup_docker_postgres_interactive(
     args: &SetupArgs,
     prompter: &dyn Prompter,
     env_name: &str,
+    children: &ForegroundChildren,
 ) -> Result<PostgresConfig> {
     CliService::info("Setting up PostgreSQL with Docker...");
 
-    if !is_docker_available() {
+    if !is_docker_available(children) {
         anyhow::bail!(
             "Docker is not installed or not in PATH.\nInstall Docker: https://docs.docker.com/get-docker/"
         );
     }
 
-    if !is_compose_available() {
+    if !is_compose_available(children) {
         anyhow::bail!(
             "Docker Compose is not available.\nEnsure Docker Desktop is installed or install \
              docker-compose."
@@ -94,8 +98,7 @@ pub(super) async fn setup_docker_postgres_interactive(
 
     let user = prompter.input_with_default("Database user", &args.effective_db_user(env_name))?;
 
-    let password = args.db_password.clone().unwrap_or_else(generate_password);
-    CliService::success(&format!("Generated password: {}", password));
+    let password = super::postgres::prompt_password(args, prompter)?;
 
     let database =
         prompter.input_with_default("Database name", &args.effective_db_name(env_name))?;
@@ -126,7 +129,7 @@ pub(super) async fn setup_docker_postgres_interactive(
     let compose_dir = std::env::current_dir()?.join(COMPOSE_PATH);
     let container = container_name(env_name);
     create_compose_files_if_missing(&compose_dir, &container, port)?;
-    if is_container_running(&container) {
+    if is_container_running(children, &container) {
         CliService::info(&format!(
             "PostgreSQL container '{}' is already running",
             container
@@ -137,20 +140,21 @@ pub(super) async fn setup_docker_postgres_interactive(
         if reuse {
             if !test_connection(&config).await {
                 CliService::info("Creating database and user in existing container...");
-                create_database_in_docker(&config, &container).await?;
+                create_database_in_docker(children, &config, &container, args.reset_role_password)
+                    .await?;
             }
             enable_extensions(&config).await?;
             return Ok(config);
         }
 
         CliService::info("Stopping existing container...");
-        remove_container(&container).await;
+        remove_container(children, &container).await;
     }
 
     ensure_port_free(&config)?;
-    start_compose(&config, &compose_dir, &container)?;
+    start_compose(children, &config, &compose_dir, &container)?;
 
-    wait_for_postgres_ready(&config, &container);
+    wait_for_postgres_ready(children, &config, &container);
 
     enable_extensions(&config).await?;
 

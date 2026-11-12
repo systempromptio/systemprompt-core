@@ -10,7 +10,7 @@ use systemprompt_users::{UserAdminService, UserRepository, UserRole, UserService
 
 use crate::commands::admin::users::types::RoleAssignOutput;
 use crate::context::CommandContext;
-use crate::shared::CommandOutput;
+use crate::shared::{CommandOutput, ConfirmArgs};
 
 #[derive(Debug, Args)]
 pub struct AssignArgs {
@@ -19,6 +19,9 @@ pub struct AssignArgs {
 
     #[arg(long, value_delimiter = ',')]
     pub roles: Vec<String>,
+
+    #[command(flatten)]
+    pub confirm: ConfirmArgs,
 }
 
 pub(super) async fn execute(args: AssignArgs, ctx: &CommandContext) -> Result<CommandOutput> {

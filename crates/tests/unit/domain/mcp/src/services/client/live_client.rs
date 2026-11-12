@@ -29,6 +29,7 @@ async fn list_tools_maps_schemas_and_metadata() {
         systemprompt_mcp::services::DeploymentService::new(crate::harness::services_state().view()),
         crate::harness::config(),
         systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
+        systemprompt_mcp::services::client::McpClientLimits::default(),
     )
     .list_tools(&config, &request_context("list"))
     .await
@@ -61,6 +62,7 @@ async fn call_tool_round_trips_result() {
         systemprompt_mcp::services::DeploymentService::new(crate::harness::services_state().view()),
         crate::harness::config(),
         systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
+        systemprompt_mcp::services::client::McpClientLimits::default(),
     )
     .call_tool(
         &config,
@@ -90,6 +92,7 @@ async fn oauth_required_without_token_is_rejected() {
         systemprompt_mcp::services::DeploymentService::new(crate::harness::services_state().view()),
         crate::harness::config(),
         systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
+        systemprompt_mcp::services::client::McpClientLimits::default(),
     )
     .list_tools(&config, &request_context("auth"))
     .await
@@ -112,6 +115,7 @@ async fn oauth_required_with_token_sends_bearer() {
         systemprompt_mcp::services::DeploymentService::new(crate::harness::services_state().view()),
         crate::harness::config(),
         systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
+        systemprompt_mcp::services::client::McpClientLimits::default(),
     )
     .list_tools(&config, &context)
     .await
@@ -134,6 +138,7 @@ async fn external_auth_without_user_is_rejected() {
         systemprompt_mcp::services::DeploymentService::new(crate::harness::services_state().view()),
         crate::harness::config(),
         systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
+        systemprompt_mcp::services::client::McpClientLimits::default(),
     )
     .call_tool(&config, "echo".to_owned(), None, &request_context("ext"))
     .await
@@ -157,6 +162,7 @@ async fn external_auth_with_unreachable_accessor_fails() {
         systemprompt_mcp::services::DeploymentService::new(crate::harness::services_state().view()),
         crate::harness::config(),
         systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
+        systemprompt_mcp::services::client::McpClientLimits::default(),
     )
     .call_tool(&config, "echo".to_owned(), None, &context)
     .await

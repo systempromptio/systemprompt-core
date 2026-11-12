@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.81.0] - 2026-11-12
+
+### Breaking
+
+- `GuardedClientConfig` loses `Default`, `deny_loopback` and its public fields. Migrate by building clients with `GuardedClientConfig::for_configured()` or `for_untrusted()`.
+
+### Security
+
+- Untrusted URLs are fetched through a client that checks every redirect hop and pins the resolved address, honouring a configured forward proxy.
+
 ## [0.73.0] - 2026-10-25
 
 ### Changed

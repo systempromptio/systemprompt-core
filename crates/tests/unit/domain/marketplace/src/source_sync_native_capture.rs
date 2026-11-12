@@ -7,6 +7,7 @@ use systemprompt_marketplace::managed::{
 };
 
 use crate::git_https::Fixture;
+use systemprompt_models::net::LoopbackPolicy;
 
 fn run(directory: &Path, args: &[&str]) -> String {
     let output = Command::new("git")
@@ -84,6 +85,7 @@ impl Harness {
     fn trusted(&self) -> NativeGitSourceCapture {
         let pem = std::fs::read(self.fixture.directory.path().join("cert.pem")).expect("ca");
         NativeGitSourceCapture::new(self.scratch.path().to_path_buf())
+            .with_loopback_policy(LoopbackPolicy::Allow)
             .with_certificate_authority(pem)
     }
 
@@ -172,7 +174,8 @@ fn unknown_reference_fails_and_leaves_no_checkout() {
 fn untrusted_certificate_is_refused_without_a_configured_authority() {
     let harness = Harness::start();
     publish(&harness.fixture, "main", skill_tree);
-    let capture = NativeGitSourceCapture::new(harness.scratch.path().to_path_buf());
+    let capture = NativeGitSourceCapture::new(harness.scratch.path().to_path_buf())
+        .with_loopback_policy(LoopbackPolicy::Allow);
 
     let error = capture
         .capture(&harness.request("main", "skill-a"))
@@ -244,4 +247,45 @@ fn unportable_paths_under_the_root_are_rejected() {
         .expect_err("unportable path rejected");
 
     assert!(error.to_string().contains("portable"), "{error}");
+}
+
+fn refused_without_git(repository: &str) -> ManagedError {
+    let scratch = tempfile::tempdir().expect("scratch root");
+    let capture = NativeGitSourceCapture::new(scratch.path().to_path_buf());
+    let error = capture
+        .capture(&GitCaptureRequest {
+            repository,
+            reference: "main",
+            subdirectory: None,
+            root: "skill-a",
+            credential: None,
+        })
+        .expect_err("the repository host is refused");
+    assert!(
+        std::fs::read_dir(scratch.path())
+            .expect("scratch listing")
+            .next()
+            .is_none(),
+        "no checkout is left behind"
+    );
+    error
+}
+
+#[test]
+fn the_default_capture_refuses_loopback_and_private_repository_hosts() {
+    for repository in [
+        "https://127.0.0.1:9/repo.git",
+        "https://localhost:9/repo.git",
+        "https://[::1]:9/repo.git",
+        "https://[::ffff:127.0.0.1]:9/repo.git",
+        "https://10.0.0.1/repo.git",
+        "https://169.254.169.254/repo.git",
+        "https://2130706433/repo.git",
+    ] {
+        let error = refused_without_git(repository);
+        assert!(
+            error.to_string().contains("not an allowed outbound target"),
+            "{repository}: {error}"
+        );
+    }
 }

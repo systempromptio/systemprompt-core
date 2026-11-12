@@ -63,6 +63,41 @@ impl Harness {
         .await
         .unwrap();
     }
+    async fn set_expiry_in_db(
+        &self,
+        conversation: &GatewayConversationId,
+        tool_use_id: &str,
+        from_now: &str,
+    ) {
+        sqlx::query(
+            "UPDATE ai_gateway_thought_signatures SET expires_at = NOW() + $3::interval \
+             WHERE conversation_id = $1 AND tool_use_id = $2",
+        )
+        .bind(conversation.as_str())
+        .bind(tool_use_id)
+        .bind(from_now)
+        .execute(self.pool.write_pool().as_ref())
+        .await
+        .unwrap();
+    }
+
+    async fn expires_beyond(
+        &self,
+        conversation: &GatewayConversationId,
+        tool_use_id: &str,
+        from_now: &str,
+    ) -> bool {
+        sqlx::query_scalar::<_, bool>(
+            "SELECT expires_at > NOW() + $3::interval FROM ai_gateway_thought_signatures \
+             WHERE conversation_id = $1 AND tool_use_id = $2",
+        )
+        .bind(conversation.as_str())
+        .bind(tool_use_id)
+        .bind(from_now)
+        .fetch_one(self.pool.write_pool().as_ref())
+        .await
+        .unwrap()
+    }
 }
 
 const GEMINI: bool = true;
@@ -237,19 +272,20 @@ async fn local_ttl_expiry_falls_through_to_the_database() {
 async fn lookup_refreshes_ttl() {
     let h = Harness::open().await;
     let conv = conv();
-    // Two waits of 600 ms exceed the 1 s TTL only if the first lookup did not
-    // refresh it; 400 ms of slack absorbs scheduler oversleep under a loaded shard.
-    let cache = h.cache_with_ttl(Duration::from_secs(1));
-    cache.store(&h.user_id, &conv, "call_1", "sig-a").await;
-    tokio::time::sleep(Duration::from_millis(600)).await;
+    let ttl = Duration::from_secs(3600);
+    h.cache_with_ttl(ttl)
+        .store(&h.user_id, &conv, "call_1", "sig-a")
+        .await;
+    h.set_expiry_in_db(&conv, "call_1", "1 minute").await;
+
+    let replica = h.cache_with_ttl(ttl);
     assert_eq!(
-        cache.lookup(&h.user_id, &conv, "call_1").await.as_deref(),
+        replica.lookup(&h.user_id, &conv, "call_1").await.as_deref(),
         Some("sig-a")
     );
-    tokio::time::sleep(Duration::from_millis(600)).await;
-    assert_eq!(
-        cache.lookup(&h.user_id, &conv, "call_1").await.as_deref(),
-        Some("sig-a")
+    assert!(
+        h.expires_beyond(&conv, "call_1", "30 minutes").await,
+        "a lookup must push the stored expiry out by the full TTL"
     );
 }
 

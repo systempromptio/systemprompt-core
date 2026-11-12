@@ -69,12 +69,14 @@ impl InfraCommands {
 
         match self {
             Self::Db(
-                DbCommands::Execute { .. }
-                | DbCommands::Migrate { .. }
-                | DbCommands::MigrateDown { .. }
-                | DbCommands::MigrateRepair { .. }
+                DbCommands::MigrateDown { .. }
                 | DbCommands::MigrateMarkApplied { .. }
                 | DbCommands::AssignAdmin { .. },
+            ) => DataImpact::Irreversible,
+            Self::Db(
+                DbCommands::Execute { .. }
+                | DbCommands::Migrate { .. }
+                | DbCommands::MigrateRepair { .. },
             )
             | Self::Jobs(JobsCommands::Run(_))
             | Self::Logs(LogsCommands::Cleanup(_) | LogsCommands::Delete(_)) => {

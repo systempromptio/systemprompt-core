@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.81.0] - 2026-11-12
+
+### Changed
+
+- Outbound fetches go through the loopback policy and honour a configured forward proxy.
+
 ## [0.77.0] - 2026-11-01
 
 ### Added

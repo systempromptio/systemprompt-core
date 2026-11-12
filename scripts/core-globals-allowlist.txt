@@ -7,7 +7,8 @@
 
 # Immutable data: compiled once, never mutated.
 crates/shared/models/src/ai/execution_plan.rs:TEMPLATE_REF_REGEX — immutable data: the compiled form of a literal pattern
-crates/shared/manifest/src/env.rs:INTERPOLATION_REGEX — immutable data: the compiled form of a literal pattern
+crates/shared/manifest/src/env/mod.rs:INTERPOLATION_REGEX — immutable data: the compiled form of a literal pattern
+crates/shared/manifest/src/profile/field_kind.rs:PROFILE_SCHEMA — immutable data: the JSON schema derived once from the Profile type
 
 # Third-party set-once globals mirrored by a static.
 crates/infra/logging/src/lib.rs:SUBSCRIBER_INITIALIZED — external constraint: tracing's process-global default dispatcher is set-once

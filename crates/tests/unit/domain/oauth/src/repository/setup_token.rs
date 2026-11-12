@@ -3,7 +3,7 @@
 use std::str::FromStr;
 
 use chrono::{Duration, Utc};
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{TokenId, UserId};
 use systemprompt_oauth::repository::{
     CreateSetupTokenParams, OAuthRepository, SetupTokenPurpose, TokenValidationResult,
 };
@@ -142,14 +142,14 @@ async fn consume_then_already_used() {
 
     assert!(
         ctx.repo
-            .consume_setup_token(&token_id)
+            .consume_setup_token(&token_id, &hash)
             .await
             .expect("consume")
     );
     // Consuming again is a no-op.
     assert!(
         !ctx.repo
-            .consume_setup_token(&token_id)
+            .consume_setup_token(&token_id, &hash)
             .await
             .expect("consume again")
     );
@@ -160,6 +160,95 @@ async fn consume_then_already_used() {
         .await
         .expect("validate");
     assert!(matches!(result, TokenValidationResult::AlreadyUsed));
+}
+
+#[tokio::test]
+async fn consume_refuses_a_token_presented_with_another_hash() {
+    let ctx = setup().await;
+    let hash = format!("hash-{}", Uuid::new_v4());
+    ctx.repo
+        .store_setup_token(CreateSetupTokenParams {
+            user_id: ctx.user_id.clone(),
+            token_hash: hash.clone(),
+            purpose: SetupTokenPurpose::CredentialLink,
+            expires_at: Utc::now() + Duration::minutes(10),
+        })
+        .await
+        .expect("store");
+    let TokenValidationResult::Valid(record) = ctx
+        .repo
+        .validate_setup_token(&hash)
+        .await
+        .expect("validate")
+    else {
+        panic!("expected Valid");
+    };
+
+    assert!(
+        !ctx.repo
+            .consume_setup_token(&record.id, "hash-of-another-token")
+            .await
+            .expect("consume")
+    );
+    assert!(matches!(
+        ctx.repo
+            .validate_setup_token(&hash)
+            .await
+            .expect("validate"),
+        TokenValidationResult::Valid(_)
+    ));
+}
+
+#[tokio::test]
+async fn consume_refuses_an_expired_token() {
+    let ctx = setup().await;
+    let hash = format!("hash-{}", Uuid::new_v4());
+    let token_id = ctx
+        .repo
+        .store_setup_token(CreateSetupTokenParams {
+            user_id: ctx.user_id.clone(),
+            token_hash: hash.clone(),
+            purpose: SetupTokenPurpose::CredentialLink,
+            expires_at: Utc::now() - Duration::minutes(1),
+        })
+        .await
+        .expect("store");
+
+    assert!(
+        !ctx.repo
+            .consume_setup_token(&TokenId::new(token_id), &hash)
+            .await
+            .expect("consume")
+    );
+}
+
+#[tokio::test]
+async fn concurrent_consumes_of_one_token_admit_exactly_one() {
+    let ctx = setup().await;
+    let hash = format!("hash-{}", Uuid::new_v4());
+    let token_id = ctx
+        .repo
+        .store_setup_token(CreateSetupTokenParams {
+            user_id: ctx.user_id.clone(),
+            token_hash: hash.clone(),
+            purpose: SetupTokenPurpose::CredentialLink,
+            expires_at: Utc::now() + Duration::minutes(10),
+        })
+        .await
+        .expect("store");
+
+    let token_id = TokenId::new(token_id);
+    let (a, b, c, d) = tokio::join!(
+        ctx.repo.consume_setup_token(&token_id, &hash),
+        ctx.repo.consume_setup_token(&token_id, &hash),
+        ctx.repo.consume_setup_token(&token_id, &hash),
+        ctx.repo.consume_setup_token(&token_id, &hash)
+    );
+    let won = [a, b, c, d]
+        .into_iter()
+        .filter(|r| *r.as_ref().expect("consume"))
+        .count();
+    assert_eq!(won, 1);
 }
 
 #[tokio::test]

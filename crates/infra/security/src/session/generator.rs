@@ -44,6 +44,11 @@ impl SessionGenerator {
     }
 
     pub fn generate(&self, params: &SessionParams<'_>) -> JwtResult<SessionToken> {
+        if !crate::jwt::within_max_lifetime(params.duration) {
+            return Err(JwtError::InvalidLifetime {
+                seconds: params.duration.num_seconds(),
+            });
+        }
         let now = Utc::now();
         let expiry = now + params.duration;
 

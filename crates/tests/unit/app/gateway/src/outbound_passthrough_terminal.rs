@@ -134,8 +134,9 @@ async fn relay_buffered(upstream: &Value) -> Bytes {
     let raw = raw_request(false);
     let ctx = OutboundCtx {
         target: &route,
+        policy: systemprompt_gateway::service::HopPolicy::of(&route),
         upstream: &support::api_key_call(&server.uri(), "k"),
-        http: &reqwest::Client::new(),
+        http: &support::upstream_http(),
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
@@ -166,8 +167,9 @@ async fn relay_streaming(sse: &str) -> String {
     let raw = raw_request(true);
     let ctx = OutboundCtx {
         target: &route,
+        policy: systemprompt_gateway::service::HopPolicy::of(&route),
         upstream: &support::api_key_call(&server.uri(), "k"),
-        http: &reqwest::Client::new(),
+        http: &support::upstream_http(),
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,
@@ -249,8 +251,9 @@ async fn relay_buffered_text(upstream: &str) -> Bytes {
     let raw = raw_request(false);
     let ctx = OutboundCtx {
         target: &route,
+        policy: systemprompt_gateway::service::HopPolicy::of(&route),
         upstream: &support::api_key_call(&server.uri(), "k"),
-        http: &reqwest::Client::new(),
+        http: &support::upstream_http(),
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,

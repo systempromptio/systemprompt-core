@@ -20,7 +20,13 @@ use super::common::{empty_get, json_post, request_context, setup_ctx};
 
 fn slack_router(ctx: &systemprompt_runtime::AppContext) -> axum::Router {
     systemprompt_api::routes::slack::slack_router(
-        systemprompt_api::routes::messaging::MessagingState::guarded().expect("guarded client"),
+        systemprompt_api::routes::messaging::MessagingState::new(
+            reqwest::Client::new(),
+            systemprompt_client::GuardedClient::configured(
+                &systemprompt_client::GuardedClientConfig::for_configured(),
+            )
+            .expect("loopback-permitting reply client"),
+        ),
     )
     .with_state(ctx.clone())
 }

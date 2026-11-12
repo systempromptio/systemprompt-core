@@ -3,6 +3,7 @@
 //! read off the endpoint and the key is sent verbatim.
 
 use systemprompt_ai::UpstreamCall;
+use systemprompt_gateway::protocol::outbound::{UpstreamBounds, UpstreamHttp};
 use systemprompt_security::credential::{AuthHeader, AuthScheme};
 use systemprompt_wire::Hosting;
 
@@ -16,4 +17,8 @@ pub(super) fn api_key_call(endpoint: &str, key: &str) -> UpstreamCall {
         },
         Vec::new(),
     )
+}
+
+pub(super) fn upstream_http() -> UpstreamHttp {
+    UpstreamHttp::new(reqwest::Client::new(), UpstreamBounds::PRODUCTION)
 }

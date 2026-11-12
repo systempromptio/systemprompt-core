@@ -98,7 +98,7 @@ pub(super) async fn execute(args: CallArgs, ctx: &CommandContext) -> Result<Comm
 
     let (output, failure) = match result {
         Ok(tool_result) => {
-            success_outcome(&tool_result, &server_name, &tool_name, execution_time_ms)
+            success_outcome(&tool_result, &server_name, &tool_name, execution_time_ms)?
         },
         Err(e) => failure_outcome(e.to_string(), &server_name, &tool_name, execution_time_ms),
     };
@@ -144,8 +144,13 @@ fn success_outcome(
     server_name: &McpServerId,
     tool_name: &McpToolName,
     execution_time_ms: u64,
-) -> (McpCallOutput, Option<String>) {
-    let content: Vec<McpToolContent> = tool_result.content.iter().map(convert_content).collect();
+) -> Result<(McpCallOutput, Option<String>)> {
+    let content: Vec<McpToolContent> = tool_result
+        .content
+        .iter()
+        .map(convert_content)
+        .collect::<Result<_, _>>()
+        .context("MCP tool returned an embedded resource that cannot be rendered as JSON")?;
     let is_error = tool_result.is_error.unwrap_or(false);
     let failure = is_error.then(|| {
         let detail = content
@@ -166,7 +171,7 @@ fn success_outcome(
         }
     });
 
-    (
+    Ok((
         McpCallOutput {
             server: server_name.clone(),
             tool: tool_name.clone(),
@@ -176,7 +181,7 @@ fn success_outcome(
             error: failure.clone(),
         },
         failure,
-    )
+    ))
 }
 
 fn failure_outcome(

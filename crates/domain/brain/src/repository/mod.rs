@@ -22,6 +22,7 @@ mod extractions;
 mod fact_apply;
 mod fact_insert;
 mod fact_lifecycle;
+mod fact_listing;
 mod facts;
 mod failures;
 mod links;

@@ -332,6 +332,7 @@ async fn export_links_and_previews_the_revision() {
     let h = harness().await;
     let owner = registered("download").await;
     let ctx = ctx_for(Some(&owner));
+    let hop = crate::link_rig::hop_for(&owner, &ctx, crate::documents_mcp_support::SERVER);
     let (document, revision) = create_text(&h.tools, &ctx, "hello").await;
     let input = |format, export_as| ExportInput {
         document_id: document.clone(),
@@ -339,10 +340,13 @@ async fn export_links_and_previews_the_revision() {
         format,
         export_as,
     };
-    let (download, _) = ExportHandler { tools: &h.tools }
-        .handle(input(ExportFormat::Native, ExportAs::Url), &ctx, &exec())
-        .await
-        .expect("download url");
+    let (download, _) = ExportHandler {
+        tools: &h.tools,
+        hop: Some(&hop),
+    }
+    .handle(input(ExportFormat::Native, ExportAs::Url), &ctx, &exec())
+    .await
+    .expect("download url");
     assert_eq!(download.revision_id, revision);
     let url = download.url.clone().expect("url");
     assert!(
@@ -354,20 +358,26 @@ async fn export_links_and_previews_the_revision() {
     let lifetime = download.expires_at.expect("expiry") - chrono::Utc::now();
     assert!(lifetime <= chrono::Duration::minutes(10) && lifetime > chrono::Duration::minutes(9));
 
-    let (preview, _) = ExportHandler { tools: &h.tools }
-        .handle(input(ExportFormat::Html, ExportAs::Preview), &ctx, &exec())
-        .await
-        .expect("preview");
+    let (preview, _) = ExportHandler {
+        tools: &h.tools,
+        hop: Some(&hop),
+    }
+    .handle(input(ExportFormat::Html, ExportAs::Preview), &ctx, &exec())
+    .await
+    .expect("preview");
     assert!(
         preview
             .html
             .as_deref()
             .is_some_and(|html| html.contains("hello"))
     );
-    let (pdf, _) = ExportHandler { tools: &h.tools }
-        .handle(input(ExportFormat::Pdf, ExportAs::Url), &ctx, &exec())
-        .await
-        .expect("pdf url");
+    let (pdf, _) = ExportHandler {
+        tools: &h.tools,
+        hop: Some(&hop),
+    }
+    .handle(input(ExportFormat::Pdf, ExportAs::Url), &ctx, &exec())
+    .await
+    .expect("pdf url");
     assert_eq!(pdf.revision_id, revision);
     assert!(
         pdf.url.as_deref().is_some_and(|url| url.starts_with(&format!(
@@ -376,10 +386,13 @@ async fn export_links_and_previews_the_revision() {
         "{:?}",
         pdf.url
     );
-    let preview = ExportHandler { tools: &h.tools }
-        .handle(input(ExportFormat::Pdf, ExportAs::Preview), &ctx, &exec())
-        .await
-        .expect_err("pdf has no preview");
+    let preview = ExportHandler {
+        tools: &h.tools,
+        hop: Some(&hop),
+    }
+    .handle(input(ExportFormat::Pdf, ExportAs::Preview), &ctx, &exec())
+    .await
+    .expect_err("pdf has no preview");
     assert_eq!(
         preview.data.as_ref().expect("refusal")["code"],
         "unsupported_format"

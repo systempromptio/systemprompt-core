@@ -3,12 +3,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::{Context, Result};
+use crate::commands::shared::mcp_tools::cli_limits;
+use anyhow::{Context, Result, anyhow};
 use rmcp::ServiceExt;
 use rmcp::model::{
     CallToolRequestParams, ClientCapabilities, ClientConfig, ContentBlock, Implementation,
     ProtocolVersion,
 };
+use rmcp::service::{RoleClient, RunningService};
 use rmcp::transport::streamable_http_client::{
     StreamableHttpClientTransport, StreamableHttpClientTransportConfig,
 };
@@ -33,6 +35,18 @@ pub struct ToolCallParams<'a> {
 }
 
 pub async fn execute_tool_call(params: ToolCallParams<'_>) -> Result<CallToolResult> {
+    let limit = Duration::from_secs(params.timeout_secs);
+    let server_name = params.server_name;
+    let tool_name = params.tool_name;
+    timeout(limit, call_tool(params)).await.map_err(|elapsed| {
+        anyhow!(
+            "MCP tool '{tool_name}' on '{server_name}' did not finish within {}s ({elapsed})",
+            limit.as_secs()
+        )
+    })?
+}
+
+async fn call_tool(params: ToolCallParams<'_>) -> Result<CallToolResult> {
     let ToolCallParams {
         server_name,
         url,
@@ -42,33 +56,13 @@ pub async fn execute_tool_call(params: ToolCallParams<'_>) -> Result<CallToolRes
         timeout_secs,
     } = params;
 
-    let agent_name = AgentName::try_new(format!("cli-{server_name}"))
-        .context("MCP server name does not form a valid agent name")?;
-    let request_context = session_ctx.to_request_context(agent_name);
-    let http_client = HttpClientWithContext::new(request_context)?;
-    let config = StreamableHttpClientTransportConfig::with_uri(url)
-        .auth_header(session_ctx.session_token().as_str().to_owned());
-    let transport = StreamableHttpClientTransport::with_client(http_client, config);
-
-    let client_info = ClientConfig::new(
-        ClientCapabilities::default(),
-        Implementation::new(format!("systemprompt-cli-{}", server_name), "1.0.0"),
-    )
-    .with_protocol_version(ProtocolVersion::LATEST_WITH_INITIALIZE);
-
-    let client = timeout(
-        Duration::from_secs(timeout_secs),
-        client_info.serve(transport),
-    )
-    .await
-    .context("Connection timeout")?
-    .context("Failed to connect to MCP server")?;
+    let client = connect(server_name, url, session_ctx, timeout_secs).await?;
 
     let mut params = CallToolRequestParams::new(String::from(tool_name));
     params.arguments = arguments.and_then(|v| v.as_object().cloned());
 
     let result = client.call_tool(params).await.map_err(|e| {
-        anyhow::anyhow!(
+        anyhow!(
             "MCP tool '{}' on '{}' rejected the call: {}",
             tool_name,
             server_name,
@@ -86,27 +80,27 @@ pub async fn list_available_tools(
     session_ctx: &CliSessionContext,
     timeout_secs: u64,
 ) -> Result<Vec<String>> {
-    let agent_name = AgentName::try_new(format!("cli-{server_name}"))
-        .context("MCP server name does not form a valid agent name")?;
-    let request_context = session_ctx.to_request_context(agent_name);
-    let http_client = HttpClientWithContext::new(request_context)?;
-    let config = StreamableHttpClientTransportConfig::with_uri(url)
-        .auth_header(session_ctx.session_token().as_str().to_owned());
-    let transport = StreamableHttpClientTransport::with_client(http_client, config);
-
-    let client_info = ClientConfig::new(
-        ClientCapabilities::default(),
-        Implementation::new(format!("systemprompt-cli-{}", server_name), "1.0.0"),
-    )
-    .with_protocol_version(ProtocolVersion::LATEST_WITH_INITIALIZE);
-
-    let client = timeout(
-        Duration::from_secs(timeout_secs),
-        client_info.serve(transport),
+    let limit = Duration::from_secs(timeout_secs);
+    timeout(
+        limit,
+        list_tools(server_name, url, session_ctx, timeout_secs),
     )
     .await
-    .context("Connection timeout")?
-    .context("Failed to connect to MCP server")?;
+    .map_err(|elapsed| {
+        anyhow!(
+            "Listing tools on '{server_name}' did not finish within {}s ({elapsed})",
+            limit.as_secs()
+        )
+    })?
+}
+
+async fn list_tools(
+    server_name: &McpServerId,
+    url: &str,
+    session_ctx: &CliSessionContext,
+    timeout_secs: u64,
+) -> Result<Vec<String>> {
+    let client = connect(server_name, url, session_ctx, timeout_secs).await?;
 
     let tools_response = client
         // Why: rmcp serialises a `None` params as `"params": null`, which a
@@ -125,8 +119,34 @@ pub async fn list_available_tools(
     Ok(tool_names)
 }
 
-pub fn convert_content(content: &ContentBlock) -> McpToolContent {
-    match content {
+async fn connect(
+    server_name: &McpServerId,
+    url: &str,
+    session_ctx: &CliSessionContext,
+    timeout_secs: u64,
+) -> Result<RunningService<RoleClient, ClientConfig>> {
+    let agent_name = AgentName::try_new(format!("cli-{server_name}"))
+        .context("MCP server name does not form a valid agent name")?;
+    let request_context = session_ctx.to_request_context(agent_name);
+    let http_client = HttpClientWithContext::new(request_context, cli_limits(timeout_secs))?;
+    let config = StreamableHttpClientTransportConfig::with_uri(url)
+        .auth_header(session_ctx.session_token().as_str().to_owned());
+    let transport = StreamableHttpClientTransport::with_client(http_client, config);
+
+    let client_info = ClientConfig::new(
+        ClientCapabilities::default(),
+        Implementation::new(format!("systemprompt-cli-{}", server_name), "1.0.0"),
+    )
+    .with_protocol_version(ProtocolVersion::LATEST_WITH_INITIALIZE);
+
+    client_info
+        .serve(transport)
+        .await
+        .context("Failed to connect to MCP server")
+}
+
+pub fn convert_content(content: &ContentBlock) -> Result<McpToolContent, serde_json::Error> {
+    Ok(match content {
         ContentBlock::Text(text) => McpToolContent {
             kind: "text".to_owned(),
             text: Some(text.text.clone()),
@@ -141,7 +161,7 @@ pub fn convert_content(content: &ContentBlock) -> McpToolContent {
         },
         ContentBlock::Resource(resource) => McpToolContent {
             kind: "resource".to_owned(),
-            text: Some(format!("{:?}", resource.resource)),
+            text: Some(serde_json::to_string(&resource.resource)?),
             mime_type: None,
             data: None,
         },
@@ -163,5 +183,5 @@ pub fn convert_content(content: &ContentBlock) -> McpToolContent {
             mime_type: None,
             data: None,
         },
-    }
+    })
 }

@@ -34,7 +34,8 @@ pub(in crate::install::mdm) fn apply(
             .map(crate::config::store::verified::PolicyReceipt::describe),
     );
     let provisioning = if elevated {
-        provision_org_plugins(&mut summary).and_then(|()| register_policy_writer(&mut summary))
+        provision_org_plugins(&mut summary)
+            .and_then(|()| register_policy_writer(inputs, &mut summary))
     } else {
         require_org_plugins()
     };
@@ -106,7 +107,10 @@ fn provision_org_plugins(summary: &mut Vec<String>) -> Result<(), MdmError> {
     Ok(())
 }
 
-fn register_policy_writer(summary: &mut Vec<String>) -> Result<(), MdmError> {
+fn register_policy_writer(
+    inputs: &mdm::MdmPayloadInputs<'_>,
+    summary: &mut Vec<String>,
+) -> Result<(), MdmError> {
     // Why: registering the writer is what makes every later sync
     // prompt-free; without a machine trust anchor it cannot verify a
     // manifest, so it is not registered and the install says so.
@@ -115,8 +119,17 @@ fn register_policy_writer(summary: &mut Vec<String>) -> Result<(), MdmError> {
             context: "locate this binary".to_owned(),
             source: e,
         })
-        .and_then(|exe| crate::install::policy_writer::install(&exe))
-    {
+        .and_then(|exe| {
+            let loopback =
+                crate::install::policy_writer::Loopback::of(inputs.loopback).map_err(|source| {
+                    crate::install::policy_writer::PolicyWriterError::Io {
+                        context: "read the loopback secret the machine policy is bound to"
+                            .to_owned(),
+                        source,
+                    }
+                })?;
+            crate::install::policy_writer::install(&exe, loopback)
+        }) {
         Ok(lines) => summary.extend(lines),
         Err(crate::install::policy_writer::PolicyWriterError::NoAnchor) => {
             summary.push(

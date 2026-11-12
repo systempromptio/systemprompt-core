@@ -51,6 +51,12 @@ pub enum VerifyFailure {
 
     #[error("the source pins neither a sha256 digest nor an ed25519 key")]
     NoVerification,
+
+    #[error("manifest lists {path}, which is not a relative path under an allowed directory")]
+    UnsafePath { path: String },
+
+    #[error("bundle ships {kind} {id} but its manifest does not declare it")]
+    UndeclaredOwnership { kind: String, id: String },
 }
 
 pub type BundleCause = Box<dyn std::error::Error + Send + Sync + 'static>;
@@ -100,6 +106,13 @@ pub enum BundleError {
     Ownership {
         id: String,
         kind: String,
+        first: String,
+        second: String,
+    },
+
+    #[error("{path} is shipped by both {first} and {second}; only the base bundle may ship it")]
+    FileCollision {
+        path: String,
         first: String,
         second: String,
     },

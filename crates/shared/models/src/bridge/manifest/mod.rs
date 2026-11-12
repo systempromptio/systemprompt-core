@@ -53,7 +53,7 @@ pub const MANIFEST_SCHEMA_VERSION: u32 = 2;
 
 pub const MANIFEST_INLINE_SCHEMA_VERSION: u32 = 1;
 
-pub const MANIFEST_SCHEMA_HEADER: &str = "x-bridge-manifest-schema";
+pub const MANIFEST_SCHEMA_HEADER: &str = systemprompt_identifiers::headers::BRIDGE_MANIFEST_SCHEMA;
 
 #[must_use]
 pub const fn min_bridge_version() -> semver::Version {

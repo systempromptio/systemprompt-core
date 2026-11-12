@@ -13,6 +13,7 @@ workspace = true
 [dependencies]
 systemprompt-models = { workspace = true }
 systemprompt-identifiers = { workspace = true }
+systemprompt-test-hack = { version = "0.1", path = "../../../common/hack" }
 
 [dev-dependencies]
 base64 = { workspace = true }

@@ -29,10 +29,12 @@ fn external_config(external_auth: bool) -> McpServerConfig {
             audience: JwtAudience::Mcp,
             client_id: None,
             ema: false,
+            service_only: false,
         },
         tools: HashMap::new(),
         model_config: None,
         env_vars: vec![],
+        secrets: Vec::new(),
         version: "1.0.0".to_string(),
         host: String::new(),
         module_name: "mcp".to_string(),
@@ -65,6 +67,7 @@ async fn resolve_external_proxy_target_errors_without_accessor() {
         systemprompt_mcp::services::DeploymentService::new(crate::harness::services_state().view()),
         crate::harness::config(),
         systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
+        systemprompt_mcp::services::client::McpClientLimits::default(),
     )
     .resolve_external_proxy_target(&config, &context())
     .await;
@@ -88,6 +91,7 @@ async fn resolve_external_proxy_target_refuses_without_a_broker_secret() {
         systemprompt_mcp::services::DeploymentService::new(crate::harness::services_state().view()),
         crate::harness::config(),
         systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
+        systemprompt_mcp::services::client::McpClientLimits::default(),
     )
     .resolve_external_proxy_target(&config, &ctx)
     .await

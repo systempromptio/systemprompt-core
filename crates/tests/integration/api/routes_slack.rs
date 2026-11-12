@@ -58,7 +58,13 @@ fn signed_post(path: &str, body: &str, secret: &str) -> Request<Body> {
 
 fn router(ctx: &std::sync::Arc<systemprompt_runtime::AppContext>) -> axum::Router {
     systemprompt_api::routes::slack::slack_router(
-        systemprompt_api::routes::messaging::MessagingState::guarded().expect("guarded client"),
+        systemprompt_api::routes::messaging::MessagingState::new(
+            reqwest::Client::new(),
+            systemprompt_client::GuardedClient::configured(
+                &systemprompt_client::GuardedClientConfig::for_configured(),
+            )
+            .expect("loopback-permitting reply client"),
+        ),
     )
     .with_state((**ctx).clone())
 }
@@ -148,6 +154,53 @@ async fn signed_slash_command_dispatches_and_posts_to_response_url() -> anyhow::
     assert!(
         body.contains("dispatched reply"),
         "rendered Block Kit carries the agent reply: {body}"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn signed_slash_command_with_a_loopback_response_url_sends_nothing() -> anyhow::Result<()> {
+    let b = ensure_messaging_bootstrap();
+    let pool = test_db_pool().await;
+    let ctx = test_app_context(&pool, &b.database_url);
+
+    let agent = MockServer::start().await;
+    Mock::given(method("POST"))
+        .respond_with(
+            ResponseTemplate::new(200).set_body_json(agent_reply_response_json("dispatched reply")),
+        )
+        .mount(&agent)
+        .await;
+    seed_agent_backend(&ctx, &agent).await?;
+
+    let response_hook = MockServer::start().await;
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({ "ok": true })))
+        .expect(0)
+        .mount(&response_hook)
+        .await;
+
+    let response_url = format!("{}/slack/respond", response_hook.uri());
+    let body = format!(
+        "command=%2Fask&text=hi&user_id=U1&channel_id=C1&team_id={TEST_SLACK_WORKSPACE_ID}&response_url={}",
+        urlencode(&response_url)
+    );
+    let req = signed_post("/commands", &body, TEST_SLACK_SIGNING_SECRET);
+    let production = systemprompt_api::routes::slack::slack_router(
+        systemprompt_api::routes::messaging::MessagingState::guarded()?,
+    )
+    .with_state((*ctx).clone());
+    let resp = production.oneshot(req).await?;
+    assert_eq!(resp.status(), StatusCode::OK, "the route acks immediately");
+
+    assert_eq!(
+        ctx.background_tasks().drain(Duration::from_secs(120)).await,
+        DrainOutcome::Drained
+    );
+    let received = response_hook.received_requests().await.unwrap_or_default();
+    assert!(
+        received.is_empty(),
+        "nothing reaches a loopback response_url"
     );
     Ok(())
 }

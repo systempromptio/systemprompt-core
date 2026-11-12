@@ -31,9 +31,15 @@ mod execute;
 #[cfg(test)]
 mod execute_paths;
 #[cfg(test)]
+mod execute_preflight;
+#[cfg(test)]
+mod execute_resume;
+#[cfg(test)]
 mod execute_support;
 #[cfg(test)]
 mod execute_version;
+#[cfg(test)]
+mod fencing;
 #[cfg(test)]
 mod governance;
 #[cfg(test)]
@@ -47,9 +53,13 @@ mod opencode_outcome;
 #[cfg(test)]
 mod outputs;
 #[cfg(test)]
+mod release_bound;
+#[cfg(test)]
 mod repository;
 #[cfg(test)]
 mod retention;
+#[cfg(test)]
+mod run_interrupts;
 #[cfg(test)]
 mod runner;
 #[cfg(test)]
@@ -60,3 +70,5 @@ mod runner_handler;
 mod task_link;
 #[cfg(test)]
 mod text_enums;
+#[cfg(test)]
+mod tool_policy;

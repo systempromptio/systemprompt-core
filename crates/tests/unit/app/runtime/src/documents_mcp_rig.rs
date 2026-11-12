@@ -35,9 +35,12 @@ pub(crate) async fn rig(with_uploads: bool) -> Rig {
         notifications: Arc::clone(&notifications.service),
         uploads: with_uploads.then(|| Arc::clone(runtime.uploads())),
         users: Arc::new(UserRepository::new(&pool)),
-        tokens: systemprompt_test_fixtures::test_token_authority("documents-test"),
+        links: crate::link_rig::in_process_links(
+            Arc::clone(runtime.service()),
+            Arc::clone(runtime.uploads()),
+            SERVER,
+        ),
         server_name: McpServerId::new(SERVER),
-        api_external_url: "https://docs.example.test/".to_owned(),
     });
     Rig {
         pool,

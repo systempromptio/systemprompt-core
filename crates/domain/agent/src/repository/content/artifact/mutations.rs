@@ -8,17 +8,19 @@ use std::sync::Arc;
 use super::ArtifactRepository;
 use super::parts::persist_artifact_part;
 use crate::models::a2a::Artifact;
+use crate::repository::RuntimeTask;
 use chrono::Utc;
-use systemprompt_identifiers::{ArtifactId, ContextId, McpExecutionId, TaskId};
+use systemprompt_identifiers::McpExecutionId;
 use systemprompt_traits::RepositoryError;
 
 impl ArtifactRepository {
     pub async fn create_artifact(
         &self,
-        task_id: &TaskId,
-        context_id: &ContextId,
+        task: &RuntimeTask,
         artifact: &Artifact,
     ) -> Result<(), RepositoryError> {
+        let task_id = task.task_id();
+        let context_id = task.context_id();
         let pool = Arc::clone(&self.write_pool);
         let now = Utc::now();
 
@@ -89,20 +91,6 @@ impl ArtifactRepository {
             persist_artifact_part(pool.as_ref(), part, &artifact.id, context_id, idx as i32)
                 .await?;
         }
-
-        Ok(())
-    }
-
-    pub async fn delete_artifact(&self, artifact_id: &ArtifactId) -> Result<(), RepositoryError> {
-        let pool = Arc::clone(&self.write_pool);
-        let artifact_id_str = artifact_id.as_str();
-
-        sqlx::query!(
-            "DELETE FROM task_artifacts WHERE artifact_id = $1",
-            artifact_id_str
-        )
-        .execute(pool.as_ref())
-        .await?;
 
         Ok(())
     }

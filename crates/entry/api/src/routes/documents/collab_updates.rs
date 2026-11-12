@@ -37,6 +37,7 @@ use super::caller::caller;
 use super::collab::decode;
 use super::error::DocumentsResult;
 use super::items::document_id;
+use crate::error::unreadable_body;
 
 const BINARY: &str = "application/octet-stream";
 const RETRY_AFTER_MS: u64 = 250;
@@ -78,7 +79,7 @@ pub(super) async fn updates(
     let body = Bytes::from_request(request, &state)
         .await
         .map_err(|error| {
-            ApiError::bad_request("the update body could not be read").with_source(error)
+            unreadable_body(error.status(), "the update body could not be read", error)
         })?;
     if headers.get(FORWARDED_HEADER).is_none()
         && let UpdateRoute::Forward { address } = state.collab.update_route(&document).await

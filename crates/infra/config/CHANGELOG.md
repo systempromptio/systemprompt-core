@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.81.0] - 2026-11-12
+
+### Breaking
+
+- The `SYSTEMPROMPT_SUBPROCESS` secrets path is removed: `resolve_source` drops `is_subprocess` and `ResolvedSource::SubprocessEnv` is removed. Migrate by giving such a profile `secrets: { source: env }`.
+- `build_from_profile` takes `&ConfigCredentials`, and `Secrets::to_subprocess_env` is replaced by grant-scoped `SecretsService::child_env`. Migrate by declaring `secrets:` grants on MCP servers and agents.
+
 ## [0.77.0] - 2026-11-01
 
 ### Changed

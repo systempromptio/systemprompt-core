@@ -26,6 +26,7 @@ use systemprompt_security::manifest_signing::{
 use tar::Archive;
 
 use super::error::{BundleError, BundleResult, VerifyFailure};
+use super::ownership::{is_shared_dir, require_declared, shipped_ownership};
 use super::pack::collect_files;
 
 pub fn file_digest(path: &Path) -> BundleResult<String> {
@@ -139,6 +140,8 @@ fn verify_signature(signed: &SignedBundleManifest, pinned_keys: &[String]) -> Bu
 }
 
 pub fn verify_extracted(root: &Path, manifest: &ServicesBundleManifest) -> BundleResult<()> {
+    let shipped = shipped_ownership(&manifest.files)?;
+    require_declared(&manifest.owns, &shipped)?;
     for entry in &manifest.files {
         let path = root.join(&entry.path);
         let content = fs::read(&path).map_err(|_e| VerifyFailure::FileChecksum {
@@ -170,10 +173,9 @@ pub fn verify_extracted(root: &Path, manifest: &ServicesBundleManifest) -> Bundl
 }
 
 pub fn require_marketplace_only(manifest: &ServicesBundleManifest) -> BundleResult<()> {
-    for dir in &manifest.owns.dirs {
-        if !systemprompt_manifest::services::bundle::MARKETPLACE_BUNDLE_DIRS.contains(&dir.as_str())
-        {
-            return Err(VerifyFailure::NotMarketplaceOnly { dir: dir.clone() }.into());
+    for dir in shipped_ownership(&manifest.files)?.dirs {
+        if !is_shared_dir(&dir) {
+            return Err(VerifyFailure::NotMarketplaceOnly { dir }.into());
         }
     }
     Ok(())

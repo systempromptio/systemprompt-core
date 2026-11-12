@@ -25,9 +25,13 @@ use super::streaming_parts::{close_text, close_thinking, emit_part};
 use super::wire::GeminiResponse;
 use crate::canonical::{CanonicalEvent, CanonicalStopReason, CanonicalUsage, CanonicalUsageUpdate};
 use crate::error::WireStreamError;
+use crate::sse::{FrameLedger, SseFramer};
+
+const WIRE: &str = "gemini";
 
 pub(super) struct StreamState {
-    pub(super) buf: Vec<u8>,
+    pub(super) framer: SseFramer,
+    pub(super) ledger: FrameLedger,
     pub(super) model: String,
     pub(super) message_id: String,
     pub(super) started: bool,
@@ -50,7 +54,8 @@ where
     E: Into<Box<dyn std::error::Error + Send + Sync>> + 'static,
 {
     let initial = StreamState {
-        buf: Vec::new(),
+        framer: SseFramer::default(),
+        ledger: FrameLedger::default(),
         emitted_tool_use: false,
         emitted_part: false,
         stopped: false,
@@ -69,7 +74,11 @@ where
             let res = match item {
                 Some(Ok(bytes)) => drain_buffer(state, &bytes),
                 Some(Err(e)) => vec![Err(e)],
-                None => drain_tail(state),
+                None => {
+                    let mut events = drain_tail(state);
+                    events.extend(state.ledger.finish().map(Err));
+                    events
+                },
             };
             futures_util::future::ready(Some(res))
         })
@@ -84,7 +93,7 @@ fn drain_tail(state: &mut StreamState) -> Vec<Result<CanonicalEvent, WireStreamE
     if state.stopped {
         return Vec::new();
     }
-    let tail = String::from_utf8_lossy(&state.buf);
+    let tail = String::from_utf8_lossy(state.framer.remainder());
     let tail = tail.trim();
     if tail.is_empty() {
         return Vec::new();
@@ -97,9 +106,8 @@ fn drain_tail(state: &mut StreamState) -> Vec<Result<CanonicalEvent, WireStreamE
     if let Some(message) = crate::sse::upstream_error_message(&value) {
         events.push(Ok(CanonicalEvent::Error(message)));
     } else {
-        handle_chunk(state, &value, &mut events);
+        handle_chunk(state, &value, body.len(), &mut events);
     }
-    state.buf.clear();
     events
 }
 
@@ -107,19 +115,22 @@ fn drain_buffer(
     state: &mut StreamState,
     bytes: &[u8],
 ) -> Vec<Result<CanonicalEvent, WireStreamError>> {
-    state.buf.extend_from_slice(bytes);
     let mut events: Vec<Result<CanonicalEvent, WireStreamError>> = Vec::new();
-    while let Some(end) = crate::sse::frame_end(&state.buf) {
-        let frame: Vec<u8> = state.buf.drain(..end).collect();
-        let frame_str = String::from_utf8_lossy(&frame);
-        for line in frame_str.lines() {
-            let Some(data) = line.strip_prefix("data:") else {
+    for frame in state.framer.push(bytes) {
+        let frame = match frame {
+            Ok(frame) => frame,
+            Err(e) => {
+                events.push(Err(e.into()));
                 continue;
-            };
-            match serde_json::from_str::<Value>(data.trim()) {
-                Ok(value) => handle_chunk(state, &value, &mut events),
-                Err(e) => events.push(Err(WireStreamError::MalformedGeminiFrame(e))),
-            }
+            },
+        };
+        let data = frame.data.trim();
+        if data.is_empty() || data == "[DONE]" {
+            continue;
+        }
+        match serde_json::from_str::<Value>(data) {
+            Ok(value) => handle_chunk(state, &value, data.len(), &mut events),
+            Err(e) => events.push(Ok(state.ledger.dropped_json(WIRE, &e, data.len()))),
         }
     }
     events
@@ -129,15 +140,22 @@ fn handle_chunk(
     state: &mut StreamState,
     // JSON: Gemini streaming frame; upstream JSON is the contract.
     value: &Value,
+    bytes: usize,
     events: &mut Vec<Result<CanonicalEvent, WireStreamError>>,
 ) {
     if let Some(message) = crate::sse::upstream_error_message(value) {
+        state.ledger.decoded();
         events.push(Ok(CanonicalEvent::Error(message)));
         return;
     }
-    let Ok(chunk) = serde_json::from_value::<GeminiResponse>(value.clone()) else {
-        return;
+    let chunk = match serde_json::from_value::<GeminiResponse>(value.clone()) {
+        Ok(chunk) => chunk,
+        Err(e) => {
+            events.push(Ok(state.ledger.dropped_json(WIRE, &e, bytes)));
+            return;
+        },
     };
+    state.ledger.decoded();
     // Why: Gemini can report a blocked prompt with only `promptFeedback`,
     // without candidates or a finish reason.
     if let Some(reason) = chunk
@@ -161,7 +179,7 @@ fn handle_chunk(
         // Why: Gemini includes `cachedContentTokenCount` in `promptTokenCount`.
         events.push(Ok(CanonicalEvent::UsageDelta(CanonicalUsageUpdate {
             input_tokens: Some(usage.prompt.saturating_sub(usage.cached)),
-            output_tokens: Some(usage.candidates + usage.thoughts),
+            output_tokens: Some(usage.candidates.saturating_add(usage.thoughts)),
             cache_read_tokens: Some(usage.cached),
             reasoning_tokens: Some(usage.thoughts),
             total_tokens: (usage.total > 0).then_some(usage.total),

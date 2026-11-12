@@ -1,13 +1,14 @@
 //! AI service configuration loaded from profile YAML.
 //!
-//! [`AiConfig`] is the top-level AI *policy* block: sampling, MCP discovery,
-//! and history retention. Upstream connectivity and the default model live in
-//! the catalog (`services/ai/{credentials,providers,models,deployments}.yaml`
-//! and `gateway.default_model`), not here; `default_image_model` names a
-//! catalog model and is validated against it; the retired `default_provider`
-//! and `providers` keys are refused as unknown fields. The nested
-//! [`ResilienceSettings`] is the per-dependency timeout/retry/circuit-breaker
-//! policy applied to outbound provider and MCP calls.
+//! [`AiConfig`] is the top-level AI *policy* block: sampling, MCP client
+//! resilience and history retention. Upstream connectivity and the default
+//! model live in the catalog
+//! (`services/ai/{credentials,providers,models,deployments}.yaml` and `gateway.
+//! default_model`), not here; `default_image_model` names a catalog model and
+//! is validated against it; the retired `default_provider` and `providers` keys
+//! are refused as unknown fields. The nested [`ResilienceSettings`] is the
+//! per-dependency timeout/retry/circuit-breaker policy applied to outbound
+//! provider and MCP calls.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -34,6 +35,7 @@ pub struct AiConfig {
 }
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct SamplingConfig {
     #[serde(default)]
     pub enable_smart_routing: bool,
@@ -43,10 +45,8 @@ pub struct SamplingConfig {
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct McpConfig {
-    #[serde(default)]
-    pub auto_discover: bool,
-
     #[serde(default = "default_mcp_resilience")]
     pub resilience: ResilienceSettings,
 }
@@ -54,7 +54,6 @@ pub struct McpConfig {
 impl Default for McpConfig {
     fn default() -> Self {
         Self {
-            auto_discover: false,
             resilience: default_mcp_resilience(),
         }
     }
@@ -75,6 +74,7 @@ fn default_mcp_resilience() -> ResilienceSettings {
 /// counts). Translated into the runtime form consumed by the resilience
 /// primitives in `systemprompt-database`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct ResilienceSettings {
     #[serde(default = "default_request_timeout")]
     pub request_timeout_ms: u64,
@@ -165,19 +165,16 @@ const fn default_max_concurrent() -> usize {
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct HistoryConfig {
     #[serde(default = "default_retention_days")]
     pub retention_days: u32,
-
-    #[serde(default)]
-    pub log_tool_executions: bool,
 }
 
 impl Default for HistoryConfig {
     fn default() -> Self {
         Self {
             retention_days: default_retention_days(),
-            log_tool_executions: false,
         }
     }
 }

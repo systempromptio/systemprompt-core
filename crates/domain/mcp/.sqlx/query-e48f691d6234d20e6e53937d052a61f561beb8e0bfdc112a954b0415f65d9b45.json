@@ -1,0 +1,25 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT EXISTS (\n                   SELECT 1 FROM mcp_sessions\n                   WHERE session_id = $1\n                     AND mcp_server_id = $2\n                     AND user_id IS NOT DISTINCT FROM $3\n                     AND expires_at > NOW()\n               ) AS \"bound!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "bound!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "e48f691d6234d20e6e53937d052a61f561beb8e0bfdc112a954b0415f65d9b45"
+}

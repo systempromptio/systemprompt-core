@@ -4,6 +4,7 @@
 // and non-streaming then rejects, and the unsupported-request-type fallthrough.
 
 use std::sync::Arc;
+use systemprompt_test_fixtures::agent_reads::TaskReadsExt;
 
 use axum::body::Bytes;
 use axum::extract::{Extension, State};
@@ -76,7 +77,7 @@ async fn fixture(pool: &systemprompt_database::DbPool) -> Fixture {
     let repos = repos(pool);
     let (user_id, session_id) = seed_user_and_session(pool).await;
     let (context_id, task_id) = seed_context_and_task(&repos, &user_id, &session_id).await;
-    repos.tasks.delete_task(&task_id).await.ok();
+    repos.tasks.remove_task(&task_id).await.ok();
     Fixture {
         context_id,
         user_id,
@@ -161,11 +162,11 @@ async fn cancel_task_returns_a_canceled_task_bound_to_its_context() {
     let (status, body) = body_json(response).await;
     let stored = repos
         .tasks
-        .find_task(&task_id)
+        .read_task(&task_id)
         .await
         .expect("get task")
         .expect("task row");
-    repos.tasks.delete_task(&task_id).await.ok();
+    repos.tasks.remove_task(&task_id).await.ok();
 
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["result"]["id"], json!(task_id.as_str()));
@@ -203,11 +204,11 @@ async fn cancel_task_owned_by_another_user_reads_as_not_found() {
     let (status, body) = body_json(response).await;
     let stored = repos
         .tasks
-        .find_task(&task_id)
+        .read_task(&task_id)
         .await
         .expect("get task")
         .expect("task row");
-    repos.tasks.delete_task(&task_id).await.ok();
+    repos.tasks.remove_task(&task_id).await.ok();
 
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["error"]["code"], json!(-32001), "{body}");
@@ -226,7 +227,7 @@ async fn cancel_task_on_a_terminal_task_is_refused() {
     let (context_id, task_id) = seed_context_and_task(&repos, &user_id, &session_id).await;
     repos
         .tasks
-        .update_task_state(&task_id, TaskState::Completed, &chrono::Utc::now())
+        .set_task_state(&task_id, TaskState::Completed, &chrono::Utc::now())
         .await
         .expect("complete the task");
     let state = make_handler_state(&pool, Arc::new(StubAiProvider::new()), 1);
@@ -240,7 +241,7 @@ async fn cancel_task_on_a_terminal_task_is_refused() {
     });
     let response = call(state, ctx, &payload).await;
     let (status, body) = body_json(response).await;
-    repos.tasks.delete_task(&task_id).await.ok();
+    repos.tasks.remove_task(&task_id).await.ok();
 
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["error"]["code"], json!(-32002), "{body}");
@@ -324,4 +325,49 @@ async fn a_task_subscription_is_refused_as_an_unsupported_operation() {
         body["result"].is_null(),
         "an unsupported call is never accepted, got {body}"
     );
+}
+
+#[tokio::test]
+async fn send_message_naming_another_users_task_leaves_that_task_untouched() {
+    let pool = test_db_pool().await;
+    systemprompt_test_fixtures::ensure_test_bootstrap();
+    let repos = repos(&pool);
+    let (owner, owner_session) = seed_user_and_session(&pool).await;
+    let (_owner_ctx, owner_task) = seed_context_and_task(&repos, &owner, &owner_session).await;
+    let stranger = fixture(&pool).await;
+    let state = make_handler_state(&pool, Arc::new(StubAiProvider::new()), 1);
+    let ctx = request_context(
+        &stranger.context_id,
+        &stranger.session_id,
+        &stranger.user_id,
+        "test_agent",
+    );
+
+    let mut params = send_message_params(&stranger.context_id);
+    params["message"]["taskId"] = json!(owner_task.as_str());
+    let payload = json!({
+        "jsonrpc": "2.0",
+        "method": "SendMessage",
+        "params": params,
+        "id": 41
+    });
+    let (status, body) = body_json(call(state, ctx, &payload).await).await;
+
+    let stored = repos
+        .tasks
+        .read_task(&owner_task)
+        .await
+        .expect("lookup")
+        .expect("owner task row");
+    let messages = repos
+        .tasks
+        .read_task_messages(&owner_task)
+        .await
+        .expect("messages");
+    repos.tasks.remove_task(&owner_task).await.ok();
+
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.get("error").is_some(), "{body}");
+    assert_eq!(stored.status.state, TaskState::Submitted);
+    assert!(messages.is_empty(), "no message lands in the owner's task");
 }

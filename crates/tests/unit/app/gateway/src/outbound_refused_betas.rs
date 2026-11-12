@@ -110,8 +110,9 @@ async fn send(endpoint: &str, provider: &str) -> Result<OutboundOutcome, Outboun
     let forward = vec![("anthropic-beta".to_owned(), format!("{REFUSED},{KEPT}"))];
     let ctx = OutboundCtx {
         target: &route,
+        policy: systemprompt_gateway::service::HopPolicy::of(&route),
         upstream: &support::api_key_call(endpoint, "k"),
-        http: &reqwest::Client::new(),
+        http: &support::upstream_http(),
         request: &req,
         upstream_model: "upstream-1",
         model_limits: None,

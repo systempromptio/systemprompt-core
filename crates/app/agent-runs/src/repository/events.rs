@@ -1,7 +1,11 @@
 //! Event inserts into and reads from `agent_run_events`.
 //!
-//! A batch is one `UNNEST` insert; a replayed `seq` is ignored, and an empty
-//! tool name or id is stored as `NULL`.
+//! A batch is inserted under the run's [`Lease`]: the run row is locked only
+//! while that claim still owns it, and the batch is numbered in order after
+//! the run's last stored `seq` inside the same transaction, so concurrent
+//! batches under one lease get gapless, unique numbers and a batch from a
+//! lost claim stores nothing. The `seq` a caller put on an event is not
+//! used. An empty tool name or id is stored as `NULL`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -9,7 +13,7 @@
 use chrono::{DateTime, Utc};
 use systemprompt_identifiers::AgentRunId;
 
-use super::AgentRunRepository;
+use super::{AgentRunRepository, Fenced, Lease};
 use crate::error::AgentRunsResult;
 use crate::event::{RunEvent, RunEventKind, RunEventPayload};
 
@@ -17,12 +21,9 @@ impl AgentRunRepository {
     pub async fn insert_events_batch(
         &self,
         run_id: &AgentRunId,
+        lease: &Lease,
         events: &[RunEvent],
-    ) -> AgentRunsResult<()> {
-        if events.is_empty() {
-            return Ok(());
-        }
-        let seqs: Vec<i64> = events.iter().map(|e| e.seq).collect();
+    ) -> AgentRunsResult<Fenced> {
         let kinds: Vec<String> = events.iter().map(|e| e.kind.as_str().to_owned()).collect();
         let tool_names: Vec<String> = events
             .iter()
@@ -38,19 +39,38 @@ impl AgentRunRepository {
             .collect::<Result<Vec<_>, _>>()?;
         let created: Vec<DateTime<Utc>> = events.iter().map(|e| e.created_at).collect();
         let mut tx = self.write_pool().begin().await?;
+        let held = sqlx::query_scalar!(
+            r#"
+            SELECT 1 AS "held!" FROM agent_runs
+            WHERE id = $1 AND claimed_by = $2 AND attempt = $3 AND claimed_at = $4
+              AND status IN ('preparing', 'running')
+            FOR UPDATE
+            "#,
+            run_id.as_str(),
+            lease.claimed_by(),
+            lease.attempt(),
+            lease.claimed_at(),
+        )
+        .fetch_optional(&mut *tx)
+        .await?;
+        if held.is_none() {
+            return Ok(Fenced::LeaseLost);
+        }
+        if events.is_empty() {
+            return Ok(Fenced::Applied);
+        }
         sqlx::query!(
             r#"
             INSERT INTO agent_run_events
                 (run_id, seq, kind, tool_name, tool_use_id, payload, created_at)
-            SELECT $1, u.seq, u.kind, NULLIF(u.tool_name, ''), NULLIF(u.tool_use_id, ''),
-                   u.payload, u.created_at
+            SELECT $1, last.seq + u.ord, u.kind, NULLIF(u.tool_name, ''),
+                   NULLIF(u.tool_use_id, ''), u.payload, u.created_at
             FROM UNNEST(
-                $2::bigint[], $3::text[], $4::text[], $5::text[], $6::jsonb[], $7::timestamptz[]
-            ) AS u(seq, kind, tool_name, tool_use_id, payload, created_at)
-            ON CONFLICT (run_id, seq) DO NOTHING
+                $2::text[], $3::text[], $4::text[], $5::jsonb[], $6::timestamptz[]
+            ) WITH ORDINALITY AS u(kind, tool_name, tool_use_id, payload, created_at, ord),
+            (SELECT COALESCE(MAX(seq), -1) AS seq FROM agent_run_events WHERE run_id = $1) AS last
             "#,
             run_id.as_str(),
-            &seqs,
             &kinds,
             &tool_names,
             &tool_use_ids,
@@ -66,7 +86,7 @@ impl AgentRunRepository {
         .fetch_one(&mut *tx)
         .await?;
         tx.commit().await?;
-        Ok(())
+        Ok(Fenced::Applied)
     }
 
     pub async fn list_events_after(

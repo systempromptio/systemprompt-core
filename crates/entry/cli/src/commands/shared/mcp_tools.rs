@@ -13,9 +13,10 @@ use std::time::Duration;
 use systemprompt_identifiers::{
     Actor, AgentName, ContextId, JwtToken, McpServerId, SessionId, SessionToken, TraceId, UserId,
 };
+use systemprompt_manifest::services::{McpConfig, ResilienceSettings};
 use systemprompt_mcp::McpServerConfig;
 use systemprompt_mcp::services::SpawnTarget;
-use systemprompt_mcp::services::client::HttpClientWithContext;
+use systemprompt_mcp::services::client::{HttpClientWithContext, McpClientLimits};
 use systemprompt_models::execution::context::RequestContext;
 use tokio::time::timeout;
 use tracing::debug;
@@ -48,6 +49,13 @@ pub fn direct_url(server: &McpServerConfig) -> Result<String> {
     Ok(format!("http://127.0.0.1:{}/mcp", server.spawn_port()?))
 }
 
+pub fn cli_limits(timeout_secs: u64) -> McpClientLimits {
+    McpClientLimits::from(&ResilienceSettings {
+        request_timeout_ms: timeout_secs.saturating_mul(1000),
+        ..McpConfig::default().resilience
+    })
+}
+
 pub async fn list_tools_unauthenticated(
     server_name: &McpServerId,
     url: &str,
@@ -55,7 +63,7 @@ pub async fn list_tools_unauthenticated(
 ) -> Result<Vec<ToolInfo>> {
     let config = StreamableHttpClientTransportConfig::with_uri(url);
     let transport = StreamableHttpClientTransport::with_client(
-        HttpClientWithContext::new(probe_context(server_name))?,
+        HttpClientWithContext::new(probe_context(server_name), cli_limits(timeout_secs))?,
         config,
     );
 
@@ -99,8 +107,10 @@ pub async fn list_tools_authenticated(
     let config =
         StreamableHttpClientTransportConfig::with_uri(url).auth_header(token.as_str().to_owned());
     let context = probe_context(server_name).with_auth_token(JwtToken::new(token.as_str()));
-    let transport =
-        StreamableHttpClientTransport::with_client(HttpClientWithContext::new(context)?, config);
+    let transport = StreamableHttpClientTransport::with_client(
+        HttpClientWithContext::new(context, cli_limits(timeout_secs))?,
+        config,
+    );
 
     let client_info = ClientConfig::new(
         ClientCapabilities::default(),

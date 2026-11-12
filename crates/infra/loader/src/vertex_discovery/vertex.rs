@@ -14,9 +14,7 @@
 
 use async_trait::async_trait;
 use systemprompt_manifest::services::VertexRateCard;
-use systemprompt_security::credential::{
-    AuthHeader, CredentialKind, CredentialScope, ProviderCredential,
-};
+use systemprompt_security::credential::{AuthHeader, CredentialScope, ProviderCredential};
 use systemprompt_wire::hosting::is_vertex_host;
 
 use super::client;
@@ -59,7 +57,7 @@ impl CatalogSource for VertexCatalog {
     }
 
     fn applies(&self, endpoint: &DiscoveryEndpoint, credential: &ProviderCredential) -> bool {
-        self.matches_endpoint(endpoint) && credential.kind() == CredentialKind::GoogleServiceAccount
+        self.matches_endpoint(endpoint) && credential.kind().is_google_identity()
     }
 
     async fn list(

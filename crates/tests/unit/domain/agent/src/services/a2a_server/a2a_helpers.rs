@@ -24,9 +24,7 @@ use systemprompt_models::ai::{
 use systemprompt_models::errors::{AiInferenceError, AiInferenceResult as ProviderResult};
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_models::plugin::PluginComponentRef;
-use systemprompt_traits::{
-    AgentJwtClaims, GenerateTokenParams, JwtProviderError, JwtResult, JwtValidationProvider,
-};
+use systemprompt_traits::{AgentJwtClaims, JwtProviderError, JwtResult, JwtValidationProvider};
 use tokio::sync::{RwLock, Semaphore};
 
 // A JWT provider that rejects every token; sufficient for state construction.
@@ -35,9 +33,6 @@ struct RejectingJwtProvider;
 impl JwtValidationProvider for RejectingJwtProvider {
     fn validate_token(&self, _token: &str) -> JwtResult<AgentJwtClaims> {
         Err(JwtProviderError::InvalidToken)
-    }
-    fn generate_token(&self, _params: GenerateTokenParams) -> JwtResult<String> {
-        Ok("stub-token".to_owned())
     }
     fn generate_secure_token(&self, prefix: &str) -> String {
         format!("{prefix}-stub")
@@ -348,7 +343,9 @@ pub(crate) fn make_agent_state_for(pool: &DbPool, instance: &InstanceId) -> Arc<
         Arc::new(config),
         systemprompt_agent::AgentAuth {
             jwt_provider: stub_jwt(),
-            signing_keys: systemprompt_test_fixtures::test_signing_keys(),
+            verification_keys: systemprompt_test_fixtures::test_signing_keys()
+                .keyring()
+                .clone(),
         },
         Arc::new(repos),
         systemprompt_test_mocks::recording_webhooks(),
@@ -362,7 +359,9 @@ pub(crate) fn make_oauth_state(pool: &DbPool) -> Arc<AgentOAuthState> {
         AgentOAuthConfig::default(),
         "test-issuer".to_owned(),
         vec![],
-        systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_signing_keys()
+            .keyring()
+            .clone(),
     ))
 }
 
@@ -415,6 +414,7 @@ pub(crate) fn agent_config(name: &str) -> systemprompt_manifest::AgentConfig {
         },
         metadata: AgentMetadataConfig::default(),
         oauth: systemprompt_manifest::AgentOAuthConfig::default(),
+        secrets: Vec::new(),
     }
 }
 
@@ -478,7 +478,9 @@ pub(crate) fn make_handler_state_with_launcher(
             Arc::new(config),
             systemprompt_agent::AgentAuth {
                 jwt_provider: stub_jwt(),
-                signing_keys: systemprompt_test_fixtures::test_signing_keys(),
+                verification_keys: systemprompt_test_fixtures::test_signing_keys()
+                    .keyring()
+                    .clone(),
             },
             Arc::new(repos),
             systemprompt_test_mocks::recording_webhooks(),

@@ -316,7 +316,7 @@ async fn deploy_target_requires_a_synced_tenant_cache_then_resolves_the_owned_te
         std::fs::remove_file(&tenants_path).expect("remove owned tenant cache");
     }
 
-    let missing = resolve_deploy_target(&profile)
+    let missing = resolve_deploy_target(profile.cloud.as_ref())
         .expect_err("deploy target resolution requires the synchronized tenant cache");
     assert!(
         format!("{missing:#}").contains("Tenants not synced"),
@@ -324,7 +324,8 @@ async fn deploy_target_requires_a_synced_tenant_cache_then_resolves_the_owned_te
     );
 
     seed_tenants(env.root());
-    let target = resolve_deploy_target(&profile).expect("resolve after tenant synchronization");
+    let target = resolve_deploy_target(profile.cloud.as_ref())
+        .expect("resolve after tenant synchronization");
     assert_eq!(target.tenant_id.as_str(), TENANT_ID);
     assert_eq!(target.tenant_name, "Harness Prod");
     assert_eq!(target.hostname.as_deref(), Some("harness.example.com"));
@@ -347,7 +348,7 @@ async fn deploy_target_rejects_a_stale_profile_tenant_then_accepts_the_repaired_
         .expect("cloud profile configuration")
         .tenant_id = Some(TenantId::new("tenant-removed-upstream"));
 
-    let stale = resolve_deploy_target(&profile)
+    let stale = resolve_deploy_target(profile.cloud.as_ref())
         .expect_err("a stale tenant identity must not select another cached tenant");
     assert!(
         format!("{stale:#}").contains("Tenant tenant-removed-upstream not found"),
@@ -359,7 +360,8 @@ async fn deploy_target_rejects_a_stale_profile_tenant_then_accepts_the_repaired_
         .as_mut()
         .expect("cloud profile configuration")
         .tenant_id = Some(TenantId::new(TENANT_ID));
-    let repaired = resolve_deploy_target(&profile).expect("resolve repaired tenant identity");
+    let repaired =
+        resolve_deploy_target(profile.cloud.as_ref()).expect("resolve repaired tenant identity");
     assert_eq!(repaired.tenant_id.as_str(), TENANT_ID);
     assert_eq!(repaired.tenant_name, "Harness Prod");
     assert_eq!(repaired.hostname.as_deref(), Some("harness.example.com"));
@@ -565,7 +567,9 @@ async fn deploy_skip_push_builds_owned_image_syncs_secrets_and_requests_deploy()
         "DATABASE_URL": "postgres://owned:owned@127.0.0.1:1/owned",
         "CUSTOM_MARKER": "owned-deploy-secret",
         "SYSTEMPROMPT_CUSTOM_SECRETS": "CUSTOM_MARKER",
-        "SIGNING_KEY_PEM": encoded_signing_key
+        "SIGNING_KEY_PEM": encoded_signing_key,
+        "SIGNING_KEY_STAGED_PEM": "",
+        "SIGNING_KEY_PREVIOUS_KEYS": ""
     }});
     let expected_credentials = serde_json::json!({"secrets": {
         "SYSTEMPROMPT_API_TOKEN": super::FAR_FUTURE_JWT,

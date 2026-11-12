@@ -4,7 +4,8 @@
 //!
 //! Images are embedded as `data:` URIs, so the file displays outside Drive at
 //! the cost of a third more bytes than the picture. Once the embedded total
-//! passes [`EMBED_LIMIT`], later images become a note in the text. Whatever
+//! passes [`EMBED_LIMIT`], or past the first [`EXPORT_IMAGE_LIMIT`] images,
+//! later images become a note in the text. Whatever
 //! the file leaves out is named in [`ExportedMarkdown::left_out`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -23,7 +24,8 @@ use crate::documents::error::DocumentsError;
 use crate::documents::model::formats::import_rich_text;
 use crate::documents::model::markdown::{degrade, materialise};
 use crate::documents::model::{BlockKind, RichText};
-use crate::documents::pdf::{markdown_file_name, outline_markdown};
+use crate::documents::models::Document;
+use crate::documents::outline::{markdown_file_name, outline_markdown};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExportedMarkdown {
@@ -33,6 +35,7 @@ pub struct ExportedMarkdown {
 }
 
 const EMBED_LIMIT: usize = 20 * 1024 * 1024;
+pub(super) const EXPORT_IMAGE_LIMIT: usize = 64;
 
 fn image_refs(model: &RichText, into: &mut Vec<String>) {
     for block in &model.blocks {
@@ -147,7 +150,8 @@ impl DocumentService {
         })
         .await?;
         let (markdown, left_out) = if let Some((model, warnings)) = rich {
-            self.rich_markdown(format, &bytes, model, warnings).await?
+            self.rich_markdown(&document, &bytes, model, warnings)
+                .await?
         } else {
             let text = blocking(move || {
                 Ok::<_, DocumentsError>(outline_markdown(&codec.project(&bytes)?))
@@ -164,22 +168,19 @@ impl DocumentService {
 
     async fn rich_markdown(
         &self,
-        format: DocumentFormat,
+        document: &Document,
         bytes: &[u8],
         mut model: RichText,
         warnings: Vec<String>,
     ) -> Result<(String, Vec<String>), DocumentsError> {
         let mut left_out = summarise(warnings);
-        let mut refs = Vec::new();
-        image_refs(&model, &mut refs);
-        refs.retain(|blob| !is_portable(blob));
-        refs.sort();
-        refs.dedup();
+        let mut refs = held_image_refs(&model);
         let mut uris = BTreeMap::new();
         let mut total = 0;
-        let mut missing = 0;
+        let mut missing = refs.len().saturating_sub(EXPORT_IMAGE_LIMIT);
+        refs.truncate(EXPORT_IMAGE_LIMIT);
         for reference in refs {
-            let found = self.image_in_revision(format, bytes, &reference).await;
+            let found = self.image_in_revision(document, bytes, &reference).await;
             let uri = found.ok().flatten().map(|blob| {
                 let body = base64::engine::general_purpose::STANDARD.encode(&blob.bytes);
                 format!("data:{};base64,{body}", blob.mime)

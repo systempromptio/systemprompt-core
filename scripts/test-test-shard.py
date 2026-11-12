@@ -133,6 +133,39 @@ class TestShardInvocation(unittest.TestCase):
         self.assertEqual(args.count("--tests"), 1)
         self.assertEqual(args[args.index("--archive-file") + 1], "out.tar.zst")
 
+    def test_archive_set_builds_only_its_own_packages(self):
+        args = self.run_shard("--archive", "out.tar.zst", "--set", "integration", "--locked")
+        self.assertEqual(args[:2], ["nextest", "archive"])
+        self.assertEqual(args.count("-p"), 1)
+        self.assertIn("fixture-tests", args)
+        self.assertNotIn("bridge-fixture-tests", args)
+        self.assertIn("--locked", args)
+        self.assertNotIn("--set", args)
+
+    def test_every_shard_group_is_in_exactly_one_archive_set(self):
+        def shard(*args):
+            return subprocess.run(
+                ["bash", str(SHARD), *args], cwd=ROOT, check=True, text=True, capture_output=True
+            ).stdout.split()
+
+        sets = shard("--list-archive-sets")
+        self.assertGreater(len(sets), 1)
+        for group in shard("--list"):
+            self.assertIn(shard("--archive-set-of", group)[0], sets)
+
+    def test_ci_builds_every_archive_set(self):
+        sets = subprocess.run(
+            ["bash", str(SHARD), "--list-archive-sets"], cwd=ROOT, check=True, text=True, capture_output=True
+        ).stdout.split()
+        workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        self.assertIn(f"        set: [{', '.join(sets)}]\n", workflow)
+
+    def test_unknown_group_has_no_archive_set(self):
+        result = subprocess.run(
+            ["bash", str(SHARD), "--archive-set-of", "nonesuch"], cwd=ROOT, text=True, capture_output=True
+        )
+        self.assertNotEqual(result.returncode, 0)
+
 
 if __name__ == "__main__":
     unittest.main()

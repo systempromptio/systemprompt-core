@@ -6,9 +6,8 @@
 use crate::context::CommandContext;
 use anyhow::{Context, Result};
 use clap::Args;
-use std::process::Stdio;
+use std::process::{Command, Stdio};
 use systemprompt_loader::ExtensionLoader;
-use tokio::process::Command;
 
 #[derive(Debug, Args)]
 pub struct RunArgs {
@@ -62,12 +61,16 @@ pub(super) async fn execute(args: RunArgs, ctx: &CommandContext) -> Result<()> {
         cmd.arg("--json");
     }
 
-    let status = cmd.status().await.with_context(|| {
-        format!(
-            "Failed to execute extension binary: {}",
-            binary_path.display()
-        )
-    })?;
+    let children = ctx.foreground_children().clone();
+    let status = tokio::task::spawn_blocking(move || children.status(cmd))
+        .await
+        .context("Extension supervisor task failed")?
+        .with_context(|| {
+            format!(
+                "Failed to execute extension binary: {}",
+                binary_path.display()
+            )
+        })?;
 
     if status.success() {
         Ok(())

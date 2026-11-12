@@ -16,4 +16,5 @@ if [ "$#" -eq 0 ]; then
            "$root/crates/app" "$root/crates/entry" "$root/systemprompt/src" \
            "$root/bin/bridge/src"
 fi
-cargo run --quiet --locked --manifest-path "$root/scripts/rust-contracts/Cargo.toml" -- swallowed-errors "$@"
+cargo run --quiet --locked --manifest-path "$root/scripts/rust-contracts/Cargo.toml" -- \
+    --cache-dir "$root/scripts/rust-contracts/target/contracts-cache" swallowed-errors "$@"

@@ -9,7 +9,8 @@
 //! [`bounded_sse_stream`] wraps a byte stream and fails it as soon as a single
 //! event's retained payload would exceed the limit, matching rmcp's accounting:
 //! comment lines are excluded, a blank line resets the budget, and each joined
-//! data field costs an extra byte for the newline the parser inserts.
+//! data field costs an extra byte for the newline the parser inserts. It also
+//! fails the stream when no bytes arrive within the idle timeout.
 //!
 //! [`HttpClientWithContext`]: super::HttpClientWithContext
 //!
@@ -19,6 +20,7 @@
 use futures::StreamExt;
 use futures::stream::{BoxStream, Stream};
 use sse_stream::{Error as SseError, Sse, SseStream};
+use std::time::Duration;
 
 pub(super) const DEFAULT_MAX_SSE_EVENT_SIZE: usize = 16 * 1024 * 1024;
 
@@ -28,6 +30,8 @@ enum BoundedSseError {
     Source(reqwest::Error),
     #[error("SSE event exceeded the maximum size of {max_size} bytes")]
     EventTooLarge { max_size: usize },
+    #[error("SSE stream was idle for longer than {idle_timeout:?}")]
+    Idle { idle_timeout: Duration },
 }
 
 #[derive(Debug)]
@@ -103,6 +107,7 @@ impl EventSizeLimiter {
 pub(super) fn bounded_sse_stream<S, B>(
     stream: S,
     max_event_size: usize,
+    idle_timeout: Duration,
 ) -> BoxStream<'static, Result<Sse, SseError>>
 where
     S: Stream<Item = Result<B, reqwest::Error>> + Send + 'static,
@@ -113,9 +118,13 @@ where
             Box::pin(stream),
             Some(EventSizeLimiter::new(max_event_size)),
         ),
-        |(mut stream, limiter)| async move {
+        move |(mut stream, limiter)| async move {
             let mut limiter = limiter?;
-            let chunk = match stream.next().await? {
+            let Ok(next) = tokio::time::timeout(idle_timeout, stream.next()).await else {
+                let item = Err(BoundedSseError::Idle { idle_timeout });
+                return Some((item, (stream, None)));
+            };
+            let chunk = match next? {
                 Ok(chunk) => chunk,
                 Err(error) => {
                     let item = Err(BoundedSseError::Source(error));

@@ -9,9 +9,10 @@
 use systemprompt_manifest::Config;
 use systemprompt_manifest::profile::TrustedIssuer;
 use systemprompt_models::auth::JwtAudience;
+use systemprompt_oauth_issuance::resource::validate_resource;
+use systemprompt_oauth_issuance::token_exchange::JwksCache;
 use systemprompt_oauth_issuance::token_exchange::claims::resolve_audience;
 use systemprompt_oauth_issuance::token_exchange::subject::jwks_host_allowlist;
-use systemprompt_oauth_issuance::token_exchange::{JwksCache, validate_resource};
 use systemprompt_test_fixtures::fixture_config;
 
 fn config_with_audiences(allowed: &[&str]) -> Config {
@@ -28,6 +29,7 @@ fn issuer(jwks_uri: &str) -> TrustedIssuer {
         typ_allowlist: vec![],
         allowed_client_ids: vec![],
         can_issue_id_jag: false,
+        link: Default::default(),
     }
 }
 

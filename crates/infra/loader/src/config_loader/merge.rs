@@ -82,9 +82,6 @@ where
 }
 
 fn merge_skills(target: &mut SkillsConfig, partial: SkillsConfig) -> ConfigLoadResult<()> {
-    if partial.auto_discover {
-        target.auto_discover = true;
-    }
     if partial.skills_path.is_some() {
         target.skills_path = partial.skills_path;
     }

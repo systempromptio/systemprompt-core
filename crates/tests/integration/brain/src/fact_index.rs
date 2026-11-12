@@ -215,7 +215,8 @@ async fn a_synonyms_change_rebuilds_every_vector_and_as_of_reads_follow_observed
                 .with_as_of(observed + Duration::hours(1)),
         )
         .await
-        .expect("as of after");
+        .expect("as of after")
+        .facts;
     assert_eq!(seen_then.len(), 1);
     let unseen = h
         .service
@@ -226,7 +227,8 @@ async fn a_synonyms_change_rebuilds_every_vector_and_as_of_reads_follow_observed
                 .with_as_of(observed - Duration::hours(1)),
         )
         .await
-        .expect("as of before");
+        .expect("as of before")
+        .facts;
     assert!(unseen.is_empty(), "{unseen:?}");
     h.finish().await;
 }

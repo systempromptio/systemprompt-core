@@ -1,7 +1,7 @@
 //! The toolset factory inventory.
 //!
 //! A crate that ships an [`McpToolset`] registers how to build it from the
-//! application context with [`submit_toolset!`](crate::submit_toolset); a
+//! server's [`HostContext`] with [`submit_toolset!`](crate::submit_toolset); a
 //! deployment hosts it by listing the factory's `id` under `toolsets:`.
 //! `Ok(None)` from a factory means the toolset is unavailable in this
 //! installation and is skipped with a warning; an `Err` fails start.
@@ -12,7 +12,7 @@
 use systemprompt_identifiers::McpServerId;
 use systemprompt_mcp::McpToolset;
 
-use crate::AppContext;
+use crate::HostContext;
 
 pub type ToolsetBuildError = Box<dyn std::error::Error + Send + Sync + 'static>;
 pub type ToolsetBuildResult = Result<Option<Box<dyn McpToolset>>, ToolsetBuildError>;
@@ -21,7 +21,7 @@ pub type ToolsetBuildResult = Result<Option<Box<dyn McpToolset>>, ToolsetBuildEr
 #[derive(Debug, Clone, Copy)]
 pub struct ToolsetFactory {
     pub id: &'static str,
-    pub build: fn(&AppContext, &McpServerId) -> ToolsetBuildResult,
+    pub build: fn(&HostContext, &McpServerId) -> ToolsetBuildResult,
 }
 
 systemprompt_mcp::__inventory::collect!(ToolsetFactory);

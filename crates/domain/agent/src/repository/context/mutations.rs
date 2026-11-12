@@ -7,6 +7,7 @@ use chrono::Utc;
 
 use super::ContextRepository;
 use crate::models::context::ContextKind;
+use crate::repository::OwnedContext;
 use systemprompt_identifiers::{ContextId, SessionId, UserId};
 use systemprompt_traits::RepositoryError;
 
@@ -186,21 +187,28 @@ impl ContextRepository {
         context_id: &ContextId,
         user_id: &UserId,
     ) -> Result<(), RepositoryError> {
+        self.owned_context(context_id, user_id).await.map(|_| ())
+    }
+
+    pub async fn owned_context(
+        &self,
+        context_id: &ContextId,
+        user_id: &UserId,
+    ) -> Result<OwnedContext, RepositoryError> {
         let result = sqlx::query_scalar!(
-            "SELECT context_id FROM user_contexts WHERE context_id = $1 AND user_id = $2",
+            r#"SELECT context_id as "context_id!: ContextId" FROM user_contexts
+            WHERE context_id = $1 AND user_id = $2"#,
             context_id.as_str(),
             user_id.as_str()
         )
         .fetch_optional(&*self.pool)
         .await?;
 
-        match result {
-            Some(_) => Ok(()),
-            None => Err(RepositoryError::not_found(
-                "context",
-                format!("{context_id} for user {user_id}"),
-            )),
-        }
+        result
+            .map(|owned_id| OwnedContext::new(owned_id, user_id.clone()))
+            .ok_or_else(|| {
+                RepositoryError::not_found("context", format!("{context_id} for user {user_id}"))
+            })
     }
 
     pub async fn update_context_name(

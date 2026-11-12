@@ -85,15 +85,15 @@ pub use services::{
 pub use error::DatabaseResult;
 pub use lifecycle::{
     AppliedMigration, BOOTSTRAP_ADVISORY_LOCK_KEY, BackfillStatement, BaselineStamp,
-    BootstrapLockGuard, ChecksumDrift, DeferredForeignKey, ExpensiveStatement,
-    ExtensionMigrationStatus, FkDeferralError, ForeignKeyDrift, FreshnessCheck, HOT_TABLES,
-    MarkAppliedOutcome, MigrationConfig, MigrationCost, MigrationResult, MigrationService,
-    MigrationStatus, OrphanMigrationLedger, OrphanedMigration, PROJECTION_BACKLOG,
-    PendingMigration, RepairResult, ReplicaStatus, SchemaAhead, SchemaCurrency,
+    BootstrapLockGuard, BootstrapLockTimeout, ChecksumDrift, DeferredForeignKey,
+    ExpensiveStatement, ExtensionMigrationStatus, FkDeferralError, ForeignKeyDrift, FreshnessCheck,
+    HOT_TABLES, MarkAppliedOutcome, MigrationConfig, MigrationCost, MigrationResult,
+    MigrationService, MigrationStatus, OrphanMigrationLedger, OrphanedMigration,
+    PROJECTION_BACKLOG, PendingMigration, RepairResult, ReplicaStatus, SchemaAhead, SchemaCurrency,
     SchemaInstallReport, SchemaResidue, SlotCollision, SplitCreateTable, TombstonedSlot,
     UndeclaredTable, audit_migration_cost, audit_one, audit_schema_residue, backfill_statements,
     check_migration_references, check_trigger_routines, install_extension_schemas_full,
-    is_retirement, projection_tables, replica_status, schema_currency,
+    is_retirement, projection_tables, replica_status, schema_catalog_digest, schema_currency,
     split_create_table_foreign_keys, validate_column_exists, validate_database_connection,
     validate_table_exists, validate_write_pool_is_primary,
 };

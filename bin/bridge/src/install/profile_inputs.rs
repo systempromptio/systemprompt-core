@@ -42,6 +42,22 @@ pub struct ProfileGenInputs {
 /// them in the signed manifest. The server is their one store.
 pub type ModelProtocolOverrides = BTreeMap<HostKind, Vec<String>>;
 
+#[must_use]
+pub fn inference_headers(
+    host: HostKind,
+    overrides: &ModelProtocolOverrides,
+) -> BTreeMap<String, String> {
+    let clients = crate::gateway::model_view::HostClients::for_host(host, overrides);
+    let mut headers = BTreeMap::new();
+    if !clients.families.is_empty() {
+        headers.insert(
+            systemprompt_identifiers::headers::INFERENCE_PROTOCOL.to_owned(),
+            clients.tags().join(","),
+        );
+    }
+    headers
+}
+
 /// Why the facts a host profile is rendered from could not be read.
 #[derive(Debug, thiserror::Error)]
 pub enum ProfileFactsError {
@@ -127,13 +143,7 @@ impl ProfileFacts {
     #[must_use]
     pub fn inputs_for(&self, host: HostKind) -> ProfileGenInputs {
         let clients = crate::gateway::model_view::HostClients::for_host(host, &self.overrides);
-        let mut headers = BTreeMap::new();
-        if !clients.families.is_empty() {
-            headers.insert(
-                systemprompt_identifiers::headers::INFERENCE_PROTOCOL.to_owned(),
-                clients.tags().join(","),
-            );
-        }
+        let headers = inference_headers(host, &self.overrides);
         let (mut models, mut model_limits, model_names, default_model, gateway_org) =
             self.profile.as_ref().map_or_else(
                 || (Vec::new(), BTreeMap::new(), BTreeMap::new(), None, None),

@@ -10,7 +10,7 @@ use crate::error::McpDomainResult;
 use rmcp::model::{ClientConfig, Implementation, ProtocolVersion};
 use rmcp::transport::streamable_http_client::StreamableHttpClientTransport;
 use rmcp::{RoleClient, ServiceExt};
-use systemprompt_models::net::{HTTP_STREAM_CONNECT_TIMEOUT, MCP_TOOL_EXECUTION_TIMEOUT};
+use systemprompt_models::net::HTTP_STREAM_CONNECT_TIMEOUT;
 use tokio::time::timeout;
 
 
@@ -53,17 +53,7 @@ pub async fn execute_tool_call(
         params = params.with_arguments(args);
     }
 
-    let result = timeout(
-        MCP_TOOL_EXECUTION_TIMEOUT,
-        dispatch_tool_call(&client_service, server, params),
-    )
-    .await
-    .unwrap_or_else(|_| {
-        Err(crate::error::McpDomainError::Timeout {
-            server: server.to_owned(),
-            after_ms: u64::try_from(MCP_TOOL_EXECUTION_TIMEOUT.as_millis()).unwrap_or(u64::MAX),
-        })
-    });
+    let result = dispatch_tool_call(&client_service, server, params).await;
 
     client_service.cancel().await?;
     result

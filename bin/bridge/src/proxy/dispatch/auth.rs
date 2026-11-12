@@ -11,6 +11,7 @@ use hyper::{Method, Request, Response, StatusCode};
 
 use crate::proxy::credential::{self, LoopbackCredential, Rejection, RouteClass};
 use crate::proxy::forward::ProxyBody;
+use crate::proxy::forward::path::{PathRejection, ProxyPath};
 use crate::proxy::secret;
 use crate::proxy::server::ProxyContext;
 
@@ -50,13 +51,40 @@ pub(super) fn reject_non_loopback(
     simple_response(StatusCode::FORBIDDEN, "forbidden: non-loopback host\n")
 }
 
+pub(super) fn reject_path(
+    ctx: &ProxyContext,
+    log: &RequestLog<'_>,
+    rejection: PathRejection,
+) -> Response<ProxyBody> {
+    let RequestLog {
+        req_id,
+        method,
+        path,
+        peer,
+        ..
+    } = log;
+    tracing::warn!(
+        target: "systemprompt_bridge::proxy",
+        req_id = %req_id,
+        peer = %peer,
+        method = %method,
+        reason = %rejection,
+        "reject: non-canonical request path"
+    );
+    ctx.deps.activity.append_warn(format!(
+        "proxy: {method} {path} → 400 ({rejection}) [{req_id}]"
+    ));
+    simple_response(StatusCode::BAD_REQUEST, "bad request: non-canonical path\n")
+}
+
 pub(super) fn verify_loopback_credential(
     req: &Request<Incoming>,
+    path: &ProxyPath,
     ctx: &ProxyContext,
     log: &RequestLog<'_>,
 ) -> Result<LoopbackCredential, Box<Response<ProxyBody>>> {
     let presented = presented_bearer(req);
-    let route = credential::classify_route(req.uri());
+    let route = credential::classify_route(path);
     let rejection = match credential::authenticate(&presented, ctx.secret.as_ref(), &route) {
         Ok(accepted) => return Ok(accepted),
         Err(rejection) => rejection,

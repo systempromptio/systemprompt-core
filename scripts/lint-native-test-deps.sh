@@ -5,6 +5,9 @@
 # systemprompt-test-fixtures, on any workspace crate that uses `sqlx::query*!`,
 # or on linux-keyutils-keyring-store (Linux-only libc constants) cannot build
 # there and only surfaces on the native runner. Fail here instead, in seconds.
+# systemprompt-test-hack is refused the same way: it would pull the server
+# stack into the native build, so crates/tests/.config/hakari.toml excludes
+# exactly the listed crates from carrying it.
 #
 # The list is also complete: every systemprompt-bridge* package in crates/tests
 # whose closure is clean must be listed, so quality.yml and coverage-bridge.yml
@@ -36,6 +39,7 @@ listed = sys.argv[2:]
 pkgs = {p["name"]: p for p in meta["packages"]}
 QUERY = re.compile(r"sqlx::query(_as|_scalar|_file|_file_as|_file_scalar)?!")
 LINUX_ONLY = "linux-keyutils-keyring-store"
+HACK = "systemprompt-test-hack"
 
 query_cache = {}
 def uses_query_macro(pkg):
@@ -70,6 +74,8 @@ def offenders(root):
         if name != root:
             if name == "systemprompt-test-fixtures":
                 bad.append(f"{name} (DB-backed fixtures)")
+            elif name == HACK:
+                bad.append(f"{name} (pins the server stack's features)")
             elif uses_query_macro(pkg):
                 bad.append(f"{name} (uses sqlx::query*!)")
         for dep in pkg["dependencies"]:
@@ -105,6 +111,14 @@ unlisted = sorted(
 for name in unlisted:
     status = 1
     print(f"✗ {name} is native-eligible but unlisted in scripts/bridge-native-crates.txt", file=sys.stderr)
+
+with open(os.path.join("crates", "tests", ".config", "hakari.toml"), encoding="utf-8") as fh:
+    excludes = re.search(r"^workspace-members = \[(.*?)^\]", fh.read(), re.S | re.M)
+hack_free = set(re.findall(r'"([^"]+)"', excludes.group(1))) if excludes else set()
+for name in sorted(hack_free ^ set(listed)):
+    status = 1
+    where = "scripts/bridge-native-crates.txt" if name in hack_free else "final-excludes.workspace-members"
+    print(f"✗ {name} is missing from {where}; crates/tests/.config/hakari.toml must exclude exactly the native crates", file=sys.stderr)
 
 if status:
     print(file=sys.stderr)

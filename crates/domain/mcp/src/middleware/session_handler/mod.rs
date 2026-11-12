@@ -151,13 +151,11 @@ impl DatabaseSessionHandler {
     }
 
     async fn check_db_session(&self, session_id: &SessionId) -> Option<bool> {
-        match self
-            .repository
-            .find_active(&systemprompt_identifiers::SessionId::new(
-                session_id.as_ref(),
-            ))
-            .await
-        {
+        let Ok(stored_id) = systemprompt_identifiers::SessionId::try_new(session_id.as_ref())
+        else {
+            return Some(false);
+        };
+        match self.repository.find_active(&stored_id).await {
             Ok(Some(_)) => Some(true),
             Ok(None) => Some(false),
             Err(e) => {

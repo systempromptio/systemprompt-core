@@ -2,15 +2,15 @@
 //! repository instances.
 
 use systemprompt_identifiers::{SessionId, UserId};
-use systemprompt_mcp::repository::{ExternalSessionBinding, McpProxyIdentityRepository};
+use systemprompt_mcp::repository::{ExternalSessionBinding, McpProxySessionRepository};
 use systemprompt_test_fixtures::test_db_pool;
 
 #[tokio::test]
 async fn external_session_rejects_other_users_credentials_and_servers()
 -> Result<(), Box<dyn std::error::Error>> {
     let db = test_db_pool().await;
-    let first = McpProxyIdentityRepository::new(&db);
-    let second = McpProxyIdentityRepository::new(&db);
+    let first = McpProxySessionRepository::new(&db);
+    let second = McpProxySessionRepository::new(&db);
     let session_id = SessionId::generate();
     let user_id = UserId::new("external-owner");
     let other_user = UserId::new("external-intruder");
@@ -61,7 +61,7 @@ async fn external_session_rejects_other_users_credentials_and_servers()
 async fn external_session_expiry_is_enforced_and_can_be_reinitialized()
 -> Result<(), Box<dyn std::error::Error>> {
     let db = test_db_pool().await;
-    let repo = McpProxyIdentityRepository::new(&db);
+    let repo = McpProxySessionRepository::new(&db);
     let session_id = SessionId::generate();
     let user_id = UserId::new("external-expiry-owner");
     let binding = ExternalSessionBinding {

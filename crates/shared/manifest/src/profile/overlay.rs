@@ -13,15 +13,20 @@ use std::path::Path;
 
 use serde_yaml::{Mapping, Value};
 
-use super::layered::{load_base_layer, read_layer};
+use super::layered::{base_path_for, load_base_layer, parse_raw_layer, raw_merged, read_layer};
+use super::placeholders::restore_authored;
 use super::{Profile, ProfileError, ProfileResult};
 
 pub fn apply_changes(overlay: &mut Value, before: &Value, after: &Value) {
+    apply_written(overlay, before, after, after);
+}
+
+fn apply_written(overlay: &mut Value, before: &Value, after: &Value, written: &Value) {
     if before == after {
         return;
     }
     let (Value::Mapping(before_map), Value::Mapping(after_map)) = (before, after) else {
-        *overlay = after.clone();
+        *overlay = written.clone();
         return;
     };
     if !overlay.is_mapping() {
@@ -35,10 +40,11 @@ pub fn apply_changes(overlay: &mut Value, before: &Value, after: &Value) {
         if &before_value == after_value {
             continue;
         }
+        let written_value = written.get(key).unwrap_or(after_value);
         let slot = overlay_map
             .entry(key.clone())
             .or_insert_with(|| Value::Mapping(Mapping::new()));
-        apply_changes(slot, &before_value, after_value);
+        apply_written(slot, &before_value, after_value, written_value);
     }
     for (key, before_value) in before_map {
         if !after_map.contains_key(key) {
@@ -72,6 +78,17 @@ fn strip_equal_to_base(value: Value, base: &Value) -> Option<Value> {
         },
         (value, _) => Some(value),
     }
+}
+
+fn authored_base(overlay_path: &Path) -> ProfileResult<Value> {
+    match base_path_for(overlay_path).filter(|p| p.is_file()) {
+        Some(base_path) => parse_raw_layer(&read_layer(&base_path)?, &base_path),
+        None => Ok(Value::Null),
+    }
+}
+
+pub fn write_overlay_document(document: &Value, overlay_path: &Path) -> ProfileResult<()> {
+    write_document(document, overlay_path, None)
 }
 
 fn to_value(profile: &Profile) -> ProfileResult<Value> {
@@ -145,14 +162,19 @@ impl Profile {
                 path: overlay_path.to_path_buf(),
                 source,
             })?;
-        apply_changes(&mut overlay, &before, &after);
+        let authored = raw_merged(&raw, overlay_path)?;
+        let written = restore_authored(&after, &before, &authored);
+        apply_written(&mut overlay, &before, &after, &written);
         Ok(overlay)
     }
 
     pub fn new_overlay_document(&self, overlay_path: &Path) -> ProfileResult<Value> {
         let after = to_value(self)?;
         let base = load_base_layer(overlay_path)?.unwrap_or(Value::Null);
-        Ok(strip_equal_to_base(after, &base).unwrap_or_else(|| Value::Mapping(Mapping::new())))
+        let authored_base = authored_base(overlay_path)?;
+        let written = restore_authored(&after, &base, &authored_base);
+        Ok(strip_equal_to_base(written, &authored_base)
+            .unwrap_or_else(|| Value::Mapping(Mapping::new())))
     }
 
     pub fn save_overlay(&self, overlay_path: &Path, header: Option<&str>) -> ProfileResult<()> {

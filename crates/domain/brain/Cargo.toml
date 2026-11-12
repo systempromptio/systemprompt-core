@@ -35,6 +35,7 @@ systemprompt-traits = { workspace = true, features = ["sqlx"] }
 async-trait = { workspace = true }
 chrono = { workspace = true }
 futures = { workspace = true }
+hex = { workspace = true }
 inventory = { workspace = true }
 metrics = { workspace = true }
 serde = { workspace = true }

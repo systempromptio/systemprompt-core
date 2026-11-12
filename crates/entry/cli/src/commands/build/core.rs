@@ -8,6 +8,7 @@ use clap::Args;
 use std::process::Command;
 use std::time::Instant;
 
+use systemprompt_loader::subprocess::ForegroundChildren;
 use systemprompt_logging::CliService;
 
 use super::types::CoreBuildOutput;
@@ -24,7 +25,11 @@ pub struct CoreArgs {
     pub offline: bool,
 }
 
-pub(super) fn execute(args: CoreArgs, config: &CliConfig) -> Result<CommandOutput> {
+pub(super) fn execute(
+    args: CoreArgs,
+    config: &CliConfig,
+    children: &ForegroundChildren,
+) -> Result<CommandOutput> {
     let project_root = ProjectRoot::discover()?;
     let root = project_root.as_path();
 
@@ -47,7 +52,9 @@ pub(super) fn execute(args: CoreArgs, config: &CliConfig) -> Result<CommandOutpu
         cmd.env("SQLX_OFFLINE", "true");
     }
 
-    let status = cmd.status().context("Failed to execute cargo build")?;
+    let status = children
+        .status(cmd)
+        .context("Failed to execute cargo build")?;
 
     let duration = start.elapsed().as_secs_f64();
 

@@ -4,6 +4,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::repository::OwnedTask;
 use crate::repository::task::TaskRepository;
 use crate::services::a2a_server::handlers::state::AgentHandlerState;
 use systemprompt_identifiers::{TaskId, UserId};
@@ -38,24 +39,19 @@ pub async fn validate_message_context(
 
 // Why: a task owned by another user is reported as absent rather than
 // forbidden so the endpoint does not confirm which task ids exist.
-pub async fn validate_task_owner(
+pub async fn owned_task_for(
     task_repo: &TaskRepository,
     task_id: &TaskId,
     user_id: &UserId,
-) -> Result<(), ContextValidationError> {
+) -> Result<OwnedTask, ContextValidationError> {
     if user_id.as_str().is_empty() {
         return Err(ContextValidationError::Unauthenticated);
     }
 
-    let info = task_repo
-        .find_task_context_info(task_id)
-        .await
-        .map_err(ContextValidationError::TaskLookup)?
-        .ok_or_else(|| ContextValidationError::TaskNotFound(task_id.clone()))?;
-
-    match info.user_id {
-        Some(owner) if owner == *user_id => Ok(()),
-        _ => Err(ContextValidationError::TaskNotFound(task_id.clone())),
+    match task_repo.owned_task(task_id, user_id).await {
+        Ok(owned) => Ok(owned),
+        Err(e) if e.is_not_found() => Err(ContextValidationError::TaskNotFound(task_id.clone())),
+        Err(e) => Err(ContextValidationError::TaskLookup(e)),
     }
 }
 

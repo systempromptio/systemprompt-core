@@ -5,6 +5,7 @@
 
 use anyhow::{Context, Result};
 use clap::Args;
+use systemprompt_agent::repository::ContextRepository;
 use systemprompt_agent::repository::content::artifact::ArtifactRepository;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::ContextId;
@@ -47,7 +48,11 @@ pub async fn execute_with_pool(
 
     let artifacts = if let Some(ref ctx_id) = args.context {
         let context_id = ContextId::try_new(ctx_id).context("Invalid --context id")?;
-        repo.get_artifacts_by_context(&context_id)
+        let owned = ContextRepository::new(pool)
+            .owned_context(&context_id, user_id)
+            .await
+            .context("Context not found for the CLI session user")?;
+        repo.get_artifacts_by_context(&owned)
             .await
             .context("Failed to fetch artifacts by context")?
     } else {

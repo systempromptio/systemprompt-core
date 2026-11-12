@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.81.0] - 2026-11-12
+
+### Breaking
+
+- `PublishError` gains `UnsafeOutputPath`, refused for an output path that escapes the publish root. Migrate by adding the match arm.
+
 ## [0.73.0] - 2026-10-25
 
 ### Changed

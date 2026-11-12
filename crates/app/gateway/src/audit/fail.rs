@@ -73,11 +73,11 @@ impl GatewayAudit {
                 output_tokens: i64::from(partial.usage[1]),
                 cost_microdollars: partial.cost,
             });
-        if self.journal_lease.get().is_some() {
-            journal::record(&self.settlement, receipt).await?;
+        let recorded = if self.journal_lease.get().is_some() {
+            journal::record(&self.settlement, receipt).await
         } else {
-            journal::settle_unadmitted_failure(&self.settlement, &receipt).await?;
-        }
+            journal::settle_unadmitted_failure(&self.settlement, &receipt).await
+        };
         tracing::warn!(
             ai_request_id = %self.ctx.ai_request_id,
             user_id = %self.ctx.user_id,
@@ -101,6 +101,6 @@ impl GatewayAudit {
                 "Gateway quota release failed; the reservation stays counted until the window rolls"
             );
         }
-        Ok(())
+        recorded
     }
 }

@@ -31,6 +31,13 @@ pub enum AgentRunsError {
         reason: &'static str,
     },
 
+    #[error("host {host} cannot enforce declared tool '{entry}': {reason}")]
+    ToolPolicyUnenforceable {
+        host: crate::request::HostKind,
+        entry: String,
+        reason: &'static str,
+    },
+
     #[error("run directory {path}: {source}", path = path.display())]
     Layout {
         path: PathBuf,
@@ -96,6 +103,11 @@ pub enum AgentRunsError {
         program: String,
         #[source]
         source: std::io::Error,
+    },
+
+    #[error("agent run {run_id} is no longer held by this claim")]
+    LeaseLost {
+        run_id: systemprompt_identifiers::AgentRunId,
     },
 
     #[error("repository error: {0}")]

@@ -205,6 +205,7 @@ impl GatewayClient {
                 inbound: Arc::new(CanonicalInbound),
                 forward_headers: Vec::new(),
                 identity_headers: Vec::new(),
+                caller_auth: None,
                 trace_sampled: None,
                 governance: Arc::clone(&self.governance),
                 engines: Arc::clone(&self.engines),

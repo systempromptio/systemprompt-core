@@ -29,11 +29,16 @@ pub(super) struct FinishLinkResponse {
     pub message: String,
 }
 
-#[instrument(skip(state, request), fields(challenge_id = %request.challenge_id))]
+#[instrument(skip(state, body), fields(challenge_id = tracing::field::Empty))]
 pub async fn finish_link(
     State(state): State<OAuthState>,
-    Json(request): Json<FinishLinkRequest>,
+    body: Result<Json<FinishLinkRequest>, axum::extract::rejection::JsonRejection>,
 ) -> Result<Response, OAuthHttpError> {
+    let request = crate::routes::oauth::webauthn::json_body(body)?;
+    tracing::Span::current().record(
+        "challenge_id",
+        tracing::field::display(&request.challenge_id),
+    );
     let webauthn_service = state.webauthn()?;
 
     let user_id = webauthn_service

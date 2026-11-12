@@ -105,3 +105,6 @@ mod user_tests;
 
 #[cfg(test)]
 mod documents_tests;
+
+#[cfg(test)]
+mod external_id_validation_tests;

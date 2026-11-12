@@ -6,18 +6,12 @@
 use super::fonts::Font;
 use super::runs::Rgb;
 
+pub(super) use crate::documents::outline::blocks::Align;
+
 pub(super) const PAGE_WIDTH: f32 = 595.276;
 pub(super) const PAGE_HEIGHT: f32 = 841.89;
 pub(super) const MARGIN: f32 = 56.0;
 pub(super) const CONTENT_WIDTH: f32 = PAGE_WIDTH - 2.0 * MARGIN;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub(super) enum Align {
-    #[default]
-    Left,
-    Center,
-    Right,
-}
 
 #[derive(Debug, Clone, PartialEq)]
 pub(super) struct Text {

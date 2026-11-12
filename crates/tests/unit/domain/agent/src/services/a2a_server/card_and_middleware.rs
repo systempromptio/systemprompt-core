@@ -32,7 +32,9 @@ fn handler_state(pool: &DbPool) -> Arc<AgentHandlerState> {
         AgentOAuthConfig::default(),
         ISSUER.to_owned(),
         JwtAudience::standard(),
-        systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_signing_keys()
+            .keyring()
+            .clone(),
     ));
     Arc::new(AgentHandlerState {
         config: Arc::new(RwLock::new(agent_config("card_mw_agent"))),

@@ -144,6 +144,7 @@ impl From<UserError> for ApiHttpError {
         let api = match err {
             UserError::Repository(inner) => ApiError::from(inner),
             e @ UserError::NotFound(_) => ApiError::not_found(e.to_string()),
+            e @ UserError::FederatedRefused(_) => ApiError::forbidden(e.to_string()),
             e @ (UserError::EmailAlreadyExists(_)
             | UserError::AccountKindMismatch(_)
             | UserError::LegalHold(_)
@@ -224,6 +225,9 @@ impl From<ContextExtractionError> for ApiHttpError {
                 ApiError::forbidden(e.to_string())
             },
             e @ ContextExtractionError::UserNotFound(_) => ApiError::not_found(e.to_string()),
+            e @ ContextExtractionError::PayloadTooLarge { .. } => {
+                ApiError::payload_too_large(e.to_string())
+            },
             e @ ContextExtractionError::DatabaseError { .. } => {
                 ApiError::internal("Request context lookup failed", e)
             },
@@ -238,6 +242,7 @@ impl From<BundleError> for ApiHttpError {
             e @ BundleError::Auth { .. } => ApiError::forbidden(e.to_string()),
             e @ (BundleError::Verify(_)
             | BundleError::Ownership { .. }
+            | BundleError::FileCollision { .. }
             | BundleError::Policy { .. }
             | BundleError::TooLarge { .. }) => ApiError::bad_request(e.to_string()),
             e @ BundleError::SourceMissing { .. } => ApiError::not_found(e.to_string()),

@@ -12,7 +12,7 @@ workspace = true
 
 [dependencies]
 reqwest = { workspace = true }
-systemprompt-files = { workspace = true, features = ["office", "collab", "collab-loro"] }
+systemprompt-files = { workspace = true, features = ["office", "pdf", "collab", "collab-loro"] }
 systemprompt-identifiers = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-manifest = { workspace = true }
@@ -27,6 +27,8 @@ systemprompt-extension = { workspace = true, features = ["sqlx"] }
 systemprompt-provider-contracts = { workspace = true }
 async-trait = { workspace = true }
 base64 = { workspace = true }
+flate2 = { workspace = true }
+systemprompt-test-hack = { version = "0.1", path = "../../common/hack" }
 
 [dev-dependencies]
 tokio = { workspace = true }

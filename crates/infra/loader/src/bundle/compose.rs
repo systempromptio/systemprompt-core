@@ -5,7 +5,11 @@
 //! both sources, because silently preferring one would make which access
 //! rules an instance enforces depend on profile ordering. Marketplace
 //! directories are shared by construction — their ids are disjoint — while a
-//! base-only directory such as `access-control/` may have exactly one owner.
+//! base-only directory such as `access-control/` or `gateway/` may be shipped
+//! by the base bundle (member zero) alone. Every claim is decided from the
+//! files a member actually ships ([`shipped_ownership`]), and only those
+//! verified files are copied: a file that would land on a path another member
+//! already wrote outside a shared directory is refused naming both members.
 //!
 //! The composed root is content-addressed by the ordered list of member
 //! hashes, so recomposing an unchanged set is a directory-exists check.
@@ -18,12 +22,11 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use sha2::{Digest, Sha256};
-use systemprompt_manifest::services::bundle::{
-    BUNDLE_MANIFEST_FILE, MARKETPLACE_BUNDLE_DIRS, ServicesBundleManifest,
-};
+use systemprompt_manifest::services::bundle::ServicesBundleManifest;
 
 use super::cache::{BundleCache, discard_staging};
 use super::error::{BundleError, BundleResult};
+use super::ownership::{is_shared_dir, path_segments, shipped_ownership};
 use super::verify::require_marketplace_only;
 use systemprompt_identifiers::ContentHash;
 
@@ -62,9 +65,9 @@ pub fn compose(
     }
     fs::create_dir_all(&staging)?;
 
-    for member in members {
-        let source = cache.bundle_dir(&member.name, &member.content_hash);
-        copy_tree(&source, &staging, true)?;
+    if let Err(e) = overlay_members(cache, members, &staging) {
+        discard_staging(&staging);
+        return Err(e);
     }
 
     match fs::rename(&staging, &target) {
@@ -88,7 +91,7 @@ fn check_ownership(members: &[BundleMember<'_>]) -> BundleResult<()> {
 
     let mut owners: HashMap<(&str, String), &str> = HashMap::new();
     for member in members {
-        let owns = &member.manifest.owns;
+        let owns = shipped_ownership(&member.manifest.files)?;
         let categories: [(&str, &Vec<String>); 6] = [
             ("marketplace", &owns.marketplaces),
             ("plugin", &owns.plugins),
@@ -103,7 +106,7 @@ fn check_ownership(members: &[BundleMember<'_>]) -> BundleResult<()> {
             }
         }
         for dir in &owns.dirs {
-            if MARKETPLACE_BUNDLE_DIRS.contains(&dir.as_str()) {
+            if is_shared_dir(dir) {
                 continue;
             }
             claim(&mut owners, "directory", dir.clone(), &member.name)?;
@@ -129,19 +132,51 @@ fn claim<'a>(
     Ok(())
 }
 
-pub(crate) fn copy_tree(source: &Path, dest: &Path, skip_manifest: bool) -> BundleResult<()> {
+fn overlay_members(
+    cache: &BundleCache,
+    members: &[BundleMember<'_>],
+    staging: &Path,
+) -> BundleResult<()> {
+    let mut written: HashMap<&str, &str> = HashMap::new();
+    for member in members {
+        let source = cache.bundle_dir(&member.name, &member.content_hash);
+        for file in &member.manifest.files {
+            let segments = path_segments(&file.path)?;
+            if let Some(first) = written.insert(file.path.as_str(), member.name.as_str())
+                && !is_shared_dir(segments[0])
+            {
+                return Err(BundleError::FileCollision {
+                    path: file.path.clone(),
+                    first: first.to_owned(),
+                    second: member.name.clone(),
+                });
+            }
+            let target = staging.join(&file.path);
+            if let Some(parent) = target.parent() {
+                fs::create_dir_all(parent)?;
+            }
+            if target.exists() {
+                fs::remove_file(&target)?;
+            }
+            let from = source.join(&file.path);
+            if fs::hard_link(&from, &target).is_err() {
+                fs::copy(&from, &target)?;
+            }
+        }
+    }
+    Ok(())
+}
+
+pub(crate) fn copy_tree(source: &Path, dest: &Path) -> BundleResult<()> {
     for entry in fs::read_dir(source)? {
         let path = entry?.path();
         let Some(name) = path.file_name() else {
             continue;
         };
-        if skip_manifest && path.is_file() && name == BUNDLE_MANIFEST_FILE {
-            continue;
-        }
         let target = dest.join(name);
         if path.is_dir() {
             fs::create_dir_all(&target)?;
-            copy_tree(&path, &target, false)?;
+            copy_tree(&path, &target)?;
         } else if path.is_file() {
             if let Some(parent) = target.parent() {
                 fs::create_dir_all(parent)?;

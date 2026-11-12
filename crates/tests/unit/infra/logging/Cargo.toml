@@ -25,6 +25,7 @@ chrono = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 uuid = { workspace = true }
+systemprompt-test-hack = { version = "0.1", path = "../../../common/hack" }
 
 [dev-dependencies]
 tokio = { workspace = true }

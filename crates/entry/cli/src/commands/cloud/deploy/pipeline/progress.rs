@@ -59,5 +59,6 @@ pub enum DeployEvent<'a> {
     ReadinessWaitStarted,
     TenantReady {
         version: Option<&'a str>,
+        release_confirmed: bool,
     },
 }

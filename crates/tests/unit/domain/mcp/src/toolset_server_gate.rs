@@ -4,30 +4,37 @@ use rmcp::model::{
 };
 use rmcp::service::RequestContext;
 use rmcp::{ErrorData as McpError, RoleServer, ServerHandler, ServiceExt};
-use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
+use systemprompt_identifiers::McpServerId;
 use systemprompt_mcp::host::ToolsetServer;
-use systemprompt_models::RequestContext as SysRequestContext;
+use systemprompt_mcp::middleware::{HopVerifier, admit_request};
+use systemprompt_test_fixtures::FIXTURE_EXTERNAL_URL;
 
 #[derive(Clone)]
 struct Gate {
     server: ToolsetServer,
-    bearer: Option<String>,
+    server_id: McpServerId,
+    headers: Vec<(String, String)>,
 }
 
 impl Gate {
     fn inject(&self, context: &mut RequestContext<RoleServer>) {
-        let mut builder = http::Request::builder().uri("http://localhost/mcp");
-        if let Some(bearer) = &self.bearer {
-            builder = builder.header("authorization", bearer.as_str());
+        let mut builder = http::Request::builder()
+            .uri("http://localhost/mcp")
+            .header("x-session-id", "s-host")
+            .header("x-trace-id", "t-host")
+            .header("x-agent-name", "agent-host");
+        for (name, value) in &self.headers {
+            builder = builder.header(name.as_str(), value.as_str());
         }
         let (mut parts, ()) = builder.body(()).expect("request").into_parts();
-        parts.extensions.insert(SysRequestContext::new(
-            SessionId::new("s-host"),
-            TraceId::new("t-host"),
-            ContextId::generate(),
-            AgentName::try_new("agent-host").expect("agent"),
-            Actor::user(UserId::new("user-host")),
-        ));
+        let verifier = HopVerifier::new(
+            systemprompt_test_fixtures::test_signing_keys()
+                .keyring()
+                .clone(),
+            FIXTURE_EXTERNAL_URL,
+            self.server_id.clone(),
+        );
+        admit_request(&verifier, &parts.headers, &mut parts.extensions).expect("admitted");
         context.extensions.insert(parts);
     }
 }
@@ -76,12 +83,13 @@ impl ServerHandler for Gate {
 
 pub(crate) async fn connect(
     server: &ToolsetServer,
-    bearer: Option<String>,
+    headers: Vec<(String, String)>,
 ) -> rmcp::service::RunningService<rmcp::RoleClient, ()> {
     let (server_io, client_io) = tokio::io::duplex(16384);
     let gate = Gate {
         server: server.clone(),
-        bearer,
+        server_id: McpServerId::new(crate::toolset_server_live::SERVER),
+        headers,
     };
     tokio::spawn(async move {
         if let Ok(running) = gate.serve(server_io).await {

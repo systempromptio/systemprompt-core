@@ -15,6 +15,14 @@
 //! a superset of the forwarded surface, so "inspected" and "sent" cannot
 //! diverge.
 //!
+//! Encoded binary media is not text. [`is_binary_source`] names it: an
+//! Anthropic `type: "base64"` source's `data`, an `OpenAI` `file_data`, an
+//! untyped `{mimeType|mime_type|format, data}` part (Gemini `inlineData`,
+//! `OpenAI` `input_audio`) and any base64 data URI. The walk skips it, so it
+//! neither consumes the budget nor reaches a text scanner, and such a part is
+//! forwarded without text scanning. [`text_bytes`] measures the decoded text
+//! of a body (strings and keys) with the same exclusion.
+//!
 //! The response direction has the same gap and the same remedy, against the
 //! bytes the *client* receives rather than the bytes the provider sent:
 //! [`string_leaves`] for a buffered reply, [`sse_string_leaves`] for a
@@ -25,7 +33,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 // JSON: protocol boundary — the walk is over an arbitrary provider wire body.
-use serde_json::Value;
+use serde_json::{Map, Value};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SurfaceLeaf {
@@ -97,6 +105,48 @@ impl Default for SurfaceBudget {
     }
 }
 
+// JSON: provider request bodies are inspected as untyped JSON across every wire
+// protocol.
+#[must_use]
+pub fn is_binary_source(object: &Map<String, Value>, key: &str, data: &str) -> bool {
+    let typed = object.get("type").and_then(Value::as_str);
+    let media_part = typed.is_none()
+        && ["mimeType", "mime_type", "format"]
+            .iter()
+            .any(|field| object.contains_key(*field));
+    (key == "data" && (typed == Some("base64") || media_part))
+        || key == "file_data"
+        || is_base64_data_uri(data)
+}
+
+#[must_use]
+pub fn is_base64_data_uri(text: &str) -> bool {
+    text.strip_prefix("data:")
+        .and_then(|rest| rest.split_once(','))
+        .is_some_and(|(header, _)| header.ends_with(";base64"))
+}
+
+// JSON: provider request bodies are inspected as untyped JSON across every wire
+// protocol.
+#[must_use]
+pub fn text_bytes(root: &Value) -> usize {
+    match root {
+        Value::String(text) if is_base64_data_uri(text) => 0,
+        Value::String(text) => text.len(),
+        Value::Array(items) => items.iter().map(text_bytes).sum(),
+        Value::Object(map) => map
+            .iter()
+            .map(|(key, item)| {
+                let binary = item
+                    .as_str()
+                    .is_some_and(|data| is_binary_source(map, key, data));
+                key.len() + if binary { 0 } else { text_bytes(item) }
+            })
+            .sum(),
+        Value::Null | Value::Bool(_) | Value::Number(_) => 0,
+    }
+}
+
 #[must_use]
 pub fn string_leaves(body: &[u8], budget: SurfaceBudget) -> ForwardedSurface {
     let Ok(root) = serde_json::from_slice::<Value>(body) else {
@@ -112,32 +162,21 @@ pub fn string_leaves(body: &[u8], budget: SurfaceBudget) -> ForwardedSurface {
 pub fn sse_string_leaves(frames: &[u8], budget: SurfaceBudget) -> ForwardedSurface {
     let mut surface = ForwardedSurface::default();
     let mut total: usize = 0;
-    let mut rest = frames;
-    while !rest.is_empty() {
-        let (frame, next) = rest.split_at(super::sse::frame_end(rest).unwrap_or(rest.len()));
-        if let Some(payload) = data_payload(frame)
-            && let Ok(root) = serde_json::from_slice::<Value>(&payload)
+    let mut reader = super::sse::SseFramer::default();
+    let mut decoded = reader.push(frames);
+    decoded.extend(reader.push(b"\n\n"));
+    for frame in decoded {
+        let Ok(frame) = frame else {
+            surface.truncated = true;
+            return surface;
+        };
+        if let Ok(root) = serde_json::from_str::<Value>(&frame.data)
             && !walk(&mut surface, &mut total, &root, budget)
         {
             return surface;
         }
-        rest = next;
     }
     surface
-}
-
-fn data_payload(frame: &[u8]) -> Option<Vec<u8>> {
-    let mut out: Vec<u8> = Vec::new();
-    let mut found = false;
-    for line in frame.split(|b| *b == b'\n') {
-        let line = line.strip_suffix(b"\r").unwrap_or(line);
-        let Some(value) = line.strip_prefix(b"data:") else {
-            continue;
-        };
-        found = true;
-        out.extend_from_slice(value.strip_prefix(b" ").unwrap_or(value));
-    }
-    found.then_some(out)
 }
 
 fn walk(
@@ -155,6 +194,7 @@ fn walk(
             continue;
         }
         match value {
+            Value::String(s) if is_base64_data_uri(s) => {},
             Value::String(s) => {
                 if !push_leaf(surface, total, &budget, &path, s) {
                     return false;
@@ -169,6 +209,12 @@ fn walk(
                 for (key, item) in map.iter().rev() {
                     if !push_leaf(surface, total, &budget, &format!("{path}.{key}.$key"), key) {
                         return false;
+                    }
+                    if item
+                        .as_str()
+                        .is_some_and(|data| is_binary_source(map, key, data))
+                    {
+                        continue;
                     }
                     stack.push((item, format!("{path}.{key}"), depth + 1));
                 }
@@ -197,7 +243,7 @@ fn push_leaf(
     if clipped {
         surface.truncated = true;
     }
-    *total += value.len();
+    *total += value.len() + path.len();
     surface.leaves.push(SurfaceLeaf {
         path: path.to_owned(),
         value,

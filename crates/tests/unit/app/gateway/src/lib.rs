@@ -61,6 +61,10 @@ mod openai_passthrough;
 #[cfg(test)]
 mod outbound;
 #[cfg(test)]
+mod outbound_bounds;
+#[cfg(test)]
+mod outbound_caller;
+#[cfg(test)]
 mod outbound_deep;
 #[cfg(test)]
 mod outbound_passthrough;
@@ -120,6 +124,8 @@ mod signature_cache;
 mod stream_tap;
 #[cfg(test)]
 mod stream_tap_accumulator;
+#[cfg(test)]
+mod stream_tap_retained;
 #[cfg(test)]
 mod support;
 #[cfg(test)]

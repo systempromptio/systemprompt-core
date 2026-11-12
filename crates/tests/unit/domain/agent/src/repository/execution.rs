@@ -1,6 +1,7 @@
 use super::{repos, seed_context_and_task, seed_user_and_session};
 use systemprompt_identifiers::TaskId;
 use systemprompt_models::{ExecutionStep, StepContent, StepId, StepStatus, StepType};
+use systemprompt_test_fixtures::agent_reads::{StepReadsExt, TaskReadsExt};
 use systemprompt_test_fixtures::test_db_pool;
 
 #[tokio::test]
@@ -27,7 +28,7 @@ async fn create_and_get_tool_execution_step() {
     assert_eq!(fetched.status, StepStatus::InProgress);
     assert_eq!(fetched.tool_name(), Some("search"));
 
-    r.tasks.delete_task(&task_id).await.ok();
+    r.tasks.remove_task(&task_id).await.ok();
 }
 
 #[tokio::test]
@@ -65,7 +66,7 @@ async fn create_instant_steps() {
     assert_eq!(u.status, StepStatus::Completed);
     assert_eq!(u.step_type(), StepType::Understanding);
 
-    r.tasks.delete_task(&task_id).await.ok();
+    r.tasks.remove_task(&task_id).await.ok();
 }
 
 #[tokio::test]
@@ -82,12 +83,12 @@ async fn list_by_task_ordered() {
 
     let list = r
         .execution_steps
-        .list_by_task(&task_id)
+        .steps_for_task(&r.tasks, &task_id)
         .await
         .expect("list");
     assert_eq!(list.len(), 2);
 
-    r.tasks.delete_task(&task_id).await.ok();
+    r.tasks.remove_task(&task_id).await.ok();
 }
 
 #[tokio::test]
@@ -115,7 +116,7 @@ async fn complete_step_sets_completed() {
     assert_eq!(done.status, StepStatus::Completed);
     assert_eq!(done.tool_result(), Some(&serde_json::json!({"out": 9})));
 
-    r.tasks.delete_task(&task_id).await.ok();
+    r.tasks.remove_task(&task_id).await.ok();
 }
 
 #[tokio::test]
@@ -142,7 +143,7 @@ async fn complete_step_without_result() {
         .expect("present");
     assert_eq!(done.status, StepStatus::Completed);
 
-    r.tasks.delete_task(&task_id).await.ok();
+    r.tasks.remove_task(&task_id).await.ok();
 }
 
 #[tokio::test]
@@ -170,7 +171,7 @@ async fn fail_step_records_error() {
     assert_eq!(failed.status, StepStatus::Failed);
     assert_eq!(failed.error_message.as_deref(), Some("kaboom"));
 
-    r.tasks.delete_task(&task_id).await.ok();
+    r.tasks.remove_task(&task_id).await.ok();
 }
 
 #[tokio::test]
@@ -194,12 +195,12 @@ async fn fail_in_progress_steps_for_task() {
 
     let list = r
         .execution_steps
-        .list_by_task(&task_id)
+        .steps_for_task(&r.tasks, &task_id)
         .await
         .expect("list");
     assert!(list.iter().all(|s| s.status == StepStatus::Failed));
 
-    r.tasks.delete_task(&task_id).await.ok();
+    r.tasks.remove_task(&task_id).await.ok();
 }
 
 #[tokio::test]
@@ -230,7 +231,7 @@ async fn complete_planning_step_returns_step() {
     assert_eq!(completed.step_type(), StepType::Planning);
     assert_eq!(completed.reasoning(), Some("because"));
 
-    r.tasks.delete_task(&task_id).await.ok();
+    r.tasks.remove_task(&task_id).await.ok();
 }
 
 #[tokio::test]
@@ -239,7 +240,7 @@ async fn list_by_task_empty_for_unknown() {
     let r = repos(&pool);
     let list = r
         .execution_steps
-        .list_by_task(&TaskId::generate())
+        .steps_for_task(&r.tasks, &TaskId::generate())
         .await
         .expect("list");
     assert!(list.is_empty());
@@ -277,7 +278,7 @@ async fn get_step_with_corrupt_status_errors() {
         "got {err:?}"
     );
 
-    r.tasks.delete_task(&task_id).await.ok();
+    r.tasks.remove_task(&task_id).await.ok();
 }
 
 #[tokio::test]
@@ -312,5 +313,5 @@ async fn get_step_with_corrupt_content_errors() {
         "got {err:?}"
     );
 
-    r.tasks.delete_task(&task_id).await.ok();
+    r.tasks.remove_task(&task_id).await.ok();
 }

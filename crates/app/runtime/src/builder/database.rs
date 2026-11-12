@@ -11,7 +11,7 @@ use systemprompt_manifest::{Config, Profile};
 
 use crate::error::RuntimeResult;
 
-pub(super) async fn connect_database(
+pub(crate) async fn connect_database(
     profile: &Profile,
     config: &Config,
 ) -> RuntimeResult<Arc<Database>> {

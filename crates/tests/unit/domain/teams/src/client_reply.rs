@@ -1,6 +1,6 @@
 //! Wiremock coverage for the outbound Bot Connector reply.
 //!
-//! `TeamsClient::with_endpoints` (the `test` seam) redirects token
+//! `TeamsClient::with_endpoints` redirects token
 //! acquisition to a loopback mock; the reply target is the activity's
 //! `serviceUrl`, here the same mock. One server serves both `/token` and the
 //! Bot Connector activities endpoint so the full reply path is observable.
@@ -10,6 +10,7 @@
 //! connect-time resolver plus redirect policy reject a hop into a blocked
 //! range that parse-time validation cannot see.
 
+use systemprompt_client::{GuardedClient, GuardedClientConfig};
 use systemprompt_identifiers::{TeamsAppId, TeamsConversationId};
 use systemprompt_teams::TeamsError;
 use systemprompt_teams::client::TeamsClient;
@@ -30,10 +31,15 @@ async fn mount_token(server: &MockServer) {
 fn client(server: &MockServer) -> TeamsClient {
     TeamsClient::with_endpoints(
         reqwest::Client::new(),
+        GuardedClient::configured(&GuardedClientConfig::for_configured()).expect("reply client"),
         TeamsAppId::new("app-1"),
         "secret",
         format!("{}/token", server.uri()),
     )
+}
+
+fn untrusted() -> GuardedClient {
+    GuardedClient::untrusted(&GuardedClientConfig::for_untrusted()).expect("reply client")
 }
 
 fn conversation() -> TeamsConversationId {
@@ -86,7 +92,12 @@ async fn production_constructor_wires_the_default_endpoints() {
     // Framework login authority. Driving a blocked `serviceUrl` exercises that
     // production path through `reply`'s SSRF guard, which fails closed before any
     // token acquisition — so no live Bot Connector call is made.
-    let client = TeamsClient::new(reqwest::Client::new(), TeamsAppId::new("app-1"), "secret");
+    let client = TeamsClient::new(
+        reqwest::Client::new(),
+        untrusted(),
+        TeamsAppId::new("app-1"),
+        "secret",
+    );
     let attachments = systemprompt_teams::cards::render_card("hello");
     let err = client
         .reply("http://169.254.169.254", &conversation(), attachments, 0)
@@ -138,5 +149,37 @@ async fn reply_refuses_a_redirect_into_a_blocked_range() {
     assert!(
         source.is_redirect(),
         "expected a redirect refusal, got {source}"
+    );
+}
+
+#[tokio::test]
+async fn an_untrusted_reply_client_refuses_a_loopback_service_url_without_a_request() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(201))
+        .expect(0)
+        .mount(&server)
+        .await;
+    let client = TeamsClient::with_endpoints(
+        reqwest::Client::new(),
+        untrusted(),
+        TeamsAppId::new("app-1"),
+        "secret",
+        format!("{}/token", server.uri()),
+    );
+
+    let err = client
+        .reply(
+            &server.uri(),
+            &conversation(),
+            systemprompt_teams::cards::render_card("hello"),
+            0,
+        )
+        .await
+        .expect_err("a loopback serviceUrl is refused");
+
+    assert!(
+        matches!(err, TeamsError::OutboundUrl(_)),
+        "expected OutboundUrl, got {err:?}"
     );
 }

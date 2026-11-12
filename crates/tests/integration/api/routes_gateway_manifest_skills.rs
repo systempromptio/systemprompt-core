@@ -77,6 +77,7 @@ fn phantom_agent() -> AgentConfig {
             ..AgentMetadataConfig::default()
         },
         oauth: OAuthConfig::default(),
+        secrets: Vec::new(),
     }
 }
 

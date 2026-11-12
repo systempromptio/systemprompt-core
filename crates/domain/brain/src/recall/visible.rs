@@ -1,14 +1,17 @@
 //! `visible(fact, principal)`, decided per fact and failing closed:
 //!
 //! ```text
-//! ( scope_allows || topic_audience_contains ) && granularity_allows && source_allows
+//! ( scope_allows || (topic_widens(scope) && topic_audience_contains) )
+//!     && granularity_allows && source_allows
 //! ```
 //!
 //! A user-scoped fact is its owner's; a project fact needs the principal's
 //! project; a group fact needs membership the injected audience resolvers
-//! confirm; an org fact is everyone's. A topic audience widens scope and
-//! never bypasses the source check. A person-subject fact under an
-//! aggregate-only topic is shown only to that person. A source with a
+//! confirm; an org fact is everyone's. A topic audience widens a project,
+//! group or org fact and never bypasses the source check; it never widens
+//! a user-scoped fact, which stays its owner's whatever its topics (the
+//! working-set projection applies the same rule in SQL). A person-subject fact
+//! under an aggregate-only topic is shown only to that person. A source with a
 //! visibility subject goes through [`SourceAccess`] under a timeout:
 //! `Hidden`, an error or a timeout withholds it as `Source`, `AgentCapped`
 //! as `AgentCapped`. Session and run facts stay private until confirmed.
@@ -125,10 +128,23 @@ impl Visibility {
         (visible, withheld)
     }
 
+    pub async fn retain_visible(
+        &self,
+        facts: Vec<BrainFact>,
+        principal: &RecallPrincipal,
+    ) -> Vec<BrainFact> {
+        let answers = Questions::collect(self, &mut facts.iter(), principal)
+            .resolve(self, principal)
+            .await;
+        facts
+            .into_iter()
+            .filter(|fact| self.verdict(fact, principal, &answers) == Verdict::Visible)
+            .collect()
+    }
+
     fn verdict(&self, fact: &BrainFact, principal: &RecallPrincipal, answers: &Answers) -> Verdict {
-        if !self.scope_allows(&fact.scope, principal, answers)
-            && !self.topic_allows(fact, principal, answers)
-        {
+        let widened = topic_widens(&fact.scope) && self.topic_allows(fact, principal, answers);
+        if !widened && !self.scope_allows(&fact.scope, principal, answers) {
             return Verdict::Withheld(WithheldReason::Scope);
         }
         if !self.granularity_allows(fact, principal) {
@@ -141,6 +157,9 @@ impl Visibility {
         let mut subjects = Vec::new();
         if let FactScope::Group(key) = &fact.scope {
             subjects.push(group_subject(key));
+        }
+        if !topic_widens(&fact.scope) {
+            return subjects;
         }
         for topic in &fact.topics {
             if let Some(decl) = self.topics.iter().find(|decl| &decl.id == topic) {
@@ -253,6 +272,11 @@ impl Visibility {
     }
 }
 
+#[must_use]
+pub const fn topic_widens(scope: &FactScope) -> bool {
+    !matches!(scope, FactScope::User(_))
+}
+
 fn group_subject(key: &str) -> AudienceSubject {
     AudienceSubject::Dimension {
         kind: GROUP_DIMENSION.to_owned(),
@@ -267,30 +291,4 @@ fn private_until_confirmed(fact: &BrainFact, principal: &RecallPrincipal) -> boo
         FactSource::Run { .. } => !confirmed,
         _ => false,
     }
-}
-
-#[must_use]
-pub fn lifecycle_withheld(
-    fact: &BrainFact,
-    now: chrono::DateTime<chrono::Utc>,
-    inject_stale: bool,
-) -> Option<WithheldReason> {
-    if fact.status == FactStatus::Stale && !inject_stale {
-        return Some(WithheldReason::Stale);
-    }
-    if fact.is_review_due(now) {
-        return Some(WithheldReason::ReviewDue);
-    }
-    if fact.status == FactStatus::Disputed {
-        return Some(WithheldReason::Disputed);
-    }
-    if !fact.is_valid_at(now)
-        || matches!(
-            fact.status,
-            FactStatus::Candidate | FactStatus::Retired | FactStatus::Superseded
-        )
-    {
-        return Some(WithheldReason::Scope);
-    }
-    None
 }

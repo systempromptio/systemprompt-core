@@ -29,7 +29,9 @@ use systemprompt_notifications::pipeline::{
 use systemprompt_notifications::repository::{
     NotificationRuleRepository, NotificationStreamRepository, NotificationSubscriptionRepository,
 };
-use systemprompt_notifications::service::{NotificationsService, NotificationsServiceParts};
+use systemprompt_notifications::service::{
+    EscalationDelivery, NotificationsService, NotificationsServiceParts,
+};
 use systemprompt_notifications::sink::OutboxNotificationSink;
 use systemprompt_notifications::{NotificationRepositories, NotificationsConsumer};
 use systemprompt_runtime::notifications::UserRoleAudienceResolver;
@@ -178,6 +180,7 @@ impl Harness {
                 vec![audience],
                 resolver_timeout,
             ))],
+            escalation: EscalationDelivery::InProcess,
             db: Arc::clone(&pool),
         });
         Self {

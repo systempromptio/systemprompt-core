@@ -5,12 +5,14 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use std::path::Path;
+use systemprompt_loader::subprocess::ForegroundChildren;
 
 use systemprompt_cli::cloud::init::scaffolding::generate_services_boilerplate;
 
 fn generate(root: &Path) {
     std::fs::create_dir_all(root.join("services/mcp/systemprompt-admin")).unwrap();
-    generate_services_boilerplate(root, "coverage-project").expect("boilerplate generated");
+    generate_services_boilerplate(root, "coverage-project", &ForegroundChildren::default())
+        .expect("boilerplate generated");
 }
 
 #[test]

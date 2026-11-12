@@ -37,11 +37,15 @@ pub const fn is_failover_status(status: u16) -> bool {
 #[must_use]
 pub fn failover_reason(error: &GatewayError) -> Option<FailoverReason> {
     match error.upstream()? {
-        UpstreamError::Status { status, .. } if is_failover_status(*status) => {
+        UpstreamError::Status { status, .. } | UpstreamError::Relayed { status, .. }
+            if is_failover_status(*status) =>
+        {
             Some(FailoverReason::Status(*status))
         },
-        UpstreamError::Status { .. } => None,
-        UpstreamError::Transport { .. } => Some(FailoverReason::Transport),
+        UpstreamError::Status { .. } | UpstreamError::Relayed { .. } => None,
+        UpstreamError::Transport { .. }
+        | UpstreamError::Timeout { .. }
+        | UpstreamError::UnreadableBody { .. } => Some(FailoverReason::Transport),
     }
 }
 

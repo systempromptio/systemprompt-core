@@ -97,7 +97,10 @@ fn rewrite_ai_config(
 ) -> Option<String> {
     let mut value = value?;
     let ai = value.get_mut("ai").and_then(Value::as_mapping_mut)?;
-    let had_legacy = ai.remove("default_provider").is_some() | ai.remove("providers").is_some();
+    let had_legacy = ai.remove("default_provider").is_some()
+        | ai.remove("providers").is_some()
+        | strip_keys(ai, "mcp", RETIRED_MCP_KEYS)
+        | strip_keys(ai, "history", RETIRED_HISTORY_KEYS);
     if let Some(model) = default_image_model {
         ai.insert(
             Value::from("default_image_model"),
@@ -106,6 +109,22 @@ fn rewrite_ai_config(
     }
     (had_legacy || default_image_model.is_some())
         .then(|| serde_yaml::to_string(&value).unwrap_or_default())
+}
+
+const RETIRED_MCP_KEYS: &[&str] = &[
+    "auto_discover",
+    "connect_timeout_ms",
+    "execution_timeout_ms",
+    "retry_attempts",
+];
+const RETIRED_HISTORY_KEYS: &[&str] = &["log_tool_executions"];
+
+fn strip_keys(ai: &mut serde_yaml::Mapping, section: &str, keys: &[&str]) -> bool {
+    let Some(block) = ai.get_mut(section).and_then(Value::as_mapping_mut) else {
+        return false;
+    };
+    keys.iter()
+        .fold(false, |removed, key| block.remove(*key).is_some() | removed)
 }
 
 fn rewrite_root(services: &Path) -> Result<Option<String>> {

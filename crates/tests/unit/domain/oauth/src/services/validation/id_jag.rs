@@ -18,6 +18,7 @@ fn claims() -> IdJagClaims {
         email: None,
         email_verified: false,
         resource: None,
+        upstream_iss: None,
     }
 }
 

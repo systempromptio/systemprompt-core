@@ -19,6 +19,7 @@ systemprompt-bridge = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 serde_json = { workspace = true }
+systemprompt-test-hack = { version = "0.1", path = "../../../common/hack" }
 
 [dev-dependencies]
 

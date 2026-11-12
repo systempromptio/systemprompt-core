@@ -18,15 +18,16 @@ use axum::response::{IntoResponse, Response};
 use serde::Serialize;
 use systemprompt_files::documents::DocumentsError;
 use systemprompt_files::documents::agents::AgentRefusal;
+use systemprompt_files::documents::blob_store::BlobStoreError;
 use systemprompt_files::documents::templates::TemplateError;
 use systemprompt_identifiers::error::IdValidationError;
 use systemprompt_models::api::ApiError;
 use systemprompt_provider_contracts::documents::CodecError;
 use systemprompt_runtime::documents::refusal::{Refused, refusal_of};
-use systemprompt_traits::AuthProviderError;
+use systemprompt_traits::{AuthProviderError, FileStorageError};
 use tokio::sync::oneshot::error::RecvError;
 
-use crate::error::ApiHttpError;
+use crate::error::{ApiHttpError, unreadable_body};
 
 #[derive(Debug)]
 pub(crate) enum DocumentsHttpError {
@@ -54,19 +55,31 @@ impl From<ApiError> for DocumentsHttpError {
 
 impl From<MultipartError> for DocumentsHttpError {
     fn from(error: MultipartError) -> Self {
-        Self::from(ApiError::bad_request("invalid multipart body").with_source(error))
+        Self::from(unreadable_body(
+            error.status(),
+            "invalid multipart body",
+            error,
+        ))
     }
 }
 
 impl From<MultipartRejection> for DocumentsHttpError {
     fn from(error: MultipartRejection) -> Self {
-        Self::from(ApiError::bad_request("invalid multipart body").with_source(error))
+        Self::from(unreadable_body(
+            error.status(),
+            "invalid multipart body",
+            error,
+        ))
     }
 }
 
 impl From<JsonRejection> for DocumentsHttpError {
     fn from(error: JsonRejection) -> Self {
-        Self::from(ApiError::bad_request("invalid request body").with_source(error))
+        Self::from(unreadable_body(
+            error.status(),
+            "invalid request body",
+            error,
+        ))
     }
 }
 
@@ -123,7 +136,24 @@ impl IntoResponse for DocumentsHttpError {
     }
 }
 
+const MISSING_FILE: &str =
+    "This document's file is missing from storage. An administrator must restore it.";
+
+const fn is_missing_file(error: &DocumentsError) -> bool {
+    matches!(
+        error,
+        DocumentsError::Blob(
+            BlobStoreError::NotFound { .. }
+                | BlobStoreError::Storage(FileStorageError::NotFound(_))
+        )
+    )
+}
+
 fn service_response(error: DocumentsError) -> Response {
+    if is_missing_file(&error) {
+        tracing::error!(%error, "a document's blob is missing from storage");
+        return ApiHttpError::from(ApiError::gone(MISSING_FILE)).into_response();
+    }
     match refusal_of(&error) {
         Some(refused) => refused_response(status_of(&error), refused),
         None => ApiHttpError::from(ApiError::internal("document operation failed", error))

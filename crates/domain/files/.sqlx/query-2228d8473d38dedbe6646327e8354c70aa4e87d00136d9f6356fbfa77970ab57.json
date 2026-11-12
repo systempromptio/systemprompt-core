@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT content_sha256 AS \"content_sha256: ContentHash\",\n                      storage_id AS \"storage_id: StoredFileId\"\n               FROM document_blob_collections ORDER BY started_at LIMIT $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "content_sha256: ContentHash",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_blob_collections",
+            "name": "content_sha256"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "storage_id: StoredFileId",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "document_blob_collections",
+            "name": "storage_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "2228d8473d38dedbe6646327e8354c70aa4e87d00136d9f6356fbfa77970ab57"
+}

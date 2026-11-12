@@ -24,6 +24,7 @@ serde_json = { workspace = true }
 sqlx = { workspace = true }
 axum = { workspace = true }
 futures-util = { workspace = true }
+systemprompt-test-hack = { version = "0.1", path = "../../../common/hack" }
 
 [package.metadata.cargo-machete]
 ignored = ["reqwest"]

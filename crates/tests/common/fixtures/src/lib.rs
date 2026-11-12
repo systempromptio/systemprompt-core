@@ -9,6 +9,7 @@
 //! skip-on-missing form.
 
 pub mod agent;
+pub mod agent_reads;
 pub mod app_context;
 pub mod bootstrap;
 pub mod catalog;
@@ -17,6 +18,7 @@ pub mod db;
 pub mod disposable_db;
 pub mod documents;
 pub mod governance;
+pub mod host;
 pub mod instance;
 pub mod jwt;
 pub mod keys;
@@ -30,6 +32,7 @@ pub mod paths;
 pub mod pdf;
 pub mod poll;
 pub mod schema;
+pub mod schema_template;
 pub mod secrets;
 pub mod service_row;
 pub mod subprocess;
@@ -46,20 +49,21 @@ pub use app_context::{
     fixture_app_context_documents_configured, fixture_app_context_documents_disabled,
     fixture_app_context_on_bootstrap, fixture_app_context_on_bootstrap_with_paths,
     fixture_app_context_with, fixture_app_context_with_config, fixture_app_context_with_extensions,
-    fixture_app_context_with_hook, fixture_app_context_with_user_repository,
-    fixture_artifact_ingest, fixture_config, fixture_event_bridge, fixture_extension_context,
-    fixture_fingerprint_repository, fixture_secret_store, fixture_services_state,
-    fixture_services_view, fixture_subject_providers, offline_extension_context,
-    offline_rate_windows, test_app_context, test_app_context_on, test_config, test_config_with,
-    FIXTURE_JWT_ISSUER,
+    fixture_app_context_with_hook, fixture_app_context_with_services,
+    fixture_app_context_with_user_repository, fixture_artifact_ingest, fixture_config,
+    fixture_event_bridge, fixture_extension_context, fixture_fingerprint_repository,
+    fixture_secret_store, fixture_services_state, fixture_services_view, fixture_subject_providers,
+    fixture_upstream_issuer, offline_extension_context, offline_rate_windows, test_app_context,
+    test_app_context_on, test_config, test_config_with, FIXTURE_JWT_ISSUER,
+    FIXTURE_UPSTREAM_ISSUER,
 };
 pub use bootstrap::{
     ensure_messaging_bootstrap, ensure_test_bootstrap, init_isolated_bootstrap,
     init_services_bootstrap, init_unloadable_services_bootstrap,
     messaging_config_yaml_with_teams_endpoints, test_boot_active_services_root, test_boot_profile,
     test_boot_services_root, test_messaging_agent, test_skills_root, TestBootstrap,
-    FIXTURE_EXTERNAL_URL, TEST_SLACK_BOT_TOKEN, TEST_SLACK_SIGNING_SECRET, TEST_SLACK_WORKSPACE_ID,
-    TEST_TEAMS_APP_ID, TEST_TEAMS_APP_PASSWORD, TEST_TEAMS_TENANT_ID,
+    FIXTURE_EXTERNAL_URL, FIXTURE_SECRETS_BLOCK, TEST_SLACK_BOT_TOKEN, TEST_SLACK_SIGNING_SECRET,
+    TEST_SLACK_WORKSPACE_ID, TEST_TEAMS_APP_ID, TEST_TEAMS_APP_PASSWORD, TEST_TEAMS_TENANT_ID,
     TEST_TEAMS_UNRESOLVABLE_APP_ID, TEST_TEAMS_UNRESOLVABLE_TENANT_ID,
 };
 pub use credential::{
@@ -74,9 +78,11 @@ pub use documents::{
     fixture_documents_runtime_with, fixture_notification_sink, fixture_notifications,
 };
 pub use governance::{apply_governance, apply_governance_plane, record_plane_applied};
+pub use host::{host_child_env, services_hosting};
 pub use instance::{unique_agent_name, unique_instance, unique_name, unique_service_name};
 pub use jwt::{
-    mint_admin_jwt, mint_bridge_jwt, test_oauth_signing, test_signing_keys, test_token_authority,
+    mint_admin_jwt, mint_bridge_jwt, mint_mcp_hop, test_oauth_signing, test_signing_keys,
+    test_token_authority,
 };
 pub use keys::{next_test_key, test_key, AUTHORITY_KEY_INDEX, ROTATING_KEY_COUNT};
 pub use keystore::install_headless_keystore;

@@ -56,6 +56,15 @@ impl Profile {
                 errors.push(format!(
                     "CORS origin must be scheme://host[:port] with no path/query/fragment: {origin}"
                 ));
+                continue;
+            }
+
+            let canonical = parsed.origin().ascii_serialization();
+            if canonical != *origin {
+                errors.push(format!(
+                    "CORS origin '{origin}' is not in the form browsers send and would never \
+                     match (origins are compared byte for byte); write '{canonical}' instead"
+                ));
             }
         }
     }

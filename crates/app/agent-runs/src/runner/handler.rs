@@ -7,10 +7,15 @@
 //! happens. A failure before the outcome is recorded still finishes the row
 //! (`failed`, `host_crashed`), so no run and no task is left in flight.
 //!
+//! Every write carries the claim's lease; once one reports the lease lost
+//! the handler stops and writes nothing more to the run.
+//!
 //! A `tasks/cancel` from A2A records `cancel_requested_at`; the claim loop
 //! cancels a run only on shutdown or a lost lease, so the handler polls that
-//! column and cancels the run token. [`A2aRunHandler::with_host`] pins the
-//! host adapter instead of resolving it from the request.
+//! column and cancels the run token. A run stopped by shutdown with no
+//! cancel requested is released back to `queued` for the next claimer to
+//! resume instead of finishing as `cancelled`. [`A2aRunHandler::with_host`]
+//! pins the host adapter instead of resolving it from the request.
 //!
 //! A request naming a harness loads that revision for the row's user through
 //! the injected [`HarnessSource`]; a missing source or a failed load finishes
@@ -28,14 +33,14 @@ use systemprompt_traits::OwnedTask;
 
 use super::{A2aRunnerConfig, credential_request};
 use crate::credentials::{RunCredentialService, RunCredentials};
-use crate::error::AgentRunsResult;
+use crate::error::{AgentRunsError, AgentRunsResult};
 use crate::execute::harness::{HarnessError, HarnessSource};
-use crate::execute::{ExecuteParams, error_chain, execute, execute_with_host};
+use crate::execute::{ExecuteParams, RunReport, error_chain, execute, execute_with_host};
 use crate::governance::hooks_file;
 use crate::host::HeadlessHost;
 use crate::layout::RunLayout;
 use crate::outcome::{ErrorClass, RunOutcome, RunStatus};
-use crate::repository::RunStarted;
+use crate::repository::{Released, RunStarted};
 use crate::request::{HarnessRef, RunRequest};
 use crate::service::{ClaimedRun, DbEventSink, RunHandler};
 use systemprompt_models::managed::RevisionBundle;
@@ -104,8 +109,11 @@ impl A2aRunHandler {
                 ErrorClass::Ok,
                 "cancelled before start",
             );
-            claimed.repo.finish(&row.id, &outcome, None).await?;
-            return Ok(());
+            return claimed
+                .repo
+                .finish(&row.id, &claimed.lease, &outcome, None)
+                .await?
+                .applied(&row.id);
         }
         let layout = self.config.layout(&row.id);
         layout.create().await?;
@@ -136,7 +144,11 @@ impl A2aRunHandler {
             gateway_session_id: Some(&credentials.gateway_session_id),
             api_key_id: Some(&credentials.api_key_id),
         };
-        claimed.repo.update_started(id, started).await?;
+        claimed
+            .repo
+            .update_started(id, &claimed.lease, started)
+            .await?
+            .applied(id)?;
         let hooks = match (&request.plugin_id, &credentials.hook_token) {
             (Some(plugin_id), Some(token)) => {
                 hooks_file(request.host, plugin_id, token, &self.config.hooks, layout).await?
@@ -149,8 +161,9 @@ impl A2aRunHandler {
                 Ok(bundle) => {
                     claimed
                         .repo
-                        .record_harness_digest(id, &harness.bundle_digest)
-                        .await?;
+                        .record_harness_digest(id, &claimed.lease, &harness.bundle_digest)
+                        .await?
+                        .applied(id)?;
                     Some(bundle)
                 },
                 Err(error) => {
@@ -160,12 +173,15 @@ impl A2aRunHandler {
                         ErrorClass::HarnessUnavailable,
                         &error_chain(&error),
                     );
-                    claimed.repo.finish(id, &outcome, None).await?;
-                    return Ok(());
+                    return claimed
+                        .repo
+                        .finish(id, &claimed.lease, &outcome, None)
+                        .await?
+                        .applied(id);
                 },
             },
         };
-        let sink = DbEventSink::new(claimed.repo.clone(), id.clone());
+        let sink = DbEventSink::new(claimed);
         let existing = claimed.repo.count_events(id).await?;
         let params = ExecuteParams {
             request,
@@ -184,31 +200,56 @@ impl A2aRunHandler {
             None => execute(params).await,
         };
         watcher.abort();
-        let report = report?;
-        let diff = serde_json::to_value(&report.diff)?;
-        claimed
-            .repo
-            .finish(id, &report.outcome, Some(&diff))
-            .await?;
-        Ok(())
+        settle(claimed, &report?).await
     }
+}
+
+async fn settle(claimed: &ClaimedRun, report: &RunReport) -> AgentRunsResult<()> {
+    let id = &claimed.row.id;
+    if claimed.interrupted()
+        && report.outcome.status == RunStatus::Cancelled
+        && !claimed.repo.find_cancel_requested(id).await?
+    {
+        let released = claimed
+            .repo
+            .release(id, &claimed.lease, claimed.max_releases)
+            .await?
+            .applied(id)?;
+        if released == Released::Exhausted {
+            tracing::warn!(run_id = %id, "agent run interrupted by shutdown too often; failed");
+        } else {
+            tracing::info!(run_id = %id, "agent run interrupted by shutdown; released");
+        }
+        return Ok(());
+    }
+    let diff = serde_json::to_value(&report.diff)?;
+    claimed
+        .repo
+        .finish(id, &claimed.lease, &report.outcome, Some(&diff))
+        .await?
+        .applied(id)
 }
 
 #[async_trait]
 impl RunHandler for A2aRunHandler {
     async fn run(&self, claimed: ClaimedRun) -> AgentRunsResult<()> {
-        let Err(error) = self.drive(&claimed).await else {
-            return Ok(());
-        };
         let id = &claimed.row.id;
+        let error = match self.drive(&claimed).await {
+            Ok(()) => return Ok(()),
+            Err(error @ AgentRunsError::LeaseLost { .. }) => return Err(error),
+            Err(error) => error,
+        };
         tracing::error!(run_id = %id, %error, "A2A run failed before it finished");
         let outcome = unexecuted(
             RunStatus::Failed,
             ErrorClass::HostCrashed,
             &error.to_string(),
         );
-        claimed.repo.finish(id, &outcome, None).await?;
-        Ok(())
+        claimed
+            .repo
+            .finish(id, &claimed.lease, &outcome, None)
+            .await?
+            .applied(id)
     }
 }
 

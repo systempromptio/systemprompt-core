@@ -1,0 +1,25 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO document_blobs (content_sha256, size_bytes, storage_id)\n               VALUES ($1, $2, $3)\n               ON CONFLICT (content_sha256) DO UPDATE SET created_at = now()\n               RETURNING (xmax = 0) AS \"inserted!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "inserted!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "4a18b14f6b357008e71e1d82a072da5676d231c14a766ad724620703836af19b"
+}

@@ -50,9 +50,14 @@ pub(super) fn validate_resource_uri(
             "Resource URI host '{ip}' is an internal or private (loopback) network address"
         )));
     }
-    match systemprompt_models::net::validate_outbound_url(resource) {
+    match systemprompt_models::net::validate_outbound_url(
+        resource,
+        systemprompt_models::net::LoopbackPolicy::Deny,
+    ) {
         Ok(_) | Err(OutboundUrlError::NonLoopbackHttp) => Ok(()),
-        Err(e @ OutboundUrlError::BlockedHost(_)) => Err(AuthorizeParamError::BlockedResource(e)),
+        Err(e @ (OutboundUrlError::BlockedHost(_) | OutboundUrlError::Loopback(_))) => {
+            Err(AuthorizeParamError::BlockedResource(e))
+        },
         Err(e) => Err(AuthorizeParamError::InvalidResource(e)),
     }
 }

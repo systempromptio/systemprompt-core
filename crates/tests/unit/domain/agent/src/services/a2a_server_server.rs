@@ -18,9 +18,7 @@ use systemprompt_test_fixtures::{
     TestBootstrap, fixture_config, init_services_bootstrap, test_db_pool,
 };
 use systemprompt_test_mocks::MockAiProvider;
-use systemprompt_traits::{
-    AgentJwtClaims, GenerateTokenParams, JwtProviderError, JwtResult, JwtValidationProvider,
-};
+use systemprompt_traits::{AgentJwtClaims, JwtProviderError, JwtResult, JwtValidationProvider};
 use tower::ServiceExt;
 
 struct StubJwt;
@@ -28,9 +26,6 @@ struct StubJwt;
 impl JwtValidationProvider for StubJwt {
     fn validate_token(&self, _token: &str) -> JwtResult<AgentJwtClaims> {
         Err(JwtProviderError::InvalidToken)
-    }
-    fn generate_token(&self, _params: GenerateTokenParams) -> JwtResult<String> {
-        Ok("tok".to_owned())
     }
     fn generate_secure_token(&self, prefix: &str) -> String {
         format!("{prefix}-fake")
@@ -94,7 +89,9 @@ async fn state() -> Arc<AgentState> {
         config,
         systemprompt_agent::AgentAuth {
             jwt_provider: Arc::new(StubJwt) as systemprompt_traits::DynJwtValidationProvider,
-            signing_keys: systemprompt_test_fixtures::test_signing_keys(),
+            verification_keys: systemprompt_test_fixtures::test_signing_keys()
+                .keyring()
+                .clone(),
         },
         Arc::new(repos),
         systemprompt_test_mocks::recording_webhooks(),
@@ -192,5 +189,56 @@ async fn the_debug_impl_redacts_every_handle_it_holds() {
     assert!(
         !rendered.contains("postgres://") && !rendered.contains("password"),
         "no connection detail may reach a debug dump: {rendered}"
+    );
+}
+
+fn non_loopback_interface() -> std::net::IpAddr {
+    let probe = std::net::UdpSocket::bind("0.0.0.0:0").expect("udp bind");
+    probe
+        .connect("192.0.2.1:9")
+        .expect("route to a non-loopback address");
+    let ip = probe.local_addr().expect("local addr").ip();
+    assert!(
+        !ip.is_loopback(),
+        "the host has a non-loopback interface: {ip}"
+    );
+    ip
+}
+
+#[tokio::test]
+async fn the_a2a_server_listens_on_loopback_only() {
+    let port = std::net::TcpListener::bind("127.0.0.1:0")
+        .expect("free port")
+        .local_addr()
+        .expect("addr")
+        .port();
+    let server = Server::new(
+        state().await,
+        ai(),
+        &AgentName::new("a2a_fixture_agent"),
+        port,
+    )
+    .expect("a registered agent should produce a server");
+    let task = tokio::spawn(server.run(std::future::pending::<()>()));
+
+    let mut reachable = false;
+    for _ in 0..100 {
+        if tokio::net::TcpStream::connect(("127.0.0.1", port))
+            .await
+            .is_ok()
+        {
+            reachable = true;
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    }
+    assert!(reachable, "loopback reaches the A2A server");
+
+    let external = non_loopback_interface();
+    let refused = tokio::net::TcpStream::connect((external, port)).await;
+    task.abort();
+    assert!(
+        refused.is_err(),
+        "{external}:{port} must not reach the A2A server"
     );
 }

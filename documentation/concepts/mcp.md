@@ -24,6 +24,18 @@ MCP servers are reached over a streamable-HTTP transport, mounted per server at:
 
 A request names the target server in the path; the platform resolves it through the registry and proxies to the running server process. RBAC and per-server audience checks are enforced on this path (see [authentication.md](authentication.md)).
 
+### Identity on the hop to the server process
+
+The platform proxy authenticates each request at the edge, then forwards it to the server process over loopback with a short-lived signed hop token in the `x-systemprompt-mcp-hop` header. The token is RS256, signed with the deployment key, valid for one minute and for that one server, and it carries the verified caller and the MCP session the edge bound to them. The server process verifies it against the deployment's verification keys and takes the caller's identity from it alone. No request header such as `x-user-id` or `x-proxy-verified` conveys identity, and the platform no longer sends them.
+
+A server process built into an extension must therefore:
+
+- serve its MCP endpoint through `systemprompt_mcp::create_router`, which installs the hop verifier in front of the MCP service and, for a server that requires OAuth, refuses any request without a valid hop token with `401`;
+- listen with `systemprompt_mcp::bind_loopback(port)`, so the port is reachable only from the proxy on the same host;
+- authorise through `systemprompt_mcp::middleware::enforce_rbac_from_registry`, which reads the verified identity.
+
+A server that requires OAuth and receives a hop token its router never verified refuses every call with an error that names `create_router`, rather than running as an anonymous caller. The caller's own bearer, when it has one, still arrives in `Authorization` for a tool that needs to call the platform on the caller's behalf; it is a credential to pass on, not an identity the server trusts.
+
 Tool executions are logged at the server, not the client. The MCP client in core deliberately does no execution logging; the server records each call (input, output, structured content, timing, status) to `mcp_tool_executions`. This keeps a single source of truth with the complete payload, and links each execution back to the originating AI tool call through shared identifiers (`ai_tool_call_id`, `mcp_execution_id`) carried in the request context.
 
 ## Signed bridge manifests

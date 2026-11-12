@@ -5,7 +5,9 @@ use std::path::PathBuf;
 
 use serde_json::Value;
 use systemprompt_bridge::context::{BridgeContext, ProxyMode};
+use systemprompt_bridge::install::elevation_script::shell_quote;
 use systemprompt_bridge::install::mdm::MdmError;
+use systemprompt_bridge::install::mdm::claude_code_settings::current_helper_command;
 use systemprompt_bridge::install::{
     InstallError, InstallOptions, ManagedProfileRemoveError, MdmDisplay, install, uninstall,
 };
@@ -126,7 +128,7 @@ fn apply_writes_the_gateway_env_block_and_api_key_helper() {
     );
     assert_eq!(
         doc["apiKeyHelper"].as_str(),
-        Some(dirs.helper().display().to_string().as_str()),
+        Some(shell_quote(&dirs.helper().display().to_string()).as_str()),
         "apiKeyHelper points at the script the apply just wrote"
     );
 
@@ -353,4 +355,112 @@ fn uninstall_refuses_a_settings_file_it_cannot_parse_and_leaves_it_in_place() {
         "{ not json at all",
         "unreadable settings are never rewritten or deleted"
     );
+}
+
+#[test]
+fn the_api_key_helper_path_reaches_the_shell_as_one_literal_word() {
+    let base = TempDir::new().expect("base");
+    let hostile = base.path().join("cfg$(touch${IFS}pwned)`id`;a&b'q'");
+    fs::create_dir_all(&hostile).expect("hostile config dir");
+    let command = temp_env::with_vars(
+        [("XDG_CONFIG_HOME", Some(hostile.display().to_string()))],
+        || current_helper_command().expect("helper command resolves"),
+    );
+    let expected = hostile.join("systemprompt").join("claude-key-helper.sh");
+    let echoed = std::process::Command::new("/bin/sh")
+        .arg("-c")
+        .arg(format!(
+            "cd {} && printf '%s' {command}",
+            shell_quote(&base.path().display().to_string())
+        ))
+        .output()
+        .expect("run sh");
+    assert!(echoed.status.success(), "{echoed:?}");
+    assert_eq!(
+        String::from_utf8(echoed.stdout).expect("utf8"),
+        expected.display().to_string(),
+        "the shell sees the whole path, unexpanded"
+    );
+    assert!(
+        !base.path().join("pwned").exists(),
+        "no substitution in the path ran"
+    );
+}
+
+fn set_settings_helper(dirs: &Dirs, helper: &str) {
+    let mut doc = dirs.settings_json();
+    doc["apiKeyHelper"] = Value::String(helper.to_owned());
+    fs::write(
+        dirs.settings(),
+        serde_json::to_string(&doc).expect("render"),
+    )
+    .expect("rewrite");
+}
+
+#[test]
+fn apply_over_a_bare_helper_path_rewrites_it_quoted() {
+    let dirs = Dirs::new();
+    let bare = dirs.helper().display().to_string();
+    dirs.seed_settings(&serde_json::json!({ "apiKeyHelper": bare }).to_string());
+    dirs.run(|| {
+        let _installed = install(&apply_options(), &bridge()).expect("install --apply succeeds");
+    });
+    assert_eq!(
+        dirs.settings_json()["apiKeyHelper"].as_str(),
+        Some(shell_quote(&bare).as_str())
+    );
+}
+
+#[test]
+fn uninstall_removes_a_bare_path_value_that_names_this_bridges_helper() {
+    let dirs = Dirs::new();
+    dirs.seed_settings(r#"{"env":{"MY_OWN":"keep"}}"#);
+    dirs.run(|| {
+        let _installed = install(&apply_options(), &bridge()).expect("install --apply succeeds");
+        set_settings_helper(&dirs, &dirs.helper().display().to_string());
+        uninstall(false, &bridge()).expect("uninstall succeeds");
+    });
+    let doc = dirs.settings_json();
+    assert!(
+        doc.get("apiKeyHelper").is_none(),
+        "the bare value an older bridge wrote is ours: {doc}"
+    );
+    assert!(doc["env"].get("ANTHROPIC_BASE_URL").is_none(), "{doc}");
+    assert_eq!(doc["env"]["MY_OWN"].as_str(), Some("keep"));
+}
+
+#[test]
+fn uninstall_leaves_a_bare_path_naming_another_helper() {
+    let dirs = Dirs::new();
+    dirs.seed_settings("{}");
+    dirs.run(|| {
+        let _installed = install(&apply_options(), &bridge()).expect("install --apply succeeds");
+        set_settings_helper(&dirs, "/opt/other/claude-key-helper.sh");
+        uninstall(false, &bridge()).expect("uninstall succeeds");
+    });
+    assert_eq!(
+        dirs.settings_json()["apiKeyHelper"].as_str(),
+        Some("/opt/other/claude-key-helper.sh")
+    );
+}
+
+#[test]
+fn only_a_value_the_shell_reads_as_this_helper_is_recognised() {
+    use systemprompt_bridge::install::mdm::claude_code_settings::is_bridge_helper;
+    let dirs = Dirs::new();
+    let path = dirs.helper().display().to_string();
+    dirs.run(|| {
+        assert!(is_bridge_helper(&path), "bare");
+        assert!(is_bridge_helper(&shell_quote(&path)), "quoted");
+        for foreign in [
+            format!("{path}; rm -rf ~"),
+            format!("{path} extra"),
+            format!("$(echo {path})"),
+            format!("'{path}'x"),
+            format!("'{path}"),
+            String::new(),
+        ] {
+            assert!(!is_bridge_helper(&foreign), "{foreign:?}");
+        }
+    });
 }

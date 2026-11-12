@@ -17,6 +17,7 @@ use axum::http::{Request, StatusCode, header};
 use axum::middleware::{self, Next};
 use systemprompt_api::routes::oauth::{authenticated_router, public_router};
 use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
+use systemprompt_models::auth::UserType;
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::services::hash_registration_token;
@@ -37,6 +38,7 @@ fn ctx_for(user: &UserId) -> RequestContext {
         AgentName::system(),
         Actor::user(user.clone()),
     )
+    .with_user_type(UserType::User)
 }
 
 async fn clients_app(user: UserId) -> anyhow::Result<Router> {

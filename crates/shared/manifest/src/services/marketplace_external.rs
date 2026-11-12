@@ -115,7 +115,11 @@ impl ExternalMarketplace {
                 }
             },
             ExternalMarketplaceSource::Git { url, .. } => {
-                let parsed = systemprompt_models::net::validate_outbound_url(url).map_err(|e| {
+                let parsed = systemprompt_models::net::validate_outbound_url(
+                    url,
+                    systemprompt_models::net::LoopbackPolicy::Allow,
+                )
+                .map_err(|e| {
                     ServicesValidationError::invalid_field_cause(
                         format!(
                             "Marketplace '{key}': external marketplace '{name}' git url '{url}' \

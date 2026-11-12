@@ -70,7 +70,7 @@ impl Drop for AbandonGuard {
         }
         let audit = Arc::clone(&self.audit);
         audit.mark_upstream_end();
-        log_terminal(&audit, CLIENT_CLOSED_REQUEST, Some(ABANDONED_REASON));
+        log_terminal(&audit, CLIENT_CLOSED_REQUEST, Some(ABANDONED_REASON), 0);
         let background = audit.background().clone();
         background.spawn("gateway_abandoned_dispatch", async move {
             if let Err(e) = audit.fail(ABANDONED_REASON).await {

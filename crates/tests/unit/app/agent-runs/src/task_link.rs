@@ -6,15 +6,15 @@
 use std::path::Path;
 use std::time::Duration;
 
-use systemprompt_agent_runs::repository::{NewAgentRun, RunStarted};
+use systemprompt_agent_runs::repository::{Fenced, NewAgentRun, RunStarted};
 use systemprompt_agent_runs::{ErrorClass, RepositoryRunLauncher, RunOutcome, RunStatus};
 use systemprompt_identifiers::{AgentRunId, ContextId, TaskId};
 use systemprompt_traits::{AgentRunLaunch, AgentRunLaunchError, AgentRunLauncher};
 
-use crate::repository::{Fixture, expire_lease, fixture, request};
+use crate::repository::{Fixture, claim, expire_lease, fixture, request};
 use systemprompt_identifiers::AgentRunOriginId;
 
-async fn insert_task(f: &Fixture) -> (TaskId, ContextId) {
+pub(crate) async fn insert_task(f: &Fixture) -> (TaskId, ContextId) {
     let (task_id, context_id) = (TaskId::generate(), ContextId::generate());
     sqlx::query("INSERT INTO user_contexts (context_id, user_id, name) VALUES ($1, $2, 'runs')")
         .bind(context_id.as_str())
@@ -32,7 +32,7 @@ async fn insert_task(f: &Fixture) -> (TaskId, ContextId) {
     (task_id, context_id)
 }
 
-async fn task_state(f: &Fixture, task_id: &TaskId) -> String {
+pub(crate) async fn task_state(f: &Fixture, task_id: &TaskId) -> String {
     sqlx::query_scalar("SELECT status FROM agent_tasks WHERE task_id = $1")
         .bind(task_id.as_str())
         .fetch_one(f.repo.write_pool())
@@ -40,7 +40,7 @@ async fn task_state(f: &Fixture, task_id: &TaskId) -> String {
         .expect("task status")
 }
 
-async fn queue_for(f: &Fixture, task_id: &TaskId, context_id: &ContextId) -> AgentRunId {
+pub(crate) async fn queue_for(f: &Fixture, task_id: &TaskId, context_id: &ContextId) -> AgentRunId {
     let id = AgentRunId::generate();
     f.repo
         .insert_run(NewAgentRun {
@@ -88,24 +88,33 @@ async fn run_lifecycle_moves_its_task() {
         gateway_session_id: None,
         api_key_id: None,
     };
-    f.repo.update_started(&id, started).await.expect("started");
+    let lease = claim(&f, "a").await;
+    assert_eq!(
+        f.repo
+            .update_started(&id, &lease, started)
+            .await
+            .expect("started"),
+        Fenced::Applied
+    );
     assert_eq!(task_state(&f, &task_id).await, "TASK_STATE_WORKING");
 
-    assert!(
+    assert_eq!(
         f.repo
-            .finish(&id, &succeeded(), None)
+            .finish(&id, &lease, &succeeded(), None)
             .await
-            .expect("finish")
+            .expect("finish"),
+        Fenced::Applied
     );
     assert_eq!(task_state(&f, &task_id).await, "TASK_STATE_COMPLETED");
 
     let mut again = succeeded();
     again.status = RunStatus::Failed;
-    assert!(
-        !f.repo
-            .finish(&id, &again, None)
+    assert_eq!(
+        f.repo
+            .finish(&id, &lease, &again, None)
             .await
-            .expect("second finish")
+            .expect("second finish"),
+        Fenced::LeaseLost
     );
     assert_eq!(task_state(&f, &task_id).await, "TASK_STATE_COMPLETED");
 }
@@ -120,11 +129,13 @@ async fn finish_on_a_terminal_task_still_records_the_run() {
         .execute(f.repo.write_pool())
         .await
         .expect("cancel task");
-    assert!(
+    let lease = claim(&f, "a").await;
+    assert_eq!(
         f.repo
-            .finish(&id, &succeeded(), None)
+            .finish(&id, &lease, &succeeded(), None)
             .await
-            .expect("finish")
+            .expect("finish"),
+        Fenced::Applied
     );
     let row = f.repo.find_run(&id).await.expect("find").expect("row");
     assert_eq!(row.status, "succeeded");
@@ -188,4 +199,76 @@ async fn final_attempt_reclaim_fails_its_task() {
     assert_eq!(row.status, "failed");
     assert_eq!(row.error_class.as_deref(), Some("host_crashed"));
     assert_eq!(task_state(&f, &task_id).await, "TASK_STATE_FAILED");
+}
+
+#[tokio::test]
+async fn a_run_never_moves_a_task_outside_its_users_contexts() {
+    let f = fixture().await;
+    let other = fixture().await;
+    let (foreign_task, foreign_context) = insert_task(&other).await;
+    let id = queue_for(&f, &foreign_task, &foreign_context).await;
+
+    let lease = claim(&f, "a").await;
+    let started = RunStarted {
+        run_dir: Path::new("/tmp/run"),
+        pid: Some(1),
+        gateway_session_id: None,
+        api_key_id: None,
+    };
+    assert_eq!(
+        f.repo
+            .update_started(&id, &lease, started)
+            .await
+            .expect("started"),
+        Fenced::Applied
+    );
+    assert_eq!(
+        f.repo
+            .finish(&id, &lease, &succeeded(), None)
+            .await
+            .expect("finish"),
+        Fenced::Applied
+    );
+    assert_eq!(
+        task_state(&f, &foreign_task).await,
+        "TASK_STATE_SUBMITTED",
+        "the run's user does not own the task, so the task is left alone"
+    );
+}
+
+#[tokio::test]
+async fn the_runtime_handle_is_minted_only_under_the_runs_own_lease() {
+    use systemprompt_agent_runs::repository::task_link::{RunClaim, run_task_in_tx};
+
+    let f = fixture().await;
+    let (task_id, context_id) = insert_task(&f).await;
+    let id = queue_for(&f, &task_id, &context_id).await;
+    let lease = claim(&f, "a").await;
+
+    let mut tx = f.repo.write_pool().begin().await.expect("tx");
+    let forged = RunClaim::Lease {
+        claimed_by: "someone-else",
+        attempt: lease.attempt(),
+        claimed_at: lease.claimed_at(),
+    };
+    let err = run_task_in_tx(&mut tx, &id, forged)
+        .await
+        .expect_err("a lease the caller does not hold proves nothing");
+    assert!(err.is_not_found(), "{err}");
+    let err = run_task_in_tx(&mut tx, &id, RunClaim::Unclaimed)
+        .await
+        .expect_err("a claimed run cannot be minted as unclaimed");
+    assert!(err.is_not_found(), "{err}");
+    let other_run = AgentRunId::generate();
+    let err = run_task_in_tx(&mut tx, &other_run, lease.run_claim())
+        .await
+        .expect_err("the lease belongs to its own run only");
+    assert!(err.is_not_found(), "{err}");
+
+    let task = run_task_in_tx(&mut tx, &id, lease.run_claim())
+        .await
+        .expect("the lease holder mints the handle for the task its run names");
+    assert_eq!(task.task_id(), &task_id);
+    assert_eq!(task.context_id(), &context_id);
+    tx.rollback().await.expect("rollback");
 }

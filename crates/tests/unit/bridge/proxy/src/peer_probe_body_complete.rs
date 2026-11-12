@@ -7,7 +7,7 @@
 
 use std::io::{Read, Write};
 use std::net::TcpListener;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use systemprompt_bridge::proxy::identity::{InstallId, WhoAmI};
 use systemprompt_bridge::proxy::peer::{PeerIdentity, probe_identity};
@@ -16,18 +16,12 @@ fn whoami_body(port: u16, install_id: &InstallId) -> String {
     serde_json::to_string(&WhoAmI::current(port, 1_753_948_800, install_id)).expect("json")
 }
 
-// Answers one request with a complete HTTP response and then holds the
-// connection open for `linger` without closing it.
-fn lingering_responder(
-    body: String,
-    linger: Duration,
-    split_body: bool,
-) -> (u16, std::thread::JoinHandle<()>) {
+fn lingering_responder(body: String, split_body: bool) -> (u16, std::thread::JoinHandle<bool>) {
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
     let port = listener.local_addr().expect("addr").port();
     let handle = std::thread::spawn(move || {
         let Ok((mut stream, _)) = listener.accept() else {
-            return;
+            return false;
         };
         let mut buf = [0u8; 1024];
         let _read = stream.read(&mut buf);
@@ -46,7 +40,10 @@ fn lingering_responder(
             stream.write_all(body.as_bytes()).expect("write body");
         }
         stream.flush().expect("flush");
-        std::thread::sleep(linger);
+        stream
+            .set_read_timeout(Some(Duration::from_secs(30)))
+            .expect("hang guard");
+        matches!(stream.read(&mut buf), Ok(0))
     });
     (port, handle)
 }
@@ -54,38 +51,32 @@ fn lingering_responder(
 #[test]
 fn a_sibling_that_never_closes_the_socket_is_still_identified_within_budget() {
     let ours = InstallId::ephemeral();
-    let (port, handle) =
-        lingering_responder(whoami_body(48217, &ours), Duration::from_secs(2), false);
+    let (port, handle) = lingering_responder(whoami_body(48217, &ours), false);
 
-    let started = Instant::now();
     let verdict = probe_identity(port, &ours);
-    let elapsed = started.elapsed();
 
     assert!(
         matches!(verdict, PeerIdentity::Ours(_)),
         "a complete body identifies the peer even though the socket stays open: {verdict:?}"
     );
     assert!(
-        elapsed < Duration::from_millis(1500),
-        "the probe returned as soon as the declared body arrived, not at the read timeout: \
-         {elapsed:?}"
+        handle.join().expect("responder"),
+        "the probe closed the connection itself once the declared body arrived"
     );
-    handle.join().expect("responder");
 }
 
 #[test]
 fn a_body_that_arrives_in_two_writes_is_read_to_its_declared_length() {
     let ours = InstallId::ephemeral();
     let foreign = InstallId::ephemeral();
-    let (port, handle) =
-        lingering_responder(whoami_body(48217, &foreign), Duration::from_secs(2), true);
+    let (port, handle) = lingering_responder(whoami_body(48217, &foreign), true);
 
     let verdict = probe_identity(port, &ours);
     assert!(
         matches!(&verdict, PeerIdentity::Foreign(who) if who.install_id.same_install(&foreign)),
         "a body split across writes is assembled to its content-length: {verdict:?}"
     );
-    handle.join().expect("responder");
+    assert!(handle.join().expect("responder"));
 }
 
 #[test]

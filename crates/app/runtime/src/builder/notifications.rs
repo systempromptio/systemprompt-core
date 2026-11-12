@@ -31,7 +31,9 @@ use systemprompt_notifications::channels::AguiChannel;
 use systemprompt_notifications::consumer::NotificationsConsumer;
 use systemprompt_notifications::defaults::{DefaultPublishPolicy, DefaultRouter};
 use systemprompt_notifications::pipeline::{NotificationPipeline, PipelineParts};
-use systemprompt_notifications::service::{NotificationsService, NotificationsServiceParts};
+use systemprompt_notifications::service::{
+    EscalationDelivery, NotificationsService, NotificationsServiceParts,
+};
 use systemprompt_notifications::sink::OutboxNotificationSink;
 use systemprompt_users::UserRepository;
 
@@ -53,16 +55,16 @@ pub fn core_notifications(inputs: &NotificationsInputs<'_>) -> Arc<Notifications
 }
 
 #[derive(Default)]
-pub(super) struct ExtensionSeams {
-    pub(super) routers: Vec<Arc<dyn NotificationRouter>>,
-    pub(super) audiences: Vec<Arc<dyn NotificationAudienceResolver>>,
-    pub(super) visibilities: Vec<Arc<dyn ResourceVisibility>>,
-    pub(super) channels: Vec<Arc<dyn NotificationChannel>>,
-    pub(super) publish_policies: Vec<Arc<dyn PublishPolicy>>,
+pub(crate) struct ExtensionSeams {
+    pub(crate) routers: Vec<Arc<dyn NotificationRouter>>,
+    pub(crate) audiences: Vec<Arc<dyn NotificationAudienceResolver>>,
+    pub(crate) visibilities: Vec<Arc<dyn ResourceVisibility>>,
+    pub(crate) channels: Vec<Arc<dyn NotificationChannel>>,
+    pub(crate) publish_policies: Vec<Arc<dyn PublishPolicy>>,
 }
 
 impl ExtensionSeams {
-    pub(super) fn discover(ctx: &dyn ExtensionContext) -> Self {
+    pub(crate) fn discover(ctx: &dyn ExtensionContext) -> Self {
         Self {
             routers: discover_notification_routers()
                 .into_iter()
@@ -88,7 +90,7 @@ impl ExtensionSeams {
     }
 }
 
-pub(super) struct NotificationsCore {
+pub(crate) struct NotificationsCore {
     database: DbPool,
     router: Arc<EventRouter>,
     sink: DynNotificationSink,
@@ -97,6 +99,7 @@ pub(super) struct NotificationsCore {
     users: Arc<UserRepository>,
     repos: Arc<NotificationRepositories>,
     profile: NotificationsProfile,
+    escalation: EscalationDelivery,
 }
 
 /// The context handles a [`NotificationsHandle`] is assembled from.
@@ -108,6 +111,7 @@ pub struct NotificationsInputs<'a> {
     pub listener_pool: &'a PgPool,
     pub documents: &'a Arc<DocumentsRuntime>,
     pub profile: &'a NotificationsProfile,
+    pub escalation: EscalationDelivery,
 }
 
 impl fmt::Debug for NotificationsInputs<'_> {
@@ -119,7 +123,7 @@ impl fmt::Debug for NotificationsInputs<'_> {
 }
 
 impl NotificationsCore {
-    pub(super) fn new(inputs: &NotificationsInputs<'_>) -> Self {
+    pub(crate) fn new(inputs: &NotificationsInputs<'_>) -> Self {
         Self {
             database: Arc::clone(inputs.database),
             router: Arc::new(inputs.event_router.clone()),
@@ -129,10 +133,11 @@ impl NotificationsCore {
             users: Arc::new(UserRepository::new(inputs.database)),
             repos: Arc::new(NotificationRepositories::new(inputs.database)),
             profile: *inputs.profile,
+            escalation: inputs.escalation,
         }
     }
 
-    pub(super) fn assemble(&self, seams: ExtensionSeams) -> Arc<NotificationsHandle> {
+    pub(crate) fn assemble(&self, seams: ExtensionSeams) -> Arc<NotificationsHandle> {
         let ExtensionSeams {
             mut routers,
             mut audiences,
@@ -172,6 +177,7 @@ impl NotificationsCore {
             pipeline: Arc::clone(&pipeline),
             publish_policies,
             db: Arc::clone(&self.database),
+            escalation: self.escalation,
         }));
         let consumer = Arc::new(NotificationsConsumer::new(
             pipeline,

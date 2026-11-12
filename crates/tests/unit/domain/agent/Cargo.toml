@@ -25,6 +25,7 @@ systemprompt-traits = { workspace = true }
 systemprompt-logging = { workspace = true }
 systemprompt-extension = { workspace = true }
 rmcp = { workspace = true }
+systemprompt-test-hack = { version = "0.1", path = "../../../common/hack" }
 
 [dev-dependencies]
 async-trait = { workspace = true }

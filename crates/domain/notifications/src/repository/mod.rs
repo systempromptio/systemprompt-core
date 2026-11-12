@@ -9,6 +9,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod failures;
+mod lease;
 mod notifications;
 mod persist;
 mod receipts;
@@ -28,6 +29,7 @@ use sqlx::PgPool;
 use systemprompt_database::DbPool;
 
 pub use failures::{DeliveryFailure, DeliveryHistory, NewFailure, NotificationFailureRepository};
+pub use lease::{DeliveryLease, Fenced};
 pub use notifications::NotificationRepository;
 pub use receipts::NotificationReceiptRepository;
 pub use rules::NotificationRuleRepository;

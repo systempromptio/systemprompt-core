@@ -9,6 +9,7 @@
 //! as a persistence error.
 
 use std::sync::Arc;
+use systemprompt_test_fixtures::agent_reads::{ArtifactReadsExt, TaskReadsExt};
 
 use systemprompt_agent::models::a2a::{
     Artifact, ArtifactMetadata, Message, MessageRole, Part, TaskState,
@@ -42,7 +43,7 @@ fn publishing(
     ArtifactPublishingService::new(repositories, skills)
 }
 
-use crate::repository::{make_task, repos, seed_context_and_task, seed_user_and_session};
+use crate::repository::{make_task, repos, seed_runtime_task, seed_user_and_session};
 use systemprompt_test_fixtures::test_db_pool;
 
 fn message(role: MessageRole, ctx: &ContextId, task_id: &TaskId, text: &str) -> Message {
@@ -90,7 +91,8 @@ async fn a_completed_turn_persists_the_task_and_both_messages() {
     ensure_test_bootstrap();
     let repositories = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
-    let (ctx, task_id) = seed_context_and_task(&repositories, &user_id, &session_id).await;
+    let (ctx, runtime) = seed_runtime_task(&repositories, &user_id, &session_id).await;
+    let task_id = runtime.task_id().clone();
 
     let mut task = make_task(&task_id, &ctx);
     task.status.state = TaskState::Completed;
@@ -100,6 +102,7 @@ async fn a_completed_turn_persists_the_task_and_both_messages() {
     let webhooks = recording_webhooks();
 
     let outcome = persist_completed_task(PersistCompletedTaskParams {
+        runtime: &runtime,
         task: &task,
         user_message: &user_message,
         agent_message: &agent_message,
@@ -122,7 +125,7 @@ async fn a_completed_turn_persists_the_task_and_both_messages() {
 
     let stored = repositories
         .tasks
-        .find_task(&task_id)
+        .read_task(&task_id)
         .await
         .expect("task readable")
         .expect("task present");
@@ -138,7 +141,8 @@ async fn artifacts_already_published_are_not_published_a_second_time() {
     ensure_test_bootstrap();
     let repositories = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
-    let (ctx, task_id) = seed_context_and_task(&repositories, &user_id, &session_id).await;
+    let (ctx, runtime) = seed_runtime_task(&repositories, &user_id, &session_id).await;
+    let task_id = runtime.task_id().clone();
 
     let mut task = make_task(&task_id, &ctx);
     task.status.state = TaskState::Completed;
@@ -148,6 +152,7 @@ async fn artifacts_already_published_are_not_published_a_second_time() {
 
     let webhooks = recording_webhooks();
     persist_completed_task(PersistCompletedTaskParams {
+        runtime: &runtime,
         task: &task,
         user_message: &message(MessageRole::User, &ctx, &task_id, "ask"),
         agent_message: &message(MessageRole::Agent, &ctx, &task_id, "answer"),
@@ -162,7 +167,7 @@ async fn artifacts_already_published_are_not_published_a_second_time() {
 
     let stored = repositories
         .artifacts
-        .find_artifact_by_id(&artifact_id)
+        .read_artifact(&artifact_id)
         .await
         .expect("artifact lookup runs");
     assert!(
@@ -186,7 +191,14 @@ async fn a_task_that_does_not_exist_fails_loudly_rather_than_reporting_success()
     task.status.state = TaskState::Completed;
 
     let webhooks = recording_webhooks();
+    let (_, ghost_runtime) = seed_runtime_task(&repositories, &user_id, &session_id).await;
+    repositories
+        .tasks
+        .remove_task(ghost_runtime.task_id())
+        .await
+        .expect("drop the task row");
     let err = persist_completed_task(PersistCompletedTaskParams {
+        runtime: &ghost_runtime,
         task: &task,
         user_message: &message(MessageRole::User, &ctx, &ghost, "ask"),
         agent_message: &message(MessageRole::Agent, &ctx, &ghost, "answer"),
@@ -217,7 +229,8 @@ async fn persist_artifacts(broadcast_ok: bool) {
     let webhooks: DynWebhookBroadcaster = rec.clone();
     let repositories = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
-    let (ctx, task_id) = seed_context_and_task(&repositories, &user_id, &session_id).await;
+    let (ctx, runtime) = seed_runtime_task(&repositories, &user_id, &session_id).await;
+    let task_id = runtime.task_id().clone();
     let mut task = make_task(&task_id, &ctx);
     task.status.state = TaskState::Completed;
     let first = artifact(&ctx, &task_id);
@@ -225,6 +238,7 @@ async fn persist_artifacts(broadcast_ok: bool) {
     let ids = [first.id.clone(), second.id.clone()];
     task.artifacts = Some(vec![first, second]);
     let outcome = persist_completed_task(PersistCompletedTaskParams {
+        runtime: &runtime,
         task: &task,
         user_message: &message(MessageRole::User, &ctx, &task_id, "publish these"),
         agent_message: &message(MessageRole::Agent, &ctx, &task_id, "published"),
@@ -258,16 +272,12 @@ async fn persist_artifacts(broadcast_ok: bool) {
         );
     }
     for id in ids {
-        let stored = repositories
-            .artifacts
-            .find_artifact_by_id(&id)
-            .await
-            .unwrap();
+        let stored = repositories.artifacts.read_artifact(&id).await.unwrap();
         assert!(stored.is_some(), "artifact {id} must be persisted");
     }
     let stored = repositories
         .tasks
-        .find_task(&task_id)
+        .read_task(&task_id)
         .await
         .expect("task readable")
         .expect("task present");

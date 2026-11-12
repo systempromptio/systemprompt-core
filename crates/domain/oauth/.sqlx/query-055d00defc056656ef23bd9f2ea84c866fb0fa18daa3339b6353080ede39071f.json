@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH prior AS (\n                   SELECT code, refresh_token_id FROM oauth_auth_codes\n                   WHERE code = $1 FOR UPDATE\n               )\n               UPDATE oauth_auth_codes AS c SET refresh_token_id = NULL\n               FROM prior\n               WHERE c.code = prior.code\n               RETURNING prior.refresh_token_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "refresh_token_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "oauth_auth_codes",
+            "name": "refresh_token_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "055d00defc056656ef23bd9f2ea84c866fb0fa18daa3339b6353080ede39071f"
+}

@@ -23,13 +23,18 @@ pub struct QuotaEstimate {
 }
 
 #[must_use]
+pub fn input_tokens_for_bytes(len: usize) -> u32 {
+    u32::try_from(len.div_ceil(BYTES_PER_TOKEN)).unwrap_or(u32::MAX)
+}
+
+#[must_use]
 pub fn estimate(
     raw_body_len: usize,
     max_tokens: u32,
     model_limits: Option<&ModelLimits>,
     pricing: &ModelPricing,
 ) -> QuotaEstimate {
-    let input_tokens = u32::try_from(raw_body_len.div_ceil(BYTES_PER_TOKEN)).unwrap_or(u32::MAX);
+    let input_tokens = input_tokens_for_bytes(raw_body_len);
     let output_tokens = systemprompt_wire::clamp_output_tokens(
         max_tokens,
         model_limits.map(|l| l.max_output_tokens),

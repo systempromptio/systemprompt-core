@@ -65,7 +65,10 @@ async fn query_supports_limits_and_rejects_writes() {
         .unwrap();
 
     let write_attempt = db::execute(parse(&["query", "DELETE FROM logs"]), &ctx).await;
-    assert!(write_attempt.is_err() || write_attempt.is_ok());
+    assert!(
+        write_attempt.is_err(),
+        "a DELETE through the read-only query path must be refused"
+    );
 }
 
 #[tokio::test]

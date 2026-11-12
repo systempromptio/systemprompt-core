@@ -1,10 +1,11 @@
-//! JWT validation and generation provider trait.
+//! JWT validation provider trait: verification only; no implementation
+//! mints a token.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
-use systemprompt_identifiers::{SessionId, UserId};
+use systemprompt_identifiers::UserId;
 
 use crate::BoxedSource;
 
@@ -53,60 +54,8 @@ impl AgentJwtClaims {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct GenerateTokenParams {
-    pub user_id: UserId,
-    pub username: String,
-    pub user_type: String,
-    pub permissions: Vec<String>,
-    pub audiences: Vec<String>,
-    pub session_id: SessionId,
-    pub expires_in_hours: Option<u32>,
-}
-
-impl GenerateTokenParams {
-    #[must_use]
-    pub fn new(user_id: UserId, username: impl Into<String>, session_id: SessionId) -> Self {
-        Self {
-            user_id,
-            username: username.into(),
-            user_type: "user".to_owned(),
-            permissions: Vec::new(),
-            audiences: Vec::new(),
-            session_id,
-            expires_in_hours: None,
-        }
-    }
-
-    #[must_use]
-    pub fn with_user_type(mut self, user_type: impl Into<String>) -> Self {
-        self.user_type = user_type.into();
-        self
-    }
-
-    #[must_use]
-    pub fn with_permissions(mut self, permissions: Vec<String>) -> Self {
-        self.permissions = permissions;
-        self
-    }
-
-    #[must_use]
-    pub fn with_audiences(mut self, audiences: Vec<String>) -> Self {
-        self.audiences = audiences;
-        self
-    }
-
-    #[must_use]
-    pub const fn with_expires_in_hours(mut self, hours: u32) -> Self {
-        self.expires_in_hours = Some(hours);
-        self
-    }
-}
-
 pub trait JwtValidationProvider: Send + Sync {
     fn validate_token(&self, token: &str) -> JwtResult<AgentJwtClaims>;
-
-    fn generate_token(&self, params: GenerateTokenParams) -> JwtResult<String>;
 
     fn generate_secure_token(&self, prefix: &str) -> String;
 }

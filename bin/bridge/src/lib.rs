@@ -43,6 +43,7 @@ pub mod host_sync;
 pub mod drift;
 pub mod drive;
 pub mod elevation_gate;
+pub mod gui_policy;
 pub mod headers;
 mod help;
 pub mod i18n;

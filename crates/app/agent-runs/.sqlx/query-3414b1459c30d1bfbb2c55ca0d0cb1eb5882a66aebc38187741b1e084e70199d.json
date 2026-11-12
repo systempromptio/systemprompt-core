@@ -1,0 +1,54 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE agent_runs\n            SET status = 'preparing', claimed_by = $2, claimed_at = NOW(),\n                lease_until = NOW() + make_interval(secs => $3::double precision)\n            WHERE id = (\n                SELECT id FROM agent_runs\n                WHERE status = 'queued' AND origin_kind = $1\n                  AND (not_before IS NULL OR not_before <= NOW())\n                ORDER BY created_at\n                LIMIT 1\n                FOR UPDATE SKIP LOCKED\n            )\n            RETURNING id AS \"id: AgentRunId\", attempt,\n                      claimed_at AS \"claimed_at!: DateTime<Utc>\"\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id: AgentRunId",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "agent_runs",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "attempt",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "agent_runs",
+            "name": "attempt"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "claimed_at!: DateTime<Utc>",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "agent_runs",
+            "name": "claimed_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Float8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "3414b1459c30d1bfbb2c55ca0d0cb1eb5882a66aebc38187741b1e084e70199d"
+}

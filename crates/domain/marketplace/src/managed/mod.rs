@@ -41,8 +41,8 @@ pub use reconciliation::{
     ReconciliationRequest, ReconciliationStatus,
 };
 pub use repository::{
-    ManagedRepository, NewResource, NewRevision, Page, ResourceKind, ResourceSummary,
-    RevisionComparison, RevisionSummary, TextCandidate,
+    GitCredentialSource, ManagedRepository, NewResource, NewRevision, Page, ResourceKind,
+    ResourceSummary, RevisionComparison, RevisionSummary, TextCandidate,
 };
 pub(crate) use resolver::managed_skill_from_bundle;
 pub use resolver::{

@@ -24,3 +24,4 @@ pub use response::{
     GroundedSource, Grounding,
 };
 pub use usage::{CanonicalUsage, CanonicalUsageUpdate};
+pub(crate) use usage::{deserialize_wire_count, wire_count};

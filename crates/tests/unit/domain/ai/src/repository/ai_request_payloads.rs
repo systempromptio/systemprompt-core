@@ -54,6 +54,7 @@ async fn upsert_request_then_response_coexist() {
                 assistant_text: None,
                 tool_calls: &[],
                 next_message_sequence: None,
+                usage_source: systemprompt_ai::repository::ai_requests::UsageSource::Reported,
             }),
         )
         .await

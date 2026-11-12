@@ -39,6 +39,12 @@ use serde::{Deserialize, Serialize};
 ///   instance whose inference traffic is saturating its own budget. Sharing one
 ///   bucket let a busy gateway lock every user out of authenticating.
 ///
+/// - `pre_auth_ip` — every request, keyed by resolved client address only and
+///   charged before any authentication runs, so a flood of forged or expired
+///   credentials is throttled before it costs a token decode or a revocation
+///   lookup. It sits in front of the per-group budgets above and is sized for a
+///   whole network behind one address, not for one person.
+///
 /// `per_second_budgets` projects those fields as a list; both validators
 /// iterate it rather than naming the fields themselves, which had already let
 /// them drift apart and let a zero in an unnamed field through.
@@ -77,6 +83,8 @@ pub struct RateLimitsConfig {
     pub gateway_per_second: u64,
     #[serde(default = "default_bridge_auth")]
     pub bridge_auth_per_second: u64,
+    #[serde(default = "default_pre_auth_ip")]
+    pub pre_auth_ip_per_second: u64,
 
     #[serde(default = "default_burst")]
     pub burst_multiplier: u64,
@@ -124,13 +132,16 @@ pub const fn default_gateway() -> u64 {
 pub const fn default_bridge_auth() -> u64 {
     20
 }
+const fn default_pre_auth_ip() -> u64 {
+    500
+}
 pub const fn default_burst() -> u64 {
     3
 }
 
 impl RateLimitsConfig {
     #[must_use]
-    pub const fn per_second_budgets(&self) -> [(&'static str, u64); 15] {
+    pub const fn per_second_budgets(&self) -> [(&'static str, u64); 16] {
         [
             ("oauth_public_per_second", self.oauth_public_per_second),
             ("oauth_auth_per_second", self.oauth_auth_per_second),
@@ -147,6 +158,7 @@ impl RateLimitsConfig {
             ("brain_per_second", self.brain_per_second),
             ("gateway_per_second", self.gateway_per_second),
             ("bridge_auth_per_second", self.bridge_auth_per_second),
+            ("pre_auth_ip_per_second", self.pre_auth_ip_per_second),
         ]
     }
 
@@ -174,6 +186,7 @@ impl RateLimitsConfig {
             brain_per_second: 10000,
             gateway_per_second: 10000,
             bridge_auth_per_second: 10000,
+            pre_auth_ip_per_second: 10000,
             burst_multiplier: 100,
         }
     }
@@ -205,6 +218,7 @@ impl Default for RateLimitsConfig {
             brain_per_second: default_brain(),
             gateway_per_second: default_gateway(),
             bridge_auth_per_second: default_bridge_auth(),
+            pre_auth_ip_per_second: default_pre_auth_ip(),
             burst_multiplier: default_burst(),
         }
     }

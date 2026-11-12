@@ -99,7 +99,7 @@ impl BootContext {
         }
         let config = systemprompt_config::build_from_profile(
             &self.inner.profile,
-            &self.inner.secrets.get(),
+            &systemprompt_config::ConfigCredentials::from_secrets(&self.inner.secrets.get()),
             services_root,
         )?;
         self.install_config(config)

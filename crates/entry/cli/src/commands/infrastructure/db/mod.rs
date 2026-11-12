@@ -103,7 +103,7 @@ pub async fn execute(cmd: DbCommands, ctx: &CommandContext) -> Result<()> {
             )
             .await
         },
-        DbCommands::AssignAdmin { user } => {
+        DbCommands::AssignAdmin { user, .. } => {
             if ctx.is_database_scoped() {
                 bail!("assign-admin requires full profile context");
             }

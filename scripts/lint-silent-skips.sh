@@ -21,11 +21,18 @@ WINDOW="${WINDOW:-8}"
 COUNT=0
 if [ "${1:-}" = "--count" ]; then COUNT=1; shift; fi
 [ "$#" -gt 0 ] || set -- crates/tests
-hits=""
-scanned=0
+files=()
 while IFS= read -r file; do
-    scanned=$((scanned + 1))
-    found=$(awk -v W="$WINDOW" '
+    files+=("$file")
+done < <(git ls-files -co --exclude-standard "$@" | grep -E '\.rs$' | grep -vE '/(target)/')
+scanned=${#files[@]}
+present=()
+for file in "${files[@]}"; do
+    [ -e "$file" ] && present+=("$file")
+done
+hits=""
+if [ "${#present[@]}" -gt 0 ]; then
+    hits=$(printf '%s\0' "${present[@]}" | xargs -0 awk -v W="$WINDOW" '
         function hashes(n,    h) { h = ""; while (n-- > 0) h = h "#"; return h }
         # The line with string/char literal bodies and // comments blanked.
         # str (0 none, 1 plain, 2 raw with rawh hashes) carries across lines,
@@ -81,9 +88,9 @@ while IFS= read -r file; do
             }
             if (depth <= 0 && o + c > 0) { in_test = 0; last_ok = 0 }
         }
-    ' "$file")
-    [ -n "$found" ] && hits+="$found"$'\n'
-done < <(git ls-files -co --exclude-standard "$@" | grep -E '\.rs$' | grep -vE '/(target)/')
+    ') || { echo "lint-silent-skips: scan failed" >&2; exit 1; }
+    [ -n "$hits" ] && hits+=$'\n'
+fi
 [ "$scanned" -gt 0 ] || { echo "lint-silent-skips: no test sources scanned" >&2; exit 1; }
 if [ "$COUNT" -eq 1 ]; then printf '%s' "$hits" | grep -c .; exit 0; fi
 if [ -n "$hits" ]; then

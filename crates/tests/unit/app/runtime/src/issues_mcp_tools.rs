@@ -20,9 +20,12 @@ fn tools(r: &Rig, with_uploads: bool) -> IssuesMcpTools {
     IssuesMcpTools::new(
         Arc::clone(r.runtime.issues()),
         with_uploads.then(|| Arc::clone(r.runtime.uploads())),
-        systemprompt_test_fixtures::test_token_authority("issues-test"),
+        crate::link_rig::in_process_links(
+            Arc::clone(r.runtime.service()),
+            Arc::clone(r.runtime.uploads()),
+            "issues",
+        ),
         McpServerId::new("issues"),
-        "https://issues.example.test/".to_owned(),
     )
 }
 
@@ -50,10 +53,17 @@ async fn attach(
     value: serde_json::Value,
 ) -> Result<systemprompt_runtime::issues::mcp::attach::AttachmentOutput, rmcp::ErrorData> {
     let input: AttachmentInput = serde_json::from_value(value).expect("attachment input");
-    AttachmentHandler { tools }
-        .handle(input, ctx, &exec())
-        .await
-        .map(|(output, _)| output)
+    let hop = ctx
+        .user
+        .as_ref()
+        .map(|user| crate::link_rig::hop_for(user, ctx, "issues"));
+    AttachmentHandler {
+        tools,
+        hop: hop.as_ref(),
+    }
+    .handle(input, ctx, &exec())
+    .await
+    .map(|(output, _)| output)
 }
 
 #[test]
@@ -185,7 +195,7 @@ async fn an_attachment_is_declared_then_attached_once_uploaded() {
         declared
             .parts_url
             .as_deref()
-            .is_some_and(|url| url.starts_with("https://issues.example.test/"))
+            .is_some_and(|url| url.starts_with(crate::link_rig::LINKS_BASE))
     );
     assert_eq!(declared.token_header.as_deref(), Some(UPLOAD_TOKEN_HEADER));
     assert!(declared.upload_token.is_some() && declared.expires_at.is_some());

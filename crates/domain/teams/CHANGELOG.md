@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.81.0] - 2026-11-12
+
+### Breaking
+
+- `TeamsClient::{new, with_endpoints}` take a reply client, and `TeamsError::ClientUnavailable` is removed. Migrate by passing a `GuardedClient::untrusted` client.
+
 ## [0.69.0] - 2026-10-15
 
 ### Fixed

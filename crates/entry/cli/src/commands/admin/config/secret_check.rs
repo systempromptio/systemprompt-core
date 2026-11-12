@@ -61,13 +61,11 @@ pub async fn run(ctx: &CommandContext) -> Result<SecretCheckReport> {
         .context("Profile path has no parent directory")?;
 
     let is_deployment_host = profile.is_deployment_host(|name| std::env::var(name).ok());
-    let is_subprocess = std::env::var("SYSTEMPROMPT_SUBPROCESS").is_ok();
     let has_pepper = std::env::var("OAUTH_AT_REST_PEPPER")
         .is_ok_and(|pepper| pepper.len() >= OAUTH_AT_REST_PEPPER_MIN_LENGTH);
 
     let resolved = systemprompt_config::resolve_source(
         profile.secrets.as_ref(),
-        is_subprocess,
         is_deployment_host,
         has_pepper,
     )
@@ -116,11 +114,6 @@ async fn describe(
                 .context("External secrets document could not be read")?;
             Ok(("external".to_owned(), detail, document.key_names()))
         },
-        ResolvedSource::SubprocessEnv => Ok((
-            "subprocess-env".to_owned(),
-            "inherited from the parent process".to_owned(),
-            env_key_names(required),
-        )),
         ResolvedSource::DeploymentHostEnv => Ok((
             "deployment-host-env".to_owned(),
             "provided by the deployment host".to_owned(),

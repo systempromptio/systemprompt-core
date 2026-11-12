@@ -243,9 +243,13 @@ async fn user_only_rejects_when_extractor_fails() {
 #[tokio::test]
 async fn a2a_admits_when_extractor_succeeds_and_runs_extract_from_request() {
     let calls = Arc::new(AtomicUsize::new(0));
-    let mw = A2AContextMiddleware::new(OkExtractor {
-        calls: Arc::clone(&calls),
-    });
+    let mw = A2AContextMiddleware::new(
+        OkExtractor {
+            calls: Arc::clone(&calls),
+        },
+        1024,
+        systemprompt_api::services::middleware::BodyBudget::new(64 * 1024 * 1024),
+    );
     let app = pipeline_with_session(
         move |r| {
             r.layer(from_fn(move |req, next| {
@@ -368,7 +372,11 @@ async fn mcp_admits_when_extractor_succeeds() {
 
 #[tokio::test]
 async fn a2a_rejects_when_extractor_fails() {
-    let mw = A2AContextMiddleware::new(FailExtractor);
+    let mw = A2AContextMiddleware::new(
+        FailExtractor,
+        1024,
+        systemprompt_api::services::middleware::BodyBudget::new(64 * 1024 * 1024),
+    );
     let app = pipeline_with_session(
         move |r| {
             r.layer(from_fn(move |req, next| {
@@ -397,7 +405,14 @@ fn flavour_debug_impls_hide_the_extractor() {
         "UserOnlyContextMiddleware"
     );
     assert_eq!(
-        format!("{:?}", A2AContextMiddleware::new(FailExtractor)),
+        format!(
+            "{:?}",
+            A2AContextMiddleware::new(
+                FailExtractor,
+                1024,
+                systemprompt_api::services::middleware::BodyBudget::new(64 * 1024 * 1024)
+            )
+        ),
         "A2AContextMiddleware"
     );
     assert_eq!(
@@ -427,5 +442,43 @@ async fn public_ignores_a_reserved_agent_name_header() {
     assert!(
         body.contains("agent=session;"),
         "the session's agent name must survive a rejected header, got {body}"
+    );
+}
+
+#[tokio::test]
+async fn a2a_refuses_with_503_and_retry_after_when_the_body_budget_is_spent() {
+    let calls = Arc::new(AtomicUsize::new(0));
+    let budget = systemprompt_api::services::middleware::BodyBudget::new(2 * 1024 * 1024);
+    let held = budget
+        .reserve(&axum::http::HeaderMap::new(), 2 * 1024 * 1024)
+        .expect("the budget starts empty");
+    let mw = A2AContextMiddleware::new(
+        OkExtractor {
+            calls: Arc::clone(&calls),
+        },
+        1024,
+        budget.clone(),
+    );
+    let app = pipeline_with_session(
+        move |r| {
+            r.layer(from_fn(move |req, next| {
+                let mw = mw.clone();
+                async move { mw.handle(req, next).await }
+            }))
+        },
+        Some(anon_session_context()),
+    );
+
+    let (status, _) = drive(app.clone(), Method::POST, &[("content-length", "0")]).await;
+    assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE);
+    assert_eq!(calls.load(Ordering::SeqCst), 0, "the body is never read");
+
+    drop(held);
+    let (status, _) = drive(app, Method::POST, &[("content-length", "0")]).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(
+        budget.available_bytes(),
+        2 * 1024 * 1024,
+        "the reservation is released"
     );
 }

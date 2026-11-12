@@ -1,17 +1,12 @@
 use std::sync::Arc;
-use systemprompt_identifiers::McpToolName;
 
 use anyhow::Result;
 use systemprompt_agent::models::a2a::{Artifact, Part};
 use systemprompt_agent::repository::execution::ExecutionStepRepository;
 use systemprompt_agent::services::SkillService;
-use systemprompt_agent::services::artifact_publishing::{
-    ArtifactPublishingService, PublishFromMcpParams,
-};
-use systemprompt_identifiers::{Actor, AgentName, ArtifactId, SessionId, TraceId, UserId};
+use systemprompt_agent::services::artifact_publishing::ArtifactPublishingService;
+use systemprompt_identifiers::ArtifactId;
 use systemprompt_models::a2a::{ArtifactMetadata, TaskState};
-use systemprompt_models::execution::CallSource;
-use systemprompt_models::execution::context::RequestContext;
 use systemprompt_test_fixtures::ensure_test_bootstrap;
 
 use crate::common::Fixture;
@@ -46,78 +41,12 @@ fn make_artifact(
 async fn artifact_publishing_publish_from_a2a_succeeds() -> Result<()> {
     ensure_test_bootstrap();
     let fx = Fixture::new().await?;
-    let task_id = fx.insert_task(TaskState::Working).await?;
+    let runtime = fx.insert_runtime_task(TaskState::Working).await?;
     let svc = publishing_service(&fx)?;
 
-    let artifact = make_artifact(&fx.context_id, &task_id);
-    svc.publish_from_a2a(&artifact, &task_id, &fx.context_id, &fx.user_id)
+    let artifact = make_artifact(&fx.context_id, runtime.task_id());
+    svc.publish_from_a2a(&artifact, &runtime, &fx.user_id)
         .await?;
-
-    fx.cleanup().await?;
-    Ok(())
-}
-
-#[tokio::test]
-async fn artifact_publishing_publish_from_mcp_agentic_skips_messages() -> Result<()> {
-    ensure_test_bootstrap();
-    let fx = Fixture::new().await?;
-    let task_id = fx.insert_task(TaskState::Working).await?;
-    let svc = publishing_service(&fx)?;
-
-    let artifact = make_artifact(&fx.context_id, &task_id);
-    let mut ctx = RequestContext::new(
-        SessionId::new("art-pub-session"),
-        TraceId::new("art-pub-trace"),
-        fx.context_id.clone(),
-        AgentName::try_new("test-agent").expect("valid AgentName"),
-        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
-    );
-    ctx.auth.actor = Actor::user(fx.user_id.clone());
-
-    let args = serde_json::json!({"k": "v"});
-    svc.publish_from_mcp(PublishFromMcpParams {
-        artifact: &artifact,
-        task_id: &task_id,
-        context_id: &fx.context_id,
-        tool_name: &McpToolName::new("my_tool"),
-        tool_args: &args,
-        request_context: &ctx,
-        call_source: CallSource::Agentic,
-    })
-    .await?;
-
-    fx.cleanup().await?;
-    Ok(())
-}
-
-#[tokio::test]
-async fn artifact_publishing_publish_from_mcp_direct_creates_messages() -> Result<()> {
-    ensure_test_bootstrap();
-    let fx = Fixture::new().await?;
-    let task_id = fx.insert_task(TaskState::Working).await?;
-    let svc = publishing_service(&fx)?;
-
-    let artifact = make_artifact(&fx.context_id, &task_id);
-    let mut ctx = RequestContext::new(
-        SessionId::new("art-pub-direct"),
-        TraceId::new("art-pub-direct-trace"),
-        fx.context_id.clone(),
-        AgentName::try_new("test-agent").expect("valid AgentName"),
-        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
-    );
-    ctx.auth.actor = Actor::user(fx.user_id.clone());
-
-    let args = serde_json::json!({});
-    svc.publish_from_mcp(PublishFromMcpParams {
-        artifact: &artifact,
-        task_id: &task_id,
-        context_id: &fx.context_id,
-        tool_name: &McpToolName::new("direct_tool"),
-        tool_args: &args,
-        request_context: &ctx,
-        call_source: CallSource::Direct,
-    })
-    .await?;
 
     fx.cleanup().await?;
     Ok(())

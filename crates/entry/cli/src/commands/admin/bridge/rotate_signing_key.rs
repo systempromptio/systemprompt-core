@@ -12,10 +12,13 @@ use systemprompt_logging::CliService;
 
 use super::types::SigningKeyRotatedOutput;
 use crate::context::CommandContext;
-use crate::shared::CommandOutput;
+use crate::shared::{CommandOutput, ConfirmArgs};
 
 #[derive(Debug, Clone, Copy, Args)]
-pub struct RotateSigningKeyArgs;
+pub struct RotateSigningKeyArgs {
+    #[command(flatten)]
+    pub confirm: ConfirmArgs,
+}
 
 pub(super) fn execute(_args: RotateSigningKeyArgs, ctx: &CommandContext) -> Result<CommandOutput> {
     let seed = SecretsService::rotate_manifest_signing_seed(ctx.loaded_profile()?)?;

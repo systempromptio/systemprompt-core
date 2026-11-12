@@ -32,6 +32,13 @@ domain_error! {
             source: serde_yaml::Error,
         },
 
+        #[error("Failed to interpolate files.yaml ({path:?}): {source}")]
+        ConfigInterpolation {
+            path: PathBuf,
+            #[source]
+            source: systemprompt_manifest::InterpolationError,
+        },
+
         #[error("Failed to create storage directory {path}: {source}")]
         StorageDir {
             path: PathBuf,

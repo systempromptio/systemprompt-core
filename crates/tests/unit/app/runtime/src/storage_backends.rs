@@ -6,9 +6,9 @@
 //! parsing) are reachable here.
 
 use systemprompt_identifiers::SecretName;
-use systemprompt_runtime::storage::ServiceAccountTokens;
+use systemprompt_runtime::storage::{ServiceAccountTokens, WorkloadIdentityTokens};
 use systemprompt_runtime::{AppContext, RuntimeError};
-use systemprompt_security::google::ServiceAccountKey;
+use systemprompt_security::google::{MetadataIdentity, ServiceAccountKey};
 use systemprompt_storage::{GcsError, GcsTokenSource};
 
 use crate::boot::{BootOptions, boot};
@@ -166,5 +166,17 @@ async fn a_service_account_key_that_cannot_sign_yields_a_token_error() {
         .bearer()
         .await
         .expect_err("an unparseable private key cannot sign an assertion");
+    assert!(matches!(err, GcsError::Token(_)), "got {err:?}");
+}
+
+#[tokio::test]
+async fn an_unreachable_metadata_server_yields_a_token_error() {
+    let tokens = WorkloadIdentityTokens::new(MetadataIdentity::at(
+        "http://127.0.0.1:9/computeMetadata/v1/instance/service-accounts/default/token",
+    ));
+    let err = tokens
+        .bearer()
+        .await
+        .expect_err("no metadata server listens on the discard port");
     assert!(matches!(err, GcsError::Token(_)), "got {err:?}");
 }

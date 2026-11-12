@@ -4,7 +4,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::{AuthorizationCode, ClientId, UserId};
+use systemprompt_identifiers::{AuthorizationCode, ClientId, RefreshTokenId, UserId};
 
 #[derive(Debug)]
 pub struct AuthCodeParams<'a> {
@@ -39,4 +39,15 @@ pub struct AuthCodeValidationResult {
     pub user_id: UserId,
     pub scope: String,
     pub resource: Option<String>,
+}
+
+/// One attempt to redeem an authorization code, naming the refresh token the
+/// redemption will mint.
+#[derive(Debug, Clone, Copy)]
+pub struct AuthCodeRedemption<'a> {
+    pub code: &'a AuthorizationCode,
+    pub client_id: &'a ClientId,
+    pub redirect_uri: &'a str,
+    pub code_verifier: &'a str,
+    pub refresh_token_id: &'a RefreshTokenId,
 }

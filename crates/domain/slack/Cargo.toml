@@ -35,6 +35,7 @@ hex = { workspace = true }
 reqwest = { workspace = true }
 
 # systemprompt.io integration
+systemprompt-client = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-manifest = { workspace = true }
 systemprompt-identifiers = { workspace = true, features = ["sqlx"] }

@@ -8,11 +8,12 @@ use serde_json::{Value, json};
 use crate::config::gateways::GatewayProfileId;
 use crate::gui::GuiApp;
 use crate::gui::events::{ReplyId, UiEvent};
+use crate::gui::handlers::gateway_trust::TrustOp;
 use crate::gui::handlers::instance::InstanceOp;
 use crate::ids::McpServerId;
 use crate::wire::ipc::{BridgeError, ErrorCode, ErrorScope};
 
-use super::args::{GatewayProfileArgs, GatewaySetArgs, McpProbeArgs};
+use super::args::{GatewayProfileArgs, GatewaySetArgs, GatewayTrustConfirmArgs, McpProbeArgs};
 use super::{CommandOutcome, parse, send};
 
 // JSON: webview IPC args — decoded per command with `parse::<T>`.
@@ -44,6 +45,18 @@ pub(super) fn gateway_dispatch(
         "gateway.probe" => {
             send(app, UiEvent::GatewayProbeRequested { reply_to: reply_id });
             CommandOutcome::Async
+        },
+        "gateway.trust.inspect" => trust(app, TrustOp::Inspect, reply_id),
+        "gateway.trust.confirm" => match parse::<GatewayTrustConfirmArgs>(args) {
+            Ok(a) => trust(
+                app,
+                TrustOp::Confirm {
+                    gateway: a.gateway,
+                    fingerprint: a.fingerprint,
+                },
+                reply_id,
+            ),
+            Err(e) => CommandOutcome::Sync(Err(e)),
         },
         "gateway.list" => CommandOutcome::Sync(
             crate::config::gateways::list()
@@ -92,6 +105,17 @@ pub(super) fn gateway_dispatch(
         },
         _ => return None,
     })
+}
+
+fn trust(app: &GuiApp, op: TrustOp, reply_id: ReplyId) -> CommandOutcome {
+    send(
+        app,
+        UiEvent::GatewayTrustRequested {
+            op,
+            reply_to: reply_id,
+        },
+    );
+    CommandOutcome::Async
 }
 
 fn instance(app: &GuiApp, op: InstanceOp, reply_id: ReplyId) -> CommandOutcome {

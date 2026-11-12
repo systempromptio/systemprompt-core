@@ -1,8 +1,9 @@
 //! Bootstrap DDL statement builders for `PostgreSQL` provisioning.
 //!
-//! `CREATE USER` / `CREATE DATABASE` / `GRANT` run before the target database
-//! exists, so they cannot bind parameters; identifiers and literals are
-//! escaped here instead. Statement execution stays in the setup wizard.
+//! `CREATE USER` / `ALTER ROLE` / `CREATE DATABASE` / `GRANT` run before the
+//! target database exists, so they cannot bind parameters; identifiers and
+//! literals are escaped here instead. Statement execution stays in the setup
+//! wizard.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -21,6 +22,15 @@ pub fn quote_literal(value: &str) -> String {
 pub fn build_create_user_sql(user: &str, password: &str) -> String {
     format!(
         "CREATE USER {} WITH PASSWORD {}",
+        quote_ident(user),
+        quote_literal(password)
+    )
+}
+
+#[must_use]
+pub fn build_alter_user_password_sql(user: &str, password: &str) -> String {
+    format!(
+        "ALTER ROLE {} WITH PASSWORD {}",
         quote_ident(user),
         quote_literal(password)
     )

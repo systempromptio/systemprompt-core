@@ -1,0 +1,49 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT DISTINCT ON (document_id)\n                      document_id::text AS \"document_id!: DocumentId\",\n                      landing_xid AS \"landing_xid!\", landing_seq AS \"landing_seq!\"\n               FROM document_path_changes\n               WHERE document_id = ANY($1::text[]::uuid[])\n                 AND subject_access = 'gained'\n                 AND landing_xid IS NOT NULL\n                 AND (subject_kind, subject_value) IN (\n                     SELECT k, v FROM UNNEST($2::text[], $3::text[]) AS p(k, v))\n               ORDER BY document_id, landing_xid DESC, landing_seq DESC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "document_id!: DocumentId",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "landing_xid!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "document_path_changes",
+            "name": "landing_xid"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "landing_seq!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "document_path_changes",
+            "name": "landing_seq"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "TextArray",
+        "TextArray",
+        "TextArray"
+      ]
+    },
+    "nullable": [
+      null,
+      true,
+      true
+    ]
+  },
+  "hash": "02a246ba81b231d9a7715711acf7b1a309436a938928312c0cd95607d615efd3"
+}

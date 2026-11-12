@@ -74,7 +74,7 @@ pub(super) fn assemble_content_analytics(
     })
 }
 
-pub(super) async fn load_system_admin(
+pub(crate) async fn load_system_admin(
     config: &Config,
     users: &Arc<UserService>,
 ) -> RuntimeResult<Arc<SystemAdmin>> {

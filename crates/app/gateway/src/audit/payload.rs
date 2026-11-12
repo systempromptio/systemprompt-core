@@ -18,8 +18,11 @@ const EXCERPT_BYTES: usize = 8 * 1024;
 
 /// What a captured request or response body contributes to an audit row.
 ///
-/// `sha256` is computed over the **full** bytes regardless of truncation, so a
-/// capped capture still proves which body was sent.
+/// `sha256` is computed over the **full** bytes the gateway held, so a capped
+/// capture still proves which body was sent. A streamed response longer than
+/// the tap's retention is held only as a prefix: its capture is `truncated`,
+/// `byte_len` is the full streamed length, and the excerpt names the retained
+/// length the digest covers.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PayloadCapture {
     // JSON: audited request/response body — captured verbatim from the provider wire.
@@ -99,6 +102,39 @@ pub fn slice_payload(bytes: &Bytes, cap_bytes: usize) -> PayloadCapture {
     } else {
         excerpt_payload(bytes)
     }
+}
+
+/// A completed response as the gateway captured it.
+///
+/// `sent_bytes` is the full length the upstream sent, larger than `bytes` when
+/// a stream outgrew the tap's retention; `usage_source` says whether its usage
+/// was reported or settled to the admission reservation.
+#[derive(Debug, Clone, Copy)]
+pub struct ResponseCapture<'a> {
+    pub bytes: &'a Bytes,
+    pub sent_bytes: u64,
+    pub usage_source: systemprompt_ai::repository::ai_requests::UsageSource,
+}
+
+#[must_use]
+pub fn slice_retained_payload(
+    retained: &Bytes,
+    streamed_bytes: u64,
+    cap_bytes: usize,
+) -> PayloadCapture {
+    let retained_len = u64::try_from(retained.len()).unwrap_or(u64::MAX);
+    if streamed_bytes <= retained_len {
+        return slice_payload(retained, cap_bytes);
+    }
+    let mut capture = excerpt_payload(retained);
+    capture.byte_len = i32::try_from(streamed_bytes).unwrap_or(i32::MAX);
+    capture.excerpt = capture.excerpt.map(|excerpt| {
+        format!(
+            "<retained {retained_len} of {streamed_bytes} bytes; sha256 covers the retained \
+             prefix only>\n{excerpt}"
+        )
+    });
+    capture
 }
 
 pub fn truncate_for_tool_input(input: &str) -> String {

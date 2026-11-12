@@ -6,8 +6,8 @@ use systemprompt_agent::models::a2a::{
     Artifact, ArtifactMetadata, Part, Task, TaskState, TaskStatus,
 };
 use systemprompt_agent::models::context::ContextKind;
-use systemprompt_agent::repository::ContextRepository;
 use systemprompt_agent::repository::content::ArtifactRepository;
+use systemprompt_agent::repository::{ContextRepository, RuntimeTask};
 use systemprompt_cli::core::artifacts::{list, show};
 use systemprompt_cli::{CliConfig, OutputFormat};
 use systemprompt_database::DbPool;
@@ -21,7 +21,7 @@ fn cfg() -> CliConfig {
         .with_output_format(OutputFormat::Json)
 }
 
-async fn seed_task(pool: &DbPool) -> (UserId, ContextId, TaskId) {
+async fn seed_task(pool: &DbPool) -> (UserId, ContextId, TaskId, RuntimeTask) {
     let user_id = unique_user_id("cliartifacts");
     let session_id = SessionId::generate();
     let email = format!("{}@cliartifacts.invalid", user_id.as_str());
@@ -57,7 +57,7 @@ async fn seed_task(pool: &DbPool) -> (UserId, ContextId, TaskId) {
         created_at: Some(chrono::Utc::now()),
         last_modified: Some(chrono::Utc::now()),
     };
-    repos
+    let runtime = repos
         .tasks
         .create_task(systemprompt_agent::repository::task::RepoCreateTaskParams {
             task: &task,
@@ -69,10 +69,12 @@ async fn seed_task(pool: &DbPool) -> (UserId, ContextId, TaskId) {
         .await
         .unwrap();
 
-    (user_id, context_id, task_id)
+    (user_id, context_id, task_id, runtime)
 }
 
-async fn seed_artifact(pool: &DbPool, context_id: &ContextId, task_id: &TaskId) -> ArtifactId {
+async fn seed_artifact(pool: &DbPool, runtime: &RuntimeTask) -> ArtifactId {
+    let context_id = runtime.context_id();
+    let task_id = runtime.task_id();
     let artifact_id = ArtifactId::generate();
     let artifact = Artifact {
         id: artifact_id.clone(),
@@ -88,7 +90,7 @@ async fn seed_artifact(pool: &DbPool, context_id: &ContextId, task_id: &TaskId) 
             .with_tool_name("cli-tool".to_owned()),
     };
     ArtifactRepository::new(pool)
-        .create_artifact(task_id, context_id, &artifact)
+        .create_artifact(runtime, &artifact)
         .await
         .unwrap();
     artifact_id
@@ -97,14 +99,15 @@ async fn seed_artifact(pool: &DbPool, context_id: &ContextId, task_id: &TaskId) 
 #[tokio::test]
 async fn show_renders_artifact_by_full_id() {
     let pool = test_db_pool().await;
-    let (_user, context_id, task_id) = seed_task(&pool).await;
-    let artifact_id = seed_artifact(&pool, &context_id, &task_id).await;
+    let (user, _context_id, _task_id, runtime) = seed_task(&pool).await;
+    let artifact_id = seed_artifact(&pool, &runtime).await;
 
     let out = show::execute_with_pool(
         show::ShowArgs {
             artifact: artifact_id.as_str().to_owned(),
             full: false,
         },
+        &user,
         &pool,
         &cfg(),
     )
@@ -117,14 +120,15 @@ async fn show_renders_artifact_by_full_id() {
 #[tokio::test]
 async fn show_renders_text_output_with_full_flag() {
     let pool = test_db_pool().await;
-    let (_user, context_id, task_id) = seed_task(&pool).await;
-    let artifact_id = seed_artifact(&pool, &context_id, &task_id).await;
+    let (user, _context_id, _task_id, runtime) = seed_task(&pool).await;
+    let artifact_id = seed_artifact(&pool, &runtime).await;
 
     show::execute_with_pool(
         show::ShowArgs {
             artifact: artifact_id.as_str().to_owned(),
             full: true,
         },
+        &user,
         &pool,
         &CliConfig::new().with_interactive(false),
     )
@@ -135,8 +139,8 @@ async fn show_renders_text_output_with_full_flag() {
 #[tokio::test]
 async fn show_resolves_unique_prefix() {
     let pool = test_db_pool().await;
-    let (_user, context_id, task_id) = seed_task(&pool).await;
-    let artifact_id = seed_artifact(&pool, &context_id, &task_id).await;
+    let (user, _context_id, _task_id, runtime) = seed_task(&pool).await;
+    let artifact_id = seed_artifact(&pool, &runtime).await;
 
     let prefix = &artifact_id.as_str()[..artifact_id.as_str().len() - 4];
     show::execute_with_pool(
@@ -144,6 +148,7 @@ async fn show_resolves_unique_prefix() {
             artifact: prefix.to_owned(),
             full: false,
         },
+        &user,
         &pool,
         &cfg(),
     )
@@ -154,11 +159,34 @@ async fn show_resolves_unique_prefix() {
 #[tokio::test]
 async fn show_errors_when_nothing_matches() {
     let pool = test_db_pool().await;
+    let (user, _context_id, _task_id, _runtime) = seed_task(&pool).await;
     let err = show::execute_with_pool(
         show::ShowArgs {
             artifact: "no-such-artifact-prefix".to_owned(),
             full: false,
         },
+        &user,
+        &pool,
+        &cfg(),
+    )
+    .await
+    .unwrap_err();
+    assert!(err.to_string().contains("No artifact found matching"));
+}
+
+#[tokio::test]
+async fn show_refuses_an_artifact_owned_by_another_user() {
+    let pool = test_db_pool().await;
+    let (_owner, _context_id, _task_id, runtime) = seed_task(&pool).await;
+    let (intruder, _other_context, _other_task, _other_task_runtime) = seed_task(&pool).await;
+    let artifact_id = seed_artifact(&pool, &runtime).await;
+
+    let err = show::execute_with_pool(
+        show::ShowArgs {
+            artifact: artifact_id.as_str().to_owned(),
+            full: false,
+        },
+        &intruder,
         &pool,
         &cfg(),
     )
@@ -170,8 +198,8 @@ async fn show_errors_when_nothing_matches() {
 #[tokio::test]
 async fn list_filters_by_context_and_user() {
     let pool = test_db_pool().await;
-    let (user_id, context_id, task_id) = seed_task(&pool).await;
-    seed_artifact(&pool, &context_id, &task_id).await;
+    let (user_id, context_id, _task_id, runtime) = seed_task(&pool).await;
+    seed_artifact(&pool, &runtime).await;
 
     let by_context = list::execute_with_pool(
         list::ListArgs {
@@ -203,7 +231,7 @@ async fn list_filters_by_context_and_user() {
 #[tokio::test]
 async fn show_truncates_long_parts_and_renders_every_metadata_field() {
     let pool = test_db_pool().await;
-    let (_user, context_id, task_id) = seed_task(&pool).await;
+    let (user, context_id, task_id, runtime) = seed_task(&pool).await;
     let artifact_id = ArtifactId::generate();
     let long_text = "line of artifact text\n".repeat(60);
     let big_data: Vec<String> = (0..200).map(|i| format!("value-{i}")).collect();
@@ -224,7 +252,7 @@ async fn show_truncates_long_parts_and_renders_every_metadata_field() {
             .with_skill_name("writer".to_owned()),
     };
     ArtifactRepository::new(&pool)
-        .create_artifact(&task_id, &context_id, &artifact)
+        .create_artifact(&runtime, &artifact)
         .await
         .unwrap();
 
@@ -233,6 +261,7 @@ async fn show_truncates_long_parts_and_renders_every_metadata_field() {
             artifact: artifact_id.as_str().to_owned(),
             full: false,
         },
+        &user,
         &pool,
         &CliConfig::new().with_interactive(false),
     )
@@ -242,4 +271,67 @@ async fn show_truncates_long_parts_and_renders_every_metadata_field() {
     assert!(body.contains("Artifact Details"), "{body}");
     assert!(body.contains("rich-tool"), "{body}");
     assert!(body.contains("document"), "{body}");
+}
+
+#[tokio::test]
+async fn list_refuses_a_context_owned_by_another_user() {
+    let pool = test_db_pool().await;
+    let (_owner, context_id, _task_id, runtime) = seed_task(&pool).await;
+    let (intruder, _other_context, _other_task, _other_task_runtime) = seed_task(&pool).await;
+    seed_artifact(&pool, &runtime).await;
+
+    let err = list::execute_with_pool(
+        list::ListArgs {
+            context: Some(context_id.as_str().to_owned()),
+            limit: 10,
+        },
+        &intruder,
+        &pool,
+        &cfg(),
+    )
+    .await
+    .unwrap_err();
+    assert!(
+        err.to_string().contains("Context not found"),
+        "listing another user's context is refused like show: {err}"
+    );
+}
+
+#[tokio::test]
+async fn list_without_a_context_shows_only_the_session_users_artifacts() {
+    let pool = test_db_pool().await;
+    let (owner, _context_id, _task_id, runtime) = seed_task(&pool).await;
+    let (intruder, _other_context, _other_task, _other_task_runtime) = seed_task(&pool).await;
+    let artifact_id = seed_artifact(&pool, &runtime).await;
+
+    let listed = list::execute_with_pool(
+        list::ListArgs {
+            context: None,
+            limit: 10,
+        },
+        &intruder,
+        &pool,
+        &cfg(),
+    )
+    .await
+    .unwrap();
+    let json = serde_json::to_value(listed.artifact()).unwrap();
+    assert!(
+        !json.to_string().contains(artifact_id.as_str()),
+        "another user's artifact is not listed: {json}"
+    );
+
+    let own = list::execute_with_pool(
+        list::ListArgs {
+            context: None,
+            limit: 10,
+        },
+        &owner,
+        &pool,
+        &cfg(),
+    )
+    .await
+    .unwrap();
+    let json = serde_json::to_value(own.artifact()).unwrap();
+    assert!(json.to_string().contains(artifact_id.as_str()), "{json}");
 }

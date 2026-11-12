@@ -1,7 +1,9 @@
 //! Inbound A2A notification handling for a context.
 //!
-//! Validates the JSON-RPC envelope, resolves the owning user, then persists,
-//! processes, and broadcasts the notification to the context's live streams.
+//! Validates the JSON-RPC envelope and that the caller owns the context; a
+//! status update must name a task the caller owns inside that context. Only
+//! then is the notification persisted, applied and broadcast to the caller's
+//! live streams.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -10,21 +12,21 @@ mod error;
 mod handlers;
 
 
-use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
+use axum::{Extension, Json};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use systemprompt_agent::repository::context::ContextRepository;
 use systemprompt_identifiers::{ContextId, UserId};
+use systemprompt_models::RequestContext;
 use systemprompt_runtime::AppContext;
 
 use crate::error::ApiHttpError;
 use crate::routes::agent::parse_context_id;
 use handlers::{
-    broadcast_notification, mark_notification_broadcasted, persist_notification,
-    process_notification,
+    apply_status_update, broadcast_notification, mark_notification_broadcasted,
+    persist_notification, resolve_status_update,
 };
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -36,17 +38,16 @@ pub struct A2aNotification {
 }
 
 pub async fn handle_context_notification(
+    Extension(req_ctx): Extension<RequestContext>,
     Path(context_id): Path<String>,
     State(app_context): State<AppContext>,
     Json(notification): Json<A2aNotification>,
 ) -> Result<Response, ApiHttpError> {
     let repos = app_context.a2a_repositories();
-    let ctx_repo = &repos.contexts;
     let context_id = parse_context_id(&context_id)?;
+    let user_id = req_ctx.user_id().clone();
 
     tracing::debug!(context_id = %context_id, method = %notification.method, "Received notification for context");
-
-    let user_id = resolve_context_user(ctx_repo, &context_id).await?;
 
     if notification.jsonrpc != "2.0" {
         tracing::error!(jsonrpc_version = %notification.jsonrpc, "Invalid JSON-RPC version");
@@ -55,6 +56,14 @@ pub async fn handle_context_notification(
             "Invalid JSON-RPC version, must be 2.0",
         ));
     }
+
+    repos
+        .contexts
+        .validate_context_ownership(&context_id, &user_id)
+        .await?;
+
+    let status_update =
+        resolve_status_update(&repos.tasks, &context_id, &user_id, &notification).await?;
 
     let agent_id = notification
         .params
@@ -72,7 +81,9 @@ pub async fn handle_context_notification(
     .await?;
     tracing::debug!(notification_id = %notification_id, context_id = %context_id, "Persisted notification");
 
-    process_notification(app_context.clone(), &notification).await?;
+    if let Some(update) = status_update {
+        apply_status_update(&repos.tasks, &update).await?;
+    }
 
     broadcast_and_mark(
         &app_context,
@@ -91,16 +102,6 @@ pub async fn handle_context_notification(
         })),
     )
         .into_response())
-}
-
-async fn resolve_context_user(
-    ctx_repo: &ContextRepository,
-    context_id: &ContextId,
-) -> Result<UserId, ApiHttpError> {
-    ctx_repo
-        .find_user_id_for_context(context_id)
-        .await?
-        .ok_or_else(|| ApiHttpError::not_found(format!("Context '{context_id}' not found")))
 }
 
 async fn broadcast_and_mark(

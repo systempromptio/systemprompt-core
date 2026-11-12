@@ -10,6 +10,8 @@
 #[cfg(test)]
 mod aborts;
 #[cfg(test)]
+mod atomic_apply;
+#[cfg(test)]
 mod data;
 #[cfg(test)]
 mod execute;
@@ -29,5 +31,7 @@ mod profiles_report;
 mod roles;
 #[cfg(test)]
 mod routes;
+#[cfg(test)]
+mod slack;
 #[cfg(test)]
 mod support;

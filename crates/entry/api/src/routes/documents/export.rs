@@ -10,7 +10,7 @@ use axum::Extension;
 use axum::extract::{Path, State};
 use axum::http::{HeaderName, HeaderValue, header};
 use axum::response::{IntoResponse, Response};
-use systemprompt_files::documents::pdf::MARKDOWN_MIME_TYPE;
+use systemprompt_files::documents::outline::MARKDOWN_MIME_TYPE;
 use systemprompt_models::RequestContext;
 use systemprompt_models::documents::DocumentFormat;
 

@@ -37,17 +37,6 @@ async fn seed_owned_rows(pool: &sqlx::PgPool, owner: &UserId, suffix: &str) {
     .await
     .expect("MCP session");
     sqlx::query(
-        "INSERT INTO mcp_proxy_identities \
-         (session_id,user_id,user_type,permissions,roles,auth_token) \
-         VALUES ($1,$2,'user','[]'::jsonb,'[]'::jsonb,$3)",
-    )
-    .bind(format!("proxy-{suffix}"))
-    .bind(owner.as_str())
-    .bind(format!("token-{suffix}"))
-    .execute(pool)
-    .await
-    .expect("proxy identity");
-    sqlx::query(
         "INSERT INTO mcp_external_sessions \
          (server_name,session_id,user_id,credential_hash) VALUES ('fixture',$1,$2,$3)",
     )
@@ -64,7 +53,6 @@ async fn owner_count(pool: &sqlx::PgPool, table: &str, owner: &UserId) -> i64 {
         "mcp_tool_executions" => "SELECT count(*) FROM mcp_tool_executions WHERE user_id=$1",
         "mcp_artifacts" => "SELECT count(*) FROM mcp_artifacts WHERE user_id=$1",
         "mcp_sessions" => "SELECT count(*) FROM mcp_sessions WHERE user_id=$1",
-        "mcp_proxy_identities" => "SELECT count(*) FROM mcp_proxy_identities WHERE user_id=$1",
         "mcp_external_sessions" => "SELECT count(*) FROM mcp_external_sessions WHERE user_id=$1",
         _ => panic!("unknown fixture table"),
     };
@@ -117,7 +105,6 @@ async fn late_session_failure_rolls_back_mcp_owner_transfer_then_retry_moves_and
         "mcp_tool_executions",
         "mcp_artifacts",
         "mcp_sessions",
-        "mcp_proxy_identities",
         "mcp_external_sessions",
     ] {
         assert_eq!(
@@ -152,11 +139,10 @@ async fn late_session_failure_rolls_back_mcp_owner_transfer_then_retry_moves_and
             ("mcp_tool_executions", 1),
             ("mcp_artifacts", 1),
             ("mcp_sessions", 1),
-            ("mcp_proxy_identities", 1),
             ("mcp_external_sessions", 1),
         ]
     );
-    assert_eq!(moved.total(), 5);
+    assert_eq!(moved.total(), 4);
     for table in ["mcp_tool_executions", "mcp_artifacts", "mcp_sessions"] {
         assert_eq!(
             owner_count(raw.as_ref(), table, &source).await,
@@ -169,7 +155,7 @@ async fn late_session_failure_rolls_back_mcp_owner_transfer_then_retry_moves_and
             "{table}"
         );
     }
-    for table in ["mcp_proxy_identities", "mcp_external_sessions"] {
+    for table in ["mcp_external_sessions"] {
         assert_eq!(
             owner_count(raw.as_ref(), table, &source).await,
             0,

@@ -609,7 +609,6 @@ fn cli_envelope_serializes_variant_tag_not_sentinel() {
 
 #[test]
 fn artifact_type_equality() {
-    assert_eq!(ArtifactType::Text, ArtifactType::Text);
     assert_ne!(ArtifactType::Text, ArtifactType::Table);
 }
 

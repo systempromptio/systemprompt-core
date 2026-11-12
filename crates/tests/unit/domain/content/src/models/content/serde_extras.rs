@@ -37,11 +37,9 @@ fn content_kind_roundtrip_all_variants() {
 
 #[test]
 fn content_kind_equality() {
-    assert_eq!(ContentKind::Article, ContentKind::Article);
     assert_ne!(ContentKind::Article, ContentKind::Guide);
     assert_ne!(ContentKind::Guide, ContentKind::Tutorial);
 }
-
 
 #[test]
 fn ingestion_options_with_dry_run_true() {

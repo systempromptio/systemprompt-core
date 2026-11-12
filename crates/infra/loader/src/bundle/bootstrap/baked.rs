@@ -30,7 +30,10 @@ const BAKED_VERSION: &str = "baked";
 
 #[must_use]
 pub fn is_base(manifest: &ServicesBundleManifest) -> bool {
-    manifest.owns.dirs.iter().any(|d| d == "config")
+    manifest
+        .files
+        .iter()
+        .any(|f| f.path.split('/').next() == Some("config"))
 }
 
 pub(super) fn stage_baked_base(
@@ -69,7 +72,7 @@ pub(super) fn stage_baked_base(
             if from.is_dir() {
                 let to = staging.join(dir);
                 fs::create_dir_all(&to)?;
-                copy_tree(&from, &to, false)?;
+                copy_tree(&from, &to)?;
             }
         }
         let raw = serde_json::to_vec_pretty(&signed)

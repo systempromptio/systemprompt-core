@@ -19,6 +19,8 @@ mod directory;
 /// Signed, short-lived document download links.
 pub mod download;
 mod extension_audiences;
+/// Signed links an MCP server obtains from the API.
+pub mod links;
 /// MCP tool handlers over the document service.
 pub mod mcp;
 /// The refusal vocabulary shared by the MCP tools and the HTTP routes.

@@ -29,6 +29,11 @@ impl Extension for DatabaseExtension {
                 include_str!("../schema/extension_migrations.sql"),
             ),
             SchemaDefinition::new(
+                "schema_install_fingerprint",
+                include_str!("../schema/schema_install_fingerprint.sql"),
+            )
+            .with_required_columns(vec!["singleton".into(), "fingerprint".into()]),
+            SchemaDefinition::new(
                 "extension_migration_compat",
                 include_str!("../schema/extension_migration_compat.sql"),
             ),

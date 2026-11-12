@@ -22,10 +22,12 @@ fn deployment(server_type: McpServerType, endpoint: Option<&str>) -> Deployment 
             audience: JwtAudience::Mcp,
             client_id: None,
             ema: false,
+            service_only: false,
         },
         tools: HashMap::new(),
         model_config: None,
         env_vars: vec![],
+        secrets: Vec::new(),
         external_auth: None,
         headers: HashMap::new(),
         tool_policy: None,
@@ -215,4 +217,59 @@ fn internal_server_without_binary_is_rejected() {
     d.binary = Some("  ".to_owned());
     let msg = d.validate("local").unwrap_err().to_string();
     assert!(msg.contains("binary"), "{msg}");
+}
+
+fn yaml_server(oauth: &str) -> Deployment {
+    serde_yaml::from_str(&format!(
+        "server_type: external\nendpoint: https://mcp.example.com/mcp\nenabled: true\n\
+         display_in_web: false\noauth:\n{oauth}"
+    ))
+    .expect("parses")
+}
+
+#[test]
+fn user_facing_server_requiring_mcp_scope_is_refused_at_load() {
+    let d = yaml_server("  required: true\n  scopes: [mcp]\n  audience: mcp\n  client_id: null\n");
+    let err = d
+        .validate("tools")
+        .expect_err("no user token carries `mcp`");
+    let msg = err.to_string();
+    assert!(
+        matches!(
+            err,
+            systemprompt_models::errors::ServicesValidationError::UnreachableByUsers { .. }
+        ),
+        "{msg}"
+    );
+    assert!(msg.contains("MCP server 'tools'"), "{msg}");
+    assert!(msg.contains("[mcp]"), "{msg}");
+    assert!(msg.contains("require `user`"), "{msg}");
+}
+
+#[test]
+fn service_only_server_requiring_service_scopes_loads() {
+    let d = yaml_server(
+        "  required: true\n  scopes: [service, hook:govern]\n  audience: mcp\n  client_id: null\n  \
+         service_only: true\n",
+    );
+    d.validate("hooks")
+        .expect("service-only declaration is valid");
+}
+
+#[test]
+fn service_only_server_naming_a_user_scope_is_refused() {
+    let d = yaml_server(
+        "  required: true\n  scopes: [mcp, user]\n  audience: mcp\n  client_id: null\n  \
+         service_only: true\n",
+    );
+    let msg = d.validate("mixed").expect_err("contradiction").to_string();
+    assert!(msg.contains("`user`"), "{msg}");
+}
+
+#[test]
+fn admin_only_server_still_loads() {
+    let d =
+        yaml_server("  required: true\n  scopes: [admin]\n  audience: mcp\n  client_id: null\n");
+    d.validate("admin_tools")
+        .expect("admin is an interactive scope");
 }

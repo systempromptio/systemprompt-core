@@ -43,10 +43,16 @@ fn compose_scaffolding_rewrites_an_existing_directory() {
 fn docker_probes_return_without_panicking() {
     // Probe results depend on whether a docker binary exists on the host, so
     // only their agreement with each other is assertable.
-    let compose = is_compose_available();
+    let compose =
+        is_compose_available(&systemprompt_loader::subprocess::ForegroundChildren::default());
     if compose {
-        assert!(is_docker_available());
+        assert!(is_docker_available(
+            &systemprompt_loader::subprocess::ForegroundChildren::default()
+        ));
     }
-    let running = is_container_running("cov-definitely-absent-container");
+    let running = is_container_running(
+        &systemprompt_loader::subprocess::ForegroundChildren::default(),
+        "cov-definitely-absent-container",
+    );
     assert!(!running);
 }

@@ -11,6 +11,8 @@
 use std::path::Path;
 
 use super::plugin::HostFiles;
+use super::tools;
+use crate::error::AgentRunsResult;
 use crate::host::PrepareContext;
 use crate::request::{PermissionMode, RunRequest};
 
@@ -36,8 +38,7 @@ pub fn appended_system_prompt(request: &RunRequest) -> Option<String> {
     (!parts.is_empty()).then(|| parts.join("\n\n"))
 }
 
-#[must_use]
-pub fn claude_args(request: &RunRequest, files: &HostFiles) -> Vec<String> {
+pub fn claude_args(request: &RunRequest, files: &HostFiles) -> AgentRunsResult<Vec<String>> {
     let mut args = vec![
         "-p".to_owned(),
         request.prompt.clone(),
@@ -49,6 +50,9 @@ pub fn claude_args(request: &RunRequest, files: &HostFiles) -> Vec<String> {
         push_pair(&mut args, "--model", model.to_owned());
     }
     permission_args(&mut args, request);
+    if let Some(builtins) = tools::restricted_builtins(request)? {
+        push_pair(&mut args, "--tools", builtins.join(","));
+    }
     if !request.allowed_tools.is_empty() {
         push_pair(&mut args, "--allowedTools", request.allowed_tools.join(","));
     }
@@ -92,13 +96,15 @@ pub fn claude_args(request: &RunRequest, files: &HostFiles) -> Vec<String> {
     {
         push_pair(&mut args, "--plugin-dir", path_arg(dir));
     }
-    args
+    Ok(args)
+}
+
+pub(super) fn bypasses_permissions(request: &RunRequest) -> bool {
+    request.permission_mode == PermissionMode::BypassPermissions
 }
 
 fn permission_args(args: &mut Vec<String>, request: &RunRequest) {
-    if request.permission_prompts_none
-        && request.permission_mode == PermissionMode::BypassPermissions
-    {
+    if request.permission_prompts_none && bypasses_permissions(request) {
         args.push("--dangerously-skip-permissions".to_owned());
     } else {
         push_pair(

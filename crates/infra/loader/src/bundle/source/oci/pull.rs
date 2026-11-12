@@ -179,9 +179,12 @@ async fn follow_blob_redirects(
                 .join(location)
                 .map_err(|e| BundleError::fetch_context(&registry.name, "blob redirect", e))?,
         };
-        let target =
-            validate_outbound_url_with_trust(target.as_str(), &trusted_http_hosts_from_env())
-                .map_err(|e| BundleError::fetch_cause(&registry.name, e))?;
+        let target = validate_outbound_url_with_trust(
+            target.as_str(),
+            &trusted_http_hosts_from_env(),
+            systemprompt_models::net::LoopbackPolicy::Allow,
+        )
+        .map_err(|e| BundleError::fetch_cause(&registry.name, e))?;
         response = registry
             .client
             .get(target)

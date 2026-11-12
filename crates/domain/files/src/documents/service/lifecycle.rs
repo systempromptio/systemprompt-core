@@ -19,7 +19,7 @@ use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::documents::DocumentAction;
 use systemprompt_traits::{ConstraintKind, RepositoryError};
 
-use super::documents::NewContent;
+use super::first_revision::NewContent;
 use super::support::{document_name, join_path};
 use super::{Author, DocumentService};
 use crate::documents::access::AccessTarget;
@@ -153,6 +153,8 @@ impl DocumentService {
             .revision_bytes(&self.resolve_revision(&source, None).await?)
             .await?;
         let carried = self.access.check_copy(who, &source).await?;
+        self.ensure_media_backfilled(&source.id).await?;
+        let vouched = self.repos.media.of_document(&source.id).await?;
         let folder = request.folder.or_else(|| source.folder_id.clone());
         self.authorize_create(who, folder.as_ref(), trace).await?;
         let explicit = request
@@ -176,6 +178,7 @@ impl DocumentService {
                 message: Some(format!("copy of {}", source.id)),
                 ops: None,
                 mime_type: Some(source.mime_type.clone()),
+                vouched: vouched.clone(),
             };
             match self.create_with_bytes(who, content).await {
                 Err(DocumentsError::NameTaken { .. }) if attempt == 1 && explicit.is_none() => {},

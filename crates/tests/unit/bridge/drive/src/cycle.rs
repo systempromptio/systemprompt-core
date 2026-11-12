@@ -286,3 +286,61 @@ async fn an_unsynced_local_edit_is_kept_beside_the_incoming_head() {
     assert_eq!(fx.read("a.md"), theirs);
     assert_eq!(fx.read(&notice.sibling), b"my unsynced version");
 }
+
+#[tokio::test]
+async fn an_unplaceable_document_stays_in_the_conflict_list_until_it_is_placed() {
+    let server = MockServer::start().await;
+    let fx = Fixture::new(&server.uri());
+    let doc = DocumentId::generate();
+    let body: &[u8] = b"# device name";
+    serve_manifest(
+        &server,
+        manifest_json(&[(&doc, "aux.md", &DocumentRevisionId::generate(), body)]),
+    )
+    .await;
+    serve_blob(&server, body).await;
+    serve_no_proposals(&server).await;
+    let handle = DriveHandle::new();
+
+    sync_once(fx.cycle(), &handle).await.expect("first cycle");
+    let listed: Vec<String> = handle
+        .status()
+        .conflicts
+        .iter()
+        .map(|c| c.path.clone())
+        .collect();
+    assert_eq!(listed, vec!["aux.md".to_owned()]);
+
+    serve_changes(&server, serde_json::json!([])).await;
+    sync_once(fx.cycle(), &handle).await.expect("quiet cycle");
+    assert_eq!(
+        handle.status().conflicts.len(),
+        1,
+        "a quiet cycle keeps it listed"
+    );
+
+    server.reset().await;
+    serve_manifest(
+        &server,
+        manifest_json(&[(&doc, "aux notes.md", &DocumentRevisionId::generate(), body)]),
+    )
+    .await;
+    serve_blob(&server, body).await;
+    serve_no_proposals(&server).await;
+    serve_changes(
+        &server,
+        serde_json::json!([{
+            "cursor": "c2", "document_id": doc.as_str(), "path": "aux notes.md",
+            "revision_id": DocumentRevisionId::generate().as_str(),
+            "content_sha256": content_hash(body).as_str(),
+            "kind": {"type": "renamed", "from": "aux.md"},
+        }]),
+    )
+    .await;
+    sync_once(fx.cycle(), &handle).await.expect("rename cycle");
+    assert_eq!(fx.read("aux notes.md"), body);
+    assert!(
+        handle.status().conflicts.is_empty(),
+        "placed, so no longer a conflict"
+    );
+}

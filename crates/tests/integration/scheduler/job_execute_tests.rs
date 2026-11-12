@@ -48,6 +48,8 @@ async fn database_cleanup_job_execute_succeeds() {
         "ai_request_payloads",
         "governance_decisions",
         "ai_quota_buckets",
+        "engagement_events",
+        "fingerprint_reputation",
     ] {
         assert!(
             message.contains(&format!("{table}=")),

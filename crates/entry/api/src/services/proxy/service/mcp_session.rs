@@ -1,263 +1,118 @@
-//! Proxy-side identity store for MCP sessions.
+//! Binding of managed MCP sessions to the server and principal that opened
+//! them.
 //!
-//! MCP clients authenticate on the `initialize` call but may omit the bearer
-//! token on subsequent session-only requests. This module persists the
-//! authenticated identity keyed by `mcp-session-id` so those follow-ups can be
-//! enriched ([`enrich_with_cached_identity`]) on any replica, and evicts the
-//! row on session teardown or a stale-session backend response
-//! ([`handle_mcp_response`]). The store is the trust anchor for session-based
-//! MCP auth — rows are only written for a verified [`AuthenticatedUser`].
+//! A session id is a correlation handle, never a credential: every request is
+//! authenticated on its own credential at the edge, and the session id only
+//! selects which backend session the request belongs to. The `initialize`
+//! response that mints a session binds it to `(server, principal)`
+//! ([`bind_issued_session`]); every later request naming a session must come
+//! from the same principal on the same server ([`ensure_bound`]) or it is
+//! answered 404, exactly as for a session that does not exist. Session ids
+//! are not written to logs above debug level.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use axum::http::{HeaderMap, StatusCode};
-use systemprompt_identifiers::{McpServerId, ServiceName, SessionId};
-use systemprompt_mcp::repository::{McpProxyIdentityRepository, ProxyIdentityRow};
-use systemprompt_models::RequestContext;
-use systemprompt_models::auth::AuthenticatedUser;
-use systemprompt_security::at_rest::AtRestCipher;
+use axum::http::HeaderMap;
+use systemprompt_identifiers::{McpServerId, ServiceName, SessionId, UserId};
+use systemprompt_mcp::repository::McpProxySessionRepository;
 
-fn session_id_header(headers: &HeaderMap) -> Option<SessionId> {
+use super::super::backend::ProxyError;
+
+pub const SESSION_HEADER: &str = "mcp-session-id";
+
+pub fn session_id_header(headers: &HeaderMap) -> Option<SessionId> {
     headers
-        .get("mcp-session-id")
+        .get(SESSION_HEADER)
         .and_then(|v| v.to_str().ok())
-        .map(|s| SessionId::new(s.to_owned()))
+        .filter(|v| !v.is_empty())
+        .map(SessionId::new)
 }
 
-async fn evict(identities: &McpProxyIdentityRepository, session_id: &SessionId, reason: &str) {
-    if let Err(e) = identities.delete(session_id).await {
-        tracing::warn!(session_id = %session_id, error = %e, reason, "Failed to evict proxy session identity");
-    }
-}
-
-pub async fn enrich_with_cached_identity(
-    identities: &McpProxyIdentityRepository,
-    at_rest: &AtRestCipher,
+pub async fn ensure_bound(
+    sessions: &McpProxySessionRepository,
     request_headers: &HeaderMap,
-    req_context: RequestContext,
     service_name: &ServiceName,
-) -> RequestContext {
+    principal: Option<&UserId>,
+) -> Result<(), ProxyError> {
+    if request_headers.get(SESSION_HEADER).is_none() {
+        return Ok(());
+    }
     let Some(session_id) = session_id_header(request_headers) else {
-        return req_context;
+        return Err(ProxyError::SessionNotFound {
+            service: service_name.to_string(),
+        });
     };
-
-    let identity = match identities.find(at_rest, &session_id).await {
-        Ok(Some(identity)) => identity,
-        Ok(None) => {
-            tracing::debug!(
-                service = %service_name,
-                session_id = %session_id,
-                "No stored identity for session-only MCP request"
-            );
-            return req_context;
-        },
-        Err(e) => {
-            tracing::warn!(
-                service = %service_name,
-                session_id = %session_id,
-                error = %e,
-                "Proxy session identity lookup failed"
-            );
-            return req_context;
-        },
-    };
-
-    tracing::info!(
+    let bound = sessions
+        .is_bound_to(
+            &session_id,
+            &McpServerId::new(service_name.as_str()),
+            principal,
+        )
+        .await
+        .map_err(|source| ProxyError::SessionLookupFailed {
+            service: service_name.to_string(),
+            source,
+        })?;
+    if bound {
+        return Ok(());
+    }
+    tracing::debug!(
         service = %service_name,
         session_id = %session_id,
-        user_id = %identity.user_id,
-        "Enriching session-only request with stored identity"
+        "MCP session is not bound to this server and principal"
     );
-    req_context
-        .with_actor(systemprompt_identifiers::Actor::user(
-            identity.user_id.clone(),
-        ))
-        .with_user_type(identity.user_type)
-        .with_auth_token(identity.auth_token)
-        .with_user(AuthenticatedUser::new_with_roles(
-            identity.user_id,
-            String::new(),
-            String::new(),
-            identity.permissions,
-            identity.roles,
-        ))
+    Err(ProxyError::SessionNotFound {
+        service: service_name.to_string(),
+    })
 }
 
 #[derive(Debug)]
-pub struct McpResponseCtx<'a> {
-    pub identities: &'a McpProxyIdentityRepository,
-    pub at_rest: &'a AtRestCipher,
+pub struct IssuedSession<'a> {
+    pub sessions: &'a McpProxySessionRepository,
     pub response: &'a reqwest::Response,
     pub request_headers: &'a HeaderMap,
-    pub req_context: &'a RequestContext,
-    pub authenticated_user: Option<&'a AuthenticatedUser>,
     pub service_name: &'a ServiceName,
+    pub principal: Option<&'a UserId>,
     pub method_str: &'a str,
 }
 
-pub async fn handle_mcp_response(args: McpResponseCtx<'_>) {
-    let McpResponseCtx {
-        identities,
-        at_rest,
+pub async fn bind_issued_session(issued: IssuedSession<'_>) -> Result<(), ProxyError> {
+    let IssuedSession {
+        sessions,
         response,
         request_headers,
-        req_context,
-        authenticated_user,
         service_name,
+        principal,
         method_str,
-    } = args;
-    let resp_status = response.status();
-    let resp_session = response
-        .headers()
-        .get("mcp-session-id")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("none");
-    let resp_content_type = response
-        .headers()
-        .get("content-type")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("none");
-
-    tracing::info!(
-        service = %service_name,
-        status = %resp_status,
-        resp_session_id = %resp_session,
-        content_type = %resp_content_type,
-        method = %method_str,
-        "MCP backend response"
-    );
-
-    if !resp_status.is_success() {
-        evict_on_error_response(
-            identities,
-            response,
-            request_headers,
-            service_name,
-            method_str,
-        )
-        .await;
-    }
-
-    cache_identity_from_response(
-        identities,
-        at_rest,
-        IssuedIdentity {
-            response,
-            req_context,
-            authenticated_user,
-            service_name,
-        },
-    )
-    .await;
-
-    if method_str == "DELETE"
-        && let Some(session_id) = session_id_header(request_headers)
-    {
-        evict(identities, &session_id, "delete").await;
-        tracing::debug!(session_id = %session_id, "Evicted session identity on DELETE");
-    }
-}
-
-async fn evict_on_error_response(
-    identities: &McpProxyIdentityRepository,
-    response: &reqwest::Response,
-    request_headers: &HeaderMap,
-    service_name: &ServiceName,
-    method_str: &str,
-) {
-    let resp_status = response.status();
-    let header_dump: Vec<String> = response
-        .headers()
-        .iter()
-        .map(|(k, v)| format!("{}: {}", k, v.to_str().unwrap_or("?")))
-        .collect();
-    tracing::error!(
-        service = %service_name,
-        status = %resp_status,
-        headers = ?header_dump,
-        "MCP backend error response"
-    );
-
-    if resp_status == StatusCode::NOT_FOUND
-        && (method_str == "GET" || method_str == "POST")
-        && let Some(session_id) = session_id_header(request_headers)
-    {
-        evict(identities, &session_id, "stale_session").await;
-        tracing::info!(
-            service = %service_name,
-            session_id = %session_id,
-            method = %method_str,
-            reason = "stale_session",
-            "Evicted stale proxy session identity on 404; the backend no longer knows this session (restarted child?) and the client must re-initialise"
-        );
-    }
-}
-
-struct IssuedIdentity<'a> {
-    response: &'a reqwest::Response,
-    req_context: &'a RequestContext,
-    authenticated_user: Option<&'a AuthenticatedUser>,
-    service_name: &'a ServiceName,
-}
-
-async fn cache_identity_from_response(
-    identities: &McpProxyIdentityRepository,
-    at_rest: &AtRestCipher,
-    issued: IssuedIdentity<'_>,
-) {
-    let IssuedIdentity {
-        response,
-        req_context,
-        authenticated_user,
-        service_name,
     } = issued;
-    let Some(session_id) = session_id_header(response.headers()) else {
-        return;
-    };
-    let Some(user) = authenticated_user else {
-        return;
-    };
-    let Some(auth_token) = req_context.auth_token() else {
-        return;
-    };
-    let row = ProxyIdentityRow {
-        user_id: user.id.clone(),
-        user_type: req_context.user_type(),
-        permissions: user.permissions.clone(),
-        roles: user.roles.clone(),
-        auth_token: auth_token.clone(),
-    };
-    match identities.upsert(at_rest, &session_id, &row).await {
-        Ok(()) => {
-            tracing::info!(
-                service = %service_name,
-                session_id = %session_id,
-                user_id = %user.id,
-                "Stored session identity for MCP session"
-            );
-            if let Err(e) = identities
-                .attribute_session(
-                    &session_id,
-                    &McpServerId::new(service_name.as_str()),
-                    &row.user_id,
-                )
-                .await
-            {
-                tracing::warn!(
-                    service = %service_name,
-                    session_id = %session_id,
-                    error = %e,
-                    "Failed to attribute MCP session to its server and user"
-                );
-            }
-        },
-        Err(e) => tracing::error!(
-            service = %service_name,
-            session_id = %session_id,
-            user_id = %user.id,
-            error = %e,
-            "Failed to store session identity for MCP session"
-        ),
+    let status = response.status();
+    if status.is_success() {
+        tracing::debug!(service = %service_name, %status, method = %method_str, "MCP backend response");
+    } else {
+        tracing::warn!(service = %service_name, %status, method = %method_str, "MCP backend error response");
     }
+    if !status.is_success() || request_headers.get(SESSION_HEADER).is_some() {
+        return Ok(());
+    }
+    let Some(session_id) = session_id_header(response.headers()) else {
+        return Ok(());
+    };
+    sessions
+        .bind(
+            &session_id,
+            &McpServerId::new(service_name.as_str()),
+            principal,
+        )
+        .await
+        .map_err(|source| ProxyError::SessionLookupFailed {
+            service: service_name.to_string(),
+            source,
+        })?;
+    tracing::debug!(
+        service = %service_name,
+        session_id = %session_id,
+        "Bound MCP session to its server and principal"
+    );
+    Ok(())
 }

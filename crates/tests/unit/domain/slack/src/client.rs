@@ -8,11 +8,20 @@
 //! network call.
 
 use serde_json::{Value, json};
+use systemprompt_client::{GuardedClient, GuardedClientConfig};
 use systemprompt_identifiers::SlackUserId;
 use systemprompt_slack::SlackError;
 use systemprompt_slack::client::SlackClient;
 use wiremock::matchers::{body_partial_json, header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
+
+fn loopback_reply() -> GuardedClient {
+    GuardedClient::configured(&GuardedClientConfig::for_configured()).expect("reply client")
+}
+
+fn untrusted_reply() -> GuardedClient {
+    GuardedClient::untrusted(&GuardedClientConfig::for_untrusted()).expect("reply client")
+}
 
 const BLOCKS: fn() -> Value =
     || json!([{ "type": "section", "text": { "type": "mrkdwn", "text": "hi" } }]);
@@ -72,11 +81,14 @@ async fn respond_posts_ephemeral_response_type() {
         .mount(&server)
         .await;
 
-    let client = SlackClient::new(reqwest::Client::new(), String::new());
-    client
-        .respond(&format!("{}/hook/ephemeral", server.uri()), BLOCKS(), true)
-        .await
-        .expect("ephemeral respond succeeds");
+    SlackClient::respond(
+        &loopback_reply(),
+        &format!("{}/hook/ephemeral", server.uri()),
+        BLOCKS(),
+        true,
+    )
+    .await
+    .expect("ephemeral respond succeeds");
 }
 
 #[tokio::test]
@@ -90,24 +102,26 @@ async fn respond_posts_in_channel_response_type() {
         .mount(&server)
         .await;
 
-    let client = SlackClient::new(reqwest::Client::new(), String::new());
-    client
-        .respond(
-            &format!("{}/hook/in_channel", server.uri()),
-            BLOCKS(),
-            false,
-        )
-        .await
-        .expect("in_channel respond succeeds");
+    SlackClient::respond(
+        &loopback_reply(),
+        &format!("{}/hook/in_channel", server.uri()),
+        BLOCKS(),
+        false,
+    )
+    .await
+    .expect("in_channel respond succeeds");
 }
 
 #[tokio::test]
 async fn respond_rejects_a_blocked_host_before_any_request() {
-    let client = SlackClient::new(reqwest::Client::new(), String::new());
-    let err = client
-        .respond("http://169.254.169.254/hook", BLOCKS(), true)
-        .await
-        .expect_err("SSRF guard blocks the link-local metadata host");
+    let err = SlackClient::respond(
+        &loopback_reply(),
+        "http://169.254.169.254/hook",
+        BLOCKS(),
+        true,
+    )
+    .await
+    .expect_err("SSRF guard blocks the link-local metadata host");
     assert!(
         matches!(err, SlackError::OutboundUrl(_)),
         "expected OutboundUrl, got {err:?}"
@@ -140,11 +154,14 @@ async fn non_json_2xx_body_is_treated_as_transport_level_success() {
         .mount(&server)
         .await;
 
-    let client = SlackClient::new(reqwest::Client::new(), String::new());
-    client
-        .respond(&format!("{}/hook/plain", server.uri()), BLOCKS(), true)
-        .await
-        .expect("non-JSON 200 falls back to HTTP status success");
+    SlackClient::respond(
+        &loopback_reply(),
+        &format!("{}/hook/plain", server.uri()),
+        BLOCKS(),
+        true,
+    )
+    .await
+    .expect("non-JSON 200 falls back to HTTP status success");
 }
 
 #[tokio::test]
@@ -156,11 +173,14 @@ async fn non_json_5xx_body_surfaces_as_unknown_outbound_error() {
         .mount(&server)
         .await;
 
-    let client = SlackClient::new(reqwest::Client::new(), String::new());
-    let err = client
-        .respond(&format!("{}/hook/broken", server.uri()), BLOCKS(), true)
-        .await
-        .expect_err("non-JSON 5xx is an error");
+    let err = SlackClient::respond(
+        &loopback_reply(),
+        &format!("{}/hook/broken", server.uri()),
+        BLOCKS(),
+        true,
+    )
+    .await
+    .expect_err("non-JSON 5xx is an error");
     assert!(
         matches!(err, SlackError::Outbound(ref e) if e == "unknown"),
         "expected Outbound(unknown), got {err:?}"
@@ -276,6 +296,30 @@ async fn user_info_rejects_a_blocked_host_before_any_request() {
         .user_info(&SlackUserId::new("U1"))
         .await
         .expect_err("SSRF guard blocks the link-local metadata host");
+    assert!(
+        matches!(err, SlackError::OutboundUrl(_)),
+        "expected OutboundUrl, got {err:?}"
+    );
+}
+
+#[tokio::test]
+async fn respond_on_the_untrusted_client_refuses_a_loopback_response_url() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({ "ok": true })))
+        .expect(0)
+        .mount(&server)
+        .await;
+
+    let err = SlackClient::respond(
+        &untrusted_reply(),
+        &format!("{}/hook/loopback", server.uri()),
+        BLOCKS(),
+        true,
+    )
+    .await
+    .expect_err("a loopback response_url is refused");
+
     assert!(
         matches!(err, SlackError::OutboundUrl(_)),
         "expected OutboundUrl, got {err:?}"

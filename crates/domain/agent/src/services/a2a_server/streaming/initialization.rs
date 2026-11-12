@@ -77,7 +77,7 @@ pub(super) async fn setup_stream(
         tx,
         request_id: &request_id,
     };
-    let task_repo = persist_initial_task(persist_input).await?;
+    let (task_repo, task) = persist_initial_task(persist_input).await?;
 
     let webhooks = WebhookContext::for_request(state.agent_state.webhooks(), &context);
     broadcast_task_created(BroadcastTaskCreatedParams {
@@ -92,7 +92,7 @@ pub(super) async fn setup_stream(
     let agent_runtime = load_agent_runtime(LoadAgentRuntimeParams {
         registry,
         agent_name: &agent_name,
-        task_id: &task_id,
+        task: &task,
         task_repo: &task_repo,
         tx,
         request_id: &request_id,
@@ -108,8 +108,7 @@ pub(super) async fn setup_stream(
     );
 
     Ok(StreamSetupResult {
-        task_id,
-        context_id,
+        task,
         message_id,
         message,
         agent_name,

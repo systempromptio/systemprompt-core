@@ -10,18 +10,23 @@
 //! written elsewhere (an assembled upload) under its verified hash, moving
 //! it to the same content-addressed path a `put` uses.
 //!
-//! Garbage collection deletes the row first, because the repository refuses
-//! to delete a row a revision, edit session or issue report attachment still
-//! references; only then is the object removed. A failed object delete
-//! leaves an orphaned object and no row. The orphan is never served, and a
-//! later `put` of the same bytes finds it and restores the row.
+//! Object transfers never run inside a database transaction. `put` and
+//! `adopt` write the object first (content-addressed, so idempotent), then
+//! take the hash's advisory lock ([`HashLock`]) only to recheck that the
+//! object is still there and upsert the row; a collection that removed the
+//! object in between makes them store it again under the lock, bounded by
+//! `LOCKED_IO_LIMIT`. Collection (in `blob_store_gc`) is two short locked
+//! steps: delete the row and record the collection, commit; then, if no row
+//! came back meanwhile, delete the object (bounded) and the record. A row
+//! never exists without its object, and an interrupted collection is
+//! finished by the next pass from its record.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::HashSet;
 use std::path::Path;
 use std::sync::Arc;
+use std::time::Duration;
 
 use futures_util::StreamExt;
 use systemprompt_identifiers::ContentHash;
@@ -32,6 +37,8 @@ use systemprompt_traits::{
 
 use super::models::DocumentBlob;
 use super::repository::DocumentBlobRepository;
+#[cfg(doc)]
+use super::repository::HashLock;
 
 #[derive(Debug, thiserror::Error)]
 pub enum BlobStoreError {
@@ -43,6 +50,12 @@ pub enum BlobStoreError {
     NotFound { hash: ContentHash },
     #[error("blob of {size} bytes exceeds the {limit}-byte limit")]
     TooLarge { size: u64, limit: u64 },
+    #[error("blob {operation} did not finish within the time allowed under the hash lock")]
+    TimedOut {
+        operation: &'static str,
+        #[source]
+        source: tokio::time::error::Elapsed,
+    },
     #[error("blob of {size} bytes does not fit the size column")]
     SizeOutOfRange {
         size: u64,
@@ -96,8 +109,7 @@ impl BlobStore {
         let size = bytes.len() as u64;
         let size_column = i64::try_from(size)
             .map_err(|source| BlobStoreError::SizeOutOfRange { size, source })?;
-
-        let freshly_stored = if self.storage.exists(&storage_id).await? {
+        let mut freshly_stored = if self.storage.exists(&storage_id).await? {
             false
         } else {
             self.storage
@@ -105,25 +117,45 @@ impl BlobStore {
                 .await?;
             true
         };
-
-        match self.blobs.upsert(&hash, size_column, &storage_id).await {
-            Ok(inserted) => Ok(StoredBlob {
-                hash,
-                size_bytes: size,
-                storage_id,
-                inserted,
-            }),
-            Err(error) => {
-                if freshly_stored && let Err(cleanup) = self.storage.delete(&storage_id).await {
-                    tracing::error!(
-                        storage_id = %storage_id,
-                        error = %cleanup,
-                        "Failed to remove a blob whose row could not be written"
-                    );
-                }
-                Err(error.into())
-            },
+        let mut lock = self.blobs.lock(&hash).await?;
+        if !self.storage.exists(&storage_id).await? {
+            bounded(
+                "re-store",
+                self.storage.store(Path::new(storage_id.as_str()), bytes),
+            )
+            .await??;
+            freshly_stored = true;
         }
+        let inserted = match lock.upsert(&hash, size_column, &storage_id).await {
+            Ok(inserted) => inserted,
+            Err(error) => {
+                self.discard(freshly_stored, &storage_id).await;
+                return Err(error.into());
+            },
+        };
+        lock.commit().await?;
+        Ok(StoredBlob {
+            hash,
+            size_bytes: size,
+            storage_id,
+            inserted,
+        })
+    }
+
+    pub(super) async fn discard(&self, freshly_stored: bool, storage_id: &StoredFileId) {
+        if !freshly_stored {
+            return;
+        }
+        let error = match bounded("discard", self.storage.delete(storage_id)).await {
+            Ok(Ok(())) => return,
+            Ok(Err(error)) => BlobStoreError::from(error),
+            Err(error) => error,
+        };
+        tracing::error!(
+            storage_id = %storage_id,
+            error = %error,
+            "Failed to remove a blob whose row could not be written"
+        );
     }
 
     pub async fn open(
@@ -191,84 +223,15 @@ impl BlobStore {
         }
         Ok(bytes)
     }
+}
 
-    pub async fn delete_unreferenced(
-        &self,
-        older_than_hours: u32,
-        limit: u32,
-    ) -> Result<GcReport, BlobStoreError> {
-        let candidates = self
-            .blobs
-            .unreferenced_older_than(i64::from(older_than_hours), i64::from(limit))
-            .await?;
-        let linked = self.linked_among(&candidates).await?;
-        let mut report = GcReport::default();
-        for blob in candidates {
-            report.examined += 1;
-            if linked.contains(blob.content_sha256.as_str()) {
-                continue;
-            }
-            match self.blobs.delete(&blob.content_sha256).await {
-                Ok(true) => {},
-                Ok(false) => continue,
-                Err(error) => {
-                    tracing::warn!(
-                        content_sha256 = %blob.content_sha256,
-                        error = %error,
-                        "Failed to delete an unreferenced blob row"
-                    );
-                    report.failed += 1;
-                    continue;
-                },
-            }
-            let storage_id = StoredFileId::new(blob.storage_id.as_str());
-            match self.storage.delete(&storage_id).await {
-                Ok(()) | Err(FileStorageError::NotFound(_)) => report.deleted += 1,
-                Err(error) => {
-                    tracing::warn!(
-                        content_sha256 = %blob.content_sha256,
-                        storage_id = %storage_id,
-                        error = %error,
-                        "Deleted a blob row but failed to delete its object"
-                    );
-                    report.failed += 1;
-                },
-            }
-        }
-        Ok(report)
-    }
+pub(super) const LOCKED_IO_LIMIT: Duration = Duration::from_secs(30);
 
-    async fn linked_among(
-        &self,
-        candidates: &[DocumentBlob],
-    ) -> Result<HashSet<String>, BlobStoreError> {
-        let mut linked = HashSet::new();
-        if candidates.is_empty() {
-            return Ok(linked);
-        }
-        for revision in self.blobs.list_linking_revisions().await? {
-            let bytes = match self.read_all(&revision, u64::MAX).await {
-                Ok(bytes) => bytes,
-                Err(
-                    BlobStoreError::NotFound { .. }
-                    | BlobStoreError::Storage(FileStorageError::NotFound(_)),
-                ) => {
-                    tracing::warn!(
-                        content_sha256 = %revision,
-                        "A linking revision's blob is missing, so its links cannot be read"
-                    );
-                    continue;
-                },
-                Err(error) => return Err(error),
-            };
-            let text = String::from_utf8_lossy(&bytes);
-            for blob in candidates {
-                let hash = blob.content_sha256.as_str();
-                if text.contains(hash) {
-                    linked.insert(hash.to_owned());
-                }
-            }
-        }
-        Ok(linked)
-    }
+pub(super) async fn bounded<T>(
+    operation: &'static str,
+    work: impl Future<Output = T>,
+) -> Result<T, BlobStoreError> {
+    tokio::time::timeout(LOCKED_IO_LIMIT, work)
+        .await
+        .map_err(|source| BlobStoreError::TimedOut { operation, source })
 }

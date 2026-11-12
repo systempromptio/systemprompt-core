@@ -44,13 +44,13 @@ async fn machine_token_resolves_secrets_and_mints_through_the_cache() {
     let tokens = TokenCache::new();
     let server_name = format!("jira-{}", uuid::Uuid::new_v4().simple());
     assert_eq!(
-        machine_token(&tokens, &s, &server_name, &c)
+        machine_token(&tokens, |name| s.get(name).cloned(), &server_name, &c)
             .await
             .expect("mints"),
         "machine-mt"
     );
     assert_eq!(
-        machine_token(&tokens, &s, &server_name, &c)
+        machine_token(&tokens, |name| s.get(name).cloned(), &server_name, &c)
             .await
             .expect("cached"),
         "machine-mt"
@@ -65,7 +65,7 @@ async fn machine_token_refuses_a_missing_secret_before_any_request() {
     );
     let err = machine_token(
         &TokenCache::new(),
-        &secrets(serde_json::json!({})),
+        |name| secrets(serde_json::json!({})).get(name).cloned(),
         "jira",
         &c,
     )
@@ -85,7 +85,7 @@ async fn machine_token_refuses_the_consent_grant() {
     let c = connector("grant: authorization_code\ntoken_url: https://example.invalid/token\n");
     let err = machine_token(
         &TokenCache::new(),
-        &secrets(serde_json::json!({})),
+        |name| secrets(serde_json::json!({})).get(name).cloned(),
         "docs",
         &c,
     )

@@ -46,6 +46,7 @@ fn request() -> RunRequest {
 fn claude_args_golden() {
     let mut req = request();
     req.output_schema = Some(serde_json::json!({"type": "object"}));
+    req.allowed_tools.push("mcp__s".into());
     req.mcp_servers.insert(
         "s".into(),
         McpServerSpec::Http {
@@ -67,8 +68,10 @@ fn claude_args_golden() {
         "claude-sonnet-5-5",
         "--permission-mode",
         "acceptEdits",
-        "--allowedTools",
+        "--tools",
         "Read,Edit",
+        "--allowedTools",
+        "Read,Edit,mcp__s",
         "--disallowedTools",
         "WebFetch",
         "--append-system-prompt",
@@ -94,7 +97,7 @@ fn claude_args_golden() {
     .into_iter()
     .map(String::from)
     .collect();
-    assert_eq!(claude_args(&req, &files), expected);
+    assert_eq!(claude_args(&req, &files).expect("args"), expected);
 }
 
 #[test]
@@ -102,11 +105,11 @@ fn claude_args_skip_permissions_only_when_bypass_and_no_prompts() {
     let mut req = request();
     req.permission_mode = PermissionMode::BypassPermissions;
     req.permission_prompts_none = true;
-    let args = claude_args(&req, &HostFiles::default());
+    let args = claude_args(&req, &HostFiles::default()).expect("args");
     assert!(args.contains(&"--dangerously-skip-permissions".to_owned()));
     assert!(!args.contains(&"--permission-mode".to_owned()));
     req.permission_prompts_none = false;
-    let args = claude_args(&req, &HostFiles::default());
+    let args = claude_args(&req, &HostFiles::default()).expect("args");
     assert!(!args.contains(&"--dangerously-skip-permissions".to_owned()));
 }
 

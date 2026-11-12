@@ -5,13 +5,12 @@
 //! token from [`TokenProvider`].
 //!
 //! `serviceUrl` is read off the inbound activity payload, so it is chosen by
-//! whoever sent the request rather than by the operator. It is filtered twice:
-//! [`validate_outbound_url`] rejects a bad scheme or a literal address in a
-//! blocked range before the request is built, and the reply travels on a
-//! guarded client whose resolver re-checks every address the hostname resolves
-//! to, on the initial connection and on each redirect hop. A name that
-//! resolves into a blocked range is refused at connect time; parse-time
-//! validation alone could not see it.
+//! whoever sent the request rather than by the operator. The reply travels on
+//! the injected [`GuardedClient`], whose request path rejects a bad scheme, a
+//! loopback host or a literal address in a blocked range before the request is
+//! built, and whose resolver re-checks every address the hostname resolves to,
+//! on the initial connection and on each redirect hop. Production wiring
+//! passes a client built from the untrusted policy.
 //!
 //! Token acquisition is a separate path on a separate client. Its URL is
 //! operator-configured —
@@ -24,47 +23,40 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use serde_json::{Value, json};
-use systemprompt_client::{GuardedClientConfig, guarded_client};
+use systemprompt_client::GuardedClient;
 use systemprompt_identifiers::{TeamsAppId, TeamsConversationId};
-use systemprompt_models::net::validate_outbound_url;
 
 use crate::error::{TeamsError, TeamsResult};
 use crate::token::TokenProvider;
 
 #[derive(Debug)]
 pub struct TeamsClient {
-    reply_http: Option<reqwest::Client>,
+    reply_http: GuardedClient,
     tokens: TokenProvider,
-}
-
-fn reply_client() -> Option<reqwest::Client> {
-    guarded_client(&GuardedClientConfig::default())
-        .inspect_err(|e| tracing::error!(error = %e, "Guarded Teams reply client unavailable"))
-        .ok()
 }
 
 impl TeamsClient {
     #[must_use]
-    pub fn new(http: reqwest::Client, app_id: TeamsAppId, app_password: impl Into<String>) -> Self {
+    pub fn new(
+        http: reqwest::Client,
+        reply_http: GuardedClient,
+        app_id: TeamsAppId,
+        app_password: impl Into<String>,
+    ) -> Self {
         let tokens = TokenProvider::new(http, app_id, app_password);
-        Self {
-            reply_http: reply_client(),
-            tokens,
-        }
+        Self { reply_http, tokens }
     }
 
     #[must_use]
     pub fn with_endpoints(
         http: reqwest::Client,
+        reply_http: GuardedClient,
         app_id: TeamsAppId,
         app_password: impl Into<String>,
         token_url: impl Into<String>,
     ) -> Self {
         let tokens = TokenProvider::with_token_url(http, app_id, app_password, token_url);
-        Self {
-            reply_http: reply_client(),
-            tokens,
-        }
+        Self { reply_http, tokens }
     }
 
     // JSON: Bot Framework `attachments` — Adaptive Card JSON is the vendor schema.
@@ -76,19 +68,10 @@ impl TeamsClient {
         now_unix: i64,
     ) -> TeamsResult<()> {
         let url = reply_url(service_url, conversation_id);
-        validate_outbound_url(&url)?;
-        let http = self
-            .reply_http
-            .as_ref()
-            .ok_or(TeamsError::ClientUnavailable)?;
+        let request = self.reply_http.post(&url)?;
         let token = self.tokens.token(now_unix).await?;
         let body = json!({ "type": "message", "attachments": attachments });
-        let resp = http
-            .post(&url)
-            .bearer_auth(token)
-            .json(&body)
-            .send()
-            .await?;
+        let resp = request.bearer_auth(token).json(&body).send().await?;
         if resp.status().is_success() {
             return Ok(());
         }

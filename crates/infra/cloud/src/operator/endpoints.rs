@@ -40,10 +40,12 @@ pub(super) async fn discover(client: &reqwest::Client, issuer: &str) -> CloudRes
         )));
     }
     for endpoint in [&discovery.authorization_endpoint, &discovery.token_endpoint] {
-        validate_outbound_url(endpoint).map_err(|source| CloudError::OperatorEndpoint {
-            endpoint: endpoint.clone(),
-            source,
-        })?;
+        validate_outbound_url(endpoint, systemprompt_models::net::LoopbackPolicy::Allow).map_err(
+            |source| CloudError::OperatorEndpoint {
+                endpoint: endpoint.clone(),
+                source,
+            },
+        )?;
     }
     Ok(discovery)
 }

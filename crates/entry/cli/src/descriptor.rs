@@ -28,6 +28,7 @@ impl CommandDescriptor {
     const FLAG_READ_ONLY: u16 = 0b0000_0100_0000;
     const FLAG_MODEL_DISCOVERY: u16 = 0b0000_1000_0000;
     const FLAG_DESTRUCTIVE: u16 = 0b0001_0000_0000;
+    const FLAG_IRREVERSIBLE: u16 = 0b0010_0000_0000;
 
     pub const NONE: Self = Self { flags: 0 };
 
@@ -113,8 +114,14 @@ impl CommandDescriptor {
         self.flags & Self::FLAG_DESTRUCTIVE != 0
     }
 
+    pub const fn requires_confirmation(&self) -> bool {
+        self.flags & Self::FLAG_IRREVERSIBLE != 0
+    }
+
     pub const fn data_impact(&self) -> DataImpact {
-        if self.is_destructive() {
+        if self.requires_confirmation() {
+            DataImpact::Irreversible
+        } else if self.is_destructive() {
             DataImpact::Destructive
         } else {
             DataImpact::Preserving
@@ -125,6 +132,9 @@ impl CommandDescriptor {
         match impact {
             DataImpact::Destructive => Self {
                 flags: self.flags | Self::FLAG_DESTRUCTIVE,
+            },
+            DataImpact::Irreversible => Self {
+                flags: self.flags | Self::FLAG_DESTRUCTIVE | Self::FLAG_IRREVERSIBLE,
             },
             DataImpact::Preserving => self,
         }
@@ -138,10 +148,25 @@ impl CommandDescriptor {
 /// session or directory discovery), and a failed remote route never falls
 /// back to direct database access for them. Every command enum classifies
 /// its variants in an exhaustive `match` with no wildcard arm.
+///
+/// `Irreversible` is `Destructive` plus an operator confirmation: the runner
+/// prompts before the command runs, and with no terminal the command refuses
+/// unless `--yes` was passed. Such a command flattens
+/// [`ConfirmArgs`](crate::shared::ConfirmArgs) so that `--yes` parses.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DataImpact {
     Preserving,
     Destructive,
+    Irreversible,
+}
+
+impl DataImpact {
+    pub const fn destroys_data(self) -> bool {
+        match self {
+            Self::Preserving => false,
+            Self::Destructive | Self::Irreversible => true,
+        }
+    }
 }
 
 /// What a command is allowed to do when the active profile is a cloud profile.

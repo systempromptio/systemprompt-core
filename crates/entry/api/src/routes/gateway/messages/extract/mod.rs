@@ -43,7 +43,7 @@ pub use attribution::AttributionHeaders;
 use attribution::classify_client;
 pub use authz::{GatewayAuthzRequestInput, build_gateway_authz_request};
 pub(super) use headers::ClientHeaders;
-pub use headers::{extract_credential, memory_preference};
+pub use headers::{caller_auth, extract_credential, memory_preference, presented_credential};
 pub use partial::RejectionPartial;
 use scope::{ScopeHeaders, attribute_scopes};
 
@@ -79,7 +79,7 @@ pub(super) async fn extract_request_context(
 
     let client_headers = classify_client_headers(request.headers());
 
-    let header_session = optional_session_id(request.headers());
+    let header_session = optional_session_id(request.headers())?;
     let header_gateway_conversation = optional_gateway_conversation_id(request.headers())?;
 
     let principal = authenticate_request(

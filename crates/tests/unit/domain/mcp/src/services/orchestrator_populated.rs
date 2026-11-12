@@ -21,7 +21,7 @@ use crate::harness::{
     external_server_block, external_server_block_with_accessor, internal_server_block,
     mount_mcp_endpoint, register_internal_extension,
 };
-use systemprompt_test_fixtures::unique_instance;
+use systemprompt_test_fixtures::{unique_instance, unique_name};
 
 fn profile_paths(bootstrap: &TestBootstrap) -> PathsConfig {
     PathsConfig {
@@ -99,15 +99,11 @@ async fn await_listening(port: u16) {
     panic!("stand-in process never listened on port {port}");
 }
 
-fn unique(prefix: &str) -> String {
-    format!("{prefix}_{}", uuid::Uuid::new_v4().simple())
-}
-
 #[tokio::test]
 async fn validate_external_server_probe_succeeds_against_scripted_endpoint() {
     let mock = MockServer::start().await;
     mount_mcp_endpoint(&mock, default_tools_json()).await;
-    let name = unique("valext");
+    let name = unique_name("valext");
     let o = orchestrator_with_config(
         &[external_server_block(&ExternalServerSpec {
             name: &name,
@@ -133,7 +129,7 @@ async fn validate_external_server_probe_succeeds_against_scripted_endpoint() {
 
 #[tokio::test]
 async fn validate_external_server_unreachable_endpoint_is_reported_not_fatal() {
-    let name = unique("valdown");
+    let name = unique_name("valdown");
     let o = orchestrator_with_config(
         &[external_server_block(&ExternalServerSpec {
             name: &name,
@@ -154,7 +150,7 @@ async fn validate_external_server_unreachable_endpoint_is_reported_not_fatal() {
 async fn validate_external_server_with_accessor_skips_the_probe() {
     let mock = MockServer::start().await;
     mount_mcp_endpoint(&mock, default_tools_json()).await;
-    let name = unique("valacc");
+    let name = unique_name("valacc");
     let o = orchestrator_with_config(
         &[external_server_block_with_accessor(
             &name,
@@ -177,7 +173,7 @@ async fn validate_external_server_with_accessor_skips_the_probe() {
 #[tokio::test]
 async fn validate_internal_server_without_running_row_is_ok() {
     let port = free_port();
-    let name = unique("valint");
+    let name = unique_name("valint");
     let o = orchestrator_with_config(&[internal_server_block(&name, port)], &[&name]).await;
 
     o.validate_service(&ServiceName::new(name.as_str()))
@@ -192,7 +188,7 @@ async fn validate_internal_running_server_probes_local_port() {
     let port = listener.local_addr().expect("addr").port();
     let mock = MockServer::builder().listener(listener).start().await;
     mount_mcp_endpoint(&mock, default_tools_json()).await;
-    let name = unique("valrun");
+    let name = unique_name("valrun");
     let name_id = ServiceName::new(name.as_str());
     let (o, repo) = orchestrator_and_repo(&[internal_server_block(&name, port)], &[&name]).await;
     repo.create_service(CreateServiceInput {
@@ -221,7 +217,7 @@ async fn validate_internal_running_server_probes_local_port() {
 #[tokio::test]
 async fn start_services_named_with_missing_binary_fails_and_publishes_failure() {
     let port = free_port();
-    let name = unique("startfail");
+    let name = unique_name("startfail");
     let o = orchestrator_with_config(&[internal_server_block(&name, port)], &[&name]).await;
     let mut rx = o.subscribe_events();
 
@@ -257,10 +253,10 @@ async fn start_services_named_with_missing_binary_fails_and_publishes_failure() 
 #[tokio::test]
 async fn start_services_unknown_name_matches_nothing_and_succeeds() {
     let port = free_port();
-    let name = unique("startnone");
+    let name = unique_name("startnone");
     let o = orchestrator_with_config(&[internal_server_block(&name, port)], &[&name]).await;
 
-    o.start_services(Some(ServiceName::new(unique("absent"))))
+    o.start_services(Some(ServiceName::new(unique_name("absent"))))
         .await
         .expect("an unmatched name filter starts nothing");
 }
@@ -268,7 +264,7 @@ async fn start_services_unknown_name_matches_nothing_and_succeeds() {
 #[tokio::test]
 async fn reconcile_with_failing_internal_server_aggregates_the_failure() {
     let port = free_port();
-    let name = unique("recfail");
+    let name = unique_name("recfail");
     let o = orchestrator_with_config(&[internal_server_block(&name, port)], &[&name]).await;
 
     let err = o.reconcile().await.expect_err("startup failure surfaces");
@@ -283,7 +279,7 @@ async fn reconcile_with_failing_internal_server_aggregates_the_failure() {
 async fn reconcile_external_only_registry_starts_nothing() {
     let mock = MockServer::start().await;
     mount_mcp_endpoint(&mock, default_tools_json()).await;
-    let name = unique("recext");
+    let name = unique_name("recext");
     let o = orchestrator_with_config(
         &[external_server_block(&ExternalServerSpec {
             name: &name,
@@ -302,7 +298,7 @@ async fn reconcile_external_only_registry_starts_nothing() {
 #[tokio::test]
 async fn restart_services_missing_binary_reports_a_failed_outcome() {
     let port = free_port();
-    let name = unique("restart");
+    let name = unique_name("restart");
     let name_id = ServiceName::new(name.as_str());
     let (o, repo) = orchestrator_and_repo(&[internal_server_block(&name, port)], &[&name]).await;
 
@@ -347,7 +343,7 @@ async fn restart_services_missing_binary_reports_a_failed_outcome() {
 #[tokio::test]
 async fn stop_services_named_internal_without_row_publishes_stopped() {
     let port = free_port();
-    let name = unique("stopper");
+    let name = unique_name("stopper");
     let o = orchestrator_with_config(&[internal_server_block(&name, port)], &[&name]).await;
     let mut rx = o.subscribe_events();
 
@@ -371,8 +367,8 @@ async fn service_statuses_reports_external_endpoint_and_internal_port() {
     let port = free_port();
     let mock = MockServer::start().await;
     mount_mcp_endpoint(&mock, default_tools_json()).await;
-    let ext_name = unique("stext");
-    let int_name = unique("stint");
+    let ext_name = unique_name("stext");
+    let int_name = unique_name("stint");
     let o = orchestrator_with_config(
         &[
             external_server_block(&ExternalServerSpec {
@@ -412,7 +408,7 @@ async fn service_statuses_reports_external_endpoint_and_internal_port() {
 async fn list_services_and_show_status_render_the_populated_registry() {
     let mock = MockServer::start().await;
     mount_mcp_endpoint(&mock, default_tools_json()).await;
-    let name = unique("display");
+    let name = unique_name("display");
     let o = orchestrator_with_config(
         &[external_server_block(&ExternalServerSpec {
             name: &name,
@@ -431,11 +427,11 @@ async fn list_services_and_show_status_render_the_populated_registry() {
 #[tokio::test]
 async fn reconcile_with_events_kills_running_row_and_reports_cleanup() {
     let port = free_port();
-    let name = unique("reckill");
+    let name = unique_name("reckill");
     let name_id = ServiceName::new(name.as_str());
     let (o, repo) = orchestrator_and_repo(&[internal_server_block(&name, port)], &[&name]).await;
 
-    let disabled = unique("recgone");
+    let disabled = unique_name("recgone");
     let disabled_id = ServiceName::new(disabled.as_str());
     repo.create_service(CreateServiceInput {
         name: &disabled_id,

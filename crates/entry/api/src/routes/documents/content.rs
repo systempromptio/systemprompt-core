@@ -5,7 +5,8 @@
 //! hash in `x-document-content-sha256`: a matching `If-None-Match` is `304`,
 //! a single `Range` is `206` (unless a stale `If-Range` asks for the whole
 //! body). A read with `format=pdf` answers the revision rendered as PDF,
-//! whole, with the rendering's hash as its `ETag`.
+//! whole, with the rendering's hash as its `ETag`; a build without the `pdf`
+//! feature refuses it as an unsupported operation.
 //! Every body is served as user content (`nosniff`, a sandbox CSP).
 //! A write names its base revision in `If-Match`; a base that is no longer
 //! the head answers `409` with both.
@@ -21,7 +22,7 @@ use axum::response::{IntoResponse, Response};
 use serde::Deserialize;
 use systemprompt_files::documents::DocumentsError;
 use systemprompt_files::documents::blob_store::BlobStoreError;
-use systemprompt_files::documents::pdf::PDF_MIME_TYPE;
+use systemprompt_files::documents::codecs::file::PDF_MIME_TYPE;
 use systemprompt_files::documents::service::StreamRequest;
 use systemprompt_identifiers::{ContentHash, DocumentId, DocumentRevisionId};
 use systemprompt_models::RequestContext;

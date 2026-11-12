@@ -15,9 +15,12 @@ use chrono::Utc;
 use futures::future::join_all;
 use sha2::{Digest, Sha256};
 use std::sync::Arc;
-use systemprompt_identifiers::{AuthorizationCode, ClientId, RefreshTokenId, UserId};
+use systemprompt_identifiers::{
+    AuthorizationCode, ClientId, RefreshTokenFamilyId, RefreshTokenId, UserId,
+};
 use systemprompt_oauth::repository::{
-    AuthCodeParams, ClientRepository, CreateClientParams, RefreshTokenParams,
+    AuthCodeParams, AuthCodeRedemption, ClientRepository, CreateClientParams, RefreshTokenLineage,
+    RefreshTokenParams,
 };
 use uuid::Uuid;
 
@@ -105,8 +108,17 @@ async fn test_concurrent_auth_code_exchange_admits_exactly_one() {
         let code = code.clone();
         let client_id = client_id.clone();
         handles.push(tokio::spawn(async move {
-            repo.validate_authorization_code(&code, &client_id, redirect, verifier)
-                .await
+            repo.validate_authorization_code(AuthCodeRedemption {
+                code: &code,
+                client_id: &client_id,
+                redirect_uri: redirect,
+                code_verifier: verifier,
+                refresh_token_id: &systemprompt_identifiers::RefreshTokenId::new(format!(
+                    "rt-{}",
+                    uuid::Uuid::new_v4()
+                )),
+            })
+            .await
         }));
     }
     let results = join_all(handles).await;
@@ -176,7 +188,16 @@ async fn test_auth_code_expiry_rejected_after_ttl() {
     assert_eq!(rows.len(), 1, "exactly one code expected");
 
     let result = repo
-        .validate_authorization_code(&code, &client_id, redirect, verifier)
+        .validate_authorization_code(AuthCodeRedemption {
+            code: &code,
+            client_id: &client_id,
+            redirect_uri: redirect,
+            code_verifier: verifier,
+            refresh_token_id: &systemprompt_identifiers::RefreshTokenId::new(format!(
+                "rt-{}",
+                uuid::Uuid::new_v4()
+            )),
+        })
         .await;
     let err = result.expect_err("expired code must be rejected");
     assert!(err.to_string().contains("Invalid authorization code"));
@@ -201,9 +222,18 @@ async fn test_refresh_token_replay_revokes_family() {
     let expires_at = Utc::now().timestamp() + 7 * 24 * 60 * 60;
 
     let r1 = test_token_id();
-    repo.store_refresh_token(
-        RefreshTokenParams::builder(&r1, &client_id, &user_id, "openid", expires_at).build(),
-    )
+    repo.store_refresh_token(RefreshTokenParams {
+        token_id: &r1,
+        client_id: &client_id,
+        user_id: &user_id,
+        scope: "openid",
+        expires_at,
+        resource: None,
+        lineage: RefreshTokenLineage::Family(&RefreshTokenFamilyId::new(format!(
+            "fam-{}",
+            uuid::Uuid::new_v4()
+        ))),
+    })
     .await
     .expect("store r1");
 
@@ -214,11 +244,15 @@ async fn test_refresh_token_replay_revokes_family() {
     let family = consumed.family_id.clone();
 
     let r2 = test_token_id();
-    repo.store_refresh_token(
-        RefreshTokenParams::builder(&r2, &client_id, &user_id, "openid", expires_at)
-            .with_family(family.as_str())
-            .build(),
-    )
+    repo.store_refresh_token(RefreshTokenParams {
+        token_id: &r2,
+        client_id: &client_id,
+        user_id: &user_id,
+        scope: "openid",
+        expires_at,
+        resource: None,
+        lineage: RefreshTokenLineage::Family(&family),
+    })
     .await
     .expect("store r2");
 
@@ -267,9 +301,18 @@ async fn test_concurrent_refresh_rotation_admits_exactly_one() {
     let expires_at = Utc::now().timestamp() + 7 * 24 * 60 * 60;
 
     let r1 = test_token_id();
-    repo.store_refresh_token(
-        RefreshTokenParams::builder(&r1, &client_id, &user_id, "openid", expires_at).build(),
-    )
+    repo.store_refresh_token(RefreshTokenParams {
+        token_id: &r1,
+        client_id: &client_id,
+        user_id: &user_id,
+        scope: "openid",
+        expires_at,
+        resource: None,
+        lineage: RefreshTokenLineage::Family(&RefreshTokenFamilyId::new(format!(
+            "fam-{}",
+            uuid::Uuid::new_v4()
+        ))),
+    })
     .await
     .expect("store r1");
 
@@ -353,17 +396,30 @@ async fn test_concurrent_pkce_verifier_mismatch_never_admits_wrong_verifier() {
     let client_b = client_id.clone();
     let h_correct = tokio::spawn(async move {
         repo_correct
-            .validate_authorization_code(&code_a, &client_a, redirect, verifier)
+            .validate_authorization_code(AuthCodeRedemption {
+                code: &code_a,
+                client_id: &client_a,
+                redirect_uri: redirect,
+                code_verifier: verifier,
+                refresh_token_id: &systemprompt_identifiers::RefreshTokenId::new(format!(
+                    "rt-{}",
+                    uuid::Uuid::new_v4()
+                )),
+            })
             .await
     });
     let h_wrong = tokio::spawn(async move {
         repo_wrong
-            .validate_authorization_code(
-                &code_b,
-                &client_b,
-                redirect,
-                "totally_wrong_verifier_xxxxxxxxxxxxxxxxxxxxxxxxxxx",
-            )
+            .validate_authorization_code(AuthCodeRedemption {
+                code: &code_b,
+                client_id: &client_b,
+                redirect_uri: redirect,
+                code_verifier: "totally_wrong_verifier_xxxxxxxxxxxxxxxxxxxxxxxxxxx",
+                refresh_token_id: &systemprompt_identifiers::RefreshTokenId::new(format!(
+                    "rt-{}",
+                    uuid::Uuid::new_v4()
+                )),
+            })
             .await
     });
 

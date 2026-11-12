@@ -26,6 +26,7 @@ use systemprompt_traits::BoxedSource;
 use crate::models::a2a::jsonrpc::NumberOrString;
 use crate::models::a2a::protocol::SendMessageParams;
 use crate::models::a2a::{A2aRequestParams, A2aResponse, SendMessageResult, Task, TaskState};
+use crate::repository::OwnedTask;
 use crate::repository::task::TaskRepository;
 use crate::services::a2a_server::errors::{JsonRpcErrorBuilder, JsonRpcErrorResponse};
 use crate::services::a2a_server::handlers::state::AgentHandlerState;
@@ -33,7 +34,7 @@ use crate::services::a2a_server::processing::message::MessageHandler;
 use crate::services::shared::AgentServiceError;
 
 use super::list_tasks::{ListTasksError, list_caller_tasks, trim_history};
-use super::validation::{ContextValidationError, validate_message_context, validate_task_owner};
+use super::validation::{ContextValidationError, owned_task_for, validate_message_context};
 
 const CANCEL_SETTLE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(3);
 
@@ -148,8 +149,8 @@ pub(super) async fn handle_non_streaming_request(
         A2aRequestParams::GetTask(params) => {
             tracing::info!(task_id = %params.id, "Handling GetTask request");
             let task_repo = &state.agent_state.repositories().tasks;
-            validate_task_owner(task_repo, &params.id, context.user_id()).await?;
-            let mut task = owned_task(task_repo, &params.id).await?;
+            let owned = owned_task_for(task_repo, &params.id, context.user_id()).await?;
+            let mut task = read_owned_task(task_repo, &owned).await?;
             trim_history(&mut task, params.history_length);
             Ok(A2aResponse::get_task(task, id))
         },
@@ -222,40 +223,43 @@ async fn cancel_task(
     context: &RequestContext,
 ) -> Result<Task, RequestFailure> {
     let task_repo = &state.agent_state.repositories().tasks;
-    validate_task_owner(task_repo, task_id, context.user_id()).await?;
+    let owned = owned_task_for(task_repo, task_id, context.user_id()).await?;
 
-    let task = owned_task(task_repo, task_id).await?;
+    let task = read_owned_task(task_repo, &owned).await?;
     if task.status.state.is_terminal() {
         return Err(RequestFailure::TaskNotCancelable(task_id.clone()));
     }
 
-    if super::agent_run::cancel_run(task_id, state).await? {
-        return owned_task(task_repo, task_id).await;
+    if super::agent_run::cancel_run(&owned, state).await? {
+        return read_owned_task(task_repo, &owned).await;
     }
 
-    if state.active_tasks.cancel(task_id) {
+    if state.active_tasks.cancel(owned.task_id()) {
         tracing::info!(task_id = %task_id, "Cancellation signalled to the running pipeline");
         if !state
             .active_tasks
-            .wait_until_finished(task_id, CANCEL_SETTLE_TIMEOUT)
+            .wait_until_finished(owned.task_id(), CANCEL_SETTLE_TIMEOUT)
             .await
         {
             tracing::warn!(task_id = %task_id, "Cancelled pipeline did not settle in time");
         }
     } else {
         task_repo
-            .update_task_state(task_id, TaskState::Canceled, &chrono::Utc::now())
+            .update_task_state(&owned, TaskState::Canceled, &chrono::Utc::now())
             .await
             .map_err(|e| RequestFailure::internal("Failed to cancel task", e))?;
     }
 
-    owned_task(task_repo, task_id).await
+    read_owned_task(task_repo, &owned).await
 }
 
-async fn owned_task(task_repo: &TaskRepository, task_id: &TaskId) -> Result<Task, RequestFailure> {
-    match task_repo.find_task(task_id).await {
-        Ok(Some(task)) => Ok(task),
-        Ok(None) => Err(RequestFailure::TaskNotFound(task_id.clone())),
+async fn read_owned_task(
+    task_repo: &TaskRepository,
+    owned: &OwnedTask,
+) -> Result<Task, RequestFailure> {
+    match task_repo.find_owned_task(owned).await {
+        Ok(task) => Ok(task),
+        Err(e) if e.is_not_found() => Err(RequestFailure::TaskNotFound(owned.task_id().clone())),
         Err(e) => Err(RequestFailure::internal("Failed to retrieve task", e)),
     }
 }

@@ -18,11 +18,12 @@ workspace = true
 ignored = ["inventory"]
 
 [dependencies]
+systemprompt-client = { workspace = true }
 systemprompt-catalog-fixtures = { workspace = true }
 async-trait = { workspace = true }
 inventory = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }
-systemprompt-api = { workspace = true, features = ["brain", "collab", "notifications"] }
+systemprompt-api = { workspace = true, features = ["agent-runs", "brain", "bridge", "collab", "notifications", "otel", "pdf", "slack", "teams"] }
 systemprompt-brain = { workspace = true }
 systemprompt-gateway = { workspace = true }
 systemprompt-runtime = { workspace = true, features = ["brain", "engine-loro", "notifications"] }
@@ -46,6 +47,7 @@ systemprompt-content = { workspace = true }
 systemprompt-marketplace = { workspace = true }
 systemprompt-mcp = { workspace = true }
 systemprompt-users = { workspace = true }
+systemprompt-notifications = { workspace = true }
 systemprompt-agent-runs = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["json"] }
@@ -78,3 +80,4 @@ webauthn-rs = { workspace = true }
 webauthn-authenticator-rs = { workspace = true }
 flate2 = { workspace = true }
 tar = { workspace = true }
+systemprompt-test-hack = { version = "0.1", path = "../../common/hack" }

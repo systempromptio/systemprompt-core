@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod list;
+pub mod list;
 pub mod login;
 pub mod login_helpers;
 mod logout;

@@ -107,30 +107,16 @@ async fn a_secrets_document_that_is_absent_names_the_path_it_looked_for() {
 }
 
 #[tokio::test]
-async fn a_subprocess_reports_the_inherited_environment_and_its_present_keys() {
+async fn a_child_marker_and_pepper_in_env_still_report_the_profile_source() {
     fx::set_env("SYSTEMPROMPT_SUBPROCESS", "1");
     fx::set_env("OAUTH_AT_REST_PEPPER", PEPPER);
-    fx::set_env("DATABASE_URL", "postgres://u:p@localhost/db");
-    fx::set_env("MANIFEST_SIGNING_SECRET_SEED", "seed");
-    fx::set_env("ENCRYPTION_MASTER_KEY", "key");
     let (_tree, ctx) = install(
         "secrets:\n  secrets_path: secrets.json\n  source: env\n",
         Some(&secrets_json()),
     );
 
-    let report = run(&ctx).await.expect("the subprocess source resolves");
-    assert_eq!(report.source, "subprocess-env");
-    assert_eq!(report.detail, "inherited from the parent process");
-    assert_eq!(
-        report.keys,
-        vec![
-            "database_url",
-            "encryption_master_key",
-            "manifest_signing_secret_seed",
-            "oauth_at_rest_pepper"
-        ]
-    );
-    assert!(report.missing_required.is_empty());
+    let report = run(&ctx).await.expect("the profile source resolves");
+    assert_eq!(report.source, "file");
 }
 
 #[tokio::test]

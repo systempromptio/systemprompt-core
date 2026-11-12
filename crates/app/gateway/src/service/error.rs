@@ -78,6 +78,21 @@ pub enum GatewayError {
          your profile"
     )]
     PersonalKeyRequired { credential: String },
+    #[error(
+        "credential {credential} is served with the upstream credential your client presents: \
+         send it in `Authorization` and your systemprompt credential in \
+         `x-systemprompt-authorization`"
+    )]
+    CallerCredentialRequired { credential: String },
+    #[error(
+        "model '{model}' is served with the credential your client presents and reaches the \
+         upstream as the request it built: call it on the {wire} API, not as {inbound}"
+    )]
+    CallerFormatMismatch {
+        model: String,
+        inbound: &'static str,
+        wire: String,
+    },
     #[error("gateway dispatch has no authenticated session")]
     MissingSession,
     #[error("gateway {context}")]
@@ -103,12 +118,14 @@ impl GatewayError {
             | Self::Governance(_)
             | Self::PromptRepair(_)
             | Self::Safety(_)
-            | Self::ContextWindow(_) => StatusCode::BAD_REQUEST,
+            | Self::ContextWindow(_)
+            | Self::CallerFormatMismatch { .. } => StatusCode::BAD_REQUEST,
             Self::PolicyUnavailable(_) | Self::GuardUnavailable(_) => {
                 StatusCode::SERVICE_UNAVAILABLE
             },
             Self::Quota(_) => StatusCode::TOO_MANY_REQUESTS,
             Self::GuardForbidden(_) | Self::PersonalKeyRequired { .. } => StatusCode::FORBIDDEN,
+            Self::CallerCredentialRequired { .. } => StatusCode::UNAUTHORIZED,
             Self::ImageFetch(image) if image.caller_fault() => StatusCode::BAD_REQUEST,
             Self::Upstream(upstream) => upstream_status(upstream),
             Self::MissingPricing(_) | Self::NoRoute { .. } | Self::NoAdapter { .. } => {
@@ -156,7 +173,13 @@ pub fn upstream_status(error: &UpstreamError) -> StatusCode {
             408 | 504 => StatusCode::GATEWAY_TIMEOUT,
             _ => StatusCode::BAD_GATEWAY,
         },
-        UpstreamError::Transport { .. } => StatusCode::BAD_GATEWAY,
+        UpstreamError::Relayed { status, .. } => {
+            StatusCode::from_u16(*status).unwrap_or(StatusCode::BAD_GATEWAY)
+        },
+        UpstreamError::Transport { .. } | UpstreamError::UnreadableBody { .. } => {
+            StatusCode::BAD_GATEWAY
+        },
+        UpstreamError::Timeout { .. } => StatusCode::GATEWAY_TIMEOUT,
     }
 }
 

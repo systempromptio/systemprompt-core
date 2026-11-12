@@ -3,13 +3,13 @@
 //! Before the transaction: carry ids forward from the parent (see
 //! `landing_ids`) and check which comment anchors the commit detaches. Inside
 //! it: reserve the created nodes' ids and renumber them, insert the revision
-//! and its ids, claim the op id's acknowledgement, move the head by
-//! compare-and-swap (which also refuses a foreign lock), mark the revision
-//! landed, settle the proposal being accepted, and record the
-//! `document.revision.landed` brain fact. Any refusal rolls the whole
-//! transaction back, so a commit that loses the race leaves no revision behind.
-//! A proposal's revision is stored the same way without moving the head, and
-//! stays unlanded.
+//! and its ids, admit the images it may serve (see `media_admission`), claim
+//! the op id's acknowledgement, move the head by compare-and-swap (which also
+//! refuses a foreign lock), mark the revision landed, settle the proposal being
+//! accepted, and record the `document.revision.landed` brain fact. Any refusal
+//! rolls the whole transaction back, so a commit that loses the race leaves no
+//! revision behind. A proposal's revision is stored the same way without moving
+//! the head, and stays unlanded.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -29,8 +29,8 @@ use crate::documents::models::{
 };
 use crate::documents::nodes::{CarryHints, created_nodes, with_ids, writer_tag, written_nodes};
 use crate::documents::repository::{
-    DocumentNodeIdRepository, DocumentProposalRepository, DocumentRepository,
-    DocumentRevisionRepository, DocumentWriteAckRepository, HeadMove,
+    DocumentMediaRepository, DocumentNodeIdRepository, DocumentProposalRepository,
+    DocumentRepository, DocumentRevisionRepository, DocumentWriteAckRepository, HeadMove,
 };
 
 pub(super) struct Prepared {
@@ -40,6 +40,7 @@ pub(super) struct Prepared {
     pub(super) hints: CarryHints,
     pub(super) merged_from: Option<DocumentRevisionId>,
     pub(super) applied: usize,
+    pub(super) media: Vec<String>,
 }
 
 #[derive(Clone, Copy)]
@@ -85,6 +86,25 @@ pub(super) enum LandResult {
 
 fn sql(error: sqlx::Error) -> DocumentsError {
     DocumentsError::Repository(RepositoryError::from(error))
+}
+
+async fn admit_media_in(
+    tx: &mut sqlx::PgConnection,
+    document: &DocumentId,
+    media: &[String],
+    author: &UserId,
+) -> Result<(), DocumentsError> {
+    let collected = DocumentMediaRepository::admit_in(tx, document, media, author).await?;
+    if collected.is_empty() {
+        return Ok(());
+    }
+    Err(DocumentsError::ContentRefused {
+        code: "media_collected",
+        detail: format!(
+            "image(s) {} were removed from storage before the revision landed; upload them again",
+            collected.join(", ")
+        ),
+    })
 }
 
 async fn claim_op(
@@ -135,6 +155,7 @@ impl DocumentService {
             hints,
             merged_from,
             applied,
+            media,
         } = prepared;
         let carried = carry_live(next, previous, hints).await?;
         let detached = self.detached_by(document, &carried, &placement).await?;
@@ -153,6 +174,7 @@ impl DocumentService {
         let parent = revision.parent_revision_id.clone();
         let mut revision = DocumentRevisionRepository::insert_in(&mut tx, revision).await?;
         DocumentNodeIdRepository::insert(&mut tx, &document.id, &revision.id, &entries).await?;
+        admit_media_in(&mut tx, &document.id, &media, &revision.author_user_id).await?;
         let ack = WriteAck {
             revision_id: revision.id.clone(),
             parent_revision_id: parent.clone(),

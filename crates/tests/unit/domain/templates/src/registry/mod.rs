@@ -1,5 +1,6 @@
 mod extras;
 mod initialization;
+mod json_helper;
 mod lifecycle;
 mod loader_dispatch;
 mod lookup;

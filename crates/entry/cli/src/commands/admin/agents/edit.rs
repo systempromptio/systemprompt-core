@@ -56,7 +56,9 @@ pub(super) fn execute(args: &EditArgs, ctx: &CommandContext) -> Result<CommandOu
     let prompter = ctx.prompter();
     let services_config = ctx
         .boot()?
-        .load_services_config()
+        .config_loader()
+        .verbatim()
+        .load()
         .context("Failed to load services configuration")?;
 
     let name = resolve_required(args.name.clone(), "name", config, || {

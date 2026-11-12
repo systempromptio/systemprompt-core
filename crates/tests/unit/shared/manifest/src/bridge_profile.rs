@@ -46,12 +46,14 @@ fn a_personal_model_is_servable_only_once_the_member_stored_a_key() {
     let no_key = CredentialFacts {
         secret_present: &|_| true,
         personal_keys: &none,
+        presents_own_credential: false,
     };
     assert!(!is_model_servable(&catalog, "go-kimi-k3", &no_key));
     let stored: BTreeSet<String> = ["opencode-go".to_owned()].into_iter().collect();
     let with_key = CredentialFacts {
         secret_present: &|_| false,
         personal_keys: &stored,
+        presents_own_credential: false,
     };
     assert!(is_model_servable(&catalog, "go-kimi-k3", &with_key));
     assert!(
@@ -79,6 +81,7 @@ fn the_profile_lists_servable_advertised_models_with_limits() {
     let facts = CredentialFacts {
         secret_present: &|secret| secret == "vertex",
         personal_keys: &none,
+        presents_own_credential: false,
     };
     let profile = build(params(&catalog), &facts);
     assert_eq!(
@@ -101,6 +104,7 @@ fn the_profile_lists_servable_advertised_models_with_limits() {
     let missing = CredentialFacts {
         secret_present: &|_| false,
         personal_keys: &none,
+        presents_own_credential: false,
     };
     let profile = build(params(&catalog), &missing);
     assert!(profile.models.is_empty());
@@ -117,6 +121,7 @@ fn a_model_with_no_clients_is_never_in_the_profile() {
     let facts = CredentialFacts {
         secret_present: &|_| true,
         personal_keys: &none,
+        presents_own_credential: false,
     };
     let profile = build(params(&catalog), &facts);
     assert_eq!(profile.models, vec!["claude-sonnet-5"]);

@@ -20,8 +20,12 @@ crate::define_id!(AccessTokenId, checked, |value| {
 crate::define_id!(AuthorizationCode, checked, |value| {
     crate::macros::validate_non_empty("AuthorizationCode", value)
 });
-crate::define_id!(ChallengeId);
-crate::define_id!(RefreshTokenFamilyId);
+crate::define_id!(ChallengeId, checked, |value| {
+    crate::macros::validate_external_id("ChallengeId", value)
+});
+crate::define_id!(RefreshTokenFamilyId, checked, |value| {
+    crate::macros::validate_external_id("RefreshTokenFamilyId", value)
+});
 crate::define_id!(SsoProviderId);
 
 impl AccessTokenId {

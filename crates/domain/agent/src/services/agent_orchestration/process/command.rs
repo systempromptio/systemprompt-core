@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use systemprompt_identifiers::{AgentName, ServiceName};
 use systemprompt_loader::subprocess::ChildKind;
-use systemprompt_manifest::{Config, Secrets};
+use systemprompt_manifest::Config;
 use systemprompt_models::CliPaths;
 
 use crate::services::agent_orchestration::{OrchestrationError, OrchestrationResult};
@@ -63,7 +63,7 @@ pub struct BuildAgentCommandParams<'a> {
     pub agent_name: &'a AgentName,
     pub port: u16,
     pub profile_path: &'a str,
-    pub secrets: &'a Secrets,
+    pub secrets_env: &'a [(String, String)],
     pub config: &'a Config,
     pub log_file: File,
 }
@@ -72,7 +72,7 @@ pub struct AgentEnvironmentParams<'a> {
     pub port: u16,
     pub profile_path: &'a str,
     pub database_type: &'a str,
-    pub secrets: &'a Secrets,
+    pub secrets_env: &'a [(String, String)],
 }
 
 impl std::fmt::Debug for AgentEnvironmentParams<'_> {
@@ -93,14 +93,14 @@ pub fn build_agent_environment(
         port,
         profile_path,
         database_type,
-        secrets,
+        secrets_env,
     } = *params;
     let mut env = systemprompt_models::subprocess::inherited_parent_env(lookup);
 
     env.push(("SYSTEMPROMPT_PROFILE".to_owned(), profile_path.to_owned()));
     env.push(("AGENT_PORT".to_owned(), port.to_string()));
     env.push(("DATABASE_TYPE".to_owned(), database_type.to_owned()));
-    env.extend(secrets.to_subprocess_env());
+    env.extend(secrets_env.iter().cloned());
 
     env
 }
@@ -111,7 +111,7 @@ pub fn build_agent_command(params: BuildAgentCommandParams<'_>) -> Command {
         agent_name,
         port,
         profile_path,
-        secrets,
+        secrets_env,
         config,
         log_file,
     } = params;
@@ -130,7 +130,7 @@ pub fn build_agent_command(params: BuildAgentCommandParams<'_>) -> Command {
         port,
         profile_path,
         database_type: &config.database_type,
-        secrets,
+        secrets_env,
     };
     for (key, value) in build_agent_environment(&environment, |name| std::env::var(name).ok()) {
         command.env(key, value);

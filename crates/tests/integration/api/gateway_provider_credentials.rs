@@ -86,7 +86,7 @@ gateway:
     })
 }
 
-async fn app() -> anyhow::Result<Router> {
+pub(super) async fn app() -> anyhow::Result<Router> {
     let b = boot();
     let pool = test_db_pool().await;
     let ctx = test_app_context_on(b, &pool);

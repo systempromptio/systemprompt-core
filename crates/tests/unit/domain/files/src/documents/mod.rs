@@ -25,6 +25,7 @@ mod codecs_text;
 mod codecs_xlsx;
 mod codecs_xlsx_calc;
 mod codecs_xlsx_paths;
+mod codecs_xml_depth;
 mod collab_deck_ops;
 mod collab_model;
 mod collab_rich_ops;

@@ -1,6 +1,7 @@
 //! The read side's visibility: the same per-fact check recall applies,
 //! for the caller's actor and project. A fact the caller may not see is
-//! reported as not found, so its existence does not leak. A service built
+//! reported as not found, so its existence does not leak; a governance
+//! action refused on such a fact is reported the same way. A service built
 //! without a source access check reads no sourced fact.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -14,12 +15,13 @@ use systemprompt_extension::brain::{
 };
 use systemprompt_identifiers::UserId;
 use systemprompt_models::auth::RequestActor;
-use systemprompt_models::brain::BrainFact;
+use systemprompt_models::brain::{BrainFact, WorkflowProfileDecl};
 use systemprompt_models::notifications::SubjectRef;
 use systemprompt_models::origin::ClientKind;
 
-use super::{BrainCaller, BrainService};
+use super::{BrainCaller, BrainService, authority};
 use crate::error::{BrainError, BrainResult};
+use crate::recall::held::HeldKeys;
 use crate::recall::visible::{Verdict, Visibility};
 
 #[derive(Debug, Clone, Copy)]
@@ -56,6 +58,16 @@ impl BrainService {
             .with_topics(declared.topics.clone()))
     }
 
+    pub(super) async fn retain_visible(
+        &self,
+        caller: &BrainCaller,
+        facts: Vec<BrainFact>,
+        held: HeldKeys,
+    ) -> BrainResult<Vec<BrainFact>> {
+        let visibility = self.visibility().await?.with_held(held);
+        Ok(visibility.retain_visible(facts, &principal(caller)).await)
+    }
+
     pub(super) async fn require_visible(
         &self,
         caller: &BrainCaller,
@@ -68,19 +80,19 @@ impl BrainService {
         }
     }
 
-    pub(super) async fn only_visible(
+    pub(super) async fn may_govern_visible(
         &self,
         caller: &BrainCaller,
-        facts: Vec<BrainFact>,
-    ) -> BrainResult<Vec<BrainFact>> {
+        fact: &BrainFact,
+        workflows: &[WorkflowProfileDecl],
+    ) -> BrainResult<()> {
+        let Err(refusal) = authority::may_govern(caller, &fact.scope, &fact.kind, workflows) else {
+            return Ok(());
+        };
         let visibility = self.visibility().await?;
-        let who = principal(caller);
-        let verdicts =
-            futures::future::join_all(facts.iter().map(|fact| visibility.check(fact, &who))).await;
-        Ok(facts
-            .into_iter()
-            .zip(verdicts)
-            .filter_map(|(fact, verdict)| (verdict == Verdict::Visible).then_some(fact))
-            .collect())
+        match visibility.check(fact, &principal(caller)).await {
+            Verdict::Visible => Err(refusal),
+            Verdict::Withheld(_) => Err(BrainError::NotFound(fact.id.clone())),
+        }
     }
 }

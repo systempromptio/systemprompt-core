@@ -12,6 +12,7 @@ use std::path::Path;
 use systemprompt_cloud::constants::container;
 use systemprompt_config::write_private_atomic;
 use systemprompt_identifiers::ProfileName;
+use systemprompt_loader::subprocess::ForegroundChildren;
 use systemprompt_logging::CliService;
 use systemprompt_manifest::Profile;
 use systemprompt_models::CliPaths;
@@ -219,7 +220,7 @@ pub async fn validate_connection(db_url: &str) -> bool {
     matches!(result, Ok(Ok(_)))
 }
 
-pub fn run_migrations_cmd(profile_path: &Path) -> Result<()> {
+pub fn run_migrations_cmd(profile_path: &Path, children: &ForegroundChildren) -> Result<()> {
     use std::process::Command;
 
     CliService::info("Running database migrations...");
@@ -227,11 +228,10 @@ pub fn run_migrations_cmd(profile_path: &Path) -> Result<()> {
     let current_exe = std::env::current_exe().context("Failed to get executable path")?;
     let profile_path_str = profile_path.to_string_lossy();
 
-    let output = Command::new(&current_exe)
-        .args(CliPaths::db_migrate_args())
-        .env("SYSTEMPROMPT_PROFILE", profile_path_str.as_ref())
-        .output()
-        .context("Failed to run migrations")?;
+    let mut cmd = Command::new(&current_exe);
+    cmd.args(CliPaths::db_migrate_args())
+        .env("SYSTEMPROMPT_PROFILE", profile_path_str.as_ref());
+    let output = children.output(cmd).context("Failed to run migrations")?;
 
     if output.status.success() {
         CliService::success("Migrations completed");

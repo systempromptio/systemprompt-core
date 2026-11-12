@@ -125,6 +125,7 @@ impl ApiPaths {
     pub const DOCUMENTS: &'static str = "/api/v1/documents";
     pub const DOCUMENT_FOLDERS: &'static str = "/api/v1/document-folders";
     pub const UPLOADS: &'static str = "/api/v1/uploads";
+    pub const INTERNAL_LINKS: &'static str = "/api/v1/internal/links";
     pub const NOTIFICATIONS: &'static str = "/api/v1/notifications";
     pub const NOTIFICATIONS_SEEN: &'static str = "/api/v1/notifications/seen";
     pub const ADMIN_NOTIFICATIONS: &'static str = "/api/v1/admin/notifications";

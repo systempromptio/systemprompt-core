@@ -42,7 +42,7 @@ pub(super) async fn get_session_for_behavioral_analysis(
         SessionBehavioralData,
         r#"
         SELECT
-            session_id,
+            session_id as "session_id: SessionId",
             fingerprint_hash,
             user_agent,
             request_count,

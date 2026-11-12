@@ -217,12 +217,12 @@ fn a_manifest_version_not_newer_than_the_last_applied_one_is_rejected() {
 }
 
 #[test]
-fn a_not_before_outside_the_skew_window_is_rejected() {
+fn a_not_before_ahead_of_the_skew_window_is_rejected() {
     let now = chrono::Utc::now();
-    let stale = now - chrono::Duration::hours(2);
-    let (_server, sandbox) = serve(&manifest(now, stale));
+    let ahead = now + chrono::Duration::hours(2);
+    let (_server, sandbox) = serve(&manifest(now, ahead));
 
-    let err = run_gated(&sandbox).expect_err("stale not_before must be rejected");
+    let err = run_gated(&sandbox).expect_err("a future not_before must be rejected");
     assert!(
         err.contains("clock skew rejected"),
         "error names the skew gate: {err}"

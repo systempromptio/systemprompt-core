@@ -95,7 +95,6 @@ pub fn cli_command_bare() -> Command {
     c.env("MANIFEST_SIGNING_SECRET_SEED", TEST_MANIFEST_SIGNING_SEED);
     c.env("SYSTEMPROMPT_CUSTOM_SECRETS", "encryption_master_key");
     c.env("encryption_master_key", TEST_ENCRYPTION_MASTER_KEY);
-    c.env("SYSTEMPROMPT_SUBPROCESS", "1");
     c.arg("--non-interactive");
     c.arg("--no-color");
     c.timeout(std::time::Duration::from_secs(120));
@@ -111,7 +110,6 @@ pub fn cli_command() -> Command {
     c.env("MANIFEST_SIGNING_SECRET_SEED", TEST_MANIFEST_SIGNING_SEED);
     c.env("SYSTEMPROMPT_CUSTOM_SECRETS", "encryption_master_key");
     c.env("encryption_master_key", TEST_ENCRYPTION_MASTER_KEY);
-    c.env("SYSTEMPROMPT_SUBPROCESS", "1");
     c.arg("--non-interactive");
     c.arg("--no-color");
     c.arg("--profile").arg(&fixture.profile_path);
@@ -119,7 +117,13 @@ pub fn cli_command() -> Command {
     c
 }
 
+pub fn announce(flags: &[&str], args: &[&str]) {
+    let line: Vec<&str> = flags.iter().chain(args).copied().collect();
+    eprintln!("$ systemprompt {}", line.join(" "));
+}
+
 pub fn run(args: &[&str]) {
+    announce(&[], args);
     let mut cmd = cli_command();
     cmd.args(args);
     let _ = cmd.assert();
@@ -128,6 +132,7 @@ pub fn run(args: &[&str]) {
 pub fn run_with_formats(args: &[&str]) {
     run(args);
     for format in ["--json", "--yaml"] {
+        announce(&[format], args);
         let mut cmd = cli_command();
         cmd.arg(format);
         cmd.args(args);
@@ -242,7 +247,6 @@ fn bootstrap_system_admin(fixture: &FullBootstrap) {
     c.env("MANIFEST_SIGNING_SECRET_SEED", TEST_MANIFEST_SIGNING_SEED);
     c.env("SYSTEMPROMPT_CUSTOM_SECRETS", "encryption_master_key");
     c.env("encryption_master_key", TEST_ENCRYPTION_MASTER_KEY);
-    c.env("SYSTEMPROMPT_SUBPROCESS", "1");
     c.arg("--non-interactive");
     c.arg("--no-color");
     c.arg("--profile").arg(&fixture.profile_path);
@@ -553,6 +557,9 @@ rate_limits:
   burst_multiplier: 3
 system_admin:
   username: testadmin
+secrets:
+  source: env
+  secrets_path: fixture-absent-secrets.json
 runtime:
   environment: development
   log_level: quiet

@@ -11,7 +11,7 @@ use chrono::{Duration, Utc};
 use systemprompt_identifiers::BrainFactId;
 use systemprompt_models::brain::{FactRevision, render_statement};
 
-use super::{BrainCaller, BrainService, authority};
+use super::{BrainCaller, BrainService};
 use crate::defaults::SchemaValidator;
 use crate::error::{BrainError, BrainResult};
 use crate::models::{FactChange, merge_fields};
@@ -101,7 +101,8 @@ impl BrainService {
         let declared = self.declared.load().await?;
         let mut tx = self.repos.write_pool().begin().await?;
         let fact = Self::fact_on(&mut tx, id).await?;
-        authority::may_govern(caller, &fact.scope, &fact.kind, &declared.workflows)?;
+        self.may_govern_visible(caller, &fact, &declared.workflows)
+            .await?;
         FactRepository::erase(&mut tx, id, Some(&caller.user_id)).await?;
         tx.commit().await?;
         tracing::info!(fact_id = %id, actor = %caller.user_id, "Brain fact erased");

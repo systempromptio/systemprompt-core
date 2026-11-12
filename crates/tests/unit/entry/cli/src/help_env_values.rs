@@ -1,9 +1,8 @@
 //! The env-binding help surface: clap interpolates the *live* value of an
 //! env-bound argument into `--help` unless `hide_env_values` is set.
 //!
-//! A prod gateway scan caught a real Google API key that reached a model this
-//! way — an agent ran `admin setup --help` inside a process whose environment
-//! our own `Secrets::to_subprocess_env` had populated. These walk the built
+//! A spawned child's environment carries the secrets granted to it, so a
+//! `--help` run inside one would print them. These walk the built
 //! command tree rather than a hand-written list, so an argument added later
 //! cannot reintroduce the leak silently.
 

@@ -13,7 +13,9 @@
 
 use std::sync::Arc;
 
+use systemprompt_config::SecretsService;
 use systemprompt_security::credential::TokenCache;
+use systemprompt_traits::SecretLookup;
 
 use systemprompt_ai::{AiService, AiServiceProviders};
 use systemprompt_database::DbPool;
@@ -33,12 +35,13 @@ pub(super) fn build_ai_service(
 ) -> (Option<Arc<AiService>>, Arc<TokenCache>) {
     let services = services_state.config();
     let connector_tokens: Arc<TokenCache> = Arc::default();
+    let secrets: Arc<dyn SecretLookup> = Arc::<SecretsService>::clone(boot.secrets());
     let tool_provider = Arc::new(McpToolProvider::new(
         Arc::clone(database),
         mcp_registry.clone(),
         &services.ai.mcp.resilience,
         Arc::clone(&connector_tokens),
-        Arc::clone(boot.secrets()),
+        Arc::clone(&secrets),
     ));
     let session_provider = Arc::new(UsersAiSessionProvider::from_repository(
         SessionRepository::new(database),
@@ -54,10 +57,10 @@ pub(super) fn build_ai_service(
             tools: tool_provider,
             sessions: session_provider,
             provider_tokens: Arc::clone(&connector_tokens),
-            secrets: Arc::clone(boot.secrets()),
+            secrets,
             session_ttl_seconds: mcp_registry.config().jwt_access_token_expiration,
         },
-        &repositories.ai,
+        &repositories.ai.request_audit(),
     ) {
         Ok(service) => (
             Some(Arc::new(service.with_context_materializer(materializer))),

@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.81.0] - 2026-11-12
+
+### Breaking
+
+- Task, message and artifact access goes through owner-checked handles (`OwnedTask`, `OwnedArtifact`, `OwnedContext`, `RuntimeTask`); the `TaskId`-keyed repository functions, `MessageService` and their parameter structs are removed. Migrate by resolving an owned handle before reading or writing.
+- `AgentAuth.signing_keys` is replaced by `verification_keys`, `SpawnEnvironment` gains `verification_keys` and `services`, and `BuildAgentCommandParams` and `AgentEnvironmentParams` gain `secrets_env`. Migrate by passing `signing_keys().keyring()`.
+- An agent receives only the database URLs, the verification keys, its model's provider credentials and the secrets granted under `secrets:`. Migrate by granting every custom secret its tools read.
+- `AgentServiceError` gains `PlanTooLarge`. Migrate by adding the match arm.
+
 ## [0.77.0] - 2026-11-01
 
 ### Changed

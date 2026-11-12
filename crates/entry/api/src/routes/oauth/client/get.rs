@@ -10,6 +10,7 @@ use tracing::instrument;
 use super::super::OAuthHttpError;
 use super::super::extractors::OAuthRepo;
 use super::super::responses::single_response;
+use super::ownership::managed_client;
 use systemprompt_models::RequestContext;
 use systemprompt_oauth::clients::api::OAuthClientResponse;
 
@@ -20,12 +21,7 @@ pub async fn get_client(
     Path(client_id): Path<String>,
 ) -> Result<Response, OAuthHttpError> {
     let client_id = systemprompt_identifiers::ClientId::try_new(client_id)?;
-    let client = repository
-        .find_client_by_id(&client_id)
-        .await?
-        .ok_or_else(|| {
-            OAuthHttpError::not_found(format!("Client with ID '{client_id}' not found"))
-        })?;
+    let client = managed_client(&repository, &req_ctx, &client_id).await?;
 
     tracing::info!(
         client_id = %client_id,

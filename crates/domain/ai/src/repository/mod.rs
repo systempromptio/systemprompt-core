@@ -60,6 +60,24 @@ pub struct AiRepositories {
     pub user_provider_credentials: UserProviderCredentialRepository,
 }
 
+/// The two stores an [`AiService`](crate::AiService) writes its request
+/// audit to; they need no at-rest cipher, so a spawned agent holds them
+/// without the encryption master key.
+#[derive(Debug, Clone)]
+pub struct AiRequestRepositories {
+    pub requests: AiRequestRepository,
+    pub payloads: AiRequestPayloadRepository,
+}
+
+impl AiRequestRepositories {
+    pub fn new(db: &DbPool) -> Self {
+        Self {
+            requests: AiRequestRepository::new(db),
+            payloads: AiRequestPayloadRepository::new(db),
+        }
+    }
+}
+
 impl AiRepositories {
     pub fn new(db: &DbPool, cipher: AtRestCipher) -> Self {
         Self {
@@ -71,6 +89,14 @@ impl AiRepositories {
             safety_findings: AiSafetyFindingRepository::new(db),
             thought_signatures: AiThoughtSignatureRepository::new(db),
             user_provider_credentials: UserProviderCredentialRepository::new(db, cipher),
+        }
+    }
+
+    #[must_use]
+    pub fn request_audit(&self) -> AiRequestRepositories {
+        AiRequestRepositories {
+            requests: self.requests.clone(),
+            payloads: self.payloads.clone(),
         }
     }
 }

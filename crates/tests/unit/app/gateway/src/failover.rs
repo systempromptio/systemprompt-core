@@ -8,9 +8,12 @@ use std::time::Duration;
 use systemprompt_gateway::protocol::outbound::UpstreamError;
 use systemprompt_gateway::service::GatewayError;
 use systemprompt_gateway::service::failover::{
-    FailoverReason, ProviderBreakers, failover_reason, is_failover_status, plan_attempts,
+    DeploymentLoad, FailoverReason, ProviderBreakers, REGISTRY_CAP, breaker_key, failover_reason,
+    is_failover_status, plan_attempts,
 };
+use systemprompt_identifiers::UserId;
 use systemprompt_manifest::services::ResilienceSettings;
+use systemprompt_manifest::services::catalog::ResolvedHop;
 
 fn status_error(status: u16) -> GatewayError {
     GatewayError::Upstream(UpstreamError::Status {
@@ -131,4 +134,85 @@ fn a_provider_trips_after_its_failure_threshold_and_stays_isolated() {
         plan_attempts(&[primary.acquire().is_err(), fallback.acquire().is_err()]),
         vec![1]
     );
+}
+
+fn billed_hop(kind: systemprompt_manifest::services::catalog::CredentialKind) -> ResolvedHop {
+    let mut hop = systemprompt_catalog_fixtures::hop(
+        "shared-endpoint",
+        systemprompt_wire::WireProtocol::Anthropic,
+        "https://upstream.invalid/v1",
+        "m",
+        "upstream-1",
+    );
+    hop.credential.kind = kind;
+    hop
+}
+
+#[test]
+fn a_member_paid_hop_is_keyed_per_member_and_a_platform_hop_per_endpoint() {
+    use systemprompt_manifest::services::catalog::CredentialKind;
+    let (ann, ben) = (UserId::new("ann"), UserId::new("ben"));
+    let platform = billed_hop(CredentialKind::Platform);
+    assert_eq!(breaker_key(&platform, &ann), breaker_key(&platform, &ben));
+    for kind in [CredentialKind::Caller, CredentialKind::Personal] {
+        let hop = billed_hop(kind);
+        assert_ne!(breaker_key(&hop, &ann), breaker_key(&hop, &ben), "{kind:?}");
+        assert_eq!(breaker_key(&hop, &ann), breaker_key(&hop, &ann), "{kind:?}");
+        assert_ne!(breaker_key(&hop, &ann), breaker_key(&platform, &ann));
+    }
+}
+
+#[test]
+fn one_members_tripped_breaker_leaves_the_next_member_closed() {
+    use systemprompt_manifest::services::catalog::CredentialKind;
+    let breakers = ProviderBreakers::new();
+    let settings = ResilienceSettings {
+        breaker_failure_threshold: 5,
+        breaker_open_cooldown_ms: 60_000,
+        ..ResilienceSettings::default()
+    };
+    let hop = billed_hop(CredentialKind::Caller);
+    let ann = breakers.for_endpoint(&breaker_key(&hop, &UserId::new("ann")), &settings);
+    for _ in 0..5 {
+        ann.acquire().expect("closed until the threshold").failure();
+    }
+    assert!(ann.is_open(), "ann's five 429s open ann's circuit");
+    let ben = breakers.for_endpoint(&breaker_key(&hop, &UserId::new("ben")), &settings);
+    assert!(!ben.is_open());
+    assert!(
+        ben.acquire().is_ok(),
+        "ben is admitted on the same endpoint"
+    );
+}
+
+#[test]
+fn the_registries_drop_idle_member_entries_past_the_cap() {
+    let breakers = ProviderBreakers::new();
+    let load = DeploymentLoad::default();
+    let settings = ResilienceSettings {
+        breaker_failure_threshold: 1,
+        breaker_open_cooldown_ms: 60_000,
+        ..ResilienceSettings::default()
+    };
+    let tripped = breakers.for_endpoint("e#tripped", &settings);
+    tripped.acquire().expect("closed").failure();
+    drop(tripped);
+    let held = breakers.for_endpoint("e#held", &settings);
+    let busy = load.enter("e#busy");
+    for member in 0..REGISTRY_CAP + 8 {
+        let key = format!("e#{member}");
+        drop(breakers.for_endpoint(&key, &settings));
+        drop(load.enter(&key));
+    }
+    assert!(breakers.len() <= REGISTRY_CAP, "{}", breakers.len());
+    assert!(
+        breakers.for_endpoint("e#tripped", &settings).is_open(),
+        "an open circuit outlives the sweep"
+    );
+    assert!(Arc::ptr_eq(
+        &held,
+        &breakers.for_endpoint("e#held", &settings)
+    ));
+    assert_eq!(load.in_flight("e#busy"), 1, "a counter in use is kept");
+    drop(busy);
 }

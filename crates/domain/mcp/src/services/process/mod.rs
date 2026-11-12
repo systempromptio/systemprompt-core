@@ -9,6 +9,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod child_env;
 pub mod spawner;
 
 use std::sync::Arc;

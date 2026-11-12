@@ -75,6 +75,13 @@ pub enum SchedulerError {
     #[error("config reconcile lock not acquired within {waited_secs}s: another replica holds it")]
     ReconcileLockTimeout { waited_secs: u64 },
 
+    #[error("jobs `{first}` and `{second}` derive the same advisory lock key {key}; rename one")]
+    LockKeyCollision {
+        first: JobName,
+        second: JobName,
+        key: i64,
+    },
+
     #[error("Scheduler already running")]
     AlreadyRunning,
 

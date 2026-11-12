@@ -32,7 +32,6 @@ pub(super) enum Attempt {
 
 pub(super) struct LockedRow {
     pub(super) recipient: UserId,
-    pub(super) seq: i64,
     pub(super) attempts: i64,
 }
 
@@ -41,7 +40,7 @@ pub(super) struct Ledger {
     pub(super) outcome: DeliverOutcome,
     pub(super) receipts: BTreeMap<&'static str, Vec<NotificationId>>,
     pub(super) failures: Vec<DeliveryFailure>,
-    pub(super) finished: Vec<(NotificationId, i64)>,
+    pub(super) close: bool,
 }
 
 impl Ledger {
@@ -123,7 +122,7 @@ impl Ledger {
 
     fn close(&mut self, id: &NotificationId, row: &LockedRow, retry: bool) {
         if !retry {
-            self.finished.push((id.clone(), row.seq));
+            self.close = true;
             return;
         }
         if row.attempts + 1 >= MAX_DELIVERY_ATTEMPTS {
@@ -134,7 +133,7 @@ impl Ledger {
                 stage: FailureStage::DeliverAbandoned,
                 reason: DELIVERY_ABANDONED.to_owned(),
             });
-            self.finished.push((id.clone(), row.seq));
+            self.close = true;
         }
     }
 }

@@ -34,6 +34,7 @@ pub(super) struct Draft<'a> {
     pub(super) parent: Option<DocumentRevisionId>,
     pub(super) message: Option<String>,
     pub(super) author: &'a Author,
+    pub(super) vouched: &'a [String],
 }
 
 impl DocumentService {
@@ -73,6 +74,7 @@ impl DocumentService {
             parent,
             message,
             author,
+            vouched,
         } = draft;
         let bytes = applied.ops.bytes;
         self.check_size(bytes.len())?;
@@ -87,6 +89,9 @@ impl DocumentService {
         } else {
             bytes
         };
+        let media = self
+            .admissible_media(&who.id, document, &bytes, vouched)
+            .await?;
         let blob = self.blobs.put(&bytes).await?;
         let next = self.project_paths(document.format, bytes).await?;
         let count = applied.edit_ops.as_ref().map_or(0, Vec::len);
@@ -108,6 +113,7 @@ impl DocumentService {
             hints: applied.ops.hints,
             merged_from: parent.filter(|_| applied.merged),
             applied: count,
+            media,
         })
     }
 }

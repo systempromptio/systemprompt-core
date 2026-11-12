@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.81.0] - 2026-11-12
+
+### Breaking
+
+- A managed MCP server boots a least-privilege `HostContext` from its spawn environment: `ToolsetFactory.build` is `fn(&HostContext, &McpServerId)`, `mcp_host::{serve, serve_on, build_server}` take a `HostContext`, `DocumentsMcpTools::from_context` and `IssuesMcpTools::from_context` are replaced by `from_host`, and `DocumentsMcpConfig.{tokens, api_external_url}` are replaced by `links`. Migrate by booting each MCP binary with `HostContext::from_process_env()`.
+- A spawned agent boots `AgentHost` on `HostContext` and holds no signing key, token authority, pepper or manifest seed. Migrate by booting a custom agent binary with `AgentHost::from_process_env()`.
+- `NotificationsServiceParts` and `NotificationsInputs` gain `escalation: EscalationDelivery`. Migrate by setting `EscalationDelivery::InProcess` where the consumer runs every seam.
+- A Git source credential resolves only `GIT_SOURCE__<HOST>__<LABEL>`. Migrate with `admin config secret migrate-git-credentials --apply`.
+
+### Added
+
+- `storage::WorkloadIdentityTokens`: Cloud Storage and Vertex AI authenticate as the runtime's Google workload identity.
+- MCP servers obtain signed document links from the API through the link issuer.
+
 ## [0.79.0] - 2026-11-05
 
 ### Breaking

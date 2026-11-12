@@ -97,7 +97,7 @@ pub(super) fn apply_rich_on_new(
 }
 
 impl super::DocumentService {
-    pub async fn media_bytes(&self, blob: &ContentHash) -> Result<Vec<u8>, DocumentsError> {
+    pub(crate) async fn media_bytes(&self, blob: &ContentHash) -> Result<Vec<u8>, DocumentsError> {
         Ok(self
             .blobs
             .read_all_primary(blob, self.config.max_upload_bytes)

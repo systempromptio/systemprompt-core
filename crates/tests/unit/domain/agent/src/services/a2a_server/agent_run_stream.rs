@@ -5,6 +5,7 @@
 
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
+use systemprompt_test_fixtures::agent_reads::TaskReadsExt;
 
 use async_trait::async_trait;
 use axum::http::StatusCode;
@@ -278,7 +279,7 @@ async fn a_queue_failure_streams_an_error_and_fails_the_task() {
     let task_id = launcher.launches.lock().expect("lock")[0].task_id.clone();
     let task = repos_handle
         .tasks
-        .find_task(&task_id)
+        .read_task(&task_id)
         .await
         .expect("lookup")
         .expect("task persisted before the queue was tried");
@@ -293,4 +294,75 @@ async fn a_non_object_agent_run_template_is_invalid_params() {
     assert_eq!(frames.len(), 1, "{frames:?}");
     assert_eq!(frames[0]["error"]["code"], -32602, "{}", frames[0]);
     assert!(launcher.launches.lock().expect("lock").is_empty());
+}
+
+fn send_on_task(ctx: &ContextId, task_id: &TaskId) -> A2aRequestParams {
+    let mut params = send(ctx, "continue that task");
+    if let A2aRequestParams::SendStreamingMessage(ref mut p) = params {
+        p.message.task_id = Some(task_id.clone());
+    }
+    params
+}
+
+#[tokio::test]
+async fn a_message_naming_another_users_task_neither_launches_nor_confirms_the_task() {
+    let pool = test_db_pool().await;
+    let repos_handle = repos(&pool);
+    let (owner, owner_session) = seed_user_and_session(&pool).await;
+    let (_owner_ctx, owner_task) =
+        seed_context_and_task(&repos_handle, &owner, &owner_session).await;
+    let (stranger, stranger_session) = seed_user_and_session(&pool).await;
+    let (stranger_ctx, _) =
+        seed_context_and_task(&repos_handle, &stranger, &stranger_session).await;
+
+    let launcher = Arc::new(ScriptedLauncher::default());
+    let state = make_handler_state_with_launcher(&pool, launcher.clone(), Some(json!({})));
+    let response = handle_streaming_path(
+        send_on_task(&stranger_ctx, &owner_task),
+        state,
+        NumberOrString::Number(31),
+        request_context(&stranger_ctx, &stranger_session, &stranger, "test_agent"),
+        std::time::Instant::now(),
+    )
+    .await;
+    let frames = frames(response).await;
+
+    assert!(launcher.launches.lock().expect("lock").is_empty());
+    assert_eq!(frames.len(), 1, "{frames:?}");
+    assert!(frames[0]["error"].is_object(), "{}", frames[0]);
+    assert!(
+        !frames[0].to_string().contains("exists"),
+        "the refusal must not confirm that the task id exists: {}",
+        frames[0]
+    );
+    let stored = repos_handle
+        .tasks
+        .read_task(&owner_task)
+        .await
+        .expect("lookup")
+        .expect("owner task row");
+    assert_eq!(stored.status.state, TaskState::Submitted);
+}
+
+#[tokio::test]
+async fn a_message_naming_the_callers_own_task_is_refused_as_a_continuation() {
+    let pool = test_db_pool().await;
+    let repos_handle = repos(&pool);
+    let (user, session) = seed_user_and_session(&pool).await;
+    let (ctx, task) = seed_context_and_task(&repos_handle, &user, &session).await;
+
+    let launcher = Arc::new(ScriptedLauncher::default());
+    let state = make_handler_state_with_launcher(&pool, launcher.clone(), Some(json!({})));
+    let response = handle_streaming_path(
+        send_on_task(&ctx, &task),
+        state,
+        NumberOrString::Number(32),
+        request_context(&ctx, &session, &user, "test_agent"),
+        std::time::Instant::now(),
+    )
+    .await;
+    let frames = frames(response).await;
+
+    assert!(launcher.launches.lock().expect("lock").is_empty());
+    assert_eq!(frames[0]["error"]["code"], -32602, "{}", frames[0]);
 }

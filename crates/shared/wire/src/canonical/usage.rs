@@ -156,3 +156,14 @@ impl CanonicalUsageUpdate {
         };
     }
 }
+
+pub(crate) fn wire_count(value: u64) -> u32 {
+    u32::try_from(value).unwrap_or(u32::MAX)
+}
+
+pub(crate) fn deserialize_wire_count<'de, D>(deserializer: D) -> Result<u32, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    <u64 as serde::Deserialize>::deserialize(deserializer).map(wire_count)
+}

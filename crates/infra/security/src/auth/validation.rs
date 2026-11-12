@@ -11,19 +11,23 @@ use systemprompt_models::execution::context::RequestContext;
 use crate::error::{AuthError, AuthResult};
 use crate::extraction::{HeaderExtractor, TokenExtractor};
 use crate::jwt::{ValidationPolicy, decode_session_claims};
-use crate::keys::SigningKeys;
+use crate::keys::VerificationKeyring;
 use crate::session::ValidatedSessionClaims;
 
 #[derive(Debug)]
 pub struct AuthValidationService {
     issuer: String,
     audiences: Vec<JwtAudience>,
-    keys: SigningKeys,
+    keys: VerificationKeyring,
 }
 
 impl AuthValidationService {
     #[must_use]
-    pub const fn new(issuer: String, audiences: Vec<JwtAudience>, keys: SigningKeys) -> Self {
+    pub const fn new(
+        issuer: String,
+        audiences: Vec<JwtAudience>,
+        keys: VerificationKeyring,
+    ) -> Self {
         Self {
             issuer,
             audiences,

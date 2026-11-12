@@ -4,7 +4,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use bytes::{Bytes, BytesMut};
+use bytes::Bytes;
 use systemprompt_identifiers::AiToolCallId;
 use systemprompt_wire::inspect::{SurfaceBudget, sse_string_leaves};
 
@@ -13,23 +13,28 @@ use super::super::protocol::canonical::{
     CanonicalContent, CanonicalEvent, CanonicalResponse, CanonicalStopReason, CanonicalUsage,
     CanonicalUsageUpdate, ContentBlockKind,
 };
+use super::budget::{ACCUMULATION_CAP_MESSAGE, ContentBudget};
+pub use super::ordinal::with_tool_ordinal;
+use super::retained::RetainedBytes;
 
 #[derive(Debug, Default)]
 pub struct TapState {
     response_id: String,
     served_model: String,
     usage: CanonicalUsage,
-    blocks: Vec<BlockAccumulator>,
+    pub(super) blocks: Vec<BlockAccumulator>,
     final_stop_reason: Option<CanonicalStopReason>,
     raw_finish_reason: Option<String>,
     saw_usage_delta: bool,
-    pub(super) final_bytes: BytesMut,
+    pub(super) budget: ContentBudget,
+    pub(super) final_bytes: RetainedBytes,
     pub(super) error: Option<String>,
+    pub(super) dropped_frames: u32,
     pub(super) finalized: bool,
 }
 
 #[derive(Debug, Clone)]
-enum BlockAccumulator {
+pub(super) enum BlockAccumulator {
     Text(String),
     Thinking {
         id: Option<String>,
@@ -51,10 +56,25 @@ pub struct Summary {
     pub tool_calls: Vec<CapturedToolUse>,
     pub response: CanonicalResponse,
     pub final_bytes: Bytes,
+    pub streamed_bytes: u64,
     pub served_model: Option<String>,
     pub error: Option<String>,
     pub saw_stop: bool,
     pub saw_usage_delta: bool,
+    pub dropped_frames: u32,
+}
+
+impl TapState {
+    pub(super) const fn note_dropped_frame(&mut self) {
+        self.dropped_frames = self.dropped_frames.saturating_add(1);
+    }
+
+    pub(super) fn forwarding() -> Self {
+        Self {
+            budget: ContentBudget::forwarded_bytes(),
+            ..Self::default()
+        }
+    }
 }
 
 pub fn extract_summary(state: &mut TapState) -> Summary {
@@ -80,7 +100,8 @@ pub fn extract_summary(state: &mut TapState) -> Summary {
             }
         })
         .collect();
-    let final_bytes = std::mem::take(&mut state.final_bytes).freeze();
+    let streamed_bytes = state.final_bytes.streamed();
+    let final_bytes = state.final_bytes.take();
     response.received_surface = sse_string_leaves(&final_bytes, SurfaceBudget::default());
     let served_model = if state.served_model.is_empty() {
         None
@@ -92,40 +113,12 @@ pub fn extract_summary(state: &mut TapState) -> Summary {
         tool_calls,
         response,
         final_bytes,
+        streamed_bytes,
         served_model,
         error: state.error.clone(),
         saw_stop: state.final_stop_reason.is_some(),
         saw_usage_delta: state.saw_usage_delta,
-    }
-}
-
-// Why: OpenAI Chat clients index `tool_calls` from 0 per choice; the canonical
-// index counts thinking and text blocks too.
-pub fn with_tool_ordinal(state: &TapState, event: &CanonicalEvent) -> Option<CanonicalEvent> {
-    let ordinal = |index: u32| {
-        state
-            .blocks
-            .iter()
-            .take(index as usize)
-            .filter(|b| matches!(b, BlockAccumulator::ToolUse { .. }))
-            .count() as u32
-    };
-    match event {
-        CanonicalEvent::ContentBlockStart {
-            index,
-            block: block @ ContentBlockKind::ToolUse { .. },
-        } => Some(CanonicalEvent::ContentBlockStart {
-            index: ordinal(*index),
-            block: block.clone(),
-        }),
-        CanonicalEvent::ToolUseDelta {
-            index,
-            partial_json,
-        } => Some(CanonicalEvent::ToolUseDelta {
-            index: ordinal(*index),
-            partial_json: partial_json.clone(),
-        }),
-        _ => None,
+        dropped_frames: state.dropped_frames,
     }
 }
 
@@ -209,6 +202,12 @@ fn start_block(state: &mut TapState, index: u32, block: &ContentBlockKind) {
 }
 
 pub fn accumulate_event(state: &mut TapState, event: &CanonicalEvent) {
+    if !state.budget.admit(event) {
+        state
+            .error
+            .get_or_insert_with(|| ACCUMULATION_CAP_MESSAGE.to_owned());
+        return;
+    }
     match event {
         CanonicalEvent::MessageStart { id, model, usage } => {
             state.response_id.clone_from(id);
@@ -274,6 +273,7 @@ pub fn accumulate_event(state: &mut TapState, event: &CanonicalEvent) {
         CanonicalEvent::Error(msg) => {
             state.error = Some(msg.clone());
         },
+        CanonicalEvent::FrameDropped { .. } => state.note_dropped_frame(),
     }
 }
 

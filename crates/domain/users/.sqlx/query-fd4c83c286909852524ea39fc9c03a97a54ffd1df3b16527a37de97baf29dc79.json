@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM federated_identities f\n             WHERE f.issuer = ANY($1) AND EXISTS (\n                 SELECT 1 FROM federated_identities g\n                 WHERE g.issuer = $2 AND g.external_sub = f.external_sub\n                   AND g.user_id = f.user_id\n             )",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "TextArray",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "fd4c83c286909852524ea39fc9c03a97a54ffd1df3b16527a37de97baf29dc79"
+}

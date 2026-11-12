@@ -15,12 +15,13 @@ use systemprompt_agent::services::a2a_server::streaming::{
 };
 use systemprompt_agent::services::shared::AgentServiceError;
 use systemprompt_identifiers::{JwtToken, TaskId};
+use systemprompt_test_fixtures::agent_reads::TaskReadsExt;
 use systemprompt_test_mocks::{
     RecordedBroadcast, RecordingWebhookBroadcaster, arc_recording_broadcaster,
 };
 use tokio::sync::mpsc;
 
-use crate::repository::{repos, seed_context_and_task, seed_user_and_session};
+use crate::repository::{repos, seed_runtime_task, seed_user_and_session};
 use systemprompt_test_fixtures::test_db_pool;
 
 fn agui_for(rec: &RecordingWebhookBroadcaster, task_id: &TaskId) -> Vec<String> {
@@ -51,7 +52,8 @@ async fn emit_run_started_moves_task_to_working_and_emits_status_frame() {
     let pool = test_db_pool().await;
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
-    let (context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
+    let (_context_id, runtime) = seed_runtime_task(&r, &user_id, &session_id).await;
+    let task_id = runtime.task_id().clone();
     let task_repo = TaskRepository::new(&pool, crate::session_usage(&pool));
     let webhook_context =
         WebhookContext::new(broadcaster, user_id.clone(), Some(JwtToken::new("tok")));
@@ -61,14 +63,13 @@ async fn emit_run_started_moves_task_to_working_and_emits_status_frame() {
         tx: &tx,
         request_id: &NumberOrString::Number(5),
         webhook_context: &webhook_context,
-        context_id: &context_id,
-        task_id: &task_id,
+        task: &runtime,
         task_repo: &task_repo,
     })
     .await;
 
     let task = task_repo
-        .find_task(&task_id)
+        .read_task(&task_id)
         .await
         .expect("get task")
         .expect("task present");
@@ -87,7 +88,7 @@ async fn emit_run_started_moves_task_to_working_and_emits_status_frame() {
     let agui = agui_for(&rec, &task_id);
     assert!(agui.iter().any(|e| e.contains("RUN_STARTED")));
 
-    r.tasks.delete_task(&task_id).await.ok();
+    r.tasks.remove_task(&task_id).await.ok();
 }
 
 #[tokio::test]
@@ -96,7 +97,8 @@ async fn emit_run_started_still_updates_task_when_sse_channel_closed() {
     let pool = test_db_pool().await;
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
-    let (context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
+    let (_context_id, runtime) = seed_runtime_task(&r, &user_id, &session_id).await;
+    let task_id = runtime.task_id().clone();
     let task_repo = TaskRepository::new(&pool, crate::session_usage(&pool));
     let webhook_context =
         WebhookContext::new(broadcaster, user_id.clone(), Some(JwtToken::new("tok")));
@@ -107,20 +109,19 @@ async fn emit_run_started_still_updates_task_when_sse_channel_closed() {
         tx: &tx,
         request_id: &NumberOrString::Number(5),
         webhook_context: &webhook_context,
-        context_id: &context_id,
-        task_id: &task_id,
+        task: &runtime,
         task_repo: &task_repo,
     })
     .await;
 
     let task = task_repo
-        .find_task(&task_id)
+        .read_task(&task_id)
         .await
         .expect("get task")
         .expect("task present");
     assert_eq!(task.status.state, TaskState::Working);
 
-    r.tasks.delete_task(&task_id).await.ok();
+    r.tasks.remove_task(&task_id).await.ok();
 }
 
 #[tokio::test]
@@ -129,7 +130,8 @@ async fn stream_creation_error_marks_task_failed_and_broadcasts_run_error() {
     let pool = test_db_pool().await;
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
-    let (context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
+    let (_context_id, runtime) = seed_runtime_task(&r, &user_id, &session_id).await;
+    let task_id = runtime.task_id().clone();
     let task_repo = TaskRepository::new(&pool, crate::session_usage(&pool));
     let webhook_context =
         WebhookContext::new(broadcaster, user_id.clone(), Some(JwtToken::new("tok")));
@@ -137,14 +139,13 @@ async fn stream_creation_error_marks_task_failed_and_broadcasts_run_error() {
     handle_stream_creation_error(
         &webhook_context,
         AgentServiceError::ToolExecution("upstream refused".to_owned()),
-        &task_id,
-        &context_id,
+        &runtime,
         &task_repo,
     )
     .await;
 
     let task = task_repo
-        .find_task(&task_id)
+        .read_task(&task_id)
         .await
         .expect("get task")
         .expect("task present");
@@ -170,5 +171,5 @@ async fn stream_creation_error_marks_task_failed_and_broadcasts_run_error() {
         "the internal cause must not reach the client: {agui:?}"
     );
 
-    r.tasks.delete_task(&task_id).await.ok();
+    r.tasks.remove_task(&task_id).await.ok();
 }

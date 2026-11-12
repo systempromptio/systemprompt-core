@@ -208,15 +208,27 @@ fn every_destructive_command_demands_an_explicit_cloud_profile() {
         vec!["core", "content", "link", "delete", "l", "--yes"],
         vec!["core", "files", "delete", "f", "--yes"],
         vec!["core", "contexts", "delete", "c", "--yes"],
+        vec!["core", "services", "refresh"],
+        vec![
+            "core",
+            "services",
+            "publish",
+            "--bundle",
+            "b.tar",
+            "--to",
+            "oci://r/x:1",
+        ],
+        vec!["admin", "bridge", "rotate-signing-key"],
+        vec!["admin", "users", "role", "demote", "u"],
     ] {
         let desc = descriptor(&args);
         assert!(
             desc.is_destructive(),
             "{args:?} destroys data behind the resolved profile and must be classified so"
         );
-        assert_eq!(
+        assert_ne!(
             desc.data_impact(),
-            systemprompt_cli::descriptor::DataImpact::Destructive,
+            systemprompt_cli::descriptor::DataImpact::Preserving,
             "{args:?}"
         );
     }

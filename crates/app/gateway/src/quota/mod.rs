@@ -13,14 +13,16 @@ mod decision;
 mod distinct;
 mod estimate;
 mod reserve;
+mod settle;
 mod subject;
 
 pub use decision::{QuotaDecision, QuotaDetail, QuotaDimension};
-pub use estimate::{QuotaEstimate, estimate};
+pub use estimate::{QuotaEstimate, estimate, input_tokens_for_bytes};
 pub use reserve::{
     QuotaReservation, QuotaSubjects, QuotaUsage, ReserveOutcome, ReserveParams, ReservedWindow,
-    precheck_and_reserve, release, settle,
+    precheck_and_reserve,
 };
+pub use settle::{CostFloor, release, revoke, settle, settle_unmetered};
 
 use crate::policies::QuotaWindow;
 

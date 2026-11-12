@@ -10,6 +10,7 @@
 
 mod data;
 pub mod prompts;
+pub mod vertex;
 
 use anyhow::{Context, Result};
 use std::path::Path;
@@ -42,17 +43,22 @@ pub fn collect_non_interactive(
         );
     }
 
-    let secrets = SecretsData {
+    let mut secrets = SecretsData {
         oauth_at_rest_pepper: identity.oauth_at_rest_pepper,
         encryption_master_key: identity.encryption_master_key,
         manifest_signing_secret_seed: Some(identity.manifest_signing_secret_seed),
         signing_key_pem: Some(identity.signing_key_pem),
-        database_url: None,
         gemini: args.gemini_key.clone(),
         anthropic: args.anthropic_key.clone(),
         openai: args.openai_key.clone(),
         github: args.github_token.clone(),
+        ..SecretsData::default()
     };
+    vertex::apply(
+        &mut secrets,
+        args.vertex_project.as_deref(),
+        args.vertex_key_file.as_deref(),
+    )?;
 
     validate_secrets(&secrets)?;
     let primary = resolve_primary(args, &secrets)?;
@@ -72,7 +78,7 @@ pub fn collect_interactive(
     _config: &CliConfig,
 ) -> Result<(SecretsData, Option<ProviderId>)> {
     CliService::section(&format!("Secrets Setup ({})", env_name));
-    CliService::info("At least one AI provider API key is required.");
+    CliService::info("At least one AI provider is required: an API key or Vertex AI.");
 
     let identity = generate_identity()?;
     CliService::success(
@@ -92,6 +98,11 @@ pub fn collect_interactive(
         args.anthropic_key.clone_into(&mut secrets.anthropic);
         args.openai_key.clone_into(&mut secrets.openai);
         args.github_token.clone_into(&mut secrets.github);
+        vertex::apply(
+            &mut secrets,
+            args.vertex_project.as_deref(),
+            args.vertex_key_file.as_deref(),
+        )?;
         CliService::success(&format!("Using provided keys: {}", secrets.summary()));
         let primary = resolve_primary(args, &secrets)?;
         return Ok((secrets, primary));
@@ -114,13 +125,16 @@ fn validate_secrets(secrets: &SecretsData) -> Result<()> {
 
     if !secrets.has_ai_provider() {
         anyhow::bail!(
-            "At least one AI provider API key is required.\n\n\
+            "At least one AI provider is required.\n\n\
              Provide one of:\n\
-             --gemini-key <KEY>     Google AI (Gemini)\n\
-             --anthropic-key <KEY>  Anthropic (Claude)\n\
-             --openai-key <KEY>     OpenAI (GPT)\n\n\
+             --gemini-key <KEY>          Google AI (Gemini)\n\
+             --anthropic-key <KEY>       Anthropic (Claude)\n\
+             --openai-key <KEY>          OpenAI (GPT)\n\
+             --vertex-project <ID>       Vertex AI with the runtime's workload identity\n\
+             --vertex-key-file <PATH>    Vertex AI with a service-account key file\n\n\
              Or set environment variables:\n\
-             GEMINI_API_KEY, ANTHROPIC_API_KEY, or OPENAI_API_KEY"
+             GEMINI_API_KEY, ANTHROPIC_API_KEY, OPENAI_API_KEY,\n\
+             SYSTEMPROMPT_VERTEX_PROJECT or SYSTEMPROMPT_VERTEX_KEY_FILE"
         );
     }
 

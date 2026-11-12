@@ -36,6 +36,17 @@ pub struct SearchParams {
     pub project: Option<String>,
     #[serde(default)]
     pub as_of: Option<DateTime<Utc>>,
+    #[serde(default)]
+    pub after: Option<String>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(super) struct PageParams {
+    #[serde(default)]
+    pub(super) limit: Option<u32>,
+    #[serde(default)]
+    pub(super) after: Option<String>,
 }
 
 #[derive(Debug, Default, Deserialize)]

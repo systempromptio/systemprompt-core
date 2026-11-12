@@ -130,7 +130,7 @@ async fn the_event_stream_replays_from_last_event_id_and_ends_on_a_terminal_run(
     let owner = seed_admin_credential(&pool, "agent-runs-stream").await?;
     let state = AgentRunsState::build(&ctx);
     let user = owner.user_id.as_str();
-    let body = json!({ "origin_kind": ORIGIN, "idempotency_key": format!("stream-{user}"), "request": request("s") });
+    let body = json!({ "origin_kind": STREAM_ORIGIN, "idempotency_key": format!("stream-{user}"), "request": request("s") });
     let (_, created) = send(app(state.clone(), user), json_post("/", body)).await?;
     let id = systemprompt_identifiers::AgentRunId::new(created["id"].as_str().expect("id"));
     let events: Vec<RunEvent> = (0..3)
@@ -145,7 +145,14 @@ async fn the_event_stream_replays_from_last_event_id_and_ends_on_a_terminal_run(
             created_at: chrono::Utc::now(),
         })
         .collect();
-    state.runs().insert_events_batch(&id, &events).await?;
+    let lease = claim(&state, STREAM_ORIGIN, &id).await?;
+    assert!(
+        state
+            .runs()
+            .insert_events_batch(&id, &lease, &events)
+            .await?
+            .is_applied()
+    );
     let outcome = RunOutcome {
         status: RunStatus::Succeeded,
         error_class: ErrorClass::Ok,
@@ -160,7 +167,13 @@ async fn the_event_stream_replays_from_last_event_id_and_ends_on_a_terminal_run(
         error: None,
         final_text: Some("t2".into()),
     };
-    state.runs().finish(&id, &outcome, None).await?;
+    assert!(
+        state
+            .runs()
+            .finish(&id, &lease, &outcome, None)
+            .await?
+            .is_applied()
+    );
 
     let req = http::Request::builder()
         .uri(format!("/{id}/events/stream"))
@@ -182,6 +195,10 @@ async fn the_event_stream_replays_from_last_event_id_and_ends_on_a_terminal_run(
     Ok(())
 }
 
+const STREAM_ORIGIN: &str = "sp_test_api_stream_origin";
+
+systemprompt_agent_runs::register_run_origin!(STREAM_ORIGIN);
+
 const OUTPUTS_ORIGIN: &str = "sp_test_api_outputs_origin";
 
 systemprompt_agent_runs::register_run_origin!(OUTPUTS_ORIGIN);
@@ -194,14 +211,14 @@ async fn claim(
     state: &AgentRunsState,
     origin: &str,
     id: &systemprompt_identifiers::AgentRunId,
-) -> Result<()> {
-    while let Some(row) = state
+) -> Result<systemprompt_agent_runs::repository::Lease> {
+    while let Some(claimed) = state
         .runs()
         .claim_queued(origin, "covapi-worker", std::time::Duration::from_secs(60))
         .await?
     {
-        if &row.id == id {
-            return Ok(());
+        if &claimed.row.id == id {
+            return Ok(claimed.lease);
         }
     }
     anyhow::bail!("run {id} was never claimed")
@@ -231,13 +248,14 @@ async fn outputs_are_listed_and_read_from_the_run_directory_only() -> Result<()>
     assert_eq!(empty["files"], json!([]));
 
     let run_id = systemprompt_identifiers::AgentRunId::new(&id);
-    claim(&state, OUTPUTS_ORIGIN, &run_id).await?;
+    let lease = claim(&state, OUTPUTS_ORIGIN, &run_id).await?;
     let dir = tempfile::tempdir()?;
     let root = dir.path().to_path_buf();
     state
         .runs()
         .update_started(
             &run_id,
+            &lease,
             systemprompt_agent_runs::repository::RunStarted {
                 run_dir: &root,
                 pid: None,
@@ -245,7 +263,8 @@ async fn outputs_are_listed_and_read_from_the_run_directory_only() -> Result<()>
                 api_key_id: None,
             },
         )
-        .await?;
+        .await?
+        .applied(&run_id)?;
     tokio::fs::create_dir_all(root.join("outputs")).await?;
     tokio::fs::write(root.join("outputs/report.txt"), b"report body").await?;
     let manifest = json!([{ "path": "report.txt", "size": 11, "sha256": "ab" }]);

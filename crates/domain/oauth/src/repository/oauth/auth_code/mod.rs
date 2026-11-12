@@ -2,6 +2,8 @@
 //! an S256 challenge and its redirect URI, and redemption always checks both.
 //! The `code` and the linked `refresh_token_id` are stored as HMAC-SHA-256
 //! digests under the deployment pepper; raw values never touch the database.
+//! Redemption records the refresh token it mints in the same statement that
+//! claims the code, so a replay always finds the family to revoke.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -11,12 +13,14 @@ use crate::error::{OauthError, OauthResult};
 use crate::models::PkceMethod;
 use chrono::Utc;
 use pkce::verify_pkce;
-use systemprompt_identifiers::{AuthorizationCode, ClientId, RefreshTokenId, UserId};
+use systemprompt_identifiers::{AuthorizationCode, ClientId, UserId};
 
 mod params;
 mod pkce;
 
-pub use params::{AuthCodeParams, AuthCodeValidationResult, MintAuthCodeParams};
+pub use params::{
+    AuthCodeParams, AuthCodeRedemption, AuthCodeValidationResult, MintAuthCodeParams,
+};
 
 impl OAuthRepository {
     pub async fn mint_authorization_code(
@@ -110,22 +114,28 @@ impl OAuthRepository {
 
     pub async fn validate_authorization_code(
         &self,
-        code: &AuthorizationCode,
-        client_id: &ClientId,
-        redirect_uri: &str,
-        code_verifier: &str,
+        redemption: AuthCodeRedemption<'_>,
     ) -> OauthResult<AuthCodeValidationResult> {
+        let AuthCodeRedemption {
+            code,
+            client_id,
+            redirect_uri,
+            code_verifier,
+            refresh_token_id,
+        } = redemption;
         let now = Utc::now();
         let code_hash = self.hash_at_rest(code.as_str())?;
+        let refresh_token_id_hash = self.hash_at_rest(refresh_token_id.as_str())?;
 
         let claimed = sqlx::query!(
             "UPDATE oauth_auth_codes
-             SET used_at = $1
+             SET used_at = $1, refresh_token_id = $3
              WHERE code = $2 AND used_at IS NULL
              RETURNING client_id, user_id, scope, expires_at, redirect_uri, code_challenge,
                        code_challenge_method, resource",
             now,
-            code_hash
+            code_hash,
+            refresh_token_id_hash
         )
         .fetch_optional(self.write_pool_ref())
         .await?;
@@ -186,61 +196,17 @@ impl OAuthRepository {
         &self,
         code_hash: &str,
     ) -> OauthResult<AuthCodeValidationResult> {
-        let existing = sqlx::query!(
-            "SELECT used_at, refresh_token_id FROM oauth_auth_codes WHERE code = $1",
+        let used_at = sqlx::query_scalar!(
+            "SELECT used_at FROM oauth_auth_codes WHERE code = $1",
             code_hash
         )
         .fetch_optional(self.write_pool_ref())
         .await?;
 
-        let Some(row) = existing else {
-            tracing::warn!("Authorization code not found");
-            return Err(OauthError::Validation(
-                "Invalid authorization code".to_owned(),
-            ));
-        };
-
-        if row.used_at.is_some() {
-            tracing::warn!(
-                code_hash = %code_hash,
-                "Authorization code replay detected"
-            );
-
-            if let Some(rt_id) = row.refresh_token_id {
-                let family_id = sqlx::query_scalar!(
-                    "SELECT family_id FROM oauth_refresh_tokens WHERE token_id = $1",
-                    rt_id
-                )
-                .fetch_optional(self.write_pool_ref())
-                .await?;
-                if let Some(family) = family_id {
-                    let result = sqlx::query!(
-                        "DELETE FROM oauth_refresh_tokens WHERE family_id = $1",
-                        family
-                    )
-                    .execute(self.write_pool_ref())
-                    .await?;
-                    tracing::warn!(
-                        event = "auth_code_replay_detected",
-                        code_hash = %code_hash,
-                        family_id = %family,
-                        revoked_count = result.rows_affected(),
-                        "Revoked refresh-token family after auth-code replay"
-                    );
-                } else {
-                    tracing::warn!(
-                        event = "auth_code_replay_detected",
-                        code_hash = %code_hash,
-                        "Linked refresh token already gone; no family to revoke"
-                    );
-                }
-            } else {
-                tracing::warn!(
-                    event = "auth_code_replay_detected",
-                    code_hash = %code_hash,
-                    "No refresh token linked to replayed auth code"
-                );
-            }
+        match used_at {
+            None => tracing::warn!("Authorization code not found"),
+            Some(None) => tracing::warn!("Authorization code could not be claimed"),
+            Some(Some(_)) => self.revoke_auth_code_family(code_hash).await?,
         }
 
         Err(OauthError::Validation(
@@ -248,20 +214,44 @@ impl OAuthRepository {
         ))
     }
 
-    pub async fn link_auth_code_to_refresh_token(
-        &self,
-        code: &AuthorizationCode,
-        refresh_token_id: &RefreshTokenId,
-    ) -> OauthResult<()> {
-        let code_hash = self.hash_at_rest(code.as_str())?;
-        let refresh_token_id_hash = self.hash_at_rest(refresh_token_id.as_str())?;
-        sqlx::query!(
-            "UPDATE oauth_auth_codes SET refresh_token_id = $1 WHERE code = $2",
-            refresh_token_id_hash,
+    async fn revoke_auth_code_family(&self, code_hash: &str) -> OauthResult<()> {
+        let family = sqlx::query_scalar!(
+            r#"WITH prior AS (
+                   SELECT code, refresh_token_id FROM oauth_auth_codes
+                   WHERE code = $1 FOR UPDATE
+               )
+               UPDATE oauth_auth_codes AS c SET refresh_token_id = NULL
+               FROM prior
+               WHERE c.code = prior.code
+               RETURNING prior.refresh_token_id"#,
             code_hash
+        )
+        .fetch_optional(self.write_pool_ref())
+        .await?
+        .flatten();
+
+        let Some(family) = family else {
+            tracing::warn!(
+                event = "auth_code_replay_detected",
+                code_hash = %code_hash,
+                "Replayed auth code names no refresh-token family"
+            );
+            return Ok(());
+        };
+
+        let result = sqlx::query!(
+            "DELETE FROM oauth_refresh_tokens WHERE family_id = $1",
+            family
         )
         .execute(self.write_pool_ref())
         .await?;
+        tracing::warn!(
+            event = "auth_code_replay_detected",
+            code_hash = %code_hash,
+            family_id = %family,
+            revoked_count = result.rows_affected(),
+            "Revoked refresh-token family after auth-code replay"
+        );
         Ok(())
     }
 }

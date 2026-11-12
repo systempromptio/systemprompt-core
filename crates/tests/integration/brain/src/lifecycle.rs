@@ -41,8 +41,8 @@ async fn the_scope_owner_confirms_and_the_review_clock_restarts_a_stranger_is_re
         .await
         .expect_err("a stranger may not confirm a personal fact");
     assert!(
-        matches!(refused, BrainError::Forbidden { .. }),
-        "{refused:?}"
+        matches!(refused, BrainError::NotFound(ref id) if id == &fact.id),
+        "a personal fact is not found for a stranger: {refused:?}"
     );
     assert_eq!(h.fact(&fact.id).await.status, FactStatus::Proposed);
 

@@ -2,6 +2,7 @@
 // paging with the opaque page token, and the invalid-token envelope.
 
 use std::sync::Arc;
+use systemprompt_test_fixtures::agent_reads::TaskReadsExt;
 
 use axum::body::Bytes;
 use axum::extract::{Extension, State};
@@ -86,9 +87,9 @@ async fn list_tasks_returns_only_the_callers_tasks_paged() {
     assert!(!seen.contains(&foreign_task.as_str().to_owned()));
 
     for (_, task_id) in &owned {
-        r.tasks.delete_task(task_id).await.ok();
+        r.tasks.remove_task(task_id).await.ok();
     }
-    r.tasks.delete_task(&foreign_task).await.ok();
+    r.tasks.remove_task(&foreign_task).await.ok();
 }
 
 #[tokio::test]
@@ -99,7 +100,7 @@ async fn list_tasks_filters_by_context_and_status() {
     let (ctx_a, task_a) = seed_context_and_task(&r, &owner, &session).await;
     let (_, task_b) = seed_context_and_task(&r, &owner, &session).await;
     r.tasks
-        .update_task_state(&task_b, TaskState::Working, &chrono::Utc::now())
+        .set_task_state(&task_b, TaskState::Working, &chrono::Utc::now())
         .await
         .expect("move task to working");
 
@@ -132,8 +133,8 @@ async fn list_tasks_filters_by_context_and_status() {
     assert!(task_ids(&future).is_empty(), "{future}");
     assert_eq!(future["result"]["nextPageToken"], "");
 
-    r.tasks.delete_task(&task_a).await.ok();
-    r.tasks.delete_task(&task_b).await.ok();
+    r.tasks.remove_task(&task_a).await.ok();
+    r.tasks.remove_task(&task_b).await.ok();
 }
 
 #[tokio::test]
@@ -150,7 +151,7 @@ async fn list_tasks_omits_artifacts_unless_asked() {
     assert!(task.get("artifacts").is_none(), "{body}");
     assert!(task.get("history").is_none(), "{body}");
 
-    r.tasks.delete_task(&task_a).await.ok();
+    r.tasks.remove_task(&task_a).await.ok();
 }
 
 #[tokio::test]
@@ -167,5 +168,5 @@ async fn an_invalid_page_token_is_an_invalid_params_error() {
     assert_eq!(body["error"]["data"][0]["reason"], "INVALID_PARAMS");
     assert!(body.get("result").is_none());
 
-    r.tasks.delete_task(&task_a).await.ok();
+    r.tasks.remove_task(&task_a).await.ok();
 }

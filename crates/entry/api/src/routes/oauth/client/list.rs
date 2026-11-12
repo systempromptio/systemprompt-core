@@ -12,6 +12,7 @@ use validator::Validate;
 
 use super::super::extractors::OAuthRepo;
 use super::super::{OAuthHttpError, internal};
+use super::ownership::listing_scope;
 use systemprompt_models::api::PaginationParams;
 use systemprompt_models::{PaginationInfo, RequestContext};
 
@@ -55,8 +56,11 @@ pub async fn list_clients(
     let offset = query.pagination.offset();
     let limit = query.pagination.limit();
 
-    let clients = repository.list_clients_paginated(limit, offset).await?;
-    let total = repository.count_clients().await?;
+    let scope = listing_scope(&req_ctx);
+    let clients = repository
+        .list_clients_paginated(&scope, limit, offset)
+        .await?;
+    let total = repository.count_clients(&scope).await?;
 
     tracing::info!(
         count = clients.len(),

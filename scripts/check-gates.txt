@@ -11,6 +11,7 @@ lint-stringly-errors
 lint-tracing-messages
 lint-async-trait
 lint-owned-tasks
+lint-unbounded-bodies
 lint-json-value
 lint-table-ownership
 lint-ledger-reads

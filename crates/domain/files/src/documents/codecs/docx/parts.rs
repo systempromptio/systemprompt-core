@@ -88,3 +88,11 @@ pub(super) fn add_part(bytes: &[u8], name: &str, content: &[u8]) -> Result<Vec<u
     writer.write_all(content)?;
     Ok(writer.finish().map_err(zip_error)?.into_inner())
 }
+
+pub(super) fn attr(e: &quick_xml::events::BytesStart<'_>, key: &str) -> Option<String> {
+    let attribute = e.try_get_attribute(key).ok().flatten()?;
+    attribute
+        .normalized_value(quick_xml::XmlVersion::Implicit1_0)
+        .ok()
+        .map(std::borrow::Cow::into_owned)
+}

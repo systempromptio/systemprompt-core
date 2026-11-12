@@ -22,6 +22,7 @@ pub const RULE_CONFIG_FILENAME: &str = "config.yaml";
 pub const DEFAULT_RULE_CONTENT_FILE: &str = "index.md";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct DiskRuleConfig {
     pub id: MarketplaceRuleId,
     pub name: String,

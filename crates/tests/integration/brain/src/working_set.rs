@@ -1,17 +1,29 @@
 //! The working-set projection: a stored fact has one row per scope key it
-//! is reachable through, rows follow a revision, a topic audience change
-//! rebuilds them, a delete cascades them, and the sweep rebuilds a
-//! projection whose count has drifted.
+//! is reachable through (a user-scoped fact only its owner's), rows follow
+//! a revision, a topic audience change rebuilds them, a delete cascades
+//! them, and the sweep rebuilds a projection whose count has drifted.
 
 use systemprompt_brain::plane::Rebuilds;
 use systemprompt_brain::repository::WorkingSetRepository;
-use systemprompt_identifiers::BrainFactId;
+use systemprompt_identifiers::{BrainFactId, UserId};
 use systemprompt_models::brain::FactScope;
 use systemprompt_models::notifications::AudienceSubject;
 
 use crate::events::{Landed, entered, price};
 use crate::harness::{Harness, Setup};
-use crate::plane::{self, ENGINEERING, FINANCE, OWNERSHIP, kind};
+use crate::plane::{self, ENGINEERING, FINANCE, OWNERSHIP, PRICING, kind};
+
+const PROJECT: &str = "apollo";
+
+fn project_price(admin: &UserId, product: &str) -> systemprompt_models::brain::BrainEvent {
+    entered(
+        admin,
+        kind(PRICING),
+        product,
+        serde_json::json!({"price": "1200", "region": "emea"}),
+        FactScope::Project(PROJECT.to_owned()),
+    )
+}
 
 async fn keys(h: &Harness, id: &BrainFactId) -> Vec<String> {
     WorkingSetRepository::keys_for(&h.pg, id)
@@ -23,6 +35,8 @@ async fn keys(h: &Harness, id: &BrainFactId) -> Vec<String> {
 async fn a_persisted_fact_has_a_row_for_its_scope_and_each_topic_audience() {
     let h = Harness::with("brain_ws_persist", Setup::confirming()).await;
     let author = h.user("author", &[]).await;
+    let admin = h.user("admin", &["admin"]).await;
+    h.emit(&project_price(&admin, "initech")).await;
     h.model
         .push(serde_json::json!([price("acme", "emea", "1200")]));
     h.emit(&Landed::new().event(&author)).await;
@@ -40,13 +54,16 @@ async fn a_persisted_fact_has_a_row_for_its_scope_and_each_topic_audience() {
     assert_eq!(acme.scope, FactScope::User(author.clone()));
     assert_eq!(
         keys(&h, &acme.id).await,
-        vec!["org".to_owned(), format!("user:{author}")],
-        "the pricing kind carries the finance topic, whose audience is everyone"
+        vec![format!("user:{author}")],
+        "a topic audience never widens a user-scoped fact"
     );
     let globex = h.only_fact("globex").await;
+    assert_eq!(keys(&h, &globex.id).await, vec![format!("user:{author}")]);
+    let initech = h.only_fact("initech").await;
     assert_eq!(
-        keys(&h, &globex.id).await,
-        vec!["org".to_owned(), format!("user:{author}")]
+        keys(&h, &initech.id).await,
+        vec!["org".to_owned(), format!("project:{PROJECT}")],
+        "the pricing kind carries the finance topic, whose audience is everyone"
     );
     let counts = WorkingSetRepository::counts(&h.pg).await.expect("counts");
     assert!(counts.is_consistent(), "{counts:?}");
@@ -57,10 +74,8 @@ async fn a_persisted_fact_has_a_row_for_its_scope_and_each_topic_audience() {
 #[tokio::test]
 async fn a_topic_audience_change_rebuilds_the_set_and_a_delete_cascades_it() {
     let h = Harness::with("brain_ws_rebuild", Setup::confirming()).await;
-    let author = h.user("author", &[]).await;
-    h.model
-        .push(serde_json::json!([price("acme", "emea", "1200")]));
-    h.emit(&Landed::new().event(&author)).await;
+    let admin = h.user("admin", &["admin"]).await;
+    h.emit(&project_price(&admin, "acme")).await;
     h.drain().await;
     let acme = h.only_fact("acme").await;
 
@@ -82,8 +97,8 @@ async fn a_topic_audience_change_rebuilds_the_set_and_a_delete_cascades_it() {
         keys(&h, &acme.id).await,
         vec![
             "group:emea".to_owned(),
+            format!("project:{PROJECT}"),
             "role:finance_lead".to_owned(),
-            format!("user:{author}"),
         ],
         "everyone is gone and the two declared audiences are in"
     );
@@ -96,7 +111,7 @@ async fn a_topic_audience_change_rebuilds_the_set_and_a_delete_cascades_it() {
         }
     );
 
-    let caller = Harness::caller(&author, &[]);
+    let caller = Harness::caller(&admin, &["admin"]);
     h.service.erase(&caller, &acme.id).await.expect("erase");
     assert!(
         keys(&h, &acme.id).await.is_empty(),
@@ -109,12 +124,9 @@ async fn a_topic_audience_change_rebuilds_the_set_and_a_delete_cascades_it() {
 #[tokio::test]
 async fn the_sweep_rebuilds_a_drifted_projection() {
     let h = Harness::with("brain_ws_sweep", Setup::confirming()).await;
-    let author = h.user("author", &[]).await;
-    h.model.push(serde_json::json!([
-        price("acme", "emea", "1200"),
-        price("globex", "emea", "700"),
-    ]));
-    h.emit(&Landed::new().event(&author)).await;
+    let admin = h.user("admin", &["admin"]).await;
+    h.emit(&project_price(&admin, "acme")).await;
+    h.emit(&project_price(&admin, "globex")).await;
     h.drain().await;
     sqlx::query("DELETE FROM brain_working_set WHERE scope_key = 'org'")
         .execute(&h.pg)

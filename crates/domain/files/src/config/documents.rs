@@ -30,7 +30,7 @@ const DEFAULT_SNAPSHOT_AFTER_SECS: u32 = 30;
 const DEFAULT_SNAPSHOT_AFTER_UPDATES: u32 = 200;
 const DEFAULT_OWNER_PORT: u16 = systemprompt_models::defaults::DEFAULT_API_PORT;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DocumentsConfig {
     #[serde(default)]
@@ -57,10 +57,10 @@ pub struct DocumentsConfig {
 
 /// When a live session snapshots.
 ///
-/// It also says whether this replica takes part in the owner lease. A replica's
-/// advertised address is per machine, so only the port is configured; the host
-/// comes from the platform at boot.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+/// It also says whether this replica takes part in the owner lease, and the
+/// host and port other replicas reach it on. The host is per machine, so a
+/// shared profile sets it by interpolation (`${FLY_PRIVATE_IP:-}`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct CollabConfig {
     #[serde(default = "default_snapshot_after_secs")]
@@ -71,11 +71,13 @@ pub struct CollabConfig {
     pub owner: CollabOwnerConfig,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct CollabOwnerConfig {
     #[serde(default)]
     pub enabled: bool,
+    #[serde(default)]
+    pub advertise_host: Option<String>,
     #[serde(default = "default_owner_port")]
     pub advertise_port: u16,
 }
@@ -106,6 +108,7 @@ impl Default for CollabOwnerConfig {
     fn default() -> Self {
         Self {
             enabled: false,
+            advertise_host: None,
             advertise_port: DEFAULT_OWNER_PORT,
         }
     }

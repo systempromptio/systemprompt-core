@@ -27,6 +27,15 @@ pub struct UpstreamCall {
     accepted_betas: Option<BTreeSet<AnthropicBeta>>,
     user_agent: Option<String>,
     forward_headers: Vec<String>,
+    presented_headers: Option<Vec<(String, String)>>,
+}
+
+/// The upstream credential a client sent on its own request, with the request
+/// headers that travel upstream beside it.
+#[derive(Debug, Clone)]
+pub struct PresentedCredential {
+    pub auth: AuthHeader,
+    pub headers: Vec<(String, String)>,
 }
 
 impl UpstreamCall {
@@ -45,7 +54,14 @@ impl UpstreamCall {
             accepted_betas: None,
             user_agent: None,
             forward_headers: Vec::new(),
+            presented_headers: None,
         }
+    }
+
+    #[must_use]
+    pub fn with_presented_headers(mut self, headers: Vec<(String, String)>) -> Self {
+        self.presented_headers = Some(headers);
+        self
     }
 
     #[must_use]
@@ -122,6 +138,9 @@ impl UpstreamCall {
         forward: &[(String, String)],
     ) -> Vec<(String, String)> {
         let dialect = self.dialect(wire);
+        if let Some(presented) = &self.presented_headers {
+            return self.presented_request_headers(wire, presented);
+        }
         let mut headers = vec![
             self.auth_header(wire),
             ("content-type".to_owned(), "application/json".to_owned()),
@@ -157,6 +176,30 @@ impl UpstreamCall {
         if let Some(user_agent) = &self.user_agent {
             headers.push(("user-agent".to_owned(), user_agent.clone()));
         }
+        headers
+    }
+
+    fn presented_request_headers(
+        &self,
+        wire: WireProtocol,
+        presented: &[(String, String)],
+    ) -> Vec<(String, String)> {
+        let mut headers = vec![
+            self.auth_header(wire),
+            ("content-type".to_owned(), "application/json".to_owned()),
+        ];
+        headers.extend(
+            self.dialect(wire)
+                .required_headers()
+                .into_iter()
+                .filter(|(name, _)| {
+                    !presented
+                        .iter()
+                        .any(|(sent, _)| sent.eq_ignore_ascii_case(name))
+                })
+                .map(|(name, value)| (name.to_owned(), value.to_owned())),
+        );
+        headers.extend(presented.iter().cloned());
         headers
     }
 

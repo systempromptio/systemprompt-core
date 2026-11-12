@@ -75,7 +75,9 @@ fn build_agent_command_sets_args_and_scoped_env() {
         agent_name: &AgentName::new("cmd_env"),
         port: 39470,
         profile_path: "/tmp/profile.yaml",
-        secrets: &secrets,
+        secrets_env: &secrets
+            .child_env(&systemprompt_manifest::child_env::ChildGrants::default())
+            .expect("child env"),
         config: &config,
         log_file,
     });

@@ -23,6 +23,7 @@ pub mod licence_checkin;
 mod log_summary_rollup;
 mod malicious_ip_blacklist;
 mod no_js_cleanup;
+#[cfg(feature = "otel")]
 pub mod otlp_export;
 mod outbox_backlog_rollup;
 mod projection_drain;
@@ -49,6 +50,7 @@ pub use licence_checkin::LicenceCheckinJob;
 pub use log_summary_rollup::LogSummaryRollupJob;
 pub use malicious_ip_blacklist::MaliciousIpBlacklistJob;
 pub use no_js_cleanup::NoJsCleanupJob;
+#[cfg(feature = "otel")]
 pub use otlp_export::OtlpExportJob;
 pub use outbox_backlog_rollup::OutboxBacklogRollupJob;
 pub use session_bot_type_rollup::SessionBotTypeRollupJob;

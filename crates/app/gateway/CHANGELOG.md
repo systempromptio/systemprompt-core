@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.81.0] - 2026-11-12
+
+### Breaking
+
+- A `kind: caller` credential serves a request with the `Authorization` its client presents: `DispatchInputs` and `KeyOwner` gain `caller_auth`, `GatewayError` gains `CallerCredentialRequired` and `CallerFormatMismatch`, `GatewayEnginesError` gains `CallerWireShadowed`, `govern_prompt` takes a `PromptRepair`, and `GatewayAudit::{bill_to_user_key, billed_to_user_key}` are replaced by `bill_to` and `billing_source`. Migrate by adding the match arms and passing `caller_auth: None` where no client credential is carried.
+- `OutboundCtx` and `ResolvedUpstream` carry a `HopPolicy`, `OutboundOutcome` and `UpstreamError` gain `Relayed`, `breaker_key` takes the member, `order_chain` takes a `ChainHealth`, and `may_fail_over` is replaced by `ResolvedHop::may_fail_over_to`. Migrate by setting `policy: HopPolicy::of(hop)`.
+- `OutboundCtx::http` and `GatewayEngines::http` are `UpstreamHttp`, `UpstreamError` gains `Timeout` and `UnreadableBody`, `send_with_retry` and `UpstreamError::from_response` take `&UpstreamBounds`, `fit_context_window` takes the sent body, and `Summary` and `TerminalOutcome` gain fields. Migrate by building `UpstreamHttp` from the profile's upstream bounds.
+
+### Changed
+
+- Upstream calls and retained stream bytes are bounded, only streaming calls take a first-byte deadline, and every request exit settles its quota reservation exactly once.
+- A request whose inspection surface is incomplete is refused as `inspection_incomplete`.
+
+### Fixed
+
+- The breaker and in-flight count of a member-paid hop are kept per member.
+
 ## [0.78.0] - 2026-11-04
 
 ### Breaking

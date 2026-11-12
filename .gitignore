@@ -103,7 +103,7 @@ audit.json
 /plan/*
 
 # Internal documentation (local-only: dev guides, audits, evaluations, legal)
-internal/
+/internal/
 
 # Local-only tech-debt / findings register
 /issue.md
@@ -123,6 +123,7 @@ scripts/*
 !scripts/publish-crates.sh
 !scripts/schema-ladder.sh
 !scripts/schema-ladder-boot.sh
+!scripts/schema-ladder-rungs.sh
 !scripts/schema-catalog.sql
 !scripts/test-test-shard.py
 !scripts/collect-fallback-profraw.sh
@@ -179,6 +180,7 @@ scripts/*
 !scripts/repo-construction-allowlist.txt
 !scripts/sqlx-allowlist.txt
 !scripts/test-gate-roots.py
+!scripts/test-check-test-value.py
 !scripts/env-var-allowlist.txt
 !scripts/lint-native-test-deps.sh
 !scripts/bridge-native-crates.txt
@@ -226,6 +228,7 @@ rustc-ice-*.txt
 !scripts/table-ownership-reads.txt
 !scripts/sql-vocabularies.txt
 !scripts/lint-swallowed-errors.sh
+!scripts/lint-unbounded-bodies.sh
 !scripts/lint-bridge-typed-warnings.sh
 !scripts/rust-contracts/
 scripts/rust-contracts/target/

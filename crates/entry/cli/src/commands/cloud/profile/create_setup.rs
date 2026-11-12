@@ -6,6 +6,7 @@
 use anyhow::{Context, Result};
 use std::path::Path;
 use systemprompt_cloud::{DockerCli, ProjectContext};
+use systemprompt_loader::subprocess::ForegroundChildren;
 use systemprompt_logging::CliService;
 
 use super::templates::{run_migrations_cmd, validate_connection};
@@ -17,6 +18,7 @@ pub async fn handle_local_tenant_setup(
     db_url: &str,
     tenant_name: &str,
     profile_path: &Path,
+    children: &ForegroundChildren,
 ) -> Result<()> {
     let spinner = CliService::spinner("Validating PostgreSQL connection...");
     let mut connection_valid = validate_connection(db_url).await;
@@ -31,7 +33,7 @@ pub async fn handle_local_tenant_setup(
                 prompter.confirm("PostgreSQL not running. Start Docker container?", true)?;
 
             if start_docker {
-                connection_valid = start_postgres_container(&compose_path).await?;
+                connection_valid = start_postgres_container(&compose_path, children).await?;
             }
         } else {
             CliService::warning("Could not connect to PostgreSQL.");
@@ -45,7 +47,7 @@ pub async fn handle_local_tenant_setup(
         let run_migrations = prompter.confirm("Run database migrations?", true)?;
 
         if run_migrations {
-            run_migrations_cmd(profile_path).context("Database migrations failed")?;
+            run_migrations_cmd(profile_path, children).context("Database migrations failed")?;
             CliService::info(
                 "Run 'systemprompt admin bootstrap' to ensure the profile's system-admin user \
                  exists.",
@@ -56,7 +58,10 @@ pub async fn handle_local_tenant_setup(
     Ok(())
 }
 
-async fn start_postgres_container(compose_path: &Path) -> Result<bool> {
+async fn start_postgres_container(
+    compose_path: &Path,
+    children: &ForegroundChildren,
+) -> Result<bool> {
     CliService::info("Starting PostgreSQL container...");
 
     let compose_path_str = compose_path
@@ -68,7 +73,7 @@ async fn start_postgres_container(compose_path: &Path) -> Result<bool> {
         .ok_or_else(|| anyhow::anyhow!("Invalid compose path"))?
         .to_owned();
 
-    let docker = DockerCli::new();
+    let docker = DockerCli::new(children.clone());
     let status = docker
         .status(&[
             "compose",

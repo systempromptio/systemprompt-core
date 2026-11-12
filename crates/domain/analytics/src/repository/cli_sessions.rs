@@ -12,7 +12,7 @@ use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{SessionId, UserId};
 
 use crate::models::reporting::{LiveSessionRow, SessionStatsRow, SessionTrendRow};
 
@@ -76,7 +76,7 @@ impl CliSessionAnalyticsRepository {
             LiveSessionRow,
             r#"
             SELECT
-                session_id as "session_id!",
+                session_id as "session_id!: SessionId",
                 COALESCE(user_type, 'unknown') as "user_type",
                 started_at as "started_at!",
                 duration_seconds,

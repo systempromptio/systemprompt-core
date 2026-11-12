@@ -43,6 +43,7 @@ async fn documents(
             request: &request,
             context: ctx,
             client: &ClientProfile::unknown(),
+            hop: None,
         })
         .await
 }
@@ -61,6 +62,7 @@ async fn issues(
             request: &request,
             context: ctx,
             client: &ClientProfile::unknown(),
+            hop: None,
         })
         .await
 }
@@ -118,9 +120,12 @@ async fn every_issue_tool_dispatches_and_unknown_names_are_refused() {
     let tools = IssuesMcpTools::new(
         Arc::clone(r.runtime.issues()),
         Some(Arc::clone(r.runtime.uploads())),
-        systemprompt_test_fixtures::test_token_authority("issues-dispatch"),
+        crate::link_rig::in_process_links(
+            Arc::clone(r.runtime.service()),
+            Arc::clone(r.runtime.uploads()),
+            "issues",
+        ),
         McpServerId::new("issues"),
-        "https://issues.example.test/".to_owned(),
     );
     let exec = executor("issues").await;
     let user = registered("dispatch-issues").await;

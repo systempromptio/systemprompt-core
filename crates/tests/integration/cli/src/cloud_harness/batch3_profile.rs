@@ -3,6 +3,7 @@
 
 use systemprompt_cli::ScriptedPrompter;
 use systemprompt_cli::cloud::profile::handle_local_tenant_setup;
+use systemprompt_loader::subprocess::ForegroundChildren;
 
 use super::enter;
 
@@ -17,6 +18,7 @@ async fn local_tenant_setup_warns_when_unreachable_and_no_compose() {
         "postgres://nobody:nothing@127.0.0.1:1/void",
         "no-such-compose-tenant",
         &profile_path,
+        &ForegroundChildren::default(),
     )
     .await
     .expect("setup tolerates unreachable database without compose file");

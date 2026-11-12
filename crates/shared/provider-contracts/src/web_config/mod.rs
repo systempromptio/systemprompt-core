@@ -1,5 +1,5 @@
-//! Web rendering configuration: paths, branding, theme, layout, and
-//! navigation. These types are serialized to / from YAML in the
+//! Web rendering configuration: paths, branding, theme, layout and
+//! per-page data. These types are serialized to / from YAML in the
 //! `webconfig.yaml` of each profile.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -49,10 +49,6 @@ pub struct WebConfig {
     pub mobile: MobileConfig,
     #[serde(rename = "touchTargets")]
     pub touch_targets: TouchTargetsConfig,
-    #[serde(default)]
-    pub nav: NavConfig,
-    #[serde(default)]
-    pub social_action_bar: SocialActionBarConfig,
     // JSON: per-page template data is free-form YAML owned by the site's
     // templates; the engine passes it through to Tera untouched.
     #[serde(default)]
@@ -60,43 +56,4 @@ pub struct WebConfig {
     pub pages: HashMap<String, serde_json::Value>,
     #[serde(default)]
     pub i18n: SiteI18nConfig,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-#[serde(deny_unknown_fields)]
-pub struct NavConfig {
-    #[serde(default, rename = "app_url")]
-    pub app: String,
-    #[serde(default, rename = "docs_url")]
-    pub docs: String,
-    #[serde(default, rename = "blog_url")]
-    pub blog: String,
-    #[serde(default, rename = "playbooks_url")]
-    pub playbooks: String,
-    #[serde(default, rename = "github_url")]
-    pub github: String,
-    #[serde(default, rename = "getting_started_url")]
-    pub getting_started: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-#[serde(deny_unknown_fields)]
-pub struct SocialActionBarConfig {
-    #[serde(default)]
-    pub label: String,
-    #[serde(default)]
-    pub platforms: Vec<SocialPlatform>,
-    #[serde(default)]
-    pub enable_share: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-#[serde(deny_unknown_fields)]
-pub struct SocialPlatform {
-    #[serde(rename = "type")]
-    pub platform_type: String,
-    #[serde(default)]
-    pub url: Option<String>,
-    #[serde(default)]
-    pub label: Option<String>,
 }

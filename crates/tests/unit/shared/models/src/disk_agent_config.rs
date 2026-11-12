@@ -52,6 +52,7 @@ fn valid_disk(name: &str) -> DiskAgentConfig {
         model: Some("claude".to_owned()),
         card: empty_card(),
         oauth: OAuthConfig::default(),
+        secrets: Vec::new(),
         agent_run: None,
     }
 }
@@ -196,4 +197,24 @@ card:
     assert!(cfg.enabled);
     assert_eq!(cfg.version, "1.0.0");
     assert_eq!(cfg.mcp_servers.include, vec!["fs".to_owned()]);
+}
+
+#[test]
+fn an_agent_grant_of_a_provider_key_is_refused() {
+    let mut disk = valid_disk("writer");
+    disk.secrets = vec!["anthropic".parse().expect("grant")];
+    let err = disk
+        .validate("writer")
+        .expect_err("provider keys are derived");
+    assert!(err.to_string().contains("model configuration"), "{err}");
+}
+
+#[test]
+fn an_agent_grant_of_a_custom_secret_validates_and_reaches_the_runtime_config() {
+    let mut disk = valid_disk("writer");
+    disk.secrets = vec!["custom:serp_api_key".parse().expect("grant")];
+    disk.validate("writer").expect("custom grant");
+    let config = disk.to_agent_config("http://localhost", None);
+    assert_eq!(config.secrets, disk.secrets);
+    config.validate("writer").expect("runtime config validates");
 }

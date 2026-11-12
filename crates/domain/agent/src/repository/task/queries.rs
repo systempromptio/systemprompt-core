@@ -12,14 +12,14 @@ use systemprompt_traits::RepositoryError;
 use super::constructor::TaskConstructor;
 use crate::models::a2a::Task;
 
-pub async fn find_task(
+pub(crate) async fn find_task(
     constructor: &TaskConstructor,
     task_id: &TaskId,
 ) -> Result<Option<Task>, RepositoryError> {
     constructor.construct_task_from_task_id(task_id).await
 }
 
-pub async fn list_tasks_by_context(
+pub(super) async fn list_tasks_by_context(
     pool: &Arc<PgPool>,
     constructor: &TaskConstructor,
     context_id: &ContextId,
@@ -96,33 +96,6 @@ pub async fn get_tasks_by_user_id(
     let tasks = constructor.construct_tasks_batch(&task_ids).await?;
 
     Ok(tasks)
-}
-
-#[derive(Debug, Clone)]
-pub struct TaskContextInfo {
-    pub context_id: ContextId,
-    pub user_id: Option<UserId>,
-}
-
-pub async fn find_task_context_info(
-    pool: &Arc<PgPool>,
-    task_id: &TaskId,
-) -> Result<Option<TaskContextInfo>, RepositoryError> {
-    let task_id_str = task_id.as_str();
-    let row = sqlx::query!(
-        r#"SELECT
-            context_id as "context_id!: ContextId",
-            user_id as "user_id?: UserId"
-        FROM agent_tasks WHERE task_id = $1"#,
-        task_id_str
-    )
-    .fetch_optional(pool.as_ref())
-    .await?;
-
-    Ok(row.map(|r| TaskContextInfo {
-        context_id: r.context_id,
-        user_id: r.user_id,
-    }))
 }
 
 #[derive(Debug, Clone, Copy)]

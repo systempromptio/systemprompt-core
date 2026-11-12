@@ -6,9 +6,10 @@
 use anyhow::{Context, Result};
 use clap::Args;
 use systemprompt_agent::models::a2a::Artifact;
+use systemprompt_agent::repository::OwnedArtifact;
 use systemprompt_agent::repository::content::artifact::ArtifactRepository;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::ArtifactId;
+use systemprompt_identifiers::{ArtifactId, UserId};
 use systemprompt_logging::CliService;
 use systemprompt_models::a2a::PartContent;
 
@@ -31,24 +32,30 @@ pub struct ShowArgs {
 }
 
 pub(super) async fn execute(args: ShowArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let _session_ctx = get_or_create_session(ctx).await?;
-    execute_with_pool(args, &ctx.db_pool().await?, &ctx.cli).await
+    let session_ctx = get_or_create_session(ctx).await?;
+    execute_with_pool(
+        args,
+        &session_ctx.session.user_id,
+        &ctx.db_pool().await?,
+        &ctx.cli,
+    )
+    .await
 }
 
 pub async fn execute_with_pool(
     args: ShowArgs,
+    user_id: &UserId,
     pool: &DbPool,
     config: &CliConfig,
 ) -> Result<CommandOutput> {
     let repo = ArtifactRepository::new(pool);
 
-    let artifact_id = resolve_artifact_id(&args.artifact, &repo).await?;
+    let owned = resolve_artifact(&args.artifact, user_id, &repo).await?;
 
     let artifact = repo
-        .find_artifact_by_id(&artifact_id)
+        .find_owned_artifact(&owned)
         .await
-        .context("Failed to fetch artifact")?
-        .ok_or_else(|| anyhow::anyhow!("Artifact not found: {}", args.artifact))?;
+        .context("Failed to fetch artifact")?;
 
     let parts: Vec<ArtifactPartOutput> = artifact
         .parts
@@ -183,13 +190,18 @@ fn render_part(index: usize, part: &ArtifactPartOutput, full: bool) {
     }
 }
 
-async fn resolve_artifact_id(input: &str, repo: &ArtifactRepository) -> Result<ArtifactId> {
-    let artifact_id = ArtifactId::new(input);
-    if repo.find_artifact_by_id(&artifact_id).await?.is_some() {
-        return Ok(artifact_id);
+async fn resolve_artifact(
+    input: &str,
+    user_id: &UserId,
+    repo: &ArtifactRepository,
+) -> Result<OwnedArtifact> {
+    match repo.owned_artifact(&ArtifactId::new(input), user_id).await {
+        Ok(owned) => return Ok(owned),
+        Err(e) if e.is_not_found() => {},
+        Err(e) => return Err(e).context("Failed to fetch artifact"),
     }
 
-    let all_artifacts = repo.get_all_artifacts(Some(100)).await?;
+    let all_artifacts = repo.get_artifacts_by_user_id(user_id, Some(100)).await?;
     let matches: Vec<_> = all_artifacts
         .iter()
         .filter(|a| a.id.as_str().starts_with(input))
@@ -197,7 +209,7 @@ async fn resolve_artifact_id(input: &str, repo: &ArtifactRepository) -> Result<A
 
     match matches.len() {
         0 => Err(anyhow::anyhow!("No artifact found matching: {}", input)),
-        1 => Ok(matches[0].id.clone()),
+        1 => Ok(repo.owned_artifact(&matches[0].id, user_id).await?),
         _ => {
             let ids: Vec<&str> = matches.iter().map(|a| a.id.as_str()).collect();
             Err(anyhow::anyhow!(

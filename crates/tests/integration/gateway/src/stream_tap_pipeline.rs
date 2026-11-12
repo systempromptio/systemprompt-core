@@ -41,7 +41,7 @@ fn gateway_journal() -> systemprompt_gateway::audit::journal::GatewayJournal {
 
 // Why: every cell taps the Anthropic surface with the same model, and the
 // render options are one struct so the tap's own signature stays readable.
-fn render(inbound: Arc<dyn InboundAdapter>) -> TapRender {
+pub(super) fn render(inbound: Arc<dyn InboundAdapter>) -> TapRender {
     TapRender {
         inbound,
         request_model: "claude-test".to_owned(),
@@ -176,7 +176,7 @@ pub(super) fn tap_ctx(
     }
 }
 
-async fn admit(audit: &GatewayAudit, db: &DbPool, policy: &GatewayPolicySpec) {
+pub(super) async fn admit(audit: &GatewayAudit, db: &DbPool, policy: &GatewayPolicySpec) {
     use systemprompt_gateway::quota;
     let repos = gateway_repos(db);
     let outcome = quota::precheck_and_reserve(
@@ -206,14 +206,14 @@ async fn admit(audit: &GatewayAudit, db: &DbPool, policy: &GatewayPolicySpec) {
     audit.set_quota_reservation(reservation);
 }
 
-fn user_window(window_seconds: i32) -> QuotaWindow {
+pub(super) fn user_window(window_seconds: i32) -> QuotaWindow {
     QuotaWindow {
         window_seconds,
         ..QuotaWindow::default()
     }
 }
 
-async fn quota_bucket(db: &DbPool, user_id: &UserId) -> Option<(i64, i64, i64)> {
+pub(super) async fn quota_bucket(db: &DbPool, user_id: &UserId) -> Option<(i64, i64, i64)> {
     let pool = db.pool();
     sqlx::query_as(
         "SELECT input_tokens, output_tokens, cost_microdollars FROM ai_quota_buckets \
@@ -225,7 +225,7 @@ async fn quota_bucket(db: &DbPool, user_id: &UserId) -> Option<(i64, i64, i64)> 
     .expect("query ai_quota_buckets")
 }
 
-fn events_stream(
+pub(super) fn events_stream(
     events: Vec<Result<CanonicalEvent, WireStreamError>>,
 ) -> futures::stream::BoxStream<'static, Result<CanonicalEvent, WireStreamError>> {
     Box::pin(stream::iter(events))
@@ -283,6 +283,10 @@ async fn tap_renders_client_bytes_and_completes_audit_on_eof() {
     let (status, error) = settled_status(&audit, &db, &ai_request_id).await;
     assert_eq!(status, "completed", "error: {error:?}");
     assert!(error.is_none(), "{error:?}");
+    assert_eq!(
+        crate::stream_tap_unmetered::usage_source(&db, &ai_request_id).await,
+        "reported"
+    );
 
     let pool = db.pool();
     let (input_tokens, output_tokens, model): (Option<i32>, Option<i32>, Option<String>) =

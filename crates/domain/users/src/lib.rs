@@ -49,10 +49,10 @@ pub use models::{
 pub use repository::{
     ArchiveOutcome, ArchiveParams, ArchiveState, BanDuration, BanIpParams, BanIpWithMetadataParams,
     BannedIp, BannedIpRepository, CreateApiKeyParams, DeclaredUserRow, DeclaredUserWrite,
-    EnrollDeviceCertParams, EnsuredServiceAccount, MERGE_EXCLUDED_SECURITY_TABLES, MergeResult,
-    NewServiceAccount, NewSsoLoginEvent, PurgeCount, SessionRepository,
-    SessionTrafficRollupRepository, SsoLoginEvent, SsoLoginEventRepository,
-    UserRateLimitBucketRepository, UserRepository, UsersRoleDirectory,
+    EnrollDeviceCertParams, EnsuredApiKeyRecord, EnsuredServiceAccount, IssuerRekeyOutcome,
+    IssuerRekeyPlan, MERGE_EXCLUDED_SECURITY_TABLES, MergeResult, NewServiceAccount,
+    NewSsoLoginEvent, PurgeCount, SessionRepository, SessionTrafficRollupRepository, SsoLoginEvent,
+    SsoLoginEventRepository, UserRateLimitBucketRepository, UserRepository, UsersRoleDirectory,
 };
 pub use services::{
     API_KEY_PREFIX, ApiKeyLifetime, ApiKeyService, DEVICE_FINGERPRINT_FOREIGN_USER, DemoteResult,

@@ -1,7 +1,9 @@
 //! An `api` replica supervises no processes, so the MCP proxy forwards each
 //! request to the replica that runs the process: the owner resolved from the
-//! services, endpoint and presence rows, stamped with the owner-hop header.
-//! With no live owner the proxy answers 503 `no_live_owner`.
+//! services, endpoint and presence rows, stamped with an owner-hop marker
+//! signed for that service. With no live owner the proxy answers 503
+//! `no_live_owner`. A worker ignores a marker a client supplies and forwards
+//! the request to the owner as if it had arrived directly.
 
 use axum::body::{Body, to_bytes};
 use axum::http::{Request, StatusCode};
@@ -12,25 +14,33 @@ use systemprompt_database::{
 use systemprompt_identifiers::{InstanceId, ServiceName};
 use systemprompt_manifest::profile::NodeRole;
 use systemprompt_models::RequestContext;
+use systemprompt_runtime::AppContext;
+use systemprompt_security::jwt::verify_owner_hop;
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, fixture_app_context_with_config, fixture_config, test_db_pool,
 };
 use tower::ServiceExt;
-use wiremock::matchers::{header, method};
+use wiremock::matchers::{header_exists, method};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use super::common::{request_context, with_config};
 
-async fn api_app() -> anyhow::Result<axum::Router> {
+async fn app_with_role(
+    role: NodeRole,
+) -> anyhow::Result<(axum::Router, std::sync::Arc<AppContext>)> {
     let b = ensure_test_bootstrap();
     let pool = test_db_pool().await;
     let mut config = fixture_config(&b.database_url);
-    config.role = NodeRole::Api;
+    config.role = role;
     let ctx = fixture_app_context_with_config(&pool, config)?;
-    Ok(with_config(
-        systemprompt_api::routes::proxy::mcp::router(&ctx),
-        &ctx,
+    Ok((
+        with_config(systemprompt_api::routes::proxy::mcp::router(&ctx), &ctx),
+        ctx,
     ))
+}
+
+async fn api_app() -> anyhow::Result<axum::Router> {
+    Ok(app_with_role(NodeRole::Api).await?.0)
 }
 
 fn mcp_request(service: &str, ctx: RequestContext) -> anyhow::Result<Request<Body>> {
@@ -43,14 +53,11 @@ fn mcp_request(service: &str, ctx: RequestContext) -> anyhow::Result<Request<Bod
     Ok(request)
 }
 
-#[tokio::test]
-async fn an_api_replica_forwards_to_the_live_owner_with_the_hop_header() -> anyhow::Result<()> {
-    let owner = MockServer::start().await;
+async fn live_owner(owner: &MockServer) -> anyhow::Result<ServiceName> {
     let pool = test_db_pool().await;
     let suffix = uuid::Uuid::new_v4().simple().to_string();
     let service = ServiceName::new(format!("owned-{}", &suffix[..10]));
-    let instance = InstanceId::new(format!("owner_{suffix}"));
-    let rows = ServiceRepository::new(&pool, instance);
+    let rows = ServiceRepository::new(&pool, InstanceId::new(format!("owner_{suffix}")));
     rows.advertise_endpoint(&owner.uri()).await?;
     rows.touch_presence(NodeRole::All).await?;
     rows.create_service(CreateServiceInput {
@@ -61,15 +68,40 @@ async fn an_api_replica_forwards_to_the_live_owner_with_the_hop_header() -> anyh
         binary_mtime: None,
     })
     .await?;
+    Ok(service)
+}
+
+fn markers_verify(ctx: &AppContext, service: &ServiceName, received: &[wiremock::Request]) -> bool {
+    received.iter().all(|request| {
+        request
+            .headers
+            .get(systemprompt_identifiers::headers::OWNER_HOP)
+            .and_then(|v| v.to_str().ok())
+            .is_some_and(|marker| {
+                verify_owner_hop(
+                    ctx.signing_keys().keyring(),
+                    &ctx.config().jwt_issuer,
+                    service,
+                    marker,
+                )
+                .is_ok()
+            })
+    })
+}
+
+#[tokio::test]
+async fn an_api_replica_forwards_to_the_live_owner_with_a_signed_marker() -> anyhow::Result<()> {
+    let owner = MockServer::start().await;
+    let service = live_owner(&owner).await?;
 
     Mock::given(method("POST"))
-        .and(header(systemprompt_identifiers::headers::OWNER_HOP, "1"))
+        .and(header_exists(systemprompt_identifiers::headers::OWNER_HOP))
         .respond_with(ResponseTemplate::new(200).set_body_string("from-owner"))
         .expect(2)
         .mount(&owner)
         .await;
 
-    let app = api_app().await?;
+    let (app, ctx) = app_with_role(NodeRole::Api).await?;
     for _ in 0..2 {
         let response = app
             .clone()
@@ -87,6 +119,36 @@ async fn an_api_replica_forwards_to_the_live_owner_with_the_hop_header() -> anyh
         forwarded.iter().all(|r| r.url.query() == Some("probe=1")),
         "the query string travels to the owner"
     );
+    assert!(
+        markers_verify(&ctx, &service, &forwarded),
+        "every forwarded request carries a marker signed for this service"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_worker_ignores_a_client_supplied_owner_hop_marker() -> anyhow::Result<()> {
+    let owner = MockServer::start().await;
+    let service = live_owner(&owner).await?;
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(200).set_body_string("from-owner"))
+        .expect(1)
+        .mount(&owner)
+        .await;
+
+    let (app, ctx) = app_with_role(NodeRole::Worker).await?;
+    let mut request = mcp_request(service.as_str(), request_context("owner-forged"))?;
+    request.headers_mut().insert(
+        systemprompt_identifiers::headers::OWNER_HOP,
+        axum::http::HeaderValue::from_static("1"),
+    );
+    let response = app.oneshot(request).await?;
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = to_bytes(response.into_body(), 1 << 16).await?;
+    assert_eq!(&body[..], b"from-owner");
+    let forwarded = owner.received_requests().await.unwrap_or_default();
+    assert!(markers_verify(&ctx, &service, &forwarded));
     Ok(())
 }
 

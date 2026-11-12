@@ -15,6 +15,12 @@ pub(super) struct GatewaySetArgs {
 }
 
 #[derive(Debug, Deserialize)]
+pub(super) struct GatewayTrustConfirmArgs {
+    pub(super) gateway: String,
+    pub(super) fingerprint: String,
+}
+
+#[derive(Debug, Deserialize)]
 pub(super) struct GatewayProfileArgs {
     pub(super) id: String,
 }

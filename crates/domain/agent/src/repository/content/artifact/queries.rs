@@ -8,13 +8,14 @@ use super::converters::{artifact_from_row, rows_to_artifacts_batch};
 use super::parts::get_artifact_parts;
 use crate::models::ArtifactRow;
 use crate::models::a2a::Artifact;
+use crate::repository::OwnedContext;
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_identifiers::{ArtifactId, ContextId, McpExecutionId, SkillId, TaskId, UserId};
 use systemprompt_traits::RepositoryError;
 
 impl ArtifactRepository {
-    pub async fn get_artifacts_by_task(
+    pub(crate) async fn get_artifacts_by_task(
         &self,
         task_id: &TaskId,
     ) -> Result<Vec<Artifact>, RepositoryError> {
@@ -51,10 +52,10 @@ impl ArtifactRepository {
 
     pub async fn get_artifacts_by_context(
         &self,
-        context_id: &ContextId,
+        owned: &OwnedContext,
     ) -> Result<Vec<Artifact>, RepositoryError> {
         let pool = Arc::clone(&self.pool);
-        let context_id_str = context_id.as_str();
+        let context_id_str = owned.context_id().as_str();
 
         let rows = sqlx::query_as!(
             ArtifactRow,
@@ -124,7 +125,7 @@ impl ArtifactRepository {
         rows_to_artifacts_batch(&pool, rows).await
     }
 
-    pub async fn find_artifact_by_id(
+    pub(crate) async fn find_artifact_by_id(
         &self,
         artifact_id: &ArtifactId,
     ) -> Result<Option<Artifact>, RepositoryError> {
@@ -162,65 +163,6 @@ impl ArtifactRepository {
             },
             None => Ok(None),
         }
-    }
-
-    pub async fn validate_artifact_ownership(
-        &self,
-        artifact_id: &ArtifactId,
-        user_id: &UserId,
-    ) -> Result<(), RepositoryError> {
-        let result = sqlx::query_scalar!(
-            "SELECT a.artifact_id FROM task_artifacts a JOIN agent_tasks t ON a.task_id = \
-             t.task_id JOIN user_contexts c ON t.context_id = c.context_id WHERE a.artifact_id = \
-             $1 AND c.user_id = $2",
-            artifact_id.as_str(),
-            user_id.as_str()
-        )
-        .fetch_optional(self.pool.as_ref())
-        .await?;
-
-        match result {
-            Some(_) => Ok(()),
-            None => Err(RepositoryError::not_found(
-                "artifact",
-                format!("{artifact_id} for user {user_id}"),
-            )),
-        }
-    }
-
-    pub async fn get_all_artifacts(
-        &self,
-        limit: Option<i32>,
-    ) -> Result<Vec<Artifact>, RepositoryError> {
-        let pool = Arc::clone(&self.pool);
-        let limit = i64::from(limit.unwrap_or(100));
-
-        let rows = sqlx::query_as!(
-            ArtifactRow,
-            r#"SELECT
-                artifact_id as "artifact_id!: ArtifactId",
-                task_id as "task_id!: TaskId",
-                context_id as "context_id!: ContextId",
-                name,
-                description,
-                artifact_type as "artifact_type!",
-                source,
-                tool_name,
-                mcp_execution_id as "mcp_execution_id?: McpExecutionId",
-                fingerprint,
-                skill_id as "skill_id?: SkillId",
-                skill_name,
-                metadata,
-                created_at as "created_at!"
-            FROM task_artifacts
-            ORDER BY created_at DESC
-            LIMIT $1"#,
-            limit
-        )
-        .fetch_all(pool.as_ref())
-        .await?;
-
-        rows_to_artifacts_batch(&pool, rows).await
     }
 }
 

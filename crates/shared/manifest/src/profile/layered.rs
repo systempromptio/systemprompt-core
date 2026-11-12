@@ -14,8 +14,9 @@ use std::path::{Path, PathBuf};
 
 use serde_yaml::Value;
 
+use super::field_kind::profile_field_kind;
 use super::{Profile, ProfileError, ProfileResult};
-use crate::env::{interpolate, read_env_optional};
+use crate::env::{interpolate_yaml, read_env_optional};
 
 pub const BASE_PROFILE_FILE: &str = "base.yaml";
 pub const OVERLAY_PROFILE_FILE: &str = "profile.yaml";
@@ -48,16 +49,40 @@ pub fn base_path_for(overlay_path: &Path) -> Option<PathBuf> {
         .map(|profiles_dir| profiles_dir.join(BASE_PROFILE_FILE))
 }
 
-pub(super) fn parse_layer(content: &str, path: &Path) -> ProfileResult<Value> {
-    let content = interpolate(content, &|name| read_env_optional(name));
-    let value: Value =
-        serde_yaml::from_str(&content).map_err(|source| ProfileError::ParseYaml {
-            path: path.to_path_buf(),
-            source,
-        })?;
+pub fn parse_layer(content: &str, path: &Path) -> ProfileResult<Value> {
+    let mut value = parse_raw_layer(content, path)?;
+    interpolate_yaml(
+        &mut value,
+        &|name| read_env_optional(name),
+        &profile_field_kind,
+    )
+    .map_err(|source| ProfileError::Interpolation {
+        path: path.to_path_buf(),
+        source,
+    })?;
+    Ok(value)
+}
+
+pub fn parse_raw_layer(content: &str, path: &Path) -> ProfileResult<Value> {
+    let value: Value = serde_yaml::from_str(content).map_err(|source| ProfileError::ParseYaml {
+        path: path.to_path_buf(),
+        source,
+    })?;
     Ok(match value {
         Value::Null => Value::Mapping(serde_yaml::Mapping::new()),
         other => other,
+    })
+}
+
+pub(super) fn raw_merged(overlay_content: &str, overlay_path: &Path) -> ProfileResult<Value> {
+    let overlay = parse_raw_layer(overlay_content, overlay_path)?;
+    let base = match base_path_for(overlay_path).filter(|p| p.is_file()) {
+        Some(base_path) => Some(parse_raw_layer(&read_layer(&base_path)?, &base_path)?),
+        None => None,
+    };
+    Ok(match base {
+        Some(base) => merge_yaml(base, overlay),
+        None => overlay,
     })
 }
 
@@ -96,9 +121,17 @@ impl Profile {
     }
 
     pub fn from_yaml(content: &str, overlay_path: &Path) -> ProfileResult<Self> {
-        let base = load_base_layer(overlay_path)?;
-        let overlay = parse_layer(content, overlay_path)?;
-        Self::from_layers(base, overlay, overlay_path)
+        let mut merged = raw_merged(content, overlay_path)?;
+        interpolate_yaml(
+            &mut merged,
+            &|name| read_env_optional(name),
+            &profile_field_kind,
+        )
+        .map_err(|source| ProfileError::Interpolation {
+            path: overlay_path.to_path_buf(),
+            source,
+        })?;
+        Self::from_layers(None, merged, overlay_path)
     }
 
     pub fn from_layers(
@@ -106,11 +139,20 @@ impl Profile {
         overlay: Value,
         overlay_path: &Path,
     ) -> ProfileResult<Self> {
-        super::legacy::reject_legacy_file_name(overlay_path)?;
         let merged = match base {
             Some(base) => merge_yaml(base, overlay),
             None => overlay,
         };
+        let mut profile = Self::assemble(merged, overlay_path)?;
+        profile.derive_fields()?;
+        if let Some(secrets) = profile.secrets.as_ref() {
+            secrets.validate()?;
+        }
+        Ok(profile)
+    }
+
+    pub(super) fn assemble(merged: Value, overlay_path: &Path) -> ProfileResult<Self> {
+        super::legacy::reject_legacy_file_name(overlay_path)?;
         super::legacy::reject_legacy_shape(&merged, overlay_path)?;
         super::derived::reject_stated_derived_fields(&merged, overlay_path)?;
 
@@ -127,11 +169,6 @@ impl Profile {
                     path: overlay_path.to_path_buf(),
                 })?;
         profile.paths.resolve_relative_to(profile_dir);
-        profile.derive_fields()?;
-
-        if let Some(secrets) = profile.secrets.as_ref() {
-            secrets.validate()?;
-        }
         Ok(profile)
     }
 }

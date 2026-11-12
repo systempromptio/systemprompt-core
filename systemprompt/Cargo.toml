@@ -72,20 +72,34 @@ runtime = ["cli", "dep:systemprompt-extension"]
 # admin extension, say. `full` implies it.
 analytics = ["dep:systemprompt-analytics"]
 
-# Slack integration (inbound Events API / slash commands / interactivity).
-# Fully opt-in: excluded from `default` and `full`.
-slack = ["dep:systemprompt-slack"]
+# Slack integration: the domain crate and the server's `/slack` inbound routes
+# (Events API, slash commands, interactivity). Opt-in: excluded from `default`
+# and `full`.
+slack = ["dep:systemprompt-slack", "systemprompt-api?/slack", "systemprompt-cli?/slack"]
 
-# Microsoft Teams integration (inbound Bot Framework activities).
-# Fully opt-in: excluded from `default` and `full`.
-teams = ["dep:systemprompt-teams"]
+# Microsoft Teams integration: the domain crate and the server's `/teams`
+# Bot Framework activity routes. Opt-in: excluded from `default` and `full`.
+teams = ["dep:systemprompt-teams", "systemprompt-api?/teams", "systemprompt-cli?/teams"]
 
 # Headless coding-agent executor (Claude Code, Codex CLI runs with a leased
-# claim queue). Opt-in while the crate is being built out.
-agent-runs = ["dep:systemprompt-agent-runs"]
+# claim queue): the domain crate, the `/api/v1/agent-runs` routes and the agent
+# run launcher wired into hosted agents. `full` implies it.
+agent-runs = ["dep:systemprompt-agent-runs", "systemprompt-api?/agent-runs", "systemprompt-cli?/agent-runs"]
+
+# OpenTelemetry: the gateway's OTLP/HTTP ingest routes and the `otlp_export`
+# job that ships the audit trail to a collector. `full` implies it.
+otel = ["systemprompt-api?/otel", "systemprompt-cli?/otel", "systemprompt-scheduler?/otel"]
+
+# The device-credential consumer surface the bridge reports installation
+# evidence through. `full` implies it.
+bridge = ["systemprompt-api?/bridge", "systemprompt-cli?/bridge"]
 
 # Office document codecs (.docx) for the files domain. `full` implies it.
 files-office = ["dep:systemprompt-files", "systemprompt-files/office"]
+
+# The PDF renderer for document export and its embedded fonts. Without it a
+# PDF export is refused as an unsupported operation. `full` implies it.
+files-pdf = ["dep:systemprompt-files", "systemprompt-files/pdf", "systemprompt-api?/pdf", "systemprompt-cli?/pdf"]
 
 # Live co-editing of HTML and Markdown documents (engine-agnostic) and its HTTP
 # routes. `full` implies it.
@@ -124,8 +138,11 @@ full = [
     "config",
     "dep:systemprompt-files",
     "files-office",
+    "files-pdf",
     "files-collab-loro",
     "agent-runs",
+    "otel",
+    "bridge",
     "notifications",
     "brain",
     # Infrastructure crates for extension authors

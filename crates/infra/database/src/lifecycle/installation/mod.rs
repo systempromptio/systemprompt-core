@@ -17,6 +17,7 @@ mod seeds;
 mod undeclared;
 
 pub use backfill::{BackfillStatement, PROJECTION_BACKLOG, backfill_statements, projection_tables};
+pub use extension::catalog_digest::catalog_digest as schema_catalog_digest;
 pub use extension::current::{SchemaCurrency, schema_currency};
 pub use extension::install_extension_schemas_full;
 pub use fk_deferral::{
@@ -30,4 +31,4 @@ pub use report::{ForeignKeyDrift, SchemaAhead, SchemaInstallReport};
 pub use routine_refs::check_trigger_routines;
 pub use undeclared::{OrphanMigrationLedger, SchemaResidue, UndeclaredTable, audit_schema_residue};
 
-pub use extension::lock::{BOOTSTRAP_ADVISORY_LOCK_KEY, BootstrapLockGuard};
+pub use extension::lock::{BOOTSTRAP_ADVISORY_LOCK_KEY, BootstrapLockGuard, BootstrapLockTimeout};

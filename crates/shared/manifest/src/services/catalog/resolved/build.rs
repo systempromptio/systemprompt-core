@@ -54,6 +54,7 @@ impl ResolvedCatalog {
                         id: id.clone(),
                         kind: entry.kind,
                         secret: entry.secret.clone(),
+                        workload_identity: entry.workload_identity.clone(),
                         label: entry.label.clone(),
                     },
                 )

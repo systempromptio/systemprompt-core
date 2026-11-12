@@ -54,7 +54,7 @@ fn cors_layer(origins: &[String]) -> Result<CorsLayer, crate::error::AgentError>
             http::header::AUTHORIZATION,
             http::header::CONTENT_TYPE,
             http::header::ACCEPT,
-            http::HeaderName::from_static("a2a-version"),
+            http::HeaderName::from_static(systemprompt_identifiers::headers::A2A_VERSION),
         ]))
 }
 
@@ -107,7 +107,7 @@ impl Server {
             oauth_config,
             global_config.jwt_issuer.clone(),
             global_config.jwt_audiences.clone(),
-            agent_state.signing_keys().clone(),
+            agent_state.verification_keys().clone(),
         );
 
         oauth_state = oauth_state.with_jwt_provider(Arc::clone(agent_state.jwt_provider()));
@@ -164,7 +164,7 @@ impl Server {
         F: Future<Output = ()> + Send + 'static,
     {
         let app = self.create_router();
-        let addr = format!("0.0.0.0:{}", self.port);
+        let addr = format!("127.0.0.1:{}", self.port);
         let listener = tokio::net::TcpListener::bind(&addr).await?;
         tracing::info!(
             addr = %addr,

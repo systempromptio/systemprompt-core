@@ -161,3 +161,16 @@ async fn wait_for_postgres_healthy_times_out_while_unhealthy() {
 
     assert!(err.to_string().contains("Timeout waiting for PostgreSQL"));
 }
+
+#[test]
+fn compose_file_with_the_role_password_is_owner_only() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("docker").join("acme.yaml");
+    let tenant = TenantContainer::new("acme".to_owned(), "s3cretpw".to_owned(), 55432);
+    container::write_compose_file(&tenant, &path).unwrap();
+    let mode = std::fs::metadata(&path).unwrap().permissions().mode() & 0o777;
+    assert_eq!(mode, 0o600, "mode {mode:o}");
+    assert!(std::fs::read_to_string(&path).unwrap().contains("s3cretpw"));
+}

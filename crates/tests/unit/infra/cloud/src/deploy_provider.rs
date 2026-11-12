@@ -7,7 +7,6 @@ use std::os::unix::process::ExitStatusExt;
 use std::path::PathBuf;
 use std::process::{ExitStatus, Output};
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
 
 use systemprompt_cloud::deploy::provider::{
     BuiltImage, DeployProvider, DeployProviderKind, GitOpsDeploy, GitOpsDeployParams, SecretBatch,
@@ -273,7 +272,6 @@ fn gitops_params(repo: PathBuf, push: bool) -> GitOpsDeployParams {
             },
         },
         project_root: PathBuf::from("/nonexistent"),
-        rollout_timeout: Duration::from_secs(1),
     }
 }
 

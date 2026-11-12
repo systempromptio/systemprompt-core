@@ -11,8 +11,9 @@ use systemprompt_oauth_issuance::sso::{
 };
 
 use crate::routes::oauth::cookie::session_cookie_redirect;
+use crate::services::session_cookie::SessionCookie;
 
-pub fn into_response(outcome: FinishOutcome) -> Response {
+pub fn into_response(cookie: SessionCookie, outcome: FinishOutcome) -> Response {
     match outcome {
         FinishOutcome::Success {
             access_token,
@@ -20,7 +21,7 @@ pub fn into_response(outcome: FinishOutcome) -> Response {
             return_to,
             clear_binder,
         } => with_cookie(
-            session_cookie_redirect(&access_token, &return_to, max_age_secs),
+            session_cookie_redirect(cookie, &access_token, &return_to, max_age_secs),
             &clear_binder,
         ),
         FinishOutcome::Refused {

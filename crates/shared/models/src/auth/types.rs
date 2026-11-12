@@ -94,8 +94,7 @@ impl AuthenticatedUser {
     }
 
     pub fn has_permission(&self, permission: Permission) -> bool {
-        self.permissions.contains(&permission)
-            || self.permissions.iter().any(|p| p.implies(&permission))
+        self.permissions.iter().any(|p| p.grants(&permission))
     }
 
     pub fn is_admin(&self) -> bool {

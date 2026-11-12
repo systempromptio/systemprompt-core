@@ -128,3 +128,15 @@ impl IntoResponse for ApiHttpError {
         response
     }
 }
+
+pub(crate) fn unreadable_body(
+    status: StatusCode,
+    message: &str,
+    source: impl Error + Send + Sync + 'static,
+) -> ApiError {
+    if status == StatusCode::PAYLOAD_TOO_LARGE {
+        ApiError::payload_too_large(message).with_source(source)
+    } else {
+        ApiError::bad_request(message).with_source(source)
+    }
+}

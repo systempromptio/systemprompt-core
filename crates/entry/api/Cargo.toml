@@ -32,7 +32,6 @@ async-stream = { workspace = true }
 axum = { workspace = true, features = ["multipart"] }
 tower = { workspace = true }
 tower-http = { workspace = true, features = ["normalize-path"] }
-tower_governor = { workspace = true }
 http = { workspace = true }
 reqwest = { workspace = true }
 semver = { workspace = true }
@@ -101,9 +100,9 @@ systemprompt-ai = { workspace = true }
 systemprompt-security = { workspace = true }
 systemprompt-governance = { workspace = true }
 systemprompt-marketplace = { workspace = true }
-systemprompt-agent-runs = { workspace = true }
-systemprompt-slack = { workspace = true }
-systemprompt-teams = { workspace = true }
+systemprompt-agent-runs = { workspace = true, optional = true }
+systemprompt-slack = { workspace = true, optional = true }
+systemprompt-teams = { workspace = true, optional = true }
 
 # Authentication
 bcrypt = { workspace = true }
@@ -116,16 +115,23 @@ nix = { workspace = true }
 # Sync/compression
 
 # OTel ingest (OTLP/HTTP Protobuf)
-prost = { workspace = true }
-opentelemetry-proto = { workspace = true }
+prost = { workspace = true, optional = true }
+opentelemetry-proto = { workspace = true, optional = true }
 
 [features]
+default = []
+agent-runs = ["dep:systemprompt-agent-runs"]
 brain = ["dep:systemprompt-brain", "notifications", "systemprompt-runtime/brain", "systemprompt-gateway/brain", "systemprompt-scheduler/brain"]
 collab = ["systemprompt-files/collab", "systemprompt-runtime/collab"]
 notifications = [
     "dep:systemprompt-notifications",
     "systemprompt-runtime/notifications",
 ]
+pdf = ["systemprompt-files/pdf"]
+otel = ["dep:opentelemetry-proto", "dep:prost", "systemprompt-scheduler/otel"]
+bridge = []
+slack = ["dep:systemprompt-slack"]
+teams = ["dep:systemprompt-teams"]
 
 [lints]
 workspace = true

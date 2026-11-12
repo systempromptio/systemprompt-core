@@ -185,7 +185,7 @@ impl DatabaseExt for Arc<Database> {
 #[async_trait::async_trait]
 impl DatabaseProvider for Database {
     fn get_postgres_pool(&self) -> Arc<sqlx::PgPool> {
-        self.read().get_postgres_pool()
+        self.write().get_postgres_pool()
     }
 
     async fn execute(

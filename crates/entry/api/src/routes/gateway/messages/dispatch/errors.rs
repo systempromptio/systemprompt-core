@@ -23,6 +23,7 @@ use systemprompt_gateway::service::{
 use super::RejectionError;
 
 const ERROR_TYPE_PERMISSION: &str = "permission_error";
+const ERROR_TYPE_AUTHENTICATION: &str = "authentication_error";
 const ERROR_TYPE_INVALID_REQUEST: &str = "invalid_request_error";
 
 const POLICY_DENIAL_PREFIX: &str = "blocked by systemprompt governance";
@@ -76,6 +77,16 @@ fn render_error(error: &GatewayError) -> Option<Response<Body>> {
         GatewayError::PersonalKeyRequired { .. } => Some(build_error_response(
             error.status(),
             ERROR_TYPE_PERMISSION,
+            &error.to_string(),
+        )),
+        GatewayError::CallerCredentialRequired { .. } => Some(build_error_response(
+            error.status(),
+            ERROR_TYPE_AUTHENTICATION,
+            &error.to_string(),
+        )),
+        GatewayError::CallerFormatMismatch { .. } => Some(build_error_response(
+            error.status(),
+            error.error_type(),
             &error.to_string(),
         )),
         GatewayError::PromptRepair(repair) => {
@@ -133,7 +144,9 @@ fn classify_dispatch_error_ref(error: &GatewayError) -> RejectionError {
         GatewayError::GuardForbidden(forbidden) => {
             RejectionError::client(status, forbidden.message.clone())
         },
-        GatewayError::PersonalKeyRequired { .. } => {
+        GatewayError::PersonalKeyRequired { .. }
+        | GatewayError::CallerCredentialRequired { .. }
+        | GatewayError::CallerFormatMismatch { .. } => {
             RejectionError::client(status, error.to_string())
         },
         GatewayError::GuardUnavailable(_) => {
@@ -173,6 +186,18 @@ fn with_retry_after(mut response: Response<Body>, seconds: i32) -> Response<Body
 }
 
 fn build_upstream_passthrough(e: &UpstreamError) -> Option<Response<Body>> {
+    if let UpstreamError::Relayed {
+        status,
+        headers,
+        body,
+        ..
+    } = e
+    {
+        let mut response = Response::new(Body::from(bytes::Bytes::clone(body)));
+        *response.status_mut() = StatusCode::from_u16(*status).ok()?;
+        *response.headers_mut() = http::HeaderMap::clone(headers);
+        return Some(response);
+    }
     let UpstreamError::Status {
         status,
         body,
@@ -208,9 +233,22 @@ pub fn map_upstream_error(e: &UpstreamError) -> RejectionError {
             mapped,
             format!("{provider} rejected the request: {message}"),
         ),
-        UpstreamError::Status { .. } => RejectionError::server(mapped, "upstream provider error"),
+        UpstreamError::Relayed {
+            provider, status, ..
+        } if !mapped.is_server_error() => {
+            RejectionError::client(mapped, format!("{provider} answered {status}"))
+        },
+        UpstreamError::Status { .. } | UpstreamError::Relayed { .. } => {
+            RejectionError::server(mapped, "upstream provider error")
+        },
+        UpstreamError::UnreadableBody { .. } => {
+            RejectionError::server(mapped, "upstream provider answer could not be read")
+        },
         UpstreamError::Transport { .. } => {
             RejectionError::server(mapped, "upstream provider unreachable")
+        },
+        UpstreamError::Timeout { .. } => {
+            RejectionError::server(mapped, "upstream provider timed out")
         },
     }
 }

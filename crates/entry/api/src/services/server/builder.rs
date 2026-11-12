@@ -1,10 +1,10 @@
 //! Full API router construction and the global middleware stack.
 //!
 //! [`setup_api_server`] composes the route tree and applies the global layers
-//! (body limit, analytics, context, session, CORS, trailing-slash, trace and
-//! served-by headers, content negotiation, security headers) in the order they
-//! must run. Binding and serving live in [`super::startup`], which binds the
-//! listener before this router exists and swaps it in once bootstrap
+//! (panic fence, body limit, analytics, context, session, CORS, trailing-slash,
+//! trace and served-by headers, content negotiation, security headers) in the
+//! order they must run. Binding and serving live in [`super::startup`], which
+//! binds the listener before this router exists and swaps it in once bootstrap
 //! completes.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -22,8 +22,9 @@ use systemprompt_traits::{StartupEventExt, StartupEventSender};
 use super::readiness::ReadinessState;
 use super::routes::configure_routes;
 use crate::services::middleware::{
-    AnalyticsMiddleware, CorsMiddleware, LoadShed, PublicContextMiddleware, SessionMiddleware,
-    inject_security_headers, inject_served_by, inject_trace_header, remove_trailing_slash,
+    AnalyticsMiddleware, CorsMiddleware, LoadShed, PublicContextMiddleware, RateLimitState,
+    SessionMiddleware, inject_security_headers, inject_served_by, inject_trace_header, panic_fence,
+    remove_trailing_slash, with_pre_auth_ip_limit,
 };
 
 pub use super::discovery::{
@@ -76,7 +77,7 @@ fn register_artifact_scanner(ctx: &AppContext, engines: &GatewayEngines) {
 }
 
 fn apply_global_middleware(router: Router, ctx: &AppContext) -> Result<Router> {
-    let mut router = router;
+    let mut router = router.layer(panic_fence());
 
     if let Some(max) = ctx.config().max_in_flight {
         let shed = Arc::new(LoadShed::new(max));
@@ -111,6 +112,8 @@ fn apply_global_middleware(router: Router, ctx: &AppContext) -> Result<Router> {
             async move { middleware.handle(req, next).await }
         }
     }));
+
+    router = with_pre_auth_ip_limit(router, &RateLimitState::from_context(ctx));
 
     let cors = CorsMiddleware::build_layer(ctx.config())?;
     router = router.layer(cors);

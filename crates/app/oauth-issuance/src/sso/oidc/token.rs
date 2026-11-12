@@ -38,11 +38,13 @@ pub(super) async fn redeem_code(
     http: &reqwest::Client,
     req: &CodeRedemption<'_>,
 ) -> Result<String, OidcProviderError> {
-    let token_endpoint = validate_outbound_url(req.token_endpoint).map_err(|source| {
-        OidcProviderError::Endpoint {
-            field: "token_endpoint",
-            source,
-        }
+    let token_endpoint = validate_outbound_url(
+        req.token_endpoint,
+        systemprompt_models::net::LoopbackPolicy::Allow,
+    )
+    .map_err(|source| OidcProviderError::Endpoint {
+        field: "token_endpoint",
+        source,
     })?;
     let response = http
         .post(token_endpoint)

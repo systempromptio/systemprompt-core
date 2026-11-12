@@ -8,7 +8,7 @@ use std::sync::Arc;
 use systemprompt_events::{EventBridgeHandle, EventRouter, PostgresEventBridge};
 use systemprompt_manifest::Config;
 
-pub(super) fn event_plane(
+pub(crate) fn event_plane(
     configured: Option<EventRouter>,
     database: &systemprompt_database::DbPool,
     config: &Config,

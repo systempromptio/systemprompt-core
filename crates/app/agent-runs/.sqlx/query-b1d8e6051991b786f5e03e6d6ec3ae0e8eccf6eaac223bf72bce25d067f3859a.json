@@ -1,0 +1,35 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE agent_runs\n            SET status = 'running', started_at = NOW(), run_dir = $4, pid = $5,\n                gateway_session_id = $6, api_key_id = $7\n            WHERE id = $1 AND claimed_by = $2 AND attempt = $3 AND claimed_at = $8\n              AND status IN ('preparing', 'running')\n            RETURNING task_id AS \"task_id: TaskId\"\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "task_id: TaskId",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "agent_runs",
+            "name": "task_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Int4",
+        "Text",
+        "Int4",
+        "Text",
+        "Text",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "b1d8e6051991b786f5e03e6d6ec3ae0e8eccf6eaac223bf72bce25d067f3859a"
+}

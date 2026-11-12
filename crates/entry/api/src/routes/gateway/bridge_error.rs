@@ -21,7 +21,7 @@ use systemprompt_traits::{AuthUser, BoxedSource};
 use systemprompt_users::UserError;
 
 use super::messages::extract_credential;
-use crate::error::ApiHttpError;
+use crate::error::{ApiHttpError, unreadable_body};
 use crate::services::middleware::JwtContextExtractor;
 use crate::services::middleware::jwt::JwtUserContext;
 
@@ -124,8 +124,8 @@ impl From<BridgeError> for ApiHttpError {
             BridgeError::SessionMismatch => {
                 ApiError::unauthorized(message).with_error_key("session_mismatch")
             },
-            BridgeError::InvalidBody(_) => {
-                ApiError::bad_request(message).with_error_key("invalid_body")
+            BridgeError::InvalidBody(source) => {
+                unreadable_body(source.status(), &message, source).with_error_key("invalid_body")
             },
             BridgeError::UnknownSurface(_) => {
                 ApiError::bad_request(message).with_error_key("unknown_api_surface")

@@ -2,7 +2,10 @@
 // single-use, mandatory redirect-uri and PKCE S256 checks).
 
 use systemprompt_identifiers::{AuthorizationCode, ClientId, RefreshTokenId, UserId};
-use systemprompt_oauth::repository::{AuthCodeParams, MintAuthCodeParams, OAuthRepository};
+use systemprompt_oauth::repository::{
+    AuthCodeParams, AuthCodeRedemption, MintAuthCodeParams, OAuthRepository, RefreshTokenLineage,
+    RefreshTokenParams,
+};
 use systemprompt_test_fixtures::{
     OAuthClientFixture, PkcePair, ensure_test_bootstrap, pkce_pair, seed_oauth_client,
     seed_user_row, test_db_pool, unique_user_id,
@@ -73,7 +76,13 @@ async fn store_then_validate_with_pkce() {
 
     let result = ctx
         .repo
-        .validate_authorization_code(&code, &ctx.client_id, &ctx.redirect_uri, &ctx.pkce.verifier)
+        .validate_authorization_code(AuthCodeRedemption {
+            code: &code,
+            client_id: &ctx.client_id,
+            redirect_uri: &ctx.redirect_uri,
+            code_verifier: &ctx.pkce.verifier,
+            refresh_token_id: &RefreshTokenId::new(format!("rt-{}", Uuid::new_v4())),
+        })
         .await
         .expect("validate");
     assert_eq!(result.user_id, ctx.user_id);
@@ -87,18 +96,25 @@ async fn validate_is_single_use() {
     let code = store_code(&ctx, "openid", None).await;
 
     ctx.repo
-        .validate_authorization_code(&code, &ctx.client_id, &ctx.redirect_uri, &ctx.pkce.verifier)
+        .validate_authorization_code(AuthCodeRedemption {
+            code: &code,
+            client_id: &ctx.client_id,
+            redirect_uri: &ctx.redirect_uri,
+            code_verifier: &ctx.pkce.verifier,
+            refresh_token_id: &RefreshTokenId::new(format!("rt-{}", Uuid::new_v4())),
+        })
         .await
         .expect("first use ok");
 
     assert!(
         ctx.repo
-            .validate_authorization_code(
-                &code,
-                &ctx.client_id,
-                &ctx.redirect_uri,
-                &ctx.pkce.verifier,
-            )
+            .validate_authorization_code(AuthCodeRedemption {
+                code: &code,
+                client_id: &ctx.client_id,
+                redirect_uri: &ctx.redirect_uri,
+                code_verifier: &ctx.pkce.verifier,
+                refresh_token_id: &RefreshTokenId::new(format!("rt-{}", Uuid::new_v4()))
+            })
             .await
             .is_err(),
         "a replayed code must be rejected"
@@ -111,12 +127,13 @@ async fn validate_unknown_code_errors() {
     let code = AuthorizationCode::new(format!("never-{}", Uuid::new_v4()));
     assert!(
         ctx.repo
-            .validate_authorization_code(
-                &code,
-                &ctx.client_id,
-                &ctx.redirect_uri,
-                &ctx.pkce.verifier,
-            )
+            .validate_authorization_code(AuthCodeRedemption {
+                code: &code,
+                client_id: &ctx.client_id,
+                redirect_uri: &ctx.redirect_uri,
+                code_verifier: &ctx.pkce.verifier,
+                refresh_token_id: &RefreshTokenId::new(format!("rt-{}", Uuid::new_v4()))
+            })
             .await
             .is_err()
     );
@@ -136,12 +153,13 @@ async fn validate_redirect_uri_mismatch_errors() {
 
     assert!(
         ctx.repo
-            .validate_authorization_code(
-                &code,
-                &ctx.client_id,
-                "https://evil.invalid/cb",
-                &ctx.pkce.verifier,
-            )
+            .validate_authorization_code(AuthCodeRedemption {
+                code: &code,
+                client_id: &ctx.client_id,
+                redirect_uri: "https://evil.invalid/cb",
+                code_verifier: &ctx.pkce.verifier,
+                refresh_token_id: &RefreshTokenId::new(format!("rt-{}", Uuid::new_v4()))
+            })
             .await
             .is_err()
     );
@@ -155,12 +173,13 @@ async fn validate_rejects_mismatched_client_id() {
     let other_client = ClientId::new(format!("other-{}", Uuid::new_v4()));
     assert!(
         ctx.repo
-            .validate_authorization_code(
-                &code,
-                &other_client,
-                &ctx.redirect_uri,
-                &ctx.pkce.verifier,
-            )
+            .validate_authorization_code(AuthCodeRedemption {
+                code: &code,
+                client_id: &other_client,
+                redirect_uri: &ctx.redirect_uri,
+                code_verifier: &ctx.pkce.verifier,
+                refresh_token_id: &RefreshTokenId::new(format!("rt-{}", Uuid::new_v4()))
+            })
             .await
             .is_err(),
         "a code issued to one client must not be redeemable by another"
@@ -168,12 +187,13 @@ async fn validate_rejects_mismatched_client_id() {
 
     assert!(
         ctx.repo
-            .validate_authorization_code(
-                &code,
-                &ctx.client_id,
-                &ctx.redirect_uri,
-                &ctx.pkce.verifier,
-            )
+            .validate_authorization_code(AuthCodeRedemption {
+                code: &code,
+                client_id: &ctx.client_id,
+                redirect_uri: &ctx.redirect_uri,
+                code_verifier: &ctx.pkce.verifier,
+                refresh_token_id: &RefreshTokenId::new(format!("rt-{}", Uuid::new_v4()))
+            })
             .await
             .is_err(),
         "the mismatched attempt consumed the code, so the rightful client is refused too"
@@ -186,12 +206,13 @@ async fn validate_rejects_a_wrong_verifier() {
     let code = store_code(&ctx, "openid", None).await;
     assert!(
         ctx.repo
-            .validate_authorization_code(
-                &code,
-                &ctx.client_id,
-                &ctx.redirect_uri,
-                "wrong-verifier",
-            )
+            .validate_authorization_code(AuthCodeRedemption {
+                code: &code,
+                client_id: &ctx.client_id,
+                redirect_uri: &ctx.redirect_uri,
+                code_verifier: "wrong-verifier",
+                refresh_token_id: &RefreshTokenId::new(format!("rt-{}", Uuid::new_v4()))
+            })
             .await
             .is_err()
     );
@@ -203,7 +224,13 @@ async fn validate_rejects_an_empty_verifier() {
     let code = store_code(&ctx, "openid", None).await;
     assert!(
         ctx.repo
-            .validate_authorization_code(&code, &ctx.client_id, &ctx.redirect_uri, "")
+            .validate_authorization_code(AuthCodeRedemption {
+                code: &code,
+                client_id: &ctx.client_id,
+                redirect_uri: &ctx.redirect_uri,
+                code_verifier: "",
+                refresh_token_id: &RefreshTokenId::new(format!("rt-{}", Uuid::new_v4()))
+            })
             .await
             .is_err(),
         "a PKCE-bound code must not be redeemable without a verifier"
@@ -262,41 +289,63 @@ async fn mint_rejects_a_missing_challenge_or_a_non_s256_method() {
         .await
         .expect("S256 mint");
     ctx.repo
-        .validate_authorization_code(&code, &ctx.client_id, &ctx.redirect_uri, &ctx.pkce.verifier)
+        .validate_authorization_code(AuthCodeRedemption {
+            code: &code,
+            client_id: &ctx.client_id,
+            redirect_uri: &ctx.redirect_uri,
+            code_verifier: &ctx.pkce.verifier,
+            refresh_token_id: &RefreshTokenId::new(format!("rt-{}", Uuid::new_v4())),
+        })
         .await
         .expect("minted code redeems with its verifier");
 }
 
+fn code_refresh_token<'a>(
+    ctx: &'a Ctx,
+    rt: &'a RefreshTokenId,
+    code: &'a AuthorizationCode,
+) -> RefreshTokenParams<'a> {
+    RefreshTokenParams {
+        token_id: rt,
+        client_id: &ctx.client_id,
+        user_id: &ctx.user_id,
+        scope: "openid",
+        expires_at: (chrono::Utc::now() + chrono::Duration::hours(1)).timestamp(),
+        resource: None,
+        lineage: RefreshTokenLineage::AuthorizationCode(code),
+    }
+}
+
 #[tokio::test]
-async fn replayed_code_with_linked_refresh_token_revokes_the_family() {
+async fn replayed_code_revokes_the_family_its_redemption_recorded() {
     let ctx = setup().await;
     let code = store_code(&ctx, "openid", None).await;
+    let rt = RefreshTokenId::new(format!("rt-{}", Uuid::new_v4()));
 
     ctx.repo
-        .validate_authorization_code(&code, &ctx.client_id, &ctx.redirect_uri, &ctx.pkce.verifier)
-        .await
-        .expect("first use");
-
-    let rt = systemprompt_identifiers::RefreshTokenId::new(format!("rt-{}", Uuid::new_v4()));
-    ctx.repo
-        .store_refresh_token(systemprompt_oauth::repository::RefreshTokenParams {
-            token_id: &rt,
+        .validate_authorization_code(AuthCodeRedemption {
+            code: &code,
             client_id: &ctx.client_id,
-            user_id: &ctx.user_id,
-            scope: "openid",
-            expires_at: (chrono::Utc::now() + chrono::Duration::hours(1)).timestamp(),
-            family_id: None,
+            redirect_uri: &ctx.redirect_uri,
+            code_verifier: &ctx.pkce.verifier,
+            refresh_token_id: &rt,
         })
         .await
-        .expect("store refresh token");
+        .expect("first use");
     ctx.repo
-        .link_auth_code_to_refresh_token(&code, &rt)
+        .store_refresh_token(code_refresh_token(&ctx, &rt, &code))
         .await
-        .expect("link");
+        .expect("store the refresh token the claim recorded");
 
     let err = ctx
         .repo
-        .validate_authorization_code(&code, &ctx.client_id, &ctx.redirect_uri, &ctx.pkce.verifier)
+        .validate_authorization_code(AuthCodeRedemption {
+            code: &code,
+            client_id: &ctx.client_id,
+            redirect_uri: &ctx.redirect_uri,
+            code_verifier: &ctx.pkce.verifier,
+            refresh_token_id: &RefreshTokenId::new(format!("rt-{}", Uuid::new_v4())),
+        })
         .await
         .expect_err("replay must be rejected");
     assert!(err.to_string().contains("Invalid authorization code"));
@@ -308,15 +357,61 @@ async fn replayed_code_with_linked_refresh_token_revokes_the_family() {
 }
 
 #[tokio::test]
-async fn link_auth_code_to_dangling_refresh_token_errors() {
+async fn replay_before_the_refresh_token_is_stored_prevents_storing_it() {
     let ctx = setup().await;
     let code = store_code(&ctx, "openid", None).await;
+    let rt = RefreshTokenId::new(format!("rt-{}", Uuid::new_v4()));
 
-    assert!(
-        ctx.repo
-            .link_auth_code_to_refresh_token(&code, &RefreshTokenId::new("rt-id-value"))
-            .await
-            .is_err(),
-        "refresh_token_id is a foreign key, so a dangling id is rejected"
-    );
+    ctx.repo
+        .validate_authorization_code(AuthCodeRedemption {
+            code: &code,
+            client_id: &ctx.client_id,
+            redirect_uri: &ctx.redirect_uri,
+            code_verifier: &ctx.pkce.verifier,
+            refresh_token_id: &rt,
+        })
+        .await
+        .expect("first use");
+    ctx.repo
+        .validate_authorization_code(AuthCodeRedemption {
+            code: &code,
+            client_id: &ctx.client_id,
+            redirect_uri: &ctx.redirect_uri,
+            code_verifier: &ctx.pkce.verifier,
+            refresh_token_id: &RefreshTokenId::new(format!("rt-{}", Uuid::new_v4())),
+        })
+        .await
+        .expect_err("replay must be rejected");
+
+    ctx.repo
+        .store_refresh_token(code_refresh_token(&ctx, &rt, &code))
+        .await
+        .expect_err("a replayed code no longer admits the refresh token of its first redemption");
+    ctx.repo
+        .consume_refresh_token(&rt, &ctx.client_id)
+        .await
+        .expect_err("no refresh token exists for the replayed code");
+}
+
+#[tokio::test]
+async fn code_lineage_refresh_token_must_be_the_one_the_claim_recorded() {
+    let ctx = setup().await;
+    let code = store_code(&ctx, "openid", None).await;
+    let recorded = RefreshTokenId::new(format!("rt-{}", Uuid::new_v4()));
+    ctx.repo
+        .validate_authorization_code(AuthCodeRedemption {
+            code: &code,
+            client_id: &ctx.client_id,
+            redirect_uri: &ctx.redirect_uri,
+            code_verifier: &ctx.pkce.verifier,
+            refresh_token_id: &recorded,
+        })
+        .await
+        .expect("first use");
+
+    let other = RefreshTokenId::new(format!("rt-{}", Uuid::new_v4()));
+    ctx.repo
+        .store_refresh_token(code_refresh_token(&ctx, &other, &code))
+        .await
+        .expect_err("a refresh token the claim did not record is refused");
 }

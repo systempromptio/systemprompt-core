@@ -1,44 +1,43 @@
-//! Regression test for the scheduler's cross-replica single-execution
-//! guarantee.
+//! The scheduler's cross-replica single-execution guarantee.
 //!
-//! When two scheduler replicas share one Postgres database and both have the
-//! same job scheduled on the same cron, only ONE of them may actually run the
-//! job per tick. The in-process `RunningJobs` set cannot enforce this — each
-//! `SchedulerService` owns its own set — so the guarantee rests entirely on
-//! the Postgres advisory lock claimed by `dispatch::execute_job` when
-//! `SchedulerConfig.distributed_lock` is true.
+//! Two `SchedulerService` replicas share one database and tick the same job
+//! every second. The guarantee rests on the Postgres advisory lock the cluster
+//! claim takes when `SchedulerConfig.distributed_lock` is true, so each test
+//! holds that lock from a peer connection and observes the replicas against a
+//! known lock state instead of counting ticks:
 //!
-//! These tests encode that guarantee:
+//! * with the lock enabled and held by the peer, no tick runs the job — the run
+//!   count stays exactly zero — and once the peer releases, the job runs;
+//! * with the lock disabled, the peer's lock is ignored and the job runs.
 //!
-//! * `distributed_lock_runs_job_once_across_replicas` asserts that with the
-//!   lock enabled, `scheduled_jobs.run_count` advances roughly once per elapsed
-//!   cron tick — not twice — proving the duplicate execution is suppressed.
-//! * `without_distributed_lock_job_double_fires` is the negative control: it
-//!   removes the lock and shows the run count roughly doubles, documenting
-//!   exactly what the lock fixes.
-//!
-//! Both tests are DB-backed: they need a reachable Postgres (`DATABASE_URL`).
+//! Every replica is shut down before the test returns. DB-backed: needs a
+//! reachable Postgres (`DATABASE_URL`).
 
 use std::sync::Arc;
 use std::time::Duration;
-use systemprompt_identifiers::JobName;
 
-use anyhow::Result;
+use anyhow::{Result, ensure};
 use async_trait::async_trait;
+use sqlx::Postgres;
+use sqlx::pool::PoolConnection;
 use systemprompt_database::DbPool;
-use systemprompt_scheduler::{JobConfig, SchedulerConfig, SchedulerService};
+use systemprompt_identifiers::JobName;
+use systemprompt_scheduler::{JobConfig, SchedulerConfig, SchedulerHandle, SchedulerService};
 use systemprompt_test_fixtures::{test_app_context, test_database_url, test_db_pool};
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 
-const TEST_JOB_NAME: &str = "test_distributed_lock_probe";
+const LOCKED_JOB: &str = "test_distributed_lock_probe_locked";
+const UNLOCKED_JOB: &str = "test_distributed_lock_probe_unlocked";
+const HELD_TICKS: Duration = Duration::from_secs(3);
+const RUN_DEADLINE: Duration = Duration::from_secs(30);
 
 #[derive(Debug, Clone, Copy)]
-struct DistributedLockProbeJob;
+struct LockedProbeJob;
 
 #[async_trait]
-impl Job for DistributedLockProbeJob {
+impl Job for LockedProbeJob {
     fn name(&self) -> &'static str {
-        TEST_JOB_NAME
+        LOCKED_JOB
     }
 
     fn description(&self) -> &'static str {
@@ -46,7 +45,6 @@ impl Job for DistributedLockProbeJob {
     }
 
     fn schedule(&self) -> &'static str {
-        // Every second — overridden per test via JobConfig anyway.
         "* * * * * *"
     }
 
@@ -55,96 +53,154 @@ impl Job for DistributedLockProbeJob {
     }
 }
 
-systemprompt_traits::submit_job!(&DistributedLockProbeJob);
+#[derive(Debug, Clone, Copy)]
+struct UnlockedProbeJob;
 
-fn probe_config(distributed_lock: bool) -> SchedulerConfig {
+#[async_trait]
+impl Job for UnlockedProbeJob {
+    fn name(&self) -> &'static str {
+        UNLOCKED_JOB
+    }
+
+    fn description(&self) -> &'static str {
+        "Test-only job running with the scheduler distributed lock disabled"
+    }
+
+    fn schedule(&self) -> &'static str {
+        "* * * * * *"
+    }
+
+    async fn execute(&self, _ctx: &JobContext) -> ProviderResult<JobResult> {
+        Ok(JobResult::success())
+    }
+}
+
+systemprompt_traits::submit_job!(&LockedProbeJob);
+systemprompt_traits::submit_job!(&UnlockedProbeJob);
+
+fn probe_config(job: &str, distributed_lock: bool) -> SchedulerConfig {
     SchedulerConfig {
         enabled: true,
-        jobs: vec![JobConfig::new(JobName::new(TEST_JOB_NAME)).with_schedule("* * * * * *")],
+        jobs: vec![JobConfig::new(JobName::new(job)).with_schedule("* * * * * *")],
         bootstrap_jobs: vec![],
         distributed_lock,
         unlisted_jobs: systemprompt_manifest::services::UnlistedJobs::Warn,
     }
 }
 
-async fn reset_job_row(pool: &DbPool) -> Result<()> {
+async fn reset_job_row(pool: &DbPool, job: &str) -> Result<()> {
     sqlx::query("DELETE FROM scheduled_jobs WHERE job_name = $1")
-        .bind(TEST_JOB_NAME)
+        .bind(job)
         .execute(pool.write_pool().as_ref())
         .await?;
     Ok(())
 }
 
-async fn read_run_count(pool: &DbPool) -> Result<i32> {
+async fn read_run_count(pool: &DbPool, job: &str) -> Result<i32> {
     let count: Option<i32> =
         sqlx::query_scalar("SELECT run_count FROM scheduled_jobs WHERE job_name = $1")
-            .bind(TEST_JOB_NAME)
-            .fetch_optional(pool.pool().as_ref())
+            .bind(job)
+            .fetch_optional(pool.write_pool().as_ref())
             .await?;
     Ok(count.unwrap_or(0))
 }
 
-async fn run_two_replicas(distributed_lock: bool, window: Duration) -> Result<i32> {
+async fn hold_job_lock(pool: &DbPool, job: &str) -> Result<PoolConnection<Postgres>> {
+    let mut peer = pool.write_pool().acquire().await?;
+    let acquired: bool = sqlx::query_scalar("SELECT pg_try_advisory_lock(hashtext($1)::bigint)")
+        .bind(job)
+        .fetch_one(peer.as_mut())
+        .await?;
+    ensure!(acquired, "the peer must take the job lock first");
+    Ok(peer)
+}
+
+async fn release_job_lock(mut peer: PoolConnection<Postgres>, job: &str) -> Result<()> {
+    let released: bool = sqlx::query_scalar("SELECT pg_advisory_unlock(hashtext($1)::bigint)")
+        .bind(job)
+        .fetch_one(peer.as_mut())
+        .await?;
+    ensure!(released, "the peer must still hold the job lock");
+    Ok(())
+}
+
+async fn start_replicas(job: &str, distributed_lock: bool) -> Result<Vec<SchedulerHandle>> {
     let database_url = test_database_url();
     let pool = test_db_pool().await;
-    reset_job_row(&pool).await?;
-
     let app_context = test_app_context(&pool, &database_url);
+    let mut handles = Vec::with_capacity(2);
+    for _ in 0..2 {
+        let startup = SchedulerService::new(
+            probe_config(job, distributed_lock),
+            Arc::clone(&pool),
+            Arc::clone(&app_context),
+        )
+        .start()
+        .await?;
+        ensure!(startup.scheduled == 1, "the probe job must be scheduled");
+        handles.push(startup.handle.expect("an enabled scheduler has a handle"));
+    }
+    Ok(handles)
+}
 
-    // Two independent SchedulerService instances — two "replicas" — sharing
-    // one database, exactly as two processes behind a load balancer would.
-    let replica_a = SchedulerService::new(
-        probe_config(distributed_lock),
-        Arc::clone(&pool),
-        Arc::clone(&app_context),
-    );
-    let replica_b = SchedulerService::new(
-        probe_config(distributed_lock),
-        Arc::clone(&pool),
-        Arc::clone(&app_context),
-    );
+async fn shutdown(handles: Vec<SchedulerHandle>) -> Result<()> {
+    for handle in handles {
+        handle.shutdown().await?;
+    }
+    Ok(())
+}
 
-    replica_a.start().await?;
-    replica_b.start().await?;
-
-    tokio::time::sleep(window).await;
-
-    read_run_count(&pool).await
+async fn wait_for_a_run(pool: &DbPool, job: &str) -> Result<i32> {
+    let deadline = tokio::time::Instant::now() + RUN_DEADLINE;
+    loop {
+        let count = read_run_count(pool, job).await?;
+        if count >= 1 || tokio::time::Instant::now() >= deadline {
+            return Ok(count);
+        }
+        tokio::time::sleep(Duration::from_millis(200)).await;
+    }
 }
 
 #[tokio::test]
-async fn distributed_lock_suppresses_duplicate_execution() -> Result<()> {
-    let window_secs: u64 = 6;
-    let window = Duration::from_secs(window_secs);
-    let single_replica_ceiling = window_secs as i32 + 2;
+async fn a_held_job_lock_stops_every_replica_until_it_is_released() -> Result<()> {
+    let pool = test_db_pool().await;
+    reset_job_row(&pool, LOCKED_JOB).await?;
+    let peer = hold_job_lock(&pool, LOCKED_JOB).await?;
+    let replicas = start_replicas(LOCKED_JOB, true).await?;
 
-    let locked = run_two_replicas(true, window).await?;
-    // Under coverage instrumentation and loaded CI runners, the 6-second window
-    // can fit fewer ticks than nominal; the meaningful invariant for this test
-    // is `locked < unlocked` (asserted below). Keep a positive lower bound so we
-    // still notice a total dispatch failure.
-    assert!(
-        locked >= 1,
-        "expected the job to fire at least once in {window_secs}s, got run_count={locked}"
+    tokio::time::sleep(HELD_TICKS).await;
+    let while_held = read_run_count(&pool, LOCKED_JOB).await?;
+    release_job_lock(peer, LOCKED_JOB).await?;
+    let after_release = wait_for_a_run(&pool, LOCKED_JOB).await?;
+    shutdown(replicas).await?;
+    reset_job_row(&pool, LOCKED_JOB).await?;
+
+    assert_eq!(
+        while_held, 0,
+        "no replica may run the job while another session holds its lock"
     );
     assert!(
-        locked <= single_replica_ceiling,
-        "distributed lock failed to suppress duplicate execution: run_count={locked} exceeds the \
-         single-replica ceiling of {single_replica_ceiling}"
+        after_release >= 1,
+        "a replica must run the job once the lock is free, got run_count={after_release}"
     );
+    Ok(())
+}
 
-    let unlocked = run_two_replicas(false, window).await?;
+#[tokio::test]
+async fn without_the_distributed_lock_replicas_ignore_a_held_job_lock() -> Result<()> {
+    let pool = test_db_pool().await;
+    reset_job_row(&pool, UNLOCKED_JOB).await?;
+    let peer = hold_job_lock(&pool, UNLOCKED_JOB).await?;
+    let replicas = start_replicas(UNLOCKED_JOB, false).await?;
+
+    let runs = wait_for_a_run(&pool, UNLOCKED_JOB).await?;
+    release_job_lock(peer, UNLOCKED_JOB).await?;
+    shutdown(replicas).await?;
+    reset_job_row(&pool, UNLOCKED_JOB).await?;
+
     assert!(
-        unlocked > single_replica_ceiling,
-        "expected double-firing without the lock: run_count={unlocked} should exceed the \
-         single-replica ceiling of {single_replica_ceiling}"
+        runs >= 1,
+        "with the lock disabled the job runs regardless of the peer, got run_count={runs}"
     );
-
-    assert!(
-        locked < unlocked,
-        "the lock must yield meaningfully fewer runs than the unlocked control: locked={locked}, \
-         unlocked={unlocked}"
-    );
-
     Ok(())
 }

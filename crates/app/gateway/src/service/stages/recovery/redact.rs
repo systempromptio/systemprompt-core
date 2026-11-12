@@ -50,20 +50,24 @@ struct PartEdit {
     spans: Vec<(Range<usize>, String)>,
 }
 
+pub fn redactable<'f>(
+    findings: &'f [Finding],
+    redact_categories: &'f [String],
+) -> impl Iterator<Item = &'f Finding> {
+    findings.iter().filter(move |f| {
+        f.phase != PHASE_RESPONSE
+            && !f.is_scanner_failure()
+            && redact_categories.contains(&f.category)
+    })
+}
+
 pub fn redact_findings(
     request: &mut CanonicalRequest,
     body: &mut PreparedBody,
     findings: &[Finding],
     redact_categories: &[String],
 ) -> Result<Option<RedactionReport>, Unredactable> {
-    let redacted: Vec<&Finding> = findings
-        .iter()
-        .filter(|f| {
-            f.phase != PHASE_RESPONSE
-                && !f.is_scanner_failure()
-                && redact_categories.contains(&f.category)
-        })
-        .collect();
+    let redacted: Vec<&Finding> = redactable(findings, redact_categories).collect();
     let Some(first) = redacted.first() else {
         return Ok(None);
     };

@@ -14,7 +14,11 @@ pub const ANTHROPIC_VERSION: &str = "2023-06-01";
 // `forward_headers` lists it.
 const FORWARD_PREFIXES: &[&str] = &["anthropic-", "x-opencode-"];
 
-const IDENTITY_PREFIXES: &[&str] = &["x-claude-code-", "x-stainless-", "x-systemprompt-"];
+const IDENTITY_PREFIXES: &[&str] = &[
+    "x-claude-code-",
+    "x-stainless-",
+    systemprompt_identifiers::headers::PLATFORM_PREFIX,
+];
 
 const IDENTITY_NAMES: &[&str] = &[
     "user-agent",
@@ -40,6 +44,7 @@ pub fn is_identity_request_header(name: &str) -> bool {
 const CREDENTIAL_NAMES: &[&str] = &[
     "authorization",
     "proxy-authorization",
+    systemprompt_identifiers::headers::SYSTEMPROMPT_AUTHORIZATION,
     systemprompt_identifiers::headers::API_KEY,
     "cookie",
     "set-cookie",

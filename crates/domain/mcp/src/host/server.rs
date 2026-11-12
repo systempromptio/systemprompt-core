@@ -22,10 +22,10 @@ use rmcp::{ErrorData as McpError, ServerHandler};
 use systemprompt_governance::authz::{SharedAuthzHook, SubjectProviderSet};
 use systemprompt_identifiers::McpServerId;
 use systemprompt_manifest::services::ServicesView;
-use systemprompt_models::auth::TokenAuthority;
 
 use super::catalog::{HostedCatalog, ToolsetHostError};
 use super::recorder::{McpAccessOutcome, SharedMcpAccessRecorder};
+use crate::middleware::hop::VerifiedHop;
 use crate::toolset::{McpToolset, ToolsetCall};
 use crate::{
     McpToolExecutor, WEBSITE_URL, build_tool_list_result, client_profile_from_peer,
@@ -37,8 +37,6 @@ use crate::{
 pub struct ToolsetAuthz {
     pub hook: SharedAuthzHook,
     pub services: ServicesView,
-    pub tokens: Arc<dyn TokenAuthority>,
-    pub config: Arc<systemprompt_manifest::Config>,
     pub subjects: SubjectProviderSet,
 }
 
@@ -179,12 +177,18 @@ impl ServerHandler for ToolsetServer {
         self.record(&tool, Some(&context), McpAccessOutcome::Used)
             .await;
         let client = client_profile_from_peer(&ctx);
+        let hop = ctx
+            .extensions
+            .get::<http::request::Parts>()
+            .and_then(|parts| parts.extensions.get::<VerifiedHop>())
+            .map(|hop| hop.token().clone());
         self.inner.toolsets[hosted.toolset]
             .call(ToolsetCall {
                 executor: &self.inner.executor,
                 request: &request,
                 context: &context,
                 client: &client,
+                hop: hop.as_ref(),
             })
             .await
             .map(Into::into)

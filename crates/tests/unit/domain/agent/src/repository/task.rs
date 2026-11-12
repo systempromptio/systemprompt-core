@@ -1,8 +1,9 @@
-use super::{make_task, repos, seed_context_and_task, seed_user_and_session};
+use super::{make_task, repos, seed_context_and_task, seed_runtime_task, seed_user_and_session};
 use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TaskState};
 use systemprompt_agent::models::context::ContextKind;
 use systemprompt_agent::repository::task::{RepoCreateTaskParams, UpdateTaskAndSaveMessagesParams};
 use systemprompt_identifiers::{AgentName, ContextId, MessageId, TaskId, TraceId, UserId};
+use systemprompt_test_fixtures::agent_reads::{ContextReadsExt, TaskReadsExt};
 use systemprompt_test_fixtures::test_db_pool;
 
 #[test]
@@ -55,7 +56,7 @@ async fn create_and_get_task_roundtrip() {
 
     let task = r
         .tasks
-        .find_task(&task_id)
+        .read_task(&task_id)
         .await
         .expect("get")
         .expect("present");
@@ -63,14 +64,14 @@ async fn create_and_get_task_roundtrip() {
     assert_eq!(task.context_id, context_id);
     assert_eq!(task.status.state, TaskState::Submitted);
 
-    r.tasks.delete_task(&task_id).await.ok();
+    r.tasks.remove_task(&task_id).await.ok();
 }
 
 #[tokio::test]
 async fn get_task_unknown_returns_none() {
     let pool = test_db_pool().await;
     let r = repos(&pool);
-    let result = r.tasks.find_task(&TaskId::generate()).await.expect("get");
+    let result = r.tasks.read_task(&TaskId::generate()).await.expect("get");
     assert!(result.is_none());
 }
 
@@ -83,7 +84,12 @@ async fn list_tasks_by_context_and_by_user() {
 
     let by_ctx = r
         .tasks
-        .list_tasks_by_context(&context_id)
+        .list_tasks_by_context(
+            &r.contexts
+                .owned_by_row(&context_id)
+                .await
+                .expect("owned context"),
+        )
         .await
         .expect("by ctx");
     assert!(by_ctx.iter().any(|t| t.id == task_id));
@@ -102,50 +108,23 @@ async fn list_tasks_by_context_and_by_user() {
         .expect("by user default");
     assert!(by_user_default.iter().any(|t| t.id == task_id));
 
-    r.tasks.delete_task(&task_id).await.ok();
+    r.tasks.remove_task(&task_id).await.ok();
 }
 
 #[tokio::test]
-async fn find_task_context_info() {
-    let pool = test_db_pool().await;
-    let r = repos(&pool);
-    let (user_id, session_id) = seed_user_and_session(&pool).await;
-    let (context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
-
-    let info = r
-        .tasks
-        .find_task_context_info(&task_id)
-        .await
-        .expect("info")
-        .expect("present");
-    assert_eq!(info.context_id, context_id);
-    assert_eq!(info.user_id, Some(user_id));
-
-    let none = r
-        .tasks
-        .find_task_context_info(&TaskId::generate())
-        .await
-        .expect("info");
-    assert!(none.is_none());
-
-    r.tasks.delete_task(&task_id).await.ok();
-}
-
-#[tokio::test]
-async fn validate_task_ownership() {
+async fn owned_task_requires_the_owning_user() {
     let pool = test_db_pool().await;
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (_context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
 
-    r.tasks
-        .validate_task_ownership(&task_id, &user_id)
-        .await
-        .expect("owned");
+    let owned = r.tasks.owned_task(&task_id, &user_id).await.expect("owned");
+    assert_eq!(owned.task_id(), &task_id);
+    assert_eq!(owned.user_id(), &user_id);
 
     let err = r
         .tasks
-        .validate_task_ownership(&task_id, &UserId::new("intruder"))
+        .owned_task(&task_id, &UserId::new("intruder"))
         .await
         .unwrap_err();
     assert!(matches!(
@@ -153,7 +132,7 @@ async fn validate_task_ownership() {
         systemprompt_traits::RepositoryError::NotFound { .. }
     ));
 
-    r.tasks.delete_task(&task_id).await.ok();
+    r.tasks.remove_task(&task_id).await.ok();
 }
 
 #[tokio::test]
@@ -166,20 +145,20 @@ async fn update_task_state_valid_transition() {
 
     // Submitted -> Working -> Completed
     r.tasks
-        .update_task_state(&task_id, TaskState::Working, &now)
+        .set_task_state(&task_id, TaskState::Working, &now)
         .await
         .expect("to working");
-    let task = r.tasks.find_task(&task_id).await.expect("get").unwrap();
+    let task = r.tasks.read_task(&task_id).await.expect("get").unwrap();
     assert_eq!(task.status.state, TaskState::Working);
 
     r.tasks
-        .update_task_state(&task_id, TaskState::Completed, &now)
+        .set_task_state(&task_id, TaskState::Completed, &now)
         .await
         .expect("to completed");
-    let task = r.tasks.find_task(&task_id).await.expect("get").unwrap();
+    let task = r.tasks.read_task(&task_id).await.expect("get").unwrap();
     assert_eq!(task.status.state, TaskState::Completed);
 
-    r.tasks.delete_task(&task_id).await.ok();
+    r.tasks.remove_task(&task_id).await.ok();
 }
 
 #[tokio::test]
@@ -192,11 +171,11 @@ async fn update_task_state_idempotent_same_state() {
 
     // Already Submitted; setting Submitted again is a no-op Ok.
     r.tasks
-        .update_task_state(&task_id, TaskState::Submitted, &now)
+        .set_task_state(&task_id, TaskState::Submitted, &now)
         .await
         .expect("noop");
 
-    r.tasks.delete_task(&task_id).await.ok();
+    r.tasks.remove_task(&task_id).await.ok();
 }
 
 #[tokio::test]
@@ -208,14 +187,14 @@ async fn update_task_state_invalid_transition_errors() {
     let now = chrono::Utc::now();
 
     r.tasks
-        .update_task_state(&task_id, TaskState::Completed, &now)
+        .set_task_state(&task_id, TaskState::Completed, &now)
         .await
         .expect("submitted -> completed ok");
 
     // Completed is terminal; any further transition is invalid.
     let err = r
         .tasks
-        .update_task_state(&task_id, TaskState::Working, &now)
+        .set_task_state(&task_id, TaskState::Working, &now)
         .await
         .unwrap_err();
     assert!(matches!(
@@ -223,7 +202,7 @@ async fn update_task_state_invalid_transition_errors() {
         systemprompt_traits::RepositoryError::Conflict { .. }
     ));
 
-    r.tasks.delete_task(&task_id).await.ok();
+    r.tasks.remove_task(&task_id).await.ok();
 }
 
 #[tokio::test]
@@ -233,7 +212,7 @@ async fn update_task_state_unknown_task_not_found() {
     let now = chrono::Utc::now();
     let err = r
         .tasks
-        .update_task_state(&TaskId::generate(), TaskState::Working, &now)
+        .set_task_state(&TaskId::generate(), TaskState::Working, &now)
         .await
         .unwrap_err();
     assert!(matches!(
@@ -249,17 +228,18 @@ async fn apply_notification_status_parses_state() {
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (_context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
     let now = chrono::Utc::now();
+    let owned = r.tasks.owned_task(&task_id, &user_id).await.expect("owned");
 
     r.tasks
-        .apply_notification_status(&task_id, "TASK_STATE_WORKING", &now)
+        .apply_notification_status(&owned, "TASK_STATE_WORKING", &now)
         .await
         .expect("notify working");
-    let task = r.tasks.find_task(&task_id).await.expect("get").unwrap();
+    let task = r.tasks.read_task(&task_id).await.expect("get").unwrap();
     assert_eq!(task.status.state, TaskState::Working);
 
     let err = r
         .tasks
-        .apply_notification_status(&task_id, "not-a-state", &now)
+        .apply_notification_status(&owned, "not-a-state", &now)
         .await
         .unwrap_err();
     assert!(matches!(
@@ -267,7 +247,7 @@ async fn apply_notification_status_parses_state() {
         systemprompt_traits::RepositoryError::InvalidArgument { .. }
     ));
 
-    r.tasks.delete_task(&task_id).await.ok();
+    r.tasks.remove_task(&task_id).await.ok();
 }
 
 #[tokio::test]
@@ -279,19 +259,19 @@ async fn update_task_failed_with_error() {
     let now = chrono::Utc::now();
 
     r.tasks
-        .update_task_failed_with_error(&task_id, "boom", &now)
+        .fail_task(&task_id, "boom", &now)
         .await
         .expect("fail");
-    let task = r.tasks.find_task(&task_id).await.expect("get").unwrap();
+    let task = r.tasks.read_task(&task_id).await.expect("get").unwrap();
     assert_eq!(task.status.state, TaskState::Failed);
 
     // Failing again is idempotent.
     r.tasks
-        .update_task_failed_with_error(&task_id, "boom2", &now)
+        .fail_task(&task_id, "boom2", &now)
         .await
         .expect("fail idempotent");
 
-    r.tasks.delete_task(&task_id).await.ok();
+    r.tasks.remove_task(&task_id).await.ok();
 }
 
 #[tokio::test]
@@ -301,7 +281,7 @@ async fn update_task_failed_unknown_is_not_found() {
     let now = chrono::Utc::now();
     let err = r
         .tasks
-        .update_task_failed_with_error(&TaskId::generate(), "x", &now)
+        .fail_task(&TaskId::generate(), "x", &now)
         .await
         .unwrap_err();
     assert!(matches!(
@@ -326,7 +306,7 @@ async fn track_agent_in_context_is_idempotent() {
         .await
         .expect("track again");
 
-    r.tasks.delete_task(&task_id).await.ok();
+    r.tasks.remove_task(&task_id).await.ok();
 }
 
 #[tokio::test]
@@ -334,7 +314,8 @@ async fn update_task_and_save_messages_persists_history() {
     let pool = test_db_pool().await;
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
-    let (context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
+    let (context_id, runtime) = seed_runtime_task(&r, &user_id, &session_id).await;
+    let task_id = runtime.task_id().clone();
     let trace_id = TraceId::generate();
 
     let mut task = make_task(&task_id, &context_id);
@@ -346,6 +327,7 @@ async fn update_task_and_save_messages_persists_history() {
     let updated = r
         .tasks
         .update_task_and_save_messages(UpdateTaskAndSaveMessagesParams {
+            runtime: &runtime,
             task: &task,
             user_message: &user_msg,
             agent_message: &agent_msg,
@@ -359,7 +341,7 @@ async fn update_task_and_save_messages_persists_history() {
 
     let messages = r
         .tasks
-        .get_messages_by_task(&task_id)
+        .read_task_messages(&task_id)
         .await
         .expect("messages");
     assert_eq!(messages.len(), 2);
@@ -368,39 +350,63 @@ async fn update_task_and_save_messages_persists_history() {
 
     let by_ctx = r
         .tasks
-        .get_messages_by_context(&context_id)
+        .get_messages_by_context(
+            &r.contexts
+                .owned_by_row(&context_id)
+                .await
+                .expect("owned context"),
+        )
         .await
         .expect("by ctx");
     assert_eq!(by_ctx.len(), 2);
 
-    assert!(r.tasks.message_exists(&user_msg.message_id).await.unwrap());
+    assert!(
+        r.tasks
+            .message_in_owned_context(&user_msg.message_id, &context_id, &user_id)
+            .await
+            .unwrap()
+    );
+    assert!(
+        !r.tasks
+            .message_in_owned_context(&user_msg.message_id, &context_id, &UserId::new("intruder"))
+            .await
+            .unwrap(),
+        "a message is not visible through another user's ownership"
+    );
     let stored = r
         .tasks
-        .get_messages_by_task(&task_id)
+        .read_task_messages(&task_id)
         .await
         .expect("messages by task");
     assert!(stored.len() >= 2);
 
     let parts = r
         .tasks
-        .get_message_parts(&user_msg.message_id)
+        .read_task_messages(&task_id)
         .await
-        .expect("parts");
+        .expect("messages")
+        .into_iter()
+        .find(|m| m.message_id == user_msg.message_id)
+        .expect("user message stored")
+        .parts;
     assert_eq!(parts.len(), 1);
 
-    r.tasks.delete_task(&task_id).await.ok();
+    r.tasks.remove_task(&task_id).await.ok();
 }
 
 #[tokio::test]
-async fn message_exists_false_for_unknown() {
+async fn message_in_owned_context_false_for_unknown() {
     let pool = test_db_pool().await;
     let r = repos(&pool);
+    let (user_id, session_id) = seed_user_and_session(&pool).await;
+    let (context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
     assert!(
         !r.tasks
-            .message_exists(&MessageId::generate())
+            .message_in_owned_context(&MessageId::generate(), &context_id, &user_id)
             .await
             .unwrap()
     );
+    r.tasks.remove_task(&task_id).await.ok();
 }
 
 #[tokio::test]
@@ -411,15 +417,15 @@ async fn next_sequence_number_starts_at_zero() {
     let (_context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
     let stored = r
         .tasks
-        .get_messages_by_task(&task_id)
+        .read_task_messages(&task_id)
         .await
         .expect("messages by task");
     assert!(stored.is_empty());
-    r.tasks.delete_task(&task_id).await.ok();
+    r.tasks.remove_task(&task_id).await.ok();
 }
 
 #[tokio::test]
-async fn create_task_returns_id_string() {
+async fn create_task_returns_runtime_handle_for_the_task() {
     let pool = test_db_pool().await;
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
@@ -442,6 +448,35 @@ async fn create_task_returns_id_string() {
         })
         .await
         .expect("create");
-    assert_eq!(returned, task_id.to_string());
-    r.tasks.delete_task(&task_id).await.ok();
+    assert_eq!(returned.task_id(), &task_id);
+    assert_eq!(returned.context_id(), &context_id);
+    r.tasks.remove_task(&task_id).await.ok();
+}
+
+#[tokio::test]
+async fn create_task_refuses_a_context_the_acting_user_does_not_own() {
+    let pool = test_db_pool().await;
+    let r = repos(&pool);
+    let (owner, owner_session) = seed_user_and_session(&pool).await;
+    let (owner_context, _) = seed_context_and_task(&r, &owner, &owner_session).await;
+    let (intruder, intruder_session) = seed_user_and_session(&pool).await;
+
+    let task_id = TaskId::generate();
+    let task = make_task(&task_id, &owner_context);
+    let err = r
+        .tasks
+        .create_task(RepoCreateTaskParams {
+            task: &task,
+            user_id: &intruder,
+            session_id: &intruder_session,
+            trace_id: &TraceId::generate(),
+            agent_name: &AgentName::new("a"),
+        })
+        .await
+        .expect_err("a task cannot be created in another user's context");
+    assert!(err.is_not_found(), "{err}");
+    assert!(
+        r.tasks.read_task(&task_id).await.expect("lookup").is_none(),
+        "no task row is written"
+    );
 }

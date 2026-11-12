@@ -219,10 +219,30 @@ systemprompt web validate
 | `plugins validate` | Validate extension dependencies and configurations. Exits non-zero on errors. |
 | `plugins config <NAME>` | Show extension configuration. |
 | `plugins capabilities` | List capabilities across all extensions. |
+| `plugins seams [--seam TEXT]` | List every link-time registration seam and what this binary registers in it. Exits non-zero when the profile names a registration the binary does not link. |
 | `plugins mcp` | MCP server management. |
 
 ```bash
 systemprompt plugins list
+```
+
+### Registration seams
+
+Extensions, jobs, authz hooks, secrets sources, gateway scanners and adapters, SSO providers, MCP toolsets, brain, notification and retention-hold seams and the other compile-time registrations exist only in a binary that links the crate that registers them. `plugins seams` prints one row per seam, including seams with no entries:
+
+| Column | Meaning |
+|--------|---------|
+| `seam` | Seam name, e.g. `authz_hooks`, `gateway_safety_scanners`, `agent_run_origins` (present only when the binary is built with the `agent-runs` feature). |
+| `owner` | Crate that collects the registrations. |
+| `count`, `entries` | Registered entries by stable name, id or tag; `priority=N` for priority-only seams; `unnamed#N` for factory-only seams. |
+| `requires` | Profile setting that depends on this seam, if any. |
+| `status` | `linked`, `empty`, or `missing` (the profile requires an entry the binary does not link). |
+
+Profile checks: `governance.authz.hook.mode: extension` requires at least one authz hook, and `secrets.source: external` requires a secrets source registered under `secrets.external.kind`. A binary that fails either check refuses to boot with that profile, so run the command against the deployment profile before shipping a custom binary.
+
+```bash
+systemprompt plugins seams
+systemprompt plugins seams --seam gateway --json
 ```
 
 ## build — build extensions

@@ -34,6 +34,12 @@ pub struct Secrets {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub signing_key_pem: Option<String>,
 
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub signing_key_staged_pem: Option<String>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub signing_key_previous_keys: Option<String>,
+
     pub database_url: String,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -84,6 +90,8 @@ impl Drop for Secrets {
         self.oauth_at_rest_pepper.zeroize();
         self.manifest_signing_secret_seed.zeroize();
         self.signing_key_pem.zeroize();
+        self.signing_key_staged_pem.zeroize();
+        self.signing_key_previous_keys.zeroize();
         self.database_url.zeroize();
         self.database_write_url.zeroize();
         self.database_session_url.zeroize();
@@ -149,6 +157,12 @@ impl Secrets {
         match key {
             "oauth_at_rest_pepper" | "OAUTH_AT_REST_PEPPER" => Some(&self.oauth_at_rest_pepper),
             "signing_key_pem" | "SIGNING_KEY_PEM" => self.signing_key_pem.as_ref(),
+            "signing_key_staged_pem" | "SIGNING_KEY_STAGED_PEM" => {
+                self.signing_key_staged_pem.as_ref()
+            },
+            "signing_key_previous_keys" | "SIGNING_KEY_PREVIOUS_KEYS" => {
+                self.signing_key_previous_keys.as_ref()
+            },
             "database_url" | "DATABASE_URL" => Some(&self.database_url),
             "database_write_url" | "DATABASE_WRITE_URL" => self.database_write_url.as_ref(),
             "database_session_url" | "DATABASE_SESSION_URL" => self.database_session_url.as_ref(),
@@ -177,55 +191,5 @@ impl Secrets {
             };
             self.custom.get(&alternate)
         })
-    }
-
-    pub fn to_subprocess_env(&self) -> Vec<(String, String)> {
-        let mut pairs: Vec<(String, String)> = Vec::new();
-
-        pairs.push((
-            "OAUTH_AT_REST_PEPPER".to_owned(),
-            self.oauth_at_rest_pepper.clone(),
-        ));
-        pairs.push(("DATABASE_URL".to_owned(), self.database_url.clone()));
-
-        let optionals: &[(&str, &Option<String>)] = &[
-            (
-                "MANIFEST_SIGNING_SECRET_SEED",
-                &self.manifest_signing_secret_seed,
-            ),
-            ("SIGNING_KEY_PEM", &self.signing_key_pem),
-            ("DATABASE_WRITE_URL", &self.database_write_url),
-            ("DATABASE_SESSION_URL", &self.database_session_url),
-            ("EXTERNAL_DATABASE_URL", &self.external_database_url),
-            ("INTERNAL_DATABASE_URL", &self.internal_database_url),
-            ("GEMINI_API_KEY", &self.gemini),
-            ("ANTHROPIC_API_KEY", &self.anthropic),
-            ("OPENAI_API_KEY", &self.openai),
-            ("GITHUB_TOKEN", &self.github),
-            ("MOONSHOT_API_KEY", &self.moonshot),
-            ("QWEN_API_KEY", &self.qwen),
-        ];
-        for (name, value) in optionals {
-            if let Some(v) = value
-                && !v.is_empty()
-            {
-                pairs.push(((*name).to_owned(), v.clone()));
-            }
-        }
-
-        if !self.custom.is_empty() {
-            let mut names: Vec<String> = Vec::with_capacity(self.custom.len());
-            for (key, value) in &self.custom {
-                let upper = key.to_uppercase();
-                names.push(upper.clone());
-                pairs.push((upper.clone(), value.clone()));
-                if upper != *key {
-                    pairs.push((key.clone(), value.clone()));
-                }
-            }
-            pairs.push(("SYSTEMPROMPT_CUSTOM_SECRETS".to_owned(), names.join(",")));
-        }
-
-        pairs
     }
 }

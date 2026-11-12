@@ -80,3 +80,37 @@ fn resolved_origin_matches_advertised_base() {
     let expected = Url::parse("http://127.0.0.1:8080").expect("parse").origin();
     assert_eq!(base.origin(), &expected);
 }
+
+#[test]
+fn a_host_on_a_port_the_gateway_does_not_serve_falls_back_to_configured() {
+    let cfg = configured("https://gateway.example.com");
+    let base = resolve(Some("gateway.example.com:1"), &cfg);
+    assert_eq!(base.as_str(), "https://gateway.example.com");
+}
+
+#[test]
+fn a_host_naming_the_configured_default_port_explicitly_is_accepted() {
+    let cfg = configured("https://gateway.example.com");
+    let base = resolve(Some("gateway.example.com:443"), &cfg);
+    assert_eq!(base.as_str(), "https://gateway.example.com:443");
+}
+
+#[test]
+fn a_host_matching_a_configured_explicit_port_is_accepted_and_others_are_not() {
+    let cfg = configured("https://gateway.example.com:8443");
+    assert_eq!(
+        resolve(Some("gateway.example.com:8443"), &cfg).as_str(),
+        "https://gateway.example.com:8443"
+    );
+    assert_eq!(
+        resolve(Some("gateway.example.com"), &cfg).as_str(),
+        "https://gateway.example.com:8443"
+    );
+}
+
+#[test]
+fn a_host_with_a_non_numeric_port_falls_back_to_configured() {
+    let cfg = configured("https://gateway.example.com");
+    let base = resolve(Some("gateway.example.com:abc"), &cfg);
+    assert_eq!(base.as_str(), "https://gateway.example.com");
+}

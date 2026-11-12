@@ -4,6 +4,8 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
+use std::sync::Arc;
+
 use serde_json::Value;
 use systemprompt_cli::CliConfig;
 use systemprompt_cli::core::files::{ai, delete};
@@ -12,7 +14,9 @@ use systemprompt_cli::shared::CommandOutput;
 use systemprompt_database::DbPool;
 use systemprompt_files::FileRepository;
 use systemprompt_identifiers::FileId;
+use systemprompt_storage::{FileStorageBackend, build_file_storage};
 use systemprompt_test_fixtures::test_db_pool;
+use systemprompt_traits::{FileStorage, StoredFileId};
 use uuid::Uuid;
 
 
@@ -152,6 +156,38 @@ fn delete_args(file: &str, yes: bool, dry_run: bool) -> delete::DeleteArgs {
     }
 }
 
+fn unused_storage() -> Arc<dyn FileStorage> {
+    storage_at(&std::env::temp_dir().join(format!("files-del-{}", Uuid::new_v4().simple())))
+}
+
+fn storage_at(root: &std::path::Path) -> Arc<dyn FileStorage> {
+    build_file_storage(FileStorageBackend::Local {
+        root: root.to_path_buf(),
+    })
+}
+
+async fn seed_stored_file(pool: &DbPool, storage: &Arc<dyn FileStorage>) -> (String, String) {
+    let id = Uuid::new_v4();
+    let stored = storage
+        .store(
+            std::path::Path::new(&format!("files/uploads/contexts/c/images/{id}.png")),
+            b"\x89PNG",
+        )
+        .await
+        .unwrap();
+    sqlx::query(
+        "INSERT INTO files (id, path, public_url, mime_type, size_bytes) VALUES ($1, $2, $3, \
+         'image/png', 4)",
+    )
+    .bind(id)
+    .bind(stored.as_str())
+    .bind(format!("/files/uploads/contexts/c/images/{id}.png"))
+    .execute(pool.pool().as_ref())
+    .await
+    .unwrap();
+    (id.to_string(), stored.as_str().to_owned())
+}
+
 async fn file_exists(pool: &DbPool, id: &str) -> bool {
     let repo = FileRepository::new(pool);
     repo.find_by_id(&FileId::new(id.to_owned()))
@@ -170,6 +206,7 @@ async fn delete_with_yes_removes_file() {
         delete_args(&id, true, false),
         &ScriptedPrompter::new(Vec::<String>::new()),
         &pool,
+        unused_storage(),
         &cfg(),
     )
     .await
@@ -189,6 +226,7 @@ async fn delete_dry_run_preserves_file() {
         delete_args(&id, false, true),
         &ScriptedPrompter::new(Vec::<String>::new()),
         &pool,
+        unused_storage(),
         &cfg(),
     )
     .await
@@ -207,6 +245,7 @@ async fn delete_non_interactive_without_yes_errors() {
         delete_args(&id, false, false),
         &ScriptedPrompter::new(Vec::<String>::new()),
         &pool,
+        unused_storage(),
         &cfg(),
     )
     .await
@@ -226,6 +265,7 @@ async fn delete_interactive_confirm_yes_removes_file() {
         delete_args(&id, false, false),
         &ScriptedPrompter::new(vec!["y"]),
         &pool,
+        unused_storage(),
         &CliConfig::new()
             .with_interactive(true)
             .with_assume_terminal(true),
@@ -246,6 +286,7 @@ async fn delete_interactive_confirm_no_preserves_file() {
         delete_args(&id, false, false),
         &ScriptedPrompter::new(vec!["n"]),
         &pool,
+        unused_storage(),
         &CliConfig::new()
             .with_interactive(true)
             .with_assume_terminal(true),
@@ -265,10 +306,82 @@ async fn delete_missing_file_errors() {
         delete_args(&ghost, true, false),
         &ScriptedPrompter::new(Vec::<String>::new()),
         &pool,
+        unused_storage(),
         &cfg(),
     )
     .await
     .unwrap_err();
 
     assert!(err.to_string().contains("File not found"));
+}
+
+#[tokio::test]
+async fn delete_removes_the_stored_object_with_the_row() {
+    let pool = test_db_pool().await;
+    let dir = tempfile::tempdir().unwrap();
+    let storage = storage_at(dir.path());
+    let (id, stored) = seed_stored_file(&pool, &storage).await;
+    assert!(dir.path().join(&stored).is_file());
+
+    let out = delete::execute_with_pool(
+        delete_args(&id, true, false),
+        &ScriptedPrompter::new(Vec::<String>::new()),
+        &pool,
+        Arc::clone(&storage),
+        &cfg(),
+    )
+    .await
+    .unwrap();
+
+    assert!(
+        artifact_json(&out)
+            .to_string()
+            .contains("stored object deleted")
+    );
+    assert!(!file_exists(&pool, &id).await);
+    assert!(!dir.path().join(&stored).exists());
+    assert!(!storage.exists(&StoredFileId::new(stored)).await.unwrap());
+}
+
+#[tokio::test]
+async fn delete_dry_run_preserves_the_stored_object() {
+    let pool = test_db_pool().await;
+    let dir = tempfile::tempdir().unwrap();
+    let storage = storage_at(dir.path());
+    let (id, stored) = seed_stored_file(&pool, &storage).await;
+
+    delete::execute_with_pool(
+        delete_args(&id, false, true),
+        &ScriptedPrompter::new(Vec::<String>::new()),
+        &pool,
+        Arc::clone(&storage),
+        &cfg(),
+    )
+    .await
+    .unwrap();
+
+    assert!(file_exists(&pool, &id).await);
+    assert!(dir.path().join(&stored).is_file());
+}
+
+#[tokio::test]
+async fn delete_of_a_row_whose_object_is_gone_removes_the_row() {
+    let pool = test_db_pool().await;
+    let dir = tempfile::tempdir().unwrap();
+    let storage = storage_at(dir.path());
+    let (id, stored) = seed_stored_file(&pool, &storage).await;
+    std::fs::remove_file(dir.path().join(&stored)).unwrap();
+
+    let out = delete::execute_with_pool(
+        delete_args(&id, true, false),
+        &ScriptedPrompter::new(Vec::<String>::new()),
+        &pool,
+        storage,
+        &cfg(),
+    )
+    .await
+    .unwrap();
+
+    assert!(artifact_json(&out).to_string().contains("already absent"));
+    assert!(!file_exists(&pool, &id).await);
 }

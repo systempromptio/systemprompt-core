@@ -88,7 +88,10 @@ impl CoreCommands {
                 | ContentCommands::Link(LinkCommands::Delete(_)),
             )
             | Self::Files(files::FilesCommands::Delete(_))
-            | Self::Contexts(contexts::ContextsCommands::Delete(_)) => DataImpact::Destructive,
+            | Self::Contexts(contexts::ContextsCommands::Delete(_))
+            | Self::Services(
+                services::ServicesCommands::Refresh(_) | services::ServicesCommands::Publish(_),
+            ) => DataImpact::Destructive,
             Self::Content(
                 ContentCommands::List(_)
                 | ContentCommands::Show(_)
@@ -131,7 +134,12 @@ impl CoreCommands {
             | Self::Plugins(_)
             | Self::Marketplace(_)
             | Self::Hooks(_)
-            | Self::Services(_) => DataImpact::Preserving,
+            | Self::Services(
+                services::ServicesCommands::Validate(_)
+                | services::ServicesCommands::Bundle(_)
+                | services::ServicesCommands::Keygen(_)
+                | services::ServicesCommands::Inspect(_),
+            ) => DataImpact::Preserving,
         }
     }
 }

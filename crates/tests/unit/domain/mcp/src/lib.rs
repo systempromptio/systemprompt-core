@@ -44,6 +44,8 @@ mod extension;
 #[cfg(test)]
 mod harness;
 #[cfg(test)]
+mod hop_layer;
+#[cfg(test)]
 mod intent_claim_db;
 #[cfg(test)]
 mod jobs_cleanup;

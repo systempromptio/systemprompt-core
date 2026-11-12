@@ -129,7 +129,9 @@ fn foreign_key_is_not_accepted_via_local_lookup() {
 fn active_decoding_key_verifies_locally_minted_token() {
     let key = ensure_authority();
     let keys = systemprompt_test_fixtures::test_signing_keys();
-    let decoding = keys.decoding_key();
+    let decoding = keys
+        .decoding_key_for_kid(key.kid())
+        .expect("active kid resolves");
 
     let token = encode(
         &{

@@ -1,0 +1,21 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH ns AS (\n    SELECT oid FROM pg_namespace\n    WHERE nspname NOT IN ('pg_catalog', 'information_schema', 'pg_toast')\n      AND nspname NOT LIKE 'pg_temp%' AND nspname NOT LIKE 'pg_toast_temp%'\n), member AS (\n    SELECT objid FROM pg_depend WHERE deptype = 'e'\n), defs AS (\n    SELECT 'r' AS kind, c.oid::regclass::text AS name,\n           string_agg(a.attname || ' ' || format_type(a.atttypid, a.atttypmod)\n                      || CASE WHEN a.attnotnull THEN ' NOT NULL' ELSE '' END\n                      || coalesce(' DEFAULT ' || pg_get_expr(d.adbin, d.adrelid), ''),\n                      ', ' ORDER BY a.attnum) AS def\n    FROM pg_class c\n    JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped\n    LEFT JOIN pg_attrdef d ON d.adrelid = c.oid AND d.adnum = a.attnum\n    WHERE c.relnamespace IN (SELECT oid FROM ns) AND c.relkind IN ('r', 'p')\n      AND c.oid NOT IN (SELECT objid FROM member)\n    GROUP BY c.oid\n    UNION ALL\n    SELECT 'v', c.oid::regclass::text, pg_get_viewdef(c.oid)\n    FROM pg_class c\n    WHERE c.relnamespace IN (SELECT oid FROM ns) AND c.relkind IN ('v', 'm')\n      AND c.oid NOT IN (SELECT objid FROM member)\n    UNION ALL\n    SELECT 'i', c.oid::regclass::text, pg_get_indexdef(c.oid)\n    FROM pg_class c\n    WHERE c.relnamespace IN (SELECT oid FROM ns) AND c.relkind IN ('i', 'I')\n      AND c.oid NOT IN (SELECT objid FROM member)\n    UNION ALL\n    SELECT 'f', p.oid::regprocedure::text, pg_get_functiondef(p.oid)\n    FROM pg_proc p\n    WHERE p.pronamespace IN (SELECT oid FROM ns) AND p.prokind IN ('f', 'p')\n      AND p.oid NOT IN (SELECT objid FROM member)\n    UNION ALL\n    SELECT 't', t.tgrelid::regclass::text || '.' || t.tgname, pg_get_triggerdef(t.oid)\n    FROM pg_trigger t\n    WHERE NOT t.tgisinternal\n      AND t.tgrelid IN (SELECT oid FROM pg_class WHERE relnamespace IN (SELECT oid FROM ns))\n    UNION ALL\n    SELECT 'c', con.conrelid::regclass::text || '.' || con.conname, pg_get_constraintdef(con.oid)\n    FROM pg_constraint con\n    WHERE con.connamespace IN (SELECT oid FROM ns) AND con.conrelid <> 0\n)\nSELECT md5(coalesce(\n    string_agg(kind || ':' || name || '=' || def, E'\\n' ORDER BY kind, name, def), ''\n)) AS \"digest!\"\nFROM defs",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "digest!",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "980f4ff520fcb70f54701e1c5a25e91d3119c10f6f2ed3a9cc3afcbd2a0c0a14"
+}

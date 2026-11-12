@@ -18,7 +18,7 @@ use systemprompt_wire::anthropic::AnthropicBeta;
 use systemprompt_wire::{Hosting, ModelLimits, WireProtocol};
 
 use crate::services::ai::{ModelCapabilities, ModelGovernance, ModelPricing, ResilienceSettings};
-use crate::services::catalog::credentials::CredentialKind;
+use crate::services::catalog::credentials::{CredentialKind, WorkloadIdentityCredential};
 use crate::services::catalog::endpoint::EndpointRef;
 use crate::services::gateway::SelectionStrategy;
 
@@ -27,6 +27,7 @@ pub struct ResolvedCredential {
     pub id: CredentialId,
     pub kind: CredentialKind,
     pub secret: Option<SecretName>,
+    pub workload_identity: Option<WorkloadIdentityCredential>,
     pub label: Option<String>,
 }
 
@@ -37,10 +38,33 @@ impl ResolvedCredential {
     }
 
     #[must_use]
+    pub const fn is_caller(&self) -> bool {
+        self.kind.is_caller()
+    }
+
+    #[must_use]
+    pub const fn is_platform(&self) -> bool {
+        self.kind.is_platform()
+    }
+
+    #[must_use]
+    pub const fn is_member_paid(&self) -> bool {
+        self.kind.is_member_paid()
+    }
+
+    #[must_use]
+    pub const fn platform_workload_identity(&self) -> Option<&WorkloadIdentityCredential> {
+        match self.kind {
+            CredentialKind::Platform => self.workload_identity.as_ref(),
+            CredentialKind::Personal | CredentialKind::Caller => None,
+        }
+    }
+
+    #[must_use]
     pub const fn platform_secret(&self) -> Option<&SecretName> {
         match self.kind {
             CredentialKind::Platform => self.secret.as_ref(),
-            CredentialKind::Personal => None,
+            CredentialKind::Personal | CredentialKind::Caller => None,
         }
     }
 }
@@ -156,6 +180,22 @@ impl ResolvedHop {
     #[must_use]
     pub fn bills_same_credential(&self, other: &Self) -> bool {
         self.credential.id == other.credential.id
+    }
+
+    // Why: a member's subscription and a deployment secret, or two different
+    // member-paid credentials, bill different accounts; a hop between them
+    // would move a request onto a bill nobody chose. Two platform credentials
+    // are both the deployment's own bill.
+    #[must_use]
+    pub fn may_fail_over_to(&self, to: &Self) -> bool {
+        match (
+            self.credential.is_member_paid(),
+            to.credential.is_member_paid(),
+        ) {
+            (false, false) => true,
+            (true, true) => self.bills_same_credential(to),
+            (true, false) | (false, true) => false,
+        }
     }
 }
 

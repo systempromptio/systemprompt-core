@@ -12,7 +12,7 @@
 //! | `database` | `systemprompt-database`, `sqlx` | SQLx-backed `DbPool` and repository helpers. |
 //! | `config` | `systemprompt-config` | Profile, secrets, and credential bootstrap loaders. |
 //! | `mcp` | `rmcp` | Implement Model Context Protocol servers with `rmcp`. The `systemprompt::mcp` module (`systemprompt-mcp`) is gated on `full`, not on this flag. |
-//! | `api` | `systemprompt-api`, `systemprompt-gateway`, `systemprompt-runtime`, `systemprompt-oauth-issuance`, `axum` (implies `core` + `database`) | HTTP server, AI gateway, `AppContext`, Axum router, OAuth token issuance. `systemprompt-api` always compiles `systemprompt-slack`, `systemprompt-teams` and the runtime's `geolocation` (MaxMind) feature. |
+//! | `api` | `systemprompt-api`, `systemprompt-gateway`, `systemprompt-runtime`, `systemprompt-oauth-issuance`, `axum` (implies `core` + `database`) | HTTP server, AI gateway, `AppContext`, Axum router, OAuth token issuance. `systemprompt-api` always compiles the runtime's `geolocation` (MaxMind) feature; Slack, Teams, agent runs, OTLP and the bridge consumer surface are their own flags. |
 //! | `cloud` | `systemprompt-cloud` | Cloud API client, credentials bootstrap, OAuth. |
 //! | `logging` | `systemprompt-logging` | Tracing setup with the workspace's layer stack. |
 //! | `loader` | `systemprompt-loader` | Filesystem and module discovery. |
@@ -23,16 +23,19 @@
 //! | `cli` | `systemprompt-cli` (which depends on `systemprompt-api`, so it compiles the `api` crate graph) | The `systemprompt` CLI as a library entry point. |
 //! | `runtime` | `cli` + `systemprompt-extension` | `RuntimeBuilder` for embedding the CLI in a custom binary. The `systemprompt::runtime` module also compiles under `full`, where it re-exports the document store runtime as `systemprompt::runtime::documents` (the document MCP tools are `systemprompt::runtime::documents::mcp`). |
 //! | `analytics` | `systemprompt-analytics` | Request, conversation, agent, tool, and cost metrics without the rest of `full`. |
-//! | `slack` | the `systemprompt::slack` module | Slack Events API, slash commands, interactivity. Not part of `full`; the flag adds only the module re-export, since `api` compiles the crate regardless. |
-//! | `teams` | the `systemprompt::teams` module | Microsoft Teams Bot Framework activities. Not part of `full`; the flag adds only the module re-export, since `api` compiles the crate regardless. |
-//! | `agent-runs` | `systemprompt-agent-runs` | Durable, leased, governed coding-agent runs (Claude Code, Codex CLI) with a common event contract. In `full`. |
+//! | `slack` | the `systemprompt::slack` module and the server's `/slack` routes | Slack Events API, slash commands, interactivity. Not part of `full`. |
+//! | `teams` | the `systemprompt::teams` module and the server's `/teams` routes | Microsoft Teams Bot Framework activities. Not part of `full`. |
+//! | `agent-runs` | `systemprompt-agent-runs`, the `/api/v1/agent-runs` routes and the run launcher wired into hosted agents | Durable, leased, governed coding-agent runs (Claude Code, Codex CLI) with a common event contract. In `full`. |
 //! | `notifications` | the `systemprompt::notifications` module, and the notification routes, `documents_inbox` tool and outbox consumer in the runtime and API | Notification streams, rules, the per-user feed and the outbox consumer. In `full`, not in `core`. Without it, comments and shares commit without recording a notification and a comment carrying `mention_options` is refused with `unsupported_op`. |
 //! | `brain` | the `systemprompt::brain` module, and the brain composition, capture consumer and gateway recall in the runtime and API (implies `notifications`) | Revisioned organisational memory: facts captured from documents and comments, recalled into gateway requests. In `full`, not in `core`. Without it the document store records no brain event and the gateway injects no team memory; with it, `brain.enabled: false` in the profile composes nothing. |
+//! | `otel` | the gateway's OTLP/HTTP ingest routes and the scheduler's `otlp_export` job | OpenTelemetry ingest from clients and export of the audit trail to a collector. In `full`. |
+//! | `bridge` | the device-credential consumer routes | The surface the bridge reports installation evidence through. In `full`. |
 //! | `files-office` | the `systemprompt::files` module with `systemprompt-files/office` | The `.docx` document codec. In `full`. |
-//! | `full` | `api`, `mcp`, `cloud`, `cli`, `config`, `logging`, `loader`, `events`, `storage`, `client`, `security`, `analytics`, and the domain crates (`agent`, `ai`, `mcp`, `oauth`, `users`, `content`, `marketplace`, `scheduler`, `generator`, `files`, `notifications`, `brain`) | Building a product binary. The `slack` and `teams` modules stay opt-in. |
+//! | `files-pdf` | the `systemprompt::files` module with `systemprompt-files/pdf`, forwarded to the API and CLI | PDF export of documents and its embedded fonts. In `full`. Without it a PDF export is refused with `unsupported_op`. |
+//! | `full` | `api`, `mcp`, `cloud`, `cli`, `config`, `logging`, `loader`, `events`, `storage`, `client`, `security`, `analytics`, and the domain crates (`agent`, `ai`, `mcp`, `oauth`, `users`, `content`, `marketplace`, `scheduler`, `generator`, `files`, `agent-runs`, `notifications`, `brain`), `files-office`, `files-pdf`, `otel` and `bridge` | Building a product binary. The `slack` and `teams` modules stay opt-in. |
 //!
 //! ```toml
-//! systemprompt = { version = "0.80.0", features = ["full"] }
+//! systemprompt = { version = "0.81.0", features = ["full"] }
 //! ```
 //!
 //! Crates are reachable as a module of the same name (`systemprompt::models`,
@@ -256,14 +259,14 @@ pub mod oauth_issuance {
     pub use systemprompt_oauth_issuance::*;
 }
 
-#[cfg(any(feature = "full", feature = "files-office"))]
-#[cfg_attr(docsrs, doc(cfg(any(feature = "full", feature = "files-office"))))]
+#[cfg(any(feature = "files-office", feature = "files-pdf"))]
+#[cfg_attr(docsrs, doc(cfg(any(feature = "files-office", feature = "files-pdf"))))]
 pub mod files {
     pub use systemprompt_files::{register_agent_access_policy, *};
 }
 
-#[cfg(any(feature = "full", feature = "files-office"))]
-#[cfg_attr(docsrs, doc(cfg(any(feature = "full", feature = "files-office"))))]
+#[cfg(any(feature = "files-office", feature = "files-pdf"))]
+#[cfg_attr(docsrs, doc(cfg(any(feature = "files-office", feature = "files-pdf"))))]
 pub use systemprompt_files::register_agent_access_policy;
 
 #[cfg(feature = "notifications")]
@@ -284,7 +287,6 @@ pub mod cloud {
     pub use systemprompt_cloud::*;
 }
 
-/// Profile types — the on-disk profile schema.
 #[cfg(feature = "core")]
 #[cfg_attr(docsrs, doc(cfg(feature = "core")))]
 pub mod profile;

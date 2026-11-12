@@ -8,10 +8,7 @@
 use systemprompt_database::{DatabaseProvider, PostgresProvider};
 
 use crate::services::db_helper::test_pool;
-
-fn unique(prefix: &str) -> String {
-    format!("{prefix}_{}", uuid::Uuid::new_v4().simple())
-}
+use systemprompt_test_fixtures::unique_name;
 
 async fn test_provider() -> (PostgresProvider, sqlx::PgPool) {
     let db = test_pool().await;
@@ -30,7 +27,7 @@ async fn user_exists(pg: &sqlx::PgPool, id: &str) -> bool {
 #[tokio::test]
 async fn a_committed_transaction_persists_every_statement_it_ran() {
     let (provider, pg) = test_provider().await;
-    let id = unique("pgtx_commit");
+    let id = unique_name("pgtx_commit");
 
     let mut tx = provider
         .begin_transaction()
@@ -62,7 +59,7 @@ async fn a_committed_transaction_persists_every_statement_it_ran() {
 #[tokio::test]
 async fn a_rolled_back_transaction_persists_nothing() {
     let (provider, pg) = test_provider().await;
-    let id = unique("pgtx_rollback");
+    let id = unique_name("pgtx_rollback");
 
     let mut tx = provider.begin_transaction().await.expect("begin");
     tx.execute(
@@ -82,7 +79,7 @@ async fn a_rolled_back_transaction_persists_nothing() {
 #[tokio::test]
 async fn the_three_fetch_shapes_read_the_transactions_own_uncommitted_write() {
     let (provider, pg) = test_provider().await;
-    let id = unique("pgtx_fetch");
+    let id = unique_name("pgtx_fetch");
 
     let mut tx = provider.begin_transaction().await.expect("begin");
     tx.execute(
@@ -154,7 +151,7 @@ async fn fetch_one_on_an_empty_result_is_an_error_not_an_empty_row() {
 #[tokio::test]
 async fn a_transaction_that_is_dropped_without_a_decision_does_not_commit() {
     let (provider, pg) = test_provider().await;
-    let id = unique("pgtx_dropped");
+    let id = unique_name("pgtx_dropped");
 
     {
         let mut tx = provider.begin_transaction().await.expect("begin");
@@ -205,7 +202,7 @@ async fn the_database_handle_reports_its_pools_and_liveness() {
 #[tokio::test]
 async fn the_database_handle_runs_a_batch_and_opens_a_plain_transaction() {
     let db = test_pool().await;
-    let table = unique("batch_tbl");
+    let table = unique_name("batch_tbl");
     let pg = db.write_pool();
 
     db.execute_batch(&format!(

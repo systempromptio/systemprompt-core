@@ -30,9 +30,38 @@ struct BuildConfigPaths {
     web_metadata: String,
 }
 
+/// The credentials a [`Config`] carries: the database URLs and the GitHub
+/// token. An API process takes them from its secrets document, an MCP child
+/// from the environment it was spawned with.
+#[derive(Clone)]
+pub struct ConfigCredentials {
+    pub database_url: String,
+    pub database_write_url: Option<String>,
+    pub database_session_url: Option<String>,
+    pub github_token: Option<String>,
+}
+
+impl std::fmt::Debug for ConfigCredentials {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ConfigCredentials").finish_non_exhaustive()
+    }
+}
+
+impl ConfigCredentials {
+    #[must_use]
+    pub fn from_secrets(secrets: &Secrets) -> Self {
+        Self {
+            database_url: secrets.database_url.clone(),
+            database_write_url: secrets.database_write_url.clone(),
+            database_session_url: secrets.database_session_url.clone(),
+            github_token: secrets.github.clone(),
+        }
+    }
+}
+
 pub fn build_from_profile(
     loaded: &LoadedProfile,
-    secrets: &Secrets,
+    secrets: &ConfigCredentials,
     services_root: Option<&Path>,
 ) -> ConfigResult<Config> {
     let profile = loaded.profile();
@@ -117,7 +146,7 @@ pub fn resolve_instance_id(profile: &Profile) -> ConfigResult<InstanceId> {
 
 fn build_config(
     profile: &Profile,
-    secrets: &Secrets,
+    secrets: &ConfigCredentials,
     paths: BuildConfigPaths,
     services_path: String,
 ) -> ConfigResult<Config> {
@@ -143,7 +172,7 @@ fn build_config(
             .github_link
             .clone()
             .unwrap_or_else(|| "https://github.com/systemprompt/systemprompt-os".to_owned()),
-        github_token: secrets.github.clone(),
+        github_token: secrets.github_token.clone(),
         system_path: paths.system.clone(),
         services_path,
         bin_path: profile.paths.bin.clone(),

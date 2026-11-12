@@ -5,6 +5,7 @@
 
 use std::path::PathBuf;
 
+use systemprompt_cli::cloud::profile::edit_document::ProfileEdit;
 use systemprompt_cli::cloud::profile::edit_settings::{
     edit_runtime_settings, edit_security_settings, edit_server_settings,
 };
@@ -104,13 +105,37 @@ fn make_profile() -> Profile {
     }
 }
 
+struct Edited {
+    _dir: tempfile::TempDir,
+    path: std::path::PathBuf,
+    edit: ProfileEdit,
+}
+
+fn open_edit() -> Edited {
+    let dir = tempfile::TempDir::new().unwrap();
+    let path = dir.path().join("profile.yaml");
+    std::fs::write(&path, serde_yaml::to_string(&make_profile()).unwrap()).unwrap();
+    let edit = ProfileEdit::open(&path).unwrap();
+    Edited {
+        _dir: dir,
+        path,
+        edit,
+    }
+}
+
+fn saved(edited: Edited) -> Profile {
+    edited.edit.save().expect("save succeeds");
+    Profile::load_from_path(&edited.path).expect("saved profile loads")
+}
+
 #[test]
 fn edit_server_settings_applies_scripted_answers() {
-    let mut profile = make_profile();
+    let mut edited = open_edit();
     let prompter = scripted(&["0.0.0.0", "9090", "https://public.example.com"]);
 
-    edit_server_settings(&prompter, &mut profile).expect("edit succeeds");
+    edit_server_settings(&prompter, &mut edited.edit).expect("edit succeeds");
 
+    let profile = saved(edited);
     assert_eq!(profile.server.host, "0.0.0.0");
     assert_eq!(profile.server.port, 9090);
     assert_eq!(profile.server.external_url, "https://public.example.com");
@@ -118,70 +143,77 @@ fn edit_server_settings_applies_scripted_answers() {
 
 #[test]
 fn edit_server_settings_keeps_defaults_on_empty_answers() {
-    let mut profile = make_profile();
+    let mut edited = open_edit();
     let prompter = scripted(&["", "", ""]);
 
-    edit_server_settings(&prompter, &mut profile).expect("edit succeeds");
+    edit_server_settings(&prompter, &mut edited.edit).expect("edit succeeds");
 
+    assert!(edited.edit.changed().is_empty());
+    let profile = saved(edited);
     assert_eq!(profile.server.host, "127.0.0.1");
     assert_eq!(profile.server.port, 8080);
 }
 
 #[test]
 fn edit_server_settings_rejects_non_numeric_port() {
-    let mut profile = make_profile();
+    let mut edited = open_edit();
     let prompter = scripted(&["localhost", "not-a-port"]);
 
-    let err = edit_server_settings(&prompter, &mut profile).unwrap_err();
-    assert!(err.to_string().contains("Invalid port"));
+    let err = edit_server_settings(&prompter, &mut edited.edit).unwrap_err();
+    assert!(err.to_string().contains("Invalid port"), "{err:#}");
 }
 
 #[test]
 fn edit_security_settings_applies_scripted_answers() {
-    let mut profile = make_profile();
+    let mut edited = open_edit();
     let prompter = scripted(&["7200", "172800"]);
 
-    edit_security_settings(&prompter, &mut profile).expect("edit succeeds");
+    edit_security_settings(&prompter, &mut edited.edit).expect("edit succeeds");
 
+    let profile = saved(edited);
     assert_eq!(profile.security.access_token_expiration, 7200);
     assert_eq!(profile.security.refresh_token_expiration, 172_800);
 }
 
 #[test]
 fn edit_security_settings_rejects_non_numeric_expiration() {
-    let mut profile = make_profile();
+    let mut edited = open_edit();
     let prompter = scripted(&["soon"]);
 
-    let err = edit_security_settings(&prompter, &mut profile).unwrap_err();
-    assert!(err.to_string().contains("Invalid access token expiration"));
+    let err = edit_security_settings(&prompter, &mut edited.edit).unwrap_err();
+    assert!(
+        err.to_string().contains("Invalid access token expiration"),
+        "{err:#}"
+    );
 }
 
 #[test]
 fn edit_runtime_settings_applies_selected_options() {
-    let mut profile = make_profile();
+    let mut edited = open_edit();
     let prompter = scripted(&["3", "2"]);
 
-    edit_runtime_settings(&prompter, &mut profile).expect("edit succeeds");
+    edit_runtime_settings(&prompter, &mut edited.edit).expect("edit succeeds");
 
+    let profile = saved(edited);
     assert_eq!(profile.runtime.environment, Environment::Production);
     assert_eq!(profile.runtime.log_level, LogLevel::Verbose);
 }
 
 #[test]
 fn edit_runtime_settings_out_of_range_selection_errors() {
-    let mut profile = make_profile();
+    let mut edited = open_edit();
     let prompter = scripted(&["9"]);
 
-    let err = edit_runtime_settings(&prompter, &mut profile).unwrap_err();
+    let err = edit_runtime_settings(&prompter, &mut edited.edit).unwrap_err();
     assert!(err.to_string().contains("out of range"));
 }
 
 #[test]
 fn edit_runtime_settings_exhausted_prompter_errors() {
-    let mut profile = make_profile();
+    let mut edited = open_edit();
     let prompter = scripted(&["0"]);
 
-    let err = edit_runtime_settings(&prompter, &mut profile).unwrap_err();
+    let err = edit_runtime_settings(&prompter, &mut edited.edit).unwrap_err();
     assert!(err.to_string().contains("exhausted"));
 }
 
@@ -191,27 +223,18 @@ fn read_raw(path: &std::path::Path) -> serde_yaml::Value {
     serde_yaml::from_str(&std::fs::read_to_string(path).unwrap()).unwrap()
 }
 
-// Why: saving the interpolated struct would replace every `${VAR}` in the
-// profile with the operator's shell value (or its default).
 #[test]
 fn saving_an_edit_keeps_untouched_placeholders_and_writes_the_changed_leaf() {
-    use systemprompt_cli::cloud::profile::edit_document::ProfileDocument;
-
     let dir = tempfile::TempDir::new().unwrap();
     let path = dir.path().join("profile.yaml");
     let mut raw = serde_yaml::to_value(make_profile()).unwrap();
     raw["server"]["host"] = serde_yaml::Value::String(HOST_PLACEHOLDER.to_owned());
-    let text = serde_yaml::to_string(&raw).unwrap();
-    std::fs::write(&path, &text).unwrap();
+    std::fs::write(&path, serde_yaml::to_string(&raw).unwrap()).unwrap();
 
-    let before = Profile::from_yaml(&text, &path).unwrap();
-    assert_eq!(before.server.host, "127.0.0.1");
-    let mut after = before.clone();
-    after.server.port = 9090;
-
-    let mut document = ProfileDocument::open(&path).unwrap();
-    document.apply_changes(&before, &after).unwrap();
-    document.save().unwrap();
+    let mut edit = ProfileEdit::open(&path).unwrap();
+    assert_eq!(edit.text("server.host").unwrap(), HOST_PLACEHOLDER);
+    edit_server_settings(&scripted(&["", "9090", ""]), &mut edit).unwrap();
+    edit.save().unwrap();
 
     let saved = read_raw(&path);
     assert_eq!(
@@ -220,4 +243,23 @@ fn saving_an_edit_keeps_untouched_placeholders_and_writes_the_changed_leaf() {
         "an untouched placeholder must survive the save"
     );
     assert_eq!(saved["server"]["port"], serde_yaml::Value::from(9090));
+}
+
+#[cfg(unix)]
+#[test]
+fn saving_into_a_read_only_directory_is_refused_and_leaves_the_file_whole() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let mut edited = open_edit();
+    let before = std::fs::read_to_string(&edited.path).unwrap();
+    edit_server_settings(&scripted(&["0.0.0.0", "", ""]), &mut edited.edit).unwrap();
+    let dir = edited.path.parent().unwrap().to_path_buf();
+
+    std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o555)).unwrap();
+    let result = edited.edit.save();
+    std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+    let error = result.expect_err("a read-only profile directory refuses the write");
+    assert!(format!("{error:#}").contains("read-only"), "{error:#}");
+    assert_eq!(std::fs::read_to_string(&edited.path).unwrap(), before);
 }

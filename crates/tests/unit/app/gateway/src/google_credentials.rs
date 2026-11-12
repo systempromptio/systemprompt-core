@@ -19,14 +19,14 @@ async fn google_access_token(
         ProviderCredential::GoogleServiceAccount(key) => {
             Ok(access_token(tokens, name, &key).await.map(Some)?)
         },
-        ProviderCredential::ApiKey(_) => Ok(None),
+        ProviderCredential::ApiKey(_) | ProviderCredential::GoogleWorkloadIdentity(_) => Ok(None),
     }
 }
 
 fn google_token_uri(secret: &str) -> anyhow::Result<Option<String>> {
     match ProviderCredential::parse(secret)? {
         ProviderCredential::GoogleServiceAccount(key) => Ok(Some(key.token_uri)),
-        ProviderCredential::ApiKey(_) => Ok(None),
+        ProviderCredential::ApiKey(_) | ProviderCredential::GoogleWorkloadIdentity(_) => Ok(None),
     }
 }
 

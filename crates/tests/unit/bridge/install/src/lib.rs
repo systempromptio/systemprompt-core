@@ -42,6 +42,8 @@ mod policy_apply;
 #[cfg(test)]
 mod policy_writer;
 #[cfg(test)]
+mod policy_writer_binding;
+#[cfg(test)]
 mod pubkey;
 #[cfg(test)]
 mod schedule;

@@ -5,11 +5,7 @@
 
 use systemprompt_database::{CreateServiceInput, ServiceModule, ServiceRepository, ServiceStatus};
 use systemprompt_identifiers::{InstanceId, ServiceName};
-use systemprompt_test_fixtures::{LivePids, test_db_pool};
-
-fn unique(prefix: &str) -> String {
-    format!("{prefix}_{}", uuid::Uuid::new_v4().simple())
-}
+use systemprompt_test_fixtures::{LivePids, test_db_pool, unique_name};
 
 async fn seed(
     repo: &ServiceRepository,
@@ -18,7 +14,7 @@ async fn seed(
     status: ServiceStatus,
     pid: Option<i32>,
 ) -> ServiceName {
-    let name = ServiceName::new(unique(prefix));
+    let name = ServiceName::new(unique_name(prefix));
     repo.create_service(CreateServiceInput {
         name: &name,
         module_name: module,
@@ -37,7 +33,7 @@ async fn seed(
 #[tokio::test]
 async fn only_the_row_whose_pid_is_ours_survives() {
     let db = test_db_pool().await;
-    let repo = ServiceRepository::new(&db, InstanceId::new(unique("reap")));
+    let repo = ServiceRepository::new(&db, InstanceId::new(unique_name("reap")));
     let errored = seed(
         &repo,
         "err",
@@ -107,8 +103,8 @@ async fn only_the_row_whose_pid_is_ours_survives() {
 #[tokio::test]
 async fn reaping_never_crosses_instances() {
     let db = test_db_pool().await;
-    let mine = ServiceRepository::new(&db, InstanceId::new(unique("mine")));
-    let theirs = ServiceRepository::new(&db, InstanceId::new(unique("theirs")));
+    let mine = ServiceRepository::new(&db, InstanceId::new(unique_name("mine")));
+    let theirs = ServiceRepository::new(&db, InstanceId::new(unique_name("theirs")));
     let their_dead = seed(
         &theirs,
         "dead",
@@ -136,13 +132,13 @@ async fn reaping_never_crosses_instances() {
 #[tokio::test]
 async fn the_status_column_refuses_values_outside_the_vocabulary() {
     let db = test_db_pool().await;
-    let instance = unique("check");
+    let instance = unique_name("check");
     let err = sqlx::query(
         "INSERT INTO services (instance_id, name, module_name, status, port)
          VALUES ($1, $2, 'mcp', 'bogus', 7001)",
     )
     .bind(&instance)
-    .bind(unique("svc"))
+    .bind(unique_name("svc"))
     .execute(db.write_pool().as_ref())
     .await
     .expect_err("a status outside the CHECK set must be refused");
@@ -157,7 +153,7 @@ async fn the_status_column_refuses_values_outside_the_vocabulary() {
 #[tokio::test]
 async fn a_running_row_with_a_negative_pid_is_reaped_as_pid_zero() {
     let db = test_db_pool().await;
-    let repo = ServiceRepository::new(&db, InstanceId::new(unique("negpid")));
+    let repo = ServiceRepository::new(&db, InstanceId::new(unique_name("negpid")));
     let name = seed(
         &repo,
         "neg",
@@ -178,9 +174,9 @@ async fn a_running_row_with_a_negative_pid_is_reaped_as_pid_zero() {
 #[tokio::test]
 async fn an_unknown_module_name_stops_the_reap_with_a_decode_error() {
     let db = test_db_pool().await;
-    let instance = unique("badmod");
+    let instance = unique_name("badmod");
     let repo = ServiceRepository::new(&db, InstanceId::new(instance.clone()));
-    let name = unique("badmod_svc");
+    let name = unique_name("badmod_svc");
     sqlx::query(
         "INSERT INTO services (instance_id, name, module_name, pid, port, status) VALUES ($1, $2, \
          'not-a-module', 55, 7000, 'running')",

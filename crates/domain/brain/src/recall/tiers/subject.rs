@@ -36,7 +36,7 @@ pub(super) async fn by_subject(
                FROM matched m
                JOIN brain_facts f
                  ON f.subject_kind = m.subject_kind AND f.subject_id = m.subject_id
-               WHERE EXISTS (SELECT 1 FROM brain_working_set w
+               WHERE EXISTS (SELECT 1 FROM v_brain_working_set w
                              WHERE w.fact_id = f.id AND w.scope_key = ANY($1::text[]))
                  AND f.scope_level = ANY($6::text[])
                  AND (f.status = 'confirmed'

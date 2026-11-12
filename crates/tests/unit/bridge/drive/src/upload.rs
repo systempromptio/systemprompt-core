@@ -7,6 +7,16 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use crate::support::{Fixture, manifest_json};
 
+fn edit_after_sync(fx: &Fixture, rel: &str, bytes: &[u8]) {
+    fx.write(rel, bytes);
+    let later = std::time::SystemTime::now() + std::time::Duration::from_secs(60);
+    std::fs::OpenOptions::new()
+        .write(true)
+        .open(fx.root.dir().join(rel))
+        .and_then(|file| file.set_modified(later))
+        .expect("move the edit's mtime past the synced one");
+}
+
 #[tokio::test]
 async fn upload_sends_if_match_and_records_the_committed_revision() {
     let server = MockServer::start().await;
@@ -16,8 +26,7 @@ async fn upload_sends_if_match_and_records_the_committed_revision() {
     let next = DocumentRevisionId::generate();
     fx.write("plan.md", b"v1");
     fx.synced("plan.md", &doc, &base);
-    std::thread::sleep(std::time::Duration::from_millis(1100));
-    fx.write("plan.md", b"v2 edited locally");
+    edit_after_sync(&fx, "plan.md", b"v2 edited locally");
 
     Mock::given(method("POST"))
         .and(path(ApiPaths::BRIDGE_DRIVE_COMMIT))
@@ -63,8 +72,7 @@ async fn conflict_keeps_local_edit_as_sibling_and_writes_the_verified_head() {
     let head = DocumentRevisionId::generate();
     fx.write("docs/brief.docx", b"base");
     fx.synced("docs/brief.docx", &doc, &base);
-    std::thread::sleep(std::time::Duration::from_millis(1100));
-    fx.write("docs/brief.docx", b"mine");
+    edit_after_sync(&fx, "docs/brief.docx", b"mine");
     let theirs: &[u8] = b"theirs, committed elsewhere";
 
     Mock::given(method("POST"))
@@ -117,8 +125,7 @@ async fn a_merged_commit_is_recorded_and_the_next_pull_brings_the_merge_down() {
     let merged = DocumentRevisionId::generate();
     fx.write("docs/brief.docx", b"base");
     fx.synced("docs/brief.docx", &doc, &base);
-    std::thread::sleep(std::time::Duration::from_millis(1100));
-    fx.write("docs/brief.docx", b"mine");
+    edit_after_sync(&fx, "docs/brief.docx", b"mine");
     let combined: &[u8] = b"mine and theirs, merged on the server";
 
     Mock::given(method("POST"))
@@ -167,8 +174,7 @@ async fn a_proposed_edit_is_sent_for_review_kept_locally_and_not_resent() {
     let proposal = systemprompt_identifiers::DocumentProposalId::generate();
     fx.write("plan.md", b"v1");
     fx.synced("plan.md", &doc, &base);
-    std::thread::sleep(std::time::Duration::from_millis(1100));
-    fx.write("plan.md", b"v2 suggested");
+    edit_after_sync(&fx, "plan.md", b"v2 suggested");
 
     Mock::given(method("POST"))
         .and(path(ApiPaths::BRIDGE_DRIVE_COMMIT))

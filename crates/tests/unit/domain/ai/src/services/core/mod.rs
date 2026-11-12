@@ -19,7 +19,6 @@ use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, 
 use systemprompt_manifest::services::AiConfig;
 use systemprompt_manifest::services::catalog::ResolvedCatalog;
 use systemprompt_models::RequestContext;
-use systemprompt_security::at_rest::AtRestCipher;
 use systemprompt_test_fixtures::catalog::CatalogFixture;
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, ensure_test_secrets_bootstrap, seed_user_row, seed_user_session,
@@ -113,7 +112,6 @@ pub(crate) fn service_from(
     catalog: Arc<ResolvedCatalog>,
 ) -> systemprompt_ai::error::Result<AiService> {
     let secrets = ensure_test_secrets_bootstrap();
-    let cipher = AtRestCipher::from_secrets(&secrets.get()).expect("cipher");
     AiService::new(
         catalog,
         &ai_config(),
@@ -124,7 +122,7 @@ pub(crate) fn service_from(
             secrets,
             session_ttl_seconds: 3600,
         },
-        &systemprompt_ai::repository::AiRepositories::new(pool, cipher),
+        &systemprompt_ai::repository::AiRequestRepositories::new(pool),
     )
 }
 

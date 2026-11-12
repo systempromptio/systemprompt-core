@@ -200,6 +200,7 @@ impl DocumentService {
                     parent,
                     message: request.message.clone(),
                     author: &request.author,
+                    vouched: &super::media_admission::vouched_by(&request.media),
                 },
             )
             .await?;

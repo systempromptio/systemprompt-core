@@ -105,7 +105,7 @@ async fn run_stream(input: StreamInput, tx: tokio::sync::mpsc::Sender<Event>) {
 
     tracing::info!(agent = %setup.agent_name, "Starting message stream processing for agent");
 
-    let guard = active_tasks.register(setup.task_id.clone());
+    let guard = active_tasks.register(setup.task.task_id().clone());
     match setup
         .processor
         .process_message_stream(ProcessMessageStreamParams {
@@ -113,7 +113,7 @@ async fn run_stream(input: StreamInput, tx: tokio::sync::mpsc::Sender<Event>) {
             agent_runtime: &setup.agent_runtime,
             agent_name: &setup.agent_name,
             context: &setup.context,
-            task_id: setup.task_id.clone(),
+            task_id: setup.task.task_id().clone(),
             cancel: guard.token(),
         })
         .await
@@ -123,8 +123,7 @@ async fn run_stream(input: StreamInput, tx: tokio::sync::mpsc::Sender<Event>) {
                 tx,
                 request_id: setup.request_id,
                 stream,
-                task_id: setup.task_id,
-                context_id: setup.context_id,
+                task: setup.task,
                 message_id: setup.message_id,
                 original_message: setup.message,
                 agent_name: setup.agent_name,
@@ -136,14 +135,7 @@ async fn run_stream(input: StreamInput, tx: tokio::sync::mpsc::Sender<Event>) {
         },
         Err(e) => {
             let webhook_context = WebhookContext::for_request(webhooks, &setup.context);
-            handle_stream_creation_error(
-                &webhook_context,
-                e,
-                &setup.task_id,
-                &setup.context_id,
-                &setup.task_repo,
-            )
-            .await;
+            handle_stream_creation_error(&webhook_context, e, &setup.task, &setup.task_repo).await;
             let failed = TaskStatus {
                 state: TaskState::Failed,
                 message: None,
@@ -152,8 +144,8 @@ async fn run_stream(input: StreamInput, tx: tokio::sync::mpsc::Sender<Event>) {
             send_a2a_status_event(
                 &tx,
                 &setup.request_id,
-                &setup.task_id,
-                &setup.context_id,
+                setup.task.task_id(),
+                setup.task.context_id(),
                 failed,
             )
             .await;

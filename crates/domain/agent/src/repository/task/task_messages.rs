@@ -4,38 +4,25 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::TaskRepository;
-use crate::models::a2a::{Message, Part};
-use crate::repository::context::message::{
-    get_message_parts, get_messages_by_context, get_messages_by_task, message_exists,
-};
+use crate::models::a2a::Message;
+use crate::repository::OwnedContext;
+use crate::repository::context::message::{get_messages_by_context, message_in_owned_context};
 use systemprompt_traits::RepositoryError;
 
 impl TaskRepository {
-    pub async fn message_exists(
+    pub async fn message_in_owned_context(
         &self,
         message_id: &systemprompt_identifiers::MessageId,
+        context_id: &systemprompt_identifiers::ContextId,
+        user_id: &systemprompt_identifiers::UserId,
     ) -> Result<bool, RepositoryError> {
-        message_exists(&self.pool, message_id).await
-    }
-
-    pub async fn get_messages_by_task(
-        &self,
-        task_id: &systemprompt_identifiers::TaskId,
-    ) -> Result<Vec<Message>, RepositoryError> {
-        get_messages_by_task(&self.pool, task_id).await
-    }
-
-    pub async fn get_message_parts(
-        &self,
-        message_id: &systemprompt_identifiers::MessageId,
-    ) -> Result<Vec<Part>, RepositoryError> {
-        get_message_parts(&self.pool, message_id).await
+        message_in_owned_context(&self.pool, message_id, context_id, user_id).await
     }
 
     pub async fn get_messages_by_context(
         &self,
-        context_id: &systemprompt_identifiers::ContextId,
+        owned: &OwnedContext,
     ) -> Result<Vec<Message>, RepositoryError> {
-        get_messages_by_context(&self.pool, context_id).await
+        get_messages_by_context(&self.pool, owned.context_id()).await
     }
 }

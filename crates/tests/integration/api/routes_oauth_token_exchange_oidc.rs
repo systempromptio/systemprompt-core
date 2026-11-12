@@ -51,6 +51,7 @@ fn configure(config: &mut systemprompt_manifest::Config) {
             typ_allowlist: vec![IDJAG_TYP.to_owned()],
             allowed_client_ids: vec![],
             can_issue_id_jag: true,
+            link: Default::default(),
         },
         TrustedIssuer {
             issuer: ISSUER_PLAIN.to_owned(),
@@ -59,6 +60,7 @@ fn configure(config: &mut systemprompt_manifest::Config) {
             typ_allowlist: vec![],
             allowed_client_ids: vec![],
             can_issue_id_jag: false,
+            link: Default::default(),
         },
     ];
 }

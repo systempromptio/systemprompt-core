@@ -46,8 +46,12 @@ impl HttpsFetcher {
 
     fn checked_url(&self) -> BundleResult<url::Url> {
         let trusted = trusted_http_hosts_from_env();
-        validate_outbound_url_with_trust(&self.url, &trusted)
-            .map_err(|e| BundleError::fetch_cause(&self.name, e))
+        validate_outbound_url_with_trust(
+            &self.url,
+            &trusted,
+            systemprompt_models::net::LoopbackPolicy::Allow,
+        )
+        .map_err(|e| BundleError::fetch_cause(&self.name, e))
     }
 }
 

@@ -1,18 +1,17 @@
 use anyhow::Result;
 use chrono::Utc;
 use std::sync::Arc;
-use systemprompt_agent::repository::ContextRepository;
 use systemprompt_agent::repository::execution::ExecutionStepRepository;
 use systemprompt_agent::repository::task::{RepoCreateTaskParams, TaskRepository};
+use systemprompt_agent::repository::{ContextRepository, RuntimeTask};
 use systemprompt_agent::services::context::ContextService;
 use systemprompt_agent::services::context_provider::ContextProviderService;
 use systemprompt_agent::services::execution_tracking::ExecutionTrackingService;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{
-    Actor, AgentName, ContextId, McpToolName, SessionId, TaskId, TraceId, UserId,
-};
+use systemprompt_identifiers::{AgentName, ContextId, SessionId, TaskId, TraceId, UserId};
 use systemprompt_models::PlannedTool;
 use systemprompt_models::a2a::{Task, TaskState, TaskStatus};
+use systemprompt_test_fixtures::agent_reads::StepReadsExt;
 use systemprompt_test_fixtures::test_db_pool;
 use systemprompt_traits::ContextProvider;
 use tokio::sync::{Mutex, MutexGuard, OnceCell};
@@ -78,6 +77,10 @@ impl ServicesFixture {
     }
 
     async fn insert_task(&self) -> Result<TaskId> {
+        Ok(self.insert_runtime_task().await?.task_id().clone())
+    }
+
+    async fn insert_runtime_task(&self) -> Result<RuntimeTask> {
         let repos = systemprompt_test_fixtures::a2a_repositories(&self.db);
         let task_id = TaskId::new(format!("svc_task_{}_{}", self.tag, Uuid::new_v4().simple()));
         let task = Task {
@@ -94,7 +97,7 @@ impl ServicesFixture {
             created_at: Some(Utc::now()),
             last_modified: Some(Utc::now()),
         };
-        repos
+        let runtime = repos
             .tasks
             .create_task(RepoCreateTaskParams {
                 task: &task,
@@ -104,7 +107,56 @@ impl ServicesFixture {
                 agent_name: &AgentName::new("svc-agent"),
             })
             .await?;
-        Ok(task_id)
+        Ok(runtime)
+    }
+
+    async fn save_turn(
+        &self,
+        runtime: &RuntimeTask,
+        user_text: &str,
+        agent_text: &str,
+    ) -> Result<()> {
+        use systemprompt_agent::models::a2a::{Message, MessageRole, Part};
+        use systemprompt_agent::repository::task::UpdateTaskAndSaveMessagesParams;
+        use systemprompt_identifiers::MessageId;
+
+        let message = |role: MessageRole, text: &str| Message {
+            role,
+            message_id: MessageId::new(format!("h_{}_{}", self.tag, Uuid::new_v4().simple())),
+            task_id: Some(runtime.task_id().clone()),
+            context_id: runtime.context_id().clone(),
+            parts: vec![Part::text(text)],
+            metadata: None,
+            extensions: None,
+            reference_task_ids: None,
+        };
+        let task = Task {
+            id: runtime.task_id().clone(),
+            context_id: runtime.context_id().clone(),
+            status: TaskStatus {
+                state: TaskState::Completed,
+                message: None,
+                timestamp: Some(Utc::now()),
+            },
+            history: None,
+            artifacts: None,
+            metadata: None,
+            created_at: Some(Utc::now()),
+            last_modified: Some(Utc::now()),
+        };
+        systemprompt_test_fixtures::a2a_repositories(&self.db)
+            .tasks
+            .update_task_and_save_messages(UpdateTaskAndSaveMessagesParams {
+                runtime,
+                task: &task,
+                user_message: &message(MessageRole::User, user_text),
+                agent_message: &message(MessageRole::Agent, agent_text),
+                user_id: Some(&self.user_id),
+                session_id: &self.session_id,
+                trace_id: &self.trace_id,
+            })
+            .await?;
+        Ok(())
     }
 
     async fn cleanup(&self) -> Result<()> {
@@ -159,7 +211,12 @@ async fn execution_tracking_service_full_lifecycle() -> Result<()> {
 
     let _completion = svc.track_completion(task_id.clone()).await?;
 
-    let steps = svc.list_steps_by_task(&task_id).await?;
+    let steps = ExecutionStepRepository::new(&fx.db)
+        .steps_for_task(
+            &TaskRepository::new(&fx.db, crate::common::session_usage(&fx.db)?),
+            &task_id,
+        )
+        .await?;
     assert!(steps.len() >= 4);
 
     let got = svc.find_step(&tool_step.step_id).await?;
@@ -175,11 +232,13 @@ async fn execution_tracking_service_full_lifecycle() -> Result<()> {
 #[tokio::test]
 async fn context_service_load_history_for_empty_context_returns_empty() -> Result<()> {
     let fx = ServicesFixture::new().await?;
-    let svc = ContextService::new(TaskRepository::new(
-        &fx.db,
-        crate::common::session_usage(&fx.db)?,
-    ));
-    let history = svc.load_conversation_history(&fx.context_id).await?;
+    let svc = ContextService::new(
+        TaskRepository::new(&fx.db, crate::common::session_usage(&fx.db)?),
+        ContextRepository::new(&fx.db),
+    );
+    let history = svc
+        .load_conversation_history(&fx.context_id, &fx.user_id)
+        .await?;
     assert!(history.is_empty());
     fx.cleanup().await?;
     Ok(())
@@ -191,215 +250,6 @@ async fn context_provider_service_lists_user_contexts() -> Result<()> {
     let svc = ContextProviderService::new(ContextRepository::new(&fx.db));
     let listed = svc.list_contexts_with_stats(&fx.user_id).await?;
     assert!(listed.iter().any(|c| c.context_id == fx.context_id));
-    fx.cleanup().await?;
-    Ok(())
-}
-
-#[tokio::test]
-async fn message_service_persists_messages_for_task() -> Result<()> {
-    use systemprompt_agent::models::a2a::{Message, MessageRole, Part};
-    use systemprompt_agent::services::message::{MessageService, PersistMessagesParams};
-    use systemprompt_identifiers::MessageId;
-
-    let fx = ServicesFixture::new().await?;
-    let svc = MessageService::new(TaskRepository::new(
-        &fx.db,
-        crate::common::session_usage(&fx.db)?,
-    ));
-
-    let task_id = fx.insert_task().await?;
-    let messages = vec![
-        Message {
-            role: MessageRole::User,
-            message_id: MessageId::new(format!("m1_{}", fx.tag)),
-            task_id: Some(task_id.clone()),
-            context_id: fx.context_id.clone(),
-            parts: vec![Part::text("first user message")],
-            metadata: None,
-            extensions: None,
-            reference_task_ids: None,
-        },
-        Message {
-            role: MessageRole::Agent,
-            message_id: MessageId::new(format!("m2_{}", fx.tag)),
-            task_id: Some(task_id.clone()),
-            context_id: fx.context_id.clone(),
-            parts: vec![Part::text("agent reply")],
-            metadata: None,
-            extensions: None,
-            reference_task_ids: None,
-        },
-    ];
-
-    let seqs = svc
-        .persist_messages(PersistMessagesParams {
-            task_id: &task_id,
-            context_id: &fx.context_id,
-            messages,
-            user_id: Some(&fx.user_id),
-            session_id: &fx.session_id,
-            trace_id: &fx.trace_id,
-        })
-        .await?;
-    assert_eq!(seqs.len(), 2);
-
-    fx.cleanup().await?;
-    Ok(())
-}
-
-#[tokio::test]
-async fn message_service_persist_empty_list_returns_empty() -> Result<()> {
-    use systemprompt_agent::services::message::{MessageService, PersistMessagesParams};
-
-    let fx = ServicesFixture::new().await?;
-    let svc = MessageService::new(TaskRepository::new(
-        &fx.db,
-        crate::common::session_usage(&fx.db)?,
-    ));
-    let task_id = fx.insert_task().await?;
-
-    let seqs = svc
-        .persist_messages(PersistMessagesParams {
-            task_id: &task_id,
-            context_id: &fx.context_id,
-            messages: Vec::new(),
-            user_id: Some(&fx.user_id),
-            session_id: &fx.session_id,
-            trace_id: &fx.trace_id,
-        })
-        .await?;
-    assert!(seqs.is_empty());
-
-    fx.cleanup().await?;
-    Ok(())
-}
-
-#[tokio::test]
-async fn message_service_creates_tool_execution_message() -> Result<()> {
-    use systemprompt_agent::services::message::{CreateToolExecutionMessageParams, MessageService};
-    use systemprompt_models::RequestContext;
-
-    let fx = ServicesFixture::new().await?;
-    let svc = MessageService::new(TaskRepository::new(
-        &fx.db,
-        crate::common::session_usage(&fx.db)?,
-    ));
-    let task_id = fx.insert_task().await?;
-
-    use systemprompt_identifiers::AgentName;
-    let request_context = RequestContext::new(
-        fx.session_id.clone(),
-        fx.trace_id.clone(),
-        fx.context_id.clone(),
-        AgentName::try_new("svc-agent").expect("valid AgentName"),
-        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
-    );
-
-    let (msg_id, seq) = svc
-        .create_tool_execution_message(CreateToolExecutionMessageParams {
-            task_id: &task_id,
-            context_id: &fx.context_id,
-            tool_name: &McpToolName::new("echo"),
-            tool_args: &serde_json::json!({"x": 1}),
-            request_context: &request_context,
-        })
-        .await?;
-    assert!(!msg_id.as_str().is_empty());
-    assert!(seq >= 0);
-
-    fx.cleanup().await?;
-    Ok(())
-}
-
-#[tokio::test]
-async fn context_service_loads_ordered_user_and_agent_history_across_tasks() -> Result<()> {
-    use systemprompt_agent::models::a2a::{Message, MessageRole, Part};
-    use systemprompt_agent::services::context::ContextService;
-    use systemprompt_agent::services::message::{MessageService, PersistMessagesParams};
-    use systemprompt_identifiers::MessageId;
-
-    let fx = ServicesFixture::new().await?;
-    let first_task = fx.insert_task().await?;
-    let second_task = fx.insert_task().await?;
-    let msg_svc = MessageService::new(TaskRepository::new(
-        &fx.db,
-        crate::common::session_usage(&fx.db)?,
-    ));
-    let context_svc = ContextService::new(TaskRepository::new(
-        &fx.db,
-        crate::common::session_usage(&fx.db)?,
-    ));
-
-    msg_svc
-        .persist_messages(PersistMessagesParams {
-            task_id: &first_task,
-            context_id: &fx.context_id,
-            messages: vec![
-                Message {
-                    role: MessageRole::User,
-                    message_id: MessageId::new(format!("h1_{}", fx.tag)),
-                    task_id: Some(first_task.clone()),
-                    context_id: fx.context_id.clone(),
-                    parts: vec![Part::text("first question")],
-                    metadata: None,
-                    extensions: None,
-                    reference_task_ids: None,
-                },
-                Message {
-                    role: MessageRole::Agent,
-                    message_id: MessageId::new(format!("h2_{}", fx.tag)),
-                    task_id: Some(first_task.clone()),
-                    context_id: fx.context_id.clone(),
-                    parts: vec![Part::text("first answer")],
-                    metadata: None,
-                    extensions: None,
-                    reference_task_ids: None,
-                },
-            ],
-            user_id: Some(&fx.user_id),
-            session_id: &fx.session_id,
-            trace_id: &fx.trace_id,
-        })
-        .await?;
-
-    msg_svc
-        .persist_messages(PersistMessagesParams {
-            task_id: &second_task,
-            context_id: &fx.context_id,
-            messages: vec![Message {
-                role: MessageRole::User,
-                message_id: MessageId::new(format!("h3_{}", fx.tag)),
-                task_id: Some(second_task.clone()),
-                context_id: fx.context_id.clone(),
-                parts: vec![Part::text("follow-up question")],
-                metadata: None,
-                extensions: None,
-                reference_task_ids: None,
-            }],
-            user_id: Some(&fx.user_id),
-            session_id: &fx.session_id,
-            trace_id: &fx.trace_id,
-        })
-        .await?;
-
-    let history = context_svc
-        .load_conversation_history(&fx.context_id)
-        .await?;
-    assert_eq!(history.len(), 3);
-    assert_eq!(history[0].role, systemprompt_models::MessageRole::User);
-    assert_eq!(history[0].content, "first question");
-    assert_eq!(history[1].role, systemprompt_models::MessageRole::Assistant);
-    assert_eq!(history[1].content, "first answer");
-    assert_eq!(history[2].role, systemprompt_models::MessageRole::User);
-    assert_eq!(history[2].content, "follow-up question");
-    assert_eq!(
-        history
-            .iter()
-            .map(|message| message.parts.len())
-            .collect::<Vec<_>>(),
-        vec![1, 1, 1]
-    );
-
     fx.cleanup().await?;
     Ok(())
 }
@@ -419,13 +269,62 @@ async fn context_provider_service_get_context_returns_data() -> Result<()> {
 async fn execution_tracking_service_list_steps_for_unknown_task() -> Result<()> {
     use systemprompt_identifiers::TaskId;
     let fx = ServicesFixture::new().await?;
-    let exec_repo = Arc::new(ExecutionStepRepository::new(&fx.db));
-    let svc = ExecutionTrackingService::new(exec_repo);
-
-    let steps = svc
-        .list_steps_by_task(&TaskId::new("nonexistent-task-id"))
+    let steps = ExecutionStepRepository::new(&fx.db)
+        .steps_for_task(
+            &TaskRepository::new(&fx.db, crate::common::session_usage(&fx.db)?),
+            &TaskId::new("nonexistent-task-id"),
+        )
         .await?;
     assert!(steps.is_empty());
+
+    fx.cleanup().await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn context_service_loads_ordered_user_and_agent_history_across_tasks() -> Result<()> {
+    use systemprompt_agent::services::context::ContextService;
+
+    let fx = ServicesFixture::new().await?;
+    let first_task = fx.insert_runtime_task().await?;
+    let second_task = fx.insert_runtime_task().await?;
+    fx.save_turn(&first_task, "first question", "first answer")
+        .await?;
+    fx.save_turn(&second_task, "follow-up question", "follow-up answer")
+        .await?;
+
+    let context_svc = ContextService::new(
+        TaskRepository::new(&fx.db, crate::common::session_usage(&fx.db)?),
+        ContextRepository::new(&fx.db),
+    );
+    let history = context_svc
+        .load_conversation_history(&fx.context_id, &fx.user_id)
+        .await?;
+    let turns: Vec<_> = history
+        .iter()
+        .map(|message| (message.role.clone(), message.content.clone()))
+        .collect();
+    assert_eq!(
+        turns,
+        vec![
+            (
+                systemprompt_models::MessageRole::User,
+                "first question".to_owned()
+            ),
+            (
+                systemprompt_models::MessageRole::Assistant,
+                "first answer".to_owned()
+            ),
+            (
+                systemprompt_models::MessageRole::User,
+                "follow-up question".to_owned()
+            ),
+            (
+                systemprompt_models::MessageRole::Assistant,
+                "follow-up answer".to_owned()
+            ),
+        ]
+    );
 
     fx.cleanup().await?;
     Ok(())

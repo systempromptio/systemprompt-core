@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.81.0] - 2026-11-12
+
+### Security
+
+- **Windows:** the elevated install binds the machine policy writer to the installing account. The SYSTEM writer acts only on request files owned by that account, takes the loopback port and host token from its binding and headers from the signed manifest, and refuses an envelope outside the clock-skew window or not newer than the last accepted version.
+- The loopback proxy parses each request target once into a canonical path and refuses dot segments, encoded separators, backslashes, empty segments and a missing `Host`.
+- Webview navigation and IPC are allowed only for the app's exact origin on each platform.
+- An unpinned gateway key is not trusted on first use; the window shows its fingerprint and pins it only when the user confirms it.
+- Drive writes and moves create folders without following links and re-check every path component immediately before the rename.
+- `rustix` is 1.1.6 (RUSTSEC-2026-0486).
+
+### Fixed
+
+- Drive keeps a file edited since the last sync as a conflict sibling on a remote delete instead of trashing it, and places only paths every desktop filesystem can hold.
+- Drive names that differ only in Unicode normalisation collide like case variants, and `CONIN$`, `CONOUT$` and the superscript-numbered `COM` and `LPT` device names are refused.
+- A document that cannot be placed stays in the conflict list and is retried until it is placed; a revision-less rename places the document's current head.
+- `bridge install` and repair stop on a manifest that fails verification and keep the stored envelope when the gateway is unreachable.
+- The `apiKeyHelper` path is always shell-quoted, and uninstall recognises an unquoted value naming the bridge helper.
+
 ## [0.80.0] - 2026-11-09
 
 ### Changed

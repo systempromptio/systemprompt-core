@@ -3,7 +3,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-crate::define_id!(ClientId);
+crate::define_id!(ClientId, checked, |value| {
+    crate::macros::validate_external_id("ClientId", value)
+});
 
 impl ClientId {
     pub fn client_type(&self) -> ClientType {

@@ -10,6 +10,7 @@
 use anyhow::{Context, Result};
 use std::path::Path;
 use systemprompt_cloud::ProjectContext;
+use systemprompt_loader::subprocess::ForegroundChildren;
 use systemprompt_logging::CliService;
 use systemprompt_models::CliPaths;
 
@@ -60,7 +61,11 @@ exec /app/bin/systemprompt {services_serve_cmd} --foreground
     )
 }
 
-pub(super) fn execute(force: bool, _config: &CliConfig) -> Result<()> {
+pub(super) fn execute(
+    force: bool,
+    _config: &CliConfig,
+    children: &ForegroundChildren,
+) -> Result<()> {
     let project_root = std::env::current_dir().context("Failed to get current directory")?;
     let ctx = ProjectContext::new(project_root.clone());
     let systemprompt_dir = ctx.systemprompt_dir();
@@ -88,7 +93,7 @@ pub(super) fn execute(force: bool, _config: &CliConfig) -> Result<()> {
             std::fs::remove_dir_all(&services_dir)
                 .context("Failed to remove services directory")?;
         }
-        generate_services_boilerplate(&project_root, &project_name)?;
+        generate_services_boilerplate(&project_root, &project_name, children)?;
     } else {
         CliService::info("services/ already exists (use --force to regenerate)");
     }
@@ -125,7 +130,10 @@ fn create_systemprompt_dir(dir: &Path, project_root: &Path) -> Result<()> {
     Ok(())
 }
 
-pub(super) fn ensure_project_scaffolding(project_root: &Path) -> Result<()> {
+pub(super) fn ensure_project_scaffolding(
+    project_root: &Path,
+    children: &ForegroundChildren,
+) -> Result<()> {
     let services_dir = project_root.join("services");
     let web_dir = project_root.join("web");
 
@@ -141,7 +149,7 @@ pub(super) fn ensure_project_scaffolding(project_root: &Path) -> Result<()> {
 
     if !services_dir.exists() {
         CliService::info("Scaffolding services/ directory...");
-        generate_services_boilerplate(project_root, &project_name)?;
+        generate_services_boilerplate(project_root, &project_name, children)?;
     }
 
     if !web_dir.exists() {

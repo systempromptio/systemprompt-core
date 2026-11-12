@@ -2,13 +2,14 @@
 //! window has closed and deliver them together with every row `pending` for
 //! longer than the sweep grace, at most one profile batch of each.
 //!
-//! The whole sweep is one transaction that first takes the sweep's
-//! transaction-scoped advisory lock, so one replica sweeps at a time and the
-//! lock is released with the transaction however the sweep ends. A replica
-//! that does not get the lock sweeps nothing. The grace keys on
+//! Selection is one short transaction that first takes the sweep's
+//! transaction-scoped advisory lock, so one replica selects at a time; a
+//! replica that does not get the lock sweeps nothing. The grace keys on
 //! `pending_since`, so a row the live path has just committed or re-pended
-//! is left to it, and the rows' `SKIP LOCKED` row locks keep the sweep and a
-//! live pass from announcing one row twice.
+//! is left to it. The selected rows are then delivered by
+//! [`NotificationPipeline::deliver`] after the transaction commits: its
+//! delivery lease, not a held row lock, keeps the sweep and a live pass from
+//! announcing one row twice.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -40,8 +41,7 @@ impl NotificationPipeline {
             .into_iter()
             .filter(|id| seen.insert(id.clone()))
             .collect();
-        let outcome = self.deliver_on(&mut tx, &ids).await?;
         tx.commit().await?;
-        Ok(outcome)
+        Ok(self.deliver(&ids).await)
     }
 }

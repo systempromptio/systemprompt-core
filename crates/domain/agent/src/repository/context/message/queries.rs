@@ -13,7 +13,7 @@ use crate::models::a2a::{Message, MessageRole, Part};
 use crate::repository::parts::{metadata_object, part_from_row};
 use crate::repository::task::constructor::batch_queries;
 
-pub async fn get_messages_by_task(
+pub(crate) async fn get_messages_by_task(
     pool: &Arc<PgPool>,
     task_id: &TaskId,
 ) -> Result<Vec<Message>, RepositoryError> {
@@ -75,7 +75,7 @@ pub async fn get_messages_by_task(
     Ok(messages)
 }
 
-pub async fn get_messages_by_context(
+pub(crate) async fn get_messages_by_context(
     pool: &Arc<PgPool>,
     context_id: &ContextId,
 ) -> Result<Vec<Message>, RepositoryError> {
@@ -136,13 +136,21 @@ pub async fn get_messages_by_context(
     Ok(messages)
 }
 
-pub async fn message_exists(
+pub async fn message_in_owned_context(
     pool: &Arc<PgPool>,
     message_id: &MessageId,
+    context_id: &ContextId,
+    user_id: &UserId,
 ) -> Result<bool, RepositoryError> {
     let row = sqlx::query_scalar!(
-        r#"SELECT EXISTS(SELECT 1 FROM task_messages WHERE message_id = $1)"#,
+        r#"SELECT EXISTS(
+            SELECT 1 FROM task_messages m
+            JOIN user_contexts c ON m.context_id = c.context_id
+            WHERE m.message_id = $1 AND m.context_id = $2 AND c.user_id = $3
+        )"#,
         message_id.as_str(),
+        context_id.as_str(),
+        user_id.as_str(),
     )
     .fetch_one(pool.as_ref())
     .await?;

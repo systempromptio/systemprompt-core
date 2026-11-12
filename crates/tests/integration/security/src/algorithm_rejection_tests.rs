@@ -64,7 +64,9 @@ async fn hs256_token_is_rejected_with_unsupported_algorithm_error() {
     let svc = AuthValidationService::new(
         "integration-issuer".to_string(),
         vec![JwtAudience::Api],
-        systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_signing_keys()
+            .keyring()
+            .clone(),
     );
     let err = svc
         .validate_request(&auth_header(&token))
@@ -86,7 +88,9 @@ async fn rs256_token_without_kid_is_rejected_with_missing_kid_error() {
     let svc = AuthValidationService::new(
         "integration-issuer".to_string(),
         vec![JwtAudience::Api],
-        systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_signing_keys()
+            .keyring()
+            .clone(),
     );
     let err = svc
         .validate_request(&auth_header(&token))
@@ -109,7 +113,9 @@ async fn rs256_token_with_unknown_kid_is_rejected_with_unknown_kid_error() {
     let svc = AuthValidationService::new(
         "integration-issuer".to_string(),
         vec![JwtAudience::Api],
-        systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_signing_keys()
+            .keyring()
+            .clone(),
     );
     let err = svc
         .validate_request(&auth_header(&token))

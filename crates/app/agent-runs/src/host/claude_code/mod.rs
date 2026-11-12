@@ -13,6 +13,7 @@ pub mod blocks;
 pub mod outcome;
 pub mod plugin;
 pub mod stream_json;
+pub mod tools;
 
 use super::{
     Execution, ExitInfo, HarnessTargets, HeadlessHost, HostCapabilities, HostEvent, HostInvocation,
@@ -55,7 +56,7 @@ impl HeadlessHost for ClaudeCode {
         let files = plugin::write_host_files(ctx)?;
         Ok(HostInvocation {
             program: CLAUDE_PROGRAM.to_owned(),
-            args: args::claude_args(ctx.request, &files),
+            args: args::claude_args(ctx.request, &files)?,
             env: args::child_env(ctx),
             cwd: working_dir(ctx),
             stdin: None,

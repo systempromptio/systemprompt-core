@@ -17,7 +17,7 @@ use systemprompt_traits::RepositoryError;
 
 pub(in crate::service) const QUOTA_POLICY_LABEL: &str = "quota";
 
-use super::recovery::{PromptRecovery, govern_prompt};
+use super::recovery::{PromptRecovery, PromptRepair, govern_prompt};
 use crate::audit::{GatewayAudit, GatewayRequestContext};
 use crate::protocol::canonical::CanonicalRequest;
 use crate::protocol::outbound::PreparedBody;
@@ -99,6 +99,7 @@ pub(super) async fn evaluate_prompt(
     ctx: &GatewayRequestContext,
     request: &mut CanonicalRequest,
     body: &mut PreparedBody,
+    repair: PromptRepair,
 ) -> PromptEvaluation {
     let session_id = ctx.session_id.clone().unwrap_or_else(SessionId::system);
     let call_id = CallId::new(ctx.ai_request_id.as_str());
@@ -121,7 +122,7 @@ pub(super) async fn evaluate_prompt(
         evaluation,
         recovery_count,
         recovery_locations,
-    } = govern_prompt(governance, &charged.context(), request, body);
+    } = govern_prompt(governance, &charged.context(), request, body, repair);
 
     PromptEvaluation {
         evaluation,

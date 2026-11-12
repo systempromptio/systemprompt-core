@@ -11,7 +11,9 @@ use std::fs;
 use std::path::Path;
 
 use systemprompt_loader::bundle::pack::build_manifest;
-use systemprompt_loader::bundle::{BundleCache, BundleMember, compose, composed_hash};
+use systemprompt_loader::bundle::{
+    BundleCache, BundleError, BundleMember, VerifyFailure, compose, composed_hash,
+};
 use systemprompt_manifest::services::bundle::{BundleSourceInfo, ServicesBundleManifest};
 
 use crate::bundle_support::{base_tree, marketplace_tree, write};
@@ -186,5 +188,114 @@ fn a_failed_composition_leaves_no_partial_root_behind() {
     assert!(
         leftovers.is_empty(),
         "a refused composition must publish nothing: {leftovers:?}"
+    );
+}
+
+fn member<'a>(name: &str, manifest: &'a ServicesBundleManifest) -> BundleMember<'a> {
+    BundleMember {
+        name: name.to_owned(),
+        content_hash: manifest.content_hash.clone(),
+        manifest,
+    }
+}
+
+fn under_declare(manifest: &mut ServicesBundleManifest) {
+    manifest
+        .owns
+        .dirs
+        .retain(|d| d == "marketplaces" || d == "plugins");
+}
+
+#[test]
+fn an_overlay_under_declaring_a_shipped_gateway_directory_is_refused() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let cache = BundleCache::new(dir.path());
+    let base = stage(&cache, "base", |root| {
+        base_tree(root);
+        write(root, "gateway/routes.yaml", "routes: []\n");
+    });
+    let mut hostile = stage(&cache, "kit", |root| {
+        marketplace_tree(root, "kit", "sales");
+        write(root, "gateway/routes.yaml", "routes: [evil]\n");
+        write(root, "access-control/rules.yaml", "rules: [evil]\n");
+    });
+    under_declare(&mut hostile);
+
+    let err = compose(&cache, &[member("base", &base), member("kit", &hostile)])
+        .expect_err("a secondary bundle shipping base-only files must be refused");
+
+    let text = err.to_string();
+    assert!(
+        text.contains("access-control") || text.contains("gateway"),
+        "the refusal names the base-only directory: {text}"
+    );
+}
+
+#[test]
+fn an_overlay_under_declaring_a_shipped_skill_cannot_evade_the_duplicate_id_check() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let cache = BundleCache::new(dir.path());
+    let first = stage(&cache, "uk", |root| {
+        marketplace_tree(root, "uk", "sales");
+        write(root, "skills/shared/SKILL.md", "first\n");
+    });
+    let mut second = stage(&cache, "us", |root| {
+        marketplace_tree(root, "us", "support");
+        write(root, "skills/shared/SKILL.md", "second\n");
+    });
+    second.owns.skills.clear();
+
+    let err = compose(&cache, &[member("uk", &first), member("us", &second)])
+        .expect_err("the shipped skill id is claimed twice");
+
+    let text = err.to_string();
+    assert!(
+        text.contains("skill shared") && text.contains("uk") && text.contains("us"),
+        "the refusal names the skill and both bundles: {text}"
+    );
+}
+
+#[test]
+fn a_second_base_tree_is_refused_as_not_marketplace_only() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let cache = BundleCache::new(dir.path());
+    let base = stage(&cache, "base", base_tree);
+    let again = stage(&cache, "again", base_tree);
+
+    let err = compose(&cache, &[member("base", &base), member("again", &again)])
+        .expect_err("two bundles cannot ship the same base-only file");
+
+    assert!(
+        matches!(
+            &err,
+            BundleError::Verify(VerifyFailure::NotMarketplaceOnly { dir }) if dir == "access-control"
+        ),
+        "typed refusal naming the first base-only directory: {err}"
+    );
+}
+
+#[test]
+fn shared_directory_files_outside_an_id_layer_compose_without_refusal() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let cache = BundleCache::new(dir.path());
+    let base = stage(&cache, "base", |root| {
+        base_tree(root);
+        write(root, "skills/.gitkeep", "");
+    });
+    let kit = stage(&cache, "kit", |root| {
+        marketplace_tree(root, "kit", "sales");
+        write(root, "skills/.gitkeep", "");
+        write(root, "skills/writing/SKILL.md", "body\n");
+    });
+
+    let (root, _) = compose(&cache, &[member("base", &base), member("kit", &kit)])
+        .expect("shared directories layer");
+
+    assert!(root.join("access-control/rules.yaml").is_file());
+    assert!(root.join("skills/writing/SKILL.md").is_file());
+    assert!(root.join("plugins/sales/config.yaml").is_file());
+    assert!(
+        !root.join("bundle.json").exists(),
+        "only shipped files are composed"
     );
 }

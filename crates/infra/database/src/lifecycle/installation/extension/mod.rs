@@ -27,6 +27,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub(crate) mod catalog_digest;
 mod cost_warning;
 pub(super) mod current;
 mod foreign_keys;
@@ -34,11 +35,12 @@ pub(crate) mod lock;
 mod phase;
 mod retire;
 mod routine_prepass;
+mod settled;
 mod validation;
 
 use systemprompt_extension::{Extension, ExtensionRegistry, LoaderError};
 use systemprompt_identifiers::ExtensionId;
-use tracing::{debug, info, warn};
+use tracing::{debug, info};
 
 use self::cost_warning::warn_unmeasured_migrations;
 use self::foreign_keys::apply_foreign_keys;
@@ -88,12 +90,21 @@ pub async fn install_extension_schemas_full(
                         .iter()
                         .any(|m| m.extension_id.as_str() == ext.id())
                 });
-            run_install(db, &active, &held_back, migration_config)
-                .await
-                .map(|report| SchemaInstallReport {
-                    ahead: super::report::SchemaAhead::from_currency(&currency),
-                    ..report
-                })
+            settled::install_unless_settled(
+                db,
+                settled::InstallSets {
+                    active: &active,
+                    held_back: &held_back,
+                },
+                &currency,
+                disabled_extensions,
+                migration_config,
+            )
+            .await
+            .map(|report| SchemaInstallReport {
+                ahead: super::report::SchemaAhead::from_currency(&currency),
+                ..report
+            })
         },
         Err(e) => Err(e),
     };
@@ -102,32 +113,8 @@ pub async fn install_extension_schemas_full(
 
     let report = result?;
 
-    log_install_outcome(&report);
+    report.log_outcome();
     Ok(report)
-}
-
-fn log_install_outcome(report: &SchemaInstallReport) {
-    info!(
-        foreign_key_drift = report.foreign_key_drift.len(),
-        undeclared_tables = report.residue.undeclared_tables.len(),
-        orphan_migration_ledgers = report.residue.orphan_migration_ledgers.len(),
-        "Extension schema installation complete"
-    );
-    for table in &report.residue.undeclared_tables {
-        warn!(
-            schema = table.schema,
-            table = table.table,
-            live_rows = table.live_rows,
-            "live table declared by no registered extension — add a DROP TABLE migration"
-        );
-    }
-    for ledger in &report.residue.orphan_migration_ledgers {
-        warn!(
-            extension = %ledger.extension_id,
-            rows = ledger.rows,
-            "extension_migrations ledger for an extension that no longer exists"
-        );
-    }
 }
 
 async fn fresh_extension_ids(

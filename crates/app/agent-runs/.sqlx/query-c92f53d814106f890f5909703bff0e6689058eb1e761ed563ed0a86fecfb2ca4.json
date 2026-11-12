@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE agent_runs SET host_session_id = $4\n            WHERE id = $1 AND claimed_by = $2 AND attempt = $3 AND claimed_at = $5\n              AND status IN ('preparing', 'running')\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Int4",
+        "Text",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "c92f53d814106f890f5909703bff0e6689058eb1e761ed563ed0a86fecfb2ca4"
+}

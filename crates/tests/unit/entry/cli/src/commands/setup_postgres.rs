@@ -8,15 +8,16 @@ use systemprompt_cli::admin::setup::SetupArgs;
 use systemprompt_cli::admin::setup::docker_compose::create_compose_files_if_missing;
 use systemprompt_cli::admin::setup::postgres::{setup_interactive, setup_non_interactive};
 use systemprompt_cli::admin::setup::postgres_access::{
-    PostgresConfig, detect_postgresql, generate_password, test_connection,
+    PostgresConfig, detect_postgresql, enable_extensions, generate_password, test_connection,
 };
 use systemprompt_cli::interactive::ScriptedPrompter;
+use systemprompt_loader::subprocess::ForegroundChildren;
 
-fn scripted(answers: &[&str]) -> ScriptedPrompter {
+pub(super) fn scripted(answers: &[&str]) -> ScriptedPrompter {
     ScriptedPrompter::new(answers.iter().map(|s| (*s).to_owned()))
 }
 
-fn args() -> SetupArgs {
+pub(super) fn args() -> SetupArgs {
     SetupArgs {
         environment: Some("covtest".to_owned()),
         docker: false,
@@ -25,8 +26,12 @@ fn args() -> SetupArgs {
         port_offset: 0,
         db_user: None,
         db_password: None,
+        db_password_stdin: false,
+        reset_role_password: false,
         db_name: None,
         gemini_key: None,
+        vertex_project: None,
+        vertex_key_file: None,
         anthropic_key: None,
         openai_key: None,
         github_token: None,
@@ -40,23 +45,24 @@ fn args() -> SetupArgs {
     }
 }
 
-struct DbUrl {
-    user: String,
-    password: String,
-    host: String,
-    port: u16,
-    database: String,
+pub(super) struct DbUrl {
+    pub(super) user: String,
+    pub(super) password: String,
+    pub(super) host: String,
+    pub(super) port: u16,
+    pub(super) database: String,
 }
 
-fn db_url() -> DbUrl {
+pub(super) fn db_url() -> DbUrl {
     let raw = systemprompt_test_fixtures::test_database_url();
     let url = url::Url::parse(&raw).expect("DATABASE_URL parses as a URL");
     DbUrl {
         user: url.username().to_owned(),
         password: url
             .password()
-            .expect("DATABASE_URL carries a password")
-            .to_owned(),
+            .map(str::to_owned)
+            .or_else(|| std::env::var("PGPASSWORD").ok())
+            .expect("DATABASE_URL or PGPASSWORD carries a password"),
         host: url
             .host_str()
             .expect("DATABASE_URL carries a host")
@@ -66,7 +72,7 @@ fn db_url() -> DbUrl {
     }
 }
 
-fn runtime() -> tokio::runtime::Runtime {
+pub(super) fn runtime() -> tokio::runtime::Runtime {
     tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
@@ -114,7 +120,72 @@ fn database_url_formats_credentials() {
         password: "p".to_owned(),
         database: "d".to_owned(),
     };
-    assert_eq!(config.database_url(), "postgres://u:p@localhost:5433/d");
+    assert_eq!(
+        config.database_url().unwrap(),
+        "postgres://u:p@localhost:5433/d"
+    );
+}
+
+#[test]
+fn database_url_percent_encodes_credentials_with_url_delimiters() {
+    let config = PostgresConfig {
+        host: "db.internal".to_owned(),
+        port: 5433,
+        user: "ops@team".to_owned(),
+        password: "p@ss/w#rd:?".to_owned(),
+        database: "d".to_owned(),
+    };
+    let rendered = config.database_url().unwrap();
+    let parsed = url::Url::parse(&rendered).unwrap();
+    assert_eq!(parsed.host_str(), Some("db.internal"));
+    assert_eq!(parsed.port(), Some(5433));
+    assert_eq!(parsed.path(), "/d");
+    assert_eq!(parsed.username(), "ops%40team");
+    assert_eq!(parsed.password(), Some("p%40ss%2Fw%23rd%3A%3F"));
+}
+
+#[test]
+fn enable_extensions_fails_when_it_cannot_connect() {
+    let config = PostgresConfig {
+        host: "127.0.0.1".to_owned(),
+        port: 9,
+        user: "nobody".to_owned(),
+        password: "nothing".to_owned(),
+        database: "nowhere".to_owned(),
+    };
+    let error = runtime()
+        .block_on(enable_extensions(&config))
+        .expect_err("an unreachable database cannot have its extensions enabled");
+    assert!(error.to_string().contains("enable extensions"), "{error:#}");
+}
+
+pub(super) fn scratch_name(prefix: &str) -> String {
+    format!("{prefix}_{}", uuid::Uuid::new_v4().simple())
+}
+
+pub(super) async fn admin_pool(db: &DbUrl) -> sqlx::PgPool {
+    let options = sqlx::postgres::PgConnectOptions::new()
+        .host(&db.host)
+        .port(db.port)
+        .username(&db.user)
+        .password(&db.password)
+        .database("postgres");
+    sqlx::PgPool::connect_with(options).await.expect("connect")
+}
+
+pub(super) async fn drop_scratch(db: &DbUrl, role: &str, database: &str) {
+    let pool = admin_pool(db).await;
+    let _ = sqlx::query(sqlx::AssertSqlSafe(format!(
+        "DROP DATABASE IF EXISTS \"{database}\" WITH (FORCE)"
+    )))
+    .execute(&pool)
+    .await;
+    let _ = sqlx::query(sqlx::AssertSqlSafe(format!(
+        "DROP ROLE IF EXISTS \"{role}\""
+    )))
+    .execute(&pool)
+    .await;
+    pool.close().await;
 }
 
 #[test]
@@ -144,6 +215,7 @@ fn non_interactive_with_reachable_database() {
             &setup_args,
             "covtest",
             &CliConfig::default(),
+            &ForegroundChildren::default(),
         ))
         .expect("non-interactive setup succeeds");
     assert_eq!(config.user, db.user);
@@ -151,21 +223,22 @@ fn non_interactive_with_reachable_database() {
 }
 
 #[test]
-fn non_interactive_with_unreachable_database_still_returns_config() {
+fn non_interactive_with_unreachable_database_is_an_error() {
     let mut setup_args = args();
     setup_args.db_host = "127.0.0.1".to_owned();
     setup_args.db_port = 9;
 
-    let config = runtime()
+    let error = runtime()
         .block_on(setup_non_interactive(
             &setup_args,
             "covtest",
             &CliConfig::default(),
+            &ForegroundChildren::default(),
         ))
-        .expect("unreachable database is a warning, not an error");
-    assert_eq!(config.user, "systemprompt_covtest");
-    assert_eq!(config.database, "systemprompt_covtest");
-    assert_eq!(config.password.len(), 16);
+        .expect_err("credentials that do not log in are never returned for the profile");
+    let message = format!("{error:#}");
+    assert!(message.contains("systemprompt_covtest"), "{message}");
+    assert!(message.contains("Nothing was written"), "{message}");
 }
 
 #[test]
@@ -187,6 +260,7 @@ fn interactive_existing_connection_succeeds() {
             &prompter,
             "covtest",
             &CliConfig::default(),
+            &ForegroundChildren::default(),
         ))
         .expect("interactive setup against live database succeeds");
     assert_eq!(config.host, db.host);
@@ -202,6 +276,7 @@ fn interactive_invalid_port_is_error() {
             &prompter,
             "covtest",
             &CliConfig::default(),
+            &ForegroundChildren::default(),
         ))
         .unwrap_err();
     assert!(err.to_string().contains("Invalid PostgreSQL port"));
@@ -216,6 +291,7 @@ fn interactive_unreachable_declined_bails() {
             &prompter,
             "covtest",
             &CliConfig::default(),
+            &ForegroundChildren::default(),
         ))
         .unwrap_err();
     assert!(err.to_string().contains("not reachable"));
@@ -229,12 +305,13 @@ fn interactive_invalid_selection_is_error() {
         &prompter,
         "covtest",
         &CliConfig::default(),
+        &ForegroundChildren::default(),
     ));
     assert!(result.is_err());
 }
 
 #[test]
-fn interactive_generated_password_and_skipped_creation() {
+fn interactive_declined_creation_is_an_error() {
     let db = db_url();
     let prompter = scripted(&[
         "0",
@@ -245,16 +322,16 @@ fn interactive_generated_password_and_skipped_creation() {
         "cov_missing_db",
         "n",
     ]);
-    let config = runtime()
+    let error = runtime()
         .block_on(setup_interactive(
             &args(),
             &prompter,
             "covtest",
             &CliConfig::default(),
+            &ForegroundChildren::default(),
         ))
-        .expect("declining creation still returns the config");
-    assert_eq!(config.user, "cov_missing_user");
-    assert_eq!(config.database, "cov_missing_db");
+        .expect_err("declining creation leaves nothing to write");
+    assert!(format!("{error:#}").contains("declined"), "{error:#}");
 }
 
 #[test]
@@ -274,6 +351,7 @@ fn interactive_empty_manual_password_is_error() {
             &prompter,
             "covtest",
             &CliConfig::default(),
+            &ForegroundChildren::default(),
         ))
         .unwrap_err();
     assert!(err.to_string().contains("Password is required"));
@@ -320,6 +398,7 @@ fn interactive_creates_database_and_user_via_superuser() {
             &prompter,
             "covtest",
             &CliConfig::default(),
+            &ForegroundChildren::default(),
         ))
         .expect("superuser-driven creation succeeds");
     assert_eq!(config.database, scratch_db);
@@ -364,6 +443,7 @@ fn interactive_superuser_empty_password_is_error() {
             &prompter,
             "covtest",
             &CliConfig::default(),
+            &ForegroundChildren::default(),
         ))
         .unwrap_err();
     assert!(err.to_string().contains("Superuser password is required"));
@@ -385,7 +465,10 @@ fn docker_non_interactive_reuses_reachable_database_without_compose() {
     let result = runtime()
         .block_on(
             systemprompt_cli::admin::setup::docker::setup_docker_postgres_non_interactive(
-                &config, "covtest",
+                &ForegroundChildren::default(),
+                &config,
+                "covtest",
+                false,
             ),
         )
         .expect("reachable database is reused as-is");
@@ -398,7 +481,9 @@ fn docker_non_interactive_refuses_occupied_port() {
     use systemprompt_cli::admin::setup::docker_compose::{
         is_compose_available, is_docker_available,
     };
-    if !is_docker_available() || !is_compose_available() {
+    if !is_docker_available(&ForegroundChildren::default())
+        || !is_compose_available(&ForegroundChildren::default())
+    {
         // skip-ok: Docker and docker compose are not installed on this host.
         return;
     }
@@ -417,8 +502,10 @@ fn docker_non_interactive_refuses_occupied_port() {
     let err = runtime()
         .block_on(
             systemprompt_cli::admin::setup::docker::setup_docker_postgres_non_interactive(
+                &ForegroundChildren::default(),
                 &config,
                 "covtestport",
+                false,
             ),
         )
         .unwrap_err();
@@ -443,7 +530,10 @@ fn docker_probes_do_not_panic() {
     use systemprompt_cli::admin::setup::docker_compose::{
         is_compose_available, is_container_running, is_docker_available,
     };
-    let _ = is_docker_available();
-    let _ = is_compose_available();
-    assert!(!is_container_running("cov_no_such_container_zzz"));
+    let _ = is_docker_available(&ForegroundChildren::default());
+    let _ = is_compose_available(&ForegroundChildren::default());
+    assert!(!is_container_running(
+        &ForegroundChildren::default(),
+        "cov_no_such_container_zzz"
+    ));
 }

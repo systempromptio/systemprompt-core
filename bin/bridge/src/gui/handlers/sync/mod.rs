@@ -6,7 +6,6 @@
 mod finished;
 mod warnings;
 
-pub(crate) use finished::on_sync_finished;
 
 use std::sync::Arc;
 
@@ -15,8 +14,8 @@ use crate::gui::error::GuiError;
 use crate::gui::events::{ReplyId, UiEvent};
 use crate::gui::state::CancelScope;
 use crate::gui::{GuiApp, emit};
+use crate::sync;
 use crate::wire::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
-use crate::{config, sync};
 
 #[tracing::instrument(level = "info", skip(app))]
 pub(crate) fn on_sync_requested(app: &mut GuiApp, reply_to: ReplyId) {
@@ -52,10 +51,6 @@ pub(crate) fn on_sync_requested(app: &mut GuiApp, reply_to: ReplyId) {
         }));
     }
     app.ctx.spawn(async move {
-        let allow_tofu = matches!(
-            config::pinned_pubkey_state(),
-            Ok(config::PinnedPubkeyState::Unpinned)
-        );
         // Why: a sync the user pressed usually follows something they just
         // did on the gateway (linking a connector); the memo cannot see it.
         let freshness = if reply_to.is_some() {
@@ -66,7 +61,7 @@ pub(crate) fn on_sync_requested(app: &mut GuiApp, reply_to: ReplyId) {
         let options = sync::SyncOptions {
             allow_unsigned: false,
             force_replay: false,
-            allow_tofu,
+            allow_tofu: false,
             freshness,
             cancel: token,
         };
@@ -80,6 +75,21 @@ pub(crate) fn on_sync_requested(app: &mut GuiApp, reply_to: ReplyId) {
         bridge.sync_progress.clear();
         proxy.send_event(UiEvent::SyncFinished { result, reply_to });
     });
+}
+
+pub(crate) fn on_sync_finished(
+    app: &mut GuiApp,
+    result: Result<sync::SyncSummary, Arc<GuiError>>,
+    reply_to: ReplyId,
+) {
+    let needs_trust = matches!(
+        &result,
+        Err(error) if matches!(**error, GuiError::Sync(sync::SyncError::PubkeyNotPinned))
+    );
+    finished::on_sync_finished(app, result, reply_to);
+    if needs_trust {
+        emit::send_emit(app, "gateway.trust.required", &serde_json::json!({}));
+    }
 }
 
 pub(crate) fn on_sync_started(app: &mut GuiApp) {

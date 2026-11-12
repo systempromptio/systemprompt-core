@@ -11,12 +11,8 @@ use systemprompt_database::{
 };
 use systemprompt_identifiers::{AdvisoryLockKey, InstanceId, LeaseKey, ServiceName};
 use systemprompt_manifest::profile::NodeRole;
-use systemprompt_test_fixtures::test_database_url;
+use systemprompt_test_fixtures::{test_database_url, unique_name};
 use systemprompt_traits::{AdvisoryLocks, CoordinationError, InstanceRegistry, LeaseRepository};
-
-fn unique(prefix: &str) -> String {
-    format!("{prefix}_{}", uuid::Uuid::new_v4().simple())
-}
 
 async fn db_pool() -> DbPool {
     let url = test_database_url();
@@ -37,7 +33,7 @@ struct Replica {
 }
 
 fn replica(db: &DbPool) -> Replica {
-    let instance = InstanceId::new(unique("node"));
+    let instance = InstanceId::new(unique_name("node"));
     Replica {
         services: ServiceRepository::new(db, instance.clone()),
         coordination: CoordinationRepositories::new(db, instance),
@@ -48,7 +44,7 @@ async fn heartbeat_row(replica: &Replica) {
     replica
         .services
         .create_service(CreateServiceInput {
-            name: &ServiceName::new(unique("svc")),
+            name: &ServiceName::new(unique_name("svc")),
             module_name: ServiceModule::Mcp,
             status: ServiceStatus::Running,
             port: 5555,
@@ -75,7 +71,7 @@ async fn an_unknown_instance_is_not_alive() {
     let observer = replica(&db);
     let alive = observer
         .services
-        .is_alive(&InstanceId::new(unique("ghost")))
+        .is_alive(&InstanceId::new(unique_name("ghost")))
         .await
         .expect("liveness");
     assert!(!alive);
@@ -139,7 +135,7 @@ async fn a_live_owner_keeps_its_lease_and_renewing_extends_it() {
     let owner = replica(&db);
     let rival = replica(&db);
     let _claim = owner.services.claim_instance().await.expect("claim");
-    let key = LeaseKey::new(unique("lease"));
+    let key = LeaseKey::new(unique_name("lease"));
     let ttl = Duration::from_secs(60);
 
     let first = owner
@@ -190,7 +186,7 @@ async fn a_released_lease_passes_to_the_next_claimant() {
     let owner = replica(&db);
     let rival = replica(&db);
     let _claim = owner.services.claim_instance().await.expect("claim");
-    let key = LeaseKey::new(unique("lease"));
+    let key = LeaseKey::new(unique_name("lease"));
     let ttl = Duration::from_secs(60);
 
     owner
@@ -232,7 +228,7 @@ async fn a_dead_owner_forfeits_an_unexpired_lease() {
     let owner = replica(&db);
     let rival = replica(&db);
     heartbeat_row(&owner).await;
-    let key = LeaseKey::new(unique("lease"));
+    let key = LeaseKey::new(unique_name("lease"));
     let ttl = Duration::from_secs(3600);
 
     owner
@@ -269,7 +265,7 @@ async fn an_expired_lease_is_free_even_while_its_owner_lives() {
     let owner = replica(&db);
     let rival = replica(&db);
     let _claim = owner.services.claim_instance().await.expect("claim");
-    let key = LeaseKey::new(unique("lease"));
+    let key = LeaseKey::new(unique_name("lease"));
 
     owner
         .coordination
@@ -308,7 +304,7 @@ async fn an_expired_lease_is_free_even_while_its_owner_lives() {
 async fn a_ttl_outside_one_second_to_one_day_is_refused() {
     let db = db_pool().await;
     let owner = replica(&db);
-    let key = LeaseKey::new(unique("lease"));
+    let key = LeaseKey::new(unique_name("lease"));
     for ttl in [Duration::from_millis(500), Duration::from_secs(86_401)] {
         let error = owner
             .coordination
@@ -328,7 +324,7 @@ async fn an_advisory_lock_is_exclusive_until_released() {
     let db = db_pool().await;
     let first = replica(&db);
     let second = replica(&db);
-    let key = AdvisoryLockKey::new(unique("lock"));
+    let key = AdvisoryLockKey::new(unique_name("lock"));
 
     let guard = first
         .coordination
@@ -365,7 +361,7 @@ async fn dropping_an_advisory_lock_frees_it() {
     let db = db_pool().await;
     let first = replica(&db);
     let second = replica(&db);
-    let key = AdvisoryLockKey::new(unique("lock"));
+    let key = AdvisoryLockKey::new(unique_name("lock"));
 
     let guard = first
         .coordination
@@ -412,7 +408,7 @@ async fn an_unreachable_database_fails_the_claim_as_a_repository_error() {
             .expect("lazy pool"),
     );
     let db: DbPool = Arc::new(Database::from_pools(Arc::clone(&dead), Some(dead)));
-    let repo = ServiceRepository::new(&db, InstanceId::new(unique("dead")));
+    let repo = ServiceRepository::new(&db, InstanceId::new(unique_name("dead")));
 
     let err = repo.claim_instance().await.expect_err("no database");
 
@@ -430,7 +426,7 @@ async fn the_process_owner_is_the_live_replica_running_it_with_an_advertised_end
     let db = db_pool().await;
     let owner = replica(&db);
     let api = replica(&db);
-    let name = ServiceName::new(unique("mcp"));
+    let name = ServiceName::new(unique_name("mcp"));
 
     assert_eq!(
         api.services

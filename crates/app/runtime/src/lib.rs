@@ -21,6 +21,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod agent_host;
 #[cfg(feature = "brain")]
 pub mod brain;
 mod builder;
@@ -29,6 +30,7 @@ mod context_traits;
 mod database_context;
 pub mod documents;
 mod error;
+pub mod host;
 pub mod issues;
 pub mod managed;
 pub mod mcp_host;
@@ -41,6 +43,7 @@ pub mod storage;
 pub mod trace;
 mod validation;
 
+pub use agent_host::{AgentHost, AgentHostError};
 #[cfg(feature = "brain")]
 pub use builder::brain::{BrainCore, BrainInputs, RecallSeams, brain_sink};
 #[cfg(feature = "notifications")]
@@ -49,6 +52,7 @@ pub use builder::{AppContextBuilder, discover_vertex_models, owner_reassignments
 pub use context::{AppContext, ConfigPlane, DataPlane, Plugins, ShutdownRequest, Subsystems};
 pub use database_context::DatabaseContext;
 pub use error::{RuntimeError, RuntimeResult};
+pub use host::{HostBootError, HostContext};
 pub use schema_currency::{SchemaState, assert_schema_current};
 pub use startup_validation::{
     ExtensionConfigOutcome, StartupValidator, collect_manifest_errors, collect_toolset_errors,
@@ -56,6 +60,8 @@ pub use startup_validation::{
     validate_extension_configs,
 };
 pub use systemprompt_database::MigrationConfig;
+#[cfg(feature = "notifications")]
+pub use systemprompt_notifications::service::EscalationDelivery;
 
 #[doc(hidden)]
 pub use systemprompt_mcp::__inventory as __toolset_inventory;

@@ -81,6 +81,7 @@ pub struct MarketplaceAccessRule {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct MarketplaceConfigFile {
     pub marketplace: MarketplaceConfig,
 }

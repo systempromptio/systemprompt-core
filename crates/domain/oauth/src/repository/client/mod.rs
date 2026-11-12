@@ -18,6 +18,22 @@ use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ClientId, UserId};
 
+/// Which clients a listing covers: every client, or those one user owns.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ClientOwnerScope {
+    Every,
+    OwnedBy(UserId),
+}
+
+impl ClientOwnerScope {
+    fn owner(&self) -> Option<&str> {
+        match self {
+            Self::Every => None,
+            Self::OwnedBy(owner) => Some(owner.as_str()),
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct ClientRepository {
     pool: Arc<PgPool>,

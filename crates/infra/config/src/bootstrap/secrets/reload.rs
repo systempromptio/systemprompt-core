@@ -32,6 +32,8 @@ pub const PINNED_SECRET_KEYS: &[&str] = &[
     "database_write_url",
     "database_session_url",
     "signing_key_pem",
+    "signing_key_staged_pem",
+    "signing_key_previous_keys",
     "jwt_secret",
 ];
 

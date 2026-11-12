@@ -3,7 +3,8 @@
 //! Each local tenant owns a compose project under `.systemprompt/docker/`, so
 //! two installations on one host never share a container, a volume, or a role.
 //! Wraps `docker compose` to bring a project up, health-check it, and tear it
-//! down with its volume.
+//! down with its volume. The compose file carries the literal role password,
+//! so it is written owner-only.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -13,6 +14,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 use systemprompt_cloud::{DockerCli, ProjectContext};
+use systemprompt_config::write_private_atomic;
 
 use crate::commands::admin::setup::docker_compose::{
     ComposeCredentials, PostgresCompose, postgres_compose,
@@ -71,17 +73,20 @@ pub fn is_project_running(docker: &DockerCli, project: &str) -> bool {
     }
 }
 
-pub async fn start_project(docker: &DockerCli, container: &TenantContainer) -> Result<()> {
-    let compose_path = container.compose_path();
+pub fn write_compose_file(container: &TenantContainer, compose_path: &Path) -> Result<()> {
     if let Some(parent) = compose_path.parent() {
         fs::create_dir_all(parent).context("Failed to create docker directory")?;
     }
-
-    fs::write(
-        &compose_path,
-        generate_postgres_compose(&container.password, container.port),
+    write_private_atomic(
+        compose_path,
+        generate_postgres_compose(&container.password, container.port).as_bytes(),
     )
-    .with_context(|| format!("Failed to write {}", compose_path.display()))?;
+    .with_context(|| format!("Failed to write {}", compose_path.display()))
+}
+
+pub async fn start_project(docker: &DockerCli, container: &TenantContainer) -> Result<()> {
+    let compose_path = container.compose_path();
+    write_compose_file(container, &compose_path)?;
 
     let compose_path_str = compose_path
         .to_str()

@@ -13,14 +13,17 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+#[cfg(feature = "agent-runs")]
 mod agent_runs;
 #[cfg(feature = "brain")]
 mod brain;
 mod documents;
 mod error;
 mod extension_mount;
+mod feature_mount;
 mod gateway;
 mod issues;
+#[cfg(feature = "bridge")]
 mod managed;
 #[cfg(feature = "notifications")]
 mod notifications;
@@ -44,9 +47,9 @@ use systemprompt_traits::{AppContext as AppContextTrait, StartupEventSender};
 
 use crate::services::middleware::authz::AuthzPolicy;
 use crate::services::middleware::{
-    A2AContextMiddleware, JtiRevocationChecker, JwtContextExtractor, McpContextMiddleware,
-    PublicContextMiddleware, RateLimitState, RouterExt, UserOnlyContextMiddleware,
-    ip_ban_middleware,
+    A2AContextMiddleware, BodyBudget, JtiRevocationChecker, JwtContextExtractor,
+    McpContextMiddleware, PublicContextMiddleware, RateLimitState, RouterExt,
+    UserOnlyContextMiddleware, ip_ban_middleware,
 };
 
 pub(super) fn configure_routes(
@@ -91,7 +94,11 @@ fn build_routes(
 
     let public_middleware = PublicContextMiddleware::new();
     let user_middleware = UserOnlyContextMiddleware::new(jwt_extractor.clone());
-    let a2a_middleware = A2AContextMiddleware::new(jwt_extractor.clone());
+    let a2a_middleware = A2AContextMiddleware::new(
+        jwt_extractor.clone(),
+        systemprompt_models::net::AGENT_REQUEST_BODY_LIMIT_BYTES,
+        BodyBudget::new(systemprompt_models::net::AGENT_BUFFERED_BYTES_BUDGET),
+    );
     let mcp_middleware = McpContextMiddleware::new(jwt_extractor);
 
     let refresh_lock = RefreshLock::default();
@@ -108,7 +115,6 @@ fn build_routes(
     }
     if serves(RouteGroup::Agent) {
         router = protocol::mount_agent(router, &mount, a2a_middleware)?;
-        router = agent_runs::mount_agent_runs(router, &mount)?;
     }
     if serves(RouteGroup::McpAndStream) {
         router = protocol::mount_mcp_and_stream(router, &mount, mcp_middleware)?;
@@ -116,15 +122,10 @@ fn build_routes(
     if serves(RouteGroup::ContentAndMisc) {
         router = mount_content(router, &mount)?;
     }
-    if serves(RouteGroup::Managed) {
-        router = managed::mount(router, &mount)?;
-    }
     if serves(RouteGroup::Gateway) {
         router = gateway::mount_gateway(router, &mount)?;
     }
-    if serves(RouteGroup::Messaging) {
-        router = protocol::mount_messaging(router, &mount)?;
-    }
+    router = feature_mount::mount_feature_routes(router, &mount, &serves)?;
     if serves(RouteGroup::Extensions) {
         router = extension_mount::mount_extension_routes(
             router,

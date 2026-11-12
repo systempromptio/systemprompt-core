@@ -13,13 +13,12 @@
 
 use std::future::Future;
 use std::path::{Path, PathBuf};
-use std::time::Duration;
 
 use chrono::Utc;
 use systemprompt_manifest::{DeployConfig, HostingProvider};
 use systemprompt_models::net::{HTTP_CONNECT_TIMEOUT, HTTP_DEFAULT_TIMEOUT};
 
-use super::health::{TenantHealth, tenant_base_url, wait_until_ready};
+use super::health::{ReadinessWait, TenantHealth, tenant_base_url, wait_until_ready};
 use super::values_file::set_yaml_scalar;
 use super::{
     BuiltImage, DeployProvider, RegistryTarget, RolloutReport, SecretBatch, SecretsOutcome,
@@ -28,7 +27,6 @@ use super::{
 use crate::docker::{CommandRunner, CommandSpec, DockerCli, image_repository};
 use crate::error::{CloudError, CloudResult};
 
-const READY_POLL_INTERVAL: Duration = Duration::from_secs(5);
 
 #[derive(Debug, Clone)]
 pub struct GitOpsDeployParams {
@@ -37,7 +35,6 @@ pub struct GitOpsDeployParams {
     pub hostname: String,
     pub deploy: DeployConfig,
     pub project_root: PathBuf,
-    pub rollout_timeout: Duration,
 }
 
 pub struct GitOpsDeploy {
@@ -184,14 +181,8 @@ impl DeployProvider for GitOpsDeploy {
         std::future::ready(self.pin_rollout(image))
     }
 
-    async fn status(&self) -> CloudResult<TenantHealth> {
-        wait_until_ready(
-            &self.http,
-            &tenant_base_url(&self.params.hostname),
-            self.params.rollout_timeout,
-            READY_POLL_INTERVAL,
-        )
-        .await
+    async fn wait_until_ready(&self, wait: ReadinessWait) -> CloudResult<TenantHealth> {
+        wait_until_ready(&self.http, &tenant_base_url(&self.params.hostname), wait).await
     }
 }
 

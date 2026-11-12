@@ -380,19 +380,19 @@ fn coverage_deploy_selection_excludes_local_profiles_and_resolves_named_profiles
         .unwrap()
         .replace("target: local", "target: cloud");
     std::fs::write(&project.profile, yaml).unwrap();
-    let (selected, path) = resolve_profile(&ScriptedPrompter::new(["0"]), None, &config).unwrap();
-    assert_eq!(path, project.profile);
+    let selected = resolve_profile(&ScriptedPrompter::new(["0"]), None, &config).unwrap();
+    assert_eq!(selected.path, project.profile);
     assert_eq!(
         selected.cloud.unwrap().tenant_id.unwrap().as_str(),
         "coverage-tenant"
     );
-    let (_, explicit) = resolve_profile(
+    let explicit = resolve_profile(
         &ScriptedPrompter::default(),
         Some(&pname("coverage")),
         &config,
     )
     .unwrap();
-    assert_eq!(explicit, project.profile);
+    assert_eq!(explicit.path, project.profile);
     assert!(
         resolve_profile(
             &ScriptedPrompter::default(),
@@ -562,6 +562,39 @@ async fn malformed_active_profile_fails_without_replacing_the_bound_session() {
         std::fs::read(session_file).expect("store after malformed profile"),
         before,
         "profile parse failure must preserve the bound session for repair"
+    );
+}
+
+#[test]
+fn deploy_without_profile_refuses_a_session_selected_cloud_profile() {
+    use systemprompt_cli::ScriptedPrompter;
+    use systemprompt_cli::cloud::deploy::select::resolve_profile;
+    use systemprompt_cli::paths::ResolvedPaths;
+    use systemprompt_cloud::SessionStore;
+
+    let project = Project::new("unused", true);
+    let yaml = std::fs::read_to_string(&project.profile)
+        .unwrap()
+        .replace("target: local", "target: cloud");
+    std::fs::write(&project.profile, yaml).unwrap();
+    let sessions_dir = ResolvedPaths::discover().sessions_dir();
+    let mut store = SessionStore::new();
+    store.set_active_with_profile_path(
+        &SessionKey::Local,
+        &pname("coverage"),
+        project.profile.clone(),
+    );
+    store
+        .save(&sessions_dir)
+        .expect("persist the session selection");
+
+    let config = CliConfig::new().with_interactive(false);
+    let error = resolve_profile(&ScriptedPrompter::default(), None, &config)
+        .expect_err("a session-selected cloud profile is never deployed implicitly");
+
+    assert!(
+        error.to_string().contains("--profile is required"),
+        "{error:#}"
     );
 }
 

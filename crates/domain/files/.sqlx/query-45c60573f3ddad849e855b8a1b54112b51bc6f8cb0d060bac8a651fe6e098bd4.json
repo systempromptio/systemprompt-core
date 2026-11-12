@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT 1 AS \"locked!\"\n                   FROM (SELECT pg_advisory_xact_lock($1, hashtext($2))) AS lock",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "locked!",
+        "type_info": "Int4",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "45c60573f3ddad849e855b8a1b54112b51bc6f8cb0d060bac8a651fe6e098bd4"
+}

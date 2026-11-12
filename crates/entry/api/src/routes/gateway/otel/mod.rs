@@ -41,7 +41,7 @@ use super::bridge_error::BridgeError;
 use super::messages::auth::{AuthInputs, authenticate};
 use super::messages::extract::headers::{extract_credential, optional_session_id};
 use crate::error::ApiHttpError;
-use crate::services::middleware::JwtContextExtractor;
+use crate::services::middleware::{JwtContextExtractor, read_body_bounded};
 use ingest::{ingest_logs, ingest_metrics, ingest_traces};
 
 const MAX_BODY_BYTES: usize = 4 * 1024 * 1024;
@@ -54,7 +54,10 @@ pub async fn handle(
     let Some(credential) = extract_credential(request.headers()) else {
         return ApiHttpError::from(BridgeError::MissingCredential).into_response();
     };
-    let header_session = optional_session_id(request.headers());
+    let header_session = match optional_session_id(request.headers()) {
+        Ok(session) => session,
+        Err(rejection) => return rejection.into_response(),
+    };
     let no_subject_dimensions = SubjectProviderSet::default();
     let principal = match authenticate(
         &credential,
@@ -101,7 +104,7 @@ async fn ingest_with_identity(
                 .next()
                 .is_some_and(|kind| kind.trim() == "application/json")
         });
-    let body_bytes = match axum::body::to_bytes(request.into_body(), MAX_BODY_BYTES).await {
+    let body_bytes = match read_body_bounded(request.into_body(), MAX_BODY_BYTES).await {
         Ok(b) => b,
         Err(e) => {
             tracing::warn!(error = %e, "otel: body read failed");

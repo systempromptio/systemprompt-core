@@ -79,9 +79,14 @@ pub(super) async fn enforce_quota(
         } => (decision, reservation),
     };
     count_denial(&decision, admission.policy);
-    audit.set_quota_reservation(reservation);
     if admission.policy.quota_mode.is_warn() {
+        audit.set_quota_reservation(reservation);
         return admit_in_warn_mode(db, audit, &decision).await;
+    }
+    if let quota::AccountingOutcome::Faulted { message } =
+        quota::revoke(&repos.quota_buckets, &reservation).await
+    {
+        tracing::warn!(reason = %message, "denied request's quota charge was not revoked");
     }
     rate_charges.refund(repos).await;
     let msg = decision.message;

@@ -11,16 +11,12 @@
 use chrono::{Duration, Utc};
 use systemprompt_identifiers::UserId;
 use systemprompt_logging::LoggingRepository;
-use systemprompt_test_fixtures::test_db_pool;
+use systemprompt_test_fixtures::{test_db_pool, unique_name};
 
 async fn repo_and_pool() -> (LoggingRepository, sqlx::PgPool) {
     let db = test_db_pool().await;
     let pg = db.write_pool();
     (LoggingRepository::new(&db), (*pg).clone())
-}
-
-fn unique(prefix: &str) -> String {
-    format!("{prefix}_{}", uuid::Uuid::new_v4().simple())
 }
 
 async fn insert_log(pool: &sqlx::PgPool, id: &str, user_id: Option<&str>, age_days: i64) {
@@ -52,7 +48,7 @@ async fn delete_old_logs_removes_rows_past_cutoff_and_keeps_recent() {
     // unrelated suites (`infra logs export`, the logging maintenance service).
     // A real user also keeps the fresh row out of the table-wide orphan sweep
     // the sibling test runs.
-    let owner = unique("cleanup_log_owner");
+    let owner = unique_name("cleanup_log_owner");
     sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2)")
         .bind(&owner)
         .bind(format!("{owner}@cleanup.test"))
@@ -60,8 +56,8 @@ async fn delete_old_logs_removes_rows_past_cutoff_and_keeps_recent() {
         .await
         .expect("insert log owner fixture");
 
-    let old_id = unique("old_log");
-    let fresh_id = unique("fresh_log");
+    let old_id = unique_name("old_log");
+    let fresh_id = unique_name("fresh_log");
     insert_log(&pg, &old_id, Some(&owner), 4000).await;
     insert_log(&pg, &fresh_id, Some(&owner), 0).await;
 
@@ -90,8 +86,8 @@ async fn delete_old_logs_removes_rows_past_cutoff_and_keeps_recent() {
 #[tokio::test]
 async fn orphaned_logs_are_counted_then_removed_for_missing_users() {
     let (repo, pg) = repo_and_pool().await;
-    let orphan_id = unique("orphan_log");
-    let ghost_user = unique("ghost_user");
+    let orphan_id = unique_name("orphan_log");
+    let ghost_user = unique_name("ghost_user");
     insert_log(&pg, &orphan_id, Some(&ghost_user), 0).await;
 
     let ghost = UserId::new(&ghost_user);

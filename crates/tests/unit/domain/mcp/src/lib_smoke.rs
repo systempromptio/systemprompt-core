@@ -41,7 +41,6 @@ fn test_mcp_http_config_custom() {
             init: Some(Duration::from_secs(10)),
             keep_alive: None,
         },
-        server_id: None,
     };
     assert!(config.allowed_hosts.is_none());
     assert_eq!(config.allowed_origins.len(), 1);

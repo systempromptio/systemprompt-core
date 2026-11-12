@@ -45,7 +45,6 @@ mod flag_reason_tests {
 
     #[test]
     fn flag_reasons_are_eq() {
-        assert_eq!(FlagReason::HighRequestCount, FlagReason::HighRequestCount);
         assert_ne!(FlagReason::HighRequestCount, FlagReason::SustainedVelocity);
     }
 }

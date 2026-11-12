@@ -103,6 +103,10 @@ pub enum UiEvent {
     GatewayProbeRequested {
         reply_to: ReplyId,
     },
+    GatewayTrustRequested {
+        op: crate::gui::handlers::gateway_trust::TrustOp,
+        reply_to: ReplyId,
+    },
     McpAuthProbeRequested {
         server_id: Option<McpServerId>,
         reply_to: ReplyId,
@@ -151,6 +155,12 @@ pub enum UiEvent {
     },
     GatewayProbeFinished {
         outcome: Option<GatewayProbeOutcome>,
+        reply_to: ReplyId,
+    },
+    GatewayTrustFinished {
+        // JSON: webview IPC reply for the trust inspect/confirm command
+        result: Result<Value, crate::wire::ipc::BridgeError>,
+        pinned: bool,
         reply_to: ReplyId,
     },
     McpAuthProbeFinished {

@@ -22,7 +22,7 @@ pub(super) async fn full_text(
     Ok(sqlx::query_scalar!(
         r#"SELECT f.id AS "id: BrainFactId" FROM brain_facts f
            WHERE f.search_weighted @@ to_tsquery('simple', $7)
-             AND EXISTS (SELECT 1 FROM brain_working_set w
+             AND EXISTS (SELECT 1 FROM v_brain_working_set w
                          WHERE w.fact_id = f.id AND w.scope_key = ANY($1::text[]))
              AND f.scope_level = ANY($6::text[])
              AND (f.status = 'confirmed'

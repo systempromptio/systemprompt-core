@@ -28,8 +28,8 @@ use tokio_util::sync::CancellationToken;
 
 use crate::models::AgentRuntimeInfo;
 use crate::models::a2a::{Artifact, Message, Task};
-use crate::repository::A2ARepositories;
 use crate::repository::execution::ExecutionStepRepository;
+use crate::repository::{A2ARepositories, RuntimeTask};
 use crate::services::a2a_server::streaming::webhook_client::DynWebhookBroadcaster;
 use crate::services::{ArtifactPublishingService, ContextService, SkillService};
 use systemprompt_identifiers::{AgentName, AiToolCallId, TaskId};
@@ -74,6 +74,7 @@ impl std::fmt::Debug for MessageStream {
 
 #[derive(Debug)]
 pub struct PersistCompletedTaskOnProcessorParams<'a> {
+    pub runtime: &'a RuntimeTask,
     pub task: &'a Task,
     pub user_message: &'a Message,
     pub agent_message: &'a Message,
@@ -119,7 +120,8 @@ impl MessageHandler {
         services: ServicesView,
         skills_root: PathBuf,
     ) -> Self {
-        let context_service = ContextService::new(repositories.tasks.clone());
+        let context_service =
+            ContextService::new(repositories.tasks.clone(), repositories.contexts.clone());
         let execution_step_repo = Arc::new(repositories.execution_steps.clone());
         let skill_service = Arc::new(SkillService::new(
             skills_root,
@@ -160,6 +162,7 @@ impl MessageHandler {
         params: PersistCompletedTaskOnProcessorParams<'_>,
     ) -> Result<PersistOutcome> {
         persistence::persist_completed_task(persistence::PersistCompletedTaskParams {
+            runtime: params.runtime,
             task: params.task,
             user_message: params.user_message,
             agent_message: params.agent_message,

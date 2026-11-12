@@ -16,6 +16,7 @@ use futures_util::stream::BoxStream;
 // JSON: protocol boundary — the shapes inspected here are the Anthropic wire's.
 use serde_json::Value;
 use systemprompt_wire::error::WireStreamError;
+use systemprompt_wire::sse::{RawSseFrame, SseFrameTooLarge, SseFramer};
 
 const TOOL_USE: &str = "tool_use";
 
@@ -84,28 +85,36 @@ pub(crate) fn correct_buffered(body: Bytes) -> Bytes {
 
 #[derive(Debug, Default)]
 struct StreamState {
-    buf: Vec<u8>,
+    framer: SseFramer,
     saw_tool_use: bool,
+    failed: bool,
 }
 
 impl StreamState {
     // Why: HTTP chunks can split an SSE frame at any byte.
-    fn push(&mut self, chunk: &[u8]) -> Vec<Bytes> {
-        self.buf.extend_from_slice(chunk);
-        let mut out = Vec::new();
-        while let Some(end) = systemprompt_wire::sse::frame_end(&self.buf) {
-            let frame: Vec<u8> = self.buf.drain(..end).collect();
-            out.push(self.correct_frame(frame));
+    fn push(&mut self, chunk: &[u8]) -> Vec<Result<Bytes, SseFrameTooLarge>> {
+        let frames = self.framer.push_raw(chunk);
+        let mut out = Vec::with_capacity(frames.len());
+        for frame in frames {
+            match frame {
+                Ok(frame) => out.push(Ok(self.correct_frame(frame))),
+                Err(e) => {
+                    self.failed = true;
+                    out.push(Err(e));
+                },
+            }
         }
         out
     }
 
-    fn flush(&mut self) -> Option<Bytes> {
-        (!self.buf.is_empty()).then(|| Bytes::from(std::mem::take(&mut self.buf)))
+    fn flush(&self) -> Option<Bytes> {
+        let rest = self.framer.remainder();
+        (!rest.is_empty()).then(|| Bytes::copy_from_slice(rest))
     }
 
-    fn correct_frame(&mut self, frame: Vec<u8>) -> Bytes {
-        let Some(value) = frame_json(&frame) else {
+    fn correct_frame(&mut self, raw: RawSseFrame) -> Bytes {
+        let RawSseFrame { raw: frame, data } = raw;
+        let Some(value) = data.as_deref().and_then(frame_json) else {
             return Bytes::from(frame);
         };
         if value["type"] == "content_block_start" && value["content_block"]["type"] == TOOL_USE {
@@ -125,12 +134,8 @@ impl StreamState {
 }
 
 // JSON: Anthropic Messages upstream SSE frame — inspected for terminal events.
-fn frame_json(frame: &[u8]) -> Option<Value> {
-    let text = String::from_utf8_lossy(frame);
-    text.lines()
-        .filter_map(|line| line.strip_prefix("data: "))
-        .find(|data| data.trim() != "[DONE]")
-        .and_then(|data| serde_json::from_str::<Value>(data).ok())
+fn frame_json(data: &str) -> Option<Value> {
+    serde_json::from_str::<Value>(data.trim()).ok()
 }
 
 // Why: Anthropic announces tool-use blocks before the terminal message_delta.
@@ -143,8 +148,15 @@ where
         .map(Some)
         .chain(stream::once(async { None }))
         .scan(StreamState::default(), |state, item| {
+            if state.failed {
+                return futures_util::future::ready(None);
+            }
             let res = match item {
-                Some(Ok(bytes)) => state.push(&bytes).into_iter().map(Ok).collect(),
+                Some(Ok(bytes)) => state
+                    .push(&bytes)
+                    .into_iter()
+                    .map(|frame| frame.map_err(WireStreamError::from))
+                    .collect(),
                 Some(Err(e)) => vec![Err(e)],
                 None => state.flush().map(Ok).into_iter().collect(),
             };

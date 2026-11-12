@@ -55,7 +55,9 @@ pub mod version;
 
 pub use error::{BrainError, BrainResult};
 pub use extension::BrainExtension;
-pub use models::{FactChange, FactFilter, Inserted, NewFact, NewRecall};
+pub use models::{
+    CursorError, FactChange, FactCursor, FactFilter, FactPage, Inserted, NewFact, NewRecall,
+};
 pub use repository::{BrainRepositories, FactRepository};
 pub use sink::OutboxBrainSink;
 pub use version::{pipeline_inputs, pipeline_version};

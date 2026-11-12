@@ -82,10 +82,8 @@ fn round_trip_all_variants() {
     }
 }
 
-
 #[test]
 fn outbox_channel_partial_eq() {
-    assert_eq!(OutboxChannel::System, OutboxChannel::System);
     assert_ne!(OutboxChannel::System, OutboxChannel::A2A);
 }
 

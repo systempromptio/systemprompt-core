@@ -71,3 +71,26 @@ fn a_short_command_is_not_mistaken_for_the_secret_positional() {
     let args = argv(&["admin", "config", "secret", "set"]);
     assert_eq!(redact_argv(&args), args);
 }
+
+#[test]
+fn the_stdin_password_switch_does_not_swallow_the_next_argument() {
+    let out = redact_argv(&argv(&[
+        "admin",
+        "setup",
+        "--db-password-stdin",
+        "--docker",
+        "--db-password",
+        "hunter2",
+    ]));
+    assert_eq!(
+        out,
+        argv(&[
+            "admin",
+            "setup",
+            "--db-password-stdin",
+            "--docker",
+            "--db-password",
+            REDACTION_PLACEHOLDER,
+        ])
+    );
+}

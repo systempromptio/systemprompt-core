@@ -26,7 +26,10 @@ async fn formats_a_text_document_cannot_link_are_refused() {
     let owner = registered("export-refuse").await;
     let ctx = ctx_for(Some(&owner));
     let (document, _) = create_text(&h.tools, &ctx, "hello").await;
-    let tool = ExportHandler { tools: &h.tools };
+    let tool = ExportHandler {
+        tools: &h.tools,
+        hop: None,
+    };
 
     for (format, export_as, needle) in [
         (
@@ -61,19 +64,22 @@ async fn an_explicit_revision_is_exported() {
     let ctx = ctx_for(Some(&owner));
     let (document, revision) = create_text(&h.tools, &ctx, "pinned").await;
 
-    let (output, summary) = ExportHandler { tools: &h.tools }
-        .handle(
-            input(
-                &document,
-                Some(revision.clone()),
-                ExportFormat::Native,
-                ExportAs::Preview,
-            ),
-            &ctx,
-            &exec(),
-        )
-        .await
-        .expect("preview of a pinned revision");
+    let (output, summary) = ExportHandler {
+        tools: &h.tools,
+        hop: None,
+    }
+    .handle(
+        input(
+            &document,
+            Some(revision.clone()),
+            ExportFormat::Native,
+            ExportAs::Preview,
+        ),
+        &ctx,
+        &exec(),
+    )
+    .await
+    .expect("preview of a pinned revision");
 
     assert_eq!(output.revision_id, revision);
     assert_eq!(summary, format!("preview of revision {revision}"));
@@ -93,19 +99,22 @@ async fn an_unknown_revision_is_refused() {
     let ctx = ctx_for(Some(&owner));
     let (document, _) = create_text(&h.tools, &ctx, "hello").await;
 
-    let refused = ExportHandler { tools: &h.tools }
-        .handle(
-            input(
-                &document,
-                Some(DocumentRevisionId::generate()),
-                ExportFormat::Native,
-                ExportAs::Url,
-            ),
-            &ctx,
-            &exec(),
-        )
-        .await
-        .expect_err("unknown revision refused");
+    let refused = ExportHandler {
+        tools: &h.tools,
+        hop: None,
+    }
+    .handle(
+        input(
+            &document,
+            Some(DocumentRevisionId::generate()),
+            ExportFormat::Native,
+            ExportAs::Url,
+        ),
+        &ctx,
+        &exec(),
+    )
+    .await
+    .expect_err("unknown revision refused");
 
     assert_eq!(code_of(&refused), RefusalCode::NotFound);
 }

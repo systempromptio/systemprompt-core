@@ -6,9 +6,10 @@ mod guarded_client_tests {
 
     use reqwest::dns::Resolve;
     use systemprompt_client::{
-        DEFAULT_MAX_REDIRECTS, GuardedClientConfig, GuardedConnectError, GuardedResolver,
-        guarded_client,
+        DEFAULT_MAX_REDIRECTS, GuardedClient, GuardedClientConfig, GuardedConnectError,
+        GuardedResolver, guarded_client,
     };
+    use systemprompt_models::net::LoopbackPolicy;
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::net::TcpListener;
 
@@ -68,17 +69,20 @@ mod guarded_client_tests {
     }
 
     #[test]
-    fn loopback_stays_resolvable_under_the_default_config() {
-        let config = GuardedClientConfig::default();
-        assert!(config.allow_loopback);
-        let resolver = GuardedResolver::new(vec!["localhost".to_owned()]);
-        assert!(resolved(&resolver, "localhost").is_ok());
-    }
-
-    #[test]
-    fn denying_loopback_removes_the_localhost_exemption() {
-        let config = GuardedClientConfig::default().deny_loopback();
-        assert!(!config.allow_loopback);
+    fn the_configured_policy_allows_loopback_and_the_untrusted_policy_denies_it() {
+        assert_eq!(
+            GuardedClientConfig::for_configured().loopback(),
+            LoopbackPolicy::Allow
+        );
+        assert_eq!(
+            GuardedClientConfig::for_untrusted().loopback(),
+            LoopbackPolicy::Deny
+        );
+        assert!(
+            GuardedClientConfig::for_untrusted()
+                .trusted_hosts()
+                .is_empty()
+        );
     }
 
     fn guard_error(err: &reqwest::Error) -> Option<String> {
@@ -155,7 +159,7 @@ mod guarded_client_tests {
     #[tokio::test]
     async fn a_redirect_to_a_blocked_address_is_refused() {
         let url = redirect_once_to("http://169.254.169.254/latest/meta-data").await;
-        let client = guarded_client(&GuardedClientConfig::default()).expect("client");
+        let client = guarded_client(&GuardedClientConfig::for_configured()).expect("client");
         let err = client.get(&url).send().await.expect_err("must be refused");
         assert!(err.is_redirect(), "expected a redirect refusal, got {err}");
         let reason = guard_error(&err).expect("the guard's verdict is in the source chain");
@@ -164,21 +168,22 @@ mod guarded_client_tests {
 
     #[tokio::test]
     async fn a_redirect_to_a_hostname_resolving_into_a_blocked_range_is_refused() {
-        // Why: the parse-time guard passes `localhost` on the hop; only the
-        // resolver installed on the client can see that it lands on loopback.
         let landing = hop_server(1, None).await;
         let hop = redirect_once_to_owned(landing.url.replace("127.0.0.1", "localhost")).await;
-        let client =
-            guarded_client(&GuardedClientConfig::default().deny_loopback()).expect("client");
+        let client = GuardedClient::untrusted(
+            &GuardedClientConfig::for_untrusted().with_trusted_hosts(vec!["127.0.0.1".to_owned()]),
+        )
+        .expect("client");
 
-        let err = client.get(&hop).send().await.expect_err("must be refused");
+        let err = client
+            .get(&hop)
+            .expect("trusted first url")
+            .send()
+            .await
+            .expect_err("must be refused");
 
         let reason = guard_error(&err).expect("the guard's verdict is in the source chain");
-        assert!(
-            reason.contains("localhost resolves to blocked address 127.0.0.1")
-                || reason.contains("localhost resolves to blocked address ::1"),
-            "{reason}"
-        );
+        assert!(reason.contains("redirect to http://localhost:"), "{reason}");
         assert_eq!(hits(&landing), 0, "nothing may reach the blocked host");
     }
 
@@ -187,24 +192,20 @@ mod guarded_client_tests {
         let landing = hop_server(1, None).await;
         let second = redirect_once_to_owned(landing.url.replace("127.0.0.1", "localhost")).await;
         let first = redirect_once_to_owned(second).await;
-        let client = guarded_client(
-            &GuardedClientConfig::default()
-                .with_trusted_hosts(vec!["127.0.0.1".to_owned()])
-                .deny_loopback(),
+        let client = GuardedClient::untrusted(
+            &GuardedClientConfig::for_untrusted().with_trusted_hosts(vec!["127.0.0.1".to_owned()]),
         )
         .expect("client");
 
         let err = client
             .get(&first)
+            .expect("trusted first url")
             .send()
             .await
             .expect_err("must be refused");
 
         let reason = guard_error(&err).expect("guard verdict");
-        assert!(
-            reason.contains("localhost resolves to blocked address"),
-            "{reason}"
-        );
+        assert!(reason.contains("redirect to http://localhost:"), "{reason}");
         assert_eq!(hits(&landing), 0);
     }
 
@@ -212,7 +213,7 @@ mod guarded_client_tests {
     async fn an_https_to_http_downgrade_hop_is_refused_before_connecting() {
         let landing = hop_server(1, None).await;
         let hop = redirect_once_to_owned(landing.url.replace("127.0.0.1", "example.com")).await;
-        let client = guarded_client(&GuardedClientConfig::default()).expect("client");
+        let client = guarded_client(&GuardedClientConfig::for_configured()).expect("client");
 
         let err = client.get(&hop).send().await.expect_err("must be refused");
 
@@ -230,7 +231,7 @@ mod guarded_client_tests {
         let cap = DEFAULT_MAX_REDIRECTS;
         let server = hop_server(cap + 2, None).await;
         let client = guarded_client(
-            &GuardedClientConfig::default().with_trusted_hosts(vec!["127.0.0.1".to_owned()]),
+            &GuardedClientConfig::for_configured().with_trusted_hosts(vec!["127.0.0.1".to_owned()]),
         )
         .expect("client");
 
@@ -253,7 +254,7 @@ mod guarded_client_tests {
     async fn a_chain_within_the_cap_is_followed_to_the_end() {
         let server = hop_server(DEFAULT_MAX_REDIRECTS + 1, None).await;
         let client = guarded_client(
-            &GuardedClientConfig::default().with_trusted_hosts(vec!["127.0.0.1".to_owned()]),
+            &GuardedClientConfig::for_configured().with_trusted_hosts(vec!["127.0.0.1".to_owned()]),
         )
         .expect("client");
 
@@ -265,11 +266,9 @@ mod guarded_client_tests {
 
     #[tokio::test]
     async fn a_redirect_to_trusted_loopback_is_followed() {
-        // Why: `allow_loopback` is the operator exemption for local services;
-        // the resolver must let `localhost` through when it is granted.
         let landing = hop_server(1, None).await;
         let hop = redirect_once_to_owned(landing.url.replace("127.0.0.1", "localhost")).await;
-        let client = guarded_client(&GuardedClientConfig::default()).expect("client");
+        let client = guarded_client(&GuardedClientConfig::for_configured()).expect("client");
 
         let response = client.get(&hop).send().await.expect("followed");
 
@@ -280,8 +279,8 @@ mod guarded_client_tests {
     #[tokio::test]
     async fn a_zero_redirect_cap_surfaces_the_redirect_unfollowed() {
         let url = redirect_once_to("https://example.com/next").await;
-        let client =
-            guarded_client(&GuardedClientConfig::default().with_max_redirects(0)).expect("client");
+        let client = guarded_client(&GuardedClientConfig::for_configured().with_max_redirects(0))
+            .expect("client");
         let response = client
             .get(&url)
             .send()

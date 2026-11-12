@@ -94,13 +94,17 @@ impl UserProvider for MockUserProvider {
         Ok(())
     }
 
-    async fn find_or_create_federated(
+    async fn resolve_federated(
         &self,
         _issuer: &str,
         _external_sub: &str,
         _claims: &systemprompt_traits::FederatedIdentityClaims,
-    ) -> AuthResult<UserId> {
-        Ok(unique_user_id("user"))
+        _policy: &systemprompt_traits::LinkPolicy,
+    ) -> AuthResult<systemprompt_traits::FederatedResolution> {
+        Ok(systemprompt_traits::FederatedResolution {
+            user_id: unique_user_id("user"),
+            link: systemprompt_traits::FederatedLink::Provisioned,
+        })
     }
 
     async fn promote_anonymous(&self, _source: &UserId, _target: &UserId) -> AuthResult<u64> {

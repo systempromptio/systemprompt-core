@@ -37,7 +37,10 @@ pub struct AgentCardConfig {
     pub default_input_modes: Vec<String>,
     #[serde(default = "default_output_modes")]
     pub default_output_modes: Vec<String>,
-    #[serde(skip_serializing_if = "Option::is_none", with = "json_shaped_schemes")]
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        with = "super::json_shaped_schemes"
+    )]
     pub security_schemes: Option<HashMap<String, SecurityScheme>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub security_requirements: Option<Vec<HashMap<String, Vec<String>>>>,
@@ -51,7 +54,7 @@ pub struct RetiredCardKeyError {
 }
 
 #[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct AgentCardConfigWire {
     protocol_version: String,
     #[serde(default)]
@@ -73,7 +76,7 @@ struct AgentCardConfigWire {
     default_input_modes: Vec<String>,
     #[serde(default = "default_output_modes")]
     default_output_modes: Vec<String>,
-    #[serde(default, with = "json_shaped_schemes")]
+    #[serde(default, with = "super::json_shaped_schemes")]
     security_schemes: Option<HashMap<String, SecurityScheme>>,
     #[serde(default)]
     security_requirements: Option<Vec<HashMap<String, Vec<String>>>>,
@@ -119,6 +122,7 @@ impl TryFrom<AgentCardConfigWire> for AgentCardConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct AgentProviderInfo {
     pub organization: String,
     pub url: String,
@@ -133,7 +137,7 @@ pub struct CapabilitiesConfig {
 }
 
 #[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct CapabilitiesConfigWire {
     #[serde(default = "default_true")]
     streaming: bool,
@@ -164,7 +168,7 @@ impl TryFrom<CapabilitiesConfigWire> for CapabilitiesConfig {
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AgentMetadataConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub system_prompt: Option<String>,
@@ -188,6 +192,7 @@ pub struct AgentMetadataConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct OAuthConfig {
     #[serde(default)]
     pub required: bool,
@@ -195,6 +200,8 @@ pub struct OAuthConfig {
     pub scopes: Vec<Permission>,
     #[serde(default = "default_audience")]
     pub audience: JwtAudience,
+    #[serde(default)]
+    pub service_only: bool,
 }
 
 impl Default for CapabilitiesConfig {
@@ -213,6 +220,7 @@ impl Default for OAuthConfig {
             required: false,
             scopes: Vec::new(),
             audience: JwtAudience::A2a,
+            service_only: false,
         }
     }
 }
@@ -235,64 +243,4 @@ pub(super) const fn default_true() -> bool {
 
 pub(super) const fn default_audience() -> JwtAudience {
     JwtAudience::A2a
-}
-
-// Why: serde_yaml 0.9 reads an externally tagged enum only as a `!tag`, while
-// the A2A 1.0 security scheme is a single-key object; routing through JSON
-// keeps the spec's `apiKeySecurityScheme: {...}` form in agent YAML.
-mod json_shaped_schemes {
-    use std::collections::HashMap;
-
-    use serde::de::Error as _;
-    use serde::ser::Error as _;
-    use serde::{Deserialize, Deserializer, Serialize, Serializer};
-    use systemprompt_models::a2a::SecurityScheme;
-
-    #[derive(Debug, thiserror::Error)]
-    #[error("securitySchemes.{name}: {source}")]
-    struct InvalidSecuritySchemeError {
-        name: String,
-        #[source]
-        source: serde_json::Error,
-    }
-
-    #[expect(
-        clippy::ref_option,
-        reason = "serde `with` fixes the serializer signature to &Option<T>"
-    )]
-    pub(super) fn serialize<S: Serializer>(
-        schemes: &Option<HashMap<String, SecurityScheme>>,
-        serializer: S,
-    ) -> Result<S::Ok, S::Error> {
-        // JSON: the spec's single-key object form of each scheme.
-        let shaped: Option<HashMap<&String, serde_json::Value>> = schemes
-            .as_ref()
-            .map(|map| {
-                map.iter()
-                    .map(|(name, scheme)| serde_json::to_value(scheme).map(|v| (name, v)))
-                    .collect::<Result<_, _>>()
-            })
-            .transpose()
-            .map_err(S::Error::custom)?;
-        shaped.serialize(serializer)
-    }
-
-    pub(super) fn deserialize<'de, D: Deserializer<'de>>(
-        deserializer: D,
-    ) -> Result<Option<HashMap<String, SecurityScheme>>, D::Error> {
-        // JSON: each scheme is read as its spec object, then typed.
-        let raw = Option::<HashMap<String, serde_json::Value>>::deserialize(deserializer)?;
-        raw.map(|map| {
-            map.into_iter()
-                .map(|(name, value)| match serde_json::from_value(value) {
-                    Ok(scheme) => Ok((name, scheme)),
-                    Err(source) => Err(D::Error::custom(InvalidSecuritySchemeError {
-                        name,
-                        source,
-                    })),
-                })
-                .collect()
-        })
-        .transpose()
-    }
 }

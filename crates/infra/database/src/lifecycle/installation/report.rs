@@ -8,6 +8,7 @@
 
 use serde::Serialize;
 use systemprompt_identifiers::ExtensionId;
+use tracing::{info, warn};
 
 use super::undeclared::SchemaResidue;
 
@@ -34,6 +35,33 @@ pub struct SchemaInstallReport {
     pub foreign_key_drift: Vec<ForeignKeyDrift>,
     pub residue: SchemaResidue,
     pub ahead: Vec<SchemaAhead>,
+}
+
+impl SchemaInstallReport {
+    pub(crate) fn log_outcome(&self) {
+        let report = self;
+        info!(
+            foreign_key_drift = report.foreign_key_drift.len(),
+            undeclared_tables = report.residue.undeclared_tables.len(),
+            orphan_migration_ledgers = report.residue.orphan_migration_ledgers.len(),
+            "Extension schema installation complete"
+        );
+        for table in &report.residue.undeclared_tables {
+            warn!(
+                schema = table.schema,
+                table = table.table,
+                live_rows = table.live_rows,
+                "live table declared by no registered extension — add a DROP TABLE migration"
+            );
+        }
+        for ledger in &report.residue.orphan_migration_ledgers {
+            warn!(
+                extension = %ledger.extension_id,
+                rows = ledger.rows,
+                "extension_migrations ledger for an extension that no longer exists"
+            );
+        }
+    }
 }
 
 impl SchemaAhead {

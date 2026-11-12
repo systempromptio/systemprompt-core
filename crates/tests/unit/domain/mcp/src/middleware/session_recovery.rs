@@ -6,7 +6,10 @@
 use rmcp::model::InitializeRequestParams;
 use rmcp::transport::streamable_http_server::session::store::{SessionState, SessionStore};
 use rmcp::transport::streamable_http_server::session::{RestoreOutcome, SessionId, SessionManager};
-use systemprompt_mcp::middleware::{DatabaseSessionHandler, PostgresSessionStore};
+use systemprompt_identifiers::{McpServerId, UserId};
+use systemprompt_mcp::middleware::{
+    DatabaseSessionHandler, PostgresSessionStore, RestorePrincipal, run_as,
+};
 use systemprompt_test_fixtures::test_db_pool;
 
 fn sample_state() -> SessionState {
@@ -23,19 +26,46 @@ fn random_id() -> SessionId {
     SessionId::from(format!("sess-{}", uuid::Uuid::new_v4().simple()))
 }
 
+fn principal(server: &McpServerId) -> RestorePrincipal {
+    RestorePrincipal {
+        server_id: server.clone(),
+        user_id: None,
+    }
+}
+
+async fn stored_session(
+    db: &systemprompt_database::DbPool,
+) -> (PostgresSessionStore, SessionId, McpServerId) {
+    let repo = std::sync::Arc::new(systemprompt_mcp::repository::McpSessionRepository::new(db));
+    let id = random_id();
+    let server = McpServerId::new(format!("srv-{}", uuid::Uuid::new_v4().simple()));
+    repo.create(
+        &systemprompt_identifiers::SessionId::new(id.as_ref()),
+        None,
+        Some(&server),
+    )
+    .await
+    .unwrap();
+    let store = PostgresSessionStore::new(repo);
+    store.store(&id, &sample_state()).await.unwrap();
+    (store, id, server)
+}
+
 #[tokio::test]
 async fn session_store_round_trip() {
     let db = test_db_pool().await;
-    let store = PostgresSessionStore::new(std::sync::Arc::new(
-        systemprompt_mcp::repository::McpSessionRepository::new(&db),
-    ));
-    let id = random_id();
+    let (store, id, server) = stored_session(&db).await;
 
-    store.store(&id, &sample_state()).await.unwrap();
-    assert!(store.load(&id).await.unwrap().is_some());
+    let loaded = run_as(principal(&server), store.load(&id)).await.unwrap();
+    assert!(loaded.is_some());
 
     store.delete(&id).await.unwrap();
-    assert!(store.load(&id).await.unwrap().is_none());
+    assert!(
+        run_as(principal(&server), store.load(&id))
+            .await
+            .unwrap()
+            .is_none()
+    );
 }
 
 #[tokio::test]
@@ -44,7 +74,38 @@ async fn session_store_load_unknown_returns_none() {
     let store = PostgresSessionStore::new(std::sync::Arc::new(
         systemprompt_mcp::repository::McpSessionRepository::new(&db),
     ));
-    assert!(store.load(&random_id()).await.unwrap().is_none());
+    let server = McpServerId::new("srv-unknown");
+    assert!(
+        run_as(principal(&server), store.load(&random_id()))
+            .await
+            .unwrap()
+            .is_none()
+    );
+}
+
+#[tokio::test]
+async fn a_session_is_not_restored_outside_a_verified_request() {
+    let db = test_db_pool().await;
+    let (store, id, _) = stored_session(&db).await;
+    assert!(store.load(&id).await.unwrap().is_none());
+}
+
+#[tokio::test]
+async fn a_session_is_not_restored_for_another_server_or_user() {
+    let db = test_db_pool().await;
+    let (store, id, server) = stored_session(&db).await;
+    let other_server = principal(&McpServerId::new("srv-other"));
+    assert!(
+        run_as(other_server, store.load(&id))
+            .await
+            .unwrap()
+            .is_none()
+    );
+    let some_user = RestorePrincipal {
+        server_id: server,
+        user_id: Some(UserId::new("someone")),
+    };
+    assert!(run_as(some_user, store.load(&id)).await.unwrap().is_none());
 }
 
 #[tokio::test]

@@ -14,13 +14,13 @@ mod migrations;
 mod validation;
 
 pub use installation::{
-    BOOTSTRAP_ADVISORY_LOCK_KEY, BackfillStatement, BootstrapLockGuard, DeferredForeignKey,
-    ExpensiveStatement, FkDeferralError, ForeignKeyDrift, HOT_TABLES, MigrationCost,
-    OrphanMigrationLedger, PROJECTION_BACKLOG, SchemaAhead, SchemaCurrency, SchemaInstallReport,
-    SchemaResidue, SplitCreateTable, UndeclaredTable, audit_migration_cost, audit_one,
-    audit_schema_residue, backfill_statements, check_migration_references, check_trigger_routines,
-    install_extension_schemas_full, projection_tables, schema_currency,
-    split_create_table_foreign_keys,
+    BOOTSTRAP_ADVISORY_LOCK_KEY, BackfillStatement, BootstrapLockGuard, BootstrapLockTimeout,
+    DeferredForeignKey, ExpensiveStatement, FkDeferralError, ForeignKeyDrift, HOT_TABLES,
+    MigrationCost, OrphanMigrationLedger, PROJECTION_BACKLOG, SchemaAhead, SchemaCurrency,
+    SchemaInstallReport, SchemaResidue, SplitCreateTable, UndeclaredTable, audit_migration_cost,
+    audit_one, audit_schema_residue, backfill_statements, check_migration_references,
+    check_trigger_routines, install_extension_schemas_full, projection_tables,
+    schema_catalog_digest, schema_currency, split_create_table_foreign_keys,
 };
 pub use migrations::{
     AppliedMigration, BaselineStamp, ChecksumDrift, ExtensionMigrationStatus, FreshnessCheck,

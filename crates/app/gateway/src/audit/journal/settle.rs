@@ -11,6 +11,7 @@ use crate::error::{GatewayAuditError, GatewayAuditResult as Result, ensure};
 use systemprompt_ai::repository::UpsertPayloadParams;
 use systemprompt_ai::repository::ai_requests::{
     SettleCompletion, SettledFailure, SettledToolCall, SettlementOutcome, SettlementUsage,
+    UsageSource,
 };
 
 use super::{PartialUsage, Receipt, Settlement};
@@ -61,6 +62,11 @@ pub(super) async fn settle(settlement: &Settlement, receipt: &Receipt) -> Result
             assistant_text: completion.assistant.as_deref(),
             tool_calls: &tools,
             next_message_sequence: completion.next_message_sequence,
+            usage_source: if completion.settled_to_reservation {
+                UsageSource::Reservation
+            } else {
+                UsageSource::Reported
+            },
         })
     } else if let Some(error) = &receipt.failure {
         failed_outcome(error, receipt.partial.as_ref())

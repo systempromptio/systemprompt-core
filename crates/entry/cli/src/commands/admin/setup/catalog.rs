@@ -8,13 +8,36 @@
 //! with `admin config credential|provider|endpoint|model|deployment|gateway`
 //! or by editing `services/ai/`.
 //!
+//! Vertex AI is not in the default catalog: [`add_vertex`] adds a `vertex`
+//! provider with a Claude and a Gemini endpoint, authenticated by the
+//! runtime's workload identity or a service-account key, and leaves the model
+//! list to boot-time discovery, which publishes every model the project can
+//! serve and the Vertex rate card prices.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Context, Result};
-use systemprompt_identifiers::ModelId;
+use systemprompt_identifiers::{CredentialId, EndpointId, ModelId, ProviderId, SecretName};
 use systemprompt_manifest::services::GatewayConfigSpec;
-use systemprompt_manifest::services::catalog::{CatalogContext, CatalogDocument, DefaultCatalog};
+use systemprompt_manifest::services::catalog::{
+    CatalogContext, CatalogDocument, CredentialEntry, DefaultCatalog, EndpointConfig,
+    ProviderConfig,
+};
+use systemprompt_wire::WireProtocol;
+
+pub const VERTEX: &str = "vertex";
+
+const VERTEX_CLAUDE_URL: &str = "https://aiplatform.googleapis.com/v1/projects/{project}/locations/global/publishers/anthropic/models";
+
+const VERTEX_GEMINI_URL: &str = "https://us-central1-aiplatform.googleapis.com/v1/projects/{project}/locations/us-central1/publishers/google";
+
+/// How the seeded Vertex AI provider authenticates.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VertexSeed<'a> {
+    WorkloadIdentity { project: &'a str },
+    ServiceAccountKey,
+}
 
 /// Which vendors to keep, which one leads, and whether the gateway is on.
 #[derive(Debug, Clone, Copy)]
@@ -79,4 +102,39 @@ pub fn first_model_on(document: &CatalogDocument, provider: &str) -> Option<Mode
                 .is_some_and(|t| t.endpoint().provider.as_str() == provider)
         })
         .map(|(model, _)| model.clone())
+}
+
+pub fn add_vertex(document: &mut CatalogDocument, seed: VertexSeed<'_>) -> Result<()> {
+    let credential = match seed {
+        VertexSeed::WorkloadIdentity { project } => {
+            CredentialEntry::workload_identity(project.to_owned())
+        },
+        VertexSeed::ServiceAccountKey => CredentialEntry::platform(SecretName::new(VERTEX)),
+    };
+    document
+        .credentials
+        .credentials
+        .insert(CredentialId::new(VERTEX), credential);
+    let endpoint = |wire, url: &str, region: &str| EndpointConfig {
+        region: Some(region.to_owned()),
+        ..EndpointConfig::new(wire, url)
+    };
+    let mut provider = ProviderConfig::new(VERTEX);
+    provider.display_name = Some("Vertex AI".to_owned());
+    provider.endpoints.insert(
+        EndpointId::new("claude-global"),
+        endpoint(WireProtocol::Anthropic, VERTEX_CLAUDE_URL, "global"),
+    );
+    provider.endpoints.insert(
+        EndpointId::new("gemini-us-central1"),
+        endpoint(WireProtocol::Gemini, VERTEX_GEMINI_URL, "us-central1"),
+    );
+    document
+        .providers
+        .providers
+        .insert(ProviderId::new(VERTEX), provider);
+    document
+        .resolve(&CatalogContext::default())
+        .context("the seeded Vertex AI catalog does not resolve")?;
+    Ok(())
 }

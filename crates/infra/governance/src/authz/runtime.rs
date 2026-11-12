@@ -143,7 +143,8 @@ fn build_webhook_hook(
         .filter(|s| !s.is_empty())
         .ok_or(AuthzBootstrapError::MissingWebhookUrl)?
         .to_owned();
-    validate_outbound_url(&url).map_err(AuthzBootstrapError::InvalidWebhookUrl)?;
+    validate_outbound_url(&url, systemprompt_models::net::LoopbackPolicy::Allow)
+        .map_err(AuthzBootstrapError::InvalidWebhookUrl)?;
     let webhook = WebhookHook::new(
         url,
         Duration::from_millis(authz.hook.timeout_ms),
@@ -159,10 +160,7 @@ fn compose_rule_based(
     tail: Vec<SharedAuthzHook>,
 ) -> SharedAuthzHook {
     let rule_based: SharedAuthzHook = Arc::new(RuleBasedHook::new(pool, sink, wiring));
-    let mut hooks = Vec::with_capacity(tail.len() + 1);
-    hooks.push(rule_based);
-    hooks.extend(tail);
-    Arc::new(CompositeAuthzHook::new(hooks))
+    Arc::new(CompositeAuthzHook::new(rule_based, tail))
 }
 
 const fn mode_name(mode: AuthzMode) -> &'static str {

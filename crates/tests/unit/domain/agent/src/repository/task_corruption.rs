@@ -3,6 +3,7 @@
 // being replaced with fresh default metadata or an empty agent name.
 
 use super::{repos, seed_context_and_task, seed_user_and_session};
+use systemprompt_test_fixtures::agent_reads::TaskReadsExt;
 use systemprompt_test_fixtures::test_db_pool;
 use systemprompt_traits::RepositoryError;
 
@@ -24,12 +25,12 @@ async fn unreadable_task_metadata_is_an_error() {
 
     let err = r
         .tasks
-        .find_task(&task_id)
+        .read_task(&task_id)
         .await
         .expect_err("corrupt metadata must not read as defaults");
     assert!(matches!(err, RepositoryError::Decode { .. }), "got {err}");
 
-    r.tasks.delete_task(&task_id).await.ok();
+    r.tasks.remove_task(&task_id).await.ok();
 }
 
 #[tokio::test]
@@ -48,7 +49,7 @@ async fn task_without_agent_name_is_an_error() {
 
     let err = r
         .tasks
-        .find_task(&task_id)
+        .read_task(&task_id)
         .await
         .expect_err("a task row without an agent must not read as agent \"\"");
     assert!(
@@ -56,7 +57,7 @@ async fn task_without_agent_name_is_an_error() {
         "got {err}"
     );
 
-    r.tasks.delete_task(&task_id).await.ok();
+    r.tasks.remove_task(&task_id).await.ok();
 }
 
 #[tokio::test]
@@ -68,12 +69,12 @@ async fn task_created_without_metadata_reads_back() {
 
     let task = r
         .tasks
-        .find_task(&task_id)
+        .read_task(&task_id)
         .await
         .expect("get")
         .expect("present");
     let metadata = task.metadata.expect("metadata projected from the row");
     assert_eq!(metadata.agent_name, "test-agent");
 
-    r.tasks.delete_task(&task_id).await.ok();
+    r.tasks.remove_task(&task_id).await.ok();
 }

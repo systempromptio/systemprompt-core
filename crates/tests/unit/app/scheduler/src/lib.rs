@@ -45,6 +45,9 @@ mod jobs_seeded_db;
 mod licence_checkin;
 #[cfg(test)]
 mod licence_state_db;
+
+#[cfg(test)]
+mod lock_key_collision;
 #[cfg(test)]
 mod manual_run_lock_db;
 #[cfg(test)]
@@ -69,6 +72,10 @@ mod registration_db;
 mod repository_db;
 #[cfg(test)]
 mod retention_enforce_db;
+#[cfg(test)]
+mod retention_holds;
+#[cfg(test)]
+mod retention_holds_db;
 #[cfg(test)]
 mod retention_targets_db;
 #[cfg(test)]

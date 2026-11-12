@@ -45,6 +45,7 @@ text_enum!(
         HostCrashed => "host_crashed",
         ConnectorUnavailable => "connector_unavailable",
         HarnessUnavailable => "harness_unavailable",
+        ReleaseCapExceeded => "release_cap_exceeded",
     }
 );
 

@@ -98,13 +98,13 @@ fn profile(cloud: Option<CloudConfig>) -> Profile {
 
 #[test]
 fn missing_cloud_config_is_rejected() {
-    let err = resolve_deploy_target(&profile(None)).unwrap_err();
+    let err = resolve_deploy_target(profile(None).cloud.as_ref()).unwrap_err();
     assert!(err.to_string().contains("No cloud configuration"));
 }
 
 #[test]
 fn missing_tenant_id_is_rejected() {
     let cloud: CloudConfig = serde_yaml::from_str("{}").unwrap();
-    let err = resolve_deploy_target(&profile(Some(cloud))).unwrap_err();
+    let err = resolve_deploy_target(profile(Some(cloud)).cloud.as_ref()).unwrap_err();
     assert!(err.to_string().contains("No tenant configured"));
 }

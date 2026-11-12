@@ -7,6 +7,11 @@
 //! rather than inferred from a log line that scrolled past. `fail_closed`
 //! refuses to boot instead.
 //!
+//! [`ServicesSourceBootstrap::read_composed`] fetches nothing: it returns the
+//! composition another process already swapped into the cache, as an
+//! `api`-role node does. A spawned child reads its parent's tree this way, so
+//! it needs no source credential.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -72,6 +77,18 @@ impl ServicesSourceBootstrap {
                 Ok(active)
             },
         }
+    }
+
+    pub fn read_composed(profile: &Profile) -> BundleResult<ActiveServicesRoot> {
+        if profile.services.sources.is_empty() {
+            let path = PathBuf::from(&profile.paths.services);
+            return Ok(ActiveServicesRoot {
+                base: path.clone(),
+                path,
+                provenance: ServicesProvenance::Bundled,
+            });
+        }
+        shared_composition(profile, &BundleCache::new(cache_root(profile)))
     }
 
     async fn compose_sources(

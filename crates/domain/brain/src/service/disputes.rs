@@ -14,7 +14,7 @@ use systemprompt_models::notifications::{
     Attention, NotificationEvent, NotificationKind, SubjectRef,
 };
 
-use super::{BrainCaller, BrainService, authority};
+use super::{BrainCaller, BrainService};
 use crate::error::{BrainError, BrainResult};
 use crate::models::{FactChange, NewDispute};
 use crate::outcomes;
@@ -130,7 +130,8 @@ impl BrainService {
         let id = &resolution.fact_id;
         let mut tx = self.repos.write_pool().begin().await?;
         let fact = Self::fact_on(&mut tx, id).await?;
-        authority::may_govern(caller, &fact.scope, &fact.kind, &declared.workflows)?;
+        self.may_govern_visible(caller, &fact, &declared.workflows)
+            .await?;
         let note = resolution.note.as_deref().unwrap_or_default();
         let text = format!("{}: {note}", resolution.outcome.as_str());
         let open = DisputeRepository::open_for_fact(&mut *tx, id).await?;

@@ -43,6 +43,7 @@ fn trusted_issuer(can_issue_id_jag: bool, typ_allowlist: Vec<String>) -> Trusted
         typ_allowlist,
         allowed_client_ids: vec![],
         can_issue_id_jag,
+        link: Default::default(),
     }
 }
 

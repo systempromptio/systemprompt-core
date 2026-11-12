@@ -122,10 +122,10 @@ fn permission_hierarchy_level_orders_correctly() {
 
 #[test]
 fn permission_implies_uses_hierarchy() {
-    assert!(Permission::Admin.implies(&Permission::User));
-    assert!(Permission::Admin.implies(&Permission::Anonymous));
-    assert!(!Permission::User.implies(&Permission::Admin));
-    assert!(Permission::User.implies(&Permission::User));
+    assert!(Permission::Admin.grants(&Permission::User));
+    assert!(Permission::Admin.grants(&Permission::Anonymous));
+    assert!(!Permission::User.grants(&Permission::Admin));
+    assert!(Permission::User.grants(&Permission::User));
 }
 
 #[test]
@@ -195,4 +195,32 @@ fn serialized_permissions_reparse_with_parse_permissions() {
     let json: Vec<String> =
         serde_json::from_value(serde_json::to_value(&permissions).unwrap()).unwrap();
     assert_eq!(parse_permissions(&json.join(" ")).unwrap(), permissions);
+}
+
+#[test]
+fn user_tier_does_not_grant_service_or_hook_scopes() {
+    for scope in [
+        Permission::Service,
+        Permission::A2a,
+        Permission::Mcp,
+        Permission::HookGovern,
+        Permission::HookTrack,
+    ] {
+        assert!(!Permission::User.grants(&scope), "user granted {scope}");
+        assert!(
+            !Permission::Anonymous.grants(&scope),
+            "anonymous granted {scope}"
+        );
+    }
+}
+
+#[test]
+fn service_scopes_grant_only_themselves_and_anonymous() {
+    assert!(!Permission::Service.grants(&Permission::A2a));
+    assert!(!Permission::Service.grants(&Permission::HookGovern));
+    assert!(!Permission::A2a.grants(&Permission::Mcp));
+    assert!(Permission::Service.grants(&Permission::Anonymous));
+    assert!(!Permission::HookGovern.grants(&Permission::HookTrack));
+    assert!(Permission::HookGovern.grants(&Permission::HookGovern));
+    assert!(Permission::Admin.grants(&Permission::HookGovern));
 }

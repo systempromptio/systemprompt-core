@@ -130,7 +130,7 @@ async fn settle_completion(
             "a different terminal response is already settled",
         ));
     }
-    if previous.is_none() {
+    if !turn_recorded(tx, request_id, completion).await? {
         insert_turn(tx, request_id, completion).await?;
     }
     upsert_response_payload(tx, request_id, completion).await?;
@@ -141,7 +141,7 @@ async fn settle_completion(
         SET input_tokens = $2, output_tokens = $3, cache_read_tokens = $4,
             cache_creation_tokens = $5, reasoning_tokens = $6, tokens_used = $7,
             cost_microdollars = $8, latency_ms = $9, upstream_latency_ms = $10,
-            cache_hit = $11, finish_reason = $12,
+            cache_hit = $11, finish_reason = $12, usage_source = $15,
             status = CASE WHEN accounting_failed_at IS NULL THEN $13::text ELSE $14::text END,
             completed_at = COALESCE(completed_at, CURRENT_TIMESTAMP),
             updated_at = CURRENT_TIMESTAMP
@@ -160,7 +160,8 @@ async fn settle_completion(
         usage.cache_read_tokens > 0,
         completion.finish_reason,
         RequestStatus::Completed.as_str(),
-        RequestStatus::Failed.as_str()
+        RequestStatus::Failed.as_str(),
+        completion.usage_source.as_str()
     )
     .execute(&mut **tx)
     .await?;
@@ -199,6 +200,29 @@ async fn upsert_response_payload(
     .execute(&mut **tx)
     .await?;
     Ok(())
+}
+
+async fn turn_recorded(
+    tx: &mut Transaction<'_, Postgres>,
+    request_id: &AiRequestId,
+    completion: &SettleCompletion<'_>,
+) -> Result<bool, RepositoryError> {
+    let recorded = sqlx::query_scalar!(
+        r#"
+        SELECT (
+            EXISTS (SELECT 1 FROM ai_request_tool_calls WHERE request_id = $1)
+            OR EXISTS (
+                SELECT 1 FROM ai_request_messages
+                WHERE request_id = $1 AND role = 'assistant' AND sequence_number = $2
+            )
+        ) AS "recorded!"
+        "#,
+        request_id.as_str(),
+        completion.next_message_sequence,
+    )
+    .fetch_one(&mut **tx)
+    .await?;
+    Ok(recorded)
 }
 
 async fn insert_turn(

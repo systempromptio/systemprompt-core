@@ -153,6 +153,7 @@ fn execute_trusted_issuer(command: &TrustedIssuerCommands, ctx: &CommandContext)
                     typ_allowlist: Vec::new(),
                     allowed_client_ids: Vec::new(),
                     can_issue_id_jag: false,
+                    link: systemprompt_traits::LinkPolicy::default(),
                 },
             )
         },

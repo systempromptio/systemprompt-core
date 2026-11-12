@@ -13,7 +13,7 @@ use systemprompt_config::{LoadedProfile, SecretsService};
 
 pub fn block_on_secrets_load(profile: &Arc<LoadedProfile>) -> Result<Arc<SecretsService>, String> {
     // The bootstrap is async only for the Vault source; these fixtures use the
-    // subprocess/env path, which never yields. A dedicated current-thread
+    // env source, which never yields. A dedicated current-thread
     // runtime keeps the call legal from inside an existing tokio worker.
     std::thread::scope(|scope| {
         scope

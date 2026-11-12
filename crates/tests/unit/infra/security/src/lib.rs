@@ -25,6 +25,8 @@ mod error_display;
 #[cfg(test)]
 mod extraction;
 #[cfg(test)]
+mod google_metadata;
+#[cfg(test)]
 mod governance_plane;
 #[cfg(test)]
 mod governance_plane_unapplied;
@@ -42,6 +44,8 @@ mod jwt_validate;
 mod manifest_signing_jcs;
 #[cfg(test)]
 mod manifest_signing_keys;
+#[cfg(test)]
+mod mcp_hop_token;
 #[cfg(test)]
 mod oauth_wire;
 #[cfg(test)]
@@ -79,11 +83,19 @@ mod services;
 #[cfg(test)]
 mod session_generator;
 #[cfg(test)]
+mod signed_token_lifetimes;
+#[cfg(test)]
 mod signing_key_independence;
 #[cfg(test)]
 mod signing_key_pem_roundtrip;
 #[cfg(test)]
+mod signing_key_rotation;
+#[cfg(test)]
+mod signing_key_staging;
+#[cfg(test)]
 mod token_authority;
+#[cfg(test)]
+mod verification_only_decode;
 
 #[cfg(test)]
 mod connector_grant;

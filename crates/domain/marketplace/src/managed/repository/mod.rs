@@ -7,8 +7,10 @@ mod candidates;
 pub use candidates::{RevisionComparison, TextCandidate};
 mod listing;
 pub use listing::{Page, ResourceSummary, RevisionSummary};
+mod git_credentials;
 mod revisions;
 mod sources;
+pub use git_credentials::GitCredentialSource;
 
 use std::collections::BTreeMap;
 use std::sync::Arc;

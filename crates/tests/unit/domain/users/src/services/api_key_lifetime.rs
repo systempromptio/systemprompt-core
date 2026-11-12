@@ -243,3 +243,38 @@ fn a_ceiling_refuses_a_key_issued_before_it_was_configured() {
     assert!(!ceiling.admits(None, now));
     assert!(ApiKeyLifetime::unbounded().admits(None, now));
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn concurrent_ensures_issue_a_single_key() {
+    let ctx = setup(ApiKeyLifetime::from_max_days(Some(30))).await;
+    let barrier = Arc::new(tokio::sync::Barrier::new(8));
+    let handles: Vec<_> = (0..8)
+        .map(|_| {
+            let service = ctx.service.clone();
+            let user_id = ctx.user_id.clone();
+            let barrier = Arc::clone(&barrier);
+            tokio::spawn(async move {
+                let limits = ApiKeyLimits::default();
+                barrier.wait().await;
+                service
+                    .ensure(
+                        params(&user_id, "concurrent", None, &limits),
+                        TimeDelta::zero(),
+                    )
+                    .await
+                    .expect("ensure")
+            })
+        })
+        .collect();
+    let mut issued = 0;
+    for handle in handles {
+        if matches!(handle.await.expect("join"), EnsuredApiKey::Issued(_)) {
+            issued += 1;
+        }
+    }
+    assert_eq!(issued, 1, "exactly one concurrent ensure issues a key");
+    assert_eq!(
+        ctx.service.list_for_user(&ctx.user_id).await.unwrap().len(),
+        1
+    );
+}

@@ -10,7 +10,7 @@ use systemprompt_identifiers::{DocumentId, NotificationId, UserId};
 use systemprompt_manifest::profile::NotificationsProfile;
 use systemprompt_models::notifications::{Attention, Notification};
 use systemprompt_notifications::pipeline::{DELIVERY_ABANDONED, MAX_DELIVERY_ATTEMPTS};
-use systemprompt_notifications::repository::{NotificationRepository, SWEEP_LOCK_KEY};
+use systemprompt_notifications::repository::{Fenced, NotificationRepository, SWEEP_LOCK_KEY};
 
 use crate::harness::{Harness, delivery_state, profile, share};
 
@@ -117,6 +117,14 @@ async fn a_row_re_pended_after_its_pass_read_it_is_not_marked_delivered() {
     let h = Harness::new("notif_delivery_seq").await;
     let (id, recipient) = one_pending(&h).await;
     let (_, read_at) = delivery_state(&h, &id).await;
+    let lease = h
+        .repos
+        .notifications
+        .claim_pending(std::slice::from_ref(&id), Duration::from_secs(60))
+        .await
+        .expect("claim")
+        .remove(0);
+    assert_eq!(lease.seq(), read_at);
 
     h.repos
         .notifications
@@ -128,11 +136,15 @@ async fn a_row_re_pended_after_its_pass_read_it_is_not_marked_delivered() {
     assert_eq!((state.as_str(), seq), ("pending", read_at + 1));
 
     let mut conn = h.pool.write_pool().acquire().await.expect("connection");
-    let marked = NotificationRepository::mark_delivered(&mut conn, &[(id.clone(), read_at)])
+    let finished = NotificationRepository::finish_claim(&mut conn, &lease, true)
         .await
-        .expect("mark");
-    assert_eq!(marked, 0, "a stale sequence never closes the row");
-    assert_eq!(delivery_state(&h, &id).await.0, "pending");
+        .expect("finish");
+    assert_eq!(finished, Fenced::Applied);
+    assert_eq!(
+        delivery_state(&h, &id).await.0,
+        "pending",
+        "a stale sequence never closes the row"
+    );
     drop(conn);
 
     assert_eq!(

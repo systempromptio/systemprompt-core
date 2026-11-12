@@ -18,6 +18,7 @@ systemprompt-identifiers = { workspace = true }
 systemprompt-manifest = { workspace = true }
 systemprompt-models = { workspace = true }
 serde_json = { workspace = true }
+systemprompt-test-hack = { version = "0.1", path = "../../../common/hack" }
 
 [dev-dependencies]
 p256 = { version = "0.13", default-features = false, features = ["arithmetic", "pem", "pkcs8"] }
@@ -33,6 +34,7 @@ systemprompt-security = { workspace = true }
 systemprompt-provider-contracts = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }
 systemprompt-traits = { workspace = true }
+systemprompt-users = { workspace = true }
 tempfile = { workspace = true }
 tokio = { workspace = true }
 url = { workspace = true }

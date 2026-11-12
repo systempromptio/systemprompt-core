@@ -19,6 +19,7 @@ use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{AgentName, SecretName, SlackWorkspaceId};
 
 use systemprompt_models::errors::ServicesValidationError;
+use systemprompt_traits::LinkPolicy;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -42,8 +43,8 @@ pub struct SlackAuthzConfig {
     #[serde(default)]
     pub allowed_roles: Vec<String>,
     // Why: Slack email lookup requires the `users:read.email` bot scope.
-    #[serde(default)]
-    pub link_by_workspace_email: bool,
+    #[serde(default, skip_serializing_if = "LinkPolicy::is_default")]
+    pub link: LinkPolicy,
 }
 
 const fn default_enabled() -> bool {

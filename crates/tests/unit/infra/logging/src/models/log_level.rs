@@ -96,21 +96,11 @@ fn test_log_level_from_str_invalid() {
 }
 
 #[test]
-fn test_log_level_equality() {
-    assert_eq!(LogLevel::Error, LogLevel::Error);
-    assert_eq!(LogLevel::Warn, LogLevel::Warn);
-    assert_eq!(LogLevel::Info, LogLevel::Info);
-    assert_eq!(LogLevel::Debug, LogLevel::Debug);
-    assert_eq!(LogLevel::Trace, LogLevel::Trace);
-}
-
-#[test]
 fn test_log_level_inequality() {
     assert_ne!(LogLevel::Error, LogLevel::Warn);
     assert_ne!(LogLevel::Info, LogLevel::Debug);
     assert_ne!(LogLevel::Trace, LogLevel::Error);
 }
-
 
 #[test]
 fn test_log_level_serialize_error() {

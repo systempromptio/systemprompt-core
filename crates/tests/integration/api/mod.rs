@@ -205,6 +205,8 @@ mod documents_sharing;
 #[cfg(test)]
 mod documents_subject_levels;
 #[cfg(test)]
+mod internal_links;
+#[cfg(test)]
 #[path = "routes_oauth_token.rs"]
 mod routes_oauth_token;
 
@@ -241,6 +243,9 @@ mod routes_health_discovery;
 mod routes_agent_webhook;
 
 #[cfg(test)]
+#[path = "routes_agent_body_limit.rs"]
+mod routes_agent_body_limit;
+#[cfg(test)]
 #[path = "routes_proxy_forward.rs"]
 mod routes_proxy_forward;
 
@@ -259,6 +264,9 @@ mod routes_agent_artifacts;
 #[cfg(test)]
 #[path = "messaging_dispatch.rs"]
 mod messaging_dispatch;
+#[cfg(test)]
+#[path = "messaging_linking.rs"]
+mod messaging_linking;
 
 #[cfg(test)]
 #[path = "routes_slack.rs"]
@@ -349,6 +357,10 @@ mod gateway_safety_scanner_config;
 mod gateway_safety_redaction;
 
 #[cfg(test)]
+#[path = "gateway_scan_sent_bytes.rs"]
+mod gateway_scan_sent_bytes;
+
+#[cfg(test)]
 #[path = "gateway_matrix.rs"]
 mod gateway_matrix;
 
@@ -436,12 +448,8 @@ mod routes_agent_cards;
 mod proxy_auth_access;
 
 #[cfg(test)]
-#[path = "proxy_support.rs"]
-mod proxy_support;
-
-#[cfg(test)]
-#[path = "proxy_mcp_session_cache.rs"]
-mod proxy_mcp_session_cache;
+#[path = "proxy_mcp_headers.rs"]
+mod proxy_mcp_headers;
 
 #[cfg(test)]
 #[path = "proxy_audit_tap.rs"]
@@ -450,6 +458,10 @@ mod proxy_audit_tap;
 #[cfg(test)]
 #[path = "routes_oauth_token_grants_happy.rs"]
 mod routes_oauth_token_grants_happy;
+
+#[cfg(test)]
+#[path = "routes_oauth_grant_resource.rs"]
+mod routes_oauth_grant_resource;
 
 #[cfg(test)]
 #[path = "routes_oauth_clients.rs"]
@@ -485,6 +497,10 @@ mod routes_agent_context_events;
 #[cfg(test)]
 #[path = "routes_agent_webhook_broadcast.rs"]
 mod routes_agent_webhook_broadcast;
+
+#[cfg(test)]
+#[path = "routes_agent_webhook_ownership.rs"]
+mod routes_agent_webhook_ownership;
 
 #[cfg(test)]
 #[path = "routes_agent_contexts_crud.rs"]
@@ -605,6 +621,10 @@ mod gateway_limits_passthrough;
 mod gateway_dispatch_success;
 
 #[cfg(test)]
+#[path = "gateway_caller_credential.rs"]
+mod gateway_caller_credential;
+
+#[cfg(test)]
 #[path = "gateway_malformed_tool_choice.rs"]
 mod gateway_malformed_tool_choice;
 
@@ -690,3 +710,7 @@ mod proxy_owner_forward;
 #[cfg(test)]
 #[path = "documents_import_export.rs"]
 mod documents_import_export;
+
+#[cfg(test)]
+#[path = "ownership_sweep/mod.rs"]
+mod ownership_sweep;

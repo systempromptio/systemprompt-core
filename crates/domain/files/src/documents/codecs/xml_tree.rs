@@ -6,6 +6,10 @@
 //! self-closing tag), so an edit replaces exactly the bytes it means to and
 //! leaves every other byte of the part as it was.
 //!
+//! Element nesting is capped at [`MAX_XML_DEPTH`]: the tree and every walk
+//! over it recurse once per level, so a deeper part is refused as too large
+//! rather than parsed.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -62,6 +66,26 @@ impl Element {
     }
 }
 
+pub(crate) const MAX_XML_DEPTH: usize = 256;
+
+pub(crate) fn too_deep(depth: usize) -> CodecError {
+    CodecError::TooLarge {
+        what: "XML element nesting depth",
+        size: u64::try_from(depth).unwrap_or(u64::MAX),
+        limit: u64::try_from(MAX_XML_DEPTH).unwrap_or(u64::MAX),
+    }
+}
+
+pub(crate) fn track_depth(depth: &mut usize, event: &Event<'_>) -> Result<(), CodecError> {
+    match event {
+        Event::Start(_) if *depth >= MAX_XML_DEPTH => return Err(too_deep(*depth + 1)),
+        Event::Start(_) => *depth += 1,
+        Event::End(_) => *depth = depth.saturating_sub(1),
+        _ => {},
+    }
+    Ok(())
+}
+
 fn offset(position: u64) -> Result<usize, CodecError> {
     usize::try_from(position).map_err(|source| parse_error("XML offset", source))
 }
@@ -110,7 +134,12 @@ pub(crate) fn parse_xml(part: &str, xml: &str) -> Result<Element, CodecError> {
             .map_err(|source| parse_error(part, source))?;
         let after = offset(reader.buffer_position())?;
         match event {
-            Event::Start(tag) => stack.push(open(part, &tag, before, after)?),
+            Event::Start(tag) => {
+                if stack.len() >= MAX_XML_DEPTH {
+                    return Err(too_deep(stack.len() + 1));
+                }
+                stack.push(open(part, &tag, before, after)?);
+            },
             Event::Empty(tag) => {
                 let element = open(part, &tag, before, after)?;
                 attach(&mut stack, &mut root, element);

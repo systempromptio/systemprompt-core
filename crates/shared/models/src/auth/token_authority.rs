@@ -12,11 +12,14 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use chrono::Duration;
-use systemprompt_identifiers::{AccessTokenId, ClientId, PluginId, SessionId};
+use systemprompt_identifiers::{AccessTokenId, ClientId, McpServerId, PluginId, SessionId};
 use systemprompt_traits::BoxedSource;
 use thiserror::Error;
 
-use super::{AuthenticatedUser, JwtAudience, JwtClaims, Permission, TokenInteraction};
+use super::{
+    AuthenticatedUser, JwtAudience, JwtClaims, McpHopClaims, McpHopIdentity, Permission,
+    TokenInteraction,
+};
 
 #[derive(Debug, Error)]
 #[non_exhaustive]
@@ -51,6 +54,16 @@ pub enum TokenError {
     #[error("token lifetime of {seconds}s is outside the permitted range")]
     InvalidLifetime { seconds: i64 },
 
+    #[error(
+        "signed claims must carry a numeric `exp` claim at most {max_lifetime_secs}s (365 days) \
+         after now; got {}",
+        exp.map_or_else(|| "no `exp`".to_owned(), |exp| format!("exp={exp}"))
+    )]
+    ClaimsExpiry {
+        exp: Option<i64>,
+        max_lifetime_secs: i64,
+    },
+
     #[error("token signing failed: {0}")]
     Signing(#[source] BoxedSource),
 }
@@ -84,4 +97,8 @@ pub trait TokenAuthority: Send + Sync + std::fmt::Debug {
     fn sign_claims(&self, claims: &serde_json::Value) -> TokenResult<String>;
 
     fn mint_user_jwt(&self, req: &UserJwtRequest) -> TokenResult<String>;
+
+    fn mint_mcp_hop(&self, server: &McpServerId, identity: &McpHopIdentity) -> TokenResult<String>;
+
+    fn verify_mcp_hop(&self, token: &str, server: &McpServerId) -> TokenResult<McpHopClaims>;
 }

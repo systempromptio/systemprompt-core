@@ -146,7 +146,10 @@ impl CostAnalyticsRepository {
                     COALESCE(SUM(tokens), 0)::bigint AS tokens,
                     COALESCE(SUM(user_key_cost_microdollars), 0)::bigint AS key_cost,
                     COALESCE(SUM(user_key_request_count), 0)::bigint AS key_requests,
-                    COALESCE(SUM(user_key_tokens), 0)::bigint AS key_tokens
+                    COALESCE(SUM(user_key_tokens), 0)::bigint AS key_tokens,
+                    COALESCE(SUM(user_subscription_cost_microdollars), 0)::bigint AS sub_cost,
+                    COALESCE(SUM(user_subscription_request_count), 0)::bigint AS sub_requests,
+                    COALESCE(SUM(user_subscription_tokens), 0)::bigint AS sub_tokens
                 FROM report_ai_usage_hourly
                 WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2
                   AND traffic = 'production'
@@ -158,9 +161,11 @@ impl CostAnalyticsRepository {
                 split.tokens as "tokens!"
             FROM totals t
             CROSS JOIN LATERAL (VALUES
-                ('platform', t.cost - t.key_cost, t.requests - t.key_requests,
-                 t.tokens - t.key_tokens),
-                ('user_key', t.key_cost, t.key_requests, t.key_tokens)
+                ('platform', t.cost - t.key_cost - t.sub_cost,
+                 t.requests - t.key_requests - t.sub_requests,
+                 t.tokens - t.key_tokens - t.sub_tokens),
+                ('user_key', t.key_cost, t.key_requests, t.key_tokens),
+                ('user_subscription', t.sub_cost, t.sub_requests, t.sub_tokens)
             ) AS split(name, cost, requests, tokens)
             WHERE split.requests > 0
             ORDER BY split.cost DESC

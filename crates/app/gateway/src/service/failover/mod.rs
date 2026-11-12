@@ -34,7 +34,7 @@ mod decision;
 mod load;
 mod selection;
 
-pub use self::breakers::{ProviderBreakers, breaker_key};
+pub use self::breakers::{ProviderBreakers, REGISTRY_CAP, breaker_key};
 pub use self::decision::{FailoverReason, failover_reason, is_failover_status, plan_attempts};
 pub use self::load::{DeploymentLoad, InFlight};
 pub use self::selection::{DeploymentState, plan_selection};
@@ -73,5 +73,5 @@ pub(super) async fn send_with_failover(
 }
 
 pub(super) fn enter_deployment(load: &DeploymentLoad, upstream: &ResolvedUpstream<'_>) -> InFlight {
-    load.enter(&breaker_key(&upstream.hop))
+    load.enter(&breaker_key(&upstream.hop, &upstream.owner.user_id))
 }

@@ -11,14 +11,18 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod command;
+pub mod grants;
 
 use std::path::PathBuf;
 use std::sync::Arc;
 use systemprompt_config::SecretsService;
 use systemprompt_config::paths::{AppPaths, BuildPaths};
 use systemprompt_identifiers::AgentName;
+use systemprompt_loader::ServicesState;
 use systemprompt_loader::subprocess::Spawner;
 use systemprompt_manifest::Config;
+use systemprompt_models::subprocess::VERIFICATION_KEYS_ENV;
+use systemprompt_security::keys::TokenVerificationKeys;
 
 use crate::services::agent_orchestration::{OrchestrationError, OrchestrationResult};
 
@@ -26,6 +30,8 @@ use crate::services::agent_orchestration::{OrchestrationError, OrchestrationResu
 pub struct SpawnEnvironment {
     pub config: Arc<Config>,
     pub secrets: Arc<SecretsService>,
+    pub verification_keys: TokenVerificationKeys,
+    pub services: ServicesState,
     pub profile_path: PathBuf,
 }
 
@@ -39,7 +45,7 @@ pub async fn spawn_detached(
     let binary_path = BuildPaths::resolve_self()
         .map_err(|e| OrchestrationError::spawn("Failed to resolve running binary", e))?;
 
-    let secrets = environment.secrets.get();
+    let secrets_env = agent_child_secrets(environment, agent_name)?;
     let profile_path = environment.profile_path.to_str().ok_or_else(|| {
         OrchestrationError::ProcessSpawnFailed(format!(
             "profile path {} is not valid UTF-8",
@@ -54,7 +60,7 @@ pub async fn spawn_detached(
         agent_name,
         port,
         profile_path,
-        secrets: &secrets,
+        secrets_env: &secrets_env,
         config: &environment.config,
         log_file,
     });
@@ -72,6 +78,42 @@ pub async fn spawn_detached(
 
     tracing::debug!(pid = %pid, agent_name = %agent_name, "Detached process spawned");
     Ok(pid)
+}
+
+pub fn agent_child_secrets(
+    environment: &SpawnEnvironment,
+    agent_name: &AgentName,
+) -> OrchestrationResult<Vec<(String, String)>> {
+    let services = environment.services.config();
+    let agent = services.agents.get(agent_name.as_str()).ok_or_else(|| {
+        OrchestrationError::ProcessSpawnFailed(format!(
+            "agent {agent_name} is not declared in the services configuration"
+        ))
+    })?;
+    let derived = grants::model_credential_secrets(agent, environment.services.catalog());
+    let mut env = environment
+        .secrets
+        .child_env(&agent.secrets, &derived)
+        .map_err(|e| {
+            OrchestrationError::spawn(
+                format!("Failed to resolve the granted secrets for agent {agent_name}"),
+                e,
+            )
+        })?;
+    if agent
+        .secrets
+        .contains(&systemprompt_models::subprocess::SecretGrant::EncryptionMasterKey)
+    {
+        tracing::info!(agent = %agent_name, grant = "encryption_master_key", "agent granted the encryption master key");
+    }
+    let keys = serde_json::to_string(&environment.verification_keys).map_err(|e| {
+        OrchestrationError::spawn(
+            format!("Failed to serialise the verification keys for agent {agent_name}"),
+            e,
+        )
+    })?;
+    env.push((VERIFICATION_KEYS_ENV.to_owned(), keys));
+    Ok(env)
 }
 
 pub fn is_port_in_use(port: u16) -> bool {

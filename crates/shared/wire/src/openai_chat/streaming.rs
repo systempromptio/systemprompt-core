@@ -14,8 +14,13 @@ use super::stream_delta::{
     OpenAiChatStreamState, close_reasoning, process_reasoning_delta, process_text_delta,
     process_tool_calls,
 };
-use crate::canonical::{CanonicalEvent, CanonicalStopReason, CanonicalUsage, CanonicalUsageUpdate};
+use crate::canonical::{
+    CanonicalEvent, CanonicalStopReason, CanonicalUsage, CanonicalUsageUpdate, wire_count,
+};
 use crate::error::WireStreamError;
+use crate::sse::{FrameLedger, SseFramer};
+
+const WIRE: &str = "openai_chat";
 
 enum Frame {
     Chunk(Result<Bytes, WireStreamError>),
@@ -31,7 +36,8 @@ where
     E: Into<Box<dyn std::error::Error + Send + Sync>>,
 {
     let initial = OpenAiChatStreamState {
-        buf: Vec::new(),
+        framer: SseFramer::default(),
+        ledger: FrameLedger::default(),
         model: fallback_model,
         message_id: None,
         started: false,
@@ -66,24 +72,35 @@ fn drain_buffer(
     state: &mut OpenAiChatStreamState,
     bytes: &Bytes,
 ) -> Vec<Result<CanonicalEvent, WireStreamError>> {
-    state.buf.extend_from_slice(bytes);
     let mut events: Vec<Result<CanonicalEvent, WireStreamError>> = Vec::new();
-    while let Some(end) = crate::sse::frame_end(&state.buf) {
-        let frame: Vec<u8> = state.buf.drain(..end).collect();
-        let frame_str = String::from_utf8_lossy(&frame);
-        for line in frame_str.lines() {
-            let Some(data) = line.strip_prefix("data: ") else {
+    for frame in state.framer.push(bytes) {
+        let frame = match frame {
+            Ok(frame) => frame,
+            Err(e) => {
+                events.push(Err(e.into()));
                 continue;
-            };
-            if data.trim() == "[DONE]" {
-                // Why: Some OpenAI-compatible proxies send `[DONE]` without a finish reason.
-                flush_into(state, &mut events, Some("stop"));
-                continue;
-            }
-            let Ok(value) = serde_json::from_str::<Value>(data) else {
-                continue;
-            };
-            handle_chunk(state, &value, &mut events);
+            },
+        };
+        let data = frame.data.trim();
+        if data.is_empty() {
+            continue;
+        }
+        if data == "[DONE]" {
+            // Why: Some OpenAI-compatible proxies send `[DONE]` without a finish reason.
+            flush_into(state, &mut events, Some("stop"));
+            continue;
+        }
+        match serde_json::from_str::<Value>(data) {
+            Ok(value) if value.is_object() => {
+                state.ledger.decoded();
+                handle_chunk(state, &value, &mut events);
+            },
+            Ok(_) => events.push(Ok(state.ledger.dropped(
+                WIRE,
+                "frame is not a JSON object",
+                data.len(),
+            ))),
+            Err(e) => events.push(Ok(state.ledger.dropped_json(WIRE, &e, data.len()))),
         }
     }
     events
@@ -92,6 +109,7 @@ fn drain_buffer(
 fn flush(state: &mut OpenAiChatStreamState) -> Vec<Result<CanonicalEvent, WireStreamError>> {
     let mut events: Vec<Result<CanonicalEvent, WireStreamError>> = Vec::new();
     flush_into(state, &mut events, None);
+    events.extend(state.ledger.finish().map(Err));
     events
 }
 
@@ -189,6 +207,12 @@ fn emit_message_stop(
         events.push(Ok(CanonicalEvent::ContentBlockStop { index }));
     }
     for tc in state.tool_calls.drain(..) {
+        if !tc.saw_arguments {
+            events.push(Ok(CanonicalEvent::ToolUseDelta {
+                index: tc.index,
+                partial_json: "{}".to_owned(),
+            }));
+        }
         events.push(Ok(CanonicalEvent::ContentBlockStop { index: tc.index }));
     }
     let reason = CanonicalStopReason::from_openai(finish).with_tool_use(state.saw_tool_call);
@@ -212,12 +236,12 @@ fn emit_message_stop(
 
 // JSON: OpenAI Chat Completions streaming chunk; upstream JSON is the contract.
 fn usage_from_value(usage: &Value) -> CanonicalUsageUpdate {
-    let field = |name: &str| usage.get(name).and_then(Value::as_u64).map(|v| v as u32);
+    let field = |name: &str| usage.get(name).and_then(Value::as_u64).map(wire_count);
     let cached = usage
         .get("prompt_tokens_details")
         .and_then(|d| d.get("cached_tokens"))
         .and_then(Value::as_u64)
-        .map(|v| v as u32);
+        .map(wire_count);
     // Why: Chat Completions includes `cached_tokens` in `prompt_tokens`.
     CanonicalUsageUpdate {
         input_tokens: field("prompt_tokens").map(|input| input.saturating_sub(cached.unwrap_or(0))),
@@ -230,6 +254,6 @@ fn usage_from_value(usage: &Value) -> CanonicalUsageUpdate {
             .get("completion_tokens_details")
             .and_then(|d| d.get("reasoning_tokens"))
             .and_then(Value::as_u64)
-            .map(|v| v as u32),
+            .map(wire_count),
     }
 }

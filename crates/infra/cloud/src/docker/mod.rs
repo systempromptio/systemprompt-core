@@ -22,6 +22,8 @@ use std::io;
 use std::path::Path;
 use std::process::{ExitStatus, Output};
 
+use systemprompt_loader::subprocess::ForegroundChildren;
+
 use crate::error::{CloudError, CloudResult};
 
 mod command;
@@ -54,17 +56,11 @@ impl std::fmt::Debug for DockerCli {
     }
 }
 
-impl Default for DockerCli {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl DockerCli {
     #[must_use]
-    pub fn new() -> Self {
+    pub fn new(children: ForegroundChildren) -> Self {
         Self {
-            runner: Box::new(SystemCommandRunner),
+            runner: Box::new(SystemCommandRunner::new(children)),
         }
     }
 

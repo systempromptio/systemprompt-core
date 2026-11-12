@@ -24,6 +24,7 @@ use super::success::{BroadcastTaskSuccessParams, broadcast_task_success};
 use crate::models::a2a::jsonrpc::NumberOrString;
 use crate::models::a2a::protocol::{StreamResponse, TaskArtifactUpdateEvent};
 use crate::models::a2a::{Artifact, Message, MessageRole, Part, Task, TaskState, TaskStatus};
+use crate::repository::RuntimeTask;
 use crate::services::a2a_server::processing::message::{
     MessageHandler, PersistCompletedTaskOnProcessorParams,
 };
@@ -36,8 +37,7 @@ pub(in crate::services::a2a_server::streaming) struct HandleCompleteParams<'a> {
     pub webhook_context: &'a WebhookContext,
     pub full_text: String,
     pub artifacts: Vec<Artifact>,
-    pub task_id: &'a TaskId,
-    pub context_id: &'a ContextId,
+    pub runtime: &'a RuntimeTask,
     pub id: &'a MessageId,
     pub original_message: &'a Message,
     pub agent_name: &'a AgentName,
@@ -74,8 +74,7 @@ pub(in crate::services::a2a_server::streaming) async fn handle_complete(
         webhook_context,
         full_text,
         artifacts,
-        task_id,
-        context_id,
+        runtime,
         id: message_id,
         original_message,
         agent_name,
@@ -83,6 +82,8 @@ pub(in crate::services::a2a_server::streaming) async fn handle_complete(
         processor,
     } = params;
 
+    let task_id = runtime.task_id();
+    let context_id = runtime.context_id();
     let artifacts_for_task = (!artifacts.is_empty()).then(|| artifacts.clone());
     let task_metadata = validated_metadata(agent_name)?;
 
@@ -106,6 +107,7 @@ pub(in crate::services::a2a_server::streaming) async fn handle_complete(
 
     let outcome = processor
         .persist_completed_task(PersistCompletedTaskOnProcessorParams {
+            runtime,
             task: &complete_task,
             user_message: original_message,
             agent_message: &agent_message,

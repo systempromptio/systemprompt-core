@@ -112,6 +112,7 @@ fn keygen_writes_a_seed_that_load_signing_key_reads_back() {
     let seed_path = dir.path().join("keys/bundle.key");
     let output = keygen(&KeygenArgs {
         out: Some(seed_path.clone()),
+        force: false,
     })
     .expect("keygen succeeds");
 
@@ -138,4 +139,35 @@ fn a_signing_key_of_the_wrong_length_is_refused() {
     let err = load_signing_key(path.to_str().expect("utf-8 path"))
         .expect_err("a 5-byte seed must be refused");
     assert!(err.to_string().contains("32 bytes"), "unexpected: {err}");
+}
+
+#[test]
+fn keygen_refuses_to_replace_an_existing_seed_without_force() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let seed_path = dir.path().join("bundle.key");
+    keygen(&KeygenArgs {
+        out: Some(seed_path.clone()),
+        force: false,
+    })
+    .expect("first keygen writes the seed");
+    let original = std::fs::read_to_string(&seed_path).expect("seed");
+
+    let err = keygen(&KeygenArgs {
+        out: Some(seed_path.clone()),
+        force: false,
+    })
+    .expect_err("an existing seed must not be replaced silently");
+    assert!(format!("{err:#}").contains("--force"), "{err:#}");
+    assert_eq!(
+        std::fs::read_to_string(&seed_path).expect("seed"),
+        original,
+        "the refused keygen still rewrote the seed"
+    );
+
+    keygen(&KeygenArgs {
+        out: Some(seed_path.clone()),
+        force: true,
+    })
+    .expect("--force replaces the seed");
+    assert_ne!(std::fs::read_to_string(&seed_path).expect("seed"), original);
 }

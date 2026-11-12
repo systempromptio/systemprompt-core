@@ -8,8 +8,9 @@
 //! pin or stage a rollout without shipping a new client.
 //!
 //! Every bridge in the fleet reads this feed on a timer, so resolution is
-//! cached per platform for [`CACHE_TTL`] against a shared HTTP client: GitHub
-//! sees a couple of dozen calls an hour no matter how large the fleet. A
+//! cached per platform for [`CACHE_TTL`] against a shared HTTP client with
+//! connect and read timeouts; misses are single-flight and a `refresh=true`
+//! read is honoured at most once per [`REFRESH_INTERVAL`] per platform. A
 //! resolution that fails while a previous answer is still held serves that
 //! answer — a GitHub blip must not turn into a failed update check for
 //! everyone at once.
@@ -36,9 +37,10 @@ mod cache;
 mod error;
 mod feed;
 mod github;
+mod upstream;
 
 pub use self::error::ReleaseError;
-pub use self::feed::{ReleaseFeed, ResolvedAsset, ResolvedRelease};
+pub use self::feed::{REFRESH_INTERVAL, ReleaseFeed, ResolvedAsset, ResolvedRelease};
 pub use self::github::parse_sha256sums;
 
 use self::github::github;
@@ -130,16 +132,16 @@ fn releases_spec(services: &ServicesView) -> Result<BridgeReleasesSpec, ReleaseE
 pub(in crate::routes::gateway) fn routes(
     ctx: &AppContext,
     jwt_extractor: &Arc<JwtContextExtractor>,
-) -> Router {
+) -> Result<Router, ReleaseError> {
     let ctx_latest = ctx.clone();
     let ctx_download = ctx.clone();
     let jwt_latest = Arc::clone(jwt_extractor);
     let jwt_download = Arc::clone(jwt_extractor);
-    let feed = Arc::new(ReleaseFeed::default());
+    let feed = Arc::new(ReleaseFeed::new()?);
     let feed_latest = Arc::clone(&feed);
     let feed_download = feed;
 
-    Router::new()
+    Ok(Router::new()
         .route(
             ApiPaths::gateway_relative(ApiPaths::BRIDGE_LATEST),
             get(move |headers, query| {
@@ -157,5 +159,5 @@ pub(in crate::routes::gateway) fn routes(
                 let ctx = ctx_download.clone();
                 async move { download(extractor, &ctx, feed, headers, path).await }
             }),
-        )
+        ))
 }

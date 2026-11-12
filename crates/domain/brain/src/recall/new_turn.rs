@@ -45,10 +45,11 @@ use super::admit::{self, Admission};
 use super::budget::{self, BudgetLimits, Candidate, RecallSignal};
 use super::declared::DeclaredRecall;
 use super::held::{self, HeldKeys};
+use super::lifecycle::lifecycle_withheld;
 use super::limits::tier_limits;
 use super::score::{self, ScoreInput};
 use super::service::{BrainRecallService, fact_text};
-use super::visible::{Visibility, lifecycle_withheld};
+use super::visible::Visibility;
 use super::{fusion, introduce, rerank, signal};
 
 #[derive(Debug, Clone, Copy)]

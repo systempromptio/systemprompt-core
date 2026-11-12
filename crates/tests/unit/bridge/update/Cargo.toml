@@ -23,3 +23,4 @@ sha2 = { workspace = true }
 temp-env = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 wiremock = { workspace = true }
+systemprompt-test-hack = { version = "0.1", path = "../../../common/hack" }

@@ -73,6 +73,9 @@ pub enum PublishError {
         source: BoxedSource,
     },
 
+    #[error("Refusing generated output path '{path}': not a plain relative path")]
+    UnsafeOutputPath { path: String },
+
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
 

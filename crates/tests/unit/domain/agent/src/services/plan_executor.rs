@@ -1,9 +1,9 @@
 use serde_json::Value;
 use systemprompt_agent::services::a2a_server::processing::strategies::plan_executor::{
-    ToolExecutorTrait, ToolOutcome, convert_to_call_tool_results, convert_to_tool_calls,
-    execute_tools, format_results_for_response,
+    MAX_PLANNED_TOOL_CALLS, ToolExecutorTrait, ToolOutcome, convert_to_call_tool_results,
+    convert_to_tool_calls, execute_tools, format_results_for_response,
 };
-use systemprompt_agent::services::shared::Result;
+use systemprompt_agent::services::shared::{AgentServiceError, Result};
 use systemprompt_identifiers::{
     Actor, AgentName, ContextId, McpToolName, SessionId, TraceId, UserId,
 };
@@ -211,5 +211,59 @@ async fn a_planned_call_without_a_tool_name_fails_before_reaching_the_executor()
             .unwrap_or("")
             .contains("tool_name"),
         "the failure names the rejected field"
+    );
+}
+
+struct CountingExecutor(std::sync::atomic::AtomicUsize);
+#[async_trait::async_trait]
+impl ToolExecutorTrait for CountingExecutor {
+    async fn execute_tool(
+        &self,
+        _tool_name: &McpToolName,
+        _arguments: Value,
+        _tools: &[McpTool],
+        _ctx: &RequestContext,
+    ) -> Result<ToolOutcome> {
+        self.0.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        Ok(ToolOutcome {
+            output: serde_json::json!({}),
+            meta: None,
+        })
+    }
+}
+
+#[tokio::test]
+async fn a_plan_over_the_call_cap_is_refused_before_any_call_runs() {
+    let calls: Vec<_> = (0..=MAX_PLANNED_TOOL_CALLS)
+        .map(|i| call(&format!("tool_{i}")))
+        .collect();
+    let executor = CountingExecutor(std::sync::atomic::AtomicUsize::new(0));
+    let error = execute_tools(&calls, &[], &ctx(), &executor)
+        .await
+        .expect_err("an oversized plan is refused");
+    assert!(
+        matches!(
+            error,
+            AgentServiceError::PlanTooLarge { planned, max }
+                if planned == MAX_PLANNED_TOOL_CALLS + 1 && max == MAX_PLANNED_TOOL_CALLS
+        ),
+        "{error}"
+    );
+    assert_eq!(executor.0.load(std::sync::atomic::Ordering::SeqCst), 0);
+}
+
+#[tokio::test]
+async fn a_plan_at_the_call_cap_runs_every_call() {
+    let calls: Vec<_> = (0..MAX_PLANNED_TOOL_CALLS)
+        .map(|i| call(&format!("tool_{i}")))
+        .collect();
+    let executor = CountingExecutor(std::sync::atomic::AtomicUsize::new(0));
+    let state = execute_tools(&calls, &[], &ctx(), &executor)
+        .await
+        .expect("a plan at the cap runs");
+    assert_eq!(state.results.len(), MAX_PLANNED_TOOL_CALLS);
+    assert_eq!(
+        executor.0.load(std::sync::atomic::Ordering::SeqCst),
+        MAX_PLANNED_TOOL_CALLS
     );
 }

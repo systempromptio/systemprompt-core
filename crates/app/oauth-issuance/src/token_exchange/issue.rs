@@ -51,7 +51,7 @@ pub async fn issue_id_jag(
         },
     };
 
-    let resource = super::validate_resource(request.resource, global)?;
+    let resource = crate::resource::validate_resource(request.resource, global)?;
 
     let id_jag = mint_id_jag(&IdJagGrant {
         sub: &subject.sub,
@@ -63,6 +63,7 @@ pub async fn issue_id_jag(
         scope: request.scope,
         ttl_secs: global.id_jag_ttl_secs,
         issuer: &global.jwt_issuer,
+        upstream_issuer: &subject.issuer,
         keys,
     })
     .map_err(|e| IssuanceError::server("ID-JAG minting failed", e))?;

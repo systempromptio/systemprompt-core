@@ -50,6 +50,9 @@ impl SsoError {
             Self::Refused(SsoRefusal::GroupOverage) => "group_overage",
             Self::Refused(SsoRefusal::NoGroup) => "no_group",
             Self::Refused(SsoRefusal::NotProvisioned) => "not_provisioned",
+            Self::Refused(SsoRefusal::EmailInUse) => "email_in_use",
+            Self::Refused(SsoRefusal::LinkIneligible) => "link_ineligible",
+            Self::Refused(SsoRefusal::AccountUnavailable) => "account_unavailable",
         }
     }
 

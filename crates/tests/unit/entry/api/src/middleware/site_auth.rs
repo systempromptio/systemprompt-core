@@ -40,7 +40,8 @@ mod gate {
     use axum::http::{StatusCode, header};
     use axum::routing::get;
     use axum::{Router, middleware};
-    use systemprompt_api::services::middleware::site_auth_gate;
+    use systemprompt_api::services::middleware::{SiteAuthSession, site_auth_gate};
+    use systemprompt_api::services::session_cookie::SessionCookie;
     use systemprompt_extension::SiteAuthConfig;
     use systemprompt_identifiers::UserId;
     use systemprompt_test_fixtures::{FIXTURE_JWT_ISSUER, fixture_config, mint_admin_jwt};
@@ -60,7 +61,19 @@ mod gate {
             .layer(middleware::from_fn(move |req, next| {
                 let config = config.clone();
                 let keys = keys.clone();
-                async move { site_auth_gate(req, next, config, FIXTURE_JWT_ISSUER, &keys).await }
+                async move {
+                    site_auth_gate(
+                        req,
+                        next,
+                        config,
+                        SiteAuthSession {
+                            issuer: FIXTURE_JWT_ISSUER,
+                            keys: &keys,
+                            cookie: SessionCookie::for_external_url("https://app.example.com"),
+                        },
+                    )
+                    .await
+                }
             }))
     }
 
@@ -152,6 +165,7 @@ mod gate {
         // page forever, re-presenting the same unusable token.
         assert!(cookie.contains("access_token=;"), "{cookie}");
         assert!(cookie.contains("Max-Age=0"), "{cookie}");
+        assert!(cookie.contains("Secure"), "{cookie}");
     }
 
     #[tokio::test]
@@ -225,5 +239,53 @@ mod gate {
             StatusCode::SEE_OTHER,
             "declaring no protected prefixes must mean everything is protected"
         );
+    }
+
+    async fn request_with(
+        config: SiteAuthConfig,
+        uri: &str,
+        token: &str,
+    ) -> axum::http::Response<Body> {
+        let req = Request::builder()
+            .uri(uri)
+            .header(header::COOKIE, format!("access_token={token}"))
+            .body(Body::empty())
+            .expect("request must build");
+        app(config)
+            .oneshot(req)
+            .await
+            .expect("request must complete")
+    }
+
+    fn user_token() -> String {
+        let config = fixture_config("postgres://unused/unused");
+        systemprompt_test_fixtures::mint_bridge_jwt(
+            &UserId::new("00000000-0000-4000-8000-00000000517f"),
+            "site-user@example.invalid",
+            &config.jwt_issuer,
+        )
+        .as_str()
+        .to_owned()
+    }
+
+    const USER_SITE: SiteAuthConfig = SiteAuthConfig {
+        login_path: "/app/login",
+        protected_prefixes: &["/app"],
+        public_prefixes: &[],
+        required_scope: "user",
+    };
+
+    #[tokio::test]
+    async fn a_user_scoped_site_admits_user_and_admin_tokens() {
+        for token in [user_token(), admin_token()] {
+            let resp = request_with(USER_SITE, "/app/home", &token).await;
+            assert_eq!(resp.status(), StatusCode::OK);
+        }
+    }
+
+    #[tokio::test]
+    async fn an_admin_scoped_site_refuses_a_user_token() {
+        let resp = request_with(CONFIG, "/admin/agents", &user_token()).await;
+        assert_ne!(resp.status(), StatusCode::OK);
     }
 }

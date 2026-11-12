@@ -25,8 +25,14 @@ notifications = ["systemprompt-runtime/notifications", "systemprompt-api/notific
 collab = ["systemprompt-files/collab", "systemprompt-runtime/collab", "systemprompt-api/collab"]
 engine-loro = ["collab", "systemprompt-runtime/engine-loro"]
 office = ["systemprompt-files/office"]
+pdf = ["systemprompt-files/pdf", "systemprompt-api/pdf"]
 brain = ["notifications", "systemprompt-runtime/brain", "systemprompt-api/brain"]
-full = ["notifications", "brain", "engine-loro", "office"]
+agent-runs = ["dep:systemprompt-agent-runs", "systemprompt-api/agent-runs"]
+otel = ["systemprompt-api/otel", "systemprompt-scheduler/otel"]
+bridge = ["systemprompt-api/bridge"]
+slack = ["systemprompt-api/slack"]
+teams = ["systemprompt-api/teams"]
+full = ["notifications", "brain", "engine-loro", "office", "pdf", "agent-runs", "otel", "bridge"]
 
 [lints]
 workspace = true
@@ -41,7 +47,7 @@ path = "src/main.rs"
 
 [dependencies]
 # Core runtime
-tokio = { workspace = true, features = ["fs", "process"] }
+tokio = { workspace = true, features = ["fs", "process", "signal"] }
 anyhow = { workspace = true }
 clap = { workspace = true }
 thiserror = { workspace = true }
@@ -49,7 +55,7 @@ thiserror = { workspace = true }
 # systemprompt.io crates
 systemprompt-runtime = { workspace = true, features = ["geolocation"] }
 systemprompt-agent = { workspace = true }
-systemprompt-agent-runs = { workspace = true }
+systemprompt-agent-runs = { workspace = true, optional = true }
 systemprompt-mcp = { workspace = true }
 systemprompt-api = { workspace = true }
 systemprompt-logging = { workspace = true }

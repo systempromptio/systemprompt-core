@@ -9,8 +9,8 @@ use serde_json::Value;
 
 use super::{LEGACY_PROTOCOL_VERSION, MCP_PROTOCOL_VERSION, McpTool, SESSION_HEADER};
 
-const MCP_METHOD_HEADER: &str = "mcp-method";
-const PROTOCOL_VERSION_HEADER: &str = "mcp-protocol-version";
+const MCP_METHOD_HEADER: &str = systemprompt_identifiers::headers::MCP_METHOD;
+const PROTOCOL_VERSION_HEADER: &str = systemprompt_identifiers::headers::MCP_PROTOCOL_VERSION;
 
 pub(super) enum Lifecycle<'a> {
     Stateless,

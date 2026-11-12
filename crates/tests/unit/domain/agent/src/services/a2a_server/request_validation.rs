@@ -10,7 +10,7 @@ use systemprompt_agent::models::a2a::jsonrpc::RequestId;
 use systemprompt_agent::models::a2a::protocol::A2aRequestParams;
 use systemprompt_agent::services::a2a_server::handlers::request::routing::parse_a2a_request;
 use systemprompt_agent::services::a2a_server::handlers::request::validation::{
-    ContextValidationError, should_require_oauth, validate_message_context, validate_task_owner,
+    ContextValidationError, owned_task_for, should_require_oauth, validate_message_context,
 };
 use systemprompt_identifiers::{ContextId, MessageId, TaskId, UserId};
 
@@ -154,18 +154,19 @@ async fn validate_message_context_rejects_foreign_context() {
 }
 
 #[tokio::test]
-async fn validate_task_owner_answers_not_found_for_another_users_task() {
+async fn owned_task_for_answers_not_found_for_another_users_task() {
     let pool = test_db_pool().await;
     let repos = repos(&pool);
     let (owner, session) = seed_user_and_session(&pool).await;
     let (_, task_id) = seed_context_and_task(&repos, &owner, &session).await;
 
-    validate_task_owner(&repos.tasks, &task_id, &owner)
+    let owned = owned_task_for(&repos.tasks, &task_id, &owner)
         .await
         .expect("the owner passes");
+    assert_eq!(owned.task_id(), &task_id);
 
     let stranger = UserId::new("u-stranger");
-    let err = validate_task_owner(&repos.tasks, &task_id, &stranger)
+    let err = owned_task_for(&repos.tasks, &task_id, &stranger)
         .await
         .expect_err("another user must not see the task");
     assert!(
@@ -173,7 +174,7 @@ async fn validate_task_owner_answers_not_found_for_another_users_task() {
         "a foreign task reads as absent, never as forbidden: {err}"
     );
 
-    let err = validate_task_owner(&repos.tasks, &TaskId::generate(), &owner)
+    let err = owned_task_for(&repos.tasks, &TaskId::generate(), &owner)
         .await
         .expect_err("an unknown task is not found");
     assert!(

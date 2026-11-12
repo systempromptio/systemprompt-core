@@ -14,7 +14,7 @@ use systemprompt_identifiers::McpServerId;
 use systemprompt_mcp::{McpToolset, ToolsetCall};
 
 use super::factory::ToolsetBuildResult;
-use crate::AppContext;
+use crate::HostContext;
 use crate::documents::mcp::{DocumentsMcpTools, DocumentsToolCall};
 use crate::issues::mcp::{IssuesMcpTools, IssuesToolCall};
 
@@ -45,6 +45,7 @@ impl McpToolset for IssuesToolset {
                 request: call.request,
                 context: call.context,
                 client: call.client,
+                hop: call.hop,
             })
             .await
     }
@@ -73,18 +74,19 @@ impl McpToolset for DocumentsToolset {
             request: call.request,
             context: call.context,
             client: call.client,
+            hop: call.hop,
         }))
         .await
     }
 }
 
-fn build_issues(ctx: &AppContext, server: &McpServerId) -> ToolsetBuildResult {
-    let tools = IssuesMcpTools::from_context(ctx, server.clone())?;
+fn build_issues(host: &HostContext, server: &McpServerId) -> ToolsetBuildResult {
+    let tools = IssuesMcpTools::from_host(host, server.clone())?;
     Ok(Some(Box::new(IssuesToolset(tools))))
 }
 
-fn build_documents(ctx: &AppContext, server: &McpServerId) -> ToolsetBuildResult {
-    let tools = DocumentsMcpTools::from_context(ctx, server.clone())?;
+fn build_documents(host: &HostContext, server: &McpServerId) -> ToolsetBuildResult {
+    let tools = DocumentsMcpTools::from_host(host, server.clone())?;
     Ok(Some(Box::new(DocumentsToolset(tools))))
 }
 

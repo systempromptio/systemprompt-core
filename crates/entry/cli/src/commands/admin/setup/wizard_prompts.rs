@@ -18,8 +18,10 @@ use anyhow::{Context, Result};
 use std::io::IsTerminal;
 use std::path::{Path, PathBuf};
 use systemprompt_identifiers::{Email, ProviderId};
+use systemprompt_loader::subprocess::ForegroundChildren;
 use systemprompt_logging::CliService;
 
+use super::catalog::VertexSeed;
 use super::postgres_access::PostgresConfig;
 use super::{SetupArgs, postgres, secrets};
 
@@ -84,11 +86,12 @@ pub(super) async fn setup_postgres(
     prompter: &dyn Prompter,
     config: &CliConfig,
     env_name: &str,
+    children: &ForegroundChildren,
 ) -> Result<PostgresConfig> {
     if args.yes || !config.is_interactive() {
-        return postgres::setup_non_interactive(args, env_name, config).await;
+        return postgres::setup_non_interactive(args, env_name, config, children).await;
     }
-    postgres::setup_interactive(args, prompter, env_name, config).await
+    postgres::setup_interactive(args, prompter, env_name, config, children).await
 }
 
 pub(super) fn collect_secrets(
@@ -180,4 +183,24 @@ pub(super) fn print_summary(env_name: &str, profile_path: &Path) {
     CliService::info("3. (Optional) Configure cloud deployment:");
     CliService::info("   systemprompt cloud auth login");
     CliService::info("   systemprompt cloud config");
+}
+
+pub(super) fn print_vertex_note(seed: VertexSeed<'_>) {
+    CliService::info("");
+    match seed {
+        VertexSeed::WorkloadIdentity { project } => {
+            CliService::info(&format!(
+                "Vertex AI uses the runtime's workload identity in project '{project}'. Grant the \
+                 service account the workload runs as the Vertex AI User role \
+                 (roles/aiplatform.user) on that project; no key is stored."
+            ));
+        },
+        VertexSeed::ServiceAccountKey => CliService::info(
+            "Vertex AI uses the service-account key stored as the `vertex` secret. Grant that \
+             service account the Vertex AI User role (roles/aiplatform.user).",
+        ),
+    }
+    CliService::info(
+        "Vertex AI models are discovered at boot from the models the project can serve.",
+    );
 }

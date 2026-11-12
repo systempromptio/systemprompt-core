@@ -19,6 +19,7 @@ use super::{CommitOutcome, CommitRequest, DocumentService, ProposeBodyRequest, P
 use crate::documents::access::AccessTarget;
 use crate::documents::agents::AgentCap;
 use crate::documents::error::DocumentsError;
+use crate::documents::model::Media;
 use crate::documents::models::Document;
 use crate::documents::revision::CommitBody;
 use crate::uploads::Allowance;
@@ -121,6 +122,7 @@ impl DocumentService {
                     bytes: checked,
                     author,
                     message,
+                    media: Media::new(),
                 },
                 trace,
             )

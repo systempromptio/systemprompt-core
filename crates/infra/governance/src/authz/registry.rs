@@ -78,14 +78,13 @@ inventory::collect!(AuthzHookRegistration);
 
 #[must_use]
 pub fn discover_authz_hook(ctx: &AuthzHookContext) -> Option<SharedAuthzHook> {
-    let hooks: Vec<SharedAuthzHook> = inventory::iter::<AuthzHookRegistration>()
-        .map(|reg| (reg.factory)(ctx))
-        .collect();
-    match hooks.len() {
-        0 => None,
-        1 => hooks.into_iter().next(),
-        _ => Some(Arc::new(CompositeAuthzHook::new(hooks))),
+    let mut hooks = inventory::iter::<AuthzHookRegistration>().map(|reg| (reg.factory)(ctx));
+    let first = hooks.next()?;
+    let rest: Vec<SharedAuthzHook> = hooks.collect();
+    if rest.is_empty() {
+        return Some(first);
     }
+    Some(Arc::new(CompositeAuthzHook::new(first, rest)))
 }
 
 #[macro_export]

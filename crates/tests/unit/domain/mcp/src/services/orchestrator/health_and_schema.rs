@@ -41,7 +41,6 @@ fn health_status_unhealthy_emoji() {
 
 #[test]
 fn health_status_equality() {
-    assert_eq!(HealthStatus::Healthy, HealthStatus::Healthy);
     assert_ne!(HealthStatus::Healthy, HealthStatus::Unhealthy);
     assert_ne!(HealthStatus::Degraded, HealthStatus::Unknown);
 }
@@ -163,10 +162,12 @@ fn test_mcp_config(name: &str) -> systemprompt_models::mcp::McpServerConfig {
             audience: systemprompt_models::auth::JwtAudience::Api,
             client_id: None,
             ema: false,
+            service_only: false,
         },
         tools: std::collections::HashMap::new(),
         model_config: None,
         env_vars: vec![],
+        secrets: Vec::new(),
         version: "0.1.0".to_string(),
         host: "127.0.0.1".to_string(),
         module_name: "test".to_string(),

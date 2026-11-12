@@ -18,7 +18,9 @@ All data is held in the customer's PostgreSQL database and configured file stora
 | Identity | User records, OAuth clients, sessions, WebAuthn credentials | Users come from the customer's IdP |
 | Governance and audit | Policy decisions, gateway request records, structured logs | Can contain prompts, responses and tool payloads on enabled paths |
 | Content | Documents, files, agent and task state | As created by users |
-| Analytics | Request and session analytics | Collected inside the deployment |
+| Analytics | Request and session analytics, engagement events, fingerprint reputation (last IP address and user agent) | Collected inside the deployment; personal-data tables have retention windows (§4) |
+| Organisational memory | Facts, recalls and results | A user-scoped fact is visible only under its owner's key; topic audiences never widen it |
+| Notifications | Outbox events, per-recipient rows, delivery failures | Delivery is at least once: a crash before delivery is recorded leads to re-delivery |
 | Secrets | Provider API keys, JWT signing key | Loaded from a customer-managed secrets file or secrets source; never stored in the database by default |
 
 ## 3. Where data can leave the deployment
@@ -39,7 +41,14 @@ deployment control.
 Retention is configured in the deployment profile (`crates/shared/manifest/src/profile/retention.rs`)
 and enforced by scheduled jobs, including governance-decision retention
 (`crates/infra/governance/src/decision_retention.rs`) and knowledge-store retention
-(`crates/domain/brain/src/jobs/retention.rs`). Per-user purge removes a user's rows across the
+(`crates/domain/brain/src/jobs/retention.rs`). The scheduler's `database_cleanup` job enforces the profile's `retention` windows; every window
+has a default, so a profile that sets none still has bounded tables. For personal data in
+analytics, `engagement_events_days` (default 90) bounds engagement events, and
+`fingerprint_reputation_days` (default 90) deletes an unflagged fingerprint's reputation row,
+with its last IP address and user agent, once it has not been seen for the window; a flagged
+fingerprint is kept as enforcement memory with its IP address and user agent cleared. Raw
+gateway request and response bodies are cleared after `ai_request_payload_raw_days` (default 7).
+See the [configuration reference](../reference/configuration.md#retention). An extension that exports these rows can register a retention hold that keeps rows it has not yet exported; a held table is reported in the job's output, and a hold that cannot answer stops that table from being pruned for the run rather than being ignored ([retention holds](../reference/configuration.md#retention-holds)). Per-user purge removes a user's rows across the
 schema inventory (`crates/domain/users/src/repository/user/purge.rs`). Privacy-restricted reporting
 views limit what reporting roles can see.
 

@@ -23,6 +23,7 @@ use systemprompt_models::RequestContext;
 use systemprompt_models::api::ApiError;
 use systemprompt_runtime::AppContext;
 
+use super::clamp_page_limit;
 use crate::error::ApiHttpError;
 
 #[derive(Debug, Clone, Copy, Deserialize)]
@@ -40,14 +41,12 @@ pub async fn list_artifacts_by_context(
     let context_id_typed = super::parse_context_id(&context_id)?;
 
     let context_repo = app_context.a2a_repositories().contexts.clone();
-    context_repo
-        .validate_context_ownership(&context_id_typed, req_ctx.user_id())
+    let owned = context_repo
+        .owned_context(&context_id_typed, req_ctx.user_id())
         .await?;
 
     let artifact_repo = app_context.a2a_repositories().artifacts.clone();
-    let artifacts = artifact_repo
-        .get_artifacts_by_context(&context_id_typed)
-        .await?;
+    let artifacts = artifact_repo.get_artifacts_by_context(&owned).await?;
 
     tracing::debug!(
         context_id = %context_id,
@@ -67,12 +66,12 @@ pub async fn list_artifacts_by_task(
     let task_id_typed = TaskId::try_new(&task_id).map_err(ApiError::from)?;
 
     let task_repo = app_context.a2a_repositories().tasks.clone();
-    task_repo
-        .validate_task_ownership(&task_id_typed, req_ctx.user_id())
+    let owned = task_repo
+        .owned_task(&task_id_typed, req_ctx.user_id())
         .await?;
 
     let artifact_repo = app_context.a2a_repositories().artifacts.clone();
-    let artifacts = artifact_repo.get_artifacts_by_task(&task_id_typed).await?;
+    let artifacts = artifact_repo.artifacts_for_owned_task(&owned).await?;
 
     tracing::debug!(
         task_id = %task_id,
@@ -92,14 +91,10 @@ pub async fn get_artifact(
     let artifact_repo = app_context.a2a_repositories().artifacts.clone();
 
     let artifact_id_typed = ArtifactId::try_new(&artifact_id).map_err(ApiError::from)?;
-    artifact_repo
-        .validate_artifact_ownership(&artifact_id_typed, req_ctx.user_id())
+    let owned = artifact_repo
+        .owned_artifact(&artifact_id_typed, req_ctx.user_id())
         .await?;
-
-    let artifact = artifact_repo
-        .find_artifact_by_id(&artifact_id_typed)
-        .await?
-        .ok_or_else(|| ApiHttpError::not_found(format!("Artifact '{artifact_id}' not found")))?;
+    let artifact = artifact_repo.find_owned_artifact(&owned).await?;
 
     tracing::debug!("Artifact retrieved successfully");
     Ok((StatusCode::OK, Json(artifact)))
@@ -116,9 +111,9 @@ pub async fn list_artifacts_by_user(
 
     let artifact_repo = app_context.a2a_repositories().artifacts.clone();
 
-    let limit = params.limit.map(|l| i32::try_from(l).unwrap_or(i32::MAX));
+    let limit = i32::from(clamp_page_limit(params.limit));
     let artifacts = artifact_repo
-        .get_artifacts_by_user_id(user_id, limit)
+        .get_artifacts_by_user_id(user_id, Some(limit))
         .await?;
 
     tracing::debug!(
@@ -139,14 +134,10 @@ pub async fn get_artifact_ui(
     let artifact_repo = app_context.a2a_repositories().artifacts.clone();
     let artifact_id_typed = ArtifactId::try_new(&artifact_id).map_err(ApiError::from)?;
 
-    artifact_repo
-        .validate_artifact_ownership(&artifact_id_typed, req_ctx.user_id())
+    let owned = artifact_repo
+        .owned_artifact(&artifact_id_typed, req_ctx.user_id())
         .await?;
-
-    let artifact = artifact_repo
-        .find_artifact_by_id(&artifact_id_typed)
-        .await?
-        .ok_or_else(|| ApiHttpError::not_found(format!("Artifact '{artifact_id}' not found")))?;
+    let artifact = artifact_repo.find_owned_artifact(&owned).await?;
 
     let registry = create_default_registry();
     let artifact_type = resolve_artifact_type(&artifact);

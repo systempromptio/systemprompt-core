@@ -203,14 +203,15 @@ impl UserService {
         self.repository.create_anonymous(fingerprint).await
     }
 
-    pub async fn find_or_create_federated(
+    pub async fn resolve_federated(
         &self,
         issuer: &str,
         external_sub: &str,
         claims: &systemprompt_traits::FederatedIdentityClaims,
-    ) -> Result<User> {
+        policy: &systemprompt_traits::LinkPolicy,
+    ) -> Result<(User, systemprompt_traits::FederatedLink)> {
         self.repository
-            .find_or_create_federated(issuer, external_sub, claims)
+            .resolve_federated(issuer, external_sub, claims, policy)
             .await
     }
 

@@ -67,6 +67,44 @@ pub fn is_bridge_windows_helper(command: &str) -> bool {
     })
 }
 
+// Why: an `apiKeyHelper` value is this bridge's when it names this bridge's
+// helper: on Unix, when the one word `/bin/sh` reads from it is the helper
+// path, whether quoted (as written now) or bare (as older bridges wrote it);
+// on Windows, when the encoded command runs the credential helper.
+#[must_use]
+pub fn is_bridge_helper(command: &str) -> bool {
+    #[cfg(unix)]
+    {
+        key_helper_path().is_some_and(|helper| {
+            shell_word(command).is_some_and(|word| Path::new(&word) == helper)
+        })
+    }
+    #[cfg(not(unix))]
+    {
+        is_bridge_windows_helper(command)
+    }
+}
+
+#[cfg(unix)]
+fn shell_word(command: &str) -> Option<String> {
+    let mut word = String::new();
+    let mut chars = command.chars();
+    while let Some(c) = chars.next() {
+        match c {
+            '\'' => loop {
+                match chars.next()? {
+                    '\'' => break,
+                    inner => word.push(inner),
+                }
+            },
+            '\\' => word.push(chars.next()?),
+            c if c.is_whitespace() || "$`;&|<>()\"*?[]#~{}!".contains(c) => return None,
+            c => word.push(c),
+        }
+    }
+    (!word.is_empty()).then_some(word)
+}
+
 #[cfg(unix)]
 pub(super) fn key_helper_path() -> Option<PathBuf> {
     Some(
@@ -82,22 +120,17 @@ fn key_helper_body(executable: &Path) -> String {
     format!(
         "#!/bin/sh\n\
          # Written by `{bin} install --apply`. Rewritten on every apply — do not edit.\n\
-         exec '{exe}' credential-helper --host claude-code\n",
-        exe = executable.display().to_string().replace('\'', "'\\''"),
+         exec {exe} credential-helper --host claude-code\n",
+        exe = crate::install::elevation_script::shell_quote(&executable.display().to_string()),
     )
 }
 
-// Why: Claude Code hands `apiKeyHelper` to `/bin/sh` verbatim, so a path with
-// whitespace — every macOS `~/Library/Application Support/…` path — is split
-// into words. Quote only then, so the Linux value stays the bare path.
+// Why: Claude Code hands `apiKeyHelper` to `/bin/sh` verbatim, so the path
+// is always single-quoted: whitespace, `$`, backticks and separators in it
+// stay part of the one word.
 #[cfg(unix)]
 pub(super) fn shell_command_for(helper: &Path) -> String {
-    let raw = helper.display().to_string();
-    if raw.chars().any(char::is_whitespace) {
-        format!("'{}'", raw.replace('\'', "'\\''"))
-    } else {
-        raw
-    }
+    crate::install::elevation_script::shell_quote(&helper.display().to_string())
 }
 
 #[cfg(unix)]

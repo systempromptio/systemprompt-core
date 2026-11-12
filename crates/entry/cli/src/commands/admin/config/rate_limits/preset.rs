@@ -193,6 +193,7 @@ pub fn get_preset_config(name: &str) -> Result<RateLimitsConfig> {
             brain_per_second: 200,
             gateway_per_second: 200,
             bridge_auth_per_second: 50,
+            pre_auth_ip_per_second: 1000,
             burst_multiplier: 5,
         }),
         "production" => Ok(RateLimitsConfig::default()),
@@ -213,6 +214,7 @@ pub fn get_preset_config(name: &str) -> Result<RateLimitsConfig> {
             brain_per_second: 20,
             gateway_per_second: 20,
             bridge_auth_per_second: 20,
+            pre_auth_ip_per_second: 100,
             burst_multiplier: 2,
         }),
         _ => bail!(

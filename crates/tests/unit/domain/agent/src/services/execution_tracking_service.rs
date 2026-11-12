@@ -3,6 +3,7 @@
 // transitions, and lookups by task and step.
 
 use std::sync::Arc;
+use systemprompt_test_fixtures::agent_reads::{StepReadsExt, TaskReadsExt};
 
 use serde_json::json;
 use systemprompt_agent::repository::execution::ExecutionStepRepository;
@@ -39,7 +40,11 @@ async fn track_understanding_and_completion_persist_steps() {
         .await
         .expect("completion");
 
-    let steps = svc.list_steps_by_task(&task_id).await.expect("list");
+    let steps = r
+        .execution_steps
+        .steps_for_task(&r.tasks, &task_id)
+        .await
+        .expect("list");
     assert_eq!(steps.len(), 2);
     assert!(steps.iter().any(|s| s.step_id == understanding.step_id));
     assert!(steps.iter().any(|s| s.step_id == completion.step_id));
@@ -51,7 +56,7 @@ async fn track_understanding_and_completion_persist_steps() {
         .expect("present");
     assert_eq!(found.task_id, task_id);
 
-    r.tasks.delete_task(&task_id).await.ok();
+    r.tasks.remove_task(&task_id).await.ok();
 }
 
 #[tokio::test]
@@ -72,7 +77,7 @@ async fn track_skill_usage_records_skill_step() {
     assert!(rendered.contains("skill-x"));
     assert!(rendered.contains("Skill X"));
 
-    r.tasks.delete_task(&task_id).await.ok();
+    r.tasks.remove_task(&task_id).await.ok();
 }
 
 #[tokio::test]
@@ -112,7 +117,7 @@ async fn tool_execution_lifecycle_complete_and_fail() {
     assert_eq!(failed.status, StepStatus::Failed);
     assert_eq!(failed.error_message.as_deref(), Some("tool exploded"));
 
-    r.tasks.delete_task(&task_id).await.ok();
+    r.tasks.remove_task(&task_id).await.ok();
 }
 
 #[tokio::test]
@@ -139,7 +144,7 @@ async fn planning_lifecycle_completes_with_reasoning_and_tools() {
     assert!(rendered.contains("final reasoning"));
     assert!(rendered.contains("search"));
 
-    r.tasks.delete_task(&task_id).await.ok();
+    r.tasks.remove_task(&task_id).await.ok();
 }
 
 #[tokio::test]
@@ -174,5 +179,5 @@ async fn fail_step_and_fail_in_progress_mark_open_steps() {
         .expect("sweep");
     assert_eq!(swept, 1);
 
-    r.tasks.delete_task(&task_id).await.ok();
+    r.tasks.remove_task(&task_id).await.ok();
 }

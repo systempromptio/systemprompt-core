@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.81.0] - 2026-11-12
+
+### Breaking
+
+- `ClientRepository::{list_paginated, count}` and `OAuthRepository::{list_clients_paginated, count_clients}` take a `ClientOwnerScope`. Migrate by passing the caller's scope.
+- `validate_authorization_code` takes an `AuthCodeRedemption`, `RefreshTokenParams.family_id` is replaced by `resource` and `lineage`, `OauthError` gains `CimdTarget`, and `IdJagGrant` and `IdJagClaims` gain the upstream issuer. Migrate by building `RefreshTokenParams` with a `RefreshTokenLineage`.
+- `JwtValidationProviderImpl::new` and `from_config` take a `VerificationKeyring`, and `generate_token` is removed. Migrate by minting through the API's `TokenAuthority`.
+
+### Changed
+
+- `webauthn-rs` is 0.6.2.
+
 ## [0.76.0] - 2026-10-29
 
 ### Breaking

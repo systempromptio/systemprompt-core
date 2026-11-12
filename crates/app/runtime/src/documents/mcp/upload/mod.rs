@@ -20,7 +20,7 @@ use rmcp::ErrorData as McpError;
 use systemprompt_files::uploads::{
     NewUpload, UploadError, UploadService, UploadSession, UploadStatus,
 };
-use systemprompt_identifiers::{ContentHash, DocumentUploadId, McpExecutionId};
+use systemprompt_identifiers::{ContentHash, DocumentUploadId, JwtToken, McpExecutionId};
 use systemprompt_mcp::McpToolHandler;
 use systemprompt_models::documents::content_hash;
 use systemprompt_models::execution::context::RequestContext;
@@ -28,10 +28,9 @@ use systemprompt_models::execution::context::RequestContext;
 use super::DocumentsMcpTools;
 use super::refusal::refusal;
 use super::support::caller;
+use crate::documents::links::issue_upload_links;
 use crate::documents::refusal::RefusalCode;
-use crate::documents::upload_links::{
-    UPLOAD_TOKEN_HEADER, UploadGrant, UploadLinkTarget, signed_upload_links,
-};
+use crate::documents::upload_links::UPLOAD_TOKEN_HEADER;
 
 mod io;
 
@@ -69,6 +68,7 @@ fn uploads(tools: &DocumentsMcpTools) -> Result<&UploadService, McpError> {
 #[derive(Debug, Clone, Copy)]
 pub struct UploadHandler<'a> {
     pub tools: &'a DocumentsMcpTools,
+    pub hop: Option<&'a JwtToken>,
 }
 
 impl UploadHandler<'_> {
@@ -144,7 +144,7 @@ impl UploadHandler<'_> {
             .create(ctx.user_id(), request, ctx.trace_id())
             .await
             .map_err(|error| upload_error(&error))?;
-        self.signed(&session, ctx)
+        self.signed(&session).await
     }
 
     async fn reissue(
@@ -161,28 +161,16 @@ impl UploadHandler<'_> {
                 status: progress.session.status,
             }));
         }
-        self.signed(&progress.session, ctx)
+        self.signed(&progress.session).await
     }
 
-    fn signed(
-        &self,
-        session: &UploadSession,
-        ctx: &RequestContext,
-    ) -> Result<(UploadOutput, String), McpError> {
-        let links = signed_upload_links(
-            self.tools.token_authority(),
-            UploadLinkTarget {
-                grant: UploadGrant::Write,
-                base_url: self.tools.api_external_url(),
-                user: caller(ctx)?,
-                session_id: ctx.session_id(),
-                upload: &session.id,
-            },
-        )
-        .map_err(|error| {
-            tracing::error!(error = %error, cause = ?std::error::Error::source(&error), "upload token was not minted");
-            McpError::internal_error("the upload links could not be signed", None)
-        })?;
+    async fn signed(&self, session: &UploadSession) -> Result<(UploadOutput, String), McpError> {
+        let links = issue_upload_links(self.tools.link_issuer(), self.hop, &session.id)
+            .await
+            .map_err(|error| {
+                tracing::error!(error = %error, cause = ?std::error::Error::source(&error), "upload links were not issued by the API");
+                McpError::internal_error("the upload links could not be signed", None)
+            })?;
         let summary = format!(
             "PUT {} parts of {} bytes to parts_url, then POST complete_url, sending upload_token \
              in the {UPLOAD_TOKEN_HEADER} header; when it expires call documents_upload with \

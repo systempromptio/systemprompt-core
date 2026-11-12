@@ -15,6 +15,7 @@ use super::landing::{LandResult, Placement};
 use super::prepare::{Applied, Draft};
 use super::{Author, CommentPolicy, DocumentService, Proposed};
 use crate::documents::error::DocumentsError;
+use crate::documents::model::Media;
 use crate::documents::models::{Document, DocumentProposal, NewProposal, ProposalReview};
 use crate::documents::nodes::CarryHints;
 
@@ -25,6 +26,7 @@ pub struct ProposeBodyRequest {
     pub bytes: Vec<u8>,
     pub author: Author,
     pub message: Option<String>,
+    pub media: Media,
 }
 
 impl DocumentService {
@@ -45,6 +47,7 @@ impl DocumentService {
             bytes,
             author,
             message,
+            media,
             ..
         } = request;
         let prepared = self
@@ -64,6 +67,7 @@ impl DocumentService {
                     parent: Some(base.id.clone()),
                     message: message.clone(),
                     author: &author,
+                    vouched: &super::media_admission::vouched_by(&media),
                 },
             )
             .await?;

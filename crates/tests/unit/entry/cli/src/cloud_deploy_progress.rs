@@ -33,7 +33,10 @@ fn spinner_message_is_none_for_terminal_events() {
     assert_eq!(spinner_message(&DeployEvent::PushFinished), None);
     assert_eq!(spinner_message(&DeployEvent::ProfilePathConfigured), None);
     assert_eq!(
-        spinner_message(&DeployEvent::TenantReady { version: None }),
+        spinner_message(&DeployEvent::TenantReady {
+            version: None,
+            release_confirmed: false,
+        }),
         None
     );
     assert!(spinner_message(&DeployEvent::ReadinessWaitStarted).is_some());
@@ -81,8 +84,12 @@ fn event_renders_every_variant_without_panic() {
         DeployEvent::ReadinessWaitStarted,
         DeployEvent::TenantReady {
             version: Some("0.75.0"),
+            release_confirmed: true,
         },
-        DeployEvent::TenantReady { version: None },
+        DeployEvent::TenantReady {
+            version: None,
+            release_confirmed: false,
+        },
         DeployEvent::Deployed {
             status: "running",
             app_url: None,
@@ -93,4 +100,11 @@ fn event_renders_every_variant_without_panic() {
     for event in &events {
         progress.event(event);
     }
+}
+
+#[test]
+fn readiness_without_a_confirmed_release_says_so() {
+    use systemprompt_cli::cloud::deploy::progress::tenant_ready_text;
+    assert_eq!(tenant_ready_text(true), "Tenant is ready");
+    assert!(tenant_ready_text(false).contains("version not confirmed"));
 }

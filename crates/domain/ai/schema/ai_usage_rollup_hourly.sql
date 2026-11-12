@@ -6,8 +6,10 @@
 -- `ai_requests` for its window.
 --
 -- The `user_key_*` measures are the share of each row billed to a member's
--- own personal key (`ai_requests.billing_source = 'user_key'`); the platform
--- share is the row total minus them.
+-- own personal key (`ai_requests.billing_source = 'user_key'`) and the
+-- `user_subscription_*` measures the share billed to the login the client
+-- presented (`'user_subscription'`); the platform share is the row total
+-- minus both.
 --
 -- Dimensions are NOT NULL so they can form the primary key: a request with no
 -- provider, model or agent is stored under ''. `agent_name` is the agent of
@@ -43,6 +45,9 @@ CREATE TABLE IF NOT EXISTS ai_usage_rollup_hourly (
     user_key_request_count BIGINT NOT NULL DEFAULT 0,
     user_key_tokens BIGINT NOT NULL DEFAULT 0,
     user_key_cost_microdollars BIGINT NOT NULL DEFAULT 0,
+    user_subscription_request_count BIGINT NOT NULL DEFAULT 0,
+    user_subscription_tokens BIGINT NOT NULL DEFAULT 0,
+    user_subscription_cost_microdollars BIGINT NOT NULL DEFAULT 0,
     PRIMARY KEY (bucket, user_id, provider, model, agent_name, traffic)
 );
 CREATE INDEX IF NOT EXISTS idx_ai_usage_rollup_hourly_user_bucket
@@ -55,7 +60,9 @@ SELECT format('
         bucket, user_id, provider, model, agent_name, traffic, request_count, tokens,
         input_tokens, output_tokens, reasoning_tokens, cache_read_tokens,
         cache_creation_tokens, cost_microdollars, latency_sum_ms, latency_n, cache_hits,
-        user_key_request_count, user_key_tokens, user_key_cost_microdollars)
+        user_key_request_count, user_key_tokens, user_key_cost_microdollars,
+        user_subscription_request_count, user_subscription_tokens,
+        user_subscription_cost_microdollars)
     SELECT date_trunc(''hour'', s.created_at, ''UTC''), s.user_id, COALESCE(s.provider, ''''),
            COALESCE(s.model, ''''), COALESCE(t.agent_name, ''''), s.traffic,
            SUM(s.sign), SUM(s.sign * COALESCE(s.tokens_used, 0)),
@@ -70,7 +77,12 @@ SELECT format('
            COALESCE(SUM(s.sign * COALESCE(s.tokens_used, 0))
                FILTER (WHERE s.billing_source = ''user_key''), 0),
            COALESCE(SUM(s.sign * COALESCE(s.cost_microdollars, 0))
-               FILTER (WHERE s.billing_source = ''user_key''), 0)
+               FILTER (WHERE s.billing_source = ''user_key''), 0),
+           COALESCE(SUM(s.sign) FILTER (WHERE s.billing_source = ''user_subscription''), 0),
+           COALESCE(SUM(s.sign * COALESCE(s.tokens_used, 0))
+               FILTER (WHERE s.billing_source = ''user_subscription''), 0),
+           COALESCE(SUM(s.sign * COALESCE(s.cost_microdollars, 0))
+               FILTER (WHERE s.billing_source = ''user_subscription''), 0)
     FROM (%s) s
     LEFT JOIN agent_tasks t ON t.task_id = s.task_id
     GROUP BY 1, 2, 3, 4, 5, 6
@@ -89,7 +101,12 @@ SELECT format('
         cache_hits = r.cache_hits + EXCLUDED.cache_hits,
         user_key_request_count = r.user_key_request_count + EXCLUDED.user_key_request_count,
         user_key_tokens = r.user_key_tokens + EXCLUDED.user_key_tokens,
-        user_key_cost_microdollars = r.user_key_cost_microdollars + EXCLUDED.user_key_cost_microdollars
+        user_key_cost_microdollars = r.user_key_cost_microdollars + EXCLUDED.user_key_cost_microdollars,
+        user_subscription_request_count =
+            r.user_subscription_request_count + EXCLUDED.user_subscription_request_count,
+        user_subscription_tokens = r.user_subscription_tokens + EXCLUDED.user_subscription_tokens,
+        user_subscription_cost_microdollars =
+            r.user_subscription_cost_microdollars + EXCLUDED.user_subscription_cost_microdollars
 ', source)
 $$;
 

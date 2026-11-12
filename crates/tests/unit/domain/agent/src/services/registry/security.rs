@@ -39,6 +39,7 @@ fn oauth_required_yields_oauth2_scheme_and_requirement() {
         required: true,
         scopes: vec![Permission::Admin, Permission::User],
         audience: JwtAudience::A2a,
+        service_only: false,
     };
 
     let (schemes, reqs) = oauth_to_security_config(&oauth, "https://api.example.com");
@@ -57,6 +58,7 @@ fn oauth_not_required_yields_nothing() {
         required: false,
         scopes: vec![Permission::Admin],
         audience: JwtAudience::A2a,
+        service_only: false,
     };
 
     let (schemes, reqs) = oauth_to_security_config(&oauth, "https://api.example.com");
@@ -71,6 +73,7 @@ fn oauth_urls_and_description_are_built_from_the_external_url() {
         required: true,
         scopes: vec![],
         audience: JwtAudience::Resource("my-audience".to_owned()),
+        service_only: false,
     };
 
     let (schemes, _) = oauth_to_security_config(&oauth, "https://myhost.com");
@@ -104,6 +107,7 @@ fn oauth_scopes_are_described() {
         required: true,
         scopes: vec![Permission::User, Permission::Admin],
         audience: JwtAudience::A2a,
+        service_only: false,
     };
 
     let (schemes, _) = oauth_to_security_config(&oauth, "https://example.com");
@@ -120,6 +124,7 @@ fn oauth_empty_scopes_yield_empty_requirement_list() {
         required: true,
         scopes: vec![],
         audience: JwtAudience::A2a,
+        service_only: false,
     };
 
     let (schemes, reqs) = oauth_to_security_config(&oauth, "https://api.example.com");

@@ -8,10 +8,16 @@
 //! the servers to the registry and its on-disk fragment, so the profile
 //! written next carries the gateway's current truth.
 //!
+//! The same refresh precedes a host repair, whose policy writer reads the
+//! envelope kept here. A fresh manifest that fails verification stops the
+//! repair; any other failure goes on with the envelope last kept
+//! ([`super::refresh_fallback`]), which the writer verifies again.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use super::error::SyncError;
+use super::refresh_fallback::{KeptStored, RefreshFailure, classify};
 use super::{apply, manifest};
 use crate::config;
 use crate::context::BridgeContext;
@@ -23,23 +29,48 @@ use crate::gateway::Freshness;
 pub async fn refresh_registry_for(
     bridge: &BridgeContext,
     host: &dyn crate::integration::HostApp,
-) -> Result<Option<usize>, SyncError> {
+) -> Result<RegistryRefresh, SyncError> {
     if !host.profile_carries_managed_servers() {
-        return Ok(None);
+        return Ok(RegistryRefresh::NotCarried);
     }
-    refresh_registry(bridge).await.map(Some)
+    refresh_or_keep_stored(bridge).await
+}
+
+/// What a refresh ahead of a profile write or repair produced.
+#[derive(Debug)]
+pub enum RegistryRefresh {
+    NotCarried,
+    Refreshed {
+        servers: usize,
+    },
+    StoredEnvelope {
+        kept: KeptStored,
+        error: Box<SyncError>,
+    },
+}
+
+pub async fn refresh_or_keep_stored(bridge: &BridgeContext) -> Result<RegistryRefresh, SyncError> {
+    match refresh_registry(bridge).await {
+        Ok(servers) => Ok(RegistryRefresh::Refreshed { servers }),
+        Err(error) => match classify(&error) {
+            RefreshFailure::Kept(kept) => {
+                tracing::warn!(target: "bridge::sync", %error, ?kept, "manifest not refreshed; the envelope last verified is kept");
+                Ok(RegistryRefresh::StoredEnvelope {
+                    kept,
+                    error: Box::new(error),
+                })
+            },
+            RefreshFailure::Rejected => Err(error),
+        },
+    }
 }
 
 pub async fn refresh_registry(bridge: &BridgeContext) -> Result<usize, SyncError> {
     let _operation = bridge.sync_lock.lock().await;
     let _across_processes = super::process_lock::acquire().await?;
-    let allow_tofu = matches!(
-        config::pinned_pubkey_state(),
-        Ok(config::PinnedPubkeyState::Unpinned)
-    );
     manifest::ensure_enabled(&config::load()?)?;
     let fetch = manifest::fetch_authenticated_manifest(&bridge.http, Freshness::Fresh).await?;
-    let synced = manifest::verify_and_decode(&fetch, false, allow_tofu).await?;
+    let synced = manifest::verify_and_decode(&fetch, false, false).await?;
     super::acceptance::accept(
         &synced,
         fetch.client.base_url(),

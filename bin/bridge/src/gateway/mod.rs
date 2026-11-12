@@ -7,6 +7,7 @@ mod auth;
 pub mod catalog;
 pub mod conditional;
 pub mod discovery;
+pub mod envelope_skew;
 pub mod errors;
 mod fetch;
 mod identity;

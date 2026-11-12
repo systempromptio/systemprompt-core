@@ -210,8 +210,8 @@ pub(super) fn tool_list(tools: &DocumentsMcpTools) -> Vec<Tool> {
         compact(UpdateHandler { tools }.tool_definition(server)),
         compact(TrashHandler { tools }.tool_definition(server)),
         compact(UntrashHandler { tools }.tool_definition(server)),
-        compact(ExportHandler { tools }.tool_definition(server)),
-        compact(UploadHandler { tools }.tool_definition(server)),
+        compact(ExportHandler { tools, hop: None }.tool_definition(server)),
+        compact(UploadHandler { tools, hop: None }.tool_definition(server)),
         compact(GuideHandler { tools }.tool_definition(server)),
         compact(PeopleHandler { tools }.tool_definition(server)),
     ];

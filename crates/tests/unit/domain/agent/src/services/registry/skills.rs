@@ -300,6 +300,7 @@ fn agent_with_metadata_skills(skills: Vec<String>) -> AgentConfig {
             ..AgentMetadataConfig::default()
         },
         oauth: OAuthConfig::default(),
+        secrets: Vec::new(),
     }
 }
 

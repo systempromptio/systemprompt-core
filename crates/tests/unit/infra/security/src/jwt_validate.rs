@@ -51,7 +51,7 @@ fn mint_active_kid(claims: &JwtClaims) -> String {
 fn session_context_accepts_first_party_audience() {
     let token = mint_active_kid(&make_claims("test", JwtAudience::standard()));
     let claims = decode_rs256_claims(
-        &test_signing_keys(),
+        test_signing_keys().keyring(),
         &token,
         &ValidationPolicy::session_context("test"),
     )
@@ -63,7 +63,7 @@ fn session_context_accepts_first_party_audience() {
 fn session_context_rejects_hook_only_audience() {
     let token = mint_active_kid(&make_claims("test", vec![JwtAudience::Hook]));
     let err = decode_rs256_claims(
-        &test_signing_keys(),
+        test_signing_keys().keyring(),
         &token,
         &ValidationPolicy::session_context("test"),
     )
@@ -81,7 +81,7 @@ fn session_context_rejects_custom_resource_audience() {
         vec![JwtAudience::Resource("https://example.com/api".to_owned())],
     ));
     let err = decode_rs256_claims(
-        &test_signing_keys(),
+        test_signing_keys().keyring(),
         &token,
         &ValidationPolicy::session_context("test"),
     )
@@ -99,7 +99,7 @@ fn session_context_accepts_mixed_bridge_and_mcp_audience() {
         vec![JwtAudience::Bridge, JwtAudience::Mcp],
     ));
     decode_rs256_claims(
-        &test_signing_keys(),
+        test_signing_keys().keyring(),
         &token,
         &ValidationPolicy::session_context("test"),
     )
@@ -111,7 +111,7 @@ fn issuer_scoped_rejects_wrong_audience() {
     let token = mint_active_kid(&make_claims("my.issuer", vec![JwtAudience::Web]));
     let auds = [JwtAudience::Mcp];
     let err = decode_rs256_claims(
-        &test_signing_keys(),
+        test_signing_keys().keyring(),
         &token,
         &ValidationPolicy::issuer_scoped("my.issuer", &auds),
     )
@@ -127,7 +127,7 @@ fn issuer_scoped_rejects_wrong_issuer() {
     let token = mint_active_kid(&make_claims("other.issuer", JwtAudience::standard()));
     let auds = [JwtAudience::Web];
     let err = decode_rs256_claims(
-        &test_signing_keys(),
+        test_signing_keys().keyring(),
         &token,
         &ValidationPolicy::issuer_scoped("my.issuer", &auds),
     )
@@ -143,7 +143,7 @@ fn issuer_scoped_accepts_matching_issuer_and_audience() {
     let token = mint_active_kid(&make_claims("my.issuer", vec![JwtAudience::Api]));
     let auds = [JwtAudience::Web, JwtAudience::Api];
     decode_rs256_claims(
-        &test_signing_keys(),
+        test_signing_keys().keyring(),
         &token,
         &ValidationPolicy::issuer_scoped("my.issuer", &auds),
     )
@@ -154,7 +154,7 @@ fn issuer_scoped_accepts_matching_issuer_and_audience() {
 fn empty_audience_policy_is_rejected_before_decode() {
     let token = mint_active_kid(&make_claims("test", JwtAudience::standard()));
     let err = decode_rs256_claims(
-        &test_signing_keys(),
+        test_signing_keys().keyring(),
         &token,
         &ValidationPolicy::issuer_scoped("test", &[]),
     )
@@ -186,7 +186,7 @@ fn decode_rejects_non_rs256_token() {
     let token = encode(&header, &claims, &EncodingKey::from_secret(secret)).unwrap();
 
     let err = decode_rs256_claims(
-        &test_signing_keys(),
+        test_signing_keys().keyring(),
         &token,
         &ValidationPolicy::session_context("test"),
     )
@@ -205,7 +205,7 @@ fn decode_rejects_missing_kid() {
     let token = encode(&header, &claims, test_signing_keys().encoding_key()).unwrap();
 
     let err = decode_rs256_claims(
-        &test_signing_keys(),
+        test_signing_keys().keyring(),
         &token,
         &ValidationPolicy::session_context("test"),
     )
@@ -224,7 +224,7 @@ fn decode_rejects_unknown_kid() {
     let token = encode(&header, &claims, test_signing_keys().encoding_key()).unwrap();
 
     let err = decode_rs256_claims(
-        &test_signing_keys(),
+        test_signing_keys().keyring(),
         &token,
         &ValidationPolicy::session_context("test"),
     )
@@ -244,7 +244,7 @@ fn leeway_constant_is_thirty_seconds() {
 fn session_context_rejects_a_foreign_issuer() {
     let token = mint_active_kid(&make_claims("other.issuer", JwtAudience::standard()));
     let err = decode_rs256_claims(
-        &test_signing_keys(),
+        test_signing_keys().keyring(),
         &token,
         &ValidationPolicy::session_context("test"),
     )

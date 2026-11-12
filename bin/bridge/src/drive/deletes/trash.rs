@@ -129,7 +129,7 @@ async fn restore_from(
         .download_blob(cycle.bearer, &head.content_sha256)
         .await?;
     let path = cycle.root.file(&head.path)?;
-    write_verified(&path, &bytes, &head.content_sha256)?;
+    write_verified(cycle.root, &path, &bytes, &head.content_sha256)?;
     let entry = synced_entry(
         &path,
         Some(head.document_id),

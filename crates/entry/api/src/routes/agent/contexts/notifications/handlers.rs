@@ -3,14 +3,16 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use serde::Deserialize;
 use serde_json::json;
+use systemprompt_agent::repository::OwnedTask;
 use systemprompt_agent::repository::context::ContextNotificationRepository;
+use systemprompt_agent::repository::task::TaskRepository;
 use systemprompt_events::EventRouter;
 use systemprompt_identifiers::{AgentId, ContextId, TaskId, UserId};
 use systemprompt_models::{AgUiEventBuilder, CustomPayload, GenericCustomPayload};
-use systemprompt_runtime::AppContext;
+use systemprompt_traits::RepositoryError;
 
 use super::A2aNotification;
 use super::error::NotificationError;
@@ -48,32 +50,56 @@ pub(super) async fn persist_notification(
     Ok(id)
 }
 
-pub(super) async fn process_notification(
-    app_context: AppContext,
+#[derive(Debug)]
+pub(super) struct StatusUpdate {
+    task: OwnedTask,
+    state: String,
+    timestamp: DateTime<Utc>,
+}
+
+pub(super) async fn resolve_status_update(
+    tasks: &TaskRepository,
+    context_id: &ContextId,
+    user_id: &UserId,
     notification: &A2aNotification,
-) -> Result<(), NotificationError> {
-    match notification.method.as_str() {
-        "notifications/taskStatusUpdate" => {
-            let params = TaskStatusUpdateParams::deserialize(&notification.params)
-                .map_err(NotificationError::InvalidParams)?;
-
-            let timestamp = params
-                .status
-                .timestamp
-                .as_ref()
-                .and_then(systemprompt_database::parse_database_datetime)
-                .unwrap_or_else(Utc::now);
-
-            app_context
-                .a2a_repositories()
-                .tasks
-                .apply_notification_status(&params.task_id, &params.status.state, &timestamp)
-                .await?;
-
-            Ok(())
-        },
-        _ => Ok(()),
+) -> Result<Option<StatusUpdate>, NotificationError> {
+    if notification.method != "notifications/taskStatusUpdate" {
+        return Ok(None);
     }
+
+    let params = TaskStatusUpdateParams::deserialize(&notification.params)
+        .map_err(NotificationError::InvalidParams)?;
+
+    let task = tasks.owned_task(&params.task_id, user_id).await?;
+    if task.context_id() != context_id {
+        return Err(NotificationError::Repository(RepositoryError::not_found(
+            "task",
+            params.task_id.as_str(),
+        )));
+    }
+
+    let timestamp = params
+        .status
+        .timestamp
+        .as_ref()
+        .and_then(systemprompt_database::parse_database_datetime)
+        .unwrap_or_else(Utc::now);
+
+    Ok(Some(StatusUpdate {
+        task,
+        state: params.status.state,
+        timestamp,
+    }))
+}
+
+pub(super) async fn apply_status_update(
+    tasks: &TaskRepository,
+    update: &StatusUpdate,
+) -> Result<(), NotificationError> {
+    tasks
+        .apply_notification_status(&update.task, &update.state, &update.timestamp)
+        .await?;
+    Ok(())
 }
 
 pub(super) async fn broadcast_notification(

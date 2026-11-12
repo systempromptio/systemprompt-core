@@ -1,7 +1,9 @@
 //! The SYSTEM side of the policy writer: the task's action. It processes
-//! every request in the inbox, believes nothing a request says until the
-//! manifest it carries has verified against the machine anchor, and answers
-//! each requester in the outbox.
+//! every request in the inbox, acts only on a request file owned by the
+//! account the machine policy is bound to, believes nothing a request says
+//! until the manifest it carries has verified against the machine anchor and
+//! is newer than the last one accepted, and answers each requester in the
+//! outbox.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -13,7 +15,10 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use super::spool::read_anchor;
-use super::{Layout, PolicyWriteRequest, PolicyWriterError, derive_policy, verify_against_anchor};
+use super::{
+    AcceptedEnvelope, AccountSid, Layout, PolicyWriteRequest, PolicyWriterError, binding,
+    derive_policy, machine_state, verify_against_anchor,
+};
 use crate::config::store::{self, PolicyHive, PolicyTarget};
 use crate::install::elevated_protocol::{
     CompletedStep, ElevatedResult, ElevatedState, PROTOCOL_VERSION,
@@ -91,16 +96,16 @@ fn pending_requests(layout: &Layout) -> Vec<PathBuf> {
 }
 
 fn process(layout: &Layout, request_path: &Path) -> Result<(), PolicyWriterError> {
-    let request = super::request::read_request(request_path)?;
+    let (request, owner) = super::request::read_owned_request(request_path)?;
     let result_path = layout.result_path(&request.job_id);
     let mut result = ElevatedResult {
         version: PROTOCOL_VERSION,
         job_id: request.job_id.clone(),
         outcome: ElevatedState::Started,
     };
-    write_result(&result_path, &result, &request.requester_sid)?;
+    write_result(&result_path, &result, &owner)?;
     let mut steps = Vec::new();
-    let outcome = apply(&request, &mut steps);
+    let outcome = apply(layout, &request, &owner, &mut steps);
     result.outcome = match &outcome {
         Ok(()) => ElevatedState::Completed { steps },
         Err(e) => ElevatedState::Failed {
@@ -108,14 +113,18 @@ fn process(layout: &Layout, request_path: &Path) -> Result<(), PolicyWriterError
             error: e.to_string(),
         },
     };
-    write_result(&result_path, &result, &request.requester_sid)?;
+    write_result(&result_path, &result, &owner)?;
     outcome
 }
 
 fn apply(
+    layout: &Layout,
     request: &PolicyWriteRequest,
+    owner: &AccountSid,
     steps: &mut Vec<CompletedStep>,
 ) -> Result<(), PolicyWriterError> {
+    let bound = machine_state::read_binding(layout)?;
+    binding::authorize(owner, &bound)?;
     let store = store::managed_policy_store();
     let anchors = read_anchor(store.as_ref())?;
     let requested = systemprompt_identifiers::ValidatedUrl::try_new(&request.gateway)
@@ -123,6 +132,18 @@ fn apply(
     let anchor = crate::config::trust::select_pin(anchors, &requested)?
         .ok_or(PolicyWriterError::NoAnchor)?;
     let manifest = verify_against_anchor(request, &anchor)?;
+    let digest = binding::envelope_digest(&request.envelope)?;
+    let last = machine_state::read_accepted(layout)?;
+    let admission = binding::admit(&manifest, &digest, last.as_ref(), chrono::Utc::now())?;
+    if admission == binding::Admission::Fresh {
+        machine_state::write_accepted(
+            layout,
+            &AcceptedEnvelope {
+                manifest_version: manifest.manifest_version.clone(),
+                envelope_digest: digest,
+            },
+        )?;
+    }
     let existing = store.read_policy_document(
         PolicyHive::Machine,
         PolicyTarget::Claude,
@@ -132,7 +153,18 @@ fn apply(
         Some(store::PolicyDocumentValue::Str(models)) => Some(models.clone()),
         _ => None,
     };
-    let values = derive_policy(request, &manifest, existing_models)?;
+    let values = derive_policy(&bound, request, &manifest, existing_models)?;
+    let withheld = store::policy_apply::withheld_keys(&values);
+    let mut names: Vec<&str> = values.iter().map(|(name, _, _)| *name).collect();
+    names.extend(&withheld);
+    let current = store.read_policy_document(PolicyHive::Machine, PolicyTarget::Claude, &names)?;
+    let differs = values.iter().any(|(name, _, value)| {
+        current.get(*name) != Some(&store::PolicyDocumentValue::Str(value.clone()))
+    }) || withheld.iter().any(|name| current.contains_key(*name));
+    let outcome = binding::ApplyOutcome::of(admission, differs);
+    // Why: the result protocol requires a receipt for the policy step, so an
+    // unchanged re-apply still runs the verified write; it rewrites the same
+    // values and the outcome records that nothing differed.
     let receipt =
         store::policy_apply::apply_claude_policy(store.as_ref(), PolicyHive::Machine, &values)?;
     tracing::info!(
@@ -140,6 +172,7 @@ fn apply(
         job = %request.job_id,
         servers = manifest.managed_mcp_servers.len(),
         receipt = %receipt.describe(),
+        outcome = ?outcome,
         "machine policy written from a verified manifest"
     );
     steps.push(CompletedStep {
@@ -153,13 +186,13 @@ fn apply(
 fn write_result(
     path: &Path,
     result: &ElevatedResult,
-    requester_sid: &str,
+    reader: &AccountSid,
 ) -> Result<(), PolicyWriterError> {
     let json = serde_json::to_vec(result).map_err(|e| PolicyWriterError::Io {
         context: "encode writer result".to_owned(),
         source: io::Error::other(e),
     })?;
-    crate::fsutil::atomic_write_for_reader(path, &json, requester_sid).map_err(|source| {
+    crate::fsutil::atomic_write_for_reader(path, &json, reader.as_str()).map_err(|source| {
         PolicyWriterError::Io {
             context: format!("write {}", path.display()),
             source,

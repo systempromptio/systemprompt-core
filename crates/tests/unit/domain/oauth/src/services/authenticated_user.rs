@@ -43,12 +43,13 @@ impl UserProvider for FixedUser {
         Ok(())
     }
 
-    async fn find_or_create_federated(
+    async fn resolve_federated(
         &self,
         _issuer: &str,
         _external_sub: &str,
         _claims: &FederatedIdentityClaims,
-    ) -> AuthResult<UserId> {
+        _policy: &systemprompt_traits::LinkPolicy,
+    ) -> AuthResult<systemprompt_traits::FederatedResolution> {
         Err(AuthProviderError::Internal("unused".into()))
     }
 
@@ -90,12 +91,13 @@ impl UserProvider for FailingUsers {
         Ok(())
     }
 
-    async fn find_or_create_federated(
+    async fn resolve_federated(
         &self,
         _issuer: &str,
         _external_sub: &str,
         _claims: &FederatedIdentityClaims,
-    ) -> AuthResult<UserId> {
+        _policy: &systemprompt_traits::LinkPolicy,
+    ) -> AuthResult<systemprompt_traits::FederatedResolution> {
         Err(AuthProviderError::Internal("unused".into()))
     }
 

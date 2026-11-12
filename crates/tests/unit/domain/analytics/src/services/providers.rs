@@ -30,8 +30,10 @@ mod fingerprint_provider {
         let count = FingerprintProvider::count_active_sessions(&repo, &fp)
             .await
             .expect("count");
-        assert!(count >= 0);
-        // No active session references this fingerprint yet.
+        assert_eq!(
+            count, 0,
+            "no session references a freshly minted fingerprint"
+        );
         assert!(
             FingerprintProvider::find_reusable_session(&repo, &fp)
                 .await

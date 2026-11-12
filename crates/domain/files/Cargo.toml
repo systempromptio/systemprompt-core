@@ -61,9 +61,9 @@ scraper = { workspace = true }
 ego-tree = { workspace = true }
 diffy = { workspace = true }
 flate2 = { workspace = true }
-pdf-writer = { workspace = true }
-subsetter = { workspace = true }
-ttf-parser = { workspace = true }
+pdf-writer = { workspace = true, optional = true }
+subsetter = { workspace = true, optional = true }
+ttf-parser = { workspace = true, optional = true }
 png = { workspace = true }
 zip = { workspace = true, optional = true }
 quick-xml = { workspace = true }
@@ -73,6 +73,7 @@ ironcalc = { version = "=0.9.1", optional = true, default-features = false }
 
 [features]
 office = ["dep:zip", "dep:umya-spreadsheet", "dep:ironcalc"]
+pdf = ["dep:pdf-writer", "dep:subsetter", "dep:ttf-parser"]
 collab = []
 collab-loro = ["collab", "dep:loro"]
 

@@ -24,6 +24,13 @@ use systemprompt_test_fixtures::{test_db_pool, unique_agent_name, unique_instanc
 // still lying far above any pid_max a kernel will hand out.
 const DEAD_PID: u32 = 2_000_000_000;
 
+fn free_port() -> u16 {
+    std::net::TcpListener::bind("127.0.0.1:0")
+        .and_then(|l| l.local_addr())
+        .map(|a| a.port())
+        .expect("bind an ephemeral port")
+}
+
 fn app_paths() -> Arc<AppPaths> {
     let bootstrap = systemprompt_test_fixtures::ensure_test_bootstrap();
     Arc::new(bootstrap.app_paths.clone())
@@ -244,7 +251,8 @@ async fn start_agent_missing_binary_fails_after_prerequisites() {
     let instance = unique_instance();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let name = unique_agent_name("orchreg_spawnfail");
-    let orchestrator = make_orchestrator(&pool, &instance, &[(&name, 39457)]).await;
+    let port = free_port();
+    let orchestrator = make_orchestrator(&pool, &instance, &[(&name, port)]).await;
 
     let result = orchestrator.start_agent(&name, None).await;
     assert!(result.is_err(), "spawn without a worker binary must fail");
@@ -261,10 +269,11 @@ async fn restart_agent_dead_pid_row_reaches_start_path() {
     let instance = unique_instance();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let name = unique_agent_name("orchreg_restart");
-    let orchestrator = make_orchestrator(&pool, &instance, &[(&name, 39458)]).await;
+    let port = free_port();
+    let orchestrator = make_orchestrator(&pool, &instance, &[(&name, port)]).await;
 
     db_service(&pool, &instance)
-        .register_agent(&name, DEAD_PID, 39458)
+        .register_agent(&name, DEAD_PID, port)
         .await
         .expect("register");
 

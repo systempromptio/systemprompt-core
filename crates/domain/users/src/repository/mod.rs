@@ -22,11 +22,12 @@ mod session_traffic;
 mod sso_login_events;
 mod user;
 
-pub use api_key::CreateApiKeyParams;
+pub use api_key::{CreateApiKeyParams, EnsuredApiKeyRecord};
 pub use banned_ip::{
     BanDuration, BanIpParams, BanIpWithMetadataParams, BannedIp, BannedIpRepository,
 };
 pub use device_cert::EnrollDeviceCertParams;
+pub use federated_identity::{IssuerRekeyOutcome, IssuerRekeyPlan};
 pub use rate_limit_bucket::UserRateLimitBucketRepository;
 pub use role_directory::UsersRoleDirectory;
 pub use session::SessionRepository;

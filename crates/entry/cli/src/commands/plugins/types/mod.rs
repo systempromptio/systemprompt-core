@@ -9,6 +9,7 @@
 
 mod capability_types;
 mod extension_types;
+mod seam_types;
 mod validation_types;
 
 pub use capability_types::{
@@ -21,4 +22,5 @@ pub use extension_types::{
     ExtensionDetailOutput, ExtensionListOutput, ExtensionSource, ExtensionSummary, JobInfo,
     RoleInfo, RouteInfo, SchemaInfo, TemplateInfo, ToolInfo,
 };
+pub use seam_types::{SeamRow, SeamStatus};
 pub use validation_types::{ExtensionValidationOutput, ValidationError, ValidationWarning};

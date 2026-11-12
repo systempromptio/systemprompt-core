@@ -44,6 +44,8 @@ mod deploy_vault_secrets;
 #[cfg(test)]
 mod descriptor;
 #[cfg(test)]
+mod doctor_git_credentials;
+#[cfg(test)]
 mod doctor_vault_checks;
 #[cfg(test)]
 mod env_overrides;
@@ -58,6 +60,8 @@ mod interactive;
 #[cfg(test)]
 mod interactive_terminal;
 #[cfg(test)]
+mod irreversible_confirmation;
+#[cfg(test)]
 mod mcp_probe_flows;
 #[cfg(test)]
 mod paths;
@@ -71,6 +75,8 @@ mod presentation_tables;
 mod profile_flag_parsing;
 #[cfg(test)]
 mod runner_args;
+#[cfg(test)]
+mod runner_interrupt;
 #[cfg(test)]
 mod runner_routing;
 #[cfg(test)]

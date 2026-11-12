@@ -109,17 +109,22 @@ fn user_message(text: &str) -> CanonicalMessage {
 
 #[test]
 fn a_missing_session_header_leaves_the_choice_to_the_credential() {
-    assert!(optional_session_id(&HeaderMap::new()).is_none());
+    assert!(optional_session_id(&HeaderMap::new()).unwrap().is_none());
 }
 
 #[test]
 fn a_blank_session_header_is_treated_as_absent() {
-    assert!(optional_session_id(&headers_with(SESSION_ID, "   ")).is_none());
+    assert!(
+        optional_session_id(&headers_with(SESSION_ID, "   "))
+            .unwrap()
+            .is_none()
+    );
 }
 
 #[test]
 fn a_session_header_is_trimmed_before_it_becomes_an_id() {
     let session = optional_session_id(&headers_with(SESSION_ID, "  sess_abc  "))
+        .expect("a valid header")
         .expect("a padded but non-empty header names a session");
 
     assert_eq!(session.as_str(), "sess_abc");
@@ -406,10 +411,10 @@ fn raw_header(name: &'static str, bytes: &[u8]) -> HeaderMap {
 }
 
 #[test]
-fn a_session_header_that_is_not_utf8_is_treated_as_absent_rather_than_a_panic() {
+fn a_session_header_that_is_not_utf8_is_rejected_rather_than_a_panic() {
     let headers = raw_header(SESSION_ID, &[0xC3, 0x28]);
 
-    assert!(optional_session_id(&headers).is_none());
+    assert!(optional_session_id(&headers).is_err());
 }
 
 #[test]
@@ -456,19 +461,20 @@ async fn a_body_over_the_buffer_limit_is_rejected_rather_than_buffered() {
 #[tokio::test]
 async fn a_body_read_past_the_limit_maps_to_413() {
     let oversized = vec![b'x'; 64];
-    let error = axum::body::to_bytes(Body::from(oversized), 16)
-        .await
-        .expect_err("a body past the limit fails to read");
+    let error =
+        systemprompt_api::services::middleware::read_body_bounded(Body::from(oversized), 16)
+            .await
+            .expect_err("a body past the limit fails to read");
 
     assert_eq!(body_read_error(error).status, StatusCode::PAYLOAD_TOO_LARGE);
 }
 
 #[test]
 fn a_body_read_that_fails_for_any_other_reason_maps_to_400() {
-    let error = axum::Error::new(std::io::Error::new(
-        std::io::ErrorKind::ConnectionReset,
-        "client went away",
-    ));
+    let error =
+        systemprompt_api::services::middleware::BodyReadError::Unreadable(axum::Error::new(
+            std::io::Error::new(std::io::ErrorKind::ConnectionReset, "client went away"),
+        ));
 
     let RejectionError {
         status, message, ..

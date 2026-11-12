@@ -21,6 +21,7 @@ pub trait ContextExtractor: Send + Sync {
     async fn extract_from_request(
         &self,
         request: Request<Body>,
+        _body_limit: usize,
     ) -> Result<(RequestContext, Request<Body>), ContextExtractionError> {
         let headers = request.headers().clone();
         let context = self.extract_from_headers(&headers).await?;

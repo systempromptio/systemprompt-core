@@ -10,6 +10,7 @@ use tracing::instrument;
 
 use super::super::OAuthHttpError;
 use super::super::extractors::OAuthRepo;
+use super::ownership::managed_client;
 use systemprompt_models::RequestContext;
 
 #[instrument(skip(repository, req_ctx), fields(client_id = %client_id))]
@@ -19,12 +20,7 @@ pub async fn delete_client(
     Path(client_id): Path<String>,
 ) -> Result<Response, OAuthHttpError> {
     let client_id = systemprompt_identifiers::ClientId::try_new(client_id)?;
-    let client = repository
-        .find_client_by_id(&client_id)
-        .await?
-        .ok_or_else(|| {
-            OAuthHttpError::not_found(format!("Client with ID '{client_id}' not found"))
-        })?;
+    let client = managed_client(&repository, &req_ctx, &client_id).await?;
 
     repository.delete_client(&client_id).await?;
 

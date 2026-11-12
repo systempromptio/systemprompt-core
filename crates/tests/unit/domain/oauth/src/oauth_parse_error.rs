@@ -70,7 +70,6 @@ fn oauth_parse_error_implements_std_error() {
     let _boxed: Box<dyn std::error::Error> = Box::new(err);
 }
 
-
 // -- Token-exchange grant (URN form) ----------------------------------------
 
 #[test]
@@ -95,7 +94,6 @@ fn grant_type_token_exchange_display() {
     );
 }
 
-
 #[test]
 fn grant_type_default_grant_types_excludes_token_exchange() {
     let defaults = GrantType::default_grant_types();
@@ -106,19 +104,11 @@ fn grant_type_default_grant_types_excludes_token_exchange() {
 
 #[test]
 fn grant_type_eq_same_variants() {
-    assert_eq!(GrantType::AuthorizationCode, GrantType::AuthorizationCode);
     assert_ne!(GrantType::AuthorizationCode, GrantType::RefreshToken);
-}
-
-
-#[test]
-fn response_type_eq() {
-    assert_eq!(ResponseType::Code, ResponseType::Code);
 }
 
 #[test]
 fn response_mode_eq() {
-    assert_eq!(ResponseMode::Query, ResponseMode::Query);
     assert_ne!(ResponseMode::Query, ResponseMode::Fragment);
 }
 

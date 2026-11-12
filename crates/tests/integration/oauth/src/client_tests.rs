@@ -2,7 +2,9 @@
 
 use crate::setup_test_db;
 use systemprompt_identifiers::ClientId;
-use systemprompt_oauth::repository::{ClientRepository, CreateClientParams, UpdateClientParams};
+use systemprompt_oauth::repository::{
+    ClientOwnerScope, ClientRepository, CreateClientParams, UpdateClientParams,
+};
 use uuid::Uuid;
 
 fn test_client_id() -> ClientId {
@@ -197,21 +199,25 @@ async fn test_client_secret_update() {
 }
 
 #[tokio::test]
-async fn test_client_counting() {
+async fn an_owner_scoped_count_tracks_create_and_delete() {
     let db = setup_test_db().await;
     let repo = ClientRepository::new(&db);
-
+    let owner = systemprompt_test_fixtures::unique_user_id("count-owner");
+    systemprompt_test_fixtures::seed_user_row(
+        &db,
+        &owner,
+        &format!("{}@count.invalid", owner.as_str()),
+    )
+    .await
+    .expect("seed owner");
+    let scope = ClientOwnerScope::OwnedBy(owner.clone());
     let client_id = test_client_id();
 
-    let initial_count = repo.count().await.expect("Failed to count clients");
-    assert!(
-        initial_count >= 0,
-        "Count should return a non-negative value"
-    );
+    assert_eq!(repo.count(&scope).await.expect("count before"), 0);
 
     let create_params = CreateClientParams {
         client_id: client_id.clone(),
-        owner_user_id: systemprompt_test_fixtures::fixture_user_id(),
+        owner_user_id: owner,
         client_secret_hash: Some("hash".to_string()),
         registration_token_hash: None,
         client_name: "Count Test".to_string(),
@@ -225,33 +231,20 @@ async fn test_client_counting() {
         logo_uri: None,
         contacts: None,
     };
-
     repo.create(create_params)
         .await
         .expect("Failed to create client");
-
-    let count_after_create = repo.count().await.expect("Failed to count clients");
-    assert!(
-        count_after_create > 0,
-        "Count should be positive after creating client"
-    );
-
-    let client_exists = repo
-        .find_by_client_id(&client_id)
+    assert_eq!(repo.count(&scope).await.expect("count after create"), 1);
+    let every = repo
+        .count(&ClientOwnerScope::Every)
         .await
-        .expect("Failed to query client")
-        .is_some();
-    assert!(client_exists, "Created client should be retrievable");
+        .expect("count every");
+    assert!(every >= 1, "every active client includes this one: {every}");
 
     repo.delete(&client_id)
         .await
         .expect("Failed to delete client");
-
-    let count_after_delete = repo.count().await.expect("Failed to count after delete");
-    assert!(
-        count_after_delete >= 0,
-        "Count should be non-negative after delete"
-    );
+    assert_eq!(repo.count(&scope).await.expect("count after delete"), 0);
 }
 
 #[tokio::test]

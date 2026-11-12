@@ -39,7 +39,7 @@ pub(crate) fn remove_managed_settings() -> Result<Vec<String>, MdmError> {
         let Some(found) = root.get("apiKeyHelper").and_then(serde_json::Value::as_str) else {
             continue;
         };
-        let stale_ours = found != helper && super::is_bridge_windows_helper(found);
+        let stale_ours = found != helper && super::is_bridge_helper(found);
         if found != helper && !stale_ours {
             continue;
         }

@@ -7,7 +7,6 @@
 # cargo build-script env, and OS-defined home/data directory probes.
 
 # --- core ---
-crates/app/runtime/src/documents/wiring.rs  # collab owner advertise address is per machine: FLY_PRIVATE_IP platform probe, SYSTEMPROMPT_COLLAB_ADVERTISE_URL per-replica override (a shared profile cannot hold a per-machine address)
 crates/infra/config/src/bootstrap/profile.rs  # SYSTEMPROMPT_PROFILE boot variable
 crates/infra/config/src/bootstrap/secrets/mod.rs  # deployment-host detection for the secrets bootstrap (SYSTEMPROMPT_* subprocess vars)
 crates/infra/config/src/bootstrap/secrets/loader.rs  # deployment-host / SYSTEMPROMPT_SUBPROCESS detection; OAUTH_AT_REST_PEPPER presence for `resolve_source`; Vault credentials from the secrets `env` source
@@ -20,7 +19,8 @@ crates/infra/logging/src/lib.rs  # RUST_LOG via EnvFilter::try_from_default_env 
 crates/shared/manifest/src/profile/paths.rs  # HOME / USERPROFILE for `~` expansion in profile paths
 crates/shared/extension/src/build/mod.rs  # cargo build-script environment (OUT_DIR, CARGO_MANIFEST_DIR)
 crates/infra/cloud/src/credentials_bootstrap/mod.rs  # deployment-host detection for cloud credentials; SYSTEMPROMPT_ALLOW_UNVALIDATED_CREDS tenant-pod boot bypass (deployment host only, audited)
-crates/shared/manifest/src/env.rs  # read_env_optional: the one primitive behind `${VAR}` profile interpolation, the secrets `env` source and cloud credentials bootstrap
+crates/shared/manifest/src/env/mod.rs  # read_env_optional: the one primitive behind `${VAR}` profile and services interpolation, the secrets `env` source and cloud credentials bootstrap
+crates/shared/models/src/net/proxy.rs  # HTTP(S)_PROXY / ALL_PROXY / NO_PROXY — the operator's forward-proxy settings, the single reader shared by the guarded HTTP client and sandboxed git, mirroring what reqwest and curl honour
 crates/shared/models/src/net/mod.rs  # SYSTEMPROMPT_TRUSTED_HTTP_HOSTS — documented operator SSRF opt-in (documentation/security/outbound-egress-controls.md), forwarded to subprocesses by inherited_parent_env
 crates/domain/agent/src/services/agent_orchestration/process/command.rs  # env lookup closure for inherited_parent_env (deployment-host vars, HOSTNAME, POD_NAME, PATH, HOME, SYSTEMPROMPT_TRUSTED_HTTP_HOSTS) after env_clear on the agent child
 crates/domain/mcp/src/services/process/spawner.rs  # env lookup closure passing the operator-named `env_vars` of an MCP service config into the child after env_clear
@@ -59,3 +59,4 @@ bin/bridge/src/sync/manifest/errors.rs  # <PREFIX>_CONFIG presence noted in the 
 bin/bridge/src/winproc.rs  # SystemRoot to address System32 binaries by absolute path from the elevated child (Windows)
 bin/bridge/src/sync/provision.rs  # USER as the chown target when the elevated provisioning script creates the workspace (macOS)
 crates/app/agent-runs/src/execute/command.rs  # PATH, LANG, LC_ALL, TERM, TZ: the only server variables a headless host child inherits after env_clear()
+crates/app/runtime/src/host/boot.rs  # MCP child boot: SYSTEMPROMPT_PROFILE, DATABASE_* URLs, VERIFICATION_KEYS and the granted secrets the API spawned it with

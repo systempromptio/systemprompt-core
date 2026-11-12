@@ -1,12 +1,12 @@
 use std::sync::{Arc, OnceLock};
 
 use systemprompt_identifiers::McpServerId;
-use systemprompt_runtime::AppContext;
+use systemprompt_runtime::HostContext;
 use systemprompt_runtime::mcp_host::{
     DOCUMENTS_TOOLSET, ISSUES_TOOLSET, McpHostError, build_server, registered_toolset_ids, serve,
     serve_on,
 };
-use systemprompt_test_fixtures::{TestBootstrap, init_services_bootstrap, test_app_context_on};
+use systemprompt_test_fixtures::{TestBootstrap, host_child_env, init_services_bootstrap};
 
 const SERVICES: &str = "mcp_servers:
   host_full:
@@ -65,10 +65,27 @@ const SERVICES: &str = "mcp_servers:
 
 static BOOT: OnceLock<TestBootstrap> = OnceLock::new();
 
-async fn ctx() -> Arc<AppContext> {
-    let bootstrap = BOOT.get_or_init(|| init_services_bootstrap(SERVICES));
-    let pool = systemprompt_test_fixtures::test_db_pool().await;
-    test_app_context_on(bootstrap, &pool)
+async fn ctx() -> Arc<HostContext> {
+    let bootstrap = BOOT.get_or_init(|| {
+        let bootstrap = init_services_bootstrap(SERVICES);
+        std::fs::write(
+            bootstrap.services_path.join("config/files.yaml"),
+            "files:\n  documents:\n    enabled: true\n",
+        )
+        .expect("write files.yaml");
+        bootstrap
+    });
+    let env = host_child_env(bootstrap);
+    systemprompt_test_fixtures::seed_fixture_system_admin(
+        &systemprompt_test_fixtures::test_db_pool().await,
+    )
+    .await
+    .expect("seed the system admin");
+    Arc::new(
+        HostContext::boot(move |name| env.get(name).cloned())
+            .await
+            .expect("host context from the child environment"),
+    )
 }
 
 #[test]
@@ -173,4 +190,35 @@ async fn serve_on_answers_http_on_the_listener() {
     );
     assert!(!task.is_finished());
     task.abort();
+}
+
+fn non_loopback_interface() -> std::net::IpAddr {
+    let probe = std::net::UdpSocket::bind("0.0.0.0:0").expect("udp bind");
+    probe
+        .connect("192.0.2.1:9")
+        .expect("route to a non-loopback address");
+    let ip = probe.local_addr().expect("local addr").ip();
+    assert!(
+        !ip.is_loopback(),
+        "the host has a non-loopback interface: {ip}"
+    );
+    ip
+}
+
+#[tokio::test]
+async fn the_host_listener_is_not_reachable_on_a_non_loopback_address() {
+    let listener = systemprompt_mcp::bind_loopback(0).await.expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    assert!(addr.ip().is_loopback(), "{addr}");
+
+    let local = tokio::net::TcpStream::connect(addr).await;
+    assert!(local.is_ok(), "loopback reaches the host");
+
+    let external = non_loopback_interface();
+    let refused = tokio::net::TcpStream::connect((external, addr.port())).await;
+    assert!(
+        refused.is_err(),
+        "{external}:{} must not reach the host",
+        addr.port()
+    );
 }

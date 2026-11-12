@@ -56,7 +56,12 @@ async fn post_message_json_response_returns_json_variant() {
         .mount(&server)
         .await;
 
-    let client = HttpClientWithContext::forwarding(ctx(), HashMap::new()).expect("guarded client");
+    let client = HttpClientWithContext::forwarding(
+        ctx(),
+        HashMap::new(),
+        systemprompt_mcp::services::client::McpClientLimits::default(),
+    )
+    .expect("guarded client");
     let response = client
         .post_message(uri(&server), ping(), None, None, HashMap::new())
         .await
@@ -78,7 +83,12 @@ async fn post_message_accepted_returns_accepted_variant() {
         .mount(&server)
         .await;
 
-    let client = HttpClientWithContext::forwarding(ctx(), HashMap::new()).expect("guarded client");
+    let client = HttpClientWithContext::forwarding(
+        ctx(),
+        HashMap::new(),
+        systemprompt_mcp::services::client::McpClientLimits::default(),
+    )
+    .expect("guarded client");
     let response = client
         .post_message(uri(&server), ping(), None, None, HashMap::new())
         .await
@@ -102,7 +112,12 @@ async fn post_message_sse_response_returns_stream() {
         .mount(&server)
         .await;
 
-    let client = HttpClientWithContext::forwarding(ctx(), HashMap::new()).expect("guarded client");
+    let client = HttpClientWithContext::forwarding(
+        ctx(),
+        HashMap::new(),
+        systemprompt_mcp::services::client::McpClientLimits::default(),
+    )
+    .expect("guarded client");
     let response = client
         .post_message(uri(&server), ping(), None, None, HashMap::new())
         .await
@@ -128,7 +143,12 @@ async fn post_message_unauthorized_surfaces_a_typed_challenge() {
         .mount(&server)
         .await;
 
-    let client = HttpClientWithContext::forwarding(ctx(), HashMap::new()).expect("guarded client");
+    let client = HttpClientWithContext::forwarding(
+        ctx(),
+        HashMap::new(),
+        systemprompt_mcp::services::client::McpClientLimits::default(),
+    )
+    .expect("guarded client");
     let err = client
         .post_message(uri(&server), ping(), None, None, HashMap::new())
         .await
@@ -153,7 +173,7 @@ async fn post_message_unauthorized_surfaces_a_typed_challenge() {
 }
 
 #[tokio::test]
-async fn post_message_unauthorized_reports_enterprise_managed_from_resource_metadata() {
+async fn loopback_resource_metadata_cannot_mark_a_challenge_enterprise_managed() {
     let server = MockServer::start().await;
     let metadata_path = "/.well-known/oauth-protected-resource";
     let metadata_url = format!("{}{metadata_path}", server.uri());
@@ -173,10 +193,16 @@ async fn post_message_unauthorized_reports_enterprise_managed_from_resource_meta
                 "io.modelcontextprotocol/enterprise-managed-authorization"
             ],
         })))
+        .expect(0)
         .mount(&server)
         .await;
 
-    let client = HttpClientWithContext::forwarding(ctx(), HashMap::new()).expect("guarded client");
+    let client = HttpClientWithContext::forwarding(
+        ctx(),
+        HashMap::new(),
+        systemprompt_mcp::services::client::McpClientLimits::default(),
+    )
+    .expect("guarded client");
     let err = client
         .post_message(uri(&server), ping(), None, None, HashMap::new())
         .await
@@ -185,21 +211,20 @@ async fn post_message_unauthorized_reports_enterprise_managed_from_resource_meta
     let StreamableHttpError::Client(McpTransportError::AuthorizationRequired {
         enterprise_managed,
         resource,
+        metadata_url: advertised_metadata_url,
         authorization_servers,
         ..
     }) = err
     else {
         panic!("expected a typed authorization challenge, got {err:?}");
     };
-    assert!(
-        enterprise_managed,
-        "the advertised extension must reach the caller as a flag, not a message"
-    );
+    assert!(!enterprise_managed);
+    assert!(resource.is_none());
+    assert!(authorization_servers.is_empty());
     assert_eq!(
-        resource.as_deref(),
-        Some("https://api.test/api/v1/mcp/demo/mcp")
+        advertised_metadata_url.as_deref(),
+        Some(metadata_url.as_str())
     );
-    assert_eq!(authorization_servers, vec!["https://api.test".to_owned()]);
 }
 
 #[tokio::test]
@@ -210,7 +235,12 @@ async fn post_message_unexpected_content_type_errors() {
         .mount(&server)
         .await;
 
-    let client = HttpClientWithContext::forwarding(ctx(), HashMap::new()).expect("guarded client");
+    let client = HttpClientWithContext::forwarding(
+        ctx(),
+        HashMap::new(),
+        systemprompt_mcp::services::client::McpClientLimits::default(),
+    )
+    .expect("guarded client");
     let err = client
         .post_message(uri(&server), ping(), None, None, HashMap::new())
         .await
@@ -227,7 +257,12 @@ async fn get_stream_method_not_allowed_maps_to_unsupported_sse() {
         .mount(&server)
         .await;
 
-    let client = HttpClientWithContext::forwarding(ctx(), HashMap::new()).expect("guarded client");
+    let client = HttpClientWithContext::forwarding(
+        ctx(),
+        HashMap::new(),
+        systemprompt_mcp::services::client::McpClientLimits::default(),
+    )
+    .expect("guarded client");
     let err = match client
         .get_stream(
             uri(&server),
@@ -255,7 +290,12 @@ async fn get_stream_success_yields_sse_events() {
         .mount(&server)
         .await;
 
-    let client = HttpClientWithContext::forwarding(ctx(), HashMap::new()).expect("guarded client");
+    let client = HttpClientWithContext::forwarding(
+        ctx(),
+        HashMap::new(),
+        systemprompt_mcp::services::client::McpClientLimits::default(),
+    )
+    .expect("guarded client");
     let mut stream = client
         .get_stream(
             uri(&server),
@@ -279,7 +319,12 @@ async fn get_stream_wrong_content_type_errors() {
         .mount(&server)
         .await;
 
-    let client = HttpClientWithContext::forwarding(ctx(), HashMap::new()).expect("guarded client");
+    let client = HttpClientWithContext::forwarding(
+        ctx(),
+        HashMap::new(),
+        systemprompt_mcp::services::client::McpClientLimits::default(),
+    )
+    .expect("guarded client");
     let err = match client
         .get_stream(
             uri(&server),
@@ -305,7 +350,12 @@ async fn delete_session_tolerates_method_not_allowed() {
         .mount(&server)
         .await;
 
-    let client = HttpClientWithContext::forwarding(ctx(), HashMap::new()).expect("guarded client");
+    let client = HttpClientWithContext::forwarding(
+        ctx(),
+        HashMap::new(),
+        systemprompt_mcp::services::client::McpClientLimits::default(),
+    )
+    .expect("guarded client");
     client
         .delete_session(uri(&server), Arc::from("sess"), None, HashMap::new())
         .await
@@ -320,7 +370,12 @@ async fn delete_session_success_and_server_error() {
         .mount(&server)
         .await;
 
-    let client = HttpClientWithContext::forwarding(ctx(), HashMap::new()).expect("guarded client");
+    let client = HttpClientWithContext::forwarding(
+        ctx(),
+        HashMap::new(),
+        systemprompt_mcp::services::client::McpClientLimits::default(),
+    )
+    .expect("guarded client");
     client
         .delete_session(uri(&server), Arc::from("sess"), None, HashMap::new())
         .await
@@ -352,7 +407,12 @@ async fn forwarding_client_sends_context_and_bearer_headers() {
         http::HeaderName::from_static("x-static-extra"),
         http::HeaderValue::from_static("extra"),
     );
-    let client = HttpClientWithContext::forwarding(ctx(), outbound).expect("guarded client");
+    let client = HttpClientWithContext::forwarding(
+        ctx(),
+        outbound,
+        systemprompt_mcp::services::client::McpClientLimits::default(),
+    )
+    .expect("guarded client");
     client
         .post_message(uri(&server), ping(), None, None, HashMap::new())
         .await
@@ -383,7 +443,12 @@ async fn forwarding_client_with_transport_token_sends_one_authorization_header()
         .mount(&server)
         .await;
 
-    let client = HttpClientWithContext::forwarding(ctx(), HashMap::new()).expect("guarded client");
+    let client = HttpClientWithContext::forwarding(
+        ctx(),
+        HashMap::new(),
+        systemprompt_mcp::services::client::McpClientLimits::default(),
+    )
+    .expect("guarded client");
     client
         .post_message(
             uri(&server),
@@ -418,7 +483,12 @@ async fn external_client_withholds_context_and_internal_bearer() {
         http::HeaderName::from_static("authorization"),
         http::HeaderValue::from_static("Bearer third-party"),
     );
-    let client = HttpClientWithContext::external(ctx(), outbound).expect("guarded client");
+    let client = HttpClientWithContext::external(
+        ctx(),
+        outbound,
+        systemprompt_mcp::services::client::McpClientLimits::default(),
+    )
+    .expect("guarded client");
     client
         .post_message(uri(&server), ping(), None, None, HashMap::new())
         .await
@@ -443,7 +513,12 @@ async fn post_message_non_utf8_www_authenticate_is_rejected() {
         .mount(&server)
         .await;
 
-    let client = HttpClientWithContext::forwarding(ctx(), HashMap::new()).expect("guarded client");
+    let client = HttpClientWithContext::forwarding(
+        ctx(),
+        HashMap::new(),
+        systemprompt_mcp::services::client::McpClientLimits::default(),
+    )
+    .expect("guarded client");
     let err = client
         .post_message(uri(&server), ping(), None, None, HashMap::new())
         .await
@@ -464,7 +539,12 @@ async fn get_stream_missing_content_type_errors() {
         .mount(&server)
         .await;
 
-    let client = HttpClientWithContext::forwarding(ctx(), HashMap::new()).expect("guarded client");
+    let client = HttpClientWithContext::forwarding(
+        ctx(),
+        HashMap::new(),
+        systemprompt_mcp::services::client::McpClientLimits::default(),
+    )
+    .expect("guarded client");
     let err = match client
         .get_stream(
             uri(&server),
@@ -494,7 +574,12 @@ async fn get_stream_rejects_events_over_the_size_ceiling() {
         .mount(&server)
         .await;
 
-    let client = HttpClientWithContext::forwarding(ctx(), HashMap::new()).expect("guarded client");
+    let client = HttpClientWithContext::forwarding(
+        ctx(),
+        HashMap::new(),
+        systemprompt_mcp::services::client::McpClientLimits::default(),
+    )
+    .expect("guarded client");
     let mut stream = client
         .get_stream_with_max_sse_event_size(
             uri(&server),
@@ -531,7 +616,12 @@ async fn get_stream_size_ceiling_resets_between_events() {
         .mount(&server)
         .await;
 
-    let client = HttpClientWithContext::forwarding(ctx(), HashMap::new()).expect("guarded client");
+    let client = HttpClientWithContext::forwarding(
+        ctx(),
+        HashMap::new(),
+        systemprompt_mcp::services::client::McpClientLimits::default(),
+    )
+    .expect("guarded client");
     let mut stream = client
         .get_stream_with_max_sse_event_size(
             uri(&server),
@@ -570,7 +660,12 @@ fn transport_error(err: StreamableHttpError<McpTransportError>) -> String {
 async fn item_02_post_redirected_to_cloud_metadata_is_refused() {
     let server = redirecting_mcp_server("https://169.254.169.254/latest/meta-data/").await;
 
-    let client = HttpClientWithContext::forwarding(ctx(), HashMap::new()).expect("guarded client");
+    let client = HttpClientWithContext::forwarding(
+        ctx(),
+        HashMap::new(),
+        systemprompt_mcp::services::client::McpClientLimits::default(),
+    )
+    .expect("guarded client");
     let err = client
         .post_message(uri(&server), ping(), None, None, HashMap::new())
         .await
@@ -590,7 +685,12 @@ async fn item_02_post_redirected_to_a_private_range_never_reaches_the_target() {
     let hop = format!("{}/mcp", landing.uri()).replace("127.0.0.1", "10.0.0.5");
     let server = redirecting_mcp_server(&hop).await;
 
-    let client = HttpClientWithContext::forwarding(ctx(), HashMap::new()).expect("guarded client");
+    let client = HttpClientWithContext::forwarding(
+        ctx(),
+        HashMap::new(),
+        systemprompt_mcp::services::client::McpClientLimits::default(),
+    )
+    .expect("guarded client");
     let err = client
         .post_message(uri(&server), ping(), None, None, HashMap::new())
         .await
@@ -620,7 +720,12 @@ async fn item_02_get_stream_redirected_to_cloud_metadata_is_refused() {
         .mount(&server)
         .await;
 
-    let client = HttpClientWithContext::forwarding(ctx(), HashMap::new()).expect("guarded client");
+    let client = HttpClientWithContext::forwarding(
+        ctx(),
+        HashMap::new(),
+        systemprompt_mcp::services::client::McpClientLimits::default(),
+    )
+    .expect("guarded client");
     let result = client
         .get_stream(
             uri(&server),
@@ -639,7 +744,7 @@ async fn item_02_get_stream_redirected_to_cloud_metadata_is_refused() {
 }
 
 #[tokio::test]
-async fn malformed_protected_resource_metadata_preserves_the_typed_challenge() {
+async fn loopback_resource_metadata_is_never_fetched_and_the_challenge_survives() {
     let server = MockServer::start().await;
     let metadata_path = "/.well-known/oauth-protected-resource";
     let metadata_url = format!("{}{metadata_path}", server.uri());
@@ -660,11 +765,16 @@ async fn malformed_protected_resource_metadata_preserves_the_typed_challenge() {
             ResponseTemplate::new(200)
                 .set_body_raw("{not protected-resource metadata}", "application/json"),
         )
-        .expect(1)
+        .expect(0)
         .mount(&server)
         .await;
 
-    let client = HttpClientWithContext::forwarding(ctx(), HashMap::new()).expect("guarded client");
+    let client = HttpClientWithContext::forwarding(
+        ctx(),
+        HashMap::new(),
+        systemprompt_mcp::services::client::McpClientLimits::default(),
+    )
+    .expect("guarded client");
     let err = client
         .post_message(uri(&server), ping(), None, None, HashMap::new())
         .await

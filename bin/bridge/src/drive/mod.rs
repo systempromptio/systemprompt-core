@@ -7,9 +7,12 @@
 //! substituted download never replaces a file. An upload carries the revision
 //! it was based on; a gateway that has moved on answers with a conflict, and
 //! the local edit is kept as a `(conflict from <host>)` sibling while the head
-//! revision takes the original name. Remote deletions move the local file
-//! into `.trash/<timestamp>/` rather than removing it, and a local deletion is
-//! never sent: removing a document is a gateway-side act.
+//! revision takes the original name. A remote deletion moves the local file
+//! into `.trash/<timestamp>/` (kept for [`trash::RETENTION_DAYS`] days) when
+//! it still holds the synced bytes; a file edited since is kept beside as a
+//! conflict instead. Local paths are derived from the device's own state;
+//! a gateway path is placed only when every desktop filesystem can hold it
+//! and no other file folds to the same name.
 //!
 //! [`state::DriveState`] is the only record of what was last synced. It
 //! advances only after the operation it describes succeeded, so an error
@@ -28,7 +31,9 @@ pub mod cycle;
 pub mod deletes;
 pub mod error;
 pub mod hash;
+pub mod names;
 pub mod notice;
+pub mod placement;
 pub mod presence;
 pub mod proposals;
 pub mod pull;
@@ -38,6 +43,8 @@ pub mod scan;
 pub mod shares;
 pub mod state;
 pub mod status;
+pub mod trash;
+pub mod unplaced;
 pub mod upload;
 pub mod watcher;
 pub mod write;

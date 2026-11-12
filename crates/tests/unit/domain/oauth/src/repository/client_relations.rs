@@ -1,7 +1,7 @@
 // DB-backed tests for client-to-relation join loading (single + batch paths).
 
 use systemprompt_identifiers::{ClientId, UserId};
-use systemprompt_oauth::repository::{ClientRepository, CreateClientParams};
+use systemprompt_oauth::repository::{ClientOwnerScope, ClientRepository, CreateClientParams};
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, seed_user_row, test_db_pool, unique_user_id,
 };
@@ -178,7 +178,11 @@ async fn batch_load_via_pagination_matches_single_load() {
         .expect("single")
         .expect("present");
 
-    let page = ctx.repo.list_paginated(500, 0).await.expect("page");
+    let page = ctx
+        .repo
+        .list_paginated(&ClientOwnerScope::Every, 500, 0)
+        .await
+        .expect("page");
     let batched = page
         .iter()
         .find(|c| c.client_id == client_id)

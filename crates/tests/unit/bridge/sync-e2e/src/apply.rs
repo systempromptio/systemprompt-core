@@ -17,7 +17,8 @@
 use std::ffi::OsString;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::time::Duration;
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 
 use sha2::{Digest, Sha256};
 use systemprompt_bridge::context::{BridgeContext, ProxyMode};
@@ -35,7 +36,7 @@ use systemprompt_models::hooks::{HookCategory, HookEvent};
 use systemprompt_models::plugin::PluginHooksRef;
 use systemprompt_test_fixtures::fixture_user_id;
 use wiremock::matchers::{header, method, path, path_regex};
-use wiremock::{Mock, MockServer, ResponseTemplate};
+use wiremock::{Mock, MockServer, Request, Respond, ResponseTemplate};
 
 const PLUGIN_FILE_BODY: &[u8] = br#"{"name":"acme-plugin","version":"1.0.0"}"#;
 const COMMONS_FILE_BODY: &[u8] = br#"{"name":"acme-commons","version":"1.0.0"}"#;
@@ -761,14 +762,61 @@ struct Bundle {
 }
 
 fn serve_plugins(m: &SignedManifest, files: &[(&str, &str, &[u8])], label: &str) -> Bundle {
-    serve_plugins_delayed(m, files, label, Duration::ZERO)
+    serve_plugins_probed(m, files, label, None)
 }
 
-fn serve_plugins_delayed(
+#[derive(Clone)]
+struct InFlightProbe {
+    hold: Duration,
+    arrivals: Arc<Mutex<Vec<Instant>>>,
+    peak: Arc<Mutex<usize>>,
+}
+
+impl InFlightProbe {
+    fn new(hold: Duration) -> Self {
+        Self {
+            hold,
+            arrivals: Arc::new(Mutex::new(Vec::new())),
+            peak: Arc::new(Mutex::new(0)),
+        }
+    }
+
+    fn peak(&self) -> usize {
+        *self.peak.lock().unwrap()
+    }
+
+    fn arrivals(&self) -> usize {
+        self.arrivals.lock().unwrap().len()
+    }
+}
+
+struct ProbedFile {
+    bytes: Vec<u8>,
+    probe: InFlightProbe,
+}
+
+impl Respond for ProbedFile {
+    fn respond(&self, _: &Request) -> ResponseTemplate {
+        let now = Instant::now();
+        let mut arrivals = self.probe.arrivals.lock().unwrap();
+        let in_flight = 1 + arrivals
+            .iter()
+            .filter(|t| now.duration_since(**t) < self.probe.hold)
+            .count();
+        arrivals.push(now);
+        let mut peak = self.probe.peak.lock().unwrap();
+        *peak = (*peak).max(in_flight);
+        ResponseTemplate::new(200)
+            .set_body_bytes(self.bytes.clone())
+            .set_delay(self.probe.hold)
+    }
+}
+
+fn serve_plugins_probed(
     m: &SignedManifest,
     files: &[(&str, &str, &[u8])],
     label: &str,
-    per_file_delay: Duration,
+    probe: Option<&InFlightProbe>,
 ) -> Bundle {
     let rt = setup_runtime();
     let owned: Vec<(String, String, Vec<u8>)> = files
@@ -785,15 +833,17 @@ fn serve_plugins_delayed(
             .mount(&server)
             .await;
         for (plugin_id, file_path, bytes) in owned {
-            Mock::given(method("GET"))
-                .and(path(format!("/v1/bridge/plugins/{plugin_id}/{file_path}")))
-                .respond_with(
-                    ResponseTemplate::new(200)
-                        .set_body_bytes(bytes)
-                        .set_delay(per_file_delay),
-                )
-                .mount(&server)
-                .await;
+            let file = Mock::given(method("GET"))
+                .and(path(format!("/v1/bridge/plugins/{plugin_id}/{file_path}")));
+            match probe {
+                Some(probe) => file.respond_with(ProbedFile {
+                    bytes,
+                    probe: probe.clone(),
+                }),
+                None => file.respond_with(ResponseTemplate::new(200).set_body_bytes(bytes)),
+            }
+            .mount(&server)
+            .await;
         }
         let pat_dir = fresh_dir(label);
         let pat_file = pat_dir.join("pat.txt");
@@ -1232,7 +1282,7 @@ fn a_file_whose_body_does_not_match_its_digest_fails_the_sync() {
 #[test]
 fn a_plugin_with_many_files_is_fetched_concurrently_not_serially() {
     const FILES: usize = 8;
-    const PER_FILE: Duration = Duration::from_millis(300);
+    const FETCH_CONCURRENCY: usize = 8;
     let bodies: Vec<(String, Vec<u8>)> = (0..FILES)
         .map(|i| {
             (
@@ -1246,16 +1296,17 @@ fn a_plugin_with_many_files_is_fetched_concurrently_not_serially() {
     let m = manifest_of(vec![plugin("acme-plugin", files.clone())], vec![]);
     let served: Vec<(&str, &str, &[u8])> =
         files.iter().map(|(p, b)| ("acme-plugin", *p, *b)).collect();
-    let b = serve_plugins_delayed(&m, &served, "pat-concurrent", PER_FILE);
+    let probe = InFlightProbe::new(Duration::from_secs(2));
+    let b = serve_plugins_probed(&m, &served, "pat-concurrent", Some(&probe));
 
-    let started = std::time::Instant::now();
     let summary = run_sync(&b.dirs).expect("sync succeeds");
-    let elapsed = started.elapsed();
 
-    let serial_floor = PER_FILE * (FILES as u32 + 1);
-    assert!(
-        elapsed < serial_floor / 2,
-        "{FILES} files at {PER_FILE:?} each took {elapsed:?}; serial would be >= {serial_floor:?}"
+    assert_eq!(probe.arrivals(), FILES + 1);
+    assert_eq!(
+        probe.peak(),
+        FETCH_CONCURRENCY.min(FILES + 1),
+        "requests held open at once while {} files were fetched",
+        FILES + 1
     );
     assert_eq!(summary.installed, vec!["acme-plugin".to_owned()]);
     for (rel, body) in &bodies {

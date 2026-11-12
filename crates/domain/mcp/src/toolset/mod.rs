@@ -22,6 +22,7 @@ use rmcp::model::{
     CallToolRequestParams, CallToolResult, ListResourcesResult, ReadResourceRequestParams,
     ReadResourceResult, Tool,
 };
+use systemprompt_identifiers::JwtToken;
 use systemprompt_models::RequestContext;
 use systemprompt_models::mcp::ClientProfile;
 
@@ -34,6 +35,7 @@ pub struct ToolsetCall<'a> {
     pub request: &'a CallToolRequestParams,
     pub context: &'a RequestContext,
     pub client: &'a ClientProfile,
+    pub hop: Option<&'a JwtToken>,
 }
 
 /// A named group of tools one MCP server can host.

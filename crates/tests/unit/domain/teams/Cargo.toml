@@ -11,9 +11,11 @@ publish = false
 workspace = true
 
 [dependencies]
+systemprompt-client = { workspace = true }
 systemprompt-teams = { workspace = true }
 systemprompt-manifest = { workspace = true }
 systemprompt-identifiers = { workspace = true }
+systemprompt-test-hack = { version = "0.1", path = "../../../common/hack" }
 
 [dev-dependencies]
 systemprompt-extension = { workspace = true }

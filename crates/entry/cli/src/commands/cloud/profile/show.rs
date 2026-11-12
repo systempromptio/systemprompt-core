@@ -14,6 +14,7 @@ use systemprompt_config::LoadedProfile;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_logging::CliService;
+use systemprompt_manifest::profile::ManagedProfile;
 use systemprompt_manifest::{AiConfig, Config, SkillsConfig};
 use systemprompt_models::ContentConfigRaw;
 
@@ -35,8 +36,23 @@ pub(super) async fn execute(
 
     CliService::section(&format!("Profile: {}", profile_path.display()));
 
-    let loaded = match crate::boot::load_profile(&profile_path) {
-        Ok(loaded) => Some(loaded),
+    let loaded = match ManagedProfile::load(&profile_path) {
+        Ok(managed) if !managed.unresolved().is_empty() => {
+            for entry in managed.unresolved() {
+                CliService::warning(&format!(
+                    "`{}` resolves from `{}`, which is not set on this host",
+                    entry.key_path, entry.variable
+                ));
+            }
+            None
+        },
+        Ok(_) => match crate::boot::load_profile(&profile_path) {
+            Ok(loaded) => Some(loaded),
+            Err(e) => {
+                CliService::warning(&format!("Config unavailable: {e}"));
+                None
+            },
+        },
         Err(e) => {
             CliService::warning(&format!("Config unavailable: {e}"));
             None
@@ -57,6 +73,7 @@ pub(super) async fn execute(
     let services_config = loaded.as_ref().and_then(|loaded| {
         let profile = loaded.profile();
         ConfigLoader::for_profile(profile, Path::new(&profile.paths.services))
+            .inspecting()
             .load()
             .inspect_err(|e| CliService::warning(&format!("Services config unavailable: {e}")))
             .ok()

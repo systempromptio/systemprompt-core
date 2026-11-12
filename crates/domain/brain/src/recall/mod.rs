@@ -24,6 +24,7 @@ pub mod declared;
 pub mod fusion;
 pub mod held;
 pub mod introduce;
+pub mod lifecycle;
 pub mod limits;
 mod new_turn;
 pub mod rerank;

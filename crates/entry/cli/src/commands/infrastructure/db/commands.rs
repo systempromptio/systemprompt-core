@@ -6,6 +6,8 @@
 use clap::Subcommand;
 use systemprompt_identifiers::ExtensionId;
 
+use crate::shared::ConfirmArgs;
+
 #[derive(Debug, Subcommand)]
 pub enum DbCommands {
     #[command(about = "Execute SQL query (read-only)")]
@@ -57,6 +59,13 @@ pub enum DbCommands {
                     is reported as-is: repair cannot fix it"
         )]
         repair_drift: bool,
+        #[arg(
+            long,
+            help = "Run every install phase even when the schema is recorded as settled at this \
+                    release, re-applying all declarative DDL (takes exclusive locks on tables \
+                    with triggers)"
+        )]
+        full: bool,
     },
     #[command(about = "Revert the most recently applied migrations for an extension")]
     MigrateDown {
@@ -64,6 +73,8 @@ pub enum DbCommands {
         extension: ExtensionId,
         #[arg(help = "Number of migrations to revert")]
         count: u32,
+        #[command(flatten)]
+        confirm: ConfirmArgs,
     },
     #[command(about = "Show migration status and history")]
     Migrations {
@@ -140,9 +151,15 @@ pub enum DbCommands {
         version: u32,
         #[arg(long, help = "Emit JSON instead of a text summary")]
         json: bool,
+        #[command(flatten)]
+        confirm: ConfirmArgs,
     },
     #[command(about = "Assign admin role to a user")]
-    AssignAdmin { user: String },
+    AssignAdmin {
+        user: String,
+        #[command(flatten)]
+        confirm: ConfirmArgs,
+    },
     #[command(about = "Show database connection status")]
     Status,
     #[command(about = "Get row count for a table")]

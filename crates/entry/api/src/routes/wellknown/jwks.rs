@@ -1,4 +1,5 @@
-//! `/.well-known/jwks.json` endpoint for the deployment's signing key.
+//! `/.well-known/jwks.json` endpoint: the active token key and, during a
+//! rotation overlap, the retired key until it expires.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -25,5 +26,5 @@ pub fn jwks_router(ctx: &AppContext) -> Result<Router, LoaderError> {
 }
 
 async fn handle_jwks(State(ctx): State<AppContext>) -> Result<impl IntoResponse, ApiHttpError> {
-    Ok(Json(ctx.signing_keys().signing_key().jwks()))
+    Ok(Json(ctx.signing_keys().jwks()))
 }

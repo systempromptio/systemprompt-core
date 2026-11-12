@@ -51,6 +51,8 @@ mod listing_scopes_personal;
 mod listing_scopes_root;
 mod listing_scopes_shared;
 mod locks;
+mod media;
+mod media_backfill;
 mod node_ids;
 mod path_changes;
 mod presence;
@@ -73,7 +75,7 @@ pub use access_requests::DocumentAccessRequestRepository;
 pub use agent_batch::FolderChain;
 pub use agent_caps::{AgentFacts, AgentReadRecord, CapOverride};
 pub use blob_holders::{BlobHolder, HeldAmong};
-pub use blobs::DocumentBlobRepository;
+pub use blobs::{DocumentBlobRepository, HashLock};
 pub use collab_owners::OwnerClaim;
 pub use collab_peers::{CollabAppend, LoggedAuthor, UpdateAuthor};
 pub use collab_updates::{
@@ -95,12 +97,13 @@ pub(crate) use listing::like_pattern;
 pub use listing_scopes_root::ROOT_LISTING_SQL;
 pub use listing_scopes_shared::SHARED_LISTING_SQL;
 pub use locks::DocumentLockRepository;
+pub use media::DocumentMediaRepository;
 pub use node_ids::DocumentNodeIdRepository;
 pub use path_changes::{DocumentPathChange, PathMove, SubjectAccess};
 pub use presence::DocumentPresenceRepository;
 pub use proposals::DocumentProposalRepository;
 pub use revisions::DocumentRevisionRepository;
-pub use text_index::DocumentTextIndexRepository;
+pub use text_index::{DocumentTextIndexRepository, SearchPage};
 pub use write_acks::DocumentWriteAckRepository;
 
 #[derive(Debug, Clone)]
@@ -109,6 +112,7 @@ pub struct DocumentRepositories {
     pub documents: Arc<DocumentRepository>,
     pub revisions: Arc<DocumentRevisionRepository>,
     pub blobs: Arc<DocumentBlobRepository>,
+    pub media: Arc<DocumentMediaRepository>,
     pub uploads: Arc<crate::uploads::DocumentUploadRepository>,
     pub grants: Arc<DocumentGrantRepository>,
     pub grant_events: Arc<DocumentGrantEventRepository>,
@@ -131,6 +135,7 @@ impl DocumentRepositories {
             documents: Arc::new(DocumentRepository::new(db)),
             revisions: Arc::new(DocumentRevisionRepository::new(db)),
             blobs: Arc::new(DocumentBlobRepository::new(db)),
+            media: Arc::new(DocumentMediaRepository::new(db)),
             uploads: Arc::new(crate::uploads::DocumentUploadRepository::new(db)),
             grants: Arc::new(DocumentGrantRepository::new(db)),
             grant_events: Arc::new(DocumentGrantEventRepository::new(db)),

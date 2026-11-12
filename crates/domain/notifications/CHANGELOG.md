@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.81.0] - 2026-11-12
+
+### Breaking
+
+- `NotificationRepository::{lock_pending, mark_delivered}` are replaced by `claim_pending`, `load_claimed` and `finish_claim` under a per-row lease. Migrate by claiming rows with a lease duration.
+
+### Fixed
+
+- Delivery holds no transaction open while sending.
+
 ## [0.78.0] - 2026-11-04
 
 ### Added

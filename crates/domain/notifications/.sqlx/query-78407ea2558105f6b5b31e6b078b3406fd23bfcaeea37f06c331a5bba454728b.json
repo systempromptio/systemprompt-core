@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE notifications\n             SET delivery_lease_token = NULL, delivery_lease_until = NULL,\n                 delivery_state = CASE WHEN $3 AND delivery_seq = $4 THEN $5\n                                       ELSE delivery_state END\n             WHERE id = $1::text::uuid AND delivery_lease_token = $2::text::uuid\n               AND delivery_state = $6",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Bool",
+        "Int8",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "78407ea2558105f6b5b31e6b078b3406fd23bfcaeea37f06c331a5bba454728b"
+}

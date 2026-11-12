@@ -11,7 +11,7 @@ use systemprompt_models::RequestContext as SysRequestContext;
 
 use super::recorder::{McpAccessEvent, McpAccessOutcome};
 use super::server::ToolsetServer;
-use crate::middleware::rbac::{AuthResult, JwtVerifier, enforce_rbac_from_registry};
+use crate::middleware::rbac::{AuthResult, enforce_rbac_from_registry};
 
 const GROUP_DIMENSION: &str = "group";
 
@@ -39,16 +39,11 @@ impl ToolsetServer {
         ctx: &RequestContext<RoleServer>,
     ) -> Result<SysRequestContext, McpError> {
         let services = self.inner.authz.services.config();
-        let verifier = JwtVerifier {
-            authority: self.inner.authz.tokens.as_ref(),
-            config: &self.inner.authz.config,
-        };
         match enforce_rbac_from_registry(
             ctx,
             &self.inner.server_id,
             &self.inner.authz.hook,
             &services,
-            &verifier,
         )
         .await
         {

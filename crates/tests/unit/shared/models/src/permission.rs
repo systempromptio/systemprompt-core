@@ -6,11 +6,11 @@ use systemprompt_models::auth::{Permission, parse_permissions, permissions_to_st
 
 #[test]
 fn permission_hierarchy() {
-    assert!(Permission::Admin.implies(&Permission::User));
-    assert!(Permission::Admin.implies(&Permission::Anonymous));
-    assert!(Permission::User.implies(&Permission::Anonymous));
-    assert!(!Permission::User.implies(&Permission::Admin));
-    assert!(!Permission::Anonymous.implies(&Permission::User));
+    assert!(Permission::Admin.grants(&Permission::User));
+    assert!(Permission::Admin.grants(&Permission::Anonymous));
+    assert!(Permission::User.grants(&Permission::Anonymous));
+    assert!(!Permission::User.grants(&Permission::Admin));
+    assert!(!Permission::Anonymous.grants(&Permission::User));
 }
 
 #[test]

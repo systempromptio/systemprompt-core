@@ -78,8 +78,9 @@ async fn recovery_sends_only_sanitized_bytes_for_every_adapter_and_transport_mod
                 request.stream = streaming;
                 let initial = OutboundCtx {
                     target: &route,
+                    policy: systemprompt_gateway::service::HopPolicy::of(&route),
                     upstream: &support::api_key_call(&endpoint, "unused"),
-                    http: &reqwest::Client::new(),
+                    http: &support::upstream_http(),
                     request: &request,
                     upstream_model: "upstream-1",
                     model_limits: None,
@@ -104,8 +105,9 @@ async fn recovery_sends_only_sanitized_bytes_for_every_adapter_and_transport_mod
                     .send(
                         OutboundCtx {
                             target: &route,
+                            policy: systemprompt_gateway::service::HopPolicy::of(&route),
                             upstream: &support::api_key_call(&endpoint, "unused"),
-                            http: &reqwest::Client::new(),
+                            http: &support::upstream_http(),
                             request: &request,
                             upstream_model: "upstream-1",
                             model_limits: None,

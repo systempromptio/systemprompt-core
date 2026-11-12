@@ -22,7 +22,7 @@ mod request;
 mod secrets;
 
 pub use artifacts::DeployArtifacts;
-pub use orchestrator::DeployOrchestrator;
+pub use orchestrator::{DEFAULT_READINESS_WAIT, DeployOrchestrator};
 pub use progress::{DeployEvent, DeployProgress};
 pub use request::{
     DeployOptions, DeployReport, DeployRequest, DeploySecretsSource, VAULT_ADDR_ENV,

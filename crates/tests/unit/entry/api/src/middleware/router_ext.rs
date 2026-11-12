@@ -440,7 +440,11 @@ async fn every_context_flavour_refuses_a_request_with_no_session_context() {
         AuthzPolicy::public(),
     );
     let a2a = ok_router().with_auth(
-        A2AContextMiddleware::new(extractor(None)),
+        A2AContextMiddleware::new(
+            extractor(None),
+            1024,
+            systemprompt_api::services::middleware::BodyBudget::new(64 * 1024 * 1024),
+        ),
         AuthzPolicy::public(),
     );
     let mcp = ok_router().with_auth(
@@ -526,7 +530,7 @@ async fn extract_from_request_defaults_to_the_header_extraction() {
     let stub = extractor(Some(resolved.clone()));
 
     let (extracted, request) = stub
-        .extract_from_request(request())
+        .extract_from_request(request(), 1024)
         .await
         .expect("the stub resolves a context");
 
@@ -546,7 +550,7 @@ async fn extract_from_request_defaults_to_the_header_extraction() {
 async fn extract_from_request_propagates_an_extraction_failure() {
     let stub = extractor(None);
 
-    let Err(err) = stub.extract_from_request(request()).await else {
+    let Err(err) = stub.extract_from_request(request(), 1024).await else {
         panic!("a stub with no context cannot resolve one");
     };
 

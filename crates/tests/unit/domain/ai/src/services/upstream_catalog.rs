@@ -83,7 +83,7 @@ fn a_personal_credential_has_no_deployment_secret() {
         .expect("endpoint in catalog");
     match UpstreamTarget::from_secrets(
         &Default::default(),
-        &ensure_test_secrets_bootstrap().get(),
+        ensure_test_secrets_bootstrap().as_ref(),
         binding,
     ) {
         Err(UpstreamTargetError::PersonalCredential { credential }) => {
@@ -99,4 +99,32 @@ fn an_unknown_endpoint_is_refused() {
     let err = EndpointBinding::of_endpoint(&catalog, &EndpointRef::new("opencode-go", "nope"))
         .unwrap_err();
     assert!(matches!(err, UpstreamTargetError::UnknownEndpoint { .. }));
+}
+
+#[test]
+fn a_workload_identity_credential_binds_without_a_secret() {
+    let catalog = systemprompt_test_fixtures::catalog::vertex_regions()
+        .credential(
+            "vertex-sa",
+            systemprompt_manifest::services::catalog::CredentialEntry::workload_identity(
+                "acme-prod".to_owned(),
+            ),
+        )
+        .build();
+    let binding =
+        EndpointBinding::of_endpoint(&catalog, &EndpointRef::new("vertex", "claude-global"))
+            .expect("endpoint in catalog");
+    let target = UpstreamTarget::from_secrets(
+        &Default::default(),
+        ensure_test_secrets_bootstrap().as_ref(),
+        binding,
+    )
+    .expect("a workload identity needs no secret");
+    assert_eq!(target.hosting(), Hosting::Vertex);
+    assert!(
+        target.endpoint().contains("/projects/acme-prod/"),
+        "{}",
+        target.endpoint()
+    );
+    assert_eq!(target.credential_id().as_str(), "vertex-sa");
 }

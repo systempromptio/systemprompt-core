@@ -3,14 +3,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::path::PathBuf;
 
 use anyhow::{Context, Result, bail};
 use systemprompt_cloud::{CloudPath, ProfilePath, ProjectContext, TenantStore, get_cloud_paths};
 use systemprompt_identifiers::ProfileName;
-use systemprompt_loader::ProfileLoader;
 use systemprompt_logging::CliService;
-use systemprompt_manifest::Profile;
+
+use super::target_profile::DeployProfile;
 
 use crate::cli_settings::CliConfig;
 use crate::interactive::Prompter;
@@ -19,8 +18,7 @@ use crate::shared::profile::{DiscoveredProfile, discover_profiles};
 #[derive(Debug)]
 struct DeployableProfile {
     pub name: String,
-    pub path: PathBuf,
-    pub profile: Profile,
+    pub profile: DeployProfile,
     pub tenant_name: Option<String>,
     pub hostname: Option<String>,
 }
@@ -40,18 +38,21 @@ fn to_deployable_profile(
     discovered: DiscoveredProfile,
     tenant_store: &TenantStore,
 ) -> Option<DeployableProfile> {
-    if discovered.profile.target != systemprompt_manifest::ProfileType::Cloud {
+    let profile = DeployProfile::from_managed(discovered.profile)
+        .map_err(|e| {
+            tracing::warn!(profile = %discovered.name, error = %e, "Skipping undeployable profile");
+        })
+        .ok()?;
+    if profile.target != systemprompt_manifest::ProfileType::Cloud {
         return None;
     }
 
-    let cloud = discovered.profile.cloud.as_ref()?;
-    let tenant_id = cloud.tenant_id.as_ref()?;
-    let tenant = tenant_store.find_tenant(tenant_id);
+    let tenant_id = profile.cloud.as_ref()?.tenant_id.clone()?;
+    let tenant = tenant_store.find_tenant(&tenant_id);
 
     Some(DeployableProfile {
         name: discovered.name,
-        path: discovered.path,
-        profile: discovered.profile,
+        profile,
         tenant_name: tenant.map(|t| t.name.clone()),
         hostname: tenant.and_then(|t| t.hostname.clone()),
     })
@@ -79,7 +80,7 @@ pub fn resolve_profile(
     prompter: &dyn Prompter,
     profile_name: Option<&ProfileName>,
     config: &CliConfig,
-) -> Result<(Profile, PathBuf)> {
+) -> Result<DeployProfile> {
     if let Some(name) = profile_name {
         return resolve_profile_by_name(name);
     }
@@ -91,7 +92,7 @@ pub fn resolve_profile(
     resolve_profile_interactive(prompter)
 }
 
-fn resolve_profile_by_name(name: &ProfileName) -> Result<(Profile, PathBuf)> {
+fn resolve_profile_by_name(name: &ProfileName) -> Result<DeployProfile> {
     let ctx = ProjectContext::discover();
     let profile_path = ctx.profile_path(name.as_str(), ProfilePath::Config);
 
@@ -99,13 +100,10 @@ fn resolve_profile_by_name(name: &ProfileName) -> Result<(Profile, PathBuf)> {
         bail!("Profile '{}' not found at {}", name, profile_path.display());
     }
 
-    let profile = ProfileLoader::load_from_path(&profile_path)
-        .with_context(|| format!("Failed to load profile: {}", name))?;
-
-    Ok((profile, profile_path))
+    DeployProfile::load(&profile_path)
 }
 
-fn resolve_profile_interactive(prompter: &dyn Prompter) -> Result<(Profile, PathBuf)> {
+fn resolve_profile_interactive(prompter: &dyn Prompter) -> Result<DeployProfile> {
     let cloud_paths = get_cloud_paths();
     let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
     let tenant_store = TenantStore::load_from_path(&tenants_path).unwrap_or_else(|e| {
@@ -126,5 +124,5 @@ fn resolve_profile_interactive(prompter: &dyn Prompter) -> Result<(Profile, Path
     let selection = select_profile_interactive(prompter, &profiles)?;
     let selected = &profiles[selection];
 
-    Ok((selected.profile.clone(), selected.path.clone()))
+    Ok(selected.profile.clone())
 }

@@ -11,6 +11,10 @@
 //! holds it past router build: every read goes to the current generation, so a
 //! handle kept by a handler sees reloads.
 //!
+//! [`SecretLookup`] is what a platform service (the in-process AI service, the
+//! MCP client) resolves its credentials through, so a spawned child can run
+//! the same service over its granted secrets alone.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -105,4 +109,13 @@ pub trait SecretStore: Send + Sync + fmt::Debug {
     fn refresh_interval(&self) -> Option<Duration>;
 
     async fn reload(&self) -> Result<ReloadOutcome, SecretStoreError>;
+}
+
+/// Name-to-value resolution over the secrets a platform service was handed.
+///
+/// The API holds the whole secrets document; a spawned child holds only the
+/// granted set. Provider keys resolve by their provider name (`anthropic`),
+/// custom secrets by their lowercase name.
+pub trait SecretLookup: Send + Sync + fmt::Debug {
+    fn lookup(&self, name: &str) -> Option<ExtensionSecret>;
 }

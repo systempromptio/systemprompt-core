@@ -10,7 +10,6 @@ use axum::response::{IntoResponse, Response};
 use systemprompt_identifiers::error::IdValidationError;
 use systemprompt_mcp::McpDomainError;
 use systemprompt_models::api::ApiError;
-use systemprompt_security::at_rest::AtRestCipherError;
 use systemprompt_traits::RegistryError;
 use thiserror::Error;
 
@@ -119,8 +118,39 @@ pub enum ProxyError {
         source: McpDomainError,
     },
 
-    #[error("the at-rest cipher is unavailable")]
-    AtRestUnavailable(#[from] AtRestCipherError),
+    #[error("Request body exceeds the {limit}-byte limit")]
+    PayloadTooLarge { limit: usize },
+
+    #[error("MCP session not found for '{service}'; initialize again")]
+    SessionNotFound { service: String },
+
+    #[error("MCP session binding could not be read for '{service}'")]
+    SessionLookupFailed {
+        service: String,
+        #[source]
+        source: McpDomainError,
+    },
+
+    #[error("The hop token for '{service}' could not be signed")]
+    HopTokenUnavailable {
+        service: String,
+        #[source]
+        source: systemprompt_models::auth::TokenError,
+    },
+
+    #[error("The owner-hop marker for '{service}' could not be signed")]
+    OwnerHopUnavailable {
+        service: String,
+        #[source]
+        source: systemprompt_security::JwtError,
+    },
+
+    #[error("The hop token for '{service}' is not a valid header value")]
+    HopTokenHeader {
+        service: String,
+        #[source]
+        source: http::header::InvalidHeaderValue,
+    },
 }
 
 #[derive(Debug, Error)]
@@ -140,7 +170,8 @@ pub enum ResponseBuildError {
 impl ProxyError {
     pub fn to_status_code(&self) -> StatusCode {
         match self {
-            Self::ServiceNotFound { .. } => StatusCode::NOT_FOUND,
+            Self::ServiceNotFound { .. } | Self::SessionNotFound { .. } => StatusCode::NOT_FOUND,
+            Self::PayloadTooLarge { .. } => StatusCode::PAYLOAD_TOO_LARGE,
             Self::ServiceNotRunning { .. }
             | Self::RestartFailed { .. }
             | Self::NoLiveOwner { .. } => StatusCode::SERVICE_UNAVAILABLE,
@@ -151,7 +182,10 @@ impl ProxyError {
             Self::UrlConstructionFailed { .. }
             | Self::DatabaseError { .. }
             | Self::RegistryUnavailable { .. }
-            | Self::AtRestUnavailable(_)
+            | Self::SessionLookupFailed { .. }
+            | Self::HopTokenUnavailable { .. }
+            | Self::HopTokenHeader { .. }
+            | Self::OwnerHopUnavailable { .. }
             | Self::RegistryLookupFailed { .. } => StatusCode::INTERNAL_SERVER_ERROR,
             Self::BodyExtractionFailed { .. }
             | Self::InvalidMethod { .. }
@@ -186,7 +220,12 @@ impl ProxyError {
             Self::InvalidServiceName { .. } => "invalid_service_name",
             Self::InvalidIdentifier(_) => "invalid_identifier",
             Self::RegistryUnavailable { .. } => "registry_unavailable",
-            Self::AtRestUnavailable(_) => "at_rest_unavailable",
+            Self::PayloadTooLarge { .. } => "payload_too_large",
+            Self::SessionNotFound { .. } => "session_not_found",
+            Self::SessionLookupFailed { .. } => "session_lookup_failed",
+            Self::HopTokenUnavailable { .. } => "hop_token_unavailable",
+            Self::HopTokenHeader { .. } => "hop_token_header",
+            Self::OwnerHopUnavailable { .. } => "owner_hop_unavailable",
             Self::RegistryLookupFailed { .. } => "registry_lookup_failed",
             Self::ProviderNotConnected { .. } => "provider_not_connected",
             Self::ExternalResolveFailed { .. } => "external_resolve_failed",
@@ -213,6 +252,7 @@ impl IntoResponse for ProxyError {
             StatusCode::FORBIDDEN => ApiError::forbidden(self.to_string()),
             StatusCode::BAD_REQUEST => ApiError::bad_request(self.to_string()),
             StatusCode::CONFLICT => ApiError::conflict(self.to_string()),
+            StatusCode::PAYLOAD_TOO_LARGE => ApiError::payload_too_large(self.to_string()),
             StatusCode::SERVICE_UNAVAILABLE
             | StatusCode::BAD_GATEWAY
             | StatusCode::GATEWAY_TIMEOUT => ApiError::service_unavailable("Proxy request failed")

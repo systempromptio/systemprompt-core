@@ -30,10 +30,12 @@ fn config(name: &str) -> McpServerConfig {
             audience: JwtAudience::Mcp,
             client_id: None,
             ema: false,
+            service_only: false,
         },
         tools: Default::default(),
         model_config: None,
         env_vars: vec![],
+        secrets: Vec::new(),
         version: "0.0.1".to_owned(),
         host: "127.0.0.1".to_owned(),
         module_name: "mcp".to_owned(),
@@ -161,10 +163,8 @@ fn health_check_details_error_message_from_connection_result() {
     );
 }
 
-
 #[test]
 fn health_status_equality() {
-    assert_eq!(HealthStatus::Healthy, HealthStatus::Healthy);
     assert_ne!(HealthStatus::Healthy, HealthStatus::Unhealthy);
     assert_ne!(HealthStatus::Degraded, HealthStatus::Unknown);
 }

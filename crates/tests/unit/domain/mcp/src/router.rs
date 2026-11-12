@@ -1,10 +1,23 @@
 //! Tests for the crate-level MCP router assembly: default host allow-list,
-//! request logging layer, and the buffering-suppression response header.
+//! request logging layer, the buffering-suppression response header, and the
+//! hop-token layer every request passes before the MCP service sees it.
 
 use axum::body::Body;
+use systemprompt_identifiers::McpServerId;
+use systemprompt_mcp::middleware::HopVerifier;
 use systemprompt_mcp::{MAX_REQUEST_BODY_BYTES, McpHttpConfig, SessionTimeouts, create_router};
-use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
+use systemprompt_test_fixtures::{FIXTURE_EXTERNAL_URL, ensure_test_bootstrap, test_db_pool};
 use tower::ServiceExt;
+
+fn hop(server: &str) -> HopVerifier {
+    HopVerifier::new(
+        systemprompt_test_fixtures::test_signing_keys()
+            .keyring()
+            .clone(),
+        FIXTURE_EXTERNAL_URL,
+        McpServerId::new(server),
+    )
+}
 
 #[derive(Debug, Clone)]
 struct NullHandler;
@@ -31,6 +44,7 @@ async fn router_serves_mcp_requests_with_logging_layers() {
         NullHandler,
         std::sync::Arc::new(systemprompt_mcp::repository::McpSessionRepository::new(&db)),
         McpHttpConfig::default(),
+        hop("router-srv"),
     );
 
     let response = router
@@ -42,7 +56,6 @@ async fn router_serves_mcp_requests_with_logging_layers() {
                 .header("host", "127.0.0.1")
                 .header("accept", "text/event-stream")
                 .header("mcp-session-id", "sess-router")
-                .header("x-proxy-verified", "true")
                 .body(Body::empty())
                 .expect("request builds"),
         )
@@ -83,12 +96,12 @@ async fn router_honours_disabled_host_allow_list() {
         allowed_hosts: None,
         allowed_origins: vec!["http://ok.example".to_owned()],
         session: SessionTimeouts::default(),
-        server_id: None,
     };
     let router = create_router(
         NullHandler,
         std::sync::Arc::new(systemprompt_mcp::repository::McpSessionRepository::new(&db)),
         config,
+        hop("router-srv"),
     );
 
     let response = router
@@ -116,6 +129,7 @@ async fn router_rejects_bodies_over_the_request_ceiling() {
         NullHandler,
         std::sync::Arc::new(systemprompt_mcp::repository::McpSessionRepository::new(&db)),
         McpHttpConfig::default(),
+        hop("router-srv"),
     );
 
     let oversized = "x".repeat(MAX_REQUEST_BODY_BYTES + 1);

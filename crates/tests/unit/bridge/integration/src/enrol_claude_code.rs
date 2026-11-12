@@ -6,6 +6,7 @@ use std::fs;
 
 use serde_json::Value;
 use systemprompt_bridge::context::{BridgeContext, ProxyMode};
+use systemprompt_bridge::install::elevation_script::shell_quote;
 use systemprompt_bridge::install::mdm::claude_code_settings::managed_settings_path;
 use systemprompt_bridge::integration::HostKind;
 use systemprompt_bridge::integration::enrol::{
@@ -151,7 +152,7 @@ fn claude_code_enrollment_preserves_bad_settings_then_recovers_after_repair() {
         );
         assert_eq!(
             document["apiKeyHelper"].as_str(),
-            Some(dirs.helper().to_string_lossy().as_ref()),
+            Some(shell_quote(&dirs.helper().to_string_lossy()).as_str()),
             "the settings refer to the helper created by enrollment"
         );
 

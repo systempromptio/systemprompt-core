@@ -302,6 +302,7 @@ pub(super) fn inputs_with(
         inbound,
         forward_headers: Vec::new(),
         identity_headers: Vec::new(),
+        caller_auth: None,
         trace_sampled: None,
         governance: systemprompt_test_fixtures::default_governance_engine(),
         engines: shared_engines(),

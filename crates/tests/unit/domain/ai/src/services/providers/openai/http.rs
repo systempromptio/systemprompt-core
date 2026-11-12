@@ -155,7 +155,11 @@ async fn generate_with_web_search_returns_grounded() {
     let messages = msgs();
     let params = SearchGenerationParams::new(GenerationParams::new(&messages, "gpt-4o-mini", 32));
     let resp = p.generate_with_google_search(params).await;
-    assert!(resp.is_ok() || resp.is_err());
+    let resp = resp.expect("grounded search reply");
+    assert_eq!(resp.content, "ok");
+    assert_eq!(resp.sources.len(), 1);
+    assert_eq!(resp.sources[0].uri, "https://example.com");
+    assert_eq!(resp.sources[0].title, "Example");
 }
 
 #[tokio::test]

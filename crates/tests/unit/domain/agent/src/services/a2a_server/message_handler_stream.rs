@@ -17,7 +17,7 @@ use systemprompt_test_mocks::recording_webhooks;
 use tokio_util::sync::CancellationToken;
 
 use super::a2a_helpers::{StubAiProvider, request_context, runtime_info};
-use crate::repository::{repos, seed_context_and_task, seed_user_and_session};
+use crate::repository::{repos, seed_context_and_task, seed_runtime_task, seed_user_and_session};
 use systemprompt_test_fixtures::test_db_pool;
 
 fn user_message(ctx: &ContextId, task_id: &TaskId, text: &str) -> Message {
@@ -107,7 +107,8 @@ async fn persist_completed_task_updates_existing_row() {
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let repos = repos(&pool);
     let (user, session) = seed_user_and_session(&pool).await;
-    let (ctx, task_id) = seed_context_and_task(&repos, &user, &session).await;
+    let (ctx, runtime) = seed_runtime_task(&repos, &user, &session).await;
+    let task_id = runtime.task_id().clone();
 
     let provider = Arc::new(StubAiProvider::new());
     let processor = MessageHandler::new(
@@ -132,6 +133,7 @@ async fn persist_completed_task_updates_existing_row() {
 
     let persisted = processor
         .persist_completed_task(PersistCompletedTaskOnProcessorParams {
+            runtime: &runtime,
             task: &task,
             user_message: &user_msg,
             agent_message: &agent_msg,

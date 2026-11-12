@@ -146,7 +146,7 @@ Set `0600` permissions on a plain JSON secrets file and own it with the service 
 
 ### `${VAR}` interpolation
 
-Any string value in `profile.yaml` may reference an environment variable as `${VAR}`; it is substituted at load time (`crates/shared/manifest/src/profile/mod.rs`). This keeps host-specific values out of the committed profile:
+Any string value in `profile.yaml` may reference an environment variable as `${VAR}`; it is substituted into the parsed value at load time (`crates/shared/manifest/src/env.rs`), so the value can never change the document's structure. An unset variable fails the load unless the placeholder carries a default (`${VAR:-default}`, or `${VAR:-}` for none). This keeps host-specific values out of the committed profile:
 
 ```yaml
 server:

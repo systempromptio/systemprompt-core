@@ -19,17 +19,19 @@ use systemprompt_ai::models::BillingSource;
 use systemprompt_identifiers::{AiRequestId, RouteId};
 use systemprompt_manifest::services::GatewayRoute;
 use systemprompt_manifest::services::catalog::{
-    ResolveError, ResolvedCatalog, ResolvedHop, ResolvedModel, ResolvedTarget,
+    ResolveError, ResolvedCatalog, ResolvedHop, ResolvedModel,
 };
 use systemprompt_models::attribution::RequestAttribution;
+use systemprompt_wire::WireProtocol;
 
 use super::super::protocol::canonical::CanonicalRequest;
 use super::super::protocol::outbound::OutboundAdapter;
 use super::super::registry::GatewayEngines;
-use super::chain_plan::{PlannedChain, fit_context_window, order_chain};
+use super::chain_plan::{ChainHealth, SentBody, join_segments, plan_chain};
 use super::credentials::KeyOwner;
+use super::hop_policy::servable_hops;
 use super::route_match::{describe_route_match, enforce_route_requirements, refine_chain};
-use super::{DispatchError, GatewayError, PolicyDenied};
+use super::{DispatchError, GatewayError, HopPolicy, PolicyDenied};
 use crate::routing::{RouteSource, resolve_route};
 
 pub(super) struct ResolvedUpstream<'a> {
@@ -40,11 +42,12 @@ pub(super) struct ResolvedUpstream<'a> {
     pub(super) route_id: Option<RouteId>,
     pub(super) call: UpstreamCall,
     pub(super) adapter: Arc<dyn OutboundAdapter>,
-    pub(super) http: reqwest::Client,
+    pub(super) http: crate::protocol::outbound::UpstreamHttp,
     pub(super) route_match_descriptor: Option<String>,
     pub(super) deployments: Vec<ResolvedHop>,
     pub(super) billing: BillingSource,
     pub(super) owner: KeyOwner,
+    pub(super) policy: HopPolicy,
 }
 
 impl ResolvedUpstream<'_> {
@@ -60,6 +63,9 @@ pub(super) struct UpstreamQuery<'r> {
     pub(super) attribution: &'r RequestAttribution,
     pub(super) ai_request_id: &'r AiRequestId,
     pub(super) owner: KeyOwner,
+    pub(super) sent: SentBody,
+    pub(super) format: &'static str,
+    pub(super) spoken: Option<WireProtocol>,
 }
 
 pub(super) async fn resolve_upstream<'a>(
@@ -72,6 +78,9 @@ pub(super) async fn resolve_upstream<'a>(
         attribution,
         ai_request_id,
         owner,
+        sent,
+        format,
+        spoken,
     } = query;
     let resolution = resolve_route(RouteSource::Catalog(catalog), request, attribution)
         .map_err(|error| refusal(&error, request, ai_request_id))?;
@@ -86,7 +95,12 @@ pub(super) async fn resolve_upstream<'a>(
         (!predicates.is_empty()).then(|| format!("when:{}", predicates.join(",")))
     });
     let selector = refine_chain(engines, catalog, &mut target, route.as_ref(), request).await;
-    let planned = plan_chain(catalog, engines, request, &target, ai_request_id)?;
+    let health = ChainHealth {
+        breakers: &engines.breakers,
+        load: &engines.load,
+        owner: &owner.user_id,
+    };
+    let planned = plan_chain(catalog, health, (request, sent), &target, ai_request_id)?;
     let route_match_descriptor = join_segments(
         Some(describe_route_match(
             target.route.as_ref(),
@@ -96,7 +110,13 @@ pub(super) async fn resolve_upstream<'a>(
         )),
         planned.descriptor,
     );
-    let deployments = planned.deployments;
+    let deployments = servable_hops(planned.deployments, spoken).map_err(|wire| {
+        DispatchError::pre_audit(GatewayError::CallerFormatMismatch {
+            model: request.model.to_string(),
+            inbound: format,
+            wire: wire.as_tag().to_owned(),
+        })
+    })?;
     let Some(primary) = deployments.first().cloned() else {
         return Err(DispatchError::pre_audit(GatewayError::NoRoute {
             model: request.model.to_string(),
@@ -145,50 +165,6 @@ fn refusal(
     }
 }
 
-fn plan_chain(
-    catalog: &ResolvedCatalog,
-    engines: &GatewayEngines,
-    request: &CanonicalRequest,
-    target: &ResolvedTarget,
-    ai_request_id: &AiRequestId,
-) -> Result<PlannedChain, DispatchError> {
-    let ordered = order_chain(
-        target.chain.clone(),
-        target.strategy,
-        target.route.as_ref(),
-        &engines.breakers,
-        &engines.load,
-    );
-    let fitted = fit_context_window(
-        catalog,
-        request,
-        ordered.deployments,
-        target.context_fallbacks.clone(),
-    )
-    .map_err(|exceeded| {
-        tracing::warn!(
-            ai_request_id = %ai_request_id,
-            route = ?target.route,
-            model = %exceeded.model,
-            estimate = exceeded.estimate,
-            limit = exceeded.limit,
-            "Gateway denied: request exceeds the model's context window"
-        );
-        DispatchError::pre_audit(exceeded)
-    })?;
-    Ok(PlannedChain {
-        deployments: fitted.deployments,
-        descriptor: join_segments(ordered.descriptor, fitted.descriptor),
-    })
-}
-
-fn join_segments(first: Option<String>, second: Option<String>) -> Option<String> {
-    match (first, second) {
-        (Some(a), Some(b)) => Some(format!("{a};{b}")),
-        (a, b) => a.or(b),
-    }
-}
-
 pub(super) struct DeploymentHop<'h> {
     pub(super) index: usize,
     pub(super) hops: &'h [String],
@@ -203,7 +179,7 @@ pub(super) async fn resolve_deployment_upstream<'a>(
     let Some(next) = primary.deployments.get(hop.index).cloned() else {
         return Ok(None);
     };
-    if !may_fail_over(&primary.hop, &next) {
+    if !primary.hop.may_fail_over_to(&next) {
         return Err(DispatchError::pre_audit(PolicyDenied(format!(
             "deployment '{}' bills credential '{}', not '{}'",
             next.endpoint_ref(),
@@ -233,19 +209,6 @@ pub(super) async fn resolve_deployment_upstream<'a>(
     .map(Some)
 }
 
-// Why: a personal subscription and a deployment secret, or two members'
-// personal subscriptions, bill different accounts; a failover hop between them
-// would move a request onto a bill nobody chose. Two platform credentials are
-// both the deployment's own bill, so failing over between them is allowed.
-#[must_use]
-pub fn may_fail_over(from: &ResolvedHop, to: &ResolvedHop) -> bool {
-    match (from.credential.is_personal(), to.credential.is_personal()) {
-        (false, false) => true,
-        (true, true) => from.bills_same_credential(to),
-        _ => false,
-    }
-}
-
 struct BindTarget<'r> {
     model: ResolvedModel,
     route: Option<GatewayRoute>,
@@ -272,9 +235,10 @@ async fn bind_hop<'a>(
 
     let (call, billing) = super::credentials::resolve(catalog, &hop, &owner, engines).await?;
 
+    let policy = HopPolicy::of(&hop);
     let adapter = engines
         .upstream_registry
-        .get(hop.wire.as_tag())
+        .adapter_for(hop.wire, policy)
         .map(Arc::clone)
         .ok_or_else(|| {
             DispatchError::pre_audit(GatewayError::NoAdapter {
@@ -284,6 +248,7 @@ async fn bind_hop<'a>(
 
     Ok(ResolvedUpstream {
         catalog,
+        policy,
         hop,
         model,
         route,

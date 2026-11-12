@@ -4,6 +4,7 @@
 
 use std::fs;
 use std::path::Path;
+use systemprompt_loader::subprocess::ForegroundChildren;
 
 use systemprompt_cli::CliConfig;
 use systemprompt_cli::build::mcp::{McpArgs, execute_in_root};
@@ -23,7 +24,13 @@ fn write_manifest(root: &Path, name: &str, body: &str) {
 #[test]
 fn reports_empty_when_no_extensions_exist() {
     let root = tempfile::tempdir().unwrap();
-    let out = execute_in_root(McpArgs { release: false }, &cfg(), root.path()).unwrap();
+    let out = execute_in_root(
+        McpArgs { release: false },
+        &cfg(),
+        root.path(),
+        &ForegroundChildren::default(),
+    )
+    .unwrap();
     let json = serde_json::to_value(out.artifact()).unwrap();
     assert!(json["items"].as_array().unwrap().is_empty());
 }
@@ -36,7 +43,13 @@ fn errors_when_extension_has_no_binary() {
         "no-binary",
         "extension:\n  type: mcp\n  name: no-binary\n",
     );
-    let err = execute_in_root(McpArgs { release: false }, &cfg(), root.path()).unwrap_err();
+    let err = execute_in_root(
+        McpArgs { release: false },
+        &cfg(),
+        root.path(),
+        &ForegroundChildren::default(),
+    )
+    .unwrap_err();
     assert!(err.to_string().contains("has no binary defined"));
 }
 
@@ -48,7 +61,13 @@ fn records_failure_for_unbuildable_submodule() {
         "broken",
         "extension:\n  type: mcp\n  name: broken\n  binary: broken-bin\n  build_type: submodule\n",
     );
-    let out = execute_in_root(McpArgs { release: false }, &cfg(), root.path()).unwrap();
+    let out = execute_in_root(
+        McpArgs { release: false },
+        &cfg(),
+        root.path(),
+        &ForegroundChildren::default(),
+    )
+    .unwrap();
     let json = serde_json::to_value(out.artifact()).unwrap();
     let items = json["items"].as_array().unwrap();
     assert_eq!(items.len(), 1);
@@ -67,7 +86,13 @@ fn disabled_extensions_are_skipped() {
         "off",
         "extension:\n  type: mcp\n  name: off\n  binary: off-bin\n  enabled: false\n",
     );
-    let out = execute_in_root(McpArgs { release: false }, &cfg(), root.path()).unwrap();
+    let out = execute_in_root(
+        McpArgs { release: false },
+        &cfg(),
+        root.path(),
+        &ForegroundChildren::default(),
+    )
+    .unwrap();
     let json = serde_json::to_value(out.artifact()).unwrap();
     assert!(json["items"].as_array().unwrap().is_empty());
 }

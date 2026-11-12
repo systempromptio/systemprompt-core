@@ -16,7 +16,9 @@ use crate::shared::{CommandOutput, render_result};
 use super::text_format::format_bytes;
 use super::types::{DbAssignAdminOutput, DbStatusOutput};
 
-pub(super) use super::admin_migrate::{execute_migrate, execute_migrate_standalone};
+pub(super) use super::admin_migrate::{
+    MigrateOptions, execute_migrate, execute_migrate_standalone,
+};
 pub(super) use super::admin_migrate_down::{execute_migrate_down, execute_migrate_down_standalone};
 pub(super) use super::admin_migrate_mark_applied::{
     MarkAppliedArgs, execute_migrate_mark_applied, execute_migrate_mark_applied_standalone,

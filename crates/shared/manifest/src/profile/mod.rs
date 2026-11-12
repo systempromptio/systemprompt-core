@@ -20,12 +20,15 @@ mod deploy;
 pub mod derived;
 mod error;
 mod external_secrets;
+mod field_kind;
 mod governance;
 mod image;
+mod inspection;
 mod judge;
 pub mod layered;
 mod legacy;
 mod licence;
+mod managed;
 mod masking;
 mod node_role;
 mod notifications;
@@ -33,6 +36,7 @@ mod observability;
 mod oci_reference;
 pub mod overlay;
 mod paths;
+pub mod placeholders;
 mod rate_limits;
 mod retention;
 mod runtime;
@@ -61,15 +65,18 @@ pub use deploy::{
 };
 pub use error::{ProfileError, ProfileResult};
 pub use external_secrets::{ExternalSecretsConfig, MIN_EXTERNAL_REFRESH_SECS};
+pub use field_kind::profile_field_kind;
 pub use governance::{
     AuditConfig, AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig, QuotaConfig,
     UNRESTRICTED_ACKNOWLEDGEMENT, UnappliedPlaneMode,
 };
 pub use image::{DEFAULT_RUNTIME_BASE_IMAGE, RuntimeImageConfig};
+pub use inspection::{Evaluation, Inspection, NotEvaluated, ValidationReport, needed_variables};
 pub use judge::JudgeProfile;
 pub use layered::{BASE_PROFILE_FILE, OVERLAY_PROFILE_FILE, merge_yaml};
 pub use legacy::MIGRATE_COMMAND;
 pub use licence::{LICENCE_SIGNING_SECRET, LicenceConfig};
+pub use managed::ManagedProfile;
 pub use node_role::{NodeRole, NodeRoleParseError};
 pub use notifications::{ConsumerProfile, NotificationsProfile};
 pub use observability::{
@@ -87,8 +94,8 @@ pub use retention::RetentionConfig;
 pub use runtime::{Environment, LogLevel, OutputFormat, RuntimeConfig};
 pub use secrets::{SecretsConfig, SecretsSource, SecretsValidationMode};
 pub use security::{
-    ApiKeyPolicyConfig, DEFAULT_ID_JAG_TTL_SECS, GATEWAY_REQUIRED_RESOURCE_AUDIENCES,
-    SecurityConfig, TrustedIssuer, default_resource_audiences,
+    ApiKeyPolicyConfig, DEFAULT_ID_JAG_TTL_SECS, DEFAULT_SIGNING_KEY_PATH,
+    GATEWAY_REQUIRED_RESOURCE_AUDIENCES, SecurityConfig, TrustedIssuer, default_resource_audiences,
 };
 pub use server::{
     ContentNegotiationConfig, FrameOptions, ReferrerPolicy, SecurityHeadersConfig, ServerConfig,

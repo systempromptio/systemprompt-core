@@ -7,6 +7,7 @@ fn principal(email_verified: bool) -> EnterprisePrincipal {
         sub: "user-1".to_owned(),
         email: Some("admin@example.com".to_owned()),
         email_verified,
+        link: Default::default(),
     }
 }
 

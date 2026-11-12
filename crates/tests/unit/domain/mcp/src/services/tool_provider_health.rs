@@ -17,6 +17,7 @@ use crate::harness::{
     agent_block, bootstrap_with_services, config_with_servers, default_tools_json,
     internal_server_block, mount_mcp_endpoint, register_internal_extension,
 };
+use systemprompt_test_fixtures::unique_name;
 
 fn resilience() -> ResilienceSettings {
     serde_json::from_str("{}").expect("resilience defaults")
@@ -36,10 +37,6 @@ fn tool_context() -> ToolContext {
     context.session_id = Some(SessionId::new("s-tph"));
     context.headers = headers;
     context
-}
-
-fn unique(prefix: &str) -> String {
-    format!("{prefix}_{}", uuid::Uuid::new_v4().simple())
 }
 
 // Internal MCP servers are validated against the 5000-5999 range, so an
@@ -92,8 +89,8 @@ async fn health_check_separates_reachable_managed_servers_from_dead_ones() {
     let mock = MockServer::builder().listener(listener).start().await;
     mount_mcp_endpoint(&mock, default_tools_json()).await;
 
-    let up = unique("tphup");
-    let down = unique("tphdown");
+    let up = unique_name("tphup");
+    let down = unique_name("tphdown");
 
     let (provider, bootstrap) = provider_over_internal_servers(
         "tph_agent",
@@ -123,7 +120,7 @@ async fn health_check_separates_reachable_managed_servers_from_dead_ones() {
 
 #[tokio::test]
 async fn health_check_failures_open_the_per_server_circuit_breaker() {
-    let down = unique("tphbreak");
+    let down = unique_name("tphbreak");
 
     let (provider, bootstrap) = provider_over_internal_servers(
         "tph_break",
@@ -160,7 +157,7 @@ async fn health_check_failures_open_the_per_server_circuit_breaker() {
 
 #[tokio::test]
 async fn refresh_connections_tolerates_a_managed_server_that_is_not_listening() {
-    let down = unique("tphrefresh");
+    let down = unique_name("tphrefresh");
 
     let (provider, bootstrap) = provider_over_internal_servers(
         "tph_refresh",

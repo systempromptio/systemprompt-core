@@ -11,9 +11,18 @@
 //!
 //! The API server is not a spawned child: `infra services serve` re-executes
 //! itself once with [`API_SERVER_ENV`] so a later `stop api` can prove a port
-//! holder is the API server before signalling it. It deliberately does not
-//! carry [`SUBPROCESS_MARKER_ENV`], which selects the subprocess secrets
-//! source.
+//! holder is the API server before signalling it. It does not carry
+//! [`SUBPROCESS_MARKER_ENV`], so no reconciliation pass mistakes it for a
+//! supervised child.
+//!
+//! A foreground child of a CLI command (a `docker build`, a `cargo build`)
+//! carries [`CLI_CHILD_ENV`] set to a token unique to that spawn, so an
+//! interrupted command can prove a recorded pid is still that child before
+//! stopping it. It too omits [`SUBPROCESS_MARKER_ENV`], so the supervisor
+//! never adopts it.
+//!
+//! The markers carry identity only. What secrets a child receives is decided
+//! by the grants in `grants`, never by a marker.
 //!
 //! Spawning and the platform-specific process probes live in
 //! `systemprompt_loader::subprocess`; this module holds only data and pure
@@ -22,13 +31,18 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod grants;
+
+pub use grants::{ProviderSecret, SecretGrant, SecretGrantError, is_api_held_env_name};
 use systemprompt_identifiers::ServiceName;
 
 pub const SUBPROCESS_MARKER_ENV: &str = "SYSTEMPROMPT_SUBPROCESS";
 pub const AGENT_NAME_ENV: &str = "AGENT_NAME";
 pub const MCP_SERVICE_ID_ENV: &str = "MCP_SERVICE_ID";
+pub const VERIFICATION_KEYS_ENV: &str = "VERIFICATION_KEYS";
 pub const API_SERVER_ENV: &str = "SYSTEMPROMPT_API_SERVER";
 pub const API_SERVER_SERVICE: &str = "api";
+pub const CLI_CHILD_ENV: &str = "SYSTEMPROMPT_CLI_CHILD";
 
 pub const DEPLOYMENT_HOST_ENV: &str = "SYSTEMPROMPT_DEPLOYMENT_HOST";
 
@@ -110,7 +124,16 @@ pub fn environ_identifies_child(
 
 #[must_use]
 pub fn environ_identifies_api_server(environ: &[u8], service_name: &ServiceName) -> bool {
-    let expected = format!("{API_SERVER_ENV}={service_name}");
+    environ_has_entry(environ, API_SERVER_ENV, service_name)
+}
+
+#[must_use]
+pub fn environ_identifies_cli_child(environ: &[u8], token: &ServiceName) -> bool {
+    environ_has_entry(environ, CLI_CHILD_ENV, token)
+}
+
+fn environ_has_entry(environ: &[u8], key: &str, value: &ServiceName) -> bool {
+    let expected = format!("{key}={value}");
     environ
         .split(|&b| b == 0)
         .any(|entry| entry == expected.as_bytes())

@@ -9,6 +9,7 @@ use systemprompt_identifiers::{CredentialId, EndpointId, ModelId, ProviderId, Ro
 use systemprompt_models::net::OutboundUrlError;
 use thiserror::Error;
 
+use super::billing_error::BillingRuleError;
 use crate::services::gateway::GatewayProfileError;
 
 pub const MIGRATE_HINT: &str = "run `systemprompt admin config migrate` to rewrite it";
@@ -18,8 +19,22 @@ pub enum CatalogError {
     #[error(transparent)]
     Gateway(#[from] GatewayProfileError),
 
-    #[error("credential '{credential}' is `kind: platform` but names no `secret`")]
+    #[error(transparent)]
+    Billing(Box<BillingRuleError>),
+
+    #[error(
+        "credential '{credential}' is `kind: platform` but names no `secret` or `workload_identity`"
+    )]
     PlatformCredentialWithoutSecret { credential: CredentialId },
+
+    #[error("credential '{credential}' names both a `secret` and a `workload_identity`")]
+    PlatformCredentialWithTwoSources { credential: CredentialId },
+
+    #[error("credential '{credential}' declares a `workload_identity` {problem}")]
+    InvalidWorkloadIdentity {
+        credential: CredentialId,
+        problem: &'static str,
+    },
 
     #[error(
         "credential '{credential}' is `kind: personal` but names secret '{secret}'; each member \
@@ -31,6 +46,47 @@ pub enum CatalogError {
     },
 
     #[error(
+        "credential '{credential}' is `kind: caller` but names secret '{secret}'; a caller \
+         credential is the one the client presents on the request, so it has no deployment secret"
+    )]
+    CallerCredentialWithSecret {
+        credential: CredentialId,
+        secret: String,
+    },
+
+    #[error(
+        "caller credential '{credential}' is used by endpoint '{provider}/{endpoint}', which is \
+         not hosted by the vendor itself; a credential the client presents is sent only to the \
+         vendor's own API"
+    )]
+    CallerCredentialNotFirstParty {
+        credential: CredentialId,
+        provider: ProviderId,
+        endpoint: EndpointId,
+    },
+
+    #[error(
+        "caller credential '{credential}' is used by endpoint '{provider}/{endpoint}', which \
+         declares `accepted_betas`; the client's beta flags are sent whole with its own \
+         credential, so the endpoint lists none"
+    )]
+    CallerCredentialFiltersBetas {
+        credential: CredentialId,
+        provider: ProviderId,
+        endpoint: EndpointId,
+    },
+
+    #[error(
+        "provider '{provider}' uses caller credential '{credential}' and sets `user_agent`, \
+         `extra_headers` or `forward_headers`; such a request carries the client's own headers \
+         and none of the deployment's"
+    )]
+    CallerProviderSetsHeaders {
+        credential: CredentialId,
+        provider: ProviderId,
+    },
+
+    #[error(
         "provider '{provider}' names credential '{credential}', which credentials.yaml does not declare"
     )]
     UnknownCredential {
@@ -39,8 +95,8 @@ pub enum CatalogError {
     },
 
     #[error(
-        "personal credential '{credential}' is used by providers '{first}' and '{second}'; one \
-         personal subscription is one vendor account, so declare its endpoints under one provider"
+        "member-paid credential '{credential}' is used by providers '{first}' and '{second}'; \
+         one member subscription is one vendor account, so declare its endpoints under one provider"
     )]
     PersonalCredentialShared {
         credential: CredentialId,
@@ -223,6 +279,12 @@ pub enum CatalogDocumentError {
 
     #[error("more than one catalog file declares `gateway:`")]
     DuplicateGateway,
+}
+
+impl From<BillingRuleError> for CatalogError {
+    fn from(rule: BillingRuleError) -> Self {
+        Self::Billing(Box::new(rule))
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Error)]

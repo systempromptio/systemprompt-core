@@ -10,7 +10,9 @@ use systemprompt_identifiers::TraceId;
 use systemprompt_logging::LogActor;
 
 use crate::audit::access_log::{TerminalOutcome, log_gateway_terminal};
+use crate::audit::payload::ResponseCapture;
 use crate::audit::phases::{self, GatewayPhase};
+use systemprompt_ai::repository::ai_requests::UsageSource;
 
 use super::super::audit::GatewayAudit;
 use super::super::service::finalize::record_accounting_outcome;
@@ -109,6 +111,17 @@ pub const fn classify(
     }
 }
 
+fn warn_dropped_frames(origin: &str, ctx: &TapFinalizeCtx, summary: &Summary) {
+    if summary.dropped_frames > 0 {
+        tracing::warn!(
+            origin,
+            ai_request_id = %ctx.ai_request_id,
+            dropped_frames = summary.dropped_frames,
+            "stream withheld undecodable upstream frames"
+        );
+    }
+}
+
 pub(super) fn finalize(
     audit: &Arc<GatewayAudit>,
     summary: Summary,
@@ -126,7 +139,8 @@ pub(super) fn finalize(
             audit.set_served_model(model).await;
         }
 
-        let has_content = !summary.final_bytes.is_empty();
+        warn_dropped_frames(origin, &ctx, &summary);
+        let has_content = summary.streamed_bytes > 0;
         let has_usage = summary.saw_usage_delta
             && (summary.usage.input_tokens > 0 || summary.usage.output_tokens > 0);
         match classify(
@@ -139,36 +153,44 @@ pub(super) fn finalize(
             FinalizeDecision::Fail(cause) => {
                 let msg = summary.error.as_deref().unwrap_or_else(|| cause.reason());
                 // Why: the provider bills what it streamed before the break,
-                // so a truncated stream settles with the usage the tap saw.
-                let partial = summary.saw_usage_delta.then_some(summary.usage);
+                // including the input its opening frame reported, so a
+                // truncated stream settles with every token the tap saw.
+                let partial = (summary.usage.billable_total() > 0).then_some(summary.usage);
                 if let Err(e) = audit.fail_with_usage(msg, partial).await {
                     tracing::warn!(origin, error = %e, "stream audit fail failed");
                 }
-                log_terminal(&audit, cause.status(), Some(msg));
+                log_terminal(&audit, cause.status(), Some(msg), summary.dropped_frames);
             },
             FinalizeDecision::Complete { cost_capture_miss } => {
-                if cost_capture_miss {
-                    tracing::warn!(
-                        origin,
-                        "stream completed with content but zero usage: cost capture miss"
-                    );
-                }
-                let cost_microdollars = match audit
-                    .complete(
+                let completed = audit
+                    .complete_captured(
                         summary.usage,
                         summary.tool_calls,
                         &summary.response,
-                        &summary.final_bytes,
+                        ResponseCapture {
+                            bytes: &summary.final_bytes,
+                            sent_bytes: summary.streamed_bytes,
+                            usage_source: usage_source(cost_capture_miss),
+                        },
                     )
                     .await
-                {
-                    Ok(cost) => cost,
-                    Err(e) => {
+                    .inspect_err(|e| {
                         tracing::warn!(origin, error = %e, "stream audit complete failed");
-                        0
+                    });
+                let accounting = match completed {
+                    Ok(cost) if !cost_capture_miss => {
+                        audit.settle_quota(&summary.usage, cost).await
                     },
+                    Ok(cost) => {
+                        tracing::warn!(
+                            origin,
+                            "stream completed with content but no usage; settling to the \
+                             reservation"
+                        );
+                        audit.settle_quota_unmetered(&summary.usage, cost).await
+                    },
+                    Err(_) => audit.settle_quota_unmetered(&summary.usage, 0).await,
                 };
-                let accounting = audit.settle_quota(&summary.usage, cost_microdollars).await;
                 record_accounting_outcome(&audit, ctx.quota_fault_mode, accounting).await;
                 run_response_safety_scan(
                     &ctx.scanners,
@@ -178,14 +200,27 @@ pub(super) fn finalize(
                     &ctx.policy.safety,
                 )
                 .await;
-                log_terminal(&audit, 200, None);
+                log_terminal(&audit, 200, None, summary.dropped_frames);
             },
         }
         phases::record(GatewayPhase::Finalize, started.elapsed());
     });
 }
 
-pub(crate) fn log_terminal(audit: &GatewayAudit, status: u16, error: Option<&str>) {
+pub(crate) const fn usage_source(cost_capture_miss: bool) -> UsageSource {
+    if cost_capture_miss {
+        UsageSource::Reservation
+    } else {
+        UsageSource::Reported
+    }
+}
+
+pub(crate) fn log_terminal(
+    audit: &GatewayAudit,
+    status: u16,
+    error: Option<&str>,
+    dropped_frames: u32,
+) {
     let Some(access) = audit.ctx.access_log.as_ref() else {
         return;
     };
@@ -196,6 +231,7 @@ pub(crate) fn log_terminal(audit: &GatewayAudit, status: u16, error: Option<&str
             status,
             actor: terminal_actor(audit),
             error,
+            dropped_frames,
         },
     );
 }

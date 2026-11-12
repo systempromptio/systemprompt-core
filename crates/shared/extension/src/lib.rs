@@ -38,6 +38,9 @@
 //! - [`purge`] — the user-keyed tables a deleted user's rows leave with them,
 //!   declared per crate with [`user_purge_tables!`], and the shared rows swept
 //!   once nothing references them, declared with [`orphan_sweeps!`].
+//! - [`retention`] — the tables the retention job prunes, and the holds an
+//!   extension registers with [`register_retention_hold!`] to keep rows it has
+//!   not yet released.
 //! - [`registry`] — runtime store of registered extensions, built from
 //!   `inventory` submissions at startup.
 //! - [`capabilities`] — `Has*` capability traits the host context implements to
@@ -77,6 +80,7 @@ pub mod migration;
 pub mod notifications;
 pub mod purge;
 pub mod registry;
+pub mod retention;
 pub mod router;
 mod seam;
 pub mod seed;
@@ -128,6 +132,10 @@ pub use notifications::{
 pub use notifications::{DynNotificationSink, NotificationSink};
 pub use purge::{UserPurgeTable, registered_user_purge_tables};
 pub use registry::{ExtensionRegistration, ExtensionRegistry, RESERVED_PATHS};
+pub use retention::{
+    EffectiveCutoff, RetentionHold, RetentionHoldError, RetentionHoldRegistration, RetentionHolds,
+    RetentionTarget, discover_retention_holds,
+};
 pub use router::{ExtensionRouter, ExtensionRouterConfig, SiteAuthConfig};
 pub use seed::Seed;
 pub use traits::Extension;
@@ -142,11 +150,12 @@ pub mod prelude {
         GatewayDenyKind, GatewayDenyReason, GatewayGuardRequest, GatewayGuards, GatewayRequestGuard,
     };
     pub use crate::registry::ExtensionRegistry;
+    pub use crate::retention::{RetentionHold, RetentionHoldError, RetentionTarget};
     pub use crate::seed::Seed;
     pub use crate::{
         Extension, ExtensionMetadata, ExtensionRole, ExtensionRouter, Migration, SchemaDefinition,
         SiteAuthConfig, extension_migrations, register_extension, register_gateway_guard,
-        stamp_frame_options, user_purge_tables,
+        register_retention_hold, stamp_frame_options, user_purge_tables,
     };
 
     pub use systemprompt_provider_contracts::{

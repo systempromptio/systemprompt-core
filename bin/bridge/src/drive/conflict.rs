@@ -65,15 +65,18 @@ pub fn keep_local_beside(
     let sibling_path = cycle.root.file(&sibling)?;
     let moved = original.exists();
     if moved {
-        move_file(&original, &sibling_path)?;
+        move_file(cycle.root, &original, &sibling_path)?;
     }
-    if let Err(error) = write_verified(&original, bytes, &head.sha256) {
-        if moved && let Err(restore) = move_file(&sibling_path, &original) {
+    if let Err(error) = write_verified(cycle.root, &original, bytes, &head.sha256) {
+        if moved && let Err(restore) = move_file(cycle.root, &sibling_path, &original) {
             tracing::error!(%restore, path = %rel, "drive could not restore a local edit after a failed head write");
         }
         return Err(error);
     }
+    clear_unplaced(state, &head.document_id);
     let notice = ConflictNotice {
+        document_id: Some(head.document_id.clone()),
+        unplaced: false,
         path: rel.to_owned(),
         sibling,
         head_revision_id: head.revision_id.clone(),
@@ -101,6 +104,12 @@ pub fn prune_resolved(root: &super::DriveRoot, state: &mut DriveState) -> bool {
     let before = state.conflicts.len();
     state
         .conflicts
-        .retain(|notice| root.file(&notice.sibling).is_ok_and(|p| p.exists()));
+        .retain(|notice| notice.unplaced || root.file(&notice.sibling).is_ok_and(|p| p.exists()));
     before != state.conflicts.len()
+}
+
+pub fn clear_unplaced(state: &mut DriveState, document_id: &DocumentId) {
+    state
+        .conflicts
+        .retain(|notice| !notice.unplaced || notice.document_id.as_ref() != Some(document_id));
 }

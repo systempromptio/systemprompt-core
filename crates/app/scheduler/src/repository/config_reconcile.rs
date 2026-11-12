@@ -21,7 +21,7 @@ use systemprompt_identifiers::JobName;
 use super::job_lock::{JobLockGuard, JobLockRepository};
 use crate::error::SchedulerResult;
 
-const RECONCILE_LOCK: &str = "config_reconcile";
+pub(crate) const RECONCILE_LOCK: &str = "config_reconcile.planes";
 
 pub use systemprompt_database::PlaneTransaction;
 

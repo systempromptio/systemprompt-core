@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT (\n            EXISTS (SELECT 1 FROM ai_request_tool_calls WHERE request_id = $1)\n            OR EXISTS (\n                SELECT 1 FROM ai_request_messages\n                WHERE request_id = $1 AND role = 'assistant' AND sequence_number = $2\n            )\n        ) AS \"recorded!\"\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "recorded!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "2f00afe732a30f90046250e2f6578dcb08d393bf56364cbacdb2cfcc242cd6a0"
+}

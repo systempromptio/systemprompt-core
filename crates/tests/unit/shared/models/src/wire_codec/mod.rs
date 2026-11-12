@@ -19,6 +19,7 @@ mod empty_body;
 mod gemini;
 mod openai_chat;
 mod openai_responses;
+mod presented_headers;
 mod turns;
 mod unparsable_body;
 mod upstream_dialect;

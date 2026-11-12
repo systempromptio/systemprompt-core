@@ -11,7 +11,7 @@ use systemprompt_manifest::services::catalog::ResolvedCatalog;
 
 use super::{AiService, AiServiceProviders};
 use crate::error::Result;
-use crate::repository::AiRepositories;
+use crate::repository::AiRequestRepositories;
 use crate::services::config::{AiConfigError, ConfigValidator};
 use crate::services::core::ai_service::clients::{ProviderClients, WithheldEndpoint};
 use crate::services::core::request_storage::RequestStorage;
@@ -24,7 +24,7 @@ impl AiService {
         catalog: Arc<ResolvedCatalog>,
         ai_config: &AiConfig,
         providers: AiServiceProviders,
-        repositories: &AiRepositories,
+        repositories: &AiRequestRepositories,
     ) -> Result<Self> {
         let AiServiceProviders {
             tools: tool_provider,
@@ -34,7 +34,7 @@ impl AiService {
             session_ttl_seconds,
         } = providers;
         let (clients, withheld) =
-            ProviderClients::build(&provider_tokens, &secrets.get(), &catalog)?;
+            ProviderClients::build(&provider_tokens, secrets.as_ref(), &catalog)?;
         ConfigValidator::validate(ai_config, &catalog, &clients, &withheld)?;
         let (default_provider, default_model) =
             Self::derive_default(&catalog, &clients, &withheld)?;

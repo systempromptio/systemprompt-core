@@ -44,6 +44,9 @@ pub fn extraction_error_to_api_error(error: &ContextExtractionError) -> ApiError
         ContextExtractionError::ForbiddenHeader { header, reason } => ApiError::bad_request(
             format!("Header '{header}' is not allowed: {reason}. Use JWT authentication instead."),
         ),
+        ContextExtractionError::PayloadTooLarge { limit } => {
+            ApiError::payload_too_large(format!("Request body exceeds {limit} bytes"))
+        },
     }
 }
 

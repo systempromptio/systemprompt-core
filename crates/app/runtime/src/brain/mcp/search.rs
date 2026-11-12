@@ -10,7 +10,7 @@ use std::time::Duration;
 
 use chrono::Utc;
 use rmcp::ErrorData as McpError;
-use systemprompt_brain::{BrainError, FactFilter};
+use systemprompt_brain::{BrainError, FactCursor, FactFilter};
 use systemprompt_extension::brain::{
     RecallConversation, RecallOutcome, RecallPrincipal, RecallRequest, ReuseHint,
 };
@@ -53,7 +53,7 @@ impl McpToolHandler for SearchHandler<'_> {
     }
 
     fn description(&self) -> &'static str {
-        "Search team memory you may see. Guide: facts."
+        "Search team memory you may see; resume with `after` = `next`."
     }
 
     fn read_only(&self) -> bool {
@@ -77,21 +77,43 @@ impl McpToolHandler for SearchHandler<'_> {
                 .map_err(|error| brain_tool_error(BrainError::Subject(error)))?;
             filter = filter.with_subject(key);
         }
-        let limit = input.limit.unwrap_or(DEFAULT_LIMIT).clamp(1, MAX_LIMIT);
+        let limit =
+            usize::try_from(input.limit.unwrap_or(DEFAULT_LIMIT).clamp(1, MAX_LIMIT)).unwrap_or(1);
         let needle = input.query.trim().to_lowercase();
-        let facts: Vec<FactItem> = self
-            .tools
-            .service()
-            .search(&caller, &filter)
-            .await
-            .map_err(brain_tool_error)?
-            .into_iter()
-            .filter(|fact| matches(fact, &input, &needle))
-            .take(usize::try_from(limit).unwrap_or(usize::MAX))
-            .map(FactItem::from)
-            .collect();
+        let mut after = input.after.clone();
+        let mut found: Vec<BrainFact> = Vec::with_capacity(limit);
+        let mut next = None;
+        'pages: loop {
+            let page_filter = after.as_ref().map_or_else(
+                || filter.clone(),
+                |token| filter.clone().with_after(token.clone()),
+            );
+            let page = self
+                .tools
+                .service()
+                .search(&caller, &page_filter)
+                .await
+                .map_err(brain_tool_error)?;
+            for fact in page.facts {
+                if !matches(&fact, &input, &needle) {
+                    continue;
+                }
+                found.push(fact);
+                if found.len() == limit {
+                    next = found
+                        .last()
+                        .map(|fact| FactCursor::at(fact).encode(&caller.user_id));
+                    break 'pages;
+                }
+            }
+            match page.next {
+                Some(token) => after = Some(token),
+                None => break,
+            }
+        }
+        let facts: Vec<FactItem> = found.into_iter().map(FactItem::from).collect();
         let summary = format!("{} facts", facts.len());
-        Ok((SearchOutput { facts }, summary))
+        Ok((SearchOutput { facts, next }, summary))
     }
 }
 

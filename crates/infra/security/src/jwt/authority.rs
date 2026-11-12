@@ -9,20 +9,21 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use chrono::{Duration, Utc};
+use chrono::Utc;
 use jsonwebtoken::errors::ErrorKind;
 use jsonwebtoken::{Algorithm, Header, encode};
 use serde::Serialize;
+use systemprompt_identifiers::McpServerId;
 use systemprompt_models::auth::{
-    CustomClaims, JwtAudience, JwtClaims, RegisteredClaims, TokenAuthority, TokenError,
-    TokenResult, TokenType, UserJwtRequest, UserType,
+    CustomClaims, JwtAudience, JwtClaims, McpHopClaims, McpHopIdentity, RegisteredClaims,
+    TokenAuthority, TokenError, TokenResult, TokenType, UserJwtRequest, UserType,
 };
 
+use super::hop::{decode_mcp_hop, mint_mcp_hop};
+use super::lifetime::{MAX_TOKEN_LIFETIME, within_max_lifetime};
 use super::validate::{ValidationPolicy, decode_rs256_claims, decode_session_claims};
 use crate::error::AuthError;
 use crate::keys::SigningKeys;
-
-const MAX_TOKEN_LIFETIME: Duration = Duration::days(365);
 
 #[derive(Debug, Clone)]
 pub struct DeploymentTokenAuthority {
@@ -55,7 +56,7 @@ pub fn encode_rs256<C: Serialize>(
 }
 
 pub fn user_claims(issuer: &str, req: &UserJwtRequest) -> TokenResult<JwtClaims> {
-    if req.ttl <= Duration::zero() || req.ttl > MAX_TOKEN_LIFETIME {
+    if !within_max_lifetime(req.ttl) {
         return Err(TokenError::InvalidLifetime {
             seconds: req.ttl.num_seconds(),
         });
@@ -114,27 +115,53 @@ impl From<AuthError> for TokenError {
 impl TokenAuthority for DeploymentTokenAuthority {
     fn verify_session_cookie(&self, token: &str) -> TokenResult<JwtClaims> {
         let policy = ValidationPolicy::session_context(&self.issuer);
-        Ok(decode_session_claims(&self.keys, token, &policy)?)
+        Ok(decode_session_claims(self.keys.keyring(), token, &policy)?)
     }
 
     fn verify_bearer(&self, token: &str, audiences: &[JwtAudience]) -> TokenResult<JwtClaims> {
         let policy = ValidationPolicy::issuer_scoped(&self.issuer, audiences);
-        Ok(decode_rs256_claims(&self.keys, token, &policy)?)
+        Ok(decode_rs256_claims(self.keys.keyring(), token, &policy)?)
     }
 
     fn verify_hook_token(&self, token: &str) -> TokenResult<JwtClaims> {
         let policy = ValidationPolicy::issuer_scoped(&self.issuer, &[JwtAudience::Hook]);
-        Ok(decode_rs256_claims(&self.keys, token, &policy)?)
+        Ok(decode_rs256_claims(self.keys.keyring(), token, &policy)?)
     }
 
     // JSON: an extension-defined claim set has no fixed schema; the signer only
     // serialises it
     fn sign_claims(&self, claims: &serde_json::Value) -> TokenResult<String> {
+        let exp = claims.get("exp").and_then(serde_json::Value::as_i64);
+        let max_lifetime_secs = MAX_TOKEN_LIFETIME.num_seconds();
+        let bounded = exp.is_some_and(|exp| {
+            let ttl = exp.saturating_sub(Utc::now().timestamp());
+            ttl > 0 && ttl <= max_lifetime_secs
+        });
+        if !bounded {
+            return Err(TokenError::ClaimsExpiry {
+                exp,
+                max_lifetime_secs,
+            });
+        }
         encode_rs256(&self.keys, claims).map_err(|e| TokenError::Signing(Box::new(e)))
     }
 
     fn mint_user_jwt(&self, req: &UserJwtRequest) -> TokenResult<String> {
         let claims = user_claims(&self.issuer, req)?;
         encode_rs256(&self.keys, &claims).map_err(|e| TokenError::Signing(Box::new(e)))
+    }
+
+    fn mint_mcp_hop(&self, server: &McpServerId, identity: &McpHopIdentity) -> TokenResult<String> {
+        mint_mcp_hop(&self.keys, &self.issuer, server, identity)
+            .map_err(|e| TokenError::Signing(Box::new(e)))
+    }
+
+    fn verify_mcp_hop(&self, token: &str, server: &McpServerId) -> TokenResult<McpHopClaims> {
+        Ok(decode_mcp_hop(
+            self.keys.keyring(),
+            &self.issuer,
+            server,
+            token,
+        )?)
     }
 }

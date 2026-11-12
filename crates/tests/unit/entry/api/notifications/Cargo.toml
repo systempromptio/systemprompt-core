@@ -18,6 +18,7 @@ systemprompt-notifications = { workspace = true }
 systemprompt-provider-contracts = { workspace = true }
 systemprompt-runtime = { workspace = true, features = ["notifications"] }
 systemprompt-test-fixtures = { workspace = true }
+systemprompt-test-hack = { version = "0.1", path = "../../../../common/hack" }
 
 [dev-dependencies]
 async-trait = { workspace = true }

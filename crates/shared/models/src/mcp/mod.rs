@@ -34,7 +34,7 @@ pub use capabilities::{
 pub use client_profile::ClientProfile;
 pub use deployment::{
     Deployment, DeploymentConfig, ExternalAuth, McpServerType, OAuthRequirement, Settings,
-    ToolMetadata,
+    ToolMetadata, validate_child_env,
 };
 pub use execution_source::{Correlation, ExecutionSource};
 pub use execution_status::{McpToolExecutionStatus, UnknownMcpToolExecutionStatus};

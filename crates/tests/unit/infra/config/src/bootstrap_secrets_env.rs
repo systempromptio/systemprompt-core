@@ -154,44 +154,19 @@ async fn fly_environment_with_env_source_and_no_pepper_errors() {
 }
 
 #[tokio::test]
-async fn subprocess_mode_short_env_pepper_falls_back_to_file() {
+async fn a_child_marker_and_pepper_in_env_never_replace_the_file_source() {
     let fx = fixture::write_tree(
         fixture::FILE_SECRETS,
         Some(&fixture::secrets_json(Some(fixture::SEED))),
     );
     let loaded = LoadedProfile::from_path(&fx.profile_path).unwrap();
     fixture::set_env("SYSTEMPROMPT_SUBPROCESS", "1");
-    fixture::set_env("OAUTH_AT_REST_PEPPER", "short");
+    fixture::set_env("OAUTH_AT_REST_PEPPER", &"e".repeat(64));
 
     let secrets = SecretsService::load(loaded).await.unwrap().get();
 
     assert_eq!(secrets.oauth_at_rest_pepper, fixture::PEPPER);
     assert_eq!(secrets.database_url, fixture::DB_URL);
-}
-
-#[tokio::test]
-async fn subprocess_mode_with_env_pepper_loads_env_secrets() {
-    let fx = fixture::write_tree("", None);
-    let loaded = LoadedProfile::from_path(&fx.profile_path).unwrap();
-    fixture::set_env("SYSTEMPROMPT_SUBPROCESS", "1");
-    set_base_env();
-    fixture::set_env("OPENAI_API_KEY", "oai-key");
-    fixture::set_env("GITHUB_TOKEN", "gh-token");
-    fixture::set_env("EXTERNAL_DATABASE_URL", "postgresql://e:e@localhost:5432/e");
-    fixture::set_env("INTERNAL_DATABASE_URL", "postgresql://i:i@localhost:5432/i");
-
-    let secrets = SecretsService::load(loaded).await.unwrap().get();
-
-    assert_eq!(secrets.openai.as_deref(), Some("oai-key"));
-    assert_eq!(secrets.github.as_deref(), Some("gh-token"));
-    assert_eq!(
-        secrets.external_database_url.as_deref(),
-        Some("postgresql://e:e@localhost:5432/e")
-    );
-    assert_eq!(
-        secrets.internal_database_url.as_deref(),
-        Some("postgresql://i:i@localhost:5432/i")
-    );
 }
 
 #[tokio::test]
@@ -251,4 +226,21 @@ async fn env_source_on_deployment_host_requires_signing_key_pem() {
         err,
         ConfigError::Secrets(SecretsBootstrapError::SigningKeyPemRequired)
     ));
+}
+
+#[tokio::test]
+async fn an_empty_rotation_secret_in_the_environment_reads_as_absent() {
+    let fx = fixture::write_tree(fixture::ENV_SECRETS, None);
+    let loaded = LoadedProfile::from_path(&fx.profile_path).unwrap();
+    set_base_env();
+    fixture::set_env("SIGNING_KEY_PREVIOUS_KEYS", "");
+    fixture::set_env("SIGNING_KEY_STAGED_PEM", "");
+
+    let service = SecretsService::load(loaded).await.unwrap();
+    let secrets = service.get();
+
+    assert!(secrets.signing_key_previous_keys.is_none());
+    assert!(secrets.signing_key_staged_pem.is_none());
+    assert!(service.signing_keys_previous().unwrap().is_empty());
+    assert!(service.signing_key_staged_pem().unwrap().is_none());
 }

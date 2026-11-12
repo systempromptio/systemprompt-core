@@ -4,10 +4,12 @@
 //! Row writes for the run lifecycle live here; the claim, lease and reclaim
 //! queries are in [`claim`], event inserts in [`events`], row reads in
 //! [`rows`]. `insert_run_in_tx` queues inside the caller's transaction so a
-//! product can insert its own row atomically; `finish` returns `false` when
-//! the run was already terminal, so a second finish never overwrites the
-//! first. When a run carries an A2A `task_id`, `update_started` and
-//! `finish` move the task in the same transaction ([`task_link`]).
+//! product can insert its own row atomically. Every write to a claimed run
+//! takes the claim's [`Lease`] and returns [`Fenced`]: it applies only while
+//! that claim still owns a `preparing` / `running` row, so a reclaimed,
+//! released or finished run is never overwritten. When a run carries an A2A
+//! `task_id`, `update_started` and `finish` move the task in the same
+//! transaction ([`task_link`]).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -16,6 +18,7 @@ mod bundle;
 pub mod claim;
 pub mod events;
 pub mod idempotent;
+mod lease;
 pub mod retention;
 pub mod rows;
 pub mod task_link;
@@ -32,6 +35,7 @@ use systemprompt_identifiers::{
 
 pub use bundle::{AgentRunRepositories, RunCredentialRepositories};
 pub use idempotent::{Enqueued, request_digest};
+pub use lease::{Claimed, Fenced, Lease, Released};
 pub use rows::AgentRunRow;
 
 use crate::error::AgentRunsResult;
@@ -122,62 +126,85 @@ impl AgentRunRepository {
     pub async fn record_harness_digest(
         &self,
         id: &AgentRunId,
+        lease: &Lease,
         digest: &AssetDigest,
-    ) -> AgentRunsResult<()> {
-        sqlx::query!(
-            "UPDATE agent_runs SET harness_digest = $2 WHERE id = $1",
+    ) -> AgentRunsResult<Fenced> {
+        let result = sqlx::query!(
+            r#"
+            UPDATE agent_runs SET harness_digest = $4
+            WHERE id = $1 AND claimed_by = $2 AND attempt = $3 AND claimed_at = $5
+              AND status IN ('preparing', 'running')
+            "#,
             id.as_str(),
+            lease.claimed_by(),
+            lease.attempt(),
             digest.as_str(),
+            lease.claimed_at(),
         )
         .execute(&*self.write_pool)
         .await?;
-        Ok(())
+        Ok(Fenced::from_rows(result.rows_affected()))
     }
 
     pub async fn update_started(
         &self,
         id: &AgentRunId,
+        lease: &Lease,
         started: RunStarted<'_>,
-    ) -> AgentRunsResult<()> {
+    ) -> AgentRunsResult<Fenced> {
         let run_dir = started.run_dir.to_string_lossy();
         let mut tx = self.write_pool.begin().await?;
-        let task_id = sqlx::query_scalar!(
+        let updated = sqlx::query_scalar!(
             r#"
             UPDATE agent_runs
-            SET status = 'running', started_at = NOW(), run_dir = $2, pid = $3,
-                gateway_session_id = $4, api_key_id = $5
-            WHERE id = $1
+            SET status = 'running', started_at = NOW(), run_dir = $4, pid = $5,
+                gateway_session_id = $6, api_key_id = $7
+            WHERE id = $1 AND claimed_by = $2 AND attempt = $3 AND claimed_at = $8
+              AND status IN ('preparing', 'running')
             RETURNING task_id AS "task_id: TaskId"
             "#,
             id.as_str(),
+            lease.claimed_by(),
+            lease.attempt(),
             run_dir.as_ref(),
             started.pid,
             started.gateway_session_id.map(SessionId::as_str),
             started.api_key_id.map(ApiKeyId::as_str),
+            lease.claimed_at(),
         )
         .fetch_optional(&mut *tx)
-        .await?
-        .flatten();
-        if let Some(task_id) = task_id {
-            task_link::transition_task(&mut tx, &task_id, RunStatus::Running).await?;
+        .await?;
+        let Some(task_id) = updated else {
+            return Ok(Fenced::LeaseLost);
+        };
+        if task_id.is_some() {
+            task_link::transition_task(&mut tx, id, lease.run_claim(), RunStatus::Running).await?;
         }
         tx.commit().await?;
-        Ok(())
+        Ok(Fenced::Applied)
     }
 
     pub async fn update_host_session(
         &self,
         id: &AgentRunId,
+        lease: &Lease,
         host_session_id: &HostSessionId,
-    ) -> AgentRunsResult<()> {
-        sqlx::query!(
-            "UPDATE agent_runs SET host_session_id = $2 WHERE id = $1",
+    ) -> AgentRunsResult<Fenced> {
+        let result = sqlx::query!(
+            r#"
+            UPDATE agent_runs SET host_session_id = $4
+            WHERE id = $1 AND claimed_by = $2 AND attempt = $3 AND claimed_at = $5
+              AND status IN ('preparing', 'running')
+            "#,
             id.as_str(),
+            lease.claimed_by(),
+            lease.attempt(),
             host_session_id.as_str(),
+            lease.claimed_at(),
         )
         .execute(self.write_pool.as_ref())
         .await?;
-        Ok(())
+        Ok(Fenced::from_rows(result.rows_affected()))
     }
 
     pub async fn update_cancel_requested(&self, id: &AgentRunId) -> AgentRunsResult<()> {
@@ -207,23 +234,26 @@ impl AgentRunRepository {
     pub async fn finish(
         &self,
         id: &AgentRunId,
+        lease: &Lease,
         outcome: &RunOutcome,
         diff_summary: Option<&serde_json::Value>,
-    ) -> AgentRunsResult<bool> {
+    ) -> AgentRunsResult<Fenced> {
         let mut tx = self.write_pool.begin().await?;
         let finished = sqlx::query_scalar!(
             r#"
             UPDATE agent_runs
-            SET status = $2, error_class = $3, input_tokens = $4, output_tokens = $5,
-                cost_microdollars = $6, turns = $7, duration_ms = $8,
-                structured_output = $9, exit_code = $10, error = $11, diff_summary = $12,
-                host_session_id = COALESCE($13, host_session_id),
+            SET status = $4, error_class = $5, input_tokens = $6, output_tokens = $7,
+                cost_microdollars = $8, turns = $9, duration_ms = $10,
+                structured_output = $11, exit_code = $12, error = $13, diff_summary = $14,
+                host_session_id = COALESCE($15, host_session_id),
                 finished_at = NOW(), lease_until = NULL
-            WHERE id = $1
-              AND status NOT IN ('succeeded', 'failed', 'cancelled', 'timed_out')
+            WHERE id = $1 AND claimed_by = $2 AND attempt = $3 AND claimed_at = $16
+              AND status IN ('preparing', 'running')
             RETURNING task_id AS "task_id: TaskId"
             "#,
             id.as_str(),
+            lease.claimed_by(),
+            lease.attempt(),
             outcome.status.as_str(),
             outcome.error_class.as_str(),
             outcome.input_tokens,
@@ -236,16 +266,17 @@ impl AgentRunRepository {
             outcome.error.as_deref(),
             diff_summary,
             outcome.session_id.as_ref().map(HostSessionId::as_str),
+            lease.claimed_at(),
         )
         .fetch_optional(&mut *tx)
         .await?;
         let Some(task_id) = finished else {
-            return Ok(false);
+            return Ok(Fenced::LeaseLost);
         };
-        if let Some(task_id) = task_id {
-            task_link::transition_task(&mut tx, &task_id, outcome.status).await?;
+        if task_id.is_some() {
+            task_link::transition_task(&mut tx, id, lease.run_claim(), outcome.status).await?;
         }
         tx.commit().await?;
-        Ok(true)
+        Ok(Fenced::Applied)
     }
 }

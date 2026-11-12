@@ -7,7 +7,7 @@
 // JSON: protocol boundary — OpenAI Responses wire format is dynamic JSON.
 use serde_json::Value;
 
-use crate::canonical::{CanonicalEvent, CanonicalUsageUpdate};
+use crate::canonical::{CanonicalEvent, CanonicalUsageUpdate, wire_count};
 use crate::error::WireStreamError;
 use crate::openai_responses::slot::{
     ResponsesStreamState, SlotKindMatch, lookup_canonical, stop_reason,
@@ -97,12 +97,12 @@ pub(super) fn handle_completed(
         .filter(|s| !s.is_empty())
         .map_or_else(|| state.response_id.clone(), str::to_owned);
     if let Some(usage) = response.get("usage") {
-        let pull = |key: &str| usage.get(key).and_then(Value::as_u64).map(|v| v as u32);
+        let pull = |key: &str| usage.get(key).and_then(Value::as_u64).map(wire_count);
         let cached = usage
             .get("input_tokens_details")
             .and_then(|d| d.get("cached_tokens"))
             .and_then(Value::as_u64)
-            .map(|v| v as u32);
+            .map(wire_count);
         // Why: OpenAI Responses includes `cached_tokens` in `input_tokens`.
         events.push(Ok(CanonicalEvent::UsageDelta(CanonicalUsageUpdate {
             input_tokens: pull("input_tokens")
@@ -116,7 +116,7 @@ pub(super) fn handle_completed(
                 .get("output_tokens_details")
                 .and_then(|d| d.get("reasoning_tokens"))
                 .and_then(Value::as_u64)
-                .map(|v| v as u32),
+                .map(wire_count),
         })));
     }
     let incomplete_reason = incomplete

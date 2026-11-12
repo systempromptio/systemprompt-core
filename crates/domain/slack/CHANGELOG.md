@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.81.0] - 2026-11-12
+
+### Breaking
+
+- `SlackClient::respond` takes a `&GuardedClient`, and `authz.link_by_workspace_email` is replaced by `authz.link.link_by_email`. Migrate by passing a `GuardedClient::untrusted` client and running `admin config migrate`.
+
 ## [0.63.0] - 2026-10-07
 
 ### Breaking

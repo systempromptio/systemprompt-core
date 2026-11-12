@@ -110,7 +110,11 @@ pub fn commit_catalog(
 ) -> Result<ServicesConfig> {
     let previous = snapshot(location)?;
     write_document(location, after)?;
-    match ConfigLoader::load_from_path(&location.root, Some(profile)) {
+    let loaded = ConfigLoader::new(location.root.clone())
+        .with_profile(Some(profile))
+        .inspecting()
+        .load();
+    match loaded {
         Ok(services) => Ok(services),
         Err(error) => {
             restore(&previous)?;

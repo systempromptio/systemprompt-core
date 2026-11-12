@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.81.0] - 2026-11-12
+
+### Breaking
+
+- `WebConfig.nav` and `WebConfig.social_action_bar` are removed with `NavConfig`, `SocialActionBarConfig` and `SocialPlatform`. Migrate by deleting both blocks.
+
 ## [0.79.0] - 2026-11-05
 
 ### Breaking

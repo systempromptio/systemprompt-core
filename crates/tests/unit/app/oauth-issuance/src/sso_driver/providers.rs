@@ -1,25 +1,27 @@
 use std::collections::BTreeMap;
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::Arc;
 
 use async_trait::async_trait;
 use systemprompt_identifiers::{SsoAssertionId, UserId};
 use systemprompt_oauth_issuance::sso::{RoleResolver, SsoHookContext, SsoProviderError};
-use systemprompt_oauth_issuance::{
-    register_auth_event_sink, register_role_resolver, register_sso_provider,
-};
+use systemprompt_oauth_issuance::{register_role_resolver, register_sso_provider};
 use systemprompt_traits::sso::{
-    AuthEventSink, CookieSameSite, ExternalIdentity, SsoError, SsoIdentityPolicy, SsoLoginRefused,
-    SsoLoginSuccess, SsoMetadataDoc, SsoPaths, SsoProtocol, SsoProvider, SsoRedirect, SsoReturn,
-    SsoStart, SsoStateContext, SsoStateSeed,
+    CookieSameSite, ExternalIdentity, SsoError, SsoIdentityPolicy, SsoMetadataDoc, SsoPaths,
+    SsoProtocol, SsoProvider, SsoRedirect, SsoReturn, SsoStart, SsoStateContext, SsoStateSeed,
 };
 
 pub const OPEN: &str = "test-sso-open";
 pub const CLOSED: &str = "test-sso-closed";
 pub const BLANK: &str = "test-sso-blank";
+pub const UNLINKED: &str = "test-sso-unlinked";
+pub const OPEN_ISSUER: &str = "https://idp.test/open";
+pub const UNLINKED_ISSUER: &str = "https://idp.test/unlinked";
 pub const OPEN_CALLBACK: &str = "/api/v1/core/sso/test-sso-open/callback";
 pub const CLOSED_CALLBACK: &str = "/api/v1/core/sso/test-sso-closed/callback";
 pub const DEFAULT_RETURN: &str = "/home";
 pub const RESOLVED_ROLE: &str = "sso-resolved";
+pub use super::events::{Recorded, events_for_sub, refusals_with_reason};
+
 pub const METADATA_BODY: &str = "<EntityDescriptor/>";
 
 #[derive(Debug)]
@@ -42,31 +44,51 @@ fn open_policy() -> SsoIdentityPolicy {
     }
 }
 
+const fn fake(
+    id: &'static str,
+    issuer: &'static str,
+    callback: &'static str,
+    policy: SsoIdentityPolicy,
+) -> FakeProvider {
+    FakeProvider {
+        id,
+        issuer,
+        callback,
+        policy,
+        unsolicited: false,
+        blank_state: false,
+    }
+}
+
 fn provider(id: &'static str) -> FakeProvider {
     match id {
-        OPEN => FakeProvider {
+        OPEN => fake(id, OPEN_ISSUER, OPEN_CALLBACK, open_policy()),
+        UNLINKED => fake(
             id,
-            issuer: "https://idp.test/open",
-            callback: OPEN_CALLBACK,
-            policy: open_policy(),
-            unsolicited: false,
-            blank_state: false,
-        },
+            UNLINKED_ISSUER,
+            "/api/v1/core/sso/test-sso-unlinked/callback",
+            SsoIdentityPolicy {
+                link_by_email: false,
+                ..open_policy()
+            },
+        ),
         CLOSED => FakeProvider {
-            id,
-            issuer: "https://idp.test/closed",
-            callback: CLOSED_CALLBACK,
-            policy: SsoIdentityPolicy::default(),
             unsolicited: true,
-            blank_state: false,
+            ..fake(
+                id,
+                "https://idp.test/closed",
+                CLOSED_CALLBACK,
+                SsoIdentityPolicy::default(),
+            )
         },
         _ => FakeProvider {
-            id,
-            issuer: "https://idp.test/blank",
-            callback: "/api/v1/core/sso/test-sso-blank/callback",
-            policy: SsoIdentityPolicy::default(),
-            unsolicited: false,
             blank_state: true,
+            ..fake(
+                id,
+                "https://idp.test/blank",
+                "/api/v1/core/sso/test-sso-blank/callback",
+                SsoIdentityPolicy::default(),
+            )
         },
     }
 }
@@ -189,6 +211,10 @@ fn closed_factory(_ctx: &SsoHookContext) -> ProviderResult {
     Ok(Some(Arc::new(provider(CLOSED))))
 }
 
+fn unlinked_factory(_ctx: &SsoHookContext) -> ProviderResult {
+    Ok(Some(Arc::new(provider(UNLINKED))))
+}
+
 fn blank_factory(_ctx: &SsoHookContext) -> ProviderResult {
     Ok(Some(Arc::new(provider(BLANK))))
 }
@@ -200,6 +226,7 @@ fn disabled_factory(_ctx: &SsoHookContext) -> ProviderResult {
 register_sso_provider!(open_factory);
 register_sso_provider!(closed_factory);
 register_sso_provider!(blank_factory);
+register_sso_provider!(unlinked_factory);
 register_sso_provider!(disabled_factory);
 
 #[derive(Debug)]
@@ -224,78 +251,3 @@ fn resolver_factory(_ctx: &SsoHookContext) -> Arc<dyn RoleResolver> {
 
 register_role_resolver!(resolver_factory);
 register_role_resolver!(resolver_factory);
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Recorded {
-    Success {
-        sub: String,
-        email: String,
-        created: bool,
-    },
-    Refused {
-        sub: Option<String>,
-        email: Option<String>,
-        reason: &'static str,
-    },
-}
-
-fn recorded() -> &'static Mutex<Vec<Recorded>> {
-    static EVENTS: OnceLock<Mutex<Vec<Recorded>>> = OnceLock::new();
-    EVENTS.get_or_init(|| Mutex::new(Vec::new()))
-}
-
-pub fn events_for_sub(sub: &str) -> Vec<Recorded> {
-    recorded()
-        .lock()
-        .expect("events lock")
-        .iter()
-        .filter(|event| match event {
-            Recorded::Success { sub: s, .. } => s == sub,
-            Recorded::Refused { sub: s, .. } => s.as_deref() == Some(sub),
-        })
-        .cloned()
-        .collect()
-}
-
-pub fn refusals_with_reason(reason: &str) -> usize {
-    recorded()
-        .lock()
-        .expect("events lock")
-        .iter()
-        .filter(|event| matches!(event, Recorded::Refused { reason: r, .. } if *r == reason))
-        .count()
-}
-
-#[derive(Debug)]
-struct RecordingSink;
-
-#[async_trait]
-impl AuthEventSink for RecordingSink {
-    async fn on_login_success(&self, event: &SsoLoginSuccess<'_>) {
-        recorded()
-            .lock()
-            .expect("events lock")
-            .push(Recorded::Success {
-                sub: event.identity.external_sub.clone(),
-                email: event.identity.email.clone(),
-                created: event.created,
-            });
-    }
-
-    async fn on_login_refused(&self, event: &SsoLoginRefused<'_>) {
-        recorded()
-            .lock()
-            .expect("events lock")
-            .push(Recorded::Refused {
-                sub: event.external_sub.map(str::to_owned),
-                email: event.email.map(str::to_owned),
-                reason: event.reason,
-            });
-    }
-}
-
-fn sink_factory(_ctx: &SsoHookContext) -> Arc<dyn AuthEventSink> {
-    Arc::new(RecordingSink)
-}
-
-register_auth_event_sink!(sink_factory);

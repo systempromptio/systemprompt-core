@@ -1,43 +1,27 @@
 //! Artifact persistence for agent and MCP tool output.
 //!
-//! Persists artifacts, enriches them with skill metadata, verifies MCP
-//! execution ids against the owning domain's ledger through
-//! [`ToolExecutionLookup`](systemprompt_traits::ToolExecutionLookup), and
-//! creates the accompanying conversation messages for direct MCP calls.
+//! Persists the artifacts of the task the agent runtime is executing (named
+//! by its [`RuntimeTask`]), enriches them with skill metadata, and verifies
+//! MCP execution ids against the owning domain's ledger through
+//! [`ToolExecutionLookup`](systemprompt_traits::ToolExecutionLookup).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::services::shared::{AgentServiceError, Result};
-use serde_json::json;
 
 use std::sync::Arc;
 
-use crate::models::a2a::{Artifact, Message, MessageRole, Part};
-use crate::repository::A2ARepositories;
+use crate::models::a2a::Artifact;
 use crate::repository::content::ArtifactRepository;
-use crate::services::{MessageService, SkillService};
-use systemprompt_identifiers::{ContextId, McpToolName, MessageId, TaskId, UserId};
-use systemprompt_models::RequestContext;
-use systemprompt_models::execution::CallSource;
+use crate::repository::{A2ARepositories, RuntimeTask};
+use crate::services::SkillService;
+use systemprompt_identifiers::UserId;
 use systemprompt_traits::DynToolExecutionLookup;
-
-#[derive(Debug)]
-pub struct PublishFromMcpParams<'a> {
-    pub artifact: &'a Artifact,
-    pub task_id: &'a TaskId,
-    pub context_id: &'a ContextId,
-    pub tool_name: &'a McpToolName,
-    // JSON: MCP-protocol boundary — schema-less tool arguments mandated by the spec.
-    pub tool_args: &'a serde_json::Value,
-    pub request_context: &'a RequestContext,
-    pub call_source: CallSource,
-}
 
 pub struct ArtifactPublishingService {
     artifact_repo: ArtifactRepository,
     skill_service: Arc<SkillService>,
-    message_service: MessageService,
     tool_executions: DynToolExecutionLookup,
 }
 
@@ -54,7 +38,6 @@ impl ArtifactPublishingService {
         Self {
             artifact_repo: repositories.artifacts.clone(),
             skill_service,
-            message_service: MessageService::new(repositories.tasks.clone()),
             tool_executions: repositories.tool_executions(),
         }
     }
@@ -116,10 +99,11 @@ impl ArtifactPublishingService {
     pub async fn publish_from_a2a(
         &self,
         artifact: &Artifact,
-        task_id: &TaskId,
-        context_id: &ContextId,
+        task: &RuntimeTask,
         owner: &UserId,
     ) -> Result<()> {
+        let task_id = task.task_id();
+        let context_id = task.context_id();
         let enriched_artifact = self.enrich_artifact_with_skill(artifact, owner).await;
         let validated_artifact = self.validate_execution_id(&enriched_artifact).await?;
 
@@ -133,7 +117,7 @@ impl ArtifactPublishingService {
         );
 
         self.artifact_repo
-            .create_artifact(task_id, context_id, &validated_artifact)
+            .create_artifact(task, &validated_artifact)
             .await
             .map_err(|e| AgentServiceError::operation("Failed to persist artifact", e))?;
 
@@ -141,107 +125,6 @@ impl ArtifactPublishingService {
             artifact_id = %validated_artifact.id,
             "Artifact persisted to database"
         );
-
-        Ok(())
-    }
-
-    pub async fn publish_from_mcp(&self, params: PublishFromMcpParams<'_>) -> Result<()> {
-        let owner = params.request_context.user_id();
-        let enriched_artifact = self
-            .enrich_artifact_with_skill(params.artifact, owner)
-            .await;
-        let validated_artifact = self.validate_execution_id(&enriched_artifact).await?;
-
-        tracing::info!(
-            artifact_id = %validated_artifact.id,
-            artifact_type = %validated_artifact.metadata.artifact_type,
-            tool_name = %params.tool_name,
-            task_id = %params.task_id,
-            context_id = %params.context_id,
-            source = "mcp_direct_call",
-            "Publishing artifact from direct MCP tool execution"
-        );
-
-        self.artifact_repo
-            .create_artifact(params.task_id, params.context_id, &validated_artifact)
-            .await
-            .map_err(|e| AgentServiceError::operation("Failed to persist artifact", e))?;
-
-        tracing::info!(
-            artifact_id = %validated_artifact.id,
-            "Artifact persisted to database"
-        );
-
-        if params.call_source == CallSource::Direct {
-            self.create_direct_call_messages(&params, &validated_artifact)
-                .await?;
-        } else {
-            tracing::info!(
-                "Skipping message creation for agentic tool call (AI will synthesize response)"
-            );
-        }
-
-        Ok(())
-    }
-
-    async fn create_direct_call_messages(
-        &self,
-        params: &PublishFromMcpParams<'_>,
-        artifact: &Artifact,
-    ) -> Result<()> {
-        tracing::info!("Creating technical messages for direct MCP call");
-
-        let (user_message_id, _seq) = self
-            .message_service
-            .create_tool_execution_message(super::CreateToolExecutionMessageParams {
-                task_id: params.task_id,
-                context_id: params.context_id,
-                tool_name: params.tool_name,
-                tool_args: params.tool_args,
-                request_context: params.request_context,
-            })
-            .await?;
-
-        tracing::info!(
-            message_id = %user_message_id,
-            tool_name = %params.tool_name,
-            "Created synthetic user message for MCP tool"
-        );
-
-        let agent_message = Message {
-            role: MessageRole::Agent,
-            message_id: MessageId::generate(),
-            task_id: Some(params.task_id.clone()),
-            context_id: params.context_id.clone(),
-            parts: vec![Part::text(format!(
-                "Tool execution completed successfully.\n\nCreated artifact: {} (type: {})",
-                artifact.id, artifact.metadata.artifact_type
-            ))],
-            metadata: Some(serde_json::Map::from_iter([
-                ("source".to_owned(), json!("mcp_direct_call_response")),
-                ("tool_name".to_owned(), json!(params.tool_name)),
-                ("artifact_id".to_owned(), json!(artifact.id)),
-                (
-                    "artifact_type".to_owned(),
-                    json!(artifact.metadata.artifact_type),
-                ),
-            ])),
-            extensions: None,
-            reference_task_ids: None,
-        };
-
-        self.message_service
-            .persist_messages(super::PersistMessagesParams {
-                task_id: params.task_id,
-                context_id: params.context_id,
-                messages: vec![agent_message],
-                user_id: Some(params.request_context.user_id()),
-                session_id: params.request_context.session_id(),
-                trace_id: params.request_context.trace_id(),
-            })
-            .await?;
-
-        tracing::info!("Created agent response message with artifact reference");
 
         Ok(())
     }

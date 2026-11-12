@@ -28,8 +28,9 @@ Tokens are supplied as `Authorization: Bearer <jwt>`.
 
 ### Request limits and middleware
 
-- Body limit: 2 MiB on every route (`DefaultBodyLimit::max(2 * 1024 * 1024)`, `crates/entry/api/src/services/server/builder.rs:93`).
-- Rate limiting: per-route `tower_governor` limiters, configured under `rate_limits` in the profile. Limiting can be disabled in development (`rate_limits.disabled`).
+- Body limit: 2 MiB by default (`crates/entry/api/src/services/server/builder.rs`). Routers that need another size set their own: the agent and A2A routes (one limit shared by the agent proxy, the agents router and the A2A context read), the document store and Drive (`maxUploadBytes`), uploads and the managed consumer. Raw body reads use one bounded reader; an oversized body is refused with `413` before it is read.
+- Pre-authentication limit: a per-IP limiter (`rate_limits.pre_auth_ip_per_second`) runs ahead of every authenticating layer, keyed by the client address resolved through `trusted_proxies`.
+- Rate limiting: per-route `tower_governor` limiters, configured under `rate_limits` in the profile. Limiting, including the pre-authentication limit, can be disabled in development (`rate_limits.disabled`).
 - A trailing-slash normaliser, CORS, security headers, IP-ban middleware, and JTI revocation middleware are applied globally (`builder.rs`, `routes.rs`).
 
 ### Error response shape
@@ -273,6 +274,20 @@ Base `/v1` (`crates/entry/api/src/routes/gateway/mod.rs`). The gateway mounts on
 ```bash
 curl http://127.0.0.1:8080/v1/models
 ```
+
+### Gateway credential headers
+
+A gateway request names its systemprompt credential (a personal access token or a JWT) in one of three headers:
+
+| Header | Read when |
+|--------|-----------|
+| `x-systemprompt-authorization` | Always, when present. It is the request's identity and `Authorization` is not read as one. |
+| `Authorization: Bearer <credential>` | `x-systemprompt-authorization` is absent. |
+| `x-api-key` | Neither of the above is present. |
+
+There is no fallback from a present `x-systemprompt-authorization`: an empty or invalid value answers `401` even when `Authorization` holds a valid credential. A leading `Bearer ` is accepted and optional in all three.
+
+When a request carries `x-systemprompt-authorization`, its `Authorization: Bearer` value is the client's own upstream credential. It is used only on a hop whose catalog credential is `kind: caller` (see [configure-providers.md](../guides/configure-providers.md)), is sent to that upstream and nowhere else, and is never stored or logged. A `kind: caller` hop reached without it answers `401` with `authentication_error`. Such a model is served only to a request in the format of its endpoint's wire; another format answers `400` with `invalid_request_error` before the upstream is called. The request is sent once and unmodified, and the upstream's status, headers and body are returned as received, so a `429` carries the vendor's own `retry-after` and rate-limit headers. Content that a policy would sanitise or redact is denied with `400`.
 
 ### Scope attribution
 

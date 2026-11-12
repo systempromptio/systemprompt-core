@@ -16,6 +16,7 @@ use axum::response::{Html, IntoResponse, Response};
 use axum::{Extension, Json};
 use serde::{Deserialize, Serialize};
 use systemprompt_extension::FrameOptionsOverride;
+use systemprompt_files::documents::codecs::file::PDF_MIME_TYPE;
 use systemprompt_files::documents::service::HistoryPage;
 use systemprompt_identifiers::{DocumentId, DocumentRevisionId};
 use systemprompt_models::RequestContext;
@@ -32,7 +33,6 @@ use super::views::RevisionJson;
 use crate::routes::user_content::{INLINE_PDF_CSP, harden};
 
 const PREVIEW_CSP: &str = "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:";
-const PDF_MIME: &str = "application/pdf";
 const DEFAULT_HISTORY: i64 = 50;
 const MAX_HISTORY: i64 = 500;
 
@@ -177,7 +177,10 @@ async fn pdf_preview(
     };
     let mut response = Response::new(Body::from_stream(read.body));
     let headers = response.headers_mut();
-    headers.insert(header::CONTENT_TYPE, HeaderValue::from_static(PDF_MIME));
+    headers.insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static(PDF_MIME_TYPE),
+    );
     headers.insert(
         header::CONTENT_DISPOSITION,
         HeaderValue::from_static("inline"),

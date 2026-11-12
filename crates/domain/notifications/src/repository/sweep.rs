@@ -1,13 +1,12 @@
 //! The delivery sweep's queries: releasing digest-held rows whose window has
 //! closed, finding `pending` rows past the grace period, and the backlog.
 //!
-//! Every sweep query runs on the sweep's transaction. The transaction first
-//! takes a transaction-scoped advisory lock on [`SWEEP_LOCK_KEY`], so one
-//! replica sweeps at a time and the lock ends with the transaction however
-//! the sweep ends. The release returns due rows to `pending` (advancing
-//! `delivery_seq` and `pending_since`) and the stale selection keys on
-//! `pending_since`; both lock the rows they return with `SKIP LOCKED`, so a
-//! row a live delivery pass holds is left to it.
+//! Every sweep query runs on the sweep's short selection transaction, which
+//! first takes a transaction-scoped advisory lock on [`SWEEP_LOCK_KEY`], so
+//! one replica selects at a time. The release returns due rows to `pending`
+//! (advancing `delivery_seq` and `pending_since`); the stale selection keys
+//! on `pending_since` and skips rows under a live delivery lease, so a row
+//! whose deliverer stopped is selected again once its lease expires.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -64,6 +63,7 @@ impl NotificationRepository {
         Ok(sqlx::query_scalar!(
             r#"SELECT id::text AS "id!: NotificationId" FROM notifications
                WHERE delivery_state = $3 AND pending_since < $1
+                 AND (delivery_lease_until IS NULL OR delivery_lease_until <= now())
                ORDER BY pending_since LIMIT $2
                FOR NO KEY UPDATE SKIP LOCKED"#,
             before,

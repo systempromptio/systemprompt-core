@@ -6,7 +6,7 @@
 
 use systemprompt_identifiers::{SessionId, UserId};
 
-use super::McpProxyIdentityRepository;
+use super::McpProxySessionRepository;
 use crate::error::McpDomainResult;
 
 #[derive(Debug)]
@@ -17,7 +17,7 @@ pub struct ExternalSessionBinding<'a> {
     pub credential_hash: &'a [u8],
 }
 
-impl McpProxyIdentityRepository {
+impl McpProxySessionRepository {
     pub async fn accepts_external(
         &self,
         binding: &ExternalSessionBinding<'_>,

@@ -2,9 +2,14 @@
 //!
 //! An extension's `RunnerService` runs the loop; it claims queued runs with
 //! `FOR UPDATE SKIP LOCKED` and hands each to a [`RunHandler`].
-//! On shutdown the loop cancels in-flight runs and waits for their handlers.
+//! On shutdown the loop stops claiming, cancels in-flight runs' tokens so
+//! their hosts stop, and waits for their handlers, which release each
+//! interrupted run back to `queued` ([`ClaimedRun::interrupted`]) rather
+//! than finishing it, up to `max_releases` times per run; a run interrupted
+//! more often than that fails.
 //! `claimer_id` formats the conventional `<hostname>:<pid>` claimer.
-//! [`DbEventSink`] is the repository-backed [`EventSink`].
+//! [`DbEventSink`] is the repository-backed [`EventSink`]; it writes under
+//! the run's [`Lease`] and cancels the run once the lease is lost.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -18,19 +23,47 @@ use systemprompt_traits::OwnedTask;
 use tokio::time::Instant;
 use tokio_util::sync::CancellationToken;
 
-use crate::error::AgentRunsResult;
+use crate::error::{AgentRunsError, AgentRunsResult};
 use crate::event::RunEvent;
 use crate::execute::EventSink;
 use crate::lease::{DEFAULT_LEASE, DEFAULT_RENEW_EVERY, LeaseRenewer, LeaseSpec};
-use crate::repository::{AgentRunRepository, AgentRunRow};
+use crate::repository::{AgentRunRepository, AgentRunRow, Claimed, Fenced, Lease};
 
-/// A run the loop claimed. `run_token` is cancelled on shutdown or when the
-/// lease is lost.
+/// A run the loop claimed and the [`Lease`] every write to it carries.
+/// `run_token` is cancelled on shutdown, on a cancel request or when the
+/// lease is lost; `shutdown` is the loop's own token.
 #[derive(Debug, Clone)]
 pub struct ClaimedRun {
     pub row: AgentRunRow,
+    pub lease: Lease,
     pub run_token: CancellationToken,
+    pub shutdown: CancellationToken,
     pub repo: AgentRunRepository,
+    pub max_releases: i32,
+}
+
+impl ClaimedRun {
+    #[must_use]
+    pub fn new(
+        claimed: Claimed,
+        repo: AgentRunRepository,
+        shutdown: &CancellationToken,
+        max_releases: i32,
+    ) -> Self {
+        Self {
+            max_releases,
+            row: claimed.row,
+            lease: claimed.lease,
+            run_token: shutdown.child_token(),
+            shutdown: shutdown.clone(),
+            repo,
+        }
+    }
+
+    #[must_use]
+    pub fn interrupted(&self) -> bool {
+        self.shutdown.is_cancelled()
+    }
 }
 
 /// Runs one claimed run to its end: calls `execute` and `finish`.
@@ -54,6 +87,7 @@ pub struct ClaimLoop {
     pub lease: Duration,
     pub stale_every: Duration,
     pub max_attempts: i32,
+    pub max_releases: i32,
 }
 
 #[must_use]
@@ -74,6 +108,7 @@ impl ClaimLoop {
             lease: DEFAULT_LEASE,
             stale_every: Duration::from_secs(30),
             max_attempts: 2,
+            max_releases: 3,
         }
     }
 
@@ -92,7 +127,9 @@ impl ClaimLoop {
                     .claim_queued(&self.origin_kind, &self.claimed_by, self.lease)
                     .await
                 {
-                    Ok(Some(row)) => in_flight.push(self.spawn_run(row, &shutdown, &handler)),
+                    Ok(Some(claimed)) => {
+                        in_flight.push(self.spawn_run(claimed, &shutdown, &handler));
+                    },
                     Ok(None) => break,
                     Err(error) => {
                         tracing::error!(%error, origin_kind = %self.origin_kind, "agent run claim failed");
@@ -126,23 +163,18 @@ impl ClaimLoop {
 
     fn spawn_run(
         &self,
-        row: AgentRunRow,
+        claimed: Claimed,
         shutdown: &CancellationToken,
         handler: &Arc<dyn RunHandler>,
     ) -> OwnedTask<()> {
-        let run_token = shutdown.child_token();
+        let claimed = ClaimedRun::new(claimed, self.repo.clone(), shutdown, self.max_releases);
         let spec = LeaseSpec {
-            run_id: row.id.clone(),
-            claimed_by: self.claimed_by.clone(),
+            run_id: claimed.row.id.clone(),
+            lease: claimed.lease.clone(),
             every: self.renew_every,
-            lease: self.lease,
+            duration: self.lease,
         };
-        let renewer = LeaseRenewer::start(self.repo.clone(), spec, run_token.clone());
-        let claimed = ClaimedRun {
-            row,
-            run_token,
-            repo: self.repo.clone(),
-        };
+        let renewer = LeaseRenewer::start(self.repo.clone(), spec, claimed.run_token.clone());
         let handler = Arc::clone(handler);
         OwnedTask::spawn("agent_run", async move {
             let run_id = claimed.row.id.clone();
@@ -170,30 +202,54 @@ fn log_join(result: Result<(), tokio::task::JoinError>) {
     }
 }
 
-/// Persists a run's events in `agent_run_events` and records the host
-/// session id on the run row.
+/// Persists a claimed run's events in `agent_run_events` and records the
+/// host session id on the run row, under the run's lease.
 #[derive(Debug, Clone)]
 pub struct DbEventSink {
     repo: AgentRunRepository,
     run_id: AgentRunId,
+    lease: Lease,
+    run_token: CancellationToken,
 }
 
 impl DbEventSink {
     #[must_use]
-    pub const fn new(repo: AgentRunRepository, run_id: AgentRunId) -> Self {
-        Self { repo, run_id }
+    pub fn new(claimed: &ClaimedRun) -> Self {
+        Self {
+            repo: claimed.repo.clone(),
+            run_id: claimed.row.id.clone(),
+            lease: claimed.lease.clone(),
+            run_token: claimed.run_token.clone(),
+        }
+    }
+
+    fn held(&self, fenced: Fenced) -> AgentRunsResult<()> {
+        if fenced.is_applied() {
+            return Ok(());
+        }
+        tracing::warn!(run_id = %self.run_id, "agent run lease lost; cancelling run");
+        self.run_token.cancel();
+        Err(AgentRunsError::LeaseLost {
+            run_id: self.run_id.clone(),
+        })
     }
 }
 
 #[async_trait]
 impl EventSink for DbEventSink {
     async fn emit(&self, batch: Vec<RunEvent>) -> AgentRunsResult<()> {
-        self.repo.insert_events_batch(&self.run_id, &batch).await
+        let fenced = self
+            .repo
+            .insert_events_batch(&self.run_id, &self.lease, &batch)
+            .await?;
+        self.held(fenced)
     }
 
     async fn session_observed(&self, session_id: &HostSessionId) -> AgentRunsResult<()> {
-        self.repo
-            .update_host_session(&self.run_id, session_id)
-            .await
+        let fenced = self
+            .repo
+            .update_host_session(&self.run_id, &self.lease, session_id)
+            .await?;
+        self.held(fenced)
     }
 }

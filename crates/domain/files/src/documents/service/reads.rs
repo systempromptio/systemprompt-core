@@ -6,6 +6,10 @@
 //! is the live session's content, named by the ids its blocks carry there,
 //! and answered with the session's base revision.
 //!
+//! Search reads visibility-filtered pages and drops hits the authorization
+//! hook hides, reading further pages (at most `SEARCH_PAGES`) until `limit`
+//! visible results are found or the matches run out.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -19,6 +23,9 @@ use super::{DocumentService, HistoryPage, SearchResult, StreamRequest};
 use crate::documents::access::AccessTarget;
 use crate::documents::error::DocumentsError;
 use crate::documents::models::{Document, DocumentRevision};
+use crate::documents::repository::SearchPage;
+
+const SEARCH_PAGES: usize = 8;
 
 impl DocumentService {
     pub(super) async fn authorized_document(
@@ -219,28 +226,22 @@ impl DocumentService {
         trace: &TraceId,
     ) -> Result<Vec<SearchResult>, DocumentsError> {
         let pairs = self.access.subject_pairs(who).await?;
-        let hits = self
-            .repos
-            .text_index
-            .search(query, &pairs, &who.id, limit)
-            .await?;
-        let mut found = Vec::with_capacity(hits.len());
-        for hit in hits {
-            if let Some(document) = self
+        let wanted = usize::try_from(limit.max(1)).unwrap_or(usize::MAX);
+        let mut page = SearchPage {
+            limit: limit.max(1),
+            offset: 0,
+        };
+        let mut found = Vec::new();
+        for _ in 0..SEARCH_PAGES {
+            let hits = self
                 .repos
-                .documents
-                .find_including_trashed(&hit.document_id)
-                .await?
-                && document.trashed_at.is_none()
-            {
-                found.push((document, hit));
-            }
-        }
-        let (documents, hits): (Vec<_>, Vec<_>) = found.into_iter().unzip();
-        let visible = self.hook_visible(who, documents, trace).await;
-        Ok(hits
-            .into_iter()
-            .filter_map(|hit| {
+                .text_index
+                .search(query, &pairs, &who.id, page)
+                .await?;
+            let fetched = hits.len();
+            let (documents, hits): (Vec<_>, Vec<_>) = hits.into_iter().unzip();
+            let visible = self.hook_visible(who, documents, trace).await;
+            found.extend(hits.into_iter().filter_map(|hit| {
                 visible
                     .iter()
                     .find(|d| d.id == hit.document_id)
@@ -248,7 +249,13 @@ impl DocumentService {
                         document: document.clone(),
                         hit,
                     })
-            })
-            .collect())
+            }));
+            if found.len() >= wanted || i64::try_from(fetched).unwrap_or(i64::MAX) < page.limit {
+                break;
+            }
+            page.offset += page.limit;
+        }
+        found.truncate(wanted);
+        Ok(found)
     }
 }

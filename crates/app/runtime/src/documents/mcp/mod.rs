@@ -50,9 +50,8 @@ use rmcp::model::{CallToolRequestParams, CallToolResult, Tool};
 use systemprompt_files::documents::DocumentService;
 use systemprompt_files::documents::agents::act_as;
 use systemprompt_files::uploads::UploadService;
-use systemprompt_identifiers::McpServerId;
+use systemprompt_identifiers::{JwtToken, McpServerId};
 use systemprompt_mcp::{ClientProfile, McpToolExecutor};
-use systemprompt_models::auth::TokenAuthority;
 use systemprompt_models::execution::context::RequestContext;
 #[cfg(feature = "notifications")]
 use systemprompt_notifications::service::NotificationsService;
@@ -90,9 +89,10 @@ pub use write::{CreateHandler, EditHandler, create_content};
 
 use support::run;
 
-use crate::AppContext;
+use crate::documents::links::LinkIssuer;
+use crate::host::HostContext;
 
-/// Why [`DocumentsMcpTools::from_context`] refused to build the tools.
+/// Why [`DocumentsMcpTools::from_host`] refused to build the tools.
 #[derive(Debug, thiserror::Error)]
 pub enum DocumentsMcpError {
     #[error(
@@ -100,6 +100,12 @@ pub enum DocumentsMcpError {
          files.documents.enabled: true in services/config/files.yaml"
     )]
     Disabled { server_name: McpServerId },
+    #[error("MCP server {server_name}: the API link client could not be built")]
+    Links {
+        server_name: McpServerId,
+        #[source]
+        source: crate::documents::links::LinkIssueError,
+    },
 }
 
 /// What [`DocumentsMcpTools`] is built from.
@@ -110,9 +116,8 @@ pub struct DocumentsMcpConfig {
     pub notifications: Arc<NotificationsService>,
     pub uploads: Option<Arc<UploadService>>,
     pub users: Arc<UserRepository>,
-    pub tokens: Arc<dyn TokenAuthority>,
+    pub links: Arc<dyn LinkIssuer>,
     pub server_name: McpServerId,
-    pub api_external_url: String,
 }
 
 /// One tool call, already authenticated by the composing server.
@@ -122,6 +127,7 @@ pub struct DocumentsToolCall<'a> {
     pub request: &'a CallToolRequestParams,
     pub context: &'a RequestContext,
     pub client: &'a ClientProfile,
+    pub hop: Option<&'a JwtToken>,
 }
 
 /// The nineteen document tools and the preview resource of one MCP server.
@@ -132,16 +138,14 @@ pub struct DocumentsMcpTools {
     notifications: Arc<NotificationsService>,
     uploads: Option<Arc<UploadService>>,
     users: Arc<UserRepository>,
-    tokens: Arc<dyn TokenAuthority>,
+    links: Arc<dyn LinkIssuer>,
     server_name: McpServerId,
-    api_external_url: String,
 }
 
 impl std::fmt::Debug for DocumentsMcpTools {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("DocumentsMcpTools")
             .field("server_name", &self.server_name)
-            .field("api_external_url", &self.api_external_url)
             .finish_non_exhaustive()
     }
 }
@@ -150,7 +154,6 @@ impl std::fmt::Debug for DocumentsMcpConfig {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("DocumentsMcpConfig")
             .field("server_name", &self.server_name)
-            .field("api_external_url", &self.api_external_url)
             .finish_non_exhaustive()
     }
 }
@@ -164,28 +167,32 @@ impl DocumentsMcpTools {
             notifications: config.notifications,
             uploads: config.uploads,
             users: config.users,
-            tokens: config.tokens,
+            links: config.links,
             server_name: config.server_name,
-            api_external_url: config.api_external_url,
         }
     }
 
-    pub fn from_context(
-        ctx: &AppContext,
+    pub fn from_host(
+        host: &HostContext,
         server_name: McpServerId,
     ) -> Result<Self, DocumentsMcpError> {
-        if !ctx.files_config().documents_config().is_enabled() {
+        if !host.files_config().documents_config().is_enabled() {
             return Err(DocumentsMcpError::Disabled { server_name });
         }
+        let links = host
+            .link_issuer(&server_name)
+            .map_err(|source| DocumentsMcpError::Links {
+                server_name: server_name.clone(),
+                source,
+            })?;
         Ok(Self::new(DocumentsMcpConfig {
-            service: Arc::clone(ctx.documents().service()),
+            service: Arc::clone(host.documents().service()),
             #[cfg(feature = "notifications")]
-            notifications: Arc::clone(&ctx.notifications().service),
-            uploads: Some(Arc::clone(ctx.documents().uploads())),
-            users: Arc::clone(ctx.user_repository()),
-            tokens: ctx.token_authority(),
+            notifications: Arc::clone(host.notifications()),
+            uploads: Some(Arc::clone(host.documents().uploads())),
+            users: Arc::clone(host.user_repository()),
+            links,
             server_name,
-            api_external_url: ctx.config().api_external_url.clone(),
         }))
     }
 
@@ -211,18 +218,13 @@ impl DocumentsMcpTools {
     }
 
     #[must_use]
-    pub fn token_authority(&self) -> &dyn TokenAuthority {
-        self.tokens.as_ref()
+    pub fn link_issuer(&self) -> &dyn LinkIssuer {
+        self.links.as_ref()
     }
 
     #[must_use]
     pub const fn server_name(&self) -> &McpServerId {
         &self.server_name
-    }
-
-    #[must_use]
-    pub fn api_external_url(&self) -> &str {
-        &self.api_external_url
     }
 
     #[must_use]
@@ -255,8 +257,26 @@ impl DocumentsMcpTools {
             "documents_update" => Box::pin(run(call, &UpdateHandler { tools: self })).await,
             "documents_trash" => Box::pin(run(call, &TrashHandler { tools: self })).await,
             "documents_untrash" => Box::pin(run(call, &UntrashHandler { tools: self })).await,
-            "documents_export" => Box::pin(run(call, &ExportHandler { tools: self })).await,
-            "documents_upload" => Box::pin(run(call, &UploadHandler { tools: self })).await,
+            "documents_export" => {
+                Box::pin(run(
+                    call,
+                    &ExportHandler {
+                        tools: self,
+                        hop: call.hop,
+                    },
+                ))
+                .await
+            },
+            "documents_upload" => {
+                Box::pin(run(
+                    call,
+                    &UploadHandler {
+                        tools: self,
+                        hop: call.hop,
+                    },
+                ))
+                .await
+            },
             "documents_guide" => Box::pin(run(call, &GuideHandler { tools: self })).await,
             "documents_people" => Box::pin(run(call, &PeopleHandler { tools: self })).await,
             #[cfg(feature = "notifications")]

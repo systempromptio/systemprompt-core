@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS oauth_refresh_tokens (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     family_id TEXT NOT NULL,
     consumed_at TIMESTAMPTZ,
+    resource TEXT,
     FOREIGN KEY (client_id) REFERENCES oauth_clients(client_id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );

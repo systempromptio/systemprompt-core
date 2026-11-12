@@ -14,10 +14,8 @@ pub fn tool_usage(db: &DbPool) -> Arc<systemprompt_mcp::repository::ToolUsageRep
     Arc::new(systemprompt_mcp::repository::ToolUsageRepository::new(db))
 }
 
-pub fn proxy_identities(
-    db: &DbPool,
-) -> Arc<systemprompt_mcp::repository::McpProxyIdentityRepository> {
-    Arc::new(systemprompt_mcp::repository::McpProxyIdentityRepository::new(db))
+pub fn proxy_sessions(db: &DbPool) -> Arc<systemprompt_mcp::repository::McpProxySessionRepository> {
+    Arc::new(systemprompt_mcp::repository::McpProxySessionRepository::new(db))
 }
 
 pub fn user_rate_limit_buckets(

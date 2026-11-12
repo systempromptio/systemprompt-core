@@ -31,7 +31,17 @@ const ISSUER: &str = "https://api.botframework.com";
 const CONVERSATION_ID: &str = "conv-test-1";
 
 fn router(ctx: &std::sync::Arc<systemprompt_runtime::AppContext>) -> axum::Router {
-    systemprompt_api::routes::teams::teams_router(ctx).expect("teams router builds")
+    systemprompt_api::routes::teams::teams_router(
+        ctx,
+        &systemprompt_api::routes::messaging::MessagingState::new(
+            reqwest::Client::new(),
+            systemprompt_client::GuardedClient::configured(
+                &systemprompt_client::GuardedClientConfig::for_configured(),
+            )
+            .expect("loopback-permitting reply client"),
+        ),
+    )
+    .expect("teams router builds")
 }
 
 fn activity_json(tenant: &str, service_url: &str) -> String {

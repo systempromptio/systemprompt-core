@@ -194,7 +194,7 @@ fn duplicate_plugin_in_include_errors() {
 }
 
 #[test]
-fn skills_merge_auto_discover_and_path_from_include() {
+fn skills_merge_path_from_include() {
     let temp = TempDir::new().expect("tempdir");
     let config_path = temp.path().join("services.yaml");
 
@@ -205,7 +205,6 @@ agents: {}
 mcp_servers: {}
 skills:
   enabled: true
-  auto_discover: true
   skills_path: /some/skills/path
   skills:
     inc_skill:
@@ -219,14 +218,9 @@ skills:
 "#,
     );
 
-    let root =
-        format!("{ROOT_HEAD}\nskills:\n  enabled: true\n  auto_discover: false\n  skills: {{}}\n");
+    let root = format!("{ROOT_HEAD}\nskills:\n  enabled: true\n  skills: {{}}\n");
     let config = ConfigLoader::load_from_content(&root, &config_path, None).expect("should load");
 
-    assert!(
-        config.skills.auto_discover,
-        "include's auto_discover: true must propagate onto the root"
-    );
     assert_eq!(
         config.skills.skills_path.as_deref(),
         Some("/some/skills/path"),
@@ -261,13 +255,13 @@ fn duplicate_skill_across_root_and_include_errors() {
     write_include(
         &temp,
         &format!(
-            "agents: {{}}\nmcp_servers: {{}}\nskills:\n  enabled: true\n  auto_discover: false\n  skills:{}",
+            "agents: {{}}\nmcp_servers: {{}}\nskills:\n  enabled: true\n  skills:{}",
             skill_block("from include")
         ),
     );
 
     let root = format!(
-        "{ROOT_HEAD}\nskills:\n  enabled: true\n  auto_discover: false\n  skills:{}",
+        "{ROOT_HEAD}\nskills:\n  enabled: true\n  skills:{}",
         skill_block("from root")
     );
     let err = ConfigLoader::load_from_content(&root, &config_path, None)

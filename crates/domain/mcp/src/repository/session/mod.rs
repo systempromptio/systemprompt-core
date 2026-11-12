@@ -169,19 +169,25 @@ impl McpSessionRepository {
 
     // JSON: JSONB MCP `initialize` params — stored verbatim as the client sent
     // them.
-    pub async fn find_initialize_params(
+    pub async fn find_restorable_initialize_params(
         &self,
         session_id: &SessionId,
+        server_id: &McpServerId,
+        user_id: Option<&UserId>,
     ) -> McpDomainResult<Option<serde_json::Value>> {
         let row = sqlx::query!(
             r#"
             SELECT initialize_params
             FROM mcp_sessions
             WHERE session_id = $1
+              AND mcp_server_id = $2
+              AND user_id IS NOT DISTINCT FROM $3
               AND expires_at > NOW()
               AND initialize_params IS NOT NULL
             "#,
-            session_id.as_str()
+            session_id.as_str(),
+            server_id.as_str(),
+            user_id.map(UserId::as_str)
         )
         .fetch_optional(&*self.write_pool)
         .await?;

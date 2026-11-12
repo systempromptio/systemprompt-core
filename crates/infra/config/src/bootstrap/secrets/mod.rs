@@ -8,11 +8,13 @@
 //!
 //! | # | Condition | Source |
 //! |---|-----------|--------|
-//! | 1 | `SYSTEMPROMPT_SUBPROCESS` set and a valid pepper is in the environment | environment |
-//! | 2 | `secrets.source: vault` or `external` | Vault KV v2 or a registered provider, on deployment hosts too |
-//! | 3 | deployment host, with a valid pepper or `secrets.source: env` | environment |
-//! | 4 | `secrets.source: env` running locally | file, then environment |
-//! | 5 | `secrets.source: file` | file |
+//! | 1 | `secrets.source: vault` or `external` | Vault KV v2 or a registered provider, on deployment hosts too |
+//! | 2 | deployment host, with a valid pepper or `secrets.source: env` | environment |
+//! | 3 | `secrets.source: env` running locally | file, then environment |
+//! | 4 | `secrets.source: file` | file |
+//!
+//! A spawned MCP server or agent never runs this bootstrap: it boots a
+//! `HostContext` from its granted secrets alone.
 //!
 //! Every source is fail-closed: a secrets file or Vault fetch that fails is
 //! logged once and aborts the boot instead of falling back to the environment,
@@ -33,7 +35,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod child;
 mod error;
+mod granted;
 mod io;
 mod loader;
 mod logging;
@@ -55,9 +59,14 @@ use systemprompt_manifest::secrets::Secrets;
 use super::manifest::{MANIFEST_SIGNING_SEED_BYTES, decode_seed, generate_seed, persist_seed};
 use super::master_key::{ENCRYPTION_MASTER_KEY_BYTES, decode_master_key};
 use super::profile::LoadedProfile;
+use super::signing_key::{
+    PreviousSigningKey, SigningKeyState, decode_previous_signing_keys, persist_signing_key_state,
+};
 use crate::error::{ConfigError, ConfigResult};
 
+pub use child::ChildSecretsError;
 pub use error::SecretsBootstrapError;
+pub use granted::{GrantedSecrets, GrantedSecretsError};
 pub use io::load_secrets_from_path;
 pub use logging::build_loaded_secrets_message;
 pub use provider::{DynSecretsProvider, SecretsDocument, SecretsFetch, SecretsProvider};
@@ -129,16 +138,23 @@ impl SecretsService {
     }
 
     pub fn signing_key_pem(&self) -> Result<Option<String>, SecretsBootstrapError> {
-        let secrets = self.get();
-        let Some(encoded) = secrets.signing_key_pem.as_deref() else {
-            return Ok(None);
-        };
-        let bytes = base64::engine::general_purpose::STANDARD
-            .decode(encoded)
-            .map_err(|e| SecretsBootstrapError::SigningKeyPemInvalid(e.into()))?;
-        let pem = String::from_utf8(bytes)
-            .map_err(|e| SecretsBootstrapError::SigningKeyPemInvalid(e.into()))?;
-        Ok(Some(pem))
+        decode_pem(self.get().signing_key_pem.as_deref())
+    }
+
+    pub fn signing_key_staged_pem(&self) -> Result<Option<String>, SecretsBootstrapError> {
+        decode_pem(self.get().signing_key_staged_pem.as_deref())
+    }
+
+    pub fn signing_keys_previous(&self) -> Result<Vec<PreviousSigningKey>, SecretsBootstrapError> {
+        decode_previous_signing_keys(&self.get())
+    }
+
+    pub fn persist_signing_key_state(
+        profile: &LoadedProfile,
+        state: &SigningKeyState,
+    ) -> ConfigResult<()> {
+        let path = Self::resolved_secrets_file_path(profile)?;
+        persist_signing_key_state(&path, state)
     }
 
     pub fn manifest_signing_secret_seed(
@@ -172,6 +188,9 @@ impl SecretsService {
             .get("encryption_master_key")
             .ok_or(SecretsBootstrapError::EncryptionMasterKeyRequired)?;
         decode_master_key(master_key)?;
+
+        decode_previous_signing_keys(secrets)?;
+        decode_pem(secrets.signing_key_staged_pem.as_deref())?;
 
         if Self::signing_key_pem_required(profile) && secrets.signing_key_pem.is_none() {
             return Err(SecretsBootstrapError::SigningKeyPemRequired.into());
@@ -235,4 +254,16 @@ fn active_source_name(profile: &Profile) -> String {
         .as_ref()
         .map_or("env", |config| config.source_name())
         .to_owned()
+}
+
+fn decode_pem(encoded: Option<&str>) -> Result<Option<String>, SecretsBootstrapError> {
+    let Some(encoded) = encoded else {
+        return Ok(None);
+    };
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(encoded)
+        .map_err(|e| SecretsBootstrapError::SigningKeyPemInvalid(e.into()))?;
+    let pem = String::from_utf8(bytes)
+        .map_err(|e| SecretsBootstrapError::SigningKeyPemInvalid(e.into()))?;
+    Ok(Some(pem))
 }

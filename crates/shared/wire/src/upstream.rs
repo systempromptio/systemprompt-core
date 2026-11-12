@@ -191,3 +191,95 @@ fn server_tool_type(tool: &Value) -> Option<&str> {
         .and_then(Value::as_str)
         .filter(|kind| *kind != "custom")
 }
+
+const WITHHELD_PRESENTED_NAMES: &[&str] = &[
+    "host",
+    "content-length",
+    "content-type",
+    "connection",
+    "keep-alive",
+    "proxy-connection",
+    "proxy-authenticate",
+    "proxy-authorization",
+    "te",
+    "trailer",
+    "transfer-encoding",
+    "upgrade",
+    "expect",
+    "accept-encoding",
+    "cookie",
+    "set-cookie",
+    "forwarded",
+    "via",
+    "x-real-ip",
+    "x-client-ip",
+    "true-client-ip",
+    "x-request-id",
+    "x-request-start",
+    "tracestate",
+    "baggage",
+];
+
+const WITHHELD_PRESENTED_PREFIXES: &[&str] = &[
+    "x-forwarded-",
+    "x-mcp-",
+    "x-envoy-",
+    "x-amzn-",
+    "x-vercel-",
+    "fly-",
+    "cf-",
+    "sec-",
+];
+
+// Why: a request served with the credential its client presented reaches the
+// upstream with that client's own headers. What is withheld is what was never
+// the client's to send there: this hop's framing, the network path the request
+// took, every header and namespace this platform names for itself, and the
+// header any vendor reads an API key from, since the credential is presented
+// once, by the upstream call.
+#[must_use]
+pub fn is_presented_request_header(name: &str) -> bool {
+    use systemprompt_identifiers::headers;
+    let lower = name.to_ascii_lowercase();
+    let name = lower.as_str();
+    if headers::CLIENT_TO_VENDOR.contains(&name) {
+        return true;
+    }
+    !WITHHELD_PRESENTED_NAMES.contains(&name)
+        && !headers::ALL.contains(&name)
+        && !is_api_key_header(name)
+        && !WITHHELD_PRESENTED_PREFIXES
+            .iter()
+            .chain(headers::PREFIXES)
+            .any(|prefix| name.starts_with(prefix))
+}
+
+fn is_api_key_header(name: &str) -> bool {
+    WireProtocol::ALL
+        .iter()
+        .any(|wire| UpstreamDialect::new(*wire, Hosting::FirstParty).api_key_header() == Some(name))
+}
+
+const WITHHELD_RETURNED_NAMES: &[&str] = &[
+    "content-length",
+    "connection",
+    "keep-alive",
+    "proxy-connection",
+    "proxy-authenticate",
+    "te",
+    "trailer",
+    "transfer-encoding",
+    "upgrade",
+    "set-cookie",
+];
+
+// Why: an upstream answer returned to the client whole keeps the upstream's
+// own headers. What is withheld is the framing of the hop it arrived on, a
+// cookie the client could never send back there, and any name in this
+// platform's namespace, which only this platform may set.
+#[must_use]
+pub fn is_returned_response_header(name: &str) -> bool {
+    let lower = name.to_ascii_lowercase();
+    !WITHHELD_RETURNED_NAMES.contains(&lower.as_str())
+        && !lower.starts_with(systemprompt_identifiers::headers::PLATFORM_PREFIX)
+}

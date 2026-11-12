@@ -169,7 +169,10 @@ async fn a_stranger_may_not_resolve_and_a_missing_fact_cannot_be_disputed() {
         )
         .await
         .expect_err("a stranger may not govern");
-    assert!(matches!(error, BrainError::Forbidden { .. }), "{error:?}");
+    assert!(
+        matches!(error, BrainError::NotFound(ref id) if id == &fact.id),
+        "a fact the stranger cannot see is not found: {error:?}"
+    );
     assert_eq!(open_disputes(&h, &fact.id).await, 1);
 
     let error = h

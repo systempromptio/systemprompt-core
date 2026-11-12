@@ -20,6 +20,7 @@
 //! | Feature | Default | Effect |
 //! |---------|---------|--------|
 //! | `office` | off | The `.docx`, `.xlsx` and `.pptx` [`DocumentCodec`](systemprompt_provider_contracts::documents::DocumentCodec)s in `documents::codecs::{docx,xlsx,pptx}`, built on `zip`, `quick-xml`, `ammonia` and `umya-spreadsheet`. |
+//! | `pdf` | off | The PDF renderer in `documents::pdf` and its embedded `DejaVu` faces, built on `pdf-writer`, `subsetter` and `ttf-parser`. Without it `DocumentService::render_pdf` refuses with `DocumentsError::UnsupportedOp`. |
 //! | `collab` | off | Live co-editing of HTML and Markdown documents in `documents::collab`, over a [`DocumentEngine`](documents::engine::DocumentEngine) the composition root selects; no CRDT crate is linked here. |
 //!
 //! ## Layering
@@ -61,6 +62,7 @@ pub use models::{
 };
 pub use repository::{FileRepository, FileStats, FilesOwnerReassignment, InsertFileRequest};
 pub use services::{
-    FileCategory, FileUploadError, FileUploadRequest, FileUploadRequestBuilder, FileUploadService,
-    FileValidationError, FileValidator, FilesAiPersistenceProvider, UploadedFile,
+    FileCategory, FileDeleteError, FileDeleteService, FileUploadError, FileUploadRequest,
+    FileUploadRequestBuilder, FileUploadService, FileValidationError, FileValidator,
+    FilesAiPersistenceProvider, StoredObjectOutcome, UploadedFile,
 };

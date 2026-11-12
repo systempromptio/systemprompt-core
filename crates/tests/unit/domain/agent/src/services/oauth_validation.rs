@@ -4,9 +4,7 @@ use systemprompt_agent::models::a2a::jsonrpc::NumberOrString;
 use systemprompt_agent::services::a2a_server::auth::validate_oauth_for_request;
 use systemprompt_identifiers::UserId;
 use systemprompt_models::auth::Permission;
-use systemprompt_traits::{
-    AgentJwtClaims, GenerateTokenParams, JwtProviderError, JwtResult, JwtValidationProvider,
-};
+use systemprompt_traits::{AgentJwtClaims, JwtProviderError, JwtResult, JwtValidationProvider};
 
 struct StubJwtProvider {
     claims: Option<AgentJwtClaims>,
@@ -31,9 +29,6 @@ impl JwtValidationProvider for StubJwtProvider {
         } else {
             Err(JwtProviderError::InvalidToken)
         }
-    }
-    fn generate_token(&self, _params: GenerateTokenParams) -> JwtResult<String> {
-        Ok("token".to_string())
     }
     fn generate_secure_token(&self, prefix: &str) -> String {
         format!("{prefix}-fake")
@@ -186,4 +181,60 @@ async fn validate_oauth_empty_required_scopes_refuses_a_non_admin() {
         .await
         .expect_err("an empty requirement list is unsatisfiable");
     assert_eq!(err.0, axum::http::StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn validate_oauth_user_token_refused_for_a2a_scope() {
+    let provider = StubJwtProvider::ok(claims_user(&["user"]));
+    let err = validate_oauth_for_request(
+        &bearer("token"),
+        &NumberOrString::Number(1),
+        &[Permission::A2a],
+        Some(&provider),
+    )
+    .await
+    .expect_err("user scope is not the a2a scope");
+    assert_eq!(err.0, axum::http::StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn validate_oauth_messaging_token_reaches_user_agent() {
+    let provider = StubJwtProvider::ok(claims_user(&["a2a", "user"]));
+    let value = validate_oauth_for_request(
+        &bearer("token"),
+        &NumberOrString::Number(1),
+        &[Permission::User],
+        Some(&provider),
+    )
+    .await
+    .expect("ok")
+    .expect("Some");
+    assert_eq!(value.username, "alice");
+}
+
+#[tokio::test]
+async fn validate_oauth_hook_token_refused_for_user_agent() {
+    let provider = StubJwtProvider::ok(claims_user(&["hook:govern", "hook:track"]));
+    let err = validate_oauth_for_request(
+        &bearer("token"),
+        &NumberOrString::Number(1),
+        &[Permission::User],
+        Some(&provider),
+    )
+    .await
+    .expect_err("hook scopes are not a user session");
+    assert_eq!(err.0, axum::http::StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn validate_oauth_service_token_reaches_anonymous_agent() {
+    let provider = StubJwtProvider::ok(claims_user(&["service"]));
+    validate_oauth_for_request(
+        &bearer("token"),
+        &NumberOrString::Number(1),
+        &[Permission::Anonymous],
+        Some(&provider),
+    )
+    .await
+    .expect("an anonymous requirement admits any token");
 }

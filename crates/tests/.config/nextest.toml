@@ -28,7 +28,7 @@
 # slot so each test's job sees only its own seeded data.
 # The users-domain DB tests share the `users` table and its `email`/`name`
 # UNIQUE indexes. The federated-identity tests run concurrent
-# `find_or_create_federated` INSERTs whose synthetic local emails collide on
+# `resolve_federated` INSERTs whose synthetic local emails collide on
 # that index, and the user-service create/update tests churn rows another test
 # is counting. Serialise the DB-backed suite so each test owns its row mutations.
 #
@@ -98,13 +98,11 @@ cloud-checkout-port = { max-threads = 1 }
 # profile against the proxy on the default port, so a sibling serving there
 # leaves the enrolment `Pending`.
 bridge-proxy-port = { max-threads = 1 }
-# Why: `McpProxyIdentityRepository::cleanup_expired` is an unscoped
-# `DELETE FROM mcp_proxy_identities WHERE expires_at <= NOW()`, so it reaps
-# every expired row in the shared database, not just its own. The delete and
-# count tests seed deliberately-expired rows and then assert on them, so a
-# concurrent cleanup wipes the fixture between the insert and the assertion —
-# `delete_removes_the_row_even_once_it_has_expired` failed in CI counting 0
-# rows immediately after inserting one.
+# Why: `McpProxySessionRepository::cleanup_expired` is an unscoped
+# `DELETE FROM mcp_external_sessions WHERE expires_at <= NOW()`, so it reaps
+# every expired binding in the shared database, not just its own. Tests that
+# seed deliberately-expired bindings and then assert on them would lose the
+# fixture to a concurrent cleanup between the insert and the assertion.
 mcp-proxy-identity-db = { max-threads = 1 }
 
 # Why: `ApprovalRepository::expire_due` is an unscoped UPDATE over every
@@ -140,28 +138,20 @@ database-lifecycle-db = { max-threads = 1 }
 # session through their own harness, contend for its checkpoint lease and
 # report it failed.
 collab-reaper-db = { max-threads = 1 }
+# Blob GC holds every blob while any document waits in the media backfill
+# queue, so a backfill test that queues a document stops a concurrent GC test
+# collecting its own aged blobs. Serialise the GC and backfill tests.
+document-blob-gc-db = { max-threads = 1 }
 
 [[profile.default.overrides]]
 filter = 'package(systemprompt-database-tests) and test(/lifecycle::/)'
 test-group = 'database-lifecycle-db'
 
-[[profile.ci.overrides]]
-filter = 'package(systemprompt-database-tests) and test(/lifecycle::/)'
-test-group = 'database-lifecycle-db'
-
 [[profile.default.overrides]]
-filter = 'package(systemprompt-mcp-tests) and test(/repository::proxy_identity(_db|_corrupt_db)?::/)'
-test-group = 'mcp-proxy-identity-db'
-
-[[profile.ci.overrides]]
-filter = 'package(systemprompt-mcp-tests) and test(/repository::proxy_identity(_db|_corrupt_db)?::/)'
+filter = 'package(systemprompt-mcp-tests) and test(/repository::(proxy_session_db|external_session_db)::/)'
 test-group = 'mcp-proxy-identity-db'
 
 [[profile.default.overrides]]
-filter = 'package(systemprompt-database-tests) and test(/repository::cleanup::/)'
-test-group = 'logs-cleanup-db'
-
-[[profile.ci.overrides]]
 filter = 'package(systemprompt-database-tests) and test(/repository::cleanup::/)'
 test-group = 'logs-cleanup-db'
 
@@ -172,19 +162,7 @@ test-group = 'logs-cleanup-db'
 filter = 'package(systemprompt-scheduler-tests) and test(/^retention_(enforce|targets)_db::/)'
 test-group = 'logs-cleanup-db'
 
-[[profile.ci.overrides]]
-filter = 'package(systemprompt-scheduler-tests) and test(/^retention_(enforce|targets)_db::/)'
-test-group = 'logs-cleanup-db'
-
-[[profile.coverage.overrides]]
-filter = 'package(systemprompt-scheduler-tests) and test(/^retention_(enforce|targets)_db::/)'
-test-group = 'logs-cleanup-db'
-
 [[profile.default.overrides]]
-filter = 'package(systemprompt-scheduler-tests) and test(orphaned_tool_execution_survives_all_retention_sweeps)'
-test-group = 'logs-cleanup-db'
-
-[[profile.ci.overrides]]
 filter = 'package(systemprompt-scheduler-tests) and test(orphaned_tool_execution_survives_all_retention_sweeps)'
 test-group = 'logs-cleanup-db'
 
@@ -192,15 +170,7 @@ test-group = 'logs-cleanup-db'
 filter = 'package(systemprompt-bridge-integration-tests) and test(/reapply_decision::|enrol_hosts::/) or package(systemprompt-bridge-proxy-module-tests) or package(systemprompt-bridge-cli-tests) and test(/proxy_command::/) or package(systemprompt-bridge-proxy-tests) and test(/comms::/) or package(systemprompt-bridge-cli-subprocess-tests) and test(proxy_headless_starts_and_stops_on_sigint) or package(systemprompt-bridge-proxy-harness-tests) and test(public_proxy_stats_follow_forwarding_failures_and_reset_with_a_restarted_owner) or package(systemprompt-bridge-cli-dispatch-tests) and test(/install_cmd::purge_device/)'
 test-group = 'bridge-proxy-port'
 
-[[profile.ci.overrides]]
-filter = 'package(systemprompt-bridge-integration-tests) and test(/reapply_decision::|enrol_hosts::/) or package(systemprompt-bridge-proxy-module-tests) or package(systemprompt-bridge-cli-tests) and test(/proxy_command::/) or package(systemprompt-bridge-proxy-tests) and test(/comms::/) or package(systemprompt-bridge-cli-subprocess-tests) and test(proxy_headless_starts_and_stops_on_sigint) or package(systemprompt-bridge-proxy-harness-tests) and test(public_proxy_stats_follow_forwarding_failures_and_reset_with_a_restarted_owner) or package(systemprompt-bridge-cli-dispatch-tests) and test(/install_cmd::purge_device/)'
-test-group = 'bridge-proxy-port'
-
 [[profile.default.overrides]]
-filter = 'package(systemprompt-cloud-tests) and (test(/checkout_flow::/) or test(/tenant_provisioning::provision_/))'
-test-group = 'cloud-checkout-port'
-
-[[profile.ci.overrides]]
 filter = 'package(systemprompt-cloud-tests) and (test(/checkout_flow::/) or test(/tenant_provisioning::provision_/))'
 test-group = 'cloud-checkout-port'
 
@@ -208,15 +178,7 @@ test-group = 'cloud-checkout-port'
 filter = 'package(systemprompt-database-tests) and test(/(service_registry_db|service_registry_lifecycle_db)::/)'
 test-group = 'services-reaper-db'
 
-[[profile.ci.overrides]]
-filter = 'package(systemprompt-database-tests) and test(/(service_registry_db|service_registry_lifecycle_db)::/)'
-test-group = 'services-reaper-db'
-
 [[profile.default.overrides]]
-filter = 'package(systemprompt-api-integration-tests) and test(/(messaging_dispatch|routes_slack|routes_teams)::/)'
-test-group = 'scheduler-services-db'
-
-[[profile.ci.overrides]]
 filter = 'package(systemprompt-api-integration-tests) and test(/(messaging_dispatch|routes_slack|routes_teams)::/)'
 test-group = 'scheduler-services-db'
 
@@ -224,15 +186,7 @@ test-group = 'scheduler-services-db'
 filter = 'package(systemprompt-api-integration-tests) and test(/(server_health_more|server_run_loop|proxy_more|proxy_external_mcp|proxy_owner_forward|health_monitor)::/)'
 test-group = 'scheduler-services-db'
 
-[[profile.ci.overrides]]
-filter = 'package(systemprompt-api-integration-tests) and test(/(server_health_more|server_run_loop|proxy_more|proxy_external_mcp|proxy_owner_forward|health_monitor)::/)'
-test-group = 'scheduler-services-db'
-
 [[profile.default.overrides]]
-filter = 'package(systemprompt-scheduler-tests) and test(/(state_verifier_seeded_db|service_management_db|service_management_behaviour_db|reconciler_db)::/)'
-test-group = 'scheduler-services-db'
-
-[[profile.ci.overrides]]
 filter = 'package(systemprompt-scheduler-tests) and test(/(state_verifier_seeded_db|service_management_db|service_management_behaviour_db|reconciler_db)::/)'
 test-group = 'scheduler-services-db'
 
@@ -240,15 +194,7 @@ test-group = 'scheduler-services-db'
 filter = 'package(systemprompt-scheduler-integration-tests) and test(/service_management_tests::/)'
 test-group = 'scheduler-services-db'
 
-[[profile.ci.overrides]]
-filter = 'package(systemprompt-scheduler-integration-tests) and test(/service_management_tests::/)'
-test-group = 'scheduler-services-db'
-
 [[profile.default.overrides]]
-filter = 'package(systemprompt-agent-integration-tests) and test(/agent_service_repo_e2e::/)'
-test-group = 'scheduler-services-db'
-
-[[profile.ci.overrides]]
 filter = 'package(systemprompt-agent-integration-tests) and test(/agent_service_repo_e2e::/)'
 test-group = 'scheduler-services-db'
 
@@ -256,23 +202,11 @@ test-group = 'scheduler-services-db'
 filter = 'package(systemprompt-scheduler-tests) and test(/(jobs_seeded_db|bootstrap_dispatch_db|dispatch_scope_db|dispatch_instance_stamp_db|job_execution_db|start_owner_resolution_db|manual_run_lock_db|unlisted_jobs_db|budgeted_dispatch_db|retention_enforce_db|registration_db)::/)'
 test-group = 'scheduler-jobs-db'
 
-[[profile.ci.overrides]]
-filter = 'package(systemprompt-scheduler-tests) and test(/(jobs_seeded_db|bootstrap_dispatch_db|dispatch_scope_db|dispatch_instance_stamp_db|job_execution_db|start_owner_resolution_db|manual_run_lock_db|unlisted_jobs_db|budgeted_dispatch_db|retention_enforce_db|registration_db)::/)'
-test-group = 'scheduler-jobs-db'
-
 [[profile.default.overrides]]
 filter = 'package(systemprompt-scheduler-integration-tests) and test(/(job_execute_tests|repository_tests)::cleanup_empty_contexts/)'
 test-group = 'scheduler-jobs-db'
 
-[[profile.ci.overrides]]
-filter = 'package(systemprompt-scheduler-integration-tests) and test(/(job_execute_tests|repository_tests)::cleanup_empty_contexts/)'
-test-group = 'scheduler-jobs-db'
-
 [[profile.default.overrides]]
-filter = 'package(systemprompt-oauth-tests) and test(/repository::/)'
-test-group = 'oauth-clients-db'
-
-[[profile.ci.overrides]]
 filter = 'package(systemprompt-oauth-tests) and test(/repository::/)'
 test-group = 'oauth-clients-db'
 
@@ -292,39 +226,11 @@ test-group = 'cli-migration-ledger-db'
 filter = 'package(systemprompt-users-tests) and test(/(repository::federated_identity|repository::device_cert|services::device_cert_service|services::user_service)::/)'
 test-group = 'users-db'
 
-[[profile.ci.overrides]]
-filter = 'package(systemprompt-security-tests) and test(/policy_approval::/)'
-test-group = 'approval-sweep-db'
-
-[[profile.ci.overrides]]
-filter = '(package(systemprompt-security-integration-tests) and test(/gateway_reconcile_tests::|authz_extension_path_tests::/)) or (package(systemprompt-security-authz-tests) and test(/access_plane_db::a_route_glob_survives_the_gateway_catalog_prune|rule_based_hook::a_rule_added_after_a_cached_decision/)) or (package(systemprompt-api-integration-tests) and test(/gateway_principal_parity::/))'
-test-group = 'gateway-reconcile-db'
-
-[[profile.ci.overrides]]
-filter = 'package(systemprompt-cli-tests) and (test(/infrastructure::db_app_ctx::/) or test(/infrastructure::db_migrate_repair_db::/) or test(/db_migrate_exec::(verbose_)?profile_migrate/))'
-test-group = 'cli-migration-ledger-db'
-
-[[profile.ci.overrides]]
-filter = 'package(systemprompt-users-tests) and test(/(repository::federated_identity|repository::device_cert|services::device_cert_service|services::user_service)::/)'
-test-group = 'users-db'
-
 [[profile.default.overrides]]
 filter = 'package(systemprompt-generator-tests) and test(/(sitemap_generator_db|pipeline_full|prerender_public_db)::/)'
 test-group = 'generator-config-db'
 
-[[profile.ci.overrides]]
-filter = 'package(systemprompt-generator-tests) and test(/(sitemap_generator_db|pipeline_full|prerender_public_db)::/)'
-test-group = 'generator-config-db'
-
 [[profile.default.overrides]]
-filter = 'package(systemprompt-files-integration-tests) and test(/documents_collab_replicas::the_reaper_/)'
-test-group = 'collab-reaper-db'
-
-[[profile.ci.overrides]]
-filter = 'package(systemprompt-files-integration-tests) and test(/documents_collab_replicas::the_reaper_/)'
-test-group = 'collab-reaper-db'
-
-[[profile.coverage.overrides]]
 filter = 'package(systemprompt-files-integration-tests) and test(/documents_collab_replicas::the_reaper_/)'
 test-group = 'collab-reaper-db'
 
@@ -351,10 +257,6 @@ path = "junit.xml"
 filter = 'package(systemprompt-api-integration-tests) and test(/health_monitor::/)'
 test-group = 'api-health-monitor-db'
 
-[[profile.ci.overrides]]
-filter = 'package(systemprompt-api-integration-tests) and test(/health_monitor::/)'
-test-group = 'api-health-monitor-db'
-
 # The MCP loader tests register uniquely-named `services` rows and assert on
 # their status while the MCP orchestrator/database tests run sweeps
 # (`sync_database_state`, `reconcile`) that unregister every row absent from
@@ -370,10 +272,6 @@ test-group = 'api-health-monitor-db'
 filter = 'package(systemprompt-mcp-tests) and test(/(loader_live|loader_state|orchestrator_extended|orchestrator_populated|orchestrator_smoke|orchestrator_start_live|tool_provider_health|database_state|database_state_extended|database_sync|database_service|lifecycle_deep|lifecycle_live|lifecycle_smoke|proxy_health|proxy_health_healthy|orchestrator::process_cleanup)::/)'
 test-group = 'scheduler-services-db'
 
-[[profile.ci.overrides]]
-filter = 'package(systemprompt-mcp-tests) and test(/(loader_live|loader_state|orchestrator_extended|orchestrator_populated|orchestrator_smoke|orchestrator_start_live|tool_provider_health|database_state|database_state_extended|database_sync|database_service|lifecycle_deep|lifecycle_live|lifecycle_smoke|proxy_health|proxy_health_healthy|orchestrator::process_cleanup)::/)'
-test-group = 'scheduler-services-db'
-
 # The cloud CLI harness (cloud_harness) drives command paths in-process against
 # one shared wiremock server and one set of process-global bootstraps
 # (`CredentialsBootstrap`, `ProfileBootstrap`), and chdir's into a shared tempdir
@@ -384,15 +282,7 @@ test-group = 'scheduler-services-db'
 filter = 'package(systemprompt-agent-tests) and test(/repository::(artifact|artifact_parts)::/)'
 test-group = 'agent-artifacts-db'
 
-[[profile.ci.overrides]]
-filter = 'package(systemprompt-agent-tests) and test(/repository::(artifact|artifact_parts)::/)'
-test-group = 'agent-artifacts-db'
-
 [[profile.default.overrides]]
-filter = 'package(systemprompt-cli-integration-tests) and test(/cloud_harness::/)'
-test-group = 'cli-cloud-harness'
-
-[[profile.ci.overrides]]
 filter = 'package(systemprompt-cli-integration-tests) and test(/cloud_harness::/)'
 test-group = 'cli-cloud-harness'
 
@@ -414,14 +304,6 @@ test-group = 'cli-cloud-harness'
 filter = 'package(systemprompt-cli-integration-tests) and (binary(subprocess_mcp_stub) or binary(subprocess_agents_a2a))'
 test-group = 'scheduler-services-db'
 
-[[profile.ci.overrides]]
-filter = 'package(systemprompt-cli-integration-tests) and (binary(subprocess_mcp_stub) or binary(subprocess_agents_a2a))'
-test-group = 'scheduler-services-db'
-
-[[profile.coverage.overrides]]
-filter = 'package(systemprompt-cli-integration-tests) and (binary(subprocess_mcp_stub) or binary(subprocess_agents_a2a))'
-test-group = 'scheduler-services-db'
-
 # The CLI subprocess suite spawns full `systemprompt` boots (validation, DB,
 # migrations); under a loaded shard a single boot can legitimately exceed the
 # workspace-wide 60s slow period, so give the whole package a wider band before
@@ -430,12 +312,11 @@ test-group = 'scheduler-services-db'
 filter = 'package(systemprompt-cli-integration-tests)'
 slow-timeout = { period = "120s", terminate-after = 3 }
 
-[[profile.ci.overrides]]
-filter = 'package(systemprompt-cli-integration-tests)'
-slow-timeout = { period = "120s", terminate-after = 3 }
-
-# The `coverage` profile mirrors `default`'s serial groups but widens the
-# slow-timeout band: instrumented debug binaries with continuous-mode profraws
+# Every profile inherits the `[[profile.default.overrides]]` above: nextest
+# matches a profile's own overrides first, then `default`'s, so `ci` and
+# `coverage` carry only the settings that differ.
+#
+# The `coverage` profile widens the slow-timeout band: instrumented debug binaries with continuous-mode profraws
 # run 5-10x slower and server-booting integration tests otherwise time out en
 # masse, silently dropping whole crates from the coverage report.
 [profile.coverage]
@@ -445,86 +326,6 @@ failure-output = "immediate-final"
 final-status-level = "slow"
 
 [[profile.coverage.overrides]]
-filter = 'package(systemprompt-database-tests) and test(/repository::cleanup::/)'
-test-group = 'logs-cleanup-db'
-
-[[profile.coverage.overrides]]
-filter = 'package(systemprompt-scheduler-tests) and test(orphaned_tool_execution_survives_all_retention_sweeps)'
-test-group = 'logs-cleanup-db'
-
-[[profile.coverage.overrides]]
-filter = 'package(systemprompt-cloud-tests) and (test(/checkout_flow::/) or test(/tenant_provisioning::provision_/))'
-test-group = 'cloud-checkout-port'
-
-[[profile.coverage.overrides]]
-filter = 'package(systemprompt-api-integration-tests) and test(/(messaging_dispatch|routes_slack|routes_teams)::/)'
-test-group = 'scheduler-services-db'
-
-[[profile.coverage.overrides]]
-filter = 'package(systemprompt-api-integration-tests) and test(/(server_health_more|server_run_loop|proxy_more|proxy_external_mcp|proxy_owner_forward|health_monitor)::/)'
-test-group = 'scheduler-services-db'
-
-[[profile.coverage.overrides]]
-filter = 'package(systemprompt-scheduler-tests) and test(/(state_verifier_seeded_db|service_management_db|service_management_behaviour_db|reconciler_db)::/)'
-test-group = 'scheduler-services-db'
-
-[[profile.coverage.overrides]]
-filter = 'package(systemprompt-scheduler-integration-tests) and test(/service_management_tests::/)'
-test-group = 'scheduler-services-db'
-
-[[profile.coverage.overrides]]
-filter = 'package(systemprompt-agent-integration-tests) and test(/agent_service_repo_e2e::/)'
-test-group = 'scheduler-services-db'
-
-[[profile.coverage.overrides]]
-filter = 'package(systemprompt-scheduler-tests) and test(/(jobs_seeded_db|bootstrap_dispatch_db|dispatch_scope_db|dispatch_instance_stamp_db|job_execution_db|start_owner_resolution_db|manual_run_lock_db|unlisted_jobs_db|budgeted_dispatch_db|retention_enforce_db|registration_db)::/)'
-test-group = 'scheduler-jobs-db'
-
-[[profile.coverage.overrides]]
-filter = 'package(systemprompt-scheduler-integration-tests) and test(/(job_execute_tests|repository_tests)::cleanup_empty_contexts/)'
-test-group = 'scheduler-jobs-db'
-
-[[profile.coverage.overrides]]
-filter = 'package(systemprompt-oauth-tests) and test(/repository::/)'
-test-group = 'oauth-clients-db'
-
-[[profile.coverage.overrides]]
-filter = 'package(systemprompt-security-tests) and test(/policy_approval::/)'
-test-group = 'approval-sweep-db'
-
-[[profile.coverage.overrides]]
-filter = '(package(systemprompt-security-integration-tests) and test(/gateway_reconcile_tests::|authz_extension_path_tests::/)) or (package(systemprompt-security-authz-tests) and test(/access_plane_db::a_route_glob_survives_the_gateway_catalog_prune|rule_based_hook::a_rule_added_after_a_cached_decision/)) or (package(systemprompt-api-integration-tests) and test(/gateway_principal_parity::/))'
-test-group = 'gateway-reconcile-db'
-
-[[profile.coverage.overrides]]
-filter = 'package(systemprompt-cli-tests) and (test(/infrastructure::db_app_ctx::/) or test(/infrastructure::db_migrate_repair_db::/) or test(/db_migrate_exec::(verbose_)?profile_migrate/))'
-test-group = 'cli-migration-ledger-db'
-
-[[profile.coverage.overrides]]
-filter = 'package(systemprompt-users-tests) and test(/(repository::federated_identity|repository::device_cert|services::device_cert_service|services::user_service)::/)'
-test-group = 'users-db'
-
-[[profile.coverage.overrides]]
-filter = 'package(systemprompt-generator-tests) and test(/(sitemap_generator_db|pipeline_full|prerender_public_db)::/)'
-test-group = 'generator-config-db'
-
-[[profile.coverage.overrides]]
-filter = 'package(systemprompt-api-integration-tests) and test(/health_monitor::/)'
-test-group = 'api-health-monitor-db'
-
-[[profile.coverage.overrides]]
-filter = 'package(systemprompt-mcp-tests) and test(/(loader_live|loader_state|orchestrator_extended|orchestrator_populated|orchestrator_smoke|orchestrator_start_live|tool_provider_health|database_state|database_state_extended|database_sync|database_service|lifecycle_deep|lifecycle_live|lifecycle_smoke|proxy_health|proxy_health_healthy|orchestrator::process_cleanup)::/)'
-test-group = 'scheduler-services-db'
-
-[[profile.coverage.overrides]]
-filter = 'package(systemprompt-agent-tests) and test(/repository::(artifact|artifact_parts)::/)'
-test-group = 'agent-artifacts-db'
-
-[[profile.coverage.overrides]]
-filter = 'package(systemprompt-cli-integration-tests) and test(/cloud_harness::/)'
-test-group = 'cli-cloud-harness'
-
-[[profile.coverage.overrides]]
 filter = 'package(systemprompt-cli-integration-tests)'
 slow-timeout = { period = "180s", terminate-after = 5 }
 
@@ -532,23 +333,7 @@ slow-timeout = { period = "180s", terminate-after = 5 }
 filter = 'package(systemprompt-cli-tests) and test(coverage_restart_populated_registry)'
 test-group = 'scheduler-services-db'
 
-[[profile.ci.overrides]]
-filter = 'package(systemprompt-cli-tests) and test(coverage_restart_populated_registry)'
-test-group = 'scheduler-services-db'
-
-[[profile.coverage.overrides]]
-filter = 'package(systemprompt-cli-tests) and test(coverage_restart_populated_registry)'
-test-group = 'scheduler-services-db'
-
 [[profile.default.overrides]]
-filter = 'package(systemprompt-api-tests) and test(coverage_agent_reconciliation)'
-test-group = 'scheduler-services-db'
-
-[[profile.ci.overrides]]
-filter = 'package(systemprompt-api-tests) and test(coverage_agent_reconciliation)'
-test-group = 'scheduler-services-db'
-
-[[profile.coverage.overrides]]
 filter = 'package(systemprompt-api-tests) and test(coverage_agent_reconciliation)'
 test-group = 'scheduler-services-db'
 
@@ -561,21 +346,10 @@ filter = 'package(systemprompt-cli-tests) and test(/(services_refresh_changed_ex
 threads-required = 4
 
 [[profile.default.overrides]]
-filter = 'package(systemprompt-cli-integration-tests) and binary(serve_lifecycle)'
+filter = 'package(systemprompt-cli-integration-tests) and binary(lifecycle) and test(/^serve_lifecycle::/)'
 threads-required = 4
 
-[[profile.ci.overrides]]
-filter = 'package(systemprompt-cli-tests) and test(/(services_refresh_changed_exit|admin_bridge_signing_rotation|admin_plugin_token_lifecycle|admin_agent_tools_empty_output|cloud_profile_optional_config_recovery|mcp_logs_follow_lifecycle|services_cleanup_owned_lifecycle|db_doctor_repair_lifecycle|db_migrate_status_collision_orphan|agent_tools_mixed_lifecycle|mcp_internal_status_lifecycle|admin_users_delete_preview_lifecycle|admin_access_control_public_lifecycle|agent_logs_follow_lifecycle|core_files_ai_output_lifecycle|core_contexts_public_lifecycle)::/)'
-threads-required = 4
+[[profile.default.overrides]]
+filter = 'package(systemprompt-files-integration-tests) and test(/documents_blob_store::gc_|documents_media_backfill::/)'
+test-group = 'document-blob-gc-db'
 
-[[profile.ci.overrides]]
-filter = 'package(systemprompt-cli-integration-tests) and binary(serve_lifecycle)'
-threads-required = 4
-
-[[profile.coverage.overrides]]
-filter = 'package(systemprompt-cli-tests) and test(/(services_refresh_changed_exit|admin_bridge_signing_rotation|admin_plugin_token_lifecycle|admin_agent_tools_empty_output|cloud_profile_optional_config_recovery|mcp_logs_follow_lifecycle|services_cleanup_owned_lifecycle|db_doctor_repair_lifecycle|db_migrate_status_collision_orphan|agent_tools_mixed_lifecycle|mcp_internal_status_lifecycle|admin_users_delete_preview_lifecycle|admin_access_control_public_lifecycle|agent_logs_follow_lifecycle|core_files_ai_output_lifecycle|core_contexts_public_lifecycle)::/)'
-threads-required = 4
-
-[[profile.coverage.overrides]]
-filter = 'package(systemprompt-cli-integration-tests) and binary(serve_lifecycle)'
-threads-required = 4

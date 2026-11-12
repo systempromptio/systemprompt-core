@@ -116,7 +116,11 @@ pub async fn execute(cmd: Option<TenantCommands>, ctx: &CommandContext) -> Resul
 
 async fn execute_command(cmd: TenantCommands, ctx: &CommandContext) -> Result<bool> {
     match cmd {
-        TenantCommands::Create => tenant_create(ctx.prompter(), &ctx.cli).await.map(|()| true),
+        TenantCommands::Create => {
+            tenant_create(ctx.prompter(), &ctx.cli, ctx.foreground_children())
+                .await
+                .map(|()| true)
+        },
         TenantCommands::Add(args) => {
             let result = add_tenant(args, &ctx.cli)?;
             render_result(&result, &ctx.cli);
@@ -133,7 +137,8 @@ async fn execute_command(cmd: TenantCommands, ctx: &CommandContext) -> Result<bo
             Ok(false)
         },
         TenantCommands::Delete(args) => {
-            let result = delete_tenant(args, ctx.prompter(), &ctx.cli).await?;
+            let result =
+                delete_tenant(args, ctx.prompter(), &ctx.cli, ctx.foreground_children()).await?;
             render_result(&result, &ctx.cli);
             Ok(false)
         },

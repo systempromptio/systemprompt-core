@@ -1,10 +1,12 @@
 //! Detached spawning and binary management for MCP server processes.
 //!
 //! [`spawn_server`] launches an MCP server binary in its own process group with
-//! a sanitised environment (profile, secrets, per-server config, and the SSRF
-//! trust allowlist), redirecting output to a size-rotated log file and
-//! detaching the child so it outlives this call. Also covers binary
-//! verification and an on-demand debug build path.
+//! a sanitised environment (profile, the database URLs, the deployment's
+//! public verification keys, granted secrets, per-server config, and the SSRF
+//! trust allowlist; never the pepper, seed, signing PEMs or licence secret),
+//! redirecting output to a size-rotated log file and detaching the child so it
+//! outlives this call. Also covers binary verification and an on-demand debug
+//! build path.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -18,7 +20,7 @@ use std::process::Command;
 use systemprompt_config::SecretsService;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_loader::subprocess::{self, ChildKind, Spawner};
-use systemprompt_manifest::{Config, Secrets};
+use systemprompt_manifest::Config;
 
 const MAX_LOG_SIZE: u64 = 10 * 1024 * 1024;
 
@@ -81,13 +83,14 @@ pub fn build_environment(
     env
 }
 
-fn configure_environment(command: &mut Command, spec: &SpawnEnvSpec<'_>, secrets: &Secrets) {
-    command.env_clear();
-    for (key, value) in build_environment(spec, &secrets.to_subprocess_env(), |name| {
-        std::env::var(name).ok()
-    }) {
-        command.env(key, value);
-    }
+pub fn spawn_environment(
+    spec: &SpawnEnvSpec<'_>,
+    global: &Config,
+    secrets: &SecretsService,
+    lookup: impl Fn(&str) -> Option<String>,
+) -> McpDomainResult<Vec<(String, String)>> {
+    let secrets_env = super::child_env::child_secrets(global, secrets, spec.config)?;
+    Ok(build_environment(spec, &secrets_env, lookup))
 }
 
 pub fn rotate_log_if_needed(log_path: &Path) {
@@ -164,11 +167,7 @@ pub fn spawn_server(
             "profile path is not valid UTF-8 - cannot spawn MCP server".to_owned(),
         )
     })?;
-    let secrets = secrets.get();
-
-    let mut child_command = Command::new(&binary_path);
-    configure_environment(
-        &mut child_command,
+    let env = spawn_environment(
         &SpawnEnvSpec {
             config,
             port,
@@ -178,8 +177,14 @@ pub fn spawn_server(
             tools_config_json: &tools_config_json,
             server_model_config_json: &server_model_config_json,
         },
-        &secrets,
-    );
+        global,
+        secrets,
+        |name| std::env::var(name).ok(),
+    )?;
+
+    let mut child_command = Command::new(&binary_path);
+    child_command.env_clear();
+    child_command.envs(env);
     subprocess::mark_child(&mut child_command, ChildKind::Mcp, &config.service_name());
 
     child_command

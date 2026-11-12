@@ -81,6 +81,7 @@ fn profile(catalog: &ResolvedCatalog, secrets: &[&str], keys: &[&str]) -> Bridge
         &CredentialFacts {
             secret_present: &present,
             personal_keys: &personal_keys,
+            presents_own_credential: false,
         },
     )
 }
@@ -141,6 +142,7 @@ fn provider_health_carries_credential_and_clients() {
         &CredentialFacts {
             secret_present: &present,
             personal_keys: &keys,
+            presents_own_credential: false,
         },
     );
     let anthropic = health

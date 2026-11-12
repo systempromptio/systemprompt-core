@@ -8,6 +8,7 @@
 
 use std::sync::Arc;
 use systemprompt_identifiers::AgentName;
+use systemprompt_test_fixtures::agent_reads::TaskReadsExt;
 
 use axum::response::sse::Event;
 use systemprompt_agent::models::a2a::jsonrpc::NumberOrString;
@@ -29,7 +30,7 @@ use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
 use super::a2a_helpers::{StubAiProvider, request_context};
-use crate::repository::{repos, seed_context_and_task, seed_user_and_session};
+use crate::repository::{repos, seed_runtime_task, seed_user_and_session};
 use systemprompt_test_fixtures::test_db_pool;
 
 async fn persisted_task_error(pool: &systemprompt_database::DbPool, task_id: &TaskId) -> String {
@@ -93,12 +94,15 @@ async fn spawn_loop_with(spec: LoopSpec<'_>) -> Loop {
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let repos = repos(&pool);
     let (user, session) = seed_user_and_session(&pool).await;
-    let (ctx, seeded_task_id) = seed_context_and_task(&repos, &user, &session).await;
-    let task_id = if spec.persist_task_row {
-        seeded_task_id
-    } else {
-        TaskId::generate()
-    };
+    let (ctx, runtime) = seed_runtime_task(&repos, &user, &session).await;
+    if !spec.persist_task_row {
+        repos
+            .tasks
+            .remove_task(runtime.task_id())
+            .await
+            .expect("drop the task row");
+    }
+    let task_id = runtime.task_id().clone();
 
     let (broadcaster, rec) = arc_recording_broadcaster();
     let processor = Arc::new(MessageHandler::new(
@@ -123,8 +127,7 @@ async fn spawn_loop_with(spec: LoopSpec<'_>) -> Loop {
         tx: sse_tx,
         request_id: NumberOrString::String(LOOP_REQUEST_ID.to_owned()),
         stream,
-        task_id: task_id.clone(),
-        context_id: ctx.clone(),
+        task: runtime,
         message_id: MessageId::generate(),
         original_message: user_message(&ctx, &task_id),
         agent_name: AgentName::new(spec.agent_name),
@@ -239,7 +242,7 @@ async fn process_events_completion_path_persists_and_broadcasts() {
     let repos = repos(&ctx.pool);
     let stored = repos
         .tasks
-        .find_task(&ctx.task_id)
+        .read_task(&ctx.task_id)
         .await
         .expect("get task")
         .expect("task row");
@@ -331,7 +334,7 @@ async fn process_events_error_path_fails_task_and_broadcasts() {
     let repos = repos(&ctx.pool);
     let stored = repos
         .tasks
-        .find_task(&ctx.task_id)
+        .read_task(&ctx.task_id)
         .await
         .expect("get task")
         .expect("task row");
@@ -374,7 +377,7 @@ async fn process_events_cancelled_path_marks_task_canceled_with_one_final_frame(
     let repos = repos(&ctx.pool);
     let stored = repos
         .tasks
-        .find_task(&ctx.task_id)
+        .read_task(&ctx.task_id)
         .await
         .expect("get task")
         .expect("task row");
@@ -463,7 +466,7 @@ async fn completion_with_an_empty_agent_name_fails_the_task_before_persistence()
     let repos = repos(&ctx.pool);
     let stored = repos
         .tasks
-        .find_task(&ctx.task_id)
+        .read_task(&ctx.task_id)
         .await
         .expect("get task")
         .expect("task row");
@@ -517,7 +520,7 @@ async fn completion_of_an_unpersisted_task_reports_a_persistence_error() {
     assert!(
         repos
             .tasks
-            .find_task(&ctx.task_id)
+            .read_task(&ctx.task_id)
             .await
             .expect("get task")
             .is_none(),

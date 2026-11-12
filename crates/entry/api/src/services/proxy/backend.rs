@@ -1,39 +1,27 @@
 //! HTTP plumbing for forwarding a proxied request to a local backend.
 //!
-//! Splits the forwarding pipeline into focused helpers: [`HeaderInjector`]
-//! propagates request-context headers, [`UrlResolver`] builds the backend URL,
-//! [`RequestBuilder`] constructs the outbound `reqwest` request (filtering
-//! hop-by-hop and invalid auth headers), and [`ResponseHandler`] streams the
-//! response back, wrapping SSE bodies in a keep-alive stream.
+//! Splits the forwarding pipeline into focused helpers: [`UrlResolver`] builds
+//! the backend URL, [`RequestBuilder`] constructs the outbound `reqwest`
+//! request (filtering hop-by-hop and invalid auth headers) and bounds the
+//! request body, streaming it upstream rather than buffering it, and
+//! [`ResponseHandler`] streams the response back, wrapping SSE bodies in a
+//! keep-alive stream.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::body::{Body, to_bytes};
+use axum::http::header::CONTENT_LENGTH;
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::Response;
-use bytes::Bytes;
 use futures_util::TryStreamExt;
+use http_body_util::{BodyExt, LengthLimitError, Limited};
 use reqwest::Method;
-use std::pin::Pin;
 use std::str::FromStr;
-use std::task::{Context, Poll};
-use std::time::Duration;
-use systemprompt_models::RequestContext;
-use systemprompt_traits::InjectContextHeaders;
-use tokio::time::{Instant, Sleep};
 
 pub(super) use super::errors::ProxyError;
 use super::errors::ResponseBuildError;
-
-#[derive(Debug, Clone, Copy)]
-pub(super) struct HeaderInjector;
-
-impl HeaderInjector {
-    pub(super) fn inject_context(headers: &mut HeaderMap, req_ctx: &RequestContext) {
-        req_ctx.inject_headers(headers);
-    }
-}
+pub(super) use super::sse::{SSE_KEEPALIVE_INTERVAL, SseKeepaliveStream};
 
 #[derive(Debug, Clone, Copy)]
 pub(super) struct UrlResolver;
@@ -68,16 +56,41 @@ impl UrlResolver {
     }
 }
 
+pub(super) const MCP_REQUEST_BODY_LIMIT: usize = 4 * 1024 * 1024;
+
 #[derive(Debug, Clone, Copy)]
 pub(super) struct RequestBuilder;
 
 impl RequestBuilder {
-    pub(super) async fn extract_body(body: Body) -> Result<Vec<u8>, axum::Error> {
-        const MAX_BODY_SIZE: usize = 100 * 1024 * 1024;
+    pub(super) fn ensure_declared_length(
+        headers: &HeaderMap,
+        limit: usize,
+    ) -> Result<(), ProxyError> {
+        let declared = headers
+            .get(CONTENT_LENGTH)
+            .and_then(|v| v.to_str().ok())
+            .and_then(|v| v.parse::<u64>().ok());
+        match declared {
+            Some(length) if length > limit as u64 => Err(ProxyError::PayloadTooLarge { limit }),
+            _ => Ok(()),
+        }
+    }
 
-        to_bytes(body, MAX_BODY_SIZE)
+    pub(super) async fn read_body(body: Body, limit: usize) -> Result<Vec<u8>, ProxyError> {
+        to_bytes(body, limit)
             .await
             .map(|bytes| bytes.to_vec())
+            .map_err(|source| {
+                if is_length_limit(&source) {
+                    ProxyError::PayloadTooLarge { limit }
+                } else {
+                    ProxyError::BodyExtractionFailed { source }
+                }
+            })
+    }
+
+    pub(super) fn streamed_body(body: Body, limit: usize) -> reqwest::Body {
+        reqwest::Body::wrap_stream(Limited::new(body, limit).into_data_stream())
     }
 
     pub(super) fn parse_method(method_str: &str) -> Result<Method, ProxyError> {
@@ -92,16 +105,18 @@ impl RequestBuilder {
         method: Method,
         url: &str,
         headers: &HeaderMap,
-        body: Vec<u8>,
+        body: Option<reqwest::Body>,
     ) -> reqwest::RequestBuilder {
         let mut req_builder = client.request(method, url);
         req_builder = Self::add_headers(req_builder, headers);
-
-        if !body.is_empty() {
+        if let Some(body) = body {
             req_builder = req_builder.body(body);
         }
-
         req_builder
+    }
+
+    pub(super) const fn carries_body(method: &Method) -> bool {
+        !matches!(*method, Method::GET | Method::HEAD | Method::DELETE)
     }
 
     fn add_headers(
@@ -130,7 +145,10 @@ impl RequestBuilder {
 
     fn should_skip_header(header_name: &str) -> bool {
         let lower_name = header_name.to_lowercase();
-        matches!(lower_name.as_str(), "host" | "x-mcp-proxy-auth")
+        matches!(
+            lower_name.as_str(),
+            "host" | "x-mcp-proxy-auth" | "content-length" | "transfer-encoding"
+        )
     }
 
     fn is_valid_auth_header(value: &str) -> bool {
@@ -138,48 +156,15 @@ impl RequestBuilder {
     }
 }
 
-pub(super) const SSE_KEEPALIVE_INTERVAL: Duration = Duration::from_secs(15);
-const SSE_KEEPALIVE_PAYLOAD: &[u8] = b": keepalive\n\n";
-
-pub(super) struct SseKeepaliveStream<S> {
-    inner: S,
-    keepalive_interval: Duration,
-    deadline: Pin<Box<Sleep>>,
-}
-
-impl<S> SseKeepaliveStream<S> {
-    pub(super) fn new(inner: S, keepalive_interval: Duration) -> Self {
-        Self {
-            inner,
-            keepalive_interval,
-            deadline: Box::pin(tokio::time::sleep(keepalive_interval)),
+pub(super) fn is_length_limit(error: &(dyn std::error::Error + 'static)) -> bool {
+    let mut next = Some(error);
+    while let Some(cause) = next {
+        if cause.is::<LengthLimitError>() {
+            return true;
         }
+        next = cause.source();
     }
-}
-
-impl<S> futures_util::Stream for SseKeepaliveStream<S>
-where
-    S: futures_util::Stream<Item = Result<Bytes, std::io::Error>> + Unpin,
-{
-    type Item = Result<Bytes, std::io::Error>;
-
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        let interval = self.keepalive_interval;
-        match Pin::new(&mut self.inner).poll_next(cx) {
-            Poll::Ready(Some(item)) => {
-                self.deadline.as_mut().reset(Instant::now() + interval);
-                Poll::Ready(Some(item))
-            },
-            Poll::Ready(None) => Poll::Ready(None),
-            Poll::Pending => match self.deadline.as_mut().poll(cx) {
-                Poll::Ready(()) => {
-                    self.deadline.as_mut().reset(Instant::now() + interval);
-                    Poll::Ready(Some(Ok(Bytes::from_static(SSE_KEEPALIVE_PAYLOAD))))
-                },
-                Poll::Pending => Poll::Pending,
-            },
-        }
-    }
+    false
 }
 
 pub(super) fn upstream_status(

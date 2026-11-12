@@ -31,6 +31,7 @@ The top-level `Profile` struct and every nested config struct in this document c
 | `extensions` | object | no | `{ disabled: [] }` | Extension enable/disable. See [`extensions`](#extensions). |
 | `governance` | object | no | absent | Authorization hook. See [`governance`](#governance). |
 | `observability` | object | no | `{ otlp: null }` | Where this instance exports its own telemetry. See [`observability`](#observability). |
+| `retention` | object | no | all-defaults | Retention windows the `database_cleanup` job enforces. See [`retention`](#retention). |
 
 `target` accepts the lowercase values `local` and `cloud` (`profile/mod.rs:91`).
 
@@ -181,6 +182,8 @@ Audience validation requires a nonempty policy. The first-party session policy a
 | `issuer` | string | yes | Trusted issuer `iss` value. |
 | `jwks_uri` | string | yes | JWKS endpoint for that issuer. |
 | `audience` | string | yes | Audience expected from that issuer. |
+| `link.link_by_email` | bool | no | Default `false`. Lets an identity this issuer asserts with a verified email claim the ordinary account that already owns that email. With it off, such a clash refuses the exchange. Only an active account with a verified email that is not a service account or bot and holds no role other than `user` is linked; an admin or other privileged account is never linked. A linked account keeps its own roles. |
+| `link.auto_provision` | bool | no | Default `true`. Provisions a fresh account for an identity that matches no link and no email; with it off such an identity is refused. |
 
 ## `rate_limits`
 
@@ -201,6 +204,8 @@ Audience validation requires a nonempty policy. The first-party session policy a
 | `stream_per_second` | u64 | no | `100` | SSE stream routes. |
 | `content_per_second` | u64 | no | `50` | Content routes. |
 | `gateway_per_second` | u64 | no | `100` | Inference gateway routes (`/api/v1/gateway/*`, including OTLP ingest and bridge credential exchange). |
+| `bridge_auth_per_second` | u64 | no | `20` | Bridge sign-in (`/v1/auth/bridge/*`), kept separate from `gateway_per_second` so a saturated gateway cannot lock users out of authenticating. |
+| `pre_auth_ip_per_second` | u64 | no | `500` | Every request, keyed by client address only and charged before any authentication runs, so forged or expired credentials are throttled before a token decode. Sized for a whole network behind one address. |
 | `burst_multiplier` | u64 | no | `3` | Burst allowance multiplier. |
 
 Limits are enforced per caller: a request carrying a signature-verified identity is bucketed by
@@ -211,6 +216,36 @@ replica; address-keyed throttles are per process, so their effective ceiling sca
 replica count. The identity-keyed window fails closed: if the database counter cannot be
 updated, an authenticated request answers `503` with `Retry-After` instead of running unmetered.
 There is no fail-open option; `disabled: true` is the only way to run without the window.
+
+## `retention`
+
+`crates/shared/manifest/src/profile/retention.rs`. Retention windows in days, enforced by the scheduler's `database_cleanup` job. Every key defaults, so the block may be omitted.
+
+| Key | Type | Default | Meaning |
+|-----|------|---------|---------|
+| `logs_days` | u32 | `30` | `logs` rows. |
+| `analytics_events_days` | u32 | `90` | `analytics_events` rows. |
+| `engagement_events_days` | u32 | `90` | Engagement events (personal data). |
+| `fingerprint_reputation_days` | u32 | `90` | A fingerprint not seen for the window: an unflagged one is deleted with its last IP address and user agent; a flagged one is kept with its IP address and user agent cleared. |
+| `ai_request_messages_days` | u32 | follows `ai.history.retention_days` | Drops stored request messages; the request row stays. |
+| `ai_request_payload_raw_days` | u32 | `7` | Clears raw request and response bodies on `ai_request_payloads`; excerpts, hashes and sizes stay. |
+| `mcp_tool_executions_days` | u32 | `365` | MCP tool execution records. |
+| `outbox_processed_days` | u32 | `7` | Processed outbox rows. |
+| `governance_decisions_days` | u32 | `180` | Governance decision records. |
+| `archived_users_days` | u32 | `90` | How long an archived user stays restorable before it is purged; an account under legal hold is never purged. |
+| `agent_run_dirs_days` | u32 | `7` | A finished agent run's directory on disk; the row stays. |
+
+### Retention holds
+
+An extension that copies these rows elsewhere (a warehouse sync, an audit export) registers a retention hold so rows it has not copied yet are not deleted. A hold implements `RetentionHold` (`crates/shared/extension/src/retention.rs`) and is registered with `register_retention_hold!(MyHold, priority = 100)`, or with `factory = |ctx| ...` when it needs the extension context. For each `RetentionTarget` (`logs`, `analytics_events`, `ai_request_messages`, `mcp_tool_executions`, `event_outbox`, `ai_request_payloads`, `governance_decisions`, `ai_quota_buckets`, `engagement_events`, `fingerprint_reputation`) the hold returns a watermark: every row before it is released, rows at or after it are not. `None` means no hold on that target.
+
+Each target is pruned by one timestamp column compared against the cutoff (`created_at`; `timestamp` for `logs` and `analytics_events`; `window_start` for `ai_quota_buckets`; `last_seen_at` for `fingerprint_reputation`), and no target deletes child rows by a parent's age, so the hold is exact. The `database_cleanup` job clamps each target's cutoff to the earliest watermark any hold reports; a watermark later than the age cutoff changes nothing. For `ai_request_payloads` the hold keeps the raw bodies, and for `fingerprint_reputation` it also keeps a flagged fingerprint's IP address and user agent.
+
+What operators see:
+
+- A clamped target logs `Retention hold clamped the cutoff` with the age cutoff, the effective cutoff and the hold's name, and the job message shows `<table>=<deleted>@held:<hold>`.
+- A watermark that trails the age cutoff by more than the target's window again (at least one day) logs a warning that the holder may be stalled. Rows keep accumulating until it advances.
+- A hold that returns an error withholds its target for the run: nothing in that table is pruned, a warning names the hold and the error, the job message shows `<table>=withheld:<hold>`, and the run's failed count includes the target. Other targets are pruned as usual.
 
 ## `system_admin`
 
@@ -251,7 +286,7 @@ There is no fail-open option; `disabled: true` is the only way to run without th
 | `secrets_path` | string | for `file` | — | Path to the secrets file, resolved relative to the profile directory (with `~/` home expansion). Required for `source: file`; unused for `source: vault`. |
 | `validation` | enum `strict` \| `warn` \| `skip` | no | `warn` | How a loaded document is checked. It does not govern whether a source may be abandoned: a Vault fetch failure aborts the boot under every mode. |
 | `vault` | object | for `vault` | absent | KV v2 access. Required when `source: vault`, and refused for the other two sources. See [`secrets.vault`](#secretsvault). |
-| `refresh_secs` | u64 | no | absent | `source: file` only. Re-read the secrets file on this interval (minimum `60`), so a rotated Kubernetes Secret mounted as a volume reaches the running process without a restart. Every replica and every role reloads its own store; there is no cluster lock. Pinned keys (`encryption_master_key`, `oauth_at_rest_pepper`, `manifest_signing_secret_seed`, `database_url`, `signing_key_pem`, `jwt_secret`) still require a restart: a reload that changes one is refused. An `external` source sets its interval on `secrets.external.refresh_secs` instead. |
+| `refresh_secs` | u64 | no | absent | `source: file` only. Re-read the secrets file on this interval (minimum `60`), so a rotated Kubernetes Secret mounted as a volume reaches the running process without a restart. Every replica and every role reloads its own store; there is no cluster lock. Pinned keys (`encryption_master_key`, `oauth_at_rest_pepper`, `manifest_signing_secret_seed`, `database_url`, `database_write_url`, `database_session_url`, `signing_key_pem`, `signing_key_staged_pem`, `signing_key_previous_keys`, `jwt_secret`) still require a restart: a reload that changes one is refused. An `external` source sets its interval on `secrets.external.refresh_secs` instead. |
 
 ### `secrets.vault`
 
@@ -304,7 +339,7 @@ Naming both `https` and `oci`, or neither, is a profile error. `auth_secret` nam
 
 `verify` takes `sha256` (a 64-hex archive digest) and `ed25519_public_keys` (base64 32-byte keys). At least one is required for every source; an empty `verify` is refused. Verification is fatal at every step and runs in order: archive digest, manifest signature, per-file checksums, content hash.
 
-Only the first source may be a base bundle. Every later source must own nothing but `marketplaces`, `plugins`, `skills`, `rules`, `hooks` and `artifacts`. Two sources claiming the same id, or the same base directory, is a boot error naming both.
+Ownership is derived from the files a bundle actually ships, not from its manifest's `owns` block: verification refuses a manifest whose files reach a directory or id it does not declare, or that lists an unsafe path, and composition copies only the verified files. The marketplace directories (`marketplaces`, `plugins`, `skills`, `rules`, `hooks`, `artifacts`) are shared: several sources may contribute, each entry under its own id, and ids are claimed exclusively. Every other directory (`access-control/`, `gateway/`, `config/`, `ai/`, `agents/`, `mcp/`, …) is base-only and may be shipped by the first source alone. Two sources claiming the same id, or writing the same path outside a shared directory, is a boot error naming both.
 
 ### Managed MCP servers (`services/mcp/*.yaml`)
 
@@ -473,11 +508,35 @@ The job must also be enabled in the scheduler config (`services/scheduler/config
 
 ## `${VAR}` interpolation
 
-Before YAML parsing, the loader substitutes `${VAR}` tokens in the raw profile text with the value of the environment variable `VAR` (`profile/mod.rs:79-86`). The pattern is exactly `${WORD}` (alphanumeric and underscore). An undefined variable is left literally in place (the `${VAR}` text is preserved, not blanked). Interpolation is textual and applies to any value in the document.
+Each profile layer (`base.yaml` and the overlay) is parsed as YAML first; the loader then substitutes `${VAR}` and `${VAR:-default}` tokens inside string values with the environment variable `VAR` (`crates/shared/manifest/src/env.rs`). Mapping keys are never interpolated.
+
+- A substituted value is always data: a `#`, `: `, newline or brace in it cannot start a comment, end the value early, or add a key.
+- A value that is exactly one placeholder takes the type of the field it lands in, never the type its text looks like: a field that accepts a string receives the value as a string (a secret such as `12345`, `true`, `null`, `0x1F` or `007` stays text), and a numeric or boolean field receives it parsed (`port: ${PORT}` is an integer). An empty value (an empty variable or `${VAR:-}`) is null where the field accepts null and the empty string otherwise. A placeholder embedded in a longer string always yields a string. Mapping keys are never interpolated.
+- A variable that is unset or empty and has no `:-` default fails the load with an error naming the variable and the key path (for example `server.external_url`). For a variable that is legitimately absent on some hosts, write the fallback explicitly: `${VAR:-}` (null for an optional field, the empty string for a required string) or `${VAR:-value}`. An empty variable counts as unset.
+- Booting a profile (the server, and every CLI command that opens its database or services) resolves every value. Commands that only inspect, select or ship a profile (`cloud deploy`, `cloud doctor`, `cloud backup`, `cloud profile show`, `admin session list|switch|logout`) leave a variable this host does not set as an unresolved value, so a profile carrying target-only variables (for example ones injected as platform secrets) can be deployed from a workstation. Such a command fails, naming the variable, only when it needs a section that holds one. `cloud deploy` and `cloud doctor` still run every profile validation rule and preflight check whose inputs resolve on the host, so an invalid resolved field blocks the deploy exactly as it does for a fully resolved profile; each rule or check that reads an unresolved value is listed as not evaluated with the variables it needs.
+- `cloud deploy` discovers the Vault bootstrap variables to push from the profile as written, before interpolation, so `secrets.vault.address: ${VAULT_ADDR}` pushes `VAULT_ADDR` whether or not it is set in the deploying shell.
 
 ```yaml
 server:
   external_url: ${PUBLIC_BASE_URL}
+```
+
+### Services YAML
+
+Every file of the services tree (`services/config/config.yaml`, its `includes:` fragments, the `services/ai/` catalog files, and the discovered `skills/*/config.yaml`, `plugins/*/config.yaml` and `marketplaces/*/config.yaml` descriptors) goes through the same substitution before it is deserialized (`crates/shared/manifest/src/services/interpolation.rs`). This lets one services tree vary per environment, for example a provider endpoint, an MCP server URL or `env` map, or an agent URL.
+
+- Any string value may carry a placeholder, except values under the keys `system_prompt`, `system_prompts`, `system_prompt_overrides`, `prompt`, `instructions`, `description`, `body`, `content`, `example`, `examples`, `template`, `status_message` and `hooks`. Those hold authored text or runtime-expanded commands, so a literal `${…}` in a prompt, skill instructions or a hook command reaches its consumer unchanged.
+- The services types carry no schema, so a substituted value is always a string: a numeric or boolean field (a port, a flag) does not accept a placeholder.
+- A variable that is unset or empty and has no `:-` default fails the load with an error naming the file, the variable and the key path (for example `providers.anthropic.endpoints.api.url`).
+- A load for inspection resolves what this host sets and leaves an unresolved placeholder as its original text instead of failing. The resolved text still has to pass validation, so a value that must be a well-formed URL fails validation while its variable is unset.
+- Writers that save services YAML back to disk read the files as written, so a placeholder is preserved, never replaced by its value.
+
+```yaml
+providers:
+  anthropic:
+    credential: anthropic
+    endpoints:
+      api: { wire: anthropic, url: "${ANTHROPIC_BASE_URL:-https://api.anthropic.com/v1}" }
 ```
 
 ## Secrets envelope
@@ -490,6 +549,8 @@ Secret values are never stored in `profile.yaml`. They live in a separate JSON d
 | `database_url` | `database_url` | string | yes | Primary connection string. |
 | `manifest_signing_secret_seed` | `manifest_signing_secret_seed` | string | yes | Standard base64 of exactly 32 random bytes; the Ed25519 manifest signing seed. Never generated at boot: every replica must carry the same value. Mint it with `systemprompt admin identity generate --json`. |
 | `signing_key_pem` | `signing_key_pem` | string | yes on `cloud` and deployment hosts | Standard base64 of the full PKCS#8 PEM text (`-----BEGIN PRIVATE KEY-----` …) of the RSA JWT signing key. Local profiles may point `security.signing_key_path` at a file instead. Mint it with `systemprompt admin identity generate --json`. |
+| `signing_key_staged_pem` | `signing_key_staged_pem` | string | no | A staged RSA key in the same encoding, written by `admin keys stage`: accepted for verification and published in the JWKS, not yet used for signing. `admin keys promote` makes it the signer. |
+| `signing_key_previous_keys` | `signing_key_previous_keys` | string | no | Retired verification keys (public halves only, each with its own expiry), written by `admin keys promote` and `rotate`. A retired key verifies and is published until its expiry; `--revoke` empties the list. Managed by the CLI. |
 | `database_write_url` | `database_write_url` | string | no | Separate write endpoint. |
 | `database_session_url` | `database_session_url` | string | no | Direct (unpooled) primary connection for `LISTEN`, session advisory locks and migrations; set it when `database_url` goes through a transaction-mode pooler. See [guides/database-connections.md](../guides/database-connections.md). |
 | `external_database_url` | `external_database_url` | string | no | Used when `database.external_db_access` is `true`. |
@@ -500,7 +561,7 @@ Secret values are never stored in `profile.yaml`. They live in a separate JSON d
 | `github` | `github` | string | no | GitHub token. |
 | `moonshot` | `moonshot` | string | no | Moonshot/Kimi key. |
 | `qwen` | `qwen` | string | no | Qwen/DashScope key. |
-| `encryption_master_key` | `encryption_master_key` | string | yes | 32 random bytes as 64 hex characters (`openssl rand -hex 32`); `admin setup` and `admin identity generate` mint it. Encrypts the gateway's per-request accounting receipts (and extensions' stored grants), and seals the bearer token the MCP proxy caches per session in `mcp_proxy_identities`. Validated at secrets bootstrap: a missing or malformed key is refused before migrations run, whether or not the gateway is enabled. Preserve it across restarts and replicas. |
+| `encryption_master_key` | `encryption_master_key` | string | yes | 32 random bytes as 64 hex characters (`openssl rand -hex 32`); `admin setup` and `admin identity generate` mint it. Encrypts the gateway's per-request accounting receipts (and extensions' stored grants). Validated at secrets bootstrap: a missing or malformed key is refused before migrations run, whether or not the gateway is enabled. Preserve it across restarts and replicas. |
 | (custom) | any other key | string | no | Extra keys flatten into a `custom` map and are addressable by name. |
 
 `null` values are stripped before deserialization (`secrets.rs:62`).
@@ -515,6 +576,8 @@ When `secrets.source` is `env` (or a Fly.io container is detected via `FLY_APP_N
 | `database_url` | `DATABASE_URL` (required) |
 | `manifest_signing_secret_seed` | `MANIFEST_SIGNING_SECRET_SEED` (required) |
 | `signing_key_pem` | `SIGNING_KEY_PEM` (required on deployment hosts) |
+| `signing_key_staged_pem` | `SIGNING_KEY_STAGED_PEM` |
+| `signing_key_previous_keys` | `SIGNING_KEY_PREVIOUS_KEYS` |
 | `database_write_url` | `DATABASE_WRITE_URL` |
 | `database_session_url` | `DATABASE_SESSION_URL` |
 | `external_database_url` | `EXTERNAL_DATABASE_URL` |

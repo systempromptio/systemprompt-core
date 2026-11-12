@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.81.0] - 2026-11-12
+
+### Breaking
+
+- `OAuthRequirement` gains `service_only`, and `Permission::implies` is replaced by `grants`, which grants by tier. Migrate by setting `service_only: true` on service-only servers and calling `grants`.
+- `validate_outbound_url` and `validate_outbound_url_with_trust` take a `LoopbackPolicy`, and `OutboundUrlError` gains `Loopback`, `BlockedAddress`, `Unresolved` and `ProxyHost`. Migrate by passing the policy and adding the match arms.
+- `TokenError` gains `ClaimsExpiry`, and `bridge::manifest::MANIFEST_SCHEMA_HEADER` is replaced by `headers::BRIDGE_MANIFEST_SCHEMA`. Migrate by adding the match arm and importing the header from `systemprompt_identifiers`.
+
+### Added
+
+- `subprocess::SecretGrant` and `VERIFICATION_KEYS_ENV`: MCP servers and agents declare the secrets their child process receives.
+
 ## [0.79.0] - 2026-11-05
 
 ### Breaking

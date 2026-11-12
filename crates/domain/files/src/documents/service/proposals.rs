@@ -145,6 +145,7 @@ impl DocumentService {
                     parent: Some(base.id.clone()),
                     message: request.message.clone(),
                     author: &request.author,
+                    vouched: &[],
                 },
             )
             .await?;

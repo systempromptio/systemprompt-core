@@ -8,6 +8,7 @@ use systemprompt_manifest::Config;
 use systemprompt_models::auth::{JwtAudience, Permission, permissions_to_string};
 
 use super::ClientCredentialsError;
+use crate::resource::is_allowed_resource;
 
 pub fn scope_permissions(scopes: &[String]) -> Vec<Permission> {
     scopes
@@ -79,11 +80,7 @@ pub fn resolve_audience(
         return Ok(global_config.jwt_audiences.clone());
     };
 
-    if !global_config
-        .allowed_resource_audiences
-        .iter()
-        .any(|allowed| allowed == value)
-    {
+    if !is_allowed_resource(value, global_config) {
         return Err(ClientCredentialsError::InvalidAudience(format!(
             "'{value}' not in allowed audiences"
         )));

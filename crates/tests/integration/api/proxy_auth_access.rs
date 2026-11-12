@@ -116,16 +116,16 @@ async fn invalid_bearer_returns_invalid_token_challenge() -> anyhow::Result<()> 
 }
 
 #[tokio::test]
-async fn mcp_session_only_request_falls_back_to_cache_identity() -> anyhow::Result<()> {
+async fn mcp_session_only_request_is_challenged() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
     let mut headers = HeaderMap::new();
     headers.insert("mcp-session-id", HeaderValue::from_static("sess-123"));
     let result =
         validate_with_requirement(&headers, "svc-mcp", &requirement(true, &[], ""), &ctx, None);
-    assert!(
-        matches!(result, Ok(None)),
-        "session-only MCP request must pass through for cache enrichment"
-    );
+    let Err(err) = result else {
+        panic!("a session id is not a credential")
+    };
+    assert_eq!(err.status(), axum::http::StatusCode::UNAUTHORIZED);
     Ok(())
 }
 

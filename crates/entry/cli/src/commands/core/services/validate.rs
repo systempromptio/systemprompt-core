@@ -127,7 +127,10 @@ fn load_findings(root: &Path) -> Vec<Finding> {
             ),
         )];
     }
-    let services = match ConfigLoader::load_from_path(&root.join(CONFIG_RELPATH), None) {
+    let services = match ConfigLoader::new(root.join(CONFIG_RELPATH))
+        .inspecting()
+        .load()
+    {
         Ok(services) => services,
         Err(err) => return vec![Finding::fail("config", err.to_string())],
     };

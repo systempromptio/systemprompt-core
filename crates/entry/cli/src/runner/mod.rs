@@ -9,16 +9,18 @@
 
 pub mod args;
 mod bootstrap;
+pub mod confirmation;
 mod db_url;
+pub mod interrupt;
 pub mod profile_routing;
 pub mod routing;
 pub mod routing_decision;
 mod structured_output;
 
 use anyhow::{Context, Result, bail};
-use clap::Parser;
+use clap::{CommandFactory, FromArgMatches, Parser};
 use systemprompt_cloud::CloudCredentials;
-use systemprompt_loader::subprocess::{self, ApiServerStamp};
+use systemprompt_loader::subprocess::{self, ApiServerStamp, ForegroundChildren};
 use systemprompt_logging::OutputState;
 use systemprompt_runtime::DatabaseContext;
 
@@ -31,7 +33,27 @@ use crate::env_overrides::EnvOverrides;
 pub async fn run() -> Result<()> {
     install_tls_crypto_provider();
     let output = OutputState::new();
-    let outcome = Box::pin(run_inner(&output)).await;
+    let matches = args::Cli::command().get_matches();
+    let cli = args::Cli::from_arg_matches(&matches).map_err(|e| e.exit())?;
+    let confirm = confirmation::ConfirmationRequest::from_matches(
+        &matches,
+        &args::reconstruct_args(),
+        cli.profile_opts.profile.clone(),
+    );
+    let env = EnvOverrides::from_process_env();
+    let confirm = confirm.routed_by_gateway(env.is_remote_cli);
+    let shield = interrupt::InterruptShield::default();
+    let children = ForegroundChildren::default();
+    let guards = RunGuards {
+        shield: shield.clone(),
+        children: children.clone(),
+    };
+    let outcome = if cli.command.as_ref().is_some_and(args::Commands::serves_api) {
+        Box::pin(run_inner(&output, cli, confirm, guards, env)).await
+    } else {
+        let command = Box::pin(run_inner(&output, cli, confirm, guards, env));
+        interrupt::run_interruptible(shield, children, command).await
+    };
     structured_output::finalize(&output, &outcome);
     outcome
 }
@@ -51,46 +73,42 @@ fn install_tls_crypto_provider() {
     }
 }
 
-async fn run_inner(output: &OutputState) -> Result<()> {
-    let cli = args::Cli::parse();
+async fn run_inner(
+    output: &OutputState,
+    cli: args::Cli,
+    confirm: confirmation::ConfirmationRequest,
+    guards: RunGuards,
+    env: EnvOverrides,
+) -> Result<()> {
     stamp_api_server_identity(&cli)?;
 
-    output.set_startup_mode(cli.command.is_none());
-
-    let env = EnvOverrides::from_process_env();
-    let cli_config = args::build_cli_config(&cli, &env);
-    output.set_structured_output(cli_config.output_format() != OutputFormat::Table);
-
-    if cli.display.no_color || !cli_config.should_use_color() {
-        console::set_colors_enabled(false);
-    }
-
-    let database_url_override = cli.database.database_url.clone();
-    if let Some(database_url) = cli.database.database_url.clone() {
-        match cli.command.as_ref().map(args::Commands::db_url_routing) {
-            Some(db_url::DbUrlRouting::Direct) => {
-                systemprompt_logging::init_deferred_console_logging(output.clone());
-                return Box::pin(run_with_database_url(
-                    cli.command,
-                    cli_config,
-                    env,
-                    &database_url,
-                    None,
-                ))
-                .await;
-            },
-            Some(db_url::DbUrlRouting::Unsupported) => bail!(
-                "This command cannot run with --database-url; it requires full profile \
-                 initialization. Remove --database-url."
-            ),
-            Some(db_url::DbUrlRouting::ProfileDriven) | None => {},
-        }
-    }
+    let cli_config = configure_output(output, &cli, &env);
 
     let desc = cli
         .command
         .as_ref()
         .map_or(CommandDescriptor::FULL, DescribeCommand::descriptor);
+
+    let database_url_override = cli.database.database_url.clone();
+    if let Some(database_url) = direct_database_url(&cli)? {
+        let direct = confirmation::ConfirmationRequest {
+            target: Some("the --database-url database".to_owned()),
+            ..confirm.clone()
+        };
+        confirmation::gate(&desc, &direct, &cli_config)?;
+        systemprompt_logging::init_deferred_console_logging(output.clone());
+        return Box::pin(run_with_database_url(
+            cli.command,
+            cli_config,
+            env,
+            DirectDatabase {
+                url: &database_url,
+                credentials: None,
+            },
+            guards,
+        ))
+        .await;
+    }
 
     if desc.database() {
         systemprompt_logging::init_deferred_console_logging(output.clone());
@@ -104,7 +122,8 @@ async fn run_inner(output: &OutputState) -> Result<()> {
     let mut profile = None;
     let mut boot = None;
     if desc.profile() {
-        let booted = profile_routing::bootstrap_profile(&cli, &desc, &cli_config, &env).await?;
+        let booted =
+            profile_routing::bootstrap_profile(&cli, &desc, &cli_config, &env, &confirm).await?;
         let loaded = booted.credentials;
         services = booted.services;
         profile = booted.profile;
@@ -116,8 +135,11 @@ async fn run_inner(output: &OutputState) -> Result<()> {
                     cli.command,
                     cli_config,
                     env,
-                    &external_db_url,
-                    loaded,
+                    DirectDatabase {
+                        url: &external_db_url,
+                        credentials: loaded,
+                    },
+                    guards,
                 ))
                 .await;
             },
@@ -125,13 +147,43 @@ async fn run_inner(output: &OutputState) -> Result<()> {
         }
     }
 
+    if !desc.profile() {
+        confirmation::gate(&desc, &confirm, &cli_config)?;
+    }
+
     let ctx = CommandContext::new(cli_config, env)
+        .with_interrupt_shield(guards.shield)
+        .with_foreground_children(guards.children)
         .with_cloud_credentials(credentials)
         .with_database_url_override(database_url_override)
         .with_services(services)
         .with_profile(profile)
         .with_boot(boot);
     Box::pin(dispatch_command(cli.command, &ctx)).await
+}
+
+fn configure_output(output: &OutputState, cli: &args::Cli, env: &EnvOverrides) -> CliConfig {
+    output.set_startup_mode(cli.command.is_none());
+    let cli_config = args::build_cli_config(cli, env);
+    output.set_structured_output(cli_config.output_format() != OutputFormat::Table);
+    if cli.display.no_color || !cli_config.should_use_color() {
+        console::set_colors_enabled(false);
+    }
+    cli_config
+}
+
+fn direct_database_url(cli: &args::Cli) -> Result<Option<String>> {
+    let Some(database_url) = cli.database.database_url.clone() else {
+        return Ok(None);
+    };
+    match cli.command.as_ref().map(args::Commands::db_url_routing) {
+        Some(db_url::DbUrlRouting::Direct) => Ok(Some(database_url)),
+        Some(db_url::DbUrlRouting::Unsupported) => bail!(
+            "This command cannot run with --database-url; it requires full profile \
+             initialization. Remove --database-url."
+        ),
+        Some(db_url::DbUrlRouting::ProfileDriven) | None => Ok(None),
+    }
 }
 
 fn resolve_log_level(cli_config: &CliConfig, env: &EnvOverrides) -> Option<String> {
@@ -187,13 +239,27 @@ async fn dispatch_command(command: Option<args::Commands>, ctx: &CommandContext)
     Ok(())
 }
 
+struct RunGuards {
+    shield: interrupt::InterruptShield,
+    children: ForegroundChildren,
+}
+
+struct DirectDatabase<'a> {
+    url: &'a str,
+    credentials: Option<CloudCredentials>,
+}
+
 async fn run_with_database_url(
     command: Option<args::Commands>,
     cli_config: CliConfig,
     env: EnvOverrides,
-    database_url: &str,
-    credentials: Option<CloudCredentials>,
+    database: DirectDatabase<'_>,
+    guards: RunGuards,
 ) -> Result<()> {
+    let DirectDatabase {
+        url: database_url,
+        credentials,
+    } = database;
     let db_ctx = DatabaseContext::from_url(database_url)
         .await
         .context("Failed to connect to database")?;
@@ -201,7 +267,9 @@ async fn run_with_database_url(
     systemprompt_logging::init_logging(&db_ctx.db_pool_arc(), None);
 
     let ctx = CommandContext::with_database(cli_config, env, db_ctx, database_url.to_owned())
-        .with_cloud_credentials(credentials);
+        .with_cloud_credentials(credentials)
+        .with_interrupt_shield(guards.shield)
+        .with_foreground_children(guards.children);
     Box::pin(dispatch_command(command, &ctx)).await
 }
 

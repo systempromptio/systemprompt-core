@@ -198,6 +198,8 @@ mod secrets;
 
 #[cfg(test)]
 mod net;
+#[cfg(test)]
+mod net_policy;
 
 #[cfg(test)]
 #[cfg(test)]
@@ -242,6 +244,8 @@ mod mcp_capabilities;
 
 #[cfg(test)]
 mod auth_permission;
+#[cfg(test)]
+mod permission_grants_callers;
 
 #[cfg(test)]
 mod auth_types;
@@ -325,7 +329,10 @@ mod wire_usage_omission;
 mod wire_streaming;
 
 #[cfg(test)]
-mod wire_sse;
+mod wire_sse_codecs;
+
+#[cfg(test)]
+mod wire_sse_framer;
 
 #[cfg(test)]
 mod wire_stream_abort;
@@ -431,3 +438,6 @@ mod documents_drive;
 
 #[cfg(test)]
 mod builder_edges;
+
+#[cfg(test)]
+mod subprocess_grants;

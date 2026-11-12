@@ -13,8 +13,8 @@
 
 use std::collections::HashMap;
 use std::sync::Arc;
+use systemprompt_traits::SecretLookup;
 
-use systemprompt_manifest::secrets::Secrets;
 use systemprompt_manifest::services::ModelDefinition;
 use systemprompt_manifest::services::catalog::{ResolvedCatalog, ResolvedHop};
 use systemprompt_security::credential::TokenCache;
@@ -71,7 +71,7 @@ impl ImageProviderFactory {
 
     pub fn from_catalog(
         tokens: &Arc<TokenCache>,
-        secrets: &Secrets,
+        secrets: &dyn SecretLookup,
         catalog: &ResolvedCatalog,
     ) -> Result<Option<DefaultImageProvider>> {
         let Some(model) = catalog.default_image_model() else {
@@ -80,7 +80,7 @@ impl ImageProviderFactory {
         let hop = catalog
             .enabled_hops(model.as_str())
             .filter(|hop| Self::supports_image_generation(hop.wire))
-            .find(|hop| !hop.credential.is_personal())
+            .find(|hop| hop.credential.is_platform())
             .ok_or_else(|| {
                 AiError::Routing(RoutingError::NoProviderForModel {
                     model: model.clone(),

@@ -110,6 +110,7 @@ pub enum UnlistedJobs {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct SchedulerConfig {
     #[serde(default = "default_true")]
     pub enabled: bool,

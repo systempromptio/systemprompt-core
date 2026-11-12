@@ -20,9 +20,11 @@ use systemprompt_identifiers::MessageId;
 
 use crate::canonical::{CanonicalEvent, ContentBlockKind};
 use crate::error::WireStreamError;
+use crate::sse::{FrameLedger, SseFramer};
 
 pub(super) struct OpenAiChatStreamState {
-    pub(super) buf: Vec<u8>,
+    pub(super) framer: SseFramer,
+    pub(super) ledger: FrameLedger,
     pub(super) model: String,
     pub(super) message_id: Option<MessageId>,
     pub(super) started: bool,
@@ -37,7 +39,9 @@ pub(super) struct OpenAiChatStreamState {
 
 pub(super) struct ToolCallProgress {
     pub(super) index: u32,
-    pub(super) provider_index: i64,
+    pub(super) provider_index: Option<i64>,
+    pub(super) call_id: Option<String>,
+    pub(super) saw_arguments: bool,
 }
 
 pub(super) fn process_text_delta(
@@ -128,45 +132,67 @@ pub(super) fn process_tool_calls(
     let Some(tool_calls) = delta.get("tool_calls").and_then(Value::as_array) else {
         return;
     };
-    state.saw_tool_call = true;
-    close_reasoning(state, events);
     for tc in tool_calls {
-        let provider_index = tc.get("index").and_then(Value::as_i64).unwrap_or(-1);
-        let existing = state
-            .tool_calls
-            .iter()
-            .find(|p| p.provider_index == provider_index)
-            .map(|p| p.index);
-        let canonical_index =
-            existing.unwrap_or_else(|| open_new_tool_call(state, tc, provider_index, events));
+        let slot =
+            existing_tool_call(state, tc).unwrap_or_else(|| open_new_tool_call(state, tc, events));
         if let Some(args) = tc
             .get("function")
             .and_then(|f| f.get("arguments"))
             .and_then(Value::as_str)
             && !args.is_empty()
         {
+            state.tool_calls[slot].saw_arguments = true;
             events.push(Ok(CanonicalEvent::ToolUseDelta {
-                index: canonical_index,
+                index: state.tool_calls[slot].index,
                 partial_json: args.to_owned(),
             }));
         }
     }
 }
 
-pub(super) fn open_new_tool_call(
-    state: &mut OpenAiChatStreamState,
-    // JSON: OpenAI Chat Completions streaming delta; upstream JSON is the contract.
+// Why: some OpenAI-compatible upstreams omit `index` on tool-call deltas; a
+// fresh `id` then marks a new call and a delta with neither continues the
+// latest one.
+fn existing_tool_call(
+    state: &OpenAiChatStreamState,
+    // JSON: OpenAI Chat Completions streaming tool-call delta.
     tc: &Value,
-    provider_index: i64,
+) -> Option<usize> {
+    if let Some(provider_index) = tc.get("index").and_then(Value::as_i64) {
+        return state
+            .tool_calls
+            .iter()
+            .position(|p| p.provider_index == Some(provider_index));
+    }
+    call_id(tc).map_or_else(
+        || state.tool_calls.len().checked_sub(1),
+        |id| {
+            state
+                .tool_calls
+                .iter()
+                .position(|p| p.call_id.as_deref() == Some(id))
+        },
+    )
+}
+
+// JSON: OpenAI Chat Completions streaming tool-call delta.
+fn call_id(tc: &Value) -> Option<&str> {
+    tc.get("id")
+        .and_then(Value::as_str)
+        .filter(|id| !id.is_empty())
+}
+
+fn open_new_tool_call(
+    state: &mut OpenAiChatStreamState,
+    // JSON: OpenAI Chat Completions streaming tool-call delta.
+    tc: &Value,
     events: &mut Vec<Result<CanonicalEvent, WireStreamError>>,
-) -> u32 {
+) -> usize {
+    close_reasoning(state, events);
+    state.saw_tool_call = true;
     let idx = state.next_index;
     state.next_index += 1;
-    let id = tc
-        .get("id")
-        .and_then(Value::as_str)
-        .unwrap_or("")
-        .to_owned();
+    let id = call_id(tc).map(str::to_owned);
     let name = tc
         .get("function")
         .and_then(|f| f.get("name"))
@@ -176,14 +202,16 @@ pub(super) fn open_new_tool_call(
     events.push(Ok(CanonicalEvent::ContentBlockStart {
         index: idx,
         block: ContentBlockKind::ToolUse {
-            id,
+            id: id.clone().unwrap_or_default(),
             name,
             signature: None,
         },
     }));
     state.tool_calls.push(ToolCallProgress {
         index: idx,
-        provider_index,
+        provider_index: tc.get("index").and_then(Value::as_i64),
+        call_id: id,
+        saw_arguments: false,
     });
-    idx
+    state.tool_calls.len() - 1
 }

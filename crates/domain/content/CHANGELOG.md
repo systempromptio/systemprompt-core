@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.81.0] - 2026-11-12
+
+### Security
+
+- Card front matter is escaped.
+
 ## [0.73.0] - 2026-10-25
 
 ### Changed

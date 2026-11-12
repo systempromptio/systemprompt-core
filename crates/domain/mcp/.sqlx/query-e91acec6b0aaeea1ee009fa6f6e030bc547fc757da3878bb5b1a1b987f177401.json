@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO mcp_sessions (session_id, mcp_server_id, user_id, status)\n               VALUES ($1, $2, $3, 'active')\n               ON CONFLICT (session_id) DO UPDATE\n               SET mcp_server_id = COALESCE(mcp_sessions.mcp_server_id, EXCLUDED.mcp_server_id),\n                   user_id = COALESCE(mcp_sessions.user_id, EXCLUDED.user_id)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Varchar"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "e91acec6b0aaeea1ee009fa6f6e030bc547fc757da3878bb5b1a1b987f177401"
+}

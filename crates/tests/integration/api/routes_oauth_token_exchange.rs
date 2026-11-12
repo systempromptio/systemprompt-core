@@ -374,6 +374,7 @@ fn mint_id_jag_for(client_id: &str, aud: &str) -> String {
         scope: Some("user"),
         ttl_secs: 300,
         issuer: &issuer,
+        upstream_issuer: systemprompt_test_fixtures::FIXTURE_UPSTREAM_ISSUER,
     })
     .expect("mint id-jag")
 }
@@ -538,10 +539,11 @@ async fn seeded_client_with_owner() -> anyhow::Result<(OAuthClientFixture, UserI
 fn mint_id_jag_bound_to(client_id: &str, aud: &str, sub: &str, resource: Option<&str>) -> String {
     let issuer = test_config().jwt_issuer.clone();
     let client_id = ClientId::new(client_id);
+    let email = format!("{sub}@tx.invalid");
     mint_id_jag(&IdJagGrant {
         keys: &systemprompt_test_fixtures::test_signing_keys(),
         sub,
-        email: Some("employee@tx.invalid"),
+        email: Some(&email),
         email_verified: true,
         aud,
         client_id: &client_id,
@@ -549,6 +551,7 @@ fn mint_id_jag_bound_to(client_id: &str, aud: &str, sub: &str, resource: Option<
         scope: Some("user"),
         ttl_secs: 300,
         issuer: &issuer,
+        upstream_issuer: systemprompt_test_fixtures::FIXTURE_UPSTREAM_ISSUER,
     })
     .expect("mint id-jag")
 }

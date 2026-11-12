@@ -18,7 +18,7 @@ use systemprompt_models::auth::{Permission, TokenInteraction, UserType};
 
 use super::validate::{ValidationPolicy, decode_session_claims};
 use crate::error::{AuthError, AuthResult};
-use crate::keys::SigningKeys;
+use crate::keys::VerificationKeyring;
 
 #[derive(Debug, Clone)]
 pub struct JwtUserContext {
@@ -38,7 +38,7 @@ pub struct JwtUserContext {
 }
 
 pub fn extract_user_context(
-    keys: &SigningKeys,
+    keys: &VerificationKeyring,
     token: &str,
     issuer: &str,
 ) -> AuthResult<JwtUserContext> {
@@ -46,7 +46,7 @@ pub fn extract_user_context(
 }
 
 pub fn extract_user_context_for(
-    keys: &SigningKeys,
+    keys: &VerificationKeyring,
     token: &str,
     policy: &ValidationPolicy<'_>,
 ) -> AuthResult<JwtUserContext> {

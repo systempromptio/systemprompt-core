@@ -171,6 +171,7 @@ pub async fn profile(
         &bridge_profile::CredentialFacts {
             secret_present: &secret_present,
             personal_keys: &personal_keys,
+            presents_own_credential: false,
         },
     );
 

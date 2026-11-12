@@ -10,7 +10,11 @@ mod bridge_profile;
 #[cfg(test)]
 mod catalog_validation;
 #[cfg(test)]
+mod child_env_vars;
+#[cfg(test)]
 mod credentials;
+#[cfg(test)]
+mod credentials_billing;
 #[cfg(test)]
 mod default_catalog;
 #[cfg(test)]
@@ -22,6 +26,8 @@ mod legacy_refusal;
 #[cfg(test)]
 mod marketplace_rings;
 #[cfg(test)]
+mod profile_interpolation;
+#[cfg(test)]
 mod provider_settings;
 #[cfg(test)]
 mod resolved_catalog;
@@ -30,4 +36,10 @@ mod resolved_routes;
 #[cfg(test)]
 mod route_predicates;
 #[cfg(test)]
+mod services_interpolation;
+#[cfg(test)]
+mod strict_config;
+#[cfg(test)]
 mod vertex_rate_card;
+#[cfg(test)]
+mod yaml_interpolation;

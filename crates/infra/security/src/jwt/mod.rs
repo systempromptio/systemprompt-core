@@ -21,13 +21,29 @@
 
 pub mod authority;
 pub mod decode;
+pub mod hop;
+pub mod lifetime;
 pub mod mint;
+pub mod owner_hop;
 pub mod validate;
+pub mod verifying;
 
 pub use authority::{DeploymentTokenAuthority, encode_rs256, user_claims};
 pub use decode::{JwtUserContext, extract_user_context, extract_user_context_for};
+pub use hop::{
+    MCP_HOP_LEEWAY_SECONDS, decode_mcp_hop, encode_mcp_hop, mcp_hop_claims, mint_mcp_hop,
+};
+pub use lifetime::{
+    MAX_TOKEN_LIFETIME, RotationOverlapError, SignedTokenKind, SignedTokenLifetime, cut_off_by,
+    required_overlap, rotation_overlap, signed_token_lifetimes, within_max_lifetime,
+};
 pub use mint::{AdminTokenParams, JwtService};
+pub use owner_hop::{
+    OWNER_HOP_TOKEN_TYPE, OWNER_HOP_TTL, OwnerHopClaims, mint_owner_hop, owner_hop_audience,
+    verify_owner_hop,
+};
 pub use validate::{
     JWT_LEEWAY_SECONDS, ValidationPolicy, decode_rs256_claims, decode_session_claims,
     reject_critical_header,
 };
+pub use verifying::{SigningUnavailable, VerifyingTokenAuthority};

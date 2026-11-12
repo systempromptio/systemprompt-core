@@ -154,11 +154,17 @@ impl WebAuthnService {
             .webauthn
             .finish_passkey_registration(credential, &state.reg_state)?;
 
-        self.store_credential(&user_id, &passkey, "Linked Passkey")
-            .await?;
+        if !self
+            .oauth_repo
+            .consume_setup_token(&token_record.id, &token_hash)
+            .await?
+        {
+            return Err(OauthError::SetupTokenRejected(
+                "Setup token has already been used",
+            ));
+        }
 
-        self.oauth_repo
-            .consume_setup_token(&token_record.id)
+        self.store_credential(&user_id, &passkey, "Linked Passkey")
             .await?;
 
         tracing::info!(

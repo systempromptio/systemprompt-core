@@ -13,7 +13,8 @@
 //!   configured via `services.yaml`.
 //! - [`services::tool_provider::McpToolProvider`] — tool-discovery + execution
 //!   facade.
-//! - [`middleware::rbac`] — JWT/proxy-verified RBAC layer.
+//! - [`middleware::hop`] — verification of the proxy's signed hop token.
+//! - [`middleware::rbac`] — RBAC over the verified hop identity.
 //! - [`repository`] — Postgres persistence for sessions, artifacts, tool usage.
 //!
 //! # Feature matrix
@@ -130,7 +131,6 @@ pub(crate) mod state;
 
 use std::sync::Arc;
 use std::time::Duration;
-use systemprompt_identifiers::McpServerId;
 
 use crate::middleware::DatabaseSessionHandler;
 use crate::repository::McpSessionRepository;
@@ -149,10 +149,6 @@ pub struct McpHttpConfig {
     pub allowed_hosts: Option<Vec<String>>,
     pub allowed_origins: Vec<String>,
     pub session: SessionTimeouts,
-    // Why: the server stamps its own id on every `mcp_sessions` row it opens,
-    // so the console can attribute a session to a server without waiting for
-    // the proxy to learn who is behind it.
-    pub server_id: Option<McpServerId>,
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -174,24 +170,31 @@ impl Default for McpHttpConfig {
             ]),
             allowed_origins: Vec::new(),
             session: SessionTimeouts::default(),
-            server_id: None,
         }
     }
 }
 
 pub use state::McpState;
 
+pub async fn bind_loopback(port: u16) -> std::io::Result<tokio::net::TcpListener> {
+    tokio::net::TcpListener::bind(std::net::SocketAddr::from((
+        std::net::Ipv4Addr::LOCALHOST,
+        port,
+    )))
+    .await
+}
+
 async fn mcp_request_logger(req: Request, next: Next) -> Response {
     let method = req.method().clone();
     let uri = req.uri().clone();
     let session_id = req
         .headers()
-        .get("mcp-session-id")
+        .get(systemprompt_identifiers::headers::MCP_SESSION_ID)
         .and_then(|v| v.to_str().ok())
         .map(String::from);
     let mcp_method = req
         .headers()
-        .get("mcp-method")
+        .get(systemprompt_identifiers::headers::MCP_METHOD)
         .and_then(|v| v.to_str().ok())
         .map(String::from);
     let mcp_name = req
@@ -200,11 +203,7 @@ async fn mcp_request_logger(req: Request, next: Next) -> Response {
         .and_then(|v| v.to_str().ok())
         .map(String::from);
     let has_auth = req.headers().get("authorization").is_some();
-    let proxy_verified = req
-        .headers()
-        .get(systemprompt_identifiers::headers::PROXY_VERIFIED)
-        .and_then(|v| v.to_str().ok())
-        .is_some_and(|v| v == "true");
+    let has_hop = req.extensions().get::<middleware::VerifiedHop>().is_some();
     let accept = req
         .headers()
         .get("accept")
@@ -218,7 +217,7 @@ async fn mcp_request_logger(req: Request, next: Next) -> Response {
         mcp_method = ?mcp_method,
         mcp_name = ?mcp_name,
         has_auth,
-        proxy_verified,
+        has_hop,
         accept = ?accept,
         "MCP request received"
     );
@@ -243,6 +242,7 @@ pub fn create_router<S>(
     server: S,
     session_repository: Arc<McpSessionRepository>,
     http: McpHttpConfig,
+    hop: middleware::HopVerifier,
 ) -> axum::Router
 where
     S: ServerHandler + Clone + Send + Sync + 'static,
@@ -251,8 +251,8 @@ where
         allowed_hosts,
         allowed_origins,
         session,
-        server_id,
     } = http;
+    let server_id = hop.server_id().clone();
 
     let host_policy = StreamableHttpServerConfig::default().with_allowed_origins(allowed_origins);
     let host_policy = match allowed_hosts {
@@ -270,7 +270,7 @@ where
     config.session_store = Some(session_store);
 
     let session_handler =
-        DatabaseSessionHandler::with_timeouts(session_repository, session, server_id);
+        DatabaseSessionHandler::with_timeouts(session_repository, session, Some(server_id));
 
     let service =
         StreamableHttpService::new(move || Ok(server.clone()), session_handler.into(), config);
@@ -278,6 +278,10 @@ where
     axum::Router::new()
         .nest_service("/mcp", service)
         .layer(axum::middleware::from_fn(mcp_request_logger))
+        .layer(axum::middleware::from_fn_with_state(
+            hop,
+            middleware::verify_hop,
+        ))
         .layer(axum::middleware::map_response(
             |mut response: http::Response<_>| async move {
                 response

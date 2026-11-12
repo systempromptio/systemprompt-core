@@ -22,6 +22,8 @@ use systemprompt_models::{McpTool, RequestContext, ToolCall};
 
 pub type CallToolResult = rmcp::model::CallToolResult;
 
+pub const MAX_PLANNED_TOOL_CALLS: usize = 20;
+
 /// `#[async_trait]` is required: `execute_tools` takes the
 /// executor as `&dyn ToolExecutorTrait`, so the trait must be `dyn`-compatible.
 #[async_trait]
@@ -53,8 +55,14 @@ pub async fn execute_tools(
     ctx: &RequestContext,
     tool_executor: &dyn ToolExecutorTrait,
 ) -> Result<ExecutionState> {
-    let mut state = ExecutionState::new();
     let total = calls.len();
+    if total > MAX_PLANNED_TOOL_CALLS {
+        return Err(AgentServiceError::PlanTooLarge {
+            planned: total,
+            max: MAX_PLANNED_TOOL_CALLS,
+        });
+    }
+    let mut state = ExecutionState::new();
 
     tracing::info!(tool_count = total, "Starting execution of tool calls");
 

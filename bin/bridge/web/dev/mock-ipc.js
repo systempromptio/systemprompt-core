@@ -40,6 +40,7 @@ let state = null;
 let latencyMs = 0;
 let failing = new Set();
 let scheduleState = "not_installed";
+let unpinnedKey = null;
 
 async function loadFixture() {
   const res = await fetch(`/dev/state?fixture=${encodeURIComponent(fixtureName)}`);
@@ -55,6 +56,10 @@ async function loadFixture() {
   // entirely in what the pane does with the third state.
   scheduleState = state.__schedule || "not_installed";
   inbox = structuredClone(state.__inbox || EMPTY_INBOX);
+  // An unpinned gateway: sync fails the way `SyncError::PubkeyNotPinned` does
+  // and the window is asked to confirm the key's fingerprint.
+  unpinnedKey = state.__unpinned_fingerprint || null;
+  delete state.__unpinned_fingerprint;
   delete state.__inbox;
   delete state.__latencyMs;
   delete state.__fail;
@@ -355,7 +360,24 @@ const COMMANDS = {
   },
   "settings.get": () => settingsPayload(),
   "validate": () => ({ ok: true }),
+  "gateway.trust.inspect": () => {
+    if (!unpinnedKey) { throw { scope: "gateway", code: "conflict", message: "this gateway already has a pinned signing key" }; }
+    return { gateway: state.gateway_url, fingerprint: unpinnedKey };
+  },
+  "gateway.trust.confirm": ({ gateway, fingerprint }) => {
+    if (gateway !== state.gateway_url || fingerprint !== unpinnedKey) {
+      throw { scope: "gateway", code: "conflict", message: "the gateway now serves a different key than the one you confirmed" };
+    }
+    unpinnedKey = null;
+    return { gateway, fingerprint };
+  },
   "sync": () => {
+    if (unpinnedKey) {
+      const line = "Couldn't finish syncing. Your agents keep working with their current settings. Try again in a moment.";
+      emit("sync.progress", { phase: "failed", summary: line, failed: true, terminal: true, plugins: null });
+      emit("gateway.trust.required", {});
+      throw { scope: "marketplace", code: "internal", message: line };
+    }
     state.sync_in_flight = true;
     emit("state.changed", state);
     setTimeout(() => {
@@ -555,6 +577,8 @@ const FAIL_SCOPE = {
   "gateway.probe": "gateway",
   "gateway.list": "gateway",
   "gateway.add": "gateway",
+  "gateway.trust.inspect": "gateway",
+  "gateway.trust.confirm": "gateway",
   "gateway.use": "gateway",
   "gateway.remove": "gateway",
   "instance.disable": "gateway",

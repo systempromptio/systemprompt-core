@@ -18,17 +18,13 @@ use crate::harness::{
     bootstrap_with_services, config_with_servers, install_stub_binary, internal_server_block,
     register_internal_extension,
 };
-use systemprompt_test_fixtures::unique_instance;
+use systemprompt_test_fixtures::{unique_instance, unique_name};
 
 // Internal MCP servers are validated against the 5000-5999 range, so an
 // ephemeral port would be rejected by config validation before any spawn.
 fn free_port() -> u16 {
     systemprompt_test_fixtures::free_port_in_range(5000..6000)
         .expect("no free port in the internal MCP range 5000-5999")
-}
-
-fn unique(prefix: &str) -> String {
-    format!("{prefix}_{}", uuid::Uuid::new_v4().simple())
 }
 
 fn profile_paths(bootstrap: &TestBootstrap) -> PathsConfig {
@@ -59,7 +55,7 @@ impl LiveServer {
 }
 
 async fn live_server(prefix: &str) -> LiveServer {
-    let name = unique(prefix);
+    let name = unique_name(prefix);
     let db = test_db_pool().await;
     let bootstrap = bootstrap_with_services(&config_with_servers(&[internal_server_block(
         &name,

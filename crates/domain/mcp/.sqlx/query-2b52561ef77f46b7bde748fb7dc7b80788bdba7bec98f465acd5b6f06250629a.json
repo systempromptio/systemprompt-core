@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT initialize_params\n            FROM mcp_sessions\n            WHERE session_id = $1\n              AND mcp_server_id = $2\n              AND user_id IS NOT DISTINCT FROM $3\n              AND expires_at > NOW()\n              AND initialize_params IS NOT NULL\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "initialize_params",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "mcp_sessions",
+            "name": "initialize_params"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "2b52561ef77f46b7bde748fb7dc7b80788bdba7bec98f465acd5b6f06250629a"
+}

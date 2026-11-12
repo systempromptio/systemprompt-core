@@ -10,6 +10,7 @@
 use anyhow::{Context, Result};
 use std::path::Path;
 use std::process::Command;
+use systemprompt_loader::subprocess::ForegroundChildren;
 use systemprompt_logging::CliService;
 
 use super::templates::{
@@ -21,7 +22,11 @@ use super::templates::{
 
 const ADMIN_MCP_REPO: &str = "https://github.com/systempromptio/systemprompt-mcp-admin.git";
 
-pub fn generate_services_boilerplate(project_root: &Path, project_name: &str) -> Result<()> {
+pub fn generate_services_boilerplate(
+    project_root: &Path,
+    project_name: &str,
+    children: &ForegroundChildren,
+) -> Result<()> {
     CliService::section("Creating Services Boilerplate");
 
     let services_dir = project_root.join("services");
@@ -34,7 +39,7 @@ pub fn generate_services_boilerplate(project_root: &Path, project_name: &str) ->
 
     write_file(&services_dir.join("skills/.gitkeep"), "")?;
 
-    clone_admin_mcp_server(&services_dir)?;
+    clone_admin_mcp_server(&services_dir, children)?;
 
     CliService::success("Services boilerplate created");
     Ok(())
@@ -139,7 +144,7 @@ fn write_content_files(services_dir: &Path, project_name: &str) -> Result<()> {
     Ok(())
 }
 
-fn clone_admin_mcp_server(services_dir: &Path) -> Result<()> {
+fn clone_admin_mcp_server(services_dir: &Path, children: &ForegroundChildren) -> Result<()> {
     let mcp_dir = services_dir.join("mcp/systemprompt-admin");
 
     if mcp_dir.exists() {
@@ -149,10 +154,11 @@ fn clone_admin_mcp_server(services_dir: &Path) -> Result<()> {
 
     let spinner = CliService::spinner("Cloning systemprompt-admin MCP server...");
 
-    let output = Command::new("git")
-        .args(["clone", "--depth", "1", ADMIN_MCP_REPO])
-        .arg(&mcp_dir)
-        .output()
+    let mut cmd = Command::new("git");
+    cmd.args(["clone", "--depth", "1", ADMIN_MCP_REPO])
+        .arg(&mcp_dir);
+    let output = children
+        .output(cmd)
         .context("Failed to execute git clone")?;
 
     spinner.finish_and_clear();

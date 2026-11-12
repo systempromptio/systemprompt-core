@@ -157,6 +157,7 @@ pub const BRAIN_SCHEMAS: &[SchemaEntry] = &[
 pub const BRAIN_VIEWS: &[&str] = &[
     include_str!("../schema/v_brain_kind_health.sql"),
     include_str!("../schema/v_brain_workflow_recall.sql"),
+    include_str!("../schema/v_brain_working_set.sql"),
 ];
 
 pub const BRAIN_USAGE_COLUMNS: &[&str] =

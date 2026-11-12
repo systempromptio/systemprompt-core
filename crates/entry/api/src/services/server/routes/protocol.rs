@@ -8,6 +8,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::Router;
+use axum::extract::DefaultBodyLimit;
 use std::sync::Arc;
 use systemprompt_extension::LoaderError;
 
@@ -90,6 +91,9 @@ pub(super) fn mount_agent(
     router = router.nest(
         ApiPaths::AGENTS_BASE,
         crate::routes::proxy::agents::router(ctx)
+            .layer(DefaultBodyLimit::max(
+                systemprompt_models::net::AGENT_REQUEST_BODY_LIMIT_BYTES,
+            ))
             .with_rate_limit(limits, rate_config.agents_per_second, "agents")?
             .with_auth(a2a_middleware, AuthzPolicy::authenticated()),
     );
@@ -97,6 +101,7 @@ pub(super) fn mount_agent(
     Ok(router)
 }
 
+#[cfg(any(feature = "slack", feature = "teams"))]
 pub(super) fn mount_messaging(
     mut router: Router,
     mount: &MountCtx<'_>,
@@ -105,20 +110,27 @@ pub(super) fn mount_messaging(
     let rate_config = &ctx.config().rate_limits;
 
     let messaging = crate::routes::messaging::MessagingState::guarded()
-        .map_err(|source| RouteMountError::initialization("slack_reply_client", source))?;
-    router = router.nest(
-        ApiPaths::SLACK_BASE,
-        crate::routes::slack::slack_router(messaging)
-            .with_state(ctx.clone())
-            .with_rate_limit(limits, rate_config.agents_per_second, "agents")?,
-    );
+        .map_err(|source| RouteMountError::initialization("messaging_reply_client", source))?;
 
-    router = router.nest(
-        ApiPaths::TEAMS_BASE,
-        crate::routes::teams::teams_router(ctx)
-            .map_err(|source| RouteMountError::initialization("teams", source))?
-            .with_rate_limit(limits, rate_config.agents_per_second, "agents")?,
-    );
+    #[cfg(feature = "teams")]
+    {
+        router = router.nest(
+            ApiPaths::TEAMS_BASE,
+            crate::routes::teams::teams_router(ctx, &messaging)
+                .map_err(|source| RouteMountError::initialization("teams", source))?
+                .with_rate_limit(limits, rate_config.agents_per_second, "agents")?,
+        );
+    }
+
+    #[cfg(feature = "slack")]
+    {
+        router = router.nest(
+            ApiPaths::SLACK_BASE,
+            crate::routes::slack::slack_router(messaging)
+                .with_state(ctx.clone())
+                .with_rate_limit(limits, rate_config.agents_per_second, "agents")?,
+        );
+    }
 
     Ok(router)
 }

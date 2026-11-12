@@ -4,11 +4,11 @@ use axum::http::{self, Request, StatusCode, header};
 use axum::middleware::{self, Next};
 use systemprompt_api::routes::oauth::authenticated_router;
 use systemprompt_identifiers::{
-    Actor, AgentName, ContextId, RefreshTokenId, SessionId, TraceId, UserId,
+    Actor, AgentName, ContextId, RefreshTokenFamilyId, RefreshTokenId, SessionId, TraceId, UserId,
 };
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_oauth::OAuthState;
-use systemprompt_oauth::repository::{OAuthRepository, RefreshTokenParams};
+use systemprompt_oauth::repository::{OAuthRepository, RefreshTokenLineage, RefreshTokenParams};
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{OAuthClientFixture, seed_oauth_client};
 use systemprompt_traits::AppContext as _;
@@ -50,7 +50,11 @@ async fn fixture() -> anyhow::Result<Fixture> {
             user_id: &owner,
             scope: "user",
             expires_at: chrono::Utc::now().timestamp() + 3600,
-            family_id: None,
+            resource: None,
+            lineage: RefreshTokenLineage::Family(&RefreshTokenFamilyId::new(format!(
+                "fam-{}",
+                Uuid::new_v4().simple()
+            ))),
         })
         .await?;
     Ok(Fixture {

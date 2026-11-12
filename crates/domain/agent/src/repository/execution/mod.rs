@@ -10,6 +10,7 @@
 mod mutations;
 mod parse;
 
+use crate::repository::TaskHandle;
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
@@ -58,6 +59,13 @@ impl ExecutionStepRepository {
     }
 
     pub async fn list_by_task(
+        &self,
+        task: &impl TaskHandle,
+    ) -> Result<Vec<ExecutionStep>, RepositoryError> {
+        self.list_by_task_id(task.task_id()).await
+    }
+
+    pub(crate) async fn list_by_task_id(
         &self,
         task_id: &TaskId,
     ) -> Result<Vec<ExecutionStep>, RepositoryError> {

@@ -21,6 +21,7 @@ use crate::services::a2a_server::active_tasks::ActiveTasks;
 use self::lifecycle::{FinalizeParams, PersistAndAnnounceParams};
 use self::stream_collection::collect_stream_response;
 use crate::models::a2a::{Artifact, Message, Task, TaskState};
+use crate::repository::RuntimeTask;
 use crate::services::a2a_server::processing::message::stream_service::StreamService;
 use crate::services::a2a_server::processing::message::{
     MessageHandler, ProcessMessageStreamParams,
@@ -28,7 +29,7 @@ use crate::services::a2a_server::processing::message::{
 use crate::services::a2a_server::processing::task_builder::build_completed_task;
 use crate::services::a2a_server::streaming::webhook_client::WebhookContext;
 use crate::services::shared::{AgentServiceError, Result};
-use systemprompt_identifiers::{AgentName, ContextId, TaskId};
+use systemprompt_identifiers::{AgentName, ContextId};
 use systemprompt_models::RequestContext;
 
 impl MessageHandler {
@@ -71,17 +72,19 @@ impl MessageHandler {
         let guard = active_tasks.register(task_id.clone());
         let task = new_submitted_task(&task_id, context_id, agent_name);
 
-        self.persist_and_announce(PersistAndAnnounceParams {
-            task: &task,
-            message: &message,
-            agent_name,
-            context,
-            webhooks: &webhooks,
-        })
-        .await?;
+        let runtime = self
+            .persist_and_announce(PersistAndAnnounceParams {
+                task: &task,
+                message: &message,
+                agent_name,
+                context,
+                webhooks: &webhooks,
+            })
+            .await?;
 
         let (response_text, tool_artifacts) = self
             .run_to_completion(
+                &runtime,
                 ProcessMessageStreamParams {
                     a2a_message: &message,
                     agent_runtime,
@@ -104,6 +107,7 @@ impl MessageHandler {
 
         let agent_message = resolve_agent_message(&task, &message, &response_text);
         self.finalize(FinalizeParams {
+            runtime: &runtime,
             task: &task,
             message: &message,
             agent_message: &agent_message,
@@ -118,14 +122,14 @@ impl MessageHandler {
 
     async fn run_to_completion(
         &self,
+        runtime: &RuntimeTask,
         params: ProcessMessageStreamParams<'_>,
         webhooks: &WebhookContext,
     ) -> Result<(String, Vec<Artifact>)> {
-        let task_id = params.task_id.clone();
         let stream = self.stream_service().process_message_stream(params).await?;
         match collect_stream_response(stream, webhooks).await {
             Err(AgentServiceError::TaskCancelled) => {
-                self.mark_cancelled(&task_id).await?;
+                self.mark_cancelled(runtime).await?;
                 Err(AgentServiceError::TaskCancelled)
             },
             collected => collected,
@@ -168,13 +172,16 @@ impl MessageHandler {
         }
     }
 
-    async fn mark_cancelled(&self, task_id: &TaskId) -> Result<()> {
+    async fn mark_cancelled(&self, runtime: &RuntimeTask) -> Result<()> {
         self.repositories
             .tasks
-            .update_task_state(task_id, TaskState::Canceled, &chrono::Utc::now())
+            .update_task_state(runtime, TaskState::Canceled, &chrono::Utc::now())
             .await
             .map_err(|e| {
-                AgentServiceError::operation(format!("Failed to mark task {task_id} cancelled"), e)
+                AgentServiceError::operation(
+                    format!("Failed to mark task {} cancelled", runtime.task_id()),
+                    e,
+                )
             })
     }
 }

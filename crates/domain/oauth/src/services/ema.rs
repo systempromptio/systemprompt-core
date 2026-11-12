@@ -12,7 +12,7 @@ use std::str::FromStr;
 
 use systemprompt_identifiers::UserId;
 use systemprompt_models::auth::Permission;
-use systemprompt_traits::FederatedIdentityClaims;
+use systemprompt_traits::{AuthProviderError, FederatedIdentityClaims, LinkPolicy};
 
 use crate::error::{OauthError, OauthResult};
 use crate::state::OAuthState;
@@ -22,12 +22,14 @@ use crate::state::OAuthState;
 /// `email_verified` is carried verbatim from the issuer's claim and defaults
 /// to `false`; an email is never treated as verified by its presence, because
 /// verified-email linking binds the principal to an existing local account.
+/// `link` is the asserting issuer's policy for exactly that.
 #[derive(Debug, Clone)]
 pub struct EnterprisePrincipal {
     pub issuer: String,
     pub sub: String,
     pub email: Option<String>,
     pub email_verified: bool,
+    pub link: LinkPolicy,
 }
 
 impl EnterprisePrincipal {
@@ -56,14 +58,14 @@ pub async fn link_enterprise_principal(
 ) -> OauthResult<LinkedSubject> {
     let claims = principal.verified_claims();
 
-    let user_id = state
+    let user_id = match state
         .user_provider()
-        .find_or_create_federated(&principal.issuer, &principal.sub, &claims)
+        .resolve_federated(&principal.issuer, &principal.sub, &claims, &principal.link)
         .await
-        .map_err(|source| OauthError::UserProvider {
-            context: "linking the ID-JAG subject to an account",
-            source,
-        })?;
+    {
+        Ok(resolution) => resolution.user_id,
+        Err(err) => return Err(refused_or_failed(err)),
+    };
 
     let user = state
         .user_provider()
@@ -74,12 +76,6 @@ pub async fn link_enterprise_principal(
             source,
         })?
         .ok_or(OauthError::Internal("linked ID-JAG subject vanished"))?;
-
-    if !user.is_active {
-        return Err(OauthError::InvalidGrant(
-            "the enterprise identity is linked to an inactive account".to_owned(),
-        ));
-    }
 
     let permissions = user
         .roles
@@ -93,4 +89,18 @@ pub async fn link_enterprise_principal(
         email: user.email,
         permissions,
     })
+}
+
+fn refused_or_failed(err: AuthProviderError) -> OauthError {
+    err.federated_refusal().map_or_else(
+        || OauthError::UserProvider {
+            context: "linking the ID-JAG subject to an account",
+            source: err,
+        },
+        |refusal| {
+            OauthError::InvalidGrant(format!(
+                "the enterprise identity cannot be linked: {refusal}"
+            ))
+        },
+    )
 }

@@ -207,12 +207,20 @@ impl OidcConfig {
         if self.issuer().trim().is_empty() {
             return Err(OidcConfigError::Missing("issuer"));
         }
-        validate_outbound_url(self.issuer()).map_err(|source| OidcConfigError::Url {
+        validate_outbound_url(
+            self.issuer(),
+            systemprompt_models::net::LoopbackPolicy::Allow,
+        )
+        .map_err(|source| OidcConfigError::Url {
             field: "issuer",
             source,
         })?;
         if let Some(discovery_url) = &self.discovery_url {
-            validate_outbound_url(discovery_url).map_err(|source| OidcConfigError::Url {
+            validate_outbound_url(
+                discovery_url,
+                systemprompt_models::net::LoopbackPolicy::Allow,
+            )
+            .map_err(|source| OidcConfigError::Url {
                 field: "discovery_url",
                 source,
             })?;

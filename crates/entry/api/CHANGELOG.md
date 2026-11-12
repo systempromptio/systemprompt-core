@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.81.0] - 2026-11-12
+
+### Breaking
+
+- Slack, Teams, agent runs, OTLP, the bridge routes and PDF export are linked only under the features `slack`, `teams`, `agent-runs`, `otel`, `bridge` and `pdf`. Migrate by enabling `full` or the named features.
+- `McpProxyIdentityRepository` is replaced by `McpProxySessionRepository`, and `ProxyError` gains session and hop-token variants. Migrate by constructing `ProxyService` with `McpProxySessionRepository`.
+- `MessagingState` gains `payload_url_client`, `ContextExtractor::extract_from_request` takes a second argument, and several route handler functions change arity. Migrate by passing the new arguments.
+- The rate limiter no longer sends `x-ratelimit-*` headers and charges a pre-authentication per-IP budget. Migrate by reading `retry-after`.
+
+### Added
+
+- `POST /api/v1/internal/links` signs document links for MCP servers hosting the `documents` or `issues` toolset.
+
+### Fixed
+
+- A panic in a request handler answers a fixed 500 in builds that unwind.
+
 ## [0.79.0] - 2026-11-05
 
 ### Added

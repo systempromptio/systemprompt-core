@@ -56,6 +56,20 @@ pub fn fixture_fingerprint_repository(db: &DbPool) -> Result<FingerprintReposito
     ))
 }
 
+pub const FIXTURE_UPSTREAM_ISSUER: &str = "https://upstream.fixture.invalid";
+
+pub fn fixture_upstream_issuer() -> systemprompt_manifest::profile::TrustedIssuer {
+    systemprompt_manifest::profile::TrustedIssuer {
+        issuer: FIXTURE_UPSTREAM_ISSUER.to_owned(),
+        jwks_uri: "http://127.0.0.1:1/jwks".to_owned(),
+        audience: "fixture-upstream".to_owned(),
+        typ_allowlist: Vec::new(),
+        allowed_client_ids: Vec::new(),
+        can_issue_id_jag: true,
+        link: systemprompt_traits::LinkPolicy::default(),
+    }
+}
+
 pub fn fixture_config(database_url: &str) -> Config {
     Config {
         instance_id: crate::unique_instance(),
@@ -92,7 +106,7 @@ pub fn fixture_config(database_url: &str) -> Config {
         jwt_refresh_token_expiration: 86_400,
         jwt_audiences: systemprompt_models::auth::JwtAudience::standard(),
         allowed_resource_audiences: vec![],
-        trusted_issuers: vec![],
+        trusted_issuers: vec![fixture_upstream_issuer()],
         id_jag_ttl_secs: systemprompt_manifest::profile::DEFAULT_ID_JAG_TTL_SECS,
         signing_key_path: std::path::PathBuf::from("signing_key.pem"),
         use_https: false,
@@ -234,6 +248,35 @@ pub fn fixture_app_context_documents_configured(
             extension_registry: Arc::new(ExtensionRegistry::new()),
             services: None,
             documents,
+        },
+    )
+}
+
+// Build a fixture context over the given services config, with the document
+// store enabled or left disabled.
+pub fn fixture_app_context_with_services(
+    pool: &DbPool,
+    config: Config,
+    services: systemprompt_loader::ServicesState,
+    documents_enabled: bool,
+) -> Result<Arc<AppContext>> {
+    let hook = Arc::new(AllowAllHook::new(Arc::new(NullAuditSink)));
+    let user_repository = Arc::new(systemprompt_users::UserRepository::new(pool));
+    fixture_app_context_assembled(
+        pool,
+        config,
+        tmp_paths(),
+        FixtureSeams {
+            marketplace_filter: Arc::new(AllowAllFilter),
+            authz_hook: hook,
+            user_repository,
+            extension_registry: Arc::new(ExtensionRegistry::new()),
+            services: Some(services),
+            documents: if documents_enabled {
+                enabled_documents()
+            } else {
+                DocumentsConfig::default()
+            },
         },
     )
 }
@@ -456,7 +499,7 @@ fn fixture_app_context_assembled_on(
         &authz_hook,
         Arc::new(SubjectProviderSet::default()),
         BackgroundTasks::new(),
-        documents_config,
+        documents_config.clone(),
     );
     let instance_id = config.instance_id.clone();
     let event_router = systemprompt_events::EventRouter::local_only(Arc::new(

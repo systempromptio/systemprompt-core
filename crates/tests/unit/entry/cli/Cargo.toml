@@ -19,6 +19,7 @@ systemprompt-identifiers = { workspace = true }
 systemprompt-logging = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-manifest = { workspace = true }
+systemprompt-storage = { workspace = true }
 systemprompt-traits = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -26,6 +27,7 @@ serde_yaml = { workspace = true }
 sha2 = { workspace = true }
 tempfile = { workspace = true }
 base64 = { workspace = true }
+ed25519-dalek = { workspace = true }
 systemprompt-config = { workspace = true }
 systemprompt-security = { workspace = true }
 systemprompt-governance = { workspace = true }
@@ -37,6 +39,7 @@ sqlx = { workspace = true }
 url = { workspace = true }
 chrono = { workspace = true }
 inventory = { workspace = true }
+systemprompt-test-hack = { version = "0.1", path = "../../../common/hack" }
 
 [dev-dependencies]
 systemprompt-agent = { workspace = true }

@@ -50,19 +50,16 @@ env:
   RUSTFLAGS: "-C instrument-coverage -C llvm-args=--runtime-counter-relocation"
   # llvm-cov reads the coverage mapping sections, not DWARF, so debuginfo is
   # off: the counted lines are identical and every object, link and archive is
-  # several times smaller. Incremental artifacts are neither cacheable by
-  # sccache nor useful on a one-shot runner.
+  # several times smaller. Incremental artifacts are no use on a one-shot
+  # runner.
   CARGO_PROFILE_DEV_DEBUG: "0"
   CARGO_INCREMENTAL: "0"
-  # sccache keys every object on the full rustc argument list, RUSTFLAGS
-  # included, so an instrumented object is only ever served to an instrumented
-  # build and never to CI's uninstrumented one (or the reverse). The old
-  # "sccache returns uninstrumented rlibs" failure was a wrapper that bypassed
-  # the flags, not a key collision. The build jobs below verify the result
-  # rather than trusting it: every shard must produce profraw, and the merge
-  # job refuses to render a number unless every shard's profile arrived.
-  SCCACHE_GHA_ENABLED: "true"
-  RUSTC_WRAPPER: sccache
+  # No sccache: an instrumented object is keyed on these RUSTFLAGS, so no other
+  # workflow can be served one, and the repository's Actions cache is a single
+  # 10 GB budget shared with the gate workflows. The build jobs below verify
+  # the result rather than trusting it: every shard must produce profraw, and
+  # the merge job refuses to render a number unless every shard's profile
+  # arrived.
   # The runner's second disk at /mnt has ~65GB; the instrumented target tree
   # does not fit the root disk. Every job uses the same absolute path, so the
   # binaries metadata recorded at build time resolves unchanged on the shard
@@ -147,7 +144,6 @@ jobs:
         run: bash scripts/ci-install-system-deps.sh libdbus-1-dev pkg-config
 
       - run: rustup show
-      - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
       - uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
         with:
           tool: nextest@0.9.146
@@ -186,7 +182,6 @@ jobs:
 
       - name: Peak memory (MiB used RAM / swap)
         run: sort -n /mnt/discard/mem.log | tail -1; sort -k2 -n /mnt/discard/mem.log | tail -1
-      - run: sccache --show-stats
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
@@ -220,7 +215,6 @@ jobs:
         timeout-minutes: 12
         run: bash scripts/ci-install-system-deps.sh libdbus-1-dev pkg-config
       - run: rustup show
-      - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
       # The black-box bridge suite spawns SP_BRIDGE_BIN and skips silently when
       # it is absent; without this binary those tests never ran and
       # bin/bridge/src/cli measured 66%.
@@ -232,7 +226,6 @@ jobs:
           ls -lh /mnt/out
       - name: Peak memory (MiB used RAM / swap)
         run: sort -n /mnt/discard/mem.log | tail -1; sort -k2 -n /mnt/discard/mem.log | tail -1
-      - run: sccache --show-stats
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: coverage-bins

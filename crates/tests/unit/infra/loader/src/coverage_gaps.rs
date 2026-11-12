@@ -106,6 +106,7 @@ fn duplicate_marketplace_across_includes_is_rejected() {
     let marketplace = r#"
 marketplaces:
   dup-market:
+    id: dup-market
     name: Dup
     description: duplicated marketplace
     version: 1.0.0

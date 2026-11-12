@@ -11,6 +11,8 @@
 #![allow(clippy::all)]
 
 #[cfg(test)]
+mod agent_host;
+#[cfg(test)]
 mod app_context_parts;
 #[cfg(test)]
 mod boot;
@@ -45,6 +47,8 @@ mod display_tests;
 #[cfg(test)]
 mod documents_actor;
 #[cfg(test)]
+mod documents_mcp_browse_share;
+#[cfg(test)]
 mod documents_mcp_content;
 #[cfg(test)]
 mod documents_mcp_export;
@@ -63,11 +67,19 @@ mod documents_mcp_people;
 #[cfg(test)]
 mod documents_mcp_proposals;
 #[cfg(test)]
+mod documents_mcp_refusal_kinds;
+#[cfg(test)]
 mod documents_mcp_refusals;
 #[cfg(test)]
 mod documents_subject_directory;
 #[cfg(test)]
 mod documents_views_touched;
+#[cfg(test)]
+mod host_context;
+#[cfg(test)]
+mod link_rig;
+#[cfg(test)]
+mod links_mint;
 #[cfg(test)]
 mod mcp_dispatch;
 #[cfg(test)]

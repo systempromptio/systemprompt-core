@@ -1,9 +1,9 @@
 //! DB-backed tests for the federated-identity repository
-//! (`find_federated`, `find_or_create_federated`).
+//! (`find_federated`, `resolve_federated`).
 
 use systemprompt_identifiers::UserId;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
-use systemprompt_traits::FederatedIdentityClaims;
+use systemprompt_traits::{FederatedIdentityClaims, LinkPolicy};
 use systemprompt_users::UserRepository;
 use uuid::Uuid;
 
@@ -59,9 +59,15 @@ async fn create_then_find_and_reuse_identity() {
     let identity_claims = claims(Some(&email), true);
     let user = ctx
         .repo
-        .find_or_create_federated(&ctx.issuer, &ctx.external_sub, &identity_claims)
+        .resolve_federated(
+            &ctx.issuer,
+            &ctx.external_sub,
+            &identity_claims,
+            &LinkPolicy::default(),
+        )
         .await
-        .expect("first create");
+        .expect("first create")
+        .0;
 
     assert_eq!(user.email, email);
     assert_eq!(user.display_name, identity_claims.name);
@@ -77,9 +83,15 @@ async fn create_then_find_and_reuse_identity() {
 
     let again = ctx
         .repo
-        .find_or_create_federated(&ctx.issuer, &ctx.external_sub, &identity_claims)
+        .resolve_federated(
+            &ctx.issuer,
+            &ctx.external_sub,
+            &identity_claims,
+            &LinkPolicy::default(),
+        )
         .await
-        .expect("second create");
+        .expect("second create")
+        .0;
     assert_eq!(again.id, user.id, "existing identity must be reused");
 
     cleanup(&ctx, &user.id).await;
@@ -91,13 +103,15 @@ async fn unverified_email_yields_synthetic_local_address() {
 
     let user = ctx
         .repo
-        .find_or_create_federated(
+        .resolve_federated(
             &ctx.issuer,
             &ctx.external_sub,
             &claims(Some("hostile@victim.com"), false),
+            &LinkPolicy::default(),
         )
         .await
-        .expect("create");
+        .expect("create")
+        .0;
 
     assert_ne!(user.email, "hostile@victim.com");
     assert!(
@@ -115,9 +129,15 @@ async fn missing_email_yields_synthetic_local_address() {
 
     let user = ctx
         .repo
-        .find_or_create_federated(&ctx.issuer, &ctx.external_sub, &claims(None, false))
+        .resolve_federated(
+            &ctx.issuer,
+            &ctx.external_sub,
+            &claims(None, false),
+            &LinkPolicy::default(),
+        )
         .await
-        .expect("create");
+        .expect("create")
+        .0;
 
     assert!(user.email.ends_with(".federated.local"));
 

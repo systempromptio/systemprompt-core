@@ -178,6 +178,7 @@ fn test_cloud_profile_custom_fields() {
         typ_allowlist: Vec::new(),
         allowed_client_ids: Vec::new(),
         can_issue_id_jag: false,
+        link: Default::default(),
     };
     let profile = CloudProfileBuilder::new("prod")
         .with_tenant_id(TenantId::new("tenant_1"))

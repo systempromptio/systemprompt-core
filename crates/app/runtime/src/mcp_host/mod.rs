@@ -1,7 +1,8 @@
 //! The YAML-declared MCP server host.
 //!
 //! A deployment that lists `toolsets:` needs no hand-written server: its
-//! binary calls [`serve`] with the application context and its server id, and
+//! binary boots a [`HostContext`](crate::HostContext) from its environment and
+//! calls [`serve`] with it and its server id, and
 //! core builds the listed toolsets from the [`ToolsetFactory`] inventory,
 //! filters `tools/list` per caller, gates each call on the tool's resolved
 //! access and audits every outcome through the registered recorders.

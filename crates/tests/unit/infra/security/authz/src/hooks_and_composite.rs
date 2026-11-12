@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use systemprompt_governance::authz::{
     AllowAllHook, AuthzContext, AuthzDecision, AuthzDecisionHook, AuthzRequest, AuthzSource,
-    CompositeAuthzHook, DenyAllHook, DenyReason, EntityRef,
+    CompositeAuthzHook, DenyAllHook, DenyReason, EntityRef, SharedAuthzHook,
 };
 use systemprompt_identifiers::{RouteId, TraceId, UserId};
 
@@ -69,19 +69,19 @@ async fn allow_all_hook_returns_allow() {
 }
 
 #[tokio::test]
-async fn composite_empty_hooks_returns_allow() {
-    let composite = CompositeAuthzHook::new(vec![]);
-    let req = make_req();
-    let decision = composite.evaluate(req).await;
-    assert_eq!(decision, AuthzDecision::Allow);
+async fn composite_of_one_deny_hook_denies() {
+    let composite =
+        CompositeAuthzHook::new(Arc::new(DenyAllHook::null()) as SharedAuthzHook, vec![]);
+    let decision = composite.evaluate(make_req()).await;
+    assert!(matches!(decision, AuthzDecision::Deny { .. }));
 }
 
 #[tokio::test]
 async fn composite_all_allow_returns_allow() {
-    let composite = CompositeAuthzHook::new(vec![
-        Arc::new(AllowAllHook::null()),
-        Arc::new(AllowAllHook::null()),
-    ]);
+    let composite = CompositeAuthzHook::new(
+        Arc::new(AllowAllHook::null()) as SharedAuthzHook,
+        vec![Arc::new(AllowAllHook::null())],
+    );
     let req = make_req();
     let decision = composite.evaluate(req).await;
     assert_eq!(decision, AuthzDecision::Allow);
@@ -89,11 +89,13 @@ async fn composite_all_allow_returns_allow() {
 
 #[tokio::test]
 async fn composite_deny_short_circuits() {
-    let composite = CompositeAuthzHook::new(vec![
-        Arc::new(AllowAllHook::null()),
-        Arc::new(DenyAllHook::null()),
-        Arc::new(AllowAllHook::null()),
-    ]);
+    let composite = CompositeAuthzHook::new(
+        Arc::new(AllowAllHook::null()) as SharedAuthzHook,
+        vec![
+            Arc::new(DenyAllHook::null()),
+            Arc::new(AllowAllHook::null()),
+        ],
+    );
     let req = make_req();
     let decision = composite.evaluate(req).await;
     assert!(matches!(decision, AuthzDecision::Deny { .. }));
@@ -101,10 +103,10 @@ async fn composite_deny_short_circuits() {
 
 #[tokio::test]
 async fn composite_first_deny_wins() {
-    let composite = CompositeAuthzHook::new(vec![
-        Arc::new(DenyAllHook::null()),
-        Arc::new(AllowAllHook::null()),
-    ]);
+    let composite = CompositeAuthzHook::new(
+        Arc::new(DenyAllHook::null()) as SharedAuthzHook,
+        vec![Arc::new(AllowAllHook::null())],
+    );
     let req = make_req();
     let decision = composite.evaluate(req).await;
     assert!(matches!(decision, AuthzDecision::Deny { .. }));

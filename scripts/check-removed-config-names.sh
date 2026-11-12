@@ -13,13 +13,15 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-names='surface_for|canonicalize_org_uuid|ProviderEntry|YAML_SOURCE|DASHBOARD_SOURCE|legacy_id|find_served_model|by_scope|catalog_route_id|MOVED_SECTIONS|MovedToServices'
+names='auto_discover|log_tool_executions|surface_for|canonicalize_org_uuid|ProviderEntry|YAML_SOURCE|DASHBOARD_SOURCE|legacy_id|find_served_model|by_scope|catalog_route_id|MOVED_SECTIONS|MovedToServices'
 
 # Spellings that are not identifiers: the pre-0.73 secrets sidecar and the
-# `evaluation` serde alias for `judge`.
+# `evaluation` serde alias for `judge`, and the Slack authz flag replaced by
+# `authz.link.link_by_email`.
 literals=(
     '.secrets.profile.yaml'
     'alias = "evaluation"'
+    'link_by_workspace_email'
 )
 
 allowed=(
@@ -32,6 +34,8 @@ allowed=(
     'crates/tests/integration/config-migrate/'
     'crates/tests/unit/app/gateway-golden/'
     'crates/tests/common/fixtures/catalog/'
+    # The manifest suite that proves the retired ai/skills keys are refused.
+    'crates/tests/unit/shared/manifest/src/strict_config.rs'
     # History.
     'CHANGELOG.md'
     '/CHANGELOG.md'
@@ -40,17 +44,21 @@ allowed=(
     'scripts/check-removed-config-names.sh'
 )
 
-hits=$(git ls-files -- 'crates' 'bin' 'scripts' 'justfile' ':!:*.lock' \
-    | while read -r f; do
-        for a in "${allowed[@]}"; do
-            case "$f" in *"$a"*) continue 2 ;; esac
-        done
-        [ -f "$f" ] || continue
-        grep -nwE "$names" "$f" 2>/dev/null | sed "s#^#$f:#" || true
-        for lit in "${literals[@]}"; do
-            grep -nF -- "$lit" "$f" 2>/dev/null | sed "s#^#$f:#" || true
-        done
-    done || true)
+literal_args=()
+for lit in "${literals[@]}"; do literal_args+=(-e "$lit"); done
+
+# One listing, filtered by substring against the allowlist, then two greps
+# over the whole set rather than a process per file.
+candidates() {
+    git ls-files -z -- 'crates' 'bin' 'scripts' 'justfile' ':!:*.lock' \
+        | grep -zvF -f <(printf '%s\n' "${allowed[@]}") \
+        | while IFS= read -r -d '' f; do [ -f "$f" ] && printf '%s\0' "$f"; done
+}
+
+hits=$({
+    candidates | xargs -0 -r grep -HnwE "$names" 2>/dev/null || true
+    candidates | xargs -0 -r grep -HnF "${literal_args[@]}" 2>/dev/null || true
+})
 
 if [ -n "$hits" ]; then
     echo "ERROR: check-removed-config-names: a name the 0.73 config model removed reappeared:" >&2

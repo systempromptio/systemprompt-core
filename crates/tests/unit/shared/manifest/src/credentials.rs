@@ -1,7 +1,7 @@
 //! `credentials.yaml`: kinds, secret detection, and the credential rules
 //! `ResolvedCatalog::build` enforces.
 
-use systemprompt_catalog_fixtures::{CatalogFixture, opencode_go, personal, platform};
+use systemprompt_catalog_fixtures::{CatalogFixture, caller, opencode_go, personal, platform};
 use systemprompt_identifiers::SecretName;
 use systemprompt_manifest::services::catalog::{
     CatalogError, CredentialEntry, CredentialKind, CredentialRegistry, EndpointConfig,
@@ -138,4 +138,187 @@ fn every_endpoint_of_a_personal_credential_is_listed_for_verification() {
     ];
     expected.sort_unstable();
     assert_eq!(urls, expected);
+}
+
+#[test]
+fn a_caller_credential_parses_and_resolves_on_the_vendors_own_api() {
+    let registry: CredentialRegistry =
+        serde_yaml::from_str("own-account: { kind: caller, label: Own account }\n")
+            .expect("credentials parse");
+    let entry = registry.get("own-account").expect("declared");
+    assert_eq!(entry.kind, CredentialKind::Caller);
+    assert!(entry.kind.is_member_paid() && !entry.kind.is_personal());
+
+    let catalog = with_credential(caller("Own account")).build();
+    let credential = catalog.credential("c").expect("resolved");
+    assert!(credential.is_caller());
+    assert!(credential.platform_secret().is_none());
+}
+
+#[test]
+fn a_caller_credential_names_no_secret() {
+    let entry = CredentialEntry {
+        secret: Some(SecretName::new("anthropic")),
+        ..caller("Own account")
+    };
+    let error = with_credential(entry).try_build().expect_err("refused");
+    assert!(
+        matches!(error, CatalogError::CallerCredentialWithSecret { .. }),
+        "{error}"
+    );
+}
+
+fn caller_on(endpoint: EndpointConfig) -> CatalogFixture {
+    CatalogFixture::new()
+        .credential("c", caller("Own account"))
+        .provider("p", ProviderConfig::new("c"))
+        .endpoint("p", "api", endpoint)
+        .model("m", systemprompt_catalog_fixtures::claude_model(200_000))
+        .deploy("m", ["p/api"])
+}
+
+#[test]
+fn a_caller_credential_serves_any_wire_the_vendor_hosts_itself() {
+    let catalog = caller_on(EndpointConfig::new(
+        WireProtocol::OpenAiChat,
+        "https://api.openai.com/v1",
+    ))
+    .build();
+    assert!(catalog.credential("c").expect("resolved").is_caller());
+}
+
+#[test]
+fn a_caller_credential_is_refused_off_the_vendors_own_api() {
+    let error = caller_on(EndpointConfig::new(
+        WireProtocol::Anthropic,
+        "https://us-east5-aiplatform.googleapis.com/v1/projects/{project}/locations/us-east5/publishers/anthropic/models",
+    ))
+    .try_build()
+    .expect_err("refused");
+    assert!(
+        matches!(error, CatalogError::CallerCredentialNotFirstParty { .. }),
+        "{error}"
+    );
+}
+
+#[test]
+fn a_caller_endpoint_declares_no_accepted_betas() {
+    let mut endpoint = EndpointConfig::new(WireProtocol::Anthropic, "https://api.anthropic.com/v1");
+    endpoint.accepted_betas = Some(systemprompt_manifest::services::catalog::BetaSpec::List(
+        std::collections::BTreeSet::new(),
+    ));
+    let error = caller_on(endpoint).try_build().expect_err("refused");
+    assert!(
+        matches!(error, CatalogError::CallerCredentialFiltersBetas { .. }),
+        "{error}"
+    );
+}
+
+#[test]
+fn a_caller_credential_belongs_to_one_provider() {
+    let error = with_credential(caller("Own account"))
+        .provider("q", ProviderConfig::new("c"))
+        .endpoint(
+            "q",
+            "api",
+            EndpointConfig::new(WireProtocol::Anthropic, "https://api.anthropic.com/v1"),
+        )
+        .try_build()
+        .expect_err("refused");
+    assert!(
+        matches!(error, CatalogError::PersonalCredentialShared { .. }),
+        "{error}"
+    );
+}
+
+#[test]
+fn a_caller_provider_sets_no_headers_of_its_own() {
+    let mut provider = ProviderConfig::new("c");
+    provider.user_agent = Some("deployment/1.0".to_owned());
+    let error = CatalogFixture::new()
+        .credential("c", caller("Own account"))
+        .provider("p", provider)
+        .endpoint(
+            "p",
+            "api",
+            EndpointConfig::new(WireProtocol::Anthropic, "https://api.anthropic.com/v1"),
+        )
+        .model("m", systemprompt_catalog_fixtures::claude_model(200_000))
+        .deploy("m", ["p/api"])
+        .try_build()
+        .expect_err("refused");
+    assert!(
+        matches!(error, CatalogError::CallerProviderSetsHeaders { .. }),
+        "{error}"
+    );
+}
+
+#[test]
+fn a_workload_identity_parses_and_builds_without_a_secret() {
+    let registry: CredentialRegistry = serde_yaml::from_str(
+        "vertex: { kind: platform, workload_identity: { project: acme-prod } }\n",
+    )
+    .expect("credentials parse");
+    let entry = registry.get("vertex").expect("declared").clone();
+    assert_eq!(
+        entry,
+        CredentialEntry::workload_identity("acme-prod".to_owned())
+    );
+    let catalog = with_credential(entry).try_build().expect("builds");
+    let credential = catalog.credential("c").expect("resolved");
+    assert_eq!(
+        credential
+            .platform_workload_identity()
+            .map(|w| w.project.as_str()),
+        Some("acme-prod")
+    );
+    assert!(credential.platform_secret().is_none());
+}
+
+#[test]
+fn a_workload_identity_refuses_unknown_keys() {
+    let refused: Result<CredentialRegistry, _> = serde_yaml::from_str(
+        "vertex: { kind: platform, workload_identity: { project: p, region: x } }\n",
+    );
+    assert!(refused.is_err());
+}
+
+#[test]
+fn a_platform_credential_names_one_source() {
+    let entry = CredentialEntry {
+        secret: Some(SecretName::new("vertex")),
+        ..CredentialEntry::workload_identity("acme-prod".to_owned())
+    };
+    let error = with_credential(entry).try_build().expect_err("refused");
+    assert!(
+        matches!(error, CatalogError::PlatformCredentialWithTwoSources { .. }),
+        "{error}"
+    );
+}
+
+#[test]
+fn a_workload_identity_needs_a_project() {
+    let error = with_credential(CredentialEntry::workload_identity("  ".to_owned()))
+        .try_build()
+        .expect_err("refused");
+    assert!(
+        matches!(error, CatalogError::InvalidWorkloadIdentity { .. }),
+        "{error}"
+    );
+}
+
+#[test]
+fn only_a_platform_credential_runs_as_the_workload() {
+    for entry in [personal("x"), caller("x")] {
+        let entry = CredentialEntry {
+            workload_identity: CredentialEntry::workload_identity("acme-prod".to_owned())
+                .workload_identity,
+            ..entry
+        };
+        let error = with_credential(entry).try_build().expect_err("refused");
+        assert!(
+            matches!(error, CatalogError::InvalidWorkloadIdentity { .. }),
+            "{error}"
+        );
+    }
 }

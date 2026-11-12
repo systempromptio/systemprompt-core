@@ -1,4 +1,5 @@
-//! Google service-account credentials: RS256 assertion in, access token out.
+//! Google credentials: a service-account key (RS256 assertion in, access
+//! token out) and the runtime's workload identity ([`MetadataIdentity`]).
 //!
 //! Implements the JWT-bearer profile (RFC 7523) that Google's token endpoint
 //! accepts: sign a short assertion with the service account's private key,
@@ -22,6 +23,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod metadata;
+
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use jsonwebtoken::{Algorithm, EncodingKey, Header};
@@ -29,6 +32,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::credential::cache::{TokenCache, clamp_ttl};
 use crate::credential::{CredentialError, http};
+
+pub use metadata::{DEFAULT_METADATA_TOKEN_URL, MetadataIdentity, metadata_access_token};
 
 // Why: Google limits a service-account JWT assertion's lifetime to one hour.
 const ASSERTION_TTL: Duration = Duration::from_secs(3600);

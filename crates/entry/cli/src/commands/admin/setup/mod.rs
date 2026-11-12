@@ -17,6 +17,7 @@ pub mod postgres;
 pub mod postgres_access;
 mod profile;
 mod profile_sections;
+pub mod provision;
 pub mod secrets;
 pub mod services_files;
 mod types;
@@ -69,8 +70,26 @@ pub struct SetupArgs {
     #[arg(long, help = "PostgreSQL user (default: systemprompt_`<env>`)")]
     pub db_user: Option<String>,
 
-    #[arg(long, help = "PostgreSQL password (auto-generated if not provided)")]
+    #[arg(
+        long,
+        help = "PostgreSQL password (auto-generated if not provided); visible in the process \
+                list, prefer --db-password-stdin"
+    )]
     pub db_password: Option<String>,
+
+    #[arg(
+        long,
+        conflicts_with = "db_password",
+        help = "Read the PostgreSQL password from the first line of stdin"
+    )]
+    pub db_password_stdin: bool,
+
+    #[arg(
+        long,
+        help = "Change the password of an already existing role to the one this setup writes \
+                (anything else using the role loses access; asks for confirmation)"
+    )]
+    pub reset_role_password: bool,
 
     #[arg(
         long,
@@ -104,6 +123,23 @@ pub struct SetupArgs {
 
     #[arg(
         long,
+        env = "SYSTEMPROMPT_VERTEX_PROJECT",
+        conflicts_with = "vertex_key_file",
+        help = "Google Cloud project for Vertex AI, authenticated by the runtime's workload \
+                identity (GKE, Cloud Run, Compute Engine); no key is stored"
+    )]
+    pub vertex_project: Option<String>,
+
+    #[arg(
+        long,
+        env = "SYSTEMPROMPT_VERTEX_KEY_FILE",
+        help = "Path to a Google service-account key file for Vertex AI; its contents are stored \
+                as the `vertex` secret"
+    )]
+    pub vertex_key_file: Option<std::path::PathBuf>,
+
+    #[arg(
+        long,
         env = "GITHUB_TOKEN",
         hide_env_values = true,
         help = "GitHub token (optional)"
@@ -112,7 +148,8 @@ pub struct SetupArgs {
 
     #[arg(
         long,
-        help = "Provider to make the default (gemini | anthropic | openai); must have a key. \
+        help = "Provider to make the default (gemini | anthropic | openai | vertex); must be \
+                configured. \
                 In interactive mode the selected provider is used instead."
     )]
     pub default_provider: Option<String>,
@@ -162,7 +199,11 @@ impl SetupArgs {
     }
 
     pub const fn has_ai_provider(&self) -> bool {
-        self.gemini_key.is_some() || self.anthropic_key.is_some() || self.openai_key.is_some()
+        self.gemini_key.is_some()
+            || self.anthropic_key.is_some()
+            || self.openai_key.is_some()
+            || self.vertex_project.is_some()
+            || self.vertex_key_file.is_some()
     }
 
     #[must_use]
@@ -170,6 +211,10 @@ impl SetupArgs {
         self.gemini_key = none_if_blank(self.gemini_key);
         self.anthropic_key = none_if_blank(self.anthropic_key);
         self.openai_key = none_if_blank(self.openai_key);
+        self.vertex_project = none_if_blank(self.vertex_project);
+        self.vertex_key_file = self
+            .vertex_key_file
+            .filter(|path| !path.as_os_str().is_empty());
         self.github_token = none_if_blank(self.github_token);
         self.default_provider = none_if_blank(self.default_provider);
         self.admin_email = none_if_blank(self.admin_email);
@@ -181,5 +226,21 @@ pub async fn execute(
     args: SetupArgs,
     ctx: &crate::context::CommandContext,
 ) -> Result<CommandOutput> {
-    wizard::execute(args.normalized(), ctx.prompter(), &ctx.cli).await
+    let mut args = args.normalized();
+    if args.db_password_stdin {
+        args.db_password = Some(read_password_line(std::io::stdin().lock())?);
+    }
+    wizard::execute(args, ctx.prompter(), &ctx.cli, ctx.foreground_children()).await
+}
+
+pub fn read_password_line(mut reader: impl std::io::BufRead) -> Result<String> {
+    let mut line = String::new();
+    reader
+        .read_line(&mut line)
+        .map_err(|e| anyhow::anyhow!("Failed to read the database password from stdin: {e}"))?;
+    let password = line.trim_end_matches(['\r', '\n']).to_owned();
+    if password.is_empty() {
+        anyhow::bail!("--db-password-stdin read an empty password");
+    }
+    Ok(password)
 }

@@ -14,6 +14,7 @@ mod client;
 mod errors;
 pub mod resolver;
 pub mod service;
+mod sse;
 
 pub use errors::{ProxyError, ResponseBuildError};
 pub use service::{ProxyKind, ProxyService, ProxyTarget};

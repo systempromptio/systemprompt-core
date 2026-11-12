@@ -1,7 +1,8 @@
 //! Drives `enforce_rbac_from_registry` end-to-end through a live rmcp duplex
-//! service: unknown server, anonymous access, missing bearer, invalid token,
-//! full JWT authentication, an authz-hook denial, and the proxy-verified role
-//! subject.
+//! service, with each request admitted by the hop layer exactly as the router
+//! admits it: unknown server, anonymous access, a missing or forged identity,
+//! hop-token authentication, scope checks, an authz-hook denial, and the
+//! hop identity's roles reaching the hook.
 
 use std::future::Future;
 use std::sync::Arc;
@@ -14,24 +15,17 @@ use systemprompt_governance::authz::{
     AllowAllHook, AuthzDecision, AuthzDecisionHook, AuthzRequest, DenyAllHook, DenyReason,
     SharedAuthzHook,
 };
-use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
-use systemprompt_mcp::middleware::{AuthResult, enforce_rbac_from_registry};
-use systemprompt_models::RequestContext as SysRequestContext;
-use systemprompt_test_fixtures::{FIXTURE_EXTERNAL_URL, mint_admin_jwt, mint_bridge_jwt};
+use systemprompt_identifiers::UserId;
+use systemprompt_mcp::middleware::{
+    AuthResult, HopVerifier, admit_request, enforce_rbac_from_registry,
+};
+use systemprompt_models::auth::{AuthenticatedUser, Permission};
+use systemprompt_test_fixtures::{FIXTURE_EXTERNAL_URL, mint_admin_jwt, mint_mcp_hop};
 
 use crate::harness::bootstrap_with_services;
+use systemprompt_test_fixtures::unique_name;
 
 const ISSUER: &str = FIXTURE_EXTERNAL_URL;
-
-fn sys_ctx() -> SysRequestContext {
-    SysRequestContext::new(
-        SessionId::new("s-rbac"),
-        TraceId::new("t-rbac"),
-        ContextId::generate(),
-        AgentName::try_new("agent-rbac").expect("valid AgentName"),
-        Actor::user(UserId::new("user-rbac")),
-    )
-}
 
 fn server_yaml(name: &str, oauth_required: bool, scopes: &str) -> String {
     format!(
@@ -56,6 +50,7 @@ struct RbacProbe {
     server: String,
     headers: Vec<(String, String)>,
     hook: SharedAuthzHook,
+    admit: bool,
 }
 
 impl ServerHandler for RbacProbe {
@@ -66,27 +61,34 @@ impl ServerHandler for RbacProbe {
     ) -> impl Future<Output = Result<ListToolsResult, McpError>> + Send + '_ {
         let probe = self.clone();
         async move {
-            let mut builder = http::Request::builder().uri("http://localhost/mcp");
+            let mut builder = http::Request::builder()
+                .uri("http://localhost/mcp")
+                .header("x-session-id", "s-rbac")
+                .header("x-trace-id", "t-rbac")
+                .header("x-agent-name", "agent-rbac");
             for (name, value) in &probe.headers {
                 builder = builder.header(name.as_str(), value.as_str());
             }
             let (mut parts, ()) = builder.body(()).expect("request").into_parts();
-            parts.extensions.insert(sys_ctx());
+            let server_id = McpServerId::new(probe.server.as_str());
+            let verifier = HopVerifier::new(
+                systemprompt_test_fixtures::test_signing_keys()
+                    .keyring()
+                    .clone(),
+                ISSUER,
+                server_id.clone(),
+            );
+            if probe.admit {
+                admit_request(&verifier, &parts.headers, &mut parts.extensions).expect("admitted");
+            }
             context.extensions.insert(parts);
 
             let services = crate::harness::services_state().config();
             let outcome = match enforce_rbac_from_registry(
                 &context,
-                &McpServerId::new(probe.server.as_str()),
+                &server_id,
                 &probe.hook,
                 &services,
-                &systemprompt_mcp::middleware::JwtVerifier {
-                    authority: systemprompt_test_fixtures::test_token_authority(
-                        &crate::harness::config().jwt_issuer,
-                    )
-                    .as_ref(),
-                    config: &crate::harness::config(),
-                },
             )
             .await
             {
@@ -135,17 +137,55 @@ async fn probe_outcome(probe: RbacProbe) -> String {
     outcome
 }
 
-fn unique(prefix: &str) -> String {
-    format!("{prefix}_{}", uuid::Uuid::new_v4().simple())
+fn relay() -> String {
+    let token = mint_admin_jwt(
+        &UserId::new(uuid::Uuid::new_v4().to_string()),
+        "relay@test.invalid",
+        ISSUER,
+    );
+    format!("Bearer {}", token.as_str())
+}
+
+fn hop_headers(
+    server: &str,
+    email: &str,
+    permissions: Vec<Permission>,
+    roles: &[&str],
+) -> Vec<(String, String)> {
+    let user = AuthenticatedUser::new_with_roles(
+        UserId::new(uuid::Uuid::new_v4().to_string()),
+        email.to_owned(),
+        email.to_owned(),
+        permissions,
+        roles.iter().map(|role| (*role).to_owned()).collect(),
+    );
+    vec![
+        (
+            "x-systemprompt-mcp-hop".to_owned(),
+            mint_mcp_hop(&McpServerId::new(server), user, None, ISSUER),
+        ),
+        ("authorization".to_owned(), relay()),
+    ]
+}
+
+fn forged_headers() -> Vec<(String, String)> {
+    vec![
+        ("x-proxy-verified".to_owned(), "true".to_owned()),
+        ("x-user-id".to_owned(), uuid::Uuid::new_v4().to_string()),
+        ("x-user-permissions".to_owned(), "admin".to_owned()),
+        ("x-user-roles".to_owned(), "analyst".to_owned()),
+        ("authorization".to_owned(), relay()),
+    ]
 }
 
 #[tokio::test]
 async fn unknown_server_is_rejected() {
-    let _bootstrap = bootstrap_with_services(&server_yaml(&unique("rbl"), false, ""));
+    let _bootstrap = bootstrap_with_services(&server_yaml(&unique_name("rbl"), false, ""));
 
     let outcome = probe_outcome(RbacProbe {
         server: "rbl_absent".to_owned(),
         headers: vec![],
+        admit: true,
         hook: Arc::new(AllowAllHook::null()),
     })
     .await;
@@ -154,12 +194,13 @@ async fn unknown_server_is_rejected() {
 
 #[tokio::test]
 async fn oauth_not_required_yields_anonymous_context() {
-    let name = unique("rbl_anon");
+    let name = unique_name("rbl_anon");
     let _bootstrap = bootstrap_with_services(&server_yaml(&name, false, ""));
 
     let outcome = probe_outcome(RbacProbe {
         server: name,
         headers: vec![],
+        admit: true,
         hook: Arc::new(AllowAllHook::null()),
     })
     .await;
@@ -167,13 +208,14 @@ async fn oauth_not_required_yields_anonymous_context() {
 }
 
 #[tokio::test]
-async fn oauth_required_without_bearer_is_rejected() {
-    let name = unique("rbl_nobearer");
+async fn oauth_required_without_a_hop_token_is_rejected() {
+    let name = unique_name("rbl_nohop");
     let _bootstrap = bootstrap_with_services(&server_yaml(&name, true, "admin"));
 
     let outcome = probe_outcome(RbacProbe {
         server: name,
         headers: vec![],
+        admit: true,
         hook: Arc::new(AllowAllHook::null()),
     })
     .await;
@@ -184,33 +226,37 @@ async fn oauth_required_without_bearer_is_rejected() {
 }
 
 #[tokio::test]
-async fn malformed_bearer_token_is_rejected() {
-    let name = unique("rbl_badtok");
+async fn forged_proxy_identity_headers_are_not_an_identity() {
+    let name = unique_name("rbl_forged");
     let _bootstrap = bootstrap_with_services(&server_yaml(&name, true, "admin"));
 
     let outcome = probe_outcome(RbacProbe {
         server: name,
-        headers: vec![("authorization".to_owned(), "Bearer not-a-jwt".to_owned())],
+        headers: forged_headers(),
+        admit: true,
         hook: Arc::new(AllowAllHook::null()),
     })
     .await;
-    assert!(outcome.contains("Invalid JWT token"), "got: {outcome}");
+    assert!(
+        outcome.contains("Authentication required"),
+        "got: {outcome}"
+    );
 }
 
 #[tokio::test]
-async fn valid_admin_jwt_is_authenticated() {
-    let name = unique("rbl_auth");
+async fn a_valid_hop_token_is_authenticated_with_the_relayed_bearer() {
+    let name = unique_name("rbl_auth");
     let _bootstrap = bootstrap_with_services(&server_yaml(&name, true, "admin"));
 
-    let user = UserId::new(uuid::Uuid::new_v4().to_string());
-    let token = mint_admin_jwt(&user, "rbac-live@test.invalid", ISSUER);
-
     let outcome = probe_outcome(RbacProbe {
+        headers: hop_headers(
+            &name,
+            "rbac-live@test.invalid",
+            vec![Permission::Admin],
+            &[],
+        ),
         server: name,
-        headers: vec![(
-            "authorization".to_owned(),
-            format!("Bearer {}", token.as_str()),
-        )],
+        admit: true,
         hook: Arc::new(AllowAllHook::null()),
     })
     .await;
@@ -218,22 +264,23 @@ async fn valid_admin_jwt_is_authenticated() {
         outcome.starts_with("authenticated:user=rbac-live@test.invalid"),
         "got: {outcome}"
     );
+    assert!(!outcome.ends_with("token-len=0"), "got: {outcome}");
 }
 
 #[tokio::test]
 async fn insufficient_scope_is_rejected() {
-    let name = unique("rbl_scope");
+    let name = unique_name("rbl_scope");
     let _bootstrap = bootstrap_with_services(&server_yaml(&name, true, "admin"));
 
-    let user = UserId::new(uuid::Uuid::new_v4().to_string());
-    let token = mint_bridge_jwt(&user, "rbac-scope@test.invalid", ISSUER);
-
     let outcome = probe_outcome(RbacProbe {
+        headers: hop_headers(
+            &name,
+            "rbac-scope@test.invalid",
+            vec![Permission::User],
+            &[],
+        ),
         server: name,
-        headers: vec![(
-            "authorization".to_owned(),
-            format!("Bearer {}", token.as_str()),
-        )],
+        admit: true,
         hook: Arc::new(AllowAllHook::null()),
     })
     .await;
@@ -245,18 +292,18 @@ async fn insufficient_scope_is_rejected() {
 
 #[tokio::test]
 async fn oauth_required_with_no_declared_scopes_is_rejected() {
-    let name = unique("rbl_noscope");
+    let name = unique_name("rbl_noscope");
     let _bootstrap = bootstrap_with_services(&server_yaml(&name, true, ""));
 
-    let user = UserId::new(uuid::Uuid::new_v4().to_string());
-    let token = mint_admin_jwt(&user, "rbac-noscope@test.invalid", ISSUER);
-
     let outcome = probe_outcome(RbacProbe {
+        headers: hop_headers(
+            &name,
+            "rbac-noscope@test.invalid",
+            vec![Permission::Admin],
+            &[],
+        ),
         server: name,
-        headers: vec![(
-            "authorization".to_owned(),
-            format!("Bearer {}", token.as_str()),
-        )],
+        admit: true,
         hook: Arc::new(AllowAllHook::null()),
     })
     .await;
@@ -264,58 +311,23 @@ async fn oauth_required_with_no_declared_scopes_is_rejected() {
 }
 
 #[tokio::test]
-async fn deny_hook_blocks_authenticated_request() {
-    let name = unique("rbl_deny");
+async fn deny_hook_blocks_an_authenticated_request() {
+    let name = unique_name("rbl_deny");
     let _bootstrap = bootstrap_with_services(&server_yaml(&name, true, "admin"));
 
-    let user = UserId::new(uuid::Uuid::new_v4().to_string());
-    let token = mint_admin_jwt(&user, "rbac-deny@test.invalid", ISSUER);
-
     let outcome = probe_outcome(RbacProbe {
+        headers: hop_headers(
+            &name,
+            "rbac-deny@test.invalid",
+            vec![Permission::Admin],
+            &[],
+        ),
         server: name,
-        headers: vec![(
-            "authorization".to_owned(),
-            format!("Bearer {}", token.as_str()),
-        )],
+        admit: true,
         hook: Arc::new(DenyAllHook::null()),
     })
     .await;
     assert!(outcome.contains("authz denied"), "got: {outcome}");
-}
-
-// Why: proxy verification replaces JWT parsing, never policy. A gateway that
-// vouches for an identity still has that identity evaluated by the per-server
-// authz hook, so a deny policy reaches proxied callers too.
-#[tokio::test]
-async fn deny_hook_blocks_a_proxy_verified_request() {
-    let name = unique("rbl_proxy_deny");
-    let _bootstrap = bootstrap_with_services(&server_yaml(&name, true, "user"));
-
-    let proxied = vec![
-        ("x-proxy-verified".to_owned(), "true".to_owned()),
-        ("x-user-id".to_owned(), uuid::Uuid::new_v4().to_string()),
-        ("x-user-permissions".to_owned(), "user".to_owned()),
-        (
-            "authorization".to_owned(),
-            "Bearer proxied-token".to_owned(),
-        ),
-    ];
-
-    let denied = probe_outcome(RbacProbe {
-        server: name.clone(),
-        headers: proxied.clone(),
-        hook: Arc::new(DenyAllHook::null()),
-    })
-    .await;
-    assert!(denied.contains("authz denied"), "got: {denied}");
-
-    let allowed = probe_outcome(RbacProbe {
-        server: name,
-        headers: proxied,
-        hook: Arc::new(AllowAllHook::null()),
-    })
-    .await;
-    assert!(allowed.starts_with("authenticated:"), "got: {allowed}");
 }
 
 #[derive(Debug)]
@@ -343,51 +355,90 @@ impl AuthzDecisionHook for RequireRoleHook {
     }
 }
 
-fn proxied_headers(roles: Option<&str>) -> Vec<(String, String)> {
-    let mut headers = vec![
-        ("x-proxy-verified".to_owned(), "true".to_owned()),
-        ("x-user-id".to_owned(), uuid::Uuid::new_v4().to_string()),
-        ("x-user-permissions".to_owned(), "user".to_owned()),
-        (
-            "authorization".to_owned(),
-            "Bearer proxied-token".to_owned(),
-        ),
-    ];
-    if let Some(roles) = roles {
-        headers.push(("x-user-roles".to_owned(), roles.to_owned()));
-    }
-    headers
-}
-
-// Why: the gateway forwards the caller's roles on the proxy-verified hop; the
-// per-server hook must see exactly those roles, so a role-granted server
-// admits a proxied holder and refuses a proxied caller that presents none.
 #[tokio::test]
-async fn proxy_verified_roles_reach_the_authz_hook() {
-    let name = unique("rbl_proxy_roles");
+async fn hop_identity_roles_reach_the_authz_hook() {
+    let name = unique_name("rbl_roles");
     let _bootstrap = bootstrap_with_services(&server_yaml(&name, true, "user"));
 
     let allowed = probe_outcome(RbacProbe {
+        headers: hop_headers(
+            &name,
+            "r@test.invalid",
+            vec![Permission::User],
+            &["viewer", "analyst"],
+        ),
         server: name.clone(),
-        headers: proxied_headers(Some("viewer analyst")),
+        admit: true,
         hook: Arc::new(RequireRoleHook("analyst")),
     })
     .await;
     assert!(allowed.starts_with("authenticated:"), "got: {allowed}");
 
     let other_role = probe_outcome(RbacProbe {
+        headers: hop_headers(&name, "r@test.invalid", vec![Permission::User], &["viewer"]),
         server: name.clone(),
-        headers: proxied_headers(Some("viewer")),
+        admit: true,
         hook: Arc::new(RequireRoleHook("analyst")),
     })
     .await;
     assert!(other_role.contains("authz denied"), "got: {other_role}");
 
-    let no_header = probe_outcome(RbacProbe {
+    let forged_role = probe_outcome(RbacProbe {
+        headers: forged_headers(),
         server: name,
-        headers: proxied_headers(None),
+        admit: true,
         hook: Arc::new(RequireRoleHook("analyst")),
     })
     .await;
-    assert!(no_header.contains("authz denied"), "got: {no_header}");
+    assert!(
+        forged_role.contains("Authentication required"),
+        "got: {forged_role}"
+    );
+}
+
+#[tokio::test]
+async fn a_verified_hop_without_a_relay_bearer_is_authenticated() {
+    let name = unique_name("rbl_norelay");
+    let _bootstrap = bootstrap_with_services(&server_yaml(&name, true, "admin"));
+
+    let headers = hop_headers(
+        &name,
+        "rbac-norelay@test.invalid",
+        vec![Permission::Admin],
+        &[],
+    )
+    .into_iter()
+    .filter(|(header, _)| header != "authorization")
+    .collect();
+    let outcome = probe_outcome(RbacProbe {
+        headers,
+        server: name,
+        admit: true,
+        hook: Arc::new(AllowAllHook::null()),
+    })
+    .await;
+    assert_eq!(
+        outcome, "authenticated:user=rbac-norelay@test.invalid:token-len=0",
+        "got: {outcome}"
+    );
+}
+
+#[tokio::test]
+async fn a_hop_token_on_a_router_without_the_verifier_fails_loud() {
+    let name = unique_name("rbl_unverified");
+    let _bootstrap = bootstrap_with_services(&server_yaml(&name, true, "admin"));
+
+    let outcome = probe_outcome(RbacProbe {
+        headers: hop_headers(
+            &name,
+            "rbac-unverified@test.invalid",
+            vec![Permission::Admin],
+            &[],
+        ),
+        server: name,
+        admit: false,
+        hook: Arc::new(AllowAllHook::null()),
+    })
+    .await;
+    assert!(outcome.contains("create_router"), "got: {outcome}");
 }

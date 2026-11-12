@@ -283,9 +283,9 @@ async fn start_link(
     Ok((challenge_id, ccr))
 }
 
-fn softtoken() -> WebauthnAuthenticator<SoftToken> {
+fn softtoken() -> SoftToken {
     let (token, _ca) = SoftToken::new(true).expect("softtoken");
-    WebauthnAuthenticator::new(token)
+    token
 }
 
 fn rp_origin() -> url::Url {

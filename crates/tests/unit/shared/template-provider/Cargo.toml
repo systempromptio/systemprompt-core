@@ -17,5 +17,6 @@ serde_json = { workspace = true }
 tokio = { workspace = true }
 tempfile = { workspace = true }
 async-trait = { workspace = true }
+systemprompt-test-hack = { version = "0.1", path = "../../../common/hack" }
 
 [dev-dependencies]

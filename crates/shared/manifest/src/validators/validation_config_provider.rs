@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::profile::SecretsConfig;
 use crate::{Config, ServicesConfig};
 use systemprompt_models::ContentConfigRaw;
 use systemprompt_traits::ConfigProvider;
@@ -70,6 +71,7 @@ pub struct ValidationConfigProvider {
     content_config: Option<ContentConfigRaw>,
     web_config: Option<WebConfigRaw>,
     web_metadata: Option<WebMetadataRaw>,
+    secrets_config: Option<SecretsConfig>,
 }
 
 impl ValidationConfigProvider {
@@ -80,7 +82,17 @@ impl ValidationConfigProvider {
             content_config: None,
             web_config: None,
             web_metadata: None,
+            secrets_config: None,
         }
+    }
+
+    pub fn with_secrets_config(mut self, config: Option<SecretsConfig>) -> Self {
+        self.secrets_config = config;
+        self
+    }
+
+    pub const fn secrets_config(&self) -> Option<&SecretsConfig> {
+        self.secrets_config.as_ref()
     }
 
     pub fn with_content_config(mut self, config: ContentConfigRaw) -> Self {

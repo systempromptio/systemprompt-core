@@ -42,6 +42,8 @@ mod documents_collab_lease_busy;
 #[cfg(test)]
 mod documents_collab_live_fixture;
 #[cfg(test)]
+mod documents_collab_live_image_provenance;
+#[cfg(test)]
 mod documents_collab_live_ops;
 #[cfg(test)]
 mod documents_collab_live_structured;
@@ -74,6 +76,8 @@ mod documents_drive_paths;
 #[cfg(test)]
 mod documents_engine_review;
 #[cfg(test)]
+mod documents_feed_delivery;
+#[cfg(test)]
 mod documents_folders;
 #[cfg(test)]
 mod documents_foreign_lock;
@@ -88,6 +92,12 @@ mod documents_listing_scale;
 #[cfg(test)]
 mod documents_media_admit;
 #[cfg(test)]
+mod documents_media_backfill;
+#[cfg(test)]
+mod documents_media_export_caps;
+#[cfg(test)]
+mod documents_media_provenance;
+#[cfg(test)]
 mod documents_media_read;
 #[cfg(test)]
 mod documents_node_ids_backfill;
@@ -95,6 +105,8 @@ mod documents_node_ids_backfill;
 mod documents_notification_facts;
 #[cfg(test)]
 mod documents_pdf_images;
+#[cfg(test)]
+mod documents_pdf_picture_budget;
 #[cfg(test)]
 mod documents_pdf_render;
 #[cfg(test)]
@@ -111,6 +123,8 @@ mod documents_repository;
 mod documents_repository_any;
 #[cfg(test)]
 mod documents_revision_engine;
+#[cfg(test)]
+mod documents_search_visibility;
 #[cfg(test)]
 mod documents_service;
 #[cfg(test)]
@@ -145,6 +159,8 @@ mod repository;
 mod services;
 #[cfg(test)]
 mod upload_service;
+#[cfg(test)]
+mod uploads_account_lock;
 #[cfg(test)]
 mod uploads_admission;
 #[cfg(test)]

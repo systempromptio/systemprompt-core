@@ -28,16 +28,6 @@ fn transient_with_hint_is_transient() {
 }
 
 #[test]
-fn outcome_equality_success() {
-    assert_eq!(Outcome::Success, Outcome::Success);
-}
-
-#[test]
-fn outcome_equality_permanent() {
-    assert_eq!(Outcome::Permanent, Outcome::Permanent);
-}
-
-#[test]
 fn outcome_equality_transient_none() {
     assert_eq!(
         Outcome::Transient { retry_after: None },

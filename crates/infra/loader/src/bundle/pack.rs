@@ -24,15 +24,7 @@ use tar::Builder;
 
 use super::error::{BundleError, BundleResult};
 use super::extract::BUNDLE_TREE_PREFIX;
-
-const OWNED_ID_DIRS: &[&str] = &[
-    "marketplaces",
-    "plugins",
-    "skills",
-    "rules",
-    "hooks",
-    "artifacts",
-];
+use super::ownership::OWNED_ID_DIRS;
 
 pub fn collect_files(root: &Path, directories: &[&str]) -> io::Result<Vec<FileEntry>> {
     let mut files = Vec::new();

@@ -22,11 +22,11 @@ use systemprompt_test_fixtures::{
 use uuid::Uuid;
 
 const CLIENT: &str = "sp_web";
+const UPSTREAM: &str = systemprompt_test_fixtures::FIXTURE_UPSTREAM_ISSUER;
 
 fn config() -> Config {
     fixture_config(&test_database_url())
 }
-
 
 fn sign_id_jag(
     config: &Config,
@@ -55,6 +55,7 @@ fn claims(config: &Config, jti: &str, scope: &str) -> serde_json::Value {
         "iat": now,
         "exp": now + 300,
         "scope": scope,
+        "upstream_iss": UPSTREAM,
     })
 }
 
@@ -242,6 +243,7 @@ async fn a_trusted_issuer_id_jag_whose_jwks_is_unreachable_is_refused() {
         typ_allowlist: vec![],
         allowed_client_ids: vec![systemprompt_identifiers::ClientId::new(CLIENT)],
         can_issue_id_jag: true,
+        link: Default::default(),
     }];
     let token = unsigned(
         &format!(r#"{{"alg":"RS256","typ":"{ID_JAG_TYP}","kid":"k1"}}"#),

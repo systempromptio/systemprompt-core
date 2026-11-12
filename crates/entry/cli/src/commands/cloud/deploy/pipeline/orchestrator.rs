@@ -1,12 +1,16 @@
 //! Deploy pipeline sequencing.
 //!
+//! With `wait_ready`, "ready" is reported only from the provider's
+//! [`DeployProvider::wait_until_ready`]; an unready tenant fails the deploy.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::time::Duration;
 
 use anyhow::Result;
 use systemprompt_cloud::DockerCli;
-use systemprompt_cloud::deploy::provider::{BuiltImage, DeployProvider};
+use systemprompt_cloud::deploy::provider::{BuiltImage, DeployProvider, ReadinessWait};
 use systemprompt_cloud::deploy::{find_services_config, validate_profile_dockerfile};
 use systemprompt_loader::ConfigLoader;
 
@@ -16,20 +20,29 @@ use super::request::{DeployReport, DeployRequest};
 
 use super::secrets::provision_secrets;
 
-#[derive(Debug, Default)]
+pub const DEFAULT_READINESS_WAIT: ReadinessWait = ReadinessWait {
+    timeout: Duration::from_mins(10),
+    interval: Duration::from_secs(5),
+};
+
+#[derive(Debug)]
 pub struct DeployOrchestrator {
     docker: DockerCli,
+    readiness: ReadinessWait,
 }
 
 impl DeployOrchestrator {
     #[must_use]
-    pub fn new() -> Self {
-        Self::default()
+    pub const fn new(docker: DockerCli) -> Self {
+        Self {
+            docker,
+            readiness: DEFAULT_READINESS_WAIT,
+        }
     }
 
     #[must_use]
-    pub fn with_docker(mut self, docker: DockerCli) -> Self {
-        self.docker = docker;
+    pub const fn with_readiness(mut self, readiness: ReadinessWait) -> Self {
+        self.readiness = readiness;
         self
     }
 
@@ -47,7 +60,9 @@ impl DeployOrchestrator {
         });
 
         let services_config_path = find_services_config(&request.project_root)?;
-        let services_config = ConfigLoader::load_from_path(&services_config_path, None)?;
+        let services_config = ConfigLoader::new(services_config_path)
+            .inspecting()
+            .load()?;
         validate_profile_dockerfile(
             &artifacts.dockerfile,
             &request.project_root,
@@ -79,9 +94,10 @@ impl DeployOrchestrator {
 
         if request.options.wait_ready {
             progress.event(&DeployEvent::ReadinessWaitStarted);
-            let health = provider.status().await?;
+            let health = provider.wait_until_ready(self.readiness).await?;
             progress.event(&DeployEvent::TenantReady {
                 version: health.version.as_deref(),
+                release_confirmed: health.release_confirmed,
             });
         }
 

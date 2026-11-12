@@ -159,24 +159,7 @@ impl crate::host_sync::HostSync for ClaudeDesktopMdmSync {
         #[cfg(target_os = "windows")]
         let report = {
             let mut report = report;
-            let entries: Vec<(String, String)> =
-                super::policy::reg_values(&super::desktop_policy_entries(&inputs).map_err(
-                    |e| crate::host_sync::ApplyError::Step {
-                        context: "render the desktop policy for the elevated writer",
-                        source: Box::new(e),
-                    },
-                )?)
-                .into_iter()
-                .map(|(name, _, value)| (name.to_owned(), value))
-                .collect();
-            let facts =
-                crate::install::policy_writer::facts_from_entries(&entries).map_err(|e| {
-                    crate::host_sync::ApplyError::Step {
-                        context: "derive the elevated writer's request from the desktop policy",
-                        source: Box::new(e),
-                    }
-                })?;
-            match super::windows::delegate_to_writer(&inputs, facts) {
+            match super::windows::delegate_to_writer(&inputs) {
                 Ok(Some(line)) => {
                     tracing::info!(
                         target: "bridge::mdm",

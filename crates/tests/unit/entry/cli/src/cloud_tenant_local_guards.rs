@@ -8,12 +8,13 @@
 use systemprompt_cli::ScriptedPrompter;
 use systemprompt_cli::cloud::profile::templates::validate_connection;
 use systemprompt_cli::cloud::tenant::{create_external_tenant, create_local_tenant};
+use systemprompt_loader::subprocess::ForegroundChildren;
 
 #[tokio::test]
 async fn a_non_numeric_port_is_rejected_before_any_container_is_started() {
     let prompter = ScriptedPrompter::new(["coverage-tenant", "not-a-port"]);
 
-    let error = create_local_tenant(&prompter)
+    let error = create_local_tenant(&prompter, &ForegroundChildren::default())
         .await
         .map(|_| ())
         .expect_err("a port that is not a number cannot be bound");
@@ -30,7 +31,7 @@ async fn a_non_numeric_port_is_rejected_before_any_container_is_started() {
 async fn an_empty_external_database_url_is_rejected_before_validation() {
     let prompter = ScriptedPrompter::new(["coverage-tenant", ""]);
 
-    let error = create_external_tenant(&prompter)
+    let error = create_external_tenant(&prompter, &ForegroundChildren::default())
         .await
         .map(|_| ())
         .expect_err("an empty connection URL cannot name a database");
@@ -48,7 +49,7 @@ async fn an_unreachable_external_database_stops_the_flow() {
         "postgres://nobody:nobody@127.0.0.1:1/nothing",
     ]);
 
-    let error = create_external_tenant(&prompter)
+    let error = create_external_tenant(&prompter, &ForegroundChildren::default())
         .await
         .map(|_| ())
         .expect_err("a tenant must not be registered against a database nobody can reach");

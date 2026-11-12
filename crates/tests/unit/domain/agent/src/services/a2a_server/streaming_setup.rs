@@ -7,6 +7,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 use systemprompt_identifiers::AgentName;
+use systemprompt_test_fixtures::agent_reads::TaskReadsExt;
 
 use futures::StreamExt;
 use systemprompt_agent::models::a2a::jsonrpc::RequestId;
@@ -79,7 +80,7 @@ async fn setup_with_valid_context_persists_task_and_reports_missing_agent() {
 
     let stored = repos_handle
         .tasks
-        .find_task(&task_id)
+        .read_task(&task_id)
         .await
         .expect("get task");
     let stored = stored.expect("initial task must have been persisted");
@@ -148,7 +149,7 @@ async fn setup_with_unknown_context_emits_validation_error_and_persists_nothing(
         "expected context-validation error event, got {events:?}"
     );
 
-    let stored = repos_handle.tasks.find_task(&task_id).await.expect("query");
+    let stored = repos_handle.tasks.read_task(&task_id).await.expect("query");
     assert!(
         stored.is_none(),
         "no task may be persisted when context validation fails"
@@ -168,7 +169,13 @@ async fn task_insert_failure_streams_internal_error_without_dispatch_or_partial_
     let (ctx, _existing_task) = seed_context_and_task(&repos_handle, &user, &session).await;
     let before = repos_handle
         .tasks
-        .list_tasks_by_context(&ctx)
+        .list_tasks_by_context(
+            &repos_handle
+                .contexts
+                .owned_context(&ctx, &user)
+                .await
+                .expect("owned context"),
+        )
         .await
         .expect("tasks before rejected insert")
         .len();
@@ -211,7 +218,7 @@ async fn task_insert_failure_streams_internal_error_without_dispatch_or_partial_
     assert!(
         repos_handle
             .tasks
-            .find_task(&task_id)
+            .read_task(&task_id)
             .await
             .expect("rejected task lookup")
             .is_none()
@@ -219,7 +226,13 @@ async fn task_insert_failure_streams_internal_error_without_dispatch_or_partial_
     assert_eq!(
         repos_handle
             .tasks
-            .list_tasks_by_context(&ctx)
+            .list_tasks_by_context(
+                &repos_handle
+                    .contexts
+                    .owned_context(&ctx, &user)
+                    .await
+                    .expect("owned context"),
+            )
             .await
             .expect("tasks after rejected insert")
             .len(),

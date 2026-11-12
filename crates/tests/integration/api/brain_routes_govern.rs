@@ -87,7 +87,7 @@ async fn the_owner_confirms_pins_edits_and_retracts_a_personal_fact() -> Result<
 }
 
 #[tokio::test]
-async fn a_stranger_may_not_govern_a_personal_fact() -> Result<()> {
+async fn a_stranger_is_answered_not_found_for_every_action_on_a_personal_fact() -> Result<()> {
     let fx = brain_fixture().await?;
     let me = owner(&fx.pool, "brain-govern-owner").await?;
     let other = owner(&fx.pool, "brain-govern-other").await?;
@@ -102,7 +102,12 @@ async fn a_stranger_may_not_govern_a_personal_fact() -> Result<()> {
             None,
         )
         .await?;
-        assert_eq!(status, StatusCode::FORBIDDEN, "{action}: {body}");
+        assert_eq!(status, StatusCode::NOT_FOUND, "{action}: {body}");
+        assert_eq!(
+            body["error_key"],
+            json!("fact_not_found"),
+            "{action}: {body}"
+        );
     }
     let (_, fact) = call(
         &fx.routes,

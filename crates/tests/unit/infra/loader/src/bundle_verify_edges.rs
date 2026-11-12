@@ -242,3 +242,52 @@ fn a_manifest_whose_content_hash_was_edited_no_longer_verifies_the_tree() {
         "the refusal names the content hash: {err}"
     );
 }
+
+#[test]
+fn a_manifest_under_declaring_a_shipped_directory_fails_extracted_verification() {
+    let src = tempfile::tempdir().expect("tempdir");
+    let out = tempfile::tempdir().expect("tempdir");
+    crate::bundle_support::marketplace_tree(src.path(), "kit", "sales");
+    fs::create_dir_all(src.path().join("access-control")).expect("mkdir");
+    fs::write(src.path().join("access-control/rules.yaml"), "rules: []\n").expect("write");
+    let packed = pack(src.path(), &out.path().join("b.tar.gz"), "1.0.0", ">=0.1");
+    let mut manifest = packed.signed.manifest.clone();
+    manifest.owns.dirs.retain(|d| d != "access-control");
+
+    let err = verify_extracted(src.path(), &manifest).expect_err("under-declared ownership");
+
+    assert!(
+        err.to_string().contains("directory access-control"),
+        "the refusal names the undeclared directory: {err}"
+    );
+}
+
+#[test]
+fn require_marketplace_only_judges_shipped_files_not_the_declared_block() {
+    let src = tempfile::tempdir().expect("tempdir");
+    let out = tempfile::tempdir().expect("tempdir");
+    crate::bundle_support::marketplace_tree(src.path(), "kit", "sales");
+    fs::create_dir_all(src.path().join("gateway")).expect("mkdir");
+    fs::write(src.path().join("gateway/routes.yaml"), "routes: []\n").expect("write");
+    let packed = pack(src.path(), &out.path().join("b.tar.gz"), "1.0.0", ">=0.1");
+    let mut manifest = packed.signed.manifest.clone();
+    manifest.owns.dirs = vec!["marketplaces".to_owned(), "plugins".to_owned()];
+
+    let err = require_marketplace_only(&manifest).expect_err("gateway is shipped");
+
+    assert!(err.to_string().contains("gateway"), "{err}");
+}
+
+#[test]
+fn a_manifest_path_escaping_the_tree_is_refused() {
+    let src = tempfile::tempdir().expect("tempdir");
+    let out = tempfile::tempdir().expect("tempdir");
+    crate::bundle_support::marketplace_tree(src.path(), "kit", "sales");
+    let packed = pack(src.path(), &out.path().join("b.tar.gz"), "1.0.0", ">=0.1");
+    let mut manifest = packed.signed.manifest.clone();
+    manifest.files[0].path = "plugins/../../escape.yaml".to_owned();
+
+    let err = verify_extracted(src.path(), &manifest).expect_err("unsafe path");
+
+    assert!(err.to_string().contains("escape.yaml"), "{err}");
+}

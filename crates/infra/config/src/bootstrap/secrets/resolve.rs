@@ -5,12 +5,11 @@
 //! the network. Callers pass the already-observed facts.
 //!
 //! Precedence, highest first:
-//! 1. subprocess marker — the parent handed the child its secrets as env
-//! 2. `source: vault` / `source: external` — win even on deployment hosts, so a
+//! 1. `source: vault` / `source: external` — win even on deployment hosts, so a
 //!    container is not silently downgraded to whatever env happens to be set
-//! 3. `source: env` on a deployment host — env
-//! 4. `source: env` locally — file first, env as fallback
-//! 5. `source: file` — the file, on every host; a mounted secrets file in a
+//! 2. `source: env` on a deployment host — env
+//! 3. `source: env` locally — file first, env as fallback
+//! 4. `source: file` — the file, on every host; a mounted secrets file in a
 //!    container is read, never shadowed by whatever env the host carries
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -24,7 +23,6 @@ use super::SecretsBootstrapError;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ResolvedSource<'a> {
-    SubprocessEnv,
     Vault(&'a VaultSecretsConfig),
     External(&'a ExternalSecretsConfig),
     DeploymentHostEnv,
@@ -34,14 +32,9 @@ pub enum ResolvedSource<'a> {
 
 pub fn resolve_source(
     config: Option<&SecretsConfig>,
-    is_subprocess: bool,
     is_deployment_host: bool,
     has_valid_pepper_in_env: bool,
 ) -> Result<ResolvedSource<'_>, SecretsBootstrapError> {
-    if is_subprocess && has_valid_pepper_in_env {
-        return Ok(ResolvedSource::SubprocessEnv);
-    }
-
     let Some(config) = config else {
         return if is_deployment_host && has_valid_pepper_in_env {
             Ok(ResolvedSource::DeploymentHostEnv)

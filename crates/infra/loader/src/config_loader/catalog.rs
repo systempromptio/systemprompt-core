@@ -22,6 +22,8 @@ use systemprompt_manifest::services::{GatewayState, ServicesConfig};
 
 use crate::error::{ConfigLoadError, ConfigLoadResult};
 
+use super::parse::Interpolator;
+
 const CATALOG_DIR: &str = "ai";
 
 #[must_use]
@@ -62,7 +64,10 @@ pub(super) fn refuse_catalog_sections(
     })
 }
 
-pub fn read_catalog_dir(dir: &Path) -> ConfigLoadResult<CatalogDocument> {
+pub(super) fn read_catalog_dir(
+    dir: &Path,
+    interpolator: Interpolator,
+) -> ConfigLoadResult<CatalogDocument> {
     let mut merged = CatalogDocument::default();
     for name in CATALOG_FILES {
         let path = dir.join(name);
@@ -74,7 +79,8 @@ pub fn read_catalog_dir(dir: &Path) -> ConfigLoadResult<CatalogDocument> {
             source,
         })?;
         refuse_legacy(&path, &text)?;
-        let document = CatalogDocument::from_yaml_str(&path.display().to_string(), &text)?;
+        let value = interpolator.value(&path, &text)?;
+        let document = CatalogDocument::from_yaml_value(&path.display().to_string(), value)?;
         merged.merge(document)?;
     }
     if let Some(spec) = merged.gateway.as_mut() {

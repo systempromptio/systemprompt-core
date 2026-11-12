@@ -5,11 +5,13 @@ use systemprompt_catalog_fixtures::{CatalogFixture, model, platform, priced};
 use systemprompt_gateway::protocol::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, Role,
 };
-use systemprompt_gateway::service::chain_plan::{fit_context_window, order_chain};
+use systemprompt_gateway::service::chain_plan::{
+    ChainHealth, SentBody, fit_context_window, order_chain,
+};
 use systemprompt_gateway::service::failover::{
     DeploymentLoad, DeploymentState, ProviderBreakers, plan_selection,
 };
-use systemprompt_identifiers::{ModelId, RouteId};
+use systemprompt_identifiers::{ModelId, RouteId, UserId};
 use systemprompt_manifest::services::catalog::{
     EndpointConfig, ProviderConfig, ResolvedCatalog, ResolvedHop,
 };
@@ -183,8 +185,11 @@ fn ordered_chain_is_unchanged_and_not_described() {
         ],
         SelectionStrategy::Ordered,
         Some(&route_id()),
-        &ProviderBreakers::new(),
-        &DeploymentLoad::default(),
+        ChainHealth {
+            breakers: &ProviderBreakers::new(),
+            load: &DeploymentLoad::default(),
+            owner: &UserId::new("member-a"),
+        },
     );
     assert_eq!(providers_of(&planned), vec!["small", "large"]);
     assert_eq!(planned.descriptor, None);
@@ -195,6 +200,10 @@ fn a_bare_route_serializes_without_strategy_or_fallbacks() {
     let r = GatewayRoute::new("r");
     let yaml = serde_yaml::to_string(&r).expect("serialize");
     assert!(!yaml.contains("strategy") && !yaml.contains("weight") && !yaml.contains("context"));
+}
+
+fn reencoded() -> SentBody {
+    SentBody::measure(None, b"")
 }
 
 fn request_of(chars: usize) -> CanonicalRequest {
@@ -213,6 +222,7 @@ fn a_request_that_fits_keeps_its_chain() {
     let planned = fit_context_window(
         &c,
         &request_of(40),
+        reencoded(),
         vec![hop(&c, "small-m", "small", None)],
         vec![hop(&c, "large-m", "large", None)],
     )
@@ -227,6 +237,7 @@ fn an_oversized_request_moves_to_the_context_fallback() {
     let planned = fit_context_window(
         &c,
         &request_of(4_000),
+        reencoded(),
         vec![hop(&c, "small-m", "small", None)],
         vec![hop(&c, "large-m", "large", None)],
     )
@@ -239,12 +250,58 @@ fn an_oversized_request_moves_to_the_context_fallback() {
     );
 }
 
+fn billed_as(
+    mut hop: ResolvedHop,
+    kind: systemprompt_manifest::services::catalog::CredentialKind,
+) -> ResolvedHop {
+    hop.credential.kind = kind;
+    hop.credential.secret = None;
+    hop
+}
+
+#[test]
+fn a_member_paid_request_never_moves_to_a_platform_context_fallback() {
+    use systemprompt_manifest::services::catalog::CredentialKind;
+    let c = catalog();
+    for kind in [CredentialKind::Caller, CredentialKind::Personal] {
+        let exceeded = fit_context_window(
+            &c,
+            &request_of(4_000),
+            reencoded(),
+            vec![billed_as(hop(&c, "small-m", "small", None), kind)],
+            vec![hop(&c, "large-m", "large", None)],
+        )
+        .expect_err("a platform fallback would move the bill");
+        assert_eq!(exceeded.limit, 100, "{kind:?}");
+    }
+}
+
+#[test]
+fn failover_stays_on_the_bill_the_request_started_on() {
+    use systemprompt_manifest::services::catalog::CredentialKind;
+    let c = catalog();
+    let platform_a = hop(&c, "small-m", "small", None);
+    let platform_b = hop(&c, "large-m", "large", None);
+    let caller_a = billed_as(platform_a.clone(), CredentialKind::Caller);
+    let caller_b = billed_as(platform_b.clone(), CredentialKind::Caller);
+
+    assert!(platform_a.may_fail_over_to(&platform_b));
+    assert!(!caller_a.may_fail_over_to(&platform_b));
+    assert!(!platform_a.may_fail_over_to(&caller_b));
+    assert!(
+        !caller_a.may_fail_over_to(&caller_b),
+        "two different credentials"
+    );
+    assert!(caller_a.may_fail_over_to(&caller_a.clone()));
+}
+
 #[test]
 fn an_oversized_request_with_no_fitting_fallback_is_refused_with_the_numbers() {
     let c = catalog();
     let exceeded = fit_context_window(
         &c,
         &request_of(4_000),
+        reencoded(),
         vec![hop(&c, "small-m", "small", None)],
         Vec::new(),
     )
@@ -260,6 +317,7 @@ fn failover_deployments_too_small_for_the_request_are_dropped() {
     let planned = fit_context_window(
         &c,
         &request_of(4_000),
+        reencoded(),
         vec![
             hop(&c, "large-m", "large", None),
             hop(&c, "small-m", "small", None),
@@ -284,8 +342,11 @@ fn an_empty_chain_plans_to_nothing() {
         Vec::new(),
         SelectionStrategy::Ordered,
         Some(&route_id()),
-        &ProviderBreakers::new(),
-        &DeploymentLoad::default(),
+        ChainHealth {
+            breakers: &ProviderBreakers::new(),
+            load: &DeploymentLoad::default(),
+            owner: &UserId::new("member-a"),
+        },
     );
     assert!(planned.deployments.is_empty());
     assert_eq!(planned.descriptor, None);
@@ -302,8 +363,11 @@ fn an_idle_least_busy_chain_keeps_chain_order_and_is_described() {
         ],
         SelectionStrategy::LeastBusy,
         Some(&route_id()),
-        &ProviderBreakers::new(),
-        &DeploymentLoad::default(),
+        ChainHealth {
+            breakers: &ProviderBreakers::new(),
+            load: &DeploymentLoad::default(),
+            owner: &UserId::new("member-a"),
+        },
     );
     assert_eq!(
         providers_of(&planned),
@@ -322,8 +386,11 @@ fn a_weighted_chain_is_a_permutation_of_its_deployments() {
         ],
         SelectionStrategy::Weighted,
         Some(&route_id()),
-        &ProviderBreakers::new(),
-        &DeploymentLoad::default(),
+        ChainHealth {
+            breakers: &ProviderBreakers::new(),
+            load: &DeploymentLoad::default(),
+            owner: &UserId::new("member-a"),
+        },
     );
     let mut providers = providers_of(&planned);
     providers.sort_unstable();
@@ -338,8 +405,11 @@ fn a_single_weighted_deployment_is_not_reordered_but_is_described() {
         vec![hop(&c, "plan-m", "w-plan-solo", None)],
         SelectionStrategy::Weighted,
         Some(&route_id()),
-        &ProviderBreakers::new(),
-        &DeploymentLoad::default(),
+        ChainHealth {
+            breakers: &ProviderBreakers::new(),
+            load: &DeploymentLoad::default(),
+            owner: &UserId::new("member-a"),
+        },
     );
     assert_eq!(providers_of(&planned), vec!["w-plan-solo"]);
     assert_eq!(planned.descriptor.as_deref(), Some("strategy:weighted"));
@@ -351,6 +421,7 @@ fn a_deployment_with_no_known_window_is_never_refused() {
     let planned = fit_context_window(
         &c,
         &request_of(4_000),
+        reencoded(),
         vec![
             hop(&c, "open-m", "unregistered", None),
             hop(&c, "small-m", "small", None),
@@ -359,4 +430,184 @@ fn a_deployment_with_no_known_window_is_never_refused() {
     )
     .expect("an unknown window is not a refusal");
     assert_eq!(providers_of(&planned), vec!["unregistered"]);
+}
+
+fn anthropic_body(block: serde_json::Value) -> Vec<u8> {
+    serde_json::to_vec(&serde_json::json!({
+        "model": "m",
+        "max_tokens": 64,
+        "messages": [{"role": "user", "content": [block, {"type": "text", "text": "hi"}]}]
+    }))
+    .expect("serialize")
+}
+
+fn text_document(chars: usize) -> SentBody {
+    SentBody::measure(
+        Some(WireProtocol::Anthropic),
+        &anthropic_body(serde_json::json!({"type": "document", "source": {
+            "type": "text", "media_type": "text/plain", "data": "x".repeat(chars)
+        }})),
+    )
+}
+
+#[test]
+fn unmodelled_passthrough_text_counts_toward_the_context_window() {
+    let c = catalog();
+    let planned = fit_context_window(
+        &c,
+        &request_of(40),
+        text_document(4_000),
+        vec![hop(&c, "small-m", "small", None)],
+        vec![hop(&c, "large-m", "large", None)],
+    )
+    .expect("falls back to the larger window");
+    assert_eq!(providers_of(&planned), vec!["large"]);
+    assert_eq!(
+        planned.descriptor.as_deref(),
+        Some("context_window:small/api->large/api")
+    );
+}
+
+#[test]
+fn a_huge_text_document_with_no_fitting_fallback_is_refused() {
+    let c = catalog();
+    let exceeded = fit_context_window(
+        &c,
+        &request_of(40),
+        text_document(4_000),
+        vec![hop(&c, "small-m", "small", None)],
+        Vec::new(),
+    )
+    .expect_err("refused");
+    assert_eq!(exceeded.limit, 100);
+    assert!(exceeded.estimate > 1_000);
+}
+
+#[test]
+fn passthrough_bytes_are_not_counted_on_a_hop_that_re_encodes() {
+    let c = catalog();
+    let raw = anthropic_body(serde_json::json!({"type": "text", "text": "x".repeat(4_000)}));
+    let planned = fit_context_window(
+        &c,
+        &request_of(40),
+        SentBody::measure(Some(WireProtocol::OpenAiChat), &raw),
+        vec![hop(&c, "small-m", "small", None)],
+        vec![hop(&c, "large-m", "large", None)],
+    )
+    .expect("fits");
+    assert_eq!(providers_of(&planned), vec!["small"]);
+    assert_eq!(planned.descriptor, None);
+}
+
+fn plans_onto_small(raw: &[u8], wire: WireProtocol) {
+    assert_eq!(
+        wire,
+        WireProtocol::Anthropic,
+        "the fixture hops are Anthropic"
+    );
+    let c = catalog();
+    let planned = fit_context_window(
+        &c,
+        &request_of(40),
+        SentBody::measure(Some(wire), raw),
+        vec![hop(&c, "small-m", "small", None)],
+        Vec::new(),
+    )
+    .expect("base64 binary sources are not priced as text bytes");
+    assert_eq!(providers_of(&planned), vec!["small"]);
+}
+
+#[test]
+fn a_multi_megabyte_base64_pdf_still_plans_onto_the_deployment() {
+    let raw = anthropic_body(serde_json::json!({"type": "document", "source": {
+        "type": "base64", "media_type": "application/pdf", "data": "J".repeat(5 * 1024 * 1024)
+    }}));
+    plans_onto_small(&raw, WireProtocol::Anthropic);
+}
+
+#[test]
+fn a_base64_image_is_not_priced_as_text_bytes() {
+    let raw = anthropic_body(serde_json::json!({"type": "image", "source": {
+        "type": "base64", "media_type": "image/png", "data": "A".repeat(400_000)
+    }}));
+    plans_onto_small(&raw, WireProtocol::Anthropic);
+}
+
+#[test]
+fn openai_chat_file_and_data_uri_images_are_not_priced_as_text_bytes() {
+    let data = "B".repeat(400_000);
+    let raw = serde_json::to_vec(&serde_json::json!({
+        "model": "m",
+        "messages": [{"role": "user", "content": [
+            {"type": "file", "file": {"filename": "a.pdf",
+                "file_data": format!("data:application/pdf;base64,{data}")}},
+            {"type": "image_url", "image_url": {"url": format!("data:image/png;base64,{data}")}},
+            {"type": "text", "text": "hi"}
+        ]}]
+    }))
+    .expect("serialize");
+    plans_onto_small(&raw, WireProtocol::Anthropic);
+}
+
+#[test]
+fn responses_input_file_and_input_image_are_not_priced_as_text_bytes() {
+    let data = "C".repeat(400_000);
+    let raw = serde_json::to_vec(&serde_json::json!({
+        "model": "m",
+        "input": [{"role": "user", "content": [
+            {"type": "input_file", "filename": "a.pdf", "file_data": data},
+            {"type": "input_image", "image_url": format!("data:image/png;base64,{data}")},
+            {"type": "input_text", "text": "hi"}
+        ]}]
+    }))
+    .expect("serialize");
+    plans_onto_small(&raw, WireProtocol::Anthropic);
+}
+
+#[test]
+fn gemini_inline_data_is_not_priced_as_text_bytes() {
+    let data = "D".repeat(400_000);
+    let raw = serde_json::to_vec(&serde_json::json!({
+        "contents": [{"role": "user", "parts": [
+            {"inlineData": {"mimeType": "image/png", "data": data}},
+            {"inline_data": {"mime_type": "image/png", "data": data}},
+            {"fileData": {"mimeType": "application/pdf", "fileUri": "gs://b/a.pdf"}},
+            {"text": "hi"}
+        ]}]
+    }))
+    .expect("serialize");
+    plans_onto_small(&raw, WireProtocol::Anthropic);
+}
+
+#[test]
+fn openai_input_audio_is_not_priced_as_text_bytes() {
+    let raw = serde_json::to_vec(&serde_json::json!({
+        "model": "m",
+        "messages": [{"role": "user", "content": [
+            {"type": "input_audio", "input_audio": {"data": "E".repeat(400_000), "format": "wav"}},
+            {"type": "text", "text": "hi"}
+        ]}]
+    }))
+    .expect("serialize");
+    plans_onto_small(&raw, WireProtocol::Anthropic);
+}
+
+#[test]
+fn escaped_text_is_measured_by_its_decoded_length() {
+    let text = "\u{4e2d}".repeat(90);
+    let escaped = format!(
+        r#"{{"model":"m","messages":[{{"role":"user","content":"{}"}}]}}"#,
+        "\\u4e2d".repeat(90)
+    );
+    assert!(escaped.len() > 4 * 100);
+    let c = catalog();
+    let planned = fit_context_window(
+        &c,
+        &request_of(text.len()),
+        SentBody::measure(Some(WireProtocol::Anthropic), escaped.as_bytes()),
+        vec![hop(&c, "small-m", "small", None)],
+        Vec::new(),
+    )
+    .expect("the decoded text fits the window");
+    assert_eq!(providers_of(&planned), vec!["small"]);
 }

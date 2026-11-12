@@ -134,7 +134,7 @@ pub(super) async fn push_file_secrets<P: DeployProvider>(
     progress: &dyn DeployProgress,
 ) -> Result<()> {
     let mut env_secrets = if path.exists() {
-        secrets_env::map_secrets_to_env_vars(secrets_env::load_secrets_json(path)?)
+        secrets_env::deploy_secret_env(secrets_env::load_secrets_json(path)?)
     } else {
         progress.event(&DeployEvent::SecretsFileMissing);
         HashMap::new()

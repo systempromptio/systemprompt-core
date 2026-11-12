@@ -8,7 +8,9 @@
 //! reservation landed in (not re-aligned, so a completion that crosses a window
 //! boundary trues up the window it was admitted to); failure or abandonment
 //! releases the tokens and cost. The request count is never returned: an
-//! admitted request is one request whatever its outcome.
+//! admitted request is one request whatever its outcome. A denied request is
+//! charged in every window and then revoked from every window in one
+//! statement, so it counts in none of them whatever their order.
 //!
 //! A window keyed by a shared subject is spread over
 //! `QuotaConfig::shared_subject_shards` rows; per-principal (`user`,
@@ -31,7 +33,6 @@ use systemprompt_manifest::services::QuotaFaultMode;
 use systemprompt_models::attribution::RequestAttribution;
 use systemprompt_traits::RepositoryError;
 
-use super::AccountingOutcome;
 use super::decision::{QuotaDecision, ceiling_decision, fault_decision};
 use super::distinct::distinct_increments;
 use super::estimate::QuotaEstimate;
@@ -70,8 +71,11 @@ impl QuotaReservation {
     }
 }
 
-/// The admission verdict. A denial still carries what was reserved: the
-/// caller releases it (enforce) or keeps it for settlement (warn).
+/// The admission verdict.
+///
+/// A denial carries every window the request was charged in: the caller
+/// revokes the whole charge (enforce), so the request counts in no window, or
+/// keeps it for settlement (warn), so it counts in every window.
 #[derive(Debug, Clone)]
 pub enum ReserveOutcome {
     Admitted(QuotaReservation),
@@ -112,9 +116,6 @@ struct ResolvedWindows<'w> {
     closed_fault: Option<QuotaDecision>,
 }
 
-// Why: subjects are resolved before any bucket is touched so every window
-// can be reserved in one statement; a closed fault stops resolution at the
-// first window it applies to.
 async fn resolve_windows<'w>(
     params: &ReserveParams<'w>,
     now: DateTime<Utc>,
@@ -196,88 +197,19 @@ pub async fn precheck_and_reserve(
                 delta,
             });
         }
-        if let Some(decision) = ceiling_decision(r.window, states[slot], r.span, now) {
-            unreserve(repo, &increments[reservation.windows.len()..]).await;
-            return Ok(ReserveOutcome::Denied {
-                decision,
-                reservation,
-            });
-        }
     }
-    Ok(match closed_fault {
+    let denial = resolved
+        .iter()
+        .zip(&slots)
+        .find_map(|(r, &slot)| ceiling_decision(r.window, states[slot], r.span, now))
+        .or(closed_fault);
+    Ok(match denial {
         Some(decision) => ReserveOutcome::Denied {
             decision,
             reservation,
         },
         None => ReserveOutcome::Admitted(reservation),
     })
-}
-
-// Why: the per-window loop stopped at the first exceeded ceiling, so windows
-// after it were never charged; the single statement charged them, and this
-// takes the whole charge (request included) back out.
-async fn unreserve(repo: &AiQuotaBucketRepository, tail: &[IncrementParams<'_>]) {
-    if tail.is_empty() {
-        return;
-    }
-    let reversed: Vec<IncrementParams<'_>> = tail
-        .iter()
-        .map(|p| IncrementParams {
-            delta: QuotaBucketDelta {
-                requests: -p.delta.requests,
-                input_tokens: -p.delta.input_tokens,
-                output_tokens: -p.delta.output_tokens,
-                cost_microdollars: -p.delta.cost_microdollars,
-            },
-            ..*p
-        })
-        .collect();
-    if let Err(error) = repo.increment_many(&reversed).await {
-        tracing::warn!(%error, windows = reversed.len(), "quota unreserve write failed");
-    }
-}
-
-pub async fn settle(
-    repo: &AiQuotaBucketRepository,
-    reservation: &QuotaReservation,
-    actual: QuotaUsage,
-) -> AccountingOutcome {
-    let deltas: Vec<IncrementParams<'_>> = reservation
-        .windows
-        .iter()
-        .map(|window| IncrementParams {
-            subject_kind: window.subject_kind.as_str(),
-            subject_id: &window.subject_id,
-            window_seconds: window.window_seconds,
-            window_start: window.window_start,
-            shard: window.shard,
-            delta: QuotaBucketDelta {
-                requests: 0,
-                input_tokens: actual.input_tokens - window.delta.input_tokens,
-                output_tokens: actual.output_tokens - window.delta.output_tokens,
-                cost_microdollars: actual.cost_microdollars - window.delta.cost_microdollars,
-            },
-        })
-        .collect();
-    match repo.increment_many(&deltas).await {
-        Ok(_) => AccountingOutcome::Counted,
-        Err(e) => {
-            tracing::warn!(error = %e, windows = deltas.len(), "quota settlement write failed");
-            AccountingOutcome::Faulted {
-                message: format!(
-                    "quota accounting write failed for {} window(s): {e}",
-                    deltas.len()
-                ),
-            }
-        },
-    }
-}
-
-pub async fn release(
-    repo: &AiQuotaBucketRepository,
-    reservation: &QuotaReservation,
-) -> AccountingOutcome {
-    settle(repo, reservation, QuotaUsage::default()).await
 }
 
 fn pick_shard(sharding: &QuotaConfig, subject_kind: &QuotaSubjectKind, draw: u16) -> i16 {

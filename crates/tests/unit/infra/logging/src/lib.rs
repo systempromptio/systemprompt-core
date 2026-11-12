@@ -20,6 +20,8 @@ mod layer;
 #[cfg(test)]
 mod layer_visitor_fields;
 #[cfg(test)]
+mod layer_visitor_values;
+#[cfg(test)]
 mod log_actor;
 #[cfg(test)]
 mod models;
@@ -27,5 +29,7 @@ mod models;
 mod repository;
 #[cfg(test)]
 mod sanitize_argv;
+#[cfg(test)]
+mod sanitize_values;
 #[cfg(test)]
 mod services;

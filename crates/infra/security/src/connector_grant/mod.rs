@@ -36,7 +36,6 @@ use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
 use serde::Deserialize;
 use systemprompt_identifiers::{ConnectorAppId, ConnectorInstallationId};
-use systemprompt_manifest::secrets::Secrets;
 use systemprompt_models::mcp::deployment::{ConnectorConfig, ConnectorGrant};
 
 pub use app_jwt::{AppJwtClaims, app_jwt_claims, sign_app_jwt};
@@ -223,11 +222,11 @@ impl MachineGrant {
 
 pub async fn machine_token(
     tokens: &TokenCache,
-    secrets: &Secrets,
+    secrets: impl Fn(&str) -> Option<String>,
     server: &str,
     connector: &ConnectorConfig,
 ) -> Result<String, ConnectorGrantError> {
-    let grant = MachineGrant::resolve(server, connector, |name| secrets.get(name).cloned())?;
+    let grant = MachineGrant::resolve(server, connector, secrets)?;
     grant
         .token(
             tokens,

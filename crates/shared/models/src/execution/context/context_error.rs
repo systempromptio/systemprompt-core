@@ -57,6 +57,9 @@ pub enum ContextExtractionError {
 
     #[error("Forbidden header '{header}': {reason}")]
     ForbiddenHeader { header: String, reason: String },
+
+    #[error("Request body exceeds {limit} bytes")]
+    PayloadTooLarge { limit: usize },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]

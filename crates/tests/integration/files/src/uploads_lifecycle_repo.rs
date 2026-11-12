@@ -17,7 +17,10 @@ fn four_byte_parts() -> UploadLimits {
 }
 
 fn uploader() -> UserId {
-    UserId::new("wp9-lifecycle-uploader")
+    UserId::new(format!(
+        "lifecycle-uploader-{}",
+        uuid::Uuid::new_v4().simple()
+    ))
 }
 
 async fn repo() -> DocumentUploadRepository {
@@ -87,14 +90,14 @@ async fn completing_a_session_another_caller_claimed_reports_it_closed() {
     let rig = rig_with(four_byte_parts()).await;
     let session = open(&rig, b"abcd").await;
     rig.service
-        .put_part(&uploader(), &session.id, 1, body(b"abcd"))
+        .put_part(&session.owner_user_id, &session.id, 1, body(b"abcd"))
         .await
         .expect("part");
     assert!(repo().await.claim(&session.id).await.expect("claim"));
 
     let error = rig
         .service
-        .complete(&uploader(), &session.id)
+        .complete(&session.owner_user_id, &session.id)
         .await
         .expect_err("claimed elsewhere");
     assert!(
@@ -113,7 +116,7 @@ async fn an_expired_session_cannot_be_claimed_and_expiry_closes_it() {
     let rig = rig_with(four_byte_parts()).await;
     let session = open(&rig, b"abcdefgh").await;
     rig.service
-        .put_part(&uploader(), &session.id, 1, body(b"abcd"))
+        .put_part(&session.owner_user_id, &session.id, 1, body(b"abcd"))
         .await
         .expect("part");
     backdate(&session.id).await;
@@ -137,7 +140,7 @@ async fn a_short_part_is_refused_and_its_bytes_are_refunded() {
 
     let short = rig
         .service
-        .put_part(&uploader(), &session.id, 1, body(b"ab"))
+        .put_part(&session.owner_user_id, &session.id, 1, body(b"ab"))
         .await
         .expect_err("short part");
     assert!(
@@ -153,7 +156,7 @@ async fn a_short_part_is_refused_and_its_bytes_are_refunded() {
     );
     let long = rig
         .service
-        .put_part(&uploader(), &session.id, 2, body(b"efghij"))
+        .put_part(&session.owner_user_id, &session.id, 2, body(b"efghij"))
         .await
         .expect_err("long part");
     assert!(
@@ -170,7 +173,7 @@ async fn a_short_part_is_refused_and_its_bytes_are_refunded() {
 
     let progress = rig
         .service
-        .progress(&uploader(), &session.id)
+        .progress(&session.owner_user_id, &session.id)
         .await
         .expect("progress");
     assert_eq!(progress.received_bytes(), 0);
@@ -183,28 +186,28 @@ async fn a_resent_part_replaces_the_first_attempt() {
     let bytes = b"abcdefgh";
     let session = open(&rig, bytes).await;
     rig.service
-        .put_part(&uploader(), &session.id, 1, body(b"zzzz"))
+        .put_part(&session.owner_user_id, &session.id, 1, body(b"zzzz"))
         .await
         .expect("first attempt");
     rig.service
-        .put_part(&uploader(), &session.id, 1, body(b"abcd"))
+        .put_part(&session.owner_user_id, &session.id, 1, body(b"abcd"))
         .await
         .expect("second attempt");
     rig.service
-        .put_part(&uploader(), &session.id, 2, body(b"efgh"))
+        .put_part(&session.owner_user_id, &session.id, 2, body(b"efgh"))
         .await
         .expect("part two");
 
     let progress = rig
         .service
-        .progress(&uploader(), &session.id)
+        .progress(&session.owner_user_id, &session.id)
         .await
         .expect("progress");
     assert_eq!(progress.received_bytes(), 8);
 
     let done = rig
         .service
-        .complete(&uploader(), &session.id)
+        .complete(&session.owner_user_id, &session.id)
         .await
         .expect("complete");
     assert_eq!(done.blob, hash_of(bytes));

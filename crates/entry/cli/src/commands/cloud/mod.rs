@@ -23,7 +23,7 @@ pub mod types;
 pub use systemprompt_cloud::{Environment, OAuthProvider};
 
 use crate::context::CommandContext;
-use crate::descriptor::{CommandDescriptor, DescribeCommand};
+use crate::descriptor::{CommandDescriptor, DataImpact, DescribeCommand};
 use anyhow::Result;
 use clap::Subcommand;
 use systemprompt_identifiers::ProfileName;
@@ -135,7 +135,7 @@ pub enum CloudCommands {
 impl DescribeCommand for CloudCommands {
     fn descriptor(&self) -> CommandDescriptor {
         match self {
-            Self::Deploy { .. } => CommandDescriptor::PROFILE_AND_SECRETS,
+            Self::Deploy { .. } => CommandDescriptor::NONE.with_data_impact(DataImpact::Preserving),
             Self::Backup { .. } | Self::Status => CommandDescriptor::PROFILE_ONLY,
             Self::Sync(_) => CommandDescriptor::FULL.with_read_only(),
             _ => CommandDescriptor::NONE,
@@ -150,7 +150,7 @@ fn profile_name(profile: Option<String>) -> Result<Option<ProfileName>> {
 pub async fn execute(cmd: CloudCommands, ctx: &CommandContext) -> Result<()> {
     match cmd {
         CloudCommands::Auth(cmd) => auth::execute(cmd, ctx).await,
-        CloudCommands::Init { force } => init::execute(force, &ctx.cli),
+        CloudCommands::Init { force } => init::execute(force, &ctx.cli, ctx.foreground_children()),
         CloudCommands::Tenant { command } => tenant::execute(command, ctx).await,
         CloudCommands::Profile { command } => profile::execute(command, ctx).await,
         CloudCommands::Deploy {
@@ -168,6 +168,7 @@ pub async fn execute(cmd: CloudCommands, ctx: &CommandContext) -> Result<()> {
                 },
                 ctx.prompter(),
                 &ctx.cli,
+                ctx.foreground_children(),
             )
             .await
         },

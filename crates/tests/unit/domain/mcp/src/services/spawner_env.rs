@@ -5,6 +5,9 @@
 //! closure is injected, so these drive it directly rather than mutating the
 //! process environment and racing every other test in the binary.
 //!
+//! `spawn_environment` is the whole list `spawn_server` applies: the granted
+//! secrets and verification keys composed with the parent-derived entries.
+//!
 //! `spawn_server`, `build_server` and `verify_binary` are left alone: they run
 //! a binary or a build, which is the supervisor behaviour this suite is not
 //! trying to reach.
@@ -18,8 +21,11 @@ use systemprompt_loader::subprocess::{ChildKind, mark_child};
 
 use systemprompt_mcp::services::process::spawner::{
     SpawnEnvSpec, build_environment, rotate_log_if_needed, serialize_server_configs,
+    spawn_environment,
 };
-use systemprompt_models::subprocess::{MCP_SERVICE_ID_ENV, SUBPROCESS_MARKER_ENV};
+use systemprompt_models::subprocess::{
+    MCP_SERVICE_ID_ENV, SUBPROCESS_MARKER_ENV, VERIFICATION_KEYS_ENV,
+};
 
 use crate::harness::internal_mcp_config;
 
@@ -404,4 +410,79 @@ fn lexical_paths(root: &Path) -> systemprompt_config::paths::AppPaths {
         None,
     )
     .expect("paths")
+}
+
+const API_HELD_NAMES: &[&str] = &[
+    "OAUTH_AT_REST_PEPPER",
+    "MANIFEST_SIGNING_SECRET_SEED",
+    "SIGNING_KEY_PEM",
+    "SIGNING_KEY_STAGED_PEM",
+    "SIGNING_KEY_PREVIOUS_KEYS",
+    "LICENCE_SIGNING_SECRET",
+    "ENCRYPTION_MASTER_KEY",
+    "SYSTEMPROMPT_CUSTOM_SECRETS",
+];
+
+#[test]
+fn the_composed_spawn_environment_carries_no_api_held_secret_from_a_polluted_parent() {
+    let bootstrap = systemprompt_test_fixtures::ensure_test_bootstrap();
+    let secrets = systemprompt_test_fixtures::ensure_test_secrets_bootstrap();
+    let mut global = systemprompt_test_fixtures::fixture_config(&bootstrap.database_url);
+    global.signing_key_path = bootstrap.system_path.join("signing_key.pem");
+    let snapshot = secrets.get();
+    let pepper = snapshot.oauth_at_rest_pepper.clone();
+    let mut config = internal_mcp_config("env-composed", 9011);
+    config.env_vars = vec!["MCP_EXTRA_FLAG".to_owned()];
+
+    let env = spawn_environment(&spec_for(&config), &global, &secrets, |name| {
+        Some(if API_HELD_NAMES.contains(&name) {
+            pepper.clone()
+        } else {
+            format!("parent-{name}")
+        })
+    })
+    .expect("the spawn environment composes");
+    let map = env_map(&env);
+
+    for name in API_HELD_NAMES {
+        assert!(!map.contains_key(name), "{name} reached the child");
+    }
+    for (name, value) in &env {
+        assert_ne!(value, &pepper, "{name} carries the OAuth pepper");
+        assert!(!value.contains("PRIVATE KEY"), "{name} carries a PEM");
+        if let Some(seed) = snapshot.manifest_signing_secret_seed.as_deref() {
+            assert_ne!(value, seed, "{name} carries the manifest seed");
+        }
+    }
+    assert!(map.contains_key(VERIFICATION_KEYS_ENV));
+    assert_eq!(map.get("MCP_EXTRA_FLAG"), Some(&"parent-MCP_EXTRA_FLAG"));
+}
+
+#[test]
+fn an_env_var_naming_the_profile_path_is_refused_at_spawn() {
+    let bootstrap = systemprompt_test_fixtures::ensure_test_bootstrap();
+    let secrets = systemprompt_test_fixtures::ensure_test_secrets_bootstrap();
+    let global = systemprompt_test_fixtures::fixture_config(&bootstrap.database_url);
+    let mut config = internal_mcp_config("env-profile", 9012);
+    config.env_vars = vec!["SYSTEMPROMPT_PROFILE".to_owned()];
+    let refused = spawn_environment(&spec_for(&config), &global, &secrets, nothing_set)
+        .expect_err("the profile path names the secrets source");
+    assert!(
+        refused.to_string().contains("SYSTEMPROMPT_PROFILE"),
+        "{refused}"
+    );
+}
+
+#[test]
+fn an_env_var_naming_the_vault_token_is_refused_at_spawn() {
+    let bootstrap = systemprompt_test_fixtures::ensure_test_bootstrap();
+    let secrets = systemprompt_test_fixtures::ensure_test_secrets_bootstrap();
+    let global = systemprompt_test_fixtures::fixture_config(&bootstrap.database_url);
+    let mut config = internal_mcp_config("env-vault", 9013);
+    config.env_vars = vec!["RUST_LOG".to_owned(), "VAULT_TOKEN".to_owned()];
+    let refused = spawn_environment(&spec_for(&config), &global, &secrets, |name| {
+        Some(format!("parent-{name}"))
+    })
+    .expect_err("a Vault token reads the whole secrets document");
+    assert!(refused.to_string().contains("VAULT_TOKEN"), "{refused}");
 }

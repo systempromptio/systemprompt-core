@@ -97,7 +97,10 @@ async fn resolve_services_root(
     Ok((active_root, app_paths))
 }
 
-fn init_files_config(profile: &Profile, app_paths: &AppPaths) -> RuntimeResult<Arc<FilesConfig>> {
+pub(crate) fn init_files_config(
+    profile: &Profile,
+    app_paths: &AppPaths,
+) -> RuntimeResult<Arc<FilesConfig>> {
     let files_config = FilesConfig::from_profile(profile, app_paths)?;
     files_config.validate()?;
     files_config.ensure_storage_structure()?;
@@ -140,8 +143,10 @@ pub(super) async fn init_core(
     };
     let instance_id = config.instance_id.clone();
     let file_storage =
-        crate::storage::init_file_storage(&profile.storage, &app_paths, &instance_id, &secrets)
-            .await?;
+        crate::storage::init_file_storage(&profile.storage, &app_paths, &instance_id, &|name| {
+            secrets.get(name).cloned()
+        })
+        .await?;
 
     let signing_keys = match signing_keys_override {
         Some(keys) => keys,
@@ -162,7 +167,8 @@ pub(super) async fn init_core(
 
     let cache_epochs = CacheEpochs::new();
     let (policy, authz_hook, market) = super::authz::authz_stage(
-        boot,
+        profile,
+        Arc::<systemprompt_config::SecretsService>::clone(boot.secrets()),
         &database,
         &services,
         authz_hook_override,
@@ -215,7 +221,7 @@ pub(super) fn chain_sources(
 }
 
 #[derive(Debug, Clone, Copy, Default)]
-pub(super) struct SchemaPolicy {
+pub(crate) struct SchemaPolicy {
     pub install: bool,
     pub verify: bool,
 }

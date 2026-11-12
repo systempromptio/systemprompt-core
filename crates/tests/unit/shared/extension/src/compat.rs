@@ -38,3 +38,16 @@ fn a_repeated_directive_is_refused() {
         Err(CompatDirectiveError::Repeated(2))
     );
 }
+
+#[test]
+fn a_malformed_directive_is_treated_as_breaking() {
+    assert!(Migration::new(9, "typo", "-- @compat: breakng\nSELECT 1;").breaks_older());
+    assert!(
+        Migration::new(
+            9,
+            "twice",
+            "-- @compat: breaking\n-- @compat: breaking\nSELECT 1;"
+        )
+        .breaks_older()
+    );
+}

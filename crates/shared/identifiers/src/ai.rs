@@ -10,4 +10,6 @@ crate::define_id!(ConfigId, uuid);
 crate::define_id!(AiSafetyFindingId, uuid);
 crate::define_id!(AiQuotaBucketId, uuid);
 crate::define_id!(AiGatewayPolicyId, uuid);
-crate::define_id!(QuotaSubjectId);
+crate::define_id!(QuotaSubjectId, checked, |value| {
+    crate::macros::validate_external_id("QuotaSubjectId", value)
+});

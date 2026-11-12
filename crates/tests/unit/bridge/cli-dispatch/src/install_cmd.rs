@@ -338,11 +338,14 @@ fn install_host_fails_closed_on_a_corrupt_last_sync_policy_after_bootstrap() {
     assert_eq!(
         settings["apiKeyHelper"].as_str(),
         Some(
-            sb.config
-                .path()
-                .join("systemprompt/claude-key-helper.sh")
-                .to_string_lossy()
-                .as_ref()
+            systemprompt_bridge::install::elevation_script::shell_quote(
+                sb.config
+                    .path()
+                    .join("systemprompt/claude-key-helper.sh")
+                    .to_string_lossy()
+                    .as_ref()
+            )
+            .as_str()
         ),
         "the recovered profile obtains credentials only through the bridge helper"
     );

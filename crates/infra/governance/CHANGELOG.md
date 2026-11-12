@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.81.0] - 2026-11-12
+
+### Breaking
+
+- `CompositeAuthzHook::new` takes the first hook and the rest separately. Migrate by calling `CompositeAuthzHook::new(first, rest)`.
+
 ## [0.78.0] - 2026-11-04
 
 ### Added

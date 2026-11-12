@@ -187,8 +187,9 @@ pub fn families_from_header(
 
 // Why: a model whose every hop lacks a platform secret answers every request
 // with an error, so listing it only puts a dead entry in the client's picker.
-// This listing is not per member, so a personal credential counts as
-// configured: whether the caller stored a key is the bridge profile's answer.
+// This listing is not per member, so a member-paid credential counts as
+// configured: whether the caller stored a key is the bridge profile's answer,
+// and whether they sent their own login is the request's.
 pub fn model_entries(
     catalog: &ResolvedCatalog,
     secret_present: impl Fn(&str) -> bool,
@@ -201,6 +202,7 @@ pub fn model_entries(
     let facts = CredentialFacts {
         secret_present: &secret_present,
         personal_keys: &personal,
+        presents_own_credential: true,
     };
     let mut by_id: BTreeMap<String, ModelEntry> = BTreeMap::new();
     for model in catalog

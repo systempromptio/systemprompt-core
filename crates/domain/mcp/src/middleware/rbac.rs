@@ -1,7 +1,11 @@
 //! Role-based access control for MCP server requests.
 //!
-//! Validates a Bearer JWT (or proxy-verified identity headers) against the
-//! per-server `OAuthRequirement` declared in the registry config. The caller
+//! Authorises a request against the per-server `OAuthRequirement` declared in
+//! the registry config. The caller's identity is the one the hop layer
+//! verified from the proxy's signed hop token ([`VerifiedHop`]); a server that
+//! requires OAuth refuses any request without one, and no header can stand in
+//! for it. The caller's own bearer travels alongside only as the credential a
+//! tool may relay onward. The caller
 //! passes the services config it already holds (the server's services watch),
 //! so a request never re-reads the services tree.
 //!
@@ -16,21 +20,17 @@ use systemprompt_governance::authz::{
     AuthzContext, AuthzDecision, AuthzRequest, EntityKind, EntityRef, SharedAuthzHook,
     member_attribute_floor,
 };
-use systemprompt_identifiers::{Actor, JwtToken, McpServerId, UserId};
+use systemprompt_identifiers::{Actor, JwtToken, McpServerId, headers};
 use systemprompt_manifest::services::ServicesConfig;
 use systemprompt_models::RequestContext;
-use systemprompt_models::auth::{AuthenticatedUser, JwtClaims, TokenAuthority, TokenInteraction};
-use systemprompt_models::execution::context::{ExecutionContext, UserInteractionMode};
 
-use super::{extract_bearer_token, extract_request_context};
+use super::extract_request_context;
 
-#[path = "rbac/jwt.rs"]
-pub mod jwt;
-#[path = "rbac/proxy.rs"]
-mod proxy;
+#[path = "rbac/scopes.rs"]
+pub mod scopes;
 
-use jwt::{validate_and_extract_claims, validate_audience, validate_scopes_for_permissions};
-pub use proxy::try_proxy_verified_auth;
+use super::hop::VerifiedHop;
+use scopes::validate_scopes_for_permissions;
 
 #[derive(Debug, Clone)]
 pub struct AuthenticatedRequestContext {
@@ -82,24 +82,15 @@ impl AuthResult {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-pub struct JwtVerifier<'a> {
-    pub authority: &'a dyn TokenAuthority,
-    pub config: &'a systemprompt_manifest::Config,
-}
-
 #[tracing::instrument(name = "mcp_rbac", skip_all)]
 pub async fn enforce_rbac_from_registry(
     mcp_context: &McpContext<RoleServer>,
     server_id: &McpServerId,
     hook: &SharedAuthzHook,
     services_config: &ServicesConfig,
-    verifier: &JwtVerifier<'_>,
 ) -> Result<AuthResult, McpError> {
-    let header_dump = mcp_context
-        .extensions
-        .get::<http::request::Parts>()
-        .map(diagnostic_headers);
+    let parts = mcp_context.extensions.get::<http::request::Parts>();
+    let header_dump = parts.map(diagnostic_headers);
 
     let deployment = services_config
         .mcp_servers
@@ -119,50 +110,51 @@ pub async fn enforce_rbac_from_registry(
         return Ok(AuthResult::Anonymous(request_context));
     }
 
-    let floor = member_attribute_floor(services_config, EntityKind::McpServer, server_id.as_str());
-
-    if let Some(proxy_auth) = try_proxy_verified_auth(
-        mcp_context.extensions.get::<http::request::Parts>(),
-        request_context.clone(),
-        oauth_config,
-        server_id,
-    )? {
-        let authz_request =
-            proxy::build_proxy_authz_request(server_id, &proxy_auth.context, floor.as_ref());
-        enforce_authz_for_server(server_id, authz_request, hook).await?;
-        return Ok(AuthResult::Authenticated(proxy_auth));
+    let hop_presented = parts.is_some_and(|parts| parts.headers.contains_key(headers::MCP_HOP));
+    let verified = parts.and_then(|parts| parts.extensions.get::<VerifiedHop>());
+    if hop_presented && verified.is_none() {
+        tracing::error!(
+            server = %server_id,
+            "MCP request carries a hop token but this server's router does not verify it; \
+             build the router with systemprompt_mcp::create_router"
+        );
+        return Err(McpError::internal_error(
+            format!(
+                "MCP server '{server_id}' does not verify the platform hop token; it must be \
+                 served through systemprompt_mcp::create_router."
+            ),
+            None,
+        ));
     }
-
-    let token = extract_bearer_token(mcp_context)?.ok_or_else(|| {
-        tracing::error!(server = %server_id, headers = ?header_dump, "Authentication required: No Bearer token provided");
+    let hop = verified
+        .ok_or_else(|| {
+            tracing::warn!(server = %server_id, headers = ?header_dump, "Authentication required: no verified hop token");
+            McpError::invalid_request(
+                format!(
+                    "Authentication required. Server '{server_id}' accepts requests only through \
+                     the platform proxy."
+                ),
+                None,
+            )
+        })?;
+    let user = hop.claims().identity.user.as_ref().ok_or_else(|| {
         McpError::invalid_request(
             format!(
-                "Authentication required. Server '{server_id}' requires OAuth but no Bearer \
-                 token provided."
+                "Authentication required. Server '{server_id}' requires an authenticated user."
             ),
             None,
         )
     })?;
+    validate_scopes_for_permissions(server_id, &user.permissions, oauth_config)?;
 
-    let claims =
-        validate_and_extract_claims(verifier.authority, verifier.config, server_id, &token)?;
-    validate_audience(server_id, &claims, oauth_config)?;
-    validate_scopes_for_permissions(server_id, &claims.get_permissions(), oauth_config)?;
-
-    let act_chain = extract_act_chain(&claims);
-
-    let authz_request = build_mcp_authz_request(
-        server_id,
-        &claims,
-        act_chain.clone(),
-        &request_context.execution,
-        floor.as_ref(),
-    );
+    let floor = member_attribute_floor(services_config, EntityKind::McpServer, server_id.as_str());
+    let authz_request = build_hop_authz_request(server_id, &request_context, floor.as_ref());
     enforce_authz_for_server(server_id, authz_request, hook).await?;
 
-    let authenticated_context =
-        build_authenticated_context(request_context, &claims, JwtToken::new(token), act_chain)?;
-    Ok(AuthResult::Authenticated(authenticated_context))
+    tracing::debug!(server = %server_id, user_id = %user.id, "Authorized via the proxy hop token");
+    Ok(AuthResult::Authenticated(AuthenticatedRequestContext {
+        context: request_context,
+    }))
 }
 
 // Why: the dump exists to diagnose failed auth; the bearer credential must
@@ -173,7 +165,7 @@ fn diagnostic_headers(parts: &http::request::Parts) -> Vec<String> {
         .iter()
         .filter(|(k, _)| {
             let name = k.as_str();
-            name.starts_with("x-") || name == "authorization" || name == "mcp-session-id"
+            name.starts_with("x-") || name == "authorization" || name == headers::MCP_SESSION_ID
         })
         .map(|(k, v)| {
             if k == http::header::AUTHORIZATION {
@@ -185,43 +177,36 @@ fn diagnostic_headers(parts: &http::request::Parts) -> Vec<String> {
         .collect()
 }
 
-fn extract_act_chain(claims: &JwtClaims) -> Vec<Actor> {
-    claims
-        .custom
-        .act
-        .as_ref()
-        .map(systemprompt_models::auth::ActClaim::flatten_to_chain)
-        .unwrap_or_default()
-}
-
 // JSON: marketplace policy floor — open attribute map passed to the authz
 // context.
 #[must_use]
-pub fn build_mcp_authz_request(
+pub fn build_hop_authz_request(
     server_id: &McpServerId,
-    claims: &JwtClaims,
-    act_chain: Vec<Actor>,
-    execution: &ExecutionContext,
+    context: &RequestContext,
     floor: Option<&BTreeMap<String, serde_json::Value>>,
 ) -> AuthzRequest {
-    let context = floor.map_or_else(AuthzContext::none, |floor| {
+    let authz_context = floor.map_or_else(AuthzContext::none, |floor| {
         AuthzContext::none().with_marketplace_floor(floor)
     });
-    let user_id = UserId::new(claims.registered.sub.clone());
+    let user_id = context.user_id().clone();
+    let (roles, attributes) = context.user.as_ref().map_or_else(
+        || (Vec::new(), BTreeMap::new()),
+        |user| (user.roles.clone(), user.attributes.clone()),
+    );
     AuthzRequest {
         entity: EntityRef::McpServer(server_id.clone()),
         user_id: user_id.clone(),
         actor: Some(Actor::mcp(user_id, server_id.as_str())),
-        client_id: claims.custom.client_id.clone(),
+        client_id: context.client_id().cloned(),
         access_scope: None,
-        roles: claims.custom.roles.clone(),
-        attributes: claims.custom.attributes.clone(),
-        trace_id: execution.trace_id.clone(),
-        session_id: claims.custom.session_id.clone(),
-        context,
-        context_id: Some(execution.context_id.clone()),
-        task_id: execution.task_id.clone(),
-        act_chain,
+        roles,
+        attributes,
+        trace_id: context.trace_id().clone(),
+        session_id: Some(context.session_id().clone()),
+        context: authz_context,
+        context_id: Some(context.context_id().clone()),
+        task_id: context.task_id().cloned(),
+        act_chain: context.act_chain().to_vec(),
     }
 }
 
@@ -240,43 +225,4 @@ async fn enforce_authz_for_server(
             ))
         },
     }
-}
-
-fn build_authenticated_context(
-    request_context: RequestContext,
-    claims: &JwtClaims,
-    token: JwtToken,
-    act_chain: Vec<Actor>,
-) -> Result<AuthenticatedRequestContext, McpError> {
-    let user_id = UserId::try_new(claims.registered.sub.clone()).map_err(|e| {
-        tracing::error!(error = %e, "Invalid user ID in JWT");
-        McpError::internal_error("Invalid user ID in JWT", None)
-    })?;
-
-    let authenticated_user = AuthenticatedUser::new_with_roles(
-        user_id.clone(),
-        claims.custom.username.clone(),
-        claims.custom.email.clone(),
-        claims.get_permissions(),
-        claims.roles().to_vec(),
-    );
-
-    let mut context = request_context
-        .with_user(authenticated_user)
-        .with_actor(Actor::user(user_id))
-        .with_act_chain(act_chain)
-        .with_user_type(claims.custom.user_type);
-    // Why: the caller purpose comes only from the signed `purpose` claim, so
-    // a service account's broker sees the run that issued the token.
-    if let Some(purpose) = claims.custom.purpose.clone() {
-        context = context.with_caller_purpose(purpose);
-    }
-    if let Some(interaction) = claims.custom.interaction {
-        context = context.with_interaction_mode(match interaction {
-            TokenInteraction::Interactive => UserInteractionMode::Interactive,
-            TokenInteraction::NonInteractive => UserInteractionMode::NonInteractive,
-        });
-    }
-
-    Ok(AuthenticatedRequestContext::new(context, token))
 }

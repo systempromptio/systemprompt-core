@@ -21,6 +21,7 @@ pub mod frontmatter;
 pub mod gateway;
 pub mod hooks;
 mod includable;
+pub mod interpolation;
 pub mod marketplace;
 mod marketplace_access;
 pub mod marketplace_claude_code;

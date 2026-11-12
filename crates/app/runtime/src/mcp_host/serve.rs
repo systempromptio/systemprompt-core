@@ -1,12 +1,13 @@
-//! Builds and serves one YAML-declared MCP server from the application
-//! context.
+//! Builds and serves one YAML-declared MCP server from its [`HostContext`].
 //!
 //! [`build_server`] resolves the deployment's enabled `toolsets:` against the
 //! factory inventory (an id no linked crate registers fails start), builds
 //! each toolset, discovers the registered access recorders and hands the lot
 //! to [`ToolsetServer`], which refuses a `tools:` entry no toolset serves.
-//! [`serve`] binds the deployment's `port:` and serves until the
-//! listener closes.
+//! [`serve`] binds the deployment's `port:` on the loopback interface only
+//! (the API proxy on the same host is its one caller, and every request must
+//! carry the proxy's hop token, verified against the context's public key
+//! set) and serves until the listener closes.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -18,12 +19,13 @@ use systemprompt_mcp::host::{
     ToolsetAuthz, ToolsetHostError, ToolsetServer, ToolsetServerParts,
     discover_mcp_access_recorders, serve_router,
 };
+use systemprompt_mcp::middleware::HopVerifier;
 use systemprompt_mcp::repository::ToolUsageRepository;
 use systemprompt_mcp::{McpHttpConfig, McpToolExecutor, McpToolset, create_router};
 use tokio::net::TcpListener;
 
 use super::factory::{ToolsetBuildError, find_toolset_factory, registered_toolset_ids};
-use crate::AppContext;
+use crate::HostContext;
 
 #[derive(Debug, thiserror::Error)]
 pub enum McpHostError {
@@ -60,7 +62,7 @@ pub enum McpHostError {
 }
 
 pub fn build_server(
-    ctx: &AppContext,
+    ctx: &HostContext,
     server_id: &McpServerId,
 ) -> Result<ToolsetServer, McpHostError> {
     let services = ctx.services_state().view();
@@ -99,7 +101,7 @@ pub fn build_server(
     let executor = McpToolExecutor::new(
         Arc::new(ToolUsageRepository::new(ctx.db_pool())),
         ctx.tool_call_intents(),
-        ctx.artifact_ingest_arc(),
+        ctx.artifact_ingest(),
         server_id.clone(),
     );
     ToolsetServer::new(ToolsetServerParts {
@@ -108,8 +110,6 @@ pub fn build_server(
         authz: ToolsetAuthz {
             hook: Arc::clone(ctx.authz_hook()),
             services,
-            tokens: ctx.token_authority(),
-            config: Arc::clone(ctx.config_arc()),
             subjects: ctx.subject_providers().clone(),
         },
         recorders: discover_mcp_access_recorders(ctx.db_pool()),
@@ -118,28 +118,40 @@ pub fn build_server(
     .map_err(McpHostError::from)
 }
 
-pub async fn serve(ctx: Arc<AppContext>, server_id: McpServerId) -> Result<(), McpHostError> {
+pub async fn serve(ctx: Arc<HostContext>, server_id: McpServerId) -> Result<(), McpHostError> {
     let port = resolve_port(&ctx, &server_id)?;
-    let addr = format!("0.0.0.0:{port}");
-    let listener = TcpListener::bind(&addr)
+    let listener = systemprompt_mcp::bind_loopback(port)
         .await
-        .map_err(|source| McpHostError::Bind { addr, source })?;
+        .map_err(|source| McpHostError::Bind {
+            addr: format!("127.0.0.1:{port}"),
+            source,
+        })?;
     serve_on(ctx, server_id, listener).await
 }
 
 pub async fn serve_on(
-    ctx: Arc<AppContext>,
+    ctx: Arc<HostContext>,
     server_id: McpServerId,
     listener: TcpListener,
 ) -> Result<(), McpHostError> {
     let server = build_server(&ctx, &server_id)?;
+    let requires_oauth = ctx
+        .services_state()
+        .view()
+        .config()
+        .mcp_servers
+        .get(server_id.as_str())
+        .is_some_and(|deployment| deployment.oauth.required);
     let router = create_router(
         server,
         Arc::clone(ctx.mcp_session_repository()),
-        McpHttpConfig {
-            server_id: Some(server_id.clone()),
-            ..McpHttpConfig::default()
-        },
+        McpHttpConfig::default(),
+        HopVerifier::new(
+            ctx.verification_keys().clone(),
+            &ctx.config().jwt_issuer,
+            server_id.clone(),
+        )
+        .requiring_hop(requires_oauth),
     );
     tracing::info!(server = %server_id, addr = ?listener.local_addr().ok(), "MCP toolset host listening");
     serve_router(listener, router)
@@ -147,7 +159,7 @@ pub async fn serve_on(
         .map_err(McpHostError::Serve)
 }
 
-fn resolve_port(ctx: &AppContext, server_id: &McpServerId) -> Result<u16, McpHostError> {
+fn resolve_port(ctx: &HostContext, server_id: &McpServerId) -> Result<u16, McpHostError> {
     ctx.services_state()
         .view()
         .config()

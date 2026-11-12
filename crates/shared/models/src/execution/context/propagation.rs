@@ -1,10 +1,11 @@
 //! HTTP-header propagation of [`RequestContext`] across service hops.
 //!
 //! Implements [`InjectContextHeaders`] and [`ContextPropagation`] for
-//! [`RequestContext`]: serializing identity, trace, and execution fields into
-//! outbound headers and reconstructing them inbound. The proxy-verified path
-//! reconstructs the [`AuthenticatedUser`](crate::auth::AuthenticatedUser) only
-//! when an upstream proxy has asserted trust via the `proxy-verified` header.
+//! [`RequestContext`]: serializing trace and execution fields (and the bearer
+//! the next hop may relay) into outbound headers and reconstructing them
+//! inbound. Headers carry correlation, never identity: a context rebuilt from
+//! headers is always anonymous, and a receiver that needs the caller's
+//! identity takes it from a credential it verifies itself.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -13,8 +14,8 @@ use super::{CallSource, RequestContext};
 use http::{HeaderMap, HeaderValue};
 use std::str::FromStr;
 use systemprompt_identifiers::{
-    Actor, AgentName, AiToolCallId, ClientId, ContextId, JwtToken, SessionId, TaskId, TraceId,
-    UserId, headers,
+    Actor, AgentName, AiToolCallId, ContextId, JwtToken, SessionId, TaskId, TraceId, UserId,
+    headers,
 };
 use systemprompt_traits::{
     ContextPropagation, ContextPropagationError, ContextPropagationResult, InjectContextHeaders,
@@ -46,8 +47,6 @@ impl InjectContextHeaders for RequestContext {
     fn inject_headers(&self, hdrs: &mut HeaderMap) {
         insert_header(hdrs, headers::SESSION_ID, self.request.session_id.as_str());
         insert_header(hdrs, headers::TRACE_ID, self.execution.trace_id.as_str());
-        insert_header(hdrs, headers::USER_ID, self.auth.actor.user_id.as_str());
-        insert_header(hdrs, headers::USER_TYPE, self.auth.user_type.as_str());
         insert_header(
             hdrs,
             headers::AGENT_NAME,
@@ -75,29 +74,16 @@ impl InjectContextHeaders for RequestContext {
             headers::CALL_SOURCE,
             self.execution.call_source.as_ref().map(CallSource::as_str),
         );
-        insert_header_if_present(
-            hdrs,
-            headers::CLIENT_ID,
-            self.request.client_id.as_ref().map(ClientId::as_str),
-        );
 
         match &self.auth.auth_token {
             Some(auth_token) => {
                 let auth_value = format!("Bearer {}", auth_token.as_str());
                 insert_header(hdrs, headers::AUTHORIZATION, &auth_value);
-                tracing::trace!(user_id = %self.auth.actor.user_id, "Injected Authorization header for proxy");
+                tracing::trace!("Injected Authorization header for the next hop");
             },
             None => {
-                tracing::trace!(user_id = %self.auth.actor.user_id, "No auth_token to inject - Authorization header not added");
+                tracing::trace!("No auth_token to inject - Authorization header not added");
             },
-        }
-
-        if let Some(user) = &self.user {
-            insert_header(hdrs, headers::PROXY_VERIFIED, "true");
-            let perms = crate::auth::permissions_to_string(&user.permissions);
-            insert_header(hdrs, headers::USER_PERMISSIONS, &perms);
-            let roles = crate::auth::roles_to_string(&user.roles);
-            insert_header(hdrs, headers::USER_ROLES, &roles);
         }
     }
 }
@@ -137,9 +123,6 @@ fn apply_optional_execution_fields(
         let cs = CallSource::from_str(s).map_err(|e| invalid_header(headers::CALL_SOURCE, e))?;
         ctx = ctx.with_call_source(cs);
     }
-    if let Some(s) = header_str(hdrs, headers::CLIENT_ID) {
-        ctx = ctx.with_client_id(ClientId::new(s.to_owned()));
-    }
     let auth_token = header_str(hdrs, headers::AUTHORIZATION)
         .and_then(|s| s.strip_prefix("Bearer "))
         .filter(|token| !token.is_empty());
@@ -149,45 +132,10 @@ fn apply_optional_execution_fields(
     Ok(ctx)
 }
 
-fn apply_proxy_verified_user(
-    mut ctx: RequestContext,
-    hdrs: &HeaderMap,
-    user_id: &UserId,
-) -> ContextPropagationResult<RequestContext> {
-    let proxy_verified = header_str(hdrs, headers::PROXY_VERIFIED).is_some_and(|v| v == "true");
-    if !proxy_verified {
-        return Ok(ctx);
-    }
-
-    // Why: a verified mesh request without a permissions header is a request
-    // the proxy did not decorate (absence); a header that fails to parse is a
-    // corrupted trust claim and must reject rather than downgrade to anonymous.
-    let Some(raw_permissions) = header_str(hdrs, headers::USER_PERMISSIONS) else {
-        return Ok(ctx);
-    };
-    let permissions = crate::auth::parse_permissions(raw_permissions)
-        .map_err(|e| invalid_header(headers::USER_PERMISSIONS, e))?;
-
-    let roles = header_str(hdrs, headers::USER_ROLES)
-        .map(crate::auth::parse_roles)
-        .unwrap_or_default();
-    let user = crate::auth::AuthenticatedUser::new_with_roles(
-        user_id.clone(),
-        String::new(),
-        String::new(),
-        permissions,
-        roles,
-    );
-    ctx = ctx.with_user(user);
-    Ok(ctx)
-}
-
 impl ContextPropagation for RequestContext {
     fn from_headers(hdrs: &HeaderMap) -> ContextPropagationResult<Self> {
         let session_id = required_header(hdrs, headers::SESSION_ID)?;
         let trace_id = required_header(hdrs, headers::TRACE_ID)?;
-        let user_id = UserId::try_new(required_header(hdrs, headers::USER_ID)?)
-            .map_err(|e| invalid_header(headers::USER_ID, e))?;
         let agent_name = required_header(hdrs, headers::AGENT_NAME)?;
 
         let session_id = SessionId::new(session_id.to_owned());
@@ -204,11 +152,10 @@ impl ContextPropagation for RequestContext {
             TraceId::new(trace_id.to_owned()),
             context_id,
             agent_name,
-            Actor::user(user_id.clone()),
+            Actor::anonymous(UserId::generate()),
         );
 
-        let ctx = apply_optional_execution_fields(ctx, hdrs)?;
-        apply_proxy_verified_user(ctx, hdrs, &user_id)
+        apply_optional_execution_fields(ctx, hdrs)
     }
 
     fn to_headers(&self) -> HeaderMap {

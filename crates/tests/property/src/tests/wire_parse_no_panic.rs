@@ -2,7 +2,7 @@ use proptest::prelude::*;
 use serde_json::{Map, Value};
 use systemprompt_wire::anthropic::BetaHeader;
 use systemprompt_wire::inspect::{SurfaceBudget, sse_string_leaves, string_leaves};
-use systemprompt_wire::sse::{frame_end, upstream_error_message};
+use systemprompt_wire::sse::{SseFramer, upstream_error_message};
 use systemprompt_wire::{anthropic, gemini, openai_chat, openai_responses};
 
 const KEYS: &[&str] = &[
@@ -83,9 +83,7 @@ proptest! {
         if let Ok(value) = serde_json::from_slice::<Value>(&bytes) {
             parse_all(&value);
         }
-        if let Some(end) = frame_end(&bytes) {
-            prop_assert!(end <= bytes.len());
-        }
+        let _ = SseFramer::default().push_raw(&bytes);
         let _ = string_leaves(&bytes, SurfaceBudget::default());
         let _ = sse_string_leaves(&bytes, SurfaceBudget::default());
         let _ = BetaHeader::parse(&String::from_utf8_lossy(&bytes));

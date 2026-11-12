@@ -30,6 +30,7 @@ pub mod compose;
 pub mod degraded;
 pub mod error;
 pub mod extract;
+pub mod ownership;
 pub mod pack;
 pub mod provenance;
 pub mod source;

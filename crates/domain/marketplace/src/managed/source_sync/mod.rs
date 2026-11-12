@@ -20,9 +20,10 @@ use super::{
 use crate::inventory::IncomingRevision;
 
 mod git;
-use git::{GitCheckout, import_tree, resolve_ref};
+use git::{GitCheckout, GitTransport, import_tree, resolve_ref};
 
 mod capture;
+mod pin;
 mod repository;
 pub use capture::{
     CapturedGitSource, GitCaptureRequest, GitSourceCapture, GitSynchronizationService,
@@ -126,7 +127,11 @@ impl ManagedRepository {
         if credential.is_some_and(str::is_empty) {
             return Err(super::error::invalid("Resolved Git credential is empty"));
         }
-        systemprompt_models::net::validate_outbound_url(&repository).map_err(|error| {
+        systemprompt_models::net::validate_outbound_url(
+            &repository,
+            systemprompt_models::net::LoopbackPolicy::Deny,
+        )
+        .map_err(|error| {
             super::error::invalid_input(
                 "Git repository URL is not an allowed outbound target",
                 error,

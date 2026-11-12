@@ -20,6 +20,7 @@ mod response;
 mod streaming;
 mod streaming_parts;
 mod thinking;
+mod usage;
 mod wire;
 
 pub use request::build_request_body;

@@ -327,6 +327,62 @@ async fn prerender_removes_now_private_slug() {
     );
 }
 
+#[tokio::test]
+async fn prerender_purge_refuses_slug_that_escapes_the_source_dir() {
+    let _guard = SERIALIZE.lock().unwrap_or_else(|e| e.into_inner());
+    let boot = ensure_test_bootstrap();
+    let db = test_db_pool().await;
+
+    let repo = ContentRepository::new(&db);
+    let source_id = SourceId::new(TEST_SOURCE_ID);
+    clean_source(&repo, &source_id).await;
+
+    repo.create(
+        &CreateContentParams::new(
+            "../prerender-escape-sentinel".to_owned(),
+            "Escaping Post".to_owned(),
+            "hidden".to_owned(),
+            "# hidden".to_owned(),
+            source_id.clone(),
+        )
+        .with_public(false),
+    )
+    .await
+    .expect("create private row");
+
+    install_config(boot);
+    fs::create_dir_all(boot.app_paths.web().dist().join("blog")).expect("mkdir source dir");
+    let sentinel = boot
+        .app_paths
+        .web()
+        .dist()
+        .join("prerender-escape-sentinel")
+        .join("index.html");
+    fs::create_dir_all(sentinel.parent().expect("parent")).expect("mkdir sentinel dir");
+    fs::write(&sentinel, "<html>keep</html>").expect("seed sentinel");
+
+    let _ = prerender_content(
+        db.clone(),
+        content_repo(&db),
+        content_analytics(&db),
+        systemprompt_generator::PrerenderEnv {
+            config: ensure_test_bootstrap().boot_config(),
+            paths: &boot.app_paths,
+            extensions: systemprompt_test_fixtures::fixture_extension_context(&db).as_ref(),
+        },
+    )
+    .await;
+
+    clean_source(&repo, &source_id).await;
+
+    let survived = sentinel.exists();
+    fs::remove_dir_all(sentinel.parent().expect("parent")).ok();
+    assert!(
+        survived,
+        "a `..` slug removed a directory outside the source's output dir"
+    );
+}
+
 fn content_repo(pool: &systemprompt_database::DbPool) -> systemprompt_content::ContentRepository {
     systemprompt_content::ContentRepository::new(pool)
 }

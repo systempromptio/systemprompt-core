@@ -15,7 +15,7 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use systemprompt_identifiers::{ChallengeId, UserId};
+use systemprompt_identifiers::{ChallengeId, SessionId, UserId};
 use systemprompt_manifest::Config;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::services::webauthn::FinishRegistrationParams;
@@ -32,14 +32,11 @@ pub struct FinishRegisterRequest {
     pub full_name: Option<String>,
     pub credential: RegisterPublicKeyCredential,
     #[serde(default)]
-    pub session_id: Option<String>,
+    pub session_id: Option<SessionId>,
 }
 
 impl FinishRegisterRequest {
     fn validate(&self) -> Result<(), &'static str> {
-        if self.challenge_id.as_str().trim().is_empty() {
-            return Err("Challenge ID is required");
-        }
         if self.username.trim().is_empty() {
             return Err("Username is required and cannot be empty");
         }
@@ -67,13 +64,19 @@ pub(super) struct FinishRegisterResponse {
     pub auth_token: Option<String>,
 }
 
-#[instrument(skip(state, config, request), fields(challenge_id = %request.challenge_id, username = %request.username))]
+#[instrument(skip(state, config, body), fields(challenge_id = tracing::field::Empty, username = tracing::field::Empty))]
 pub async fn finish_register(
     State(state): State<OAuthState>,
     Extension(config): Extension<Arc<Config>>,
-    Json(request): Json<FinishRegisterRequest>,
+    body: Result<Json<FinishRegisterRequest>, axum::extract::rejection::JsonRejection>,
 ) -> Result<Response, OAuthHttpError> {
     super::ensure_registration_enabled(&config)?;
+    let request = crate::routes::oauth::webauthn::json_body(body)?;
+    tracing::Span::current().record(
+        "challenge_id",
+        tracing::field::display(&request.challenge_id),
+    );
+    tracing::Span::current().record("username", tracing::field::display(&request.username));
     request
         .validate()
         .map_err(OAuthHttpError::invalid_request)?;
@@ -94,8 +97,8 @@ pub async fn finish_register(
         .finish_registration(builder.build())
         .await?;
 
-    if let Some(session_id_str) = &request.session_id {
-        migrate_session_user(&state, session_id_str, &user_id).await;
+    if let Some(session_id) = &request.session_id {
+        migrate_session_user(&state, session_id, &user_id).await;
     }
 
     let auth_token = systemprompt_oauth::services::generate_secure_token("webauthn_verified");
@@ -114,14 +117,11 @@ pub async fn finish_register(
         .into_response())
 }
 
-async fn migrate_session_user(state: &OAuthState, session_id_str: &str, new_user_id: &UserId) {
-    use systemprompt_identifiers::SessionId;
-
-    let session_id = SessionId::new(session_id_str.to_owned());
+async fn migrate_session_user(state: &OAuthState, session_id: &SessionId, new_user_id: &UserId) {
     let analytics_provider = state.session_provider();
 
     match analytics_provider
-        .find_active_session_by_id(&session_id)
+        .find_active_session_by_id(session_id)
         .await
     {
         Ok(Some(session)) => {

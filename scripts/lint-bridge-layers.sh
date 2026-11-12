@@ -31,6 +31,7 @@ install
 integration feedback_capture
 sync diagnostics_state
 wire
+gui_policy
 gui
 dev_preview
 cli"

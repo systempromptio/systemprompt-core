@@ -16,6 +16,7 @@ use tokio::sync::mpsc::Sender;
 use crate::models::a2a::jsonrpc::NumberOrString;
 use crate::models::a2a::protocol::{StreamResponse, TaskStatusUpdateEvent};
 use crate::models::a2a::{TaskState, TaskStatus};
+use crate::repository::RuntimeTask;
 use crate::repository::task::TaskRepository;
 
 use super::frames::send_stream_response;
@@ -37,8 +38,7 @@ pub struct EmitRunStartedParams<'a> {
     pub tx: &'a Sender<Event>,
     pub request_id: &'a NumberOrString,
     pub webhook_context: &'a WebhookContext,
-    pub context_id: &'a ContextId,
-    pub task_id: &'a TaskId,
+    pub task: &'a RuntimeTask,
     pub task_repo: &'a TaskRepository,
 }
 
@@ -47,13 +47,14 @@ pub async fn emit_run_started(params: EmitRunStartedParams<'_>) {
         tx,
         request_id,
         webhook_context,
-        context_id,
-        task_id,
+        task,
         task_repo,
     } = params;
+    let task_id = task.task_id();
+    let context_id = task.context_id();
     let working_timestamp = chrono::Utc::now();
     if let Err(e) = task_repo
-        .update_task_state(task_id, TaskState::Working, &working_timestamp)
+        .update_task_state(task, TaskState::Working, &working_timestamp)
         .await
     {
         tracing::error!(task_id = %task_id, error = %e, "Failed to update task state");
@@ -93,16 +94,16 @@ pub async fn emit_run_started(params: EmitRunStartedParams<'_>) {
 pub async fn handle_stream_creation_error(
     webhook_context: &WebhookContext,
     error: AgentServiceError,
-    task_id: &TaskId,
-    _context_id: &ContextId,
+    task: &RuntimeTask,
     task_repo: &TaskRepository,
 ) {
+    let task_id = task.task_id();
     let error_msg = "Failed to create stream";
     tracing::error!(task_id = %task_id, error = %error, "Failed to create stream");
 
     let failed_timestamp = chrono::Utc::now();
     if let Err(e) = task_repo
-        .update_task_failed_with_error(task_id, error_msg, &failed_timestamp)
+        .update_task_failed_with_error(task, error_msg, &failed_timestamp)
         .await
     {
         tracing::error!(task_id = %task_id, error = %e, "Failed to update task to failed state");

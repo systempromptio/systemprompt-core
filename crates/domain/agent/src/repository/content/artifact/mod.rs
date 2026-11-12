@@ -6,6 +6,7 @@
 
 mod converters;
 mod mutations;
+mod owned_reads;
 mod parts;
 mod queries;
 

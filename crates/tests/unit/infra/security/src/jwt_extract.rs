@@ -78,7 +78,7 @@ fn extract_user_context_success() {
     );
 
     let ctx = extract_user_context(
-        &systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_signing_keys().keyring(),
         &token,
         ISSUER,
     )
@@ -95,7 +95,7 @@ fn extract_user_context_admin() {
     let token = mint_custom(ADMIN, Some(sid), vec![Permission::Admin], UserType::Admin);
 
     let ctx = extract_user_context(
-        &systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_signing_keys().keyring(),
         &token,
         ISSUER,
     )
@@ -108,7 +108,7 @@ fn extract_user_context_admin() {
 fn extract_user_context_missing_session_id() {
     let token = mint_custom("u2", None, vec![Permission::User], UserType::User);
     let err = extract_user_context(
-        &systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_signing_keys().keyring(),
         &token,
         ISSUER,
     )
@@ -124,7 +124,7 @@ fn extract_user_context_user_type_mismatch() {
     let sid = SessionId::generate();
     let token = mint_custom("u3", Some(sid), vec![Permission::Admin], UserType::User);
     let err = extract_user_context(
-        &systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_signing_keys().keyring(),
         &token,
         ISSUER,
     )
@@ -140,7 +140,7 @@ fn extract_user_context_missing_scope() {
     let sid = SessionId::generate();
     let token = mint_custom("u4", Some(sid), vec![], UserType::Anon);
     let err = extract_user_context(
-        &systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_signing_keys().keyring(),
         &token,
         ISSUER,
     )
@@ -162,7 +162,7 @@ fn extract_user_context_rejects_a_foreign_issuer() {
         None,
     );
     let err = extract_user_context(
-        &systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_signing_keys().keyring(),
         &token,
         ISSUER,
     )
@@ -196,7 +196,7 @@ fn extract_user_context_rejects_an_over_deep_act_chain() {
         Some(node),
     );
     let err = extract_user_context(
-        &systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_signing_keys().keyring(),
         &token,
         ISSUER,
     )
@@ -217,7 +217,7 @@ fn extract_user_context_rejects_an_empty_or_sentinel_subject() {
             UserType::User,
         );
         let err = extract_user_context(
-            &systemprompt_test_fixtures::test_signing_keys(),
+            systemprompt_test_fixtures::test_signing_keys().keyring(),
             &token,
             ISSUER,
         )
@@ -238,7 +238,7 @@ fn extract_user_context_accepts_a_non_uuid_subject() {
         UserType::User,
     );
     let ctx = extract_user_context(
-        &systemprompt_test_fixtures::test_signing_keys(),
+        systemprompt_test_fixtures::test_signing_keys().keyring(),
         &token,
         ISSUER,
     )

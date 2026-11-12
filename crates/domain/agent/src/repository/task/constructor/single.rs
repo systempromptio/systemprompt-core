@@ -189,7 +189,7 @@ async fn load_execution_steps(
 ) -> Result<Option<Vec<ExecutionStep>>, RepositoryError> {
     let steps = constructor
         .execution_step_repo()
-        .list_by_task(task_id)
+        .list_by_task_id(task_id)
         .await?;
 
     if steps.is_empty() {

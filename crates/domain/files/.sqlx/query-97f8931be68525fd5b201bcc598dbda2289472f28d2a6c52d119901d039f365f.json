@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT document_id::text AS \"document_id!: DocumentId\"\n               FROM document_media_backfill ORDER BY queued_at, document_id LIMIT $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "document_id!: DocumentId",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "97f8931be68525fd5b201bcc598dbda2289472f28d2a6c52d119901d039f365f"
+}

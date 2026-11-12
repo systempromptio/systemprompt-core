@@ -26,6 +26,7 @@ systemprompt-extension = { workspace = true }
 systemprompt-traits = { workspace = true }
 systemprompt-provider-contracts = { workspace = true }
 systemprompt-governance = { workspace = true }
+systemprompt-security = { workspace = true }
 axum = { workspace = true }
 tower = { workspace = true }
 sqlx = { workspace = true }
@@ -44,4 +45,5 @@ tempfile = { workspace = true }
 wiremock = { workspace = true }
 futures = { workspace = true }
 http = { workspace = true }
+systemprompt-test-hack = { version = "0.1", path = "../../../common/hack" }
 

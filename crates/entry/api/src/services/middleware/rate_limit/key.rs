@@ -1,12 +1,18 @@
-//! The in-process governor's key: verified identity where one is available,
+//! The in-process limiters' keys: verified identity where one is available,
 //! resolved client address otherwise.
+//!
+//! An address is bucketed by what one client controls, not by the literal
+//! address: IPv4 by address, an IPv4-mapped IPv6 address as the IPv4 address it
+//! carries, and any other IPv6 address by its /64, the prefix a single host or
+//! subscriber is routinely given. Keying IPv6 by /128 would hand a client a
+//! fresh budget, and a fresh map entry, for every address in its own /64.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::extract::{ConnectInfo, Request};
 use ipnet::IpNet;
-use std::net::SocketAddr;
+use std::net::{IpAddr, Ipv6Addr, SocketAddr};
 use std::sync::Arc;
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::UserType;
@@ -64,14 +70,13 @@ impl IdentityOrTrustedIpKey {
     }
 }
 
-impl tower_governor::key_extractor::KeyExtractor for IdentityOrTrustedIpKey {
-    type Key = String;
-
-    fn extract<T>(&self, req: &Request<T>) -> Result<Self::Key, tower_governor::GovernorError> {
+impl IdentityOrTrustedIpKey {
+    #[must_use]
+    pub fn key<T>(&self, req: &Request<T>) -> Option<String> {
         if let Some(ctx) = req.extensions().get::<RequestContext>()
             && ctx.auth.user_type != UserType::Anon
         {
-            return Ok(format!("u:{}", ctx.user_id()));
+            return Some(format!("u:{}", ctx.user_id()));
         }
 
         self.warn_if_proxy_untrusted(req);
@@ -81,7 +86,49 @@ impl tower_governor::key_extractor::KeyExtractor for IdentityOrTrustedIpKey {
             req.extensions().get::<ConnectInfo<SocketAddr>>(),
             &self.trusted_proxies,
         )
-        .map(|ip| format!("ip:{ip}"))
-        .ok_or(tower_governor::GovernorError::UnableToExtractKey)
+        .map(client_bucket)
+    }
+}
+
+/// Buckets every request by resolved client address alone.
+///
+/// It keys the pre-authentication limiter, which runs before any credential
+/// is decoded, so no identity is available and none is trusted: a forged
+/// bearer must not be able to choose its own bucket.
+#[derive(Clone, Debug)]
+pub struct TrustedIpKey {
+    trusted_proxies: Arc<Vec<IpNet>>,
+}
+
+impl TrustedIpKey {
+    pub(super) const fn new(trusted_proxies: Arc<Vec<IpNet>>) -> Self {
+        Self { trusted_proxies }
+    }
+}
+
+impl TrustedIpKey {
+    #[must_use]
+    pub fn key<T>(&self, req: &Request<T>) -> Option<String> {
+        resolve_client_ip(
+            req.headers(),
+            req.extensions().get::<ConnectInfo<SocketAddr>>(),
+            &self.trusted_proxies,
+        )
+        .map(client_bucket)
+    }
+}
+
+#[must_use]
+pub fn client_bucket(ip: IpAddr) -> String {
+    match ip {
+        IpAddr::V4(v4) => format!("ip:{v4}"),
+        IpAddr::V6(v6) => v6.to_ipv4_mapped().map_or_else(
+            || {
+                let s = v6.segments();
+                let prefix = Ipv6Addr::new(s[0], s[1], s[2], s[3], 0, 0, 0, 0);
+                format!("ip6:{prefix}/64")
+            },
+            |v4| format!("ip:{v4}"),
+        ),
     }
 }

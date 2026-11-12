@@ -9,9 +9,12 @@
 //! never a guess. A found owner is remembered for [`OWNER_CACHE_TTL`] so a
 //! burst of requests costs one registry read; a miss is never remembered, so
 //! a name nothing runs cannot fill the cache. A forwarded request carries
-//! [`FORWARDED_TO_OWNER`], and a worker receiving one serves it locally
-//! rather than forwarding again, so two workers whose cached owners disagree
-//! during a handover cannot bounce a request between them.
+//! [`FORWARDED_TO_OWNER`] holding a short-lived marker signed with the
+//! deployment key for that one service, and a worker receiving a marker it
+//! verifies serves the request locally rather than forwarding again, so two
+//! workers whose cached owners disagree during a handover cannot bounce a
+//! request between them. A marker a client supplies does not verify and is
+//! ignored.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -22,14 +25,16 @@ use std::time::{Duration, Instant};
 
 use axum::body::Body;
 use axum::extract::{OriginalUri, Request};
-use axum::http::{HeaderName, HeaderValue};
+use axum::http::{HeaderMap, HeaderName, HeaderValue};
 use axum::response::Response;
 use systemprompt_database::ProcessOwner;
 use systemprompt_identifiers::ServiceName;
 use systemprompt_runtime::AppContext;
+use systemprompt_security::jwt::{mint_owner_hop, verify_owner_hop};
 
 use super::ProxyService;
 use crate::services::proxy::backend::{ProxyError, ResponseHandler};
+use systemprompt_models::net::AGENT_REQUEST_BODY_LIMIT_BYTES;
 
 pub fn owner_url(advertise_url: &str, path_and_query: &str) -> String {
     let base = advertise_url.trim_end_matches('/');
@@ -103,7 +108,7 @@ impl ProxyService {
             .ok_or_else(|| ProxyError::NoLiveOwner {
                 service: service_name.to_string(),
             })?;
-        self.forward_to(&owner, service_name, request).await
+        self.forward_to(&owner, service_name, request, ctx).await
     }
 
     pub(super) async fn forward_to(
@@ -111,6 +116,7 @@ impl ProxyService {
         owner: &ProcessOwner,
         service_name: &ServiceName,
         request: Request<Body>,
+        ctx: &AppContext,
     ) -> Result<Response<Body>, ProxyError> {
         let uri = request
             .extensions()
@@ -124,14 +130,57 @@ impl ProxyService {
             "Forwarding to the replica that owns the process"
         );
 
+        let marker = mint_owner_hop(ctx.signing_keys(), &ctx.config().jwt_issuer, service_name)
+            .map_err(|source| ProxyError::OwnerHopUnavailable {
+                service: service_name.to_string(),
+                source,
+            })?;
+        let marker =
+            HeaderValue::from_str(&marker).map_err(|source| ProxyError::HopTokenHeader {
+                service: service_name.to_string(),
+                source,
+            })?;
         let mut headers = request.headers().clone();
-        headers.insert(FORWARDED_TO_OWNER, HeaderValue::from_static("1"));
+        headers.insert(FORWARDED_TO_OWNER, marker);
         let response = self
-            .send_to_backend(request, &url, &headers, service_name)
+            .send_to_backend(
+                request,
+                &super::Upstream {
+                    url: &url,
+                    headers: &headers,
+                    service_name,
+                    body_limit: AGENT_REQUEST_BODY_LIMIT_BYTES,
+                },
+            )
             .await?;
         ResponseHandler::build_response(response).map_err(|source| ProxyError::InvalidResponse {
             service: service_name.to_string(),
             source,
         })
+    }
+}
+
+pub fn forwarded_by_replica(
+    headers: &HeaderMap,
+    service_name: &ServiceName,
+    ctx: &AppContext,
+) -> bool {
+    let Some(marker) = headers
+        .get(FORWARDED_TO_OWNER)
+        .and_then(|v| v.to_str().ok())
+    else {
+        return false;
+    };
+    match verify_owner_hop(
+        ctx.signing_keys().keyring(),
+        &ctx.config().jwt_issuer,
+        service_name,
+        marker,
+    ) {
+        Ok(_) => true,
+        Err(error) => {
+            tracing::debug!(service = %service_name, %error, "Ignoring an owner-hop marker that does not verify");
+            false
+        },
     }
 }

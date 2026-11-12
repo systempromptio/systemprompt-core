@@ -120,12 +120,12 @@ fn test_scope_exists_for_all_available() {
 
 #[test]
 fn test_permission_admin_implies_user() {
-    assert!(Permission::Admin.implies(&Permission::User));
+    assert!(Permission::Admin.grants(&Permission::User));
 }
 
 #[test]
 fn test_permission_user_does_not_imply_admin() {
-    assert!(!Permission::User.implies(&Permission::Admin));
+    assert!(!Permission::User.grants(&Permission::Admin));
 }
 
 #[test]
@@ -138,7 +138,7 @@ fn test_permission_admin_implies_all() {
         Permission::Service,
     ] {
         assert!(
-            Permission::Admin.implies(perm),
+            Permission::Admin.grants(perm),
             "Admin should imply {:?}",
             perm
         );

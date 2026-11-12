@@ -1,4 +1,5 @@
-//! ID-JAG minting for the EMA issuer role.
+//! ID-JAG minting for the EMA issuer role. The minted token names the trusted
+//! issuer that vouched for its subject in `upstream_iss`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -21,6 +22,7 @@ pub struct IdJagGrant<'a> {
     pub scope: Option<&'a str>,
     pub ttl_secs: i64,
     pub issuer: &'a str,
+    pub upstream_issuer: &'a str,
     pub keys: &'a SigningKeys,
 }
 
@@ -39,6 +41,7 @@ pub fn mint_id_jag(grant: &IdJagGrant<'_>) -> Result<String> {
         email: grant.email.map(ToOwned::to_owned),
         email_verified: grant.email_verified,
         resource: grant.resource.map(ToOwned::to_owned),
+        upstream_iss: Some(grant.upstream_issuer.to_owned()),
     };
     super::encode_id_jag_with_keys(grant.keys, &claims)
 }

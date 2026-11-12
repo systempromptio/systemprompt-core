@@ -2,7 +2,7 @@
 //! ExecutionStepSummary
 
 use chrono::Utc;
-use systemprompt_identifiers::{ContextId, UserId};
+use systemprompt_identifiers::{ContextId, SessionId, UserId};
 use systemprompt_runtime::{
     AiRequestSummary, ExecutionStepSummary, McpExecutionSummary, TraceEvent,
 };
@@ -16,7 +16,7 @@ fn test_trace_event_creation() {
         timestamp: Utc::now(),
         details: "Test details".to_string(),
         user_id: Some(UserId::new("user-123")),
-        session_id: Some("session-456".to_string().into()),
+        session_id: Some(SessionId::new("session-456")),
         task_id: Some("task-789".to_string().into()),
         context_id: Some(ContextId::try_new(TEST_CTX).expect("valid ContextId")),
         metadata: Some(r#"{"key": "value"}"#.to_string()),
@@ -25,7 +25,7 @@ fn test_trace_event_creation() {
     assert_eq!(event.event_type, "test_event");
     assert_eq!(event.details, "Test details");
     assert_eq!(event.user_id, Some(UserId::new("user-123")));
-    assert_eq!(event.session_id, Some("session-456".to_string().into()));
+    assert_eq!(event.session_id, Some(SessionId::new("session-456")));
     assert_eq!(event.task_id, Some("task-789".to_string().into()));
     assert_eq!(
         event.context_id,

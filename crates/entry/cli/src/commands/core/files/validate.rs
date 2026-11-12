@@ -20,7 +20,7 @@ pub struct ValidateArgs {
     pub file_path: PathBuf,
 }
 
-pub(super) fn execute(args: &ValidateArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+pub(super) fn execute(args: &ValidateArgs, ctx: &CommandContext) -> Result<(CommandOutput, bool)> {
     let file_path = args
         .file_path
         .canonicalize()
@@ -51,5 +51,5 @@ pub(super) fn execute(args: &ValidateArgs, ctx: &CommandContext) -> Result<Comma
 
     let title = if valid { "File Valid" } else { "File Invalid" };
 
-    Ok(CommandOutput::card_value(title, &output))
+    Ok((CommandOutput::card_value(title, &output), valid))
 }

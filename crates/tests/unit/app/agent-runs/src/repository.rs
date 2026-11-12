@@ -8,7 +8,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use chrono::Utc;
-use systemprompt_agent_runs::repository::NewAgentRun;
+use systemprompt_agent_runs::repository::{Fenced, Lease, NewAgentRun};
 use systemprompt_agent_runs::{
     AgentRunRepository, PermissionMode, RunEvent, RunEventPayload, RunRequest,
 };
@@ -84,6 +84,15 @@ pub(crate) async fn queue(f: &Fixture) -> AgentRunId {
     id
 }
 
+pub(crate) async fn claim(f: &Fixture, claimer: &str) -> Lease {
+    f.repo
+        .claim_queued(&f.origin_kind, claimer, Duration::from_secs(90))
+        .await
+        .expect("claim")
+        .expect("claimed row")
+        .lease
+}
+
 pub(crate) async fn expire_lease(f: &Fixture, id: &AgentRunId) {
     sqlx::query("UPDATE agent_runs SET lease_until = NOW() - INTERVAL '1 second' WHERE id = $1")
         .bind(id.as_str())
@@ -103,7 +112,7 @@ async fn concurrent_claimers_never_share_a_run() {
         let f = Arc::clone(&f);
         handles.push(tokio::spawn(async move {
             let mut got = Vec::new();
-            while let Some(row) = f
+            while let Some(claimed) = f
                 .repo
                 .claim_queued(
                     &f.origin_kind,
@@ -113,8 +122,9 @@ async fn concurrent_claimers_never_share_a_run() {
                 .await
                 .expect("claim")
             {
-                assert_eq!(row.status, "preparing");
-                got.push(row.id);
+                assert_eq!(claimed.row.status, "preparing");
+                assert_eq!(claimed.lease.claimed_by(), format!("claimer-{n}"));
+                got.push(claimed.row.id);
             }
             got
         }));
@@ -135,41 +145,40 @@ async fn renew_fails_after_another_claimer_took_the_run() {
     let f = fixture().await;
     let id = queue(&f).await;
     let lease = Duration::from_secs(90);
-    f.repo
-        .claim_queued(&f.origin_kind, "a", lease)
-        .await
-        .expect("claim")
-        .expect("row");
-    assert!(f.repo.renew_lease(&id, "a", lease).await.expect("renew"));
+    let a = claim(&f, "a").await;
+    assert_eq!(
+        f.repo.renew_lease(&id, &a, lease).await.expect("renew"),
+        Fenced::Applied
+    );
     expire_lease(&f, &id).await;
     f.repo
         .reclaim_stale(&f.origin_kind, 3)
         .await
         .expect("reclaim");
-    f.repo
-        .claim_queued(&f.origin_kind, "b", lease)
-        .await
-        .expect("claim")
-        .expect("row");
-    assert!(!f.repo.renew_lease(&id, "a", lease).await.expect("renew"));
-    assert!(f.repo.renew_lease(&id, "b", lease).await.expect("renew"));
+    let b = claim(&f, "b").await;
+    assert_eq!(
+        f.repo.renew_lease(&id, &a, lease).await.expect("renew"),
+        Fenced::LeaseLost
+    );
+    assert_eq!(
+        f.repo.renew_lease(&id, &b, lease).await.expect("renew"),
+        Fenced::Applied
+    );
 }
 
 #[tokio::test]
 async fn stale_reclaim_requeues_with_resume_then_fails() {
     let f = fixture().await;
     let id = queue(&f).await;
-    let lease = Duration::from_secs(90);
-    f.repo
-        .claim_queued(&f.origin_kind, "a", lease)
-        .await
-        .expect("claim")
-        .expect("row");
+    let a = claim(&f, "a").await;
     let session = HostSessionId::try_new("host-session-1").expect("session id");
-    f.repo
-        .update_host_session(&id, &session)
-        .await
-        .expect("session");
+    assert_eq!(
+        f.repo
+            .update_host_session(&id, &a, &session)
+            .await
+            .expect("session"),
+        Fenced::Applied
+    );
     expire_lease(&f, &id).await;
     assert_eq!(
         f.repo
@@ -187,11 +196,7 @@ async fn stale_reclaim_requeues_with_resume_then_fails() {
     assert_eq!(req.resume_session_id, Some(session));
     assert_eq!(req.attempt, 2);
 
-    f.repo
-        .claim_queued(&f.origin_kind, "b", lease)
-        .await
-        .expect("claim")
-        .expect("row");
+    claim(&f, "b").await;
     expire_lease(&f, &id).await;
     f.repo
         .reclaim_stale(&f.origin_kind, 2)
@@ -215,21 +220,21 @@ fn event(seq: i64, payload: RunEventPayload) -> RunEvent {
 }
 
 #[tokio::test]
-async fn events_batch_round_trips_in_seq_order() {
+async fn events_batches_are_numbered_in_order_after_the_stored_events() {
     let f = fixture().await;
     let id = queue(&f).await;
-    let batch: Vec<RunEvent> = (1..=5)
-        .rev()
+    let lease = claim(&f, "a").await;
+    let batch: Vec<RunEvent> = (1..=4)
         .map(|n| {
             event(
-                n,
+                99,
                 RunEventPayload::AssistantText {
                     text: format!("t{n}"),
                 },
             )
         })
         .chain(std::iter::once(event(
-            6,
+            99,
             RunEventPayload::ToolResult {
                 tool_use_id: "tu-1".into(),
                 content: "ok".into(),
@@ -237,31 +242,28 @@ async fn events_batch_round_trips_in_seq_order() {
             },
         )))
         .collect();
-    f.repo
-        .insert_events_batch(&id, &batch)
-        .await
-        .expect("insert");
-    f.repo
-        .insert_events_batch(&id, &batch[..1])
-        .await
-        .expect("replay");
+    for chunk in [&batch[..], &batch[..1]] {
+        assert_eq!(
+            f.repo
+                .insert_events_batch(&id, &lease, chunk)
+                .await
+                .expect("insert"),
+            Fenced::Applied
+        );
+    }
     assert_eq!(f.repo.count_events(&id).await.expect("count"), 6);
 
-    let after = f.repo.list_events_after(&id, 2, 10).await.expect("list");
+    let after = f.repo.list_events_after(&id, 1, 10).await.expect("list");
     let seqs: Vec<i64> = after.iter().map(|e| e.seq).collect();
-    assert_eq!(seqs, vec![3, 4, 5, 6]);
-    assert_eq!(after[3].tool_use_id.as_deref(), Some("tu-1"));
-    assert_eq!(after[3].tool_name, None);
+    assert_eq!(seqs, vec![2, 3, 4, 5]);
+    assert_eq!(after[2].tool_use_id.as_deref(), Some("tu-1"));
+    assert_eq!(after[2].tool_name, None);
     assert_eq!(
         after[0].payload,
         RunEventPayload::AssistantText { text: "t3".into() }
     );
     assert_eq!(
-        f.repo
-            .list_events_after(&id, 0, 2)
-            .await
-            .expect("list")
-            .len(),
-        2
+        after[3].payload,
+        RunEventPayload::AssistantText { text: "t1".into() }
     );
 }

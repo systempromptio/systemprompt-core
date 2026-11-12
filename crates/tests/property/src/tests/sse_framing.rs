@@ -1,7 +1,7 @@
 use proptest::prelude::*;
 use serde_json::Value;
 use systemprompt_wire::anthropic::AnthropicStreamState;
-use systemprompt_wire::sse::frame_end;
+use systemprompt_wire::sse::SseFramer;
 
 // Why: the framing rule the gateway depends on but never stated as a property.
 // Upstream bytes arrive in whatever chunks the network produced, and the
@@ -20,29 +20,22 @@ fn decode_in_chunks(sse: &str, boundaries: &[usize]) -> Vec<String> {
     cuts.dedup();
 
     let mut state = AnthropicStreamState::default();
-    let mut buf: Vec<u8> = Vec::new();
+    let mut framer = SseFramer::default();
     let mut rendered: Vec<String> = Vec::new();
     let mut start = 0;
     for cut in cuts.iter().copied().chain(std::iter::once(bytes.len())) {
         if cut <= start {
             continue;
         }
-        buf.extend_from_slice(&bytes[start..cut]);
-        start = cut;
-        while let Some(end) = frame_end(&buf) {
-            let frame: Vec<u8> = buf.drain(..end).collect();
-            let text = String::from_utf8_lossy(&frame);
-            for line in text.lines() {
-                let Some(data) = line.strip_prefix("data: ") else {
-                    continue;
-                };
-                if let Ok(value) = serde_json::from_str::<Value>(data) {
-                    for event in state.events_from_sse(&value) {
-                        rendered.push(format!("{event:?}"));
-                    }
+        for frame in framer.push(&bytes[start..cut]) {
+            let frame = frame.expect("frame within the cap");
+            if let Ok(value) = serde_json::from_str::<Value>(&frame.data) {
+                for event in state.events_from_sse(&value) {
+                    rendered.push(format!("{event:?}"));
                 }
             }
         }
+        start = cut;
     }
     rendered
 }

@@ -45,6 +45,7 @@ fn agent(name: &str) -> AgentConfig {
         card: card("Display", "Desc"),
         metadata: AgentMetadataConfig::default(),
         oauth: OAuthConfig::default(),
+        secrets: Vec::new(),
     }
 }
 

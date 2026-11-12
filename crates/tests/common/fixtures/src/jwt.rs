@@ -98,3 +98,25 @@ pub fn test_oauth_signing() -> systemprompt_oauth::OAuthSigning {
         authority: test_token_authority(crate::app_context::FIXTURE_JWT_ISSUER),
     }
 }
+
+pub fn mint_mcp_hop(
+    server: &systemprompt_identifiers::McpServerId,
+    user: systemprompt_models::auth::AuthenticatedUser,
+    mcp_session: Option<&str>,
+    issuer: &str,
+) -> String {
+    let identity = systemprompt_models::auth::McpHopIdentity {
+        user_id: user.id.clone(),
+        user_type: systemprompt_models::auth::UserType::from_permissions(&user.permissions),
+        user: Some(user),
+        session_id: SessionId::generate(),
+        client_id: None,
+        act_chain: Vec::new(),
+        purpose: None,
+        interaction: None,
+        mcp_session: mcp_session.map(str::to_owned),
+    };
+    test_token_authority(issuer)
+        .mint_mcp_hop(server, &identity)
+        .expect("mint mcp hop token")
+}

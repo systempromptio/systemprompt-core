@@ -5,6 +5,13 @@
 //! the server may have already executed. Both are asserted here without a
 //! socket in sight; the socket half lives in the proxy harness.
 
+fn class(raw: &str) -> systemprompt_bridge::proxy::credential::RouteClass {
+    let uri: http::Uri = raw.parse().expect("uri");
+    systemprompt_bridge::proxy::credential::classify_route(
+        &systemprompt_bridge::proxy::forward::path::ProxyPath::parse(&uri).expect("canonical"),
+    )
+}
+
 use bytes::Bytes;
 use systemprompt_bridge::proxy::forward::{Replay, describe, replay_policy};
 
@@ -15,10 +22,13 @@ fn body(json: &str) -> Bytes {
 #[test]
 fn only_managed_mcp_paths_are_ever_replayed() {
     let read = body(r#"{"jsonrpc":"2.0","id":1,"method":"resources/read","params":{}}"#);
-    assert_eq!(replay_policy("/v1/messages", &read), Replay::Never);
-    assert_eq!(replay_policy("/api/public/hooks/x", &read), Replay::Never);
+    assert_eq!(replay_policy(&class("/v1/messages"), &read), Replay::Never);
     assert_eq!(
-        replay_policy("/mcp/systemprompt", &read),
+        replay_policy(&class("/api/public/hooks/x"), &read),
+        Replay::Never
+    );
+    assert_eq!(
+        replay_policy(&class("/mcp/systemprompt"), &read),
         Replay::OnConnectionLoss
     );
 }
@@ -29,7 +39,10 @@ fn only_managed_mcp_paths_are_ever_replayed() {
 #[test]
 fn a_tools_call_is_replayed_only_when_the_connection_never_opened() {
     let call = body(r#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"x"}}"#);
-    assert_eq!(replay_policy("/mcp/systemprompt", &call), Replay::OnConnect);
+    assert_eq!(
+        replay_policy(&class("/mcp/systemprompt"), &call),
+        Replay::OnConnect
+    );
 }
 
 // Why: a body that is not JSON-RPC — a notification batch, an empty POST —
@@ -38,11 +51,11 @@ fn a_tools_call_is_replayed_only_when_the_connection_never_opened() {
 #[test]
 fn an_unparseable_body_gets_the_read_policy() {
     assert_eq!(
-        replay_policy("/mcp/systemprompt", &body("not json")),
+        replay_policy(&class("/mcp/systemprompt"), &body("not json")),
         Replay::OnConnectionLoss
     );
     assert_eq!(
-        replay_policy("/mcp/systemprompt", &body("{}")),
+        replay_policy(&class("/mcp/systemprompt"), &body("{}")),
         Replay::OnConnectionLoss
     );
 }

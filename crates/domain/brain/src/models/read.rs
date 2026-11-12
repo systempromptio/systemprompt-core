@@ -108,9 +108,12 @@ impl NewRecallBuilder {
     }
 }
 
-/// Which facts a listing returns; empty `statuses` means every status.
-/// `as_of` keeps only facts observed at or before that instant and valid
-/// then, as recall with the same `as_of` would see them.
+/// Which facts a listing returns.
+///
+/// Empty `statuses` means every status. `as_of` keeps only facts observed at or
+/// before that instant and valid then, as recall with the same `as_of` would
+/// see them. `after` resumes a listing past a
+/// [`FactCursor`](super::FactCursor).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FactFilter {
     pub kind: Option<FactKindId>,
@@ -118,6 +121,15 @@ pub struct FactFilter {
     pub statuses: Vec<FactStatus>,
     pub limit: i64,
     pub as_of: Option<DateTime<Utc>>,
+    pub after: Option<String>,
+}
+
+/// One page of a visible listing and the cursor of the next page, if the
+/// listing may hold more.
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+pub struct FactPage {
+    pub facts: Vec<systemprompt_models::brain::BrainFact>,
+    pub next: Option<String>,
 }
 
 impl FactFilter {
@@ -131,6 +143,7 @@ impl FactFilter {
             statuses: Vec::new(),
             limit: Self::DEFAULT_LIMIT,
             as_of: None,
+            after: None,
         }
     }
 
@@ -155,6 +168,12 @@ impl FactFilter {
     #[must_use]
     pub const fn with_limit(mut self, limit: i64) -> Self {
         self.limit = limit;
+        self
+    }
+
+    #[must_use]
+    pub fn with_after(mut self, after: String) -> Self {
+        self.after = Some(after);
         self
     }
 

@@ -8,8 +8,11 @@ use std::path::PathBuf;
 
 use systemprompt_manifest::services::ServicesConfig;
 
+use super::parse::Interpolator;
+
 pub(super) struct IncludeResolveCtx<'a> {
     pub visited: &'a mut HashSet<PathBuf>,
     pub merged: &'a mut ServicesConfig,
     pub chain: Vec<PathBuf>,
+    pub interpolator: Interpolator,
 }

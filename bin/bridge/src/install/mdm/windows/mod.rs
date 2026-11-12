@@ -46,7 +46,6 @@ fn require_org_plugins() -> Result<(), MdmError> {
 // back on — a failed delegation is never a silent success.
 pub(super) fn delegate_to_writer(
     inputs: &super::MdmPayloadInputs<'_>,
-    facts: crate::install::policy_writer::RequestFacts,
 ) -> Result<Option<String>, crate::install::policy_writer::PolicyWriterError> {
     use crate::install::policy_writer::{self, PolicyWriterError, WriterStatus};
     if crate::winproc::is_elevated() {
@@ -71,17 +70,13 @@ pub(super) fn delegate_to_writer(
         context: "read the tool catalog".to_owned(),
         source,
     })?;
-    let requester = crate::windows_acl::current_sid().map_err(|source| PolicyWriterError::Io {
-        context: "resolve the requesting account".to_owned(),
-        source,
-    })?;
     let loopback =
         policy_writer::Loopback::of(inputs.loopback).map_err(|source| PolicyWriterError::Io {
             context: "read the loopback secret".to_owned(),
             source,
         })?;
-    let request = policy_writer::build_request(loopback, &fragment, catalog, facts, requester);
-    let steps = policy_writer::write_policy(&request)?;
+    let request = policy_writer::build_request(&fragment, catalog);
+    let steps = policy_writer::write_policy(&request, &loopback)?;
     let receipts: Vec<String> = steps
         .iter()
         .flat_map(|step| step.policies.iter())

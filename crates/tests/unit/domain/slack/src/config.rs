@@ -30,7 +30,7 @@ fn deserializes_full_config() {
 fn workspace_email_linking_is_off_unless_asked_for() {
     let app = parse(FULL);
     assert!(
-        !app.authz.link_by_workspace_email,
+        !app.authz.link.link_by_email,
         "an app that never asked for users:read.email must not link by email"
     );
 
@@ -42,10 +42,12 @@ bot_token_ref: "b"
 default_agent: "a"
 authz:
   allowed_roles: ["admin"]
-  link_by_workspace_email: true
+  link:
+    link_by_email: true
 "#,
     );
-    assert!(opted_in.authz.link_by_workspace_email);
+    assert!(opted_in.authz.link.link_by_email);
+    assert!(opted_in.authz.link.auto_provision);
 }
 
 #[test]

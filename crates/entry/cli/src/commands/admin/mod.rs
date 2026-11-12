@@ -128,13 +128,22 @@ impl AdminCommands {
             Self::Users(cmd) => cmd.data_impact(),
             Self::Agents(cmd) => cmd.data_impact(),
             Self::Issues(cmd) => cmd.data_impact(),
-            Self::Bootstrap(_) | Self::Bridge(bridge::BridgeCommands::RotateSigningKey(_)) => {
-                DataImpact::Destructive
-            },
+            Self::Setup(args) if args.reset_role_password => DataImpact::Irreversible,
+            Self::Bridge(bridge::BridgeCommands::RotateSigningKey(_))
+            | Self::Keys(
+                keys::KeysCommands::Stage(_)
+                | keys::KeysCommands::Promote(_)
+                | keys::KeysCommands::Rotate(_),
+            ) => DataImpact::Irreversible,
+            Self::Bootstrap(_)
+            | Self::Config(config::ConfigCommands::Secret(
+                config::secret::SecretCommands::MigrateGitCredentials(_),
+            )) => DataImpact::Destructive,
             Self::Bridge(
                 bridge::BridgeCommands::EnrollCert(_)
                 | bridge::BridgeCommands::IssueCode(_)
-                | bridge::BridgeCommands::List(_),
+                | bridge::BridgeCommands::List(_)
+                | bridge::BridgeCommands::SigningKeyFingerprint(_),
             )
             | Self::AccessControl(
                 access_control::AccessControlCommands::ExportYaml(_)

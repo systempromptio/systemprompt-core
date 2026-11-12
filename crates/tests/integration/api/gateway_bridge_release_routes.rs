@@ -437,7 +437,8 @@ async fn a_whole_fleet_checking_at_once_costs_one_github_round_trip() -> anyhow:
     .await;
     mount_sums().await;
 
-    let feed = systemprompt_api::routes::gateway::bridge_release::ReleaseFeed::default();
+    let feed = systemprompt_api::routes::gateway::bridge_release::ReleaseFeed::new()
+        .expect("the feed builds");
     let spec = spec(&base);
     for _ in 0..5u8 {
         let resolved = feed
@@ -473,7 +474,7 @@ async fn a_github_outage_serves_the_last_known_release_rather_than_failing() -> 
 
     let feed = systemprompt_api::routes::gateway::bridge_release::ReleaseFeed::with_ttl(
         std::time::Duration::ZERO,
-    );
+    )?;
     let spec = spec(&base);
     let first = feed
         .resolve(&spec, &secrets(), "darwin-arm64")
@@ -515,7 +516,8 @@ async fn an_outage_with_nothing_cached_still_reports_the_failure() -> anyhow::Re
         .mount(s)
         .await;
 
-    let feed = systemprompt_api::routes::gateway::bridge_release::ReleaseFeed::default();
+    let feed = systemprompt_api::routes::gateway::bridge_release::ReleaseFeed::new()
+        .expect("the feed builds");
     let err = feed
         .resolve(&spec(&base), &secrets(), "darwin-arm64")
         .await

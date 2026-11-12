@@ -4,24 +4,27 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Context, Result};
+use std::process::Command;
+use systemprompt_loader::subprocess::ForegroundChildren;
 use systemprompt_logging::CliService;
-use tokio::process::Command;
 
-use super::postgres_access::PostgresConfig;
+use super::postgres_access::{PostgresConfig, connect};
+use super::provision::provision_role_and_db;
 
 pub(super) async fn create_database_in_docker(
+    children: &ForegroundChildren,
     config: &PostgresConfig,
     container_name: &str,
+    reset_role_password: bool,
 ) -> Result<()> {
-    use sqlx::postgres::PgPoolOptions;
-    use std::time::Duration;
-
     CliService::info("Creating database and user in Docker container...");
 
-    let output = Command::new("docker")
-        .args(["exec", container_name, "printenv", "POSTGRES_PASSWORD"])
-        .output()
+    let mut cmd = Command::new("docker");
+    cmd.args(["exec", container_name, "printenv", "POSTGRES_PASSWORD"]);
+    let children = children.clone();
+    let output = tokio::task::spawn_blocking(move || children.output(cmd))
         .await
+        .context("Failed to get container password")?
         .context("Failed to get container password")?;
 
     let container_password = String::from_utf8_lossy(&output.stdout).trim().to_owned();
@@ -32,58 +35,11 @@ pub(super) async fn create_database_in_docker(
         );
     }
 
-    let super_url = format!(
-        "postgres://postgres:{}@{}:{}/postgres",
-        container_password, config.host, config.port
-    );
-
-    let pool = PgPoolOptions::new()
-        .max_connections(1)
-        .acquire_timeout(Duration::from_secs(5))
-        .connect(&super_url)
+    let pool = connect(config.superuser_options("postgres", &container_password))
         .await
         .context("Failed to connect to Docker PostgreSQL")?;
-
-    let user_exists: bool = sqlx::query_scalar!(
-        "SELECT EXISTS(SELECT 1 FROM pg_roles WHERE rolname = $1)",
-        &config.user
-    )
-    .fetch_one(&pool)
-    .await?
-    .unwrap_or(false);
-
-    if !user_exists {
-        let create_user_sql = format!(
-            "CREATE USER \"{}\" WITH PASSWORD '{}'",
-            config.user.replace('"', "\"\""),
-            config.password.replace('\'', "''")
-        );
-        sqlx::query(sqlx::AssertSqlSafe(create_user_sql))
-            .execute(&pool)
-            .await?;
-        CliService::success(&format!("Created user '{}'", config.user));
-    }
-
-    let db_exists: bool = sqlx::query_scalar!(
-        "SELECT EXISTS(SELECT 1 FROM pg_database WHERE datname = $1)",
-        &config.database
-    )
-    .fetch_one(&pool)
-    .await?
-    .unwrap_or(false);
-
-    if !db_exists {
-        let create_db_sql = format!(
-            "CREATE DATABASE \"{}\" OWNER \"{}\"",
-            config.database.replace('"', "\"\""),
-            config.user.replace('"', "\"\"")
-        );
-        sqlx::query(sqlx::AssertSqlSafe(create_db_sql))
-            .execute(&pool)
-            .await?;
-        CliService::success(&format!("Created database '{}'", config.database));
-    }
-
+    let outcome = provision_role_and_db(&pool, config, reset_role_password).await;
     pool.close().await;
+    super::provision::report(config, outcome?);
     Ok(())
 }

@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.81.0] - 2026-11-12
+
+### Breaking
+
+- `MetadataServerTokens` and `DEFAULT_METADATA_TOKEN_URL` are removed. Migrate by using `systemprompt_runtime::storage::WorkloadIdentityTokens`.
+
+### Changed
+
+- `LocalFileStorage` refuses paths through symbolic links.
+
 ## [0.75.0] - 2026-10-28
 
 ### Added

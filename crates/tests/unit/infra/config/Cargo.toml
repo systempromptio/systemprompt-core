@@ -12,6 +12,7 @@ workspace = true
 
 [dependencies]
 systemprompt-config = { workspace = true }
+systemprompt-test-hack = { version = "0.1", path = "../../../common/hack" }
 
 [dev-dependencies]
 tokio = { workspace = true }
@@ -23,6 +24,7 @@ tempfile = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }
 wiremock = { workspace = true }
 base64 = { workspace = true }
+chrono = { workspace = true }
 systemprompt-traits = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-manifest = { workspace = true }
