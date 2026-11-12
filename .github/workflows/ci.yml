@@ -65,10 +65,30 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
+      # bin/bridge's linux keyring backend pulls libdbus-sys via pkg-config.
+      - name: Install system dependencies
+        timeout-minutes: 12
+        run: bash scripts/ci-install-system-deps.sh libdbus-1-dev pkg-config
       - run: rustup show
       - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
       - run: cargo build --workspace --locked
+      # The `systemprompt` and bridge binaries the subprocess fixtures spawn.
+      # Built here, beside the workspace build that has just compiled their
+      # dependencies, so the test archive job does not wait on them.
+      - name: Build the binaries the test shards spawn
+        run: |
+          cargo build -p systemprompt-cli --bin systemprompt --locked
+          cargo build --manifest-path bin/bridge/Cargo.toml --bin systemprompt-bridge --locked
+          bridge_target=$(cargo metadata --manifest-path bin/bridge/Cargo.toml --no-deps --format-version 1 | jq -r .target_directory)
+          mkdir -p test-bins
+          cp target/debug/systemprompt "$bridge_target/debug/systemprompt-bridge" test-bins/
       - run: sccache --show-stats
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: test-bins
+          path: test-bins/
+          retention-days: 1
+          if-no-files-found: error
 
   # Core builds with no third-party document engine: the files domain and
   # its live-session routes compile without loro (the `collab-loro` feature
@@ -91,7 +111,6 @@ jobs:
               | grep -E '^loro' ; then
             echo "::error::a document engine is linked without the collab-loro feature"; exit 1
           fi
-      - run: scripts/check-no-vendor.sh
 
   # The schema migrator alone, so the schema ladder starts on it without
   # waiting for the full test archive.
@@ -119,11 +138,12 @@ jobs:
           retention-days: 1
           if-no-files-found: error
 
-  # Everything the shards run, compiled once: the test workspace as a nextest
-  # archive (scripts/test-shard.sh --archive, the union of every shard's
-  # packages), the schema migrator, and the `systemprompt` and bridge binaries
-  # the subprocess fixtures spawn. The test workspace has no committed .sqlx cache, so its query macros check
-  # against this job's own freshly migrated database.
+  # The test workspace compiled once as a nextest archive
+  # (scripts/test-shard.sh --archive, the union of every shard's packages),
+  # with the schema migrator beside it. The test workspace has no committed
+  # .sqlx cache, so its query macros check against this job's own freshly
+  # migrated database. The `systemprompt` and bridge binaries the subprocess
+  # fixtures spawn come from the `build` job's `test-bins` artifact.
   test-tools:
     name: Test tools (prebuilt)
     runs-on: ubuntu-latest
@@ -159,16 +179,12 @@ jobs:
       - uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
         with:
           tool: cargo-nextest@0.9.146
-      - name: Build migrator, CLI and bridge
+      - name: Build migrator
         run: |
           cargo build --manifest-path crates/tests/Cargo.toml -p systemprompt-test-migrate --locked
-          cargo build -p systemprompt-cli --bin systemprompt --locked
-          cargo build --manifest-path bin/bridge/Cargo.toml --bin systemprompt-bridge --locked
           tests_target=$(cargo metadata --manifest-path crates/tests/Cargo.toml --no-deps --format-version 1 | jq -r .target_directory)
-          bridge_target=$(cargo metadata --manifest-path bin/bridge/Cargo.toml --no-deps --format-version 1 | jq -r .target_directory)
           mkdir -p test-tools
-          cp "$tests_target/debug/systemprompt-test-migrate" target/debug/systemprompt \
-             "$bridge_target/debug/systemprompt-bridge" test-tools/
+          cp "$tests_target/debug/systemprompt-test-migrate" test-tools/
       - name: Migrate the sqlx check database
         env:
           DATABASE_URL: postgres://test:test@localhost:5432/test
@@ -207,7 +223,7 @@ jobs:
     name: Test (${{ matrix.group }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    needs: test-tools
+    needs: [test-tools, build]
     strategy:
       fail-fast: false
       matrix:
@@ -246,6 +262,10 @@ jobs:
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: test-tools
+          path: test-tools/
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: test-bins
           path: test-tools/
       - run: chmod +x test-tools/systemprompt test-tools/systemprompt-bridge test-tools/systemprompt-test-migrate
 

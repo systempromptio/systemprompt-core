@@ -202,9 +202,6 @@ jobs:
     name: "Source gates: schema / SQL / layers / headers"
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    env:
-      SCCACHE_GHA_ENABLED: "true"
-      RUSTC_WRAPPER: sccache
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -212,7 +209,6 @@ jobs:
       - name: Install system dependencies
         timeout-minutes: 14
         run: bash scripts/ci-install-system-deps.sh ripgrep
-      - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
       - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
       - run: just lint-schema
         if: ${{ !cancelled() }}
@@ -343,12 +339,19 @@ jobs:
       - run: just lint-core-globals
         if: ${{ !cancelled() }}
       - run: just lint-serde-aliases
+        if: ${{ !cancelled() }}
       - run: just lint-mode-enums
+        if: ${{ !cancelled() }}
       - run: just lint-sql-vocab
+        if: ${{ !cancelled() }}
       - run: just lint-migrations
+        if: ${{ !cancelled() }}
       - run: just lint-host-ids
+        if: ${{ !cancelled() }}
       - run: just check-removed-config-names
+        if: ${{ !cancelled() }}
       - run: just lint-header-literals
+        if: ${{ !cancelled() }}
       - run: just lint-path-literals
         if: ${{ !cancelled() }}
       - run: just lint-bridge-file-size

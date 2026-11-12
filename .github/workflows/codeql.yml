@@ -7,6 +7,8 @@ on:
   workflow_dispatch:
   push:
     branches: [next]
+  pull_request:
+    branches: [main]
   schedule:
     - cron: "41 4 * * 1"
 
@@ -28,7 +30,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: [rust, javascript-typescript, actions]
+        # The Rust analysis is the long leg; it runs on the release pull
+        # request and the weekly schedule, the two short ones on every push
+        # as well.
+        language: ${{ fromJSON(github.event_name == 'push' && '["javascript-typescript", "actions"]' || '["rust", "javascript-typescript", "actions"]') }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

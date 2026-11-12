@@ -66,9 +66,10 @@ stand in for the PR's own.
 **Semver is reported, not gated.** The `Semver report` workflow (`semver.yml`, its own run so it never changes a gate's conclusion) runs
 `scripts/semver-report.sh` (cargo-semver-checks over every published crate
 against the last `vX.Y.Z` tag) and posts the report to the run summary and a
-`semver-report` artifact. Breaking changes stay allowed, but the report must be
-read before promoting, and every break it lists needs a `### Breaking` entry in
-CHANGELOG.md.
+`semver-report` artifact. It runs on the release pull request, and on demand
+for any ref (`gh workflow run semver.yml -f ref=<sha>`). Breaking changes stay
+allowed, but the report must be read before the release PR is merged, and
+every break it lists needs a `### Breaking` entry in CHANGELOG.md.
 
 Releasing is three deliberate steps:
 

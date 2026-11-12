@@ -14,8 +14,6 @@ on:
         required: false
   pull_request:
     branches: [main]
-  push:
-    branches: [next]
 
 concurrency:
   group: semver-${{ inputs.ref || github.ref }}
@@ -51,7 +49,9 @@ jobs:
           fetch-depth: 0
       - run: rustup show
       - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
-      - run: cargo install cargo-semver-checks --locked --version 0.51.0
+      - uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
+        with:
+          tool: cargo-semver-checks@0.51.0
       - name: Semver report against the last release tag
         run: bash scripts/semver-report.sh target/semver-report.md
       - if: always()

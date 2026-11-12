@@ -548,6 +548,7 @@ style-check:
     echo ""
     echo "1️⃣  Checking code formatting..."
     cargo +{{NIGHTLY}} fmt --all -- --check
+    cargo +{{NIGHTLY}} fmt --manifest-path bin/bridge/Cargo.toml --all -- --check
     echo ""
     echo "2️⃣  Running clippy linter..."
     cargo clippy --workspace --all-targets --all-features --keep-going -- -D warnings
