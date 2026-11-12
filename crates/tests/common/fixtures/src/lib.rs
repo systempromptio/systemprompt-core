@@ -31,6 +31,7 @@ pub mod paths;
 pub mod pdf;
 pub mod poll;
 pub mod schema;
+pub mod schema_template;
 pub mod secrets;
 pub mod service_row;
 pub mod subprocess;
