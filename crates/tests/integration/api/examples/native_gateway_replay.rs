@@ -342,6 +342,7 @@ async fn replay() -> Result<()> {
                         inbound: Arc::clone(&inbound),
                         forward_headers: vec![],
                         identity_headers: vec![],
+                        caller_auth: None,
                         trace_sampled: None,
                         governance: systemprompt_test_fixtures::default_governance_engine(),
                         engines: std::sync::Arc::new(
@@ -410,6 +411,7 @@ async fn replay() -> Result<()> {
                         inbound,
                         forward_headers: vec![],
                         identity_headers: vec![],
+                        caller_auth: None,
                         trace_sampled: None,
                         governance: systemprompt_test_fixtures::default_governance_engine(),
                         engines: std::sync::Arc::new(

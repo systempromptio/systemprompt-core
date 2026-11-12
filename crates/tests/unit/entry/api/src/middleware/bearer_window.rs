@@ -28,3 +28,19 @@ fn api_keys_and_missing_or_empty_credentials_are_left_to_the_handler() {
         None
     );
 }
+
+#[test]
+fn a_jwt_in_the_dedicated_header_is_metered_and_authorization_is_not() {
+    let mut headers = with_authorization("Bearer upstream-credential");
+    headers.insert(
+        "x-systemprompt-authorization",
+        HeaderValue::from_static("Bearer eyJhbGciOi.payload.sig"),
+    );
+    assert_eq!(bearer_jwt(&headers), Some("eyJhbGciOi.payload.sig"));
+
+    headers.insert(
+        "x-systemprompt-authorization",
+        HeaderValue::from_static("Bearer sp-live-abc123"),
+    );
+    assert_eq!(bearer_jwt(&headers), None);
+}

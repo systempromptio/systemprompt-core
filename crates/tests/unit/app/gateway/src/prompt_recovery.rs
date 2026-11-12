@@ -4,7 +4,9 @@ use systemprompt_gateway::protocol::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalTool, Role, SystemBlock,
 };
 use systemprompt_gateway::protocol::outbound::PreparedBody;
-use systemprompt_gateway::service::stages::recovery::{PromptRecovery, govern_prompt};
+use systemprompt_gateway::service::stages::recovery::{
+    PromptRecovery, PromptRepair, govern_prompt,
+};
 use systemprompt_governance::authz::types::Decision;
 use systemprompt_governance::policy::secrets::REDACTION_MARKER;
 use systemprompt_governance::policy::types::AccessScope;
@@ -29,7 +31,21 @@ pub(super) fn govern(
     request: &mut CanonicalRequest,
     body: &mut PreparedBody,
 ) -> PromptRecovery {
-    govern_counted(engine, &NO_RATE_COUNTS, request, body)
+    govern_counted(
+        engine,
+        &NO_RATE_COUNTS,
+        request,
+        body,
+        PromptRepair::Rewrite,
+    )
+}
+
+fn govern_as_sent(
+    engine: &GovernanceEngine,
+    request: &mut CanonicalRequest,
+    body: &mut PreparedBody,
+) -> PromptRecovery {
+    govern_counted(engine, &NO_RATE_COUNTS, request, body, PromptRepair::Refuse)
 }
 
 fn govern_at(
@@ -42,7 +58,7 @@ fn govern_at(
         systemprompt_identifiers::PolicyId::new("rate_limit"),
         position,
     )]);
-    govern_counted(engine, &counts, request, body)
+    govern_counted(engine, &counts, request, body, PromptRepair::Rewrite)
 }
 
 fn govern_counted(
@@ -50,6 +66,7 @@ fn govern_counted(
     rate_counts: &systemprompt_governance::policy::RateCounts,
     request: &mut CanonicalRequest,
     body: &mut PreparedBody,
+    repair: PromptRepair,
 ) -> PromptRecovery {
     let session = SessionId::new("session-recovery");
     let user = UserId::new("user-recovery");
@@ -68,7 +85,7 @@ fn govern_counted(
         call_id: &call,
         rate_counts,
     };
-    govern_prompt(engine, &ctx, request, body)
+    govern_prompt(engine, &ctx, request, body, repair)
 }
 
 fn body(value: Value) -> PreparedBody {
@@ -465,3 +482,41 @@ fn invalid_json_and_excessive_findings_cannot_be_forwarded() {
 
 static NO_RATE_COUNTS: systemprompt_governance::policy::RateCounts =
     systemprompt_governance::policy::RateCounts::empty();
+
+#[test]
+fn a_body_sent_as_received_is_denied_rather_than_sanitized() {
+    let engine = engine(POLICY);
+    let mut wire = body(json!({
+        "model":"test-model", "system":format!("Use this key {KEY} carefully"),
+        "messages":[{"role":"user", "content":format!("Inspect {KEY}")}]
+    }));
+    let sent = wire.bytes.clone();
+    let mut request = request();
+
+    let result = govern_as_sent(&engine, &mut request, &mut wire);
+
+    assert!(
+        matches!(result.evaluation.decision, Decision::Deny { .. }),
+        "{:?}",
+        result.evaluation.decision
+    );
+    assert_eq!(result.recovery_count, 0);
+    assert_eq!(wire.bytes, sent, "the body is left as the client sent it");
+    assert!(!format!("{:?}", result.evaluation).contains(KEY));
+}
+
+#[test]
+fn a_clean_body_sent_as_received_is_allowed_untouched() {
+    let mut wire = body(json!({
+        "model":"test-model",
+        "messages":[{"role":"user", "content":"nothing secret here"}]
+    }));
+    let sent = wire.bytes.clone();
+    let result = govern_as_sent(
+        &engine(POLICY),
+        &mut CanonicalRequest::new(ModelId::new("m"), Vec::new(), 1024),
+        &mut wire,
+    );
+    assert!(matches!(result.evaluation.decision, Decision::Allow { .. }));
+    assert_eq!(wire.bytes, sent);
+}

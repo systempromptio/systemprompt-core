@@ -547,6 +547,7 @@ fn credential_headers_are_recorded_by_name_without_their_value() {
         "authorization",
         "Authorization",
         "proxy-authorization",
+        "x-systemprompt-authorization",
         "x-api-key",
         "cookie",
         "set-cookie",

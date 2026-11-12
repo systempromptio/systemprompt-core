@@ -1,6 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use bytes::Bytes;
+use systemprompt_ai::BillingSource;
 use systemprompt_gateway::GatewayAudit;
 use systemprompt_gateway::protocol::CanonicalContent;
 use systemprompt_gateway::protocol::canonical::{CanonicalResponse, CanonicalUsage};
@@ -58,9 +59,9 @@ async fn a_user_key_request_settles_tokens_at_zero_cost_and_logs_completion() {
         .await
         .expect("open");
     audit.commit_admission().await.expect("commit admission");
-    assert!(!audit.billed_to_user_key());
-    audit.bill_to_user_key();
-    assert!(audit.billed_to_user_key());
+    assert_eq!(audit.billing_source(), BillingSource::Platform);
+    audit.bill_to(BillingSource::UserKey);
+    assert_eq!(audit.billing_source(), BillingSource::UserKey);
     audit.record_billing_source().await;
 
     let usage = CanonicalUsage {
@@ -131,4 +132,56 @@ async fn a_user_key_request_settles_tokens_at_zero_cost_and_logs_completion() {
         "{line}"
     );
     assert!(line.contains("output_tokens=6"), "{line}");
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn a_subscription_request_is_stamped_and_settles_tokens_at_zero_cost() {
+    let db = setup_db().await;
+    let owner = seed_user(&db).await;
+    let id = AiRequestId::generate();
+    let repos = gateway_repos_in(&db, &private_journal_dir());
+    let audit = GatewayAudit::new(&repos, request_ctx(owner.clone(), id.clone()));
+    audit
+        .open(
+            &minimal_request(None, "subscription"),
+            &Bytes::from_static(b"{}"),
+        )
+        .await
+        .expect("open");
+    audit.commit_admission().await.expect("commit admission");
+    audit.bill_to(BillingSource::UserSubscription);
+    audit.record_billing_source().await;
+
+    let usage = CanonicalUsage {
+        input_tokens: 4,
+        output_tokens: 6,
+        ..Default::default()
+    };
+    audit.set_quota_reservation(reservation_for(&owner));
+    assert!(matches!(
+        audit.settle_quota(&usage, 999).await,
+        AccountingOutcome::Counted
+    ));
+
+    let pool = db.pool();
+    let billing: String =
+        sqlx::query_scalar("SELECT billing_source FROM ai_requests WHERE id = $1")
+            .bind(id.as_str())
+            .fetch_one(pool.as_ref())
+            .await
+            .expect("billing source");
+    assert_eq!(billing, "user_subscription");
+    let (input, output, cost): (i64, i64, i64) = sqlx::query_as(
+        "SELECT input_tokens, output_tokens, cost_microdollars FROM ai_quota_buckets \
+         WHERE subject_kind = 'user' AND subject_id = $1",
+    )
+    .bind(owner.as_str())
+    .fetch_one(pool.as_ref())
+    .await
+    .expect("bucket");
+    assert_eq!(
+        (input, output, cost),
+        (4, 6, 0),
+        "tokens count, cost does not"
+    );
 }

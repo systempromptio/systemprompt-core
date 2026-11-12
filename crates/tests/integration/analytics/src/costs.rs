@@ -504,6 +504,43 @@ async fn empty_window_returns_no_rows() -> Result<()> {
 }
 
 #[tokio::test]
+async fn breakdown_by_billing_source_carries_the_subscription_share_separately() -> Result<()> {
+    let fx = Fixture::new().await?;
+
+    fx.insert_ai_request(None, 100, 10, 10).await?;
+    let keyed = fx.insert_ai_request(None, 200, 20, 20).await?;
+    fx.set_billing_source(&keyed, "user_key").await?;
+    let subscribed = fx.insert_ai_request(None, 300, 30, 70).await?;
+    fx.set_billing_source(&subscribed, "user_subscription")
+        .await?;
+
+    let repo = fx.repo().await?;
+    let rows = repo
+        .get_breakdown_by_billing_source(
+            fx.window_start + Duration::minutes(30),
+            fx.window_start + Duration::minutes(120),
+            10,
+        )
+        .await?;
+    let split: Vec<(&str, i64, i64, i64)> = rows
+        .iter()
+        .map(|r| (r.name.as_str(), r.requests, r.tokens, r.cost))
+        .collect();
+    assert_eq!(
+        split,
+        vec![
+            ("user_subscription", 1, 30, 300),
+            ("user_key", 1, 20, 200),
+            ("platform", 1, 10, 100)
+        ],
+        "each member-paid share is its own row and the platform share excludes both"
+    );
+
+    fx.cleanup().await?;
+    Ok(())
+}
+
+#[tokio::test]
 async fn breakdown_by_billing_source_splits_the_rollup_into_platform_and_user_key() -> Result<()> {
     let fx = Fixture::new().await?;
 

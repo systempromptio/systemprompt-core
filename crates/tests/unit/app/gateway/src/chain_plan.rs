@@ -245,6 +245,52 @@ fn an_oversized_request_moves_to_the_context_fallback() {
     );
 }
 
+fn billed_as(
+    mut hop: ResolvedHop,
+    kind: systemprompt_manifest::services::catalog::CredentialKind,
+) -> ResolvedHop {
+    hop.credential.kind = kind;
+    hop.credential.secret = None;
+    hop
+}
+
+#[test]
+fn a_member_paid_request_never_moves_to_a_platform_context_fallback() {
+    use systemprompt_manifest::services::catalog::CredentialKind;
+    let c = catalog();
+    for kind in [CredentialKind::Caller, CredentialKind::Personal] {
+        let exceeded = fit_context_window(
+            &c,
+            &request_of(4_000),
+            reencoded(),
+            vec![billed_as(hop(&c, "small-m", "small", None), kind)],
+            vec![hop(&c, "large-m", "large", None)],
+        )
+        .expect_err("a platform fallback would move the bill");
+        assert_eq!(exceeded.limit, 100, "{kind:?}");
+    }
+}
+
+#[test]
+fn failover_stays_on_the_bill_the_request_started_on() {
+    use systemprompt_gateway::service::resolve::may_fail_over;
+    use systemprompt_manifest::services::catalog::CredentialKind;
+    let c = catalog();
+    let platform_a = hop(&c, "small-m", "small", None);
+    let platform_b = hop(&c, "large-m", "large", None);
+    let caller_a = billed_as(platform_a.clone(), CredentialKind::Caller);
+    let caller_b = billed_as(platform_b.clone(), CredentialKind::Caller);
+
+    assert!(may_fail_over(&platform_a, &platform_b));
+    assert!(!may_fail_over(&caller_a, &platform_b));
+    assert!(!may_fail_over(&platform_a, &caller_b));
+    assert!(
+        !may_fail_over(&caller_a, &caller_b),
+        "two different credentials"
+    );
+    assert!(may_fail_over(&caller_a, &caller_a.clone()));
+}
+
 #[test]
 fn an_oversized_request_with_no_fitting_fallback_is_refused_with_the_numbers() {
     let c = catalog();

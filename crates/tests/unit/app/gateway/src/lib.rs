@@ -63,6 +63,8 @@ mod outbound;
 #[cfg(test)]
 mod outbound_bounds;
 #[cfg(test)]
+mod outbound_caller;
+#[cfg(test)]
 mod outbound_deep;
 #[cfg(test)]
 mod outbound_passthrough;

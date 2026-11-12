@@ -45,6 +45,11 @@ pub fn personal(label: &str) -> CredentialEntry {
 }
 
 #[must_use]
+pub fn caller(label: &str) -> CredentialEntry {
+    CredentialEntry::caller(Some(label.to_owned()))
+}
+
+#[must_use]
 pub const fn priced(input: f64, output: f64, cache_read: f64) -> ModelPricing {
     ModelPricing {
         input_per_million: input,
