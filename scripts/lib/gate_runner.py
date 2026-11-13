@@ -6,9 +6,9 @@ appends one JSON line per run to the gate log.
 
 Phases, in run order:
 
-    db       `scripts/test-db.sh`, once, added whenever a chosen step needs the
-             test database: test-workspace clippy and doc, and the test shards
-             all run live against it (TEST_DATABASE_URL, SQLX_OFFLINE=false)
+    db       `scripts/test-db.sh`, once, before test-workspace clippy and doc
+             (`just doc-check` includes the test-workspace pass),
+             which compile live against it (TEST_DATABASE_URL, SQLX_OFFLINE=false)
     fmt      `just format-check` (whole tree in every mode)
     clippy   root-workspace clippy over the affected crates, the bridge when it
              is affected, test-workspace clippy over the affected test crates
@@ -17,9 +17,9 @@ Phases, in run order:
              unit gates with `--paths <affected crate dirs>`; every gate in full
              mode, then the rust-contracts tests (`just check-gates`)
     scripts  `scripts/test-scripts.sh` when a path under scripts/ changed
-    tests    `scripts/test-shard.sh <group>` per affected shard group, against
-             the database the db phase prepared (the `just test-shard` recipe
-             is the same two scripts with a fresh database per shard)
+    tests    per affected shard group, `scripts/test-db.sh` then
+             `scripts/test-shard.sh <group>`: a fresh migrated database per
+             shard, exactly as `just test-shard` and CI run it
 
 The tree hash in the log is `git write-tree` over a temporary index holding the
 whole working tree (tracked, modified and untracked-not-ignored files), so two
@@ -92,7 +92,7 @@ def phase_clippy(selection, changed):
 
 def phase_doc(selection, changed):
     if selection["mode"] == "full":
-        return [step("doc-check", ["just", "doc-check"])]
+        return [step("doc-check", ["just", "doc-check"], db=True)]
     steps = []
     if selection["clippy_packages"]:
         steps.append(step("doc", ["cargo", "doc", "--no-deps", "--all-features",
@@ -130,8 +130,11 @@ def phase_scripts(selection, changed):
 
 
 def phase_tests(selection, changed):
-    return [step(f"shard {group}", ["bash", "scripts/test-shard.sh", group], db=True)
-            for group in selection["shard_groups"]]
+    steps = []
+    for group in selection["shard_groups"]:
+        steps.append(step(f"test-db {group}", ["bash", "scripts/test-db.sh"], db=True))
+        steps.append(step(f"shard {group}", ["bash", "scripts/test-shard.sh", group], db=True))
+    return steps
 
 
 BUILDERS = {"fmt": phase_fmt, "clippy": phase_clippy, "doc": phase_doc, "gates": phase_gates,
@@ -142,23 +145,30 @@ def needs_test_db(phases):
     return any(entry["db"] for _, steps in phases for entry in steps)
 
 
+def needs_shared_db(phases):
+    return any(entry["db"] for name, steps in phases if name != "tests" for entry in steps)
+
+
 def plan(selection, changed, phases=PHASES, db_url=None):
     """`[(phase, [step])]` in run order for the chosen phases; a phase may hold no steps.
 
-    When a step runs in the test workspace, a `db` phase preparing `db_url`
-    comes first and those steps compile live against it.
+    Steps that need the test database run live against `db_url`. When a step
+    compiles in the test workspace, a `db` phase preparing it comes first; each
+    test shard re-prepares it, so every shard starts fresh as in CI.
     """
     chosen = [(name, BUILDERS[name](selection, changed)) for name in PHASES if name in phases]
     if not needs_test_db(chosen):
         return chosen
     if db_url is None:
         raise GateError("a test-workspace phase needs the test database URL")
-    live = {"DATABASE_URL": db_url, "SQLX_OFFLINE": "false"}
+    live = {"TEST_DATABASE_URL": db_url, "DATABASE_URL": db_url, "SQLX_OFFLINE": "false"}
     for _, steps in chosen:
         for entry in steps:
             if entry["db"]:
                 entry["env"] = {**entry["env"], **live}
-    return [("db", [step("test-db", ["bash", "scripts/test-db.sh"])])] + chosen
+    if not needs_shared_db(chosen):
+        return chosen
+    return [("db", [step("test-db", ["bash", "scripts/test-db.sh"], {"TEST_DATABASE_URL": db_url})])] + chosen
 
 
 def choose_phases(only, skip):

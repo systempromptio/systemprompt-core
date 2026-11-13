@@ -37,7 +37,12 @@ FORCED = dict(AFFECTED, mode="full", reasons=["Cargo.lock: matches force-full pa
 
 
 URL = "postgres://u@h:5432/gate_test"
-LIVE = f"DATABASE_URL='{URL}' SQLX_OFFLINE='false'"
+LIVE = f"DATABASE_URL='{URL}' SQLX_OFFLINE='false' TEST_DATABASE_URL='{URL}'"
+PREP = f"TEST_DATABASE_URL='{URL}' bash scripts/test-db.sh"
+
+
+def shard(group):
+    return [f"{LIVE} bash scripts/test-db.sh", f"{LIVE} bash scripts/test-shard.sh {group}"]
 
 
 def commands(phases):
@@ -59,7 +64,7 @@ class Plans(unittest.TestCase):
     def test_affected_plan_scopes_every_phase(self):
         plan = commands(gate_runner.plan(AFFECTED, ["crates/domain/files/src/lib.rs"], db_url=URL))
         self.assertEqual(list(plan), ["db", *gate_runner.PHASES])
-        self.assertEqual(plan["db"], ["bash scripts/test-db.sh"])
+        self.assertEqual(plan["db"], [PREP])
         self.assertEqual(plan["fmt"], ["just format-check"])
         self.assertEqual(plan["clippy"], [
             "cargo clippy -p systemprompt-api -p systemprompt-files --all-targets --all-features --keep-going -- -D warnings",
@@ -68,9 +73,9 @@ class Plans(unittest.TestCase):
         self.assertEqual(plan["doc"], [
             "RUSTDOCFLAGS='-D warnings' cargo doc --no-deps --all-features -p systemprompt-api -p systemprompt-files",
             f"(cd crates/tests && DATABASE_URL='{URL}' RUSTDOCFLAGS='-D warnings' SQLX_OFFLINE='false' "
-            "cargo doc --no-deps -p systemprompt-files-tests)"])
+            f"TEST_DATABASE_URL='{URL}' cargo doc --no-deps -p systemprompt-files-tests)"])
         self.assertEqual(plan["scripts"], [])
-        self.assertEqual(plan["tests"], [f"{LIVE} bash scripts/test-shard.sh domain"])
+        self.assertEqual(plan["tests"], shard("domain"))
 
     def test_unit_gates_take_the_affected_dirs_and_global_gates_run_whole(self):
         plan = gate_runner.plan(AFFECTED, [], ["gates"])
@@ -104,10 +109,9 @@ class Plans(unittest.TestCase):
         self.assertEqual(plan["gates"], [f"just {g}" for g in gate_scope.gate_list()]
                          + ["cargo test --locked --manifest-path scripts/rust-contracts/Cargo.toml"])
         self.assertEqual(plan["clippy"][0], "just lint")
-        self.assertEqual(plan["doc"], ["just doc-check"])
+        self.assertEqual(plan["doc"], [f"{LIVE} just doc-check"])
         self.assertEqual(plan["scripts"], ["bash scripts/test-scripts.sh"])
-        self.assertEqual(plan["tests"], [f"{LIVE} bash scripts/test-shard.sh shared",
-                                         f"{LIVE} bash scripts/test-shard.sh edge"])
+        self.assertEqual(plan["tests"], shard("shared") + shard("edge"))
         self.assertEqual(plan["clippy"][1], f"(cd crates/tests && {LIVE} cargo clippy --workspace --all-targets "
                          "--all-features --keep-going -- -D warnings)")
 
@@ -124,14 +128,19 @@ class PhaseSelection(unittest.TestCase):
 
     def test_plan_keeps_run_order(self):
         self.assertEqual([n for n, _ in gate_runner.plan(AFFECTED, [], ["tests", "fmt"], db_url=URL)],
-                         ["db", "fmt", "tests"])
+                         ["fmt", "tests"])
 
     def test_database_is_prepared_once_and_only_when_needed(self):
-        for phases in (["clippy"], ["doc"], ["tests"], ["clippy", "doc", "tests"]):
+        for phases in (["clippy"], ["doc"], ["clippy", "doc", "tests"]):
             with self.subTest(phases=phases):
                 names = [n for n, _ in gate_runner.plan(AFFECTED, [], phases, db_url=URL)]
                 self.assertEqual(names.count("db"), 1)
                 self.assertEqual(names[0], "db")
+        self.assertNotIn("db", [n for n, _ in gate_runner.plan(AFFECTED, [], ["tests"], db_url=URL)])
+
+    def test_every_shard_starts_from_a_fresh_database(self):
+        plan = commands(gate_runner.plan(dict(AFFECTED, shard_groups=["a", "b"]), [], ["tests"], db_url=URL))
+        self.assertEqual(plan["tests"], shard("a") + shard("b"))
         for phases in (["fmt", "gates", "scripts"],):
             self.assertNotIn("db", [n for n, _ in gate_runner.plan(AFFECTED, [], phases)])
         root_only = dict(AFFECTED, test_packages=[], test_dirs=[], shard_groups=[])
@@ -146,9 +155,8 @@ class DryRun(unittest.TestCase):
     def test_unit_dry_run_prints_the_plan(self):
         result = dry_run(AFFECTED, "--unit", "systemprompt-files", "--only", "fmt,tests", env={"TEST_DATABASE_URL": URL})
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(result.stdout.splitlines()[1:], ["  unit systemprompt-files", "[db]",
-                                                         "  bash scripts/test-db.sh", "[fmt]", "  just format-check",
-                                                         "[tests]", f"  {LIVE} bash scripts/test-shard.sh domain"])
+        self.assertEqual(result.stdout.splitlines()[1:], ["  unit systemprompt-files", "[fmt]", "  just format-check",
+                                                         "[tests]", *(f"  {c}" for c in shard("domain"))])
 
     def test_changed_dry_run_reports_the_base(self):
         head = subprocess.run(["git", "-C", str(ROOT), "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
@@ -159,13 +167,14 @@ class DryRun(unittest.TestCase):
         self.assertIn("[clippy]", result.stdout)
 
     def test_force_full_selection_falls_back_to_the_full_plan(self):
-        result = dry_run(FORCED, "--changed", "--base", "HEAD", "--only", "doc,tests")
+        result = dry_run(FORCED, "--changed", "--base", "HEAD", "--only", "doc,tests", env={"TEST_DATABASE_URL": URL})
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("full because Cargo.lock: matches force-full pattern **/Cargo.lock", result.stdout)
-        self.assertIn("  just doc-check", result.stdout)
+        self.assertIn(f"  {LIVE} just doc-check", result.stdout)
         self.assertIn("bash scripts/test-shard.sh shared\n", result.stdout)
         self.assertIn("bash scripts/test-shard.sh domain\n", result.stdout)
-        self.assertIn("[db]\n  bash scripts/test-db.sh", result.stdout)
+        self.assertIn(f"[db]\n  {PREP}", result.stdout)
+        self.assertIn(f"{LIVE} bash scripts/test-db.sh\n  {LIVE} bash scripts/test-shard.sh shared", result.stdout)
 
     def test_full_dry_run_lists_every_source_gate(self):
         out = io.StringIO()
