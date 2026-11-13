@@ -53,7 +53,7 @@ pub fn run_in_job_scopes<'a, F>(
     run: F,
 ) -> BoxFuture<'a, ProviderResult<JobResult>>
 where
-    F: std::future::Future<Output = ProviderResult<JobResult>> + Send + 'a,
+    F: Future<Output = ProviderResult<JobResult>> + Send + 'a,
 {
     registered_job_run_scopes().fold(Box::pin(run), |inner, registration| {
         registration.scope.scope(job, inner)

@@ -25,8 +25,8 @@
 //!   [`time_format`], [`text`], [`disk_logs`], [`interrupt`] and [`routing`],
 //!   plus [`define_pool_command!`] for pooled database commands.
 //! - **Helpers several groups share** — [`provider_catalog`] (the seeded model
-//!   catalog and `gateway.yaml`), [`docker_compose`], [`postgres_access`]
-//!   and [`ddl`] (the local database), [`yaml_document`] (lossless YAML edits),
+//!   catalog and `gateway.yaml`), [`docker_compose`], [`postgres_access`] and
+//!   [`ddl`] (the local database), [`yaml_document`] (lossless YAML edits),
 //!   [`ProfileInfo`] and [`McpToolEntry`]. A command group names these here and
 //!   never reaches into another group's modules.
 //!

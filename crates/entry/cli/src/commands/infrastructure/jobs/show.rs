@@ -7,7 +7,6 @@ use anyhow::Result;
 use clap::Args;
 use systemprompt_identifiers::JobName;
 use systemprompt_scheduler::{JobRepository, ScheduledJob};
-use systemprompt_traits::Job;
 
 use super::cron_text::parse_cron_human;
 use super::types::JobShowOutput;

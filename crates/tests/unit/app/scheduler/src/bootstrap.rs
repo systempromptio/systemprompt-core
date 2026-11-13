@@ -1,6 +1,5 @@
 use systemprompt_identifiers::JobName;
 use systemprompt_scheduler::{JobConfig, SchedulerConfig, unknown_job_names};
-use systemprompt_traits::Job;
 
 #[test]
 fn default_bootstrap_jobs_match_built_in_inventory_names() {

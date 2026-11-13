@@ -15,7 +15,6 @@ use systemprompt_scheduler::{
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, test_app_context, test_database_url, test_db_pool,
 };
-use systemprompt_traits::Job;
 
 use crate::test_jobs::{FAILING_JOB, WORKING_JOB};
 

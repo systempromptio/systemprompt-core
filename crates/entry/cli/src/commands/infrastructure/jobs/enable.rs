@@ -7,7 +7,6 @@ use anyhow::{Context, Result};
 use clap::Args;
 use systemprompt_identifiers::JobName;
 use systemprompt_scheduler::JobRepository;
-use systemprompt_traits::Job;
 
 use super::types::JobEnableOutput;
 use crate::context::CommandContext;

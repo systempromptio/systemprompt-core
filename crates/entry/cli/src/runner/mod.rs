@@ -130,14 +130,14 @@ impl Invocation {
     fn into_selected(self) -> Selected {
         match (self.registered, self.cli.command) {
             (Some(registered), _) => Selected::Registered(registered),
-            (None, Some(command)) => Selected::Kernel(command),
+            (None, Some(command)) => Selected::Kernel(Box::new(command)),
             (None, None) => Selected::Bare(Box::new(self.root)),
         }
     }
 }
 
 enum Selected {
-    Kernel(args::Commands),
+    Kernel(Box<args::Commands>),
     Registered(RegisteredCommand),
     Bare(Box<Command>),
 }
@@ -278,14 +278,14 @@ fn resolve_log_level(cli_config: &CliConfig, env: &EnvOverrides) -> Option<Strin
 async fn dispatch_command(selected: Selected, ctx: &CommandContext) -> Result<()> {
     if ctx.is_database_scoped() {
         let accepted = match &selected {
-            Selected::Kernel(
+            Selected::Kernel(command) => matches!(
+                **command,
                 args::Commands::Core(_)
-                | args::Commands::Infra(_)
-                | args::Commands::Admin(_)
-                | args::Commands::Analytics(_),
-            ) => true,
+                    | args::Commands::Infra(_)
+                    | args::Commands::Admin(_)
+                    | args::Commands::Analytics(_)
+            ),
             Selected::Registered(registered) => registered.db_url_routing() == DbUrlRouting::Direct,
-            Selected::Kernel(_) => false,
             Selected::Bare(_) => {
                 bail!("No subcommand provided. Use --help to see available commands.")
             },
@@ -296,14 +296,16 @@ async fn dispatch_command(selected: Selected, ctx: &CommandContext) -> Result<()
     }
 
     match selected {
-        Selected::Kernel(args::Commands::Core(cmd)) => Box::pin(core::execute(cmd, ctx)).await?,
-        Selected::Kernel(args::Commands::Infra(cmd)) => infrastructure::execute(cmd, ctx).await?,
-        Selected::Kernel(args::Commands::Admin(cmd)) => Box::pin(admin::execute(cmd, ctx)).await?,
-        Selected::Kernel(args::Commands::Cloud(cmd)) => cloud::execute(cmd, ctx).await?,
-        Selected::Kernel(args::Commands::Analytics(cmd)) => analytics::execute(cmd, ctx).await?,
-        Selected::Kernel(args::Commands::Web(cmd)) => web::execute(cmd, ctx)?,
-        Selected::Kernel(args::Commands::Plugins(cmd)) => {
-            Box::pin(plugins::execute(cmd, ctx)).await?;
+        Selected::Kernel(command) => match *command {
+            args::Commands::Core(cmd) => Box::pin(core::execute(cmd, ctx)).await?,
+            args::Commands::Infra(cmd) => infrastructure::execute(cmd, ctx).await?,
+            args::Commands::Admin(cmd) => Box::pin(admin::execute(cmd, ctx)).await?,
+            args::Commands::Cloud(cmd) => cloud::execute(cmd, ctx).await?,
+            args::Commands::Analytics(cmd) => analytics::execute(cmd, ctx).await?,
+            args::Commands::Web(cmd) => web::execute(cmd, ctx)?,
+            args::Commands::Plugins(cmd) => {
+                Box::pin(plugins::execute(cmd, ctx)).await?;
+            },
         },
         Selected::Registered(registered) => registered.run(ctx).await?,
         Selected::Bare(root) => {
