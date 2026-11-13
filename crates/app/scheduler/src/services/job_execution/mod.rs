@@ -21,6 +21,7 @@
 
 mod claim;
 mod report;
+mod selection;
 
 pub use report::{JobBatchReport, JobRunReport, JobSelection, parse_job_parameters};
 
@@ -34,28 +35,14 @@ use systemprompt_manifest::SchedulerConfig;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{Job, run_in_job_scopes};
 
-use super::EnabledExtensions;
 use super::scheduling::make_job_context;
-use crate::error::{SchedulerError, SchedulerResult};
+use crate::error::SchedulerResult;
 use crate::jobs::InventoryRefreshMemo;
 use crate::models::{JobRunRecord, JobStatus};
 use crate::repository::{JobRepository, SchedulerRepository};
 use claim::Claimed;
 use report::{elapsed_ms, failed_report};
-
-enum RunnableJob {
-    Manifest(Arc<dyn Job>),
-    Inventory(&'static dyn Job),
-}
-
-impl RunnableJob {
-    fn as_job(&self) -> &dyn Job {
-        match self {
-            Self::Manifest(job) => job.as_ref(),
-            Self::Inventory(job) => *job,
-        }
-    }
-}
+use selection::RunnableJob;
 
 pub struct JobExecutionService {
     ctx: Arc<AppContext>,
@@ -97,53 +84,6 @@ impl JobExecutionService {
     pub const fn with_lock_wait(mut self, wait: Duration) -> Self {
         self.lock_wait = wait;
         self
-    }
-
-    pub fn resolve_job_names(&self, selection: &JobSelection) -> SchedulerResult<Vec<JobName>> {
-        match selection {
-            JobSelection::All => {
-                let enabled = self.enabled()?;
-                let mut names: Vec<JobName> = self
-                    .enabled_manifest_jobs()?
-                    .into_iter()
-                    .filter(|job| job.enabled())
-                    .map(|job| JobName::new(job.name()))
-                    .collect();
-                for job in enabled.jobs() {
-                    if job.enabled() && !names.iter().any(|name| name == job.name()) {
-                        names.push(JobName::new(job.name()));
-                    }
-                }
-                names.sort_unstable();
-                Ok(names)
-            },
-            JobSelection::Tag(tag) => {
-                let mut jobs: Vec<&dyn Job> = Vec::new();
-                let manifest = self.enabled_manifest_jobs()?;
-                jobs.extend(manifest.iter().map(AsRef::as_ref));
-                let enabled = self.enabled()?;
-                for job in enabled.jobs() {
-                    if !jobs.iter().any(|seen| seen.name() == job.name()) {
-                        jobs.push(job);
-                    }
-                }
-                jobs.retain(|job| job.tags().contains(&tag.as_str()));
-                if jobs.is_empty() {
-                    return Err(SchedulerError::NoJobsWithTag { tag: tag.clone() });
-                }
-                Ok(jobs
-                    .into_iter()
-                    .filter(|job| job.enabled())
-                    .map(|job| JobName::new(job.name()))
-                    .collect())
-            },
-            JobSelection::Names(names) => {
-                if names.is_empty() {
-                    return Err(SchedulerError::NoJobsSelected);
-                }
-                Ok(names.clone())
-            },
-        }
     }
 
     pub async fn run_jobs(
@@ -221,33 +161,6 @@ impl JobExecutionService {
             guard.release().await;
         }
         report
-    }
-
-    fn enabled(&self) -> SchedulerResult<EnabledExtensions> {
-        EnabledExtensions::resolve(&self.registry, &self.ctx.profile().extensions.disabled)
-    }
-
-    fn enabled_manifest_jobs(&self) -> SchedulerResult<Vec<Arc<dyn Job>>> {
-        Ok(self
-            .registry
-            .enabled_extensions(&self.ctx.profile().extensions.disabled)?
-            .iter()
-            .flat_map(|ext| ext.jobs())
-            .collect())
-    }
-
-    fn find_runnable(&self, job_name: &JobName) -> SchedulerResult<Option<RunnableJob>> {
-        if let Some(job) = self
-            .enabled_manifest_jobs()?
-            .into_iter()
-            .find(|job| job.name() == job_name.as_str())
-        {
-            return Ok(Some(RunnableJob::Manifest(job)));
-        }
-        Ok(self
-            .enabled()?
-            .job(job_name.as_str())
-            .map(RunnableJob::Inventory))
     }
 
     async fn execute_runnable(
