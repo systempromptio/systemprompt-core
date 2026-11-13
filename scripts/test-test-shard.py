@@ -1,7 +1,9 @@
+import json
 import os
 from pathlib import Path
 import stat
 import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -158,7 +160,20 @@ class TestShardInvocation(unittest.TestCase):
             ["bash", str(SHARD), "--list-archive-sets"], cwd=ROOT, check=True, text=True, capture_output=True
         ).stdout.split()
         workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
-        self.assertIn(f"        set: [{', '.join(sets)}]\n", workflow)
+        self.assertIn("        set: ${{ fromJSON(needs.affected.outputs.archive_sets) }}\n", workflow)
+        self.assertIn("        group: ${{ fromJSON(needs.affected.outputs.shard_groups) }}\n", workflow)
+        plan = subprocess.run(
+            [sys.executable, "-B", str(ROOT / "scripts" / "ci-plan.py"), "plan", "--workflow", "ci", "--event",
+             "pull_request", "--selection", "/dev/null", "--base", ""],
+            cwd=ROOT, text=True, capture_output=True,
+        )
+        self.assertEqual(plan.returncode, 0, plan.stderr)
+        outputs = dict(line.split("=", 1) for line in plan.stdout.splitlines())
+        groups = subprocess.run(
+            ["bash", str(SHARD), "--list"], cwd=ROOT, check=True, text=True, capture_output=True
+        ).stdout.split()
+        self.assertEqual(sorted(json.loads(outputs["archive_sets"])), sorted(sets))
+        self.assertEqual(json.loads(outputs["shard_groups"]), groups)
 
     def test_unknown_group_has_no_archive_set(self):
         result = subprocess.run(

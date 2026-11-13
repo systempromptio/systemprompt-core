@@ -219,6 +219,11 @@ scripts/lib/__pycache__/
 !scripts/lint-no-untyped-admin.sh
 !scripts/lint-repo-hygiene.sh
 !scripts/gate.sh
+!scripts/ci-base.py
+!scripts/test-ci-base.py
+!scripts/ci-plan.py
+!scripts/test-ci-plan.py
+!scripts/ci-gitleaks.sh
 !scripts/changelog-assemble.py
 
 # Local-only review notes

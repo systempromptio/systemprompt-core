@@ -11,9 +11,15 @@ on:
     branches: [main, next]
   push:
     branches: [next, future]
+  # Accepted so a merge queue can be switched on in the ruleset; no queue is
+  # enabled. A group run resolves its base on the queue's target branch.
+  merge_group:
 
+# The event is part of the group, so a dispatched run (nightly.yml dispatches
+# the full gate every night) never shares a group with, and is never cancelled
+# by, a push.
 concurrency:
-  group: quality-${{ inputs.ref || github.ref }}
+  group: quality-${{ github.event_name }}-${{ inputs.ref || github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -37,10 +43,106 @@ env:
   CARGO_INCREMENTAL: "0"
 
 jobs:
+  # One selection per run (scripts/affected.py against the base scripts/ci-base.py
+  # resolves), turned into the run's plan by scripts/ci-plan.py. Every job
+  # below reads its run decision and matrix from these outputs, and the
+  # aggregate recomputes the decisions from the same selection.
+  affected:
+    name: Affected selection
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      plan_mode: ${{ steps.plan.outputs.plan_mode }}
+      shadow: ${{ steps.plan.outputs.shadow }}
+      base: ${{ steps.plan.outputs.base }}
+      selection: ${{ steps.plan.outputs.selection }}
+      shard_groups: ${{ steps.plan.outputs.shard_groups }}
+      archive_sets: ${{ steps.plan.outputs.archive_sets }}
+      bridge: ${{ steps.plan.outputs.bridge }}
+      clippy_args: ${{ steps.plan.outputs.clippy_args }}
+      tests_args: ${{ steps.plan.outputs.tests_args }}
+      gate_args: ${{ steps.plan.outputs.gate_args }}
+      shadow_bridge: ${{ steps.plan.outputs.shadow_bridge }}
+      shadow_clippy_args: ${{ steps.plan.outputs.shadow_clippy_args }}
+      shadow_gate_args: ${{ steps.plan.outputs.shadow_gate_args }}
+      run_bridge_web: ${{ steps.plan.outputs.run_bridge_web }}
+      run_lint: ${{ steps.plan.outputs.run_lint }}
+      run_lint_tests: ${{ steps.plan.outputs.run_lint_tests }}
+      run_bridge_native: ${{ steps.plan.outputs.run_bridge_native }}
+      run_docs: ${{ steps.plan.outputs.run_docs }}
+      run_source_gates: ${{ steps.plan.outputs.run_source_gates }}
+      run_msrv: ${{ steps.plan.outputs.run_msrv }}
+      run_file_size: ${{ steps.plan.outputs.run_file_size }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      # Why: affected.py reads the package graph with `cargo metadata`, which
+      # needs the pinned toolchain; nothing in this job compiles.
+      - run: rustup show
+      - name: Resolve the base
+        id: base
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          BEFORE: ${{ github.event.before }}
+          FORCED: ${{ github.event.forced }}
+          BASE_REF: ${{ github.event.merge_group.base_ref }}
+        run: |
+          python3 scripts/ci-base.py --event "$EVENT" --ref "$REF" --sha "$(git rev-parse HEAD)" \
+              --before "$BEFORE" --forced "$FORCED" --base-ref "$BASE_REF" \
+              --repo "$GITHUB_REPOSITORY" --output "$GITHUB_OUTPUT"
+      - name: Select
+        if: steps.base.outputs.base != ''
+        env:
+          BASE: ${{ steps.base.outputs.base }}
+        run: |
+          python3 scripts/affected.py --base "$BASE" --head HEAD --format json > selection.json
+          python3 scripts/affected.py --base "$BASE" --head HEAD --format text >> "$GITHUB_STEP_SUMMARY"
+      - name: Plan
+        id: plan
+        env:
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          BASE: ${{ steps.base.outputs.base }}
+          BASE_REASON: ${{ steps.base.outputs.base_reason }}
+        run: |
+          python3 scripts/ci-plan.py plan --workflow quality --event "$EVENT" --ref "$REF" \
+              --selection selection.json --base "$BASE" --base-reason "$BASE_REASON" --output "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: selection
+          path: selection.json
+          retention-days: 14
+          if-no-files-found: error
+
+  # Names the plan this run executed; scripts/release-proof.py accepts a run as
+  # release proof only when this job reads `Gate plan: full`.
+  gate-plan:
+    name: "Gate plan: ${{ needs.affected.outputs.plan_mode }}"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: affected
+    steps:
+      - env:
+          PLAN: ${{ needs.affected.outputs.plan_mode }}
+          BASE: ${{ needs.affected.outputs.base }}
+          SHADOW: ${{ needs.affected.outputs.shadow }}
+        run: |
+          echo "plan $PLAN, base ${BASE:-none}, shadow $SHADOW" | tee -a "$GITHUB_STEP_SUMMARY"
+          test -n "$PLAN"
+
   bridge-web:
     name: Bridge web regression tests
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    needs: affected
+    if: needs.affected.outputs.run_bridge_web == 'true'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -54,6 +156,8 @@ jobs:
     name: Clippy lint baseline
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    needs: affected
+    if: needs.affected.outputs.run_lint == 'true'
     # sccache (GitHub Actions cache backend) shares content-hashed objects
     # across every Linux Rust job in CI and Quality; see ci.yml.
     env:
@@ -72,14 +176,22 @@ jobs:
       - run: rustup show
       - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
       - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
-      - run: cargo clippy --workspace --all-targets --all-features --keep-going --locked -- -D warnings
-      - run: cargo clippy --manifest-path bin/bridge/Cargo.toml --all-targets --all-features --keep-going --locked -- -D warnings
+      # The plan's root-workspace scope: `--workspace` in a full plan, the
+      # selection's `-p` list in an affected one.
+      - if: needs.affected.outputs.clippy_args != ''
+        env:
+          SCOPE: ${{ needs.affected.outputs.clippy_args }}
+        run: cargo clippy $SCOPE --all-targets --all-features --keep-going --locked -- -D warnings
+      - if: ${{ !cancelled() && needs.affected.outputs.bridge == 'true' }}
+        run: cargo clippy --manifest-path bin/bridge/Cargo.toml --all-targets --all-features --keep-going --locked -- -D warnings
       - run: sccache --show-stats
 
   lint-tests:
     name: Test workspace all-targets clippy + rustdoc
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    needs: affected
+    if: needs.affected.outputs.run_lint_tests == 'true'
     env:
       SQLX_OFFLINE: "false"
       DATABASE_URL: postgres://test:test@localhost:5432/test
@@ -112,7 +224,9 @@ jobs:
         env:
           SQLX_OFFLINE: "true"
         run: cargo run --locked --manifest-path crates/tests/Cargo.toml -p systemprompt-test-migrate
-      - run: cargo clippy --manifest-path crates/tests/Cargo.toml --workspace --all-targets --all-features --keep-going --locked -- -D warnings
+      - env:
+          SCOPE: ${{ needs.affected.outputs.tests_args }}
+        run: cargo clippy --manifest-path crates/tests/Cargo.toml $SCOPE --all-targets --all-features --keep-going --locked -- -D warnings
       # The third leg of `just doc-check`. It runs here rather than in `docs`
       # because the test workspace's `query!` fixtures need the migrated
       # database this job already has, and clippy has just checked its deps.
@@ -120,7 +234,8 @@ jobs:
         if: ${{ !cancelled() }}
         env:
           RUSTDOCFLAGS: "-D warnings"
-        run: cargo doc --manifest-path crates/tests/Cargo.toml --workspace --no-deps --locked
+          SCOPE: ${{ needs.affected.outputs.tests_args }}
+        run: cargo doc --manifest-path crates/tests/Cargo.toml $SCOPE --no-deps --locked
       - run: sccache --show-stats
         if: ${{ !cancelled() }}
 
@@ -134,6 +249,8 @@ jobs:
     # silently; the two cargo steps carry their own timeouts so a slow
     # rust-cache post-step cannot cancel a job whose checks already passed.
     timeout-minutes: 75
+    needs: affected
+    if: needs.affected.outputs.run_bridge_native == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -173,6 +290,8 @@ jobs:
     name: Rustdoc (warnings as errors)
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    needs: affected
+    if: needs.affected.outputs.run_docs == 'true'
     env:
       RUSTDOCFLAGS: "-D warnings"
       SCCACHE_GHA_ENABLED: "true"
@@ -187,240 +306,105 @@ jobs:
         run: bash scripts/ci-install-system-deps.sh libdbus-1-dev pkg-config
       - run: rustup show
       - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
-      - run: cargo doc --workspace --no-deps --all-features --locked
-      - run: cargo doc --manifest-path bin/bridge/Cargo.toml --no-deps --locked
+      - if: needs.affected.outputs.clippy_args != ''
+        env:
+          SCOPE: ${{ needs.affected.outputs.clippy_args }}
+        run: cargo doc $SCOPE --no-deps --all-features --locked
+      - if: ${{ !cancelled() && needs.affected.outputs.bridge == 'true' }}
+        run: cargo doc --manifest-path bin/bridge/Cargo.toml --no-deps --locked
       - run: sccache --show-stats
 
-  # The source gates run as four parallel jobs (the single sequential job was
-  # ~9m on the critical path). Each gate step carries `!cancelled()`: without
-  # it a job stops at its first failing gate and every gate below it goes dark
-  # -- a standing i18n failure once hid check-crate-changelogs that way --
-  # while a superseding push still cancels the run. The union of the jobs'
-  # `just` steps is asserted equal to scripts/check-gates.txt in
-  # source-gates-release.
-  source-gates-sql:
-    name: "Source gates: schema / SQL / layers / headers"
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
-      - name: Install system dependencies
-        timeout-minutes: 14
-        run: bash scripts/ci-install-system-deps.sh ripgrep
-      - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
-      - run: just lint-schema
-        if: ${{ !cancelled() }}
-      - run: just lint-extensions
-        if: ${{ !cancelled() }}
-      - run: just lint-comments
-        if: ${{ !cancelled() }}
-      - run: just lint-test-seams
-        if: ${{ !cancelled() }}
-      - run: just lint-inline-tests
-        if: ${{ !cancelled() }}
-      - run: just lint-raw-ids
-        if: ${{ !cancelled() }}
-      - run: just check-headers
-        if: ${{ !cancelled() }}
-      - run: just lint-sqlx
-        if: ${{ !cancelled() }}
-      - run: just lint-http-errors
-        if: ${{ !cancelled() }}
-      - run: just lint-test-value
-        if: ${{ !cancelled() }}
-      - run: just lint-no-untyped-admin
-        if: ${{ !cancelled() }}
-      - run: just lint-layers
-        if: ${{ !cancelled() }}
-      - run: just lint-env-vars
-        if: ${{ !cancelled() }}
-      - run: just lint-authoritative-reads
-        if: ${{ !cancelled() }}
-      - run: just lint-native-test-deps
-        if: ${{ !cancelled() }}
-      - run: just sqlx-audit-caches
-        if: ${{ !cancelled() }}
-      - run: just lint-repo-construction
-        if: ${{ !cancelled() }}
-      - run: just lint-field-copy-from
-        if: ${{ !cancelled() }}
-      - run: just lint-repo-hygiene
-        if: ${{ !cancelled() }}
-      - run: just check-no-vendor
-        if: ${{ !cancelled() }}
-
-  source-gates-errors:
-    name: "Source gates: error handling / tasks / contracts"
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    env:
-      SCCACHE_GHA_ENABLED: "true"
-      RUSTC_WRAPPER: sccache
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
-      - name: Install system dependencies
-        timeout-minutes: 14
-        run: bash scripts/ci-install-system-deps.sh ripgrep
-      - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
-      - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
-      - run: just lint-discarded-results
-        if: ${{ !cancelled() }}
-      - run: just lint-fail-open
-        if: ${{ !cancelled() }}
-      - run: just lint-swallowed-errors
-        if: ${{ !cancelled() }}
-      - run: just lint-stringly-errors
-        if: ${{ !cancelled() }}
-      - run: just lint-tracing-messages
-        if: ${{ !cancelled() }}
-      - run: just lint-async-trait
-        if: ${{ !cancelled() }}
-      - run: just lint-shared-test-ids
-        if: ${{ !cancelled() }}
-      - run: just lint-owned-tasks
-        if: ${{ !cancelled() }}
-      - run: just lint-unbounded-bodies
-        if: ${{ !cancelled() }}
-      - run: cargo test --locked --manifest-path scripts/rust-contracts/Cargo.toml
-        if: ${{ !cancelled() }}
-      - run: just lint-silent-skips
-        if: ${{ !cancelled() }}
-      - run: just lint-json-value
-        if: ${{ !cancelled() }}
-      - run: just lint-table-ownership
-        if: ${{ !cancelled() }}
-      - run: just lint-ledger-reads
-        if: ${{ !cancelled() }}
-
-  source-gates-bridge:
-    name: "Source gates: bridge"
+  # The source gates of scripts/check-gates.txt, run by scripts/gate.sh as four
+  # parallel jobs; scripts/gate-scopes.txt assigns each gate its job. In a full
+  # plan every gate runs over the whole tree (`--full`); in an affected plan
+  # global gates run whole and unit gates take the selection's paths
+  # (`--changed --base BASE --selection selection.json`). gate.sh runs every
+  # gate to completion and names each failure. Steps that are not source gates
+  # (bridge bindings, release tag, changelogs, hakari, script tests) stay
+  # steps of their job.
+  source-gates:
+    name: ${{ matrix.title }}
     runs-on: ubuntu-latest
     timeout-minutes: 40
+    needs: affected
+    if: needs.affected.outputs.run_source_gates == 'true'
     env:
       SCCACHE_GHA_ENABLED: "true"
       RUSTC_WRAPPER: sccache
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - group: sql
+            title: "Source gates: schema / SQL / layers / headers"
+          - group: errors
+            title: "Source gates: error handling / tasks / contracts"
+          - group: bridge
+            title: "Source gates: bridge"
+          - group: release
+            title: "Source gates: release / versions / gate parity"
     steps:
+      # fetch-depth: 0 because check-crate-changelogs and lint-migrations diff
+      # against the newest release tag, and an affected plan diffs against its
+      # base. A shallow checkout has neither, and a diff gate would read every
+      # crate as unchanged -- a gate that passes because it could not run.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
           fetch-tags: true
-          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
       # bridge-bindings-check compiles the bridge to run the ts-rs export, so
-      # this job needs the keyring backend's libdbus-sys like every other job
-      # that builds it -- without it the gate fails on a missing `dbus-1.pc`
-      # and says nothing about bindings.
+      # the bridge job needs the keyring backend's libdbus-sys like every
+      # other job that builds it.
       - name: Install system dependencies
         timeout-minutes: 14
         run: bash scripts/ci-install-system-deps.sh ripgrep libdbus-1-dev pkg-config
       - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
       - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
-      - run: just lint-bridge-lints-sync
-        if: ${{ !cancelled() }}
-      - run: just lint-bridge-css-tokens
-        if: ${{ !cancelled() }}
-      - run: just lint-bridge-i18n
-        if: ${{ !cancelled() }}
-      - run: just lint-bridge-js-imports
-        if: ${{ !cancelled() }}
-      - run: just lint-bridge-no-window
-        if: ${{ !cancelled() }}
-      - run: just lint-bridge-verdicts
-        if: ${{ !cancelled() }}
-      - run: just lint-bridge-typed-warnings
-        if: ${{ !cancelled() }}
-      - run: just lint-bridge-layers
-        if: ${{ !cancelled() }}
-      - run: just lint-bridge-globals
-        if: ${{ !cancelled() }}
-      - run: just lint-core-globals
-        if: ${{ !cancelled() }}
-      - run: just lint-serde-aliases
-        if: ${{ !cancelled() }}
-      - run: just lint-mode-enums
-        if: ${{ !cancelled() }}
-      - run: just lint-sql-vocab
-        if: ${{ !cancelled() }}
-      - run: just lint-migrations
-        if: ${{ !cancelled() }}
-      - run: just lint-host-ids
-        if: ${{ !cancelled() }}
-      - run: just check-removed-config-names
-        if: ${{ !cancelled() }}
-      - run: just lint-header-literals
-        if: ${{ !cancelled() }}
-      - run: just lint-path-literals
-        if: ${{ !cancelled() }}
-      - run: just lint-bridge-file-size
-        if: ${{ !cancelled() }}
-      - run: just bridge-bindings-check
-        if: ${{ !cancelled() }}
-
-  source-gates-release:
-    name: "Source gates: release / versions / gate parity"
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    env:
-      SCCACHE_GHA_ENABLED: "true"
-      RUSTC_WRAPPER: sccache
-    steps:
-      # fetch-depth: 0 because check-crate-changelogs diffs each crate against
-      # the newest release tag. A shallow checkout has neither the tag nor the
-      # history, and every crate would read as unchanged -- a gate that passes
-      # because it could not run. It exits 2 rather than 0 in that case, so this
-      # is what keeps it green for the right reason.
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
-          fetch-depth: 0
-      - name: Install system dependencies
-        timeout-minutes: 14
-        run: bash scripts/ci-install-system-deps.sh ripgrep
-      - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
-      - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
-      - uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
+      - if: matrix.group == 'release'
+        uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
         with:
           tool: cargo-machete@0.9.2,cargo-hakari@0.9.39
-      - run: bash scripts/test-scripts.sh
-        if: ${{ !cancelled() }}
-      - run: just check-release-tag
-        if: ${{ !cancelled() }}
-      - run: just check-crate-changelogs
-        if: ${{ !cancelled() }}
-      - run: just check-version-strings
-        if: ${{ !cancelled() }}
-      - run: just check-lockfile-registry
-        if: ${{ !cancelled() }}
-      - run: just machete
-        if: ${{ !cancelled() }}
-      - run: just lint-test-hack
-        if: ${{ !cancelled() }}
-      # Why: scripts/check-gates.txt is the local gate list (`just check-gates`);
-      # the source-gates-* jobs are the CI one. Per-step `!cancelled()` guards give each gate its
-      # own red/green line, so the two lists are asserted equal instead. A gate
-      # listed in the file must appear in one of them as a step, and a step there must be
-      # in the file.
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: selection
+          path: target/ci
+      - name: Source gates (${{ matrix.group }})
+        env:
+          GATE_ARGS: ${{ needs.affected.outputs.gate_args }}
+          GROUP: ${{ matrix.group }}
+        run: bash scripts/gate.sh $GATE_ARGS --only gates --group "$GROUP"
+      - if: ${{ !cancelled() && matrix.group == 'bridge' && needs.affected.outputs.bridge == 'true' }}
+        run: just bridge-bindings-check
+      - if: ${{ !cancelled() && matrix.group == 'release' }}
+        run: bash scripts/test-scripts.sh
+      - if: ${{ !cancelled() && matrix.group == 'release' }}
+        run: just check-release-tag
+      - if: ${{ !cancelled() && matrix.group == 'release' }}
+        run: just check-crate-changelogs
+      - if: ${{ !cancelled() && matrix.group == 'release' }}
+        run: just lint-test-hack
+      # Why: scripts/check-gates.txt is the one gate list. gate.sh reads it and
+      # scripts/gate-scopes.txt assigns every gate one of the matrix groups
+      # above; this asserts the file, the table, the matrix and the
+      # scripts/ci-plan.py job table agree, so no gate can fall out of CI.
       - name: Local and CI gate lists match
-        if: ${{ !cancelled() }}
-        run: |
-          want=$(grep -v '^$' scripts/check-gates.txt | sort -u)
-          have=$(awk '/^  source-gates-[a-z]+:$/ { on = 1; next } /^  [a-z-]+:$/ { on = 0 } on' .github/workflows/quality.yml \
-                 | grep -oE '^ *- run: just [a-z0-9-]+$' | awk '{ print $NF }' | sort -u)
-          release_only="bridge-bindings-check check-crate-changelogs check-release-tag lint-test-hack machete"
-          have=$(comm -23 <(echo "$have") <(echo "$release_only" | tr ' ' '\n' | sort))
-          if ! diff <(echo "$want") <(echo "$have"); then
-              echo "::error::scripts/check-gates.txt and the quality.yml source-gates-* jobs list different gates (< file only, > CI only)"
-              exit 1
-          fi
-          echo "gate lists match ($(echo "$want" | wc -l) gates)"
+        if: ${{ !cancelled() && matrix.group == 'release' }}
+        run: python3 scripts/test-ci-plan.py WorkflowParity
+      - if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: gate-log-${{ matrix.group }}
+          path: target/gate-log/
+          retention-days: 14
+          if-no-files-found: warn
 
   msrv:
     name: MSRV check (Rust 1.96)
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    needs: affected
+    if: needs.affected.outputs.run_msrv == 'true'
     # `rust-toolchain.toml` pins a newer stable and a toolchain FILE outranks
     # rustup's default, so a bare `cargo check` would test that pin rather than
     # the MSRV. RUSTUP_TOOLCHAIN outranks the file, and the assertion below
@@ -454,13 +438,19 @@ jobs:
           bridge="$(grep -m1 '^rust-version' bin/bridge/Cargo.toml | cut -d'"' -f2)"
           test "$bridge" = "$want" || {
             echo "::error::bin/bridge declares rust-version $bridge but the root declares $want"; exit 1; }
-      - run: cargo check --workspace
-      - run: cargo check --manifest-path bin/bridge/Cargo.toml
+      - if: needs.affected.outputs.clippy_args != ''
+        env:
+          SCOPE: ${{ needs.affected.outputs.clippy_args }}
+        run: cargo check $SCOPE
+      - if: ${{ !cancelled() && needs.affected.outputs.bridge == 'true' }}
+        run: cargo check --manifest-path bin/bridge/Cargo.toml
 
   file-size:
     name: Source file size guard
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    needs: affected
+    if: needs.affected.outputs.run_file_size == 'true'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -468,15 +458,130 @@ jobs:
       - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
       - run: just file-size
 
-  # The `main` ruleset's required context, PR runs only; push runs post
-  # `Quality passed (push)` (see ci.yml `ci-passed`).
-  quality-passed:
-    name: ${{ github.event_name == 'pull_request' && 'Quality passed' || 'Quality passed (push)' }}
+  # Shadow mode (a push to a branch in SHADOW_BRANCHES of scripts/ci-plan.py):
+  # the run executes the full plan above, and these two jobs execute the
+  # scoped commands the affected plan would run instead, so the escape report
+  # can tell a failure the scope would have missed. They never gate.
+  shadow-gates:
+    name: "Shadow: scoped source gates"
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    needs: affected
+    if: needs.affected.outputs.shadow == 'true'
+    continue-on-error: true
+    env:
+      SCCACHE_GHA_ENABLED: "true"
+      RUSTC_WRAPPER: sccache
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          fetch-tags: true
+      - name: Install system dependencies
+        timeout-minutes: 14
+        run: bash scripts/ci-install-system-deps.sh ripgrep libdbus-1-dev pkg-config
+      - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
+      - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
+      - uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
+        with:
+          tool: cargo-machete@0.9.2
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: selection
+          path: target/ci
+      - env:
+          GATE_ARGS: ${{ needs.affected.outputs.shadow_gate_args }}
+        run: bash scripts/gate.sh $GATE_ARGS --only gates
+      - if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: gate-log-shadow
+          path: target/gate-log/
+          retention-days: 14
+          if-no-files-found: warn
+
+  shadow-clippy:
+    name: "Shadow: scoped clippy + rustdoc"
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    needs: affected
+    if: needs.affected.outputs.shadow == 'true'
+    continue-on-error: true
+    env:
+      SCCACHE_GHA_ENABLED: "true"
+      RUSTC_WRAPPER: sccache
+      RUSTDOCFLAGS: "-D warnings"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
+      - name: Install system dependencies
+        timeout-minutes: 12
+        run: bash scripts/ci-install-system-deps.sh libdbus-1-dev pkg-config
+      - run: rustup show
+      - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
+      - if: needs.affected.outputs.shadow_clippy_args != ''
+        env:
+          SCOPE: ${{ needs.affected.outputs.shadow_clippy_args }}
+        run: |
+          cargo clippy $SCOPE --all-targets --all-features --keep-going --locked -- -D warnings
+          cargo doc $SCOPE --no-deps --all-features --locked
+      - if: ${{ !cancelled() && needs.affected.outputs.shadow_bridge == 'true' }}
+        run: |
+          cargo clippy --manifest-path bin/bridge/Cargo.toml --all-targets --all-features --keep-going --locked -- -D warnings
+          cargo doc --manifest-path bin/bridge/Cargo.toml --no-deps --locked
+
+  # Lists every job red in this full run that the affected plan would have
+  # skipped, or whose scoped shadow passed. Reported, never gating.
+  escapes:
+    name: Escape report
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    needs: [bridge-web, lint, lint-tests, bridge-native, docs, source-gates-sql, source-gates-errors, source-gates-bridge, source-gates-release, msrv, file-size]
+    needs: [affected, bridge-web, lint, lint-tests, bridge-native, docs, source-gates, msrv, file-size, shadow-gates, shadow-clippy]
+    if: ${{ always() && needs.affected.outputs.shadow == 'true' }}
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: selection
+      - name: Jobs of this run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api --paginate "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/attempts/$GITHUB_RUN_ATTEMPT/jobs" \
+              --jq '.jobs[] | {name, conclusion}' | jq -s . > jobs.json
+      - run: |
+          python3 scripts/ci-plan.py escapes --workflow quality --selection selection.json --jobs jobs.json \
+              --summary "$GITHUB_STEP_SUMMARY" --out escapes.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: escapes
+          path: escapes.json
+          retention-days: 30
+          if-no-files-found: error
+
+  # The `main` ruleset's required context on pull_request and merge_group
+  # runs; push runs post `Quality passed (push)` (see ci.yml `ci-passed`). The
+  # shadow and report jobs are not in `needs`: they never gate.
+  quality-passed:
+    name: ${{ (github.event_name == 'pull_request' || github.event_name == 'merge_group') && 'Quality passed' || 'Quality passed (push)' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [affected, gate-plan, bridge-web, lint, lint-tests, bridge-native, docs, source-gates, msrv, file-size]
     if: always()
     steps:
-      - run: |
-          echo '${{ toJSON(needs) }}' | jq -e 'all(.[]; .result == "success")' >/dev/null \
-            || { echo "::error::a required Quality job did not succeed"; echo '${{ toJSON(needs) }}' | jq '.'; exit 1; }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
+      - env:
+          NEEDS: ${{ toJSON(needs) }}
+          SELECTION: ${{ needs.affected.outputs.selection }}
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+        run: python3 scripts/ci-plan.py aggregate --workflow quality --event "$EVENT" --ref "$REF"

@@ -15,6 +15,13 @@ DATE = "2026-09-19T00:00:00Z"
 RUN = dict(id=1, head_sha=SHA, event="pull_request", head_branch="promote", head_repository={"full_name": REPO},
            pull_requests=[{"number": 42}], created_at=DATE, status="completed", conclusion="success", run_attempt=1)
 PUSH = dict(RUN, event="push", head_branch="next", pull_requests=[])
+
+
+def jobs_for(event, plan=proof.PLAN_JOB):
+    jobs = [{"name": name, "conclusion": "success"} for name in proof.WORKFLOWS[event].values()]
+    return jobs + ([{"name": plan, "conclusion": "success"}] if plan else [])
+
+
 PR = dict(number=42, head={"sha": SHA, "ref": "promote", "repo": {"full_name": REPO}},
           base={"ref": "main", "sha": "b" * 40}, merge_commit_sha="c" * 40, created_at=DATE)
 
@@ -48,8 +55,7 @@ class ProofTests(unittest.TestCase):
         if path.startswith("actions/workflows/"):
             return {"workflow_runs": [RUN]}
         if path.startswith("actions/runs/"):
-            return {"jobs": [{"name": name, "conclusion": "success"}
-                             for name in proof.WORKFLOWS["pull_request"].values()]}
+            return {"jobs": jobs_for("pull_request")}
         if path == "pulls/42":
             return PR
         self.fail(path)
@@ -100,8 +106,7 @@ class ProofTests(unittest.TestCase):
                 self.assertIn("event=push", path)
                 return {"workflow_runs": runs}
             if path.startswith("actions/runs/"):
-                return {"jobs": jobs if jobs is not None
-                        else [{"name": name, "conclusion": "success"} for name in proof.WORKFLOWS["push"].values()]}
+                return {"jobs": jobs if jobs is not None else jobs_for("push")}
             self.fail(path)
         return response
 
@@ -145,16 +150,50 @@ class ProofTests(unittest.TestCase):
     def test_push_aggregate_is_not_promotion_proof(self):
         def response(repo, path):
             if path.startswith("actions/runs/"):
-                return {"jobs": [{"name": name, "conclusion": "success"} for name in proof.WORKFLOWS["push"].values()]}
+                return {"jobs": jobs_for("push")}
             return self.response(path)
         with patch.object(proof, "api", side_effect=response), self.assertRaises(RuntimeError):
             proof.verify_pr(REPO, PR, SHA)
 
     def test_promotion_aggregate_is_not_push_proof(self):
-        jobs = [{"name": name, "conclusion": "success"} for name in proof.WORKFLOWS["pull_request"].values()]
+        jobs = jobs_for("pull_request")
         with patch.object(proof, "api", side_effect=self.push_response([PUSH], jobs=jobs)), \
                 self.assertRaises(RuntimeError):
             proof.verify_push(REPO, SHA)
+
+    def test_affected_only_run_is_not_release_proof(self):
+        for plan in ["Gate plan: affected", "Gate plan: ", None]:
+            with self.subTest(plan=plan):
+                with patch.object(proof, "api", side_effect=self.push_response([PUSH], jobs=jobs_for("push", plan))), \
+                        self.assertRaises(RuntimeError):
+                    proof.verify_push(REPO, SHA)
+
+                def response(repo, path, plan=plan):
+                    if path.startswith("actions/runs/"):
+                        return {"jobs": jobs_for("pull_request", plan)}
+                    return self.response(path)
+                with patch.object(proof, "api", side_effect=response), self.assertRaises(RuntimeError):
+                    proof.verify_pr(REPO, PR, SHA)
+
+    def test_failed_plan_job_is_not_release_proof(self):
+        jobs = jobs_for("push", None) + [{"name": proof.PLAN_JOB, "conclusion": "failure"}]
+        with patch.object(proof, "api", side_effect=self.push_response([PUSH], jobs=jobs)), \
+                self.assertRaises(RuntimeError):
+            proof.verify_push(REPO, SHA)
+
+    def test_shadow_and_report_jobs_do_not_affect_proof(self):
+        jobs = jobs_for("push") + [{"name": "Shadow: scoped source gates", "conclusion": "failure"},
+                                   {"name": "Escape report", "conclusion": "skipped"}]
+        with patch.object(proof, "api", side_effect=self.push_response([PUSH], jobs=jobs)):
+            proof.verify_push(REPO, SHA)
+
+    def test_plan_job_matches_the_workflows(self):
+        import re
+        root = Path(__file__).resolve().parents[1] / ".github" / "workflows"
+        for workflow in proof.AGGREGATES:
+            text = (root / workflow).read_text()
+            has_plan = re.search(r'name: "Gate plan: \$\{\{ needs\.affected\.outputs\.plan_mode \}\}"', text)
+            self.assertEqual(bool(has_plan), workflow in proof.PLANNED, workflow)
 
 
 if __name__ == "__main__":

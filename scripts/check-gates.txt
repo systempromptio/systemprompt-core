@@ -1,5 +1,6 @@
 check-version-strings
 check-lockfile-registry
+machete
 lint-field-copy-from
 lint-env-vars
 lint-native-test-deps

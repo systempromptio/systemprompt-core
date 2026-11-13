@@ -1,0 +1,41 @@
+name: Nightly
+
+# The full gate on the tips of `next` and `future` once a day, whatever was
+# pushed. Each gate workflow is dispatched on each branch: a workflow_dispatch
+# run always executes the full plan (scripts/ci-plan.py), runs the branch's own
+# workflow file, and sits in the `<workflow>-workflow_dispatch-<ref>`
+# concurrency group, which no push shares or cancels. The Supply Chain runs are
+# also the daily advisory scan. Nightly runs are evidence of drift (a new
+# advisory, a toolchain or runner change); release proof is read from push and
+# pull request runs only.
+
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: nightly
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  dispatch:
+    name: Full gate (${{ matrix.workflow }} on ${{ matrix.branch }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write
+    strategy:
+      fail-fast: false
+      matrix:
+        branch: [next, future]
+        workflow: [ci.yml, quality.yml, supply-chain.yml]
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          WORKFLOW: ${{ matrix.workflow }}
+          BRANCH: ${{ matrix.branch }}
+        run: gh workflow run "$WORKFLOW" --repo "$GITHUB_REPOSITORY" --ref "$BRANCH"
