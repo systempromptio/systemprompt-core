@@ -7,14 +7,18 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
-use systemprompt_analytics::detection::{DATACENTER_IP_PREFIXES, HIGH_RISK_COUNTRIES};
+use std::sync::Arc;
+
 use systemprompt_database::DbPool;
-use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
-use systemprompt_users::{BanDuration, BanIpParams, BannedIpRepository};
+use systemprompt_traits::{
+    DynIpBanStore, IpBanRequest, IpBanStore, Job, JobContext, JobResult, ProviderError,
+    ProviderResult,
+};
 use tracing::{info, warn};
 
-use crate::error::SchedulerResult;
-use crate::repository::{IpSessionRecord, SecurityRepository};
+use crate::Result;
+use crate::detection::{DATACENTER_IP_PREFIXES, HIGH_RISK_COUNTRIES};
+use crate::repository::{IpSessionRecord, IpSessionRepository};
 
 const HIGH_REQUEST_THRESHOLD: i64 = 100;
 const SCANNER_BAN_THRESHOLD: i64 = 3;
@@ -66,27 +70,35 @@ impl Job for MaliciousIpBlacklistJob {
     async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
         let start_time = std::time::Instant::now();
 
-        let db_pool = std::sync::Arc::clone(ctx.get::<DbPool>()?);
+        let db_pool = Arc::clone(ctx.get::<DbPool>()?);
 
-        let security_repo = SecurityRepository::new(&db_pool);
-        let banned_ip_repo = BannedIpRepository::new(&db_pool);
+        let security_repo = IpSessionRepository::new(&db_pool);
+        let banned_ip_repo = Arc::clone(ctx.get::<DynIpBanStore>()?);
 
         info!("Starting malicious IP blacklist job");
 
         let enforce = ctx.enforce();
         let mut banned_count = 0u64;
 
-        let high_volume_candidates = find_high_volume_candidates(&security_repo).await?;
-        banned_count += process_candidates(&high_volume_candidates, &banned_ip_repo, enforce).await;
+        let high_volume_candidates = find_high_volume_candidates(&security_repo)
+            .await
+            .map_err(|e| ProviderError::Internal(Box::new(e)))?;
+        banned_count += process_candidates(&high_volume_candidates, banned_ip_repo.as_ref(), enforce).await;
 
-        let scanner_candidates = find_scanner_candidates(&security_repo).await?;
-        banned_count += process_candidates(&scanner_candidates, &banned_ip_repo, enforce).await;
+        let scanner_candidates = find_scanner_candidates(&security_repo)
+            .await
+            .map_err(|e| ProviderError::Internal(Box::new(e)))?;
+        banned_count += process_candidates(&scanner_candidates, banned_ip_repo.as_ref(), enforce).await;
 
-        let datacenter_candidates = find_datacenter_candidates(&security_repo).await?;
-        banned_count += process_candidates(&datacenter_candidates, &banned_ip_repo, enforce).await;
+        let datacenter_candidates = find_datacenter_candidates(&security_repo)
+            .await
+            .map_err(|e| ProviderError::Internal(Box::new(e)))?;
+        banned_count += process_candidates(&datacenter_candidates, banned_ip_repo.as_ref(), enforce).await;
 
-        let high_risk_candidates = find_high_risk_country_candidates(&security_repo).await?;
-        banned_count += process_candidates(&high_risk_candidates, &banned_ip_repo, enforce).await;
+        let high_risk_candidates = find_high_risk_country_candidates(&security_repo)
+            .await
+            .map_err(|e| ProviderError::Internal(Box::new(e)))?;
+        banned_count += process_candidates(&high_risk_candidates, banned_ip_repo.as_ref(), enforce).await;
 
         let expired_cleaned = match banned_ip_repo.cleanup_expired().await {
             Ok(count) => count,
@@ -112,22 +124,22 @@ impl Job for MaliciousIpBlacklistJob {
 }
 
 async fn find_high_volume_candidates(
-    repo: &SecurityRepository,
-) -> SchedulerResult<Vec<MaliciousIpCandidate>> {
+    repo: &IpSessionRepository,
+) -> Result<Vec<MaliciousIpCandidate>> {
     let records = repo.find_high_volume_ips(HIGH_REQUEST_THRESHOLD).await?;
     Ok(records_to_candidates(records, BanReason::HighRequestVolume))
 }
 
 async fn find_scanner_candidates(
-    repo: &SecurityRepository,
-) -> SchedulerResult<Vec<MaliciousIpCandidate>> {
+    repo: &IpSessionRepository,
+) -> Result<Vec<MaliciousIpCandidate>> {
     let records = repo.find_scanner_ips(SCANNER_BAN_THRESHOLD).await?;
     Ok(records_to_candidates(records, BanReason::ScannerActivity))
 }
 
 async fn find_datacenter_candidates(
-    repo: &SecurityRepository,
-) -> SchedulerResult<Vec<MaliciousIpCandidate>> {
+    repo: &IpSessionRepository,
+) -> Result<Vec<MaliciousIpCandidate>> {
     let records = repo.find_recent_ips().await?;
     Ok(records
         .into_iter()
@@ -147,8 +159,8 @@ async fn find_datacenter_candidates(
 }
 
 async fn find_high_risk_country_candidates(
-    repo: &SecurityRepository,
-) -> SchedulerResult<Vec<MaliciousIpCandidate>> {
+    repo: &IpSessionRepository,
+) -> Result<Vec<MaliciousIpCandidate>> {
     let records = repo
         .find_high_risk_country_ips(HIGH_RISK_COUNTRY_THRESHOLD)
         .await?;
@@ -187,7 +199,7 @@ fn records_to_candidates(
 
 async fn process_candidates(
     candidates: &[MaliciousIpCandidate],
-    repo: &BannedIpRepository,
+    repo: &dyn IpBanStore,
     enforce: bool,
 ) -> u64 {
     let mut banned = 0u64;
@@ -219,14 +231,15 @@ async fn process_candidates(
             continue;
         }
 
-        let params = BanIpParams::new(
-            &candidate.ip_address,
-            candidate.reason.as_str(),
-            BanDuration::Days(BAN_DURATION_DAYS),
-            "malicious_ip_blacklist",
-        );
+        let request = IpBanRequest {
+            ip_address: &candidate.ip_address,
+            reason: candidate.reason.as_str(),
+            duration_days: BAN_DURATION_DAYS,
+            source_fingerprint: None,
+            ban_source: "malicious_ip_blacklist",
+        };
 
-        match repo.ban_ip(params).await {
+        match repo.ban_ip(request).await {
             Ok(()) => {
                 warn!(
                     ip = %candidate.ip_address,
@@ -249,4 +262,4 @@ async fn process_candidates(
     banned
 }
 
-systemprompt_provider_contracts::submit_job!(&MaliciousIpBlacklistJob);
+systemprompt_traits::submit_job!(&MaliciousIpBlacklistJob);

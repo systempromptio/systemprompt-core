@@ -43,6 +43,7 @@ uuid = { workspace = true }
 
 # Extension registration expands to `inventory::submit!` at the call site.
 inventory = { workspace = true }
+metrics = { workspace = true }
 
 # Internal dependencies
 systemprompt-database = { workspace = true }

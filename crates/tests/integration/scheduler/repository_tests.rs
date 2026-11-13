@@ -149,11 +149,3 @@ async fn list_enabled_jobs_contains_inserted_enabled_job() {
     cleanup_job(&pool, &enabled_name).await;
     cleanup_job(&pool, &disabled_name).await;
 }
-
-#[tokio::test]
-async fn cleanup_empty_contexts_runs_without_error() {
-    let pool = test_db_pool().await;
-    let repo = SchedulerRepository::new(&pool);
-    let deleted = repo.cleanup_empty_contexts(24).await.expect("cleanup runs");
-    let _ = deleted;
-}

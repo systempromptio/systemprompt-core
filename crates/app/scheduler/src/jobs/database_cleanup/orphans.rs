@@ -1,20 +1,16 @@
-//! The two orphan passes that run before the retention windows: log rows whose
-//! owning user is gone, and AI requests left `pending` by a lost settlement.
-//!
-//! `journal::recover()` runs `fail_orphaned_pending` only at boot, so a
-//! long-lived server needs this job as its second, regular caller to close a
-//! `pending` row whose settlement was lost.
+//! The passes that run before the retention windows: log rows whose owning
+//! user is gone, then every registered `RetentionSweep` (an owner's own
+//! orphan settlement, such as the AI crate failing requests left `pending`
+//! by a lost settlement).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_ai::repository::AiRequestRepository;
-use systemprompt_ai::repository::ai_requests::ORPHAN_AGE;
 use systemprompt_database::DbPool;
 use systemprompt_logging::LoggingRepository;
-use systemprompt_traits::{ProviderError, ProviderResult};
+use systemprompt_traits::{JobContext, ProviderError, ProviderResult, registered_retention_sweeps};
 use systemprompt_users::UserRepository;
-use tracing::{info, warn};
+use tracing::{debug, info};
 
 pub(super) async fn delete_orphaned_logs(db_pool: &DbPool, enforce: bool) -> ProviderResult<u64> {
     let logs = LoggingRepository::new(db_pool);
@@ -51,22 +47,10 @@ pub(super) async fn delete_orphaned_logs(db_pool: &DbPool, enforce: bool) -> Pro
     }
 }
 
-pub(super) async fn fail_orphaned_requests(db_pool: &DbPool, enforce: bool) -> ProviderResult<()> {
-    if !enforce {
-        info!("enforce disabled: orphaned pending AI requests were not failed");
-        return Ok(());
-    }
-    let requests = AiRequestRepository::new(db_pool);
-    let orphans = requests
-        .fail_orphaned_pending(ORPHAN_AGE)
-        .await
-        .map_err(|e| ProviderError::Internal(Box::new(e)))?;
-    for orphan in &orphans {
-        warn!(
-            ai_request_id = %orphan.id,
-            user_id = %orphan.owner,
-            "AI request outlived every receipt; failed with unknown usage"
-        );
+pub(super) async fn run_sweeps(ctx: &JobContext) -> ProviderResult<()> {
+    for sweep in registered_retention_sweeps() {
+        debug!(sweep = sweep.name(), "Retention sweep");
+        sweep.sweep(ctx, ctx.enforce()).await?;
     }
     Ok(())
 }

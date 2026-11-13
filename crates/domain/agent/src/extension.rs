@@ -4,7 +4,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::sync::Arc;
+
 use systemprompt_extension::prelude::*;
+use systemprompt_traits::Job;
+
+use crate::jobs::{CleanupEmptyContextsJob, UserContextCountersRollupJob};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct AgentExtension;
@@ -36,6 +41,13 @@ impl Extension for AgentExtension {
 
     fn migrations(&self) -> Vec<Migration> {
         extension_migrations!()
+    }
+
+    fn jobs(&self) -> Vec<Arc<dyn Job>> {
+        vec![
+            Arc::new(CleanupEmptyContextsJob),
+            Arc::new(UserContextCountersRollupJob),
+        ]
     }
 
     fn cross_extension_tables(&self) -> Vec<&'static str> {

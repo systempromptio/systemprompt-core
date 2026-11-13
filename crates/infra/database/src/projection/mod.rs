@@ -62,6 +62,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod job;
+
+pub use job::{
+    ProjectionDrain, ProjectionDrainContribution, drain_projection, registered_drains,
+};
+
 use std::time::{Duration, Instant};
 
 use sqlx::{PgConnection, PgExecutor, PgPool};

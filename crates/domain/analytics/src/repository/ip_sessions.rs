@@ -1,4 +1,4 @@
-//! Security-feature queries used by the malicious-IP blacklist job.
+//! Per-IP session counts the malicious-IP blacklist job classifies.
 //!
 //! The repository deliberately reads from the read replica only; mutations
 //! to ban tables live in `systemprompt-users`.
@@ -10,10 +10,10 @@ use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
 
-use crate::error::SchedulerResult;
+use crate::Result;
 
 #[derive(Debug, Clone)]
-pub struct SecurityRepository {
+pub struct IpSessionRepository {
     pool: Arc<PgPool>,
 }
 
@@ -24,7 +24,7 @@ pub struct IpSessionRecord {
     pub session_count: i64,
 }
 
-impl SecurityRepository {
+impl IpSessionRepository {
     pub fn new(db: &DbPool) -> Self {
         let pool = db.pool();
         Self { pool }
@@ -33,7 +33,7 @@ impl SecurityRepository {
     pub async fn find_high_volume_ips(
         &self,
         threshold: i64,
-    ) -> SchedulerResult<Vec<IpSessionRecord>> {
+    ) -> Result<Vec<IpSessionRecord>> {
         let rows = sqlx::query!(
             r#"
             SELECT ip_address, COUNT(*) as session_count
@@ -60,7 +60,7 @@ impl SecurityRepository {
             .collect())
     }
 
-    pub async fn find_scanner_ips(&self, threshold: i64) -> SchedulerResult<Vec<IpSessionRecord>> {
+    pub async fn find_scanner_ips(&self, threshold: i64) -> Result<Vec<IpSessionRecord>> {
         let rows = sqlx::query!(
             r#"
             SELECT ip_address, COUNT(*) as session_count
@@ -88,7 +88,7 @@ impl SecurityRepository {
             .collect())
     }
 
-    pub async fn find_recent_ips(&self) -> SchedulerResult<Vec<IpSessionRecord>> {
+    pub async fn find_recent_ips(&self) -> Result<Vec<IpSessionRecord>> {
         let rows = sqlx::query!(
             r#"
             SELECT ip_address, COUNT(*) as session_count
@@ -116,7 +116,7 @@ impl SecurityRepository {
     pub async fn find_high_risk_country_ips(
         &self,
         threshold: i64,
-    ) -> SchedulerResult<Vec<IpSessionRecord>> {
+    ) -> Result<Vec<IpSessionRecord>> {
         let rows = sqlx::query!(
             r#"
             SELECT ip_address, country, COUNT(*) as session_count

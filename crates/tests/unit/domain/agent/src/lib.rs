@@ -66,6 +66,9 @@ mod error_extended;
 mod extension;
 
 #[cfg(test)]
+mod jobs;
+
+#[cfg(test)]
 mod models;
 
 #[cfg(test)]

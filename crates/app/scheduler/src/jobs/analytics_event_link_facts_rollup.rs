@@ -12,7 +12,7 @@ use std::time::Duration;
 use async_trait::async_trait;
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 
-use super::projection_drain::{ProjectionDrain, drain_projection};
+use systemprompt_database::projection::{ProjectionDrain, drain_projection};
 
 const FACTS: ProjectionDrain = ProjectionDrain {
     projection: "analytics_event_link_facts",

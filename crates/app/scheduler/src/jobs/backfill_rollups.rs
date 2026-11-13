@@ -1,10 +1,13 @@
-//! Every-minute job draining the four hourly usage rollups' backlogs
-//! (`ai_usage_rollup_hourly`, `ai_context_rollup_hourly`,
-//! `tool_usage_rollup_hourly`, `agent_task_rollup_hourly`): the hours an
-//! upgrade queued before the rollup tables existed. Each key is one UTC hour,
+//! Every-minute job draining the hourly usage rollups' backlogs: the hours an
+//! upgrade queued before the rollup tables existed. The rollups are declared
+//! by their owners against [`JOB_NAME`] with
+//! `systemprompt_database::submit_projection_drain!` (the AI crate's
+//! `ai_usage_rollup_hourly` and `ai_context_rollup_hourly`, the analytics
+//! crate's `tool_usage_rollup_hourly` and `agent_task_rollup_hourly`); a
+//! rollup whose owner is not linked is not drained. Each key is one UTC hour,
 //! rebuilt whole from the ledger by the rollup's `refresh_*` function. New rows
 //! are rolled up by the statement triggers, so once the backlog is empty a tick
-//! costs four depth reads.
+//! costs one depth read per rollup.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -16,23 +19,7 @@ use systemprompt_database::{DbPool, projection};
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 use tracing::info;
 
-const ROLLUPS: [(&str, &str); 4] = [
-    ("ai_usage_rollup_hourly", "refresh_ai_usage_rollup_hourly"),
-    (
-        "ai_context_rollup_hourly",
-        "refresh_ai_context_rollup_hourly",
-    ),
-    (
-        "tool_usage_rollup_hourly",
-        "refresh_tool_usage_rollup_hourly",
-    ),
-    (
-        "agent_task_rollup_hourly",
-        "refresh_agent_task_rollup_hourly",
-    ),
-];
-const BATCH: i32 = 24;
-const BUDGET: Duration = Duration::from_secs(15);
+pub const JOB_NAME: &str = "backfill_rollups";
 
 #[derive(Debug, Clone, Copy)]
 pub struct BackfillRollupsJob;
@@ -40,7 +27,7 @@ pub struct BackfillRollupsJob;
 #[async_trait]
 impl Job for BackfillRollupsJob {
     fn name(&self) -> &'static str {
-        "backfill_rollups"
+        JOB_NAME
     }
 
     fn description(&self) -> &'static str {
@@ -61,8 +48,15 @@ impl Job for BackfillRollupsJob {
         let mut keys = 0u64;
         let mut requeued = 0u64;
         let mut elapsed = Duration::ZERO;
-        for (rollup, projector) in ROLLUPS {
-            let report = projection::drain_with_sql(&pool, rollup, BATCH, BUDGET, projector)
+        for drain in projection::registered_drains(JOB_NAME) {
+            let rollup = drain.projection;
+            let report = projection::drain_with_sql(
+                &pool,
+                rollup,
+                drain.batch,
+                drain.budget,
+                drain.projector,
+            )
                 .await
                 .map_err(|e| {
                     systemprompt_provider_contracts::ProviderError::Internal(Box::new(e))

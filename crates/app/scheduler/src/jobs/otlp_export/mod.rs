@@ -33,9 +33,8 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use chrono::Utc;
 use sqlx::PgPool;
-use systemprompt_ai::repository::AiRequestRepository;
 use systemprompt_config::LoadedProfile;
-use systemprompt_database::{Database, DbPool};
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AiRequestId, InstanceId};
 use systemprompt_manifest::profile::{OtlpExportConfig, OtlpSignal};
 use systemprompt_provider_contracts::Dependencies;
@@ -120,8 +119,6 @@ async fn run(
 ) -> SchedulerResult<ExportReport> {
     let repository = OtlpExportStateRepository::new(pool.as_ref().clone());
     let tails = OtlpAuditTailRepository::new(pool.as_ref().clone());
-    let requests =
-        AiRequestRepository::new(&Arc::new(Database::from_pools(Arc::clone(pool), None)));
     let client = transport::build_client();
     let mut report = ExportReport::default();
     for signal in OtlpSignal::ALL {
@@ -144,7 +141,6 @@ async fn run(
             client: &client,
             state: &repository,
             tails: &tails,
-            requests: &requests,
         };
         let outcome = export_signal(config, stores, &state, instance_id).await;
         report.signals.push(match outcome {
@@ -177,7 +173,6 @@ struct SignalStores<'a> {
     client: &'a reqwest::Client,
     state: &'a OtlpExportStateRepository,
     tails: &'a OtlpAuditTailRepository,
-    requests: &'a AiRequestRepository,
 }
 
 async fn export_signal(
@@ -240,7 +235,7 @@ async fn load_trace_batch(
         return Ok(TraceBatch::default());
     }
     let ids: Vec<AiRequestId> = requests.iter().map(|r| r.id.clone()).collect();
-    let mut attributions = stores.requests.attributions_for(&ids).await?;
+    let mut attributions = tails.attributions_for(&ids).await?;
     for request in &mut requests {
         request.attributions = attributions.remove(&request.id).unwrap_or_default();
     }

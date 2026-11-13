@@ -16,6 +16,7 @@ mod costs;
 mod engagement;
 mod events;
 mod fingerprint;
+mod ip_sessions;
 mod overview;
 mod ownership;
 mod requests;
@@ -35,6 +36,7 @@ pub use fingerprint::{
     ABUSE_THRESHOLD_FOR_BAN, FingerprintRepository, HIGH_REQUEST_THRESHOLD, HIGH_VELOCITY_RPM,
     MAX_SESSIONS_PER_FINGERPRINT, SUSTAINED_VELOCITY_MINUTES,
 };
+pub use ip_sessions::{IpSessionRecord, IpSessionRepository};
 pub use overview::OverviewAnalyticsRepository;
 pub use ownership::AnalyticsOwnerReassignment;
 pub use requests::RequestAnalyticsRepository;

@@ -5,9 +5,10 @@
 //!
 //! - A [`SchedulerService`] that uses [`tokio_cron_scheduler`] to dispatch jobs
 //!   registered via [`systemprompt_provider_contracts::submit_job!`].
-//! - A small set of built-in jobs ([`BehavioralAnalysisJob`],
-//!   [`CleanupInactiveSessionsJob`], …) that drive analytics and security
-//!   maintenance.
+//! - The kernel's built-in jobs ([`DatabaseCleanupJob`],
+//!   [`CleanupInactiveSessionsJob`], …). Capability crates register their own
+//!   jobs, and contribute retention purges and projection drains to the
+//!   kernel jobs that iterate them.
 //! - A [`JobExecutionService`] that runs jobs on demand outside the cron loop
 //!   and records each run.
 //! - Process- and database-level service reconciliation primitives
@@ -21,10 +22,8 @@
 //! Every non-trait public API returns
 //! [`SchedulerResult<T>`](crate::SchedulerResult) (alias for `Result<T,
 //! SchedulerError>`). [`SchedulerError`] composes the
-//! `sqlx`, `tokio-cron-scheduler`, `systemprompt-database`,
-//! `systemprompt-analytics`, and `systemprompt-users` error types via
-//! `#[from]`, plus an `Internal(String)` carve-out for cases where the
-//! upstream cause is stringified at the call site rather than typed.
+//! `sqlx`, `tokio-cron-scheduler`, `systemprompt-database` and
+//! `systemprompt-users` error types via `#[from]`.
 //!
 //! Provider-trait bodies (`Job::execute`, …) keep returning
 //! [`systemprompt_provider_contracts::ProviderResult`] for ABI parity with
@@ -62,10 +61,7 @@ pub use jobs::otlp_export::{
     ExportReport as OtlpExportReport, SignalReport as OtlpSignalReport,
     export_now as otlp_export_now,
 };
-pub use jobs::{
-    BehavioralAnalysisJob, CleanupEmptyContextsJob, CleanupInactiveSessionsJob, DatabaseCleanupJob,
-    GhostSessionCleanupJob, MaliciousIpBlacklistJob, NoJsCleanupJob, UsageAnomalyScanJob,
-};
+pub use jobs::{CleanupInactiveSessionsJob, DatabaseCleanupJob};
 pub use models::{JobConfig, JobRunRecord, JobStatus, ScheduledJob, SchedulerConfig, SkippedJob};
 pub use repository::otlp::{OtlpExportState, OtlpExportStateRepository};
 pub use repository::{

@@ -6,11 +6,11 @@
 
 use async_trait::async_trait;
 use std::sync::Arc;
-use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
+use systemprompt_traits::{Job, JobContext, JobResult, ProviderError, ProviderResult};
 use tracing::info;
 
-use crate::error::SchedulerError;
-use crate::services::scheduling::job_app_context;
+use crate::GeoIpReader;
+use crate::repository::AnalyticsRepositories;
 
 const DEFAULT_BATCH_SIZE: i64 = 1000;
 
@@ -38,23 +38,24 @@ impl Job for BackfillSessionGeoJob {
     async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
         let start_time = std::time::Instant::now();
 
-        let app_context = Arc::clone(job_app_context(ctx)?);
+        let repositories = Arc::clone(ctx.get::<Arc<AnalyticsRepositories>>()?);
+        let geoip = ctx.get::<GeoIpReader>().ok();
 
         let batch_size = ctx
             .get_parameter_parsed::<i64>("batch_size")?
             .unwrap_or(DEFAULT_BATCH_SIZE);
 
-        let repository = &app_context.analytics_repositories().session_signals;
+        let repository = &repositories.session_signals;
         let updated = if ctx.enforce() {
             repository
-                .backfill_session_geo(app_context.geoip_reader(), batch_size)
+                .backfill_session_geo(geoip, batch_size)
                 .await
-                .map_err(SchedulerError::from)?
+                .map_err(|e| ProviderError::Internal(Box::new(e)))?
         } else {
             let candidates = repository
                 .count_sessions_missing_geo()
                 .await
-                .map_err(SchedulerError::from)?;
+                .map_err(|e| ProviderError::Internal(Box::new(e)))?;
             info!(
                 candidate_sessions = candidates,
                 "enforce disabled: sessions qualify for geo backfill but were not updated"
@@ -76,4 +77,4 @@ impl Job for BackfillSessionGeoJob {
     }
 }
 
-systemprompt_provider_contracts::submit_job!(&BackfillSessionGeoJob);
+systemprompt_traits::submit_job!(&BackfillSessionGeoJob);

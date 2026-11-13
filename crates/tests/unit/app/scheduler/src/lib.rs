@@ -28,8 +28,6 @@ mod dispatch_scope_db;
 #[cfg(test)]
 mod error_variants;
 #[cfg(test)]
-mod extended_jobs;
-#[cfg(test)]
 mod job_config;
 #[cfg(test)]
 mod job_execution_db;
@@ -39,8 +37,6 @@ mod job_schedules;
 mod jobs;
 #[cfg(test)]
 mod jobs_db;
-#[cfg(test)]
-mod jobs_seeded_db;
 #[cfg(test)]
 mod licence_checkin;
 #[cfg(test)]
@@ -52,8 +48,6 @@ mod lock_key_collision;
 mod manual_run_lock_db;
 #[cfg(test)]
 mod models;
-#[cfg(test)]
-mod multi_replica_jobs_db;
 #[cfg(test)]
 mod oauth_cleanup_job;
 #[cfg(test)]

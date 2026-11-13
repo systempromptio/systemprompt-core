@@ -2,7 +2,7 @@ use systemprompt_traits::Job;
 
 mod ghost_session_cleanup_tests {
     use super::*;
-    use systemprompt_scheduler::GhostSessionCleanupJob;
+    use systemprompt_analytics::jobs::GhostSessionCleanupJob;
 
     #[test]
     fn name_is_ghost_session_cleanup() {
@@ -49,7 +49,7 @@ mod ghost_session_cleanup_tests {
 
 mod malicious_ip_blacklist_tests {
     use super::*;
-    use systemprompt_scheduler::MaliciousIpBlacklistJob;
+    use systemprompt_analytics::jobs::MaliciousIpBlacklistJob;
 
     #[test]
     fn name_is_malicious_ip_blacklist() {
@@ -102,7 +102,7 @@ mod malicious_ip_blacklist_tests {
 
 mod no_js_cleanup_tests {
     use super::*;
-    use systemprompt_scheduler::NoJsCleanupJob;
+    use systemprompt_analytics::jobs::NoJsCleanupJob;
 
     #[test]
     fn name_is_no_js_cleanup() {
@@ -156,111 +156,67 @@ mod no_js_cleanup_tests {
 mod all_jobs_inventory {
     use super::*;
     use std::collections::HashSet;
-    use systemprompt_scheduler::{
-        BehavioralAnalysisJob, CleanupEmptyContextsJob, CleanupInactiveSessionsJob,
-        DatabaseCleanupJob, GhostSessionCleanupJob, MaliciousIpBlacklistJob, NoJsCleanupJob,
+    use systemprompt_analytics::jobs::{
+        BehavioralAnalysisJob, GhostSessionCleanupJob, MaliciousIpBlacklistJob, NoJsCleanupJob,
     };
 
-    #[test]
-    fn all_seven_jobs_have_unique_names() {
-        let names: Vec<&str> = vec![
-            BehavioralAnalysisJob.name(),
-            CleanupEmptyContextsJob.name(),
-            CleanupInactiveSessionsJob.name(),
-            DatabaseCleanupJob.name(),
-            GhostSessionCleanupJob.name(),
-            MaliciousIpBlacklistJob.name(),
-            NoJsCleanupJob.name(),
-        ];
-        let unique: HashSet<&str> = names.iter().copied().collect();
-        assert_eq!(
-            names.len(),
-            unique.len(),
-            "all job names must be unique; duplicates found in: {:?}",
-            names
-        );
-    }
-
-    #[test]
-    fn all_seven_jobs_have_valid_cron_schedules() {
-        let jobs: Vec<&dyn Job> = vec![
+    fn scheduled() -> Vec<&'static dyn Job> {
+        vec![
             &BehavioralAnalysisJob,
-            &CleanupEmptyContextsJob,
-            &CleanupInactiveSessionsJob,
-            &DatabaseCleanupJob,
             &GhostSessionCleanupJob,
             &MaliciousIpBlacklistJob,
             &NoJsCleanupJob,
-        ];
-        for job in jobs {
-            let schedule = job.schedule();
+        ]
+    }
+
+    #[test]
+    fn scheduled_jobs_have_unique_names() {
+        let names: Vec<&str> = scheduled().iter().map(|job| job.name()).collect();
+        let unique: HashSet<&str> = names.iter().copied().collect();
+        assert_eq!(names.len(), unique.len(), "duplicate job names: {names:?}");
+    }
+
+    #[test]
+    fn scheduled_jobs_have_valid_cron_schedules() {
+        for job in scheduled() {
             assert_eq!(
-                schedule.split_whitespace().count(),
+                job.schedule().split_whitespace().count(),
                 6,
                 "job '{}' has invalid cron schedule '{}'",
                 job.name(),
-                schedule
+                job.schedule()
             );
         }
     }
 
     #[test]
-    fn every_built_in_job_is_registered_in_inventory() {
+    fn scheduled_jobs_have_non_empty_descriptions() {
+        for job in scheduled() {
+            assert!(!job.description().is_empty(), "job '{}'", job.name());
+        }
+    }
+
+    #[test]
+    fn every_analytics_job_is_registered_in_inventory() {
         let registered: HashSet<&'static str> = inventory::iter::<&'static dyn Job>
             .into_iter()
             .map(|j| j.name())
             .collect();
-
-        // Every `submit_job!` under crates/app/scheduler/src/jobs. A name
-        // missing here is a job the scheduler and `admin config validate`
-        // would reject as unknown the moment a config names it.
-        let expected = [
-            "ai_request_tool_flag_rollup",
+        for name in [
             "backfill_session_geo",
             "behavioral_analysis",
-            "cleanup_empty_contexts",
-            "cleanup_inactive_sessions",
-            "database_cleanup",
             "ghost_session_cleanup",
             "malicious_ip_blacklist",
             "no_js_cleanup",
-            "thought_signature_cleanup",
-            "vertex_discovery",
-        ];
-
-        for name in expected {
-            assert!(
-                registered.contains(name),
-                "job '{}' not found in inventory",
-                name
-            );
-        }
-    }
-
-    #[test]
-    fn all_seven_jobs_have_non_empty_descriptions() {
-        let jobs: Vec<&dyn Job> = vec![
-            &BehavioralAnalysisJob,
-            &CleanupEmptyContextsJob,
-            &CleanupInactiveSessionsJob,
-            &DatabaseCleanupJob,
-            &GhostSessionCleanupJob,
-            &MaliciousIpBlacklistJob,
-            &NoJsCleanupJob,
-        ];
-        for job in jobs {
-            assert!(
-                !job.description().is_empty(),
-                "job '{}' has empty description",
-                job.name()
-            );
+        ] {
+            assert!(registered.contains(name), "job '{name}' not found in inventory");
         }
     }
 }
 
 mod backfill_session_geo_tests {
     use super::*;
-    use systemprompt_scheduler::jobs::BackfillSessionGeoJob;
+    use systemprompt_analytics::jobs::BackfillSessionGeoJob;
 
     #[test]
     fn name_is_backfill_session_geo() {
@@ -287,5 +243,21 @@ mod backfill_session_geo_tests {
             desc.contains("batch_size"),
             "operators discover job parameters from the description: {desc}"
         );
+    }
+}
+
+mod behavioral_analysis_tests {
+    use super::*;
+    use systemprompt_analytics::jobs::BehavioralAnalysisJob;
+
+    #[test]
+    fn name_description_and_schedule_are_unchanged() {
+        let job = BehavioralAnalysisJob;
+        assert_eq!(job.name(), "behavioral_analysis");
+        assert_eq!(
+            job.description(),
+            "Analyzes fingerprint behavior patterns and flags suspicious activity"
+        );
+        assert_eq!(job.schedule(), "0 0 * * * *");
     }
 }

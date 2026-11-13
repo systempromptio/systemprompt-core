@@ -6,16 +6,22 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
-use systemprompt_analytics::{
+use std::sync::Arc;
+
+use systemprompt_database::DbPool;
+use systemprompt_traits::{
+    DynIpBanStore, IpBanRequest, IpBanStoreError, Job, JobContext, JobResult, ProviderError,
+    ProviderResult,
+};
+use tracing::{info, warn};
+
+use crate::repository::AnalyticsRepositories;
+use crate::{
     ABUSE_THRESHOLD_FOR_BAN, FingerprintRepository, FingerprintReputation, FlagReason,
     HIGH_REQUEST_THRESHOLD, HIGH_VELOCITY_RPM, SUSTAINED_VELOCITY_MINUTES,
 };
-use systemprompt_database::DbPool;
-use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
-use systemprompt_users::{BanDuration, BanIpParams, BannedIpRepository};
-use tracing::{info, warn};
 
-use crate::error::SchedulerError;
+const BAN_DURATION_DAYS: i64 = 7;
 
 const SESSION_ABUSE_THRESHOLD: i32 = 10;
 
@@ -49,24 +55,22 @@ impl Job for BehavioralAnalysisJob {
     async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
         let start_time = std::time::Instant::now();
 
-        let db_pool = std::sync::Arc::clone(ctx.get::<DbPool>()?);
+        let db_pool = Arc::clone(ctx.get::<DbPool>()?);
 
-        let fingerprint_repo = FingerprintRepository::new(
-            &db_pool,
-            std::sync::Arc::new(systemprompt_users::SessionRepository::new(&db_pool)),
-        );
-        let banned_ip_repo = BannedIpRepository::new(&db_pool);
+        let sessions = Arc::clone(&ctx.get::<Arc<AnalyticsRepositories>>()?.session_store);
+        let fingerprint_repo = FingerprintRepository::new(&db_pool, sessions);
+        let banned_ip_repo = Arc::clone(ctx.get::<DynIpBanStore>()?);
 
         info!("Starting behavioral analysis job");
 
         let fingerprints = fingerprint_repo
             .get_fingerprints_for_analysis()
             .await
-            .map_err(SchedulerError::from)?;
+            .map_err(|e| ProviderError::Internal(Box::new(e)))?;
         let stats = process_fingerprints(
             &fingerprints,
             &fingerprint_repo,
-            &banned_ip_repo,
+            banned_ip_repo.as_ref(),
             ctx.enforce(),
         )
         .await;
@@ -98,7 +102,7 @@ impl Job for BehavioralAnalysisJob {
 async fn process_fingerprints(
     fingerprints: &[FingerprintReputation],
     fingerprint_repo: &FingerprintRepository,
-    banned_ip_repo: &BannedIpRepository,
+    banned_ip_repo: &dyn systemprompt_traits::IpBanStore,
     enforce: bool,
 ) -> AnalysisStats {
     let mut stats = AnalysisStats {
@@ -179,7 +183,7 @@ fn log_flag_result(
     fingerprint: &str,
     reasons: &[FlagReason],
     new_score: i32,
-    result: &systemprompt_analytics::Result<()>,
+    result: &crate::Result<()>,
 ) -> bool {
     match result {
         Ok(()) => {
@@ -204,7 +208,7 @@ fn log_flag_result(
 
 async fn ban_ip_if_needed(
     fp: &FingerprintReputation,
-    repo: &BannedIpRepository,
+    repo: &dyn systemprompt_traits::IpBanStore,
     enforce: bool,
 ) -> bool {
     if fp.abuse_incidents < ABUSE_THRESHOLD_FOR_BAN {
@@ -225,15 +229,15 @@ async fn ban_ip_if_needed(
         return false;
     }
 
-    let params = BanIpParams::new(
-        ip,
-        "Automated: repeated behavioral violations",
-        BanDuration::Days(7),
-        "behavioral_analysis",
-    )
-    .with_source_fingerprint(&fp.fingerprint_hash);
-
-    let result = repo.ban_ip(params).await;
+    let result = repo
+        .ban_ip(IpBanRequest {
+            ip_address: ip,
+            reason: "Automated: repeated behavioral violations",
+            duration_days: BAN_DURATION_DAYS,
+            source_fingerprint: Some(&fp.fingerprint_hash),
+            ban_source: "behavioral_analysis",
+        })
+        .await;
 
     log_ban_result(ip, &fp.fingerprint_hash, fp.abuse_incidents, &result)
 }
@@ -242,7 +246,7 @@ fn log_ban_result(
     ip: &str,
     fingerprint: &str,
     abuse_incidents: i32,
-    result: &Result<(), systemprompt_users::UserError>,
+    result: &Result<(), IpBanStoreError>,
 ) -> bool {
     match result {
         Ok(()) => {
@@ -266,4 +270,4 @@ fn log_ban_result(
     }
 }
 
-systemprompt_provider_contracts::submit_job!(&BehavioralAnalysisJob);
+systemprompt_traits::submit_job!(&BehavioralAnalysisJob);
