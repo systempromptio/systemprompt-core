@@ -1,0 +1,59 @@
+name: Flow report
+
+# Informational: lead time, gate share, rework, waste, collisions and kernel
+# churn for one branch. A workflow of its own, never a gate, so a slow or failed
+# report never changes the conclusion of a run that release-proof.py reads.
+
+on:
+  schedule:
+    - cron: "17 5 * * *"
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Branch to report on."
+        type: string
+        required: false
+        default: next
+      days:
+        description: "Window length in days, ending now."
+        type: string
+        required: false
+        default: "45"
+
+concurrency:
+  group: flow-report-${{ inputs.branch || 'next' }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  flow-report:
+    name: Flow report
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+      BRANCH: ${{ inputs.branch || 'next' }}
+      DAYS: ${{ inputs.days || '45' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Flow report
+        run: |
+          mkdir -p target/flow-report
+          python3 scripts/flow-report.py --branch "origin/$BRANCH" --days "$DAYS" \
+            --repo "$GITHUB_REPOSITORY" --cache target/flow-report/actions-cache.json \
+            --out target/flow-report/flow-report.md --json target/flow-report/flow-report.json
+      - if: always()
+        run: cat target/flow-report/flow-report.md >> "$GITHUB_STEP_SUMMARY"
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: flow-report
+          path: |
+            target/flow-report/flow-report.md
+            target/flow-report/flow-report.json
+          if-no-files-found: warn
