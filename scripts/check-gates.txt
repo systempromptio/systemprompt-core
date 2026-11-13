@@ -51,4 +51,5 @@ lint-core-globals
 lint-serde-aliases
 lint-bridge-file-size
 lint-repo-hygiene
+changelog-check
 check-removed-config-names
