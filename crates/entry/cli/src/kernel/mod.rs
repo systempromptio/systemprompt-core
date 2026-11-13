@@ -25,8 +25,8 @@
 //!   [`time_format`], [`text`], [`disk_logs`], [`interrupt`] and [`routing`],
 //!   plus [`define_pool_command!`] for pooled database commands.
 //! - **Helpers several groups share** — [`provider_catalog`] (the seeded model
-//!   catalog and `gateway.yaml`), [`docker_compose`] and [`postgres_access`]
-//!   (the local database), [`yaml_document`] (lossless YAML edits),
+//!   catalog and `gateway.yaml`), [`docker_compose`], [`postgres_access`]
+//!   and [`ddl`] (the local database), [`yaml_document`] (lossless YAML edits),
 //!   [`ProfileInfo`] and [`McpToolEntry`]. A command group names these here and
 //!   never reaches into another group's modules.
 //!
@@ -66,7 +66,7 @@ pub use crate::shared::command_result::{
 };
 pub use crate::shared::profile::ProfileInfo;
 pub use crate::shared::{
-    ConfirmArgs, IdentityBundle, database_scoped_command_error, disk_logs, docker_compose,
+    ConfirmArgs, IdentityBundle, database_scoped_command_error, ddl, disk_logs, docker_compose,
     generate_identity, parsers, postgres_access, profile, project, provider_catalog,
     resolve_profile_path, text, time_format, yaml_document,
 };
