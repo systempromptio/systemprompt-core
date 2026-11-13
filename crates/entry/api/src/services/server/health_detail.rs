@@ -67,6 +67,7 @@ async fn probe_database(ctx: &AppContext) -> (&'static str, u128) {
     (status, db_start.elapsed().as_millis())
 }
 
+// JSON: the readiness report is a free-form object per check.
 async fn readiness_checks(
     readiness: Option<axum::Extension<Arc<ExtensionReadiness>>>,
 ) -> (bool, serde_json::Value) {
@@ -79,6 +80,7 @@ async fn readiness_checks(
     }
 }
 
+// JSON: each entry is a free-form diagnostic object.
 async fn diagnostic_checks(
     diagnostics: Option<axum::Extension<Arc<ExtensionDiagnostics>>>,
 ) -> (bool, Vec<(&'static str, serde_json::Value)>) {

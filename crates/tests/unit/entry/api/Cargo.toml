@@ -18,7 +18,6 @@ systemprompt-api = { workspace = true, features = ["agent-runs", "brain", "bridg
 systemprompt-brain = { workspace = true }
 systemprompt-gateway = { workspace = true }
 systemprompt-ai = { workspace = true }
-systemprompt-analytics = { workspace = true }
 systemprompt-extension = { workspace = true }
 inventory = { workspace = true }
 systemprompt-oauth = { workspace = true }
