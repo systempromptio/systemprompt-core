@@ -341,7 +341,7 @@ async fn the_extension_context_the_host_hands_out_verifies_and_never_signs() {
         .expect("a hop the API signed verifies against the public keys");
     assert_eq!(claims.identity.user_id, user.id);
     assert!(
-        ExtensionContext::dependencies(&host)
+        ExtensionContext::extension_state(&host)
             .get::<std::sync::Arc<systemprompt_oauth::repository::OAuthRepositories>>()
             .is_err()
     );

@@ -203,6 +203,14 @@ fn test_loader_error_variant_matching() {
             stored_checksum: "aaaa".to_string(),
             current_checksum: "bbbb".to_string(),
         },
+        LoaderError::ProvideFailed {
+            extension: ExtensionId::new("p"),
+            source: systemprompt_extension::ExtensionStateError::NotReady,
+        },
+        LoaderError::UnmetStateRequirement {
+            extension: ExtensionId::new("u"),
+            type_name: "Absent",
+        },
     ];
 
     for err in errors {
@@ -228,8 +236,16 @@ fn test_loader_error_variant_matching() {
                 assert!(!extension.as_str().is_empty());
                 assert!(!source.type_name().is_empty());
             },
-            LoaderError::InitializationStepFailed { extension, .. } => {
+            LoaderError::InitializationStepFailed { extension, .. }
+            | LoaderError::ProvideFailed { extension, .. } => {
                 assert!(!extension.as_str().is_empty());
+            },
+            LoaderError::UnmetStateRequirement {
+                extension,
+                type_name,
+            } => {
+                assert!(!extension.as_str().is_empty());
+                assert!(!type_name.is_empty());
             },
             LoaderError::SchemaInstallationStepFailed {
                 extension, context, ..
