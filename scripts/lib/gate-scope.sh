@@ -39,7 +39,7 @@ gate_full_mode() {
 gate_scope_py() {
     local -a flags=()
     gate_full_mode || flags=(--paths "${GATE_PATHS[@]}")
-    python3 "$GATE_SCOPE_PY" "$@" "${flags[@]}"
+    python3 -B "$GATE_SCOPE_PY" "$@" "${flags[@]}"
 }
 
 # Tracked and untracked-not-ignored files matching the git pathspecs, in scope,
@@ -51,9 +51,18 @@ gate_files() {
 # The given default roots narrowed to the scope (all of them in full mode).
 gate_roots() {
     if gate_full_mode; then
-        printf '%s\n' "$@"
+        [ "$#" -eq 0 ] || printf '%s\n' "$@"
     else
         gate_scope_py roots "$@"
+    fi
+}
+
+# The given directories, unnarrowed, that overlap the scope (all in full mode).
+gate_touching() {
+    if gate_full_mode; then
+        [ "$#" -eq 0 ] || printf '%s\n' "$@"
+    else
+        gate_scope_py touching "$@"
     fi
 }
 

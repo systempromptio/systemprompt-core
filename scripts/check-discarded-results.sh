@@ -1,13 +1,8 @@
 #!/usr/bin/env bash
 # Production roots only. rust-contracts skips any directory literally named
 # `tests` or `target`, so crates/tests and build output never enter the scan;
-# pass explicit roots to narrow it (e.g. one crate while iterating).
+# `--paths P...` narrows it to part of the tree (e.g. one crate while
+# iterating); explicit ROOTs scan other trees.
 set -euo pipefail
-root="$(cd "$(dirname "$0")/.." && pwd)"
-if [ "$#" -eq 0 ]; then
-    set -- "$root/crates/shared" "$root/crates/infra" "$root/crates/domain" \
-           "$root/crates/app" "$root/crates/entry" "$root/systemprompt/src" \
-           "$root/bin/bridge/src"
-fi
-cargo run --quiet --locked --manifest-path "$root/scripts/rust-contracts/Cargo.toml" -- \
-    --cache-dir "$root/scripts/rust-contracts/target/contracts-cache" discarded "$@"
+. "$(dirname "${BASH_SOURCE[0]}")/lib/rust-contracts.sh"
+rust_contracts_gate discarded lint-discarded-results "$@"

@@ -6,15 +6,10 @@
 # line above is the only exemption. Production roots only.
 #
 #   scripts/lint-swallowed-errors.sh            # core roots
+#   scripts/lint-swallowed-errors.sh --paths P...  # only files under P
 #   scripts/lint-swallowed-errors.sh ROOT...    # scan other source roots (absolute paths
 #                                 # are fine; a directory named `tests` or
 #                                 # `target` is skipped)
 set -euo pipefail
-root="$(cd "$(dirname "$0")/.." && pwd)"
-if [ "$#" -eq 0 ]; then
-    set -- "$root/crates/shared" "$root/crates/infra" "$root/crates/domain" \
-           "$root/crates/app" "$root/crates/entry" "$root/systemprompt/src" \
-           "$root/bin/bridge/src"
-fi
-cargo run --quiet --locked --manifest-path "$root/scripts/rust-contracts/Cargo.toml" -- \
-    --cache-dir "$root/scripts/rust-contracts/target/contracts-cache" swallowed-errors "$@"
+. "$(dirname "${BASH_SOURCE[0]}")/lib/rust-contracts.sh"
+rust_contracts_gate swallowed-errors lint-swallowed-errors "$@"

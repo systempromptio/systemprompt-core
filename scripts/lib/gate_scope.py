@@ -16,6 +16,7 @@ Used as a module by the Python gates and as a command by `gate-scope.sh`:
 
     gate_scope.py files  SPEC... [--paths P...]   matching files, root-relative
     gate_scope.py roots  ROOT... [--paths P...]   ROOTs narrowed to the scope
+    gate_scope.py touching DIR... [--paths P...]  the DIRs that overlap the scope
     gate_scope.py filter [--paths P...]           stdin `path[:rest]` lines in scope
 """
 import os
@@ -85,6 +86,15 @@ def files(pathspecs, scope=None):
     )
 
 
+def narrowed(base, s):
+    """The part of `base` the scope path `s` covers, or None when they are disjoint."""
+    if s == "" or base == s or base.startswith(s + "/"):
+        return base
+    if s.startswith(base + "/"):
+        return s
+    return None
+
+
 def roots(defaults, scope):
     """The default roots narrowed to the scope, keeping each default's spelling."""
     if scope is None:
@@ -94,16 +104,23 @@ def roots(defaults, scope):
         absolute = os.path.isabs(default)
         base = relative(default).rstrip("/")
         for s in scope:
-            if s == "" or base == s or base.startswith(s + "/"):
-                pick = base
-            elif s.startswith(base + "/"):
-                pick = s
-            else:
+            pick = narrowed(base, s)
+            if pick is None:
                 continue
             spelled = str(ROOT / pick) if absolute else pick
             if spelled not in out and (ROOT / pick).exists():
                 out.append(spelled)
     return out
+
+
+def touching(defaults, scope):
+    """The defaults, unnarrowed, that overlap the scope at all."""
+    if scope is None:
+        return list(defaults)
+    return [
+        d for d in defaults
+        if any(narrowed(relative(d).rstrip("/"), s) is not None for s in scope)
+    ]
 
 
 def main(argv):
@@ -116,8 +133,9 @@ def main(argv):
     except ScopeError as error:
         print(f"gate-scope: {error}", file=sys.stderr)
         return 2
-    if command in ("files", "roots"):
-        found = files(args, scope) if command == "files" else roots(args, scope)
+    listers = {"files": files, "roots": roots, "touching": touching}
+    if command in listers:
+        found = listers[command](args, scope)
         if found:
             print("\n".join(found))
     elif command == "filter":

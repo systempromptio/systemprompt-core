@@ -16,6 +16,8 @@
 #
 #   scripts/lint-async-trait.sh            # gate over the core roots
 #   scripts/lint-async-trait.sh --count    # hit count only
+#   scripts/lint-async-trait.sh --paths P...  # judge only traits under P (the
+#                                          # `dyn` search still covers the core roots)
 #   scripts/lint-async-trait.sh ROOT...    # scan other source roots (the
 #                                          # `dyn` search covers the same roots)
 #
@@ -25,6 +27,9 @@
 set -uo pipefail
 export LC_ALL=C
 command -v rg >/dev/null || { echo "lint-async-trait: ripgrep required" >&2; exit 2; }
+. "$(dirname "${BASH_SOURCE[0]}")/lib/gate-scope.sh"
+gate_scope_parse "$@"
+set -- "${GATE_ARGS[@]}"
 
 COUNT=0
 ROOTS=()
@@ -35,13 +40,15 @@ while [ "$#" -gt 0 ]; do
         *) ROOTS+=("$1"); shift ;;
     esac
 done
+PROD_ROOTS=("${ROOTS[@]}")
 if [ "${#ROOTS[@]}" -eq 0 ]; then
-    cd "$(dirname "$0")/.."
+    cd "$GATE_ROOT"
     ROOTS=(crates systemprompt/src bin/bridge/src)
+    mapfile -t PROD_ROOTS < <(gate_roots "${ROOTS[@]}")
+    gate_pass_if_empty lint-async-trait "${#PROD_ROOTS[@]}"
 fi
 
 PROD_GLOBS=(-g '*.rs' -g '!**/tests/**' -g '!**/target/**' -g '!**/build.rs')
-PROD_ROOTS=("${ROOTS[@]}")
 ALL_ROOTS=("${ROOTS[@]}")
 
 # Keyed by `path::Name`: same-named traits in different crates are distinct.
@@ -114,6 +121,7 @@ for key in "${order[@]}"; do
     fi
 done
 
+gate_pass_if_empty lint-async-trait "$scanned"
 [ "$scanned" -gt 0 ] || { echo "lint-async-trait: no #[async_trait] found — scope broken?" >&2; exit 1; }
 if [ "$COUNT" -eq 1 ]; then printf '%s' "$hits" | grep -c .; exit 0; fi
 if [ -n "$hits" ]; then
