@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 
 use sqlx::PgPool;
 use systemprompt_brain::BrainRepositories;
@@ -17,6 +17,7 @@ use systemprompt_extension::ExtensionContext;
 use systemprompt_extension::brain::{BrainModelClient, DynBrainSink, MemoryRecall, SourceContent};
 use systemprompt_extension::notifications::DynNotificationSink;
 use systemprompt_manifest::profile::BrainProfile;
+use systemprompt_models::LateBound;
 
 /// The runtime's brain: repositories, producer sink, service, recall and,
 /// once the API server starts it, the capture consumer.
@@ -31,7 +32,7 @@ pub struct BrainHandle {
     listener_pool: PgPool,
     profile: Arc<BrainProfile>,
     consumer: BrainConsumerSlot,
-    consolidation_model: OnceLock<Arc<dyn BrainModelClient>>,
+    consolidation_model: LateBound<dyn BrainModelClient>,
 }
 
 /// What a [`BrainHandle`] is assembled from.
@@ -77,7 +78,7 @@ impl BrainHandle {
             listener_pool: parts.listener_pool,
             profile: parts.profile,
             consumer: parts.consumer,
-            consolidation_model: OnceLock::new(),
+            consolidation_model: LateBound::default(),
         }
     }
 
@@ -144,7 +145,7 @@ impl BrainHandle {
         extensions: &dyn ExtensionContext,
         model: Arc<dyn BrainModelClient>,
     ) -> Arc<BrainConsumer> {
-        if self.consolidation_model.set(Arc::clone(&model)).is_err() {
+        if self.consolidation_model.bind(Arc::clone(&model)).is_err() {
             tracing::debug!("Brain consolidation model already attached");
         }
         let consumer = self.consumer.get_or_init(|| {

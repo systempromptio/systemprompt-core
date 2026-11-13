@@ -156,7 +156,8 @@ pub use router::{
     RouteGroup, RouteProtection, SiteAuthConfig,
 };
 pub use seed::Seed;
-pub use state::{LateBound, StateBuilder, StateHandle, StateRequirement};
+pub use state::{StateBuilder, StateHandle, StateRequirement};
+pub use systemprompt_models::{AlreadyBound, LateBound};
 pub use traits::Extension;
 
 pub use capabilities::{HasAnalytics, HasFingerprint, HasRouteClassifier, HasUserService};
@@ -171,7 +172,8 @@ pub mod prelude {
     pub use crate::registry::ExtensionRegistry;
     pub use crate::retention::{RetentionHold, RetentionHoldError, RetentionTarget};
     pub use crate::seed::Seed;
-    pub use crate::state::{LateBound, StateBuilder, StateHandle, StateRequirement};
+    pub use crate::state::{StateBuilder, StateHandle, StateRequirement};
+    pub use systemprompt_models::LateBound;
     pub use crate::{
         AuthzPolicy, ContextKind, Extension, ExtensionMetadata, ExtensionRole, ExtensionRouter,
         Migration, RateBudget, RateLimit, RouteProtection, SchemaDefinition, SiteAuthConfig,

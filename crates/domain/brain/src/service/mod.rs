@@ -18,7 +18,7 @@ mod proposals;
 mod reads;
 mod visibility;
 
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 
 use sqlx::PgConnection;
 use systemprompt_extension::brain::{DynBrainSink, SourceAccess};
@@ -26,6 +26,7 @@ use systemprompt_extension::notifications::{DynNotificationSink, NotificationAud
 use systemprompt_identifiers::BrainFactId;
 use systemprompt_manifest::profile::BrainProfile;
 use systemprompt_models::brain::{BrainFact, FactRevision, RevisionChange};
+use systemprompt_models::LateBound;
 use systemprompt_models::notifications::NotificationEvent;
 
 pub use authority::BrainCaller;
@@ -49,7 +50,7 @@ pub struct BrainService {
     declared: Arc<dyn DeclaredSource>,
     source_access: Arc<dyn SourceAccess>,
     audiences: Vec<Arc<dyn NotificationAudienceResolver>>,
-    replay: Arc<OnceLock<ProposalReplay>>,
+    replay: LateBound<ProposalReplay>,
 }
 
 impl std::fmt::Debug for BrainService {
@@ -57,7 +58,7 @@ impl std::fmt::Debug for BrainService {
         f.debug_struct("BrainService")
             .field("enabled", &self.profile.enabled)
             .field("notifications", &self.notifications.is_some())
-            .field("replay", &self.replay.get().is_some())
+            .field("replay", &self.replay.is_bound())
             .finish_non_exhaustive()
     }
 }
@@ -108,7 +109,7 @@ impl BrainService {
     }
 
     pub fn attach_replay(&self, replay: ProposalReplay) -> bool {
-        self.replay.set(replay).is_ok()
+        self.replay.bind(Arc::new(replay)).is_ok()
     }
 }
 
@@ -158,7 +159,9 @@ impl BrainServiceBuilder {
                 .source_access
                 .unwrap_or_else(|| Arc::new(visibility::NoSourceAccess)),
             audiences: self.audiences,
-            replay: Arc::new(self.replay.map_or_else(OnceLock::new, OnceLock::from)),
+            replay: self
+                .replay
+                .map_or_else(LateBound::default, |replay| LateBound::bound(Arc::new(replay))),
         }
     }
 }

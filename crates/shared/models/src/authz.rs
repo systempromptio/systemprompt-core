@@ -10,7 +10,9 @@
 use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::fmt;
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
+
+use crate::late_bound::{AlreadyBound, LateBound};
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -234,10 +236,6 @@ pub trait SubjectAttributeSource: Send + Sync {
     }
 }
 
-#[derive(Debug, Clone, Copy, thiserror::Error)]
-#[error("the subject attribute source is already bound")]
-pub struct AlreadyBound;
-
 /// A subject source bound after the providers that read it are built.
 ///
 /// Providers are discovered from a context that must already carry a source,
@@ -246,19 +244,19 @@ pub struct AlreadyBound;
 /// Before binding every read fails with [`SubjectSourceError::NotReady`]
 /// rather than answering from an empty set.
 #[derive(Clone, Default)]
-pub struct SubjectSourceHandle(Arc<OnceLock<Arc<dyn SubjectAttributeSource>>>);
+pub struct SubjectSourceHandle(LateBound<dyn SubjectAttributeSource>);
 
 impl fmt::Debug for SubjectSourceHandle {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("SubjectSourceHandle")
-            .field("bound", &self.0.get().is_some())
+            .field("bound", &self.0.is_bound())
             .finish()
     }
 }
 
 impl SubjectSourceHandle {
     pub fn bind(&self, source: Arc<dyn SubjectAttributeSource>) -> Result<(), AlreadyBound> {
-        self.0.set(source).map_err(|_unbound| AlreadyBound)
+        self.0.bind(source)
     }
 }
 

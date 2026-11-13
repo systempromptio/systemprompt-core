@@ -38,9 +38,10 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::any::{Any, TypeId, type_name};
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 
 use systemprompt_identifiers::ExtensionId;
+use systemprompt_models::LateBound;
 use systemprompt_provider_contracts::Dependencies;
 
 use crate::error::ExtensionStateError;
@@ -125,17 +126,20 @@ impl StateRequirement {
 /// and binds it once to the finished state before anything serves. A read
 /// before binding is [`ExtensionStateError::NotReady`], never an empty map.
 #[derive(Clone, Default)]
-pub struct StateHandle(Arc<OnceLock<Dependencies>>);
+pub struct StateHandle(LateBound<Dependencies>);
 
 impl StateHandle {
     pub fn bind(&self, state: Dependencies) -> Result<(), ExtensionStateError> {
         self.0
-            .set(state)
+            .bind(Arc::new(state))
             .map_err(|_bound| ExtensionStateError::AlreadyBound)
     }
 
     pub fn state(&self) -> Result<&Dependencies, ExtensionStateError> {
-        self.0.get().ok_or(ExtensionStateError::NotReady)
+        self.0
+            .get()
+            .map(|state| &**state)
+            .ok_or(ExtensionStateError::NotReady)
     }
 
     pub fn get_arc<T: Any + Send + Sync>(&self) -> Result<Arc<T>, ExtensionStateError> {
@@ -146,49 +150,8 @@ impl StateHandle {
 impl std::fmt::Debug for StateHandle {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("StateHandle")
-            .field("bound", &self.0.get().is_some())
+            .field("bound", &self.0.is_bound())
             .finish()
     }
 }
 
-/// A state entry an extension provides empty and the host binds once, after
-/// the state is built, to a value composed later (a consumer the host starts,
-/// say). Clones share the binding; a read before binding is `None`.
-pub struct LateBound<T>(Arc<OnceLock<Arc<T>>>);
-
-impl<T> LateBound<T> {
-    pub fn bind(&self, value: Arc<T>) -> Result<(), ExtensionStateError> {
-        self.0
-            .set(value)
-            .map_err(|_bound| ExtensionStateError::AlreadyBound)
-    }
-
-    pub fn get_or_init(&self, init: impl FnOnce() -> Arc<T>) -> &Arc<T> {
-        self.0.get_or_init(init)
-    }
-
-    #[must_use]
-    pub fn get(&self) -> Option<&Arc<T>> {
-        self.0.get()
-    }
-}
-
-impl<T> Clone for LateBound<T> {
-    fn clone(&self) -> Self {
-        Self(Arc::clone(&self.0))
-    }
-}
-
-impl<T> Default for LateBound<T> {
-    fn default() -> Self {
-        Self(Arc::new(OnceLock::new()))
-    }
-}
-
-impl<T> std::fmt::Debug for LateBound<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("LateBound")
-            .field("bound", &self.0.get().is_some())
-            .finish()
-    }
-}
