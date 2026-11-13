@@ -156,6 +156,9 @@ scripts/*
 !scripts/lint-layers.sh
 !scripts/check-release-tag.sh
 !scripts/check-crate-changelogs.sh
+!scripts/regen.sh
+!scripts/test-regen.py
+!scripts/test-changelog-assemble.py
 !scripts/check-version-strings.sh
 !scripts/check-removed-config-names.sh
 !scripts/check-lockfile-registry.sh
