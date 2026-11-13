@@ -30,6 +30,10 @@ mod registry_validation;
 mod router;
 #[cfg(test)]
 mod seed;
+#[cfg(test)]
+mod state;
+#[cfg(test)]
+mod stub_ctx;
 
 
 #[cfg(test)]
