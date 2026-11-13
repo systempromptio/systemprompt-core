@@ -110,6 +110,9 @@ fn build_routes(
     if serves(RouteGroup::ContentAndMisc) {
         router = mount_content(router, &mount)?;
     }
+    if serves(RouteGroup::InternalLinks) {
+        router = documents::mount_internal_links(router, &mount);
+    }
     if serves(RouteGroup::Gateway) {
         router = gateway::mount_gateway(router, &mount)?;
     }

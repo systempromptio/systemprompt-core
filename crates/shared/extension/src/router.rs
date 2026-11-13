@@ -118,6 +118,7 @@ pub enum RouteGroup {
     Agent,
     McpAndStream,
     ContentAndMisc,
+    InternalLinks,
     Messaging,
     Extensions,
     Discovery,

@@ -38,6 +38,7 @@ pub enum LinkRefusal {
     Forbidden,
     NotOpen,
     Failed,
+    Unavailable,
 }
 
 impl LinkRefusal {
@@ -47,7 +48,8 @@ impl LinkRefusal {
             401 => Self::HopRefused,
             403 => Self::Forbidden,
             409 => Self::NotOpen,
-            _ => Self::Failed,
+            500 => Self::Failed,
+            _ => Self::Unavailable,
         }
     }
 
@@ -58,6 +60,35 @@ impl LinkRefusal {
             Self::Forbidden => "forbidden",
             Self::NotOpen => "not_open",
             Self::Failed => "link_failed",
+            Self::Unavailable => "link_endpoint_unavailable",
+        }
+    }
+}
+
+impl LinkIssueError {
+    #[must_use]
+    pub fn tool_message(&self, links: &str) -> String {
+        match self {
+            Self::MissingHop => {
+                format!("the {links} cannot be issued for a call without a hop token")
+            },
+            Self::Client(_) | Self::Transport(_) => {
+                format!("the link endpoint was unreachable, so the {links} could not be issued")
+            },
+            Self::Refused {
+                status,
+                refusal: LinkRefusal::Unavailable,
+            } => format!("the link endpoint returned {status}, so the {links} could not be issued"),
+            Self::Refused {
+                refusal: LinkRefusal::Failed,
+                ..
+            } => format!("the API could not sign the {links}"),
+            Self::Refused { refusal, .. } => {
+                format!("the link endpoint refused the {links}: {}", refusal.code())
+            },
+            Self::Decode(_) | Self::Mismatched => {
+                format!("the link endpoint's answer for the {links} could not be read")
+            },
         }
     }
 }

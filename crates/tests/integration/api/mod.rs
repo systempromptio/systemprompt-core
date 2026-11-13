@@ -211,6 +211,8 @@ mod documents_subject_levels;
 #[cfg(test)]
 mod internal_links;
 #[cfg(test)]
+mod internal_links_worker;
+#[cfg(test)]
 #[path = "routes_oauth_token.rs"]
 mod routes_oauth_token;
 
