@@ -14,6 +14,10 @@ use std::sync::Arc;
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_provider_contracts::{ConfigPlane, Job};
 
+pub type ApiRouter = (Arc<dyn Extension>, crate::ExtensionRouter);
+
+pub type ExtensionReadinessCheck = (&'static str, Arc<dyn ReadinessCheck>);
+
 impl ExtensionRegistry {
     #[must_use]
     pub fn get(&self, id: &str) -> Option<&Arc<dyn Extension>> {
@@ -105,7 +109,7 @@ impl ExtensionRegistry {
         &self,
         ctx: &dyn ExtensionContext,
         disabled_ids: &[ExtensionId],
-    ) -> Result<Vec<(Arc<dyn Extension>, crate::ExtensionRouter)>, LoaderError> {
+    ) -> Result<Vec<ApiRouter>, LoaderError> {
         Ok(self
             .enabled_extensions(disabled_ids)?
             .into_iter()
@@ -217,7 +221,7 @@ impl ExtensionRegistry {
         &self,
         ctx: &dyn ExtensionContext,
         disabled_ids: &[ExtensionId],
-    ) -> Result<Vec<(&'static str, Arc<dyn ReadinessCheck>)>, LoaderError> {
+    ) -> Result<Vec<ExtensionReadinessCheck>, LoaderError> {
         Ok(self
             .enabled_extensions(disabled_ids)?
             .into_iter()

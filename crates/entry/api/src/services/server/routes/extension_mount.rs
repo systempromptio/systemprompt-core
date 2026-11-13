@@ -53,7 +53,7 @@ pub(super) fn mount_extension_routes(
         ext.validate_config(&config_json)
             .map_err(|source| RouteMountError::ConfigValidation {
                 extension: ext_id.to_owned(),
-                source,
+                source: Box::new(source),
             })?;
 
         let base_path = declared.base_path;

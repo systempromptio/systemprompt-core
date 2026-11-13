@@ -119,7 +119,7 @@ fn build_routes(
     }
     router = mount_discovery(router, &mount)?;
     if serves(RouteGroup::Oauth) {
-        router = mount.mount(router, link_passkey_router(ctx))?;
+        router = mount.mount(router, link_passkey_router())?;
     }
 
     router = router.layer(axum::Extension(refresh_lock));
@@ -228,7 +228,7 @@ fn mount_discovery(mut router: Router, mount: &MountCtx<'_>) -> Result<Router, R
     Ok(router)
 }
 
-fn link_passkey_router(ctx: &AppContext) -> systemprompt_extension::ExtensionRouter {
+fn link_passkey_router() -> systemprompt_extension::ExtensionRouter {
     declare(
         Router::new().route(
             "/auth/link-passkey",

@@ -48,7 +48,7 @@ impl MountCtx<'_> {
     }
 }
 
-pub(super) fn declare(
+pub(super) const fn declare(
     router: Router,
     base_path: &'static str,
     policy: AuthzPolicy,
@@ -220,12 +220,20 @@ pub(super) fn mount_mcp_and_stream(
 }
 
 pub(super) fn mount_content_and_misc(
-    mut router: Router,
+    router: Router,
     mount: &MountCtx<'_>,
 ) -> Result<Router, MountError> {
+    let router = mount_content(router, mount)?;
+    let router = mount_platform(router, mount)?;
+    mount_accounts(router, mount)
+}
+
+const CONTENT_RATE: RateLimit = RateLimit::new("content", RateBudget::Content);
+
+fn mount_content(mut router: Router, mount: &MountCtx<'_>) -> Result<Router, MountError> {
     let ctx = mount.ctx;
     let group = RouteGroup::ContentAndMisc;
-    let content_rate = RateLimit::new("content", RateBudget::Content);
+    let content_rate = CONTENT_RATE;
 
     let public_content = mount.protect(
         crate::routes::content::public_router(ctx),
@@ -255,6 +263,14 @@ pub(super) fn mount_content_and_misc(
         )
         .with_rate_limit(content_rate),
     )?;
+
+    Ok(router)
+}
+
+fn mount_platform(mut router: Router, mount: &MountCtx<'_>) -> Result<Router, MountError> {
+    let ctx = mount.ctx;
+    let group = RouteGroup::ContentAndMisc;
+    let content_rate = CONTENT_RATE;
 
     router = mount.mount(
         router,
@@ -301,6 +317,13 @@ pub(super) fn mount_content_and_misc(
         )
         .with_rate_limit(content_rate),
     )?;
+
+    Ok(router)
+}
+
+fn mount_accounts(mut router: Router, mount: &MountCtx<'_>) -> Result<Router, MountError> {
+    let ctx = mount.ctx;
+    let group = RouteGroup::ContentAndMisc;
 
     router = mount.mount(
         router,

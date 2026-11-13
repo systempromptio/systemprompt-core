@@ -93,7 +93,7 @@ pub enum MountError {
     RateLimit {
         base_path: &'static str,
         #[source]
-        source: LoaderError,
+        source: Box<LoaderError>,
     },
 }
 
@@ -105,6 +105,15 @@ pub struct SiteAuthGuard {
     pub issuer: Arc<str>,
     pub keys: SigningKeys,
     pub cookie: SessionCookie,
+}
+
+impl std::fmt::Debug for SiteAuthGuard {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SiteAuthGuard")
+            .field("config", &self.config)
+            .field("issuer", &self.issuer)
+            .finish_non_exhaustive()
+    }
 }
 
 impl SiteAuthGuard {
@@ -142,6 +151,12 @@ pub struct ClientWritesGuard {
     ctx: AppContext,
 }
 
+impl std::fmt::Debug for ClientWritesGuard {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ClientWritesGuard").finish_non_exhaustive()
+    }
+}
+
 impl ClientWritesGuard {
     #[must_use]
     pub const fn new(ctx: AppContext) -> Self {
@@ -169,6 +184,15 @@ pub struct ProtectionGuards {
     pub client_writes: Option<ClientWritesGuard>,
 }
 
+impl std::fmt::Debug for ProtectionGuards {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ProtectionGuards")
+            .field("site_auth", &self.site_auth)
+            .field("client_writes", &self.client_writes)
+            .finish()
+    }
+}
+
 impl ProtectionGuards {
     pub fn from_context(ctx: &AppContext) -> Result<Self, LoaderError> {
         Ok(Self {
@@ -188,6 +212,16 @@ pub struct MountLayers {
     pub mcp: McpContextMiddleware,
     pub bearer: Option<Arc<JwtContextExtractor>>,
     pub guards: ProtectionGuards,
+}
+
+impl std::fmt::Debug for MountLayers {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("MountLayers")
+            .field("limits", &self.limits)
+            .field("guards", &self.guards)
+            .field("bearer_window_available", &self.bearer.is_some())
+            .finish_non_exhaustive()
+    }
 }
 
 pub fn protect(
@@ -230,7 +264,10 @@ pub fn protect(
         let per_second = rate_limit.budget.per_second(layers.limits.config());
         router = router
             .with_rate_limit(&layers.limits, per_second, rate_limit.scope)
-            .map_err(|source| MountError::RateLimit { base_path, source })?;
+            .map_err(|source| MountError::RateLimit {
+                base_path,
+                source: Box::new(source),
+            })?;
         if rate_limit.bearer_window {
             let jwt = layers
                 .bearer
@@ -271,7 +308,6 @@ pub fn protect(
     Ok(router)
 }
 
-#[must_use]
 pub fn place(tree: Router, base_path: &'static str, router: Router) -> Router {
     if base_path == WEB_ROOT_BASE_PATH {
         tree.merge(router)
@@ -310,7 +346,7 @@ pub fn mount(
     Ok(place(tree, base_path, protected))
 }
 
-pub fn admit_extension(declared: &ExtensionRouter) -> Result<(), MountError> {
+pub const fn admit_extension(declared: &ExtensionRouter) -> Result<(), MountError> {
     match declared.protection.body_limit {
         Some(declared_bytes) if declared_bytes > DEFAULT_BODY_LIMIT_BYTES => {
             Err(MountError::ExtensionBodyLimitTooLarge {
