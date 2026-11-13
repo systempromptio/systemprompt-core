@@ -1076,19 +1076,6 @@ fn test_reconciliation_result_aggregation() {
     assert!(!result.is_success());
 }
 
-#[test]
-fn test_behavioral_analysis_job_properties() {
-    use systemprompt_scheduler::BehavioralAnalysisJob;
-    use systemprompt_traits::Job;
-
-    let job = BehavioralAnalysisJob;
-    assert_eq!(job.name(), "behavioral_analysis");
-    assert_eq!(
-        job.description(),
-        "Analyzes fingerprint behavior patterns and flags suspicious activity"
-    );
-    assert_eq!(job.schedule(), "0 0 * * * *"); // Every hour
-}
 
 #[test]
 fn test_database_cleanup_job_properties() {
@@ -1104,19 +1091,6 @@ fn test_database_cleanup_job_properties() {
     assert_eq!(job.schedule(), "0 0 3 * * *"); // Daily at 3 AM
 }
 
-#[test]
-fn test_cleanup_empty_contexts_job_properties() {
-    use systemprompt_scheduler::CleanupEmptyContextsJob;
-    use systemprompt_traits::Job;
-
-    let job = CleanupEmptyContextsJob;
-    assert_eq!(job.name(), "cleanup_empty_contexts");
-    assert_eq!(
-        job.description(),
-        "Deletes empty, audit-free conversation contexts (parameter retention_hours, default 24); requires enforce"
-    );
-    assert_eq!(job.schedule(), "0 0 */2 * * *"); // Every 2 hours
-}
 
 #[test]
 fn test_cleanup_inactive_sessions_job_properties() {
@@ -1134,16 +1108,11 @@ fn test_cleanup_inactive_sessions_job_properties() {
 
 #[test]
 fn test_job_schedules_are_valid_cron_format() {
-    use systemprompt_scheduler::{
-        BehavioralAnalysisJob, CleanupEmptyContextsJob, CleanupInactiveSessionsJob,
-        DatabaseCleanupJob,
-    };
+    use systemprompt_scheduler::{CleanupInactiveSessionsJob, DatabaseCleanupJob};
     use systemprompt_traits::Job;
 
     let jobs: Vec<&dyn Job> = vec![
-        &BehavioralAnalysisJob,
         &DatabaseCleanupJob,
-        &CleanupEmptyContextsJob,
         &CleanupInactiveSessionsJob,
     ];
 
@@ -1161,16 +1130,11 @@ fn test_job_schedules_are_valid_cron_format() {
 
 #[test]
 fn test_all_jobs_have_unique_names() {
-    use systemprompt_scheduler::{
-        BehavioralAnalysisJob, CleanupEmptyContextsJob, CleanupInactiveSessionsJob,
-        DatabaseCleanupJob,
-    };
+    use systemprompt_scheduler::{CleanupInactiveSessionsJob, DatabaseCleanupJob};
     use systemprompt_traits::Job;
 
     let names: Vec<&str> = vec![
-        BehavioralAnalysisJob.name(),
         DatabaseCleanupJob.name(),
-        CleanupEmptyContextsJob.name(),
         CleanupInactiveSessionsJob.name(),
     ];
 
@@ -1352,16 +1316,11 @@ fn test_reconciliation_result_debug() {
 
 #[test]
 fn test_all_jobs_have_non_empty_names() {
-    use systemprompt_scheduler::{
-        BehavioralAnalysisJob, CleanupEmptyContextsJob, CleanupInactiveSessionsJob,
-        DatabaseCleanupJob,
-    };
+    use systemprompt_scheduler::{CleanupInactiveSessionsJob, DatabaseCleanupJob};
     use systemprompt_traits::Job;
 
     let jobs: Vec<&dyn Job> = vec![
-        &BehavioralAnalysisJob,
         &DatabaseCleanupJob,
-        &CleanupEmptyContextsJob,
         &CleanupInactiveSessionsJob,
     ];
 
@@ -1377,16 +1336,11 @@ fn test_all_jobs_have_non_empty_names() {
 
 #[test]
 fn test_all_jobs_have_snake_case_names() {
-    use systemprompt_scheduler::{
-        BehavioralAnalysisJob, CleanupEmptyContextsJob, CleanupInactiveSessionsJob,
-        DatabaseCleanupJob,
-    };
+    use systemprompt_scheduler::{CleanupInactiveSessionsJob, DatabaseCleanupJob};
     use systemprompt_traits::Job;
 
     let jobs: Vec<&dyn Job> = vec![
-        &BehavioralAnalysisJob,
         &DatabaseCleanupJob,
-        &CleanupEmptyContextsJob,
         &CleanupInactiveSessionsJob,
     ];
 

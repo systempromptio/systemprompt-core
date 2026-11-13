@@ -8,6 +8,9 @@
 mod error;
 
 #[cfg(test)]
+mod jobs;
+
+#[cfg(test)]
 mod models;
 
 #[cfg(test)]

@@ -2,21 +2,8 @@ use systemprompt_traits::Job;
 
 mod job_properties_tests {
     use super::*;
-    use systemprompt_scheduler::{
-        BehavioralAnalysisJob, CleanupEmptyContextsJob, CleanupInactiveSessionsJob,
-        DatabaseCleanupJob,
-    };
+    use systemprompt_scheduler::{CleanupInactiveSessionsJob, DatabaseCleanupJob};
 
-    #[test]
-    fn behavioral_analysis_job_properties() {
-        let job = BehavioralAnalysisJob;
-        assert_eq!(job.name(), "behavioral_analysis");
-        assert_eq!(
-            job.description(),
-            "Analyzes fingerprint behavior patterns and flags suspicious activity"
-        );
-        assert_eq!(job.schedule(), "0 0 * * * *");
-    }
 
     #[test]
     fn database_cleanup_job_properties() {
@@ -29,16 +16,6 @@ mod job_properties_tests {
         assert_eq!(job.schedule(), "0 0 3 * * *");
     }
 
-    #[test]
-    fn cleanup_empty_contexts_job_properties() {
-        let job = CleanupEmptyContextsJob;
-        assert_eq!(job.name(), "cleanup_empty_contexts");
-        assert_eq!(
-            job.description(),
-            "Deletes empty, audit-free conversation contexts (parameter retention_hours, default 24); requires enforce"
-        );
-        assert_eq!(job.schedule(), "0 0 */2 * * *");
-    }
 
     #[test]
     fn cleanup_inactive_sessions_job_properties() {
@@ -54,17 +31,12 @@ mod job_properties_tests {
 
 mod job_schedule_validation_tests {
     use super::*;
-    use systemprompt_scheduler::{
-        BehavioralAnalysisJob, CleanupEmptyContextsJob, CleanupInactiveSessionsJob,
-        DatabaseCleanupJob,
-    };
+    use systemprompt_scheduler::{CleanupInactiveSessionsJob, DatabaseCleanupJob};
 
     #[test]
     fn all_schedules_are_valid_cron_format() {
         let jobs: Vec<&dyn Job> = vec![
-            &BehavioralAnalysisJob,
             &DatabaseCleanupJob,
-            &CleanupEmptyContextsJob,
             &CleanupInactiveSessionsJob,
         ];
 
@@ -84,9 +56,7 @@ mod job_schedule_validation_tests {
     #[test]
     fn all_jobs_have_unique_names() {
         let names: Vec<&str> = vec![
-            BehavioralAnalysisJob.name(),
             DatabaseCleanupJob.name(),
-            CleanupEmptyContextsJob.name(),
             CleanupInactiveSessionsJob.name(),
         ];
 
@@ -105,9 +75,7 @@ mod job_schedule_validation_tests {
     #[test]
     fn all_jobs_have_non_empty_names() {
         let jobs: Vec<&dyn Job> = vec![
-            &BehavioralAnalysisJob,
             &DatabaseCleanupJob,
-            &CleanupEmptyContextsJob,
             &CleanupInactiveSessionsJob,
         ];
 
@@ -124,9 +92,7 @@ mod job_schedule_validation_tests {
     #[test]
     fn all_jobs_have_snake_case_names() {
         let jobs: Vec<&dyn Job> = vec![
-            &BehavioralAnalysisJob,
             &DatabaseCleanupJob,
-            &CleanupEmptyContextsJob,
             &CleanupInactiveSessionsJob,
         ];
 

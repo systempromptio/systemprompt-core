@@ -7,7 +7,7 @@ use systemprompt_ai::repository::AiThoughtSignatureRepository;
 use systemprompt_ai::repository::thought_signatures::ThoughtSignatureWrite;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{Actor, GatewayConversationId, UserId};
-use systemprompt_scheduler::jobs::ThoughtSignatureCleanupJob;
+use systemprompt_ai::jobs::ThoughtSignatureCleanupJob;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 use systemprompt_traits::{Dependencies, Job, JobContext};
 use uuid::Uuid;

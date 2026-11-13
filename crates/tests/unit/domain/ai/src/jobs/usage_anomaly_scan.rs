@@ -4,8 +4,8 @@ use chrono::{DateTime, Duration, TimeZone, Utc};
 use systemprompt_ai::repository::{AiUsageAnomalyRepository, HourlyUsageProfile};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
-use systemprompt_scheduler::UsageAnomalyScanJob;
-use systemprompt_scheduler::jobs::usage_anomaly_scan::{
+use systemprompt_ai::jobs::UsageAnomalyScanJob;
+use systemprompt_ai::jobs::usage_anomaly_scan::{
     AnomalyKind, evaluate, previous_hour, scan_window,
 };
 use systemprompt_test_fixtures::{DisposableDb, fixture_actor};

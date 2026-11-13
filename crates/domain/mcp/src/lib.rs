@@ -39,7 +39,7 @@ pub(crate) mod client_profile;
 pub(crate) mod error;
 pub(crate) mod extension;
 pub mod host;
-pub(crate) mod jobs;
+pub mod jobs;
 pub mod middleware;
 pub mod models;
 pub(crate) mod progress;

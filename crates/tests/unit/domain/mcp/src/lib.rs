@@ -49,6 +49,9 @@ mod hop_layer;
 mod intent_claim_db;
 #[cfg(test)]
 mod jobs_cleanup;
+
+#[cfg(test)]
+mod tool_row_facts_rollup_db;
 #[cfg(test)]
 mod lib_smoke;
 #[cfg(test)]

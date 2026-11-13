@@ -2,10 +2,9 @@ use std::sync::Arc;
 
 use systemprompt_identifiers::{Actor, UserId};
 use systemprompt_scheduler::jobs::{
-    AiRequestToolFlagRollupJob, AnalyticsEventLinkFactsRollupJob, BackfillRollupsJob,
-    BackfillSessionGeoJob, InventoryRefreshJob, InventoryRefreshMemo, LogSummaryRollupJob,
-    SessionBotTypeRollupJob, ToolRowFactsRollupJob, TraceFactsRollupJob,
-    UserContextCountersRollupJob, VertexDiscoveryJob,
+    AnalyticsEventLinkFactsRollupJob, BackfillRollupsJob, InventoryRefreshJob,
+    InventoryRefreshMemo, LogSummaryRollupJob, SessionBotTypeRollupJob, TraceFactsRollupJob,
+    VertexDiscoveryJob,
 };
 use systemprompt_test_fixtures::{
     seed_user_row, test_app_context, test_database_url, test_db_pool,
@@ -54,23 +53,8 @@ async fn analytics_event_link_facts_rollup_drains_both_projections() {
 }
 
 #[tokio::test]
-async fn tool_row_facts_rollup_drains() {
-    assert_drains(&ToolRowFactsRollupJob).await;
-}
-
-#[tokio::test]
-async fn ai_request_tool_flag_rollup_drains() {
-    assert_drains(&AiRequestToolFlagRollupJob).await;
-}
-
-#[tokio::test]
 async fn backfill_rollups_drains_every_rollup() {
     assert_drains(&BackfillRollupsJob).await;
-}
-
-#[tokio::test]
-async fn backfill_session_geo_drains() {
-    assert_drains(&BackfillSessionGeoJob).await;
 }
 
 #[tokio::test]
@@ -81,11 +65,6 @@ async fn log_summary_rollup_drains() {
 #[tokio::test]
 async fn session_bot_type_rollup_drains() {
     assert_drains(&SessionBotTypeRollupJob).await;
-}
-
-#[tokio::test]
-async fn user_context_counters_rollup_drains() {
-    assert_drains(&UserContextCountersRollupJob).await;
 }
 
 #[tokio::test]

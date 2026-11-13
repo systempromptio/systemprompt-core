@@ -8,25 +8,16 @@
 //! `tokio_cron_scheduler` itself rather than against a hand-rolled regex that
 //! could accept expressions the real parser rejects.
 
-use systemprompt_scheduler::jobs::{
-    BackfillSessionGeoJob, BehavioralAnalysisJob, CleanupEmptyContextsJob,
-    CleanupInactiveSessionsJob, DatabaseCleanupJob, GhostSessionCleanupJob,
-    MaliciousIpBlacklistJob, NoJsCleanupJob,
-};
 use systemprompt_traits::Job;
 use tokio_cron_scheduler::Job as CronJob;
 
-fn all_jobs() -> Vec<Box<dyn Job>> {
-    vec![
-        Box::new(BackfillSessionGeoJob),
-        Box::new(BehavioralAnalysisJob),
-        Box::new(CleanupEmptyContextsJob),
-        Box::new(CleanupInactiveSessionsJob),
-        Box::new(DatabaseCleanupJob),
-        Box::new(GhostSessionCleanupJob),
-        Box::new(MaliciousIpBlacklistJob),
-        Box::new(NoJsCleanupJob),
-    ]
+// Every job linked into this binary: the scheduler's own and those the
+// capability crates linked through the runtime submit.
+fn all_jobs() -> Vec<&'static dyn Job> {
+    inventory::iter::<&'static dyn Job>
+        .into_iter()
+        .copied()
+        .collect()
 }
 
 // Why: this is the check the scheduler performs at registration. A job whose

@@ -4,27 +4,11 @@
 //! empty-DB path and into the scoring/flagging/banning decision branches.
 //! Rows are cleaned up after each test so shards do not interfere.
 
-use std::sync::Arc;
+use systemprompt_analytics::jobs::{BehavioralAnalysisJob, MaliciousIpBlacklistJob};
+use systemprompt_test_fixtures::{test_database_url, test_db_pool};
+use systemprompt_traits::Job;
 
-use systemprompt_scheduler::{BehavioralAnalysisJob, MaliciousIpBlacklistJob};
-use systemprompt_test_fixtures::{test_app_context, test_database_url, test_db_pool};
-use systemprompt_traits::{Dependencies, Job, JobContext};
-
-fn make_test_ctx(pool: &systemprompt_database::DbPool, url: &str) -> JobContext {
-    use systemprompt_identifiers::{Actor, UserId};
-
-    let app_ctx = test_app_context(pool, url);
-
-    let dependencies = Dependencies::new()
-        .with(Arc::clone(app_ctx.app_paths_arc()))
-        .with(Arc::clone(pool))
-        .with(app_ctx);
-
-    let owner = UserId::new("seeded-job-test-admin");
-    let actor = Actor::job(owner, "test".to_string());
-
-    JobContext::new(actor, dependencies)
-}
+use super::job_ctx as make_test_ctx;
 
 fn unique_id(prefix: &str) -> String {
     use std::sync::atomic::{AtomicU64, Ordering};
