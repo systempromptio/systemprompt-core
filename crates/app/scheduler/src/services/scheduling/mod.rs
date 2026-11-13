@@ -104,9 +104,6 @@ pub fn unknown_job_names(config: &SchedulerConfig) -> Vec<JobName> {
         .collect()
 }
 
-/// Every job linked into the binary, whether or not its owning extension is
-/// enabled: what a configured job name is validated against, and the set of
-/// `scheduled_jobs` rows kept. Only the enabled subset is run.
 fn linked_jobs() -> HashMap<&'static str, &'static dyn JobTrait> {
     registered_jobs()
         .map(|registration| (registration.job.name(), registration.job))

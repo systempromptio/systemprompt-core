@@ -187,6 +187,10 @@ impl RouteProtection {
 
 pub type EnablePredicate = fn(&dyn ExtensionContext) -> bool;
 
+const fn always_enabled(_: &dyn ExtensionContext) -> bool {
+    true
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct SiteAuthConfig {
     pub login_path: &'static str,
@@ -202,7 +206,7 @@ pub struct ExtensionRouter {
     pub base_path: &'static str,
     pub protection: RouteProtection,
     pub group: RouteGroup,
-    pub enabled: Option<EnablePredicate>,
+    pub enabled: EnablePredicate,
 }
 
 impl ExtensionRouter {
@@ -227,7 +231,7 @@ impl ExtensionRouter {
             base_path,
             protection,
             group: RouteGroup::Extensions,
-            enabled: None,
+            enabled: always_enabled,
         }
     }
 
@@ -263,12 +267,12 @@ impl ExtensionRouter {
 
     #[must_use]
     pub const fn enabled_when(mut self, predicate: EnablePredicate) -> Self {
-        self.enabled = Some(predicate);
+        self.enabled = predicate;
         self
     }
 
     #[must_use]
     pub fn is_enabled(&self, ctx: &dyn ExtensionContext) -> bool {
-        self.enabled.is_none_or(|predicate| predicate(ctx))
+        (self.enabled)(ctx)
     }
 }

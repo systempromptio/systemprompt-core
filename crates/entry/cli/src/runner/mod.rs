@@ -79,8 +79,6 @@ fn install_tls_crypto_provider() {
     }
 }
 
-/// The parsed command line: global options plus the selected command, which
-/// is either a kernel command (`cli.command`), a registered group, or none.
 struct Invocation {
     cli: args::Cli,
     registered: Option<RegisteredCommand>,

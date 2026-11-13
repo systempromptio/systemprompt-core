@@ -29,7 +29,6 @@ use crate::services::EnabledExtensions;
 pub(super) const BATCH_ROWS: i64 = 5000;
 const RUN_BUDGET: Duration = Duration::from_mins(15);
 
-/// The registered purge of every target table, one per table.
 pub(super) struct RetentionOwners {
     purges: HashMap<&'static str, &'static dyn RetentionPurge>,
 }
