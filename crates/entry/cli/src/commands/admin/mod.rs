@@ -26,7 +26,7 @@ use anyhow::Result;
 use clap::Subcommand;
 
 use crate::context::CommandContext;
-use crate::descriptor::DataImpact;
+use crate::descriptor::{CommandDescriptor, DataImpact, DescribeCommand};
 use crate::shared::render_result;
 
 #[derive(Debug, Subcommand)]
@@ -119,6 +119,22 @@ pub async fn execute(cmd: AdminCommands, ctx: &CommandContext) -> Result<()> {
         AdminCommands::Identity(cmd) => identity::execute(cmd, ctx),
         AdminCommands::Issues(cmd) => Box::pin(issues::execute(cmd, ctx)).await,
         AdminCommands::Licence(cmd) => licence::execute(cmd, ctx).await,
+    }
+}
+
+impl DescribeCommand for AdminCommands {
+    fn descriptor(&self) -> CommandDescriptor {
+        match self {
+            Self::Session(cmd) => cmd.descriptor(),
+            Self::Config(cmd) => cmd.descriptor(),
+            Self::Agents(agents::AgentsCommands::Run(_)) => CommandDescriptor::PROFILE_ONLY,
+            Self::Bridge(bridge::BridgeCommands::SigningKeyFingerprint(_)) => {
+                CommandDescriptor::PROFILE_AND_SECRETS
+            },
+            Self::Setup(_) => CommandDescriptor::NONE,
+            Self::Licence(_) => CommandDescriptor::FULL.with_read_only(),
+            _ => CommandDescriptor::FULL,
+        }
     }
 }
 

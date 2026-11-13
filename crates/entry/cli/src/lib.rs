@@ -6,6 +6,10 @@
 //! handling. [`run`] is the process entry point; [`CliConfig`] and the
 //! settings enums control verbosity, color, and output format.
 //!
+//! [`kernel`] is the surface command groups build on, and the seam through
+//! which a group defined in another crate registers itself with
+//! [`register_cli_command!`].
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -17,6 +21,7 @@ pub mod descriptor;
 pub mod env_overrides;
 pub mod environment;
 pub mod interactive;
+pub mod kernel;
 pub mod paths;
 pub mod presentation;
 pub mod runner;
@@ -29,3 +34,6 @@ pub use context::CommandContext;
 pub use env_overrides::{EnvOverrides, SessionEnv};
 pub use interactive::{DialoguerPrompter, Prompter, ScriptedPrompter};
 pub use runner::{args, run};
+
+#[doc(hidden)]
+pub use inventory as __inventory;

@@ -49,6 +49,7 @@ use anyhow::{Result, bail};
 use clap::Subcommand;
 
 use crate::context::CommandContext;
+use crate::descriptor::{CommandDescriptor, DescribeCommand};
 use crate::shared::render_result;
 
 #[derive(Debug, Subcommand)]
@@ -133,6 +134,21 @@ pub enum ConfigCommands {
                  /admin/sync (run by the deploy pipeline)"
     )]
     Apply(apply::ApplyArgs),
+}
+
+impl DescribeCommand for ConfigCommands {
+    fn descriptor(&self) -> CommandDescriptor {
+        match self {
+            Self::Secret(secret::SecretCommands::MigrateGitCredentials(_)) => {
+                CommandDescriptor::FULL
+            },
+            Self::Secret(_) => CommandDescriptor::PROFILE_ONLY,
+            Self::Validate(_) => CommandDescriptor::PROFILE_AND_SECRETS,
+            Self::Migrate(args) if args.profiles.is_some() => CommandDescriptor::NONE,
+            Self::Migrate(args) if !args.data => CommandDescriptor::PROFILE_AND_SECRETS,
+            _ => CommandDescriptor::PROFILE_SECRETS_AND_PATHS,
+        }
+    }
 }
 
 pub async fn execute(command: ConfigCommands, ctx: &CommandContext) -> Result<()> {

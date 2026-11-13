@@ -18,6 +18,7 @@ use anyhow::Result;
 use clap::Subcommand;
 
 use crate::context::CommandContext;
+use crate::descriptor::{CommandDescriptor, DescribeCommand};
 use crate::shared::{CommandOutput, render_result};
 
 #[derive(Debug, Subcommand)]
@@ -36,6 +37,12 @@ pub enum WebCommands {
 
     #[command(about = "Validate web configuration")]
     Validate(validate::ValidateArgs),
+}
+
+impl DescribeCommand for WebCommands {
+    fn descriptor(&self) -> CommandDescriptor {
+        CommandDescriptor::PROFILE_SECRETS_AND_PATHS
+    }
 }
 
 pub fn execute(command: WebCommands, ctx: &CommandContext) -> Result<()> {

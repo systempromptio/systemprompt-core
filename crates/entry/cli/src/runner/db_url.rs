@@ -3,19 +3,16 @@
 //! The flag bypasses profile resolution, but only a subset of commands can run
 //! against a bare connection. [`DbUrlRouting`] lets [`super::run`] decide the
 //! routing before any connection is dialed, so profile-establishing commands
-//! keep their wizard path and unsupported commands fail fast.
+//! keep their wizard path and unsupported commands fail fast. Registered
+//! command groups declare theirs through
+//! [`CliCommandGroup::db_url_routing`](crate::kernel::CliCommandGroup::db_url_routing).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use super::args::Commands;
 use crate::commands::{admin, core, infrastructure};
-
-pub(super) enum DbUrlRouting {
-    Direct,
-    ProfileDriven,
-    Unsupported,
-}
+use crate::descriptor::DbUrlRouting;
 
 impl Commands {
     pub(super) const fn db_url_routing(&self) -> DbUrlRouting {
