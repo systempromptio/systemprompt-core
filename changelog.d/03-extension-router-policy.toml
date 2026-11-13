@@ -1,0 +1,9 @@
+[root]
+section = "Breaking"
+area = "Extensions"
+text = "`ExtensionRouter::new` takes an `AuthzPolicy` and a `ContextKind`; `ExtensionRouter::public`, the `requires_auth` field, `Extension::router_config` and `ExtensionRouterConfig` are removed, and `AuthzPolicy` and `RouteGroup` are defined in `systemprompt_extension`. A router declared public runs behind the public request-context middleware and the public authorization gate. Migrate by replacing `new(router, path)` with `new(router, path, AuthzPolicy::user(), ContextKind::User)` and `public(router, path)` with `new(router, path, AuthzPolicy::public(), ContextKind::Public)`."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "`ExtensionRouter::new` takes an `AuthzPolicy` and a `ContextKind`; `ExtensionRouter::public`, `requires_auth`, `Extension::router_config` and `ExtensionRouterConfig` are removed. Migrate with `new(router, path, AuthzPolicy::user(), ContextKind::User)` or `AuthzPolicy::public()` with `ContextKind::Public`."

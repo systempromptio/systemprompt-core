@@ -1,0 +1,14 @@
+[root]
+section = "Added"
+area = "Extensions"
+text = "`Dependencies` records the provider of every entry and refuses a second provider of one type (`Dependencies::provide`, `provider_of`, `contains_type`, `find`, `DependencyProvider`, `DuplicateDependency`); job, runner-service, config-reconcile and prerender contexts extend the extension state, so they read extension-provided values."
+
+[[crate]]
+name = "systemprompt-runtime"
+section = "Added"
+text = "`kernel_state` seeds the extension state with the kernel's handles, the analytics repositories and the GeoIP reader when configured."
+
+[[crate]]
+name = "systemprompt-provider-contracts"
+section = "Added"
+text = "`Dependencies::provide`, `find`, `get_arc`, `contains_type`, `provider_of`, `len` and `is_empty`, with `DependencyProvider` and `DuplicateDependency`: entries record their provider and a second provider of one type is refused. Clones are copy-on-write."

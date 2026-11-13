@@ -1,0 +1,14 @@
+[root]
+section = "Breaking"
+area = "CLI"
+text = "`args::Commands::Build` and `Commands::serves_api` are removed and `args::Cli::command()` no longer contains registered groups; `admin::setup::{catalog, docker_compose, postgres_access, ddl}` move to `shared::{provider_catalog, docker_compose, postgres_access, ddl}`, `admin::config::config_section::{read_yaml_file, write_yaml_file}` to `shared::yaml_document`, `admin::config::services_io::write_gateway` to `shared::provider_catalog`, `admin::session::types::ProfileInfo` to `shared::profile` and `plugins::mcp::types::McpToolEntry` to `commands::shared::mcp_tools`. Migrate by building the command tree with `args::command(&CommandRegistry::collected()?)` and importing from the new paths."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Breaking"
+text = "`args::Commands::Build` and `Commands::serves_api` are removed; `args::Cli::command()` no longer contains registered groups. Migrate with `args::command(&CommandRegistry::collected()?)`."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Breaking"
+text = "`admin::setup::{catalog, docker_compose, postgres_access, ddl}` move to `shared::{provider_catalog, docker_compose, postgres_access, ddl}`, `admin::config::config_section::{read_yaml_file, write_yaml_file}` to `shared::yaml_document`, `admin::config::services_io::write_gateway` to `shared::provider_catalog`, `admin::session::types::ProfileInfo` to `shared::profile` and `plugins::mcp::types::McpToolEntry` to `commands::shared::mcp_tools`."

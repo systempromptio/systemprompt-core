@@ -1,19 +1,5 @@
 # Changelog
 
-## [0.82.0] - 2026-11-13
-
-### Breaking
-
-- `discovery_router` and `probes_router` return `Result<Router, LoaderError>`; an extension router whose declaration cannot be applied fails boot with `MountError`. Migrate by propagating the error.
-
-### Added
-
-- `services::middleware::mount` applies an extension router's declared policy, context, rate limit, body limit and protection layers.
-
-### Changed
-
-- Routers, site-auth gates and readiness checks come only from extensions enabled in the profile; public extension routers run behind the public context middleware and authorization gate.
-
 ## [0.81.0] - 2026-11-12
 
 ### Breaking

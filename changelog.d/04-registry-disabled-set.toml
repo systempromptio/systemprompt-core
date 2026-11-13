@@ -1,0 +1,9 @@
+[root]
+section = "Breaking"
+area = "Extensions"
+text = "`ExtensionRegistry::build_state` takes the kernel `Dependencies` and the profile's disabled-extension list, `ExtensionRegistry::api_routers` and `all_readiness_checks` take the disabled set and return `Result`, and `ExtensionRegistry::job_extensions` is removed. Migrate by passing `profile.extensions.disabled`."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "`ExtensionRegistry::build_state` takes the kernel `Dependencies` and the disabled-extension list; `api_routers` and `all_readiness_checks` take the disabled set and return `Result`; `job_extensions` is removed."

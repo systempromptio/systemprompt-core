@@ -1,0 +1,9 @@
+[root]
+section = "Added"
+area = "CLI"
+text = "`register_cli_command!` registers a `CliCommandGroup` or a single `CliCommandLeaf` at the top level or under a kernel group, with its bootstrap descriptor and `--database-url` routing; `systemprompt_cli::kernel` is the public surface command groups build on, and registered commands are listed by `plugins seams` under `cli_commands`."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Added"
+text = "`register_cli_command!`, `CliCommandGroup`, `CliCommandLeaf`, `CommandRegistry` and the `kernel` module; each command group declares its own `CommandDescriptor`."

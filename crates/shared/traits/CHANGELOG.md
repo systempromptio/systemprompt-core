@@ -1,16 +1,5 @@
 # Changelog
 
-## [0.82.0] - 2026-11-13
-
-### Breaking
-
-- `submit_job!`, `register_retention_purge!` and `register_retention_sweep!` take the owning extension id as their first argument, and the inventory collects `JobRegistration`, read with `registered_jobs()`. Migrate by writing `submit_job!("<extension id>", &Job)`.
-- `SessionStore` gains `ip_session_counts` (with `IpSessionQuery`) and `ToolExecutionLookup` gains `contexts_with_executions`. Migrate by implementing both on custom stores.
-
-### Added
-
-- `RetentionPurge`, `RetentionSweep`, `JobRunScope` with `register_job_run_scope!` and `run_in_job_scopes`, and `IpBanStore`, `DynIpBanStore`, `IpBanRequest` and `IpBanStoreError`.
-
 ## [0.81.0] - 2026-11-12
 
 ### Breaking

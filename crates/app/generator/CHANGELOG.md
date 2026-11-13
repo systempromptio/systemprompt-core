@@ -1,11 +1,5 @@
 # Changelog
 
-## [0.82.0] - 2026-11-13
-
-### Changed
-
-- Jobs are registered with the owning extension id, and prerender contexts extend the extension state.
-
 ## [0.81.0] - 2026-11-12
 
 ### Breaking

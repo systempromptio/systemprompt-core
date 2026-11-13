@@ -1,0 +1,9 @@
+[root]
+section = "Breaking"
+area = "Loader errors"
+text = "`LoaderError::SchemaInstallationFailed`, `MigrationFailed` and `InitializationFailed` are removed in favour of the sourced `SchemaFault`, `MigrationFault` and `MissingProvider`, and `ConfigValidationFailed` carries an `ExtensionConfigError`. Migrate by updating exhaustive matches."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "`LoaderError::{SchemaInstallationFailed, MigrationFailed, InitializationFailed}` are replaced by sourced `SchemaFault`, `MigrationFault` and `MissingProvider`; `ConfigValidationFailed` carries `ExtensionConfigError`; `LoaderError` gains `ProvideFailed` and `UnmetStateRequirement`."

@@ -1,11 +1,5 @@
 # Changelog
 
-## [0.82.0] - 2026-11-13
-
-### Added
-
-- `jobs::{CleanupEmptyContextsJob, UserContextCountersRollupJob}` and `repository::EmptyContextRepository`, which takes the tool-execution lookup and keeps contexts an MCP execution or governance decision still references.
-
 ## [0.81.0] - 2026-11-12
 
 ### Breaking

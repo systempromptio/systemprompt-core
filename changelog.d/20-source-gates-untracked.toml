@@ -1,0 +1,4 @@
+[root]
+section = "Changed"
+area = "Tooling"
+text = "source gates enumerate untracked, non-ignored files as well as tracked ones; `just check-gates` runs the source-gate phase of `scripts/gate.sh`, and `scripts/check-gates.sh` is removed."

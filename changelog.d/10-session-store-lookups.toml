@@ -1,0 +1,14 @@
+[root]
+section = "Breaking"
+area = "Traits"
+text = "`SessionStore` gains `ip_session_counts` (the per-IP session counts the IP detectors classify, read by the users crate) and `ToolExecutionLookup` gains `contexts_with_executions`; `EmptyContextRepository::new` takes the tool-execution lookup. Migrate by implementing the two methods on custom stores."
+
+[[crate]]
+name = "systemprompt-users"
+section = "Added"
+text = "The users extension provides `DynIpBanStore`, implemented by `BannedIpRepository`, and `SessionRepository` answers `SessionStore::ip_session_counts`."
+
+[[crate]]
+name = "systemprompt-traits"
+section = "Breaking"
+text = "`SessionStore` gains `ip_session_counts` (with `IpSessionQuery`) and `ToolExecutionLookup` gains `contexts_with_executions`. Migrate by implementing both on custom stores."
