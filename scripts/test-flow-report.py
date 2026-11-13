@@ -84,7 +84,7 @@ class GitSide(unittest.TestCase):
 
     def test_kernel_list_names_existing_crates(self):
         root = Path(__file__).resolve().parents[1]
-        for prefix in flow.parse_kernel((root / "scripts" / "flow-report-kernel.txt").read_text()):
+        for prefix in flow.parse_kernel((root / "scripts" / "flow-kernel-paths.txt").read_text()):
             self.assertTrue((root / prefix).is_dir(), prefix)
 
     def test_kernel_churn_groups_by_iso_week(self):
