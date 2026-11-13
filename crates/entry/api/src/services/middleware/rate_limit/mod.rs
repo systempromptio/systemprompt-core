@@ -93,6 +93,11 @@ impl RateLimitState {
     }
 
     #[must_use]
+    pub const fn config(&self) -> &RateLimitsConfig {
+        &self.config
+    }
+
+    #[must_use]
     pub const fn unmetered(mut self) -> Self {
         self.config.disabled = true;
         self

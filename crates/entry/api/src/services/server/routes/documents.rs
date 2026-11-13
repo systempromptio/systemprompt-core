@@ -43,30 +43,30 @@ pub(super) fn mount_documents(
     Ok(router
         .nest(
             ApiPaths::INTERNAL_LINKS,
-            links_router(minter, mount.limits.subject_throttle(per_second)),
+            links_router(minter, mount.layers.limits.subject_throttle(per_second)),
         )
         .nest(
             ApiPaths::DOCUMENTS,
             with_download_tokens(
                 documents_router(state.clone())
-                    .with_auth(mount.user_middleware.clone(), AuthzPolicy::user()),
+                    .with_auth(mount.layers.user.clone(), AuthzPolicy::user()),
                 state.clone(),
             )
-            .with_rate_limit(mount.limits, per_second, "documents")?,
+            .with_rate_limit(&mount.layers.limits, per_second, "documents")?,
         )
         .nest(
             ApiPaths::UPLOADS,
             with_upload_tokens(
                 uploads_router(state.clone())
-                    .with_auth(mount.user_middleware.clone(), AuthzPolicy::user()),
+                    .with_auth(mount.layers.user.clone(), AuthzPolicy::user()),
                 state.clone(),
             )
-            .with_rate_limit(mount.limits, per_second, "documents")?,
+            .with_rate_limit(&mount.layers.limits, per_second, "documents")?,
         )
         .nest(
             ApiPaths::DOCUMENT_FOLDERS,
             folders_router(state)
-                .with_rate_limit(mount.limits, per_second, "documents")?
-                .with_auth(mount.user_middleware.clone(), AuthzPolicy::user()),
+                .with_rate_limit(&mount.layers.limits, per_second, "documents")?
+                .with_auth(mount.layers.user.clone(), AuthzPolicy::user()),
         ))
 }

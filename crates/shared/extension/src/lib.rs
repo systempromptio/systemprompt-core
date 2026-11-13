@@ -144,7 +144,10 @@ pub use retention::{
     EffectiveCutoff, RetentionHold, RetentionHoldError, RetentionHoldRegistration, RetentionHolds,
     RetentionTarget, discover_retention_holds,
 };
-pub use router::{ExtensionRouter, ExtensionRouterConfig, SiteAuthConfig};
+pub use router::{
+    ContextKind, EnablePredicate, ExtensionRouter, ExtensionRouterConfig, ProtectionLayer,
+    RateBudget, RateLimit, RouteGroup, RouteProtection, SiteAuthConfig,
+};
 pub use seed::Seed;
 pub use state::{ExtensionState, StateBuilder, StateRequirement};
 pub use traits::Extension;
@@ -163,9 +166,10 @@ pub mod prelude {
     pub use crate::seed::Seed;
     pub use crate::state::{ExtensionState, StateBuilder, StateRequirement};
     pub use crate::{
-        Extension, ExtensionMetadata, ExtensionRole, ExtensionRouter, Migration, SchemaDefinition,
-        SiteAuthConfig, extension_migrations, register_extension, register_gateway_guard,
-        register_retention_hold, stamp_frame_options, user_purge_tables,
+        AuthzPolicy, ContextKind, Extension, ExtensionMetadata, ExtensionRole, ExtensionRouter,
+        Migration, RateBudget, RateLimit, RouteProtection, SchemaDefinition, SiteAuthConfig,
+        extension_migrations, register_extension, register_gateway_guard, register_retention_hold,
+        stamp_frame_options, user_purge_tables,
     };
 
     pub use systemprompt_provider_contracts::{

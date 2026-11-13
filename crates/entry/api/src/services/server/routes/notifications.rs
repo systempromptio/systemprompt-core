@@ -6,31 +6,39 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::Router;
+use systemprompt_extension::{AuthzPolicy, ContextKind, RateBudget, RateLimit, RouteGroup};
 use systemprompt_models::modules::ApiPaths;
 
-use super::RouteMountError;
-use super::protocol::MountCtx;
+use super::protocol::{MountCtx, declare};
 use crate::routes::notifications::{NotificationsState, admin_router, router};
-use crate::services::middleware::RouterExt;
-use systemprompt_extension::AuthzPolicy;
+use crate::services::middleware::MountError;
 
 pub(super) fn mount_notifications(
     router_in: Router,
     mount: &MountCtx<'_>,
-) -> Result<Router, RouteMountError> {
+) -> Result<Router, MountError> {
     let state = NotificationsState::from_context(mount.ctx);
-    let per_second = mount.ctx.config().rate_limits.notifications_per_second;
-    Ok(router_in
-        .nest(
+    let rate_limit = RateLimit::new("notifications", RateBudget::Notifications);
+    let routes = mount.mount(
+        router_in,
+        declare(
+            router(state.clone()),
             ApiPaths::NOTIFICATIONS,
-            router(state.clone())
-                .with_rate_limit(mount.limits, per_second, "notifications")?
-                .with_auth(mount.user_middleware.clone(), AuthzPolicy::user()),
+            AuthzPolicy::user(),
+            ContextKind::User,
+            RouteGroup::ContentAndMisc,
         )
-        .nest(
+        .with_rate_limit(rate_limit),
+    )?;
+    mount.mount(
+        routes,
+        declare(
+            admin_router(state),
             ApiPaths::ADMIN_NOTIFICATIONS,
-            admin_router(state)
-                .with_rate_limit(mount.limits, per_second, "notifications")?
-                .with_auth(mount.user_middleware.clone(), AuthzPolicy::admin()),
-        ))
+            AuthzPolicy::admin(),
+            ContextKind::User,
+            RouteGroup::ContentAndMisc,
+        )
+        .with_rate_limit(rate_limit),
+    )
 }

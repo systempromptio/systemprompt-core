@@ -19,6 +19,7 @@ pub mod cors;
 pub mod ip_ban;
 pub mod jwt;
 pub mod load_shed;
+pub mod mount;
 pub mod negotiation;
 pub mod panic_fence;
 pub mod rate_limit;
@@ -47,6 +48,10 @@ pub use cors::{CorsError, CorsMiddleware};
 pub use ip_ban::ip_ban_middleware;
 pub use jwt::{JtiRevocationChecker, JwtContextExtractor, JwtUserContext};
 pub use load_shed::LoadShed;
+pub use mount::{
+    ClientWritesGuard, MountError, MountLayers, ProtectionGuards, SiteAuthGuard, mount, place,
+    protect,
+};
 pub use negotiation::{
     AcceptedFormat, AcceptedMediaType, content_negotiation_middleware, parse_accept_header,
 };

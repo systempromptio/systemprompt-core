@@ -35,8 +35,8 @@ pub(super) fn mount_brain_routes(
     };
     crate::routes::brain::mount_brain(
         router,
-        mount.limits,
-        mount.user_middleware,
+        &mount.layers.limits,
+        &mount.layers.user,
         ctx.config().rate_limits.brain_per_second,
         brain_routes,
     )

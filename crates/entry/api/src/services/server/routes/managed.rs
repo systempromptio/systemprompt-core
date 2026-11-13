@@ -19,7 +19,7 @@ pub(super) fn mount(router: Router, mount: &MountCtx<'_>) -> Result<Router, Load
                 crate::routes::managed::origin::protect,
             ))
             .with_state(mount.ctx.clone())
-            .with_rate_limit(mount.limits, 10, "consumer_evidence")?
+            .with_rate_limit(&mount.layers.limits, 10, "consumer_evidence")?
             .layer(axum::middleware::from_fn(
                 crate::routes::managed::contract::normalize,
             )),

@@ -3,8 +3,9 @@
 use std::collections::HashSet;
 
 use systemprompt_api::services::server::routes::role::{
-    LifecyclePlan, ProcessOwnership, RouteGroup, lifecycle_plan, route_groups,
+    LifecyclePlan, ProcessOwnership, lifecycle_plan, route_groups,
 };
+use systemprompt_extension::RouteGroup;
 use systemprompt_manifest::profile::NodeRole;
 
 fn set(groups: &[RouteGroup]) -> HashSet<RouteGroup> {

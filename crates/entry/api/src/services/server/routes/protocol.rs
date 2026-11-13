@@ -1,112 +1,149 @@
 //! Protocol-surface route mounting.
 //!
-//! Mounts the OAuth, agent (A2A), MCP, stream, and content/admin/marketplace
-//! route groups onto the server router, each nested under its `ApiPaths` base
-//! with the correct context middleware, rate limit, and `AuthzPolicy` gate.
+//! Mounts the agent (A2A), MCP, stream, and content/admin/marketplace route
+//! groups onto the server router. Each group is an [`ExtensionRouter`]
+//! declaration — base path, `AuthzPolicy`, context kind, rate limit, body
+//! limit — mounted through the one declaration mount in
+//! `services::middleware::mount`. [`MountCtx`] carries the enforcement
+//! primitives every route mount in this module tree shares.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::Router;
-use axum::extract::DefaultBodyLimit;
 use std::sync::Arc;
-use systemprompt_extension::LoaderError;
-
-use super::RouteMountError;
+use systemprompt_extension::{
+    AuthzPolicy, ContextKind, ExtensionRouter, RateBudget, RateLimit, RouteGroup, RouteProtection,
+};
 use systemprompt_gateway::GatewayEngines;
+use systemprompt_models::auth::UserType;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_runtime::AppContext;
 
-use systemprompt_models::auth::UserType;
-
-use crate::services::middleware::{
-    A2AContextMiddleware, McpContextMiddleware, PublicContextMiddleware, RateLimitState, RouterExt,
-    UserOnlyContextMiddleware,
-};
-use systemprompt_extension::AuthzPolicy;
+use crate::services::middleware::{MountError, MountLayers, mount, place, protect};
 
 pub(super) struct MountCtx<'a> {
     pub ctx: &'a AppContext,
     pub engines: &'a Arc<GatewayEngines>,
-    pub limits: &'a RateLimitState,
-    pub public_middleware: &'a PublicContextMiddleware,
-    pub user_middleware: &'a UserOnlyContextMiddleware,
+    pub layers: &'a MountLayers,
+    pub serves: &'a dyn Fn(RouteGroup) -> bool,
 }
 
-pub(super) fn mount_agent(
-    mut router: Router,
-    mount: &MountCtx<'_>,
-    a2a_middleware: A2AContextMiddleware,
-) -> Result<Router, LoaderError> {
-    let (ctx, limits, public_middleware, user_middleware) = (
-        mount.ctx,
-        mount.limits,
-        mount.public_middleware,
-        mount.user_middleware,
-    );
-    let rate_config = &ctx.config().rate_limits;
+impl MountCtx<'_> {
+    pub(super) fn mount(
+        &self,
+        tree: Router,
+        declared: ExtensionRouter,
+    ) -> Result<Router, MountError> {
+        mount(tree, declared, self.layers, self.ctx, self.serves)
+    }
 
-    router = router.nest(
-        ApiPaths::CORE_CONTEXTS,
-        crate::routes::agent::contexts_router()
-            .with_state(ctx.clone())
-            .with_rate_limit(limits, rate_config.contexts_per_second, "contexts")?
-            .with_auth(user_middleware.clone(), AuthzPolicy::user()),
-    );
+    pub(super) fn protect(
+        &self,
+        router: Router,
+        protection: &RouteProtection,
+        base_path: &'static str,
+    ) -> Result<Router, MountError> {
+        protect(router, protection, self.layers, base_path)
+    }
+}
 
-    router = router.nest(
-        ApiPaths::WEBHOOK,
-        crate::routes::agent::webhook_router()
-            .with_state(ctx.clone())
-            .with_auth(user_middleware.clone(), AuthzPolicy::authenticated()),
-    );
+pub(super) fn declare(
+    router: Router,
+    base_path: &'static str,
+    policy: AuthzPolicy,
+    context: ContextKind,
+    group: RouteGroup,
+) -> ExtensionRouter {
+    ExtensionRouter::new(router, base_path, policy, context).in_group(group)
+}
 
-    router = router.nest(
-        ApiPaths::CORE_TASKS,
-        crate::routes::agent::tasks_router()
-            .with_state(ctx.clone())
-            .with_rate_limit(limits, rate_config.tasks_per_second, "tasks")?
-            .with_auth(user_middleware.clone(), AuthzPolicy::user()),
-    );
+pub(super) fn mount_agent(mut router: Router, mount: &MountCtx<'_>) -> Result<Router, MountError> {
+    let ctx = mount.ctx;
+    let group = RouteGroup::Agent;
 
-    router = router.nest(
-        ApiPaths::CORE_ARTIFACTS,
-        crate::routes::agent::artifacts_router()
-            .with_state(ctx.clone())
-            .with_rate_limit(limits, rate_config.artifacts_per_second, "artifacts")?
-            .with_auth(user_middleware.clone(), AuthzPolicy::user()),
-    );
+    router = mount.mount(
+        router,
+        declare(
+            crate::routes::agent::contexts_router().with_state(ctx.clone()),
+            ApiPaths::CORE_CONTEXTS,
+            AuthzPolicy::user(),
+            ContextKind::User,
+            group,
+        )
+        .with_rate_limit(RateLimit::new("contexts", RateBudget::Contexts)),
+    )?;
 
-    router = router.nest(
-        ApiPaths::AGENTS_REGISTRY,
-        crate::routes::agent::registry_router(ctx)
-            .with_rate_limit(
-                limits,
-                rate_config.agent_registry_per_second,
-                "agent_registry",
-            )?
-            .with_auth(*public_middleware, AuthzPolicy::public()),
-    );
+    router = mount.mount(
+        router,
+        declare(
+            crate::routes::agent::webhook_router().with_state(ctx.clone()),
+            ApiPaths::WEBHOOK,
+            AuthzPolicy::authenticated(),
+            ContextKind::User,
+            group,
+        ),
+    )?;
 
-    router = router.nest(
-        ApiPaths::AGENTS_BASE,
-        crate::routes::proxy::agents::router(ctx)
-            .layer(DefaultBodyLimit::max(
-                systemprompt_models::net::AGENT_REQUEST_BODY_LIMIT_BYTES,
-            ))
-            .with_rate_limit(limits, rate_config.agents_per_second, "agents")?
-            .with_auth(a2a_middleware, AuthzPolicy::authenticated()),
-    );
+    router = mount.mount(
+        router,
+        declare(
+            crate::routes::agent::tasks_router().with_state(ctx.clone()),
+            ApiPaths::CORE_TASKS,
+            AuthzPolicy::user(),
+            ContextKind::User,
+            group,
+        )
+        .with_rate_limit(RateLimit::new("tasks", RateBudget::Tasks)),
+    )?;
 
-    Ok(router)
+    router = mount.mount(
+        router,
+        declare(
+            crate::routes::agent::artifacts_router().with_state(ctx.clone()),
+            ApiPaths::CORE_ARTIFACTS,
+            AuthzPolicy::user(),
+            ContextKind::User,
+            group,
+        )
+        .with_rate_limit(RateLimit::new("artifacts", RateBudget::Artifacts)),
+    )?;
+
+    router = mount.mount(
+        router,
+        declare(
+            crate::routes::agent::registry_router(ctx),
+            ApiPaths::AGENTS_REGISTRY,
+            AuthzPolicy::public(),
+            ContextKind::Public,
+            group,
+        )
+        .with_rate_limit(RateLimit::new("agent_registry", RateBudget::AgentRegistry)),
+    )?;
+
+    mount.mount(
+        router,
+        declare(
+            crate::routes::proxy::agents::router(ctx),
+            ApiPaths::AGENTS_BASE,
+            AuthzPolicy::authenticated(),
+            ContextKind::A2a,
+            group,
+        )
+        .with_body_limit(systemprompt_models::net::AGENT_REQUEST_BODY_LIMIT_BYTES)
+        .with_rate_limit(RateLimit::new("agents", RateBudget::Agents)),
+    )
 }
 
 #[cfg(any(feature = "slack", feature = "teams"))]
 pub(super) fn mount_messaging(
     mut router: Router,
     mount: &MountCtx<'_>,
-) -> Result<Router, RouteMountError> {
-    let (ctx, limits) = (mount.ctx, mount.limits);
+) -> Result<Router, super::RouteMountError> {
+    use super::RouteMountError;
+    use crate::services::middleware::RouterExt;
+
+    let (ctx, limits) = (mount.ctx, &mount.layers.limits);
     let rate_config = &ctx.config().rate_limits;
 
     let messaging = crate::routes::messaging::MessagingState::guarded()
@@ -138,114 +175,155 @@ pub(super) fn mount_messaging(
 pub(super) fn mount_mcp_and_stream(
     mut router: Router,
     mount: &MountCtx<'_>,
-    mcp_middleware: McpContextMiddleware,
-) -> Result<Router, LoaderError> {
-    let (ctx, limits, public_middleware, user_middleware) = (
-        mount.ctx,
-        mount.limits,
-        mount.public_middleware,
-        mount.user_middleware,
-    );
-    let rate_config = &ctx.config().rate_limits;
+) -> Result<Router, MountError> {
+    let ctx = mount.ctx;
+    let group = RouteGroup::McpAndStream;
 
-    router = router.nest(
-        ApiPaths::MCP_REGISTRY,
-        crate::routes::mcp::registry_router(ctx)
-            .with_rate_limit(limits, rate_config.mcp_registry_per_second, "mcp_registry")?
-            .with_auth(*public_middleware, AuthzPolicy::public()),
-    );
+    router = mount.mount(
+        router,
+        declare(
+            crate::routes::mcp::registry_router(ctx),
+            ApiPaths::MCP_REGISTRY,
+            AuthzPolicy::public(),
+            ContextKind::Public,
+            group,
+        )
+        .with_rate_limit(RateLimit::new("mcp_registry", RateBudget::McpRegistry)),
+    )?;
 
-    let executions = crate::routes::proxy::mcp::executions_router(ctx)
-        .with_rate_limit(limits, rate_config.mcp_per_second, "mcp")?
-        .with_auth(user_middleware.clone(), AuthzPolicy::authenticated());
-    let proxy = crate::routes::proxy::mcp::router(ctx)
-        .with_rate_limit(limits, rate_config.mcp_per_second, "mcp")?
-        .with_auth(mcp_middleware, AuthzPolicy::deferred_to_handler());
-    router = router.nest(ApiPaths::MCP_BASE, executions.merge(proxy));
+    let mcp_rate = RateLimit::new("mcp", RateBudget::Mcp);
+    let executions = mount.protect(
+        crate::routes::proxy::mcp::executions_router(ctx),
+        &RouteProtection::new(AuthzPolicy::authenticated(), ContextKind::User)
+            .with_rate_limit(mcp_rate),
+        ApiPaths::MCP_BASE,
+    )?;
+    let proxy = mount.protect(
+        crate::routes::proxy::mcp::router(ctx),
+        &RouteProtection::new(AuthzPolicy::deferred_to_handler(), ContextKind::Mcp)
+            .with_rate_limit(mcp_rate),
+        ApiPaths::MCP_BASE,
+    )?;
+    router = place(router, ApiPaths::MCP_BASE, executions.merge(proxy));
 
-    router = router.nest(
-        ApiPaths::STREAM_BASE,
-        crate::routes::stream::stream_router(ctx)
-            .with_rate_limit(limits, rate_config.stream_per_second, "stream")?
-            .with_auth(user_middleware.clone(), AuthzPolicy::user()),
-    );
-
-    Ok(router)
+    mount.mount(
+        router,
+        declare(
+            crate::routes::stream::stream_router(ctx),
+            ApiPaths::STREAM_BASE,
+            AuthzPolicy::user(),
+            ContextKind::User,
+            group,
+        )
+        .with_rate_limit(RateLimit::new("stream", RateBudget::Stream)),
+    )
 }
 
 pub(super) fn mount_content_and_misc(
     mut router: Router,
     mount: &MountCtx<'_>,
-) -> Result<Router, RouteMountError> {
-    let (ctx, limits, public_middleware, user_middleware) = (
-        mount.ctx,
-        mount.limits,
-        mount.public_middleware,
-        mount.user_middleware,
-    );
-    let rate_config = &ctx.config().rate_limits;
+) -> Result<Router, MountError> {
+    let ctx = mount.ctx;
+    let group = RouteGroup::ContentAndMisc;
+    let content_rate = RateLimit::new("content", RateBudget::Content);
 
-    let content = crate::routes::content::public_router(ctx)
-        .with_rate_limit(limits, rate_config.content_per_second, "content")?
-        .with_auth(*public_middleware, AuthzPolicy::public())
-        .merge(
-            crate::routes::content::authenticated_router(ctx)
-                .with_rate_limit(limits, rate_config.content_per_second, "content")?
-                .with_auth(user_middleware.clone(), AuthzPolicy::user()),
-        );
-    router = router.nest(ApiPaths::CONTENT_BASE, content);
-
-    router = router.merge(
-        crate::routes::content::redirect_router(ctx.content_repositories())
-            .with_rate_limit(limits, rate_config.content_per_second, "content")?
-            .with_auth(*public_middleware, AuthzPolicy::public()),
+    let public_content = mount.protect(
+        crate::routes::content::public_router(ctx),
+        &RouteProtection::new(AuthzPolicy::public(), ContextKind::Public)
+            .with_rate_limit(content_rate),
+        ApiPaths::CONTENT_BASE,
+    )?;
+    let authenticated_content = mount.protect(
+        crate::routes::content::authenticated_router(ctx),
+        &RouteProtection::new(AuthzPolicy::user(), ContextKind::User)
+            .with_rate_limit(content_rate),
+        ApiPaths::CONTENT_BASE,
+    )?;
+    router = place(
+        router,
+        ApiPaths::CONTENT_BASE,
+        public_content.merge(authenticated_content),
     );
 
-    router = router.nest(
-        ApiPaths::SYNC_BASE,
-        crate::routes::sync::router()
-            .with_state(ctx.clone())
-            .with_auth(
-                user_middleware.clone(),
-                AuthzPolicy::restricted_to(&[UserType::Service]),
-            ),
-    );
+    router = mount.mount(
+        router,
+        declare(
+            crate::routes::content::redirect_router(ctx.content_repositories()),
+            systemprompt_extension::registry::WEB_ROOT_BASE_PATH,
+            AuthzPolicy::public(),
+            ContextKind::Public,
+            group,
+        )
+        .with_rate_limit(content_rate),
+    )?;
 
-    router = router.nest(
-        ApiPaths::MARKETPLACE_BASE,
-        crate::routes::marketplace::router()
-            .with_state(ctx.clone())
-            .with_auth(*public_middleware, AuthzPolicy::public()),
-    );
+    router = mount.mount(
+        router,
+        declare(
+            crate::routes::sync::router().with_state(ctx.clone()),
+            ApiPaths::SYNC_BASE,
+            AuthzPolicy::restricted_to(&[UserType::Service]),
+            ContextKind::User,
+            group,
+        ),
+    )?;
 
-    router = router.nest(
-        ApiPaths::ANALYTICS_BASE,
-        crate::routes::analytics::router(ctx)
-            .with_rate_limit(limits, rate_config.content_per_second, "content")?
-            .with_auth(user_middleware.clone(), AuthzPolicy::admin()),
-    );
+    router = mount.mount(
+        router,
+        declare(
+            crate::routes::marketplace::router().with_state(ctx.clone()),
+            ApiPaths::MARKETPLACE_BASE,
+            AuthzPolicy::public(),
+            ContextKind::Public,
+            group,
+        ),
+    )?;
 
-    router = router.nest(
-        ApiPaths::TRACK_ENGAGEMENT,
-        crate::routes::engagement::router(ctx)
-            .with_rate_limit(limits, rate_config.content_per_second, "content")?
-            .with_auth(*public_middleware, AuthzPolicy::public()),
-    );
+    router = mount.mount(
+        router,
+        declare(
+            crate::routes::analytics::router(ctx),
+            ApiPaths::ANALYTICS_BASE,
+            AuthzPolicy::admin(),
+            ContextKind::User,
+            group,
+        )
+        .with_rate_limit(content_rate),
+    )?;
 
-    router = router.nest(
-        ApiPaths::CORE_USERS,
-        crate::routes::users::router(ctx)
-            .with_rate_limit(limits, rate_config.oauth_auth_per_second, "oauth_auth")?
-            .with_auth(user_middleware.clone(), AuthzPolicy::user()),
-    );
+    router = mount.mount(
+        router,
+        declare(
+            crate::routes::engagement::router(ctx),
+            ApiPaths::TRACK_ENGAGEMENT,
+            AuthzPolicy::public(),
+            ContextKind::Public,
+            group,
+        )
+        .with_rate_limit(content_rate),
+    )?;
 
-    router = router.nest(
-        ApiPaths::ADMIN_BASE,
-        crate::routes::admin::router()
-            .with_state(ctx.clone())
-            .with_rate_limit(limits, 10, "admin")?
-            .with_auth(user_middleware.clone(), AuthzPolicy::admin()),
-    );
+    router = mount.mount(
+        router,
+        declare(
+            crate::routes::users::router(ctx),
+            ApiPaths::CORE_USERS,
+            AuthzPolicy::user(),
+            ContextKind::User,
+            group,
+        )
+        .with_rate_limit(RateLimit::new("oauth_auth", RateBudget::OauthAuth)),
+    )?;
 
-    Ok(router)
+    mount.mount(
+        router,
+        declare(
+            crate::routes::admin::router().with_state(ctx.clone()),
+            ApiPaths::ADMIN_BASE,
+            AuthzPolicy::admin(),
+            ContextKind::User,
+            group,
+        )
+        .with_rate_limit(RateLimit::new("admin", RateBudget::PerSecond(10))),
+    )
 }
