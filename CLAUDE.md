@@ -151,7 +151,9 @@ Follow `internal/guides/rust.md` §6. Logging does not turn a failed operation i
 
 ## Extension Framework
 
-Extensions register at compile time via `inventory` (`register_extension!`); implement `Extension` (`crates/shared/extension/src/traits/extension.rs`): `metadata()` is required; `schemas()`, `migrations()`, `router()`, `jobs()` and the provider hooks (`tool_providers()`, `page_prerenderers()`, …) are defaulted methods on that one trait — there are no typed sub-traits. Companion traits: `ExtensionContext` (handed to `router()`) and `GatewayRequestGuard` (`register_gateway_guard!`).
+Extensions register at compile time via `inventory` (`register_extension!`); implement `Extension` (`crates/shared/extension/src/traits/extension.rs`): `metadata()` is required; `schemas()`, `migrations()`, `router()`, `jobs()` and the provider hooks (`tool_providers()`, `page_prerenderers()`, …) are defaulted methods on that one trait — there are no typed sub-traits. Companion traits: `ExtensionContext` (handed to `router()` and every seam factory) and `GatewayRequestGuard` (`register_gateway_guard!`).
+
+Extension-scoped state replaces globals: `provide(ctx, &mut StateBuilder)` runs once at boot in registry order (dependencies first, ties by priority then id) and contributes `Arc<T>` values keyed by type; `requires()` declares types that must be present. The `AppContext` builder (and the MCP host boot) builds the immutable `ExtensionState` after the context exists and before seams, routers, jobs and gateway guards are collected; factories read it through `ExtensionContext::extension_state()`. Unknown dependency, cycle, duplicate provider and unmet requirement are typed `LoaderError`s at boot.
 
 ## Configuration
 

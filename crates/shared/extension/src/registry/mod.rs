@@ -1,21 +1,25 @@
 //! Extension registry that stores extensions as `Arc<dyn Extension>`.
 //!
 //! It accepts `Arc<dyn Extension>` values supplied by either inventory
-//! discovery or runtime injection, sorts them by priority, and validates
-//! their declared dependencies. A declared dependency that is not loaded is a
-//! [`LoaderError::MissingDependency`] from every constructor, so no caller
-//! can observe a registry whose dependency graph is unsatisfied.
+//! discovery or runtime injection and orders them once: a depth-first walk of
+//! `dependencies()` that visits roots and siblings by `(priority, id)`, so a
+//! dependency always precedes its dependents and ties break deterministically.
+//! That one order drives schema installation, router and job collection and
+//! [`ExtensionRegistry::build_state`]. A declared dependency that is not
+//! loaded is a [`LoaderError::MissingDependency`] from every constructor, so
+//! no caller can observe a registry whose dependency graph is unsatisfied.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 mod discovery;
+mod provide;
 mod queries;
 mod validation;
 
 use crate::Extension;
 use crate::error::LoaderError;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::sync::Arc;
 use systemprompt_identifiers::ExtensionId;
 
@@ -42,34 +46,9 @@ impl ExtensionRegistry {
     }
 
     pub(crate) fn sort_by_priority(&mut self) -> Result<(), LoaderError> {
-        let ids: Vec<String> = self
-            .sorted_extensions
-            .iter()
-            .map(|e| e.id().to_owned())
-            .collect();
-        let id_set: HashSet<&str> = ids.iter().map(String::as_str).collect();
-
-        let mut by_id: HashMap<String, Arc<dyn Extension>> = HashMap::new();
-        for ext in self.sorted_extensions.drain(..) {
-            by_id.insert(ext.id().to_owned(), ext);
-        }
-
-        for (owner, ext) in &by_id {
-            for dep in ext.dependencies() {
-                if !id_set.contains(dep) {
-                    return Err(LoaderError::MissingDependency {
-                        extension: ExtensionId::new(owner.as_str()),
-                        dependency: ExtensionId::new(dep),
-                    });
-                }
-            }
-        }
-
-        let order = topo_sort(&ids, &by_id)?;
-
-        self.sorted_extensions = order
+        self.sorted_extensions = dependency_order(&self.extensions)?
             .into_iter()
-            .filter_map(|id| by_id.remove(&id))
+            .filter_map(|id| self.extensions.get(&id).cloned())
             .collect();
         Ok(())
     }
@@ -92,9 +71,9 @@ impl ExtensionRegistry {
 
     pub fn merge(&mut self, extensions: Vec<Arc<dyn Extension>>) -> Result<(), LoaderError> {
         for ext in extensions {
-            self.register(ext)?;
+            self.insert(ext)?;
         }
-        Ok(())
+        self.sort_by_priority()
     }
 
     pub fn validate(&self) -> Result<(), LoaderError> {
@@ -113,10 +92,31 @@ impl ExtensionRegistry {
     }
 }
 
-fn topo_sort(
-    ids: &[String],
+pub(crate) fn dependency_order(
     by_id: &HashMap<String, Arc<dyn Extension>>,
 ) -> Result<Vec<String>, LoaderError> {
+    let mut owners: Vec<(&String, &Arc<dyn Extension>)> = by_id.iter().collect();
+    owners.sort_by(|a, b| a.0.cmp(b.0));
+    for (owner, ext) in owners {
+        for dep in ext.dependencies() {
+            if !by_id.contains_key(dep) {
+                return Err(LoaderError::MissingDependency {
+                    extension: ExtensionId::new(owner.as_str()),
+                    dependency: ExtensionId::new(dep),
+                });
+            }
+        }
+    }
+    topo_sort(by_id)
+}
+
+fn order_key(by_id: &HashMap<String, Arc<dyn Extension>>, id: &str) -> (u32, String) {
+    by_id.get(id).map_or((u32::MAX, String::new()), |e| {
+        (e.priority(), e.id().to_owned())
+    })
+}
+
+fn topo_sort(by_id: &HashMap<String, Arc<dyn Extension>>) -> Result<Vec<String>, LoaderError> {
     const WHITE: u8 = 0;
     const GRAY: u8 = 1;
     const BLACK: u8 = 2;
@@ -149,11 +149,7 @@ fn topo_sort(
                 .into_iter()
                 .filter(|d| by_id.contains_key(*d))
                 .collect();
-            deps.sort_by_key(|d| {
-                by_id.get(*d).map_or((u32::MAX, String::new()), |e| {
-                    (e.priority(), e.id().to_owned())
-                })
-            });
+            deps.sort_by_key(|d| order_key(by_id, d));
             for dep in deps {
                 visit(dep, by_id, color, path, out)?;
             }
@@ -165,16 +161,12 @@ fn topo_sort(
         Ok(())
     }
 
-    let mut roots: Vec<&String> = ids.iter().collect();
-    roots.sort_by_key(|id| {
-        by_id.get(*id).map_or((u32::MAX, String::new()), |e| {
-            (e.priority(), e.id().to_owned())
-        })
-    });
+    let mut roots: Vec<&String> = by_id.keys().collect();
+    roots.sort_by_key(|id| order_key(by_id, id));
 
-    let mut color: HashMap<String, u8> = HashMap::with_capacity(ids.len());
+    let mut color: HashMap<String, u8> = HashMap::with_capacity(by_id.len());
     let mut path: Vec<String> = Vec::new();
-    let mut out: Vec<String> = Vec::with_capacity(ids.len());
+    let mut out: Vec<String> = Vec::with_capacity(by_id.len());
     for id in roots {
         visit(id, by_id, &mut color, &mut path, &mut out)?;
     }

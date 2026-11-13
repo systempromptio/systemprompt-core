@@ -176,7 +176,48 @@ fn router(&self, _ctx: &dyn ExtensionContext) -> Option<ExtensionRouter> {
 
 `ExtensionRouter::new(router, base_path)` mounts under `base_path` and requires authentication. `ExtensionRouter::public(router, base_path)` mounts without an auth requirement (`crates/shared/extension/src/router.rs:42`). Choose `public` only for routes that must be reachable unauthenticated.
 
-## Step 6 — Contribute jobs and providers (optional)
+## Step 6 — Provide shared state (optional)
+
+An extension that builds a cache, a repository or a service once and reads it from several factories (its router, readiness checks, gateway guards, notification or brain seams) provides it as typed state instead of holding it in a global.
+
+```rust
+use systemprompt_extension::prelude::*;
+
+struct GrantCache { /* ... */ }
+
+impl Extension for MyExtension {
+    fn dependencies(&self) -> Vec<&'static str> {
+        vec!["base"]
+    }
+
+    fn provide(
+        &self,
+        ctx: &dyn ExtensionContext,
+        state: &mut StateBuilder<'_>,
+    ) -> Result<(), ExtensionStateError> {
+        let base = state.require::<BaseService>()?;
+        state.provide(GrantCache::new(ctx.database(), base))
+    }
+
+    fn requires(&self) -> Vec<StateRequirement> {
+        vec![StateRequirement::of::<BaseService>()]
+    }
+
+    fn router(&self, ctx: &dyn ExtensionContext) -> Option<ExtensionRouter> {
+        let cache = ctx.extension_state().get::<GrantCache>()?;
+        /* build the router over `cache` */
+    }
+}
+```
+
+- `provide` runs once at boot, synchronously, for every linked extension in registry order: every dependency before its dependents, ties broken by `(priority, id)`. During `provide` an extension reads only what its dependencies already provided, through `state.get` and `state.require`.
+- Each type has exactly one provider. A second `provide` of the same type fails boot with an error naming both extensions.
+- `requires` declares types the extension cannot run without. After every `provide` has run, boot fails if any declared type is absent, naming the extension and the type, before any route is served.
+- The finished `ExtensionState` is immutable. Every factory reads it through `ctx.extension_state()`: `get::<T>()` returns `Option<Arc<T>>`, `require::<T>()` returns an error naming the missing type. Values that change at run time hold their own synchronisation inside the provided type.
+- An unknown dependency id or a dependency cycle (the error names the cycle) fails registry construction before any `provide` runs.
+- Managed MCP servers run the same `provide` pass over their own context, so a seam factory finds the same types there.
+
+## Step 7 — Contribute jobs and providers (optional)
 
 Two further `Extension` methods extend the runtime:
 
@@ -223,7 +264,7 @@ Core owns these contracts so an extension never reimplements them against core t
 
 ## How discovery works
 
-There is no runtime loader and no plugin file format. `register_extension!` expands to `inventory::submit!`, which places the registration in a link-time collection (`crates/shared/extension/src/traits/register.rs:4`). At startup the runtime iterates `inventory::iter` over those registrations, instantiates each extension, validates that every declared dependency is also registered, and orders the result by `priority` (default `100`). Because discovery is compile-time, an extension only participates if its crate is compiled into the running binary.
+There is no runtime loader and no plugin file format. `register_extension!` expands to `inventory::submit!`, which places the registration in a link-time collection (`crates/shared/extension/src/traits/register.rs:4`). At startup the runtime iterates `inventory::iter` over those registrations, instantiates each extension, validates that every declared dependency is also registered and that the dependency graph has no cycle, and orders the result so every dependency precedes its dependents, with ties broken by `priority` (default `100`) and then id. That one order drives schema installation, route and job collection, and the `provide` pass. Because discovery is compile-time, an extension only participates if its crate is compiled into the running binary.
 
 ## Verify
 
@@ -232,7 +273,7 @@ cargo build -p <your-extension-crate>
 cargo run -p systemprompt --example extension --features core
 ```
 
-Build the host binary and verify that startup discovers the extension and accepts its dependencies. Compilation alone does not verify runtime initialization.
+Build the host binary and verify that startup discovers the extension, accepts its dependencies and finds every type its `requires` declares. Compilation alone does not verify runtime initialization.
 
 ## Related pages
 

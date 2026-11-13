@@ -342,7 +342,7 @@ def main(argv=None):
     parser.add_argument("--since")
     parser.add_argument("--until")
     parser.add_argument("--top", type=int, default=20)
-    parser.add_argument("--kernel", default=str(SCRIPTS / "flow-report-kernel.txt"))
+    parser.add_argument("--kernel", default=str(SCRIPTS / "flow-kernel-paths.txt"))
     parser.add_argument("--no-actions", action="store_true")
     parser.add_argument("--cache")
     parser.add_argument("--repo")

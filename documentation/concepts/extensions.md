@@ -26,7 +26,13 @@ impl Extension for MyExtension {
 register_extension!(MyExtension);
 ```
 
-The capability surface includes schemas and migrations, an HTTP router, background jobs, configuration schema and validation, LLM and tool providers, a family of content/template/rendering providers, required storage paths, RBAC roles, and declared dependencies on other extensions. An extension opts into exactly what it needs by overriding the corresponding method.
+The capability surface includes schemas and migrations, an HTTP router, background jobs, configuration schema and validation, LLM and tool providers, a family of content/template/rendering providers, required storage paths, RBAC roles, declared dependencies on other extensions, and typed shared state. An extension opts into exactly what it needs by overriding the corresponding method.
+
+### Typed extension state
+
+`Extension::provide(ctx, state)` runs once at boot for every linked extension, in dependency order, and contributes values keyed by type to one `ExtensionState` (`crates/shared/extension/src/state.rs`). The host owns that state; it is immutable after boot and reached by every factory through `ExtensionContext::extension_state()`. This is how an extension builds a repository, service or cache once and shares it between its router, readiness checks, gateway guards and other seams without a global.
+
+Boot validates the graph before anything serves: an unknown dependency, a dependency cycle, two providers of one type, or a type declared in `Extension::requires()` that no linked extension provides is a typed startup error, never a failure on a request.
 
 ### Capability traits
 
@@ -85,7 +91,7 @@ An extension owns its database schema, and the schema travels inside the crate s
 
 > The extension framework's `build.rs` is the one sanctioned exception to the shared layer's no-I/O rule: it performs file I/O only at compile time and is never reached by any runtime code path.
 
-Migration weights order schema installation so dependencies exist before dependents — core tables (weights 1–35) install before extension tables (weights 100+).
+The registry orders extensions once — every dependency before its dependents, ties broken by priority and then id — and that order drives schema installation, so a dependency's tables exist before its dependents' migrations run.
 
 ## See also
 

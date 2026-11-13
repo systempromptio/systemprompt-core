@@ -249,6 +249,9 @@ impl ExtensionContext for MockExtensionContext {
     fn get_extension(&self, id: &str) -> Option<Arc<dyn Extension>> {
         self.extensions.get(id).cloned()
     }
+    fn extension_state(&self) -> systemprompt_extension::ExtensionState {
+        systemprompt_extension::ExtensionState::default()
+    }
 }
 
 #[test]

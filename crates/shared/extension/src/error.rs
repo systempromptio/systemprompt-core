@@ -116,6 +116,22 @@ pub enum LoaderError {
     #[error("Dependency cycle detected while ordering extensions: {chain}")]
     DependencyCycle { chain: String },
 
+    #[error("Extension '{extension}' failed to provide its state: {source}")]
+    ProvideFailed {
+        extension: ExtensionId,
+        #[source]
+        source: ExtensionStateError,
+    },
+
+    #[error(
+        "Extension '{extension}' requires state of type '{type_name}', which no linked extension \
+         provides; link the extension that provides it or remove the requirement"
+    )]
+    UnmetStateRequirement {
+        extension: ExtensionId,
+        type_name: &'static str,
+    },
+
     #[error(
         "Extension '{extension}' migration ALTERs table '{table}' but does not create it in its \
          schemas() nor declare it in cross_extension_tables(); cross-extension table mutations \
@@ -229,6 +245,25 @@ pub enum LoaderError {
         #[source]
         source: BoxedSource,
     },
+}
+
+#[derive(Debug, Error)]
+pub enum ExtensionStateError {
+    #[error("No extension provides state of type '{type_name}'")]
+    Missing { type_name: &'static str },
+
+    #[error(
+        "State of type '{type_name}' is provided by both extension '{first}' and extension \
+         '{second}'; every type has exactly one provider"
+    )]
+    DuplicateProvider {
+        type_name: &'static str,
+        first: ExtensionId,
+        second: ExtensionId,
+    },
+
+    #[error("Failed to build provided state: {0}")]
+    Provider(#[source] BoxedSource),
 }
 
 #[derive(Debug, Error)]
