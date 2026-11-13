@@ -87,6 +87,9 @@ pub enum RuntimeError {
     Loader(#[from] LoaderError),
 
     #[error(transparent)]
+    ExtensionState(#[from] systemprompt_extension::ExtensionStateError),
+
+    #[error(transparent)]
     Governance(#[from] GovernanceEngineError),
 
     #[error(transparent)]

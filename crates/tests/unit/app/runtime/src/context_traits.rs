@@ -148,12 +148,11 @@ async fn the_extension_view_hands_out_the_shared_background_tasks() {
 }
 
 #[tokio::test]
-async fn the_extension_dependencies_carry_the_oauth_repositories() {
+async fn the_kernel_state_carries_the_oauth_repositories() {
     let (ctx, _url) = context().await;
-    let view: &dyn ExtensionContext = ctx.as_ref();
-    let deps = view.dependencies();
-    let repos = deps
+    let state = systemprompt_runtime::kernel_state(&ctx);
+    let repos = state
         .get::<std::sync::Arc<systemprompt_oauth::repository::OAuthRepositories>>()
-        .expect("the oauth repositories are a context dependency");
+        .expect("the oauth repositories are a kernel state entry");
     assert!(std::sync::Arc::ptr_eq(repos, ctx.oauth_repositories()));
 }

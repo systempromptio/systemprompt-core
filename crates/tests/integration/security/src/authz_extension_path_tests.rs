@@ -118,6 +118,7 @@ async fn extension_hook_evaluated_and_audited() {
             subjects: Default::default(),
             providers: Default::default(),
             secrets: systemprompt_test_fixtures::fixture_secret_store(),
+            state: Default::default(),
         },
     )
     .expect("bootstrap ok");

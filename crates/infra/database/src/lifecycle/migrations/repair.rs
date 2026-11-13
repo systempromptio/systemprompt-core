@@ -28,7 +28,7 @@ use super::exec::{TrackingWrite, check_cross_extension_alters, execute_statement
 use super::{ChecksumDrift, ExtensionMigrationStatus, MigrationService};
 use crate::lifecycle::installation::BootstrapLockGuard;
 use crate::services::SqlExecutor;
-use systemprompt_extension::{Extension, LoaderError, Migration};
+use systemprompt_extension::{Extension, LoaderError, Migration, MigrationFault};
 use systemprompt_identifiers::{ExtensionId, ToDbValue};
 
 const UPDATE_CHECKSUM_SQL: &str =
@@ -150,13 +150,10 @@ impl MigrationService<'_> {
             let migration = migrations
                 .iter()
                 .find(|m| m.version == d.version)
-                .ok_or_else(|| LoaderError::MigrationFailed {
+                .ok_or_else(|| LoaderError::MigrationStepFailed {
                     extension: ext_id.clone(),
-                    message: format!(
-                        "Drifted migration {} ('{}') is no longer declared by extension \
-                         '{ext_id}'",
-                        d.version, d.name
-                    ),
+                    context: format!("Repair drifted migration '{}'", d.name),
+                    source: Box::new(MigrationFault::Undeclared { version: d.version }),
                 })?;
             self.reapply_one(extension, migration, d).await?;
         }

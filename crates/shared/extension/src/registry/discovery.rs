@@ -14,6 +14,7 @@ impl ExtensionRegistry {
 
         debug!("Starting extension discovery via inventory");
 
+        let mut discovered = Vec::new();
         for ext in inventory::iter::<ExtensionRegistration> {
             let ext_arc = (ext.factory)();
             let ext_id = ext_arc.id().to_owned();
@@ -24,10 +25,10 @@ impl ExtensionRegistry {
                 priority = ext_arc.priority(),
                 "Discovered extension via inventory"
             );
-            registry.insert(ext_arc)?;
+            discovered.push(ext_arc);
         }
 
-        registry.sort_by_priority()?;
+        registry.merge(discovered)?;
 
         let extension_names: Vec<_> = registry
             .sorted_extensions

@@ -23,13 +23,13 @@ The trait, the macro, and the value types are re-exported through the facade pre
 use systemprompt::extension::prelude::*;
 ```
 
-This brings `Extension`, `ExtensionMetadata`, `SchemaDefinition`, `ExtensionRouter`, `Migration`, `register_extension!`, `extension_migrations!`, the capability traits, and the `ExtensionContext` trait into scope (`crates/shared/extension/src/lib.rs:105`).
+This brings `Extension`, `ExtensionMetadata`, `SchemaDefinition`, `ExtensionRouter`, `Migration`, `register_extension!`, `extension_migrations!`, `register_gateway_guard!`, the `ExtensionContext` trait, the state types (`StateBuilder`, `StateRequirement`, `StateHandle`, `ExtensionStateError`, `Dependencies`) and the provider contracts into scope.
 
 ## Step 1 — Implement the `Extension` trait
 
-`Extension` has one required method, `metadata`. Every other method has a default that returns an empty contribution, so you implement only the surfaces your extension provides (`crates/shared/extension/src/traits/extension.rs:18`).
+`Extension` has one required method, `metadata`. Every other method has a default that returns an empty contribution, so you implement only the surfaces your extension provides.
 
-`ExtensionMetadata` has three fields, all `&'static str` (`crates/shared/extension/src/metadata.rs:5`):
+`ExtensionMetadata` has three fields, all `&'static str`:
 
 | Field | Meaning |
 |-------|---------|
@@ -54,7 +54,7 @@ impl Extension for DemoExtension {
 }
 ```
 
-The type must be `Send + Sync + 'static`. The `register_extension!($type)` form constructs the extension with `Default::default()`, so implementing or deriving `Default` is required when you register by type (`crates/shared/extension/src/traits/register.rs:3`).
+The type must be `Send + Sync + 'static`. The `register_extension!($type)` form constructs the extension with `Default::default()`, so implementing or deriving `Default` is required when you register by type.
 
 ## Step 2 — Register the extension
 
@@ -64,7 +64,7 @@ The type must be `Send + Sync + 'static`. The `register_extension!($type)` form 
 register_extension!(DemoExtension);
 ```
 
-Two forms are accepted (`crates/shared/extension/src/traits/register.rs`):
+Two forms are accepted:
 
 - `register_extension!(DemoExtension)` — constructs via `Default`.
 - `register_extension!(DemoExtension::default())` — registers a factory expression. The expression runs in a noncapturing factory and cannot refer to local variables.
@@ -77,7 +77,7 @@ cargo run -p systemprompt --example extension --features core
 
 ## Step 3 — Declare schema tables
 
-Return a `SchemaDefinition` for each table the extension owns. Embed the DDL from a `.sql` file with `include_str!` rather than inlining a SQL string literal; the convention is `{crate}/schema/<table>.sql` (`crates/domain/users/src/extension.rs:19`).
+Return a `SchemaDefinition` for each table the extension owns. Embed the DDL from a `.sql` file with `include_str!` rather than inlining a SQL string literal; the convention is `{crate}/schema/<table>.sql`.
 
 ```rust
 fn schemas(&self) -> Vec<SchemaDefinition> {
@@ -88,7 +88,7 @@ fn schemas(&self) -> Vec<SchemaDefinition> {
 }
 ```
 
-`SchemaDefinition::new(table, sql)` takes the table name and the DDL. `with_required_columns` records columns the runtime validates against the live schema. `with_schema(name)` targets a non-`public` Postgres schema; the default is `public` (`crates/shared/extension/src/metadata.rs:21`).
+`SchemaDefinition::new(table, sql)` takes the table name and the DDL. `with_required_columns` records columns the runtime validates against the live schema. `with_schema(name)` targets a non-`public` Postgres schema; the default is `public`.
 
 The DDL file (`schema/demo_items.sql`) holds the `CREATE TABLE`:
 
@@ -100,11 +100,11 @@ CREATE TABLE IF NOT EXISTS demo_items (
 );
 ```
 
-The tables an extension owns are derived from these `CREATE TABLE` statements. Do not list owned tables in `cross_extension_tables` — that method is only for tables another extension creates that this one is permitted to `ALTER` (`crates/shared/extension/src/traits/extension.rs:117`).
+The tables an extension owns are derived from these `CREATE TABLE` statements. Do not list owned tables in `cross_extension_tables` — that method is only for tables another extension creates that this one is permitted to `ALTER`.
 
 ## Step 4 — Add migrations discovered by `build.rs`
 
-Schema changes after the initial `CREATE TABLE` are migrations. Migration SQL lives in `{crate}/schema/migrations/NNN_<name>.sql`, where `NNN` is a numeric version prefix. The version and name come from the filename, so they cannot drift from the SQL they label (`crates/shared/extension/src/build.rs:40`).
+Schema changes after the initial `CREATE TABLE` are migrations. Migration SQL lives in `{crate}/schema/migrations/NNN_<name>.sql`, where `NNN` is a numeric version prefix. The version and name come from the filename, so they cannot drift from the SQL they label.
 
 1. Add a build script that emits the migration list:
 
@@ -128,7 +128,7 @@ Schema changes after the initial `CREATE TABLE` are migrations. Migration SQL li
    CREATE INDEX idx_demo_items_label ON demo_items (label);
    ```
 
-3. Return the generated list from `migrations` with the `extension_migrations!` macro, which `include!`s the file `emit_migrations` wrote to `OUT_DIR` (`crates/shared/extension/src/migration.rs:16`):
+3. Return the generated list from `migrations` with the `extension_migrations!` macro, which `include!`s the file `emit_migrations` wrote to `OUT_DIR`:
 
    ```rust
    fn migrations(&self) -> Vec<Migration> {
@@ -136,7 +136,7 @@ Schema changes after the initial `CREATE TABLE` are migrations. Migration SQL li
    }
    ```
 
-Filename conventions enforced by the build script (`crates/shared/extension/src/build.rs:14`):
+Filename conventions enforced by the build script:
 
 | File | Effect |
 |------|--------|
@@ -164,7 +164,7 @@ The runner never executes, records, or checksums a tombstoned slot, and `emit_mi
 
 ## Step 5 — Mount an API router
 
-To serve HTTP routes, return an `ExtensionRouter` from `router`. The method receives an `&dyn ExtensionContext`, which exposes the config provider, the database handle, and lookup of other extensions (`crates/shared/extension/src/context.rs:6`).
+To serve HTTP routes, return an `ExtensionRouter` from `router`. The method receives an `&dyn ExtensionContext`, which exposes the profile and configuration, the database handle, file storage, secrets, background tasks, the coordination seams, lookup of other extensions and the extension state.
 
 ```rust
 fn router(&self, _ctx: &dyn ExtensionContext) -> Option<ExtensionRouter> {
@@ -174,11 +174,11 @@ fn router(&self, _ctx: &dyn ExtensionContext) -> Option<ExtensionRouter> {
 }
 ```
 
-`ExtensionRouter::new(router, base_path)` mounts under `base_path` and requires authentication. `ExtensionRouter::public(router, base_path)` mounts without an auth requirement (`crates/shared/extension/src/router.rs:42`). Choose `public` only for routes that must be reachable unauthenticated.
+`ExtensionRouter::new(router, base_path)` mounts under `base_path` and requires authentication. `ExtensionRouter::public(router, base_path)` mounts without an auth requirement. Choose `public` only for routes that must be reachable unauthenticated.
 
 ## Step 6 — Provide shared state (optional)
 
-An extension that builds a cache, a repository or a service once and reads it from several factories (its router, readiness checks, gateway guards, notification or brain seams) provides it as typed state instead of holding it in a global.
+An extension that builds a cache, a repository or a service once and reads it from several factories (its router, readiness checks, gateway guards, authz hook, notification or brain seams) provides it as typed state instead of holding it in a global.
 
 ```rust
 use systemprompt_extension::prelude::*;
@@ -195,7 +195,7 @@ impl Extension for MyExtension {
         ctx: &dyn ExtensionContext,
         state: &mut StateBuilder<'_>,
     ) -> Result<(), ExtensionStateError> {
-        let base = state.require::<BaseService>()?;
+        let base = state.state().get_arc::<BaseService>()?;
         state.provide(GrantCache::new(ctx.database(), base))
     }
 
@@ -204,47 +204,36 @@ impl Extension for MyExtension {
     }
 
     fn router(&self, ctx: &dyn ExtensionContext) -> Option<ExtensionRouter> {
-        let cache = ctx.extension_state().get::<GrantCache>()?;
+        let cache = ctx.extension_state().get_arc::<GrantCache>().ok()?;
         /* build the router over `cache` */
     }
 }
 ```
 
-- `provide` runs once at boot, synchronously, for every linked extension in registry order: every dependency before its dependents, ties broken by `(priority, id)`. During `provide` an extension reads only what its dependencies already provided, through `state.get` and `state.require`.
-- Each type has exactly one provider. A second `provide` of the same type fails boot with an error naming both extensions.
-- `requires` declares types the extension cannot run without. After every `provide` has run, boot fails if any declared type is absent, naming the extension and the type, before any route is served.
-- The finished `ExtensionState` is immutable. Every factory reads it through `ctx.extension_state()`: `get::<T>()` returns `Option<Arc<T>>`, `require::<T>()` returns an error naming the missing type. Values that change at run time hold their own synchronisation inside the provided type.
+- The state is one `Dependencies` map. The host seeds it with the kernel's handles (database pool, paths, files configuration, notification configuration, the documents service when enabled, and on the API the OAuth and AI repositories), then `provide` runs once at boot, synchronously, for every enabled extension in registry order: every dependency before its dependents, ties broken by `(priority, id)`. During `provide` an extension reads the kernel's handles and what its dependencies already provided through `state.state()`; reading another extension's value while providing requires declaring that extension in `dependencies()`.
+- Each type has exactly one provider. Providing a type the kernel or another extension already provided fails boot with an error naming both providers.
+- `requires` declares types the extension cannot run without. After every `provide` has run, boot fails if any declared type is absent, naming the extension and the type, before any route is served. A requirement is met by any enabled provider, because requirements are checked once against the finished state that every later read sees.
+- Extensions listed in the profile's `extensions.disabled` neither provide nor have their requirements checked. An enabled extension that requires a type only a disabled extension provides fails boot; one that depends on a disabled extension is refused.
+- The finished state is immutable. Every factory reads it through `ctx.extension_state()`: `get::<T>()` borrows the value and `get_arc::<T>()` returns a shared `Arc<T>`; both return a `MissingDependency` naming the type when it is absent. Job and runner-service contexts start from the same state, so `ctx.get::<T>()` in a job finds provided values too. Values that change at run time hold their own synchronisation inside the provided type.
+- An authz hook factory (`register_authz_hook!`) runs before the state exists. It receives `AuthzHookContext::state`, a `StateHandle` the host binds to the finished state before anything serves; the hook captures the handle and reads `state.get_arc::<T>()` when it evaluates. A read before binding fails with `ExtensionStateError::NotReady`, so the hook must deny rather than allow.
 - An unknown dependency id or a dependency cycle (the error names the cycle) fails registry construction before any `provide` runs.
 - Managed MCP servers run the same `provide` pass over their own context, so a seam factory finds the same types there.
 
 ## Step 7 — Contribute jobs and providers (optional)
 
-Two further `Extension` methods extend the runtime:
+Further `Extension` methods extend the runtime:
 
-- `jobs` returns `Vec<Arc<dyn Job>>` — scheduled work registered with the scheduler (`crates/shared/extension/src/traits/extension.rs:37`).
-- `llm_providers` and `tool_providers` return provider implementations the AI layer can use (`crates/shared/extension/src/traits/extension.rs:53`).
+- `jobs` returns `Vec<Arc<dyn Job>>` — scheduled work registered with the scheduler.
+- `runner_services` returns long-running services the server supervises.
+- `config_planes` returns config planes reconciled against the services tree.
+- `tool_providers` returns tool provider implementations the AI layer can call.
+- `template_providers`, `component_renderers`, `template_data_extenders`, `page_data_providers`, `page_prerenderers`, `frontmatter_processors`, `content_data_providers`, `rss_feed_providers` and `sitemap_providers` contribute to content rendering and publishing.
 
-Both default to empty; implement them only when the extension supplies that surface.
+All default to empty; implement them only when the extension supplies that surface. AI model providers are not contributed by extensions; they are configured in the profile and served through the gateway.
 
-## Capability traits
+## The extension context
 
-The framework exposes a single `Extension` trait (`crates/shared/extension/src/traits/extension.rs:24`).
-Narrower concerns are expressed by declaring the capabilities an extension needs from its
-context, rather than by implementing separate typed sub-traits:
-
-| Trait | Grants access to | Source |
-|-------|------------------|--------|
-| `HasConfig` | the resolved `Config` | `crates/shared/extension/src/capabilities.rs:17` |
-| `HasDatabase` | the database handle | `crates/shared/extension/src/capabilities.rs:23` |
-| `HasHttpClient` | the shared outbound HTTP client | `crates/shared/extension/src/capabilities.rs:29` |
-| `HasEventBus` | the event bus | `crates/shared/extension/src/capabilities.rs:33` |
-| `HasAnalytics`, `HasFingerprint`, `HasUserService`, `HasRouteClassifier` | the corresponding runtime services | `crates/shared/extension/src/capabilities.rs` |
-
-`FullContext` bundles the full set for extensions that need everything, and
-`ExtensionContext` (`crates/shared/extension/src/context.rs:9`) is the object-safe context
-trait itself. Extensions that participate in gateway request governance additionally
-implement `GatewayRequestGuard` (`crates/shared/extension/src/gateway_guard.rs:62`) and
-register it with `register_gateway_guard`.
+The framework exposes a single `Extension` trait. There are no typed sub-traits: what an extension needs from its host it reads from the `&dyn ExtensionContext` every factory receives (profile, configuration, services, database handle, file storage, secrets, background tasks, instance id, token authority, subject attributes, provider tokens, coordination seams and the extension state). The host context also implements `HasAnalytics`, `HasFingerprint`, `HasUserService` and `HasRouteClassifier` for host code that needs those services directly. Extensions that participate in gateway request governance implement `GatewayRequestGuard` and register it with `register_gateway_guard!`.
 
 ## Runtime seams
 
@@ -258,13 +247,13 @@ Core owns these contracts so an extension never reimplements them against core t
 - **Job database budgets:** override `Job::db_budget` to return a `DbBudget` (statement timeout, optional lock timeout and `work_mem`), then open the job's transactions with `ctx.get::<BudgetedDb>()?.begin()`. The budget is applied with `SET LOCAL`, so a runaway statement is cancelled and rolled back without the limit leaking to other users of the pooled connection.
 - **Batched jobs:** drain a backlog with `run_batched(BatchPlan { deadline, full_batch }, || batch())`. It stops when a batch comes back short or the deadline passes, and `BatchedRun::into_job_result` reports what remains for the next run.
 - **Once per release:** `ReleaseStampRepository::run_once(ReleaseRun { name, release: env!("CARGO_PKG_VERSION"), gate, wait }, work)` runs `work` under a cluster-wide lock when this release is ahead of the recorded one (`ReleaseGate::IfBehind`) or not behind it (`ReleaseGate::UnlessNewer`), and records the release only when `work` succeeds. A binary older than the recorded release never runs it, so a lagging pod in a rolling update cannot redo a newer release's work.
-- **Secrets:** `ctx.secret("encryption_master_key")` returns a custom secret from the platform secrets document (any configured secrets source, including reloads) as an `ExtensionSecret` that redacts itself in `Debug`. Core credentials such as the pepper and database URLs are never handed out. Do not read credentials or `HOSTNAME` from the environment; `ctx.instance_id()` is the node identity.
+- **Secrets:** `ctx.secrets().secret("my_api_key")` returns a custom secret from the platform secrets document (any configured secrets source, including reloads) as an `ExtensionSecret` that redacts itself in `Debug`. Core credentials such as the pepper and database URLs are never handed out. Do not read credentials or `HOSTNAME` from the environment; `ctx.instance_id()` is the node identity.
 - **Readiness:** override `Extension::readiness(ctx)` to return named `ReadinessCheck`s. Every `/readyz` runs them; a check that returns `ReadinessFailure`, errors, or overruns the probe timeout answers 503 with the failing check under `extensions`, so the probe fails closed. An `Unready` reason is shown; a `Failed` cause is only logged.
 - **Metrics:** emit through the `metrics` facade and declare each metric in `Extension::metrics()` as a `MetricDescriptor`. A histogram's buckets register before the recorder installs, so it renders as buckets rather than a summary, and every descriptor's help text appears on `/metrics`.
 
 ## How discovery works
 
-There is no runtime loader and no plugin file format. `register_extension!` expands to `inventory::submit!`, which places the registration in a link-time collection (`crates/shared/extension/src/traits/register.rs:4`). At startup the runtime iterates `inventory::iter` over those registrations, instantiates each extension, validates that every declared dependency is also registered and that the dependency graph has no cycle, and orders the result so every dependency precedes its dependents, with ties broken by `priority` (default `100`) and then id. That one order drives schema installation, route and job collection, and the `provide` pass. Because discovery is compile-time, an extension only participates if its crate is compiled into the running binary.
+There is no runtime loader and no plugin file format. `register_extension!` expands to `inventory::submit!`, which places the registration in a link-time collection. At startup the runtime iterates `inventory::iter` over those registrations, instantiates each extension, validates that every declared dependency is also registered and that the dependency graph has no cycle, and orders the result so every dependency precedes its dependents, with ties broken by `priority` (default `100`) and then id. That one order drives schema installation, route and job collection, and the `provide` pass. Because discovery is compile-time, an extension only participates if its crate is compiled into the running binary.
 
 ## Verify
 

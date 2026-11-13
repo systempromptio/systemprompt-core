@@ -2,7 +2,10 @@
 //!
 //! The builder owns the bootstrap order: profile -> paths -> files ->
 //! database -> logging -> extensions -> ancillary services -> extension state
-//! -> extension seams. Extension state is built once the context exists, so
+//! -> extension seams. Extension state is built once the context exists,
+//! seeded with the kernel's handles ([`kernel_state`]) and honouring the
+//! profile's disabled extensions, and bound to the authz hook's state handle
+//! before anything serves, so
 //! every [`Extension::provide`](systemprompt_extension::Extension::provide)
 //! sees the database, config, event router and background tasks through its
 //! `ExtensionContext`; it is built and its declared requirements validated
@@ -26,6 +29,7 @@ mod debug_impl;
 pub(crate) mod documents;
 pub(crate) mod events;
 pub(crate) mod governance;
+pub(crate) mod kernel_state;
 #[cfg(feature = "notifications")]
 pub(crate) mod notifications;
 mod options;
@@ -238,7 +242,7 @@ impl AppContextBuilder {
             plugins,
             subsystems,
         );
-        let app = provide_extension_state(app)?;
+        let app = provide_extension_state(app, &market.state)?;
         #[cfg(feature = "notifications")]
         let app = {
             let mut app = app;
@@ -260,8 +264,16 @@ impl AppContextBuilder {
     }
 }
 
-fn provide_extension_state(mut app: AppContext) -> RuntimeResult<AppContext> {
-    let state = app.plugins.extension_registry.build_state(&app)?;
+fn provide_extension_state(
+    mut app: AppContext,
+    authz_state: &systemprompt_extension::StateHandle,
+) -> RuntimeResult<AppContext> {
+    let state = app.plugins.extension_registry.build_state(
+        &app,
+        kernel_state::kernel_state(&app),
+        &app.profile().extensions.disabled,
+    )?;
+    authz_state.bind(state.clone())?;
     app.plugins.extension_state = state;
     Ok(app)
 }

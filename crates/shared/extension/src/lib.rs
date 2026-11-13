@@ -45,12 +45,16 @@
 //!   `inventory` submissions at startup.
 //! - [`state`] — typed, extension-scoped state: [`Extension::provide`]
 //!   contributes values at boot in dependency order, [`Extension::requires`]
-//!   declares what must be present, and the immutable [`ExtensionState`] is
-//!   read by every factory through [`ExtensionContext::extension_state`].
+//!   declares what must be present, and the immutable state — one
+//!   [`Dependencies`](systemprompt_provider_contracts::Dependencies) map
+//!   seeded with the kernel's handles — is read by every factory through
+//!   [`ExtensionContext::extension_state`]; an authz hook factory, which runs
+//!   before the state exists, reads it through a [`StateHandle`].
 //! - [`capabilities`] — `Has*` capability traits the host context implements to
 //!   expose its subsystems to extensions.
 //! - [`error`] — typed error enums ([`LoaderError`], [`ExtensionStateError`],
-//!   [`ExtensionConfigError`]) raised by the registry.
+//!   [`ExtensionConfigError`], and the [`MigrationFault`] and [`SchemaFault`]
+//!   causes) raised by the registry and the schema installer.
 //!
 //! # Feature flags
 //!
@@ -112,7 +116,7 @@ pub use brain::{
 pub use brain::{BrainSink, DynBrainSink};
 pub use context::{DynExtensionContext, ExtensionContext};
 pub use cost::{CostDirective, CostDirectiveError, TriggerPolicy};
-pub use error::{ExtensionConfigError, ExtensionStateError, LoaderError};
+pub use error::{ExtensionConfigError, ExtensionStateError, LoaderError, MigrationFault, SchemaFault};
 pub use frame_options::{FrameOptionsOverride, stamp_frame_options};
 pub use gateway_guard::{
     GatewayDenyKind, GatewayDenyReason, GatewayGuardRequest, GatewayGuards, GatewayRequestGuard,
@@ -143,7 +147,7 @@ pub use retention::{
 };
 pub use router::{ExtensionRouter, ExtensionRouterConfig, SiteAuthConfig};
 pub use seed::Seed;
-pub use state::{ExtensionState, StateBuilder, StateRequirement};
+pub use state::{StateBuilder, StateHandle, StateRequirement};
 pub use traits::Extension;
 
 pub use capabilities::{HasAnalytics, HasFingerprint, HasRouteClassifier, HasUserService};
@@ -158,7 +162,7 @@ pub mod prelude {
     pub use crate::registry::ExtensionRegistry;
     pub use crate::retention::{RetentionHold, RetentionHoldError, RetentionTarget};
     pub use crate::seed::Seed;
-    pub use crate::state::{ExtensionState, StateBuilder, StateRequirement};
+    pub use crate::state::{StateBuilder, StateHandle, StateRequirement};
     pub use crate::{
         Extension, ExtensionMetadata, ExtensionRole, ExtensionRouter, Migration, SchemaDefinition,
         SiteAuthConfig, extension_migrations, register_extension, register_gateway_guard,
@@ -169,12 +173,13 @@ pub mod prelude {
         ApplyMode, ApplyOutcome, ApplyRequest, ChangeActor, ChangeRequest, ChangeSource,
         ComponentContext, ComponentRenderer, ConfigPlane, ConfigPlaneError, ConfigPlaneResult,
         ConfigPlaneSet, ContentDataContext, ContentDataProvider, DeclaredEntities, DeclaredEntity,
-        DeclaredState, DriftKind, DriftRow, EffectiveAuthority, EntityScope, FrameOptions,
-        FrontmatterContext, FrontmatterProcessor, PageContext, PageDataProvider,
-        PagePrepareContext, PagePrerenderer, PageRenderSpec, PlaceholderMapping, PlaneContext,
-        PlaneEffect, PlaneSnapshot, PlaneTx, PlaneWriter, RenderedComponent, ResolvedEntities,
-        ResolvedEntity, RssFeedContext, RssFeedItem, RssFeedMetadata, RssFeedProvider, RssFeedSpec,
-        SitemapContext, SitemapProvider, SitemapSourceSpec, SitemapUrlEntry, TemplateDataExtender,
-        TemplateDefinition, TemplateProvider, TemplateSource,
+        DeclaredState, Dependencies, DependencyProvider, DriftKind, DriftRow, DuplicateDependency,
+        EffectiveAuthority, EntityScope, FrameOptions, FrontmatterContext, FrontmatterProcessor,
+        MissingDependency, PageContext, PageDataProvider, PagePrepareContext, PagePrerenderer,
+        PageRenderSpec, PlaceholderMapping, PlaneContext, PlaneEffect, PlaneSnapshot, PlaneTx,
+        PlaneWriter, RenderedComponent, ResolvedEntities, ResolvedEntity, RssFeedContext,
+        RssFeedItem, RssFeedMetadata, RssFeedProvider, RssFeedSpec, SitemapContext, SitemapProvider,
+        SitemapSourceSpec, SitemapUrlEntry, TemplateDataExtender, TemplateDefinition,
+        TemplateProvider, TemplateSource,
     };
 }

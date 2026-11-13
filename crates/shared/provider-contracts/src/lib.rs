@@ -78,7 +78,9 @@ pub use config_plane::{
     ResolvedEntities, ResolvedEntity, diff_snapshots, entity_hash, resolve_apply,
 };
 pub use content_data::{ContentDataContext, ContentDataProvider};
-pub use dependencies::{Dependencies, MissingDependency};
+pub use dependencies::{
+    Dependencies, DependencyProvider, DuplicateDependency, MissingDependency,
+};
 pub use error::{ProviderError, ProviderResult};
 pub use extender::{ExtendedData, ExtenderContext, ExtenderContextBuilder, TemplateDataExtender};
 pub use frame_options::FrameOptions;

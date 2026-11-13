@@ -1,5 +1,6 @@
-//! The [`JobContext`] every dispatched job receives: the dependencies the
-//! jobs read, assembled once per run from the application context.
+//! The [`JobContext`] every dispatched job receives: the application's
+//! extension state (the kernel's handles and every enabled extension's
+//! provided values) extended with the per-run handles the jobs read.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -23,11 +24,8 @@ pub(crate) fn make_job_context(
     budget: Option<DbBudget>,
     inventory_memo: &Arc<InventoryRefreshMemo>,
 ) -> JobContext {
-    let dependencies = brain_dependencies(&app_context, Dependencies::new())
+    let dependencies = brain_dependencies(&app_context, app_context.extension_state())
         .with(Arc::clone(inventory_memo))
-        .with(Arc::clone(app_context.app_paths_arc()))
-        .with(Arc::clone(app_context.files_config()))
-        .with(Arc::new(app_context.profile().notifications))
         .with(Arc::new(app_context.profile().brain.clone()))
         .with(Arc::clone(app_context.documents().service()))
         .with(app_context.signing_keys().clone())
@@ -35,7 +33,6 @@ pub(crate) fn make_job_context(
         .with(BudgetedDb::new(Arc::clone(&db_pool), budget))
         .with(db_pool)
         .with(Arc::clone(app_context.config_arc()))
-        .with(Arc::clone(app_context.oauth_repositories()))
         .with(extension_context(&app_context))
         .with(app_context);
     JobContext::new(actor, dependencies)
@@ -43,9 +40,7 @@ pub(crate) fn make_job_context(
 
 #[cfg(feature = "brain")]
 fn brain_dependencies(app_context: &AppContext, dependencies: Dependencies) -> Dependencies {
-    let mut dependencies = dependencies
-        .with(Arc::clone(&app_context.notifications().sink))
-        .with(app_context.brain_consolidation_model());
+    let mut dependencies = dependencies.with(app_context.brain_consolidation_model());
     if let Some(sink) = app_context.brain_sink() {
         dependencies.insert(sink);
     }

@@ -1,5 +1,5 @@
 //! The stub `ExtensionContext` shared by the registry tests: every handle is
-//! inert, and `extension_state` is empty.
+//! inert, and `extension_state` is an empty map.
 
 use std::sync::Arc;
 
@@ -138,9 +138,6 @@ impl ExtensionContext for StubCtx {
     fn secrets(&self) -> Arc<dyn systemprompt_traits::SecretStore> {
         systemprompt_test_fixtures::fixture_secret_store()
     }
-    fn dependencies(&self) -> systemprompt_provider_contracts::Dependencies {
-        systemprompt_provider_contracts::Dependencies::new()
-    }
     fn services(&self) -> systemprompt_manifest::services::ServicesView {
         systemprompt_test_fixtures::fixture_services_view()
     }
@@ -177,8 +174,8 @@ impl ExtensionContext for StubCtx {
     fn get_extension(&self, _id: &str) -> Option<Arc<dyn Extension>> {
         None
     }
-    fn extension_state(&self) -> systemprompt_extension::ExtensionState {
-        systemprompt_extension::ExtensionState::default()
+    fn extension_state(&self) -> systemprompt_provider_contracts::Dependencies {
+        systemprompt_provider_contracts::Dependencies::new()
     }
 }
 

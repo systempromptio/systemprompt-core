@@ -4,8 +4,13 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_identifiers::ExtensionId;
+use systemprompt_provider_contracts::{DuplicateDependency, MissingDependency};
 use systemprompt_traits::BoxedSource;
 use thiserror::Error;
+
+mod faults;
+
+pub use faults::{MigrationFault, SchemaFault};
 
 #[derive(Debug, Error)]
 pub enum LoaderError {
@@ -43,24 +48,12 @@ pub enum LoaderError {
         source: BoxedSource,
     },
 
-    #[error("Failed to install schema for extension '{extension}': {message}")]
-    SchemaInstallationFailed {
-        extension: ExtensionId,
-        message: String,
-    },
-
     #[error("Failed to install schema for extension '{extension}': {context}: {source}")]
     SchemaInstallationStepFailed {
         extension: ExtensionId,
         context: String,
         #[source]
         source: BoxedSource,
-    },
-
-    #[error("Migration failed for extension '{extension}': {message}")]
-    MigrationFailed {
-        extension: ExtensionId,
-        message: String,
     },
 
     #[error("Migration failed for extension '{extension}': {context}: {source}")]
@@ -93,10 +86,11 @@ pub enum LoaderError {
         current_name: String,
     },
 
-    #[error("Configuration validation failed for extension '{extension}': {message}")]
+    #[error("Configuration validation failed for extension '{extension}': {source}")]
     ConfigValidationFailed {
         extension: ExtensionId,
-        message: String,
+        #[source]
+        source: ExtensionConfigError,
     },
 
     #[error("Extension '{extension}' uses reserved API path '{path}'")]
@@ -124,8 +118,9 @@ pub enum LoaderError {
     },
 
     #[error(
-        "Extension '{extension}' requires state of type '{type_name}', which no linked extension \
-         provides; link the extension that provides it or remove the requirement"
+        "Extension '{extension}' requires state of type '{type_name}', which neither the kernel \
+         nor any enabled extension provides; link and enable the extension that provides it or \
+         remove the requirement"
     )]
     UnmetStateRequirement {
         extension: ExtensionId,
@@ -249,18 +244,17 @@ pub enum LoaderError {
 
 #[derive(Debug, Error)]
 pub enum ExtensionStateError {
-    #[error("No extension provides state of type '{type_name}'")]
-    Missing { type_name: &'static str },
+    #[error("Extension state has no value of the requested type: {0}")]
+    Missing(#[from] MissingDependency),
 
-    #[error(
-        "State of type '{type_name}' is provided by both extension '{first}' and extension \
-         '{second}'; every type has exactly one provider"
-    )]
-    DuplicateProvider {
-        type_name: &'static str,
-        first: ExtensionId,
-        second: ExtensionId,
-    },
+    #[error("Extension state refused a provider: {0}")]
+    DuplicateProvider(#[from] DuplicateDependency),
+
+    #[error("Extension state is read before the host bound it")]
+    NotReady,
+
+    #[error("Extension state handle is already bound")]
+    AlreadyBound,
 
     #[error("Failed to build provided state: {0}")]
     Provider(#[source] BoxedSource),

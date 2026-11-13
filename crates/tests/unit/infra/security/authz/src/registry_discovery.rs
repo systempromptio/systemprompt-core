@@ -59,6 +59,7 @@ fn context() -> AuthzHookContext {
         services: systemprompt_test_fixtures::fixture_services_view(),
         subjects: Default::default(),
         secrets: systemprompt_test_fixtures::fixture_secret_store(),
+        state: Default::default(),
     }
 }
 

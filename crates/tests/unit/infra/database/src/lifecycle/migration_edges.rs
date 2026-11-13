@@ -4,7 +4,7 @@ use systemprompt_database::{
     DatabaseAdminService, DatabaseProvider, MigrationService, PostgresProvider,
 };
 use systemprompt_extension::{
-    Extension, ExtensionMetadata, LoaderError, Migration, SchemaDefinition,
+    Extension, ExtensionMetadata, LoaderError, Migration, MigrationFault, SchemaDefinition,
 };
 use systemprompt_test_fixtures::install_extension_schemas_with_config;
 use tracing_subscriber::layer::SubscriberExt;
@@ -384,8 +384,14 @@ async fn a_tombstone_cannot_be_marked_applied() {
         .expect_err("tombstone refused");
 
     match err {
-        LoaderError::MigrationFailed { message, .. } => {
-            assert!(message.contains("is a tombstone"), "{message}");
+        LoaderError::MigrationStepFailed { source, .. } => {
+            assert!(
+                matches!(
+                    source.downcast_ref::<MigrationFault>(),
+                    Some(MigrationFault::Tombstoned { version: 1, .. })
+                ),
+                "{source}"
+            );
         },
         other => panic!("unexpected error: {other:?}"),
     }

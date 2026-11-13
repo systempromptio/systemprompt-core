@@ -3,7 +3,7 @@
 //!
 //! The host hands extension factories what it holds and nothing the API
 //! alone holds. Its token authority verifies against the public key set and
-//! refuses to sign ([`VerifyingTokenAuthority`]). Its dependency set carries
+//! refuses to sign ([`VerifyingTokenAuthority`]). Its kernel state carries
 //! no OAuth or AI repositories, so a factory that looks them up finds none.
 //! An extension that needs either fails in the host instead of running with a
 //! narrower view. The host runs every extension's `provide` over this context
@@ -15,7 +15,7 @@
 
 use std::sync::Arc;
 
-use systemprompt_extension::{Extension, ExtensionContext, ExtensionRegistry, ExtensionState};
+use systemprompt_extension::{Extension, ExtensionContext, ExtensionRegistry};
 use systemprompt_identifiers::{InstanceId, UserId};
 use systemprompt_manifest::services::ServicesView;
 use systemprompt_manifest::services::root::ActiveServicesRoot;
@@ -36,7 +36,7 @@ pub(super) struct ExtensionHandles {
     pub(super) tokens: Arc<VerifyingTokenAuthority>,
     pub(super) file_storage: Arc<dyn FileStorage>,
     pub(super) extensions: Arc<ExtensionRegistry>,
-    pub(super) state: ExtensionState,
+    pub(super) state: Dependencies,
     pub(super) subjects: SubjectSourceHandle,
     pub(super) provider_tokens: Arc<TokenCache>,
     pub(super) system_owner: UserId,
@@ -92,18 +92,6 @@ impl ExtensionContext for HostContext {
         Self::secrets(self)
     }
 
-    fn dependencies(&self) -> Dependencies {
-        let mut dependencies = Dependencies::new()
-            .with(Arc::clone(&self.database))
-            .with(Arc::clone(&self.app_paths))
-            .with(Arc::clone(&self.files_config))
-            .with(Arc::new(self.profile().notifications));
-        if self.files_config.documents_config().is_enabled() {
-            dependencies.insert(Arc::clone(self.documents.service()));
-        }
-        dependencies
-    }
-
     fn get_extension(&self, id: &str) -> Option<Arc<dyn Extension>> {
         self.extension.extensions.get(id).cloned()
     }
@@ -116,7 +104,7 @@ impl ExtensionContext for HostContext {
         Arc::new(self.extension.subjects.clone())
     }
 
-    fn extension_state(&self) -> ExtensionState {
+    fn extension_state(&self) -> Dependencies {
         self.extension.state.clone()
     }
 
@@ -124,5 +112,19 @@ impl ExtensionContext for HostContext {
         let concrete = Arc::clone(&self.extension.provider_tokens);
         let cache: Arc<dyn ProviderTokenCache> = concrete;
         cache
+    }
+}
+
+impl HostContext {
+    pub(super) fn kernel_state(&self) -> Dependencies {
+        let mut dependencies = Dependencies::new()
+            .with(Arc::clone(&self.database))
+            .with(Arc::clone(&self.app_paths))
+            .with(Arc::clone(&self.files_config))
+            .with(Arc::new(self.profile().notifications));
+        if self.files_config.documents_config().is_enabled() {
+            dependencies.insert(Arc::clone(self.documents.service()));
+        }
+        dependencies
     }
 }

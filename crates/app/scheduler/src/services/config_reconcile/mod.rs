@@ -27,6 +27,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
+use systemprompt_extension::ExtensionContext;
 use systemprompt_provider_contracts::{ConfigPlane, Dependencies};
 use systemprompt_runtime::{AppContext, ConfigPlaneSet};
 use systemprompt_traits::AppContext as _;
@@ -66,8 +67,8 @@ impl ConfigReconcileService {
         ctx: &Arc<AppContext>,
         repository: ConfigReconcileRepository,
     ) -> SchedulerResult<Self> {
-        let mut dependencies = Dependencies::new()
-            .with(Arc::clone(ctx.db_pool()))
+        let mut dependencies = ctx
+            .extension_state()
             .with(ctx.services_state().view())
             .with(ctx.secrets().get())
             .with(Arc::clone(ctx));

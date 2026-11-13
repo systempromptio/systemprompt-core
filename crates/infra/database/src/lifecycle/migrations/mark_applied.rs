@@ -11,7 +11,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::MigrationService;
-use systemprompt_extension::{Extension, LoaderError};
+use systemprompt_extension::{Extension, LoaderError, MigrationFault};
 use systemprompt_identifiers::ExtensionId;
 
 #[derive(Debug, Clone)]
@@ -34,21 +34,20 @@ impl MigrationService<'_> {
             .migrations()
             .into_iter()
             .find(|m| m.version == version)
-            .ok_or_else(|| LoaderError::MigrationFailed {
+            .ok_or_else(|| LoaderError::MigrationStepFailed {
                 extension: ext_id.clone(),
-                message: format!(
-                    "Migration version {version} is not defined for extension '{ext_id}'"
-                ),
+                context: "Mark migration applied".to_owned(),
+                source: Box::new(MigrationFault::Undeclared { version }),
             })?;
 
         if migration.tombstone {
-            return Err(LoaderError::MigrationFailed {
+            return Err(LoaderError::MigrationStepFailed {
                 extension: ext_id.clone(),
-                message: format!(
-                    "Migration {version} ('{}') is a tombstone: the slot is recorded as spent and \
-                     has no SQL, so there is nothing to mark applied",
-                    migration.name
-                ),
+                context: "Mark migration applied".to_owned(),
+                source: Box::new(MigrationFault::Tombstoned {
+                    version,
+                    name: migration.name.clone(),
+                }),
             });
         }
 
@@ -56,13 +55,13 @@ impl MigrationService<'_> {
 
         let applied = self.get_applied_migrations(ext_id).await?;
         if applied.iter().any(|m| m.version == version) {
-            return Err(LoaderError::MigrationFailed {
+            return Err(LoaderError::MigrationStepFailed {
                 extension: ext_id.clone(),
-                message: format!(
-                    "Migration {version} ('{}') is already tracked as applied for extension \
-                     '{ext_id}'; nothing to do",
-                    migration.name
-                ),
+                context: "Mark migration applied".to_owned(),
+                source: Box::new(MigrationFault::AlreadyApplied {
+                    version,
+                    name: migration.name.clone(),
+                }),
             });
         }
 

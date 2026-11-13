@@ -8,7 +8,8 @@ use systemprompt_database::{
     BOOTSTRAP_ADVISORY_LOCK_KEY, BootstrapLockGuard, DbPool, PostgresProvider,
 };
 use systemprompt_extension::{
-    Extension, ExtensionMetadata, ExtensionRegistry, LoaderError, Migration, SchemaDefinition, Seed,
+    Extension, ExtensionMetadata, ExtensionRegistry, LoaderError, Migration, SchemaDefinition,
+    SchemaFault, Seed,
 };
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_test_fixtures::install_extension_schemas_with_config;
@@ -221,8 +222,11 @@ async fn install_fails_when_required_column_is_missing() {
     let err = install_extension_schemas_with_config(&registry_with(ext), &provider, &[])
         .await
         .expect_err("missing required column rejected");
-    assert!(matches!(err, LoaderError::SchemaInstallationFailed { .. }));
-    assert!(err.to_string().contains("phantom_column"));
+    assert!(matches!(
+        &err,
+        LoaderError::SchemaInstallationStepFailed { source, .. }
+            if matches!(source.downcast_ref::<SchemaFault>(), Some(SchemaFault::MissingColumn { column, .. }) if column == "phantom_column")
+    ));
 
     drop_table(&db, table).await;
 }
@@ -270,8 +274,11 @@ async fn install_rejects_imperative_sql_in_declarative_schema() {
     let err = install_extension_schemas_with_config(&registry_with(ext), &provider, &[])
         .await
         .expect_err("imperative DDL rejected");
-    assert!(matches!(err, LoaderError::SchemaInstallationFailed { .. }));
-    assert!(err.to_string().contains("Imperative SQL"));
+    assert!(matches!(
+        &err,
+        LoaderError::SchemaInstallationStepFailed { source, .. }
+            if matches!(source.downcast_ref::<SchemaFault>(), Some(SchemaFault::ImperativeSql { .. }))
+    ));
 }
 
 async fn seed_rejection(seed_sql: &'static str) -> LoaderError {
