@@ -30,27 +30,25 @@ set -uo pipefail
 # of scope.
 #
 #   scripts/lint-test-seams.sh            # core roots
+#   scripts/lint-test-seams.sh --paths P...  # only files under P
 #   scripts/lint-test-seams.sh ROOT...    # scan other source roots; paths
 #                                         # resolve against the caller's cwd
 
+. "$(dirname "${BASH_SOURCE[0]}")/lib/gate-scope.sh"
+gate_scope_parse "$@"
+set -- "${GATE_ARGS[@]}"
+[ "$#" -gt 0 ] || cd "$GATE_ROOT" || exit 2
+
 list_sources() {
     if [ "$#" -eq 0 ]; then
-        cd "$(dirname "$0")/.." || exit 2
-        git ls-files -co --exclude-standard \
+        gate_files \
             'crates/*.rs' 'crates/**/*.rs' 'bin/bridge/src/*.rs' 'bin/bridge/src/**/*.rs' \
             'systemprompt/src/*.rs' 'systemprompt/src/**/*.rs' \
             'crates/**/Cargo.toml' 'bin/bridge/Cargo.toml' 'bin/bridge/**/Cargo.toml' \
             'systemprompt/Cargo.toml' 'systemprompt/**/Cargo.toml'
     else
-        local r
-        for r in "$@"; do
-            if git -C "$r" rev-parse --show-toplevel >/dev/null 2>&1; then
-                git -C "$r" ls-files -co --exclude-standard -- '*.rs' 'Cargo.toml' '**/Cargo.toml' | sed "s|^|${r%/}/|"
-            else
-                find "$r" \( -name '*.rs' -o -name 'Cargo.toml' \) -type f
-            fi
-        done
-    fi | sort -u | while IFS= read -r f; do [ -f "$f" ] && printf '%s\n' "$f"; done
+        gate_tree_files "$@" | grep -E '\.rs$|(^|/)Cargo\.toml$' | sort -u
+    fi
 }
 
 MATCHES=""

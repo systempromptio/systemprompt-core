@@ -15,9 +15,13 @@
 #
 # Allowlist: `path|literal|reason`, one per line. An entry whose line no longer
 # matches fails the gate so the list only shrinks.
+#
+#   scripts/lint-header-literals.sh [--paths P...]   # stale entries judged in full mode only
 set -euo pipefail
-
-cd "$(dirname "$0")/.."
+. "$(dirname "${BASH_SOURCE[0]}")/lib/gate-scope.sh"
+gate_scope_parse "$@"
+set -- "${GATE_ARGS[@]}"
+cd "$GATE_ROOT"
 
 definers=(
     crates/shared/identifiers/src/headers.rs
@@ -76,9 +80,9 @@ while IFS= read -r file; do
             fi
         done
     done < <(grep -nE '"x-[a-z0-9-]*"' "$file" || true)
-done < <(find crates/*/*/src bin/bridge/src -name '*.rs' -not -path 'crates/tests/*' | sort)
+done < <(find crates/*/*/src bin/bridge/src -name '*.rs' -not -path 'crates/tests/*' | sort | gate_filter)
 
-for key in "${!allowed[@]}"; do
+gate_full_mode && for key in "${!allowed[@]}"; do
     if [ "${allowed[$key]}" -eq 0 ]; then
         echo "ERROR: lint-header-literals: stale allowlist entry $key (no matching literal; remove it)" >&2
         fail=1

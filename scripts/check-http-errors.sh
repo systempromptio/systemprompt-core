@@ -9,9 +9,15 @@
 #
 # Exemption: a deliberate variant re-classification, or adapting a foreign
 # variant-less error, may annotate the line with `// lint-ok: http-error`.
+#
+#   scripts/check-http-errors.sh [--paths P...]
 set -uo pipefail
-
-SEARCH_DIR="crates/entry/api/src"
+. "$(dirname "${BASH_SOURCE[0]}")/lib/gate-scope.sh"
+gate_scope_parse "$@"
+set -- "${GATE_ARGS[@]}"
+cd "$GATE_ROOT"
+mapfile -t SEARCH_DIRS < <(gate_roots crates/entry/api/src)
+gate_pass_if_empty check-http-errors "${#SEARCH_DIRS[@]}"
 PATTERN='map_err\(\s*\|[^|]*\|\s*ApiError::'
 
 if ! command -v rg >/dev/null 2>&1; then
@@ -21,7 +27,7 @@ fi
 
 RAW=$(rg -Un --multiline-dotall --no-heading --color=never \
     -g '*.rs' \
-    "$PATTERN" "$SEARCH_DIR" 2>/dev/null || true)
+    "$PATTERN" "${SEARCH_DIRS[@]}" 2>/dev/null || true)
 
 HITS=$(printf '%s\n' "$RAW" | grep -v 'lint-ok: http-error' | grep -v '^[[:space:]]*$' || true)
 

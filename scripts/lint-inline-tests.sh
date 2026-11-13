@@ -17,12 +17,18 @@ set -uo pipefail
 # undetected precisely because every gate stopped at the root manifest.
 
 #   scripts/lint-inline-tests.sh            # core roots
+#   scripts/lint-inline-tests.sh --paths P...  # only files under P
 #   scripts/lint-inline-tests.sh ROOT...    # scan other source roots; paths
 #                                           # resolve against the caller's cwd
 
+. "$(dirname "${BASH_SOURCE[0]}")/lib/gate-scope.sh"
+gate_scope_parse "$@"
+set -- "${GATE_ARGS[@]}"
 if [ "$#" -eq 0 ]; then
-    cd "$(dirname "$0")/.."
-    set -- crates bin systemprompt
+    cd "$GATE_ROOT"
+    mapfile -t roots < <(gate_roots crates bin systemprompt)
+    gate_pass_if_empty lint-inline-tests "${#roots[@]}"
+    set -- "${roots[@]}"
 fi
 
 fail=0

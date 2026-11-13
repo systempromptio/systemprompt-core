@@ -11,10 +11,17 @@
 # `&'a str`, `Option<String>`, `Option<&str>`, `Uuid` or `Option<Uuid>` is
 # reported.
 #
-# Usage: lint-raw-ids.sh [--report]
+# Usage: lint-raw-ids.sh [--report] [--paths P...]
 #   (default)  print every offending line, exit 1 if any
 #   --report   print counts per crate and per name, always exit 0
+#   --paths    report only lines in files under P; the name set is still
+#              derived from crates/shared/identifiers, and stale boundary and
+#              pending entries are not judged
 set -uo pipefail
+. "$(dirname "${BASH_SOURCE[0]}")/lib/gate-scope.sh"
+gate_scope_parse "$@"
+set -- "${GATE_ARGS[@]}"
+cd "$GATE_ROOT"
 
 REPORT=0
 for arg in "$@"; do
@@ -170,7 +177,7 @@ scan() {
         "${SEARCH_DIRS[@]}" 2>/dev/null || true
 }
 
-RAW=$(scan "$PATTERN")
+RAW=$(scan "$PATTERN" | gate_filter)
 
 boundary_names() {
     local file="$1" entry
@@ -204,7 +211,7 @@ while IFS= read -r line; do
 done <<< "$RAW"
 
 STALE=""
-for entry in "${BOUNDARY[@]}"; do
+gate_full_mode && for entry in "${BOUNDARY[@]}"; do
     file="${entry%%|*}"
     rest="${entry#*|}"
     for name in ${rest%%|*}; do
@@ -214,7 +221,7 @@ for entry in "${BOUNDARY[@]}"; do
     done
 done
 
-while IFS= read -r name; do
+gate_full_mode && while IFS= read -r name; do
     [ -z "$name" ] && continue
     if [ -z "$(scan "$(raw_pattern "$name")")" ]; then
         STALE+="  pending|${name}"$'\n'

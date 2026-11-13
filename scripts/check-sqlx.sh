@@ -9,11 +9,16 @@ pattern='sqlx::query[a-z_]*(::<[^>]*>)?\('
 # under it, a file exempts that file. A stale carve-out is removed, not kept.
 #
 #   scripts/check-sqlx.sh                        # core roots + allowlist
+#   scripts/check-sqlx.sh --paths P...           # only files under P; stale
+#                                                # entries are not judged
 #   scripts/check-sqlx.sh [--allowlist FILE] ROOT...
 #
 # Without roots the script runs from the repository root over `crates/`; with
 # roots, paths (and allowlist entries) resolve against the caller's working
 # directory.
+. "$(dirname "${BASH_SOURCE[0]}")/lib/gate-scope.sh"
+gate_scope_parse "$@"
+set -- "${GATE_ARGS[@]}"
 ALLOWLIST=""
 ROOTS=()
 while [ "$#" -gt 0 ]; do
@@ -25,18 +30,15 @@ while [ "$#" -gt 0 ]; do
     esac
 done
 if [ "${#ROOTS[@]}" -eq 0 ]; then
-    cd "$(git rev-parse --show-toplevel)"
-    ROOTS=(crates/)
+    cd "$GATE_ROOT"
+    mapfile -t ROOTS < <(gate_roots crates/)
+    gate_pass_if_empty check-sqlx "${#ROOTS[@]}"
     ALLOWLIST="${ALLOWLIST:-scripts/sqlx-allowlist.txt}"
 fi
 
 allowlist=()
 if [ -n "$ALLOWLIST" ]; then
-    while IFS= read -r line; do
-        line="${line%%#*}"
-        line="$(printf '%s' "$line" | sed 's/[[:space:]]*$//')"
-        [ -n "$line" ] && allowlist+=("$line")
-    done < "$ALLOWLIST"
+    mapfile -t allowlist < <(gate_allowlist "$ALLOWLIST")
 fi
 
 runtime_hits() {
@@ -47,7 +49,9 @@ runtime_hits() {
 stale=""
 allowlist_re=""
 for entry in "${allowlist[@]}"; do
-    if [[ ! -e "${entry}" ]]; then
+    if ! gate_full_mode; then
+        :
+    elif [[ ! -e "${entry}" ]]; then
         stale+="  ${entry} (path does not exist)"$'\n'
     elif [[ -z "$(runtime_hits "${entry}")" ]]; then
         stale+="  ${entry} (no runtime sqlx::query call left)"$'\n'

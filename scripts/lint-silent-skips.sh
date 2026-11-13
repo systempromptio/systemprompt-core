@@ -15,8 +15,12 @@
 #
 #   scripts/lint-silent-skips.sh [dir...]     # default: crates/tests
 #   scripts/lint-silent-skips.sh --count      # hit count only
+#   scripts/lint-silent-skips.sh [dir...] --paths P...   # only files under P
 set -uo pipefail
-cd "$(dirname "$0")/.."
+. "$(dirname "${BASH_SOURCE[0]}")/lib/gate-scope.sh"
+gate_scope_parse "$@"
+set -- "${GATE_ARGS[@]}"
+cd "$GATE_ROOT"
 WINDOW="${WINDOW:-8}"
 COUNT=0
 if [ "${1:-}" = "--count" ]; then COUNT=1; shift; fi
@@ -24,7 +28,7 @@ if [ "${1:-}" = "--count" ]; then COUNT=1; shift; fi
 files=()
 while IFS= read -r file; do
     files+=("$file")
-done < <(git ls-files -co --exclude-standard "$@" | grep -E '\.rs$' | grep -vE '/(target)/')
+done < <(gate_files "$@" | grep -E '\.rs$' | grep -vE '/(target)/')
 scanned=${#files[@]}
 present=()
 for file in "${files[@]}"; do
@@ -91,6 +95,7 @@ if [ "${#present[@]}" -gt 0 ]; then
     ') || { echo "lint-silent-skips: scan failed" >&2; exit 1; }
     [ -n "$hits" ] && hits+=$'\n'
 fi
+gate_pass_if_empty lint-silent-skips "$scanned"
 [ "$scanned" -gt 0 ] || { echo "lint-silent-skips: no test sources scanned" >&2; exit 1; }
 if [ "$COUNT" -eq 1 ]; then printf '%s' "$hits" | grep -c .; exit 0; fi
 if [ -n "$hits" ]; then
