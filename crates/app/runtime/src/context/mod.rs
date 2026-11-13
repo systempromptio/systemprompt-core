@@ -24,8 +24,8 @@ use systemprompt_marketplace::inventory::PublishGuard;
 use systemprompt_marketplace::{MarketplaceCache, MarketplaceFilter};
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::{ContentConfigRaw, ContentRouting, RouteClassifier};
-use systemprompt_security::keys::SigningKeys;
 use systemprompt_provider_contracts::Dependencies;
+use systemprompt_security::keys::SigningKeys;
 use systemprompt_traits::FileStorage;
 
 mod accessors;
