@@ -10,6 +10,7 @@ rust_contracts_gate() {
     shift 2
     gate_scope_parse "$@"
     set -- "${GATE_ARGS[@]}"
+    gate_require_one_scope "$#"
     if [ "$#" -eq 0 ]; then
         local -a roots
         mapfile -t roots < <(gate_roots "$GATE_ROOT/crates/shared" "$GATE_ROOT/crates/infra" \

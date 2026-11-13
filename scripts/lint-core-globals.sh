@@ -30,6 +30,7 @@ while [ "$#" -gt 0 ]; do
         *) roots+=("$1"); shift ;;
     esac
 done
+gate_require_one_scope "${#roots[@]}"
 if [ "${#roots[@]}" -eq 0 ]; then
     mapfile -t roots < <(gate_roots "$root/crates" "$root/systemprompt/src")
     gate_pass_if_empty lint-core-globals "${#roots[@]}"

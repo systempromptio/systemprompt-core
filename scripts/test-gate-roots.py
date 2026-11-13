@@ -43,6 +43,23 @@ class OneScope(unittest.TestCase):
         self.assertIn("pass one, not both", result.stderr)
 
 
+ROOT_GATES = ("lint-owned-tasks.sh", "lint-env-vars.sh", "lint-repo-construction.sh", "lint-core-globals.sh",
+              "lint-serde-aliases.sh", "lint-test-seams.sh", "lint-async-trait.sh", "lint-stringly-errors.sh",
+              "lint-inline-tests.sh", "lint-migrations.sh", "lint-unbounded-bodies.sh", "check-sqlx.sh",
+              "lint-tracing-messages.sh", "lint-swallowed-errors.sh", "check-fail-open.sh",
+              "check-discarded-results.sh")
+
+
+class EveryRootGateRefusesBothScopes(unittest.TestCase):
+    def test_root_and_paths_together_exit_2(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            for script in ROOT_GATES:
+                with self.subTest(script=script):
+                    result = run(script, tmp, "--paths", "crates")
+                    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+                    self.assertIn("pass one, not both", result.stderr)
+
+
 class GateRoots(unittest.TestCase):
     def fixture(self, relative, body):
         self.tmp = tempfile.TemporaryDirectory()

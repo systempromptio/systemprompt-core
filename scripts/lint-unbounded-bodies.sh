@@ -27,6 +27,7 @@ command -v rg >/dev/null || { echo "lint-unbounded-bodies: ripgrep required" >&2
 . "$(dirname "${BASH_SOURCE[0]}")/lib/gate-scope.sh"
 gate_scope_parse "$@"
 set -- "${GATE_ARGS[@]}"
+gate_require_one_scope "$#"
 if [ "$#" -eq 0 ]; then
     cd "$GATE_ROOT" || exit 2
     mapfile -t ROOTS < <(gate_roots crates/shared crates/infra crates/domain crates/app crates/entry systemprompt/src bin/bridge/src)

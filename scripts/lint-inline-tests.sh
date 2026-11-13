@@ -24,6 +24,7 @@ set -uo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/lib/gate-scope.sh"
 gate_scope_parse "$@"
 set -- "${GATE_ARGS[@]}"
+gate_require_one_scope "$#"
 if [ "$#" -eq 0 ]; then
     cd "$GATE_ROOT"
     mapfile -t roots < <(gate_roots crates bin systemprompt)

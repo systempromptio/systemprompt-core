@@ -37,6 +37,7 @@ set -uo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/lib/gate-scope.sh"
 gate_scope_parse "$@"
 set -- "${GATE_ARGS[@]}"
+gate_require_one_scope "$#"
 [ "$#" -gt 0 ] || cd "$GATE_ROOT" || exit 2
 
 list_sources() {
