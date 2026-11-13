@@ -5,7 +5,7 @@
 ### Breaking
 
 - Capability jobs are exported by `systemprompt-analytics`, `systemprompt-ai`, `systemprompt-agent` and `systemprompt-mcp`; `repository::{AnalyticsRepository, SecurityRepository, IpSessionRecord}` and `SchedulerRepository::{cleanup_empty_contexts, count_empty_contexts}` are removed. Migrate by importing each job from its owner.
-- `SchedulerError` loses `Analytics`, `Managed` and `Mcp` and gains `DuplicateRetentionPurge` and `Extensions`; `otlp_export_now` takes an attribution lookup.
+- `SchedulerError` loses `Analytics`, `Managed` and `Mcp` and gains `DuplicateRetentionPurge` and `Extensions`; `otlp_export_now` takes an attribution lookup; `JobExecutionService::new` takes no registry and reads the context's.
 
 ### Added
 
