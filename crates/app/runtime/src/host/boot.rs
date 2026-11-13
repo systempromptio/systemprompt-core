@@ -241,7 +241,10 @@ impl HostContext {
                 .extensions
                 .build_state(&host, host.kernel_state(), &profile.extensions.disabled)
                 .map_err(RuntimeError::from)?;
-            market.state.bind(state.clone()).map_err(RuntimeError::from)?;
+            market
+                .state
+                .bind(state.clone())
+                .map_err(RuntimeError::from)?;
             host.extension.state = state;
             host
         };

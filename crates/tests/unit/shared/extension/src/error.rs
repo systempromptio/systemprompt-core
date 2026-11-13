@@ -46,8 +46,8 @@ fn loader_error_schema_installation_failed_keeps_its_fault() {
     let msg = err.to_string();
     assert!(msg.contains("schema-ext"));
     assert!(msg.contains("imperative SQL"));
-    let fault = std::error::Error::source(&err)
-        .and_then(|source| source.downcast_ref::<SchemaFault>());
+    let fault =
+        std::error::Error::source(&err).and_then(|source| source.downcast_ref::<SchemaFault>());
     assert!(matches!(fault, Some(SchemaFault::ImperativeSql { offences }) if offences.len() == 1));
 }
 
@@ -64,9 +64,12 @@ fn loader_error_migration_failed_keeps_its_fault() {
     let msg = err.to_string();
     assert!(msg.contains("mig-ext"));
     assert!(msg.contains("migration 3 ('add_column') is already tracked as applied"));
-    let fault = std::error::Error::source(&err)
-        .and_then(|source| source.downcast_ref::<MigrationFault>());
-    assert!(matches!(fault, Some(MigrationFault::AlreadyApplied { version: 3, .. })));
+    let fault =
+        std::error::Error::source(&err).and_then(|source| source.downcast_ref::<MigrationFault>());
+    assert!(matches!(
+        fault,
+        Some(MigrationFault::AlreadyApplied { version: 3, .. })
+    ));
 }
 
 #[test]

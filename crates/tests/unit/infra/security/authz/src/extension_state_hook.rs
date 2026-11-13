@@ -99,7 +99,10 @@ async fn the_hook_reads_the_instance_the_extension_provided_once_bound() {
         .expect("first provider");
     handle.bind(state.clone()).expect("bound once");
 
-    assert!(matches!(hook.evaluate(request()).await, AuthzDecision::Allow));
+    assert!(matches!(
+        hook.evaluate(request()).await,
+        AuthzDecision::Allow
+    ));
     let read_by_hook = handle.get_arc::<GrantCache>().expect("bound state");
     let read_by_router = state.get_arc::<GrantCache>().expect("same state");
     assert!(Arc::ptr_eq(&read_by_hook, &provided));

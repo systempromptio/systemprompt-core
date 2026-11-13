@@ -46,8 +46,8 @@
 //! - [`state`] — typed, extension-scoped state: [`Extension::provide`]
 //!   contributes values at boot in dependency order, [`Extension::requires`]
 //!   declares what must be present, and the immutable state — one
-//!   [`Dependencies`](systemprompt_provider_contracts::Dependencies) map
-//!   seeded with the kernel's handles — is read by every factory through
+//!   [`Dependencies`](systemprompt_provider_contracts::Dependencies) map seeded
+//!   with the kernel's handles — is read by every factory through
 //!   [`ExtensionContext::extension_state`]; an authz hook factory, which runs
 //!   before the state exists, reads it through a [`StateHandle`].
 //! - [`capabilities`] — `Has*` capability traits the host context implements to
@@ -116,7 +116,9 @@ pub use brain::{
 pub use brain::{BrainSink, DynBrainSink};
 pub use context::{DynExtensionContext, ExtensionContext};
 pub use cost::{CostDirective, CostDirectiveError, TriggerPolicy};
-pub use error::{ExtensionConfigError, ExtensionStateError, LoaderError, MigrationFault, SchemaFault};
+pub use error::{
+    ExtensionConfigError, ExtensionStateError, LoaderError, MigrationFault, SchemaFault,
+};
 pub use frame_options::{FrameOptionsOverride, stamp_frame_options};
 pub use gateway_guard::{
     GatewayDenyKind, GatewayDenyReason, GatewayGuardRequest, GatewayGuards, GatewayRequestGuard,
@@ -178,8 +180,8 @@ pub mod prelude {
         MissingDependency, PageContext, PageDataProvider, PagePrepareContext, PagePrerenderer,
         PageRenderSpec, PlaceholderMapping, PlaneContext, PlaneEffect, PlaneSnapshot, PlaneTx,
         PlaneWriter, RenderedComponent, ResolvedEntities, ResolvedEntity, RssFeedContext,
-        RssFeedItem, RssFeedMetadata, RssFeedProvider, RssFeedSpec, SitemapContext, SitemapProvider,
-        SitemapSourceSpec, SitemapUrlEntry, TemplateDataExtender, TemplateDefinition,
-        TemplateProvider, TemplateSource,
+        RssFeedItem, RssFeedMetadata, RssFeedProvider, RssFeedSpec, SitemapContext,
+        SitemapProvider, SitemapSourceSpec, SitemapUrlEntry, TemplateDataExtender,
+        TemplateDefinition, TemplateProvider, TemplateSource,
     };
 }

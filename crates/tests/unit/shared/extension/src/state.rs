@@ -145,8 +145,8 @@ fn default_state_is_empty() {
 
 #[test]
 fn provided_value_is_returned_by_get_and_require() {
-    let state = build(vec![Arc::new(StateExt::new("cache", Provides::Cache(7)))])
-        .expect("state builds");
+    let state =
+        build(vec![Arc::new(StateExt::new("cache", Provides::Cache(7)))]).expect("state builds");
 
     assert_eq!(state.len(), 1);
     assert_eq!(state.get::<Cache>(), Ok(&Cache(7)));
@@ -157,8 +157,8 @@ fn provided_value_is_returned_by_get_and_require() {
 
 #[test]
 fn clones_share_the_same_instance() {
-    let state = build(vec![Arc::new(StateExt::new("cache", Provides::Cache(1)))])
-        .expect("state builds");
+    let state =
+        build(vec![Arc::new(StateExt::new("cache", Provides::Cache(1)))]).expect("state builds");
     let clone = state.clone();
 
     let a = state.get_arc::<Cache>().expect("cache");
@@ -168,8 +168,8 @@ fn clones_share_the_same_instance() {
 
 #[test]
 fn require_of_missing_type_names_the_type() {
-    let state = build(vec![Arc::new(StateExt::new("cache", Provides::Cache(1)))])
-        .expect("state builds");
+    let state =
+        build(vec![Arc::new(StateExt::new("cache", Provides::Cache(1)))]).expect("state builds");
 
     let err = state.get_arc::<NeverProvided>().expect_err("not provided");
     assert!(err.type_name().ends_with("NeverProvided"));
@@ -213,7 +213,10 @@ fn dependent_reads_state_its_dependency_provided() {
     .expect("dependency provides first");
 
     assert_eq!(state.get::<Derived>(), Ok(&Derived(42)));
-    assert_eq!(state.provider_of::<Derived>().cloned(), extension("derived"));
+    assert_eq!(
+        state.provider_of::<Derived>().cloned(),
+        extension("derived")
+    );
 }
 
 #[test]
@@ -236,7 +239,9 @@ fn provider_failure_names_the_extension_and_keeps_the_cause() {
     let err = build(vec![Arc::new(StateExt::new("broken", Provides::Failure))])
         .expect_err("provide fails");
 
-    assert!(matches!(&err, LoaderError::ProvideFailed { extension, .. } if extension.as_str() == "broken"));
+    assert!(
+        matches!(&err, LoaderError::ProvideFailed { extension, .. } if extension.as_str() == "broken")
+    );
     let source = std::error::Error::source(&err).expect("provide error is the source");
     let cause = source.source().expect("provider cause is kept");
     assert_eq!(cause.to_string(), "cache warm-up failed");
@@ -286,7 +291,10 @@ fn kernel_entries_are_readable_while_providing_and_after() {
     .expect("the kernel seeds the cache");
 
     assert_eq!(state.get::<Derived>(), Ok(&Derived(42)));
-    assert_eq!(state.provider_of::<Cache>(), Some(&DependencyProvider::Host));
+    assert_eq!(
+        state.provider_of::<Cache>(),
+        Some(&DependencyProvider::Host)
+    );
 }
 
 #[test]

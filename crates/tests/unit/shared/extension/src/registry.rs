@@ -387,7 +387,10 @@ fn a_failed_merge_leaves_the_registry_unchanged() {
             Arc::new(FakeExt::new("orphan", "Orphan").with_deps(vec!["absent"])),
         ])
         .expect_err("one merged extension names a dependency that is not loaded");
-    assert!(matches!(err, LoaderError::MissingDependency { .. }), "got {err:?}");
+    assert!(
+        matches!(err, LoaderError::MissingDependency { .. }),
+        "got {err:?}"
+    );
 
     let ids: Vec<&str> = registry.extensions().iter().map(|e| e.id()).collect();
     assert_eq!(ids, vec!["base"]);
@@ -409,7 +412,10 @@ fn a_failed_duplicate_merge_leaves_the_registry_unchanged() {
             Arc::new(FakeExt::new("base", "Base again")),
         ])
         .expect_err("base is already registered");
-    assert!(matches!(err, LoaderError::DuplicateExtension(_)), "got {err:?}");
+    assert!(
+        matches!(err, LoaderError::DuplicateExtension(_)),
+        "got {err:?}"
+    );
 
     assert_eq!(registry.len(), 1);
     assert!(!registry.has("fresh"));

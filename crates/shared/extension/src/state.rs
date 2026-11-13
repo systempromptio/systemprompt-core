@@ -72,7 +72,7 @@ impl StateBuilder<'_> {
     }
 
     #[must_use]
-    pub fn state(&self) -> &Dependencies {
+    pub const fn state(&self) -> &Dependencies {
         self.state
     }
 
