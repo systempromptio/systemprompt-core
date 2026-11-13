@@ -16,7 +16,7 @@ use anyhow::Result;
 use clap::Subcommand;
 
 use crate::context::CommandContext;
-use crate::descriptor::DataImpact;
+use crate::descriptor::{CommandDescriptor, DataImpact, DescribeCommand};
 
 #[derive(Debug, Subcommand)]
 pub enum InfraCommands {
@@ -57,6 +57,39 @@ pub async fn execute(cmd: InfraCommands, ctx: &CommandContext) -> Result<()> {
         InfraCommands::Db(cmd) => db::execute(cmd, ctx).await,
         InfraCommands::Jobs(cmd) => jobs::execute(cmd, ctx).await,
         InfraCommands::Logs(cmd) => logs::execute(cmd, ctx).await,
+    }
+}
+
+// Why: the registry lives in a OnceLock, so whoever installs it first decides
+// whether discovered models are served. The server must be that installer,
+// with discovery; a plain `try_init` here made `try_init_with_discovery` a
+// silent no-op on every boot.
+impl DescribeCommand for InfraCommands {
+    fn descriptor(&self) -> CommandDescriptor {
+        match self {
+            Self::Services(cmd) => {
+                let desc = match cmd {
+                    services::ServicesCommands::Serve { .. }
+                    | services::ServicesCommands::Start { .. } => {
+                        CommandDescriptor::PROFILE_SECRETS_AND_PATHS.with_model_discovery()
+                    },
+                    _ => CommandDescriptor::PROFILE_SECRETS_AND_PATHS,
+                };
+                if cmd.serves_api() {
+                    desc.with_serves_api()
+                } else {
+                    desc
+                }
+            },
+            Self::Jobs(jobs::JobsCommands::Run(_) | jobs::JobsCommands::List) => {
+                CommandDescriptor::FULL.with_skip_validation()
+            },
+            Self::Logs(logs::LogsCommands::Delete(_) | logs::LogsCommands::Cleanup(_)) => {
+                CommandDescriptor::FULL
+            },
+            Self::Logs(_) => CommandDescriptor::FULL.with_read_only(),
+            _ => CommandDescriptor::FULL,
+        }
     }
 }
 

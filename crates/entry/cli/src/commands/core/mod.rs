@@ -22,7 +22,7 @@ use anyhow::Result;
 use clap::Subcommand;
 
 use crate::context::CommandContext;
-use crate::descriptor::DataImpact;
+use crate::descriptor::{CommandDescriptor, DataImpact, DescribeCommand};
 
 #[derive(Debug, Subcommand)]
 pub enum CoreCommands {
@@ -73,6 +73,39 @@ pub async fn execute(cmd: CoreCommands, ctx: &CommandContext) -> Result<()> {
         CoreCommands::Marketplace(cmd) => marketplace::execute(cmd, ctx).await,
         CoreCommands::Hooks(cmd) => hooks::execute(cmd, ctx),
         CoreCommands::Services(cmd) => Box::pin(services::execute(cmd, ctx)).await,
+    }
+}
+
+impl DescribeCommand for CoreCommands {
+    fn descriptor(&self) -> CommandDescriptor {
+        match self {
+            Self::Marketplace(marketplace::MarketplaceCommands::Import(_))
+            | Self::Services(
+                services::ServicesCommands::Validate(_)
+                | services::ServicesCommands::Bundle(_)
+                | services::ServicesCommands::Keygen(_),
+            ) => CommandDescriptor::NONE,
+            Self::Services(services::ServicesCommands::Publish(args)) => {
+                if args.auth_secret.is_some() {
+                    CommandDescriptor::PROFILE_AND_SECRETS
+                } else {
+                    CommandDescriptor::NONE
+                }
+            },
+            Self::Services(services::ServicesCommands::Inspect(args)) => {
+                if args.active {
+                    CommandDescriptor::PROFILE_SECRETS_AND_PATHS
+                } else {
+                    CommandDescriptor::NONE
+                }
+            },
+            Self::Hooks(_)
+            | Self::Plugins(_)
+            | Self::Skills(skills::SkillsCommands::List(_) | skills::SkillsCommands::Show(_)) => {
+                CommandDescriptor::PROFILE_SECRETS_AND_PATHS
+            },
+            _ => CommandDescriptor::FULL,
+        }
     }
 }
 

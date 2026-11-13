@@ -25,6 +25,7 @@ use clap::Subcommand;
 
 use crate::commands::analytics::shared::with_resolved_export;
 use crate::context::CommandContext;
+use crate::descriptor::{CommandDescriptor, DescribeCommand};
 use crate::shared::render_result;
 
 #[derive(Debug, Subcommand)]
@@ -55,6 +56,14 @@ pub enum AnalyticsCommands {
 
     #[command(about = "Cost analytics; defaults to the spend summary")]
     Costs(costs::CostsArgs),
+}
+
+impl DescribeCommand for AnalyticsCommands {
+    fn descriptor(&self) -> CommandDescriptor {
+        CommandDescriptor::FULL
+            .with_skip_validation()
+            .with_read_only()
+    }
 }
 
 pub async fn execute(command: AnalyticsCommands, ctx: &CommandContext) -> Result<()> {

@@ -6,6 +6,10 @@
 
 /// Bootstrap flags for one command.
 ///
+/// `serves_api` marks a command that runs the API server in this process: the
+/// runner stamps the server identity and lets the server own its own interrupt
+/// handling.
+///
 /// Model discovery (installing the services registry through boot-time
 /// discovery) is set only for the server; every other command loads the YAML
 /// catalog as authored and must not reach for the network.
@@ -29,6 +33,7 @@ impl CommandDescriptor {
     const FLAG_MODEL_DISCOVERY: u16 = 0b0000_1000_0000;
     const FLAG_DESTRUCTIVE: u16 = 0b0001_0000_0000;
     const FLAG_IRREVERSIBLE: u16 = 0b0010_0000_0000;
+    const FLAG_SERVES_API: u16 = 0b0100_0000_0000;
 
     pub const NONE: Self = Self { flags: 0 };
 
@@ -110,6 +115,16 @@ impl CommandDescriptor {
         }
     }
 
+    pub const fn serves_api(&self) -> bool {
+        self.flags & Self::FLAG_SERVES_API != 0
+    }
+
+    pub const fn with_serves_api(self) -> Self {
+        Self {
+            flags: self.flags | Self::FLAG_SERVES_API,
+        }
+    }
+
     pub const fn is_destructive(&self) -> bool {
         self.flags & Self::FLAG_DESTRUCTIVE != 0
     }
@@ -181,6 +196,20 @@ pub enum RoutingClass {
     Mutating,
 }
 
+/// How a command relates to a directly supplied `--database-url`.
+///
+/// The flag bypasses profile resolution, but only a subset of commands can run
+/// against a bare connection: `Direct` commands do, `ProfileDriven` commands
+/// keep their profile-establishing path and ignore it, and `Unsupported`
+/// commands fail before any connection is dialed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DbUrlRouting {
+    Direct,
+    ProfileDriven,
+    Unsupported,
+}
+
+/// The bootstrap requirements a parsed command declares before it runs.
 pub trait DescribeCommand {
     fn descriptor(&self) -> CommandDescriptor;
 }
