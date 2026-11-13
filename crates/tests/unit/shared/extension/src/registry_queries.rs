@@ -9,7 +9,8 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use async_trait::async_trait;
 use systemprompt_extension::{
-    Extension, ExtensionContext, ExtensionMetadata, ExtensionRouter, LoaderError, SchemaDefinition,
+    AuthzPolicy, ContextKind, Extension, ExtensionContext, ExtensionMetadata, ExtensionRouter,
+    LoaderError, SchemaDefinition,
 };
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_provider_contracts::{Job, JobContext, JobResult, ProviderResult};
@@ -85,7 +86,12 @@ impl Extension for CapExt {
     fn router(&self, _ctx: &dyn ExtensionContext) -> Option<ExtensionRouter> {
         self.router_builds.fetch_add(1, Ordering::SeqCst);
         if self.has_router {
-            Some(ExtensionRouter::new(axum::Router::new(), "/api/v1/cap"))
+            Some(ExtensionRouter::new(
+                axum::Router::new(),
+                "/api/v1/cap",
+                AuthzPolicy::user(),
+                ContextKind::User,
+            ))
         } else {
             None
         }

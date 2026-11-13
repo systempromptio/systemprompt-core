@@ -157,16 +157,3 @@ fn test_multiple_schema_definitions() {
     assert_eq!(schemas[1].table.as_deref(), Some("posts"));
     assert_eq!(schemas[2].table.as_deref(), Some("comments"));
 }
-
-#[test]
-fn test_extension_router_collection() {
-    let routers = [
-        ExtensionRouter::new(Router::new(), "/api/v1/a"),
-        ExtensionRouter::public(Router::new(), "/api/v1/b"),
-        ExtensionRouter::new(Router::new(), "/api/v1/c"),
-    ];
-
-    assert!(routers[0].requires_auth);
-    assert!(!routers[1].requires_auth);
-    assert!(routers[2].requires_auth);
-}
