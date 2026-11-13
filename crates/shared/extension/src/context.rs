@@ -25,10 +25,16 @@
 //! never reads the signing keys, the process environment or a global for any
 //! of them.
 //!
+//! [`ExtensionContext::extension_state`] hands out the typed state every
+//! extension provided at boot ([`ExtensionState`]); a factory reads its own
+//! extension's caches and services from it with `get` or `require`.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
+
+use crate::state::ExtensionState;
 use systemprompt_identifiers::InstanceId;
 use systemprompt_manifest::services::ServicesView;
 use systemprompt_manifest::{Config, Profile};
@@ -88,6 +94,8 @@ pub trait ExtensionContext: Send + Sync {
     fn subject_attributes(&self) -> Arc<dyn SubjectAttributeSource>;
 
     fn provider_tokens(&self) -> Arc<dyn ProviderTokenCache>;
+
+    fn extension_state(&self) -> ExtensionState;
 
     fn config_planes(&self) -> ConfigPlaneResult<ConfigPlaneSet> {
         Err(ConfigPlaneError::PlanesUnavailable)

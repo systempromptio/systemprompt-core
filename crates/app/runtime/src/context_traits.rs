@@ -165,6 +165,10 @@ impl ExtensionContext for AppContext {
         self.plugins.extension_registry.get(id).cloned()
     }
 
+    fn extension_state(&self) -> systemprompt_extension::ExtensionState {
+        self.plugins.extension_state.clone()
+    }
+
     fn config_planes(
         &self,
     ) -> systemprompt_provider_contracts::ConfigPlaneResult<crate::ConfigPlaneSet> {

@@ -1,7 +1,13 @@
 //! Builder that assembles an [`AppContext`] from profile + config state.
 //!
 //! The builder owns the bootstrap order: profile -> paths -> files ->
-//! database -> logging -> extensions -> ancillary services. A failing step
+//! database -> logging -> extensions -> ancillary services -> extension state
+//! -> extension seams. Extension state is built once the context exists, so
+//! every [`Extension::provide`](systemprompt_extension::Extension::provide)
+//! sees the database, config, event router and background tasks through its
+//! `ExtensionContext`; it is built and its declared requirements validated
+//! before the notification and brain seams, routers, jobs and gateway guards
+//! are collected, so each of their factories reads the finished state. A failing step
 //! propagates as [`RuntimeError`](crate::error::RuntimeError); helpers live
 //! in [`assembly`].
 //!
@@ -232,6 +238,7 @@ impl AppContextBuilder {
             plugins,
             subsystems,
         );
+        let app = provide_extension_state(app)?;
         #[cfg(feature = "notifications")]
         let app = {
             let mut app = app;
@@ -251,4 +258,10 @@ impl AppContextBuilder {
         };
         Ok(app)
     }
+}
+
+fn provide_extension_state(mut app: AppContext) -> RuntimeResult<AppContext> {
+    let state = app.plugins.extension_registry.build_state(&app)?;
+    app.plugins.extension_state = state;
+    Ok(app)
 }

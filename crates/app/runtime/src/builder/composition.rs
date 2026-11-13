@@ -191,6 +191,7 @@ pub(super) fn new_plugins(
     let factory_ctx = &inputs.factory;
     Plugins {
         extension_registry,
+        extension_state: systemprompt_extension::ExtensionState::default(),
         mcp_registry,
         marketplace_filter: marketplace_filter
             .unwrap_or_else(|| assembly::build_marketplace_filter(factory_ctx)),

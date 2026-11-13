@@ -8,7 +8,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::{ExtensionRegistry, topo_sort};
+use super::{ExtensionRegistry, dependency_order};
 use crate::error::LoaderError;
 use systemprompt_identifiers::ExtensionId;
 
@@ -31,19 +31,7 @@ pub const RESERVED_PATHS: &[&str] = &[
 
 impl ExtensionRegistry {
     pub fn validate_dependencies(&self) -> Result<(), LoaderError> {
-        for ext in self.extensions.values() {
-            for dep_id in ext.dependencies() {
-                if !self.extensions.contains_key(dep_id) {
-                    return Err(LoaderError::MissingDependency {
-                        extension: ExtensionId::new(ext.id()),
-                        dependency: ExtensionId::new(dep_id),
-                    });
-                }
-            }
-        }
-
-        let ids: Vec<String> = self.extensions.keys().cloned().collect();
-        topo_sort(&ids, &self.extensions).map(|_| ())
+        dependency_order(&self.extensions).map(|_| ())
     }
 
     pub fn validate_api_paths(&self, ctx: &dyn crate::ExtensionContext) -> Result<(), LoaderError> {

@@ -43,10 +43,14 @@
 //!   not yet released.
 //! - [`registry`] — runtime store of registered extensions, built from
 //!   `inventory` submissions at startup.
+//! - [`state`] — typed, extension-scoped state: [`Extension::provide`]
+//!   contributes values at boot in dependency order, [`Extension::requires`]
+//!   declares what must be present, and the immutable [`ExtensionState`] is
+//!   read by every factory through [`ExtensionContext::extension_state`].
 //! - [`capabilities`] — `Has*` capability traits the host context implements to
 //!   expose its subsystems to extensions.
-//! - [`error`] — typed error enums ([`LoaderError`], [`ExtensionConfigError`])
-//!   raised by the registry.
+//! - [`error`] — typed error enums ([`LoaderError`], [`ExtensionStateError`],
+//!   [`ExtensionConfigError`]) raised by the registry.
 //!
 //! # Feature flags
 //!
@@ -84,6 +88,7 @@ pub mod retention;
 pub mod router;
 mod seam;
 pub mod seed;
+pub mod state;
 mod traits;
 
 pub use asset::{AssetDefinition, AssetDefinitionBuilder, AssetPaths, AssetType};
@@ -107,7 +112,7 @@ pub use brain::{
 pub use brain::{BrainSink, DynBrainSink};
 pub use context::{DynExtensionContext, ExtensionContext};
 pub use cost::{CostDirective, CostDirectiveError, TriggerPolicy};
-pub use error::{ExtensionConfigError, LoaderError};
+pub use error::{ExtensionConfigError, ExtensionStateError, LoaderError};
 pub use frame_options::{FrameOptionsOverride, stamp_frame_options};
 pub use gateway_guard::{
     GatewayDenyKind, GatewayDenyReason, GatewayGuardRequest, GatewayGuards, GatewayRequestGuard,
@@ -138,6 +143,7 @@ pub use retention::{
 };
 pub use router::{ExtensionRouter, ExtensionRouterConfig, SiteAuthConfig};
 pub use seed::Seed;
+pub use state::{ExtensionState, StateBuilder, StateRequirement};
 pub use traits::Extension;
 
 pub use capabilities::{HasAnalytics, HasFingerprint, HasRouteClassifier, HasUserService};
@@ -145,13 +151,14 @@ pub use capabilities::{HasAnalytics, HasFingerprint, HasRouteClassifier, HasUser
 pub mod prelude {
     pub use crate::asset::{AssetDefinition, AssetDefinitionBuilder, AssetPaths, AssetType};
     pub use crate::context::{DynExtensionContext, ExtensionContext};
-    pub use crate::error::{ExtensionConfigError, LoaderError};
+    pub use crate::error::{ExtensionConfigError, ExtensionStateError, LoaderError};
     pub use crate::gateway_guard::{
         GatewayDenyKind, GatewayDenyReason, GatewayGuardRequest, GatewayGuards, GatewayRequestGuard,
     };
     pub use crate::registry::ExtensionRegistry;
     pub use crate::retention::{RetentionHold, RetentionHoldError, RetentionTarget};
     pub use crate::seed::Seed;
+    pub use crate::state::{ExtensionState, StateBuilder, StateRequirement};
     pub use crate::{
         Extension, ExtensionMetadata, ExtensionRole, ExtensionRouter, Migration, SchemaDefinition,
         SiteAuthConfig, extension_migrations, register_extension, register_gateway_guard,

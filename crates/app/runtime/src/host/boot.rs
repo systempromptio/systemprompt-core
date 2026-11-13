@@ -9,6 +9,7 @@ use std::sync::Arc;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_config::{GrantedSecrets, GrantedSecretsError, LoadedProfile};
 use systemprompt_database::MigrationConfig;
+use systemprompt_extension::ExtensionState;
 use systemprompt_loader::{ConfigLoader, ServicesSourceBootstrap, ServicesState};
 use systemprompt_mcp::repository::McpSessionRepository;
 use systemprompt_models::subprocess::VERIFICATION_KEYS_ENV;
@@ -198,6 +199,7 @@ impl HostContext {
             )),
             file_storage,
             extensions,
+            state: ExtensionState::default(),
             subjects: market.factory.subjects.clone(),
             provider_tokens: Arc::default(),
             system_owner,
@@ -232,6 +234,16 @@ impl HostContext {
             background_tasks,
             log_sink,
             extension,
+        };
+        let host = {
+            let mut host = host;
+            let state = host
+                .extension
+                .extensions
+                .build_state(&host)
+                .map_err(RuntimeError::from)?;
+            host.extension.state = state;
+            host
         };
         #[cfg(feature = "notifications")]
         let host = {

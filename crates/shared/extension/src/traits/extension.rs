@@ -16,13 +16,21 @@ use systemprompt_traits::RunnerService;
 
 use crate::asset::{AssetDefinition, AssetPaths};
 use crate::context::ExtensionContext;
-use crate::error::ExtensionConfigError;
+use crate::error::{ExtensionConfigError, ExtensionStateError};
 use crate::health::{MetricDescriptor, ReadinessCheck};
 use crate::metadata::{ExtensionMetadata, ExtensionRole, SchemaDefinition};
 use crate::migration::Migration;
 use crate::router::{ExtensionRouter, ExtensionRouterConfig, SiteAuthConfig};
 use crate::seed::Seed;
+use crate::state::{StateBuilder, StateRequirement};
 
+/// The one contract an extension implements: `metadata()` is required and
+/// every other method is a defaulted hook.
+///
+/// `provide` runs once at boot, synchronously and in dependency order, and
+/// contributes typed values to the shared
+/// [`ExtensionState`](crate::ExtensionState); `requires` names the types the
+/// extension cannot run without, checked before anything serves.
 pub trait Extension: Send + Sync + 'static {
     fn metadata(&self) -> ExtensionMetadata;
 
@@ -127,6 +135,18 @@ pub trait Extension: Send + Sync + 'static {
     }
 
     fn dependencies(&self) -> Vec<&'static str> {
+        vec![]
+    }
+
+    fn provide(
+        &self,
+        _ctx: &dyn ExtensionContext,
+        _state: &mut StateBuilder<'_>,
+    ) -> Result<(), ExtensionStateError> {
+        Ok(())
+    }
+
+    fn requires(&self) -> Vec<StateRequirement> {
         vec![]
     }
 
