@@ -12,7 +12,7 @@ use systemprompt_extension::{
     SchemaFault, Seed,
 };
 use systemprompt_identifiers::ExtensionId;
-use systemprompt_test_fixtures::install_extension_schemas_with_config;
+use systemprompt_test_fixtures::{error_chain, install_extension_schemas_with_config};
 
 use crate::services::db_helper::test_pool;
 
@@ -845,7 +845,7 @@ async fn an_unguarded_drop_is_rejected_as_imperative() {
         .await
         .expect_err("an unguarded DROP belongs in a migration, not a schema");
     assert!(
-        err.to_string().contains("schema/migrations"),
+        error_chain(&err).contains("schema/migrations"),
         "the refusal must point at where the statement belongs, got {err}"
     );
 
@@ -926,6 +926,6 @@ async fn a_declarative_function_without_or_replace_is_refused() {
         matches!(err, LoaderError::SchemaInstallationStepFailed { .. }),
         "expected SchemaInstallationStepFailed, got {err:?}"
     );
-    assert!(err.to_string().contains("CREATE OR REPLACE"), "{err}");
+    assert!(error_chain(&err).contains("CREATE OR REPLACE"), "{err}");
     assert!(!table_exists(&db, table).await);
 }

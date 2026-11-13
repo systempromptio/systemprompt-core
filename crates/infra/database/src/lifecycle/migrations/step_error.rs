@@ -11,7 +11,7 @@ use crate::error::RepositoryError;
 
 #[derive(Debug, Error)]
 pub(super) enum MigrationStepError {
-    #[error("Failed to parse migration {version} ({name}) for {purpose}: {source}")]
+    #[error("Failed to parse migration {version} ({name}) for {purpose}")]
     Parse {
         version: u32,
         name: String,
@@ -20,14 +20,14 @@ pub(super) enum MigrationStepError {
         source: pg_query::Error,
     },
 
-    #[error("Failed to list triggers on {table}: {source}")]
+    #[error("Failed to list triggers on {table}")]
     ListTriggers {
         table: String,
         #[source]
         source: Box<RepositoryError>,
     },
 
-    #[error("Failed to {action} trigger {trigger} on {table}: {source}")]
+    #[error("Failed to {action} trigger {trigger} on {table}")]
     Trigger {
         action: &'static str,
         trigger: String,
@@ -36,7 +36,7 @@ pub(super) enum MigrationStepError {
         source: Box<RepositoryError>,
     },
 
-    #[error("Failed to bound migration {version} ({name}) with `{setting}`: {source}")]
+    #[error("Failed to bound migration {version} ({name}) with `{setting}`")]
     Bound {
         version: u32,
         name: String,
@@ -45,9 +45,7 @@ pub(super) enum MigrationStepError {
         source: Box<RepositoryError>,
     },
 
-    #[error(
-        "Migration {version} ({name}) statement {n}/{total} failed: {source}\nSQL:\n{statement}"
-    )]
+    #[error("Migration {version} ({name}) statement {n}/{total} failed\nSQL:\n{statement}")]
     Statement {
         version: u32,
         name: String,
@@ -58,7 +56,7 @@ pub(super) enum MigrationStepError {
         source: Box<RepositoryError>,
     },
 
-    #[error("Migration {version} ({name}) tracking write failed: {source}")]
+    #[error("Migration {version} ({name}) tracking write failed")]
     Tracking {
         version: u32,
         name: String,

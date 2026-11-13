@@ -8,6 +8,7 @@ use systemprompt_database::{
     DatabaseProvider, MigrationService, PostgresProvider, check_trigger_routines,
 };
 use systemprompt_extension::{Extension, ExtensionMetadata, LoaderError, Migration};
+use systemprompt_test_fixtures::error_chain;
 
 struct StubExtension {
     id: &'static str,
@@ -142,7 +143,7 @@ async fn a_migration_declaring_live_triggers_fires_them() {
         .run_pending_migrations(&ext)
         .await
         .expect_err("triggers=live keeps the trigger on");
-    assert!(err.to_string().contains("stale trigger fired"), "{err}");
+    assert!(error_chain(&err).contains("stale trigger fired"), "{err}");
 }
 
 #[tokio::test]

@@ -8,6 +8,7 @@ use systemprompt_database::{
     QuerySelector, ToDbValue, replica_status, validate_column_exists, validate_table_exists,
 };
 use systemprompt_traits::RepositoryError;
+use systemprompt_test_fixtures::error_chain;
 
 #[derive(Debug)]
 struct ResultProvider {
@@ -116,7 +117,7 @@ async fn replica_probe_rejects_missing_or_untyped_recovery_state() {
         let error = replica_status(&provider)
             .await
             .expect_err("malformed probe rejected");
-        assert!(error.to_string().contains(expected), "{error}");
+        assert!(error_chain(&error).contains(expected), "{error}");
     }
 }
 
@@ -150,7 +151,7 @@ async fn table_and_column_probes_reject_absent_or_non_boolean_results() {
             .await
             .expect_err("malformed table probe rejected");
         assert!(
-            table_error.to_string().contains("managed_resources"),
+            error_chain(&table_error).contains("managed_resources"),
             "{table_error}"
         );
         let column_error = validate_column_exists(&provider, "managed_resources", "owner_id")

@@ -1,6 +1,7 @@
 //! Historical checksum conversion must never become migration drift repair.
 use super::*;
 use std::hash::{Hash, Hasher};
+use systemprompt_test_fixtures::error_chain;
 
 fn historical(sql: &str) -> String {
     let mut hash = std::collections::hash_map::DefaultHasher::new();
@@ -112,7 +113,7 @@ async fn edited_sql_rejects_entire_extension_before_any_checksum_transition() {
         .run_pending_migrations(&ext)
         .await
         .expect_err("edited SQL is real drift");
-    assert!(error.to_string().contains("edited"));
+    assert!(error_chain(&error).contains("edited"));
     assert_eq!(stored(&f, 7).await, historical(original.sql));
     assert_eq!(stored(&f, 8).await, historical(second.sql));
     ext.migrations[1] = second.clone();
@@ -205,7 +206,7 @@ async fn concurrent_history_replacement_rolls_back_earlier_conversions() {
         .expect("bounded runner")
         .unwrap()
         .expect_err("CAS must reject replaced history");
-    assert!(error.to_string().contains("concurrently"));
+    assert!(error_chain(&error).contains("concurrently"));
     assert_eq!(
         stored(&f, 7).await,
         historical(first.sql),

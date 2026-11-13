@@ -4,7 +4,7 @@
 //! turns pre-existing rows into a boot failure.
 
 use systemprompt_extension::{Migration, SchemaDefinition};
-use systemprompt_test_fixtures::install_extension_schemas_with_config;
+use systemprompt_test_fixtures::{error_chain, install_extension_schemas_with_config};
 
 use super::installation::{
     StubExtension, drop_table, leak, provider_and_db, registry_with, table_exists, unique_id,
@@ -333,7 +333,7 @@ async fn a_failing_catalog_probe_fails_the_install_on_an_established_database() 
     let err = install_extension_schemas_with_config(&registry, &failing, &[])
         .await
         .expect_err("a failing catalog probe is not drift");
-    assert!(err.to_string().contains("could not be probed"), "{err}");
+    assert!(error_chain(&err).contains("could not be probed"), "{err}");
     assert_eq!(foreign_key_count(&db, child).await, 0);
 
     forget_migrations(&db, ext_id).await;

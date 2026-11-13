@@ -9,7 +9,7 @@ use systemprompt_database::{DatabaseProvider, PostgresProvider};
 use systemprompt_extension::{
     Extension, ExtensionMetadata, ExtensionRegistry, LoaderError, SchemaDefinition,
 };
-use systemprompt_test_fixtures::install_extension_schemas_with_config;
+use systemprompt_test_fixtures::{error_chain, install_extension_schemas_with_config};
 
 use super::installation::{drop_table, provider_and_db, unique_id};
 
@@ -187,7 +187,7 @@ async fn a_retired_table_is_refused_before_any_retirement_runs() {
 async fn a_retirement_without_if_exists_is_refused() {
     let (error, untouched) = refused("DROP VIEW {prefix}_view;").await;
 
-    assert!(error.to_string().contains("must say IF EXISTS"), "{error}");
+    assert!(error_chain(&error).contains("must say IF EXISTS"), "{error}");
     assert!(untouched);
 }
 
@@ -195,7 +195,7 @@ async fn a_retirement_without_if_exists_is_refused() {
 async fn a_retirement_that_is_not_a_drop_is_refused() {
     let (error, untouched) = refused("DELETE FROM {prefix}_legacy;").await;
 
-    assert!(error.to_string().contains("only DROP"), "{error}");
+    assert!(error_chain(&error).contains("only DROP"), "{error}");
     assert!(untouched);
 }
 
@@ -207,6 +207,6 @@ async fn an_unparseable_retirement_is_refused() {
         matches!(error, LoaderError::SchemaInstallationStepFailed { .. }),
         "{error}"
     );
-    assert!(error.to_string().contains("retirement: SQL"), "{error}");
+    assert!(error_chain(&error).contains("retirement: SQL"), "{error}");
     assert!(untouched);
 }
