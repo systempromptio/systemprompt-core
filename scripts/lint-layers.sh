@@ -56,11 +56,13 @@ command -v python3 >/dev/null || { echo "lint-layers: python3 not found"; exit 1
 cargo metadata --no-deps --format-version 1 | python3 -c '
 import json, sys
 from collections import defaultdict
+sys.path.insert(0, "scripts")
+from cargo_graph import PRODUCTION_KINDS, packages_by_name, production_edges
 
 ORDER = {"shared": 0, "infra": 1, "domain": 2, "app": 3, "entry": 4, "facade": 5}
 
 md = json.load(sys.stdin)
-pkgs = {p["name"]: p for p in md["packages"]}
+pkgs = packages_by_name(md)
 local = set(pkgs)
 
 layer = {}
@@ -75,11 +77,7 @@ if unknown:
     print("lint-layers: FAIL — crate outside the known layer taxonomy")
     sys.exit(1)
 
-deps = defaultdict(set)
-for name, pkg in pkgs.items():
-    for d in pkg["dependencies"]:
-        if d["name"] in local and d["name"] != name and d["kind"] in (None, "build"):
-            deps[name].add(d["name"])
+deps = production_edges(pkgs)
 
 # Empty by design: adding an edge here requires a written justification in the
 # commit that adds it. Cross-domain capability flows through shared-layer traits.
@@ -124,7 +122,7 @@ for name in sorted(local):
     if layer[name] != "shared":
         continue
     for d in pkgs[name]["dependencies"]:
-        if d["kind"] not in (None, "build"):
+        if d["kind"] not in PRODUCTION_KINDS:
             continue
         dep = d["name"]
         if dep in ("reqwest", "tokio") and name == NETWORK_CRATE:
