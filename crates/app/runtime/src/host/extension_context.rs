@@ -6,14 +6,16 @@
 //! refuses to sign ([`VerifyingTokenAuthority`]). Its dependency set carries
 //! no OAuth or AI repositories, so a factory that looks them up finds none.
 //! An extension that needs either fails in the host instead of running with a
-//! narrower view.
+//! narrower view. The host runs every extension's `provide` over this context
+//! before its seams are discovered, so extension state resolves as it does on
+//! the API.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 
-use systemprompt_extension::{Extension, ExtensionContext, ExtensionRegistry};
+use systemprompt_extension::{Extension, ExtensionContext, ExtensionRegistry, ExtensionState};
 use systemprompt_identifiers::{InstanceId, UserId};
 use systemprompt_manifest::services::ServicesView;
 use systemprompt_manifest::services::root::ActiveServicesRoot;
@@ -34,6 +36,7 @@ pub(super) struct ExtensionHandles {
     pub(super) tokens: Arc<VerifyingTokenAuthority>,
     pub(super) file_storage: Arc<dyn FileStorage>,
     pub(super) extensions: Arc<ExtensionRegistry>,
+    pub(super) state: ExtensionState,
     pub(super) subjects: SubjectSourceHandle,
     pub(super) provider_tokens: Arc<TokenCache>,
     pub(super) system_owner: UserId,
@@ -111,6 +114,10 @@ impl ExtensionContext for HostContext {
 
     fn subject_attributes(&self) -> Arc<dyn SubjectAttributeSource> {
         Arc::new(self.extension.subjects.clone())
+    }
+
+    fn extension_state(&self) -> ExtensionState {
+        self.extension.state.clone()
     }
 
     fn provider_tokens(&self) -> Arc<dyn ProviderTokenCache> {

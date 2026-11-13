@@ -576,6 +576,7 @@ fn fixture_app_context_assembled_on(
         },
         Plugins {
             extension_registry,
+            extension_state: systemprompt_extension::ExtensionState::default(),
             mcp_registry: RegistryService::new(
                 fixture_user_id(),
                 services.view(),
