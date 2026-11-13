@@ -196,3 +196,62 @@ async fn two_workers_split_processes_and_the_survivor_takes_over_a_crashed_peer(
         );
     }
 }
+
+#[tokio::test]
+async fn a_gracefully_departing_worker_hands_its_processes_over_within_one_tick() {
+    let db = test_db_pool().await;
+    let leaving = Worker::boot(&db, "http://10.0.1.1:8080").await;
+    let staying = Worker::boot(&db, "http://10.0.1.2:8080").await;
+    let cohort = [&leaving.id, &staying.id];
+    let suffix = uuid::Uuid::new_v4().simple().to_string();
+    let keys: Vec<ProcessKey> = (0..24)
+        .map(|i| {
+            ProcessKey::new(
+                ServiceModule::Mcp,
+                ServiceName::new(format!("dep{i}_{suffix}")),
+            )
+        })
+        .collect();
+
+    let workers = leaving.reachable_peers(&cohort).await;
+    let (mut held_leaving, mut held_staying) = (Vec::new(), Vec::new());
+    leaving.tick(&keys, &workers, &mut held_leaving).await;
+    staying.tick(&keys, &workers, &mut held_staying).await;
+    assert!(
+        !held_leaving.is_empty(),
+        "the leaving worker holds processes"
+    );
+
+    leaving
+        .services
+        .delete_presence()
+        .await
+        .expect("withdraw presence");
+    let survivors = staying.reachable_peers(&cohort).await;
+    assert_eq!(
+        survivors,
+        vec![staying.id.clone()],
+        "a withdrawn worker leaves the reachable set at once, not after the lease TTL"
+    );
+
+    staying.tick(&keys, &survivors, &mut held_staying).await;
+    assert!(
+        held_leaving.iter().all(|key| !held_staying.contains(key)),
+        "a lease still held by the departing worker is not taken: no process has two owners"
+    );
+
+    for key in held_leaving.drain(..) {
+        leaving
+            .coordination
+            .leases
+            .release(&key.lease_key())
+            .await
+            .expect("release after stop");
+    }
+    staying.tick(&keys, &survivors, &mut held_staying).await;
+    assert_eq!(
+        held_staying.len(),
+        keys.len(),
+        "the survivor claims every released process on its next tick"
+    );
+}

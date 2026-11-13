@@ -1,0 +1,4 @@
+[root]
+section = "Fixed"
+area = "API"
+text = "a `worker` that stops gracefully withdraws its presence before it stops and releases its processes (`ServiceRepository::delete_presence`), so a surviving worker claims them on its next tick instead of after the 45 s presence staleness, and a worker preferred for a key whose lease is still held retries the claim every 2 s (`CLAIM_RETRY_EVERY`). A worker that dies without stopping still leaves after `LEASE_TTL`."

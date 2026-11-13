@@ -1,7 +1,9 @@
 //! Per-replica role presence: every replica records its `server.role` with
 //! each registry heartbeat, so the live replica count per role is readable
 //! cluster-wide, including for roles that register no process, and the live
-//! members of one role are listable for spreading work across them.
+//! members of one role are listable for spreading work across them. A replica
+//! that stops gracefully withdraws its own row, so it leaves the listings at
+//! once rather than when its heartbeat goes stale.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -88,6 +90,16 @@ impl ServiceRepository {
             WHERE heartbeat_at < CURRENT_TIMESTAMP - make_interval(secs => $1::double precision)
             "#,
             older_than_secs as f64
+        )
+        .execute(&*self.write_pool)
+        .await?;
+        Ok(result.rows_affected())
+    }
+
+    pub async fn delete_presence(&self) -> DatabaseResult<u64> {
+        let result = sqlx::query!(
+            "DELETE FROM instance_presence WHERE instance_id = $1",
+            self.instance_id.as_str()
         )
         .execute(&*self.write_pool)
         .await?;

@@ -140,3 +140,28 @@ async fn stale_presence_is_deleted_and_fresh_kept() {
     assert_eq!(presence_role(&db, &stale_id).await, None);
     assert_eq!(presence_role(&db, &fresh_id).await.as_deref(), Some("api"));
 }
+
+#[tokio::test]
+async fn deleting_presence_removes_only_this_replicas_row() {
+    let db = db_pool().await;
+    let leaving_id = unique_instance();
+    let staying_id = unique_instance();
+    let leaving = ServiceRepository::new(&db, leaving_id.clone());
+    let staying = ServiceRepository::new(&db, staying_id.clone());
+    leaving
+        .touch_presence(NodeRole::Worker)
+        .await
+        .expect("touch");
+    staying
+        .touch_presence(NodeRole::Worker)
+        .await
+        .expect("touch");
+
+    assert_eq!(leaving.delete_presence().await.expect("delete"), 1);
+    assert_eq!(presence_role(&db, &leaving_id).await, None);
+    assert_eq!(
+        presence_role(&db, &staying_id).await.as_deref(),
+        Some("worker")
+    );
+    assert_eq!(leaving.delete_presence().await.expect("delete again"), 0);
+}

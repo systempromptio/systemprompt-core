@@ -12,8 +12,13 @@
 //! also wins a lease that expired or whose holder is no longer alive, which is
 //! how a crashed worker's processes move once it leaves the reachable set. A
 //! worker that loses a lease, or cannot renew it before it would expire,
-//! stops that process alone. `api` replicas find each process's holder
-//! through the service registry and forward to its advertised address.
+//! stops that process alone. A worker that stops gracefully withdraws its
+//! presence before it stops and releases its processes, so its peers drop it
+//! from the reachable set at once; a worker that is preferred for a key whose
+//! lease is still held re-tries the claim every [`CLAIM_RETRY_EVERY`] until it
+//! wins it. A worker that dies without stopping leaves the reachable set when
+//! its presence is older than [`LEASE_TTL`]. `api` replicas find each process's
+//! holder through the service registry and forward to its advertised address.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -29,6 +34,23 @@ use super::rendezvous::preferred_owner;
 pub const LEASE_TTL: Duration = Duration::from_secs(45);
 pub const RENEW_EVERY: Duration = Duration::from_secs(15);
 pub const FAILED_START_BACKOFF: Duration = Duration::from_secs(60);
+pub const CLAIM_RETRY_EVERY: Duration = Duration::from_secs(2);
+
+/// Whether a supervision tick settles every lease or only retries claims.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TickKind {
+    Full,
+    ClaimOnly,
+}
+
+pub fn next_tick(since_full: Duration, pending: bool) -> Duration {
+    let until_full = RENEW_EVERY.saturating_sub(since_full);
+    if pending {
+        until_full.min(CLAIM_RETRY_EVERY)
+    } else {
+        until_full
+    }
+}
 
 /// One supervised process, named by its registry module and service name.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
