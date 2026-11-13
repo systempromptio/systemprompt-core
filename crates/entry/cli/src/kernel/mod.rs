@@ -37,12 +37,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod command;
 mod registry;
 
-pub use registry::{
-    CliCommandGroup, CliCommandLeaf, CliCommandRegistration, CommandFuture, CommandRegistry,
-    RegisteredCommand, RegistryError,
-};
+pub use command::{CliCommandGroup, CliCommandLeaf, CommandFuture, RegisteredCommand};
+pub use registry::{CliCommandRegistration, CommandRegistry, RegistryError};
 
 pub use crate::boot::{load_boot, load_boot_from_path, load_profile};
 pub use crate::cli_settings::{CliConfig, OutputFormat};
