@@ -8,13 +8,17 @@
 # crates/shared/manifest/src/services/registry.rs; any other `pub enum` named
 # `*Status` whose unit variants are a subset of that set is a copy and fails.
 # Enums carrying payloads are observations, not vocabularies, and are skipped.
+#
+#   scripts/lint-mode-enums.sh [--paths P...]
 set -euo pipefail
+. "$(dirname "${BASH_SOURCE[0]}")/lib/gate-scope.sh"
+gate_scope_parse "$@"
+set -- "${GATE_ARGS[@]}"
+cd "$GATE_ROOT"
 
-cd "$(dirname "$0")/.."
-
-python3 - <(git ls-files -co --exclude-standard 'crates/*/*/src/**/*.rs' 'crates/*/*/src/*.rs' \
+python3 - <(gate_files 'crates/*/*/src/**/*.rs' 'crates/*/*/src/*.rs' \
     'bin/bridge/src/**/*.rs' 'bin/bridge/src/*.rs' \
-    | grep -v '^crates/tests/' | sort -u) <<'PY'
+    | grep -v '^crates/tests/') <<'PY'
 import re
 import sys
 

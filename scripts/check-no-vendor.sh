@@ -15,18 +15,23 @@
 # `.js`, `.mjs`, `.ts`, `.css`, `.html` or `.hbs` file under `crates/` must
 # match a glob in scripts/core-markup-allowlist.txt, so new markup or script
 # in a core crate is a reviewed addition to that list.
+#
+#   scripts/check-no-vendor.sh [--paths P...]
 set -uo pipefail
-cd "$(dirname "$0")/.."
+. "$(dirname "${BASH_SOURCE[0]}")/lib/gate-scope.sh"
+gate_scope_parse "$@"
+set -- "${GATE_ARGS[@]}"
+cd "$GATE_ROOT"
 
 fail=0
-paths=$(git ls-files | grep -E '(^|/)(vendor|node_modules)/|(^|/)package\.json$|\.wasm$' || true)
+paths=$(gate_files | grep -E '(^|/)(vendor|node_modules)/|(^|/)package\.json$|\.wasm$' || true)
 if [ -n "$paths" ]; then
     echo "check-no-vendor: third-party frontend files are tracked in core:" >&2
     printf '  %s\n' $paths >&2
     fail=1
 fi
 
-external=$(git ls-files -z '*.js' '*.mjs' '*.html' '*.hbs' '*.css' \
+external=$(gate_files '*.js' '*.mjs' '*.html' '*.hbs' '*.css' | tr '\n' '\0' \
     | xargs -0 -r grep -nEi \
         -e '<script[^>]*src=["'"'"']?(https?:)?//' \
         -e '(import|from)[[:space:]]*\(?[[:space:]]*["'"'"'](https?:)?//' \
@@ -41,11 +46,8 @@ fi
 allowlist=scripts/core-markup-allowlist.txt
 patterns=()
 while IFS= read -r line; do
-    line="${line%%#*}"
-    line="${line#"${line%%[![:space:]]*}"}"
-    line="${line%"${line##*[![:space:]]}"}"
-    [ -n "$line" ] && patterns+=("$line")
-done < "$allowlist"
+    patterns+=("${line#"${line%%[![:space:]]*}"}")
+done < <(gate_allowlist "$allowlist")
 
 unlisted=()
 while IFS= read -r -d '' path; do
@@ -57,7 +59,7 @@ while IFS= read -r -d '' path; do
         fi
     done
     [ "$allowed" -eq 0 ] && unlisted+=("$path")
-done < <(git ls-files -z -- 'crates/*.js' 'crates/*.mjs' 'crates/*.ts' 'crates/*.css' 'crates/*.html' 'crates/*.hbs')
+done < <(gate_files 'crates/*.js' 'crates/*.mjs' 'crates/*.ts' 'crates/*.css' 'crates/*.html' 'crates/*.hbs' | tr '\n' '\0')
 if [ "${#unlisted[@]}" -gt 0 ]; then
     echo "check-no-vendor: browser markup or script outside $allowlist:" >&2
     printf '  %s\n' "${unlisted[@]}" >&2

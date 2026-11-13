@@ -9,24 +9,30 @@
 #
 #   scripts/lint-core-globals.sh                       # core roots + allowlist
 #   scripts/lint-core-globals.sh [--allowlist FILE] ROOT...
+#   scripts/lint-core-globals.sh --paths P...          # only files under P; stale
+#                                                      # entries not judged
 #
 # Roots are directories of Rust sources (tracked or not); `crates/tests/**`,
 # `target/` and `build.rs` are never scanned.
 set -euo pipefail
+. "$(dirname "${BASH_SOURCE[0]}")/lib/gate-scope.sh"
+gate_scope_parse "$@"
+set -- "${GATE_ARGS[@]}"
 
-root="$(cd "$(dirname "$0")/.." && pwd)"
+root="$GATE_ROOT"
 allowlist="$root/scripts/core-globals-allowlist.txt"
 roots=()
 while [ "$#" -gt 0 ]; do
     case "$1" in
         --allowlist) allowlist="$2"; shift 2 ;;
         --allowlist=*) allowlist="${1#--allowlist=}"; shift ;;
-        -h|--help) sed -n '2,13p' "$0"; exit 0 ;;
+        -h|--help) awk 'NR > 1 && !/^#/ { exit } NR > 1' "$0"; exit 0 ;;
         *) roots+=("$1"); shift ;;
     esac
 done
 if [ "${#roots[@]}" -eq 0 ]; then
-    roots=("$root/crates" "$root/systemprompt/src")
+    mapfile -t roots < <(gate_roots "$root/crates" "$root/systemprompt/src")
+    gate_pass_if_empty lint-core-globals "${#roots[@]}"
 fi
 
 pattern='^\s*(pub(\([a-z]+\))? )?static [A-Z_][A-Z0-9_]*: *(std::sync::|std::sync::atomic::|tokio::sync::)?(OnceLock|LazyLock|RwLock|Mutex|ArcSwap|Atomic[A-Za-z0-9]+|Once|OnceCell)\b'
@@ -46,15 +52,7 @@ while IFS= read -r line; do
 done < "$allowlist"
 
 list_sources() {
-    local r
-    for r in "${roots[@]}"; do
-        if git -C "$r" rev-parse --show-toplevel >/dev/null 2>&1; then
-            git -C "$r" ls-files -co --exclude-standard -- '*.rs' | sed "s|^|$r/|"
-        else
-            find "$r" -name '*.rs' -type f
-        fi
-    done | grep -Ev '(^|/)(crates/tests|target)/|/build\.rs$' | sort -u \
-        | while IFS= read -r f; do [ -f "$f" ] && printf '%s\n' "$f"; done
+    gate_tree_files "${roots[@]}" | grep -E '\.rs$' | grep -Ev '(^|/)(crates/tests|target)/|/build\.rs$' | sort -u
 }
 
 fail=0
@@ -76,7 +74,7 @@ while IFS= read -r hit; do
     fi
 done < <(list_sources | xargs -r grep -nHE "$pattern" 2>/dev/null || true)
 
-for key in "${!allowed[@]}"; do
+gate_full_mode && for key in "${!allowed[@]}"; do
     file="${key%:*}"
     name="${key##*:}"
     path="$file"

@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
-cd "$(dirname "$0")/.."
+. "$(dirname "${BASH_SOURCE[0]}")/lib/gate-scope.sh"
+gate_scope_parse "$@"
+set -- "${GATE_ARGS[@]}"
+cd "$GATE_ROOT"
 git rev-parse --is-inside-work-tree >/dev/null
 
 # Machete rule: inline `//` comments are banned in production crates.
@@ -37,7 +40,7 @@ git rev-parse --is-inside-work-tree >/dev/null
 #
 # Scope: production sources in `crates/**`, `bin/bridge/src/**`, and the
 # `systemprompt` facade, tracked or not (`git ls-files -co`) — an untracked new
-# file must not pass vacuously.
+# file must not pass vacuously. `--paths P...` narrows the scan to files under P.
 
 files=()
 while IFS= read -r file; do
@@ -45,10 +48,10 @@ while IFS= read -r file; do
         crates/tests/*) continue ;;
         */build.rs) continue ;;
     esac
-    [ -e "$file" ] || continue
     files+=("$file")
-done < <(git ls-files -co --exclude-standard 'crates/*.rs' 'crates/**/*.rs' 'bin/bridge/src/*.rs' 'bin/bridge/src/**/*.rs' 'systemprompt/src/*.rs' 'systemprompt/src/**/*.rs' | sort -u)
+done < <(gate_files 'crates/*.rs' 'crates/**/*.rs' 'bin/bridge/src/*.rs' 'bin/bridge/src/**/*.rs' 'systemprompt/src/*.rs' 'systemprompt/src/**/*.rs')
 scanned=${#files[@]}
+gate_pass_if_empty lint-inline-comments "$scanned"
 
 if [ "$scanned" -eq 0 ]; then echo "lint-inline-comments: no production sources scanned" >&2; exit 1; fi
 

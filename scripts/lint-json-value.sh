@@ -28,8 +28,12 @@
 #
 #   scripts/lint-json-value.sh            # gate
 #   scripts/lint-json-value.sh --count    # hit count only
+#   scripts/lint-json-value.sh [--count] --paths P...   # only files under P
 set -uo pipefail
-cd "$(dirname "$0")/.."
+. "$(dirname "${BASH_SOURCE[0]}")/lib/gate-scope.sh"
+gate_scope_parse "$@"
+set -- "${GATE_ARGS[@]}"
+cd "$GATE_ROOT"
 
 COUNT=0
 [ "${1:-}" = "--count" ] && COUNT=1
@@ -42,9 +46,8 @@ while IFS= read -r file; do
         crates/infra/database/src/admin/*) continue ;;
         crates/infra/database/src/services/postgres/*) continue ;;
     esac
-    [ -e "$file" ] || continue
     candidates+=("$file")
-done < <(git ls-files -co --exclude-standard 'crates/*.rs' 'crates/**/*.rs' 'systemprompt/src/*.rs' 'systemprompt/src/**/*.rs' 'bin/bridge/src/*.rs' 'bin/bridge/src/**/*.rs' | sort -u)
+done < <(gate_files 'crates/*.rs' 'crates/**/*.rs' 'systemprompt/src/*.rs' 'systemprompt/src/**/*.rs' 'bin/bridge/src/*.rs' 'bin/bridge/src/**/*.rs')
 
 files=()
 if [ "${#candidates[@]}" -gt 0 ]; then
@@ -123,6 +126,7 @@ if [ "$scanned" -gt 0 ]; then
     [ -n "$hits" ] && hits+=$'\n'
 fi
 
+gate_pass_if_empty lint-json-value "$scanned"
 [ "$scanned" -gt 0 ] || { echo "lint-json-value: no serde_json users scanned — scope broken?" >&2; exit 1; }
 if [ "$COUNT" -eq 1 ]; then printf '%s' "$hits" | grep -c .; exit 0; fi
 if [ -n "$hits" ]; then

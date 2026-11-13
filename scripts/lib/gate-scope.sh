@@ -87,6 +87,21 @@ gate_allowlist() {
     return 0
 }
 
+# Every file under each explicit ROOT (a file or directory, inside this
+# repository or not), printed as ROOT/<path>: tracked plus untracked-not-ignored
+# when ROOT sits in a git work tree, every file otherwise. The alternate-tree
+# form of the gates that accept ROOT arguments.
+gate_tree_files() {
+    local r
+    for r in "$@"; do
+        if git -C "$r" rev-parse --show-toplevel >/dev/null 2>&1; then
+            git -C "$r" ls-files -co --exclude-standard | sed "s|^|${r%/}/|"
+        else
+            find "$r" -type f
+        fi
+    done | while IFS= read -r f; do [ -f "$f" ] && printf '%s\n' "$f"; done
+}
+
 # In scoped mode, passes the gate when nothing in scope is its concern.
 gate_pass_if_empty() {
     local name="$1" count="$2"

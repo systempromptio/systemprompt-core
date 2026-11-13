@@ -35,13 +35,18 @@
 # repositories freely.
 
 #   scripts/lint-repo-construction.sh                        # core roots + allowlist
+#   scripts/lint-repo-construction.sh --paths P...           # only files under P
 #   scripts/lint-repo-construction.sh [--allowlist FILE] ROOT...
 #
 # Without roots the script runs from the repository root; with roots, paths
 # (and allowlist entries) resolve against the caller's working directory. A
-# directory literally named `tests` is never scanned.
+# directory literally named `tests` is never scanned. With `--paths`, stale
+# allowlist entries are not judged.
 
 set -euo pipefail
+. "$(dirname "${BASH_SOURCE[0]}")/lib/gate-scope.sh"
+gate_scope_parse "$@"
+set -- "${GATE_ARGS[@]}"
 
 ALLOWLIST=""
 ROOTS=()
@@ -54,32 +59,21 @@ while [ "$#" -gt 0 ]; do
     esac
 done
 if [ "${#ROOTS[@]}" -eq 0 ]; then
-    cd "$(dirname "$0")/.."
+    cd "$GATE_ROOT"
     ALLOWLIST="${ALLOWLIST:-scripts/repo-construction-allowlist.txt}"
 fi
 
 ALLOWED_FILES=()
 if [ -n "$ALLOWLIST" ]; then
-    while IFS= read -r line; do
-        line="${line%%#*}"
-        line="$(printf '%s' "$line" | sed 's/[[:space:]]*$//')"
-        [ -n "$line" ] && ALLOWED_FILES+=("$line")
-    done < "$ALLOWLIST"
+    mapfile -t ALLOWED_FILES < <(gate_allowlist "$ALLOWLIST")
 fi
 
 list_sources() {
     if [ "${#ROOTS[@]}" -eq 0 ]; then
-        git ls-files 'crates/*/*/src/**/*.rs'
+        gate_files 'crates/*/*/src/**/*.rs'
     else
-        local r
-        for r in "${ROOTS[@]}"; do
-            if git -C "$r" rev-parse --show-toplevel >/dev/null 2>&1; then
-                git -C "$r" ls-files -co --exclude-standard -- '*.rs' | sed "s|^|${r%/}/|"
-            else
-                find "$r" -name '*.rs' -type f
-            fi
-        done
-    fi | while IFS= read -r f; do [ -f "$f" ] && printf '%s\n' "$f"; done
+        gate_tree_files "${ROOTS[@]}" | grep -E '\.rs$' || true
+    fi
 }
 
 declare -A allowed
@@ -112,7 +106,9 @@ while IFS= read -r file; do
 done < <(list_sources)
 
 for f in "${ALLOWED_FILES[@]}"; do
-  if [[ ! -f "$f" ]]; then
+  if ! gate_full_mode; then
+    break
+  elif [[ ! -f "$f" ]]; then
     echo "lint-repo-construction: stale allowlist entry (file missing): $f"
     fail=1
   elif [[ -z "${seen[$f]:-}" ]]; then
