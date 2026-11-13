@@ -1,14 +1,18 @@
 //! Tests for typed extension state: `Extension::provide` run by
-//! `ExtensionRegistry::build_state` in dependency order, `ExtensionState`
-//! lookups, duplicate providers, declared requirements and the dependency
-//! graph checks that run before any state is built.
+//! `ExtensionRegistry::build_state` in dependency order over the kernel's
+//! seeded entries, lookups, duplicate providers (against the kernel and
+//! between extensions), declared requirements, the profile's disabled
+//! extensions and the dependency graph checks that run before any state is
+//! built.
 
 use std::sync::{Arc, Mutex};
 
 use systemprompt_extension::{
-    Extension, ExtensionContext, ExtensionMetadata, ExtensionRegistry, ExtensionState,
-    ExtensionStateError, LoaderError, StateBuilder, StateRequirement,
+    Extension, ExtensionContext, ExtensionMetadata, ExtensionRegistry, ExtensionStateError,
+    LoaderError, StateBuilder, StateRequirement,
 };
+use systemprompt_identifiers::ExtensionId;
+use systemprompt_provider_contracts::{Dependencies, DependencyProvider, DuplicateDependency};
 
 use crate::stub_ctx::{StubCtx, registry_with};
 
@@ -105,7 +109,7 @@ impl Extension for StateExt {
             Provides::Nothing => Ok(()),
             Provides::Cache(value) => state.provide(Cache(value)),
             Provides::DerivedFromCache => {
-                let cache = state.require::<Cache>()?;
+                let cache = state.state().get_arc::<Cache>()?;
                 state.provide_arc(Arc::new(Derived(cache.0 * 2)))
             },
             Provides::Failure => Err(ExtensionStateError::Provider(Box::new(
@@ -115,16 +119,28 @@ impl Extension for StateExt {
     }
 }
 
-fn build(exts: Vec<Arc<dyn Extension>>) -> Result<ExtensionState, LoaderError> {
-    registry_with(exts).build_state(&StubCtx)
+fn build(exts: Vec<Arc<dyn Extension>>) -> Result<Dependencies, LoaderError> {
+    registry_with(exts).build_state(&StubCtx, Dependencies::new(), &[])
+}
+
+fn build_disabled(
+    exts: Vec<Arc<dyn Extension>>,
+    disabled: &[&str],
+) -> Result<Dependencies, LoaderError> {
+    let disabled: Vec<ExtensionId> = disabled.iter().map(|id| ExtensionId::new(*id)).collect();
+    registry_with(exts).build_state(&StubCtx, Dependencies::new(), &disabled)
+}
+
+fn extension(id: &str) -> Option<DependencyProvider> {
+    Some(DependencyProvider::Extension(ExtensionId::new(id)))
 }
 
 #[test]
 fn default_state_is_empty() {
-    let state = ExtensionState::default();
+    let state = Dependencies::default();
     assert!(state.is_empty());
     assert_eq!(state.len(), 0);
-    assert!(state.get::<Cache>().is_none());
+    assert!(state.get_arc::<Cache>().is_err());
 }
 
 #[test]
@@ -133,13 +149,10 @@ fn provided_value_is_returned_by_get_and_require() {
         .expect("state builds");
 
     assert_eq!(state.len(), 1);
-    assert_eq!(state.get::<Cache>().as_deref(), Some(&Cache(7)));
-    assert_eq!(*state.require::<Cache>().expect("cache provided"), Cache(7));
-    assert_eq!(
-        state.provider_of::<Cache>().map(|id| id.as_str()),
-        Some("cache")
-    );
-    assert!(state.contains(&StateRequirement::of::<Cache>()));
+    assert_eq!(state.get::<Cache>(), Ok(&Cache(7)));
+    assert_eq!(*state.get_arc::<Cache>().expect("cache provided"), Cache(7));
+    assert_eq!(state.provider_of::<Cache>().cloned(), extension("cache"));
+    assert!(StateRequirement::of::<Cache>().is_met_by(&state));
 }
 
 #[test]
@@ -148,8 +161,8 @@ fn clones_share_the_same_instance() {
         .expect("state builds");
     let clone = state.clone();
 
-    let a = state.require::<Cache>().expect("cache");
-    let b = clone.require::<Cache>().expect("cache");
+    let a = state.get_arc::<Cache>().expect("cache");
+    let b = clone.get_arc::<Cache>().expect("cache");
     assert!(Arc::ptr_eq(&a, &b));
 }
 
@@ -158,8 +171,8 @@ fn require_of_missing_type_names_the_type() {
     let state = build(vec![Arc::new(StateExt::new("cache", Provides::Cache(1)))])
         .expect("state builds");
 
-    let err = state.require::<NeverProvided>().expect_err("not provided");
-    assert!(matches!(err, ExtensionStateError::Missing { type_name } if type_name.ends_with("NeverProvided")));
+    let err = state.get_arc::<NeverProvided>().expect_err("not provided");
+    assert!(err.type_name().ends_with("NeverProvided"));
     assert!(err.to_string().contains("NeverProvided"), "got: {err}");
 }
 
@@ -177,8 +190,9 @@ fn duplicate_provider_names_both_extensions() {
     assert_eq!(extension.as_str(), "second");
     assert!(matches!(
         source,
-        ExtensionStateError::DuplicateProvider { first, second, .. }
-            if first.as_str() == "first" && second.as_str() == "second"
+        ExtensionStateError::DuplicateProvider(DuplicateDependency { first, second, .. })
+            if *first == DependencyProvider::Extension(ExtensionId::new("first"))
+                && second.as_str() == "second"
     ));
     let message = format!("{err}: {source}");
     assert!(message.contains("'first'"), "got: {message}");
@@ -198,11 +212,8 @@ fn dependent_reads_state_its_dependency_provided() {
     ])
     .expect("dependency provides first");
 
-    assert_eq!(state.get::<Derived>().as_deref(), Some(&Derived(42)));
-    assert_eq!(
-        state.provider_of::<Derived>().map(|id| id.as_str()),
-        Some("derived")
-    );
+    assert_eq!(state.get::<Derived>(), Ok(&Derived(42)));
+    assert_eq!(state.provider_of::<Derived>().cloned(), extension("derived"));
 }
 
 #[test]
@@ -215,8 +226,8 @@ fn reading_state_no_earlier_extension_provided_fails_provide() {
 
     assert!(matches!(
         &err,
-        LoaderError::ProvideFailed { extension, source: ExtensionStateError::Missing { type_name } }
-            if extension.as_str() == "derived" && type_name.ends_with("Cache")
+        LoaderError::ProvideFailed { extension, source: ExtensionStateError::Missing(missing) }
+            if extension.as_str() == "derived" && missing.type_name().ends_with("Cache")
     ));
 }
 
@@ -261,7 +272,107 @@ fn met_requirement_from_any_linked_extension_passes() {
     ])
     .expect("requirement is met");
 
-    assert!(state.get::<Cache>().is_some());
+    assert!(state.get::<Cache>().is_ok());
+}
+
+#[test]
+fn kernel_entries_are_readable_while_providing_and_after() {
+    let kernel = Dependencies::new().with(Cache(21));
+    let state = registry_with(vec![Arc::new(StateExt::new(
+        "derived",
+        Provides::DerivedFromCache,
+    ))])
+    .build_state(&StubCtx, kernel, &[])
+    .expect("the kernel seeds the cache");
+
+    assert_eq!(state.get::<Derived>(), Ok(&Derived(42)));
+    assert_eq!(state.provider_of::<Cache>(), Some(&DependencyProvider::Host));
+}
+
+#[test]
+fn an_extension_cannot_provide_a_type_the_kernel_holds() {
+    let kernel = Dependencies::new().with(Cache(1));
+    let err = registry_with(vec![Arc::new(StateExt::new("shadow", Provides::Cache(2)))])
+        .build_state(&StubCtx, kernel, &[])
+        .expect_err("the kernel already provides Cache");
+
+    assert!(matches!(
+        &err,
+        LoaderError::ProvideFailed {
+            extension,
+            source: ExtensionStateError::DuplicateProvider(DuplicateDependency {
+                first: DependencyProvider::Host,
+                ..
+            }),
+        } if extension.as_str() == "shadow"
+    ));
+}
+
+#[test]
+fn a_disabled_extension_provides_nothing() {
+    let log = Arc::new(Mutex::new(Vec::new()));
+    let state = build_disabled(
+        vec![
+            Arc::new(StateExt::new("cache", Provides::Cache(1)).with_log(&log)),
+            Arc::new(StateExt::new("other", Provides::Nothing).with_log(&log)),
+        ],
+        &["cache"],
+    )
+    .expect("nothing requires the disabled extension's state");
+
+    assert!(state.get::<Cache>().is_err());
+    assert_eq!(log.lock().expect("provide log").clone(), vec!["other"]);
+}
+
+#[test]
+fn requiring_state_only_a_disabled_extension_provides_fails_boot() {
+    let err = build_disabled(
+        vec![
+            Arc::new(StateExt::new("cache", Provides::Cache(1))),
+            Arc::new(
+                StateExt::new("needy", Provides::Nothing)
+                    .with_requires(vec![StateRequirement::of::<Cache>()]),
+            ),
+        ],
+        &["cache"],
+    )
+    .expect_err("the only provider is disabled");
+
+    assert!(matches!(
+        &err,
+        LoaderError::UnmetStateRequirement { extension, type_name }
+            if extension.as_str() == "needy" && type_name.ends_with("Cache")
+    ));
+}
+
+#[test]
+fn a_disabled_extension_requirements_are_not_checked() {
+    build_disabled(
+        vec![Arc::new(
+            StateExt::new("needy", Provides::Nothing)
+                .with_requires(vec![StateRequirement::of::<NeverProvided>()]),
+        )],
+        &["needy"],
+    )
+    .expect("a disabled extension does not boot, so its requirements do not apply");
+}
+
+#[test]
+fn depending_on_a_disabled_extension_is_refused() {
+    let err = build_disabled(
+        vec![
+            Arc::new(StateExt::new("cache", Provides::Cache(1))),
+            Arc::new(StateExt::new("derived", Provides::DerivedFromCache).with_deps(vec!["cache"])),
+        ],
+        &["cache"],
+    )
+    .expect_err("a dependency is disabled");
+
+    assert!(matches!(
+        &err,
+        LoaderError::DisabledDependency { extension, dependency }
+            if extension.as_str() == "derived" && dependency.as_str() == "cache"
+    ));
 }
 
 #[test]
