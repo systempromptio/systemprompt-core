@@ -59,7 +59,7 @@ Migrations are **additive-only within a minor series**. A rolling upgrade from `
 Public traits in `crates/shared/extension/`:
 
 - the `Extension` trait (`traits/extension.rs`)
-- `ExtensionMetadata`, `SchemaDefinition`, `ExtensionRouter`, `Migration` shapes
+- `ExtensionMetadata`, `SchemaDefinition`, `ExtensionRouter` (with its `RouteProtection` and `AuthzPolicy`), `Migration` shapes
 - the `register_extension!` and `extension_migrations!` macro contracts
 - the capability traits an extension declares against (`HasConfig`, `HasDatabase`, `HasHttpClient`, `HasEventBus`, and peers in `capabilities.rs`) and the `ExtensionContext` trait
 

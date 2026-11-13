@@ -170,11 +170,27 @@ To serve HTTP routes, return an `ExtensionRouter` from `router`. The method rece
 fn router(&self, _ctx: &dyn ExtensionContext) -> Option<ExtensionRouter> {
     let router = axum::Router::new()
         .route("/items", axum::routing::get(|| async { "ok" }));
-    Some(ExtensionRouter::new(router, "/api/v1/demo"))
+    Some(
+        ExtensionRouter::new(router, "/api/v1/demo", AuthzPolicy::user(), ContextKind::User)
+            .with_rate_limit(RateLimit::new("demo", RateBudget::Content)),
+    )
 }
 ```
 
-`ExtensionRouter::new(router, base_path)` mounts under `base_path` and requires authentication. `ExtensionRouter::public(router, base_path)` mounts without an auth requirement (`crates/shared/extension/src/router.rs:42`). Choose `public` only for routes that must be reachable unauthenticated.
+An `ExtensionRouter` is a mount declaration (`crates/shared/extension/src/router.rs`). The host applies everything it carries with the same enforcement it uses for its own routes; nothing is applied that the declaration does not name, and there is no default policy.
+
+| Field | Set with | Meaning |
+|---|---|---|
+| Authorization policy | `new(router, base_path, policy, context)` (required) | `AuthzPolicy::public()`, `authenticated()`, `user()`, `admin()`, `restricted_to(&[..])` or `deferred_to_handler()`: the caller types that may reach the routes. A policy that admits no caller type fails boot. |
+| Context kind | `new(..)` (required) | `ContextKind::Public`, `User`, `A2a` or `Mcp`: the request-context middleware the routes sit behind. |
+| Rate limit | `with_rate_limit(RateLimit)` | A scope name and a budget: a profile rate (`RateBudget::Content`, `Gateway`, …) or `RateBudget::PerSecond(n)`. `RateLimit::with_bearer_window()` also charges the replica-shared window by the verified bearer token, for routes that authenticate in their handlers. |
+| Body limit | `with_body_limit(bytes)` | Maximum request body the routes accept. |
+| Protection layers | `with_layer(ProtectionLayer)` | A closed set of extra host guards (`SiteAuth`, `RefuseFileManagedClientWrites`). |
+| Frame options | `with_frame_options(FrameOptions)` | Overrides the sitewide `X-Frame-Options` for these routes. |
+| Role group | `in_group(RouteGroup)` | Defaults to `RouteGroup::Extensions`; a node mounts the router only when its role serves the group. |
+| Enable predicate | `enabled_when(fn(&dyn ExtensionContext) -> bool)` | The router is mounted only when the predicate holds at boot. |
+
+Use `AuthzPolicy::public()` with `ContextKind::Public` only for routes that must be reachable unauthenticated; a public handler that changes state must check ownership itself.
 
 ## Step 6 — Provide shared state (optional)
 
