@@ -5,6 +5,7 @@
 ### Breaking
 
 - `AppContext` builds the extension state at boot and fails with `RuntimeError::ExtensionState` on an unmet requirement or a duplicate provider. Migrate by handling the new variant.
+- `AppContext::from_parts` builds and binds the extension state itself: it takes a `&StateHandle`, returns `RuntimeResult<Self>`, and `Plugins` no longer carries the state. Migrate by passing the authz state handle and propagating the error.
 
 ### Added
 
