@@ -66,6 +66,7 @@ pub mod context;
 pub mod context_provider;
 pub mod coordination;
 pub mod extension_error;
+pub mod ip_bans;
 pub mod jwt;
 pub mod log_service;
 pub mod managed_resources;
@@ -73,6 +74,7 @@ pub mod ownership;
 pub mod process_liveness;
 pub mod registry;
 pub mod repository;
+pub mod retention_purge;
 pub mod runner_service;
 pub mod secret;
 pub use process_liveness::ProcessLiveness;
@@ -104,6 +106,14 @@ pub use systemprompt_identifiers::{
 };
 
 pub use repository::{BoxedSource, ConstraintKind, RepositoryError};
+
+pub use ip_bans::{DynIpBanStore, IpBanRequest, IpBanStore, IpBanStoreError};
+pub use retention_purge::{
+    RetentionPurge, RetentionSweep, registered_retention_purges, registered_retention_sweeps,
+};
+
+#[doc(hidden)]
+pub use inventory as __inventory;
 
 pub use coordination::{
     AdvisoryLockGuard, AdvisoryLocks, CoordinationError, CoordinationResult, DynAdvisoryLocks,

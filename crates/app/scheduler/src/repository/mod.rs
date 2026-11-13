@@ -1,21 +1,17 @@
 //! Persistence layer for the scheduler crate.
 //!
-//! [`SchedulerRepository`] is the composite façade combining the per-domain
-//! repositories ([`JobRepository`], [`AnalyticsRepository`]) and the
-//! cross-replica job advisory lock; it is the type consumed by
+//! [`SchedulerRepository`] is the composite façade combining the
+//! [`JobRepository`] and the cross-replica job advisory lock; it is the type consumed by
 //! [`crate::services::SchedulerService`] and by the API lifecycle bootstrap
 //! path.
 //!
-//! [`SecurityRepository`] / [`IpSessionRecord`] are exposed for direct use by
-//! the `crate::jobs::malicious_ip_blacklist` job, [`otlp`] backs the OTLP
-//! exporter and [`LicenceCheckinRepository`] the licence check-in.
-//! Retention deletes are not here: `database_cleanup` dispatches to
-//! the owning crates' repositories.
+//! [`otlp`] backs the OTLP exporter and [`LicenceCheckinRepository`] the licence check-in.
+//! Retention deletes are not here: `database_cleanup` dispatches to the
+//! purges the owning crates register.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod analytics;
 mod config_apply;
 mod config_reconcile;
 mod job_lock;
@@ -23,9 +19,7 @@ mod job_lock_keys;
 mod jobs;
 mod licence;
 pub mod otlp;
-mod security;
 
-pub use analytics::AnalyticsRepository;
 pub use config_apply::{BaseRecord, ConflictRecord, ConflictRow, LastApply};
 pub(crate) use config_reconcile::RECONCILE_LOCK;
 pub use config_reconcile::{
@@ -37,7 +31,6 @@ use job_lock::JobLockRepository;
 pub use job_lock_keys::{LockKeyCollision, find_lock_key_collision};
 pub use jobs::JobRepository;
 pub use licence::{LicenceCheckinRepository, LicenceCheckinState};
-pub use security::{IpSessionRecord, SecurityRepository};
 
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::JobName;
@@ -48,7 +41,6 @@ use crate::models::{JobRunRecord, ScheduledJob};
 #[derive(Debug, Clone)]
 pub struct SchedulerRepository {
     jobs: JobRepository,
-    analytics: AnalyticsRepository,
     locks: JobLockRepository,
 }
 
@@ -56,7 +48,6 @@ impl SchedulerRepository {
     pub fn new(db: &DbPool) -> Self {
         Self {
             jobs: JobRepository::new(db),
-            analytics: AnalyticsRepository::new(db),
             locks: JobLockRepository::new(db),
         }
     }
@@ -115,13 +106,5 @@ impl SchedulerRepository {
         record: JobRunRecord<'_>,
     ) -> SchedulerResult<()> {
         self.jobs.update_job_execution(job_name, record).await
-    }
-
-    pub async fn cleanup_empty_contexts(&self, hours_old: i64) -> SchedulerResult<u64> {
-        self.analytics.cleanup_empty_contexts(hours_old).await
-    }
-
-    pub async fn count_empty_contexts(&self, hours_old: i64) -> SchedulerResult<i64> {
-        self.analytics.count_empty_contexts(hours_old).await
     }
 }

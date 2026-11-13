@@ -5,10 +5,10 @@
 
 use async_trait::async_trait;
 use systemprompt_database::DbPool;
-use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
+use systemprompt_traits::{Job, JobContext, JobResult, ProviderError, ProviderResult};
 use tracing::info;
 
-use crate::repository::SchedulerRepository;
+use crate::repository::EmptyContextRepository;
 
 const DEFAULT_RETENTION_HOURS: i64 = 24;
 
@@ -40,11 +40,17 @@ impl Job for CleanupEmptyContextsJob {
             .get_parameter_parsed::<i64>("retention_hours")?
             .unwrap_or(DEFAULT_RETENTION_HOURS);
 
-        let repository = SchedulerRepository::new(&db_pool);
+        let repository = EmptyContextRepository::new(&db_pool);
         let deleted_count = if ctx.enforce() {
-            repository.cleanup_empty_contexts(retention_hours).await?
+            repository
+                .cleanup_empty_contexts(retention_hours)
+                .await
+                .map_err(|e| ProviderError::Internal(Box::new(e)))?
         } else {
-            let would_delete = repository.count_empty_contexts(retention_hours).await?;
+            let would_delete = repository
+                .count_empty_contexts(retention_hours)
+                .await
+                .map_err(|e| ProviderError::Internal(Box::new(e)))?;
             info!(
                 would_delete_contexts = would_delete,
                 retention_hours = retention_hours,
@@ -67,4 +73,4 @@ impl Job for CleanupEmptyContextsJob {
     }
 }
 
-systemprompt_provider_contracts::submit_job!(&CleanupEmptyContextsJob);
+systemprompt_traits::submit_job!(&CleanupEmptyContextsJob);

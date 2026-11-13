@@ -1,7 +1,9 @@
 //! The one retention job: bounded, batched deletes (and body releases) over
 //! every high-volume operational table, with the windows read from
-//! `profile.retention`. Each [`RetentionTarget`] dispatches to the repository
-//! of the crate that owns the table; the scheduler issues no delete itself.
+//! `profile.retention`. Each [`RetentionTarget`] dispatches to the
+//! `RetentionPurge` its owning crate registers
+//! (`systemprompt_traits::register_retention_purge!`); a target whose owner
+//! is not linked is not pruned, and two purges for one table refuse the run.
 //!
 //! Deletion requires `enforce`; without it the job only reports each window
 //! and deletes nothing.
@@ -16,14 +18,17 @@
 //! cannot answer withholds the target for the run; the pass line and the job
 //! message name the hold either way.
 //!
-//! The run also fails orphaned pending AI requests, and purges archived users
-//! past `retention.archived_users_days` that are not under legal hold.
+//! Before the passes the run deletes log rows whose user is gone and runs
+//! every registered `RetentionSweep` (the AI crate's fails orphaned pending
+//! requests); after them it purges archived users past
+//! `retention.archived_users_days` that are not under legal hold.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 mod archived_users;
 mod holds;
+mod kernel_purges;
 mod orphans;
 mod tables;
 
@@ -41,7 +46,7 @@ use crate::services::scheduling::job_app_context;
 
 use self::archived_users::purge_archived_users;
 use self::holds::{HoldOutcome, retention_holds};
-use self::orphans::{delete_orphaned_logs, fail_orphaned_requests};
+use self::orphans::{delete_orphaned_logs, run_sweeps};
 use self::tables::{PassRunner, RetentionOwners, RetentionPass};
 
 const QUOTA_BUCKET_DAYS: u32 = 62;
@@ -73,16 +78,26 @@ impl Job for DatabaseCleanupJob {
         if let Some(days) = ctx.get_parameter_parsed::<u32>("log_retention_days")? {
             retention.logs_days = days;
         }
-        let owners = RetentionOwners::new(&db_pool, app.config().instance_id.clone());
+        let owners = RetentionOwners::discover()?;
 
         debug!("Job started");
         let orphaned = delete_orphaned_logs(&db_pool, ctx.enforce()).await?;
-        fail_orphaned_requests(&db_pool, ctx.enforce()).await?;
-        let plan = plan(&retention, app.services_state());
+        run_sweeps(ctx).await?;
+        let plan: Vec<_> = plan(&retention, app.services_state())
+            .into_iter()
+            .filter(|(target, _)| {
+                let owned = owners.owns(*target);
+                if !owned {
+                    debug!(table = target.table(), "no linked crate purges this target");
+                }
+                owned
+            })
+            .collect();
         let holds = retention_holds(ctx, app);
         let mut passes = Vec::with_capacity(plan.len());
         let mut total = orphaned;
         let runner = PassRunner {
+            ctx,
             owners: &owners,
             holds: &holds,
             enforce: ctx.enforce(),

@@ -10,7 +10,9 @@ use systemprompt_identifiers::UserId;
 use systemprompt_marketplace::inventory::{
     BaselineScope, InventoryService, InventoryStatus, SourcesContext,
 };
-pub use systemprompt_marketplace::inventory::{LatestPublication, LatestPublicationStatus};
+pub use systemprompt_marketplace::inventory::{
+    LatestPublication, LatestPublicationStatus, configured_inventory_fingerprint,
+};
 
 fn sources(ctx: &AppContext) -> SourcesContext<'_> {
     SourcesContext {

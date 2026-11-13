@@ -16,7 +16,7 @@
 
 use async_trait::async_trait;
 use chrono::{DateTime, Duration, DurationRound, Utc};
-use systemprompt_ai::repository::{AiUsageAnomalyRepository, HourlyUsageProfile};
+use crate::repository::{AiUsageAnomalyRepository, HourlyUsageProfile};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::QuotaSubjectKind;
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
@@ -142,11 +142,11 @@ impl Job for UsageAnomalyScanJob {
         let repository = AiUsageAnomalyRepository::new(&db_pool);
         let anomalies = scan_window(&repository, previous_hour(Utc::now()))
             .await
-            .map_err(|e| systemprompt_provider_contracts::ProviderError::Internal(Box::new(e)))?;
+            .map_err(|e| systemprompt_traits::ProviderError::Internal(Box::new(e)))?;
         Ok(JobResult::success()
             .with_stats(anomalies.len() as u64, 0)
             .with_duration(start.elapsed().as_millis() as u64))
     }
 }
 
-systemprompt_provider_contracts::submit_job!(&UsageAnomalyScanJob);
+systemprompt_traits::submit_job!(&UsageAnomalyScanJob);

@@ -1,25 +1,27 @@
-//! Analytics maintenance queries used by scheduled cleanup jobs: empty
-//! contexts.
+//! The empty-context sweep behind the `cleanup_empty_contexts` job: contexts
+//! with no task message, tool execution or governance decision, older than
+//! the window. The candidate set spans four owners and is only read here; the
+//! delete runs in [`ContextRepository`], which owns `user_contexts`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use sqlx::PgPool;
 use std::sync::Arc;
-use systemprompt_agent::repository::ContextRepository;
+use systemprompt_traits::RepositoryError;
+
+use super::ContextRepository;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::ContextId;
 use systemprompt_models::ContextKind;
 
-use crate::error::SchedulerResult;
-
 #[derive(Debug, Clone)]
-pub struct AnalyticsRepository {
+pub struct EmptyContextRepository {
     write_pool: Arc<PgPool>,
     contexts: ContextRepository,
 }
 
-impl AnalyticsRepository {
+impl EmptyContextRepository {
     pub fn new(db: &DbPool) -> Self {
         Self {
             write_pool: db.write_pool(),
@@ -27,10 +29,7 @@ impl AnalyticsRepository {
         }
     }
 
-    // Why: the candidate set spans four owners (contexts, messages, tool
-    // executions, decisions) and is only read here; the delete runs in the
-    // agent repository, which owns `user_contexts`.
-    pub async fn cleanup_empty_contexts(&self, hours_old: i64) -> SchedulerResult<u64> {
+    pub async fn cleanup_empty_contexts(&self, hours_old: i64) -> Result<u64, RepositoryError> {
         let candidates = self.empty_context_ids(hours_old).await?;
         let deleted = self
             .contexts
@@ -39,7 +38,7 @@ impl AnalyticsRepository {
         Ok(deleted)
     }
 
-    async fn empty_context_ids(&self, hours_old: i64) -> SchedulerResult<Vec<ContextId>> {
+    async fn empty_context_ids(&self, hours_old: i64) -> Result<Vec<ContextId>, RepositoryError> {
         let ids = sqlx::query_scalar!(
             r#"
             SELECT uc.context_id as "context_id!"
@@ -74,7 +73,7 @@ impl AnalyticsRepository {
             .collect())
     }
 
-    pub async fn count_empty_contexts(&self, hours_old: i64) -> SchedulerResult<i64> {
+    pub async fn count_empty_contexts(&self, hours_old: i64) -> Result<i64, RepositoryError> {
         let count = sqlx::query_scalar!(
             r#"
             SELECT COUNT(*) as "count!"

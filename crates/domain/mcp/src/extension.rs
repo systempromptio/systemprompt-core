@@ -4,7 +4,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::sync::Arc;
+
 use systemprompt_extension::prelude::*;
+use systemprompt_traits::Job;
+
+use crate::jobs::ToolRowFactsRollupJob;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct McpExtension;
@@ -105,6 +110,10 @@ impl Extension for McpExtension {
 
     fn migrations(&self) -> Vec<Migration> {
         extension_migrations!()
+    }
+
+    fn jobs(&self) -> Vec<Arc<dyn Job>> {
+        vec![Arc::new(ToolRowFactsRollupJob)]
     }
 }
 

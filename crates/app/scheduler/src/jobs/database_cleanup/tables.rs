@@ -10,57 +10,42 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
 use chrono::{DateTime, Utc};
-use systemprompt_ai::repository::{
-    AiQuotaBucketRepository, AiRequestPayloadRepository, AiRequestRepository,
-};
-use systemprompt_analytics::AnalyticsRetention;
-use systemprompt_database::DbPool;
-use systemprompt_events::services::durable::DurableOutbox;
 use systemprompt_extension::RetentionHolds;
-use systemprompt_governance::GovernanceDecisionRetention;
-use systemprompt_identifiers::InstanceId;
-use systemprompt_logging::{AnalyticsRepository, LoggingRepository};
-use systemprompt_mcp::repository::ToolUsageRepository;
 use systemprompt_provider_contracts::{BatchPlan, run_batched};
-use systemprompt_traits::ProviderResult;
+use systemprompt_traits::{JobContext, ProviderResult, RetentionPurge, registered_retention_purges};
 use tracing::info;
 
 use super::RetentionTarget;
 use super::holds::{HoldOutcome, report};
-use crate::error::SchedulerResult;
+use crate::error::{SchedulerError, SchedulerResult};
 
 pub(super) const BATCH_ROWS: i64 = 5000;
 const RUN_BUDGET: Duration = Duration::from_mins(15);
 
-#[derive(Debug, Clone)]
+/// The registered purge of every target table, one per table.
 pub(super) struct RetentionOwners {
-    pub(super) logs: LoggingRepository,
-    pub(super) analytics_events: AnalyticsRepository,
-    pub(super) requests: AiRequestRepository,
-    pub(super) payloads: AiRequestPayloadRepository,
-    pub(super) quota_buckets: AiQuotaBucketRepository,
-    pub(super) tool_executions: ToolUsageRepository,
-    pub(super) outbox: DurableOutbox,
-    pub(super) decisions: GovernanceDecisionRetention,
-    pub(super) analytics_pii: AnalyticsRetention,
+    purges: HashMap<&'static str, &'static dyn RetentionPurge>,
 }
 
 impl RetentionOwners {
-    pub(super) fn new(db: &DbPool, instance_id: InstanceId) -> Self {
-        Self {
-            logs: LoggingRepository::new(db),
-            analytics_events: AnalyticsRepository::new(db),
-            requests: AiRequestRepository::new(db),
-            payloads: AiRequestPayloadRepository::new(db),
-            quota_buckets: AiQuotaBucketRepository::new(db),
-            tool_executions: ToolUsageRepository::new(db),
-            outbox: DurableOutbox::new(db.write_pool().as_ref().clone(), instance_id),
-            decisions: GovernanceDecisionRetention::new(db),
-            analytics_pii: AnalyticsRetention::new(db),
+    pub(super) fn discover() -> SchedulerResult<Self> {
+        let mut purges: HashMap<&'static str, &'static dyn RetentionPurge> = HashMap::new();
+        for purge in registered_retention_purges() {
+            if purges.insert(purge.table(), purge).is_some() {
+                return Err(SchedulerError::DuplicateRetentionPurge {
+                    table: purge.table(),
+                });
+            }
         }
+        Ok(Self { purges })
+    }
+
+    pub(super) fn owns(&self, target: RetentionTarget) -> bool {
+        self.purges.contains_key(target.table())
     }
 }
 
@@ -73,6 +58,7 @@ pub(super) struct RetentionPass {
 }
 
 pub(super) struct PassRunner<'a> {
+    pub(super) ctx: &'a JobContext,
     pub(super) owners: &'a RetentionOwners,
     pub(super) holds: &'a RetentionHolds,
     pub(super) enforce: bool,
@@ -126,70 +112,11 @@ impl PassRunner<'_> {
             deadline: self.started + RUN_BUDGET,
             full_batch: u64::try_from(BATCH_ROWS).unwrap_or(u64::MAX),
         };
-        let owners = self.owners;
-        let run = run_batched(plan, move || purge(target, owners, cutoff)).await?;
+        let Some(purge) = self.owners.purges.get(target.table()).copied() else {
+            return Ok((0, true));
+        };
+        let ctx = self.ctx;
+        let run = run_batched(plan, move || purge.purge_before(ctx, cutoff, BATCH_ROWS)).await?;
         Ok((run.processed, run.complete))
     }
-}
-
-async fn purge(
-    target: RetentionTarget,
-    owners: &RetentionOwners,
-    cutoff: DateTime<Utc>,
-) -> SchedulerResult<u64> {
-    let deleted = match target {
-        RetentionTarget::Logs => owners.logs.purge_before(cutoff, BATCH_ROWS).await?,
-        RetentionTarget::AnalyticsEvents => {
-            owners
-                .analytics_events
-                .purge_before(cutoff, BATCH_ROWS)
-                .await?
-        },
-        RetentionTarget::AiRequestMessages => {
-            owners
-                .requests
-                .purge_messages_before(cutoff, BATCH_ROWS)
-                .await?
-        },
-        RetentionTarget::McpToolExecutions => {
-            owners
-                .tool_executions
-                .purge_before(cutoff, BATCH_ROWS)
-                .await?
-        },
-        RetentionTarget::EventOutbox => {
-            owners
-                .outbox
-                .purge_processed_before(cutoff, BATCH_ROWS)
-                .await?
-        },
-        RetentionTarget::AiRequestPayloads => {
-            owners
-                .payloads
-                .release_bodies_before(cutoff, BATCH_ROWS)
-                .await?
-        },
-        RetentionTarget::GovernanceDecisions => {
-            owners.decisions.purge_before(cutoff, BATCH_ROWS).await?
-        },
-        RetentionTarget::AiQuotaBuckets => {
-            owners
-                .quota_buckets
-                .purge_before(cutoff, BATCH_ROWS)
-                .await?
-        },
-        RetentionTarget::EngagementEvents => {
-            owners
-                .analytics_pii
-                .purge_engagement_events_before(cutoff, BATCH_ROWS)
-                .await?
-        },
-        RetentionTarget::FingerprintReputation => {
-            owners
-                .analytics_pii
-                .purge_fingerprints_before(cutoff, BATCH_ROWS)
-                .await?
-        },
-    };
-    Ok(deleted)
 }

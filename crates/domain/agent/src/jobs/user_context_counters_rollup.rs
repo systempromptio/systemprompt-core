@@ -10,7 +10,7 @@ use std::time::Duration;
 use async_trait::async_trait;
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 
-use super::projection_drain::{ProjectionDrain, drain_projection};
+use systemprompt_database::projection::{ProjectionDrain, drain_projection};
 
 const DRAIN: ProjectionDrain = ProjectionDrain {
     projection: "user_context_counters",
@@ -45,4 +45,4 @@ impl Job for UserContextCountersRollupJob {
     }
 }
 
-systemprompt_provider_contracts::submit_job!(&UserContextCountersRollupJob);
+systemprompt_traits::submit_job!(&UserContextCountersRollupJob);

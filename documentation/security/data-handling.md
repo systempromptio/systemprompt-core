@@ -41,7 +41,7 @@ deployment control.
 Retention is configured in the deployment profile (`crates/shared/manifest/src/profile/retention.rs`)
 and enforced by scheduled jobs, including governance-decision retention
 (`crates/infra/governance/src/decision_retention.rs`) and knowledge-store retention
-(`crates/domain/brain/src/jobs/retention.rs`). The scheduler's `database_cleanup` job enforces the profile's `retention` windows; every window
+(`crates/domain/brain/src/jobs/retention.rs`). The scheduler's `database_cleanup` job enforces the profile's `retention` windows, deleting through the purge each table's owning component registers; every window
 has a default, so a profile that sets none still has bounded tables. For personal data in
 analytics, `engagement_events_days` (default 90) bounds engagement events, and
 `fingerprint_reputation_days` (default 90) deletes an unflagged fingerprint's reputation row,

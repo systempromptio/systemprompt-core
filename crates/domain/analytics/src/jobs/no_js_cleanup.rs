@@ -4,12 +4,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::sync::Arc;
+
 use async_trait::async_trait;
-use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
+use systemprompt_traits::{Job, JobContext, JobResult, ProviderError, ProviderResult};
 use tracing::info;
 
-use crate::error::SchedulerError;
-use crate::services::scheduling::job_app_context;
+use crate::repository::AnalyticsRepositories;
 
 #[derive(Debug, Clone, Copy)]
 pub struct NoJsCleanupJob;
@@ -31,12 +32,11 @@ impl Job for NoJsCleanupJob {
     async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
         let start_time = std::time::Instant::now();
 
-        let marked = job_app_context(ctx)?
-            .analytics_repositories()
+        let marked = ctx.get::<Arc<AnalyticsRepositories>>()?
             .session_signals
             .mark_no_js_sessions_as_bots()
             .await
-            .map_err(SchedulerError::from)?;
+            .map_err(|e| ProviderError::Internal(Box::new(e)))?;
         let duration_ms = start_time.elapsed().as_millis() as u64;
 
         if marked > 0 {
@@ -53,4 +53,4 @@ impl Job for NoJsCleanupJob {
     }
 }
 
-systemprompt_provider_contracts::submit_job!(&NoJsCleanupJob);
+systemprompt_traits::submit_job!(&NoJsCleanupJob);

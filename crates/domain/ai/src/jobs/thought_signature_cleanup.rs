@@ -5,7 +5,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
-use systemprompt_ai::repository::AiThoughtSignatureRepository;
+use crate::repository::AiThoughtSignatureRepository;
 use systemprompt_database::DbPool;
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 use tracing::info;
@@ -36,7 +36,7 @@ impl Job for ThoughtSignatureCleanupJob {
         let deleted = AiThoughtSignatureRepository::new(&db_pool)
             .cleanup_expired()
             .await
-            .map_err(|e| systemprompt_provider_contracts::ProviderError::Internal(Box::new(e)))?;
+            .map_err(|e| systemprompt_traits::ProviderError::Internal(Box::new(e)))?;
 
         let duration_ms = start_time.elapsed().as_millis() as u64;
 
@@ -54,4 +54,4 @@ impl Job for ThoughtSignatureCleanupJob {
     }
 }
 
-systemprompt_provider_contracts::submit_job!(&ThoughtSignatureCleanupJob);
+systemprompt_traits::submit_job!(&ThoughtSignatureCleanupJob);

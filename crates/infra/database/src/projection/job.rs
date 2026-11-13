@@ -2,29 +2,69 @@
 //! projection through its `refresh_<projection>(keys TEXT[])` function within
 //! a time budget and reports the keys done and requeued as job stats.
 //!
+//! A job that drains projections owned by several crates does not name them:
+//! each owner declares its drain against the job's name with
+//! [`submit_projection_drain!`](crate::submit_projection_drain), and the job
+//! drains every [`registered_drains`] entry for its name. A projection whose
+//! owner is not linked is not drained.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 use std::time::Duration;
 
-use systemprompt_database::{DbPool, projection};
-use systemprompt_traits::{JobContext, JobResult, ProviderResult};
+use systemprompt_traits::{JobContext, JobResult, ProviderError, ProviderResult};
 use tracing::info;
 
-pub(super) struct ProjectionDrain {
-    pub(super) projection: &'static str,
-    pub(super) projector: &'static str,
-    pub(super) batch: i32,
-    pub(super) budget: Duration,
+use crate::DbPool;
+
+/// One projection a drainer job works off, with its batch and time budget.
+#[derive(Debug, Clone, Copy)]
+pub struct ProjectionDrain {
+    pub projection: &'static str,
+    pub projector: &'static str,
+    pub batch: i32,
+    pub budget: Duration,
 }
 
-pub(super) async fn drain_projection(
+/// A [`ProjectionDrain`] an owning crate contributes to the job named `job`.
+#[derive(Debug, Clone, Copy)]
+pub struct ProjectionDrainContribution {
+    pub job: &'static str,
+    pub drain: ProjectionDrain,
+}
+
+inventory::collect!(ProjectionDrainContribution);
+
+pub fn registered_drains(job: &str) -> impl Iterator<Item = &'static ProjectionDrain> + '_ {
+    inventory::iter::<ProjectionDrainContribution>
+        .into_iter()
+        .filter(move |contribution| contribution.job == job)
+        .map(|contribution| &contribution.drain)
+}
+
+#[doc(hidden)]
+pub use inventory as __inventory;
+
+#[macro_export]
+macro_rules! submit_projection_drain {
+    ($job:literal, $drain:expr) => {
+        $crate::projection::job::__inventory::submit! {
+            $crate::projection::job::ProjectionDrainContribution {
+                job: $job,
+                drain: $drain,
+            }
+        }
+    };
+}
+
+pub async fn drain_projection(
     ctx: &JobContext,
     drain: &ProjectionDrain,
 ) -> ProviderResult<JobResult> {
     let db_pool = Arc::clone(ctx.get::<DbPool>()?);
-    let report = projection::drain_with_sql(
+    let report = super::drain_with_sql(
         &db_pool.write_pool(),
         drain.projection,
         drain.batch,
@@ -32,7 +72,7 @@ pub(super) async fn drain_projection(
         drain.projector,
     )
     .await
-    .map_err(|e| systemprompt_provider_contracts::ProviderError::Internal(Box::new(e)))?;
+    .map_err(|e| ProviderError::Internal(Box::new(e)))?;
     let duration_ms = u64::try_from(report.elapsed.as_millis()).unwrap_or(u64::MAX);
     if report.keys > 0 {
         info!(

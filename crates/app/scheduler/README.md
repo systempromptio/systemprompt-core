@@ -26,7 +26,7 @@ Jobs are discovered through `inventory` and executed on configurable cron schedu
 | `services/orchestration` | Service state reconciliation (`ServiceStateVerifier`, `ServiceReconciler`, `VerifiedServiceState`, cross-platform `process_cleanup`) |
 | `services/plans` | Declarative service plans consumed by the reconciler |
 | `models` | `JobConfig`, `JobStatus`, `ScheduledJob`, `SchedulerConfig` |
-| `repository` | `SchedulerRepository` facade over job, analytics, and security queries |
+| `repository` | `SchedulerRepository` facade over job and lock queries; config-plane, licence and OTLP state |
 | `error` | `SchedulerError`, `SchedulerResult` |
 | `extension` | `SchedulerExtension` (schemas, registered jobs) |
 
@@ -34,15 +34,19 @@ Jobs are discovered through `inventory` and executed on configurable cron schedu
 
 Each job implements the `Job` trait from `systemprompt-traits` and is registered via `inventory` for automatic discovery.
 
+The scheduler hosts kernel jobs only. Capability crates submit their own jobs
+(for example `behavioral_analysis` and `malicious_ip_blacklist` in
+`systemprompt-analytics`, `usage_anomaly_scan` in `systemprompt-ai`,
+`cleanup_empty_contexts` in `systemprompt-agent`), and contribute to two kernel
+jobs that iterate registrations: `database_cleanup` deletes through the
+`RetentionPurge` each table's owner registers, and `backfill_rollups` drains
+the projections owners declare with `submit_projection_drain!`.
+
 | Job | Schedule | Description |
 |-----|----------|-------------|
 | `CleanupInactiveSessionsJob` | Every 10 min | Closes sessions inactive for 1 hour |
-| `CleanupEmptyContextsJob` | Every 2 hours | Removes conversation contexts with no messages |
-| `DatabaseCleanupJob` | Daily at 3 AM | Deletes orphaned logs, MCP executions, expired OAuth tokens |
-| `BehavioralAnalysisJob` | Hourly | Analyses fingerprint patterns, flags suspicious activity, bans repeat offenders |
-| `MaliciousIpBlacklistJob` | Every 6 hours | Detects high-volume, scanner, datacenter, and high-risk country IPs |
-| `GhostSessionCleanupJob` | Periodic | Reaps abandoned ghost sessions left by disconnected clients |
-| `NoJsCleanupJob` | Periodic | Prunes no-JavaScript fingerprint rows past retention |
+| `DatabaseCleanupJob` | Daily at 3 AM | Prunes every registered retention target past its profile window, orphaned logs and expired archived users |
+| `BackfillRollupsJob` | Every minute | Drains the hourly usage rollups owners register |
 
 ### Service reconciliation
 

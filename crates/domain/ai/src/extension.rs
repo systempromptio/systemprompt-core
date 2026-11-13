@@ -1,10 +1,15 @@
 //! `Extension` registration for the AI domain: schemas, migrations,
-//! dependencies.
+//! dependencies and jobs.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::sync::Arc;
+
 use systemprompt_extension::prelude::*;
+use systemprompt_traits::Job;
+
+use crate::jobs::{AiRequestToolFlagRollupJob, ThoughtSignatureCleanupJob, UsageAnomalyScanJob};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct AiExtension;
@@ -30,6 +35,14 @@ impl Extension for AiExtension {
 
     fn dependencies(&self) -> Vec<&'static str> {
         vec!["users", "mcp"]
+    }
+
+    fn jobs(&self) -> Vec<Arc<dyn Job>> {
+        vec![
+            Arc::new(AiRequestToolFlagRollupJob),
+            Arc::new(ThoughtSignatureCleanupJob),
+            Arc::new(UsageAnomalyScanJob),
+        ]
     }
 }
 

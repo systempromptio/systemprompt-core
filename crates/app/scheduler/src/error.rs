@@ -3,8 +3,7 @@
 //! [`SchedulerError`] is the canonical error returned from public, non-trait
 //! signatures (services, repositories, lifecycle helpers). It composes
 //! [`tokio_cron_scheduler::JobSchedulerError`],
-//! [`systemprompt_traits::RepositoryError`],
-//! [`systemprompt_analytics::AnalyticsError`], and
+//! [`systemprompt_traits::RepositoryError`] and
 //! [`systemprompt_users::UserError`] via `#[from]` so `?` propagation works
 //! transparently for every internal call site. A [`sqlx::Error`] is
 //! classified through [`systemprompt_traits::RepositoryError`] so a
@@ -63,9 +62,6 @@ pub enum SchedulerError {
     #[error("Repository error: {0}")]
     Repository(#[from] RepositoryError),
 
-    #[error("Analytics error: {0}")]
-    Analytics(#[from] systemprompt_analytics::AnalyticsError),
-
     #[error("Users error: {0}")]
     Users(#[from] systemprompt_users::UserError),
 
@@ -81,6 +77,9 @@ pub enum SchedulerError {
         second: JobName,
         key: i64,
     },
+
+    #[error("two retention purges are registered for table `{table}`")]
+    DuplicateRetentionPurge { table: &'static str },
 
     #[error("Scheduler already running")]
     AlreadyRunning,
@@ -103,14 +102,8 @@ pub enum SchedulerError {
     #[error("Inventory refresh failed: {0}")]
     Inventory(#[from] systemprompt_runtime::managed::OrchestrationError),
 
-    #[error("Managed marketplace error: {0}")]
-    Managed(#[from] systemprompt_marketplace::managed::ManagedError),
-
     #[error("Logging error: {0}")]
     Logging(#[from] systemprompt_logging::models::LoggingError),
-
-    #[error("MCP error: {0}")]
-    Mcp(#[from] systemprompt_mcp::McpDomainError),
 
     #[error("Unknown OTLP export signal '{signal}'")]
     UnknownOtlpSignal { signal: String },
