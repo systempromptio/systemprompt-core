@@ -42,7 +42,7 @@ use crate::models::{JobRunRecord, JobStatus};
 use crate::repository::{JobRepository, SchedulerRepository};
 use claim::Claimed;
 use report::{elapsed_ms, failed_report};
-use selection::RunnableJob;
+use selection::{JobLookup, RunnableJob};
 
 pub struct JobExecutionService {
     ctx: Arc<AppContext>,
@@ -117,26 +117,32 @@ impl JobExecutionService {
         let start = Instant::now();
 
         let runnable = match self.find_runnable(job_name) {
-            Ok(Some(runnable)) => runnable,
-            Ok(None) => {
-                let report = failed_report(
-                    job_name,
-                    start,
-                    Some(format!(
-                        "Job '{job_name}' not found, or its owning extension is disabled"
-                    )),
-                );
-                self.record_run(&report).await;
-                return report;
+            Ok(JobLookup::Runnable(runnable)) => runnable,
+            Ok(JobLookup::NotLinked) => {
+                return self
+                    .refuse(job_name, start, format!("Job '{job_name}' not found"))
+                    .await;
+            },
+            Ok(JobLookup::OwnerDisabled(owner)) => {
+                return self
+                    .refuse(
+                        job_name,
+                        start,
+                        format!(
+                            "Job '{job_name}' belongs to extension '{owner}', which the profile \
+                             disables"
+                        ),
+                    )
+                    .await;
             },
             Err(e) => {
-                let report = failed_report(
-                    job_name,
-                    start,
-                    Some(format!("Could not resolve the enabled extensions: {e}")),
-                );
-                self.record_run(&report).await;
-                return report;
+                return self
+                    .refuse(
+                        job_name,
+                        start,
+                        format!("Could not resolve the enabled extensions: {e}"),
+                    )
+                    .await;
             },
         };
 
@@ -205,6 +211,12 @@ impl JobExecutionService {
             },
             Err(e) => failed_report(job_name, start, Some(e.to_string())),
         }
+    }
+
+    async fn refuse(&self, job_name: &JobName, start: Instant, message: String) -> JobRunReport {
+        let report = failed_report(job_name, start, Some(message));
+        self.record_run(&report).await;
+        report
     }
 
     async fn record_run(&self, report: &JobRunReport) {

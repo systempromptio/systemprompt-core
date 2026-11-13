@@ -2,7 +2,7 @@
 //! database, and their failure on a dead pool.
 
 use systemprompt_analytics::jobs::{BehavioralAnalysisJob, MaliciousIpBlacklistJob};
-use systemprompt_test_fixtures::{test_database_url, test_db_pool};
+use systemprompt_test_fixtures::test_db_pool;
 use systemprompt_traits::Job;
 
 use super::{job_ctx as make_test_ctx, job_ctx_over};
@@ -12,9 +12,8 @@ mod behavioral_analysis_db {
 
     #[tokio::test]
     async fn execute_succeeds_against_empty_db() {
-        let url = test_database_url();
         let pool = test_db_pool().await;
-        let ctx = make_test_ctx(&pool, &url);
+        let ctx = make_test_ctx(&pool);
         let job = BehavioralAnalysisJob;
 
         let result = job
@@ -30,9 +29,8 @@ mod behavioral_analysis_db {
 
     #[tokio::test]
     async fn execute_returns_valid_duration() {
-        let url = test_database_url();
         let pool = test_db_pool().await;
-        let ctx = make_test_ctx(&pool, &url);
+        let ctx = make_test_ctx(&pool);
         let job = BehavioralAnalysisJob;
 
         let result = job.execute(&ctx).await.expect("execute must not error");
@@ -42,9 +40,8 @@ mod behavioral_analysis_db {
 
     #[tokio::test]
     async fn execute_has_stats_fields() {
-        let url = test_database_url();
         let pool = test_db_pool().await;
-        let ctx = make_test_ctx(&pool, &url);
+        let ctx = make_test_ctx(&pool);
         let job = BehavioralAnalysisJob;
 
         let result = job.execute(&ctx).await.expect("execute must not error");
@@ -62,9 +59,8 @@ mod malicious_ip_blacklist_db {
 
     #[tokio::test]
     async fn execute_succeeds_against_empty_db() {
-        let url = test_database_url();
         let pool = test_db_pool().await;
-        let ctx = make_test_ctx(&pool, &url);
+        let ctx = make_test_ctx(&pool);
         let job = MaliciousIpBlacklistJob;
 
         let result = job
@@ -80,9 +76,8 @@ mod malicious_ip_blacklist_db {
 
     #[tokio::test]
     async fn execute_reports_zero_banned_on_empty_db() {
-        let url = test_database_url();
         let pool = test_db_pool().await;
-        let ctx = make_test_ctx(&pool, &url);
+        let ctx = make_test_ctx(&pool);
         let job = MaliciousIpBlacklistJob;
 
         let result = job.execute(&ctx).await.expect("execute must not error");
@@ -96,12 +91,11 @@ mod malicious_ip_blacklist_db {
 
     #[tokio::test]
     async fn execute_is_idempotent() {
-        let url = test_database_url();
         let pool = test_db_pool().await;
         let job = MaliciousIpBlacklistJob;
 
         for _ in 0..2 {
-            let ctx = make_test_ctx(&pool, &url);
+            let ctx = make_test_ctx(&pool);
             job.execute(&ctx)
                 .await
                 .expect("repeated MaliciousIpBlacklistJob executions must all succeed");
@@ -153,13 +147,12 @@ mod malicious_ip_blacklist_db {
     // no-enforce test's seeded IP would be banned by the other test's run.
     #[tokio::test]
     async fn enforce_flag_gates_banning_of_qualifying_candidates() {
-        let url = test_database_url();
         let pool = test_db_pool().await;
         let ip = format!("198.51.100.{}", std::process::id() % 200);
         cleanup_seed(&pool, &ip).await;
         seed_scanner_sessions(&pool, &ip, 3).await;
 
-        let observe_ctx = make_test_ctx(&pool, &url);
+        let observe_ctx = make_test_ctx(&pool);
         MaliciousIpBlacklistJob
             .execute(&observe_ctx)
             .await
@@ -169,7 +162,7 @@ mod malicious_ip_blacklist_db {
             "enforce defaults to false, so a qualifying scanner IP must not be banned"
         );
 
-        let enforce_ctx = make_test_ctx(&pool, &url).with_enforce(true);
+        let enforce_ctx = make_test_ctx(&pool).with_enforce(true);
         MaliciousIpBlacklistJob
             .execute(&enforce_ctx)
             .await
@@ -189,10 +182,8 @@ mod closed_pool_error_propagation {
 
     #[tokio::test]
     async fn behavioral_analysis_propagates_a_dead_pool_error() {
-        let url = test_database_url();
-        let real_pool = test_db_pool().await;
         let closed = closed_db_pool().await;
-        let ctx = job_ctx_over(&real_pool, &closed, &url);
+        let ctx = job_ctx_over(&closed);
 
         BehavioralAnalysisJob
             .execute(&ctx)
@@ -202,10 +193,8 @@ mod closed_pool_error_propagation {
 
     #[tokio::test]
     async fn malicious_ip_blacklist_propagates_a_dead_pool_error() {
-        let url = test_database_url();
-        let real_pool = test_db_pool().await;
         let closed = closed_db_pool().await;
-        let ctx = job_ctx_over(&real_pool, &closed, &url);
+        let ctx = job_ctx_over(&closed);
 
         MaliciousIpBlacklistJob
             .execute(&ctx)

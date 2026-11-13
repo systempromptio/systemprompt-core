@@ -241,8 +241,8 @@ impl AppContextBuilder {
             },
             plugins,
             subsystems,
-        );
-        let app = provide_extension_state(app, &market.state)?;
+            &market.state,
+        )?;
         #[cfg(feature = "notifications")]
         let app = {
             let mut app = app;
@@ -262,18 +262,4 @@ impl AppContextBuilder {
         };
         Ok(app)
     }
-}
-
-fn provide_extension_state(
-    mut app: AppContext,
-    authz_state: &systemprompt_extension::StateHandle,
-) -> RuntimeResult<AppContext> {
-    let state = app.plugins.extension_registry.build_state(
-        &app,
-        kernel_state::kernel_state(&app),
-        &app.profile().extensions.disabled,
-    )?;
-    authz_state.bind(state.clone())?;
-    app.plugins.extension_state = state;
-    Ok(app)
 }

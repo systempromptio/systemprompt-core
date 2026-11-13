@@ -75,8 +75,8 @@ impl Job for UnlockedProbeJob {
     }
 }
 
-systemprompt_traits::submit_job!("scheduler", &LockedProbeJob);
-systemprompt_traits::submit_job!("scheduler", &UnlockedProbeJob);
+systemprompt_traits::submit_job!("scheduler_test_jobs", &LockedProbeJob);
+systemprompt_traits::submit_job!("scheduler_test_jobs", &UnlockedProbeJob);
 
 fn probe_config(job: &str, distributed_lock: bool) -> SchedulerConfig {
     SchedulerConfig {

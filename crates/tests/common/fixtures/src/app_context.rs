@@ -179,7 +179,7 @@ pub fn fixture_app_context_with(
 }
 
 pub fn fixture_app_context_with_config(pool: &DbPool, config: Config) -> Result<Arc<AppContext>> {
-    fixture_app_context_with_extensions(pool, config, ExtensionRegistry::new())
+    fixture_app_context_with_extensions(pool, config, ExtensionRegistry::discover()?)
 }
 
 pub fn fixture_app_context_with_extensions(
@@ -220,7 +220,7 @@ pub fn fixture_app_context_documents_disabled(
             marketplace_filter: Arc::new(AllowAllFilter),
             authz_hook: hook,
             user_repository,
-            extension_registry: Arc::new(ExtensionRegistry::new()),
+            extension_registry: Arc::new(ExtensionRegistry::discover()?),
             services: None,
             documents: DocumentsConfig::default(),
         },
@@ -245,7 +245,7 @@ pub fn fixture_app_context_documents_configured(
             marketplace_filter: Arc::new(AllowAllFilter),
             authz_hook: hook,
             user_repository,
-            extension_registry: Arc::new(ExtensionRegistry::new()),
+            extension_registry: Arc::new(ExtensionRegistry::discover()?),
             services: None,
             documents,
         },
@@ -270,7 +270,7 @@ pub fn fixture_app_context_with_services(
             marketplace_filter: Arc::new(AllowAllFilter),
             authz_hook: hook,
             user_repository,
-            extension_registry: Arc::new(ExtensionRegistry::new()),
+            extension_registry: Arc::new(ExtensionRegistry::discover()?),
             services: Some(services),
             documents: if documents_enabled {
                 enabled_documents()
@@ -325,7 +325,7 @@ pub fn fixture_app_context_with_user_repository(
             marketplace_filter,
             authz_hook: hook,
             user_repository,
-            extension_registry: Arc::new(ExtensionRegistry::new()),
+            extension_registry: Arc::new(ExtensionRegistry::discover()?),
             services: None,
             documents: enabled_documents(),
         },
@@ -365,7 +365,7 @@ fn fixture_app_context_full(
             marketplace_filter,
             authz_hook,
             user_repository,
-            extension_registry: Arc::new(ExtensionRegistry::new()),
+            extension_registry: Arc::new(ExtensionRegistry::discover()?),
             services: None,
             documents: enabled_documents(),
         },
@@ -417,7 +417,7 @@ pub fn fixture_app_context_on_bootstrap(
             marketplace_filter,
             authz_hook: hook,
             user_repository,
-            extension_registry: Arc::new(ExtensionRegistry::new()),
+            extension_registry: Arc::new(ExtensionRegistry::discover()?),
             services: None,
             documents: enabled_documents(),
         },
@@ -447,7 +447,7 @@ pub fn fixture_app_context_on_bootstrap_with_paths(
             marketplace_filter,
             authz_hook: hook,
             user_repository,
-            extension_registry: Arc::new(ExtensionRegistry::new()),
+            extension_registry: Arc::new(ExtensionRegistry::discover()?),
             services: Some(services),
             documents: enabled_documents(),
         },
@@ -576,7 +576,6 @@ fn fixture_app_context_assembled_on(
         },
         Plugins {
             extension_registry,
-            extension_state: systemprompt_provider_contracts::Dependencies::new(),
             mcp_registry: RegistryService::new(
                 fixture_user_id(),
                 services.view(),
@@ -615,7 +614,8 @@ fn fixture_app_context_assembled_on(
             notifications,
             brain: None,
         },
-    );
+        &systemprompt_extension::StateHandle::default(),
+    )?;
 
     Ok(Arc::new(ctx))
 }

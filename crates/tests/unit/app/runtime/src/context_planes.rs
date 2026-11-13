@@ -132,7 +132,6 @@ async fn plane_debug_impls_flag_optional_members() {
 
     let plugins = Plugins {
         extension_registry: Arc::new(ExtensionRegistry::new()),
-        extension_state: systemprompt_provider_contracts::Dependencies::new(),
         mcp_registry: RegistryService::new(
             systemprompt_test_fixtures::fixture_user_id(),
             systemprompt_test_fixtures::fixture_services_view(),
@@ -196,7 +195,14 @@ async fn plane_debug_impls_flag_optional_members() {
     assert!(dbg.contains("outbox: None"), "got: {dbg}");
     assert!(dbg.contains("geoip_reader: false"), "got: {dbg}");
 
-    let ctx = AppContext::from_parts(data, cfg, plugins, subsystems);
+    let ctx = AppContext::from_parts(
+        data,
+        cfg,
+        plugins,
+        subsystems,
+        &systemprompt_extension::StateHandle::default(),
+    )
+    .expect("context with an empty extension registry");
     let routing = ctx.content_routing();
     assert!(
         routing.is_some(),

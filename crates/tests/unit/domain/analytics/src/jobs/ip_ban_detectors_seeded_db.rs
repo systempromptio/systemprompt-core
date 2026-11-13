@@ -5,7 +5,7 @@
 //! Rows are cleaned up after each test so shards do not interfere.
 
 use systemprompt_analytics::jobs::{BehavioralAnalysisJob, MaliciousIpBlacklistJob};
-use systemprompt_test_fixtures::{test_database_url, test_db_pool};
+use systemprompt_test_fixtures::test_db_pool;
 use systemprompt_traits::Job;
 
 use super::job_ctx as make_test_ctx;
@@ -40,7 +40,6 @@ mod behavioral_analysis_seeded {
 
     #[tokio::test]
     async fn execute_flags_high_request_count_fingerprint() {
-        let url = test_database_url();
         let pool = test_db_pool().await;
         let pg = pool.write_pool();
 
@@ -65,7 +64,7 @@ mod behavioral_analysis_seeded {
         .await
         .expect("seed fingerprint_reputation row");
 
-        let ctx = make_test_ctx(&pool, &url).with_enforce(true);
+        let ctx = make_test_ctx(&pool).with_enforce(true);
         let result = BehavioralAnalysisJob
             .execute(&ctx)
             .await
@@ -87,7 +86,6 @@ mod behavioral_analysis_seeded {
 
     #[tokio::test]
     async fn execute_counts_flagged_as_processed() {
-        let url = test_database_url();
         let pool = test_db_pool().await;
         let pg = pool.write_pool();
 
@@ -112,7 +110,7 @@ mod behavioral_analysis_seeded {
         .await
         .expect("seed fingerprint_reputation row");
 
-        let ctx = make_test_ctx(&pool, &url).with_enforce(true);
+        let ctx = make_test_ctx(&pool).with_enforce(true);
         let result = BehavioralAnalysisJob
             .execute(&ctx)
             .await
@@ -134,7 +132,6 @@ mod behavioral_analysis_seeded {
 
     #[tokio::test]
     async fn execute_flags_sustained_velocity_fingerprint() {
-        let url = test_database_url();
         let pool = test_db_pool().await;
         let pg = pool.write_pool();
 
@@ -159,7 +156,7 @@ mod behavioral_analysis_seeded {
         .await
         .expect("seed high-velocity fingerprint_reputation row");
 
-        let ctx = make_test_ctx(&pool, &url).with_enforce(true);
+        let ctx = make_test_ctx(&pool).with_enforce(true);
         let result = BehavioralAnalysisJob
             .execute(&ctx)
             .await
@@ -181,7 +178,6 @@ mod behavioral_analysis_seeded {
 
     #[tokio::test]
     async fn execute_flags_excessive_sessions_fingerprint() {
-        let url = test_database_url();
         let pool = test_db_pool().await;
         let pg = pool.write_pool();
 
@@ -206,7 +202,7 @@ mod behavioral_analysis_seeded {
         .await
         .expect("seed high-session-count fingerprint_reputation row");
 
-        let ctx = make_test_ctx(&pool, &url).with_enforce(true);
+        let ctx = make_test_ctx(&pool).with_enforce(true);
         let result = BehavioralAnalysisJob
             .execute(&ctx)
             .await
@@ -228,7 +224,6 @@ mod behavioral_analysis_seeded {
 
     #[tokio::test]
     async fn execute_triggers_ban_path_for_abuse_threshold_crossed() {
-        let url = test_database_url();
         let pool = test_db_pool().await;
         let pg = pool.write_pool();
 
@@ -256,7 +251,7 @@ mod behavioral_analysis_seeded {
         .await
         .expect("seed fingerprint_reputation row with high abuse_incidents");
 
-        let ctx = make_test_ctx(&pool, &url).with_enforce(true);
+        let ctx = make_test_ctx(&pool).with_enforce(true);
         let result = BehavioralAnalysisJob
             .execute(&ctx)
             .await
@@ -283,7 +278,6 @@ mod behavioral_analysis_seeded {
 
     #[tokio::test]
     async fn execute_handles_reputation_decay_below_threshold() {
-        let url = test_database_url();
         let pool = test_db_pool().await;
         let pg = pool.write_pool();
 
@@ -309,7 +303,7 @@ mod behavioral_analysis_seeded {
         .await
         .expect("seed low-reputation fingerprint_reputation row");
 
-        let ctx = make_test_ctx(&pool, &url).with_enforce(true);
+        let ctx = make_test_ctx(&pool).with_enforce(true);
         let result = BehavioralAnalysisJob
             .execute(&ctx)
             .await
@@ -328,7 +322,6 @@ mod behavioral_analysis_seeded {
 
     #[tokio::test]
     async fn execute_skips_ban_when_no_ip_address() {
-        let url = test_database_url();
         let pool = test_db_pool().await;
         let pg = pool.write_pool();
 
@@ -354,7 +347,7 @@ mod behavioral_analysis_seeded {
         .await
         .expect("seed fingerprint_reputation row without ip");
 
-        let ctx = make_test_ctx(&pool, &url).with_enforce(true);
+        let ctx = make_test_ctx(&pool).with_enforce(true);
         let result = BehavioralAnalysisJob
             .execute(&ctx)
             .await
@@ -376,7 +369,6 @@ mod behavioral_analysis_seeded {
 
     #[tokio::test]
     async fn execute_multiple_fingerprints_all_branches() {
-        let url = test_database_url();
         let pool = test_db_pool().await;
         let pg = pool.write_pool();
 
@@ -404,7 +396,7 @@ mod behavioral_analysis_seeded {
         .await
         .expect("seed multiple fingerprint_reputation rows");
 
-        let ctx = make_test_ctx(&pool, &url).with_enforce(true);
+        let ctx = make_test_ctx(&pool).with_enforce(true);
         let result = BehavioralAnalysisJob
             .execute(&ctx)
             .await
@@ -464,7 +456,6 @@ mod malicious_ip_blacklist_seeded {
 
     #[tokio::test]
     async fn execute_bans_high_volume_ip() {
-        let url = test_database_url();
         let pool = test_db_pool().await;
         let pg = pool.write_pool();
 
@@ -477,7 +468,7 @@ mod malicious_ip_blacklist_seeded {
             session_ids.push(sid);
         }
 
-        let ctx = make_test_ctx(&pool, &url).with_enforce(true);
+        let ctx = make_test_ctx(&pool).with_enforce(true);
         let result = MaliciousIpBlacklistJob
             .execute(&ctx)
             .await
@@ -507,7 +498,6 @@ mod malicious_ip_blacklist_seeded {
 
     #[tokio::test]
     async fn execute_bans_scanner_ip() {
-        let url = test_database_url();
         let pool = test_db_pool().await;
         let pg = pool.write_pool();
 
@@ -520,7 +510,7 @@ mod malicious_ip_blacklist_seeded {
             session_ids.push(sid);
         }
 
-        let ctx = make_test_ctx(&pool, &url).with_enforce(true);
+        let ctx = make_test_ctx(&pool).with_enforce(true);
         let result = MaliciousIpBlacklistJob
             .execute(&ctx)
             .await
@@ -545,7 +535,6 @@ mod malicious_ip_blacklist_seeded {
 
     #[tokio::test]
     async fn execute_bans_datacenter_ip() {
-        let url = test_database_url();
         let pool = test_db_pool().await;
         let pg = pool.write_pool();
 
@@ -554,7 +543,7 @@ mod malicious_ip_blacklist_seeded {
 
         insert_session(&pg, &sid, &ip, false, false, None).await;
 
-        let ctx = make_test_ctx(&pool, &url).with_enforce(true);
+        let ctx = make_test_ctx(&pool).with_enforce(true);
         let result = MaliciousIpBlacklistJob
             .execute(&ctx)
             .await
@@ -577,7 +566,6 @@ mod malicious_ip_blacklist_seeded {
 
     #[tokio::test]
     async fn execute_bans_high_risk_country_ip() {
-        let url = test_database_url();
         let pool = test_db_pool().await;
         let pg = pool.write_pool();
 
@@ -590,7 +578,7 @@ mod malicious_ip_blacklist_seeded {
             session_ids.push(sid);
         }
 
-        let ctx = make_test_ctx(&pool, &url).with_enforce(true);
+        let ctx = make_test_ctx(&pool).with_enforce(true);
         let result = MaliciousIpBlacklistJob
             .execute(&ctx)
             .await
@@ -615,7 +603,6 @@ mod malicious_ip_blacklist_seeded {
 
     #[tokio::test]
     async fn execute_skips_already_banned_ip() {
-        let url = test_database_url();
         let pool = test_db_pool().await;
         let pg = pool.write_pool();
 
@@ -640,7 +627,7 @@ mod malicious_ip_blacklist_seeded {
             session_ids.push(sid);
         }
 
-        let ctx = make_test_ctx(&pool, &url).with_enforce(true);
+        let ctx = make_test_ctx(&pool).with_enforce(true);
         let result = MaliciousIpBlacklistJob
             .execute(&ctx)
             .await
@@ -665,7 +652,6 @@ mod malicious_ip_blacklist_seeded {
 
     #[tokio::test]
     async fn execute_handles_non_high_risk_country_not_banned() {
-        let url = test_database_url();
         let pool = test_db_pool().await;
         let pg = pool.write_pool();
 
@@ -678,7 +664,7 @@ mod malicious_ip_blacklist_seeded {
             session_ids.push(sid);
         }
 
-        let ctx = make_test_ctx(&pool, &url).with_enforce(true);
+        let ctx = make_test_ctx(&pool).with_enforce(true);
         let result = MaliciousIpBlacklistJob
             .execute(&ctx)
             .await
@@ -703,7 +689,6 @@ mod malicious_ip_blacklist_seeded {
 
     #[tokio::test]
     async fn execute_processes_sessions_without_ip_gracefully() {
-        let url = test_database_url();
         let pool = test_db_pool().await;
         let pg = pool.write_pool();
 
@@ -726,7 +711,7 @@ mod malicious_ip_blacklist_seeded {
             session_ids.push(sid);
         }
 
-        let ctx = make_test_ctx(&pool, &url).with_enforce(true);
+        let ctx = make_test_ctx(&pool).with_enforce(true);
         let result = MaliciousIpBlacklistJob
             .execute(&ctx)
             .await

@@ -29,7 +29,6 @@ use systemprompt_mcp::repository::McpSessionRepository;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::{ContentConfigRaw, RouteClassifier};
 use systemprompt_oauth::repository::OAuthRepositories;
-use systemprompt_provider_contracts::Dependencies;
 use systemprompt_security::credential::TokenCache;
 use systemprompt_security::keys::SigningKeys;
 use systemprompt_traits::{BackgroundTasks, CacheEpochs, ConfigWatch, FileStorage};
@@ -73,7 +72,6 @@ pub struct ConfigPlane {
 #[derive(Clone)]
 pub struct Plugins {
     pub extension_registry: Arc<ExtensionRegistry>,
-    pub extension_state: Dependencies,
     pub mcp_registry: RegistryService,
     pub marketplace_filter: Arc<dyn MarketplaceFilter>,
     pub marketplace_cache: Arc<MarketplaceCache>,

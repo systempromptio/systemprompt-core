@@ -2,7 +2,10 @@
 //!
 //! Holds shared handles (config, database pool, extension registry,
 //! analytics, route classifier, etc.) cloned cheaply via [`Arc`].
-//! Constructed via [`crate::AppContextBuilder`] or [`AppContext::new`].
+//! Constructed via [`crate::AppContextBuilder`] or [`AppContext::new`]; both
+//! end in [`AppContext::from_parts`], which builds the extension state (the
+//! kernel's handles, then every enabled extension's `provide`), so no context
+//! exists without it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -13,7 +16,7 @@ use systemprompt_analytics::{AnalyticsService, GeoIpReader};
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::{DbPool, SchemaInstallReport};
 use systemprompt_events::{EventBridgeHandle, EventRouter};
-use systemprompt_extension::ExtensionRegistry;
+use systemprompt_extension::{ExtensionRegistry, StateHandle};
 use systemprompt_governance::authz::SharedAuthzHook;
 use systemprompt_loader::BootContext;
 use systemprompt_manifest::Config;
@@ -22,6 +25,7 @@ use systemprompt_marketplace::{MarketplaceCache, MarketplaceFilter};
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::{ContentConfigRaw, ContentRouting, RouteClassifier};
 use systemprompt_security::keys::SigningKeys;
+use systemprompt_provider_contracts::Dependencies;
 use systemprompt_traits::FileStorage;
 
 mod accessors;
@@ -53,6 +57,7 @@ pub struct AppContext {
     pub(crate) cfg: ConfigPlane,
     pub(crate) plugins: Plugins,
     pub(crate) subsystems: Subsystems,
+    pub(crate) extension_state: Dependencies,
 }
 
 impl AppContext {
@@ -65,19 +70,28 @@ impl AppContext {
         AppContextBuilder::new(boot)
     }
 
-    #[must_use]
-    pub const fn from_parts(
+    pub fn from_parts(
         data: DataPlane,
         cfg: ConfigPlane,
         plugins: Plugins,
         subsystems: Subsystems,
-    ) -> Self {
-        Self {
+        authz_state: &StateHandle,
+    ) -> RuntimeResult<Self> {
+        let mut app = Self {
             data,
             cfg,
             plugins,
             subsystems,
-        }
+            extension_state: Dependencies::new(),
+        };
+        let state = app.plugins.extension_registry.build_state(
+            &app,
+            crate::kernel_state(&app),
+            &app.profile().extensions.disabled,
+        )?;
+        authz_state.bind(state.clone())?;
+        app.extension_state = state;
+        Ok(app)
     }
 
     pub fn load_geoip_database(

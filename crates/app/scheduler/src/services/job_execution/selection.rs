@@ -1,5 +1,7 @@
 //! Which jobs a manual run may name: the jobs of enabled extensions, from the
-//! extension manifest and the owner-attributed inventory.
+//! extension manifest and the owner-attributed inventory. A name resolves to
+//! a runnable job, to a linked job whose owning extension the profile
+//! disables, or to nothing; the two refusals report differently.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -7,11 +9,17 @@
 use std::sync::Arc;
 
 use systemprompt_identifiers::JobName;
-use systemprompt_traits::Job;
+use systemprompt_traits::{Job, registered_jobs};
 
 use super::{JobExecutionService, JobSelection};
 use crate::error::{SchedulerError, SchedulerResult};
 use crate::services::EnabledExtensions;
+
+pub(super) enum JobLookup {
+    Runnable(RunnableJob),
+    OwnerDisabled(&'static str),
+    NotLinked,
+}
 
 pub(super) enum RunnableJob {
     Manifest(Arc<dyn Job>),
@@ -88,17 +96,21 @@ impl JobExecutionService {
             .collect())
     }
 
-    pub(super) fn find_runnable(&self, job_name: &JobName) -> SchedulerResult<Option<RunnableJob>> {
+    pub(super) fn find_runnable(&self, job_name: &JobName) -> SchedulerResult<JobLookup> {
         if let Some(job) = self
             .enabled_manifest_jobs()?
             .into_iter()
             .find(|job| job.name() == job_name.as_str())
         {
-            return Ok(Some(RunnableJob::Manifest(job)));
+            return Ok(JobLookup::Runnable(RunnableJob::Manifest(job)));
         }
-        Ok(self
-            .enabled()?
-            .job(job_name.as_str())
-            .map(RunnableJob::Inventory))
+        if let Some(job) = self.enabled()?.job(job_name.as_str()) {
+            return Ok(JobLookup::Runnable(RunnableJob::Inventory(job)));
+        }
+        Ok(registered_jobs()
+            .find(|registration| registration.job.name() == job_name.as_str())
+            .map_or(JobLookup::NotLinked, |registration| {
+                JobLookup::OwnerDisabled(registration.owner)
+            }))
     }
 }
