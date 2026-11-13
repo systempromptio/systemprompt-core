@@ -10,7 +10,7 @@ on:
   pull_request:
     branches: [main, next]
   push:
-    branches: [next]
+    branches: [next, future]
   schedule:
     - cron: "17 6 * * *"
 
