@@ -5,8 +5,9 @@ use axum::body::{Body, to_bytes};
 use axum::http::{HeaderMap, Method, Request, StatusCode};
 use systemprompt_api::routes::notifications::{NotificationsState, router};
 use systemprompt_api::services::middleware::{
-    AuthzPolicy, ContextExtractor, RouterExt, UserOnlyContextMiddleware,
+    ContextExtractor, RouterExt, UserOnlyContextMiddleware,
 };
+use systemprompt_extension::AuthzPolicy;
 use systemprompt_identifiers::{
     Actor, AgentName, ContextId, NotificationStreamId, SessionId, TraceId, UserId,
 };

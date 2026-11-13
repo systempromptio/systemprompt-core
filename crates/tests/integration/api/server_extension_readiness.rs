@@ -82,7 +82,7 @@ async fn readyz(outcome: Outcome) -> Result<(u16, serde_json::Value)> {
     )?;
     let readiness = std::sync::Arc::new(ReadinessState::new());
     readiness.signal_ready();
-    let app = discovery_router(&ctx).layer(axum::Extension(std::sync::Arc::clone(&readiness)));
+    let app = discovery_router(&ctx)?.layer(axum::Extension(std::sync::Arc::clone(&readiness)));
     let response = app
         .oneshot(Request::builder().uri("/readyz").body(Body::empty())?)
         .await?;

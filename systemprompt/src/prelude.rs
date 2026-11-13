@@ -11,8 +11,8 @@
 
 #[cfg(feature = "core")]
 pub use systemprompt_extension::{
-    Extension, ExtensionContext, ExtensionMetadata, ExtensionRegistry, ExtensionRouter,
-    SchemaDefinition, register_extension,
+    AuthzPolicy, ContextKind, Extension, ExtensionContext, ExtensionMetadata, ExtensionRegistry,
+    ExtensionRouter, SchemaDefinition, register_extension,
 };
 
 #[cfg(feature = "core")]

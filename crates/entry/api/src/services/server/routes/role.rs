@@ -7,25 +7,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_extension::RouteGroup;
 use systemprompt_manifest::profile::NodeRole;
-
-/// A group of routes mounted together.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum RouteGroup {
-    Oauth,
-    Agent,
-    McpAndStream,
-    ContentAndMisc,
-    Messaging,
-    Extensions,
-    Discovery,
-    AuthenticatedDiscovery,
-    WellKnown,
-    Managed,
-    Gateway,
-    Static,
-    Probes,
-}
 
 const ALL_GROUPS: &[RouteGroup] = &[
     RouteGroup::Oauth,

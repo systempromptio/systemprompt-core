@@ -42,7 +42,7 @@ mod key;
 pub mod keyed;
 mod throttle;
 
-use crate::services::middleware::authz::{AuthzPolicy, authz_gate};
+use crate::services::middleware::authz::authz_gate;
 use crate::services::middleware::context::{
     A2AContextMiddleware, McpContextMiddleware, PublicContextMiddleware, UserOnlyContextMiddleware,
 };
@@ -55,7 +55,7 @@ use ipnet::IpNet;
 use std::future::Future;
 use std::sync::Arc;
 use std::time::Duration;
-use systemprompt_extension::LoaderError;
+use systemprompt_extension::{AuthzPolicy, LoaderError};
 use systemprompt_manifest::Config;
 use systemprompt_manifest::profile::RateLimitsConfig;
 use systemprompt_runtime::AppContext;
@@ -90,6 +90,11 @@ impl RateLimitState {
     pub fn from_context(ctx: &AppContext) -> Self {
         let buckets = crate::repository::user_rate_limit_buckets(ctx.db_pool());
         Self::new(ctx.config(), buckets)
+    }
+
+    #[must_use]
+    pub const fn config(&self) -> &RateLimitsConfig {
+        &self.config
     }
 
     #[must_use]

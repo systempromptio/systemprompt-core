@@ -26,14 +26,10 @@ fn test_loader_error_duplicate_extension_display() {
 
 
 #[test]
-fn test_loader_error_initialization_failed_display() {
-    let err = LoaderError::InitializationFailed {
-        extension: ExtensionId::new("payment"),
-        message: "database connection failed".to_string(),
-    };
+fn test_loader_error_missing_provider_display() {
+    let err = LoaderError::missing_provider::<u32>(ExtensionId::new("payment"));
     let msg = err.to_string();
     assert!(msg.contains("payment"));
-    assert!(msg.contains("database connection failed"));
     assert!(msg.contains("initialize"));
 }
 
@@ -147,10 +143,7 @@ fn test_loader_error_variant_matching() {
             dependency: ExtensionId::new("b"),
         },
         LoaderError::DuplicateExtension(ExtensionId::new("c")),
-        LoaderError::InitializationFailed {
-            extension: ExtensionId::new("d"),
-            message: "failed".to_string(),
-        },
+        LoaderError::missing_provider::<u32>(ExtensionId::new("d")),
         LoaderError::SchemaInstallationStepFailed {
             extension: ExtensionId::new("e"),
             context: "retirement".to_string(),
@@ -231,9 +224,9 @@ fn test_loader_error_variant_matching() {
                 assert!(!extension.as_str().is_empty());
                 assert!(!dependency.as_str().is_empty());
             },
-            LoaderError::InitializationFailed { extension, message } => {
+            LoaderError::MissingProvider { extension, source } => {
                 assert!(!extension.as_str().is_empty());
-                assert!(!message.is_empty());
+                assert!(!source.type_name().is_empty());
             },
             LoaderError::InitializationStepFailed { extension, .. } => {
                 assert!(!extension.as_str().is_empty());

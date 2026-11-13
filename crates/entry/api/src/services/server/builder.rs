@@ -22,9 +22,10 @@ use systemprompt_traits::{StartupEventExt, StartupEventSender};
 use super::readiness::ReadinessState;
 use super::routes::configure_routes;
 use crate::services::middleware::{
-    AnalyticsMiddleware, CorsMiddleware, LoadShed, PublicContextMiddleware, RateLimitState,
-    SessionMiddleware, inject_security_headers, inject_served_by, inject_trace_header, panic_fence,
-    remove_trailing_slash, with_pre_auth_ip_limit,
+    AnalyticsMiddleware, CorsMiddleware, DEFAULT_BODY_LIMIT_BYTES, LoadShed,
+    PublicContextMiddleware, RateLimitState, SessionMiddleware, inject_security_headers,
+    inject_served_by, inject_trace_header, panic_fence, remove_trailing_slash,
+    with_pre_auth_ip_limit,
 };
 
 pub use super::discovery::{
@@ -87,7 +88,7 @@ fn apply_global_middleware(router: Router, ctx: &AppContext) -> Result<Router> {
         ));
     }
 
-    router = router.layer(DefaultBodyLimit::max(2 * 1024 * 1024));
+    router = router.layer(DefaultBodyLimit::max(DEFAULT_BODY_LIMIT_BYTES));
 
     let analytics_middleware = AnalyticsMiddleware::new(ctx);
     router = router.layer(axum::middleware::from_fn({

@@ -101,24 +101,26 @@ impl ExtensionRegistry {
             .collect())
     }
 
-    #[must_use]
     pub fn api_routers(
         &self,
         ctx: &dyn ExtensionContext,
-    ) -> Vec<(Arc<dyn Extension>, crate::ExtensionRouter)> {
-        self.sorted_extensions
-            .iter()
-            .filter_map(|e| e.router(ctx).map(|r| (Arc::clone(e), r)))
-            .collect()
+        disabled_ids: &[ExtensionId],
+    ) -> Result<Vec<(Arc<dyn Extension>, crate::ExtensionRouter)>, LoaderError> {
+        Ok(self
+            .enabled_extensions(disabled_ids)?
+            .into_iter()
+            .filter_map(|e| e.router(ctx).map(|r| (e, r)))
+            .collect())
     }
 
-    #[must_use]
-    pub fn job_extensions(&self) -> Vec<Arc<dyn Extension>> {
-        self.sorted_extensions
+    pub fn enabled_site_auth(
+        &self,
+        disabled_ids: &[ExtensionId],
+    ) -> Result<Option<crate::SiteAuthConfig>, LoaderError> {
+        Ok(self
+            .enabled_extensions(disabled_ids)?
             .iter()
-            .filter(|e| e.has_jobs())
-            .cloned()
-            .collect()
+            .find_map(|e| e.site_auth()))
     }
 
     #[must_use]
@@ -214,13 +216,15 @@ impl ExtensionRegistry {
     pub fn all_readiness_checks(
         &self,
         ctx: &dyn ExtensionContext,
-    ) -> Vec<(&'static str, Arc<dyn ReadinessCheck>)> {
-        self.sorted_extensions
-            .iter()
+        disabled_ids: &[ExtensionId],
+    ) -> Result<Vec<(&'static str, Arc<dyn ReadinessCheck>)>, LoaderError> {
+        Ok(self
+            .enabled_extensions(disabled_ids)?
+            .into_iter()
             .flat_map(|ext| {
                 let id = ext.id();
                 ext.readiness(ctx).into_iter().map(move |check| (id, check))
             })
-            .collect()
+            .collect())
     }
 }

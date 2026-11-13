@@ -20,9 +20,10 @@ use axum::http::{HeaderMap, StatusCode};
 use axum::routing::get;
 use chrono::{DateTime, Utc};
 use systemprompt_api::services::middleware::{
-    A2AContextMiddleware, AuthzPolicy, ContextExtractor, McpContextMiddleware,
+    A2AContextMiddleware, ContextExtractor, McpContextMiddleware,
     PublicContextMiddleware, RateLimitState, RouterExt, UserOnlyContextMiddleware,
 };
+use systemprompt_extension::AuthzPolicy;
 use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId, UserId};
 use systemprompt_manifest::Config;
 use systemprompt_manifest::profile::RateLimitsConfig;

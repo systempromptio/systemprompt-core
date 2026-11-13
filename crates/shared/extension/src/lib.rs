@@ -27,7 +27,8 @@
 //! # Module map
 //!
 //! - [`metadata`], [`router`], [`migration`] — value types describing the
-//!   extension surface.
+//!   extension surface; [`authz`] — the route authorization tier a router
+//!   declaration names.
 //! - The `Extension` trait and the [`register_extension!`] macro form the core
 //!   extensibility contract.
 //! - [`build`] — build-script helper that generates `Extension::migrations()`
@@ -67,6 +68,7 @@
 pub use ::inventory as __inventory;
 
 mod asset;
+pub mod authz;
 pub mod brain;
 #[expect(
     clippy::panic,
@@ -96,6 +98,7 @@ pub mod state;
 mod traits;
 
 pub use asset::{AssetDefinition, AssetDefinitionBuilder, AssetPaths, AssetType};
+pub use authz::AuthzPolicy;
 pub use brain::{
     AnalysisWindow, BrainAnalysis, BrainAnalysisError, BrainAnalysisRegistration,
     BrainExtractError, BrainExtractorRegistration, BrainFilterRegistration,
@@ -147,7 +150,10 @@ pub use retention::{
     EffectiveCutoff, RetentionHold, RetentionHoldError, RetentionHoldRegistration, RetentionHolds,
     RetentionTarget, discover_retention_holds,
 };
-pub use router::{ExtensionRouter, ExtensionRouterConfig, SiteAuthConfig};
+pub use router::{
+    ContextKind, EnablePredicate, ExtensionRouter, ProtectionLayer, RateBudget, RateLimit,
+    RouteGroup, RouteProtection, SiteAuthConfig,
+};
 pub use seed::Seed;
 pub use state::{StateBuilder, StateHandle, StateRequirement};
 pub use traits::Extension;
@@ -166,9 +172,10 @@ pub mod prelude {
     pub use crate::seed::Seed;
     pub use crate::state::{StateBuilder, StateHandle, StateRequirement};
     pub use crate::{
-        Extension, ExtensionMetadata, ExtensionRole, ExtensionRouter, Migration, SchemaDefinition,
-        SiteAuthConfig, extension_migrations, register_extension, register_gateway_guard,
-        register_retention_hold, stamp_frame_options, user_purge_tables,
+        AuthzPolicy, ContextKind, Extension, ExtensionMetadata, ExtensionRole, ExtensionRouter,
+        Migration, RateBudget, RateLimit, RouteProtection, SchemaDefinition, SiteAuthConfig,
+        extension_migrations, register_extension, register_gateway_guard, register_retention_hold,
+        stamp_frame_options, user_purge_tables,
     };
 
     pub use systemprompt_provider_contracts::{

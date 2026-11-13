@@ -19,6 +19,7 @@ pub mod cors;
 pub mod ip_ban;
 pub mod jwt;
 pub mod load_shed;
+pub mod mount;
 pub mod negotiation;
 pub mod panic_fence;
 pub mod rate_limit;
@@ -30,7 +31,7 @@ pub mod trace;
 pub mod trailing_slash;
 
 pub use analytics::{AnalyticsEventParams, AnalyticsMiddleware};
-pub use authz::{AuthzPolicy, authz_gate};
+pub use authz::authz_gate;
 pub use body::{
     BodyBudget, BodyReadError, BodyReservation, read_body_bounded, read_request_bounded,
 };
@@ -47,6 +48,10 @@ pub use cors::{CorsError, CorsMiddleware};
 pub use ip_ban::ip_ban_middleware;
 pub use jwt::{JtiRevocationChecker, JwtContextExtractor, JwtUserContext};
 pub use load_shed::LoadShed;
+pub use mount::{
+    ClientWritesGuard, DEFAULT_BODY_LIMIT_BYTES, MountError, MountLayers, ProtectionGuards,
+    SiteAuthGuard, admit_extension, mount, place, protect,
+};
 pub use negotiation::{
     AcceptedFormat, AcceptedMediaType, content_negotiation_middleware, parse_accept_header,
 };

@@ -16,9 +16,10 @@ use axum::http::{Request, StatusCode, header};
 use bytes::Bytes;
 use systemprompt_api::routes::proxy::agents;
 use systemprompt_api::services::middleware::{
-    A2AContextMiddleware, AuthzPolicy, BodyBudget, JtiRevocationChecker, JwtContextExtractor,
+    A2AContextMiddleware, BodyBudget, JtiRevocationChecker, JwtContextExtractor,
     RouterExt,
 };
+use systemprompt_extension::AuthzPolicy;
 use systemprompt_models::net::{AGENT_BUFFERED_BYTES_BUDGET, AGENT_REQUEST_BODY_LIMIT_BYTES};
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{

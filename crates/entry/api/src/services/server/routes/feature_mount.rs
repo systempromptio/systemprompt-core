@@ -5,7 +5,6 @@
 
 use axum::Router;
 
-use super::role::RouteGroup;
 use super::{RouteMountError, protocol};
 
 #[cfg_attr(
@@ -26,18 +25,18 @@ use super::{RouteMountError, protocol};
 pub(super) fn mount_feature_routes(
     mut router: Router,
     mount: &protocol::MountCtx<'_>,
-    serves: &impl Fn(RouteGroup) -> bool,
 ) -> Result<Router, RouteMountError> {
+    let serves = mount.serves;
     #[cfg(feature = "agent-runs")]
-    if serves(RouteGroup::Agent) {
+    if serves(systemprompt_extension::RouteGroup::Agent) {
         router = super::agent_runs::mount_agent_runs(router, mount)?;
     }
     #[cfg(feature = "bridge")]
-    if serves(RouteGroup::Managed) {
+    if serves(systemprompt_extension::RouteGroup::Managed) {
         router = super::managed::mount(router, mount)?;
     }
     #[cfg(any(feature = "slack", feature = "teams"))]
-    if serves(RouteGroup::Messaging) {
+    if serves(systemprompt_extension::RouteGroup::Messaging) {
         router = protocol::mount_messaging(router, mount)?;
     }
     Ok(router)

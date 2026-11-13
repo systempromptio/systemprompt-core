@@ -6,23 +6,22 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::Router;
+use systemprompt_extension::{AuthzPolicy, ContextKind, RateBudget, RateLimit, RouteGroup};
 
-use super::RouteMountError;
-use super::protocol::MountCtx;
+use super::protocol::{MountCtx, declare};
 use crate::routes::issues::{ISSUES_PATH, IssuesState, router};
-use crate::services::middleware::RouterExt;
-use crate::services::middleware::authz::AuthzPolicy;
+use crate::services::middleware::MountError;
 
-pub(super) fn mount_issues(
-    router_in: Router,
-    mount: &MountCtx<'_>,
-) -> Result<Router, RouteMountError> {
-    let state = IssuesState::from_context(mount.ctx);
-    let per_second = mount.ctx.config().rate_limits.content_per_second;
-    Ok(router_in.nest(
-        ISSUES_PATH,
-        router(state)
-            .with_rate_limit(mount.limits, per_second, "issues")?
-            .with_auth(mount.user_middleware.clone(), AuthzPolicy::user()),
-    ))
+pub(super) fn mount_issues(router_in: Router, mount: &MountCtx<'_>) -> Result<Router, MountError> {
+    mount.mount(
+        router_in,
+        declare(
+            router(IssuesState::from_context(mount.ctx)),
+            ISSUES_PATH,
+            AuthzPolicy::user(),
+            ContextKind::User,
+            RouteGroup::ContentAndMisc,
+        )
+        .with_rate_limit(RateLimit::new("issues", RateBudget::Content)),
+    )
 }

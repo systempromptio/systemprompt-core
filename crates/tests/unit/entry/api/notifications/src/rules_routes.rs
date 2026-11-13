@@ -6,8 +6,9 @@ use axum::http::{HeaderMap, Method, Request, StatusCode};
 use serde_json::{Value, json};
 use systemprompt_api::routes::notifications::{NotificationsState, router};
 use systemprompt_api::services::middleware::{
-    AuthzPolicy, ContextExtractor, RouterExt, UserOnlyContextMiddleware,
+    ContextExtractor, RouterExt, UserOnlyContextMiddleware,
 };
+use systemprompt_extension::AuthzPolicy;
 use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::UserType;

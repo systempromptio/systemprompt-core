@@ -12,6 +12,16 @@ mod faults;
 
 pub use faults::{MigrationFault, SchemaFault};
 
+impl LoaderError {
+    #[must_use]
+    pub fn missing_provider<T: std::any::Any>(extension: ExtensionId) -> Self {
+        Self::MissingProvider {
+            extension,
+            source: MissingDependency::of::<T>(),
+        }
+    }
+}
+
 #[derive(Debug, Error)]
 pub enum LoaderError {
     #[error("Extension '{extension}' requires dependency '{dependency}' which is not registered")]
@@ -35,10 +45,11 @@ pub enum LoaderError {
         dependency: ExtensionId,
     },
 
-    #[error("Failed to initialize extension '{extension}': {message}")]
-    InitializationFailed {
+    #[error("Failed to initialize extension '{extension}': a required provider is missing")]
+    MissingProvider {
         extension: ExtensionId,
-        message: String,
+        #[source]
+        source: MissingDependency,
     },
 
     #[error("Failed to initialize extension '{extension}': {source}")]

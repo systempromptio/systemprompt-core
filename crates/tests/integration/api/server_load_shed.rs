@@ -38,6 +38,7 @@ async fn app(limit: Arc<LoadShed>, release: Arc<Notify>, entered: Arc<Notify>) -
     let readiness = Arc::new(ReadinessState::new());
     readiness.signal_ready();
     discovery_router(&ctx)
+        .expect("discovery router builds")
         .layer(axum::Extension(readiness))
         .merge(metrics_router(MetricsState {
             handle,

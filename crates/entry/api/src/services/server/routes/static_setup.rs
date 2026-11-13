@@ -1,28 +1,29 @@
 //! Static-content route setup for the web bundle.
 //!
+//! The static router is a public declaration; when an extension declares a
+//! `SiteAuthConfig`, it also carries the `SiteAuth` protection layer, which
+//! redirects unauthenticated page requests to the extension's login path.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::Router;
 use axum::routing::get;
 use std::sync::Arc;
+use systemprompt_extension::{AuthzPolicy, ContextKind, ProtectionLayer, RouteProtection};
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{StartupEvent, StartupEventSender};
 
-use crate::services::middleware::authz::AuthzPolicy;
-use crate::services::middleware::{
-    PublicContextMiddleware, RouterExt, SiteAuthSession, site_auth_gate,
-};
-use crate::services::session_cookie::SessionCookie;
+use crate::services::middleware::{MountError, MountLayers, protect};
 use crate::services::static_content::{
     StaticContentMatcher, StaticContentState, serve_homepage, smart_fallback_handler,
 };
 
 pub(super) fn build_static_router(
     ctx: &AppContext,
-    public_middleware: PublicContextMiddleware,
+    layers: &MountLayers,
     events: Option<&StartupEventSender>,
-) -> Router {
+) -> Result<Router, MountError> {
     let path = ctx.app_paths().system().content_config().to_path_buf();
     let content_matcher = path.to_str().map_or_else(
         || {
@@ -65,38 +66,16 @@ pub(super) fn build_static_router(
     let static_router = Router::new()
         .route("/", get(serve_homepage))
         .fallback(smart_fallback_handler)
-        .with_state(static_state)
-        .with_auth(public_middleware, AuthzPolicy::public());
+        .with_state(static_state);
 
-    let site_auth_config = ctx
-        .extension_registry()
-        .extensions()
-        .iter()
-        .find_map(|ext| ext.site_auth());
-
-    if let Some(auth_config) = site_auth_config {
-        let issuer: Arc<str> = Arc::from(ctx.config().jwt_issuer.as_str());
-        let keys = ctx.signing_keys().clone();
-        let cookie = SessionCookie::from_config(ctx.config());
-        static_router.layer(axum::middleware::from_fn(move |req, next| {
-            let config = auth_config;
-            let issuer = Arc::clone(&issuer);
-            let keys = keys.clone();
-            async move {
-                site_auth_gate(
-                    req,
-                    next,
-                    config,
-                    SiteAuthSession {
-                        issuer: &issuer,
-                        keys: &keys,
-                        cookie,
-                    },
-                )
-                .await
-            }
-        }))
-    } else {
-        static_router
+    let mut protection = RouteProtection::new(AuthzPolicy::public(), ContextKind::Public);
+    if layers.guards.site_auth.is_some() {
+        protection = protection.with_layer(ProtectionLayer::SiteAuth);
     }
+    protect(
+        static_router,
+        &protection,
+        layers,
+        systemprompt_extension::registry::WEB_ROOT_BASE_PATH,
+    )
 }
