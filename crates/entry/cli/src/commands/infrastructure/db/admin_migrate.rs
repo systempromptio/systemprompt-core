@@ -79,7 +79,7 @@ async fn run_install(
     }: MigrateOptions,
 ) -> Result<()> {
     let write_provider = database.session();
-    let extension_count = registry.schema_extensions().len();
+    let extension_count = install_set(registry)?.len();
 
     if config.should_show_verbose() {
         CliService::info(&format!(
@@ -93,27 +93,37 @@ async fn run_install(
         force_full_install: full,
     };
 
-    let report =
-        match install_extension_schemas_full(registry, write_provider, &[], migration_config).await
-        {
-            Ok(report) => report,
-            Err(LoaderError::MigrationChecksumDrift { .. }) if repair_drift => {
-                CliService::warning(
-                    "Migration checksum drift found; re-applying drifted migrations",
-                );
-                let service = MigrationService::new(write_provider);
-                for ext in registry.schema_extensions() {
-                    service
-                        .repair_drift(ext.as_ref())
-                        .await
-                        .map_err(|e| anyhow!("Failed to repair migrations: {e}"))?;
-                }
-                install_extension_schemas_full(registry, write_provider, &[], migration_config)
+    let report = match install_extension_schemas_full(
+        registry,
+        write_provider,
+        ExtensionRegistry::INSTALL_EVERY_LINKED_SCHEMA,
+        migration_config,
+    )
+    .await
+    {
+        Ok(report) => report,
+        Err(LoaderError::MigrationChecksumDrift { .. }) if repair_drift => {
+            CliService::warning(
+                "Migration checksum drift found; re-applying drifted migrations",
+            );
+            let service = MigrationService::new(write_provider);
+            for ext in install_set(registry)? {
+                service
+                    .repair_drift(ext.as_ref())
                     .await
-                    .map_err(|e| failure(&e))?
-            },
-            Err(e) => return Err(failure(&e)),
-        };
+                    .map_err(|e| anyhow!("Failed to repair migrations: {e}"))?;
+            }
+            install_extension_schemas_full(
+                registry,
+                write_provider,
+                ExtensionRegistry::INSTALL_EVERY_LINKED_SCHEMA,
+                migration_config,
+            )
+            .await
+            .map_err(|e| failure(&e))?
+        },
+        Err(e) => return Err(failure(&e)),
+    };
     database.mark_schema_changed();
     if !report.is_clean() {
         let drift: Vec<String> = report
@@ -134,8 +144,7 @@ async fn run_install(
         ));
     }
 
-    let installed_extensions: Vec<String> = registry
-        .schema_extensions()
+    let installed_extensions: Vec<String> = install_set(registry)?
         .iter()
         .map(|ext| ext.id().to_owned())
         .collect();
@@ -159,7 +168,10 @@ async fn run_install(
 // of failure it is and what fixes it, so an operator does not reach for
 // checksum repair (the old entrypoint retry) on a failure it cannot fix.
 fn failure(error: &LoaderError) -> anyhow::Error {
-    let text = error.to_string();
+    let text = std::iter::successors(Some(error as &dyn std::error::Error), |e| e.source())
+        .map(ToString::to_string)
+        .collect::<Vec<_>>()
+        .join(": ");
     let hint = match error {
         LoaderError::MigrationChecksumDrift { .. } => Some(
             "checksum drift: `infra db migrate --repair-drift` re-applies the edited migrations",
@@ -186,11 +198,17 @@ fn failure(error: &LoaderError) -> anyhow::Error {
     )
 }
 
+pub(super) fn install_set(
+    registry: &ExtensionRegistry,
+) -> Result<Vec<Arc<dyn systemprompt_extension::Extension>>> {
+    Ok(registry.enabled_schema_extensions(ExtensionRegistry::INSTALL_EVERY_LINKED_SCHEMA)?)
+}
+
 pub(super) fn select_extensions(
     registry: &ExtensionRegistry,
     extension: Option<&ExtensionId>,
 ) -> Result<Vec<Arc<dyn systemprompt_extension::Extension>>> {
-    let all = registry.schema_extensions();
+    let all = install_set(registry)?;
     if let Some(ext_id) = extension {
         let filtered: Vec<_> = all
             .into_iter()

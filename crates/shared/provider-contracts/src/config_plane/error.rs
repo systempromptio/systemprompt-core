@@ -66,4 +66,7 @@ pub enum ConfigPlaneError {
 
     #[error("this host does not expose its config planes")]
     PlanesUnavailable,
+
+    #[error("the extensions the profile leaves enabled could not be resolved")]
+    EnabledExtensions(#[source] Box<dyn std::error::Error + Send + Sync + 'static>),
 }

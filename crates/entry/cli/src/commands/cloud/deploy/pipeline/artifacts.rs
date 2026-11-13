@@ -87,7 +87,7 @@ impl DeployArtifacts {
         let mut missing = Vec::new();
         let mut outside_context = Vec::new();
 
-        for ext in registry.asset_extensions() {
+        for ext in registry.asset_extensions(&[])? {
             let ext_id = ext.id();
             for asset in ext.required_assets(&paths) {
                 if !asset.is_required() {

@@ -70,6 +70,7 @@ pub fn execute(args: &ValidateArgs, ctx: &CommandContext) -> Result<(CommandOutp
 
     all_valid &= super::plane_validate::append_full_validation(
         ctx.config()?,
+        &ctx.boot()?.profile().extensions.disabled,
         args.target.as_ref(),
         &mut results,
     );

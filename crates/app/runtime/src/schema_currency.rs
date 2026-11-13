@@ -41,7 +41,8 @@ pub async fn assert_schema_current(
     db: &dyn DatabaseProvider,
     profile: &Profile,
 ) -> RuntimeResult<Vec<SchemaAhead>> {
-    let currency = schema_currency(db, registry, &[]).await?;
+    let currency =
+        schema_currency(db, registry, ExtensionRegistry::INSTALL_EVERY_LINKED_SCHEMA).await?;
     if currency.is_current() {
         let ahead = report_ahead(&currency);
         refuse_breaking(&ahead, profile)?;
@@ -164,7 +165,8 @@ pub async fn recheck(
     db: &dyn DatabaseProvider,
     state: &SchemaState,
 ) -> RuntimeResult<()> {
-    let currency = schema_currency(db, registry, &[]).await?;
+    let currency =
+        schema_currency(db, registry, ExtensionRegistry::INSTALL_EVERY_LINKED_SCHEMA).await?;
     let ahead = SchemaAhead::from_currency(&currency);
     let previous = state.replace(ahead.clone());
     let newly: Vec<&SchemaAhead> = ahead.iter().filter(|m| !previous.contains(m)).collect();

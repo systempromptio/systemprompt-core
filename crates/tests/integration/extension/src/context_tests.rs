@@ -463,12 +463,6 @@ fn test_extension_default_router() {
 }
 
 #[test]
-fn test_extension_default_jobs() {
-    let ext = TestExtension { id: "test" };
-    assert!(ext.jobs().is_empty());
-}
-
-#[test]
 fn test_extension_default_config_prefix() {
     let ext = TestExtension { id: "test" };
     assert!(ext.config_prefix().is_none());
@@ -528,7 +522,6 @@ fn test_extension_has_methods() {
 
     assert!(!ext.has_schemas());
     assert!(ext.router(&ctx).is_none());
-    assert!(!ext.has_jobs());
     assert!(!ext.has_config());
     assert!(!ext.has_tool_providers());
 }

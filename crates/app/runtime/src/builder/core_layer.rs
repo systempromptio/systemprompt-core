@@ -240,9 +240,13 @@ pub(super) async fn init_extensions(
     registry.validate()?;
 
     let report = if schema.install {
-        let report =
-            install_extension_schemas_full(&registry, database.session(), &[], migration_config)
-                .await?;
+        let report = install_extension_schemas_full(
+            &registry,
+            database.session(),
+            ExtensionRegistry::INSTALL_EVERY_LINKED_SCHEMA,
+            migration_config,
+        )
+        .await?;
         crate::schema_currency::refuse_breaking(&report.ahead, profile)?;
         crate::schema_currency::warn_ahead(&report.ahead);
         database.mark_schema_changed();

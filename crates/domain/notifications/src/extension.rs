@@ -11,9 +11,7 @@
 use std::sync::Arc;
 
 use systemprompt_extension::prelude::*;
-use systemprompt_traits::Job;
 
-use crate::jobs::NotificationRetentionJob;
 use crate::plane::NotificationsPlane;
 use crate::schema::NOTIFICATION_SCHEMAS;
 
@@ -53,10 +51,6 @@ impl Extension for NotificationsExtension {
 
     fn config_planes(&self) -> Vec<Arc<dyn ConfigPlane>> {
         vec![Arc::new(NotificationsPlane)]
-    }
-
-    fn jobs(&self) -> Vec<Arc<dyn Job>> {
-        vec![Arc::new(NotificationRetentionJob)]
     }
 }
 

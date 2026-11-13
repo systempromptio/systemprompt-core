@@ -83,10 +83,10 @@ fn build_routes(
     let serves = |group: RouteGroup| groups.contains(&group);
     let mut router = Router::new();
 
-    super::metrics::install_recorder(
-        &ctx.config().instance_id,
-        &ctx.extension_registry().all_metrics(),
-    )
+    let metrics = ctx
+        .extension_registry()
+        .all_metrics(&ctx.profile().extensions.disabled)?;
+    super::metrics::install_recorder(&ctx.config().instance_id, &metrics)
     .map_err(|source| RouteMountError::initialization("prometheus_metrics", source))?;
 
     let layers = mount_layers(ctx, role)?;

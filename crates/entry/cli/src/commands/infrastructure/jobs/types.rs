@@ -11,6 +11,8 @@ use systemprompt_identifiers::JobName;
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct JobInfo {
     pub name: String,
+    pub owner: String,
+    pub owner_enabled: bool,
     pub description: String,
     pub schedule: String,
     pub enabled: bool,
@@ -42,6 +44,8 @@ pub struct JobRunResult {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct JobShowOutput {
     pub name: String,
+    pub owner: String,
+    pub owner_enabled: bool,
     pub description: String,
     pub schedule: String,
     pub schedule_human: String,

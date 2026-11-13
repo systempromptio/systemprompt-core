@@ -19,18 +19,20 @@ impl Extension for MyExtension {
 
     fn schemas(&self) -> Vec<SchemaDefinition> { /* tables this extension owns */ }
     fn router(&self, ctx: &dyn ExtensionContext) -> Option<ExtensionRouter> { /* HTTP routes */ }
-    fn jobs(&self) -> Vec<Arc<dyn Job>> { /* background jobs */ }
     // ...everything else defaults to empty
 }
 
 register_extension!(MyExtension);
+submit_job!("my-extension", &MyNightlyJob);
 ```
 
-The capability surface includes schemas, migrations, seeds and retirements, an HTTP router, background jobs and runner services, config planes, configuration schema and validation, readiness checks and metric descriptors, tool providers, a family of content/template/rendering providers, required storage paths and assets, RBAC roles, declared dependencies on other extensions, and typed shared state. AI model providers are configured through the profile and the gateway, not contributed by extensions. An extension opts into exactly what it needs by overriding the corresponding method.
+A background job is registered once, with `submit_job!`, naming the id of the extension that owns it; there is no job method on the trait. The scheduler, a manual run and the job listing all read that one owner-attributed inventory, so a job runs only while its owning extension is enabled.
+
+The capability surface includes schemas, migrations, seeds and retirements, an HTTP router, runner services, config planes, configuration schema and validation, readiness checks and metric descriptors, tool providers, a family of content/template/rendering providers, required storage paths and assets, RBAC roles, declared dependencies on other extensions, and typed shared state. AI model providers are configured through the profile and the gateway, not contributed by extensions. An extension opts into exactly what it needs by overriding the corresponding method.
 
 ### Typed extension state
 
-The platform has one type-keyed map, `Dependencies`, used for extension state, job contexts, config-plane contexts and prerender contexts alike. At boot the host seeds it with the kernel's own handles (database pool, paths, files configuration, notification configuration, the documents service when the document store is enabled, and on the API also the OAuth and AI repositories and, with the brain feature, the brain configuration and notification sink), then `Extension::provide(ctx, state)` runs once for every enabled extension, in dependency order, and contributes values keyed by type. The host owns the finished state; it is immutable after boot and reached by every factory through `ExtensionContext::extension_state()`, and job and runner contexts start from it. This is how an extension builds a repository, service or cache once and shares it between its router, readiness checks, gateway guards, authz hook and other seams without a global.
+The platform has one type-keyed map, `Dependencies`, used for extension state, job contexts, config-plane contexts and prerender contexts alike. At boot the host seeds it with the kernel's own handles (database pool, paths, files configuration, notification configuration, the OAuth, AI and analytics repositories, the artifact ingest service, the AI service when inference is configured, the documents service when the document store is enabled and, with the brain feature, the brain configuration and notification sink), then `Extension::provide(ctx, state)` runs once for every enabled extension, in dependency order, and contributes values keyed by type. The host owns the finished state; it is immutable after boot and reached by every factory through `ExtensionContext::extension_state()`, and job and runner contexts start from it. This is how an extension builds a repository, service or cache once and shares it between its router, readiness checks, gateway guards, authz hook and other seams without a global.
 
 The authz hook is built before the extension state exists, because the hook is an input to the context extensions provide from. Its factories receive a `StateHandle` in `AuthzHookContext::state`; the host binds the handle to the finished state before anything serves, and a read before binding fails closed.
 
@@ -58,12 +60,14 @@ crate B  register_extension!(B)  ─┼─►  inventory static set
 crate C  register_extension!(C)  ─┘          │
                                              ▼
                               ExtensionRegistry::discover()
-                                  ├─ schema_extensions → install schemas and migrations
-                                  ├─ build_state       → kernel handles + provide, requires checked
-                                  ├─ api_routers       → mount routes
-                                  ├─ job_extensions    → scheduler
-                                  └─ config_extensions → startup validation
+                                  ├─ enabled_schema_extensions → install schemas and migrations
+                                  ├─ build_state               → kernel handles + provide, requires checked
+                                  ├─ api_routers               → mount routes
+                                  ├─ config_extensions         → startup validation
+                                  └─ enabled_extensions        → owners whose jobs the scheduler runs
 ```
+
+`enabled_extensions(profile.extensions.disabled)` is the one definition of an enabled extension, and every collector of contributions (routes, site auth, readiness checks, metrics, config, config planes, assets, storage paths, frontmatter processors, prerender providers, roles, jobs) walks only that set. Schema installation and migrations are the one deliberate exception: every linked extension's tables are created and migrated whatever the profile disables, because linked code (the user purge, kernel-composed repositories, cross-extension views and triggers) reads those tables regardless, and re-enabling an extension must find them current.
 
 ### The product-binary requirement
 

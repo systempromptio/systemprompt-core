@@ -8,9 +8,9 @@ use std::sync::Arc;
 
 use serde_json::Value as JsonValue;
 use systemprompt_provider_contracts::{
-    ComponentRenderer, ConfigPlane, ContentDataProvider, FrontmatterProcessor, Job,
-    PageDataProvider, PagePrerenderer, RssFeedProvider, SitemapProvider, TemplateDataExtender,
-    TemplateProvider, ToolProvider,
+    ComponentRenderer, ConfigPlane, ContentDataProvider, FrontmatterProcessor, PageDataProvider,
+    PagePrerenderer, RssFeedProvider, SitemapProvider, TemplateDataExtender, TemplateProvider,
+    ToolProvider,
 };
 use systemprompt_traits::RunnerService;
 
@@ -44,10 +44,6 @@ pub trait Extension: Send + Sync + 'static {
 
     fn site_auth(&self) -> Option<SiteAuthConfig> {
         None
-    }
-
-    fn jobs(&self) -> Vec<Arc<dyn Job>> {
-        vec![]
     }
 
     fn config_planes(&self) -> Vec<Arc<dyn ConfigPlane>> {
@@ -188,10 +184,6 @@ pub trait Extension: Send + Sync + 'static {
 
     fn has_schemas(&self) -> bool {
         !self.schemas().is_empty()
-    }
-
-    fn has_jobs(&self) -> bool {
-        !self.jobs().is_empty()
     }
 
     fn has_config(&self) -> bool {

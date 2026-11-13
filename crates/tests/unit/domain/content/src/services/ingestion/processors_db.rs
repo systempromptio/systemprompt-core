@@ -1,7 +1,7 @@
 //! Drives [`call_frontmatter_processors`] through the public ingest pipeline.
 //!
-//! The frontmatter-processor loop only runs when the discovered extension
-//! registry contains an extension that exposes processors. This test binary
+//! The frontmatter-processor loop runs the processors the service is
+//! constructed with, collected from the enabled extensions. This test binary
 //! registers one through `inventory`, the way a real extension does, carrying
 //! two processors: one whose `applies_to_sources` excludes the ingest source
 //! (exercising the skip arm) and one that fails (exercising the error-logging
@@ -13,7 +13,7 @@ use async_trait::async_trait;
 use systemprompt_content::models::IngestionSource;
 use systemprompt_content::repository::ContentRepository;
 use systemprompt_content::{IngestionOptions, IngestionService};
-use systemprompt_extension::{Extension, ExtensionMetadata};
+use systemprompt_extension::{Extension, ExtensionMetadata, ExtensionRegistry};
 use systemprompt_identifiers::{CategoryId, SourceId};
 use systemprompt_provider_contracts::{
     FrontmatterContext, FrontmatterProcessor, ProviderError, ProviderResult,
@@ -87,7 +87,11 @@ async fn ingest_runs_injected_frontmatter_processors() {
     let category = CategoryId::new("docs");
     let source = IngestionSource::new(&source_id, "docs", &category);
 
-    let service = IngestionService::new(&pool, ContentRepository::new(&pool));
+    let processors = ExtensionRegistry::discover()
+        .expect("discover")
+        .frontmatter_processors(&[])
+        .expect("enabled processors");
+    let service = IngestionService::new(&pool, ContentRepository::new(&pool), processors);
     let report = service
         .ingest_directory(
             dir.path(),

@@ -27,12 +27,19 @@ async fn main() -> Result<()> {
     );
 
     let registry = ExtensionRegistry::discover()?;
-    let count = registry.schema_extensions().len();
+    let count = registry
+        .enabled_schema_extensions(ExtensionRegistry::INSTALL_EVERY_LINKED_SCHEMA)?
+        .len();
     println!("Discovered {count} schema-bearing extensions");
 
-    install_extension_schemas_full(&registry, db.write(), &[], MigrationConfig::default())
-        .await
-        .map_err(|e| anyhow::anyhow!("Schema installation failed: {e}"))?;
+    install_extension_schemas_full(
+        &registry,
+        db.write(),
+        ExtensionRegistry::INSTALL_EVERY_LINKED_SCHEMA,
+        MigrationConfig::default(),
+    )
+    .await
+    .map_err(|e| anyhow::anyhow!("Schema installation failed: {e}"))?;
 
     println!("Extension schemas applied.");
     Ok(())

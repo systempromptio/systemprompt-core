@@ -241,10 +241,10 @@ async fn start_metrics_listener(
     let Some(port) = ctx.config().metrics_port else {
         return Ok(None);
     };
-    let handle = super::metrics::install_recorder(
-        &ctx.config().instance_id,
-        &ctx.extension_registry().all_metrics(),
-    )?;
+    let metrics = ctx
+        .extension_registry()
+        .all_metrics(&ctx.profile().extensions.disabled)?;
+    let handle = super::metrics::install_recorder(&ctx.config().instance_id, &metrics)?;
     super::pool_metrics::spawn_sampler(ctx);
     super::ops_metrics::spawn_samplers(ctx, runs_scheduler);
     let addr = std::net::SocketAddr::new(ctx.config().host.parse()?, port);

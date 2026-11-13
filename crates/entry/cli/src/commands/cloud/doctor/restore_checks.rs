@@ -100,8 +100,10 @@ pub(super) async fn check_schema_not_ahead(secrets: &HashMap<String, String>) ->
             );
         },
     }
-    let registry = match ExtensionRegistry::discover() {
-        Ok(registry) => registry,
+    let schema_extensions = match ExtensionRegistry::discover().and_then(|registry| {
+        registry.enabled_schema_extensions(ExtensionRegistry::INSTALL_EVERY_LINKED_SCHEMA)
+    }) {
+        Ok(schema_extensions) => schema_extensions,
         Err(error) => {
             return CheckResult::warn(
                 SCHEMA,
@@ -111,7 +113,7 @@ pub(super) async fn check_schema_not_ahead(secrets: &HashMap<String, String>) ->
     };
     let migrations = MigrationService::new(&db);
     let mut ahead = Vec::new();
-    for extension in registry.schema_extensions() {
+    for extension in schema_extensions {
         match migrations.status(extension.as_ref()).await {
             Ok(status) if !status.ahead.is_empty() => {
                 ahead.push((status.extension_id.as_str().to_owned(), status.ahead));

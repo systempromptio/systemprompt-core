@@ -1,5 +1,21 @@
-//! Read accessors over the `ExtensionRegistry` for looking up extensions,
-//! assets, jobs, readiness checks and metric descriptors.
+//! Read accessors over the `ExtensionRegistry`.
+//!
+//! [`ExtensionRegistry::enabled_extensions`] is the one definition of
+//! "enabled". Every collector of extension contributions (schemas, routers,
+//! site auth, config, assets, storage paths, config planes, frontmatter
+//! processors, metrics,
+//! readiness checks) takes the profile's disabled set and walks only the
+//! enabled extensions, so a disabled extension contributes nothing. `get`,
+//! `has`, `ids` and `extensions` describe the linked inventory and are not
+//! collectors.
+//!
+//! Schema installation and migrations are the one deliberate exception, and
+//! [`ExtensionRegistry::INSTALL_EVERY_LINKED_SCHEMA`] is where it is decided:
+//! the boot install, the schema-currency check and `infra db migrate` create
+//! and migrate the tables of every linked extension, disabled or not. Linked
+//! code reads and writes those tables whatever the profile disables (the user
+//! purge inventory, the kernel-composed repositories, cross-extension views
+//! and triggers), and re-enabling an extension must find its tables current.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -12,13 +28,15 @@ use crate::error::LoaderError;
 use crate::health::{MetricDescriptor, ReadinessCheck};
 use std::sync::Arc;
 use systemprompt_identifiers::ExtensionId;
-use systemprompt_provider_contracts::{ConfigPlane, Job};
+use systemprompt_provider_contracts::{ConfigPlane, FrontmatterProcessor};
 
 pub type ApiRouter = (Arc<dyn Extension>, crate::ExtensionRouter);
 
 pub type ExtensionReadinessCheck = (&'static str, Arc<dyn ReadinessCheck>);
 
 impl ExtensionRegistry {
+    pub const INSTALL_EVERY_LINKED_SCHEMA: &'static [ExtensionId] = &[];
+
     #[must_use]
     pub fn get(&self, id: &str) -> Option<&Arc<dyn Extension>> {
         self.extensions.get(id)
@@ -37,15 +55,6 @@ impl ExtensionRegistry {
     #[must_use]
     pub fn extensions(&self) -> &[Arc<dyn Extension>] {
         &self.sorted_extensions
-    }
-
-    #[must_use]
-    pub fn schema_extensions(&self) -> Vec<Arc<dyn Extension>> {
-        self.sorted_extensions
-            .iter()
-            .filter(|e| e.has_schemas())
-            .cloned()
-            .collect()
     }
 
     // Why: a disabled set is a policy over the loaded inventory; disabling a
@@ -83,26 +92,38 @@ impl ExtensionRegistry {
             .collect())
     }
 
+    fn enabled_flat_map<T, I>(
+        &self,
+        disabled_ids: &[ExtensionId],
+        contribute: impl Fn(&Arc<dyn Extension>) -> I,
+    ) -> Result<Vec<T>, LoaderError>
+    where
+        I: IntoIterator<Item = T>,
+    {
+        Ok(self
+            .enabled_extensions(disabled_ids)?
+            .iter()
+            .flat_map(contribute)
+            .collect())
+    }
+
+    fn enabled_where(
+        &self,
+        disabled_ids: &[ExtensionId],
+        keep: impl Fn(&Arc<dyn Extension>) -> bool,
+    ) -> Result<Vec<Arc<dyn Extension>>, LoaderError> {
+        Ok(self
+            .enabled_extensions(disabled_ids)?
+            .into_iter()
+            .filter(|ext| keep(ext))
+            .collect())
+    }
+
     pub fn enabled_schema_extensions(
         &self,
         disabled_ids: &[ExtensionId],
     ) -> Result<Vec<Arc<dyn Extension>>, LoaderError> {
-        Ok(self
-            .enabled_extensions(disabled_ids)?
-            .into_iter()
-            .filter(|e| e.has_schemas() || e.has_migrations())
-            .collect())
-    }
-
-    pub fn enabled_job_extensions(
-        &self,
-        disabled_ids: &[ExtensionId],
-    ) -> Result<Vec<Arc<dyn Extension>>, LoaderError> {
-        Ok(self
-            .enabled_extensions(disabled_ids)?
-            .into_iter()
-            .filter(|e| e.has_jobs())
-            .collect())
+        self.enabled_where(disabled_ids, |e| e.has_schemas() || e.has_migrations())
     }
 
     pub fn api_routers(
@@ -127,94 +148,59 @@ impl ExtensionRegistry {
             .find_map(|e| e.site_auth()))
     }
 
-    #[must_use]
-    pub fn config_extensions(&self) -> Vec<Arc<dyn Extension>> {
-        self.sorted_extensions
-            .iter()
-            .filter(|e| e.has_config())
-            .cloned()
-            .collect()
+    pub fn config_extensions(
+        &self,
+        disabled_ids: &[ExtensionId],
+    ) -> Result<Vec<Arc<dyn Extension>>, LoaderError> {
+        self.enabled_where(disabled_ids, |e| e.has_config())
     }
 
-    #[must_use]
-    pub fn storage_extensions(&self) -> Vec<Arc<dyn Extension>> {
-        self.sorted_extensions
-            .iter()
-            .filter(|e| e.has_storage_paths())
-            .cloned()
-            .collect()
+    pub fn asset_extensions(
+        &self,
+        disabled_ids: &[ExtensionId],
+    ) -> Result<Vec<Arc<dyn Extension>>, LoaderError> {
+        self.enabled_where(disabled_ids, |e| e.declares_assets())
     }
 
-    pub fn all_required_storage_paths(&self) -> Vec<&'static str> {
-        self.sorted_extensions
-            .iter()
-            .flat_map(|e| e.required_storage_paths())
-            .collect()
-    }
-
-    #[must_use]
-    pub fn asset_extensions(&self) -> Vec<Arc<dyn Extension>> {
-        self.sorted_extensions
-            .iter()
-            .filter(|e| e.declares_assets())
-            .cloned()
-            .collect()
+    pub fn all_required_storage_paths(
+        &self,
+        disabled_ids: &[ExtensionId],
+    ) -> Result<Vec<&'static str>, LoaderError> {
+        self.enabled_flat_map(disabled_ids, |e| e.required_storage_paths())
     }
 
     pub fn all_required_assets(
         &self,
         paths: &dyn AssetPaths,
-    ) -> Vec<(&'static str, AssetDefinition)> {
-        self.sorted_extensions
-            .iter()
-            .flat_map(|e| {
-                let id = e.id();
-                e.required_assets(paths)
-                    .into_iter()
-                    .map(move |asset| (id, asset))
-            })
-            .collect()
+        disabled_ids: &[ExtensionId],
+    ) -> Result<Vec<(&'static str, AssetDefinition)>, LoaderError> {
+        self.enabled_flat_map(disabled_ids, |e| {
+            let id = e.id();
+            e.required_assets(paths)
+                .into_iter()
+                .map(move |asset| (id, asset))
+        })
     }
 
-    #[must_use]
-    pub fn all_jobs(&self) -> Vec<Arc<dyn Job>> {
-        self.sorted_extensions
-            .iter()
-            .flat_map(|ext| ext.jobs())
-            .collect()
+    pub fn all_config_planes(
+        &self,
+        disabled_ids: &[ExtensionId],
+    ) -> Result<Vec<Arc<dyn ConfigPlane>>, LoaderError> {
+        self.enabled_flat_map(disabled_ids, |e| e.config_planes())
     }
 
-    #[must_use]
-    pub fn job_by_name(&self, name: &str) -> Option<Arc<dyn Job>> {
-        self.sorted_extensions
-            .iter()
-            .flat_map(|ext| ext.jobs())
-            .find(|job| job.name() == name)
+    pub fn frontmatter_processors(
+        &self,
+        disabled_ids: &[ExtensionId],
+    ) -> Result<Vec<Arc<dyn FrontmatterProcessor>>, LoaderError> {
+        self.enabled_flat_map(disabled_ids, |e| e.frontmatter_processors())
     }
 
-    #[must_use]
-    pub fn jobs_by_tag(&self, tag: &str) -> Vec<Arc<dyn Job>> {
-        self.sorted_extensions
-            .iter()
-            .flat_map(|ext| ext.jobs())
-            .filter(|job| job.tags().contains(&tag))
-            .collect()
-    }
-
-    #[must_use]
-    pub fn all_config_planes(&self) -> Vec<Arc<dyn ConfigPlane>> {
-        self.sorted_extensions
-            .iter()
-            .flat_map(|ext| ext.config_planes())
-            .collect()
-    }
-
-    #[must_use]
-    pub fn all_metrics(&self) -> Vec<MetricDescriptor> {
-        self.sorted_extensions
-            .iter()
-            .flat_map(|ext| ext.metrics())
-            .collect()
+    pub fn all_metrics(
+        &self,
+        disabled_ids: &[ExtensionId],
+    ) -> Result<Vec<MetricDescriptor>, LoaderError> {
+        self.enabled_flat_map(disabled_ids, |e| e.metrics())
     }
 
     pub fn all_readiness_checks(
@@ -222,13 +208,9 @@ impl ExtensionRegistry {
         ctx: &dyn ExtensionContext,
         disabled_ids: &[ExtensionId],
     ) -> Result<Vec<ExtensionReadinessCheck>, LoaderError> {
-        Ok(self
-            .enabled_extensions(disabled_ids)?
-            .into_iter()
-            .flat_map(|ext| {
-                let id = ext.id();
-                ext.readiness(ctx).into_iter().map(move |check| (id, check))
-            })
-            .collect())
+        self.enabled_flat_map(disabled_ids, |ext| {
+            let id = ext.id();
+            ext.readiness(ctx).into_iter().map(move |check| (id, check))
+        })
     }
 }

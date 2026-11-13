@@ -103,7 +103,7 @@ async fn ingests_enabled_source_into_content_store() {
         ..Default::default()
     };
 
-    let result = execute_content_ingestion(&pool, &config, &app_paths())
+    let result = execute_content_ingestion(&pool, &config, &app_paths(), &[])
         .await
         .expect("job");
 
@@ -150,7 +150,7 @@ async fn relative_source_path_resolves_and_per_file_errors_are_logged() {
     };
 
     let paths = app_paths_rooted(root.path().to_str().expect("utf8 root"));
-    let result = execute_content_ingestion(&pool, &config, &paths)
+    let result = execute_content_ingestion(&pool, &config, &paths, &[])
         .await
         .expect("job");
 
@@ -198,7 +198,7 @@ async fn skill_sources_are_filtered_out() {
         ..Default::default()
     };
 
-    let result = execute_content_ingestion(&pool, &config, &app_paths())
+    let result = execute_content_ingestion(&pool, &config, &app_paths(), &[])
         .await
         .expect("job");
 
@@ -232,7 +232,7 @@ async fn disabled_source_yields_empty_result() {
         ..Default::default()
     };
 
-    let result = execute_content_ingestion(&pool, &config, &app_paths())
+    let result = execute_content_ingestion(&pool, &config, &app_paths(), &[])
         .await
         .expect("job");
     assert!(result.success);
@@ -259,7 +259,7 @@ async fn missing_path_counts_as_error_but_job_succeeds() {
         ..Default::default()
     };
 
-    let result = execute_content_ingestion(&pool, &config, &app_paths())
+    let result = execute_content_ingestion(&pool, &config, &app_paths(), &[])
         .await
         .expect("job");
 
@@ -276,7 +276,7 @@ async fn empty_config_short_circuits() {
     let pool: DbPool = test_db_pool().await;
 
     let config = ContentConfigRaw::default();
-    let result = execute_content_ingestion(&pool, &config, &app_paths())
+    let result = execute_content_ingestion(&pool, &config, &app_paths(), &[])
         .await
         .expect("job");
     assert!(result.success);

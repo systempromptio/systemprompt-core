@@ -8,15 +8,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::Arc;
-
 use systemprompt_extension::prelude::*;
-use systemprompt_traits::{DynIpBanStore, Job};
-
-use crate::jobs::{
-    BackfillSessionGeoJob, BehavioralAnalysisJob, GhostSessionCleanupJob, MaliciousIpBlacklistJob,
-    NoJsCleanupJob,
-};
+use systemprompt_traits::DynIpBanStore;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct AnalyticsExtension;
@@ -70,16 +63,6 @@ impl Extension for AnalyticsExtension {
 
     fn requires(&self) -> Vec<StateRequirement> {
         vec![StateRequirement::of::<DynIpBanStore>()]
-    }
-
-    fn jobs(&self) -> Vec<Arc<dyn Job>> {
-        vec![
-            Arc::new(BackfillSessionGeoJob),
-            Arc::new(BehavioralAnalysisJob),
-            Arc::new(GhostSessionCleanupJob),
-            Arc::new(MaliciousIpBlacklistJob),
-            Arc::new(NoJsCleanupJob),
-        ]
     }
 }
 

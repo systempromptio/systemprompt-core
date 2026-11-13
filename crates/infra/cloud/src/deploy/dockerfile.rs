@@ -1,5 +1,10 @@
 //! Renders the deployment Dockerfile from discovered extensions and config.
 //!
+//! One image boots any of the profiles it copies, so it creates the storage
+//! directories of every linked extension: the disabled set passed to the
+//! registry is empty by design, and a profile that disables an extension
+//! leaves its directory unused.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -161,11 +166,15 @@ CMD ["{bin}/systemprompt", "{cmd_infra}", "{cmd_services}", "{cmd_serve}", "--fo
     }
 
     fn extension_storage_dirs() -> String {
-        let registry = ExtensionRegistry::discover().unwrap_or_else(|e| {
-            tracing::error!(error = %e, "extension dependency cycle; using empty registry");
-            ExtensionRegistry::new()
-        });
-        let paths = registry.all_required_storage_paths();
+        let paths = match ExtensionRegistry::discover()
+            .and_then(|registry| registry.all_required_storage_paths(&[]))
+        {
+            Ok(paths) => paths,
+            Err(e) => {
+                tracing::error!(error = %e, "extension discovery failed; no extension storage dirs");
+                Vec::new()
+            },
+        };
         if paths.is_empty() {
             return String::new();
         }

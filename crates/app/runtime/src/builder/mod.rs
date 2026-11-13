@@ -177,6 +177,7 @@ impl AppContextBuilder {
             files_config: &files_config,
             background_tasks: &background_tasks,
             extensions: &plugins.extension_registry,
+            disabled_extensions: &self.boot.profile().extensions.disabled,
             notifications: &notification_sink,
             brain: &brain_sink,
             audiences: &audiences,

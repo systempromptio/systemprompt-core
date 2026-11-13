@@ -155,12 +155,13 @@ fn register_extensions(
     mut registry_builder: TemplateRegistryBuilder,
     ext_ctx: &dyn ExtensionContext,
 ) -> GeneratorResult<(TemplateRegistryBuilder, Vec<Arc<dyn ContentDataProvider>>)> {
-    let extensions = ExtensionRegistry::discover()?;
+    let extensions =
+        ExtensionRegistry::discover()?.enabled_extensions(&ext_ctx.profile().extensions.disabled)?;
 
     let mut content_data_providers: Vec<Arc<dyn ContentDataProvider>> = Vec::new();
     let mut contributing = 0usize;
 
-    for ext in extensions.extensions() {
+    for ext in &extensions {
         let providers = ext.page_data_providers(ext_ctx);
         let prerenderers = ext.page_prerenderers(ext_ctx);
         let content_providers = ext.content_data_providers(ext_ctx);
@@ -201,7 +202,7 @@ fn register_extensions(
     }
 
     tracing::debug!(
-        extension_count = extensions.extensions().len(),
+        extension_count = extensions.len(),
         contributing_extensions = contributing,
         "Discovered extensions for prerender context"
     );

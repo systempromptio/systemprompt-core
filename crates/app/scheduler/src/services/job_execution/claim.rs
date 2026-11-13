@@ -6,9 +6,10 @@
 use std::time::Instant;
 
 use systemprompt_identifiers::JobName;
+use systemprompt_traits::Job;
 
 use super::report::failed_report;
-use super::{JobExecutionService, JobRunReport, RunnableJob};
+use super::{JobExecutionService, JobRunReport};
 use crate::error::SchedulerResult;
 use crate::repository::JobLockGuard;
 use crate::services::scheduling::{ClaimPolicy, claim_policy};
@@ -23,7 +24,7 @@ impl JobExecutionService {
     pub(super) async fn claim(
         &self,
         job_name: &JobName,
-        runnable: &RunnableJob,
+        job: &'static dyn Job,
     ) -> SchedulerResult<Claimed> {
         let job_config = self
             .scheduler_config
@@ -33,7 +34,7 @@ impl JobExecutionService {
         let policy = claim_policy(
             &self.scheduler_config,
             job_config,
-            Some(runnable.as_job()),
+            Some(job),
             &self.ctx.config().instance_id,
         );
         if policy != ClaimPolicy::Cluster {

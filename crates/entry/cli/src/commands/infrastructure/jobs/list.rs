@@ -1,5 +1,9 @@
 //! `infra jobs list` command.
 //!
+//! Lists every linked job with its owning extension. A job whose owner the
+//! profile disables is listed with `owner_enabled = false`: the scheduler
+//! neither schedules nor runs it.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -9,52 +13,57 @@ use anyhow::Result;
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_identifiers::JobName;
 use systemprompt_loader::BootContext;
-use systemprompt_traits::Job;
+use systemprompt_scheduler::EnabledExtensions;
+use systemprompt_traits::{JobRegistration, registered_jobs};
 
 use super::types::{JobInfo, JobListOutput};
 use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 
 pub(super) fn execute(ctx: &CommandContext) -> Result<CommandOutput> {
-    let registry = ExtensionRegistry::discover().unwrap_or_else(|e| {
-        tracing::error!(error = %e, "extension dependency cycle; using empty registry");
-        ExtensionRegistry::new()
-    });
-    let configured = configured_job_names(ctx.boot()?);
-    let mut seen_names: HashSet<String> = HashSet::new();
-    let mut jobs: Vec<JobInfo> = Vec::new();
-
-    for job in registry.all_jobs() {
-        if seen_names.insert(job.name().to_owned()) {
-            jobs.push(job_info(job.name(), job.as_ref(), &configured));
-        }
-    }
-
-    for registration in systemprompt_traits::registered_jobs() {
-        let job = registration.job;
-        if seen_names.insert(job.name().to_owned()) {
-            jobs.push(job_info(job.name(), job, &configured));
-        }
-    }
+    let boot = ctx.boot()?;
+    let registry = ExtensionRegistry::discover()?;
+    let enabled = EnabledExtensions::resolve(&registry, &boot.profile().extensions.disabled)?;
+    let configured = configured_job_names(boot);
+    let mut seen_names: HashSet<&'static str> = HashSet::new();
+    let mut jobs: Vec<JobInfo> = registered_jobs()
+        .filter(|registration| seen_names.insert(registration.job.name()))
+        .map(|registration| job_info(registration, &enabled, &configured))
+        .collect();
 
     jobs.sort_by(|a, b| a.name.cmp(&b.name));
     let total = jobs.len();
     let output = JobListOutput { jobs, total };
 
     Ok(CommandOutput::table_of(
-        vec!["name", "description", "schedule", "enabled", "scheduled"],
+        vec![
+            "name",
+            "owner",
+            "owner_enabled",
+            "description",
+            "schedule",
+            "enabled",
+            "scheduled",
+        ],
         &output.jobs,
     )
     .with_title("Available Jobs"))
 }
 
-fn job_info(name: &str, job: &dyn Job, configured: &HashSet<JobName>) -> JobInfo {
+fn job_info(
+    registration: &JobRegistration,
+    enabled: &EnabledExtensions,
+    configured: &HashSet<JobName>,
+) -> JobInfo {
+    let job = registration.job;
     JobInfo {
-        name: name.to_owned(),
+        name: job.name().to_owned(),
+        owner: registration.owner.to_owned(),
+        owner_enabled: enabled.contains(registration.owner),
         description: job.description().to_owned(),
         schedule: job.schedule().to_owned(),
         enabled: job.enabled(),
-        scheduled: configured.contains(name),
+        scheduled: configured.contains(job.name()),
     }
 }
 

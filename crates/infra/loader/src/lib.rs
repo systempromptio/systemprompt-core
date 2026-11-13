@@ -12,8 +12,6 @@
 //! - [`config_writer`] — creates, edits, and deletes agent files.
 //! - [`extension_loader`] / [`extension_binary_index`] — discover extension
 //!   manifests and resolve binary paths.
-//! - [`module_loader`] — `inventory`-driven extension discovery for the
-//!   compiled-in extension trait registry.
 //! - [`profile_loader`] — reads, validates, and writes profile YAML.
 //! - [`bundle`] — signed services bundles: fetch, verify, compose, and the boot
 //!   path that installs the active services root.
@@ -41,7 +39,6 @@ pub mod error;
 pub mod extension_binary_index;
 pub mod extension_loader;
 pub mod fingerprint;
-pub mod module_loader;
 pub mod profile_loader;
 pub mod services_state;
 pub mod subprocess;
@@ -58,6 +55,5 @@ pub use error::{
 pub use extension_binary_index::ExtensionBinaryIndex;
 pub use extension_loader::{ExtensionLoader, ExtensionValidationResult};
 pub use fingerprint::tree_fingerprint;
-pub use module_loader::ModuleLoader;
 pub use profile_loader::ProfileLoader;
 pub use services_state::{DiscoveryFuture, ServicesState, catalog_context};

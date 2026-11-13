@@ -75,7 +75,7 @@ fn matches_compiled_filters(ext: &dyn Extension, args: &ListArgs) -> bool {
 
     if let Some(ref cap) = args.capability {
         match cap.as_str() {
-            "jobs" => return ext.has_jobs(),
+            "jobs" => return super::owned_jobs(ext.id()).next().is_some(),
             "templates" => return ext.has_template_providers(),
             "schemas" => return ext.has_schemas(),
             "routes" => return false,
@@ -91,7 +91,7 @@ fn matches_compiled_filters(ext: &dyn Extension, args: &ListArgs) -> bool {
 
 fn compiled_summary(ext: &dyn Extension) -> ExtensionSummary {
     let capabilities = CapabilitySummary {
-        jobs: ext.jobs().len(),
+        jobs: super::owned_jobs(ext.id()).count(),
         templates: ext.template_providers().len(),
         schemas: ext.schemas().len(),
         routes: 0,
