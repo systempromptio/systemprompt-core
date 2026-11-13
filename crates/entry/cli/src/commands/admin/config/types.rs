@@ -15,7 +15,6 @@ use systemprompt_identifiers::ProfileName;
 pub use super::config_section::{
     ConfigFileInfo, ConfigListOutput, ConfigSection, ConfigValidateOutput, DiffEntry, DiffOutput,
     ExportOutput, GATEWAY_FILE_RELATIVE, ImportOutput, PROVIDERS_FILE_RELATIVE, ValidateOutput,
-    read_yaml_file, write_yaml_file,
 };
 pub use super::rate_limit_types::{
     BaseRateRow, CompareOutput, EndpointComparison, EndpointRateLimit, PresetApplyOutput,

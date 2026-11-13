@@ -7,7 +7,8 @@ use systemprompt_cloud::{ProfilePath, ProjectContext, SessionKey, SessionStore};
 use systemprompt_identifiers::ProfileName;
 use systemprompt_manifest::profile::{CloudConfig, ManagedProfile};
 
-use super::types::{ProfileInfo, ProfileListOutput};
+use super::types::ProfileListOutput;
+use crate::shared::profile::ProfileInfo;
 use crate::CliConfig;
 use crate::paths::ResolvedPaths;
 use crate::shared::CommandOutput;

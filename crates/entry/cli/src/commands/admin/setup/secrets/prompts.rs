@@ -15,7 +15,7 @@ use systemprompt_identifiers::ProviderId;
 use systemprompt_logging::CliService;
 
 use super::{SecretsData, vertex};
-use crate::commands::admin::setup::catalog::VERTEX;
+use crate::shared::provider_catalog::VERTEX;
 use crate::interactive::Prompter;
 
 pub fn select_provider_keys(

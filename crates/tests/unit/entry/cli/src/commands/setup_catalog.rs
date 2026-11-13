@@ -1,9 +1,9 @@
-//! Tests for `admin::setup::catalog` — the catalog the setup wizard and
+//! Tests for `shared::provider_catalog` — the catalog the setup wizard and
 //! cloud-init seed from the supplied AI keys.
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cli::admin::setup::catalog::{
+use systemprompt_cli::shared::provider_catalog::{
     SeedRequest, VERTEX, VertexSeed, add_vertex, first_model_on, seed_document,
 };
 use systemprompt_cli::admin::setup::secrets::{SecretsData, vertex};

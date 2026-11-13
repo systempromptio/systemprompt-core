@@ -12,6 +12,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{McpServerId, McpToolName, ServiceName};
 
+use crate::commands::shared::mcp_tools::McpToolEntry;
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct McpListOutput {
     pub servers: Vec<McpServerSummary>,
@@ -111,19 +113,6 @@ pub struct McpLogsOutput {
 pub struct McpToolsOutput {
     pub tools: Vec<McpToolEntry>,
     pub summary: McpToolsSummary,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct McpToolEntry {
-    pub name: String,
-    pub server: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub description: Option<String>,
-    pub parameters_count: usize,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub input_schema: Option<serde_json::Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub output_schema: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]

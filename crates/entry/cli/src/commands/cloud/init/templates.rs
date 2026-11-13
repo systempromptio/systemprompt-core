@@ -95,8 +95,8 @@ ai: {}
 }
 
 pub fn catalog_files(default_provider: &str) -> anyhow::Result<Vec<(&'static str, String)>> {
-    let document = crate::commands::admin::setup::catalog::seed_document(
-        crate::commands::admin::setup::catalog::SeedRequest {
+    let document = crate::shared::provider_catalog::seed_document(
+        crate::shared::provider_catalog::SeedRequest {
             present: &["anthropic", "openai", "gemini"],
             primary: Some(default_provider),
             gateway_enabled: false,

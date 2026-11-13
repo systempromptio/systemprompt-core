@@ -21,8 +21,8 @@ use systemprompt_identifiers::{Email, ProviderId};
 use systemprompt_loader::subprocess::ForegroundChildren;
 use systemprompt_logging::CliService;
 
-use super::catalog::VertexSeed;
-use super::postgres_access::PostgresConfig;
+use crate::shared::provider_catalog::VertexSeed;
+use crate::shared::postgres_access::PostgresConfig;
 use super::{SetupArgs, postgres, secrets};
 
 #[doc(hidden)]

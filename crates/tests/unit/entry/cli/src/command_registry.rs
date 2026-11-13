@@ -3,7 +3,7 @@
 use clap::{CommandFactory, Subcommand};
 use systemprompt_cli::args::{self, Cli};
 use systemprompt_cli::kernel::{
-    CliCommandGroup, CliCommandRegistration, CommandContext, CommandDescriptor, CommandRegistry,
+    CliCommandGroup, CliCommandLeaf, CliCommandRegistration, CommandContext, CommandDescriptor, CommandRegistry,
     DataImpact, DbUrlRouting, DescribeCommand, RegistryError,
 };
 use systemprompt_cli::{CliConfig, EnvOverrides};
@@ -39,7 +39,7 @@ impl CliCommandGroup for ProbeCommands {
         }
     }
 
-    fn run(self, _ctx: &CommandContext) -> impl Future<Output = anyhow::Result<()>> {
+    fn run(self, _ctx: &CommandContext) -> impl Future<Output = anyhow::Result<()>> + Send {
         std::future::ready(Err(anyhow::anyhow!("{PROBE_RAN}: {self:?}")))
     }
 }
@@ -61,7 +61,7 @@ impl CliCommandGroup for OtherProbeCommands {
     const NAME: &'static str = "probe";
     const ABOUT: &'static str = "Second probe group on the same path";
 
-    fn run(self, _ctx: &CommandContext) -> impl Future<Output = anyhow::Result<()>> {
+    fn run(self, _ctx: &CommandContext) -> impl Future<Output = anyhow::Result<()>> + Send {
         std::future::ready(Ok(()))
     }
 }
@@ -83,7 +83,7 @@ impl CliCommandGroup for AdminProbeCommands {
     const NAME: &'static str = "aprobe";
     const ABOUT: &'static str = "Probe nested under admin";
 
-    fn run(self, _ctx: &CommandContext) -> impl Future<Output = anyhow::Result<()>> {
+    fn run(self, _ctx: &CommandContext) -> impl Future<Output = anyhow::Result<()>> + Send {
         std::future::ready(Ok(()))
     }
 }
@@ -105,7 +105,7 @@ impl CliCommandGroup for ShadowingCommands {
     const NAME: &'static str = "admin";
     const ABOUT: &'static str = "Shadows the kernel admin group";
 
-    fn run(self, _ctx: &CommandContext) -> impl Future<Output = anyhow::Result<()>> {
+    fn run(self, _ctx: &CommandContext) -> impl Future<Output = anyhow::Result<()>> + Send {
         std::future::ready(Ok(()))
     }
 }
@@ -127,7 +127,7 @@ impl CliCommandGroup for OrphanCommands {
     const NAME: &'static str = "orphan";
     const ABOUT: &'static str = "Names a parent that does not exist";
 
-    fn run(self, _ctx: &CommandContext) -> impl Future<Output = anyhow::Result<()>> {
+    fn run(self, _ctx: &CommandContext) -> impl Future<Output = anyhow::Result<()>> + Send {
         std::future::ready(Ok(()))
     }
 }
@@ -314,4 +314,43 @@ fn the_build_group_is_registered_through_the_seam() {
     assert!(!desc.secrets() && !desc.paths() && !desc.database());
     assert_eq!(desc.data_impact(), DataImpact::Preserving);
     assert_eq!(build.db_url_routing(), DbUrlRouting::Unsupported);
+}
+
+#[derive(Debug, clap::Args)]
+struct LeafProbeArgs {
+    #[arg(long)]
+    port: Option<u16>,
+}
+
+impl DescribeCommand for LeafProbeArgs {
+    fn descriptor(&self) -> CommandDescriptor {
+        CommandDescriptor::PROFILE_SECRETS_AND_PATHS.with_serves_api()
+    }
+}
+
+impl CliCommandLeaf for LeafProbeArgs {
+    const PARENT: &'static [&'static str] = &["infra", "services"];
+    const NAME: &'static str = "lprobe";
+    const ABOUT: &'static str = "Single registered command";
+
+    fn run(self, _ctx: &CommandContext) -> impl Future<Output = anyhow::Result<()>> + Send {
+        std::future::ready(Err(anyhow::anyhow!("leaf ran on {:?}", self.port)))
+    }
+}
+
+#[tokio::test]
+async fn a_single_command_registers_under_a_nested_kernel_group() {
+    let registry = registry(vec![CliCommandRegistration::leaf::<LeafProbeArgs>()]);
+    let registered = registry
+        .resolve(&matches(&registry, &["infra", "services", "lprobe", "--port", "9"]))
+        .expect("resolve")
+        .expect("infra services lprobe is registered");
+    assert!(registered.descriptor().serves_api());
+
+    let ctx = CommandContext::new(
+        CliConfig::new().with_interactive(false),
+        EnvOverrides::default(),
+    );
+    let err = registered.run(&ctx).await.expect_err("leaf reports it ran");
+    assert_eq!(err.to_string(), "leaf ran on Some(9)");
 }

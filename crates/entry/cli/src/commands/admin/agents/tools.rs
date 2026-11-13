@@ -10,7 +10,7 @@ use clap::Args;
 
 use super::types::{AgentToolsOutput, AgentToolsSummary, UnavailableServer};
 use crate::CliConfig;
-use crate::commands::plugins::mcp::types::McpToolEntry;
+use crate::commands::shared::mcp_tools::McpToolEntry;
 use crate::commands::shared::mcp_tools::{
     direct_url, list_tools_authenticated, list_tools_unauthenticated,
 };
@@ -199,14 +199,11 @@ async fn collect_tools(configured_servers: &[String], query: &ToolQuery<'_>) -> 
         match tools_result {
             Ok(server_tools) => {
                 for tool in server_tools {
-                    tools.push(McpToolEntry {
-                        name: tool.name,
-                        server: server_name.clone(),
-                        description: tool.description,
-                        parameters_count: tool.parameters_count,
-                        input_schema: query.detailed.then_some(tool.input_schema).flatten(),
-                        output_schema: query.detailed.then_some(tool.output_schema).flatten(),
-                    });
+                    tools.push(McpToolEntry::from_probe(
+                        tool,
+                        server_name.clone(),
+                        query.detailed,
+                    ));
                 }
                 servers_queried += 1;
             },

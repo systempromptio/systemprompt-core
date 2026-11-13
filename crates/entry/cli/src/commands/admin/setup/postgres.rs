@@ -13,7 +13,7 @@ use systemprompt_loader::subprocess::ForegroundChildren;
 use systemprompt_logging::CliService;
 
 use super::SetupArgs;
-use super::postgres_access::{
+use crate::shared::postgres_access::{
     PostgresConfig, connect, detect_postgresql, enable_extensions, generate_password,
     test_connection,
 };

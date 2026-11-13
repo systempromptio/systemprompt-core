@@ -4,7 +4,8 @@
 //! override, an environment variable, a stored session, or directory
 //! discovery, reporting failures via [`ProfileResolutionError`]. Also provides
 //! profile-authoring helpers ([`save_profile_yaml`], display-name and pepper
-//! generation) used by the profile-creation flows.
+//! generation) used by the profile-creation flows, and the [`ProfileInfo`]
+//! row the session and cloud status commands render.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -14,7 +15,10 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result};
 use rand::distr::Alphanumeric;
 use rand::{RngExt, rng};
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use systemprompt_cloud::{ProfilePath, ProjectContext};
+use systemprompt_identifiers::TenantId;
 use systemprompt_loader::ProfileLoader;
 use systemprompt_manifest::Profile;
 use systemprompt_manifest::profile::ManagedProfile;
@@ -260,4 +264,25 @@ pub fn save_profile_yaml(profile: &Profile, path: &Path, header: Option<&str>) -
     profile
         .create_overlay(path, header)
         .with_context(|| format!("Failed to write {}", path.display()))
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct ProfileInfo {
+    pub name: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub display_name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub database_url: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tenant_id: Option<TenantId>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub validation_mode: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub credentials_path: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub routing: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub is_active: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub session_status: Option<String>,
 }

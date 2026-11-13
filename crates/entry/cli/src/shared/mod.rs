@@ -12,12 +12,16 @@
 pub mod command_result;
 pub mod confirm;
 pub mod disk_logs;
+pub mod docker_compose;
 pub mod identity;
 pub mod parsers;
+pub mod postgres_access;
 pub mod profile;
 pub mod project;
+pub mod provider_catalog;
 pub mod text;
 pub mod time_format;
+pub mod yaml_document;
 
 pub use command_result::{
     ChartType, CommandOutput, KeyValueItem, KeyValueOutput, SuccessOutput, TableOutput, TextOutput,

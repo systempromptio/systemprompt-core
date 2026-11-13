@@ -7,7 +7,7 @@
 use clap::Parser;
 use systemprompt_cli::CliConfig;
 use systemprompt_cli::admin::setup::postgres::setup_interactive;
-use systemprompt_cli::admin::setup::postgres_access::test_connection;
+use systemprompt_cli::shared::postgres_access::test_connection;
 use systemprompt_cli::args::{Cli, Commands};
 use systemprompt_cli::descriptor::{CommandDescriptor, DataImpact, DescribeCommand};
 use systemprompt_loader::subprocess::ForegroundChildren;
@@ -44,7 +44,7 @@ impl Scratch {
         &self,
         password: &str,
         reset: bool,
-    ) -> anyhow::Result<systemprompt_cli::admin::setup::postgres_access::PostgresConfig> {
+    ) -> anyhow::Result<systemprompt_cli::shared::postgres_access::PostgresConfig> {
         let mut setup_args = args();
         setup_args.db_password = Some(password.to_owned());
         setup_args.reset_role_password = reset;

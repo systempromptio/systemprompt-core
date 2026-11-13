@@ -9,7 +9,8 @@ use std::path::Path;
 use systemprompt_logging::CliService;
 
 use super::types::{DatabaseSetupInfo, SecretsConfiguredInfo, SetupOutput};
-use super::{SetupArgs, postgres_access, profile};
+use super::{SetupArgs, profile};
+use crate::shared::postgres_access;
 
 pub(super) fn execute_dry_run(
     args: &SetupArgs,

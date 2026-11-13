@@ -10,12 +10,12 @@ use systemprompt_loader::subprocess::ForegroundChildren;
 use systemprompt_logging::CliService;
 
 use super::SetupArgs;
-use super::docker_compose::{
+use crate::shared::docker_compose::{
     create_compose_files_if_missing, is_compose_available, is_container_running,
     is_docker_available, start_compose, wait_for_postgres_ready,
 };
 use super::docker_database::create_database_in_docker;
-use super::postgres_access::{
+use crate::shared::postgres_access::{
     PostgresConfig, detect_postgresql, enable_extensions, test_connection,
 };
 use crate::interactive::Prompter;

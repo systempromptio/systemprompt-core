@@ -14,7 +14,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
@@ -23,7 +22,7 @@ use systemprompt_loader::ConfigLoader;
 use systemprompt_loader::config_loader::catalog::catalog_dir;
 use systemprompt_manifest::Profile;
 use systemprompt_manifest::services::catalog::{CATALOG_FILES, CatalogDocument};
-use systemprompt_manifest::services::{GatewayConfigSpec, ServicesConfig};
+use systemprompt_manifest::services::ServicesConfig;
 
 use super::config_section::ConfigSection;
 
@@ -52,18 +51,6 @@ impl CatalogLocation {
     pub fn read(&self) -> Result<CatalogDocument> {
         read_catalog(&self.dir).with_context(|| format!("Failed to read {}", self.dir.display()))
     }
-}
-
-pub fn write_gateway(dir: &Path, gateway: Option<&GatewayConfigSpec>) -> Result<()> {
-    let path = dir.join("gateway.yaml");
-    let Some(gateway) = gateway else {
-        return Ok(());
-    };
-    let section: BTreeMap<&str, &GatewayConfigSpec> =
-        std::iter::once(("gateway", gateway)).collect();
-    let yaml = serde_yaml::to_string(&section).context("Failed to serialize gateway.yaml")?;
-    write_private_atomic(&path, yaml.as_bytes())
-        .with_context(|| format!("Failed to write {}", path.display()))
 }
 
 fn write_document(location: &CatalogLocation, document: &CatalogDocument) -> Result<()> {
