@@ -17,15 +17,20 @@
 #                        `read_body_bounded`.
 #
 #   scripts/lint-unbounded-bodies.sh            # gate over the core roots
+#   scripts/lint-unbounded-bodies.sh --paths P...  # only files under P
 #   scripts/lint-unbounded-bodies.sh ROOT...    # scan other roots
 #
 # A directory literally named `tests` or `target` is never scanned.
 set -uo pipefail
 command -v rg >/dev/null || { echo "lint-unbounded-bodies: ripgrep required" >&2; exit 2; }
 
+. "$(dirname "${BASH_SOURCE[0]}")/lib/gate-scope.sh"
+gate_scope_parse "$@"
+set -- "${GATE_ARGS[@]}"
 if [ "$#" -eq 0 ]; then
-    cd "$(cd "$(dirname "$0")/.." && pwd)" || exit 2
-    ROOTS=(crates/shared crates/infra crates/domain crates/app crates/entry systemprompt/src bin/bridge/src)
+    cd "$GATE_ROOT" || exit 2
+    mapfile -t ROOTS < <(gate_roots crates/shared crates/infra crates/domain crates/app crates/entry systemprompt/src bin/bridge/src)
+    gate_pass_if_empty lint-unbounded-bodies "${#ROOTS[@]}"
 else
     ROOTS=("$@")
 fi

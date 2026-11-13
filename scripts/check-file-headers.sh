@@ -1,17 +1,21 @@
 #!/usr/bin/env bash
 # Verify every production Rust source file carries a rustdoc module head that
 # opens with a purpose line and ends with the exact BSL-1.1 license reference.
+#
+#   scripts/check-file-headers.sh [--paths P...]
 set -euo pipefail
-
-cd "$(dirname "$0")/.."
+. "$(dirname "${BASH_SOURCE[0]}")/lib/gate-scope.sh"
+gate_scope_parse "$@"
+set -- "${GATE_ARGS[@]}"
+cd "$GATE_ROOT"
 
 LICENSE_1='//! Copyright (c) systemprompt.io — Business Source License 1.1.'
 LICENSE_2='//! See <https://systemprompt.io> for licensing details.'
 
-ROOTS=(
-  crates/shared crates/infra crates/domain crates/app crates/entry
-  systemprompt/src bin/bridge/src
-)
+mapfile -t ROOTS < <(gate_roots \
+  crates/shared crates/infra crates/domain crates/app crates/entry \
+  systemprompt/src bin/bridge/src)
+gate_pass_if_empty check-file-headers "${#ROOTS[@]}"
 
 fail=0
 find "${ROOTS[@]}" -name '*.rs' -not -path '*/tests/*' ! -name build.rs \

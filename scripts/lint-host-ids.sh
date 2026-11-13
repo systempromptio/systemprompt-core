@@ -18,9 +18,13 @@
 # not a host id but happens to spell one -- a binary name on PATH, or the
 # `ClientKind` wire value the `ai_requests.client_kind` CHECK is built on. An
 # entry whose line no longer matches fails the gate so the list only shrinks.
+#
+#   scripts/lint-host-ids.sh [--paths P...]   # stale entries judged in full mode only
 set -euo pipefail
-
-cd "$(dirname "$0")/.."
+. "$(dirname "${BASH_SOURCE[0]}")/lib/gate-scope.sh"
+gate_scope_parse "$@"
+set -- "${GATE_ARGS[@]}"
+cd "$GATE_ROOT"
 
 ids='claude-code|claude-desktop|codex|codex-cli|opencode|opencode-cli|hermes'
 pattern="\"(${ids})\""
@@ -44,7 +48,7 @@ fail=0
 hits=$(
     { grep -rnE --include='*.rs' "$pattern" crates/*/*/src bin/bridge/src 2>/dev/null | grep -v "^crates/tests/" || true
       grep -rnE --include='*.js' "$pattern" bin/bridge/web/js 2>/dev/null || true; } \
-        | grep -v "^${canonical}:" | grep -v "^${mirror}:" || true
+        | grep -v "^${canonical}:" | grep -v "^${mirror}:" | gate_filter || true
 )
 
 declare -A allowed_literals
@@ -75,14 +79,14 @@ while IFS= read -r hit; do
     done
 done <<<"$hits"
 
-for key in "${!allowed_literals[@]}"; do
+gate_full_mode && for key in "${!allowed_literals[@]}"; do
     if [ "${allowed_literals[$key]}" -eq 0 ]; then
         echo "ERROR: lint-host-ids: stale allowlist entry $key (no matching literal; remove it)" >&2
         fail=1
     fi
 done
 
-if grep -rnE --include='*.rs' 'DesktopAndCli' crates/*/*/src bin/bridge/src >/dev/null 2>&1; then
+if [ -n "$(grep -rnE --include='*.rs' 'DesktopAndCli' crates/*/*/src bin/bridge/src 2>/dev/null | gate_filter)" ]; then
     echo "ERROR: lint-host-ids: HostAppKind::DesktopAndCli reappeared; a host is one packaging" >&2
     fail=1
 fi

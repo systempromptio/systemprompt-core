@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Build report: per reference composition (a facade feature set of the
-# `systemprompt` crate, listed in scripts/build-report-compositions.txt) it
+# `systemprompt` crate, listed in scripts/build-compositions.txt) it
 # reports the crate closure and, unless --closure-only, the stripped release
 # binary size. The composition marked `largest` also gets `cargo bloat --crates`
 # and `cargo build --timings`. A measurement, never a gate.
@@ -46,7 +46,7 @@ done
 export SQLX_OFFLINE="${SQLX_OFFLINE:-true}"
 command -v jq >/dev/null || { echo 'jq is not installed' >&2; exit 2; }
 
-table="$root/scripts/build-report-compositions.txt"
+table="$root/scripts/build-compositions.txt"
 base="$root/target/build-report"
 out="${out:-$base/report.md}"
 json="${out%.md}.json"

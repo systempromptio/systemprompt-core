@@ -12,9 +12,13 @@
 # live, and it maps verdict codes, not states. Fields that are the front end's
 # own (a fetcher's `state`, a toast's `kind`, an activity entry's log level)
 # are listed below with the reason each is not wire state.
+#
+#   scripts/lint-bridge-verdicts.sh [--paths P...]
 set -euo pipefail
-
-cd "$(dirname "$0")/.."
+. "$(dirname "${BASH_SOURCE[0]}")/lib/gate-scope.sh"
+gate_scope_parse "$@"
+set -- "${GATE_ARGS[@]}"
+cd "$GATE_ROOT"
 
 web="bin/bridge/web/js"
 fail=0
@@ -45,7 +49,7 @@ while IFS= read -r hit; do
     fi
     echo "lint-bridge-verdicts: $rel:$line branches on a wire state's name: $(printf '%s' "$code" | sed 's/^[[:space:]]*//')" >&2
     fail=1
-done < <(grep -rnE "$pattern" "$web" --include='*.js' || true)
+done < <(grep -rnE "$pattern" "$web" --include='*.js' | gate_filter || true)
 
 if [ "$fail" -ne 0 ]; then
     echo "lint-bridge-verdicts: the derivation belongs in Rust beside the enum (src/verdict.rs); ship a tone/code and render that" >&2

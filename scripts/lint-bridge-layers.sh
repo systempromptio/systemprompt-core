@@ -7,9 +7,13 @@
 #
 # Order is bottom-up. A module may name any module listed BEFORE it, never one
 # after it. Leaves come first and reference nothing but each other.
+#
+#   scripts/lint-bridge-layers.sh [--paths P...]
 set -euo pipefail
-
-cd "$(dirname "$0")/.."
+. "$(dirname "${BASH_SOURCE[0]}")/lib/gate-scope.sh"
+gate_scope_parse "$@"
+set -- "${GATE_ARGS[@]}"
+cd "$GATE_ROOT"
 
 src="bin/bridge/src"
 
@@ -73,7 +77,7 @@ while IFS= read -r file; do
             fail=1
         fi
     done < <(grep -oE '\$?crate::[a-z_]+' "$file" | sed -E 's/^\$?crate:://' | sort -u)
-done < <(git ls-files -co --exclude-standard "$src/*.rs" "$src/**/*.rs" | sort -u)
+done < <(gate_files "$src/*.rs" "$src/**/*.rs")
 
 if [ "$fail" -ne 0 ]; then
     echo "lint-bridge-layers: move the shared piece below both modules, or pass it in from the composition root" >&2

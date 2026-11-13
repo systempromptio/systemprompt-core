@@ -14,9 +14,13 @@
 #
 # `bin/bridge/web/dev/` is the dev-only fixture server and mocked IPC; it is
 # not shipped and its fixture tables are legitimately long.
+#
+#   scripts/lint-bridge-file-size.sh [--paths P...]
 set -euo pipefail
-
-cd "$(dirname "$0")/.."
+. "$(dirname "${BASH_SOURCE[0]}")/lib/gate-scope.sh"
+gate_scope_parse "$@"
+set -- "${GATE_ARGS[@]}"
+cd "$GATE_ROOT"
 
 js_limit=150
 css_limit=300
@@ -24,7 +28,6 @@ css_limit=300
 fail=0
 
 while IFS= read -r file; do
-    [ -f "$file" ] || continue
     case "$file" in
         bin/bridge/web/dev/*) continue ;;
         bin/bridge/web/js/*.js) limit=$js_limit ;;
@@ -36,7 +39,7 @@ while IFS= read -r file; do
         echo "$file: $n lines (limit $limit)"
         fail=1
     fi
-done < <(git ls-files -co --exclude-standard -- 'bin/bridge/web/js' 'bin/bridge/web/css' | sort)
+done < <(gate_files 'bin/bridge/web/js' 'bin/bridge/web/css')
 
 if [ "$fail" -ne 0 ]; then
     echo

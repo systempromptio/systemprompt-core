@@ -4,9 +4,14 @@
 # claude-desktop" and re-requested a sync every 30 s for as long as a feedback
 # timeout kept a warning there. A `host_warnings.iter().any(..)` that does not
 # read `.kind`, or any comparison on `.message`, fails here. No allowlist.
+#
+#   scripts/lint-bridge-typed-warnings.sh [--paths P...]
 set -uo pipefail
-root="$(cd "$(dirname "$0")/.." && pwd)"
-src="$root/bin/bridge/src"
+. "$(dirname "${BASH_SOURCE[0]}")/lib/gate-scope.sh"
+gate_scope_parse "$@"
+set -- "${GATE_ARGS[@]}"
+mapfile -t srcs < <(gate_roots "$GATE_ROOT/bin/bridge/src")
+gate_pass_if_empty lint-bridge-typed-warnings "${#srcs[@]}"
 status=0
 
 if ! command -v rg >/dev/null 2>&1; then
@@ -15,14 +20,14 @@ if ! command -v rg >/dev/null 2>&1; then
 fi
 
 hits=$(rg -n --no-heading --color=never -g '*.rs' \
-    '\.message\.(contains|starts_with|ends_with|eq|eq_ignore_ascii_case)\(|\.message\s*==' "$src" || true)
+    '\.message\.(contains|starts_with|ends_with|eq|eq_ignore_ascii_case)\(|\.message\s*==' "${srcs[@]}" || true)
 if [ -n "$hits" ]; then
     echo "lint-bridge-typed-warnings: a decision reads a warning's message text; use its kind:"
     echo "$hits"
     status=1
 fi
 
-hits=$(find "$src" -name '*.rs' -print0 | xargs -0 perl -0777 -ne '
+hits=$(find "${srcs[@]}" -name '*.rs' -print0 | xargs -0 perl -0777 -ne '
     while (/host_warnings\s*\.iter\(\)\s*\.any\(\s*\|[^|]*\|\s*(\{(?:[^{}]|\{[^{}]*\})*\}|[^)]*)\)/g) {
         my $body = $1; my $pos = pos();
         my $line = 1 + (substr($_, 0, $pos) =~ tr/\n//);

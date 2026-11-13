@@ -29,11 +29,15 @@
 # Usage: lint-migrations.sh [--large-tables FILE] [ROOT]
 #   With ROOT, every `**/schema/migrations/*.sql` under it is scanned (the
 #   fixture form). Without it, the files `git diff --diff-filter=A` lists
-#   between the last `v*` tag and HEAD.
+#   between the last `v*` tag and HEAD. `--paths P...` keeps only the files
+#   under P.
 
 set -euo pipefail
+. "$(dirname "${BASH_SOURCE[0]}")/lib/gate-scope.sh"
+gate_scope_parse "$@"
+set -- "${GATE_ARGS[@]}"
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT="$GATE_ROOT"
 LARGE_TABLES="$ROOT/scripts/large-tables.txt"
 SCAN_ROOT=""
 
@@ -57,7 +61,7 @@ else
         }
     fi
     mapfile -t files < <(git -C "$ROOT" diff --name-only --diff-filter=A "$tag"..HEAD -- \
-        'crates/*/*/schema/migrations/*.sql' | sed "s#^#$ROOT/#" | sort)
+        'crates/*/*/schema/migrations/*.sql' | sed "s#^#$ROOT/#" | sort | gate_filter)
 fi
 
 if [ "${#files[@]}" -eq 0 ]; then

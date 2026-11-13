@@ -11,21 +11,27 @@
 #
 #   scripts/lint-serde-aliases.sh                        # core roots + allowlist
 #   scripts/lint-serde-aliases.sh [--allowlist FILE] ROOT...
+#   scripts/lint-serde-aliases.sh --paths P...           # only files under P; stale
+#                                                        # entries not judged
 set -euo pipefail
+. "$(dirname "${BASH_SOURCE[0]}")/lib/gate-scope.sh"
+gate_scope_parse "$@"
+set -- "${GATE_ARGS[@]}"
 
-root="$(cd "$(dirname "$0")/.." && pwd)"
+root="$GATE_ROOT"
 allowlist="$root/scripts/serde-aliases-allowlist.txt"
 roots=()
 while [ "$#" -gt 0 ]; do
     case "$1" in
         --allowlist) allowlist="$2"; shift 2 ;;
         --allowlist=*) allowlist="${1#--allowlist=}"; shift ;;
-        -h|--help) sed -n '2,13p' "$0"; exit 0 ;;
+        -h|--help) awk 'NR > 1 && !/^#/ { exit } NR > 1' "$0"; exit 0 ;;
         *) roots+=("$1"); shift ;;
     esac
 done
 if [ "${#roots[@]}" -eq 0 ]; then
-    roots=("$root/crates" "$root/systemprompt/src" "$root/bin/bridge/src")
+    mapfile -t roots < <(gate_roots "$root/crates" "$root/systemprompt/src" "$root/bin/bridge/src")
+    gate_pass_if_empty lint-serde-aliases "${#roots[@]}"
 fi
 
 declare -A allowed=()
@@ -42,15 +48,7 @@ while IFS= read -r line; do
 done < "$allowlist"
 
 list_sources() {
-    local r
-    for r in "${roots[@]}"; do
-        if git -C "$r" rev-parse --show-toplevel >/dev/null 2>&1; then
-            git -C "$r" ls-files -co --exclude-standard -- '*.rs' | sed "s|^|$r/|"
-        else
-            find "$r" -name '*.rs' -type f
-        fi
-    done | grep -Ev '(^|/)(crates/tests|target|tests)/|/build\.rs$' | sort -u \
-        | while IFS= read -r f; do [ -f "$f" ] && printf '%s\n' "$f"; done
+    gate_tree_files "${roots[@]}" | grep -E '\.rs$' | grep -Ev '(^|/)(crates/tests|target|tests)/|/build\.rs$' | sort -u
 }
 
 rel_of() {
@@ -99,7 +97,7 @@ while IFS= read -r hit; do
     fi
 done < <(printf '%s\n' "$sources" | alias_hits)
 
-for key in "${!allowed[@]}"; do
+gate_full_mode && for key in "${!allowed[@]}"; do
     if [ -z "${seen[$key]:-}" ]; then
         echo "lint-serde-aliases: allowlist entry \`$key\` matches nothing -- remove it" >&2
         fail=1

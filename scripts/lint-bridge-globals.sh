@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
 # Reject unlisted process-global service state in bridge sources.
 # BridgeContext owns injected services; exceptions are declared below.
+#
+#   scripts/lint-bridge-globals.sh [--paths P...]   # stale entries judged in full mode only
 set -euo pipefail
-
-cd "$(dirname "$0")/.."
+. "$(dirname "${BASH_SOURCE[0]}")/lib/gate-scope.sh"
+gate_scope_parse "$@"
+set -- "${GATE_ARGS[@]}"
+cd "$GATE_ROOT"
 
 src="bin/bridge/src"
 
@@ -38,12 +42,12 @@ while IFS= read -r hit; do
         echo "lint-bridge-globals: $rel:$line -- static \`$name\` holds service state; build it in BridgeContext::start and inject it" >&2
         fail=1
     fi
-done < <(git ls-files -co --exclude-standard "$src/*.rs" "$src/**/*.rs" | sort -u \
-    | xargs grep -nE '^\s*(pub(\([a-z]+\))? )?static [A-Z_][A-Z0-9_]*: *(std::sync::)?(OnceLock|LazyLock|RwLock|Mutex|ArcSwap|Atomic[A-Za-z0-9]+|Once|OnceCell)\b' 2>/dev/null || true)
+done < <(gate_files "$src/*.rs" "$src/**/*.rs" \
+    | xargs -r grep -nE '^\s*(pub(\([a-z]+\))? )?static [A-Z_][A-Z0-9_]*: *(std::sync::)?(OnceLock|LazyLock|RwLock|Mutex|ArcSwap|Atomic[A-Za-z0-9]+|Once|OnceCell)\b' 2>/dev/null || true)
 
 # An allowlist entry whose static no longer exists is stale; fail so it is
 # removed rather than quietly covering a future reintroduction.
-for entry in "${allow[@]}"; do
+gate_full_mode && for entry in "${allow[@]}"; do
     key=${entry%% — *}
     file=${key%%:*}
     name=${key##*:}

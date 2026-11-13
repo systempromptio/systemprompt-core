@@ -17,9 +17,13 @@
 #
 #   scripts/lint-shared-test-ids.sh            # gate
 #   scripts/lint-shared-test-ids.sh --count    # hit count only
+#   scripts/lint-shared-test-ids.sh [--count] --paths P...   # only files under P
 set -uo pipefail
 export LC_ALL=C
-cd "$(dirname "$0")/.."
+. "$(dirname "${BASH_SOURCE[0]}")/lib/gate-scope.sh"
+gate_scope_parse "$@"
+set -- "${GATE_ARGS[@]}"
+cd "$GATE_ROOT"
 
 COUNT=0
 [ "${1:-}" = "--count" ] && COUNT=1
@@ -34,7 +38,7 @@ while IFS= read -r file; do
     while IFS= read -r l; do
         hits+="$file:${l%%:*}: literal InstanceId in a file that writes instance-scoped rows"$'\n'
     done <<< "$found"
-done < <(git ls-files 'crates/tests/*.rs' | sort)
+done < <(gate_files 'crates/tests/*.rs')
 
 if [ "$COUNT" -eq 1 ]; then printf '%s' "$hits" | grep -c .; exit 0; fi
 if [ -n "$hits" ]; then

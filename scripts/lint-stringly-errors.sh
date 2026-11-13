@@ -22,17 +22,24 @@
 #                                    roots (constructions are read across the
 #                                    same roots); paths resolve against the
 #                                    caller's working directory
+#   lint-stringly-errors.sh [--report] --paths P...   constructions read across
+#                                    the core roots, hits reported under P only
 set -euo pipefail
-if [ "$#" -eq 0 ] || { [ "$#" -eq 1 ] && [ "$1" = "--report" ]; }; then
-    cd "$(cd "$(dirname "$0")/.." && pwd)"
+. "$(dirname "${BASH_SOURCE[0]}")/lib/gate-scope.sh"
+gate_scope_parse "$@"
+if [ "${#GATE_ARGS[@]}" -eq 0 ] || { [ "${#GATE_ARGS[@]}" -eq 1 ] && [ "${GATE_ARGS[0]}" = "--report" ]; }; then
+    cd "$GATE_ROOT"
 fi
-exec python3 - "$@" <<'PY'
+exec python3 -B - "$GATE_ROOT/scripts/lib" "$@" <<'PY'
 import os
 import re
 import sys
 from collections import defaultdict
 
-args = sys.argv[1:]
+sys.path.insert(0, sys.argv[1])
+import gate_scope
+
+args, scope = gate_scope.parse(sys.argv[2:])
 report = False
 if args and args[0] == "--report":
     report = True
@@ -150,7 +157,7 @@ for enum, name, path, number in variant_lines:
     if (enum, name) in built_from_display:
         hits.append(("string-variant", path, number))
 
-hits = [h for h in hits if is_selected(h[1])]
+hits = [h for h in hits if is_selected(h[1]) and gate_scope.in_scope(h[1], scope)]
 
 categories = ("map-err-string", "result-string", "string-variant")
 

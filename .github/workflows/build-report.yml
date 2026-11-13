@@ -1,7 +1,7 @@
 name: Build report
 
 # Informational: crate-closure counts and stripped release binary size per
-# reference composition (scripts/build-report-compositions.txt), plus
+# reference composition (scripts/build-compositions.txt), plus
 # `cargo bloat --crates` and `cargo build --timings` for the largest. A
 # workflow of its own and never a required check, so a slow or failed report
 # never changes the conclusion of a gate run that release-proof.py reads.
@@ -28,7 +28,7 @@ on:
     branches: [future]
     paths:
       - scripts/build-report.sh
-      - scripts/build-report-compositions.txt
+      - scripts/build-compositions.txt
       - .github/workflows/build-report.yml
 
 concurrency:

@@ -9,8 +9,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use async_trait::async_trait;
 use systemprompt_extension::{
-    Extension, ExtensionContext, ExtensionMetadata, ExtensionRouter, LoaderError,
-    SchemaDefinition,
+    Extension, ExtensionContext, ExtensionMetadata, ExtensionRouter, LoaderError, SchemaDefinition,
 };
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_provider_contracts::{Job, JobContext, JobResult, ProviderResult};
