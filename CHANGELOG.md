@@ -5,6 +5,7 @@
 ### Fixed
 
 - **Configuration:** a disk hook's `command` and a skill's carried-through `frontmatter` are never rewritten by services `${VAR}` interpolation, so a placeholder the client expands, such as `${CLAUDE_PLUGIN_ROOT}` or `${CLAUDE_SKILL_DIR}`, loads as written instead of failing the load as an unset variable.
+- **Configuration:** a services placeholder naming a variable the client expands in a delivered plugin (`CLAUDE_PLUGIN_ROOT`, `CLAUDE_PLUGIN_DATA`, `CLAUDE_SKILL_DIR`, `CLAUDE_PROJECT_DIR`) is left as written in every field and is never read from the server's environment (`services::interpolation::CLIENT_EXPANDED_VARIABLES`).
 
 ## [0.81.0] - 2026-11-12
 

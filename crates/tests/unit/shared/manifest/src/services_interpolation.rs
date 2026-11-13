@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use serde_yaml::Value;
 use systemprompt_manifest::env::InterpolationError;
 use systemprompt_manifest::services::interpolation::{
-    ServicesInterpolation, interpolate_services_yaml,
+    CLIENT_EXPANDED_VARIABLES, ServicesInterpolation, interpolate_services_yaml,
 };
 
 fn run(
@@ -163,4 +163,48 @@ fn a_sibling_of_a_verbatim_key_still_fails_on_an_unset_variable() {
     let err = run(yaml, &[], ServicesInterpolation::Resolve)
         .expect_err("a non-verbatim field with an unset variable fails the load");
     assert!(format!("{err}").contains("SKILL_FILE"), "{err}");
+}
+
+#[test]
+fn a_client_expanded_variable_is_left_as_written_in_any_field_and_never_read_from_the_server() {
+    for name in CLIENT_EXPANDED_VARIABLES {
+        let yaml = format!(
+            "mcp_servers:\n  docs:\n    env:\n      ROOT: \"${{{name}}}/bin\"\n    url: \"${{PROXY_URL}}/${{{name}}}\"\n"
+        );
+        let (value, unresolved) = run(
+            &yaml,
+            &[(name, "/server/side/value"), ("PROXY_URL", "https://proxy")],
+            ServicesInterpolation::Resolve,
+        )
+        .expect("a client-expanded variable never fails the load");
+        assert!(unresolved.is_empty(), "{name}");
+        assert_eq!(
+            at(&value, &["mcp_servers", "docs", "env", "ROOT"]),
+            format!("${{{name}}}/bin"),
+            "{name}"
+        );
+        assert_eq!(
+            at(&value, &["mcp_servers", "docs", "url"]),
+            format!("https://proxy/${{{name}}}"),
+            "{name}"
+        );
+    }
+}
+
+#[test]
+fn a_server_variable_that_only_resembles_a_client_one_still_resolves_or_fails() {
+    let yaml = "mcp_servers:\n  docs:\n    env:\n      DIR: ${CLAUDE_CONFIG_DIR}\n";
+    let err = run(yaml, &[], ServicesInterpolation::Resolve)
+        .expect_err("an unset server variable fails the load");
+    assert!(format!("{err}").contains("CLAUDE_CONFIG_DIR"), "{err}");
+    let (value, _) = run(
+        yaml,
+        &[("CLAUDE_CONFIG_DIR", "/srv/claude")],
+        ServicesInterpolation::Resolve,
+    )
+    .expect("a set server variable resolves");
+    assert_eq!(
+        at(&value, &["mcp_servers", "docs", "env", "DIR"]),
+        "/srv/claude"
+    );
 }
