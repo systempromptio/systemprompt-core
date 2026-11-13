@@ -1,0 +1,39 @@
+[root]
+section = "Breaking"
+area = "Jobs"
+text = "`submit_job!`, `register_retention_purge!`, `register_retention_sweep!` and `submit_projection_drain!` take the owning extension id as their first argument, and the inventory collects `JobRegistration` (read with `registered_jobs()`) instead of `&'static dyn Job`. Migrate by writing `submit_job!(\"<extension id>\", &Job)`."
+
+[[crate]]
+name = "systemprompt-agent-runs"
+section = "Changed"
+text = "Jobs are registered with the owning extension id."
+
+[[crate]]
+name = "systemprompt-generator"
+section = "Changed"
+text = "Jobs are registered with the owning extension id, and prerender contexts extend the extension state."
+
+[[crate]]
+name = "systemprompt-brain"
+section = "Changed"
+text = "Jobs are registered with the owning extension id."
+
+[[crate]]
+name = "systemprompt-files"
+section = "Changed"
+text = "Jobs are registered with the owning extension id."
+
+[[crate]]
+name = "systemprompt-notifications"
+section = "Changed"
+text = "Jobs are registered with the owning extension id."
+
+[[crate]]
+name = "systemprompt-oauth"
+section = "Changed"
+text = "Jobs are registered with the owning extension id."
+
+[[crate]]
+name = "systemprompt-traits"
+section = "Breaking"
+text = "`submit_job!`, `register_retention_purge!` and `register_retention_sweep!` take the owning extension id as their first argument, and the inventory collects `JobRegistration`, read with `registered_jobs()`. Migrate by writing `submit_job!(\"<extension id>\", &Job)`."

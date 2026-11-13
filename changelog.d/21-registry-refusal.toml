@@ -1,0 +1,9 @@
+[root]
+section = "Fixed"
+area = "Extensions"
+text = "an extension refused by `ExtensionRegistry::register` is not left registered."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Fixed"
+text = "`ExtensionRegistry::register` leaves the registry unchanged when it refuses an extension; `merge` orders the whole set once."

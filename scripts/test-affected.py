@@ -55,7 +55,7 @@ RULES = affected.parse_rules(
     "**/rust-toolchain*\n**/clippy.toml\n**/.cargo/**\n**/Cargo.lock\nCargo.toml\n"
     ".github/workflows/**\nscripts/**\njustfile\ncrates/tests/common/**\n**/schema/**\n"
     "**/.sqlx/**\ncrates/shared/ids/**\n**/*.md\ndocumentation/**\n"
-    "[none]\nLICENSE\n.gitignore\n"
+    "[none]\nLICENSE\n.gitignore\nchangelog.d/**\n**/CHANGELOG.md\n"
 )
 
 SHARDS = {
@@ -221,6 +221,25 @@ class Modes(unittest.TestCase):
 
     def test_none_section_only_is_none(self):
         self.assertEqual(run("LICENSE", ".gitignore")["mode"], "none")
+
+    def test_changelog_fragment_gates_nothing(self):
+        result = run("changelog.d/01-x.toml", "changelog.d/README.md")
+        self.assertEqual(result["mode"], "none")
+        self.assertEqual(result["reasons"], [])
+        self.assertEqual(result["scope_size"], 0)
+
+    def test_changelog_wins_over_markdown_and_crate_ownership(self):
+        result = run("CHANGELOG.md", "crates/domain/agent/CHANGELOG.md")
+        self.assertEqual(result["mode"], "none")
+        self.assertEqual(result["changed_crates"], [])
+
+    def test_other_markdown_still_forces_full(self):
+        self.assertEqual(run("crates/domain/agent/README.md")["mode"], "full")
+
+    def test_committed_table_lists_changelogs_as_none(self):
+        rules = affected.parse_rules(affected.FORCE_FULL.read_text())
+        self.assertIn("changelog.d/**", rules["none"])
+        self.assertIn("**/CHANGELOG.md", rules["none"])
 
     def test_rename_counts_both_sides(self):
         with tempfile.TemporaryDirectory() as directory:

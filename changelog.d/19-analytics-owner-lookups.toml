@@ -1,0 +1,9 @@
+[root]
+section = "Changed"
+area = "Analytics"
+text = "`behavioral_analysis` and `malicious_ip_blacklist` ban through the `IpBanStore` the users extension provides, and fail rather than detect without enforcing when none is present; `cleanup_empty_contexts` asks the MCP and governance owners which contexts their audit rows still reference and fails rather than deletes when a lookup is absent."
+
+[[crate]]
+name = "systemprompt-governance"
+section = "Added"
+text = "`GovernanceDecisionRetention::contexts_with_decisions`."

@@ -1,22 +1,5 @@
 # Changelog
 
-## [0.82.0] - 2026-11-13
-
-### Breaking
-
-- `ExtensionContext::dependencies` is replaced by `extension_state`, returning `provider_contracts::Dependencies`; `Extension` gains `provide` and `requires`. Migrate by implementing `extension_state` and reading collaborators from it.
-- `ExtensionRouter::new` takes an `AuthzPolicy` and a `ContextKind`; `ExtensionRouter::public`, `requires_auth`, `Extension::router_config` and `ExtensionRouterConfig` are removed. Migrate with `new(router, path, AuthzPolicy::user(), ContextKind::User)` or `AuthzPolicy::public()` with `ContextKind::Public`.
-- `ExtensionRegistry::build_state` takes the kernel `Dependencies` and the disabled-extension list; `api_routers` and `all_readiness_checks` take the disabled set and return `Result`; `job_extensions` is removed.
-- `LoaderError::{SchemaInstallationFailed, MigrationFailed, InitializationFailed}` are replaced by sourced `SchemaFault`, `MigrationFault` and `MissingProvider`; `ConfigValidationFailed` carries `ExtensionConfigError`; `LoaderError` gains `ProvideFailed` and `UnmetStateRequirement`.
-
-### Added
-
-- `AuthzPolicy`, `RouteGroup`, `RouteProtection`, `RateLimit`, `RateBudget`, `ProtectionLayer`, `StateBuilder`, `StateRequirement`, `ExtensionStateError` and `ExtensionRegistry::enabled_extensions`.
-
-### Fixed
-
-- `ExtensionRegistry::register` leaves the registry unchanged when it refuses an extension; `merge` orders the whole set once.
-
 ## [0.81.0] - 2026-11-12
 
 ### Added

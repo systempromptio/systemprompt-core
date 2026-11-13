@@ -68,4 +68,5 @@ lint-core-globals           unit    cheap    0.5s; stale allowlist entries in fu
 lint-serde-aliases          unit    cheap    0.8s; stale allowlist entries in full mode only
 lint-bridge-file-size       unit    cheap    0.4s
 lint-repo-hygiene           global  cheap    0.1s; every tracked path
+changelog-check             global  cheap    0.1s; every changelog.d fragment against the published crates
 check-removed-config-names  unit    cheap    1.3s

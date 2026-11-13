@@ -9,15 +9,16 @@
 # What it does: on a clean tree at origin/next that already contains origin/main
 # and whose push run is green in the cloud, bump the workspace, sync the
 # dependency pins, facade snippets and bridge pins, refresh every tracked
-# workspace lockfile, require the version strings to agree, and fold it into one
-# release commit. No local build or test: the push run of the release commit is
+# workspace lockfile, assemble the changelog fragments (changelog.d/) into the
+# root and per-crate CHANGELOG.md, require the version strings and the crate
+# changelogs to agree, and fold it into one release commit. No local build or test: the push run of the release commit is
 # the proof.
 #
 # Usage:
 #   scripts/release.sh <patch|minor|major> [--dry-run]
 #
-# --dry-run performs every check and lists the files the bump would rewrite;
-# it changes nothing.
+# --dry-run performs every check, lists the files the bump would rewrite and
+# prints the changelog blocks the fragments assemble into; it changes nothing.
 set -euo pipefail
 
 BUMP=""
@@ -69,6 +70,7 @@ case "$BUMP" in
   minor) NEW_VERSION="$MAJ.$((MIN+1)).0" ;;
   major) NEW_VERSION="$((MAJ+1)).0.0" ;;
 esac
+RELEASE_DATE="$(date -u +%F)"
 
 RELEASE_FILES=(Cargo.toml bin/bridge/Cargo.toml systemprompt/src/lib.rs systemprompt/README.md)
 for m in "${LOCK_MANIFESTS[@]}"; do RELEASE_FILES+=("${m#./}/Cargo.lock"); done
@@ -79,6 +81,8 @@ if [[ "$DRY_RUN" -eq 1 ]]; then
   just check-version-strings
   echo "==> dry run: $OLD_VERSION -> $NEW_VERSION would rewrite:"
   printf '    %s\n' "${RELEASE_FILES[@]}"
+  echo "==> dry run: changelog blocks for $NEW_VERSION"
+  python3 "$SCRIPT_DIR/changelog-assemble.py" --version "$NEW_VERSION" --date "$RELEASE_DATE" --dry-run
   exit 0
 fi
 
@@ -100,8 +104,12 @@ for m in "${LOCK_MANIFESTS[@]}"; do
   cargo update --workspace --manifest-path "$m/Cargo.toml" >/dev/null
 done
 
+echo "==> assemble changelog fragments -> $NEW_VERSION ($RELEASE_DATE)"
+python3 "$SCRIPT_DIR/changelog-assemble.py" --version "$NEW_VERSION" --date "$RELEASE_DATE"
+
 echo "==> release commit"
 git add "${RELEASE_FILES[@]}"
+git add -A -- changelog.d ':(glob)**/CHANGELOG.md'
 git commit -q -m "Release $NEW_VERSION"
 echo "Bumped to ${NEW_VERSION} at $(git rev-parse --short HEAD)."
 
@@ -112,12 +120,17 @@ if ! just check-version-strings; then
   echo "       just check-version-strings && git add -u && git commit --amend --no-edit" >&2; exit 1
 fi
 
+echo "==> crate changelogs"
+if ! just check-crate-changelogs; then
+  echo "error: a changed crate has no $NEW_VERSION entry. The bump commit exists; add the entry to" >&2
+  echo "       that crate's CHANGELOG.md and amend it in: git add -u && git commit --amend --no-edit" >&2; exit 1
+fi
+
 cat <<EOF
 
 Still manual (internal/release.md §1c):
 root README.md, AGENTS.md, documentation/**, per-crate README snippets,
-CHANGELOGs (root, bin/bridge, every changed crate — \`just check-crate-changelogs\`),
-per-crate .sqlx if SQL changed. Amend them into the release commit.
+per-crate .sqlx if SQL changed (\`just regen\`). Amend them into the release commit.
 
 Then — every check below runs in the cloud:
   git push origin HEAD:next       # CI, Quality, Supply Chain run on the push

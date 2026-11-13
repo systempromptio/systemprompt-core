@@ -1,0 +1,14 @@
+[root]
+section = "Breaking"
+area = "Authorization hooks"
+text = "`AuthzWiring` and `AuthzHookContext` gain a `state` field (`StateHandle`), through which a hook factory reads the extension state once the host binds it; a read before the bind fails closed. Migrate by setting the field in struct literals."
+
+[[crate]]
+name = "systemprompt-marketplace"
+section = "Changed"
+text = "Authorization hook wiring carries the extension state handle."
+
+[[crate]]
+name = "systemprompt-governance"
+section = "Breaking"
+text = "`AuthzWiring` and `AuthzHookContext` gain a `state: StateHandle` field; a read before the host binds it fails closed. Migrate by setting the field in struct literals."

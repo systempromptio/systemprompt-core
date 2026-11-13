@@ -1,0 +1,9 @@
+[root]
+section = "Changed"
+area = "Scheduler"
+text = "`database_cleanup` deletes through the `RetentionPurge` registered for each table and `backfill_rollups` drains the projections owners declare; the scheduler depends on no capability crate, and a job runs inside the scopes linked crates register (the files crate sets the system document actor). A manual run of a job whose extension the profile disables is refused naming the extension, distinct from a job that is not linked."
+
+[[crate]]
+name = "systemprompt-scheduler"
+section = "Changed"
+text = "`database_cleanup` deletes through registered `RetentionPurge`s, `backfill_rollups` drains registered projections, and job runs execute inside registered `JobRunScope`s. The crate depends on no capability crate."

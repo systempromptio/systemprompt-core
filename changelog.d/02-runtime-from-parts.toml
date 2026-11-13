@@ -1,0 +1,9 @@
+[root]
+section = "Breaking"
+area = "Runtime"
+text = "`AppContext::from_parts` builds and binds the extension state itself, so every context carries the values its enabled extensions provide: it takes a `&StateHandle`, returns `RuntimeResult<Self>`, and `Plugins` no longer carries the state. Migrate by passing the authz state handle and propagating the error."
+
+[[crate]]
+name = "systemprompt-runtime"
+section = "Breaking"
+text = "`AppContext::from_parts` builds and binds the extension state itself: it takes a `&StateHandle`, returns `RuntimeResult<Self>`, and `Plugins` no longer carries the state. Migrate by passing the authz state handle and propagating the error."

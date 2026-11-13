@@ -1,0 +1,14 @@
+[root]
+section = "Breaking"
+area = "Extensions"
+text = "an extension contributes typed values at boot through `Extension::provide` and names the types it cannot run without through `Extension::requires`; `ExtensionContext::dependencies` is replaced by `ExtensionContext::extension_state`, which returns the one `provider_contracts::Dependencies` map seeded with the kernel's handles. A requirement no enabled extension provides, or an extension providing a type the kernel already holds, fails boot (`LoaderError::UnmetStateRequirement`, `LoaderError::ProvideFailed`). Migrate by implementing `extension_state` on a custom `ExtensionContext` and reading collaborators from it."
+
+[[crate]]
+name = "systemprompt-runtime"
+section = "Breaking"
+text = "`AppContext` builds the extension state at boot and fails with `RuntimeError::ExtensionState` on an unmet requirement or a duplicate provider. Migrate by handling the new variant."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "`ExtensionContext::dependencies` is replaced by `extension_state`, returning `provider_contracts::Dependencies`; `Extension` gains `provide` and `requires`. Migrate by implementing `extension_state` and reading collaborators from it."

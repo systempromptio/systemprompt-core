@@ -180,9 +180,21 @@ lint-repo-construction *ARGS:
 check-release-tag:
     ./scripts/check-release-tag.sh
 
-# Every crate whose sources changed since the last release must say so.
+# Every crate whose sources changed since the last release must say so: a
+# changelog.d fragment names it, or its CHANGELOG.md carries the release heading.
 check-crate-changelogs:
     ./scripts/check-crate-changelogs.sh
+
+# Every changelog.d fragment is valid (changelog.d/README.md).
+changelog-check:
+    python3 scripts/changelog-assemble.py --check
+
+# Regenerate every committed derivative: migrate the test database, the .sqlx
+# caches (+ audit), the hakari crate and every workspace lockfile, then prove it
+# with `build-offline`. `--allow-prune` lets a cache shrink, `--no-proof` skips
+# the build, `--dry-run` prints the plan (scripts/regen.sh).
+regen *ARGS:
+    bash scripts/regen.sh {{ARGS}}
 
 # Every published version string must match [workspace.package].version
 check-version-strings:

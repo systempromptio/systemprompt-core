@@ -1,0 +1,34 @@
+[root]
+section = "Breaking"
+area = "Scheduler"
+text = "capability jobs are exported by their owning crates: `BehavioralAnalysisJob`, `MaliciousIpBlacklistJob`, `GhostSessionCleanupJob`, `NoJsCleanupJob`, `BackfillSessionGeoJob` by `systemprompt-analytics`; `UsageAnomalyScanJob`, `ThoughtSignatureCleanupJob` and `AiRequestToolFlagRollupJob` by `systemprompt-ai`; `CleanupEmptyContextsJob`, `UserContextCountersRollupJob` and `EmptyContextRepository` by `systemprompt-agent`; `ToolRowFactsRollupJob` by `systemprompt-mcp`. `repository::{AnalyticsRepository, SecurityRepository, IpSessionRecord}` and `SchedulerRepository::{cleanup_empty_contexts, count_empty_contexts}` are removed, `SchedulerError` loses `Analytics`, `Managed` and `Mcp` and gains `DuplicateRetentionPurge` and `Extensions`, `otlp_export_now` takes an attribution lookup, and `JobExecutionService::new` takes no registry and reads the context's. Job names, schedules and parameters are unchanged. Migrate by importing each job from its owner."
+
+[[crate]]
+name = "systemprompt-scheduler"
+section = "Breaking"
+text = "Capability jobs are exported by `systemprompt-analytics`, `systemprompt-ai`, `systemprompt-agent` and `systemprompt-mcp`; `repository::{AnalyticsRepository, SecurityRepository, IpSessionRecord}` and `SchedulerRepository::{cleanup_empty_contexts, count_empty_contexts}` are removed. Migrate by importing each job from its owner."
+
+[[crate]]
+name = "systemprompt-scheduler"
+section = "Breaking"
+text = "`SchedulerError` loses `Analytics`, `Managed` and `Mcp` and gains `DuplicateRetentionPurge` and `Extensions`; `otlp_export_now` takes an attribution lookup; `JobExecutionService::new` takes no registry and reads the context's."
+
+[[crate]]
+name = "systemprompt-agent"
+section = "Added"
+text = "`jobs::{CleanupEmptyContextsJob, UserContextCountersRollupJob}` and `repository::EmptyContextRepository`, which takes the tool-execution lookup and keeps contexts an MCP execution or governance decision still references."
+
+[[crate]]
+name = "systemprompt-ai"
+section = "Added"
+text = "`jobs::{UsageAnomalyScanJob, ThoughtSignatureCleanupJob, AiRequestToolFlagRollupJob}`, the retention purges for the AI tables, and a provided `DynRequestAttributionLookup`."
+
+[[crate]]
+name = "systemprompt-analytics"
+section = "Added"
+text = "`jobs::{BehavioralAnalysisJob, MaliciousIpBlacklistJob, GhostSessionCleanupJob, NoJsCleanupJob, BackfillSessionGeoJob}` the extension requires a `DynIpBanStore`, and the IP detectors read per-IP session counts through `SessionStore::ip_session_counts`."
+
+[[crate]]
+name = "systemprompt-mcp"
+section = "Added"
+text = "`jobs::ToolRowFactsRollupJob` and the tool-usage retention purge; `jobs` is public. The extension provides `DynToolExecutionLookup`."

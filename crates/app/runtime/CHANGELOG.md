@@ -1,16 +1,5 @@
 # Changelog
 
-## [0.82.0] - 2026-11-13
-
-### Breaking
-
-- `AppContext` builds the extension state at boot and fails with `RuntimeError::ExtensionState` on an unmet requirement or a duplicate provider. Migrate by handling the new variant.
-- `AppContext::from_parts` builds and binds the extension state itself: it takes a `&StateHandle`, returns `RuntimeResult<Self>`, and `Plugins` no longer carries the state. Migrate by passing the authz state handle and propagating the error.
-
-### Added
-
-- `kernel_state` seeds the extension state with the kernel's handles, the analytics repositories and the GeoIP reader when configured.
-
 ## [0.81.0] - 2026-11-12
 
 ### Breaking

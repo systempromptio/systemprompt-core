@@ -2,8 +2,11 @@
 # One glob per line, anchored at the repository root: `**` spans directories,
 # `*` and `?` stay within one path segment. `#` starts a comment.
 #
-# The `[none]` section lists paths with no gate consequence at all. A path in
-# neither section that no crate owns is gated in full.
+# The `[none]` section lists paths with no gate consequence at all, and takes
+# precedence over `[full]` and over crate ownership. A path in neither section
+# that no crate owns is gated in full. The global source gates run in every
+# mode, so a `[none]` change is still judged by them (a changelog fragment by
+# `changelog-check` and `lint-repo-hygiene`).
 
 [full]
 # Toolchain, lint and build configuration
@@ -42,3 +45,8 @@ LICENSE
 renovate.json
 # Coverage upload settings: coverage is a measurement, not a gate
 codecov.yml
+# Changelog fragments: judged by the global `changelog-check` and hygiene gates
+changelog.d/**
+# Changelogs: written by the release bump, whose Cargo.toml and lockfile
+# changes gate it in full; no build, test or crate gate reads them
+**/CHANGELOG.md

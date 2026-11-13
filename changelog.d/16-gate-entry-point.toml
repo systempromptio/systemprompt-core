@@ -1,0 +1,4 @@
+[root]
+section = "Added"
+area = "Tooling"
+text = "`scripts/gate.sh` is the one gate entry point (`--unit`, `--changed`, `--full`) over the scope `scripts/affected.py` selects from `scripts/units.txt`; every unit source gate accepts `--paths`; `scripts/flow-report.py` and `scripts/build-report.sh` report delivery flow and per-composition build size, each with an informational workflow."

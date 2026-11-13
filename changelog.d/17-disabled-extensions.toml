@@ -1,0 +1,9 @@
+[root]
+section = "Changed"
+area = "Extensions"
+text = "the router, site-auth gate, readiness checks, state contributions, jobs, retention purges and projection drains of an extension disabled in the profile are not built, mounted or run."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Changed"
+text = "Routers, site-auth gates and readiness checks come only from extensions enabled in the profile; public extension routers run behind the public context middleware and authorization gate."

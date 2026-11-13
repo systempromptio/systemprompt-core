@@ -39,10 +39,8 @@ if ! command -v grep >/dev/null 2>&1; then
 fi
 
 # shellcheck disable=SC2207
-files=($(find "${ROOTS[@]}" -type f -name '*.sql' \
-    -path '*/schema/*' \
-    -not -path '*/schema/migrations/*' \
-    -not -path '*/target/*' \
+files=($(find "${ROOTS[@]}" \( -name target -o -name 'target-*' \) -prune \
+    -o -type f -name '*.sql' -path '*/schema/*' -not -path '*/schema/migrations/*' -print \
     | sort))
 
 if [ ${#files[@]} -eq 0 ]; then

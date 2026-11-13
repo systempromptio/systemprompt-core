@@ -16,6 +16,13 @@ if [ -n "$hits" ]; then
     exit 1
 fi
 echo "✓ no stray status/plan/report docs tracked"
+fragments=$(git ls-files --cached --others --exclude-standard -- changelog.d | grep -vE '^changelog\.d/([a-z0-9][a-z0-9-]*\.toml|README\.md)$' || true)
+if [ -n "$fragments" ]; then
+    echo "✗ changelog.d holds only <id>.toml fragments and its README (changelog.d/README.md):" >&2
+    echo "$fragments" | sed 's/^/    /' >&2
+    exit 1
+fi
+echo "✓ changelog.d holds only fragments"
 build=$(git ls-files | grep -E '(^|/)target(-[^/]+)?/' || true)
 if [ -n "$build" ]; then
     echo "✗ cargo build output tracked ($(echo "$build" | wc -l) files):" >&2

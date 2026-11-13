@@ -1,0 +1,29 @@
+[root]
+section = "Added"
+area = "Jobs"
+text = "`systemprompt_traits::{RetentionPurge, RetentionSweep, JobRunScope, IpBanStore}` with their registration macros, `systemprompt_database::projection::{ProjectionDrain, drain_projection, registered_drains}`, `systemprompt_models::attribution::RequestAttributionLookup` and `systemprompt_scheduler::EnabledExtensions`."
+
+[[crate]]
+name = "systemprompt-scheduler"
+section = "Added"
+text = "`EnabledExtensions`: a job, retention purge, retention sweep or projection drain runs only while its owning extension is enabled."
+
+[[crate]]
+name = "systemprompt-files"
+section = "Added"
+text = "The files crate registers the job-run scope that sets the system document actor."
+
+[[crate]]
+name = "systemprompt-database"
+section = "Added"
+text = "`projection::{ProjectionDrain, drain_projection, ProjectionDrainContribution, registered_drains}` and `submit_projection_drain!`, which takes the owning extension id."
+
+[[crate]]
+name = "systemprompt-models"
+section = "Added"
+text = "`attribution::{RequestAttributionLookup, DynRequestAttributionLookup}`."
+
+[[crate]]
+name = "systemprompt-traits"
+section = "Added"
+text = "`RetentionPurge`, `RetentionSweep`, `JobRunScope` with `register_job_run_scope!` and `run_in_job_scopes`, and `IpBanStore`, `DynIpBanStore`, `IpBanRequest` and `IpBanStoreError`."

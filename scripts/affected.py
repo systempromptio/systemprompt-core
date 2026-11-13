@@ -12,9 +12,10 @@ affected crate directly, and every test crate reaching one of those, give the
 test packages, ignoring all edges into and out of the hakari crate. Test
 packages map onto the shard groups and archive sets of scripts/test-shard.sh.
 
-A path matching the `[full]` section of scripts/affected-force-full.txt, or
-owned by no package and matched by no rule, makes the result `full`. Paths in
-the `[none]` section have no gate consequence.
+A path matching the `[none]` section of scripts/affected-force-full.txt has no
+gate consequence, whatever else matches it. Otherwise a path matching the
+`[full]` section, or owned by no package and matched by no rule, makes the
+result `full`.
 
 `--check` verifies that scripts/units.txt names exactly the packages outside
 the test workspace, each with a valid unit.
@@ -153,6 +154,8 @@ def select(changed, graph, rules, shard_map, units, crates=()):
     tests = {d for d, n in graph.items() if n["workspace"] == TEST_WORKSPACE and n["name"] != HACK_CRATE}
     reasons, owners = [], crate_dirs(graph, crates)
     for path in changed:
+        if first_match(path, rules["none"]):
+            continue
         pattern = first_match(path, rules["full"])
         if pattern:
             reasons.append(f"{path}: matches force-full pattern {pattern}")
@@ -160,7 +163,7 @@ def select(changed, graph, rules, shard_map, units, crates=()):
         owner = owning_package(path, graph)
         if owner is not None:
             owners.add(owner)
-        elif first_match(path, rules["none"]) is None:
+        else:
             reasons.append(f"{path}: owned by no crate and matched by no rule")
 
     def name(dirs):

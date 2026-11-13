@@ -1,0 +1,9 @@
+[root]
+section = "Breaking"
+area = "API"
+text = "`discovery_router` and `probes_router` return `Result<Router, LoaderError>`, and an extension router whose declared policy admits no caller, whose context contradicts its policy, or whose body limit exceeds the 2 MiB server default fails boot with `MountError`. Migrate by propagating the error and lowering the declared limit."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Breaking"
+text = "`discovery_router` and `probes_router` return `Result<Router, LoaderError>`; an extension router whose declaration cannot be applied fails boot with `MountError`. Migrate by propagating the error."

@@ -1,0 +1,14 @@
+[root]
+section = "Added"
+area = "Extensions"
+text = "an extension router declares its rate limit (`RateLimit`, `RateBudget`), body limit, protection layers (`ProtectionLayer`), role group and enable predicate, and one mount function (`systemprompt_api::services::middleware::mount`) applies the declaration."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Added"
+text = "`services::middleware::mount` applies an extension router's declared policy, context, rate limit, body limit and protection layers."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Added"
+text = "`AuthzPolicy`, `RouteGroup`, `RouteProtection`, `RateLimit`, `RateBudget`, `ProtectionLayer`, `StateBuilder`, `StateRequirement`, `ExtensionStateError` and `ExtensionRegistry::enabled_extensions`."

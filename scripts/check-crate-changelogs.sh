@@ -5,21 +5,20 @@
 # against an undocumented crate, so this is the gate that enforces it.
 #
 # The invariant: a crate whose `src` changed between the newest release tag and
-# HEAD must carry a heading for the version in its manifest.
-#
-# It only fires while a release is in flight -- the manifest ahead of the newest
-# tag. Between releases `next` sits at the version already published and there
-# is no entry to name, so demanding one would fail every push and be silenced
-# within a day. On the not-pre-bumped path the bump and the entries land in the
-# same commit, which is exactly the commit this checks.
+# HEAD is named by a changelog fragment (`changelog.d/*.toml`, see
+# changelog.d/README.md), or -- once the release bump has assembled the
+# fragments -- its CHANGELOG.md carries a heading for the version in its
+# manifest. Between releases the fragment is the only way to satisfy it; while
+# a release is in flight (manifest ahead of the newest tag) either is.
 #
 # A shallow checkout has neither the tag nor the history to diff, and every
 # crate would read as unchanged -- a gate green because it could not run. That
 # exits 2, not 0, so the failure is loud either way. The CI job carries
-# `fetch-depth: 0` for this reason.
+# `fetch-depth: 0` for this reason. An invalid fragment exits 2 as well:
+# `changelog-assemble.py --check` names it.
 set -uo pipefail
 
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/.." || exit 2
 
 MANIFEST="Cargo.toml"
 
@@ -37,18 +36,18 @@ git rev-parse --quiet --verify HEAD >/dev/null \
 
 LATEST=${TAG#v}
 
-if [ "$CURRENT" = "$LATEST" ]; then
-    echo "check-crate-changelogs: workspace at $CURRENT, the version $TAG already published -- no release in flight, nothing to name"
-    exit 0
-fi
+IN_FLIGHT=1
+[ "$CURRENT" = "$LATEST" ] && IN_FLIGHT=0
 
-if [ "$(printf '%s\n%s\n' "$CURRENT" "$LATEST" | sort -V | head -1)" = "$CURRENT" ]; then
+if [ "$IN_FLIGHT" -eq 1 ] && [ "$(printf '%s\n%s\n' "$CURRENT" "$LATEST" | sort -V | head -1)" = "$CURRENT" ]; then
     echo "check-crate-changelogs: workspace version $CURRENT is older than the newest tag $TAG" >&2
     exit 2
 fi
 
-CHANGED=$(git diff --name-only "$TAG" HEAD -- 'crates/*/src/*' 2>/dev/null)
-if [ $? -ne 0 ]; then
+NAMED=$(python3 scripts/changelog-assemble.py --named-crates) \
+    || { echo "check-crate-changelogs: changelog fragments do not validate (scripts/changelog-assemble.py --check)" >&2; exit 2; }
+
+if ! CHANGED=$(git diff --name-only "$TAG" HEAD -- 'crates/*/src/*' 2>/dev/null); then
     echo "check-crate-changelogs: cannot diff $TAG..HEAD -- unshallow the checkout (fetch-depth: 0)" >&2
     exit 2
 fi
@@ -76,23 +75,36 @@ while IFS= read -r crate; do
     esac
     [ -n "$VERSION" ] || { echo "check-crate-changelogs: could not read version of $crate" >&2; exit 2; }
 
+    NAME=$(awk '/^\[package\]/{p=1;next}/^\[/{p=0}p&&/^name[[:space:]]*=/{gsub(/[[:space:]"]/,"");sub(/^name=/,"");print;exit}' "$crate/Cargo.toml")
+    [ -n "$NAME" ] || { echo "check-crate-changelogs: could not read package name of $crate" >&2; exit 2; }
+
     CHECKED=$((CHECKED + 1))
 
-    if [ ! -f "$crate/CHANGELOG.md" ]; then
-        MISSING="$MISSING\n  $crate -- no CHANGELOG.md (needs a $VERSION entry)"
+    grep -qxF "$NAME" <<< "$NAMED" && continue
+
+    if [ "$IN_FLIGHT" -eq 1 ] && [ -f "$crate/CHANGELOG.md" ] \
+        && grep -qE "^##[[:space:]]+\[?${VERSION//./\\.}\]?([[:space:]]|$)" "$crate/CHANGELOG.md"; then
         continue
     fi
 
-    grep -qE "^##[[:space:]]+\[?${VERSION//./\\.}\]?([[:space:]]|$)" "$crate/CHANGELOG.md" \
-        || MISSING="$MISSING\n  $crate -- CHANGELOG.md has no heading for $VERSION"
+    if [ "$IN_FLIGHT" -eq 1 ]; then
+        MISSING="$MISSING\n  $crate ($NAME) -- no changelog.d fragment names it and CHANGELOG.md has no heading for $VERSION"
+    else
+        MISSING="$MISSING\n  $crate ($NAME) -- no changelog.d fragment names it"
+    fi
 done <<< "$CRATES"
 
 if [ -n "$MISSING" ]; then
     echo "check-crate-changelogs: crates changed since $TAG with nothing to show for it:" >&2
     printf '%b\n' "$MISSING" >&2
     echo "" >&2
-    echo "Add a '## [<version>] - <date>' section to each, describing that crate's own diff since $TAG." >&2
+    echo "Add a changelog.d/<id>.toml fragment with a [[crate]] entry for each (changelog.d/README.md)," >&2
+    echo "describing that crate's own diff since $TAG." >&2
     exit 1
 fi
 
-echo "check-crate-changelogs: $CHECKED crate(s) changed since $TAG, all carry a $CURRENT entry"
+if [ "$IN_FLIGHT" -eq 1 ]; then
+    echo "check-crate-changelogs: $CHECKED crate(s) changed since $TAG, each named by a fragment or a $CURRENT heading"
+else
+    echo "check-crate-changelogs: $CHECKED crate(s) changed since $TAG, each named by a fragment"
+fi
