@@ -27,6 +27,9 @@
 set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/lib/gate-scope.sh"
 gate_scope_parse "$@"
+roots_given=0
+for arg in "${GATE_ARGS[@]}"; do [ "$arg" = "--report" ] || roots_given=$((roots_given + 1)); done
+gate_require_one_scope "$roots_given"
 if [ "${#GATE_ARGS[@]}" -eq 0 ] || { [ "${#GATE_ARGS[@]}" -eq 1 ] && [ "${GATE_ARGS[0]}" = "--report" ]; }; then
     cd "$GATE_ROOT"
 fi

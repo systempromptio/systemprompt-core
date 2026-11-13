@@ -40,6 +40,7 @@ while [ "$#" -gt 0 ]; do
         *) ROOTS+=("$1"); shift ;;
     esac
 done
+gate_require_one_scope "${#ROOTS[@]}"
 PROD_ROOTS=("${ROOTS[@]}")
 if [ "${#ROOTS[@]}" -eq 0 ]; then
     cd "$GATE_ROOT"

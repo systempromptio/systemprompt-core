@@ -48,6 +48,7 @@ while [ "$#" -gt 0 ]; do
     esac
 done
 
+gate_require_one_scope "${#SCAN_ROOT}"
 if [ -n "$SCAN_ROOT" ]; then
     mapfile -t files < <(find "$SCAN_ROOT" -type f -path '*/schema/migrations/*.sql' -not -path '*/target/*' | sort)
 else

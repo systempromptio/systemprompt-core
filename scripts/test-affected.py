@@ -18,6 +18,8 @@ ROOT = Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location("affected", ROOT / "scripts" / "affected.py")
 affected = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(affected)
+sys.path.insert(0, str(ROOT / "scripts" / "lib"))
+import units  # noqa: E402
 
 
 def node(name, workspace, *deps):
@@ -273,14 +275,32 @@ class Units(unittest.TestCase):
 
     def test_unit_table_rejects_bad_rows(self):
         for text in ("a kernel extra\n", "a capability:\n", "a kernel\na tooling\n", "a core\n"):
-            with self.subTest(text=text), self.assertRaises(affected.SelectorError):
-                affected.parse_units(text)
+            with self.subTest(text=text), self.assertRaises(units.UnitsError):
+                units.parse_units(text)
 
     def test_committed_table_names_every_workspace_package(self):
         out = io.StringIO()
         with redirect_stdout(out):
             code = affected.main(["--check"])
         self.assertEqual(code, 0, out.getvalue())
+
+
+class CrateSeeds(unittest.TestCase):
+    def test_crates_seed_like_a_changed_file(self):
+        seeded = affected.select([], GRAPH, RULES, SHARDS, UNITS, crates=["db"])
+        self.assertEqual(seeded, run("crates/infra/db/src/lib.rs"))
+
+    def test_unknown_crate_is_an_error(self):
+        with self.assertRaises(affected.SelectorError):
+            affected.select([], GRAPH, RULES, SHARDS, UNITS, crates=["nope"])
+
+    def test_dirs_accompany_names(self):
+        result = run("crates/domain/agent/src/lib.rs")
+        self.assertEqual(result["affected_dirs"], ["crates/domain/agent", "crates/entry/api", "crates/tests/bench"])
+        self.assertIn("crates/tests/unit/domain/agent", result["test_dirs"])
+
+    def test_unit_dirs_select_by_unit(self):
+        self.assertEqual(units.unit_dirs(GRAPH, UNITS, "kernel"), ["crates/entry/api", "crates/infra/db", "crates/shared/ids"])
 
 
 class Output(unittest.TestCase):

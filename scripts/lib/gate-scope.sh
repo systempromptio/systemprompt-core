@@ -87,6 +87,22 @@ gate_allowlist() {
     return 0
 }
 
+# Two scope operations, owned here and never mixed:
+#
+#   --paths P...  narrows THIS repository's default roots (unit-gate scope).
+#   ROOT...       positional; scans ANOTHER tree (an install, a test fixture) in
+#                 place of the defaults, with its own allowlist.
+#
+# A gate that accepts ROOTs calls gate_require_one_scope with its ROOT count
+# before choosing roots, so `ROOT... --paths P...` is refused rather than one
+# silently winning.
+gate_require_one_scope() {
+    if [ "$1" -gt 0 ] && ! gate_full_mode; then
+        echo "gate-scope: explicit ROOTs scan another tree and --paths narrows this one; pass one, not both" >&2
+        exit 2
+    fi
+}
+
 # Every file under each explicit ROOT (a file or directory, inside this
 # repository or not), printed as ROOT/<path>: tracked plus untracked-not-ignored
 # when ROOT sits in a git work tree, every file otherwise. The alternate-tree

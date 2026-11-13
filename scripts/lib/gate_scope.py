@@ -26,10 +26,27 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[2]
 PATHS_FLAG = "--paths"
+GATE_LIST = ROOT / "scripts" / "check-gates.txt"
+GATE_TABLE = ROOT / "scripts" / "gate-scopes.txt"
 
 
 class ScopeError(Exception):
     """A malformed `--paths` argument list."""
+
+
+def gate_list(path=GATE_LIST):
+    """The source gates of scripts/check-gates.txt, in run order."""
+    return [line.strip() for line in Path(path).read_text().splitlines() if line.strip()]
+
+
+def gate_table(path=GATE_TABLE):
+    """`{gate: {"scope", "cost", "notes"}}` from scripts/gate-scopes.txt."""
+    table = {}
+    for line in Path(path).read_text().splitlines():
+        if line.strip() and not line.startswith("#"):
+            fields = line.split(None, 3)
+            table[fields[0]] = {"scope": fields[1], "cost": fields[2], "notes": fields[3] if len(fields) > 3 else ""}
+    return table
 
 
 def parse(argv):

@@ -56,7 +56,7 @@ command -v python3 >/dev/null || { echo "lint-layers: python3 not found"; exit 1
 cargo metadata --no-deps --format-version 1 | python3 -c '
 import json, sys
 from collections import defaultdict
-sys.path.insert(0, "scripts")
+sys.path.insert(0, "scripts/lib")
 from cargo_graph import PRODUCTION_KINDS, packages_by_name, production_edges
 
 ORDER = {"shared": 0, "infra": 1, "domain": 2, "app": 3, "entry": 4, "facade": 5}

@@ -2,7 +2,9 @@
 """Affected-set selector: given changed files, what must be gated.
 
 Changed files come from `--base SHA [--head SHA]` (a rename counts on both
-sides), `--files PATH...`, or stdin (one path per line). Each file is assigned
+sides), `--files PATH...`, or stdin (one path per line); `--crates NAME...`
+seeds the selection with packages by name instead, as though a file of each
+had changed. Each file is assigned
 to the package owning it (nearest ancestor package manifest, across every
 workspace in the repository). The production reverse closure over normal and
 build edges gives the affected crates; the test-workspace crates reaching an
@@ -25,19 +27,18 @@ import re
 import subprocess
 import sys
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from cargo_graph import PRODUCTION_KINDS, repo_graph
+from units import UnitsError, load_units
 
 ROOT = Path(__file__).resolve().parents[1]
 FORCE_FULL = ROOT / "scripts" / "affected-force-full.txt"
-UNITS = ROOT / "scripts" / "units.txt"
 TEST_SHARD = ROOT / "scripts" / "test-shard.sh"
 
 ROOT_WORKSPACE = "."
 TEST_WORKSPACE = "crates/tests"
 BRIDGE_WORKSPACE = "bin/bridge"
 HACK_CRATE = "systemprompt-test-hack"
-UNIT_PATTERN = re.compile(r"^(kernel|tooling|capability:[a-z][a-z0-9-]*)$")
 
 
 class SelectorError(Exception):
@@ -99,21 +100,6 @@ def owning_package(path, package_dirs):
     return None
 
 
-def parse_units(text):
-    units = {}
-    for number, raw in enumerate(text.splitlines(), 1):
-        line = raw.split("#", 1)[0].strip()
-        if not line:
-            continue
-        fields = line.split()
-        if len(fields) != 2 or not UNIT_PATTERN.match(fields[1]):
-            raise SelectorError(f"units line {number}: expected `<package> kernel|tooling|capability:<name>`")
-        if fields[0] in units:
-            raise SelectorError(f"units line {number}: {fields[0]} listed twice")
-        units[fields[0]] = fields[1]
-    return units
-
-
 def check_units(graph, units):
     """Problems with the unit table against the graph; empty when it is complete."""
     expected = {node["name"] for node in graph.values() if node["workspace"] != TEST_WORKSPACE}
@@ -152,11 +138,20 @@ def shard_groups_for(test_dirs, shard_map):
     return groups
 
 
-def select(changed, graph, rules, shard_map, units):
+def crate_dirs(graph, names):
+    """Package directories for package names; an unknown name is an error."""
+    by_name = {node["name"]: directory for directory, node in graph.items()}
+    unknown = sorted(set(names) - set(by_name))
+    if unknown:
+        raise SelectorError(f"no such package: {', '.join(unknown)}")
+    return {by_name[name] for name in names}
+
+
+def select(changed, graph, rules, shard_map, units, crates=()):
     changed = sorted({p.strip().removeprefix("./") for p in changed} - {""})
     production = {d for d, n in graph.items() if n["workspace"] != TEST_WORKSPACE}
     tests = {d for d, n in graph.items() if n["workspace"] == TEST_WORKSPACE and n["name"] != HACK_CRATE}
-    reasons, owners = [], set()
+    reasons, owners = [], crate_dirs(graph, crates)
     for path in changed:
         pattern = first_match(path, rules["full"])
         if pattern:
@@ -197,8 +192,10 @@ def select(changed, graph, rules, shard_map, units):
         "reasons": reasons,
         "changed_crates": name(owners),
         "affected_crates": name(affected),
+        "affected_dirs": sorted(affected),
         "clippy_packages": name(d for d in affected if graph[d]["workspace"] == ROOT_WORKSPACE),
         "test_packages": name(test_set),
+        "test_dirs": sorted(test_set),
         "shard_groups": groups,
         "archive_sets": archive_sets,
         "bridge": any(graph[d]["workspace"] == BRIDGE_WORKSPACE for d in affected),
@@ -262,27 +259,31 @@ def main(argv=None):
     source = parser.add_mutually_exclusive_group()
     source.add_argument("--base")
     source.add_argument("--files", nargs="*")
+    source.add_argument("--crates", nargs="+")
     source.add_argument("--check", action="store_true")
     parser.add_argument("--head", default="HEAD")
     parser.add_argument("--format", choices=("json", "github", "text"), default="json")
     args = parser.parse_args(argv)
     try:
         graph = repo_graph(ROOT)
-        units = parse_units(UNITS.read_text())
+        units = load_units()
         if args.check:
             problems = check_units(graph, units)
             for problem in problems:
                 print(f"  {problem}")
             print(f"affected: {'FAIL' if problems else 'OK'} — {len(units)} units listed")
             return 1 if problems else 0
-        if args.base:
+        crates = args.crates or ()
+        if args.crates:
+            changed = []
+        elif args.base:
             changed = changed_files(args.base, args.head)
         elif args.files is not None:
             changed = args.files
         else:
             changed = sys.stdin.read().splitlines()
-        result = select(changed, graph, parse_rules(FORCE_FULL.read_text()), load_shard_map(), units)
-    except (SelectorError, subprocess.CalledProcessError) as error:
+        result = select(changed, graph, parse_rules(FORCE_FULL.read_text()), load_shard_map(), units, crates)
+    except (SelectorError, UnitsError, subprocess.CalledProcessError) as error:
         print(f"affected: {error}", file=sys.stderr)
         return 2
     print(render(result, args.format))
