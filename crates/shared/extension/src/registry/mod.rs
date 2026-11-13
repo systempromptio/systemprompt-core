@@ -111,9 +111,9 @@ pub(crate) fn dependency_order(
 }
 
 fn order_key(by_id: &HashMap<String, Arc<dyn Extension>>, id: &str) -> (u32, String) {
-    by_id
-        .get(id)
-        .map_or((u32::MAX, String::new()), |e| (e.priority(), e.id().to_owned()))
+    by_id.get(id).map_or((u32::MAX, String::new()), |e| {
+        (e.priority(), e.id().to_owned())
+    })
 }
 
 fn topo_sort(by_id: &HashMap<String, Arc<dyn Extension>>) -> Result<Vec<String>, LoaderError> {

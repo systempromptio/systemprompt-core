@@ -129,8 +129,8 @@ fn default_state_is_empty() {
 
 #[test]
 fn provided_value_is_returned_by_get_and_require() {
-    let state = build(vec![Arc::new(StateExt::new("cache", Provides::Cache(7)))])
-        .expect("state builds");
+    let state =
+        build(vec![Arc::new(StateExt::new("cache", Provides::Cache(7)))]).expect("state builds");
 
     assert_eq!(state.len(), 1);
     assert_eq!(state.get::<Cache>().as_deref(), Some(&Cache(7)));
@@ -144,8 +144,8 @@ fn provided_value_is_returned_by_get_and_require() {
 
 #[test]
 fn clones_share_the_same_instance() {
-    let state = build(vec![Arc::new(StateExt::new("cache", Provides::Cache(1)))])
-        .expect("state builds");
+    let state =
+        build(vec![Arc::new(StateExt::new("cache", Provides::Cache(1)))]).expect("state builds");
     let clone = state.clone();
 
     let a = state.require::<Cache>().expect("cache");
@@ -155,11 +155,13 @@ fn clones_share_the_same_instance() {
 
 #[test]
 fn require_of_missing_type_names_the_type() {
-    let state = build(vec![Arc::new(StateExt::new("cache", Provides::Cache(1)))])
-        .expect("state builds");
+    let state =
+        build(vec![Arc::new(StateExt::new("cache", Provides::Cache(1)))]).expect("state builds");
 
     let err = state.require::<NeverProvided>().expect_err("not provided");
-    assert!(matches!(err, ExtensionStateError::Missing { type_name } if type_name.ends_with("NeverProvided")));
+    assert!(
+        matches!(err, ExtensionStateError::Missing { type_name } if type_name.ends_with("NeverProvided"))
+    );
     assert!(err.to_string().contains("NeverProvided"), "got: {err}");
 }
 
@@ -225,7 +227,9 @@ fn provider_failure_names_the_extension_and_keeps_the_cause() {
     let err = build(vec![Arc::new(StateExt::new("broken", Provides::Failure))])
         .expect_err("provide fails");
 
-    assert!(matches!(&err, LoaderError::ProvideFailed { extension, .. } if extension.as_str() == "broken"));
+    assert!(
+        matches!(&err, LoaderError::ProvideFailed { extension, .. } if extension.as_str() == "broken")
+    );
     let source = std::error::Error::source(&err).expect("provide error is the source");
     let cause = source.source().expect("provider cause is kept");
     assert_eq!(cause.to_string(), "cache warm-up failed");

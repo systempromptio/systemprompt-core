@@ -7,9 +7,9 @@
 //! sees the database, config, event router and background tasks through its
 //! `ExtensionContext`; it is built and its declared requirements validated
 //! before the notification and brain seams, routers, jobs and gateway guards
-//! are collected, so each of their factories reads the finished state. A failing step
-//! propagates as [`RuntimeError`](crate::error::RuntimeError); helpers live
-//! in [`assembly`].
+//! are collected, so each of their factories reads the finished state. A
+//! failing step propagates as [`RuntimeError`](crate::error::RuntimeError);
+//! helpers live in [`assembly`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
