@@ -169,7 +169,7 @@ impl UploadHandler<'_> {
             .await
             .map_err(|error| {
                 tracing::error!(error = %error, cause = ?std::error::Error::source(&error), "upload links were not issued by the API");
-                McpError::internal_error("the upload links could not be signed", None)
+                McpError::internal_error(error.tool_message("upload links"), None)
             })?;
         let summary = format!(
             "PUT {} parts of {} bytes to parts_url, then POST complete_url, sending upload_token \

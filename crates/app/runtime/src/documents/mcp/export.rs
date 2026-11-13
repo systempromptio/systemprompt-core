@@ -133,7 +133,7 @@ impl McpToolHandler for ExportHandler<'_> {
                 .await
                 .map_err(|error| {
                     tracing::error!(error = %error, cause = ?std::error::Error::source(&error), "document download link was not issued by the API");
-                    McpError::internal_error("the download link could not be signed", None)
+                    McpError::internal_error(error.tool_message("download link"), None)
                 })?;
                 let summary = format!("download link valid until {}", expires_at.to_rfc3339());
                 Ok((
