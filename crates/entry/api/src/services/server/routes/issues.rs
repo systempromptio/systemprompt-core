@@ -11,7 +11,7 @@ use super::RouteMountError;
 use super::protocol::MountCtx;
 use crate::routes::issues::{ISSUES_PATH, IssuesState, router};
 use crate::services::middleware::RouterExt;
-use crate::services::middleware::authz::AuthzPolicy;
+use systemprompt_extension::AuthzPolicy;
 
 pub(super) fn mount_issues(
     router_in: Router,

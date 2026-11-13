@@ -38,8 +38,8 @@ pub use dto::{
 pub use error::BrainHttpError;
 
 use crate::error::ApiHttpError;
-use crate::services::middleware::authz::AuthzPolicy;
 use crate::services::middleware::{RateLimitState, RouterExt, UserOnlyContextMiddleware};
+use systemprompt_extension::AuthzPolicy;
 
 /// Router-scoped state of the brain routes: the brain service, the recall
 /// the admin simulator runs, the brain profile and the user provider that

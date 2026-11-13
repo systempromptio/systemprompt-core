@@ -27,7 +27,8 @@
 //! # Module map
 //!
 //! - [`metadata`], [`router`], [`migration`] — value types describing the
-//!   extension surface.
+//!   extension surface; [`authz`] — the route authorization tier a router
+//!   declaration names.
 //! - The `Extension` trait and the [`register_extension!`] macro form the core
 //!   extensibility contract.
 //! - [`build`] — build-script helper that generates `Extension::migrations()`
@@ -63,6 +64,7 @@
 pub use ::inventory as __inventory;
 
 mod asset;
+pub mod authz;
 pub mod brain;
 #[expect(
     clippy::panic,
@@ -92,6 +94,7 @@ pub mod state;
 mod traits;
 
 pub use asset::{AssetDefinition, AssetDefinitionBuilder, AssetPaths, AssetType};
+pub use authz::AuthzPolicy;
 pub use brain::{
     AnalysisWindow, BrainAnalysis, BrainAnalysisError, BrainAnalysisRegistration,
     BrainExtractError, BrainExtractorRegistration, BrainFilterRegistration,

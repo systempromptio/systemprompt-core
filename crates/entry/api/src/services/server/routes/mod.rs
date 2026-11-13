@@ -45,12 +45,12 @@ use systemprompt_gateway::GatewayEngines;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{AppContext as AppContextTrait, StartupEventSender};
 
-use crate::services::middleware::authz::AuthzPolicy;
 use crate::services::middleware::{
     A2AContextMiddleware, BodyBudget, JtiRevocationChecker, JwtContextExtractor,
     McpContextMiddleware, PublicContextMiddleware, RateLimitState, RouterExt,
     UserOnlyContextMiddleware, ip_ban_middleware,
 };
+use systemprompt_extension::AuthzPolicy;
 
 pub(super) fn configure_routes(
     ctx: &AppContext,

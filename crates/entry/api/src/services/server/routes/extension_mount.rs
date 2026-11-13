@@ -19,8 +19,8 @@ use systemprompt_runtime::AppContext;
 use systemprompt_traits::{StartupEvent, StartupEventSender};
 
 use crate::routes::admin::services::{RefreshLock, ServicesRefresh};
-use crate::services::middleware::authz::AuthzPolicy;
 use crate::services::middleware::{RouterExt, UserOnlyContextMiddleware};
+use systemprompt_extension::AuthzPolicy;
 
 pub(super) fn mount_extension_routes(
     mut router: Router,

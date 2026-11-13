@@ -11,7 +11,7 @@ use systemprompt_models::modules::ApiPaths;
 use super::protocol::MountCtx;
 use crate::routes::agent_runs::{AgentRunsState, router as agent_runs_router};
 use crate::services::middleware::RouterExt;
-use crate::services::middleware::authz::AuthzPolicy;
+use systemprompt_extension::AuthzPolicy;
 
 pub(super) fn mount_agent_runs(
     router: Router,

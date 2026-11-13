@@ -19,11 +19,11 @@ use systemprompt_runtime::AppContext;
 
 use systemprompt_models::auth::UserType;
 
-use crate::services::middleware::authz::AuthzPolicy;
 use crate::services::middleware::{
     A2AContextMiddleware, McpContextMiddleware, PublicContextMiddleware, RateLimitState, RouterExt,
     UserOnlyContextMiddleware,
 };
+use systemprompt_extension::AuthzPolicy;
 
 pub(super) struct MountCtx<'a> {
     pub ctx: &'a AppContext,

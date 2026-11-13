@@ -20,7 +20,7 @@ use crate::routes::documents::{
 use crate::routes::internal::links_router;
 use crate::routes::uploads::{router as uploads_router, with_upload_tokens};
 use crate::services::middleware::RouterExt;
-use crate::services::middleware::authz::AuthzPolicy;
+use systemprompt_extension::AuthzPolicy;
 use systemprompt_runtime::documents::links::LinkMinter;
 
 pub(super) fn mount_documents(

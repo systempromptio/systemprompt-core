@@ -12,7 +12,7 @@ use super::RouteMountError;
 use super::protocol::MountCtx;
 use crate::routes::notifications::{NotificationsState, admin_router, router};
 use crate::services::middleware::RouterExt;
-use crate::services::middleware::authz::AuthzPolicy;
+use systemprompt_extension::AuthzPolicy;
 
 pub(super) fn mount_notifications(
     router_in: Router,

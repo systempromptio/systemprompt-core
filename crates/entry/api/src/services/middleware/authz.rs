@@ -1,31 +1,18 @@
-//! Static, compile-time-enforced per-route authorization.
+//! Enforcement of the per-route [`AuthzPolicy`].
 //!
 //! Authentication (the `RouterExt::with_auth` extension) builds a
-//! [`RequestContext`]; this layer then decides whether that caller may reach
-//! the route group at all.
+//! [`RequestContext`]; [`authz_gate`] then decides whether that caller may
+//! reach the route group at all. The policy type is declared in
+//! `systemprompt_extension::authz` so a route declaration in any crate can
+//! name it; this gate is its one enforcement point.
 //!
-//! The guarantee: attaching the auth middleware to a route group is only
-//! possible via `with_auth`, which *requires* an [`AuthzPolicy`]. There is no
-//! way to authenticate a route group without also declaring its authorization
-//! tier — omitting the policy is a compile error.
-//!
-//! This is a COARSE gate — "may this kind of caller reach this route group".
-//! It does NOT replace per-resource ownership checks (e.g. "does this user own
-//! task X"); those remain the handler/repository layer's responsibility.
+//! Attaching the auth middleware to a route group is only possible via
+//! `with_auth`, which *requires* an [`AuthzPolicy`]: omitting the policy is a
+//! compile error.
 //!
 //! One route group authenticates by bespoke means and deliberately does not
 //! use `with_auth`: the AI gateway (`/v1/messages`, its own credential
 //! extraction accepting `x-api-key`).
-//!
-//! `UserType::Anon` is a real, reachable principal — it is NOT true that every
-//! request carries a human user. An anonymous token is minted by
-//! `POST /oauth/session` and admitted only by [`AuthzPolicy::public`]. The
-//! public surface deliberately includes a few unauthenticated writes: the
-//! OAuth auth-establishment endpoints (token / authorize / webauthn, each
-//! gated by its own protocol) and append-only engagement telemetry ingestion.
-//! Every other public route is read-only; any new public-group handler that
-//! mutates state must enforce its own per-resource ownership check, because
-//! this gate will admit `Anon`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -34,72 +21,9 @@ use crate::error::ApiHttpError;
 use axum::extract::Request;
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
+use systemprompt_extension::AuthzPolicy;
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::UserType;
-
-#[derive(Clone, Copy, Debug)]
-pub struct AuthzPolicy {
-    allowed: &'static [UserType],
-}
-
-impl AuthzPolicy {
-    #[must_use]
-    pub const fn public() -> Self {
-        Self {
-            allowed: &[
-                UserType::Anon,
-                UserType::User,
-                UserType::Admin,
-                UserType::A2a,
-                UserType::Mcp,
-                UserType::Service,
-            ],
-        }
-    }
-
-    #[must_use]
-    pub const fn authenticated() -> Self {
-        Self {
-            allowed: &[
-                UserType::User,
-                UserType::Admin,
-                UserType::A2a,
-                UserType::Mcp,
-                UserType::Service,
-            ],
-        }
-    }
-
-    #[must_use]
-    pub const fn user() -> Self {
-        Self {
-            allowed: &[UserType::User, UserType::Admin],
-        }
-    }
-
-    #[must_use]
-    pub const fn admin() -> Self {
-        Self {
-            allowed: &[UserType::Admin],
-        }
-    }
-
-    #[must_use]
-    pub const fn restricted_to(allowed: &'static [UserType]) -> Self {
-        Self { allowed }
-    }
-
-    // Why: MCP OAuth discovery needs the handler's WWW-Authenticate challenge, not
-    // a generic 403.
-    #[must_use]
-    pub const fn deferred_to_handler() -> Self {
-        Self::public()
-    }
-
-    fn permits(self, user_type: UserType) -> bool {
-        self.allowed.contains(&user_type)
-    }
-}
 
 pub async fn authz_gate(policy: AuthzPolicy, request: Request, next: Next) -> Response {
     let user_type = request

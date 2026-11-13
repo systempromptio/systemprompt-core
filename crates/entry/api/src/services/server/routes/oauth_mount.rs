@@ -28,7 +28,7 @@ use systemprompt_traits::AppContext as AppContextTrait;
 use super::protocol::MountCtx;
 use crate::error::ApiHttpError;
 use crate::services::middleware::RouterExt;
-use crate::services::middleware::authz::AuthzPolicy;
+use systemprompt_extension::AuthzPolicy;
 
 fn create_oauth_state(ctx: &AppContext) -> Result<OAuthState, LoaderError> {
     let missing = |provider: &str| LoaderError::InitializationFailed {

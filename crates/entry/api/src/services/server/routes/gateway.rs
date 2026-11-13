@@ -10,7 +10,7 @@ use systemprompt_models::modules::ApiPaths;
 
 use super::protocol::MountCtx;
 use crate::services::middleware::RouterExt;
-use crate::services::middleware::authz::AuthzPolicy;
+use systemprompt_extension::AuthzPolicy;
 
 pub(super) fn mount_gateway(
     mut router: Router,

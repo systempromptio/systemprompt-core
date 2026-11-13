@@ -9,10 +9,10 @@ use std::sync::Arc;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{StartupEvent, StartupEventSender};
 
-use crate::services::middleware::authz::AuthzPolicy;
 use crate::services::middleware::{
     PublicContextMiddleware, RouterExt, SiteAuthSession, site_auth_gate,
 };
+use systemprompt_extension::AuthzPolicy;
 use crate::services::session_cookie::SessionCookie;
 use crate::services::static_content::{
     StaticContentMatcher, StaticContentState, serve_homepage, smart_fallback_handler,

@@ -30,7 +30,7 @@ pub mod trace;
 pub mod trailing_slash;
 
 pub use analytics::{AnalyticsEventParams, AnalyticsMiddleware};
-pub use authz::{AuthzPolicy, authz_gate};
+pub use authz::authz_gate;
 pub use body::{
     BodyBudget, BodyReadError, BodyReservation, read_body_bounded, read_request_bounded,
 };
