@@ -128,7 +128,8 @@ pub use gateway_guard::{
     GatewayRequestGuardRegistration,
 };
 pub use health::{
-    BoxedReadinessSource, MetricDescriptor, MetricKind, ReadinessCheck, ReadinessFailure,
+    BoxedReadinessSource, DiagnosticDetail, DiagnosticFailure, DiagnosticProbe, MetricDescriptor,
+    MetricKind, ReadinessCheck, ReadinessFailure,
 };
 pub use metadata::{ExtensionMetadata, ExtensionRole, SchemaDefinition};
 pub use migration::Migration;
@@ -155,7 +156,7 @@ pub use router::{
     RouteGroup, RouteProtection, SiteAuthConfig,
 };
 pub use seed::Seed;
-pub use state::{StateBuilder, StateHandle, StateRequirement};
+pub use state::{LateBound, StateBuilder, StateHandle, StateRequirement};
 pub use traits::Extension;
 
 pub use capabilities::{HasAnalytics, HasFingerprint, HasRouteClassifier, HasUserService};
@@ -170,7 +171,7 @@ pub mod prelude {
     pub use crate::registry::ExtensionRegistry;
     pub use crate::retention::{RetentionHold, RetentionHoldError, RetentionTarget};
     pub use crate::seed::Seed;
-    pub use crate::state::{StateBuilder, StateHandle, StateRequirement};
+    pub use crate::state::{LateBound, StateBuilder, StateHandle, StateRequirement};
     pub use crate::{
         AuthzPolicy, ContextKind, Extension, ExtensionMetadata, ExtensionRole, ExtensionRouter,
         Migration, RateBudget, RateLimit, RouteProtection, SchemaDefinition, SiteAuthConfig,

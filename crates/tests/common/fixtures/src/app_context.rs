@@ -629,6 +629,11 @@ fn fixture_app_context_assembled_on(
         },
         &systemprompt_extension::StateHandle::default(),
     )?;
+    if let Some(slot) = systemprompt_extension::ExtensionContext::extension_state(&ctx)
+        .find::<systemprompt_notifications::consumer::NotificationsConsumerSlot>()
+    {
+        slot.bind(Arc::clone(&ctx.notifications().consumer))?;
+    }
 
     Ok(Arc::new(ctx))
 }

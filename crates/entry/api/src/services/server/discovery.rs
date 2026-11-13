@@ -17,7 +17,7 @@ use systemprompt_models::modules::ApiPaths;
 use systemprompt_runtime::AppContext;
 
 use super::health::handle_health;
-use super::health_detail::handle_health_detail;
+use super::health_detail::{diagnostics_layer, handle_health_detail};
 use super::probes::{handle_livez, handle_readyz, readiness_layer};
 
 pub async fn handle_root_discovery(
@@ -199,5 +199,6 @@ pub fn authenticated_discovery_router(ctx: &AppContext) -> Result<Router, Loader
     Ok(Router::new()
         .route("/api/v1/health/detail", get(handle_health_detail))
         .layer(readiness_layer(ctx)?)
+        .layer(diagnostics_layer(ctx)?)
         .with_state(ctx.clone()))
 }

@@ -20,6 +20,7 @@ systemprompt-provider-contracts = { workspace = true }
 systemprompt-extension = { workspace = true, features = ["sqlx"] }
 systemprompt-identifiers = { workspace = true }
 systemprompt-marketplace = { workspace = true }
+systemprompt-notifications = { workspace = true }
 systemprompt-ai = { workspace = true }
 systemprompt-mcp = { workspace = true }
 systemprompt-models = { workspace = true }

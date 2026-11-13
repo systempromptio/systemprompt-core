@@ -17,7 +17,7 @@ use systemprompt_traits::RunnerService;
 use crate::asset::{AssetDefinition, AssetPaths};
 use crate::context::ExtensionContext;
 use crate::error::{ExtensionConfigError, ExtensionStateError};
-use crate::health::{MetricDescriptor, ReadinessCheck};
+use crate::health::{DiagnosticProbe, MetricDescriptor, ReadinessCheck};
 use crate::metadata::{ExtensionMetadata, ExtensionRole, SchemaDefinition};
 use crate::migration::Migration;
 use crate::router::{ExtensionRouter, SiteAuthConfig};
@@ -55,6 +55,10 @@ pub trait Extension: Send + Sync + 'static {
     }
 
     fn readiness(&self, _ctx: &dyn ExtensionContext) -> Vec<Arc<dyn ReadinessCheck>> {
+        vec![]
+    }
+
+    fn diagnostics(&self, _ctx: &dyn ExtensionContext) -> Vec<Arc<dyn DiagnosticProbe>> {
         vec![]
     }
 

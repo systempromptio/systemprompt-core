@@ -7,7 +7,7 @@ use std::sync::{Arc, OnceLock};
 
 use sqlx::PgPool;
 use systemprompt_brain::BrainRepositories;
-use systemprompt_brain::consumer::BrainConsumer;
+use systemprompt_brain::consumer::{BrainConsumer, BrainConsumerSlot};
 use systemprompt_brain::pipeline::PipelineSeams;
 use systemprompt_brain::recall::BrainRecallService;
 use systemprompt_brain::replay::{ProposalReplay, ReplayService};
@@ -30,7 +30,7 @@ pub struct BrainHandle {
     outbox: Arc<OutboxConsumer>,
     listener_pool: PgPool,
     profile: Arc<BrainProfile>,
-    consumer: OnceLock<Arc<BrainConsumer>>,
+    consumer: BrainConsumerSlot,
     consolidation_model: OnceLock<Arc<dyn BrainModelClient>>,
 }
 
@@ -45,13 +45,14 @@ pub struct BrainHandleParts {
     pub outbox: Arc<OutboxConsumer>,
     pub listener_pool: PgPool,
     pub profile: Arc<BrainProfile>,
+    pub consumer: BrainConsumerSlot,
 }
 
 impl std::fmt::Debug for BrainHandle {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("BrainHandle")
             .field("recall", &self.recall)
-            .field("consumer", &self.consumer.get().is_some())
+            .field("consumer", &self.consumer)
             .finish_non_exhaustive()
     }
 }
@@ -75,7 +76,7 @@ impl BrainHandle {
             outbox: parts.outbox,
             listener_pool: parts.listener_pool,
             profile: parts.profile,
-            consumer: OnceLock::new(),
+            consumer: parts.consumer,
             consolidation_model: OnceLock::new(),
         }
     }

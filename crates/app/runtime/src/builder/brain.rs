@@ -16,6 +16,7 @@ use std::fmt;
 use std::sync::Arc;
 
 use sqlx::PgPool;
+use systemprompt_brain::consumer::BrainConsumerSlot;
 use systemprompt_brain::outcomes::OutcomeService;
 use systemprompt_brain::recall::{
     BrainRecallService, BrainRecallStore, DeclaredSource, PlaneDeclaredSource,
@@ -68,6 +69,7 @@ pub struct RecallSeams {
     pub injection: Vec<Arc<dyn InjectionPolicy>>,
     pub importance: Vec<Arc<dyn ImportanceModel>>,
     pub outcome_signals: Vec<Arc<dyn OutcomeSignal>>,
+    pub consumer: BrainConsumerSlot,
 }
 
 impl fmt::Debug for RecallSeams {
@@ -79,6 +81,7 @@ impl fmt::Debug for RecallSeams {
             .field("injection", &self.injection.len())
             .field("importance", &self.importance.len())
             .field("outcome_signals", &self.outcome_signals.len())
+            .field("consumer", &self.consumer)
             .finish()
     }
 }
@@ -111,6 +114,11 @@ impl RecallSeams {
                 .iter()
                 .map(|registration| (registration.factory)(ctx))
                 .collect(),
+            consumer: ctx
+                .extension_state()
+                .find::<BrainConsumerSlot>()
+                .cloned()
+                .unwrap_or_default(),
         }
     }
 }
@@ -174,6 +182,7 @@ impl BrainCore {
             injection,
             importance,
             outcome_signals,
+            consumer,
         } = seams;
         audiences.push(Arc::new(UserRoleAudienceResolver::new(Arc::clone(
             &self.users,
@@ -227,6 +236,7 @@ impl BrainCore {
             outbox: Arc::clone(&self.outbox),
             listener_pool: self.listener_pool.clone(),
             profile: Arc::clone(&self.profile),
+            consumer,
         }))
     }
 }

@@ -3,7 +3,7 @@
 //! [`ExtensionRegistry::enabled_extensions`] is the one definition of
 //! "enabled". Every collector of extension contributions (schemas, routers,
 //! site auth, config, assets, storage paths, config planes, frontmatter
-//! processors, metrics,
+//! processors, metrics, diagnostics,
 //! readiness checks) takes the profile's disabled set and walks only the
 //! enabled extensions, so a disabled extension contributes nothing. `get`,
 //! `has`, `ids` and `extensions` describe the linked inventory and are not
@@ -25,7 +25,7 @@ use crate::Extension;
 use crate::asset::{AssetDefinition, AssetPaths};
 use crate::context::ExtensionContext;
 use crate::error::LoaderError;
-use crate::health::{MetricDescriptor, ReadinessCheck};
+use crate::health::{DiagnosticProbe, MetricDescriptor, ReadinessCheck};
 use std::sync::Arc;
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_provider_contracts::{ConfigPlane, FrontmatterProcessor};
@@ -33,6 +33,8 @@ use systemprompt_provider_contracts::{ConfigPlane, FrontmatterProcessor};
 pub type ApiRouter = (Arc<dyn Extension>, crate::ExtensionRouter);
 
 pub type ExtensionReadinessCheck = (&'static str, Arc<dyn ReadinessCheck>);
+
+pub type ExtensionDiagnostic = (&'static str, Arc<dyn DiagnosticProbe>);
 
 impl ExtensionRegistry {
     pub const INSTALL_EVERY_LINKED_SCHEMA: &'static [ExtensionId] = &[];
@@ -211,6 +213,17 @@ impl ExtensionRegistry {
         self.enabled_flat_map(disabled_ids, |ext| {
             let id = ext.id();
             ext.readiness(ctx).into_iter().map(move |check| (id, check))
+        })
+    }
+
+    pub fn all_diagnostics(
+        &self,
+        ctx: &dyn ExtensionContext,
+        disabled_ids: &[ExtensionId],
+    ) -> Result<Vec<ExtensionDiagnostic>, LoaderError> {
+        self.enabled_flat_map(disabled_ids, |ext| {
+            let id = ext.id();
+            ext.diagnostics(ctx).into_iter().map(move |probe| (id, probe))
         })
     }
 }

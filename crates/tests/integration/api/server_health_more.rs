@@ -334,5 +334,15 @@ async fn health_detail_reports_each_enabled_extension_readiness_check() -> anyho
         .all_readiness_checks(&*ctx, &ctx.profile().extensions.disabled)?
         .len();
     assert_eq!(extensions.len(), expected, "{body}");
+    let notifications = &body["checks"]["notifications"];
+    assert_eq!(notifications["status"], "healthy", "{notifications}");
+    assert!(notifications["state"].is_string(), "{notifications}");
+    assert!(notifications["pending"].is_i64(), "{notifications}");
+    assert!(
+        notifications
+            .as_object()
+            .is_some_and(|entry| entry.contains_key("oldest_seconds")),
+        "{notifications}"
+    );
     Ok(())
 }
