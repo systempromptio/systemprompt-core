@@ -8,7 +8,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-pub mod ddl;
 pub mod docker;
 mod docker_database;
 pub mod postgres;

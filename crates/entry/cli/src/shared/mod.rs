@@ -11,6 +11,7 @@
 
 pub mod command_result;
 pub mod confirm;
+pub mod ddl;
 pub mod disk_logs;
 pub mod docker_compose;
 pub mod identity;

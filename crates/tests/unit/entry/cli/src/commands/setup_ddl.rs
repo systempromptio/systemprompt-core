@@ -1,9 +1,9 @@
-//! Tests for `admin::setup::ddl` — the bootstrap DDL statement builders and
+//! Tests for `shared::ddl` — the bootstrap DDL statement builders and
 //! their identifier/literal escaping.
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cli::admin::setup::ddl::{
+use systemprompt_cli::shared::ddl::{
     build_alter_user_password_sql, build_create_db_sql, build_create_user_sql, build_grant_sql,
     quote_ident, quote_literal,
 };

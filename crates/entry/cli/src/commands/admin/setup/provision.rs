@@ -13,7 +13,7 @@ use anyhow::{Context, Result, bail};
 use sqlx::PgPool;
 use systemprompt_logging::CliService;
 
-use super::ddl;
+use crate::shared::ddl;
 use crate::shared::postgres_access::{PostgresConfig, connect};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

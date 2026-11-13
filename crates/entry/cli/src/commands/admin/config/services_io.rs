@@ -25,6 +25,7 @@ use systemprompt_manifest::services::ServicesConfig;
 use systemprompt_manifest::services::catalog::{CATALOG_FILES, CatalogDocument};
 
 use super::config_section::ConfigSection;
+use crate::shared::provider_catalog::write_gateway;
 
 /// The catalog directory and the root services file it belongs to.
 #[derive(Debug, Clone)]
