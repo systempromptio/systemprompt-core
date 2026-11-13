@@ -18,9 +18,11 @@
 //! [`super::command`].
 //!
 //! Registrations are attached in `(parent, name)` order, so `--help` lists
-//! them deterministically after the kernel groups. Two registrations of one
-//! path, a registration that shadows a kernel command, and a registration
-//! under a parent that does not exist are refused with a [`RegistryError`].
+//! them deterministically after the kernel groups; a group nested under a
+//! kernel group is attached in place, so the parent keeps its position. Two
+//! registrations of one path, a registration that shadows a kernel command,
+//! and a registration under a parent that does not exist are refused with a
+//! [`RegistryError`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -189,7 +191,7 @@ impl CommandRegistry {
 }
 
 fn attach(
-    parent: Command,
+    mut parent: Command,
     rest: &[&str],
     child: Command,
     entry: &CliCommandRegistration,
@@ -204,15 +206,14 @@ fn attach(
         return Ok(parent.subcommand(child));
     };
     let Some(existing) = parent
-        .get_subcommands()
+        .get_subcommands_mut()
         .find(|sub| sub.get_name() == *head)
-        .cloned()
     else {
         return Err(RegistryError::UnknownParent {
             path: entry.path(),
             group: entry.group(),
         });
     };
-    let replaced = attach(existing, tail, child, entry)?;
-    Ok(parent.mut_subcommand(head, |_| replaced))
+    *existing = attach(std::mem::take(existing), tail, child, entry)?;
+    Ok(parent)
 }
