@@ -300,6 +300,9 @@ rate_limits:
   burst_multiplier: 3
 system_admin:
   username: testadmin
+secrets:
+  source: env
+  secrets_path: ladder-absent-secrets.json
 runtime:
   environment: development
   log_level: normal
