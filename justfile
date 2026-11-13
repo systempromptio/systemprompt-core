@@ -15,16 +15,16 @@ default:
 
 # Lint: typed identifiers. Names derive from crates/shared/identifiers; fields
 # and fn arguments typed String/&str/Uuid fail unless listed as boundary values.
-lint-raw-ids:
-    ./scripts/lint-raw-ids.sh
+lint-raw-ids *ARGS:
+    ./scripts/lint-raw-ids.sh {{ARGS}}
 
 # Per-crate and per-name counts for lint-raw-ids (always exits 0).
 lint-raw-ids-report:
     ./scripts/lint-raw-ids.sh --report
 
 # Security-critical lookups read the primary, never a lagging replica.
-lint-authoritative-reads:
-    ./scripts/lint-authoritative-reads.sh
+lint-authoritative-reads *ARGS:
+    ./scripts/lint-authoritative-reads.sh {{ARGS}}
 
 # Build workspace
 build:
@@ -101,8 +101,8 @@ sqlx-prepare-publish:
 # Every per-crate .sqlx cache must hold only the queries its own src/ issues
 # (ownership by SQL text). `sqlx-prepare-publish` prunes foreign entries as it
 # goes; this is the read-only check, no database or rebuild needed.
-sqlx-audit-caches:
-    scripts/sqlx-audit-caches.sh
+sqlx-audit-caches *ARGS:
+    scripts/sqlx-audit-caches.sh {{ARGS}}
 
 # Verify every SQLx crate compiles against its own per-crate .sqlx cache.
 #
@@ -126,34 +126,34 @@ sqlx-verify-offline:
     echo "All crates verified for offline compilation!"
 
 # Reject imperative SQL in declarative schema files
-lint-schema:
-    ./scripts/lint-schema.sh crates
+lint-schema *ARGS:
+    ./scripts/lint-schema.sh {{ARGS}}
 
 # Reject inline SQL and hand-built migrations in extension.rs files
-lint-extensions:
-    ./scripts/lint-extensions.sh crates
+lint-extensions *ARGS:
+    ./scripts/lint-extensions.sh {{ARGS}}
 
 # Judge the migrations added since the last release against the large-table
 # rules (NOT VALID constraints, CONCURRENTLY indexes, bounded bulk writes).
-lint-migrations:
-    ./scripts/lint-migrations.sh
+lint-migrations *ARGS:
+    ./scripts/lint-migrations.sh {{ARGS}}
 
 # Check production comment syntax and Rustdoc placement; review meaning per AGENTS.md.
-lint-comments:
-    ./scripts/lint-inline-comments.sh
+lint-comments *ARGS:
+    ./scripts/lint-inline-comments.sh {{ARGS}}
 
 # Reject test-only seams (test features, test_api modules, unreachable_pub) in production crates
-lint-test-seams:
-    ./scripts/lint-test-seams.sh
+lint-test-seams *ARGS:
+    ./scripts/lint-test-seams.sh {{ARGS}}
 
 # Reject tests that return early on a missing prerequisite without saying so
-lint-silent-skips:
-    ./scripts/lint-silent-skips.sh
+lint-silent-skips *ARGS:
+    ./scripts/lint-silent-skips.sh {{ARGS}}
 
 # Reject inline `#[cfg(test)] mod tests` — tests belong in crates/tests/.
 # Covers bin/bridge, which no root `--workspace` invocation reaches.
-lint-inline-tests:
-    ./scripts/lint-inline-tests.sh
+lint-inline-tests *ARGS:
+    ./scripts/lint-inline-tests.sh {{ARGS}}
 
 # Reject upward crate dependencies and cycles in the layer stack
 lint-layers:
@@ -161,20 +161,20 @@ lint-layers:
 
 # Core ships no third-party frontend code (vendor dirs, package.json, .wasm,
 # external script URLs); see the script header.
-check-no-vendor:
-    ./scripts/check-no-vendor.sh
+check-no-vendor *ARGS:
+    ./scripts/check-no-vendor.sh {{ARGS}}
 
 # One EnforcementMode and one ServiceStatus vocabulary; copies fail
-lint-mode-enums:
-    ./scripts/lint-mode-enums.sh
+lint-mode-enums *ARGS:
+    ./scripts/lint-mode-enums.sh {{ARGS}}
 
 # Each CHECK-constrained vocabulary column agrees with its Rust enum; no status literals in query! strings
 lint-sql-vocab:
     ./scripts/lint-sql-vocab.sh
 
 # Reject ad-hoc Repository::new() outside composition roots
-lint-repo-construction:
-    ./scripts/lint-repo-construction.sh
+lint-repo-construction *ARGS:
+    ./scripts/lint-repo-construction.sh {{ARGS}}
 
 # Every released version in CHANGELOG.md must carry its v<version> tag
 check-release-tag:
@@ -193,8 +193,8 @@ check-lockfile-registry:
     ./scripts/check-lockfile-registry.sh
 
 # Reject `From` impls that only restate the same fields, which say two types are one
-lint-field-copy-from:
-    python3 ./scripts/lint-field-copy-from.py
+lint-field-copy-from *ARGS:
+    python3 ./scripts/lint-field-copy-from.py {{ARGS}}
 
 # Every source gate, listed in scripts/check-gates.txt and run to completion by
 # scripts/check-gates.sh (one red gate cannot hide the rest; a summary names
@@ -213,26 +213,7 @@ check-gates:
 # doc that leaked in, as is a status/plan/report/summary/progress/findings-named
 # prose file anywhere.
 lint-repo-hygiene:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    prose='\.(md|txt|org|rst|adoc|pdf|docx)$'
-    sanctioned='^(documentation/|crates/tests/|scripts/[^/]+\.txt$|(AGENTS|CLAUDE|SECURITY)\.md$|crates/domain/agent/docs/a2aspec\.txt$)|(^|/)(README|CHANGELOG)\.md$'
-    hits=$( { git ls-files | grep -E "$prose" | grep -vE "$sanctioned" || true
-              git ls-files | grep -iE "(status|plan|report|summary|progress|findings)[^/]*${prose}" || true
-            } | sort -u)
-    if [ -n "$hits" ]; then
-        echo "✗ prose files outside the sanctioned set (CLAUDE.md § Repository Hygiene):" >&2
-        echo "$hits" | sed 's/^/    /' >&2
-        exit 1
-    fi
-    echo "✓ no stray status/plan/report docs tracked"
-    build=$(git ls-files | grep -E '(^|/)target(-[^/]+)?/' || true)
-    if [ -n "$build" ]; then
-        echo "✗ cargo build output tracked ($(echo "$build" | wc -l) files):" >&2
-        echo "$build" | cut -d/ -f1-2 | sort -u | sed 's/^/    /' >&2
-        exit 1
-    fi
-    echo "✓ no cargo build output tracked"
+    ./scripts/lint-repo-hygiene.sh
 
 # Every source gate, then a workspace check
 check: check-gates
@@ -359,15 +340,15 @@ lint-bridge-i18n:
 # used without importing it is not a build error, it is a ReferenceError at
 # first render that takes the whole pane down. `sp-profile.js` and
 # `sp-activity-log.js` both shipped calling `t(...)` with no `import { t }`.
-lint-bridge-js-imports:
-    ./scripts/lint-bridge-js-imports.sh
+lint-bridge-js-imports *ARGS:
+    ./scripts/lint-bridge-js-imports.sh {{ARGS}}
 
 # The bridge owns no console (`windows_subsystem = "windows"`), so a console
 # child spawned without CREATE_NO_WINDOW gets its own window and the foreground.
 # The tray redraw asked `schtasks` on every 30s probe tick, flashing a console at
 # the user twice a minute and eating their keystrokes.
-lint-bridge-no-window:
-    ./scripts/lint-bridge-no-window.sh
+lint-bridge-no-window *ARGS:
+    ./scripts/lint-bridge-no-window.sh {{ARGS}}
 
 # The IPC envelope's TypeScript bindings under bin/bridge/bindings/ are
 # generated by ts-rs; `bridge-bindings-check` fails when a variant renamed in
@@ -381,22 +362,22 @@ bridge-bindings-check:
 # Every state on the GUI wire ships beside a verdict Rust computed. A JS branch
 # on a state's *name* is how the Home card called four healthy MCP servers
 # broken while Status, deriving it separately, called them fine.
-lint-bridge-verdicts:
-    ./scripts/lint-bridge-verdicts.sh
+lint-bridge-verdicts *ARGS:
+    ./scripts/lint-bridge-verdicts.sh {{ARGS}}
 
 # The bridge is one crate, so `lint-layers` (a cargo-graph walk) cannot see
 # its module structure; it had integration ⇄ sync, integration ⇄ install and
 # a host installer reaching up into `gui`. This declares the module order and
 # fails on any `crate::<module>` reference that points upward.
-lint-bridge-layers:
-    ./scripts/lint-bridge-layers.sh
+lint-bridge-layers *ARGS:
+    ./scripts/lint-bridge-layers.sh {{ARGS}}
 
 # The bridge's service state lives on `BridgeContext`, built once and
 # injected. A `static X: OnceLock<..>` can hold one value per process — the
 # reason one test crate existed per proxy start outcome. Fail on any new one
 # outside the script's reasoned allowlist.
-lint-bridge-globals:
-    ./scripts/lint-bridge-globals.sh
+lint-bridge-globals *ARGS:
+    ./scripts/lint-bridge-globals.sh {{ARGS}}
 
 # Core service state lives on AppContext (and the server, gateway and bridge
 # roots), built once and injected. A `static X: OnceLock<..>` in a production
@@ -413,71 +394,60 @@ lint-serde-aliases *ARGS:
 
 # The root-walking gates scan the roots they are given and default to core;
 # this proves both against a fixture tree per script.
-test-gate-roots:
-    python3 scripts/test-gate-roots.py
+test-scripts:
+    bash scripts/test-scripts.sh
+
+# Crate-closure counts per facade composition (no compile); `just build-report full` builds and measures.
+build-report mode="closure":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ "{{mode}}" = full ]; then bash scripts/build-report.sh; else bash scripts/build-report.sh --closure-only --offline; fi
 
 # The web tree has no bundler or type checker, so a file is only ever reviewed
 # by reading it. The standard caps JS at 150 lines and CSS at 300; this makes
 # the cap a failure instead of a note, so files are split before they sprawl.
-lint-bridge-file-size:
-    ./scripts/lint-bridge-file-size.sh
+lint-bridge-file-size *ARGS:
+    ./scripts/lint-bridge-file-size.sh {{ARGS}}
 
 # A bridge host id is spelled only in HostKind (and its web mirror host-ids.js).
-lint-host-ids:
-    ./scripts/lint-host-ids.sh
+lint-host-ids *ARGS:
+    ./scripts/lint-host-ids.sh {{ARGS}}
 
-check-removed-config-names:
-    ./scripts/check-removed-config-names.sh
+check-removed-config-names *ARGS:
+    ./scripts/check-removed-config-names.sh {{ARGS}}
 
 # A systemprompt header name is spelled once, in identifiers::headers or the bridge's headers.rs.
-lint-header-literals:
-    ./scripts/lint-header-literals.sh
+lint-header-literals *ARGS:
+    ./scripts/lint-header-literals.sh {{ARGS}}
 
 # A bridge-facing gateway path is spelled once, in ApiPaths.
-lint-path-literals:
-    ./scripts/lint-path-literals.sh
+lint-path-literals *ARGS:
+    ./scripts/lint-path-literals.sh {{ARGS}}
 
 # Reject unverified sqlx::query calls outside the allowlist
-lint-sqlx:
-    ./scripts/check-sqlx.sh
+lint-sqlx *ARGS:
+    ./scripts/check-sqlx.sh {{ARGS}}
 
 # Reject inline `map_err(|e| ApiError::ctor(...))` at HTTP call sites.
 # HTTP status mapping belongs in an entry-local error type's From impls;
 # call sites propagate with bare `?` so the variant decides the status.
-lint-http-errors:
-    ./scripts/check-http-errors.sh
+lint-http-errors *ARGS:
+    ./scripts/check-http-errors.sh {{ARGS}}
 
 # Reject `let _ = <expr>.unwrap()/.expect()` in the test workspace.
 # A discarded fallible result runs the code for its panic side effect but
 # asserts nothing — bind the result and assert, or annotate a deliberate
 # side-effect call with `// lint-ok: no-assert <reason>`.
-lint-test-value:
-    ./scripts/check-test-value.sh
+lint-test-value *ARGS:
+    ./scripts/check-test-value.sh {{ARGS}}
 
 # Reject UserId::admin() outside the sanctioned bootstrap call sites.
 # The sentinel is reserved for the actor model, the bootstrap CLI, the
 # scheduler default config, the MCP server registry, and the LogActor
 # platform-event constructor. Any other call site bypasses the actor
 # typing and silently attributes work to the platform owner.
-lint-no-untyped-admin:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    hits=$(grep -rn 'UserId::admin()' crates/ --include='*.rs' \
-        | grep -v 'crates/tests/' \
-        | grep -v 'crates/shared/identifiers/src/actor.rs' \
-        | grep -v 'crates/shared/identifiers/src/bootstrap.rs' \
-        | grep -v 'crates/shared/identifiers/src/user.rs' \
-        | grep -v 'crates/entry/cli/src/commands/admin/bootstrap.rs' \
-        | grep -v 'crates/entry/cli/src/commands/infrastructure/jobs/run.rs' \
-        | grep -v 'crates/shared/manifest/src/services/scheduler.rs' \
-        | grep -v 'crates/domain/mcp/src/services/registry/manager.rs' \
-        | grep -v 'crates/infra/logging/src/models/log_entry.rs' \
-        || true)
-    if [ -n "$hits" ]; then
-        echo "lint-no-untyped-admin: untyped UserId::admin() outside the sanctioned call sites:"
-        echo "$hits"
-        exit 1
-    fi
+lint-no-untyped-admin *ARGS:
+    ./scripts/lint-no-untyped-admin.sh {{ARGS}}
 
 # Every Cargo workspace in the repo. `bin/bridge` and `crates/tests*` are excluded
 # from the root workspace, so a bare root-level scan silently skips them — which is
@@ -547,8 +517,8 @@ file-size:
     echo "file-size: no source file exceeds 300 lines"
 
 # Verify every production file has a doc head + BSL-1.1 license reference
-check-headers:
-    ./scripts/check-file-headers.sh
+check-headers *ARGS:
+    ./scripts/check-file-headers.sh {{ARGS}}
 
 # Run all style checks (format, clippy, sqlx allowlist, HTTP errors, test workspace, rustdoc)
 style-check:
@@ -1147,33 +1117,33 @@ merge-release SHA:
 publish-crates:
     scripts/publish-crates.sh
 
-lint-discarded-results:
-    ./scripts/check-discarded-results.sh
+lint-discarded-results *ARGS:
+    ./scripts/check-discarded-results.sh {{ARGS}}
 
 # A tracing message is a constant; values are structured fields.
-lint-tracing-messages:
-    ./scripts/lint-tracing-messages.sh
+lint-tracing-messages *ARGS:
+    ./scripts/lint-tracing-messages.sh {{ARGS}}
 
 # #[async_trait] only for dyn-compatibility, and the trait says so.
-lint-async-trait:
-    ./scripts/lint-async-trait.sh
+lint-async-trait *ARGS:
+    ./scripts/lint-async-trait.sh {{ARGS}}
 
 # A literal InstanceId in a test that writes instance-scoped rows is shared by
 # every nextest process on the shard database. Part of check-gates.
-lint-shared-test-ids:
-    ./scripts/lint-shared-test-ids.sh
+lint-shared-test-ids *ARGS:
+    ./scripts/lint-shared-test-ids.sh {{ARGS}}
 
 # Every task and thread has an owner (BackgroundTasks / OwnedTask); no detached spawns.
-lint-owned-tasks:
-    ./scripts/lint-owned-tasks.sh
+lint-owned-tasks *ARGS:
+    ./scripts/lint-owned-tasks.sh {{ARGS}}
 
 # Raw body reads carry a bound: no `to_bytes(_, usize::MAX)`, no bare `collect()`.
-lint-unbounded-bodies:
-    ./scripts/lint-unbounded-bodies.sh
+lint-unbounded-bodies *ARGS:
+    ./scripts/lint-unbounded-bodies.sh {{ARGS}}
 
 # serde_json::Value in a signature is a protocol boundary with a `// JSON:` line.
-lint-json-value:
-    ./scripts/lint-json-value.sh
+lint-json-value *ARGS:
+    ./scripts/lint-json-value.sh {{ARGS}}
 
 # A crate queries only the tables its own schema/*.sql declares (infra may read
 # infra; app/entry may read what scripts/table-ownership-reads.txt lists, never write).
@@ -1182,21 +1152,21 @@ lint-table-ownership:
 
 # Repository SQL reads stored facts, never aggregates the ledger; the baseline
 # only shrinks (systemprompt_database::projection).
-lint-ledger-reads:
-    ./scripts/lint-ledger-reads.sh
+lint-ledger-reads *ARGS:
+    ./scripts/lint-ledger-reads.sh {{ARGS}}
 
 # Profiles are the source of truth; an env read outside the sanctioned boot
 # readers (scripts/env-var-allowlist.txt) is an undocumented kill switch.
-lint-env-vars:
-    ./scripts/lint-env-vars.sh
+lint-env-vars *ARGS:
+    ./scripts/lint-env-vars.sh {{ARGS}}
 
-lint-fail-open:
-    ./scripts/check-fail-open.sh
+lint-fail-open *ARGS:
+    ./scripts/check-fail-open.sh {{ARGS}}
 
 # A `map_err(|_…| …)` on a network or database result that never logs what
 # it saw: the closure names the error or logs it.
-lint-swallowed-errors:
-    ./scripts/lint-swallowed-errors.sh
+lint-swallowed-errors *ARGS:
+    ./scripts/lint-swallowed-errors.sh {{ARGS}}
 
 # An error turned into a String (`map_err(|e| e.to_string())`,
 # `Result<_, String>`, a `Foo(String)` variant built from Display) loses its
@@ -1206,5 +1176,5 @@ lint-stringly-errors *ARGS:
     ./scripts/lint-stringly-errors.sh {{ARGS}}
 
 # Bridge control flow decides on a host warning's `kind`, never its text.
-lint-bridge-typed-warnings:
-    ./scripts/lint-bridge-typed-warnings.sh
+lint-bridge-typed-warnings *ARGS:
+    ./scripts/lint-bridge-typed-warnings.sh {{ARGS}}
