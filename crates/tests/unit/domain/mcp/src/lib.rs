@@ -51,8 +51,6 @@ mod intent_claim_db;
 mod jobs_cleanup;
 
 #[cfg(test)]
-mod tool_row_facts_rollup_db;
-#[cfg(test)]
 mod lib_smoke;
 #[cfg(test)]
 mod middleware;
@@ -92,6 +90,8 @@ mod state;
 mod tool_executor;
 #[cfg(test)]
 mod tool_handler;
+#[cfg(test)]
+mod tool_row_facts_rollup_db;
 #[cfg(test)]
 mod toolset_host;
 #[cfg(test)]

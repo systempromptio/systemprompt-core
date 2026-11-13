@@ -284,9 +284,7 @@ async fn dispatch_command(selected: Selected, ctx: &CommandContext) -> Result<()
                 | args::Commands::Admin(_)
                 | args::Commands::Analytics(_),
             ) => true,
-            Selected::Registered(registered) => {
-                registered.db_url_routing() == DbUrlRouting::Direct
-            },
+            Selected::Registered(registered) => registered.db_url_routing() == DbUrlRouting::Direct,
             Selected::Kernel(_) => false,
             Selected::Bare(_) => {
                 bail!("No subcommand provided. Use --help to see available commands.")

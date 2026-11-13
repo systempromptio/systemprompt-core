@@ -16,7 +16,9 @@ use std::time::{Duration, Instant};
 use chrono::{DateTime, Utc};
 use systemprompt_extension::RetentionHolds;
 use systemprompt_provider_contracts::{BatchPlan, run_batched};
-use systemprompt_traits::{JobContext, ProviderResult, RetentionPurge, registered_retention_purges};
+use systemprompt_traits::{
+    JobContext, ProviderResult, RetentionPurge, registered_retention_purges,
+};
 use tracing::info;
 
 use super::RetentionTarget;

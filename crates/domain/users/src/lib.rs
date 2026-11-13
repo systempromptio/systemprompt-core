@@ -33,8 +33,8 @@
 
 pub mod error;
 pub(crate) mod extension;
-pub mod jobs;
 mod ip_ban_store;
+pub mod jobs;
 pub(crate) mod models;
 pub(crate) mod repository;
 pub(crate) mod services;

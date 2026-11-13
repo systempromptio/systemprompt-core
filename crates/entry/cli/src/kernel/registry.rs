@@ -163,7 +163,11 @@ pub struct CommandRegistry {
 
 impl CommandRegistry {
     pub fn collected() -> Result<Self, RegistryError> {
-        Self::from_registrations(inventory::iter::<CliCommandRegistration>.into_iter().copied())
+        Self::from_registrations(
+            inventory::iter::<CliCommandRegistration>
+                .into_iter()
+                .copied(),
+        )
     }
 
     pub fn from_registrations(
@@ -171,7 +175,10 @@ impl CommandRegistry {
     ) -> Result<Self, RegistryError> {
         let mut entries: Vec<CliCommandRegistration> = registrations.into_iter().collect();
         entries.sort_by_key(CliCommandRegistration::key);
-        if let Some(pair) = entries.windows(2).find(|pair| pair[0].key() == pair[1].key()) {
+        if let Some(pair) = entries
+            .windows(2)
+            .find(|pair| pair[0].key() == pair[1].key())
+        {
             let (first, second) = (pair[0].group(), pair[1].group());
             let (first, second) = if first <= second {
                 (first, second)
@@ -254,7 +261,9 @@ fn group_command<T: CliCommandGroup>() -> Command {
     )
 }
 
-fn resolve_group<T: CliCommandGroup>(matches: &ArgMatches) -> Result<RegisteredCommand, clap::Error> {
+fn resolve_group<T: CliCommandGroup>(
+    matches: &ArgMatches,
+) -> Result<RegisteredCommand, clap::Error> {
     let parsed = T::from_arg_matches(matches)?;
     Ok(RegisteredCommand {
         descriptor: parsed.descriptor(),

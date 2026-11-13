@@ -7,8 +7,8 @@
 //!   registered via [`systemprompt_provider_contracts::submit_job!`].
 //! - The kernel's built-in jobs ([`DatabaseCleanupJob`],
 //!   [`CleanupInactiveSessionsJob`], …). Capability crates register their own
-//!   jobs, and contribute retention purges and projection drains to the
-//!   kernel jobs that iterate them.
+//!   jobs, and contribute retention purges and projection drains to the kernel
+//!   jobs that iterate them.
 //! - A [`JobExecutionService`] that runs jobs on demand outside the cron loop
 //!   and records each run.
 //! - Process- and database-level service reconciliation primitives

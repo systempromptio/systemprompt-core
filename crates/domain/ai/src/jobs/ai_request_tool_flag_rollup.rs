@@ -45,9 +45,7 @@ impl Job for AiRequestToolFlagRollupJob {
         let report =
             projection::drain_with_sql(&db_pool.write_pool(), PROJECTION, BATCH, BUDGET, PROJECTOR)
                 .await
-                .map_err(|e| {
-                    systemprompt_traits::ProviderError::Internal(Box::new(e))
-                })?;
+                .map_err(|e| systemprompt_traits::ProviderError::Internal(Box::new(e)))?;
         let duration_ms = u64::try_from(report.elapsed.as_millis()).unwrap_or(u64::MAX);
         if report.keys > 0 {
             info!(

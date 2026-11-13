@@ -78,13 +78,17 @@ pub fn registered_retention_sweeps() -> impl Iterator<Item = &'static dyn Retent
 #[macro_export]
 macro_rules! register_retention_purge {
     ($purge:expr) => {
-        $crate::__inventory::submit!($purge as &'static dyn $crate::retention_purge::RetentionPurge);
+        $crate::__inventory::submit!(
+            $purge as &'static dyn $crate::retention_purge::RetentionPurge
+        );
     };
 }
 
 #[macro_export]
 macro_rules! register_retention_sweep {
     ($sweep:expr) => {
-        $crate::__inventory::submit!($sweep as &'static dyn $crate::retention_purge::RetentionSweep);
+        $crate::__inventory::submit!(
+            $sweep as &'static dyn $crate::retention_purge::RetentionSweep
+        );
     };
 }

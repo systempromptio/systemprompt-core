@@ -14,9 +14,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::repository::{AiUsageAnomalyRepository, HourlyUsageProfile};
 use async_trait::async_trait;
 use chrono::{DateTime, Duration, DurationRound, Utc};
-use crate::repository::{AiUsageAnomalyRepository, HourlyUsageProfile};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::QuotaSubjectKind;
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};

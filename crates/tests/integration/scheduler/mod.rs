@@ -19,4 +19,3 @@ mod service_management_tests;
 
 #[cfg(test)]
 mod static_content_tests;
-

@@ -209,7 +209,10 @@ mod all_jobs_inventory {
             "malicious_ip_blacklist",
             "no_js_cleanup",
         ] {
-            assert!(registered.contains(name), "job '{name}' not found in inventory");
+            assert!(
+                registered.contains(name),
+                "job '{name}' not found in inventory"
+            );
         }
     }
 }

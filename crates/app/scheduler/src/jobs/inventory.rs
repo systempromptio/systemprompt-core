@@ -30,9 +30,10 @@ use crate::SchedulerError;
 use crate::services::scheduling::job_app_context;
 use async_trait::async_trait;
 use systemprompt_database::{DbPool, projection};
-use systemprompt_runtime::managed::inventory::configured_inventory_fingerprint;
 use systemprompt_runtime::AppContext;
-use systemprompt_runtime::managed::inventory::LatestPublicationStatus;
+use systemprompt_runtime::managed::inventory::{
+    LatestPublicationStatus, configured_inventory_fingerprint,
+};
 use systemprompt_traits::{Job, JobContext, JobResult, JobScope, ProviderResult};
 
 const FORCE_AFTER: Duration = Duration::from_hours(1);

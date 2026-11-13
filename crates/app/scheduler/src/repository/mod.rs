@@ -1,13 +1,13 @@
 //! Persistence layer for the scheduler crate.
 //!
 //! [`SchedulerRepository`] is the composite façade combining the
-//! [`JobRepository`] and the cross-replica job advisory lock; it is the type consumed by
-//! [`crate::services::SchedulerService`] and by the API lifecycle bootstrap
-//! path.
+//! [`JobRepository`] and the cross-replica job advisory lock; it is the type
+//! consumed by [`crate::services::SchedulerService`] and by the API lifecycle
+//! bootstrap path.
 //!
-//! [`otlp`] backs the OTLP exporter and [`LicenceCheckinRepository`] the licence check-in.
-//! Retention deletes are not here: `database_cleanup` dispatches to the
-//! purges the owning crates register.
+//! [`otlp`] backs the OTLP exporter and [`LicenceCheckinRepository`] the
+//! licence check-in. Retention deletes are not here: `database_cleanup`
+//! dispatches to the purges the owning crates register.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

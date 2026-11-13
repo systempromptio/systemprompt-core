@@ -64,9 +64,7 @@
 
 pub mod job;
 
-pub use job::{
-    ProjectionDrain, ProjectionDrainContribution, drain_projection, registered_drains,
-};
+pub use job::{ProjectionDrain, ProjectionDrainContribution, drain_projection, registered_drains};
 
 use std::time::{Duration, Instant};
 

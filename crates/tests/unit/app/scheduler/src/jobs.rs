@@ -35,10 +35,7 @@ mod job_schedule_validation_tests {
 
     #[test]
     fn all_schedules_are_valid_cron_format() {
-        let jobs: Vec<&dyn Job> = vec![
-            &DatabaseCleanupJob,
-            &CleanupInactiveSessionsJob,
-        ];
+        let jobs: Vec<&dyn Job> = vec![&DatabaseCleanupJob, &CleanupInactiveSessionsJob];
 
         for job in jobs {
             let schedule = job.schedule();
@@ -55,10 +52,7 @@ mod job_schedule_validation_tests {
 
     #[test]
     fn all_jobs_have_unique_names() {
-        let names: Vec<&str> = vec![
-            DatabaseCleanupJob.name(),
-            CleanupInactiveSessionsJob.name(),
-        ];
+        let names: Vec<&str> = vec![DatabaseCleanupJob.name(), CleanupInactiveSessionsJob.name()];
 
         let mut unique_names = names.clone();
         unique_names.sort();
@@ -74,10 +68,7 @@ mod job_schedule_validation_tests {
 
     #[test]
     fn all_jobs_have_non_empty_names() {
-        let jobs: Vec<&dyn Job> = vec![
-            &DatabaseCleanupJob,
-            &CleanupInactiveSessionsJob,
-        ];
+        let jobs: Vec<&dyn Job> = vec![&DatabaseCleanupJob, &CleanupInactiveSessionsJob];
 
         for job in jobs {
             assert!(!job.name().is_empty(), "Job name should not be empty");
@@ -91,10 +82,7 @@ mod job_schedule_validation_tests {
 
     #[test]
     fn all_jobs_have_snake_case_names() {
-        let jobs: Vec<&dyn Job> = vec![
-            &DatabaseCleanupJob,
-            &CleanupInactiveSessionsJob,
-        ];
+        let jobs: Vec<&dyn Job> = vec![&DatabaseCleanupJob, &CleanupInactiveSessionsJob];
 
         for job in jobs {
             let name = job.name();

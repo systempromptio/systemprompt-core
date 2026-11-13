@@ -32,7 +32,8 @@ impl Job for NoJsCleanupJob {
     async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
         let start_time = std::time::Instant::now();
 
-        let marked = ctx.get::<Arc<AnalyticsRepositories>>()?
+        let marked = ctx
+            .get::<Arc<AnalyticsRepositories>>()?
             .session_signals
             .mark_no_js_sessions_as_bots()
             .await

@@ -195,7 +195,10 @@ async fn dispatch_runs_the_registered_group_with_the_kernel_context() {
         EnvOverrides::default(),
     );
 
-    let err = registered.run(&ctx).await.expect_err("probe reports it ran");
+    let err = registered
+        .run(&ctx)
+        .await
+        .expect_err("probe reports it ran");
     assert_eq!(err.to_string(), format!("{PROBE_RAN}: Query"));
 }
 
@@ -249,7 +252,9 @@ fn a_registration_under_a_missing_parent_is_refused() {
     let err = registry(vec![CliCommandRegistration::of::<OrphanCommands>()])
         .assemble(Cli::command())
         .expect_err("parent does not exist");
-    assert!(matches!(err, RegistryError::UnknownParent { ref path, .. } if path == "no-such-group orphan"));
+    assert!(
+        matches!(err, RegistryError::UnknownParent { ref path, .. } if path == "no-such-group orphan")
+    );
 }
 
 #[test]

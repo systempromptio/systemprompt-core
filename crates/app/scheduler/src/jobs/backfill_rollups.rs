@@ -57,10 +57,8 @@ impl Job for BackfillRollupsJob {
                 drain.budget,
                 drain.projector,
             )
-                .await
-                .map_err(|e| {
-                    systemprompt_provider_contracts::ProviderError::Internal(Box::new(e))
-                })?;
+            .await
+            .map_err(|e| systemprompt_provider_contracts::ProviderError::Internal(Box::new(e)))?;
             if report.keys > 0 {
                 info!(
                     rollup,

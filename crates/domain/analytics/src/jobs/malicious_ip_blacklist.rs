@@ -83,22 +83,26 @@ impl Job for MaliciousIpBlacklistJob {
         let high_volume_candidates = find_high_volume_candidates(&security_repo)
             .await
             .map_err(|e| ProviderError::Internal(Box::new(e)))?;
-        banned_count += process_candidates(&high_volume_candidates, banned_ip_repo.as_ref(), enforce).await;
+        banned_count +=
+            process_candidates(&high_volume_candidates, banned_ip_repo.as_ref(), enforce).await;
 
         let scanner_candidates = find_scanner_candidates(&security_repo)
             .await
             .map_err(|e| ProviderError::Internal(Box::new(e)))?;
-        banned_count += process_candidates(&scanner_candidates, banned_ip_repo.as_ref(), enforce).await;
+        banned_count +=
+            process_candidates(&scanner_candidates, banned_ip_repo.as_ref(), enforce).await;
 
         let datacenter_candidates = find_datacenter_candidates(&security_repo)
             .await
             .map_err(|e| ProviderError::Internal(Box::new(e)))?;
-        banned_count += process_candidates(&datacenter_candidates, banned_ip_repo.as_ref(), enforce).await;
+        banned_count +=
+            process_candidates(&datacenter_candidates, banned_ip_repo.as_ref(), enforce).await;
 
         let high_risk_candidates = find_high_risk_country_candidates(&security_repo)
             .await
             .map_err(|e| ProviderError::Internal(Box::new(e)))?;
-        banned_count += process_candidates(&high_risk_candidates, banned_ip_repo.as_ref(), enforce).await;
+        banned_count +=
+            process_candidates(&high_risk_candidates, banned_ip_repo.as_ref(), enforce).await;
 
         let expired_cleaned = match banned_ip_repo.cleanup_expired().await {
             Ok(count) => count,
@@ -130,9 +134,7 @@ async fn find_high_volume_candidates(
     Ok(records_to_candidates(records, BanReason::HighRequestVolume))
 }
 
-async fn find_scanner_candidates(
-    repo: &IpSessionRepository,
-) -> Result<Vec<MaliciousIpCandidate>> {
+async fn find_scanner_candidates(repo: &IpSessionRepository) -> Result<Vec<MaliciousIpCandidate>> {
     let records = repo.find_scanner_ips(SCANNER_BAN_THRESHOLD).await?;
     Ok(records_to_candidates(records, BanReason::ScannerActivity))
 }

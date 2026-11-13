@@ -30,10 +30,7 @@ impl IpSessionRepository {
         Self { pool }
     }
 
-    pub async fn find_high_volume_ips(
-        &self,
-        threshold: i64,
-    ) -> Result<Vec<IpSessionRecord>> {
+    pub async fn find_high_volume_ips(&self, threshold: i64) -> Result<Vec<IpSessionRecord>> {
         let rows = sqlx::query!(
             r#"
             SELECT ip_address, COUNT(*) as session_count
@@ -113,10 +110,7 @@ impl IpSessionRepository {
             .collect())
     }
 
-    pub async fn find_high_risk_country_ips(
-        &self,
-        threshold: i64,
-    ) -> Result<Vec<IpSessionRecord>> {
+    pub async fn find_high_risk_country_ips(&self, threshold: i64) -> Result<Vec<IpSessionRecord>> {
         let rows = sqlx::query!(
             r#"
             SELECT ip_address, country, COUNT(*) as session_count
