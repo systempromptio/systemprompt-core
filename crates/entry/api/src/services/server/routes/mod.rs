@@ -144,7 +144,7 @@ fn mount_layers(ctx: &AppContext, role: NodeRole) -> Result<MountLayers, LoaderE
         ),
         mcp: McpContextMiddleware::new(jwt_extractor.clone()),
         bearer: Some(Arc::new(jwt_extractor)),
-        guards: ProtectionGuards::from_context(ctx),
+        guards: ProtectionGuards::from_context(ctx)?,
     })
 }
 
@@ -177,7 +177,7 @@ fn mount_discovery(mut router: Router, mount: &MountCtx<'_>) -> Result<Router, R
         router = mount.mount(
             router,
             declare(
-                super::builder::discovery_router(ctx),
+                super::builder::discovery_router(ctx)?,
                 WEB_ROOT_BASE_PATH,
                 AuthzPolicy::public(),
                 ContextKind::Public,
@@ -189,7 +189,7 @@ fn mount_discovery(mut router: Router, mount: &MountCtx<'_>) -> Result<Router, R
         router = mount.mount(
             router,
             declare(
-                super::builder::probes_router(ctx),
+                super::builder::probes_router(ctx)?,
                 WEB_ROOT_BASE_PATH,
                 AuthzPolicy::public(),
                 ContextKind::Public,

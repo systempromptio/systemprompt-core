@@ -30,6 +30,7 @@ async fn probe(
     path: &str,
 ) -> (StatusCode, serde_json::Value) {
     let response = discovery_router(ctx)
+        .expect("discovery router builds")
         .layer(Extension(Arc::clone(readiness)))
         .oneshot(
             Request::builder()

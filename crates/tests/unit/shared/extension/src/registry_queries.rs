@@ -1,6 +1,6 @@
 //! Tests for `ExtensionRegistry` query/filter methods in
 //! `registry/queries.rs`: the capability filters (`schema_extensions`,
-//! `enabled_schema_extensions`, `job_extensions`, ...) and the job
+//! `enabled_schema_extensions`, `enabled_job_extensions`, `api_routers`, ...) and the job
 //! introspection manifest (`all_jobs`, `job_by_name`, `jobs_by_tag`).
 
 use std::collections::HashMap;
@@ -150,7 +150,9 @@ fn api_routers_filters_by_router_presence() {
     let registry = registry_with(vec![Arc::new(routed), Arc::new(CapExt::new("unrouted"))]);
 
     let ctx = StubCtx;
-    let api = registry.api_routers(&ctx);
+    let api = registry
+        .api_routers(&ctx, &[])
+        .expect("nothing disabled");
     assert_eq!(api.len(), 1);
     assert_eq!(api[0].0.id(), "routed");
     assert_eq!(api[0].1.base_path, "/api/v1/cap");
@@ -164,14 +166,16 @@ fn api_routers_builds_each_router_exactly_once() {
     let registry = registry_with(vec![Arc::new(routed)]);
 
     let ctx = StubCtx;
-    let api = registry.api_routers(&ctx);
+    let api = registry
+        .api_routers(&ctx, &[])
+        .expect("nothing disabled");
 
     assert_eq!(api.len(), 1);
     assert_eq!(builds.load(Ordering::SeqCst), 1);
 }
 
 #[test]
-fn job_extensions_and_enabled_job_extensions() {
+fn enabled_job_extensions_lists_only_job_bearers() {
     let mut with_job = CapExt::new("worker");
     with_job.jobs = vec![Arc::new(StubJob {
         name: "cleanup",
@@ -179,8 +183,6 @@ fn job_extensions_and_enabled_job_extensions() {
     })];
     let registry = registry_with(vec![Arc::new(with_job), Arc::new(CapExt::new("idle"))]);
 
-    assert_eq!(registry.job_extensions().len(), 1);
-    assert_eq!(registry.job_extensions()[0].id(), "worker");
     assert_eq!(
         registry
             .enabled_job_extensions(&[])
@@ -359,4 +361,26 @@ fn an_unknown_secret_is_none_and_a_secret_never_prints_its_value() {
     let secret = systemprompt_traits::ExtensionSecret::new("s3cr3t".to_owned());
     assert_eq!(secret.expose(), "s3cr3t");
     assert!(!format!("{secret:?}").contains("s3cr3t"));
+}
+
+#[test]
+fn api_routers_skip_a_disabled_extension() {
+    let mut kept = CapExt::new("kept");
+    kept.has_router = true;
+    let mut dropped = CapExt::new("dropped");
+    dropped.has_router = true;
+    let builds = Arc::clone(&dropped.router_builds);
+    let registry = registry_with(vec![Arc::new(kept), Arc::new(dropped)]);
+
+    let api = registry
+        .api_routers(&StubCtx, &[ExtensionId::new("dropped")])
+        .expect("the disabled set is valid");
+
+    assert_eq!(api.len(), 1);
+    assert_eq!(api[0].0.id(), "kept");
+    assert_eq!(
+        builds.load(Ordering::SeqCst),
+        0,
+        "a disabled extension's router must never be built"
+    );
 }

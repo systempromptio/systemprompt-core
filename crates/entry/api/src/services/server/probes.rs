@@ -30,7 +30,7 @@ use std::sync::Arc;
 use axum::Json;
 use serde_json::json;
 use systemprompt_database::PLANE_NOT_APPLIED_HINT;
-use systemprompt_extension::{ReadinessCheck, ReadinessFailure};
+use systemprompt_extension::{LoaderError, ReadinessCheck, ReadinessFailure};
 use systemprompt_runtime::{AppContext, ConfigPlaneSet};
 use systemprompt_scheduler::repository::ConfigReconcileRepository;
 
@@ -218,10 +218,12 @@ pub(crate) struct ExtensionReadiness {
 }
 
 impl ExtensionReadiness {
-    pub(crate) fn from_context(ctx: &AppContext) -> Self {
-        Self {
-            checks: ctx.extension_registry().all_readiness_checks(ctx),
-        }
+    pub(crate) fn from_context(ctx: &AppContext) -> Result<Self, LoaderError> {
+        Ok(Self {
+            checks: ctx
+                .extension_registry()
+                .all_readiness_checks(ctx, &ctx.profile().extensions.disabled)?,
+        })
     }
 
     // JSON: the per-check `/readyz` entries are an open JSON array.
@@ -251,8 +253,10 @@ fn registered_planes(ctx: &AppContext) -> Option<ConfigPlaneSet> {
     }
 }
 
-pub(crate) fn readiness_layer(ctx: &AppContext) -> axum::Extension<Arc<ExtensionReadiness>> {
-    axum::Extension(Arc::new(ExtensionReadiness::from_context(ctx)))
+pub(crate) fn readiness_layer(
+    ctx: &AppContext,
+) -> Result<axum::Extension<Arc<ExtensionReadiness>>, LoaderError> {
+    Ok(axum::Extension(Arc::new(ExtensionReadiness::from_context(ctx)?)))
 }
 
 // JSON: one entry of the outgoing `/readyz` extensions array.

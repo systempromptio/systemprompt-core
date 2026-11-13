@@ -108,19 +108,16 @@ pub struct SiteAuthGuard {
 }
 
 impl SiteAuthGuard {
-    #[must_use]
-    pub fn from_context(ctx: &AppContext) -> Option<Self> {
+    pub fn from_context(ctx: &AppContext) -> Result<Option<Self>, LoaderError> {
         let config = ctx
             .extension_registry()
-            .extensions()
-            .iter()
-            .find_map(|ext| ext.site_auth())?;
-        Some(Self {
+            .enabled_site_auth(&ctx.profile().extensions.disabled)?;
+        Ok(config.map(|config| Self {
             config,
             issuer: Arc::from(ctx.config().jwt_issuer.as_str()),
             keys: ctx.signing_keys().clone(),
             cookie: SessionCookie::from_config(ctx.config()),
-        })
+        }))
     }
 
     async fn gate(self, request: Request, next: Next) -> Response {
@@ -173,12 +170,11 @@ pub struct ProtectionGuards {
 }
 
 impl ProtectionGuards {
-    #[must_use]
-    pub fn from_context(ctx: &AppContext) -> Self {
-        Self {
-            site_auth: SiteAuthGuard::from_context(ctx),
+    pub fn from_context(ctx: &AppContext) -> Result<Self, LoaderError> {
+        Ok(Self {
+            site_auth: SiteAuthGuard::from_context(ctx)?,
             client_writes: Some(ClientWritesGuard::new(ctx.clone())),
-        }
+        })
     }
 }
 

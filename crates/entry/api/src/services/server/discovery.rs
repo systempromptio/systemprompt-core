@@ -11,6 +11,7 @@
 use axum::routing::get;
 use axum::{Json, Router};
 use serde_json::json;
+use systemprompt_extension::LoaderError;
 use systemprompt_models::api::SingleResponse;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_runtime::AppContext;
@@ -161,8 +162,8 @@ pub async fn handle_mcp_discovery(
     Json(SingleResponse::new(data))
 }
 
-pub fn discovery_router(ctx: &AppContext) -> Router {
-    Router::new()
+pub fn discovery_router(ctx: &AppContext) -> Result<Router, LoaderError> {
+    Ok(Router::new()
         .route(ApiPaths::DISCOVERY, get(handle_root_discovery))
         .route(ApiPaths::HEALTH, get(handle_health))
         .route("/health", get(handle_health))
@@ -172,19 +173,19 @@ pub fn discovery_router(ctx: &AppContext) -> Router {
         .route(ApiPaths::AGENTS_BASE, get(handle_agents_discovery))
         .route(ApiPaths::MCP_BASE, get(handle_mcp_discovery))
         .layer(config_state_layer(ctx))
-        .layer(readiness_layer(ctx))
-        .with_state(ctx.clone())
+        .layer(readiness_layer(ctx)?)
+        .with_state(ctx.clone()))
 }
 
-pub fn probes_router(ctx: &AppContext) -> Router {
-    Router::new()
+pub fn probes_router(ctx: &AppContext) -> Result<Router, LoaderError> {
+    Ok(Router::new()
         .route(ApiPaths::HEALTH, get(handle_health))
         .route("/health", get(handle_health))
         .route(ApiPaths::LIVEZ, get(handle_livez))
         .route(ApiPaths::READYZ, get(handle_readyz))
         .layer(config_state_layer(ctx))
-        .layer(readiness_layer(ctx))
-        .with_state(ctx.clone())
+        .layer(readiness_layer(ctx)?)
+        .with_state(ctx.clone()))
 }
 
 fn config_state_layer(

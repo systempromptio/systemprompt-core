@@ -36,7 +36,7 @@ pub(super) fn mount_extension_routes(
     let ctx = mount.ctx;
     let registry = ctx.extension_registry();
     registry.validate_api_paths(ctx)?;
-    let api_extensions = registry.api_routers(ctx);
+    let api_extensions = registry.api_routers(ctx, &ctx.profile().extensions.disabled)?;
 
     if api_extensions.is_empty() {
         return Ok(router);
