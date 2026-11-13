@@ -4153,6 +4153,7 @@ dependencies = [
  "chrono",
  "futures",
  "http",
+ "inventory",
  "schemars",
  "serde",
  "serde_json",
