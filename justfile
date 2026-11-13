@@ -937,19 +937,8 @@ clean:
 test-rust *args:
     #!/usr/bin/env bash
     set -euo pipefail
-    db="${TEST_DATABASE_URL:-postgres://systemprompt_admin@localhost:5432/systemprompt_test}"
-    base="${db%/*}"
-    name="${db##*/}"
-    echo "▶ building migration tool (offline)"
-    migrate_bin=$(SQLX_OFFLINE=true cargo build --manifest-path crates/tests/Cargo.toml \
-        -p systemprompt-test-migrate --message-format=json-render-diagnostics \
-        | jq -r 'select(.reason == "compiler-artifact" and .executable != null) | .executable' | tail -n1)
-    test -x "${migrate_bin}"
-    echo "▶ resetting test database: ${name}"
-    psql "${base}/postgres" -v ON_ERROR_STOP=1 -c "DROP DATABASE IF EXISTS \"${name}\" WITH (FORCE);" >/dev/null
-    psql "${base}/postgres" -v ON_ERROR_STOP=1 -c "CREATE DATABASE \"${name}\";" >/dev/null
-    echo "▶ applying extension schemas"
-    SQLX_OFFLINE=true DATABASE_URL="${db}" "${migrate_bin}"
+    db="$(bash scripts/test-db.sh --print-url)"
+    bash scripts/test-db.sh
     echo "▶ running Rust test workspace (live against migrated schema)"
     SQLX_OFFLINE=false DATABASE_URL="${db}" \
         cargo test --manifest-path crates/tests/Cargo.toml --workspace --lib {{args}}
@@ -980,19 +969,8 @@ test-shard GROUP *args:
         echo "cargo-nextest not found — run 'just install-nextest' first" >&2
         exit 1
     }
-    db="${TEST_DATABASE_URL:-postgres://systemprompt_admin@localhost:5432/systemprompt_test}"
-    base="${db%/*}"
-    name="${db##*/}"
-    echo "▶ building migration tool (offline)"
-    migrate_bin=$(SQLX_OFFLINE=true cargo build --manifest-path crates/tests/Cargo.toml \
-        -p systemprompt-test-migrate --message-format=json-render-diagnostics \
-        | jq -r 'select(.reason == "compiler-artifact" and .executable != null) | .executable' | tail -n1)
-    test -x "${migrate_bin}"
-    echo "▶ resetting test database: ${name}"
-    psql "${base}/postgres" -v ON_ERROR_STOP=1 -c "DROP DATABASE IF EXISTS \"${name}\" WITH (FORCE);" >/dev/null
-    psql "${base}/postgres" -v ON_ERROR_STOP=1 -c "CREATE DATABASE \"${name}\";" >/dev/null
-    echo "▶ applying extension schemas"
-    SQLX_OFFLINE=true DATABASE_URL="${db}" "${migrate_bin}"
+    db="$(bash scripts/test-db.sh --print-url)"
+    bash scripts/test-db.sh
     echo "▶ running shard {{GROUP}} (live against migrated schema)"
     SQLX_OFFLINE=false DATABASE_URL="${db}" \
         bash scripts/test-shard.sh "$@"

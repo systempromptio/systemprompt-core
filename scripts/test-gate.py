@@ -7,6 +7,7 @@ Plans are built from synthetic selector output; the end-to-end cases run
 from datetime import datetime, timedelta, timezone
 import io
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -35,34 +36,41 @@ FORCED = dict(AFFECTED, mode="full", reasons=["Cargo.lock: matches force-full pa
               shard_groups=["shared", "domain"])
 
 
+URL = "postgres://u@h:5432/gate_test"
+LIVE = f"DATABASE_URL='{URL}' SQLX_OFFLINE='false'"
+
+
 def commands(phases):
     return {name: [gate_runner.render_step(entry) for entry in steps] for name, steps in phases}
 
 
-def dry_run(selection, *args):
+def dry_run(selection, *args, env=None):
     with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as handle:
         json.dump(selection, handle)
     try:
         return subprocess.run(["bash", str(ROOT / "scripts" / "gate.sh"), *args, "--selection", handle.name,
-                               "--dry-run"], capture_output=True, text=True, cwd=ROOT)
+                               "--dry-run"], capture_output=True, text=True, cwd=ROOT,
+                              env=os.environ | (env or {}))
     finally:
         Path(handle.name).unlink()
 
 
 class Plans(unittest.TestCase):
     def test_affected_plan_scopes_every_phase(self):
-        plan = commands(gate_runner.plan(AFFECTED, ["crates/domain/files/src/lib.rs"]))
-        self.assertEqual(list(plan), list(gate_runner.PHASES))
+        plan = commands(gate_runner.plan(AFFECTED, ["crates/domain/files/src/lib.rs"], db_url=URL))
+        self.assertEqual(list(plan), ["db", *gate_runner.PHASES])
+        self.assertEqual(plan["db"], ["bash scripts/test-db.sh"])
         self.assertEqual(plan["fmt"], ["just format-check"])
         self.assertEqual(plan["clippy"], [
             "cargo clippy -p systemprompt-api -p systemprompt-files --all-targets --all-features --keep-going -- -D warnings",
-            "(cd crates/tests && cargo clippy -p systemprompt-files-tests --all-targets --all-features --keep-going "
+            f"(cd crates/tests && {LIVE} cargo clippy -p systemprompt-files-tests --all-targets --all-features --keep-going "
             "-- -D warnings)"])
         self.assertEqual(plan["doc"], [
             "RUSTDOCFLAGS='-D warnings' cargo doc --no-deps --all-features -p systemprompt-api -p systemprompt-files",
-            "(cd crates/tests && RUSTDOCFLAGS='-D warnings' cargo doc --no-deps -p systemprompt-files-tests)"])
+            f"(cd crates/tests && DATABASE_URL='{URL}' RUSTDOCFLAGS='-D warnings' SQLX_OFFLINE='false' "
+            "cargo doc --no-deps -p systemprompt-files-tests)"])
         self.assertEqual(plan["scripts"], [])
-        self.assertEqual(plan["tests"], ["just test-shard domain"])
+        self.assertEqual(plan["tests"], [f"{LIVE} bash scripts/test-shard.sh domain"])
 
     def test_unit_gates_take_the_affected_dirs_and_global_gates_run_whole(self):
         plan = gate_runner.plan(AFFECTED, [], ["gates"])
@@ -75,7 +83,7 @@ class Plans(unittest.TestCase):
             self.assertEqual(argv, expected, gate)
 
     def test_bridge_adds_its_own_clippy_and_doc(self):
-        plan = commands(gate_runner.plan(dict(AFFECTED, bridge=True), [], ["clippy", "doc"]))
+        plan = commands(gate_runner.plan(dict(AFFECTED, bridge=True), [], ["clippy", "doc"], db_url=URL))
         self.assertIn("just lint-bridge", plan["clippy"])
         self.assertIn("RUSTDOCFLAGS='-D warnings' cargo doc --manifest-path bin/bridge/Cargo.toml --no-deps", plan["doc"])
 
@@ -92,13 +100,16 @@ class Plans(unittest.TestCase):
         self.assertEqual(plan["gates"][-1], "cargo test --locked --manifest-path scripts/rust-contracts/Cargo.toml")
 
     def test_full_plan_is_check_gates_plus_everything(self):
-        plan = commands(gate_runner.plan(gate_runner.full_selection(["shared", "edge"]), []))
+        plan = commands(gate_runner.plan(gate_runner.full_selection(["shared", "edge"]), [], db_url=URL))
         self.assertEqual(plan["gates"], [f"just {g}" for g in gate_scope.gate_list()]
                          + ["cargo test --locked --manifest-path scripts/rust-contracts/Cargo.toml"])
         self.assertEqual(plan["clippy"][0], "just lint")
         self.assertEqual(plan["doc"], ["just doc-check"])
         self.assertEqual(plan["scripts"], ["bash scripts/test-scripts.sh"])
-        self.assertEqual(plan["tests"], ["just test-shard shared", "just test-shard edge"])
+        self.assertEqual(plan["tests"], [f"{LIVE} bash scripts/test-shard.sh shared",
+                                         f"{LIVE} bash scripts/test-shard.sh edge"])
+        self.assertEqual(plan["clippy"][1], f"(cd crates/tests && {LIVE} cargo clippy --workspace --all-targets "
+                         "--all-features --keep-going -- -D warnings)")
 
 
 class PhaseSelection(unittest.TestCase):
@@ -112,15 +123,32 @@ class PhaseSelection(unittest.TestCase):
             gate_runner.choose_phases("lint", None)
 
     def test_plan_keeps_run_order(self):
-        self.assertEqual([n for n, _ in gate_runner.plan(AFFECTED, [], ["tests", "fmt"])], ["fmt", "tests"])
+        self.assertEqual([n for n, _ in gate_runner.plan(AFFECTED, [], ["tests", "fmt"], db_url=URL)],
+                         ["db", "fmt", "tests"])
+
+    def test_database_is_prepared_once_and_only_when_needed(self):
+        for phases in (["clippy"], ["doc"], ["tests"], ["clippy", "doc", "tests"]):
+            with self.subTest(phases=phases):
+                names = [n for n, _ in gate_runner.plan(AFFECTED, [], phases, db_url=URL)]
+                self.assertEqual(names.count("db"), 1)
+                self.assertEqual(names[0], "db")
+        for phases in (["fmt", "gates", "scripts"],):
+            self.assertNotIn("db", [n for n, _ in gate_runner.plan(AFFECTED, [], phases)])
+        root_only = dict(AFFECTED, test_packages=[], test_dirs=[], shard_groups=[])
+        self.assertNotIn("db", [n for n, _ in gate_runner.plan(root_only, [], ["clippy", "doc", "tests"])])
+
+    def test_a_test_workspace_plan_without_a_url_is_refused(self):
+        with self.assertRaises(gate_runner.GateError):
+            gate_runner.plan(AFFECTED, [], ["tests"])
 
 
 class DryRun(unittest.TestCase):
     def test_unit_dry_run_prints_the_plan(self):
-        result = dry_run(AFFECTED, "--unit", "systemprompt-files", "--only", "fmt,tests")
+        result = dry_run(AFFECTED, "--unit", "systemprompt-files", "--only", "fmt,tests", env={"TEST_DATABASE_URL": URL})
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(result.stdout.splitlines()[1:], ["  unit systemprompt-files", "[fmt]", "  just format-check",
-                                                         "[tests]", "  just test-shard domain"])
+        self.assertEqual(result.stdout.splitlines()[1:], ["  unit systemprompt-files", "[db]",
+                                                         "  bash scripts/test-db.sh", "[fmt]", "  just format-check",
+                                                         "[tests]", f"  {LIVE} bash scripts/test-shard.sh domain"])
 
     def test_changed_dry_run_reports_the_base(self):
         head = subprocess.run(["git", "-C", str(ROOT), "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
@@ -135,7 +163,9 @@ class DryRun(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("full because Cargo.lock: matches force-full pattern **/Cargo.lock", result.stdout)
         self.assertIn("  just doc-check", result.stdout)
-        self.assertIn("  just test-shard shared\n  just test-shard domain", result.stdout)
+        self.assertIn("bash scripts/test-shard.sh shared\n", result.stdout)
+        self.assertIn("bash scripts/test-shard.sh domain\n", result.stdout)
+        self.assertIn("[db]\n  bash scripts/test-db.sh", result.stdout)
 
     def test_full_dry_run_lists_every_source_gate(self):
         out = io.StringIO()
@@ -161,6 +191,25 @@ class DryRun(unittest.TestCase):
                                 capture_output=True, text=True)
         self.assertEqual(result.returncode, 2)
         self.assertIn("unknown phase", result.stderr)
+
+
+class TestDatabase(unittest.TestCase):
+    def url(self, env):
+        return subprocess.run(["bash", str(ROOT / "scripts" / "test-db.sh"), "--print-url"], capture_output=True,
+                              text=True, env={k: v for k, v in os.environ.items() if k != "TEST_DATABASE_URL"} | env)
+
+    def test_print_url_honours_the_override_and_defaults(self):
+        self.assertEqual(self.url({"TEST_DATABASE_URL": URL}).stdout.strip(), URL)
+        self.assertTrue(self.url({}).stdout.strip().endswith("/systemprompt_test"))
+
+    def test_unknown_argument_is_refused(self):
+        result = subprocess.run(["bash", str(ROOT / "scripts" / "test-db.sh"), "--nope"], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 2)
+
+    def test_recipes_share_the_preparation(self):
+        text = (ROOT / "justfile").read_text()
+        self.assertEqual(text.count("bash scripts/test-db.sh\n"), 2)
+        self.assertNotIn("systemprompt-test-migrate --message-format", text)
 
 
 class GateLog(unittest.TestCase):

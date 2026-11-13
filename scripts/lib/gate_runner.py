@@ -6,6 +6,9 @@ appends one JSON line per run to the gate log.
 
 Phases, in run order:
 
+    db       `scripts/test-db.sh`, once, added whenever a chosen step needs the
+             test database: test-workspace clippy and doc, and the test shards
+             all run live against it (TEST_DATABASE_URL, SQLX_OFFLINE=false)
     fmt      `just format-check` (whole tree in every mode)
     clippy   root-workspace clippy over the affected crates, the bridge when it
              is affected, test-workspace clippy over the affected test crates
@@ -14,8 +17,9 @@ Phases, in run order:
              unit gates with `--paths <affected crate dirs>`; every gate in full
              mode, then the rust-contracts tests (`just check-gates`)
     scripts  `scripts/test-scripts.sh` when a path under scripts/ changed
-    tests    `just test-shard <group>` per affected shard group; the recipe
-             builds the migrator and resets TEST_DATABASE_URL per shard
+    tests    `scripts/test-shard.sh <group>` per affected shard group, against
+             the database the db phase prepared (the `just test-shard` recipe
+             is the same two scripts with a fresh database per shard)
 
 The tree hash in the log is `git write-tree` over a temporary index holding the
 whole working tree (tracked, modified and untracked-not-ignored files), so two
@@ -44,14 +48,17 @@ SESSION_VARIABLES = ("CLAUDE_CODE_SESSION_ID", "GITHUB_RUN_ID")
 RUST_CONTRACTS = ["cargo", "test", "--locked", "--manifest-path", "scripts/rust-contracts/Cargo.toml"]
 CLIPPY_TAIL = ["--all-targets", "--all-features", "--keep-going", "--", "-D", "warnings"]
 RUSTDOC_ENV = {"RUSTDOCFLAGS": "-D warnings"}
+TEST_WORKSPACE = "crates/tests"
 
 
 class GateError(Exception):
     """A gate invocation that cannot be planned: bad arguments, a failed selector or git call."""
 
 
-def step(label, argv, env=None, cwd="."):
-    return {"label": label, "argv": list(argv), "env": dict(env or {}), "cwd": cwd}
+def step(label, argv, env=None, cwd=".", db=None):
+    """One command; `db` marks a step that compiles or runs against the test database."""
+    return {"label": label, "argv": list(argv), "env": dict(env or {}), "cwd": cwd,
+            "db": cwd == TEST_WORKSPACE if db is None else db}
 
 
 def packages(names):
@@ -71,7 +78,7 @@ def phase_fmt(selection, changed):
 def phase_clippy(selection, changed):
     if selection["mode"] == "full":
         return [step("clippy", ["just", "lint"]),
-                step("clippy-tests", ["cargo", "clippy", "--workspace", *CLIPPY_TAIL], cwd="crates/tests")]
+                step("clippy-tests", ["cargo", "clippy", "--workspace", *CLIPPY_TAIL], cwd=TEST_WORKSPACE)]
     steps = []
     if selection["clippy_packages"]:
         steps.append(step("clippy", ["cargo", "clippy", *packages(selection["clippy_packages"]), *CLIPPY_TAIL]))
@@ -79,7 +86,7 @@ def phase_clippy(selection, changed):
         steps.append(step("clippy-bridge", ["just", "lint-bridge"]))
     if selection["test_packages"]:
         steps.append(step("clippy-tests", ["cargo", "clippy", *packages(selection["test_packages"]), *CLIPPY_TAIL],
-                          cwd="crates/tests"))
+                          cwd=TEST_WORKSPACE))
     return steps
 
 
@@ -95,7 +102,7 @@ def phase_doc(selection, changed):
                           RUSTDOC_ENV))
     if selection["test_packages"]:
         steps.append(step("doc-tests", ["cargo", "doc", "--no-deps", *packages(selection["test_packages"])],
-                          RUSTDOC_ENV, cwd="crates/tests"))
+                          RUSTDOC_ENV, cwd=TEST_WORKSPACE))
     return steps
 
 
@@ -123,16 +130,35 @@ def phase_scripts(selection, changed):
 
 
 def phase_tests(selection, changed):
-    return [step(f"shard {group}", ["just", "test-shard", group]) for group in selection["shard_groups"]]
+    return [step(f"shard {group}", ["bash", "scripts/test-shard.sh", group], db=True)
+            for group in selection["shard_groups"]]
 
 
 BUILDERS = {"fmt": phase_fmt, "clippy": phase_clippy, "doc": phase_doc, "gates": phase_gates,
             "scripts": phase_scripts, "tests": phase_tests}
 
 
-def plan(selection, changed, phases=PHASES):
-    """`[(phase, [step])]` in run order for the chosen phases; a phase may hold no steps."""
-    return [(name, BUILDERS[name](selection, changed)) for name in PHASES if name in phases]
+def needs_test_db(phases):
+    return any(entry["db"] for _, steps in phases for entry in steps)
+
+
+def plan(selection, changed, phases=PHASES, db_url=None):
+    """`[(phase, [step])]` in run order for the chosen phases; a phase may hold no steps.
+
+    When a step runs in the test workspace, a `db` phase preparing `db_url`
+    comes first and those steps compile live against it.
+    """
+    chosen = [(name, BUILDERS[name](selection, changed)) for name in PHASES if name in phases]
+    if not needs_test_db(chosen):
+        return chosen
+    if db_url is None:
+        raise GateError("a test-workspace phase needs the test database URL")
+    live = {"DATABASE_URL": db_url, "SQLX_OFFLINE": "false"}
+    for _, steps in chosen:
+        for entry in steps:
+            if entry["db"]:
+                entry["env"] = {**entry["env"], **live}
+    return [("db", [step("test-db", ["bash", "scripts/test-db.sh"])])] + chosen
 
 
 def choose_phases(only, skip):
@@ -189,6 +215,13 @@ def all_shard_groups():
     if result.returncode != 0:
         raise GateError(f"test-shard.sh --list: {result.stderr.strip()}")
     return result.stdout.split()
+
+
+def test_db_url():
+    result = subprocess.run(["bash", str(SCRIPTS / "test-db.sh"), "--print-url"], capture_output=True, text=True)
+    if result.returncode != 0:
+        raise GateError(f"test-db.sh --print-url: {result.stderr.strip()}")
+    return result.stdout.strip()
 
 
 def tree_hash():
@@ -314,7 +347,8 @@ def main(argv=None, environ=None):
             selection = dict(full_selection(selection["shard_groups"] or all_shard_groups()),
                              reasons=selection["reasons"], scope_size=selection["scope_size"])
         mode = "full" if args.full else ("unit" if args.unit else "changed")
-        phases = plan(selection, changed, phases_chosen)
+        draft = plan(selection, changed, phases_chosen, db_url="")
+        phases = plan(selection, changed, phases_chosen, db_url=test_db_url() if needs_test_db(draft) else None)
         head = git("rev-parse", "HEAD")
     except GateError as error:
         print(f"gate: {error}", file=sys.stderr)
