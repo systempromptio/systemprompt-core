@@ -27,6 +27,22 @@ def run(script, *args, cwd=ROOT):
     )
 
 
+class OneScope(unittest.TestCase):
+    def helper(self, *args):
+        script = ('. scripts/lib/gate-scope.sh; gate_scope_parse "$@"; '
+                  'gate_require_one_scope "$(( ${#GATE_ARGS[@]} ))"; echo ok')
+        return subprocess.run(["bash", "-c", script, "_", *args], cwd=ROOT, capture_output=True, text=True)
+
+    def test_roots_or_paths_alone_pass(self):
+        self.assertEqual(self.helper("/tmp/x").stdout.strip(), "ok")
+        self.assertEqual(self.helper("--paths", "crates").stdout.strip(), "ok")
+
+    def test_roots_with_paths_are_refused(self):
+        result = self.helper("/tmp/x", "--paths", "crates")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("pass one, not both", result.stderr)
+
+
 class GateRoots(unittest.TestCase):
     def fixture(self, relative, body):
         self.tmp = tempfile.TemporaryDirectory()

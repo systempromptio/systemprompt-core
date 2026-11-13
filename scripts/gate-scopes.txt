@@ -7,6 +7,12 @@
 #         scripts/lib/gate_scope.py) and, with paths, skips its stale-allowlist
 #         checks, which run in full mode only.
 # global  inherently cross-repository; always runs over the whole tree.
+#
+# `--paths` narrows this repository. Some gates also take positional ROOTs,
+# which scan another tree instead (an install or a test fixture, see
+# scripts/test-gate-roots.py) against an explicit allowlist. The two are
+# different operations; scripts/lib/gate-scope.sh owns both and
+# gate_require_one_scope refuses them together.
 # cost    cheap: text scan; compile: builds scripts/rust-contracts first;
 #         db: needs a database. Full-mode wall time on a warm tree in the notes.
 check-version-strings       global  cheap    0.1s; every published version string against [workspace.package].version
