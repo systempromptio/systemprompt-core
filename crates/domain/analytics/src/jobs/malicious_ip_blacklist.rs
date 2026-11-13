@@ -9,16 +9,16 @@
 use async_trait::async_trait;
 use std::sync::Arc;
 
-use systemprompt_database::DbPool;
 use systemprompt_traits::{
     DynIpBanStore, IpBanRequest, IpBanStore, Job, JobContext, JobResult, ProviderError,
-    ProviderResult,
+    ProviderResult, SessionStore,
 };
+use systemprompt_traits::session_store::{IpSessionCount, IpSessionQuery};
 use tracing::{info, warn};
 
 use crate::Result;
 use crate::detection::{DATACENTER_IP_PREFIXES, HIGH_RISK_COUNTRIES};
-use crate::repository::{IpSessionRecord, IpSessionRepository};
+use crate::repository::AnalyticsRepositories;
 
 const HIGH_REQUEST_THRESHOLD: i64 = 100;
 const SCANNER_BAN_THRESHOLD: i64 = 3;
@@ -70,9 +70,7 @@ impl Job for MaliciousIpBlacklistJob {
     async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
         let start_time = std::time::Instant::now();
 
-        let db_pool = Arc::clone(ctx.get::<DbPool>()?);
-
-        let security_repo = IpSessionRepository::new(&db_pool);
+        let sessions = Arc::clone(&ctx.get::<Arc<AnalyticsRepositories>>()?.session_store);
         let banned_ip_repo = Arc::clone(ctx.get::<DynIpBanStore>()?);
 
         info!("Starting malicious IP blacklist job");
@@ -80,25 +78,25 @@ impl Job for MaliciousIpBlacklistJob {
         let enforce = ctx.enforce();
         let mut banned_count = 0u64;
 
-        let high_volume_candidates = find_high_volume_candidates(&security_repo)
+        let high_volume_candidates = find_high_volume_candidates(sessions.as_ref())
             .await
             .map_err(|e| ProviderError::Internal(Box::new(e)))?;
         banned_count +=
             process_candidates(&high_volume_candidates, banned_ip_repo.as_ref(), enforce).await;
 
-        let scanner_candidates = find_scanner_candidates(&security_repo)
+        let scanner_candidates = find_scanner_candidates(sessions.as_ref())
             .await
             .map_err(|e| ProviderError::Internal(Box::new(e)))?;
         banned_count +=
             process_candidates(&scanner_candidates, banned_ip_repo.as_ref(), enforce).await;
 
-        let datacenter_candidates = find_datacenter_candidates(&security_repo)
+        let datacenter_candidates = find_datacenter_candidates(sessions.as_ref())
             .await
             .map_err(|e| ProviderError::Internal(Box::new(e)))?;
         banned_count +=
             process_candidates(&datacenter_candidates, banned_ip_repo.as_ref(), enforce).await;
 
-        let high_risk_candidates = find_high_risk_country_candidates(&security_repo)
+        let high_risk_candidates = find_high_risk_country_candidates(sessions.as_ref())
             .await
             .map_err(|e| ProviderError::Internal(Box::new(e)))?;
         banned_count +=
@@ -128,73 +126,71 @@ impl Job for MaliciousIpBlacklistJob {
 }
 
 async fn find_high_volume_candidates(
-    repo: &IpSessionRepository,
+    sessions: &dyn SessionStore,
 ) -> Result<Vec<MaliciousIpCandidate>> {
-    let records = repo.find_high_volume_ips(HIGH_REQUEST_THRESHOLD).await?;
+    let records = sessions
+        .ip_session_counts(IpSessionQuery::HumanAtLeast(HIGH_REQUEST_THRESHOLD))
+        .await?;
     Ok(records_to_candidates(records, BanReason::HighRequestVolume))
 }
 
-async fn find_scanner_candidates(repo: &IpSessionRepository) -> Result<Vec<MaliciousIpCandidate>> {
-    let records = repo.find_scanner_ips(SCANNER_BAN_THRESHOLD).await?;
+async fn find_scanner_candidates(sessions: &dyn SessionStore) -> Result<Vec<MaliciousIpCandidate>> {
+    let records = sessions
+        .ip_session_counts(IpSessionQuery::ScannerAtLeast(SCANNER_BAN_THRESHOLD))
+        .await?;
     Ok(records_to_candidates(records, BanReason::ScannerActivity))
 }
 
 async fn find_datacenter_candidates(
-    repo: &IpSessionRepository,
+    sessions: &dyn SessionStore,
 ) -> Result<Vec<MaliciousIpCandidate>> {
-    let records = repo.find_recent_ips().await?;
+    let records = sessions.ip_session_counts(IpSessionQuery::All).await?;
     Ok(records
         .into_iter()
-        .filter_map(|r| {
-            let ip = r.ip_address?;
-            if DATACENTER_IP_PREFIXES.iter().any(|p| ip.starts_with(p)) {
-                Some(MaliciousIpCandidate {
-                    ip_address: ip,
-                    reason: BanReason::DatacenterIp,
-                    session_count: r.session_count,
-                })
-            } else {
-                None
-            }
+        .filter(|r| {
+            DATACENTER_IP_PREFIXES
+                .iter()
+                .any(|p| r.ip_address.starts_with(p))
+        })
+        .map(|r| MaliciousIpCandidate {
+            ip_address: r.ip_address,
+            reason: BanReason::DatacenterIp,
+            session_count: r.session_count,
         })
         .collect())
 }
 
 async fn find_high_risk_country_candidates(
-    repo: &IpSessionRepository,
+    sessions: &dyn SessionStore,
 ) -> Result<Vec<MaliciousIpCandidate>> {
-    let records = repo
-        .find_high_risk_country_ips(HIGH_RISK_COUNTRY_THRESHOLD)
+    let records = sessions
+        .ip_session_counts(IpSessionQuery::CountryAtLeast(HIGH_RISK_COUNTRY_THRESHOLD))
         .await?;
     Ok(records
         .into_iter()
-        .filter_map(|r| {
-            let country = r.country.as_deref()?;
-            if HIGH_RISK_COUNTRIES.contains(&country) {
-                r.ip_address.map(|ip| MaliciousIpCandidate {
-                    ip_address: ip,
-                    reason: BanReason::HighRiskCountry,
-                    session_count: r.session_count,
-                })
-            } else {
-                None
-            }
+        .filter(|r| {
+            r.country
+                .as_deref()
+                .is_some_and(|country| HIGH_RISK_COUNTRIES.contains(&country))
+        })
+        .map(|r| MaliciousIpCandidate {
+            ip_address: r.ip_address,
+            reason: BanReason::HighRiskCountry,
+            session_count: r.session_count,
         })
         .collect())
 }
 
 fn records_to_candidates(
-    records: Vec<IpSessionRecord>,
+    records: Vec<IpSessionCount>,
     reason: BanReason,
 ) -> Vec<MaliciousIpCandidate> {
     records
         .into_iter()
-        .filter_map(|r| {
-            r.ip_address.map(|ip| MaliciousIpCandidate {
-                ip_address: ip,
-                reason,
-                session_count: r.session_count,
-            })
+        .map(|r| MaliciousIpCandidate {
+            ip_address: r.ip_address,
+            reason,
+            session_count: r.session_count,
         })
         .collect()
 }

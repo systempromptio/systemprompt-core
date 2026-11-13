@@ -5,8 +5,9 @@ use std::sync::Arc;
 
 use systemprompt_agent::jobs::CleanupEmptyContextsJob;
 use systemprompt_database::DbPool;
+use systemprompt_mcp::repository::ToolUsageRepository;
 use systemprompt_test_fixtures::{fixture_actor, test_db_pool};
-use systemprompt_traits::{Dependencies, Job, JobContext};
+use systemprompt_traits::{Dependencies, DynToolExecutionLookup, Job, JobContext};
 
 #[test]
 fn name_description_and_schedule_are_unchanged() {
@@ -20,7 +21,11 @@ fn name_description_and_schedule_are_unchanged() {
 }
 
 fn make_ctx(pool: &DbPool) -> JobContext {
-    JobContext::new(fixture_actor(), Dependencies::new().with(Arc::clone(pool)))
+    let executions: DynToolExecutionLookup = Arc::new(ToolUsageRepository::new(pool));
+    JobContext::new(
+        fixture_actor(),
+        Dependencies::new().with(Arc::clone(pool)).with(executions),
+    )
 }
 
 #[tokio::test]

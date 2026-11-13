@@ -18,6 +18,7 @@ mod federated_issuer_rekey_db;
 mod federated_link_policy_db;
 mod federated_provisioned_backfill_db;
 mod federated_status_db;
+mod ip_session_counts_db;
 mod merge_excluded_tables_db;
 mod rate_limit_bucket_db;
 mod user;

@@ -3,9 +3,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::sync::Arc;
+
 use async_trait::async_trait;
 use systemprompt_database::DbPool;
-use systemprompt_traits::{Job, JobContext, JobResult, ProviderError, ProviderResult};
+use systemprompt_traits::{
+    DynToolExecutionLookup, Job, JobContext, JobResult, ProviderError, ProviderResult,
+};
 use tracing::info;
 
 use crate::repository::EmptyContextRepository;
@@ -32,7 +36,7 @@ impl Job for CleanupEmptyContextsJob {
     async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
         let start_time = std::time::Instant::now();
 
-        let db_pool = std::sync::Arc::clone(ctx.get::<DbPool>()?);
+        let db_pool = Arc::clone(ctx.get::<DbPool>()?);
 
         info!("Job started");
 
@@ -40,7 +44,8 @@ impl Job for CleanupEmptyContextsJob {
             .get_parameter_parsed::<i64>("retention_hours")?
             .unwrap_or(DEFAULT_RETENTION_HOURS);
 
-        let repository = EmptyContextRepository::new(&db_pool);
+        let tool_executions = Arc::clone(ctx.get::<DynToolExecutionLookup>()?);
+        let repository = EmptyContextRepository::new(&db_pool, tool_executions);
         let deleted_count = if ctx.enforce() {
             repository
                 .cleanup_empty_contexts(retention_hours)

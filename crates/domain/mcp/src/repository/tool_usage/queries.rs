@@ -3,6 +3,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::collections::HashSet;
+
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use systemprompt_identifiers::{
@@ -172,5 +174,22 @@ impl ToolExecutionLookup for ToolUsageRepository {
         .fetch_one(&*self.pool)
         .await
         .map_err(RepositoryError::from)
+    }
+
+    async fn contexts_with_executions(
+        &self,
+        contexts: &[ContextId],
+    ) -> Result<HashSet<ContextId>, RepositoryError> {
+        if contexts.is_empty() {
+            return Ok(HashSet::new());
+        }
+        let keys: Vec<String> = contexts.iter().map(|id| id.as_str().to_owned()).collect();
+        let rows = sqlx::query_scalar!(
+            r#"SELECT DISTINCT context_id as "context_id!" FROM mcp_tool_executions WHERE context_id = ANY($1)"#,
+            &keys
+        )
+        .fetch_all(&*self.pool)
+        .await?;
+        Ok(rows.into_iter().map(ContextId::new).collect())
     }
 }

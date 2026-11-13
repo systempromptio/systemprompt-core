@@ -7,6 +7,7 @@ mod behavioral;
 mod behavioral_queries;
 mod fingerprint;
 mod geo;
+mod ip_counts;
 mod mutations;
 mod queries;
 mod snapshot_row;

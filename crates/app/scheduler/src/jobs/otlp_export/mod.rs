@@ -95,7 +95,7 @@ impl Job for OtlpExportJob {
         let pool = db_pool.write_pool();
         let instance_id = app.config().instance_id.clone();
 
-        let attributions = ctx.get::<DynRequestAttributionLookup>().ok();
+        let attributions = ctx.find::<DynRequestAttributionLookup>();
         let report = run(&pool, config, Some(&instance_id), attributions, true).await?;
         Ok(JobResult::success()
             .with_stats(report.rows(), report.failed())

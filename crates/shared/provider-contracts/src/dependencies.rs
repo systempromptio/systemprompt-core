@@ -9,7 +9,9 @@
 //! asks for exactly that type with [`Dependencies::get`] (a borrow) or
 //! [`Dependencies::get_arc`] (shared ownership). A type that is not present
 //! is a [`MissingDependency`] naming the requested type; it is never a panic
-//! or a silent `None`.
+//! or a silent `None`. A reader for which absence is a normal state (an
+//! optional collaborator such as a configured `GeoIP` database) asks with
+//! [`Dependencies::find`], whose `Option` states that in the signature.
 //!
 //! Every entry records its [`DependencyProvider`]. The host seeds the map
 //! with [`Dependencies::insert`] (a later insert of the same type replaces
@@ -120,10 +122,14 @@ impl Dependencies {
     }
 
     pub fn get<T: Any + Send + Sync>(&self) -> Result<&T, MissingDependency> {
+        self.find::<T>().ok_or_else(MissingDependency::of::<T>)
+    }
+
+    #[must_use]
+    pub fn find<T: Any + Send + Sync>(&self) -> Option<&T> {
         self.entries
             .get(&TypeId::of::<T>())
             .and_then(|entry| entry.value.downcast_ref::<T>())
-            .ok_or_else(MissingDependency::of::<T>)
     }
 
     pub fn get_arc<T: Any + Send + Sync>(&self) -> Result<Arc<T>, MissingDependency> {

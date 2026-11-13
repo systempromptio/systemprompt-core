@@ -6,10 +6,12 @@
 
 use std::sync::Arc;
 
+use systemprompt_database::DbPool;
 use systemprompt_extension::prelude::*;
-use systemprompt_traits::Job;
+use systemprompt_traits::{DynToolExecutionLookup, Job};
 
 use crate::jobs::ToolRowFactsRollupJob;
+use crate::repository::ToolUsageRepository;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct McpExtension;
@@ -110,6 +112,16 @@ impl Extension for McpExtension {
 
     fn migrations(&self) -> Vec<Migration> {
         extension_migrations!()
+    }
+
+    fn provide(
+        &self,
+        _ctx: &dyn ExtensionContext,
+        state: &mut StateBuilder<'_>,
+    ) -> Result<(), ExtensionStateError> {
+        let db = Arc::clone(state.state().get::<DbPool>()?);
+        let executions: DynToolExecutionLookup = Arc::new(ToolUsageRepository::new(&db));
+        state.provide(executions)
     }
 
     fn jobs(&self) -> Vec<Arc<dyn Job>> {

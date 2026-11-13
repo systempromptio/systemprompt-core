@@ -8,7 +8,8 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use systemprompt_identifiers::{SessionId, UserId};
 use systemprompt_traits::session_store::{
-    ActiveSessionLookup, CreateSessionParams, SessionBehavioralData, SessionRecord, SessionSnapshot,
+    ActiveSessionLookup, CreateSessionParams, IpSessionCount, IpSessionQuery, SessionBehavioralData,
+    SessionRecord, SessionSnapshot,
 };
 use systemprompt_traits::{AnalyticsProviderError, AnalyticsResult};
 #[async_trait]
@@ -216,6 +217,14 @@ impl systemprompt_traits::SessionStore for SessionRepository {
         city: Option<&str>,
     ) -> AnalyticsResult<u64> {
         self.set_geo(session_id, country, region, city)
+            .await
+            .map_err(|e| AnalyticsProviderError::Internal(e.into()))
+    }
+    async fn ip_session_counts(
+        &self,
+        query: IpSessionQuery,
+    ) -> AnalyticsResult<Vec<IpSessionCount>> {
+        Self::ip_session_counts(self, query)
             .await
             .map_err(|e| AnalyticsProviderError::Internal(e.into()))
     }
