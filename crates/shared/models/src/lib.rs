@@ -72,7 +72,6 @@ pub mod artifacts;
 pub mod attribution;
 pub mod auth;
 pub mod authz;
-pub mod late_bound;
 pub mod brain;
 pub mod bridge;
 pub mod content;
@@ -86,6 +85,7 @@ pub mod extension;
 pub mod feedback;
 pub mod hooks;
 pub mod issues;
+pub mod late_bound;
 pub mod licence;
 pub mod managed;
 pub mod mcp;
@@ -103,7 +103,6 @@ pub mod subprocess;
 pub mod text;
 pub mod users;
 
-pub use late_bound::{AlreadyBound, LateBound};
 pub use a2a::{
     AgentCapabilities, AgentCard, AgentExtension, AgentProvider, Artifact as A2aArtifact,
     ArtifactMetadata, Part, PartContent, Task, TaskMetadata, TaskState, TaskStatus,
@@ -143,6 +142,7 @@ pub use execution::{
     TrackedStep,
 };
 pub use extension::{BuildType, DiscoveredExtension, ExtensionManifest};
+pub use late_bound::{AlreadyBound, LateBound};
 pub use mcp::{Deployment, McpServerConfig};
 pub use modules::{ApiPaths, CliPaths};
 pub use routing::{RouteClassifier, RouteType};

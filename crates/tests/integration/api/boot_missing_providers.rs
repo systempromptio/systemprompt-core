@@ -56,8 +56,7 @@ async fn context_with(
 }
 
 #[tokio::test]
-async fn without_the_users_session_store_the_session_middleware_is_refused() -> anyhow::Result<()>
-{
+async fn without_the_users_session_store_the_session_middleware_is_refused() -> anyhow::Result<()> {
     let ctx = context_with(ExtensionRegistry::new()).await?;
     let err = SessionMiddleware::new(&ctx).expect_err("no session store is provided");
     match &err {
@@ -73,8 +72,7 @@ async fn without_the_users_session_store_the_session_middleware_is_refused() -> 
 async fn without_the_users_session_store_the_server_does_not_mount() -> anyhow::Result<()> {
     let ctx = context_with(ExtensionRegistry::new()).await?;
     let err = setup_api_server(&ctx, None, &Arc::new(ReadinessState::new()))
-        .err()
-        .expect("no session store is provided");
+        .expect_err("no session store is provided");
     let chain = error_chain(err.as_ref());
     assert!(chain.contains("SessionProvider"), "{chain}");
     Ok(())
@@ -86,8 +84,7 @@ async fn without_the_users_ban_list_the_server_does_not_mount() -> anyhow::Resul
     registry.register(Arc::new(SessionsOnly))?;
     let ctx = context_with(registry).await?;
     let err = setup_api_server(&ctx, None, &Arc::new(ReadinessState::new()))
-        .err()
-        .expect("no IP-ban store is provided");
+        .expect_err("no IP-ban store is provided");
     let chain = error_chain(err.as_ref());
     assert!(chain.contains("IpBanStore"), "{chain}");
     Ok(())

@@ -177,7 +177,8 @@ fn ban_app(repo: &Arc<BannedIpRepository>) -> Router {
         .route(ApiPaths::LIVEZ, get(|| async { "ok" }))
         .route(ApiPaths::READYZ, get(|| async { "ok" }))
         .layer(middleware::from_fn(move |req, next| {
-            let repo: DynIpBanStore = Arc::clone(&repo_layer);
+            let store = Arc::clone(&repo_layer);
+            let repo: DynIpBanStore = store;
             let proxies = Arc::clone(&proxies);
             async move { ip_ban_middleware(req, next, repo, proxies).await }
         }))
@@ -309,7 +310,8 @@ async fn ip_ban_middleware_blocks_seeded_ip() -> Result<()> {
     let app = Router::new()
         .route("/x", get(|| async { "ok" }))
         .layer(middleware::from_fn(move |req, next| {
-            let repo: DynIpBanStore = Arc::clone(&repo_layer);
+            let store = Arc::clone(&repo_layer);
+            let repo: DynIpBanStore = store;
             let proxies = Arc::clone(&proxies);
             async move { ip_ban_middleware(req, next, repo, proxies).await }
         }));

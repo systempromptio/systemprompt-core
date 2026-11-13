@@ -6,8 +6,8 @@
 use clap::Args;
 
 use crate::CliConfig;
-use crate::commands::plugins::{discover_registry, owned_jobs};
 use crate::commands::plugins::types::{JobWithExtension, JobsListOutput};
+use crate::commands::plugins::{discover_registry, owned_jobs};
 use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Args)]

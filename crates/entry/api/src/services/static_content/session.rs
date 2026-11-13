@@ -1,5 +1,6 @@
-//! Resolves or provisions a browser `SessionInfo` from JWT cookies for
-//! static-content requests, through the same shared-trait providers as the
+//! Resolves or provisions a browser `SessionInfo` from JWT cookies.
+//!
+//! Static-content requests go through the same shared-trait providers as the
 //! session middleware; an absent provider refuses rather than minting a
 //! session without request analytics.
 //!

@@ -25,8 +25,8 @@ use systemprompt_extension::brain::{DynBrainSink, SourceAccess};
 use systemprompt_extension::notifications::{DynNotificationSink, NotificationAudienceResolver};
 use systemprompt_identifiers::BrainFactId;
 use systemprompt_manifest::profile::BrainProfile;
-use systemprompt_models::brain::{BrainFact, FactRevision, RevisionChange};
 use systemprompt_models::LateBound;
+use systemprompt_models::brain::{BrainFact, FactRevision, RevisionChange};
 use systemprompt_models::notifications::NotificationEvent;
 
 pub use authority::BrainCaller;
@@ -159,9 +159,9 @@ impl BrainServiceBuilder {
                 .source_access
                 .unwrap_or_else(|| Arc::new(visibility::NoSourceAccess)),
             audiences: self.audiences,
-            replay: self
-                .replay
-                .map_or_else(LateBound::default, |replay| LateBound::bound(Arc::new(replay))),
+            replay: self.replay.map_or_else(LateBound::default, |replay| {
+                LateBound::bound(Arc::new(replay))
+            }),
         }
     }
 }

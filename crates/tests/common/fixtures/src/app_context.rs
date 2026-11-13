@@ -14,14 +14,14 @@ use std::sync::Arc;
 use anyhow::Result;
 use systemprompt_analytics::{AnalyticsService, FingerprintRepository};
 use systemprompt_config::paths::AppPaths;
-use systemprompt_database::DbPool;
 use systemprompt_config::LoadedProfile;
+use systemprompt_database::DbPool;
 use systemprompt_extension::ExtensionRegistry;
-use systemprompt_identifiers::ExtensionId;
 use systemprompt_files::DocumentsConfig;
 use systemprompt_governance::authz::{
     AllowAllHook, NullAuditSink, SharedAuthzHook, SubjectProviderSet,
 };
+use systemprompt_identifiers::ExtensionId;
 use systemprompt_loader::BootContext;
 use systemprompt_manifest::profile::{
     ContentNegotiationConfig, PathsConfig, RateLimitsConfig, SecurityHeadersConfig,

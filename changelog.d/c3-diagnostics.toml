@@ -1,0 +1,24 @@
+[root]
+section = "Added"
+area = "Extensions"
+text = "`Extension::diagnostics` contributes non-gating `DiagnosticProbe` entries to `/health/detail` (collected over the enabled extensions by `ExtensionRegistry::all_diagnostics`); a failing or overrunning probe is a degraded entry and never affects `/readyz`. The notifications and brain consumer backlogs on `/health/detail` are reported this way, with unchanged fields."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Added"
+text = "`Extension::diagnostics`, `DiagnosticProbe`, `DiagnosticFailure`, `DiagnosticDetail` and `ExtensionRegistry::all_diagnostics`."
+
+[[crate]]
+name = "systemprompt-models"
+section = "Added"
+text = "`LateBound<T>` and `AlreadyBound`, the one bind-once cell; `authz::AlreadyBound` moves here and `SubjectSourceHandle` is built on it."
+
+[[crate]]
+name = "systemprompt-notifications"
+section = "Added"
+text = "The notifications extension reports its consumer backlog through `Extension::diagnostics`."
+
+[[crate]]
+name = "systemprompt-brain"
+section = "Added"
+text = "The brain extension reports its consumer backlog through `Extension::diagnostics`; `BrainHandle::start_consumer` refuses a second consumer with `AlreadyBound`."

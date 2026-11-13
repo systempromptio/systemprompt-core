@@ -5,8 +5,11 @@
 use std::error::Error;
 
 pub fn error_chain(error: &(dyn Error + 'static)) -> String {
-    std::iter::successors(Some(error), |current| current.source())
-        .map(ToString::to_string)
-        .collect::<Vec<_>>()
-        .join(": ")
+    let mut parts = vec![error.to_string()];
+    let mut current = error.source();
+    while let Some(cause) = current {
+        parts.push(cause.to_string());
+        current = cause.source();
+    }
+    parts.join(": ")
 }

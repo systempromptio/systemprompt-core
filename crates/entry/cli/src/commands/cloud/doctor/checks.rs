@@ -28,7 +28,10 @@ pub fn check_profile_valid(profile: &Profile) -> CheckResult {
 
 pub fn check_extension_configs(profile: &Profile) -> CheckResult {
     let services_path = Path::new(&profile.paths.services);
-    match systemprompt_runtime::validate_extension_configs(services_path) {
+    match systemprompt_runtime::validate_extension_configs(
+        services_path,
+        &profile.extensions.disabled,
+    ) {
         Err(err) => CheckResult::fail(
             "extension-config",
             format!("could not discover extensions: {err}"),

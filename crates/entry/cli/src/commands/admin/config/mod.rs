@@ -43,6 +43,7 @@ pub mod services_io;
 pub mod show;
 pub mod types;
 pub mod validate;
+mod validate_jobs;
 pub mod validate_services;
 
 use anyhow::{Result, bail};

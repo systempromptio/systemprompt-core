@@ -21,7 +21,8 @@
 use axum::Router;
 use std::sync::Arc;
 use systemprompt_extension::{
-    AuthzPolicy, ContextKind, LoaderError, ProtectionLayer, RateBudget, RateLimit, RouteProtection,
+    AuthzPolicy, ContextKind, ExtensionContext as _, LoaderError, ProtectionLayer, RateBudget,
+    RateLimit, RouteProtection,
 };
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_models::modules::ApiPaths;
@@ -29,9 +30,7 @@ use systemprompt_oauth::services::WebAuthnService;
 use systemprompt_oauth::{OAuthSigning, OAuthState};
 use systemprompt_oauth_issuance::JwksCache;
 use systemprompt_runtime::AppContext;
-use systemprompt_extension::ExtensionContext as _;
-use systemprompt_traits::AppContext as AppContextTrait;
-use systemprompt_traits::McpRegistryProvider;
+use systemprompt_traits::{AppContext as AppContextTrait, McpRegistryProvider};
 
 use super::protocol::MountCtx;
 use super::{RouteMountError, require_provider};

@@ -38,8 +38,7 @@ use axum::Router;
 use std::sync::Arc;
 use systemprompt_extension::registry::WEB_ROOT_BASE_PATH;
 use systemprompt_extension::{
-    AuthzPolicy, ContextKind, ExtensionContext as _, LoaderError, RateBudget, RateLimit,
-    RouteGroup,
+    AuthzPolicy, ContextKind, ExtensionContext as _, LoaderError, RateBudget, RateLimit, RouteGroup,
 };
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_manifest::profile::NodeRole;
@@ -88,7 +87,7 @@ fn build_routes(
         .extension_registry()
         .all_metrics(&ctx.profile().extensions.disabled)?;
     super::metrics::install_recorder(&ctx.config().instance_id, &metrics)
-    .map_err(|source| RouteMountError::initialization("prometheus_metrics", source))?;
+        .map_err(|source| RouteMountError::initialization("prometheus_metrics", source))?;
 
     let layers = mount_layers(ctx, role)?;
     let refresh_lock = RefreshLock::default();

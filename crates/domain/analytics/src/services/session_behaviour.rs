@@ -29,7 +29,8 @@ pub struct SessionBehaviourService {
 
 impl std::fmt::Debug for SessionBehaviourService {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("SessionBehaviourService").finish_non_exhaustive()
+        f.debug_struct("SessionBehaviourService")
+            .finish_non_exhaustive()
     }
 }
 

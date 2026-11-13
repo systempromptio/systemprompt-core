@@ -55,9 +55,9 @@ mod oauth_cleanup_job;
 #[cfg(test)]
 mod orchestration;
 #[cfg(test)]
-mod owner_disabled_db;
-#[cfg(test)]
 mod otlp_export;
+#[cfg(test)]
+mod owner_disabled_db;
 #[cfg(test)]
 mod plans;
 #[cfg(test)]

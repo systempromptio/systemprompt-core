@@ -1,5 +1,6 @@
-//! Operational hooks an extension contributes to the host: named readiness
-//! checks merged into `/readyz`, diagnostic probes reported by
+//! Operational hooks an extension contributes to the host.
+//!
+//! Named readiness checks merged into `/readyz`, diagnostic probes reported by
 //! `/health/detail`, and metric descriptors registered with the Prometheus
 //! recorder.
 //!

@@ -199,7 +199,11 @@ async fn serve_content_page(
         .await;
     }
 
-    let Some(catalog) = ctx.extension_state().find::<DynContentCatalogStats>().cloned() else {
+    let Some(catalog) = ctx
+        .extension_state()
+        .find::<DynContentCatalogStats>()
+        .cloned()
+    else {
         return not_found_response(req.dist_dir, req.headers).await;
     };
 

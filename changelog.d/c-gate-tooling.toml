@@ -1,0 +1,4 @@
+[root]
+section = "Changed"
+area = "Tooling"
+text = "the CI, Quality and Supply Chain workflows derive their jobs and matrices from one affected selection per run, and the aggregates accept a skipped job only when that selection does not need it; every branch and pull request still runs the full gate, and the release proof requires it. `scripts/gate.sh` runs `cargo machete` with the source gates and has a `supply` phase (`cargo deny`, `cargo audit`, gitleaks). Changes are recorded as `changelog.d` fragments assembled at release, and `just regen` regenerates the test database, sqlx caches, hakari crate and lockfiles in one order."

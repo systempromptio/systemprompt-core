@@ -116,7 +116,7 @@ pub enum PublishError {
     Content {
         context: String,
         #[source]
-        source: systemprompt_content::ContentError,
+        source: Box<systemprompt_content::ContentError>,
     },
 
     #[error("{context}: {source}")]
@@ -229,7 +229,7 @@ impl PublishError {
     ) -> Self {
         Self::Content {
             context: context.into(),
-            source: source.into(),
+            source: Box::new(source.into()),
         }
     }
 

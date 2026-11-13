@@ -1,0 +1,9 @@
+[root]
+section = "Changed"
+area = "Database"
+text = "`LoaderError::MigrationStepFailed` and `SchemaInstallationStepFailed` name the failed step only; the cause is the `#[source]` and `infra db migrate` prints the whole chain."
+
+[[crate]]
+name = "systemprompt-database"
+section = "Changed"
+text = "Migration and schema step errors name the failed step; the cause is the `#[source]`."

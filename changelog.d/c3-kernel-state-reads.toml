@@ -1,0 +1,39 @@
+[root]
+section = "Breaking"
+area = "API"
+text = "the API reads the session store (users), behavioural scorer (analytics), content catalog (content), IP-ban store (users) and MCP registry (mcp) from the extension state. `SessionMiddleware::new` returns `Result<_, LoaderError>` and boot refuses without a session store or an IP-ban store. Extension routers are no longer handed `Option<Arc<AiService>>` or `Arc<ArtifactIngest>` as axum extensions; `/health/detail` reports enabled extensions' readiness checks under `checks.extensions`. `execute_content_ingestion`, `execute_copy_extension_assets` and `validate_extension_configs` take the disabled-extension set, and `IngestionService::new` takes the frontmatter processors. Migrate by reading `Arc<AiService>` and `Arc<ArtifactIngest>` from `ExtensionContext::extension_state()`."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Breaking"
+text = "`SessionMiddleware::new` returns `Result<_, LoaderError>`; extension routers read `Arc<AiService>` and `Arc<ArtifactIngest>` from the extension state instead of axum extensions."
+
+[[crate]]
+name = "systemprompt-traits"
+section = "Added"
+text = "`SessionBehaviourScorer`, `DynSessionBehaviourScorer` and `DetectionSubject`; `ContentCatalogStats::has_content`."
+
+[[crate]]
+name = "systemprompt-runtime"
+section = "Removed"
+text = "`AppContext::ai_service` and `ai_service_arc`; the AI service is the `Arc<AiService>` kernel state entry."
+
+[[crate]]
+name = "systemprompt-users"
+section = "Added"
+text = "The users extension provides `DynSessionStore`."
+
+[[crate]]
+name = "systemprompt-analytics"
+section = "Added"
+text = "The analytics extension provides `DynSessionBehaviourScorer`, which scores a session's behaviour from the request."
+
+[[crate]]
+name = "systemprompt-content"
+section = "Changed"
+text = "The content catalog answers `ContentCatalogStats::has_content`; ingestion takes the frontmatter processors of the enabled extensions."
+
+[[crate]]
+name = "systemprompt-mcp"
+section = "Added"
+text = "The mcp extension provides `Arc<dyn McpRegistryProvider>`."

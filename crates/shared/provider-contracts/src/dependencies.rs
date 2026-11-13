@@ -189,8 +189,11 @@ impl fmt::Debug for Dependencies {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut names: Vec<&str> = self.entries.values().map(|e| e.type_name).collect();
         names.sort_unstable();
+        let mut reserved: Vec<&str> = self.reserved.values().copied().collect();
+        reserved.sort_unstable();
         f.debug_struct("Dependencies")
             .field("types", &names)
+            .field("reserved", &reserved)
             .finish()
     }
 }

@@ -155,8 +155,8 @@ fn register_extensions(
     mut registry_builder: TemplateRegistryBuilder,
     ext_ctx: &dyn ExtensionContext,
 ) -> GeneratorResult<(TemplateRegistryBuilder, Vec<Arc<dyn ContentDataProvider>>)> {
-    let extensions =
-        ExtensionRegistry::discover()?.enabled_extensions(&ext_ctx.profile().extensions.disabled)?;
+    let extensions = ExtensionRegistry::discover()?
+        .enabled_extensions(&ext_ctx.profile().extensions.disabled)?;
 
     let mut content_data_providers: Vec<Arc<dyn ContentDataProvider>> = Vec::new();
     let mut contributing = 0usize;

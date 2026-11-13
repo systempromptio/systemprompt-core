@@ -19,7 +19,7 @@ use std::path::Path;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::CategoryId;
-use systemprompt_provider_contracts::{Dependencies, FrontmatterProcessor};
+use systemprompt_provider_contracts::{Dependencies, FrontmatterContext, FrontmatterProcessor};
 
 #[derive(Debug)]
 enum IngestFileResult {
@@ -182,15 +182,14 @@ impl IngestionService {
 
         let created_content = self.content_repo.create(&params).await?;
 
-        processors::call_frontmatter_processors(
-            &self.processors,
-            &self.dependencies,
+        let frontmatter = FrontmatterContext::new(
             created_content.id.as_str(),
             &slug,
             source.source_name,
-            parsed,
-        )
-        .await;
+            &parsed.raw_yaml,
+            &self.dependencies,
+        );
+        processors::call_frontmatter_processors(&self.processors, &frontmatter).await;
 
         Ok(IngestFileResult::Created)
     }
@@ -237,15 +236,14 @@ impl IngestionService {
         .with_public(parsed.metadata.public);
         self.content_repo.update(&update_params).await?;
 
-        processors::call_frontmatter_processors(
-            &self.processors,
-            &self.dependencies,
+        let frontmatter = FrontmatterContext::new(
             existing.id.as_str(),
             &slug,
             source.source_name,
-            parsed,
-        )
-        .await;
+            &parsed.raw_yaml,
+            &self.dependencies,
+        );
+        processors::call_frontmatter_processors(&self.processors, &frontmatter).await;
 
         Ok(IngestFileResult::Updated)
     }

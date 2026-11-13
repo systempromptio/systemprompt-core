@@ -214,7 +214,8 @@ pub(super) fn unapplied_governance(ctx: &AppContext) -> Option<serde_json::Value
     }))
 }
 
-/// The enabled extensions' readiness checks, run by `/readyz` and `/health/detail`.
+/// The enabled extensions' readiness checks, run by `/readyz` and
+/// `/health/detail`.
 pub struct ExtensionReadiness {
     checks: Vec<ExtensionReadinessCheck>,
 }

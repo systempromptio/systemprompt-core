@@ -6,7 +6,8 @@
 use anyhow::{Context, Result, anyhow};
 use std::sync::Arc;
 use systemprompt_database::{
-    Database, MigrationConfig, MigrationService, install_extension_schemas_full,
+    Database, MigrationConfig, MigrationService, SchemaInstallReport,
+    install_extension_schemas_full,
 };
 use systemprompt_extension::{ExtensionRegistry, LoaderError};
 use systemprompt_identifiers::ExtensionId;
@@ -68,6 +69,28 @@ pub(super) async fn execute_migrate_standalone(
     run_install(&ExtensionRegistry::discover()?, database, config, options).await
 }
 
+fn refuse_foreign_key_drift(report: &SchemaInstallReport) -> Result<()> {
+    if report.is_clean() {
+        return Ok(());
+    }
+    let drift: Vec<String> = report
+        .foreign_key_drift
+        .iter()
+        .map(|d| {
+            format!(
+                "{}.{} ({}): {}",
+                d.extension, d.table, d.constraint, d.cause
+            )
+        })
+        .collect();
+    Err(anyhow!(
+        "Schema installation committed but {} declared foreign key(s) could not be created \
+         on this established database; add the referenced unique index with a migration:\n{}",
+        drift.len(),
+        drift.join("\n")
+    ))
+}
+
 async fn run_install(
     registry: &ExtensionRegistry,
     database: &Database,
@@ -79,12 +102,10 @@ async fn run_install(
     }: MigrateOptions,
 ) -> Result<()> {
     let write_provider = database.session();
-    let extension_count = install_set(registry)?.len();
-
     if config.should_show_verbose() {
         CliService::info(&format!(
             "Installing schemas for {} extensions",
-            extension_count
+            install_set(registry)?.len()
         ));
     }
 
@@ -103,9 +124,7 @@ async fn run_install(
     {
         Ok(report) => report,
         Err(LoaderError::MigrationChecksumDrift { .. }) if repair_drift => {
-            CliService::warning(
-                "Migration checksum drift found; re-applying drifted migrations",
-            );
+            CliService::warning("Migration checksum drift found; re-applying drifted migrations");
             let service = MigrationService::new(write_provider);
             for ext in install_set(registry)? {
                 service
@@ -125,24 +144,7 @@ async fn run_install(
         Err(e) => return Err(failure(&e)),
     };
     database.mark_schema_changed();
-    if !report.is_clean() {
-        let drift: Vec<String> = report
-            .foreign_key_drift
-            .iter()
-            .map(|d| {
-                format!(
-                    "{}.{} ({}): {}",
-                    d.extension, d.table, d.constraint, d.cause
-                )
-            })
-            .collect();
-        return Err(anyhow!(
-            "Schema installation committed but {} declared foreign key(s) could not be created \
-             on this established database; add the referenced unique index with a migration:\n{}",
-            drift.len(),
-            drift.join("\n")
-        ));
-    }
+    refuse_foreign_key_drift(&report)?;
 
     let installed_extensions: Vec<String> = install_set(registry)?
         .iter()
@@ -168,7 +170,7 @@ async fn run_install(
 // of failure it is and what fixes it, so an operator does not reach for
 // checksum repair (the old entrypoint retry) on a failure it cannot fix.
 fn failure(error: &LoaderError) -> anyhow::Error {
-    let text = std::iter::successors(Some(error as &dyn std::error::Error), |e| e.source())
+    let text = std::iter::successors(Some::<&dyn std::error::Error>(error), |e| e.source())
         .map(ToString::to_string)
         .collect::<Vec<_>>()
         .join(": ");

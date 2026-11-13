@@ -7,8 +7,8 @@ use systemprompt_database::{
     DatabaseInfo, DatabaseProvider, DatabaseResult, DatabaseTransaction, JsonRow, QueryResult,
     QuerySelector, ToDbValue, replica_status, validate_column_exists, validate_table_exists,
 };
-use systemprompt_traits::RepositoryError;
 use systemprompt_test_fixtures::error_chain;
+use systemprompt_traits::RepositoryError;
 
 #[derive(Debug)]
 struct ResultProvider {

@@ -747,7 +747,7 @@ async fn transactional_migration_with_unparseable_sql_fails_before_execution() {
 }
 
 mod checksum_drift_db {
-    use super::{Migration, MigrationService, StubExtension};
+    use super::{Migration, MigrationService, StubExtension, error_chain};
     use crate::services::db_helper::test_pool;
     use systemprompt_database::{MigrationConfig, PostgresProvider};
 

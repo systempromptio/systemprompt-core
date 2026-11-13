@@ -106,7 +106,10 @@ fn validate_api_paths_skips_a_disabled_extension() {
         RouterExt::new("bad").with_base_path("/widgets"),
     )]);
     let routers = registry
-        .api_routers(&StubCtx, &[systemprompt_identifiers::ExtensionId::new("bad")])
+        .api_routers(
+            &StubCtx,
+            &[systemprompt_identifiers::ExtensionId::new("bad")],
+        )
         .expect("bad has no dependants");
     ExtensionRegistry::validate_api_paths(&routers)
         .expect("a disabled extension's router is neither built nor validated");

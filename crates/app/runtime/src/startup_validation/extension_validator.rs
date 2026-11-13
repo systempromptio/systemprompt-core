@@ -149,7 +149,7 @@ enum ExtConfigError {
 }
 
 fn evaluate_extension_config(
-    ext: &dyn systemprompt_extension::Extension,
+    ext: &dyn Extension,
     services_path: &Path,
 ) -> Result<(), ExtConfigError> {
     let Some(prefix) = ext.config_prefix() else {
@@ -195,7 +195,7 @@ pub fn validate_extension_configs(
 
 fn validate_single_extension(
     config: &Config,
-    ext: &dyn systemprompt_extension::Extension,
+    ext: &dyn Extension,
     report: &mut StartupValidationReport,
     verbose: bool,
 ) {

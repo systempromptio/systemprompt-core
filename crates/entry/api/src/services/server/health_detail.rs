@@ -55,35 +55,34 @@ fn check_static_content(web_dir: &Path) -> (bool, bool) {
     )
 }
 
-pub async fn handle_health_detail(
-    axum::extract::State(ctx): axum::extract::State<AppContext>,
-    readiness: Option<axum::Extension<Arc<ExtensionReadiness>>>,
-    diagnostics: Option<axum::Extension<Arc<ExtensionDiagnostics>>>,
-) -> impl axum::response::IntoResponse {
-    use axum::http::StatusCode;
+async fn probe_database(ctx: &AppContext) -> (&'static str, u128) {
     use systemprompt_database::DatabaseProvider;
 
-    let start = std::time::Instant::now();
-
-    let (db_status, db_latency_ms) = {
-        let db_start = std::time::Instant::now();
-        let probe = ctx.db_pool().fetch_optional(&HEALTH_CHECK_QUERY, &[]);
-        let status = match tokio::time::timeout(super::health::HEALTH_PROBE_TIMEOUT, probe).await {
-            Ok(Ok(_)) => "healthy",
-            Ok(Err(_)) | Err(_) => "unhealthy",
-        };
-        (status, db_start.elapsed().as_millis())
+    let db_start = std::time::Instant::now();
+    let probe = ctx.db_pool().fetch_optional(&HEALTH_CHECK_QUERY, &[]);
+    let status = match tokio::time::timeout(super::health::HEALTH_PROBE_TIMEOUT, probe).await {
+        Ok(Ok(_)) => "healthy",
+        Ok(Err(_)) | Err(_) => "unhealthy",
     };
+    (status, db_start.elapsed().as_millis())
+}
 
-    let (agent_count, agent_status, mcp_count, mcp_status) = check_service_counts(&ctx).await;
-    let (extensions_ok, extensions) = match readiness {
+async fn readiness_checks(
+    readiness: Option<axum::Extension<Arc<ExtensionReadiness>>>,
+) -> (bool, serde_json::Value) {
+    match readiness {
         Some(axum::Extension(readiness)) => readiness.run().await,
         None => (
             false,
             json!({ "status": "degraded", "error": "extension readiness checks unavailable" }),
         ),
-    };
-    let (diagnostics_ok, diagnostic_entries) = match diagnostics {
+    }
+}
+
+async fn diagnostic_checks(
+    diagnostics: Option<axum::Extension<Arc<ExtensionDiagnostics>>>,
+) -> (bool, Vec<(&'static str, serde_json::Value)>) {
+    match diagnostics {
         Some(axum::Extension(diagnostics)) => diagnostics.run().await,
         None => (
             false,
@@ -92,7 +91,23 @@ pub async fn handle_health_detail(
                 json!({ "status": "degraded", "error": "extension diagnostics unavailable" }),
             )],
         ),
-    };
+    }
+}
+
+pub async fn handle_health_detail(
+    axum::extract::State(ctx): axum::extract::State<AppContext>,
+    readiness: Option<axum::Extension<Arc<ExtensionReadiness>>>,
+    diagnostics: Option<axum::Extension<Arc<ExtensionDiagnostics>>>,
+) -> impl axum::response::IntoResponse {
+    use axum::http::StatusCode;
+
+    let start = std::time::Instant::now();
+
+    let (db_status, db_latency_ms) = probe_database(&ctx).await;
+
+    let (agent_count, agent_status, mcp_count, mcp_status) = check_service_counts(&ctx).await;
+    let (extensions_ok, extensions) = readiness_checks(readiness).await;
+    let (diagnostics_ok, diagnostic_entries) = diagnostic_checks(diagnostics).await;
     let web_dir = ctx.app_paths().web().dist().to_path_buf();
     let (memory, (index_exists, sitemap_exists)) =
         tokio::task::spawn_blocking(move || (get_process_memory(), check_static_content(&web_dir)))
@@ -105,12 +120,14 @@ pub async fn handle_health_detail(
     let db_healthy = db_status == "healthy";
     let services_ok = agent_status != "error" && mcp_status != "error";
     let content_ok = index_exists && sitemap_exists;
-    let (overall_status, http_status) =
-        match (db_healthy, services_ok && content_ok && extensions_ok && diagnostics_ok) {
-            (false, _) => ("unhealthy", StatusCode::SERVICE_UNAVAILABLE),
-            (true, false) => ("degraded", StatusCode::OK),
-            (true, true) => ("healthy", StatusCode::OK),
-        };
+    let (overall_status, http_status) = match (
+        db_healthy,
+        services_ok && content_ok && extensions_ok && diagnostics_ok,
+    ) {
+        (false, _) => ("unhealthy", StatusCode::SERVICE_UNAVAILABLE),
+        (true, false) => ("degraded", StatusCode::OK),
+        (true, true) => ("healthy", StatusCode::OK),
+    };
 
     let system_stats = get_system_stats(ctx.db_pool().as_ref()).await;
     let check_duration_ms = start.elapsed().as_millis();
@@ -141,7 +158,10 @@ pub async fn handle_health_detail(
     {
         for (name, entry) in diagnostic_entries {
             if checks.contains_key(name) {
-                tracing::warn!(probe = name, "Diagnostic probe name collides with a core check");
+                tracing::warn!(
+                    probe = name,
+                    "Diagnostic probe name collides with a core check"
+                );
                 continue;
             }
             checks.insert(name.to_owned(), entry);
@@ -159,7 +179,8 @@ pub struct ExtensionDiagnostics {
 
 impl std::fmt::Debug for ExtensionDiagnostics {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ExtensionDiagnostics").finish_non_exhaustive()
+        f.debug_struct("ExtensionDiagnostics")
+            .finish_non_exhaustive()
     }
 }
 
@@ -179,15 +200,20 @@ impl ExtensionDiagnostics {
 
     // JSON: each entry is a free-form diagnostic object.
     async fn run(&self) -> (bool, Vec<(&'static str, serde_json::Value)>) {
-        let outcomes = futures_util::future::join_all(self.probes.iter().map(|(extension, probe)| {
-            let extension = *extension;
-            async move {
-                let outcome =
-                    tokio::time::timeout(super::health::HEALTH_PROBE_TIMEOUT, probe.probe()).await;
-                (probe.name(), diagnostic_entry(extension, probe.as_ref(), outcome))
-            }
-        }))
-        .await;
+        let outcomes =
+            futures_util::future::join_all(self.probes.iter().map(|(extension, probe)| {
+                let extension = *extension;
+                async move {
+                    let outcome =
+                        tokio::time::timeout(super::health::HEALTH_PROBE_TIMEOUT, probe.probe())
+                            .await;
+                    (
+                        probe.name(),
+                        diagnostic_entry(extension, probe.as_ref(), outcome),
+                    )
+                }
+            }))
+            .await;
         let mut ok = true;
         let mut entries = Vec::new();
         for (name, (healthy, entry)) in outcomes {
@@ -224,7 +250,10 @@ fn diagnostic_entry(
                 source = ?std::error::Error::source(&failure),
                 "Extension diagnostic probe failed"
             );
-            (false, Some(json!({ "status": "degraded", "error": failure.reason })))
+            (
+                false,
+                Some(json!({ "status": "degraded", "error": failure.reason })),
+            )
         },
         Err(_) => (
             false,
@@ -239,5 +268,7 @@ fn diagnostic_entry(
 pub(crate) fn diagnostics_layer(
     ctx: &AppContext,
 ) -> Result<axum::Extension<Arc<ExtensionDiagnostics>>, LoaderError> {
-    Ok(axum::Extension(Arc::new(ExtensionDiagnostics::from_context(ctx)?)))
+    Ok(axum::Extension(Arc::new(
+        ExtensionDiagnostics::from_context(ctx)?,
+    )))
 }

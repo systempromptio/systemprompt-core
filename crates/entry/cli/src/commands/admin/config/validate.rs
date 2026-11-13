@@ -1,12 +1,14 @@
 //! `admin config validate` command: validate config files against their
 //! schemas.
 //!
-//! Resolves a target to a single file, a [`ConfigSection`], or the full set of sections,
-//! parses each as YAML, and validates a full profile document against the
-//! [`systemprompt_manifest::profile::Profile`] schema; prints its JSON schema on demand.
+//! Resolves a target to a single file, a [`ConfigSection`], or the full set of
+//! sections, parses each as YAML, and validates a full profile document against
+//! the [`systemprompt_manifest::profile::Profile`] schema; prints its JSON
+//! schema on demand.
 //!
 //! A full validation (no target) also parses, offline, the declaration of
-//! every config plane an enabled extension registers ([`super::plane_validate`]).
+//! every config plane an enabled extension registers
+//! ([`super::plane_validate`]).
 //!
 //! A full or section validation also loads the merged services tree and runs
 //! its cross-checks ([`super::validate_services`]). The command's bootstrap
@@ -28,14 +30,13 @@ use anyhow::{Result, anyhow};
 use clap::Args;
 
 use super::types::{ConfigFileInfo, ConfigSection, ConfigValidateOutput};
+use super::validate_jobs::scheduler_catalog_error;
+pub use super::validate_jobs::{unknown_jobs_message, unlisted_jobs_message};
 use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 use crate::shared::yaml_document::read_yaml_file;
 use systemprompt_config::LoadedProfile;
-use systemprompt_loader::BootContext;
 use systemprompt_manifest::profile::Profile;
-use systemprompt_manifest::services::ServicesConfig;
-use systemprompt_scheduler::SchedulerConfig;
 
 #[derive(Debug, Clone, Args)]
 pub struct ValidateArgs {
@@ -213,57 +214,6 @@ fn validate_profile_file(path: &std::path::Path) -> Result<(CommandOutput, bool)
             path.display()
         )),
     }
-}
-
-fn scheduler_catalog_error(
-    boot: &BootContext,
-    services: Option<&ServicesConfig>,
-    files: &[ConfigFileInfo],
-    strict: bool,
-) -> Option<String> {
-    if !files
-        .iter()
-        .any(|file| file.section == "scheduler" && file.error.is_none())
-    {
-        return None;
-    }
-    let scheduler = services?
-        .scheduler
-        .clone()
-        .unwrap_or_else(SchedulerConfig::with_system_admin);
-    unknown_jobs_message(&scheduler).or_else(|| {
-        strict
-            .then(|| unlisted_jobs_message(&scheduler, boot))
-            .flatten()
-    })
-}
-
-pub fn unlisted_jobs_message(config: &SchedulerConfig, boot: &BootContext) -> Option<String> {
-    let unlisted = systemprompt_scheduler::unlisted_job_names(config, boot);
-    if unlisted.is_empty() {
-        return None;
-    }
-    Some(format!(
-        "registered job(s) with no scheduler.jobs entry: {}. Add an entry for each (enabled: \
-         false keeps one off the schedule).",
-        unlisted
-            .iter()
-            .map(systemprompt_identifiers::JobName::as_str)
-            .collect::<Vec<_>>()
-            .join(", ")
-    ))
-}
-
-pub fn unknown_jobs_message(config: &SchedulerConfig) -> Option<String> {
-    let unknown = systemprompt_scheduler::unknown_job_names(config);
-    if unknown.is_empty() {
-        return None;
-    }
-    Some(format!(
-        "job(s) not registered via submit_job!: {}. Run `systemprompt infra jobs list` to see \
-         every registered job.",
-        unknown.join(", ")
-    ))
 }
 
 fn is_yaml_file(path: &std::path::Path) -> bool {

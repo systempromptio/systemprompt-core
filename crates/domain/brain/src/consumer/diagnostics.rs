@@ -49,10 +49,13 @@ impl DiagnosticProbe for BacklogDiagnostic {
             return Ok(None);
         };
         let snapshot = consumer.backlog();
-        let pending = consumer.pending().await.map_err(|error| DiagnosticFailure {
-            reason: "backlog unavailable".into(),
-            source: Some(Box::new(error)),
-        })?;
+        let pending = consumer
+            .pending()
+            .await
+            .map_err(|error| DiagnosticFailure {
+                reason: "backlog unavailable".into(),
+                source: Some(Box::new(error)),
+            })?;
         let mut detail = DiagnosticDetail::new();
         detail.insert("state".to_owned(), json!(snapshot.state));
         detail.insert("pending".to_owned(), json!(pending.pending));

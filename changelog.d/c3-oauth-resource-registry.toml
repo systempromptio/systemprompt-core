@@ -1,0 +1,9 @@
+[root]
+section = "Fixed"
+area = "OAuth"
+text = "`/oauth/authorize` refuses a request that names a `resource` with `invalid_target` when no MCP registry is provided."
+
+[[crate]]
+name = "systemprompt-provider-contracts"
+section = "Added"
+text = "`Dependencies::reserve` and `reserving`: a host-owned type without a value reads as missing and cannot be provided by an extension."

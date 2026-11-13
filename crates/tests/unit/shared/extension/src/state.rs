@@ -319,7 +319,10 @@ fn an_extension_cannot_provide_a_type_the_kernel_holds() {
 #[test]
 fn an_extension_cannot_provide_a_type_the_kernel_reserves_without_a_value() {
     let kernel = Dependencies::new().reserving::<Cache>();
-    assert!(kernel.get::<Cache>().is_err(), "a reserved type reads as missing");
+    assert!(
+        kernel.get::<Cache>().is_err(),
+        "a reserved type reads as missing"
+    );
     assert!(!StateRequirement::of::<Cache>().is_met_by(&kernel));
 
     let err = registry_with(vec![Arc::new(StateExt::new("shadow", Provides::Cache(2)))])

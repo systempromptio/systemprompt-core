@@ -47,7 +47,10 @@ impl ExtensionRegistry {
                 });
             }
 
-            if RESERVED_PATHS.iter().any(|reserved| base_path.starts_with(reserved)) {
+            if RESERVED_PATHS
+                .iter()
+                .any(|reserved| base_path.starts_with(reserved))
+            {
                 return Err(LoaderError::ReservedPathCollision {
                     extension: ExtensionId::new(ext.id()),
                     path: base_path.to_owned(),

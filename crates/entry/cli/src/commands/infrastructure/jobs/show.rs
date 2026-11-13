@@ -38,7 +38,7 @@ pub(super) async fn execute(args: ShowArgs, ctx: &CommandContext) -> Result<Comm
 
     let job = registration.job;
     let app = ctx.app_context().await?;
-    let owner_enabled = EnabledExtensions::of(&app)?.contains(registration.owner);
+    let owner_enabled = EnabledExtensions::of(app)?.contains(registration.owner);
     let repo = JobRepository::new(app.db_pool());
 
     let db_job: Option<ScheduledJob> = repo.find_job(&args.job_name).await?;

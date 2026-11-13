@@ -173,13 +173,13 @@ pub mod prelude {
     pub use crate::retention::{RetentionHold, RetentionHoldError, RetentionTarget};
     pub use crate::seed::Seed;
     pub use crate::state::{StateBuilder, StateHandle, StateRequirement};
-    pub use systemprompt_models::LateBound;
     pub use crate::{
         AuthzPolicy, ContextKind, Extension, ExtensionMetadata, ExtensionRole, ExtensionRouter,
         Migration, RateBudget, RateLimit, RouteProtection, SchemaDefinition, SiteAuthConfig,
         extension_migrations, register_extension, register_gateway_guard, register_retention_hold,
         stamp_frame_options, user_purge_tables,
     };
+    pub use systemprompt_models::LateBound;
 
     pub use systemprompt_provider_contracts::{
         ApplyMode, ApplyOutcome, ApplyRequest, ChangeActor, ChangeRequest, ChangeSource,

@@ -40,7 +40,8 @@ impl AppContextTrait for AppContext {
         let sessions = self
             .extension_state
             .find::<systemprompt_traits::DynSessionStore>()?;
-        let provider: Arc<dyn systemprompt_traits::SessionProvider> = Arc::clone(sessions);
+        let store: systemprompt_traits::DynSessionStore = Arc::clone(sessions);
+        let provider: Arc<dyn systemprompt_traits::SessionProvider> = store;
         Some(provider)
     }
 

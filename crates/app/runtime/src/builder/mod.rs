@@ -250,9 +250,9 @@ impl AppContextBuilder {
             let seams = notifications::ExtensionSeams::discover(&app);
             audiences.bind(seams.audiences.clone());
             app.subsystems.notifications = notifications_core.assemble(seams);
-            if let Some(slot) = app
-                .extension_state
-                .find::<systemprompt_notifications::consumer::NotificationsConsumerSlot>()
+            if let Some(slot) =
+                app.extension_state
+                    .find::<systemprompt_notifications::consumer::NotificationsConsumerSlot>()
             {
                 slot.bind(Arc::clone(&app.subsystems.notifications.consumer))?;
             }

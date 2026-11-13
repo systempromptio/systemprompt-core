@@ -187,7 +187,10 @@ async fn a_retired_table_is_refused_before_any_retirement_runs() {
 async fn a_retirement_without_if_exists_is_refused() {
     let (error, untouched) = refused("DROP VIEW {prefix}_view;").await;
 
-    assert!(error_chain(&error).contains("must say IF EXISTS"), "{error}");
+    assert!(
+        error_chain(&error).contains("must say IF EXISTS"),
+        "{error}"
+    );
     assert!(untouched);
 }
 

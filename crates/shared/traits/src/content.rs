@@ -13,10 +13,11 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{CategoryId, ContentId, LocaleCode, SourceId};
 
-/// Authoritative content counts and existence lookups, used by behavioral
-/// classification and by static-content serving; `dyn` dispatched, hence
-/// `#[async_trait]`. The content extension provides it in the extension
-/// state as [`DynContentCatalogStats`].
+/// Authoritative content counts and existence lookups.
+///
+/// Used by behavioral classification and by static-content serving; `dyn`
+/// dispatched, hence `#[async_trait]`. The content extension provides it in
+/// the extension state as [`DynContentCatalogStats`].
 #[async_trait]
 pub trait ContentCatalogStats: Send + Sync + std::fmt::Debug {
     async fn count_public_pages(&self) -> Result<i64, crate::RepositoryError>;

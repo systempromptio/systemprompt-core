@@ -1,0 +1,19 @@
+[root]
+section = "Breaking"
+area = "Extensions"
+text = "every `ExtensionRegistry` collector takes the profile's disabled set and returns `Result<_, LoaderError>`: `config_extensions`, `asset_extensions`, `all_required_storage_paths`, `all_required_assets`, `all_config_planes`, `all_metrics` and the new `frontmatter_processors`. `validate_api_paths` validates the `&[ApiRouter]` that `api_routers` returned. `schema_extensions`, `storage_extensions`, `enabled_job_extensions`, `all_jobs`, `job_by_name` and `jobs_by_tag` are removed. Schema installation covers every linked extension through `ExtensionRegistry::INSTALL_EVERY_LINKED_SCHEMA`. Migrate by passing `profile.extensions.disabled` and propagating the error."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "Registry collectors take the disabled-extension set; `Extension::jobs` and `has_jobs` are removed (register jobs with `submit_job!`); `validate_api_paths` takes the router set."
+
+[[crate]]
+name = "systemprompt-loader"
+section = "Removed"
+text = "`ModuleLoader`, which had no caller."
+
+[[crate]]
+name = "systemprompt-cloud"
+section = "Changed"
+text = "The generated Dockerfile creates the storage directories of every linked extension, read through the registry's fallible collector."

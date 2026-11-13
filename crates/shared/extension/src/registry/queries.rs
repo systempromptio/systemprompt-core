@@ -223,7 +223,9 @@ impl ExtensionRegistry {
     ) -> Result<Vec<ExtensionDiagnostic>, LoaderError> {
         self.enabled_flat_map(disabled_ids, |ext| {
             let id = ext.id();
-            ext.diagnostics(ctx).into_iter().map(move |probe| (id, probe))
+            ext.diagnostics(ctx)
+                .into_iter()
+                .map(move |probe| (id, probe))
         })
     }
 }

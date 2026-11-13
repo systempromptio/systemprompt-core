@@ -207,8 +207,11 @@ async fn an_erroring_diagnostic_leaves_readyz_ready_and_degrades_the_detail() ->
     assert_eq!(status, 200, "a diagnostic never gates readiness: {readyz}");
     assert_eq!(readyz["status"], "ready");
 
-    let (status, detail) =
-        get_json(authenticated_discovery_router(&ctx)?, "/api/v1/health/detail").await?;
+    let (status, detail) = get_json(
+        authenticated_discovery_router(&ctx)?,
+        "/api/v1/health/detail",
+    )
+    .await?;
     readiness.signal_shutdown();
     assert_ne!(status, 500, "a failed diagnostic is never a 5xx: {detail}");
     let entry = &detail["checks"]["cov-backlog"];

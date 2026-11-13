@@ -1,0 +1,9 @@
+[root]
+section = "Breaking"
+area = "Scheduler"
+text = "`Extension::jobs()` is removed: a job is registered only with `submit_job!(owner, &job)`. `infra jobs list` and `infra jobs show` report each job's `owner` and whether the profile leaves it enabled (`owner_enabled`). Migrate by registering each job with `submit_job!`."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Added"
+text = "`infra jobs list` and `infra jobs show` report each job's `owner` and `owner_enabled`."

@@ -26,7 +26,12 @@ fn a_targeted_validation_skips_the_plane_pass() {
     let config = systemprompt_test_fixtures::test_config();
     let mut results = Vec::new();
     let target = "web".to_owned();
-    assert!(append_full_validation(&config, &[], Some(&target), &mut results));
+    assert!(append_full_validation(
+        &config,
+        &[],
+        Some(&target),
+        &mut results
+    ));
     assert!(results.is_empty());
 }
 
