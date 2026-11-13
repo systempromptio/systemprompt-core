@@ -104,7 +104,7 @@ pub struct StateBuilder<'a> {
 pub(crate) struct StateEntries(HashMap<TypeId, StateEntry>);
 
 impl StateEntries {
-    pub(crate) fn builder(&mut self, extension: ExtensionId) -> StateBuilder<'_> {
+    pub(crate) const fn builder(&mut self, extension: ExtensionId) -> StateBuilder<'_> {
         StateBuilder {
             entries: &mut self.0,
             current: extension,
