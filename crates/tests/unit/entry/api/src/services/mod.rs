@@ -4,7 +4,6 @@
 //! - Health check types (HealthSummary, ModuleHealth)
 //! - HealthChecker configuration
 
-mod analytics_detection;
 mod health;
 mod process_ownership;
 mod process_rendezvous;

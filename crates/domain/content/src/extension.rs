@@ -1,16 +1,21 @@
-//! `Extension` registration for the content domain: schemas and dependencies.
+//! `Extension` registration for the content domain: schemas, dependencies,
+//! prerender providers and the provided content catalog
+//! (`DynContentCatalogStats`), which static-content serving reads.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 
+use systemprompt_database::DbPool;
 use systemprompt_extension::prelude::*;
+use systemprompt_traits::DynContentCatalogStats;
 
 use crate::branding_provider::default_branding_provider;
 use crate::homepage_prerenderer::DefaultHomepagePrerenderer;
 use crate::list_branding_provider::default_list_branding_provider;
 use crate::list_items_renderer::default_list_items_renderer;
+use crate::repository::ContentRepository;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct ContentExtension;
@@ -58,6 +63,16 @@ impl Extension for ContentExtension {
 
     fn dependencies(&self) -> Vec<&'static str> {
         vec!["users", "analytics"]
+    }
+
+    fn provide(
+        &self,
+        _ctx: &dyn ExtensionContext,
+        state: &mut StateBuilder<'_>,
+    ) -> Result<(), ExtensionStateError> {
+        let db = Arc::clone(state.state().get::<DbPool>()?);
+        let catalog: DynContentCatalogStats = Arc::new(ContentRepository::new(&db));
+        state.provide(catalog)
     }
 
     fn migrations(&self) -> Vec<Migration> {

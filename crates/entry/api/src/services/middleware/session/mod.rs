@@ -10,6 +10,13 @@
 //! *to that user*. An existence-only check would let a signed token borrow
 //! another user's live session for analytics attribution.
 //!
+//! The session store is the one the `users` extension provides in the
+//! extension state, read through [`systemprompt_traits::SessionProvider`];
+//! request analytics and the anonymous-user provider are read through their
+//! shared traits. When any of them is absent the middleware is not built and
+//! boot refuses with a typed `LoaderError::MissingProvider`: a session is
+//! never minted without the request analytics that attribute it.
+//!
 //! Establishing a session reads and writes the database, so it is bounded and
 //! degrades rather than fails — see the `context` submodule. A request that
 //! cannot be given a session is served with an untracked, actor-less context
@@ -38,14 +45,17 @@ use axum::response::Response;
 use ipnet::IpNet;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use systemprompt_analytics::{AnalyticsService, SessionAnalytics};
+use systemprompt_extension::LoaderError;
+use systemprompt_identifiers::ExtensionId;
 use systemprompt_manifest::Config;
 use systemprompt_oauth::services::SessionCreationService;
 use systemprompt_runtime::AppContext;
 use systemprompt_security::HeaderExtractor;
 use systemprompt_security::keys::SigningKeys;
-use systemprompt_traits::{ExtractSignals, SessionProvider};
-use systemprompt_users::UserService;
+use systemprompt_traits::{
+    AnalyticsProvider, AppContext as _, ExtractSignals, SessionAnalytics, SessionProvider,
+    UserProvider,
+};
 
 struct RequestMeta<'a> {
     headers: &'a http::HeaderMap,
@@ -53,9 +63,10 @@ struct RequestMeta<'a> {
     analytics: &'a SessionAnalytics,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct SessionMiddleware {
-    analytics_service: Arc<AnalyticsService>,
+    analytics: Arc<dyn AnalyticsProvider>,
+    sessions: Arc<dyn SessionProvider>,
     session_creation_service: Arc<SessionCreationService>,
     trusted_proxies: Arc<Vec<IpNet>>,
     config: Arc<Config>,
@@ -64,25 +75,52 @@ pub struct SessionMiddleware {
     degraded_warn: Arc<systemprompt_logging::LogThrottle>,
 }
 
+pub(crate) type SessionProviders = (
+    Arc<dyn AnalyticsProvider>,
+    Arc<dyn SessionProvider>,
+    SessionCreationService,
+);
+
+pub(crate) fn session_providers(ctx: &AppContext) -> Result<SessionProviders, LoaderError> {
+    let consumer = || ExtensionId::new("session");
+    let analytics = ctx
+        .analytics_provider()
+        .ok_or_else(|| LoaderError::missing_provider::<Arc<dyn AnalyticsProvider>>(consumer()))?;
+    let sessions = ctx
+        .session_provider()
+        .ok_or_else(|| LoaderError::missing_provider::<Arc<dyn SessionProvider>>(consumer()))?;
+    let users = ctx
+        .user_provider()
+        .ok_or_else(|| LoaderError::missing_provider::<Arc<dyn UserProvider>>(consumer()))?;
+    let creation = SessionCreationService::new(
+        Arc::clone(&sessions),
+        users,
+        ctx.token_authority(),
+        Arc::clone(ctx.config_arc()),
+    );
+    Ok((analytics, sessions, creation))
+}
+
 const IGNORED_FORWARDED_WARN_INTERVAL_SECS: u64 = 3600;
 const DEGRADED_WARN_INTERVAL_SECS: u64 = 60;
 const SESSION_COOKIE_MAX_AGE_SECS: i64 = 604_800;
 
-impl SessionMiddleware {
-    pub fn new(ctx: &AppContext) -> Self {
-        let user_service = UserService::new(Arc::clone(ctx.user_repository()));
-        let concrete = Arc::clone(&ctx.analytics_repositories().session_store);
-        let analytics: Arc<dyn SessionProvider> = concrete;
-        let session_creation_service = Arc::new(SessionCreationService::new(
-            analytics,
-            Arc::new(user_service),
-            ctx.token_authority(),
-            Arc::clone(ctx.config_arc()),
-        ));
+impl std::fmt::Debug for SessionMiddleware {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SessionMiddleware")
+            .field("trusted_proxies", &self.trusted_proxies)
+            .finish_non_exhaustive()
+    }
+}
 
-        Self {
-            analytics_service: Arc::clone(ctx.analytics_service()),
-            session_creation_service,
+impl SessionMiddleware {
+    pub fn new(ctx: &AppContext) -> Result<Self, LoaderError> {
+        let (analytics, sessions, session_creation_service) = session_providers(ctx)?;
+
+        Ok(Self {
+            analytics,
+            sessions,
+            session_creation_service: Arc::new(session_creation_service),
             trusted_proxies: Arc::new(ctx.config().trusted_proxies.clone()),
             config: Arc::clone(ctx.config_arc()),
             signing_keys: ctx.signing_keys().clone(),
@@ -92,7 +130,7 @@ impl SessionMiddleware {
             degraded_warn: Arc::new(systemprompt_logging::LogThrottle::new(
                 DEGRADED_WARN_INTERVAL_SECS,
             )),
-        }
+        })
     }
 
     pub async fn handle(&self, mut request: Request, next: Next) -> Result<Response, ApiHttpError> {
@@ -117,7 +155,7 @@ impl SessionMiddleware {
         }
         let uri = request.uri().clone();
         let headers = request.headers();
-        let analytics = self.analytics_service.extract_analytics(
+        let analytics = self.analytics.extract_analytics(
             headers,
             ExtractSignals {
                 uri: Some(&uri),

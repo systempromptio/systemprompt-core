@@ -1,52 +1,67 @@
-//! Behavioral bot detection input collection over fingerprint history.
+//! Behavioural bot detection over a session's request and fingerprint
+//! history: [`SessionBehaviourService`] collects the analysis input, scores it
+//! with [`BehavioralBotDetector`] and records a suspicious verdict on the
+//! session. The analytics extension provides it as the
+//! [`DynSessionBehaviourScorer`] the request-analytics middleware reads.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use std::sync::Arc;
 
-use systemprompt_analytics::{
-    BehavioralAnalysisInput, BehavioralBotDetector, SessionSignalsRepository,
-};
 use systemprompt_identifiers::SessionId;
-use systemprompt_traits::{BackgroundTasks, DynSessionStore, SessionStore};
+use systemprompt_traits::{
+    AnalyticsResult, DetectionSubject, DynSessionBehaviourScorer, DynSessionStore,
+    SessionBehaviourScorer, SessionStore,
+};
+
+use super::behavioral_detector::{BehavioralAnalysisInput, BehavioralBotDetector};
+use crate::repository::SessionSignalsRepository;
 
 const BEHAVIORAL_FINGERPRINT_WINDOW_DAYS: i64 = 45;
 
-#[derive(Debug, Clone)]
-pub struct DetectionSubject {
-    pub session_id: SessionId,
-    pub fingerprint_hash: Option<String>,
-    pub user_agent: Option<String>,
-    pub request_count: i64,
+#[derive(Clone)]
+pub struct SessionBehaviourService {
+    sessions: DynSessionStore,
+    signals: SessionSignalsRepository,
 }
 
-pub(super) fn spawn_behavioral_detection_task(
-    background: &BackgroundTasks,
-    sessions: DynSessionStore,
-    signals: Arc<SessionSignalsRepository>,
-    subject: DetectionSubject,
-) {
-    background.spawn("analytics_behavioral_detection", async move {
+impl std::fmt::Debug for SessionBehaviourService {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SessionBehaviourService").finish_non_exhaustive()
+    }
+}
+
+impl SessionBehaviourService {
+    pub const fn new(sessions: DynSessionStore, signals: SessionSignalsRepository) -> Self {
+        Self { sessions, signals }
+    }
+
+    #[must_use]
+    pub fn into_scorer(self) -> DynSessionBehaviourScorer {
+        std::sync::Arc::new(self)
+    }
+}
+
+#[async_trait]
+impl SessionBehaviourScorer for SessionBehaviourService {
+    async fn score(&self, subject: DetectionSubject) -> AnalyticsResult<()> {
         let session_id = subject.session_id.clone();
-        let input = collect_analysis_input(&*sessions, &signals, subject).await;
-
+        let input = collect_analysis_input(&*self.sessions, &self.signals, subject).await;
         let result = BehavioralBotDetector::analyze(&input);
-
-        if result.score > 0
-            && let Err(e) = sessions
-                .update_behavioral_detection(
-                    &session_id,
-                    result.score,
-                    result.is_suspicious,
-                    result.reason.as_deref(),
-                )
-                .await
-        {
-            tracing::error!(error = %e, "Failed to update behavioral detection");
+        if result.score == 0 {
+            return Ok(());
         }
-    });
+        self.sessions
+            .update_behavioral_detection(
+                &session_id,
+                result.score,
+                result.is_suspicious,
+                result.reason.as_deref(),
+            )
+            .await
+    }
 }
 
 pub async fn collect_analysis_input(

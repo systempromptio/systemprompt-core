@@ -38,7 +38,8 @@ use axum::Router;
 use std::sync::Arc;
 use systemprompt_extension::registry::WEB_ROOT_BASE_PATH;
 use systemprompt_extension::{
-    AuthzPolicy, ContextKind, LoaderError, RateBudget, RateLimit, RouteGroup,
+    AuthzPolicy, ContextKind, ExtensionContext as _, LoaderError, RateBudget, RateLimit,
+    RouteGroup,
 };
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_manifest::profile::NodeRole;
@@ -48,7 +49,7 @@ pub(super) use error::RouteMountError;
 use protocol::{MountCtx, declare};
 use systemprompt_gateway::GatewayEngines;
 use systemprompt_runtime::AppContext;
-use systemprompt_traits::{AppContext as AppContextTrait, StartupEventSender};
+use systemprompt_traits::{AppContext as AppContextTrait, DynIpBanStore, StartupEventSender};
 
 use crate::services::middleware::{
     A2AContextMiddleware, BodyBudget, JtiRevocationChecker, JwtContextExtractor,
@@ -154,11 +155,14 @@ fn finish_router(
     events: Option<&StartupEventSender>,
 ) -> Result<Router, RouteMountError> {
     let ctx = mount.ctx;
-    let banned_ip_repo = crate::repository::banned_ips(ctx.db_pool());
+    let bans = require_provider(
+        "ip_ban",
+        ctx.extension_state().find::<DynIpBanStore>().cloned(),
+    )?;
     let trusted_proxies = Arc::new(ctx.config().trusted_proxies.clone());
 
     router = router.layer(axum::middleware::from_fn(move |req, next| {
-        let repo = Arc::clone(&banned_ip_repo);
+        let repo = Arc::clone(&bans);
         let proxies = Arc::clone(&trusted_proxies);
         async move { ip_ban_middleware(req, next, repo, proxies).await }
     }));
@@ -205,7 +209,7 @@ fn mount_discovery(mut router: Router, mount: &MountCtx<'_>) -> Result<Router, R
         router = mount.mount(
             router,
             declare(
-                super::builder::authenticated_discovery_router(ctx),
+                super::builder::authenticated_discovery_router(ctx)?,
                 WEB_ROOT_BASE_PATH,
                 AuthzPolicy::authenticated(),
                 ContextKind::User,

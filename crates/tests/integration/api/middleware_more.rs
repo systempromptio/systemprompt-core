@@ -27,6 +27,7 @@ use systemprompt_extension::SiteAuthConfig;
 use systemprompt_identifiers::AccessTokenId;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_models::routing::EventMetadata;
+use systemprompt_traits::DynIpBanStore;
 use systemprompt_users::{BanDuration, BanIpParams, BannedIpRepository};
 use tower::ServiceExt;
 use uuid::Uuid;
@@ -176,7 +177,7 @@ fn ban_app(repo: &Arc<BannedIpRepository>) -> Router {
         .route(ApiPaths::LIVEZ, get(|| async { "ok" }))
         .route(ApiPaths::READYZ, get(|| async { "ok" }))
         .layer(middleware::from_fn(move |req, next| {
-            let repo = Arc::clone(&repo_layer);
+            let repo: DynIpBanStore = Arc::clone(&repo_layer);
             let proxies = Arc::clone(&proxies);
             async move { ip_ban_middleware(req, next, repo, proxies).await }
         }))
@@ -308,7 +309,7 @@ async fn ip_ban_middleware_blocks_seeded_ip() -> Result<()> {
     let app = Router::new()
         .route("/x", get(|| async { "ok" }))
         .layer(middleware::from_fn(move |req, next| {
-            let repo = Arc::clone(&repo_layer);
+            let repo: DynIpBanStore = Arc::clone(&repo_layer);
             let proxies = Arc::clone(&proxies);
             async move { ip_ban_middleware(req, next, repo, proxies).await }
         }));

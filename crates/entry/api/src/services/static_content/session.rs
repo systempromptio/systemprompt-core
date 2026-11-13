@@ -1,21 +1,22 @@
 //! Resolves or provisions a browser `SessionInfo` from JWT cookies for
-//! static-content requests.
+//! static-content requests, through the same shared-trait providers as the
+//! session middleware; an absent provider refuses rather than minting a
+//! session without request analytics.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
-
-use std::sync::Arc;
 
 use std::net::IpAddr;
 
 use anyhow::Result;
 use axum::http::HeaderMap;
 use systemprompt_identifiers::{ClientId, JwtToken, SessionId, SessionSource, UserId};
-use systemprompt_oauth::{CreateAnonymousSessionInput, SessionCreationService, validate_jwt_token};
+use systemprompt_oauth::{CreateAnonymousSessionInput, validate_jwt_token};
 use systemprompt_runtime::AppContext;
 use systemprompt_security::TokenExtractor;
 use systemprompt_traits::ExtractSignals;
-use systemprompt_users::UserService;
+
+use crate::services::middleware::session::session_providers;
 
 #[derive(Debug, Clone)]
 pub struct SessionInfo {
@@ -50,20 +51,10 @@ pub async fn ensure_session(
         });
     }
 
-    let user_service = UserService::new(Arc::clone(ctx.user_repository()));
-    let concrete = Arc::clone(&ctx.analytics_repositories().session_store);
-    let analytics: Arc<dyn systemprompt_traits::SessionProvider> = concrete;
-    let session_service = SessionCreationService::new(
-        analytics,
-        Arc::new(user_service),
-        ctx.token_authority(),
-        Arc::clone(ctx.config_arc()),
-    );
+    let (analytics, _, session_service) = session_providers(ctx)?;
 
     let client_id = ClientId::new("sp_web");
-    let request_analytics = ctx
-        .analytics_service()
-        .extract_analytics(headers, ExtractSignals { uri, caller_ip });
+    let request_analytics = analytics.extract_analytics(headers, ExtractSignals { uri, caller_ip });
     let session_info = session_service
         .create_anonymous_session(CreateAnonymousSessionInput {
             analytics: &request_analytics,

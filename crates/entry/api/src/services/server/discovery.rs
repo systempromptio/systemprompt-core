@@ -195,8 +195,9 @@ fn config_state_layer(
     axum::Extension(crate::repository::config_plane_state(ctx.db_pool()))
 }
 
-pub fn authenticated_discovery_router(ctx: &AppContext) -> Router {
-    Router::new()
+pub fn authenticated_discovery_router(ctx: &AppContext) -> Result<Router, LoaderError> {
+    Ok(Router::new()
         .route("/api/v1/health/detail", get(handle_health_detail))
-        .with_state(ctx.clone())
+        .layer(readiness_layer(ctx)?)
+        .with_state(ctx.clone()))
 }

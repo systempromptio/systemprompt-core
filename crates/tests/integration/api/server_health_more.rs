@@ -311,15 +311,28 @@ async fn handle_health_detail_reports_checks() -> anyhow::Result<()> {
     let (status, body) = body_json(app, "/health/detail").await;
     assert!(status == StatusCode::OK || status == StatusCode::SERVICE_UNAVAILABLE);
     assert!(body["checks"]["database"].is_object());
-    let notifications = &body["checks"]["notifications"];
-    assert_eq!(notifications["status"], "healthy", "{notifications}");
-    assert!(notifications["state"].is_string(), "{notifications}");
-    assert!(notifications["pending"].is_i64(), "{notifications}");
-    assert!(
-        notifications
-            .as_object()
-            .is_some_and(|entry| entry.contains_key("oldest_seconds")),
-        "{notifications}"
+    let extensions = &body["checks"]["extensions"];
+    assert_eq!(
+        extensions["status"], "degraded",
+        "a route without the readiness layer must not report extensions healthy: {extensions}"
     );
+    assert_ne!(body["status"], "healthy", "{body}");
+    Ok(())
+}
+
+#[tokio::test]
+async fn health_detail_reports_each_enabled_extension_readiness_check() -> anyhow::Result<()> {
+    let (_pool, ctx) = setup_ctx().await?;
+    let app = systemprompt_api::services::server::authenticated_discovery_router(&ctx)?;
+    let (status, body) = body_json(app, "/api/v1/health/detail").await;
+    assert!(status == StatusCode::OK || status == StatusCode::SERVICE_UNAVAILABLE);
+    let extensions = body["checks"]["extensions"]
+        .as_array()
+        .unwrap_or_else(|| panic!("extension readiness is an array: {body}"));
+    let expected = ctx
+        .extension_registry()
+        .all_readiness_checks(&*ctx, &ctx.profile().extensions.disabled)?
+        .len();
+    assert_eq!(extensions.len(), expected, "{body}");
     Ok(())
 }

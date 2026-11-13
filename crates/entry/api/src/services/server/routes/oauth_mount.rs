@@ -8,6 +8,13 @@
 //! `DELETE` under `/clients`) are refused with 409, because the declaration
 //! under `services/identity/` is the source of truth.
 //!
+//! The MCP server registry that maps an authorization `resource` to its MCP
+//! scopes is read from the extension state, where the `mcp` extension
+//! provides it as `Arc<dyn McpRegistryProvider>`. When no extension provides
+//! it, the state carries no registry and sign-in grants no MCP resource
+//! scopes: a `resource` naming an MCP server resolves to no scopes, never to
+//! a broader default.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -22,7 +29,9 @@ use systemprompt_oauth::services::WebAuthnService;
 use systemprompt_oauth::{OAuthSigning, OAuthState};
 use systemprompt_oauth_issuance::JwksCache;
 use systemprompt_runtime::AppContext;
+use systemprompt_extension::ExtensionContext as _;
 use systemprompt_traits::AppContext as AppContextTrait;
+use systemprompt_traits::McpRegistryProvider;
 
 use super::protocol::MountCtx;
 use super::{RouteMountError, require_provider};
@@ -32,8 +41,10 @@ fn create_oauth_state(ctx: &AppContext) -> Result<OAuthState, LoaderError> {
     let analytics = require_provider("oauth", ctx.analytics_provider())?;
     let users = require_provider("oauth", ctx.user_provider())?;
     let sessions = require_provider("oauth", ctx.session_provider())?;
-    let mcp_registry: Arc<dyn systemprompt_traits::McpRegistryProvider> =
-        Arc::new(ctx.mcp_registry().clone());
+    let mcp_registry = ctx
+        .extension_state()
+        .get::<Arc<dyn McpRegistryProvider>>()
+        .cloned();
     let oauth_repository = ctx.oauth_repositories().oauth.clone();
     let webauthn = WebAuthnService::new(ctx.config(), oauth_repository.clone(), Arc::clone(&users));
     let state = OAuthState::new(
@@ -45,8 +56,17 @@ fn create_oauth_state(ctx: &AppContext) -> Result<OAuthState, LoaderError> {
             keys: ctx.signing_keys().clone(),
             authority: ctx.token_authority(),
         },
-    )
-    .with_mcp_registry(mcp_registry);
+    );
+    let state = match mcp_registry {
+        Ok(registry) => state.with_mcp_registry(registry),
+        Err(absent) => {
+            tracing::info!(
+                missing = %absent,
+                "No MCP registry is provided; sign-in grants no MCP resource scopes"
+            );
+            state
+        },
+    };
     match webauthn {
         Ok(service) => Ok(state.with_webauthn(Arc::new(service))),
         Err(e) => {

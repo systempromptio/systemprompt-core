@@ -11,13 +11,22 @@ use std::future::Future;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::{CategoryId, ContentId, SourceId};
+use systemprompt_identifiers::{CategoryId, ContentId, LocaleCode, SourceId};
 
-/// Authoritative content counts used by behavioral classification; `dyn`
-/// dispatched, hence `#[async_trait]`.
+/// Authoritative content counts and existence lookups, used by behavioral
+/// classification and by static-content serving; `dyn` dispatched, hence
+/// `#[async_trait]`. The content extension provides it in the extension
+/// state as [`DynContentCatalogStats`].
 #[async_trait]
 pub trait ContentCatalogStats: Send + Sync + std::fmt::Debug {
     async fn count_public_pages(&self) -> Result<i64, crate::RepositoryError>;
+
+    async fn has_content(
+        &self,
+        source_id: &SourceId,
+        slug: &str,
+        locale: &LocaleCode,
+    ) -> Result<bool, crate::RepositoryError>;
 }
 
 pub type DynContentCatalogStats = std::sync::Arc<dyn ContentCatalogStats>;

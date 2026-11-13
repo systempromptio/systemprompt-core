@@ -5,11 +5,22 @@
 //! `agent` (and through it `ai` and `mcp`) because the rollup triggers sit on
 //! their tables.
 //!
+//! On a host that seeds the analytics repositories (the API), it provides the
+//! [`DynSessionBehaviourScorer`](systemprompt_traits::DynSessionBehaviourScorer)
+//! the request-analytics middleware hands each tracked request's session to.
+//! A host without them gets no scorer, and its requests record no
+//! behavioural verdict.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::sync::Arc;
+
 use systemprompt_extension::prelude::*;
-use systemprompt_traits::DynIpBanStore;
+use systemprompt_traits::{DynIpBanStore, DynSessionStore};
+
+use crate::SessionBehaviourService;
+use crate::repository::AnalyticsRepositories;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct AnalyticsExtension;
@@ -63,6 +74,20 @@ impl Extension for AnalyticsExtension {
 
     fn requires(&self) -> Vec<StateRequirement> {
         vec![StateRequirement::of::<DynIpBanStore>()]
+    }
+
+    fn provide(
+        &self,
+        _ctx: &dyn ExtensionContext,
+        state: &mut StateBuilder<'_>,
+    ) -> Result<(), ExtensionStateError> {
+        let Some(repositories) = state.state().find::<Arc<AnalyticsRepositories>>() else {
+            return Ok(());
+        };
+        let signals = repositories.session_signals.clone();
+        let sessions = Arc::clone(state.state().get::<DynSessionStore>()?);
+        let scorer = SessionBehaviourService::new(sessions, signals).into_scorer();
+        state.provide(scorer)
     }
 }
 

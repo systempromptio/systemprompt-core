@@ -1,16 +1,18 @@
 //! Detailed health probes.
 //!
-//! They report service counts, static-content presence and, with
-//! notifications built in, the notification consumer's state and delivery
-//! backlog. With the brain built in and its consumer started, `checks.brain`
-//! reports the capture consumer's state, its pending outbox events, the age
-//! of the oldest and when its last round ran. A backlog that cannot be read
-//! reports the entry degraded.
+//! They report the database, service counts and static-content presence,
+//! and, under `checks.extensions`, the readiness checks of every extension
+//! the profile leaves enabled — the same checks `/readyz` runs. The kernel
+//! names no capability here: an extension reports its own health through
+//! `Extension::readiness`. A failing extension check reports the whole
+//! detail degraded; when the readiness checks are not mounted on this route
+//! the entry says so and the detail is degraded, never healthy by default.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::path::Path;
+use std::sync::Arc;
 
 use axum::Json;
 use serde_json::json;
@@ -18,6 +20,7 @@ use systemprompt_manifest::services::ServiceModule;
 use systemprompt_runtime::AppContext;
 
 use super::health::{HEALTH_CHECK_QUERY, get_process_memory, get_system_stats};
+use super::probes::ExtensionReadiness;
 
 async fn check_service_counts(ctx: &AppContext) -> (usize, &'static str, usize, &'static str) {
     let service_repo = ctx.service_repository();
@@ -47,81 +50,9 @@ fn check_static_content(web_dir: &Path) -> (bool, bool) {
     )
 }
 
-#[cfg(feature = "notifications")]
-// JSON: a /health/detail entry is a free-form diagnostic object.
-async fn check_notifications(ctx: &AppContext) -> Option<(serde_json::Value, bool)> {
-    let probe = ctx.notifications().consumer.backlog();
-    let entry = match tokio::time::timeout(super::health::HEALTH_PROBE_TIMEOUT, probe).await {
-        Ok(Ok(backlog)) => (
-            json!({
-                "status": "healthy",
-                "state": backlog.state,
-                "pending": backlog.pending,
-                "oldest_seconds": backlog.oldest_seconds,
-            }),
-            true,
-        ),
-        Ok(Err(error)) => {
-            tracing::warn!(error = %error, "Notification backlog health probe failed");
-            (
-                json!({ "status": "degraded", "error": "backlog unavailable" }),
-                false,
-            )
-        },
-        Err(_) => (
-            json!({ "status": "degraded", "error": "backlog probe timed out" }),
-            false,
-        ),
-    };
-    Some(entry)
-}
-
-#[cfg(not(feature = "notifications"))]
-// JSON: a /health/detail entry is a free-form diagnostic object.
-fn check_notifications(_ctx: &AppContext) -> std::future::Ready<Option<(serde_json::Value, bool)>> {
-    std::future::ready(None)
-}
-
-#[cfg(feature = "brain")]
-// JSON: a /health/detail entry is a free-form diagnostic object.
-async fn check_brain(ctx: &AppContext) -> Option<(serde_json::Value, bool)> {
-    let consumer = ctx.brain()?.consumer()?;
-    let snapshot = consumer.backlog();
-    let probe = consumer.pending();
-    let entry = match tokio::time::timeout(super::health::HEALTH_PROBE_TIMEOUT, probe).await {
-        Ok(Ok(pending)) => (
-            json!({
-                "status": "healthy",
-                "state": snapshot.state,
-                "pending": pending.pending,
-                "oldest_seconds": pending.oldest_seconds,
-                "last_round": snapshot.last_round,
-            }),
-            true,
-        ),
-        Ok(Err(error)) => {
-            tracing::warn!(error = %error, "Brain backlog health probe failed");
-            (
-                json!({ "status": "degraded", "error": "backlog unavailable" }),
-                false,
-            )
-        },
-        Err(_) => (
-            json!({ "status": "degraded", "error": "backlog probe timed out" }),
-            false,
-        ),
-    };
-    Some(entry)
-}
-
-#[cfg(not(feature = "brain"))]
-// JSON: a /health/detail entry is a free-form diagnostic object.
-fn check_brain(_ctx: &AppContext) -> std::future::Ready<Option<(serde_json::Value, bool)>> {
-    std::future::ready(None)
-}
-
 pub async fn handle_health_detail(
     axum::extract::State(ctx): axum::extract::State<AppContext>,
+    readiness: Option<axum::Extension<Arc<ExtensionReadiness>>>,
 ) -> impl axum::response::IntoResponse {
     use axum::http::StatusCode;
     use systemprompt_database::DatabaseProvider;
@@ -139,8 +70,13 @@ pub async fn handle_health_detail(
     };
 
     let (agent_count, agent_status, mcp_count, mcp_status) = check_service_counts(&ctx).await;
-    let notifications = check_notifications(&ctx).await;
-    let brain = check_brain(&ctx).await;
+    let (extensions_ok, extensions) = match readiness {
+        Some(axum::Extension(readiness)) => readiness.run().await,
+        None => (
+            false,
+            json!({ "status": "degraded", "error": "extension readiness checks unavailable" }),
+        ),
+    };
     let web_dir = ctx.app_paths().web().dist().to_path_buf();
     let (memory, (index_exists, sitemap_exists)) =
         tokio::task::spawn_blocking(move || (get_process_memory(), check_static_content(&web_dir)))
@@ -153,11 +89,8 @@ pub async fn handle_health_detail(
     let db_healthy = db_status == "healthy";
     let services_ok = agent_status != "error" && mcp_status != "error";
     let content_ok = index_exists && sitemap_exists;
-    let consumers_ok = notifications.as_ref().is_none_or(|(_, ok)| *ok)
-        && brain.as_ref().is_none_or(|(_, ok)| *ok);
-
     let (overall_status, http_status) =
-        match (db_healthy, services_ok && content_ok && consumers_ok) {
+        match (db_healthy, services_ok && content_ok && extensions_ok) {
             (false, _) => ("unhealthy", StatusCode::SERVICE_UNAVAILABLE),
             (true, false) => ("degraded", StatusCode::OK),
             (true, true) => ("healthy", StatusCode::OK),
@@ -166,7 +99,7 @@ pub async fn handle_health_detail(
     let system_stats = get_system_stats(ctx.db_pool().as_ref()).await;
     let check_duration_ms = start.elapsed().as_millis();
 
-    let mut data = json!({
+    let data = json!({
         "status": overall_status,
         "timestamp": chrono::Utc::now().to_rfc3339(),
         "version": env!("CARGO_PKG_VERSION"),
@@ -178,24 +111,13 @@ pub async fn handle_health_detail(
                 "status": if content_ok { "healthy" } else { "degraded" },
                 "index_html": index_exists,
                 "sitemap_xml": sitemap_exists
-            }
+            },
+            "extensions": extensions
         },
         "memory": memory,
         "system": system_stats,
         "response_time_ms": check_duration_ms
     });
-
-    if let Some(checks) = data
-        .get_mut("checks")
-        .and_then(serde_json::Value::as_object_mut)
-    {
-        if let Some((entry, _)) = notifications {
-            checks.insert("notifications".to_owned(), entry);
-        }
-        if let Some((entry, _)) = brain {
-            checks.insert("brain".to_owned(), entry);
-        }
-    }
 
     (http_status, Json(data))
 }

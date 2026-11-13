@@ -39,6 +39,7 @@ systemprompt-oauth = { workspace = true }
 systemprompt-oauth-issuance = { workspace = true }
 systemprompt-traits = { workspace = true }
 systemprompt-ai = { workspace = true }
+systemprompt-analytics = { workspace = true }
 systemprompt-events = { workspace = true }
 systemprompt-files = { workspace = true }
 systemprompt-extension = { workspace = true }

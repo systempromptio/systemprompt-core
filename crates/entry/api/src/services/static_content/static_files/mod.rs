@@ -1,8 +1,11 @@
 //! Static-file request handling with caching and content fallback.
 //!
 //! [`serve_static_content`] routes an incoming URI to a static asset,
-//! prerendered HTML page, metadata file, or the content-repository fallback,
-//! applying the appropriate cache policy and `ETag` for each.
+//! prerendered HTML page, metadata file, or the content-catalog fallback,
+//! applying the appropriate cache policy and `ETag` for each. The catalog is
+//! the `DynContentCatalogStats` the content extension provides in the
+//! extension state; without it a page that is not prerendered answers
+//! not-found.
 //! [`StaticContentState`] carries the app context, matcher, and route
 //! classifier into the handler.
 //!
@@ -22,7 +25,8 @@ use axum::extract::State;
 use axum::http::{HeaderMap, Method, Uri};
 use axum::response::IntoResponse;
 use std::sync::Arc;
-use systemprompt_traits::RepositoryError;
+use systemprompt_extension::ExtensionContext as _;
+use systemprompt_traits::DynContentCatalogStats;
 
 use super::config::StaticContentMatcher;
 use cache::serve_cached_file;
@@ -195,14 +199,16 @@ async fn serve_content_page(
         .await;
     }
 
-    let content_repo = &ctx.content_repositories().content;
+    let Some(catalog) = ctx.extension_state().find::<DynContentCatalogStats>().cloned() else {
+        return not_found_response(req.dist_dir, req.headers).await;
+    };
 
-    match content_repo
-        .find_by_source_and_slug(req.source_id, req.slug, &LocaleCode::english())
+    match catalog
+        .has_content(req.source_id, req.slug, &LocaleCode::english())
         .await
     {
-        Ok(Some(_)) => not_prerendered_response(req.path, req.slug),
-        Ok(None) => not_found_response(req.dist_dir, req.headers).await,
-        Err(e) => ApiHttpError::from(RepositoryError::from(e)).into_response(),
+        Ok(true) => not_prerendered_response(req.path, req.slug),
+        Ok(false) => not_found_response(req.dist_dir, req.headers).await,
+        Err(e) => ApiHttpError::from(e).into_response(),
     }
 }
