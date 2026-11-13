@@ -25,3 +25,6 @@ crates/tests/common/
 # id is always a bind.
 crates/domain/users/src/repository/user/purge.rs
 crates/entry/cli/src/commands/admin/setup/
+# Database bootstrap shared by `admin setup` and the cloud compose flow:
+# CREATE EXTENSION takes an identifier, which cannot be a bind parameter.
+crates/entry/cli/src/shared/postgres_access.rs
