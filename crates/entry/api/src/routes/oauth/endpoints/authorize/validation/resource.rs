@@ -63,11 +63,10 @@ pub(super) fn validate_resource_uri(
 }
 
 pub(super) async fn resolve_resource_scopes(
-    state: &systemprompt_oauth::OAuthState,
+    registry: &dyn systemprompt_traits::McpRegistryProvider,
     resource: &str,
 ) -> Option<String> {
-    let registry = state.mcp_registry()?;
-    crate::routes::proxy::mcp::get_mcp_server_scopes_from_resource(registry.as_ref(), resource)
+    crate::routes::proxy::mcp::get_mcp_server_scopes_from_resource(registry, resource)
         .await
         .map(|scopes| scopes.join(" "))
 }

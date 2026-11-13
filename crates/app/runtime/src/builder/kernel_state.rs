@@ -7,7 +7,8 @@
 //! and its one `ArtifactIngest` are composed here from several domains, so the
 //! composition root seeds them; an extension router reads them from
 //! [`ExtensionContext::extension_state`] and an absent `AiService` is a typed
-//! `MissingDependency`, never a fallback service.
+//! `MissingDependency`, never a fallback service. An absent `AiService` is
+//! still reserved for the kernel, so no extension can `provide` its own.
 //!
 //! [`ExtensionContext::extension_state`]: systemprompt_extension::ExtensionContext::extension_state
 //!
@@ -30,8 +31,9 @@ pub fn kernel_state(app: &AppContext) -> Dependencies {
         .with(Arc::clone(app.ai_repositories()))
         .with(Arc::clone(app.analytics_repositories()))
         .with(app.artifact_ingest_arc());
-    if let Some(ai) = &app.subsystems.ai_service {
-        state.insert(Arc::clone(ai));
+    match &app.subsystems.ai_service {
+        Some(ai) => state.insert(Arc::clone(ai)),
+        None => state.reserve::<Arc<systemprompt_ai::AiService>>(),
     }
     if let Some(reader) = app.geoip_reader() {
         state.insert(Arc::clone(reader));

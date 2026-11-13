@@ -11,9 +11,9 @@
 //! The MCP server registry that maps an authorization `resource` to its MCP
 //! scopes is read from the extension state, where the `mcp` extension
 //! provides it as `Arc<dyn McpRegistryProvider>`. When no extension provides
-//! it, the state carries no registry and sign-in grants no MCP resource
-//! scopes: a `resource` naming an MCP server resolves to no scopes, never to
-//! a broader default.
+//! it, the state carries no registry and an authorization request that names
+//! a `resource` is refused with `invalid_target`; it never falls back to the
+//! client's registered scopes. A request without a `resource` is unaffected.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -62,7 +62,7 @@ fn create_oauth_state(ctx: &AppContext) -> Result<OAuthState, LoaderError> {
         Err(absent) => {
             tracing::info!(
                 missing = %absent,
-                "No MCP registry is provided; sign-in grants no MCP resource scopes"
+                "No MCP registry; authorization requests naming a resource are refused"
             );
             state
         },
