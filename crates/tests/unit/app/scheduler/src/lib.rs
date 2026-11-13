@@ -89,6 +89,8 @@ mod state_verifier_seeded_db;
 #[cfg(test)]
 mod supervision;
 #[cfg(test)]
+mod test_extension;
+#[cfg(test)]
 mod test_jobs;
 #[cfg(test)]
 mod unit_tests;

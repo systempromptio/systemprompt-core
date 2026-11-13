@@ -145,7 +145,7 @@ impl ExtensionContext for AppContext {
     }
 
     fn extension_state(&self) -> systemprompt_provider_contracts::Dependencies {
-        self.plugins.extension_state.clone()
+        self.extension_state.clone()
     }
 
     fn config_planes(

@@ -4,7 +4,7 @@
 use systemprompt_analytics::jobs::{
     BehavioralAnalysisJob, GhostSessionCleanupJob, MaliciousIpBlacklistJob, NoJsCleanupJob,
 };
-use systemprompt_test_fixtures::{fixture_actor, test_database_url, test_db_pool};
+use systemprompt_test_fixtures::{fixture_actor, test_db_pool};
 use systemprompt_traits::{Dependencies, Job, JobContext};
 
 use super::job_ctx;
@@ -12,7 +12,7 @@ use super::job_ctx;
 #[tokio::test]
 async fn behavioral_analysis_job_execute_succeeds() {
     let pool = test_db_pool().await;
-    let ctx = job_ctx(&pool, &test_database_url());
+    let ctx = job_ctx(&pool);
     let result = BehavioralAnalysisJob.execute(&ctx).await.expect("job runs");
     assert!(result.success);
 }
@@ -20,7 +20,7 @@ async fn behavioral_analysis_job_execute_succeeds() {
 #[tokio::test]
 async fn ghost_session_cleanup_job_execute_succeeds() {
     let pool = test_db_pool().await;
-    let ctx = job_ctx(&pool, &test_database_url());
+    let ctx = job_ctx(&pool);
     let result = GhostSessionCleanupJob
         .execute(&ctx)
         .await
@@ -31,7 +31,7 @@ async fn ghost_session_cleanup_job_execute_succeeds() {
 #[tokio::test]
 async fn malicious_ip_blacklist_job_execute_succeeds() {
     let pool = test_db_pool().await;
-    let ctx = job_ctx(&pool, &test_database_url());
+    let ctx = job_ctx(&pool);
     let result = MaliciousIpBlacklistJob
         .execute(&ctx)
         .await
@@ -42,7 +42,7 @@ async fn malicious_ip_blacklist_job_execute_succeeds() {
 #[tokio::test]
 async fn no_js_cleanup_job_execute_succeeds() {
     let pool = test_db_pool().await;
-    let ctx = job_ctx(&pool, &test_database_url());
+    let ctx = job_ctx(&pool);
     let result = NoJsCleanupJob.execute(&ctx).await.expect("job runs");
     assert!(result.success);
 }

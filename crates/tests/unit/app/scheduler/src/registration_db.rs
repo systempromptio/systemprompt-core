@@ -82,8 +82,8 @@ impl Job for UnconfiguredJob {
     }
 }
 
-systemprompt_provider_contracts::submit_job!("scheduler", &TickJob);
-systemprompt_provider_contracts::submit_job!("scheduler", &UnconfiguredJob);
+systemprompt_provider_contracts::submit_job!("scheduler_test_jobs", &TickJob);
+systemprompt_provider_contracts::submit_job!("scheduler_test_jobs", &UnconfiguredJob);
 
 fn config(jobs: Vec<JobConfig>) -> SchedulerConfig {
     SchedulerConfig {
