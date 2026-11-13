@@ -32,7 +32,7 @@ fn debug_lists_type_names_sorted() {
     let deps = Dependencies::new().with(3u32).with(1u8);
     assert_eq!(
         format!("{deps:?}"),
-        "Dependencies { types: [\"u32\", \"u8\"] }"
+        "Dependencies { types: [\"u32\", \"u8\"], reserved: [] }"
     );
 }
 

@@ -444,7 +444,7 @@ async fn a_dependent_statement_that_fails_rolls_back_the_whole_phase() {
     let err = install_extension_schemas_with_config(&registry, &provider, &[])
         .await
         .expect_err("an index over a missing column must fail installation");
-    let message = err.to_string();
+    let message = systemprompt_test_fixtures::error_chain(&err);
     assert!(
         message.contains("no_such_column"),
         "the failure must quote the statement that broke, got {message}"
@@ -730,7 +730,7 @@ mod transaction_failures {
     #[tokio::test]
     async fn a_rejected_statement_is_reported_with_its_position_and_sql() {
         let err = install_against(FailAt::Statement).await;
-        let message = err.to_string();
+        let message = systemprompt_test_fixtures::error_chain(&err);
         assert!(
             message.contains("statement rejected"),
             "the underlying driver error must be carried through, got {message}"
@@ -761,7 +761,7 @@ async fn a_statement_type_the_classifier_does_not_know_is_refused_with_guidance(
     let err = install_extension_schemas_with_config(&registry, &provider, &[])
         .await
         .expect_err("an unclassified statement type must not install");
-    let message = err.to_string();
+    let message = systemprompt_test_fixtures::error_chain(&err);
     assert!(
         message.contains("classify it as"),
         "the refusal must tell the developer what to do about it, got {message}"

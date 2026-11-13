@@ -136,6 +136,19 @@ pub async fn test_connection(config: &PostgresConfig) -> bool {
     result
 }
 
+// Why: PostgreSQL does not serialise concurrent `CREATE EXTENSION IF NOT
+// EXISTS` for one name; the loser fails on the catalog's unique index although
+// the extension is then installed.
+async fn extension_installed(pool: &PgPool, name: &str) -> bool {
+    let installed = sqlx::query_scalar!(
+        r#"SELECT EXISTS(SELECT 1 FROM pg_extension WHERE extname = $1) as "installed!""#,
+        name
+    )
+    .fetch_one(pool)
+    .await;
+    matches!(installed, Ok(true))
+}
+
 pub async fn enable_extensions(config: &PostgresConfig) -> Result<()> {
     let pool = connect(config.connect_options()).await.with_context(|| {
         format!(
@@ -151,6 +164,9 @@ pub async fn enable_extensions(config: &PostgresConfig) -> Result<()> {
             super::ddl::quote_ident(ext)
         );
         if let Err(error) = sqlx::query(sqlx::AssertSqlSafe(sql)).execute(&pool).await {
+            if extension_installed(&pool, ext).await {
+                continue;
+            }
             tracing::warn!(extension = ext, error = %error, "CREATE EXTENSION failed");
             failed.push(format!("{ext} ({error})"));
         }

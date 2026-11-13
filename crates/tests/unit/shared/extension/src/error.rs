@@ -40,7 +40,7 @@ fn loader_error_schema_installation_failed_keeps_its_fault() {
             offences: vec!["DO $$ BEGIN END $$".to_string()],
         }),
     };
-    let msg = err.to_string();
+    let msg = systemprompt_test_fixtures::error_chain(&err);
     assert!(msg.contains("schema-ext"));
     assert!(msg.contains("imperative SQL"));
     let fault =
@@ -58,7 +58,7 @@ fn loader_error_migration_failed_keeps_its_fault() {
             name: "add_column".to_string(),
         }),
     };
-    let msg = err.to_string();
+    let msg = systemprompt_test_fixtures::error_chain(&err);
     assert!(msg.contains("mig-ext"));
     assert!(msg.contains("migration 3 ('add_column') is already tracked as applied"));
     let fault =

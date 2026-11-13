@@ -53,7 +53,7 @@ impl std::fmt::Debug for BrainHandle {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("BrainHandle")
             .field("recall", &self.recall)
-            .field("consumer", &self.consumer)
+            .field("consumer", &self.consumer.is_bound())
             .finish_non_exhaustive()
     }
 }

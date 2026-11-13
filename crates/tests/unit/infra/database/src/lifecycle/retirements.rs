@@ -172,8 +172,7 @@ async fn a_retired_table_is_refused_before_any_retirement_runs() {
     let (error, untouched) = refused("DROP TABLE IF EXISTS {prefix}_legacy;").await;
 
     assert!(
-        error
-            .to_string()
+        error_chain(&error)
             .contains("only triggers, functions, procedures and views can be retired"),
         "{error}"
     );

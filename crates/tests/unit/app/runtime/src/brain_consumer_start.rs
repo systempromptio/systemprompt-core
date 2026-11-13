@@ -58,5 +58,5 @@ async fn starting_the_consumer_twice_is_refused_and_keeps_the_first() {
     assert!(second.is_err(), "a second start must not rebind the slot");
     let held = handle.consumer().expect("consumer recorded");
     assert!(Arc::ptr_eq(held, &first));
-    assert!(format!("{handle:?}").contains("bound: true"));
+    assert!(format!("{handle:?}").contains("consumer: true"));
 }

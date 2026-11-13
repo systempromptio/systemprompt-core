@@ -3818,7 +3818,6 @@ dependencies = [
  "serde_yaml_ng",
  "sha2 0.11.1",
  "systemprompt-config",
- "systemprompt-extension",
  "systemprompt-identifiers",
  "systemprompt-manifest",
  "systemprompt-models",

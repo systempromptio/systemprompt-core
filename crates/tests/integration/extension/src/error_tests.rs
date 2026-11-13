@@ -43,7 +43,7 @@ fn test_loader_error_schema_installation_failed_display() {
             table: "public.users".to_string(),
         }),
     };
-    let msg = err.to_string();
+    let msg = systemprompt_test_fixtures::error_chain(&err);
     assert!(msg.contains("users"));
     assert!(msg.contains("'email' not found in table 'public.users'"));
     assert!(msg.contains("schema"));
