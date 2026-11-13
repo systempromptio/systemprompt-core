@@ -1,0 +1,4 @@
+[root]
+section = "Fixed"
+area = "Database"
+text = "a schema phase that deadlocks with live writers (`40P01`) or hits a serialization failure (`40001`) is rolled back and retried like a lock timeout (`55P03`); retryability is read from the SQLSTATE (`is_retryable_lock_conflict`, `RETRYABLE_SQLSTATES`), falling back to the message only when no code is present, and the backoff is jittered."
