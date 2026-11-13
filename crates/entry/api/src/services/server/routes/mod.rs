@@ -164,7 +164,11 @@ fn finish_router(
     }));
 
     if (mount.serves)(RouteGroup::Static) {
-        router = router.merge(static_setup::build_static_router(ctx, mount.layers, events)?);
+        router = router.merge(static_setup::build_static_router(
+            ctx,
+            mount.layers,
+            events,
+        )?);
     }
 
     Ok(router.layer(axum::middleware::from_fn(super::metrics::track_metrics)))

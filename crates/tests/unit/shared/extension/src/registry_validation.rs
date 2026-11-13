@@ -5,8 +5,8 @@
 use std::sync::Arc;
 
 use systemprompt_extension::{
-    AuthzPolicy, ContextKind, Extension, ExtensionContext, ExtensionMetadata, ExtensionRegistry, ExtensionRouter,
-    LoaderError, RESERVED_PATHS,
+    AuthzPolicy, ContextKind, Extension, ExtensionContext, ExtensionMetadata, ExtensionRegistry,
+    ExtensionRouter, LoaderError, RESERVED_PATHS,
 };
 
 use crate::stub_ctx::{StubCtx, registry_with};
@@ -47,13 +47,14 @@ impl Extension for RouterExt {
     }
 
     fn router(&self, _ctx: &dyn ExtensionContext) -> Option<ExtensionRouter> {
-        self.base_path
-            .map(|p| ExtensionRouter::new(
+        self.base_path.map(|p| {
+            ExtensionRouter::new(
                 axum::Router::new(),
                 p,
                 AuthzPolicy::user(),
                 ContextKind::User,
-            ))
+            )
+        })
     }
 
     fn dependencies(&self) -> Vec<&'static str> {

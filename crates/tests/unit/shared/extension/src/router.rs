@@ -48,7 +48,10 @@ fn builders_record_every_protection_field() {
     assert!(rate.bearer_window);
     assert_eq!(router.protection.body_limit, Some(4096));
     assert_eq!(router.protection.layers, vec![ProtectionLayer::SiteAuth]);
-    assert_eq!(router.protection.frame_options, Some(FrameOptions::AllowAll));
+    assert_eq!(
+        router.protection.frame_options,
+        Some(FrameOptions::AllowAll)
+    );
     assert_eq!(router.group, RouteGroup::Agent);
 }
 

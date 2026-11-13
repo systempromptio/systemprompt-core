@@ -235,8 +235,7 @@ pub(super) fn mount_content_and_misc(
     )?;
     let authenticated_content = mount.protect(
         crate::routes::content::authenticated_router(ctx),
-        &RouteProtection::new(AuthzPolicy::user(), ContextKind::User)
-            .with_rate_limit(content_rate),
+        &RouteProtection::new(AuthzPolicy::user(), ContextKind::User).with_rate_limit(content_rate),
         ApiPaths::CONTENT_BASE,
     )?;
     router = place(

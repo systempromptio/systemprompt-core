@@ -1,7 +1,8 @@
 //! Tests for `ExtensionRegistry` query/filter methods in
 //! `registry/queries.rs`: the capability filters (`schema_extensions`,
-//! `enabled_schema_extensions`, `enabled_job_extensions`, `api_routers`, ...) and the job
-//! introspection manifest (`all_jobs`, `job_by_name`, `jobs_by_tag`).
+//! `enabled_schema_extensions`, `enabled_job_extensions`, `api_routers`, ...)
+//! and the job introspection manifest (`all_jobs`, `job_by_name`,
+//! `jobs_by_tag`).
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -150,9 +151,7 @@ fn api_routers_filters_by_router_presence() {
     let registry = registry_with(vec![Arc::new(routed), Arc::new(CapExt::new("unrouted"))]);
 
     let ctx = StubCtx;
-    let api = registry
-        .api_routers(&ctx, &[])
-        .expect("nothing disabled");
+    let api = registry.api_routers(&ctx, &[]).expect("nothing disabled");
     assert_eq!(api.len(), 1);
     assert_eq!(api[0].0.id(), "routed");
     assert_eq!(api[0].1.base_path, "/api/v1/cap");
@@ -166,9 +165,7 @@ fn api_routers_builds_each_router_exactly_once() {
     let registry = registry_with(vec![Arc::new(routed)]);
 
     let ctx = StubCtx;
-    let api = registry
-        .api_routers(&ctx, &[])
-        .expect("nothing disabled");
+    let api = registry.api_routers(&ctx, &[]).expect("nothing disabled");
 
     assert_eq!(api.len(), 1);
     assert_eq!(builds.load(Ordering::SeqCst), 1);

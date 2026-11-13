@@ -256,7 +256,9 @@ fn registered_planes(ctx: &AppContext) -> Option<ConfigPlaneSet> {
 pub(crate) fn readiness_layer(
     ctx: &AppContext,
 ) -> Result<axum::Extension<Arc<ExtensionReadiness>>, LoaderError> {
-    Ok(axum::Extension(Arc::new(ExtensionReadiness::from_context(ctx)?)))
+    Ok(axum::Extension(Arc::new(ExtensionReadiness::from_context(
+        ctx,
+    )?)))
 }
 
 // JSON: one entry of the outgoing `/readyz` extensions array.
