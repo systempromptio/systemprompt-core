@@ -224,3 +224,102 @@ async fn a_database_url_override_replaces_the_profile_database_and_its_write_url
     pool.close().await;
     other.drop_now().await;
 }
+
+#[derive(Debug)]
+struct AbsentCache;
+
+#[derive(Debug)]
+struct ProvidedCache(u32);
+
+struct StateExtension {
+    requires_absent: bool,
+}
+
+impl systemprompt_extension::Extension for StateExtension {
+    fn metadata(&self) -> systemprompt_extension::ExtensionMetadata {
+        systemprompt_extension::ExtensionMetadata {
+            id: "covrt-state",
+            name: "covrt-state",
+            version: "1.0.0",
+        }
+    }
+
+    fn provide(
+        &self,
+        _ctx: &dyn systemprompt_extension::ExtensionContext,
+        state: &mut systemprompt_extension::StateBuilder<'_>,
+    ) -> Result<(), systemprompt_extension::ExtensionStateError> {
+        state.provide(ProvidedCache(7))
+    }
+
+    fn requires(&self) -> Vec<systemprompt_extension::StateRequirement> {
+        if self.requires_absent {
+            vec![systemprompt_extension::StateRequirement::of::<AbsentCache>()]
+        } else {
+            vec![]
+        }
+    }
+}
+
+fn state_registry(requires_absent: bool) -> systemprompt_extension::ExtensionRegistry {
+    let mut registry = systemprompt_extension::ExtensionRegistry::new();
+    registry
+        .register(std::sync::Arc::new(StateExtension { requires_absent }))
+        .expect("one extension registers");
+    registry
+}
+
+#[tokio::test]
+async fn build_fails_with_the_typed_unmet_state_requirement() {
+    let admin = unique_admin("unmet");
+    let fixture = boot(&BootOptions {
+        admin_username: admin.clone(),
+        ..BootOptions::default()
+    });
+    let pool = seed_admin(&fixture.database_url, &admin, "active", &["admin", "user"]).await;
+
+    let err = AppContext::builder(fixture.boot.clone())
+        .with_extensions(state_registry(true))
+        .build()
+        .await
+        .expect_err("a requirement nothing provides fails the build");
+    match err {
+        RuntimeError::Loader(systemprompt_extension::LoaderError::UnmetStateRequirement {
+            extension,
+            type_name,
+        }) => {
+            assert_eq!(extension.as_str(), "covrt-state");
+            assert!(type_name.ends_with("AbsentCache"), "got: {type_name}");
+        },
+        other => panic!("expected UnmetStateRequirement, got: {other:?}"),
+    }
+
+    remove_admin(&pool, &admin).await;
+}
+
+#[tokio::test]
+async fn build_seeds_the_kernel_entries_and_keeps_provided_state() {
+    use systemprompt_extension::ExtensionContext;
+
+    let admin = unique_admin("state");
+    let fixture = boot(&BootOptions {
+        admin_username: admin.clone(),
+        ..BootOptions::default()
+    });
+    let pool = seed_admin(&fixture.database_url, &admin, "active", &["admin", "user"]).await;
+
+    let ctx = AppContext::builder(fixture.boot.clone())
+        .with_extensions(state_registry(false))
+        .build()
+        .await
+        .expect("the provided state satisfies the build");
+
+    let state = ctx.extension_state();
+    assert_eq!(state.get::<ProvidedCache>().map(|c| c.0), Ok(7));
+    let pool_entry = state
+        .get::<systemprompt_database::DbPool>()
+        .expect("the kernel seeds the database pool");
+    assert!(std::sync::Arc::ptr_eq(pool_entry, ctx.db_pool()));
+
+    remove_admin(&pool, &admin).await;
+}

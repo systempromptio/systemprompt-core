@@ -1,4 +1,6 @@
-use systemprompt_extension::error::{ExtensionConfigError, LoaderError};
+use systemprompt_extension::error::{
+    ExtensionConfigError, LoaderError, MigrationFault, SchemaFault,
+};
 use systemprompt_identifiers::ExtensionId;
 
 #[test]
@@ -33,36 +35,56 @@ fn loader_error_initialization_failed_display() {
 }
 
 #[test]
-fn loader_error_schema_installation_failed_display() {
-    let err = LoaderError::SchemaInstallationFailed {
+fn loader_error_schema_installation_failed_keeps_its_fault() {
+    let err = LoaderError::SchemaInstallationStepFailed {
         extension: ExtensionId::new("schema-ext"),
-        message: "invalid SQL".to_string(),
+        context: "Lint declarative schema".to_string(),
+        source: Box::new(SchemaFault::ImperativeSql {
+            offences: vec!["DO $$ BEGIN END $$".to_string()],
+        }),
     };
     let msg = err.to_string();
     assert!(msg.contains("schema-ext"));
-    assert!(msg.contains("invalid SQL"));
+    assert!(msg.contains("imperative SQL"));
+    let fault =
+        std::error::Error::source(&err).and_then(|source| source.downcast_ref::<SchemaFault>());
+    assert!(matches!(fault, Some(SchemaFault::ImperativeSql { offences }) if offences.len() == 1));
 }
 
 #[test]
-fn loader_error_migration_failed_display() {
-    let err = LoaderError::MigrationFailed {
+fn loader_error_migration_failed_keeps_its_fault() {
+    let err = LoaderError::MigrationStepFailed {
         extension: ExtensionId::new("mig-ext"),
-        message: "column missing".to_string(),
+        context: "Mark migration applied".to_string(),
+        source: Box::new(MigrationFault::AlreadyApplied {
+            version: 3,
+            name: "add_column".to_string(),
+        }),
     };
     let msg = err.to_string();
     assert!(msg.contains("mig-ext"));
-    assert!(msg.contains("column missing"));
+    assert!(msg.contains("migration 3 ('add_column') is already tracked as applied"));
+    let fault =
+        std::error::Error::source(&err).and_then(|source| source.downcast_ref::<MigrationFault>());
+    assert!(matches!(
+        fault,
+        Some(MigrationFault::AlreadyApplied { version: 3, .. })
+    ));
 }
 
 #[test]
-fn loader_error_config_validation_failed_display() {
+fn loader_error_config_validation_failed_keeps_its_source() {
     let err = LoaderError::ConfigValidationFailed {
         extension: ExtensionId::new("config-ext"),
-        message: "invalid port".to_string(),
+        source: ExtensionConfigError::InvalidValue {
+            key: "port".to_string(),
+            message: "not a number".to_string(),
+        },
     };
     let msg = err.to_string();
     assert!(msg.contains("config-ext"));
-    assert!(msg.contains("invalid port"));
+    assert!(msg.contains("'port'"));
+    assert!(std::error::Error::source(&err).is_some());
 }
 
 #[test]

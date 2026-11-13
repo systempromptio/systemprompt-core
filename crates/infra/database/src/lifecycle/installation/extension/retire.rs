@@ -21,7 +21,7 @@ use std::sync::Arc;
 
 use pg_query::NodeEnum;
 use pg_query::protobuf::ObjectType;
-use systemprompt_extension::{Extension, LoaderError};
+use systemprompt_extension::{Extension, LoaderError, SchemaFault};
 use systemprompt_identifiers::ExtensionId;
 use tracing::info;
 
@@ -33,10 +33,11 @@ struct Retirement {
     statements: Vec<String>,
 }
 
-fn refused(extension: &ExtensionId, message: &str) -> LoaderError {
-    LoaderError::SchemaInstallationFailed {
+fn refused(extension: &ExtensionId, fault: SchemaFault) -> LoaderError {
+    LoaderError::SchemaInstallationStepFailed {
         extension: extension.clone(),
-        message: format!("retirement: {message}"),
+        context: "retirement".to_owned(),
+        source: Box::new(fault),
     }
 }
 
@@ -60,10 +61,9 @@ fn check_statement(extension: &ExtensionId, statement: &str) -> Result<(), Loade
         let Some(NodeEnum::DropStmt(drop)) = node else {
             return Err(refused(
                 extension,
-                &format!(
-                    "only DROP … IF EXISTS is allowed, got `{}`",
-                    statement.trim()
-                ),
+                SchemaFault::RetirementNotDrop {
+                    statement: statement.trim().to_owned(),
+                },
             ));
         };
         let allowed = matches!(
@@ -76,16 +76,17 @@ fn check_statement(extension: &ExtensionId, statement: &str) -> Result<(), Loade
         if !allowed {
             return Err(refused(
                 extension,
-                &format!(
-                    "only triggers, functions, procedures and views can be retired, got `{}`",
-                    statement.trim()
-                ),
+                SchemaFault::RetirementObjectType {
+                    statement: statement.trim().to_owned(),
+                },
             ));
         }
         if !drop.missing_ok {
             return Err(refused(
                 extension,
-                &format!("a retirement must say IF EXISTS: `{}`", statement.trim()),
+                SchemaFault::RetirementWithoutIfExists {
+                    statement: statement.trim().to_owned(),
+                },
             ));
         }
     }

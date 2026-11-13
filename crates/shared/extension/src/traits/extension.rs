@@ -27,9 +27,9 @@ use crate::state::{StateBuilder, StateRequirement};
 /// The one contract an extension implements: `metadata()` is required and
 /// every other method is a defaulted hook.
 ///
-/// `provide` runs once at boot, synchronously and in dependency order, and
-/// contributes typed values to the shared
-/// [`ExtensionState`](crate::ExtensionState); `requires` names the types the
+/// `provide` runs once at boot, synchronously and in dependency order, for
+/// every enabled extension, and contributes typed values to the shared
+/// extension state ([`state`](crate::state)); `requires` names the types the
 /// extension cannot run without, checked before anything serves.
 pub trait Extension: Send + Sync + 'static {
     fn metadata(&self) -> ExtensionMetadata;

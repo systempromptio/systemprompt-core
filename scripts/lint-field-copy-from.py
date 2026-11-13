@@ -31,11 +31,18 @@ is reported on the body alone, since there is nothing to compare against.
 
 Exemption: `// lint-ok: field-copy-from` on the line above the impl, with a
 reason.
+
+Usage: lint-field-copy-from.py [--paths P...] -- struct field counts are read
+across the whole tree; `--paths` reports only impls in files under P.
 """
+import os
 import re
-import subprocess
 import sys
 from pathlib import Path
+
+sys.dont_write_bytecode = True
+sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+import gate_scope  # noqa: E402
 
 MIN_FIELDS = 5
 SRC_DIRS = ["crates", "systemprompt/src", "bin/bridge/src"]
@@ -56,13 +63,9 @@ DECL_FIELD_RE = re.compile(r"^\s*(?:pub(?:\([^)]*\))?\s+)?\w+\s*:\s*\S")
 
 
 def tracked_files():
-    out = subprocess.run(
-        ["git", "ls-files", "-co", "--exclude-standard", *SRC_DIRS],
-        capture_output=True, text=True, check=False,
-    ).stdout.split()
     return [
         Path(f)
-        for f in out
+        for f in gate_scope.files(SRC_DIRS)
         if f.endswith(".rs") and not f.startswith(SKIP_PREFIXES)
     ]
 
@@ -112,10 +115,18 @@ def struct_field_counts(paths):
 
 
 def main():
+    try:
+        _, scope = gate_scope.parse(sys.argv[1:])
+    except gate_scope.ScopeError as error:
+        print(f"lint-field-copy-from: {error}", file=sys.stderr)
+        return 2
+    os.chdir(gate_scope.ROOT)
     findings = []
     files = tracked_files()
     field_counts = struct_field_counts(files)
     for path in files:
+        if not gate_scope.in_scope(path.as_posix(), scope):
+            continue
         try:
             text = path.read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError):

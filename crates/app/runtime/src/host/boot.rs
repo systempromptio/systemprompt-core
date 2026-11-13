@@ -9,7 +9,6 @@ use std::sync::Arc;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_config::{GrantedSecrets, GrantedSecretsError, LoadedProfile};
 use systemprompt_database::MigrationConfig;
-use systemprompt_extension::ExtensionState;
 use systemprompt_loader::{ConfigLoader, ServicesSourceBootstrap, ServicesState};
 use systemprompt_mcp::repository::McpSessionRepository;
 use systemprompt_models::subprocess::VERIFICATION_KEYS_ENV;
@@ -199,7 +198,7 @@ impl HostContext {
             )),
             file_storage,
             extensions,
-            state: ExtensionState::default(),
+            state: systemprompt_provider_contracts::Dependencies::new(),
             subjects: market.factory.subjects.clone(),
             provider_tokens: Arc::default(),
             system_owner,
@@ -240,7 +239,11 @@ impl HostContext {
             let state = host
                 .extension
                 .extensions
-                .build_state(&host)
+                .build_state(&host, host.kernel_state(), &profile.extensions.disabled)
+                .map_err(RuntimeError::from)?;
+            market
+                .state
+                .bind(state.clone())
                 .map_err(RuntimeError::from)?;
             host.extension.state = state;
             host

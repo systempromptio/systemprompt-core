@@ -14,12 +14,17 @@
 # defined, or the wrapper becomes the unlisted kill switch.
 #
 #   scripts/lint-env-vars.sh                          # core roots + allowlist
+#   scripts/lint-env-vars.sh --paths P...             # only files under P
 #   scripts/lint-env-vars.sh [--allowlist FILE] ROOT...
 #
 # Without roots the script runs from the repository root over the core source
 # trees; with roots, paths (and allowlist entries) resolve against the caller's
-# working directory. A directory literally named `tests` is never scanned.
+# working directory. A directory literally named `tests` is never scanned. With
+# `--paths`, allowlist entries are not judged for reasons or staleness.
 set -euo pipefail
+. "$(dirname "${BASH_SOURCE[0]}")/lib/gate-scope.sh"
+gate_scope_parse "$@"
+set -- "${GATE_ARGS[@]}"
 
 ALLOWLIST=""
 ROOTS=()
@@ -32,7 +37,7 @@ while [ "$#" -gt 0 ]; do
     esac
 done
 if [ "${#ROOTS[@]}" -eq 0 ]; then
-    cd "$(dirname "$0")/.."
+    cd "$GATE_ROOT"
     ALLOWLIST="${ALLOWLIST:-scripts/env-var-allowlist.txt}"
 fi
 if [ -z "$ALLOWLIST" ]; then
@@ -42,32 +47,22 @@ fi
 
 list_sources() {
     if [ "${#ROOTS[@]}" -eq 0 ]; then
-        git ls-files 'crates/*/*/src/**/*.rs' 'crates/*/*/src/*.rs' 'bin/bridge/src/**/*.rs' 'bin/bridge/src/*.rs'
+        gate_files 'crates/*/*/src/**/*.rs' 'crates/*/*/src/*.rs' 'bin/bridge/src/**/*.rs' 'bin/bridge/src/*.rs'
     else
-        local r
-        for r in "${ROOTS[@]}"; do
-            if git -C "$r" rev-parse --show-toplevel >/dev/null 2>&1; then
-                git -C "$r" ls-files -co --exclude-standard -- '*.rs' | sed "s|^|${r%/}/|"
-            else
-                find "$r" -name '*.rs' -type f
-            fi
-        done
-    fi | grep -Ev '(^|/)(tests|target)/|/build\.rs$' | while IFS= read -r f; do [ -f "$f" ] && printf '%s\n' "$f"; done
+        gate_tree_files "${ROOTS[@]}" | grep -E '\.rs$'
+    fi | grep -Ev '(^|/)(tests|target)/|/build\.rs$' || true
 }
 
 PATTERN='(std::)?env::(var|var_os|vars|vars_os)\(|EnvFilter::(try_from_default_env|from_env|from_default_env)\(|(basedirs::)?env_dir\('
 
 declare -A allowed
 while IFS= read -r line; do
-    line="${line%%#*}"
-    line="$(echo "$line" | sed 's/[[:space:]]*$//')"
-    [ -n "$line" ] || continue
     allowed["$line"]=1
-done < <(grep -vE '^\s*#' "$ALLOWLIST")
+done < <(gate_allowlist "$ALLOWLIST")
 
 # Every allowlist line must carry a reason and point at a file that exists.
 bad_allow=0
-while IFS= read -r raw; do
+gate_full_mode && while IFS= read -r raw; do
     [ -n "$(echo "$raw" | sed 's/^[[:space:]]*//')" ] || continue
     case "$raw" in \#*) continue ;; esac
     path="${raw%%#*}"; path="$(echo "$path" | sed 's/[[:space:]]*$//')"
@@ -92,7 +87,7 @@ while IFS= read -r file; do
 done < <(list_sources | xargs -r grep -lE "$PATTERN" 2>/dev/null | sort -u)
 
 # Allowlisted files that no longer read the environment are stale entries.
-for file in "${!allowed[@]}"; do
+gate_full_mode && for file in "${!allowed[@]}"; do
     if ! grep -qE "$PATTERN" "$file"; then
         status=1
         echo "✗ $ALLOWLIST: $file no longer reads the environment — remove the line" >&2

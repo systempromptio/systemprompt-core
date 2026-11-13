@@ -26,6 +26,7 @@
 #   scripts/lint-owned-tasks.sh            # gate over the core roots
 #   scripts/lint-owned-tasks.sh --count    # detached-spawn hit count only
 #   scripts/lint-owned-tasks.sh --report   # per-crate counts of both rules
+#   scripts/lint-owned-tasks.sh --paths P...  # only files under P
 #   scripts/lint-owned-tasks.sh [--allowlist FILE] ROOT...
 #                                          # scan other source roots; FILE lists
 #                                          # the owner modules, one path per line
@@ -35,6 +36,9 @@
 # directory literally named `tests` or `target` is never scanned.
 set -uo pipefail
 command -v rg >/dev/null || { echo "lint-owned-tasks: ripgrep required" >&2; exit 2; }
+. "$(dirname "${BASH_SOURCE[0]}")/lib/gate-scope.sh"
+gate_scope_parse "$@"
+set -- "${GATE_ARGS[@]}"
 
 MODE=gate
 ALLOWLIST=""
@@ -50,19 +54,16 @@ while [ "$#" -gt 0 ]; do
     esac
 done
 if [ "${#ROOTS[@]}" -eq 0 ]; then
-    cd "$(dirname "$0")/.."
-    ROOTS=(crates systemprompt/src bin/bridge/src)
+    cd "$GATE_ROOT"
+    mapfile -t ROOTS < <(gate_roots crates systemprompt/src bin/bridge/src)
+    gate_pass_if_empty lint-owned-tasks "${#ROOTS[@]}"
 fi
 GLOBS=(-g '*.rs' -g '!**/tests/**' -g '!**/target/**' -g '!**/build.rs')
 
 # The owner modules: the only places a raw spawn may appear.
 OWNERS=()
 if [ -n "$ALLOWLIST" ]; then
-    while IFS= read -r line; do
-        line="${line%%#*}"
-        line="$(printf '%s' "$line" | sed 's/[[:space:]]*$//')"
-        [ -n "$line" ] && OWNERS+=("$line")
-    done < "$ALLOWLIST"
+    mapfile -t OWNERS < <(gate_allowlist "$ALLOWLIST")
 else
     OWNERS=(
         crates/shared/traits/src/background_tasks.rs
@@ -85,6 +86,7 @@ spawn_hits=$(rg -n --no-heading --color=never "${GLOBS[@]}" \
     | owner_filter)
 
 scanned=$(rg -l --no-messages "${GLOBS[@]}" -e 'fn ' "${ROOTS[@]}" | wc -l | tr -d ' ')
+gate_pass_if_empty lint-owned-tasks "$scanned"
 [ "$scanned" -gt 0 ] || { echo "lint-owned-tasks: no Rust sources found — scope broken?" >&2; exit 1; }
 
 crate_of() {

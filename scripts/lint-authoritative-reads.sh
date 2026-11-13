@@ -8,7 +8,14 @@
 # The repositories below therefore run their lookups on `write_pool`; a
 # `self.pool` read in any of them is only allowed when listed here as a
 # deliberately non-authoritative query.
+#
+#   scripts/lint-authoritative-reads.sh [--paths P...]   # only the sensitive files
+#                                   # under P; the lists are judged in full mode only
 set -uo pipefail
+. "$(dirname "${BASH_SOURCE[0]}")/lib/gate-scope.sh"
+gate_scope_parse "$@"
+set -- "${GATE_ARGS[@]}"
+cd "$GATE_ROOT"
 
 SENSITIVE_FILES=(
     crates/domain/analytics/src/repository/session_signals/mod.rs
@@ -56,7 +63,7 @@ allowed() {
 }
 
 fail=0
-for entry in "${ALLOWLIST[@]}"; do
+gate_full_mode && for entry in "${ALLOWLIST[@]}"; do
     file="${entry%%:*}"; fn="${entry##*:}"
     if ! grep -qE "fn ${fn}\b" "$file" 2>/dev/null; then
         echo "stale allowlist entry: $entry (function not found)"
@@ -64,7 +71,7 @@ for entry in "${ALLOWLIST[@]}"; do
     fi
 done
 
-for file in "${SENSITIVE_FILES[@]}"; do
+for file in $(printf '%s\n' "${SENSITIVE_FILES[@]}" | gate_filter); do
     [ -f "$file" ] || { echo "missing sensitive file: $file"; fail=1; continue; }
     current_fn=""
     lineno=0

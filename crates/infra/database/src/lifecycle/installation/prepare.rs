@@ -8,7 +8,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_extension::{Extension, LoaderError};
+use systemprompt_extension::{Extension, LoaderError, SchemaFault};
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_traits::BoxedSource;
 use tracing::warn;
@@ -171,13 +171,11 @@ fn require_declarative_schema(
     if lint_errors.is_empty() {
         return Ok(());
     }
-    Err(LoaderError::SchemaInstallationFailed {
+    Err(LoaderError::SchemaInstallationStepFailed {
         extension: extension_id.clone(),
-        message: format!(
-            "Imperative SQL detected in declarative schema. Move offending statements to \
-             schema/migrations/NNN_<name>.sql and declare them via \
-             Extension::migrations():\n{}",
-            lint_errors.join("\n")
-        ),
+        context: "Lint declarative schema".to_owned(),
+        source: Box::new(SchemaFault::ImperativeSql {
+            offences: lint_errors.to_vec(),
+        }),
     })
 }

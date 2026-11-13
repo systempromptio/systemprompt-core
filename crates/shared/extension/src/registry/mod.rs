@@ -7,7 +7,9 @@
 //! That one order drives schema installation, router and job collection and
 //! [`ExtensionRegistry::build_state`]. A declared dependency that is not
 //! loaded is a [`LoaderError::MissingDependency`] from every constructor, so
-//! no caller can observe a registry whose dependency graph is unsatisfied.
+//! no caller can observe a registry whose dependency graph is unsatisfied:
+//! `register` and `merge` order a candidate set and commit it only on
+//! success, so a refused call leaves the registry exactly as it was.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -45,35 +47,26 @@ impl ExtensionRegistry {
         Self::default()
     }
 
-    pub(crate) fn sort_by_priority(&mut self) -> Result<(), LoaderError> {
-        self.sorted_extensions = dependency_order(&self.extensions)?
-            .into_iter()
-            .filter_map(|id| self.extensions.get(&id).cloned())
-            .collect();
-        Ok(())
-    }
-
     pub fn register(&mut self, ext: Arc<dyn Extension>) -> Result<(), LoaderError> {
-        self.insert(ext)?;
-        self.sort_by_priority()?;
-        Ok(())
-    }
-
-    pub(crate) fn insert(&mut self, ext: Arc<dyn Extension>) -> Result<(), LoaderError> {
-        let id = ext.id().to_owned();
-        if self.extensions.contains_key(&id) {
-            return Err(LoaderError::DuplicateExtension(ExtensionId::new(id)));
-        }
-        self.extensions.insert(id, Arc::clone(&ext));
-        self.sorted_extensions.push(ext);
-        Ok(())
+        self.merge(vec![ext])
     }
 
     pub fn merge(&mut self, extensions: Vec<Arc<dyn Extension>>) -> Result<(), LoaderError> {
+        let mut candidate = self.extensions.clone();
         for ext in extensions {
-            self.insert(ext)?;
+            let id = ext.id().to_owned();
+            if candidate.contains_key(&id) {
+                return Err(LoaderError::DuplicateExtension(ExtensionId::new(id)));
+            }
+            candidate.insert(id, ext);
         }
-        self.sort_by_priority()
+        let sorted = dependency_order(&candidate)?
+            .into_iter()
+            .filter_map(|id| candidate.get(&id).cloned())
+            .collect();
+        self.extensions = candidate;
+        self.sorted_extensions = sorted;
+        Ok(())
     }
 
     pub fn validate(&self) -> Result<(), LoaderError> {
@@ -111,9 +104,9 @@ pub(crate) fn dependency_order(
 }
 
 fn order_key(by_id: &HashMap<String, Arc<dyn Extension>>, id: &str) -> (u32, String) {
-    by_id
-        .get(id)
-        .map_or((u32::MAX, String::new()), |e| (e.priority(), e.id().to_owned()))
+    by_id.get(id).map_or((u32::MAX, String::new()), |e| {
+        (e.priority(), e.id().to_owned())
+    })
 }
 
 fn topo_sort(by_id: &HashMap<String, Arc<dyn Extension>>) -> Result<Vec<String>, LoaderError> {

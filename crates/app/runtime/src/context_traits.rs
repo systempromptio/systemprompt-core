@@ -134,27 +134,6 @@ impl ExtensionContext for AppContext {
         locks
     }
 
-    fn dependencies(&self) -> systemprompt_provider_contracts::Dependencies {
-        let mut dependencies = systemprompt_provider_contracts::Dependencies::new()
-            .with(Arc::clone(self.db_pool()))
-            .with(Arc::clone(self.app_paths_arc()))
-            .with(Arc::clone(self.files_config()))
-            .with(Arc::new(self.profile().notifications))
-            .with(Arc::clone(self.oauth_repositories()))
-            .with(Arc::clone(self.ai_repositories()));
-        if self.files_config().documents_config().is_enabled() {
-            dependencies.insert(Arc::clone(self.documents().service()));
-        }
-        #[cfg(feature = "brain")]
-        {
-            dependencies.insert(Arc::new(self.profile().brain.clone()));
-            dependencies.insert::<systemprompt_extension::DynNotificationSink>(Arc::clone(
-                &self.notifications().sink,
-            ));
-        }
-        dependencies
-    }
-
     fn secrets(&self) -> Arc<dyn systemprompt_traits::SecretStore> {
         let concrete = Arc::clone(Self::secrets(self));
         let store: Arc<dyn systemprompt_traits::SecretStore> = concrete;
@@ -165,7 +144,7 @@ impl ExtensionContext for AppContext {
         self.plugins.extension_registry.get(id).cloned()
     }
 
-    fn extension_state(&self) -> systemprompt_extension::ExtensionState {
+    fn extension_state(&self) -> systemprompt_provider_contracts::Dependencies {
         self.plugins.extension_state.clone()
     }
 

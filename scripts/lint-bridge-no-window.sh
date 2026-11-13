@@ -16,9 +16,13 @@
 # cross-platform `cmd /C start` arms in `gui/window/mod.rs` and
 # `auth/providers/session.rs` are caught. A spawn of a runtime-computed path
 # (the post-update relaunch) is outside what a grep can classify.
+#
+#   scripts/lint-bridge-no-window.sh [--paths P...]
 set -euo pipefail
-
-cd "$(dirname "$0")/.."
+. "$(dirname "${BASH_SOURCE[0]}")/lib/gate-scope.sh"
+gate_scope_parse "$@"
+set -- "${GATE_ARGS[@]}"
+cd "$GATE_ROOT"
 
 bridge="bin/bridge/src"
 win_exes='cmd|powershell|pwsh|schtasks|icacls|reg|reg\.exe|cmd\.exe|wmic|tasklist'
@@ -45,7 +49,7 @@ while IFS= read -r file; do
     while IFS=: read -r line _; do
         [ -n "$line" ] && check_spawn "$file" "$line"
     done < <(grep -nE '(process::)?Command::new\(' "$file" || true)
-done < <(find "$bridge" -name 'windows.rs' -o -path '*/windows/*.rs' | sort)
+done < <(find "$bridge" -name 'windows.rs' -o -path '*/windows/*.rs' | sort | gate_filter)
 
 # 2. Windows system executables, wherever they are spawned from.
 while IFS=: read -r file line _; do
@@ -53,7 +57,7 @@ while IFS=: read -r file line _; do
     [ "$file" = "$bridge/winproc.rs" ] && continue
     case "$file" in *windows.rs | */windows/*.rs) continue ;; esac
     check_spawn "$file" "$line"
-done < <(grep -rnE "(process::)?Command::new\(\"($win_exes)\"\)" "$bridge" --include='*.rs' || true)
+done < <(grep -rnE "(process::)?Command::new\(\"($win_exes)\"\)" "$bridge" --include='*.rs' | gate_filter || true)
 
 if [ "$fail" -ne 0 ]; then
     echo >&2

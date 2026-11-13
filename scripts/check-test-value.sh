@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Reject test code that can only fail by panicking, or can never fail.
 #
-# Usage: check-test-value.sh [DIR]   (default: crates/tests)
+# Usage: check-test-value.sh [DIR] [--paths P...]   (default: crates/tests;
+#        --paths narrows the default to the files under P)
 #
 # Every rule matches across line breaks, so a rustfmt-wrapped expression is
 # caught exactly like a one-line one. A hit is reported at the line where the
@@ -12,7 +13,16 @@
 # `// lint-ok: no-assert` followed by a reason on the line it starts.
 set -uo pipefail
 
-SEARCH_DIR="${1:-crates/tests}"
+. "$(dirname "${BASH_SOURCE[0]}")/lib/gate-scope.sh"
+gate_scope_parse "$@"
+set -- "${GATE_ARGS[@]}"
+if [ "$#" -gt 0 ]; then
+    SEARCH_DIRS=("$1")
+else
+    cd "$GATE_ROOT"
+    mapfile -t SEARCH_DIRS < <(gate_roots crates/tests)
+    gate_pass_if_empty check-test-value "${#SEARCH_DIRS[@]}"
+fi
 
 if ! command -v rg >/dev/null 2>&1; then
     echo "check-test-value: ripgrep (rg) is required" >&2
@@ -45,7 +55,7 @@ PATTERN_SELF_EQ='assert_(eq|ne)!\(\s*([^,()]+?)\s*,\s*\2\s*[,)]'
 # start line, so a wrapped statement is attributed to the line it starts on.
 first_lines() {
     local pattern="$1"
-    rg -U --json -g '*.rs' "$pattern" "$SEARCH_DIR" 2>/dev/null \
+    rg -U --json -g '*.rs' "$pattern" "${SEARCH_DIRS[@]}" 2>/dev/null \
         | python3 -c '
 import json, sys
 for raw in sys.stdin:
@@ -98,7 +108,7 @@ report "$(first_lines "$PATTERN_TAUTOLOGY" | filter_hits)" \
     "check-test-value: an assertion that no value can fail (\`assert!(true)\`, \`a || !a\`, \`count >= 0\`)." \
     "Assert the value the code under test must produce:"
 
-SELF_EQ=$(grep -rnP --include='*.rs' "$PATTERN_SELF_EQ" "$SEARCH_DIR" 2>/dev/null | filter_hits)
+SELF_EQ=$(grep -rnP --include='*.rs' "$PATTERN_SELF_EQ" "${SEARCH_DIRS[@]}" 2>/dev/null | filter_hits)
 report "$SELF_EQ" \
     "check-test-value: an assertion comparing an expression with itself." \
     "Compare the produced value with an independent expected value:"
@@ -107,4 +117,4 @@ if [ "$STATUS" -ne 0 ]; then
     exit 1
 fi
 
-echo "check-test-value: OK — no unasserted or tautological assertions in $SEARCH_DIR"
+echo "check-test-value: OK — no unasserted or tautological assertions in ${SEARCH_DIRS[*]}"

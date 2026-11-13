@@ -576,7 +576,7 @@ fn fixture_app_context_assembled_on(
         },
         Plugins {
             extension_registry,
-            extension_state: systemprompt_extension::ExtensionState::default(),
+            extension_state: systemprompt_provider_contracts::Dependencies::new(),
             mcp_registry: RegistryService::new(
                 fixture_user_id(),
                 services.view(),
@@ -685,6 +685,7 @@ pub fn fixture_subject_providers(
             services: fixture_services_view(),
             subjects: Default::default(),
             secrets: fixture_secret_store(),
+            state: Default::default(),
         },
     )
 }

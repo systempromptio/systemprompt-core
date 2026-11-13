@@ -13,8 +13,12 @@
 #   scripts/sqlx-audit-caches.sh [--prune] <crate-dir>...   # only these crates
 #   scripts/sqlx-audit-caches.sh --cache-root DIR ...       # audit DIR/<crate>/.sqlx
 #                                                           # against <crate>/src
+#   scripts/sqlx-audit-caches.sh [--prune] --paths P...     # only the crates P touches
 set -euo pipefail
 shopt -s nullglob
+. "$(dirname "${BASH_SOURCE[0]}")/lib/gate-scope.sh"
+gate_scope_parse "$@"
+set -- "${GATE_ARGS[@]}"
 
 PRUNE=0
 CACHE_ROOT=""
@@ -26,13 +30,13 @@ while [ $# -gt 0 ]; do
     esac
 done
 
-ROOT="$(git rev-parse --show-toplevel)"
-cd "$ROOT"
+cd "$GATE_ROOT"
 
 if [ $# -gt 0 ]; then
     CRATES=("$@")
 else
-    mapfile -t CRATES < <(find crates -mindepth 2 -maxdepth 3 -type d -name .sqlx -not -path 'crates/tests/*' | xargs -n1 dirname | sort)
+    mapfile -t CRATES < <(gate_touching $(find crates -mindepth 2 -maxdepth 3 -type d -name .sqlx -not -path 'crates/tests/*' | xargs -n1 dirname | sort))
+    gate_pass_if_empty sqlx-audit-caches "${#CRATES[@]}"
 fi
 
 total_foreign=0

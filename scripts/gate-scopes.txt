@@ -1,0 +1,65 @@
+# Scope of every source gate in scripts/check-gates.txt, one line per gate:
+#
+#   <gate>  <unit|global>  <cheap|compile|db>  <notes>
+#
+# unit    the verdict for a file depends on that file (or its crate) alone; the
+#         gate takes `--paths P...` through scripts/lib/gate-scope.sh (or
+#         scripts/lib/gate_scope.py) and, with paths, skips its stale-allowlist
+#         checks, which run in full mode only.
+# global  inherently cross-repository; always runs over the whole tree.
+# cost    cheap: text scan; compile: builds scripts/rust-contracts first;
+#         db: needs a database. Full-mode wall time on a warm tree in the notes.
+check-version-strings       global  cheap    0.1s; every published version string against [workspace.package].version
+check-lockfile-registry     global  cheap    0.1s; every tracked Cargo.lock
+lint-field-copy-from        unit    cheap    0.6s; struct field counts are read across the whole tree, findings reported in scope
+lint-env-vars               unit    cheap    1.1s; allowlist reasons and staleness checked in full mode only
+lint-native-test-deps       global  cheap    0.2s; crates/tests cargo metadata graph against bridge-native-crates.txt and hakari.toml
+sqlx-audit-caches           unit    cheap    1.0s; a crate's .sqlx cache against that crate's src; scope selects the crates it touches
+lint-discarded-results      unit    compile  20.8s cold (rust-contracts build), cached after; roots narrowed to the scope
+lint-fail-open              unit    compile  0.3s warm; rust-contracts, roots narrowed to the scope
+lint-swallowed-errors       unit    compile  0.3s warm; rust-contracts, roots narrowed to the scope
+lint-stringly-errors        unit    cheap    1.6s; Display constructions read across the core roots, hits reported in scope
+lint-tracing-messages       unit    compile  0.3s warm; rust-contracts, roots narrowed to the scope
+lint-async-trait            unit    cheap    4.8s; `dyn` uses searched across the core roots, traits judged in scope
+lint-owned-tasks            unit    cheap    0.2s; roots narrowed to the scope
+lint-unbounded-bodies       unit    cheap    0.2s; roots narrowed to the scope
+lint-json-value             unit    cheap    0.6s
+lint-table-ownership        global  cheap    0.6s; table ownership across every crate's schema/*.sql
+lint-ledger-reads           unit    cheap    0.4s; a stale baseline line fails in full mode only
+lint-silent-skips           unit    cheap    7.5s; crates/tests
+lint-schema                 unit    cheap    1.2s
+lint-extensions             unit    cheap    0.2s
+lint-migrations             unit    cheap    0.1s; migrations added since the last v* tag
+lint-comments               unit    cheap    1.2s
+lint-inline-tests           unit    cheap    0.1s
+lint-test-seams             unit    cheap    15.5s full; scope it
+lint-test-value             unit    cheap    0.2s; crates/tests
+lint-shared-test-ids        unit    cheap    5.5s; crates/tests
+lint-raw-ids                unit    cheap    1.7s; name set derived from crates/shared/identifiers whatever the scope; stale boundary entries in full mode only
+lint-host-ids               unit    cheap    0.2s; stale allowlist entries in full mode only
+lint-header-literals        unit    cheap    12.2s full; header constants always read from their definers; stale allowlist entries in full mode only
+lint-path-literals          unit    cheap    3.4s; stale allowlist entries in full mode only
+lint-sqlx                   unit    cheap    0.2s; stale allowlist entries in full mode only
+lint-http-errors            unit    cheap    0.1s; crates/entry/api/src
+lint-no-untyped-admin       unit    cheap    0.1s
+check-headers               unit    cheap    0.2s
+lint-layers                 global  cheap    0.1s; the cargo dependency graph
+check-no-vendor             unit    cheap    0.1s
+lint-mode-enums             unit    cheap    0.3s; each enum against the two fixed vocabulary homes
+lint-sql-vocab              global  cheap    0.3s; registry rows tie a schema CHECK to an enum in another file
+lint-repo-construction      unit    cheap    6.2s; stale allowlist entries in full mode only
+lint-authoritative-reads    unit    cheap    0.2s; fixed sensitive-file list; stale allowlist entries in full mode only
+lint-bridge-lints-sync      global  cheap    0.1s; root and bridge [lints] tables
+lint-bridge-css-tokens      global  cheap    0.1s; token definitions and references across the bridge web tree
+lint-bridge-i18n            global  cheap    0.3s; the bridge catalogue against every reference and producer enum
+lint-bridge-js-imports      unit    cheap    12.2s full; exported names always read from the whole web tree, files judged in scope
+lint-bridge-no-window       unit    cheap    0.1s
+lint-bridge-verdicts        unit    cheap    0.1s
+lint-bridge-typed-warnings  unit    cheap    0.1s
+lint-bridge-layers          unit    cheap    4.7s; each module file against the fixed order list
+lint-bridge-globals         unit    cheap    0.1s; stale allowlist entries in full mode only
+lint-core-globals           unit    cheap    0.5s; stale allowlist entries in full mode only
+lint-serde-aliases          unit    cheap    0.8s; stale allowlist entries in full mode only
+lint-bridge-file-size       unit    cheap    0.4s
+lint-repo-hygiene           global  cheap    0.1s; every tracked path
+check-removed-config-names  unit    cheap    1.3s

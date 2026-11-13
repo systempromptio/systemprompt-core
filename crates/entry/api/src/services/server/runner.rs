@@ -12,11 +12,12 @@
 
 use anyhow::{Context, Result};
 use std::sync::Arc;
+use systemprompt_extension::ExtensionContext as _;
 use systemprompt_identifiers::Actor;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::services::SchedulerHandle;
 use systemprompt_traits::{
-    Dependencies, JobContext, OwnedTask, Phase, RunnerService, StartupEventExt, StartupEventSender,
+    JobContext, OwnedTask, Phase, RunnerService, StartupEventExt, StartupEventSender,
 };
 
 use super::lifecycle::{
@@ -206,12 +207,10 @@ fn spawn_runner_service(
     let admin = ctx.system_admin().id().clone();
     let shared = Arc::clone(shared);
     super::runner_supervisor::supervise(ctx.background_tasks(), service, move || {
-        let dependencies = Dependencies::new()
-            .with(Arc::clone(shared.app_paths_arc()))
-            .with(Arc::clone(shared.db_pool()))
+        let dependencies = shared
+            .extension_state()
             .with(shared.signing_keys().clone())
             .with(Arc::clone(shared.config_arc()))
-            .with(Arc::clone(shared.oauth_repositories()))
             .with::<Arc<dyn systemprompt_extension::ExtensionContext>>(Arc::<AppContext>::clone(
                 &shared,
             ))

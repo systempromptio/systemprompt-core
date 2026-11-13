@@ -14,7 +14,7 @@ use systemprompt_extension::{
 use systemprompt_identifiers::{ModelId, ProviderId, RouteId, UserId};
 use systemprompt_traits::DatabaseHandle;
 
-use crate::registry_validation::StubCtx;
+use crate::stub_ctx::StubCtx;
 
 fn guards() -> GatewayGuards {
     GatewayGuards::discover(&StubCtx)

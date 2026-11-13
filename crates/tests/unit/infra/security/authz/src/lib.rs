@@ -27,6 +27,8 @@ mod entity_kinds;
 #[cfg(test)]
 mod entity_row;
 #[cfg(test)]
+mod extension_state_hook;
+#[cfg(test)]
 mod folder_ancestors;
 #[cfg(test)]
 mod governance_append_only;

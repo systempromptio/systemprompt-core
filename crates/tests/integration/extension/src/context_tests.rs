@@ -204,9 +204,6 @@ impl ExtensionContext for MockExtensionContext {
     fn secrets(&self) -> Arc<dyn systemprompt_traits::SecretStore> {
         systemprompt_test_fixtures::fixture_secret_store()
     }
-    fn dependencies(&self) -> systemprompt_provider_contracts::Dependencies {
-        systemprompt_provider_contracts::Dependencies::new()
-    }
     fn services(&self) -> systemprompt_manifest::services::ServicesView {
         systemprompt_test_fixtures::fixture_services_view()
     }
@@ -249,8 +246,8 @@ impl ExtensionContext for MockExtensionContext {
     fn get_extension(&self, id: &str) -> Option<Arc<dyn Extension>> {
         self.extensions.get(id).cloned()
     }
-    fn extension_state(&self) -> systemprompt_extension::ExtensionState {
-        systemprompt_extension::ExtensionState::default()
+    fn extension_state(&self) -> systemprompt_provider_contracts::Dependencies {
+        systemprompt_provider_contracts::Dependencies::new()
     }
 }
 

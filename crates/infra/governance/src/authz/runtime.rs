@@ -71,6 +71,7 @@ pub fn build_authz_hook(
             services: wiring.services.clone(),
             subjects: wiring.subjects.clone(),
             secrets: Arc::clone(&wiring.secrets),
+            state: wiring.state.clone(),
         })
     });
 

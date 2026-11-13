@@ -46,6 +46,7 @@ mod validation;
 pub use agent_host::{AgentHost, AgentHostError};
 #[cfg(feature = "brain")]
 pub use builder::brain::{BrainCore, BrainInputs, RecallSeams, brain_sink};
+pub use builder::kernel_state::kernel_state;
 #[cfg(feature = "notifications")]
 pub use builder::notifications::{NotificationsInputs, core_notifications, notification_sink};
 pub use builder::{AppContextBuilder, discover_vertex_models, owner_reassignments};

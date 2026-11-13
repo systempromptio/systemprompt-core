@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_extension::{Extension, LoaderError};
+use systemprompt_extension::{Extension, LoaderError, SchemaFault};
 use systemprompt_identifiers::ExtensionId;
 
 use super::super::prepare::{ColumnsToValidate, PreparedSchema};
@@ -77,9 +77,13 @@ async fn validate_single_column(
         })?;
 
     if result.rows.is_empty() {
-        return Err(LoaderError::SchemaInstallationFailed {
+        return Err(LoaderError::SchemaInstallationStepFailed {
             extension: extension_id.clone(),
-            message: format!("Required column '{column}' not found in table '{schema}.{table}'"),
+            context: "Validate required columns".to_owned(),
+            source: Box::new(SchemaFault::MissingColumn {
+                column: column.to_owned(),
+                table: format!("{schema}.{table}"),
+            }),
         });
     }
 

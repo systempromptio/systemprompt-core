@@ -1,6 +1,6 @@
 //! Tests for extension error types.
 
-use systemprompt_extension::error::{ExtensionConfigError, LoaderError};
+use systemprompt_extension::error::{ExtensionConfigError, LoaderError, SchemaFault};
 use systemprompt_identifiers::ExtensionId;
 
 #[test]
@@ -39,13 +39,17 @@ fn test_loader_error_initialization_failed_display() {
 
 #[test]
 fn test_loader_error_schema_installation_failed_display() {
-    let err = LoaderError::SchemaInstallationFailed {
+    let err = LoaderError::SchemaInstallationStepFailed {
         extension: ExtensionId::new("users"),
-        message: "table already exists".to_string(),
+        context: "Validate required columns".to_string(),
+        source: Box::new(SchemaFault::MissingColumn {
+            column: "email".to_string(),
+            table: "public.users".to_string(),
+        }),
     };
     let msg = err.to_string();
     assert!(msg.contains("users"));
-    assert!(msg.contains("table already exists"));
+    assert!(msg.contains("'email' not found in table 'public.users'"));
     assert!(msg.contains("schema"));
 }
 
@@ -53,12 +57,13 @@ fn test_loader_error_schema_installation_failed_display() {
 fn test_loader_error_config_validation_failed_display() {
     let err = LoaderError::ConfigValidationFailed {
         extension: ExtensionId::new("smtp"),
-        message: "missing required field: host".to_string(),
+        source: ExtensionConfigError::NotFound("host".to_string()),
     };
     let msg = err.to_string();
     assert!(msg.contains("smtp"));
-    assert!(msg.contains("missing required field"));
+    assert!(msg.contains("'host' not found"));
     assert!(msg.contains("Configuration validation"));
+    assert!(std::error::Error::source(&err).is_some());
 }
 
 #[test]
@@ -146,13 +151,16 @@ fn test_loader_error_variant_matching() {
             extension: ExtensionId::new("d"),
             message: "failed".to_string(),
         },
-        LoaderError::SchemaInstallationFailed {
+        LoaderError::SchemaInstallationStepFailed {
             extension: ExtensionId::new("e"),
-            message: "failed".to_string(),
+            context: "retirement".to_string(),
+            source: Box::new(SchemaFault::RetirementWithoutIfExists {
+                statement: "DROP VIEW v".to_string(),
+            }),
         },
         LoaderError::ConfigValidationFailed {
             extension: ExtensionId::new("f"),
-            message: "failed".to_string(),
+            source: ExtensionConfigError::NotFound("port".to_string()),
         },
         LoaderError::ReservedPathCollision {
             extension: ExtensionId::new("g"),
@@ -164,10 +172,6 @@ fn test_loader_error_variant_matching() {
         },
         LoaderError::DependencyCycle {
             chain: "x -> y -> x".to_string(),
-        },
-        LoaderError::MigrationFailed {
-            extension: ExtensionId::new("i"),
-            message: "migration failed".to_string(),
         },
         LoaderError::MigrationStepFailed {
             extension: ExtensionId::new("i"),
@@ -231,14 +235,6 @@ fn test_loader_error_variant_matching() {
                 assert!(!extension.as_str().is_empty());
                 assert!(!message.is_empty());
             },
-            LoaderError::SchemaInstallationFailed { extension, message } => {
-                assert!(!extension.as_str().is_empty());
-                assert!(!message.is_empty());
-            },
-            LoaderError::MigrationFailed { extension, message } => {
-                assert!(!extension.as_str().is_empty());
-                assert!(!message.is_empty());
-            },
             LoaderError::InitializationStepFailed { extension, .. } => {
                 assert!(!extension.as_str().is_empty());
             },
@@ -264,9 +260,8 @@ fn test_loader_error_variant_matching() {
                 assert!(!object.is_empty());
                 assert!(!how.is_empty());
             },
-            LoaderError::ConfigValidationFailed { extension, message } => {
+            LoaderError::ConfigValidationFailed { extension, .. } => {
                 assert!(!extension.as_str().is_empty());
-                assert!(!message.is_empty());
             },
             LoaderError::ReservedPathCollision { extension, path } => {
                 assert!(!extension.as_str().is_empty());

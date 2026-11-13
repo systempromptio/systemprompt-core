@@ -9,9 +9,13 @@
 #
 # Allowlisted path prefixes are listed once below with the reason; a name
 # is added to the list only by deleting its last live use first.
+#
+#   scripts/check-removed-config-names.sh [--paths P...]
 set -euo pipefail
-
-cd "$(dirname "$0")/.."
+. "$(dirname "${BASH_SOURCE[0]}")/lib/gate-scope.sh"
+gate_scope_parse "$@"
+set -- "${GATE_ARGS[@]}"
+cd "$GATE_ROOT"
 
 names='auto_discover|log_tool_executions|surface_for|canonicalize_org_uuid|ProviderEntry|YAML_SOURCE|DASHBOARD_SOURCE|legacy_id|find_served_model|by_scope|catalog_route_id|MOVED_SECTIONS|MovedToServices'
 
@@ -50,9 +54,8 @@ for lit in "${literals[@]}"; do literal_args+=(-e "$lit"); done
 # One listing, filtered by substring against the allowlist, then two greps
 # over the whole set rather than a process per file.
 candidates() {
-    git ls-files -z -- 'crates' 'bin' 'scripts' 'justfile' ':!:*.lock' \
-        | grep -zvF -f <(printf '%s\n' "${allowed[@]}") \
-        | while IFS= read -r -d '' f; do [ -f "$f" ] && printf '%s\0' "$f"; done
+    gate_files 'crates' 'bin' 'scripts' 'justfile' ':!:*.lock' \
+        | grep -vF -f <(printf '%s\n' "${allowed[@]}") | tr '\n' '\0' || true
 }
 
 hits=$({
