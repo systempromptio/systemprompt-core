@@ -63,6 +63,11 @@ pub struct DiagnosticFailure {
 /// `probe` returns the entry's detail fields, or `None` when there is nothing
 /// to report yet (the entry is omitted). `subject` names what is probed in the
 /// timeout message. Held as `Arc<dyn DiagnosticProbe>`, hence `#[async_trait]`.
+///
+/// `/health/detail` returns a failure's `reason` and the detail fields to any
+/// signed-in caller: neither may carry a secret, a credential, a connection
+/// string or an underlying error's text. Put the cause in
+/// `DiagnosticFailure::source`, which is only logged.
 #[async_trait]
 pub trait DiagnosticProbe: Send + Sync {
     fn name(&self) -> &'static str;

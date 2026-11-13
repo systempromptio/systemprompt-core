@@ -29,10 +29,6 @@ impl<T: ?Sized> LateBound<T> {
         self.0.set(value).map_err(|_bound| AlreadyBound)
     }
 
-    pub fn get_or_init(&self, init: impl FnOnce() -> Arc<T>) -> &Arc<T> {
-        self.0.get_or_init(init)
-    }
-
     #[must_use]
     pub fn get(&self) -> Option<&Arc<T>> {
         self.0.get()

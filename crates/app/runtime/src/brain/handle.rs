@@ -17,7 +17,7 @@ use systemprompt_extension::ExtensionContext;
 use systemprompt_extension::brain::{BrainModelClient, DynBrainSink, MemoryRecall, SourceContent};
 use systemprompt_extension::notifications::DynNotificationSink;
 use systemprompt_manifest::profile::BrainProfile;
-use systemprompt_models::LateBound;
+use systemprompt_models::{AlreadyBound, LateBound};
 
 /// The runtime's brain: repositories, producer sink, service, recall and,
 /// once the API server starts it, the capture consumer.
@@ -144,38 +144,38 @@ impl BrainHandle {
         &self,
         extensions: &dyn ExtensionContext,
         model: Arc<dyn BrainModelClient>,
-    ) -> Arc<BrainConsumer> {
-        if self.consolidation_model.bind(Arc::clone(&model)).is_err() {
-            tracing::debug!("Brain consolidation model already attached");
+    ) -> Result<Arc<BrainConsumer>, AlreadyBound> {
+        if self.consumer.is_bound() {
+            return Err(AlreadyBound);
         }
-        let consumer = self.consumer.get_or_init(|| {
-            let mut seams = PipelineSeams::discover(extensions);
-            seams.sources.push(Arc::clone(&self.source_content));
-            let replay = ReplayService::new(
+        self.consolidation_model.bind(Arc::clone(&model))?;
+        let mut seams = PipelineSeams::discover(extensions);
+        seams.sources.push(Arc::clone(&self.source_content));
+        let replay = ReplayService::new(
+            Arc::clone(&self.repos),
+            (*self.outbox).clone(),
+            seams.clone(),
+            (*self.profile).clone(),
+        );
+        if !self.service.attach_replay(ProposalReplay {
+            service: Arc::new(replay),
+            model: Arc::clone(&model),
+        }) {
+            return Err(AlreadyBound);
+        }
+        let consumer = Arc::new(
+            BrainConsumer::builder(
                 Arc::clone(&self.repos),
-                (*self.outbox).clone(),
-                seams.clone(),
-                (*self.profile).clone(),
-            );
-            if !self.service.attach_replay(ProposalReplay {
-                service: Arc::new(replay),
-                model: Arc::clone(&model),
-            }) {
-                tracing::warn!("Brain proposal replay was already attached");
-            }
-            Arc::new(
-                BrainConsumer::builder(
-                    Arc::clone(&self.repos),
-                    Arc::clone(&self.outbox),
-                    model,
-                    self.listener_pool.clone(),
-                )
-                .profile((*self.profile).clone())
-                .seams(seams)
-                .notifications(Arc::clone(&self.notifications))
-                .build(),
+                Arc::clone(&self.outbox),
+                model,
+                self.listener_pool.clone(),
             )
-        });
-        Arc::clone(consumer)
+            .profile((*self.profile).clone())
+            .seams(seams)
+            .notifications(Arc::clone(&self.notifications))
+            .build(),
+        );
+        self.consumer.bind(Arc::clone(&consumer))?;
+        Ok(consumer)
     }
 }

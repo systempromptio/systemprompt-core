@@ -41,7 +41,7 @@ pub(crate) fn handle_for(r: &Rig) -> Arc<BrainHandle> {
 }
 
 #[tokio::test]
-async fn starting_the_consumer_twice_returns_the_same_consumer() {
+async fn starting_the_consumer_twice_is_refused_and_keeps_the_first() {
     let r = rig(false).await;
     let handle = handle_for(&r);
     let app = systemprompt_test_fixtures::test_app_context(
@@ -50,11 +50,13 @@ async fn starting_the_consumer_twice_returns_the_same_consumer() {
     );
     assert!(handle.consumer().is_none());
 
-    let first = handle.start_consumer(app.as_ref(), Arc::new(UnavailableModel));
+    let first = handle
+        .start_consumer(app.as_ref(), Arc::new(UnavailableModel))
+        .expect("the first start binds the consumer slot");
     let second = handle.start_consumer(app.as_ref(), Arc::new(UnavailableModel));
 
-    assert!(Arc::ptr_eq(&first, &second));
+    assert!(second.is_err(), "a second start must not rebind the slot");
     let held = handle.consumer().expect("consumer recorded");
     assert!(Arc::ptr_eq(held, &first));
-    assert!(format!("{handle:?}").contains("consumer: true"));
+    assert!(format!("{handle:?}").contains("bound: true"));
 }

@@ -475,6 +475,34 @@ async fn authorize_naming_a_resource_without_an_mcp_registry_is_refused() -> any
     Ok(())
 }
 
+#[tokio::test]
+async fn authorize_naming_a_resource_without_a_scope_or_an_mcp_registry_is_refused()
+-> anyhow::Result<()> {
+    let client = seeded_client().await?;
+    let app = authorize_app().await?;
+
+    let uri = authorize_uri(
+        client.client_id.as_str(),
+        Some("http://127.0.0.1/api/v1/mcp/some-server/mcp"),
+    )
+    .replace("&scope=user", "");
+    assert!(!uri.contains("scope="), "{uri}");
+    let resp = app.oneshot(empty_get(&uri)).await?;
+
+    // Without `scope=` the grant would have fallen back to every scope the
+    // client registered; it is refused instead.
+    assert_ne!(resp.status(), StatusCode::OK, "{}", resp.status());
+    let location = resp
+        .headers()
+        .get(header::LOCATION)
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_owned);
+    let body = to_bytes(resp.into_body(), 1 << 20).await?;
+    let rendered = format!("{location:?} {}", String::from_utf8_lossy(&body));
+    assert!(rendered.contains("invalid_target"), "{rendered}");
+    Ok(())
+}
+
 // RFC 6749 §4.1.2.1: the server must not redirect the user-agent to a
 // `redirect_uri` it has not confirmed is registered for the client. Every
 // validation failure below happens before (or because) that confirmation
