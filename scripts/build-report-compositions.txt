@@ -1,0 +1,15 @@
+# Reference compositions for scripts/build-report.sh.
+#
+# One composition per line: <name> <comma-separated facade features> [flags]
+# Features are those of the `systemprompt` facade (systemprompt/Cargo.toml);
+# `default-features = false` is always set, so list `core` explicitly.
+# Flags:
+#   largest  the composition that also gets `cargo bloat --crates` and
+#            `cargo build --timings`. Exactly one line carries it.
+# A composition without `cli` links a trivial `main`; its binary size measures
+# only what survives dead-code elimination, while its closure counts are exact.
+core            core
+api             api
+cli             core,cli
+full            full
+full-slack-teams full,slack,teams  largest

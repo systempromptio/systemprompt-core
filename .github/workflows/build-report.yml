@@ -1,0 +1,90 @@
+name: Build report
+
+# Informational: crate-closure counts and stripped release binary size per
+# reference composition (scripts/build-report-compositions.txt), plus
+# `cargo bloat --crates` and `cargo build --timings` for the largest. A
+# workflow of its own and never a required check, so a slow or failed report
+# never changes the conclusion of a gate run that release-proof.py reads.
+#
+# One job builds the compositions in sequence rather than a matrix: they share
+# most of the dependency graph, so sequential builds reuse one sccache and one
+# registry download, and the script removes each composition's target dir once
+# measured, so the runner's disk holds one release build at a time.
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Commit SHA or branch to report on. Defaults to the triggering ref."
+        type: string
+        required: false
+      closure_only:
+        description: "Report crate-closure counts only (no compile)."
+        type: boolean
+        default: false
+  schedule:
+    - cron: "17 4 * * 1"
+  push:
+    branches: [future]
+    paths:
+      - scripts/build-report.sh
+      - scripts/build-report-compositions.txt
+      - .github/workflows/build-report.yml
+
+concurrency:
+  group: build-report-${{ inputs.ref || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # Why: transient TLS resets from static.rust-lang.org and crates.io fail a run
+  # on infrastructure rather than on the code. rustup and cargo both retry when
+  # told to; they do not by default.
+  RUSTUP_MAX_RETRIES: "10"
+  CARGO_NET_RETRY: "10"
+  CARGO_TERM_COLOR: always
+  SQLX_OFFLINE: "true"
+  RUSTFLAGS: ""
+  CARGO_PROFILE_DEV_DEBUG: "0"
+  CARGO_INCREMENTAL: "0"
+
+jobs:
+  build-report:
+    name: Build report
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    env:
+      SCCACHE_GHA_ENABLED: "true"
+      RUSTC_WRAPPER: sccache
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - run: rustup show
+      - name: Install system dependencies
+        if: ${{ !inputs.closure_only }}
+        run: bash scripts/ci-install-system-deps.sh libdbus-1-dev pkg-config
+      - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
+      - uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
+        if: ${{ !inputs.closure_only }}
+        with:
+          tool: cargo-bloat
+      - name: Build report
+        run: |
+          mode=()
+          [ "${{ inputs.closure_only }}" = true ] && mode=(--closure-only)
+          bash scripts/build-report.sh "${mode[@]}" target/build-report/report.md
+      - if: always()
+        run: cat target/build-report/report.md >> "$GITHUB_STEP_SUMMARY" || true
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: build-report
+          path: |
+            target/build-report/report.md
+            target/build-report/report.json
+            target/build-report/cargo-timing.html
+            target/build-report/bloat.json
+          if-no-files-found: warn
