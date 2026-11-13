@@ -1196,7 +1196,7 @@ async fn run_down_migrations_rejects_a_corrupt_ledger_version_without_writing() 
     assert_eq!(
         error.to_string(),
         format!(
-            "Migration failed for extension '{}': extension_migrations row has a malformed `version` column",
+            "Migration failed for extension '{}': Read applied migrations to revert: extension_migrations row has a malformed `version` column",
             extension_id
         )
     );
@@ -1243,7 +1243,7 @@ async fn run_down_migrations_refuses_an_applied_tombstone_without_writing() {
     assert_eq!(
         error.to_string(),
         format!(
-            "Migration failed for extension '{}': Cannot revert migration 34 ('deleted_slot'): the slot is tombstoned — its file was deleted, so there is no down SQL to run",
+            "Migration failed for extension '{}': Revert migration: migration 34 ('deleted_slot') is a tombstone: the slot is spent and has no SQL",
             extension_id
         )
     );
