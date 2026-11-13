@@ -14,7 +14,7 @@ use sqlx::PgPool;
 use systemprompt_logging::CliService;
 
 use super::ddl;
-use super::postgres_access::{PostgresConfig, connect};
+use crate::shared::postgres_access::{PostgresConfig, connect};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RoleOutcome {

@@ -14,7 +14,7 @@ use systemprompt_identifiers::AgentName;
 pub use systemprompt_manifest::services::{AgentSummary, McpServerSummary};
 use systemprompt_models::a2a::Task;
 
-use crate::commands::plugins::mcp::types::McpToolEntry;
+use crate::commands::shared::mcp_tools::McpToolEntry;
 
 pub use crate::commands::shared::{ValidationIssue, ValidationOutput};
 

@@ -4,9 +4,7 @@
 //! — including the model catalog (`ai/{credentials,providers,models,
 //! deployments}.yaml`) and the gateway (`ai/gateway.yaml`), services files the
 //! loader reads by convention rather than profile sections — and resolves them
-//! to filesystem paths, while [`read_yaml_file`] and
-//! [`write_yaml_file`] back the editing commands. The remaining types are the
-//! serializable outputs rendered by the list, validate, and import/export
+//! to filesystem paths. The remaining types are the serializable outputs rendered by the list, validate, and import/export
 //! flows.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -236,21 +234,4 @@ impl std::str::FromStr for ConfigSection {
             _ => Err(anyhow::anyhow!("Unknown config section: {}", s)),
         }
     }
-}
-
-pub fn read_yaml_file(path: &Path) -> Result<serde_yaml::Value> {
-    // JSON: an untyped document preserves unknown keys in operator-authored
-    // config so a single field can be mutated and written back losslessly.
-    let content = std::fs::read_to_string(path)
-        .with_context(|| format!("Failed to read file: {}", path.display()))?;
-    serde_yaml::from_str(&content)
-        .with_context(|| format!("Failed to parse YAML from: {}", path.display()))
-}
-
-pub fn write_yaml_file(path: &Path, content: &serde_yaml::Value) -> Result<()> {
-    // JSON: writes back the untyped document read by `read_yaml_file`, keeping
-    // operator-authored keys this tooling does not model.
-    let yaml_str = serde_yaml::to_string(content).with_context(|| "Failed to serialize YAML")?;
-    std::fs::write(path, yaml_str)
-        .with_context(|| format!("Failed to write file: {}", path.display()))
 }

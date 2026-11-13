@@ -1,4 +1,5 @@
-//! MCP tool probing shared by `admin agents tools` and `plugins mcp tools`.
+//! MCP tool probing shared by `admin agents tools` and `plugins mcp tools`,
+//! and the [`McpToolEntry`] row both render.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -9,6 +10,8 @@ use rmcp::model::{ClientCapabilities, ClientConfig, Implementation, ProtocolVers
 use rmcp::transport::streamable_http_client::{
     StreamableHttpClientTransport, StreamableHttpClientTransportConfig,
 };
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use systemprompt_identifiers::{
     Actor, AgentName, ContextId, JwtToken, McpServerId, SessionId, SessionToken, TraceId, UserId,
@@ -173,5 +176,31 @@ fn convert_tool_info(tool: rmcp::model::Tool) -> ToolInfo {
         parameters_count,
         input_schema,
         output_schema,
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct McpToolEntry {
+    pub name: String,
+    pub server: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    pub parameters_count: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub input_schema: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub output_schema: Option<serde_json::Value>,
+}
+
+impl McpToolEntry {
+    pub fn from_probe(tool: ToolInfo, server: String, with_schemas: bool) -> Self {
+        Self {
+            name: tool.name,
+            server,
+            description: tool.description,
+            parameters_count: tool.parameters_count,
+            input_schema: with_schemas.then_some(tool.input_schema).flatten(),
+            output_schema: with_schemas.then_some(tool.output_schema).flatten(),
+        }
     }
 }

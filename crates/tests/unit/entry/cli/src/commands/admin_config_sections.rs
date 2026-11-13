@@ -5,9 +5,8 @@
 
 use std::str::FromStr;
 
-use systemprompt_cli::admin::config::config_section::{
-    ConfigSection, read_yaml_file, write_yaml_file,
-};
+use systemprompt_cli::admin::config::config_section::ConfigSection;
+use systemprompt_cli::shared::yaml_document::{read_yaml_file, write_yaml_file};
 
 fn loaded() -> &'static systemprompt_config::LoadedProfile {
     systemprompt_test_fixtures::ensure_test_bootstrap()

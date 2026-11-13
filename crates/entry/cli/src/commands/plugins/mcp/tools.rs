@@ -9,7 +9,8 @@ use anyhow::{Context, Result, anyhow};
 use clap::Args;
 
 use super::tools_schema::print_schema_view;
-use super::types::{McpToolEntry, McpToolsOutput, McpToolsSummary};
+use super::types::{McpToolsOutput, McpToolsSummary};
+use crate::commands::shared::mcp_tools::McpToolEntry;
 use crate::commands::shared::mcp_tools::{
     direct_url, list_tools_authenticated, list_tools_unauthenticated,
 };
@@ -135,18 +136,11 @@ async fn collect_tools(
         match tools_result {
             Ok(tools) => {
                 for tool in tools {
-                    all_tools.push(McpToolEntry {
-                        name: tool.name,
-                        server: server.name.clone(),
-                        description: tool.description,
-                        parameters_count: tool.parameters_count,
-                        input_schema: (args.detailed || args.schema)
-                            .then_some(tool.input_schema)
-                            .flatten(),
-                        output_schema: (args.detailed || args.schema)
-                            .then_some(tool.output_schema)
-                            .flatten(),
-                    });
+                    all_tools.push(McpToolEntry::from_probe(
+                        tool,
+                        server.name.clone(),
+                        args.detailed || args.schema,
+                    ));
                 }
                 servers_queried += 1;
             },

@@ -28,7 +28,8 @@ use systemprompt_logging::CliService;
 use anyhow::{Result, anyhow};
 use clap::Args;
 
-use super::types::{ConfigFileInfo, ConfigSection, ConfigValidateOutput, read_yaml_file};
+use super::types::{ConfigFileInfo, ConfigSection, ConfigValidateOutput};
+use crate::shared::yaml_document::read_yaml_file;
 use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 use systemprompt_config::LoadedProfile;

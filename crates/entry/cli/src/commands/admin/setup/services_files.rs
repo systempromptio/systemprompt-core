@@ -20,9 +20,8 @@ use systemprompt_identifiers::ProviderId;
 use systemprompt_logging::CliService;
 use systemprompt_manifest::services::catalog::CATALOG_FILES;
 
-use super::catalog::{self, SeedRequest};
+use crate::shared::provider_catalog::{self as catalog, SeedRequest};
 use super::secrets::SecretsData;
-use crate::commands::admin::config::services_io::write_gateway;
 
 pub(super) fn seed(
     services_dir: &Path,
@@ -49,7 +48,7 @@ pub(super) fn seed(
     }
     std::fs::create_dir_all(&dir).with_context(|| format!("Failed to create {}", dir.display()))?;
     write_catalog(&dir, &document).with_context(|| format!("Failed to write {}", dir.display()))?;
-    write_gateway(&dir, document.gateway.as_ref())?;
+    catalog::write_gateway(&dir, document.gateway.as_ref())?;
     CliService::success(&format!("Saved the model catalog in {}", dir.display()));
     Ok(())
 }

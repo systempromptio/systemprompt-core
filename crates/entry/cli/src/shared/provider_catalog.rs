@@ -14,10 +14,17 @@
 //! list to boot-time discovery, which publishes every model the project can
 //! serve and the Vertex rate card prices.
 //!
+//! [`write_gateway`] writes the seeded `gateway` section to
+//! `services/ai/gateway.yaml`.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::collections::BTreeMap;
+use std::path::Path;
+
 use anyhow::{Context, Result};
+use systemprompt_config::write_private_atomic;
 use systemprompt_identifiers::{CredentialId, EndpointId, ModelId, ProviderId, SecretName};
 use systemprompt_manifest::services::GatewayConfigSpec;
 use systemprompt_manifest::services::catalog::{
@@ -137,4 +144,16 @@ pub fn add_vertex(document: &mut CatalogDocument, seed: VertexSeed<'_>) -> Resul
         .resolve(&CatalogContext::default())
         .context("the seeded Vertex AI catalog does not resolve")?;
     Ok(())
+}
+
+pub fn write_gateway(dir: &Path, gateway: Option<&GatewayConfigSpec>) -> Result<()> {
+    let path = dir.join("gateway.yaml");
+    let Some(gateway) = gateway else {
+        return Ok(());
+    };
+    let section: BTreeMap<&str, &GatewayConfigSpec> =
+        std::iter::once(("gateway", gateway)).collect();
+    let yaml = serde_yaml::to_string(&section).context("Failed to serialize gateway.yaml")?;
+    write_private_atomic(&path, yaml.as_bytes())
+        .with_context(|| format!("Failed to write {}", path.display()))
 }

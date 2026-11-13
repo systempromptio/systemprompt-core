@@ -24,7 +24,7 @@ use super::commit::{Change, ChangeKind, commit};
 use super::legacy_map::LEGACY_MAP_FILE;
 use super::plan::MigrationPlan;
 use super::swap::{FileSwap, StdFileSwap};
-use crate::commands::admin::config::services_io::write_gateway;
+use crate::shared::provider_catalog::write_gateway;
 use crate::runner::interrupt::InterruptShield;
 
 const SYNTHETIC_ROOT: &str = "includes:\n  - ../ai/config.yaml\n";
