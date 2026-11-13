@@ -1,0 +1,44 @@
+# Paths whose change gates the whole repository (scripts/affected.py).
+# One glob per line, anchored at the repository root: `**` spans directories,
+# `*` and `?` stay within one path segment. `#` starts a comment.
+#
+# The `[none]` section lists paths with no gate consequence at all. A path in
+# neither section that no crate owns is gated in full.
+
+[full]
+# Toolchain, lint and build configuration
+**/rust-toolchain*
+**/clippy.toml
+**/rustfmt.toml
+**/.cargo/**
+**/deny.toml
+crates/tests/.config/**
+# Every lockfile and the workspace manifests
+**/Cargo.lock
+Cargo.toml
+crates/tests/Cargo.toml
+bin/bridge/Cargo.toml
+# CI, recipes and gate scripts
+.github/workflows/**
+scripts/**
+justfile
+# Test support shared by every test crate
+crates/tests/common/**
+# Schema, migrations and the sqlx offline caches
+**/schema/**
+**/.sqlx/**
+# Typed identifiers: every crate depends on them
+crates/shared/identifiers/**
+# Documentation, checked by the doc and hygiene gates
+**/*.md
+documentation/**
+
+[none]
+# License text: read by no build, test or gate
+LICENSE
+# Ignore rules: every gate walks tracked files, and tracking is decided by `git add`, not by this file
+.gitignore
+# Dependency-bot schedule: consumed by the hosted bot only
+renovate.json
+# Coverage upload settings: coverage is a measurement, not a gate
+codecov.yml

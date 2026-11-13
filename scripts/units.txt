@@ -1,0 +1,55 @@
+# Unit of every package outside the test workspace (scripts/affected.py --check).
+# `kernel`, `capability:<name>` or `tooling`; test-workspace crates belong to no
+# unit. Format: <package> <unit>
+#
+# Kernel: shared, the infra foundations, users and oauth, the issuance and
+# runtime apps, the entry crates and the facade.
+systemprompt-identifiers           kernel
+systemprompt-provider-contracts    kernel
+systemprompt-traits                kernel
+systemprompt-models                kernel
+systemprompt-wire                  kernel
+systemprompt-manifest              kernel
+systemprompt-client                kernel
+systemprompt-extension             kernel
+systemprompt-template-provider     kernel
+systemprompt-database              kernel
+systemprompt-logging               kernel
+systemprompt-config                kernel
+systemprompt-events                kernel
+systemprompt-storage               kernel
+systemprompt-security              kernel
+systemprompt-governance            kernel
+systemprompt-loader                kernel
+systemprompt-users                 kernel
+systemprompt-oauth                 kernel
+systemprompt-oauth-issuance        kernel
+systemprompt-runtime               kernel
+systemprompt-api                   kernel
+systemprompt-cli                   kernel
+systemprompt                       kernel
+# Capabilities
+systemprompt-cloud                 capability:cloud
+systemprompt-files                 capability:files
+systemprompt-analytics             capability:analytics
+systemprompt-content               capability:content
+systemprompt-templates             capability:content
+systemprompt-generator             capability:content
+systemprompt-mcp                   capability:mcp
+systemprompt-ai                    capability:ai
+systemprompt-gateway               capability:gateway
+systemprompt-agent                 capability:agents
+systemprompt-marketplace           capability:marketplace
+systemprompt-slack                 capability:slack
+systemprompt-teams                 capability:teams
+systemprompt-notifications         capability:notifications
+systemprompt-brain                 capability:brain
+systemprompt-scheduler             capability:scheduler
+systemprompt-agent-runs            capability:agent-runs
+systemprompt-bridge                capability:bridge
+# Tooling
+rust-contracts                     tooling
+systemprompt-bench                 tooling
+systemprompt-fuzz                  tooling
+systemprompt-loadtest              tooling
+mock-inference                     tooling
