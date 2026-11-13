@@ -214,17 +214,14 @@ pub(super) fn unapplied_governance(ctx: &AppContext) -> Option<serde_json::Value
     }))
 }
 
-/// The readiness checks of the enabled extensions, run by `/readyz` and
-/// reported by `/health/detail`.
+/// The enabled extensions' readiness checks, run by `/readyz` and `/health/detail`.
 pub struct ExtensionReadiness {
     checks: Vec<ExtensionReadinessCheck>,
 }
 
 impl std::fmt::Debug for ExtensionReadiness {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ExtensionReadiness")
-            .field("checks", &self.checks.len())
-            .finish()
+        f.debug_struct("ExtensionReadiness").finish_non_exhaustive()
     }
 }
 

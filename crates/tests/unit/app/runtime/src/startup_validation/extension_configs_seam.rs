@@ -10,7 +10,8 @@ use systemprompt_runtime::validate_extension_configs;
 fn missing_config_files_fall_back_to_empty_config() {
     let tmp = tempfile::tempdir().expect("tempdir");
 
-    let outcomes = validate_extension_configs(tmp.path(), &[]).expect("registry discovery succeeds");
+    let outcomes =
+        validate_extension_configs(tmp.path(), &[]).expect("registry discovery succeeds");
 
     let ok = outcomes
         .iter()
@@ -48,7 +49,8 @@ fn malformed_config_file_reports_load_error() {
     std::fs::write(tmp.path().join("config/covextok.yaml"), ": : not yaml [")
         .expect("write malformed config");
 
-    let outcomes = validate_extension_configs(tmp.path(), &[]).expect("registry discovery succeeds");
+    let outcomes =
+        validate_extension_configs(tmp.path(), &[]).expect("registry discovery succeeds");
 
     let ok = outcomes
         .iter()
@@ -70,7 +72,8 @@ fn valid_config_file_passes_validation() {
     std::fs::write(tmp.path().join("config/covextok.yaml"), "mode: fine\n")
         .expect("write valid config");
 
-    let outcomes = validate_extension_configs(tmp.path(), &[]).expect("registry discovery succeeds");
+    let outcomes =
+        validate_extension_configs(tmp.path(), &[]).expect("registry discovery succeeds");
 
     let ok = outcomes
         .iter()

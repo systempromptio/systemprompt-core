@@ -171,7 +171,7 @@ CMD ["{bin}/systemprompt", "{cmd_infra}", "{cmd_services}", "{cmd_serve}", "--fo
         {
             Ok(paths) => paths,
             Err(e) => {
-                tracing::error!(error = %e, "extension discovery failed; no extension storage dirs");
+                tracing::error!(error = %e, "Extension discovery failed; no storage dirs");
                 Vec::new()
             },
         };
